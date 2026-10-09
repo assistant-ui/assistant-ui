@@ -3,7 +3,7 @@ title: Stability
 description: What unstable_ means, when APIs become stable, and how to track changes.
 ---
 
-assistant-ui ships some APIs with an `unstable_` prefix. This is a deliberate signal, not a bug.
+assistant-ui ships some APIs with an `unstable_` prefix.
 
 ## What `unstable_` means
 
@@ -14,6 +14,18 @@ If you depend on an unstable API:
 - **Pin your dependency range** so an automatic minor or patch update cannot rewrite the contract under you.
 - **Isolate the call site** behind a small wrapper in your code so you can adapt to upstream changes in one place.
 - **Expect renames or removals** when the API stabilizes; the prefix gets dropped on the stable form.
+
+## In your editor
+
+Every experimental API carries a `@deprecated` tag in this form, so your editor strikes it through:
+
+```ts
+/** @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release. */
+```
+
+Hover a struck-through API to see which kind of tag it carries. An experimental API reads `Experimental since <date>`; an API on its way out names its replacement instead.
+
+typescript-eslint's `@typescript-eslint/no-deprecated` rule, which its `strict-type-checked` config enables, reports experimental APIs as well. List the ones you use in the rule's `allow` option.
 
 ## Why we ship them
 

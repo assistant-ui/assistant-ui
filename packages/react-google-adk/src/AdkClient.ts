@@ -1,7 +1,7 @@
 import { SSEEventDecoder } from "assistant-stream/utils";
+import { raceWithAbortSignal } from "@assistant-ui/core/internal";
 import { contentToParts } from "./contentToParts";
 import { parseAdkEventValue } from "./parseAdkEvent";
-import { raceWithAbortSignal } from "./raceWithAbortSignal";
 import { toAdkFunctionResponse } from "./toAdkFunctionResponse";
 import { trimTrailingSlashes } from "./trimTrailingSlashes";
 import type {
@@ -41,6 +41,12 @@ export type CreateAdkStreamOptions = {
     | Record<string, string>
     | (() => Record<string, string> | Promise<Record<string, string>>)
     | undefined;
+
+  /** Maximum UTF-16 code units accepted in one SSE line. Defaults to 16 MiB. */
+  maxStreamLineLength?: number | undefined;
+
+  /** Maximum UTF-16 code units retained across one SSE event. Defaults to 16 MiB. */
+  maxStreamEventLength?: number | undefined;
 };
 
 /**
@@ -97,7 +103,8 @@ export function createAdkStream(
     } else {
       // Proxy mode: POST in parseAdkRequest-compatible format
       url = options.api;
-      body = messagesToProxyBody(messages, config);
+      const { remoteId, externalId } = await config.initialize();
+      body = messagesToProxyBody(messages, config, externalId ?? remoteId);
     }
 
     const response = await fetch(url, {
@@ -114,7 +121,7 @@ export function createAdkStream(
     }
 
     validateEventStreamContentType(response);
-    yield* parseSSEResponse(response);
+    yield* parseSSEResponse(response, options);
   };
 }
 
@@ -209,8 +216,9 @@ function messagesToProxyBody(
     checkpointId?: string | undefined;
     stateDelta?: Record<string, unknown> | undefined;
   },
+  sessionId: string,
 ): Record<string, unknown> {
-  const body: Record<string, unknown> = {};
+  const body: Record<string, unknown> = { sessionId };
 
   if (config.runConfig != null) body.runConfig = config.runConfig;
   if (config.checkpointId != null) body.checkpointId = config.checkpointId;
@@ -255,16 +263,26 @@ function messagesToProxyBody(
   return body;
 }
 
-async function* parseSSEResponse(response: Response): AsyncGenerator<AdkEvent> {
+async function* parseSSEResponse(
+  response: Response,
+  options: Pick<
+    CreateAdkStreamOptions,
+    "maxStreamLineLength" | "maxStreamEventLength"
+  >,
+): AsyncGenerator<AdkEvent> {
   if (!response.body) {
     throw new Error("Expected ADK stream response body, received no body");
   }
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
-  const sseDecoder = new SSEEventDecoder({ trailing: "dispatch" });
 
   let shouldCancel = true;
   try {
+    const sseDecoder = new SSEEventDecoder({
+      trailing: "dispatch",
+      maxLineLength: options.maxStreamLineLength,
+      maxEventLength: options.maxStreamEventLength,
+    });
     while (true) {
       let result: ReadableStreamReadResult<Uint8Array>;
       try {

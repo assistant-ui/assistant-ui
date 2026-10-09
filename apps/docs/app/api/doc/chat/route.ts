@@ -3,8 +3,12 @@ import { getDistinctId } from "@/lib/posthog-server";
 import { injectQuoteContext } from "@assistant-ui/ai-sdk";
 import { checkPublicAssistantRateLimit } from "@/lib/rate-limit";
 import { requirePublicAssistantSession } from "@/lib/anonymous-session";
-import { validateDocChatInput } from "@/lib/validate-input";
+import {
+  validateDocChatInput,
+  validateFrontendToolsInput,
+} from "@/lib/validate-input";
 import { source, examples as examplesSource } from "@/lib/source";
+import { resolveDocsUrl } from "@/lib/docs-pages";
 import { resolveChatModel } from "@/lib/ai/provider";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { frontendTools } from "@assistant-ui/ai-sdk";
@@ -20,7 +24,7 @@ import {
   zodSchema,
 } from "ai";
 import type * as PageTree from "fumadocs-core/page-tree";
-import type { UIMessage, UIMessageChunk } from "ai";
+import type { ToolSet, UIMessage, UIMessageChunk } from "ai";
 import z from "zod";
 
 function normalizeSegment(name: string): string {
@@ -114,10 +118,13 @@ function resolveDocPage(slugs: string[]) {
   if (slugs[0] === "examples") {
     return examplesSource.getPage(slugs.slice(1));
   }
-  return source.getPage(slugs);
+  const path = slugs.join("/");
+  return resolveDocsUrl(`/${path}`) ?? resolveDocsUrl(`/docs/${path}`);
 }
 
 export const maxDuration = 300;
+
+const MAX_PAGE_CONTEXT_CHARS = 4_000;
 
 export const DOC_CHAT_PRUNE_OPTIONS = {
   toolCalls: "before-last-2-messages",
@@ -125,9 +132,13 @@ export const DOC_CHAT_PRUNE_OPTIONS = {
   emptyMessages: "remove",
 } as const;
 
-export async function prepareDocChatMessages(messages: readonly UIMessage[]) {
+export async function prepareDocChatMessages(
+  messages: readonly UIMessage[],
+  tools: ToolSet,
+) {
   const modelMessages = await convertToModelMessages(
     injectQuoteContext([...messages]),
+    { tools },
   );
 
   return pruneMessages({
@@ -304,9 +315,22 @@ export async function POST(req: Request): Promise<Response> {
     if (rateLimitResponse) return rateLimitResponse;
 
     const body = await req.json();
-    const { messages, tools, system: pageContext, config } = body;
+    const { messages, tools, system: rawPageContext, config } = body;
 
-    const prunedMessages = await prepareDocChatMessages(messages);
+    if (
+      typeof rawPageContext === "string" &&
+      rawPageContext.length > MAX_PAGE_CONTEXT_CHARS
+    ) {
+      return new Response("Page context too long", { status: 400 });
+    }
+    const pageContext =
+      typeof rawPageContext === "string" ? rawPageContext : undefined;
+
+    const toolsError = validateFrontendToolsInput(tools);
+    if (toolsError) return toolsError;
+
+    const clientTools = frontendTools(tools ?? {});
+    const prunedMessages = await prepareDocChatMessages(messages, clientTools);
 
     const inputError = validateDocChatInput(prunedMessages);
     if (inputError) return inputError;
@@ -319,6 +343,7 @@ export async function POST(req: Request): Promise<Response> {
     const repoTools = createRepoTools();
 
     const result = streamText({
+      abortSignal: req.signal,
       model,
       ...(providerOptions ? { providerOptions } : {}),
       system: [SYSTEM_PROMPT, pageContext].filter(Boolean).join("\n\n"),
@@ -331,7 +356,7 @@ export async function POST(req: Request): Promise<Response> {
         source: "docs_assistant",
       }),
       tools: {
-        ...frontendTools(tools),
+        ...clientTools,
         ...repoTools,
         listDocs: tool({
           description:

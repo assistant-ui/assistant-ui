@@ -1,0 +1,95 @@
+---
+title: Usage with Generative UI
+description: Render model-generated HTML from a React component, and exchange messages with it.
+---
+
+When a model writes HTML, render it in a Safe Content Frame instead of injecting it into your page. The frame runs on its own domain, so the generated scripts run with a real origin but cannot reach your app.
+
+## Render in an effect
+
+`renderHtml` appends an iframe to the container you pass and resolves with a `RenderedFrame`. Render in an effect and call `dispose()` in its cleanup, which removes the iframe. Pass an `AbortSignal` so a render that is still loading is cancelled when the HTML changes or the component unmounts.
+
+```tsx
+import { useEffect, useRef } from "react";
+import { SafeContentFrame } from "safe-content-frame";
+
+const frame = new SafeContentFrame("my-app");
+
+export function GeneratedHtml({ html }: { html: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const controller = new AbortController();
+    let rendered: Awaited<ReturnType<typeof frame.renderHtml>> | undefined;
+
+    frame
+      .renderHtml(html, container, { signal: controller.signal })
+      .then((result) => {
+        if (controller.signal.aborted) {
+          result.dispose();
+          return;
+        }
+        rendered = result;
+      })
+      .catch(() => {
+        // aborted or failed to load
+      });
+
+    return () => {
+      controller.abort();
+      rendered?.dispose();
+    };
+  }, [html]);
+
+  return <div ref={containerRef} className="h-96" />;
+}
+```
+
+The iframe fills its container (`width: 100%; height: 100%`), so give the container a size.
+
+## Wait for the content
+
+`renderHtml` resolves once the iframe has loaded and the content has been posted to it. To wait until the frame reports the content rendered, call `fullyLoadedPromiseWithTimeout`:
+
+```ts
+import { isShimLoadError } from "safe-content-frame";
+
+try {
+  await rendered.fullyLoadedPromiseWithTimeout(5000);
+} catch (error) {
+  if (isShimLoadError(error) && error.code === "render-timeout") {
+    // the frame started but the content has not rendered yet
+  }
+}
+```
+
+The [API reference](/safe-content-frame/docs/api-reference#errors) lists the error codes.
+
+## Send data to the frame
+
+`sendMessage` posts to the frame's window, targeted at the frame's origin. Use it for theme changes or data the generated UI should read:
+
+```ts
+rendered.sendMessage({ type: "theme", value: "dark" });
+```
+
+## Receive messages from the frame
+
+Messages from the frame arrive on your `window`. Accept one only when it comes from this frame's window and this frame's origin:
+
+```ts
+const onMessage = (event: MessageEvent) => {
+  if (event.source !== rendered.iframe.contentWindow) return;
+  if (event.origin !== rendered.origin) return;
+
+  handleFrameMessage(event.data);
+};
+
+window.addEventListener("message", onMessage);
+// remove it in the same cleanup that calls rendered.dispose()
+```
+
+Treat `event.data` as untrusted input: the generated HTML decides what it sends.

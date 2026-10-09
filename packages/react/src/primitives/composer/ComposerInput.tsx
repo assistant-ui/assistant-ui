@@ -22,10 +22,12 @@ import { useEscapeKeydown } from "radix-ui/internal";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useMediaQuery } from "../../utils/hooks/useMediaQuery";
 import { renderSlot } from "../../utils/Primitive";
+import { isCompositionKey } from "../../utils/isCompositionKey";
 import { useAui } from "@assistant-ui/store";
 import { flushTapSync } from "@assistant-ui/tap";
 import { useComposerInputPluginRegistryOptional } from "./ComposerInputPluginContext";
 import { useComposerCompactContextOptional } from "./ComposerCompactContext";
+import { useComposerCancelWithFocus } from "./useComposerCancelWithFocus";
 import {
   useComposerInputDisabled,
   useComposerInputValue,
@@ -49,21 +51,32 @@ export namespace ComposerPrimitiveInput {
     render?: ReactElement | undefined;
     /**
      * Whether to cancel message composition when Escape is pressed.
+     * After cancelling an edit, focus returns to the main thread composer when
+     * available, unless a handler has moved focus elsewhere.
      * @default true
      */
     cancelOnEscape?: boolean | undefined;
     /**
      * Whether to automatically focus the input when a new run starts.
+     *
+     * @deprecated Experimental since 2024-10-12. Not scheduled for removal; the API may change in any release.
+     *
      * @default true
      */
     unstable_focusOnRunStart?: boolean | undefined;
     /**
      * Whether to automatically focus the input when scrolling to bottom.
+     *
+     * @deprecated Experimental since 2024-10-12. Not scheduled for removal; the API may change in any release.
+     *
      * @default true
      */
     unstable_focusOnScrollToBottom?: boolean | undefined;
     /**
      * Whether to automatically focus the input when switching threads.
+     *
+     * @deprecated Experimental since 2024-10-12. Not scheduled for removal; the API may change in any release.
+     *
      * @default true
      */
     unstable_focusOnThreadSwitched?: boolean | undefined;
@@ -72,6 +85,9 @@ export namespace ComposerPrimitiveInput {
      * instead of submitting, detected via
      * `(pointer: coarse) and (not (any-pointer: fine))`. Only takes effect
      * when `submitMode` resolves to `"enter"`.
+     *
+     * @deprecated Experimental since 2026-05-24. Not scheduled for removal; the API may change in any release.
+     *
      * @default false
      */
     unstable_insertNewlineOnTouchEnter?: boolean | undefined;
@@ -118,7 +134,7 @@ export namespace ComposerPrimitiveInput {
  * keyboard shortcuts, file paste support, and intelligent focus management.
  * It integrates with the composer context to manage message state and submission.
  *
- * When rendered inside `Unstable_TriggerPopoverRoot` and a popover is open, the
+ * When rendered inside `TriggerPopoverRoot` and a popover is open, the
  * underlying `<textarea>` automatically receives `aria-controls`,
  * `aria-expanded`, `aria-haspopup`, and `aria-activedescendant` for the
  * combobox relationship. These computed attributes override user-provided
@@ -191,6 +207,9 @@ export const ComposerPrimitiveInput = forwardRef<
     const value = useComposerInputValue();
     const isDisabled = useComposerInputDisabled(disabledProp);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const cancel = useComposerCancelWithFocus(
+      useCallback(() => aui.composer.cancel(), [aui]),
+    );
     const ref = useComposedRefs(forwardedRef, textareaRef);
     // suppress text/cursor broadcasts during IME composition
     const compositionRef = useRef(false);
@@ -200,7 +219,7 @@ export const ComposerPrimitiveInput = forwardRef<
       if (!textareaRef.current?.contains(e.target as Node)) return;
 
       // ignore IME composition events
-      if (e.isComposing) return;
+      if (isCompositionKey(e)) return;
 
       // Let registered plugins (mention, slash command, etc.) handle Escape first
       if (pluginRegistry) {
@@ -213,7 +232,7 @@ export const ComposerPrimitiveInput = forwardRef<
 
       const composer = aui.composer;
       if (composer.getState().canCancel) {
-        composer.cancel();
+        cancel(textareaRef.current);
         e.preventDefault();
       }
     });
@@ -222,7 +241,7 @@ export const ComposerPrimitiveInput = forwardRef<
       if (isDisabled) return;
 
       // ignore IME composition events
-      if (e.nativeEvent.isComposing) return;
+      if (isCompositionKey(e.nativeEvent)) return;
 
       // Let registered plugins (mention, slash command, etc.) handle keyboard events first
       if (pluginRegistry) {

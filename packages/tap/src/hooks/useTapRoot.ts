@@ -2,10 +2,10 @@ import {
   commitResourceFiber,
   createResourceFiber,
   renderResourceFiber,
-  unmountResourceFiber,
 } from "../core/ResourceFiber";
 import { scheduleNotify, UpdateScheduler } from "../core/scheduler";
 import { isDevelopment } from "../core/helpers/env";
+import { peekResourceFiber } from "../core/helpers/execution-context";
 import {
   commitRoot,
   createResourceFiberRoot,
@@ -17,6 +17,7 @@ import { throwAggregated } from "../core/helpers/throwAggregated";
 import type { ResourceContext, ResourceFiber } from "../core/types";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDevStrictMode } from "./utils/useDevStrictMode";
+import { useHostLifecycle } from "./utils/useResourceFiberHostUtils";
 
 export namespace useTapRoot {
   export type Unsubscribe = () => void;
@@ -174,6 +175,7 @@ const createInstance = <R>(
 };
 
 export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
+  const isReactHost = peekResourceFiber() === null;
   const [, forceHostRender] = useState(0);
   const getDevStrictMode = useDevStrictMode();
 
@@ -216,11 +218,15 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
     inst.isMounted = true;
     return () => {
       inst.isMounted = false;
-      unmountResourceFiber(inst.fiber);
     };
   }, [inst]);
 
+  useHostLifecycle(inst.fiber);
+
   useEffect(() => {
+    if (isDevelopment && isReactHost) {
+      inst.fiber.devStrictMode ??= getDevStrictMode();
+    }
     if (renderState.processed) {
       if (!inst.fiber.isMounted) {
         commitResourceFiber(inst.fiber);

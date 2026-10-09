@@ -1,0 +1,454 @@
+import { describe, it, expect, vi } from "vitest";
+import {
+  Children,
+  isValidElement,
+  type ReactElement,
+  type ReactNode,
+} from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { interactiveVocabulary } from "./interactive";
+import { createActionRegistry } from "../actionRegistry";
+
+/** The props shape `Button.render` receives when the renderer injects `$action`
+ * and `$dispatch`. Used to call `render` directly so the test can invoke
+ * `onClick` without a DOM. */
+type ButtonRenderProps = {
+  label: string;
+  $status: "done";
+  $action?: { type: string; [k: string]: unknown };
+  $dispatch?: (a: unknown) => unknown;
+};
+
+/**
+ * Calls a `render` that itself uses hooks (e.g. `RadioGroup`'s `useId`) from inside an active React render pass, then hands back the resulting element with its handlers intact so the test can invoke them directly.
+ */
+function renderWithHooks(render: () => ReactNode): ReactElement {
+  let captured: ReactElement | undefined;
+  function Capture() {
+    captured = render() as ReactElement;
+    return captured;
+  }
+  renderToStaticMarkup(<Capture />);
+  return captured!;
+}
+
+const getRadioOptions = (out: ReactElement) =>
+  Children.toArray((out.props as { children: ReactNode }).children)
+    .filter(isValidElement)
+    .filter(
+      (child) =>
+        (child.props as { "data-aui"?: string })["data-aui"] ===
+        "radiogroup-option",
+    ) as ReactElement[];
+
+describe("interactiveVocabulary $action dispatch", () => {
+  it("Button render attaches an onClick that fires $dispatch with the $action payload", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ purchase: handler });
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.Button.render({
+        label: "Buy",
+        $status: "done",
+        $action: { type: "purchase", itemId: "sku-1" },
+        $dispatch: registry.dispatch,
+      } as ButtonRenderProps),
+    );
+    expect(isValidElement(out)).toBe(true);
+    const onClick = (out as { props: { onClick: (e: object) => void } }).props
+      .onClick;
+    expect(typeof onClick).toBe("function");
+    onClick({ currentTarget: {} });
+    expect(handler).toHaveBeenCalledWith({
+      payload: { type: "purchase", itemId: "sku-1" },
+    });
+  });
+
+  it("Button onClick is a no-op when no $dispatch is wired (read-only render)", () => {
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.Button.render({
+        label: "Buy",
+        $status: "done",
+        $action: { type: "purchase", itemId: "sku-1" },
+      } as ButtonRenderProps),
+    );
+    const onClick = (out as { props: { onClick: (e: object) => void } }).props
+      .onClick;
+    expect(typeof onClick).toBe("function");
+    expect(() => onClick({ currentTarget: {} })).not.toThrow();
+  });
+
+  it("Button onClick is a no-op when $action is absent", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ purchase: handler });
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.Button.render({
+        label: "Go",
+        $status: "done",
+        $dispatch: registry.dispatch,
+      } as ButtonRenderProps),
+    );
+    (out as { props: { onClick: (e: object) => void } }).props.onClick({
+      currentTarget: {},
+    });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("Select onChange merges the selected value into $input and preserves a model-supplied $action.value", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ pick: handler });
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.Select.render({
+        options: [{ label: "A", value: "a" }],
+        $status: "done",
+        $action: { type: "pick", value: "model-supplied" },
+        $dispatch: registry.dispatch,
+      }),
+    ) as ReactNode;
+    const onChange = (
+      out as {
+        props: { onChange: (e: { currentTarget: { value: string } }) => void };
+      }
+    ).props.onChange;
+    onChange({ currentTarget: { value: "user-picked" } });
+    expect(handler).toHaveBeenCalledWith({
+      payload: {
+        type: "pick",
+        value: "model-supplied",
+        $input: "user-picked",
+      },
+    });
+  });
+
+  it("Input onKeyDown (Enter) merges the entered value into $input", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ submit: handler });
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.Input.render({
+        $status: "done",
+        $action: { type: "submit" },
+        $dispatch: registry.dispatch,
+      }),
+    ) as ReactNode;
+    const onKeyDown = (
+      out as {
+        props: {
+          onKeyDown: (e: {
+            key: string;
+            nativeEvent: { isComposing: boolean };
+            currentTarget: { value: string };
+          }) => void;
+        };
+      }
+    ).props.onKeyDown;
+    onKeyDown({
+      key: "Enter",
+      nativeEvent: { isComposing: false },
+      currentTarget: { value: "typed text" },
+    });
+    expect(handler).toHaveBeenCalledWith({
+      payload: { type: "submit", $input: "typed text" },
+    });
+  });
+
+  it.each(["text", "password", "number"] as const)(
+    "Input renders its %s inputType",
+    (inputType) => {
+      expect(
+        interactiveVocabulary.Input.properties.parse({ inputType }),
+      ).toEqual({ inputType });
+      const out = renderWithHooks(() =>
+        interactiveVocabulary.Input.render({
+          inputType,
+          defaultValue: "12.5",
+          $status: "done",
+        }),
+      );
+
+      expect(out.type).toBe("input");
+      expect(out.props).toMatchObject({
+        type: inputType,
+        defaultValue: "12.5",
+        step: inputType === "number" ? "any" : undefined,
+      });
+    },
+  );
+
+  it.each(["12.5", ""])(
+    "Input with inputType number submits %j as a string",
+    (value) => {
+      const handler = vi.fn();
+      const registry = createActionRegistry({ submit: handler });
+      const out = renderWithHooks(() =>
+        interactiveVocabulary.Input.render({
+          inputType: "number",
+          $status: "done",
+          $action: { type: "submit" },
+          $dispatch: registry.dispatch,
+        }),
+      ) as ReactElement<{
+        type: string;
+        step: string;
+        onKeyDown: (event: {
+          key: string;
+          nativeEvent: { isComposing: boolean };
+          currentTarget: { value: string };
+        }) => void;
+      }>;
+
+      expect(out.props.type).toBe("number");
+      expect(out.props.step).toBe("any");
+      out.props.onKeyDown({
+        key: "Enter",
+        nativeEvent: { isComposing: false },
+        currentTarget: { value },
+      });
+      expect(handler).toHaveBeenCalledWith({
+        payload: { type: "submit", $input: value },
+      });
+    },
+  );
+
+  it("Input onKeyDown (Enter) defers to an ancestor form instead of firing its own $action", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ submit: handler });
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.Input.render({
+        name: "email",
+        $status: "done",
+        $action: { type: "submit" },
+        $dispatch: registry.dispatch,
+      }),
+    ) as ReactNode;
+    const onKeyDown = (
+      out as {
+        props: {
+          onKeyDown: (e: {
+            key: string;
+            nativeEvent: { isComposing: boolean };
+            currentTarget: { value: string; form: unknown };
+          }) => void;
+        };
+      }
+    ).props.onKeyDown;
+    onKeyDown({
+      key: "Enter",
+      nativeEvent: { isComposing: false },
+      currentTarget: { value: "typed text", form: {} },
+    });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  type TextareaKeyDownEvent = {
+    key: string;
+    ctrlKey: boolean;
+    metaKey: boolean;
+    nativeEvent: { isComposing: boolean };
+    currentTarget: {
+      value: string;
+      form: { requestSubmit: () => void } | null;
+    };
+    preventDefault: () => void;
+  };
+
+  it("Input multiline (textarea) Ctrl+Enter inside a form calls HTMLFormElement.prototype.requestSubmit instead of firing its own $action", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ submit: handler });
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.Input.render({
+        multiline: true,
+        name: "notes",
+        $status: "done",
+        $action: { type: "submit" },
+        $dispatch: registry.dispatch,
+      }),
+    ) as ReactNode;
+    const onKeyDown = (
+      out as { props: { onKeyDown: (e: TextareaKeyDownEvent) => void } }
+    ).props.onKeyDown;
+
+    // This environment has no DOM, so `HTMLFormElement` is not a global; install a minimal stand-in so the fix's `HTMLFormElement.prototype.requestSubmit.call(...)` has a real, spyable target instead of throwing a ReferenceError.
+    class FakeHTMLFormElement {
+      requestSubmit(): void {}
+    }
+    const originalHTMLFormElement = globalThis.HTMLFormElement;
+    globalThis.HTMLFormElement =
+      FakeHTMLFormElement as unknown as typeof HTMLFormElement;
+    const requestSubmitSpy = vi.spyOn(
+      FakeHTMLFormElement.prototype,
+      "requestSubmit",
+    );
+    try {
+      const form = new FakeHTMLFormElement();
+      const preventDefault = vi.fn();
+      onKeyDown({
+        key: "Enter",
+        ctrlKey: true,
+        metaKey: false,
+        nativeEvent: { isComposing: false },
+        currentTarget: { value: "typed text", form },
+        preventDefault,
+      });
+      expect(preventDefault).toHaveBeenCalledTimes(1);
+      expect(requestSubmitSpy).toHaveBeenCalledTimes(1);
+      expect(requestSubmitSpy.mock.contexts[0]).toBe(form);
+      expect(handler).not.toHaveBeenCalled();
+    } finally {
+      requestSubmitSpy.mockRestore();
+      globalThis.HTMLFormElement = originalHTMLFormElement;
+    }
+  });
+
+  it("Input multiline (textarea) Ctrl+Enter without a form still fires its own $action", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ submit: handler });
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.Input.render({
+        multiline: true,
+        $status: "done",
+        $action: { type: "submit" },
+        $dispatch: registry.dispatch,
+      }),
+    ) as ReactNode;
+    const onKeyDown = (
+      out as { props: { onKeyDown: (e: TextareaKeyDownEvent) => void } }
+    ).props.onKeyDown;
+    const preventDefault = vi.fn();
+    onKeyDown({
+      key: "Enter",
+      ctrlKey: true,
+      metaKey: false,
+      nativeEvent: { isComposing: false },
+      currentTarget: { value: "typed text", form: null },
+      preventDefault,
+    });
+    expect(preventDefault).not.toHaveBeenCalled();
+    expect(handler).toHaveBeenCalledWith({
+      payload: { type: "submit", $input: "typed text" },
+    });
+  });
+
+  it("Button with submit set renders no onClick handler, so it never fires $action on click", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ purchase: handler });
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.Button.render({
+        label: "Buy",
+        submit: true,
+        $status: "done",
+        $action: { type: "purchase" },
+        $dispatch: registry.dispatch,
+      } as ButtonRenderProps & { submit: boolean }),
+    );
+    expect(
+      (out as { props: { onClick?: unknown } }).props.onClick,
+    ).toBeUndefined();
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("Button without submit keeps firing $action on click", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ purchase: handler });
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.Button.render({
+        label: "Buy",
+        $status: "done",
+        $action: { type: "purchase" },
+        $dispatch: registry.dispatch,
+      } as ButtonRenderProps),
+    );
+    const onClick = (out as { props: { onClick: (e: object) => void } }).props
+      .onClick;
+    onClick({ currentTarget: {} });
+    expect(handler).toHaveBeenCalledWith({ payload: { type: "purchase" } });
+  });
+
+  it("Checkbox onChange fires $dispatch with the checked boolean as $input", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ toggle: handler });
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.Checkbox.render({
+        label: "Accept",
+        $status: "done",
+        $action: { type: "toggle" },
+        $dispatch: registry.dispatch,
+      }),
+    );
+    const input = (out.props as { children: ReactElement[] }).children[0];
+    const onChange = (
+      input as {
+        props: {
+          onChange: (e: { currentTarget: { checked: boolean } }) => void;
+        };
+      }
+    ).props.onChange;
+    onChange({ currentTarget: { checked: true } });
+    expect(handler).toHaveBeenCalledWith({
+      payload: { type: "toggle", $input: true },
+    });
+  });
+
+  it("Checkbox onChange is a no-op when no $dispatch is wired", () => {
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.Checkbox.render({
+        label: "Accept",
+        $status: "done",
+        $action: { type: "toggle" },
+      }),
+    );
+    const input = (out.props as { children: ReactElement[] }).children[0];
+    const onChange = (
+      input as {
+        props: {
+          onChange: (e: { currentTarget: { checked: boolean } }) => void;
+        };
+      }
+    ).props.onChange;
+    expect(() => onChange({ currentTarget: { checked: true } })).not.toThrow();
+  });
+
+  it("RadioGroup onChange fires $dispatch with the option's value as $input", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ pick: handler });
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.RadioGroup.render({
+        $status: "done",
+        $action: { type: "pick" },
+        $dispatch: registry.dispatch,
+        options: [
+          { label: "Small", value: "sm" },
+          { label: "Large", value: "lg" },
+        ],
+      }),
+    );
+    const options = getRadioOptions(out);
+    const secondRadio = (options[1]!.props as { children: ReactElement[] })
+      .children[0] as ReactElement;
+    const onChange = (secondRadio.props as { onChange: (e: object) => void })
+      .onChange;
+    onChange({ currentTarget: {} });
+    expect(handler).toHaveBeenCalledWith({
+      payload: { type: "pick", $input: "lg" },
+    });
+  });
+
+  it("RadioGroup falls back to useId() for the shared radio name when name is omitted", () => {
+    const out = renderWithHooks(() =>
+      interactiveVocabulary.RadioGroup.render({
+        $status: "done",
+        options: [
+          { label: "Small", value: "sm" },
+          { label: "Large", value: "lg" },
+        ],
+      }),
+    );
+    const options = getRadioOptions(out);
+    const firstRadio = (options[0]!.props as { children: ReactElement[] })
+      .children[0] as ReactElement;
+    const secondRadio = (options[1]!.props as { children: ReactElement[] })
+      .children[0] as ReactElement;
+    const firstName = (firstRadio.props as { name: string }).name;
+    const secondName = (secondRadio.props as { name: string }).name;
+    expect(firstName).toBeTruthy();
+    expect(firstName).toBe(secondName);
+  });
+});

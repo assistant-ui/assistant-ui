@@ -1,6 +1,6 @@
 {
   "name": "assistant-ui",
-  "version": "0.0.118",
+  "version": "0.0.121",
   "description": "CLI for assistant-ui",
   "keywords": [
     "cli",
@@ -21,20 +21,22 @@
     "bin",
     "dist",
     "src",
-    "README.md"
+    "README.md",
+    "templates/cloud-harness"
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "aui-build",
-    "test": "vitest run",
+    "build": "aui-build && node scripts/copy-cloud-harness-template.mjs",
+    "test": "vitest run && node --test scripts/copy-cloud-harness-template.test.mjs",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary && node --test scripts/copy-cloud-harness-template.test.mjs",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
-    "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@assistant-ui/agent-launcher": "workspace:^",
     "@clack/prompts": "^1.8.1",
-    "chalk": "^6.0.0",
+    "aui-auth": "^0.0.11",
+    "chalk": "^6.0.1",
     "cli-progress": "^3.12.0",
     "commander": "^15.0.0",
     "cross-spawn": "^7.0.6",
@@ -44,7 +46,9 @@
     "glob": "^13.0.6",
     "jscodeshift": "^17.4.0",
     "jsonc-parser": "^3.3.1",
-    "semver": "^7.8.5"
+    "react": "^19.3.0",
+    "semver": "^7.8.5",
+    "statewire": "^0.19.4"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
@@ -52,10 +56,10 @@
     "@types/cross-spawn": "^6.0.6",
     "@types/debug": "^4.1.13",
     "@types/jscodeshift": "^17.3.0",
-    "@types/node": "^26.5.1",
+    "@types/node": "^26.6.4",
     "@types/semver": "^7.8.0",
-    "@vitest/coverage-v8": "^5.0.1",
-    "vitest": "^5.0.1"
+    "@vitest/coverage-v8": "^5.0.3",
+    "vitest": "^5.0.3"
   },
   "publishConfig": {
     "access": "public",

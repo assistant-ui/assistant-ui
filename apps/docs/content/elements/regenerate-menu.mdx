@@ -9,7 +9,7 @@ RegenerateMenu turns the regenerate action into a small picker: open it, see the
 
 <RuntimeMode>
 
-`aui.message.reload(config)` starts a new run for the current turn, and `config.runConfig.custom` reaches your model adapter untouched. assistant-ui itself has no built-in "model" field on a run; on a `useLocalRuntime` plus `ChatModelAdapter` runtime, this is exactly what `ChatModelAdapter.run(options)` receives as `options.runConfig`, so a custom adapter reads the pick back out for that one run only, without changing what later turns use.
+`aui.message.reload(config)` starts a new run for the current turn, and `config.runConfig.custom` reaches your model adapter untouched. assistant-ui has no built-in model field on a run. With `useLocalRuntime` and a `ChatModelAdapter`, `run(options)` receives the config as `options.runConfig`, so the adapter can read the pick for that run without changing what later turns use.
 
 <Steps>
   <Step>
@@ -142,7 +142,7 @@ No outside-click, Escape, or keyboard roving is built in; every row is a plain b
 
 <RuntimeMode>
 
-`reload()` with no config just retries the current turn as-is; the override in `runConfig.custom` is only needed when you actually want a different model:
+`reload()` with no config retries the current turn as-is; the override in `runConfig.custom` is needed only when you want a different model:
 
 ```tsx
 <button onClick={() => aui.message.reload()}>Try again</button>

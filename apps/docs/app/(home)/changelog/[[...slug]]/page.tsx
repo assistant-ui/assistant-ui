@@ -1,3 +1,4 @@
+import { cacheLife } from "next/cache";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -13,8 +14,6 @@ import { ChangelogList } from "../changelog-list";
 const title = "Changelog";
 const description = "Release notes for all assistant-ui packages.";
 const PER_PAGE = 8;
-
-export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title,
@@ -71,13 +70,19 @@ export async function generateStaticParams(): Promise<Params[]> {
   }));
 }
 
+async function getReleases() {
+  "use cache";
+  cacheLife("hours");
+  return fetchReleases();
+}
+
 export default async function ChangelogPage({
   params,
 }: {
   params: Promise<Params>;
 }) {
   const { pkg, page } = parseSlug((await params).slug);
-  const allGroups = await fetchReleases();
+  const allGroups = await getReleases();
 
   const allPackages = Array.from(
     new Set(allGroups.flatMap((g) => g.releases.map((r) => r.pkg))),
@@ -121,7 +126,7 @@ export default async function ChangelogPage({
       </div>
 
       {totalPages > 1 ? (
-        <nav className="mt-10 flex items-baseline justify-between font-mono text-[12px] tracking-wide">
+        <nav className="mt-10 flex items-baseline justify-between text-xs">
           {current > 1 ? (
             <Link
               href={changelogHref(pkg, current - 1)}

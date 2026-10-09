@@ -3,13 +3,12 @@
 import { useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type * as PageTree from "fumadocs-core/page-tree";
-import { Menu as MenuPrimitive } from "@base-ui/react/menu";
 import {
-  Check,
   ChevronDown,
   Cloud,
   Droplet,
   Monitor,
+  PanelsTopLeft,
   Smartphone,
   Terminal,
 } from "lucide-react";
@@ -23,26 +22,31 @@ import {
 import {
   getPlatformSwitchHref,
   isPlatform,
-  isSurface,
   PLATFORM_ENTRY_PATHS,
   PLATFORM_LABELS,
   PLATFORMS,
-  SURFACES,
   type Platform,
   usePlatform,
 } from "./context";
 import { cn } from "@/lib/utils";
+import { headerSwitcherClassName } from "@/components/shared/header-chrome";
+import {
+  OtherOssProjectsItem,
+  ProjectMenuRadioItem,
+} from "@/components/shared/project-menu";
 import { getVisibleUrlsByPlatform } from "./tree";
 
 const PLATFORM_ICONS: Record<Platform, typeof Monitor> = {
   react: Monitor,
   rn: Smartphone,
   ink: Terminal,
+  vue: PanelsTopLeft,
   tap: Droplet,
   cloud: Cloud,
 };
 
-const LIBRARIES = PLATFORMS.filter((p) => !isSurface(p));
+// Tap keeps its docs but is not offered as a platform to switch to.
+const MENU_PLATFORMS = PLATFORMS.filter((p) => p !== "tap");
 
 function getVisiblePlatformSwitchHref(
   visibleUrls: ReadonlySet<string>,
@@ -79,10 +83,7 @@ export function PlatformSwitcher({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className={cn(
-          "group/platform bg-muted/70 text-foreground hover:bg-muted data-[popup-open]:bg-muted focus-visible:ring-foreground/20 flex h-7 cursor-pointer items-center gap-1 rounded-md px-2 text-sm font-medium transition-colors outline-none focus-visible:ring-1",
-          className,
-        )}
+        className={cn("group/platform", headerSwitcherClassName, className)}
       >
         <span
           data-docs-platform={platform}
@@ -95,7 +96,7 @@ export function PlatformSwitcher({
       <DropdownMenuContent
         align="start"
         sideOffset={6}
-        className="min-w-44 rounded-lg p-1"
+        className="min-w-52 rounded-lg p-1"
       >
         <DropdownMenuRadioGroup
           className="flex flex-col gap-0.5"
@@ -111,10 +112,10 @@ export function PlatformSwitcher({
             setPlatform(next);
           }}
         >
-          {SURFACES.map(renderItem)}
-          {LIBRARIES.length > 0 && <DropdownMenuSeparator />}
-          {LIBRARIES.map(renderItem)}
+          {MENU_PLATFORMS.map(renderItem)}
         </DropdownMenuRadioGroup>
+        <DropdownMenuSeparator />
+        <OtherOssProjectsItem />
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -122,26 +123,13 @@ export function PlatformSwitcher({
   function renderItem(p: Platform) {
     const Icon = PLATFORM_ICONS[p];
     return (
-      <MenuPrimitive.RadioItem
+      <ProjectMenuRadioItem
         key={p}
         value={p}
-        closeOnClick
-        className={cn(
-          "flex h-8 cursor-default items-center gap-2 rounded-sm px-2 text-[13px] tracking-tight transition-colors outline-none select-none",
-          "data-[highlighted]:bg-foreground/5 data-[checked]:bg-foreground/6 data-[checked]:font-medium",
-        )}
+        icon={<Icon className="text-muted-foreground size-4 shrink-0" />}
       >
-        <Icon className="text-muted-foreground size-4 shrink-0" />
-        <span className="min-w-0 flex-1 truncate text-left">
-          {PLATFORM_LABELS[p]}
-        </span>
-        <MenuPrimitive.RadioItemIndicator
-          keepMounted
-          className="flex shrink-0 data-[unchecked]:invisible"
-        >
-          <Check className="text-foreground size-3.5" />
-        </MenuPrimitive.RadioItemIndicator>
-      </MenuPrimitive.RadioItem>
+        {PLATFORM_LABELS[p]}
+      </ProjectMenuRadioItem>
     );
   }
 }

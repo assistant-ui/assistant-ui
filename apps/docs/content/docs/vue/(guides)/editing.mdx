@@ -1,0 +1,97 @@
+---
+title: Editing
+description: Let users edit a sent message and regenerate a response.
+---
+
+Each message row has its own edit composer. `ActionBarPrimitiveEdit` opens it with the message text. Saving sends the changed message from the same point in the conversation, and `ActionBarPrimitiveReload` generates another response to an assistant message.
+
+## Show the message or its editor
+
+This message component is adapted from the registry `message.vue`, with styling and the copy, attachment, reasoning, and error displays trimmed. Render it as a row inside `ThreadPrimitiveMessages` so `s.message` and `s.composer` refer to that row.
+
+```vue title="app/components/EditableMessage.vue"
+<script setup lang="ts">
+import {
+  ActionBarPrimitiveEdit,
+  ActionBarPrimitiveReload,
+  ComposerPrimitiveCancel,
+  ComposerPrimitiveInput,
+  ComposerPrimitiveSend,
+  MessagePrimitiveParts,
+  useAuiState,
+} from "@assistant-ui/vue";
+
+const role = useAuiState((s) => s.message.role);
+const editing = useAuiState((s) => s.composer.isEditing);
+</script>
+
+<template>
+  <li class="flex flex-col gap-2">
+    <div v-if="editing" class="flex flex-col gap-2 rounded-xl border p-2">
+      <ComposerPrimitiveInput aria-label="Edit message" rows="2" />
+      <div class="flex gap-2">
+        <ComposerPrimitiveCancel>Discard</ComposerPrimitiveCancel>
+        <ComposerPrimitiveSend>Save</ComposerPrimitiveSend>
+      </div>
+    </div>
+    <div v-else>
+      <MessagePrimitiveParts />
+    </div>
+    <div class="flex gap-2">
+      <ActionBarPrimitiveEdit v-if="role === 'user'">Edit</ActionBarPrimitiveEdit>
+      <ActionBarPrimitiveReload v-if="role === 'assistant'">
+        Regenerate
+      </ActionBarPrimitiveReload>
+    </div>
+  </li>
+</template>
+```
+
+`ComposerPrimitiveCancel` discards the draft. The message remains visible when the edit composer closes.
+
+## What saving an edit does
+
+The edit composer copies the message text when editing begins. On send, it appends a message with the original message's parent ID and the original ID as `sourceId`. That makes the edit a sibling branch. The runtime selects the new path and runs a response from it. The original message and its path remain in the branch history; the [branch picker](/docs/vue/branching) can return to them.
+
+## Regenerate a response
+
+`ActionBarPrimitiveReload` calls `aui.message.reload()`. Reload starts a run from the assistant message's parent, with that message as the source, creating another assistant branch. The button is disabled while the thread is running or disabled, during a voice session, for a non-assistant message, or when `s.thread.capabilities.reload` is false.
+
+## When editing is unavailable
+
+`ActionBarPrimitiveEdit` is disabled while its composer is editing, while the row is a pending submission, during a voice session, or when `s.thread.capabilities.edit` is false. Render it on a message row with edit support; the example shows it for user messages.
+
+## Edit from code
+
+Inside a message row, `aui.composer` points to that message's edit composer. This example opens it, replaces the draft, and sends it without rendering an input:
+
+```vue title="app/components/ReplaceMessage.vue"
+<script setup lang="ts">
+import { useAui, useAuiState } from "@assistant-ui/vue";
+
+const aui = useAui();
+const canEdit = useAuiState(
+  (s) =>
+    s.message.role === "user" &&
+    !s.composer.isEditing &&
+    s.message.submission === undefined &&
+    s.thread.voice === undefined &&
+    s.thread.capabilities.edit &&
+    (!s.thread.isRunning || s.thread.capabilities.queue),
+);
+
+const replace = () => {
+  aui.composer.beginEdit();
+  aui.composer.setText("Updated message");
+  aui.composer.send();
+};
+</script>
+
+<template>
+  <button type="button" :disabled="!canEdit" @click="replace">
+    Replace message
+  </button>
+</template>
+```
+
+Use the [composer primitives](/docs/vue/primitives/composer) when the user needs to revise the draft before sending it.

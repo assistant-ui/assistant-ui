@@ -9,13 +9,15 @@ import {
   NotebookTextIcon,
   PanelLeftIcon,
 } from "lucide-react";
+import { useRef, useState, type ReactNode } from "react";
+import { toast } from "sonner";
+import { ThreadRenameInput } from "./thread-rename-input";
+import { useDemoThreadListGroups } from "./thread-list-groups";
 import {
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-  type RefObject,
-} from "react";
+  threadCommands,
+  getThreadShortcut,
+  type ThreadCommand,
+} from "./thread-shortcuts";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { CommandInstructions } from "./commands";
@@ -45,11 +47,107 @@ export function DemoShell({
 }): ReactNode {
   const rootRef = useRef<HTMLDivElement>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  useThreadShortcuts(rootRef);
+  const aui = useAui();
+  const { orderedThreadIds } = useDemoThreadListGroups();
+  const [renaming, setRenaming] = useState<{
+    id: string;
+    title: string;
+  } | null>(null);
+  const pendingMobileAction = useRef<typeof renaming | "composer">(null);
+  const onMobileSidebarOpenChange = (open: boolean) => {
+    if (open) pendingMobileAction.current = null;
+    setMobileSidebarOpen(open);
+  };
+  const focusComposer = () =>
+    rootRef.current
+      ?.querySelector<HTMLTextAreaElement>("[data-composer-input]")
+      ?.focus();
+  const mainThreadId = useAuiState((s) => s.threads.mainThreadId);
+  if (renaming && renaming.id !== mainThreadId) setRenaming(null);
+  const persisted = useAuiState((s) =>
+    s.threads.threadItems.some(
+      (item) => item.id === s.threads.mainThreadId && item.status !== "new",
+    ),
+  );
+  const runCommand = (command: ThreadCommand) => {
+    if (command === "sidebar") {
+      if (window.matchMedia("(max-width: 767px)").matches)
+        onMobileSidebarOpenChange(!mobileSidebarOpen);
+      else setSidebarCollapsed(!sidebarCollapsed);
+      return;
+    }
+    if (command === "composer") {
+      setView("thread");
+      if (mobileSidebarOpen) {
+        pendingMobileAction.current = "composer";
+        setMobileSidebarOpen(false);
+      } else requestAnimationFrame(focusComposer);
+      return;
+    }
+    const state = aui.threads.getState();
+    const item = state.threadItems.find(
+      (item) => item.id === state.mainThreadId,
+    );
+    if (command === "rename") {
+      if (item && item.status !== "new") {
+        const target = { id: item.id, title: item.title ?? "" };
+        if (mobileSidebarOpen) {
+          pendingMobileAction.current = target;
+          setMobileSidebarOpen(false);
+        } else setRenaming(target);
+      }
+      return;
+    }
+    void Promise.resolve()
+      .then(() => {
+        if (command === "new") {
+          setMobileSidebarOpen(false);
+          setView("thread");
+          return aui.threads.switchToNewThread();
+        }
+        if (command === "previous" || command === "next") {
+          const index = orderedThreadIds.indexOf(state.mainThreadId);
+          const next =
+            index < 0
+              ? command === "next"
+                ? 0
+                : orderedThreadIds.length - 1
+              : index + (command === "next" ? 1 : -1);
+          const id = orderedThreadIds[next];
+          if (id) {
+            setMobileSidebarOpen(false);
+            setView("thread");
+            return aui.threads.switchToThread(id);
+          }
+          return;
+        }
+        if (!item || item.status === "new") return;
+        const client = aui.threads.item({ id: item.id });
+        if (command === "archive")
+          return item.status === "archived"
+            ? client.unarchive()
+            : client.archive();
+        if (command === "pin") {
+          const { pinned, ...custom } = item.custom ?? {};
+          return client.updateCustom(
+            pinned === "true" ? custom : { ...custom, pinned: "true" },
+          );
+        }
+      })
+      .catch(() =>
+        toast.error("Could not update the thread. Please try again."),
+      );
+  };
 
   return (
     <div
       ref={rootRef}
+      onKeyDown={(event) => {
+        const command = getThreadShortcut(event.nativeEvent);
+        if (!command) return;
+        event.preventDefault();
+        runCommand(command);
+      }}
       className={cn(
         "bg-background grid h-full grid-rows-[3rem_minmax(0,1fr)]",
         sidebarCollapsed
@@ -83,7 +181,7 @@ export function DemoShell({
       <div className="border-foreground/10 flex h-12 min-w-0 items-center gap-2 border-b px-4 md:px-5">
         <button
           type="button"
-          onClick={() => setMobileSidebarOpen(true)}
+          onClick={() => onMobileSidebarOpenChange(true)}
           aria-label="Open threads"
           className="text-muted-foreground hover:text-foreground rounded-control -ms-1.5 grid size-7 shrink-0 place-items-center transition-colors md:hidden"
         >
@@ -103,9 +201,35 @@ export function DemoShell({
             <PanelLeftIcon className="size-4" />
           </button>
         ) : null}
-        <ThreadTitle view={view} />
+        {renaming && renaming.id === mainThreadId ? (
+          <div className="max-w-sm min-w-0 flex-1">
+            <ThreadRenameInput
+              key={renaming.id}
+              title={renaming.title}
+              onRename={(title) =>
+                aui.threads.item({ id: renaming.id }).rename(title)
+              }
+              onDone={(restoreFocus) => {
+                setRenaming(null);
+                if (restoreFocus)
+                  rootRef.current
+                    ?.querySelector<HTMLButtonElement>(
+                      '[aria-label="Demo options"]',
+                    )
+                    ?.focus();
+              }}
+            />
+          </div>
+        ) : (
+          <ThreadTitle view={view} />
+        )}
         <div className="-me-1.5 ml-auto flex shrink-0 items-center gap-1.5">
-          <DemoMenu view={view} onViewChange={setView} />
+          <DemoMenu
+            view={view}
+            onViewChange={setView}
+            onCommand={runCommand}
+            persisted={persisted}
+          />
           {onToggleExpanded ? (
             <button
               type="button"
@@ -137,10 +261,26 @@ export function DemoShell({
       >
         {view === "memory" ? <MemoryView /> : <Thread />}
       </main>
-      <Sheet open={mobileSidebarOpen} onOpenChange={setMobileSidebarOpen}>
+      <Sheet
+        open={mobileSidebarOpen}
+        onOpenChange={onMobileSidebarOpenChange}
+        onOpenChangeComplete={(open) => {
+          if (open) return;
+          if (pendingMobileAction.current === "composer") focusComposer();
+          else if (pendingMobileAction.current)
+            setRenaming(pendingMobileAction.current);
+        }}
+      >
         <SheetContent
           side="left"
           className="bg-background w-72 overflow-hidden p-3 pt-12"
+          finalFocus={() => pendingMobileAction.current === null}
+          onKeyDownCapture={(event) => {
+            if (getThreadShortcut(event.nativeEvent) !== "composer") return;
+            event.preventDefault();
+            event.stopPropagation();
+            runCommand("composer");
+          }}
         >
           <SheetTitle className="sr-only">Threads</SheetTitle>
           <Sidebar
@@ -153,35 +293,6 @@ export function DemoShell({
       </Sheet>
     </div>
   );
-}
-
-function useThreadShortcuts(rootRef: RefObject<HTMLDivElement | null>) {
-  const aui = useAui();
-
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented) return;
-      if (
-        (event.metaKey || event.ctrlKey) &&
-        event.shiftKey &&
-        event.key.toLowerCase() === "o"
-      ) {
-        event.preventDefault();
-        aui.threads.switchToNewThread();
-        return;
-      }
-      if (event.shiftKey && event.key === "Escape") {
-        event.preventDefault();
-        root
-          .querySelector<HTMLTextAreaElement>("[data-composer-input]")
-          ?.focus();
-      }
-    };
-    root.addEventListener("keydown", onKeyDown);
-    return () => root.removeEventListener("keydown", onKeyDown);
-  }, [aui, rootRef]);
 }
 
 function ThreadTitle({ view }: { view: DemoView }): ReactNode {
@@ -200,12 +311,25 @@ function ThreadTitle({ view }: { view: DemoView }): ReactNode {
 function DemoMenu({
   view,
   onViewChange,
+  onCommand,
+  persisted,
 }: {
   view: DemoView;
   onViewChange: (view: DemoView) => void;
+  onCommand: (command: ThreadCommand) => void;
+  persisted: boolean;
 }): ReactNode {
+  const pendingCommand = useRef<ThreadCommand | null>(null);
   return (
-    <Menu.Root>
+    <Menu.Root
+      onOpenChange={(open) => {
+        if (open) pendingCommand.current = null;
+      }}
+      onOpenChangeComplete={(open) => {
+        if (open || !pendingCommand.current) return;
+        onCommand(pendingCommand.current);
+      }}
+    >
       <Menu.Trigger
         aria-label="Demo options"
         render={
@@ -224,7 +348,32 @@ function DemoMenu({
           align="end"
           sideOffset={6}
         >
-          <Menu.Popup className={menuContentClass}>
+          <Menu.Popup
+            className={menuContentClass}
+            finalFocus={() =>
+              pendingCommand.current !== "rename" &&
+              pendingCommand.current !== "composer"
+            }
+          >
+            {threadCommands.map((command) => (
+              <Menu.Item
+                key={command.id}
+                className={cn(menuItemClass, "justify-between gap-6")}
+                disabled={
+                  !persisted &&
+                  ["rename", "archive", "pin"].includes(command.id)
+                }
+                onClick={() => {
+                  pendingCommand.current = command.id;
+                }}
+              >
+                <span>{command.label}</span>
+                <kbd className="text-muted-foreground font-mono text-[10px]">
+                  {command.shortcut}
+                </kbd>
+              </Menu.Item>
+            ))}
+            <Menu.Separator className="bg-border my-1 h-px" />
             <Menu.Item
               className={menuItemClass}
               onClick={() =>

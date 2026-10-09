@@ -32,19 +32,20 @@ export const meanRows = (runsList) => {
 };
 
 // Noise floor per benchmark: twice the standard error of the mean pair
-// delta. At two pairs this equals their absolute difference (the range), and
-// unlike the range it shrinks with more pairs instead of loosening, so
-// heavier --runs tightens the floor along with the estimate.
+// delta, each pair taken against the base side's mean so the floor is the
+// printed delta's own error; one isolated slow run on otherwise identical
+// sides gets the same verdict whichever side contains it.
+// At two pairs this equals their absolute difference (the range), and unlike
+// the range it shrinks with more pairs instead of loosening, so heavier
+// --runs tightens the floor along with the estimate.
 export const pairNoise = (refRuns, curRuns) => {
-  const ids = new Set();
-  for (const run of refRuns) for (const id of run.keys()) ids.add(id);
   const out = new Map();
-  for (const id of ids) {
+  for (const [id, { mean: base }] of meanRows(refRuns)) {
     const deltas = [];
     for (let i = 0; i < refRuns.length; i++) {
       const r = refRuns[i]?.get(id);
       const c = curRuns[i]?.get(id);
-      if (r && c) deltas.push(((c.mean - r.mean) / r.mean) * 100);
+      if (r && c) deltas.push(((c.mean - r.mean) / base) * 100);
     }
     const n = deltas.length;
     if (n >= 2) {

@@ -1,3 +1,4 @@
+import { cacheLife } from "next/cache";
 import { Fragment, type FC, type ReactNode } from "react";
 import { highlight } from "fumadocs-core/highlight";
 import Link from "next/link";
@@ -16,6 +17,7 @@ type PropDef = {
   default?: string;
   required?: boolean;
   deprecated?: string;
+  experimental?: boolean;
   children?: Array<{ type?: string; parameters: PropDef[] }>;
 };
 
@@ -39,6 +41,8 @@ const COMMON_PARAMS: Record<string, Partial<PropDef>> = {
 };
 
 async function highlightType(type: string): Promise<ReactNode> {
+  "use cache";
+  cacheLife("max");
   if (!type) return null;
   return highlight(type, {
     lang: "typescript",
@@ -78,7 +82,7 @@ async function propsToRows(props: PropDef[]): Promise<TypeTableRow[]> {
             <span>{prop.deprecated}</span>
           </Fragment>
         ),
-        prop.name.startsWith("unstable_") && (
+        (prop.experimental || prop.name.startsWith("unstable_")) && (
           <StatusBadge key="unstable" variant="unstable" className="mr-1" />
         ),
         prop.description &&

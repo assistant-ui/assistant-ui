@@ -5,7 +5,7 @@ import type {
 } from "../types/client";
 import { handleIntrospectionProp } from "./BaseProxyHandler";
 
-const CLIENT_ID_SYMBOL = Symbol("assistant-ui.store.clientId");
+export const CLIENT_ID_SYMBOL = Symbol("assistant-ui.store.clientId");
 
 export const INSTANCE_TAG_SYMBOL = Symbol("assistant-ui.store.instanceTag");
 
@@ -18,6 +18,8 @@ type AccessorMeta = {
 };
 
 type AnyRecord = Record<string | symbol, unknown>;
+
+const accessors = new WeakSet<object>();
 
 export const createClientAccessor = <K extends ClientNames>(
   meta: AccessorMeta,
@@ -52,6 +54,7 @@ export const createClientAccessor = <K extends ClientNames>(
       };
     },
   });
+  accessors.add(proxy);
   return proxy;
 };
 
@@ -62,7 +65,7 @@ export const createErrorClientAccessor = (
   const fail = () => {
     throw new Error(message);
   };
-  return new Proxy(
+  const proxy = new Proxy(
     (() => {}) as unknown as AssistantClientAccessor<ClientNames>,
     {
       apply: fail,
@@ -83,6 +86,19 @@ export const createErrorClientAccessor = (
       getOwnPropertyDescriptor: () => undefined,
     },
   );
+  accessors.add(proxy);
+  return proxy;
+};
+
+/**
+ * Whether `client` forwards to a client other than itself, and so can switch
+ * its target without rendering. An accessor does not count: it resolves to
+ * the client its owner bound, which changes only with that owner.
+ */
+export const isForwardingClient = (client: object): boolean => {
+  if (accessors.has(client)) return false;
+  const id = (client as AnyRecord)[CLIENT_ID_SYMBOL];
+  return id !== undefined && id !== client;
 };
 
 /**
@@ -105,10 +121,11 @@ export const isScopeUnavailable = (
 /**
  * Returns the opaque identity of a bound client instance.
  *
- * The identity is stable for the lifetime of the bound client: the same
- * object is returned no matter how many accessor layers wrap the client, so
- * it is a reliable `WeakMap` key for per-client caches. Throws if the client
- * is an accessor for an unavailable scope.
+ * The identity resolves through any forwarding layer to the underlying
+ * `useClientResource` client. A scope that delegates to a replaceable client
+ * yields that client's identity, which can serve as a `WeakMap` key for
+ * per-client caches. Throws if the client is an accessor for an unavailable
+ * scope.
  */
 export const getClientId = (client: object): getClientId.ClientId =>
   ((client as AnyRecord)[CLIENT_ID_SYMBOL] ?? client) as getClientId.ClientId;

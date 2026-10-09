@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 /**
  * The remaining (deliberate or structural) divergences between React and
  * tap; see DIVERGENCES.md for the full rationale. Each test pins the CURRENT

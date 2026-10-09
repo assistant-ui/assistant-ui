@@ -1,6 +1,7 @@
+/** @vitest-environment jsdom */
 import { describe, it, expect, afterEach } from "vitest";
 import { render, act, cleanup } from "@testing-library/react";
-import { Activity, memo } from "react";
+import { Activity, memo, version } from "react";
 import { resource } from "../../core/resource";
 import {
   useResource,
@@ -12,7 +13,10 @@ import {
 import { useState as useResourceState } from "../../react-hooks/useState";
 import { useEffect as useResourceEffect } from "../../react-hooks/useEffect";
 
-describe("resources under <Activity>", () => {
+const onReact18 = version.startsWith("18.");
+
+// Activity is React 19 only.
+describe.skipIf(onReact18)("resources under <Activity>", () => {
   afterEach(() => {
     cleanup();
   });

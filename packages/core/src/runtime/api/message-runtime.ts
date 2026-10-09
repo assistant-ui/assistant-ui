@@ -5,6 +5,7 @@ import type { Unsubscribe } from "../../types/unsubscribe";
 import type { MessagePartStatus, RunConfig } from "../../types/message";
 import { toMessagePartStatus } from "../../utils/normalizePartStatus";
 import { getThreadMessageText } from "../../utils/text";
+import { reportRunFailure } from "../../utils/report-run-failure";
 import { NestedSubscriptionSubject } from "../../subscribable/subscribable";
 import {
   SKIP_UPDATE,
@@ -56,7 +57,7 @@ export type MessageRuntimeState = ThreadMessage & {
   readonly branchCount: number;
 
   /**
-   * @deprecated This API is still under active development and might change without notice.
+   * @deprecated Experimental since 2024-09-01. Not scheduled for removal; the API may change in any release.
    */
   readonly speech: SpeechState | undefined;
 };
@@ -81,11 +82,11 @@ export type MessageRuntime = {
   delete(): void | Promise<void>;
   reload(config?: ReloadConfig): void;
   /**
-   * @deprecated This API is still under active development and might change without notice.
+   * @deprecated Experimental since 2024-09-01. Not scheduled for removal; the API may change in any release.
    */
   speak(): void;
   /**
-   * @deprecated This API is still under active development and might change without notice.
+   * @deprecated Experimental since 2024-09-01. Not scheduled for removal; the API may change in any release.
    */
   stopSpeaking(): void;
   submitFeedback({
@@ -102,6 +103,7 @@ export type MessageRuntime = {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;
+  /** @deprecated Experimental since 2024-10-14. Not scheduled for removal; the API may change in any release. */
   unstable_getCopyText(): string;
 
   subscribe(callback: () => void): Unsubscribe;
@@ -186,11 +188,14 @@ export class MessageRuntimeImpl implements MessageRuntime {
     if (state.role !== "assistant")
       throw new Error("Can only reload assistant messages");
 
-    this._threadBinding.getState().startRun({
-      parentId: state.parentId,
-      sourceId: state.id,
-      runConfig,
-    });
+    reportRunFailure(
+      "Message reload",
+      this._threadBinding.getState().startRun({
+        parentId: state.parentId,
+        sourceId: state.id,
+        runConfig,
+      }),
+    );
   }
 
   public speak() {
@@ -250,6 +255,7 @@ export class MessageRuntimeImpl implements MessageRuntime {
     this._threadBinding.getState().switchToBranch(targetBranch);
   }
 
+  /** @deprecated Experimental since 2024-10-14. Not scheduled for removal; the API may change in any release. */
   public unstable_getCopyText() {
     return getThreadMessageText(this.getState());
   }

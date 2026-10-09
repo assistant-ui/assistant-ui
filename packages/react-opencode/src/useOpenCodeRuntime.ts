@@ -17,15 +17,17 @@ import type {
   ThreadMessageLike,
 } from "@assistant-ui/react";
 import { invokeUserCallback } from "@assistant-ui/core/internal";
+import { useLatestRef } from "@assistant-ui/core/react/internal";
 import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { createOpencodeClient } from "@opencode-ai/sdk/v2/client";
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type {
   OpenCodeRuntimeOptions,
   OpenCodeThreadControllerLike,
 } from "./types";
 import { OpenCodeEventSource } from "./OpenCodeEventSource";
 import { toOpenCodePermissionResponse } from "./openCodePermissionApproval";
+import { toOpenCodeQuestionAnswers } from "./openCodeQuestionApproval";
 import { OpenCodeThreadController } from "./OpenCodeThreadController";
 import { projectOpenCodeThreadRepository } from "./openCodeMessageProjection";
 import {
@@ -149,14 +151,14 @@ const useOpenCodeThreadStore = (
   options: OpenCodeRuntimeOptions,
 ): ExternalStoreAdapter<ThreadMessage> => {
   const state = useOpenCodeControllerState(controller);
-  const onLoadError = useEffectEvent((error: unknown) => {
+  const onLoadError = useLatestRef((error: unknown) => {
     invokeErrorCallback(options.onError, error);
   });
 
-  useEffect(() => {
+  useReplaySafeEffect(() => {
     if (controller === NOOP_CONTROLLER) return;
-    void controller.load().catch(onLoadError);
-  }, [controller]);
+    void controller.load().catch((error) => onLoadError.current(error));
+  }, [controller, onLoadError]);
 
   const isRunning = isOpenCodeStateRunning(state);
 
@@ -219,10 +221,25 @@ const useOpenCodeThreadStore = (
       },
       onRespondToToolApproval: async (response) => {
         try {
-          await controller.replyToPermission(
-            response.approvalId,
-            toOpenCodePermissionResponse(response),
-          );
+          const question =
+            state.interactions.questions.pending[response.approvalId];
+          if (question) {
+            if (!response.approved) {
+              await controller.rejectQuestion(response.approvalId);
+            } else if (response.answers) {
+              await controller.replyToQuestion(
+                response.approvalId,
+                toOpenCodeQuestionAnswers(question, response.answers),
+              );
+            } else {
+              throw new Error("OpenCode question approval requires answers");
+            }
+          } else {
+            await controller.replyToPermission(
+              response.approvalId,
+              toOpenCodePermissionResponse(response),
+            );
+          }
         } catch (error) {
           invokeErrorCallback(options.onError, error);
           throw error;

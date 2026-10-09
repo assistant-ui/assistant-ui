@@ -1,18 +1,18 @@
 ---
 title: Form-Filling AI Copilot
-description: Open-source AI copilot that fills forms for users — sidebar UI, field-aware tool calls, and a working React example built with assistant-ui.
+description: Open-source AI copilot that fills forms for users. Sidebar UI, field-aware tool calls, and a working React example built with assistant-ui.
 ---
 
 ## Overview
 
-This example demonstrates how to create an AI assistant sidebar that helps users fill out forms automatically. The assistant understands form structure and can populate fields based on natural language instructions, making complex forms easier to complete.
+This example shows an AI assistant sidebar that fills out a form for the user. The assistant receives the form structure and populates fields from natural language instructions.
 
 ## Features
 
 - **Sidebar Integration**: AI assistant lives alongside your form
 - **Field Mapping**: Assistant directly modifies form field values
 - **Smart Suggestions**: Pre-built prompt suggestions for common actions
-- **React Hook Form**: Seamless integration via `useAssistantForm`
+- **React Hook Form**: Integrates through `useAssistantForm`
 
 ## Use Cases
 
@@ -60,13 +60,14 @@ export const maxDuration = 30;
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
 
+  const aiSDKTools = { ...frontendTools(tools) };
+
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     system,
-    tools: {
-      ...frontendTools(tools),
-    },
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse();

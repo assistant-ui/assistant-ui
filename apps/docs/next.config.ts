@@ -9,6 +9,11 @@ import { isWebMcpEnabled } from "./lib/feature-flags";
 import { RENDERER_ALLOWED_ORIGINS, RENDERER_PATH } from "./lib/renderer";
 import { LEGACY_TAP_DOCS_REDIRECTS } from "./lib/legacy-tap-docs";
 import {
+  DOCS_SITE_REDIRECTS,
+  docsSiteMarkdownAcceptRewrites,
+  docsSiteMarkdownFileRewrites,
+} from "./lib/docs-sites";
+import {
   docsMarkdownAcceptRewrites,
   docsMarkdownFileRewrites,
 } from "./lib/markdown-rewrites";
@@ -64,12 +69,14 @@ const authOrigin = process.env.NEXT_PUBLIC_AUTH_URL ?? "";
 // The playground AI Builder renders same-origin preview routes inside an iframe.
 // Keep frame ancestors self-only so external sites still cannot embed docs pages;
 // only the conversation renderer also admits the Assistant Cloud dashboard.
+// Cloudflare Web Analytics injects its beacon at the edge, so script-src names
+// static.cloudflareinsights.com although nothing in the repo loads it.
 const csp = (frameAncestors: string) =>
   `
     default-src 'self';
     connect-src *;
     frame-src * blob:;
-    script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ""};
+    script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'${isDev ? " 'unsafe-eval'" : ""} https://static.cloudflareinsights.com;
     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
     img-src * blob: data:;
     font-src 'self' https://fonts.gstatic.com data:;
@@ -81,6 +88,9 @@ const csp = (frameAncestors: string) =>
 `.replace(/\n/g, "");
 
 const config: NextConfig = {
+  cacheComponents: true,
+  // A prerender cannot read the clock, so the copyright year is fixed at build time.
+  env: { COPYRIGHT_YEAR: String(new Date().getFullYear()) },
   // This app keeps a hand-written AGENTS.md, and the root one already points
   // agents at the bundled Next.js docs, so `next dev` must not append its block.
   agentRules: false,
@@ -156,9 +166,20 @@ const config: NextConfig = {
   ],
   redirects: async () => [
     ...LEGACY_TAP_DOCS_REDIRECTS,
+    ...DOCS_SITE_REDIRECTS,
+    {
+      source: "/hack",
+      destination: "/hackathon",
+      permanent: false,
+    },
     {
       source: "/tap",
       destination: "/docs/tap",
+      permanent: true,
+    },
+    {
+      source: "/shop/cart.md",
+      destination: "/install.md",
       permanent: true,
     },
     {
@@ -174,6 +195,11 @@ const config: NextConfig = {
     {
       source: "/docs/cloud/ai-sdk-assistant-ui",
       destination: "/docs/cloud/ai-sdk",
+      permanent: true,
+    },
+    {
+      source: "/docs/integrations/observability/helicone",
+      destination: "/docs/integrations",
       permanent: true,
     },
     {
@@ -454,6 +480,7 @@ const config: NextConfig = {
         destination: "/api/mcp",
       },
       ...docsMarkdownFileRewrites(),
+      ...docsSiteMarkdownFileRewrites(),
       {
         source: "/examples.md",
         destination: "/llms.mdx/examples",
@@ -515,6 +542,7 @@ const config: NextConfig = {
         destination: "/pricing.md",
       },
       ...docsMarkdownAcceptRewrites(),
+      ...docsSiteMarkdownAcceptRewrites(),
       {
         source: "/examples/:path*",
         has: [
@@ -576,4 +604,5 @@ const config: NextConfig = {
 
 const withMDX = createMDX();
 
-export default withAui(withMDX(config));
+// Keep MDX outermost so Next.js waits for its collection generation.
+export default withMDX(withAui(config));

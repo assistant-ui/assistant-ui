@@ -1,8 +1,6 @@
 import {
   createRepoSourceReader,
-  snapshotSourceReader,
   type RepoSourceReader,
-  type RepoSourceSnapshot,
 } from "@/lib/repo-source";
 import {
   DEMO_DOWNLOAD_MANIFESTS,
@@ -22,13 +20,6 @@ import { createZip, type ZipFileMap } from "./zip";
 
 export async function createDemoZip(slug: string) {
   return createZip(await buildDemoFileMap(slug, createRepoSourceReader()));
-}
-
-export function createDemoFileMap(
-  slug: string,
-  snapshot: RepoSourceSnapshot,
-): Promise<ZipFileMap> {
-  return buildDemoFileMap(slug, snapshotSourceReader(snapshot));
 }
 
 async function buildDemoFileMap(
@@ -314,7 +305,7 @@ function runtimeProviderTsx() {
 }
 
 function chatRouteTs() {
-  return `import { openai } from "@ai-sdk/openai";\nimport {\n  convertToModelMessages,\n  createUIMessageStream,\n  createUIMessageStreamResponse,\n  streamText,\n} from "ai";\n\nexport const maxDuration = 30;\n\nexport async function POST(req: Request) {\n  const { messages } = await req.json();\n\n  if (!process.env.OPENAI_API_KEY) {\n    const stream = createUIMessageStream({\n      originalMessages: messages,\n      execute: async ({ writer }) => {\n        const messageId = \`msg-\${crypto.randomUUID()}\`;\n        const textId = "fallback-text";\n\n        writer.write({ type: "start", messageId });\n        writer.write({ type: "start-step" });\n        writer.write({ type: "text-start", id: textId });\n        writer.write({\n          type: "text-delta",\n          id: textId,\n          delta:\n            "This starter is running without OPENAI_API_KEY. Add one to .env.local to enable live AI responses.",\n        });\n        writer.write({ type: "text-end", id: textId });\n        writer.write({ type: "finish-step" });\n        writer.write({ type: "finish" });\n      },\n    });\n\n    return createUIMessageStreamResponse({ stream });\n  }\n\n  const result = streamText({\n    model: openai("gpt-6-luna"),\n    messages: await convertToModelMessages(messages),\n  });\n\n  return result.toUIMessageStreamResponse();\n}\n`;
+  return `import { openai } from "@ai-sdk/openai";\nimport {\n  convertToModelMessages,\n  createUIMessageStream,\n  createUIMessageStreamResponse,\n  streamText,\n} from "ai";\n\nexport const maxDuration = 30;\n\nexport async function POST(req: Request) {\n  const { messages } = await req.json();\n\n  if (!process.env.OPENAI_API_KEY) {\n    const stream = createUIMessageStream({\n      originalMessages: messages,\n      execute: async ({ writer }) => {\n        const messageId = \`msg-\${crypto.randomUUID()}\`;\n        const textId = "fallback-text";\n\n        writer.write({ type: "start", messageId });\n        writer.write({ type: "start-step" });\n        writer.write({ type: "text-start", id: textId });\n        writer.write({\n          type: "text-delta",\n          id: textId,\n          delta:\n            "This starter is running without OPENAI_API_KEY. Add one to .env.local to enable live AI responses.",\n        });\n        writer.write({ type: "text-end", id: textId });\n        writer.write({ type: "finish-step" });\n        writer.write({ type: "finish" });\n      },\n    });\n\n    return createUIMessageStreamResponse({ stream });\n  }\n\n  const result = streamText({\n    abortSignal: req.signal,\n    model: openai("gpt-6-luna"),\n    messages: await convertToModelMessages(messages),\n  });\n\n  return result.toUIMessageStreamResponse();\n}\n`;
 }
 
 function markdownTextShim() {

@@ -1,6 +1,12 @@
 "use client";
 
-import { memo, useState, type ComponentProps } from "react";
+import {
+  forwardRef,
+  memo,
+  useCallback,
+  useState,
+  type ComponentProps,
+} from "react";
 import { FileTextIcon } from "lucide-react";
 import { cva, type VariantProps } from "class-variance-authority";
 import type { SourceMessagePartComponent } from "@assistant-ui/react";
@@ -45,23 +51,34 @@ const sourceVariants = cva(
 const defaultFaviconUrl = (domain: string) =>
   `https://icons.duckduckgo.com/ip3/${domain}.ico`;
 
-function SourceIcon({
-  url,
-  className,
-  faviconUrl = defaultFaviconUrl,
-  ...props
-}: ComponentProps<"span"> & {
-  url: string;
-  faviconUrl?: ((domain: string) => string) | undefined;
-}) {
+const SourceIcon = forwardRef<
+  HTMLSpanElement,
+  ComponentProps<"span"> & {
+    url: string;
+    faviconUrl?: ((domain: string) => string) | undefined;
+  }
+>(function SourceIcon(
+  { url, className, faviconUrl = defaultFaviconUrl, ...props },
+  ref,
+) {
   const domain = hostOf(url);
   const src = domain === undefined ? undefined : faviconUrl(domain);
   const [errorSrc, setErrorSrc] = useState<string | undefined>(undefined);
   const hasError = src === undefined || errorSrc === src;
+  const imageRef = useCallback(
+    (el: HTMLImageElement | null) => {
+      // A server-rendered image that fails before hydration never fires onError.
+      if (el?.complete && el.naturalWidth === 0) setErrorSrc(src);
+      if (typeof ref === "function") return ref(el);
+      if (ref) ref.current = el;
+    },
+    [ref, src],
+  );
 
   if (hasError) {
     return (
       <span
+        ref={ref}
         data-slot="source-icon-fallback"
         className={cn(
           "bg-muted flex size-3 shrink-0 items-center justify-center rounded-sm text-[10px] font-medium",
@@ -82,13 +99,10 @@ function SourceIcon({
       className={cn("size-3 shrink-0 rounded-sm", className)}
       onError={() => setErrorSrc(src)}
       {...(props as ComponentProps<"img">)}
-      // A server-rendered image that fails before hydration never fires onError.
-      ref={(el) => {
-        if (el?.complete && el.naturalWidth === 0) setErrorSrc(src);
-      }}
+      ref={imageRef}
     />
   );
-}
+});
 
 function SourceTitle({ className, ...props }: ComponentProps<"span">) {
   return (

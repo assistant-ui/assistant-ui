@@ -80,8 +80,15 @@ type DataStreamStreamChunkValue = {
     isError?: boolean;
     isPreliminary?: boolean;
     modelContent?: readonly ToolModelContentPart[];
+    messages?: ReadonlyJSONValue;
   };
-  [DataStreamStreamChunkType.Error]: string;
+  [DataStreamStreamChunkType.Error]:
+    | string
+    | {
+        error: string;
+        code?: string;
+        severity?: "critical" | "warning" | "info";
+      };
   [DataStreamStreamChunkType.FinishStep]: {
     finishReason: LanguageModelV1FinishReason;
     usage: LanguageModelV1Usage;
@@ -121,6 +128,7 @@ type DataStreamStreamChunkValue = {
     parentId: string;
   };
   [DataStreamStreamChunkType.AuiReasoningPartStart]: {
+    /** @deprecated Experimental since 2026-08-07. Not scheduled for removal; the API may change in any release. */
     unstable_summary?: string;
     parentId?: string;
   };

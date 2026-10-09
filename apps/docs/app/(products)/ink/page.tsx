@@ -162,7 +162,7 @@ export default function InkPage() {
 
       <figure className="mt-12 md:mt-16">
         <TerminalDemo />
-        <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between font-mono text-[11px] tracking-wide">
+        <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between text-xs">
           <span>fig. 01</span>
           <span>a real Ink render loop — click and type</span>
         </figcaption>
@@ -180,7 +180,7 @@ export default function InkPage() {
             </CodeBlock>
             <figure className="flex flex-col">
               <RenderedSession />
-              <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between font-mono text-[11px] tracking-wide">
+              <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between text-xs">
                 <span>fig. 02</span>
                 <span>what it renders</span>
               </figcaption>

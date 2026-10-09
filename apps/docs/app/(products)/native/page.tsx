@@ -96,7 +96,7 @@ export default function NativePage() {
 
         <figure className="mx-auto w-full max-w-[300px] lg:mx-0">
           <NativeDemo />
-          <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between font-mono text-[11px] tracking-wide">
+          <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between text-xs">
             <span>fig. 01</span>
             <span>a real Expo build — tap around</span>
           </figcaption>
@@ -182,7 +182,7 @@ function NativeDemo() {
 
   return (
     <div className="border-foreground/10 overflow-hidden border">
-      <div className="border-foreground/10 text-muted-foreground flex h-9 items-center justify-between border-b px-3.5 font-mono text-[11px] tracking-wide">
+      <div className="border-foreground/10 text-muted-foreground flex h-9 items-center justify-between border-b px-3.5 text-xs">
         <span>~ assistant-ui · expo</span>
         <span className="flex items-center gap-1.5">
           <LiveDot />

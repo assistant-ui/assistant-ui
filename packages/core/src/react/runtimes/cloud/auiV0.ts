@@ -4,9 +4,12 @@ import type {
   SourceProviderMetadata,
   ThreadMessage,
   ToolCallMessagePartMcpMetadata,
+  MessagePartTiming,
   ToolCallTiming,
   ToolApprovalDisplay,
+  ToolApprovalAnswer,
   ToolApprovalOption,
+  ToolApprovalQuestion,
   ReasoningMessagePart,
   TextMessagePart,
   ImageMessagePart,
@@ -49,12 +52,15 @@ type AuiV0ToolApproval = {
   readonly options?: readonly ToolApprovalOption[];
   readonly optionId?: string;
   readonly text?: string;
+  readonly questions?: readonly ToolApprovalQuestion[];
+  readonly answers?: Readonly<Record<string, ToolApprovalAnswer>>;
   readonly resolution?: "cancelled" | "expired";
 };
 
 type AuiV0MessagePart =
   | {
       readonly type: "text";
+      readonly id?: string;
       readonly text: string;
       readonly providerMetadata?: NonNullable<
         TextMessagePart["providerMetadata"]
@@ -63,8 +69,11 @@ type AuiV0MessagePart =
     }
   | {
       readonly type: "reasoning";
+      readonly id?: string;
       readonly text: string;
+      /** @deprecated Experimental since 2026-08-07. Not scheduled for removal; the API may change in any release. */
       readonly unstable_summary?: string;
+      readonly timing?: MessagePartTiming;
       readonly providerMetadata?: NonNullable<
         ReasoningMessagePart["providerMetadata"]
       >;
@@ -93,6 +102,7 @@ type AuiV0MessagePart =
       ({ readonly args: ReadonlyJSONObject } | { readonly argsText: string }))
   | {
       readonly type: "image";
+      readonly id?: string;
       readonly image: string;
       readonly filename?: string;
       readonly providerMetadata?: NonNullable<
@@ -101,6 +111,7 @@ type AuiV0MessagePart =
     }
   | {
       readonly type: "file";
+      readonly id?: string;
       readonly data: string;
       readonly mimeType: string;
       readonly filename?: string;
@@ -112,6 +123,7 @@ type AuiV0MessagePart =
     }
   | {
       readonly type: "data";
+      readonly id?: string;
       readonly name: string;
       readonly data: ReadonlyJSONValue;
     }
@@ -148,12 +160,14 @@ type AuiV0ToolCallPart = {
   readonly approval?: AuiV0ToolApproval;
   readonly parentId?: string;
   readonly messages?: readonly AuiV0Message[];
+  /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
   readonly unstable_interactions?: Unstable_ToolInteractionLog;
 };
 
 type AuiV0AttachmentPart =
   | {
       readonly type: "text";
+      readonly id?: string;
       readonly text: string;
       readonly providerMetadata?: NonNullable<
         TextMessagePart["providerMetadata"]
@@ -162,6 +176,7 @@ type AuiV0AttachmentPart =
     }
   | {
       readonly type: "image";
+      readonly id?: string;
       readonly image: string;
       readonly filename?: string;
       readonly providerMetadata?: NonNullable<
@@ -170,6 +185,7 @@ type AuiV0AttachmentPart =
     }
   | {
       readonly type: "file";
+      readonly id?: string;
       readonly data: string;
       readonly mimeType: string;
       readonly filename?: string;
@@ -188,6 +204,7 @@ type AuiV0AttachmentPart =
     }
   | {
       readonly type: "data";
+      readonly id?: string;
       readonly name: string;
       readonly data: ReadonlyJSONValue;
     };
@@ -209,8 +226,11 @@ type AuiV0Message = {
   readonly content: readonly AuiV0MessagePart[];
   readonly attachments?: readonly AuiV0Attachment[];
   readonly metadata: {
+    /** @deprecated Experimental since 2025-05-20. Not scheduled for removal; the API may change in any release. */
     readonly unstable_state?: ReadonlyJSONValue;
+    /** @deprecated Experimental since 2025-01-27. Not scheduled for removal; the API may change in any release. */
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
+    /** @deprecated Experimental since 2025-01-04. Not scheduled for removal; the API may change in any release. */
     readonly unstable_data: readonly ReadonlyJSONValue[];
     readonly steps: readonly {
       readonly usage?: {
@@ -230,6 +250,7 @@ const encodeAttachmentPart = (
     case "text":
       return {
         type: "text",
+        ...(part.id !== undefined ? { id: part.id } : undefined),
         text: part.text,
         ...(part.providerMetadata !== undefined
           ? { providerMetadata: part.providerMetadata }
@@ -242,6 +263,7 @@ const encodeAttachmentPart = (
     case "image":
       return {
         type: "image",
+        ...(part.id !== undefined ? { id: part.id } : undefined),
         image: part.image,
         ...(part.filename != null ? { filename: part.filename } : undefined),
         ...(part.providerMetadata !== undefined
@@ -252,6 +274,7 @@ const encodeAttachmentPart = (
     case "file":
       return {
         type: "file",
+        ...(part.id !== undefined ? { id: part.id } : undefined),
         data: part.data,
         mimeType: part.mimeType,
         ...(part.filename != null ? { filename: part.filename } : undefined),
@@ -278,6 +301,7 @@ const encodeAttachmentPart = (
       }
       return {
         type: "data",
+        ...(part.id !== undefined ? { id: part.id } : undefined),
         name: part.name,
         data: part.data as ReadonlyJSONValue,
       };
@@ -388,6 +412,7 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
         case "text":
           return {
             type: "text",
+            ...(part.id !== undefined ? { id: part.id } : undefined),
             text: part.text,
             ...(part.providerMetadata !== undefined
               ? { providerMetadata: part.providerMetadata }
@@ -400,9 +425,13 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
         case "reasoning":
           return {
             type: "reasoning",
+            ...(part.id !== undefined ? { id: part.id } : undefined),
             text: part.text,
             ...(part.unstable_summary !== undefined
               ? { unstable_summary: part.unstable_summary }
+              : undefined),
+            ...(part.timing !== undefined
+              ? { timing: part.timing }
               : undefined),
             ...(part.providerMetadata !== undefined
               ? { providerMetadata: part.providerMetadata }
@@ -515,6 +544,7 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
         case "image":
           return {
             type: "image",
+            ...(part.id !== undefined ? { id: part.id } : undefined),
             image: part.image,
             ...(part.filename != null
               ? { filename: part.filename }
@@ -527,6 +557,7 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
         case "file":
           return {
             type: "file",
+            ...(part.id !== undefined ? { id: part.id } : undefined),
             data: part.data,
             mimeType: part.mimeType,
             ...(part.filename != null
@@ -547,6 +578,7 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
           }
           return {
             type: "data",
+            ...(part.id !== undefined ? { id: part.id } : undefined),
             name: part.name,
             data: part.data as ReadonlyJSONValue,
           };
@@ -696,25 +728,6 @@ export function auiV0DecodeSafely(
     );
     return null;
   }
-}
-
-export function auiV0Decode(
-  cloudMessage: CloudMessage & { format: "aui/v0" },
-): ExportedMessageRepositoryItem {
-  const payload = cloudMessage.content as unknown as AuiV0Message;
-  const message = decodeAuiV0Message(
-    {
-      ...payload,
-      id: cloudMessage.id,
-      createdAt: cloudMessage.created_at,
-    },
-    cloudMessage.id,
-  );
-
-  return {
-    parentId: cloudMessage.parent_id,
-    message,
-  };
 }
 
 const encodeNestedMessage = (message: ThreadMessage): AuiV0Message => ({

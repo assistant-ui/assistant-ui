@@ -51,7 +51,6 @@ export const useEffect = (effect: any, deps?: any) =>
     ? hooks.useEffect(effect, deps)
     : ReactRuntime.useEffect(effect, deps);
 
-// tap has a single effect primitive; layout effects collapse onto it
 export const useLayoutEffect = (effect: any, deps?: any) =>
   inTap()
     ? hooks.useEffect(effect, deps)
@@ -80,7 +79,7 @@ export const useDebugValue = (value: any, format?: any) =>
 
 export const useInsertionEffect = (effect: any, deps?: any) =>
   inTap()
-    ? hooks.useEffect(effect, deps)
+    ? hooks.useInsertionEffect(effect, deps)
     : ReactRuntime.useInsertionEffect(effect, deps);
 
 export const useId = () => (inTap() ? useTapId() : ReactRuntime.useId());
@@ -123,10 +122,12 @@ export const createContext = (defaultValue: any) => {
   return context;
 };
 
-export const use = (usable: any) =>
-  inTap() && isReadableTapContext(usable)
-    ? hooks.use(usable)
-    : ReactRuntime.use(usable);
+export const use = (usable: any) => {
+  if (inTap() && isReadableTapContext(usable)) return hooks.use(usable);
+  if (ReactRuntime.use) return ReactRuntime.use(usable);
+  if (isReadableTapContext(usable)) return ReactRuntime.useContext(usable);
+  throw new Error("React.use() requires React 19 outside a tap resource.");
+};
 
 export const useContext = (context: any) =>
   inTap() && isReadableTapContext(context)

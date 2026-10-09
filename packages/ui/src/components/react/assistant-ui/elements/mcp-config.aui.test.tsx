@@ -1,4 +1,4 @@
-import type { FC } from "react";
+import { type FC } from "react";
 import {
   act,
   cleanup,
@@ -88,7 +88,7 @@ const renderDialog = (Dialog: FC, servers: MCPCustomServerRecord[] = []) =>
 describe.each([
   ["Base", BaseDialog],
   ["Radix", RadixDialog],
-] as const)("%s MCP config dialog", (_flavor, Dialog) => {
+] as const)("%s MCP config dialog", (flavor, Dialog) => {
   it("connects visible labels to their controls and reports field errors", async () => {
     renderDialog(Dialog);
     fireEvent.click(screen.getByRole("button", { name: "MCP servers" }));

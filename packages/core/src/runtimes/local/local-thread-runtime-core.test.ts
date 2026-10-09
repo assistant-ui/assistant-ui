@@ -21,10 +21,11 @@ import type { ThreadSuggestion } from "../../runtime/interfaces/thread-runtime-c
 import { isMessageNotSentError } from "../../types/error";
 import {
   createVoiceSession,
+  type RealtimeVoiceAdapter,
   type VoiceSessionHelpers,
 } from "../../adapters/voice";
 
-const flush = () => new Promise((resolve) => setTimeout(resolve, 10));
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -1327,6 +1328,57 @@ describe("LocalThreadRuntimeCore history persistence", () => {
 });
 
 describe("LocalThreadRuntimeCore - detach", () => {
+  it("persists a cancelled partial answer when detached within the same history scope", async () => {
+    const appendHistory = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+    const thread = createThread(
+      {
+        async *run({ abortSignal }) {
+          yield { content: [{ type: "text", text: "partial answer" }] };
+          await new Promise<void>((_, reject) => {
+            abortSignal.addEventListener(
+              "abort",
+              () => reject(abortSignal.reason),
+              { once: true },
+            );
+          });
+        },
+      },
+      {
+        history: {
+          scopeId: "account",
+          load: async () => ({ messages: [] }),
+          append: appendHistory,
+        },
+      },
+    );
+    await thread.__internal_load();
+    const runEnd = vi.fn();
+    thread.unstable_on("runEnd", runEnd);
+    const append = thread.append(userMessage("start"));
+    await vi.waitFor(() =>
+      expect(thread.messages.at(-1)?.content).toEqual([
+        { type: "text", text: "partial answer" },
+      ]),
+    );
+    thread.detach();
+    await append;
+
+    expect.soft(appendHistory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.objectContaining({
+          role: "assistant",
+          content: [{ type: "text", text: "partial answer" }],
+          status: { type: "incomplete", reason: "cancelled" },
+        }),
+      }),
+    );
+    expect.soft(thread.messages.at(-1)).toMatchObject({
+      role: "assistant",
+      status: { type: "incomplete", reason: "cancelled" },
+    });
+    expect(runEnd).toHaveBeenCalledOnce();
+  });
+
   it("drops a pending append when detached", async () => {
     let resolveInitialization!: () => void;
     const initialization = new Promise<void>((resolve) => {
@@ -2051,6 +2103,44 @@ describe("LocalThreadRuntimeCore tool approvals", () => {
       display: "text",
       approved: true,
       text: "Quarterly update",
+    });
+  });
+
+  it("records questionnaire answers alongside the decision", async () => {
+    const questions = [
+      {
+        id: "scope",
+        prompt: "Which files?",
+        options: [{ id: "src", label: "src" }],
+      },
+    ];
+    const { thread, runs } = createApprovalThread(
+      toolCallResult("send_email", {
+        id: "a1",
+        display: "questions",
+        questions,
+      }),
+    );
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+
+    await thread.respondToToolApproval({
+      approvalId: "a1",
+      approved: true,
+      answers: { scope: { optionIds: ["src"] } },
+    });
+    await flush();
+
+    const toolCall = runs[1]!
+      .unstable_getMessage()
+      .content.find((part) => part.type === "tool-call");
+    expect(toolCall?.approval).toEqual({
+      id: "a1",
+      display: "questions",
+      questions,
+      approved: true,
+      answers: { scope: { optionIds: ["src"] } },
     });
   });
 
@@ -2802,6 +2892,9 @@ describe("LocalThreadRuntimeCore suggestions", () => {
       },
     };
     const generate = vi.fn().mockReturnValue(suggestionsDeferred);
+    const replacementGenerate = vi
+      .fn()
+      .mockResolvedValue([{ prompt: "replacement" }]);
     const thread = createThread(chatModel, { suggestion: { generate } });
 
     await thread.append(userMessage("hi"));
@@ -2811,14 +2904,149 @@ describe("LocalThreadRuntimeCore suggestions", () => {
     thread.__internal_setOptions({
       adapters: {
         chatModel,
-        suggestion: { generate },
+        suggestion: { generate: replacementGenerate },
       },
     });
 
     expect(signal.aborted).toBe(false);
+    expect(replacementGenerate).not.toHaveBeenCalled();
     resolveSuggestions([{ prompt: "follow up" }]);
     await flush();
     expect(thread.suggestions).toEqual([{ prompt: "follow up" }]);
+  });
+
+  it("regenerates settled suggestions when the adapter key changes", async () => {
+    const chatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [{ type: "text", text: "hello" }] };
+      },
+    };
+    const firstGenerate = vi.fn().mockResolvedValue([{ prompt: "first" }]);
+    const secondGenerate = vi.fn().mockResolvedValue([{ prompt: "second" }]);
+    const thread = createThread(chatModel, {
+      suggestion: { key: "first", generate: firstGenerate },
+    });
+
+    await thread.append(userMessage("hi"));
+    await flush();
+    expect(thread.suggestions).toEqual([{ prompt: "first" }]);
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel,
+        suggestion: { key: "second", generate: secondGenerate },
+      },
+    });
+
+    expect(thread.suggestions).toEqual([]);
+    await flush();
+    expect(secondGenerate).toHaveBeenCalledOnce();
+    expect(thread.suggestions).toEqual([{ prompt: "second" }]);
+  });
+
+  it("does not regenerate suggestions after the settled response is deleted", async () => {
+    const chatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [{ type: "text", text: "hello" }] };
+      },
+    };
+    const firstGenerate = vi.fn().mockResolvedValue([{ prompt: "first" }]);
+    const secondGenerate = vi.fn().mockResolvedValue([{ prompt: "second" }]);
+    const thread = createThread(chatModel, {
+      suggestion: { key: "first", generate: firstGenerate },
+      history: {
+        async load() {
+          return { messages: [] };
+        },
+        async append() {},
+        async delete() {},
+      },
+    });
+
+    await thread.append(userMessage("hi"));
+    await flush();
+    expect(firstGenerate).toHaveBeenCalledOnce();
+
+    await thread.deleteMessage(thread.messages.at(-1)!.id);
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel,
+        suggestion: { key: "second", generate: secondGenerate },
+      },
+    });
+    await flush();
+
+    expect(thread.messages.at(-1)?.role).toBe("user");
+    expect(secondGenerate).not.toHaveBeenCalled();
+    expect(thread.suggestions).toEqual([]);
+  });
+
+  it("regenerates suggestions for an imported settled response", async () => {
+    const chatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [{ type: "text", text: "hello" }] };
+      },
+    };
+    const source = createThread(chatModel);
+    await source.append(userMessage("hi"));
+
+    const firstGenerate = vi.fn();
+    const secondGenerate = vi.fn().mockResolvedValue([{ prompt: "second" }]);
+    const thread = createThread(chatModel, {
+      suggestion: { key: "first", generate: firstGenerate },
+    });
+    thread.import(source.export());
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel,
+        suggestion: { key: "second", generate: secondGenerate },
+      },
+    });
+    await flush();
+
+    expect(firstGenerate).not.toHaveBeenCalled();
+    expect(secondGenerate).toHaveBeenCalledOnce();
+    expect(thread.suggestions).toEqual([{ prompt: "second" }]);
+  });
+
+  it("aborts pending suggestions when the adapter key changes", async () => {
+    let resolveFirst!: (value: readonly ThreadSuggestion[]) => void;
+    const firstDeferred = new Promise<readonly ThreadSuggestion[]>(
+      (resolve) => {
+        resolveFirst = resolve;
+      },
+    );
+    const chatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [{ type: "text", text: "hello" }] };
+      },
+    };
+    const firstGenerate = vi.fn().mockReturnValue(firstDeferred);
+    const secondGenerate = vi.fn().mockResolvedValue([{ prompt: "second" }]);
+    const thread = createThread(chatModel, {
+      suggestion: { key: "first", generate: firstGenerate },
+    });
+
+    await thread.append(userMessage("hi"));
+    await flush();
+    const firstSignal = firstGenerate.mock.calls[0]![0].signal as AbortSignal;
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel,
+        suggestion: { key: "second", generate: secondGenerate },
+      },
+    });
+
+    expect(firstSignal.aborted).toBe(true);
+    await flush();
+    expect(secondGenerate).toHaveBeenCalledOnce();
+    expect(thread.suggestions).toEqual([{ prompt: "second" }]);
+
+    resolveFirst([{ prompt: "stale" }]);
+    await flush();
+    expect(thread.suggestions).toEqual([{ prompt: "second" }]);
   });
 
   it("ignores suggestion generation from a superseded run", async () => {
@@ -2990,6 +3218,451 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     );
   };
 
+  it.each([false, true])(
+    "reloads a followed in-flight pause and its child (update: %s)",
+    async (update) => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const stored: ExportedMessageRepositoryItem[] = [];
+      const history: ThreadHistoryAdapter = {
+        async load() {
+          return {
+            headId: stored.at(-1)?.message.id ?? null,
+            messages: [...stored],
+          };
+        },
+        async append(item) {
+          stored.push(item);
+        },
+        ...(update && {
+          async update(item: ExportedMessageRepositoryItem) {
+            const index = stored.findIndex(
+              ({ message }) => message.id === item.message.id,
+            );
+            stored[index] = item;
+          },
+        }),
+      };
+      let release!: () => void;
+      const released = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const thread = createThread(
+        {
+          async *run() {
+            yield toolCallResult("send_email", { id: "a1" });
+            await released;
+          },
+        },
+        { history },
+      );
+      const first = thread.startRun({
+        parentId: null,
+        sourceId: null,
+        runConfig: {},
+      });
+      try {
+        await flush();
+        const paused = thread.messages[0]!;
+        expect(paused.status?.type).toBe("requires-action");
+        await thread.append({
+          ...userMessage("never mind"),
+          parentId: paused.id,
+          startRun: false,
+        });
+        const child = thread.messages[1]!;
+        expect(thread.getMessageById(paused.id)?.message).toBe(paused);
+
+        const reloaded = createThread(
+          {
+            async run() {
+              return { content: [] };
+            },
+          },
+          { history },
+        );
+        await reloaded.__internal_load();
+
+        expect(reloaded.messages).toEqual([
+          {
+            ...paused,
+            status: { type: "incomplete", reason: "cancelled" },
+            content: [
+              toolCallPart("send_email", {
+                id: "a1",
+                resolution: "cancelled",
+              }),
+            ],
+          },
+          child,
+        ]);
+        expect(reloaded.export().headId).toBe(child.id);
+        expect(reloaded.getMessageById(child.id)?.parentId).toBe(paused.id);
+        expect(warn).not.toHaveBeenCalled();
+      } finally {
+        release();
+        await first;
+      }
+    },
+  );
+
+  it("loads every kept history message, warns about an orphan, and preserves a kept head", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const stored = ExportedMessageRepository.fromBranchableArray(
+      [
+        { message: { ...userMessage("hello"), id: "root" }, parentId: null },
+        {
+          message: { ...userMessage("follow-up"), id: "head" },
+          parentId: "root",
+        },
+        {
+          message: { ...userMessage("orphan"), id: "orphan" },
+          parentId: "missing",
+        },
+        {
+          message: { ...userMessage("another branch"), id: "other" },
+          parentId: null,
+        },
+      ],
+      { headId: "head" },
+    );
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [] };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return stored;
+          },
+          async append() {},
+        },
+      },
+    );
+
+    await thread.__internal_load();
+
+    expect(thread.export().headId).toBe("head");
+    expect(thread.messages.map((m) => m.id)).toEqual(["root", "head"]);
+    expect(thread.export().messages).toEqual([
+      stored.messages[0],
+      stored.messages[1],
+      stored.messages[3],
+    ]);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      "[assistant-ui] Skipped history messages with missing parents:",
+      ["orphan"],
+    );
+  });
+
+  it("loads a history whose stored head names no message and warns about it", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const stored = ExportedMessageRepository.fromBranchableArray(
+      [
+        { message: { ...userMessage("hello"), id: "root" }, parentId: null },
+        {
+          message: { ...userMessage("follow-up"), id: "leaf" },
+          parentId: "root",
+        },
+      ],
+      { headId: "never-stored" },
+    );
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [] };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return stored;
+          },
+          async append() {},
+        },
+      },
+    );
+
+    await thread.__internal_load();
+
+    expect(thread.export().headId).toBe("leaf");
+    expect(thread.messages.map((m) => m.id)).toEqual(["root", "leaf"]);
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      "[assistant-ui] History head is not among the loaded messages:",
+      "never-stored",
+    );
+  });
+
+  it.each([false, true])(
+    "appends a completed message replaced by a tool result before its generator returns (update: %s)",
+    async (update) => {
+      const { history, appended, updated } = createHistory({ update });
+      let release!: () => void;
+      const released = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const thread = createThread(
+        {
+          async *run() {
+            yield {
+              content: [toolCallPart("send_email")],
+              status: { type: "complete", reason: "stop" },
+            };
+            await released;
+          },
+        },
+        { history },
+      );
+
+      const first = thread.append(userMessage("send an email"));
+      await flush();
+      const completed = thread.messages[1]!;
+      expect(completed.status?.type).toBe("complete");
+      expect(appended.filter((i) => i.message.id === completed.id)).toEqual([]);
+      thread.addToolResult({
+        messageId: completed.id,
+        toolCallId: "call-send_email",
+        toolName: "send_email",
+        result: "sent",
+        isError: false,
+      });
+      await flush();
+      release();
+      await first;
+
+      expect(
+        appended.filter((i) => i.message.id === completed.id),
+      ).toMatchObject([
+        {
+          message: {
+            status: { type: "complete", reason: "stop" },
+            content: [{ toolCallId: "call-send_email", result: "sent" }],
+          },
+        },
+      ]);
+      expect(updated).toEqual([]);
+    },
+  );
+
+  it("issues a followed message's append before its child's without waiting for it to resolve", async () => {
+    const appended: ExportedMessageRepositoryItem[] = [];
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const thread = createThread(
+      {
+        async *run() {
+          yield toolCallResult("send_email", { id: "a1" });
+          await released;
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          append(item) {
+            appended.push(item);
+            return item.message.role === "assistant"
+              ? new Promise<void>(() => {})
+              : Promise.resolve();
+          },
+        },
+      },
+    );
+
+    const first = thread.append(userMessage("send an email"));
+    await flush();
+    const paused = thread.messages[1]!;
+    void thread.append({
+      ...userMessage("never mind"),
+      parentId: paused.id,
+      startRun: false,
+    });
+    await flush();
+    try {
+      expect(appended.map((i) => i.message.id)).toEqual(
+        thread.messages.map((m) => m.id),
+      );
+      expect(appended[1]).toMatchObject({
+        message: {
+          id: paused.id,
+          status: { type: "incomplete", reason: "cancelled" },
+          content: [{ approval: { id: "a1", resolution: "cancelled" } }],
+        },
+      });
+      expect(appended[2]?.parentId).toBe(paused.id);
+      expect(thread.getMessageById(paused.id)?.message).toBe(paused);
+    } finally {
+      release();
+    }
+    await first;
+  });
+
+  it("appends a completed message before a user turn added by its subscriber", async () => {
+    const { history, appended } = createHistory();
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [{ type: "text", text: "done" }] };
+        },
+      },
+      { history },
+    );
+    let followUp: Promise<void> | undefined;
+    const unsubscribe = thread.subscribe(() => {
+      const message = thread.messages.at(-1);
+      if (message?.status?.type !== "complete") return;
+      unsubscribe();
+      followUp = thread.append({
+        ...userMessage("thanks"),
+        parentId: message.id,
+        startRun: false,
+      });
+    });
+
+    await thread.append(userMessage("hi"));
+    expect(followUp).toBeDefined();
+    await followUp;
+
+    expect(appended.map((i) => i.message.id)).toEqual(
+      thread.messages.map((m) => m.id),
+    );
+    expect(appended[1]?.message.status?.type).toBe("complete");
+    expect(appended[2]?.parentId).toBe(appended[1]?.message.id);
+  });
+
+  it("keeps a turn a subscriber appends while a resumed message starts running", async () => {
+    const { history, appended } = createHistory();
+    let runs = 0;
+    const thread = createThread(
+      {
+        async run() {
+          if (++runs === 1) {
+            return {
+              content: [toolCallPart("send_email")],
+              status: { type: "requires-action", reason: "tool-calls" },
+            };
+          }
+          return { content: [{ type: "text", text: "done" }] };
+        },
+      },
+      { history },
+    );
+
+    await thread.append(userMessage("send an email"));
+    await flush();
+    const paused = thread.messages.at(-1)!;
+    expect(paused.status?.type).toBe("requires-action");
+
+    let followUp: Promise<void> | undefined;
+    let child: ThreadMessage | undefined;
+    const unsubscribe = thread.subscribe(() => {
+      const message = thread.getMessageById(paused.id)?.message;
+      if (message?.status?.type !== "running") return;
+      unsubscribe();
+      followUp = thread.append({
+        ...userMessage("keep this turn"),
+        parentId: message.id,
+        startRun: false,
+      });
+      child = thread.messages.at(-1);
+    });
+
+    thread.addToolResult({
+      messageId: paused.id,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { sent: true },
+      isError: false,
+    });
+    expect(followUp).toBeDefined();
+    await followUp;
+    await flush();
+
+    expect(runs).toBe(2);
+    expect(child).toMatchObject({
+      role: "user",
+      content: [{ type: "text", text: "keep this turn" }],
+    });
+    expect(appended).toContainEqual(
+      expect.objectContaining({ parentId: paused.id, message: child }),
+    );
+    expect(thread.messages).toContainEqual(child);
+    expect(thread.getMessageById(child!.id)).toEqual(
+      expect.objectContaining({ parentId: paused.id, message: child }),
+    );
+  });
+
+  it("keeps a turn a subscriber appends under a turn added without a run", async () => {
+    const { history, appended } = createHistory();
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [{ type: "text", text: "done" }] };
+        },
+      },
+      { history },
+    );
+
+    let nested: Promise<void> | undefined;
+    let child: ThreadMessage | undefined;
+    const unsubscribe = thread.subscribe(() => {
+      const parent = thread.messages.at(-1);
+      if (parent?.role !== "user") return;
+      unsubscribe();
+      nested = thread.append({
+        ...userMessage("and this"),
+        parentId: parent.id,
+        startRun: false,
+      });
+      child = thread.messages.at(-1);
+    });
+
+    await thread.append({ ...userMessage("first"), startRun: false });
+    await nested;
+    await flush();
+
+    expect(child).toMatchObject({
+      role: "user",
+      content: [{ type: "text", text: "and this" }],
+    });
+    expect(thread.messages).toContainEqual(child);
+    expect(appended.map((i) => i.message.id)).toContain(child!.id);
+  });
+
+  it("stores messages through a history whose append returns nothing", async () => {
+    const appended: ExportedMessageRepositoryItem[] = [];
+    const append = (item: ExportedMessageRepositoryItem) => {
+      appended.push(item);
+    };
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [{ type: "text", text: "done" }] };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          append: append as unknown as ThreadHistoryAdapter["append"],
+        },
+      },
+    );
+
+    await thread.append(userMessage("hi"));
+
+    expect(appended.map((i) => i.message.id)).toEqual(
+      thread.messages.map((m) => m.id),
+    );
+  });
+
   it("persists feedback submitted after the assistant run settles", async () => {
     const { history, appended, updated } = createHistory();
     const thread = createThread(
@@ -3020,6 +3693,92 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     expect(updated[0]?.message.metadata.submittedFeedback).toEqual({
       type: "positive",
     });
+  });
+
+  it("reports a failed append with its message id", async () => {
+    const { history } = createHistory();
+    const error = new Error("append failed");
+    const append = vi.fn().mockRejectedValue(error);
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [] };
+        },
+      },
+      { history: { ...history, append } },
+    );
+    const listener = vi.fn();
+    thread.unstable_on("historyWriteError", listener);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const write = thread.append({ ...userMessage("hi"), startRun: false });
+    const id = thread.messages.at(-1)!.id;
+    await expect(write).rejects.toBe(error);
+
+    expect(append).toHaveBeenCalledOnce();
+    expect(listener).toHaveBeenCalledExactlyOnceWith({
+      operation: "append",
+      messageIds: [id],
+      message: error.message,
+      error,
+    });
+    expect(log).toHaveBeenCalledOnce();
+  });
+
+  it("logs a failed history write once with no listener subscribed", async () => {
+    const { history } = createHistory();
+    const error = new Error("append failed");
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [] };
+        },
+      },
+      { history: { ...history, append: vi.fn().mockRejectedValue(error) } },
+    );
+    const unsubscribe = thread.unstable_on("historyWriteError", vi.fn());
+    unsubscribe();
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(
+      thread.append({ ...userMessage("hi"), startRun: false }),
+    ).rejects.toBe(error);
+
+    expect(log).toHaveBeenCalledExactlyOnceWith(
+      "[assistant-ui] local thread history write failed:",
+      error,
+    );
+  });
+
+  it("reports a failed background update after feedback", async () => {
+    const { history } = createHistory();
+    const error = "update failed";
+    const update = vi.fn().mockRejectedValue(error);
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [{ type: "text", text: "hello" }] };
+        },
+      },
+      { history: { ...history, update } },
+    );
+    const listener = vi.fn();
+    thread.unstable_on("historyWriteError", listener);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await thread.append(userMessage("hi"));
+    const id = thread.messages.at(-1)!.id;
+    thread.submitFeedback({ messageId: id, type: "positive" });
+    await flush();
+
+    expect(update).toHaveBeenCalledOnce();
+    expect(listener).toHaveBeenCalledExactlyOnceWith({
+      operation: "update",
+      messageIds: [id],
+      message: error,
+      error,
+    });
+    expect(log).toHaveBeenCalledOnce();
   });
 
   it("persists a run paused for approval and rewrites it once the run finishes", async () => {
@@ -3488,18 +4247,23 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     const paused = thread.messages[1]!;
     expect(paused.status?.type).toBe("requires-action");
     await thread.append({ ...userMessage("never mind"), parentId: paused.id });
-    release();
-    await flush();
 
     const settled = {
       status: { type: "incomplete", reason: "cancelled" },
       content: [{ approval: { id: "a1", resolution: "cancelled" } }],
     };
-    expect(thread.getMessageById(paused.id)?.message).toMatchObject(settled);
     expect(appended.filter((i) => i.message.id === paused.id)).toMatchObject([
       { message: settled },
     ]);
     expect(updated.filter((i) => i.message.id === paused.id)).toEqual([]);
+    release();
+    await flush();
+
+    expect(thread.getMessageById(paused.id)?.message).toMatchObject(settled);
+    expect(appended.filter((i) => i.message.id === paused.id)).toHaveLength(1);
+    expect(updated.filter((i) => i.message.id === paused.id)).toMatchObject([
+      { message: settled },
+    ]);
   });
 
   it("keeps a resumed roundtrip's message when the paused roundtrip it replaced ends late", async () => {
@@ -4328,7 +5092,7 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     });
   });
 
-  it("rejects the run of a pause it lost when the settled pause cannot be stored", async () => {
+  it("rejects a turn after an in-flight pause when the settled pause cannot be stored", async () => {
     const failure = new Error("history unavailable");
     let pausedId: string | undefined;
     let release!: () => void;
@@ -4370,15 +5134,16 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
       result: "sent",
       isError: false,
     });
-    void thread.append({
-      ...userMessage("skip the deploy"),
-      parentId: pausedId,
-      startRun: false,
-    });
-    await flush();
+    await expect(
+      thread.append({
+        ...userMessage("skip the deploy"),
+        parentId: pausedId,
+        startRun: false,
+      }),
+    ).rejects.toBe(failure);
     release();
 
-    await expect(first).rejects.toBe(failure);
+    await expect(first).resolves.toBeUndefined();
   });
 
   it("rewrites a pause its run lost to a tool result once a later turn follows it", async () => {
@@ -4422,11 +5187,28 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     release();
     await flush();
 
-    expect(appended.some((i) => i.message.id === paused.id)).toBe(false);
-    expect(updated.at(-1)?.message).toMatchObject({
-      id: paused.id,
-      status: { type: "incomplete", reason: "cancelled" },
-    });
+    expect(appended.filter((i) => i.message.id === paused.id)).toMatchObject([
+      {
+        message: {
+          status: { type: "requires-action", reason: "tool-calls" },
+          content: [
+            { toolCallId: "call-send_email", result: "sent" },
+            { approval: { id: "a1" } },
+          ],
+        },
+      },
+    ]);
+    const settled = {
+      message: {
+        id: paused.id,
+        status: { type: "incomplete", reason: "cancelled" },
+        content: [
+          { toolCallId: "call-send_email", result: "sent" },
+          { approval: { id: "a1", resolution: "cancelled" } },
+        ],
+      },
+    };
+    expect(updated).toMatchObject([settled, settled]);
   });
 
   it("keeps the append-only behavior for adapters without update", async () => {
@@ -4539,6 +5321,614 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     expect(appended).toHaveLength(1);
     expect(appended[0]?.message.id).toBe("restored");
     expect(appended[0]?.message.status?.type).toBe("complete");
+  });
+
+  it("appends a resumed pause again when a later run started while its roundtrip is still open", async () => {
+    const { history, appended } = createHistory({ update: false });
+    const paused: ExportedMessageRepositoryItem = {
+      parentId: null,
+      message: {
+        id: "restored",
+        role: "assistant",
+        content: [toolCallPart("send_email", { id: "a1" })],
+        status: { type: "requires-action", reason: "tool-calls" },
+        createdAt: new Date(),
+        metadata: {
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+          custom: {},
+        },
+      },
+    };
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const thread = createThread(
+      {
+        async *run() {
+          yield toolCallResult("send_sms", { id: "a2" });
+          await released;
+        },
+      },
+      {
+        history: {
+          ...history,
+          async load() {
+            return { headId: "restored", messages: [paused] };
+          },
+        },
+      },
+    );
+
+    thread.__internal_load();
+    await flush();
+    thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    await flush();
+    void thread.startRun({ parentId: null, sourceId: null, runConfig: {} });
+    await flush();
+    void thread.append({
+      ...userMessage("never mind"),
+      parentId: "restored",
+      startRun: false,
+    });
+    await flush();
+
+    try {
+      const restored = appended.findIndex((i) => i.message.id === "restored");
+      const child = appended.findIndex((i) => i.parentId === "restored");
+      expect(restored).toBeGreaterThanOrEqual(0);
+      expect(restored).toBeLessThan(child);
+    } finally {
+      release();
+    }
+  });
+
+  it("appends a resumed pause again before a turn that follows it while its run is open", async () => {
+    const { history, appended } = createHistory({ update: false });
+    const paused: ExportedMessageRepositoryItem = {
+      parentId: null,
+      message: {
+        id: "restored",
+        role: "assistant",
+        content: [toolCallPart("send_email", { id: "a1" })],
+        status: { type: "requires-action", reason: "tool-calls" },
+        createdAt: new Date(),
+        metadata: {
+          unstable_state: null,
+          unstable_annotations: [],
+          unstable_data: [],
+          steps: [],
+          custom: {},
+        },
+      },
+    };
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const thread = createThread(
+      {
+        async *run() {
+          yield toolCallResult("send_sms", { id: "a2" });
+          await released;
+        },
+      },
+      {
+        history: {
+          ...history,
+          async load() {
+            return { headId: "restored", messages: [paused] };
+          },
+        },
+      },
+    );
+
+    thread.__internal_load();
+    await flush();
+    thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    await flush();
+    void thread.append({
+      ...userMessage("never mind"),
+      parentId: "restored",
+      startRun: false,
+    });
+    await flush();
+
+    try {
+      expect(appended.map((i) => i.message.id)).toEqual([
+        "restored",
+        thread.messages.at(-1)!.id,
+      ]);
+      expect(appended[0]?.message).toMatchObject({
+        status: { type: "incomplete", reason: "cancelled" },
+        content: expect.arrayContaining([
+          expect.objectContaining({
+            approval: expect.objectContaining({
+              id: "a2",
+              resolution: "cancelled",
+            }),
+          }),
+        ]),
+      });
+    } finally {
+      release();
+    }
+  });
+
+  it.each([
+    { outcome: "fulfilled", rejectAppend: false, rejectDelete: false },
+    { outcome: "rejected", rejectAppend: true, rejectDelete: false },
+    {
+      outcome: "fulfilled with a rejected compensating delete",
+      rejectAppend: false,
+      rejectDelete: true,
+    },
+  ])(
+    "deletes a paused message again after its pending append settles ($outcome)",
+    async ({ rejectAppend, rejectDelete }) => {
+      const { history } = createHistory({ update: false });
+      const stored = new Set<string>();
+      const appendError = new Error("append failed");
+      let releaseAppend!: () => void;
+      const appended = new Promise<void>((resolve) => {
+        releaseAppend = resolve;
+      });
+      const deleteMessages = vi.fn(
+        async (items: ExportedMessageRepositoryItem[]) => {
+          if (rejectDelete && deleteMessages.mock.calls.length === 2) {
+            throw new Error("delete failed");
+          }
+          for (const item of items) stored.delete(item.message.id);
+        },
+      );
+      const thread = createApprovalThreadWithHistory({
+        ...history,
+        async append(item) {
+          if (item.message.role === "assistant") await appended;
+          stored.add(item.message.id);
+          if (rejectAppend && item.message.role === "assistant") {
+            throw appendError;
+          }
+        },
+        delete: deleteMessages,
+      });
+      const historyWriteError = vi.fn();
+      thread.unstable_on("historyWriteError", historyWriteError);
+      const log = vi.spyOn(console, "error").mockImplementation(() => {});
+
+      await thread.append(userMessage("send an email"));
+      const [question, paused] = thread.messages;
+      const followUp = thread
+        .append({
+          ...userMessage("never mind"),
+          parentId: paused!.id,
+          startRun: false,
+        })
+        .catch((error: unknown) => error);
+      const deletion = thread.deleteMessage(paused!.id);
+
+      expect(deleteMessages).toHaveBeenCalledExactlyOnceWith([
+        {
+          parentId: question!.id,
+          message: thread.getMessageById(paused!.id)!.message,
+        },
+      ]);
+      await deletion;
+      expect(thread.getMessageById(paused!.id)).toBeUndefined();
+      releaseAppend();
+      expect(await followUp).toBe(rejectAppend ? appendError : undefined);
+      await flush();
+
+      expect(deleteMessages).toHaveBeenCalledTimes(2);
+      expect(deleteMessages.mock.calls[1]![0]).toBe(
+        deleteMessages.mock.calls[0]![0],
+      );
+      if (!rejectDelete) {
+        expect(stored.has(paused!.id)).toBe(false);
+        expect(stored).toEqual(new Set(thread.messages.map((m) => m.id)));
+        if (rejectAppend) {
+          expect(historyWriteError).toHaveBeenCalledExactlyOnceWith({
+            operation: "append",
+            messageIds: [paused!.id],
+            message: appendError.message,
+            error: appendError,
+          });
+          expect(log).toHaveBeenCalled();
+        }
+      } else {
+        expect(stored.has(paused!.id)).toBe(true);
+        expect(thread.getMessageById(paused!.id)).toBeUndefined();
+        expect(historyWriteError).toHaveBeenCalledExactlyOnceWith({
+          operation: "delete",
+          messageIds: [paused!.id],
+          message: "delete failed",
+          error: expect.any(Error),
+        });
+        expect(log).toHaveBeenCalled();
+      }
+    },
+  );
+
+  it("sends one delete when the same message is deleted again while the first is in flight", async () => {
+    const { history } = createHistory();
+    let releaseDelete!: () => void;
+    const deleted = new Promise<void>((resolve) => {
+      releaseDelete = resolve;
+    });
+    const deleteMessages = vi.fn(() => deleted);
+    const thread = createApprovalThreadWithHistory({
+      ...history,
+      delete: deleteMessages,
+    });
+
+    await thread.append(userMessage("send an email"));
+    const paused = thread.messages[1]!;
+    const first = thread.deleteMessage(paused.id);
+    const second = thread.deleteMessage(paused.id);
+    releaseDelete();
+    await Promise.all([first, second]);
+
+    expect(deleteMessages).toHaveBeenCalledOnce();
+    expect(thread.getMessageById(paused.id)).toBeUndefined();
+  });
+
+  it("does not send the compensating delete for a message an import restored", async () => {
+    const { history } = createHistory({ update: false });
+    let releaseAppend!: () => void;
+    const appended = new Promise<void>((resolve) => {
+      releaseAppend = resolve;
+    });
+    const deleteMessages = vi.fn(async () => {});
+    const thread = createApprovalThreadWithHistory({
+      ...history,
+      async append(item) {
+        if (item.message.role === "assistant") await appended;
+        return history.append(item);
+      },
+      delete: deleteMessages,
+    });
+
+    await thread.append(userMessage("send an email"));
+    const paused = thread.messages[1]!;
+    const snapshot = thread.export();
+    void thread
+      .append({
+        ...userMessage("never mind"),
+        parentId: paused.id,
+        startRun: false,
+      })
+      .catch(() => {});
+    await thread.deleteMessage(paused.id);
+    thread.import(snapshot);
+    releaseAppend();
+    await flush();
+
+    expect(deleteMessages).toHaveBeenCalledOnce();
+    expect(thread.getMessageById(paused.id)).toBeDefined();
+  });
+
+  it("resolves a delete and skips a follow-up write while an earlier append never settles", async () => {
+    vi.useFakeTimers();
+    try {
+      const { history, updated } = createHistory();
+      let notifyAppend!: () => void;
+      const appendStarted = new Promise<void>((resolve) => {
+        notifyAppend = resolve;
+      });
+      const deleteMessages = vi.fn(async () => {});
+      const thread = createApprovalThreadWithHistory({
+        ...history,
+        append(item) {
+          if (item.message.role === "assistant") {
+            notifyAppend();
+            return new Promise<void>(() => {});
+          }
+          return history.append(item);
+        },
+        delete: deleteMessages,
+      });
+
+      void thread.append(userMessage("send an email"));
+      await appendStarted;
+      const paused = thread.messages[1]!;
+      const deletion = thread.deleteMessage(paused.id).then(() => "deleted");
+      expect(deleteMessages).toHaveBeenCalledOnce();
+      const followUp = thread
+        .append({
+          ...userMessage("never mind"),
+          parentId: paused.id,
+          startRun: false,
+        })
+        .then(() => "appended");
+
+      await vi.runAllTimersAsync();
+
+      expect(await Promise.race([deletion, Promise.resolve("pending")])).toBe(
+        "deleted",
+      );
+      expect(await Promise.race([followUp, Promise.resolve("pending")])).toBe(
+        "appended",
+      );
+      expect(thread.getMessageById(paused.id)).toBeUndefined();
+      expect(deleteMessages).toHaveBeenCalledOnce();
+      expect(updated).toEqual([]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("skips feedback writes after a delete is issued until import restores the message", async () => {
+    const { history, updated } = createHistory();
+    let releaseDelete!: () => void;
+    const deleted = new Promise<void>((resolve) => {
+      releaseDelete = resolve;
+    });
+    const deleteMessages = vi.fn(() => deleted);
+    const thread = createApprovalThreadWithHistory({
+      ...history,
+      delete: deleteMessages,
+    });
+
+    await thread.append(userMessage("send an email"));
+    const paused = thread.messages[1]!;
+    const snapshot = thread.export();
+    const deletion = thread.deleteMessage(paused.id);
+    expect(deleteMessages).toHaveBeenCalledOnce();
+    thread.submitFeedback({ messageId: paused.id, type: "positive" });
+    const writesDuringDelete = [...updated];
+    expect(thread.getMessageById(paused.id)).toBeDefined();
+
+    releaseDelete();
+    await deletion;
+    expect(thread.getMessageById(paused.id)).toBeUndefined();
+    thread.import(snapshot);
+    thread.submitFeedback({ messageId: paused.id, type: "negative" });
+    await flush();
+
+    expect(updated.at(-1)?.message).toMatchObject({
+      id: paused.id,
+      metadata: { submittedFeedback: { type: "negative" } },
+    });
+    expect(writesDuringDelete).toEqual([]);
+    expect(updated).toHaveLength(1);
+    expect(deleteMessages).toHaveBeenCalledOnce();
+  });
+
+  it("issues the writes a rejected delete suppressed, and later ones", async () => {
+    const { history, updated } = createHistory();
+    const deleteError = new Error("delete failed");
+    let rejectDelete!: (error: Error) => void;
+    const deleted = new Promise<void>((_, reject) => {
+      rejectDelete = reject;
+    });
+    const deleteMessages = vi.fn(() => deleted);
+    const thread = createApprovalThreadWithHistory({
+      ...history,
+      delete: deleteMessages,
+    });
+
+    await thread.append(userMessage("send an email"));
+    const paused = thread.messages[1]!;
+    const deletion = thread.deleteMessage(paused.id);
+    thread.submitFeedback({ messageId: paused.id, type: "positive" });
+    const writesDuringDelete = [...updated];
+    rejectDelete(deleteError);
+    await expect(deletion).rejects.toBe(deleteError);
+    await flush();
+    expect(thread.getMessageById(paused.id)).toBeDefined();
+    expect(writesDuringDelete).toEqual([]);
+    expect(updated.at(-1)?.message).toMatchObject({
+      id: paused.id,
+      metadata: { submittedFeedback: { type: "positive" } },
+    });
+
+    thread.submitFeedback({ messageId: paused.id, type: "negative" });
+    await flush();
+
+    expect(updated.at(-1)?.message).toMatchObject({
+      id: paused.id,
+      metadata: { submittedFeedback: { type: "negative" } },
+    });
+    expect(updated).toHaveLength(2);
+    expect(deleteMessages).toHaveBeenCalledOnce();
+  });
+
+  it("appends a message a rejected delete suppressed to an append-only history", async () => {
+    const { history, appended } = createHistory({ update: false });
+    const deleteError = new Error("delete failed");
+    let rejectDelete!: (error: Error) => void;
+    const deleted = new Promise<void>((_, reject) => {
+      rejectDelete = reject;
+    });
+    const deleteMessages = vi.fn(() => deleted);
+    const thread = createApprovalThreadWithHistory({
+      ...history,
+      delete: deleteMessages,
+    });
+
+    await thread.append(userMessage("send an email"));
+    const paused = thread.messages[1]!;
+    expect(appended.map(({ message }) => message.id)).not.toContain(paused.id);
+    const deletion = thread.deleteMessage(paused.id);
+    await thread
+      .append({
+        ...userMessage("never mind"),
+        parentId: paused.id,
+        startRun: false,
+      })
+      .catch(() => {});
+    expect(appended.map(({ message }) => message.id)).not.toContain(paused.id);
+
+    rejectDelete(deleteError);
+    await expect(deletion).rejects.toBe(deleteError);
+    await flush();
+
+    expect(appended.map(({ message }) => message.id)).toContain(paused.id);
+    expect(thread.getMessageById(paused.id)).toBeDefined();
+  });
+
+  it("keeps a paused message cancelled after the follow-up that ended it is deleted", async () => {
+    const { history, appended } = createHistory({ update: false });
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let runs = 0;
+    const thread = createThread(
+      {
+        async *run() {
+          runs++;
+          yield {
+            content: [toolCallPart("send_email")],
+            status: { type: "requires-action", reason: "tool-calls" },
+          };
+          await released;
+        },
+      },
+      { history: { ...history, async delete() {} } },
+    );
+
+    void thread.append(userMessage("send an email"));
+    await flush();
+    const paused = thread.messages[1]!;
+    await thread.append({
+      ...userMessage("fyi"),
+      parentId: paused.id,
+      startRun: false,
+    });
+    await thread.deleteMessage(thread.messages.at(-1)!.id);
+    thread.addToolResult({
+      messageId: paused.id,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { sent: true },
+      isError: false,
+    });
+    await flush();
+    release();
+    await flush();
+
+    const cancelled = { status: { type: "incomplete", reason: "cancelled" } };
+    expect(runs).toBe(1);
+    expect(thread.getMessageById(paused.id)?.message).toMatchObject({
+      ...cancelled,
+      content: [{ result: { sent: true } }],
+    });
+    expect(
+      appended.filter((i) => i.message.id === paused.id).at(-1)?.message,
+    ).toMatchObject(cancelled);
+  });
+
+  it("rejects an approval answer after the follow-up turn that ended its pause is deleted", async () => {
+    const { history } = createHistory();
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let runs = 0;
+    const thread = createThread(
+      {
+        async *run() {
+          runs++;
+          if (runs === 1) {
+            yield {
+              content: [toolCallPart("send_email", { id: "a1" })],
+              status: { type: "requires-action", reason: "tool-calls" },
+            };
+            await released;
+            return;
+          }
+          yield { content: [{ type: "text", text: "noted" }] };
+        },
+      },
+      { history: { ...history, async delete() {} } },
+    );
+
+    void thread.append(userMessage("send an email"));
+    await flush();
+    const paused = thread.messages[1]!;
+    await thread.append({ ...userMessage("fyi"), parentId: paused.id });
+    const [, , followUp, reply] = thread.messages;
+    await thread.deleteMessage(reply!.id);
+    await thread.deleteMessage(followUp!.id);
+
+    try {
+      expect(() =>
+        thread.respondToToolApproval({ approvalId: "a1", approved: true }),
+      ).toThrow(
+        "Tried to respond to a tool approval that was cancelled or expired",
+      );
+      expect(runs).toBe(2);
+    } finally {
+      release();
+    }
+  });
+
+  it("stores a result added while a turn's start follows the message without resuming it", async () => {
+    const { history, appended } = createHistory({ update: false });
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let pausedId: string | undefined;
+    let resumes = 0;
+    const thread = createThread(
+      {
+        async *run(options) {
+          if (pausedId === undefined) {
+            yield {
+              content: [toolCallPart("send_email")],
+              status: { type: "requires-action", reason: "tool-calls" },
+            };
+            await released;
+            return;
+          }
+          if (options.unstable_assistantMessageId === pausedId) {
+            resumes++;
+            return;
+          }
+          yield { content: [{ type: "text", text: "noted" }] };
+        },
+      },
+      { history },
+    );
+
+    void thread.append(userMessage("send an email"));
+    await flush();
+    const paused = thread.messages[1]!;
+    pausedId = paused.id;
+    let added = false;
+    thread.unstable_on("runStart", () => {
+      if (added) return;
+      added = true;
+      thread.addToolResult({
+        messageId: paused.id,
+        toolCallId: "call-send_email",
+        toolName: "send_email",
+        result: { sent: true },
+        isError: false,
+      });
+    });
+    await thread.startRun({
+      parentId: paused.id,
+      sourceId: null,
+      runConfig: {},
+    });
+    const child = thread.messages.at(-1)!;
+    release();
+    await flush();
+
+    const ids = appended.map((i) => i.message.id);
+    expect(resumes).toBe(0);
+    expect(thread.getMessageById(paused.id)?.message).toMatchObject({
+      content: [{ result: { sent: true } }],
+    });
+    expect(child.id).not.toBe(paused.id);
+    expect(ids).toContain(child.id);
+    expect(ids.lastIndexOf(paused.id)).toBeLessThan(ids.indexOf(child.id));
   });
 
   it("persists a partial approval decision while another tool call is still pending", async () => {
@@ -4909,6 +6299,46 @@ describe("LocalThreadRuntimeCore runs", () => {
     expect(assistant.status).toEqual({ type: "complete", reason: "stop" });
   });
 
+  it("keeps the branch the user switched to while a multi-step answer runs", async () => {
+    let releaseToolStep!: () => void;
+    const toolStep = new Promise<void>(
+      (resolve) => (releaseToolStep = resolve),
+    );
+    let calls = 0;
+    const thread = createPlainThread({
+      async run(): Promise<ChatModelRunResult> {
+        calls++;
+        if (calls === 2) {
+          await toolStep;
+          return {
+            content: [{ ...toolCallPart("search"), result: "found" }],
+            status: { type: "requires-action", reason: "tool-calls" },
+          };
+        }
+        return { content: [{ type: "text", text: "answer" }] };
+      },
+    });
+    await thread.append(userMessage("hi"));
+    const [question, firstAnswer] = thread.messages.map(
+      (message) => message.id,
+    );
+
+    void thread.startRun({
+      parentId: question!,
+      sourceId: firstAnswer!,
+      runConfig: {},
+    });
+    await flush();
+    expect(thread.messages.at(-1)?.id).not.toBe(firstAnswer);
+
+    thread.switchToBranch(firstAnswer!);
+    releaseToolStep();
+    await flush();
+
+    expect(calls).toBe(3);
+    expect(thread.messages.at(-1)?.id).toBe(firstAnswer);
+  });
+
   it("marks the message errored when the adapter rejects", async () => {
     const thread = createPlainThread({
       async run() {
@@ -5033,6 +6463,746 @@ describe("LocalThreadRuntimeCore runs", () => {
     await flush();
 
     expect(load).toHaveBeenCalledOnce();
+    expect(thread.messages.map((message) => message.id)).toEqual(["restored"]);
+  });
+
+  it("discards an in-flight load when the history adapter changes", async () => {
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    let resolveFirstLoad!: (
+      repo: Awaited<ReturnType<ThreadHistoryAdapter["load"]>>,
+    ) => void;
+    const firstLoad = new Promise<
+      Awaited<ReturnType<ThreadHistoryAdapter["load"]>>
+    >((resolve) => {
+      resolveFirstLoad = resolve;
+    });
+    const firstHistory: ThreadHistoryAdapter = {
+      scopeId: "first",
+      load: () => firstLoad,
+      append: async () => {},
+    };
+    const secondLoad = vi.fn<ThreadHistoryAdapter["load"]>(async () => ({
+      headId: "second",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "second",
+            role: "user" as const,
+            content: [{ type: "text" as const, text: "second" }],
+            attachments: [],
+            createdAt: new Date(0),
+            metadata: { custom: {} },
+          },
+        },
+      ],
+    }));
+    const thread = createThread(adapter, { history: firstHistory });
+
+    const load = thread.__internal_load();
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        history: {
+          scopeId: "second",
+          load: secondLoad,
+          append: async () => {},
+        },
+      },
+    });
+    resolveFirstLoad({
+      headId: "first",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "first",
+            role: "user" as const,
+            content: [{ type: "text" as const, text: "first" }],
+            attachments: [],
+            createdAt: new Date(0),
+            metadata: { custom: {} },
+          },
+        },
+      ],
+    });
+
+    await load;
+
+    expect(secondLoad).toHaveBeenCalledOnce();
+    expect(thread.messages.map((message) => message.id)).toEqual(["second"]);
+  });
+
+  it("loads a new history scope without waiting for the previous load", async () => {
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    let resolveFirstLoad!: (
+      repo: Awaited<ReturnType<ThreadHistoryAdapter["load"]>>,
+    ) => void;
+    const firstLoad = new Promise<
+      Awaited<ReturnType<ThreadHistoryAdapter["load"]>>
+    >((resolve) => {
+      resolveFirstLoad = resolve;
+    });
+    const secondLoad = vi.fn<ThreadHistoryAdapter["load"]>(async () => ({
+      headId: "second",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "second",
+            role: "user" as const,
+            content: [{ type: "text" as const, text: "second" }],
+            attachments: [],
+            createdAt: new Date(0),
+            metadata: { custom: {} },
+          },
+        },
+      ],
+    }));
+    const thread = createThread(adapter, {
+      history: {
+        scopeId: "first",
+        load: () => firstLoad,
+        append: async () => {},
+      },
+    });
+
+    const staleLoad = thread.__internal_load();
+    thread.__internal_setOptions({ adapters: { chatModel: adapter } });
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        history: {
+          scopeId: "second",
+          load: secondLoad,
+          append: async () => {},
+        },
+      },
+    });
+    await flush();
+
+    expect(secondLoad).toHaveBeenCalledOnce();
+    expect(thread.isLoading).toBe(false);
+    expect(thread.messages.map((message) => message.id)).toEqual(["second"]);
+
+    resolveFirstLoad({
+      headId: "first",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "first",
+            role: "user" as const,
+            content: [{ type: "text" as const, text: "first" }],
+            attachments: [],
+            createdAt: new Date(0),
+            metadata: { custom: {} },
+          },
+        },
+      ],
+    });
+    await staleLoad;
+
+    expect(thread.isLoading).toBe(false);
+    expect(thread.messages.map((message) => message.id)).toEqual(["second"]);
+  });
+
+  it("accepts a pending load while its adapter is temporarily absent", async () => {
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    let resolveLoad!: (
+      repo: Awaited<ReturnType<ThreadHistoryAdapter["load"]>>,
+    ) => void;
+    const pendingLoad = new Promise<
+      Awaited<ReturnType<ThreadHistoryAdapter["load"]>>
+    >((resolve) => {
+      resolveLoad = resolve;
+    });
+    const load = vi.fn<ThreadHistoryAdapter["load"]>(() => pendingLoad);
+    const history: ThreadHistoryAdapter = {
+      scopeId: "account",
+      load,
+      append: async () => {},
+    };
+    const thread = createThread(adapter, { history });
+
+    const loading = thread.__internal_load();
+    thread.__internal_setOptions({ adapters: { chatModel: adapter } });
+    resolveLoad({
+      headId: "restored",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "restored",
+            role: "user" as const,
+            content: [{ type: "text" as const, text: "restored" }],
+            attachments: [],
+            createdAt: new Date(0),
+            metadata: { custom: {} },
+          },
+        },
+      ],
+    });
+    await loading;
+
+    thread.__internal_setOptions({
+      adapters: { chatModel: adapter, history },
+    });
+    await flush();
+
+    expect(load).toHaveBeenCalledOnce();
+    expect(thread.messages.map((message) => message.id)).toEqual(["restored"]);
+  });
+
+  it("retries a failed load when its adapter is reinstalled", async () => {
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    const firstLoad = vi.fn<ThreadHistoryAdapter["load"]>(async () => {
+      throw new Error("session expired");
+    });
+    const secondLoad = vi.fn<ThreadHistoryAdapter["load"]>(async () => ({
+      headId: "restored",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "restored",
+            role: "user" as const,
+            content: [{ type: "text" as const, text: "restored" }],
+            attachments: [],
+            createdAt: new Date(0),
+            metadata: { custom: {} },
+          },
+        },
+      ],
+    }));
+    const thread = createThread(adapter, {
+      history: {
+        scopeId: "account",
+        load: firstLoad,
+        append: async () => {},
+      },
+    });
+
+    const loading = thread.__internal_load();
+    thread.__internal_setOptions({ adapters: { chatModel: adapter } });
+    await expect(loading).rejects.toThrow("session expired");
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        history: {
+          scopeId: "account",
+          load: secondLoad,
+          append: async () => {},
+        },
+      },
+    });
+    await flush();
+
+    expect(secondLoad).toHaveBeenCalledOnce();
+    expect(thread.messages.map((message) => message.id)).toEqual(["restored"]);
+  });
+
+  it.each(["account", undefined])(
+    "does not retry a recreated adapter in scope %s after a load fails",
+    async (scopeId) => {
+      const adapter: ChatModelAdapter = {
+        run: async () => ({ content: [] }),
+      };
+      let rejectFirstLoad!: (error: unknown) => void;
+      const firstLoad = new Promise<never>((_, reject) => {
+        rejectFirstLoad = reject;
+      });
+      const secondLoad = vi.fn<ThreadHistoryAdapter["load"]>(async () => ({
+        headId: "restored",
+        messages: [
+          {
+            parentId: null,
+            message: {
+              id: "restored",
+              role: "user" as const,
+              content: [{ type: "text" as const, text: "restored" }],
+              attachments: [],
+              createdAt: new Date(0),
+              metadata: { custom: {} },
+            },
+          },
+        ],
+      }));
+      const thread = createThread(adapter, {
+        history: {
+          ...(scopeId !== undefined && { scopeId }),
+          load: () => firstLoad,
+          append: async () => {},
+        },
+      });
+
+      const loading = thread.__internal_load();
+      thread.__internal_setOptions({
+        adapters: {
+          chatModel: adapter,
+          history: {
+            ...(scopeId !== undefined && { scopeId }),
+            load: secondLoad,
+            append: async () => {},
+          },
+        },
+      });
+      rejectFirstLoad(new Error("session expired"));
+
+      await expect(loading).rejects.toThrow("session expired");
+      await flush();
+
+      expect(secondLoad).not.toHaveBeenCalled();
+      expect(thread.messages).toEqual([]);
+      expect(thread.isLoading).toBe(false);
+    },
+  );
+
+  it("ignores a rejected load from a previous history adapter", async () => {
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    let rejectFirstLoad!: (error: unknown) => void;
+    const firstLoad = new Promise<never>((_, reject) => {
+      rejectFirstLoad = reject;
+    });
+    const secondLoad = vi.fn<ThreadHistoryAdapter["load"]>(async () => ({
+      messages: [],
+    }));
+    const thread = createThread(adapter, {
+      history: {
+        scopeId: "first",
+        load: () => firstLoad,
+        append: async () => {},
+      },
+    });
+
+    const load = thread.__internal_load();
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        history: {
+          scopeId: "second",
+          load: secondLoad,
+          append: async () => {},
+        },
+      },
+    });
+    rejectFirstLoad(new Error("old history unavailable"));
+
+    await expect(load).resolves.toBeUndefined();
+    expect(secondLoad).toHaveBeenCalledOnce();
+    expect(thread.messages).toEqual([]);
+  });
+
+  it("reloads history when the scope changes after the first load", async () => {
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    let resolveSecondLoad!: (
+      repo: Awaited<ReturnType<ThreadHistoryAdapter["load"]>>,
+    ) => void;
+    const secondLoad = new Promise<
+      Awaited<ReturnType<ThreadHistoryAdapter["load"]>>
+    >((resolve) => {
+      resolveSecondLoad = resolve;
+    });
+    const thread = createThread(adapter, {
+      history: {
+        scopeId: "first",
+        load: async () => ({
+          headId: "first",
+          messages: [
+            {
+              parentId: null,
+              message: {
+                id: "first",
+                role: "user" as const,
+                content: [{ type: "text" as const, text: "first" }],
+                attachments: [],
+                createdAt: new Date(0),
+                metadata: { custom: {} },
+              },
+            },
+          ],
+        }),
+        append: async () => {},
+      },
+    });
+
+    await thread.__internal_load();
+    expect(thread.messages.map((message) => message.id)).toEqual(["first"]);
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        history: {
+          scopeId: "second",
+          load: () => secondLoad,
+          append: async () => {},
+        },
+      },
+    });
+
+    expect(thread.isLoading).toBe(true);
+    expect(thread.messages).toEqual([]);
+
+    resolveSecondLoad({
+      headId: "second",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "second",
+            role: "user" as const,
+            content: [{ type: "text" as const, text: "second" }],
+            attachments: [],
+            createdAt: new Date(0),
+            metadata: { custom: {} },
+          },
+        },
+      ],
+    });
+    await flush();
+
+    expect(thread.isLoading).toBe(false);
+    expect(thread.messages.map((message) => message.id)).toEqual(["second"]);
+  });
+
+  it("discards pending appends when the history scope changes", async () => {
+    const firstAppend = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+    const secondAppend = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    const thread = createThread(adapter, {
+      history: {
+        scopeId: "first",
+        load: async () => ({ messages: [] }),
+        append: firstAppend,
+      },
+    });
+    let releaseInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      releaseInitialization = resolve;
+    });
+
+    await thread.__internal_load();
+    thread.__internal_setGetInitializePromise(() => initialization);
+    const append = thread.append({
+      ...userMessage("first scope"),
+      startRun: false,
+    });
+    await Promise.resolve();
+    expect(thread.messages).toHaveLength(1);
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        history: {
+          scopeId: "second",
+          load: async () => ({ messages: [] }),
+          append: secondAppend,
+        },
+      },
+    });
+    releaseInitialization();
+    await append;
+    await flush();
+
+    expect(firstAppend).not.toHaveBeenCalled();
+    expect(secondAppend).not.toHaveBeenCalled();
+    expect(thread.messages).toEqual([]);
+  });
+
+  it("releases appends waiting on a superseded history load", async () => {
+    const firstAppend = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+    const secondAppend = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    const thread = createThread(adapter, {
+      history: {
+        scopeId: "first",
+        load: () => new Promise(() => {}),
+        append: firstAppend,
+      },
+    });
+
+    thread.__internal_load();
+    const staleAppend = thread.append({
+      ...userMessage("first scope"),
+      startRun: false,
+    });
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        history: {
+          scopeId: "second",
+          load: async () => ({ messages: [] }),
+          append: secondAppend,
+        },
+      },
+    });
+
+    await staleAppend;
+    await thread.append({
+      ...userMessage("second scope"),
+      startRun: false,
+    });
+
+    expect(firstAppend).not.toHaveBeenCalled();
+    expect(secondAppend).toHaveBeenCalledOnce();
+    expect(thread.messages.map((message) => message.content)).toEqual([
+      [{ type: "text", text: "second scope" }],
+    ]);
+  });
+
+  it("cancels active and queued work when the history scope changes", async () => {
+    const firstAppend = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+    const secondAppend = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+    const run = vi.fn<ChatModelAdapter["run"]>(
+      ({ abortSignal }) =>
+        new Promise((resolve) => {
+          abortSignal.addEventListener(
+            "abort",
+            () => resolve({ content: [] }),
+            { once: true },
+          );
+        }),
+    );
+    const core = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: { run },
+          history: {
+            scopeId: "first",
+            load: async () => ({ messages: [] }),
+            append: firstAppend,
+          },
+        },
+        unstable_enableMessageQueue: true,
+      },
+      undefined,
+    );
+    const thread = core.threads.getMainThreadRuntimeCore();
+
+    await thread.__internal_load();
+    await thread.append(userMessage("running"));
+    await flush();
+    await thread.append({
+      ...userMessage("queued"),
+      parentId: thread.messages.at(-1)?.id ?? null,
+      steer: false,
+    });
+    expect(thread.getQueueItems()).toHaveLength(1);
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: { run },
+        history: {
+          scopeId: "second",
+          load: async () => ({ messages: [] }),
+          append: secondAppend,
+        },
+      },
+      unstable_enableMessageQueue: true,
+    });
+    await flush();
+
+    expect(run).toHaveBeenCalledOnce();
+    expect(firstAppend).toHaveBeenCalledOnce();
+    expect(firstAppend.mock.calls[0]?.[0].message.role).toBe("user");
+    expect(thread.getQueueItems()).toEqual([]);
+    expect(secondAppend).not.toHaveBeenCalled();
+    expect(thread.messages).toEqual([]);
+  });
+
+  it("disconnects voice when the history scope changes", async () => {
+    let emitTranscript!: (item: RealtimeVoiceAdapter.TranscriptItem) => void;
+    const unsubscribeTranscript = vi.fn();
+    const disconnect = vi.fn();
+    const session: RealtimeVoiceAdapter.Session = {
+      status: { type: "running" },
+      isMuted: false,
+      disconnect,
+      mute: vi.fn(),
+      unmute: vi.fn(),
+      onStatusChange: () => () => {},
+      onTranscript: (callback) => {
+        emitTranscript = callback;
+        return unsubscribeTranscript;
+      },
+      onModeChange: () => () => {},
+      onVolumeChange: () => () => {},
+    };
+    const voice: RealtimeVoiceAdapter = { connect: () => session };
+    const appendSecond = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+    const thread = createThread(
+      { run: async () => ({ content: [] }) },
+      {
+        voice,
+        history: {
+          scopeId: "first",
+          load: async () => ({ messages: [] }),
+          append: async () => {},
+        },
+      },
+    );
+
+    await thread.__internal_load();
+    thread.connectVoice();
+    expect(thread.voice).toBeDefined();
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: { run: async () => ({ content: [] }) },
+        voice,
+        history: {
+          scopeId: "second",
+          load: async () => ({ messages: [] }),
+          append: appendSecond,
+        },
+      },
+    });
+
+    expect(disconnect).toHaveBeenCalledOnce();
+    expect(unsubscribeTranscript).toHaveBeenCalledOnce();
+    expect(thread.voice).toBeUndefined();
+
+    emitTranscript({ role: "user", text: "previous scope", isFinal: true });
+    await flush();
+
+    expect(appendSecond).not.toHaveBeenCalled();
+    expect(thread.messages).toEqual([]);
+  });
+
+  it("discards the composer draft when the history scope changes", async () => {
+    const appendSecond = vi.fn<ThreadHistoryAdapter["append"]>(async () => {});
+    const run = vi.fn<ChatModelAdapter["run"]>(async () => ({ content: [] }));
+    const thread = createThread(
+      { run },
+      {
+        history: {
+          scopeId: "first",
+          load: async () => ({ messages: [] }),
+          append: async () => {},
+        },
+      },
+    );
+    await thread.__internal_load();
+    thread.composer.setText("draft for the first scope");
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: { run },
+        history: {
+          scopeId: "second",
+          load: async () => ({ messages: [] }),
+          append: appendSecond,
+        },
+      },
+    });
+    await flush();
+
+    expect(thread.composer.text).toBe("");
+
+    await thread.composer.send();
+    await flush();
+
+    expect(appendSecond).not.toHaveBeenCalled();
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it("keeps the composer draft when an adapter keeps its scope", async () => {
+    const run = vi.fn<ChatModelAdapter["run"]>(async () => ({ content: [] }));
+    const thread = createThread(
+      { run },
+      {
+        history: {
+          scopeId: "first",
+          load: async () => ({ messages: [] }),
+          append: async () => {},
+        },
+      },
+    );
+    await thread.__internal_load();
+    thread.composer.setText("draft that outlives the adapter object");
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: { run },
+        history: {
+          scopeId: "first",
+          load: async () => ({ messages: [] }),
+          append: async () => {},
+        },
+      },
+    });
+    await flush();
+
+    expect(thread.composer.text).toBe("draft that outlives the adapter object");
+  });
+
+  it("accepts an in-flight load when an unkeyed adapter is recreated", async () => {
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    let resolveLoad!: (
+      repo: Awaited<ReturnType<ThreadHistoryAdapter["load"]>>,
+    ) => void;
+    const pendingLoad = new Promise<
+      Awaited<ReturnType<ThreadHistoryAdapter["load"]>>
+    >((resolve) => {
+      resolveLoad = resolve;
+    });
+    const replacementLoad = vi.fn<ThreadHistoryAdapter["load"]>();
+    const thread = createThread(adapter, {
+      history: {
+        load: () => pendingLoad,
+        append: async () => {},
+      },
+    });
+
+    const load = thread.__internal_load();
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        history: {
+          load: replacementLoad,
+          append: async () => {},
+        },
+      },
+    });
+    resolveLoad({
+      headId: "restored",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "restored",
+            role: "user" as const,
+            content: [{ type: "text" as const, text: "restored" }],
+            attachments: [],
+            createdAt: new Date(0),
+            metadata: { custom: {} },
+          },
+        },
+      ],
+    });
+
+    await load;
+
+    expect(replacementLoad).not.toHaveBeenCalled();
     expect(thread.messages.map((message) => message.id)).toEqual(["restored"]);
   });
 
@@ -5556,5 +7726,759 @@ describe("LocalThreadRuntimeCore message queue", () => {
 
     expect(dispatched).toEqual(["first", "second", "third"]);
     await releaseRun();
+  });
+});
+
+describe("LocalThreadRuntimeCore message queue with other runs", () => {
+  const createThread = (options: {
+    clearOnCancel?: boolean | undefined;
+    history?: boolean;
+    historyAdapter?: ThreadHistoryAdapter;
+    wait?: (message: ThreadMessage | undefined) => Promise<void>;
+    queue?: boolean;
+  }) => {
+    const dispatched: string[] = [];
+    const runtimeOptions: LocalRuntimeOptionsBase = {
+      adapters: {
+        chatModel: {
+          async run(runOptions) {
+            const last = runOptions.messages.at(-1);
+            dispatched.push(
+              last?.content
+                .filter((part) => part.type === "text")
+                .map((part) => (part as { text: string }).text)
+                .join("") ?? "",
+            );
+            await options.wait?.(last);
+            return { content: [{ type: "text", text: "ok" }] };
+          },
+        },
+        ...(options.historyAdapter !== undefined && {
+          history: options.historyAdapter,
+        }),
+      },
+      unstable_enableMessageQueue: options.queue ?? true,
+      ...(options.clearOnCancel !== undefined && {
+        unstable_queueClearOnCancel: options.clearOnCancel,
+      }),
+    };
+    const core = new LocalRuntimeCore(
+      runtimeOptions,
+      options.history
+        ? [
+            { id: "u0", role: "user", content: "hi" },
+            { id: "a0", role: "assistant", content: "hello" },
+          ]
+        : undefined,
+    );
+    const thread = core.threads.getMainThreadRuntimeCore();
+    const send = (text: string, steer?: boolean) =>
+      void thread.append({
+        ...userMessage(text),
+        parentId: thread.messages.at(-1)?.id ?? null,
+        ...(steer !== undefined && { steer }),
+      });
+    const enableQueue = (enabled = true) =>
+      thread.__internal_setOptions({
+        ...runtimeOptions,
+        unstable_enableMessageQueue: enabled,
+      });
+    return { thread, dispatched, send, enableQueue };
+  };
+
+  const createGate = () => {
+    let release!: () => void;
+    let gate = new Promise<void>((resolve) => (release = resolve));
+    return {
+      wait: () => gate,
+      release: async () => {
+        const releaseCurrent = release;
+        gate = new Promise<void>((resolve) => (release = resolve));
+        releaseCurrent();
+        await flush();
+      },
+    };
+  };
+
+  const createInitialization = () => {
+    let resolve!: () => void;
+    let reject!: (error: unknown) => void;
+    const promise = new Promise<void>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
+  };
+
+  it("holds the next queued send when a regenerate ends while a queued send waits to start", async () => {
+    const gate = createGate();
+    const { thread, dispatched, send } = createThread({
+      history: true,
+      wait: gate.wait,
+    });
+    const initialization = createInitialization();
+    thread.__internal_setGetInitializePromise(() => initialization.promise);
+
+    send("first");
+    await flush();
+    send("second");
+    await flush();
+    void thread.startRun({ parentId: "u0", sourceId: "a0", runConfig: {} });
+    await flush();
+    await gate.release();
+
+    initialization.resolve();
+    await flush();
+    expect(dispatched).toEqual(["hi", "first"]);
+
+    await gate.release();
+    expect(dispatched).toEqual(["hi", "first", "second"]);
+    await gate.release();
+  });
+
+  it("keeps sending after a cancel while a queued send waits to start", async () => {
+    const gate = createGate();
+    const { thread, dispatched, send } = createThread({
+      clearOnCancel: false,
+      wait: gate.wait,
+    });
+    const initialization = createInitialization();
+    thread.__internal_setGetInitializePromise(() => initialization.promise);
+
+    send("first");
+    await flush();
+    thread.cancelRun();
+    initialization.resolve();
+    await flush();
+    expect(dispatched).toEqual(["first"]);
+
+    send("second");
+    await flush();
+    expect(dispatched).toEqual(["first"]);
+
+    await gate.release();
+    expect(dispatched).toEqual(["first", "second"]);
+    await gate.release();
+  });
+
+  it("keeps sending after a cancel stops a regenerate while a queued send waits to start", async () => {
+    const gate = createGate();
+    const { thread, dispatched, send } = createThread({
+      history: true,
+      clearOnCancel: false,
+      wait: gate.wait,
+    });
+    const initialization = createInitialization();
+    thread.__internal_setGetInitializePromise(() => initialization.promise);
+
+    send("first");
+    await flush();
+    send("second");
+    await flush();
+    void thread.startRun({ parentId: "u0", sourceId: "a0", runConfig: {} });
+    await flush();
+    thread.cancelRun();
+    await gate.release();
+
+    initialization.resolve();
+    await flush();
+    expect(dispatched).toEqual(["hi", "first"]);
+
+    await gate.release();
+    expect(dispatched).toEqual(["hi", "first", "second"]);
+    await gate.release();
+  });
+
+  it("sends a later queued send when a send waiting on the history load is cancelled", async () => {
+    let releaseLoad!: () => void;
+    const loaded = new Promise<void>((resolve) => (releaseLoad = resolve));
+    const gate = createGate();
+    const { thread, dispatched, send } = createThread({
+      clearOnCancel: false,
+      wait: gate.wait,
+      historyAdapter: {
+        load: () => loaded.then(() => ({ messages: [] })),
+        async append() {},
+      },
+    });
+
+    thread.__internal_load();
+    send("first");
+    await flush();
+    thread.cancelRun();
+    send("second");
+    await flush();
+    releaseLoad();
+    await flush();
+    expect(dispatched).toEqual(["first"]);
+
+    await gate.release();
+    expect(dispatched).toEqual(["first", "second"]);
+    await gate.release();
+  });
+
+  it("holds a queued send behind a run started in the tick after another run ends", async () => {
+    const gate = createGate();
+    const { thread, dispatched, send } = createThread({
+      history: true,
+      wait: gate.wait,
+    });
+    let followUps = 0;
+    thread.unstable_on("runEnd", () => {
+      if (followUps++ > 0) return;
+      queueMicrotask(() => {
+        void thread.startRun({ parentId: "u0", sourceId: null, runConfig: {} });
+      });
+    });
+
+    void thread.startRun({ parentId: "u0", sourceId: "a0", runConfig: {} });
+    await flush();
+    await gate.release();
+    expect(dispatched).toEqual(["hi", "hi"]);
+
+    send("queued");
+    await flush();
+    expect(dispatched).toEqual(["hi", "hi"]);
+
+    await gate.release();
+    expect(dispatched).toEqual(["hi", "hi", "queued"]);
+    await gate.release();
+  });
+
+  it("keeps sending after a cancel between a run's end and a run started in the same tick", async () => {
+    const gate = createGate();
+    const { thread, dispatched, send } = createThread({
+      history: true,
+      clearOnCancel: false,
+      wait: gate.wait,
+    });
+    let followUps = 0;
+    thread.unstable_on("runEnd", () => {
+      if (followUps++ > 0) return;
+      queueMicrotask(() => {
+        thread.cancelRun();
+        void thread.startRun({ parentId: "u0", sourceId: null, runConfig: {} });
+      });
+    });
+
+    void thread.startRun({ parentId: "u0", sourceId: "a0", runConfig: {} });
+    await flush();
+    await gate.release();
+    expect(dispatched).toEqual(["hi", "hi"]);
+    await gate.release();
+
+    send("queued");
+    await flush();
+    expect(dispatched).toEqual(["hi", "hi", "queued"]);
+    await gate.release();
+  });
+
+  it("holds a queued send behind a running send when a cancelled run settles after the runs that replaced it", async () => {
+    const pending: (() => void)[] = [];
+    const { thread, dispatched, send } = createThread({
+      history: true,
+      clearOnCancel: false,
+      wait: async (message) => {
+        const isRegenerate = message?.id === "u0";
+        if (!isRegenerate) await new Promise<void>((r) => pending.push(r));
+      },
+    });
+
+    send("first");
+    await flush();
+    thread.cancelRun();
+    void thread.startRun({ parentId: "u0", sourceId: null, runConfig: {} });
+    await flush();
+    void thread.startRun({ parentId: "u0", sourceId: null, runConfig: {} });
+    await flush();
+
+    let sent = false;
+    thread.unstable_on("runEnd", () => {
+      if (sent) return;
+      sent = true;
+      queueMicrotask(() => send("second"));
+    });
+    pending.shift()!();
+    await flush();
+    expect(dispatched).toContain("second");
+
+    send("third");
+    await flush();
+    expect(dispatched).not.toContain("third");
+    for (const release of pending) release();
+  });
+
+  it("holds a queued send made after a cancel behind a regenerate that replaces the cancelled run", async () => {
+    const pending: (() => void)[] = [];
+    const { thread, dispatched, send } = createThread({
+      history: true,
+      clearOnCancel: false,
+      wait: () => new Promise<void>((r) => pending.push(r)),
+    });
+
+    send("first");
+    await flush();
+    thread.cancelRun();
+    send("second");
+    await flush();
+    void thread.startRun({ parentId: "u0", sourceId: "a0", runConfig: {} });
+    await flush();
+    expect(dispatched).toEqual(["first", "hi"]);
+
+    pending[1]!();
+    await flush();
+    expect(dispatched).toEqual(["first", "hi", "second"]);
+    for (const release of pending) release();
+  });
+
+  it("holds a send behind a run that was active when the queue was enabled", async () => {
+    const pending: (() => void)[] = [];
+    const { dispatched, send, enableQueue } = createThread({
+      queue: false,
+      wait: () => new Promise<void>((r) => pending.push(r)),
+    });
+
+    send("first");
+    await flush();
+    enableQueue();
+    send("second");
+    await flush();
+    expect(dispatched).toEqual(["first"]);
+
+    pending.shift()!();
+    await flush();
+    expect(dispatched).toEqual(["first", "second"]);
+    pending.shift()!();
+  });
+
+  it("holds a send behind an append that was waiting to start when the queue was enabled", async () => {
+    const pending: (() => void)[] = [];
+    const { thread, dispatched, send, enableQueue } = createThread({
+      queue: false,
+      wait: () => new Promise<void>((r) => pending.push(r)),
+    });
+    const initialization = createInitialization();
+    thread.__internal_setGetInitializePromise(() => initialization.promise);
+
+    send("first");
+    await flush();
+    enableQueue();
+    send("second");
+    await flush();
+    initialization.resolve();
+    await flush();
+    expect(dispatched).toEqual(["first"]);
+
+    pending.shift()!();
+    await flush();
+    expect(dispatched).toEqual(["first", "second"]);
+    pending.shift()!();
+  });
+
+  it("holds a send behind an append that was waiting when the queue was enabled while a regenerate ends", async () => {
+    const gate = createGate();
+    const { thread, dispatched, send, enableQueue } = createThread({
+      history: true,
+      queue: false,
+      wait: gate.wait,
+    });
+    const initialization = createInitialization();
+    thread.__internal_setGetInitializePromise(() => initialization.promise);
+
+    send("first");
+    await flush();
+    enableQueue();
+    send("second");
+    void thread.startRun({ parentId: "u0", sourceId: "a0", runConfig: {} });
+    await flush();
+    await gate.release();
+    expect(dispatched).toEqual(["hi"]);
+
+    initialization.resolve();
+    await flush();
+    expect(dispatched).toEqual(["hi", "first"]);
+
+    await gate.release();
+    expect(dispatched).toEqual(["hi", "first", "second"]);
+    await gate.release();
+  });
+
+  it("holds a send behind an append that was waiting when the queue was enabled during a run", async () => {
+    const gate = createGate();
+    const { thread, dispatched, send, enableQueue } = createThread({
+      queue: false,
+      wait: gate.wait,
+    });
+    const initialization = createInitialization();
+
+    send("first");
+    await flush();
+    thread.__internal_setGetInitializePromise(() => initialization.promise);
+    send("second");
+    await flush();
+    enableQueue();
+    send("third");
+    await gate.release();
+    expect(dispatched).toEqual(["first"]);
+
+    initialization.resolve();
+    await flush();
+    expect(dispatched).toEqual(["first", "second"]);
+
+    await gate.release();
+    expect(dispatched).toEqual(["first", "second", "third"]);
+    await gate.release();
+  });
+
+  it("sends after an append that was waiting when the queue was enabled fails to start", async () => {
+    const { thread, dispatched, send, enableQueue } = createThread({
+      queue: false,
+    });
+    const initialization = createInitialization();
+    let initPromise: Promise<void> | undefined = initialization.promise;
+    thread.__internal_setGetInitializePromise(() => initPromise);
+
+    const first = thread.append({
+      ...userMessage("first"),
+      parentId: null,
+    });
+    await flush();
+    enableQueue();
+    initPromise = undefined;
+    send("second");
+    await flush();
+    expect(dispatched).toEqual([]);
+
+    initialization.reject(new Error("init failed"));
+    await expect(first).rejects.toSatisfy(isMessageNotSentError);
+    await flush();
+    expect(dispatched).toEqual(["second"]);
+  });
+
+  it("sends one at a time after cancelling a run that was active when the queue was enabled", async () => {
+    const pending: (() => void)[] = [];
+    const { thread, dispatched, send, enableQueue } = createThread({
+      queue: false,
+      clearOnCancel: false,
+      wait: () => new Promise<void>((r) => pending.push(r)),
+    });
+
+    send("first");
+    await flush();
+    enableQueue();
+    thread.cancelRun();
+    send("second");
+    send("third");
+    await flush();
+    expect(dispatched).toEqual(["first"]);
+
+    pending.shift()!();
+    await flush();
+    expect(dispatched).toEqual(["first", "second"]);
+
+    pending.shift()!();
+    await flush();
+    expect(dispatched).toEqual(["first", "second", "third"]);
+    pending.shift()!();
+  });
+
+  it("holds a send behind a regenerate that replaces a cancelled run after the queue was re-enabled", async () => {
+    const pending: (() => void)[] = [];
+    const { thread, dispatched, send, enableQueue } = createThread({
+      history: true,
+      clearOnCancel: false,
+      wait: () => new Promise<void>((r) => pending.push(r)),
+    });
+
+    send("first");
+    send("second");
+    await flush();
+    thread.cancelRun();
+    enableQueue(false);
+    enableQueue();
+    send("third");
+    send("fourth");
+    await flush();
+    expect(dispatched).toEqual(["first"]);
+    void thread.startRun({ parentId: "u0", sourceId: "a0", runConfig: {} });
+    await flush();
+    expect(dispatched).toEqual(["first", "hi"]);
+
+    pending[1]!();
+    await flush();
+    expect(dispatched).toEqual(["first", "hi", "third"]);
+
+    pending[2]!();
+    await flush();
+    expect(dispatched).toEqual(["first", "hi", "third", "fourth"]);
+    for (const release of pending) release();
+  });
+});
+
+describe("history scope persistence", () => {
+  const chatModel: ChatModelAdapter = { run: async () => ({ content: [] }) };
+  const historyFor = (
+    scopeId: string,
+    overrides: Partial<ThreadHistoryAdapter> = {},
+  ): ThreadHistoryAdapter => ({
+    scopeId,
+    load: async () => ({
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "shared",
+            role: "assistant",
+            content: [{ type: "text", text: scopeId }],
+            status: { type: "complete", reason: "stop" },
+            createdAt: new Date(0),
+            metadata: {
+              custom: {},
+              unstable_state: {},
+              unstable_annotations: [],
+              unstable_data: [],
+              steps: [],
+            },
+          },
+        },
+      ],
+    }),
+    append: async () => {},
+    ...overrides,
+  });
+
+  it("keeps the new scope's message when an earlier delete finishes", async () => {
+    let finishDelete!: () => void;
+    const pendingDelete = new Promise<void>((resolve) => {
+      finishDelete = resolve;
+    });
+    const thread = createThread(chatModel, {
+      history: historyFor("first", { delete: () => pendingDelete }),
+    });
+    await thread.__internal_load();
+    const deletion = thread.deleteMessage("shared");
+
+    thread.__internal_setOptions({
+      adapters: { chatModel, history: historyFor("second") },
+    });
+    await thread.__internal_load();
+    finishDelete();
+    await deletion;
+
+    expect(thread.messages[0]?.content).toEqual([
+      { type: "text", text: "second" },
+    ]);
+  });
+
+  it("does not carry deleted-message tombstones into another scope", async () => {
+    const thread = createThread(chatModel, {
+      history: historyFor("first", { delete: async () => {} }),
+    });
+    await thread.__internal_load();
+    await thread.deleteMessage("shared");
+    const update = vi.fn<NonNullable<ThreadHistoryAdapter["update"]>>(
+      async () => {},
+    );
+    thread.__internal_setOptions({
+      adapters: { chatModel, history: historyFor("second", { update }) },
+    });
+    await thread.__internal_load();
+
+    thread.submitFeedback({ messageId: "shared", type: "positive" });
+    await flush();
+
+    expect(update).toHaveBeenCalledOnce();
+  });
+
+  it("releases current writes and drops queued writes from the previous scope", async () => {
+    let finishUpdate!: () => void;
+    const pendingUpdate = new Promise<void>((resolve) => {
+      finishUpdate = resolve;
+    });
+    const firstUpdate = vi.fn(() => pendingUpdate);
+    const secondUpdate = vi.fn(async () => {});
+    const thread = createThread(chatModel, {
+      history: historyFor("first", { update: firstUpdate }),
+    });
+    await thread.__internal_load();
+    thread.submitFeedback({ messageId: "shared", type: "positive" });
+    thread.submitFeedback({ messageId: "shared", type: "negative" });
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel,
+        history: historyFor("second", { update: secondUpdate }),
+      },
+    });
+    await thread.__internal_load();
+    thread.submitFeedback({ messageId: "shared", type: "positive" });
+    await flush();
+    expect.soft(secondUpdate).toHaveBeenCalledOnce();
+
+    finishUpdate();
+    await flush();
+    expect(firstUpdate).toHaveBeenCalledOnce();
+  });
+
+  it("keeps a replacement message when an older optimistic append rolls back", async () => {
+    let finishInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      finishInitialization = resolve;
+    });
+    const thread = createThread(chatModel, {
+      history: historyFor("first", { load: async () => ({ messages: [] }) }),
+    });
+    await thread.__internal_load();
+    thread.__internal_setGetInitializePromise(() => initialization);
+    const append = thread.append({
+      ...userMessage("pending"),
+      startRun: false,
+    });
+    const id = thread.messages.at(-1)!.id;
+    const replacement = await historyFor("second").load();
+    const stored = replacement.messages[0]!;
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel,
+        history: historyFor("second", {
+          load: async () => ({
+            messages: [{ ...stored, message: { ...stored.message, id } }],
+          }),
+        }),
+      },
+    });
+    await thread.__internal_load();
+    finishInitialization();
+    await append;
+    expect(thread.messages[0]?.id).toBe(id);
+    expect(thread.messages[0]?.content).toEqual([
+      { type: "text", text: "second" },
+    ]);
+  });
+
+  it("does not settle an old run into the new scope's listeners or suggestions", async () => {
+    let finishRun!: (result: ChatModelRunResult) => void;
+    const run = vi.fn(
+      () =>
+        new Promise<ChatModelRunResult>((resolve) => {
+          finishRun = resolve;
+        }),
+    );
+    const model: ChatModelAdapter = { run };
+    const thread = createThread(model, { history: historyFor("first") });
+    await thread.__internal_load();
+    const append = thread.append(userMessage("start"));
+    await vi.waitFor(() => expect(run).toHaveBeenCalledOnce());
+    const generate = vi.fn(async () => []);
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: model,
+        history: historyFor("second"),
+        suggestion: { generate },
+      },
+    });
+    await thread.__internal_load();
+    const runEnd = vi.fn();
+    thread.unstable_on("runEnd", runEnd);
+    finishRun({ content: [{ type: "text", text: "late answer" }] });
+    await append;
+    expect.soft(runEnd).not.toHaveBeenCalled();
+    expect.soft(generate).not.toHaveBeenCalled();
+    expect(thread.messages[0]?.content).toEqual([
+      { type: "text", text: "second" },
+    ]);
+  });
+
+  it("starts new queued work without waiting for an old scope's model", async () => {
+    let finishFirst!: (result: ChatModelRunResult) => void;
+    const firstResult = new Promise<ChatModelRunResult>((resolve) => {
+      finishFirst = resolve;
+    });
+    const run = vi
+      .fn<ChatModelAdapter["run"]>()
+      .mockReturnValueOnce(firstResult)
+      .mockResolvedValue({ content: [{ type: "text", text: "new answer" }] });
+    const model: ChatModelAdapter = { run };
+    const thread = new LocalRuntimeCore(
+      {
+        adapters: { chatModel: model, history: historyFor("first") },
+        unstable_enableMessageQueue: true,
+      },
+      undefined,
+    ).threads.getMainThreadRuntimeCore();
+    await thread.__internal_load();
+    await thread.append({ ...userMessage("first"), parentId: "shared" });
+    await vi.waitFor(() => expect(run).toHaveBeenCalledOnce());
+    thread.__internal_setOptions({
+      adapters: { chatModel: model, history: historyFor("second") },
+      unstable_enableMessageQueue: true,
+    });
+    await thread.__internal_load();
+    await thread.append({ ...userMessage("second"), parentId: "shared" });
+    await flush();
+    expect.soft(run).toHaveBeenCalledTimes(2);
+    finishFirst({ content: [] });
+    await flush();
+  });
+
+  it("starts new queued work while an old scope's append waits to start", async () => {
+    let finishInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      finishInitialization = resolve;
+    });
+    const run = vi.fn<ChatModelAdapter["run"]>(async () => ({ content: [] }));
+    const model: ChatModelAdapter = { run };
+    const thread = new LocalRuntimeCore(
+      {
+        adapters: { chatModel: model, history: historyFor("first") },
+        unstable_enableMessageQueue: true,
+      },
+      undefined,
+    ).threads.getMainThreadRuntimeCore();
+    await thread.__internal_load();
+    thread.__internal_setGetInitializePromise(() => initialization);
+    void thread.append({ ...userMessage("first"), parentId: "shared" });
+    await flush();
+    expect(run).not.toHaveBeenCalled();
+
+    thread.__internal_setOptions({
+      adapters: { chatModel: model, history: historyFor("second") },
+      unstable_enableMessageQueue: true,
+    });
+    thread.__internal_setGetInitializePromise(() => undefined);
+    await thread.__internal_load();
+    await thread.append({ ...userMessage("second"), parentId: "shared" });
+    await flush();
+    expect(run).toHaveBeenCalledOnce();
+
+    finishInitialization();
+    await flush();
+    expect(run).toHaveBeenCalledOnce();
+  });
+
+  it("does not report an old write failure to the current scope", async () => {
+    const error = new Error("old scope write failed");
+    let failUpdate!: (reason: unknown) => void;
+    const pendingUpdate = new Promise<void>((_, reject) => {
+      failUpdate = reject;
+    });
+    const thread = createThread(chatModel, {
+      history: historyFor("first", { update: () => pendingUpdate }),
+    });
+    await thread.__internal_load();
+    thread.submitFeedback({ messageId: "shared", type: "positive" });
+    thread.__internal_setOptions({
+      adapters: { chatModel, history: historyFor("second") },
+    });
+    await thread.__internal_load();
+    const listener = vi.fn();
+    thread.unstable_on("historyWriteError", listener);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    failUpdate(error);
+    await flush();
+
+    expect(listener).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalledOnce();
   });
 });

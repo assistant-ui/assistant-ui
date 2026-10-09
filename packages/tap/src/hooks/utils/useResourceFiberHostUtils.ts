@@ -1,4 +1,12 @@
-import { useRef, useMemo, useReducer, useState, useCallback } from "react";
+import {
+  useRef,
+  useMemo,
+  useReducer,
+  useState,
+  useCallback,
+  useEffect,
+  useInsertionEffect,
+} from "react";
 import {
   getCurrentResourceFiber,
   peekResourceFiber,
@@ -7,8 +15,64 @@ import {
   createResourceFiberRoot,
   setRootVersion,
 } from "../../core/helpers/root";
-import { createResourceFiber } from "../../core/ResourceFiber";
+import {
+  createResourceFiber,
+  unmountResourceFiber,
+  unmountResourceFibers,
+} from "../../core/ResourceFiber";
 import { useDevStrictMode } from "./useDevStrictMode";
+import { useHostCell, type HostTarget } from "./useHostCell";
+import type { HostCell, ResourceFiber } from "../../core/types";
+
+const forEachHostedFiber = (
+  target: HostTarget,
+  visit: (fiber: ResourceFiber<unknown>) => void,
+): void => {
+  if (!(target instanceof Map)) return visit(target);
+  for (const { fiber } of target.values()) visit(fiber);
+};
+
+const acquire = (fiber: ResourceFiber<unknown>) => {
+  fiber.isReleased = false;
+};
+
+const release = (fiber: ResourceFiber<unknown>) => {
+  fiber.isReleased = true;
+  if (!fiber.isMounted) {
+    queueMicrotask(() => {
+      if (fiber.isReleased) unmountResourceFiber(fiber, true);
+    });
+  }
+};
+
+const useHostLifecycleReact = (target: HostTarget): void => {
+  useInsertionEffect(() => {
+    forEachHostedFiber(target, acquire);
+    return () => forEachHostedFiber(target, release);
+  }, [target]);
+
+  useEffect(
+    () => () => {
+      unmountResourceFibers(
+        target instanceof Map
+          ? Array.from(target.values(), ({ fiber }) => fiber)
+          : [target],
+      );
+    },
+    [target],
+  );
+};
+
+export const useHostLifecycle = (target: HostTarget): HostCell | null => {
+  if (peekResourceFiber()) {
+    // oxlint-disable-next-line react-hooks/rules-of-hooks
+    return useHostCell(target);
+  } else {
+    // oxlint-disable-next-line react-hooks/rules-of-hooks
+    useHostLifecycleReact(target);
+    return null;
+  }
+};
 
 const useResourceFiberHostUtilsTap = () => {
   const versionRef = useRef(0);
@@ -58,7 +122,9 @@ const useResourceFiberHostUtilsReact = () => {
 
 export const useResourceFiberHost = () => {
   const getDevMode = useDevStrictMode();
-  const { root, version, markDirty } = peekResourceFiber()
+  const isReactHost = peekResourceFiber() === null;
+  const reactDevMode = isReactHost ? getDevMode() : null;
+  const { root, version, markDirty } = !isReactHost
     ? // oxlint-disable-next-line react-hooks/rules-of-hooks
       useResourceFiberHostUtilsTap()
     : // oxlint-disable-next-line react-hooks/rules-of-hooks
@@ -78,7 +144,12 @@ export const useResourceFiberHost = () => {
             markDirty?.();
           }
         : markDirty;
-      return createResourceFiber(hook, root, fiberMarkDirty, getDevMode());
+      return createResourceFiber(
+        hook,
+        root,
+        fiberMarkDirty,
+        isReactHost ? reactDevMode : getDevMode(),
+      );
     },
     // oxlint-disable-next-line react-hooks/exhaustive-deps
     [],

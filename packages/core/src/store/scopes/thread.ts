@@ -30,9 +30,21 @@ export type ThreadState = {
    */
   readonly isDisabled: boolean;
   /**
+   * Whether the runtime's send policy disables composer sends, apart from whether the current draft is ready.
+   */
+  readonly isSendDisabled: boolean;
+  /**
    * Whether the thread is loading its history.
    */
   readonly isLoading: boolean;
+  /**
+   * Whether messages exist before the first loaded one, for a runtime that pages long threads.
+   */
+  readonly hasEarlier: boolean;
+  /**
+   * Whether the page before the first loaded message is being loaded.
+   */
+  readonly isLoadingEarlier: boolean;
   /**
    * Whether the thread is running. A thread is considered running when there is an active stream connection to the backend.
    */
@@ -51,7 +63,7 @@ export type ThreadState = {
   readonly tasks: readonly TaskState[];
   /**
    * The thread state.
-   * @deprecated This feature is experimental
+   * @deprecated Experimental since 2024-04-21. Not scheduled for removal; the API may change in any release.
    */
   readonly state: ReadonlyJSONValue;
   /**
@@ -62,7 +74,7 @@ export type ThreadState = {
    * Custom extra information provided by the runtime.
    */
   readonly extras: unknown;
-  /** @deprecated This API is still under active development and might change without notice. */
+  /** @deprecated Experimental since 2024-09-01. Not scheduled for removal; the API may change in any release. */
   readonly speech: SpeechState | undefined;
   readonly voice: VoiceSessionState | undefined;
   readonly composer: ComposerState;
@@ -115,6 +127,12 @@ export type ThreadMethods = {
   resumeRun(config: CreateResumeRunConfig): void;
   cancelRun(): void;
   /**
+   * Load the page before the first loaded message. Resolves at once when
+   * `hasEarlier` is false; concurrent calls share one load, and a failed load
+   * is logged rather than rejected.
+   */
+  loadEarlier(): Promise<void>;
+  /**
    * Re-fetch this thread's state from its backing store, in place: the tap
    * thread's refetch hook, which `threads.reloadMainThread()` prefers and
    * whose rejection it propagates. `capabilities.refetchThread` is the
@@ -124,6 +142,8 @@ export type ThreadMethods = {
    * `| undefined` stops `ThreadMethods` satisfying `ClientMethods` and
    * collapses the client schema, which only a workspace-level app typecheck
    * surfaces.
+   *
+   * @deprecated Experimental since 2026-08-02. Not scheduled for removal; the API may change in any release.
    */
   unstable_refetchThread?(): Promise<void>;
   getModelContext(): ModelContext;
@@ -136,7 +156,7 @@ export type ThreadMethods = {
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
   importExternalState(state: unknown): void;
   message(selector: { id: string } | { index: number }): MessageMethods;
-  /** @deprecated This API is still under active development and might change without notice. */
+  /** @deprecated Experimental since 2024-09-01. Not scheduled for removal; the API may change in any release. */
   stopSpeaking(): void;
   connectVoice(): void;
   disconnectVoice(): void;
@@ -153,6 +173,12 @@ export type ThreadMeta = {
 };
 
 export type ThreadEvents = {
+  "thread.historyWriteError": {
+    threadId: string;
+    operation: "append" | "update" | "delete";
+    messageIds: readonly string[];
+    message: string;
+  };
   "thread.toolApprovalAnswered": {
     threadId: string;
     messageId: string;

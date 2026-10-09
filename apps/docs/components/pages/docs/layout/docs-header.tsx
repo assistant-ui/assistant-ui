@@ -16,7 +16,10 @@ import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { HeaderBrandLink } from "@/components/shared/header-brand-link";
 import { CartButton } from "@/components/shared/shop-entry";
-import { headerBarClassName } from "@/components/shared/header-chrome";
+import {
+  headerBarClassName,
+  headerSlashClassName,
+} from "@/components/shared/header-chrome";
 import { useScrolled } from "@/hooks/use-scrolled";
 import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
@@ -46,7 +49,7 @@ function AskAIButton() {
       aria-label="Ask AI (⌘I)"
     >
       Ask AI
-      <KbdGroup className="hidden lg:inline-flex">
+      <KbdGroup className="hidden xl:inline-flex">
         <Kbd>⌘</Kbd>
         <Kbd>I</Kbd>
       </KbdGroup>
@@ -65,7 +68,7 @@ function HeaderSearch() {
         analytics.search.opened("header");
         setOpenSearch(true);
       }}
-      className="text-muted-foreground hover:text-foreground w-full max-w-96 shrink justify-start gap-2 font-normal"
+      className="text-muted-foreground hover:text-foreground w-full max-w-96 shrink justify-start gap-2 font-normal max-xl:hidden"
     >
       <Search className="size-3.5 shrink-0" />
       <span className="flex-1 text-left">Search...</span>
@@ -75,6 +78,27 @@ function HeaderSearch() {
         ))}
       </KbdGroup>
     </Button>
+  );
+}
+
+function SearchIconButton({ className }: { className?: string }) {
+  const { setOpenSearch } = useSearchContext();
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        analytics.search.opened("header");
+        setOpenSearch(true);
+      }}
+      className={cn(
+        "text-muted-foreground hover:text-foreground flex cursor-pointer items-center justify-center transition-colors",
+        className,
+      )}
+      aria-label="Search"
+    >
+      <Search className="size-4" />
+    </button>
   );
 }
 
@@ -129,7 +153,6 @@ function MobileSectionBreadcrumb({
 }
 
 export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
-  const { setOpenSearch } = useSearchContext();
   const {
     open: sidebarOpen,
     setOpen: setSidebarOpen,
@@ -174,10 +197,8 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
           )}
         >
           <div className="flex min-w-0 flex-1 items-center">
-            <HeaderBrandLink labelClassName="hidden sm:inline" />
-            <span className="text-muted-foreground/40 mx-3 max-md:hidden">
-              /
-            </span>
+            <HeaderBrandLink showLabel={false} />
+            <span className={cn(headerSlashClassName, "max-md:hidden")}>/</span>
             <Link
               href={homeHref}
               className="text-foreground hover:text-foreground/80 text-sm font-medium transition-colors max-md:hidden"
@@ -195,17 +216,7 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
           <div className="ml-auto flex shrink-0 items-center gap-1 md:hidden">
             <CartButton />
             <AskAIButton />
-            <button
-              type="button"
-              onClick={() => {
-                analytics.search.opened("header");
-                setOpenSearch(true);
-              }}
-              className="text-muted-foreground hover:text-foreground flex size-8 cursor-pointer items-center justify-center transition-colors"
-              aria-label="Search"
-            >
-              <Search className="size-4" />
-            </button>
+            <SearchIconButton className="size-8" />
             <button
               type="button"
               onClick={handleNavMenuToggle}
@@ -237,17 +248,7 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
             <div className="flex items-center gap-2">
               <CartButton />
               <AskAIButton />
-              <button
-                type="button"
-                onClick={() => {
-                  analytics.search.opened("header");
-                  setOpenSearch(true);
-                }}
-                className="text-muted-foreground hover:text-foreground flex size-7 cursor-pointer items-center justify-center transition-colors"
-                aria-label="Search"
-              >
-                <Search className="size-4" />
-              </button>
+              <SearchIconButton className="size-7" />
             </div>
             <div className="flex shrink-0 items-center">
               <NavItems
@@ -256,22 +257,7 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
               />
               {moreItems.length > 0 && <MoreDropdown items={moreItems} />}
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <Button
-                size="sm"
-                nativeButton={false}
-                render={
-                  <a
-                    href={CLOUD_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  />
-                }
-              >
-                Cloud
-              </Button>
-              <ThemeToggle />
-            </div>
+            <ThemeToggle />
           </div>
 
           {/* Full nav: lg+ */}
@@ -279,6 +265,7 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
             <div className="flex min-w-0 items-center gap-2">
               <CartButton />
               <AskAIButton />
+              <SearchIconButton className="size-7 xl:hidden" />
               <HeaderSearch />
             </div>
             <NavItems

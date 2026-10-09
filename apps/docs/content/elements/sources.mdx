@@ -191,14 +191,14 @@ const sources = [
 | Prop | Type | Description |
 |------|------|-------------|
 | `sources` | `readonly Source[]` | Citation cards revealed by the pill. |
-| `open` | `boolean` | Whether the card grid is expanded. |
+| `open` | `boolean` | Whether the source list is expanded. |
 | `onOpenChange` | `(open: boolean) => void` | Receives the expanded state. |
-| `layout` | `"grid" \| "list"` | Two-column cards by default, or compact rows. |
-| `hideTrigger` | `boolean` | Defaults to `false`. Hides the disclosure button when the caller supplies its own accessible control. |
+| `layout` | `"grid" \| "list" \| undefined` | Two-column cards, or one compact row per source. Defaults to `"grid"`. |
+| `hideTrigger` | `boolean \| undefined` | Omits the pill when your own control drives `open`, such as a tab in a citations panel. Defaults to `false`. |
 | `locale` | `string \| undefined` | Locale for `publishedAt` month and year. Defaults to `"en-US"`. |
 | `className` | `string \| undefined` | Extra classes merged onto the root. |
 
-`SourceGlyph` is exported for custom triggers. It takes a `domain: string` and renders its initial without fetching an icon.
+`SourceGlyph` renders a domain's initial the way the cards do, for a custom trigger that should match them. It takes a `domain: string` and fetches no icon.
 
 ### Source fields
 

@@ -34,13 +34,13 @@ import type {
 } from "../../types/MessagePartComponentTypes";
 import { GenerativeUIRender } from "../generativeUI/GenerativeUI";
 import {
-  isMcpAppUri,
   type MessagePartStatus,
   type GenerativeUIMessagePart,
 } from "../../../types/message";
 import type { DataRenderersState } from "../../types/scopes/dataRenderers";
-import type { ToolsState } from "../../types/scopes/tools";
 import { useShallowSelector } from "@assistant-ui/store/internal";
+import { resolveToolRender } from "../../../utils/resolveToolRender";
+import { getMessagePartKeys } from "../../../utils/getMessagePartKeys";
 
 type MessagePartRange =
   | { type: "single"; index: number }
@@ -106,8 +106,6 @@ const createGroupState = <
  * Groups consecutive tool-call and reasoning message parts into ranges.
  * Always groups tool calls and reasoning parts, even if there's only one.
  * When useChainOfThought is true, groups tool-call and reasoning parts together.
- * `partIds[i]` optionally carries a stable identity for part `i`; group
- * ranges derive an `idKey` from their first part's id (first claim wins).
  */
 export const groupMessageParts = (
   messageTypes: readonly string[],
@@ -160,7 +158,7 @@ export const groupMessageParts = (
     for (const range of ranges) {
       if (range.type === "single") continue;
       const id = partIds[range.startIndex];
-      if (id !== undefined && !claimed.has(id)) {
+      if (id?.includes(":") && !claimed.has(id)) {
         claimed.add(id);
         range.idKey = `id:${id}`;
       }
@@ -172,16 +170,12 @@ export const groupMessageParts = (
 
 const useMessagePartsGroups = (
   useChainOfThought: boolean,
-): { ranges: MessagePartRange[]; partIds: (string | undefined)[] } => {
+): { ranges: MessagePartRange[]; partIds: string[] } => {
   const messageTypes = useAuiState(
     useShallowSelector((s) => s.message.parts.map((c: any) => c.type)),
   );
   const partIds = useAuiState(
-    useShallowSelector((s) =>
-      s.message.parts.map((c: any) =>
-        c.type === "tool-call" ? c.toolCallId : undefined,
-      ),
-    ),
+    useShallowSelector((s) => getMessagePartKeys(s.message.parts)),
   );
 
   return useMemo(() => {
@@ -333,7 +327,8 @@ export namespace MessagePrimitiveParts {
          * When enabled, shows the Empty component if the last part in the message
          * is anything other than Text or Reasoning.
          *
-         * @experimental This API is experimental and may change in future versions.
+         * @deprecated Experimental since 2026-01-26. Not scheduled for removal; the API may change in any release.
+         *
          * @default true
          */
         unstable_showEmptyOnNonTextEnd?: boolean | undefined;
@@ -343,18 +338,21 @@ export namespace MessagePrimitiveParts {
         /** Render function called for each part. Receives the enriched part state. */
         children: (value: { part: EnrichedPartState }) => ReactNode;
         components?: never;
+        /** @deprecated Experimental since 2026-01-26. Not scheduled for removal; the API may change in any release. */
         unstable_showEmptyOnNonTextEnd?: never;
       };
 }
 
 const ToolUIDisplay = ({
+  ByName,
   Fallback,
   ...props
 }: {
+  ByName: ToolCallMessagePartComponent | undefined;
   Fallback: ToolCallMessagePartComponent | undefined;
 } & ToolCallMessagePartProps) => {
   const Render = useAuiState(
-    (s) => s.tools.toolUIs[props.toolName]?.[0]?.render ?? Fallback,
+    (s) => resolveToolRender(s.tools, props, ByName) ?? Fallback,
   );
   if (!Render) return null;
   return <Render {...props} />;
@@ -434,14 +432,15 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
           {...(unstable_recordInteraction && { unstable_recordInteraction })}
         />
       );
-    const Tool =
-      (tools.by_name && Object.hasOwn(tools.by_name, part.toolName)
+    const ByName =
+      tools.by_name && Object.hasOwn(tools.by_name, part.toolName)
         ? tools.by_name[part.toolName]
-        : undefined) ?? tools.Fallback;
+        : undefined;
     return (
       <ToolUIDisplay
         {...part}
-        Fallback={Tool}
+        ByName={ByName}
+        Fallback={tools.Fallback}
         addResult={addResult}
         resume={resume}
         respondToApproval={respondToApproval}
@@ -624,18 +623,6 @@ const QuoteRendererImpl: FC<{ Quote: QuoteMessagePartComponent }> = ({
 
 const QuoteRenderer = memo(QuoteRendererImpl);
 
-function resolveToolRender(
-  toolsState: ToolsState,
-  part: Extract<PartState, { type: "tool-call" }>,
-): ToolCallMessagePartComponent | null {
-  const named = toolsState.toolUIs[part.toolName]?.[0]?.render ?? null;
-  if (named) return named;
-  if (isMcpAppUri(part.mcp?.app?.resourceUri) && toolsState.mcpApp) {
-    return toolsState.mcpApp.render;
-  }
-  return null;
-}
-
 /**
  * Stable propless component that renders the registered tool UI for the
  * current part context. Reads tool registry and part state from context.
@@ -725,6 +712,7 @@ export type EnrichedPartState =
       resume: ToolCallMessagePartProps["resume"];
       /** Respond to a server-side tool approval gate. */
       respondToApproval: ToolCallMessagePartProps["respondToApproval"];
+      /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
       unstable_recordInteraction?:
         | ToolCallMessagePartProps["unstable_recordInteraction"]
         | undefined;
@@ -817,7 +805,10 @@ export const MessagePartChildren: FC<MessagePartChildrenProps> = ({
 const MessagePrimitivePartsInner: FC<{
   children: (value: { part: EnrichedPartState }) => ReactNode;
 }> = ({ children }) => {
-  const contentLength = useAuiState((s) => s.message.parts.length);
+  const partKeys = useAuiState(
+    useShallowSelector((s) => getMessagePartKeys(s.message.parts)),
+  );
+  const contentLength = partKeys.length;
   const isRunning = useAuiState(
     (s) => (s.message.status?.type ?? "complete") === "running",
   );
@@ -834,8 +825,8 @@ const MessagePrimitivePartsInner: FC<{
 
   return (
     <>
-      {Array.from({ length: contentLength }, (_, index) => (
-        <MessagePartChildren key={index} index={index}>
+      {partKeys.map((key, index) => (
+        <MessagePartChildren key={key} index={index}>
           {(value) => children(value) ?? <DefaultPartFallback />}
         </MessagePartChildren>
       ))}
@@ -869,6 +860,7 @@ MessagePrimitiveParts.displayName = "MessagePrimitive.Parts";
 
 const MessagePrimitivePartsCompat: FC<{
   components: MessagePrimitiveParts.Props["components"];
+  /** @deprecated Experimental since 2026-01-26. Not scheduled for removal; the API may change in any release. */
   unstable_showEmptyOnNonTextEnd: boolean;
 }> = ({ components, unstable_showEmptyOnNonTextEnd }) => {
   const contentLength = useAuiState((s) => s.message.parts.length);
@@ -881,31 +873,27 @@ const MessagePrimitivePartsCompat: FC<{
       return <EmptyParts components={components} />;
     }
 
-    const claimed = new Set<string>();
-    const toolLeafKey = (partIndex: number) => {
-      const id = partIds[partIndex];
-      if (id !== undefined && !claimed.has(id)) {
-        claimed.add(id);
-        return `part-id:${id}`;
-      }
-      return `part-${partIndex}`;
-    };
-
     return messageRanges.map((range) => {
       if (range.type === "single") {
         return (
           <MessagePrimitivePartByIndex
-            key={range.index}
+            key={partIds[range.index]}
             index={range.index}
             components={components}
           />
         );
-      } else if (range.type === "chainOfThoughtGroup") {
+      }
+
+      const groupKey = JSON.stringify([
+        range.type,
+        range.idKey ?? range.startIndex,
+      ]);
+      if (range.type === "chainOfThoughtGroup") {
         const ChainOfThoughtComponent = components?.ChainOfThought;
         if (!ChainOfThoughtComponent) return null;
         return (
           <ChainOfThoughtByIndicesProvider
-            key={`chainOfThought-${range.idKey ?? range.startIndex}`}
+            key={groupKey}
             startIndex={range.startIndex}
             endIndex={range.endIndex}
           >
@@ -917,7 +905,7 @@ const MessagePrimitivePartsCompat: FC<{
           components?.ToolGroup ?? defaultComponents.ToolGroup;
         return (
           <ToolGroupComponent
-            key={`tool-${range.idKey ?? range.startIndex}`}
+            key={groupKey}
             startIndex={range.startIndex}
             endIndex={range.endIndex}
           >
@@ -927,7 +915,7 @@ const MessagePrimitivePartsCompat: FC<{
                 const partIndex = range.startIndex + i;
                 return (
                   <MessagePrimitivePartByIndex
-                    key={toolLeafKey(partIndex)}
+                    key={partIds[partIndex]}
                     index={partIndex}
                     components={components}
                   />
@@ -937,12 +925,11 @@ const MessagePrimitivePartsCompat: FC<{
           </ToolGroupComponent>
         );
       } else {
-        // reasoningGroup
         const ReasoningGroupComponent =
           components?.ReasoningGroup ?? defaultComponents.ReasoningGroup;
         return (
           <ReasoningGroupComponent
-            key={`reasoning-${range.startIndex}`}
+            key={groupKey}
             startIndex={range.startIndex}
             endIndex={range.endIndex}
           >
@@ -952,7 +939,7 @@ const MessagePrimitivePartsCompat: FC<{
                 const partIndex = range.startIndex + i;
                 return (
                   <MessagePrimitivePartByIndex
-                    key={`part-${partIndex}`}
+                    key={partIds[partIndex]}
                     index={partIndex}
                     components={components}
                   />

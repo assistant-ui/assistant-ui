@@ -55,7 +55,214 @@ const chatCallbacks = () => ({
   sendAutomaticallyWhen: vi.fn(() => false),
 });
 
+const thread = (id: string) => ({
+  id,
+  title: id,
+  is_archived: false,
+  last_message_at: null,
+  external_id: null,
+  metadata: null,
+});
+const makeCloud = (id: string) =>
+  ({
+    registerSdk: vi.fn(),
+    threads: {
+      list: vi.fn(async ({ is_archived }: { is_archived?: boolean } = {}) => ({
+        threads: is_archived ? [] : [thread(id)],
+      })),
+      get: vi.fn(async () => thread(id)),
+      messages: {
+        list: vi.fn(async () => ({ messages: [] })),
+        create: vi.fn(async () => ({ message_id: "stored" })),
+      },
+    },
+    runs: { report: vi.fn() },
+    telemetry: { enabled: false },
+  }) as unknown as AssistantCloud;
+
 describe("AISDKThreads", () => {
+  it.each(
+    (["client", "scope", "both", "rapid"] as const).flatMap((change) =>
+      (["uncontrolled", "changed", "unchanged"] as const).map((selection) => ({
+        change,
+        selection,
+      })),
+    ),
+  )(
+    "reloads Cloud threads when $change changes with selection=$selection",
+    async ({ change, selection }) => {
+      const cloudA = makeCloud("a-thread");
+      const cloudB = makeCloud("b-thread");
+      const intermediate = makeCloud("intermediate-thread");
+      const stream = createCancellableTransport();
+      let cloud = cloudA;
+      let scopeId = "workspace-a";
+      let threadId = selection === "uncontrolled" ? undefined : "a-thread";
+      const onThreadIdChange = vi.fn();
+      const { handle, rerender } = createLiveHandle(() => ({
+        cloud,
+        scopeId,
+        threadId,
+        onThreadIdChange,
+        transport: () => stream.transport,
+      }));
+      try {
+        await handle.getClient().threads.getLoadThreadsPromise();
+        await vi.waitFor(() =>
+          expect(handle.getClient().threads.getState().threadIds).toContain(
+            "a-thread",
+          ),
+        );
+        if (selection === "uncontrolled") {
+          flushTapSync(() =>
+            handle.getClient().threads.switchToThread("a-thread"),
+          );
+        }
+        await vi.waitFor(() =>
+          expect(handle.getClient().threads.getState().mainThreadId).toBe(
+            "a-thread",
+          ),
+        );
+        await vi.waitFor(() =>
+          expect(handle.getClient().thread.getState().isLoading).toBe(false),
+        );
+        flushTapSync(() => handle.getClient().composer.setText("A only"));
+        flushTapSync(() => handle.getClient().composer.send());
+        await vi.waitFor(() =>
+          expect(handle.getClient().thread.getState().isRunning).toBe(true),
+        );
+        stream.emit(
+          { type: "start" },
+          { type: "text-start", id: "partial" },
+          { type: "text-delta", id: "partial", delta: "A response" },
+        );
+        await vi.waitFor(() =>
+          expect(threadText(handle)).toContain("A response"),
+        );
+        const callsBeforeScopeChange = vi.mocked(cloudA.threads.list).mock.calls
+          .length;
+        rerender();
+        expect(cloudA.threads.list).toHaveBeenCalledTimes(
+          callsBeforeScopeChange,
+        );
+        const writesBeforeScopeChange = vi.mocked(
+          cloudA.threads.messages.create,
+        ).mock.calls.length;
+        const fetchesBeforeScopeChange = vi.mocked(cloudA.threads.get).mock
+          .calls.length;
+        if (change === "rapid") {
+          cloud = intermediate;
+          scopeId = "workspace-intermediate";
+          rerender();
+        }
+        if (change === "scope") {
+          vi.mocked(cloudA.threads.list).mockImplementation(
+            makeCloud("b-thread").threads.list,
+          );
+        } else {
+          cloud = cloudB;
+        }
+        if (change !== "client") scopeId = "workspace-b";
+        if (selection === "changed") threadId = "b-thread";
+        rerender();
+        rerender();
+        await vi.waitFor(() =>
+          expect(handle.getClient().threads.getState().threadIds).toContain(
+            "b-thread",
+          ),
+        );
+        expect(handle.getClient().threads.getState().threadIds).not.toContain(
+          "a-thread",
+        );
+        await vi.waitFor(() => expect(stream.getCancelCount()).toBe(1));
+        expect(cloudB.threads.messages.create).not.toHaveBeenCalled();
+        expect(cloudA.threads.messages.create).toHaveBeenCalledTimes(
+          writesBeforeScopeChange,
+        );
+        if (change === "rapid") {
+          expect(intermediate.threads.list).not.toHaveBeenCalled();
+          expect(handle.getClient().threads.getState().threadIds).not.toContain(
+            "intermediate-thread",
+          );
+        }
+        if (selection === "changed") {
+          await vi.waitFor(() =>
+            expect(handle.getClient().threads.getState().mainThreadId).toBe(
+              "b-thread",
+            ),
+          );
+          expect(onThreadIdChange).not.toHaveBeenCalled();
+        } else if (selection === "unchanged") {
+          expect(
+            handle.getClient().threads.item("main").getState().status,
+          ).toBe("new");
+          expect(onThreadIdChange).toHaveBeenCalledExactlyOnceWith(undefined);
+          const fetches = vi
+            .mocked(cloud.threads.get)
+            .mock.calls.slice(
+              change === "scope" ? fetchesBeforeScopeChange : 0,
+            );
+          expect(fetches).not.toContainEqual(["a-thread"]);
+        }
+      } finally {
+        handle.destroy();
+      }
+    },
+  );
+
+  it("loads once when entering Cloud mode", async () => {
+    let cloud: AssistantCloud | undefined;
+    const { handle, rerender } = createLiveHandle(() => ({ cloud }));
+    try {
+      cloud = makeCloud("a-thread");
+      rerender();
+      await vi.waitFor(() =>
+        expect(handle.getClient().threads.getState().threadIds).toContain(
+          "a-thread",
+        ),
+      );
+      expect(cloud.threads.list).toHaveBeenCalledTimes(2);
+      cloud = undefined;
+      rerender();
+      cloud = makeCloud("b-thread");
+      rerender();
+      await vi.waitFor(() =>
+        expect(handle.getClient().threads.getState().threadIds).toContain(
+          "b-thread",
+        ),
+      );
+      expect(cloud.threads.list).toHaveBeenCalledTimes(2);
+    } finally {
+      handle.destroy();
+    }
+  });
+
+  it("emits the selected thread id when its composer sends", async () => {
+    const { transport } = createControlledTransport();
+    const handle = createAssistantClient(
+      AuiConfig({ threads: AISDKThreads({ transport }) }),
+    );
+    try {
+      handle.subscribe(() => {});
+      const aui = handle.getClient();
+      const sent = vi.fn();
+      aui.on({ scope: "thread", event: "composer.send" }, sent);
+
+      flushTapSync(() => aui.composer.setText("hello"));
+      flushTapSync(() => aui.composer.send());
+
+      await vi.waitFor(() => {
+        expect(sent).toHaveBeenCalledWith(
+          expect.objectContaining({
+            threadId: aui.threads.getState().mainThreadId,
+          }),
+        );
+      });
+    } finally {
+      handle.destroy();
+    }
+  });
+
   it("runs one chat per thread and keeps histories isolated across switches", async () => {
     const { transport, emit, close } = createControlledTransport();
     const handle = createAssistantClient(

@@ -33,7 +33,7 @@ The `useAui(scopes)` extension overload is deprecated; hoist `const aui = useAui
 function useAuiState<T>(selector: (state: AssistantState) => T): T;
 ```
 
-Subscribes to a slice of state. Re-renders only when the selected value changes (compared by `Object.is`). The selector must return a specific value — not the entire state object. Scopes that may be unavailable can be read via `s.optional.<scope>`, which resolves to `undefined` instead of throwing.
+Subscribes to a slice of state. Re-renders only when the selected value changes (compared by `Object.is`). The selector runs again when a client whose state it read, or a list whose items it looked up, changes; a selector whose reads the store cannot follow, such as one that reads nothing through it, runs on every store update. The selector must return a specific value, not the entire state object. Scopes that may be unavailable can be read via `s.optional.<scope>`, which resolves to `undefined` instead of throwing.
 
 ### useAuiEvent
 
@@ -91,7 +91,7 @@ Renders children only when the condition returns `true`. Uses `useAuiState` inte
 </RenderChildrenWithAccessor>
 ```
 
-Sets up a lazy item accessor for list rendering. The `getItem` function defers reading state until the consumer accesses it — if the children render function never reads the item, no subscription is created. When children returns a propless component (e.g. `{() => <Todo />}`), the output is automatically memoized.
+Sets up a lazy item accessor for list rendering. Until the children render function calls `getItem`, changes to the item's state do not re-render the component. When children returns a propless component (e.g. `{() => <Todo />}`), the output is memoized.
 
 | Prop | Type |
 |------|------|
@@ -120,7 +120,7 @@ Derived({
 });
 ```
 
-The `get` function receives the current `AssistantClient` and must return a client created via `useClientResource` (or `useClientLookup`/`useClientList`) — typically the result of calling a parent scope method. The meta (`source`, `query`) acts as identity: when `query` changes between renders, a new accessor is returned in the same render pass — useful for keying child consumers like `MessageByIndex` by index.
+The `get` function receives the current `AssistantClient` and must return a client created via `useClientResource` (or `useClientLookup`/`useClientList`), typically the result of calling a parent scope method. The meta (`source`, `query`) acts as identity: when `query` changes between renders, a new accessor is returned in the same render pass. This is useful for keying child consumers like `MessageByIndex` by index.
 
 ### attachTransformScopes
 
@@ -131,9 +131,9 @@ function attachTransformScopes(
 ): void;
 ```
 
-Attaches a transform function to a resource hook — pass the hook function you gave to `resource()`, not the resource wrapper. When the resource is mounted via `AuiProvider`, the transform runs and can add or modify sibling scopes by mutating `scopes`. Transforms are applied iteratively — new root scopes trigger their own transforms.
+Attaches a transform function to a resource hook. Pass the hook function you gave to `resource()`, not the resource wrapper. When the resource is mounted via `AuiProvider`, the transform runs and can add or modify sibling scopes by mutating `scopes`. Transforms are applied iteratively: new root scopes trigger their own transforms.
 
-One transform per hook. Throws on duplicate.
+Each hook can have one transform. Attaching a second one throws.
 
 ### forwardTransformScopes
 
@@ -243,7 +243,7 @@ function useAssistantEmit(): <TEvent extends Exclude<AssistantEventName, "*">>(
 ) => void;
 ```
 
-Returns a stable emit function. Events are delivered via microtask — listeners fire after the current state update settles.
+Returns a stable emit function. Events are delivered via microtask: listeners fire after the current state update settles.
 
 ### getClientId
 
@@ -251,7 +251,7 @@ Returns a stable emit function. Events are delivered via microtask — listeners
 function getClientId(client: object): getClientId.ClientId;
 ```
 
-Returns the opaque identity of a bound client instance. Stable for the lifetime of the bound client regardless of accessor wrapping — a reliable `WeakMap` key for per-client caches. Throws for an unavailable scope's accessor.
+Returns the opaque identity of a bound client instance. The identity resolves through any forwarding layer to the underlying `useClientResource` client, so a scope that delegates to a replaceable client yields that client's identity. It can serve as a `WeakMap` key for per-client caches. Throws for an unavailable scope's accessor.
 
 ---
 

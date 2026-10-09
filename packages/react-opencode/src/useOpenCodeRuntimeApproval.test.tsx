@@ -34,6 +34,8 @@ const mocks = vi.hoisted(() => ({
     load: vi.fn().mockResolvedValue(undefined),
     sendMessage: vi.fn().mockResolvedValue(undefined),
     replyToPermission: vi.fn().mockResolvedValue(undefined),
+    replyToQuestion: vi.fn().mockResolvedValue(undefined),
+    rejectQuestion: vi.fn().mockResolvedValue(undefined),
   },
   state: undefined as unknown,
 }));
@@ -75,8 +77,8 @@ vi.mock("./OpenCodeThreadController", async (importOriginal) => {
     unrevert = vi.fn().mockResolvedValue(undefined);
     fork = vi.fn().mockResolvedValue("");
     replyToPermission = mocks.controller.replyToPermission;
-    replyToQuestion = vi.fn().mockResolvedValue(undefined);
-    rejectQuestion = vi.fn().mockResolvedValue(undefined);
+    replyToQuestion = mocks.controller.replyToQuestion;
+    rejectQuestion = mocks.controller.rejectQuestion;
     dispose = vi.fn();
   }
 
@@ -120,10 +122,40 @@ afterEach(() => {
   mocks.controller.load.mockReset().mockResolvedValue(undefined);
   mocks.controller.sendMessage.mockReset().mockResolvedValue(undefined);
   mocks.controller.replyToPermission.mockReset().mockResolvedValue(undefined);
+  mocks.controller.replyToQuestion.mockReset().mockResolvedValue(undefined);
+  mocks.controller.rejectQuestion.mockReset().mockResolvedValue(undefined);
   vi.restoreAllMocks();
 });
 
 describe("useOpenCodeRuntime", () => {
+  it("reports a pending load failure to the latest callback without reloading", async () => {
+    mocks.state = createOpenCodeThreadState("session-1");
+    let rejectLoad!: (error: unknown) => void;
+    mocks.controller.load.mockReturnValueOnce(
+      new Promise<void>((_resolve, reject) => {
+        rejectLoad = reject;
+      }),
+    );
+    const first = vi.fn();
+    const latest = vi.fn();
+    const App = ({ onError }: { onError: (error: unknown) => void }) => {
+      useOpenCodeRuntime({ client: stubClient, onError });
+      return null;
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App, { onError: first })));
+    await act(async () =>
+      root!.render(createElement(App, { onError: latest })),
+    );
+    expect(mocks.controller.load).toHaveBeenCalledOnce();
+
+    const loadError = new Error("load failed");
+    await act(async () => rejectLoad(loadError));
+    expect(first).not.toHaveBeenCalled();
+    expect(latest).toHaveBeenCalledExactlyOnceWith(loadError);
+  });
+
   it("keeps a new thread enabled and prompts before ids land", async () => {
     mocks.threadListItem.externalId = undefined;
     mocks.threadListItem.remoteId = undefined;
@@ -354,6 +386,71 @@ describe("useOpenCodeRuntime", () => {
       "permission-1",
       "always",
     );
+  });
+
+  it("routes question answers and rejection through the OpenCode question API", async () => {
+    const base = createOpenCodeThreadState("session-1");
+    mocks.state = {
+      ...base,
+      interactions: {
+        ...base.interactions,
+        questions: {
+          ...base.interactions.questions,
+          pending: {
+            "question-1": {
+              id: "question-1",
+              sessionID: "session-1",
+              askedAt: 1,
+              questions: [
+                { question: "First?", header: "First", options: [] },
+                { question: "Second?", header: "Second", options: [] },
+              ],
+            },
+          },
+        },
+      },
+    };
+
+    const App = () => {
+      useOpenCodeRuntime({ client: stubClient });
+      return null;
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
+
+    const adapter = mocks.adapters.find(
+      (candidate): candidate is ApprovalAdapter =>
+        typeof (candidate as ApprovalAdapter).onRespondToToolApproval ===
+        "function",
+    );
+
+    await adapter!.onRespondToToolApproval!({
+      approvalId: "question-1",
+      approved: true,
+      answers: {
+        "1": { optionIds: ["Selected"], text: "detail" },
+        "0": { text: "answer" },
+      },
+    });
+    expect(mocks.controller.replyToQuestion).toHaveBeenCalledWith(
+      "question-1",
+      [["answer"], ["Selected", "detail"]],
+    );
+    expect(mocks.controller.replyToPermission).not.toHaveBeenCalled();
+
+    await adapter!.onRespondToToolApproval!({
+      approvalId: "question-1",
+      approved: false,
+    });
+    expect(mocks.controller.rejectQuestion).toHaveBeenCalledWith("question-1");
+
+    await expect(
+      adapter!.onRespondToToolApproval!({
+        approvalId: "question-1",
+        approved: true,
+      }),
+    ).rejects.toThrow("OpenCode question approval requires answers");
   });
 
   it("isolates rejected onError callbacks during initial loading", async () => {

@@ -3,7 +3,7 @@ title: Deprecation Policy
 description: Stability guarantees and deprecation timelines for assistant-ui features.
 ---
 
-assistant-ui is committed to providing a stable API, so you can spend your time building amazing things on top of it.
+assistant-ui aims to keep its API stable.
 
 Rarely, we need to deprecate a feature we've already shipped, because it is causing performance, usability, or security issues.
 In such cases, we will communicate the intent to unship as soon as possible by marking the feature as `@deprecated` and publishing a notice in the documentation.
@@ -15,14 +15,16 @@ Below is a list of features considered stable and those considered experimental.
 
 ## Experimental Features
 
-These features may be removed at any time without notice.
+These features may change in any release.
 
-- Anything marked as `unstable_`, `experimental_`, or `internal`
-- The `RuntimeCore` API (considered internal)
+- Anything marked as `unstable_` or `experimental_`
+- Anything marked as `internal`, and the `RuntimeCore` API (considered internal)
+
+Experimental APIs carry a `@deprecated` tag that reads `Experimental since <date>`, which your editor shows as a strikethrough (see [Stability](/docs/runtimes/concepts/stability#in-your-editor)). We remove an experimental API only after an earlier release has replaced that tag with a removal notice. Internal APIs may be removed at any time without notice.
 
 ## Beta Features
 
-A deprecation of these features will undergo a short (&lt;1) month deprecation notice period.
+A deprecation of these features will undergo a short (&lt;1 month) deprecation notice period.
 
 - TailwindCSS Plugins (e.g. `tw-shimmer`)
 - Context API

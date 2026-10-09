@@ -43,7 +43,7 @@ function Composer() {
 
 ### Render attachments on a sent message
 
-`UserMessageAttachments` lists the files a user message actually carries, using `MessagePrimitive.Attachments`. It only ever renders inside a user message, since assistant messages don't carry attachments.
+`UserMessageAttachments` lists the files a user message carries, using `MessagePrimitive.Attachments`. It only ever renders inside a user message, since assistant messages don't carry attachments.
 
 ```tsx title="components/assistant-ui/elements/thread.aui.tsx"
 import { MessagePrimitive } from "@assistant-ui/react";
@@ -76,16 +76,23 @@ Standalone, there is nothing to stage or upload: this element exists to reflect 
 
 ```tsx
 <div> {/* AttachmentPrimitive.Root */}
-  <button aria-label="Image attachment" /* or "Document attachment" / "File attachment", plus ", uploading" / ", upload failed" */>
+  <div
+    role={hasPreview ? "button" : "group"}
+    tabIndex={0}
+    aria-label={hasPreview
+      ? `Preview ${filename}${uploadStateSuffix}`
+      : `${type} attachment ${filename}${uploadStateSuffix}`}
+  >
     {/* thumbnail: the image itself, or a file icon fallback */}
     {/* uploading: a blurred spinner overlay */}
     {/* error: a blurred alert overlay */}
-  </button>
-  <button aria-label="Remove file">{/* composer only */}</button>
+  </div>
+  {/* uploadStateSuffix is "", ", uploading", or ", upload failed". */}
+  <button aria-label="Remove filename.png">{/* composer only */}</button>
 </div>
 ```
 
-The remove button and the upload/error overlays only render on a composer attachment; a message attachment shows the tile alone. A lone image attachment on a message renders larger than the rest. Clicking an image tile whose source resolves opens a fullscreen preview dialog; any other kind of tile, or an image with no resolvable source yet, renders the click target with no dialog behavior at all.
+The remove button and the upload/error overlays only render on a composer attachment; a message attachment shows the tile alone. A lone image attachment on a message renders larger than the rest. Clicking an image tile whose source resolves opens a preview dialog; any other kind of tile, or an image with no resolvable source yet, renders without a dialog.
 
 </RuntimeMode>
 
@@ -95,7 +102,7 @@ The remove button and the upload/error overlays only render on a composer attach
 
 ### Composer vs. message attachments
 
-Both exports render the same tile; only the source differs. `aui.attachment.source` is `"composer"` for a staged attachment and `"message"` for one already sent, and that's exactly what decides whether the remove button and drag-in animation appear.
+Both exports render the same tile; only the source differs. `aui.attachment.source` is `"composer"` for a staged attachment and `"message"` for one already sent, and that decides whether the remove button and the entrance animation appear.
 
 ```tsx
 <ComposerAttachments />       {/* ComposerPrimitive.Attachments, source: "composer" */}
@@ -104,7 +111,7 @@ Both exports render the same tile; only the source differs. `aui.attachment.sour
 
 ### Reading the resolved preview source
 
-`useAttachmentSrc()` resolves an image attachment's displayable URL: an object URL for a file still in memory, or the first `image` content part once the attachment has uploaded. Anything that isn't an image resolves to `undefined`, which is exactly the signal a custom preview uses to fall back to an icon.
+`useAttachmentSrc()` resolves an image attachment's displayable URL: an object URL for a file still in memory, or the first `image` content part once the attachment has uploaded. Anything that isn't an image resolves to `undefined`, so a custom preview can fall back to an icon.
 
 ```tsx
 import { useAttachmentSrc } from "@/hooks/use-attachment-src";
@@ -118,7 +125,7 @@ function CustomThumb() {
 
 ### Add-attachment picker
 
-`ComposerAddAttachment` opens a native file picker scoped to the composer's own `attachmentAccept`, and supports selecting more than one file at once. It renders nothing while the composer isn't editable (for example, while a run is streaming).
+`ComposerAddAttachment` opens a native file picker scoped to the composer's own `attachmentAccept`, and supports selecting more than one file at once. The button is disabled while the composer is not editing.
 
 ```tsx
 <ComposerAddAttachment />
@@ -135,7 +142,7 @@ function CustomThumb() {
 | Part | Renders | Notes |
 |------|---------|-------|
 | `ComposerAttachments` | list | Wraps `ComposerPrimitive.Attachments`; one tile per staged attachment. Hidden while nothing is staged. |
-| `ComposerAddAttachment` | `button` | Wraps `ComposerPrimitive.AddAttachment`; opens the native file picker. Renders `null` while the composer isn't editable. |
+| `ComposerAddAttachment` | `button` | Wraps `ComposerPrimitive.AddAttachment`; opens the native file picker. Disabled while the composer is not editing. |
 | `UserMessageAttachments` | list | Wraps `MessagePrimitive.Attachments`; one tile per attachment on the current user message. Hidden while the message has none, so the user message grid starts at the bubble. |
 
 ### Primitives composed
@@ -168,7 +175,7 @@ npx shadcn@latest add "@assistant-ui/elements-message-attachment"
 
 <RuntimeMode>
 
-Wire it by mapping a user message's attachments into items; like `UserMessageAttachments` above, this only makes sense inside a user message. `s.message.attachments` is the store's own array and every entry is already complete (an upload still in progress lives in the composer's own attachments instead), so selecting it directly is cheap; deriving items still needs `useMemo`, since mapping to a fresh array on every call would re-render the list on every store update.
+Wire it by mapping a user message's attachments into items; like `UserMessageAttachments` above, this only makes sense inside a user message. `s.message.attachments` is the store's own array and every entry is already complete (an upload still in progress lives in the composer's own attachments instead), so selecting it directly is cheap; deriving items still needs `useMemo`, since mapping to a fresh array on every call would re-render the list on every update of the message.
 
 ```tsx title="components/assistant-ui/elements/message-attachment.tsx"
 "use client";

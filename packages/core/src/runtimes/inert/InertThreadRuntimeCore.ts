@@ -127,6 +127,7 @@ export abstract class InertThreadRuntimeCore
     throw this.error;
   }
 
+  /** @deprecated Experimental since 2026-08-14. Not scheduled for removal; the API may change in any release. */
   unstable_notifySessionReset(): void {
     throw this.error;
   }
@@ -143,6 +144,7 @@ export abstract class InertThreadRuntimeCore
     throw this.error;
   }
 
+  /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
   async unstable_recordToolInteraction(
     _options: Unstable_RecordToolInteractionOptions,
   ): Promise<void> {
@@ -236,6 +238,7 @@ export abstract class InertThreadRuntimeCore
   suggestions = [] as never[];
   extras = undefined;
 
+  /** @deprecated Experimental since 2024-10-12. Not scheduled for removal; the API may change in any release. */
   unstable_on(): Unsubscribe {
     return () => {};
   }

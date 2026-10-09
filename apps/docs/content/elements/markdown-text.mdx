@@ -36,7 +36,7 @@ The `Thread` element already ships this composition, so installing `@assistant-u
 
 ### Add syntax highlighting
 
-MarkdownText renders fenced code with a language label and a copy button, but the code itself is plain text until you plug in a highlighter. Pass one through the `components` prop, or install a kit that already wires one: see [Shiki highlighter](/elements/shiki-highlighter) (recommended, runtime-aware) or [Syntax highlighter](/elements/syntax-highlighter) (Prism-based).
+MarkdownText renders fenced code with a language label and a copy button, but the code itself is plain text until you plug in a highlighter. Pass one through the `components` prop, or per fence language through `componentsByLanguage` (for example `{ mermaid: { SyntaxHighlighter: MermaidDiagram } }`), or install a kit that already wires one: see [Shiki highlighter](/elements/shiki-highlighter) (recommended, runtime-aware) or [Syntax highlighter](/elements/syntax-highlighter) (Prism-based).
 
   </Step>
 </Steps>
@@ -45,7 +45,7 @@ MarkdownText renders fenced code with a language label and a copy button, but th
 
 <StandaloneMode>
 
-Standalone, MarkdownText has no controlled form: its only prop is `components`, and the text it renders always comes from the surrounding message part, never from a value you pass in. To render markdown outside a message part, render `react-markdown` directly instead, the way [Generative UI](/elements/generative-ui)'s `Markdown` override does.
+Standalone, MarkdownText has no controlled form: its only props are `components` and `componentsByLanguage`, and the text it renders always comes from the surrounding message part, never from a value you pass in. To render markdown outside a message part, render `react-markdown` directly instead, the way [Generative UI](/elements/generative-ui)'s `Markdown` override does.
 
 </StandaloneMode>
 
@@ -63,7 +63,7 @@ Standalone, MarkdownText has no controlled form: its only prop is `components`, 
 </div>
 ```
 
-The root's `data-status` mirrors the part's streaming state: `running` while text is still arriving (or, with the primitive's default smooth reveal, still catching up to text that already arrived), `complete` once settled, `incomplete` if the part ended early. Every rendered element carries an `aui-md-*` class (`aui-md-h1`, `aui-md-p`, `aui-md-table`, and so on) so you can target one without replacing the whole set. Inline code gets a background and rounded corners; fenced code does not, since the copy button and code header already frame it. The copy button swaps to a check icon for three seconds after a successful copy, then reverts.
+The root's `data-status` mirrors the part's streaming state: `running` while text is still arriving (or, with the primitive's default smooth reveal, still catching up to text that already arrived), `complete` once settled, `incomplete` if the part ended early. Every rendered element carries an `aui-md-*` class (`aui-md-h1`, `aui-md-p`, `aui-md-table`, and so on) so you can target one without replacing the whole set. Inline code gets a background and rounded corners on the `code` element; in a fenced block the `pre` carries the border and background instead. The copy button swaps to a check icon for three seconds after a successful copy, then reverts.
 
 ## Examples
 
@@ -130,6 +130,7 @@ Tables, task-list checkboxes, strikethrough, and bare autolinks all render becau
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
 | `components` | `Parameters<typeof memoizeMarkdownComponents>[0]` | | Merged onto the default element renderers (`h1`-`h6`, `p`, `a`, `blockquote`, `ul`, `ol`, `hr`, `table`, `th`, `td`, `tr`, `li`, `strong`, `sup`, `pre`, `code`, `CodeHeader`). Missing keys fall back to the defaults. `SyntaxHighlighter` defaults to plain, unhighlighted code until you set one. |
+| `componentsByLanguage` | `MarkdownTextPrimitiveProps["componentsByLanguage"]` | | Per-language `SyntaxHighlighter` and `CodeHeader` overrides for fenced code, keyed by the fence's language, such as `{ mermaid: { SyntaxHighlighter: MermaidDiagram } }`. |
 
 There is no `className` prop. `smooth` and `defer` are fixed on: the primitive always animates streamed text and defers re-parsing to a lower priority.
 
@@ -137,6 +138,6 @@ There is no `className` prop. `smooth` and `defer` are fixed on: the primitive a
 
 <StandaloneMode>
 
-MarkdownText has no standalone props beyond `components`, and nothing to feed it outside a message part. See the `MarkdownTextPrimitive` row above for the one thing it reads, and the runtime API reference for `components`.
+MarkdownText has no standalone props beyond `components` and `componentsByLanguage`, and nothing to feed it outside a message part. See the `MarkdownTextPrimitive` row above for the one thing it reads, and the runtime API reference for both.
 
 </StandaloneMode>

@@ -1,6 +1,9 @@
 import { AssistantStream } from "../AssistantStream";
 import type { AssistantStreamChunk, PartInit } from "../AssistantStreamChunk";
-import { createMergeStream } from "../utils/stream/merge";
+import {
+  createMergeStream,
+  type MergeStreamFinishOrder,
+} from "../utils/stream/merge";
 import { createTextStreamController, type TextStreamController } from "./text";
 import {
   createToolCallStreamController,
@@ -11,7 +14,6 @@ import {
   PathAppendEncoder,
   PathMergeEncoder,
 } from "../utils/stream/path-utils";
-import { DataStreamEncoder } from "../serialization/data-stream/DataStream";
 import type { DataPart, FilePart, SourcePart } from "../utils/types";
 import { generateId } from "../utils/generateId";
 import type {
@@ -30,6 +32,7 @@ type ToolCallPartInit = {
 };
 
 type ReasoningPartInit = {
+  /** @deprecated Experimental since 2026-08-07. Not scheduled for removal; the API may change in any release. */
   unstable_summary?: string;
 };
 
@@ -122,6 +125,8 @@ type AssistantStreamControllerState = {
       }
     | undefined;
   contentCounter: Counter;
+  openInputs: Set<() => void>;
+  lastToolCallFinish: Promise<void>;
   closeSubscriber?: () => void;
 };
 
@@ -137,6 +142,8 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       strict: options.strict ?? true,
       merger: createMergeStream(),
       contentCounter: new Counter(),
+      openInputs: new Set(),
+      lastToolCallFinish: Promise.resolve(),
     };
   }
 
@@ -156,6 +163,12 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     return this._state.merger.readable;
   }
 
+  __internal_endOpenInputs() {
+    this._state.append = undefined;
+    for (const end of this._state.openInputs) end();
+    this._state.openInputs.clear();
+  }
+
   __internal_subscribeToClose(callback: () => void) {
     this._state.closeSubscriber = callback;
   }
@@ -166,6 +179,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       AssistantStreamChunk,
       AssistantStreamChunk
     >,
+    orderedFinish?: MergeStreamFinishOrder,
   ) {
     if (stream.locked) {
       throw new TypeError(
@@ -179,10 +193,27 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
         await transformer.writable.abort(error).catch(() => undefined);
         throw error;
       });
-    this._state.merger.addStream(transformer.readable, pipeTask);
+    this._state.merger.addStream(
+      transformer.readable,
+      pipeTask,
+      orderedFinish ? { orderedFinish } : undefined,
+    );
+    return pipeTask;
   }
 
-  private _addPart(part: PartInit, stream: AssistantStream) {
+  private _trackOpenInput(pipeTask: Promise<void>, end: () => void) {
+    const { openInputs } = this._state;
+    openInputs.add(end);
+    const forget = () => openInputs.delete(end);
+    pipeTask.then(forget, forget);
+  }
+
+  private _addPart(
+    part: PartInit,
+    stream: AssistantStream,
+    end?: () => void,
+    orderedFinish?: MergeStreamFinishOrder,
+  ) {
     if (this._state.append) {
       this._state.append.controller.close();
       this._state.append = undefined;
@@ -193,10 +224,12 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       part,
       path: [],
     });
-    this._addTransformedStream(
+    const pipeTask = this._addTransformedStream(
       stream,
       new PathAppendEncoder(this._state.contentCounter.value),
+      orderedFinish,
     );
+    if (end) this._trackOpenInput(pipeTask, end);
   }
 
   merge(stream: AssistantStream) {
@@ -245,7 +278,9 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     const [stream, controller] = createTextStreamController({
       strict: this._state.strict,
     });
-    this._addPart(this._withParentIdOption({ type: "text" }), stream);
+    this._addPart(this._withParentIdOption({ type: "text" }), stream, () =>
+      controller.__internal_close(),
+    );
     return controller;
   }
 
@@ -256,6 +291,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     this._addPart(
       this._withParentIdOption({ type: "reasoning", ...options }),
       stream,
+      () => controller.__internal_close(),
     );
     return controller;
   }
@@ -267,8 +303,14 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     const toolName = opt.toolName;
     const toolCallId = opt.toolCallId ?? generateId();
 
+    const delivered = promiseWithResolvers<void>();
+    let previous = Promise.resolve();
     const [stream, controller] = createToolCallStreamController({
       strict: this._state.strict,
+      onClose: () => {
+        previous = this._state.lastToolCallFinish;
+        this._state.lastToolCallFinish = delivered.promise;
+      },
     });
     this._addPart(
       {
@@ -278,6 +320,8 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
         ...(this._parentId && { parentId: this._parentId }),
       },
       stream,
+      () => controller.__internal_truncate(),
+      { previous: () => previous, delivered },
     );
 
     if (opt.argsText !== undefined) {
@@ -378,6 +422,7 @@ export function createAssistantStream(
           path: [],
           error: String(e),
         });
+        controller.__internal_endOpenInputs();
       } else if (!controller.__internal_isCancelled) {
         console.error(e);
       }
@@ -414,20 +459,4 @@ export function createAssistantStreamController(
     return promise;
   }, options);
   return [stream, controller] as const;
-}
-
-/**
- * Creates a `Response` whose body is an encoded {@link AssistantStream}.
- *
- * This is the HTTP-route convenience form of {@link createAssistantStream}; it
- * uses {@link DataStreamEncoder} so the response can be consumed by matching
- * assistant-ui data stream decoders.
- */
-export function createAssistantStreamResponse(
-  callback: (controller: AssistantStreamController) => PromiseLike<void> | void,
-) {
-  return AssistantStream.toResponse(
-    createAssistantStream(callback),
-    new DataStreamEncoder(),
-  );
 }

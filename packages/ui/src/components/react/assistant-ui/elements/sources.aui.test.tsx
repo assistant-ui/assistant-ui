@@ -1,3 +1,4 @@
+import { createRef } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -81,6 +82,20 @@ describe("SourceIcon", () => {
     expect(callerRef).toHaveBeenCalledWith(
       screen.getByText("E") as HTMLSpanElement,
     );
+  });
+
+  it("forwards the image and fallback through the caller ref", () => {
+    stubImage(false, 0);
+    const ref = createRef<HTMLSpanElement>();
+    const { container, unmount } = render(
+      <SourceIcon url="https://example.com/reference" ref={ref} />,
+    );
+    const image = container.querySelector('[data-slot="source-icon"]')!;
+    expect(ref.current).toBe(image);
+    fireEvent.error(image);
+    expect(ref.current).toBe(screen.getByText("E"));
+    unmount();
+    expect(ref.current).toBeNull();
   });
 });
 

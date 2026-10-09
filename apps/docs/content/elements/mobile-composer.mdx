@@ -9,7 +9,7 @@ A composer shaped for a phone: a row of quick actions that collapses out of the 
 
 <RuntimeMode>
 
-`ComposerPrimitive.Root`, `.Input`, `.AddAttachment`, `.Send`, and `.Cancel` already own the text, the attach flow, and the send/cancel gating, so this bar needs no manual `value`, `onValueChange`, `onSend`, or `onStop` at all; it only needs the layout and the running flag to pick between Send and Cancel.
+`ComposerPrimitive.Root`, `.Input`, `.AddAttachment`, `.Send`, and `.Cancel` already own the text, the attach flow, and the send/cancel gating, so this bar needs no `value`, `onValueChange`, `onSend`, or `onStop`. It needs only the layout and the running flag to pick between Send and Cancel.
 
 <Steps>
   <Step>
@@ -59,9 +59,9 @@ export function MobileComposerBar({ keyboardOpen }: { keyboardOpen: boolean }) {
         <div className={cn(field, "flex min-w-0 flex-1 items-center gap-2 rounded-[18px] px-3 py-2")}>
           <ComposerPrimitive.Input
             placeholder="Message"
-            className="text-foreground/85 placeholder:text-foreground/30 min-w-0 flex-1 resize-none bg-transparent text-[16px] outline-none"
+            className="text-foreground/85 placeholder:text-muted-foreground min-w-0 flex-1 resize-none bg-transparent text-[16px] outline-none"
           />
-          {isEmpty && <MicIcon className="text-foreground/35 size-4 shrink-0" />}
+          {isEmpty && <MicIcon className="text-muted-foreground size-4 shrink-0" />}
         </div>
 
         {isRunning ? (
@@ -78,7 +78,7 @@ export function MobileComposerBar({ keyboardOpen }: { keyboardOpen: boolean }) {
       {!keyboardOpen ? (
         <span aria-hidden className="bg-foreground/15 mx-auto h-1 w-28 rounded-full" />
       ) : (
-        <span className={cn(mono, "text-foreground/25 text-center")}>return to send</span>
+        <span className={cn(mono, "text-muted-foreground text-center")}>return to send</span>
       )}
     </ComposerPrimitive.Root>
   );
@@ -153,7 +153,7 @@ export function MobileBar() {
 </div>
 ```
 
-The standalone element renders a single-line `<input>`; the runtime composition above renders `ComposerPrimitive.Input`, an auto-resizing `<textarea>` that can grow past one line, which is the same trade every composer in the catalog makes. Enter triggers a send only when `!running && value !== ""`. While not running, the button shares that same emptiness gate (disabled only when `value === ""`); while running, both the key and the button stop meaning "send" at all, since the button's label, icon, and handler have already swapped to Stop. The attach button and every action chip disable together based only on whether their handler prop was passed at all (`onAttach`, `onAction`); none of them react to `running` or `value` on their own, so gating them during a run is the caller's responsibility. The mic icon and the send/stop icon swap are purely presentational: nothing here starts dictation, and stop icon does not imply cancellation happened, only that `onStop` was called.
+The standalone element renders a single-line `<input>`; the runtime composition above renders `ComposerPrimitive.Input`, an auto-resizing `<textarea>` that can grow past one line. Enter sends only when `!running && value !== ""`. While not running, the button is disabled when `value === ""`; while running, its label, icon, and handler switch to Stop, and Enter does nothing. The attach button and the action chips are disabled only when their handler prop (`onAttach`, `onAction`) is absent. They do not react to `running` or `value`, so gating them during a run is the caller's responsibility. The mic icon is decorative and starts no dictation. The stop icon reflects `running`, and pressing it only calls `onStop`.
 
 ## Examples
 
@@ -175,7 +175,7 @@ Since `keyboardOpen` is not runtime state, drive it from the platform: toggle it
 
 <StandaloneMode>
 
-The example above ties `keyboardOpen` to the input's `onFocus`, which is enough for most cases; closing it again (on blur, or on a virtual keyboard's own dismiss) is left to you, since the element has no blur callback of its own.
+The example above sets `keyboardOpen` from the input's `onFocus`. Closing it again (on blur, or when the virtual keyboard is dismissed) is left to you, because the element has no blur callback.
 
 </StandaloneMode>
 
