@@ -3,4 +3,4 @@
 "@assistant-ui/store": patch
 ---
 
-Keep thread viewport observers stable, preserve scheduled scroll behavior, and publish at-bottom state immediately when a scroll to bottom is requested.
+Keep thread viewport observers stable and preserve scheduled scroll behavior. The React viewport reports at-bottom as soon as a scroll to bottom is requested, which the stable observers would otherwise publish late.

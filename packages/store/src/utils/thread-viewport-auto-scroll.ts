@@ -94,7 +94,6 @@ export const createThreadViewportAutoScroll = (input: {
     followPaused = false;
     scrolledSincePause = false;
     intent = behavior;
-    setAtBottom(true);
     element.scrollTo?.({ top: element.scrollHeight, behavior });
   };
 
