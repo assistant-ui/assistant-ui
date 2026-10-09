@@ -1968,6 +1968,33 @@ describe("Interactables switching back to an adapter during its save", () => {
     });
   });
 
+  it("recovers a save rejected while another adapter is active", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const a = storingAdapter({ prefs: { name: "note", state: { v: 42 } } });
+    root = mount();
+    root.getValue().setPersistenceAdapter(a.adapter);
+    await flushMicrotasks();
+    root.getValue().register(reg("prefs"));
+    root.getValue().setState("prefs", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    root.getValue().setPersistenceAdapter(otherAdapter());
+    a.saves[0]!.reject(new Error("save failed"));
+    await flushMicrotasks();
+    root.getValue().setPersistenceAdapter(a.adapter);
+    await flushMicrotasks();
+
+    expect(a.adapter.load).toHaveBeenCalledTimes(2);
+    expect(stateOf(root!, "prefs")).toEqual({ v: 1 });
+    expect(a.saves).toHaveLength(2);
+    expect(a.saves[1]!.state.prefs).toEqual({
+      name: "note",
+      state: { v: 1 },
+    });
+    a.saves[1]!.resolve();
+    await flushMicrotasks();
+  });
+
   it("does not restore a rejected batch covered by a newer saved snapshot", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     const a = storingAdapter({ prefs: { name: "note", state: { v: 42 } } });
@@ -2047,6 +2074,61 @@ describe("Interactables switching back to an adapter during its save", () => {
     a.saves[1]!.resolve();
     await flushMicrotasks();
     expect(root!.getValue().getState().persistence.prefs).toBeUndefined();
+  });
+
+  it("does not repeat a timed-out wait after a later switch back", async () => {
+    const a = await startSaveThenSwitchBack();
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(a.adapter.load).toHaveBeenCalledTimes(2);
+
+    root!.getValue().setPersistenceAdapter(otherAdapter());
+    root!.getValue().setPersistenceAdapter(a.adapter);
+    await flushMicrotasks();
+
+    expect(a.adapter.load).toHaveBeenCalledTimes(3);
+    expect(stateOf(root!, "prefs")).toEqual({ v: 1 });
+
+    let index = 0;
+    while (index < a.saves.length) {
+      a.saves[index]!.resolve();
+      await flushMicrotasks();
+      index += 1;
+    }
+  });
+
+  it("keeps recovery when a waiter becomes stale before it can restore", async () => {
+    const a = storingAdapter({ prefs: { name: "note", state: { v: 42 } } });
+    root = mount();
+    root.getValue().setPersistenceAdapter(a.adapter);
+    await flushMicrotasks();
+    root.getValue().register(reg("prefs"));
+    root.getValue().setState("prefs", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    root.getValue().setPersistenceAdapter(otherAdapter());
+    root.getValue().setPersistenceAdapter(a.adapter);
+    root.getValue().setPersistenceAdapter({
+      save: vi.fn(),
+      load: vi.fn(async () => ({
+        prefs: { name: "note", state: { v: 7 } },
+      })),
+    });
+    await flushMicrotasks();
+    await vi.advanceTimersByTimeAsync(5_000);
+    await flushMicrotasks();
+
+    root!.getValue().setPersistenceAdapter(a.adapter);
+    await flushMicrotasks();
+
+    expect(a.adapter.load).toHaveBeenCalledTimes(2);
+    expect(stateOf(root!, "prefs")).toEqual({ v: 1 });
+
+    let index = 0;
+    while (index < a.saves.length) {
+      a.saves[index]!.resolve();
+      await flushMicrotasks();
+      index += 1;
+    }
   });
 
   it("waits for a queued save to the adapter as well as the in-flight one", async () => {
@@ -2142,6 +2224,49 @@ describe("Interactables switching back to an adapter during its save", () => {
     );
     return a;
   };
+
+  it.each(["pending", "rejected"])(
+    "keeps recovered edits after switching away from a %s load",
+    async (loadState) => {
+      const a = await startFailedSave();
+      root!.getValue().setPersistenceAdapter(otherAdapter());
+      await flushMicrotasks();
+
+      let resolveLoad!: (state: Unstable_InteractablePersistedState) => void;
+      let rejectLoad!: (error: unknown) => void;
+      a.adapter.load.mockImplementationOnce(
+        () =>
+          new Promise((resolve, reject) => {
+            resolveLoad = resolve;
+            rejectLoad = reject;
+          }),
+      );
+      root!.getValue().setPersistenceAdapter(a.adapter);
+      await flushMicrotasks();
+      expect(stateOf(root!, "prefs")).toEqual({ v: 1 });
+      if (loadState === "rejected") {
+        rejectLoad(new Error("still offline"));
+        await flushMicrotasks();
+      }
+
+      root!.getValue().setPersistenceAdapter(otherAdapter());
+      await flushMicrotasks();
+      root!.getValue().setPersistenceAdapter(a.adapter);
+      await flushMicrotasks();
+
+      expect(stateOf(root!, "prefs")).toEqual({ v: 1 });
+      expect(a.saves).toHaveLength(2);
+      expect(a.saves[1]!.state.prefs).toEqual({
+        name: "note",
+        state: { v: 1 },
+      });
+      a.saves[1]!.resolve();
+      if (loadState === "pending")
+        resolveLoad({ prefs: { name: "note", state: { v: 42 } } });
+      await flushMicrotasks();
+      expect(stateOf(root!, "prefs")).toEqual({ v: 1 });
+    },
+  );
 
   it("keeps a failed edit whose in-flight retry rejects after switching back", async () => {
     const a = await startFailedSave();

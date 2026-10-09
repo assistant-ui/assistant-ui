@@ -81,7 +81,7 @@ jobs:
       - name: Test coverage routing and summary
         run: node --test scripts/test-coverage-contract.test.mjs scripts/coverage-summary.test.mjs
 
-      # test:coverage runs one package at a time, so build every package first at turbo's default concurrency.
+      # Each vitest run already spreads its files across every core, so test:coverage runs two packages at a time; build every package first at turbo's default concurrency.
       - name: Build packages
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}

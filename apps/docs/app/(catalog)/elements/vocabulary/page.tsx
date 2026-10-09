@@ -134,7 +134,7 @@ export default async function VocabularyPage() {
                     return (
                       <section key={name} id={name} className="scroll-mt-24">
                         <div className="flex items-baseline gap-2.5">
-                          <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
+                          <span className="text-muted-foreground text-xs tabular-nums">
                             {String(runningIndex).padStart(2, "0")}
                           </span>
                           <h3 className="text-[15px] font-medium">{name}</h3>

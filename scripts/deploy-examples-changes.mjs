@@ -107,9 +107,25 @@ export function planDeploys(repoRoot, changedFiles) {
     .filter(
       (example) =>
         changedFiles === null ||
-        exampleInputs(repoRoot, example).some((input) =>
-          changedFiles.some((file) => touches(file, input)),
-        ),
+        exampleInputs(repoRoot, example).some((input) => {
+          const files = changedFiles.filter((file) => touches(file, input));
+          if (files.length === 0) return false;
+          if (
+            !input.startsWith("packages/") ||
+            SHARED_INPUTS.includes(input) ||
+            EXAMPLES[example].extraInputs.includes(input)
+          )
+            return true;
+
+          const pkg = readJson(path.join(repoRoot, input, "package.json"));
+          return (
+            pkg.scripts?.build !== "aui-build" ||
+            pkg.scripts?.prebuild !== undefined ||
+            pkg.scripts?.postbuild !== undefined ||
+            bundlesDevDependencies(pkg) ||
+            files.some((file) => !/\.test\.tsx?$/.test(file))
+          );
+        }),
     )
     .map((example) => EXAMPLES[example].matrix);
   return { matrix: { include }, any: include.length > 0 };

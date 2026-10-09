@@ -1605,6 +1605,7 @@ type PiClientEventBody = {
 } | {
   type: "error";
   error: string;
+  terminal?: boolean;
 };
 
 type PiClientEventEnvelope = {

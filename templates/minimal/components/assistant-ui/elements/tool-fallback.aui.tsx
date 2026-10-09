@@ -715,29 +715,27 @@ const ToolFallbackApproval = forwardRef<
     <ToolFallbackApprovalImpl
       key={props.approval?.id}
       carryFocusRef={carryFocusRef}
-      ref={ref}
+      forwardedRef={ref}
       {...props}
     />
   );
 });
 
-const ToolFallbackApprovalImpl = forwardRef<
-  HTMLDivElement,
-  ToolFallbackApprovalProps & { carryFocusRef: React.MutableRefObject<boolean> }
->(function ToolFallbackApprovalImpl(
-  {
-    className,
-    carryFocusRef,
-    addResult,
-    resume,
-    interrupt,
-    approval,
-    respondToApproval,
-    status,
-    ...props
-  },
-  ref,
-) {
+function ToolFallbackApprovalImpl({
+  className,
+  forwardedRef,
+  carryFocusRef,
+  addResult,
+  resume,
+  interrupt,
+  approval,
+  respondToApproval,
+  status,
+  ...props
+}: Omit<ToolFallbackApprovalProps, "ref"> & {
+  forwardedRef: React.ForwardedRef<HTMLDivElement>;
+  carryFocusRef: React.MutableRefObject<boolean>;
+}) {
   const [submitted, setSubmitted] = useState(false);
   const voiceActive = useAuiState((s) => s.thread.voice !== undefined);
   const canAnswer = useAuiState((s) => s.thread.capabilities.answerToolCall);
@@ -778,7 +776,7 @@ const ToolFallbackApprovalImpl = forwardRef<
     };
   }, [carryFocusRef]);
   useImperativeHandle<HTMLDivElement | null, HTMLDivElement | null>(
-    ref,
+    forwardedRef,
     () => pendingGroupRef.current ?? receiptRef.current,
   );
   const setPendingGroup = useCallback(
@@ -997,11 +995,13 @@ const ToolFallbackApprovalImpl = forwardRef<
     return (
       <div
         data-slot="tool-fallback-approval"
+        tabIndex={-1}
         className={cn(
           "aui-tool-fallback-approval flex flex-col gap-3 pt-1",
           className,
         )}
         {...props}
+        ref={setPendingGroup}
       >
         {promptText}
         <ToolFallbackApprovalQuestions
@@ -1188,7 +1188,7 @@ const ToolFallbackApprovalImpl = forwardRef<
       {errorText}
     </div>
   );
-});
+}
 
 const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   toolName,

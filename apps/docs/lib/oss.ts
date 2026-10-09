@@ -12,11 +12,14 @@ export type OssCategory =
   | "agents"
   | "infrastructure";
 
+export type OssTier = "flagship" | "major" | "minor";
+
 export type OssProject = {
   id: string;
   name: string;
   description: string;
   category: OssCategory;
+  tier: OssTier;
   repo: string;
   path?: string;
   docs?: string;
@@ -83,15 +86,29 @@ const OSS_PROJECT_INPUTS: OssProjectInput[] = [
     id: "assistant-ui",
     name: "assistant-ui",
     category: "sdk",
+    tier: "flagship",
     repo: OSS_MONOREPO,
     docs: "/docs",
     npm: "@assistant-ui/react",
     license: "MIT",
   },
   {
+    id: "safe-content-frame",
+    name: "Safe Content Frame",
+    description: "Sandboxes for HTML. Built for MCP Apps and Generative UI.",
+    category: "primitives",
+    tier: "major",
+    repo: OSS_MONOREPO,
+    path: "packages/safe-content-frame",
+    site: "/safe-content-frame",
+    npm: "safe-content-frame",
+    license: "MIT",
+  },
+  {
     id: "tap",
     name: "@assistant-ui/tap",
     category: "libraries",
+    tier: "major",
     repo: OSS_MONOREPO,
     path: "packages/tap",
     docs: "/docs/tap",
@@ -102,6 +119,7 @@ const OSS_PROJECT_INPUTS: OssProjectInput[] = [
     id: "store",
     name: "@assistant-ui/store",
     category: "libraries",
+    tier: "minor",
     repo: OSS_MONOREPO,
     path: "packages/store",
     docs: "/docs/store/why-store",
@@ -112,6 +130,7 @@ const OSS_PROJECT_INPUTS: OssProjectInput[] = [
     id: "assistant-stream",
     name: "assistant-stream",
     category: "libraries",
+    tier: "minor",
     repo: OSS_MONOREPO,
     path: "packages/assistant-stream",
     npm: "assistant-stream",
@@ -119,19 +138,11 @@ const OSS_PROJECT_INPUTS: OssProjectInput[] = [
     license: "MIT",
   },
   {
-    id: "tool-ui",
-    name: "tool-ui",
-    description: "UI components for AI interfaces.",
-    category: "libraries",
-    repo: "assistant-ui/tool-ui",
-    site: "https://tool-ui.com",
-    license: "MIT",
-  },
-  {
     id: "xpm",
     name: "@assistant-ui/xpm",
     description: "One command for npm, yarn, pnpm, bun, deno, and uv.",
     category: "libraries",
+    tier: "minor",
     repo: "assistant-ui/xpm",
     npm: "@assistant-ui/xpm",
     license: "MIT",
@@ -141,6 +152,7 @@ const OSS_PROJECT_INPUTS: OssProjectInput[] = [
     name: "modelpedia",
     description: "Open catalog of AI models across providers.",
     category: "apps",
+    tier: "minor",
     repo: "assistant-ui/modelpedia",
     site: "https://modelpedia.dev",
     license: "MIT",
@@ -150,6 +162,7 @@ const OSS_PROJECT_INPUTS: OssProjectInput[] = [
     name: "open-prism",
     description: "AI LaTeX writing workspace with live preview.",
     category: "apps",
+    tier: "minor",
     repo: "assistant-ui/open-prism",
     site: "https://openprism.vercel.app",
     license: "MIT",
@@ -158,6 +171,7 @@ const OSS_PROJECT_INPUTS: OssProjectInput[] = [
     id: "tw-shimmer",
     name: "tw-shimmer",
     category: "primitives",
+    tier: "major",
     repo: OSS_MONOREPO,
     path: "packages/tw-shimmer",
     site: "/tw-shimmer",
@@ -168,46 +182,12 @@ const OSS_PROJECT_INPUTS: OssProjectInput[] = [
     id: "heat-graph",
     name: "heat-graph",
     category: "primitives",
+    tier: "minor",
     repo: OSS_MONOREPO,
     path: "packages/heat-graph",
     site: "/heat-graph",
     npm: "heat-graph",
     license: "MIT",
-  },
-  {
-    id: "safe-content-frame",
-    name: "safe-content-frame",
-    category: "primitives",
-    repo: OSS_MONOREPO,
-    path: "packages/safe-content-frame",
-    site: "/safe-content-frame",
-    npm: "safe-content-frame",
-    license: "MIT",
-  },
-  {
-    id: "skills",
-    name: "skills",
-    description: "Agent skills for building AI chat interfaces.",
-    category: "agents",
-    repo: "assistant-ui/skills",
-    license: null,
-  },
-  {
-    id: "mcp-docs-server",
-    name: "@assistant-ui/mcp-docs-server",
-    category: "agents",
-    repo: OSS_MONOREPO,
-    path: "packages/mcp-docs-server",
-    npm: "@assistant-ui/mcp-docs-server",
-    license: "MIT",
-  },
-  {
-    id: "sync-server",
-    name: "assistant-ui-sync-server",
-    description: "Resumable streaming proxy for long-running AI tasks.",
-    category: "infrastructure",
-    repo: "assistant-ui/assistant-ui-sync-server",
-    license: null,
   },
 ];
 

@@ -1514,6 +1514,76 @@ describe("ToolFallbackApproval", () => {
       { id: "note", prompt: "Anything else?" },
     ];
 
+    it("exposes the pending questionnaire and its receipt through the forwarded ref", () => {
+      const ref = createRef<HTMLDivElement>();
+      const approval = {
+        ...pendingApproval,
+        display: "questions" as const,
+        questions,
+      };
+      const respondToApproval = vi.fn(async () => {});
+      const view = render(
+        <ToolFallbackApproval
+          ref={ref}
+          approval={approval}
+          respondToApproval={respondToApproval}
+        />,
+      );
+      expect(ref.current).toBe(
+        document.querySelector('[data-slot="tool-fallback-approval"]'),
+      );
+
+      view.rerender(
+        <ToolFallbackApproval
+          ref={ref}
+          approval={{ ...approval, approved: true }}
+          respondToApproval={respondToApproval}
+        />,
+      );
+      expect(ref.current).toBe(answeredReceipt());
+    });
+
+    it.each(["Send", "Dismiss"])(
+      "keeps keyboard focus while a questionnaire's %s response settles",
+      (action) => {
+        const approval = {
+          ...pendingApproval,
+          display: "questions" as const,
+          dismissible: true,
+          questions: [{ id: "note", prompt: "Anything else?" }],
+        };
+        const respondToApproval = vi.fn(async () => {});
+        const view = render(
+          <ToolFallbackApproval
+            approval={approval}
+            respondToApproval={respondToApproval}
+          />,
+        );
+        fireEvent.change(
+          screen.getByRole("textbox", { name: "Anything else?" }),
+          { target: { value: "keep it short" } },
+        );
+        const control = button(action);
+        control.focus();
+        fireEvent.click(control);
+        expect(control.disabled).toBe(true);
+        control.blur();
+        expect(
+          control
+            .closest('[data-slot="tool-fallback-approval"]')
+            ?.contains(document.activeElement),
+        ).toBe(true);
+
+        view.rerender(
+          <ToolFallbackApproval
+            approval={{ ...approval, approved: action === "Send" }}
+            respondToApproval={respondToApproval}
+          />,
+        );
+        expect(document.activeElement).toBe(answeredReceipt());
+      },
+    );
+
     it("sends every question's answer once each is answered, without an allow or deny path", async () => {
       const respondToApproval = vi.fn(async () => {});
       render(

@@ -79,6 +79,7 @@ import { injectQuoteContext } from "@assistant-ui/ai-sdk";
 export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
+    abortSignal: req.signal,
     model: myModel,
     messages: await convertToModelMessages(injectQuoteContext(messages)),
   });
@@ -119,6 +120,7 @@ import { unstable_injectInteractableContext } from "@assistant-ui/ai-sdk";
 export async function POST(req: Request) {
   const { messages } = await req.json();
   const result = streamText({
+    abortSignal: req.signal,
     model: myModel,
     messages: await convertToModelMessages(unstable_injectInteractableContext(messages)),
   });
@@ -197,6 +199,7 @@ const aiToolkit = new AISDKToolkit({ toolkit: docsToolkit });
 // In your route handler:
 const { tools } = await req.json();
 streamText({
+  abortSignal: req.signal,
   model,
   messages,
   tools: await aiToolkit.tools({ frontend: tools }),

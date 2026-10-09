@@ -45,7 +45,7 @@ export function ShowcaseCard({
           )}
         </div>
         <div className="mt-4 flex items-baseline gap-2.5">
-          <span className="text-muted-foreground/60 font-mono text-[11px] tracking-wide tabular-nums">
+          <span className="text-muted-foreground/60 text-xs tabular-nums">
             {String(index).padStart(2, "0")}
           </span>
           <h3 className="text-sm font-medium">
@@ -60,7 +60,7 @@ export function ShowcaseCard({
       {hasMeta ? (
         <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 pt-3">
           {openSource && !repositoryLink ? (
-            <span className="text-muted-foreground/60 font-mono text-[11px] tracking-wide">
+            <span className="text-muted-foreground/60 text-xs">
               open source
             </span>
           ) : null}
@@ -69,7 +69,7 @@ export function ShowcaseCard({
               href={repositoryLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-muted-foreground/70 hover:text-foreground font-mono text-[11px] tracking-wide transition-colors"
+              className="text-muted-foreground/70 hover:text-foreground text-xs transition-colors"
             >
               source
             </Link>
@@ -79,7 +79,7 @@ export function ShowcaseCard({
               href={announcementLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-muted-foreground/70 hover:text-foreground font-mono text-[11px] tracking-wide transition-colors"
+              className="text-muted-foreground/70 hover:text-foreground text-xs transition-colors"
             >
               write-up
             </Link>

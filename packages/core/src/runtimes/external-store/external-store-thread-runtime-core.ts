@@ -1196,12 +1196,12 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public override import(data: ExportedMessageRepository) {
+    if (!this._store.onImport)
+      throw new Error("Runtime does not support importing messages.");
+
     this._cancelRunResyncGeneration++;
     super.import(data);
-
-    if (this._store.onImport) {
-      this._store.onImport(this.repository.getMessages());
-    }
+    this._store.onImport(this.repository.getMessages());
   }
 
   private updateMessages = (messages: readonly ThreadMessage[]) => {

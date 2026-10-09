@@ -1,9 +1,5 @@
 import * as React from "react";
-
-export type A2uiBinding = {
-  readonly value: unknown;
-  readonly arrayValue: boolean;
-};
+import type { A2uiBinding } from "./types";
 
 export const A2uiBindingContext =
   typeof React.createContext === "function"

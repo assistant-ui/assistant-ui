@@ -25,12 +25,11 @@ export async function POST(req: Request) {
 
   const streamId = crypto.randomUUID();
 
+  const aiSDKTools = { ...frontendTools(tools ?? {}) };
   const result = streamText({
     model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages),
-    tools: {
-      ...frontendTools(tools ?? {}),
-    },
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
     ...(system === undefined ? {} : { system }),
   });
 

@@ -153,7 +153,7 @@ function FilterChip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "focus-visible:ring-ring/50 flex cursor-pointer items-center gap-1.5 px-2.5 py-1 font-mono text-[11px] tracking-wide transition-colors outline-none focus-visible:ring-1",
+        "focus-visible:ring-ring/50 flex cursor-pointer items-center gap-1.5 px-2.5 py-1 text-xs transition-colors outline-none focus-visible:ring-1",
         active
           ? "bg-foreground/[0.06] text-foreground"
           : "text-muted-foreground hover:text-foreground",
@@ -220,13 +220,13 @@ function PackageRow({
       </span>
 
       {row.deprecated ? (
-        <span className="text-muted-foreground/60 shrink-0 font-mono text-[10px] tracking-wide">
+        <span className="text-muted-foreground/60 shrink-0 text-xs">
           deprecated
         </span>
       ) : null}
 
       {row.weekly ? (
-        <span className="flex shrink-0 items-baseline gap-3 font-mono text-[11px] tracking-wide tabular-nums">
+        <span className="flex shrink-0 items-baseline gap-3 text-xs tabular-nums">
           <span className="text-muted-foreground/70 md:w-20 md:text-right">
             {row.weekly} /wk
           </span>
@@ -243,7 +243,7 @@ function PackageRow({
       ) : row.deprecated ? null : (
         <span
           aria-hidden
-          className="invisible flex shrink-0 items-baseline gap-3 font-mono text-[11px]"
+          className="invisible flex shrink-0 items-baseline gap-3 text-xs"
         >
           <span className="md:w-20">0 /wk</span>
           <span className="md:w-12" />
