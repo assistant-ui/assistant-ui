@@ -1,3 +1,4 @@
+import { useLayoutEffect } from "react";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -8,14 +9,19 @@ afterEach(cleanup);
 function Harness({
   settled,
   receiptKey,
+  onSettle,
   onFocusCapture,
   onBlurCapture,
 }: {
   settled: boolean;
   receiptKey?: string;
+  onSettle?: () => void;
   onFocusCapture?: React.ComponentProps<"div">["onFocusCapture"];
   onBlurCapture?: React.ComponentProps<"div">["onBlurCapture"];
 }) {
+  useLayoutEffect(() => {
+    if (settled) onSettle?.();
+  }, [settled, onSettle]);
   const { receiptRef, focusHandlers } = useReceiptFocus({
     onFocusCapture,
     onBlurCapture,
@@ -83,6 +89,39 @@ describe("useReceiptFocus", () => {
       </>,
     );
     expect(document.activeElement).toBe(elsewhere);
+  });
+
+  it("does not refocus after a removed control yields focus elsewhere", () => {
+    const focusElsewhere = () =>
+      screen.getByRole("button", { name: "Elsewhere" }).focus();
+    const { rerender } = render(
+      <>
+        <Harness settled={false} onSettle={focusElsewhere} />
+        <button>Elsewhere</button>
+      </>,
+    );
+    const answer = screen.getByRole("button", { name: "Answer" });
+    answer.focus();
+
+    rerender(
+      <>
+        <Harness settled onSettle={focusElsewhere} />
+        <button>Elsewhere</button>
+      </>,
+    );
+    expect(answer.isConnected).toBe(false);
+    const elsewhere = screen.getByRole("button", { name: "Elsewhere" });
+    expect(document.activeElement).toBe(elsewhere);
+
+    elsewhere.blur();
+    expect(document.activeElement).toBe(document.body);
+    rerender(
+      <>
+        <Harness settled onSettle={focusElsewhere} />
+        <button>Elsewhere</button>
+      </>,
+    );
+    expect(document.activeElement).toBe(document.body);
   });
 
   it("does not refocus a request after its control was blurred", () => {

@@ -16,14 +16,14 @@ export function useReceiptFocus<T extends HTMLElement = HTMLElement>(
 
   useIsomorphicLayoutEffect(() => {
     const focusedElement = focusedElementRef.current;
-    if (
-      focusedElement &&
-      !focusedElement.isConnected &&
-      focusedElement.ownerDocument.activeElement ===
-        focusedElement.ownerDocument.body
-    ) {
+    if (focusedElement && !focusedElement.isConnected) {
       focusedElementRef.current = null;
-      receiptRef.current?.focus({ preventScroll: true });
+      if (
+        focusedElement.ownerDocument.activeElement ===
+        focusedElement.ownerDocument.body
+      ) {
+        receiptRef.current?.focus({ preventScroll: true });
+      }
     }
   });
 
