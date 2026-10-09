@@ -116,4 +116,13 @@ describe("entry-point options", () => {
     expect(isValidEntryPointInput({ ...input, prompt: " " })).toBe(false);
     expect(isValidEntryPointInput({ ...input, kind: "choice" })).toBe(false);
   });
+
+  it("refuses a help note, which the entry-point card has no place for", () => {
+    expect(
+      isValidEntryPointInput({
+        ...input,
+        help: { summary: "Pick one" },
+      }),
+    ).toBe(false);
+  });
 });

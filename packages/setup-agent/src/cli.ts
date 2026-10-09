@@ -511,12 +511,19 @@ export const askSeed = (
   const fallback = flagText(flags, "default");
   if (flags.has("entry-points")) {
     if (
-      ["preset", "product", "choices", "icons", "multiple", "placeholder"].some(
-        (flag) => flags.has(flag),
-      )
+      [
+        "preset",
+        "product",
+        "choices",
+        "icons",
+        "multiple",
+        "single",
+        "only",
+        "placeholder",
+      ].some((flag) => flags.has(flag))
     )
       return fail(
-        "--entry-points cannot be combined with other input kinds or --multiple",
+        "--entry-points cannot be combined with other input kinds, --multiple, --single or --only",
       );
     const json = flagText(flags, "entry-points");
     let value: unknown;

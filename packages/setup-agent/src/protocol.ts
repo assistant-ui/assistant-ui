@@ -516,6 +516,7 @@ export const isValidEntryPointInput = (input: Checkout.InputSeed) => {
     isEntryPointText(input.prompt, 1000) &&
     options !== undefined &&
     input.multiple === undefined &&
+    input.help === undefined &&
     (input.default === undefined ||
       options.some((option) => option.id === input.default))
   );

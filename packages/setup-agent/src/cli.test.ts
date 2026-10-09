@@ -133,6 +133,8 @@ describe("askSeed", () => {
       "--multiple",
       "--icons",
       "--placeholder",
+      "--single",
+      "--only",
     ]) {
       expect(
         withExit(() =>

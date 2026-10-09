@@ -43,6 +43,9 @@ describe("buildInstallPrompt", () => {
     expect(prompt).toContain(
       "Run a scaffolder from the approved folder's parent with the folder's name as <name>",
     );
+    expect(prompt).toContain(
+      "Use that app when the context identifies it and its package.json depends on React",
+    );
   });
 
   it("numbers each product and links its markdown docs", () => {
