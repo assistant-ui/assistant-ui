@@ -1,10 +1,11 @@
 "use client";
 
-import { useLayoutEffect, useState } from "react";
+import { useState } from "react";
 import type {
   ToolCallMessagePart,
   ToolCallMessagePartStatus,
 } from "@assistant-ui/react";
+import { useIsomorphicLayoutEffect } from "./useIsomorphicLayoutEffect";
 
 export type TaskViewState =
   | "working"
@@ -76,7 +77,7 @@ export function useTaskElapsed(
     timing !== undefined && timing.completedAt === undefined && running;
   const [now, setNow] = useState<number | undefined>(undefined);
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!ticking) return undefined;
     // The clock is read only after mount so a prerender never reads it; the
     // layout effect still catches the elapsed value up before the first paint.
