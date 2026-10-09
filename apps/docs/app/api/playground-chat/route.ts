@@ -1,21 +1,15 @@
 import { updateConfigSchema } from "@/lib/playground-config-schema";
-import { getDistinctId } from "@/lib/posthog-server";
+import { prepareChatMessages, streamDocsChat } from "@/lib/ai/chat-route";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
   validateFrontendToolsInput,
   validateGeneralChatInput,
 } from "@/lib/validate-input";
 import { resolveChatModel } from "@/lib/ai/provider";
-import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { frontendTools } from "@assistant-ui/ai-sdk";
 import { NextResponse } from "next/server";
-import {
-  convertToModelMessages,
-  pruneMessages,
-  stepCountIs,
-  streamText,
-} from "ai";
+import { stepCountIs } from "ai";
 
 export const maxDuration = 30;
 
@@ -231,46 +225,34 @@ export async function POST(req: Request) {
       return new Response("Config too large", { status: 400 });
     }
 
-    const { model, providerOptions } = resolveChatModel();
-    const distinctId = getDistinctId(req);
+    const modelConfig = resolveChatModel();
 
     const aiSDKTools = frontendTools(tools ?? {});
-    const prunedMessages = pruneMessages({
-      messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
-      reasoning: "none",
-    });
+    const prunedMessages = await prepareChatMessages(messages, aiSDKTools);
 
-    const result = streamText({
-      abortSignal: req.signal,
-      model,
-      ...(providerOptions ? { providerOptions } : {}),
-      system:
-        SYSTEM_PROMPT +
-        `\n\n## Current Config State\n\n\`\`\`json\n${JSON.stringify(builderConfig, null, 2)}\n\`\`\``,
-      messages: prunedMessages,
-      maxOutputTokens: 4000,
-      stopWhen: stepCountIs(3),
-      tools: aiSDKTools,
-      ...posthogTelemetry({
-        distinctId,
+    const { result, messageMetadata } = streamDocsChat(
+      req,
+      modelConfig,
+      {
         spanName: "playground_chat",
         source: "playground_chat",
-      }),
-      onError: async ({ error }) => {
-        console.error("[api/playground-chat]", error);
       },
-    });
+      {
+        system:
+          SYSTEM_PROMPT +
+          `\n\n## Current Config State\n\n\`\`\`json\n${JSON.stringify(builderConfig, null, 2)}\n\`\`\``,
+        messages: prunedMessages,
+        maxOutputTokens: 4000,
+        stopWhen: stepCountIs(3),
+        tools: aiSDKTools,
+        onError: async ({ error }) => {
+          console.error("[api/playground-chat]", error);
+        },
+      },
+    );
 
     return result.toUIMessageStreamResponse({
-      messageMetadata: ({ part }) => {
-        if (part.type === "finish-step") {
-          return { modelId: part.response.modelId };
-        }
-        if (part.type === "finish") {
-          return { usage: part.totalUsage };
-        }
-        return undefined;
-      },
+      messageMetadata,
     });
   } catch (e) {
     console.error("[api/playground-chat]", e);
