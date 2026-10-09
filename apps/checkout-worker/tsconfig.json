@@ -1,17 +1,9 @@
 {
+  "extends": "@assistant-ui/x-buildutils/ts/base.json",
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "lib": ["ESNext"],
+    "typeRoots": ["./node_modules"],
     "types": ["@cloudflare/workers-types/experimental"],
-    "strict": true,
-    "noUncheckedIndexedAccess": true,
-    "exactOptionalPropertyTypes": true,
-    "noImplicitOverride": true,
-    "verbatimModuleSyntax": true,
-    "skipLibCheck": true,
-    "noEmit": true
+    "lib": ["ESNext"]
   },
   "include": ["src"]
 }
