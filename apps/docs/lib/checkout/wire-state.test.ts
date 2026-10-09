@@ -42,8 +42,9 @@ const full = (): Checkout.State => ({
 
 describe("checkout wire state", () => {
   it("accepts structured entry points and rejects unrenderable metadata", () => {
+    const { help, ...choice } = input;
     const entry: Checkout.Input = {
-      ...input,
+      ...choice,
       kind: "entry-point",
       options: [
         {
@@ -82,6 +83,9 @@ describe("checkout wire state", () => {
         ...state,
         inputs: [{ ...entry, default: "missing" }],
       }),
+    ).toThrow(IncompatibleCheckoutError);
+    expect(() =>
+      parseCheckoutState({ ...state, inputs: [{ ...entry, help }] }),
     ).toThrow(IncompatibleCheckoutError);
   });
 
