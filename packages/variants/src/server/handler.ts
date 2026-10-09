@@ -1,6 +1,6 @@
 import { relative } from "node:path";
 import { deleteNote, insertNote, listNotes, type SourceNote } from "./markers";
-import { locateGroup, sourceFiles, writeSource } from "./project";
+import { isMdx, locateGroup, sourceFiles, writeSource } from "./project";
 import { readFile, realpath } from "node:fs/promises";
 
 export const NOTES_HEADER = "x-variants";
@@ -152,7 +152,7 @@ export const handleNotesRequest = async (
       for await (const file of sourceFiles(root)) {
         const source = await readFile(file, "utf8");
         if (!source.includes("@variants-note")) continue;
-        for (const note of listNotes(source))
+        for (const note of listNotes(source, isMdx(file)))
           if (wanted.has(note.group)) notes.push(publicNote(root, file, note));
       }
       return { status: 200, body: { notes } };
@@ -182,6 +182,8 @@ export const handleNotesRequest = async (
           located.source,
           { group, variant: variant as string | undefined },
           hint ? { note: note.trim(), hint } : { note: note.trim() },
+          undefined,
+          located.mdx,
         );
         if (!result.ok) return fail(result.status, result.error);
         await writeSource(root, located.file, result.source);
@@ -204,10 +206,12 @@ export const handleNotesRequest = async (
       return await serialized(async () => {
         const located = await locateGroup(root, group);
         if (!located.ok) return fail(located.status, located.error);
-        const owned = listNotes(located.source).some(
+        const owned = listNotes(located.source, located.mdx).some(
           (note) => note.id === id && note.group === group,
         );
-        const next = owned ? deleteNote(located.source, id) : undefined;
+        const next = owned
+          ? deleteNote(located.source, id, located.mdx)
+          : undefined;
         if (next === undefined) return fail(404, "note not found");
         await writeSource(root, located.file, next);
         return { status: 200, body: { ok: true } };

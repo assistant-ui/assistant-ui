@@ -163,7 +163,7 @@ describe("insertNote and deleteNote", () => {
     expect(
       insertNote(page, { group: "scf-cta", variant: "nope" }, { note: "x" }),
     ).toMatchObject({ ok: false, status: 404 });
-    const twice = `${page}\n<Variants id="scf-cta"><Variant id="a" /></Variants>`;
+    const twice = `${page}\nexport const B = () => <Variants id="scf-cta"><Variant id="a" /></Variants>;`;
     expect(
       insertNote(twice, { group: "scf-cta" }, { note: "x" }),
     ).toMatchObject({ ok: false, status: 409 });
@@ -198,5 +198,74 @@ describe("insertNote and deleteNote", () => {
   it("reads the id attribute, not an id inside another attribute's value", () => {
     const source = `<Variants label="see id='other'" id="real"><Variant id="a" title='id="no"'>a</Variant></Variants>`;
     expect(scanTags(source).map((tag) => tag.id)).toEqual(["real", "a"]);
+  });
+});
+
+describe("look-alikes", () => {
+  const marker = formatMarker(stamp.id, stamp.ts, { note: "real" });
+  const fake = formatMarker("n-ffffffff", stamp.ts, { note: "fake" });
+
+  it("ignores tags and markers in comments, strings, templates and regexes", () => {
+    const source = `// <Variants id="g">
+/* <Variants id="g"> */
+const a = '<Variants id="g">';
+const b = \`<Variants id="g"> \${x} ${fake}\`;
+const c = /'<Variants id="g">/;
+const d = "${fake.replaceAll('"', "'")}";
+const e = <T extends object, U = T>(x: T): Array<U> => x as never;
+export const Page = () => (
+  <Variants
+    // don't count <Variants id="g"> here
+    id="g"
+  >
+    <Select<Region> value={a}>{b}</Select>
+    <Variant id="v">
+      ${marker}
+      <p>Don't panic // it's fine, "quoted" text</p>
+      {list.filter((x) => x < 2).map((x) => <Variant id="inner" />)}
+    </Variant>
+  </Variants>
+);
+`;
+    expect(countGroups(source, "g")).toBe(1);
+    expect(scanTags(source).map((tag) => tag.id)).toEqual(["g", "v", "inner"]);
+    expect(listNotes(source).map((note) => note.id)).toEqual([stamp.id]);
+    expect(deleteNote(source, "n-ffffffff")).toBeUndefined();
+    expect(deleteNote(source, stamp.id)).not.toContain(marker);
+  });
+
+  it("skips MDX code fences and inline code", () => {
+    const source = `# Variants
+
+Use \`<Variants id="g">\` like this:
+
+\`\`\`tsx
+<Variants id="g">
+  <Variant id="x" />
+</Variants>
+\`\`\`
+
+It's live below.
+
+<Variants id="g">
+  <Variant id="v">
+    ${marker}
+    text
+  </Variant>
+</Variants>
+`;
+    expect(countGroups(source, "g", true)).toBe(1);
+    expect(listNotes(source, true)).toEqual([
+      expect.objectContaining({ id: stamp.id, group: "g", variant: "v" }),
+    ]);
+    expect(
+      insertNote(
+        source,
+        { group: "g" },
+        { note: "n" },
+        { id: "n-11111111", ts: stamp.ts },
+        true,
+      ),
+    ).toMatchObject({ ok: true });
   });
 });

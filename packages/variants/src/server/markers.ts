@@ -1,3 +1,5 @@
+import { tokenize, type Token } from "./tokens";
+
 export const MARKER_TAG = "@variants-note";
 
 export type NotePayload = { note: string; hint?: string | undefined };
@@ -50,116 +52,73 @@ export const newNoteId = () =>
 
 const MARKER = new RegExp(
   `\\{/\\* ${MARKER_TAG} id="(n-[0-9a-f]{8})" ts="([^"]*)" text="([A-Za-z0-9_-]*)" \\*/\\}`,
-  "g",
+  "y",
 );
 
 export const formatMarker = (id: string, ts: string, payload: NotePayload) =>
   `{/* ${MARKER_TAG} id="${id}" ts="${ts}" text="${encodePayload(payload)}" */}`;
 
-/** Skips a quoted string or template literal starting at `index`. */
-const skipString = (source: string, index: number): number => {
-  const quote = source[index];
-  let cursor = index + 1;
-  while (cursor < source.length) {
-    const char = source[cursor];
-    if (char === "\\") {
-      cursor += 2;
-      continue;
-    }
-    if (quote === "`" && char === "$" && source[cursor + 1] === "{") {
-      cursor = skipBraces(source, cursor + 1);
-      continue;
-    }
-    if (char === quote) return cursor + 1;
-    cursor++;
-  }
-  return cursor;
+type Marker = {
+  id: string;
+  ts: string;
+  text: string;
+  /** Offset of the marker's `{`. */
+  start: number;
+  /** Offset just after the marker's `}`. */
+  end: number;
 };
 
-/** Skips a balanced `{…}` starting at `index`, honouring strings inside. */
-const skipBraces = (source: string, index: number): number => {
-  let depth = 0;
-  let cursor = index;
-  while (cursor < source.length) {
-    const char = source[cursor];
-    if (char === '"' || char === "'" || char === "`") {
-      cursor = skipString(source, cursor);
-      continue;
-    }
-    if (char === "{") depth++;
-    else if (char === "}") {
-      depth--;
-      if (depth === 0) return cursor + 1;
-    }
-    cursor++;
+/** Markers that are real JSX comments, never look-alikes in strings or code fences. */
+const findMarkers = (tokens: Token[], source: string): Marker[] => {
+  const markers: Marker[] = [];
+  for (const token of tokens) {
+    if (token.kind !== "comment") continue;
+    MARKER.lastIndex = token.start - 1;
+    const match = MARKER.exec(source);
+    if (!match) continue;
+    markers.push({
+      id: match[1]!,
+      ts: match[2]!,
+      text: match[3]!,
+      start: match.index,
+      end: MARKER.lastIndex,
+    });
   }
-  return cursor;
+  return markers;
 };
-
-/** Reads a JSX opening tag that starts at `start` (the `<`). */
-const readOpeningTag = (source: string, start: number) => {
-  let cursor = start + 1;
-  let id: string | undefined;
-  while (cursor < source.length) {
-    const char = source[cursor];
-    if (char === '"' || char === "'") {
-      cursor = skipString(source, cursor);
-      continue;
-    }
-    if (char === "{") {
-      cursor = skipBraces(source, cursor);
-      continue;
-    }
-    if (char === ">") {
-      const selfClosing = source[cursor - 1] === "/";
-      return { end: cursor + 1, selfClosing, id };
-    }
-    ID.lastIndex = cursor;
-    const found = id === undefined ? ID.exec(source) : null;
-    if (found) {
-      id = found[1] ?? found[2] ?? found[3];
-      cursor = ID.lastIndex;
-      continue;
-    }
-    cursor++;
-  }
-  return undefined;
-};
-
-const ID = /\sid\s*=\s*(?:"([^"]*)"|'([^']*)'|\{\s*["'`]([^"'`$]*)["'`]\s*\})/y;
 
 /** Every `<Variants>` and `<Variant>` opening tag, with each variant's group. */
-export const scanTags = (source: string): Tag[] => {
+const tagsOf = (tokens: Token[]): Tag[] => {
   const tags: Tag[] = [];
   const stack: (string | undefined)[] = [];
-  const pattern = /<(\/?)(Variants?)(?=[\s/>])/g;
-  for (let match = pattern.exec(source); match; match = pattern.exec(source)) {
-    const closing = match[1] === "/";
-    const kind = match[2] === "Variants" ? "group" : "variant";
-    if (closing) {
+  for (const token of tokens) {
+    if (token.kind === "comment") continue;
+    if (token.name !== "Variants" && token.name !== "Variant") continue;
+    const kind = token.name === "Variants" ? "group" : "variant";
+    if (token.kind === "close") {
       if (kind === "group") stack.pop();
       continue;
     }
-    const tag = readOpeningTag(source, match.index);
-    if (!tag) break;
-    const { id } = tag;
     tags.push({
       kind,
-      id,
-      start: match.index,
-      end: tag.end,
-      selfClosing: tag.selfClosing,
+      id: token.id,
+      start: token.start,
+      end: token.end,
+      selfClosing: token.selfClosing,
       group: kind === "variant" ? stack[stack.length - 1] : undefined,
     });
-    if (kind === "group" && !tag.selfClosing) stack.push(id);
-    pattern.lastIndex = tag.end;
+    if (kind === "group" && !token.selfClosing) stack.push(token.id);
   }
   return tags;
 };
 
-export const countGroups = (source: string, group: string) =>
-  scanTags(source).filter((tag) => tag.kind === "group" && tag.id === group)
-    .length;
+export const scanTags = (source: string, mdx = false): Tag[] =>
+  tagsOf(tokenize(source, mdx));
+
+export const countGroups = (source: string, group: string, mdx = false) =>
+  scanTags(source, mdx).filter(
+    (tag) => tag.kind === "group" && tag.id === group,
+  ).length;
 
 const lineOf = (source: string, offset: number) =>
   source.slice(0, offset).split("\n").length;
@@ -186,8 +145,9 @@ export const insertNote = (
     id: newNoteId(),
     ts: new Date().toISOString(),
   },
+  mdx = false,
 ): InsertResult => {
-  const tags = scanTags(source);
+  const tags = scanTags(source, mdx);
   const groups = tags.filter(
     (tag) => tag.kind === "group" && tag.id === target.group,
   );
@@ -245,35 +205,41 @@ export const insertNote = (
 };
 
 /** Removes the marker with `id`, together with the line break it was inserted with. */
-export const deleteNote = (source: string, id: string): string | undefined => {
-  const pattern = new RegExp(
-    `\\n?[ \\t]*\\{/\\* ${MARKER_TAG} id="${id.replace(/[^0-9a-z-]/gi, "")}" [^*]*\\*/\\}`,
+export const deleteNote = (
+  source: string,
+  id: string,
+  mdx = false,
+): string | undefined => {
+  const marker = findMarkers(tokenize(source, mdx), source).find(
+    (item) => item.id === id,
   );
-  const match = pattern.exec(source);
-  if (!match) return undefined;
-  return (
-    source.slice(0, match.index) + source.slice(match.index + match[0].length)
-  );
+  if (!marker) return undefined;
+  let start = marker.start;
+  while (start > 0 && (source[start - 1] === " " || source[start - 1] === "\t"))
+    start--;
+  if (source[start - 1] === "\n") start--;
+  return source.slice(0, start) + source.slice(marker.end);
 };
 
 /** Notes in `source`, attributed to the `<Variant>` or `<Variants>` they sit in. */
-export const listNotes = (source: string): SourceNote[] => {
-  const tags = scanTags(source);
+export const listNotes = (source: string, mdx = false): SourceNote[] => {
+  const tokens = tokenize(source, mdx);
+  const tags = tagsOf(tokens);
   const notes: SourceNote[] = [];
-  for (const match of source.matchAll(MARKER)) {
-    const payload = decodePayload(match[3]!);
+  for (const marker of findMarkers(tokens, source)) {
+    const payload = decodePayload(marker.text);
     if (!payload) continue;
     const owner = [...tags]
       .reverse()
-      .find((tag) => tag.end <= match.index! && !tag.selfClosing);
+      .find((tag) => tag.end <= marker.start && !tag.selfClosing);
     if (!owner || owner.id === undefined) continue;
     notes.push({
       ...payload,
-      id: match[1]!,
-      ts: match[2]!,
+      id: marker.id,
+      ts: marker.ts,
       group: owner.kind === "group" ? owner.id : (owner.group ?? ""),
       variant: owner.kind === "variant" ? owner.id : undefined,
-      line: lineOf(source, match.index!),
+      line: lineOf(source, marker.start),
     });
   }
   return notes;

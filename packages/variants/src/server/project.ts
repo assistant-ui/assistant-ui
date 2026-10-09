@@ -14,6 +14,7 @@ const SKIP = new Set([
   ".vercel",
 ]);
 const SOURCE = /\.(tsx|jsx|js|mdx)$/;
+export const isMdx = (file: string) => file.endsWith(".mdx");
 
 /** Every source file under `root` that may contain JSX. */
 export async function* sourceFiles(root: string): AsyncGenerator<string> {
@@ -44,7 +45,7 @@ export const confine = async (root: string, path: string) => {
 };
 
 export type Located =
-  | { ok: true; file: string; source: string }
+  | { ok: true; file: string; source: string; mdx: boolean }
   | { ok: false; status: number; error: string };
 
 /** Finds the one file that declares `<Variants id={group}>`. */
@@ -56,7 +57,8 @@ export const locateGroup = async (
   for await (const file of sourceFiles(root)) {
     const source = await readFile(file, "utf8");
     if (!source.includes(group) || !source.includes("<Variants")) continue;
-    if (countGroups(source, group) > 0) found.push({ file, source });
+    if (countGroups(source, group, isMdx(file)) > 0)
+      found.push({ file, source });
     if (found.length > 1) break;
   }
   if (found.length === 0)
@@ -72,7 +74,12 @@ export const locateGroup = async (
       error: `<Variants id="${group}"> appears in more than one file; group ids must be unique`,
     };
   const { file, source } = found[0]!;
-  return { ok: true, file: await confine(root, file), source };
+  return {
+    ok: true,
+    file: await confine(root, file),
+    source,
+    mdx: isMdx(file),
+  };
 };
 
 export const writeSource = async (root: string, file: string, source: string) =>
