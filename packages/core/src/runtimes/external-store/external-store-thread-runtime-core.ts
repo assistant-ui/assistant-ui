@@ -194,6 +194,7 @@ export class ExternalStoreThreadRuntimeCore
   private _storeMessages: readonly ThreadMessage[] = [];
 
   private _runStarts = 0;
+  private _runCancellationGeneration = 0;
   private _cancelRunResyncGeneration = 0;
 
   private _store!: ExternalStoreAdapter<any>;
@@ -948,10 +949,12 @@ export class ExternalStoreThreadRuntimeCore
       if (!kept.has(id)) this._pendingDeleteEvictions.delete(id);
     }
 
+    const cancellationGeneration = this._runCancellationGeneration;
     // Auto-abort in-flight client-side tool executions when a run reloads;
     // any results that land afterward would target a turn that no longer
     // exists. See `append` above for full rationale.
     await this._toolInvocations?.abort({ discardPending: true });
+    if (cancellationGeneration !== this._runCancellationGeneration) return;
 
     await this._store.onReload(config.parentId, config);
   }
@@ -1010,6 +1013,7 @@ export class ExternalStoreThreadRuntimeCore
     if (!this._store.onCancel)
       throw new Error("Runtime does not support cancelling runs.");
 
+    this._runCancellationGeneration++;
     const generation = captureThreadRuntimeGeneration(this);
     const resyncGeneration = this._cancelRunResyncGeneration;
 
