@@ -106,7 +106,7 @@ describe("published entries", () => {
 });
 
 const REACT_SPECIFIER_RE =
-  /\bfrom\s+["'](?:react|react-dom|@assistant-ui\/react|@assistant-ui\/core\/react)(?:\/[^"']*)?["']/;
+  /\b(?:from|import)\s*\(?\s*["'](?:react|react-dom|@assistant-ui\/react|@assistant-ui\/core\/react)(?:\/[^"']*)?["']/;
 
 describe("framework-neutral entries", () => {
   it.each(["index.ts", "a2ui.ts", "slack.ts", "teams.ts"])(
