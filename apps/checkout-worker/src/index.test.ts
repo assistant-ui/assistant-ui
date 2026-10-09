@@ -392,6 +392,23 @@ describe("deposits", () => {
     );
   });
 
+  it("stops reading a deposit once it passes the size cap", async () => {
+    const fixture = createInstance(modelState());
+    await connect(fixture);
+    const body = new ReadableStream<Uint8Array>({
+      start: (controller) => {
+        controller.enqueue(new Uint8Array(16 * 1024 + 1));
+      },
+    });
+    const put = await fixture.instance.fetch(
+      new Request(
+        `https://checkout.test/session/secret/q1?setup=setup-a&answer=${encodeURIComponent(modelAnswer)}`,
+        { method: "PUT", body, duplex: "half" } as RequestInit,
+      ),
+    );
+    expect(put.status).toBe(413);
+  });
+
   it("refuses an oversized key", async () => {
     const fixture = createInstance(modelState());
     await connect(fixture);

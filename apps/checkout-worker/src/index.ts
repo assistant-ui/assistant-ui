@@ -38,7 +38,32 @@ const withCors = (response: Response) => {
 
 const SECRET_PATH = /\/secret\/([^/]+)$/;
 const SECRET_TTL_MS = 60 * 60 * 1000;
-const MAX_SECRET_LENGTH = 16 * 1024;
+const MAX_SECRET_BYTES = 16 * 1024;
+
+/** The body as text, or `undefined` once it passes `max` bytes, without reading further. */
+const readCapped = async (request: Request, max: number) => {
+  if (!request.body) return "";
+  const reader = request.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > max) {
+      await reader.cancel();
+      return undefined;
+    }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(bytes);
+};
 
 export class CheckoutDO extends StatewireDurableObject<Env>() {
   #state: Checkout.State | undefined;
@@ -156,8 +181,11 @@ export class CheckoutDO extends StatewireDurableObject<Env>() {
     } catch {
       return new Response("invalid input ID", { status: 400 });
     }
-    const secret = request.method === "PUT" ? await request.text() : "";
-    if (secret.length > MAX_SECRET_LENGTH) {
+    const secret =
+      request.method === "PUT"
+        ? await readCapped(request, MAX_SECRET_BYTES)
+        : "";
+    if (secret === undefined) {
       return new Response("secret too large", { status: 413 });
     }
     return this.ctx.blockConcurrencyWhile(async () => {
