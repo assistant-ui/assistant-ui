@@ -43,8 +43,8 @@ const PLATFORM_ICONS: Record<Platform, typeof Monitor> = {
   cloud: Cloud,
 };
 
-const LIBRARIES: readonly Platform[] = ["tap", "cloud"];
-const BINDINGS = PLATFORMS.filter((p) => !LIBRARIES.includes(p));
+// Tap keeps its docs but is not offered as a platform to switch to.
+const MENU_PLATFORMS = PLATFORMS.filter((p) => p !== "tap");
 
 function getVisiblePlatformSwitchHref(
   visibleUrls: ReadonlySet<string>,
@@ -113,9 +113,7 @@ export function PlatformSwitcher({
             setPlatform(next);
           }}
         >
-          {BINDINGS.map(renderItem)}
-          <DropdownMenuSeparator />
-          {LIBRARIES.map(renderItem)}
+          {MENU_PLATFORMS.map(renderItem)}
         </DropdownMenuRadioGroup>
         <DropdownMenuSeparator />
         <MenuPrimitive.Item
