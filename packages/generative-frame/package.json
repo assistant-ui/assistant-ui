@@ -38,6 +38,10 @@
     "./spec": {
       "types": "./dist/spec.d.ts",
       "default": "./dist/spec.js"
+    },
+    "./agent": {
+      "types": "./dist/agent.d.ts",
+      "default": "./dist/agent.js"
     }
   },
   "main": "./dist/index.js",
