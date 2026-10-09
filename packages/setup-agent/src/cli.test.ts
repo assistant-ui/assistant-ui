@@ -532,6 +532,12 @@ describe("agent instructions", () => {
     expect(instructions).toContain(
       "Skip this question when no product's guide installs an assistant",
     );
+    expect(instructions).toContain(
+      "When you ask it, do not submit the plan before the user picks an entry point.",
+    );
+    expect(instructions).not.toContain(
+      "recommendation. Do not submit the plan before the user picks an entry point.",
+    );
   });
 });
 
