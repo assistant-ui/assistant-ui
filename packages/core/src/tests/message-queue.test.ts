@@ -50,9 +50,14 @@ describe("createMessageQueue", () => {
     }
   });
 
-  it.each(["queued", "steered"])(
-    "does not restore a rejected %s dispatch after a steer replaces it",
-    async (mode) => {
+  it.each([
+    ["queued", true],
+    ["queued", false],
+    ["steered", true],
+    ["steered", false],
+  ] as const)(
+    "does not restore a rejected %s dispatch after a steer replaces it (idle notified: %s)",
+    async (mode, idleNotified) => {
       const error = new Error("cancelled before busy");
       let reject!: (error: Error) => void;
       const cancelled = new Promise<void>((_resolve, fail) => {
@@ -74,7 +79,7 @@ describe("createMessageQueue", () => {
         run.mockImplementationOnce(() => replacement);
         cancel.mockImplementationOnce(() => {
           reject(error);
-          controller.notifyIdle();
+          if (idleNotified) controller.notifyIdle();
         });
         controller.adapter.steer(msg("replacement"));
         const calls = run.mock.calls.length;
@@ -89,6 +94,83 @@ describe("createMessageQueue", () => {
         await replacement;
         controller.notifyIdle();
         expect(run).toHaveBeenCalledTimes(calls + 1);
+        expect(run).toHaveBeenLastCalledWith(msg("later"), { steer: false });
+      } finally {
+        logged.mockRestore();
+      }
+    },
+  );
+
+  it.each([true, false])(
+    "retries a failed steer after both pre-busy dispatches reject (original first: %s)",
+    async (originalFirst) => {
+      let rejectOriginal!: (error: Error) => void;
+      let rejectSteer!: (error: Error) => void;
+      const original = new Promise<void>((_resolve, reject) => {
+        rejectOriginal = reject;
+      });
+      const steered = new Promise<void>((_resolve, reject) => {
+        rejectSteer = reject;
+      });
+      const run = vi.fn<MessageQueueDriver["run"]>(() => {});
+      run.mockImplementationOnce(() => original);
+      run.mockImplementationOnce(() => steered);
+      const controller = createMessageQueue({ run, cancel: () => {} });
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        controller.adapter.enqueue(msg("original"));
+        controller.adapter.steer(msg("steer"));
+        const failures = originalFirst
+          ? ([
+              [rejectOriginal, original],
+              [rejectSteer, steered],
+            ] as const)
+          : ([
+              [rejectSteer, steered],
+              [rejectOriginal, original],
+            ] as const);
+        for (const [reject, pending] of failures) {
+          reject(new Error("pre-busy failure"));
+          await pending.catch(() => {});
+        }
+        expect(prompts(controller.adapter.steerItems)).toEqual(["steer"]);
+        expect(controller.adapter.items).toEqual([]);
+        controller.adapter.enqueue(msg("later"));
+        expect(run).toHaveBeenLastCalledWith(msg("steer"), { steer: false });
+        controller.notifyBusy();
+        controller.notifyIdle();
+        expect(run).toHaveBeenLastCalledWith(msg("later"), { steer: false });
+      } finally {
+        logged.mockRestore();
+      }
+    },
+  );
+
+  it.each([true, false])(
+    "retires a cancelled pre-busy failure (external replacement: %s)",
+    async (replacement) => {
+      let reject!: (error: Error) => void;
+      const pending = new Promise<void>((_resolve, fail) => {
+        reject = fail;
+      });
+      const run = vi.fn<MessageQueueDriver["run"]>(() => {});
+      run.mockImplementationOnce(() => pending);
+      const controller = createMessageQueue({ run });
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        controller.adapter.enqueue(msg("first"));
+        controller.notifyCancelled();
+        if (replacement) controller.notifyBusy();
+        reject(new Error("cancelled before busy"));
+        await pending.catch(() => {});
+        controller.adapter.enqueue(msg("later"));
+        if (replacement) {
+          expect(run).toHaveBeenCalledOnce();
+        } else {
+          expect(run).toHaveBeenLastCalledWith(msg("first"), { steer: false });
+          controller.notifyBusy();
+        }
+        controller.notifyIdle();
         expect(run).toHaveBeenLastCalledWith(msg("later"), { steer: false });
       } finally {
         logged.mockRestore();
