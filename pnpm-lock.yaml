@@ -408,9 +408,6 @@ importers:
       '@assistant-ui/react-devtools':
         specifier: workspace:*
         version: link:../../packages/react-devtools
-      '@assistant-ui/react-generative-ui':
-        specifier: workspace:*
-        version: link:../../packages/react-generative-ui
       '@assistant-ui/react-langgraph':
         specifier: workspace:*
         version: link:../../packages/react-langgraph
@@ -2363,12 +2360,12 @@ importers:
       '@assistant-ui/ai-sdk':
         specifier: workspace:*
         version: link:../../packages/ai-sdk
+      '@assistant-ui/generative-ui':
+        specifier: workspace:*
+        version: link:../../packages/generative-ui
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@assistant-ui/react-generative-ui':
-        specifier: workspace:*
-        version: link:../../packages/react-generative-ui
       '@assistant-ui/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -4001,12 +3998,12 @@ importers:
       '@assistant-ui/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@assistant-ui/generative-ui':
+        specifier: workspace:*
+        version: link:../../packages/generative-ui
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@assistant-ui/react-generative-ui':
-        specifier: workspace:*
-        version: link:../../packages/react-generative-ui
       '@assistant-ui/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -6007,12 +6004,12 @@ importers:
       '@assistant-ui/ai-sdk':
         specifier: workspace:*
         version: link:../ai-sdk
+      '@assistant-ui/generative-ui':
+        specifier: workspace:*
+        version: link:../generative-ui
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../react
-      '@assistant-ui/react-generative-ui':
-        specifier: workspace:*
-        version: link:../react-generative-ui
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../react-markdown

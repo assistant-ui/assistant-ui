@@ -2272,7 +2272,7 @@ export const registry: RegistryItem[] = [
       },
     ],
     dependencies: [
-      "@assistant-ui/react-generative-ui",
+      "@assistant-ui/generative-ui",
       "react-markdown",
       "remark-gfm",
     ],

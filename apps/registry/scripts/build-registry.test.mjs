@@ -45,7 +45,7 @@ const {
   BUTTON_STYLES,
   ALERT_TONES,
   IMAGE_SIZE_TOKENS,
-} = await import("../../../packages/react-generative-ui/src/ir.ts");
+} = await import("../../../packages/generative-ui/src/ir.ts");
 
 const createBuilt = (
   name,
