@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallbackRef, useComposedRefs } from "radix-ui/internal";
+import { useComposedRefs } from "radix-ui/internal";
 import { useCallback, useLayoutEffect, useRef, type RefCallback } from "react";
 import { useAui, useAuiEvent, useAuiState } from "@assistant-ui/store";
 import {
@@ -226,6 +226,8 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       prependAnchorRef.current = null;
       setIsAtBottom(true);
       div.scrollTo({ top: div.scrollHeight, behavior });
+      lastScrollTop.current = div.scrollTop;
+      lastScrollHeight.current = div.scrollHeight;
     },
     [setIsAtBottom],
   );
@@ -259,7 +261,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     );
   }, [threadViewportStore]);
 
-  const handleScroll = () => {
+  const onScroll = () => {
     const div = divRef.current;
     if (!div) return;
 
@@ -314,7 +316,11 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     lastScrollHeight.current = div.scrollHeight;
     firstMessageRef.current = measureFirstMessage(div);
   };
-  const handleScrollRef = useCallbackRef(handleScroll);
+  const onScrollRef = useRef(onScroll);
+  useLayoutEffect(() => {
+    onScrollRef.current = onScroll;
+  });
+  const handleScroll = useCallback(() => onScrollRef.current(), []);
 
   const resizeRef = useOnResizeContent(() => {
     const div = divRef.current;
@@ -375,7 +381,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
           // ref alone leaves the gesture undone.
           cancelScheduledFrame();
           scrollingToBottomBehaviorRef.current = null;
-          handleScrollRef();
+          handleScroll();
         };
         // The composer renders inside the viewport, so its keystrokes bubble here;
         // cancellation keys only represent a gesture on thread content when they
@@ -432,7 +438,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
           "touchmove",
           "keydown",
         ] as const;
-        el.addEventListener("scroll", handleScrollRef);
+        el.addEventListener("scroll", handleScroll);
         el.addEventListener("pointerdown", cancelPendingScrollToBottom);
         el.addEventListener("wheel", cancelPendingScrollToBottom, {
           passive: true,
@@ -449,7 +455,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
           el.addEventListener(gesture, releasePrependAnchor, { passive: true });
         }
         return () => {
-          el.removeEventListener("scroll", handleScrollRef);
+          el.removeEventListener("scroll", handleScroll);
           el.removeEventListener("pointerdown", cancelPendingScrollToBottom);
           el.removeEventListener("wheel", cancelPendingScrollToBottom);
           el.removeEventListener("touchstart", cancelPendingScrollToBottom);
@@ -465,7 +471,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
           }
         };
       },
-      [cancelScheduledFrame, handleScrollRef],
+      [cancelScheduledFrame, handleScroll],
     ),
   );
 

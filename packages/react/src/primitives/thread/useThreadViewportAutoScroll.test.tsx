@@ -326,7 +326,7 @@ const DelayedThread = ({
 };
 
 describe("useThreadViewportAutoScroll", () => {
-  it("keeps content observers attached across an unrelated rerender", () => {
+  it("keeps viewport listeners and observers across rerenders", () => {
     const view = render(
       <SyncRuntimeProvider>
         <Thread autoScroll={false} scrollToBottomOnInitialize={false} />
@@ -339,6 +339,9 @@ describe("useThreadViewportAutoScroll", () => {
       MutationObserver.prototype,
       "disconnect",
     );
+    const viewport = getViewport();
+    const addListenerSpy = vi.spyOn(viewport, "addEventListener");
+    const removeListenerSpy = vi.spyOn(viewport, "removeEventListener");
     try {
       view.rerender(
         <SyncRuntimeProvider>
@@ -350,15 +353,20 @@ describe("useThreadViewportAutoScroll", () => {
       expect(disconnect).not.toHaveBeenCalled();
       expect(observeMutations).not.toHaveBeenCalled();
       expect(disconnectMutations).not.toHaveBeenCalled();
+      expect(addListenerSpy).not.toHaveBeenCalled();
+      expect(removeListenerSpy).not.toHaveBeenCalled();
 
       view.unmount();
       expect(disconnect).toHaveBeenCalled();
       expect(disconnectMutations).toHaveBeenCalled();
+      expect(removeListenerSpy).toHaveBeenCalled();
     } finally {
       observe.mockRestore();
       disconnect.mockRestore();
       observeMutations.mockRestore();
       disconnectMutations.mockRestore();
+      addListenerSpy.mockRestore();
+      removeListenerSpy.mockRestore();
     }
   });
 
@@ -456,6 +464,69 @@ describe("useThreadViewportAutoScroll", () => {
       ).toBe(false);
     } finally {
       scrollToSpy.mockRestore();
+    }
+  });
+
+  it("keeps a coalesced user scroll-up after a programmatic bottom scroll", async () => {
+    render(
+      <SyncRuntimeProvider>
+        <Thread autoScroll={false} scrollToBottomOnInitialize={false} />
+        <ThreadPrimitiveScrollToBottom behavior="instant">
+          Scroll to bottom
+        </ThreadPrimitiveScrollToBottom>
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    await waitFor(() => {
+      expect(screen.getAllByTestId("thread-message")).toHaveLength(
+        messages.length,
+      );
+    });
+
+    act(() => {
+      viewport.scrollTop = 0;
+      viewport.dispatchEvent(new Event("scroll"));
+    });
+    await waitFor(() => {
+      expect(
+        screen
+          .getByRole("button", { name: "Scroll to bottom" })
+          .hasAttribute("disabled"),
+      ).toBe(false);
+    });
+
+    const scrollToDescriptor = Object.getOwnPropertyDescriptor(
+      viewport,
+      "scrollTo",
+    );
+    Object.defineProperty(viewport, "scrollTo", {
+      configurable: true,
+      value: ({ top = 0 }: ScrollToOptions) => {
+        viewport.scrollTop = Math.min(Number(top), getMaxScrollTop(viewport));
+      },
+    });
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "Scroll to bottom" }));
+
+      act(() => {
+        viewport.scrollTop -= 80;
+        viewport.dispatchEvent(new Event("scroll"));
+      });
+
+      const scrollTopAfterLeave = viewport.scrollTop;
+      viewportMeasurementOffset += 200;
+      act(notifyResizeObservers);
+
+      expect(viewport.scrollTop).toBe(scrollTopAfterLeave);
+      expect(viewport.scrollTop).toBeLessThan(getMaxScrollTop(viewport));
+      expect(screen.getByTestId("is-at-bottom").textContent).toBe("false");
+    } finally {
+      if (scrollToDescriptor) {
+        Object.defineProperty(viewport, "scrollTo", scrollToDescriptor);
+      } else {
+        Reflect.deleteProperty(viewport, "scrollTo");
+      }
     }
   });
 

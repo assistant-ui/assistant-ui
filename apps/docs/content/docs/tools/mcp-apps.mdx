@@ -265,6 +265,7 @@ const tools = await client.listTools();
 const { modelVisible } = splitMCPAppTools(tools);
 
 const result = streamText({
+  abortSignal: req.signal,
   model: openai("gpt-6-luna"),
   tools: client.toolsFromDefinitions(modelVisible),
   // ...

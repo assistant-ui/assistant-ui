@@ -18,7 +18,10 @@ import {
   invalidateThreadRuntime,
   supersedeThreadRuntime,
 } from "../runtime/utils/thread-runtime-lifecycle";
-import { MessageRepository } from "../runtime/utils/message-repository";
+import {
+  ExportedMessageRepository,
+  MessageRepository,
+} from "../runtime/utils/message-repository";
 
 const createContextProvider = (): ModelContextProvider => ({
   getModelContext: () => ({}),
@@ -358,6 +361,30 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
 
       await new Promise((resolve) => setTimeout(resolve, 0));
       expect(setMessages).not.toHaveBeenCalled();
+    });
+
+    it("does not resync cancelled messages over an explicit reset", async () => {
+      const setMessages = vi.fn();
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: [
+            createUserMessage("u1"),
+            createAssistantMessage("a1", "partial answer"),
+          ],
+          isRunning: true,
+          onCancel: vi.fn(),
+          setMessages,
+        }),
+      );
+      const replacement = createUserMessage("replacement", "fresh prompt");
+
+      core.cancelRun();
+      core.reset([replacement]);
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(setMessages).toHaveBeenCalledOnce();
+      expect(setMessages).toHaveBeenLastCalledWith([replacement]);
     });
 
     it("re-applies the user leaf rollback when the store updates before the flush", async () => {
@@ -1010,6 +1037,58 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
 
       core.switchToBranch("u1");
       expect(setMessages).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("import", () => {
+    it.each(["messages", "messageRepository"] as const)(
+      "throws without onImport and leaves a %s transcript unchanged",
+      (source) => {
+        const messages = [createUserMessage("store-message")];
+        const adapter: ExternalStoreAdapter<ThreadMessage> =
+          source === "messages"
+            ? createBaseAdapter({ messages })
+            : {
+                onNew: vi.fn(async () => {}),
+                messageRepository:
+                  ExportedMessageRepository.fromArray(messages),
+              };
+        const core = new ExternalStoreThreadRuntimeCore(
+          contextProvider,
+          adapter,
+        );
+        const imported = ExportedMessageRepository.fromArray([
+          createUserMessage("imported-message"),
+        ]);
+
+        expect(() => core.import(imported)).toThrow(
+          "Runtime does not support importing messages.",
+        );
+        expect(core.export().messages.map(({ message }) => message.id)).toEqual(
+          ["store-message"],
+        );
+        expect(core.getMessageById("store-message")).toBeDefined();
+        expect(core.getMessageById("imported-message")).toBeUndefined();
+      },
+    );
+
+    it("imports and notifies the store when onImport is provided", () => {
+      const onImport = vi.fn((_messages: readonly ThreadMessage[]) => {});
+      const adapter = createBaseAdapter({
+        messages: [createUserMessage("store-message")],
+        onImport,
+      });
+      const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
+      const imported = ExportedMessageRepository.fromArray([
+        createUserMessage("imported-message"),
+      ]);
+
+      core.import(imported);
+
+      expect(onImport).toHaveBeenCalledOnce();
+      expect(onImport.mock.calls[0]?.[0].map(({ id }) => id)).toEqual([
+        "imported-message",
+      ]);
     });
   });
 

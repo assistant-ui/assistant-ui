@@ -15,22 +15,34 @@ export class InMemoryThreadListAdapter implements RemoteThreadListAdapter {
     });
   }
 
-  rename(remoteId: string, newTitle: string): Promise<void> {
+  rename(): Promise<void>;
+  rename(remoteId: string, newTitle: string): Promise<void>;
+  rename(remoteId?: string, newTitle?: string): Promise<void> {
+    if (remoteId === undefined) return Promise.resolve();
     const thread = this.threads.get(remoteId);
     if (thread) this.threads.set(remoteId, { ...thread, title: newTitle });
     return Promise.resolve();
   }
 
+  updateCustom(): Promise<void>;
   updateCustom(
     remoteId: string,
     custom: Record<string, unknown> | undefined,
+  ): Promise<void>;
+  updateCustom(
+    remoteId?: string,
+    custom?: Record<string, unknown>,
   ): Promise<void> {
+    if (remoteId === undefined) return Promise.resolve();
     const thread = this.threads.get(remoteId);
     if (thread) this.threads.set(remoteId, { ...thread, custom });
     return Promise.resolve();
   }
 
-  archive(remoteId: string): Promise<void> {
+  archive(): Promise<void>;
+  archive(remoteId: string): Promise<void>;
+  archive(remoteId?: string): Promise<void> {
+    if (remoteId === undefined) return Promise.resolve();
     const thread = this.threads.get(remoteId);
     if (thread && thread.status !== "archived") {
       this.threads.delete(remoteId);
@@ -39,7 +51,10 @@ export class InMemoryThreadListAdapter implements RemoteThreadListAdapter {
     return Promise.resolve();
   }
 
-  unarchive(remoteId: string): Promise<void> {
+  unarchive(): Promise<void>;
+  unarchive(remoteId: string): Promise<void>;
+  unarchive(remoteId?: string): Promise<void> {
+    if (remoteId === undefined) return Promise.resolve();
     const thread = this.threads.get(remoteId);
     if (thread && thread.status !== "regular") {
       this.threads.delete(remoteId);
@@ -48,7 +63,10 @@ export class InMemoryThreadListAdapter implements RemoteThreadListAdapter {
     return Promise.resolve();
   }
 
-  delete(remoteId: string): Promise<void> {
+  delete(): Promise<void>;
+  delete(remoteId: string): Promise<void>;
+  delete(remoteId?: string): Promise<void> {
+    if (remoteId === undefined) return Promise.resolve();
     this.threads.delete(remoteId);
     return Promise.resolve();
   }

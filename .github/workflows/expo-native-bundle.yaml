@@ -10,13 +10,16 @@ on:
       - packages/assistant-stream/**
       - packages/cloud/**
       - packages/core/**
-      - packages/metro/**
       - packages/react-native/**
       - packages/store/**
       - packages/tap/**
       - packages/ui/**
       - packages/x-buildutils/**
       - packages/x-generative-compiler/**
+      - "!packages/**/*.test.ts"
+      - "!packages/**/*.test.tsx"
+      - packages/metro/**
+      - packages/ui/src/components/react-native/**
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
       - turbo.json
@@ -31,13 +34,16 @@ on:
       - packages/assistant-stream/**
       - packages/cloud/**
       - packages/core/**
-      - packages/metro/**
       - packages/react-native/**
       - packages/store/**
       - packages/tap/**
       - packages/ui/**
       - packages/x-buildutils/**
       - packages/x-generative-compiler/**
+      - "!packages/**/*.test.ts"
+      - "!packages/**/*.test.tsx"
+      - packages/metro/**
+      - packages/ui/src/components/react-native/**
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
       - turbo.json

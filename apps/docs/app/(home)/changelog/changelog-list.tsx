@@ -166,7 +166,7 @@ function MetaLine({ item }: { item: ParsedBullet }) {
     interleaved.push(node);
   });
   return (
-    <div className="text-muted-foreground/70 flex flex-wrap items-center gap-x-1.5 gap-y-1 font-mono text-[11px] tracking-wide">
+    <div className="text-muted-foreground/70 flex flex-wrap items-center gap-x-1.5 gap-y-1 font-mono text-xs">
       {interleaved}
     </div>
   );
@@ -190,7 +190,7 @@ function BulletItem({
       )}
     >
       {withScopeColumn ? (
-        <span className="text-muted-foreground/70 block truncate pt-px font-mono text-[11px] leading-relaxed tracking-wide">
+        <span className="text-muted-foreground/70 block truncate pt-px font-mono text-xs leading-relaxed">
           {item.scope ?? ""}
         </span>
       ) : null}
@@ -206,7 +206,7 @@ function BulletItem({
             <button
               type="button"
               onClick={() => setExpanded((e) => !e)}
-              className="text-muted-foreground/70 hover:text-foreground font-mono text-[11px] tracking-wide transition-colors"
+              className="text-muted-foreground/70 hover:text-foreground text-xs transition-colors"
             >
               {expanded ? "hide notes" : "show notes"}
             </button>
@@ -235,7 +235,7 @@ function TypeGroup({
     <div className="flex flex-col gap-3">
       <h4
         className={cn(
-          "font-mono text-[10px] font-medium",
+          "text-xs font-medium",
           type === "breaking" ? "text-destructive" : "text-muted-foreground/70",
         )}
       >
@@ -270,19 +270,17 @@ function ReleaseEntry({ info }: { info: ReleaseInfo }) {
           <span className="font-medium">@{release.version}</span>
         </span>
         {info.semver === "major" ? (
-          <span className="text-destructive shrink-0 font-mono text-[10px] font-medium">
+          <span className="text-destructive shrink-0 text-xs font-medium">
             Major
           </span>
         ) : info.semver === "minor" ? (
-          <span className="shrink-0 font-mono text-[10px] font-medium">
-            Minor
-          </span>
+          <span className="shrink-0 text-xs font-medium">Minor</span>
         ) : null}
         <span className="text-muted-foreground min-w-0 flex-1 truncate text-sm group-open/release:opacity-0">
           {info.headline}
         </span>
         {info.count > 0 ? (
-          <span className="text-muted-foreground/50 shrink-0 font-mono text-[11px] tracking-wide tabular-nums max-md:hidden">
+          <span className="text-muted-foreground/50 shrink-0 text-xs tabular-nums max-md:hidden">
             {info.count} {info.count === 1 ? "change" : "changes"}
           </span>
         ) : null}
@@ -305,7 +303,7 @@ function ReleaseEntry({ info }: { info: ReleaseInfo }) {
           href={release.url}
           target="_blank"
           rel="noopener noreferrer"
-          className="group/gh text-muted-foreground/70 hover:text-foreground self-start font-mono text-[11px] tracking-wide transition-colors"
+          className="group/gh text-muted-foreground/70 hover:text-foreground self-start text-xs transition-colors"
         >
           view on github
           <ArrowUpRight className="ms-1 mb-0.5 inline size-3 opacity-0 transition-opacity group-hover/gh:opacity-70" />
@@ -322,7 +320,7 @@ function QuietGroup({ infos }: { infos: ReleaseInfo[] }) {
         <span className="text-muted-foreground/50 inline-block w-3 shrink-0 font-mono text-[11px] transition-transform group-open/quiet:rotate-90">
           &gt;
         </span>
-        <span className="text-muted-foreground/70 font-mono text-[13px]">
+        <span className="text-muted-foreground/70 text-[13px]">
           {infos.length} maintenance{" "}
           {infos.length === 1 ? "release" : "releases"}
         </span>
@@ -353,7 +351,7 @@ function DateSection({ group }: { group: ReleaseGroup }) {
         <h2 className="text-[15px] font-medium tracking-tight">
           {formatDate(group.date)}
         </h2>
-        <p className="text-muted-foreground/70 mt-1.5 font-mono text-[11px] tracking-wide tabular-nums">
+        <p className="text-muted-foreground/70 mt-1.5 text-xs tabular-nums">
           {group.releases.length}{" "}
           {group.releases.length === 1 ? "release" : "releases"}
         </p>

@@ -194,7 +194,7 @@ export function DocsHeader({ section, sectionHref, tree }: DocsHeaderProps) {
           )}
         >
           <div className="flex min-w-0 flex-1 items-center">
-            <HeaderBrandLink labelClassName="hidden sm:inline md:max-lg:hidden" />
+            <HeaderBrandLink showLabel={false} />
             <span className="text-muted-foreground/40 mx-3 max-md:hidden">
               /
             </span>

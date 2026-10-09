@@ -16,6 +16,168 @@ type InitializeResult = { remoteId: string; externalId: string };
 type ListResult = Awaited<ReturnType<ReturnType<typeof makeAdapter>["list"]>>;
 
 describe("RemoteThreadListThreadListRuntimeCore initialize", () => {
+  it("keeps a stale initialization from promoting a draft after the replacement list resolves", async () => {
+    const initializing = deferred<InitializeResult>();
+    const replacementList = deferred<ListResult>();
+    const oldAdapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "anchor",
+            externalId: "anchor",
+          },
+        ],
+      })),
+      initialize: vi.fn(() => initializing.promise),
+    });
+    const newAdapter = makeAdapter({
+      list: vi.fn(() => replacementList.promise),
+    });
+    const core = createCore(oldAdapter);
+
+    await core.getLoadThreadsPromise();
+    await core.switchToThread("anchor");
+    const localId = core.newThreadId!;
+    const initializingTask = core.initialize(localId);
+
+    core.__internal_setOptions({
+      adapter: newAdapter,
+      runtimeHook: () => ({}) as never,
+    });
+    const loadTask = core.getLoadThreadsPromise();
+    replacementList.resolve({
+      threads: [
+        {
+          status: "regular",
+          remoteId: "anchor",
+          externalId: "anchor",
+        },
+      ],
+    });
+    await loadTask;
+
+    initializing.resolve({
+      remoteId: "old-remote",
+      externalId: "old-external",
+    });
+    await expect(initializingTask).rejects.toThrow("adapter changed");
+
+    expect(core.threadIds).not.toContain(localId);
+    expect(core.newThreadId).toBe(localId);
+    expect(core.getItemById(localId)?.status).toBe("new");
+    expect(core.getItemById(localId)?.remoteId).toBeUndefined();
+  });
+
+  it("keeps a stale initialization from promoting a draft after a second adapter swap", async () => {
+    const initializing = deferred<InitializeResult>();
+    const thirdList = deferred<ListResult>();
+    const anchor = {
+      status: "regular" as const,
+      remoteId: "anchor",
+      externalId: "anchor",
+    };
+    const firstAdapter = makeAdapter({
+      list: vi.fn(async () => ({ threads: [anchor] })),
+      initialize: vi.fn(() => initializing.promise),
+    });
+    const secondAdapter = makeAdapter({
+      list: vi.fn(async () => ({ threads: [anchor] })),
+    });
+    const thirdAdapter = makeAdapter({
+      list: vi.fn(() => thirdList.promise),
+    });
+    const core = createCore(firstAdapter);
+
+    await core.getLoadThreadsPromise();
+    await core.switchToThread("anchor");
+    const localId = core.newThreadId!;
+    const initializingTask = core.initialize(localId);
+
+    core.__internal_setOptions({
+      adapter: secondAdapter,
+      runtimeHook: () => ({}) as never,
+    });
+    await core.getLoadThreadsPromise();
+    core.__internal_setOptions({
+      adapter: thirdAdapter,
+      runtimeHook: () => ({}) as never,
+    });
+    const loadTask = core.getLoadThreadsPromise();
+
+    expect(core.threadIds).not.toContain(localId);
+
+    initializing.resolve({
+      remoteId: "old-remote",
+      externalId: "old-external",
+    });
+    await expect(initializingTask).rejects.toThrow("adapter changed");
+
+    expect(core.threadIds).not.toContain(localId);
+    expect(core.getItemById(localId)?.status).toBe("new");
+
+    thirdList.resolve({ threads: [anchor] });
+    await loadTask;
+
+    expect(core.threadIds).not.toContain(localId);
+    expect(core.newThreadId).toBe(localId);
+    expect(core.getItemById(localId)?.remoteId).toBeUndefined();
+  });
+
+  it("keeps a deleted draft hidden when the replacement list resolves before initialization", async () => {
+    const initializing = deferred<InitializeResult>();
+    const replacementList = deferred<ListResult>();
+    const oldAdapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "anchor",
+            externalId: "anchor",
+          },
+        ],
+      })),
+      initialize: vi.fn(() => initializing.promise),
+    });
+    const newAdapter = makeAdapter({
+      list: vi.fn(() => replacementList.promise),
+    });
+    const core = createCore(oldAdapter);
+
+    await core.getLoadThreadsPromise();
+    await core.switchToThread("anchor");
+    const localId = core.newThreadId!;
+    const initializingTask = core.initialize(localId);
+    const deleteTask = core.delete(localId);
+
+    core.__internal_setOptions({
+      adapter: newAdapter,
+      runtimeHook: () => ({}) as never,
+    });
+    const loadTask = core.getLoadThreadsPromise();
+    replacementList.resolve({
+      threads: [
+        {
+          status: "regular",
+          remoteId: "anchor",
+          externalId: "anchor",
+        },
+      ],
+    });
+    await loadTask;
+    expect(core.mainThreadId).not.toBe(localId);
+
+    initializing.resolve({
+      remoteId: "old-remote",
+      externalId: "old-external",
+    });
+    await expect(initializingTask).rejects.toThrow("adapter changed");
+    await expect(deleteTask).rejects.toThrow("adapter changed");
+
+    expect(core.threadIds).not.toContain(localId);
+    expect(core.getItemById(localId)).toBeUndefined();
+  });
+
   it("keeps a deleted draft hidden while a replacement adapter loads", async () => {
     const initializing = deferred<InitializeResult>();
     const replacementList = deferred<ListResult>();

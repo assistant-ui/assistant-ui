@@ -1,331 +1,367 @@
-"use client";
-
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowUpRight } from "lucide-react";
-import { SafeContentFrame, type RenderedFrame } from "safe-content-frame";
+import type { ReactNode } from "react";
+import Link from "next/link";
+import {
+  ArrowUpRight,
+  Check,
+  CircleX,
+  Database,
+  Feather,
+  Files,
+  Globe,
+  Hourglass,
+  Layers,
+  MessageSquareLock,
+  Minus,
+  ShieldCheck,
+  type LucideIcon,
+} from "lucide-react";
 import { CopyCommandButton } from "@/components/shared/copy-command-button";
-import { Highlight } from "@/components/shared/highlight";
-import { CodeBlock } from "@/components/ui/code-block";
 import { PageFrame } from "@/components/shared/page-frame";
-import { typeDeck, typePage } from "@/components/shared/type";
+import { AddToCartButton } from "@/components/shared/shop-entry";
+import { typeDeck, typePage, typeSection } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
+import { PslDiagram } from "@/components/pages/docs/samples/safe-content-frame/diagrams";
 
 const ANALYTICS_PAGE = "safe-content-frame" as const;
+const REFERENCE_URL =
+  "https://github.com/assistant-ui/assistant-ui/tree/main/packages/safe-content-frame";
 
-const HIGHLIGHTS = [
+const USE_CASES = [
   {
-    title: "Unique origin",
-    description:
-      "Each render gets a hashed origin on scf.auiusercontent.com, a separate eTLD+1 from your app.",
+    name: "MCP Apps",
+    copy: "Securely render third-party HTML in your app.",
+    href: "/safe-content-frame/docs/mcp-apps",
   },
   {
-    title: "Sandboxed iframe",
-    description:
-      "Content runs with allow-scripts. It cannot reach the parent page.",
-  },
-  {
-    title: "No parent storage",
-    description:
-      "Scripts cannot read document.cookie or localStorage on your domain.",
-  },
-  {
-    title: "Vanilla JS",
-    description: "Framework-agnostic. No React or DOM-framework dependency.",
+    name: "Generative UI",
+    copy: "Securely render LLM-generated HTML in your app.",
+    href: "/safe-content-frame/docs/generative-ui",
   },
 ] as const;
 
-const SURFACE = [
-  "renderHtml",
-  "renderRaw",
-  "renderPdf",
-  "iframe",
-  "origin",
-  "sendMessage",
-  "fullyLoadedPromiseWithTimeout",
-  "dispose",
-  "useShadowDom",
-  "enableBrowserCaching",
-  "sandbox",
-  "salt",
+/* Each feature maps to public API in packages/safe-content-frame/src/index.ts
+   (or, for the shim checks, to the live shim). The package has no
+   dependencies. */
+const FEATURES = [
+  {
+    title: "A domain per render",
+    icon: Globe,
+    body: "Each render gets a hashed hostname on a public suffix.",
+    api: "renderHtml()",
+  },
+  {
+    title: "Verified hand-off",
+    icon: ShieldCheck,
+    body: "The frame only accepts content from your page’s origin.",
+    api: "?origin=",
+  },
+  {
+    title: "Scoped messaging",
+    icon: MessageSquareLock,
+    body: "Send messages addressed to the frame’s exact origin.",
+    api: "sendMessage()",
+  },
+  {
+    title: "HTML, PDFs, and more",
+    icon: Files,
+    body: "Render HTML strings, PDFs, or any MIME type.",
+    api: "renderPdf(), renderRaw()",
+  },
+  {
+    title: "Load and error states",
+    icon: Hourglass,
+    body: "Wait for the frame to load, with typed errors when it doesn’t.",
+    api: "fullyLoadedPromiseWithTimeout()",
+  },
+  {
+    title: "Cancel and clean up",
+    icon: CircleX,
+    body: "Abort a pending render, or remove the frame when you’re done.",
+    api: "signal, dispose()",
+  },
+  {
+    title: "Shadow DOM",
+    icon: Layers,
+    body: "Mount the iframe inside a closed shadow root.",
+    api: "useShadowDom",
+  },
+  {
+    title: "Opt-in caching",
+    icon: Database,
+    body: "Reuse a domain and its HTTP cache for identical content.",
+    api: "enableBrowserCaching",
+  },
+  {
+    title: "No dependencies",
+    icon: Feather,
+    body: "Plain JavaScript that works with any framework.",
+    api: "safe-content-frame",
+  },
+] satisfies {
+  title: string;
+  icon: LucideIcon;
+  body: string;
+  api: string;
+}[];
+
+/* "iframe sandbox" means sandbox="allow-scripts" without allow-same-origin,
+   which gives the document a null origin. Every API below throws or rejects
+   there (checked in Chromium).
+   - A null-origin frame's messages arrive with event.origin "null", and the
+     host cannot target it (postMessage(msg, "null") throws), so both
+     directions fall back to "*".
+   - Requests from a null origin send "Origin: null", the same value every
+     sandboxed iframe sends, so the only safe CORS response is "*" (no
+     credentials). A real origin can be allowlisted. */
+
+type Side = { ok: boolean; note?: ReactNode };
+type Row = {
+  id: string;
+  group: string;
+  /** Code identifier, rendered in mono. */
+  code?: string;
+  /** Plain-language label, rendered in sans. */
+  label?: string;
+  iframe: Side;
+  scf: Side;
+};
+
+const STAR = <span className="font-mono">*</span>;
+
+const ROWS: Row[] = [
+  {
+    id: "exec",
+    group: "Runs",
+    label: "Sandboxed HTML, CSS, and JS",
+    iframe: { ok: true },
+    scf: { ok: true },
+  },
+  ...(
+    [
+      ["document.cookie", "Storage"],
+      ["window.localStorage", "Storage"],
+      ["window.sessionStorage", "Storage"],
+      ["window.indexedDB", "Storage"],
+      ["window.caches", "Storage"],
+      ["navigator.storage", "Storage"],
+      ["window.SharedWorker", "Workers and locks"],
+      ["navigator.serviceWorker", "Workers and locks"],
+      ["navigator.locks", "Workers and locks"],
+    ] as const
+  ).map(([code, group]) => ({
+    id: code,
+    group,
+    code,
+    iframe: { ok: false },
+    scf: { ok: true },
+  })),
+  {
+    id: "postMessage",
+    group: "Messaging and network",
+    code: "window.postMessage",
+    iframe: { ok: false, note: <>only {STAR} allowed</> },
+    scf: { ok: true, note: "scoped to its origin" },
+  },
+  {
+    id: "cors",
+    group: "Messaging and network",
+    label: "CORS",
+    iframe: { ok: false, note: <>only {STAR} allowed</> },
+    scf: { ok: true, note: "allowlist its origin" },
+  },
+];
+
+const GROUPS = [...new Set(ROWS.map((row) => row.group))];
+
+const COLUMNS = [
+  { key: "iframe", name: "iframe sandbox", origin: "null", strong: false },
+  {
+    key: "scf",
+    name: "Safe Content Frame",
+    origin: "https://<hash>.scf.auiusercontent.com",
+    strong: true,
+  },
 ] as const;
 
-const SNIPPET = `import { SafeContentFrame } from "safe-content-frame";
+const field =
+  "bg-foreground/[0.025] dark:bg-foreground/[0.04] rounded-document";
+const mono = "font-mono [font-variant-ligatures:none]";
 
-const frame = new SafeContentFrame("my-app");
-
-const rendered = await frame.renderHtml(modelGeneratedHtml, container);
-await rendered.fullyLoadedPromiseWithTimeout(5000);
-
-rendered.sendMessage({ type: "theme", value: "dark" });
-
-// later
-rendered.dispose();`;
-
-const DEFAULT_HTML = `<h1>Hello from the sandbox</h1>
-<p>This HTML runs in a sandboxed iframe with its own origin.</p>
-<script>
-  document.body.innerHTML += '<p>Scripts run here. They cannot reach the parent page.</p>';
-</script>
-<style>
-  body {
-    font-family: system-ui, sans-serif;
-    margin: 0;
-    padding: 24px;
-    line-height: 1.5;
-  }
-  h1 { font-size: 1.25rem; font-weight: 560; }
-</style>`;
-
-const XSS_HTML = `<h1>XSS probe</h1>
-<p>These scripts run in the frame. They cannot touch the host page.</p>
-<script>
-  try {
-    window.parent.document.body.innerHTML = 'HACKED!';
-  } catch (e) {
-    document.body.innerHTML += '<p>Parent document blocked: ' + e.message + '</p>';
-  }
-  try {
-    document.body.innerHTML += '<p>Cookies: ' + (document.cookie || 'none') + '</p>';
-  } catch (e) {
-    document.body.innerHTML += '<p>Cookie access blocked</p>';
-  }
-  document.body.innerHTML += '<p>Top navigation blocked by sandbox</p>';
-</script>
-<style>
-  body {
-    font-family: system-ui, sans-serif;
-    margin: 0;
-    padding: 24px;
-    line-height: 1.5;
-  }
-  h1 { font-size: 1.25rem; font-weight: 560; }
-</style>`;
-
-type Preset = "default" | "xss" | "custom";
-
-export default function SafeContentFramePage() {
-  const [html, setHtml] = useState(DEFAULT_HTML);
-  const [preset, setPreset] = useState<Preset>("default");
-  const [origin, setOrigin] = useState<string | null>(null);
-  const [status, setStatus] = useState("rendering");
-  const containerRef = useRef<HTMLDivElement>(null);
-  const frameRef = useRef<RenderedFrame | null>(null);
-  const generationRef = useRef(0);
-
-  const renderSource = useCallback(async (source: string) => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const generation = ++generationRef.current;
-    frameRef.current?.dispose();
-    frameRef.current = null;
-    container.replaceChildren();
-    setOrigin(null);
-    setStatus("rendering");
-
-    try {
-      const scf = new SafeContentFrame("assistant-ui-docs", {
-        sandbox: ["allow-scripts"],
-      });
-      const frame = await scf.renderHtml(source, container);
-      if (generation !== generationRef.current) {
-        frame.dispose();
-        return;
-      }
-      frameRef.current = frame;
-      setOrigin(frame.origin);
-      setStatus("live");
-      try {
-        await frame.fullyLoadedPromiseWithTimeout(5000);
-      } catch {
-        if (generation === generationRef.current) setStatus("load timeout");
-      }
-    } catch (error) {
-      if (generation === generationRef.current) {
-        setStatus(error instanceof Error ? error.message : "render failed");
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    void renderSource(DEFAULT_HTML);
-    return () => {
-      generationRef.current += 1;
-      frameRef.current?.dispose();
-      frameRef.current = null;
-    };
-  }, [renderSource]);
-
-  const applyPreset = (next: string, id: Exclude<Preset, "custom">) => {
-    setHtml(next);
-    setPreset(id);
-    void renderSource(next);
-  };
-
+export default function SandboxPage() {
   return (
-    <PageFrame pad="sub">
-      <header className="max-w-2xl">
-        <h1 className={typePage}>Untrusted content, contained.</h1>
-        <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
-          Render model-generated HTML, PDFs, or any blob in a sandboxed iframe
-          with a hashed origin per render, on a separate domain from your app.
-          Pure JS.
+    <PageFrame pad="sub" className="pt-32 md:pt-52">
+      <header className="mx-auto max-w-2xl text-center">
+        <h1 className={typePage}>Sandboxes for HTML</h1>
+        <p className={cn(typeDeck, "mx-auto mt-4 max-w-[52ch]")}>
+          Every render gets its own iframe and origin, so the HTML inside can’t
+          reach your app’s DOM, cookies, or storage.
         </p>
-        <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-3">
           <CopyCommandButton
             command="npm install safe-content-frame"
             analyticsContext={{ page: ANALYTICS_PAGE, section: "hero" }}
           />
-          <a
-            href="https://github.com/assistant-ui/assistant-ui/tree/main/packages/safe-content-frame"
-            target="_blank"
-            rel="noopener noreferrer"
+          <AddToCartButton
+            slug="safe-content-frame"
+            name="Safe Content Frame"
+            size="default"
+            variant="outline"
+          />
+          <Link
+            href="/safe-content-frame/docs"
             className="text-muted-foreground hover:text-foreground text-sm transition-colors"
           >
-            README on GitHub
-          </a>
+            Read the reference
+          </Link>
         </div>
       </header>
 
-      <div className="mt-12 grid gap-10 md:mt-16 lg:grid-cols-2 lg:gap-8">
-        <figure className="flex flex-col">
-          <div className="border-foreground/10 flex flex-1 flex-col border">
-            <div className="border-foreground/10 text-muted-foreground flex h-9 items-center justify-between border-b px-3.5 font-mono text-[11px] tracking-wide">
-              <span>input · html</span>
-              <span className="flex items-center gap-1">
-                <PresetTab
-                  label="hello"
-                  active={preset === "default"}
-                  onClick={() => applyPreset(DEFAULT_HTML, "default")}
-                />
-                <PresetTab
-                  label="xss probe"
-                  active={preset === "xss"}
-                  onClick={() => applyPreset(XSS_HTML, "xss")}
-                />
-              </span>
-            </div>
-            <textarea
-              value={html}
-              onChange={(event) => {
-                setHtml(event.target.value);
-                setPreset("custom");
-              }}
-              className="h-[26rem] w-full flex-1 resize-none bg-transparent p-4 font-mono text-[12.5px] leading-relaxed outline-none"
-              spellCheck={false}
-            />
-            <div className="border-foreground/10 flex h-9 items-center gap-5 border-t px-3.5 font-mono text-[11px] tracking-wide">
-              <button
-                type="button"
-                onClick={() => void renderSource(html)}
-                className="hover:text-foreground/70 cursor-pointer transition-colors"
-              >
-                render
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  generationRef.current += 1;
-                  frameRef.current?.dispose();
-                  frameRef.current = null;
-                  containerRef.current?.replaceChildren();
-                  setOrigin(null);
-                  setStatus("cleared");
-                }}
-                className="text-muted-foreground hover:text-foreground cursor-pointer transition-colors"
-              >
-                clear
-              </button>
-            </div>
-          </div>
-          <figcaption className="text-muted-foreground/70 mt-2 font-mono text-[11px] tracking-wide">
-            fig. 01 · the attempt · edit and render
-          </figcaption>
-        </figure>
-
-        <figure className="flex flex-col">
-          <div className="border-foreground/10 flex flex-1 flex-col border">
-            <div className="border-foreground/10 text-muted-foreground flex h-9 items-center justify-between gap-4 border-b px-3.5 font-mono text-[11px] tracking-wide">
-              <span>output · sandbox</span>
-              <span className="flex min-w-0 items-center gap-1.5">
-                {status === "live" ? (
-                  <span className="size-1.5 shrink-0 animate-pulse rounded-full bg-blue-500 motion-reduce:animate-none" />
-                ) : null}
-                {status}
-              </span>
-            </div>
-            <div
-              ref={containerRef}
-              className="min-h-[26rem] flex-1 overflow-hidden [&_iframe]:size-full [&_iframe]:border-0"
-            />
-          </div>
-          <figcaption className="text-muted-foreground/70 mt-2 flex min-w-0 items-baseline justify-between gap-4 font-mono text-[11px] tracking-wide">
-            <span className="shrink-0">fig. 02 · the containment</span>
-            {origin ? (
-              <span className="truncate" title={origin}>
-                {origin.replace("https://", "")}
-              </span>
-            ) : null}
-          </figcaption>
-        </figure>
-      </div>
-
-      <div className="border-foreground/10 mt-16 border-t md:mt-20">
-        <section className="divide-foreground/10 border-foreground/10 grid gap-8 border-b py-10 md:grid-cols-2 md:gap-y-10 lg:grid-cols-4 lg:gap-0 lg:divide-x lg:py-12">
-          {HIGHLIGHTS.map((item) => (
-            <div
-              key={item.title}
-              className="lg:px-8 lg:first:ps-0 lg:last:pe-0"
+      <section className="mt-24 md:mt-32">
+        <h2 className={cn(typeSection, "text-center")}>Use cases</h2>
+        <div className="mx-auto mt-8 grid max-w-5xl gap-4 md:grid-cols-2">
+          {USE_CASES.map((useCase) => (
+            <Link
+              key={useCase.name}
+              href={useCase.href}
+              className={cn(
+                field,
+                "group hover:bg-foreground/[0.05] dark:hover:bg-foreground/[0.07] flex flex-col p-6 transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 sm:p-10",
+              )}
             >
-              <h2 className="text-sm font-medium">{item.title}</h2>
-              <p className="text-muted-foreground mt-2 text-sm leading-relaxed text-pretty">
-                {item.description}
+              <h3 className={typeSection}>{useCase.name}</h3>
+              <div className="mt-3 flex items-end justify-between gap-6">
+                <p className="text-muted-foreground text-[15px] leading-relaxed">
+                  {useCase.copy}
+                </p>
+                <ArrowUpRight
+                  aria-hidden
+                  className="text-muted-foreground mb-1 size-4 shrink-0 transition-all group-hover:translate-x-0.5 group-hover:-translate-y-0.5"
+                />
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-24 md:mt-32">
+        <h2 className={cn(typeSection, "text-center")}>
+          Compared with iframe sandbox
+        </h2>
+        <p className={cn(typeDeck, "mx-auto mt-3 max-w-[60ch] text-center")}>
+          Both sandbox your HTML. What differs is the origin it runs on.
+        </p>
+        <div className="mx-auto mt-10 grid max-w-5xl gap-4 md:grid-cols-2">
+          {COLUMNS.map((column) => (
+            <div
+              key={column.key}
+              className={cn(
+                "rounded-document min-w-0 p-6 sm:p-8",
+                column.strong ? field : "border-foreground/10 border",
+              )}
+            >
+              <h3
+                className={cn(
+                  "text-lg font-medium",
+                  !column.strong && "text-muted-foreground",
+                )}
+              >
+                {column.name}
+              </h3>
+              <p
+                className={cn(mono, "mt-2 truncate text-sm")}
+                title={column.origin}
+              >
+                <span className="text-muted-foreground">origin: </span>
+                {column.origin}
+              </p>
+              <div className="mt-8 flex flex-col gap-7">
+                {GROUPS.map((group) => (
+                  <div key={group}>
+                    <p className="text-muted-foreground text-xs">{group}</p>
+                    <ul className="mt-3 flex flex-col gap-2.5">
+                      {ROWS.filter((row) => row.group === group).map((row) => (
+                        <RowItem key={row.id} row={row} side={column.key} />
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-24 md:mt-32">
+        <h2 className={cn(typeSection, "text-center")}>How it works</h2>
+        <p className={cn(typeDeck, "mx-auto mt-3 max-w-[60ch] text-center")}>
+          <span className={mono}>scf.auiusercontent.com</span> is on the{" "}
+          <a
+            href="https://publicsuffix.org/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-foreground inline-flex items-baseline gap-0.5 underline underline-offset-4"
+          >
+            Public Suffix List
+            <ArrowUpRight aria-hidden className="size-3 shrink-0 self-center" />
+          </a>
+          , so every subdomain is treated as its own domain.
+        </p>
+        <figure className="mx-auto mt-10 max-w-5xl">
+          <PslDiagram />
+          <figcaption className="text-muted-foreground mt-4 text-center text-xs">
+            Based on the design Google published for{" "}
+            <a
+              href="https://bughunters.google.com/blog/beyond-sandbox-domains-rendering-untrusted-web-content-with-safecontentframe"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground inline-flex items-baseline gap-0.5 underline underline-offset-4 transition-colors"
+            >
+              SafeContentFrame
+              <ArrowUpRight
+                aria-hidden
+                className="size-3 shrink-0 self-center"
+              />
+            </a>
+            .
+          </figcaption>
+        </figure>
+      </section>
+
+      <section className="mt-24 md:mt-32">
+        <h2 className={cn(typeSection, "text-center")}>Features</h2>
+        <div className="mx-auto mt-8 grid max-w-5xl gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {FEATURES.map(({ icon: Icon, ...feature }) => (
+            <div key={feature.title} className={cn(field, "flex flex-col p-6")}>
+              <Icon
+                aria-hidden
+                className="text-muted-foreground size-[18px] shrink-0"
+                strokeWidth={1.75}
+              />
+              <h3 className="mt-4 font-medium">{feature.title}</h3>
+              <p className="text-muted-foreground mt-1 flex-1 text-sm leading-relaxed">
+                {feature.body}
+              </p>
+              <p
+                className={cn(
+                  mono,
+                  "text-muted-foreground/80 mt-5 truncate text-xs",
+                )}
+              >
+                {feature.api}
               </p>
             </div>
           ))}
-        </section>
+        </div>
+      </section>
 
-        <section className="border-foreground/10 border-b py-10 md:py-12">
-          <p className="text-sm font-medium">The setup</p>
-          <CodeBlock title="untrusted.ts" className="my-0 mt-6 max-w-[44rem]">
-            <Highlight code={SNIPPET} language="ts" />
-          </CodeBlock>
-        </section>
-
-        <section className="border-foreground/10 border-b py-10 md:py-12">
-          <div className="flex items-baseline justify-between">
-            <p className="text-sm font-medium">The surface</p>
-            <span className="text-muted-foreground text-sm tabular-nums">
-              {SURFACE.length}
-            </span>
-          </div>
-          <p className="text-muted-foreground mt-6 flex max-w-[52rem] flex-wrap gap-x-6 gap-y-2.5 font-mono text-[13px]">
-            {SURFACE.map((name) => (
-              <span key={name}>{name}</span>
-            ))}
-          </p>
-          <p className="text-muted-foreground/70 mt-6 max-w-[52ch] text-sm leading-relaxed">
-            Three renderers, a handle per frame, and four options, including a
-            shadow-DOM variant at safe-content-frame/shadow_dom.
-          </p>
-        </section>
-      </div>
-
-      <footer className="mt-16 flex flex-col gap-3">
-        <p className="text-muted-foreground text-sm">
-          One of the primitives we extracted along the way,{" "}
-          <a href="/oss" className="text-foreground font-medium">
-            everything we build in the open
-          </a>
-          .
-        </p>
+      <footer className="mt-24 flex justify-center">
         <a
-          href="https://github.com/assistant-ui/assistant-ui/tree/main/packages/safe-content-frame"
+          href={REFERENCE_URL}
           target="_blank"
           rel="noopener noreferrer"
           className="text-muted-foreground hover:text-foreground group inline-flex items-center gap-1.5 text-sm transition-colors"
         >
-          Threat model and full reference in the README
+          View reference
           <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
         </a>
       </footer>
@@ -333,28 +369,36 @@ export default function SafeContentFramePage() {
   );
 }
 
-function PresetTab({
-  label,
-  active,
-  onClick,
-}: {
-  label: string;
-  active: boolean;
-  onClick: () => void;
-}) {
+function Mark({ value }: { value: boolean }) {
+  return value ? (
+    <Check
+      aria-label="Yes"
+      className="text-foreground size-4 shrink-0"
+      strokeWidth={2.25}
+    />
+  ) : (
+    <Minus
+      aria-label="No"
+      className="text-muted-foreground/50 size-4 shrink-0"
+    />
+  );
+}
+
+function RowItem({ row, side }: { row: Row; side: "iframe" | "scf" }) {
+  const { ok, note } = row[side];
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        "cursor-pointer px-2 py-0.5 transition-colors",
-        active
-          ? "bg-foreground/[0.06] text-foreground"
-          : "text-muted-foreground hover:text-foreground",
-      )}
+    <li
+      className={cn("flex items-center gap-3", !ok && "text-muted-foreground")}
     >
-      {label}
-    </button>
+      <Mark value={ok} />
+      <span>
+        {row.code ? (
+          <span className={cn(mono, "text-sm")}>{row.code}</span>
+        ) : (
+          <span className="text-[15px]">{row.label}</span>
+        )}
+        {note ? <span className="text-[15px]">: {note}</span> : null}
+      </span>
+    </li>
   );
 }

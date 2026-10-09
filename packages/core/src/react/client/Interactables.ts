@@ -238,6 +238,8 @@ const useInteractablesResource = ({
     isSaving,
     schedulePersistence,
     flush: flushPersistence,
+    waitForAdapterSaves,
+    restoreAdapterRecovery,
   } = useInteractablePersistenceQueue({
     adapterRef: saveAdapterRef,
     adapterGenerationRef,
@@ -245,6 +247,30 @@ const useInteractablesResource = ({
     updatePersistenceStatus,
     retainDirtyWithoutAdapter: true,
   });
+
+  const updateDirtyLoadStatus = useCallback(
+    (status: { isPending: boolean; error: unknown }) => {
+      const dirtyIds = getDirtyIds();
+      if (dirtyIds.size === 0) return;
+      updatePersistenceStatus((prev) => {
+        let changed = false;
+        const persistence = nullProtoRecord(prev);
+        for (const id of dirtyIds) {
+          if (stateRef.current.definitions[id] === undefined) continue;
+          if (
+            prev[id]?.isPending === status.isPending &&
+            prev[id]?.error === status.error
+          ) {
+            continue;
+          }
+          persistence[id] = status;
+          changed = true;
+        }
+        return changed ? persistence : prev;
+      });
+    },
+    [getDirtyIds, updatePersistenceStatus],
+  );
 
   const restorePersistedState = useCallback(
     (
@@ -300,9 +326,54 @@ const useInteractablesResource = ({
     [restorePersistedState],
   );
 
+  const restoreUnsavedEdits = useCallback(
+    (
+      batches: readonly {
+        payload: Unstable_InteractablePersistedState;
+        dirtyIds: ReadonlySet<string>;
+      }[],
+    ) => {
+      const unsaved =
+        nullProtoRecord<Unstable_InteractablePersistedState[string]>();
+      for (const { payload, dirtyIds } of batches) {
+        for (const id of dirtyIds) {
+          const entry = payload[id];
+          if (
+            entry &&
+            !touchedIdsRef.current.has(id) &&
+            stateRef.current.definitions[id]?.scope !== "thread"
+          ) {
+            unsaved[id] = entry;
+          }
+        }
+      }
+      const ids = Object.keys(unsaved);
+      if (ids.length === 0) return;
+      for (const id of ids) {
+        touchedIdsRef.current.add(id);
+        loadedStateRef.current.delete(id);
+      }
+      restorePersistedState(unsaved, {
+        stash: detachedAppStateRef.current,
+        shouldStash: (id) => stateRef.current.definitions[id] === undefined,
+      });
+      for (const id of ids) schedulePersistence(id);
+      updateDirtyLoadStatus({ isPending: true, error: undefined });
+    },
+    [restorePersistedState, schedulePersistence, updateDirtyLoadStatus],
+  );
+
   const loadFromAdapter = useCallback(
     async (adapter: Unstable_InteractablePersistenceAdapter) => {
       if (!adapter.load) return { status: "loaded" } as const;
+      const unsaved = await waitForAdapterSaves(adapter);
+      if (adapterRef.current !== adapter) return { status: "stale" } as const;
+      const [recovery] = unsaved;
+      if (recovery) {
+        restoreAdapterRecovery(adapter, recovery, () =>
+          restoreUnsavedEdits([recovery]),
+        );
+      }
       try {
         const saved = await adapter.load();
         if (adapterRef.current !== adapter) return { status: "stale" } as const;
@@ -313,31 +384,12 @@ const useInteractablesResource = ({
         return { status: "error", error: e } as const;
       }
     },
-    [applyLoadedState],
-  );
-
-  const updateDirtyLoadStatus = useCallback(
-    (status: { isPending: boolean; error: unknown }) => {
-      const dirtyIds = getDirtyIds();
-      if (dirtyIds.size === 0) return;
-      updatePersistenceStatus((prev) => {
-        let changed = false;
-        const persistence = nullProtoRecord(prev);
-        for (const id of dirtyIds) {
-          if (stateRef.current.definitions[id] === undefined) continue;
-          if (
-            prev[id]?.isPending === status.isPending &&
-            prev[id]?.error === status.error
-          ) {
-            continue;
-          }
-          persistence[id] = status;
-          changed = true;
-        }
-        return changed ? persistence : prev;
-      });
-    },
-    [getDirtyIds, updatePersistenceStatus],
+    [
+      applyLoadedState,
+      restoreAdapterRecovery,
+      restoreUnsavedEdits,
+      waitForAdapterSaves,
+    ],
   );
 
   const prepareAdapter = useCallback(

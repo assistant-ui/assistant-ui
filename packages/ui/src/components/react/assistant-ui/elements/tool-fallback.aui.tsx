@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  forwardRef,
   memo,
   useCallback,
   useImperativeHandle,
@@ -449,7 +450,7 @@ function ToolFallbackApprovalReceipt({
 }: React.ComponentPropsWithoutRef<"div"> & {
   approval: NonNullable<ToolCallMessagePart["approval"]>;
   focusReceiptRef: React.MutableRefObject<string | null | undefined>;
-  receiptRef: React.RefObject<HTMLDivElement | null>;
+  receiptRef: React.MutableRefObject<HTMLDivElement | null>;
 }) {
   useLayoutEffect(() => {
     const shouldFocus = focusReceiptRef.current === approval.id;
@@ -705,20 +706,24 @@ type ToolFallbackApprovalProps = React.ComponentProps<"div"> &
     approval?: ToolCallMessagePart["approval"];
   };
 
-function ToolFallbackApproval(props: ToolFallbackApprovalProps) {
+const ToolFallbackApproval = forwardRef<
+  HTMLDivElement,
+  ToolFallbackApprovalProps
+>(function ToolFallbackApproval(props, ref) {
   const carryFocusRef = useRef(false);
   return (
     <ToolFallbackApprovalImpl
       key={props.approval?.id}
       carryFocusRef={carryFocusRef}
+      forwardedRef={ref}
       {...props}
     />
   );
-}
+});
 
 function ToolFallbackApprovalImpl({
   className,
-  ref,
+  forwardedRef,
   carryFocusRef,
   addResult,
   resume,
@@ -727,7 +732,10 @@ function ToolFallbackApprovalImpl({
   respondToApproval,
   status,
   ...props
-}: ToolFallbackApprovalProps & { carryFocusRef: React.RefObject<boolean> }) {
+}: Omit<ToolFallbackApprovalProps, "ref"> & {
+  forwardedRef: React.ForwardedRef<HTMLDivElement>;
+  carryFocusRef: React.MutableRefObject<boolean>;
+}) {
   const [submitted, setSubmitted] = useState(false);
   const voiceActive = useAuiState((s) => s.thread.voice !== undefined);
   const canAnswer = useAuiState((s) => s.thread.capabilities.answerToolCall);
@@ -768,7 +776,7 @@ function ToolFallbackApprovalImpl({
     };
   }, [carryFocusRef]);
   useImperativeHandle<HTMLDivElement | null, HTMLDivElement | null>(
-    ref,
+    forwardedRef,
     () => pendingGroupRef.current ?? receiptRef.current,
   );
   const setPendingGroup = useCallback(
@@ -987,11 +995,13 @@ function ToolFallbackApprovalImpl({
     return (
       <div
         data-slot="tool-fallback-approval"
+        tabIndex={-1}
         className={cn(
           "aui-tool-fallback-approval flex flex-col gap-3 pt-1",
           className,
         )}
         {...props}
+        ref={setPendingGroup}
       >
         {promptText}
         <ToolFallbackApprovalQuestions
@@ -1205,6 +1215,31 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
     setPrevRequiresAction(isRequiresAction);
     if (isRequiresAction) setOpen(true);
   }
+  const approvalHadFocusRef = useRef(false);
+  const approvalElementRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+
+  useLayoutEffect(() => {
+    const focusedElement = approvalElementRef.current;
+    if (
+      !focusedElement ||
+      focusedElement.isConnected ||
+      isRequiresAction ||
+      !approvalHadFocusRef.current
+    ) {
+      return;
+    }
+
+    const shouldFocusTrigger = approval == null || !isSettled(approval);
+    approvalHadFocusRef.current = false;
+    const { activeElement, body } = focusedElement.ownerDocument;
+    if (
+      shouldFocusTrigger &&
+      (activeElement == null || activeElement === body)
+    ) {
+      triggerRef.current?.focus({ preventScroll: true });
+    }
+  }, [approval, isRequiresAction, status?.type]);
 
   return (
     <ToolFallbackRoot open={open} onOpenChange={setOpen}>
@@ -1223,6 +1258,26 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
             approval={approval}
             respondToApproval={respondToApproval}
             status={status}
+            onFocusCapture={(event) => {
+              const root = event.currentTarget.closest(
+                '[data-slot="tool-fallback-root"]',
+              );
+              triggerRef.current =
+                root?.querySelector<HTMLButtonElement>(
+                  '[data-slot="tool-fallback-trigger"]',
+                ) ?? null;
+              approvalElementRef.current = event.currentTarget;
+              approvalHadFocusRef.current = true;
+            }}
+            onBlurCapture={(event) => {
+              const relatedTarget = event.relatedTarget;
+              const stillFocused = relatedTarget
+                ? event.currentTarget.contains(relatedTarget as Node)
+                : event.currentTarget.contains(
+                    event.currentTarget.ownerDocument.activeElement,
+                  );
+              if (!stillFocused) approvalHadFocusRef.current = false;
+            }}
           />
         )}
         <ToolFallbackResult result={result} />

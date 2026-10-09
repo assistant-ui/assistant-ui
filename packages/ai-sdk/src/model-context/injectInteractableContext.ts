@@ -28,6 +28,7 @@ import {
  * export async function POST(req: Request) {
  *   const { messages } = await req.json();
  *   const result = streamText({
+ *     abortSignal: req.signal,
  *     model: myModel,
  *     messages: await convertToModelMessages(unstable_injectInteractableContext(messages)),
  *   });

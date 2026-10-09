@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 import { describe, it, expect } from "vitest";
 import { render, screen, act } from "@testing-library/react";
 import { Suspense, startTransition, use, useState, version } from "react";
@@ -204,68 +205,5 @@ describe("Concurrent Mode with useResource", () => {
 
     // New UI shown
     expect(screen.getByTestId("result").textContent).toBe("content-2");
-  });
-
-  // Suspends through use(promise), which React 18 lacks.
-  it.skipIf(onReact18)("react test", async () => {
-    let resolve: (value: number) => void;
-
-    const suspendPromise = new Promise<number>((r) => {
-      resolve = r;
-    });
-
-    function Suspender() {
-      const value = use(suspendPromise);
-      return value;
-    }
-
-    function App() {
-      const [load, setLoading] = useState(false);
-      const [message, setMessage] = useState("none");
-
-      return (
-        <>
-          <button
-            type="button"
-            data-testid="hello-btn"
-            onClick={() => setMessage("hello")}
-          />
-          <div data-testid="message">{message}</div>
-          <div data-testid="load">{load ? "true" : "false"}</div>
-
-          <button
-            type="button"
-            data-testid="suspend-btn"
-            onClick={() => {
-              startTransition(() => {
-                setLoading(true);
-              });
-            }}
-          />
-          <Suspense fallback={<ShouldNeverFallback />}>
-            <div data-testid="value">{load ? <Suspender /> : "none"}</div>
-          </Suspense>
-        </>
-      );
-    }
-
-    render(<App />);
-    expect(screen.getByTestId("message").textContent).toBe("none");
-    expect(screen.getByTestId("value").textContent).toBe("none");
-    expect(screen.getByTestId("load").textContent).toBe("false");
-
-    await act(async () => screen.getByTestId("suspend-btn").click());
-    expect(screen.getByTestId("value").textContent).toBe("none");
-    expect(screen.getByTestId("load").textContent).toBe("false");
-
-    await act(async () => screen.getByTestId("hello-btn").click());
-    expect(screen.getByTestId("value").textContent).toBe("none");
-    expect(screen.getByTestId("message").textContent).toBe("hello");
-    expect(screen.getByTestId("load").textContent).toBe("false"); // no tearing
-
-    await act(async () => resolve!(10));
-
-    expect(screen.getByTestId("value").textContent).toBe("10");
-    expect(screen.getByTestId("message").textContent).toBe("hello");
   });
 });

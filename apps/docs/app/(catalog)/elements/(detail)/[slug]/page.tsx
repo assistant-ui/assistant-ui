@@ -93,7 +93,7 @@ function Figure({
   return (
     <figure className="mt-10">
       {children}
-      <figcaption className="text-muted-foreground mt-2.5 font-mono text-[11px]">
+      <figcaption className="text-muted-foreground mt-2.5 text-xs">
         {caption}
       </figcaption>
     </figure>
@@ -434,7 +434,7 @@ export default async function ElementPage({
                 className="group text-muted-foreground hover:text-foreground flex items-center gap-2 text-[13px] transition-colors"
               >
                 <ArrowLeftIcon className="size-3.5 transition-transform group-hover:-translate-x-0.5" />
-                <span className="font-mono text-[11px] tabular-nums">
+                <span className="text-xs tabular-nums">
                   {String(previous.index).padStart(2, "0")}
                 </span>
                 {previous.title}
@@ -448,7 +448,7 @@ export default async function ElementPage({
                 scroll={false}
                 className="group text-muted-foreground hover:text-foreground flex items-center gap-2 text-[13px] transition-colors"
               >
-                <span className="font-mono text-[11px] tabular-nums">
+                <span className="text-xs tabular-nums">
                   {String(next.index).padStart(2, "0")}
                 </span>
                 {next.title}
@@ -461,7 +461,7 @@ export default async function ElementPage({
         </div>
         {showToc && (
           <nav aria-label="On this page" className="hidden xl:block">
-            <div className="bg-background sticky top-12 -mt-20 flex max-h-[calc(100dvh-3rem)] w-40 [scrollbar-width:none] flex-col gap-2 overflow-y-auto pt-20 pb-8 font-mono text-[11px] [&::-webkit-scrollbar]:hidden">
+            <div className="bg-background sticky top-12 -mt-20 flex max-h-[calc(100dvh-3rem)] w-40 [scrollbar-width:none] flex-col gap-2 overflow-y-auto pt-20 pb-8 text-xs [&::-webkit-scrollbar]:hidden">
               <span className="text-foreground/40">On this page</span>
               {toc.map((item) => (
                 <a

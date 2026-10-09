@@ -13,7 +13,7 @@ export default defineConfig({
         autoUpdate: (threshold) => Math.ceil(threshold) - 1,
       },
     },
-    environment: "jsdom",
+    environment: "node",
     pool: "threads",
     fsModuleCache: true,
     include: ["src/**/*.test.{ts,tsx}"],
