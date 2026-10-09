@@ -25,7 +25,7 @@ import {
   type VoiceSessionHelpers,
 } from "../../adapters/voice";
 
-const flush = () => new Promise((resolve) => setTimeout(resolve, 10));
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 afterEach(() => {
   vi.restoreAllMocks();
