@@ -611,6 +611,89 @@ describe("useLocalRuntime", () => {
 
     await waitFor(() => {
       expect(cloud.threads.create).toHaveBeenCalledTimes(1);
+      expect(cloud.runs.stream).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe("runs the first turn of a seeded thread with its remote id", () => {
+    const renderSeeded = async (
+      initialMessages: NonNullable<
+        Parameters<typeof useLocalRuntime>[1]
+      >["initialMessages"],
+    ) => {
+      const threadIds: (string | undefined)[] = [];
+      let runtime: ReturnType<typeof useLocalRuntime> | null = null;
+      const App = () => {
+        runtime = useLocalRuntime(
+          {
+            run: async ({ unstable_threadId }) => {
+              threadIds.push(unstable_threadId);
+              return { content: [] };
+            },
+          },
+          { initialMessages, unstable_humanToolNames: ["send_email"] },
+        );
+        return (
+          <AssistantRuntimeProvider runtime={runtime}>
+            <div />
+          </AssistantRuntimeProvider>
+        );
+      };
+      render(<App />);
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(runtime!.threads.mainItem.getState().status).toBe("new");
+      return { runtime: runtime!, threadIds };
+    };
+
+    it("when a seeded tool approval is answered", async () => {
+      const { runtime, threadIds } = await renderSeeded([
+        { role: "user", content: "send an email" },
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "call-send_email",
+              toolName: "send_email",
+              args: {},
+              argsText: "{}",
+              approval: { id: "a1" },
+            },
+          ],
+        },
+      ]);
+
+      await act(async () => {
+        await runtime.thread
+          .getMessageByIndex(1)
+          .getMessagePartByIndex(0)
+          .respondToToolApproval({ approved: true });
+      });
+
+      await waitFor(() => {
+        expect(threadIds).toHaveLength(1);
+      });
+      expect(threadIds[0]).toBeDefined();
+      expect(threadIds[0]).toBe(runtime.threads.mainItem.getState().remoteId);
+    });
+
+    it("when its seeded answer is reloaded", async () => {
+      const { runtime, threadIds } = await renderSeeded([
+        { role: "user", content: "What is assistant-ui?" },
+        { role: "assistant", content: "A set of React components." },
+      ]);
+
+      act(() => {
+        runtime.thread.getMessageByIndex(1).reload();
+      });
+
+      await waitFor(() => {
+        expect(threadIds).toHaveLength(1);
+      });
+      expect(threadIds[0]).toBeDefined();
+      expect(threadIds[0]).toBe(runtime.threads.mainItem.getState().remoteId);
     });
   });
 });
