@@ -46,7 +46,7 @@ Peer dependency: `react` 18 or 19. There are no other runtime dependencies, and 
 | `default`           | `string`  | first child | Variant rendered on the server, and whenever nothing else selects one.                            |
 | `persist`           | `boolean` | `true`      | Remember the choice per tab in `sessionStorage`.                                                  |
 | `allowInProduction` | `boolean` | `false`     | Render instead of throwing in a production build (see [Production guard](#production-guard)).     |
-| `outline`           | `boolean` | `true`      | Draw the dashed outline around this group's rendered variant (see [Outline](#outline)).            |
+| `outline`           | `boolean` | `true`      | Always draw the dashed outline; `false` shows it only on hover (see [Outline](#outline)).          |
 
 Children must all be `<Variant>` elements.
 
@@ -77,7 +77,7 @@ Only the active variant is mounted. The others are unmounted, not hidden, so ina
 | `?variant=hero:all`                                 | Show every variant of `hero`, stacked.                             |
 | `?variants=all`                                     | Show every variant of every group.                                 |
 | `?variants=noui`                                    | Hide the switcher but keep the outlines.                           |
-| `?variants=clean`                                   | Hide the switcher **and** the outlines, for clean screenshots. Combine as `?variants=all,clean`. |
+| `?variants=clean`                                   | Hide the switcher, the outlines and hover labels, for clean screenshots. Combine as `?variants=all,clean`. |
 
 When you change something in the switcher, the URL is updated with `history.replaceState` (no navigation, other params and the hash are kept), so the address bar always reproduces what you see. Back/forward (`popstate`) re-reads the URL.
 
@@ -87,32 +87,49 @@ Every variant renders in order, each preceded by a small monospace caption: `gro
 
 ### Outline
 
-Every rendered variant gets a dashed, muted-amber outline, with a small tab pinned to its top-left corner. The tab reads `<group label> · <variant label> · <index>/<count>`, for example `Feature list · Field cards · 2/3`. This makes it obvious which parts of the page are still undecided. In show-all mode, each stacked variant gets its own outline and tab.
+Every rendered variant gets a thin, dashed amber outline, with a small tab at its top-left corner. The tab reads `<group label> · <variant label> · <index>/<count>`, for example `Feature list · Field cards · 2/3`. This makes it obvious which parts of the page are still undecided. In show-all mode, a group gets one frame with a `Feature list · all 3` tab, plus a thin dashed separator between stacked variants and a small `<variant label> · <index>/<count>` chip for each one.
+
+All outlines are drawn by one shared overlay, which lays them out together in a single pass per animation frame:
+
+- **Nested groups** (a `<Variants>` inside another's `<Variant>`) step outward 4px per nesting level, so both frames stay visible.
+- **Adjacent siblings** have their touching sides pulled toward their own content (half the gap, keeping at least 2px between strokes), so strokes never cross.
+- **Tabs** are placed greedily in reading order. Each tab sits just above its frame and slides right along the edge past other tabs and in-page captions. It moves inside the frame only when there's no room above, for example at the top of the viewport.
+- **Updates:** layout reruns on resize, scroll, `ResizeObserver` and `MutationObserver`. It only writes to the DOM when a measured rectangle changes.
+
+**Hover:** pointing at a variant identifies it. With outlines on, the frame under the pointer gets a stronger stroke. With outlines off, everything stays invisible until you hover a region; then its frame and tab fade in. When groups are nested, the innermost one wins. In show-all mode, the chip of the hovered variant is highlighted. Hover is detected with an animation-frame-throttled hit test on `pointermove` against the measured rectangles, so the overlay itself never intercepts the pointer.
 
 The outline doesn't change the layout you're judging:
 
 - It's drawn in a separate overlay: a `position: fixed`, `pointer-events: none` layer in its own shadow root appended to `document.body`.
 - Nothing is added to the content and no styles are changed on it. The only wrappers are the `display: contents` elements described under [DOM hooks](#dom-hooks).
-- The box is measured from the union of the variant's rendered boxes, looking through nested `display: contents` elements. It updates with `ResizeObserver`, `MutationObserver`, scroll, and resize.
-- Grid and flex children keep their placement.
-- The dashes are static, so there's no motion to reduce.
-- Only the tab accepts clicks. Clicking it focuses the group in the switcher, expanding the switcher if it's collapsed. The tab is skipped in the page's tab order (`tabindex="-1"`). Keyboard users reach the same controls through the switcher.
+- Frames are measured from the union of the variant's rendered boxes, looking through nested `display: contents` elements. Grid and flex children keep their placement.
+- The dashes are static. Fades and color changes take 150ms and only run when `prefers-reduced-motion` allows it.
+- Only the tabs and chips accept clicks. Clicking one focuses the group in the switcher, expanding the switcher if it's collapsed. Tabs are skipped in the page's tab order (`tabindex="-1"`). Keyboard users reach the same controls through the switcher.
 
-There are three ways to turn the outline off. The `data-variant*` attributes stay either way.
+Outlines have three settings. The `data-variant*` attributes stay either way.
 
-- `outline={false}` on a `<Variants>` turns it off for that group.
-- The **Outline** toggle in the switcher turns it off for every group on the page. The choice is remembered per tab in `sessionStorage`.
-- `?variants=clean` hides outlines and the switcher, for screenshots.
+- `outline={false}` on a `<Variants>` makes that group hover-only.
+- The **Outline** toggle in the switcher makes every group hover-only. The choice is remembered per tab in `sessionStorage`.
+- `?variants=clean` removes outlines, hover labels and the switcher, for screenshots.
 
 The outline renders wherever `<Variants>` renders. A production build only renders it under the escape hatch, where it stays on, because previews are exactly where reviewers need to see what's undecided.
 
 ### The switcher
 
-The switcher mounts once per page, as soon as a `<Variants>` mounts, and goes away when the last one unmounts. It renders into a shadow root attached to `document.body`, so the page's CSS can't restyle it and its CSS can't leak into the layout you're judging. It's monochrome, uses the system font stack, follows `prefers-color-scheme`, and only animates when `prefers-reduced-motion` allows it.
+The switcher mounts once per page, as soon as a `<Variants>` mounts, and goes away when the last one unmounts. It renders into a shadow root attached to `document.body`, so the page's CSS can't restyle it and its CSS can't leak into the layout you're judging.
 
-- Each group is a labelled `role="group"` with a segmented control of `aria-pressed` buttons, plus an **All** toggle.
-- Keyboard: focus a group (or any button in it) and press <kbd>←</kbd>/<kbd>→</kbd> to cycle variants, or <kbd>A</kbd> to toggle show-all.
-- **Show all** in the header toggles `?variants=all`; **Outline** toggles the outlines; the **–** button collapses the panel (remembered per tab).
+Its look:
+
+- Neutral grays with a single amber accent, which marks active toggles, the status dot and focus rings.
+- System UI font at 12px with tabular numbers.
+- Light and dark themes that follow `prefers-color-scheme`.
+- 150ms transitions, only when `prefers-reduced-motion` allows them.
+
+Its controls:
+
+- **Groups:** each group is a labelled `role="group"`, with a 28px segmented control of `aria-pressed` buttons. A filled thumb slides to the active variant and spans the whole track in show-all mode. Next to it, a layers icon button toggles show-all for that group.
+- **Keyboard:** focus a group (or any button in it) and press <kbd>←</kbd>/<kbd>→</kbd> to cycle variants, or <kbd>A</kbd> to toggle show-all. A footer shows these hints.
+- **Header:** icon buttons, each with a tooltip and an `aria-label`, toggle **Show all** (`?variants=all`) and **Outline**, move the switcher between the bottom-right and bottom-left corners, and collapse it into a small `Variants · N` pill. The corner and collapsed state are remembered per tab.
 
 ### DOM hooks
 

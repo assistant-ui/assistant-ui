@@ -19,6 +19,7 @@ export type Snapshot = {
   hideUI: boolean;
   clean: boolean;
   collapsed: boolean;
+  dock: "left" | "right";
   outline: boolean;
   focus: { group: string; seq: number } | undefined;
 };
@@ -34,6 +35,7 @@ export type Store = {
   toggleGlobalAll: () => void;
   setCollapsed: (collapsed: boolean) => void;
   setOutline: (outline: boolean) => void;
+  setDock: (dock: "left" | "right") => void;
   focusGroup: (group: string) => void;
   reset: () => void;
 };
@@ -47,6 +49,7 @@ const INITIAL: Snapshot = Object.freeze({
   hideUI: false,
   clean: false,
   collapsed: false,
+  dock: "right",
   outline: true,
   focus: undefined,
 });
@@ -54,6 +57,7 @@ const INITIAL: Snapshot = Object.freeze({
 export const storageKey = (group: string) => `${NAME}:${group}`;
 export const COLLAPSED_KEY = `${NAME}:ui-collapsed`;
 export const OUTLINE_KEY = `${NAME}:outline`;
+export const DOCK_KEY = `${NAME}:ui-dock`;
 
 const storage = {
   get(key: string): string | undefined {
@@ -198,6 +202,7 @@ export const createStore = (mountUI?: MountUI): Store => {
         next.clean = url.clean;
         next.collapsed = storage.get(COLLAPSED_KEY) === "1";
         next.outline = storage.get(OUTLINE_KEY) !== "0";
+        next.dock = storage.get(DOCK_KEY) === "left" ? "left" : "right";
         if (hasWindow()) window.addEventListener("popstate", onPopState);
       }
       const selection = loadSelection(meta, url);
@@ -254,6 +259,10 @@ export const createStore = (mountUI?: MountUI): Store => {
     setOutline(outline) {
       storage.set(OUTLINE_KEY, outline ? undefined : "0");
       emit({ outline });
+    },
+    setDock(dock) {
+      storage.set(DOCK_KEY, dock === "left" ? "left" : undefined);
+      emit({ dock });
     },
     focusGroup(group) {
       storage.set(COLLAPSED_KEY, undefined);

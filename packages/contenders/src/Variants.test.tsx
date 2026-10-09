@@ -8,8 +8,14 @@ import {
 import { lazy, StrictMode, type ComponentType, type ReactNode } from "react";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { OUTLINE_ATTRIBUTE } from "./outline";
-import { createStore, OUTLINE_KEY, storageKey, type Store } from "./store";
+import { flushOutlines, OUTLINE_ATTRIBUTE } from "./outline";
+import {
+  createStore,
+  DOCK_KEY,
+  OUTLINE_KEY,
+  storageKey,
+  type Store,
+} from "./store";
 import { mountSwitcher, SWITCHER_ATTRIBUTE } from "./switcher";
 import { StoreContext, Variant, Variants } from "./Variants";
 
@@ -221,15 +227,51 @@ describe("switcher", () => {
 
   it("toggles the group and global show-all buttons", () => {
     const { container } = renderWithStore(<Hero />);
-    fireEvent.click(switcher().ui.getByRole("button", { name: "All" }));
+    fireEvent.click(
+      switcher().ui.getByRole("button", { name: "Show all variants" }),
+    );
     expect(shown(container)).toEqual(["a", "b", "c"]);
-    fireEvent.click(switcher().ui.getByRole("button", { name: "All" }));
+    fireEvent.click(
+      switcher().ui.getByRole("button", { name: "Show all variants" }),
+    );
     expect(shown(container)).toEqual(["a"]);
     expect(window.location.search).toBe("?variant=hero:a");
 
     fireEvent.click(switcher().ui.getByRole("button", { name: "Show all" }));
     expect(shown(container)).toEqual(["a", "b", "c"]);
     expect(window.location.search).toBe("?variant=hero:a&variants=all");
+  });
+
+  it("docks to either bottom corner and remembers it", () => {
+    renderWithStore(<Hero />);
+    expect(switcher().host.dataset["dock"]).toBe("right");
+    fireEvent.click(
+      switcher().ui.getByRole("button", {
+        name: "Move to the bottom-left corner",
+      }),
+    );
+    expect(switcher().host.dataset["dock"]).toBe("left");
+    expect(window.sessionStorage.getItem(DOCK_KEY)).toBe("left");
+
+    cleanup();
+    store.reset();
+    renderWithStore(<Hero />);
+    expect(switcher().host.dataset["dock"]).toBe("left");
+    fireEvent.click(
+      switcher().ui.getByRole("button", {
+        name: "Move to the bottom-right corner",
+      }),
+    );
+    expect(window.sessionStorage.getItem(DOCK_KEY)).toBeNull();
+  });
+
+  it("keeps switcher elements across state changes so transitions run", () => {
+    renderWithStore(<Hero />);
+    const before = switcher().ui.getByRole("button", { name: "Split" });
+    fireEvent.click(before);
+    const after = switcher().ui.getByRole("button", { name: "Split" });
+    expect(after).toBe(before);
+    expect(after.getAttribute("aria-pressed")).toBe("true");
   });
 
   it("collapses and hides with ?variants=noui", () => {
@@ -368,29 +410,149 @@ describe("production guard", () => {
 describe("outline", () => {
   const outlineRoot = () =>
     document.querySelector(`[${OUTLINE_ATTRIBUTE}]`)?.shadowRoot ?? null;
-  const labels = () =>
-    Array.from(outlineRoot()?.querySelectorAll(".box button") ?? []).map(
-      (button) => button.textContent,
+  const texts = (selector: string) =>
+    Array.from(outlineRoot()?.querySelectorAll(selector) ?? []).map(
+      (element) => element.textContent,
     );
+  const tab = () => outlineRoot()!.querySelector<HTMLElement>(".tab")!;
 
-  it("outlines the active variant by default with a group · variant · index label", () => {
-    renderWithStore(<Hero default="b" />);
-    expect(labels()).toEqual(["Hero · Split · 2/3"]);
+  const rects: Record<string, Partial<DOMRect>> = {};
+  const zero = { top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0 };
+  const box = (top: number, left: number, right: number, bottom: number) => ({
+    top,
+    left,
+    right,
+    bottom,
+    width: right - left,
+    height: bottom - top,
+  });
+  let rectSpy: { mockRestore: () => void } | undefined;
+  beforeEach(() => {
+    for (const key of Object.keys(rects)) delete rects[key];
+    rectSpy = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: HTMLElement) {
+        return (rects[this.id] ?? zero) as DOMRect;
+      });
+  });
+  afterEach(() => {
+    rectSpy?.mockRestore();
   });
 
-  it("outlines each variant in show-all mode", () => {
+  const hover = (x: number, y: number) => {
+    act(() => {
+      window.dispatchEvent(
+        new MouseEvent("pointermove", { clientX: x, clientY: y }),
+      );
+      flushOutlines();
+    });
+  };
+
+  it("outlines the active variant by default with a group · variant · index tab", () => {
+    renderWithStore(<Hero default="b" />);
+    expect(texts(".tab")).toEqual(["Hero · Split · 2/3"]);
+    expect(tab().dataset["mode"]).toBe("always");
+  });
+
+  it("draws one group frame with per-variant chips in show-all mode", () => {
     setUrl("?variant=hero:all");
     renderWithStore(<Hero />);
-    expect(labels()).toEqual([
-      "Hero · Big headline · 1/3",
-      "Hero · Split · 2/3",
-      "Hero · c · 3/3",
+    expect(texts(".box")).toHaveLength(1);
+    expect(texts(".tab")).toEqual(["Hero · all 3"]);
+    expect(texts(".chip")).toEqual([
+      "Big headline · 1/3",
+      "Split · 2/3",
+      "c · 3/3",
     ]);
+    expect(texts(".sep")).toHaveLength(2);
   });
 
-  it("is off with outline={false}", () => {
-    renderWithStore(<Hero outline={false} />);
-    expect(outlineRoot()).toBeNull();
+  it("only reveals the tab on hover with outline={false}", () => {
+    rects["a1"] = box(100, 0, 200, 150);
+    renderWithStore(
+      <Variants id="g" label="Group" outline={false}>
+        <Variant id="x" label="X">
+          <p id="a1">x</p>
+        </Variant>
+      </Variants>,
+    );
+    act(() => flushOutlines());
+    expect(tab().dataset["mode"]).toBe("hover");
+    expect(tab().hasAttribute("data-hover")).toBe(false);
+    hover(50, 120);
+    expect(tab().hasAttribute("data-hover")).toBe(true);
+    expect(tab().textContent).toBe("Group · X · 1/1");
+    hover(500, 500);
+    expect(tab().hasAttribute("data-hover")).toBe(false);
+  });
+
+  it("follows switches, keeps hover over the tab, and clears on pointerleave", async () => {
+    rects["h1"] = box(100, 0, 200, 150);
+    rects["h2"] = box(100, 0, 200, 150);
+    renderWithStore(
+      <Variants id="g" label="G" outline={false}>
+        <Variant id="x" label="X">
+          <p id="h1">x</p>
+        </Variant>
+        <Variant id="y" label="Y">
+          <p id="h2">y</p>
+        </Variant>
+      </Variants>,
+    );
+    act(() => flushOutlines());
+    hover(50, 120);
+    expect(tab().hasAttribute("data-hover")).toBe(true);
+
+    tab().id = "tab";
+    rects["tab"] = box(70, 0, 120, 90);
+    hover(10, 80);
+    expect(tab().hasAttribute("data-hover")).toBe(true);
+
+    act(() => {
+      document.documentElement.dispatchEvent(new Event("pointerleave"));
+    });
+    expect(tab().hasAttribute("data-hover")).toBe(false);
+
+    fireEvent.click(switcher().ui.getByRole("button", { name: "Y" }));
+    expect(texts(".tab")).toEqual(["G · Y · 2/2"]);
+
+    window.dispatchEvent(
+      new MouseEvent("pointermove", { clientX: 50, clientY: 120 }),
+    );
+    window.dispatchEvent(new Event("resize"));
+    await act(
+      () =>
+        new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
+    );
+    expect(tab().hasAttribute("data-hover")).toBe(true);
+  });
+
+  it("identifies the hovered variant in show-all mode", () => {
+    rects["s1"] = box(0, 0, 100, 40);
+    rects["s2"] = box(60, 0, 100, 100);
+    setUrl("?variant=g:all");
+    renderWithStore(
+      <Variants id="g">
+        <Variant id="x">
+          <p id="s1">x</p>
+        </Variant>
+        <Variant id="y">
+          <p id="s2">y</p>
+        </Variant>
+      </Variants>,
+    );
+    hover(50, 80);
+    const active = Array.from(
+      outlineRoot()!.querySelectorAll(".chip[data-active]"),
+    ).map((chip) => chip.textContent);
+    expect(active).toEqual(["y · 2/2"]);
+
+    fireEvent.click(
+      outlineRoot()!.querySelector<HTMLElement>(".chip[data-active]")!,
+    );
+    expect(
+      switcher().host.shadowRoot?.activeElement?.getAttribute("data-key"),
+    ).toBe("group:g");
   });
 
   it("is off with ?variants=clean, which also hides the switcher", () => {
@@ -405,32 +567,30 @@ describe("outline", () => {
     ).toBe("Big headline");
   });
 
-  it("toggles from the switcher and persists the choice", () => {
+  it("toggles from the switcher to hover-only and persists the choice", () => {
     renderWithStore(<Hero />);
     const toggle = switcher().ui.getByRole("button", { name: "Outline" });
     expect(toggle.getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(toggle);
-    expect(outlineRoot()).toBeNull();
+    expect(tab().dataset["mode"]).toBe("hover");
     expect(window.sessionStorage.getItem(OUTLINE_KEY)).toBe("0");
 
     cleanup();
     store.reset();
     renderWithStore(<Hero />);
-    expect(outlineRoot()).toBeNull();
+    expect(tab().dataset["mode"]).toBe("hover");
     fireEvent.click(switcher().ui.getByRole("button", { name: "Outline" }));
-    expect(labels()).toEqual(["Hero · Big headline · 1/3"]);
+    expect(tab().dataset["mode"]).toBe("always");
     expect(window.sessionStorage.getItem(OUTLINE_KEY)).toBeNull();
   });
 
-  it("focuses the group in the switcher when the label is clicked", () => {
+  it("focuses the group in the switcher when the tab is clicked", () => {
     renderWithStore(<Hero />);
     fireEvent.click(
       switcher().ui.getByRole("button", { name: "Collapse variant switcher" }),
     );
-    const label =
-      outlineRoot()!.querySelector<HTMLButtonElement>(".box button")!;
-    expect(label.tabIndex).toBe(-1);
-    fireEvent.click(label);
+    expect(tab().tabIndex).toBe(-1);
+    fireEvent.click(tab());
     const { host } = switcher();
     expect(host.shadowRoot?.activeElement?.getAttribute("role")).toBe("group");
     expect(host.shadowRoot?.activeElement?.getAttribute("aria-label")).toMatch(
@@ -440,7 +600,7 @@ describe("outline", () => {
 
   it("adds no layout-affecting styles or elements to the content", () => {
     const { container } = renderWithStore(
-      <div style={{ display: "grid" }} data-testid="grid">
+      <div style={{ display: "grid" }}>
         <Hero />
       </div>,
     );
@@ -454,62 +614,42 @@ describe("outline", () => {
     expect(outlineRoot()).not.toBeNull();
   });
 
-  it("positions the box around the union of the variant's boxes", () => {
-    const rects: Record<string, Partial<DOMRect>> = {
-      first: {
-        top: 100,
-        left: 20,
-        right: 220,
-        bottom: 140,
-        width: 200,
-        height: 40,
-      },
-      second: {
-        top: 150,
-        left: 10,
-        right: 120,
-        bottom: 300,
-        width: 110,
-        height: 150,
-      },
-    };
-    const spy = vi
-      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
-      .mockImplementation(function (this: HTMLElement) {
-        return (rects[this.id] ?? {
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          width: 0,
-          height: 0,
-        }) as DOMRect;
-      });
-    try {
-      setUrl("?variant=g:all");
-      renderWithStore(
-        <Variants id="g">
-          <Variant id="x">
-            <div style={{ display: "contents" }}>
-              <p id="first">1</p>
-            </div>
-            <p id="second">2</p>
-          </Variant>
-          <Variant id="empty">{null}</Variant>
-        </Variants>,
-      );
-      const boxes = Array.from(
-        outlineRoot()!.querySelectorAll<HTMLElement>(".box"),
-      );
-      expect(boxes[0]!.style.top).toBe("96px");
-      expect(boxes[0]!.style.left).toBe("6px");
-      expect(boxes[0]!.style.width).toBe("218px");
-      expect(boxes[0]!.style.height).toBe("208px");
-      expect(boxes[0]!.hasAttribute("data-empty")).toBe(false);
-      expect(boxes[1]!.hasAttribute("data-empty")).toBe(true);
-    } finally {
-      spy.mockRestore();
-    }
+  it("frames the union of the variant's boxes and steps nested groups apart", () => {
+    rects["outer1"] = box(100, 20, 220, 140);
+    rects["outer2"] = box(150, 10, 120, 300);
+    rects["inner"] = box(160, 20, 100, 200);
+    renderWithStore(
+      <Variants id="outer">
+        <Variant id="x">
+          <div style={{ display: "contents" }}>
+            <p id="outer1">1</p>
+          </div>
+          <div id="outer2">
+            <Variants id="inner">
+              <Variant id="y">
+                <p id="inner">2</p>
+              </Variant>
+            </Variants>
+          </div>
+        </Variant>
+      </Variants>,
+    );
+    act(() => flushOutlines());
+    const boxes = Array.from(
+      outlineRoot()!.querySelectorAll<HTMLElement>(".box"),
+    ).map((element) => [
+      element.style.top,
+      element.style.left,
+      element.style.width,
+      element.style.height,
+    ]);
+    expect(boxes).toHaveLength(2);
+    expect(boxes).toEqual(
+      expect.arrayContaining([
+        ["93px", "3px", "224px", "214px"],
+        ["157px", "17px", "86px", "46px"],
+      ]),
+    );
   });
 
   it("removes the layer with the last outlined region", () => {

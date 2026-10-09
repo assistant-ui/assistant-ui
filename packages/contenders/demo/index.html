@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Variants demo</title>
     <style>
+      :root {
+        color-scheme: light dark;
+      }
       body {
         font-family: system-ui, sans-serif;
         max-width: 960px;
@@ -17,9 +20,24 @@
         gap: 16px;
       }
       .card {
-        border: 1px solid #ddd;
+        border: 1px solid light-dark(#ddd, #333);
         border-radius: 12px;
         padding: 16px;
+      }
+      .card.filled {
+        border-color: transparent;
+        background: light-dark(#f4f4f5, #27272a);
+      }
+      .row {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: center;
+        gap: 12px;
+        margin-top: 32px;
+      }
+      .note {
+        margin: 0;
+        opacity: 0.7;
       }
     </style>
   </head>

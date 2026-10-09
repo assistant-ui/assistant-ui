@@ -6,6 +6,7 @@ import {
   isValidElement,
   useContext,
   useEffect,
+  useId,
   useRef,
   useSyncExternalStore,
   type CSSProperties,
@@ -14,7 +15,7 @@ import {
 } from "react";
 import { assertAllowed, isDev } from "./guard";
 import { LOG_PREFIX } from "./name";
-import { trackRegion } from "./outline";
+import { trackRegion, type RegionInfo } from "./outline";
 import { createStore, resolveGroup, type GroupMeta, type Store } from "./store";
 import { mountSwitcher } from "./switcher";
 import { ALL } from "./url";
@@ -48,13 +49,15 @@ const contents: CSSProperties = { display: "contents" };
 const captionStyle: CSSProperties = {
   display: "block",
   boxSizing: "border-box",
-  margin: "16px 0 6px",
-  padding: "4px 0 0",
-  borderTop: "1px dashed #a3a3a3",
-  color: "#737373",
-  font: "11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace",
+  width: "fit-content",
+  margin: "24px 0 8px",
+  padding: 0,
+  color: "color-mix(in srgb, currentColor 60%, transparent)",
+  font: '500 11px/16px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif',
+  fontVariantNumeric: "tabular-nums",
   letterSpacing: 0,
   textAlign: "left",
+  textTransform: "none",
 };
 
 const InsideVariants = createContext(false);
@@ -203,8 +206,10 @@ export function Variants({
 
   const shown = showAll ? items : items.filter((item) => item.id === activeId);
 
+  const instance = useId();
   const groupLabel = label ?? id;
-  const showOutline = outline && snapshot.outline && !snapshot.clean;
+  const outlineMode =
+    outline && snapshot.outline ? ("always" as const) : ("hover" as const);
 
   return (
     <div
@@ -226,10 +231,18 @@ export function Variants({
                     : `${id} · ${item.id} · ${item.label}`
                   : undefined
               }
-              outlineLabel={
-                showOutline
-                  ? `${groupLabel} · ${item.label} · ${index}/${items.length}`
-                  : undefined
+              outline={
+                snapshot.clean
+                  ? undefined
+                  : {
+                      instance,
+                      group: groupLabel,
+                      variant: item.label,
+                      position: `${index}/${items.length}`,
+                      count: items.length,
+                      showAll,
+                      mode: outlineMode,
+                    }
               }
               onActivate={() => store.focusGroup(id)}
             />
@@ -243,12 +256,12 @@ export function Variants({
 function Region({
   item,
   caption,
-  outlineLabel,
+  outline,
   onActivate,
 }: {
   item: Item;
   caption: string | undefined;
-  outlineLabel: string | undefined;
+  outline: Omit<RegionInfo, "onActivate"> | undefined;
   onActivate: () => void;
 }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -256,14 +269,15 @@ function Region({
   useEffect(() => {
     activate.current = onActivate;
   });
+  const outlineKey = outline && JSON.stringify(outline);
   useEffect(() => {
     const wrapper = ref.current;
-    if (outlineLabel === undefined || !wrapper) return;
+    if (outlineKey === undefined || !wrapper) return;
     return trackRegion(wrapper, {
-      label: outlineLabel,
+      ...(JSON.parse(outlineKey) as Omit<RegionInfo, "onActivate">),
       onActivate: () => activate.current(),
     });
-  }, [outlineLabel]);
+  }, [outlineKey]);
 
   return (
     <div
