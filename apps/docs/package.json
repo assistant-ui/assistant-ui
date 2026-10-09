@@ -38,7 +38,6 @@
     "@assistant-ui/react-syntax-highlighter": "workspace:*",
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
-    "@assistant-ui/variants": "workspace:*",
     "@aui-x/prism": "^0.0.5",
     "@base-ui/react": "^1.8.0",
     "@hookform/resolvers": "^5.9.1",
@@ -122,6 +121,7 @@
   },
   "devDependencies": {
     "@assistant-ui/shadcn-registry": "workspace:*",
+    "@assistant-ui/variants": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@fumadocs/tailwind": "^0.1.2",
     "@next/env": "^16.4.0",

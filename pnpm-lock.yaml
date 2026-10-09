@@ -401,9 +401,6 @@ importers:
       '@assistant-ui/ui':
         specifier: workspace:*
         version: link:../../packages/ui
-      '@assistant-ui/variants':
-        specifier: workspace:*
-        version: link:../../packages/variants
       '@aui-x/prism':
         specifier: ^0.0.5
         version: 0.0.5(@ai-sdk/provider@4.0.24)(@anthropic-ai/sdk@0.122.0(zod@4.6.5))(ai@7.0.130(zod@4.6.5))(openai@7.30.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/signature-v4@5.7.4)(undici@8.11.2)(ws@8.22.0)(zod@4.6.5))
@@ -648,6 +645,9 @@ importers:
       '@assistant-ui/shadcn-registry':
         specifier: workspace:*
         version: link:../registry
+      '@assistant-ui/variants':
+        specifier: workspace:*
+        version: link:../../packages/variants
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../../packages/x-buildutils
