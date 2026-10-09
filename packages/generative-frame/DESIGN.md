@@ -79,7 +79,7 @@ Nothing in the core imports assistant-ui. The React binding depends only on Reac
 
 ## Stage 1 implementation notes
 
-Built: core (`createWidget`, `previewWidget`, `buildBootstrapHtml`, `buildCsp`, theme helpers, runtime), `/react`, `/tools`, `/prompts`, `/repair`. Not yet built: `render_spec`/`spec`, `agent`, and the `assistant-ui` entry (stage 2).
+Built: core (`createWidget`, `previewWidget`, `buildBootstrapHtml`, `buildCsp`, theme helpers, runtime), `/react`, `/tools`, `/prompts`, `/repair`. Stage 2 added the rest; see below.
 
 Deviations from the sections above, with reasons:
 
@@ -93,3 +93,22 @@ Deviations from the sections above, with reasons:
 - **Widget state** (`genframe.setState`, `window.openai.setWidgetState`) is a `genframe/widget-state` notification handled by `onWidgetState`.
 - **Streaming morph** matches children by position, tag, and `id`, with one node of lookahead for single insertions and deletions. A trailing unclosed `<style>` is held back until it closes. After held scripts run, the runtime dispatches `DOMContentLoaded` and `load` once, for widgets written for a fresh page.
 
+
+## Stage 2 implementation notes
+
+Built: `spec` (+ `SpecRenderer`/`useSpecStream` in `/react`, `render_spec` and the `spec` read_me module in `/tools`), `agent`, and `assistant-ui`. Also fixed in-frame screenshots clipping the right edge.
+
+Deviations and decisions:
+
+- **Screenshot defaults come from a shadow root.** Default styles used to be probed in the frame document, so rules such as `*{box-sizing:border-box}` and element margins counted as defaults and were dropped from the clone, which then grew past the right edge. Probes now live in a closed shadow root that document rules cannot reach, and the capture is the root's full scroll size at its layout width.
+- **Spec format.** Elements are `{ type, props, children, slots?, visible?, repeat: { path, key? }, on: { event: action }, watch: { pointer: action } }`. Named slots are an addition; `"default"` is `children`. Catalog components declare `slots` and `events`, so the validator can reject children and event bindings a component does not support. Patch lines may also be an array of operations or a whole spec. Bad lines are skipped and reported rather than aborting the stream. In inline mode, patches sit in a ```spec fence or on bare `{"op"` lines.
+- **Expressions** add `$bindItem` (two-way binding inside `repeat`) and `$event` (the payload of the event that triggered an action) to the json-render-style set. Templates use `${/pointer}`. Unknown condition shapes evaluate to false, so half-streamed conditions hide rather than throw.
+- **State.** `createStateStore().seed(state)` replaces the model-provided base and re-applies user writes, so state streamed later never discards what the user changed.
+- **Validation is JSON Schema only, in-house.** A small validator covers the subset the catalog needs; expression values are placeholders. A Standard Schema is used through its own `validate` (skipped when a value contains an expression) and its `~standard.jsonSchema` for prompts.
+- **`render_spec` input** is `{ title, patches?, spec? }`. Patches on a known title apply to that title's previous spec, which makes repairs small; the result carries `issues` and a `feedback` text.
+- **The agent** owns its loop rather than reusing `repairLoop`, because it must stream tool-call deltas into the sink while the model writes and forward feedback as tool results. Only the first `show_widget` streams; later full re-emits replace once complete, since a frame cannot restart a stream after its scripts ran. Without a `preview`, it checks the sink's `inspect()` after `settleMs`. `tools` takes a `createWidgetTools()` instance (to share the registry and catalog) and `extraTools` adds data tools; the brief named `tools?` in the original sketch maps to these two.
+- **Tool-call deltas** are parsed with a small partial JSON parser in `/agent`, keeping the package dependency-free instead of importing `assistant-stream`.
+- **assistant-ui.** `createWidgetToolkit()` returns `{ toolkit, tools, registry }` with frontend toolkit entries by default (`execution: "backend"` renders only). Renderers derive their state from the thread (`resolveWidgetCode`, `resolveSpecBase`) instead of the in-memory registry, so edits and spec patches render after a reload; the registry is synced from rendered calls so `edit_widget` executes after a reload too. Theme tokens are read shadcn-first because Tailwind v4 aliases `--color-accent` to shadcn's muted `--accent`. Bare HSL channels from older shadcn themes are wrapped in `hsl()` in core. Instructions go through `useAssistantInstructions`; servers can use `getToolDeclarations` and `buildWidgetInstructions` from `/tools`.
+- **Demo.** The demo pre-bundles `@assistant-ui/react` in Vite, because workspace packages are not pre-bundled and `@assistant-ui/tap`'s React shim re-exports CommonJS React. `LocalRuntime` adapters run frontend tools themselves, so the fake adapter in the thread demo executes `context.tools` before ending with `requires-action`.
+
+Not built yet (stage 3): the landing page and docs site in the docs app; reporting live render errors from the assistant-ui `show_widget` back to the model (the frontend tool result does not wait for the frame); `preview_widget` in the assistant-ui toolkit.

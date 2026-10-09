@@ -77,7 +77,7 @@ const toModelMessages = (messages: readonly AgentMessage[]) =>
  *
  * ```ts
  * import { jsonSchema, streamText } from "ai";
- * const model = fromAISDK({ streamText, jsonSchema, model: openai("gpt-5") });
+ * const model = fromAISDK({ streamText, jsonSchema, model: yourModel });
  * ```
  */
 export function fromAISDK<Schema>(

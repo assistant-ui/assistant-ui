@@ -6,9 +6,23 @@ Render model-generated HTML and SVG widgets safely while they stream. Each widge
 - **Host bridge**: widgets call `sendPrompt(text)`, `openLink(url)`, and `genframe.callTool(name, args)`. The frame speaks the MCP Apps `ui/*` JSON-RPC protocol, so MCP Apps widgets work too, and `compat: ["openai"]` adds a `window.openai` subset.
 - **Theming**: your page's theme (shadcn/ui variables or the canonical tokens) becomes CSS variables in the frame, also under the MCP Apps standard names, and updates live.
 - **Diagnostics**: errors, unhandled rejections, console output, failed resources, CSP violations, and blank renders, plus a PNG screenshot taken inside the frame.
-- **Model side**: provider-agnostic tool definitions (`read_me`, `show_widget`, `edit_widget`, `preview_widget`), a deterministic guidance generator, and a repair loop.
+- **Model side**: provider-agnostic tool definitions (`read_me`, `show_widget`, `edit_widget`, `preview_widget`, `render_spec`), a deterministic guidance generator, and a repair loop.
+- **Spec mode**: the model streams JSONL patches against a catalog of your own components; no frame, your design system.
+- **Delegation**: an optional sub-agent behind one `generate_widget` tool, with a provider-neutral model interface.
+- **assistant-ui**: toolkit entries that render the tool calls in a thread as their arguments stream.
 
-Framework-agnostic; the React binding is optional.
+Framework-agnostic; the React and assistant-ui bindings are optional.
+
+| Entry | Contents |
+| --- | --- |
+| `generative-frame` | `createWidget`, `previewWidget`, theme, CSP, runtime |
+| `generative-frame/react` | `<Widget>`, `useWidget`, `useThemeTokens`, `<SpecRenderer>`, `useSpecStream` |
+| `generative-frame/tools` | model tools, `toAISDKTools`, `getToolDeclarations`, `buildWidgetInstructions` |
+| `generative-frame/prompts` | `buildWidgetGuidance` |
+| `generative-frame/repair` | `repairLoop` |
+| `generative-frame/spec` | `defineCatalog`, `createSpecStream`, `applyPatch`, `validateSpec`, expressions, state, actions |
+| `generative-frame/agent` | `createWidgetAgent`, `fromAISDK` |
+| `generative-frame/assistant-ui` | `createWidgetToolkit`, `useWidgetInstructions`, `useAssistantUiThemeTokens` |
 
 ## Installation
 
@@ -106,6 +120,112 @@ const { code, ok } = await repairLoop({
 
 `generate` returns new code or `{ edits }`. Feedback lists errors with locations, a console excerpt, a blank-render flag, and optionally the screenshot.
 
+## Spec mode
+
+For UI built from your own components, the model writes a flat spec (`{ root, elements: { id: { type, props, children } }, state }`) as RFC 6902 JSON Patch operations, one per line, against a catalog you define. Nothing runs in a frame: your components render it.
+
+```ts
+import { defineCatalog } from "generative-frame/spec";
+
+export const catalog = defineCatalog({
+  components: {
+    Card: {
+      description: "A titled panel.",
+      props: { type: "object", properties: { title: { type: "string" } }, required: ["title"] },
+      slots: ["default", "footer"],
+    },
+    Button: {
+      description: "A button.",
+      props: { type: "object", properties: { label: { type: "string" } }, required: ["label"] },
+      events: ["press"],
+    },
+  },
+  actions: {
+    refresh: { description: "Reloads the data.", params: { type: "object", properties: { range: { type: "string" } } } },
+  },
+});
+
+const guidance = catalog.prompt({ mode: "inline" }); // or "standalone" for render_spec
+```
+
+Props are JSON Schema; a Standard Schema that exposes JSON Schema (Zod 4) works too. `catalog.prompt()` documents the components, actions, the patch protocol, expressions, and rules.
+
+```tsx
+import { SpecRenderer, useSpecStream } from "generative-frame/react";
+
+const { spec, text } = useSpecStream({ source: modelOutput, mode: "inline", complete: !streaming });
+
+<SpecRenderer
+  spec={spec}
+  catalog={catalog}
+  components={{ Card: ({ props, children }) => <section><h2>{props.title}</h2>{children}</section>, Button: ({ props, emit }) => <button onClick={() => emit("press")}>{props.label}</button> }}
+  handlers={{ refresh: ({ range }, { state }) => state.set("/rows", load(range)) }}
+  streaming={streaming}
+/>;
+```
+
+- **Streaming**: `createSpecStream()` (and `useSpecStream`) apply each complete line as it arrives, skip and report bad lines, and in `inline` mode separate prose from patches (in a ```spec fence or bare `{"op"` lines). Children that have not arrived render as pending; unknown types, invalid props, cycles, and components that throw render a small placeholder.
+- **Expressions**: `{ $state: "/path" }`, `{ $bindState: "/path" }` (two-way, via `setProp`), `{ $template: "Hi ${/name}" }`, `{ $cond, $then, $else }`, and `$item`/`$bindItem`/`$index` inside `repeat`. `visible` takes conditions with `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `not`, `$and`, `$or`, and arrays (all).
+- **Actions**: `on: { press: { action, params } }` runs the built-in `setState` or a catalog action through your handlers; `watch: { "/path": action }` runs when a state value changes. User changes to state survive the model streaming more state.
+- **Validation**: `validateSpec(spec, catalog)` returns issues with codes and JSON Pointers (`unknown-type`, `invalid-props`, `missing-child`, `cycle`, `unknown-action`, …); `formatSpecIssues` turns them into repair feedback.
+- **Tool**: `createWidgetTools({ catalog })` adds `render_spec({ title, patches | spec })`, which validates and returns the issues, and a `spec` module in `read_me`. Patches on a title already rendered apply to that spec, so repairs are small.
+
+The format follows the flat-spec and JSONL-patch shape of Vercel's json-render, without depending on it.
+
+## Delegated generation
+
+By default the main agent calls `show_widget` itself (inline): the fastest path, but every widget's guidance and code lands in its context. `generative-frame/agent` moves that into a sub-agent behind one tool:
+
+```ts
+import { createWidgetAgent, fromAISDK } from "generative-frame/agent";
+import { jsonSchema, streamText } from "ai";
+
+const agent = createWidgetAgent({
+  model: fromAISDK({ streamText, jsonSchema, model: yourModel }),
+  createSink: () => createWidget({ container }), // a WidgetHandle is a sink
+});
+
+// give agent.tool (generate_widget) to the main agent
+const result = await agent.tool.execute({ brief: "Signups by plan, 30 days", data });
+// { ok, title, mode, summary, errors, rounds }
+```
+
+The sub-agent runs `read_me` → `show_widget` (or `render_spec` with `mode: "spec"`) → checks the render (`preview`, or the sink's `inspect()`) → repairs with `edit_widget` or patches, up to `maxRounds` renders. Tool-call arguments stream into the sink as they arrive. The model is any function `(messages, { tools, signal }) => AsyncIterable<event>` with events `text-delta`, `tool-call-delta`, `tool-call`, and `finish`; `fromAISDK` adapts the AI SDK without making `ai` a dependency.
+
+Trade-offs: delegation keeps the main context small and lets a cheaper or specialized model draw, but adds at least one extra model call of latency, and the main agent only knows the widget through the brief and the summary.
+
+## assistant-ui
+
+`generative-frame/assistant-ui` needs `@assistant-ui/react` (an optional peer, imported only by this entry).
+
+```tsx
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { createWidgetToolkit, useWidgetInstructions } from "generative-frame/assistant-ui";
+
+const widgets = createWidgetToolkit({ catalog, components, widget: { maxHeight: 700 } });
+
+function Provider({ children }) {
+  const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit: widgets.toolkit }) });
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      <Instructions />
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+
+function Instructions() {
+  useWidgetInstructions(widgets.tools); // adds when-to-use rules to the system prompt
+  return null;
+}
+```
+
+- `show_widget` streams `widget_code` into a `<Widget>` from the partial tool arguments; `edit_widget` replays the edits from the thread, so history renders after a reload; `render_spec` streams patches into a `<SpecRenderer>`.
+- A widget's `sendPrompt(text)` appends a user message to the thread.
+- Frames follow the app's shadcn/ui theme (`useAssistantUiThemeTokens`).
+- The tools execute in the browser by default; the server forwards their schemas with `frontendTools(tools)` from `@assistant-ui/ai-sdk`. With `execution: "backend"`, run `toAISDKTools(createWidgetTools(), { jsonSchema })` on the server and the toolkit only renders. `getToolDeclarations` and `buildWidgetInstructions` from `generative-frame/tools` give a server the schemas and the instructions text.
+
 ## Limits
 
 - Screenshots serialize the DOM into an SVG `foreignObject`. Web fonts loaded by URL, cross-origin images without CORS, and pseudo-elements are not reproduced, and layout can drift by a few pixels.
@@ -113,4 +233,4 @@ const { code, ok } = await repairLoop({
 
 ## Development
 
-`src/runtime` is the code that runs inside the frame. `scripts/build-runtime.mjs` bundles it into `src/runtime/generated.ts` (gitignored) before `build`, `test`, and `typecheck`. `pnpm dev` serves a demo at `http://localhost:5199`; append `?auto` to run the scripted scenario, which saves screenshots to `.screenshots/`.
+`src/runtime` is the code that runs inside the frame. `scripts/build-runtime.mjs` bundles it into `src/runtime/generated.ts` (gitignored) before `build`, `test`, and `typecheck`. `pnpm dev` serves demos at `http://localhost:5199` (`/`, `/spec.html`, `/agent.html`, `/thread.html`); append `?auto` (and `&dark`) to run a scripted scenario, which saves screenshots and reports to `.screenshots/`. The agent and thread demos use recorded model streams, so they make no network model calls.
