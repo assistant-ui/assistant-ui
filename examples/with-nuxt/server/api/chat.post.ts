@@ -33,7 +33,6 @@ export default defineEventHandler(async (event) => {
     }),
   };
   const result = streamText({
-    abortSignal: event.web?.request?.signal,
     model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     system,
