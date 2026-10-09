@@ -101,16 +101,7 @@ function descriptions(node) {
 
 function insideImplementation(node) {
   for (let parent = node.parent; parent; parent = parent.parent) {
-    if (
-      ts.isBlock(parent) ||
-      ts.isAsExpression(parent) ||
-      ts.isSatisfiesExpression(parent) ||
-      ts.isTypeAssertionExpression(parent) ||
-      ts.isCallExpression(parent) ||
-      ts.isNewExpression(parent)
-    ) {
-      return true;
-    }
+    if (ts.isBlock(parent)) return true;
   }
   return false;
 }

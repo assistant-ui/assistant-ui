@@ -298,11 +298,13 @@ test("leaves declarations inside implementations out of the API", () => {
         "  return {} as { unstable_cast?: string };",
         "}",
         "export const read = (options: { unstable_option?: boolean }) => options;",
+        "export const Input = forwardRef<HTMLInputElement, { unstable_flag?: boolean }>(() => null);",
       ].join("\n"),
     ),
     [
       "src/index.ts:4 (unstable_tagged): a declaration inside an implementation is not API; remove the tag.",
       'src/index.ts:7 (unstable_option): experimental API without "@deprecated Experimental since <YYYY-MM-DD>. Not scheduled for removal; the API may change in any release.".',
+      'src/index.ts:8 (unstable_flag): experimental API without "@deprecated Experimental since <YYYY-MM-DD>. Not scheduled for removal; the API may change in any release.".',
     ],
   );
 });
