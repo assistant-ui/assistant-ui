@@ -826,8 +826,10 @@ export abstract class BaseComposerRuntimeCore
       await drainAttachmentAdd(
         adapter.add({ file: fileOrAttachment }),
         (attachment) => {
+          if (!upsertAttachment(attachment))
+            return !this._attachmentAddOperations.isCancelled(operation);
           lastAttachment = attachment;
-          return upsertAttachment(attachment);
+          return true;
         },
       );
     } catch (e) {

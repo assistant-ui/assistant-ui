@@ -3,6 +3,7 @@ import type { Attachment } from "../../types/attachment";
 export type AttachmentAddOperation = {
   cancelled: boolean;
   attachmentIds: Set<string>;
+  retainedIds?: ReadonlySet<string>;
 };
 
 export class AttachmentAddOperations {
@@ -26,6 +27,8 @@ export class AttachmentAddOperations {
     attachment: Pick<Attachment, "id" | "status">,
   ) {
     if (operation.cancelled) return false;
+    if (operation.retainedIds && !operation.retainedIds.has(attachment.id))
+      return false;
     operation.attachmentIds.add(attachment.id);
     // The composer shows one attachment per id, so the add that updated it
     // last owns its upload; an add that ended earlier no longer speaks for it.
@@ -64,8 +67,15 @@ export class AttachmentAddOperations {
 
   cancelAll(keep?: ReadonlySet<string>) {
     for (const operation of [...this.operations]) {
-      if (keep && [...operation.attachmentIds].some((id) => keep.has(id)))
+      const retainedIds = new Set(
+        [...(operation.retainedIds ?? operation.attachmentIds)].filter((id) =>
+          keep?.has(id),
+        ),
+      );
+      if (retainedIds.size > 0) {
+        operation.retainedIds = retainedIds;
         continue;
+      }
       operation.cancelled = true;
       this.operations.delete(operation);
     }

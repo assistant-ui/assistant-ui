@@ -1615,6 +1615,64 @@ describe("BaseComposerRuntimeCore.send with an upload still running in add()", (
     expect(composer.attachments).toEqual([]);
   });
 
+  it.each(["before", "after"])(
+    "ignores another attachment id yielded %s the submitted upload finishes after clearing",
+    async (order) => {
+      const upload = deferred();
+      const send = completeSend();
+      const { composer, append } = makeComposer(
+        makeAdapter({
+          async *add({ file }) {
+            const attachment = {
+              id: "submitted",
+              type: "file",
+              name: file.name,
+              contentType: file.type,
+              file,
+            };
+            yield {
+              ...attachment,
+              status: { type: "running", reason: "uploading", progress: 0 },
+            } satisfies PendingAttachment;
+            await upload.promise;
+            const ready = {
+              ...attachment,
+              status: { type: "requires-action", reason: "composer-send" },
+            } satisfies PendingAttachment;
+            if (order === "before") yield { ...ready, id: "late-draft" };
+            yield ready;
+            if (order === "after") yield { ...ready, id: "late-draft" };
+          },
+          send,
+        }),
+      );
+
+      composer.setText("hello");
+      const adding = composer.addAttachment(textFile());
+      await vi.waitFor(() =>
+        expect(composer.attachments[0]?.status.type).toBe("running"),
+      );
+      const sending = composer.send();
+      await composer.clearAttachments();
+      upload.resolve();
+      await adding;
+      await sending;
+
+      expect(send).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({
+          id: "submitted",
+          status: { type: "requires-action", reason: "composer-send" },
+        }),
+        expect.anything(),
+      );
+      expect(append).toHaveBeenCalledOnce();
+      expect(append.mock.calls[0]![0].attachments).toMatchObject([
+        { id: "submitted", status: { type: "complete" } },
+      ]);
+      expect(composer.attachments).toEqual([]);
+    },
+  );
+
   it("keeps uploading a sending attachment when the draft's attachments are cleared", async () => {
     const puts: ((response: { ok: boolean }) => void)[] = [];
     const fetchMock = vi.fn(

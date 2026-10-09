@@ -1186,7 +1186,7 @@ const useComposerClientResource = ({
             attachmentAdapter.add({ file: fileOrAttachment }),
             (attachment) => {
               if (!attachmentAddOperations.accept(operation, attachment))
-                return false;
+                return !attachmentAddOperations.isCancelled(operation);
               upsertAttachment(attachment);
               return true;
             },
