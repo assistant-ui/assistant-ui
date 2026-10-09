@@ -222,6 +222,8 @@ function Instructions() {
 ```
 
 - `show_widget` streams `widget_code` into a `<Widget>` from the partial tool arguments; `edit_widget` replays the edits from the thread, so history renders after a reload; `render_spec` streams patches into a `<SpecRenderer>`.
+- In frontend execution, `show_widget` and `edit_widget` wait for the frame to finish rendering and return a `render` report (errors, console warnings, blank flag, height, and `feedback` text), so the model can fix a broken widget with `edit_widget`. Tune with `renderReport: { timeoutMs, settleMs }` (10000 and 300 ms by default) or turn it off with `renderReport: false`.
+- `preview_widget` runs `previewWidget` in the browser. Its result leaves out the PNG unless `previewScreenshot: true`, because a base64 image in a JSON tool result is large.
 - A widget's `sendPrompt(text)` appends a user message to the thread.
 - Frames follow the app's shadcn/ui theme (`useAssistantUiThemeTokens`).
 - The tools execute in the browser by default; the server forwards their schemas with `frontendTools(tools)` from `@assistant-ui/ai-sdk`. With `execution: "backend"`, run `toAISDKTools(createWidgetTools(), { jsonSchema })` on the server and the toolkit only renders. `getToolDeclarations` and `buildWidgetInstructions` from `generative-frame/tools` give a server the schemas and the instructions text.

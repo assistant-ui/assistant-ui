@@ -111,4 +111,9 @@ Deviations and decisions:
 - **assistant-ui.** `createWidgetToolkit()` returns `{ toolkit, tools, registry }` with frontend toolkit entries by default (`execution: "backend"` renders only). Renderers derive their state from the thread (`resolveWidgetCode`, `resolveSpecBase`) instead of the in-memory registry, so edits and spec patches render after a reload; the registry is synced from rendered calls so `edit_widget` executes after a reload too. Theme tokens are read shadcn-first because Tailwind v4 aliases `--color-accent` to shadcn's muted `--accent`. Bare HSL channels from older shadcn themes are wrapped in `hsl()` in core. Instructions go through `useAssistantInstructions`; servers can use `getToolDeclarations` and `buildWidgetInstructions` from `/tools`.
 - **Demo.** The demo pre-bundles `@assistant-ui/react` in Vite, because workspace packages are not pre-bundled and `@assistant-ui/tap`'s React shim re-exports CommonJS React. `LocalRuntime` adapters run frontend tools themselves, so the fake adapter in the thread demo executes `context.tools` before ending with `requires-action`.
 
-Not built yet (stage 3): the landing page and docs site in the docs app; reporting live render errors from the assistant-ui `show_widget` back to the model (the frontend tool result does not wait for the frame); `preview_widget` in the assistant-ui toolkit.
+## Stage 3 implementation notes
+
+Built: the landing page at `/generative-frame` and the docs site at `/generative-frame/docs` in the docs app; live render reports and `preview_widget` in the assistant-ui toolkit.
+
+- **Render reports.** The toolkit renders frames with `useWidget` directly instead of `<Widget>`, so each tool call's frame can report its first `end` (after `settleMs`) to the `show_widget` or `edit_widget` call waiting on the same `toolCallId`. A report that arrives before `execute` waits is kept briefly; a call whose frame never renders resolves with `status: "timeout"` after `timeoutMs`.
+- **`preview_widget` in the toolkit** drops the screenshot by default and adds `feedback` text, because frontend tool results reach the model as JSON.

@@ -7,6 +7,9 @@ import {
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
 import { useEffect, useMemo, useState, type ComponentType } from "react";
+import { previewWidget } from "../preview";
+import type { ConsoleEntry, WidgetError } from "../protocol";
+import { buildRepairFeedback } from "../repair/repair";
 import type { ActionHandler } from "../spec/actions";
 import type { SpecStateStore } from "../spec/state";
 import type { Spec } from "../spec/types";
@@ -17,8 +20,8 @@ import {
 } from "../react/SpecRenderer";
 import { useSpecStream } from "../react/useSpecStream";
 import { useThemeTokens } from "../react/useThemeTokens";
-import { Widget } from "../react/Widget";
-import type { UseWidgetOptions } from "../react/useWidget";
+import { syncWidgetCode } from "../react/sync";
+import { useWidget, type UseWidgetOptions } from "../react/useWidget";
 import type { ThemeTokenSources } from "../theme";
 import { createWidgetRegistry, type WidgetRegistry } from "../tools/registry";
 import {
@@ -26,6 +29,7 @@ import {
   createWidgetTools,
   type CreateWidgetToolsOptions,
   type EditWidgetInput,
+  type PreviewWidgetInput,
   type RenderSpecInput,
   type ShowWidgetInput,
   type SpecTools,
@@ -90,7 +94,36 @@ export type WidgetToolkitOptions = Omit<
   themeElement?: Element | null;
   /** How the widget tools are presented relative to the reasoning trace. Defaults to `standalone`. */
   display?: "standalone" | "inline";
+  /**
+   * With frontend execution, `show_widget` and `edit_widget` wait for the
+   * frame to finish rendering and return its errors as `render`. `false`
+   * returns as soon as the code is stored.
+   */
+  renderReport?: RenderReportOptions | false;
+  /** Keep the PNG in `preview_widget` results. Defaults to false. */
+  previewScreenshot?: boolean;
 };
+
+export type RenderReportOptions = {
+  /** How long a tool result waits for the frame. Defaults to 10000 ms. */
+  timeoutMs?: number;
+  /** Wait after the code ends so late script errors are caught. Defaults to 300 ms. */
+  settleMs?: number;
+};
+
+/** How a widget rendered in the thread, attached to tool results as `render`. */
+export type WidgetRenderReport =
+  | {
+      status: "rendered";
+      ok: boolean;
+      blank: boolean;
+      height: number;
+      errors: WidgetError[];
+      /** Console warnings and errors, most recent last. */
+      console: ConsoleEntry[];
+      feedback: string;
+    }
+  | { status: "timeout"; feedback: string };
 
 export type WidgetToolkit = {
   /** Pass to `Tools({ toolkit })`, or spread into your own toolkit. */
@@ -104,6 +137,57 @@ export type WidgetToolkit = {
 type ShowArgs = Partial<ShowWidgetInput>;
 type EditArgs = Partial<EditWidgetInput>;
 type SpecArgs = Partial<RenderSpecInput>;
+
+const REPORT_BACKLOG = 50;
+
+/** Hands render reports from the thread's widgets to the tool calls waiting for them. */
+function createRenderReports() {
+  const early = new Map<string, WidgetRenderReport>();
+  const waiters = new Map<string, (report: WidgetRenderReport) => void>();
+  return {
+    report(toolCallId: string, report: WidgetRenderReport) {
+      const waiter = waiters.get(toolCallId);
+      if (waiter) {
+        waiters.delete(toolCallId);
+        waiter(report);
+        return;
+      }
+      early.set(toolCallId, report);
+      // Calls rendered from history never execute, so their reports are dropped.
+      if (early.size > REPORT_BACKLOG) {
+        early.delete(early.keys().next().value as string);
+      }
+    },
+    wait(
+      toolCallId: string,
+      timeoutMs: number,
+      signal?: AbortSignal,
+    ): Promise<WidgetRenderReport> {
+      const ready = early.get(toolCallId);
+      if (ready) {
+        early.delete(toolCallId);
+        return Promise.resolve(ready);
+      }
+      return new Promise((resolve) => {
+        const finish = (report: WidgetRenderReport) => {
+          clearTimeout(timer);
+          signal?.removeEventListener("abort", onAbort);
+          waiters.delete(toolCallId);
+          resolve(report);
+        };
+        const timedOut = () =>
+          finish({
+            status: "timeout",
+            feedback: `The widget had not finished rendering after ${timeoutMs} ms, so no render errors are known.`,
+          });
+        const onAbort = timedOut;
+        const timer = setTimeout(timedOut, timeoutMs);
+        signal?.addEventListener("abort", onAbort, { once: true });
+        waiters.set(toolCallId, finish);
+      });
+    },
+  };
+}
 
 const visuallyHidden = {
   position: "absolute",
@@ -128,10 +212,16 @@ export function createWidgetToolkit(
   const specs = new Map<string, { spec: Spec; version: number }>();
   const tools: WidgetTools & Partial<SpecTools> = createWidgetTools({
     ...options,
+    preview: options.preview ?? previewWidget,
     registry,
     specs,
   });
   const display = options.display ?? "standalone";
+  const reports = createRenderReports();
+  const reportOptions =
+    options.renderReport === false ? undefined : (options.renderReport ?? {});
+  const settleMs = reportOptions?.settleMs ?? 300;
+  const timeoutMs = reportOptions?.timeoutMs ?? 10_000;
 
   function useWidgetProps() {
     const aui = useAui();
@@ -147,12 +237,66 @@ export function createWidgetToolkit(
     };
   }
 
-  function ShowWidgetUI({ args }: ToolCallMessagePartProps<ShowArgs>) {
+  function ToolWidget({
+    code,
+    streaming,
+    toolCallId,
+  }: {
+    code: string;
+    streaming: boolean;
+    toolCallId: string;
+  }) {
+    const { ref, widget } = useWidget(useWidgetProps());
+
+    useEffect(() => {
+      if (!widget || !reportOptions) return;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const off = widget.on("end", () => {
+        off();
+        timer = setTimeout(() => {
+          widget
+            .inspect()
+            .then((inspection) => {
+              const feedback = buildRepairFeedback({
+                errors: inspection.errors,
+                console: inspection.console,
+                blank: inspection.blank,
+                height: inspection.size.height,
+              });
+              reports.report(toolCallId, {
+                status: "rendered",
+                ok: feedback.ok,
+                blank: feedback.blank,
+                height: inspection.size.height,
+                errors: feedback.errors,
+                console: feedback.console,
+                feedback: feedback.text,
+              });
+            })
+            .catch(() => {});
+        }, settleMs);
+      });
+      return () => {
+        off();
+        clearTimeout(timer);
+      };
+    }, [widget, toolCallId]);
+
+    useEffect(() => {
+      if (widget) syncWidgetCode(widget, code, streaming);
+    }, [widget, code, streaming]);
+
+    return <div ref={ref} />;
+  }
+
+  function ShowWidgetUI({
+    args,
+    toolCallId,
+  }: ToolCallMessagePartProps<ShowArgs>) {
     const { propStatus } = useToolArgsStatus<ShowWidgetInput>();
     const streaming = propStatus.widget_code !== "complete";
     const code = typeof args.widget_code === "string" ? args.widget_code : "";
     const title = typeof args.title === "string" ? args.title : "";
-    const widgetProps = useWidgetProps();
 
     useEffect(() => {
       if (streaming || !title || !code) return;
@@ -167,7 +311,7 @@ export function createWidgetToolkit(
             {status}
           </p>
         ) : null}
-        <Widget {...widgetProps} code={code} streaming={streaming} />
+        <ToolWidget code={code} streaming={streaming} toolCallId={toolCallId} />
       </div>
     );
   }
@@ -184,7 +328,6 @@ export function createWidgetToolkit(
       () => (complete ? resolveWidgetCode(messages, toolCallId) : undefined),
       [complete, messages, toolCallId],
     );
-    const widgetProps = useWidgetProps();
 
     useEffect(() => {
       if (!title || code === undefined) return;
@@ -208,7 +351,7 @@ export function createWidgetToolkit(
     return (
       <div data-gf-widget={title || undefined}>
         <span style={visuallyHidden}>Updated {title}</span>
-        <Widget {...widgetProps} code={code} streaming={false} />
+        <ToolWidget code={code} streaming={false} toolCallId={toolCallId} />
       </div>
     );
   }
@@ -259,10 +402,15 @@ export function createWidgetToolkit(
 
   const Silent = () => null;
 
+  type ExecuteContext = { toolCallId: string; abortSignal?: AbortSignal };
+
   const entry = <I, O>(
     tool: ToolDefinition<I, O>,
     render: ComponentType<ToolCallMessagePartProps<never>>,
     entryDisplay: "standalone" | "inline",
+    execute: (input: I, context: ExecuteContext) => Promise<unknown> = (
+      input,
+    ) => tool.execute(input),
   ) =>
     options.execution === "backend"
       ? { type: "backend" as const, display: entryDisplay, render }
@@ -271,14 +419,46 @@ export function createWidgetToolkit(
           display: entryDisplay,
           description: tool.description,
           parameters: tool.inputSchema as never,
-          execute: (input: I) => tool.execute(input),
+          execute,
           render,
         };
 
+  const withRenderReport =
+    <I,>(tool: ToolDefinition<I, { ok: boolean }>) =>
+    async (input: I, context: ExecuteContext) => {
+      const result = await tool.execute(input);
+      if (!result.ok || !reportOptions) return result;
+      const render = await reports.wait(
+        context.toolCallId,
+        timeoutMs,
+        context.abortSignal,
+      );
+      return { ...result, render };
+    };
+
+  const preview = async (input: PreviewWidgetInput) => {
+    const { screenshot, ...result } = await tools.preview_widget.execute(input);
+    const feedback = buildRepairFeedback(result).text;
+    return options.previewScreenshot && screenshot !== undefined
+      ? { ...result, screenshot, feedback }
+      : { ...result, feedback };
+  };
+
   const toolkit: Record<string, unknown> = {
     read_me: entry(tools.read_me, Silent, "inline"),
-    show_widget: entry(tools.show_widget, ShowWidgetUI as never, display),
-    edit_widget: entry(tools.edit_widget, EditWidgetUI as never, display),
+    show_widget: entry(
+      tools.show_widget,
+      ShowWidgetUI as never,
+      display,
+      withRenderReport(tools.show_widget),
+    ),
+    edit_widget: entry(
+      tools.edit_widget,
+      EditWidgetUI as never,
+      display,
+      withRenderReport(tools.edit_widget),
+    ),
+    preview_widget: entry(tools.preview_widget, Silent, "inline", preview),
     ...(tools.render_spec
       ? {
           render_spec: entry(tools.render_spec, RenderSpecUI as never, display),

@@ -14,7 +14,57 @@ const mocks = vi.hoisted(() => ({
   propStatus: {} as Record<string, string>,
   instructions: [] as unknown[],
   widgetProps: [] as Record<string, unknown>[],
+  widgets: [] as FakeWidget[],
+  inspection: {
+    kind: "html",
+    ended: true,
+    size: { width: 600, height: 120 },
+    blank: false,
+    errors: [] as { kind: string; message: string; line?: number }[],
+    console: [] as { level: string; message: string }[],
+  },
+  preview: vi.fn(),
 }));
+
+type FakeWidget = {
+  code: string;
+  ended: boolean;
+  write(chunk: string): void;
+  end(): Promise<unknown>;
+  replace(code: string): Promise<unknown>;
+  on(event: string, listener: (payload: unknown) => void): () => void;
+  inspect(): Promise<unknown>;
+};
+
+const fakeWidget = (): FakeWidget => {
+  const listeners = new Set<(payload: unknown) => void>();
+  const finish = async () => {
+    const result = { size: { width: 600, height: 120 }, blank: false };
+    for (const listener of [...listeners]) listener(result);
+    return result;
+  };
+  return {
+    code: "",
+    ended: false,
+    write(chunk) {
+      this.code += chunk;
+    },
+    end() {
+      this.ended = true;
+      return finish();
+    },
+    replace(code) {
+      this.code = code;
+      this.ended = true;
+      return finish();
+    },
+    on(_event, listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+    inspect: async () => mocks.inspection,
+  };
+};
 
 vi.mock("@assistant-ui/react", () => ({
   useAui: () => ({ thread: { append: mocks.append } }),
@@ -29,11 +79,25 @@ vi.mock("@assistant-ui/react", () => ({
     mocks.instructions.push(config),
 }));
 
-vi.mock("../react/Widget", () => ({
-  Widget: (props: Record<string, unknown>) => {
-    mocks.widgetProps.push(props);
-    return <div data-testid="widget">{String(props["code"])}</div>;
-  },
+vi.mock("../react/useWidget", async (importOriginal) => {
+  const { useState } = await import("react");
+  return {
+    ...(await importOriginal<typeof import("../react/useWidget")>()),
+    useWidget: (options: Record<string, unknown>) => {
+      mocks.widgetProps.push(options);
+      const [widget] = useState(() => {
+        const created = fakeWidget();
+        mocks.widgets.push(created);
+        return created;
+      });
+      return { ref: () => {}, widget };
+    },
+  };
+});
+
+vi.mock("../preview", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../preview")>()),
+  previewWidget: mocks.preview,
 }));
 
 afterEach(() => {
@@ -43,6 +107,8 @@ afterEach(() => {
   mocks.propStatus = {};
   mocks.instructions.length = 0;
   mocks.widgetProps.length = 0;
+  mocks.widgets.length = 0;
+  mocks.inspection.errors = [];
 });
 
 const call = (
@@ -80,7 +146,10 @@ type Entry = {
   display?: string;
   description?: string;
   parameters?: unknown;
-  execute?: (input: unknown) => Promise<unknown>;
+  execute?: (
+    input: unknown,
+    context?: { toolCallId: string },
+  ) => Promise<unknown>;
   render: ComponentType<Record<string, unknown>>;
 };
 const entries = (toolkit: unknown) => toolkit as Record<string, Entry>;
@@ -152,12 +221,13 @@ describe("history", () => {
 
 describe("createWidgetToolkit", () => {
   it("declares frontend tools that execute in the browser", async () => {
-    const { toolkit, registry } = createWidgetToolkit();
+    const { toolkit, registry } = createWidgetToolkit({ renderReport: false });
     const tools = entries(toolkit);
     expect(Object.keys(tools)).toEqual([
       "read_me",
       "show_widget",
       "edit_widget",
+      "preview_widget",
     ]);
     expect(tools["show_widget"]).toMatchObject({
       type: "frontend",
@@ -189,6 +259,7 @@ describe("createWidgetToolkit", () => {
       "read_me",
       "show_widget",
       "edit_widget",
+      "preview_widget",
       "render_spec",
     ]);
     expect(tools["render_spec"]).toEqual({
@@ -214,11 +285,10 @@ describe("createWidgetToolkit", () => {
     view.rerender(
       <ShowWidget {...partProps("a", { title: "w", widget_code: "<p>par" })} />,
     );
-    expect(mocks.widgetProps.at(-1)).toMatchObject({
-      code: "<p>par",
-      streaming: true,
-      maxHeight: 500,
-    });
+    const widget = mocks.widgets.at(-1)!;
+    expect(widget.code).toBe("<p>par");
+    expect(widget.ended).toBe(false);
+    expect(mocks.widgetProps.at(-1)).toMatchObject({ maxHeight: 500 });
     expect(registry.get("w")).toBeUndefined();
 
     mocks.propStatus = { widget_code: "complete" };
@@ -227,10 +297,8 @@ describe("createWidgetToolkit", () => {
         {...partProps("a", { title: "w", widget_code: "<p>partial</p>" })}
       />,
     );
-    expect(mocks.widgetProps.at(-1)).toMatchObject({
-      code: "<p>partial</p>",
-      streaming: false,
-    });
+    expect(widget.code).toBe("<p>partial</p>");
+    expect(widget.ended).toBe(true);
     expect(registry.get("w")?.code).toBe("<p>partial</p>");
 
     (mocks.widgetProps.at(-1)!["onPrompt"] as (text: string) => void)(
@@ -240,6 +308,88 @@ describe("createWidgetToolkit", () => {
     expect(mocks.widgetProps.at(-1)!["tokens"]).toMatchObject({
       colorScheme: "light",
     });
+  });
+
+  it("returns the live render report from show_widget", async () => {
+    vi.useFakeTimers();
+    try {
+      const { toolkit } = createWidgetToolkit();
+      const tools = entries(toolkit);
+      const ShowWidget = tools["show_widget"]!.render;
+      mocks.inspection.errors = [
+        { kind: "error", message: "boom is not defined", line: 3 },
+      ];
+      const pending = tools["show_widget"]!.execute!(
+        { title: "w", widget_code: "<p>a</p>" },
+        { toolCallId: "a" },
+      );
+      mocks.propStatus = { widget_code: "complete" };
+      render(
+        <ShowWidget
+          {...partProps("a", { title: "w", widget_code: "<p>a</p>" })}
+        />,
+      );
+      await act(() => vi.advanceTimersByTimeAsync(300));
+      expect(await pending).toMatchObject({
+        ok: true,
+        title: "w",
+        render: {
+          status: "rendered",
+          ok: false,
+          height: 120,
+          errors: [{ message: "boom is not defined" }],
+          feedback: expect.stringContaining(
+            "- error: boom is not defined (line 3)",
+          ),
+        },
+      });
+
+      const late = tools["show_widget"]!.execute!(
+        { title: "x", widget_code: "<p>x</p>" },
+        { toolCallId: "never-rendered" },
+      );
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(await late).toMatchObject({ render: { status: "timeout" } });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("returns immediately without render reports", async () => {
+    const tools = entries(createWidgetToolkit({ renderReport: false }).toolkit);
+    expect(
+      await tools["show_widget"]!.execute!(
+        { title: "w", widget_code: "<p>a</p>" },
+        { toolCallId: "a" },
+      ),
+    ).not.toHaveProperty("render");
+  });
+
+  it("previews in the browser and drops the screenshot by default", async () => {
+    mocks.preview.mockResolvedValue({
+      ok: true,
+      kind: "html",
+      width: 680,
+      height: 90,
+      blank: false,
+      errors: [],
+      console: [],
+      screenshot: "data:image/png;base64,AAAA",
+    });
+    const tools = entries(createWidgetToolkit().toolkit);
+    const result = await tools["preview_widget"]!.execute!({
+      widget_code: "<p>a</p>",
+      width: 400,
+    });
+    expect(mocks.preview).toHaveBeenCalledWith("<p>a</p>", { width: 400 });
+    expect(result).not.toHaveProperty("screenshot");
+    expect(result).toMatchObject({ ok: true, height: 90 });
+    const withShot = entries(
+      createWidgetToolkit({ previewScreenshot: true }).toolkit,
+    );
+    expect(
+      await withShot["preview_widget"]!.execute!({ widget_code: "<p>a</p>" }),
+    ).toHaveProperty("screenshot");
   });
 
   it("renders edit_widget with code replayed from the thread", () => {
@@ -261,7 +411,7 @@ describe("createWidgetToolkit", () => {
     expect(view.getByRole("status").textContent).toBe("Updating w…");
     mocks.argsStatus = "complete";
     view.rerender(<EditWidget {...partProps("b", { title: "w" })} />);
-    expect(view.getByTestId("widget").textContent).toBe("<p>two</p>");
+    expect(mocks.widgets.at(-1)!.code).toBe("<p>two</p>");
     expect(registry.get("w")?.code).toBe("<p>two</p>");
 
     const failed = render(<EditWidget {...partProps("zzz", { title: "w" })} />);
