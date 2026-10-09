@@ -121,7 +121,9 @@ export const createMessageQueue = (
     if (pending === undefined) return;
     void Promise.resolve(pending).catch((error: unknown) => {
       restoreFailure();
-      console.error("[MessageQueue] run rejected", error);
+      if (!(error instanceof Error && error.name === "AbortError")) {
+        console.error("[MessageQueue] run rejected", error);
+      }
     });
   };
 
