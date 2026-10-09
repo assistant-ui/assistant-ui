@@ -1529,6 +1529,7 @@ export const registry: RegistryItem[] = [
       "dialog",
       "label",
       "separator",
+      "https://r.assistant-ui.com/elements-mcp-config-state.json",
     ],
     radixRegistryDependencies: ["input"],
     dependencies: [
@@ -1536,6 +1537,21 @@ export const registry: RegistryItem[] = [
       "@assistant-ui/store",
       "lucide-react",
     ],
+  },
+  {
+    name: "elements-mcp-config-state",
+    type: "registry:component",
+    title: "Elements MCP Config State",
+    description: "Shared focus and announcement state for MCP config dialogs.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/mcp-config-state.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/mcp-config-state.ts",
+      },
+    ],
+    dependencies: ["@assistant-ui/react-mcp", "@assistant-ui/store"],
   },
   {
     name: "use-attachment-src",
