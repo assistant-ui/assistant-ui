@@ -29,7 +29,7 @@ describe("reduceAdkThreadState", () => {
       entry: second,
     });
 
-    expect(initial.stagedEntries).toBeUndefined();
+    expect(initial.stagedEntries.size).toBe(0);
     expect(staged.stagedEntries?.size).toBe(1);
     expect([...next.stagedEntries!]).toEqual([
       ["message-1", first],
@@ -71,6 +71,9 @@ describe("reduceAdkThreadState", () => {
   it("merges event deltas and metadata with previous state", () => {
     const previous = {
       ...createAdkThreadState(),
+      stagedEntries: new Map([
+        ["message-1", { message, runConfig: undefined }],
+      ]),
       stateDelta: { retained: 1, replaced: "old" },
       artifactDelta: { retained: 2, replaced: 3 },
       messageMetadata: new Map([
@@ -88,10 +91,11 @@ describe("reduceAdkThreadState", () => {
       escalated: true,
       messageMetadata: new Map([["replaced", { citationMetadata: "new" }]]),
     };
+    const { stagedEntries: _stagedEntries, ...publishedState } = published;
 
     const next = reduceAdkThreadState(previous, {
       type: "event.published",
-      state: published,
+      state: publishedState,
     });
 
     expect(next).toMatchObject({
@@ -106,6 +110,7 @@ describe("reduceAdkThreadState", () => {
       ["retained", { groundingMetadata: "old" }],
       ["replaced", { citationMetadata: "new" }],
     ]);
+    expect(next.stagedEntries).toBe(previous.stagedEntries);
     expect(previous.stateDelta).toEqual({ retained: 1, replaced: "old" });
     expect(previous.messageMetadata.get("replaced")).toEqual({
       citationMetadata: "old",
@@ -113,7 +118,7 @@ describe("reduceAdkThreadState", () => {
 
     const withoutMetadata = reduceAdkThreadState(next, {
       type: "event.published",
-      state: { ...published, messageMetadata: new Map() },
+      state: { ...publishedState, messageMetadata: new Map() },
     });
     expect(withoutMetadata.messageMetadata).toBe(next.messageMetadata);
   });
@@ -159,6 +164,7 @@ describe("reduceAdkThreadState", () => {
       authRequests: [],
       escalated: false,
       messageMetadata: snapshot.messageMetadata,
+      stagedEntries: previous.stagedEntries,
     });
   });
 

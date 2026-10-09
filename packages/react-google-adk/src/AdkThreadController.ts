@@ -11,11 +11,14 @@ export class AdkThreadController {
 
   public getState = () => this.state;
 
-  public getStagedMessageCount = () => this.state.stagedEntries?.size ?? 0;
+  public getStagedMessageCount = () => this.state.stagedEntries.size;
 
-  public getStagedRun = (parentId: string | null, messages: AdkMessage[]) => {
+  public getStagedRun = (
+    parentId: string | null,
+    messages: AdkMessage[] = this.state.messages,
+  ) => {
     const entries = this.state.stagedEntries;
-    if (!parentId || !entries?.has(parentId)) return null;
+    if (!parentId || !entries.has(parentId)) return null;
 
     const staged: AdkMessage[] = [];
     for (const message of messages) {

@@ -22,11 +22,11 @@ export type AdkThreadState = {
   authRequests: AdkAuthRequest[];
   escalated: boolean;
   messageMetadata: Map<string, AdkMessageMetadata>;
-  stagedEntries?: ReadonlyMap<string, AdkStagedEntry>;
+  stagedEntries: ReadonlyMap<string, AdkStagedEntry>;
 };
 
 export type AdkThreadAction =
-  | { type: "event.published"; state: AdkThreadState }
+  | { type: "event.published"; state: Omit<AdkThreadState, "stagedEntries"> }
   | { type: "snapshot.applied"; snapshot: AdkThreadSnapshot }
   | { type: "messages.replaced"; messages: AdkMessage[] }
   | { type: "messages.set"; messages: AdkMessage[] }
@@ -51,6 +51,7 @@ export const createAdkThreadState = (): AdkThreadState => ({
   authRequests: [],
   escalated: false,
   messageMetadata: new Map(),
+  stagedEntries: new Map(),
 });
 
 export const reduceAdkThreadState = (
@@ -61,6 +62,7 @@ export const reduceAdkThreadState = (
     case "event.published": {
       const next = action.state;
       return {
+        ...state,
         ...next,
         stateDelta: { ...state.stateDelta, ...next.stateDelta },
         artifactDelta: { ...state.artifactDelta, ...next.artifactDelta },
@@ -68,12 +70,12 @@ export const reduceAdkThreadState = (
           next.messageMetadata.size > 0
             ? new Map([...state.messageMetadata, ...next.messageMetadata])
             : state.messageMetadata,
-        ...(state.stagedEntries && { stagedEntries: state.stagedEntries }),
       };
     }
     case "snapshot.applied": {
       const snapshot = action.snapshot;
       return {
+        ...state,
         messages: snapshot.messages,
         stateDelta: snapshot.stateDelta ?? {},
         agentInfo: snapshot.agentInfo ?? {},
@@ -83,7 +85,6 @@ export const reduceAdkThreadState = (
         authRequests: snapshot.authRequests ?? [],
         escalated: snapshot.escalated ?? false,
         messageMetadata: snapshot.messageMetadata ?? new Map(),
-        ...(state.stagedEntries && { stagedEntries: state.stagedEntries }),
       };
     }
     case "messages.replaced":
@@ -106,7 +107,7 @@ export const reduceAdkThreadState = (
       return { ...state, stagedEntries };
     }
     case "staged.unstage": {
-      if (!action.ids.some((id) => state.stagedEntries?.has(id))) return state;
+      if (!action.ids.some((id) => state.stagedEntries.has(id))) return state;
       const stagedEntries = new Map(state.stagedEntries);
       for (const id of action.ids) stagedEntries.delete(id);
       return { ...state, stagedEntries };

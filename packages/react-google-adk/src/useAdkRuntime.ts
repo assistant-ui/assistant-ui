@@ -60,7 +60,6 @@ import {
 } from "./adkToolApproval";
 import { adkExtras } from "./adkExtras";
 import { ADK_SDK } from "./sdkIdentity";
-import { AdkThreadController } from "./AdkThreadController";
 
 export type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
   stream: AdkStreamCallback;
@@ -189,6 +188,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   }, []);
 
   const {
+    controller,
     messages,
     stateDelta,
     agentInfo,
@@ -355,21 +355,20 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     adkMessagesRef.current = messages;
   }, [messages]);
 
-  const [stagingController] = useState(() => new AdkThreadController());
   const stagedMessageCount = useSyncExternalStore(
-    stagingController.subscribe,
-    stagingController.getStagedMessageCount,
-    stagingController.getStagedMessageCount,
+    controller.subscribe,
+    controller.getStagedMessageCount,
+    controller.getStagedMessageCount,
   );
   const hasStagedMessages = stagedMessageCount > 0;
 
   const stageUserMessage = (msg: AppendMessage) => {
     const stagedMessage = toAdkUserMessage(msg);
-    stagingController.dispatch({
+    controller.dispatch({
       type: "staged.stage",
       entry: { message: stagedMessage, runConfig: msg.runConfig },
     });
-    const nextMessages = [...adkMessagesRef.current, stagedMessage];
+    const nextMessages = [...controller.getState().messages, stagedMessage];
     adkMessagesRef.current = nextMessages;
     setMessages(nextMessages);
   };
@@ -524,7 +523,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           replaceMessages(truncated);
           if (!(msg.startRun ?? msg.role === "user")) {
             const stagedMessage = toAdkUserMessage(msg);
-            stagingController.dispatch({
+            controller.dispatch({
               type: "staged.stage",
               entry: { message: stagedMessage, runConfig: msg.runConfig },
             });
@@ -553,12 +552,9 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           onReload: async (parentId, config) => {
             const initialLoad = waitForInitialLoad();
             if (initialLoad && !(await initialLoad).active) return;
-            const stagedRun = stagingController.getStagedRun(
-              parentId,
-              adkMessagesRef.current,
-            );
+            const stagedRun = controller.getStagedRun(parentId);
             if (stagedRun) {
-              stagingController.dispatch({
+              controller.dispatch({
                 type: "staged.unstage",
                 ids: stagedRun.messages.map((message) => message.id!),
               });
