@@ -1,12 +1,15 @@
 import { ICON_NAMES, type UIElement } from "../ir";
 import { classifyTemporal } from "../temporal";
-import { A2UI_SURFACE_ID, type A2uiSurfaceState } from "./types";
+import {
+  A2UI_SURFACE_ID,
+  type A2uiBinding,
+  type A2uiSurfaceState,
+} from "./types";
 import {
   evaluateA2uiValueFunction,
   type ExpressionPart,
 } from "./valueFunctions";
 import { MAX_AUTO_VIVIFY_ARRAY_INDEX } from "./reducer";
-import type { A2uiBinding } from "./BindingContext";
 import { resolvePath, resolvePointer } from "./dataModel";
 import { decodeScopeRelativePointer } from "./pointer";
 

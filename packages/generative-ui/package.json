@@ -1,11 +1,10 @@
 {
-  "name": "@assistant-ui/react-generative-ui",
-  "version": "0.0.24",
-  "description": "Generative UI components for assistant-ui",
+  "name": "@assistant-ui/generative-ui",
+  "version": "0.0.0",
+  "description": "Framework-neutral generative UI for assistant-ui",
   "keywords": [
     "generative-ui",
     "assistant-ui",
-    "react",
     "ai",
     "chat",
     "rendering"
@@ -15,18 +14,18 @@
   "type": "module",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./react": {
       "react-server": {
-        "types": "./dist/index.server.d.ts",
-        "default": "./dist/index.server.js"
+        "types": "./dist/react.server.d.ts",
+        "default": "./dist/react.server.js"
       },
       "default": {
-        "types": "./dist/index.d.ts",
-        "default": "./dist/index.js"
+        "types": "./dist/react.d.ts",
+        "default": "./dist/react.js"
       }
-    },
-    "./ir": {
-      "types": "./dist/ir.d.ts",
-      "default": "./dist/ir.js"
     },
     "./a2ui": {
       "types": "./dist/a2ui.d.ts",
@@ -59,7 +58,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/generative-ui": "^0.0.0"
+    "@types/json-schema": "^7.0.15",
+    "assistant-stream": "^0.3.48"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.15.0",
@@ -68,7 +68,16 @@
     "zod": "^4.0.0"
   },
   "peerDependenciesMeta": {
+    "@assistant-ui/react": {
+      "optional": true
+    },
     "@types/react": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "zod": {
       "optional": true
     }
   },
@@ -91,7 +100,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/assistant-ui/assistant-ui.git",
-    "directory": "packages/react-generative-ui"
+    "directory": "packages/generative-ui"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"

@@ -73,13 +73,13 @@ function clientOnlyReactImports(file: string): string[] {
   return names;
 }
 
-// Server code reaches every entry: the subpaths carry no react-server
-// condition, and the docs app resolves the root to its source through
-// tsconfig paths, which skip that condition.
+// Server code reaches every entry: only `./react` carries a react-server
+// condition, and the docs app resolves it to its source through tsconfig
+// paths, which skip that condition.
 const ENTRIES = [
-  "index.server.ts",
+  "react.server.ts",
+  "react.ts",
   "index.ts",
-  "ir.ts",
   "a2ui.ts",
   "slack.ts",
   "teams.ts",
@@ -103,4 +103,23 @@ describe("published entries", () => {
     );
     expect(violations).toEqual([]);
   });
+});
+
+const REACT_SPECIFIER_RE =
+  /\bfrom\s+["'](?:react|react-dom|@assistant-ui\/react|@assistant-ui\/core\/react)(?:\/[^"']*)?["']/;
+
+describe("framework-neutral entries", () => {
+  it.each(["index.ts", "a2ui.ts", "slack.ts", "teams.ts"])(
+    "%s never reaches React, not even through a type import",
+    (entry) => {
+      const reactFiles = [...collectGraph(join(SRC_DIR, entry))]
+        .filter(
+          (file) =>
+            file.endsWith(".tsx") ||
+            REACT_SPECIFIER_RE.test(readFileSync(file, "utf8")),
+        )
+        .map((file) => relative(SRC_DIR, file));
+      expect(reactFiles).toEqual([]);
+    },
+  );
 });
