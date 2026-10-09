@@ -13,7 +13,7 @@ import {
 
 const stamp = { id: "n-0a1b2c3d", ts: "2026-10-08T12:00:00.000Z" };
 
-const page = `import { Variant, Variants } from "variants";
+const page = `import { Variant, Variants } from "@assistant-ui/variants";
 
 export function Page() {
   return (

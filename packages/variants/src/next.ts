@@ -37,7 +37,7 @@ const handle = async (request: Request): Promise<Response> => {
  * folder routable at `/__variants`):
  *
  * ```ts
- * export { GET, POST, DELETE } from "variants/next";
+ * export { GET, POST, DELETE } from "@assistant-ui/variants/next";
  * ```
  *
  * They answer 404 unless `NODE_ENV` is `development`.

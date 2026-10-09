@@ -37,6 +37,7 @@
     "@assistant-ui/react-syntax-highlighter": "workspace:*",
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
+    "@assistant-ui/variants": "workspace:*",
     "@aui-x/prism": "^0.0.5",
     "@base-ui/react": "^1.8.0",
     "@hookform/resolvers": "^5.9.1",
@@ -114,7 +115,6 @@
     "tailwind-scrollbar": "^4.0.2",
     "tw-shimmer": "workspace:*",
     "unified": "^11.0.5",
-    "variants": "workspace:*",
     "vaul": "^1.1.2",
     "zod": "^4.6.5",
     "zustand": "^5.0.15"

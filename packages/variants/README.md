@@ -1,9 +1,9 @@
-# `variants`
+# `@assistant-ui/variants`
 
 Compare several working versions of a piece of UI inline, inside the real page, while a human or a coding agent decides which one to keep. Production builds refuse to render the comparison, so you can't ship it by accident.
 
 ```tsx
-import { Variant, Variants } from "variants";
+import { Variant, Variants } from "@assistant-ui/variants";
 
 <Variants id="pricing-features" label="Feature list" default="cards">
   <Variant id="grid" label="Three-column grid">
@@ -31,7 +31,7 @@ When you're choosing between designs, the real page is the best place to judge t
 - **Storybook-style workshops** render components on their own, away from the page, and nothing forces you to make a decision.
 - **Feature-flag toolbars** are built to ship several variants to users. This package does the opposite.
 
-`variants` gives you typed React components, addressable state (URL + `data-*` hooks), a one-line hand-off to a coding agent, and a production build that refuses to render the comparison.
+`@assistant-ui/variants` gives you typed React components, addressable state (URL + `data-*` hooks), a one-line hand-off to a coding agent, and a production build that refuses to render the comparison.
 
 ## Install
 
@@ -66,7 +66,7 @@ Children must all be `<Variant>` elements.
 ### `configureVariants(config)`
 
 ```ts
-import { configureVariants, formatVariantsPrompt } from "variants";
+import { configureVariants, formatVariantsPrompt } from "@assistant-ui/variants";
 
 configureVariants({
   // What the Copy buttons put on the clipboard. Defaults to formatVariantsPrompt.
@@ -299,7 +299,7 @@ When the app mounts the dev endpoints, notes are written straight into the sourc
 
 ```ts
 // vite.config.ts
-import { variants } from "variants/vite";
+import { variants } from "@assistant-ui/variants/vite";
 
 export default defineConfig({ plugins: [variants()] });
 ```
@@ -308,7 +308,7 @@ export default defineConfig({ plugins: [variants()] });
 
 ```ts
 // app/%5F_variants/[...path]/route.ts
-export { GET, POST, DELETE } from "variants/next";
+export { GET, POST, DELETE } from "@assistant-ui/variants/next";
 ```
 
 How the endpoints behave:
@@ -367,13 +367,13 @@ Set `VARIANTS_ALLOW_IN_PRODUCTION=1` for server rendering, and `NEXT_PUBLIC_VARI
 
 ## Resolving a choice by hand
 
-Replace the whole `<Variants>…</Variants>` block with the chosen `<Variant>`'s children. Then delete the losing components (and their imports) if nothing else uses them, and remove the `variants` import. If the block sat in an expression position and the chosen variant has several children, wrap them in a fragment.
+Replace the whole `<Variants>…</Variants>` block with the chosen `<Variant>`'s children. Then delete the losing components (and their imports) if nothing else uses them, and remove the `@assistant-ui/variants` import. If the block sat in an expression position and the chosen variant has several children, wrap them in a fragment.
 
 ## Comparison with prior art
 
-- **[unship](https://github.com/mbenhard/unship)** marks variants with attributes, provides a dev picker, and ships a cleanup CLI. Its cleanup tooling goes further than this package. `variants` uses typed components, unmounts inactive variants, and refuses to render in production builds.
+- **[unship](https://github.com/mbenhard/unship)** marks variants with attributes, provides a dev picker, and ships a cleanup CLI. Its cleanup tooling goes further than this package. `@assistant-ui/variants` uses typed components, unmounts inactive variants, and refuses to render in production builds.
 - **Storybook and other workshops** are great for building components on their own. They don't show the variant in its real page context, and nothing pushes you to pick one.
-- **Feature-flag toolbars** exist to ship several variants to real users. `variants` is for the decision before shipping and is designed to disappear afterwards.
+- **Feature-flag toolbars** exist to ship several variants to real users. `@assistant-ui/variants` is for the decision before shipping and is designed to disappear afterwards.
 
 ## Limitations
 

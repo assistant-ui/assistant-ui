@@ -1,6 +1,6 @@
 ---
 name: variants
-description: Use when the user asks for mockups, variants, options, alternatives, or "N versions" of a piece of UI in the assistant-ui docs or any app in this repo, asks to iterate on a design before choosing one, or runs `/variants choose <group>:<variant> … [-- notes: …]` (pasted from the variants sidebar), `/variants apply` (apply the notes left on variants), or `/variants connect <url>` (link to the page's sidebar; draft, not live yet). Builds the candidates inline in the real page with the `variants` package (`<Variants>` / `<Variant>`), shows them to the user, and resolves the pick.
+description: Use when the user asks for mockups, variants, options, alternatives, or "N versions" of a piece of UI in the assistant-ui docs or any app in this repo, asks to iterate on a design before choosing one, or runs `/variants choose <group>:<variant> … [-- notes: …]` (pasted from the variants sidebar), `/variants apply` (apply the notes left on variants), or `/variants connect <url>` (link to the page's sidebar; draft, not live yet). Builds the candidates inline in the real page with the `@assistant-ui/variants` package (`<Variants>` / `<Variant>`), shows them to the user, and resolves the pick.
 ---
 
 # Variants
@@ -22,7 +22,7 @@ A production build refuses to render a `<Variants>`, so an undecided comparison 
 4. Add one group per decision:
 
    ```tsx
-   import { Variant, Variants } from "variants";
+   import { Variant, Variants } from "@assistant-ui/variants";
 
    <Variants id="scf-features" label="Feature list" default="current">
      <Variant id="current" label="Current">
@@ -55,7 +55,7 @@ A production build refuses to render a `<Variants>`, so an undecided comparison 
 
 Users leave notes (change requests) on a variant or a whole group from the sidebar or by Alt-clicking the page. They reach you in one of two ways.
 
-- **In source**, when the app mounts the dev endpoints (`variants/vite` or `variants/next`). A note is a JSX comment that is the first child of the `<Variant id>` (or of the `<Variants id>` for a group note):
+- **In source**, when the app mounts the dev endpoints (`@assistant-ui/variants/vite` or `@assistant-ui/variants/next`). A note is a JSX comment that is the first child of the `<Variant id>` (or of the `<Variants id>` for a group note):
 
   ```tsx
   {/* @variants-note id="n-3f9a0c12" ts="2026-10-08T12:00:00.000Z" text="eyJub3RlIjoi…" */}
@@ -182,7 +182,7 @@ When the user chooses:
 2. Replace the whole `<Variants>` block with the chosen `<Variant>`'s children.
 3. Delete the losing candidate components and any content, imports, or icons only they used.
 4. Rename the chosen component to a permanent name if its name describes the comparison.
-5. Search the change for leftovers: `rg "<Variants|<Variant |from \"variants\"|@variants-note"` must find nothing in the files you touched.
+5. Search the change for leftovers: `rg "<Variants|<Variant |from \"@assistant-ui/variants|@variants-note"` must find nothing in the files you touched.
 6. Typecheck, run the page's tests, and look at the page once more without query parameters.
 
 A `<Variants>` left in a statically prerendered page fails `next build`. One left in a dynamic or client-only page fails at request time instead, so the search in step 5 is the real guard. Note markers are comments and never fail a build, so the same search is the only thing that catches them. Never land a PR that still contains a `<Variants>` or a `@variants-note`, and never set `allowInProduction` or `VARIANTS_ALLOW_IN_PRODUCTION` outside a preview deployment the user asked for.
