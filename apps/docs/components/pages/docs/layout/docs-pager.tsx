@@ -124,7 +124,7 @@ export function DocsPager({
               onClick={handleCopy}
               disabled={isLoading}
             >
-              <Copy className="mt-0.5 size-4" />
+              <Copy className="mt-1 size-4" />
               <PageAction
                 title={isLoading ? "Loading..." : "Copy page"}
                 description="Markdown, ready to paste into an LLM"
@@ -141,7 +141,7 @@ export function DocsPager({
                 />
               }
             >
-              <FileText className="mt-0.5 size-4" />
+              <FileText className="mt-1 size-4" />
               <PageAction
                 title="View as Markdown"
                 description="This page as plain text"
@@ -158,7 +158,7 @@ export function DocsPager({
                 />
               }
             >
-              <ClaudeIcon className="mt-0.5 size-4" />
+              <ClaudeIcon className="mt-1 size-4" />
               <PageAction
                 title="Open in Claude"
                 description="Ask Claude about this page"
@@ -171,7 +171,7 @@ export function DocsPager({
                 <a href={CODEX_URL} target="_blank" rel="noreferrer noopener" />
               }
             >
-              <OpenAILogo className="mt-0.5 size-4" />
+              <OpenAILogo className="mt-1 size-4" />
               <PageAction
                 title="Open in Codex"
                 description="Open Codex in ChatGPT"
@@ -185,7 +185,7 @@ export function DocsPager({
                 void copyText(DOCS_MCP_URL, "MCP server URL copied");
               }}
             >
-              <McpIcon className="mt-0.5 size-4" />
+              <McpIcon className="mt-1 size-4" />
               <PageAction
                 title="Copy MCP server URL"
                 description="Use these docs from any MCP client"
