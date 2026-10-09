@@ -553,4 +553,64 @@ describe("useLocalRuntime", () => {
       runtime!.thread.cancelRun();
     });
   });
+
+  it("creates the Cloud thread of a thread seeded with initial messages on its first send", async () => {
+    const cloud = {
+      registerSdk: vi.fn(),
+      telemetry: { enabled: false },
+      threads: {
+        list: vi.fn().mockResolvedValue({ threads: [] }),
+        create: vi.fn().mockResolvedValue({ thread_id: "remote-thread" }),
+        messages: {
+          list: vi.fn().mockResolvedValue({ messages: [] }),
+          create: vi.fn().mockResolvedValue({ message_id: "message-1" }),
+          update: vi.fn().mockResolvedValue(undefined),
+        },
+      },
+      runs: {
+        stream: vi.fn().mockResolvedValue(
+          new ReadableStream({
+            start(controller) {
+              controller.close();
+            },
+          }),
+        ),
+      },
+    } as unknown as AssistantCloud;
+    let runtime: ReturnType<typeof useLocalRuntime> | null = null;
+    const App = () => {
+      runtime = useLocalRuntime(chatModel, {
+        cloud,
+        initialMessages: [
+          { role: "user", content: "What is assistant-ui?" },
+          { role: "assistant", content: "A set of React components." },
+        ],
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <div />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+    await waitFor(() => {
+      expect(cloud.threads.list).toHaveBeenCalledTimes(2);
+      expect(runtime!.thread.getState().isLoading).toBe(false);
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(cloud.threads.create).not.toHaveBeenCalled();
+    expect(cloud.runs.stream).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await runtime!.thread.append("hello");
+    });
+
+    await waitFor(() => {
+      expect(cloud.threads.create).toHaveBeenCalledTimes(1);
+    });
+  });
 });
