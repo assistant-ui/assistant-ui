@@ -1,15 +1,23 @@
+/** @vitest-environment jsdom */
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { Component, Suspense, type ReactNode } from "react";
+import {
+  Activity,
+  Component,
+  StrictMode,
+  Suspense,
+  version,
+  type ReactNode,
+} from "react";
 import { render, screen, act, cleanup } from "@testing-library/react";
 import {
   createTestResource,
   renderTest,
   getCommittedValue,
   cleanupAllResources,
-  waitFor as waitForCondition,
+  waitForNextTick,
 } from "../test-utils";
 import { resource } from "../../core/resource";
-import { useSuspenseResource } from "../../index";
+import { useResource, useSuspenseResource, withKey } from "../../index";
 import { use } from "../../react-hooks/use";
 import { useState as useResourceState } from "../../react-hooks/useState";
 import { useEffect as useResourceEffect } from "../../react-hooks/useEffect";
@@ -38,6 +46,8 @@ class ErrorBoundary extends Component<
     return this.props.children;
   }
 }
+
+const onReact18 = version.startsWith("18.");
 
 describe("useSuspenseResource", () => {
   afterEach(() => {
@@ -252,6 +262,159 @@ describe("useSuspenseResource", () => {
     expect(renderTest(parent)).toBe("loading");
 
     resolve("done");
-    await waitForCondition(() => getCommittedValue(parent) === "done");
+    await promise;
+    await waitForNextTick();
+    expect(getCommittedValue(parent)).toBe("done");
+  });
+
+  it("recovers after a StrictMode effect replay", async () => {
+    const { promise, resolve } = deferred<string>();
+    const Primary = resource(() => use(promise) as string);
+    const Fallback = resource(() => "loading");
+
+    function App() {
+      const value = useSuspenseResource(Primary(), Fallback());
+      return <div data-testid="out">{value as string}</div>;
+    }
+
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    );
+    expect(screen.getByTestId("out").textContent).toBe("loading");
+
+    await act(async () => {
+      resolve("done");
+      await promise;
+    });
+    expect(screen.getByTestId("out").textContent).toBe("done");
+  });
+
+  it.skipIf(onReact18)(
+    "recovers after an Activity hide and reveal",
+    async () => {
+      const { promise, resolve } = deferred<string>();
+      const Primary = resource(() => use(promise) as string);
+      const Fallback = resource(() => "loading");
+
+      function Inner() {
+        const value = useSuspenseResource(Primary(), Fallback());
+        return <div data-testid="out">{value as string}</div>;
+      }
+      const inner = <Inner />;
+      function App({ hidden }: { hidden: boolean }) {
+        return (
+          <Activity mode={hidden ? "hidden" : "visible"}>{inner}</Activity>
+        );
+      }
+
+      const { rerender } = render(<App hidden={false} />);
+      rerender(<App hidden={true} />);
+      rerender(<App hidden={false} />);
+      expect(screen.getByTestId("out").textContent).toBe("loading");
+
+      await act(async () => {
+        resolve("done");
+        await promise;
+      });
+      expect(screen.getByTestId("out").textContent).toBe("done");
+    },
+  );
+
+  it.skipIf(onReact18)(
+    "recovers when the thenable settles while hidden by Activity",
+    async () => {
+      const { promise, resolve } = deferred<string>();
+      const Primary = resource(() => use(promise) as string);
+      const Fallback = resource(() => "loading");
+
+      function Inner() {
+        const value = useSuspenseResource(Primary(), Fallback());
+        return <div data-testid="out">{value as string}</div>;
+      }
+      const inner = <Inner />;
+      function App({ hidden }: { hidden: boolean }) {
+        return (
+          <Activity mode={hidden ? "hidden" : "visible"}>{inner}</Activity>
+        );
+      }
+
+      const { rerender } = render(<App hidden={false} />);
+      rerender(<App hidden={true} />);
+      await act(async () => {
+        resolve("done");
+        await promise;
+      });
+      await act(async () => {
+        rerender(<App hidden={false} />);
+        await waitForNextTick();
+      });
+      expect(screen.getByTestId("out").textContent).toBe("done");
+    },
+  );
+
+  it.skipIf(onReact18)(
+    "recovers after a tap host soft-unmounts and remounts",
+    async () => {
+      const { promise, resolve } = deferred<string>();
+      const Primary = resource(() => use(promise) as string);
+      const Fallback = resource(() => "loading");
+      const Parent = resource(() => useSuspenseResource(Primary(), Fallback()));
+
+      function Inner() {
+        const value = useResource(Parent());
+        return <div data-testid="out">{value as string}</div>;
+      }
+      const inner = <Inner />;
+      function App({ hidden }: { hidden: boolean }) {
+        return (
+          <Activity mode={hidden ? "hidden" : "visible"}>{inner}</Activity>
+        );
+      }
+
+      const { rerender } = render(<App hidden={false} />);
+      rerender(<App hidden={true} />);
+      rerender(<App hidden={false} />);
+      expect(screen.getByTestId("out").textContent).toBe("loading");
+
+      await act(async () => {
+        resolve("done");
+        await promise;
+      });
+      expect(screen.getByTestId("out").textContent).toBe("done");
+    },
+  );
+
+  it("remounts the fallback when its key changes", () => {
+    const promise = new Promise<string>(() => {});
+    const log: string[] = [];
+    const Primary = resource(() => use(promise) as string);
+    const Fallback = resource((props: { label: string }) => {
+      const [n, setN] = useResourceState(0);
+      useResourceEffect(() => {
+        log.push(`setup:${props.label}`);
+        return () => log.push(`cleanup:${props.label}`);
+      }, []);
+      return { n, bump: () => setN((v) => v + 1) };
+    });
+
+    let fallback!: { n: number; bump: () => void };
+    function App({ fallbackKey }: { fallbackKey: string }) {
+      fallback = useSuspenseResource(
+        Primary(),
+        withKey(fallbackKey, Fallback({ label: fallbackKey })),
+      ) as typeof fallback;
+      return <div data-testid="out">{fallback.n}</div>;
+    }
+
+    const { rerender } = render(<App fallbackKey="a" />);
+    act(() => fallback.bump());
+    expect(screen.getByTestId("out").textContent).toBe("1");
+    expect(log).toEqual(["setup:a"]);
+
+    rerender(<App fallbackKey="b" />);
+    expect(screen.getByTestId("out").textContent).toBe("0");
+    expect(log).toEqual(["setup:a", "cleanup:a", "setup:b"]);
   });
 });

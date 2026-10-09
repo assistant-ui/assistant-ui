@@ -5,26 +5,39 @@ import type {
 } from "../core/types";
 import {
   unmountResourceFiber,
+  unmountResourceFibers,
   renderResourceFiber,
   commitResourceFiber,
 } from "../core/ResourceFiber";
 import { hasContextDepsChanged } from "../core/context";
-import { useResourceFiberHost } from "./utils/useResourceFiberHostUtils";
+import {
+  useHostLifecycle,
+  useResourceFiberHost,
+} from "./utils/useResourceFiberHostUtils";
 import { useEffect, useMemo, useState } from "react";
 import { useRenderMemo } from "./utils/useRenderMemo";
 import { isThenable } from "../core/helpers/thenable";
 
-type BoundaryState = {
-  fallbackFiber: ResourceFiber<unknown> | null;
-  fallbackHook: ((...args: any[]) => unknown) | null;
-  retiredFallbackFibers: ResourceFiber<unknown>[];
-  subscribedTo: PromiseLike<unknown> | null;
-  disposed: boolean;
+type Hosted = {
+  fiber: ResourceFiber<unknown>;
+  key: string | number | undefined;
 };
 
+type Slot = "primary" | "fallback";
+
 type BoundaryResult =
-  | { suspended: false; value: unknown }
-  | { suspended: true; value: unknown; thenable: PromiseLike<unknown> };
+  | { fallback: null; value: unknown }
+  | { fallback: Hosted; value: unknown; thenable: PromiseLike<unknown> };
+
+const canReuse = (
+  hosted: Hosted | undefined,
+  hook: (...args: any[]) => unknown,
+  key: string | number | undefined,
+): hosted is Hosted =>
+  hosted !== undefined &&
+  hosted.fiber.hook === hook &&
+  hosted.key === key &&
+  !hosted.fiber.isReleased;
 
 export function useSuspenseResource<
   E extends ResourceElement<any>,
@@ -34,19 +47,16 @@ export function useSuspenseResource<
   fallbackElement: F,
 ): ExtractResourceReturnType<E> | ExtractResourceReturnType<F> {
   const { version, createFiber } = useResourceFiberHost();
-  const fiber = useMemo(() => {
-    return createFiber(element.hook, element.key);
-  }, [element.hook, element.key, createFiber]);
-
-  const [state] = useState<BoundaryState>(() => ({
-    fallbackFiber: null,
-    fallbackHook: null,
-    retiredFallbackFibers: [],
-    subscribedTo: null,
-    disposed: false,
-  }));
+  const [hosted] = useState(() => new Map<Slot, Hosted>());
+  const primary = useMemo((): Hosted => {
+    const committed = hosted.get("primary");
+    return canReuse(committed, element.hook, element.key)
+      ? committed
+      : { fiber: createFiber(element.hook, element.key), key: element.key };
+  }, [hosted, element.hook, element.key, createFiber]);
   const [retryCount, setRetryCount] = useState(0);
 
+  const committedFallback = hosted.get("fallback");
   const result = useRenderMemo(
     (): BoundaryResult => {
       void version;
@@ -54,34 +64,31 @@ export function useSuspenseResource<
 
       try {
         return {
-          suspended: false,
-          value: renderResourceFiber(fiber, element.args),
+          fallback: null,
+          value: renderResourceFiber(primary.fiber, element.args),
         };
       } catch (error) {
         if (!isThenable(error)) throw error;
 
-        if (
-          state.fallbackFiber !== null &&
-          state.fallbackHook !== fallbackElement.hook
-        ) {
-          state.retiredFallbackFibers.push(state.fallbackFiber);
-          state.fallbackFiber = null;
-        }
-        state.fallbackFiber ??= createFiber(
+        const fallback = canReuse(
+          committedFallback,
           fallbackElement.hook,
           fallbackElement.key,
-        );
-        state.fallbackHook = fallbackElement.hook;
-
+        )
+          ? committedFallback
+          : {
+              fiber: createFiber(fallbackElement.hook, fallbackElement.key),
+              key: fallbackElement.key,
+            };
         return {
-          suspended: true,
+          fallback,
           thenable: error,
-          value: renderResourceFiber(state.fallbackFiber, fallbackElement.args),
+          value: renderResourceFiber(fallback.fiber, fallbackElement.args),
         };
       }
     },
     [
-      fiber,
+      primary,
       version,
       retryCount,
       element.args,
@@ -89,49 +96,45 @@ export function useSuspenseResource<
       fallbackElement.key,
       fallbackElement.args,
     ],
-    hasContextDepsChanged(fiber) ||
-      (state.fallbackFiber !== null &&
-        hasContextDepsChanged(state.fallbackFiber)),
+    hasContextDepsChanged(primary.fiber) ||
+      (committedFallback !== undefined &&
+        hasContextDepsChanged(committedFallback.fiber)),
   );
 
-  useEffect(
-    () => () => {
-      state.disposed = true;
-      if (state.fallbackFiber !== null)
-        unmountResourceFiber(state.fallbackFiber);
-      for (const retired of state.retiredFallbackFibers)
-        unmountResourceFiber(retired);
-    },
-    [state],
-  );
-  useEffect(() => () => unmountResourceFiber(fiber), [fiber]);
+  useHostLifecycle(hosted);
   useEffect(() => {
-    while (state.retiredFallbackFibers.length > 0)
-      unmountResourceFiber(state.retiredFallbackFibers.pop()!);
-
-    if (result.suspended) {
-      unmountResourceFiber(fiber);
-      commitResourceFiber(state.fallbackFiber!);
-
-      const thenable = result.thenable;
-      if (state.subscribedTo !== thenable) {
-        state.subscribedTo = thenable;
-        const retry = () => {
-          if (state.disposed) return;
-          setRetryCount((count) => count + 1);
-        };
-        thenable.then(retry, retry);
-      }
-    } else {
-      if (state.fallbackFiber !== null) {
-        unmountResourceFiber(state.fallbackFiber);
-        state.fallbackFiber = null;
-        state.fallbackHook = null;
-        state.subscribedTo = null;
-      }
-      commitResourceFiber(fiber);
+    const released: ResourceFiber<unknown>[] = [];
+    for (const [slot, next] of [
+      ["primary", primary],
+      ["fallback", result.fallback],
+    ] as const) {
+      const prev = hosted.get(slot);
+      if (prev !== undefined && prev !== next) released.push(prev.fiber);
+      if (next !== null) hosted.set(slot, next);
+      else hosted.delete(slot);
     }
-  }, [fiber, state, result]);
+    for (const fiber of released) fiber.isReleased = true;
+    unmountResourceFibers(released);
+
+    if (result.fallback !== null) {
+      unmountResourceFiber(primary.fiber, false);
+      commitResourceFiber(result.fallback.fiber);
+    } else {
+      commitResourceFiber(primary.fiber);
+    }
+  }, [hosted, primary, result]);
+
+  useEffect(() => {
+    if (result.fallback === null) return;
+    let active = true;
+    const retry = () => {
+      if (active) setRetryCount((count) => count + 1);
+    };
+    result.thenable.then(retry, retry);
+    return () => {
+      active = false;
+    };
+  }, [result]);
 
   return result.value as
     | ExtractResourceReturnType<E>
