@@ -60,6 +60,9 @@ const mapOptions = (
   });
 };
 
+const isComposing = (event: React.KeyboardEvent) =>
+  event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229;
+
 type RadioGroupRenderProps = {
   value?: string;
   options: Option[];
@@ -331,11 +334,7 @@ function InputRender({
         updateBinding ? (e) => updateBinding(e.currentTarget.value) : undefined
       }
       onKeyDown={(e) => {
-        if (
-          e.key !== "Enter" ||
-          !(e.ctrlKey || e.metaKey) ||
-          e.nativeEvent.isComposing
-        )
+        if (e.key !== "Enter" || !(e.ctrlKey || e.metaKey) || isComposing(e))
           return;
         if (e.currentTarget.form) {
           e.preventDefault();
@@ -365,11 +364,7 @@ function InputRender({
         updateBinding ? (e) => updateBinding(e.currentTarget.value) : undefined
       }
       onKeyDown={(e) => {
-        if (
-          e.key === "Enter" &&
-          !e.nativeEvent.isComposing &&
-          !e.currentTarget.form
-        )
+        if (e.key === "Enter" && !isComposing(e) && !e.currentTarget.form)
           submit(e.currentTarget);
       }}
     />
@@ -555,11 +550,7 @@ function DatePickerRender({
         commit(e.currentTarget);
       }}
       onKeyDown={(e) => {
-        if (
-          e.key === "Enter" &&
-          !e.nativeEvent.isComposing &&
-          !e.currentTarget.form
-        ) {
+        if (e.key === "Enter" && !isComposing(e) && !e.currentTarget.form) {
           commit(e.currentTarget);
           return;
         }

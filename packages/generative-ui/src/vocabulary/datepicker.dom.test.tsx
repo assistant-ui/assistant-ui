@@ -303,6 +303,25 @@ describe("DatePicker temporal contract", () => {
     expect(dispatch).toHaveBeenCalledTimes(1);
   });
 
+  it("does not commit on an IME confirmation Enter", async () => {
+    const dispatch = vi.fn();
+    const container = await mount(
+      view({ value: "2025-12-15", $action: { type: "save" } }, dispatch),
+    );
+    const input = container.querySelector("input")!;
+    await type(input, "2025-12-16");
+    const event = new KeyboardEvent("keydown", {
+      key: "Enter",
+      isComposing: false,
+      bubbles: true,
+    });
+    Object.defineProperty(event, "keyCode", { value: 229 });
+
+    await React.act(async () => input.dispatchEvent(event));
+
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
   it("resets the committed baseline when the initial value changes", async () => {
     const dispatch = vi.fn();
     const container = await mount(
