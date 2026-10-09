@@ -48,7 +48,7 @@ function WidgetInstructions() {
 - `render_spec` streams patches into a [`<SpecRenderer>`](/generative-frame/docs/spec-mode) with your components. It is added by the `spec` option, described next.
 - `read_me` and `preview_widget` render nothing.
 
-A widget's `sendPrompt(text)` appends a user message to the thread. Pass `widget: { onPrompt }` to handle it yourself. Everything else under `widget` (`csp`, `product`, `compat`, `maxHeight`, handlers) applies to every frame the toolkit renders.
+A widget's `sendPrompt(text)` appends a user message to the thread. Pass `widget: { onPrompt }` to handle it yourself. Everything else under `widget` (`csp`, `product`, `maxHeight`, handlers) applies to every frame the toolkit renders.
 
 ## Spec mode
 

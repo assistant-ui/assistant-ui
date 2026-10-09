@@ -72,7 +72,7 @@ export type WidgetToolkitOptions = Omit<
    * only renders.
    */
   execution?: "frontend" | "backend";
-  /** Options for every widget frame (csp, product, maxHeight, compat, handlers, …). */
+  /** Options for every widget frame (csp, product, maxHeight, handlers, …). */
   widget?: Omit<UseWidgetOptions, "tokens">;
   /** Spec mode: `createSpecToolkit(catalog, { components })` from `generative-frame/spec/assistant-ui`. */
   spec?: WidgetToolkitExtension;

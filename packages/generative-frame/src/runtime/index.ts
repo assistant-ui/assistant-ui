@@ -3,7 +3,6 @@ import {
   METHODS,
   READY_MESSAGE,
   type ColorScheme,
-  type Compat,
   type EndResult,
   type FrameInspection,
   type HostContext,
@@ -21,7 +20,6 @@ import { clearFrameStorage } from "./storage";
 
 export type RuntimeConfig = {
   hostOrigin: string;
-  compat: Compat[];
   animate: boolean;
 };
 
@@ -95,14 +93,6 @@ export function startRuntime(win: Window & typeof globalThis = window): void {
     new win.ResizeObserver(scheduleSize).observe(root);
   }
 
-  const openaiCompat = config.compat?.includes("openai") ?? false;
-  const emitOpenAiGlobals = (globals: Record<string, unknown>) => {
-    if (!openaiCompat) return;
-    win.dispatchEvent(
-      new CustomEvent("openai:set_globals", { detail: { globals } }),
-    );
-  };
-
   const applyContext = (next: HostContext) => {
     const previousTheme = context.theme;
     context = { ...context, ...next };
@@ -132,11 +122,6 @@ export function startRuntime(win: Window & typeof globalThis = window): void {
         }),
       );
     }
-    emitOpenAiGlobals({
-      theme: context.theme,
-      displayMode: context.displayMode,
-      locale: context.locale,
-    });
   };
 
   const requirePeer = () => {
@@ -163,7 +148,6 @@ export function startRuntime(win: Window & typeof globalThis = window): void {
   const setState = (state: unknown) => {
     widgetState = state;
     requirePeer().notify(METHODS.widgetState, { state });
-    emitOpenAiGlobals({ widgetState: state });
   };
 
   const genframe = {
@@ -203,46 +187,6 @@ export function startRuntime(win: Window & typeof globalThis = window): void {
     if (url !== undefined) void openLink(String(url)).catch(() => {});
     return null;
   }) as typeof win.open;
-
-  if (openaiCompat) {
-    globals["openai"] = {
-      get theme() {
-        return context.theme;
-      },
-      get locale() {
-        return context.locale;
-      },
-      get displayMode() {
-        return context.displayMode ?? "inline";
-      },
-      get maxHeight() {
-        return context.containerDimensions?.maxHeight;
-      },
-      get toolInput() {
-        return toolInput ?? {};
-      },
-      get toolOutput() {
-        return toolOutput;
-      },
-      toolResponseMetadata: null,
-      get widgetState() {
-        return widgetState;
-      },
-      setWidgetState: async (state: unknown) => setState(state),
-      callTool: (name: string, args?: Record<string, unknown>) =>
-        callTool(name, args),
-      sendFollowUpMessage: async ({ prompt }: { prompt: string }) => {
-        await sendPrompt(prompt);
-      },
-      openExternal: ({ href }: { href: string }) => {
-        void openLink(href).catch(() => {});
-      },
-      requestDisplayMode: async ({ mode }: { mode: string }) => {
-        await requestDisplayMode(mode);
-        return { mode };
-      },
-    };
-  }
 
   doc.addEventListener(
     "click",
@@ -342,14 +286,12 @@ export function startRuntime(win: Window & typeof globalThis = window): void {
             },
           }),
         );
-        emitOpenAiGlobals({ toolInput });
         return;
       }
       case METHODS.toolResult:
         toolOutput =
           p["structuredContent"] !== undefined ? p["structuredContent"] : p;
         win.dispatchEvent(new CustomEvent("toolresult", { detail: p }));
-        emitOpenAiGlobals({ toolOutput });
         return;
       default:
         return;

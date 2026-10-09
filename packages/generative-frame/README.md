@@ -3,7 +3,7 @@
 Render model-generated HTML and SVG widgets safely while they stream. Each widget runs in a [Safe Content Frame](https://www.npmjs.com/package/safe-content-frame) on its own site, under a strict Content Security Policy, and code streams into it chunk by chunk without reloading the frame.
 
 - **Streaming**: partial markup renders as it arrives and is morphed in place, so finished elements stay put while new ones fade in. Scripts are held and run once, in order, when the code is complete.
-- **Host bridge**: widgets call `sendPrompt(text)`, `openLink(url)`, and `genframe.callTool(name, args)`. The frame speaks the MCP Apps `ui/*` JSON-RPC protocol, so MCP Apps widgets work too, and `compat: ["openai"]` adds a `window.openai` subset.
+- **Host bridge**: widgets call `sendPrompt(text)`, `openLink(url)`, and `genframe.callTool(name, args)`. The frame speaks the MCP Apps `ui/*` JSON-RPC protocol, so MCP Apps widgets work too.
 - **Theming**: your page's theme (shadcn/ui variables or the canonical tokens) becomes CSS variables in the frame, also under the MCP Apps standard names, and updates live.
 - **Diagnostics**: errors, unhandled rejections, console output, failed resources, CSP violations, and blank renders, plus a PNG screenshot taken inside the frame.
 - **Model side**: provider-agnostic tool definitions (`read_me`, `show_widget`, `edit_widget`, `preview_widget`, and `render_spec` from the spec entries), a deterministic guidance generator, and a repair loop.
@@ -110,7 +110,7 @@ streamText({ model, tools: toAISDKTools(tools, { jsonSchema }) });
 
 Each tool is `{ name, description, inputSchema, execute }` with a JSON Schema input, so it adapts to any provider. `edit_widget` applies exact `old_string` → `new_string` replacements to the latest code of a widget, tracked by title in a registry, and fails without changes when a match is missing or ambiguous. `preview_widget` renders through the `preview` option, typically `previewWidget` in the browser; without it the tool returns an error result, so leave it out of tool sets that run on a server.
 
-`generative-frame/prompts` exports `buildWidgetGuidance({ modules, platform, tokens, cdnOrigins, connectOrigins, allowEval, width, compat, hostApi })`, which `read_me` returns: base rules, a token reference generated from your tokens, platform notes, rules that match the frame's CSP (`cdnOrigins`, `connectOrigins`, `allowEval`) and host API (`compat`, `hostApi`), and modules (`diagram`, `chart`, `data_viz`, `interactive`, `mockup`, `elicitation`, `art`).
+`generative-frame/prompts` exports `buildWidgetGuidance({ modules, platform, tokens, cdnOrigins, connectOrigins, allowEval, width, hostApi })`, which `read_me` returns: base rules, a token reference generated from your tokens, platform notes, rules that match the frame's CSP (`cdnOrigins`, `connectOrigins`, `allowEval`) and host API (`hostApi`), and modules (`diagram`, `chart`, `data_viz`, `interactive`, `mockup`, `elicitation`, `art`).
 
 ## Repair loop
 

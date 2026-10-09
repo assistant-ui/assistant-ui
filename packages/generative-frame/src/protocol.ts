@@ -37,8 +37,6 @@ export type ColorScheme = "light" | "dark";
 
 export type DisplayMode = "inline" | "fullscreen" | "pip";
 
-export type Compat = "openai";
-
 /** The MCP Apps host context, plus the fields this package adds. */
 export type HostContext = {
   theme?: ColorScheme;
@@ -54,7 +52,6 @@ export type HostContext = {
 export type InitMessage = {
   type: typeof INIT_MESSAGE;
   context: HostContext;
-  compat: Compat[];
 };
 
 export type WidgetErrorKind =

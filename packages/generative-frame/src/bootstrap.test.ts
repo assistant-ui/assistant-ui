@@ -79,7 +79,6 @@ describe("buildBootstrapHtml", () => {
   const html = buildBootstrapHtml({
     hostOrigin: "https://app.example.com",
     tokens: DEFAULT_DARK_TOKENS,
-    compat: ["openai"],
     runtime: "window.__booted = '</script>';",
   });
   const doc = new DOMParser().parseFromString(html, "text/html");
@@ -114,11 +113,10 @@ describe("buildBootstrapHtml", () => {
     expect(runtime.textContent).toBe("window.__booted = '<\\/script>';");
   });
 
-  it("embeds the host origin and compat flags as config", () => {
+  it("embeds the host origin as config", () => {
     const config = JSON.parse(doc.getElementById("gf-config")!.textContent!);
     expect(config).toEqual({
       hostOrigin: "https://app.example.com",
-      compat: ["openai"],
       animate: true,
     });
   });

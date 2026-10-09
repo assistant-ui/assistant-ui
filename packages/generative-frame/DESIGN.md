@@ -12,7 +12,7 @@ A framework-agnostic SDK for **model-generated UI** that runs in the browser, wo
 | `svg` | an SVG document, streamed | same as `html` | Claude `show_widget` |
 | `spec` | a declarative JSON spec (JSONL patches) against a catalog | trusted host components (no frame) | Vercel json-render, A2UI, ChatKit widgets, OpenUI |
 
-Every `html`/`svg` widget runs in a Safe Content Frame (its own site via the Public Suffix List). The frame speaks the **MCP Apps `ui/*` JSON-RPC protocol** over a private `MessagePort`, so widgets written for MCP Apps hosts (ChatGPT, Claude, VS Code, T3 Code) work, and so do Claude-style (`sendPrompt`) and OpenAI-style (`window.openai`) widgets through compatibility shims.
+Every `html`/`svg` widget runs in a Safe Content Frame (its own site via the Public Suffix List). The frame speaks the **MCP Apps `ui/*` JSON-RPC protocol** over a private `MessagePort`, so widgets written for MCP Apps hosts (ChatGPT, Claude, VS Code, T3 Code) work, and so do Claude-style (`sendPrompt`) widgets.
 
 Later: the same tool, prompt, and repair machinery can back an Assistant Cloud API (server-side preview and screenshots in a headless browser). Out of scope for this package's first version.
 
@@ -30,7 +30,7 @@ Later: the same tool, prompt, and repair machinery can back an Assistant Cloud A
 - `generative-frame` — core, framework-agnostic:
   - `createWidget(options) → WidgetHandle`: mounts a frame in a container. `write(chunk)`, `end()`, `replace(code)`, `setTheme(tokens)`, `setContext(partial)`, `screenshot()`, `inspect()` (errors, console, size, last code), `on(event, fn)`, `dispose()`.
   - Host handlers: `onPrompt(text)`, `onOpenLink(url)`, `onCallTool(name, args)`, `onMessage`, `onRequestDisplayMode`, `onUpdateModelContext`, `onResize`, `onError`.
-  - `runtime`: the in-frame runtime as a string (bundled at build time), plus `buildBootstrapHtml({ csp, tokens, compat })`.
+  - `runtime`: the in-frame runtime as a string (bundled at build time), plus `buildBootstrapHtml({ csp, tokens })`.
   - Theme: `readThemeTokens(element)` reads host CSS custom properties; `toMcpAppsVariables(tokens)` maps to the MCP Apps standard names (`--color-background-primary`, `--color-text-primary`, `--font-sans`, `--border-radius-md`, …). Both sets are applied in the frame.
 - `generative-frame/tools` — model-facing tools, provider-agnostic (JSON Schema + `execute`), plus adapters for the AI SDK tool shape:
   - `read_me({ modules, platform })` → guidance text (silent, call once before the first widget).
@@ -47,12 +47,12 @@ Later: the same tool, prompt, and repair machinery can back an Assistant Cloud A
 
 ## In-frame runtime
 
-Loaded as the bootstrap document (no content yet). The shim acknowledges the render before it navigates to the Blob URL, so the host cannot know when the bootstrap is listening: the runtime posts `{ type: "genframe:ready" }` to `window.parent` (targeted at the host origin baked into the bootstrap, repeated every 100 ms until answered), and the host answers with `{ type: "genframe:init", context, compat }` plus the transferred port. The runtime then sends `genframe/ready` on the port and speaks JSON-RPC 2.0 there:
+Loaded as the bootstrap document (no content yet). The shim acknowledges the render before it navigates to the Blob URL, so the host cannot know when the bootstrap is listening: the runtime posts `{ type: "genframe:ready" }` to `window.parent` (targeted at the host origin baked into the bootstrap, repeated every 100 ms until answered), and the host answers with `{ type: "genframe:init", context }` plus the transferred port. The runtime then sends `genframe/ready` on the port and speaks JSON-RPC 2.0 there:
 
 - Host → frame: `genframe/write { chunk }`, `genframe/end`, `genframe/replace { code }`, `genframe/screenshot`, `genframe/inspect`, `ui/notifications/host-context-changed`, `ui/notifications/tool-input-partial`, `ui/notifications/tool-input`, `ui/notifications/tool-result`.
 - Frame → host: `ui/initialize` (returns host context), `ui/notifications/size-changed`, `ui/open-link`, `ui/message` (sendPrompt), `tools/call`, `ui/request-display-mode`, `ui/update-model-context`, `genframe/log`, `genframe/error`, `genframe/widget-state`. The host also answers the same requests when they arrive as window messages from the frame, which is how `@modelcontextprotocol/ext-apps` widgets talk to `window.parent`.
 - Streaming: accumulate the source; on each chunk (rAF-batched) parse the partial markup into a detached template (the parser auto-closes open tags), strip `<script>`s, and **morph** the live root (keyed by position + tag, attributes and text patched in place, new nodes get a short fade-in). On `end`, run held scripts in order (inline and `src`, awaiting each), then report final size.
-- Globals for widgets: `genframe` (canonical API), `sendPrompt(text)` (Claude compat), `window.openai` subset (`theme`, `toolInput`, `toolOutput`, `widgetState`, `setWidgetState`, `callTool`, `sendFollowUpMessage`, `openExternal`, `requestDisplayMode`, `openai:set_globals` events) when `compat: ["openai"]`, and the MCP Apps bridge (`ui/*`) for `@modelcontextprotocol/ext-apps` widgets.
+- Globals for widgets: `genframe` (canonical API), `sendPrompt(text)` (Claude compat), and the MCP Apps bridge (`ui/*`) for `@modelcontextprotocol/ext-apps` widgets.
 - Theme: tokens applied as CSS custom properties on `:root`, `color-scheme`, `prefers-color-scheme` override; `themechange` event.
 - Size: `ResizeObserver` on the root → `size-changed` (debounced, rounded).
 - Diagnostics: `window.onerror`, `unhandledrejection`, `console.*` (bounded buffer), blank-render detection (zero-size root after end), CSP violations (`securitypolicyviolation`).
@@ -90,7 +90,7 @@ Deviations from the sections above, with reasons:
 - **Preview frames stay inside the viewport** (fixed, opacity 0.01, behind the page). Chrome stops animation frames in cross-origin frames outside the viewport, which froze Chart.js mid-animation in screenshots.
 - **The frame hides its scrollbar** unless content exceeds the host's `maxHeight` (sent as `containerDimensions.maxHeight`); otherwise the scrollbar flashes while the iframe catches up with its content and steals width.
 - **The AI SDK adapter takes the SDK's `jsonSchema` helper as an argument** (`toAISDKTools(tools, { jsonSchema })`), so `ai` is neither a dependency nor a peer.
-- **Widget state** (`genframe.setState`, `window.openai.setWidgetState`) is a `genframe/widget-state` notification handled by `onWidgetState`.
+- **Widget state** (`genframe.setState`) is a `genframe/widget-state` notification handled by `onWidgetState`.
 - **Streaming morph** matches children by position, tag, and `id`, with one node of lookahead for single insertions and deletions. A trailing unclosed `<style>` is held back until it closes. After held scripts run, the runtime dispatches `DOMContentLoaded` and `load` once, for widgets written for a fresh page.
 
 

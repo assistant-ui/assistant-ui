@@ -97,15 +97,12 @@ describe("buildWidgetGuidance", () => {
     const base = buildWidgetGuidance();
     expect(base).toContain("`sendPrompt(text)`");
     expect(base).not.toContain("genframe.callTool");
-    expect(base).not.toContain("window.openai");
 
     const full = buildWidgetGuidance({
       hostApi: { prompt: false, callTool: true },
-      compat: ["openai"],
     });
     expect(full).not.toContain("`sendPrompt(text)` sends");
     expect(full).toContain("genframe.callTool");
-    expect(full).toContain("`window.openai`");
   });
 });
 

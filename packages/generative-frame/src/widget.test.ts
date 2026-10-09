@@ -115,10 +115,9 @@ const setup = (options: Partial<CreateWidgetOptions> = {}) => {
 };
 
 describe("createWidget", () => {
-  it("renders the bootstrap once and sends theme and compat with the port", async () => {
+  it("renders the bootstrap once and sends the theme with the port", async () => {
     const { fake, widget } = setup({
       tokens: DEFAULT_DARK_TOKENS,
-      compat: ["openai"],
       maxHeight: 500,
     });
     await fake.connect(0);
@@ -126,7 +125,6 @@ describe("createWidget", () => {
     expect(fake.html).toHaveLength(1);
     expect(fake.html[0]).toContain('data-theme="dark"');
     const init = fake.rendered[0]!.sent[0]!.data as InitMessage;
-    expect(init.compat).toEqual(["openai"]);
     expect(init.context.theme).toBe("dark");
     expect(init.context.containerDimensions).toEqual({ maxHeight: 500 });
     expect(fake.rendered[0]!.iframe.style.colorScheme).toBe("dark");

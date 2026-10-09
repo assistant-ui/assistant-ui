@@ -7,7 +7,6 @@ import {
   METHODS,
   READY_MESSAGE,
   type ClearStorageResult,
-  type Compat,
   type ConsoleEntry,
   type DisplayMode,
   type EndResult,
@@ -72,7 +71,6 @@ export type CreateWidgetOptions = WidgetHandlers & {
   tokens?: ThemeTokens;
   /** Extra host context fields (locale, display mode, …) merged over the theme. */
   context?: HostContext;
-  compat?: Compat[];
   animate?: boolean;
   css?: string;
   /** The iframe never grows past this height; taller content scrolls inside it. */
@@ -455,7 +453,6 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
       const init: InitMessage = {
         type: INIT_MESSAGE,
         context,
-        compat: options.compat ?? [],
       };
       rendered.sendMessage(init, [channel.port2]);
     };
@@ -485,7 +482,6 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
       hostOrigin: window.location.origin,
       tokens,
       ...(options.csp !== undefined ? { csp: options.csp } : {}),
-      ...(options.compat ? { compat: options.compat } : {}),
       ...(options.animate !== undefined ? { animate: options.animate } : {}),
       ...(options.css !== undefined ? { css: options.css } : {}),
     });

@@ -49,7 +49,6 @@ export {
   GENFRAME_PROTOCOL_VERSION,
   METHODS,
   type ColorScheme,
-  type Compat,
   type ClearStorageResult,
   type ConsoleEntry,
   type ConsoleLevel,

@@ -44,7 +44,7 @@ Keep `streaming` true for as long as the model is still writing, so scripts do n
 
 ### Options and handlers
 
-Mount options such as `csp`, `product`, `compat`, `maxHeight`, and `css` are read once, when the frame mounts. Handlers (`onPrompt`, `onOpenLink`, `onCallTool`, `onError`, and the rest) always call their latest version, so inline arrow functions are fine. A handler that is not passed at mount time stays disabled for that mount.
+Mount options such as `csp`, `product`, `maxHeight`, and `css` are read once, when the frame mounts. Handlers (`onPrompt`, `onOpenLink`, `onCallTool`, `onError`, and the rest) always call their latest version, so inline arrow functions are fine. A handler that is not passed at mount time stays disabled for that mount.
 
 A new `tokens` object is sent to the frame as a theme change without remounting.
 

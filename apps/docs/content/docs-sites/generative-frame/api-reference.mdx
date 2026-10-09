@@ -26,7 +26,6 @@ const widget: WidgetHandle = createWidget(options);
     { name: "frame", type: "SafeContentFrame", description: "A preconfigured Safe Content Frame, for example with `useShadowDom`. Cannot be combined with `id`." },
     { name: "id", type: "string", description: "A stable origin, so the widget's storage persists for this id. Choose it on the host. See [Persistent storage](/generative-frame/docs/quickstart#persistent-storage)." },
     { name: "context", type: "HostContext", description: "Extra MCP Apps host context fields (locale, display mode, and so on) merged over the theme." },
-    { name: "compat", type: "\"openai\"[]", default: "[]", description: "`[\"openai\"]` adds a `window.openai` subset for widgets written for that API." },
     { name: "animate", type: "boolean", default: "true", description: "Fade in elements as they stream in. Always off under reduced motion." },
     { name: "css", type: "string", description: "Extra CSS appended after the frame's base styles." },
     { name: "readyTimeoutMs", type: "number", default: "15000", description: "How long the frame may take to connect before `ready` rejects and an error is reported." },
@@ -36,7 +35,7 @@ const widget: WidgetHandle = createWidget(options);
     { name: "onCallTool", type: "(call: { name, arguments? }) => unknown", description: "A widget called `genframe.callTool` or MCP `tools/call`. The return value is the result." },
     { name: "onRequestDisplayMode", type: "({ mode }) => unknown", description: "A request for `inline`, `fullscreen`, or `pip`." },
     { name: "onUpdateModelContext", type: "(params: unknown) => unknown", description: "MCP Apps `ui/update-model-context`." },
-    { name: "onWidgetState", type: "(state: unknown) => void", description: "A widget called `genframe.setState` or `window.openai.setWidgetState`." },
+    { name: "onWidgetState", type: "(state: unknown) => void", description: "A widget called `genframe.setState`." },
     { name: "onResize", type: "(size: WidgetSize) => void", description: "The content size changed." },
     { name: "onError", type: "(error: WidgetError) => void", description: "An error, unhandled rejection, CSP violation, failed resource, or script error in the widget." },
     { name: "onLog", type: "(entry: ConsoleEntry) => void", description: "Console output from the widget." },
@@ -96,7 +95,7 @@ Options and result are on [Repair loop and screenshots](/generative-frame/docs/r
 | --- | --- |
 | `buildCsp(options?)` | The policy string for `CspOptions`. See [Security model](/generative-frame/docs/security#the-default-policy). |
 | `DEFAULT_CDN_ORIGINS`, `DEFAULT_FONT_STYLE_ORIGINS`, `DEFAULT_FONT_ORIGINS` | The default allowlists. |
-| `buildBootstrapHtml({ hostOrigin, csp?, tokens?, compat?, animate?, css?, runtime? })` | The document every frame loads once. |
+| `buildBootstrapHtml({ hostOrigin, csp?, tokens?, animate?, css?, runtime? })` | The document every frame loads once. |
 | `runtime` | The in-frame runtime source as a string. |
 | `detectWidgetKind(code)` | `"svg"` when the code starts with an `<svg` element, otherwise `"html"`. |
 
@@ -155,7 +154,6 @@ buildModuleGuidance(module: WidgetModule, options?: GuidanceOptions): string
     { name: "connectOrigins", type: "string[]", default: "[]", description: "Where widget code may send requests." },
     { name: "allowEval", type: "boolean", default: "false", description: "Whether `eval` is available." },
     { name: "width", type: "number", default: "680 on desktop, 360 on mobile", description: "Frame width in CSS pixels." },
-    { name: "compat", type: "Compat[]", description: "Compatibility shims the host enables." },
     { name: "hostApi", type: "{ prompt?: boolean; callTool?: boolean }", default: "{ prompt: true, callTool: false }", description: "Which host functions the guidance documents." },
   ]}
 />
@@ -195,7 +193,7 @@ useAssistantUiThemeTokens(element?): ThemeTokens
   type="WidgetToolkitOptions"
   parameters={[
     { name: "execution", type: "\"frontend\" | \"backend\"", default: "\"frontend\"", description: "`frontend` runs the tools in the browser; `backend` only renders." },
-    { name: "widget", type: "Omit<UseWidgetOptions, \"tokens\">", description: "Options for every widget frame (csp, product, maxHeight, compat, handlers)." },
+    { name: "widget", type: "Omit<UseWidgetOptions, \"tokens\">", description: "Options for every widget frame (csp, product, maxHeight, handlers)." },
     { name: "spec", type: "WidgetToolkitExtension", description: "Spec mode, from `createSpecToolkit(catalog, options)` in `generative-frame/spec/assistant-ui`. Adds `render_spec` and the `spec` module of `read_me`." },
     { name: "extraTools", type: "Record<string, ToolDefinition>", description: "More tools for the model, such as data lookups. They execute like the widget tools and render nothing in the thread." },
     { name: "themeElement", type: "Element | null", default: "document root", description: "Where the theme is read from." },

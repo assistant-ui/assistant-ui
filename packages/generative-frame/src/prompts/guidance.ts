@@ -1,5 +1,4 @@
 import { DEFAULT_CDN_ORIGINS } from "../csp";
-import type { Compat } from "../protocol";
 import { THEME_TOKENS, type ThemeTokens } from "../theme";
 
 export const WIDGET_MODULES = [
@@ -46,7 +45,6 @@ export type GuidanceOptions = {
   allowEval?: boolean;
   /** Frame width in CSS pixels. Defaults to 680 on desktop and 360 on mobile. */
   width?: number;
-  compat?: readonly Compat[];
   hostApi?: HostApiOptions;
 };
 
@@ -57,7 +55,6 @@ type Context = {
   connect: readonly string[];
   allowEval: boolean;
   hostApi: Required<HostApiOptions>;
-  compat: readonly Compat[];
   tokenNames: readonly string[];
   extraTokens: readonly string[];
   example: (path: string) => string;
@@ -177,11 +174,6 @@ const hostApiSection = (ctx: Context) => {
     '`genframe.theme` is `"light"` or `"dark"`; the window fires `themechange` when it changes.',
     "Do not request fullscreen or other display modes unless the user asks for it.",
   );
-  if (ctx.compat.includes("openai")) {
-    items.push(
-      "`window.openai` is available for widgets written against the OpenAI Apps SDK (`toolInput`, `toolOutput`, `widgetState`, `setWidgetState`, `callTool`, `sendFollowUpMessage`, `openExternal`). Prefer the functions above in new widgets.",
-    );
-  }
   return list(items);
 };
 
@@ -321,7 +313,6 @@ const createContext = (options: GuidanceOptions): Context => {
       prompt: options.hostApi?.prompt ?? true,
       callTool: options.hostApi?.callTool ?? false,
     },
-    compat: options.compat ?? [],
     tokenNames: names,
     extraTokens: names.filter((name) => !canonical.has(name)).sort(),
     example: cdnExample(cdn),

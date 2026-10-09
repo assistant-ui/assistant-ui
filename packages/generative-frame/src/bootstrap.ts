@@ -1,5 +1,5 @@
 import { buildCsp, type CspOptions } from "./csp";
-import type { Compat, HostContext } from "./protocol";
+import type { HostContext } from "./protocol";
 import { runtimeSource } from "./runtime/generated";
 import {
   DEFAULT_LIGHT_TOKENS,
@@ -63,7 +63,6 @@ export type BootstrapOptions = {
   hostOrigin: string;
   csp?: CspOptions | string;
   tokens?: ThemeTokens;
-  compat?: readonly Compat[];
   /** Fade in elements as they stream in. Always off under reduced motion. */
   animate?: boolean;
   /** Extra CSS appended after the base styles. */
@@ -82,7 +81,6 @@ export function buildBootstrapHtml(options: BootstrapOptions): string {
     typeof options.csp === "string" ? options.csp : buildCsp(options.csp);
   const config = JSON.stringify({
     hostOrigin: options.hostOrigin,
-    compat: [...(options.compat ?? [])],
     animate: options.animate ?? true,
   }).replace(/</g, "\\u003c");
 
