@@ -137,11 +137,12 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
+  const aiSDKTools = frontendTools(tools);
   const result = streamText({
     model: openai("gpt-6-luna"),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
   return result.toUIMessageStreamResponse();
 }
@@ -156,11 +157,12 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
+  const aiSDKTools = frontendTools(tools);
   const result = streamText({
     model: anthropic("claude-sonnet-5"),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
   return result.toUIMessageStreamResponse();
 }
@@ -175,11 +177,12 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
+  const aiSDKTools = frontendTools(tools);
   const result = streamText({
     model: azure("your-deployment-name"),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
   return result.toUIMessageStreamResponse();
 }
@@ -194,11 +197,12 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
+  const aiSDKTools = frontendTools(tools);
   const result = streamText({
     model: bedrock("us.anthropic.claude-sonnet-5"),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
   return result.toUIMessageStreamResponse();
 }
@@ -213,11 +217,12 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
+  const aiSDKTools = frontendTools(tools);
   const result = streamText({
     model: google("gemini-3.8-flash"),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
   return result.toUIMessageStreamResponse();
 }
@@ -232,11 +237,12 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
+  const aiSDKTools = frontendTools(tools);
   const result = streamText({
     model: vertex("gemini-3.8-flash"),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
   return result.toUIMessageStreamResponse();
 }
@@ -251,11 +257,12 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
+  const aiSDKTools = frontendTools(tools);
   const result = streamText({
     model: groq("openai/gpt-oss-120b"),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
   return result.toUIMessageStreamResponse();
 }
@@ -270,11 +277,12 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
+  const aiSDKTools = frontendTools(tools);
   const result = streamText({
     model: fireworks("accounts/fireworks/models/llama-v3p3-70b-instruct"),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
   return result.toUIMessageStreamResponse();
 }
@@ -289,11 +297,12 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
+  const aiSDKTools = frontendTools(tools);
   const result = streamText({
     model: cohere("command-r-plus"),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
   return result.toUIMessageStreamResponse();
 }
@@ -308,11 +317,12 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
+  const aiSDKTools = frontendTools(tools);
   const result = streamText({
     model: ollama("gpt-oss:20b"),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
   return result.toUIMessageStreamResponse();
 }
@@ -327,11 +337,12 @@ export const maxDuration = 30;
 
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
+  const aiSDKTools = frontendTools(tools);
   const result = streamText({
     model: chromeai(),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: frontendTools(tools),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
   return result.toUIMessageStreamResponse();
 }

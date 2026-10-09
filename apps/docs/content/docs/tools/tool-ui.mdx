@@ -227,29 +227,31 @@ import { z } from "zod";
 export async function POST(req: Request) {
   const { messages } = await req.json();
 
+  const aiSDKTools = {
+    getWeather: tool({
+      description: "Get current weather for a location",
+      inputSchema: zodSchema(
+        z.object({
+          location: z.string(),
+          unit: z.enum(["celsius", "fahrenheit"]),
+        }),
+      ),
+      execute: async ({ location, unit }) => {
+        const weather = await fetchWeatherAPI(location);
+        return {
+          temperature: weather.temp,
+          description: weather.condition,
+          humidity: weather.humidity,
+          windSpeed: weather.wind,
+        };
+      },
+    }),
+  };
+
   const result = streamText({
     model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages),
-    tools: {
-      getWeather: tool({
-        description: "Get current weather for a location",
-        inputSchema: zodSchema(
-          z.object({
-            location: z.string(),
-            unit: z.enum(["celsius", "fahrenheit"]),
-          }),
-        ),
-        execute: async ({ location, unit }) => {
-          const weather = await fetchWeatherAPI(location);
-          return {
-            temperature: weather.temp,
-            description: weather.condition,
-            humidity: weather.humidity,
-            windSpeed: weather.wind,
-          };
-        },
-      }),
-    },
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse();

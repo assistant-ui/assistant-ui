@@ -144,11 +144,13 @@ const aiToolkit = new AISDKToolkit({ toolkit });
 export async function POST(req: Request) {
   const { messages, tools } = await req.json();
 
+  const aiSDKTools = await aiToolkit.tools({ frontend: tools });
+
   const result = streamText({
     model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     stopWhen: stepCountIs(10),
-    tools: await aiToolkit.tools({ frontend: tools }),
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse();

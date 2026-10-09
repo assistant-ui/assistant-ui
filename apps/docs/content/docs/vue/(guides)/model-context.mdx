@@ -77,11 +77,13 @@ export default defineEventHandler(async (event) => {
     tools?: FrontendTools;
   }>(event);
 
+  const aiSDKTools = frontendTools(tools ?? {});
+
   const result = streamText({
     model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     system,
-    tools: frontendTools(tools ?? {}),
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse();

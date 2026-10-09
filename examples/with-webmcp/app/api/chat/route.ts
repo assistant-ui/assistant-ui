@@ -22,12 +22,15 @@ export async function POST(req: Request) {
     tools?: NonNullable<AISDKToolkitToolsOptions["frontend"]>;
   } = await req.json();
 
+  const aiSDKTools = await aiToolkit.tools({
+    ...(tools && { frontend: tools }),
+  });
   const result = streamText({
     model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     stopWhen: stepCountIs(10),
     ...(system ? { system } : {}),
-    tools: await aiToolkit.tools({ ...(tools && { frontend: tools }) }),
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse();

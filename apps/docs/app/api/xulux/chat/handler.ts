@@ -66,9 +66,10 @@ const MAX_RAW_MESSAGES_CHARS = 1_000_000;
 const MAX_SYSTEM_CHARS = 4_000;
 const MAX_SESSION_ID_CHARS = 128;
 
-async function prepareMessages(messages: readonly UIMessage[]) {
+async function prepareMessages(messages: readonly UIMessage[], tools: ToolSet) {
   const modelMessages = await convertToModelMessages(
     injectQuoteContext([...messages]),
+    { tools },
   );
   return pruneMessages({ messages: modelMessages, ...PRUNE_OPTIONS });
 }
@@ -221,7 +222,17 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
             routeUrl: req.url,
           })
         : uiMessages;
-      const prunedMessages = await prepareMessages(preparedUiMessages);
+      const preparedTools = agent.prepareTools({
+        body,
+        clientTools: (clientTools ?? {}) as FrontendTools,
+        routeUrl: req.url,
+      });
+      if (preparedTools instanceof Response) return preparedTools;
+      const xuluxTools: ToolSet = preparedTools;
+      const prunedMessages = await prepareMessages(
+        preparedUiMessages,
+        xuluxTools,
+      );
       const pageContext =
         agent.allowRequestSystemPrompt !== false &&
         typeof rawPageContext === "string" &&
@@ -274,14 +285,6 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
 
       const inputError = validateDocChatInput(prunedMessages);
       if (inputError) return inputError;
-
-      const preparedTools = agent.prepareTools({
-        body,
-        clientTools: clientTools as FrontendTools,
-        routeUrl: req.url,
-      });
-      if (preparedTools instanceof Response) return preparedTools;
-      const xuluxTools: ToolSet = preparedTools;
 
       const distinctId = getDistinctId(req);
       const budget = await beginTurn(budgetSessionId, publicSession.id);
