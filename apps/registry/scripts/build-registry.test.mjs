@@ -2928,6 +2928,7 @@ test("disclosure registry items install their ref-owning root in both flavors", 
     assert.ok(root.files[0].path.endsWith("/collapsible-root.tsx"));
     assert.ok(root.files[0].content.includes(`from "${dependency}`));
     assert.ok(root.dependencies.includes(dependency));
+    assert.ok(root.files[0].content.includes(`data-slot="collapsible"`));
     for (const part of ["CollapsibleTrigger", "CollapsibleContent"]) {
       assert.ok(
         root.files[0].content.includes(`export const ${part}`) ||
