@@ -198,14 +198,6 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   const scrolledSincePauseRef = useRef(false);
   const previousAutoScrollRef = useRef(autoScroll);
 
-  const setIsAtBottom = useCallback(
-    (isAtBottom: boolean) => {
-      if (threadViewportStore.getState().isAtBottom === isAtBottom) return;
-      writableStore(threadViewportStore).setState({ isAtBottom });
-    },
-    [threadViewportStore],
-  );
-
   useLayoutEffect(() => {
     const previousAutoScroll = previousAutoScrollRef.current;
     previousAutoScrollRef.current = autoScroll;
@@ -304,8 +296,11 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       const shouldUpdate =
         newIsAtBottom || scrollingToBottomBehaviorRef.current === null;
 
-      if (shouldUpdate && newIsAtBottom !== isAtBottom)
-        setIsAtBottom(newIsAtBottom);
+      if (shouldUpdate && newIsAtBottom !== isAtBottom) {
+        writableStore(threadViewportStore).setState({
+          isAtBottom: newIsAtBottom,
+        });
+      }
     }
 
     lastScrollTop.current = div.scrollTop;
