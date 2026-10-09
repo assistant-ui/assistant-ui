@@ -24,7 +24,7 @@ import {
   zodSchema,
 } from "ai";
 import type * as PageTree from "fumadocs-core/page-tree";
-import type { UIMessage, UIMessageChunk } from "ai";
+import type { ToolSet, UIMessage, UIMessageChunk } from "ai";
 import z from "zod";
 
 function normalizeSegment(name: string): string {
@@ -132,9 +132,13 @@ export const DOC_CHAT_PRUNE_OPTIONS = {
   emptyMessages: "remove",
 } as const;
 
-export async function prepareDocChatMessages(messages: readonly UIMessage[]) {
+export async function prepareDocChatMessages(
+  messages: readonly UIMessage[],
+  tools: ToolSet,
+) {
   const modelMessages = await convertToModelMessages(
     injectQuoteContext([...messages]),
+    { tools },
   );
 
   return pruneMessages({
@@ -325,7 +329,8 @@ export async function POST(req: Request): Promise<Response> {
     const toolsError = validateFrontendToolsInput(tools);
     if (toolsError) return toolsError;
 
-    const prunedMessages = await prepareDocChatMessages(messages);
+    const clientTools = frontendTools(tools ?? {});
+    const prunedMessages = await prepareDocChatMessages(messages, clientTools);
 
     const inputError = validateDocChatInput(prunedMessages);
     if (inputError) return inputError;
@@ -350,7 +355,7 @@ export async function POST(req: Request): Promise<Response> {
         source: "docs_assistant",
       }),
       tools: {
-        ...frontendTools(tools),
+        ...clientTools,
         ...repoTools,
         listDocs: tool({
           description:

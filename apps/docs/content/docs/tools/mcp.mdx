@@ -178,10 +178,12 @@ export async function POST(req: Request) {
 
   const aiToolkit = new AISDKToolkit({ toolkit });
 
+  const aiSDKTools = await aiToolkit.tools({ frontend: tools });
+
   const result = streamText({
     model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages),
-    tools: await aiToolkit.tools({ frontend: tools }),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
     onFinish: async () => {
       await aiToolkit.close();
     },
@@ -223,7 +225,7 @@ export async function POST(req: Request) {
 
   const result = streamText({
     model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages, { tools }),
     tools,
     onFinish: async () => {
       await mcpClient.close();
@@ -405,7 +407,7 @@ const tools = await mcpClient.tools();
 
 const result = streamText({
   model: openai("gpt-6-luna"),
-  messages: await convertToModelMessages(messages),
+  messages: await convertToModelMessages(messages, { tools }),
   tools,
   toolApproval: {
     github_delete_repository: "user-approval",

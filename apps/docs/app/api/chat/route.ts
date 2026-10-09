@@ -120,6 +120,7 @@ export async function POST(req: Request) {
     const prunedMessages = pruneMessages({
       messages: await convertToModelMessages(
         injectInteractableContext(injectQuoteContext(messages)),
+        { tools: frontendTools },
       ),
       reasoning: "none",
     });
