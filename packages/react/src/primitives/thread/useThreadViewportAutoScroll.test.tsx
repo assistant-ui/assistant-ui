@@ -416,6 +416,13 @@ describe("useThreadViewportAutoScroll", () => {
       );
     });
 
+    act(() => {
+      viewport.scrollTop = getMaxScrollTop(viewport);
+      viewport.dispatchEvent(new Event("scroll"));
+    });
+    expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
+    viewportMeasurementOffset += 200;
+
     const scrollToSpy = vi
       .spyOn(viewport, "scrollTo")
       .mockImplementation(() => {});
@@ -438,7 +445,7 @@ describe("useThreadViewportAutoScroll", () => {
       });
 
       act(() => {
-        viewport.scrollTop = 100;
+        viewport.scrollTop += 100;
         viewport.dispatchEvent(new Event("scroll"));
       });
       expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
