@@ -1,8 +1,6 @@
 import {
   createRepoSourceReader,
-  snapshotSourceReader,
   type RepoSourceReader,
-  type RepoSourceSnapshot,
 } from "@/lib/repo-source";
 import {
   DEMO_DOWNLOAD_MANIFESTS,
@@ -22,13 +20,6 @@ import { createZip, type ZipFileMap } from "./zip";
 
 export async function createDemoZip(slug: string) {
   return createZip(await buildDemoFileMap(slug, createRepoSourceReader()));
-}
-
-export function createDemoFileMap(
-  slug: string,
-  snapshot: RepoSourceSnapshot,
-): Promise<ZipFileMap> {
-  return buildDemoFileMap(slug, snapshotSourceReader(snapshot));
 }
 
 async function buildDemoFileMap(
