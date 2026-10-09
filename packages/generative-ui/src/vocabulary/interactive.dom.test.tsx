@@ -5,7 +5,7 @@ import { createRoot, hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { convertSurfaceToUISpec } from "../a2ui/convert";
-import { A2uiBindingContext } from "../a2ui/BindingContext";
+import { A2uiBindingContext } from "../bindingContext";
 import { applyA2uiOperations } from "../a2ui/reducer";
 import { A2uiPresentRenderer } from "../a2ui/PresentRenderer";
 import { createActionRegistry, type ActionHandler } from "../actionRegistry";
@@ -62,7 +62,50 @@ const mount = async (
   return container;
 };
 
+const confirmComposition = async (
+  control: HTMLInputElement | HTMLTextAreaElement,
+  ctrlKey = false,
+) => {
+  const event = new KeyboardEvent("keydown", {
+    key: "Enter",
+    isComposing: false,
+    ctrlKey,
+    bubbles: true,
+  });
+  Object.defineProperty(event, "keyCode", { value: 229 });
+  await act(async () => control.dispatchEvent(event));
+};
+
 describe("Input", () => {
+  it("does not submit a single-line input on an IME confirmation Enter", async () => {
+    const submit = vi.fn();
+    const container = await mount(
+      { $type: "Input", defaultValue: "draft", $action: { type: "submit" } },
+      { submit },
+    );
+
+    await confirmComposition(container.querySelector("input")!);
+
+    expect(submit).not.toHaveBeenCalled();
+  });
+
+  it("does not submit a multiline input on an IME confirmation Ctrl+Enter", async () => {
+    const submit = vi.fn();
+    const container = await mount(
+      {
+        $type: "Input",
+        multiline: true,
+        defaultValue: "draft",
+        $action: { type: "submit" },
+      },
+      { submit },
+    );
+
+    await confirmComposition(container.querySelector("textarea")!, true);
+
+    expect(submit).not.toHaveBeenCalled();
+  });
+
   it("keeps password and number single-line when multiline is set", async () => {
     const container = await mount(
       [

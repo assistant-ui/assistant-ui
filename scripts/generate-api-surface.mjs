@@ -5,14 +5,14 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
-  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
+import { isExecutedAsMain } from "./lib/main.mjs";
 import { optionValues } from "./lib/script-options.mjs";
 import {
   apiSurfaceFileName,
@@ -967,20 +967,6 @@ async function main() {
   }
 }
 
-// import.meta.main requires Node >= 24.2; on older runtimes it is undefined
-// and the script would silently no-op with exit code 0. Both sides are
-// realpath'd because Node resolves the main module through symlinks while
-// argv keeps the invoked path (e.g. /tmp vs /private/tmp on macOS).
-const realPath = (file) => {
-  try {
-    return realpathSync.native(file);
-  } catch {
-    return path.resolve(file);
-  }
-};
-const isMainEntry =
-  process.argv[1] !== undefined &&
-  realPath(process.argv[1]) === realPath(fileURLToPath(import.meta.url));
-if (isMainEntry) {
+if (isExecutedAsMain(import.meta.url, process.argv[1])) {
   await main();
 }

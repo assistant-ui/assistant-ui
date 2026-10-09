@@ -96,6 +96,29 @@ describe("ThreadSearch", () => {
     expect(onSelect).toHaveBeenNthCalledWith(3, "migration");
   });
 
+  it("does not activate the highlighted thread on an IME confirmation Enter", () => {
+    const onActiveChange = vi.fn();
+    const onSelect = vi.fn();
+    render(
+      <ThreadSearch
+        threads={threads}
+        query=""
+        activeId="pinned"
+        onActiveChange={onActiveChange}
+        onSelect={onSelect}
+      />,
+    );
+
+    const input = screen.getByRole("combobox", { name: "Search threads" });
+    fireEvent.keyDown(input, {
+      key: "Enter",
+      keyCode: 229,
+      isComposing: false,
+    });
+
+    expect(onSelect).not.toHaveBeenCalled();
+  });
+
   it("does not activate a result filtered away from the active id", () => {
     const onActiveChange = vi.fn();
     const onSelect = vi.fn();
