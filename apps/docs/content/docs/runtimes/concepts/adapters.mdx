@@ -21,15 +21,15 @@ const runtime = useChatRuntime({ adapters: { attachments, history } });
 
 ## Support matrix
 
-| Adapter | LocalRuntime | ExternalStoreRuntime | DataStream | AssistantTransport | ai-sdk | react-langgraph | react-langchain | react-google-adk | react-a2a | react-ag-ui | react-opencode | eve | react-flue |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Attachments | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Images |
-| Speech | Yes | Yes | Yes | (no) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Dictation | Yes | Yes | Yes | (no) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| Feedback | Yes | Yes | Yes | (no) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
-| History | Yes | (use your store) | Yes | (use thread converter) | Yes | (via load) | (via thread state) | (via load) | Yes | Yes | (server-managed) | (server-managed) | Flue-managed |
-| Suggestion | Yes | (no) | Yes | (no) | Yes | (no) | (no) | (no) | (no) | (no) | (no) | (no) | (no) |
-| threadList | Yes (`RemoteThreadListAdapter`) | Yes (`ExternalStoreThreadListAdapter`) | Yes (`RemoteThreadListAdapter`) | Yes | Yes | Yes | Yes | Yes | Yes | Yes (experimental) | Built-in (sessions) | Yes | App-managed |
+| Adapter | LocalRuntime | ExternalStoreRuntime | DataStream | AssistantTransport | ai-sdk | react-langgraph | react-langchain | react-google-adk | react-a2a | react-ag-ui | react-opencode | eve |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Attachments | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Speech | Yes | Yes | Yes | (no) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Dictation | Yes | Yes | Yes | (no) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| Feedback | Yes | Yes | Yes | (no) | Yes | Yes | Yes | Yes | Yes | Yes | Yes | Yes |
+| History | Yes | (use your store) | Yes | (use thread converter) | Yes | (via load) | (via thread state) | (via load) | Yes | Yes | (server-managed) | (server-managed) |
+| Suggestion | Yes | (no) | Yes | (no) | Yes | (no) | (no) | (no) | (no) | (no) | (no) | (no) |
+| threadList | Yes (`RemoteThreadListAdapter`) | Yes (`ExternalStoreThreadListAdapter`) | Yes (`RemoteThreadListAdapter`) | Yes | Yes | Yes | Yes | Yes | Yes | Yes (experimental) | Built-in (sessions) | Yes |
 
 `(no)` means the adapter slot is not exposed by that runtime today. You would need to drop down a layer to use it.
 

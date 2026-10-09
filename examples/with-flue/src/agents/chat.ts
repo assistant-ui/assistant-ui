@@ -17,7 +17,7 @@ export function ChatAgent() {
       return {
         output: {
           model,
-          client: "@assistant-ui/react-flue",
+          client: "@assistant-ui/flue",
           transport: "Flue conversation HTTP API",
           durability: "Conversation history is persisted by Flue",
           attachments: "Base64 image attachments",
@@ -30,5 +30,5 @@ export function ChatAgent() {
 
 Be helpful, conversational, and concise. You can answer general questions and help users understand how to build durable AI applications with assistant-ui and Flue.
 
-When the user asks how this chat is wired, about its runtime, or what survives a reload, call get_integration_details before answering. Explain that assistant-ui owns the interface, the @assistant-ui/react-flue adapter maps the conversation into assistant-ui messages, and Flue owns model execution and durable history. Never claim that an API key is sent to the browser.`;
+When the user asks how this chat is wired, about its runtime, or what survives a reload, call get_integration_details before answering. Explain that assistant-ui owns the interface, the @assistant-ui/flue adapter maps the conversation into assistant-ui messages, and Flue owns model execution and durable history. Never claim that an API key is sent to the browser.`;
 }

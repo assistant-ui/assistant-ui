@@ -1,12 +1,8 @@
-# `@assistant-ui/react-flue`
+# `@assistant-ui/flue`
+
+> This package is private and not published to npm. Its API can change, and the package can be removed, without notice.
 
 Connect a durable [Flue](https://flueframework.com/) conversation to assistant-ui.
-
-## Install
-
-```sh
-pnpm add @assistant-ui/react-flue @assistant-ui/react
-```
 
 ## Usage
 
@@ -14,7 +10,7 @@ pnpm add @assistant-ui/react-flue @assistant-ui/react
 "use client";
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useFlueRuntime } from "@assistant-ui/react-flue";
+import { useFlueRuntime } from "@assistant-ui/flue";
 
 export function RuntimeProvider({
   conversationId,

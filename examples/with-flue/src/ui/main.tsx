@@ -2,7 +2,7 @@ import { Thread } from "@assistant-ui/ui/components/assistant-ui/elements/thread
 import {
   useFlueRuntimeExtras,
   type FlueRuntimeExtras,
-} from "@assistant-ui/react-flue";
+} from "@assistant-ui/flue";
 import { useState } from "react";
 import { createRoot } from "react-dom/client";
 import { FlueRuntimeProvider } from "./runtime-provider";

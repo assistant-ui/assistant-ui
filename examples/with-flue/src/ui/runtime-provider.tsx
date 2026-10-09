@@ -6,7 +6,7 @@ import {
   SimpleImageAttachmentAdapter,
   Suggestions,
 } from "@assistant-ui/react";
-import { useFlueRuntime } from "@assistant-ui/react-flue";
+import { useFlueRuntime } from "@assistant-ui/flue";
 import { useMemo, type PropsWithChildren } from "react";
 
 const config = AuiConfig({

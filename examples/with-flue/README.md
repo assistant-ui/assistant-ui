@@ -1,6 +1,6 @@
 # assistant-ui + Flue
 
-This example is a complete chat app: assistant-ui renders the interface, `@assistant-ui/react-flue` connects it to one durable Flue conversation, and Flue streams a real OpenAI response from the server.
+This example is a complete chat app: assistant-ui renders the interface, `@assistant-ui/flue` connects it to one durable Flue conversation, and Flue streams a real OpenAI response from the server.
 
 ## Run it
 
@@ -26,7 +26,7 @@ import {
   AssistantRuntimeProvider,
   SimpleImageAttachmentAdapter,
 } from "@assistant-ui/react";
-import { useFlueRuntime } from "@assistant-ui/react-flue";
+import { useFlueRuntime } from "@assistant-ui/flue";
 import { useMemo, type PropsWithChildren } from "react";
 
 export function FlueRuntimeProvider({

@@ -1,6 +1,7 @@
 {
-  "name": "@assistant-ui/react-flue",
+  "name": "@assistant-ui/flue",
   "version": "0.0.0",
+  "private": true,
   "description": "Flue runtime adapter for assistant-ui",
   "keywords": [
     "flue",
@@ -30,7 +31,10 @@
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
+    "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
     "typecheck": "tsc --noEmit",
+    "test:peer-react18": "vitest run --config vitest.peer-react18.config.ts",
+    "test:types:peer-react18": "aui-react18-types",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -50,6 +54,7 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
+    "@assistant-ui/x-react18": "workspace:*",
     "@testing-library/react": "^16.3.3",
     "@types/react": "^19.3.0",
     "jsdom": "^30.0.1",
@@ -57,15 +62,11 @@
     "react-dom": "^19.3.0",
     "vitest": "^5.0.1"
   },
-  "publishConfig": {
-    "access": "public",
-    "provenance": true
-  },
   "homepage": "https://www.assistant-ui.com/",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/assistant-ui/assistant-ui.git",
-    "directory": "packages/react-flue"
+    "directory": "packages/flue"
   },
   "bugs": {
     "url": "https://github.com/assistant-ui/assistant-ui/issues"
