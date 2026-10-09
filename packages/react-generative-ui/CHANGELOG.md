@@ -1,5 +1,29 @@
 # @assistant-ui/react-generative-ui
 
+## 0.1.0
+
+### Minor Changes
+
+- [#9071](https://github.com/assistant-ui/assistant-ui/pull/9071) [`7a1342e`](https://github.com/assistant-ui/assistant-ui/commit/7a1342edd7849fda809161752182cc9da7c67983) - refactor: the package now re-exports `@assistant-ui/generative-ui`, starting the 0.1 line. all existing imports keep working unchanged; new code should depend on `@assistant-ui/generative-ui` directly. ([@okisdev](https://github.com/okisdev))
+  
+  <!-- caret-break: intended -->
+
+### Patch Changes
+
+- [#8446](https://github.com/assistant-ui/assistant-ui/pull/8446) [`d8a9b1b`](https://github.com/assistant-ui/assistant-ui/commit/d8a9b1b1a56ce5b6b7d2aded92f0911c342101ec) - fix: read current input values for A2UI action bindings nested in objects and arrays. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8937](https://github.com/assistant-ui/assistant-ui/pull/8937) [`92f2ed9`](https://github.com/assistant-ui/assistant-ui/commit/92f2ed9d1b9a66b223128a0e39b50b6e4cd53477) - fix: resolve nested A2UI action paths without losing empty property names ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8876](https://github.com/assistant-ui/assistant-ui/pull/8876) [`287b768`](https://github.com/assistant-ui/assistant-ui/commit/287b7689572522cd24c159b22d30a0e4f736e031) - build the A2UI `present` tool call in one place: `surfaceToPresentToolCall` in `@assistant-ui/generative-ui/a2ui`, used by the AG-UI and A2A adapters ([@okisdev](https://github.com/okisdev))
+
+- [#8916](https://github.com/assistant-ui/assistant-ui/pull/8916) [`b8b3e74`](https://github.com/assistant-ui/assistant-ui/commit/b8b3e7417165a790549f6e470f449540db99b7f1) - decode A2UI JSON pointers through one shared decoder with explicit absolute and scope-relative entry points ([@okisdev](https://github.com/okisdev))
+
+- [#8437](https://github.com/assistant-ui/assistant-ui/pull/8437) [`48b31a9`](https://github.com/assistant-ui/assistant-ui/commit/48b31a9dea59260a26d8296b3ba79e0c7faa9a55) - fix: enable Slack single-line input action events on Enter outside forms when the input declares an action, and decode passive single-line inputs from `fromSlackBlocks` without an `$action`. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9087](https://github.com/assistant-ui/assistant-ui/pull/9087) [`650942c`](https://github.com/assistant-ui/assistant-ui/commit/650942ce6da486a07dc2ab1a0f14c2a7ecc1526f) - feat: export `resolveFieldReferences` and `hasFieldReference`, so a custom component that dispatches its own `$action` can resolve `{ "$field": name }` references against its own values. `resolveFieldReferences` now keeps a reference nested deeper than 64 levels as is, matching `hasFieldReference`. ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`d8a9b1b`](https://github.com/assistant-ui/assistant-ui/commit/d8a9b1b1a56ce5b6b7d2aded92f0911c342101ec), [`92f2ed9`](https://github.com/assistant-ui/assistant-ui/commit/92f2ed9d1b9a66b223128a0e39b50b6e4cd53477), [`287b768`](https://github.com/assistant-ui/assistant-ui/commit/287b7689572522cd24c159b22d30a0e4f736e031), [`b8b3e74`](https://github.com/assistant-ui/assistant-ui/commit/b8b3e7417165a790549f6e470f449540db99b7f1), [`48b31a9`](https://github.com/assistant-ui/assistant-ui/commit/48b31a9dea59260a26d8296b3ba79e0c7faa9a55), [`ae487aa`](https://github.com/assistant-ui/assistant-ui/commit/ae487aa5c66951faa60ef4f32b3e36e2c0a2ef20), [`650942c`](https://github.com/assistant-ui/assistant-ui/commit/650942ce6da486a07dc2ab1a0f14c2a7ecc1526f), [`55af03b`](https://github.com/assistant-ui/assistant-ui/commit/55af03b6e12ff70c2d046f10539636f852655fa5), [`7ff9ec2`](https://github.com/assistant-ui/assistant-ui/commit/7ff9ec2ec5b50de5c5f39eb4bfe087b65d0c1aea), [`7a1342e`](https://github.com/assistant-ui/assistant-ui/commit/7a1342edd7849fda809161752182cc9da7c67983)]:
+  - @assistant-ui/generative-ui@0.0.1
+
 ## 0.0.24
 
 ### Patch Changes

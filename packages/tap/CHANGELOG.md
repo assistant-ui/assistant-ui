@@ -1,5 +1,15 @@
 # @assistant-ui/tap
 
+## 0.9.22
+
+### Patch Changes
+
+- [#7931](https://github.com/assistant-ui/assistant-ui/pull/7931) [`14ba56e`](https://github.com/assistant-ui/assistant-ui/commit/14ba56ee6fb868446552670b558b456abe67252c) - fix: reuse a clean child registered without deps when its parent passes the same element ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#8640](https://github.com/assistant-ui/assistant-ui/pull/8640) [`9121416`](https://github.com/assistant-ui/assistant-ui/commit/9121416f70e5fed68eaf7f8922a726e289e98aa5) - fix: preserve behavior on the advertised React 18 peer range ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#8441](https://github.com/assistant-ui/assistant-ui/pull/8441) [`039d048`](https://github.com/assistant-ui/assistant-ui/commit/039d0489ef5cc21608891e9a92f1ecbd5c9ab201) - fix(tap): a `flushTapSync` runs only the tasks and notifications queued in its own flush, so an update dispatched before a `flushTapSync` to a root its callback does not update is no longer flushed by it and commits on the next scheduled flush; a `mountOnSubscribe` root subscribed from a listener no longer fails on another root's listener error, and a same-tick unsubscribe and resubscribe no longer remounts a lazy root when another root mounts in between ([@samdickson22](https://github.com/samdickson22))
+
 ## 0.9.21
 
 ### Patch Changes

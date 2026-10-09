@@ -10,7 +10,7 @@
     "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary"
   },
   "dependencies": {
-    "@assistant-ui/tap": "^0.9.7",
+    "@assistant-ui/tap": "^0.9.22",
     "setup-agent": "workspace:*",
     "statewire": "^0.19.4",
     "@statewire/cloudflare": "^0.2.1"
