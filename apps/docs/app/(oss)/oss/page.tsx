@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 
 const title = "Open Source Projects";
 const description =
-  "Every open source project from the assistant-ui organization, with links to its docs, source, and packages.";
+  "Open source projects from the assistant-ui organization, from the core SDK to the small packages we extracted along the way.";
 
 export const metadata: Metadata = {
   title,
