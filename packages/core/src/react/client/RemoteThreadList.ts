@@ -244,7 +244,11 @@ const useRemoteThreadBody = ({
   remoteId: string | undefined;
   item: (isRunning: boolean) => ResourceElement<ClientOutput<"threadListItem">>;
   thread: ResourceElement<ClientOutput<"thread">>;
-  onAutomaticTitle: (id: string, messages: readonly ThreadMessage[]) => void;
+  onAutomaticTitle: (
+    id: string,
+    messages: readonly ThreadMessage[],
+    initialized: boolean,
+  ) => void;
 }): ClientOutput<"thread"> => {
   const parent = useAssistantContextValue();
   const [isRunning, setIsRunning] = useState(false);
@@ -268,9 +272,7 @@ const useRemoteThreadBody = ({
     }, [bodyRunning]);
     const messages = body.state.messages as readonly ThreadMessage[];
     useEffect(() => {
-      if (remoteId !== undefined && messages.some(isTitleSourceMessage)) {
-        onAutomaticTitle(id, messages);
-      }
+      onAutomaticTitle(id, messages, remoteId !== undefined);
     });
     return body.methods;
   });
@@ -327,7 +329,7 @@ const useRemoteThreadListView = ({
   mainThreadId: string;
   initialMainId: string;
   startedIds: readonly string[];
-  pendingAutomaticTitles: Set<string>;
+  pendingAutomaticTitles: Map<string, readonly ThreadMessage[]>;
   backgroundThreads: boolean;
   threadFactory: RemoteThreadListProps["thread"];
   useAdapters: RemoteThreadListAdapter["unstable_useAdapters"];
@@ -372,10 +374,20 @@ const useRemoteThreadListView = ({
     return ids;
   }, [backgroundThreads, listState, mainThreadId, startedIds]);
 
-  const onAutomaticTitle = (id: string, messages: readonly ThreadMessage[]) => {
-    if (!pendingAutomaticTitles.delete(id)) return;
+  const onAutomaticTitle = (
+    id: string,
+    messages: readonly ThreadMessage[],
+    initialized: boolean,
+  ) => {
+    const previous = pendingAutomaticTitles.get(id);
+    if (previous === undefined) return;
+    const sources = messages.filter(isTitleSourceMessage);
+    if (sources.length > 0) pendingAutomaticTitles.set(id, sources);
+    const titleSources = sources.length > 0 ? sources : previous;
+    if (!initialized || titleSources.length === 0) return;
+    pendingAutomaticTitles.delete(id);
     handleThreadListAction("generate title", () =>
-      onGenerateTitle(id, messages, { automatic: true }),
+      onGenerateTitle(id, titleSources, { automatic: true }),
     );
   };
 
@@ -510,7 +522,7 @@ const useRemoteThreadList = (
         adapterAtLoad: adapter,
         adapterGeneration: 0,
         titleStates: new Map<string, ThreadTitleState>(),
-        pendingAutomaticTitles: new Set<string>(),
+        pendingAutomaticTitles: new Map<string, readonly ThreadMessage[]>(),
         loadGeneration: 0,
         switchGeneration: 0,
         loadPromise: undefined as Promise<void> | undefined,
@@ -930,7 +942,7 @@ const useRemoteThreadList = (
       }
       requireAdapterGeneration(adapterGeneration);
       const initializeTask = currentAdapter.initialize(threadId);
-      if (backgroundThreads) session.pendingAutomaticTitles.add(threadId);
+      if (backgroundThreads) session.pendingAutomaticTitles.set(threadId, []);
       let removedMappingId: string | undefined;
       let replacementMainThreadId: string | undefined;
       const initialization = store.optimisticUpdate({

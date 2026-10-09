@@ -589,6 +589,99 @@ describe("RemoteThreadList backgroundThreads", () => {
     handle.destroy();
   });
 
+  it("retains a settled title source when an empty body replaces it before initialization", async () => {
+    const initialization = deferred<{
+      remoteId: string;
+      externalId: undefined;
+    }>();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+      })),
+      initialize: vi.fn(() => initialization.promise),
+    });
+    let messages: readonly { role: "user" }[] = [];
+    const listeners = new Set<() => void>();
+    const mounts: string[] = [];
+    const useMessageThread = ({ threadId }: { threadId: string }) => {
+      useState(() => {
+        mounts.push(threadId);
+        return true;
+      });
+      const currentMessages = useSyncExternalStore(
+        (listener) => {
+          listeners.add(listener);
+          return () => listeners.delete(listener);
+        },
+        () => messages,
+      );
+      return {
+        getState: () => ({ isRunning: false, messages: currentMessages }),
+        composer: () => stubComposer,
+        suggestions: () => stubSuggestions,
+      };
+    };
+    const MessageThread = resource(useMessageThread);
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: RemoteThreadList({
+          adapter,
+          backgroundThreads: true,
+          thread: (id) => withKey(id, MessageThread({ threadId: id }) as never),
+        }),
+      }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    const newThreadId = aui.threads.getState().mainThreadId;
+    const initializePromise = aui.threads.item("main").initialize();
+
+    const settledMessages = [{ role: "user" as const }];
+    messages = settledMessages;
+    flushTapSync(() => {
+      for (const listener of listeners) listener();
+    });
+    await vi.waitFor(() => {
+      expect(aui.thread.getState().messages).toEqual(settledMessages);
+    });
+    expect(adapter.generateTitle).not.toHaveBeenCalled();
+
+    flushTapSync(() => aui.threads.switchToThread("t1"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t1");
+    });
+    flushTapSync(() => aui.threads.item({ id: newThreadId }).detach());
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t1");
+    });
+    messages = [];
+    flushTapSync(() => {
+      for (const listener of listeners) listener();
+    });
+    flushTapSync(() => aui.threads.switchToThread(newThreadId));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe(newThreadId);
+      expect(aui.thread.getState().messages).toEqual([]);
+      expect(mounts.filter((id) => id === newThreadId).length).toBeGreaterThan(
+        1,
+      );
+    });
+
+    initialization.resolve({
+      remoteId: `remote-${newThreadId}`,
+      externalId: undefined,
+    });
+    await initializePromise;
+    await vi.waitFor(() => {
+      expect(adapter.generateTitle).toHaveBeenCalledExactlyOnceWith(
+        `remote-${newThreadId}`,
+        settledMessages,
+      );
+    });
+    handle.destroy();
+  });
+
   it("keeps the mode fixed when the prop flips after mount", async () => {
     const adapter = makeAdapter({
       list: vi.fn(async () => ({
