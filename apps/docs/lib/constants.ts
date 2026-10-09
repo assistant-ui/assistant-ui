@@ -43,7 +43,7 @@ export const PRODUCTS: Product[] = [
     slug: "safe-content-frame",
     label: "Safe Content Frame",
     href: "/safe-content-frame",
-    description: "Secure sandboxed iframes",
+    description: "Sandboxes for HTML",
     external: false,
   },
   {

@@ -1,6 +1,7 @@
 import { cacheLife } from "next/cache";
 import { design, elementsDocs, examples, source } from "@/lib/source";
 import { buildLLMSIndex } from "@/lib/llms-index";
+import { docsSitePages } from "@/lib/docs-pages";
 
 async function getIndex() {
   "use cache";
@@ -10,6 +11,7 @@ async function getIndex() {
     examples.getPages(),
     design.getPages(),
     elementsDocs.getPages(),
+    docsSitePages().map(({ site, pages }) => ({ title: site.title, pages })),
   );
 }
 
