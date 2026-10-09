@@ -235,6 +235,36 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       });
     });
 
+    it("does not reload when Stop lands while client tools abort", async () => {
+      let resolveAbort!: () => void;
+      const abortPromise = new Promise<void>((resolve) => {
+        resolveAbort = resolve;
+      });
+      const onReload = vi.fn(async () => {});
+      const onCancel = vi.fn();
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({ onReload, onCancel }),
+      );
+      const abort = vi.fn(() => abortPromise);
+      (
+        core as unknown as { _toolInvocations: { abort: typeof abort } }
+      )._toolInvocations = { abort };
+
+      const reload = core.startRun({
+        parentId: "msg-1",
+        sourceId: null,
+        runConfig: {},
+      });
+      expect(abort).toHaveBeenCalledOnce();
+
+      core.cancelRun();
+      resolveAbort();
+      await reload;
+
+      expect(onReload).not.toHaveBeenCalled();
+    });
+
     it("throws when adapter has no onReload", async () => {
       const adapter = createBaseAdapter();
       const core = new ExternalStoreThreadRuntimeCore(contextProvider, adapter);
