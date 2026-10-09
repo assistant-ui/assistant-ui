@@ -28,7 +28,8 @@ const h = vi.hoisted(() => ({
   },
 }));
 
-vi.mock("@assistant-ui/store", () => {
+vi.mock("@assistant-ui/store", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@assistant-ui/store")>();
   const message = Object.assign(() => message, {
     part: ({ index }: { index: number }) => ({
       addToolResult: (...args: unknown[]) => h.addToolResult(index, ...args),
@@ -41,6 +42,7 @@ vi.mock("@assistant-ui/store", () => {
   });
   const aui = { message };
   return {
+    ...actual,
     useAui: () => aui,
     useAuiState: <T,>(selector: (s: typeof h.state) => T) => selector(h.state),
   };
@@ -157,9 +159,8 @@ describe("MessageContent", () => {
     expect(container.textContent).toBe("");
   });
 
-  it("renders null for optional parts when no renderer is provided", async () => {
+  it("renders null for reasoning, source, and file without renderers", async () => {
     h.state.message.content = [
-      { type: "image", image: "x" },
       { type: "reasoning", text: "r" },
       { type: "source", sourceType: "url", id: "1", url: "u" },
       { type: "file", filename: "f" },
@@ -190,6 +191,7 @@ describe("MessageContent", () => {
     await mount({ renderImage, renderReasoning, renderSource, renderFile });
 
     expect(container.textContent).toBe("image-0reasoning-1source-2file-3");
+    expect(container.querySelector("img")).toBeNull();
     expect(renderImage).toHaveBeenCalledWith({
       part: h.state.message.content[0],
       index: 0,

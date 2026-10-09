@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { SubProjectLayout } from "@/components/shared/sub-project-layout";
+import { subProject, subProjectGithubUrl } from "@/lib/docs-sites";
 import { createOgMetadata } from "@/lib/og";
 
-const title = "react-o11y";
-const description =
-  "Headless, composable observability span primitives for React. Render agent traces, sub-agent trees, and run timelines as collapsible waterfalls you fully control.";
+const { title, description } = subProject("react-o11y");
 
 export const metadata: Metadata = {
   title,
@@ -21,7 +20,7 @@ export default function ReactO11yLayout({
   return (
     <SubProjectLayout
       name="react-o11y"
-      githubPath="https://github.com/assistant-ui/assistant-ui/tree/main/packages/react-o11y"
+      githubPath={subProjectGithubUrl("react-o11y")}
     >
       {children}
     </SubProjectLayout>

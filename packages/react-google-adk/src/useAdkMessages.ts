@@ -299,6 +299,7 @@ const useAdkMessagesInternal = ({
   useReplaySafeEffect(() => cancel, []);
 
   return {
+    controller,
     messages,
     stateDelta,
     agentInfo,
@@ -319,11 +320,13 @@ const useAdkMessagesInternal = ({
 export const useAdkMessages = ({
   stream,
   eventHandlers,
-}: UseAdkMessagesOptions) =>
-  useAdkMessagesInternal({
+}: UseAdkMessagesOptions) => {
+  const { controller: _controller, ...result } = useAdkMessagesInternal({
     stream,
     ...(eventHandlers !== undefined && { eventHandlers }),
   });
+  return result;
+};
 
 export { useAdkMessagesInternal };
 

@@ -20,11 +20,11 @@ import { PageFrame } from "@/components/shared/page-frame";
 import { AddToCartButton } from "@/components/shared/shop-entry";
 import { typeDeck, typePage, typeSection } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
+import { subProjectGithubUrl } from "@/lib/docs-sites";
 import { PslDiagram } from "@/components/pages/docs/samples/safe-content-frame/diagrams";
 
 const ANALYTICS_PAGE = "safe-content-frame" as const;
-const REFERENCE_URL =
-  "https://github.com/assistant-ui/assistant-ui/tree/main/packages/safe-content-frame";
+const REFERENCE_URL = subProjectGithubUrl("safe-content-frame");
 
 const USE_CASES = [
   {

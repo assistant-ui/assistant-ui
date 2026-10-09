@@ -993,6 +993,49 @@ describe("AcpThreadController", () => {
     expect(toThreadMessage(user).attachments).toHaveLength(1);
   });
 
+  it("uses attachment image types for media-less data URLs and image links", async () => {
+    client.agentCapabilities = { promptCapabilities: { image: true } };
+    const c = controller(client);
+    await c.attach();
+    await c.load();
+
+    await c.append(
+      userAppend("look", {
+        attachments: [
+          {
+            id: "a1",
+            type: "image",
+            name: "photo.webp",
+            contentType: "image/webp",
+            status: { type: "complete" },
+            content: [{ type: "image", image: "data:;base64,QUJD" }],
+          },
+          {
+            id: "a2",
+            type: "image",
+            name: "photo.jpg",
+            contentType: "image/jpeg",
+            status: { type: "complete" },
+            content: [{ type: "image", image: "https://example.com/photo" }],
+          },
+        ],
+      }),
+    );
+
+    expect(client.prompts).toEqual([
+      [
+        { type: "text", text: "look" },
+        { type: "image", data: "QUJD", mimeType: "image/webp" },
+        {
+          type: "resource_link",
+          uri: "https://example.com/photo",
+          name: "https://example.com/photo",
+          mimeType: "image/jpeg",
+        },
+      ],
+    ]);
+  });
+
   it("withholds attachments the agent's promptCapabilities do not cover", async () => {
     const errors: Error[] = [];
     const c = controller(client, { onError: (error) => errors.push(error) });

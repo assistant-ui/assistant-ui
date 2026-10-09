@@ -205,6 +205,62 @@ describe("createXuluxChatHandler access boundary", () => {
     );
   });
 
+  it("records completed step usage when the turn is aborted", async () => {
+    const publicSession = {
+      id: "signed-session-1234567890",
+      expiresAt: Date.now() + 60_000,
+    };
+    mocks.requireSession.mockReturnValue(publicSession);
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.beginTurn.mockResolvedValue({
+      denied: null,
+      budgetDate: "2026-08-27",
+    });
+    mocks.streamText.mockReturnValue({
+      toUIMessageStreamResponse: () => new Response("ok"),
+    });
+
+    const response = await createXuluxChatHandler(agent)(request());
+
+    expect(response.status).toBe(200);
+    const steps = [
+      { usage: { inputTokens: 10, outputTokens: 5 } },
+      { usage: { inputTokens: 20, outputTokens: 7 } },
+    ];
+    const options = mocks.streamText.mock.calls[0]?.[0] as {
+      onAbort: (result: { steps: typeof steps }) => Promise<void>;
+    };
+    await options.onAbort({ steps });
+
+    expect(mocks.finishTurn).toHaveBeenCalledWith(
+      `${publicSession.id}:xulux-chat-session`,
+      publicSession.id,
+      { inputTokens: 30, outputTokens: 12 },
+      "2026-08-27",
+    );
+  });
+
+  it("forwards the request abort signal to streamText", async () => {
+    mocks.requireSession.mockReturnValue({
+      id: "signed-session-1234567890",
+      expiresAt: Date.now() + 60_000,
+    });
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.beginTurn.mockResolvedValue({
+      denied: null,
+      budgetDate: "2026-08-27",
+    });
+    mocks.streamText.mockReturnValue({
+      toUIMessageStreamResponse: () => new Response("ok"),
+    });
+
+    const req = request();
+    const response = await createXuluxChatHandler(agent)(req);
+
+    expect(response.status).toBe(200);
+    expect(mocks.streamText.mock.calls[0]?.[0].abortSignal).toBe(req.signal);
+  });
+
   it("converts messages with the tool set it streams with", async () => {
     mocks.requireSession.mockReturnValue({
       id: "signed-session-1234567890",
