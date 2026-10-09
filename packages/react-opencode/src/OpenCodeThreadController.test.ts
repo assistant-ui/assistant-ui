@@ -5673,6 +5673,60 @@ describe("OpenCodeThreadController", () => {
     ).toBeUndefined();
   });
 
+  describe("cancel", () => {
+    it.each([
+      { newerRun: false, expectedState: "error" },
+      { newerRun: true, expectedState: "streaming" },
+    ])(
+      "handles a delayed abort failure with newerRun=$newerRun",
+      async ({ newerRun, expectedState }) => {
+        const abort = createDeferred<unknown>();
+        const error = new Error("abort failed");
+        const client = {
+          session: {
+            promptAsync: vi.fn().mockResolvedValue({}),
+            abort: vi.fn(() => abort.promise),
+          },
+        };
+        const controller = new OpenCodeThreadController(
+          client as never,
+          () => ({ subscribe: () => () => {} }),
+          "ses_1",
+        );
+        const send = (text: string) =>
+          controller.sendMessage({
+            role: "user",
+            parentId: null,
+            sourceId: null,
+            content: [{ type: "text", text }],
+            attachments: [],
+            metadata: { custom: {} },
+            runConfig: {},
+            createdAt: new Date(),
+          });
+
+        await send("run A");
+        const cancellation = controller.cancel();
+        expect(controller.getState().runState.type).toBe("cancelling");
+
+        if (newerRun) {
+          await send("run B");
+          expect(controller.getState().runState.type).toBe("streaming");
+        }
+
+        abort.reject(error);
+        await expect(cancellation).rejects.toBe(error);
+        expect(controller.getState().runState.type).toBe(expectedState);
+        if (!newerRun) {
+          expect(controller.getState().runState).toEqual({
+            type: "error",
+            error,
+          });
+        }
+      },
+    );
+  });
+
   describe("revert", () => {
     const createRevertController = () => {
       const client = {
