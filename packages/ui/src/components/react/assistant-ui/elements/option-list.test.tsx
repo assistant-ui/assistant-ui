@@ -23,6 +23,47 @@ const OPTIONS: OptionListOption[] = [
 ];
 
 describe("OptionList", () => {
+  it("focuses the receipt after a focused option settles", async () => {
+    const { rerender } = render(
+      <OptionList options={OPTIONS} onConfirm={() => {}} />,
+    );
+    const answer = screen.getByRole("button", { name: /Keep all/ });
+    answer.focus();
+
+    await act(async () => {
+      fireEvent.click(answer);
+    });
+
+    const receipt = screen
+      .getByText("Keep all")
+      .closest('[data-slot="option-list"]');
+    expect(document.activeElement).toBe(receipt);
+
+    rerender(<OptionList options={OPTIONS} choice={["review"]} />);
+    expect(document.activeElement).toBe(receipt);
+  });
+
+  it("focuses the receipt after a focused confirm button settles", async () => {
+    render(
+      <OptionList
+        options={OPTIONS}
+        selectionMode="multiple"
+        onConfirm={() => {}}
+      />,
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: /Keep all/ }));
+    const confirm = screen.getByRole("button", { name: "Confirm" });
+    confirm.focus();
+
+    await act(async () => {
+      fireEvent.click(confirm);
+    });
+
+    expect(document.activeElement).toBe(
+      screen.getByText("Keep all").closest('[data-slot="option-list"]'),
+    );
+  });
+
   it("only displays its options without a confirm handler", () => {
     render(<OptionList options={OPTIONS} />);
 

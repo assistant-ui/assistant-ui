@@ -1,5 +1,5 @@
 import { cleanup, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { useReceiptFocus } from "./receipt-focus";
 
@@ -8,11 +8,18 @@ afterEach(cleanup);
 function Harness({
   settled,
   receiptKey,
+  onFocusCapture,
+  onBlurCapture,
 }: {
   settled: boolean;
   receiptKey?: string;
+  onFocusCapture?: React.ComponentProps<"div">["onFocusCapture"];
+  onBlurCapture?: React.ComponentProps<"div">["onBlurCapture"];
 }) {
-  const { receiptRef, focusHandlers } = useReceiptFocus();
+  const { receiptRef, focusHandlers } = useReceiptFocus({
+    onFocusCapture,
+    onBlurCapture,
+  });
   return (
     <div {...focusHandlers}>
       {settled ? (
@@ -27,6 +34,26 @@ function Harness({
 }
 
 describe("useReceiptFocus", () => {
+  it("calls the caller's focus and blur capture handlers", () => {
+    const onFocusCapture = vi.fn();
+    const onBlurCapture = vi.fn();
+    render(
+      <Harness
+        settled={false}
+        onFocusCapture={onFocusCapture}
+        onBlurCapture={onBlurCapture}
+      />,
+    );
+    const answer = screen.getByRole("button", { name: "Answer" });
+    answer.focus();
+    answer.blur();
+
+    expect(onFocusCapture).toHaveBeenCalledOnce();
+    expect(onBlurCapture).toHaveBeenCalledOnce();
+    expect(onFocusCapture.mock.calls[0]?.[0].target).toBe(answer);
+    expect(onBlurCapture.mock.calls[0]?.[0].target).toBe(answer);
+  });
+
   it("keeps focus through a replacement receipt", () => {
     const { rerender } = render(<Harness settled={false} />);
     screen.getByRole("button", { name: "Answer" }).focus();

@@ -1,6 +1,7 @@
 "use client";
 
-import { useLayoutEffect, useRef, type ComponentProps } from "react";
+import { useRef, type ComponentProps } from "react";
+import { useIsomorphicLayoutEffect } from "../utils/useIsomorphicLayoutEffect";
 
 type FocusHandlers = Pick<
   ComponentProps<"div">,
@@ -13,7 +14,7 @@ export function useReceiptFocus<T extends HTMLElement = HTMLElement>(
   const focusedElementRef = useRef<HTMLElement | null>(null);
   const receiptRef = useRef<T | null>(null);
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const focusedElement = focusedElementRef.current;
     if (
       focusedElement &&

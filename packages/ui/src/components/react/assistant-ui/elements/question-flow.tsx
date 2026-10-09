@@ -1,6 +1,12 @@
 "use client";
 
-import { useId, useRef, useState, type ComponentProps } from "react";
+import {
+  useCallback,
+  useId,
+  useRef,
+  useState,
+  type ComponentProps,
+} from "react";
 import { useIsomorphicLayoutEffect } from "../utils/useIsomorphicLayoutEffect";
 import { cn } from "@/lib/utils";
 import { OptionList, type OptionListOption } from "./option-list";
@@ -54,11 +60,14 @@ export function QuestionFlow({
   const questionPrefix = useId();
   const optionListRef = useRef<HTMLDivElement>(null);
   const { receiptRef, focusHandlers } = useReceiptFocus<HTMLDivElement>(props);
-  const setReceiptRef = (node: HTMLDivElement | null) => {
-    receiptRef.current = node;
-    if (typeof props.ref === "function") props.ref(node);
-    else if (props.ref) props.ref.current = node;
-  };
+  const setReceiptRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      receiptRef.current = node;
+      if (typeof props.ref === "function") props.ref(node);
+      else if (props.ref) props.ref.current = node;
+    },
+    [props.ref, receiptRef],
+  );
   const currentIndex = Math.min(stepIndex, Math.max(0, steps.length - 1));
   const currentStep = steps[currentIndex];
   const previousStepId = useRef(currentStep?.id);
