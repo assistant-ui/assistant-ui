@@ -296,6 +296,11 @@ export const PACKAGES: PackageInfo[] = [
     category: "effects",
   },
   {
+    name: "generative-frame",
+    description: "Streaming model-written widgets in sandboxed frames.",
+    category: "effects",
+  },
+  {
     name: "@assistant-ui/mcp-docs-server",
     description: "MCP server exposing assistant-ui docs.",
     category: "mcp",

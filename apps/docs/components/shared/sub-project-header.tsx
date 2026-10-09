@@ -9,6 +9,7 @@ import Image from "next/image";
 import { Menu as MenuPrimitive } from "@base-ui/react/menu";
 import {
   Activity,
+  AppWindow,
   Box,
   Check,
   ChevronDown,
@@ -195,6 +196,7 @@ export function SubProjectHeader({
 
 const PROJECT_ICONS: Record<string, LucideIcon> = {
   "safe-content-frame": ShieldCheck,
+  "generative-frame": AppWindow,
   "tw-shimmer": Sparkles,
   "heat-graph": Grid3x3,
   "react-o11y": Activity,

@@ -105,6 +105,18 @@ const OSS_PROJECT_INPUTS: OssProjectInput[] = [
     license: "MIT",
   },
   {
+    id: "generative-frame",
+    name: "Generative Frame",
+    description:
+      "Stream model-written HTML and SVG widgets into sandboxed frames.",
+    category: "primitives",
+    tier: "major",
+    repo: OSS_MONOREPO,
+    path: "packages/generative-frame",
+    site: "/generative-frame",
+    license: "MIT",
+  },
+  {
     id: "tap",
     name: "@assistant-ui/tap",
     category: "libraries",

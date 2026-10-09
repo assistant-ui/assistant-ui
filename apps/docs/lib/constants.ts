@@ -47,6 +47,13 @@ export const PRODUCTS: Product[] = [
     external: false,
   },
   {
+    slug: "generative-frame",
+    label: "Generative Frame",
+    href: "/generative-frame",
+    description: "Streaming widgets from model output",
+    external: false,
+  },
+  {
     slug: "native",
     label: "React Native",
     href: "/native",
@@ -252,6 +259,13 @@ export const NAV_ITEMS: NavItem[] = [
             description: "Sandboxed iframes for untrusted HTML",
             external: false,
             glyph: "frame",
+          },
+          {
+            label: "Generative Frame",
+            href: "/generative-frame",
+            description: "Model-written widgets that stream",
+            external: false,
+            glyph: "elements",
           },
           {
             label: "react-o11y",

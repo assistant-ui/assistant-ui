@@ -506,6 +506,9 @@ importers:
       fumadocs-mdx:
         specifier: ^15.4.6
         version: 15.4.6(4a6fabcd07ba37ea61c00394c8dbc6ba)
+      generative-frame:
+        specifier: workspace:*
+        version: link:../../packages/generative-frame
       heat-graph:
         specifier: workspace:*
         version: link:../../packages/heat-graph

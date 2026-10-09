@@ -70,6 +70,7 @@ describe("NAV_ITEMS", () => {
       "tw-shimmer",
       "Heat Graph",
       "Safe Content Frame",
+      "Generative Frame",
       "react-o11y",
     ]);
   });
