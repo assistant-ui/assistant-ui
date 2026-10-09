@@ -46,7 +46,9 @@ export namespace Checkout {
     recommended?: boolean;
   };
 
-  export type EntryPointOption = ChoiceOption & {
+  export type EntryPointOption = {
+    id: string;
+    label: string;
     description: string;
     entryPoint: EntryPoint;
   };

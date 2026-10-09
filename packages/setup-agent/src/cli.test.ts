@@ -490,4 +490,11 @@ describe("agent instructions", () => {
       instructions.indexOf("plan --file"),
     );
   });
+
+  it("waits for the entry-point answer before the plan is submitted", () => {
+    const ask = agentInstructions("http://localhost:18892/checkout/session")
+      .split("\n")
+      .find((line) => line.includes("--entry-points '<JSON array>'"));
+    expect(ask?.trim().endsWith("--wait")).toBe(true);
+  });
 });

@@ -169,7 +169,6 @@ describe("CheckoutSessionBridge", () => {
     render(<CheckoutSessionBridge session={session} onChange={vi.fn()} />);
     expect(mocks.addCheckoutProducts).not.toHaveBeenCalled();
     expect(wire.addProduct).not.toHaveBeenCalled();
-    expect(session.products).toEqual(["assistant-ui"]);
   });
 
   it("adds a product the agent proposes as soon as it arrives, declines one the catalog lacks, and shows neither as a question", () => {

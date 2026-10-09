@@ -17,6 +17,16 @@ describe("buildInstallPrompt", () => {
     expect(prompt).not.toContain('className="h-dvh"');
   });
 
+  it("mounts the Expo thread at the selected entry point instead of a web root component", () => {
+    const prompt = buildInstallPrompt(resolveProducts(["assistant-ui"]));
+    expect(prompt).toContain(
+      "On web, use <Assistant /> for the AI SDK and Mastra or <MyAssistant /> for LangGraph",
+    );
+    expect(prompt).toContain(
+      "On Expo, mount <Thread /> inside its AssistantRuntimeProvider at the selected location",
+    );
+  });
+
   it("numbers each product and links its markdown docs", () => {
     const prompt = buildInstallPrompt(
       resolveProducts(["assistant-ui", "cloud"]),

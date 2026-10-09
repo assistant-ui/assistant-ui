@@ -87,6 +87,21 @@ describe("entry-point options", () => {
     expect(parseEntryPointOptions(value)).toBeUndefined();
   });
 
+  it("types an option with only the fields the parser keeps", () => {
+    const withIcon: Checkout.EntryPointOption = {
+      ...option,
+      // @ts-expect-error an entry-point option carries no icon
+      icon: "sidebar",
+    };
+    const withVariants: Checkout.EntryPointOption = {
+      ...option,
+      // @ts-expect-error an entry-point option carries no variants
+      variants: [],
+    };
+    expect(parseEntryPointOptions([withIcon])).toEqual([option]);
+    expect(parseEntryPointOptions([withVariants])).toBeUndefined();
+  });
+
   it("strips undeclared payload fields", () => {
     expect(
       parseEntryPointOptions([{ ...option, icon: "untrusted", extra: 1 }]),

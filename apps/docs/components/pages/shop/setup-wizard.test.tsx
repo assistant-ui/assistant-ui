@@ -372,6 +372,42 @@ describe("SetupWizard", () => {
     ).toContain("Step 3");
   });
 
+  it("labels a step for a product the agent discovered, from the catalog or by its identifier", () => {
+    const step = (id: string, product: string): Checkout.Step => ({
+      id,
+      title: `Step ${id.slice(1)}`,
+      product,
+      status: "pending",
+      createdAt: 0,
+    });
+    render(
+      <SetupWizard
+        checkout={context(
+          connected({
+            status: "installing",
+            products: [{ slug: "assistant-ui", name: "assistant-ui" }],
+            steps: [
+              step("s1", "assistant-ui"),
+              step("s2", "cloud"),
+              step("s3", "convex"),
+            ],
+          }),
+        )}
+      />,
+    );
+    const eyebrows = within(
+      screen.getByRole("list", { name: "Installation steps" }),
+    )
+      .getAllByRole("listitem")
+      .map((item) => item.querySelector("p.mb-1")?.textContent);
+    expect(eyebrows).toEqual([
+      "assistant-ui",
+      "Assistant Cloud",
+      "convex",
+      undefined,
+    ]);
+  });
+
   it("shows the list being planned and written until a step starts, then the progress", () => {
     const step = (id: string, status: Checkout.StepStatus): Checkout.Step => ({
       id,
