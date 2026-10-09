@@ -24,6 +24,21 @@ const element = (vars: Record<string, string>, className = "") => {
 };
 
 describe("readThemeTokens", () => {
+  it("wraps bare HSL channels from older shadcn themes", () => {
+    const tokens = readThemeTokens(
+      element({
+        "--background": "0 0% 100%",
+        "--primary": "262.1 83.3% 57.8% / 90%",
+        "--border": "#e5e5e5",
+      }),
+    );
+    expect(tokens.variables["--color-background"]).toBe("hsl(0 0% 100%)");
+    expect(tokens.variables["--color-accent"]).toBe(
+      "hsl(262.1 83.3% 57.8% / 90%)",
+    );
+    expect(tokens.variables["--color-border"]).toBe("#e5e5e5");
+  });
+
   it("maps shadcn variables onto canonical tokens", () => {
     const tokens = readThemeTokens(
       element({

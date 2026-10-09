@@ -4471,6 +4471,9 @@ importers:
         specifier: workspace:^
         version: link:../safe-content-frame
     devDependencies:
+      '@assistant-ui/react':
+        specifier: workspace:*
+        version: link:../react
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils

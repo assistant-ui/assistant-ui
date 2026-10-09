@@ -245,6 +245,10 @@ export const DEFAULT_TOKEN_SOURCES: Record<ThemeTokenName, readonly string[]> =
     "--radius-lg": ["--radius-lg"],
   };
 
+/** shadcn/ui before Tailwind v4 stored colors as bare HSL channels, e.g. `222 47% 11%`. */
+const HSL_CHANNELS =
+  /^-?[\d.]+(?:deg)?\s+[\d.]+%\s+[\d.]+%(?:\s*\/\s*[\d.]+%?)?$/;
+
 const RGB =
   /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)(?:[\s,/]+([\d.]+))?/i;
 
@@ -304,7 +308,9 @@ export function readThemeTokens(
     for (const candidate of candidates) {
       const value = style.getPropertyValue(candidate).trim();
       if (value) {
-        variables[info.name] = value;
+        variables[info.name] = HSL_CHANNELS.test(value)
+          ? `hsl(${value})`
+          : value;
         break;
       }
     }

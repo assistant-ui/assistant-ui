@@ -42,6 +42,10 @@
     "./agent": {
       "types": "./dist/agent.d.ts",
       "default": "./dist/agent.js"
+    },
+    "./assistant-ui": {
+      "types": "./dist/assistant-ui.d.ts",
+      "default": "./dist/assistant-ui.js"
     }
   },
   "main": "./dist/index.js",
@@ -66,10 +70,14 @@
     "safe-content-frame": "workspace:^"
   },
   "peerDependencies": {
+    "@assistant-ui/react": "^0.15.0",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {
+    "@assistant-ui/react": {
+      "optional": true
+    },
     "@types/react": {
       "optional": true
     },
@@ -78,6 +86,7 @@
     }
   },
   "devDependencies": {
+    "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@assistant-ui/x-react18": "workspace:*",
     "@testing-library/react": "^16.3.3",
