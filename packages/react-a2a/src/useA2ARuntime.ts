@@ -137,41 +137,58 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
 
   // Thread list
   const threadSwitchGenerationRef = useRef(0);
+  const switchingGenerationRef = useRef<number | null>(null);
   const threadList = useMemo(() => {
     if (!threadListAdapter) return undefined;
 
     const { onSwitchToNewThread, onSwitchToThread } = threadListAdapter;
+
+    const releaseSwitch = (generation: number) => {
+      if (switchingGenerationRef.current === generation) {
+        switchingGenerationRef.current = null;
+      }
+    };
 
     return {
       threadId: threadListAdapter.threadId,
       onSwitchToNewThread: onSwitchToNewThread
         ? async () => {
             const generation = ++threadSwitchGenerationRef.current;
-            // Clear before the thread id flips, or the old messages leak
-            // into the new thread as a sibling branch.
-            core.applyExternalMessages([]);
-            core.resetContext();
-            await onSwitchToNewThread();
-            if (generation !== threadSwitchGenerationRef.current) return;
-            // Apply first so the abort inside resetContext finds an already
-            // cleared repository and cannot persist the old thread's partial
-            // assistant message.
-            core.applyExternalMessages([]);
-            core.resetContext();
+            switchingGenerationRef.current = generation;
+            try {
+              // Clear before the thread id flips, or the old messages leak
+              // into the new thread as a sibling branch.
+              core.applyExternalMessages([]);
+              core.resetContext();
+              await onSwitchToNewThread();
+              if (generation !== threadSwitchGenerationRef.current) return;
+              // Apply first so the abort inside resetContext finds an already
+              // cleared repository and cannot persist the old thread's partial
+              // assistant message.
+              core.applyExternalMessages([]);
+              core.resetContext();
+            } finally {
+              releaseSwitch(generation);
+            }
           }
         : undefined,
       onSwitchToThread: onSwitchToThread
         ? async (threadId: string) => {
             const generation = ++threadSwitchGenerationRef.current;
-            // Clear before the thread id flips, or the old messages leak
-            // into the new thread as a sibling branch.
-            core.applyExternalMessages([]);
-            core.resetContext();
-            const result = await onSwitchToThread(threadId);
-            if (generation !== threadSwitchGenerationRef.current) return;
-            core.applyExternalMessages([]);
-            core.applyExternalMessages(result.messages);
-            core.resetContext();
+            switchingGenerationRef.current = generation;
+            try {
+              // Clear before the thread id flips, or the old messages leak
+              // into the new thread as a sibling branch.
+              core.applyExternalMessages([]);
+              core.resetContext();
+              const result = await onSwitchToThread(threadId);
+              if (generation !== threadSwitchGenerationRef.current) return;
+              core.applyExternalMessages([]);
+              core.applyExternalMessages(result.messages);
+              core.resetContext();
+            } finally {
+              releaseSwitch(generation);
+            }
           }
         : undefined,
     };
@@ -207,11 +224,20 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
         artifacts: core.getArtifacts(),
         agentCard: core.getAgentCard(),
       }),
-      onNew: (message: AppendMessage) => core.append(message),
+      onNew: (message: AppendMessage) =>
+        switchingGenerationRef.current === null
+          ? core.append(message)
+          : Promise.resolve(),
       onVoiceTranscript: (message: ThreadMessage) =>
         core.appendVoiceTranscript(message),
-      onEdit: (message: AppendMessage) => core.edit(message),
-      onReload: (parentId: string | null) => core.reload(parentId),
+      onEdit: (message: AppendMessage) =>
+        switchingGenerationRef.current === null
+          ? core.edit(message)
+          : Promise.resolve(),
+      onReload: (parentId: string | null) =>
+        switchingGenerationRef.current === null
+          ? core.reload(parentId)
+          : Promise.resolve(),
       onCancel: () => core.cancel(),
       unstable_onRecordToolInteraction: (options) =>
         core.recordToolInteraction(options),

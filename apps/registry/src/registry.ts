@@ -425,7 +425,29 @@ const elementsRegistryItems: RegistryItem[] = [
       "Human in the loop: the agent asks before it runs anything with side effects.",
     file: "approval-card.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["receipt-focus"],
   }),
+  {
+    name: "elements-receipt-focus",
+    type: "registry:component",
+    title: "Receipt focus",
+    description:
+      "Keeps focus on a receipt when the focused answer is replaced.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/receipt-focus.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/receipt-focus.ts",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
+      },
+    ],
+  },
   createElementRegistryItem({
     slug: "option-list",
     title: "Option list",
@@ -433,7 +455,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "The agent asks a question with a few answers; the pick returns to it and stays as a receipt.",
     file: "option-list.tsx",
     dependencies: ["lucide-react"],
-    usesElements: ["range"],
+    usesElements: ["range", "receipt-focus"],
   }),
   createElementRegistryItem({
     slug: "question-flow",
@@ -441,7 +463,7 @@ const elementsRegistryItems: RegistryItem[] = [
     description:
       "A few short questions asked one at a time, answered together and kept as a receipt.",
     file: "question-flow.tsx",
-    usesElements: ["option-list"],
+    usesElements: ["option-list", "receipt-focus"],
   }),
   createElementRegistryItem({
     slug: "recommendation-card",
@@ -450,6 +472,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "The agent proposes a change with its confidence, and waits for a yes.",
     file: "recommendation-card.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["receipt-focus"],
   }),
   createElementRegistryItem({
     slug: "artifact-card",
@@ -559,6 +582,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "A server pausing mid-tool-call to ask you for the fields it still needs.",
     file: "elicitation-form.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["receipt-focus"],
   }),
   createElementRegistryItem({
     slug: "retrieval-chunks",
@@ -806,6 +830,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "Granting a capability rather than approving one action, with the reach spelled out.",
     file: "permission-grant.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["receipt-focus"],
   }),
   createElementRegistryItem({
     slug: "computer-use",
@@ -1538,6 +1563,7 @@ export const registry: RegistryItem[] = [
       "dialog",
       "label",
       "separator",
+      "https://r.assistant-ui.com/elements-mcp-config-state.json",
     ],
     radixRegistryDependencies: ["input"],
     dependencies: [
@@ -1545,6 +1571,21 @@ export const registry: RegistryItem[] = [
       "@assistant-ui/store",
       "lucide-react",
     ],
+  },
+  {
+    name: "elements-mcp-config-state",
+    type: "registry:component",
+    title: "Elements MCP Config State",
+    description: "Shared focus and announcement state for MCP config dialogs.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/mcp-config-state.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/mcp-config-state.ts",
+      },
+    ],
+    dependencies: ["@assistant-ui/react-mcp", "@assistant-ui/store"],
   },
   {
     name: "use-attachment-src",

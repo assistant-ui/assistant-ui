@@ -5,6 +5,7 @@ import {
   createLearnStageZip,
   getLearnStageArchiveFilename,
 } from "@/lib/xulux/learn/stage-source";
+import { zipDownloadResponse } from "@/lib/xulux/demo-downloads/zip-response";
 
 export async function GET(request: Request) {
   if (!isAiPlaygroundEnabled) {
@@ -17,12 +18,9 @@ export async function GET(request: Request) {
 
   try {
     const zip = await createLearnStageZip(courseId, stageId);
-    return new NextResponse(zip, {
-      headers: {
-        "Content-Type": "application/zip",
-        "Content-Disposition": `attachment; filename="${getLearnStageArchiveFilename(courseId, stageId)}"`,
-        "Cache-Control": "no-store",
-      },
+    return zipDownloadResponse({
+      filename: getLearnStageArchiveFilename(courseId, stageId),
+      bytes: zip,
     });
   } catch (error) {
     if (error instanceof LearnRegistryError) {

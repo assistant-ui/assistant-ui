@@ -17,6 +17,7 @@ import {
   appendToolInteraction,
   createMessageRepositorySession,
   invokeUserCallback,
+  RunLeases,
 } from "@assistant-ui/core/internal";
 import {
   applyA2uiOperations,
@@ -101,7 +102,7 @@ export class A2AThreadRuntimeCore {
   private readonly session = createMessageRepositorySession();
   private isRunningFlag = false;
   private abortController: AbortController | null = null;
-  private runGeneration = 0;
+  private readonly runLeases = new RunLeases();
   private pendingError: Error | null = null;
 
   // A2A-specific state
@@ -420,7 +421,7 @@ export class A2AThreadRuntimeCore {
     // onCancel callback synchronously, which may clear the thread and with it
     // the task this cancellation is for, or start a new run.
     const task = this.currentTask;
-    const generation = this.runGeneration;
+    const lease = this.runLeases.current();
 
     // Abort locally first so the stream stops immediately
     this.abortController.abort();
@@ -431,9 +432,9 @@ export class A2AThreadRuntimeCore {
         const updated = await this.client.cancelTask(task.id);
         // Only apply the response while nothing newer exists. A newer snapshot
         // or a cleared thread replaces the task object; a follow-up run that
-        // has not emitted yet keeps it, so the run generation is what rules
+        // has not emitted yet keeps it, so the run lease is what rules
         // that case out.
-        if (this.currentTask === task && this.runGeneration === generation) {
+        if (this.currentTask === task && lease.isCurrent()) {
           this.currentTask = updated;
           this.notifyUpdate();
         }
@@ -508,7 +509,7 @@ export class A2AThreadRuntimeCore {
   // --- Run logic ---
 
   private async startRun(userThreadMessage: ThreadMessage): Promise<void> {
-    this.runGeneration++;
+    this.runLeases.begin();
 
     // Cancel any in-progress run before starting a new one. Its abort runs
     // onCancel synchronously, and a run that callback starts keeps the thread.

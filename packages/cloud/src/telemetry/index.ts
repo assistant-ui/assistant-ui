@@ -6,6 +6,7 @@ import {
   type SpanExporter,
   type SpanProcessor,
 } from "@opentelemetry/sdk-trace-base";
+import { normalizeBaseUrl } from "../baseUrl";
 
 const DEFAULT_BACKEND_BASE_URL = "https://backend.assistant-api.com";
 const AI_SPAN_PREFIXES = ["gen_ai.", "ai.", "llm."];
@@ -31,18 +32,12 @@ export function assistantCloudTraceExportOptions({
   if (!apiKey) throw new Error("An Assistant Cloud API key is required");
 
   return {
-    url: `${trimTrailingSlashes(baseUrl)}/v1/traces`,
+    url: `${normalizeBaseUrl(baseUrl)}/v1/traces`,
     headers: {
       Authorization: `Bearer ${apiKey}`,
       ...headers,
     },
   };
-}
-
-function trimTrailingSlashes(url: string): string {
-  let end = url.length;
-  while (end > 0 && url[end - 1] === "/") end--;
-  return url.slice(0, end);
 }
 
 export function createAssistantCloudTraceExporter(

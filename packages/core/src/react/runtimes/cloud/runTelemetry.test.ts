@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractAuiV0 } from "./AssistantCloudThreadHistoryAdapter";
+import { extractAuiV0 } from "./runTelemetry";
 
 const auiV0Message = (status: { type: string; reason?: string }) => ({
   role: "assistant",

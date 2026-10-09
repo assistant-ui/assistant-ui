@@ -14,15 +14,14 @@ import { MessagePartPrimitiveImage } from "../messagePart/MessagePartImage";
 // its own aspect ratio overrides `components.Image`.
 const DEFAULT_IMAGE_STYLE = { width: "100%", aspectRatio: 1 } as const;
 
+export const DefaultMessageImage = () => (
+  <MessagePartPrimitiveImage style={DEFAULT_IMAGE_STYLE} resizeMode="contain" />
+);
+
 const rnDefaultComponents = {
   ...messagePartsDefaultComponents,
   Text: ({ text }: { text: string }) => <Text>{text}</Text>,
-  Image: () => (
-    <MessagePartPrimitiveImage
-      style={DEFAULT_IMAGE_STYLE}
-      resizeMode="contain"
-    />
-  ),
+  Image: DefaultMessageImage,
 } satisfies MessagePrimitiveParts.Props["components"];
 
 export namespace MessagePrimitiveParts {
