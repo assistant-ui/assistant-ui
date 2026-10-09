@@ -4,6 +4,7 @@ import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig } from "@assistant-ui/store/client";
 import { RuntimeAdapter } from "@assistant-ui/core/store";
 import { provideAui } from "../provideAui";
+import * as sveltePrimitives from "../index";
 import {
   threadScrollToBottom,
   threadViewport,
@@ -75,6 +76,20 @@ const mountViewport = (
   const controls = makeScrollable(el);
   const detach = viewport.attach(el);
   return { app, echo, aui, viewport, el, controls, detach };
+};
+
+const mountOverflowingViewport = async () => {
+  const mounted = mountViewport();
+  mounted.controls.grow(1000);
+  await vi.waitFor(() => expect(mounted.controls.scrollTo).toHaveBeenCalled());
+  return mounted;
+};
+
+const makeFooter = (height: () => number, marginTop = 0) => {
+  const el = document.createElement("div");
+  el.style.marginTop = `${marginTop}px`;
+  Object.defineProperty(el, "offsetHeight", { get: height });
+  return el;
 };
 
 describe("threadViewport", () => {
@@ -259,5 +274,92 @@ describe("threadScrollToBottom", () => {
     });
 
     flushSync(() => void unmount(app));
+  });
+});
+
+describe("threadViewportFooter", () => {
+  it("registers its height with the viewport", async () => {
+    const { app, viewport, controls } = await mountOverflowingViewport();
+    const footer = sveltePrimitives.threadViewportFooter({ viewport });
+    const detachFooter = footer.attach(makeFooter(() => 45, 5));
+
+    controls.setScrollTop(455);
+    controls.dispatchScroll();
+    expect(viewport.isAtBottom).toBe(true);
+
+    detachFooter();
+    flushSync(() => void unmount(app));
+  });
+
+  it("sums the heights of multiple footers", async () => {
+    const { app, viewport, controls } = await mountOverflowingViewport();
+    const first = sveltePrimitives.threadViewportFooter({ viewport });
+    const second = sveltePrimitives.threadViewportFooter({ viewport });
+    const detachFirst = first.attach(makeFooter(() => 20));
+    const detachSecond = second.attach(makeFooter(() => 30));
+
+    controls.setScrollTop(455);
+    controls.dispatchScroll();
+    expect(viewport.isAtBottom).toBe(true);
+
+    detachSecond();
+    controls.dispatchScroll();
+    expect(viewport.isAtBottom).toBe(false);
+
+    controls.setScrollTop(485);
+    controls.dispatchScroll();
+    expect(viewport.isAtBottom).toBe(true);
+
+    detachFirst();
+    controls.dispatchScroll();
+    expect(viewport.isAtBottom).toBe(false);
+    flushSync(() => void unmount(app));
+  });
+
+  it("removes a footer's inset when its attachment is destroyed", async () => {
+    const { app, viewport, controls } = await mountOverflowingViewport();
+    const footer = sveltePrimitives.threadViewportFooter({ viewport });
+    const detachFooter = footer.attach(makeFooter(() => 50));
+
+    controls.setScrollTop(455);
+    controls.dispatchScroll();
+    expect(viewport.isAtBottom).toBe(true);
+
+    detachFooter();
+    controls.dispatchScroll();
+    expect(viewport.isAtBottom).toBe(false);
+
+    flushSync(() => void unmount(app));
+  });
+
+  it("follows a footer's growth while pinned", async () => {
+    let triggerResize: (() => void) | undefined;
+    class FooterResizeObserver {
+      constructor(callback: ResizeObserverCallback) {
+        triggerResize = () => callback([], this as unknown as ResizeObserver);
+      }
+      observe() {}
+      disconnect() {}
+    }
+    vi.stubGlobal("ResizeObserver", FooterResizeObserver);
+    try {
+      const { app, viewport, controls } = await mountOverflowingViewport();
+      let height = 50;
+      const footer = sveltePrimitives.threadViewportFooter({ viewport });
+      const detachFooter = footer.attach(makeFooter(() => height));
+
+      controls.scrollTo.mockClear();
+      height = 80;
+      triggerResize?.();
+      expect(controls.scrollTo).toHaveBeenCalledWith({
+        top: 1000,
+        behavior: "instant",
+      });
+
+      detachFooter();
+      flushSync(() => void unmount(app));
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
