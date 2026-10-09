@@ -12,6 +12,7 @@ import { deleteNote, insertNote, listNotes, type SourceNote } from "./markers";
 import { isMdx, locateGroup, sourceFiles, writeSource } from "./project";
 
 export const NOTES_HEADER = "x-variants";
+const NOTE_ID = /^n-[0-9a-f]{8}$/;
 const MAX_NOTE = 2000;
 const MAX_HINT = 300;
 const ID = /^[^\s:,"'<>{}`\\]{1,100}$/;
@@ -159,6 +160,7 @@ type NoteBody = {
   variant?: unknown;
   note?: unknown;
   hint?: unknown;
+  id?: unknown;
 };
 
 const validNote = (value: unknown): AgentNote | undefined => {
@@ -296,9 +298,11 @@ export const handleNotesRequest = async (
 
     if (method === "POST" && url.pathname === "/notes") {
       const body = (await request.json()) as NoteBody;
-      const { group, variant, note, hint } = body ?? {};
+      const { group, variant, note, hint, id } = body ?? {};
       if (typeof group !== "string" || !ID.test(group))
         return fail(400, "invalid group");
+      if (id !== undefined && (typeof id !== "string" || !NOTE_ID.test(id)))
+        return fail(400, "invalid id");
       if (
         variant !== undefined &&
         (typeof variant !== "string" || !ID.test(variant))
@@ -314,11 +318,26 @@ export const handleNotesRequest = async (
       return await serialized(async () => {
         const located = await locateGroup(root, group);
         if (!located.ok) return fail(located.status, located.error);
+        // A client-chosen id makes a retried save a no-op.
+        const existing = listNotes(located.source, located.mdx).find(
+          (item) => item.id === id,
+        );
+        if (existing)
+          return {
+            status: 201,
+            body: {
+              id: existing.id,
+              file: relative(root, located.file),
+              line: existing.line,
+            },
+          };
         const result = insertNote(
           located.source,
           { group, variant: variant as string | undefined },
           hint ? { note: note.trim(), hint } : { note: note.trim() },
-          undefined,
+          id === undefined
+            ? undefined
+            : { id: id as string, ts: new Date().toISOString() },
           located.mdx,
         );
         if (!result.ok) return fail(result.status, result.error);

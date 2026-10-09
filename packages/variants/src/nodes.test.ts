@@ -68,5 +68,9 @@ describe("measureNodes", () => {
       `<div id="outer" style="visibility: hidden"><span id="gone">b</span></div>`,
     );
     expect(measureNodes(hidden)).toBeUndefined();
+    const wrapped = mount(
+      `<div id="outer"><span id="gone" style="visibility: hidden">b</span></div>`,
+    );
+    expect(measureNodes(wrapped)).toBeUndefined();
   });
 });

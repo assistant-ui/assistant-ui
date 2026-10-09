@@ -10,9 +10,11 @@ export type NoteDraft = {
   variant: string | undefined;
   note: string;
   hint: string | undefined;
+  /** Chosen once per draft, so retrying a save whose response was lost is a no-op. */
+  id?: string | undefined;
 };
 
-const randomId = () =>
+export const newNoteId = () =>
   `n-${Array.from({ length: 8 }, () =>
     Math.floor(Math.random() * 16).toString(16),
   ).join("")}`;
@@ -132,7 +134,7 @@ export const createNotes = (
     const saved = writeSession([
       ...readSession(),
       {
-        id: randomId(),
+        id: draft.id ?? newNoteId(),
         group: draft.group,
         variant: draft.variant,
         note: draft.note,

@@ -9,7 +9,7 @@ import { createAgentLink } from "./agent";
 import { NAME } from "./name";
 import { groupNodes, measureNodes } from "./nodes";
 import { highlightGroup } from "./outline";
-import { createNotes, describeTarget } from "./notes";
+import { createNotes, describeTarget, newNoteId } from "./notes";
 import { promptFor } from "./prompt";
 import {
   depthOf,
@@ -806,6 +806,7 @@ export const mountSwitcher = (store: Store): (() => void) => {
     const variant = resolveActive(meta, store.getSnapshot().selections[group]);
     editor.dataset["variant"] = variant ?? "";
     editor.dataset["hint"] = hint ?? "";
+    editor.dataset["noteId"] = newNoteId();
     const whole = h("input", {
       type: "checkbox",
       "data-whole": "",
@@ -913,6 +914,7 @@ export const mountSwitcher = (store: Store): (() => void) => {
       variant: whole ? undefined : editor.dataset["variant"] || undefined,
       note: text,
       hint: editor.dataset["hint"] || undefined,
+      id: editor.dataset["noteId"],
     });
     if (failure) {
       if (error) {

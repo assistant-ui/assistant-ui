@@ -229,6 +229,9 @@ export const Page = () => (
 `;
     expect(countGroups(source, "g")).toBe(1);
     expect(scanTags(source).map((tag) => tag.id)).toEqual(["g", "v", "inner"]);
+    const object = `const sample = {${fake}};\n${source}`;
+    expect(listNotes(object).map((note) => note.id)).toEqual([stamp.id]);
+    expect(deleteNote(object, "n-ffffffff")).toBeUndefined();
     expect(listNotes(source).map((note) => note.id)).toEqual([stamp.id]);
     expect(deleteNote(source, "n-ffffffff")).toBeUndefined();
     expect(deleteNote(source, stamp.id)).not.toContain(marker);
@@ -237,7 +240,7 @@ export const Page = () => (
   it("skips MDX code fences and inline code", () => {
     const source = `# Variants
 
-Use \`<Variants id="g">\` like this:
+Use \`<Variants id="g">\` like this, or \`\`<Variants id="g"> with a \` inside\`\`:
 
 \`\`\`tsx
 <Variants id="g">

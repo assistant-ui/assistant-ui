@@ -93,15 +93,19 @@ export const tokenize = (source: string, mdx = false): Token[] => {
     }
   };
 
-  const comment = () => {
+  const comment = (record: boolean) => {
     const close = source.indexOf("*/", i + 2);
     const end = close === -1 ? length : close + 2;
-    tokens.push({ kind: "comment", start: i, end });
+    if (record) tokens.push({ kind: "comment", start: i, end });
     i = end;
   };
 
-  /** JS until EOF, or until the `}` that closes an expression when `braced`. */
-  function code(braced: boolean) {
+  /**
+   * JS until EOF, or until the `}` that closes an expression when `braced`.
+   * Only a block comment directly inside a JSX child expression is
+   * reported, so an ordinary block comment can never be taken for a marker.
+   */
+  function code(braced: boolean, child = false) {
     let depth = 0;
     while (i < length) {
       const char = source[i]!;
@@ -109,7 +113,7 @@ export const tokenize = (source: string, mdx = false): Token[] => {
       if (char === "/" && next === "/") {
         const end = source.indexOf("\n", i);
         i = end === -1 ? length : end;
-      } else if (char === "/" && next === "*") comment();
+      } else if (char === "/" && next === "*") comment(child && depth === 0);
       else if (char === '"' || char === "'") skipQuoted();
       else if (char === "`") template();
       else if (char === "/" && startsExpression(i)) skipRegex();
@@ -226,7 +230,7 @@ export const tokenize = (source: string, mdx = false): Token[] => {
       lineStart = char === "\n";
       if (char === "{") {
         i++;
-        code(true);
+        code(true, true);
       } else if (char === "<" && source[i + 1] === "/") {
         const start = i;
         i += 2;
@@ -237,8 +241,13 @@ export const tokenize = (source: string, mdx = false): Token[] => {
         if (name !== undefined) return;
       } else if (char === "<" && jsxAt(i)) element(markdown);
       else if (markdown && char === "`") {
-        const close = source.indexOf("`", i + 1);
-        i = close === -1 ? i + 1 : close + 1;
+        let run = 1;
+        while (source[i + run] === "`") run++;
+        const delimiter = "`".repeat(run);
+        let close = source.indexOf(delimiter, i + run);
+        while (close !== -1 && source[close + run] === "`")
+          close = source.indexOf(delimiter, close + run + 1);
+        i = close === -1 ? i + run : close + run;
       } else i++;
     }
   }

@@ -330,10 +330,10 @@ export { GET, POST, DELETE } from "@assistant-ui/variants/next";
 
 How the endpoints behave:
 
-- **Routes:** they live under `/__variants`: `GET /ping`, `GET /notes?groups=a,b`, `POST /notes` with body `{ group, variant?, note, hint? }`, `DELETE /notes/:id?group=…`, and for the [agent link](#agent-link) `GET /agent?after=…` and `POST /agent/requests`.
+- **Routes:** they live under `/__variants`: `GET /ping`, `GET /notes?groups=a,b`, `POST /notes` with body `{ group, variant?, note, hint?, id? }` (a repeated `id` is a no-op, so a retried save never duplicates a note), `DELETE /notes/:id?group=…`, and for the [agent link](#agent-link) `GET /agent?after=…` and `POST /agent/requests`.
 - **Finding the file:** the server scans the project root for the one file that declares `<Variants id="group">`, skipping `node_modules`, `.git`, `dist`, `.next`, `build`, `out` and dot-directories. If there's no such file, or more than one, it refuses.
 - **What it changes:** it only ever inserts or deletes a marker. The one exception is a self-closing `<Variant />`, which gains a closing tag so the marker has somewhere to go.
-- **Parsing:** it uses a small JSX-aware tokenizer rather than the TypeScript compiler API, because TypeScript 7 ships no JavaScript API. Tags and markers inside comments, strings, template literals, regular expressions, and MDX code fences or inline code are ignored.
+- **Parsing:** it uses a small JSX-aware tokenizer rather than the TypeScript compiler API, because TypeScript 7 ships no JavaScript API. Well-formed `@variants-note` markers are recognised only as JSX expression comments (`{/* … */}` as a child); lookalike tags and markers inside other comments, strings, template literals, regular expressions, and MDX code fences or inline code are ignored.
 - **Guards:**
   - development only (the Vite plugin is `apply: "serve"`; the Next handlers return 404 unless `NODE_ENV` is `development`)
   - loopback hosts only, checked first: the `Host` must be `localhost`, `*.localhost`, `127.0.0.1` or `[::1]` (any port), so a DNS-rebound page on another domain is refused even when its `Origin` matches. Allow another dev host with `variants({ allowedHosts })` (merged with Vite's `server.allowedHosts`) or `createVariantsRoutes({ allowedHosts })` for Next

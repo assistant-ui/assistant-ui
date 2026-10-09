@@ -382,6 +382,30 @@ describe("body and concurrency", () => {
     ).toEqual(["one", "two"]);
   });
 
+  it("treats a retried save with the same client id as a no-op", async () => {
+    const save = () =>
+      call(
+        request("POST", "/notes", {
+          body: { group: "demo-cta", note: "once", id: "n-0000abcd" },
+        }),
+      );
+    const first = await save();
+    const second = await save();
+    expect(first).toMatchObject({ status: 201, body: { id: "n-0000abcd" } });
+    expect(second).toEqual(first);
+    const written = await readFile(join(root, "src", "page.tsx"), "utf8");
+    expect(written.split("n-0000abcd")).toHaveLength(2);
+    expect(
+      (
+        await call(
+          request("POST", "/notes", {
+            body: { group: "demo-cta", note: "x", id: "nope" },
+          }),
+        )
+      ).status,
+    ).toBe(400);
+  });
+
   it("deletes a note only through the group that owns it", async () => {
     await writeFile(
       join(root, "src", "page.tsx"),

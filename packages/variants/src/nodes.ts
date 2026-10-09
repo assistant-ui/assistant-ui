@@ -106,9 +106,15 @@ export const measureNodes = (
   nodes: readonly Node[],
   observed: Element[] = [],
 ): Rect | undefined => {
+  // Counts content left out because it is hidden, so a transparent wrapper
+  // around only hidden content doesn't fall back to its full layout box.
+  let omitted = 0;
   const visit = (node: Node, hidden: boolean): Rect | undefined => {
-    if (node.nodeType === Node.TEXT_NODE)
-      return hidden ? undefined : addRects(undefined, textRects(node as Text));
+    if (node.nodeType === Node.TEXT_NODE) {
+      if (!hidden) return addRects(undefined, textRects(node as Text));
+      if (node.textContent?.trim()) omitted++;
+      return undefined;
+    }
     if (node.nodeType !== Node.ELEMENT_NODE) return undefined;
     const element = node as Element;
     const style = getComputedStyle(element);
@@ -118,12 +124,17 @@ export const measureNodes = (
       style.visibility === "hidden" || style.visibility === "collapse";
     if (!invisible && style.display !== "contents" && paintsBox(element, style))
       return addRects(undefined, element.getClientRects());
+    const before = omitted;
     let inner: Rect | undefined;
     for (const child of Array.from(element.childNodes)) {
       const rect = visit(child, invisible);
       if (rect) inner = union(inner, rect);
     }
-    if (inner || invisible || style.display === "contents") return inner;
+    if (inner || style.display === "contents" || omitted > before) return inner;
+    if (invisible) {
+      omitted++;
+      return undefined;
+    }
     return addRects(undefined, element.getClientRects());
   };
   let result: Rect | undefined;
