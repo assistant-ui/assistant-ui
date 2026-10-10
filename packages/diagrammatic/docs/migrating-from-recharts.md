@@ -111,7 +111,7 @@ Click and selection ride the same delegation: `onMarkClick` replaces a `Bar onCl
 ```tsx
 <Root
   onMarkClick={(datum) => router.push(rows[datum.index ?? 0].href)}
-  highlight={selected ? { index: selected } : null}
+  highlight={selected === null ? null : { index: selected }}
 >
 ```
 

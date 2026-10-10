@@ -211,7 +211,7 @@ A request that is not in this file is classified here first. A request that is a
 | 蜂群图 | One-dimensional jittered distribution | Shipped: `Beeswarm` |
 | Hexagon as a scatter marker | A point shape | Shipped on ConnectedScatter |
 | 蜂窝图 as a hex waffle | Unit chart on a hex grid | Not shipped; host prop on Waffle if ever |
-| 蜂窝图 as a hex map | One region, one hex | Not shipped; tile preset, not a new form |
+| 蜂窝图 as a hex map | One region, one hex | Shipped: `HEX_TILES`, a tile preset, not a new form |
 | Hexbin on a real map | Counts in geo hexes | Not shipped; tiles plus counts, or a world helper |
 
 ## Maintenance

@@ -8,6 +8,8 @@ A request that is not about which marks to draw belongs here, not in coverage.md
 
 Every figure is drawn in CSS pixels. The root svg carries `width`, `height`, and `viewBox="0 0 width height"`, so one unit inside the figure is one pixel on the page, the same unit the page's own type, borders, and spacing use. Margins, hairlines, dot radii, hit pads, and type are all pixel measures, which is what lets a figure sit next to a paragraph without looking imported: its 11px tick labels are the same 11px the host's small text is.
 
+The inline micro charts (`Sparkline`, `Sparkbar`, `WinLoss`, `SplitBar`) are the exception: they sit inside a sentence or a table cell at a height in em of the surrounding text with an auto width, and take pixels only when a `width` is passed.
+
 | Knob | What it sets | Default |
 |---|---|---|
 | `width` | rendered width in CSS pixels | 640 |
