@@ -90,7 +90,7 @@ describe("textVocabulary", () => {
     [
       { $type: "Text", value: 42 },
       { status: "streaming" as const },
-      '<span data-aui="text" data-aui-size="md"></span>',
+      '<span data-aui="text" data-aui-size="md">42</span>',
     ],
   ])("renders only supported text properties", (node, options, expected) => {
     expect(

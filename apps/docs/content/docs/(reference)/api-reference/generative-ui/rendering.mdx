@@ -30,8 +30,8 @@ be a plain object and reject a top-level `oneOf`/`anyOf`/`enum`. So props can't
 be refined per `$type` at the root; when components share a prop, its schema
 describes their distinct alternatives without tying them to `$type`. The
 model is guided by `$type`'s description and each prop schema. The renderer
-then drops a declared prop whose value fails the selected component's own
-schema.
+then drops a shared prop's value that the selected component's schema
+rejects and another declaring component's schema accepts.
 
 <ParametersTable {...buildPresentParameters} />
 
@@ -78,8 +78,10 @@ The model emits each node as a flat object `{ $type,...props }`. We first
 normalize that wire form into the canonical NormalizedUINode (with
 `children` lifted to a reserved top-level key), then render: each `type` is
 looked up in the library and its `props` are passed to the component's
-`render(props)`, without any declared prop whose value fails the component's
-own schema, and with `children` rendered recursively so components can nest.
+`render(props)`, with `children` rendered recursively so components can nest.
+A prop that several components declare loses a value the component's own
+schema rejects when another declaring component's schema accepts it, since
+the merged `present` schema lets the model send either.
 
 <ParametersTable {...renderGenerativeUI} />
 {/* api-reference:end */}

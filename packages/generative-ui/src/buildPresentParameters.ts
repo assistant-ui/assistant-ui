@@ -20,8 +20,8 @@ import { isDefaultGenerativeUIComponent } from "./defaultGenerativeUIComponents"
  * be refined per `$type` at the root; when components share a prop, its schema
  * describes their distinct alternatives without tying them to `$type`. The
  * model is guided by `$type`'s description and each prop schema. The renderer
- * then drops a declared prop whose value fails the selected component's own
- * schema.
+ * then drops a shared prop's value that the selected component's schema
+ * rejects and another declaring component's schema accepts.
  */
 export function buildPresentParameters(
   library: GenerativeUILibrary,

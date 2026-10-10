@@ -45,6 +45,7 @@ describe("renderGenerativeUI", () => {
       const received: Record<string, unknown>[] = [];
       const input = defaultGenerativeUILibrary.Input!;
       const inputLibrary: GenerativeUILibrary = {
+        ...defaultGenerativeUILibrary,
         Input: {
           ...input,
           streamProperties: true,
@@ -82,6 +83,7 @@ describe("renderGenerativeUI", () => {
       const received: Record<string, unknown>[] = [];
       const slider = defaultGenerativeUILibrary.Slider!;
       const sliderLibrary: GenerativeUILibrary = {
+        ...defaultGenerativeUILibrary,
         Slider: {
           ...slider,
           streamProperties: true,
@@ -115,14 +117,17 @@ describe("renderGenerativeUI", () => {
     },
   );
 
-  it("keeps raw valid values and drops invalid streaming values until they parse", () => {
+  it("drops a shared prop's value only when another declaring component accepts it", () => {
     const received: Record<string, unknown>[] = [];
-    const transformedLibrary: GenerativeUILibrary = {
+    const sharedLibrary: GenerativeUILibrary = {
       Value: {
         description: "A value.",
         properties: z.object({
-          label: z.string().transform((value) => value.toUpperCase()),
-          count: z.number().min(10),
+          label: z.string(),
+          count: z
+            .number()
+            .min(10)
+            .transform((value) => value * 2),
         }),
         streamProperties: true,
         render: (props) => {
@@ -130,19 +135,21 @@ describe("renderGenerativeUI", () => {
           return null;
         },
       },
+      Counter: {
+        description: "A counter.",
+        properties: z.object({ count: z.number() }),
+        render: () => null,
+      },
     };
 
     renderToStaticMarkup(
       <>
-        {renderGenerativeUI(
-          { $type: "Value", label: "raw", count: 1 },
-          transformedLibrary,
-          { status: "streaming" },
-        )}
-        {renderGenerativeUI(
-          { $type: "Value", label: "raw", count: 12 },
-          transformedLibrary,
-          { status: "streaming" },
+        {[1, 12, "many"].map((count) =>
+          renderGenerativeUI(
+            { $type: "Value", label: "raw", count },
+            sharedLibrary,
+            { status: "streaming" },
+          ),
         )}
       </>,
     );
@@ -150,32 +157,8 @@ describe("renderGenerativeUI", () => {
     expect(received).toEqual([
       { label: "raw", $status: "streaming" },
       { label: "raw", count: 12, $status: "streaming" },
+      { label: "raw", count: "many", $status: "streaming" },
     ]);
-  });
-
-  it("drops issue-named keys from a non-object schema", () => {
-    const received: Record<string, unknown>[] = [];
-    const recordLibrary: GenerativeUILibrary = {
-      Record: {
-        description: "Numeric values.",
-        properties: z.record(z.string(), z.number()),
-        render: (props) => {
-          received.push(props);
-          return null;
-        },
-      },
-    };
-
-    renderToStaticMarkup(
-      <>
-        {renderGenerativeUI(
-          { $type: "Record", bad: "wrong", good: 4 },
-          recordLibrary,
-        )}
-      </>,
-    );
-
-    expect(received).toEqual([{ good: 4, $status: "done" }]);
   });
 
   it("renders a component and passes its props", () => {

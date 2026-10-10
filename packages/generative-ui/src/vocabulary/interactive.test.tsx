@@ -126,7 +126,7 @@ describe("interactiveVocabulary", () => {
           { label: "A", value: "a" },
         ],
       }),
-    ).toBe('<select data-aui="select"></select>');
+    ).toBe('<select data-aui="select"><option value="a">A</option></select>');
   });
 
   it("Input renders a single-line input by default", () => {
@@ -317,7 +317,7 @@ describe("interactiveVocabulary", () => {
       $type: "RadioGroup",
       options: [{ label: "Small", value: "sm" }, null],
     });
-    expect((html.match(/type="radio"/g) ?? []).length).toBe(0);
+    expect((html.match(/type="radio"/g) ?? []).length).toBe(1);
   });
 
   it("RadioGroup with missing options renders an empty fieldset without throwing", () => {
@@ -335,6 +335,7 @@ describe("interactiveVocabulary", () => {
       defaultValue: ["olives"],
       options: [
         { label: "Basil", value: "basil" },
+        null,
         { label: "Olives", value: "olives" },
       ],
     });

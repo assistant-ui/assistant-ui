@@ -23,8 +23,10 @@ const isElement = (node: NormalizedUINode): node is NormalizedUIElement =>
  * normalize that wire form into the canonical {@link NormalizedUINode} (with
  * `children` lifted to a reserved top-level key), then render: each `type` is
  * looked up in the library and its `props` are passed to the component's
- * `render(props)`, without any declared prop whose value fails the component's
- * own schema, and with `children` rendered recursively so components can nest.
+ * `render(props)`, with `children` rendered recursively so components can nest.
+ * A prop that several components declare loses a value the component's own
+ * schema rejects when another declaring component's schema accepts it, since
+ * the merged `present` schema lets the model send either.
  */
 export function renderGenerativeUI(
   node: unknown,
@@ -109,7 +111,7 @@ function renderElement(
   // the prop bag during normalization, so it is re-injected here for components
   // that carry behavior (e.g. `Button`).
   const props: Record<string, unknown> = {
-    ...filterProperties(element.props, entry.properties),
+    ...withoutForeignValues(element.type, element.props, library),
     $status: context.status,
   };
   if (context.dispatch !== undefined) {
@@ -125,27 +127,45 @@ function renderElement(
   return <GenerativeUIComponentRenderer render={entry.render} props={props} />;
 }
 
-function filterProperties(
-  props: Record<string, unknown>,
-  schema: z.ZodType,
-): Record<string, unknown> {
-  if (schema instanceof z.ZodObject) {
-    return Object.fromEntries(
-      Object.entries(props).filter(
-        ([key, value]) =>
-          !Object.hasOwn(schema.shape, key) ||
-          schema.shape[key]!.safeParse(value).success,
-      ),
-    );
-  }
+const propOwnersByLibrary = new WeakMap<
+  GenerativeUILibrary,
+  Map<string, Map<string, z.ZodType>>
+>();
 
-  const result = schema.safeParse(props);
-  if (result.success) return props;
-  const invalidKeys = new Set(
-    result.error.issues.map((issue) => issue.path[0]),
-  );
+const getPropOwners = (library: GenerativeUILibrary) => {
+  let propOwners = propOwnersByLibrary.get(library);
+  if (!propOwners) {
+    propOwners = new Map();
+    for (const [type, entry] of Object.entries(library)) {
+      if (!(entry.properties instanceof z.ZodObject)) continue;
+      for (const [key, schema] of Object.entries(entry.properties.shape)) {
+        const owners = propOwners.get(key) ?? new Map<string, z.ZodType>();
+        owners.set(type, schema);
+        propOwners.set(key, owners);
+      }
+    }
+    propOwnersByLibrary.set(library, propOwners);
+  }
+  return propOwners;
+};
+
+function withoutForeignValues(
+  type: string,
+  props: Record<string, unknown>,
+  library: GenerativeUILibrary,
+): Record<string, unknown> {
+  const propOwners = getPropOwners(library);
   return Object.fromEntries(
-    Object.entries(props).filter(([key]) => !invalidKeys.has(key)),
+    Object.entries(props).filter(([key, value]) => {
+      const owners = propOwners.get(key);
+      if (owners === undefined || owners.size < 2) return true;
+      const own = owners.get(type);
+      if (own === undefined || own.safeParse(value).success) return true;
+      for (const [owner, schema] of owners) {
+        if (owner !== type && schema.safeParse(value).success) return false;
+      }
+      return true;
+    }),
   );
 }
 
