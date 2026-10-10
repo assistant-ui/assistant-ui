@@ -506,6 +506,15 @@ describe("normalizeMathDelimiters", () => {
     expect(normalizeMathDelimiters(text)).toBe(text);
   });
 
+  it("leaves a $$ fence with no closing line before a blank line as written", () => {
+    for (const text of [
+      "1. $$\nF = ma$$\n\nThat is Newton's second law.",
+      "1. $$\nF = ma$$\n\nText\n\n$$\nx\n$$",
+    ]) {
+      expect(normalizeMathDelimiters(text)).toBe(text);
+    }
+  });
+
   it("leaves root and fenced $$ blocks as written", () => {
     expect(normalizeMathDelimiters("$$\na\n$$")).toBe("$$\na\n$$");
     const fenced = "```md\n1. $$\na\n$$\n```";

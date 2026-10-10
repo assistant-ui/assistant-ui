@@ -1084,7 +1084,7 @@ export function rewriteCustomMathTags(text: string): string {
 }
 
 const LIST_ITEM_DISPLAY_MATH =
-  /^([ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+)\$\$[ \t\r]*\n[\s\S]*?(?:^([ \t]*\$\$)[ \t\r]*$(?:\n(?![ \t]*(?:[-*+](?:[ \t]|$)|\d{1,9}[.)](?:[ \t]|$)|#{1,6}(?:[ \t]|$)|>|\$\$|`{3}|~{3}|\||<|(?:[-*_][ \t]*){3,}$|[ \t\r]*$))(.*))?|(?![\s\S]))/gm;
+  /^([ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+)\$\$[ \t\r]*\n(?:(?![ \t\r]*$).*\n)*?(?:^([ \t]*\$\$)[ \t\r]*$(?:\n(?![ \t]*(?:[-*+](?:[ \t]|$)|\d{1,9}[.)](?:[ \t]|$)|#{1,6}(?:[ \t]|$)|>|\$\$|`{3}|~{3}|\||<|(?:[-*_][ \t]*){3,}$|[ \t\r]*$))(.*))?|(?![ \t\r]*$).*(?![\s\S])|(?![\s\S]))/gm;
 const LIST_MARKER_LINE = /^[ \t]*(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/;
 
 /**
@@ -1098,9 +1098,10 @@ const LIST_MARKER_LINE = /^[ \t]*(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/;
  * moves with it, since that paragraph was written under the same unindented
  * fence, and its later lines stay in the item as lazy continuation; a fence
  * already at the column is valid as written, and so is a root paragraph after
- * it. A fence with no closing marker yet is one still streaming in and is
- * indented to its end, and one that reaches a sibling item first never closed
- * in this item.
+ * it. The closing marker is looked for up to the first blank line, which a
+ * display body does not hold, and a fence that reaches one first is left as
+ * written, as is one that reaches a sibling item; a fence that reaches the end
+ * of the text instead is one still streaming in and is indented to its end.
  */
 function nestListItemDisplayMath(text: string): string {
   return rewriteOutsideCode(
