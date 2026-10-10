@@ -437,6 +437,16 @@ describe("createWidgetToolkit", () => {
     expect(mocks.preview).toHaveBeenCalledWith("<p>a</p>", {
       opaqueOrigin: true,
     });
+    const hosted = entries(
+      createWidgetToolkit({
+        widget: { product: "app", unsafeShimDomain: "usercontent.example" },
+      }).toolkit,
+    );
+    await hosted["preview_widget"]!.execute!({ widget_code: "<p>b</p>" });
+    expect(mocks.preview).toHaveBeenLastCalledWith("<p>b</p>", {
+      product: "app",
+      unsafeShimDomain: "usercontent.example",
+    });
   });
 
   it("gives each widget a host-derived storage id shared by its edits", () => {

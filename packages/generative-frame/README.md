@@ -1,6 +1,6 @@
 # `generative-frame`
 
-Render model-generated HTML and SVG widgets safely while they stream. Each widget runs in a [Safe Content Frame](https://www.npmjs.com/package/safe-content-frame) on its own site, under a strict Content Security Policy, and code streams into it chunk by chunk without reloading the frame.
+Render model-generated HTML and SVG widgets safely while they stream. By default each widget runs in a [Safe Content Frame](https://www.npmjs.com/package/safe-content-frame) on its own site (or, with `opaqueOrigin`, in a `null`-origin sandbox), under a strict Content Security Policy, and code streams into it chunk by chunk without reloading the frame.
 
 - **Streaming**: partial markup renders as it arrives and is morphed in place, so finished elements stay put while new ones fade in. Scripts are held and run once, in order, when the code is complete.
 - **Host bridge**: widgets call `sendPrompt(text)`, `openLink(url)`, and `genframe.callTool(name, args)`. The frame speaks the MCP Apps `ui/*` JSON-RPC protocol, so MCP Apps widgets work too.

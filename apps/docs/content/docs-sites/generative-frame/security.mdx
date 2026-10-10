@@ -7,9 +7,11 @@ Widget code is written by a model, so treat it as untrusted. This page lists wha
 
 ## Every widget runs on its own site
 
-Each HTML or SVG widget renders in a [Safe Content Frame](/safe-content-frame). The frame is served from a hashed subdomain of a domain on the Public Suffix List, so browsers treat it as a separate site from your app: widget scripts cannot reach your page's DOM, cookies, or storage, even though the frame allows scripts. [How Safe Content Frame works](/safe-content-frame/docs/how-it-works) explains the origin scheme.
+By default, each HTML or SVG widget renders in a [Safe Content Frame](/safe-content-frame). The frame is served from a hashed subdomain of a domain on the Public Suffix List, so browsers treat it as a separate site from your app: widget scripts cannot reach your page's DOM, cookies, or storage, even though the frame allows scripts. [How Safe Content Frame works](/safe-content-frame/docs/how-it-works) explains the origin scheme.
 
 `product` scopes the frame origin (it defaults to `"generative-frame"`), and `frame` accepts a preconfigured `SafeContentFrame`, for example one with `useShadowDom`.
+
+This guarantee depends on the frame mode. A self-hosted shim keeps it only on a domain on the Public Suffix List, and opaque-origin frames isolate by a `null` origin instead of a separate site; both are described below.
 
 ### Hosting the shim yourself
 
