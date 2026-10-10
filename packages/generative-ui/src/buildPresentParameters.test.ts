@@ -459,4 +459,22 @@ describe("provider-portable property names", () => {
       warn.mockRestore();
     }
   });
+
+  it("ignores property-shaped data inside a default value", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      buildPresentParameters({
+        Custom: component(
+          z.object({
+            settings: z
+              .record(z.string(), z.unknown())
+              .default({ properties: { $x: 1 } }),
+          }),
+        ),
+      });
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
 });

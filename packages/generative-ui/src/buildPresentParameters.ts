@@ -163,6 +163,8 @@ export function buildPresentParameters(
 
 const PORTABLE_PROPERTY_NAME = /^[a-zA-Z0-9_.-]{1,64}$/;
 
+const SCHEMA_DATA_KEYWORDS = new Set(["const", "default", "enum", "examples"]);
+
 function collectPropertyNames(
   schema: unknown,
   names = new Set<string>(),
@@ -171,6 +173,7 @@ function collectPropertyNames(
     for (const item of schema) collectPropertyNames(item, names);
   } else if (schema !== null && typeof schema === "object") {
     for (const [key, value] of Object.entries(schema)) {
+      if (SCHEMA_DATA_KEYWORDS.has(key)) continue;
       if (key === "properties" && value !== null && typeof value === "object") {
         for (const [name, property] of Object.entries(value)) {
           names.add(name);
