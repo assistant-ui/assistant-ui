@@ -17,6 +17,7 @@ const mocks = vi.hoisted(() => ({
     externalId: "session-1" as string | undefined,
     remoteId: "cloud-thread-1" as string | undefined,
     status: "regular" as "new" | "regular",
+    source: null,
     initialize: vi.fn(),
   },
   state: undefined as unknown,

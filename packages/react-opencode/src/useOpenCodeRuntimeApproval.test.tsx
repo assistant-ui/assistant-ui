@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
     remoteId: "session-1" as string | undefined,
     status: "regular" as "new" | "regular",
     title: undefined as string | undefined,
+    source: null as string | null,
     initialize: vi.fn(() => {
       mocks.initializeTask ??= (async () => {
         const adapter = mocks.threadListAdapter;
@@ -121,6 +122,7 @@ afterEach(() => {
   mocks.threadListItem.remoteId = "session-1";
   mocks.threadListItem.status = "regular";
   mocks.threadListItem.title = undefined;
+  mocks.threadListItem.source = null;
   mocks.threadListItem.initialize.mockClear();
   mocks.reload.mockReset().mockResolvedValue(undefined);
   mocks.sessionCreate
@@ -179,6 +181,25 @@ describe("useOpenCodeRuntime", () => {
     await act(async () => root!.render(createElement(App)));
 
     expect(mocks.reload).toHaveBeenCalledOnce();
+  });
+
+  it("leaves an outer thread list alone when nested in it", async () => {
+    mocks.state = {
+      ...createOpenCodeThreadState("session-1"),
+      session: { id: "session-1", title: "Fix the login redirect", time: {} },
+    };
+    mocks.threadListItem.title = "Old title";
+    mocks.threadListItem.source = "threads";
+
+    const App = () => {
+      useOpenCodeRuntime({ client: stubClient });
+      return null;
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
+
+    expect(mocks.reload).not.toHaveBeenCalled();
   });
 
   it("keeps a new thread enabled and prompts before ids land", async () => {
