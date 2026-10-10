@@ -1,5 +1,12 @@
 # @assistant-ui/react
 
+## 0.15.28
+
+### Patch Changes
+
+- Updated dependencies [[`afb9ad2`](https://github.com/assistant-ui/assistant-ui/commit/afb9ad2d42e4178a51eadf1ef15ad9f25be9df57)]:
+  - safe-content-frame@0.0.34
+
 ## 0.15.27
 
 ### Patch Changes
