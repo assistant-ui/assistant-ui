@@ -279,7 +279,7 @@ Set `undoable` for sends and other hard-to-reverse actions. The button waits fiv
 }
 ```
 
-`Select`, `Input`, `DatePicker`, `Checkbox`, `Slider`, `RadioGroup`, and `CheckboxGroup` add the user's value as `$input` when they fire the action; `Slider` sends a number and a `CheckboxGroup` sends the array of its checked option values. `Form`, and a `Card` with `asForm` set, add an object keyed by each control's `name` instead. On a `Card` there is no card-level `_action`: the collected object is dispatched through `confirm._action`, while `cancel._action` always fires without `$input`. Unknown action types are ignored and warn in development.
+`Select`, `Input`, `DatePicker`, `Checkbox`, `Slider`, `RadioGroup`, and `CheckboxGroup` add the user's value as `$input` when they fire the action; `Slider` sends a number and a `CheckboxGroup` sends the array of its checked option values. `Form`, and a `Card` with `asForm` set, add an object keyed by each control's `name` instead. On a `Card` the collected object is dispatched through `confirm._action`, or through the card's own `_action` when `confirm` has none, while `cancel._action` always fires without `$input`. Unknown action types are ignored and warn in development.
 
 `Slider` takes `min`, `max`, an optional `step`, `defaultValue`, and `unit`; it shows the live value and commits only when the adjustment finishes. Set `Checkbox` `variant` to `"switch"` for a switch presentation without changing its boolean value. `RadioGroup` and `CheckboxGroup` options can add a short `description`, rendered under the label.
 
@@ -342,7 +342,7 @@ const widgets = createWidgetToolkit({
 });
 ```
 
-A spec element binds behavior with `on` instead of carrying `_action`. A `Button` and a `ListViewItem` emit `press`, the value controls emit `change` (an `Input` emits `submit`), a `Form` emits `submit`, and a `Card` emits `confirm` and `cancel` from its footer buttons. The payload, which `{ "$event": "" }` reads, is the control's value, or every named control's value when a `Form` emits `submit` or a `Card` with `asForm` emits `confirm`. A control whose value prop (`defaultValue`, `defaultChecked`, or a `DatePicker`'s `value`) is bound with `$bindState` follows that state and writes every change back to it, inside a `Form` too. Declare host actions through `actions` so the model can bind them; `setState` is always available.
+A spec element binds behavior with `on` instead of carrying `_action`. A `Button` and a `ListViewItem` emit `press`, the value controls emit `change` (an `Input` emits `submit`), a `Form` emits `submit`, and a `Card` emits `cancel` from its cancel button and `confirm` from its confirm button or, with `asForm`, whenever it submits. The payload, which `{ "$event": "" }` reads, is the control's value, or every named control's value when a `Form` emits `submit` or a `Card` with `asForm` emits `confirm`. A control whose value prop (`defaultValue`, `defaultChecked`, or a `DatePicker`'s `value`) is bound with `$bindState` follows that state and writes every change back to it, inside a `Form` too. Declare host actions through `actions` so the model can bind them; `setState` is always available.
 
 ## Charts
 
