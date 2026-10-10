@@ -641,6 +641,7 @@ export class LocalThreadRuntimeCore
 
   private _loadPromise: Promise<void> | undefined;
   private _loadGeneration = 0;
+  private _loadImports = 0;
   private _loadRequested = false;
   public __internal_load() {
     this._loadRequested = true;
@@ -691,6 +692,7 @@ export class LocalThreadRuntimeCore
         this._unwrittenSeedMessages.size === 0
       ) {
         this._unwrittenSeedMessages.clear();
+        this._loadImports++;
         this.repository.import(withLocalPauseReasons(repository));
       }
       if (repository.messages.length > 0) {
@@ -1149,7 +1151,6 @@ export class LocalThreadRuntimeCore
     const generation = captureThreadRuntimeGeneration(this);
     // A seeded thread initializes on its first run. Runs that start before the
     // thread list settles wait for it, and run without a remote id if it fails.
-    this._runStarted = true;
     if (this.ensureInitialized()) {
       const pending = this._getInitializePromise?.();
       if (pending) {
@@ -1172,8 +1173,22 @@ export class LocalThreadRuntimeCore
       )
         return;
     }
+    // A history load can replace the seeded messages a run continues, so the
+    // run waits for it the way a send does and drops out if it imported.
+    const loadBarrier = this._getHistoryLoadBarrier(generation);
+    if (loadBarrier) {
+      const imports = this._loadImports;
+      await loadBarrier;
+      if (
+        generation.aborted ||
+        scopeGeneration !== this._loadGeneration ||
+        this._loadImports !== imports
+      )
+        return;
+    }
     if (this.voice)
       throw new Error("Cannot start a run while a voice session is connected");
+    this._runStarted = true;
     this._notifyEventSubscribers("runStart", {});
 
     const run = {

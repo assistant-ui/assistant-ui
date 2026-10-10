@@ -3423,6 +3423,81 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
       },
     );
 
+    describe("an approval answered while the history loads", () => {
+      const seededApproval: ThreadMessageLike[] = [
+        initialMessages[0]!,
+        {
+          id: "seed-assistant",
+          role: "assistant",
+          content: [toolCallPart("send_email", { id: "a1" })],
+          status: { type: "requires-action", reason: "tool-calls" },
+        },
+      ];
+      const createLoadingThread = () => {
+        let resolveLoad!: (repository: ExportedMessageRepository) => void;
+        const appended: ExportedMessageRepositoryItem[] = [];
+        const run = vi.fn(chatModel.run);
+        const thread = createThread(
+          { run },
+          {
+            history: {
+              load: () =>
+                new Promise<ExportedMessageRepository>((resolve) => {
+                  resolveLoad = resolve;
+                }),
+              async append(item: ExportedMessageRepositoryItem) {
+                appended.push(item);
+              },
+            },
+            initialMessages: seededApproval,
+          },
+        );
+        const load = thread.__internal_load();
+        thread.respondToToolApproval({ approvalId: "a1", approved: true });
+        return { thread, run, appended, load, resolveLoad };
+      };
+
+      it("does not run when a non-empty load replaces the seed", async () => {
+        const { thread, run, appended, load, resolveLoad } =
+          createLoadingThread();
+        await flush();
+        expect(run).not.toHaveBeenCalled();
+
+        resolveLoad(
+          ExportedMessageRepository.fromArray([
+            { id: "stored-user", role: "user", content: "stored" },
+          ]),
+        );
+        await load;
+        await flush();
+
+        expect(run).not.toHaveBeenCalled();
+        expect(appended).toEqual([]);
+        expect(thread.messages.map((message) => message.id)).toEqual([
+          "stored-user",
+        ]);
+      });
+
+      it("runs and writes the seed once an empty load keeps it", async () => {
+        const { thread, run, appended, load, resolveLoad } =
+          createLoadingThread();
+        await flush();
+
+        resolveLoad({ messages: [] });
+        await load;
+        await flush();
+
+        expect(run).toHaveBeenCalledTimes(1);
+        expect(
+          appended.map(({ parentId, message }) => [parentId, message.id]),
+        ).toEqual([
+          [null, "seed-user"],
+          ["seed-user", "seed-assistant"],
+        ]);
+        expect(appended[1]?.message).toEqual(thread.messages.at(-1));
+      });
+    });
+
     it("clears the pending seed when the history scope changes", async () => {
       const { history, appended, updated } = createHistory();
       const thread = createThread(chatModel, {
