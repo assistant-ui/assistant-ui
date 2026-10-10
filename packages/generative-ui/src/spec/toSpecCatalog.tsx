@@ -159,6 +159,7 @@ function toSpecComponent(
   // oxlint-disable-next-line typescript/no-explicit-any
   render: (props: any) => ReactNode,
   events: readonly string[],
+  isVocabulary: boolean,
 ) {
   return function GenerativeUISpecElement({
     id,
@@ -183,9 +184,9 @@ function toSpecComponent(
         wired[event] = { ...footer, [MODEL_KEYS.action]: { type: event } };
       }
     }
-    const bound = BOUND_VALUE_PROPS.find(([prop]) =>
-      Object.hasOwn(bindings, prop),
-    );
+    const bound = isVocabulary
+      ? BOUND_VALUE_PROPS.find(([prop]) => Object.hasOwn(bindings, prop))
+      : undefined;
     const name = typeof props["name"] === "string" ? props["name"] : id;
     if (bound) {
       const [prop, controlled] = bound;
@@ -245,7 +246,7 @@ export function toSpecCatalog(
       ...(shape?.slots ? { slots: shape.slots } : {}),
       ...(events.length > 0 ? { events } : {}),
     };
-    components[name] = toSpecComponent(entry.render, events);
+    components[name] = toSpecComponent(entry.render, events, isDefault);
   }
   return {
     catalog: defineCatalog({

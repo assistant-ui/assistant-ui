@@ -88,6 +88,33 @@ describe("toSpecCatalog", () => {
     expect(custom.catalog.component("Button")?.events).toBeUndefined();
   });
 
+  it("passes a custom component's bound prop through unchanged", () => {
+    const custom = toSpecCatalog({
+      Rating: {
+        description: "A star rating.",
+        properties: z.object({ defaultValue: z.number().optional() }),
+        render: ({ defaultValue }) => <output>{defaultValue}</output>,
+      },
+    });
+    const html = renderToStaticMarkup(
+      <SpecRenderer
+        catalog={custom.catalog}
+        components={custom.components}
+        spec={{
+          root: "rating",
+          elements: {
+            rating: {
+              type: "Rating",
+              props: { defaultValue: { $bindState: "/stars" } },
+            },
+          },
+          state: { stars: 4 },
+        }}
+      />,
+    );
+    expect(html).toContain("<output>4</output>");
+  });
+
   it("keeps a default component's events when its schema is extended", () => {
     const { Button } = interactiveVocabulary;
     const extended = toSpecCatalog({
