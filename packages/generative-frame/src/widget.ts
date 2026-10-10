@@ -147,9 +147,11 @@ type FrameRenderer = {
  * An opaque origin cannot be named as a `postMessage` target, so messages to
  * the frame use `"*"`. A sandboxed frame keeps its opaque origin and window
  * when it navigates, so after a navigated document loads, `origin` stops
- * matching and nothing is posted to the frame. A navigated document can still
- * post before its own `load`; that grants it nothing the widget code could
- * not already do.
+ * matching and nothing is posted to the frame. Loads are counted from the
+ * bootstrap's first ready message, so an extra initial `about:blank` load in
+ * some browser cannot cut off the bootstrap itself. A navigated document can
+ * still post before its own `load`; that grants it nothing the widget code
+ * could not already do.
  */
 const opaqueFrame: FrameRenderer = {
   async renderHtml(html, container) {
@@ -157,8 +159,20 @@ const opaqueFrame: FrameRenderer = {
     iframe.setAttribute("sandbox", "allow-scripts");
     iframe.style.cssText = "border:none;width:100%;height:100%";
     iframe.srcdoc = html;
+    let ready = false;
     let loads = 0;
-    iframe.addEventListener("load", () => loads++);
+    const onMessage = (event: MessageEvent) => {
+      if (
+        event.source === iframe.contentWindow &&
+        (event.data as { type?: unknown } | null)?.type === READY_MESSAGE
+      ) {
+        ready = true;
+      }
+    };
+    window.addEventListener("message", onMessage);
+    iframe.addEventListener("load", () => {
+      if (ready) loads++;
+    });
     container.appendChild(iframe);
     return {
       iframe,
@@ -170,7 +184,10 @@ const opaqueFrame: FrameRenderer = {
         iframe.contentWindow?.postMessage(data, "*", transfer);
       },
       fullyLoadedPromiseWithTimeout: async () => {},
-      dispose: () => iframe.remove(),
+      dispose: () => {
+        window.removeEventListener("message", onMessage);
+        iframe.remove();
+      },
     };
   },
 };

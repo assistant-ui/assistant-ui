@@ -407,11 +407,11 @@ describe("widget ids", () => {
     document.body.appendChild(container);
     const onPrompt = vi.fn();
     const widget = createWidget({ container, opaqueOrigin: true, onPrompt });
-    const iframe = await vi.waitFor(() => {
-      const found = container.querySelector("iframe");
-      expect(found).toBeTruthy();
-      return found!;
-    });
+    const iframe = container.querySelector("iframe")!;
+    // jsdom's own load stands in for a browser's extra initial about:blank load.
+    await new Promise((resolve) =>
+      iframe.addEventListener("load", resolve, { once: true }),
+    );
     expect(mocks.constructed).toHaveLength(0);
     expect(iframe.getAttribute("sandbox")).toBe("allow-scripts");
     expect(iframe.srcdoc).toContain("<html");
@@ -438,8 +438,25 @@ describe("widget ids", () => {
     createRpcPeer(port[0], {}).notify(METHODS.ready, { version: "test" });
     await expect(widget.ready).resolves.toBeUndefined();
 
+    const prompt = (id: number) =>
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          ...ready,
+          origin: "null",
+          data: {
+            jsonrpc: "2.0",
+            id,
+            method: "ui/message",
+            params: { content: [{ type: "text", text: "hi" }] },
+          },
+        }),
+      );
     iframe.dispatchEvent(new Event("load"));
+    prompt(10);
+    await vi.waitFor(() => expect(onPrompt).toHaveBeenCalledOnce());
+
     iframe.dispatchEvent(new Event("load"));
+    onPrompt.mockClear();
     postMessage.mockClear();
     window.dispatchEvent(
       new MessageEvent("message", {
