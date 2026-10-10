@@ -115,7 +115,7 @@ describe("component schema references", () => {
       ),
     ).toBe(numberTree);
     expect(resolve(schema, schema.properties!.children!).anyOf).toBeDefined();
-    expect((schema.$defs!.node as JSONSchema7).properties!.$type).toBeDefined();
+    expect((schema.$defs!.node as JSONSchema7).properties!._type).toBeDefined();
   });
 
   it("rebases root references to component props instead of the generated UI node", () => {
@@ -129,7 +129,7 @@ describe("component schema references", () => {
     const nested = schema.properties!.nested as JSONSchema7;
     const props = resolve(schema, nested.items as JSONSchema7Definition);
     expect(props.properties!.label).toEqual({ type: "string" });
-    expect(props.properties!.$type).toBeUndefined();
+    expect(props.properties!._type).toBeUndefined();
     expect(props.required).toEqual(["label", "nested"]);
   });
 
@@ -396,7 +396,7 @@ describe("duplicate prop schemas", () => {
     );
     expect(schema.type).toBe("object");
     expect(schema.anyOf).toBeUndefined();
-    expect(schema.required).toEqual(["$type"]);
+    expect(schema.required).toEqual(["_type"]);
   });
 
   it("deduplicates identical schemas for a shared prop", () => {
@@ -406,5 +406,75 @@ describe("duplicate prop schemas", () => {
     });
 
     expect(schema.properties!.value).toEqual({ type: "string" });
+  });
+});
+
+describe("provider-portable property names", () => {
+  const ANTHROPIC_PROPERTY_NAME = /^[a-zA-Z0-9_.-]{1,64}$/;
+
+  const propertyNames = (schema: unknown, names: string[] = []): string[] => {
+    if (Array.isArray(schema)) {
+      for (const item of schema) propertyNames(item, names);
+    } else if (schema !== null && typeof schema === "object") {
+      for (const [key, value] of Object.entries(schema)) {
+        if (key === "properties") {
+          for (const [name, property] of Object.entries(value as object)) {
+            names.push(name);
+            propertyNames(property, names);
+          }
+        } else {
+          propertyNames(value, names);
+        }
+      }
+    }
+    return names;
+  };
+
+  it("keeps every shipped vocabulary property name within Anthropic's pattern", () => {
+    const names = propertyNames(
+      buildPresentParameters(defaultGenerativeUILibrary),
+    );
+    expect(names).toEqual(expect.arrayContaining(["_type", "_key", "_action"]));
+    expect(names.filter((name) => !ANTHROPIC_PROPERTY_NAME.test(name))).toEqual(
+      [],
+    );
+  });
+
+  it("warns about app prop names Anthropic rejects, including nested ones", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      buildPresentParameters({
+        Custom: component(
+          z.object({
+            "data:id": z.string(),
+            footer: z.object({ $action: z.string() }),
+          }),
+        ),
+      });
+      expect(warn.mock.calls.map(([message]) => message)).toEqual([
+        expect.stringContaining('Prop "data:id" does not match'),
+        expect.stringContaining('Prop "$action" does not match'),
+      ]);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("ignores property-shaped data inside a default value", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      buildPresentParameters({
+        Custom: component(
+          z.object({
+            settings: z
+              .record(z.string(), z.unknown())
+              .default({ properties: { $x: 1 } }),
+          }),
+        ),
+      });
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

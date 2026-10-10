@@ -320,4 +320,55 @@ describe("layoutVocabulary Card asForm/confirm/cancel dispatch", () => {
     onClick({ currentTarget: {} });
     expect(handler).toHaveBeenCalledWith({ payload: { type: "dismiss" } });
   });
+
+  it("Card confirm click fires the confirm._action spelling models emit", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ save: handler });
+    const out = layoutVocabulary.Card.render({
+      confirm: { label: "Save", _action: { type: "save" } },
+      $status: "done",
+      $dispatch: registry.dispatch,
+    }) as ReactElement;
+    const { confirmBtn } = getFooterButtons(out);
+    const onClick = (confirmBtn!.props as { onClick: (e: object) => void })
+      .onClick;
+    onClick({ currentTarget: {} });
+    expect(handler).toHaveBeenCalledWith({ payload: { type: "save" } });
+  });
+
+  it("Card cancel click fires the cancel._action spelling models emit", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ dismiss: handler });
+    const out = layoutVocabulary.Card.render({
+      cancel: { label: "Dismiss", _action: { type: "dismiss" } },
+      $status: "done",
+      $dispatch: registry.dispatch,
+    }) as ReactElement;
+    const { cancelBtn } = getFooterButtons(out);
+    const onClick = (cancelBtn!.props as { onClick: (e: object) => void })
+      .onClick;
+    onClick({ currentTarget: {} });
+    expect(handler).toHaveBeenCalledWith({ payload: { type: "dismiss" } });
+  });
+
+  it("Card asForm submit dispatches the confirm._action spelling models emit", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ save: handler });
+    const out = layoutVocabulary.Card.render({
+      asForm: true,
+      confirm: { label: "Save", _action: { type: "save" } },
+      $status: "done",
+      $dispatch: registry.dispatch,
+    }) as ReactElement;
+    const onSubmit = (out.props as { onSubmit: (e: unknown) => void }).onSubmit;
+    onSubmit({
+      preventDefault: vi.fn(),
+      currentTarget: {
+        elements: [el({ name: "email", type: "email", value: "a@x.com" })],
+      },
+    });
+    expect(handler).toHaveBeenCalledWith({
+      payload: { type: "save", $input: { email: "a@x.com" } },
+    });
+  });
 });

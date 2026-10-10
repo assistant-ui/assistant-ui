@@ -50,6 +50,23 @@ describe("generativeUIToJSX", () => {
     );
   });
 
+  it("emits an action in either spelling as the $action prop components receive", () => {
+    expect(
+      generativeUIToJSX({
+        _type: "Button",
+        _action: { type: "go" },
+        label: "Go",
+      }),
+    ).toBe('<Button label="Go" $action={{"type":"go"}} />');
+    expect(
+      generativeUIToJSX({
+        $type: "Button",
+        $action: { type: "kept" },
+        _action: { type: "dropped" },
+      }),
+    ).toBe('<Button $action={{"type":"kept"}} />');
+  });
+
   it("renders string children between tags", () => {
     expect(
       generativeUIToJSX({ $type: "Text", tone: "muted", children: "hello" }),
@@ -179,6 +196,24 @@ describe("generativeUIToJSX with pretty: true", () => {
         "  </Box>",
         "</Card>",
       ].join("\n"),
+    );
+  });
+
+  it("block-nests a tree in the _type/_key spelling models emit", () => {
+    expect(
+      generativeUIToJSX(
+        {
+          _type: "Card",
+          _key: "a",
+          title: "Hi",
+          children: [{ _type: "Text", children: "hello" }],
+        },
+        { pretty: true },
+      ),
+    ).toBe(
+      ['<Card key="a" title="Hi">', "  <Text>hello</Text>", "</Card>"].join(
+        "\n",
+      ),
     );
   });
 

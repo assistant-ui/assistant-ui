@@ -11,11 +11,14 @@
  *   `$status`). Components never declare `$`-prefixed props, so a component
  *   can use `type`, `status`, `variant`, etc. as ordinary props without
  *   colliding with the framework.
+ * - `_type`, `_key`, and `_action` are reserved as the spelling models emit,
+ *   since the `present` tool schema cannot name `$`-prefixed keys. Either
+ *   spelling normalizes to the same element.
  * - `children` is additionally reserved (the JSX convention).
  * - every other key is an inline prop passed straight to the component.
  */
 
-import { TYPE_KEY } from "./constants";
+import { isReservedKey, MODEL_KEYS, readReserved, TYPE_KEY } from "./constants";
 
 export const TEXT_SIZES = ["sm", "md", "lg", "xl", "2xl", "3xl"] as const;
 export type TextSize = (typeof TEXT_SIZES)[number];
@@ -93,10 +96,12 @@ export interface Action {
 }
 
 /**
- * Anything renderable as generative UI, as the model emits it. The renderer
- * also accepts `number`, `boolean`, `null`, `undefined`, and arrays at the
- * input boundary (numbers render as text, falsy/boolean as nothing, arrays as
- * lists); {@link normalizeUINode} accepts that full range.
+ * Anything renderable as generative UI, with reserved keys in the `$`
+ * spelling. At the input boundary the renderer also accepts `number`,
+ * `boolean`, `null`, `undefined`, and arrays (numbers render as text,
+ * falsy/boolean as nothing, arrays as lists), and elements in the
+ * `_type`/`_key`/`_action` spelling models emit, which this type does not
+ * describe; {@link normalizeUINode} accepts that full range.
  */
 export type UINode = string | number | UIElement | LegacyComponentNode;
 
@@ -131,9 +136,9 @@ export type UISpec = UINode | readonly UINode[];
  * A node normalized to a single canonical shape: a `type` string, an inline
  * `props` bag, recursive `children`, an optional `key`, and an optional
  * `action`. Renderers and platform converters consume this form, so they never
- * branch on whether the model emitted the flat `$type` shape or the legacy
- * `component` shape, and they never see the reserved `$`-prefixed keys leak
- * into component props.
+ * branch on whether the model emitted the flat shape (in either reserved-key
+ * spelling) or the legacy `component` shape, and they never see reserved keys
+ * leak into component props.
  */
 export interface NormalizedUIElement {
   readonly type: string;
@@ -159,9 +164,6 @@ const isLegacyNode = (
   node: Record<string, unknown>,
 ): node is LegacyNodeRecord => typeof node["component"] === "string";
 
-const isTypeNode = (node: Record<string, unknown>): node is UIElement =>
-  typeof node[TYPE_KEY] === "string";
-
 /** Bounds recursion so a runaway or adversarial model response cannot overflow
  * the stack; past this depth (far beyond any real UI) we stop. */
 const MAX_DEPTH = 64;
@@ -180,14 +182,17 @@ function descend(
 
 /**
  * Normalizes a generative-ui input to {@link NormalizedUINode}. The flat
- * `$type` shape and the legacy `component` shape both map to the same canonical
- * element, with reserved keys (`$type`, `$key`, `$action`, `children`) stripped
- * from the prop bag. A node that carries neither a `$type` nor a `component`
- * string is not renderable and resolves to `null` rather than throwing, so a
- * partially-streamed or malformed node degrades to "render nothing".
+ * `$type` shape (in either reserved-key spelling) and the legacy `component`
+ * shape all map to the same canonical element, with reserved keys (`$type`,
+ * `$key`, `$action`, their `_` spellings, and `children`) stripped from the
+ * prop bag. A node that carries neither a type nor a `component` string is not
+ * renderable and resolves to `null` rather than throwing, so a
+ * partially-streamed or malformed node degrades to "render nothing". The one
+ * exception is a complete root object with `children` and no type, which
+ * normalizes to those children.
  *
  * `partialPath` carries streaming state from the tool-args parse meta: a node
- * whose `$type` is still mid-arrival is held back (resolves to `null`) until it
+ * whose type is still mid-arrival is held back (resolves to `null`) until it
  * completes, and the path is threaded into `children` so a nested streaming
  * node is held back while completed siblings render. Omit it for a
  * non-streaming (converter) normalize.
@@ -206,23 +211,23 @@ export function normalizeUINode(
     );
   if (!isRecord(node)) return null;
 
-  // The flat `$type` shape is the canonical form; detect it first so a flat
-  // node that happens to use `component` as an ordinary prop is not swallowed
-  // by the legacy `component`-shape branch.
-  if (isTypeNode(node)) {
-    if (partialPath?.length === 1 && partialPath[0] === TYPE_KEY) return null;
-    const { [TYPE_KEY]: type, $key, $action, children, ...rest } = node;
-    // The `$`-prefixed namespace is framework-reserved (see the module header),
-    // so any model-supplied `$`-prefixed key is stripped from the prop bag the
-    // component sees. `$type`/`$key`/`$action` are pulled above; sweep the rest
-    // (e.g. a stray `$status`) so it never leaks to converters or components.
-    const props = stripReservedProps(rest);
+  // The flat shape is the canonical form; detect it first so a flat node that
+  // happens to use `component` as an ordinary prop is not swallowed by the
+  // legacy `component`-shape branch.
+  const typeKey = node[TYPE_KEY] != null ? TYPE_KEY : MODEL_KEYS.type;
+  const type = node[typeKey];
+  if (typeof type === "string") {
+    if (partialPath?.length === 1 && partialPath[0] === typeKey) return null;
+    const { children, ...rest } = node;
+    // Reserved keys never reach the prop bag the component sees (see the
+    // module header), including strays such as `$status`, so they cannot leak
+    // to converters or components.
     return {
       type,
-      props,
+      props: stripReservedProps(rest),
       children: normalizeChildren(children, partialPath, depth),
-      key: $key,
-      action: $action,
+      key: readReserved(node, "key") as string | number | undefined,
+      action: readReserved(node, "action") as Action | undefined,
     };
   }
 
@@ -238,6 +243,13 @@ export function normalizeUINode(
     };
   }
 
+  // Models sometimes wrap the whole tree in a typeless `{ children }` root.
+  // Unwrapping waits for the complete root, since a model that streams `_type`
+  // after `children` would otherwise flash the children unwrapped.
+  if (depth === 0 && partialPath === undefined && "children" in node) {
+    return normalizeChildren(node["children"], undefined, depth) ?? null;
+  }
+
   return null;
 }
 
@@ -246,7 +258,7 @@ function stripReservedProps(
 ): Record<string, unknown> {
   let out: Record<string, unknown> | undefined;
   for (const key of Object.keys(props)) {
-    if (key.startsWith("$")) {
+    if (isReservedKey(key)) {
       out ??= { ...props };
       delete out[key];
     }
@@ -272,7 +284,9 @@ export function normalizeSpec(spec: UISpec): {
 } {
   if (Array.isArray(spec)) {
     return {
-      root: (spec as readonly UINode[]).map((node) => normalizeUINode(node)),
+      root: (spec as readonly UINode[]).map((node) =>
+        normalizeUINode(node, undefined, 1),
+      ),
     };
   }
   return { root: normalizeUINode(spec) };

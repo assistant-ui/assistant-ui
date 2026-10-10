@@ -1,25 +1,27 @@
 import { toJSONSchema } from "assistant-stream";
 import type { JSONSchema7, JSONSchema7Definition } from "json-schema";
-import { TYPE_KEY } from "./constants";
+import { isReservedKey, MODEL_KEYS } from "./constants";
 import type { GenerativeUILibrary } from "./types";
-import { scopeSchema } from "./scopeSchema";
+import { mapSubschemas, scopeSchema } from "./scopeSchema";
 import { isDefaultGenerativeUIComponent } from "./defaultGenerativeUIComponents";
 
 /**
  * Builds the JSON schema for the `present` tool from a {@link GenerativeUILibrary}.
  *
- * The model produces a node `{ $type, $key?, ...props }` where `$type` selects
- * a component, the optional `$key` pins a stable identity for list items that
- * may reorder, and the rest are its props. The schema is a flat object: `$type`
+ * The model produces a node `{ _type, _key?, ...props }` where `_type` selects
+ * a component, the optional `_key` pins a stable identity for list items that
+ * may reorder, and the rest are its props. The schema is a flat object: `_type`
  * is an enum of the component names, every component's props are merged into
  * one optional bag, and `children` recurses via `$defs` so the tree can nest.
+ * The reserved keys use the `_` spelling because Anthropic rejects `$` in tool
+ * schema property names; the renderer accepts either spelling.
  *
- * It is intentionally flat rather than a per-`$type` discriminated union. Tool /
+ * It is intentionally flat rather than a per-`_type` discriminated union. Tool /
  * function-call schemas (OpenAI and others) require the top-level parameters to
  * be a plain object and reject a top-level `oneOf`/`anyOf`/`enum`. So props can't
- * be refined per `$type` at the root; when components share a prop, its schema
- * describes their distinct alternatives without tying them to `$type`. The
- * model is guided by `$type`'s description and each prop schema. The renderer
+ * be refined per `_type` at the root; when components share a prop, its schema
+ * describes their distinct alternatives without tying them to `_type`. The
+ * model is guided by `_type`'s description and each prop schema. The renderer
  * then drops a shared prop's value that the selected component's schema
  * rejects and another declaring component's schema accepts.
  */
@@ -28,8 +30,8 @@ export function buildPresentParameters(
 ): JSONSchema7 {
   const names = Object.keys(library);
 
-  // Merge every component's props into one optional bag. `$`-prefixed keys and
-  // `children` are framework-reserved (see ir.ts), so drop any author-declared
+  // Merge every component's props into one optional bag. Reserved keys and
+  // `children` belong to the framework (see ir.ts), so drop any author-declared
   // copies.
   const props = new Map<string, JSONSchema7Definition[]>();
   const propSchemas = new Map<string, Set<string>>();
@@ -49,7 +51,7 @@ export function buildPresentParameters(
     }
     let merged = false;
     for (const [key, schema] of Object.entries(propsSchema.properties ?? {})) {
-      if (key.startsWith("$") || key === "children") continue;
+      if (isReservedKey(key) || key === "children") continue;
       // secure-json-parse rejects the whole tool-argument payload on this key,
       // so advertising it would cost the model the node rather than one prop.
       if (key === "__proto__") continue;
@@ -91,7 +93,7 @@ export function buildPresentParameters(
     }
   }
 
-  // Carry each component's description on the `$type` enum, since there are no
+  // Carry each component's description on the `_type` enum, since there are no
   // per-branch schemas to hang them on anymore.
   const typeDescription =
     names.length > 0
@@ -103,8 +105,12 @@ export function buildPresentParameters(
   const node: JSONSchema7 = {
     type: "object",
     properties: {
-      [TYPE_KEY]: { type: "string", enum: names, description: typeDescription },
-      $key: {
+      [MODEL_KEYS.type]: {
+        type: "string",
+        enum: names,
+        description: typeDescription,
+      },
+      [MODEL_KEYS.key]: {
         description:
           "Stable identity for this UI node. Use it for list items that may reorder.",
         anyOf: [{ type: "string" }, { type: "number" }],
@@ -117,7 +123,7 @@ export function buildPresentParameters(
       ),
       children: { $ref: "#/$defs/children" },
     },
-    required: [TYPE_KEY],
+    required: [MODEL_KEYS.type],
   };
 
   const children: JSONSchema7 = {
@@ -132,10 +138,39 @@ export function buildPresentParameters(
     ],
   };
 
-  return {
+  const parameters: JSONSchema7 = {
     ...node,
     $defs: { node, children, ...componentSchemas },
   };
+
+  if (process.env["NODE_ENV"] !== "production") {
+    for (const name of collectPropertyNames(parameters)) {
+      if (PORTABLE_PROPERTY_NAME.test(name)) continue;
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[@assistant-ui/generative-ui] Prop "${name}" does not match ` +
+          `${PORTABLE_PROPERTY_NAME.source}, so Anthropic models reject the ` +
+          "whole `present` schema.",
+      );
+    }
+  }
+
+  return parameters;
+}
+
+const PORTABLE_PROPERTY_NAME = /^[a-zA-Z0-9_.-]{1,64}$/;
+
+function collectPropertyNames(
+  schema: JSONSchema7Definition,
+  names = new Set<string>(),
+): Set<string> {
+  if (typeof schema === "boolean") return names;
+  for (const name of Object.keys(schema.properties ?? {})) names.add(name);
+  mapSubschemas(schema, (subschema) => {
+    collectPropertyNames(subschema, names);
+    return subschema;
+  });
+  return names;
 }
 
 function canonicalSerialize(value: unknown): string {

@@ -14,7 +14,7 @@ export const listVocabulary = {
   },
   ListViewItem: {
     description:
-      "A row inside a ListView. Carries `$action` to make the whole row clickable and keyboard-activatable.",
+      "A row inside a ListView. Carries `_action` to make the whole row clickable and keyboard-activatable.",
     properties: z.object({}),
     render: ({ $action, $dispatch, children }) => {
       if (!$action || !$dispatch) {

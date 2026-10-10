@@ -19,7 +19,7 @@ const isElement = (node: NormalizedUINode): node is NormalizedUIElement =>
 /**
  * Renders a generative-ui tree against a {@link GenerativeUILibrary}.
  *
- * The model emits each node as a flat object `{ $type, ...props }`. We first
+ * The model emits each node as a flat object `{ _type, ...props }`. We first
  * normalize that wire form into the canonical {@link NormalizedUINode} (with
  * `children` lifted to a reserved top-level key), then render: each `type` is
  * looked up in the library and its `props` are passed to the component's
@@ -34,7 +34,7 @@ export function renderGenerativeUI(
   context: GenerativeUIRenderContext = DEFAULT_CONTEXT,
 ): ReactNode {
   // Tool args are parsed incrementally, and the parse meta records which path
-  // is still mid-arrival, so normalization can hold back a node whose `$type`
+  // is still mid-arrival, so normalization can hold back a node whose type
   // string has not finished streaming.
   const meta = getPartialJsonObjectMeta(node as Record<symbol, unknown>);
   const partialPath = meta?.state === "partial" ? meta.partialPath : undefined;

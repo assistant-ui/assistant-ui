@@ -18,18 +18,20 @@ import { GenerativeUIRender, GenerativeUIRenderContext, GenerativeUIRenderError,
 
 Builds the JSON schema for the `present` tool from a [GenerativeUILibrary](/docs/api-reference/generative-ui/components#generativeuilibrary).
 
-The model produces a node `{ $type, $key?,...props }` where `$type` selects
-a component, the optional `$key` pins a stable identity for list items that
-may reorder, and the rest are its props. The schema is a flat object: `$type`
+The model produces a node `{ _type, _key?,...props }` where `_type` selects
+a component, the optional `_key` pins a stable identity for list items that
+may reorder, and the rest are its props. The schema is a flat object: `_type`
 is an enum of the component names, every component's props are merged into
 one optional bag, and `children` recurses via `$defs` so the tree can nest.
+The reserved keys use the `_` spelling because Anthropic rejects `$` in tool
+schema property names; the renderer accepts either spelling.
 
-It is intentionally flat rather than a per-`$type` discriminated union. Tool /
+It is intentionally flat rather than a per-`_type` discriminated union. Tool /
 function-call schemas (OpenAI and others) require the top-level parameters to
 be a plain object and reject a top-level `oneOf`/`anyOf`/`enum`. So props can't
-be refined per `$type` at the root; when components share a prop, its schema
-describes their distinct alternatives without tying them to `$type`. The
-model is guided by `$type`'s description and each prop schema. The renderer
+be refined per `_type` at the root; when components share a prop, its schema
+describes their distinct alternatives without tying them to `_type`. The
+model is guided by `_type`'s description and each prop schema. The renderer
 then drops a shared prop's value that the selected component's schema
 rejects and another declaring component's schema accepts.
 
@@ -60,9 +62,9 @@ default. Pass `Fallback` to opt into a soft-fail UX.
 
 ### generativeUIToJSX
 
-Serializes a generative-UI node to a JSX-like string for display: the "view source" of a model-produced tree. The wire form `{ $type: "Weather", id: "x" }` becomes `<Weather id="x" />`, and nested `children` render between tags: `<Card title="Hi"><Text>hello</Text></Card>`. A model-provided `$key` becomes the JSX `key` attribute.
+Serializes a generative-UI node to a JSX-like string for display: the "view source" of a model-produced tree. The wire form `{ _type: "Weather", id: "x" }` (or its `$type` spelling) becomes `<Weather id="x" />`, and nested `children` render between tags: `<Card title="Hi"><Text>hello</Text></Card>`. A model-provided `_key` or `$key` becomes the JSX `key` attribute, and an action in either spelling becomes the `$action` prop components receive.
 
-By default this is a faithful textual rendering, not a parser: text children are emitted verbatim (not HTML/JSX-escaped), so the result is meant to be shown, not re-parsed. Returns `""` for nodes that aren't renderable (no `$type` yet, `null`, booleans).
+By default this is a faithful textual rendering, not a parser: text children are emitted verbatim (not HTML/JSX-escaped), so the result is meant to be shown, not re-parsed. Returns `""` for nodes that aren't renderable (no type yet, `null`, booleans).
 
 Pass `{ escape: true }` to make the output safe to paste back into JSX: any string child containing `<`, `>`, `&`, `{`, or `}` is emitted as a JSON-stringified expression (`{JSON.stringify(child)}`) instead of verbatim, while a string child with none of those characters still renders verbatim.
 
@@ -74,7 +76,7 @@ Pass `{ pretty: true }` to pretty-print nested element trees with two-space inde
 
 Renders a generative-ui tree against a [GenerativeUILibrary](/docs/api-reference/generative-ui/components#generativeuilibrary).
 
-The model emits each node as a flat object `{ $type,...props }`. We first
+The model emits each node as a flat object `{ _type,...props }`. We first
 normalize that wire form into the canonical NormalizedUINode (with
 `children` lifted to a reserved top-level key), then render: each `type` is
 looked up in the library and its `props` are passed to the component's

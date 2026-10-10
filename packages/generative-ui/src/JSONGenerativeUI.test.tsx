@@ -96,14 +96,14 @@ describe("JSONGenerativeUI — client build", () => {
     expect(typeof tool.execute).toBe("function");
     expect(typeof tool.render).toBe("function");
     expect(tool.unstable_backendDefault).toEqual({ parameters: true });
-    expect((tool.parameters as any).properties.$type.enum).toEqual([
+    expect((tool.parameters as any).properties._type.enum).toEqual([
       "Card",
       "Button",
     ]);
   });
 
   it("present renders the model's tree against the library", () => {
-    const html = renderTool(ui.present(), { $type: "Card", title: "Hi" });
+    const html = renderTool(ui.present(), { _type: "Card", title: "Hi" });
     expect(html).toContain('<section data-title="Hi"></section>');
   });
 
@@ -679,7 +679,7 @@ describe("JSONGenerativeUI — server build", () => {
     expect(tool.render).toBeUndefined();
     expect(tool.execute).toBeUndefined();
     expect(tool.unstable_backendDefault).toBeUndefined();
-    expect(tool.parameters.properties.$type.enum).toEqual(["Card", "Button"]);
+    expect(tool.parameters.properties._type.enum).toEqual(["Card", "Button"]);
     expect(tool.parameters).toEqual(
       new ClientGenUI({ library }).present().parameters,
     );
@@ -690,7 +690,7 @@ describe("JSONGenerativeUI — server build", () => {
     expect(tool.type).toBe("human");
     expect(tool.render).toBeUndefined();
     expect(tool.unstable_backendDefault).toBeUndefined();
-    expect(tool.parameters.properties.$type.enum).toEqual(["Card", "Button"]);
+    expect(tool.parameters.properties._type.enum).toEqual(["Card", "Button"]);
   });
 });
 

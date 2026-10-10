@@ -45,7 +45,7 @@ const runtime = useChatRuntime(/* ... */); // or useLocalRuntime, etc.
 </AssistantRuntimeProvider>;
 ```
 
-The model can now call `present` with a `{ $type, ...props }` tree; it renders through `styledGenerativeUILibrary`, so a `Markdown` node comes out fully formatted instead of as raw text.
+The model can now call `present` with a `{ _type, ...props }` tree; it renders through `styledGenerativeUILibrary`, so a `Markdown` node comes out fully formatted instead of as raw text.
 
   </Step>
 </Steps>
@@ -124,7 +124,7 @@ const generative = new JSONGenerativeUI({ library });
 | Member | Parameters | Description |
 |--------|-----------|-------------|
 | `new JSONGenerativeUI(options)` | `{ library: GenerativeUILibrary; actions?: ActionRegistry }` | Builds the tool's parameter schema once, from the library's Zod `properties`. |
-| `.present(options?)` | `{ display?: "standalone" }`, returns a `PresentTool` | A frontend tool: parameters are the library's schema, and calling it renders the model's `{ $type, ...props }` tree through the library. `display: "standalone"` surfaces the result outside the chain-of-thought trace instead of inline. |
+| `.present(options?)` | `{ display?: "standalone" }`, returns a `PresentTool` | A frontend tool: parameters are the library's schema, and calling it renders the model's `{ _type, ...props }` tree through the library. `display: "standalone"` surfaces the result outside the chain-of-thought trace instead of inline. |
 | `.promptUser()` | none, returns a `PromptUserTool` | The same rendering, as a human-in-the-loop tool: the model pauses until the rendered UI supplies a result. |
 
 Register the resulting tool the way you register any other: `defineToolkit({ present: generative.present() })`, then `Tools({ toolkit })` into your `AuiConfig`.
@@ -137,8 +137,8 @@ Register the resulting tool the way you register any other: `defineToolkit({ pre
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `node` | `unknown` | A `{ $type, ...props }` tree, or an array of them. `$type` selects the component; every other key becomes a prop; a `children` key nests further nodes. |
-| `library` | `GenerativeUILibrary` | Looked up by `$type`. An unknown type logs a console error in development and renders nothing. |
+| `node` | `unknown` | A `{ $type, ...props }` or `{ _type, ...props }` tree, or an array of them. The type selects the component; every other key becomes a prop; a `children` key nests further nodes. |
+| `library` | `GenerativeUILibrary` | Looked up by the node's type. An unknown type logs a console error in development and renders nothing. |
 | `context` | `{ status: "streaming" \| "done"; dispatch?(action) }` | Optional, defaults to `{ status: "done" }`. A component whose `streamProperties` is not `true` renders nothing while `status` is `"streaming"`. |
 
 `styledGenerativeUILibrary` itself takes no props: it is a `GenerativeUILibrary` value, the same shape as `defaultGenerativeUILibrary`, with its `Markdown` entry replaced.

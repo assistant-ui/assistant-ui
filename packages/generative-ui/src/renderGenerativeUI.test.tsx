@@ -272,10 +272,15 @@ describe("renderGenerativeUI", () => {
     expect(html).toBe("<span>registered</span>");
   });
 
-  it("holds back a node whose `$type` is still streaming", () => {
+  it("holds back a node whose type is still streaming, in either spelling", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
-      for (const argsText of ['{"$type": "', '{"$type": "Tex']) {
+      for (const argsText of [
+        '{"$type": "',
+        '{"$type": "Tex',
+        '{"_type": "',
+        '{"_type": "Tex',
+      ]) {
         const html = renderToStaticMarkup(
           <>
             {renderGenerativeUI(parsePartialJsonObject(argsText), library, {
@@ -291,20 +296,59 @@ describe("renderGenerativeUI", () => {
     }
   });
 
-  it("renders completed siblings while a nested `$type` streams", () => {
+  it("renders completed siblings while a nested type streams", () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     try {
-      const args = parsePartialJsonObject(
+      for (const argsText of [
         '{"$type": "Live", "label": "hi", "children": [{"$type": "Liv',
-      );
+        '{"_type": "Live", "label": "hi", "children": [{"_type": "Liv',
+      ]) {
+        const html = renderToStaticMarkup(
+          <>
+            {renderGenerativeUI(parsePartialJsonObject(argsText), library, {
+              status: "streaming",
+            })}
+          </>,
+        );
+        expect(html).toBe('<span data-status="streaming">hi</span>');
+      }
+      expect(error).not.toHaveBeenCalled();
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  it("renders a node by its complete `$type` while a stray `_type` streams", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
       const html = renderToStaticMarkup(
-        <>{renderGenerativeUI(args, library, { status: "streaming" })}</>,
+        <>
+          {renderGenerativeUI(
+            parsePartialJsonObject(
+              '{"$type": "Live", "label": "hi", "_type": "Te',
+            ),
+            library,
+            { status: "streaming" },
+          )}
+        </>,
       );
       expect(html).toBe('<span data-status="streaming">hi</span>');
       expect(error).not.toHaveBeenCalled();
     } finally {
       error.mockRestore();
     }
+  });
+
+  it("renders what a complete typeless root wraps", () => {
+    const html = renderToStaticMarkup(
+      <>
+        {renderGenerativeUI(
+          { children: { _type: "Live", label: "hi" } },
+          library,
+        )}
+      </>,
+    );
+    expect(html).toBe('<span data-status="done">hi</span>');
   });
 
   it("renders nothing for a node without a resolved type", () => {
@@ -357,20 +401,20 @@ describe("buildPresentParameters", () => {
     const schema = buildPresentParameters(library) as any;
 
     expect(schema.type).toBe("object");
-    expect(schema.required).toEqual(["$type"]);
+    expect(schema.required).toEqual(["_type"]);
     // Tool/function-call schemas reject these at the top level.
     expect(schema.oneOf).toBeUndefined();
     expect(schema.anyOf).toBeUndefined();
 
-    expect(schema.properties.$type.enum).toEqual([
+    expect(schema.properties._type.enum).toEqual([
       "Card",
       "Text",
       "Button",
       "Live",
     ]);
-    // each component's description rides along on the $type enum.
-    expect(schema.properties.$type.description).toContain("Card");
-    expect(schema.properties.$key).toEqual({
+    // each component's description rides along on the _type enum.
+    expect(schema.properties._type.description).toContain("Card");
+    expect(schema.properties._key).toEqual({
       description:
         "Stable identity for this UI node. Use it for list items that may reorder.",
       anyOf: [{ type: "string" }, { type: "number" }],
@@ -391,7 +435,7 @@ describe("buildPresentParameters", () => {
     expect(schema.$defs.node.oneOf).toBeUndefined();
   });
 
-  it("drops author-declared `$`-prefixed and `children` props, keeping framework fields", () => {
+  it("drops author-declared reserved and `children` props, keeping framework fields", () => {
     const schema = buildPresentParameters({
       Reserved: {
         description: "Declares reserved keys that must not leak through.",
@@ -399,6 +443,9 @@ describe("buildPresentParameters", () => {
           $type: z.number(),
           $key: z.boolean(),
           $action: z.string(),
+          _type: z.number(),
+          _key: z.boolean(),
+          _action: z.string(),
           children: z.number(),
           label: z.string(),
         }),
@@ -406,19 +453,22 @@ describe("buildPresentParameters", () => {
       },
     }) as any;
 
-    // The discriminator is the framework enum, not the author's `$type`; the
-    // author's `$`-prefixed props and `children` are dropped in favor of the
-    // framework fields.
-    expect(schema.properties.$type.enum).toEqual(["Reserved"]);
-    expect(schema.properties.$key).toEqual({
+    // The discriminator is the framework enum, not the author's `_type`; the
+    // author's reserved props in either spelling and `children` are dropped in
+    // favor of the framework fields.
+    expect(schema.properties._type.enum).toEqual(["Reserved"]);
+    expect(schema.properties._key).toEqual({
       description:
         "Stable identity for this UI node. Use it for list items that may reorder.",
       anyOf: [{ type: "string" }, { type: "number" }],
     });
+    expect(schema.properties.$type).toBeUndefined();
+    expect(schema.properties.$key).toBeUndefined();
     expect(schema.properties.$action).toBeUndefined();
+    expect(schema.properties._action).toBeUndefined();
     expect(schema.properties.children.$ref).toBe("#/$defs/children");
     expect(schema.properties.label).toBeDefined();
-    expect(schema.required).toEqual(["$type"]);
+    expect(schema.required).toEqual(["_type"]);
   });
 
   it("keeps props whose names are inherited from Object.prototype", () => {
