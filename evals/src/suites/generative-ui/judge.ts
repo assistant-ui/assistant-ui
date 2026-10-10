@@ -1,4 +1,5 @@
-import { generateText, jsonSchema, Output, type LanguageModel } from "ai";
+import { generateText, Output, type LanguageModel } from "ai";
+import { z } from "zod";
 import type { Answer, Format, Scores, Task } from "./types.ts";
 
 const RENDERED_AS: Record<Format, string> = {
@@ -13,16 +14,12 @@ const RENDERED_AS: Record<Format, string> = {
 const JUDGE_SYSTEM =
   "You grade answers an assistant gave in a chat app. Score what the user experiences once the answer renders, not how its source is written.";
 
-const verdictSchema = jsonSchema<Scores & { reason: string }>({
-  type: "object",
-  properties: {
-    clarity: { type: "integer", minimum: 1, maximum: 5 },
-    usefulness: { type: "integer", minimum: 1, maximum: 5 },
-    completeness: { type: "integer", minimum: 1, maximum: 5 },
-    reason: { type: "string" },
-  },
-  required: ["clarity", "usefulness", "completeness", "reason"],
-  additionalProperties: false,
+const score = z.number().int().min(1).max(5);
+const verdictSchema = z.object({
+  clarity: score,
+  usefulness: score,
+  completeness: score,
+  reason: z.string(),
 });
 
 /** Score one answer with a fresh judge that sees the request and the answer's source. */

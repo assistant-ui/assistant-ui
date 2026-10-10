@@ -36,6 +36,24 @@ test("the judge's structured reply becomes scores and a reason", async () => {
   );
 });
 
+test("a verdict outside the 1 to 5 scale fails the trial", async () => {
+  await assert.rejects(
+    judgeAnswer(
+      generatingModel(
+        JSON.stringify({
+          clarity: "5",
+          usefulness: 9,
+          completeness: 3,
+          reason: "Great.",
+        }),
+      ),
+      task,
+      "spec",
+      answer,
+    ),
+  );
+});
+
 test("the judge sees the request, the format, the source, and what failed to render", async () => {
   const model = generatingModel(verdict);
   await judgeAnswer(model, task, "spec", {
