@@ -897,11 +897,7 @@ const AssistantActionBar: FC = () => (
 const UserMessage: FC = () => (
   <MessagePrimitive.Root className="aui-user-message-root items-end gap-y-2 px-2">
     <UserMessageAttachments />
-    <AuiIf
-      condition={(s) =>
-        s.message.parts.length > 0 || s.message.status?.type === "running"
-      }
-    >
+    <AuiIf condition={(s) => s.message.parts.length > 0}>
       <View className="aui-user-message-content bg-muted max-w-[85%] rounded-xl px-4 py-2">
         <MessagePrimitive.Parts components={{ Text: UserText, Image, File }} />
       </View>

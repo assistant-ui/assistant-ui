@@ -705,7 +705,9 @@ describe("Thread", () => {
 
     await render();
 
-    expect(container.textContent).toContain("Hello");
+    expect(
+      container.querySelector(".aui-user-message-content")?.textContent,
+    ).toBe("Hello");
     expect(container.textContent).toContain("Hello from the assistant");
   });
 
