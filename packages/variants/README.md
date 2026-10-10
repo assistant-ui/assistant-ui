@@ -43,6 +43,22 @@ npm install -D @assistant-ui/variants
 
 Peer dependencies: `react` and `react-dom` 18 or 19. There are no other runtime dependencies, and you don't need a CSS import.
 
+### Agent skill
+
+The package ships a `/variants` skill for coding agents at `skills/variants/SKILL.md`. Link that folder into the project's skills directory, so the skill updates with the package:
+
+| Agent | Skills directory |
+| --- | --- |
+| Claude Code | `.claude/skills/` |
+| Codex, and agents that read the shared location | `.agents/skills/` |
+
+```sh
+mkdir -p .claude/skills
+ln -s ../../node_modules/@assistant-ui/variants/skills/variants .claude/skills/variants
+```
+
+Copy the folder instead of linking it when the agent can't follow symlinks or `node_modules` isn't installed where the agent runs. A copy needs refreshing after each upgrade.
+
 ## API
 
 ### `<Variants>`
