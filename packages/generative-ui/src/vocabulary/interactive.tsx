@@ -691,6 +691,11 @@ function SliderControl({
   const adjusting = React.useRef(false);
   const currentValue = (input: HTMLInputElement) =>
     clamp(Number(input.value), min, max);
+  // A bound value can change without a commit, so an adjustment compares against the value it started from.
+  const startAdjusting = () => {
+    adjusting.current = true;
+    if (controlledValue !== undefined) lastCommitted.current = value;
+  };
   const commit = (input: HTMLInputElement) => {
     adjusting.current = false;
     const nextValue = currentValue(input);
@@ -722,13 +727,12 @@ function SliderControl({
             setValue(nextValue);
             return;
           }
-          // A bound value can change without a commit, so an adjustment compares against the value it started from.
-          if (!adjusting.current) lastCommitted.current = value;
-          adjusting.current = true;
+          if (!adjusting.current) startAdjusting();
           updateBinding?.(nextValue);
         }}
         onPointerDown={() => {
           pointerActive.current = true;
+          startAdjusting();
         }}
         onPointerUp={(e) => {
           pointerActive.current = false;
@@ -745,6 +749,7 @@ function SliderControl({
             "PageDown",
             "PageUp",
           ].includes(e.key);
+          if (keyboardActive.current && !adjusting.current) startAdjusting();
         }}
         onKeyUp={(e) => {
           if (!keyboardActive.current) return;

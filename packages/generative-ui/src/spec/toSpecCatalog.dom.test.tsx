@@ -255,7 +255,7 @@ describe("toSpecCatalog components", () => {
     },
   );
 
-  it("emits `change` when a bound Slider returns to its last value after the state moved", async () => {
+  it("compares a bound Slider's commit against the value its gesture started from", async () => {
     const pick = vi.fn();
     const state = createStateStore({ v: 4 });
     const container = await render(
@@ -273,6 +273,12 @@ describe("toSpecCatalog components", () => {
       state,
     );
     const input = query<HTMLInputElement>(container, "input");
+    const press = (type: string) =>
+      act(async () => {
+        input.dispatchEvent(
+          new KeyboardEvent(type, { key: "ArrowLeft", bubbles: true }),
+        );
+      });
     const drag = async (value: string) => {
       await dispatch(input, "pointerdown");
       setInputValue(input, value);
@@ -280,14 +286,23 @@ describe("toSpecCatalog components", () => {
       await dispatch(input, "pointerup");
     };
 
+    const move = (value: number) => act(async () => state.set("/v", value));
+
     await drag("7");
-    await act(async () => state.set("/v", 2));
-    expect(input.value).toBe("2");
-    await drag("7");
+    await move(0);
+    expect(input.value).toBe("0");
+    await press("keydown");
+    await press("keyup");
+    await move(10);
+    await dispatch(input, "pointerdown");
+    await dispatch(input, "pointerup");
+    await move(3);
+    setInputValue(input, "10");
+    await dispatch(input, "input");
 
     expect(pick.mock.calls.map(([params]) => params)).toEqual([
       { v: 7 },
-      { v: 7 },
+      { v: 10 },
     ]);
   });
 
