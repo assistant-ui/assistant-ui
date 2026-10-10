@@ -1,5 +1,15 @@
 # @assistant-ui/eve
 
+## 0.0.24
+
+### Patch Changes
+
+- [#9233](https://github.com/assistant-ui/assistant-ui/pull/9233) [`0dcd0a3`](https://github.com/assistant-ui/assistant-ui/commit/0dcd0a311f347e8a0df2c69ee16bd22fc80f269c) - Keep user file parts out of message content so a sent file renders once, as its attachment, instead of twice. ([@n-satoshi061](https://github.com/n-satoshi061))
+- Updated dependencies [[`2c10bb1`](https://github.com/assistant-ui/assistant-ui/commit/2c10bb151811c48dd023377577eb4a107deac649), [`16afd50`](https://github.com/assistant-ui/assistant-ui/commit/16afd50322cce829ab83a32797b5c6aa21fa80c0), [`b86d6cd`](https://github.com/assistant-ui/assistant-ui/commit/b86d6cd08f06686efab8133ba1915824c638606c), [`96fd2a2`](https://github.com/assistant-ui/assistant-ui/commit/96fd2a253a2b97e5c530f3487721a39d918b57dc), [`2b3e0d3`](https://github.com/assistant-ui/assistant-ui/commit/2b3e0d36b62d21c2ffd280cfc96f4e2a127365da)]:
+  - assistant-cloud@0.2.7
+  - @assistant-ui/core@0.3.26
+  - @assistant-ui/store@0.3.19
+
 ## 0.0.23
 
 ### Patch Changes

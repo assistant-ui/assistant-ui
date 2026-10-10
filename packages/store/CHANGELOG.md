@@ -1,5 +1,11 @@
 # @assistant-ui/store
 
+## 0.3.19
+
+### Patch Changes
+
+- [#9093](https://github.com/assistant-ui/assistant-ui/pull/9093) [`96fd2a2`](https://github.com/assistant-ui/assistant-ui/commit/96fd2a253a2b97e5c530f3487721a39d918b57dc) - fix(store): cancel a queued bottom scroll on wheel and touch, matching React ([@rupic-app](https://github.com/apps/rupic-app))
+
 ## 0.3.18
 
 ### Patch Changes
