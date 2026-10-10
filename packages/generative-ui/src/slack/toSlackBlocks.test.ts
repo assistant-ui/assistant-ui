@@ -3188,6 +3188,12 @@ it("maps the _type/_action spelling models emit like the $ spelling", () => {
   });
   const model = toSlackBlocks(card("_") as never);
   expect(model).toEqual(toSlackBlocks(card("$") as never));
-  expect(JSON.stringify(model.blocks)).toContain('"action_id":"ship"');
-  expect(JSON.stringify(model.blocks)).toContain('"action_id":"cancel"');
+  expect(model.blocks).toContainEqual(
+    expect.objectContaining({
+      actions: [
+        expect.objectContaining({ action_id: "ship" }),
+        expect.objectContaining({ action_id: "cancel" }),
+      ],
+    }),
+  );
 });

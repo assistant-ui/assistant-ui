@@ -1906,10 +1906,13 @@ it("maps the _type/_action spelling models emit like the $ spelling", () => {
   });
   const model = toAdaptiveCard(card("_") as never);
   expect(model).toEqual(toAdaptiveCard(card("$") as never));
-  expect(JSON.stringify(model.card.body)).toContain(
-    '"data":{"aui":{"type":"approve"}}',
-  );
-  expect(JSON.stringify(model.card.body)).toContain(
-    '"data":{"aui":{"type":"reject"}}',
+  expect(model.card.body).toContainEqual(
+    expect.objectContaining({
+      type: "ActionSet",
+      actions: [
+        expect.objectContaining({ data: { aui: { type: "approve" } } }),
+        expect.objectContaining({ data: { aui: { type: "reject" } } }),
+      ],
+    }),
   );
 });
