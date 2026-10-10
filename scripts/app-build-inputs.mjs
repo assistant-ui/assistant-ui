@@ -27,11 +27,18 @@ const touches = (file, input) => file === input || file.startsWith(`${input}/`);
 const touchesBuiltApp = (file) =>
   file.startsWith("apps/") && !file.startsWith("apps/docs/");
 
+// UI and DevTools scan sources for CSS; Metro uses a separate declaration build.
+const isExcludedPackageTest = (file) =>
+  /^packages\/(?!ui\/|react-devtools\/|metro\/)[^/]+\/src\/.*\.test\.tsx?$/.test(
+    file,
+  );
+
 export function hasAppBuildInputs(changedFiles) {
   return changedFiles.some(
     (file) =>
-      touchesBuiltApp(file) ||
-      APP_BUILD_INPUTS.some((input) => touches(file, input)),
+      !isExcludedPackageTest(file) &&
+      (touchesBuiltApp(file) ||
+        APP_BUILD_INPUTS.some((input) => touches(file, input))),
   );
 }
 
