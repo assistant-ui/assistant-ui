@@ -147,7 +147,7 @@ useAuiEvent("composer.attachmentAddError", ({ message }) => {
 
 ## Write an adapter
 
-`AttachmentAdapter` has an `accept` string and three methods: `add({ file })` returns a pending attachment or yields pending states from an async generator, `remove(attachment)` can clean up a pending file, and `send(attachment, options?)` returns a `CompleteAttachment` with `status: { type: "complete" }` and a `content` array. `options?.signal` lets slow send work stop if the send is abandoned.
+`AttachmentAdapter` has an `accept` string and three methods: `add({ file })` returns one pending attachment or yields successive states of that attachment from an async generator, `remove(attachment)` can clean up a pending file, and `send(attachment, options?)` returns a `CompleteAttachment` with `status: { type: "complete" }` and a `content` array. Every `add()` yield must have the same `id`; yields with another `id` are ignored. `options?.signal` lets slow send work stop if the send is abandoned.
 
 This adapter accepts small plain text files and sends their contents as a text part:
 

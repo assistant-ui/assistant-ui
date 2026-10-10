@@ -59,6 +59,50 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     vi.restoreAllMocks();
   });
 
+  it("keeps a sending upload alive for its first id and never adds another id to the draft", async () => {
+    const upload = deferred();
+    const yieldedAfterSend = vi.fn();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { composer, append } = makeComposer(
+      makeAdapter({
+        async *add({ file }) {
+          const a: PendingAttachment = {
+            id: "A",
+            type: "file",
+            name: file.name,
+            file,
+            status: { type: "running", reason: "uploading", progress: 0 },
+          };
+          yield a;
+          await upload.promise;
+          yieldedAfterSend();
+          yield { ...a, id: "B" };
+          yield {
+            ...a,
+            status: { type: "requires-action", reason: "composer-send" },
+          } satisfies PendingAttachment;
+        },
+      }),
+    );
+
+    const adding = composer.addAttachment(textFile());
+    await vi.waitFor(() => expect(composer.attachments).toHaveLength(1));
+    composer.setText("hello");
+    const sending = composer.send();
+    expect(append).not.toHaveBeenCalled();
+
+    upload.resolve();
+    await Promise.all([adding, sending]);
+
+    expect(yieldedAfterSend).toHaveBeenCalledOnce();
+    expect(append).toHaveBeenCalledOnce();
+    expect(append.mock.calls[0]![0]).toMatchObject({
+      attachments: [{ id: "A", status: { type: "complete" } }],
+    });
+    expect(composer.attachments).toEqual([]);
+    expect(warn).toHaveBeenCalledOnce();
+  });
+
   it("takes text, attachments, and quote back when an upload fails", async () => {
     const adapter = makeAdapter({
       send: async () => {
