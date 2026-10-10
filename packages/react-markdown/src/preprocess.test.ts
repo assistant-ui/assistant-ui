@@ -458,6 +458,50 @@ describe("normalizeMathDelimiters", () => {
       "`\\(x\\)` and `[/math]y[/math]`",
     );
   });
+
+  it("nests a $$ fence opened on a list item's marker line", () => {
+    expect(
+      normalizeMathDelimiters(
+        "1. $$\nF = ma\n$$\nNewton\n\n2. $$\nE = mc^2\n$$",
+      ),
+    ).toBe("1. $$\n   F = ma\n   $$\n   Newton\n\n2. $$\n   E = mc^2\n   $$");
+  });
+
+  it("nests a $$ fence to the content column of its marker", () => {
+    expect(normalizeMathDelimiters("- $$\na\n$$")).toBe("- $$\n  a\n  $$");
+    expect(normalizeMathDelimiters("10. $$\na\n$$")).toBe(
+      "10. $$\n    a\n    $$",
+    );
+  });
+
+  it("keeps the paragraph after a nested $$ fence in its item", () => {
+    expect(normalizeMathDelimiters("1. $$\na\n$$\none two\nthree")).toBe(
+      "1. $$\n   a\n   $$\n   one two\nthree",
+    );
+    expect(normalizeMathDelimiters("- $$\na\n$$\n- next")).toBe(
+      "- $$\n  a\n  $$\n- next",
+    );
+  });
+
+  it("leaves a $$ fence already at its item's content column", () => {
+    const text = "1. $$\n   a\n   $$";
+    expect(normalizeMathDelimiters(text)).toBe(text);
+  });
+
+  it("nests a still-streaming $$ fence opened on a marker line", () => {
+    expect(normalizeMathDelimiters("1. $$\nF = ")).toBe("1. $$\n   F = ");
+  });
+
+  it("leaves a $$ fence that reaches a sibling item before it closes", () => {
+    const text = "1. $$\na\n2. b\n$$";
+    expect(normalizeMathDelimiters(text)).toBe(text);
+  });
+
+  it("leaves root and fenced $$ blocks as written", () => {
+    expect(normalizeMathDelimiters("$$\na\n$$")).toBe("$$\na\n$$");
+    const fenced = "```md\n1. $$\na\n$$\n```";
+    expect(normalizeMathDelimiters(fenced)).toBe(fenced);
+  });
 });
 
 describe("escapeCurrencyDollars", () => {

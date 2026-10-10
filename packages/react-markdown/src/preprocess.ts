@@ -1083,17 +1083,73 @@ export function rewriteCustomMathTags(text: string): string {
   );
 }
 
+const LIST_ITEM_DISPLAY_MATH =
+  /^([ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+)\$\$[ \t\r]*\n[\s\S]*?(?:^([ \t]*\$\$)[ \t\r]*$(?:\n(?![ \t]*(?:[-*+][ \t]|\d{1,9}[.)][ \t]|#{1,6}[ \t]|>|\$\$|`{3}|~{3}|\||<|(?:[-*_][ \t]*){3,}$|[ \t\r]*$)).*)?|(?![\s\S]))/gm;
+const LIST_MARKER_LINE = /^[ \t]*(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/;
+
+/**
+ * Indents a `$$` fence opened right after a list marker, and written with its
+ * body and closing marker at the root column, to the item's content column.
+ * remark-math reads the unindented form as an empty fence that ends with the
+ * item, since a flow construct takes no lazy continuation lines, so the body
+ * falls out of the list and the closing marker opens a fence of its own; a
+ * bracket body gets the same nesting from {@link emitDisplayMath}. The first
+ * line of a paragraph right after the closing marker moves with it, since the
+ * paragraph would otherwise end the item, and its later lines stay in the item
+ * as lazy continuation. A fence with no closing marker yet is one still
+ * streaming in and is indented to its end, and one that reaches a sibling item
+ * first never closed in this item.
+ */
+function nestListItemDisplayMath(text: string): string {
+  return rewriteOutsideCode(
+    text,
+    (segment, _precededBy, followedBy, lineHead) =>
+      segment.replace(
+        LIST_ITEM_DISPLAY_MATH,
+        (
+          match: string,
+          marker: string,
+          closer: string | undefined,
+          offset: number,
+        ) => {
+          if (lineHead(offset) !== "") return match;
+          if (closer === undefined && followedBy !== "") return match;
+          const column = columns(marker, 0, marker.length);
+          const [opener, ...rest] = match.split("\n");
+          const lines: string[] = [];
+          for (const line of rest) {
+            const indent = /^[ \t]*/.exec(line)![0];
+            if (
+              line.trim() === "" ||
+              columns(indent, 0, indent.length) >= column
+            ) {
+              lines.push(line);
+            } else if (LIST_MARKER_LINE.test(line)) {
+              return match;
+            } else {
+              lines.push(" ".repeat(column) + line.slice(indent.length));
+            }
+          }
+          return [opener, ...lines].join("\n");
+        },
+      ),
+  );
+}
+
 /**
  * Normalizes the alternative math delimiters language models commonly emit (LaTeX
  * `\(...\)` / `\[...\]` brackets and `[/math]` / `[/inline]` tags) to the `$...$` /
- * `$$...$$` delimiters remark-math parses. Pass it to the `preprocess` prop of
+ * `$$...$$` delimiters remark-math parses, and nests a `$$` fence opened on a
+ * list item's marker line inside that item. Pass it to the `preprocess` prop of
  * `MarkdownTextPrimitive` or `StreamdownTextPrimitive`.
  *
  * It does not touch currency. Compose it with {@link escapeCurrencyDollars} when
  * single-dollar math is enabled and your content includes prices.
  */
 export function normalizeMathDelimiters(text: string): string {
-  return rewriteLatexBracketDelimiters(rewriteCustomMathTags(text));
+  return nestListItemDisplayMath(
+    rewriteLatexBracketDelimiters(rewriteCustomMathTags(text)),
+  );
 }
 
 const LATEX_SYNTAX = /\\[a-zA-Z]|[_^{}]/;
