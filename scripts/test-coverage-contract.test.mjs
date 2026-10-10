@@ -141,6 +141,29 @@ test("coverage reports for all PRs and merge groups while gating expensive steps
   );
 });
 
+test("the push trigger watches the paths the detector compares", () => {
+  const pushPaths = coverageWorkflow.match(
+    /^  push:\n[\s\S]*?^    paths:\n((?:      - .*\n)+)/m,
+  )?.[1];
+  assert(pushPaths);
+  const detectorPaths = detectorScript
+    .split('git diff --quiet "$BASE" HEAD -- \\\n')[1]
+    ?.split("; then")[0];
+  assert(detectorPaths);
+  assert.deepEqual(
+    pushPaths
+      .trim()
+      .split("\n")
+      .map((line) => line.replace(/^\s*- "(.*)"$/, "$1").replace(/\/\*\*$/, ""))
+      .sort(),
+    detectorPaths
+      .split("\\\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .sort(),
+  );
+});
+
 const { manifests } = readWorkspaceManifestEntries(root);
 const turbo = path.join(root, "node_modules/.bin/turbo");
 const turboReady =
