@@ -3,7 +3,7 @@ import type { Action } from "./ir";
 /** Context handed to an {@link ActionHandler} when an `$action` fires. */
 export type ActionDispatchContext = {
   /**
-   * The action payload. For fire-and-forget actions this is the `$action` as the model emitted it. For an interactive component the user's runtime input is merged in under the reserved `$input` key: a single value for a standalone control's dispatch, or an object keyed by each field's `name` for a `Form` or a `Card` with `asForm` set. A model-supplied `value` field is never clobbered.
+   * The action payload. For fire-and-forget actions this is the action as the model emitted it. For an interactive component the user's runtime input is merged in under the reserved `$input` key: a single value for a standalone control's dispatch, or an object keyed by each field's `name` for a `Form` or a `Card` with `asForm` set. A model-supplied `value` field is never clobbered.
    */
   readonly payload: Action;
 };
@@ -38,9 +38,9 @@ export function createActionRegistry(
           // eslint-disable-next-line no-console
           console.warn(
             "[@assistant-ui/generative-ui] Skipping malformed action; " +
-              "`$action.type` must be a string. " +
+              "its `type` must be a string. " +
               `Received ${formatReceivedType(action?.type)}. Update the emitted ` +
-              "`$action` payload.",
+              "action.",
           );
         }
         return undefined;
@@ -55,7 +55,7 @@ export function createActionRegistry(
             `[@assistant-ui/generative-ui] Action "${action.type}" has ` +
               `no registered handler. ${formatRegisteredActions(actionTypes)} ` +
               "Register it with createActionRegistry(...) or update the emitted " +
-              "`$action.type`.",
+              "action's `type`.",
           );
         }
         return undefined;

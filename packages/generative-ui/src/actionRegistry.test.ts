@@ -36,7 +36,7 @@ describe("createActionRegistry", () => {
       expect(registry.dispatch({ type: "unknown" })).toBeUndefined();
       expect(warn).toHaveBeenCalledTimes(1);
       expect(warn).toHaveBeenCalledWith(
-        '[@assistant-ui/generative-ui] Action "unknown" has no registered handler. Registered actions: "purchase", "refund". Register it with createActionRegistry(...) or update the emitted `$action.type`.',
+        '[@assistant-ui/generative-ui] Action "unknown" has no registered handler. Registered actions: "purchase", "refund". Register it with createActionRegistry(...) or update the emitted action\'s `type`.',
       );
     } finally {
       warn.mockRestore();
@@ -54,7 +54,7 @@ describe("createActionRegistry", () => {
       expect(handler).not.toHaveBeenCalled();
       expect(warn).toHaveBeenCalledTimes(1);
       expect(warn).toHaveBeenCalledWith(
-        "[@assistant-ui/generative-ui] Skipping malformed action; `$action.type` must be a string. Received number. Update the emitted `$action` payload.",
+        "[@assistant-ui/generative-ui] Skipping malformed action; its `type` must be a string. Received number. Update the emitted action.",
       );
     } finally {
       warn.mockRestore();
@@ -77,7 +77,7 @@ describe("emptyActionRegistry", () => {
       ).toBeUndefined();
       expect(warn).toHaveBeenCalledTimes(1);
       expect(warn).toHaveBeenCalledWith(
-        '[@assistant-ui/generative-ui] Action "anything" has no registered handler. No actions are registered. Register it with createActionRegistry(...) or update the emitted `$action.type`.',
+        '[@assistant-ui/generative-ui] Action "anything" has no registered handler. No actions are registered. Register it with createActionRegistry(...) or update the emitted action\'s `type`.',
       );
     } finally {
       warn.mockRestore();

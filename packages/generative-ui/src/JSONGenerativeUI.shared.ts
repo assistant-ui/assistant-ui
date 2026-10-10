@@ -6,7 +6,7 @@ import type { GenerativeUILibrary } from "./types";
 /** Options for {@link JSONGenerativeUI}. */
 export type JSONGenerativeUIOptions = {
   /**
-   * The components the model is allowed to render, keyed by the `$type` it
+   * The components the model is allowed to render, keyed by the `_type` it
    * selects them with. Author it with `defineGenerativeComponents({ ... })` so a
    * `"use generative"` build can split each `render` from its `properties`.
    */
