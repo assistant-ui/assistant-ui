@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Variants demo</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      body {
+        font-family: system-ui, sans-serif;
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 24px 16px 160px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+        gap: 16px;
+      }
+      .card {
+        border: 1px solid light-dark(#ddd, #333);
+        border-radius: 12px;
+        padding: 16px;
+      }
+      .card.filled {
+        border-color: transparent;
+        background: light-dark(#f4f4f5, #27272a);
+      }
+      .row {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: center;
+        gap: 12px;
+        margin-top: 32px;
+      }
+      .note {
+        margin: 0;
+        opacity: 0.7;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>

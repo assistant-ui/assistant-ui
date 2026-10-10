@@ -105,3 +105,6 @@ apps/docs/public/example-bundles/
 .example-source/
 
 packages/cli/templates/cloud-harness/
+
+# Variants agent mailbox (packages/variants)
+.variants/
