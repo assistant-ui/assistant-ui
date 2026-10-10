@@ -28,7 +28,7 @@ These match the publish job in `.github/workflows/npm-publish.yaml`, which alrea
 
 ## Do it via CLI (preferred)
 
-Requires **npm ≥ 11.10.0** (`npm trust` was added then; the repo's pinned npm is fine — check `npm --version`). Both commands need an **interactive 2FA OTP** and cannot be driven by an automation token, so they can't run unattended. Have the user run them — they can use the `! <command>` prompt prefix so output lands in this session.
+Requires **npm ≥ 11.10.0** (`npm trust` was added then; the repo's pinned npm is fine — check `npm --version`). Both commands need an **interactive 2FA OTP** and cannot be driven by an automation token, so they can't run unattended. A token in `~/.npmrc` that bypasses 2FA makes `npm trust` fail with `E401 ... You must be logged in`; sign in with `npm login --auth-type=web` first. Have the user run them — they can use the `! <command>` prompt prefix so output lands in this session.
 
 Replace `<PKG>` with the published name (e.g. `@assistant-ui/react`, or an unscoped name like `assistant-stream`).
 
@@ -47,7 +47,7 @@ npm access set mfa=publish <PKG>
 
 `mfa=publish` is npm's "**Require two-factor authentication and disallow tokens (recommended)**" setting — it forbids token-based publishes while leaving OIDC trusted publishing working. (`mfa=automation` is the weaker "allow tokens with bypass 2FA" option; don't use it.)
 
-> **Brand-new package?** `npm access set mfa=publish` (and the website's Publishing-access toggle) only work once the package exists on the registry — for a name that has never published, run step 1 (`npm trust`) now and apply this mfa lockdown right after the first release. Step 1 works pre-publish; see [Brand-new package names](#brand-new-package-names-first-publish-chicken-and-egg) below.
+> **Brand-new package?** Both commands answer `E404` for a name that has never published, `npm trust` included. Publish the first version by hand, then run them; see [Brand-new package names](#brand-new-package-names-first-publish-chicken-and-egg) below.
 
 Verify afterward:
 
@@ -65,14 +65,25 @@ If the CLI path is blocked (older npm, auth issues), configure both in the npm U
 
 ## Brand-new package names (first-publish chicken-and-egg)
 
-The npm **website** only lets you edit a package's settings once the package already exists on the registry — so for a brand-new name, configure with **`npm trust` first** (it can establish the trust relationship without publishing a placeholder version), and then let the `npm Publish` workflow ship the initial version via OIDC. If you hit trouble publishing the very first version through OIDC, the fallback is a one-time manual publish, then configure on the website, then all subsequent releases flow through the workflow. Don't introduce a long-lived `NPM_TOKEN` to work around it.
+npm keeps trust and publishing-access settings on the package, so a name that has never published has nowhere to store them: `npm trust github` and `npm access set mfa=publish` both fail with `E404`. The first version goes out by hand from a maintainer's machine, and every later release flows through the workflow. Don't introduce a long-lived `NPM_TOKEN` to work around it.
 
-Lock down publishing access (`npm access set mfa=publish`, or the website's Publishing-access toggle) **after** that first version exists — it can't be set on a name that hasn't published yet.
+1. Sign in interactively: `npm login --auth-type=web`.
+2. From a clean checkout of `main`, build the package and publish it once. Provenance can only be generated in CI, so turn it off for this one publish:
+
+   ```bash
+   pnpm turbo build --filter=<PKG>
+   cd packages/<dir>
+   NPM_CONFIG_PROVENANCE=false pnpm publish --no-git-checks
+   ```
+
+   `pnpm publish` rewrites `workspace:` ranges; a plain `npm publish` of the folder would ship them verbatim. Approve the browser 2FA prompt it prints.
+3. Run the `npm trust` command above, then `npm access set mfa=publish <PKG>`.
+4. Merge the release pull request; the workflow publishes the next version through OIDC.
 
 ## Checklist for a new package
 
 1. `package.json` has `"private": false` and the correct public `name`.
-2. Run the two `npm trust` / `npm access` commands above (or the website equivalents).
+2. For a brand-new name, publish the first version by hand (see above); then run the two `npm trust` / `npm access` commands (or the website equivalents).
 3. `npm trust list <PKG>` shows the GitHub Actions entry; `npm access get status` confirms mfa.
 4. Add a `patch` changeset (per `AGENTS.md`) that **names the new package explicitly** in its frontmatter — changesets only releases packages listed in a changeset entry, so a brand-new package won't ship unless it's named. Nothing else in the workflow needs editing.
 5. Ship the first version as a **stable semver** (no `-` pre-release suffix like `0.1.0-alpha.0`). `npm-publish.yaml` calls `setFailed` on prerelease versions and fails the **entire** release run, not just that package.
