@@ -11,6 +11,7 @@ import {
   type ThreadMessageLike,
 } from "@assistant-ui/react";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { SampleScope } from "./sample-scope";
 import { useSampleRuntime } from "./use-sample-runtime";
 
 const responses = [
@@ -32,6 +33,14 @@ const initialMessages: ThreadMessageLike[] = [
 ];
 
 export function BranchPickerPrimitiveSample() {
+  return (
+    <SampleScope>
+      <BranchPickerThread />
+    </SampleScope>
+  );
+}
+
+function BranchPickerThread() {
   const runtime = useSampleRuntime(adapter, { initialMessages });
 
   return (

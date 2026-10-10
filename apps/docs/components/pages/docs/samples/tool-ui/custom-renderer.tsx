@@ -13,6 +13,7 @@ import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
+import { SampleScope } from "../sample-scope";
 import { useSampleRuntime } from "../use-sample-runtime";
 
 export function WeatherToolUI({
@@ -105,7 +106,9 @@ function WeatherToolChat() {
 export function ToolUIRendererSample() {
   return (
     <SampleFrame className="bg-muted/40 h-120 overflow-hidden">
-      <WeatherToolChat />
+      <SampleScope>
+        <WeatherToolChat />
+      </SampleScope>
     </SampleFrame>
   );
 }

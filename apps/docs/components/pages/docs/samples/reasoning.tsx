@@ -10,6 +10,7 @@ import {
   ReasoningContent,
   ReasoningText,
 } from "@/components/assistant-ui/elements/reasoning.aui";
+import { SampleScope } from "./sample-scope";
 import { useSampleRuntime } from "./use-sample-runtime";
 
 export function ReasoningSample() {
@@ -100,7 +101,9 @@ function ReasoningStreamingThread() {
 export function ReasoningStreamingSample() {
   return (
     <SampleFrame className="bg-muted/40 h-120 overflow-hidden">
-      <ReasoningStreamingThread />
+      <SampleScope>
+        <ReasoningStreamingThread />
+      </SampleScope>
     </SampleFrame>
   );
 }
