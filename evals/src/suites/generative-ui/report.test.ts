@@ -105,7 +105,7 @@ test("renders each format's averages and each task's score per model", () => {
       "",
       "## m",
       "",
-      "| format | renders | repairs | clarity | usefulness | completeness | computed tasks | other tasks | input tokens | output tokens | first output | total |",
+      "| format | valid | repairs | clarity | usefulness | completeness | computed tasks | other tasks | input tokens | output tokens | first output | total |",
       "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
       "| text | 100% | 0.0 | 4.5 | 4.5 | 4.5 | 4.0 | 5.0 | 100 | 50 | 1.0 s | 2.0 s |",
       "| spec | 50% | 1.0 | 2.5 | 2.5 | 4.0 | 2.0 | 4.0 | 250 | 125 | 1.0 s | 3.5 s |",

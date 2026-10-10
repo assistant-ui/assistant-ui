@@ -20,7 +20,7 @@ export interface Candidate extends SuiteCandidate {
 export interface Answer {
   /** What the judge reads: the Markdown, the final tree or spec, or the widget source. */
   artifact: string;
-  /** Validation errors left after the last attempt; empty when the answer renders. */
+  /** Validation errors left after the last attempt; empty when the answer passed validation. */
   errors: string[];
   /** Tool calls after the first, each answering the previous call's validation errors. */
   repairRounds: number;

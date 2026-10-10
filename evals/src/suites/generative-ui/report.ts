@@ -52,7 +52,7 @@ export function renderReport(
       "",
       `## ${model}`,
       "",
-      "| format | renders | repairs | clarity | usefulness | completeness | computed tasks | other tasks | input tokens | output tokens | first output | total |",
+      "| format | valid | repairs | clarity | usefulness | completeness | computed tasks | other tasks | input tokens | output tokens | first output | total |",
       "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     );
     for (const candidate of formats) {
