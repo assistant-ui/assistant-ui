@@ -552,21 +552,93 @@ describe("createThreadViewportAutoScroll", () => {
     detachNext();
   });
 
-  it("cancels scheduled intent on pointerdown", () => {
-    const view = geometry();
+  it.each(["pointerdown", "wheel", "touchstart"])(
+    "cancels scheduled intent on %s",
+    (gesture) => {
+      const view = geometry();
+      const controller = createThreadViewportAutoScroll({
+        getOptions: () => ({ ...options(), autoScroll: false }),
+        onAtBottomChange: vi.fn(),
+      });
+      controller.attach(view.element);
+      controller.runStarted();
+      expect(frames.size).toBe(1);
+      view.element.dispatchEvent(new Event(gesture));
+      expect(frames.size).toBe(0);
+      view.grow(1000);
+      observers[0]!.trigger();
+      flushFrames();
+      expect(view.scrollTo).not.toHaveBeenCalled();
+      controller.dispose();
+    },
+  );
+
+  it.each(["wheel", "touchstart"])(
+    "cancels retained intent on %s",
+    (gesture) => {
+      const view = geometry(100, 100);
+      const controller = createThreadViewportAutoScroll({
+        getOptions: () => ({
+          ...options(),
+          autoScroll: false,
+          scrollToBottomOnInitialize: false,
+        }),
+        onAtBottomChange: vi.fn(),
+      });
+      controller.attach(view.element);
+      controller.runStarted();
+      flushFrames();
+      view.scrollTo.mockClear();
+
+      view.element.dispatchEvent(new Event(gesture));
+      view.grow(200);
+      observers[0]!.trigger();
+
+      expect(view.scrollTo).not.toHaveBeenCalled();
+      controller.dispose();
+    },
+  );
+
+  it("keeps following after cancelling intent during a stationary undershoot gesture", () => {
+    const view = geometry(500, 100);
+    view.setTop(300);
     const controller = createThreadViewportAutoScroll({
-      getOptions: () => ({ ...options(), autoScroll: false }),
+      getOptions: options,
       onAtBottomChange: vi.fn(),
     });
     controller.attach(view.element);
     controller.runStarted();
-    expect(frames.size).toBe(1);
+
     view.element.dispatchEvent(new Event("pointerdown"));
-    expect(frames.size).toBe(0);
-    view.grow(1000);
+    view.grow(600);
     observers[0]!.trigger();
-    flushFrames();
-    expect(view.scrollTo).not.toHaveBeenCalled();
+
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 600,
+      behavior: "instant",
+    });
+    controller.dispose();
+  });
+
+  it("does not read viewport geometry on a wheel without pending intent", () => {
+    const view = geometry();
+    const controller = createThreadViewportAutoScroll({
+      getOptions: () => ({
+        ...options(),
+        scrollToBottomOnInitialize: false,
+      }),
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    const scrollTop = vi.spyOn(view.element, "scrollTop", "get");
+    const scrollHeight = vi.spyOn(view.element, "scrollHeight", "get");
+    const clientHeight = vi.spyOn(view.element, "clientHeight", "get");
+
+    view.element.dispatchEvent(new WheelEvent("wheel"));
+
+    expect(scrollTop).not.toHaveBeenCalled();
+    expect(scrollHeight).not.toHaveBeenCalled();
+    expect(clientHeight).not.toHaveBeenCalled();
     controller.dispose();
   });
 
@@ -767,6 +839,11 @@ describe("createThreadViewportAutoScroll", () => {
     expect(removeListener).toHaveBeenCalledWith("scroll", expect.any(Function));
     expect(removeListener).toHaveBeenCalledWith(
       "pointerdown",
+      expect.any(Function),
+    );
+    expect(removeListener).toHaveBeenCalledWith("wheel", expect.any(Function));
+    expect(removeListener).toHaveBeenCalledWith(
+      "touchstart",
       expect.any(Function),
     );
     expect(frames.size).toBe(0);

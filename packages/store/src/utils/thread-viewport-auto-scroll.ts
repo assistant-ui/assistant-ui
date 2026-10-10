@@ -108,13 +108,16 @@ export const createThreadViewportAutoScroll = (input: {
     });
   };
 
-  const handleScroll = () => {
+  const handleScroll = ({
+    preserveFollow = false,
+  }: { preserveFollow?: boolean } = {}) => {
     if (!element) return;
 
     const newIsAtBottom = isViewportAtBottom(element, contentInset);
     if (
       !newIsAtBottom &&
-      (!input.getOptions().autoScroll || (intent === null && !followPaused))
+      (!input.getOptions().autoScroll ||
+        (!preserveFollow && intent === null && !followPaused))
     )
       followBottom = false;
     const inFlightDownward =
@@ -145,6 +148,8 @@ export const createThreadViewportAutoScroll = (input: {
     lastScrollHeight = element.scrollHeight;
   };
 
+  const onScroll = () => handleScroll();
+
   const followGrowth = () => {
     if (frame !== null) return;
     if (intent) {
@@ -171,8 +176,10 @@ export const createThreadViewportAutoScroll = (input: {
   };
 
   const cancelPendingScrollToBottom = () => {
+    if (intent === null && frame === null) return;
     intent = null;
     cancelFrame();
+    handleScroll({ preserveFollow: true });
   };
 
   const cancelOnKeyDown = (event: KeyboardEvent) => {
@@ -234,8 +241,14 @@ export const createThreadViewportAutoScroll = (input: {
       scrolledSincePause = false;
       setAtBottom(true);
       const disconnect = observeContentResize(el, onContentResize);
-      el.addEventListener("scroll", handleScroll);
+      el.addEventListener("scroll", onScroll);
       el.addEventListener("pointerdown", cancelPendingScrollToBottom);
+      el.addEventListener("wheel", cancelPendingScrollToBottom, {
+        passive: true,
+      });
+      el.addEventListener("touchstart", cancelPendingScrollToBottom, {
+        passive: true,
+      });
       el.addEventListener("keydown", cancelOnKeyDown);
       el.addEventListener("click", pauseFollowOnExpand, true);
       for (const gesture of ["pointerdown", "wheel", "touchmove", "keydown"])
@@ -245,8 +258,10 @@ export const createThreadViewportAutoScroll = (input: {
       const detach = () => {
         if (detachAttached !== detach) return;
         disconnect();
-        el.removeEventListener("scroll", handleScroll);
+        el.removeEventListener("scroll", onScroll);
         el.removeEventListener("pointerdown", cancelPendingScrollToBottom);
+        el.removeEventListener("wheel", cancelPendingScrollToBottom);
+        el.removeEventListener("touchstart", cancelPendingScrollToBottom);
         el.removeEventListener("keydown", cancelOnKeyDown);
         el.removeEventListener("click", pauseFollowOnExpand, true);
         for (const gesture of [
