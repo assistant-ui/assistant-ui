@@ -146,6 +146,37 @@ describe("BaseComposerRuntimeCore.addAttachment error events", () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
+  it("ignores other ids while accepting later states of the first attachment", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const composer = makeComposer(
+      makeAdapter({
+        async *add({ file }) {
+          const a = makeUploadingAttachment(file, "A");
+          yield a;
+          yield { ...a, id: "B" };
+          yield { ...a, id: "C" };
+          yield {
+            ...a,
+            status: { type: "requires-action", reason: "composer-send" },
+          } satisfies PendingAttachment;
+        },
+      }),
+    );
+
+    await composer.addAttachment(
+      new File(["x"], "f.png", { type: "image/png" }),
+    );
+
+    expect(composer.attachments).toMatchObject([
+      { id: "A", status: { type: "requires-action" } },
+    ]);
+    expect(warn).toHaveBeenCalledOnce();
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("[assistant-ui] AttachmentAdapter.add()"),
+    );
+    warn.mockRestore();
+  });
+
   it("does not start an attachment add while the thread is disabled", async () => {
     const add = vi.fn(makeAdapter().add);
     const composer = makeComposer(makeAdapter({ add }), true);

@@ -90,12 +90,24 @@ export class AttachmentAddOperations {
   }
 }
 
-export const drainAttachmentAdd = async <T>(
+export const drainAttachmentAdd = async <T extends { id: string }>(
   result: Promise<T> | AsyncIterable<T>,
   accept: (attachment: T) => boolean,
 ) => {
   if (Symbol.asyncIterator in result) {
+    let firstId: string | undefined;
+    let warned = false;
     for await (const attachment of result) {
+      if (firstId === undefined) firstId = attachment.id;
+      if (attachment.id !== firstId) {
+        if (!warned) {
+          console.warn(
+            "[assistant-ui] AttachmentAdapter.add() yielded multiple attachment ids; only the first id is accepted",
+          );
+          warned = true;
+        }
+        continue;
+      }
       if (!accept(attachment)) break;
     }
   } else {

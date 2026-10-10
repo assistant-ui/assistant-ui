@@ -141,6 +141,124 @@ const setupPartialSend = (type: "thread" | "edit" = "thread") => {
 };
 
 describe("ExternalThread attachments", () => {
+  it("ignores other ids while accepting later states of the first attachment", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const aui = renderThreadWithProps({
+      attachmentAdapter: {
+        accept: "*",
+        async *add({ file }) {
+          const a: PendingAttachment = {
+            id: "A",
+            type: "file",
+            name: file.name,
+            file,
+            status: { type: "running", reason: "uploading", progress: 0 },
+          };
+          yield a;
+          yield { ...a, id: "B" };
+          yield { ...a, id: "B" };
+          yield {
+            ...a,
+            status: { type: "requires-action", reason: "composer-send" },
+          } satisfies PendingAttachment;
+        },
+        send: async (attachment) => ({
+          ...attachment,
+          status: { type: "complete" },
+          content: [],
+        }),
+        remove: async () => {},
+      },
+    });
+    const composer = () => aui().thread.composer();
+
+    await act(async () => {
+      await composer().addAttachment(new File(["data"], "notes.txt"));
+    });
+
+    await waitFor(() =>
+      expect(composer().getState().attachments).toMatchObject([
+        { id: "A", status: { type: "requires-action" } },
+      ]),
+    );
+    expect(warn).toHaveBeenCalledOnce();
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("[assistant-ui] AttachmentAdapter.add()"),
+    );
+    warn.mockRestore();
+  });
+
+  it("keeps a sending upload alive for its first id without adding another id to the draft", async () => {
+    const upload = deferred();
+    const yieldedAfterSend = vi.fn();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const send = vi.fn(async (attachment: PendingAttachment) => ({
+      ...attachment,
+      status: { type: "complete" as const },
+      content: [],
+    }));
+    const onNew = vi.fn();
+    const aui = renderThreadWithProps({
+      attachmentAdapter: {
+        accept: "*",
+        async *add({ file }) {
+          const a: PendingAttachment = {
+            id: "A",
+            type: "file",
+            name: file.name,
+            file,
+            status: { type: "running", reason: "uploading", progress: 0 },
+          };
+          yield a;
+          await upload.promise;
+          yieldedAfterSend();
+          yield { ...a, id: "B" };
+          yield {
+            ...a,
+            status: { type: "requires-action", reason: "composer-send" },
+          } satisfies PendingAttachment;
+        },
+        send,
+        remove: async () => {},
+      },
+      onNew,
+    });
+    const composer = () => aui().thread.composer();
+    let adding!: Promise<void>;
+    act(() => {
+      adding = composer().addAttachment(new File(["data"], "notes.txt"));
+    });
+    await waitFor(() =>
+      expect(composer().getState().attachments).toMatchObject([{ id: "A" }]),
+    );
+
+    await act(async () => {
+      composer().setText("hello");
+      composer().send();
+    });
+    expect(send).not.toHaveBeenCalled();
+    expect(onNew).not.toHaveBeenCalled();
+
+    await act(async () => {
+      upload.resolve();
+      await adding;
+    });
+    await waitFor(() => expect(onNew).toHaveBeenCalledOnce());
+
+    expect(yieldedAfterSend).toHaveBeenCalledOnce();
+    expect(send).toHaveBeenCalledOnce();
+    expect(send.mock.calls[0]![0]).toMatchObject({
+      id: "A",
+      status: { type: "requires-action" },
+    });
+    expect(onNew.mock.calls[0]![0]).toMatchObject({
+      attachments: [{ id: "A", status: { type: "complete" } }],
+    });
+    expect(composer().getState().attachments).toEqual([]);
+    expect(warn).toHaveBeenCalledOnce();
+    warn.mockRestore();
+  });
+
   it.each([
     ["thread", "before"],
     ["thread", "after"],
