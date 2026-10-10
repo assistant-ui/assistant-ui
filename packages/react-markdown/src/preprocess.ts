@@ -1084,7 +1084,7 @@ export function rewriteCustomMathTags(text: string): string {
 }
 
 const LIST_ITEM_DISPLAY_MATH =
-  /^([ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+)\$\$[ \t\r]*\n[\s\S]*?(?:^([ \t]*\$\$)[ \t\r]*$(?:\n(?![ \t]*(?:[-*+][ \t]|\d{1,9}[.)][ \t]|#{1,6}[ \t]|>|\$\$|`{3}|~{3}|\||<|(?:[-*_][ \t]*){3,}$|[ \t\r]*$)).*)?|(?![\s\S]))/gm;
+  /^([ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+)\$\$[ \t\r]*\n[\s\S]*?(?:^([ \t]*\$\$)[ \t\r]*$(?:\n(?![ \t]*(?:[-*+][ \t]|\d{1,9}[.)][ \t]|#{1,6}[ \t]|>|\$\$|`{3}|~{3}|\||<|(?:[-*_][ \t]*){3,}$|[ \t\r]*$))(.*))?|(?![\s\S]))/gm;
 const LIST_MARKER_LINE = /^[ \t]*(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/;
 
 /**
@@ -1093,12 +1093,14 @@ const LIST_MARKER_LINE = /^[ \t]*(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/;
  * remark-math reads the unindented form as an empty fence that ends with the
  * item, since a flow construct takes no lazy continuation lines, so the body
  * falls out of the list and the closing marker opens a fence of its own; a
- * bracket body gets the same nesting from {@link emitDisplayMath}. The first
- * line of a paragraph right after the closing marker moves with it, since the
- * paragraph would otherwise end the item, and its later lines stay in the item
- * as lazy continuation. A fence with no closing marker yet is one still
- * streaming in and is indented to its end, and one that reaches a sibling item
- * first never closed in this item.
+ * bracket body gets the same nesting from {@link emitDisplayMath}. When the
+ * fence moves, the first line of a paragraph right after its closing marker
+ * moves with it, since that paragraph was written under the same unindented
+ * fence, and its later lines stay in the item as lazy continuation; a fence
+ * already at the column is valid as written, and so is a root paragraph after
+ * it. A fence with no closing marker yet is one still streaming in and is
+ * indented to its end, and one that reaches a sibling item first never closed
+ * in this item.
  */
 function nestListItemDisplayMath(text: string): string {
   return rewriteOutsideCode(
@@ -1110,27 +1112,34 @@ function nestListItemDisplayMath(text: string): string {
           match: string,
           marker: string,
           closer: string | undefined,
+          paragraph: string | undefined,
           offset: number,
         ) => {
           if (lineHead(offset) !== "") return match;
           if (closer === undefined && followedBy !== "") return match;
           const column = columns(marker, 0, marker.length);
-          const [opener, ...rest] = match.split("\n");
-          const lines: string[] = [];
-          for (const line of rest) {
+          const nest = (line: string) => {
             const indent = /^[ \t]*/.exec(line)![0];
-            if (
-              line.trim() === "" ||
+            return line.trim() === "" ||
               columns(indent, 0, indent.length) >= column
-            ) {
-              lines.push(line);
-            } else if (LIST_MARKER_LINE.test(line)) {
-              return match;
-            } else {
-              lines.push(" ".repeat(column) + line.slice(indent.length));
-            }
+              ? line
+              : " ".repeat(column) + line.slice(indent.length);
+          };
+          const [opener, ...rest] = match.split("\n");
+          const fence = paragraph === undefined ? rest : rest.slice(0, -1);
+          const nested = fence.map(nest);
+          if (nested.every((line, index) => line === fence[index]))
+            return match;
+          if (
+            fence.some(
+              (line, index) =>
+                line !== nested[index] && LIST_MARKER_LINE.test(line),
+            )
+          ) {
+            return match;
           }
-          return [opener, ...lines].join("\n");
+          if (paragraph !== undefined) nested.push(nest(paragraph));
+          return [opener, ...nested].join("\n");
         },
       ),
   );

@@ -483,9 +483,10 @@ describe("normalizeMathDelimiters", () => {
     );
   });
 
-  it("leaves a $$ fence already at its item's content column", () => {
-    const text = "1. $$\n   a\n   $$";
-    expect(normalizeMathDelimiters(text)).toBe(text);
+  it("leaves a $$ fence already at its item's content column, and the root paragraph after it", () => {
+    for (const text of ["1. $$\n   a\n   $$\nText", "- $$\n  a\n  $$\nText"]) {
+      expect(normalizeMathDelimiters(text)).toBe(text);
+    }
   });
 
   it("nests a still-streaming $$ fence opened on a marker line", () => {
