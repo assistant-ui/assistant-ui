@@ -333,6 +333,18 @@ describe("renderGenerativeUI", () => {
     expect(html).toBe('<span data-status="streaming">hi</span>');
   });
 
+  it("renders what a complete typeless root wraps", () => {
+    const html = renderToStaticMarkup(
+      <>
+        {renderGenerativeUI(
+          { children: { _type: "Live", label: "hi" } },
+          library,
+        )}
+      </>,
+    );
+    expect(html).toBe('<span data-status="done">hi</span>');
+  });
+
   it("renders nothing for a node without a resolved type", () => {
     const html = renderToStaticMarkup(<>{renderGenerativeUI({}, library)}</>);
     expect(html).toBe("");

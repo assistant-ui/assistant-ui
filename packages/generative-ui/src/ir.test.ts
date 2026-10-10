@@ -231,6 +231,30 @@ describe("normalizeUINode", () => {
       expect(normalizeUINode({ foo: "bar" } as unknown as never)).toBeNull();
     });
 
+    it("unwraps a complete typeless root to the children it wraps", () => {
+      const tree = {
+        _type: "Col",
+        children: [{ _type: "Text", value: "a" }],
+      };
+      expect(normalizeUINode({ children: tree })).toEqual(
+        normalizeUINode(tree),
+      );
+    });
+
+    it("keeps a streaming typeless root and a nested typeless node unrendered", () => {
+      expect(
+        normalizeUINode({ children: { _type: "Text", value: "a" } }, [
+          "children",
+          "value",
+        ]),
+      ).toBeNull();
+      expect(
+        asElement(
+          normalizeUINode({ _type: "Card", children: { children: "x" } }),
+        ).children,
+      ).toBeNull();
+    });
+
     it("resolves non-record input: null and boolean to null, number to a text leaf", () => {
       expect(normalizeUINode(null as unknown as never)).toBeNull();
       expect(normalizeUINode(true as unknown as never)).toBeNull();

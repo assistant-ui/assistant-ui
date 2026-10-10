@@ -187,7 +187,9 @@ function descend(
  * `$key`, `$action`, their `_` spellings, and `children`) stripped from the
  * prop bag. A node that carries neither a type nor a `component` string is not
  * renderable and resolves to `null` rather than throwing, so a
- * partially-streamed or malformed node degrades to "render nothing".
+ * partially-streamed or malformed node degrades to "render nothing". The one
+ * exception is a complete root object with `children` and no type, which
+ * normalizes to those children.
  *
  * `partialPath` carries streaming state from the tool-args parse meta: a node
  * whose type is still mid-arrival is held back (resolves to `null`) until it
@@ -239,6 +241,13 @@ export function normalizeUINode(
       children: normalizeChildren(node.children, partialPath, depth),
       key: node.key as string | undefined,
     };
+  }
+
+  // Models sometimes wrap the whole tree in a typeless `{ children }` root.
+  // Unwrapping waits for the complete root, since a model that streams `_type`
+  // after `children` would otherwise flash the children unwrapped.
+  if (depth === 0 && partialPath === undefined && "children" in node) {
+    return normalizeChildren(node["children"], undefined, depth) ?? null;
   }
 
   return null;
