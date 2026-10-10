@@ -243,10 +243,19 @@ describe("withAssistantCloudTraceMetadata", () => {
     );
   });
 
-  it("passes through metadata for other parts", () => {
+  it("passes through finish metadata with an active span", () => {
     const value = { usage: { totalTokens: 42 } };
     const messageMetadata = withAssistantCloudTraceMetadata(() => value);
 
-    expect(messageMetadata({ part: { type: "finish" } })).toBe(value);
+    const result = context.with(
+      trace.setSpanContext(context.active(), {
+        traceId: TRACE_ID,
+        spanId: SPAN_ID,
+        traceFlags: 1,
+      }),
+      () => messageMetadata({ part: { type: "finish" } }),
+    );
+
+    expect(result).toBe(value);
   });
 });
