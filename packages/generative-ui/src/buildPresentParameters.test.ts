@@ -196,7 +196,7 @@ describe("component schema references", () => {
     expect(embedded.type).toBe("object");
   });
 
-  it("omits component definitions whose properties all lose the duplicate-name merge", () => {
+  it("retains definitions referenced by colliding prop alternatives", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
       const StringTree = z.object({
@@ -214,10 +214,31 @@ describe("component schema references", () => {
         first: component(z.object({ tree: StringTree })),
         second: component(z.object({ tree: NumberTree })),
       });
+      const alternatives = (schema.properties!.tree as JSONSchema7).anyOf!;
+      expect(alternatives).toHaveLength(2);
+      const stringTree = resolve(schema, alternatives[0]!);
+      const numberTree = resolve(schema, alternatives[1]!);
+      expect(stringTree.properties!.tree).toBeDefined();
+      expect(numberTree.properties!.value).toEqual({ type: "number" });
+      expect(
+        resolve(
+          schema,
+          (stringTree.properties!.tree as JSONSchema7)
+            .items as JSONSchema7Definition,
+        ),
+      ).toBe(stringTree);
+      expect(
+        resolve(
+          schema,
+          (numberTree.properties!.tree as JSONSchema7)
+            .items as JSONSchema7Definition,
+        ),
+      ).toBe(numberTree);
       expect(Object.keys(schema.$defs!)).toEqual([
         "node",
         "children",
         "component0",
+        "component1",
       ]);
       expect(warn).toHaveBeenCalledOnce();
     } finally {
@@ -276,7 +297,7 @@ describe("duplicate prop warnings", () => {
     }
   });
 
-  it("warns when app schemas collide with shipped props and keeps the first schema", () => {
+  it("warns when app schemas collide with shipped props and combines schemas", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
       const library = {
@@ -289,11 +310,69 @@ describe("duplicate prop warnings", () => {
       expect(warn.mock.calls[0]?.[0]).toContain('Prop "size"');
       expect(warn.mock.calls[0]?.[0]).toContain('"Header"');
       expect(warn.mock.calls[0]?.[0]).toContain('"Custom"');
-      expect(schema.properties!.size).toEqual(
-        buildPresentParameters({ Header: library.Header }).properties!.size,
+      const size = schema.properties!.size as JSONSchema7;
+      expect(size.anyOf).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ type: "string" }),
+          expect.objectContaining({ type: "boolean" }),
+        ]),
       );
     } finally {
       warn.mockRestore();
     }
+  });
+});
+
+describe("duplicate prop schemas", () => {
+  it("includes every distinct default vocabulary schema under the flat root", () => {
+    const schema = buildPresentParameters(defaultGenerativeUILibrary);
+    const inputType = schema.properties!.inputType as JSONSchema7;
+    const min = schema.properties!.min as JSONSchema7;
+    const max = schema.properties!.max as JSONSchema7;
+    const size = schema.properties!.size as JSONSchema7;
+
+    expect(inputType.anyOf).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ enum: ["text", "password", "number"] }),
+        expect.objectContaining({ enum: ["date", "datetime", "time"] }),
+      ]),
+    );
+    expect(min.anyOf).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "string" }),
+        expect.objectContaining({ type: "number" }),
+      ]),
+    );
+    expect(max.anyOf).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "string" }),
+        expect.objectContaining({ type: "number" }),
+      ]),
+    );
+    expect(size.anyOf).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          enum: ["sm", "md", "lg", "xl", "2xl", "3xl"],
+        }),
+        expect.objectContaining({
+          anyOf: expect.arrayContaining([
+            expect.objectContaining({ enum: ["sm", "md", "lg"] }),
+            expect.objectContaining({ type: "number" }),
+          ]),
+        }),
+      ]),
+    );
+    expect(schema.type).toBe("object");
+    expect(schema.anyOf).toBeUndefined();
+    expect(schema.required).toEqual(["$type"]);
+  });
+
+  it("deduplicates identical schemas for a shared prop", () => {
+    const schema = buildPresentParameters({
+      First: component(z.object({ value: z.string() })),
+      Second: component(z.object({ value: z.string() })),
+    });
+
+    expect(schema.properties!.value).toEqual({ type: "string" });
   });
 });

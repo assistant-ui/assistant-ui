@@ -17,10 +17,12 @@ import { isDefaultGenerativeUIComponent } from "./defaultGenerativeUIComponents"
  * It is intentionally flat rather than a per-`$type` discriminated union. Tool /
  * function-call schemas (OpenAI and others) require the top-level parameters to
  * be a plain object and reject a top-level `oneOf`/`anyOf`/`enum`. So props can't
- * be refined per `$type` at the root; the model is guided instead by `$type`'s
- * description (which lists each component) and each prop's own description. The
- * renderer validates nothing here — an unknown `$type` or stray prop is handled
- * at render time — so a looser schema only costs the model a hint, not safety.
+ * be refined per `$type` at the root; when components share a prop, its schema
+ * can only describe the alternatives without tying them to `$type`. The model
+ * is guided by `$type`'s description (which lists each component) and each prop
+ * schema. The renderer validates nothing here — an unknown `$type` or stray prop
+ * is handled at render time — so a looser schema only costs the model a hint,
+ * not safety.
  */
 export function buildPresentParameters(
   library: GenerativeUILibrary,
@@ -29,9 +31,9 @@ export function buildPresentParameters(
 
   // Merge every component's props into one optional bag. `$`-prefixed keys and
   // `children` are framework-reserved (see ir.ts), so drop any author-declared
-  // copies. On a name clash the first component's schema wins — props are an
-  // advisory hint here, not a strict per-component contract.
-  const props = new Map<string, JSONSchema7Definition>();
+  // copies.
+  const props = new Map<string, JSONSchema7Definition[]>();
+  const propSchemas = new Map<string, Set<string>>();
   const propOwners = new Map<string, string[]>();
   const componentSchemas: Record<string, JSONSchema7> = {};
   for (const [index, name] of names.entries()) {
@@ -52,8 +54,12 @@ export function buildPresentParameters(
       // secure-json-parse rejects the whole tool-argument payload on this key,
       // so advertising it would cost the model the node rather than one prop.
       if (key === "__proto__") continue;
-      if (!props.has(key)) {
-        props.set(key, schema);
+      const fingerprint = JSON.stringify(schema) ?? String(schema);
+      const seenSchemas = propSchemas.get(key) ?? new Set<string>();
+      if (!seenSchemas.has(fingerprint)) {
+        seenSchemas.add(fingerprint);
+        propSchemas.set(key, seenSchemas);
+        props.set(key, [...(props.get(key) ?? []), schema]);
         merged = true;
       }
       propOwners.set(key, [...(propOwners.get(key) ?? []), name]);
@@ -80,8 +86,8 @@ export function buildPresentParameters(
       // eslint-disable-next-line no-console
       console.warn(
         `[@assistant-ui/generative-ui] Prop "${key}" is declared by ` +
-          `${formatComponentList(owners)}; keeping "${owners[0]}"'s schema. ` +
-          "Rename or align the prop type to avoid an ambiguous schema.",
+          `${formatComponentList(owners)}; combining their schemas in the ` +
+          "model hint.",
       );
     }
   }
@@ -104,7 +110,12 @@ export function buildPresentParameters(
           "Stable identity for this UI node. Use it for list items that may reorder.",
         anyOf: [{ type: "string" }, { type: "number" }],
       },
-      ...Object.fromEntries(props),
+      ...Object.fromEntries(
+        [...props].map(([key, schemas]) => [
+          key,
+          schemas.length === 1 ? schemas[0]! : { anyOf: schemas },
+        ]),
+      ),
       children: { $ref: "#/$defs/children" },
     },
     required: [TYPE_KEY],
