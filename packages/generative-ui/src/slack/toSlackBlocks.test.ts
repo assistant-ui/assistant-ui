@@ -1562,6 +1562,26 @@ describe("toSlackBlocks", () => {
       expect(warnings).toEqual([]);
     });
 
+    it("maps the _type/_action spelling models emit like the $ spelling", () => {
+      const card = (spelling: "$" | "_") => ({
+        [`${spelling}type`]: "Card",
+        title: "Order #42",
+        confirm: { label: "Ship", [`${spelling}action`]: { type: "ship" } },
+        cancel: { label: "Cancel", [`${spelling}action`]: { type: "cancel" } },
+        children: [{ [`${spelling}type`]: "Text", value: "Shipped" }],
+      });
+      const model = toSlackBlocks(card("_"));
+      expect(model).toEqual(toSlackBlocks(card("$")));
+      expect(model.blocks).toContainEqual(
+        expect.objectContaining({
+          actions: [
+            expect.objectContaining({ action_id: "ship" }),
+            expect.objectContaining({ action_id: "cancel" }),
+          ],
+        }),
+      );
+    });
+
     it("maps confirm/cancel to the actions array directly, without a title or body", () => {
       const { blocks } = toSlackBlocks({
         $type: "Card",
@@ -3176,24 +3196,4 @@ it("resolves a Slider field reference from numeric Slack state", () => {
       },
     }),
   ).toEqual({ type: "submit", count: 3 });
-});
-
-it("maps the _type/_action spelling models emit like the $ spelling", () => {
-  const card = (spelling: "$" | "_") => ({
-    [`${spelling}type`]: "Card",
-    title: "Order #42",
-    confirm: { label: "Ship", [`${spelling}action`]: { type: "ship" } },
-    cancel: { label: "Cancel", [`${spelling}action`]: { type: "cancel" } },
-    children: [{ [`${spelling}type`]: "Text", value: "Shipped" }],
-  });
-  const model = toSlackBlocks(card("_") as never);
-  expect(model).toEqual(toSlackBlocks(card("$") as never));
-  expect(model.blocks).toContainEqual(
-    expect.objectContaining({
-      actions: [
-        expect.objectContaining({ action_id: "ship" }),
-        expect.objectContaining({ action_id: "cancel" }),
-      ],
-    }),
-  );
 });

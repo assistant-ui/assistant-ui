@@ -103,7 +103,7 @@ describe("JSONGenerativeUI — client build", () => {
   });
 
   it("present renders the model's tree against the library", () => {
-    const html = renderTool(ui.present(), { $type: "Card", title: "Hi" });
+    const html = renderTool(ui.present(), { _type: "Card", title: "Hi" });
     expect(html).toContain('<section data-title="Hi"></section>');
   });
 

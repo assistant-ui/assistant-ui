@@ -319,18 +319,24 @@ describe("renderGenerativeUI", () => {
   });
 
   it("renders a node by its complete `$type` while a stray `_type` streams", () => {
-    const html = renderToStaticMarkup(
-      <>
-        {renderGenerativeUI(
-          parsePartialJsonObject(
-            '{"$type": "Live", "label": "hi", "_type": "Te',
-          ),
-          library,
-          { status: "streaming" },
-        )}
-      </>,
-    );
-    expect(html).toBe('<span data-status="streaming">hi</span>');
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const html = renderToStaticMarkup(
+        <>
+          {renderGenerativeUI(
+            parsePartialJsonObject(
+              '{"$type": "Live", "label": "hi", "_type": "Te',
+            ),
+            library,
+            { status: "streaming" },
+          )}
+        </>,
+      );
+      expect(html).toBe('<span data-status="streaming">hi</span>');
+      expect(error).not.toHaveBeenCalled();
+    } finally {
+      error.mockRestore();
+    }
   });
 
   it("renders what a complete typeless root wraps", () => {
