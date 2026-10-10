@@ -4720,6 +4720,9 @@ importers:
       assistant-stream:
         specifier: ^0.3.49
         version: link:../assistant-stream
+      generative-frame:
+        specifier: workspace:^
+        version: link:../generative-frame
     devDependencies:
       '@assistant-ui/react':
         specifier: workspace:*

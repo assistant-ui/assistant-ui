@@ -59,7 +59,8 @@
   },
   "dependencies": {
     "@types/json-schema": "^7.0.15",
-    "assistant-stream": "^0.3.49"
+    "assistant-stream": "^0.3.49",
+    "generative-frame": "workspace:^"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.15.0",
