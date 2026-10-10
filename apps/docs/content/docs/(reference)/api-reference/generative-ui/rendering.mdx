@@ -3,7 +3,7 @@ title: Generative UI Rendering
 description: Render generative UI trees, build present-tool schemas, and inspect or serialize model-produced UI nodes.
 ---
 
-import { GenerativeUIRender, GenerativeUIRenderContext, GenerativeUIRenderError, buildPresentParameters, generativeUIToJSX, renderGenerativeUI } from "@/generated/typeDocs";
+import { GenerativeUIRender, GenerativeUIRenderContext, GenerativeUIRenderError, buildPresentParameters, generativeUIToJSX, renderGenerativeUI, toSpecCatalog } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -86,4 +86,14 @@ schema rejects when another declaring component's schema accepts it, since
 the merged `present` schema lets the model send either.
 
 <ParametersTable {...renderGenerativeUI} />
+
+### toSpecCatalog
+
+Builds generative-frame spec mode from a generative UI library: a catalog
+with each component's props, slots, and events, and the React
+implementations `SpecRenderer` and `createSpecToolkit` render it with.
+Interactive components emit their value as the event payload, and a value
+prop bound with `$bindState` is written back when they do.
+
+<ParametersTable {...toSpecCatalog} />
 {/* api-reference:end */}

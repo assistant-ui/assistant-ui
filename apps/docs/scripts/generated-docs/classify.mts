@@ -297,6 +297,7 @@ export const GENERATIVE_UI_PACKAGE_EXPORTS = new Map<
 
   ["renderGenerativeUI", { page: "rendering", role: "primary" }],
   ["generativeUIToJSX", { page: "rendering", role: "primary" }],
+  ["toSpecCatalog", { page: "rendering", role: "primary" }],
   ["buildPresentParameters", { page: "rendering", role: "primary" }],
   ["GenerativeUIRenderContext", { page: "rendering", role: "primary" }],
 
