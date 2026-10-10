@@ -709,6 +709,32 @@ describe("Thread", () => {
     expect(container.textContent).toContain("Hello from the assistant");
   });
 
+  it("keeps file attachments without an empty bubble when the user message has no parts", async () => {
+    addMessages(
+      h.makeMessage({
+        role: "user",
+        parts: [],
+        attachments: [
+          {
+            id: "attachment-1",
+            type: "file",
+            name: "report.pdf",
+            contentType: "application/pdf",
+            content: [],
+            status: { type: "complete" },
+          },
+        ],
+      }),
+    );
+
+    await render();
+
+    expect(
+      container.querySelector(".aui-user-message-attachments")?.textContent,
+    ).toContain("report.pdf");
+    expect(container.querySelector(".aui-user-message-content")).toBeNull();
+  });
+
   it("renders voice messages as grouped spoken rows with copy as the only action", async () => {
     addMessages(
       h.makeMessage({

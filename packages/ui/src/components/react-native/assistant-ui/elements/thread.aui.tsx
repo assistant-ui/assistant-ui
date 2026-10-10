@@ -897,9 +897,15 @@ const AssistantActionBar: FC = () => (
 const UserMessage: FC = () => (
   <MessagePrimitive.Root className="aui-user-message-root items-end gap-y-2 px-2">
     <UserMessageAttachments />
-    <View className="aui-user-message-content bg-muted max-w-[85%] rounded-xl px-4 py-2">
-      <MessagePrimitive.Parts components={{ Text: UserText, Image, File }} />
-    </View>
+    <AuiIf
+      condition={(s) =>
+        s.message.parts.length > 0 || s.message.status?.type === "running"
+      }
+    >
+      <View className="aui-user-message-content bg-muted max-w-[85%] rounded-xl px-4 py-2">
+        <MessagePrimitive.Parts components={{ Text: UserText, Image, File }} />
+      </View>
+    </AuiIf>
     <View className="aui-user-message-footer -me-1 flex-row items-center justify-end">
       <BranchPicker />
       <UserActionBar />
