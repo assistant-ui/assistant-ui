@@ -50,12 +50,12 @@ export type PromptUserTool = ToolDefinition<Record<string, unknown>, unknown> &
   BackendDefaultMetadata;
 
 const PRESENT_DESCRIPTION =
-  "Present a UI component to the user. Select a component with `$type` and " +
+  "Present a UI component to the user. Select a component with `_type` and " +
   "provide its props inline; nest components with `children`.";
 
 const PROMPT_USER_DESCRIPTION =
   "Present a UI component to the user and wait for their response. Select a " +
-  "component with `$type` and provide its props inline; nest components with " +
+  "component with `_type` and provide its props inline; nest components with " +
   "`children`. The user interacts with it and the result is returned to you.";
 
 /** The tool `parameters` schema, built once per instance (see `buildPresentParameters`). */

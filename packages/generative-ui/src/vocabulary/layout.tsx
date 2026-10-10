@@ -1,7 +1,8 @@
 import type { CSSProperties, FormEvent } from "react";
 import { z } from "zod";
 import type { GenerativeUILibrary } from "../types";
-import { ALIGNS, JUSTIFIES } from "../ir";
+import { readReserved } from "../constants";
+import { type Action, ALIGNS, JUSTIFIES } from "../ir";
 import { fire } from "./dispatch";
 import { collectFormValuesFromEvent } from "./collectFormValues";
 import { toTextContent } from "./toTextContent";
@@ -17,10 +18,15 @@ const cardActionSchema = z.looseObject({
 
 const cardFooterButtonSchema = z.object({
   label: z.string().describe("Footer button label."),
-  $action: cardActionSchema
+  _action: cardActionSchema
     .optional()
     .describe("Action fired when the button is activated."),
 });
+
+const footerAction = (
+  button: Readonly<Record<string, unknown>> | undefined,
+): Action | undefined =>
+  button && (readReserved(button, "action") as Action | undefined);
 
 export const layoutVocabulary = {
   Card: {
@@ -46,7 +52,7 @@ export const layoutVocabulary = {
         .boolean()
         .optional()
         .describe(
-          "Render as a form; submitting it fires `confirm.$action` with every named child control's value, keyed by `name`.",
+          "Render as a form; submitting it fires `confirm._action` with every named child control's value, keyed by `name`.",
         ),
       confirm: cardFooterButtonSchema
         .optional()
@@ -79,7 +85,7 @@ export const layoutVocabulary = {
                     ? undefined
                     : (e) =>
                         fire(
-                          confirm.$action,
+                          footerAction(confirm),
                           $dispatch,
                           undefined,
                           e.currentTarget,
@@ -94,7 +100,12 @@ export const layoutVocabulary = {
                 type="button"
                 data-aui="card-cancel"
                 onClick={(e) =>
-                  fire(cancel.$action, $dispatch, undefined, e.currentTarget)
+                  fire(
+                    footerAction(cancel),
+                    $dispatch,
+                    undefined,
+                    e.currentTarget,
+                  )
                 }
               >
                 {toTextContent(cancel.label)}
@@ -122,7 +133,7 @@ export const layoutVocabulary = {
               ? (event: FormEvent<HTMLFormElement>) => {
                   event.preventDefault();
                   fire(
-                    confirm?.$action,
+                    footerAction(confirm),
                     $dispatch,
                     collectFormValuesFromEvent(event),
                     event.currentTarget,

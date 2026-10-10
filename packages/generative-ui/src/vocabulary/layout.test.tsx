@@ -320,4 +320,41 @@ describe("layoutVocabulary Card asForm/confirm/cancel dispatch", () => {
     onClick({ currentTarget: {} });
     expect(handler).toHaveBeenCalledWith({ payload: { type: "dismiss" } });
   });
+
+  it("Card footer buttons fire the _action spelling models emit", () => {
+    const save = vi.fn();
+    const dismiss = vi.fn();
+    const registry = createActionRegistry({ save, dismiss });
+    const clicked = layoutVocabulary.Card.render({
+      confirm: { label: "Save", _action: { type: "save" } },
+      cancel: { label: "Dismiss", _action: { type: "dismiss" } },
+      $status: "done",
+      $dispatch: registry.dispatch,
+    }) as ReactElement;
+    const { confirmBtn, cancelBtn } = getFooterButtons(clicked);
+    (confirmBtn!.props as { onClick: (e: object) => void }).onClick({
+      currentTarget: {},
+    });
+    (cancelBtn!.props as { onClick: (e: object) => void }).onClick({
+      currentTarget: {},
+    });
+    expect(save).toHaveBeenCalledWith({ payload: { type: "save" } });
+    expect(dismiss).toHaveBeenCalledWith({ payload: { type: "dismiss" } });
+
+    const form = layoutVocabulary.Card.render({
+      asForm: true,
+      confirm: { label: "Save", _action: { type: "save" } },
+      $status: "done",
+      $dispatch: registry.dispatch,
+    }) as ReactElement;
+    (form.props as { onSubmit: (e: unknown) => void }).onSubmit({
+      preventDefault: vi.fn(),
+      currentTarget: {
+        elements: [el({ name: "email", type: "email", value: "a@x.com" })],
+      },
+    });
+    expect(save).toHaveBeenLastCalledWith({
+      payload: { type: "save", $input: { email: "a@x.com" } },
+    });
+  });
 });

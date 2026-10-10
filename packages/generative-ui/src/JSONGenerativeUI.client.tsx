@@ -33,7 +33,7 @@ function uiStatus(
  * Client build of {@link JSONGenerativeUI}, resolved through the package's
  * `default` export condition (browser and SSR).
  *
- * `present` is a frontend tool that renders the model's `{ $type, ...props }`
+ * `present` is a frontend tool that renders the model's `{ _type, ...props }`
  * tree against the library and resolves immediately. `prompt_user` is a
  * human-in-the-loop tool: the model pauses and the rendered UI supplies the
  * result. Both draw the tree the same way, so they share one `render`. The

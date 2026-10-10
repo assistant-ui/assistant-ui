@@ -52,13 +52,13 @@ describe("defaultGenerativeUILibrary", () => {
     }
   });
 
-  it("buildPresentParameters produces a $type enum of the vocabulary names", () => {
+  it("buildPresentParameters produces a _type enum of the vocabulary names", () => {
     const schema = buildPresentParameters(defaultGenerativeUILibrary) as Record<
       string,
       unknown
     >;
     const typeProp = (schema.properties as Record<string, unknown>)[
-      "$type"
+      "_type"
     ] as { enum?: unknown[] };
     expect(typeProp.enum).toEqual([...EXPECTED_KEYS]);
   });
