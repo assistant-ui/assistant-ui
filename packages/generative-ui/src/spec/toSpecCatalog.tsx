@@ -12,6 +12,7 @@ import type {
   SpecComponentProps,
   SpecComponents,
 } from "generative-frame/spec/react";
+import { A2uiBindingContext } from "../bindingContext";
 import { MODEL_KEYS } from "../constants";
 import { isDefaultGenerativeUIComponent } from "../defaultGenerativeUIComponents";
 import type { GenerativeUIDispatch, GenerativeUILibrary } from "../types";
@@ -38,8 +39,7 @@ const footerButton = (label: string, event: string) =>
     .optional()
     .describe(`${label} button shown in the footer; emits \`${event}\`.`);
 
-// Spec mode binds behavior with `on`, so the components the `present` tool
-// describes as carrying `_action` describe the events they emit instead.
+// Spec mode binds behavior with `on`, so the components the `present` tool describes as carrying `_action` describe the events they emit instead.
 const DEFAULT_SHAPES: Readonly<Record<string, SpecShape>> = {
   Alert: { slots: DEFAULT_SLOT },
   Carousel: { slots: DEFAULT_SLOT },
@@ -131,8 +131,12 @@ const DEFAULT_SHAPES: Readonly<Record<string, SpecShape>> = {
   Caption: { slots: DEFAULT_SLOT },
 };
 
-/** The props controls keep their current value in, which `$bindState` writes back to. */
-const VALUE_PROPS = ["defaultValue", "defaultChecked", "value"] as const;
+// A control whose schema prop a spec binds with `$bindState` reads the controlled prop instead, so it stays mounted and reports every change through the binding context.
+const BOUND_VALUE_PROPS = [
+  ["defaultValue", "value"],
+  ["value", "value"],
+  ["defaultChecked", "checked"],
+] as const;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -140,12 +144,24 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const hasChildren = (element: SpecElement) =>
   (element.children?.length ?? 0) > 0;
 
+function VocabularyElement({
+  render,
+  props,
+}: {
+  // oxlint-disable-next-line typescript/no-explicit-any
+  render: (props: any) => ReactNode;
+  props: Record<string, unknown>;
+}): ReactNode {
+  return render(props);
+}
+
 function toSpecComponent(
   // oxlint-disable-next-line typescript/no-explicit-any
   render: (props: any) => ReactNode,
   events: readonly string[],
 ) {
   return function GenerativeUISpecElement({
+    id,
     element,
     props,
     children,
@@ -153,24 +169,13 @@ function toSpecComponent(
     emit,
     setProp,
   }: SpecComponentProps) {
-    const boundValues = VALUE_PROPS.filter((name) =>
-      Object.hasOwn(bindings, name),
+    // A component only acts interactive (a ListViewItem becomes a clickable row) when the element binds the event.
+    const live = events.filter((event) =>
+      Object.hasOwn(element.on ?? {}, event),
     );
-    // A component only acts interactive (a ListViewItem becomes a clickable
-    // row) when the element binds the event or a value it writes back.
-    const live = events.filter(
-      (event) =>
-        boundValues.length > 0 || Object.hasOwn(element.on ?? {}, event),
-    );
-    const $dispatch: GenerativeUIDispatch = (action) => {
-      const input = action["$input"];
-      if (input !== undefined) {
-        for (const name of boundValues) setProp(name, input);
-      }
-      emit(action.type, input);
-    };
-    // Card's footer buttons each carry their own action, so an event named
-    // after an object prop is wired to that prop.
+    const $dispatch: GenerativeUIDispatch = (action) =>
+      emit(action.type, action["$input"]);
+    // Card's footer buttons each carry their own action, so an event named after an object prop is wired to that prop.
     const wired: Record<string, unknown> = { ...props };
     for (const event of live) {
       const footer = props[event];
@@ -178,22 +183,45 @@ function toSpecComponent(
         wired[event] = { ...footer, [MODEL_KEYS.action]: { type: event } };
       }
     }
-    return render({
-      ...wired,
-      ...(hasChildren(element) ? { children } : {}),
-      $status: "done",
-      $dispatch,
-      ...(live[0] !== undefined ? { $action: { type: live[0] } } : {}),
-    });
+    const bound = BOUND_VALUE_PROPS.find(([prop]) =>
+      Object.hasOwn(bindings, prop),
+    );
+    const name = typeof props["name"] === "string" ? props["name"] : id;
+    if (bound) {
+      const [prop, controlled] = bound;
+      delete wired[prop];
+      wired["name"] = name;
+      wired[controlled] = props[prop];
+    }
+    const rendered = (
+      <VocabularyElement
+        render={render}
+        props={{
+          ...wired,
+          ...(hasChildren(element) ? { children } : {}),
+          $status: "done",
+          $dispatch,
+          ...(live[0] !== undefined ? { $action: { type: live[0] } } : {}),
+        }}
+      />
+    );
+    if (!bound || !A2uiBindingContext) return rendered;
+    const [prop] = bound;
+    return (
+      <A2uiBindingContext.Provider
+        value={{
+          fields: new Map([[name, { value: props[prop], arrayValue: false }]]),
+          update: (_field, value) => setProp(prop, value),
+        }}
+      >
+        {rendered}
+      </A2uiBindingContext.Provider>
+    );
   };
 }
 
 /**
- * Builds generative-frame spec mode from a generative UI library: a catalog
- * with each component's props, slots, and events, and the React
- * implementations `SpecRenderer` and `createSpecToolkit` render it with.
- * Interactive components emit their value as the event payload, and a value
- * prop bound with `$bindState` is written back when they do.
+ * Builds generative-frame spec mode from a generative UI library: a catalog with each component's props, slots, and events, and the React implementations `SpecRenderer` and `createSpecToolkit` render it with. Value controls emit their value as the event payload, and a control whose value prop is bound with `$bindState` follows that state and writes every change back to it.
  */
 export function toSpecCatalog(
   library: GenerativeUILibrary = defaultGenerativeUILibrary,

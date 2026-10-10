@@ -115,7 +115,39 @@ describe("toSpecCatalog components", () => {
     });
 
     expect(query(container, '[data-aui="text"]').textContent).toBe("m");
+    expect(query(container, "select")).toBe(select);
     expect(pick).toHaveBeenCalledWith({ size: "m" }, expect.anything());
+  });
+
+  it("writes each edit of a bound Input inside a Form back to state", async () => {
+    const container = await render({
+      root: "col",
+      elements: {
+        col: { type: "Col", children: ["form", "echo"] },
+        form: { type: "Form", children: ["note"] },
+        note: {
+          type: "Input",
+          props: { name: "note", defaultValue: { $bindState: "/note" } },
+        },
+        echo: { type: "Text", props: { value: { $state: "/note" } } },
+      },
+      state: { note: "" },
+    });
+
+    const input = query<HTMLInputElement>(container, "input");
+    const setValue = Object.getOwnPropertyDescriptor(
+      HTMLInputElement.prototype,
+      "value",
+    )!.set!;
+    await act(async () => {
+      setValue.call(input, "Leave at the door");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    expect(query(container, '[data-aui="text"]').textContent).toBe(
+      "Leave at the door",
+    );
+    expect(query(container, "input")).toBe(input);
   });
 
   it("keeps a ListViewItem plain unless it binds `press`", async () => {

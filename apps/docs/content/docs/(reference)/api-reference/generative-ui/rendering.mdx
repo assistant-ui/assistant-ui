@@ -89,11 +89,7 @@ the merged `present` schema lets the model send either.
 
 ### toSpecCatalog
 
-Builds generative-frame spec mode from a generative UI library: a catalog
-with each component's props, slots, and events, and the React
-implementations `SpecRenderer` and `createSpecToolkit` render it with.
-Interactive components emit their value as the event payload, and a value
-prop bound with `$bindState` is written back when they do.
+Builds generative-frame spec mode from a generative UI library: a catalog with each component's props, slots, and events, and the React implementations `SpecRenderer` and `createSpecToolkit` render it with. Value controls emit their value as the event payload, and a control whose value prop is bound with `$bindState` follows that state and writes every change back to it.
 
 <ParametersTable {...toSpecCatalog} />
 {/* api-reference:end */}
