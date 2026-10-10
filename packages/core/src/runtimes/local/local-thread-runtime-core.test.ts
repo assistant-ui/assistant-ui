@@ -3380,7 +3380,7 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     });
 
     it.each([false, true])(
-      "defers a settled seeded approval until the next send (update: %s)",
+      "writes the seed when the run of a seeded approval settles (update: %s)",
       async (update) => {
         const { history, appended, updated } = createHistory({ update });
         const thread = createThread(chatModel, {
@@ -3400,13 +3400,26 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
         await flush();
 
         expect(thread.messages.at(-1)?.status?.type).toBe("complete");
-        expect(appended).toEqual([]);
-        expect(updated).toEqual([]);
         const settled = thread.messages.at(-1)!;
+        expect(
+          appended.map(({ parentId, message }) => [parentId, message.id]),
+        ).toEqual([
+          [null, "seed-user"],
+          ["seed-user", "seed-assistant"],
+        ]);
+        expect(appended[1]?.message).toEqual(settled);
+        expect(updated).toEqual([]);
+
         await thread.append({ ...userMessage("hello"), parentId: settled.id });
 
-        expect(appended).toHaveLength(4);
-        expect(appended[1]?.message).toEqual(settled);
+        expect(
+          appended
+            .slice(2)
+            .map(({ parentId, message }) => [parentId, message.role]),
+        ).toEqual([
+          ["seed-assistant", "user"],
+          [appended[2]?.message.id, "assistant"],
+        ]);
       },
     );
 

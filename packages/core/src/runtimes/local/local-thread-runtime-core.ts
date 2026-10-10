@@ -200,6 +200,7 @@ export class LocalThreadRuntimeCore
 
   private _historyWrites = new Map<string, Promise<void>>();
   private _unwrittenSeedMessages = new Set<string>();
+  private _runStarted = false;
   private async _writeHistory(
     operation: "append" | "update" | "delete",
     messageIds: readonly string[],
@@ -247,7 +248,10 @@ export class LocalThreadRuntimeCore
       return Promise.resolve();
     }
 
-    if (this._unwrittenSeedMessages.has(id)) return Promise.resolve();
+    // A seeded message waits for the first send unless a run already
+    // initialized the thread, so a settled seeded approval is never lost.
+    const seedWrite = this._unwrittenSeedMessages.has(id);
+    if (seedWrite && !this._runStarted) return Promise.resolve();
     const history = this._options.adapters.history;
     if (history && this._unwrittenSeedMessages.size > 0) {
       const seed = this.repository
@@ -256,13 +260,17 @@ export class LocalThreadRuntimeCore
           this._unwrittenSeedMessages.has(item.message.id),
         );
       this._unwrittenSeedMessages.clear();
+      let ownWrite: Promise<void> | undefined;
       for (const item of seed) {
-        void this._chainHistoryWrite(item.message.id, () =>
+        const write = this._chainHistoryWrite(item.message.id, () =>
           this._writeHistory("append", [item.message.id], () =>
             history.append(item),
           ),
-        ).catch(() => {});
+        );
+        if (item.message.id === id) ownWrite = write;
+        else void write.catch(() => {});
       }
+      if (seedWrite) return ownWrite ?? Promise.resolve();
     }
 
     // The first write for an id is issued synchronously, so it reaches the adapter before a turn appended under that message in the same tick.
@@ -329,9 +337,11 @@ export class LocalThreadRuntimeCore
   ) {
     const history = this._options.adapters.history;
     if (!history) return;
-    const operation = this._unwrittenMessages.delete(message.id)
-      ? "append"
-      : "update";
+    const operation =
+      this._unwrittenMessages.delete(message.id) ||
+      this._unwrittenSeedMessages.has(message.id)
+        ? "append"
+        : "update";
     const write = operation === "append" ? history.append : history.update;
     if (!write) return;
     const item = { parentId, message, runConfig: this._lastRunConfig };
@@ -1139,6 +1149,7 @@ export class LocalThreadRuntimeCore
     const generation = captureThreadRuntimeGeneration(this);
     // A seeded thread initializes on its first run. Runs that start before the
     // thread list settles wait for it, and run without a remote id if it fails.
+    this._runStarted = true;
     if (this.ensureInitialized()) {
       const pending = this._getInitializePromise?.();
       if (pending) {
