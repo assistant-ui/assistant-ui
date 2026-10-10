@@ -515,6 +515,14 @@ describe("normalizeMathDelimiters", () => {
     }
   });
 
+  it("nests a $$ fence written with CRLF line endings", () => {
+    expect(
+      normalizeMathDelimiters(
+        "1. $$\r\nF = ma\r\n$$\r\nNewton\r\n\r\n2. $$\r\nx",
+      ),
+    ).toBe("1. $$\r\n   F = ma\r\n   $$\r\n   Newton\r\n\r\n2. $$\r\n   x");
+  });
+
   it("leaves root and fenced $$ blocks as written", () => {
     expect(normalizeMathDelimiters("$$\na\n$$")).toBe("$$\na\n$$");
     const fenced = "```md\n1. $$\na\n$$\n```";
