@@ -127,6 +127,7 @@ test("a frame answer may read the guidance before showing its widget", async () 
   assert.equal(answer.artifact, "<p>Hello</p>");
   assert.deepEqual(answer.errors, []);
   assert.equal(answer.repairRounds, 0);
+  assert.equal(typeof answer.firstOutputMs, "number");
   assert.equal(model.doStreamCalls.length, 2);
 });
 

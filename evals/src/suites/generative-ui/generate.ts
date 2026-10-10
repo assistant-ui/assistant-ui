@@ -46,8 +46,7 @@ export async function generateAnswer(
     const answering =
       part.type === "text-delta"
         ? !run.tools
-        : part.type === "tool-input-start" &&
-          run.answerTools.includes(part.toolName);
+        : part.type === "tool-input-start" && part.toolName === run.answerTool;
     if (firstOutputMs === undefined && answering) {
       firstOutputMs = performance.now() - started;
     }
@@ -69,7 +68,7 @@ export async function generateAnswer(
   if (!last) {
     return {
       artifact: await result.text,
-      errors: [`The model never called \`${run.answerTools[0]}\`.`],
+      errors: [`The model never called \`${run.answerTool}\`.`],
       repairRounds: 0,
       ...measured,
     };
