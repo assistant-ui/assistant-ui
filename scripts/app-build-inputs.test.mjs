@@ -26,6 +26,19 @@ test("detects app build inputs", () => {
     "apps/future-app/src/index.ts",
     "examples/with-ai-sdk-v7/app/page.tsx",
     "packages/react/src/index.ts",
+    "packages/core/package.json",
+    "packages/core/src/client.spec.ts",
+    "packages/core/src/client.bench.ts",
+    "packages/core/src/testUtils.ts",
+    "packages/core/src/tests/fixture.ts",
+    "packages/core/src/client.test.mts",
+    "packages/core/tests/client.test.ts",
+    "packages/ui/src/components/react/thread.test.tsx",
+    "packages/react-devtools/src/views/thread.test.tsx",
+    "packages/metro/src/transformer.test.ts",
+    "apps/registry/src/registry.test.ts",
+    "examples/with-ai-sdk-v7/app/page.test.tsx",
+    "templates/minimal/app/page.test.tsx",
     "templates/minimal/app/page.tsx",
     "package.json",
     "pnpm-lock.yaml",
@@ -54,22 +67,40 @@ test("ignores changes outside app builds", () => {
     ".changeset/example.md",
     "README.md",
     "scripts/check-changesets.mjs",
+    "packages/cloud/src/telemetry/index.test.ts",
+    "packages/core/src/react/client/RemoteThreadList.concurrent.test.tsx",
+    "packages/react/src/index.test.ts",
+    "packages/x-buildutils/src/declarations.test.ts",
   ]) {
     assert.equal(hasAppBuildInputs([file]), false, file);
   }
   assert.equal(hasAppBuildInputs([]), false);
 });
 
+test("keeps real build inputs in mixed package-test changes", () => {
+  const packageTest = "packages/cloud/src/telemetry/index.test.ts";
+  for (const input of [
+    "packages/cloud/src/telemetry/index.ts",
+    "packages/ui/src/components/react/thread.test.tsx",
+    "pnpm-lock.yaml",
+  ]) {
+    assert.equal(hasAppBuildInputs([packageTest, input]), true, input);
+    assert.equal(hasAppBuildInputs([input, packageTest]), true, input);
+  }
+});
+
 test("the CLI reads NUL-separated paths", () => {
   const relevant = spawnSync(process.execPath, [script], {
-    input: "README.md\0templates/minimal/app/page.tsx\0",
+    input:
+      "README.md\0packages/cloud/src/telemetry/index.test.ts\0templates/minimal/app/page.tsx\0",
     encoding: "utf8",
   });
   assert.equal(relevant.status, 0, relevant.stderr);
   assert.equal(relevant.stdout, "true\n");
 
   const unrelated = spawnSync(process.execPath, [script], {
-    input: "README.md\0apps/docs/package.json\0",
+    input:
+      "README.md\0apps/docs/package.json\0packages/cloud/src/telemetry/index.test.ts\0",
     encoding: "utf8",
   });
   assert.equal(unrelated.status, 0, unrelated.stderr);
