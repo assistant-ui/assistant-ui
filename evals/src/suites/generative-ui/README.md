@@ -19,7 +19,7 @@ A fresh judge reads the request, the answer's source, and any errors left, then 
 
 ## What it does not measure yet
 
-- Nothing renders in a browser, so the judge reads source instead of screenshots, frame widgets get no runtime error report, and time to first output is the first streamed token rather than the first paint.
+- Nothing renders in a browser, so the judge reads source instead of screenshots, frame widgets get no runtime error report, and time to first output is when the answer's text or answer tool input starts streaming rather than the first paint.
 - Frame mode has no static validation beyond an empty widget or an edit that does not apply.
 - One judge grades every model, so expect some bias toward its own vendor's style; rerun with another `JUDGE_MODEL` to check a result.
 

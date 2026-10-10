@@ -62,6 +62,7 @@ test("a frame answer that never shows a widget is an error", async () => {
   const model = streamingModel(readMe(), readMe(), readMe(), readMe());
   const answer = await generateAnswer(model, task, "frame", 0);
   assert.deepEqual(answer.errors, ["The model never called `show_widget`."]);
+  assert.equal(answer.firstOutputMs, undefined);
   assert.equal(model.doStreamCalls.length, 3);
 });
 

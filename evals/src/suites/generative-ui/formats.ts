@@ -31,9 +31,9 @@ export interface Attempt {
 
 export interface FormatRun {
   system: string;
-  /** Answer tools; their `execute` validates the call and records an attempt. */
   tools: ToolSet | undefined;
-  toolName: string | undefined;
+  /** The tools whose calls are answers; their `execute` validates the call and records an attempt. */
+  answerTools: string[];
   attempts: Attempt[];
 }
 
@@ -132,7 +132,7 @@ function startPresent(): FormatRun {
   const attempts: Attempt[] = [];
   return {
     system: `${INTRO} Answer by calling \`present\` with a component tree; the user sees the rendered components.`,
-    toolName: "present",
+    answerTools: ["present"],
     attempts,
     tools: {
       present: tool({
@@ -154,7 +154,7 @@ function startSpec(): FormatRun {
   const { render_spec } = createSpecTools(catalog, { specs });
   return {
     system: `${INTRO} Answer by calling \`render_spec\`; the user sees the rendered spec.\n\n${catalog.prompt()}`,
-    toolName: "render_spec",
+    answerTools: ["render_spec"],
     attempts,
     tools: toAISDKTools(
       {
@@ -187,7 +187,7 @@ async function startFrame(): Promise<FormatRun> {
   });
   return {
     system: `${INTRO} Answer with a widget; the user sees it rendered.\n\n${await buildWidgetInstructions(widgetTools)}`,
-    toolName: "show_widget",
+    answerTools: ["show_widget", "edit_widget"],
     attempts,
     tools: toAISDKTools(
       {
@@ -207,7 +207,7 @@ export async function startFormat(format: Format): Promise<FormatRun> {
       return {
         system: `${INTRO} Answer in Markdown.`,
         tools: undefined,
-        toolName: undefined,
+        answerTools: [],
         attempts: [],
       };
     case "present":

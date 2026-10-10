@@ -26,7 +26,7 @@ export interface Answer {
   repairRounds: number;
   inputTokens: number;
   outputTokens: number;
-  /** Milliseconds until the first text or tool input arrived, when rendering can start. */
+  /** Milliseconds until the answer itself began streaming (text, or an answer tool's input), when rendering can start. */
   firstOutputMs: number | undefined;
   totalMs: number;
 }
