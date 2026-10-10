@@ -52,8 +52,6 @@ describe("local runtime commit shape", () => {
           text += "tok ";
           yield { content: [{ type: "text" as const, text }] };
         }
-        // Keep run completion outside the token measurement.
-        await gate();
       },
     };
 
@@ -83,7 +81,11 @@ describe("local runtime commit shape", () => {
       const textBefore = counter.renders("text");
       await act(async () => {
         gates[i]!();
-        await until(() => gates.length === i + 2);
+        await until(() =>
+          i === TOKENS - 1
+            ? !runtime.thread.getState().isRunning
+            : gates.length === i + 2,
+        );
       });
       expect(counter.renders("text")).toBe(textBefore + 1);
     }
@@ -95,20 +97,22 @@ describe("local runtime commit shape", () => {
       ]),
     );
 
+    // Mid-stream, each yielded chunk costs one commit and one text render with
+    // the message wrapper untouched.
     expect(delta).toEqual({
       "commits:thread": TOKENS,
       "renders:text": TOKENS,
       "renders:message": 0,
     });
 
-    await act(async () => {
-      gates[TOKENS]!();
-      await until(() => !runtime.thread.getState().isRunning);
-    });
-
+    // The boundaries add the rest: the append renders the message and its
+    // synthetic empty running part, the first chunk swaps that part for the
+    // real one, and run completion settles with the final token. The append
+    // settles before the mid-stream baseline above; the whole-run totals
+    // include the mount and append commits.
     expect(counter.snapshot()).toEqual({
-      "commits:thread": TOKENS + 3,
-      "renders:text": TOKENS + 3,
+      "commits:thread": TOKENS + 2,
+      "renders:text": TOKENS + 2,
       "renders:message": 2,
     });
 
