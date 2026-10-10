@@ -1372,9 +1372,12 @@ describe("RemoteThreadList", () => {
       const renaming = aui.threads.item({ id: "t1" }).rename("Manual title");
       const generation = aui.threads.item({ id: "t1" }).generateTitle();
       const deleting = aui.threads.item({ id: "t1" }).delete();
-      await vi.waitFor(() => {
-        expect(adapter.delete).toHaveBeenCalledOnce();
-      });
+      await vi.waitFor(
+        () => {
+          expect(adapter.delete).toHaveBeenCalledOnce();
+        },
+        { interval: 5 },
+      );
       renamed.resolve();
       await microtasks(offset);
       deleted.resolve();
@@ -1401,14 +1404,20 @@ describe("RemoteThreadList", () => {
       const generation = aui.threads
         .item({ id: "t1" })
         .generateTitle({ automatic: true });
-      await vi.waitFor(() => {
-        expect(adapter.generateTitle).toHaveBeenCalledOnce();
-      });
+      await vi.waitFor(
+        () => {
+          expect(adapter.generateTitle).toHaveBeenCalledOnce();
+        },
+        { interval: 5 },
+      );
       await aui.threads.item({ id: "t1" }).rename("Manual title");
       const deleting = aui.threads.item({ id: "t1" }).delete();
-      await vi.waitFor(() => {
-        expect(adapter.delete).toHaveBeenCalledOnce();
-      });
+      await vi.waitFor(
+        () => {
+          expect(adapter.delete).toHaveBeenCalledOnce();
+        },
+        { interval: 5 },
+      );
       generatedTitle.close();
       await microtasks(offset);
       deleted.resolve();

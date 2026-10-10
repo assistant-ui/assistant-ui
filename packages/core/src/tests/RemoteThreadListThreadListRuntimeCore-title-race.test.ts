@@ -480,9 +480,12 @@ describe("RemoteThreadListThreadListRuntimeCore title generation", () => {
       const renaming = core.rename("thread-1", "Manual title");
       const generation = core.generateTitle("thread-1");
       const deleting = core.delete("thread-1");
-      await vi.waitFor(() => {
-        expect(adapter.delete).toHaveBeenCalledOnce();
-      });
+      await vi.waitFor(
+        () => {
+          expect(adapter.delete).toHaveBeenCalledOnce();
+        },
+        { interval: 5 },
+      );
       renamed.resolve();
       await microtasks(offset);
       deleted.resolve();
@@ -506,14 +509,20 @@ describe("RemoteThreadListThreadListRuntimeCore title generation", () => {
       });
 
       const generation = core.generateTitle("thread-1", { automatic: true });
-      await vi.waitFor(() => {
-        expect(adapter.generateTitle).toHaveBeenCalledOnce();
-      });
+      await vi.waitFor(
+        () => {
+          expect(adapter.generateTitle).toHaveBeenCalledOnce();
+        },
+        { interval: 5 },
+      );
       await core.rename("thread-1", "Manual title");
       const deleting = core.delete("thread-1");
-      await vi.waitFor(() => {
-        expect(adapter.delete).toHaveBeenCalledOnce();
-      });
+      await vi.waitFor(
+        () => {
+          expect(adapter.delete).toHaveBeenCalledOnce();
+        },
+        { interval: 5 },
+      );
       generatedTitle.close();
       await microtasks(offset);
       deleted.resolve();
