@@ -5,6 +5,23 @@
   "type": "module",
   "description": "A/B harness for deciding which guidance sentences earn a place in AGENTS.md / skills",
   "scripts": {
-    "eval": "node src/cli.ts"
+    "eval": "node src/cli.ts",
+    "test": "vitest run src/*.test.ts",
+    "typecheck": "tsc --noEmit",
+    "lint:fix": "oxfmt src/cases/*.ts src/*.ts package.json tsconfig.json README.md",
+    "dashboard": "eval-dashboards report --input=.evals_output/live --reporter=html --reporter=json-summary --report-dir=results/eval-dashboard",
+    "dashboard:lint": "eval-dashboards lint --input=.evals_output/live",
+    "dashboard:check": "eval-dashboards check --input=.evals_output/live --min-pass-rate=0 --min-matched-expectation-rate=1",
+    "dashboard:smoke": "node src/smoke-dashboard.ts",
+    "dashboard:serve": "http-server results -a 127.0.0.1 -p 4318 -c-1",
+    "dashboard:docs": "eval-dashboards report --input=.evals_output/live --reporter=html --reporter=json-summary --report-dir=../apps/docs/public/eval-dashboard"
+  },
+  "devDependencies": {
+    "@icodenet/eval-dashboards": "^0.8.0",
+    "@types/node": "^22.0.0",
+    "http-server": "^14.1.1",
+    "oxfmt": "^0.71.0",
+    "typescript": "^5.9.0",
+    "vitest": "^4.1.11"
   }
 }

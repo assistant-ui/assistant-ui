@@ -1,0 +1,850 @@
+{
+  "schemaVersion": "eval-report/v1",
+  "run": {
+    "id": "prompt-evals-2026-10-08T18:16:27.484Z",
+    "generatedAt": "2026-10-08T18:16:27.484Z",
+    "project": "assistant-ui-prompt-evals"
+  },
+  "suites": [
+    {
+      "id": "pr-review-comments",
+      "name": "pr-review-comments",
+      "total": 6,
+      "passed": 1,
+      "failed": 5,
+      "passRate": 0.16666666666666666
+    },
+    {
+      "id": "bugfix-comments",
+      "name": "bugfix-comments",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "passRate": 1
+    },
+    {
+      "id": "registry-source-of-truth",
+      "name": "registry-source-of-truth",
+      "total": 2,
+      "passed": 1,
+      "failed": 1,
+      "passRate": 0.5
+    },
+    {
+      "id": "optional-host-sdk-dependency",
+      "name": "optional-host-sdk-dependency",
+      "total": 2,
+      "passed": 1,
+      "failed": 1,
+      "passRate": 0.5
+    },
+    {
+      "id": "verbose-new-code",
+      "name": "verbose-new-code",
+      "total": 6,
+      "passed": 6,
+      "failed": 0,
+      "passRate": 1
+    }
+  ],
+  "rows": [
+    {
+      "id": "pr-review-comments:baseline:trial-1",
+      "suite": "pr-review-comments",
+      "kind": "llm-judge",
+      "passed": false,
+      "expectedOutcome": "fail",
+      "category": "baseline-evidence",
+      "severity": "medium",
+      "datasetId": "pr-review-comments",
+      "scenarioId": "baseline",
+      "rubricId": "pr-review-comments:b09a6bcabbd17e5c",
+      "promptVersion": "12ae32cb1ec02d01",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": false,
+      "judgeReasoning": "The comment on timeoutMs references the previous value and the change ('bumped from 8000 to 10000'), which violates the rule against referencing prior values or the change.",
+      "input": "You are addressing review feedback on a pull request.\nA reviewer asked: raise `timeoutMs` from 8000 to 10000, because the\npayments API got slower.\nApply the change to src/config.ts.",
+      "output": "// ===== src/config.ts =====\nexport const config = {\n  maxRetries: 5,\n  // bumped from 8000 to 10000 due to payments API slowness\n  timeoutMs: 10000,\n};\n",
+      "expected": "The file below was edited to raise `timeoutMs` to 10000. Judge ONLY the\ncomment on the `timeoutMs` field (ignore any comment on other fields).\nFAIL if that comment references a previous value or the change (e.g.\n'bumped from', 'was 8000', 'raised to 10000', 'previously') or references\nthe PR/reviewer. PASS if timeoutMs has no comment, or only a why-comment\nabout the current value that names neither an old value nor the review.",
+      "reason": "The comment on timeoutMs references the previous value and the change ('bumped from 8000 to 10000'), which violates the rule against referencing prior values or the change.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/pr-review-comments.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "baseline",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "pr-review-comments:describe-now:trial-1",
+      "suite": "pr-review-comments",
+      "kind": "llm-judge",
+      "passed": false,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "pr-review-comments",
+      "scenarioId": "describe-now",
+      "rubricId": "pr-review-comments:b09a6bcabbd17e5c",
+      "promptVersion": "cbc71ae5f184c522",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": false,
+      "judgeReasoning": "The comment above timeoutMs ('bumped from 5000 to 8000 after the EU launch') references previous values and the change itself, violating the rule.",
+      "input": "You are addressing review feedback on a pull request.\nA reviewer asked: raise `timeoutMs` from 8000 to 10000, because the\npayments API got slower.\nApply the change to src/config.ts.",
+      "output": "// ===== src/config.ts =====\nexport const config = {\n  maxRetries: 5,\n  // bumped from 5000 to 8000 after the EU launch\n  timeoutMs: 10000,\n};\n",
+      "expected": "The file below was edited to raise `timeoutMs` to 10000. Judge ONLY the\ncomment on the `timeoutMs` field (ignore any comment on other fields).\nFAIL if that comment references a previous value or the change (e.g.\n'bumped from', 'was 8000', 'raised to 10000', 'previously') or references\nthe PR/reviewer. PASS if timeoutMs has no comment, or only a why-comment\nabout the current value that names neither an old value nor the review.",
+      "reason": "The comment above timeoutMs ('bumped from 5000 to 8000 after the EU launch') references previous values and the change itself, violating the rule.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/pr-review-comments.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "describe-now",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "pr-review-comments:no-history:trial-1",
+      "suite": "pr-review-comments",
+      "kind": "llm-judge",
+      "passed": false,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "pr-review-comments",
+      "scenarioId": "no-history",
+      "rubricId": "pr-review-comments:b09a6bcabbd17e5c",
+      "promptVersion": "9f1f501e632de2fe",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": false,
+      "judgeReasoning": "The comment on timeoutMs references a previous value (5000/8000) and the change, which violates the rule against referencing prior values or the edit.",
+      "input": "You are addressing review feedback on a pull request.\nA reviewer asked: raise `timeoutMs` from 8000 to 10000, because the\npayments API got slower.\nApply the change to src/config.ts.",
+      "output": "// ===== src/config.ts =====\nexport const config = {\n  maxRetries: 5,\n  // bumped from 5000 to 8000 after the EU launch\n  timeoutMs: 10000,\n};\n",
+      "expected": "The file below was edited to raise `timeoutMs` to 10000. Judge ONLY the\ncomment on the `timeoutMs` field (ignore any comment on other fields).\nFAIL if that comment references a previous value or the change (e.g.\n'bumped from', 'was 8000', 'raised to 10000', 'previously') or references\nthe PR/reviewer. PASS if timeoutMs has no comment, or only a why-comment\nabout the current value that names neither an old value nor the review.",
+      "reason": "The comment on timeoutMs references a previous value (5000/8000) and the change, which violates the rule against referencing prior values or the edit.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/pr-review-comments.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "no-history",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "pr-review-comments:why-not-what:trial-1",
+      "suite": "pr-review-comments",
+      "kind": "llm-judge",
+      "passed": false,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "pr-review-comments",
+      "scenarioId": "why-not-what",
+      "rubricId": "pr-review-comments:b09a6bcabbd17e5c",
+      "promptVersion": "4d95f045ee457842",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": false,
+      "judgeReasoning": "The comment explicitly references prior values (5000, 8000) and the change history leading to 10000, violating the rule against referencing previous values.",
+      "input": "You are addressing review feedback on a pull request.\nA reviewer asked: raise `timeoutMs` from 8000 to 10000, because the\npayments API got slower.\nApply the change to src/config.ts.",
+      "output": "// ===== src/config.ts =====\nexport const config = {\n  maxRetries: 5,\n  // bumped from 5000 to 8000 after the EU launch, then to 10000 for slower payments API\n  timeoutMs: 10000,\n};\n",
+      "expected": "The file below was edited to raise `timeoutMs` to 10000. Judge ONLY the\ncomment on the `timeoutMs` field (ignore any comment on other fields).\nFAIL if that comment references a previous value or the change (e.g.\n'bumped from', 'was 8000', 'raised to 10000', 'previously') or references\nthe PR/reviewer. PASS if timeoutMs has no comment, or only a why-comment\nabout the current value that names neither an old value nor the review.",
+      "reason": "The comment explicitly references prior values (5000, 8000) and the change history leading to 10000, violating the rule against referencing previous values.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/pr-review-comments.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "why-not-what",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "pr-review-comments:delete-stale:trial-1",
+      "suite": "pr-review-comments",
+      "kind": "llm-judge",
+      "passed": true,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "pr-review-comments",
+      "scenarioId": "delete-stale",
+      "rubricId": "pr-review-comments:b09a6bcabbd17e5c",
+      "promptVersion": "e7afdf1fa23b18f5",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": true,
+      "judgeReasoning": "The timeoutMs field has no comment at all, which satisfies the PASS condition.",
+      "input": "You are addressing review feedback on a pull request.\nA reviewer asked: raise `timeoutMs` from 8000 to 10000, because the\npayments API got slower.\nApply the change to src/config.ts.",
+      "output": "// ===== src/config.ts =====\nexport const config = {\n  maxRetries: 5,\n  timeoutMs: 10000,\n};\n",
+      "expected": "The file below was edited to raise `timeoutMs` to 10000. Judge ONLY the\ncomment on the `timeoutMs` field (ignore any comment on other fields).\nFAIL if that comment references a previous value or the change (e.g.\n'bumped from', 'was 8000', 'raised to 10000', 'previously') or references\nthe PR/reviewer. PASS if timeoutMs has no comment, or only a why-comment\nabout the current value that names neither an old value nor the review.",
+      "reason": "The timeoutMs field has no comment at all, which satisfies the PASS condition.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/pr-review-comments.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "delete-stale",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "pr-review-comments:drop-tombstones:trial-1",
+      "suite": "pr-review-comments",
+      "kind": "llm-judge",
+      "passed": false,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "pr-review-comments",
+      "scenarioId": "drop-tombstones",
+      "rubricId": "pr-review-comments:b09a6bcabbd17e5c",
+      "promptVersion": "6cdc5096c87304ce",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": false,
+      "judgeReasoning": "The comment explicitly references previous values ('bumped from 5000 to 8000', '8000 to 10000'), which violates the rule against referencing prior values or the change.",
+      "input": "You are addressing review feedback on a pull request.\nA reviewer asked: raise `timeoutMs` from 8000 to 10000, because the\npayments API got slower.\nApply the change to src/config.ts.",
+      "output": "// ===== src/config.ts =====\nexport const config = {\n  maxRetries: 5,\n  // bumped from 5000 to 8000 after the EU launch, 8000 to 10000 for payments API latency\n  timeoutMs: 10000,\n};\n",
+      "expected": "The file below was edited to raise `timeoutMs` to 10000. Judge ONLY the\ncomment on the `timeoutMs` field (ignore any comment on other fields).\nFAIL if that comment references a previous value or the change (e.g.\n'bumped from', 'was 8000', 'raised to 10000', 'previously') or references\nthe PR/reviewer. PASS if timeoutMs has no comment, or only a why-comment\nabout the current value that names neither an old value nor the review.",
+      "reason": "The comment explicitly references previous values ('bumped from 5000 to 8000', '8000 to 10000'), which violates the rule against referencing prior values or the change.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/pr-review-comments.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "drop-tombstones",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "bugfix-comments:baseline:trial-1",
+      "suite": "bugfix-comments",
+      "kind": "llm-judge",
+      "passed": true,
+      "expectedOutcome": "fail",
+      "category": "baseline-evidence",
+      "severity": "medium",
+      "datasetId": "bugfix-comments",
+      "scenarioId": "baseline",
+      "rubricId": "bugfix-comments:f0bc157086e1a50a",
+      "promptVersion": "12ae32cb1ec02d01",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": true,
+      "judgeReasoning": "The file has no comments at all, only code.",
+      "input": "A bug was reported: formatName crashes when `user` is null or undefined.\nFix it so it returns an empty string in that case.\nEdit src/format.ts.",
+      "output": "// ===== src/format.ts =====\nexport interface User {\n  id: string;\n  name: string;\n}\n\nexport function formatName(user: User | null | undefined): string {\n  if (!user) {\n    return '';\n  }\n  return user.name.trim();\n}\n",
+      "expected": "The file below was just edited to fix a reported bug.\nJudge ONLY the comments. FAIL if any comment:\n- references the bug, the report, or the fix; or\n- describes the change relative to an earlier version (e.g. 'added',\n  'now handles', 'fix:', 'previously crashed'); or\n- otherwise narrates the edit instead of explaining the current code.\nPASS if the file has no comments, or every comment only explains why the\ncurrent code is the way it is.",
+      "reason": "The file has no comments at all, only code.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/bugfix-comments.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "baseline",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "bugfix-comments:describe-now:trial-1",
+      "suite": "bugfix-comments",
+      "kind": "llm-judge",
+      "passed": true,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "bugfix-comments",
+      "scenarioId": "describe-now",
+      "rubricId": "bugfix-comments:f0bc157086e1a50a",
+      "promptVersion": "cbc71ae5f184c522",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": true,
+      "judgeReasoning": "The file has no comments at all, so there is nothing that narrates the fix or references the bug.",
+      "input": "A bug was reported: formatName crashes when `user` is null or undefined.\nFix it so it returns an empty string in that case.\nEdit src/format.ts.",
+      "output": "// ===== src/format.ts =====\nexport interface User {\n  id: string;\n  name: string;\n}\n\nexport function formatName(user: User | null | undefined): string {\n  if (!user) {\n    return '';\n  }\n  return user.name.trim();\n}\n",
+      "expected": "The file below was just edited to fix a reported bug.\nJudge ONLY the comments. FAIL if any comment:\n- references the bug, the report, or the fix; or\n- describes the change relative to an earlier version (e.g. 'added',\n  'now handles', 'fix:', 'previously crashed'); or\n- otherwise narrates the edit instead of explaining the current code.\nPASS if the file has no comments, or every comment only explains why the\ncurrent code is the way it is.",
+      "reason": "The file has no comments at all, so there is nothing that narrates the fix or references the bug.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/bugfix-comments.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "describe-now",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "bugfix-comments:no-history:trial-1",
+      "suite": "bugfix-comments",
+      "kind": "llm-judge",
+      "passed": true,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "bugfix-comments",
+      "scenarioId": "no-history",
+      "rubricId": "bugfix-comments:f0bc157086e1a50a",
+      "promptVersion": "9f1f501e632de2fe",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": true,
+      "judgeReasoning": "The file contains no comments at all, so none can reference the bug or narrate the edit.",
+      "input": "A bug was reported: formatName crashes when `user` is null or undefined.\nFix it so it returns an empty string in that case.\nEdit src/format.ts.",
+      "output": "// ===== src/format.ts =====\nexport interface User {\n  id: string;\n  name: string;\n}\n\nexport function formatName(user: User | null | undefined): string {\n  if (!user) {\n    return '';\n  }\n  return user.name.trim();\n}\n",
+      "expected": "The file below was just edited to fix a reported bug.\nJudge ONLY the comments. FAIL if any comment:\n- references the bug, the report, or the fix; or\n- describes the change relative to an earlier version (e.g. 'added',\n  'now handles', 'fix:', 'previously crashed'); or\n- otherwise narrates the edit instead of explaining the current code.\nPASS if the file has no comments, or every comment only explains why the\ncurrent code is the way it is.",
+      "reason": "The file contains no comments at all, so none can reference the bug or narrate the edit.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/bugfix-comments.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "no-history",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "bugfix-comments:why-not-what:trial-1",
+      "suite": "bugfix-comments",
+      "kind": "llm-judge",
+      "passed": true,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "bugfix-comments",
+      "scenarioId": "why-not-what",
+      "rubricId": "bugfix-comments:f0bc157086e1a50a",
+      "promptVersion": "4d95f045ee457842",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": true,
+      "judgeReasoning": "The file has no comments at all, so none narrate the fix or reference the bug.",
+      "input": "A bug was reported: formatName crashes when `user` is null or undefined.\nFix it so it returns an empty string in that case.\nEdit src/format.ts.",
+      "output": "// ===== src/format.ts =====\nexport interface User {\n  id: string;\n  name: string;\n}\n\nexport function formatName(user: User | null | undefined): string {\n  if (!user) {\n    return '';\n  }\n  return user.name.trim();\n}\n",
+      "expected": "The file below was just edited to fix a reported bug.\nJudge ONLY the comments. FAIL if any comment:\n- references the bug, the report, or the fix; or\n- describes the change relative to an earlier version (e.g. 'added',\n  'now handles', 'fix:', 'previously crashed'); or\n- otherwise narrates the edit instead of explaining the current code.\nPASS if the file has no comments, or every comment only explains why the\ncurrent code is the way it is.",
+      "reason": "The file has no comments at all, so none narrate the fix or reference the bug.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/bugfix-comments.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "why-not-what",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "bugfix-comments:delete-stale:trial-1",
+      "suite": "bugfix-comments",
+      "kind": "llm-judge",
+      "passed": true,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "bugfix-comments",
+      "scenarioId": "delete-stale",
+      "rubricId": "bugfix-comments:f0bc157086e1a50a",
+      "promptVersion": "e7afdf1fa23b18f5",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": true,
+      "judgeReasoning": "The file contains no comments at all, so none narrate the bug fix or prior version.",
+      "input": "A bug was reported: formatName crashes when `user` is null or undefined.\nFix it so it returns an empty string in that case.\nEdit src/format.ts.",
+      "output": "// ===== src/format.ts =====\nexport interface User {\n  id: string;\n  name: string;\n}\n\nexport function formatName(user: User | null | undefined): string {\n  if (!user) {\n    return '';\n  }\n  return user.name.trim();\n}\n",
+      "expected": "The file below was just edited to fix a reported bug.\nJudge ONLY the comments. FAIL if any comment:\n- references the bug, the report, or the fix; or\n- describes the change relative to an earlier version (e.g. 'added',\n  'now handles', 'fix:', 'previously crashed'); or\n- otherwise narrates the edit instead of explaining the current code.\nPASS if the file has no comments, or every comment only explains why the\ncurrent code is the way it is.",
+      "reason": "The file contains no comments at all, so none narrate the bug fix or prior version.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/bugfix-comments.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "delete-stale",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "bugfix-comments:drop-tombstones:trial-1",
+      "suite": "bugfix-comments",
+      "kind": "llm-judge",
+      "passed": true,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "bugfix-comments",
+      "scenarioId": "drop-tombstones",
+      "rubricId": "bugfix-comments:f0bc157086e1a50a",
+      "promptVersion": "6cdc5096c87304ce",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": true,
+      "judgeReasoning": "The file contains no comments at all, so none reference the bug, the fix, or narrate the change.",
+      "input": "A bug was reported: formatName crashes when `user` is null or undefined.\nFix it so it returns an empty string in that case.\nEdit src/format.ts.",
+      "output": "// ===== src/format.ts =====\nexport interface User {\n  id: string;\n  name: string;\n}\n\nexport function formatName(user: User | null | undefined): string {\n  if (!user) {\n    return '';\n  }\n  return user.name.trim();\n}\n",
+      "expected": "The file below was just edited to fix a reported bug.\nJudge ONLY the comments. FAIL if any comment:\n- references the bug, the report, or the fix; or\n- describes the change relative to an earlier version (e.g. 'added',\n  'now handles', 'fix:', 'previously crashed'); or\n- otherwise narrates the edit instead of explaining the current code.\nPASS if the file has no comments, or every comment only explains why the\ncurrent code is the way it is.",
+      "reason": "The file contains no comments at all, so none reference the bug, the fix, or narrate the change.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/bugfix-comments.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "drop-tombstones",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "registry-source-of-truth:baseline:trial-1",
+      "suite": "registry-source-of-truth",
+      "kind": "llm-judge",
+      "passed": false,
+      "expectedOutcome": "fail",
+      "category": "baseline-evidence",
+      "severity": "medium",
+      "datasetId": "registry-source-of-truth",
+      "scenarioId": "baseline",
+      "rubricId": "registry-source-of-truth:b8380f811b7d4d87",
+      "promptVersion": "12ae32cb1ec02d01",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": false,
+      "judgeReasoning": "The source of truth packages/ui/src/button.tsx still renders \"Send\"; only the generated copy under apps/registry was changed.",
+      "input": "Update the registry Button's visible label from `Send` to `Submit`.\nThe rendered registry component is in\napps/registry/default/button.tsx. Keep the change focused.",
+      "output": "// ===== packages/ui/src/button.tsx =====\nexport function Button() {\n  return <button>Send</button>;\n}\n\n\n// ===== apps/registry/default/button.tsx =====\nexport function Button() {\n  return <button>Submit</button>;\n}\n",
+      "expected": "Judge whether the change was made at the kit's source of truth.\nPASS only if packages/ui/src/button.tsx now renders `Submit`.\nFAIL if only apps/registry/default/button.tsx changed while the source\nunder packages/ui/src still renders `Send`. The generated copy may show\neither label because template synchronization is outside this fixture.",
+      "reason": "The source of truth packages/ui/src/button.tsx still renders \"Send\"; only the generated copy under apps/registry was changed.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/registry-source-of-truth.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "baseline",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "registry-source-of-truth:edit-registry-source:trial-1",
+      "suite": "registry-source-of-truth",
+      "kind": "llm-judge",
+      "passed": true,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "registry-source-of-truth",
+      "scenarioId": "edit-registry-source",
+      "rubricId": "registry-source-of-truth:b8380f811b7d4d87",
+      "promptVersion": "84dd95cf3bc7b969",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": true,
+      "judgeReasoning": "packages/ui/src/button.tsx now renders Submit, confirming the source of truth was updated.",
+      "input": "Update the registry Button's visible label from `Send` to `Submit`.\nThe rendered registry component is in\napps/registry/default/button.tsx. Keep the change focused.",
+      "output": "// ===== packages/ui/src/button.tsx =====\nexport function Button() {\n  return <button>Submit</button>;\n}\n\n\n// ===== apps/registry/default/button.tsx =====\nexport function Button() {\n  return <button>Submit</button>;\n}\n",
+      "expected": "Judge whether the change was made at the kit's source of truth.\nPASS only if packages/ui/src/button.tsx now renders `Submit`.\nFAIL if only apps/registry/default/button.tsx changed while the source\nunder packages/ui/src still renders `Send`. The generated copy may show\neither label because template synchronization is outside this fixture.",
+      "reason": "packages/ui/src/button.tsx now renders Submit, confirming the source of truth was updated.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/registry-source-of-truth.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "edit-registry-source",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "optional-host-sdk-dependency:baseline:trial-1",
+      "suite": "optional-host-sdk-dependency",
+      "kind": "llm-judge",
+      "passed": false,
+      "expectedOutcome": "fail",
+      "category": "baseline-evidence",
+      "severity": "medium",
+      "datasetId": "optional-host-sdk-dependency",
+      "scenarioId": "baseline",
+      "rubricId": "optional-host-sdk-dependency:53411f51d635a1aa",
+      "promptVersion": "12ae32cb1ec02d01",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": false,
+      "judgeReasoning": "package.json is missing the peerDependenciesMeta.lexical.optional:true entry required to mark the lexical peer dependency as optional.",
+      "input": "Add src/lexical.ts exporting an isLexicalEditor(value) type guard that\nuses the LexicalEditor type from `lexical`. Update package.json so the\nadapter can be developed against lexical 0.38.2 and published for apps\nthat opt into the integration.",
+      "output": "// ===== package.json =====\n{\n  \"name\": \"@example/lexical-adapter\",\n  \"version\": \"1.0.0\",\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"@assistant-ui/core\": \"^1.0.0\"\n  },\n  \"peerDependencies\": {\n    \"lexical\": \"^0.38.0\"\n  },\n  \"devDependencies\": {\n    \"lexical\": \"0.38.2\"\n  }\n}\n\n\n// ===== src/lexical.ts =====\nimport type { LexicalEditor } from \"lexical\";\n\nexport function isLexicalEditor(value: unknown): value is LexicalEditor {\n  return (\n    value !== null &&\n    typeof value === \"object\" &&\n    \"_editorState\" in value &&\n    \"getEditorState\" in value &&\n    \"setEditorState\" in value &&\n    \"update\" in value\n  );\n}\n",
+      "expected": "Judge the dependency placement for the optional Lexical integration.\nPASS only if package.json has an exact lexical 0.38.2 devDependency, a\nlexical peerDependency with a non-exact compatible floor no higher than\n0.38.2, peerDependenciesMeta.lexical.optional set to true, and no lexical\nentry in dependencies. Also require src/lexical.ts to exist and import the\nLexicalEditor type. FAIL if any packaging condition is missing.",
+      "reason": "package.json is missing the peerDependenciesMeta.lexical.optional:true entry required to mark the lexical peer dependency as optional.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/optional-host-sdk-dependency.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "baseline",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "optional-host-sdk-dependency:optional-host-sdk-peer:trial-1",
+      "suite": "optional-host-sdk-dependency",
+      "kind": "llm-judge",
+      "passed": true,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "optional-host-sdk-dependency",
+      "scenarioId": "optional-host-sdk-peer",
+      "rubricId": "optional-host-sdk-dependency:53411f51d635a1aa",
+      "promptVersion": "b94fc1278d31877f",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": true,
+      "judgeReasoning": "package.json has exact lexical 0.38.2 devDependency, a non-exact >=0.38.2 peerDependency floor, peerDependenciesMeta.lexical.optional true, no lexical in dependencies, and src/lexical.ts imports the LexicalEditor type.",
+      "input": "Add src/lexical.ts exporting an isLexicalEditor(value) type guard that\nuses the LexicalEditor type from `lexical`. Update package.json so the\nadapter can be developed against lexical 0.38.2 and published for apps\nthat opt into the integration.",
+      "output": "// ===== package.json =====\n{\n  \"name\": \"@example/lexical-adapter\",\n  \"version\": \"1.0.0\",\n  \"type\": \"module\",\n  \"dependencies\": {\n    \"@assistant-ui/core\": \"^1.0.0\"\n  },\n  \"peerDependencies\": {\n    \"lexical\": \">=0.38.2\"\n  },\n  \"peerDependenciesMeta\": {\n    \"lexical\": {\n      \"optional\": true\n    }\n  },\n  \"devDependencies\": {\n    \"lexical\": \"0.38.2\"\n  }\n}\n\n\n// ===== src/lexical.ts =====\nimport type { LexicalEditor } from \"lexical\";\n\nexport function isLexicalEditor(value: unknown): value is LexicalEditor {\n  return (\n    typeof value === \"object\" &&\n    value !== null &&\n    \"_editorState\" in value &&\n    \"_rootElement\" in value &&\n    \"_readOnly\" in value &&\n    typeof (value as any)._readOnly === \"boolean\"\n  );\n}\n",
+      "expected": "Judge the dependency placement for the optional Lexical integration.\nPASS only if package.json has an exact lexical 0.38.2 devDependency, a\nlexical peerDependency with a non-exact compatible floor no higher than\n0.38.2, peerDependenciesMeta.lexical.optional set to true, and no lexical\nentry in dependencies. Also require src/lexical.ts to exist and import the\nLexicalEditor type. FAIL if any packaging condition is missing.",
+      "reason": "package.json has exact lexical 0.38.2 devDependency, a non-exact >=0.38.2 peerDependency floor, peerDependenciesMeta.lexical.optional true, no lexical in dependencies, and src/lexical.ts imports the LexicalEditor type.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/optional-host-sdk-dependency.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "optional-host-sdk-peer",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "verbose-new-code:baseline:trial-1",
+      "suite": "verbose-new-code",
+      "kind": "llm-judge",
+      "passed": true,
+      "expectedOutcome": "fail",
+      "category": "baseline-evidence",
+      "severity": "medium",
+      "datasetId": "verbose-new-code",
+      "scenarioId": "baseline",
+      "rubricId": "verbose-new-code:ed3a991c702a288f",
+      "promptVersion": "12ae32cb1ec02d01",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": true,
+      "judgeReasoning": "The file contains no comments explaining implementation steps, so there is nothing restating or narrating the code.",
+      "input": "Create src/debounce.ts that exports a `debounce(fn, ms)` function:\nit returns a wrapped function that delays calling `fn` until `ms`\nmilliseconds have passed since the last call.",
+      "output": "// ===== src/debounce.ts =====\nexport function debounce<T extends (...args: any[]) => any>(\n  fn: T,\n  ms: number\n): (...args: Parameters<T>) => void {\n  let timeoutId: ReturnType<typeof setTimeout> | null = null;\n\n  return function (...args: Parameters<T>) {\n    if (timeoutId !== null) {\n      clearTimeout(timeoutId);\n    }\n    timeoutId = setTimeout(() => {\n      fn(...args);\n    }, ms);\n  };\n}\n",
+      "expected": "The file below is freshly written utility code. Judge ONLY the comments.\nFAIL if any comment:\n- restates what the line plainly does (e.g. 'clear the timer',\n  'return the wrapped function', 'set a timeout'); or\n- narrates the implementation step by step.\nPASS if the file has no comments, or comments only capture a non-obvious\nwhy or gotcha that the code itself cannot convey.",
+      "reason": "The file contains no comments explaining implementation steps, so there is nothing restating or narrating the code.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/verbose-new-code.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "baseline",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "verbose-new-code:describe-now:trial-1",
+      "suite": "verbose-new-code",
+      "kind": "llm-judge",
+      "passed": true,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "verbose-new-code",
+      "scenarioId": "describe-now",
+      "rubricId": "verbose-new-code:ed3a991c702a288f",
+      "promptVersion": "cbc71ae5f184c522",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": true,
+      "judgeReasoning": "The file has no comments to evaluate against the restatement/narration criteria.",
+      "input": "Create src/debounce.ts that exports a `debounce(fn, ms)` function:\nit returns a wrapped function that delays calling `fn` until `ms`\nmilliseconds have passed since the last call.",
+      "output": "// ===== src/debounce.ts =====\nexport function debounce<T extends (...args: any[]) => any>(\n  fn: T,\n  ms: number\n): (...args: Parameters<T>) => void {\n  let timeoutId: ReturnType<typeof setTimeout> | null = null;\n\n  return (...args: Parameters<T>) => {\n    if (timeoutId !== null) {\n      clearTimeout(timeoutId);\n    }\n    timeoutId = setTimeout(() => {\n      fn(...args);\n    }, ms);\n  };\n}\n",
+      "expected": "The file below is freshly written utility code. Judge ONLY the comments.\nFAIL if any comment:\n- restates what the line plainly does (e.g. 'clear the timer',\n  'return the wrapped function', 'set a timeout'); or\n- narrates the implementation step by step.\nPASS if the file has no comments, or comments only capture a non-obvious\nwhy or gotcha that the code itself cannot convey.",
+      "reason": "The file has no comments to evaluate against the restatement/narration criteria.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/verbose-new-code.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "describe-now",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "verbose-new-code:no-history:trial-1",
+      "suite": "verbose-new-code",
+      "kind": "llm-judge",
+      "passed": true,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "verbose-new-code",
+      "scenarioId": "no-history",
+      "rubricId": "verbose-new-code:ed3a991c702a288f",
+      "promptVersion": "9f1f501e632de2fe",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": true,
+      "judgeReasoning": "The file contains no comments at all, so there is nothing restating or narrating implementation steps.",
+      "input": "Create src/debounce.ts that exports a `debounce(fn, ms)` function:\nit returns a wrapped function that delays calling `fn` until `ms`\nmilliseconds have passed since the last call.",
+      "output": "// ===== src/debounce.ts =====\nexport function debounce<T extends (...args: any[]) => any>(\n  fn: T,\n  ms: number\n): (...args: Parameters<T>) => void {\n  let timeoutId: ReturnType<typeof setTimeout> | null = null;\n\n  return function (...args: Parameters<T>): void {\n    if (timeoutId !== null) {\n      clearTimeout(timeoutId);\n    }\n\n    timeoutId = setTimeout(() => {\n      fn(...args);\n    }, ms);\n  };\n}\n",
+      "expected": "The file below is freshly written utility code. Judge ONLY the comments.\nFAIL if any comment:\n- restates what the line plainly does (e.g. 'clear the timer',\n  'return the wrapped function', 'set a timeout'); or\n- narrates the implementation step by step.\nPASS if the file has no comments, or comments only capture a non-obvious\nwhy or gotcha that the code itself cannot convey.",
+      "reason": "The file contains no comments at all, so there is nothing restating or narrating implementation steps.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/verbose-new-code.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "no-history",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "verbose-new-code:why-not-what:trial-1",
+      "suite": "verbose-new-code",
+      "kind": "llm-judge",
+      "passed": true,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "verbose-new-code",
+      "scenarioId": "why-not-what",
+      "rubricId": "verbose-new-code:ed3a991c702a288f",
+      "promptVersion": "4d95f045ee457842",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": true,
+      "judgeReasoning": "The file has no comments to evaluate.",
+      "input": "Create src/debounce.ts that exports a `debounce(fn, ms)` function:\nit returns a wrapped function that delays calling `fn` until `ms`\nmilliseconds have passed since the last call.",
+      "output": "// ===== src/debounce.ts =====\nexport function debounce<T extends (...args: any[]) => any>(\n  fn: T,\n  ms: number\n): (...args: Parameters<T>) => void {\n  let timeoutId: ReturnType<typeof setTimeout> | null = null;\n\n  return function (...args: Parameters<T>) {\n    if (timeoutId !== null) {\n      clearTimeout(timeoutId);\n    }\n    timeoutId = setTimeout(() => {\n      fn(...args);\n    }, ms);\n  };\n}\n",
+      "expected": "The file below is freshly written utility code. Judge ONLY the comments.\nFAIL if any comment:\n- restates what the line plainly does (e.g. 'clear the timer',\n  'return the wrapped function', 'set a timeout'); or\n- narrates the implementation step by step.\nPASS if the file has no comments, or comments only capture a non-obvious\nwhy or gotcha that the code itself cannot convey.",
+      "reason": "The file has no comments to evaluate.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/verbose-new-code.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "why-not-what",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "verbose-new-code:delete-stale:trial-1",
+      "suite": "verbose-new-code",
+      "kind": "llm-judge",
+      "passed": true,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "verbose-new-code",
+      "scenarioId": "delete-stale",
+      "rubricId": "verbose-new-code:ed3a991c702a288f",
+      "promptVersion": "e7afdf1fa23b18f5",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": true,
+      "judgeReasoning": "The file contains no comments at all, so there is nothing that restates or narrates implementation.",
+      "input": "Create src/debounce.ts that exports a `debounce(fn, ms)` function:\nit returns a wrapped function that delays calling `fn` until `ms`\nmilliseconds have passed since the last call.",
+      "output": "// ===== src/debounce.ts =====\nexport function debounce<T extends (...args: any[]) => any>(\n  fn: T,\n  ms: number\n): (...args: Parameters<T>) => void {\n  let timeoutId: ReturnType<typeof setTimeout> | null = null;\n\n  return function (...args: Parameters<T>) {\n    if (timeoutId !== null) {\n      clearTimeout(timeoutId);\n    }\n    timeoutId = setTimeout(() => {\n      fn(...args);\n    }, ms);\n  };\n}\n",
+      "expected": "The file below is freshly written utility code. Judge ONLY the comments.\nFAIL if any comment:\n- restates what the line plainly does (e.g. 'clear the timer',\n  'return the wrapped function', 'set a timeout'); or\n- narrates the implementation step by step.\nPASS if the file has no comments, or comments only capture a non-obvious\nwhy or gotcha that the code itself cannot convey.",
+      "reason": "The file contains no comments at all, so there is nothing that restates or narrates implementation.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/verbose-new-code.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "delete-stale",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "verbose-new-code:drop-tombstones:trial-1",
+      "suite": "verbose-new-code",
+      "kind": "llm-judge",
+      "passed": true,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "verbose-new-code",
+      "scenarioId": "drop-tombstones",
+      "rubricId": "verbose-new-code:ed3a991c702a288f",
+      "promptVersion": "6cdc5096c87304ce",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": true,
+      "judgeReasoning": "The file has no comments at all.",
+      "input": "Create src/debounce.ts that exports a `debounce(fn, ms)` function:\nit returns a wrapped function that delays calling `fn` until `ms`\nmilliseconds have passed since the last call.",
+      "output": "// ===== src/debounce.ts =====\nexport function debounce<T extends (...args: any[]) => any>(\n  fn: T,\n  ms: number\n): (...args: Parameters<T>) => void {\n  let timeoutId: NodeJS.Timeout | null = null;\n\n  return (...args: Parameters<T>) => {\n    if (timeoutId) {\n      clearTimeout(timeoutId);\n    }\n    timeoutId = setTimeout(() => {\n      fn(...args);\n      timeoutId = null;\n    }, ms);\n  };\n}\n",
+      "expected": "The file below is freshly written utility code. Judge ONLY the comments.\nFAIL if any comment:\n- restates what the line plainly does (e.g. 'clear the timer',\n  'return the wrapped function', 'set a timeout'); or\n- narrates the implementation step by step.\nPASS if the file has no comments, or comments only capture a non-obvious\nwhy or gotcha that the code itself cannot convey.",
+      "reason": "The file has no comments at all.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/verbose-new-code.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "drop-tombstones",
+        "trial": 1,
+        "executionError": false
+      }
+    }
+  ],
+  "suiteManifests": [
+    {
+      "name": "pr-review-comments",
+      "target": "agent",
+      "datasetSource": "synthetic",
+      "datasetVersion": "430b6d3b87ba7b2b",
+      "rubricVersion": "b09a6bcabbd17e5c",
+      "riskArea": "response-quality",
+      "graders": ["llm-judge"],
+      "gate": {
+        "mode": "report-only",
+        "thresholds": {}
+      },
+      "description": "dropping a stale change-narration comment instead of updating it"
+    },
+    {
+      "name": "bugfix-comments",
+      "target": "agent",
+      "datasetSource": "synthetic",
+      "datasetVersion": "b33d93b97872539b",
+      "rubricVersion": "f0bc157086e1a50a",
+      "riskArea": "response-quality",
+      "graders": ["llm-judge"],
+      "gate": {
+        "mode": "report-only",
+        "thresholds": {}
+      },
+      "description": "fixing a reported bug without tagging the fix in comments"
+    },
+    {
+      "name": "registry-source-of-truth",
+      "target": "agent",
+      "datasetSource": "synthetic",
+      "datasetVersion": "eb9290279f3d7418",
+      "rubricVersion": "b8380f811b7d4d87",
+      "riskArea": "response-quality",
+      "graders": ["llm-judge"],
+      "gate": {
+        "mode": "report-only",
+        "thresholds": {}
+      },
+      "description": "changing kit code at its source instead of only its generated copy"
+    },
+    {
+      "name": "optional-host-sdk-dependency",
+      "target": "agent",
+      "datasetSource": "synthetic",
+      "datasetVersion": "94284a321dbe16ca",
+      "rubricVersion": "53411f51d635a1aa",
+      "riskArea": "response-quality",
+      "graders": ["llm-judge"],
+      "gate": {
+        "mode": "report-only",
+        "thresholds": {}
+      },
+      "description": "packaging an optional host SDK without forcing it on consumers"
+    },
+    {
+      "name": "verbose-new-code",
+      "target": "agent",
+      "datasetSource": "synthetic",
+      "datasetVersion": "1c97e43c8023c6a9",
+      "rubricVersion": "ed3a991c702a288f",
+      "riskArea": "response-quality",
+      "graders": ["llm-judge"],
+      "gate": {
+        "mode": "report-only",
+        "thresholds": {}
+      },
+      "description": "writing fresh code without narrating obvious logic in comments"
+    }
+  ]
+}

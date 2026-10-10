@@ -1,3 +1,7 @@
+import {
+  unstable_getResponseFromNextConfig,
+  getRewrittenUrl,
+} from "next/experimental/testing/server";
 import { afterAll, describe, expect, it, vi } from "vitest";
 import { withAui } from "@assistant-ui/next";
 
@@ -40,3 +44,17 @@ describe("docs Next config composition", () => {
     });
   });
 });
+
+it.each(["/eval-dashboard", "/eval-dashboard/"])(
+  "serves the generated eval dashboard through %s",
+  async (pathname) => {
+    const nextConfig = await config;
+    const response = await unstable_getResponseFromNextConfig({
+      url: `https://docs.test${pathname}`,
+      nextConfig,
+    });
+    expect(getRewrittenUrl(response)).toBe(
+      "https://docs.test/eval-dashboard/index.html",
+    );
+  },
+);

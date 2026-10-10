@@ -1,0 +1,234 @@
+{
+  "schemaVersion": "eval-report/v1",
+  "run": {
+    "id": "prompt-evals-2026-10-08T18:18:58.055Z",
+    "generatedAt": "2026-10-08T18:18:58.055Z",
+    "project": "assistant-ui-prompt-evals"
+  },
+  "suites": [
+    {
+      "id": "registry-source-of-truth",
+      "name": "registry-source-of-truth",
+      "total": 6,
+      "passed": 2,
+      "failed": 4,
+      "passRate": 0.3333333333333333
+    }
+  ],
+  "rows": [
+    {
+      "id": "registry-source-of-truth:baseline:trial-1",
+      "suite": "registry-source-of-truth",
+      "kind": "llm-judge",
+      "passed": false,
+      "expectedOutcome": "fail",
+      "category": "baseline-evidence",
+      "severity": "medium",
+      "datasetId": "registry-source-of-truth",
+      "scenarioId": "baseline",
+      "rubricId": "registry-source-of-truth:b8380f811b7d4d87",
+      "promptVersion": "12ae32cb1ec02d01",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": false,
+      "judgeReasoning": "The kit's source of truth at packages/ui/src/button.tsx still renders Send, while only the generated registry copy was changed to Submit.",
+      "input": "Update the registry Button's visible label from `Send` to `Submit`.\nThe rendered registry component is in\napps/registry/default/button.tsx. Keep the change focused.",
+      "output": "// ===== packages/ui/src/button.tsx =====\nexport function Button() {\n  return <button>Send</button>;\n}\n\n\n// ===== apps/registry/default/button.tsx =====\nexport function Button() {\n  return <button>Submit</button>;\n}\n",
+      "expected": "Judge whether the change was made at the kit's source of truth.\nPASS only if packages/ui/src/button.tsx now renders `Submit`.\nFAIL if only apps/registry/default/button.tsx changed while the source\nunder packages/ui/src still renders `Send`. The generated copy may show\neither label because template synchronization is outside this fixture.",
+      "reason": "The kit's source of truth at packages/ui/src/button.tsx still renders Send, while only the generated registry copy was changed to Submit.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/registry-source-of-truth.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "baseline",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "registry-source-of-truth:baseline:trial-2",
+      "suite": "registry-source-of-truth",
+      "kind": "llm-judge",
+      "passed": false,
+      "expectedOutcome": "fail",
+      "category": "baseline-evidence",
+      "severity": "medium",
+      "datasetId": "registry-source-of-truth",
+      "scenarioId": "baseline",
+      "rubricId": "registry-source-of-truth:b8380f811b7d4d87",
+      "promptVersion": "12ae32cb1ec02d01",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": false,
+      "judgeReasoning": "The source of truth packages/ui/src/button.tsx still renders Send, so the required edit was not made there even though the generated registry copy was changed.",
+      "input": "Update the registry Button's visible label from `Send` to `Submit`.\nThe rendered registry component is in\napps/registry/default/button.tsx. Keep the change focused.",
+      "output": "// ===== packages/ui/src/button.tsx =====\nexport function Button() {\n  return <button>Send</button>;\n}\n\n\n// ===== apps/registry/default/button.tsx =====\nexport function Button() {\n  return <button>Submit</button>;\n}\n",
+      "expected": "Judge whether the change was made at the kit's source of truth.\nPASS only if packages/ui/src/button.tsx now renders `Submit`.\nFAIL if only apps/registry/default/button.tsx changed while the source\nunder packages/ui/src still renders `Send`. The generated copy may show\neither label because template synchronization is outside this fixture.",
+      "reason": "The source of truth packages/ui/src/button.tsx still renders Send, so the required edit was not made there even though the generated registry copy was changed.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/registry-source-of-truth.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "baseline",
+        "trial": 2,
+        "executionError": false
+      }
+    },
+    {
+      "id": "registry-source-of-truth:baseline:trial-3",
+      "suite": "registry-source-of-truth",
+      "kind": "llm-judge",
+      "passed": false,
+      "expectedOutcome": "fail",
+      "category": "baseline-evidence",
+      "severity": "medium",
+      "datasetId": "registry-source-of-truth",
+      "scenarioId": "baseline",
+      "rubricId": "registry-source-of-truth:b8380f811b7d4d87",
+      "promptVersion": "12ae32cb1ec02d01",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": false,
+      "judgeReasoning": "packages/ui/src/button.tsx still renders 'Send', so the source of truth was not updated even though the registry copy shows 'Submit'.",
+      "input": "Update the registry Button's visible label from `Send` to `Submit`.\nThe rendered registry component is in\napps/registry/default/button.tsx. Keep the change focused.",
+      "output": "// ===== packages/ui/src/button.tsx =====\nexport function Button() {\n  return <button>Send</button>;\n}\n\n\n// ===== apps/registry/default/button.tsx =====\nexport function Button() {\n  return <button>Submit</button>;\n}\n",
+      "expected": "Judge whether the change was made at the kit's source of truth.\nPASS only if packages/ui/src/button.tsx now renders `Submit`.\nFAIL if only apps/registry/default/button.tsx changed while the source\nunder packages/ui/src still renders `Send`. The generated copy may show\neither label because template synchronization is outside this fixture.",
+      "reason": "packages/ui/src/button.tsx still renders 'Send', so the source of truth was not updated even though the registry copy shows 'Submit'.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/registry-source-of-truth.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "baseline",
+        "trial": 3,
+        "executionError": false
+      }
+    },
+    {
+      "id": "registry-source-of-truth:edit-registry-source:trial-1",
+      "suite": "registry-source-of-truth",
+      "kind": "llm-judge",
+      "passed": true,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "registry-source-of-truth",
+      "scenarioId": "edit-registry-source",
+      "rubricId": "registry-source-of-truth:b8380f811b7d4d87",
+      "promptVersion": "84dd95cf3bc7b969",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": true,
+      "judgeReasoning": "The source of truth at packages/ui/src/button.tsx now renders \"Submit\", which is the pass condition regardless of the unsynced registry copy.",
+      "input": "Update the registry Button's visible label from `Send` to `Submit`.\nThe rendered registry component is in\napps/registry/default/button.tsx. Keep the change focused.",
+      "output": "// ===== packages/ui/src/button.tsx =====\nexport function Button() {\n  return <button>Submit</button>;\n}\n\n\n// ===== apps/registry/default/button.tsx =====\nexport function Button() {\n  return <button>Send</button>;\n}\n",
+      "expected": "Judge whether the change was made at the kit's source of truth.\nPASS only if packages/ui/src/button.tsx now renders `Submit`.\nFAIL if only apps/registry/default/button.tsx changed while the source\nunder packages/ui/src still renders `Send`. The generated copy may show\neither label because template synchronization is outside this fixture.",
+      "reason": "The source of truth at packages/ui/src/button.tsx now renders \"Submit\", which is the pass condition regardless of the unsynced registry copy.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/registry-source-of-truth.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "edit-registry-source",
+        "trial": 1,
+        "executionError": false
+      }
+    },
+    {
+      "id": "registry-source-of-truth:edit-registry-source:trial-2",
+      "suite": "registry-source-of-truth",
+      "kind": "llm-judge",
+      "passed": true,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "registry-source-of-truth",
+      "scenarioId": "edit-registry-source",
+      "rubricId": "registry-source-of-truth:b8380f811b7d4d87",
+      "promptVersion": "84dd95cf3bc7b969",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": true,
+      "judgeReasoning": "packages/ui/src/button.tsx, the kit's source of truth, now renders Submit, regardless of the unsynchronized registry copy still showing Send.",
+      "input": "Update the registry Button's visible label from `Send` to `Submit`.\nThe rendered registry component is in\napps/registry/default/button.tsx. Keep the change focused.",
+      "output": "// ===== packages/ui/src/button.tsx =====\nexport function Button() {\n  return <button>Submit</button>;\n}\n\n\n// ===== apps/registry/default/button.tsx =====\nexport function Button() {\n  return <button>Send</button>;\n}\n",
+      "expected": "Judge whether the change was made at the kit's source of truth.\nPASS only if packages/ui/src/button.tsx now renders `Submit`.\nFAIL if only apps/registry/default/button.tsx changed while the source\nunder packages/ui/src still renders `Send`. The generated copy may show\neither label because template synchronization is outside this fixture.",
+      "reason": "packages/ui/src/button.tsx, the kit's source of truth, now renders Submit, regardless of the unsynchronized registry copy still showing Send.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/registry-source-of-truth.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "edit-registry-source",
+        "trial": 2,
+        "executionError": false
+      }
+    },
+    {
+      "id": "registry-source-of-truth:edit-registry-source:trial-3",
+      "suite": "registry-source-of-truth",
+      "kind": "llm-judge",
+      "passed": false,
+      "expectedOutcome": "pass",
+      "category": "candidate-guidance",
+      "severity": "medium",
+      "datasetId": "registry-source-of-truth",
+      "scenarioId": "edit-registry-source",
+      "rubricId": "registry-source-of-truth:b8380f811b7d4d87",
+      "promptVersion": "84dd95cf3bc7b969",
+      "agentVersion": "claude-haiku-4-5",
+      "judgeModel": "claude-sonnet-5",
+      "judgeVerdict": false,
+      "judgeReasoning": "packages/ui/src/button.tsx still renders Send, meaning the kit's source of truth was not updated even though the generated registry copy shows Submit.",
+      "input": "Update the registry Button's visible label from `Send` to `Submit`.\nThe rendered registry component is in\napps/registry/default/button.tsx. Keep the change focused.",
+      "output": "// ===== packages/ui/src/button.tsx =====\nexport function Button() {\n  return <button>Send</button>;\n}\n\n\n// ===== apps/registry/default/button.tsx =====\nexport function Button() {\n  return <button>Submit</button>;\n}\n",
+      "expected": "Judge whether the change was made at the kit's source of truth.\nPASS only if packages/ui/src/button.tsx now renders `Submit`.\nFAIL if only apps/registry/default/button.tsx changed while the source\nunder packages/ui/src still renders `Send`. The generated copy may show\neither label because template synchronization is outside this fixture.",
+      "reason": "packages/ui/src/button.tsx still renders Send, meaning the kit's source of truth was not updated even though the generated registry copy shows Submit.",
+      "metadata": {
+        "provenance": {
+          "source": "synthetic",
+          "sourceRef": "evals/src/cases/registry-source-of-truth.ts"
+        },
+        "lifecycle": {
+          "status": "active"
+        },
+        "candidate": "edit-registry-source",
+        "trial": 3,
+        "executionError": false
+      }
+    }
+  ],
+  "suiteManifests": [
+    {
+      "name": "registry-source-of-truth",
+      "target": "agent",
+      "datasetSource": "synthetic",
+      "datasetVersion": "eb9290279f3d7418",
+      "rubricVersion": "b8380f811b7d4d87",
+      "riskArea": "response-quality",
+      "graders": ["llm-judge"],
+      "gate": {
+        "mode": "report-only",
+        "thresholds": {}
+      },
+      "description": "changing kit code at its source instead of only its generated copy"
+    }
+  ]
+}

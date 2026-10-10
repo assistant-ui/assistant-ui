@@ -10,6 +10,16 @@ const JUDGE_SYSTEM =
   "You are a strict code reviewer scoring a single criterion. " +
   "Reply with one line of minified JSON and nothing else.";
 
+const JUDGE_SCHEMA = JSON.stringify({
+  type: "object",
+  properties: {
+    pass: { type: "boolean" },
+    reason: { type: "string" },
+  },
+  required: ["pass", "reason"],
+  additionalProperties: false,
+});
+
 /** Score one artifact against a rubric with a fresh, undirected judge. */
 export function runJudge(rubric: string, artifact: string): Verdict {
   const prompt = [
@@ -36,6 +46,8 @@ export function runJudge(rubric: string, artifact: string): Verdict {
         JUDGE_MODEL,
         "--append-system-prompt",
         JUDGE_SYSTEM,
+        "--json-schema",
+        JUDGE_SCHEMA,
       ],
       {
         cwd: dir,
@@ -46,9 +58,8 @@ export function runJudge(rubric: string, artifact: string): Verdict {
     );
     if (res.error) throw res.error;
     if (res.status !== 0) {
-      throw new Error(
-        `judge exited with status ${res.status}: ${res.stderr?.trim() ?? ""}`,
-      );
+      const detail = res.stderr?.trim() || res.stdout?.trim() || "no output";
+      throw new Error(`judge exited with status ${res.status}: ${detail}`);
     }
     return parseVerdict(res.stdout);
   } finally {

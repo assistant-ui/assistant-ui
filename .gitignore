@@ -105,3 +105,6 @@ apps/docs/public/example-bundles/
 .example-source/
 
 packages/cli/templates/cloud-harness/
+
+# Local eval dashboard: generate deliberately before hosting
+/apps/docs/public/eval-dashboard/
