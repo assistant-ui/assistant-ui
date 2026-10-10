@@ -156,7 +156,9 @@ declare namespace Checkout {
       inputId: string;
     }) => void;
     "checkout/plan": (params: PlanDecision) => void;
-    "checkout/cancel": () => void;
+    "checkout/cancel": (params?: {
+      id?: string;
+    }) => void;
     "checkout/finish": () => void;
     "agent/intro": (params: {
       kind?: string;

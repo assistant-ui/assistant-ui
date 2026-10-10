@@ -328,8 +328,9 @@ const useCheckoutHost = (restored: unknown) => {
       plan.decidedAt = Date.now();
       plan.feedback = params.feedback.trim();
     },
-    "checkout/cancel": () => {
+    "checkout/cancel": ({ id } = {}) => {
       if (state.createdAt === null || isClosed(state)) return;
+      if (id !== undefined && id !== state.id) return;
       state.status = "cancelled";
       dismissOpenInputs();
     },

@@ -200,7 +200,8 @@ export namespace Checkout {
     "agent/ack": (params: { messageId: string }) => void;
     "checkout/dismiss": (params: { inputId: string }) => void;
     "checkout/plan": (params: PlanDecision) => void;
-    "checkout/cancel": () => void;
+    /** A cancel that names another checkout than the current one is a no-op. */
+    "checkout/cancel": (params?: { id?: string }) => void;
     "checkout/finish": () => void;
     "agent/intro": (params: { kind?: string }) => void;
     "agent/hello": (params: { cwd?: string; kind?: string }) => void;

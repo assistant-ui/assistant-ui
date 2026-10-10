@@ -785,6 +785,27 @@ describe("closing", () => {
     expect(host.state.status).toBe("done");
   });
 
+  it("ignores a cancel meant for another checkout", async () => {
+    const host = mount();
+    await host.commands["checkout/create"](seed);
+    await host.commands["checkout/cancel"]({ id: "c0" });
+    expect(host.state.status).toBe("waiting");
+  });
+
+  it("cancels the checkout a cancel names", async () => {
+    const host = mount();
+    await host.commands["checkout/create"](seed);
+    await host.commands["checkout/cancel"]({ id: seed.id });
+    expect(host.state.status).toBe("cancelled");
+  });
+
+  it("cancels the current checkout when a cancel names none", async () => {
+    const host = mount();
+    await host.commands["checkout/create"](seed);
+    await host.commands["checkout/cancel"]({});
+    expect(host.state.status).toBe("cancelled");
+  });
+
   it("ignores a cancel before the setup exists", async () => {
     const host = mount();
     await host.commands["checkout/cancel"]();
