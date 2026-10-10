@@ -17,10 +17,12 @@ const mocks = vi.hoisted(() => ({
     | Promise<{ remoteId: string; externalId: string }>
     | undefined,
   sessionCreate: vi.fn().mockResolvedValue({ data: { id: "session-1" } }),
+  reload: vi.fn().mockResolvedValue(undefined),
   threadListItem: {
     externalId: "session-1" as string | undefined,
     remoteId: "session-1" as string | undefined,
     status: "regular" as "new" | "regular",
+    title: undefined as string | undefined,
     initialize: vi.fn(() => {
       mocks.initializeTask ??= (async () => {
         const adapter = mocks.threadListAdapter;
@@ -44,7 +46,7 @@ vi.mock("@assistant-ui/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/react")>()),
   useAui: () => ({
     threadListItem: mocks.threadListItem,
-    threads: { reload: vi.fn().mockResolvedValue(undefined) },
+    threads: { reload: mocks.reload },
   }),
   useAuiState: (selector: (state: unknown) => unknown) =>
     selector({ threadListItem: mocks.threadListItem }),
@@ -118,7 +120,9 @@ afterEach(() => {
   mocks.threadListItem.externalId = "session-1";
   mocks.threadListItem.remoteId = "session-1";
   mocks.threadListItem.status = "regular";
+  mocks.threadListItem.title = undefined;
   mocks.threadListItem.initialize.mockClear();
+  mocks.reload.mockReset().mockResolvedValue(undefined);
   mocks.sessionCreate
     .mockReset()
     .mockResolvedValue({ data: { id: "session-1" } });
@@ -157,6 +161,24 @@ describe("useOpenCodeRuntime", () => {
     await act(async () => rejectLoad(loadError));
     expect(first).not.toHaveBeenCalled();
     expect(latest).toHaveBeenCalledExactlyOnceWith(loadError);
+  });
+
+  it("reloads the thread list when OpenCode retitles the open session", async () => {
+    mocks.state = {
+      ...createOpenCodeThreadState("session-1"),
+      session: { id: "session-1", title: "Fix the login redirect", time: {} },
+    };
+    mocks.threadListItem.title = "Old title";
+
+    const App = () => {
+      useOpenCodeRuntime({ client: stubClient });
+      return null;
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
+
+    expect(mocks.reload).toHaveBeenCalledOnce();
   });
 
   it("keeps a new thread enabled and prompts before ids land", async () => {

@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => ({
   sessions: [] as string[],
   remoteOptions: undefined as { initialThreadId?: string } | undefined,
   stores: [] as unknown[],
+  reload: vi.fn().mockResolvedValue(undefined),
   threadListItem: {
     externalId: "session-1" as string | undefined,
     remoteId: "cloud-thread-1" as string | undefined,
@@ -25,7 +26,7 @@ vi.mock("@assistant-ui/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/react")>()),
   useAui: () => ({
     threadListItem: mocks.threadListItem,
-    threads: { reload: vi.fn().mockResolvedValue(undefined) },
+    threads: { reload: mocks.reload },
   }),
   useAuiState: (selector: (state: unknown) => unknown) =>
     selector({ threadListItem: mocks.threadListItem }),
@@ -86,6 +87,7 @@ afterEach(() => {
   mocks.threadListItem.remoteId = "cloud-thread-1";
   mocks.threadListItem.status = "regular";
   mocks.threadListItem.initialize.mockReset();
+  mocks.reload.mockReset().mockResolvedValue(undefined);
 });
 
 describe("useOpenCodeRuntime under Cloud", () => {
@@ -105,6 +107,24 @@ describe("useOpenCodeRuntime under Cloud", () => {
     expect(mocks.sessions).toContain("session-1");
     expect(mocks.sessions).not.toContain("cloud-thread-1");
     expect(mocks.remoteOptions?.initialThreadId).toBeUndefined();
+  });
+  it("leaves the cloud thread list alone when OpenCode titles the session", async () => {
+    mocks.state = {
+      ...createOpenCodeThreadState("session-1"),
+      session: { id: "session-1", title: "Fix the login redirect", time: {} },
+    };
+    const cloud = {} as AssistantCloud;
+    const client = { session: {} } as never;
+
+    const App = () => {
+      useOpenCodeRuntime({ client, cloud });
+      return null;
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
+
+    expect(mocks.reload).not.toHaveBeenCalled();
   });
   it("opens no session for a cloud thread without one, and rejects a send to it", async () => {
     mocks.state = createOpenCodeThreadState("unused");
