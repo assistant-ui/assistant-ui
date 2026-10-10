@@ -7,10 +7,11 @@ A/B evals for prompts and model output. A suite runs each of its candidates agai
 | Suite | Question |
 | --- | --- |
 | [`comment-hygiene`](src/suites/comment-hygiene/README.md) | Which guidance sentence about code comments earns a line in `AGENTS.md`? |
+| [`generative-ui`](src/suites/generative-ui/README.md) | Which answer format (Markdown, `present`, spec, or frame) do models write best? |
 
 ## Running
 
-Node runs the TypeScript directly, so there is no build step. A suite's README lists what else it needs, such as a CLI on `PATH`.
+Node runs the TypeScript directly, and `pnpm eval` loads `evals/.env` when it exists. A suite's README lists what else it needs, such as a CLI on `PATH`, an API key, or built workspace packages.
 
 ```bash
 cd evals
@@ -25,7 +26,7 @@ Results are printed and written to `results/<suite>/latest.md`. `pnpm test` chec
 
 ## Adding a suite
 
-Create `src/suites/<suite>/index.ts` exporting a `Suite` (see `src/types.ts`), add it to `src/suites/index.ts`, and give it a README. The suite owns its cases, its candidates, how one trial runs and is judged, and its report; the runner owns repetition, error capture, and progress output.
+Create `src/suites/<suite>/index.ts` exporting a `Suite` (see `src/types.ts`), add a loader for it to `src/suites/index.ts`, and give it a README. The suite owns its cases, its candidates, how one trial runs and is judged, and its report; the runner owns repetition, error capture, and progress output.
 
 ## Layout
 
