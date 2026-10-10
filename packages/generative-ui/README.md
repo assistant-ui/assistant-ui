@@ -1,6 +1,6 @@
 # @assistant-ui/generative-ui
 
-Framework-neutral generative UI for assistant-ui. The root entry holds the React-free UI tree types and normalizer, `@assistant-ui/generative-ui/react` renders the tree with React, and the `slack`, `teams`, and `a2ui` subpaths convert it for other surfaces.
+Framework-neutral generative UI for assistant-ui. The root entry holds the React-free UI tree types and normalizer, `@assistant-ui/generative-ui/react` renders the tree with React, the `slack`, `teams`, and `a2ui` subpaths convert it for other surfaces, and `@assistant-ui/generative-ui/spec` renders a library in generative-frame's spec mode.
 
 ## Installation
 
@@ -8,7 +8,7 @@ Framework-neutral generative UI for assistant-ui. The root entry holds the React
 npm install @assistant-ui/generative-ui @assistant-ui/react zod
 ```
 
-`react`, `@assistant-ui/react`, and `zod` are optional peers that only `@assistant-ui/generative-ui/react` needs; the root entry and the `slack`, `teams`, and `a2ui` subpaths work without them.
+`react`, `@assistant-ui/react`, and `zod` are optional peers that only `@assistant-ui/generative-ui/react` needs, and `@assistant-ui/generative-ui/spec` needs `react`, `zod`, and `generative-frame`; the root entry and the `slack`, `teams`, and `a2ui` subpaths work without them.
 
 ## Usage
 
@@ -184,6 +184,23 @@ for (const surface of state.values()) {
   const { spec, warnings } = convertSurfaceToUISpec(surface);
 }
 ```
+
+## Spec mode
+
+In [generative-frame's spec mode](https://www.assistant-ui.com/generative-frame/docs/spec-mode), the model builds the UI as a flat spec, streamed as JSON Patch lines, with state, bindings, and validation. `toSpecCatalog` from `@assistant-ui/generative-ui/spec` turns a library, the built-in vocabulary by default, into the catalog and components spec mode renders. Install `generative-frame` alongside it.
+
+```tsx
+import { createWidgetToolkit } from "generative-frame/assistant-ui";
+import { createSpecToolkit } from "generative-frame/spec/assistant-ui";
+import { toSpecCatalog } from "@assistant-ui/generative-ui/spec";
+
+const { catalog, components } = toSpecCatalog();
+const widgets = createWidgetToolkit({
+  spec: createSpecToolkit(catalog, { components }),
+});
+```
+
+[Spec mode](https://www.assistant-ui.com/docs/tools/generative-ui#spec-mode) lists the events each component emits and how a bound value writes back.
 
 ## License
 
