@@ -13,6 +13,7 @@ import {
   type FrameInspection,
   type HostContext,
   type InitMessage,
+  type McpAppInitializeParams,
   type ScreenshotOptions,
   type WidgetError,
   type WidgetSize,
@@ -46,6 +47,7 @@ export type WidgetHandlers = {
   /** Defaults to opening an `http(s)` URL in a new tab with `noopener`. */
   onOpenLink?: (url: string) => unknown;
   onCallTool?: (call: ToolCallRequest) => unknown;
+  onInitialized?: (params: McpAppInitializeParams) => void;
   onRequestDisplayMode?: (request: { mode: DisplayMode }) => unknown;
   onUpdateModelContext?: (params: unknown) => unknown;
   onWidgetState?: (state: unknown) => void;
@@ -162,6 +164,54 @@ const promptText = (params: UiMessageParams) =>
     .filter((part) => part.type === "text" && typeof part.text === "string")
     .map((part) => part.text)
     .join("\n");
+
+const VALID_DISPLAY_MODES = [
+  "inline",
+  "fullscreen",
+  "pip",
+] as const satisfies readonly DisplayMode[];
+
+const isDisplayMode = (value: unknown): value is DisplayMode =>
+  VALID_DISPLAY_MODES.some((mode) => mode === value);
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isAppInfo = (
+  value: unknown,
+): value is NonNullable<McpAppInitializeParams["appInfo"]> =>
+  isRecord(value) &&
+  typeof value["name"] === "string" &&
+  typeof value["version"] === "string";
+
+const getAppCapabilities = (
+  value: unknown,
+): McpAppInitializeParams["appCapabilities"] => {
+  if (!isRecord(value)) return undefined;
+  const { availableDisplayModes, ...rest } = value;
+  return {
+    ...rest,
+    ...(Array.isArray(availableDisplayModes)
+      ? {
+          availableDisplayModes: Object.values(availableDisplayModes).filter(
+            isDisplayMode,
+          ),
+        }
+      : {}),
+  };
+};
+
+const getInitializeParams = (params: unknown): McpAppInitializeParams => {
+  if (!isRecord(params)) return {};
+  const appCapabilities = getAppCapabilities(params["appCapabilities"]);
+  return {
+    ...(isAppInfo(params["appInfo"]) ? { appInfo: params["appInfo"] } : {}),
+    ...(appCapabilities ? { appCapabilities } : {}),
+    ...(typeof params["protocolVersion"] === "string"
+      ? { protocolVersion: params["protocolVersion"] }
+      : {}),
+  };
+};
 
 const defaultOpenLink = (url: string) => {
   window.open(url, "_blank", "noopener,noreferrer");
@@ -364,6 +414,7 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
     let rendered: RenderedFrame | undefined;
     let peer: RpcPeer | undefined;
     let initSent = false;
+    let initializeParams: McpAppInitializeParams = {};
     let sessionDisposed = false;
     let revealed = false;
     let resolveReady!: () => void;
@@ -417,13 +468,21 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
       initSent = true;
       const channel = new MessageChannel();
       peer = createRpcPeer(channel.port1, {
-        onRequest,
+        onRequest: (method, params) => {
+          if (method === METHODS.initialize) {
+            initializeParams = getInitializeParams(params);
+          }
+          return onRequest(method, params);
+        },
         onNotification: (method, params) => {
           const p = (params ?? {}) as Record<string, unknown>;
           switch (method) {
             case METHODS.ready:
               clearTimeout(timer);
               resolveReady();
+              return;
+            case METHODS.initialized:
+              options.onInitialized?.(initializeParams);
               return;
             case METHODS.sizeChanged:
               if (

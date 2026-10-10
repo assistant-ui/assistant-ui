@@ -37,6 +37,15 @@ export type ColorScheme = "light" | "dark";
 
 export type DisplayMode = "inline" | "fullscreen" | "pip";
 
+export type McpAppInitializeParams = {
+  appInfo?: { name: string; version: string; [key: string]: unknown };
+  appCapabilities?: {
+    availableDisplayModes?: DisplayMode[];
+    [key: string]: unknown;
+  };
+  protocolVersion?: string;
+};
+
 /** The MCP Apps host context, plus the fields this package adds. */
 export type HostContext = {
   theme?: ColorScheme;

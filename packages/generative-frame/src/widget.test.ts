@@ -269,16 +269,28 @@ describe("createWidget", () => {
   });
 
   it("answers MCP Apps requests sent to window.parent", async () => {
-    const { fake } = setup({ context: { locale: "de-DE" } });
+    const onInitialized = vi.fn();
+    const { fake } = setup({
+      context: { locale: "de-DE" },
+      onInitialized,
+    });
     await fake.connect(0);
     const rendered = fake.rendered[0]!;
+    const initializeParams = {
+      protocolVersion: "2026-01-26",
+      appInfo: { name: "example-app", version: "1.2.3" },
+      appCapabilities: {
+        availableDisplayModes: ["inline", "sidebar"],
+        tools: { listChanged: true },
+      },
+    };
     window.dispatchEvent(
       new MessageEvent("message", {
         data: {
           jsonrpc: "2.0",
           id: 7,
           method: METHODS.initialize,
-          params: { protocolVersion: "2026-01-26" },
+          params: initializeParams,
         },
         origin: ORIGIN,
         source: rendered.iframe.contentWindow,
@@ -301,6 +313,124 @@ describe("createWidget", () => {
     expect(response.result.hostContext).toMatchObject({
       locale: "de-DE",
       theme: "light",
+    });
+    expect(onInitialized).not.toHaveBeenCalled();
+
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { jsonrpc: "2.0", method: METHODS.initialized },
+        origin: ORIGIN,
+        source: rendered.iframe.contentWindow,
+      }),
+    );
+    expect(onInitialized).toHaveBeenCalledOnce();
+    expect(onInitialized).toHaveBeenCalledWith({
+      protocolVersion: "2026-01-26",
+      appInfo: { name: "example-app", version: "1.2.3" },
+      appCapabilities: {
+        availableDisplayModes: ["inline"],
+        tools: { listChanged: true },
+      },
+    });
+  });
+
+  it("omits malformed initialization fields and keeps the protocol fallback", async () => {
+    const onInitialized = vi.fn();
+    const { fake } = setup({ onInitialized });
+    await fake.connect(0);
+    const rendered = fake.rendered[0]!;
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: {
+          jsonrpc: "2.0",
+          id: 8,
+          method: METHODS.initialize,
+          params: {
+            protocolVersion: 1,
+            appInfo: { name: "incomplete" },
+            appCapabilities: { availableDisplayModes: "fullscreen" },
+          },
+        },
+        origin: ORIGIN,
+        source: rendered.iframe.contentWindow,
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(
+        rendered.sent.some(
+          (message) => (message.data as { id?: unknown }).id === 8,
+        ),
+      ).toBe(true),
+    );
+    const response = rendered.sent.find(
+      (message) => (message.data as { id?: unknown }).id === 8,
+    )!.data as { result: { protocolVersion: string } };
+    expect(response.result.protocolVersion).toBe("2026-01-26");
+
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { jsonrpc: "2.0", method: METHODS.initialized },
+        origin: ORIGIN,
+        source: rendered.iframe.contentWindow,
+      }),
+    );
+    expect(onInitialized).toHaveBeenCalledWith({ appCapabilities: {} });
+  });
+
+  it("passes empty initialization params when initialized arrives first", async () => {
+    const onInitialized = vi.fn();
+    const { fake } = setup({ onInitialized });
+    await fake.connect(0);
+    const rendered = fake.rendered[0]!;
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { jsonrpc: "2.0", method: METHODS.initialized },
+        origin: ORIGIN,
+        source: rendered.iframe.contentWindow,
+      }),
+    );
+    expect(onInitialized).toHaveBeenCalledWith({});
+  });
+
+  it("reads present display modes without invoking array-owned methods", async () => {
+    const onInitialized = vi.fn();
+    const { fake } = setup({ onInitialized });
+    await fake.connect(0);
+    const rendered = fake.rendered[0]!;
+    const availableDisplayModes = Object.assign(["inline"], {
+      filter: 0,
+      constructor: 0,
+    });
+    availableDisplayModes.length = 2 ** 32 - 1;
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: {
+          jsonrpc: "2.0",
+          id: 9,
+          method: METHODS.initialize,
+          params: { appCapabilities: { availableDisplayModes } },
+        },
+        origin: ORIGIN,
+        source: rendered.iframe.contentWindow,
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(
+        rendered.sent.some(
+          (message) => (message.data as { id?: unknown }).id === 9,
+        ),
+      ).toBe(true),
+    );
+
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { jsonrpc: "2.0", method: METHODS.initialized },
+        origin: ORIGIN,
+        source: rendered.iframe.contentWindow,
+      }),
+    );
+    expect(onInitialized).toHaveBeenCalledWith({
+      appCapabilities: { availableDisplayModes: ["inline"] },
     });
   });
 
