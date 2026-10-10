@@ -55,6 +55,7 @@ export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       messageRepository?: AISDKRuntimeAdapter<UI_MESSAGE>["messageRepository"];
       /** @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release. */
       unstable_onBranchChange?: AISDKRuntimeAdapter["unstable_onBranchChange"];
+      unstable_enableMessageQueue?: AISDKRuntimeAdapter["unstable_enableMessageQueue"];
     };
 
 export type ChatThreadEnvironment<UI_MESSAGE extends UIMessage = UIMessage> = {
@@ -113,6 +114,7 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
     joinStrategy,
     messageRepository,
     unstable_onBranchChange,
+    unstable_enableMessageQueue,
     ...chatInit
   } = options ?? {};
   // peel guard: any shared key left in `chatInit` collapses this to `never`
@@ -132,6 +134,7 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
     joinStrategy,
     messageRepository,
     unstable_onBranchChange,
+    unstable_enableMessageQueue,
     chatInit,
   };
 };
@@ -193,6 +196,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     joinStrategy,
     messageRepository,
     unstable_onBranchChange,
+    unstable_enableMessageQueue,
     chatInit: chatOptions,
   } = splitChatThreadOptions(options);
 
@@ -297,6 +301,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     // would be a dead WeakMap key by the next one.
     unstable_hostApprovalOwner: externalChat ?? ownedChat,
     ...(unstable_onBranchChange && { unstable_onBranchChange }),
+    ...(unstable_enableMessageQueue && { unstable_enableMessageQueue }),
   });
   initialTransportBinding = {
     runtime,

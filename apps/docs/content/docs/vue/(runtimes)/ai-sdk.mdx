@@ -75,6 +75,7 @@ Tools the server owns go in the same `tools` map with their own `execute`; see [
 | `joinStrategy` | `"concat-content" \| "none"` | `"concat-content"` | Merges consecutive assistant messages into one thread message, or keeps them separate with `"none"`. |
 | `messageRepository` | Exported message repository | Runtime-owned repository | Supplies branch history. |
 | `unstable_onBranchChange` | Callback | None | Receives branch changes. |
+| `unstable_enableMessageQueue` | `boolean` | `false` | Keeps sending open during a run. A send steers by default: the run stops and the message is sent once it has settled. `send({ steer: false })` waits in `composer.queue` until the run settles. |
 
 The chat captures its id, initial messages, id generator, and schemas when it mounts. Its callbacks read the latest options on later renders. The runtime also reads adapter and shared thread options again when it renders. Remount the assistant client to start a different chat id or initial history.
 

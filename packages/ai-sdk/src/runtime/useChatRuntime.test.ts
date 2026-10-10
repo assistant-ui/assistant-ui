@@ -247,6 +247,23 @@ describe.skipIf(onReact18)("useChatRuntime", () => {
     );
   });
 
+  it("forwards unstable_enableMessageQueue to the runtime, not the chat", () => {
+    mocks.useChat.mockReturnValue({
+      resumeStream: vi.fn(),
+      status: "ready",
+    });
+
+    renderHook(() => useChatRuntime({ unstable_enableMessageQueue: true }));
+
+    expect(mocks.useAISDKRuntime).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ unstable_enableMessageQueue: true }),
+    );
+    expect(mocks.useChat.mock.lastCall?.[0]).not.toHaveProperty(
+      "unstable_enableMessageQueue",
+    );
+  });
+
   it("waits for external history to load before resuming a stream", async () => {
     mocks.state.isLoadingHistory = true;
     const resumeStream = vi.fn().mockResolvedValue(undefined);

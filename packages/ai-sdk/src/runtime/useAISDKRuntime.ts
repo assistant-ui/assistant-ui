@@ -71,6 +71,7 @@ import {
   toExportedMessageRepository,
 } from "./useExternalHistory";
 import { useStreamingTiming } from "./useStreamingTiming";
+import { useMessageQueue } from "./useMessageQueue";
 import { aiSDKExtras } from "../aiSDKExtras";
 
 export type CustomToCreateMessageFunction = <
@@ -135,6 +136,13 @@ export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
      * @default true
      */
     cancelPendingToolCallsOnSend?: boolean | undefined;
+    /**
+     * Opt in to message queuing: a message sent during a run is held in
+     * `composer.queue` and sent once the run settles, one request at a time.
+     * Steering stops the running response and sends the message once the
+     * stopped request has settled.
+     */
+    unstable_enableMessageQueue?: boolean | undefined;
     /**
      * Called when `runtime.thread.resumeRun(config)` is invoked.
      *
@@ -529,9 +537,14 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     joinStrategy,
     messageRepository,
     unstable_onBranchChange,
+    unstable_enableMessageQueue,
   } = adapter;
   const suggestionAdapter = adapters?.suggestion;
   const contextAdapters = useRuntimeAdapters();
+  const [queueError, setQueueError] = useState<Error>();
+  const runtimeError = unstable_enableMessageQueue
+    ? (queueError ?? chatHelpers.error)
+    : chatHelpers.error;
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
   >({});
@@ -626,6 +639,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     new Map(),
   );
   const lastRunConfigRef = useRef<RunConfig | undefined>(undefined);
+  const steeredAnswerIdRef = useRef<string | undefined>(undefined);
   const markToolArtifactsChanged = useCallback(() => {
     setToolArtifactEpoch((epoch) => epoch + 1);
   }, []);
@@ -840,16 +854,15 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     id: chatId,
     messages: chatMessages,
     status: chatStatus,
-    error,
   } = chatHelpers;
   const extras = useMemo(
     () =>
       aiSDKExtras.provide({
         chat: chatHelpers as unknown as UseChatHelpers<UIMessage>,
-        error,
+        error: runtimeError,
       }),
     // oxlint-disable-next-line react/exhaustive-deps -- keyed on the chat's identity and reactive snapshots; useChat re-mints the helpers object every render while its remaining fields are instance-bound methods, and a render-stable extras identity is what lets the external-store core dedupe adapter updates
-    [chatId, chatMessages, chatStatus, error],
+    [chatId, chatMessages, chatStatus, runtimeError],
   );
 
   const completePendingToolCalls = async () => {
@@ -1009,6 +1022,92 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     );
   };
 
+  const cancelRun = async () => {
+    const message = chatHelpers.messages.at(-1);
+    const cancelledId =
+      isRunning && message?.role === "assistant" ? message.id : undefined;
+    if (cancelledId) {
+      const liveIds = new Set(chatHelpers.messages.map((m) => m.id));
+      if (chatRuntimeState !== undefined && approvalOwner !== undefined) {
+        chatRuntimeState.cancelledMessageIds = new Set([
+          ...[...chatRuntimeState.cancelledMessageIds].filter((id) =>
+            liveIds.has(id),
+          ),
+          cancelledId,
+        ]);
+        notifyChatRuntimeState(approvalOwner);
+      } else {
+        setCancelledMessages((prev) => {
+          const kept =
+            prev?.chatId === chatHelpers.id
+              ? [...prev.ids].filter((id) => liveIds.has(id))
+              : [];
+          return {
+            chatId: chatHelpers.id,
+            ids: new Set([...kept, cancelledId]),
+          };
+        });
+      }
+    }
+    try {
+      await chatHelpers.stop();
+    } catch (error) {
+      if (!(error instanceof Error && error.name === "AbortError")) {
+        if (cancelledId) retractCancellation(chatHelpers.id, cancelledId);
+        throw error;
+      }
+    }
+  };
+
+  const sendNew = async (message: AppendMessage) => {
+    setQueueError(undefined);
+    const createMessage = (
+      customToCreateMessage ?? toCreateMessage
+    )<UI_MESSAGE>(message);
+
+    if (!(message.startRun ?? message.role === "user")) {
+      chatHelpers.setMessages((current) => [
+        ...current,
+        toUIMessage<UI_MESSAGE>(createMessage, message.role),
+      ]);
+      return;
+    }
+
+    lastRunConfigRef.current = message.runConfig;
+    await completePendingToolCalls();
+    await chatHelpers.sendMessage(createMessage, {
+      metadata: message.runConfig,
+    });
+  };
+
+  const messageQueue = useMessageQueue({
+    onError: (error) => {
+      if (error?.name === "AbortError") {
+        steeredAnswerIdRef.current = undefined;
+        setQueueError(undefined);
+      } else {
+        setQueueError(error);
+      }
+    },
+    enabled: unstable_enableMessageQueue === true,
+    isRunning,
+    isSendDisabled: adapter.isSendDisabled === true,
+    send: (message) =>
+      sendNew(message).finally(() => {
+        steeredAnswerIdRef.current = undefined;
+      }),
+    cancel: cancelRun,
+    // Stopping through the runtime also aborts client tools, but it hands an
+    // unanswered message back to the composer. A request with no answer yet
+    // has no tools to abort, so it stops here and the message stays put.
+    interrupt: () => {
+      const answer = chatHelpers.messages.at(-1);
+      if (answer?.role === "user") return cancelRun();
+      steeredAnswerIdRef.current = answer?.id;
+      return runtimeRef.current.thread.cancelRun();
+    },
+  });
+
   const hasSeededRepositoryRef = useRef(false);
   const shouldFeedRepository =
     exportedMessageRepository != null &&
@@ -1087,62 +1186,11 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       // Import into the thread's MessageRepository
       runtimeRef.current.thread.import(exportedRepo);
     },
-    onCancel: async () => {
-      const message = chatHelpers.messages.at(-1);
-      const cancelledId =
-        isRunning && message?.role === "assistant" ? message.id : undefined;
-      if (cancelledId) {
-        const liveIds = new Set(chatHelpers.messages.map((m) => m.id));
-        if (chatRuntimeState !== undefined && approvalOwner !== undefined) {
-          chatRuntimeState.cancelledMessageIds = new Set([
-            ...[...chatRuntimeState.cancelledMessageIds].filter((id) =>
-              liveIds.has(id),
-            ),
-            cancelledId,
-          ]);
-          notifyChatRuntimeState(approvalOwner);
-        } else {
-          setCancelledMessages((prev) => {
-            const kept =
-              prev?.chatId === chatHelpers.id
-                ? [...prev.ids].filter((id) => liveIds.has(id))
-                : [];
-            return {
-              chatId: chatHelpers.id,
-              ids: new Set([...kept, cancelledId]),
-            };
-          });
-        }
-      }
-      try {
-        await chatHelpers.stop();
-      } catch (error) {
-        if (!(error instanceof Error && error.name === "AbortError")) {
-          if (cancelledId) retractCancellation(chatHelpers.id, cancelledId);
-          throw error;
-        }
-      }
-    },
-    onNew: async (message) => {
-      const createMessage = (
-        customToCreateMessage ?? toCreateMessage
-      )<UI_MESSAGE>(message);
-
-      if (!(message.startRun ?? message.role === "user")) {
-        chatHelpers.setMessages((current) => [
-          ...current,
-          toUIMessage<UI_MESSAGE>(createMessage, message.role),
-        ]);
-        return;
-      }
-
-      lastRunConfigRef.current = message.runConfig;
-      await completePendingToolCalls();
-      await chatHelpers.sendMessage(createMessage, {
-        metadata: message.runConfig,
-      });
-    },
+    onCancel: messageQueue.cancel,
+    onNew: sendNew,
+    ...(messageQueue.adapter && { queue: messageQueue.adapter }),
     onEdit: async (message) => {
+      messageQueue.clear();
       const createMessage = (
         customToCreateMessage ?? toCreateMessage
       )<UI_MESSAGE>(message);
@@ -1213,6 +1261,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       );
     },
     onReload: async (parentId: string | null, config) => {
+      messageQueue.clear();
       lastRunConfigRef.current = config.runConfig;
       const newMessages = sliceMessagesUntil(
         chatHelpers.messages,
@@ -1254,7 +1303,13 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           ? wrapModelContentEnvelope(result, modelContent)
           : result;
 
-      if (targetIndex >= 0 && targetIndex !== chatHelpers.messages.length - 1) {
+      // The answer a steer stopped is not continued by sendAutomaticallyWhen
+      // once the tools the steer aborted report back.
+      if (
+        targetIndex >= 0 &&
+        (targetIndex !== chatHelpers.messages.length - 1 ||
+          chatHelpers.messages[targetIndex]!.id === steeredAnswerIdRef.current)
+      ) {
         const target = chatHelpers.messages[targetIndex]!;
         const targetPart = target.parts.find(
           (part) =>
