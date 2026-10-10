@@ -77,7 +77,10 @@ export function buildRulesets(policy, liveRulesets, teamIds) {
     id: requiredTeamId(teamIds, policy.teams.maintainers),
     type: "Team",
   };
-  const patterns = (area) => [...area.paths, ...area.contractDocs];
+  const patterns = (area) =>
+    [...area.paths, ...area.contractDocs].map((pattern) =>
+      pattern.includes("/") ? pattern : `/${pattern}`,
+    );
   const contractFloor = [
     ...new Set(policy.areas.map((area) => area.ownerTeam)),
   ].map((slug) => ({

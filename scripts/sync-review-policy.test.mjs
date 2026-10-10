@@ -315,8 +315,8 @@ test("ruleset updates replace only review floors and required checks", () => {
                     "packages/assistant-stream/**",
                     "api-surface/**",
                     ".github/**",
-                    "CONTRIBUTING.md",
-                    "AGENTS.md",
+                    "/CONTRIBUTING.md",
+                    "/AGENTS.md",
                     "scripts/review-tier.mjs",
                     "scripts/diff-api-surface.mjs",
                     "scripts/sync-review-policy.mjs",
@@ -366,8 +366,8 @@ test("contract review floors group each owner team's paths and contract docs", (
         "apps/docs/content/docs/store/**",
         "api-surface/**",
         ".github/**",
-        "CONTRIBUTING.md",
-        "AGENTS.md",
+        "/CONTRIBUTING.md",
+        "/AGENTS.md",
         "scripts/review-tier.mjs",
         "scripts/diff-api-surface.mjs",
         "scripts/sync-review-policy.mjs",
@@ -383,6 +383,18 @@ test("contract review floors group each owner team's paths and contract docs", (
       reviewer: { id: 2, type: "Team" },
     },
   ]);
+});
+
+test("required reviewer patterns anchor root-only policy files", () => {
+  const updates = buildRulesets(policy, liveRulesets, teamIds);
+  const patterns =
+    updates[1].payload.rules[0].parameters.required_reviewers[0].file_patterns;
+
+  assert.ok(patterns.includes("/AGENTS.md"));
+  assert.ok(patterns.includes("/CONTRIBUTING.md"));
+  assert.ok(patterns.includes(".github/**"));
+  assert.ok(!patterns.includes("AGENTS.md"));
+  assert.ok(!patterns.includes("CONTRIBUTING.md"));
 });
 
 test("review tier enforcement and the merge queue follow the policy", () => {
