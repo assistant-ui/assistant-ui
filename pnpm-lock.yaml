@@ -4733,6 +4733,9 @@ importers:
       '@types/react':
         specifier: ^19.3.0
         version: 19.3.0
+      generative-frame:
+        specifier: workspace:*
+        version: link:../generative-frame
       jsdom:
         specifier: ^30.1.2
         version: 30.1.2

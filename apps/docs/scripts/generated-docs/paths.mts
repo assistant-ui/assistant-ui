@@ -29,6 +29,7 @@ export const GENERATIVE_UI_TEAMS_INDEX = path.join(
   "teams.ts",
 );
 export const GENERATIVE_UI_A2UI_INDEX = path.join(GENERATIVE_UI_PKG, "a2ui.ts");
+export const GENERATIVE_UI_SPEC_INDEX = path.join(GENERATIVE_UI_PKG, "spec.ts");
 
 export const TYPE_DOCS_INPUT = path.join(
   DOCS_ROOT,

@@ -320,6 +320,30 @@ Once answered, a `prompt_user` locks its controls and shows the submitted values
 
 Without a registry, the tree still renders and model-emitted actions degrade to a no-op.
 
+## Spec mode
+
+In [generative-frame's spec mode](/generative-frame/docs/spec-mode), the model builds the UI as a flat spec, streamed as JSON Patch lines, with state, bindings, and validation. `toSpecCatalog` from `@assistant-ui/generative-ui/spec` turns a library into the catalog and components spec mode takes, so the default vocabulary, or a styled library, renders there too. Install `generative-frame` alongside it:
+
+```tsx
+import { createWidgetToolkit } from "generative-frame/assistant-ui";
+import { createSpecToolkit } from "generative-frame/spec/assistant-ui";
+import { defaultGenerativeUILibrary } from "@assistant-ui/generative-ui/react";
+import { toSpecCatalog } from "@assistant-ui/generative-ui/spec";
+
+const { catalog, components } = toSpecCatalog(defaultGenerativeUILibrary, {
+  actions: { purchase: { description: "Buys the plan in `sku`." } },
+});
+
+const widgets = createWidgetToolkit({
+  spec: createSpecToolkit(catalog, {
+    components,
+    handlers: { purchase: (params) => checkout(params) },
+  }),
+});
+```
+
+A spec element binds behavior with `on` instead of carrying `_action`. A `Button` and a `ListViewItem` emit `press`, the value controls emit `change` (an `Input` emits `submit`), a `Form` emits `submit`, and a `Card` emits `confirm` and `cancel` from its footer buttons. The payload, which `{ "$event": "" }` reads, is the control's value, or every named control's value when a `Form` emits `submit` or a `Card` with `asForm` emits `confirm`. A control whose value prop (`defaultValue`, `defaultChecked`, or a `DatePicker`'s `value`) is bound with `$bindState` follows that state and writes every change back to it, inside a `Form` too. Declare host actions through `actions` so the model can bind them; `setState` is always available.
+
 ## Charts
 
 `Chart` accepts positive and negative values. Its scale always includes zero, so bars grow upward or downward from the zero line, areas fill to that line, and stacked bars and areas keep positive and negative totals on their respective sides. A chart that contains both positive and negative values draws a zero baseline. When `showAxis` is set, the ticks include zero and use round values for a mixed domain.
