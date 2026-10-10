@@ -113,6 +113,18 @@ afterEach(() => {
 });
 
 describe("canvas", () => {
+  it("toggles from the switcher's canvas button", () => {
+    renderPage();
+    const button = switcher().getByRole("button", { name: "Canvas" });
+    expect(button.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(button);
+    expect(dialog()).not.toBeNull();
+    expect(button.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(button);
+    expect(dialog()).toBeNull();
+    expect(button.getAttribute("aria-pressed")).toBe("false");
+  });
+
   it("opens from the switcher with one row per group in page order", () => {
     renderPage();
     expect(dialog()).toBeNull();
@@ -376,6 +388,43 @@ describe("sidebar", () => {
     expect(html.hasAttribute("style")).toBe(false);
   });
 
+  it("resizes from its edge and keeps the width for the tab", () => {
+    renderPage();
+    const handle = switcher().getByRole("separator", {
+      name: "Resize variant switcher",
+    });
+    expect(handle.getAttribute("aria-valuenow")).toBe("300");
+    fireEvent.keyDown(handle, { key: "ArrowLeft" });
+    expect(pushed()).toBe("316px");
+    fireEvent.keyDown(handle, { key: "ArrowRight", shiftKey: true });
+    expect(pushed()).toBe("260px");
+    handle.setPointerCapture = () => {};
+    fireEvent.pointerDown(handle, { button: 0, clientX: 500, pointerId: 1 });
+    fireEvent.pointerMove(handle, { clientX: 400, pointerId: 1 });
+    fireEvent.pointerUp(handle, { pointerId: 1 });
+    expect(pushed()).toBe("360px");
+    expect(handle.getAttribute("aria-valuenow")).toBe("360");
+    expect(window.sessionStorage.getItem("variants:sidebar-width")).toBe("360");
+    cleanup();
+    store.reset();
+    renderPage();
+    expect(pushed()).toBe("360px");
+  });
+
+  it("animates a toggle but not the first render", () => {
+    renderPage();
+    const panel = () =>
+      document
+        .querySelector("[data-variants-switcher]")!
+        .shadowRoot!.querySelector(".panel, .pill")!;
+    expect(panel().hasAttribute("data-enter")).toBe(false);
+    fireEvent.click(
+      switcher().getByRole("button", { name: "Collapse variant switcher" }),
+    );
+    expect(panel().hasAttribute("data-enter")).toBe(true);
+    expect(html.hasAttribute("data-variants-animating")).toBe(true);
+  });
+
   it("adds no margin in clean or noui mode", () => {
     setUrl("?variants=noui");
     renderPage();
@@ -572,11 +621,12 @@ describe("copy prompt", () => {
     );
   });
 
-  it("copies from the canvas toolbar with the current selections", async () => {
+  it("copies the canvas selection from the switcher, the one copy control", async () => {
     renderPage();
     openFromSwitcher();
     fireEvent.click(card("hero", "centered"));
-    fireEvent.click(toolbar().getByRole("button", { name: "Copy prompt" }));
+    expect(toolbar().queryByRole("button", { name: "Copy prompt" })).toBeNull();
+    fireEvent.click(switcher().getByRole("button", { name: "Copy prompt" }));
     await flush();
     expect(writeText).toHaveBeenCalledWith(
       "/variants choose hero:centered cta:button tone:loud",

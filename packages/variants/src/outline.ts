@@ -215,13 +215,13 @@ export const layoutFrames = (
 const CSS = `
 :host {
   all: initial; position: fixed; inset: 0; pointer-events: none; z-index: 2147483646;
-  --stroke: rgb(217 119 6 / 0.7); --stroke-strong: #d97706;
-  --tab-bg: #ffffff; --tab-border: #e4e4e7; --fg: #18181b; --fg-muted: #71717a; --accent: #d97706;
+  --stroke: rgb(234 88 12 / 0.65); --stroke-strong: #ea580c; --fill-hover: rgb(234 88 12 / 0.04);
+  --tab-bg: #fffcf8; --tab-border: #ebe3d8; --fg: #18181b; --fg-muted: #71717a; --accent: #ea580c;
 }
 @media (prefers-color-scheme: dark) {
   :host {
-    --stroke: rgb(251 191 36 / 0.6); --stroke-strong: #fbbf24;
-    --tab-bg: #18181b; --tab-border: #3f3f46; --fg: #fafafa; --fg-muted: #a1a1aa; --accent: #fbbf24;
+    --stroke: rgb(251 146 60 / 0.6); --stroke-strong: #fb923c; --fill-hover: rgb(251 146 60 / 0.05);
+    --tab-bg: #161210; --tab-border: #3a3129; --fg: #fafafa; --fg-muted: #a1a1aa; --accent: #fb923c;
   }
 }
 .box {
@@ -229,7 +229,7 @@ const CSS = `
   border: 1px dashed var(--stroke); border-radius: 0;
 }
 .box[data-nested] { border-style: dotted; }
-.box[data-hover] { border-color: var(--stroke-strong); }
+.box[data-hover] { border-color: var(--stroke-strong); background: var(--fill-hover); }
 [data-empty] { display: none; }
 button {
   all: unset; box-sizing: border-box; position: absolute; top: 0; left: 0;
@@ -249,7 +249,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .name { overflow: hidden; text-overflow: ellipsis; }
 [data-mode="hover"]:not([data-hover]) { opacity: 0; visibility: hidden; }
 @media (prefers-reduced-motion: no-preference) {
-  .box { transition: border-color 150ms ease, opacity 150ms ease, visibility 150ms; }
+  .box { transition: border-color 150ms ease, background-color 150ms ease, opacity 150ms ease, visibility 150ms; }
   button { transition: opacity 150ms ease, visibility 150ms; }
 }
 `;
@@ -259,9 +259,7 @@ type Region = {
   info: RegionInfo;
   rect: Rect | undefined;
   observed: Element[];
-  parents: Node[];
   resize: ResizeObserver | undefined;
-  mutation: MutationObserver | undefined;
   box: HTMLElement;
   /** The frame and its tab together, so the pointer can cross from one to the other. */
   reach?: Rect | undefined;
@@ -331,21 +329,6 @@ const measure = (region: Region) => {
     region.observed = observed;
     region.resize?.disconnect();
     for (const element of observed) region.resize?.observe(element);
-  }
-  const parents = [
-    ...new Set(nodes.map((node) => node.parentNode).filter(Boolean)),
-  ] as Node[];
-  if (!sameList(parents, region.parents)) {
-    region.parents = parents;
-    region.mutation?.disconnect();
-    for (const parent of parents) {
-      region.mutation?.observe(parent, {
-        childList: true,
-        subtree: true,
-        characterData: true,
-        attributeFilter: ["class", "style", "hidden"],
-      });
-    }
   }
 };
 
@@ -488,6 +471,16 @@ const getLayer = (): Layer => {
     created.pointer = undefined;
     updateHover(created);
   };
+  // A region moves without resizing when anything before it changes size,
+  // which neither its own observers nor scroll or resize events report.
+  const pageResize =
+    typeof ResizeObserver === "function"
+      ? new ResizeObserver(schedule)
+      : undefined;
+  const pageMutation =
+    typeof MutationObserver === "function"
+      ? new MutationObserver(schedule)
+      : undefined;
   const created: Layer = {
     host,
     root,
@@ -499,6 +492,12 @@ const getLayer = (): Layer => {
     hoverFrame: undefined,
     schedule,
     dispose() {
+      pageResize?.disconnect();
+      pageMutation?.disconnect();
+      document.fonts?.removeEventListener("loadingdone", schedule);
+      window.removeEventListener("load", schedule, true);
+      window.removeEventListener("transitionend", schedule, true);
+      window.removeEventListener("animationend", schedule, true);
       window.removeEventListener("scroll", schedule, true);
       window.removeEventListener("resize", schedule);
       window.removeEventListener("pointermove", onPointerMove);
@@ -512,6 +511,17 @@ const getLayer = (): Layer => {
       layer = undefined;
     },
   };
+  pageResize?.observe(document.documentElement);
+  pageMutation?.observe(document.body, {
+    childList: true,
+    subtree: true,
+    characterData: true,
+    attributeFilter: ["class", "style", "hidden", "open"],
+  });
+  document.fonts?.addEventListener("loadingdone", schedule);
+  window.addEventListener("load", schedule, true);
+  window.addEventListener("transitionend", schedule, true);
+  window.addEventListener("animationend", schedule, true);
   window.addEventListener("scroll", schedule, { capture: true, passive: true });
   window.addEventListener("resize", schedule, { passive: true });
   window.addEventListener("pointermove", onPointerMove, { passive: true });
@@ -546,14 +556,9 @@ export const trackRegion = (
     info,
     rect: undefined,
     observed: [],
-    parents: [],
     resize:
       typeof ResizeObserver === "function"
         ? new ResizeObserver(current.schedule)
-        : undefined,
-    mutation:
-      typeof MutationObserver === "function"
-        ? new MutationObserver(current.schedule)
         : undefined,
     box,
     tab,
@@ -564,7 +569,6 @@ export const trackRegion = (
 
   return () => {
     region.resize?.disconnect();
-    region.mutation?.disconnect();
     box.remove();
     tab.remove();
     current.regions.delete(region);
