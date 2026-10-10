@@ -2,7 +2,7 @@ import { toJSONSchema } from "assistant-stream";
 import type { JSONSchema7, JSONSchema7Definition } from "json-schema";
 import { isReservedKey, MODEL_KEYS } from "./constants";
 import type { GenerativeUILibrary } from "./types";
-import { scopeSchema } from "./scopeSchema";
+import { mapSubschemas, scopeSchema } from "./scopeSchema";
 import { isDefaultGenerativeUIComponent } from "./defaultGenerativeUIComponents";
 
 /**
@@ -87,7 +87,7 @@ export function buildPresentParameters(
       // eslint-disable-next-line no-console
       console.warn(
         `[@assistant-ui/generative-ui] Prop "${key}" is declared by ` +
-          `${formatList(owners)}; combining their schemas in the ` +
+          `${formatComponentList(owners)}; combining their schemas in the ` +
           "model hint.",
       );
     }
@@ -144,16 +144,13 @@ export function buildPresentParameters(
   };
 
   if (process.env["NODE_ENV"] !== "production") {
-    const rejected = [...collectPropertyNames(parameters)].filter(
-      (name) => !PORTABLE_PROPERTY_NAME.test(name),
-    );
-    if (rejected.length > 0) {
+    for (const name of collectPropertyNames(parameters)) {
+      if (PORTABLE_PROPERTY_NAME.test(name)) continue;
       // eslint-disable-next-line no-console
       console.warn(
-        `[@assistant-ui/generative-ui] ${rejected.length === 1 ? "Prop name" : "Prop names"} ` +
-          `${formatList(rejected)} ${rejected.length === 1 ? "does" : "do"} ` +
-          `not match ${PORTABLE_PROPERTY_NAME.source}, so Anthropic models ` +
-          "reject the whole `present` schema.",
+        `[@assistant-ui/generative-ui] Prop "${name}" does not match ` +
+          `${PORTABLE_PROPERTY_NAME.source}, so Anthropic models reject the ` +
+          "whole `present` schema.",
       );
     }
   }
@@ -163,27 +160,16 @@ export function buildPresentParameters(
 
 const PORTABLE_PROPERTY_NAME = /^[a-zA-Z0-9_.-]{1,64}$/;
 
-const SCHEMA_DATA_KEYWORDS = new Set(["const", "default", "enum", "examples"]);
-
 function collectPropertyNames(
-  schema: unknown,
+  schema: JSONSchema7Definition,
   names = new Set<string>(),
 ): Set<string> {
-  if (Array.isArray(schema)) {
-    for (const item of schema) collectPropertyNames(item, names);
-  } else if (schema !== null && typeof schema === "object") {
-    for (const [key, value] of Object.entries(schema)) {
-      if (SCHEMA_DATA_KEYWORDS.has(key)) continue;
-      if (key === "properties" && value !== null && typeof value === "object") {
-        for (const [name, property] of Object.entries(value)) {
-          names.add(name);
-          collectPropertyNames(property, names);
-        }
-      } else {
-        collectPropertyNames(value, names);
-      }
-    }
-  }
+  if (typeof schema === "boolean") return names;
+  for (const name of Object.keys(schema.properties ?? {})) names.add(name);
+  mapSubschemas(schema, (subschema) => {
+    collectPropertyNames(subschema, names);
+    return subschema;
+  });
   return names;
 }
 
@@ -203,7 +189,7 @@ function canonicalSerialize(value: unknown): string {
   return JSON.stringify(value) ?? String(value);
 }
 
-function formatList(names: string[]) {
+function formatComponentList(names: string[]) {
   if (names.length <= 2) return names.map((name) => `"${name}"`).join(" and ");
 
   return `${names

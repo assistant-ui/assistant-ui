@@ -10,60 +10,71 @@ type TraversableSchema = JSONSchema7 & {
   contentSchema?: JSONSchema7Definition;
 };
 
+/**
+ * Copies a schema with each direct subschema replaced by `visit(subschema)`.
+ * Only schema-bearing keywords are traversed; defaults and examples are data.
+ */
+export function mapSubschemas(
+  schema: JSONSchema7,
+  visit: (definition: JSONSchema7Definition) => JSONSchema7Definition,
+): JSONSchema7 {
+  const source = schema as TraversableSchema;
+  const result: TraversableSchema = { ...source };
+  for (const key of [
+    "properties",
+    "patternProperties",
+    "definitions",
+    "$defs",
+    "dependentSchemas",
+  ] as const) {
+    const entries = source[key];
+    if (entries)
+      result[key] = Object.fromEntries(
+        Object.entries(entries).map(([name, value]) => [name, visit(value)]),
+      );
+  }
+  for (const key of ["allOf", "anyOf", "oneOf", "prefixItems"] as const) {
+    if (source[key]) result[key] = source[key].map(visit);
+  }
+  for (const key of [
+    "additionalProperties",
+    "additionalItems",
+    "unevaluatedProperties",
+    "unevaluatedItems",
+    "contentSchema",
+    "contains",
+    "propertyNames",
+    "not",
+    "if",
+    "then",
+    "else",
+  ] as const) {
+    const value = source[key];
+    if (value !== undefined) result[key] = visit(value);
+  }
+  if (source.items !== undefined)
+    result.items = Array.isArray(source.items)
+      ? source.items.map(visit)
+      : visit(source.items);
+  if (source.dependencies)
+    result.dependencies = Object.fromEntries(
+      Object.entries(source.dependencies).map(([name, value]) => [
+        name,
+        Array.isArray(value) ? value : visit(value),
+      ]),
+    );
+  return result;
+}
+
 export function scopeSchema(schema: JSONSchema7, path: string) {
   let referenced = false;
   const visit = (definition: JSONSchema7Definition): JSONSchema7Definition => {
     if (typeof definition === "boolean") return definition;
-    const schema = definition as TraversableSchema;
-    const result = { ...schema };
-    if (schema.$ref === "#" || schema.$ref?.startsWith("#/")) {
+    const result = mapSubschemas(definition, visit);
+    if (definition.$ref === "#" || definition.$ref?.startsWith("#/")) {
       referenced = true;
-      result.$ref = path + schema.$ref.slice(1);
+      result.$ref = path + definition.$ref.slice(1);
     }
-    // Only schema-bearing keywords are traversed; defaults and examples are data.
-    for (const key of [
-      "properties",
-      "patternProperties",
-      "definitions",
-      "$defs",
-      "dependentSchemas",
-    ] as const) {
-      const entries = schema[key];
-      if (entries)
-        result[key] = Object.fromEntries(
-          Object.entries(entries).map(([name, value]) => [name, visit(value)]),
-        );
-    }
-    for (const key of ["allOf", "anyOf", "oneOf", "prefixItems"] as const) {
-      if (schema[key]) result[key] = schema[key].map(visit);
-    }
-    for (const key of [
-      "additionalProperties",
-      "additionalItems",
-      "unevaluatedProperties",
-      "unevaluatedItems",
-      "contentSchema",
-      "contains",
-      "propertyNames",
-      "not",
-      "if",
-      "then",
-      "else",
-    ] as const) {
-      const value = schema[key];
-      if (value !== undefined) result[key] = visit(value);
-    }
-    if (schema.items !== undefined)
-      result.items = Array.isArray(schema.items)
-        ? schema.items.map(visit)
-        : visit(schema.items);
-    if (schema.dependencies)
-      result.dependencies = Object.fromEntries(
-        Object.entries(schema.dependencies).map(([name, value]) => [
-          name,
-          Array.isArray(value) ? value : visit(value),
-        ]),
-      );
     return result;
   };
   const scoped = visit(schema) as JSONSchema7;

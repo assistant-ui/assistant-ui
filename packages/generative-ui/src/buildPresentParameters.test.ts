@@ -451,10 +451,10 @@ describe("provider-portable property names", () => {
           }),
         ),
       });
-      expect(warn).toHaveBeenCalledOnce();
-      expect(warn.mock.calls[0]?.[0]).toContain(
-        'Prop names "data:id" and "$action" do not match',
-      );
+      expect(warn.mock.calls.map(([message]) => message)).toEqual([
+        expect.stringContaining('Prop "data:id" does not match'),
+        expect.stringContaining('Prop "$action" does not match'),
+      ]);
     } finally {
       warn.mockRestore();
     }
