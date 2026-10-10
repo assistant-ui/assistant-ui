@@ -61,6 +61,18 @@ export type CreateWidgetOptions = WidgetHandlers & {
   /** A preconfigured `SafeContentFrame`, for example with `useShadowDom`. */
   frame?: SafeContentFrame;
   /**
+   * Loads the Safe Content Frame shim from a domain you host instead of
+   * `scf.auiusercontent.com`. Widgets are isolated from your app and from each
+   * other only when the domain is a public suffix on the Public Suffix List.
+   */
+  unsafeShimDomain?: string;
+  /**
+   * Renders in a `sandbox="allow-scripts"` frame with an opaque (`null`)
+   * origin instead of Safe Content Frame: no shim domain, and no storage or
+   * cookies. Cannot be combined with `id`, `frame`, or `unsafeShimDomain`.
+   */
+  opaqueOrigin?: boolean;
+  /**
    * Gives the widget a stable origin, so its localStorage, IndexedDB, and
    * cookies persist across reloads for this id on this host origin. Choose
    * it on the host (never from model output); widgets with the same id share
@@ -127,20 +139,69 @@ const DEFAULT_PRODUCT = "generative-frame";
 /** The Safe Content Frame salt behind a widget id's stable origin. */
 export const widgetStorageSalt = (id: string) => `genframe:v1:${id}`;
 
+type FrameRenderer = {
+  renderHtml(html: string, container: HTMLElement): Promise<RenderedFrame>;
+};
+
+/**
+ * An opaque origin cannot be named as a `postMessage` target, so messages to
+ * the frame use `"*"`; the host accepts messages only from this iframe's
+ * window with origin `"null"`.
+ */
+const opaqueFrame: FrameRenderer = {
+  async renderHtml(html, container) {
+    const iframe = container.ownerDocument.createElement("iframe");
+    iframe.setAttribute("sandbox", "allow-scripts");
+    iframe.style.cssText = "border:none;width:100%;height:100%";
+    iframe.srcdoc = html;
+    container.appendChild(iframe);
+    return {
+      iframe,
+      origin: "null",
+      sendMessage: (data, transfer) =>
+        iframe.contentWindow?.postMessage(data, "*", transfer),
+      fullyLoadedPromiseWithTimeout: async () => {},
+      dispose: () => iframe.remove(),
+    };
+  },
+};
+
 const resolveFrame = (
-  options: Pick<CreateWidgetOptions, "frame" | "id" | "product">,
-) => {
-  if (options.frame && options.id !== undefined) {
+  options: Pick<
+    CreateWidgetOptions,
+    "frame" | "id" | "product" | "unsafeShimDomain" | "opaqueOrigin"
+  >,
+): FrameRenderer => {
+  if (options.opaqueOrigin) {
+    if (
+      options.frame ||
+      options.id !== undefined ||
+      options.unsafeShimDomain !== undefined
+    ) {
+      throw new TypeError(
+        "`opaqueOrigin` renders without Safe Content Frame, so it cannot be combined with `frame`, `id`, or `unsafeShimDomain`.",
+      );
+    }
+    return opaqueFrame;
+  }
+  if (
+    options.frame &&
+    (options.id !== undefined || options.unsafeShimDomain !== undefined)
+  ) {
     throw new TypeError(
-      "Pass either `frame` or `id` to createWidget; for both, build the frame with `salt: widgetStorageSalt(id)`.",
+      "Pass either `frame` or `id`/`unsafeShimDomain` to createWidget; for both, build the frame with `salt: widgetStorageSalt(id)` and `unsafeShimDomain`.",
     );
   }
   return (
     options.frame ??
-    new SafeContentFrame(
-      options.product ?? DEFAULT_PRODUCT,
-      options.id !== undefined ? { salt: widgetStorageSalt(options.id) } : {},
-    )
+    new SafeContentFrame(options.product ?? DEFAULT_PRODUCT, {
+      ...(options.id !== undefined
+        ? { salt: widgetStorageSalt(options.id) }
+        : {}),
+      ...(options.unsafeShimDomain !== undefined
+        ? { unsafeShimDomain: options.unsafeShimDomain }
+        : {}),
+    })
   );
 };
 
@@ -707,7 +768,10 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
  */
 export async function clearWidgetStorage(
   id: string,
-  options: Pick<CreateWidgetOptions, "product" | "readyTimeoutMs"> = {},
+  options: Pick<
+    CreateWidgetOptions,
+    "product" | "unsafeShimDomain" | "readyTimeoutMs"
+  > = {},
 ): Promise<ClearStorageResult> {
   const container = document.createElement("div");
   container.setAttribute("aria-hidden", "true");

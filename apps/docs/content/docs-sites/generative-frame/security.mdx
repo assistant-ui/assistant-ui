@@ -11,6 +11,31 @@ Each HTML or SVG widget renders in a [Safe Content Frame](/safe-content-frame). 
 
 `product` scopes the frame origin (it defaults to `"generative-frame"`), and `frame` accepts a preconfigured `SafeContentFrame`, for example one with `useShadowDom`.
 
+### Hosting the shim yourself
+
+`unsafeShimDomain` loads the shim from `https://<hash>-h184756.<domain>/<product>/shim.html` on a domain you serve instead of `scf.auiusercontent.com`:
+
+```ts
+createWidget({ container, unsafeShimDomain: "frames.example-usercontent.com" });
+```
+
+The isolation boundary holds only if `<domain>` is a public suffix on the [Public Suffix List](https://publicsuffix.org/). Otherwise browsers treat every hashed subdomain as the same site: widgets share cookies and a renderer process with each other, and with your app if it lives under the same registrable domain, where a widget can read and set cookies scoped to that domain. Use a dedicated domain, and get it on the list before you rely on it.
+
+### Opaque-origin frames
+
+`opaqueOrigin: true` skips Safe Content Frame and renders the bootstrap document with `srcdoc` in an iframe sandboxed with `allow-scripts` only. The frame's origin is `null`, so widget code cannot reach your page, its own storage, or cookies, and nothing is loaded from a shim domain.
+
+```ts
+createWidget({ container, opaqueOrigin: true });
+```
+
+The tradeoffs:
+
+- **No storage.** `localStorage`, `sessionStorage`, IndexedDB, and cookies throw or stay empty, so `id` and `clearWidgetStorage` do not apply, and widgets that expect storage fail.
+- **Your page's policy applies.** A `srcdoc` document inherits the Content Security Policy of the page that embeds it, on top of the widget policy, so a strict host policy can block the CDN scripts widgets load.
+- **Process isolation is weaker.** Desktop Chrome puts sandboxed frames in a process apart from your app, but all of them share it; a Safe Content Frame gets a process of its own.
+- **Messages to the frame are untargeted.** A `null` origin cannot be named as a `postMessage` target, so the host posts with `"*"` and accepts messages only from that iframe's window with origin `null`.
+
 ## How code reaches the frame
 
 The frame loads one bootstrap document: the Content Security Policy, the theme, and the in-frame runtime. The runtime announces itself to the host origin baked into that document, and the host answers once with a `MessageChannel` port. Widget code then streams over that private port as JSON-RPC 2.0 messages.

@@ -12,6 +12,15 @@ export interface SafeContentFrameOptions {
   enableBrowserCaching?: boolean;
   sandbox?: SandboxOption[];
   salt?: string;
+  /**
+   * Serves the shim from `https://<hash>-h184756.<domain>/<product>/shim.html`
+   * instead of `scf.auiusercontent.com`. Frames are isolated from your app and
+   * from each other only when `<domain>` is a public suffix on the Public
+   * Suffix List; otherwise every frame shares a site, and with it cookies and
+   * a browser process, with the others and with any app under the same
+   * registrable domain.
+   */
+  unsafeShimDomain?: string;
 }
 
 export interface SafeContentFrameRenderOptions {
@@ -74,7 +83,7 @@ export function isShimLoadError(error: unknown): error is ShimLoadError {
   );
 }
 
-const SCF_HOST = "scf.auiusercontent.com";
+const DEFAULT_SHIM_DOMAIN = "scf.auiusercontent.com";
 const PRODUCT_HASH = "h184756";
 
 async function sha256(data: ArrayBuffer): Promise<ArrayBuffer> {
@@ -191,7 +200,7 @@ export class SafeContentFrame {
     signal?.throwIfAborted();
     const hash = await computeOriginHash(this.product, salt, origin);
     signal?.throwIfAborted();
-    const shimUrl = `https://${hash}-${PRODUCT_HASH}.${SCF_HOST}/${this.product}/shim.html?origin=${encodeURIComponent(origin)}${this.options.enableBrowserCaching ? "&cache=1" : ""}`;
+    const shimUrl = `https://${hash}-${PRODUCT_HASH}.${this.options.unsafeShimDomain ?? DEFAULT_SHIM_DOMAIN}/${this.product}/shim.html?origin=${encodeURIComponent(origin)}${this.options.enableBrowserCaching ? "&cache=1" : ""}`;
     const iframeOrigin = new URL(shimUrl).origin;
 
     const iframe = document.createElement("iframe");

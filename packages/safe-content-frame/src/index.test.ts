@@ -99,6 +99,30 @@ describe("SafeContentFrame", () => {
     );
   });
 
+  it("loads the shim from unsafeShimDomain", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const renderer = new SafeContentFrame("test", {
+      salt: "fixed",
+      unsafeShimDomain: "frames.example.com",
+    });
+    const framePromise = renderer.renderHtml("<p>Hello</p>", container);
+    await vi.waitFor(() => {
+      expect(container.querySelector("iframe")).toBeTruthy();
+    });
+    const iframe = container.querySelector("iframe")!;
+    const url = new URL(iframe.src);
+    expect(url.hostname).toMatch(
+      /^[0-9a-z]{50}-h184756\.frames\.example\.com$/,
+    );
+    expect(url.pathname).toBe("/test/shim.html");
+    setContentWindow(iframe);
+    iframe.dispatchEvent(new Event("load"));
+    const frame = await framePromise;
+    expect(frame.origin).toBe(url.origin);
+    frame.dispose();
+  });
+
   it("accepts raw multibyte pathnames from custom location providers", async () => {
     vi.stubGlobal("location", {
       origin: window.location.origin,

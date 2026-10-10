@@ -77,3 +77,5 @@ Site isolation varies by platform. Chrome on Android applies it only to some sit
 ## The isolation domain
 
 assistant-ui operates `scf.auiusercontent.com` as a public utility for anyone rendering untrusted HTML.
+
+To serve the shim from your own domain, pass `unsafeShimDomain`. The option is named unsafe because the scheme above depends on the domain being a public suffix: without a Public Suffix List entry, every hashed subdomain belongs to the same site, so frames share cookies and a process with each other and with any app under the same registrable domain.

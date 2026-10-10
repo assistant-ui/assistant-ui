@@ -393,6 +393,64 @@ describe("widget ids", () => {
     ]);
   });
 
+  it("passes unsafeShimDomain to Safe Content Frame", () => {
+    setupWithId({ id: "a", unsafeShimDomain: "frames.example.com" });
+    expect(mocks.constructed[0]!.options).toEqual({
+      salt: "genframe:v1:a",
+      unsafeShimDomain: "frames.example.com",
+    });
+  });
+
+  it("renders an opaque-origin frame without Safe Content Frame", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const widget = createWidget({ container, opaqueOrigin: true });
+    const iframe = await vi.waitFor(() => {
+      const found = container.querySelector("iframe");
+      expect(found).toBeTruthy();
+      return found!;
+    });
+    expect(mocks.constructed).toHaveLength(0);
+    expect(iframe.getAttribute("sandbox")).toBe("allow-scripts");
+    expect(iframe.srcdoc).toContain("<html");
+
+    const postMessage = vi.spyOn(iframe.contentWindow!, "postMessage");
+    const ready = {
+      data: { type: READY_MESSAGE },
+      source: iframe.contentWindow,
+    };
+    window.dispatchEvent(
+      new MessageEvent("message", { ...ready, origin: ORIGIN }),
+    );
+    expect(postMessage).not.toHaveBeenCalled();
+    window.dispatchEvent(
+      new MessageEvent("message", { ...ready, origin: "null" }),
+    );
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: INIT_MESSAGE }),
+      "*",
+      [expect.any(MessagePort)],
+    );
+    const port = (postMessage.mock.calls[0] as unknown[])[2] as [MessagePort];
+    ports.push(port[0]);
+    createRpcPeer(port[0], {}).notify(METHODS.ready, { version: "test" });
+    await expect(widget.ready).resolves.toBeUndefined();
+    widget.dispose();
+  });
+
+  it("rejects opaqueOrigin with options that need Safe Content Frame", () => {
+    const container = document.createElement("div");
+    for (const options of [
+      { id: "a" },
+      { frame: createFakeFrame().frame },
+      { unsafeShimDomain: "frames.example.com" },
+    ]) {
+      expect(() =>
+        createWidget({ container, opaqueOrigin: true, ...options }),
+      ).toThrow(TypeError);
+    }
+  });
+
   it("rejects an id together with a preconfigured frame", () => {
     const container = document.createElement("div");
     expect(() =>

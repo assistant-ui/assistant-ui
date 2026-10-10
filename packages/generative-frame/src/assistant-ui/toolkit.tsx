@@ -259,7 +259,7 @@ export function createWidgetToolkit(
   }) {
     const widgetProps = useWidgetProps();
     const { ref, widget } = useWidget(
-      storageId !== undefined && !widgetProps.frame
+      storageId !== undefined && !widgetProps.frame && !widgetProps.opaqueOrigin
         ? { ...widgetProps, id: storageId }
         : widgetProps,
     );

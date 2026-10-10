@@ -9,7 +9,14 @@ import { createWidget, type CreateWidgetOptions } from "./widget";
 
 export type PreviewOptions = Pick<
   CreateWidgetOptions,
-  "product" | "frame" | "id" | "csp" | "css" | "readyTimeoutMs"
+  | "product"
+  | "frame"
+  | "id"
+  | "unsafeShimDomain"
+  | "opaqueOrigin"
+  | "csp"
+  | "css"
+  | "readyTimeoutMs"
 > & {
   /** Layout width in CSS pixels. Defaults to 680. */
   width?: number;
@@ -60,6 +67,12 @@ export async function previewWidget(
     ...(options.product !== undefined ? { product: options.product } : {}),
     ...(options.frame !== undefined ? { frame: options.frame } : {}),
     ...(options.id !== undefined ? { id: options.id } : {}),
+    ...(options.unsafeShimDomain !== undefined
+      ? { unsafeShimDomain: options.unsafeShimDomain }
+      : {}),
+    ...(options.opaqueOrigin !== undefined
+      ? { opaqueOrigin: options.opaqueOrigin }
+      : {}),
     ...(options.csp !== undefined ? { csp: options.csp } : {}),
     ...(options.css !== undefined ? { css: options.css } : {}),
     ...(options.readyTimeoutMs !== undefined
