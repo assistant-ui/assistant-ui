@@ -157,7 +157,6 @@ const useOpenCodeThreadStore = (
     (current) => current.threadListItem.title,
   );
   useOpenCodeThreadListTitleSync(
-    controller,
     state.session?.title,
     threadListTitle,
     aui.threads.reload,

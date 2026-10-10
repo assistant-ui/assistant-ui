@@ -1,36 +1,22 @@
-import { useEffect, useRef } from "react";
-import type { OpenCodeThreadControllerLike } from "./types";
+import { useLatestRef } from "@assistant-ui/core/react/internal";
+import { useReplaySafeEffect } from "@assistant-ui/store/internal";
+
+// OpenCode's `Session.isDefaultTitle` format, which a session carries until OpenCode titles it on its first prompt.
+const DEFAULT_SESSION_TITLE =
+  /^(New session - |Child session - )\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 
 export const useOpenCodeThreadListTitleSync = (
-  controller: OpenCodeThreadControllerLike,
   sessionTitle: string | undefined,
   threadListTitle: string | undefined,
   reload: () => Promise<void>,
   enabled: boolean,
 ) => {
-  const lastReload = useRef<
-    { controller: OpenCodeThreadControllerLike; title: string } | undefined
-  >(undefined);
+  const latest = useLatestRef({ threadListTitle, reload });
 
-  useEffect(() => {
-    if (!enabled || typeof sessionTitle !== "string") {
-      lastReload.current = undefined;
-      return;
-    }
-    if (sessionTitle === threadListTitle) {
-      lastReload.current = undefined;
-      return;
-    }
-
-    const previous = lastReload.current;
-    if (
-      previous?.controller === controller &&
-      previous.title === sessionTitle
-    ) {
-      return;
-    }
-
-    lastReload.current = { controller, title: sessionTitle };
-    void reload();
-  }, [controller, enabled, reload, sessionTitle, threadListTitle]);
+  useReplaySafeEffect(() => {
+    if (!enabled || sessionTitle === undefined) return;
+    if (DEFAULT_SESSION_TITLE.test(sessionTitle)) return;
+    if (sessionTitle === latest.current.threadListTitle) return;
+    void latest.current.reload();
+  }, [enabled, sessionTitle, latest]);
 };

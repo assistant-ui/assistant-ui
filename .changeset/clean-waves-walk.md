@@ -2,4 +2,4 @@
 "@assistant-ui/react-opencode": patch
 ---
 
-Avoid calling the session compaction endpoint during title generation and refresh thread-list titles from native session updates.
+Stop calling OpenCode's session compaction endpoint to title threads, and update a thread's list title when OpenCode titles the session.

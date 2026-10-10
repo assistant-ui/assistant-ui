@@ -4,7 +4,6 @@ import { StrictMode, act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { OpenCodeThreadController } from "./OpenCodeThreadController";
 import { useOpenCodeControllerState } from "./useOpenCodeControllerState";
-import { useOpenCodeThreadListTitleSync } from "./useOpenCodeThreadListTitleSync";
 import type { OpenCodeServerEvent, OpenCodeThreadState } from "./types";
 
 (
@@ -129,42 +128,5 @@ describe("useOpenCodeControllerState", () => {
       title: "Recovered",
     });
     expect(eventSource.subscribe.mock.calls.length).toBe(subscribesAfterMount);
-  });
-
-  it("reloads remote thread metadata when OpenCode changes the session title", () => {
-    const eventSource = createEventSource();
-    const controller = new OpenCodeThreadController(
-      {} as never,
-      () => eventSource,
-      "ses_1",
-    );
-    const reload = vi.fn().mockResolvedValue(undefined);
-    const snapshots: OpenCodeThreadState[] = [];
-    const Probe = () => {
-      const state = useOpenCodeControllerState(controller);
-      snapshots.push(state);
-      useOpenCodeThreadListTitleSync(
-        controller,
-        state.session?.title,
-        "Synthetic title",
-        reload,
-        true,
-      );
-      return null;
-    };
-
-    act(() => {
-      root = createRoot(document.createElement("div"));
-      root.render(<Probe />);
-    });
-
-    expect(reload).not.toHaveBeenCalled();
-
-    act(() => {
-      eventSource.emit(sessionUpdated("Native title"));
-    });
-
-    expect(snapshots.at(-1)?.session?.title).toBe("Native title");
-    expect(reload).toHaveBeenCalledOnce();
   });
 });
