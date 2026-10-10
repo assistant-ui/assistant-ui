@@ -136,6 +136,73 @@ describe("RemoteThreadListThreadListRuntimeCore title generation", () => {
     expect(core.getItemById("thread-1")?.title).toBe("Existing title");
   });
 
+  it("waits for a replacement list before generating a title", async () => {
+    const replacementList = deferred<{
+      threads: {
+        status: "regular";
+        remoteId: string;
+        externalId: string;
+        title: string;
+      }[];
+    }>();
+    const oldAdapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "thread-1",
+            externalId: "thread-1",
+            title: "Old snapshot",
+          },
+        ],
+      })),
+    });
+    const core = createCore(oldAdapter);
+    await core.getLoadThreadsPromise();
+
+    const internals = core as unknown as {
+      _hookManager: { getThreadRuntimeCore: () => { messages: never[] } };
+    };
+    internals._hookManager.getThreadRuntimeCore = () => ({ messages: [] });
+
+    const generatedTitle = openTitleStream();
+    const replacementAdapter = makeAdapter({
+      list: vi.fn(() => replacementList.promise),
+      generateTitle: vi.fn(async () => generatedTitle.stream as never),
+    });
+    core.__internal_setOptions({
+      adapter: replacementAdapter,
+      runtimeHook: () => ({}) as never,
+    });
+    const listTask = core.getLoadThreadsPromise();
+    const generation = core.generateTitle("thread-1");
+    generation.catch(() => {});
+
+    await microtasks(2);
+    expect(replacementAdapter.generateTitle).not.toHaveBeenCalled();
+
+    replacementList.resolve({
+      threads: [
+        {
+          status: "regular",
+          remoteId: "thread-1",
+          externalId: "thread-1",
+          title: "Old snapshot",
+        },
+      ],
+    });
+    await listTask;
+    await vi.waitFor(() =>
+      expect(replacementAdapter.generateTitle).toHaveBeenCalledOnce(),
+    );
+
+    generatedTitle.close();
+    await generation;
+
+    expect(core.getItemById("thread-1")?.title).toBe("Generated");
+    core.__internal_dispose();
+  });
+
   it("keeps a manual rename made during automatic title generation", async () => {
     const generatedTitle = deferred<ReadableStream>();
     const adapter = makeAdapter({
