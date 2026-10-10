@@ -228,6 +228,8 @@ type CreateWidgetOptions = WidgetHandlers & {
   container: HTMLElement;
   product?: string;
   frame?: SafeContentFrame;
+  unsafeShimDomain?: string;
+  opaqueOrigin?: boolean;
   id?: string;
   csp?: CspOptions | string;
   tokens?: ThemeTokens;
@@ -591,7 +593,7 @@ type PatchOperation = {
 
 type Platform = "desktop" | "mobile";
 
-type PreviewOptions = Pick<CreateWidgetOptions, "csp" | "css" | "frame" | "id" | "product" | "readyTimeoutMs"> & {
+type PreviewOptions = Pick<CreateWidgetOptions, "csp" | "css" | "frame" | "id" | "opaqueOrigin" | "product" | "readyTimeoutMs" | "unsafeShimDomain"> & {
   width?: number;
   appearance?: ColorScheme;
   tokens?: CreateWidgetOptions["tokens"];
@@ -754,6 +756,7 @@ interface SafeContentFrameOptions {
   enableBrowserCaching?: boolean;
   sandbox?: SandboxOption[];
   salt?: string;
+  unsafeShimDomain?: string;
 }
 
 interface SafeContentFrameRenderOptions {
@@ -1638,7 +1641,7 @@ declare function buildWidgetGuidance(options?: GuidanceOptions): string;
 
 declare function buildWidgetInstructions(tools: WidgetTools & Record<string, AnyTool>, options?: WidgetInstructionsOptions): Promise<string>;
 
-declare function clearWidgetStorage(id: string, options?: Pick<CreateWidgetOptions, "product" | "readyTimeoutMs">): Promise<ClearStorageResult>;
+declare function clearWidgetStorage(id: string, options?: Pick<CreateWidgetOptions, "product" | "readyTimeoutMs" | "unsafeShimDomain">): Promise<ClearStorageResult>;
 
 declare function createSpecStream(options?: CreateSpecStreamOptions): SpecStream;
 

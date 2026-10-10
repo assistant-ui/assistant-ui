@@ -61,6 +61,18 @@ export type CreateWidgetOptions = WidgetHandlers & {
   /** A preconfigured `SafeContentFrame`, for example with `useShadowDom`. */
   frame?: SafeContentFrame;
   /**
+   * Loads the Safe Content Frame shim from a domain you host instead of
+   * `scf.auiusercontent.com`. Widgets are isolated from your app and from each
+   * other only when the domain is a public suffix on the Public Suffix List.
+   */
+  unsafeShimDomain?: string;
+  /**
+   * Renders in a `sandbox="allow-scripts"` frame with an opaque (`null`)
+   * origin instead of Safe Content Frame: no shim domain, and no storage or
+   * cookies. Cannot be combined with `id`, `frame`, or `unsafeShimDomain`.
+   */
+  opaqueOrigin?: boolean;
+  /**
    * Gives the widget a stable origin, so its localStorage, IndexedDB, and
    * cookies persist across reloads for this id on this host origin. Choose
    * it on the host (never from model output); widgets with the same id share
@@ -127,20 +139,95 @@ const DEFAULT_PRODUCT = "generative-frame";
 /** The Safe Content Frame salt behind a widget id's stable origin. */
 export const widgetStorageSalt = (id: string) => `genframe:v1:${id}`;
 
+type FrameRenderer = {
+  renderHtml(html: string, container: HTMLElement): Promise<RenderedFrame>;
+};
+
+/**
+ * An opaque origin cannot be named as a `postMessage` target, so messages to
+ * the frame use `"*"`. A sandboxed frame keeps its opaque origin and window
+ * when it navigates, so after a navigated document loads, `origin` stops
+ * matching and nothing is posted to the frame. Loads are counted from the
+ * bootstrap's first ready message, so an extra initial `about:blank` load in
+ * some browser cannot cut off the bootstrap itself. A navigated document can
+ * still post before its own `load`; that grants it nothing the widget code
+ * could not already do.
+ */
+const opaqueFrame: FrameRenderer = {
+  async renderHtml(html, container) {
+    const iframe = container.ownerDocument.createElement("iframe");
+    iframe.setAttribute("sandbox", "allow-scripts");
+    iframe.style.cssText = "border:none;width:100%;height:100%";
+    iframe.srcdoc = html;
+    let ready = false;
+    let loads = 0;
+    const onMessage = (event: MessageEvent) => {
+      if (
+        event.source === iframe.contentWindow &&
+        (event.data as { type?: unknown } | null)?.type === READY_MESSAGE
+      ) {
+        ready = true;
+      }
+    };
+    window.addEventListener("message", onMessage);
+    iframe.addEventListener("load", () => {
+      if (ready) loads++;
+    });
+    container.appendChild(iframe);
+    return {
+      iframe,
+      get origin() {
+        return loads > 1 ? "" : "null";
+      },
+      sendMessage: (data, transfer) => {
+        if (loads > 1) return;
+        iframe.contentWindow?.postMessage(data, "*", transfer);
+      },
+      fullyLoadedPromiseWithTimeout: async () => {},
+      dispose: () => {
+        window.removeEventListener("message", onMessage);
+        iframe.remove();
+      },
+    };
+  },
+};
+
 const resolveFrame = (
-  options: Pick<CreateWidgetOptions, "frame" | "id" | "product">,
-) => {
-  if (options.frame && options.id !== undefined) {
+  options: Pick<
+    CreateWidgetOptions,
+    "frame" | "id" | "product" | "unsafeShimDomain" | "opaqueOrigin"
+  >,
+): FrameRenderer => {
+  if (options.opaqueOrigin) {
+    if (
+      options.frame ||
+      options.id !== undefined ||
+      options.unsafeShimDomain !== undefined
+    ) {
+      throw new TypeError(
+        "`opaqueOrigin` renders without Safe Content Frame, so it cannot be combined with `frame`, `id`, or `unsafeShimDomain`.",
+      );
+    }
+    return opaqueFrame;
+  }
+  if (
+    options.frame &&
+    (options.id !== undefined || options.unsafeShimDomain !== undefined)
+  ) {
     throw new TypeError(
-      "Pass either `frame` or `id` to createWidget; for both, build the frame with `salt: widgetStorageSalt(id)`.",
+      "`frame` cannot be combined with `id` or `unsafeShimDomain`; configure the `SafeContentFrame` instead, with `salt: widgetStorageSalt(id)` and `unsafeShimDomain` as needed.",
     );
   }
   return (
     options.frame ??
-    new SafeContentFrame(
-      options.product ?? DEFAULT_PRODUCT,
-      options.id !== undefined ? { salt: widgetStorageSalt(options.id) } : {},
-    )
+    new SafeContentFrame(options.product ?? DEFAULT_PRODUCT, {
+      ...(options.id !== undefined
+        ? { salt: widgetStorageSalt(options.id) }
+        : {}),
+      ...(options.unsafeShimDomain !== undefined
+        ? { unsafeShimDomain: options.unsafeShimDomain }
+        : {}),
+    })
   );
 };
 
@@ -707,21 +794,25 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
  */
 export async function clearWidgetStorage(
   id: string,
-  options: Pick<CreateWidgetOptions, "product" | "readyTimeoutMs"> = {},
+  options: Pick<
+    CreateWidgetOptions,
+    "product" | "unsafeShimDomain" | "readyTimeoutMs"
+  > = {},
 ): Promise<ClearStorageResult> {
   const container = document.createElement("div");
   container.setAttribute("aria-hidden", "true");
   container.style.cssText =
     "position:fixed;left:0;top:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;";
   document.body.appendChild(container);
-  const widget = createWidget({ ...options, container, id });
+  let widget: WidgetHandle | undefined;
   try {
+    widget = createWidget({ ...options, container, id });
     await widget.ready;
     return await internalRequests.get(widget)!<ClearStorageResult>(
       METHODS.clearStorage,
     );
   } finally {
-    widget.dispose();
+    widget?.dispose();
     container.remove();
   }
 }

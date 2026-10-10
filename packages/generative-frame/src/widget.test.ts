@@ -12,6 +12,7 @@ import {
   type RpcHandlers,
   type RpcPeer,
 } from "./rpc";
+import { previewWidget } from "./preview";
 import { DEFAULT_DARK_TOKENS } from "./theme";
 import {
   clearWidgetStorage,
@@ -391,6 +392,122 @@ describe("widget ids", () => {
       },
       { product: "generative-frame", options: {}, renders: 1 },
     ]);
+  });
+
+  it("passes unsafeShimDomain to Safe Content Frame", () => {
+    setupWithId({ id: "a", unsafeShimDomain: "frames.example.com" });
+    expect(mocks.constructed[0]!.options).toEqual({
+      salt: "genframe:v1:a",
+      unsafeShimDomain: "frames.example.com",
+    });
+  });
+
+  it("renders an opaque-origin frame without Safe Content Frame", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const onPrompt = vi.fn();
+    const widget = createWidget({ container, opaqueOrigin: true, onPrompt });
+    const iframe = container.querySelector("iframe")!;
+    // jsdom's own load stands in for a browser's extra initial about:blank load.
+    await new Promise((resolve) =>
+      iframe.addEventListener("load", resolve, { once: true }),
+    );
+    expect(mocks.constructed).toHaveLength(0);
+    expect(iframe.getAttribute("sandbox")).toBe("allow-scripts");
+    expect(iframe.srcdoc).toContain("<html");
+
+    const postMessage = vi.spyOn(iframe.contentWindow!, "postMessage");
+    const ready = {
+      data: { type: READY_MESSAGE },
+      source: iframe.contentWindow,
+    };
+    window.dispatchEvent(
+      new MessageEvent("message", { ...ready, origin: ORIGIN }),
+    );
+    expect(postMessage).not.toHaveBeenCalled();
+    window.dispatchEvent(
+      new MessageEvent("message", { ...ready, origin: "null" }),
+    );
+    expect(postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: INIT_MESSAGE }),
+      "*",
+      [expect.any(MessagePort)],
+    );
+    const port = (postMessage.mock.calls[0] as unknown[])[2] as [MessagePort];
+    ports.push(port[0]);
+    createRpcPeer(port[0], {}).notify(METHODS.ready, { version: "test" });
+    await expect(widget.ready).resolves.toBeUndefined();
+
+    const prompt = (id: number) =>
+      window.dispatchEvent(
+        new MessageEvent("message", {
+          ...ready,
+          origin: "null",
+          data: {
+            jsonrpc: "2.0",
+            id,
+            method: "ui/message",
+            params: { content: [{ type: "text", text: "hi" }] },
+          },
+        }),
+      );
+    iframe.dispatchEvent(new Event("load"));
+    prompt(10);
+    await vi.waitFor(() => expect(onPrompt).toHaveBeenCalledOnce());
+
+    iframe.dispatchEvent(new Event("load"));
+    onPrompt.mockClear();
+    postMessage.mockClear();
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        ...ready,
+        origin: "null",
+        data: { jsonrpc: "2.0", id: 1, method: "ui/initialize", params: {} },
+      }),
+    );
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        ...ready,
+        origin: "null",
+        data: {
+          jsonrpc: "2.0",
+          id: 2,
+          method: "ui/message",
+          params: { content: [{ type: "text", text: "injected" }] },
+        },
+      }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(postMessage).not.toHaveBeenCalled();
+    expect(onPrompt).not.toHaveBeenCalled();
+    widget.dispose();
+  });
+
+  it("rejects opaqueOrigin with options that need Safe Content Frame", () => {
+    const container = document.createElement("div");
+    for (const options of [
+      { id: "a" },
+      { frame: createFakeFrame().frame },
+      { unsafeShimDomain: "frames.example.com" },
+    ]) {
+      expect(() =>
+        createWidget({ container, opaqueOrigin: true, ...options }),
+      ).toThrow(TypeError);
+    }
+  });
+
+  it("removes the preview container when the options are rejected", async () => {
+    await expect(
+      previewWidget("<p>a</p>", { opaqueOrigin: true, id: "a" }),
+    ).rejects.toThrow(TypeError);
+    expect(document.body.children).toHaveLength(0);
+  });
+
+  it("removes the clear-storage container when the options are rejected", async () => {
+    await expect(
+      clearWidgetStorage("a", { opaqueOrigin: true } as never),
+    ).rejects.toThrow(TypeError);
+    expect(document.body.children).toHaveLength(0);
   });
 
   it("rejects an id together with a preconfigured frame", () => {
