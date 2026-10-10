@@ -13,6 +13,11 @@ The npm packages and their private tooling; the root AGENTS.md still applies.
 - `pnpm distributions:check` asserts the react, react-native, and react-ink barrels re-export the same shared surface; its `EXCEPTIONS` table is the only place a platform keeps a symbol out.
 - `pnpm experimental:check` asserts every `unstable_`, `Unstable_` or `experimental_` declaration carries `@deprecated Experimental since <YYYY-MM-DD>. Not scheduled for removal; the API may change in any release.` or a removal notice, written on the export specifier when a rename creates the experimental name.
 - `pnpm workspace-ranges:check` asserts every peer on a workspace package is `workspace:^` except its named consumer-installed exemptions, which keep a wide floor; when this file and a check disagree, the check wins.
+- Land a new package with `"private": true` and no changeset, `api-surface/` snapshot, traction entry, docs page, or `create` template until it publishes, because a public package npm lacks breaks the next release; a rename whose published shell re-exports it ships public.
+- Keep `@assistant-ui/tap` and `@assistant-ui/store` in `peerDependencies` wherever core or store declares them, never `dependencies`, because a second installed copy splits tap's context singleton.
+- Never use `import.meta` in `@assistant-ui/core` or any package React Native bundles, because Hermes rejects it.
+- Keep `useLayoutEffect` in core and store, never a `typeof window` isomorphic helper, because Ink runs them in Node as a client and needs their effects in the layout phase.
+- Publish a render-derived value that a callback reads into its ref from `useInsertionEffect`, never a bare `ref.current =` in render, which an abandoned render still runs; a value the same render reads stays in a local variable.
 
 ### Adapters
 
