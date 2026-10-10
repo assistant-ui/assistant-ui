@@ -41,7 +41,7 @@ test("a verdict outside the 1 to 5 scale fails the trial", async () => {
     judgeAnswer(
       generatingModel(
         JSON.stringify({
-          clarity: "5",
+          clarity: 5,
           usefulness: 9,
           completeness: 3,
           reason: "Great.",
