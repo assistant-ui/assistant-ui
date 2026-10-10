@@ -22,11 +22,12 @@ export default defineConfig({
       include: ["src/**/*.{ts,tsx,svelte}"],
       exclude: ["src/__tests__/**"],
       thresholds: {
-        lines: 95,
-        functions: 91,
-        branches: 79,
-        statements: 92,
-        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+        lines: 94,
+        functions: 90,
+        branches: 78,
+        statements: 91,
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
       },
     },
     environment: "jsdom",

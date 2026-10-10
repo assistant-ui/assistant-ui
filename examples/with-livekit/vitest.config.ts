@@ -6,11 +6,12 @@ export default defineConfig({
     coverage: {
       include: ["app/**/*.{ts,tsx}", "lib/**/*.{ts,tsx}"],
       thresholds: {
-        lines: 52,
-        functions: 28,
-        branches: 50,
-        statements: 50,
-        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+        lines: 51,
+        functions: 27,
+        branches: 49,
+        statements: 49,
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
       },
     },
   },

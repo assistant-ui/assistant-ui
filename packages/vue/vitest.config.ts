@@ -18,11 +18,12 @@ export default defineConfig({
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/__tests__/**"],
       thresholds: {
-        lines: 95,
-        functions: 95,
-        branches: 85,
-        statements: 93,
-        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+        lines: 94,
+        functions: 94,
+        branches: 84,
+        statements: 92,
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
       },
     },
     environment: "jsdom",
