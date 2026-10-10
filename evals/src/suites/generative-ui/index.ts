@@ -60,7 +60,9 @@ export function createGenerativeUISuite({
 }
 
 export const generativeUI = createGenerativeUISuite({
-  models: process.env.MODELS?.split(",").map((id) => id.trim()) ?? [
+  models: process.env.MODELS?.split(",")
+    .map((id) => id.trim())
+    .filter(Boolean) ?? [
     "anthropic/claude-opus-5.5",
     "openai/gpt-6-astra",
     "google/gemini-3.1-pro-preview",
