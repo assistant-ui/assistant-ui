@@ -10,6 +10,7 @@ import {
 } from "react";
 import { usePathname } from "next/navigation";
 import type * as PageTree from "fumadocs-core/page-tree";
+import { useHydrated } from "@/hooks/use-hydrated";
 import {
   DEFAULT_PLATFORM,
   PLATFORM_LABELS,
@@ -154,7 +155,9 @@ export function getPlatformSwitchHref(
 // the client, so the first paint already shows that platform's tree; the
 // stored surface only decides pages every surface shares. The inline script
 // stamps the platform this browser will hydrate to before the sidebar is
-// parsed, so a mismatched tree is hidden rather than painted.
+// parsed, so a mismatched tree is hidden rather than painted. A client-side
+// mount skips it, because React never runs a script it creates and the effect
+// below sets the same hint.
 export function PlatformProvider({
   tree,
   children,
@@ -163,6 +166,7 @@ export function PlatformProvider({
   children: ReactNode;
 }) {
   const pathname = usePathname();
+  const hydrated = useHydrated();
   const stored = usePersistedPreference(platformPreference);
   const pagePlatforms = useMemo(
     () => getPagePlatforms(tree, pathname),
@@ -200,13 +204,15 @@ export function PlatformProvider({
 
   return (
     <PlatformContext.Provider value={{ platform, setPlatform }}>
-      <script
-        data-key={STORAGE_KEY}
-        data-param={URL_PARAM}
-        data-allowed={SURFACES.join(",")}
-        data-forced={pagePlatforms ? platform : undefined}
-        dangerouslySetInnerHTML={{ __html: HINT_SCRIPT }}
-      />
+      {!hydrated && (
+        <script
+          data-key={STORAGE_KEY}
+          data-param={URL_PARAM}
+          data-allowed={SURFACES.join(",")}
+          data-forced={pagePlatforms ? platform : undefined}
+          dangerouslySetInnerHTML={{ __html: HINT_SCRIPT }}
+        />
+      )}
       {children}
     </PlatformContext.Provider>
   );
