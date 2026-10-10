@@ -331,6 +331,11 @@ export const PACKAGES: PackageInfo[] = [
     category: "observability",
   },
   {
+    name: "@assistant-ui/variants",
+    description: "Inline design comparisons for the real page.",
+    category: "tooling",
+  },
+  {
     name: "@assistant-ui/react-edge",
     description: "Legacy edge runtime, superseded by the AI SDK adapter.",
     category: "deprecated",
