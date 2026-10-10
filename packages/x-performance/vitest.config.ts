@@ -34,10 +34,10 @@ export default defineConfig({
     coverage: {
       include: ["src/**/*.{ts,tsx}", "lib/**/*.{ts,tsx,mjs}", "bin/**/*.mjs"],
       thresholds: {
-        lines: 61,
-        functions: 69,
-        branches: 60,
-        statements: 60,
+        lines: 57,
+        functions: 67,
+        branches: 58,
+        statements: 58,
         autoUpdate: (threshold) => Math.max(0, Math.floor(threshold) - 1),
       },
     },

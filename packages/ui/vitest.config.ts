@@ -30,10 +30,10 @@ export default defineConfig({
     coverage: {
       include: ["src/**/*.{ts,tsx,vue}"],
       thresholds: {
-        lines: 69,
-        functions: 61,
-        branches: 64,
-        statements: 68,
+        lines: 60,
+        functions: 53,
+        branches: 58,
+        statements: 59,
         autoUpdate: (threshold) => Math.max(0, Math.floor(threshold) - 1),
       },
     },

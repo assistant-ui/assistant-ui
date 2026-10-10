@@ -6,10 +6,10 @@ export default defineConfig({
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/core/serialization/assistant-transport/__fixtures__/**"],
       thresholds: {
-        lines: 90,
-        functions: 87,
+        lines: 91,
+        functions: 91,
         branches: 85,
-        statements: 88,
+        statements: 89,
         autoUpdate: (threshold) => Math.max(0, Math.floor(threshold) - 1),
       },
     },
