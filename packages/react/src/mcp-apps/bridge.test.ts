@@ -216,6 +216,7 @@ describe("createMcpAppBridge", () => {
       method: "ui/initialize",
       params,
     });
+    expect(onInitialized).not.toHaveBeenCalled();
     deliver(bridge, {
       jsonrpc: "2.0",
       method: "notifications/initialized",
@@ -277,6 +278,61 @@ describe("createMcpAppBridge", () => {
 
     expect(onInitialized).toHaveBeenCalledWith({
       appCapabilities: { availableDisplayModes: ["inline"] },
+    });
+    bridge.dispose();
+  });
+
+  it("reads a sparse display mode list without walking its length", () => {
+    const { frame } = makeFrame();
+    const onInitialized = vi.fn();
+    const bridge = createMcpAppBridge({ frame, handlers: { onInitialized } });
+    const availableDisplayModes = ["inline"];
+    availableDisplayModes.length = 2 ** 32 - 1;
+
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "ui/initialize",
+      params: { appCapabilities: { availableDisplayModes } },
+    });
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      method: "notifications/initialized",
+    });
+
+    expect(onInitialized).toHaveBeenCalledWith({
+      appCapabilities: { availableDisplayModes: ["inline"] },
+    });
+    bridge.dispose();
+  });
+
+  it("initializes when the display mode list carries its own methods", async () => {
+    const { frame, captured } = makeFrame();
+    const onInitialized = vi.fn();
+    const bridge = createMcpAppBridge({ frame, handlers: { onInitialized } });
+
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "ui/initialize",
+      params: {
+        appCapabilities: {
+          availableDisplayModes: Object.assign(["inline", "pip"], {
+            filter: 0,
+            constructor: 0,
+          }),
+        },
+      },
+    });
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      method: "notifications/initialized",
+    });
+    await flush();
+
+    expect((captured[0] as McpAppJsonRpcResponse).error).toBeUndefined();
+    expect(onInitialized).toHaveBeenCalledWith({
+      appCapabilities: { availableDisplayModes: ["inline", "pip"] },
     });
     bridge.dispose();
   });
