@@ -11,6 +11,7 @@ import type {
   McpAppBridgeHandlers,
   McpAppFrameProps,
   McpAppHostContext,
+  McpAppInitializeParams,
   McpAppsHost,
   McpAppsRemoteHostOptions,
 } from "./types";
@@ -229,8 +230,12 @@ describe("McpAppRenderer", () => {
     await waitFor(() => expect(framePropsCalls().length).toBeGreaterThan(0));
     const handlers = framePropsCalls().at(-1)?.handlers;
     expect(handlers?.requestDisplayMode).toBeDefined();
-    handlers?.onInitialized?.({});
+    const params: McpAppInitializeParams = {
+      appCapabilities: { availableDisplayModes: ["inline", "fullscreen"] },
+    };
+    handlers?.onInitialized?.(params);
     expect(onInitialized).toHaveBeenCalledOnce();
+    expect(onInitialized).toHaveBeenCalledWith(params);
   });
 
   it("leaves mounted parts alone when renderer options are unchanged", async () => {

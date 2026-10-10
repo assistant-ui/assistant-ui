@@ -8,7 +8,11 @@ import type {
 } from "../sandbox-host/SandboxHost";
 import type { CreateMcpAppBridgeOptions, McpAppBridge } from "./bridge";
 import type * as BridgeModule from "./bridge";
-import { MCP_APP_MIME_TYPE, type McpAppHostContext } from "./types";
+import {
+  MCP_APP_MIME_TYPE,
+  type McpAppHostContext,
+  type McpAppInitializeParams,
+} from "./types";
 
 const { sandboxHostMock, createMcpAppBridgeMock } = vi.hoisted(() => ({
   sandboxHostMock: vi.fn(),
@@ -310,23 +314,19 @@ describe("McpAppFrame", () => {
     );
     const options = createMcpAppBridgeMock.mock
       .calls[0]![0] as CreateMcpAppBridgeOptions;
-    const availableDisplayModes: ("inline" | "pip")[] = ["inline", "pip"];
     const replacementOnInitialized = vi.fn();
-    const app = {
+    const params: McpAppInitializeParams = {
       protocolVersion: "2026-01-26",
       appInfo: { name: "example-app", version: "1.2.3" },
-      appCapabilities: {
-        availableDisplayModes,
-        tools: { listChanged: true },
-      },
+      appCapabilities: { availableDisplayModes: ["inline", "pip"] },
     };
 
     rendered.rerender(view(replacementOnInitialized));
-    options.handlers?.onInitialized?.(app);
+    options.handlers?.onInitialized?.(params);
 
     expect(onInitialized).not.toHaveBeenCalled();
     expect(replacementOnInitialized).toHaveBeenCalledOnce();
-    expect(replacementOnInitialized).toHaveBeenCalledWith(app);
+    expect(replacementOnInitialized).toHaveBeenCalledWith(params);
     sandboxBridge.dispose();
   });
 

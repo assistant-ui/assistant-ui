@@ -201,22 +201,20 @@ describe("createMcpAppBridge", () => {
     const { frame } = makeFrame();
     const onInitialized = vi.fn();
     const bridge = createMcpAppBridge({ frame, handlers: { onInitialized } });
-    const appInfo = { name: "example-app", version: "1.2.3" };
-    const appCapabilities = {
-      availableDisplayModes: ["inline", "fullscreen"],
-      tools: { listChanged: true },
-    };
-    const app = {
+    const params = {
       protocolVersion: "2026-01-26",
-      appInfo,
-      appCapabilities,
+      appInfo: { name: "example-app", version: "1.2.3" },
+      appCapabilities: {
+        availableDisplayModes: ["inline", "fullscreen"],
+        tools: { listChanged: true },
+      },
     };
 
     deliver(bridge, {
       jsonrpc: "2.0",
       id: 1,
       method: "ui/initialize",
-      params: app,
+      params,
     });
     deliver(bridge, {
       jsonrpc: "2.0",
@@ -224,7 +222,7 @@ describe("createMcpAppBridge", () => {
     });
 
     expect(onInitialized).toHaveBeenCalledOnce();
-    expect(onInitialized).toHaveBeenCalledWith(app);
+    expect(onInitialized).toHaveBeenCalledWith(params);
     bridge.dispose();
   });
 
@@ -239,11 +237,8 @@ describe("createMcpAppBridge", () => {
       method: "ui/initialize",
       params: {
         protocolVersion: 1,
-        appInfo: { name: "malformed", version: "1.0.0", title: 1 },
-        appCapabilities: {
-          availableDisplayModes: ["sidebar"],
-          tools: { listChanged: "true" },
-        },
+        appInfo: { name: "malformed" },
+        appCapabilities: { availableDisplayModes: "fullscreen" },
       },
     });
     deliver(bridge, {
@@ -259,6 +254,44 @@ describe("createMcpAppBridge", () => {
     expect((captured[0] as McpAppJsonRpcResponse).result).toMatchObject({
       protocolVersion: MCP_APP_PROTOCOL_VERSION,
     });
+    bridge.dispose();
+  });
+
+  it("keeps only the display modes the host recognizes", () => {
+    const { frame } = makeFrame();
+    const onInitialized = vi.fn();
+    const bridge = createMcpAppBridge({ frame, handlers: { onInitialized } });
+
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "ui/initialize",
+      params: {
+        appCapabilities: { availableDisplayModes: ["inline", "sidebar"] },
+      },
+    });
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      method: "notifications/initialized",
+    });
+
+    expect(onInitialized).toHaveBeenCalledWith({
+      appCapabilities: { availableDisplayModes: ["inline"] },
+    });
+    bridge.dispose();
+  });
+
+  it("calls onInitialized with empty params when ui/initialize never arrived", () => {
+    const { frame } = makeFrame();
+    const onInitialized = vi.fn();
+    const bridge = createMcpAppBridge({ frame, handlers: { onInitialized } });
+
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      method: "notifications/initialized",
+    });
+
+    expect(onInitialized).toHaveBeenCalledWith({});
     bridge.dispose();
   });
 
