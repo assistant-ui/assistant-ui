@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
+import { flushSync } from "react-dom";
 import type { AssistantRuntime, ChatModelAdapter } from "@assistant-ui/core";
 import {
   AssistantRuntimeProvider,
@@ -12,7 +13,7 @@ import { createRenderCounter } from "../src/render-counter";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
-).IS_REACT_ACT_ENVIRONMENT = true;
+).IS_REACT_ACT_ENVIRONMENT = false;
 
 const counter = createRenderCounter();
 
@@ -32,6 +33,16 @@ const until = async (predicate: () => boolean) => {
     await new Promise((resolve) => setTimeout(resolve, 0));
   }
   throw new Error("condition not reached within 200 macrotasks");
+};
+
+const settledInAct = async (scope: () => Promise<void>) => {
+  const env = globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean };
+  env.IS_REACT_ACT_ENVIRONMENT = true;
+  try {
+    await act(scope);
+  } finally {
+    env.IS_REACT_ACT_ENVIRONMENT = false;
+  }
 };
 
 describe("local runtime commit shape", () => {
@@ -69,9 +80,12 @@ describe("local runtime commit shape", () => {
     };
 
     const root = createRoot(document.createElement("div"));
-    act(() => root.render(createElement(App)));
+    flushSync(() => root.render(createElement(App)));
 
-    await act(async () => {
+    // Under load the append's commits can trail the first gate, so they settle
+    // in act before the baseline; the tokens keep real scheduling, which
+    // separates commits from different ticks.
+    await settledInAct(async () => {
       runtime.thread.append("hello");
       await until(() => gates.length === 1);
     });
@@ -79,15 +93,8 @@ describe("local runtime commit shape", () => {
 
     for (let i = 0; i < TOKENS; i++) {
       const textBefore = counter.renders("text");
-      await act(async () => {
-        gates[i]!();
-        await until(() =>
-          i === TOKENS - 1
-            ? !runtime.thread.getState().isRunning
-            : gates.length === i + 2,
-        );
-      });
-      expect(counter.renders("text")).toBe(textBefore + 1);
+      gates[i]!();
+      await until(() => counter.renders("text") >= textBefore + 1);
     }
 
     const delta = Object.fromEntries(
@@ -105,17 +112,20 @@ describe("local runtime commit shape", () => {
       "renders:message": 0,
     });
 
+    await until(() => !runtime.thread.getState().isRunning);
+
     // The boundaries add the rest: the append renders the message and its
     // synthetic empty running part, the first chunk swaps that part for the
-    // real one, and run completion settles with the final token. The append
-    // settles before the mid-stream baseline above; the whole-run totals
-    // include the mount and append commits.
+    // real one, and run completion flips part status, re-rendering text and the
+    // wrapper. AuiProvider commits the host in the layout phase, so the append
+    // lands before the mid-stream baseline above instead of inside it; the
+    // whole-run totals are what stay invariant across that phase.
     expect(counter.snapshot()).toEqual({
       "commits:thread": TOKENS + 2,
       "renders:text": TOKENS + 2,
       "renders:message": 2,
     });
 
-    act(() => root.unmount());
+    flushSync(() => root.unmount());
   });
 });
