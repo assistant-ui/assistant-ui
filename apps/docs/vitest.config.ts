@@ -29,8 +29,8 @@ export default {
         functions: 27,
         branches: 31,
         statements: 34,
-        autoUpdate: (threshold: number) =>
-          Math.max(0, Math.floor(threshold) - 1),
+        autoUpdate: (threshold: number, previous: number) =>
+          Math.max(previous, Math.floor(threshold) - 1),
       },
     },
     environment: "node",

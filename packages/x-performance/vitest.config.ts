@@ -38,7 +38,8 @@ export default defineConfig({
         functions: 67,
         branches: 58,
         statements: 58,
-        autoUpdate: (threshold) => Math.max(0, Math.floor(threshold) - 1),
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
       },
     },
     environment: "jsdom",

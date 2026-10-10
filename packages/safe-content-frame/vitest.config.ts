@@ -9,7 +9,8 @@ export default defineConfig({
         functions: 77,
         branches: 80,
         statements: 86,
-        autoUpdate: (threshold) => Math.max(0, Math.floor(threshold) - 1),
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
       },
     },
   },

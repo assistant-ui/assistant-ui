@@ -12,7 +12,8 @@ export default defineConfig({
         functions: 81,
         branches: 82,
         statements: 86,
-        autoUpdate: (threshold) => Math.max(0, Math.floor(threshold) - 1),
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
       },
     },
     environment: "node",

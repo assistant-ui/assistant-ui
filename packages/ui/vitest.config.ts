@@ -34,7 +34,8 @@ export default defineConfig({
         functions: 53,
         branches: 58,
         statements: 59,
-        autoUpdate: (threshold) => Math.max(0, Math.floor(threshold) - 1),
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
       },
     },
     fsModuleCache: true,

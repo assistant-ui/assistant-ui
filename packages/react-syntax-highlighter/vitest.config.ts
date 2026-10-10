@@ -8,7 +8,8 @@ export default defineConfig({
         lines: 98,
         functions: 98,
         statements: 98,
-        autoUpdate: (threshold) => Math.max(0, Math.floor(threshold) - 1),
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
       },
     },
     environment: "jsdom",
