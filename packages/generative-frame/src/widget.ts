@@ -157,11 +157,29 @@ const REVEAL_MS = 120;
 const prefersReducedMotion = () =>
   window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
-const promptText = (params: UiMessageParams) =>
-  (params.content ?? [])
-    .filter((part) => part.type === "text" && typeof part.text === "string")
+const promptText = (params: UiMessageParams) => {
+  const content = params.content ?? [];
+  return Object.keys(content)
+    .filter((key) => {
+      const index = Number(key);
+      return (
+        Number.isInteger(index) &&
+        index >= 0 &&
+        index < content.length &&
+        String(index) === key
+      );
+    })
+    .map((key) => content[Number(key)])
+    .filter(
+      (part): part is { type: string; text: string } =>
+        typeof part === "object" &&
+        part !== null &&
+        part.type === "text" &&
+        typeof part.text === "string",
+    )
     .map((part) => part.text)
     .join("\n");
+};
 
 const defaultOpenLink = (url: string) => {
   window.open(url, "_blank", "noopener,noreferrer");
