@@ -196,13 +196,6 @@ const visuallyHidden = {
   whiteSpace: "nowrap",
 } as const;
 
-/**
- * Renders `show_widget`, `edit_widget`, and `render_spec` tool calls in an
- * assistant-ui thread: widget code streams into a frame from the partial
- * tool arguments, `sendPrompt` appends a user message to the thread, and the
- * frame follows the app's theme. With `execution: "frontend"` the tools run
- * in the browser too, so the server only forwards their schemas.
- */
 const previewFrameOptions = (
   widget: WidgetToolkitOptions["widget"],
 ): PreviewOptions => ({
@@ -216,6 +209,13 @@ const previewFrameOptions = (
     : {}),
 });
 
+/**
+ * Renders `show_widget`, `edit_widget`, and `render_spec` tool calls in an
+ * assistant-ui thread: widget code streams into a frame from the partial
+ * tool arguments, `sendPrompt` appends a user message to the thread, and the
+ * frame follows the app's theme. With `execution: "frontend"` the tools run
+ * in the browser too, so the server only forwards their schemas.
+ */
 export function createWidgetToolkit(
   options: WidgetToolkitOptions = {},
 ): WidgetToolkit {

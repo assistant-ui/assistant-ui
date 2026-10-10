@@ -145,7 +145,8 @@ type FrameRenderer = {
 
 /**
  * An opaque origin cannot be named as a `postMessage` target, so messages to
- * the frame use `"*"`; the host accepts messages only from this iframe's
+ * the frame use `"*"`, and stop once the frame has navigated away from the
+ * bootstrap document; the host accepts messages only from this iframe's
  * window with origin `"null"`.
  */
 const opaqueFrame: FrameRenderer = {
@@ -154,12 +155,16 @@ const opaqueFrame: FrameRenderer = {
     iframe.setAttribute("sandbox", "allow-scripts");
     iframe.style.cssText = "border:none;width:100%;height:100%";
     iframe.srcdoc = html;
+    let loads = 0;
+    iframe.addEventListener("load", () => loads++);
     container.appendChild(iframe);
     return {
       iframe,
       origin: "null",
-      sendMessage: (data, transfer) =>
-        iframe.contentWindow?.postMessage(data, "*", transfer),
+      sendMessage: (data, transfer) => {
+        if (loads > 1) return;
+        iframe.contentWindow?.postMessage(data, "*", transfer);
+      },
       fullyLoadedPromiseWithTimeout: async () => {},
       dispose: () => iframe.remove(),
     };
@@ -189,7 +194,7 @@ const resolveFrame = (
     (options.id !== undefined || options.unsafeShimDomain !== undefined)
   ) {
     throw new TypeError(
-      "Pass either `frame` or `id`/`unsafeShimDomain` to createWidget; for both, build the frame with `salt: widgetStorageSalt(id)` and `unsafeShimDomain`.",
+      "`frame` cannot be combined with `id` or `unsafeShimDomain`; configure the `SafeContentFrame` instead, with `salt: widgetStorageSalt(id)` and `unsafeShimDomain` as needed.",
     );
   }
   return (

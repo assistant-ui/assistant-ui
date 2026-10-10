@@ -436,6 +436,19 @@ describe("widget ids", () => {
     ports.push(port[0]);
     createRpcPeer(port[0], {}).notify(METHODS.ready, { version: "test" });
     await expect(widget.ready).resolves.toBeUndefined();
+
+    iframe.dispatchEvent(new Event("load"));
+    iframe.dispatchEvent(new Event("load"));
+    postMessage.mockClear();
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        ...ready,
+        origin: "null",
+        data: { jsonrpc: "2.0", id: 1, method: "ui/initialize", params: {} },
+      }),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(postMessage).not.toHaveBeenCalled();
     widget.dispose();
   });
 
