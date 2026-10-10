@@ -3390,7 +3390,8 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
             {
               id: "seed-assistant",
               role: "assistant",
-              ...toolCallResult("send_email", { id: "a1" }),
+              content: [toolCallPart("send_email", { id: "a1" })],
+              status: { type: "requires-action", reason: "tool-calls" },
             },
           ],
         });
