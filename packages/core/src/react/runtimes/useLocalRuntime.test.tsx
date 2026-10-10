@@ -557,6 +557,7 @@ describe("useLocalRuntime", () => {
   });
 
   it("creates the Cloud thread of a thread seeded with initial messages on its first send", async () => {
+    let messageCount = 0;
     const cloud = {
       registerSdk: vi.fn(),
       telemetry: { enabled: false },
@@ -565,7 +566,9 @@ describe("useLocalRuntime", () => {
         create: vi.fn().mockResolvedValue({ thread_id: "remote-thread" }),
         messages: {
           list: vi.fn().mockResolvedValue({ messages: [] }),
-          create: vi.fn().mockResolvedValue({ message_id: "message-1" }),
+          create: vi.fn().mockImplementation(async () => ({
+            message_id: `message-${++messageCount}`,
+          })),
           update: vi.fn().mockResolvedValue(undefined),
         },
       },
@@ -606,6 +609,17 @@ describe("useLocalRuntime", () => {
 
     expect(cloud.threads.create).not.toHaveBeenCalled();
     expect(cloud.runs.stream).not.toHaveBeenCalled();
+    expect(cloud.threads.messages.create).not.toHaveBeenCalled();
+    expect(runtime!.thread.getState().messages).toMatchObject([
+      {
+        role: "user",
+        content: [{ type: "text", text: "What is assistant-ui?" }],
+      },
+      {
+        role: "assistant",
+        content: [{ type: "text", text: "A set of React components." }],
+      },
+    ]);
 
     await act(async () => {
       await runtime!.thread.append("hello");
@@ -615,6 +629,37 @@ describe("useLocalRuntime", () => {
       expect(cloud.threads.create).toHaveBeenCalledTimes(1);
       expect(cloud.runs.stream).toHaveBeenCalledTimes(1);
     });
+    expect(
+      vi.mocked(cloud.threads.messages.create).mock.calls.slice(0, 3),
+    ).toMatchObject([
+      [
+        "remote-thread",
+        {
+          parent_id: null,
+          content: {
+            role: "user",
+            content: [{ type: "text", text: "What is assistant-ui?" }],
+          },
+        },
+      ],
+      [
+        "remote-thread",
+        {
+          parent_id: "message-1",
+          content: {
+            role: "assistant",
+            content: [{ type: "text", text: "A set of React components." }],
+          },
+        },
+      ],
+      [
+        "remote-thread",
+        {
+          parent_id: "message-2",
+          content: { role: "user", content: [{ type: "text", text: "hello" }] },
+        },
+      ],
+    ]);
   });
 
   describe("runs the first turn of a seeded thread with its remote id", () => {
