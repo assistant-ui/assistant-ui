@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { defaultGenerativeUILibrary } from "../vocabulary";
+import { interactiveVocabulary } from "../vocabulary/interactive";
 import { toSpecCatalog } from "./toSpecCatalog";
 
 describe("toSpecCatalog", () => {
@@ -15,8 +16,18 @@ describe("toSpecCatalog", () => {
     expect(Object.keys(components)).toEqual(
       Object.keys(defaultGenerativeUILibrary),
     );
-    expect(catalog.component("Button")).toMatchObject({ events: ["press"] });
-    expect(catalog.component("Select")).toMatchObject({ events: ["change"] });
+    expect(catalog.component("Button")).toMatchObject({
+      slots: ["default"],
+      events: ["press"],
+    });
+    for (const name of ["Select", "RadioGroup", "CheckboxGroup"]) {
+      expect(catalog.component(name)).toMatchObject({
+        slots: ["default"],
+        events: ["change"],
+      });
+    }
+    expect(catalog.component("Input")).toMatchObject({ events: ["submit"] });
+    expect(catalog.component("Input")?.slots).toBeUndefined();
     expect(catalog.component("Form")).toMatchObject({
       slots: ["default"],
       events: ["submit"],
@@ -75,6 +86,21 @@ describe("toSpecCatalog", () => {
       slots: ["default"],
     });
     expect(custom.catalog.component("Button")?.events).toBeUndefined();
+  });
+
+  it("keeps a default component's events when its schema is extended", () => {
+    const { Button } = interactiveVocabulary;
+    const extended = toSpecCatalog({
+      Button: {
+        ...Button,
+        properties: Button.properties.extend({ tone: z.string().optional() }),
+      },
+    });
+    expect(extended.catalog.component("Button")).toMatchObject({
+      slots: ["default"],
+      events: ["press"],
+      description: expect.stringContaining("Emits `press`"),
+    });
   });
 
   it("adds host actions next to the built-in setState", () => {

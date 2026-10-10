@@ -55,18 +55,20 @@ const DEFAULT_SHAPES: Readonly<Record<string, SpecShape>> = {
   },
   Icon: {},
   Button: {
+    slots: DEFAULT_SLOT,
     events: ["press"],
     description:
       "A clickable button. Emits `press` on click. Set `submit` to submit an ancestor Form or Card instead.",
   },
   Select: {
+    slots: DEFAULT_SLOT,
     events: ["change"],
     description: "A dropdown selector. Emits `change` with the selected value.",
   },
   Input: {
     events: ["submit"],
     description:
-      "A text input. Outside a Form it emits `submit` with its text on Enter (Ctrl or Cmd+Enter when `multiline`).",
+      "A text input. Outside a Form it emits `submit` with its text on Enter (Ctrl or Cmd+Enter when `multiline`); inside a Form its value arrives with the Form's `submit`.",
   },
   DatePicker: {
     events: ["change"],
@@ -84,11 +86,13 @@ const DEFAULT_SHAPES: Readonly<Record<string, SpecShape>> = {
       "A numeric range control. Emits `change` with the value once an adjustment finishes.",
   },
   RadioGroup: {
+    slots: DEFAULT_SLOT,
     events: ["change"],
     description:
       "A group of mutually exclusive radio options. Emits `change` with the selected value.",
   },
   CheckboxGroup: {
+    slots: DEFAULT_SLOT,
     events: ["change"],
     description:
       "A group of checkbox options where any number can be checked. Emits `change` with the checked values.",
@@ -102,7 +106,7 @@ const DEFAULT_SHAPES: Readonly<Record<string, SpecShape>> = {
           .boolean()
           .optional()
           .describe(
-            "Render as a form; submitting it emits `confirm` with every named child control's value, keyed by `name`.",
+            "Render as a form; its confirm button submits it, emitting `confirm` with every named child control's value, keyed by `name`.",
           ),
         confirm: footerButton("Confirm", "confirm"),
         cancel: footerButton("Cancel", "cancel"),
@@ -198,9 +202,11 @@ export function toSpecCatalog(
   const definitions: Record<string, ComponentDefinition> = {};
   const components: SpecComponents = {};
   for (const [name, entry] of Object.entries(library)) {
-    const shape = isDefaultGenerativeUIComponent(name, entry.properties)
-      ? DEFAULT_SHAPES[name]
-      : { slots: DEFAULT_SLOT };
+    const isDefault =
+      isDefaultGenerativeUIComponent(name, entry.properties) ||
+      (Object.hasOwn(defaultGenerativeUILibrary, name) &&
+        entry.render === defaultGenerativeUILibrary[name]?.render);
+    const shape = isDefault ? DEFAULT_SHAPES[name] : { slots: DEFAULT_SLOT };
     const events = shape?.events ?? [];
     definitions[name] = {
       description: shape?.description ?? entry.description,
