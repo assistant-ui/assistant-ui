@@ -333,6 +333,9 @@ jobs:
 
   build-apps:
     name: Build Changed Apps
+    # Waits for the package build so turbo replays it from the remote cache; still runs if it fails.
+    needs: build
+    if: ${{ !cancelled() }}
     runs-on: blacksmith-8vcpu-ubuntu-2404
     timeout-minutes: 10
     steps:
@@ -473,6 +476,9 @@ jobs:
 
   typecheck:
     name: Typecheck Changed Packages
+    # Waits for the package build so turbo replays it from the remote cache; still runs if it fails.
+    needs: build
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
