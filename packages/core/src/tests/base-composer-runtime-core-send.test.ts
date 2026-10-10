@@ -63,6 +63,11 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     const upload = deferred();
     const yieldedAfterSend = vi.fn();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const send = vi.fn(async (attachment: PendingAttachment) => ({
+      ...attachment,
+      status: { type: "complete" as const },
+      content: [],
+    }));
     const { composer, append } = makeComposer(
       makeAdapter({
         async *add({ file }) {
@@ -82,6 +87,7 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
             status: { type: "requires-action", reason: "composer-send" },
           } satisfies PendingAttachment;
         },
+        send,
       }),
     );
 
@@ -95,6 +101,11 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     await Promise.all([adding, sending]);
 
     expect(yieldedAfterSend).toHaveBeenCalledOnce();
+    expect(send).toHaveBeenCalledOnce();
+    expect(send.mock.calls[0]![0]).toMatchObject({
+      id: "A",
+      status: { type: "requires-action" },
+    });
     expect(append).toHaveBeenCalledOnce();
     expect(append.mock.calls[0]![0]).toMatchObject({
       attachments: [{ id: "A", status: { type: "complete" } }],

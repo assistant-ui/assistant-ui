@@ -247,6 +247,10 @@ describe("ExternalThread attachments", () => {
 
     expect(yieldedAfterSend).toHaveBeenCalledOnce();
     expect(send).toHaveBeenCalledOnce();
+    expect(send.mock.calls[0]![0]).toMatchObject({
+      id: "A",
+      status: { type: "requires-action" },
+    });
     expect(onNew.mock.calls[0]![0]).toMatchObject({
       attachments: [{ id: "A", status: { type: "complete" } }],
     });
