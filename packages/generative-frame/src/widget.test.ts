@@ -18,6 +18,7 @@ import {
   createWidget,
   widgetStorageSalt,
   type CreateWidgetOptions,
+  type UiMessageParams,
 } from "./widget";
 
 const mocks = vi.hoisted(() => ({
@@ -187,6 +188,59 @@ describe("createWidget", () => {
     await expect(frame.request("nope")).rejects.toMatchObject({
       code: RPC_ERROR.methodNotFound,
     });
+  });
+
+  it("extracts sparse message content without traversing holes", async () => {
+    const onPrompt = vi.fn();
+    const { fake } = setup({ onPrompt });
+    const frame = await fake.connect(0);
+    const content: NonNullable<UiMessageParams["content"]> = new Array(
+      50_000_000,
+    );
+    content[0] = { type: "text", text: "sparse prompt" };
+
+    const lastIndex = String(content.length - 1);
+    const arrayPrototypeLength = Array.prototype.length;
+    const visitedHole = vi.fn();
+    Object.defineProperty(Array.prototype, lastIndex, {
+      configurable: true,
+      get() {
+        visitedHole();
+        return undefined;
+      },
+    });
+
+    try {
+      await frame.request(METHODS.message, { role: "user", content });
+    } finally {
+      delete (Array.prototype as unknown[])[Number(lastIndex)];
+      Array.prototype.length = arrayPrototypeLength;
+    }
+
+    expect(visitedHole).not.toHaveBeenCalled();
+    expect(onPrompt).toHaveBeenCalledWith("sparse prompt");
+  });
+
+  it("ignores non-index message content properties after structured clone", async () => {
+    const onPrompt = vi.fn();
+    const { fake } = setup({ onPrompt });
+    const frame = await fake.connect(0);
+
+    for (const property of ["filter", "constructor"] as const) {
+      const content: NonNullable<UiMessageParams["content"]> = [
+        { type: "text", text: "message text" },
+      ];
+      Object.defineProperty(content, property, {
+        configurable: true,
+        enumerable: true,
+        value: { type: "text", text: "not an array element" },
+      });
+
+      await frame.request(METHODS.message, { role: "user", content });
+    }
+
+    expect(onPrompt).toHaveBeenNthCalledWith(1, "message text");
+    expect(onPrompt).toHaveBeenNthCalledWith(2, "message text");
   });
 
   it("sizes the iframe from size-changed, clamped to maxHeight", async () => {
