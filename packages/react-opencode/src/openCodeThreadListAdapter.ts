@@ -43,7 +43,6 @@ export const createOpenCodeSession = async (
 
 export const createOpenCodeThreadListAdapter = (
   client: ReturnType<typeof createOpencodeClient>,
-  getSessionTitle: (sessionId: string) => string | undefined,
 ) => ({
   list: async () => {
     const response = await client.experimental.session.list(
@@ -102,9 +101,13 @@ export const createOpenCodeThreadListAdapter = (
     );
   },
   initialize: () => createOpenCodeSession(client),
-  // OpenCode titles a session itself on its first prompt, so this streams the title the session's controller already holds instead of generating one.
+  // OpenCode titles a session itself on its first prompt, so this streams the title the session already has instead of generating one.
   generateTitle: async (remoteId: string) => {
-    const title = getSessionTitle(remoteId);
+    const response = await client.session.get(
+      { sessionID: remoteId },
+      OPEN_CODE_REQUEST_OPTIONS,
+    );
+    const title = response.data?.title;
     return new ReadableStream({
       start(controller) {
         if (title !== undefined && !isDefaultSessionTitle(title)) {

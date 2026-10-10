@@ -417,16 +417,11 @@ export const useOpenCodeRuntime = (
   const clientKey = options.client ?? baseUrl;
   const createPinned = () => {
     const client = options.client ?? createOpencodeClient({ baseUrl });
-    const registry = createRegistry(client);
     return {
       key: clientKey,
       client,
-      registry,
-      adapter: createOpenCodeThreadListAdapter(
-        client,
-        (sessionId) =>
-          registry.controllers.get(sessionId)?.getState().session?.title,
-      ),
+      registry: createRegistry(client),
+      adapter: createOpenCodeThreadListAdapter(client),
     };
   };
   const [pinned, setPinned] = useState(createPinned);
