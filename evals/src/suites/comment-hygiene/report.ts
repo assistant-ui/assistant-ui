@@ -1,14 +1,18 @@
 import type { CaseResult, TrialResult } from "../../types.ts";
 import type { Candidate, EvalCase, Judged } from "./types.ts";
 
-/** Share of the completed trials that passed; errored trials don't count. */
-export function passRate(trials: TrialResult<Judged>[]): number {
+/** Share of the completed trials that passed, or undefined when none completed. */
+export function passRate(trials: TrialResult<Judged>[]): number | undefined {
   const scored = trials.filter((t) => !t.error);
-  return scored.length
-    ? scored.filter((t) => !t.error && t.outcome.verdict.pass).length /
-        scored.length
-    : 0;
+  if (scored.length === 0) return undefined;
+  return (
+    scored.filter((t) => !t.error && t.outcome.verdict.pass).length /
+    scored.length
+  );
 }
+
+export const formatPassRate = (rate: number | undefined): string =>
+  rate === undefined ? "N/A" : `${Math.round(rate * 100)}%`;
 
 /** Render a pass-rate matrix (candidates × cases) plus baseline evidence. */
 export function renderReport(
@@ -28,7 +32,7 @@ export function renderReport(
   for (const label of labels) {
     const cells = results.map((r) => {
       const v = r.variants.find((x) => x.candidate.label === label);
-      return cell(`${Math.round((v ? passRate(v.trials) : 0) * 100)}%`);
+      return cell(formatPassRate(v ? passRate(v.trials) : undefined));
     });
     lines.push(`${label.padEnd(labelW)}  ${cells.join("  ")}`);
   }

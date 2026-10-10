@@ -21,7 +21,7 @@ const deleteStale = { label: "delete-stale", prompt: "Delete it." };
 
 test("passRate leaves errored trials out", () => {
   assert.equal(passRate([judged(true), judged(false), errored]), 0.5);
-  assert.equal(passRate([errored]), 0);
+  assert.equal(passRate([errored]), undefined);
 });
 
 test("renders each candidate's pass rate per case and the baseline failure", () => {
@@ -50,7 +50,7 @@ test("renders each candidate's pass rate per case and the baseline failure", () 
       "",
       "candidate     pr-review-comments     bugfix-comments",
       "baseline                     50%                100%",
-      "delete-stale                100%                  0%",
+      "delete-stale                100%                 N/A",
       "",
       "## Reproduced failure (baseline)",
       "- pr-review-comments: kept the history comment",

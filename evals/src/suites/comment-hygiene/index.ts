@@ -3,7 +3,7 @@ import { runAgent } from "./agent.ts";
 import { candidates } from "./candidates.ts";
 import { cases } from "./cases/index.ts";
 import { runJudge } from "./judge.ts";
-import { passRate, renderReport } from "./report.ts";
+import { formatPassRate, passRate, renderReport } from "./report.ts";
 import type { Candidate, EvalCase, Judged } from "./types.ts";
 
 /**
@@ -24,6 +24,6 @@ export const commentHygiene: Suite<EvalCase, Candidate, Judged> = {
     verdict: `${verdict.pass ? "PASS" : "FAIL"}: ${verdict.reason}`,
     artifact,
   }),
-  summarize: (trials) => `${Math.round(passRate(trials) * 100)}%`,
+  summarize: (trials) => formatPassRate(passRate(trials)),
   report: renderReport,
 };
