@@ -27,10 +27,17 @@ export const API_REFERENCE_INPUTS = [
 
 const touches = (file, input) => file === input || file.startsWith(`${input}/`);
 
+const isPackageTestSource = (file) =>
+  /^packages\/[^/]+\/.*\.tsx?$/.test(file) &&
+  (/\.(?:test|spec|bench)\.tsx?$/.test(file) ||
+    /\/(?:tests|__tests__)\//.test(file) ||
+    /\/testUtils\.tsx?$/.test(file));
+
 export function hasApiReferenceInputs(changedFiles) {
   return changedFiles.some(
     (file) =>
       !/^packages\/[^/]+\/README\.md$/.test(file) &&
+      !isPackageTestSource(file) &&
       API_REFERENCE_INPUTS.some((input) => touches(file, input)),
   );
 }
