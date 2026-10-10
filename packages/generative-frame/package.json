@@ -1,6 +1,6 @@
 {
   "name": "generative-frame",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Stream model-generated HTML and SVG widgets into Safe Content Frames, with a host bridge, theming, diagnostics, screenshots, tools, and prompts",
   "keywords": [
     "generative-ui",
