@@ -284,7 +284,9 @@ export function normalizeSpec(spec: UISpec): {
 } {
   if (Array.isArray(spec)) {
     return {
-      root: (spec as readonly UINode[]).map((node) => normalizeUINode(node)),
+      root: (spec as readonly UINode[]).map((node) =>
+        normalizeUINode(node, undefined, 1),
+      ),
     };
   }
   return { root: normalizeUINode(spec) };

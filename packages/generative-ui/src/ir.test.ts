@@ -50,6 +50,23 @@ describe("normalizeUINode", () => {
       expect(node.children).toBeUndefined();
       expect(node.action).toBeUndefined();
     });
+
+    it("strips the _ spellings from a legacy node's props", () => {
+      const node = asElement(
+        normalizeUINode({
+          component: "Card",
+          props: {
+            _type: "Text",
+            _key: "k",
+            _action: { type: "x" },
+            title: "hi",
+          },
+        }),
+      );
+
+      expect(node.type).toBe("Card");
+      expect(node.props).toEqual({ title: "hi" });
+    });
   });
 
   describe("flat $type shape", () => {
@@ -174,23 +191,6 @@ describe("normalizeUINode", () => {
       expect(node.action).toEqual({ type: "kept" });
       expect(node.props).toEqual({ title: "hi" });
     });
-
-    it("strips the _ spellings from a legacy node's props", () => {
-      const node = asElement(
-        normalizeUINode({
-          component: "Card",
-          props: {
-            _type: "Text",
-            _key: "k",
-            _action: { type: "x" },
-            title: "hi",
-          },
-        }),
-      );
-
-      expect(node.type).toBe("Card");
-      expect(node.props).toEqual({ title: "hi" });
-    });
   });
 
   describe("nesting", () => {
@@ -239,6 +239,12 @@ describe("normalizeUINode", () => {
       expect(normalizeUINode({ children: tree })).toEqual(
         normalizeUINode(tree),
       );
+    });
+
+    it("leaves typeless items of a root list unwrapped, as the renderer does", () => {
+      const item = { children: { _type: "Text", value: "a" } };
+      expect(normalizeSpec([item] as unknown as never).root).toEqual([null]);
+      expect(normalizeUINode([item])).toEqual([null]);
     });
 
     it("keeps a streaming typeless root and a nested typeless node unrendered", () => {
