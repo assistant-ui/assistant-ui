@@ -35,17 +35,13 @@ When you're choosing between designs, the real page is the best place to judge t
 
 ## Install
 
-`@assistant-ui/variants` is not published to npm yet. Inside this monorepo, add it to a workspace package as a dev dependency:
+Add it as a dev dependency:
 
-```json
-{
-  "devDependencies": {
-    "@assistant-ui/variants": "workspace:*"
-  }
-}
+```sh
+npm install -D @assistant-ui/variants
 ```
 
-Then run `pnpm install`. Peer dependencies: `react` and `react-dom` 18 or 19. There are no other runtime dependencies, and you don't need a CSS import.
+Peer dependencies: `react` and `react-dom` 18 or 19. There are no other runtime dependencies, and you don't need a CSS import.
 
 ## API
 
