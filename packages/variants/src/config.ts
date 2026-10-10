@@ -34,9 +34,22 @@ export const onConfigChange = (listener: () => void) => {
   return () => listeners.delete(listener);
 };
 
+const isApplePlatform = () =>
+  typeof navigator !== "undefined" &&
+  /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+
 /** The visible label, or the `aria-keyshortcuts` value when `aria` is set. */
 export const shortcutLabel = (shortcut: VariantsShortcut, aria = false) => {
   const key = shortcut.code.replace(/^Key|^Digit/, "");
+  if (!aria && isApplePlatform()) {
+    return [
+      shortcut.ctrl ? "⌃" : "",
+      shortcut.alt ? "⌥" : "",
+      shortcut.shift ? "⇧" : "",
+      shortcut.meta ? "⌘" : "",
+      key,
+    ].join("");
+  }
   return [
     shortcut.ctrl ? (aria ? "Control" : "Ctrl") : "",
     shortcut.meta ? (aria ? "Meta" : "Cmd") : "",

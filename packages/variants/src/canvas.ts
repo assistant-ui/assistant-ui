@@ -8,10 +8,9 @@ import {
 } from "./canvas-math";
 import { NAME } from "./name";
 import { groupNodes } from "./nodes";
-import { promptFor } from "./prompt";
 import { depthOf, treeOrder, type Store } from "./store";
 import { SIDEBAR_VARIABLE, SWITCHER_ATTRIBUTE } from "./switcher";
-import { BASE_CSS, copyButton, copyWithFeedback, h, iconButton } from "./ui";
+import { BASE_CSS, h, iconButton } from "./ui";
 
 export const CANVAS_ATTRIBUTE = `data-${NAME}-canvas`;
 
@@ -22,7 +21,7 @@ const scope = `[${CANVAS_ATTRIBUTE}]`;
 const PAGE_CSS = `
 ${scope} {
   --cc-bg: #fafafa; --cc-dot: rgb(0 0 0 / 0.08); --cc-card: #ffffff; --cc-border: #e4e4e7;
-  --cc-fg: #18181b; --cc-muted: #71717a; --cc-accent: #d97706; --cc-quiet: rgb(24 24 27 / 0.06);
+  --cc-fg: #18181b; --cc-muted: #71717a; --cc-accent: #ea580c; --cc-quiet: rgb(24 24 27 / 0.06);
   --cc-shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px -10px rgb(0 0 0 / 0.18);
   position: fixed; inset: 0; right: var(${SIDEBAR_VARIABLE}, 0px); z-index: 2147483646; display: flex; flex-direction: column;
   background-color: var(--cc-bg);
@@ -33,7 +32,7 @@ ${scope} {
 @media (prefers-color-scheme: dark) {
   ${scope} {
     --cc-bg: #0c0c0e; --cc-dot: rgb(255 255 255 / 0.07); --cc-card: #18181b; --cc-border: #2e2e33;
-    --cc-fg: #fafafa; --cc-muted: #a1a1aa; --cc-accent: #fbbf24; --cc-quiet: rgb(250 250 250 / 0.08);
+    --cc-fg: #fafafa; --cc-muted: #a1a1aa; --cc-accent: #fb923c; --cc-quiet: rgb(250 250 250 / 0.08);
     --cc-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px -12px rgb(0 0 0 / 0.7);
   }
 }
@@ -83,11 +82,10 @@ const TOOLBAR_CSS = `
 :host { all: initial; display: block; }
 ${BASE_CSS}
 .root {
-  display: flex; align-items: center; gap: 8px; height: 48px; padding: 0 8px 0 16px;
+  display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 6px 0 12px;
   background: var(--bg); border-bottom: 1px solid var(--border);
 }
 .title { font-weight: 600; }
-.hint { color: var(--fg-muted); margin-left: 4px; }
 .tools { margin-left: auto; display: flex; align-items: center; gap: 2px; }
 .zoom { min-width: 44px; text-align: center; color: var(--fg-muted); }
 .sep { width: 1px; height: 20px; background: var(--border); margin: 0 6px; }
@@ -242,21 +240,11 @@ export const mountCanvas = (store: Store): (() => void) => {
   const toolbarStyle = document.createElement("style");
   toolbarStyle.textContent = TOOLBAR_CSS;
   const zoomLabel = h("span", { class: "zoom" }, "100%");
-  const live = h("div", {
-    class: "sr-only",
-    role: "status",
-    "aria-live": "polite",
-  });
   const bar = h(
     "div",
     { class: "root" },
     h("span", { class: "dot", "aria-hidden": "true" }),
     h("span", { class: "title" }, "Canvas"),
-    h(
-      "span",
-      { class: "hint" },
-      "Click a card to select it, double-click to use it",
-    ),
     h(
       "div",
       { class: "tools" },
@@ -280,7 +268,6 @@ export const mountCanvas = (store: Store): (() => void) => {
         "Fit to screen (0)",
       ),
       h("span", { class: "sep", "aria-hidden": "true" }),
-      copyButton({ "data-action": "copy" }),
       iconButton(
         { "data-action": "close" },
         "Close canvas",
@@ -288,7 +275,6 @@ export const mountCanvas = (store: Store): (() => void) => {
         "Close (Esc)",
       ),
     ),
-    live,
   );
   toolbar.append(toolbarStyle, bar);
 
@@ -479,13 +465,6 @@ export const mountCanvas = (store: Store): (() => void) => {
       autoFit = true;
       animate(fit);
     } else if (action === "close") close();
-    else if (action === "copy") {
-      void copyWithFeedback(
-        button,
-        promptFor(store.getSnapshot(), window.location),
-        live,
-      );
-    }
   };
 
   const cardOf = (target: EventTarget | null) =>

@@ -1621,3 +1621,29 @@ describe("server component children", () => {
     ]);
   });
 });
+
+describe("outline position", () => {
+  const frame = () =>
+    document
+      .querySelector(`[${OUTLINE_ATTRIBUTE}]`)!
+      .shadowRoot!.querySelector<HTMLElement>(".box")!;
+
+  it("follows a region that moves when content outside it changes", async () => {
+    rects["a1"] = box(100, 0, 200, 150);
+    renderWithStore(<Hero />);
+    act(() => flushOutlines());
+    const before = Number.parseFloat(frame().style.top);
+
+    rects["a1"] = box(160, 0, 200, 210);
+    const banner = document.createElement("div");
+    document.body.prepend(banner);
+
+    try {
+      await vi.waitFor(() =>
+        expect(Number.parseFloat(frame().style.top)).toBe(before + 60),
+      );
+    } finally {
+      banner.remove();
+    }
+  });
+});
