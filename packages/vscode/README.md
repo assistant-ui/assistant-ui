@@ -30,6 +30,8 @@ Unknown paths answer `404`, unsupported methods `405`, and a handler that throws
 
 ## Webview
 
+When a reloaded page first acquires the VS Code API, it notifies the host to abort requests from the previous page, including response streams still in progress. Creating another fetch client in the same page does not cancel active requests
+
 Pass `vscodeFetch` to any runtime that takes a `fetch`:
 
 ```tsx
