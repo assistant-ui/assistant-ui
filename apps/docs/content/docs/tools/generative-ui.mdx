@@ -322,15 +322,13 @@ Without a registry, the tree still renders and model-emitted actions degrade to 
 
 ## Spec mode
 
-In [generative-frame's spec mode](/generative-frame/docs/spec-mode), the model builds the UI as a flat spec, streamed as JSON Patch lines, with state, bindings, and validation. `toSpecCatalog` turns a library into the catalog and components spec mode takes, so the default vocabulary, or a styled library, renders there too:
+In [generative-frame's spec mode](/generative-frame/docs/spec-mode), the model builds the UI as a flat spec, streamed as JSON Patch lines, with state, bindings, and validation. `toSpecCatalog` from `@assistant-ui/generative-ui/spec` turns a library into the catalog and components spec mode takes, so the default vocabulary, or a styled library, renders there too. Install `generative-frame` alongside it:
 
 ```tsx
 import { createWidgetToolkit } from "generative-frame/assistant-ui";
 import { createSpecToolkit } from "generative-frame/spec/assistant-ui";
-import {
-  defaultGenerativeUILibrary,
-  toSpecCatalog,
-} from "@assistant-ui/generative-ui/react";
+import { defaultGenerativeUILibrary } from "@assistant-ui/generative-ui/react";
+import { toSpecCatalog } from "@assistant-ui/generative-ui/spec";
 
 const { catalog, components } = toSpecCatalog(defaultGenerativeUILibrary, {
   actions: { purchase: { description: "Buys the plan in `sku`." } },
@@ -344,7 +342,7 @@ const widgets = createWidgetToolkit({
 });
 ```
 
-A spec element binds behavior with `on` instead of carrying `_action`. A `Button` and a `ListViewItem` emit `press`, the value controls emit `change` (an `Input` emits `submit`), a `Form` emits `submit`, and a `Card` emits `confirm` and `cancel` from its footer buttons. The payload, which `{ "$event": "" }` reads, is the control's value, or every named control's value when a `Form` emits `submit` or a `Card` with `asForm` emits `confirm`. A value prop bound with `$bindState` (`defaultValue`, `defaultChecked`, or a `DatePicker`'s `value`) is written back when its control emits; an `Input` inside a `Form` emits nothing itself, so its value arrives with the form's `submit` instead. Declare host actions through `actions` so the model can bind them; `setState` is always available.
+A spec element binds behavior with `on` instead of carrying `_action`. A `Button` and a `ListViewItem` emit `press`, the value controls emit `change` (an `Input` emits `submit`), a `Form` emits `submit`, and a `Card` emits `confirm` and `cancel` from its footer buttons. The payload, which `{ "$event": "" }` reads, is the control's value, or every named control's value when a `Form` emits `submit` or a `Card` with `asForm` emits `confirm`. A control whose value prop (`defaultValue`, `defaultChecked`, or a `DatePicker`'s `value`) is bound with `$bindState` follows that state and writes every change back to it, inside a `Form` too. Declare host actions through `actions` so the model can bind them; `setState` is always available.
 
 ## Charts
 
