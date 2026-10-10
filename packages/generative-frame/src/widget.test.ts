@@ -486,6 +486,13 @@ describe("widget ids", () => {
     expect(document.body.children).toHaveLength(0);
   });
 
+  it("removes the clear-storage container when the options are rejected", async () => {
+    await expect(
+      clearWidgetStorage("a", { opaqueOrigin: true } as never),
+    ).rejects.toThrow(TypeError);
+    expect(document.body.children).toHaveLength(0);
+  });
+
   it("rejects an id together with a preconfigured frame", () => {
     const container = document.createElement("div");
     expect(() =>

@@ -146,8 +146,10 @@ type FrameRenderer = {
 /**
  * An opaque origin cannot be named as a `postMessage` target, so messages to
  * the frame use `"*"`. A sandboxed frame keeps its opaque origin and window
- * when it navigates, so once the bootstrap document is gone, `origin` stops
- * matching any message and nothing is posted to the frame.
+ * when it navigates, so after a navigated document loads, `origin` stops
+ * matching and nothing is posted to the frame. A navigated document can still
+ * post before its own `load`; that grants it nothing the widget code could
+ * not already do.
  */
 const opaqueFrame: FrameRenderer = {
   async renderHtml(html, container) {
@@ -785,14 +787,15 @@ export async function clearWidgetStorage(
   container.style.cssText =
     "position:fixed;left:0;top:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;";
   document.body.appendChild(container);
-  const widget = createWidget({ ...options, container, id });
+  let widget: WidgetHandle | undefined;
   try {
+    widget = createWidget({ ...options, container, id });
     await widget.ready;
     return await internalRequests.get(widget)!<ClearStorageResult>(
       METHODS.clearStorage,
     );
   } finally {
-    widget.dispose();
+    widget?.dispose();
     container.remove();
   }
 }

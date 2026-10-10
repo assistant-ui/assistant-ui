@@ -131,6 +131,8 @@ describe("SafeContentFrame", () => {
       "localhost",
       "Example.com",
       "-a.example.com",
+      `${"a".repeat(64)}.example`,
+      `${"a.".repeat(97)}example`,
     ]) {
       expect(
         () => new SafeContentFrame("test", { unsafeShimDomain: domain }),
