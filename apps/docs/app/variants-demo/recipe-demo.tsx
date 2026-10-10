@@ -97,6 +97,44 @@ function HeaderCentered() {
   );
 }
 
+function HeaderBanner() {
+  return (
+    <div className="bg-foreground/[0.03] dark:bg-foreground/[0.05] flex flex-col gap-4 rounded-xl px-8 py-10">
+      <Meta />
+      <h1 className={titleClass}>{RECIPE.title}</h1>
+      <p className="text-muted-foreground max-w-[34rem] text-[15px] leading-relaxed">
+        {RECIPE.intro}
+      </p>
+    </div>
+  );
+}
+
+function HeaderSplit() {
+  return (
+    <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+      <div className="flex flex-col gap-3">
+        <h1 className={titleClass}>{RECIPE.title}</h1>
+        <p className="text-muted-foreground max-w-[30rem] text-[15px] leading-relaxed">
+          {RECIPE.intro}
+        </p>
+      </div>
+      <dl className="flex gap-8">
+        {[
+          ["Time", RECIPE.time],
+          ["Serves", "2"],
+        ].map(([label, value]) => (
+          <div key={label} className="flex flex-col gap-1">
+            <dt className="text-muted-foreground text-[13px]">{label}</dt>
+            <dd className="font-display text-[1.5rem] leading-none font-medium tabular-nums">
+              {value}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
 function IngredientList() {
   return (
     <ul className="flex flex-col gap-2 text-[14px]">
@@ -139,14 +177,38 @@ function MethodSideBySide() {
 
 function MethodStacked() {
   return (
-    <div className="flex max-w-[34rem] flex-col gap-8">
-      <section className="flex flex-col gap-3">
-        <h2 className="text-[15px] font-medium">Ingredients</h2>
-        <IngredientList />
+    <div className="flex max-w-[40rem] flex-col gap-10">
+      <section className="flex flex-col gap-4">
+        <h2 className="flex items-baseline gap-2 text-[15px] font-medium">
+          Ingredients
+          <span className="text-muted-foreground text-[13px] font-normal">
+            {INGREDIENTS.length} items
+          </span>
+        </h2>
+        <ul className="grid gap-x-8 gap-y-3 text-[14px] sm:grid-cols-2">
+          {INGREDIENTS.map((item) => (
+            <li key={item} className="flex items-center gap-3">
+              <span
+                aria-hidden
+                className="border-foreground/25 size-4 shrink-0 rounded-[5px] border"
+              />
+              {item}
+            </li>
+          ))}
+        </ul>
       </section>
-      <section className="flex flex-col gap-3">
+      <section className="flex flex-col gap-4">
         <h2 className="text-[15px] font-medium">Method</h2>
-        <StepList />
+        <ol className="flex flex-col gap-5">
+          {STEPS.map((step, index) => (
+            <li key={step} className="flex gap-4">
+              <span className="font-display text-foreground/25 w-7 shrink-0 text-[1.5rem] leading-none font-medium tabular-nums">
+                {index + 1}
+              </span>
+              <p className="text-[14px] leading-relaxed">{step}</p>
+            </li>
+          ))}
+        </ol>
       </section>
     </div>
   );
@@ -202,6 +264,12 @@ export function RecipeDemo() {
           </Variant>
           <Variant id="centered" label="Centered with meta">
             <HeaderCentered />
+          </Variant>
+          <Variant id="banner" label="Banner">
+            <HeaderBanner />
+          </Variant>
+          <Variant id="split" label="Split with stats">
+            <HeaderSplit />
           </Variant>
         </Variants>
 
