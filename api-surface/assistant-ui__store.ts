@@ -311,7 +311,7 @@ declare namespace entry_root_exports {
 }
 
 declare namespace entry_internal_exports {
-  export { shallowEqual, useAssistantClientDestroySignal, useHostDestroySignal, useOptionalAssistantClientRef, useOptionalAssistantEmit, useOptionalAssistantScopeEffect, useReplaySafeEffect, useShallowSelector, useShallowStable };
+  export { shallowEqual, useAssistantClientDestroySignal, useForwardingClient, useHostDestroySignal, useOptionalAssistantClientRef, useOptionalAssistantEmit, useOptionalAssistantScopeEffect, useReplaySafeEffect, useShallowSelector, useShallowStable };
 }
 
 declare const isUserScrollUp: (previous: {
@@ -400,6 +400,8 @@ declare const useClientResource: <TMethods extends ClientMethods>(element: Resou
 declare const useConfiguredAui: (parent: AssistantClient, clients: AuiConfig.Input, destroySignal?: AbortSignal) => ScopedAuiClient;
 
 declare const useDestroySignalProvider: <TResult>(destroySignal: AbortSignal | undefined, fn: () => TResult) => TResult;
+
+declare const useForwardingClient: <TMethods extends ClientMethods>(target: TMethods) => TMethods;
 
 declare const useHostDestroySignal: () => AbortSignal;
 
