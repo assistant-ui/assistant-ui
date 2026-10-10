@@ -411,7 +411,7 @@ describe("sidebar", () => {
     expect(pushed()).toBe("360px");
   });
 
-  it("animates a toggle but not the first render", () => {
+  it("animates a toggle but not the first render", async () => {
     renderPage();
     const panel = () =>
       document
@@ -423,6 +423,8 @@ describe("sidebar", () => {
     );
     expect(panel().hasAttribute("data-enter")).toBe(true);
     expect(html.hasAttribute("data-variants-animating")).toBe(true);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(html.hasAttribute("data-variants-animating")).toBe(false);
   });
 
   it("adds no margin in clean or noui mode", () => {
