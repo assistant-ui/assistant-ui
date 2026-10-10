@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({ parsePartialJsonObject: vi.fn() }));
