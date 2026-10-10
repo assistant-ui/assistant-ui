@@ -89,10 +89,12 @@ export function renderReport(
 
   const failures = results.flatMap((r) =>
     r.variants.flatMap((v) => {
-      const failed = v.trials.find((t) => !t.error && t.outcome.errors.length);
-      return failed && !failed.error
+      const errors = new Set(
+        v.trials.flatMap((t) => (t.error ? [] : t.outcome.errors)),
+      );
+      return errors.size
         ? [
-            `- \`${v.candidate.label}\` on \`${r.case.id}\`: ${failed.outcome.errors[0]}`,
+            `- \`${v.candidate.label}\` on \`${r.case.id}\`: ${[...errors].join("; ")}`,
           ]
         : [];
     }),

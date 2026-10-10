@@ -9,7 +9,7 @@ const judged = (
   overrides: Partial<Judged> = {},
 ): TrialResult<Judged> => ({
   outcome: {
-    artifact: "",
+    artifact: "answer",
     errors: [],
     repairRounds: 0,
     inputTokens: 100,
@@ -54,6 +54,24 @@ test("mean skips errored trials and missing values", () => {
     mean([errored], (j) => j.totalMs),
     undefined,
   );
+});
+
+test("lists every distinct error a candidate left on a task", () => {
+  const report = renderReport([
+    {
+      case: task("t1", true),
+      variants: [
+        {
+          candidate: candidate("spec"),
+          trials: [
+            judged([1, 1, 1], { errors: ["a", "b"] }),
+            judged([1, 1, 1], { errors: ["b", "c"] }),
+          ],
+        },
+      ],
+    },
+  ]);
+  assert.ok(report.endsWith("- `spec:m` on `t1`: a; b; c"), report);
 });
 
 test("renders each format's averages and each task's score per model", () => {
