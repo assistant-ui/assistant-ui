@@ -23,6 +23,7 @@ interface SafeContentFrameOptions {
   enableBrowserCaching?: boolean;
   sandbox?: SandboxOption[];
   salt?: string;
+  unsafeShimDomain?: string;
 }
 
 interface SafeContentFrameRenderOptions {
