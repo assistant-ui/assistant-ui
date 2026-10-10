@@ -87,6 +87,20 @@ export type McpAppToolCallParams = {
   arguments?: Record<string, unknown>;
 };
 
+/**
+ * The params of the app's `ui/initialize` request, as `onInitialized`
+ * receives them. A field that fails validation is omitted, and
+ * `availableDisplayModes` keeps only the modes this host recognizes.
+ */
+export type McpAppInitializeParams = {
+  appInfo?: { name: string; version: string; [k: string]: unknown };
+  appCapabilities?: {
+    availableDisplayModes?: McpAppDisplayMode[];
+    [k: string]: unknown;
+  };
+  protocolVersion?: string;
+};
+
 export type McpAppBridgeHandlers = {
   allowedTools?: readonly string[];
   callTool?: (params: McpAppToolCallParams) => Promise<unknown> | unknown;
@@ -99,28 +113,7 @@ export type McpAppBridgeHandlers = {
     mode: McpAppDisplayMode;
   }) => Promise<{ mode: McpAppDisplayMode }> | { mode: McpAppDisplayMode };
   onSizeChange?: (params: { width?: number; height?: number }) => void;
-  onInitialized?: (app: {
-    appInfo?: {
-      name: string;
-      version: string;
-      title?: string;
-      description?: string;
-      icons?: Array<{
-        src: string;
-        mimeType?: string;
-        sizes?: string[];
-        theme?: "light" | "dark";
-      }>;
-      websiteUrl?: string;
-      [key: string]: unknown;
-    };
-    appCapabilities?: {
-      tools?: { listChanged?: boolean; [key: string]: unknown };
-      availableDisplayModes?: McpAppDisplayMode[];
-      [key: string]: unknown;
-    };
-    protocolVersion?: string;
-  }) => void;
+  onInitialized?: (params: McpAppInitializeParams) => void;
   onRequestTeardown?: (params: unknown) => void;
   onLog?: (params: unknown) => void;
   onError?: (error: Error) => void;

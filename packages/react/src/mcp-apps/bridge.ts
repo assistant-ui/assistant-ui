@@ -6,6 +6,7 @@ import {
   type McpAppDisplayMode,
   type McpAppHostContext,
   type McpAppHostInfo,
+  type McpAppInitializeParams,
   type McpAppJsonRpcMessage,
   type McpAppJsonRpcNotification,
   type McpAppJsonRpcRequest,
@@ -19,96 +20,45 @@ const VALID_DISPLAY_MODES = [
   "pip",
 ] as const satisfies readonly McpAppDisplayMode[];
 
-type McpAppInitialization = Parameters<
-  NonNullable<McpAppBridgeHandlers["onInitialized"]>
->[0];
-type McpAppIcon = NonNullable<
-  NonNullable<McpAppInitialization["appInfo"]>["icons"]
->[number];
-type McpAppToolsCapability = NonNullable<
-  NonNullable<McpAppInitialization["appCapabilities"]>["tools"]
->;
-
-function isArrayOf<T>(
-  value: unknown,
-  isItem: (item: unknown) => item is T,
-): value is T[] {
-  if (!Array.isArray(value)) return false;
-  for (let i = 0; i < value.length; i++) {
-    if (!Object.hasOwn(value, i) || !isItem(value[i])) return false;
-  }
-  return true;
-}
-
-function isAppIcon(value: unknown): value is McpAppIcon {
-  return (
-    isRecord(value) &&
-    typeof value.src === "string" &&
-    (value.mimeType === undefined || typeof value.mimeType === "string") &&
-    (value.sizes === undefined ||
-      isArrayOf(
-        value.sizes,
-        (size): size is string => typeof size === "string",
-      )) &&
-    (value.theme === undefined ||
-      value.theme === "light" ||
-      value.theme === "dark")
-  );
-}
-
-function isAppInfo(
-  value: unknown,
-): value is NonNullable<McpAppInitialization["appInfo"]> {
-  return (
-    isRecord(value) &&
-    typeof value.name === "string" &&
-    typeof value.version === "string" &&
-    (value.title === undefined || typeof value.title === "string") &&
-    (value.description === undefined ||
-      typeof value.description === "string") &&
-    (value.websiteUrl === undefined || typeof value.websiteUrl === "string") &&
-    (value.icons === undefined || isArrayOf(value.icons, isAppIcon))
-  );
-}
-
 function isMcpAppDisplayMode(value: unknown): value is McpAppDisplayMode {
   return VALID_DISPLAY_MODES.some((mode) => mode === value);
 }
 
-function isDisplayModeList(value: unknown): value is McpAppDisplayMode[] {
-  return isArrayOf(value, isMcpAppDisplayMode);
-}
-
-function isToolsCapability(value: unknown): value is McpAppToolsCapability {
+function isAppInfo(
+  value: unknown,
+): value is NonNullable<McpAppInitializeParams["appInfo"]> {
   return (
     isRecord(value) &&
-    (value.listChanged === undefined || typeof value.listChanged === "boolean")
+    typeof value.name === "string" &&
+    typeof value.version === "string"
   );
 }
 
-function normalizeAppCapabilities(
+function getAppCapabilities(
   value: unknown,
-): McpAppInitialization["appCapabilities"] {
+): McpAppInitializeParams["appCapabilities"] {
   if (!isRecord(value)) return undefined;
-  const { availableDisplayModes, tools, ...rest } = value;
+  const { availableDisplayModes, ...rest } = value;
   return {
     ...rest,
-    ...(isToolsCapability(tools) ? { tools } : {}),
-    ...(isDisplayModeList(availableDisplayModes)
-      ? { availableDisplayModes }
+    ...(Array.isArray(availableDisplayModes)
+      ? {
+          availableDisplayModes:
+            availableDisplayModes.filter(isMcpAppDisplayMode),
+        }
       : {}),
   };
 }
 
-function getAppInitialization(params: unknown): McpAppInitialization {
+function getInitializeParams(params: unknown): McpAppInitializeParams {
   if (!isRecord(params)) return {};
-  const appCapabilities = normalizeAppCapabilities(params.appCapabilities);
+  const appCapabilities = getAppCapabilities(params.appCapabilities);
   return {
+    ...(isAppInfo(params.appInfo) ? { appInfo: params.appInfo } : {}),
+    ...(appCapabilities ? { appCapabilities } : {}),
     ...(typeof params.protocolVersion === "string"
       ? { protocolVersion: params.protocolVersion }
       : {}),
-    ...(isAppInfo(params.appInfo) ? { appInfo: params.appInfo } : {}),
-    ...(appCapabilities ? { appCapabilities } : {}),
   };
 }
 
@@ -184,7 +134,7 @@ export function createMcpAppBridge(
     hostContext = {},
   } = opts;
   let disposed = false;
-  let appInitialization: McpAppInitialization = {};
+  let initializeParams: McpAppInitializeParams = {};
 
   const post = (msg: McpAppJsonRpcMessage) => {
     if (disposed) return;
@@ -236,9 +186,9 @@ export function createMcpAppBridge(
 
       switch (normalizeMethod(req.method)) {
         case "ui/initialize": {
-          appInitialization = getAppInitialization(params);
+          initializeParams = getInitializeParams(params);
           const requestedProtocolVersion =
-            appInitialization.protocolVersion ?? MCP_APP_PROTOCOL_VERSION;
+            initializeParams.protocolVersion ?? MCP_APP_PROTOCOL_VERSION;
           respond(req.id, {
             result: {
               protocolVersion: requestedProtocolVersion,
@@ -488,7 +438,7 @@ export function createMcpAppBridge(
     try {
       switch (normalizeMethod(note.method)) {
         case "notifications/initialized": {
-          handlers.onInitialized?.(appInitialization);
+          handlers.onInitialized?.(initializeParams);
           return;
         }
         case "notifications/size_changed": {

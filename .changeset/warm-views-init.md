@@ -2,4 +2,4 @@
 "@assistant-ui/react": patch
 ---
 
-Pass MCP App initialization metadata to `onInitialized`.
+fix(react): pass an MCP App's `ui/initialize` params to `onInitialized` as `McpAppInitializeParams`, including the display modes the app declares
