@@ -4,4 +4,4 @@
 "@assistant-ui/vue": patch
 ---
 
-Block sending and attachment selection while a thread is disabled.
+Block typing, attachments, sends, and message editing while a thread is disabled.

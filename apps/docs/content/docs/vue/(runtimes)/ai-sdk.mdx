@@ -64,7 +64,7 @@ Tools the server owns go in the same `tools` map with their own `execute`; see [
 | `throttle` | `number` | None | Passed to AI SDK `useChat` for update throttling. |
 | `adapters` | `AISDKRuntimeAdapter["adapters"]` | Runtime defaults | Supplies history, suggestion, attachment, and other supported adapters. |
 | `suggestions` | `ThreadSuggestion[]` | None | Supplies thread suggestions. |
-| `isDisabled` | `boolean` | `false` | Disables the thread and its composer input. |
+| `isDisabled` | `boolean` | `false` | Blocks typing, attaching, sending (including direct `composer.send()` calls), and editing messages. |
 | `isSendDisabled` | `boolean` | `false` | Blocks sends while leaving the input usable. |
 | `unstable_capabilities` | `{ copy?: boolean }` | None | Overrides the copy capability. |
 | `toCreateMessage` | Callback | Runtime conversion | Converts a new assistant-ui message to an AI SDK UI message. |

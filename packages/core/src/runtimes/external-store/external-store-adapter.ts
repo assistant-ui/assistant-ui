@@ -93,8 +93,9 @@ type ExternalStoreAdapterBase<T> = {
    */
   unstable_persistsHistory?: boolean | undefined;
   /**
-   * Whether the entire thread is disabled. When `true`, the composer's input
-   * is also disabled (the user cannot type, attach files, or submit). For a
+   * Whether the entire thread is disabled. When `true`, the composer input
+   * cannot be typed into, attachments cannot be added, sends (including direct
+   * `composer.send()` calls) are blocked, and messages cannot be edited. For a
    * narrower gate that keeps the input usable but blocks only sending, use
    * `isSendDisabled`.
    */

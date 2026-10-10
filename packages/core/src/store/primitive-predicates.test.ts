@@ -67,6 +67,22 @@ describe("primitive predicates", () => {
     ).toBe(true);
   });
 
+  it("actionBarEditDisabled blocks edits on a disabled thread", () => {
+    const base = {
+      composer: { isEditing: false },
+      optional: { thread: { capabilities: { edit: true } } },
+    };
+    expect(actionBarEditDisabled(state(base))).toBe(false);
+    expect(
+      actionBarEditDisabled(
+        state({
+          ...base,
+          optional: { thread: { ...base.optional.thread, isDisabled: true } },
+        }),
+      ),
+    ).toBe(true);
+  });
+
   it("composerSendDisabled leaves a spoken reply in progress to canSend while a voice session is connected", () => {
     const voice = { status: { type: "running" }, canSendText: true };
     expect(

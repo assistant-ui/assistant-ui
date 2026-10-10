@@ -169,7 +169,7 @@ export const ComposerPrimitiveAttachmentDropzone = defineComponent({
       isDragging.value = false;
       if (!isFileDrag(event)) return;
       event.preventDefault();
-      if (isDisabled.value) return;
+      if (props.disabled) return;
       const files = Array.from(event.dataTransfer?.files ?? []);
       if (!aui.thread.getState().capabilities.attachments || files.length === 0)
         return;
