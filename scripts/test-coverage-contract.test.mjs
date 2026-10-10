@@ -81,6 +81,7 @@ for (const event of ["pull_request", "merge_group"]) {
     "apps/docs/app/page.tsx",
     "examples/minimal/app/page.tsx",
     "templates/default/app/api/chat/route.ts",
+    "evals/src/runner.ts",
     "scripts/coverage-summary.mjs",
     "scripts/coverage-summary.test.mjs",
     "scripts/test-coverage-contract.test.mjs",

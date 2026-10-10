@@ -8,6 +8,7 @@ on:
       - "apps/**"
       - "examples/**"
       - "templates/**"
+      - "evals/**"
       - "scripts/coverage-summary.mjs"
       - "scripts/coverage-summary.test.mjs"
       - "scripts/test-coverage-contract.test.mjs"
@@ -73,6 +74,7 @@ jobs:
             apps \
             examples \
             templates \
+            evals \
             scripts/coverage-summary.mjs \
             scripts/coverage-summary.test.mjs \
             scripts/test-coverage-contract.test.mjs \
