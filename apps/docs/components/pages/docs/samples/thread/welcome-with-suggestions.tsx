@@ -6,9 +6,9 @@ import {
   AuiConfig,
   type ChatModelAdapter,
   Suggestions,
-  useLocalRuntime,
 } from "@assistant-ui/react";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
+import { useSampleRuntime } from "../use-sample-runtime";
 
 export function ChatWithSuggestions() {
   const adapter: ChatModelAdapter = {
@@ -16,7 +16,7 @@ export function ChatWithSuggestions() {
       yield { content: [{ type: "text", text: "This is a demo." }] };
     },
   };
-  const runtime = useLocalRuntime(adapter);
+  const runtime = useSampleRuntime(adapter);
   const config = AuiConfig({
     suggestions: Suggestions([
       {
