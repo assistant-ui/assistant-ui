@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
 import { createActionDispatcher } from "./actions";
-import { defineCatalog } from "./catalog";
+import { defineCatalog, type PropsSchema } from "./catalog";
 import { createStateStore } from "./state";
 import type { Spec } from "./types";
 import { formatSpecIssues, validateSpec } from "./validate";
@@ -124,6 +124,36 @@ describe("defineCatalog", () => {
     ]);
     expect(zodLike.validateProps("N", { n: { $state: "/n" } })).toEqual([]);
     expect(zodLike.prompt()).toContain("props: { n: number }");
+  });
+
+  it("accepts Standard Schema result optionals with explicit undefined", () => {
+    type StandardResult =
+      | { readonly value: unknown; readonly issues?: undefined }
+      | {
+          readonly issues: ReadonlyArray<{
+            readonly message: string;
+            readonly path?:
+              | ReadonlyArray<PropertyKey | { readonly key: PropertyKey }>
+              | undefined;
+          }>;
+        };
+
+    const standard: PropsSchema = {
+      "~standard": {
+        version: 1,
+        vendor: "test",
+        validate: (): StandardResult => ({
+          issues: [{ message: "invalid", path: undefined }],
+        }),
+      },
+    };
+    const schema = defineCatalog({
+      components: { N: { description: "n", props: standard } },
+    });
+
+    expect(schema.validateProps("N", {})).toEqual([
+      { path: "/", message: "invalid" },
+    ]);
   });
 });
 

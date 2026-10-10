@@ -973,8 +973,8 @@ type StandardResult = {
     readonly message: string;
     readonly path?: ReadonlyArray<PropertyKey | {
       readonly key: PropertyKey;
-    }>;
-  }>;
+    }> | undefined;
+  }> | undefined;
 };
 
 type StandardSchemaLike = {
