@@ -29,7 +29,7 @@ export type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
    * Provide it from the first render and change it when that scope changes.
    */
   scopeId?: string | undefined;
-  /** A message without an id gets a generated id, and a message without createdAt is stamped with the current time. Set createdAt on each initial message when prerendering a page with Next.js cacheComponents. */
+  /** A message without an id gets a generated id, and a message without createdAt is stamped with the current time. Set createdAt on each initial message when prerendering a page with Next.js cacheComponents. With a history adapter, they survive an empty load and are written to history before the thread's first new message, keeping any ids you set; a non-empty load replaces them. */
   initialMessages?: readonly ThreadMessageLike[] | undefined;
   adapters?: Omit<LocalRuntimeOptionsBase["adapters"], "chatModel"> | undefined;
 };
