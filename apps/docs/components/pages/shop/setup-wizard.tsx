@@ -150,7 +150,9 @@ function EndSetupDialog({
   }, [checkout.degraded]);
   const end = async () => {
     analytics.setup.cancelled();
-    const reached = checkout.commands["checkout/cancel"]().then(
+    const reached = checkout.commands["checkout/cancel"]({
+      id: checkout.session.id,
+    }).then(
       () => true,
       () => false,
     );

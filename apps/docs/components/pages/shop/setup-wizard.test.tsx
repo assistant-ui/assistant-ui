@@ -1055,7 +1055,9 @@ describe("SetupWizard", () => {
     });
     expect(commands["checkout/cancel"]).not.toHaveBeenCalled();
     fireEvent.click(within(confirm).getByRole("button", { name: "End setup" }));
-    await waitFor(() => expect(commands["checkout/cancel"]).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(commands["checkout/cancel"]).toHaveBeenCalledWith({ id: "test" }),
+    );
     await waitFor(() => expect(abandonCheckout).toHaveBeenCalled());
   });
 
