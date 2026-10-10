@@ -33,6 +33,14 @@ if (caseFilter && selectedCases.length === 0) {
 const candidates = candFilter
   ? suite.candidates.filter((c) => candFilter.includes(c.label))
   : suite.candidates;
+const unknownLabel = candFilter?.find(
+  (label) => !suite.candidates.some((c) => c.label === label),
+);
+if (unknownLabel !== undefined) {
+  throw new Error(
+    `No candidate "${unknownLabel}" in ${suite.id}. Candidates: ${suite.candidates.map((c) => c.label).join(", ")}`,
+  );
+}
 
 console.log(
   `Running ${selectedCases.length} case(s) × ${candidates.length} candidate(s) × ${trials} trial(s)\n`,
