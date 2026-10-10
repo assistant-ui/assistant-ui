@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/variants",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Compare UI variants inline in the real page, pick one, and let the production build make sure you did",
   "keywords": [
     "react",
