@@ -59,13 +59,18 @@ export function createGenerativeUISuite({
   };
 }
 
+const models = (process.env.MODELS ?? "")
+  .split(",")
+  .map((id) => id.trim())
+  .filter(Boolean);
+
 export const generativeUI = createGenerativeUISuite({
-  models: process.env.MODELS?.split(",")
-    .map((id) => id.trim())
-    .filter(Boolean) ?? [
-    "anthropic/claude-opus-5.5",
-    "openai/gpt-6-astra",
-    "google/gemini-3.1-pro-preview",
-  ],
-  judge: process.env.JUDGE_MODEL ?? "anthropic/claude-sonnet-5.5",
+  models: models.length
+    ? models
+    : [
+        "anthropic/claude-opus-5.5",
+        "openai/gpt-6-astra",
+        "google/gemini-3.1-pro-preview",
+      ],
+  judge: process.env.JUDGE_MODEL || "anthropic/claude-sonnet-5.5",
 });
