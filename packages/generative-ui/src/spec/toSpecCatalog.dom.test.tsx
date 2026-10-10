@@ -405,4 +405,71 @@ describe("toSpecCatalog components", () => {
       expect.anything(),
     );
   });
+
+  it("emits `confirm` when a form Card without a confirm button submits", async () => {
+    const save = vi.fn();
+    const container = await render(
+      {
+        root: "card",
+        elements: {
+          card: {
+            type: "Card",
+            props: { asForm: true },
+            children: ["note", "send"],
+            on: {
+              confirm: { action: "save", params: { values: { $event: "" } } },
+            },
+          },
+          note: {
+            type: "Input",
+            props: { name: "note", defaultValue: "Leave at the door" },
+          },
+          send: { type: "Button", props: { label: "Send", submit: true } },
+        },
+      },
+      { save },
+    );
+
+    await act(async () =>
+      query<HTMLElement>(container, '[data-aui="button"]').click(),
+    );
+
+    expect(save).toHaveBeenCalledWith(
+      { values: { note: "Leave at the door" } },
+      expect.anything(),
+    );
+  });
+
+  it("never emits `cancel` when a form Card submits", async () => {
+    const dismiss = vi.fn();
+    const container = await render(
+      {
+        root: "card",
+        elements: {
+          card: {
+            type: "Card",
+            props: { asForm: true, cancel: { label: "Dismiss" } },
+            children: ["note", "send"],
+            on: { cancel: { action: "dismiss" } },
+          },
+          note: {
+            type: "Input",
+            props: { name: "note", defaultValue: "Leave at the door" },
+          },
+          send: { type: "Button", props: { label: "Send", submit: true } },
+        },
+      },
+      { dismiss },
+    );
+
+    await act(async () =>
+      query<HTMLElement>(container, '[data-aui="button"]').click(),
+    );
+    expect(dismiss).not.toHaveBeenCalled();
+
+    await act(async () =>
+      query<HTMLElement>(container, '[data-aui="card-cancel"]').click(),
+    );
+    expect(dismiss).toHaveBeenCalledOnce();
+  });
 });
