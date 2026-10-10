@@ -257,9 +257,14 @@ describe("layoutVocabulary Card asForm/confirm/cancel", () => {
 describe("layoutVocabulary Card asForm/confirm/cancel dispatch", () => {
   it("Card asForm submit collects named values and dispatches confirm.$action with $input", () => {
     const handler = vi.fn();
-    const registry = createActionRegistry({ save: handler });
+    const cardHandler = vi.fn();
+    const registry = createActionRegistry({
+      save: handler,
+      fallback: cardHandler,
+    });
     const out = layoutVocabulary.Card.render({
       asForm: true,
+      $action: { type: "fallback" },
       confirm: { label: "Save", $action: { type: "save" } },
       $status: "done",
       $dispatch: registry.dispatch,
@@ -273,6 +278,28 @@ describe("layoutVocabulary Card asForm/confirm/cancel dispatch", () => {
     };
     onSubmit(event);
     expect(event.preventDefault).toHaveBeenCalled();
+    expect(handler).toHaveBeenCalledWith({
+      payload: { type: "save", $input: { email: "a@x.com" } },
+    });
+    expect(cardHandler).not.toHaveBeenCalled();
+  });
+
+  it("Card asForm submit dispatches the Card action with named values when confirm is absent", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ save: handler });
+    const out = layoutVocabulary.Card.render({
+      asForm: true,
+      $action: { type: "save" },
+      $status: "done",
+      $dispatch: registry.dispatch,
+    }) as ReactElement;
+    const onSubmit = (out.props as { onSubmit: (e: unknown) => void }).onSubmit;
+    onSubmit({
+      preventDefault: vi.fn(),
+      currentTarget: {
+        elements: [el({ name: "email", type: "email", value: "a@x.com" })],
+      },
+    });
     expect(handler).toHaveBeenCalledWith({
       payload: { type: "save", $input: { email: "a@x.com" } },
     });
