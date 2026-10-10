@@ -484,11 +484,17 @@ describe("normalizeMathDelimiters", () => {
   });
 
   it("keeps a half-streamed block start after a nested $$ fence at the root column", () => {
-    for (const next of ["-", "2.", "#"]) {
+    for (const next of ["-", "2", "2.", "#", "$", "`", "``", "~", "~~"]) {
       expect(normalizeMathDelimiters(`- $$\na\n$$\n${next}`)).toBe(
         `- $$\n  a\n  $$\n${next}`,
       );
     }
+  });
+
+  it("leaves root indented code after a nested $$ fence at the root", () => {
+    expect(normalizeMathDelimiters("   - $$\na\n$$\n    code")).toBe(
+      "   - $$\n     a\n     $$\n    code",
+    );
   });
 
   it("leaves a $$ fence already at its item's content column, and the root paragraph after it", () => {

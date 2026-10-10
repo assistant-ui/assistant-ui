@@ -1084,7 +1084,7 @@ export function rewriteCustomMathTags(text: string): string {
 }
 
 const LIST_ITEM_DISPLAY_MATH =
-  /^([ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+)\$\$[ \t\r]*\n(?:(?![ \t\r]*$)[^\n]*\n)*?(?:^([ \t]*\$\$)[ \t\r]*$(?:\n(?![ \t]*(?:[-*+](?:[ \t]|$)|\d{1,9}[.)](?:[ \t]|$)|#{1,6}(?:[ \t]|$)|>|\$\$|`{3}|~{3}|\||<|(?:[-*_][ \t]*){3,}$|[ \t\r]*$))(.*))?|(?![ \t\r]*$)[^\n]*(?![\s\S])|(?![\s\S]))/gm;
+  /^([ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+)\$\$[ \t\r]*\n(?:(?![ \t\r]*$)[^\n]*\n)*?(?:^([ \t]*\$\$)[ \t\r]*$(?:\n(?!(?: {0,3}\t| {4})|[ \t]*(?:[-*+](?:[ \t]|$)|\d{1,9}(?:[.)](?:[ \t]|$)|(?![\s\S]))|#{1,6}(?:[ \t]|$)|>|\$\$|(?:\$|`{1,2}|~{1,2})(?![\s\S])|`{3}|~{3}|\||<|(?:[-*_][ \t]*){3,}$|[ \t\r]*$))(.*))?|(?![ \t\r]*$)[^\n]*(?![\s\S])|(?![\s\S]))/gm;
 const LIST_MARKER_LINE = /^[ \t]*(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/;
 
 /**
@@ -1096,9 +1096,11 @@ const LIST_MARKER_LINE = /^[ \t]*(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/;
  * bracket body gets the same nesting from {@link emitDisplayMath}. When the
  * fence moves, the first line of a paragraph right after its closing marker
  * moves with it, since that paragraph was written under the same unindented
- * fence, and its later lines stay in the item as lazy continuation; a fence
- * already at the column is valid as written, and so is a root paragraph after
- * it. The closing marker is looked for up to the first blank line, which a
+ * fence, and its later lines stay in the item as lazy continuation; a line
+ * indented as code or starting a block stays where it is, and at the end of the
+ * text so does the start of one still streaming in (`2`, `$`, a backtick or
+ * tilde run). A fence already at the column is valid as written, and so is a
+ * root paragraph after it. The closing marker is looked for up to the first blank line, which a
  * display body does not hold, and a fence that reaches one first is left as
  * written, as is one that reaches a sibling item; a fence that reaches the end
  * of the text instead is one still streaming in and is indented to its end.
