@@ -2,4 +2,4 @@
 "@assistant-ui/generative-ui": patch
 ---
 
-Include all distinct schemas for shared present props
+fix(generative-ui): offer every distinct schema of a shared present prop and drop values the rendered component's own schema rejects

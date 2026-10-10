@@ -29,6 +29,38 @@ function resolve(root: JSONSchema7, value: JSONSchema7Definition) {
 }
 
 describe("component schema references", () => {
+  it("deduplicates shared schemas with reordered object keys", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const schema = buildPresentParameters({
+        First: component(
+          z.object({
+            shared: z.object({
+              alpha: z.string().optional(),
+              beta: z.number().optional(),
+            }),
+          }),
+        ),
+        Second: component(
+          z.object({
+            shared: z.object({
+              beta: z.number().optional(),
+              alpha: z.string().optional(),
+            }),
+          }),
+        ),
+      });
+      const shared = schema.properties!.shared as JSONSchema7;
+      expect(shared.anyOf).toBeUndefined();
+      expect(shared.properties).toEqual({
+        alpha: { type: "string" },
+        beta: { type: "number" },
+      });
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it("retains recursive definitions used by a component prop", () => {
     const Tree = z.object({
       label: z.string(),

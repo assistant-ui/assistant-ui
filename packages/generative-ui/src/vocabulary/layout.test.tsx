@@ -124,9 +124,7 @@ describe("layoutVocabulary", () => {
         confirm: { label: { unexpected: true } },
         cancel: { label: { unexpected: true } },
       }),
-    ).toBe(
-      '<section data-aui="card" data-aui-surface=""><footer data-aui="card-footer"><button type="button" data-aui="card-confirm"></button><button type="button" data-aui="card-cancel"></button></footer></section>',
-    );
+    ).toBe('<section data-aui="card"></section>');
     expect(render({ $type: "Badge", value: { unexpected: true } })).toBe(
       '<span data-aui="badge"></span>',
     );

@@ -18,11 +18,10 @@ import { isDefaultGenerativeUIComponent } from "./defaultGenerativeUIComponents"
  * function-call schemas (OpenAI and others) require the top-level parameters to
  * be a plain object and reject a top-level `oneOf`/`anyOf`/`enum`. So props can't
  * be refined per `$type` at the root; when components share a prop, its schema
- * can only describe the alternatives without tying them to `$type`. The model
- * is guided by `$type`'s description (which lists each component) and each prop
- * schema. The renderer validates nothing here — an unknown `$type` or stray prop
- * is handled at render time — so a looser schema only costs the model a hint,
- * not safety.
+ * describes their distinct alternatives without tying them to `$type`. The
+ * model is guided by `$type`'s description and each prop schema. The renderer
+ * then drops a declared prop whose value fails the selected component's own
+ * schema.
  */
 export function buildPresentParameters(
   library: GenerativeUILibrary,
@@ -54,7 +53,7 @@ export function buildPresentParameters(
       // secure-json-parse rejects the whole tool-argument payload on this key,
       // so advertising it would cost the model the node rather than one prop.
       if (key === "__proto__") continue;
-      const fingerprint = JSON.stringify(schema) ?? String(schema);
+      const fingerprint = canonicalSerialize(schema);
       const seenSchemas = propSchemas.get(key) ?? new Set<string>();
       if (!seenSchemas.has(fingerprint)) {
         seenSchemas.add(fingerprint);
@@ -137,6 +136,22 @@ export function buildPresentParameters(
     ...node,
     $defs: { node, children, ...componentSchemas },
   };
+}
+
+function canonicalSerialize(value: unknown): string {
+  if (Array.isArray(value)) {
+    return `[${value.map(canonicalSerialize).join(",")}]`;
+  }
+  if (value !== null && typeof value === "object") {
+    return `{${Object.keys(value)
+      .sort()
+      .map(
+        (key) =>
+          `${JSON.stringify(key)}:${canonicalSerialize((value as Record<string, unknown>)[key])}`,
+      )
+      .join(",")}}`;
+  }
+  return JSON.stringify(value) ?? String(value);
 }
 
 function formatComponentList(names: string[]) {

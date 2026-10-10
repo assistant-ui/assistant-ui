@@ -1,6 +1,7 @@
 import { RadioGroupScope } from "./RadioGroupScope";
 import { getPartialJsonObjectMeta } from "assistant-stream/utils";
 import { Fragment, type ReactNode } from "react";
+import { z } from "zod";
 import { hasFieldReference, resolveFieldReferences } from "./fieldReferences";
 import {
   normalizeUINode,
@@ -22,8 +23,8 @@ const isElement = (node: NormalizedUINode): node is NormalizedUIElement =>
  * normalize that wire form into the canonical {@link NormalizedUINode} (with
  * `children` lifted to a reserved top-level key), then render: each `type` is
  * looked up in the library and its `props` are passed to the component's
- * `render(props, context)`, with `children` rendered recursively so components
- * can nest.
+ * `render(props)`, without any declared prop whose value fails the component's
+ * own schema, and with `children` rendered recursively so components can nest.
  */
 export function renderGenerativeUI(
   node: unknown,
@@ -108,7 +109,7 @@ function renderElement(
   // the prop bag during normalization, so it is re-injected here for components
   // that carry behavior (e.g. `Button`).
   const props: Record<string, unknown> = {
-    ...element.props,
+    ...filterProperties(element.props, entry.properties),
     $status: context.status,
   };
   if (context.dispatch !== undefined) {
@@ -122,6 +123,30 @@ function renderElement(
   }
 
   return <GenerativeUIComponentRenderer render={entry.render} props={props} />;
+}
+
+function filterProperties(
+  props: Record<string, unknown>,
+  schema: z.ZodType,
+): Record<string, unknown> {
+  if (schema instanceof z.ZodObject) {
+    return Object.fromEntries(
+      Object.entries(props).filter(
+        ([key, value]) =>
+          !Object.hasOwn(schema.shape, key) ||
+          schema.shape[key]!.safeParse(value).success,
+      ),
+    );
+  }
+
+  const result = schema.safeParse(props);
+  if (result.success) return props;
+  const invalidKeys = new Set(
+    result.error.issues.map((issue) => issue.path[0]),
+  );
+  return Object.fromEntries(
+    Object.entries(props).filter(([key]) => !invalidKeys.has(key)),
+  );
 }
 
 /**
