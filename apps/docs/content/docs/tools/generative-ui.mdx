@@ -344,7 +344,7 @@ const widgets = createWidgetToolkit({
 });
 ```
 
-A spec element binds behavior with `on` instead of carrying `_action`. A `Button` and a `ListViewItem` emit `press`, the value controls emit `change` (an `Input` emits `submit`), a `Form` emits `submit`, and a `Card` emits `confirm` and `cancel` from its footer buttons. The payload, which `{ "$event": "" }` reads, is the control's value, or every named control's value for a `Form` or a `Card` with `asForm`. A value prop bound with `$bindState` (`defaultValue`, `defaultChecked`, or a `DatePicker`'s `value`) is written back when the control commits it. Declare host actions through `actions` so the model can bind them; `setState` is always available.
+A spec element binds behavior with `on` instead of carrying `_action`. A `Button` and a `ListViewItem` emit `press`, the value controls emit `change` (an `Input` emits `submit`), a `Form` emits `submit`, and a `Card` emits `confirm` and `cancel` from its footer buttons. The payload, which `{ "$event": "" }` reads, is the control's value, or every named control's value when a `Form` emits `submit` or a `Card` with `asForm` emits `confirm`. A value prop bound with `$bindState` (`defaultValue`, `defaultChecked`, or a `DatePicker`'s `value`) is written back when its control emits; an `Input` inside a `Form` emits nothing itself, so its value arrives with the form's `submit` instead. Declare host actions through `actions` so the model can bind them; `setState` is always available.
 
 ## Charts
 
