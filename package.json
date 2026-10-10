@@ -34,6 +34,8 @@
     "unmanaged-pins:test": "node --test scripts/check-unmanaged-pins.test.mjs",
     "skills-commit:check": "node scripts/check-skills-commit.mjs",
     "skills-commit:test": "node --test scripts/check-skills-commit.test.mjs",
+    "worktrees:prune": "node scripts/prune-worktrees.mjs",
+    "worktrees:test": "node --test scripts/prune-worktrees.test.mjs",
     "review-policy:test": "node --test scripts/lib/review-policy.test.mjs scripts/diff-api-surface.test.mjs scripts/lib/review-tier-signals.test.mjs scripts/lib/review-tier-requirements.test.mjs scripts/review-tier.test.mjs scripts/sync-review-policy.test.mjs scripts/review-health.test.mjs",
     "lint": "pnpm exec oxlint && pnpm exec oxfmt --check",
     "check:resource-memo": "node packages/x-buildutils/check-resource-memoization.mjs",

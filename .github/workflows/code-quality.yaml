@@ -27,6 +27,8 @@ on:
       - "scripts/source-mapped-tsconfigs.test.mjs"
       - "scripts/check-skills-commit.mjs"
       - "scripts/check-skills-commit.test.mjs"
+      - "scripts/prune-worktrees.mjs"
+      - "scripts/prune-worktrees.test.mjs"
       - "scripts/deploy-examples-changes.mjs"
       - "scripts/deploy-examples-changes.test.mjs"
       - "scripts/api-reference-inputs.mjs"
@@ -162,6 +164,25 @@ jobs:
 
       - name: Verify the skills commit is pinned consistently
         run: node scripts/check-skills-commit.mjs
+
+  worktree-prune:
+    name: Worktree Prune Script
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        with:
+          runtime: node@24
+          install: false
+
+      - name: Test the worktree prune script
+        run: node --test scripts/prune-worktrees.test.mjs
 
   build:
     name: Build Changed Packages

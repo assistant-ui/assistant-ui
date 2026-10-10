@@ -34,14 +34,14 @@ When the user asks for it and the change already sits uncommitted in the main wo
 
 ## Cleanup
 
-Keep the worktree while the PR is open, because follow-up fixes land from it. After the PR merges, run these from the primary checkout:
+Keep the worktree while the PR is open, because follow-up fixes land from it. After the PR merges or closes, remove it and its branch:
 
 ```bash
-git worktree remove .worktrees/<branch-name>
-git branch -D <branch-name>
+pnpm worktrees:prune        # dry run: lists each worktree and why it would be removed or kept
+pnpm worktrees:prune --yes  # removes every clean worktree whose PR merged or closed, and deletes its branch
 ```
 
-`git worktree remove` refuses a worktree with uncommitted changes; inspect them instead of passing `--force`.
+The script checks every worktree of the repository, wherever it lives, and keeps any that is locked, dirty, has unpushed commits, or has an open or no PR. Without `gh` (or with `--local`) it falls back to checking whether the branch is squash-merged into `origin/main`. For a kept worktree you know is finished, inspect the changes instead of passing `--force` to `git worktree remove`.
 
 ## Monitor Cycle
 
