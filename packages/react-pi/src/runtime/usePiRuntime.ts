@@ -17,9 +17,9 @@ import type {
   ThreadMessageLike,
 } from "@assistant-ui/react";
 import { invokeUserCallback } from "@assistant-ui/core/internal";
+import { useLatestRef } from "@assistant-ui/core/react/internal";
 import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import {
-  useEffectEvent,
   useCallback,
   useMemo,
   useRef,
@@ -249,15 +249,14 @@ const usePiThreadStore = (
   const isLoading = state.loadState === "loading";
   const isRunning = isPiStateRunning(state);
 
-  const onLoadError = useEffectEvent((error: unknown) => {
+  const onLoadError = useLatestRef((error: unknown) => {
     invokePiErrorCallback(onError, error);
   });
 
   useReplaySafeEffect(() => {
     if (controller === NOOP_CONTROLLER) return;
-    // oxlint-disable-next-line react/rules-of-hooks -- useReplaySafeEffect runs this callback inside useEffect
-    void controller.load().catch(onLoadError);
-  }, [controller]);
+    void controller.load().catch((error) => onLoadError.current(error));
+  }, [controller, onLoadError]);
 
   // A running thread must stream live events even when this client never
   // called `sendMessage` — e.g. the first message of a new thread starts the
@@ -343,12 +342,16 @@ const usePiThreadStore = (
       },
       onCancel: async () => {
         try {
+          const cancel =
+            controller instanceof PiThreadController
+              ? controller.captureCancel()
+              : () => controller.cancel();
           // clear before cancelling so the server cannot promote a queued
           // prompt into a new run in between
           try {
             await controller.clearQueue();
           } finally {
-            await controller.cancel();
+            await cancel();
           }
         } catch (error) {
           invokePiErrorCallback(onError, error);

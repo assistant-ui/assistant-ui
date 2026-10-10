@@ -1,0 +1,207 @@
+---
+title: Tools and prompts
+description: The provider-agnostic widget tools, their inputs and results, adapters, and the guidance text the model reads.
+---
+
+`generative-frame/tools` defines the tools a model calls to draw widgets. Each tool is a plain object, independent of any provider SDK:
+
+```ts
+type ToolDefinition<Input, Output> = {
+  name: string;
+  description: string;
+  inputSchema: JsonSchema;
+  execute(input: Input): Promise<Output>;
+};
+```
+
+## Create the tools
+
+```ts
+import { previewWidget } from "generative-frame";
+import { createWidgetTools } from "generative-frame/tools";
+
+const tools = createWidgetTools({ preview: previewWidget });
+// { read_me, show_widget, edit_widget, preview_widget }
+```
+
+`extraTools` adds tools to the returned object as they are, and `modules` adds modules to `read_me`. [Spec mode](/generative-frame/docs/spec-mode) uses both to add `render_spec`:
+
+```ts
+import { previewWidget } from "generative-frame";
+import { createWidgetTools } from "generative-frame/tools";
+import { createSpecTools, specGuidanceModule } from "generative-frame/spec/tools";
+
+const tools = createWidgetTools({
+  preview: previewWidget,
+  extraTools: createSpecTools(catalog),
+  modules: [specGuidanceModule(catalog)],
+});
+```
+
+<ParametersTable
+  type="CreateWidgetToolsOptions"
+  parameters={[
+    {
+      name: "registry",
+      type: "WidgetRegistry",
+      default: "createWidgetRegistry()",
+      description: "Where the latest code per widget title is kept. Share it with the host to render or edit the same widgets.",
+    },
+    {
+      name: "guidance",
+      type: "Omit<GuidanceOptions, \"modules\" | \"platform\">",
+      description: "Options for the guidance `read_me` returns, such as `tokens`, `cdnOrigins`, and `hostApi`. The model picks the modules and platform.",
+    },
+    {
+      name: "preview",
+      type: "(code, { width?, appearance? }) => Promise<PreviewResult>",
+      description: "Renders code offscreen for `preview_widget`, typically `previewWidget` from the core entry. Without it, `preview_widget` returns an error result.",
+    },
+    {
+      name: "modules",
+      type: "GuidanceModule[]",
+      description: "Extra `read_me` modules, each `{ name, summary, guidance() }`, such as `specGuidanceModule(catalog)`.",
+    },
+    {
+      name: "extraTools",
+      type: "Record<string, ToolDefinition>",
+      description: "Tools merged into the returned object, such as `createSpecTools(catalog)`.",
+    },
+  ]}
+/>
+
+## `read_me`
+
+Returns the rules for writing widgets plus guidance for the requested modules. The description tells the model to call it silently before its first widget.
+
+| Input | Type | Notes |
+| --- | --- | --- |
+| `modules` | `string[]` | Any of `diagram`, `chart`, `data_viz`, `interactive`, `mockup`, `elicitation`, `art`, plus the names of modules passed in `modules`, such as `spec`. |
+| `platform` | `"desktop" \| "mobile"` | Defaults to `desktop`. |
+
+The result is a string.
+
+## `show_widget`
+
+Shows a widget and streams it as the model writes. Showing a title that already exists replaces that widget.
+
+| Input | Type | Notes |
+| --- | --- | --- |
+| `title` | `string` | Required. A short snake_case identifier, unique in the conversation. |
+| `loading_messages` | `string[]` | Up to four short status lines shown while the widget streams. |
+| `widget_code` | `string` | Required. An HTML fragment, or code starting with `<svg`. |
+
+Result: `{ ok: true, title, kind, version }`, or `{ ok: false, title, error }` when `widget_code` is empty. `execute` stores the code in the registry; rendering is up to the host, which reads `widget_code` from the streamed arguments.
+
+## `edit_widget`
+
+Applies exact string replacements, in order, to the latest code of a widget.
+
+| Input | Type | Notes |
+| --- | --- | --- |
+| `title` | `string` | Required. A title already shown. |
+| `edits` | `{ old_string, new_string }[]` | Required, at least one. |
+
+Each `old_string` must occur exactly once in the code as it stands after the previous edits. If any edit fails (not found, ambiguous, empty, or a no-op), none is applied. Result: `{ ok: true, title, version, applied }`, or `{ ok: false, title, error }` with an error that says what to copy or how to make the match unique.
+
+`applyWidgetEdits(code, edits)` exposes the same logic.
+
+## `preview_widget`
+
+Renders complete code offscreen without showing it.
+
+| Input | Type | Notes |
+| --- | --- | --- |
+| `widget_code` | `string` | Required. Complete code. |
+| `width` | `number` | 240 to 1600. Defaults to 680. |
+| `appearance` | `"light" \| "dark"` | Defaults to `light`. |
+
+The result is a `PreviewResult`: `{ ok, kind, width, height, blank, errors, console, screenshot?, screenshotError? }`. See [`previewWidget`](/generative-frame/docs/repair#previewwidget).
+
+## `render_spec`
+
+`createSpecTools(catalog, { specs? })` from `generative-frame/spec/tools` returns `{ render_spec }`. It validates and records a spec built from your components. Pass `specs`, a `Map<string, { spec, version }>`, to share the latest spec per title with the host. The description tells the model to follow the spec guidance it was given, either the `spec` module of `read_me` or the system prompt.
+
+| Input | Type | Notes |
+| --- | --- | --- |
+| `title` | `string` | Required. |
+| `patches` | `string` | JSONL patch operations, one per line. Applied onto the title's previous spec, if there is one. |
+| `spec` | `object` | A complete spec, replacing the previous one. |
+
+Result: `{ ok, title, version, elementCount, issues, feedback }`. `issues` come from [`validateSpec`](/generative-frame/docs/spec-mode#validation) plus one `invalid-patch` issue per skipped line, and `feedback` is the same list as text for a repair round.
+
+## Use them with a provider
+
+`toAISDKTools` converts the tools to the Vercel AI SDK shape. You pass the SDK's own `jsonSchema` helper, so `ai` is not a dependency of this package:
+
+```ts
+import { jsonSchema, streamText } from "ai";
+import { createWidgetTools, toAISDKTools } from "generative-frame/tools";
+
+const tools = createWidgetTools();
+const result = streamText({
+  model,
+  messages,
+  tools: toAISDKTools(tools, { jsonSchema }),
+});
+```
+
+For any other provider, map `name`, `description`, `inputSchema`, and `execute` yourself.
+
+`getToolDeclarations(tools)` returns each tool's `description` and `inputSchema` without `execute`, for declaring tools to a model where they do not run, such as a server that forwards calls to tools executing in the browser.
+
+`generative-frame/spec/tools` exports `toAISDKTools` and `getToolDeclarations` too, so a spec-only app does not import the widget tools.
+
+## System prompt section
+
+```ts
+import { buildWidgetInstructions } from "generative-frame/tools";
+
+const system = `${basePrompt}\n\n${await buildWidgetInstructions(tools)}`;
+```
+
+`buildWidgetInstructions(tools, { preload })` returns a short section that tells the model when to show a widget, to call `read_me` first, and to change widgets with `edit_widget`. With `preload: { modules, platform }`, it appends the `read_me` output for those modules.
+
+## Guidance
+
+`read_me` returns the output of `buildWidgetGuidance` from `generative-frame/prompts`. The output depends only on its options, so you can cache and diff it.
+
+```ts
+import { readThemeTokens } from "generative-frame";
+import { buildWidgetGuidance } from "generative-frame/prompts";
+
+const text = buildWidgetGuidance({
+  modules: ["chart", "interactive"],
+  platform: "desktop",
+  tokens: readThemeTokens(),
+  hostApi: { prompt: true, callTool: false },
+});
+```
+
+It contains the base rules (fragment format, streaming order, theme tokens, allowed libraries and network, the host API) followed by an index of modules and the requested modules.
+
+| Module | Covers |
+| --- | --- |
+| `diagram` | SVG flowcharts, architecture and sequence diagrams, cycles, hierarchies |
+| `chart` | bar, line, area, scatter, and pie charts of a dataset |
+| `data_viz` | bespoke visualizations, D3, dashboards, stat tiles, tables, heatmaps |
+| `interactive` | calculators, simulations, explorable explanations, controls that update output |
+| `mockup` | UI mockups, wireframes, app and web screens |
+| `elicitation` | a form that collects several answers from the user at once |
+| `art` | illustrations, generative art, decorative or explanatory drawings |
+
+Keep the guidance consistent with the frame: if you pass `csp: { cdnOrigins, connectOrigins, allowEval }` to `createWidget`, pass the same values to `buildWidgetGuidance`, and set `hostApi.callTool` only when the host handles `onCallTool`. `buildModuleGuidance(module, options)` returns one module on its own.
+
+## The registry
+
+The registry tracks the latest code of each widget by title, so `edit_widget` applies to what the user sees.
+
+```ts
+import { createWidgetRegistry } from "generative-frame/tools";
+
+const registry = createWidgetRegistry([{ title: "q3_revenue", code }]);
+registry.subscribe((record) => console.log(record.title, record.version));
+const tools = createWidgetTools({ registry });
+```
+
+It has `get(title)`, `set(title, code)`, `delete(title)`, `list()`, and `subscribe(listener)`. Each record is `{ title, code, version }`, and `version` increases on every show or edit of that title.

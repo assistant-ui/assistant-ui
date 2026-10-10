@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState, type ReactNode } from "react";
+import { useId, useState, type ReactElement, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRightIcon, BookOpenIcon, BotIcon, CheckIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -20,17 +20,19 @@ import { cn } from "@/lib/utils";
 
 type SetupMode = "agent" | "manual";
 
-const MODES: {
+const modes = (
+  name: string,
+): {
   value: SetupMode;
   title: string;
   detail: string;
   icon: typeof BotIcon;
   recommended?: boolean;
-}[] = [
+}[] => [
   {
     value: "agent",
     title: "Coding agent",
-    detail: "Your agent reads the project and installs assistant-ui for you.",
+    detail: `Your agent reads the project and installs ${name} for you.`,
     icon: BotIcon,
     recommended: true,
   },
@@ -42,19 +44,30 @@ const MODES: {
   },
 ];
 
-const RECOMMENDED_MODE =
-  MODES.find((option) => option.recommended)?.value ?? null;
+const RECOMMENDED_MODE: SetupMode = "agent";
 
 export function StartSetupDialog({
   children,
   location,
+  name = "assistant-ui",
+  products = ["assistant-ui"],
+  instructions,
+  manualHref = "/docs/installation",
+  trigger = <Button />,
 }: {
   children: ReactNode;
   location: string;
+  /** The product name in the dialog copy. */
+  name?: string;
+  /** Catalog slugs the coding-agent path checks out. */
+  products?: readonly string[];
+  instructions?: string;
+  manualHref?: string;
+  trigger?: ReactElement;
 }) {
   const router = useRouter();
   const beginSetup = useBeginSetup();
-  const name = useId();
+  const radioName = useId();
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<SetupMode | null>(RECOMMENDED_MODE);
   const setOpenAndReset = (next: boolean) => {
@@ -66,13 +79,15 @@ export function StartSetupDialog({
     if (mode === null) return;
     analytics.cta.clicked(`start_setup_${mode}`, location);
     setOpen(false);
-    if (mode === "agent") beginSetup(["assistant-ui"]);
-    else router.push("/docs/installation");
+    if (mode === "agent") {
+      if (instructions) beginSetup(products, instructions);
+      else beginSetup(products);
+    } else router.push(manualHref);
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpenAndReset}>
-      <DialogTrigger render={<Button />}>{children}</DialogTrigger>
+      <DialogTrigger render={trigger}>{children}</DialogTrigger>
       <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden p-0 motion-reduce:animate-none sm:max-w-[40rem]">
         <form
           className="flex min-h-0 flex-col"
@@ -89,7 +104,7 @@ export function StartSetupDialog({
                 className="bg-foreground/45 mb-4 block h-[18px] w-[108px] [mask-image:url(/brand/logotype.svg)] [mask-size:contain] [mask-position:left_center] [mask-repeat:no-repeat]"
               />
               <DialogTitle className={cn(typeSection, "max-w-[22ch] pr-5")}>
-                How do you want to set up assistant-ui?
+                How do you want to set up {name}?
               </DialogTitle>
               <DialogDescription className="mt-1 leading-relaxed">
                 Both paths end with the same code in your project.
@@ -97,7 +112,7 @@ export function StartSetupDialog({
             </DialogHeader>
             <fieldset className="grid gap-2 px-6 pb-5 sm:px-8 sm:pb-7">
               <legend className="sr-only">Setup method</legend>
-              {MODES.map((option) => (
+              {modes(name).map((option) => (
                 <label
                   key={option.value}
                   className={cn(
@@ -109,7 +124,7 @@ export function StartSetupDialog({
                 >
                   <input
                     type="radio"
-                    name={name}
+                    name={radioName}
                     value={option.value}
                     checked={mode === option.value}
                     onChange={() => setMode(option.value)}

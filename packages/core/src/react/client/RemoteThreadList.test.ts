@@ -920,6 +920,109 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("rejects actions but initializes a mounted thread after reload unlists it", async () => {
+    let lists = 0;
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "regular" as const, remoteId: "t1", title: "One" },
+          ...(lists++ === 0
+            ? [{ status: "regular" as const, remoteId: "t2", title: "Two" }]
+            : []),
+        ],
+      })),
+      updateCustom: vi.fn(async () => {}),
+    });
+    const stores = vi.spyOn(OptimisticState.prototype, "optimisticUpdate");
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: RemoteThreadList({
+          adapter,
+          backgroundThreads: true,
+          thread: (id) => StubThread({ threadId: id }) as never,
+        }),
+      }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    const store = stores.mock.contexts[0] as OptimisticState<RemoteThreadState>;
+    stores.mockRestore();
+    const item = aui.threads.item({ id: "t2" });
+
+    flushTapSync(() => aui.threads.switchToThread("t2"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t2");
+    });
+    flushTapSync(() => aui.threads.switchToThread("t1"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t1");
+    });
+
+    await aui.threads.reload();
+    expect(aui.threads.getState().threadIds).toEqual(["t1"]);
+    expect(getThreadData(store.baseValue, "t2")?.id).toBe("t2");
+
+    await expect(item.rename("Hidden")).rejects.toThrow(
+      'Thread "t2" was not found while renaming it.',
+    );
+    await expect(item.updateCustom({ hidden: true })).rejects.toThrow(
+      'Thread "t2" was not found while updating its custom metadata.',
+    );
+    await expect(item.archive()).rejects.toThrow(
+      'Thread "t2" was not found while archiving it.',
+    );
+    await expect(item.delete()).rejects.toThrow(
+      'Thread "t2" was not found while deleting it.',
+    );
+    await expect(item.initialize()).resolves.toEqual({
+      remoteId: "t2",
+      externalId: undefined,
+    });
+    expect(adapter.initialize).not.toHaveBeenCalled();
+    expect(adapter.rename).not.toHaveBeenCalled();
+    expect(adapter.updateCustom).not.toHaveBeenCalled();
+    expect(adapter.archive).not.toHaveBeenCalled();
+    expect(adapter.delete).not.toHaveBeenCalled();
+
+    flushTapSync(() => aui.threads.switchToThread("t2"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t2");
+    });
+    expect(aui.threads.getState().threadIds).toEqual(["t1"]);
+    expect(aui.threads.item("main").getState().title).toBe("Two");
+    await item.rename("Opened");
+    expect(adapter.rename).toHaveBeenCalledWith("t2", "Opened");
+    expect(adapter.fetch).not.toHaveBeenCalled();
+    handle.destroy();
+  });
+
+  it("rejects unarchive on a captured archived item after reload hides it", async () => {
+    let lists = 0;
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "regular" as const, remoteId: "t1", title: "One" },
+          ...(lists++ === 0
+            ? [{ status: "archived" as const, remoteId: "t2", title: "Two" }]
+            : []),
+        ],
+      })),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    const item = aui.threads.item({ id: "t2" });
+
+    await aui.threads.reload();
+    expect(aui.threads.getState().archivedThreadIds).toEqual([]);
+    await expect(item.unarchive()).rejects.toThrow(
+      'Thread "t2" was not found while unarchiving it.',
+    );
+    expect(adapter.unarchive).not.toHaveBeenCalled();
+    handle.destroy();
+  });
+
   it("clears the deleted thread's title state so a reborn slot can auto-title", async () => {
     const adapter = makeAdapter({
       list: vi.fn(async () => ({
@@ -1269,9 +1372,12 @@ describe("RemoteThreadList", () => {
       const renaming = aui.threads.item({ id: "t1" }).rename("Manual title");
       const generation = aui.threads.item({ id: "t1" }).generateTitle();
       const deleting = aui.threads.item({ id: "t1" }).delete();
-      await vi.waitFor(() => {
-        expect(adapter.delete).toHaveBeenCalledOnce();
-      });
+      await vi.waitFor(
+        () => {
+          expect(adapter.delete).toHaveBeenCalledOnce();
+        },
+        { interval: 5 },
+      );
       renamed.resolve();
       await microtasks(offset);
       deleted.resolve();
@@ -1298,14 +1404,20 @@ describe("RemoteThreadList", () => {
       const generation = aui.threads
         .item({ id: "t1" })
         .generateTitle({ automatic: true });
-      await vi.waitFor(() => {
-        expect(adapter.generateTitle).toHaveBeenCalledOnce();
-      });
+      await vi.waitFor(
+        () => {
+          expect(adapter.generateTitle).toHaveBeenCalledOnce();
+        },
+        { interval: 5 },
+      );
       await aui.threads.item({ id: "t1" }).rename("Manual title");
       const deleting = aui.threads.item({ id: "t1" }).delete();
-      await vi.waitFor(() => {
-        expect(adapter.delete).toHaveBeenCalledOnce();
-      });
+      await vi.waitFor(
+        () => {
+          expect(adapter.delete).toHaveBeenCalledOnce();
+        },
+        { interval: 5 },
+      );
       generatedTitle.close();
       await microtasks(offset);
       deleted.resolve();

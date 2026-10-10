@@ -22,11 +22,6 @@ import type {
 
 const onReact18 = version.startsWith("18.");
 
-// useAssistantClientDestroySignal fails outside a tap resource on React 18: TypeError: ReactRuntime.use is not a function. Shipped React 18 incompatibility.
-const useDestroySignalProbe = onReact18
-  ? () => undefined
-  : useAssistantClientDestroySignal;
-
 const { mockGenerateId, realGenerateId } = vi.hoisted(() => {
   const realGenerateId = { current: (): string => "" };
   return {
@@ -146,6 +141,124 @@ const setupPartialSend = (type: "thread" | "edit" = "thread") => {
 };
 
 describe("ExternalThread attachments", () => {
+  it("ignores other ids while accepting later states of the first attachment", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const aui = renderThreadWithProps({
+      attachmentAdapter: {
+        accept: "*",
+        async *add({ file }) {
+          const a: PendingAttachment = {
+            id: "A",
+            type: "file",
+            name: file.name,
+            file,
+            status: { type: "running", reason: "uploading", progress: 0 },
+          };
+          yield a;
+          yield { ...a, id: "B" };
+          yield { ...a, id: "B" };
+          yield {
+            ...a,
+            status: { type: "requires-action", reason: "composer-send" },
+          } satisfies PendingAttachment;
+        },
+        send: async (attachment) => ({
+          ...attachment,
+          status: { type: "complete" },
+          content: [],
+        }),
+        remove: async () => {},
+      },
+    });
+    const composer = () => aui().thread.composer();
+
+    await act(async () => {
+      await composer().addAttachment(new File(["data"], "notes.txt"));
+    });
+
+    await waitFor(() =>
+      expect(composer().getState().attachments).toMatchObject([
+        { id: "A", status: { type: "requires-action" } },
+      ]),
+    );
+    expect(warn).toHaveBeenCalledOnce();
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("[assistant-ui] AttachmentAdapter.add()"),
+    );
+    warn.mockRestore();
+  });
+
+  it("keeps a sending upload alive for its first id without adding another id to the draft", async () => {
+    const upload = deferred();
+    const yieldedAfterSend = vi.fn();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const send = vi.fn(async (attachment: PendingAttachment) => ({
+      ...attachment,
+      status: { type: "complete" as const },
+      content: [],
+    }));
+    const onNew = vi.fn();
+    const aui = renderThreadWithProps({
+      attachmentAdapter: {
+        accept: "*",
+        async *add({ file }) {
+          const a: PendingAttachment = {
+            id: "A",
+            type: "file",
+            name: file.name,
+            file,
+            status: { type: "running", reason: "uploading", progress: 0 },
+          };
+          yield a;
+          await upload.promise;
+          yieldedAfterSend();
+          yield { ...a, id: "B" };
+          yield {
+            ...a,
+            status: { type: "requires-action", reason: "composer-send" },
+          } satisfies PendingAttachment;
+        },
+        send,
+        remove: async () => {},
+      },
+      onNew,
+    });
+    const composer = () => aui().thread.composer();
+    let adding!: Promise<void>;
+    act(() => {
+      adding = composer().addAttachment(new File(["data"], "notes.txt"));
+    });
+    await waitFor(() =>
+      expect(composer().getState().attachments).toMatchObject([{ id: "A" }]),
+    );
+
+    await act(async () => {
+      composer().setText("hello");
+      composer().send();
+    });
+    expect(send).not.toHaveBeenCalled();
+    expect(onNew).not.toHaveBeenCalled();
+
+    await act(async () => {
+      upload.resolve();
+      await adding;
+    });
+    await waitFor(() => expect(onNew).toHaveBeenCalledOnce());
+
+    expect(yieldedAfterSend).toHaveBeenCalledOnce();
+    expect(send).toHaveBeenCalledOnce();
+    expect(send.mock.calls[0]![0]).toMatchObject({
+      id: "A",
+      status: { type: "requires-action" },
+    });
+    expect(onNew.mock.calls[0]![0]).toMatchObject({
+      attachments: [{ id: "A", status: { type: "complete" } }],
+    });
+    expect(composer().getState().attachments).toEqual([]);
+    expect(warn).toHaveBeenCalledOnce();
+    warn.mockRestore();
+  });
+
   it.each([
     ["thread", "before"],
     ["thread", "after"],
@@ -2618,7 +2731,7 @@ describe("attachment sends and the client lifetime", () => {
     } = {};
     const Capture: FC = () => {
       captured.aui = useAui();
-      captured.destroySignal = useDestroySignalProbe();
+      captured.destroySignal = useAssistantClientDestroySignal();
       return null;
     };
     const Chat: FC = () => (
@@ -2804,27 +2917,23 @@ describe("attachment sends and the client lifetime", () => {
     expect(onNew).not.toHaveBeenCalled();
   });
 
-  // Fails on React 18: TypeError: ReactRuntime.use is not a function. Shipped React 18 incompatibility.
-  it.skipIf(onReact18)(
-    "leaves a finished send's signal alone when the client is destroyed later",
-    async () => {
-      const { adapter, upload, signals } = slowAdapter();
-      const onNew = vi.fn();
-      const thread = renderOwnedThread({ onNew, attachmentAdapter: adapter });
-      const composer = () => thread.aui().thread.composer();
-      const listeners = thread.destroyListeners();
-      await act(async () => {
-        await composer().addAttachment(new File(["a"], "a"));
-        composer().send();
-      });
-      await act(async () => upload.resolve());
-      expect(onNew).toHaveBeenCalledOnce();
-      expect(thread.destroyListeners()).toBe(listeners);
+  it("leaves a finished send's signal alone when the client is destroyed later", async () => {
+    const { adapter, upload, signals } = slowAdapter();
+    const onNew = vi.fn();
+    const thread = renderOwnedThread({ onNew, attachmentAdapter: adapter });
+    const composer = () => thread.aui().thread.composer();
+    const listeners = thread.destroyListeners();
+    await act(async () => {
+      await composer().addAttachment(new File(["a"], "a"));
+      composer().send();
+    });
+    await act(async () => upload.resolve());
+    expect(onNew).toHaveBeenCalledOnce();
+    expect(thread.destroyListeners()).toBe(listeners);
 
-      await thread.destroy();
-      expect(signals[0]?.aborted).toBe(false);
-    },
-  );
+    await thread.destroy();
+    expect(signals[0]?.aborted).toBe(false);
+  });
 
   it("never calls the adapter for a send made after the client is destroyed", async () => {
     const { adapter, send } = slowAdapter();
@@ -2843,10 +2952,7 @@ describe("attachment sends and the client lifetime", () => {
     expect(onNew).not.toHaveBeenCalled();
   });
 
-  // Fails on React 18: TypeError: ReactRuntime.use is not a function. Shipped React 18 incompatibility.
-  it
-    .skipIf(onReact18)
-    .each(["the adapter's send", "an upload in add()"] as const)(
+  it.each(["the adapter's send", "an upload in add()"] as const)(
     "releases the destroy signal when a send stalled on %s is cancelled",
     async (stall) => {
       const { adapter } = slowAdapter();

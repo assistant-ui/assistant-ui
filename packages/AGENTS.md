@@ -11,6 +11,7 @@ The npm packages and their private tooling; the root AGENTS.md still applies.
 - Extract a resource as a `use`-prefixed hook (`const Foo = resource(useFoo)`) and pass `createTapRoot` or `useTapRoot` a named function expression, because oxlint's hook rules skip anonymous bodies.
 - `aui-build` fails on a published import or declaration type reference missing from `dependencies`, `peerDependencies`, or `optionalDependencies`; a `devDependencies` entry never satisfies it.
 - `pnpm distributions:check` asserts the react, react-native, and react-ink barrels re-export the same shared surface; its `EXCEPTIONS` table is the only place a platform keeps a symbol out.
+- `pnpm experimental:check` asserts every `unstable_`, `Unstable_` or `experimental_` declaration carries `@deprecated Experimental since <YYYY-MM-DD>. Not scheduled for removal; the API may change in any release.` or a removal notice, written on the export specifier when a rename creates the experimental name.
 - `pnpm workspace-ranges:check` asserts every peer on a workspace package is `workspace:^` except its named consumer-installed exemptions, which keep a wide floor; when this file and a check disagree, the check wins.
 
 ### Adapters

@@ -515,7 +515,7 @@ describe("openPiEventStream", () => {
 
   it("notifies each successful connection before its events", async () => {
     let calls = 0;
-    const onConnect = vi.fn();
+    const callbacks: string[] = [];
     const fetchImpl = (async () => {
       calls += 1;
       if (calls === 1) {
@@ -541,15 +541,16 @@ describe("openPiEventStream", () => {
         url: "/events",
         fetchImpl,
         reconnectDelay: () => Promise.resolve(),
-        onConnect,
+        onConnect: () => callbacks.push("connect"),
         onEvent: () => {
+          callbacks.push("event");
           close();
           resolve();
         },
       });
     });
 
-    expect(onConnect).toHaveBeenCalledTimes(2);
+    expect(callbacks).toEqual(["connect", "connect", "event"]);
   });
 
   it("releases a completed response body before reconnecting", async () => {

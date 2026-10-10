@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement, version } from "react";
+import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AssistantCloud } from "assistant-cloud";
@@ -102,25 +102,6 @@ vi.mock("./ThreadController", async (importOriginal) => {
 import { PI_SDK } from "../sdkIdentity";
 import { usePiRuntime } from "./usePiRuntime";
 
-const onReact18 = version.startsWith("18.");
-
-// Fails on React 18: TypeError: useEffectEvent is not a function (usePiRuntime imports useEffectEvent from react, which React 18 does not export). Shipped React 18 incompatibility, so on React 18 these tests assert that error, and fail once it's fixed.
-const itBrokenOnReact18 = (
-  name: string,
-  fn: () => void | Promise<void>,
-  timeout?: number,
-) =>
-  onReact18
-    ? it(
-        name,
-        () =>
-          expect(Promise.resolve().then(fn)).rejects.toThrow(
-            /useEffectEvent\)? is not a function/,
-          ),
-        timeout,
-      )
-    : it(name, fn, timeout);
-
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
@@ -157,143 +138,131 @@ afterEach(() => {
 });
 
 describe("usePiRuntime cloud", () => {
-  itBrokenOnReact18(
-    "opens the Pi thread a cloud thread names, not the cloud thread id",
-    async () => {
-      const { client } = createClient();
-      const cloud = { threads: { get: vi.fn() } } as unknown as AssistantCloud;
-      mocks.threadListItem = {
-        id: "cloud-1",
-        remoteId: "cloud-1",
-        externalId: "pi-1",
-      };
+  it("opens the Pi thread a cloud thread names, not the cloud thread id", async () => {
+    const { client } = createClient();
+    const cloud = { threads: { get: vi.fn() } } as unknown as AssistantCloud;
+    mocks.threadListItem = {
+      id: "cloud-1",
+      remoteId: "cloud-1",
+      externalId: "pi-1",
+    };
 
-      const App = () => {
-        usePiRuntime({ client, cloud });
-        return null;
-      };
+    const App = () => {
+      usePiRuntime({ client, cloud });
+      return null;
+    };
 
-      root = createRoot(document.createElement("div"));
-      await act(async () => root!.render(createElement(App)));
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
 
-      expect(mocks.controllerIds).toContain("pi-1");
-      expect(mocks.controllerIds).not.toContain("cloud-1");
-    },
-  );
+    expect(mocks.controllerIds).toContain("pi-1");
+    expect(mocks.controllerIds).not.toContain("cloud-1");
+  });
 
-  itBrokenOnReact18(
-    "opens no Pi thread for a cloud thread without one, and rejects a send to it",
-    async () => {
-      const { client } = createClient();
-      const cloud = { threads: { get: vi.fn() } } as unknown as AssistantCloud;
-      mocks.threadListItem = {
-        id: "cloud-1",
-        remoteId: "cloud-1",
-        externalId: undefined,
-      };
-      mocks.initialize.mockResolvedValue({
-        remoteId: "cloud-1",
-        externalId: undefined,
-      });
-      const onError = vi.fn();
+  it("opens no Pi thread for a cloud thread without one, and rejects a send to it", async () => {
+    const { client } = createClient();
+    const cloud = { threads: { get: vi.fn() } } as unknown as AssistantCloud;
+    mocks.threadListItem = {
+      id: "cloud-1",
+      remoteId: "cloud-1",
+      externalId: undefined,
+    };
+    mocks.initialize.mockResolvedValue({
+      remoteId: "cloud-1",
+      externalId: undefined,
+    });
+    const onError = vi.fn();
 
-      const App = () => {
-        usePiRuntime({ client, cloud, onError });
-        return null;
-      };
+    const App = () => {
+      usePiRuntime({ client, cloud, onError });
+      return null;
+    };
 
-      root = createRoot(document.createElement("div"));
-      await act(async () => root!.render(createElement(App)));
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
 
-      const store = mocks.stores.at(-1) as ExternalStoreAdapter;
-      await expect(
-        store.onNew({
-          role: "user",
-          content: [{ type: "text", text: "hi" }],
-          attachments: [],
-          parentId: null,
-          sourceId: null,
-          runConfig: {},
-          metadata: { custom: {} },
-        } as never),
-      ).rejects.toThrow("This thread has no Pi thread to send to.");
-      expect(mocks.controllerIds).not.toContain("cloud-1");
-      expect(onError).toHaveBeenCalledOnce();
-    },
-  );
+    const store = mocks.stores.at(-1) as ExternalStoreAdapter;
+    await expect(
+      store.onNew({
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
+        attachments: [],
+        parentId: null,
+        sourceId: null,
+        runConfig: {},
+        metadata: { custom: {} },
+      } as never),
+    ).rejects.toThrow("This thread has no Pi thread to send to.");
+    expect(mocks.controllerIds).not.toContain("cloud-1");
+    expect(onError).toHaveBeenCalledOnce();
+  });
 
-  itBrokenOnReact18(
-    "uses Assistant Cloud threads and maps Pi thread creation and deletion",
-    async () => {
-      const { client, createThread, deleteThread } = createClient();
-      const getThread = vi
-        .fn()
-        .mockResolvedValueOnce({ external_id: "pi-thread" })
-        .mockResolvedValueOnce({ external_id: undefined });
-      const cloud = {
-        threads: { get: getThread },
-      } as unknown as AssistantCloud;
+  it("uses Assistant Cloud threads and maps Pi thread creation and deletion", async () => {
+    const { client, createThread, deleteThread } = createClient();
+    const getThread = vi
+      .fn()
+      .mockResolvedValueOnce({ external_id: "pi-thread" })
+      .mockResolvedValueOnce({ external_id: undefined });
+    const cloud = {
+      threads: { get: getThread },
+    } as unknown as AssistantCloud;
 
-      const App = () => {
-        usePiRuntime({ client, cloud, workspacePath: "/workspace" });
-        return null;
-      };
+    const App = () => {
+      usePiRuntime({ client, cloud, workspacePath: "/workspace" });
+      return null;
+    };
 
-      root = createRoot(document.createElement("div"));
-      await act(async () => root!.render(createElement(App)));
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
 
-      expect(mocks.remoteAdapters.at(-1)).toBe(mocks.cloudAdapter);
-      expect(mocks.useCloudThreadListAdapter).toHaveBeenLastCalledWith(
-        expect.objectContaining({ cloud, sdk: PI_SDK }),
-      );
+    expect(mocks.remoteAdapters.at(-1)).toBe(mocks.cloudAdapter);
+    expect(mocks.useCloudThreadListAdapter).toHaveBeenLastCalledWith(
+      expect.objectContaining({ cloud, sdk: PI_SDK }),
+    );
 
-      const cloudOptions = mocks.useCloudThreadListAdapter.mock.calls.at(
-        -1,
-      )?.[0] as unknown as {
-        create: () => Promise<{ externalId: string }>;
-        delete: (threadId: string) => Promise<void>;
-      };
-      await expect(cloudOptions.create()).resolves.toEqual({
-        externalId: "pi-thread",
-      });
-      expect(createThread).toHaveBeenCalledExactlyOnceWith({
-        workspacePath: "/workspace",
-      });
+    const cloudOptions = mocks.useCloudThreadListAdapter.mock.calls.at(
+      -1,
+    )?.[0] as unknown as {
+      create: () => Promise<{ externalId: string }>;
+      delete: (threadId: string) => Promise<void>;
+    };
+    await expect(cloudOptions.create()).resolves.toEqual({
+      externalId: "pi-thread",
+    });
+    expect(createThread).toHaveBeenCalledExactlyOnceWith({
+      workspacePath: "/workspace",
+    });
 
-      await cloudOptions.delete("cloud-thread");
-      await cloudOptions.delete("cloud-thread-without-pi");
-      expect(getThread).toHaveBeenNthCalledWith(1, "cloud-thread");
-      expect(getThread).toHaveBeenNthCalledWith(2, "cloud-thread-without-pi");
-      expect(deleteThread).toHaveBeenCalledExactlyOnceWith("pi-thread");
-    },
-  );
+    await cloudOptions.delete("cloud-thread");
+    await cloudOptions.delete("cloud-thread-without-pi");
+    expect(getThread).toHaveBeenNthCalledWith(1, "cloud-thread");
+    expect(getThread).toHaveBeenNthCalledWith(2, "cloud-thread-without-pi");
+    expect(deleteThread).toHaveBeenCalledExactlyOnceWith("pi-thread");
+  });
 
-  itBrokenOnReact18(
-    "keeps the Pi thread adapter when cloud is absent",
-    async () => {
-      const { client, createThread, deleteThread } = createClient();
+  it("keeps the Pi thread adapter when cloud is absent", async () => {
+    const { client, createThread, deleteThread } = createClient();
 
-      const App = () => {
-        usePiRuntime({ client });
-        return null;
-      };
+    const App = () => {
+      usePiRuntime({ client });
+      return null;
+    };
 
-      root = createRoot(document.createElement("div"));
-      await act(async () => root!.render(createElement(App)));
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
 
-      const adapter = mocks.remoteAdapters.at(-1) as RemoteThreadListAdapter;
-      expect(adapter).not.toBe(mocks.cloudAdapter);
-      expect(mocks.useCloudThreadListAdapter).toHaveBeenLastCalledWith(
-        expect.objectContaining({ sdk: undefined }),
-      );
-      await expect(adapter.initialize("local-thread")).resolves.toEqual({
-        remoteId: "pi-thread",
-        externalId: "pi-thread",
-      });
-      await adapter.delete("pi-thread");
+    const adapter = mocks.remoteAdapters.at(-1) as RemoteThreadListAdapter;
+    expect(adapter).not.toBe(mocks.cloudAdapter);
+    expect(mocks.useCloudThreadListAdapter).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sdk: undefined }),
+    );
+    await expect(adapter.initialize("local-thread")).resolves.toEqual({
+      remoteId: "pi-thread",
+      externalId: "pi-thread",
+    });
+    await adapter.delete("pi-thread");
 
-      expect(createThread).toHaveBeenCalledExactlyOnceWith({});
-      expect(deleteThread).toHaveBeenCalledExactlyOnceWith("pi-thread");
-    },
-  );
+    expect(createThread).toHaveBeenCalledExactlyOnceWith({});
+    expect(deleteThread).toHaveBeenCalledExactlyOnceWith("pi-thread");
+  });
 });

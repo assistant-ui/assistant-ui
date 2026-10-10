@@ -2,6 +2,8 @@ import {
   Node,
   Project,
   Scope,
+  ts,
+  type ExportSpecifier,
   type InterfaceDeclaration,
   type JSDoc,
   type JSDocableNode,
@@ -18,11 +20,12 @@ import {
   CORE_PKG,
   DOCS_ROOT,
   INTEGRATION_PACKAGES,
-  REACT_GENERATIVE_UI_PKG,
+  GENERATIVE_UI_PKG,
   REACT_PKG,
   REPO_ROOT,
 } from "./paths.mts";
 import type { ExportInfo } from "./discover.mts";
+import { parseDeprecatedTag } from "../../../../scripts/lib/experimental-annotations.mjs";
 
 // ── Project (per-process shared instance) ──────────────────────────────────
 
@@ -33,7 +36,7 @@ import type { ExportInfo } from "./discover.mts";
 const PACKAGE_SOURCE_ROOTS = [
   CORE_PKG,
   REACT_PKG,
-  REACT_GENERATIVE_UI_PKG,
+  GENERATIVE_UI_PKG,
   ...INTEGRATION_PACKAGES.map((p) => path.dirname(p.entry)),
 ];
 
@@ -131,6 +134,7 @@ export type PropModel = {
   description?: string;
   default?: string;
   deprecated?: string;
+  experimental?: boolean;
   /** undefined when the source has no required-ness signal (e.g. class
    *  members in a class shape). Projections that always want a boolean
    *  should default to `false`. */
@@ -355,12 +359,11 @@ function cleanJsDocTagText(text: string | undefined): string | undefined {
     .trim();
 }
 
-function deprecatedTagParts(doc: JSDoc | undefined): {
+function splitDeprecatedText(text: string | undefined): {
   deprecated?: string | undefined;
   trailingDescription?: string | undefined;
 } {
-  const tag = doc?.getTags().find((tag) => tag.getTagName() === "deprecated");
-  const cleaned = cleanJsDocTagText(tag?.getCommentText());
+  const cleaned = cleanJsDocTagText(text);
   if (!cleaned) return {};
 
   const [deprecated, ...rest] = cleaned.split(/\n\s*\n/);
@@ -369,6 +372,43 @@ function deprecatedTagParts(doc: JSDoc | undefined): {
     deprecated: deprecated?.trim() || undefined,
     trailingDescription: trailingDescription || undefined,
   };
+}
+
+function deprecatedTagParts(doc: JSDoc | undefined) {
+  const tag = doc?.getTags().find((tag) => tag.getTagName() === "deprecated");
+  return splitDeprecatedText(tag?.getCommentText());
+}
+
+export function exportSpecifierDeprecated(
+  specifier: ExportSpecifier,
+): string | undefined {
+  const seen = new Set<TsMorphSymbol>();
+  for (
+    let symbol = specifier.getSymbol();
+    symbol?.isAlias() && !seen.has(symbol);
+    symbol = symbol.getImmediatelyAliasedSymbol()
+  ) {
+    seen.add(symbol);
+    for (const declaration of symbol.getDeclarations()) {
+      if (!Node.isExportSpecifier(declaration)) continue;
+      const tag = ts.getJSDocDeprecatedTag(declaration.compilerNode);
+      if (!tag) continue;
+      return (
+        splitDeprecatedText(ts.getTextOfJSDocComment(tag.comment)).deprecated ??
+        "true"
+      );
+    }
+  }
+  return undefined;
+}
+
+function setDeprecation(model: PropModel, deprecated: string | undefined) {
+  if (!deprecated) return;
+  if (parseDeprecatedTag(deprecated).kind === "experimental") {
+    model.experimental = true;
+  } else {
+    model.deprecated = deprecated;
+  }
 }
 
 function jsDocSourceLabel(node: TsNode | undefined): string {
@@ -949,7 +989,7 @@ function parameterFromProperty(
   };
   if (jsDoc.description) model.description = jsDoc.description;
   if (jsDoc.default) model.default = jsDoc.default;
-  if (jsDoc.deprecated) model.deprecated = jsDoc.deprecated;
+  setDeprecation(model, jsDoc.deprecated);
   if (inheritedFrom) model.inheritedFrom = inheritedFrom;
   if (children) model.children = children;
 
@@ -1013,7 +1053,7 @@ function parameterFromSignatureParameter(
   };
   if (jsDoc.description) model.description = jsDoc.description;
   if (jsDoc.default) model.default = jsDoc.default;
-  if (jsDoc.deprecated) model.deprecated = jsDoc.deprecated;
+  setDeprecation(model, jsDoc.deprecated);
 
   if (shouldExpandChildType(parameterType, declaredType)) {
     const children = processTypeChildren(

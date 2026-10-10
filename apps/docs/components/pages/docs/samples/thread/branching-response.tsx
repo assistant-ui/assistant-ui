@@ -1,11 +1,15 @@
 "use client";
 
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
-import { AssistantRuntimeProvider, useLocalRuntime } from "@assistant-ui/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
+import { SampleScope } from "../sample-scope";
+import { useSampleRuntime } from "../use-sample-runtime";
+
+const CREATED_AT = new Date("2026-09-26T12:00:00Z");
 
 export function Chat() {
-  const runtime = useLocalRuntime(
+  const runtime = useSampleRuntime(
     {
       async *run() {
         yield {
@@ -20,11 +24,16 @@ export function Chat() {
     },
     {
       initialMessages: [
-        { role: "user", content: "What is assistant-ui?" },
+        {
+          role: "user",
+          content: "What is assistant-ui?",
+          createdAt: CREATED_AT,
+        },
         {
           role: "assistant",
           content:
             "assistant-ui provides composable primitives for AI chat interfaces.",
+          createdAt: CREATED_AT,
         },
       ],
     },
@@ -40,7 +49,9 @@ export function Chat() {
 export function ThreadBranchSample() {
   return (
     <SampleFrame className="bg-muted/40 h-120 overflow-hidden">
-      <Chat />
+      <SampleScope>
+        <Chat />
+      </SampleScope>
     </SampleFrame>
   );
 }

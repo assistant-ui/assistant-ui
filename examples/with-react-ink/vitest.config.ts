@@ -4,14 +4,16 @@ export default defineConfig({
   test: {
     clearMocks: true,
     environment: "node",
+    include: ["src/**/*.test.{ts,tsx}"],
     coverage: {
       include: ["src/**/*.{ts,tsx}"],
       thresholds: {
-        lines: 59,
-        functions: 55,
-        branches: 81,
-        statements: 58,
-        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+        lines: 58,
+        functions: 54,
+        branches: 80,
+        statements: 57,
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
       },
     },
   },

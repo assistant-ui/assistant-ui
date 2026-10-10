@@ -24,6 +24,58 @@ const request = (id: string, method = "GET"): FetchRequestMessage => ({
 });
 
 describe("serveRoutes", () => {
+  it("releases reset requests and ignores their late responses when an id is reused", async () => {
+    const bridge = createInMemoryBridge();
+    const requests: Request[] = [];
+    const lateResponse = Promise.withResolvers<Response>();
+    const cancelled = vi.fn();
+    const onError = vi.fn();
+    const server = serveRoutes(
+      bridge.webview,
+      {
+        "/api/test": {
+          GET: (req) => {
+            requests.push(req);
+            return requests.length === 1
+              ? lateResponse.promise
+              : new Promise<Response>(() => undefined);
+          },
+        },
+      },
+      { onError },
+    );
+    try {
+      bridge.port.postMessage(request("reused"));
+      bridge.port.postMessage(request("another"));
+      await vi.waitFor(() => expect(requests).toHaveLength(2));
+      bridge.port.postMessage({
+        channel: VSCODE_BRIDGE_CHANNEL,
+        kind: "fetch:reset",
+        id: "",
+      });
+      bridge.port.postMessage(request("reused"));
+      await vi.waitFor(() => expect(requests).toHaveLength(3));
+      expect(requests[0]?.signal.aborted).toBe(true);
+      expect(requests[1]?.signal.aborted).toBe(true);
+      expect(requests[2]?.signal.aborted).toBe(false);
+
+      lateResponse.resolve(
+        new Response(new ReadableStream({ cancel: cancelled })),
+      );
+      await vi.waitFor(() => expect(cancelled).toHaveBeenCalledOnce());
+      expect(bridge.hostToWebview).toHaveLength(0);
+      bridge.port.postMessage({
+        channel: VSCODE_BRIDGE_CHANNEL,
+        kind: "fetch:abort",
+        id: "reused",
+      });
+      await vi.waitFor(() => expect(requests[2]?.signal.aborted).toBe(true));
+      expect(onError).not.toHaveBeenCalled();
+    } finally {
+      server.dispose();
+    }
+  });
+
   it("flushes buffered bytes before reporting a response stream error", async () => {
     const bridge = createInMemoryBridge();
     const onError = vi.fn();

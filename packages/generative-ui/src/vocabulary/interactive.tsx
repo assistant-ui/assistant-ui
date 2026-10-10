@@ -13,7 +13,7 @@ import type {
   GenerativeUILibrary,
   GenerativeUIStatus,
 } from "../types";
-import { A2uiBindingContext, useA2uiBinding } from "../a2ui/BindingContext";
+import { A2uiBindingContext, useA2uiBinding } from "../bindingContext";
 import { useAnsweredValue } from "../answeredValues";
 import { actionAttr, fire } from "./dispatch";
 import { toTextContent } from "./toTextContent";
@@ -59,6 +59,9 @@ const mapOptions = (
     return render(option, JSON.stringify([option.value, occurrence]));
   });
 };
+
+const isComposing = (event: React.KeyboardEvent) =>
+  event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229;
 
 type RadioGroupRenderProps = {
   value?: string;
@@ -331,11 +334,7 @@ function InputRender({
         updateBinding ? (e) => updateBinding(e.currentTarget.value) : undefined
       }
       onKeyDown={(e) => {
-        if (
-          e.key !== "Enter" ||
-          !(e.ctrlKey || e.metaKey) ||
-          e.nativeEvent.isComposing
-        )
+        if (e.key !== "Enter" || !(e.ctrlKey || e.metaKey) || isComposing(e))
           return;
         if (e.currentTarget.form) {
           e.preventDefault();
@@ -365,11 +364,7 @@ function InputRender({
         updateBinding ? (e) => updateBinding(e.currentTarget.value) : undefined
       }
       onKeyDown={(e) => {
-        if (
-          e.key === "Enter" &&
-          !e.nativeEvent.isComposing &&
-          !e.currentTarget.form
-        )
+        if (e.key === "Enter" && !isComposing(e) && !e.currentTarget.form)
           submit(e.currentTarget);
       }}
     />
@@ -555,11 +550,7 @@ function DatePickerRender({
         commit(e.currentTarget);
       }}
       onKeyDown={(e) => {
-        if (
-          e.key === "Enter" &&
-          !e.nativeEvent.isComposing &&
-          !e.currentTarget.form
-        ) {
+        if (e.key === "Enter" && !isComposing(e) && !e.currentTarget.form) {
           commit(e.currentTarget);
           return;
         }
@@ -946,7 +937,7 @@ function ButtonRender({
 export const interactiveVocabulary = {
   Button: {
     description:
-      "A clickable button. Carries `$action` describing the side effect or resume value. Set `submit` to submit an ancestor Form/Card instead of firing `$action` on click.",
+      "A clickable button. Carries `_action` describing the side effect or resume value. Set `submit` to submit an ancestor Form/Card instead of firing `_action` on click.",
     properties: z.object({
       label: z.string().describe("Button label."),
       buttonStyle: z.enum(BUTTON_STYLES).optional().describe("Visual style."),
@@ -971,7 +962,7 @@ export const interactiveVocabulary = {
   },
   Select: {
     description:
-      "A dropdown selector. Carries `$action` describing the on-select behavior.",
+      "A dropdown selector. Carries `_action` describing the on-select behavior.",
     properties: z.object({
       options: z.array(optionSchema).describe("Selectable options."),
       placeholder: z
@@ -989,7 +980,7 @@ export const interactiveVocabulary = {
   },
   Input: {
     description:
-      "A text input. Carries `$action` describing the on-submit behavior.",
+      "A text input. Carries `_action` describing the on-submit behavior.",
     properties: z.object({
       inputType: z
         .enum(["text", "password", "number"])
@@ -1013,7 +1004,7 @@ export const interactiveVocabulary = {
   },
   DatePicker: {
     description:
-      "A date, datetime, or time input. Carries `$action`, which runs once per committed value: a pick from the picker, or a typed value on blur or Enter.",
+      "A date, datetime, or time input. Carries `_action`, which runs once per committed value: a pick from the picker, or a typed value on blur or Enter.",
     properties: z.object({
       inputType: z
         .enum(["date", "datetime", "time"])
@@ -1049,7 +1040,7 @@ export const interactiveVocabulary = {
   },
   Checkbox: {
     description:
-      "A checkbox with a label. Carries `$action` describing the on-change behavior.",
+      "A checkbox with a label. Carries `_action` describing the on-change behavior.",
     properties: z.object({
       label: z.string().describe("Label text next to the checkbox."),
       name: z.string().optional().describe("Field name used inside a Form."),
@@ -1066,7 +1057,7 @@ export const interactiveVocabulary = {
   },
   Slider: {
     description:
-      "A numeric range control. Carries `$action` describing the committed value.",
+      "A numeric range control. Carries `_action` describing the committed value.",
     properties: z.object({
       name: z.string().optional().describe("Field name used inside a Form."),
       label: z
@@ -1083,7 +1074,7 @@ export const interactiveVocabulary = {
   },
   RadioGroup: {
     description:
-      "A group of mutually exclusive radio options. Carries `$action` describing the on-change behavior.",
+      "A group of mutually exclusive radio options. Carries `_action` describing the on-change behavior.",
     properties: z.object({
       options: z.array(describedOptionSchema).describe("Selectable options."),
       name: z.string().optional().describe("Field name used inside a Form."),
@@ -1094,7 +1085,7 @@ export const interactiveVocabulary = {
   },
   CheckboxGroup: {
     description:
-      "A group of checkbox options where any number can be checked. Carries `$action` describing the on-change behavior.",
+      "A group of checkbox options where any number can be checked. Carries `_action` describing the on-change behavior.",
     properties: z.object({
       options: z.array(describedOptionSchema).describe("Selectable options."),
       name: z.string().optional().describe("Field name used inside a Form."),

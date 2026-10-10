@@ -8,6 +8,7 @@ import { generateId } from "../utils/id";
 
 export type AttachmentAdapter = {
   accept: string;
+  /** Returns the pending attachment for the file, or an async generator yielding successive states of that one attachment. Every yield must have the same id. */
   add(state: {
     file: File;
   }): Promise<PendingAttachment> | AsyncGenerator<PendingAttachment, void>;

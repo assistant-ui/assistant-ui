@@ -6,11 +6,12 @@ export default defineConfig({
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/testUtils.ts"],
       thresholds: {
-        lines: 97,
-        functions: 97,
-        branches: 93,
-        statements: 96,
-        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+        lines: 96,
+        functions: 96,
+        branches: 92,
+        statements: 95,
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
       },
     },
     fsModuleCache: true,

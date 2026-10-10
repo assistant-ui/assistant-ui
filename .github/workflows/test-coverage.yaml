@@ -8,6 +8,7 @@ on:
       - "apps/**"
       - "examples/**"
       - "templates/**"
+      - "evals/**"
       - "scripts/coverage-summary.mjs"
       - "scripts/coverage-summary.test.mjs"
       - "scripts/test-coverage-contract.test.mjs"
@@ -18,23 +19,11 @@ on:
       - "pnpm-workspace.yaml"
       - ".github/workflows/test-coverage.yaml"
       - ".github/workflows/code-quality.yaml"
+  # Pull requests and merge groups always start a run, because a required check that never reports blocks the merge; the job skips its own steps when no coverage input changed.
   pull_request:
     branches: [main]
-    paths:
-      - "packages/**"
-      - "apps/**"
-      - "examples/**"
-      - "templates/**"
-      - "scripts/coverage-summary.mjs"
-      - "scripts/coverage-summary.test.mjs"
-      - "scripts/test-coverage-contract.test.mjs"
-      - "scripts/lib/**"
-      - "turbo.json"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "pnpm-workspace.yaml"
-      - ".github/workflows/test-coverage.yaml"
-      - ".github/workflows/code-quality.yaml"
+  merge_group:
+    types: [checks_requested]
   workflow_dispatch:
 
 permissions:
@@ -66,46 +55,84 @@ jobs:
       - name: Checkout code repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
-          fetch-depth: 1
+          fetch-depth: ${{ github.event_name == 'merge_group' && '0' || '2' }}
+
+      - name: Detect coverage inputs
+        id: inputs
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE=HEAD^1
+          elif [ "${{ github.event_name }}" = "merge_group" ]; then
+            BASE="${{ github.event.merge_group.base_sha }}"
+          else
+            BASE=""
+          fi
+          run=true
+          if [ -n "$BASE" ] && git rev-parse --verify --quiet "${BASE}^{commit}" > /dev/null && git diff --quiet "$BASE" HEAD -- \
+            packages \
+            apps \
+            examples \
+            templates \
+            evals \
+            scripts/coverage-summary.mjs \
+            scripts/coverage-summary.test.mjs \
+            scripts/test-coverage-contract.test.mjs \
+            scripts/lib \
+            turbo.json \
+            package.json \
+            pnpm-lock.yaml \
+            pnpm-workspace.yaml \
+            .github/workflows/test-coverage.yaml \
+            .github/workflows/code-quality.yaml; then
+            run=false
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
 
       - name: Setup pnpm and node.js
+        if: steps.inputs.outputs.run == 'true'
         uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
         with:
           runtime: node@24
-          cache: true
+          cache: false
           install: false
 
       - name: Install dependencies
+        if: steps.inputs.outputs.run == 'true'
         run: pnpm install --frozen-lockfile
 
       - name: Test coverage routing and summary
+        if: steps.inputs.outputs.run == 'true'
         run: node --test scripts/test-coverage-contract.test.mjs scripts/coverage-summary.test.mjs
 
       # Each vitest run already spreads its files across every core, so test:coverage runs two packages at a time; build every package first at turbo's default concurrency.
       - name: Build packages
+        if: steps.inputs.outputs.run == 'true'
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: pnpm turbo build --filter="./packages/*"
 
       - name: Run every package's tests with coverage
+        if: steps.inputs.outputs.run == 'true'
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: pnpm test:coverage --continue
 
       - name: Run React Compiler tests
+        if: steps.inputs.outputs.run == 'true'
         env:
           TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
           TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: pnpm test:react-compiler
 
       - name: Write the coverage summary
-        if: always()
+        if: always() && steps.inputs.outputs.run == 'true'
         run: pnpm coverage:summary --report "$GITHUB_STEP_SUMMARY"
 
       - name: Upload coverage reports
-        if: always()
+        if: always() && steps.inputs.outputs.run == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # ratchet:actions/upload-artifact@v7.0.2
         with:
           name: coverage

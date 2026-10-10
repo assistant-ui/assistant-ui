@@ -9,6 +9,13 @@ import {
 } from "ai";
 
 export default defineEventHandler(async (event) => {
+  const abortController = new AbortController();
+  event.node.res.on("close", () => {
+    if (!event.node.res.writableFinished) {
+      abortController.abort();
+    }
+  });
+
   const { messages, system } = await readBody<{
     messages: UIMessage[];
     system?: string;
@@ -33,6 +40,7 @@ export default defineEventHandler(async (event) => {
     }),
   };
   const result = streamText({
+    abortSignal: abortController.signal,
     model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     system,

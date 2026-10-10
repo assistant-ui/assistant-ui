@@ -702,12 +702,14 @@ export class RemoteThreadListThreadListRuntimeCore
     return result;
   }
 
+  /** @deprecated Experimental since 2026-08-03. Not scheduled for removal; the API may change in any release. */
   public unstable_isThreadRunning(threadIdOrRemoteId: string) {
     const data = this.getItemById(threadIdOrRemoteId);
     if (!data) return false;
     return this._hookManager.__internal_isThreadRunning(data.id);
   }
 
+  /** @deprecated Experimental since 2026-09-01. Not scheduled for removal; the API may change in any release. */
   public unstable_subscribeThreadEvents(
     callback: (event: ThreadListRuntimeEvent) => void,
   ) {
@@ -726,7 +728,8 @@ export class RemoteThreadListThreadListRuntimeCore
     const data = getThreadData(this._state.value, threadIdOrRemoteId);
     if (data === undefined) return undefined;
     // A mounted thread runtime reads, titles and detaches its own item whether
-    // or not it is listed. The other item actions use the exposed lookup.
+    // or not it is listed, and initialize accepts any known thread. The other
+    // item actions use the exposed lookup.
     if (
       this._getExposedItems().ids.has(data.id) ||
       this._hookManager.__internal_hasThreadRuntime(data.id)
@@ -898,7 +901,7 @@ export class RemoteThreadListThreadListRuntimeCore
     const adapterGeneration = this._adapterGeneration;
     if (this._state.value.newThreadId !== threadId) {
       this._requireAdapterSettled();
-      const data = this._getExposedItem(threadId);
+      const data = getThreadData(this._state.value, threadId);
       if (!data) throw threadNotFoundError(threadId, "initializing it");
       if (data.status === "new")
         throw threadStatusError(threadId, data.status, "be initialized here");

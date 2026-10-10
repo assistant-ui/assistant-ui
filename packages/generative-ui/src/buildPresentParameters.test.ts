@@ -2,6 +2,7 @@ import type { JSONSchema7, JSONSchema7Definition } from "json-schema";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { buildPresentParameters } from "./buildPresentParameters";
+import { defaultGenerativeUILibrary } from "./vocabulary";
 
 const component = (properties: z.ZodType) => ({
   description: "A component",
@@ -28,6 +29,38 @@ function resolve(root: JSONSchema7, value: JSONSchema7Definition) {
 }
 
 describe("component schema references", () => {
+  it("deduplicates shared schemas with reordered object keys", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const schema = buildPresentParameters({
+        First: component(
+          z.object({
+            shared: z.object({
+              alpha: z.string().optional(),
+              beta: z.number().optional(),
+            }),
+          }),
+        ),
+        Second: component(
+          z.object({
+            shared: z.object({
+              beta: z.number().optional(),
+              alpha: z.string().optional(),
+            }),
+          }),
+        ),
+      });
+      const shared = schema.properties!.shared as JSONSchema7;
+      expect(shared.anyOf).toBeUndefined();
+      expect(shared.properties).toEqual({
+        alpha: { type: "string" },
+        beta: { type: "number" },
+      });
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it("retains recursive definitions used by a component prop", () => {
     const Tree = z.object({
       label: z.string(),
@@ -82,7 +115,7 @@ describe("component schema references", () => {
       ),
     ).toBe(numberTree);
     expect(resolve(schema, schema.properties!.children!).anyOf).toBeDefined();
-    expect((schema.$defs!.node as JSONSchema7).properties!.$type).toBeDefined();
+    expect((schema.$defs!.node as JSONSchema7).properties!._type).toBeDefined();
   });
 
   it("rebases root references to component props instead of the generated UI node", () => {
@@ -96,7 +129,7 @@ describe("component schema references", () => {
     const nested = schema.properties!.nested as JSONSchema7;
     const props = resolve(schema, nested.items as JSONSchema7Definition);
     expect(props.properties!.label).toEqual({ type: "string" });
-    expect(props.properties!.$type).toBeUndefined();
+    expect(props.properties!._type).toBeUndefined();
     expect(props.required).toEqual(["label", "nested"]);
   });
 
@@ -195,7 +228,7 @@ describe("component schema references", () => {
     expect(embedded.type).toBe("object");
   });
 
-  it("omits component definitions whose properties all lose the duplicate-name merge", () => {
+  it("retains definitions referenced by colliding prop alternatives", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
       const StringTree = z.object({
@@ -213,10 +246,31 @@ describe("component schema references", () => {
         first: component(z.object({ tree: StringTree })),
         second: component(z.object({ tree: NumberTree })),
       });
+      const alternatives = (schema.properties!.tree as JSONSchema7).anyOf!;
+      expect(alternatives).toHaveLength(2);
+      const stringTree = resolve(schema, alternatives[0]!);
+      const numberTree = resolve(schema, alternatives[1]!);
+      expect(stringTree.properties!.tree).toBeDefined();
+      expect(numberTree.properties!.value).toEqual({ type: "number" });
+      expect(
+        resolve(
+          schema,
+          (stringTree.properties!.tree as JSONSchema7)
+            .items as JSONSchema7Definition,
+        ),
+      ).toBe(stringTree);
+      expect(
+        resolve(
+          schema,
+          (numberTree.properties!.tree as JSONSchema7)
+            .items as JSONSchema7Definition,
+        ),
+      ).toBe(numberTree);
       expect(Object.keys(schema.$defs!)).toEqual([
         "node",
         "children",
         "component0",
+        "component1",
       ]);
       expect(warn).toHaveBeenCalledOnce();
     } finally {
@@ -242,5 +296,185 @@ describe("component schema references", () => {
       default: literal,
     });
     expect(Object.keys(schema.$defs!)).toEqual(["node", "children"]);
+  });
+});
+
+describe("duplicate prop warnings", () => {
+  it("does not warn for collisions in the shipped vocabulary", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      buildPresentParameters(defaultGenerativeUILibrary);
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("recognizes a styled default component by its shipped property schema", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const markdown = defaultGenerativeUILibrary.Markdown!;
+      buildPresentParameters({
+        ...defaultGenerativeUILibrary,
+        Markdown: {
+          properties: markdown.properties,
+          streamProperties: markdown.streamProperties,
+          description: "Styled markdown",
+          render: markdown.render,
+        },
+      });
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("warns when app schemas collide with shipped props and combines schemas", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const library = {
+        ...defaultGenerativeUILibrary,
+        Header: component(z.object({ size: z.string() })),
+        Custom: component(z.object({ size: z.boolean() })),
+      };
+      const schema = buildPresentParameters(library);
+      expect(warn).toHaveBeenCalledOnce();
+      expect(warn.mock.calls[0]?.[0]).toContain('Prop "size"');
+      expect(warn.mock.calls[0]?.[0]).toContain('"Header"');
+      expect(warn.mock.calls[0]?.[0]).toContain('"Custom"');
+      const size = schema.properties!.size as JSONSchema7;
+      expect(size.anyOf).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ type: "string" }),
+          expect.objectContaining({ type: "boolean" }),
+        ]),
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+});
+
+describe("duplicate prop schemas", () => {
+  it("includes every distinct default vocabulary schema under the flat root", () => {
+    const schema = buildPresentParameters(defaultGenerativeUILibrary);
+    const inputType = schema.properties!.inputType as JSONSchema7;
+    const min = schema.properties!.min as JSONSchema7;
+    const max = schema.properties!.max as JSONSchema7;
+    const size = schema.properties!.size as JSONSchema7;
+
+    expect(inputType.anyOf).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ enum: ["text", "password", "number"] }),
+        expect.objectContaining({ enum: ["date", "datetime", "time"] }),
+      ]),
+    );
+    expect(min.anyOf).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "string" }),
+        expect.objectContaining({ type: "number" }),
+      ]),
+    );
+    expect(max.anyOf).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "string" }),
+        expect.objectContaining({ type: "number" }),
+      ]),
+    );
+    expect(size.anyOf).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          enum: ["sm", "md", "lg", "xl", "2xl", "3xl"],
+        }),
+        expect.objectContaining({
+          anyOf: expect.arrayContaining([
+            expect.objectContaining({ enum: ["sm", "md", "lg"] }),
+            expect.objectContaining({ type: "number" }),
+          ]),
+        }),
+      ]),
+    );
+    expect(schema.type).toBe("object");
+    expect(schema.anyOf).toBeUndefined();
+    expect(schema.required).toEqual(["_type"]);
+  });
+
+  it("deduplicates identical schemas for a shared prop", () => {
+    const schema = buildPresentParameters({
+      First: component(z.object({ value: z.string() })),
+      Second: component(z.object({ value: z.string() })),
+    });
+
+    expect(schema.properties!.value).toEqual({ type: "string" });
+  });
+});
+
+describe("provider-portable property names", () => {
+  const ANTHROPIC_PROPERTY_NAME = /^[a-zA-Z0-9_.-]{1,64}$/;
+
+  const propertyNames = (schema: unknown, names: string[] = []): string[] => {
+    if (Array.isArray(schema)) {
+      for (const item of schema) propertyNames(item, names);
+    } else if (schema !== null && typeof schema === "object") {
+      for (const [key, value] of Object.entries(schema)) {
+        if (key === "properties") {
+          for (const [name, property] of Object.entries(value as object)) {
+            names.push(name);
+            propertyNames(property, names);
+          }
+        } else {
+          propertyNames(value, names);
+        }
+      }
+    }
+    return names;
+  };
+
+  it("keeps every shipped vocabulary property name within Anthropic's pattern", () => {
+    const names = propertyNames(
+      buildPresentParameters(defaultGenerativeUILibrary),
+    );
+    expect(names).toEqual(expect.arrayContaining(["_type", "_key", "_action"]));
+    expect(names.filter((name) => !ANTHROPIC_PROPERTY_NAME.test(name))).toEqual(
+      [],
+    );
+  });
+
+  it("warns about app prop names Anthropic rejects, including nested ones", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      buildPresentParameters({
+        Custom: component(
+          z.object({
+            "data:id": z.string(),
+            footer: z.object({ $action: z.string() }),
+          }),
+        ),
+      });
+      expect(warn.mock.calls.map(([message]) => message)).toEqual([
+        expect.stringContaining('Prop "data:id" does not match'),
+        expect.stringContaining('Prop "$action" does not match'),
+      ]);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("ignores property-shaped data inside a default value", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      buildPresentParameters({
+        Custom: component(
+          z.object({
+            settings: z
+              .record(z.string(), z.unknown())
+              .default({ properties: { $x: 1 } }),
+          }),
+        ),
+      });
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, type ComponentProps } from "react";
+import { useCallback, useState, type ComponentProps } from "react";
 import { CheckIcon, Loader2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { inkButton, mono, paper } from "./surfaces";
 import { clamp } from "../utils/range";
+import { useReceiptFocus } from "./receipt-focus";
 
 export interface OptionListOption {
   id: string;
@@ -80,6 +81,16 @@ export function OptionList({
   const [pending, setPending] = useState<readonly string[] | null>(null);
   const [confirmed, setConfirmed] = useState<readonly string[] | undefined>();
   const [error, setError] = useState<string | null>(null);
+  const { receiptRef, focusHandlers } = useReceiptFocus<HTMLDivElement>(props);
+  const setReceiptRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      receiptRef.current = node;
+      if (typeof props.ref === "function") return props.ref(node);
+      if (props.ref) props.ref.current = node;
+      return undefined;
+    },
+    [props.ref, receiptRef],
+  );
 
   const root = cn(
     paper,
@@ -99,6 +110,9 @@ export function OptionList({
         data-state="receipt"
         className={root}
         {...props}
+        {...focusHandlers}
+        ref={setReceiptRef}
+        tabIndex={-1}
       >
         {chosen.length === 0 ? (
           <span className={cn(mono, "text-muted-foreground px-2 py-2")}>
@@ -124,7 +138,12 @@ export function OptionList({
 
   if (!onConfirm) {
     return (
-      <div data-slot="option-list" className={root} {...props}>
+      <div
+        data-slot="option-list"
+        className={root}
+        {...props}
+        {...focusHandlers}
+      >
         {options.map((option) => (
           <div
             key={option.id}
@@ -187,6 +206,7 @@ export function OptionList({
       aria-busy={locked || undefined}
       className={root}
       {...props}
+      {...focusHandlers}
     >
       {options.map((option) => {
         const isSelected = multiple

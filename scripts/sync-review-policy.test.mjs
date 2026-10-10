@@ -284,6 +284,7 @@ test("ruleset updates replace only review floors and required checks", () => {
                   integration_id: 15368,
                 },
                 { context: "Review Policy Scripts", integration_id: 15368 },
+                { context: "Test Coverage", integration_id: 15368 },
               ],
             },
           },

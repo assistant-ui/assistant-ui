@@ -1,4 +1,5 @@
 import { checkoutEnabled } from "./checkout/config";
+import { SUB_PROJECT_SLUGS, subProject } from "./docs-sites";
 import { isAiPlaygroundEnabled } from "./feature-flags";
 
 export const BASE_URL = "https://www.assistant-ui.com";
@@ -31,50 +32,18 @@ export type Product = {
   external: boolean;
 };
 
-export const PRODUCTS: Product[] = [
-  {
-    slug: "tw-shimmer",
-    label: "tw-shimmer",
-    href: "/tw-shimmer",
-    description: "Tailwind CSS shimmer effects",
+export const PRODUCTS: Product[] = SUB_PROJECT_SLUGS.filter(
+  (slug) => slug !== "playground" && slug !== "learn",
+).map((slug) => {
+  const project = subProject(slug);
+  return {
+    slug,
+    label: project.productLabel ?? project.title,
+    href: `/${slug}`,
+    description: project.productDescription,
     external: false,
-  },
-  {
-    slug: "safe-content-frame",
-    label: "Safe Content Frame",
-    href: "/safe-content-frame",
-    description: "Sandboxes for HTML",
-    external: false,
-  },
-  {
-    slug: "native",
-    label: "React Native",
-    href: "/native",
-    description: "Build mobile apps with React Native",
-    external: false,
-  },
-  {
-    slug: "ink",
-    label: "Ink",
-    href: "/ink",
-    description: "Build interactive experiences with Ink",
-    external: false,
-  },
-  {
-    slug: "heat-graph",
-    label: "Heat Graph",
-    href: "/heat-graph",
-    description: "Activity heatmap graph components",
-    external: false,
-  },
-  {
-    slug: "react-o11y",
-    label: "react-o11y",
-    href: "/react-o11y",
-    description: "Observability span primitives",
-    external: false,
-  },
-];
+  };
+});
 
 /** Internal products/pages that have sub-project routes (used by SubProjectLayout switcher). */
 export const SUB_PROJECTS: (Product & { slug: string })[] = [
@@ -82,18 +51,18 @@ export const SUB_PROJECTS: (Product & { slug: string })[] = [
     ? [
         {
           slug: "learn",
-          label: "Learn",
+          label: subProject("learn").title,
           href: "/learn",
-          description: "Guided assistant-ui courses",
+          description: subProject("learn").productDescription,
           external: false,
         },
       ]
     : []),
   {
     slug: "playground",
-    label: "Playground",
+    label: subProject("playground").title,
     href: "/playground",
-    description: "Interactive playground",
+    description: subProject("playground").productDescription,
     external: false,
   },
   ...PRODUCTS.filter((p): p is Product & { slug: string } => !!p.slug),

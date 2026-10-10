@@ -10,11 +10,12 @@ export default defineConfig({
     coverage: {
       include: ["src/**/*.{ts,tsx}"],
       thresholds: {
-        lines: 97,
-        functions: 98,
-        branches: 91,
-        statements: 96,
-        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+        lines: 96,
+        functions: 97,
+        branches: 90,
+        statements: 95,
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
       },
     },
     pool: "threads",

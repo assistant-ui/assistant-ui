@@ -1,0 +1,125 @@
+{
+  "name": "generative-frame",
+  "version": "0.0.2",
+  "description": "Stream model-generated HTML and SVG widgets into Safe Content Frames, with a host bridge, theming, diagnostics, screenshots, tools, and prompts",
+  "keywords": [
+    "generative-ui",
+    "iframe",
+    "sandbox",
+    "widget",
+    "streaming",
+    "mcp-apps",
+    "llm"
+  ],
+  "author": "AgentbaseAI Inc.",
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./react": {
+      "types": "./dist/react.d.ts",
+      "default": "./dist/react.js"
+    },
+    "./tools": {
+      "types": "./dist/tools.d.ts",
+      "default": "./dist/tools.js"
+    },
+    "./prompts": {
+      "types": "./dist/prompts.d.ts",
+      "default": "./dist/prompts.js"
+    },
+    "./repair": {
+      "types": "./dist/repair.d.ts",
+      "default": "./dist/repair.js"
+    },
+    "./spec": {
+      "types": "./dist/spec.d.ts",
+      "default": "./dist/spec.js"
+    },
+    "./spec/react": {
+      "types": "./dist/spec/react.d.ts",
+      "default": "./dist/spec/react.js"
+    },
+    "./spec/tools": {
+      "types": "./dist/spec/tools.d.ts",
+      "default": "./dist/spec/tools.js"
+    },
+    "./spec/assistant-ui": {
+      "types": "./dist/spec/assistant-ui.d.ts",
+      "default": "./dist/spec/assistant-ui.js"
+    },
+    "./assistant-ui": {
+      "types": "./dist/assistant-ui.d.ts",
+      "default": "./dist/assistant-ui.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.test.ts",
+    "!src/**/*.test.tsx",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build:runtime": "node scripts/build-runtime.mjs",
+    "build": "node scripts/build-runtime.mjs && aui-build",
+    "dev": "node scripts/build-runtime.mjs && vite --config demo/vite.config.mjs",
+    "test": "node scripts/build-runtime.mjs && vitest run",
+    "test:coverage": "node scripts/build-runtime.mjs && vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary",
+    "typecheck": "node scripts/build-runtime.mjs && tsc --noEmit",
+    "test:peer-react18": "node scripts/build-runtime.mjs && vitest run --config vitest.peer-react18.config.ts",
+    "test:types:peer-react18": "aui-react18-types"
+  },
+  "dependencies": {
+    "safe-content-frame": "workspace:^"
+  },
+  "peerDependencies": {
+    "@assistant-ui/react": "^0.15.0",
+    "@types/react": "*",
+    "react": "^18 || ^19"
+  },
+  "peerDependenciesMeta": {
+    "@assistant-ui/react": {
+      "optional": true
+    },
+    "@types/react": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@assistant-ui/react": "workspace:*",
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@assistant-ui/x-react18": "workspace:*",
+    "@testing-library/react": "^16.3.3",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "jsdom": "^30.1.2",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "rolldown": "^1.2.12",
+    "vite": "^8.3.3",
+    "vitest": "^5.0.3"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "homepage": "https://www.assistant-ui.com/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-ui/assistant-ui.git",
+    "directory": "packages/generative-frame"
+  },
+  "bugs": {
+    "url": "https://github.com/assistant-ui/assistant-ui/issues"
+  }
+}

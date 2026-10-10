@@ -1,0 +1,122 @@
+---
+title: Quickstart
+description: Stream a model-generated widget into a page with plain TypeScript and no framework.
+---
+
+This page uses the core entry only. Everything here runs in the browser.
+
+## Mount a widget
+
+```ts
+import { createWidget, readThemeTokens } from "generative-frame";
+
+const widget = createWidget({
+  container: document.getElementById("widget")!,
+  tokens: readThemeTokens(),
+  maxHeight: 640,
+  onPrompt: (text) => sendChatMessage(text),
+  onError: (error) => console.warn(`[widget] ${error.kind}: ${error.message}`),
+});
+```
+
+`createWidget` appends a Safe Content Frame to `container` and returns a `WidgetHandle` at once. `widget.ready` resolves when the in-frame runtime has connected; you do not need to wait for it, because writes made earlier are queued.
+
+## Stream code into it
+
+Pass each chunk of the model's output to `write`. Rendering is coalesced to animation frames, and the frame morphs its content in place, so finished elements stay where they are while new ones fade in.
+
+```ts
+for await (const chunk of modelStream) {
+  widget.write(chunk);
+}
+
+const { size, blank, errorCount } = await widget.end();
+```
+
+`end()` marks the code complete. Scripts are held while the code streams and run once, in document order, after `end()`. It resolves with the rendered size, whether the widget came out blank, and how many errors it reported.
+
+Code that starts with `<svg` renders as a standalone SVG; anything else is treated as an HTML fragment.
+
+To render code that is already complete, pass it as `code` when you create the widget, or call `replace(code)` on an existing one:
+
+```ts
+const widget = createWidget({ container, code: savedWidgetCode });
+
+await widget.replace(nextCode);
+```
+
+`replace` morphs in place while no script has run. Once scripts have run, it renders the new code in a fresh frame and swaps it in when that frame has ended.
+
+## Handle what the widget asks for
+
+Widget code can call `sendPrompt(text)`, `openLink(url)`, and `genframe.callTool(name, args)`. Each reaches a handler on the host:
+
+```ts
+const widget = createWidget({
+  container,
+  onPrompt: (text) => sendChatMessage(text),
+  onOpenLink: (url) => {
+    if (confirm(`Open ${url}?`)) window.open(url, "_blank", "noopener");
+  },
+  onCallTool: async ({ name, arguments: args }) => runAllowedTool(name, args),
+  onError: (error) => reportToModel(error),
+  onLog: (entry) => console.debug(entry.level, entry.message),
+});
+```
+
+Without `onOpenLink`, http(s) links open in a new tab with `noopener`. Without `onCallTool`, `onPrompt`, or `onMessage`, those calls fail inside the widget. See [Security model](/generative-frame/docs/security) for what each handler exposes.
+
+You can also subscribe to events. `on` returns an unsubscribe function:
+
+```ts
+const off = widget.on("resize", ({ width, height }) => {
+  console.log(width, height);
+});
+```
+
+The events are `ready`, `resize`, `error`, `log`, and `end`.
+
+## Follow the page theme
+
+`readThemeTokens()` reads your page's CSS custom properties (the canonical token names or shadcn/ui variables) and the color scheme. Send new tokens when the theme changes:
+
+```ts
+const media = matchMedia("(prefers-color-scheme: dark)");
+media.addEventListener("change", () => widget.setTheme(readThemeTokens()));
+```
+
+The frame applies the new variables without reloading and fires a `themechange` event for widgets that draw on a canvas. See [Theming](/generative-frame/docs/theming).
+
+## Inspect and capture
+
+```ts
+const inspection = await widget.inspect();
+// { kind, ended, size, blank, errors, console, code }
+
+const { dataUrl, width, height } = await widget.screenshot();
+```
+
+The screenshot is taken inside the frame and is best effort; [Repair loop and screenshots](/generative-frame/docs/repair) lists its limits.
+
+## Persistent storage
+
+Without an `id`, every frame gets a fresh origin, so a widget starts with empty storage each time it mounts. Give it an `id` and its origin is the same on every mount:
+
+```ts
+createWidget({ container, id: `${conversationId}:${widgetKey}` });
+```
+
+- The same `id` on the same host origin gets the same localStorage, IndexedDB, and cookies, across reloads. Widgets mounted at the same time with the same `id` share that storage.
+- Storage belongs to the site that embeds the widget. The same `id` on another site starts empty.
+- The browser can evict it, and cookies are often blocked in third-party frames, so keep only small UI state there. State that must last goes to the host through `genframe.setState`.
+- Choose the `id` on the host, from data the model does not control. An `id` taken from model output would let one widget read another's storage.
+
+`clearWidgetStorage(id)` loads a hidden frame on that origin and clears its localStorage, sessionStorage, IndexedDB, Cache Storage, and cookies. `id` cannot be combined with `frame`; to configure your own `SafeContentFrame`, give it `salt: widgetStorageSalt(id)`.
+
+## Dispose
+
+```ts
+widget.dispose();
+```
+
+`dispose` removes the frame and its event listeners.

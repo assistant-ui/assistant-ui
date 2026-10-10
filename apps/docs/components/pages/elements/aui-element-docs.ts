@@ -112,7 +112,7 @@ const DirectiveText = createDirectiveText(defaultDirectiveFormatter);`,
 <SyntaxHighlighter language="tsx" code={code} />`,
   ),
   "generative-ui": usageOnly(
-    `import { renderGenerativeUI } from "@assistant-ui/react-generative-ui";
+    `import { renderGenerativeUI } from "@assistant-ui/generative-ui/react";
 import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
 
 {renderGenerativeUI(spec, styledGenerativeUILibrary, { status: "done" })}`,

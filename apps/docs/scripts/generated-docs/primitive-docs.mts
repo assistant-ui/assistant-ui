@@ -17,6 +17,7 @@ type RenderedProp = {
   default?: string;
   required?: boolean;
   deprecated?: string;
+  experimental?: boolean;
   children?: Array<{ type?: string; parameters: RenderedProp[] }>;
 };
 
@@ -107,6 +108,7 @@ function projectProp(prop: PropModel, allowChildren = true): RenderedProp {
   if (prop.default) out.default = prop.default;
   if (prop.required) out.required = true;
   if (prop.deprecated) out.deprecated = prop.deprecated;
+  if (prop.experimental) out.experimental = true;
   if (children) out.children = children;
   return out;
 }

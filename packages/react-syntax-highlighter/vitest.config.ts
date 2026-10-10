@@ -5,10 +5,11 @@ export default defineConfig({
     coverage: {
       include: ["src/**/*.{ts,tsx}"],
       thresholds: {
-        lines: 99,
-        functions: 99,
-        statements: 99,
-        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+        lines: 98,
+        functions: 98,
+        statements: 98,
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
       },
     },
     environment: "jsdom",

@@ -1,6 +1,7 @@
 import { RadioGroupScope } from "./RadioGroupScope";
 import { getPartialJsonObjectMeta } from "assistant-stream/utils";
 import { Fragment, type ReactNode } from "react";
+import { z } from "zod";
 import { hasFieldReference, resolveFieldReferences } from "./fieldReferences";
 import {
   normalizeUINode,
@@ -18,12 +19,14 @@ const isElement = (node: NormalizedUINode): node is NormalizedUIElement =>
 /**
  * Renders a generative-ui tree against a {@link GenerativeUILibrary}.
  *
- * The model emits each node as a flat object `{ $type, ...props }`. We first
+ * The model emits each node as a flat object `{ _type, ...props }`. We first
  * normalize that wire form into the canonical {@link NormalizedUINode} (with
  * `children` lifted to a reserved top-level key), then render: each `type` is
  * looked up in the library and its `props` are passed to the component's
- * `render(props, context)`, with `children` rendered recursively so components
- * can nest.
+ * `render(props)`, with `children` rendered recursively so components can nest.
+ * A prop that several components declare loses a value the component's own
+ * schema rejects when another declaring component's schema accepts it, since
+ * the merged `present` schema lets the model send either.
  */
 export function renderGenerativeUI(
   node: unknown,
@@ -31,7 +34,7 @@ export function renderGenerativeUI(
   context: GenerativeUIRenderContext = DEFAULT_CONTEXT,
 ): ReactNode {
   // Tool args are parsed incrementally, and the parse meta records which path
-  // is still mid-arrival, so normalization can hold back a node whose `$type`
+  // is still mid-arrival, so normalization can hold back a node whose type
   // string has not finished streaming.
   const meta = getPartialJsonObjectMeta(node as Record<symbol, unknown>);
   const partialPath = meta?.state === "partial" ? meta.partialPath : undefined;
@@ -108,7 +111,7 @@ function renderElement(
   // the prop bag during normalization, so it is re-injected here for components
   // that carry behavior (e.g. `Button`).
   const props: Record<string, unknown> = {
-    ...element.props,
+    ...withoutForeignValues(element.type, element.props, library),
     $status: context.status,
   };
   if (context.dispatch !== undefined) {
@@ -122,6 +125,48 @@ function renderElement(
   }
 
   return <GenerativeUIComponentRenderer render={entry.render} props={props} />;
+}
+
+const propOwnersByLibrary = new WeakMap<
+  GenerativeUILibrary,
+  Map<string, Map<string, z.ZodType>>
+>();
+
+const getPropOwners = (library: GenerativeUILibrary) => {
+  let propOwners = propOwnersByLibrary.get(library);
+  if (!propOwners) {
+    propOwners = new Map();
+    for (const [type, entry] of Object.entries(library)) {
+      if (!(entry.properties instanceof z.ZodObject)) continue;
+      for (const [key, schema] of Object.entries(entry.properties.shape)) {
+        const owners = propOwners.get(key) ?? new Map<string, z.ZodType>();
+        owners.set(type, schema);
+        propOwners.set(key, owners);
+      }
+    }
+    propOwnersByLibrary.set(library, propOwners);
+  }
+  return propOwners;
+};
+
+function withoutForeignValues(
+  type: string,
+  props: Record<string, unknown>,
+  library: GenerativeUILibrary,
+): Record<string, unknown> {
+  const propOwners = getPropOwners(library);
+  return Object.fromEntries(
+    Object.entries(props).filter(([key, value]) => {
+      const owners = propOwners.get(key);
+      if (owners === undefined || owners.size < 2) return true;
+      const own = owners.get(type);
+      if (own === undefined || own.safeParse(value).success) return true;
+      for (const [owner, schema] of owners) {
+        if (owner !== type && schema.safeParse(value).success) return false;
+      }
+      return true;
+    }),
+  );
 }
 
 /**
@@ -158,7 +203,7 @@ function reportUnknownComponent(type: string, available: string[]): void {
   if (process.env["NODE_ENV"] !== "production") {
     // eslint-disable-next-line no-console
     console.error(
-      `[@assistant-ui/react-generative-ui] Unknown component "${type}". ` +
+      `[@assistant-ui/generative-ui] Unknown component "${type}". ` +
         `Available components: ${available.join(", ") || "(none)"}.`,
     );
   }

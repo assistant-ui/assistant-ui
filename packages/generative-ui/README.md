@@ -13,8 +13,8 @@ npm install @assistant-ui/generative-ui @assistant-ui/react zod
 ## Usage
 
 Declare the components the model is allowed to render in a library, then expose
-them through the `present` tool. The model emits a `{ $type, ...props }` tree
-(`$type` names the component, so a real `type` prop never collides); the tool
+them through the `present` tool. The model emits a `{ _type, ...props }` tree
+(`_type` names the component, so a real `type` prop never collides); the tool
 renders it against the library.
 
 ```tsx
@@ -60,9 +60,9 @@ A node's `children` prop is rendered recursively, so components can be nested:
 
 ```json
 {
-  "$type": "Card",
+  "_type": "Card",
   "title": "Hello",
-  "children": [{ "$type": "Text", "tone": "muted", "children": "Nested text" }]
+  "children": [{ "_type": "Text", "tone": "muted", "children": "Nested text" }]
 }
 ```
 
@@ -132,7 +132,7 @@ export default defineToolkit({
 });
 ```
 
-The model calls `present` with a node like `{ "$type": "Weather", "city": "SF" }`.
+The model calls `present` with a node like `{ "_type": "Weather", "city": "SF" }`.
 Pass `present({ display: "standalone" })` to render the component on its own
 surface instead of inline. See the
 [`"use generative"` docs](https://www.assistant-ui.com/docs) for the build setup.

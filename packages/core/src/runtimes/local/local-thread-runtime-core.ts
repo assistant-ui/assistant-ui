@@ -199,6 +199,8 @@ export class LocalThreadRuntimeCore
   >();
 
   private _historyWrites = new Map<string, Promise<void>>();
+  private _unwrittenSeedMessages = new Set<string>();
+  private _runStarted = false;
   private async _writeHistory(
     operation: "append" | "update" | "delete",
     messageIds: readonly string[],
@@ -244,6 +246,31 @@ export class LocalThreadRuntimeCore
     if (tombstone) {
       tombstone.suppressed?.push(writeCurrent);
       return Promise.resolve();
+    }
+
+    // A seeded message waits for the first send unless a run already
+    // initialized the thread, so a settled seeded approval is never lost.
+    const seedWrite = this._unwrittenSeedMessages.has(id);
+    if (seedWrite && !this._runStarted) return Promise.resolve();
+    const history = this._options.adapters.history;
+    if (history && this._unwrittenSeedMessages.size > 0) {
+      const seed = this.repository
+        .export()
+        .messages.filter((item) =>
+          this._unwrittenSeedMessages.has(item.message.id),
+        );
+      this._unwrittenSeedMessages.clear();
+      let ownWrite: Promise<void> | undefined;
+      for (const item of seed) {
+        const write = this._chainHistoryWrite(item.message.id, () =>
+          this._writeHistory("append", [item.message.id], () =>
+            history.append(item),
+          ),
+        );
+        if (item.message.id === id) ownWrite = write;
+        else void write.catch(() => {});
+      }
+      if (seedWrite) return ownWrite ?? Promise.resolve();
     }
 
     // The first write for an id is issued synchronously, so it reaches the adapter before a turn appended under that message in the same tick.
@@ -310,9 +337,11 @@ export class LocalThreadRuntimeCore
   ) {
     const history = this._options.adapters.history;
     if (!history) return;
-    const operation = this._unwrittenMessages.delete(message.id)
-      ? "append"
-      : "update";
+    const operation =
+      this._unwrittenMessages.delete(message.id) ||
+      this._unwrittenSeedMessages.has(message.id)
+        ? "append"
+        : "update";
     const write = operation === "append" ? history.append : history.update;
     if (!write) return;
     const item = { parentId, message, runConfig: this._lastRunConfig };
@@ -401,9 +430,18 @@ export class LocalThreadRuntimeCore
   constructor(
     contextProvider: ModelContextProvider,
     options: LocalRuntimeOptionsBase,
+    initialMessages?: ExportedMessageRepository,
   ) {
     super(contextProvider);
     this.__internal_setOptions(options);
+    // A seed is starting state, not activity; import() would fire initialize,
+    // which makes a remote thread list create the thread.
+    if (initialMessages) {
+      this.repository.import(withLocalPauseReasons(initialMessages));
+      for (const { message } of initialMessages.messages) {
+        this._unwrittenSeedMessages.add(message.id);
+      }
+    }
   }
 
   private _options!: LocalRuntimeOptionsBase;
@@ -419,6 +457,7 @@ export class LocalThreadRuntimeCore
   }
 
   private _getInitializePromise?: () => Promise<unknown> | undefined;
+  private _pendingInitialization: Promise<unknown> | undefined;
 
   public __internal_setGetInitializePromise(
     getPromise: () => Promise<unknown> | undefined,
@@ -453,6 +492,7 @@ export class LocalThreadRuntimeCore
       this._roundtripsInFlight.clear();
       this._followedDuringRun.clear();
       this._unwrittenMessages.clear();
+      this._unwrittenSeedMessages.clear();
       this._queue?.clear();
       this.cancelRun();
       supersedeThreadRuntime(this);
@@ -601,6 +641,7 @@ export class LocalThreadRuntimeCore
 
   private _loadPromise: Promise<void> | undefined;
   private _loadGeneration = 0;
+  private _loadImports = 0;
   private _loadRequested = false;
   public __internal_load() {
     this._loadRequested = true;
@@ -646,7 +687,14 @@ export class LocalThreadRuntimeCore
           repo.headId,
         );
       }
-      this.repository.import(withLocalPauseReasons(repository));
+      if (
+        repository.messages.length > 0 ||
+        this._unwrittenSeedMessages.size === 0
+      ) {
+        this._unwrittenSeedMessages.clear();
+        this._loadImports++;
+        this.repository.import(withLocalPauseReasons(repository));
+      }
       if (repository.messages.length > 0) {
         this.ensureInitialized();
       }
@@ -969,6 +1017,13 @@ export class LocalThreadRuntimeCore
     const messageIndex = messages.findIndex((m) => m.id === messageId);
     if (messageIndex === -1) throw new Error("Message not found.");
 
+    if (this._unwrittenSeedMessages.delete(messageId)) {
+      this._deletedMessages.set(messageId, { suppressed: null });
+      this.repository.deleteMessage(messageId);
+      this._notifySubscribers();
+      return;
+    }
+
     const inFlight = this._deletedMessages.get(messageId);
     if (inFlight?.suppressed && inFlight.deletion) return inFlight.deletion;
     const deleteAdapter = adapter.delete.bind(adapter);
@@ -1033,6 +1088,7 @@ export class LocalThreadRuntimeCore
     this._roundtripsInFlight.clear();
     this._followedDuringRun.clear();
     this._unwrittenMessages.clear();
+    this._unwrittenSeedMessages.clear();
     this._deletedMessages.clear();
     super.import(withLocalPauseReasons(data));
   }
@@ -1041,6 +1097,7 @@ export class LocalThreadRuntimeCore
     throw new Error("Runtime does not support importing external states.");
   }
 
+  /** @deprecated Experimental since 2026-08-14. Not scheduled for removal; the API may change in any release. */
   public unstable_notifySessionReset(): void {
     throw new Error("Runtime does not support resetting sessions.");
   }
@@ -1049,7 +1106,6 @@ export class LocalThreadRuntimeCore
     { parentId, sourceId, runConfig }: StartRunConfig,
     runCallback?: ChatModelAdapter["run"],
   ): Promise<void> {
-    this.ensureInitialized();
     if (this.voice)
       throw new Error("Cannot start a run while a voice session is connected");
     if (this._isVoiceMessage(sourceId))
@@ -1093,8 +1149,46 @@ export class LocalThreadRuntimeCore
   ): Promise<void> {
     const scopeGeneration = this._loadGeneration;
     const generation = captureThreadRuntimeGeneration(this);
+    // A seeded thread initializes on its first run. Runs that start before the
+    // thread list settles wait for it, and run without a remote id if it fails.
+    if (this.ensureInitialized()) {
+      const pending = this._getInitializePromise?.();
+      if (pending) {
+        this._pendingInitialization = pending;
+        const settle = () => {
+          if (this._pendingInitialization === pending)
+            this._pendingInitialization = undefined;
+        };
+        pending.then(settle, settle);
+      }
+    }
+    const initialization = this._pendingInitialization;
+    if (initialization) {
+      const resumed = this.getMessageById(message.id) !== undefined;
+      await initialization.catch(() => {});
+      if (
+        generation.aborted ||
+        scopeGeneration !== this._loadGeneration ||
+        (resumed && !this.getMessageById(message.id))
+      )
+        return;
+    }
+    // A history load can replace the seeded messages a run continues, so the
+    // run waits for it the way a send does and drops out if it imported.
+    const loadBarrier = this._getHistoryLoadBarrier(generation);
+    if (loadBarrier) {
+      const imports = this._loadImports;
+      await loadBarrier;
+      if (
+        generation.aborted ||
+        scopeGeneration !== this._loadGeneration ||
+        this._loadImports !== imports
+      )
+        return;
+    }
     if (this.voice)
       throw new Error("Cannot start a run while a voice session is connected");
+    this._runStarted = true;
     this._notifyEventSubscribers("runStart", {});
 
     const run = {
@@ -1663,6 +1757,7 @@ export class LocalThreadRuntimeCore
     );
   }
 
+  /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
   public async unstable_recordToolInteraction({
     messageId,
     toolCallId,

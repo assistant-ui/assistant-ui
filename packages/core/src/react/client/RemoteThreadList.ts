@@ -209,6 +209,26 @@ const collectItemOrder = (
   return items;
 };
 
+const getExposedThreadData = (
+  state: RemoteThreadState,
+  mainThreadId: string,
+  threadIdOrRemoteId: string,
+): RemoteThreadData | undefined => {
+  const data = getThreadData(state, threadIdOrRemoteId);
+  if (data === undefined) return undefined;
+  const ids = [
+    state.newThreadId,
+    ...state.threadIds,
+    ...state.archivedThreadIds,
+    mainThreadId,
+  ];
+  return ids.some(
+    (id) => id !== undefined && getThreadData(state, id)?.id === data.id,
+  )
+    ? data
+    : undefined;
+};
+
 const itemMatchesId = (
   item: RemoteThreadData,
   listState: RemoteThreadState,
@@ -235,16 +255,20 @@ const isSameThread = (
 
 const useRemoteThreadBody = ({
   id,
-  status,
   remoteId,
   item,
   thread,
+  onAutomaticTitle,
 }: {
   id: string;
-  status: RemoteThreadData["status"];
   remoteId: string | undefined;
   item: (isRunning: boolean) => ResourceElement<ClientOutput<"threadListItem">>;
   thread: ResourceElement<ClientOutput<"thread">>;
+  onAutomaticTitle: (
+    id: string,
+    messages: readonly ThreadMessage[],
+    initialized: boolean,
+  ) => void;
 }): ClientOutput<"thread"> => {
   const parent = useAssistantContextValue();
   const [isRunning, setIsRunning] = useState(false);
@@ -260,32 +284,16 @@ const useRemoteThreadBody = ({
       get: () => itemHandle.methods,
     }),
   });
-  // Auto-title arms only for a thread born "new" in this body's lifetime;
-  // threads loaded or fetched from the adapter already carry their title. The
-  // settled (non-optimistic) initialize is what writes remoteId, so its
-  // arrival is the initialization signal.
-  const bornNewRef = useRef(status === "new");
-  const titleFiredRef = useRef(false);
   return useAssistantContextProvider(client, function useBoundRemoteBody() {
     const body = useClientResource(thread);
     const bodyRunning = body.state.isRunning === true;
     useEffect(() => {
       setIsRunning(bodyRunning);
     }, [bodyRunning]);
-    const armed =
-      bornNewRef.current && !titleFiredRef.current && remoteId !== undefined;
-    const hasTitleSource =
-      armed &&
-      (
-        body.state.messages as readonly {
-          status?: { type: string } | undefined;
-        }[]
-      ).some(isTitleSourceMessage);
+    const messages = body.state.messages as readonly ThreadMessage[];
     useEffect(() => {
-      if (!hasTitleSource || titleFiredRef.current) return;
-      titleFiredRef.current = true;
-      client.threadListItem.generateTitle({ automatic: true });
-    }, [hasTitleSource]);
+      onAutomaticTitle(id, messages, remoteId !== undefined);
+    });
     return body.methods;
   });
 };
@@ -323,6 +331,7 @@ const useRemoteThreadListView = ({
   mainThreadId,
   initialMainId,
   startedIds,
+  pendingAutomaticTitles,
   backgroundThreads,
   threadFactory,
   useAdapters,
@@ -340,6 +349,7 @@ const useRemoteThreadListView = ({
   mainThreadId: string;
   initialMainId: string;
   startedIds: readonly string[];
+  pendingAutomaticTitles: Map<string, readonly ThreadMessage[]>;
   backgroundThreads: boolean;
   threadFactory: RemoteThreadListProps["thread"];
   useAdapters: RemoteThreadListAdapter["unstable_useAdapters"];
@@ -383,6 +393,23 @@ const useRemoteThreadListView = ({
     }
     return ids;
   }, [backgroundThreads, listState, mainThreadId, startedIds]);
+
+  const onAutomaticTitle = (
+    id: string,
+    messages: readonly ThreadMessage[],
+    initialized: boolean,
+  ) => {
+    const previous = pendingAutomaticTitles.get(id);
+    if (previous === undefined) return;
+    const sources = messages.filter(isTitleSourceMessage);
+    if (sources.length > 0) pendingAutomaticTitles.set(id, sources);
+    const titleSources = sources.length > 0 ? sources : previous;
+    if (!initialized || titleSources.length === 0) return;
+    pendingAutomaticTitles.delete(id);
+    handleThreadListAction("generate title", () =>
+      onGenerateTitle(id, titleSources, { automatic: true }),
+    );
+  };
 
   const itemElementFor = (
     data: RemoteThreadData,
@@ -443,11 +470,11 @@ const useRemoteThreadListView = ({
         backgroundThreads && data !== undefined
           ? RemoteThreadBody({
               id,
-              status: data.status,
               remoteId: data.remoteId,
               // The list's own item reports selection; a body copy would repeat it.
               item: (isRunning) => itemElementFor(data, isRunning, false),
               thread: wrapped,
+              onAutomaticTitle,
             })
           : wrapped;
       return withKey(backgroundThreads ? id : (made.key ?? "main"), element);
@@ -515,6 +542,7 @@ const useRemoteThreadList = (
         adapterAtLoad: adapter,
         adapterGeneration: 0,
         titleStates: new Map<string, ThreadTitleState>(),
+        pendingAutomaticTitles: new Map<string, readonly ThreadMessage[]>(),
         loadGeneration: 0,
         switchGeneration: 0,
         loadPromise: undefined as Promise<void> | undefined,
@@ -631,6 +659,7 @@ const useRemoteThreadList = (
     if (adapterChanged) {
       session.adapterGeneration++;
       session.titleStates.clear();
+      session.pendingAutomaticTitles.clear();
       const preserveControlled =
         session.lastControlledThreadId !== undefined &&
         session.controlledSwitchAdapter === adapter &&
@@ -933,9 +962,10 @@ const useRemoteThreadList = (
       }
       requireAdapterGeneration(adapterGeneration);
       const initializeTask = currentAdapter.initialize(threadId);
+      if (backgroundThreads) session.pendingAutomaticTitles.set(threadId, []);
       let removedMappingId: string | undefined;
       let replacementMainThreadId: string | undefined;
-      const result = await store.optimisticUpdate({
+      const initialization = store.optimisticUpdate({
         execute: () => initializeTask,
         optimistic: (state) =>
           promoteNewThreadReducer(state, threadId, initializeTask),
@@ -960,6 +990,13 @@ const useRemoteThreadList = (
           return reconciliation.state;
         },
       });
+      let result: Awaited<typeof initialization>;
+      try {
+        result = await initialization;
+      } catch (error) {
+        session.pendingAutomaticTitles.delete(threadId);
+        throw error;
+      }
       requireAdapterGeneration(adapterGeneration);
       if (removedMappingId !== undefined) {
         setStartedIds((prev) =>
@@ -990,10 +1027,14 @@ const useRemoteThreadList = (
   );
 
   const rename = useCallback(
-    (threadIdOrRemoteId: string, newTitle: string) => {
+    async (threadIdOrRemoteId: string, newTitle: string) => {
       const currentAdapter = session.adapter;
       const adapterGeneration = session.adapterGeneration;
-      const data = getThreadData(store.value, threadIdOrRemoteId);
+      const data = getExposedThreadData(
+        store.value,
+        session.mainThreadId,
+        threadIdOrRemoteId,
+      );
       if (!data) throw threadNotFoundError(threadIdOrRemoteId, "renaming it");
       if (data.status === "new") {
         throw threadStatusError(threadIdOrRemoteId, data.status, "be renamed");
@@ -1040,13 +1081,17 @@ const useRemoteThreadList = (
   );
 
   const updateCustom = useCallback(
-    (
+    async (
       threadIdOrRemoteId: string,
       custom: Record<string, unknown> | undefined,
     ) => {
       const currentAdapter = session.adapter;
       const adapterGeneration = session.adapterGeneration;
-      const data = getThreadData(store.value, threadIdOrRemoteId);
+      const data = getExposedThreadData(
+        store.value,
+        session.mainThreadId,
+        threadIdOrRemoteId,
+      );
       if (!data) {
         throw threadNotFoundError(
           threadIdOrRemoteId,
@@ -1099,7 +1144,11 @@ const useRemoteThreadList = (
     async (threadIdOrRemoteId: string) => {
       const currentAdapter = session.adapter;
       const adapterGeneration = session.adapterGeneration;
-      const data = getThreadData(store.value, threadIdOrRemoteId);
+      const data = getExposedThreadData(
+        store.value,
+        session.mainThreadId,
+        threadIdOrRemoteId,
+      );
       if (!data) throw threadNotFoundError(threadIdOrRemoteId, "archiving it");
       if (data.status !== "regular") {
         throw threadStatusError(threadIdOrRemoteId, data.status, "be archived");
@@ -1128,10 +1177,14 @@ const useRemoteThreadList = (
   );
 
   const unarchive = useCallback(
-    (threadIdOrRemoteId: string) => {
+    async (threadIdOrRemoteId: string) => {
       const currentAdapter = session.adapter;
       const adapterGeneration = session.adapterGeneration;
-      const data = getThreadData(store.value, threadIdOrRemoteId);
+      const data = getExposedThreadData(
+        store.value,
+        session.mainThreadId,
+        threadIdOrRemoteId,
+      );
       if (!data)
         throw threadNotFoundError(threadIdOrRemoteId, "unarchiving it");
       if (data.status !== "archived") {
@@ -1164,7 +1217,11 @@ const useRemoteThreadList = (
     async (threadIdOrRemoteId: string) => {
       const currentAdapter = session.adapter;
       const adapterGeneration = session.adapterGeneration;
-      const data = getThreadData(store.value, threadIdOrRemoteId);
+      const data = getExposedThreadData(
+        store.value,
+        session.mainThreadId,
+        threadIdOrRemoteId,
+      );
       if (!data) throw threadNotFoundError(threadIdOrRemoteId, "deleting it");
       if (data.status !== "regular" && data.status !== "archived") {
         throw threadStatusError(threadIdOrRemoteId, data.status, "be deleted");
@@ -1188,6 +1245,7 @@ const useRemoteThreadList = (
       // while the deletion is in flight.
       if (getThreadData(store.value, data.id) !== undefined) return result;
       clearThreadTitleState(session.titleStates, data.id);
+      session.pendingAutomaticTitles.delete(data.id);
       onDelete?.(data.id);
       return result;
     },
@@ -1287,6 +1345,7 @@ const useRemoteThreadList = (
       mainThreadId,
       initialMainId,
       startedIds,
+      pendingAutomaticTitles: session.pendingAutomaticTitles,
       backgroundThreads,
       threadFactory,
       useAdapters: adapter.unstable_useAdapters,

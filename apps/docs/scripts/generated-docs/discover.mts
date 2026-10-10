@@ -6,10 +6,10 @@ import {
 } from "ts-morph";
 import * as path from "node:path";
 import {
-  REACT_GENERATIVE_UI_A2UI_INDEX,
-  REACT_GENERATIVE_UI_INDEX,
-  REACT_GENERATIVE_UI_SLACK_INDEX,
-  REACT_GENERATIVE_UI_TEAMS_INDEX,
+  GENERATIVE_UI_A2UI_INDEX,
+  GENERATIVE_UI_REACT_INDEX,
+  GENERATIVE_UI_SLACK_INDEX,
+  GENERATIVE_UI_TEAMS_INDEX,
   REACT_INDEX,
   REPO_ROOT,
 } from "./paths.mts";
@@ -20,6 +20,7 @@ import {
 } from "./classify.mts";
 import {
   chooseDeclaration,
+  exportSpecifierDeprecated,
   extractJsDoc,
   extractSignature,
   getAllExportedNames,
@@ -153,20 +154,10 @@ function resolveDeclaration(entry: ExportEntry): TsNode | undefined {
   return undefined;
 }
 
-function getLeadingCommentText(node: TsNode): string {
-  return node
-    .getLeadingCommentRanges()
-    .map((range) => range.getText())
-    .join("\n");
-}
-
 function exportEntryDeprecated(entry: ExportEntry): string | undefined {
-  const comments = [
-    entry.specifier ? getLeadingCommentText(entry.specifier) : "",
-    getLeadingCommentText(entry.exportNode),
-  ].join("\n");
-  if (!comments.includes("@deprecated")) return undefined;
-  return comments.match(/@deprecated\s+([^*\n]+)/)?.[1]?.trim() || "true";
+  return entry.specifier
+    ? exportSpecifierDeprecated(entry.specifier)
+    : undefined;
 }
 
 function relativeToRepo(filePath: string | undefined): string | undefined {
@@ -349,21 +340,18 @@ function getReactApiInputs(): ClassifiedExportInput[] {
   return reactApiInputs;
 }
 
-function getReactGenerativeUIApiInputs(): ClassifiedExportInput[] {
+function getGenerativeUIApiInputs(): ClassifiedExportInput[] {
   reactGenerativeUIApiInputs ??= classifyExportInputs([
-    ...collectExportInputs(REACT_GENERATIVE_UI_INDEX),
-    ...collectExportInputs(REACT_GENERATIVE_UI_SLACK_INDEX),
-    ...collectExportInputs(REACT_GENERATIVE_UI_TEAMS_INDEX),
-    ...collectExportInputs(REACT_GENERATIVE_UI_A2UI_INDEX),
+    ...collectExportInputs(GENERATIVE_UI_REACT_INDEX),
+    ...collectExportInputs(GENERATIVE_UI_SLACK_INDEX),
+    ...collectExportInputs(GENERATIVE_UI_TEAMS_INDEX),
+    ...collectExportInputs(GENERATIVE_UI_A2UI_INDEX),
   ]).filter((item) => GENERATIVE_UI_PACKAGE_EXPORTS.has(item.name));
   return reactGenerativeUIApiInputs;
 }
 
 function getMainApiInputs(): ClassifiedExportInput[] {
-  mainApiInputs ??= [
-    ...getReactApiInputs(),
-    ...getReactGenerativeUIApiInputs(),
-  ];
+  mainApiInputs ??= [...getReactApiInputs(), ...getGenerativeUIApiInputs()];
   return mainApiInputs;
 }
 

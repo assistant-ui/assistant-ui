@@ -1,0 +1,252 @@
+---
+title: API reference
+description: Signatures and options for every generative-frame entry point.
+---
+
+## `generative-frame`
+
+### `createWidget`
+
+```ts
+import { createWidget } from "generative-frame";
+
+const widget: WidgetHandle = createWidget(options);
+```
+
+<ParametersTable
+  type="CreateWidgetOptions"
+  parameters={[
+    { name: "container", type: "HTMLElement", required: true, description: "The element the frame is appended to." },
+    { name: "tokens", type: "ThemeTokens", default: "DEFAULT_LIGHT_TOKENS", description: "Theme tokens sent into the frame. See [Theming](/generative-frame/docs/theming)." },
+    { name: "csp", type: "CspOptions | string", default: "buildCsp()", description: "The frame's Content Security Policy, as options or a complete policy string." },
+    { name: "maxHeight", type: "number", description: "The iframe never grows past this height; taller content scrolls inside it." },
+    { name: "minHeight", type: "number", default: "0", description: "The smallest height of the iframe." },
+    { name: "code", type: "string", description: "Complete code to render immediately, as `write(code)` then `end()`." },
+    { name: "product", type: "string", default: "\"generative-frame\"", description: "Scopes the frame origin, see `SafeContentFrame`." },
+    { name: "frame", type: "SafeContentFrame", description: "A preconfigured Safe Content Frame, for example with `useShadowDom`. Cannot be combined with `id`." },
+    { name: "id", type: "string", description: "A stable origin, so the widget's storage persists for this id. Choose it on the host. See [Persistent storage](/generative-frame/docs/quickstart#persistent-storage)." },
+    { name: "context", type: "HostContext", description: "Extra MCP Apps host context fields (locale, display mode, and so on) merged over the theme." },
+    { name: "animate", type: "boolean", default: "true", description: "Fade in elements as they stream in. Always off under reduced motion." },
+    { name: "css", type: "string", description: "Extra CSS appended after the frame's base styles." },
+    { name: "readyTimeoutMs", type: "number", default: "15000", description: "How long the frame may take to connect before `ready` rejects and an error is reported." },
+    { name: "onPrompt", type: "(text: string) => unknown", description: "A widget called `sendPrompt(text)`." },
+    { name: "onMessage", type: "(params: UiMessageParams) => unknown", description: "The raw MCP Apps `ui/message`. Takes precedence over `onPrompt`." },
+    { name: "onOpenLink", type: "(url: string) => unknown", default: "open in a new tab", description: "An http(s) link the widget asked to open." },
+    { name: "onCallTool", type: "(call: { name, arguments? }) => unknown", description: "A widget called `genframe.callTool` or MCP `tools/call`. The return value is the result." },
+    { name: "onRequestDisplayMode", type: "({ mode }) => unknown", description: "A request for `inline`, `fullscreen`, or `pip`." },
+    { name: "onUpdateModelContext", type: "(params: unknown) => unknown", description: "MCP Apps `ui/update-model-context`." },
+    { name: "onWidgetState", type: "(state: unknown) => void", description: "A widget called `genframe.setState`." },
+    { name: "onResize", type: "(size: WidgetSize) => void", description: "The content size changed." },
+    { name: "onError", type: "(error: WidgetError) => void", description: "An error, unhandled rejection, CSP violation, failed resource, or script error in the widget." },
+    { name: "onLog", type: "(entry: ConsoleEntry) => void", description: "Console output from the widget." },
+  ]}
+/>
+
+### `WidgetHandle`
+
+| Member | Description |
+| --- | --- |
+| `ready: Promise<void>` | Resolves once the frame runtime is connected; rejects if it never connects. |
+| `code: string` | All code written so far. |
+| `ended: boolean` | Whether `end()` or `replace()` has been called. |
+| `iframe: HTMLIFrameElement \| undefined` | The current iframe. |
+| `write(chunk)` | Appends streamed code. Throws after `end()`. |
+| `end(): Promise<EndResult>` | Marks the code complete, runs held scripts, and resolves with `{ size, blank, errorCount }`. |
+| `replace(code): Promise<EndResult>` | Renders new complete code, morphing in place, or remounting when scripts already ran. |
+| `setTheme(tokens)` | Sends new theme tokens. |
+| `setContext(context)` | Merges MCP Apps host context fields and notifies the widget. |
+| `notifyToolInput(args, { partial? })` | Forwards tool input to MCP Apps widgets. |
+| `notifyToolResult(result)` | Forwards a tool result to MCP Apps widgets. |
+| `screenshot({ scale?, background? }): Promise<Screenshot>` | Captures the widget as `{ dataUrl, width, height }`. |
+| `inspect(): Promise<WidgetInspection>` | `{ kind, ended, size, blank, errors, console, code }`. |
+| `on(event, listener): () => void` | Subscribes to `ready`, `resize`, `error`, `log`, or `end`. |
+| `dispose()` | Removes the frame. |
+
+### Storage
+
+| Function | Description |
+| --- | --- |
+| `clearWidgetStorage(id, { product?, readyTimeoutMs? })` | Clears the storage of widgets with this `id`; resolves with `{ cleared }`, the storage kinds cleared. |
+| `widgetStorageSalt(id)` | The `SafeContentFrame` salt behind an `id`'s origin. |
+
+### `previewWidget`
+
+```ts
+previewWidget(code: string, options?: PreviewOptions): Promise<PreviewResult>
+```
+
+Options and result are on [Repair loop and screenshots](/generative-frame/docs/repair#previewwidget).
+
+### Theme
+
+| Export | Description |
+| --- | --- |
+| `readThemeTokens(element?, sources?)` | Reads the page theme into `ThemeTokens`. |
+| `defaultThemeTokens(scheme)`, `DEFAULT_LIGHT_TOKENS`, `DEFAULT_DARK_TOKENS` | Built-in palettes. |
+
+### CSP
+
+| Export | Description |
+| --- | --- |
+| `buildCsp(options?)` | The policy string for `CspOptions`. See [Security model](/generative-frame/docs/security#the-default-policy). |
+| `DEFAULT_CDN_ORIGINS` | The default CDN allowlist. |
+
+## `generative-frame/react`
+
+### `<Widget>`
+
+`WidgetProps` are every `createWidget` option except `container` and `code`, plus:
+
+<ParametersTable
+  type="WidgetProps"
+  parameters={[
+    { name: "code", type: "string", required: true, description: "Widget code, complete or still growing." },
+    { name: "streaming", type: "boolean", default: "false", description: "True while `code` is still growing; scripts run once it turns false." },
+    { name: "className", type: "string", description: "Class for the wrapper `div`." },
+    { name: "style", type: "CSSProperties", description: "Style for the wrapper `div`." },
+  ]}
+/>
+
+### Hooks and helpers
+
+| Export | Description |
+| --- | --- |
+| `useWidget(options): { ref, widget }` | Mounts a frame into the element passed to `ref`. Options are read once per mount; handlers call their latest version; a new `tokens` object becomes `setTheme`. |
+| `useThemeTokens(element?, sources?, { observeBodyStyle? }?)` | Theme tokens that update with the page; one shared observer per element and sources. |
+
+## `generative-frame/tools`
+
+| Export | Description |
+| --- | --- |
+| `createWidgetTools({ registry?, guidance?, preview?, modules?, extraTools? })` | `{ read_me, show_widget, edit_widget, preview_widget }`, plus `extraTools`. See [Tools and prompts](/generative-frame/docs/tools). |
+| `toAISDKTools(tools, { jsonSchema })` | The tools in the Vercel AI SDK shape. |
+| `getToolDeclarations(tools)` | `{ description, inputSchema }` per tool, without `execute`. |
+| `buildWidgetInstructions(tools, { preload? }): Promise<string>` | A system prompt section for the tools. |
+| `createWidgetRegistry(initial?)` | The latest code per title. |
+| `applyWidgetEdits(code, edits)` | `{ ok: true, code }` or `{ ok: false, error, index }`. |
+
+The `ToolDefinition`, `AnyTool`, `GuidanceModule`, and `JsonSchema` types are exported too. A `GuidanceModule` is `{ name, summary, guidance(): string }`.
+
+## `generative-frame/prompts`
+
+```ts
+buildWidgetGuidance(options?: GuidanceOptions): string
+```
+
+<ParametersTable
+  type="GuidanceOptions"
+  parameters={[
+    { name: "modules", type: "WidgetModule[]", default: "[]", description: "`diagram`, `chart`, `data_viz`, `interactive`, `mockup`, `elicitation`, `art`." },
+    { name: "platform", type: "\"desktop\" | \"mobile\"", default: "\"desktop\"", description: "The user's client." },
+    { name: "tokens", type: "ThemeTokens", description: "The tokens the host sends; their names become the token reference." },
+    { name: "cdnOrigins", type: "string[]", default: "DEFAULT_CDN_ORIGINS", description: "Where the model may load libraries from." },
+    { name: "connectOrigins", type: "string[]", default: "[]", description: "Where widget code may send requests." },
+    { name: "allowEval", type: "boolean", default: "false", description: "Whether `eval` is available." },
+    { name: "width", type: "number", default: "680 on desktop, 360 on mobile", description: "Frame width in CSS pixels." },
+    { name: "hostApi", type: "{ prompt?: boolean; callTool?: boolean }", default: "{ prompt: true, callTool: false }", description: "Which host functions the guidance documents." },
+  ]}
+/>
+
+`WIDGET_MODULES` lists the module names.
+
+## `generative-frame/repair`
+
+| Export | Description |
+| --- | --- |
+| `repairLoop(options): Promise<RepairLoopResult>` | Generate, render, and feed back until accepted or out of rounds. Resolves with `{ ok, code, report, rounds }`. |
+| `buildRepairFeedback(report, options?)` | Model-readable feedback for a `RenderReport`. |
+
+Options are on [Repair loop and screenshots](/generative-frame/docs/repair#repairloop).
+
+## `generative-frame/assistant-ui`
+
+```ts
+createWidgetToolkit(options?: WidgetToolkitOptions): { toolkit, tools, registry }
+useWidgetInstructions(tools, { preload? }): void
+useAssistantUiThemeTokens(element?): ThemeTokens
+```
+
+`WidgetToolkitOptions` takes the `createWidgetTools` options except `extraTools`, plus:
+
+<ParametersTable
+  type="WidgetToolkitOptions"
+  parameters={[
+    { name: "execution", type: "\"frontend\" | \"backend\"", default: "\"frontend\"", description: "`frontend` runs the tools in the browser; `backend` only renders." },
+    { name: "widget", type: "Omit<UseWidgetOptions, \"tokens\">", description: "Options for every widget frame (csp, product, maxHeight, handlers)." },
+    { name: "spec", type: "WidgetToolkitExtension", description: "Spec mode, from `createSpecToolkit(catalog, options)` in `generative-frame/spec/assistant-ui`. Adds `render_spec` and the `spec` module of `read_me`." },
+    { name: "extraTools", type: "Record<string, ToolDefinition>", description: "More tools for the model, such as data lookups. They execute like the widget tools and render nothing in the thread." },
+    { name: "themeElement", type: "Element | null", default: "document root", description: "Where the theme is read from." },
+    { name: "display", type: "\"standalone\" | \"inline\"", default: "\"standalone\"", description: "How the widget tools are presented relative to the reasoning trace." },
+    { name: "renderReport", type: "{ timeoutMs?, settleMs? } | false", default: "{ timeoutMs: 10000, settleMs: 300 }", description: "Frontend execution: `show_widget` and `edit_widget` results wait for the frame and carry a `render` report. `false` returns at once." },
+    { name: "preview", type: "(code, { width?, appearance? }) => Promise<PreviewResult>", default: "previewWidget", description: "Renders code for `preview_widget`." },
+    { name: "previewScreenshot", type: "boolean", default: "false", description: "Keep the PNG in `preview_widget` results." },
+    { name: "widgetId", type: "(({ toolCallId, threadId }) => string) | false", default: "<remoteId>:<toolCallId>, or aui:<toolCallId> without a remote id", description: "The storage id of a widget's frame, from the thread's remote id and the `show_widget` call that created it. `false` gives every frame a fresh origin." },
+  ]}
+/>
+
+The `RenderReportOptions`, `WidgetRenderReport`, `WidgetToolkitExtension`, `ToolkitExecution`, and `ToolkitDisplay` types are exported too.
+
+## `generative-frame/spec`
+
+| Export | Description |
+| --- | --- |
+| `defineCatalog({ components, actions? })` | A `Catalog` with `component`, `action`, `propsSchema`, `paramsSchema`, `validateProps`, `validateParams`, and `prompt`. |
+| `catalog.prompt({ mode?, customRules?, omitExample? })` | Model guidance; `mode` is `"jsonl"` (default) or `"inline"`. |
+| `createSpecStream({ mode?, initial? })` | `{ push(chunk), result(), spec }`; `mode` is `"jsonl"` (default) or `"inline"`. |
+| `parseSpecStream(source, options?)` | The same for a complete string. |
+| `applyPatch(doc, operations)` | Applies RFC 6902 operations. |
+| `validateSpec(spec, catalog, { partial? })` | `{ ok, issues }`. |
+| `formatSpecIssues(issues)` | Issues as model-readable text. |
+| `createStateStore(initial?)` | `{ getState, get, set, seed, subscribe }`. |
+| `emptySpec()` | An empty spec. |
+
+## `generative-frame/spec/react`
+
+| Export | Description |
+| --- | --- |
+| `useSpecStream({ source?, complete?, mode?, initial? })` | `{ spec, text, errors, push, end, reset }`. |
+| `<SpecPlaceholder>` | The default placeholder for elements that cannot render. |
+
+### `<SpecRenderer>`
+
+<ParametersTable
+  type="SpecRendererProps"
+  parameters={[
+    { name: "spec", type: "Spec", required: true, description: "The spec to render." },
+    { name: "components", type: "SpecComponents", required: true, description: "Implementations by component type." },
+    { name: "catalog", type: "Catalog", description: "Validates props before rendering; invalid elements render a placeholder." },
+    { name: "state", type: "SpecStateStore", description: "An external store. Otherwise one is created and seeded from `spec.state`." },
+    { name: "handlers", type: "Record<string, ActionHandler>", description: "Action handlers by name." },
+    { name: "onAction", type: "(name, params, context) => unknown", description: "Called for catalog actions without a handler." },
+    { name: "onError", type: "(error, { elementId? }) => void", description: "A component threw or an action failed." },
+    { name: "streaming", type: "boolean", default: "false", description: "Missing children render as pending." },
+    { name: "placeholder", type: "ComponentType<SpecPlaceholderProps>", default: "SpecPlaceholder", description: "Rendered for elements that cannot render." },
+  ]}
+/>
+
+## `generative-frame/spec/tools`
+
+| Export | Description |
+| --- | --- |
+| `createSpecTools(catalog, { specs? })` | `{ render_spec }`. `specs` is a `Map<string, { spec, version }>` shared with the host. See [`render_spec`](/generative-frame/docs/tools#render_spec). |
+| `specGuidanceModule(catalog, promptOptions?)` | The `spec` module for `createWidgetTools({ modules })`. `promptOptions` are `catalog.prompt` options except `mode`. |
+| `toAISDKTools(tools, { jsonSchema })`, `getToolDeclarations(tools)` | The same adapters as in `generative-frame/tools`. |
+
+## `generative-frame/spec/assistant-ui`
+
+```ts
+createSpecToolkit(catalog: Catalog, options: SpecToolkitOptions): WidgetToolkitExtension
+```
+
+Pass the result of `createSpecToolkit` to `createWidgetToolkit({ spec })`.
+
+<ParametersTable
+  type="SpecToolkitOptions"
+  parameters={[
+    { name: "components", type: "SpecComponents", required: true, description: "Implementations for the catalog's components." },
+    { name: "handlers", type: "Record<string, ActionHandler>", description: "Action handlers by name." },
+    { name: "onAction", type: "(name, params, context) => unknown", description: "Called for catalog actions without a handler." },
+    { name: "placeholder", type: "ComponentType<SpecPlaceholderProps>", description: "Placeholder for elements that cannot render." },
+    { name: "specPrompt", type: "Omit<SpecPromptOptions, \"mode\">", description: "Options for the `spec` module guidance (`customRules`, `omitExample`)." },
+  ]}
+/>

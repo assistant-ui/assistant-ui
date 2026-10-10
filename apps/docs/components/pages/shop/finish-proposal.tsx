@@ -32,12 +32,12 @@ import {
 } from "@/lib/checkout/protocol";
 import { getCatalogItem, getProduct } from "@/lib/catalog";
 
-function InstalledProducts({ products }: { products: Checkout.Product[] }) {
+function SelectedProducts({ products }: { products: Checkout.Product[] }) {
   return (
     <Collapsible className="flex min-w-0 flex-col items-start">
       <CollapsibleTrigger className="text-muted-foreground hover:text-foreground group flex max-w-full items-center gap-1.5 text-sm">
         <ListChecksIcon className="size-3.5 shrink-0" />
-        <span className="truncate">See what was added in this session.</span>
+        <span className="truncate">See the selected products.</span>
         <ChevronRightIcon className="size-3.5 shrink-0 transition-transform group-data-[panel-open]:rotate-90" />
       </CollapsibleTrigger>
       <CollapsibleContent className="border-foreground/10 mt-3 w-full border-t pt-3">
@@ -150,7 +150,7 @@ export function FinishProposal({
         </Dialog>
       </div>
       {summary ? (
-        <InstalledProducts products={checkout.state?.products ?? []} />
+        <SelectedProducts products={checkout.state?.products ?? []} />
       ) : null}
     </div>
   );

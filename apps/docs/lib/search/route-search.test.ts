@@ -173,8 +173,8 @@ it("forwards caller cancellation to an in-flight request", async () => {
   expect(fetcher).toHaveBeenCalledTimes(1);
   expect(fetcher.mock.calls[0]![1]?.signal?.aborted).toBe(false);
   controller.abort();
-  expect(await pending).toEqual([]);
   expect(fetcher.mock.calls[0]![1]?.signal?.aborted).toBe(true);
+  expect(await pending).toEqual([]);
 });
 
 describe("queries that need no model", () => {

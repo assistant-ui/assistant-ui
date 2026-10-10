@@ -60,6 +60,7 @@ class ToolCallController:
         artifact: Any | None = None,
         is_error: bool = False,
         is_preliminary: bool = False,
+        messages: Any | None = None,
     ) -> None:
         """Set a tool response. A preliminary response keeps the call open so
         further responses can follow; a final response closes it, and later
@@ -79,6 +80,7 @@ class ToolCallController:
             artifact=artifact,
             is_error=is_error,
             is_preliminary=is_preliminary,
+            messages=messages,
         )
         enqueue_threadsafe(self.loop, self.queue, chunk)
         if not is_preliminary:

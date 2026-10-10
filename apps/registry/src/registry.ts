@@ -49,7 +49,6 @@ type ElementRegistryEntry = {
   file: string;
   dependencies?: string[];
   devDependencies?: string[];
-  usesCollapsible?: boolean;
   usesElements?: string[];
   usesHooks?: string[];
   usesSurfaces?: boolean;
@@ -80,7 +79,6 @@ const createElementRegistryItem = (
     ...(entry.usesHooks ?? []).map(
       (name) => `https://r.assistant-ui.com/${name}.json`,
     ),
-    ...(entry.usesCollapsible ? ["collapsible"] : []),
     ...(entry.usesUi ?? []),
   ],
   ...(entry.dependencies ? { dependencies: entry.dependencies } : {}),
@@ -88,6 +86,22 @@ const createElementRegistryItem = (
 });
 
 const elementsRegistryItems: RegistryItem[] = [
+  {
+    name: "elements-collapsible-root",
+    type: "registry:component",
+    title: "Collapsible Root",
+    description: "Ref-bearing disclosure root for assistant-ui components.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/collapsible-root.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/collapsible-root.tsx",
+      },
+    ],
+    radixDependencies: ["radix-ui"],
+    baseDependencies: ["@base-ui/react"],
+  },
   {
     name: "elements-surfaces",
     type: "registry:component",
@@ -100,6 +114,12 @@ const elementsRegistryItems: RegistryItem[] = [
         path: "components/assistant-ui/elements/surfaces.tsx",
         sourcePath:
           "../../packages/ui/src/components/react/assistant-ui/elements/surfaces.tsx",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
       },
     ],
     dependencies: ["tw-shimmer"],
@@ -165,6 +185,12 @@ const elementsRegistryItems: RegistryItem[] = [
         sourcePath:
           "../../packages/ui/src/components/react/assistant-ui/utils/task.ts",
       },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
+      },
     ],
     dependencies: ["@assistant-ui/react"],
   },
@@ -189,8 +215,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "A collapsible trace that streams reasoning steps along a timeline, then settles into a summary.",
     file: "reasoning-panel.tsx",
     dependencies: ["lucide-react"],
-    usesCollapsible: true,
-    usesElements: ["range"],
+    usesElements: ["range", "collapsible-root"],
   }),
   createElementRegistryItem({
     slug: "streaming-text",
@@ -255,7 +280,16 @@ const elementsRegistryItems: RegistryItem[] = [
       "One tool invocation with its request and result tucked behind a disclosure.",
     file: "tool-call.tsx",
     dependencies: ["lucide-react"],
-    usesCollapsible: true,
+    usesElements: ["collapsible-root"],
+  }),
+  createElementRegistryItem({
+    slug: "run-activity",
+    title: "Run activity",
+    description:
+      "Ordered commentary and tools, with a live summary and a final answer that stays visible.",
+    file: "run-activity.tsx",
+    dependencies: ["lucide-react"],
+    usesElements: ["collapsible-root"],
   }),
   createElementRegistryItem({
     slug: "tool-timeline",
@@ -264,8 +298,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "A whole working session summarized as verbs, targets, and file stats.",
     file: "tool-timeline.tsx",
     dependencies: ["lucide-react"],
-    usesCollapsible: true,
-    usesElements: ["range"],
+    usesElements: ["range", "collapsible-root"],
   }),
   createElementRegistryItem({
     slug: "terminal-block",
@@ -300,8 +333,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "Citations collapsed into a pill, expanding into scannable source cards.",
     file: "sources.tsx",
     dependencies: ["lucide-react"],
-    usesCollapsible: true,
-    usesElements: ["href"],
+    usesElements: ["href", "collapsible-root"],
   }),
   createElementRegistryItem({
     slug: "inline-citation",
@@ -393,7 +425,29 @@ const elementsRegistryItems: RegistryItem[] = [
       "Human in the loop: the agent asks before it runs anything with side effects.",
     file: "approval-card.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["receipt-focus"],
   }),
+  {
+    name: "elements-receipt-focus",
+    type: "registry:component",
+    title: "Receipt focus",
+    description:
+      "Keeps focus on a receipt when the focused answer is replaced.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/receipt-focus.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/receipt-focus.ts",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
+      },
+    ],
+  },
   createElementRegistryItem({
     slug: "option-list",
     title: "Option list",
@@ -401,7 +455,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "The agent asks a question with a few answers; the pick returns to it and stays as a receipt.",
     file: "option-list.tsx",
     dependencies: ["lucide-react"],
-    usesElements: ["range"],
+    usesElements: ["range", "receipt-focus"],
   }),
   createElementRegistryItem({
     slug: "question-flow",
@@ -409,7 +463,7 @@ const elementsRegistryItems: RegistryItem[] = [
     description:
       "A few short questions asked one at a time, answered together and kept as a receipt.",
     file: "question-flow.tsx",
-    usesElements: ["option-list"],
+    usesElements: ["option-list", "receipt-focus"],
   }),
   createElementRegistryItem({
     slug: "recommendation-card",
@@ -418,6 +472,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "The agent proposes a change with its confidence, and waits for a yes.",
     file: "recommendation-card.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["receipt-focus"],
   }),
   createElementRegistryItem({
     slug: "artifact-card",
@@ -527,6 +582,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "A server pausing mid-tool-call to ask you for the fields it still needs.",
     file: "elicitation-form.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["receipt-focus"],
   }),
   createElementRegistryItem({
     slug: "retrieval-chunks",
@@ -774,6 +830,7 @@ const elementsRegistryItems: RegistryItem[] = [
       "Granting a capability rather than approving one action, with the reach spelled out.",
     file: "permission-grant.tsx",
     dependencies: ["lucide-react"],
+    usesElements: ["receipt-focus"],
   }),
   createElementRegistryItem({
     slug: "computer-use",
@@ -1137,13 +1194,32 @@ export const registry: RegistryItem[] = [
       },
     ],
     dependencies: ["@assistant-ui/eve"],
-    bundledRegistryDependencies: ["https://r.assistant-ui.com/thread.json"],
+    bundledRegistryDependencies: [
+      "https://r.assistant-ui.com/thread.json",
+      "https://r.assistant-ui.com/eve-ask-question.json",
+    ],
     docs: "Eve installs registry files without touching CSS, so add the reasoning and collapsible styles to app/globals.css, and replace the default auth policy in agent/channels/eve.ts before deploying: https://www.assistant-ui.com/docs/runtimes/eve/quickstart",
     meta: {
       eve: {
         requires: ">=0.27.6",
       },
     },
+  },
+  {
+    name: "eve-ask-question",
+    type: "registry:component",
+    title: "Eve Ask Question",
+    description:
+      "Renders Eve's built-in ask_question tool as a standalone question with answer controls, outside the collapsed tool group.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/eve-ask-question.tsx",
+        sourcePath: "templates/eve/components/eve-ask-question.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react"],
+    registryDependencies: ["https://r.assistant-ui.com/tool-fallback.json"],
   },
   {
     name: "thread",
@@ -1398,8 +1474,16 @@ export const registry: RegistryItem[] = [
         sourcePath:
           "../../packages/ui/src/components/react/assistant-ui/elements/reasoning.tsx",
       },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
+      },
     ],
-    registryDependencies: ["collapsible"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-collapsible-root.json",
+    ],
     dependencies: ["lucide-react", "class-variance-authority", "tw-shimmer"],
     css: {
       '@import "tw-shimmer"': {},
@@ -1479,6 +1563,7 @@ export const registry: RegistryItem[] = [
       "dialog",
       "label",
       "separator",
+      "https://r.assistant-ui.com/elements-mcp-config-state.json",
     ],
     radixRegistryDependencies: ["input"],
     dependencies: [
@@ -1486,6 +1571,21 @@ export const registry: RegistryItem[] = [
       "@assistant-ui/store",
       "lucide-react",
     ],
+  },
+  {
+    name: "elements-mcp-config-state",
+    type: "registry:component",
+    title: "Elements MCP Config State",
+    description: "Shared focus and announcement state for MCP config dialogs.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/mcp-config-state.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/mcp-config-state.ts",
+      },
+    ],
+    dependencies: ["@assistant-ui/react-mcp", "@assistant-ui/store"],
   },
   {
     name: "use-attachment-src",
@@ -1649,7 +1749,11 @@ export const registry: RegistryItem[] = [
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react", "tw-shimmer"],
-    registryDependencies: ["button", "collapsible", "textarea"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-collapsible-root.json",
+      "button",
+      "textarea",
+    ],
     css: {
       '@import "tw-shimmer"': {},
       ...collapsibleStateCss,
@@ -1674,7 +1778,9 @@ export const registry: RegistryItem[] = [
       "class-variance-authority",
       "tw-shimmer",
     ],
-    registryDependencies: ["collapsible"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-collapsible-root.json",
+    ],
     css: {
       '@import "tw-shimmer"': {},
       ...collapsibleStateCss,
@@ -2166,9 +2272,10 @@ export const registry: RegistryItem[] = [
       },
     ],
     dependencies: [
-      "@assistant-ui/react-generative-ui",
+      "@assistant-ui/generative-ui",
       "react-markdown",
       "remark-gfm",
+      "zod",
     ],
     registryDependencies: [
       "https://r.assistant-ui.com/generative-ui-style.json",
@@ -2413,6 +2520,12 @@ export const nativeRegistry: RegistryItem[] = [
         path: "components/assistant-ui/utils/task.ts",
         sourcePath:
           "../../packages/ui/src/components/react-native/assistant-ui/utils/task.ts",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react-native/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
       },
     ],
     dependencies: ["@assistant-ui/react-native"],

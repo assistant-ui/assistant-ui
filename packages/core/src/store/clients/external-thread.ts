@@ -5,6 +5,8 @@ import type { ClientElement, ClientOutput } from "@assistant-ui/store";
 import {
   useAssistantClientDestroySignal,
   useOptionalAssistantClientRef,
+  useOptionalAssistantEmit,
+  useOptionalAssistantScopeEffect,
 } from "@assistant-ui/store/internal";
 import {
   useClientLookup,
@@ -144,6 +146,7 @@ export type ExternalThreadProps = {
   onRespondToToolApproval?: (
     options: RespondToToolApprovalOptions,
   ) => void | Promise<void>;
+  /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
   unstable_onRecordToolInteraction?:
     | ((options: Unstable_RecordToolInteractionOptions) => void | Promise<void>)
     | undefined;
@@ -161,6 +164,7 @@ type MessageClientProps = {
   onRespondToToolApproval?:
     | ((options: RespondToToolApprovalOptions) => void | Promise<void>)
     | undefined;
+  /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
   unstable_onRecordToolInteraction?:
     | ((options: Unstable_RecordToolInteractionOptions) => void | Promise<void>)
     | undefined;
@@ -357,6 +361,7 @@ type PartResourceProps = {
   onRespondToToolApproval?:
     | ((options: RespondToToolApprovalOptions) => void | Promise<void>)
     | undefined;
+  /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
   unstable_onRecordToolInteraction?:
     | ((options: Unstable_RecordToolInteractionOptions) => void | Promise<void>)
     | undefined;
@@ -1467,6 +1472,23 @@ const useExternalThread = ({
   onRespondToToolApproval,
 }: ExternalThreadProps): ClientOutput<"thread"> => {
   const clientRef = useOptionalAssistantClientRef();
+  const emit = useOptionalAssistantEmit();
+
+  useOptionalAssistantScopeEffect(
+    "modelContext",
+    () => {
+      const modelContext = clientRef?.current?.modelContext;
+      if (!modelContext || modelContext.source == null) return;
+
+      return modelContext().subscribe?.(() => {
+        const threadId =
+          clientRef?.current?.threads?.().getState().mainThreadId || "unknown";
+        emit("thread.modelContextUpdate", { threadId });
+      });
+    },
+    [clientRef, emit],
+  );
+
   const messages = useMemo(
     () => dedupeMessagesById(messagesProp),
     [messagesProp],

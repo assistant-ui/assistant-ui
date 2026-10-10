@@ -9,29 +9,26 @@ export const REPO_ROOT = path.resolve(
 export const DOCS_ROOT = path.join(REPO_ROOT, "apps/docs");
 
 export const REACT_PKG = path.join(REPO_ROOT, "packages/react/src");
-export const REACT_GENERATIVE_UI_PKG = path.join(
+export const GENERATIVE_UI_PKG = path.join(
   REPO_ROOT,
   "packages/generative-ui/src",
 );
 export const CORE_PKG = path.join(REPO_ROOT, "packages/core/src");
 export const PRIMITIVES_DIR = path.join(REACT_PKG, "primitives");
 export const REACT_INDEX = path.join(REACT_PKG, "index.ts");
-export const REACT_GENERATIVE_UI_INDEX = path.join(
-  REACT_GENERATIVE_UI_PKG,
+export const GENERATIVE_UI_REACT_INDEX = path.join(
+  GENERATIVE_UI_PKG,
   "react.ts",
 );
-export const REACT_GENERATIVE_UI_SLACK_INDEX = path.join(
-  REACT_GENERATIVE_UI_PKG,
+export const GENERATIVE_UI_SLACK_INDEX = path.join(
+  GENERATIVE_UI_PKG,
   "slack.ts",
 );
-export const REACT_GENERATIVE_UI_TEAMS_INDEX = path.join(
-  REACT_GENERATIVE_UI_PKG,
+export const GENERATIVE_UI_TEAMS_INDEX = path.join(
+  GENERATIVE_UI_PKG,
   "teams.ts",
 );
-export const REACT_GENERATIVE_UI_A2UI_INDEX = path.join(
-  REACT_GENERATIVE_UI_PKG,
-  "a2ui.ts",
-);
+export const GENERATIVE_UI_A2UI_INDEX = path.join(GENERATIVE_UI_PKG, "a2ui.ts");
 
 export const TYPE_DOCS_INPUT = path.join(
   DOCS_ROOT,

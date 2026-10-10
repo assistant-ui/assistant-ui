@@ -1,7 +1,9 @@
 "use client";
 
 import {
+  forwardRef,
   type ComponentProps,
+  type ComponentPropsWithoutRef,
   type RefObject,
   useCallback,
   useLayoutEffect,
@@ -184,14 +186,13 @@ function useFitInComposer(
   return fit;
 }
 
-export function ComposerMenu({
-  open,
-  align = "start",
-  className,
-  style,
+export const ComposerMenu = forwardRef<
+  HTMLDivElement,
+  ComponentPropsWithoutRef<"div"> & { open: boolean; align?: "start" | "end" }
+>(function ComposerMenu(
+  { open, align = "start", className, style, ...props },
   ref,
-  ...props
-}: ComponentProps<"div"> & { open: boolean; align?: "start" | "end" }) {
+) {
   const menuRef = useRef<HTMLDivElement | null>(null);
   const fit = useFitInComposer(menuRef, align);
   const composedRef = useCallback(
@@ -229,7 +230,7 @@ export function ComposerMenu({
       {...props}
     />
   );
-}
+});
 
 export function ComposerMenuItem({
   active = false,

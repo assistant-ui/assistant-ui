@@ -1,0 +1,15 @@
+/* Bridges the chart tokens to a shadcn/ui theme, so every figure and DOM legend takes the host's chart palette, foreground, muted foreground, border, and background. Import next to styles.css, or alone when the highlight defaults are not wanted. --chart-6 and --chart-7 fall back to the shipped hues because the shadcn preset defines five. */
+[data-dg],
+[data-dg-legend] {
+  --dg-c1: var(--chart-1);
+  --dg-c2: var(--chart-2);
+  --dg-c3: var(--chart-3);
+  --dg-c4: var(--chart-4);
+  --dg-c5: var(--chart-5);
+  --dg-c6: var(--chart-6, #db2777);
+  --dg-c7: var(--chart-7, #65a30d);
+  --dg-ink: var(--foreground);
+  --dg-muted: var(--muted-foreground);
+  --dg-grid: var(--border);
+  --dg-surface: var(--background);
+}

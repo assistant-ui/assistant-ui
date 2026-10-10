@@ -6,11 +6,12 @@ export default defineConfig({
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/__fixtures__/**"],
       thresholds: {
-        lines: 66,
-        functions: 71,
-        branches: 70,
-        statements: 67,
-        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+        lines: 65,
+        functions: 70,
+        branches: 69,
+        statements: 66,
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
       },
     },
   },

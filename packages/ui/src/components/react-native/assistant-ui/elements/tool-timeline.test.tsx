@@ -115,4 +115,49 @@ describe("ToolTimeline", () => {
     expect(container.textContent).toContain("Working");
     expect(container.textContent).not.toContain("Worked for 12s");
   });
+
+  it("keeps identified rows mounted when a same-chip step is prepended", async () => {
+    const { FileIcon } = await import("lucide-react-native");
+    const first = {
+      id: "first",
+      verb: "First",
+      chip: "config.ts",
+      icon: FileIcon,
+    };
+    const second = {
+      id: "second",
+      verb: "Second",
+      chip: "config.ts",
+      icon: FileIcon,
+    };
+    const entering = {
+      id: "entering",
+      verb: "Entering",
+      chip: "config.ts",
+      icon: FileIcon,
+    };
+    const findVerb = (verb: string) =>
+      Array.from(container.querySelectorAll("*")).find(
+        (element) =>
+          element.textContent === verb &&
+          !Array.from(element.children).some(
+            (child) => child.textContent === verb,
+          ),
+      );
+
+    await render({ open: true, steps: [first, second], visibleSteps: 2 });
+    const firstLabel = findVerb("First");
+    const secondLabel = findVerb("Second");
+    expect(firstLabel).toBeDefined();
+    expect(secondLabel).toBeDefined();
+
+    await render({
+      open: true,
+      steps: [entering, first, second],
+      visibleSteps: 3,
+    });
+
+    expect(findVerb("First")).toBe(firstLabel);
+    expect(findVerb("Second")).toBe(secondLabel);
+  });
 });

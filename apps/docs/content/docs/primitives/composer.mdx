@@ -552,7 +552,7 @@ Use `onSubmit` on `Root` to intercept submission:
 
 ### Gate Sending on External State
 
-Sometimes you want users to type while sending is temporarily blocked, for example while tool configuration, auth, or the first model context is still loading. Disabling the entire thread via `isDisabled` works but also disables the text input.
+Sometimes you want users to type while sending is temporarily blocked, for example while tool configuration, auth, or the first model context is still loading. Disabling the entire thread via `isDisabled` also blocks typing, attaching, direct `composer.send()` calls, and message editing.
 
 Use `isSendDisabled` on the runtime adapter to keep the input usable while blocking send:
 

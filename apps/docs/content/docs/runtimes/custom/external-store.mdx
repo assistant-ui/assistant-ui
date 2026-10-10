@@ -882,7 +882,7 @@ useExternalStoreRuntime({
       name: "isDisabled",
       type: "boolean",
       description:
-        "Disables the entire composer, including the text input. For a narrower gate that keeps the input usable but blocks only sending, use isSendDisabled.",
+        "Disables typing, attaching, sending (including direct aui.composer.send() calls), and editing messages on the thread. For a narrower gate that keeps the input usable but blocks only sending, use isSendDisabled.",
       default: "false",
     },
     {

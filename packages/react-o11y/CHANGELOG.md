@@ -1,5 +1,16 @@
 # @assistant-ui/react-o11y
 
+## 0.0.47
+
+### Patch Changes
+
+- [#8901](https://github.com/assistant-ui/assistant-ui/pull/8901) [`bdda992`](https://github.com/assistant-ui/assistant-ui/commit/bdda9929d369f7eb522eacc34b1008abca54e6b8) - stop rebuilding the span tree and re-creating unchanged spans when one span is collapsed or expanded ([@okisdev](https://github.com/okisdev))
+
+- [#8833](https://github.com/assistant-ui/assistant-ui/pull/8833) [`0a3ca24`](https://github.com/assistant-ui/assistant-ui/commit/0a3ca2482e72e4d1c35805222df44e81ba6b55c5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`3ad209c`](https://github.com/assistant-ui/assistant-ui/commit/3ad209c9b1692dcaa3fcfb4d12130b318ca566eb), [`9125e30`](https://github.com/assistant-ui/assistant-ui/commit/9125e302f47c2cd62e4f39752f913e6bc0287abf), [`4ac25b9`](https://github.com/assistant-ui/assistant-ui/commit/4ac25b9a8cff8857b8b74667e8ff488e9faed00d), [`14ba56e`](https://github.com/assistant-ui/assistant-ui/commit/14ba56ee6fb868446552670b558b456abe67252c), [`9121416`](https://github.com/assistant-ui/assistant-ui/commit/9121416f70e5fed68eaf7f8922a726e289e98aa5), [`116424f`](https://github.com/assistant-ui/assistant-ui/commit/116424ff9e2b682ec4687aa3bc4e7597b611b1d8), [`f306b40`](https://github.com/assistant-ui/assistant-ui/commit/f306b40286c16253c60c68007b5cb6411ed22816), [`039d048`](https://github.com/assistant-ui/assistant-ui/commit/039d0489ef5cc21608891e9a92f1ecbd5c9ab201), [`0d72f48`](https://github.com/assistant-ui/assistant-ui/commit/0d72f4852980f8a98118753b3bcca053eca75643), [`df2ab0a`](https://github.com/assistant-ui/assistant-ui/commit/df2ab0a7ebac27430926d6fbb56a97eeb0206faf), [`8831c76`](https://github.com/assistant-ui/assistant-ui/commit/8831c76821cdcf0e8b5f1d4c562640a33056442d), [`7a3e496`](https://github.com/assistant-ui/assistant-ui/commit/7a3e4966ae50d181a58a73ccb138af8ebee038bf)]:
+  - @assistant-ui/store@0.3.18
+  - @assistant-ui/tap@0.9.22
+
 ## 0.0.46
 
 ### Patch Changes

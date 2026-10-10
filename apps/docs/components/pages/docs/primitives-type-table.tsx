@@ -1,14 +1,16 @@
 import { cacheLife } from "next/cache";
 import { Fragment, type FC, type ReactNode } from "react";
 import { highlight } from "fumadocs-core/highlight";
-import Link from "next/link";
 
 import {
   TypeTableClient,
   type TypeTableRow,
 } from "./primitives-type-table-client";
 import { DefListLLM } from "./parameters-table";
-import { StatusBadge } from "./status-badge";
+import {
+  COMMON_PARAMS,
+  getParameterAnnotations,
+} from "./parameter-annotations";
 
 type PropDef = {
   name: string;
@@ -17,26 +19,8 @@ type PropDef = {
   default?: string;
   required?: boolean;
   deprecated?: string;
+  experimental?: boolean;
   children?: Array<{ type?: string; parameters: PropDef[] }>;
-};
-
-const COMMON_PARAMS: Record<string, Partial<PropDef>> = {
-  asChild: {
-    type: "boolean",
-    default: "false",
-    description: (
-      <>
-        Change the default rendered element for the one passed as a child,
-        merging their props and behavior.{" "}
-        <Link
-          className="text-primary font-medium underline underline-offset-2"
-          href="/docs/api-reference/primitives/composition"
-        >
-          Composition guide
-        </Link>
-      </>
-    ),
-  },
 };
 
 async function highlightType(type: string): Promise<ReactNode> {
@@ -72,18 +56,10 @@ function getShortType(typeRaw: string): string | undefined {
 async function propsToRows(props: PropDef[]): Promise<TypeTableRow[]> {
   return Promise.all(
     props.map(async (raw) => {
-      const prop = { ...COMMON_PARAMS[raw.name], ...raw };
+      const prop = { ...COMMON_PARAMS.primitives[raw.name], ...raw };
 
       const descParts: ReactNode[] = [
-        prop.deprecated && (
-          <Fragment key="deprecated">
-            <StatusBadge variant="deprecated" className="mr-1" />
-            <span>{prop.deprecated}</span>
-          </Fragment>
-        ),
-        prop.name.startsWith("unstable_") && (
-          <StatusBadge key="unstable" variant="unstable" className="mr-1" />
-        ),
+        ...getParameterAnnotations(prop, "description"),
         prop.description &&
           (typeof prop.description === "string" &&
           prop.description.includes("\n") ? (
@@ -163,7 +139,7 @@ export const PrimitivesTypeTableLLM: FC<{
   return (
     <DefListLLM
       defs={parameters}
-      commonParams={COMMON_PARAMS}
+      commonParams={COMMON_PARAMS.primitives}
       normalizeType={stripTrailingUndefined}
     />
   );

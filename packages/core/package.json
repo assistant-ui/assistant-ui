@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/core",
-  "version": "0.3.24",
+  "version": "0.3.25",
   "description": "Framework-agnostic core runtime for assistant-ui",
   "keywords": [
     "assistant",
@@ -32,6 +32,10 @@
     "./react": {
       "types": "./dist/react/index.d.ts",
       "default": "./dist/react/index.js"
+    },
+    "./react/internal": {
+      "types": "./dist/react/internal.d.ts",
+      "default": "./dist/react/internal.js"
     }
   },
   "main": "./dist/index.js",
@@ -49,6 +53,9 @@
       ],
       "store/internal": [
         "./dist/store/internal.d.ts"
+      ],
+      "react/internal": [
+        "./dist/react/internal.d.ts"
       ]
     }
   },
@@ -69,7 +76,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-stream": "^0.3.48",
+    "assistant-stream": "^0.3.49",
     "nanoid": "^6.0.2"
   },
   "optionalDevDependencies": {

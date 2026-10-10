@@ -1,6 +1,6 @@
 "use client";
 
-import { AssistantRuntimeProvider, useLocalRuntime } from "@assistant-ui/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useCallback } from "react";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
@@ -10,6 +10,8 @@ import {
   ReasoningContent,
   ReasoningText,
 } from "@/components/assistant-ui/elements/reasoning.aui";
+import { SampleScope } from "./sample-scope";
+import { useSampleRuntime } from "./use-sample-runtime";
 
 export function ReasoningSample() {
   return (
@@ -31,7 +33,7 @@ export function ReasoningSample() {
 }
 
 function ReasoningStreamingThread() {
-  const runtime = useLocalRuntime({
+  const runtime = useSampleRuntime({
     // The first run yields partial reasoning and stays running until the
     // user stops it. Follow-up prompts finish with a short reply.
     async *run({ messages, abortSignal }) {
@@ -99,7 +101,9 @@ function ReasoningStreamingThread() {
 export function ReasoningStreamingSample() {
   return (
     <SampleFrame className="bg-muted/40 h-120 overflow-hidden">
-      <ReasoningStreamingThread />
+      <SampleScope>
+        <ReasoningStreamingThread />
+      </SampleScope>
     </SampleFrame>
   );
 }

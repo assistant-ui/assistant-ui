@@ -13,8 +13,8 @@
   "dependencies": {
     "@ai-sdk/openai": "^4.0.86",
     "@assistant-ui/ai-sdk": "workspace:*",
+    "@assistant-ui/generative-ui": "workspace:*",
     "@assistant-ui/react": "workspace:*",
-    "@assistant-ui/react-generative-ui": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
     "ai": "^7.0.130",
     "class-variance-authority": "^0.7.1",

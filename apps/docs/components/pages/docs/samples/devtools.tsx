@@ -13,7 +13,6 @@ import {
   AssistantRuntimeProvider,
   AuiIf,
   AuiConfig,
-  AuiProvider,
   ComposerPrimitive,
   DevToolsHooks,
   DevToolsProviderApi,
@@ -24,7 +23,6 @@ import {
   useAssistantInstructions,
   useAui,
   useAuiState,
-  useLocalRuntime,
   type ChatModelAdapter,
   type ThreadAssistantMessagePart,
   type ThreadMessageLike,
@@ -38,6 +36,8 @@ import {
   type DevToolsSnapshot,
 } from "@assistant-ui/react-devtools";
 import { SampleFrame } from "./sample-frame";
+import { SampleScope } from "./sample-scope";
+import { useSampleRuntime } from "./use-sample-runtime";
 
 const RESPONSES = [
   "Watch the DevTools panel: the **Activity** tab captured every event this message produced, and the **Thread** tab is updating as this reply streams in.",
@@ -298,19 +298,17 @@ function Composer() {
   );
 }
 
-const EMPTY_CONFIG = AuiConfig({});
-
 export function DevToolsSample() {
   return (
-    <AuiProvider extends={null} config={EMPTY_CONFIG}>
+    <SampleScope>
       <DevToolsSampleInner />
-    </AuiProvider>
+    </SampleScope>
   );
 }
 
 function DevToolsSampleInner() {
   const { adapter, config, client, setApiId, theme } = useDevToolsDemo();
-  const runtime = useLocalRuntime(adapter, { initialMessages: panelSeed });
+  const runtime = useSampleRuntime(adapter, { initialMessages: panelSeed });
 
   return (
     <SampleFrame className="bg-muted/40 flex h-auto flex-col overflow-hidden">
@@ -358,15 +356,15 @@ function DemoTurnSuggestion() {
  */
 export function DevToolsModalSample() {
   return (
-    <AuiProvider extends={null} config={EMPTY_CONFIG}>
+    <SampleScope>
       <DevToolsModalSampleInner />
-    </AuiProvider>
+    </SampleScope>
   );
 }
 
 function DevToolsModalSampleInner() {
   const { adapter, config, client, setApiId, theme } = useDevToolsDemo();
-  const runtime = useLocalRuntime(adapter, { initialMessages: modalSeed });
+  const runtime = useSampleRuntime(adapter, { initialMessages: modalSeed });
   const [open, setOpen] = useState(false);
 
   useEffect(() => {

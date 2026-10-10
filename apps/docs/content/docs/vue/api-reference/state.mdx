@@ -81,7 +81,7 @@ Each State table describes the object selected from `s.scope`; each Methods tabl
 | Field | Type | Description |
 |---|---|---|
 | `isEmpty` | `boolean` | No messages are present and history is not loading. |
-| `isDisabled` | `boolean` | New messages cannot be sent. |
+| `isDisabled` | `boolean` | Typing, attaching, sending (including direct `composer.send()` calls), and editing messages are blocked. |
 | `isLoading` | `boolean` | History is loading. |
 | `hasEarlier` | `boolean` | Earlier messages are available. |
 | `isLoadingEarlier` | `boolean` | An earlier page is loading. |

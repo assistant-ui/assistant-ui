@@ -1,3 +1,8 @@
+import {
+  SUB_PROJECT_SLUGS,
+  subProject,
+  type SubProjectSlug,
+} from "./docs-sites";
 import { REVALIDATE, getRepo } from "./github";
 import { NPM_REVALIDATE, getWeeklyDownloads } from "./npm";
 import { PACKAGES } from "./traction";
@@ -81,6 +86,30 @@ type OssProjectInput = Omit<OssProject, "description"> & {
   description?: string;
 };
 
+function ossSubProject(slug: SubProjectSlug): OssProjectInput {
+  const project = subProject(slug);
+  if (!project.oss) throw new Error(`Missing OSS data for ${slug}`);
+  return {
+    id: slug,
+    name: project.oss.name ?? project.title,
+    ...(project.oss.description && { description: project.oss.description }),
+    category: "primitives",
+    tier: project.oss.tier,
+    repo: OSS_MONOREPO,
+    path: project.path,
+    site: `/${slug}`,
+    npm: project.oss.npm,
+    license: "MIT",
+  };
+}
+
+const TOP_SUB_PROJECTS = SUB_PROJECT_SLUGS.filter(
+  (slug) => subProject(slug).oss?.placement === "top",
+).map(ossSubProject);
+const BOTTOM_SUB_PROJECTS = SUB_PROJECT_SLUGS.filter(
+  (slug) => subProject(slug).oss?.placement === "bottom",
+).map(ossSubProject);
+
 const OSS_PROJECT_INPUTS: OssProjectInput[] = [
   {
     id: "assistant-ui",
@@ -92,18 +121,7 @@ const OSS_PROJECT_INPUTS: OssProjectInput[] = [
     npm: "@assistant-ui/react",
     license: "MIT",
   },
-  {
-    id: "safe-content-frame",
-    name: "Safe Content Frame",
-    description: "Sandboxes for HTML. Built for MCP Apps and Generative UI.",
-    category: "primitives",
-    tier: "major",
-    repo: OSS_MONOREPO,
-    path: "packages/safe-content-frame",
-    site: "/safe-content-frame",
-    npm: "safe-content-frame",
-    license: "MIT",
-  },
+  ...TOP_SUB_PROJECTS,
   {
     id: "tap",
     name: "@assistant-ui/tap",
@@ -167,28 +185,7 @@ const OSS_PROJECT_INPUTS: OssProjectInput[] = [
     site: "https://openprism.vercel.app",
     license: "MIT",
   },
-  {
-    id: "tw-shimmer",
-    name: "tw-shimmer",
-    category: "primitives",
-    tier: "major",
-    repo: OSS_MONOREPO,
-    path: "packages/tw-shimmer",
-    site: "/tw-shimmer",
-    npm: "tw-shimmer",
-    license: "MIT",
-  },
-  {
-    id: "heat-graph",
-    name: "heat-graph",
-    category: "primitives",
-    tier: "minor",
-    repo: OSS_MONOREPO,
-    path: "packages/heat-graph",
-    site: "/heat-graph",
-    npm: "heat-graph",
-    license: "MIT",
-  },
+  ...BOTTOM_SUB_PROJECTS,
 ];
 
 function describe(project: OssProjectInput): string {
