@@ -81,6 +81,16 @@ test("records a throwing trial as an error and keeps going", async (t) => {
   assert.equal(output(), `  ${"a".padEnd(14)} .Ex  1/3\n`);
 });
 
+test("records a thrown non-Error value by its string form", async (t) => {
+  captureOutput(t, undefined);
+  const suite = fakeSuite(() => Promise.reject(null));
+  const result = await runCase(suite, c, suite.candidates, 2);
+  assert.deepEqual(result.variants[0]?.trials, [
+    { error: true, message: "null" },
+    { error: true, message: "null" },
+  ]);
+});
+
 test("prints every trial's verdict and artifact with DUMP", async (t) => {
   const output = captureOutput(t, "1");
   const suite = fakeSuite(

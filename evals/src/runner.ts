@@ -35,7 +35,10 @@ export async function runCase<
       try {
         trial = { outcome: await suite.run(c, candidate) };
       } catch (err) {
-        trial = { error: true, message: (err as Error).message };
+        trial = {
+          error: true,
+          message: err instanceof Error ? err.message : String(err),
+        };
       }
       ts.push(trial);
       const view: TrialView = trial.error
