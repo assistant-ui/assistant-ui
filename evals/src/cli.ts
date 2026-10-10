@@ -14,12 +14,16 @@ if (!Number.isInteger(trials) || trials < 1) {
 
 // `node src/cli.ts <suite> [caseId]`, optionally with CANDIDATES=baseline,describe-now
 const [suiteId, caseFilter] = process.argv.slice(2);
-const suite = suites.find((s) => s.id === suiteId);
-if (!suite) {
+const loadSuite =
+  suiteId !== undefined && Object.hasOwn(suites, suiteId)
+    ? suites[suiteId]
+    : undefined;
+if (!loadSuite) {
   throw new Error(
-    `Usage: pnpm eval <suite> [case]. Suites: ${suites.map((s) => s.id).join(", ")}`,
+    `Usage: pnpm eval <suite> [case]. Suites: ${Object.keys(suites).join(", ")}`,
   );
 }
+const suite = await loadSuite();
 const candFilter = process.env.CANDIDATES?.split(",").map((s) => s.trim());
 
 const selectedCases = caseFilter
