@@ -6,7 +6,6 @@ import {
   AuiConfig,
   defineToolkit,
   Tools,
-  useLocalRuntime,
 } from "@assistant-ui/react";
 // This type has a separate import because the preview drops a complete unused block.
 import type { AssistantRuntime } from "@assistant-ui/react";
@@ -14,6 +13,7 @@ import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
+import { useSampleRuntime } from "../use-sample-runtime";
 
 export function WeatherToolUI({
   args,
@@ -57,7 +57,7 @@ function useStartRun(runtime: AssistantRuntime) {
 }
 
 function WeatherToolChat() {
-  const runtime = useLocalRuntime(
+  const runtime = useSampleRuntime(
     {
       async *run({ abortSignal }) {
         const toolCall = {

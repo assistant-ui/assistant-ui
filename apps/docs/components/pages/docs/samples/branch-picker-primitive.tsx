@@ -7,11 +7,11 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
   useAui,
-  useLocalRuntime,
   type ChatModelAdapter,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import { useSampleRuntime } from "./use-sample-runtime";
 
 const responses = [
   "assistant-ui is a set of React components for building AI chat interfaces. It provides unstyled primitives that handle state management, streaming, and accessibility; you bring the design.",
@@ -32,7 +32,7 @@ const initialMessages: ThreadMessageLike[] = [
 ];
 
 export function BranchPickerPrimitiveSample() {
-  const runtime = useLocalRuntime(adapter, { initialMessages });
+  const runtime = useSampleRuntime(adapter, { initialMessages });
 
   return (
     <div className="not-prose border-border/50 bg-muted/40 flex items-end rounded-xl border p-6">
