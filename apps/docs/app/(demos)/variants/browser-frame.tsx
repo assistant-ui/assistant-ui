@@ -157,9 +157,22 @@ export function VariantsBrowserFrame() {
   const [search, setSearch] = useState("");
   const [width, setWidth] = useState<number | null>(null);
   const [dragging, setDragging] = useState(false);
+  const [available, setAvailable] = useState(MIN_WIDTH);
 
-  const stageWidth = () => stage.current?.clientWidth ?? MIN_WIDTH;
-  const currentWidth = width ?? stageWidth();
+  // The stage isn't attached during the first render, so handlers read it live
+  // and rendering uses the width it last reported.
+  const stageWidth = () => stage.current?.clientWidth ?? available;
+  const currentWidth = width ?? available;
+
+  useEffect(() => {
+    const element = stage.current;
+    if (!element) return;
+    const measure = () => setAvailable(element.clientWidth);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
   const device: Device | "" =
     DEVICES.find((entry) => entry.width === width)?.id ?? "";
 
@@ -188,7 +201,7 @@ export function VariantsBrowserFrame() {
       const handle = event.currentTarget;
       handle.setPointerCapture(event.pointerId);
       const startX = event.clientX;
-      const startWidth = currentWidth;
+      const startWidth = width ?? stageWidth();
       setDragging(true);
       const move = (moved: globalThis.PointerEvent) => {
         setWidth(fit(startWidth + direction * 2 * (moved.clientX - startX)));
@@ -211,7 +224,7 @@ export function VariantsBrowserFrame() {
       if (step === 0) return;
       event.preventDefault();
       const amount = event.shiftKey ? 64 : 16;
-      setWidth(fit(currentWidth + direction * step * 2 * amount));
+      setWidth(fit((width ?? stageWidth()) + direction * step * 2 * amount));
     };
   // The package rewrites the frame's URL with history.replaceState, which fires
   // no event the parent can observe, so the address bar reads it on an interval.
@@ -243,7 +256,7 @@ export function VariantsBrowserFrame() {
           <ResizeGrip
             side="left"
             value={currentWidth}
-            max={stageWidth()}
+            max={available}
             onPointerDown={startDrag(-1)}
             onKeyDown={nudge(-1)}
           />
@@ -269,7 +282,7 @@ export function VariantsBrowserFrame() {
           <ResizeGrip
             side="right"
             value={currentWidth}
-            max={stageWidth()}
+            max={available}
             onPointerDown={startDrag(1)}
             onKeyDown={nudge(1)}
           />
