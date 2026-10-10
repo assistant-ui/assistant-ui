@@ -14,7 +14,9 @@ import { promptFor } from "./prompt";
 import {
   depthOf,
   resolveActive,
+  storage,
   treeOrder,
+  WIDTH_KEY,
   type GroupMeta,
   type Snapshot,
   type Store,
@@ -32,13 +34,18 @@ export const SWITCHER_ATTRIBUTE = `data-${NAME}-switcher`;
 
 export const SIDEBAR_WIDTH = 300;
 export const SIDEBAR_VARIABLE = `--${NAME}-sidebar-width`;
+const PANEL_MS = 220;
+const MIN_WIDTH = 260;
 const SHEET_QUERY = "(max-width: 767px)";
 const ROW_MS = 160;
 
-const PAGE_CSS = `html[data-${NAME}-sidebar] { margin-right: var(${SIDEBAR_VARIABLE}) !important; }`;
+const PAGE_CSS = `html[data-${NAME}-sidebar] { margin-right: var(${SIDEBAR_VARIABLE}) !important; }
+@media (prefers-reduced-motion: no-preference) {
+  html[data-${NAME}-animating] { transition: margin-right ${PANEL_MS}ms cubic-bezier(0.2, 0, 0, 1); }
+}`;
 
 const CSS = `
-:host { all: initial; position: fixed; top: 0; right: 0; bottom: 0; width: ${SIDEBAR_WIDTH}px; z-index: 2147483647; }
+:host { all: initial; position: fixed; top: 0; right: 0; bottom: 0; width: var(--panel-width, ${SIDEBAR_WIDTH}px); z-index: 2147483647; }
 :host([hidden]) { display: none; }
 :host([data-collapsed]) { top: auto; bottom: 16px; width: auto; }
 :host([data-mode="sheet"]:not([data-collapsed])) { top: auto; left: 0; width: auto; max-height: 60vh; }
@@ -46,13 +53,18 @@ ${BASE_CSS}
 .root { display: flex; flex-direction: column; align-items: flex-end; height: 100%; }
 
 .panel {
-  display: flex; flex-direction: column; width: 100%; height: 100%;
+  position: relative; display: flex; flex-direction: column; width: 100%; height: 100%;
   background: var(--bg); border-left: 1px solid var(--border);
 }
 :host([data-mode="sheet"]) .panel {
   border-left: 0; border-top: 1px solid var(--border); border-radius: 10px 10px 0 0; box-shadow: var(--shadow);
 }
-.groups { flex: 1 1 auto; overflow: auto; overscroll-behavior: contain; }
+.groups { flex: 1 1 auto; overflow: auto; }
+.resize { position: absolute; top: 0; bottom: 0; left: -3px; width: 6px; z-index: 1; cursor: ew-resize; touch-action: none; }
+.resize::after { content: ""; position: absolute; top: 0; bottom: 0; left: 2px; width: 2px; }
+.resize:hover::after, .resize[data-dragging]::after, .resize:focus-visible::after { background: var(--accent); }
+.resize:focus-visible { outline: none; }
+:host([data-mode="sheet"]) .resize { display: none; }
 header { flex: none; display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 6px 0 12px; border-bottom: 1px solid var(--border); }
 .title { font-weight: 600; }
 .count { color: var(--fg-muted); }
@@ -68,7 +80,7 @@ header { flex: none; display: flex; align-items: center; gap: 8px; height: 44px;
   content: ""; position: absolute; top: 0; bottom: 10px;
   left: calc(16px + (var(--depth) - 1) * 14px); border-left: 1px solid var(--border);
 }
-.slot[data-highlight] .group { background: var(--bg-hover); }
+.slot[data-highlight] .group { background: var(--highlight); }
 .meta { display: flex; align-items: center; gap: 8px; height: 20px; margin-bottom: 4px; min-width: 0; }
 .label { color: var(--fg-muted); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 code { margin-left: auto; font: 11px/16px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--fg-muted); white-space: nowrap; }
@@ -179,7 +191,13 @@ kbd {
   }
   .slot[data-animate] { transition: grid-template-rows ${ROW_MS}ms ease-out, opacity ${ROW_MS}ms ease-out; }
   .seg, .pill svg, .group { transition: background-color 150ms ease, color 150ms ease; }
+  .panel[data-enter] { animation: panel-in ${PANEL_MS}ms cubic-bezier(0.2, 0, 0, 1); }
+  :host([data-mode="sheet"]) .panel[data-enter] { animation-name: sheet-in; }
+  .pill[data-enter] { animation: pill-in ${PANEL_MS}ms cubic-bezier(0.2, 0, 0, 1); }
 }
+@keyframes panel-in { from { transform: translateX(24px); opacity: 0; } }
+@keyframes sheet-in { from { transform: translateY(24px); opacity: 0; } }
+@keyframes pill-in { from { transform: translateY(8px); opacity: 0; } }
 `;
 
 const currentShortcut = () => {
@@ -436,6 +454,14 @@ const renderPanel = (snapshot: Snapshot): HTMLElement => {
           }
         : {}),
     },
+    h("div", {
+      class: "resize",
+      "data-resize": "",
+      role: "separator",
+      "aria-orientation": "vertical",
+      "aria-label": "Resize variant switcher",
+      tabindex: "0",
+    }),
     header,
     h(
       "div",
@@ -515,9 +541,24 @@ export const mountSwitcher = (store: Store): (() => void) => {
   const html = document.documentElement;
   // The page is pushed aside instead of covered; fixed and sticky elements can
   // read the same variable to stay clear of the sidebar.
+  const maxWidth = () =>
+    Math.max(MIN_WIDTH, Math.min(640, Math.round(window.innerWidth * 0.6)));
+  const fitWidth = (value: number) =>
+    Math.min(maxWidth(), Math.max(MIN_WIDTH, Math.round(value)));
+  let width = fitWidth(Number(storage.get(WIDTH_KEY)) || SIDEBAR_WIDTH);
+  const applyWidth = () => {
+    host.style.setProperty("--panel-width", `${width}px`);
+    if (html.hasAttribute(`data-${NAME}-sidebar`))
+      html.style.setProperty(SIDEBAR_VARIABLE, `${width}px`);
+    for (const handle of root.querySelectorAll("[data-resize]")) {
+      handle.setAttribute("aria-valuenow", `${width}`);
+      handle.setAttribute("aria-valuemin", `${MIN_WIDTH}`);
+      handle.setAttribute("aria-valuemax", `${maxWidth()}`);
+    }
+  };
   const pushPage = (push: boolean) => {
     if (push) {
-      html.style.setProperty(SIDEBAR_VARIABLE, `${SIDEBAR_WIDTH}px`);
+      html.style.setProperty(SIDEBAR_VARIABLE, `${width}px`);
       html.setAttribute(`data-${NAME}-sidebar`, "");
     } else {
       html.style.removeProperty(SIDEBAR_VARIABLE);
@@ -981,6 +1022,11 @@ export const mountSwitcher = (store: Store): (() => void) => {
     )) {
       button.setAttribute("aria-pressed", snapshot.outline ? "true" : "false");
     }
+    for (const button of root.querySelectorAll<HTMLElement>(
+      "[data-action=canvas]",
+    )) {
+      button.setAttribute("aria-pressed", snapshot.canvas ? "true" : "false");
+    }
     for (const meta of snapshot.groups) {
       const track = rows
         .get(meta.id)
@@ -1041,6 +1087,7 @@ export const mountSwitcher = (store: Store): (() => void) => {
   };
 
   let shell: string | undefined;
+  let animating: ReturnType<typeof setTimeout> | undefined;
   let structure: string | undefined;
   let focusSeq = store.getSnapshot().focus?.seq;
 
@@ -1054,6 +1101,7 @@ export const mountSwitcher = (store: Store): (() => void) => {
       ]),
     );
     if (nextShell !== shell) {
+      const toggled = shell !== undefined;
       shell = nextShell;
       structure = nextStructure;
       const activeKey = (root.activeElement as HTMLElement | null)?.dataset[
@@ -1063,9 +1111,20 @@ export const mountSwitcher = (store: Store): (() => void) => {
       shownActive.clear();
       renderedNotes.clear();
       shift = 0;
-      container.replaceChildren(
-        snapshot.collapsed ? renderCollapsed(snapshot) : renderPanel(snapshot),
-      );
+      const shellElement = snapshot.collapsed
+        ? renderCollapsed(snapshot)
+        : renderPanel(snapshot);
+      if (toggled && !prefersReducedMotion()) {
+        shellElement.setAttribute("data-enter", "");
+        html.setAttribute(`data-${NAME}-animating`, "");
+        clearTimeout(animating);
+        animating = setTimeout(
+          () => html.removeAttribute(`data-${NAME}-animating`),
+          PANEL_MS + 40,
+        );
+      }
+      container.replaceChildren(shellElement);
+      applyWidth();
       reconcile(snapshot, false);
       sync(snapshot);
       byKey(activeKey)?.focus();
@@ -1190,7 +1249,7 @@ export const mountSwitcher = (store: Store): (() => void) => {
       else track.scrollLeft += step;
       updateRail(group);
     } else if (action === "outline") store.setOutline(!snapshot.outline);
-    else if (action === "canvas") store.setCanvas(true);
+    else if (action === "canvas") store.setCanvas(!snapshot.canvas);
     else if (action === "collapse") store.setCollapsed(!snapshot.collapsed);
     else if (action === "reveal" && group) {
       const target = groupNodes(group).find(
@@ -1309,6 +1368,51 @@ export const mountSwitcher = (store: Store): (() => void) => {
   };
   const onResize = () => {
     for (const id of rows.keys()) updateRail(id);
+    const fitted = fitWidth(width);
+    if (fitted !== width) {
+      width = fitted;
+      applyWidth();
+    }
+  };
+  // Capturing the pointer keeps the drag alive over iframes on the page.
+  const onResizeStart = (event: Event) => {
+    const pointer = event as PointerEvent;
+    const handle = (pointer.target as Element | null)?.closest<HTMLElement>(
+      "[data-resize]",
+    );
+    if (!handle || pointer.button !== 0) return;
+    pointer.preventDefault();
+    handle.setPointerCapture(pointer.pointerId);
+    handle.setAttribute("data-dragging", "");
+    const startX = pointer.clientX;
+    const startWidth = width;
+    const move = (moved: PointerEvent) => {
+      width = fitWidth(startWidth - (moved.clientX - startX));
+      applyWidth();
+    };
+    const end = () => {
+      handle.removeAttribute("data-dragging");
+      storage.set(WIDTH_KEY, `${width}`);
+      handle.removeEventListener("pointermove", move);
+      handle.removeEventListener("pointerup", end);
+      handle.removeEventListener("pointercancel", end);
+    };
+    handle.addEventListener("pointermove", move);
+    handle.addEventListener("pointerup", end);
+    handle.addEventListener("pointercancel", end);
+  };
+  const onResizeKey = (event: Event) => {
+    const keyboard = event as KeyboardEvent;
+    if (!(keyboard.target as Element | null)?.closest?.("[data-resize]"))
+      return;
+    const step =
+      keyboard.key === "ArrowLeft" ? 1 : keyboard.key === "ArrowRight" ? -1 : 0;
+    if (step === 0) return;
+    keyboard.preventDefault();
+    keyboard.stopPropagation();
+    width = fitWidth(width + step * (keyboard.shiftKey ? 64 : 16));
+    applyWidth();
+    storage.set(WIDTH_KEY, `${width}`);
   };
   const onFocusIn = (event: Event) => {
     focusGroup = panelGroup(event.target);
@@ -1322,7 +1426,9 @@ export const mountSwitcher = (store: Store): (() => void) => {
   const onPageScroll = () => updateOffscreen(linked);
 
   root.addEventListener("click", onClick);
+  root.addEventListener("keydown", onResizeKey);
   root.addEventListener("keydown", onKeyDown);
+  root.addEventListener("pointerdown", onResizeStart);
   root.addEventListener("pointerover", onPointerOver);
   root.addEventListener("pointerout", onPointerOut);
   root.addEventListener("focusin", onFocusIn);
@@ -1354,6 +1460,8 @@ export const mountSwitcher = (store: Store): (() => void) => {
     document.removeEventListener("click", onPageClick, true);
     window.removeEventListener("resize", onResize);
     window.removeEventListener("scroll", onPageScroll);
+    clearTimeout(animating);
+    html.removeAttribute(`data-${NAME}-animating`);
     pushPage(false);
     pageStyle.remove();
     host.remove();

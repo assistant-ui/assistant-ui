@@ -98,8 +98,9 @@ const INITIAL: Snapshot = Object.freeze({
 export const storageKey = (group: string) => `${NAME}:${group}`;
 export const COLLAPSED_KEY = `${NAME}:ui-collapsed`;
 export const OUTLINE_KEY = `${NAME}:outline`;
+export const WIDTH_KEY = `${NAME}:sidebar-width`;
 
-const storage = {
+export const storage = {
   get(key: string): string | undefined {
     try {
       return window.sessionStorage.getItem(key) ?? undefined;

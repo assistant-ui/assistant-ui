@@ -4,10 +4,10 @@ import { copyText } from "./prompt";
 export const BASE_CSS = `
 * { box-sizing: border-box; }
 .root {
-  --bg: #ffffff; --bg-subtle: #f4f4f5; --bg-hover: rgb(24 24 27 / 0.05);
+  --bg: #fffcf8; --bg-subtle: #f5f0e9; --bg-hover: rgb(24 24 27 / 0.05);
   --fg: #18181b; --fg-muted: #71717a; --fg-segment: #52525b;
-  --border: #e4e4e7; --quiet: rgb(24 24 27 / 0.07); --ring: rgb(24 24 27 / 0.45);
-  --accent: #d97706;
+  --border: #ebe3d8; --quiet: rgb(24 24 27 / 0.07); --ring: rgb(24 24 27 / 0.45);
+  --accent: #ea580c; --highlight: rgb(234 88 12 / 0.07);
   --shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px -6px rgb(0 0 0 / 0.16);
   font: 12px/16px ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   font-variant-numeric: tabular-nums; letter-spacing: 0;
@@ -16,10 +16,10 @@ export const BASE_CSS = `
 }
 @media (prefers-color-scheme: dark) {
   .root {
-    --bg: #18181b; --bg-subtle: #09090b; --bg-hover: rgb(250 250 250 / 0.06);
+    --bg: #161210; --bg-subtle: #0b0908; --bg-hover: rgb(250 250 250 / 0.06);
     --fg: #fafafa; --fg-muted: #a1a1aa; --fg-segment: #a1a1aa;
-    --border: #2e2e33; --quiet: rgb(250 250 250 / 0.08); --ring: rgb(250 250 250 / 0.5);
-    --accent: #fbbf24;
+    --border: #2f2822; --quiet: rgb(250 250 250 / 0.08); --ring: rgb(250 250 250 / 0.5);
+    --accent: #fb923c; --highlight: rgb(251 146 60 / 0.08);
     --shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 12px 32px -8px rgb(0 0 0 / 0.7);
   }
 }
