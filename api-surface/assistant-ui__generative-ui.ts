@@ -1746,11 +1746,11 @@ declare function normalizeSpec(spec: UISpec): {
 declare function normalizeUINode(node: unknown, partialPath?: readonly string[] | undefined, depth?: number): NormalizedUINode;
 
 declare namespace entry_react_default_exports {
-  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI$1 as JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, ToSpecCatalogOptions, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, hasFieldReference, normalizeSpec, normalizeUINode, renderGenerativeUI, resolveFieldReferences, toSpecCatalog };
+  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI$1 as JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, hasFieldReference, normalizeSpec, normalizeUINode, renderGenerativeUI, resolveFieldReferences };
 }
 
 declare namespace entry_react_react_server_exports {
-  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, ToSpecCatalogOptions, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, hasFieldReference, normalizeSpec, normalizeUINode, renderGenerativeUI, resolveFieldReferences, toSpecCatalog };
+  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, hasFieldReference, normalizeSpec, normalizeUINode, renderGenerativeUI, resolveFieldReferences };
 }
 
 declare function renderGenerativeUI(node: unknown, library: GenerativeUILibrary, context?: GenerativeUIRenderContext): ReactNode;
@@ -1759,6 +1759,10 @@ declare const resolveFieldReferences: (value: unknown, fields: Readonly<Record<s
 
 declare namespace entry_slack_exports {
   export { FromSlackBlocksResult, SlackActionElement, SlackActionsBlock, SlackAlertBlock, SlackAlertLevel, SlackBlock, SlackBlocksResult, SlackButtonElement, SlackCardBlock, SlackCarouselBlock, SlackCheckboxesElement, SlackContextBlock, SlackConversionWarning, SlackDataTableBlock, SlackDataTableCell, SlackDataTableRawNumberCell, SlackDataTableRawTextCell, SlackDatePickerElement, SlackDateTimePickerElement, SlackDividerBlock, SlackHeaderBlock, SlackImageBlock, SlackInputBlock, SlackMarkdownBlock, SlackMrkdwnText, SlackOption, SlackPlainText, SlackPlainTextInputElement, SlackRadioButtonsElement, SlackSectionBlock, SlackStaticSelectElement, SlackTextObject, SlackTimePickerElement, ToSlackBlocksOptions, decodeBlockAction, fromSlackBlocks, toSlackBlocks };
+}
+
+declare namespace entry_spec_exports {
+  export { ToSpecCatalogOptions, toSpecCatalog };
 }
 
 declare function surfaceToOperations(surface: A2uiSurfaceState, surfaceId?: string): readonly A2uiSurfaceSnapshotOperation[];
@@ -1783,4 +1787,4 @@ declare function toSpecCatalog(library?: GenerativeUILibrary, options?: ToSpecCa
 
 declare function toTeamsAttachments(node: unknown, _options?: ToAdaptiveCardOptions): TeamsAttachmentsResult;
 
-export { entry_a2ui_exports as entry_a2ui, entry_react_default_exports as entry_react_default, entry_react_react_server_exports as entry_react_react_server, entry_root_exports as entry_root, entry_slack_exports as entry_slack, entry_teams_exports as entry_teams };
+export { entry_a2ui_exports as entry_a2ui, entry_react_default_exports as entry_react_default, entry_react_react_server_exports as entry_react_react_server, entry_root_exports as entry_root, entry_slack_exports as entry_slack, entry_spec_exports as entry_spec, entry_teams_exports as entry_teams };

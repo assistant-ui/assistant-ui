@@ -38,6 +38,10 @@
     "./teams": {
       "types": "./dist/teams.d.ts",
       "default": "./dist/teams.js"
+    },
+    "./spec": {
+      "types": "./dist/spec.d.ts",
+      "default": "./dist/spec.js"
     }
   },
   "main": "./dist/index.js",
@@ -59,12 +63,12 @@
   },
   "dependencies": {
     "@types/json-schema": "^7.0.15",
-    "assistant-stream": "^0.3.49",
-    "generative-frame": "workspace:^"
+    "assistant-stream": "^0.3.49"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.15.0",
     "@types/react": "*",
+    "generative-frame": "^0.0.2",
     "react": "^18 || ^19",
     "zod": "^4.0.0"
   },
@@ -73,6 +77,9 @@
       "optional": true
     },
     "@types/react": {
+      "optional": true
+    },
+    "generative-frame": {
       "optional": true
     },
     "react": {
@@ -87,6 +94,7 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@assistant-ui/x-react18": "workspace:*",
     "@types/react": "^19.3.0",
+    "generative-frame": "workspace:*",
     "jsdom": "^30.1.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

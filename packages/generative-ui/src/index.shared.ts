@@ -1,8 +1,6 @@
 export { renderGenerativeUI } from "./renderGenerativeUI";
 export { generativeUIToJSX } from "./generativeUIToJSX";
 export type { GenerativeUIToJSXOptions } from "./generativeUIToJSX";
-export { toSpecCatalog } from "./spec/toSpecCatalog";
-export type { ToSpecCatalogOptions } from "./spec/toSpecCatalog";
 export { buildPresentParameters } from "./buildPresentParameters";
 export { defineGenerativeComponents } from "./defineGenerativeComponents";
 export { TYPE_KEY } from "./constants";

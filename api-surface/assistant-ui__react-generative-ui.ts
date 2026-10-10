@@ -137,16 +137,6 @@ interface Action {
   readonly [payload: string]: unknown;
 }
 
-type ActionBinding = {
-  action: string;
-  params?: Record<string, unknown>;
-};
-
-type ActionDefinition = {
-  description: string;
-  params?: PropsSchema;
-};
-
 type ActionDispatchContext = {
   readonly payload: Action;
 };
@@ -272,18 +262,6 @@ declare const COLORS: readonly [
   "white-50"
 ];
 
-type Catalog<TComponents extends Record<string, ComponentDefinition> = Record<string, ComponentDefinition>, TActions extends Record<string, ActionDefinition> = Record<string, ActionDefinition>> = {
-  readonly components: TComponents;
-  readonly actions: TActions;
-  component(type: string): ComponentDefinition | undefined;
-  action(name: string): ActionDefinition | undefined;
-  propsSchema(type: string): JsonSchema | undefined;
-  paramsSchema(action: string): JsonSchema | undefined;
-  validateProps(type: string, props: unknown): SchemaIssue[];
-  validateParams(action: string, params: unknown): SchemaIssue[];
-  prompt(options?: SpecPromptOptions): string;
-};
-
 type ClientError<E extends string> = {
   methods: Record<E, () => E>;
   meta: {
@@ -335,13 +313,6 @@ type CompleteAttachmentStatus = {
   type: "complete";
 };
 
-type ComponentDefinition = {
-  description: string;
-  props?: PropsSchema;
-  slots?: readonly string[];
-  events?: readonly string[];
-};
-
 interface ComponentNode extends Record<string, unknown> {
   readonly id: string;
   readonly component: string;
@@ -350,10 +321,6 @@ interface ComponentNode extends Record<string, unknown> {
     readonly path: string;
   } | A2uiTemplateChildren;
 }
-
-type Condition = boolean | readonly Condition[] | {
-  readonly [key: string]: unknown;
-};
 
 type DataMessagePart<T = any> = {
   readonly type: "data";
@@ -544,28 +511,6 @@ declare const JUSTIFIES: readonly [
   "between"
 ];
 
-type JsonSchema = {
-  type?: JsonSchemaType | readonly JsonSchemaType[];
-  description?: string;
-  properties?: Record<string, JsonSchema>;
-  required?: readonly string[];
-  items?: JsonSchema;
-  enum?: readonly unknown[];
-  const?: unknown;
-  anyOf?: readonly JsonSchema[];
-  oneOf?: readonly JsonSchema[];
-  minItems?: number;
-  maxItems?: number;
-  minLength?: number;
-  maxLength?: number;
-  minimum?: number;
-  maximum?: number;
-  additionalProperties?: boolean | JsonSchema;
-  default?: unknown;
-};
-
-type JsonSchemaType = "array" | "boolean" | "integer" | "null" | "number" | "object" | "string";
-
 type Justify = (typeof JUSTIFIES)[number];
 
 interface LegacyComponentNode {
@@ -698,8 +643,6 @@ type PresentToolOptions = {
 
 type PromptUserTool = ToolDefinition<Record<string, unknown>, unknown> & BackendDefaultMetadata;
 
-type PropsSchema = JsonSchema | StandardSchemaLike;
-
 type ProviderOptions = Record<string, Record<string, unknown>>;
 
 type ProviderTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
@@ -738,11 +681,6 @@ type ReasoningMessagePart = {
 type ReservedAccessorProps = "name" | "query" | "source";
 
 type ReservedScopeNames = "on" | "optional" | "subscribe";
-
-type SchemaIssue = {
-  path: string;
-  message: string;
-};
 
 interface ScopeRegistry {
   [key: string]: { methods: any; meta?: any; events?: any };
@@ -949,51 +887,6 @@ type SourceMessagePart = {
 
 type SourceProviderMetadata = PartProviderMetadata;
 
-type SpecComponentProps<P extends Record<string, unknown> = Record<string, unknown>> = {
-  id: string;
-  element: SpecElement;
-  props: P;
-  children: ReactNode;
-  slots: Record<string, ReactNode>;
-  emit(event: string, payload?: unknown): void;
-  setProp(name: string, value: unknown): void;
-  bindings: Record<string, string>;
-  state: SpecStateStore;
-  streaming: boolean;
-};
-
-type SpecComponents = Record<string, ComponentType<SpecComponentProps<any>>>;
-
-type SpecElement = {
-  type: string;
-  props?: Record<string, unknown>;
-  children?: string[];
-  slots?: Record<string, string[]>;
-  visible?: Condition;
-  repeat?: {
-    path: string;
-    key?: string;
-  };
-  on?: Record<string, ActionBinding | ActionBinding[]>;
-  watch?: Record<string, ActionBinding | ActionBinding[]>;
-};
-
-type SpecPromptOptions = {
-  mode?: SpecStreamMode;
-  customRules?: readonly string[];
-  omitExample?: boolean;
-};
-
-type SpecStateStore = {
-  getState(): Record<string, unknown>;
-  get(path: string): unknown;
-  set(path: string, value: unknown): void;
-  seed(state: Record<string, unknown>): void;
-  subscribe(listener: StateListener): () => void;
-};
-
-type SpecStreamMode = "inline" | "jsonl";
-
 interface SpeechRecognitionConstructor {
   new (): SpeechRecognitionInstance;
 }
@@ -1006,30 +899,6 @@ interface SpeechRecognitionInstance extends EventTarget {
   stop(): void;
   abort(): void;
 }
-
-type StandardResult = {
-  readonly issues?: ReadonlyArray<{
-    readonly message: string;
-    readonly path?: ReadonlyArray<PropertyKey | {
-      readonly key: PropertyKey;
-    }> | undefined;
-  }> | undefined;
-};
-
-type StandardSchemaLike = {
-  readonly "~standard": {
-    readonly version: 1;
-    readonly vendor: string;
-    readonly validate: (value: unknown) => StandardResult | Promise<StandardResult>;
-    readonly jsonSchema?: {
-      readonly input: (options: {
-        target: string;
-      }) => Record<string, unknown>;
-    };
-  };
-};
-
-type StateListener = (state: Record<string, unknown>) => void;
 
 type StaticRenderProps<P> = P & {
   children?: ReactNode;
@@ -1343,10 +1212,6 @@ interface ToAdaptiveCardOptions {
 interface ToSlackBlocksOptions {
   readonly surface?: "message" | "modal";
 }
-
-type ToSpecCatalogOptions = {
-  actions?: Record<string, ActionDefinition>;
-};
 
 type Tool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = FrontendTool<TArgs, TResult> | BackendTool<TArgs, TResult> | HumanTool<TArgs, TResult> | ProviderTool<TArgs, TResult> | McpTool | ToolWithoutType<TArgs, TResult>;
 
@@ -1729,11 +1594,11 @@ declare global {
 declare const hasFieldReference: (value: unknown) => boolean;
 
 declare namespace entry_root_default_exports {
-  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, ToSpecCatalogOptions, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, hasFieldReference, normalizeSpec, normalizeUINode, renderGenerativeUI, resolveFieldReferences, toSpecCatalog };
+  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, hasFieldReference, normalizeSpec, normalizeUINode, renderGenerativeUI, resolveFieldReferences };
 }
 
 declare namespace entry_root_react_server_exports {
-  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, ToSpecCatalogOptions, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, hasFieldReference, normalizeSpec, normalizeUINode, renderGenerativeUI, resolveFieldReferences, toSpecCatalog };
+  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, hasFieldReference, normalizeSpec, normalizeUINode, renderGenerativeUI, resolveFieldReferences };
 }
 
 declare namespace entry_ir_exports {
@@ -1768,11 +1633,6 @@ declare namespace entry_teams_exports {
 declare function toAdaptiveCard(node: unknown, _options?: ToAdaptiveCardOptions): AdaptiveCardResult;
 
 declare function toSlackBlocks(node: unknown, options?: ToSlackBlocksOptions): SlackBlocksResult;
-
-declare function toSpecCatalog(library?: GenerativeUILibrary, options?: ToSpecCatalogOptions): {
-  catalog: Catalog;
-  components: SpecComponents;
-};
 
 declare function toTeamsAttachments(node: unknown, _options?: ToAdaptiveCardOptions): TeamsAttachmentsResult;
 
