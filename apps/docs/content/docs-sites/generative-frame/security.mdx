@@ -21,6 +21,15 @@ createWidget({ container, unsafeShimDomain: "frames.example-usercontent.com" });
 
 The isolation boundary holds only if `<domain>` is a public suffix on the [Public Suffix List](https://publicsuffix.org/). Otherwise browsers treat every hashed subdomain as the same site: widgets share cookies and a renderer process with each other, and with your app if it lives under the same registrable domain, where a widget can read and set cookies scoped to that domain. Use a dedicated domain, and get it on the list before you rely on it.
 
+Serving the shim needs:
+
+- a wildcard DNS record and a wildcard TLS certificate for `*.<domain>`,
+- `/<product>/shim.html` for every `product` you render with (`generative-frame` by default),
+- a shim that implements the handshake in [How Safe Content Frame works](/safe-content-frame/docs/how-it-works#one-render-step-by-step): it accepts content only from the `origin` in its query, recomputes the hash from the salt, and compares it with its own hostname,
+- a redeploy whenever `safe-content-frame` changes the shim version in the hostname (`h184756` today).
+
+A missing or mismatched shim fails with a `shim-unavailable` or `shim-error` load error.
+
 ### Opaque-origin frames
 
 `opaqueOrigin: true` skips Safe Content Frame and renders the bootstrap document with `srcdoc` in an iframe sandboxed with `allow-scripts` only. The frame's origin is `null`, so widget code cannot reach your page, its own storage, or cookies, and nothing is loaded from a shim domain.
@@ -32,7 +41,7 @@ createWidget({ container, opaqueOrigin: true });
 The tradeoffs:
 
 - **No storage.** `localStorage`, `sessionStorage`, IndexedDB, and cookies throw or stay empty, so `id` and `clearWidgetStorage` do not apply, and widgets that expect storage fail.
-- **Your page's policy applies.** A `srcdoc` document inherits the Content Security Policy of the page that embeds it, on top of the widget policy, so a strict host policy can block the CDN scripts widgets load.
+- **Your page's policy applies.** A `srcdoc` document inherits the Content Security Policy of the page that embeds it, on top of the widget policy. The runtime and widget scripts are inline, so if your page's `script-src` does not allow `'unsafe-inline'` (for example a nonce- or hash-based policy), the frame never connects and the widget fails with a ready timeout.
 - **Process isolation is weaker.** Desktop Chrome puts sandboxed frames in a process apart from your app, but all of them share it; a Safe Content Frame gets a process of its own.
 - **Messages to the frame are untargeted.** A `null` origin cannot be named as a `postMessage` target, so the host posts with `"*"` and accepts messages only from that iframe's window with origin `null`.
 
