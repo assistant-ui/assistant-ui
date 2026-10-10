@@ -186,16 +186,19 @@ describe("package-manager utilities", () => {
   });
 
   describe("getInstallCommand", () => {
-    it("should return an install command", async () => {
-      const cmd = await getInstallCommand("test-package", testDir);
+    it.each([
+      ["npm", "package-lock.json", "install"],
+      ["pnpm", "pnpm-lock.yaml", "add"],
+    ])(
+      "uses %s for the project lockfile",
+      async (command, lockfile, action) => {
+        fs.writeFileSync(path.join(testDir, lockfile), "");
 
-      expect(cmd.args).toContain("test-package");
-      expect(["npm", "pnpm", "yarn", "bun"]).toContain(cmd.command);
-    });
-
-    it("should include package name in command", async () => {
-      const cmd = await getInstallCommand("my-awesome-package", testDir);
-      expect(cmd.args).toContain("my-awesome-package");
-    });
+        expect(await getInstallCommand("test-package", testDir)).toEqual({
+          command,
+          args: [action, "test-package"],
+        });
+      },
+    );
   });
 });
