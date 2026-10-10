@@ -90,7 +90,7 @@ export type McpAppToolCallParams = {
 /**
  * The params of the app's `ui/initialize` request, as `onInitialized`
  * receives them. A field that fails validation is omitted, and
- * `availableDisplayModes` keeps only the modes this host recognizes.
+ * `availableDisplayModes` keeps only the modes the bridge recognizes.
  */
 export type McpAppInitializeParams = {
   appInfo?: { name: string; version: string; [k: string]: unknown };

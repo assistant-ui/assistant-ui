@@ -118,43 +118,44 @@ const [modes, setModes] = useState<Record<string, McpAppDisplayMode>>({});
 const declaredModes = useRef(
   new Map<string, McpAppDisplayMode[] | undefined>(),
 );
+const grantedModes = useRef(new Map<string, McpAppDisplayMode>());
 
 McpAppRenderer({
   host: McpAppsRemoteHost({ url: "/api/mcp-apps" }),
   hostInfo: { name: "my-app", version: "1.0.0" },
   hostContext: { theme },
-  forPart: (part) => {
-    const displayMode = modes[part.toolCallId] ?? "inline";
-    return {
-      hostContext: {
-        theme,
-        displayMode,
-        availableDisplayModes: ["inline", "fullscreen", "pip"],
+  forPart: (part) => ({
+    hostContext: {
+      theme,
+      displayMode: modes[part.toolCallId] ?? "inline",
+      availableDisplayModes: ["inline", "fullscreen", "pip"],
+    },
+    handlers: {
+      onInitialized: ({ appCapabilities }) => {
+        declaredModes.current.set(
+          part.toolCallId,
+          appCapabilities?.availableDisplayModes,
+        );
       },
-      handlers: {
-        onInitialized: ({ appCapabilities }) => {
-          declaredModes.current.set(
-            part.toolCallId,
-            appCapabilities?.availableDisplayModes,
-          );
-        },
-        requestDisplayMode: ({ mode }) => {
-          const declared = declaredModes.current.get(part.toolCallId);
-          if (declared && !declared.includes(mode)) {
-            return { mode: displayMode };
-          }
-          setModes((current) => ({ ...current, [part.toolCallId]: mode }));
-          return { mode };
-        },
+      requestDisplayMode: ({ mode }) => {
+        const declared = declaredModes.current.get(part.toolCallId);
+        if (declared && !declared.includes(mode)) {
+          return {
+            mode: grantedModes.current.get(part.toolCallId) ?? "inline",
+          };
+        }
+        grantedModes.current.set(part.toolCallId, mode);
+        setModes((current) => ({ ...current, [part.toolCallId]: mode }));
+        return { mode };
       },
-    };
-  },
+    },
+  }),
 });
 ```
 
 The resolver closes over the part, so `requestDisplayMode` knows which app asked and the granted mode reaches that app alone through `notifications/host_context/changed`. Returned values may be rebuilt on every render; a host context that is structurally unchanged never reaches the widget.
 
-`onInitialized` receives what the app sent in `ui/initialize`, including the display modes it supports in `appCapabilities.availableDisplayModes`. The MCP Apps spec forbids switching an app into a mode missing from that list, so the example answers such a request with the current mode.
+`onInitialized` receives what the app sent in `ui/initialize`, including the display modes it supports in `appCapabilities.availableDisplayModes`. The MCP Apps spec forbids switching an app into a mode missing from that list, so the example answers such a request with the mode it last granted. The declared and granted modes live in refs because an app can send its next request before the host re-renders.
 
 `forPart` resolves before a part's first render, so a per-part value is always in place from the start. What a *later* change to one reaches depends on the option. `hostContext` is delivered again whenever it changes. Handlers are called through live references, but which handler keys exist is captured when the frame mounts, so return the same keys for a part on every render. `hostInfo` and the frame settings in `sandbox` (`className` and `style` aside) are also read once at mount, so changing them mid-life does nothing until the app's resource URI changes and the frame is rebuilt.
 
