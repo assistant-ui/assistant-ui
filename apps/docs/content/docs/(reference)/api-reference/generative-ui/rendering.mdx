@@ -27,10 +27,11 @@ one optional bag, and `children` recurses via `$defs` so the tree can nest.
 It is intentionally flat rather than a per-`$type` discriminated union. Tool /
 function-call schemas (OpenAI and others) require the top-level parameters to
 be a plain object and reject a top-level `oneOf`/`anyOf`/`enum`. So props can't
-be refined per `$type` at the root; the model is guided instead by `$type`'s
-description (which lists each component) and each prop's own description. The
-renderer validates nothing here — an unknown `$type` or stray prop is handled
-at render time — so a looser schema only costs the model a hint, not safety.
+be refined per `$type` at the root; when components share a prop, its schema
+describes their distinct alternatives without tying them to `$type`. The
+model is guided by `$type`'s description and each prop schema. The renderer
+then drops a shared prop's value that the selected component's schema
+rejects and another declaring component's schema accepts.
 
 <ParametersTable {...buildPresentParameters} />
 
@@ -77,8 +78,10 @@ The model emits each node as a flat object `{ $type,...props }`. We first
 normalize that wire form into the canonical NormalizedUINode (with
 `children` lifted to a reserved top-level key), then render: each `type` is
 looked up in the library and its `props` are passed to the component's
-`render(props, context)`, with `children` rendered recursively so components
-can nest.
+`render(props)`, with `children` rendered recursively so components can nest.
+A prop that several components declare loses a value the component's own
+schema rejects when another declaring component's schema accepts it, since
+the merged `present` schema lets the model send either.
 
 <ParametersTable {...renderGenerativeUI} />
 {/* api-reference:end */}

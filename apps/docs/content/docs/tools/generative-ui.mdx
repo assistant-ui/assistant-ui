@@ -381,7 +381,7 @@ const generative = new JSONGenerativeUI({
 
 The library is the boundary on **which** components can render: the model can only name components you put in it, resolved by lookup with no `eval` and no dynamic import. Unknown names are dropped.
 
-Props are a separate question. Each component's `properties` schema shapes the `present` tool parameters the model sees, but the renderer does not validate incoming props against that schema. Treat props as untrusted input: validate URLs and values passed to APIs, and sanitize content rendered as raw HTML. Components with `streamProperties: true` can also receive partial props while the model is streaming, so account for incomplete values.
+Props are a separate question. Each component's `properties` schema shapes the `present` tool parameters the model sees, and when several components declare a prop with different schemas, the parameters offer each one. The renderer checks props only to keep such a shared prop's value away from a component whose schema rejects it while another declaring component's schema accepts it, so declare every value a component can render: a `value: z.string()` component loses a number that a `value: z.number()` component in the same library accepts. Treat props as untrusted input: validate URLs and values passed to APIs, and sanitize content rendered as raw HTML. Components with `streamProperties: true` can also receive partial props while the model is streaming, so account for incomplete values.
 
 ## Beyond the browser
 

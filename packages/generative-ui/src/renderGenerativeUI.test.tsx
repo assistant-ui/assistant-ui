@@ -6,6 +6,7 @@ import { z } from "zod";
 import { renderGenerativeUI } from "./renderGenerativeUI";
 import { buildPresentParameters } from "./buildPresentParameters";
 import type { GenerativeUILibrary } from "./types";
+import { defaultGenerativeUILibrary } from "./vocabulary";
 
 const library: GenerativeUILibrary = {
   Card: {
@@ -38,6 +39,128 @@ const library: GenerativeUILibrary = {
 };
 
 describe("renderGenerativeUI", () => {
+  it.each(["done", "streaming"] as const)(
+    "drops another component's inputType and keeps undeclared props when %s",
+    (status) => {
+      const received: Record<string, unknown>[] = [];
+      const input = defaultGenerativeUILibrary.Input!;
+      const inputLibrary: GenerativeUILibrary = {
+        ...defaultGenerativeUILibrary,
+        Input: {
+          ...input,
+          streamProperties: true,
+          render: (props) => {
+            received.push(props);
+            return input.render(props);
+          },
+        },
+      };
+      const html = renderToStaticMarkup(
+        <>
+          {renderGenerativeUI(
+            {
+              $type: "Input",
+              inputType: "date",
+              placeholder: "Search",
+              stray: "ignored",
+            },
+            inputLibrary,
+            { status },
+          )}
+        </>,
+      );
+
+      expect(received).toEqual([
+        { placeholder: "Search", stray: "ignored", $status: status },
+      ]);
+      expect(html).toBe('<input data-aui="input" placeholder="Search"/>');
+    },
+  );
+
+  it.each(["done", "streaming"] as const)(
+    "drops another component's string min and keeps undeclared props when %s",
+    (status) => {
+      const received: Record<string, unknown>[] = [];
+      const slider = defaultGenerativeUILibrary.Slider!;
+      const sliderLibrary: GenerativeUILibrary = {
+        ...defaultGenerativeUILibrary,
+        Slider: {
+          ...slider,
+          streamProperties: true,
+          render: (props) => {
+            received.push(props);
+            return slider.render(props);
+          },
+        },
+      };
+      const html = renderToStaticMarkup(
+        <>
+          {renderGenerativeUI(
+            {
+              $type: "Slider",
+              min: "2026-10-10",
+              max: 10,
+              label: "Volume",
+              stray: true,
+            },
+            sliderLibrary,
+            { status },
+          )}
+        </>,
+      );
+
+      expect(received).toEqual([
+        { max: 10, label: "Volume", stray: true, $status: status },
+      ]);
+      expect(html).toContain('min="0"');
+      expect(html).toContain('max="10"');
+    },
+  );
+
+  it("drops a shared prop's value only when another declaring component accepts it", () => {
+    const received: Record<string, unknown>[] = [];
+    const sharedLibrary: GenerativeUILibrary = {
+      Value: {
+        description: "A value.",
+        properties: z.object({
+          label: z.string(),
+          count: z
+            .number()
+            .min(10)
+            .transform((value) => value * 2),
+        }),
+        streamProperties: true,
+        render: (props) => {
+          received.push(props);
+          return null;
+        },
+      },
+      Counter: {
+        description: "A counter.",
+        properties: z.object({ count: z.number() }),
+        render: () => null,
+      },
+    };
+
+    renderToStaticMarkup(
+      <>
+        {[1, 12, "many"].map((count) =>
+          renderGenerativeUI(
+            { $type: "Value", label: "raw", count },
+            sharedLibrary,
+            { status: "streaming" },
+          ),
+        )}
+      </>,
+    );
+
+    expect(received).toEqual([
+      { label: "raw", $status: "streaming" },
+      { label: "raw", count: 12, $status: "streaming" },
+      { label: "raw", count: "many", $status: "streaming" },
+    ]);
+  });
+
   it("renders a component and passes its props", () => {
     const html = renderToStaticMarkup(
       <>{renderGenerativeUI({ $type: "Text", tone: "muted" }, library)}</>,
@@ -352,7 +475,7 @@ describe("buildPresentParameters", () => {
 
       expect(warn).toHaveBeenCalledTimes(1);
       expect(warn).toHaveBeenCalledWith(
-        '[@assistant-ui/generative-ui] Prop "value" is declared by "Select", "DatePicker", and "Combobox"; keeping "Select"\'s schema. Rename or align the prop type to avoid an ambiguous schema.',
+        '[@assistant-ui/generative-ui] Prop "value" is declared by "Select", "DatePicker", and "Combobox"; combining their schemas in the model hint.',
       );
     } finally {
       warn.mockRestore();
