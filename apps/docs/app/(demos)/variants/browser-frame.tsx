@@ -16,10 +16,10 @@ import { AgentKindIcon } from "@/components/shared/agent-kind-icon";
 import { VARIANTS_DEMO_PATH } from "@/lib/embedded-paths";
 import { cn } from "@/lib/utils";
 
-const SHOWN_ORIGIN = "localhost:3000/pricing";
+const SHOWN_ORIGIN = "localhost:3000/recipes/lemon-pasta";
 
 const AGENT_COMMAND = "/variants";
-const AGENT_REQUEST = "improve my pricing page";
+const AGENT_REQUEST = "improve my recipe page";
 
 const DEVICES = [
   { id: "desktop", label: "Desktop", width: null, Icon: Monitor },
@@ -272,7 +272,7 @@ export function VariantsBrowserFrame() {
             <iframe
               ref={iframe}
               src={VARIANTS_DEMO_PATH}
-              title="A pricing page with two undecided regions"
+              title="A recipe page with two undecided regions"
               className={cn(
                 "bg-background block h-[44rem] w-full border-0",
                 dragging && "pointer-events-none",
