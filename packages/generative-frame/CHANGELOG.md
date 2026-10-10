@@ -1,5 +1,11 @@
 # generative-frame
 
+## 0.0.3
+
+### Patch Changes
+
+- [#9223](https://github.com/assistant-ui/assistant-ui/pull/9223) [`52e6257`](https://github.com/assistant-ui/assistant-ui/commit/52e625796b7f1cfe20f23a854c471d761c4d95e6) - fix(generative-frame): accept Standard Schema optional result members with undefined ([@rupic-app](https://github.com/apps/rupic-app))
+
 ## 0.0.2
 
 ### Patch Changes

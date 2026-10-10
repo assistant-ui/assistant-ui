@@ -1,5 +1,19 @@
 # @assistant-ui/react
 
+## 0.15.27
+
+### Patch Changes
+
+- [#9171](https://github.com/assistant-ui/assistant-ui/pull/9171) [`6528ee3`](https://github.com/assistant-ui/assistant-ui/commit/6528ee399a89f76ae3697fd6a00d0eca314f13bd) - Guard the composer input example against IME confirmation Enter. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9166](https://github.com/assistant-ui/assistant-ui/pull/9166) [`b86d6cd`](https://github.com/assistant-ui/assistant-ui/commit/b86d6cd08f06686efab8133ba1915824c638606c) - Block typing, attachments, sends, and message editing while a thread is disabled. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9247](https://github.com/assistant-ui/assistant-ui/pull/9247) [`664f2df`](https://github.com/assistant-ui/assistant-ui/commit/664f2df063078e061a337aee77b6dd092e565150) - fix(react): pass an MCP App's `ui/initialize` params to `onInitialized` as `McpAppInitializeParams`, including the display modes the app declares ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`2c10bb1`](https://github.com/assistant-ui/assistant-ui/commit/2c10bb151811c48dd023377577eb4a107deac649), [`16afd50`](https://github.com/assistant-ui/assistant-ui/commit/16afd50322cce829ab83a32797b5c6aa21fa80c0), [`b86d6cd`](https://github.com/assistant-ui/assistant-ui/commit/b86d6cd08f06686efab8133ba1915824c638606c), [`96fd2a2`](https://github.com/assistant-ui/assistant-ui/commit/96fd2a253a2b97e5c530f3487721a39d918b57dc), [`2b3e0d3`](https://github.com/assistant-ui/assistant-ui/commit/2b3e0d36b62d21c2ffd280cfc96f4e2a127365da)]:
+  - assistant-cloud@0.2.7
+  - @assistant-ui/core@0.3.26
+  - @assistant-ui/store@0.3.19
+
 ## 0.15.26
 
 ### Patch Changes

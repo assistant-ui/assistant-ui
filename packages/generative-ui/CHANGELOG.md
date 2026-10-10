@@ -1,5 +1,23 @@
 # @assistant-ui/generative-ui
 
+## 0.0.2
+
+### Patch Changes
+
+- [#9183](https://github.com/assistant-ui/assistant-ui/pull/9183) [`7e40981`](https://github.com/assistant-ui/assistant-ui/commit/7e409818675f324881bcf3d0538cc33394858c7f) - Avoid development warnings for property collisions within the shipped generative UI vocabulary. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9236](https://github.com/assistant-ui/assistant-ui/pull/9236) [`19130f0`](https://github.com/assistant-ui/assistant-ui/commit/19130f0217423e082bc89cd750e0113542b0c11f) - feat(generative-ui): add the `./spec` entry with `toSpecCatalog`, which builds generative-frame spec mode's catalog and React components from a generative UI library; it needs `generative-frame` installed ([@okisdev](https://github.com/okisdev))
+
+- [#9180](https://github.com/assistant-ui/assistant-ui/pull/9180) [`4ec2945`](https://github.com/assistant-ui/assistant-ui/commit/4ec2945e53f67f01b35dc0395df1f91c0b9f5cf4) - fix(generative-ui): prefix console warnings with the package's own name instead of `@assistant-ui/react-generative-ui` ([@okisdev](https://github.com/okisdev))
+
+- [#9231](https://github.com/assistant-ui/assistant-ui/pull/9231) [`d61fd6b`](https://github.com/assistant-ui/assistant-ui/commit/d61fd6b8c8bf7b25f18c5dff4d528cde884f5239) - fix(generative-ui): name the `present` schema's reserved keys `_type`, `_key`, and `_action` so Anthropic models accept the tool. Models are told the root node needs `_type` too, a complete root without a type renders the `children` it wraps, trees in either spelling render, and development builds warn about prop names Anthropic rejects. ([@okisdev](https://github.com/okisdev))
+
+- [#9216](https://github.com/assistant-ui/assistant-ui/pull/9216) [`a8a2f91`](https://github.com/assistant-ui/assistant-ui/commit/a8a2f91f3281b58a9061df1254a905028872c431) - fix(generative-ui): offer every distinct schema of a shared present prop and drop a value for it that only another component's schema accepts ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9242](https://github.com/assistant-ui/assistant-ui/pull/9242) [`8443db3`](https://github.com/assistant-ui/assistant-ui/commit/8443db34577d16bdbe5a468467a36c7c41ca87a4) - fix(generative-ui): submit an `asForm` card through its own `_action` when its `confirm` footer has none ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`52e6257`](https://github.com/assistant-ui/assistant-ui/commit/52e625796b7f1cfe20f23a854c471d761c4d95e6)]:
+  - generative-frame@0.0.3
+
 ## 0.0.1
 
 ### Patch Changes

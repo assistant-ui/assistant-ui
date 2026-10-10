@@ -4227,7 +4227,7 @@ importers:
         specifier: ^1.7.0
         version: 1.7.0(zod@4.6.5)
       '@assistant-ui/core':
-        specifier: ^0.3.25
+        specifier: ^0.3.26
         version: link:../core
       assistant-stream:
         specifier: ^0.3.49
@@ -4592,10 +4592,10 @@ importers:
   packages/eve:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.25
+        specifier: ^0.3.26
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../store
       assistant-cloud:
         specifier: '*'
@@ -4867,16 +4867,16 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.25
+        specifier: ^0.3.26
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../store
       '@assistant-ui/tap':
         specifier: ^0.9.22
         version: link:../tap
       assistant-cloud:
-        specifier: ^0.2.6
+        specifier: ^0.2.7
         version: link:../cloud
       assistant-stream:
         specifier: ^0.3.49
@@ -4937,13 +4937,13 @@ importers:
   packages/react-a2a:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.25
+        specifier: ^0.3.26
         version: link:../core
       '@assistant-ui/generative-ui':
-        specifier: ^0.0.1
+        specifier: ^0.0.2
         version: link:../generative-ui
       '@assistant-ui/store':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../store
       assistant-stream:
         specifier: ^0.3.49
@@ -4983,13 +4983,13 @@ importers:
         specifier: ^0.0.59
         version: 0.0.59
       '@assistant-ui/core':
-        specifier: ^0.3.25
+        specifier: ^0.3.26
         version: link:../core
       '@assistant-ui/generative-ui':
-        specifier: ^0.0.1
+        specifier: ^0.0.2
         version: link:../generative-ui
       '@assistant-ui/store':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../store
       assistant-stream:
         specifier: ^0.3.49
@@ -5164,7 +5164,7 @@ importers:
   packages/react-generative-ui:
     dependencies:
       '@assistant-ui/generative-ui':
-        specifier: ^0.0.1
+        specifier: ^0.0.2
         version: link:../generative-ui
     devDependencies:
       '@assistant-ui/react':
@@ -5339,10 +5339,10 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.25
+        specifier: ^0.3.26
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../store
       markdansi:
         specifier: ^0.3.4
@@ -5706,10 +5706,10 @@ importers:
   packages/react-opencode:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.25
+        specifier: ^0.3.26
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../store
       '@opencode-ai/sdk':
         specifier: ^1.18.35
@@ -5755,7 +5755,7 @@ importers:
         specifier: workspace:^
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../store
       '@standard-schema/spec':
         specifier: ^1.1.0
@@ -5992,10 +5992,10 @@ importers:
   packages/svelte:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.25
+        specifier: ^0.3.26
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../store
       '@assistant-ui/tap':
         specifier: ^0.9.22
@@ -6328,7 +6328,7 @@ importers:
   packages/vscode:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.25
+        specifier: ^0.3.26
         version: link:../core
     devDependencies:
       '@assistant-ui/store':
@@ -6374,10 +6374,10 @@ importers:
   packages/vue:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.25
+        specifier: ^0.3.26
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.18
+        specifier: ^0.3.19
         version: link:../store
       '@assistant-ui/tap':
         specifier: ^0.9.22

@@ -1,5 +1,15 @@
 # @assistant-ui/core
 
+## 0.3.26
+
+### Patch Changes
+
+- [#9209](https://github.com/assistant-ui/assistant-ui/pull/9209) [`16afd50`](https://github.com/assistant-ui/assistant-ui/commit/16afd50322cce829ab83a32797b5c6aa21fa80c0) - fix(core): preserve initial messages after an empty history load and persist them before the first new message ([@okisdev](https://github.com/okisdev))
+
+- [#9166](https://github.com/assistant-ui/assistant-ui/pull/9166) [`b86d6cd`](https://github.com/assistant-ui/assistant-ui/commit/b86d6cd08f06686efab8133ba1915824c638606c) - Block typing, attachments, sends, and message editing while a thread is disabled. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9224](https://github.com/assistant-ui/assistant-ui/pull/9224) [`2b3e0d3`](https://github.com/assistant-ui/assistant-ui/commit/2b3e0d36b62d21c2ffd280cfc96f4e2a127365da) - fix(core): treat each attachment add as a single attachment ([@okisdev](https://github.com/okisdev))
+
 ## 0.3.25
 
 ### Patch Changes

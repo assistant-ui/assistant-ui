@@ -1,5 +1,11 @@
 # assistant-cloud
 
+## 0.2.7
+
+### Patch Changes
+
+- [#9175](https://github.com/assistant-ui/assistant-ui/pull/9175) [`2c10bb1`](https://github.com/assistant-ui/assistant-ui/commit/2c10bb151811c48dd023377577eb4a107deac649) - fix(cloud): reject stale run streaming auth headers ([@rupic-app](https://github.com/apps/rupic-app))
+
 ## 0.2.6
 
 ### Patch Changes
