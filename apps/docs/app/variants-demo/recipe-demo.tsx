@@ -155,21 +155,30 @@ function MethodStacked() {
 function MethodStepCards() {
   return (
     <div className="flex flex-col gap-6">
-      <section className="border-foreground/10 flex flex-wrap gap-x-6 gap-y-2 rounded-xl border p-5 text-[14px]">
-        {INGREDIENTS.map((item) => (
-          <span key={item}>{item}</span>
-        ))}
+      <section className="bg-foreground/[0.03] dark:bg-foreground/[0.05] flex flex-col gap-3 rounded-xl p-5">
+        <h2 className="text-[15px] font-medium">You&apos;ll need</h2>
+        <ul className="grid gap-x-8 gap-y-2 text-[14px] sm:grid-cols-2">
+          {INGREDIENTS.map((item) => (
+            <li key={item} className="flex items-center gap-2.5">
+              <span
+                aria-hidden
+                className="bg-foreground/30 rounded-capsule size-1.5 shrink-0"
+              />
+              {item}
+            </li>
+          ))}
+        </ul>
       </section>
-      <ol className="grid gap-4 md:grid-cols-3">
+      <ol className="flex flex-col gap-2.5">
         {STEPS.map((step, index) => (
           <li
             key={step}
-            className="border-foreground/10 flex flex-col gap-2 rounded-xl border p-5"
+            className="bg-foreground/[0.03] dark:bg-foreground/[0.05] flex items-start gap-4 rounded-xl p-4"
           >
-            <span className="text-muted-foreground text-[13px] tabular-nums">
-              Step {index + 1}
+            <span className="bg-foreground text-background rounded-capsule grid size-7 shrink-0 place-items-center text-[13px] font-medium tabular-nums">
+              {index + 1}
             </span>
-            <p className="text-[14px] leading-relaxed">{step}</p>
+            <p className="pt-0.5 text-[14px] leading-relaxed">{step}</p>
           </li>
         ))}
       </ol>
