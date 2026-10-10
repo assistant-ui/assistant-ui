@@ -25,6 +25,7 @@ const HOST_SUPPLIED_PEERS = new Set([
   "@assistant-ui/react-ink",
   "@assistant-ui/react-markdown",
   "assistant-cloud",
+  "generative-frame",
 ]);
 
 function readWorkspaceManifests(root) {
