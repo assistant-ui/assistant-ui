@@ -111,14 +111,10 @@ export const buildCloudHeaders = async <
   cloud: AssistantCloudAPI,
   requiredHeaders: TRequired,
   additionalHeaders?: Record<string, string>,
-  authGeneration?: number,
+  authGeneration = authGenerations.get(cloud) ?? 0,
 ) => {
   const authHeaders = await cloud._auth.getAuthHeaders();
-  if (
-    (authGeneration !== undefined &&
-      authGeneration !== (authGenerations.get(cloud) ?? 0)) ||
-    !authHeaders
-  ) {
+  if (authGeneration !== (authGenerations.get(cloud) ?? 0) || !authHeaders) {
     throw new Error("Authorization failed");
   }
 

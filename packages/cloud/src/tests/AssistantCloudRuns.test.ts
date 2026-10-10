@@ -17,7 +17,17 @@ const streamBody = {
   messages: [],
 };
 
-const jwt = `${Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url")}.${Buffer.from(JSON.stringify({ exp: 4102444800, sub: "user-id" })).toString("base64url")}.sig`;
+const createAccessToken = (subject: string) => {
+  const header = Buffer.from(JSON.stringify({ alg: "none" })).toString(
+    "base64url",
+  );
+  const payload = Buffer.from(
+    JSON.stringify({ exp: 4102444800, sub: subject }),
+  ).toString("base64url");
+  return `${header}.${payload}.sig`;
+};
+
+const jwt = createAccessToken("user-id");
 
 describe("AssistantCloudRuns", () => {
   afterEach(() => {
@@ -162,6 +172,29 @@ describe("AssistantCloudRuns", () => {
       createCloud().runs.__internal_getAssistantOptions("assistant-id");
 
     expect(protocol).toBe("ui-message-stream");
+  });
+
+  it("rejects cached auth headers after run auth is invalidated", async () => {
+    const userAToken = createAccessToken("user-a");
+    const userBToken = createAccessToken("user-b");
+    let currentToken = userAToken;
+    const api = new AssistantCloudAPI({
+      baseUrl: "https://test.example.com",
+      authToken: async () => currentToken,
+    });
+    const options = new AssistantCloudRuns(api).__internal_getAssistantOptions(
+      "assistant-id",
+    );
+    await api.initializeAuth();
+
+    const staleHeaders = options.headers();
+    currentToken = userBToken;
+    api.invalidateAuth();
+
+    await expect(staleHeaders).rejects.toThrow("Authorization failed");
+    await expect(options.headers()).resolves.toMatchObject({
+      Authorization: `Bearer ${userBToken}`,
+    });
   });
 
   it("uses the requested thread ID in assistant options", async () => {
