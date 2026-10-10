@@ -308,20 +308,20 @@ test("ruleset updates replace only review floors and required checks", () => {
               required_reviewers: [
                 {
                   file_patterns: [
-                    "packages/tap/**",
-                    "packages/store/**",
-                    "apps/docs/content/docs/tap/**",
-                    "apps/docs/content/docs/store/**",
-                    "packages/assistant-stream/**",
-                    "api-surface/**",
-                    ".github/**",
+                    "/packages/tap/**",
+                    "/packages/store/**",
+                    "/apps/docs/content/docs/tap/**",
+                    "/apps/docs/content/docs/store/**",
+                    "/packages/assistant-stream/**",
+                    "/api-surface/**",
+                    "/.github/**",
                     "/CONTRIBUTING.md",
                     "/AGENTS.md",
-                    "scripts/review-tier.mjs",
-                    "scripts/diff-api-surface.mjs",
-                    "scripts/sync-review-policy.mjs",
-                    "scripts/review-health.mjs",
-                    "scripts/lib/review-*.mjs",
+                    "/scripts/review-tier.mjs",
+                    "/scripts/diff-api-surface.mjs",
+                    "/scripts/sync-review-policy.mjs",
+                    "/scripts/review-health.mjs",
+                    "/scripts/lib/review-*.mjs",
                   ],
                   minimum_approvals: 1,
                   reviewer: { id: teamIds.owners, type: "Team" },
@@ -360,41 +360,29 @@ test("contract review floors group each owner team's paths and contract docs", (
   assert.deepEqual(updates[1].payload.rules[0].parameters.required_reviewers, [
     {
       file_patterns: [
-        "packages/tap/**",
-        "packages/store/**",
-        "apps/docs/content/docs/tap/**",
-        "apps/docs/content/docs/store/**",
-        "api-surface/**",
-        ".github/**",
+        "/packages/tap/**",
+        "/packages/store/**",
+        "/apps/docs/content/docs/tap/**",
+        "/apps/docs/content/docs/store/**",
+        "/api-surface/**",
+        "/.github/**",
         "/CONTRIBUTING.md",
         "/AGENTS.md",
-        "scripts/review-tier.mjs",
-        "scripts/diff-api-surface.mjs",
-        "scripts/sync-review-policy.mjs",
-        "scripts/review-health.mjs",
-        "scripts/lib/review-*.mjs",
+        "/scripts/review-tier.mjs",
+        "/scripts/diff-api-surface.mjs",
+        "/scripts/sync-review-policy.mjs",
+        "/scripts/review-health.mjs",
+        "/scripts/lib/review-*.mjs",
       ],
       minimum_approvals: 1,
       reviewer: { id: teamIds.owners, type: "Team" },
     },
     {
-      file_patterns: ["packages/assistant-stream/**", "docs/protocol/**"],
+      file_patterns: ["/packages/assistant-stream/**", "/docs/protocol/**"],
       minimum_approvals: 1,
       reviewer: { id: 2, type: "Team" },
     },
   ]);
-});
-
-test("required reviewer patterns anchor root-only policy files", () => {
-  const updates = buildRulesets(policy, liveRulesets, teamIds);
-  const patterns =
-    updates[1].payload.rules[0].parameters.required_reviewers[0].file_patterns;
-
-  assert.ok(patterns.includes("/AGENTS.md"));
-  assert.ok(patterns.includes("/CONTRIBUTING.md"));
-  assert.ok(patterns.includes(".github/**"));
-  assert.ok(!patterns.includes("AGENTS.md"));
-  assert.ok(!patterns.includes("CONTRIBUTING.md"));
 });
 
 test("review tier enforcement and the merge queue follow the policy", () => {
