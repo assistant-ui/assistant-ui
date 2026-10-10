@@ -749,7 +749,7 @@ function SliderControl({
             "PageDown",
             "PageUp",
           ].includes(e.key);
-          if (keyboardActive.current && !adjusting.current) startAdjusting();
+          if (keyboardActive.current && !e.repeat) startAdjusting();
         }}
         onKeyUp={(e) => {
           if (!keyboardActive.current) return;

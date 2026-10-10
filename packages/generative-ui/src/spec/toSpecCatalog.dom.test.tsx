@@ -273,11 +273,9 @@ describe("toSpecCatalog components", () => {
       state,
     );
     const input = query<HTMLInputElement>(container, "input");
-    const press = (type: string) =>
+    const press = (type: string, key: string) =>
       act(async () => {
-        input.dispatchEvent(
-          new KeyboardEvent(type, { key: "ArrowLeft", bubbles: true }),
-        );
+        input.dispatchEvent(new KeyboardEvent(type, { key, bubbles: true }));
       });
     const drag = async (value: string) => {
       await dispatch(input, "pointerdown");
@@ -289,10 +287,13 @@ describe("toSpecCatalog components", () => {
     const move = (value: number) => act(async () => state.set("/v", value));
 
     await drag("7");
+    await press("keydown", "ArrowRight");
+    setInputValue(input, "8");
+    await dispatch(input, "input");
     await move(0);
     expect(input.value).toBe("0");
-    await press("keydown");
-    await press("keyup");
+    await press("keydown", "ArrowLeft");
+    await press("keyup", "ArrowLeft");
     await move(10);
     await dispatch(input, "pointerdown");
     await dispatch(input, "pointerup");
