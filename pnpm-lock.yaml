@@ -873,12 +873,36 @@ importers:
 
   evals:
     devDependencies:
+      '@assistant-ui/generative-ui':
+        specifier: workspace:*
+        version: link:../packages/generative-ui
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../packages/x-buildutils
       '@types/node':
         specifier: ^26.6.4
         version: 26.6.4
+      '@types/react':
+        specifier: ^19.3.0
+        version: 19.3.0
+      '@types/react-dom':
+        specifier: ^19.3.0
+        version: 19.3.0(@types/react@19.3.0)
+      ai:
+        specifier: ^7.0.130
+        version: 7.0.130(zod@4.6.5)
+      generative-frame:
+        specifier: workspace:*
+        version: link:../packages/generative-frame
+      react:
+        specifier: ^19.3.0
+        version: 19.3.0
+      react-dom:
+        specifier: ^19.3.0
+        version: 19.3.0(react@19.3.0)
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
 
   examples/bundle-ai-sdk:
     dependencies:
