@@ -143,9 +143,9 @@ function buildLiveHandlers(
     lifecycle.onSizeChange(p);
     live()?.onSizeChange?.(p);
   };
-  out.onInitialized = () => {
+  out.onInitialized = (params) => {
     lifecycle.onInitialized();
-    live()?.onInitialized?.();
+    live()?.onInitialized?.(params);
   };
   out.onRequestTeardown = (p) => live()?.onRequestTeardown?.(p);
   out.onLog = (p) => live()?.onLog?.(p);

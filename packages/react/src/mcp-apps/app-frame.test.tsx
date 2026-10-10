@@ -8,7 +8,11 @@ import type {
 } from "../sandbox-host/SandboxHost";
 import type { CreateMcpAppBridgeOptions, McpAppBridge } from "./bridge";
 import type * as BridgeModule from "./bridge";
-import { MCP_APP_MIME_TYPE, type McpAppHostContext } from "./types";
+import {
+  MCP_APP_MIME_TYPE,
+  type McpAppHostContext,
+  type McpAppInitializeParams,
+} from "./types";
 
 const { sandboxHostMock, createMcpAppBridgeMock } = vi.hoisted(() => ({
   sandboxHostMock: vi.fn(),
@@ -272,6 +276,60 @@ describe("McpAppFrame", () => {
     }
   });
 
+  it("forwards initialization metadata to the live handler", () => {
+    let createBridge: SandboxHostProps["createBridge"] | null = null;
+    sandboxHostMock.mockImplementation((props: SandboxHostProps) => {
+      createBridge ??= props.createBridge;
+      return null;
+    });
+    const bridge: McpAppBridge = {
+      onMessage: vi.fn(),
+      dispose: vi.fn(),
+      notifyToolInput: vi.fn(),
+      notifyToolResult: vi.fn(),
+      notifyHostContextChanged: vi.fn(),
+    };
+    createMcpAppBridgeMock.mockReturnValue(bridge);
+    const onInitialized = vi.fn();
+    const view = (handler: typeof onInitialized) => (
+      <McpAppFrame
+        app={{ resourceUri: "ui://example/widget" }}
+        resource={{
+          uri: "ui://example/widget",
+          mimeType: MCP_APP_MIME_TYPE,
+          html: "",
+        }}
+        handlers={{ onInitialized: handler }}
+      />
+    );
+    const rendered = render(view(onInitialized));
+
+    const sandboxBridge = createBridge!(
+      {
+        iframe: document.createElement("iframe"),
+        origin: "https://widget.example",
+        sendMessage: vi.fn(),
+      },
+      { setHeight: vi.fn() },
+    );
+    const options = createMcpAppBridgeMock.mock
+      .calls[0]![0] as CreateMcpAppBridgeOptions;
+    const replacementOnInitialized = vi.fn();
+    const params: McpAppInitializeParams = {
+      protocolVersion: "2026-01-26",
+      appInfo: { name: "example-app", version: "1.2.3" },
+      appCapabilities: { availableDisplayModes: ["inline", "pip"] },
+    };
+
+    rendered.rerender(view(replacementOnInitialized));
+    options.handlers?.onInitialized?.(params);
+
+    expect(onInitialized).not.toHaveBeenCalled();
+    expect(replacementOnInitialized).toHaveBeenCalledOnce();
+    expect(replacementOnInitialized).toHaveBeenCalledWith(params);
+    sandboxBridge.dispose();
+  });
+
   it("disposes the underlying bridge with the sandbox bridge", () => {
     let createBridge: SandboxHostProps["createBridge"] | null = null;
     sandboxHostMock.mockImplementation((props: SandboxHostProps) => {
@@ -350,7 +408,7 @@ describe("McpAppFrame", () => {
     );
     const options = createMcpAppBridgeMock.mock
       .calls[0]![0] as CreateMcpAppBridgeOptions;
-    options.handlers?.onInitialized?.();
+    options.handlers?.onInitialized?.({});
 
     rendered.rerender(
       view({ displayMode: "inline", availableDisplayModes: ["inline", "pip"] }),
@@ -429,7 +487,7 @@ describe("McpAppFrame", () => {
 
     const options = createMcpAppBridgeMock.mock
       .calls[0]![0] as CreateMcpAppBridgeOptions;
-    options.handlers?.onInitialized?.();
+    options.handlers?.onInitialized?.({});
 
     expect(bridge.notifyHostContextChanged).not.toHaveBeenCalled();
 
@@ -474,7 +532,7 @@ describe("McpAppFrame", () => {
     );
     const options = createMcpAppBridgeMock.mock
       .calls[0]![0] as CreateMcpAppBridgeOptions;
-    options.handlers?.onInitialized?.();
+    options.handlers?.onInitialized?.({});
 
     rendered.rerender(view());
     expect(bridge.notifyHostContextChanged).not.toHaveBeenCalled();
@@ -519,7 +577,7 @@ describe("McpAppFrame", () => {
     );
     const options = createMcpAppBridgeMock.mock
       .calls[0]![0] as CreateMcpAppBridgeOptions;
-    options.handlers?.onInitialized?.();
+    options.handlers?.onInitialized?.({});
 
     rendered.rerender(view(new Date(2)));
     expect(bridge.notifyHostContextChanged).toHaveBeenCalledTimes(1);
@@ -565,7 +623,7 @@ describe("McpAppFrame", () => {
     );
     const options = createMcpAppBridgeMock.mock
       .calls[0]![0] as CreateMcpAppBridgeOptions;
-    options.handlers?.onInitialized?.();
+    options.handlers?.onInitialized?.({});
 
     rendered.rerender(view({}));
     expect(bridge.notifyHostContextChanged).not.toHaveBeenCalled();

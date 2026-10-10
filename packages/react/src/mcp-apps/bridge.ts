@@ -6,6 +6,7 @@ import {
   type McpAppDisplayMode,
   type McpAppHostContext,
   type McpAppHostInfo,
+  type McpAppInitializeParams,
   type McpAppJsonRpcMessage,
   type McpAppJsonRpcNotification,
   type McpAppJsonRpcRequest,
@@ -18,6 +19,50 @@ const VALID_DISPLAY_MODES = [
   "fullscreen",
   "pip",
 ] as const satisfies readonly McpAppDisplayMode[];
+
+function isMcpAppDisplayMode(value: unknown): value is McpAppDisplayMode {
+  return VALID_DISPLAY_MODES.some((mode) => mode === value);
+}
+
+function isAppInfo(
+  value: unknown,
+): value is NonNullable<McpAppInitializeParams["appInfo"]> {
+  return (
+    isRecord(value) &&
+    typeof value.name === "string" &&
+    typeof value.version === "string"
+  );
+}
+
+function getAppCapabilities(
+  value: unknown,
+): McpAppInitializeParams["appCapabilities"] {
+  if (!isRecord(value)) return undefined;
+  const { availableDisplayModes, ...rest } = value;
+  return {
+    ...rest,
+    // Object.values reads only the entries present, so a sparse list claiming a huge length stays cheap, and the list's own methods are never called.
+    ...(Array.isArray(availableDisplayModes)
+      ? {
+          availableDisplayModes: Object.values(availableDisplayModes).filter(
+            isMcpAppDisplayMode,
+          ),
+        }
+      : {}),
+  };
+}
+
+function getInitializeParams(params: unknown): McpAppInitializeParams {
+  if (!isRecord(params)) return {};
+  const appCapabilities = getAppCapabilities(params.appCapabilities);
+  return {
+    ...(isAppInfo(params.appInfo) ? { appInfo: params.appInfo } : {}),
+    ...(appCapabilities ? { appCapabilities } : {}),
+    ...(typeof params.protocolVersion === "string"
+      ? { protocolVersion: params.protocolVersion }
+      : {}),
+  };
+}
 
 export type McpAppBridgeFrame = SandboxHostFrame;
 
@@ -91,6 +136,7 @@ export function createMcpAppBridge(
     hostContext = {},
   } = opts;
   let disposed = false;
+  let initializeParams: McpAppInitializeParams = {};
 
   const post = (msg: McpAppJsonRpcMessage) => {
     if (disposed) return;
@@ -142,10 +188,9 @@ export function createMcpAppBridge(
 
       switch (normalizeMethod(req.method)) {
         case "ui/initialize": {
+          initializeParams = getInitializeParams(params);
           const requestedProtocolVersion =
-            isRecord(params) && typeof params.protocolVersion === "string"
-              ? params.protocolVersion
-              : MCP_APP_PROTOCOL_VERSION;
+            initializeParams.protocolVersion ?? MCP_APP_PROTOCOL_VERSION;
           respond(req.id, {
             result: {
               protocolVersion: requestedProtocolVersion,
@@ -360,10 +405,7 @@ export function createMcpAppBridge(
             return;
           }
           const modeParams = (params ?? {}) as { mode?: unknown };
-          if (
-            typeof modeParams.mode !== "string" ||
-            !VALID_DISPLAY_MODES.includes(modeParams.mode as McpAppDisplayMode)
-          ) {
+          if (!isMcpAppDisplayMode(modeParams.mode)) {
             errorResponse(
               req.id,
               JSONRPC_ERROR.invalidParams,
@@ -373,7 +415,7 @@ export function createMcpAppBridge(
           }
           respond(req.id, {
             result: await handlers.requestDisplayMode({
-              mode: modeParams.mode as McpAppDisplayMode,
+              mode: modeParams.mode,
             }),
           });
           return;
@@ -398,7 +440,7 @@ export function createMcpAppBridge(
     try {
       switch (normalizeMethod(note.method)) {
         case "notifications/initialized": {
-          handlers.onInitialized?.();
+          handlers.onInitialized?.(initializeParams);
           return;
         }
         case "notifications/size_changed": {

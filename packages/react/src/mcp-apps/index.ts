@@ -17,6 +17,7 @@ export type {
   McpAppsHost,
   McpAppsRemoteHostOptions,
   McpAppToolCallParams,
+  McpAppInitializeParams,
   McpAppBridgeHandlers,
   ToolCallMessagePartMcpMetadata,
 } from "./types";

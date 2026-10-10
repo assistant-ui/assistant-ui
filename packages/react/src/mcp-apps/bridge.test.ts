@@ -197,6 +197,160 @@ describe("createMcpAppBridge", () => {
     bridge.dispose();
   });
 
+  it("passes view initialization metadata to onInitialized", () => {
+    const { frame } = makeFrame();
+    const onInitialized = vi.fn();
+    const bridge = createMcpAppBridge({ frame, handlers: { onInitialized } });
+    const params = {
+      protocolVersion: "2026-01-26",
+      appInfo: { name: "example-app", version: "1.2.3" },
+      appCapabilities: {
+        availableDisplayModes: ["inline", "fullscreen"],
+        tools: { listChanged: true },
+      },
+    };
+
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "ui/initialize",
+      params,
+    });
+    expect(onInitialized).not.toHaveBeenCalled();
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      method: "notifications/initialized",
+    });
+
+    expect(onInitialized).toHaveBeenCalledOnce();
+    expect(onInitialized).toHaveBeenCalledWith(params);
+    bridge.dispose();
+  });
+
+  it("omits malformed initialization fields and keeps the protocol fallback", async () => {
+    const { frame, captured } = makeFrame();
+    const onInitialized = vi.fn();
+    const bridge = createMcpAppBridge({ frame, handlers: { onInitialized } });
+
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "ui/initialize",
+      params: {
+        protocolVersion: 1,
+        appInfo: { name: "malformed" },
+        appCapabilities: { availableDisplayModes: "fullscreen" },
+      },
+    });
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      method: "notifications/initialized",
+    });
+    await flush();
+
+    expect(onInitialized).toHaveBeenCalledOnce();
+    expect(onInitialized).toHaveBeenCalledWith({
+      appCapabilities: {},
+    });
+    expect((captured[0] as McpAppJsonRpcResponse).result).toMatchObject({
+      protocolVersion: MCP_APP_PROTOCOL_VERSION,
+    });
+    bridge.dispose();
+  });
+
+  it("keeps only the display modes the host recognizes", () => {
+    const { frame } = makeFrame();
+    const onInitialized = vi.fn();
+    const bridge = createMcpAppBridge({ frame, handlers: { onInitialized } });
+
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "ui/initialize",
+      params: {
+        appCapabilities: { availableDisplayModes: ["inline", "sidebar"] },
+      },
+    });
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      method: "notifications/initialized",
+    });
+
+    expect(onInitialized).toHaveBeenCalledWith({
+      appCapabilities: { availableDisplayModes: ["inline"] },
+    });
+    bridge.dispose();
+  });
+
+  it("reads a sparse display mode list without walking its length", () => {
+    const { frame } = makeFrame();
+    const onInitialized = vi.fn();
+    const bridge = createMcpAppBridge({ frame, handlers: { onInitialized } });
+    const availableDisplayModes = ["inline"];
+    availableDisplayModes.length = 2 ** 32 - 1;
+
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "ui/initialize",
+      params: { appCapabilities: { availableDisplayModes } },
+    });
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      method: "notifications/initialized",
+    });
+
+    expect(onInitialized).toHaveBeenCalledWith({
+      appCapabilities: { availableDisplayModes: ["inline"] },
+    });
+    bridge.dispose();
+  });
+
+  it("initializes when the display mode list carries its own methods", async () => {
+    const { frame, captured } = makeFrame();
+    const onInitialized = vi.fn();
+    const bridge = createMcpAppBridge({ frame, handlers: { onInitialized } });
+
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "ui/initialize",
+      params: {
+        appCapabilities: {
+          availableDisplayModes: Object.assign(["inline", "pip"], {
+            filter: 0,
+            constructor: 0,
+          }),
+        },
+      },
+    });
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      method: "notifications/initialized",
+    });
+    await flush();
+
+    expect((captured[0] as McpAppJsonRpcResponse).error).toBeUndefined();
+    expect(onInitialized).toHaveBeenCalledWith({
+      appCapabilities: { availableDisplayModes: ["inline", "pip"] },
+    });
+    bridge.dispose();
+  });
+
+  it("calls onInitialized with empty params when ui/initialize never arrived", () => {
+    const { frame } = makeFrame();
+    const onInitialized = vi.fn();
+    const bridge = createMcpAppBridge({ frame, handlers: { onInitialized } });
+
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      method: "notifications/initialized",
+    });
+
+    expect(onInitialized).toHaveBeenCalledWith({});
+    bridge.dispose();
+  });
+
   it("routes tools/call to handler", async () => {
     const { frame, captured } = makeFrame();
     const callTool = vi.fn().mockResolvedValue({ ok: true });
