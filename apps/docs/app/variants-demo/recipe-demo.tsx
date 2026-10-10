@@ -2,6 +2,7 @@
 
 import { Variant, Variants } from "@assistant-ui/variants";
 import { Clock, Users } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -248,6 +249,93 @@ function MethodStepCards() {
   );
 }
 
+function MethodTimeline() {
+  return (
+    <div className="flex max-w-[40rem] flex-col gap-8">
+      <p className="text-[14px] leading-relaxed">
+        <span className="font-medium">You&apos;ll need </span>
+        <span className="text-muted-foreground">
+          {INGREDIENTS.join(", ").toLowerCase()}.
+        </span>
+      </p>
+      <ol className="flex flex-col">
+        {STEPS.map((step, index) => (
+          <li key={step} className="relative flex gap-4 pb-6 last:pb-0">
+            {index < STEPS.length - 1 ? (
+              <span
+                aria-hidden
+                className="bg-foreground/15 absolute top-4 bottom-0 left-[5px] w-px"
+              />
+            ) : null}
+            <span
+              aria-hidden
+              className="border-foreground/40 bg-background rounded-capsule relative mt-1.5 size-[11px] shrink-0 border-2"
+            />
+            <div className="flex flex-col gap-1">
+              <span className="text-muted-foreground text-[12px] tabular-nums">
+                Step {index + 1}
+              </span>
+              <p className="text-[14px] leading-relaxed">{step}</p>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
+function MethodTabs() {
+  const [tab, setTab] = useState<"ingredients" | "method">("ingredients");
+  const tabs = [
+    ["ingredients", "Ingredients", INGREDIENTS.length],
+    ["method", "Method", STEPS.length],
+  ] as const;
+  return (
+    <div className="flex flex-col gap-6">
+      <div
+        role="group"
+        aria-label="Recipe section"
+        className="border-foreground/10 flex gap-6 border-b"
+      >
+        {tabs.map(([id, label, count]) => (
+          <button
+            key={id}
+            type="button"
+            aria-pressed={tab === id}
+            onClick={() => setTab(id)}
+            className={cn(
+              "focus-visible:ring-ring -mb-px flex items-baseline gap-1.5 border-b-2 pb-3 text-[15px] font-medium transition-colors focus-visible:rounded-sm focus-visible:ring-2 focus-visible:outline-none",
+              tab === id
+                ? "border-foreground text-foreground"
+                : "text-muted-foreground hover:text-foreground border-transparent",
+            )}
+          >
+            {label}
+            <span className="text-muted-foreground text-[13px] font-normal tabular-nums">
+              {count}
+            </span>
+          </button>
+        ))}
+      </div>
+      {tab === "ingredients" ? (
+        <ul className="grid gap-x-8 gap-y-3 text-[14px] sm:grid-cols-2 md:grid-cols-3">
+          {INGREDIENTS.map((item) => (
+            <li key={item} className="flex items-center gap-3">
+              <span
+                aria-hidden
+                className="border-foreground/25 size-4 shrink-0 rounded-[5px] border"
+              />
+              {item}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <StepList />
+      )}
+    </div>
+  );
+}
+
 export function RecipeDemo() {
   return (
     <div className="flex flex-col">
@@ -287,6 +375,12 @@ export function RecipeDemo() {
           </Variant>
           <Variant id="cards" label="Step cards">
             <MethodStepCards />
+          </Variant>
+          <Variant id="timeline" label="Timeline">
+            <MethodTimeline />
+          </Variant>
+          <Variant id="tabs" label="Tabs">
+            <MethodTabs />
           </Variant>
         </Variants>
       </main>
