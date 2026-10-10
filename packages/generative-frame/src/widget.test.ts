@@ -405,7 +405,8 @@ describe("widget ids", () => {
   it("renders an opaque-origin frame without Safe Content Frame", async () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
-    const widget = createWidget({ container, opaqueOrigin: true });
+    const onPrompt = vi.fn();
+    const widget = createWidget({ container, opaqueOrigin: true, onPrompt });
     const iframe = await vi.waitFor(() => {
       const found = container.querySelector("iframe");
       expect(found).toBeTruthy();
@@ -447,8 +448,21 @@ describe("widget ids", () => {
         data: { jsonrpc: "2.0", id: 1, method: "ui/initialize", params: {} },
       }),
     );
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        ...ready,
+        origin: "null",
+        data: {
+          jsonrpc: "2.0",
+          id: 2,
+          method: "ui/message",
+          params: { content: [{ type: "text", text: "injected" }] },
+        },
+      }),
+    );
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(postMessage).not.toHaveBeenCalled();
+    expect(onPrompt).not.toHaveBeenCalled();
     widget.dispose();
   });
 

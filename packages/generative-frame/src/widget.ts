@@ -145,9 +145,9 @@ type FrameRenderer = {
 
 /**
  * An opaque origin cannot be named as a `postMessage` target, so messages to
- * the frame use `"*"`, and stop once the frame has navigated away from the
- * bootstrap document; the host accepts messages only from this iframe's
- * window with origin `"null"`.
+ * the frame use `"*"`. A sandboxed frame keeps its opaque origin and window
+ * when it navigates, so once the bootstrap document is gone, `origin` stops
+ * matching any message and nothing is posted to the frame.
  */
 const opaqueFrame: FrameRenderer = {
   async renderHtml(html, container) {
@@ -160,7 +160,9 @@ const opaqueFrame: FrameRenderer = {
     container.appendChild(iframe);
     return {
       iframe,
-      origin: "null",
+      get origin() {
+        return loads > 1 ? "" : "null";
+      },
       sendMessage: (data, transfer) => {
         if (loads > 1) return;
         iframe.contentWindow?.postMessage(data, "*", transfer);

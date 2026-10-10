@@ -43,7 +43,7 @@ The tradeoffs:
 - **No storage.** `localStorage`, `sessionStorage`, IndexedDB, and cookies throw or stay empty, so `id` and `clearWidgetStorage` do not apply, and widgets that expect storage fail.
 - **Your page's policy applies.** A `srcdoc` document inherits the Content Security Policy of the page that embeds it, on top of the widget policy. The runtime and widget scripts are inline, so a page `script-src` without `'unsafe-inline'` (for example a nonce- or hash-based policy) blocks them: if it blocks the runtime, the frame never connects and the widget fails with a ready timeout; if it allows the runtime by hash, widget scripts still do not run.
 - **Process isolation is weaker.** Desktop Chrome puts sandboxed frames in a process apart from your app, but all of them share it; a Safe Content Frame gets a process of its own.
-- **Messages to the frame are untargeted.** A `null` origin cannot be named as a `postMessage` target, so the host posts with `"*"`, stops once the frame navigates away from the bootstrap document, and accepts messages only from that iframe's window with origin `null`. Widget code can navigate the frame, so anything it could read before navigating it can carry along.
+- **Messages to the frame are untargeted.** A `null` origin cannot be named as a `postMessage` target, so the host posts with `"*"` and accepts messages only from that iframe's window with origin `null`. Once the frame navigates away from the bootstrap document, the host stops exchanging messages with it in both directions. Widget code can navigate the frame, so anything it could read before navigating it can carry along.
 
 ## How code reaches the frame
 
