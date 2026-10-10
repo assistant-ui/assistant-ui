@@ -41,10 +41,12 @@ function getAppCapabilities(
   const { availableDisplayModes, ...rest } = value;
   return {
     ...rest,
+    // Object.values reads only the entries present, so a sparse list claiming a huge length stays cheap, and the list's own methods are never called.
     ...(Array.isArray(availableDisplayModes)
       ? {
-          availableDisplayModes:
-            availableDisplayModes.filter(isMcpAppDisplayMode),
+          availableDisplayModes: Object.values(availableDisplayModes).filter(
+            isMcpAppDisplayMode,
+          ),
         }
       : {}),
   };
