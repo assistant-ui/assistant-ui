@@ -12,7 +12,7 @@ If a step requires assistant-ui cloud login or cloud setup in an active setup wi
 
 Keep the package and version required by the product guide. The existing hackathon CLI preview does not support --setup-url: use its normal --no-open device flow and let the user open the printed approval link, keeping their wizard tab open. Do not switch packages, recreate a project or retry provisioning to add wizard sign-in.
 
-Install the products in the order listed. Each one assumes the previous ones are in place.`;
+The listed product names are the starting goals. Read each setup guide, inspect the app, and follow dependency order. Explore related products through ${BASE_URL}/catalog.md when useful and include relevant prerequisites in the plan for approval; list membership does not constrain the implementation.`;
 
 const closing = `When every product is installed, start the dev server and run the verification line under each product. Report the exact error to the user if one fails; do not loop.`;
 

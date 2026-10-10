@@ -560,6 +560,11 @@ function InstallSteps({
     };
   }, [activeId]);
   useEffect(center, [activeId, activeLast]);
+  const labelled =
+    new Set([
+      ...state.products.map((entry) => entry.slug),
+      ...state.steps.flatMap((step) => step.product ?? []),
+    ]).size > 1;
   let lastProduct: string | undefined;
   return (
     <ol
@@ -574,12 +579,19 @@ function InstallSteps({
         );
         const status: EntryStatus =
           !closed && inputs.length > 0 ? "attention" : step.status;
-        const product =
+        const slug =
           step.product !== undefined && step.product !== lastProduct
-            ? state.products.find((entry) => entry.slug === step.product)
+            ? step.product
             : undefined;
         lastProduct = step.product ?? lastProduct;
-        const glyph = product ? getCatalogItem(product.slug)?.glyph : undefined;
+        const item = slug !== undefined ? getCatalogItem(slug) : undefined;
+        const productName =
+          slug !== undefined
+            ? (state.products.find((entry) => entry.slug === slug)?.name ??
+              item?.name ??
+              slug)
+            : undefined;
+        const glyph = item?.glyph;
         const activity = stepActivity(state, step.id);
         return (
           <TimelineEntry
@@ -589,10 +601,10 @@ function InstallSteps({
             title={step.title}
             detail={step.note ?? step.detail}
             eyebrow={
-              product && state.products.length > 1 ? (
+              productName !== undefined && labelled ? (
                 <p className="text-muted-foreground mb-1 flex items-center gap-2 text-xs">
                   {glyph ? <NavGlyph kind={glyph} size="sm" /> : null}
-                  {product.name}
+                  {productName}
                 </p>
               ) : undefined
             }
@@ -755,11 +767,9 @@ export function SetupWizard({
       case "welcome":
         return {
           title: titleNamesProducts
-            ? `Welcome to the setup wizard for ${productList}`
-            : "Welcome to the setup wizard",
-          subtitle: titleNamesProducts
-            ? undefined
-            : `Setting up ${productList}.`,
+            ? `You are installing ${productList}`
+            : "You are installing",
+          subtitle: titleNamesProducts ? undefined : `${productList}.`,
           body: <SetupIntro onContinue={acknowledgeSetupIntro} />,
         };
       case "connect":

@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
+import { EntryPointInputCard } from "@/components/pages/shop/entry-point-input-card";
 import { ChoiceInputCard } from "@/components/pages/shop/choice-input-card";
 import {
   CloudProjectInputCard,
@@ -145,6 +146,8 @@ export function InputCard({
   if (isCloudLoginInput(input))
     return <CloudLoginInputCard input={input} checkout={checkout} />;
   switch (input.kind) {
+    case "entry-point":
+      return <EntryPointInputCard input={input} checkout={checkout} />;
     case "choice":
       return <ChoiceInputCard input={input} checkout={checkout} />;
     case "model":

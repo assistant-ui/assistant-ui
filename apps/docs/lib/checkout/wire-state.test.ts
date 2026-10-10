@@ -41,6 +41,54 @@ const full = (): Checkout.State => ({
 });
 
 describe("checkout wire state", () => {
+  it("accepts structured entry points and rejects unrenderable metadata", () => {
+    const { help, ...choice } = input;
+    const entry: Checkout.Input = {
+      ...choice,
+      kind: "entry-point",
+      options: [
+        {
+          id: "report",
+          label: "Report sidebar",
+          description: "Keep charts visible",
+          entryPoint: {
+            formFactor: "sidebar",
+            placement: "Report workspace",
+            trigger: "Ask in toolbar",
+          },
+        },
+      ],
+      answer: "report",
+      status: "answered",
+    };
+    const state = { ...full(), inputs: [entry] };
+    expect(parseCheckoutState(JSON.parse(JSON.stringify(state)))).toEqual(
+      state,
+    );
+    expect(() =>
+      parseCheckoutState({
+        ...state,
+        inputs: [
+          {
+            ...entry,
+            options: [
+              { ...entry.options![0], entryPoint: { formFactor: "iframe" } },
+            ],
+          },
+        ],
+      }),
+    ).toThrow(IncompatibleCheckoutError);
+    expect(() =>
+      parseCheckoutState({
+        ...state,
+        inputs: [{ ...entry, default: "missing" }],
+      }),
+    ).toThrow(IncompatibleCheckoutError);
+    expect(() =>
+      parseCheckoutState({ ...state, inputs: [{ ...entry, help }] }),
+    ).toThrow(IncompatibleCheckoutError);
+  });
+
   it("passes a snapshot of the current version through unchanged", () => {
     const empty = initialCheckoutState();
     expect(parseCheckoutState(empty)).toBe(empty);

@@ -33,7 +33,26 @@ export namespace Checkout {
    * with `checkout/add-product` as soon as the input arrives, and dismisses a
    * slug the catalog does not carry.
    */
-  export type InputKind = "text" | "choice" | "model" | "product";
+  export type InputKind =
+    | "text"
+    | "choice"
+    | "model"
+    | "product"
+    | "entry-point";
+
+  export type EntryPoint = {
+    formFactor: "modal" | "sidebar" | "full-page";
+    placement: string;
+    trigger: string;
+    recommended?: boolean;
+  };
+
+  export type EntryPointOption = {
+    id: string;
+    label: string;
+    description: string;
+    entryPoint: EntryPoint;
+  };
 
   export type ChoiceVariant = { id: string; label: string };
 
@@ -45,6 +64,7 @@ export namespace Checkout {
     icon?: string;
     /** A second pick under this option, such as the language of a framework. */
     variants?: ChoiceVariant[];
+    entryPoint?: EntryPoint;
   };
 
   /** A short nudge for users who need help choosing, with a longer guide to link to. */
@@ -478,6 +498,76 @@ export const classifyChoiceAnswer = (
   if (kinds.includes("invalid")) return "invalid";
   return kinds.includes("custom") ? "custom" : "option";
 };
+
+const isEntryPointText = (value: unknown, max: number): value is string =>
+  typeof value === "string" && value.trim() !== "" && value.length <= max;
+
+export const parseEntryPointOptions = (
+  value: unknown,
+): Checkout.EntryPointOption[] | undefined => {
+  if (!Array.isArray(value) || value.length < 1 || value.length > 3)
+    return undefined;
+  const options: Checkout.EntryPointOption[] = [];
+  for (const candidate of value) {
+    if (typeof candidate !== "object" || candidate === null) return undefined;
+    const { id, label, description, entryPoint, variants } =
+      candidate as Record<string, unknown>;
+    if (
+      typeof id !== "string" ||
+      !/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$/.test(id) ||
+      options.some((option) => option.id === id) ||
+      !isEntryPointText(label, 160) ||
+      !isEntryPointText(description, 1000) ||
+      variants !== undefined ||
+      typeof entryPoint !== "object" ||
+      entryPoint === null
+    )
+      return undefined;
+    const { formFactor, placement, trigger, recommended } =
+      entryPoint as Record<string, unknown>;
+    if (
+      (formFactor !== "modal" &&
+        formFactor !== "sidebar" &&
+        formFactor !== "full-page") ||
+      !isEntryPointText(placement, 400) ||
+      !isEntryPointText(trigger, 400) ||
+      (recommended !== undefined && typeof recommended !== "boolean")
+    )
+      return undefined;
+    options.push({
+      id,
+      label,
+      description,
+      entryPoint: {
+        formFactor,
+        placement,
+        trigger,
+        ...(recommended !== undefined && { recommended }),
+      },
+    });
+  }
+  return options.filter((option) => option.entryPoint.recommended).length <= 1
+    ? options
+    : undefined;
+};
+
+export const isValidEntryPointInput = (input: Checkout.InputSeed) => {
+  const options = parseEntryPointOptions(input.options);
+  return (
+    input.kind === "entry-point" &&
+    isEntryPointText(input.prompt, 1000) &&
+    options !== undefined &&
+    input.multiple === undefined &&
+    input.help === undefined &&
+    (input.default === undefined ||
+      options.some((option) => option.id === input.default))
+  );
+};
+
+export const isValidEntryPointAnswer = (
+  input: Checkout.Input,
+  answer: string,
+) => input.options?.some((option) => option.id === answer) ?? false;
 
 const REASONING_EFFORTS = new Set(["low", "medium", "high"]);
 

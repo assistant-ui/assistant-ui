@@ -177,7 +177,7 @@ describe("SetupWizard", () => {
   it("starts with the introduction, with Back disabled and Next continuing", () => {
     render(<SetupWizard checkout={context(initialCheckoutState(), false)} />);
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Welcome to the setup wizard for assistant-ui",
+      "You are installing assistant-ui",
     );
     expect(footer().getByRole("button", { name: "Back" })).toHaveProperty(
       "disabled",
@@ -202,12 +202,11 @@ describe("SetupWizard", () => {
       />,
     );
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Welcome to the setup wizard",
+      "You are installing",
     );
     expect(
-      screen.getByText(
-        "Setting up assistant-ui, Assistant Cloud, and Agent Tool.",
-      ).className,
+      screen.getByText("assistant-ui, Assistant Cloud, and Agent Tool.")
+        .className,
     ).toContain("text-muted-foreground");
   });
 
@@ -231,14 +230,15 @@ describe("SetupWizard", () => {
     };
     try {
       expect(intro(1)).toBe(
-        "Welcome to the setup wizard for assistant-ui and Assistant Cloud",
+        "You are installing assistant-ui and Assistant Cloud",
       );
-      expect(screen.queryByText(/^Setting up/)).toBeNull();
-      cleanup();
-      expect(intro(2)).toBe("Welcome to the setup wizard");
       expect(
-        screen.getByText("Setting up assistant-ui and Assistant Cloud.")
-          .className,
+        screen.queryByText(/^assistant-ui and Assistant Cloud\./),
+      ).toBeNull();
+      cleanup();
+      expect(intro(2)).toBe("You are installing");
+      expect(
+        screen.getByText("assistant-ui and Assistant Cloud.").className,
       ).toContain("text-muted-foreground");
     } finally {
       lines.mockRestore();
@@ -278,18 +278,17 @@ describe("SetupWizard", () => {
       );
       const heading = screen.getByRole("heading", { level: 1 });
       expect(heading.textContent).toBe(
-        "Welcome to the setup wizard for assistant-ui and Assistant Cloud",
+        "You are installing assistant-ui and Assistant Cloud",
       );
       const resized = observed.get(heading);
       expect(resized).toBeDefined();
       lines.mockReturnValue(rects(2));
       act(() => resized!());
       expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-        "Welcome to the setup wizard",
+        "You are installing",
       );
       expect(
-        screen.getByText("Setting up assistant-ui and Assistant Cloud.")
-          .className,
+        screen.getByText("assistant-ui and Assistant Cloud.").className,
       ).toContain("text-muted-foreground");
     } finally {
       lines.mockRestore();
@@ -371,6 +370,42 @@ describe("SetupWizard", () => {
     expect(
       within(list).getByRole("listitem", { current: "step" }).textContent,
     ).toContain("Step 3");
+  });
+
+  it("labels a step for a product the agent discovered, from the catalog or by its identifier", () => {
+    const step = (id: string, product: string): Checkout.Step => ({
+      id,
+      title: `Step ${id.slice(1)}`,
+      product,
+      status: "pending",
+      createdAt: 0,
+    });
+    render(
+      <SetupWizard
+        checkout={context(
+          connected({
+            status: "installing",
+            products: [{ slug: "assistant-ui", name: "assistant-ui" }],
+            steps: [
+              step("s1", "assistant-ui"),
+              step("s2", "cloud"),
+              step("s3", "convex"),
+            ],
+          }),
+        )}
+      />,
+    );
+    const eyebrows = within(
+      screen.getByRole("list", { name: "Installation steps" }),
+    )
+      .getAllByRole("listitem")
+      .map((item) => item.querySelector("p.mb-1")?.textContent);
+    expect(eyebrows).toEqual([
+      "assistant-ui",
+      "Assistant Cloud",
+      "convex",
+      undefined,
+    ]);
   });
 
   it("shows the list being planned and written until a step starts, then the progress", () => {
@@ -1417,7 +1452,7 @@ describe("SetupWizard", () => {
     fireEvent.click(footer().getByRole("button", { name: "Back" }));
     expect(heading()).toBe("Claude Code is connected");
     fireEvent.click(footer().getByRole("button", { name: "Back" }));
-    expect(heading()).toBe("Welcome to the setup wizard for assistant-ui");
+    expect(heading()).toBe("You are installing assistant-ui");
     expect(screen.queryByRole("button", { name: "Continue" })).toBeNull();
     fireEvent.click(footer().getByRole("button", { name: "Next" }));
     fireEvent.click(footer().getByRole("button", { name: "Next" }));
@@ -1445,6 +1480,70 @@ describe("SetupWizard", () => {
       />,
     );
     expect(heading()).toBe("Which port?");
+  });
+
+  it("retains the selected entry point after a persisted snapshot and back navigation", () => {
+    const chosen: Checkout.Input = {
+      id: "entry",
+      kind: "entry-point",
+      phase: "planning",
+      prompt: "Where should report help open?",
+      options: [
+        {
+          id: "report-sidebar",
+          label: "Beside the report",
+          description: "Keep report charts visible",
+          entryPoint: {
+            formFactor: "sidebar",
+            placement: "Report workspace",
+            trigger: "Ask in toolbar",
+          },
+        },
+      ],
+      status: "answered",
+      optional: false,
+      answer: "report-sidebar",
+      createdAt: 1,
+      answeredAt: 2,
+    };
+    const state = connected({
+      status: "planning",
+      inputs: [
+        chosen,
+        {
+          id: "next",
+          kind: "text",
+          phase: "planning",
+          prompt: "Which route?",
+          optional: false,
+          status: "open",
+          createdAt: 3,
+        },
+      ],
+    });
+    const { unmount } = render(<SetupWizard checkout={context(state)} />);
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Which route?",
+    );
+    fireEvent.click(footer().getByRole("button", { name: "Back" }));
+    expect(
+      screen.getByText("Beside the report · Report workspace · Ask in toolbar"),
+    ).toBeDefined();
+    fireEvent.click(footer().getByRole("button", { name: "Next" }));
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Which route?",
+    );
+    unmount();
+    render(
+      <SetupWizard
+        checkout={context(JSON.parse(JSON.stringify(state)) as Checkout.State)}
+      />,
+    );
+    fireEvent.click(footer().getByRole("button", { name: "Back" }));
+    expect(
+      screen.getByText("Beside the report · Report workspace · Ask in toolbar"),
+    ).toBeDefined();
+    expect(commands["checkout/answer"]).not.toHaveBeenCalled();
   });
 
   it("steps back from a question to the answers already given", () => {

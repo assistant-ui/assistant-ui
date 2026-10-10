@@ -837,6 +837,77 @@ export const ENTRIES: readonly Entry[] = [
       ),
   },
   {
+    id: "entry-point",
+    label: "Entry point",
+    group: "Questions",
+    controls: [
+      { kind: "text", key: "prompt", label: "Prompt" },
+      {
+        kind: "toggle",
+        key: "recommended",
+        label: "Recommend workspace sidebar",
+      },
+      { kind: "toggle", key: "answered", label: "Answered, review selection" },
+    ],
+    defaults: {
+      prompt: "Where should the assistant open in your analytics workspace?",
+      recommended: true,
+      answered: false,
+    },
+    scene: (values) => ({
+      state: stateOf({
+        inputs: [
+          inputOf({
+            kind: "entry-point",
+            prompt: str(values, "prompt"),
+            options: [
+              {
+                id: "workspace-sidebar",
+                label: "Beside the report",
+                description:
+                  "Keep the selected report visible while asking about its charts.",
+                entryPoint: {
+                  formFactor: "sidebar",
+                  placement: "Right side of the report workspace",
+                  trigger: "Ask assistant in the report toolbar",
+                  recommended: on(values, "recommended"),
+                },
+              },
+              {
+                id: "global-modal",
+                label: "From any workspace screen",
+                description:
+                  "Open a short conversation without leaving the current report or settings page.",
+                entryPoint: {
+                  formFactor: "modal",
+                  placement: "Centered over the current screen",
+                  trigger: "Assistant button in the main navigation",
+                },
+              },
+              {
+                id: "assistant-page",
+                label: "A dedicated analysis page",
+                description:
+                  "Give longer investigations a full conversation with space for report previews.",
+                entryPoint: {
+                  formFactor: "full-page",
+                  placement: "/assistant in the workspace",
+                  trigger: "Assistant item in the workspace navigation",
+                },
+              },
+            ],
+            ...(on(values, "answered") && {
+              status: "answered",
+              answer: "workspace-sidebar",
+              answeredAt: 2,
+            }),
+          }),
+        ],
+      }),
+      ...(on(values, "answered") && { initialPage: "answer:q1" }),
+    }),
+  },
+  {
     id: "choice",
     label: "Choice",
     group: "Questions",
