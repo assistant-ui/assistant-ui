@@ -4,7 +4,7 @@ description: Convert a generative UI tree into Slack Block Kit, post it, and dec
 platforms: ["react"]
 ---
 
-The `$type` tree your assistant renders in the browser is plain JSON, so it does not have to stay in the browser. `@assistant-ui/generative-ui/slack` converts the same tree into [Block Kit](https://docs.slack.dev/reference/block-kit/blocks) JSON, decodes the interactions Slack posts back, and parses Block Kit payloads into the tree.
+The generative UI tree your assistant renders in the browser is plain JSON, so it does not have to stay in the browser. `@assistant-ui/generative-ui/slack` converts the same tree into [Block Kit](https://docs.slack.dev/reference/block-kit/blocks) JSON, decodes the interactions Slack posts back, and parses Block Kit payloads into the tree.
 
 The subpath is React-free, so a server action, queue worker, or webhook handler imports it without pulling React into the bundle.
 

@@ -4,7 +4,7 @@ description: Convert a generative UI tree into an Adaptive Card, send it from a 
 platforms: ["react"]
 ---
 
-The `$type` tree your assistant renders in the browser is plain JSON, so it does not have to stay in the browser. `@assistant-ui/generative-ui/teams` converts the same tree into an [Adaptive Card](https://adaptivecards.io/explorer/) and decodes the submit payload a Teams bot receives back.
+The generative UI tree your assistant renders in the browser is plain JSON, so it does not have to stay in the browser. `@assistant-ui/generative-ui/teams` converts the same tree into an [Adaptive Card](https://adaptivecards.io/explorer/) and decodes the submit payload a Teams bot receives back.
 
 The subpath is React-free, so a server action, queue worker, or bot handler imports it without pulling React into the bundle.
 
