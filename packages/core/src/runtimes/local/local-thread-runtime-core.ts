@@ -199,6 +199,7 @@ export class LocalThreadRuntimeCore
   >();
 
   private _historyWrites = new Map<string, Promise<void>>();
+  private _unwrittenSeedMessages = new Set<string>();
   private async _writeHistory(
     operation: "append" | "update" | "delete",
     messageIds: readonly string[],
@@ -244,6 +245,24 @@ export class LocalThreadRuntimeCore
     if (tombstone) {
       tombstone.suppressed?.push(writeCurrent);
       return Promise.resolve();
+    }
+
+    if (this._unwrittenSeedMessages.has(id)) return Promise.resolve();
+    const history = this._options.adapters.history;
+    if (history && this._unwrittenSeedMessages.size > 0) {
+      const seed = this.repository
+        .export()
+        .messages.filter((item) =>
+          this._unwrittenSeedMessages.has(item.message.id),
+        );
+      this._unwrittenSeedMessages.clear();
+      for (const item of seed) {
+        void this._chainHistoryWrite(item.message.id, () =>
+          this._writeHistory("append", [item.message.id], () =>
+            history.append(item),
+          ),
+        ).catch(() => {});
+      }
     }
 
     // The first write for an id is issued synchronously, so it reaches the adapter before a turn appended under that message in the same tick.
@@ -407,8 +426,12 @@ export class LocalThreadRuntimeCore
     this.__internal_setOptions(options);
     // A seed is starting state, not activity; import() would fire initialize,
     // which makes a remote thread list create the thread.
-    if (initialMessages)
+    if (initialMessages) {
       this.repository.import(withLocalPauseReasons(initialMessages));
+      for (const { message } of initialMessages.messages) {
+        this._unwrittenSeedMessages.add(message.id);
+      }
+    }
   }
 
   private _options!: LocalRuntimeOptionsBase;
@@ -459,6 +482,7 @@ export class LocalThreadRuntimeCore
       this._roundtripsInFlight.clear();
       this._followedDuringRun.clear();
       this._unwrittenMessages.clear();
+      this._unwrittenSeedMessages.clear();
       this._queue?.clear();
       this.cancelRun();
       supersedeThreadRuntime(this);
@@ -652,7 +676,13 @@ export class LocalThreadRuntimeCore
           repo.headId,
         );
       }
-      this.repository.import(withLocalPauseReasons(repository));
+      if (
+        repository.messages.length > 0 ||
+        this._unwrittenSeedMessages.size === 0
+      ) {
+        this._unwrittenSeedMessages.clear();
+        this.repository.import(withLocalPauseReasons(repository));
+      }
       if (repository.messages.length > 0) {
         this.ensureInitialized();
       }
@@ -975,6 +1005,13 @@ export class LocalThreadRuntimeCore
     const messageIndex = messages.findIndex((m) => m.id === messageId);
     if (messageIndex === -1) throw new Error("Message not found.");
 
+    if (this._unwrittenSeedMessages.delete(messageId)) {
+      this._deletedMessages.set(messageId, { suppressed: null });
+      this.repository.deleteMessage(messageId);
+      this._notifySubscribers();
+      return;
+    }
+
     const inFlight = this._deletedMessages.get(messageId);
     if (inFlight?.suppressed && inFlight.deletion) return inFlight.deletion;
     const deleteAdapter = adapter.delete.bind(adapter);
@@ -1039,6 +1076,7 @@ export class LocalThreadRuntimeCore
     this._roundtripsInFlight.clear();
     this._followedDuringRun.clear();
     this._unwrittenMessages.clear();
+    this._unwrittenSeedMessages.clear();
     this._deletedMessages.clear();
     super.import(withLocalPauseReasons(data));
   }

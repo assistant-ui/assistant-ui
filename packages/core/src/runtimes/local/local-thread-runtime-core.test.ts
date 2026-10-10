@@ -38,6 +38,7 @@ const createThread = (
     history?: LocalRuntimeOptionsBase["adapters"]["history"];
     voice?: LocalRuntimeOptionsBase["adapters"]["voice"];
     maxSteps?: number;
+    initialMessages?: ThreadMessageLike[];
   },
 ) => {
   const core = new LocalRuntimeCore(
@@ -57,7 +58,7 @@ const createThread = (
       unstable_humanToolNames: ["send_email"],
       ...(options?.maxSteps !== undefined && { maxSteps: options.maxSteps }),
     },
-    undefined,
+    options?.initialMessages,
   );
   return core.threads.getMainThreadRuntimeCore();
 };
@@ -3200,6 +3201,247 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     };
     return { history, appended, updated };
   };
+
+  describe("seeded history", () => {
+    const initialMessages: ThreadMessageLike[] = [
+      { id: "seed-user", role: "user", content: "What is assistant-ui?" },
+      {
+        id: "seed-assistant",
+        role: "assistant",
+        content: "A set of React components.",
+      },
+    ];
+    const chatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [{ type: "text", text: "done" }] };
+      },
+    };
+
+    it("keeps the seed after an empty load without writing history", async () => {
+      const { history, appended, updated } = createHistory();
+      const thread = createThread(chatModel, { history, initialMessages });
+      const seed = thread.messages;
+
+      await thread.__internal_load();
+
+      expect(thread.messages).toEqual(seed);
+      expect(thread.isLoading).toBe(false);
+      expect(appended).toEqual([]);
+      expect(updated).toEqual([]);
+    });
+
+    it("issues the seed before the first send and writes it only once", async () => {
+      const { history, appended } = createHistory();
+      const thread = createThread(chatModel, { history, initialMessages });
+      const seed = thread.messages;
+
+      const send = thread.append({
+        ...userMessage("hello"),
+        parentId: "seed-assistant",
+      });
+
+      expect(appended.slice(0, 3)).toMatchObject([
+        { parentId: null, message: seed[0] },
+        { parentId: "seed-user", message: seed[1] },
+        {
+          parentId: "seed-assistant",
+          message: { role: "user", content: [{ type: "text", text: "hello" }] },
+        },
+      ]);
+      await send;
+      expect(appended).toHaveLength(4);
+      expect(appended[3]?.parentId).toBe(appended[2]?.message.id);
+
+      await thread.append({
+        ...userMessage("again"),
+        parentId: thread.messages.at(-1)!.id,
+      });
+
+      expect(appended).toHaveLength(6);
+      expect(appended.map((item) => item.message)).toEqual(thread.messages);
+    });
+
+    it("defers seed feedback and flushes its current value on the first send", async () => {
+      const { history, appended, updated } = createHistory();
+      const thread = createThread(chatModel, { history, initialMessages });
+
+      thread.submitFeedback({ messageId: "seed-assistant", type: "positive" });
+      await flush();
+
+      expect(appended).toEqual([]);
+      expect(updated).toEqual([]);
+      await thread.__internal_load();
+      await thread.append({
+        ...userMessage("hello"),
+        parentId: "seed-assistant",
+      });
+
+      expect(appended[1]?.message.metadata.submittedFeedback).toEqual({
+        type: "positive",
+      });
+      expect(updated).toEqual([]);
+    });
+
+    it("deletes an unwritten seed locally and flushes its child's live parent", async () => {
+      const { history, appended } = createHistory();
+      const deleteHistory = vi.fn<NonNullable<ThreadHistoryAdapter["delete"]>>(
+        async () => {},
+      );
+      const thread = createThread(chatModel, {
+        history: { ...history, delete: deleteHistory },
+        initialMessages,
+      });
+
+      await thread.deleteMessage("seed-user");
+
+      expect(deleteHistory).not.toHaveBeenCalled();
+      expect(appended).toEqual([]);
+      expect(thread.getMessageById("seed-assistant")?.parentId).toBe(null);
+      await thread.__internal_load();
+      await thread.append({
+        ...userMessage("hello"),
+        parentId: "seed-assistant",
+      });
+
+      expect(
+        appended.map(({ parentId, message }) => [parentId, message.id]),
+      ).toEqual([
+        [null, "seed-assistant"],
+        ["seed-assistant", thread.messages[1]!.id],
+        [thread.messages[1]!.id, thread.messages[2]!.id],
+      ]);
+      expect(deleteHistory).not.toHaveBeenCalled();
+    });
+
+    it("replaces an edited seed with non-empty history and writes only the new send", async () => {
+      const { history, appended, updated } = createHistory();
+      let resolveLoad!: (repository: ExportedMessageRepository) => void;
+      const thread = createThread(chatModel, {
+        history: {
+          ...history,
+          load: () =>
+            new Promise((resolve) => {
+              resolveLoad = resolve;
+            }),
+        },
+        initialMessages,
+      });
+      const loading = thread.__internal_load();
+      thread.submitFeedback({ messageId: "seed-assistant", type: "positive" });
+      await flush();
+      expect(updated).toEqual([]);
+
+      const loaded = ExportedMessageRepository.fromArray([
+        { id: "stored-user", role: "user", content: "stored question" },
+        { id: "seed-assistant", role: "assistant", content: "stored answer" },
+      ]);
+      resolveLoad(loaded);
+      await loading;
+
+      expect(thread.messages).toEqual(
+        loaded.messages.map((item) => item.message),
+      );
+      await thread.append({
+        ...userMessage("hello"),
+        parentId: "seed-assistant",
+        startRun: false,
+      });
+
+      expect(appended).toHaveLength(1);
+      expect(appended[0]).toMatchObject({
+        parentId: "seed-assistant",
+        message: { content: [{ type: "text", text: "hello" }] },
+      });
+      thread.submitFeedback({ messageId: "seed-assistant", type: "negative" });
+      await flush();
+      expect(updated).toHaveLength(1);
+      expect(updated[0]?.message.metadata.submittedFeedback).toEqual({
+        type: "negative",
+      });
+    });
+
+    it("flushes the seed before the assistant message from a reload", async () => {
+      const { history, appended } = createHistory();
+      const thread = createThread(chatModel, { history, initialMessages });
+
+      await thread.startRun({
+        parentId: "seed-user",
+        sourceId: "seed-assistant",
+        runConfig: {},
+      });
+
+      expect(
+        appended.map(({ parentId, message }) => [parentId, message.id]),
+      ).toEqual([
+        [null, "seed-user"],
+        ["seed-user", "seed-assistant"],
+        ["seed-user", thread.messages.at(-1)!.id],
+      ]);
+    });
+
+    it.each([false, true])(
+      "defers a settled seeded approval until the next send (update: %s)",
+      async (update) => {
+        const { history, appended, updated } = createHistory({ update });
+        const thread = createThread(chatModel, {
+          history,
+          initialMessages: [
+            initialMessages[0]!,
+            {
+              id: "seed-assistant",
+              role: "assistant",
+              ...toolCallResult("send_email", { id: "a1" }),
+            },
+          ],
+        });
+
+        thread.respondToToolApproval({ approvalId: "a1", approved: true });
+        await flush();
+
+        expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+        expect(appended).toEqual([]);
+        expect(updated).toEqual([]);
+        const settled = thread.messages.at(-1)!;
+        await thread.append({ ...userMessage("hello"), parentId: settled.id });
+
+        expect(appended).toHaveLength(4);
+        expect(appended[1]?.message).toEqual(settled);
+      },
+    );
+
+    it("clears the pending seed when the history scope changes", async () => {
+      const { history, appended, updated } = createHistory();
+      const thread = createThread(chatModel, {
+        history: { ...history, scopeId: "first" },
+        initialMessages,
+      });
+      await thread.__internal_load();
+      expect(thread.messages).toHaveLength(2);
+
+      thread.__internal_setOptions({
+        adapters: {
+          chatModel,
+          history: {
+            ...history,
+            scopeId: "second",
+            load: async () =>
+              ExportedMessageRepository.fromArray(initialMessages),
+          },
+        },
+      });
+      await thread.__internal_load();
+      thread.submitFeedback({ messageId: "seed-assistant", type: "positive" });
+      await flush();
+      expect(updated).toHaveLength(1);
+      await thread.append({
+        ...userMessage("hello"),
+        parentId: "seed-assistant",
+        startRun: false,
+      });
+      expect(appended).toHaveLength(1);
+      expect(appended[0]?.message.role).toBe("user");
+    });
+  });
 
   const createApprovalThreadWithHistory = (
     history: LocalRuntimeOptionsBase["adapters"]["history"],
@@ -7559,42 +7801,41 @@ describe("LocalThreadRuntimeCore imported approvals", () => {
 
   it("persists a final result for a preliminary tool call that remains paused", async () => {
     const updated: ExportedMessageRepositoryItem[] = [];
-    const { thread } = createImportedThread(
-      [
-        { role: "user", content: [{ type: "text", text: "send an email" }] },
-        {
-          role: "assistant",
-          status: { type: "requires-action", reason: "tool-calls" },
-          content: [
-            {
-              type: "tool-call",
-              toolCallId: "call-send_email",
-              toolName: "send_email",
-              args: {},
-              argsText: "{}",
-              result: { preview: true },
-              isPreliminary: true,
-            },
-            {
-              type: "tool-call",
-              toolCallId: "call-other",
-              toolName: "send_email",
-              args: {},
-              argsText: "{}",
-            },
-          ],
-        },
-      ],
+    const repository = ExportedMessageRepository.fromArray([
+      { role: "user", content: [{ type: "text", text: "send an email" }] },
       {
-        async load() {
-          return { messages: [] };
-        },
-        async append() {},
-        async update(item) {
-          updated.push(item);
-        },
+        role: "assistant",
+        status: { type: "requires-action", reason: "tool-calls" },
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-send_email",
+            toolName: "send_email",
+            args: {},
+            argsText: "{}",
+            result: { preview: true },
+            isPreliminary: true,
+          },
+          {
+            type: "tool-call",
+            toolCallId: "call-other",
+            toolName: "send_email",
+            args: {},
+            argsText: "{}",
+          },
+        ],
       },
-    );
+    ]);
+    const { thread } = createImportedThread([], {
+      async load() {
+        return repository;
+      },
+      async append() {},
+      async update(item) {
+        updated.push(item);
+      },
+    });
+    await thread.__internal_load();
 
     thread.addToolResult({
       messageId: thread.messages.at(-1)!.id,
