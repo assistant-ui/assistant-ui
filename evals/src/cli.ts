@@ -1,10 +1,8 @@
 import { writeFileSync, mkdirSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { cases } from "./cases/index.ts";
-import { candidates as allCandidates } from "./candidates.ts";
 import { runCase } from "./runner.ts";
-import { renderReport } from "./report.ts";
+import { suites } from "./suites/index.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const trials = Number(process.env.TRIALS ?? 3);
@@ -14,32 +12,43 @@ if (!Number.isInteger(trials) || trials < 1) {
   );
 }
 
-// Optional filters: `node src/cli.ts <caseId>` and CANDIDATES=baseline,describe-now
-const caseFilter = process.argv[2];
+// `node src/cli.ts <suite> [caseId]`, optionally with CANDIDATES=baseline,describe-now
+const [suiteId, caseFilter] = process.argv.slice(2);
+const suite = suites.find((s) => s.id === suiteId);
+if (!suite) {
+  throw new Error(
+    `Usage: pnpm eval <suite> [case]. Suites: ${suites.map((s) => s.id).join(", ")}`,
+  );
+}
 const candFilter = process.env.CANDIDATES?.split(",").map((s) => s.trim());
 
 const selectedCases = caseFilter
-  ? cases.filter((c) => c.id === caseFilter)
-  : cases;
+  ? suite.cases.filter((c) => c.id === caseFilter)
+  : suite.cases;
+if (caseFilter && selectedCases.length === 0) {
+  throw new Error(
+    `No case "${caseFilter}" in ${suite.id}. Cases: ${suite.cases.map((c) => c.id).join(", ")}`,
+  );
+}
 const candidates = candFilter
-  ? allCandidates.filter((c) => candFilter.includes(c.label))
-  : allCandidates;
+  ? suite.candidates.filter((c) => candFilter.includes(c.label))
+  : suite.candidates;
 
 console.log(
   `Running ${selectedCases.length} case(s) × ${candidates.length} candidate(s) × ${trials} trial(s)\n`,
 );
 
-const results = selectedCases.map((c) => {
+const results = [];
+for (const c of selectedCases) {
   console.log(`# ${c.id}: ${c.description}`);
-  const r = runCase(c, candidates, trials);
+  results.push(await runCase(suite, c, candidates, trials));
   console.log("");
-  return r;
-});
+}
 
-const report = renderReport(results);
+const report = suite.report(results);
 console.log(report);
 
-const outDir = join(here, "..", "results");
+const outDir = join(here, "..", "results", suite.id);
 mkdirSync(outDir, { recursive: true });
 writeFileSync(join(outDir, "latest.md"), `${report}\n`);
-console.log(`\nWrote results/latest.md`);
+console.log(`\nWrote results/${suite.id}/latest.md`);
