@@ -26,6 +26,7 @@ export type ToSpecCatalogOptions = {
 
 type SpecShape = {
   slots?: readonly string[];
+  // The first event is the one the component's own `$action` emits; a later event fires only through the object prop named after it.
   events?: readonly string[];
   description?: string;
   props?: (properties: z.ZodObject) => PropsSchema;
@@ -106,7 +107,7 @@ const DEFAULT_SHAPES: Readonly<Record<string, SpecShape>> = {
           .boolean()
           .optional()
           .describe(
-            "Render as a form; its confirm button submits it, emitting `confirm` with every named child control's value, keyed by `name`.",
+            "Render as a form; submitting it, through the confirm button or a child Button with `submit`, emits `confirm` with every named child control's value, keyed by `name`.",
           ),
         confirm: footerButton("Confirm", "confirm"),
         cancel: footerButton("Cancel", "cancel"),
@@ -202,7 +203,9 @@ function toSpecComponent(
           ...(hasChildren(element) ? { children } : {}),
           $status: "done",
           $dispatch,
-          ...(live[0] !== undefined ? { $action: { type: live[0] } } : {}),
+          ...(events[0] !== undefined && live.includes(events[0])
+            ? { $action: { type: events[0] } }
+            : {}),
         }}
       />
     );
