@@ -586,7 +586,7 @@ describe("convertEveMessages", () => {
     expect(message?.content).toEqual([{ type: "text", text: "Hello" }]);
   });
 
-  it("converts a user file part into content and a file attachment", () => {
+  it("converts a user file part into a file attachment and keeps it out of content", () => {
     const data = {
       messages: [
         {
@@ -610,13 +610,6 @@ describe("convertEveMessages", () => {
 
     expect(message?.content).toEqual([
       { type: "text", text: "See the report" },
-      {
-        type: "file",
-        data: "https://example.com/report.pdf",
-        mimeType: "application/pdf",
-        filename: "report.pdf",
-        sourceType: "url",
-      },
     ]);
     expect(message?.attachments).toEqual([
       {
@@ -658,15 +651,7 @@ describe("convertEveMessages", () => {
 
     const [message] = convertEveMessages(data);
 
-    expect(message?.content).toEqual([
-      {
-        type: "file",
-        data: "https://example.com/photo.png",
-        mimeType: "image/png",
-        filename: "photo.png",
-        sourceType: "url",
-      },
-    ]);
+    expect(message?.content).toEqual([]);
     expect(message?.attachments).toEqual([
       {
         id: "0",
@@ -704,13 +689,7 @@ describe("convertEveMessages", () => {
 
     const [message] = convertEveMessages(data);
 
-    expect(message?.content).toEqual([
-      {
-        type: "file",
-        data: "data:application/pdf;base64,QUJD",
-        mimeType: "application/pdf",
-      },
-    ]);
+    expect(message?.content).toEqual([]);
     expect(message?.attachments).toEqual([
       {
         id: "0",
@@ -773,14 +752,7 @@ describe("convertEveMessages", () => {
 
     const [message] = convertEveMessages(data);
 
-    expect(message?.content).toEqual([
-      {
-        type: "file",
-        data: "https://example.com/blob",
-        mimeType: "application/octet-stream",
-        sourceType: "url",
-      },
-    ]);
+    expect(message?.content).toEqual([]);
     expect(message?.attachments).toEqual([
       {
         id: "0",
@@ -813,13 +785,7 @@ describe("convertEveMessages", () => {
 
     const [message] = convertEveMessages(data);
 
-    expect(message?.content).toEqual([
-      {
-        type: "file",
-        data: "data:image/png;base64,iVBORw0KGgo=",
-        mimeType: "image/png",
-      },
-    ]);
+    expect(message?.content).toEqual([]);
     expect(message?.attachments?.map((a) => [a.type, a.contentType])).toEqual([
       ["image", "image/png"],
     ]);
@@ -844,9 +810,9 @@ describe("convertEveMessages", () => {
 
     const [message] = convertEveMessages(data);
 
-    expect(message?.content[0]).toMatchObject({
+    expect(message?.attachments?.[0]).toMatchObject({
       type: "file",
-      mimeType: "application/pdf",
+      contentType: "application/pdf",
     });
   });
 
@@ -2289,14 +2255,17 @@ describe("getEveMessageContent", () => {
       ],
     } satisfies EveMessageData);
 
-    expect(echoed?.content).toEqual([
-      {
-        type: "file",
-        data: "https://example.com/report.pdf",
-        mimeType: "application/pdf",
-        filename: "report.pdf",
-        sourceType: "url",
-      },
+    expect(echoed?.content).toEqual([]);
+    expect(echoed?.attachments?.map((a) => a.content)).toEqual([
+      [
+        {
+          type: "file",
+          data: "https://example.com/report.pdf",
+          mimeType: "application/pdf",
+          filename: "report.pdf",
+          sourceType: "url",
+        },
+      ],
     ]);
   });
 
