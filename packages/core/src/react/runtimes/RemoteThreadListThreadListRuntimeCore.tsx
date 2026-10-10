@@ -1043,6 +1043,9 @@ export class RemoteThreadListThreadListRuntimeCore
     options?: { automatic?: boolean },
     getAutomaticMessages?: () => readonly ThreadMessage[] | undefined,
   ) => {
+    while (this._replaceListOnNextLoad) {
+      await this.getLoadThreadsPromise();
+    }
     this._requireAdapterSettled();
     const adapter = this._options.adapter;
     const adapterGeneration = this._adapterGeneration;
