@@ -8,11 +8,11 @@ import { VariantsBrowserFrame } from "./browser-frame";
 import { InstallationPrompt } from "./copy-prompt";
 import { Typed } from "./typed";
 
-const USAGE = `// The Plans group from the demo above
-<Variants id="variants-demo-plans" label="Plans" default="cards">
-  <Variant id="cards" label="Three cards"><PlanCards /></Variant>
-  <Variant id="table" label="Comparison table"><PlanTable /></Variant>
-  <Variant id="featured" label="One featured plan"><PlanFeatured /></Variant>
+const USAGE = `// The Method group from the demo above
+<Variants id="variants-demo-method" label="Method" default="side-by-side">
+  <Variant id="side-by-side" label="Side by side"><MethodSideBySide /></Variant>
+  <Variant id="stacked" label="Stacked"><MethodStacked /></Variant>
+  <Variant id="cards" label="Step cards"><MethodStepCards /></Variant>
 </Variants>`;
 
 const FACTS: { title: string; description: ReactNode }[] = [

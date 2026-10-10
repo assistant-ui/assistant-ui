@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { PricingDemo } from "./pricing-demo";
+import { RecipeDemo } from "./recipe-demo";
 
 export const metadata: Metadata = {
   title: "variants demo",
@@ -14,7 +14,7 @@ export default function VariantsDemoPage() {
   return (
     <>
       <style>{FRAME_ROOT_CSS}</style>
-      <PricingDemo />
+      <RecipeDemo />
     </>
   );
 }
