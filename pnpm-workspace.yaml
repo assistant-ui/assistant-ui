@@ -1,5 +1,6 @@
 packages:
   - api-surface
+  - evals
   - packages/*
   - examples/*
   - apps/*

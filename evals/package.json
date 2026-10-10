@@ -3,8 +3,15 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "A/B harness for deciding which guidance sentences earn a place in AGENTS.md / skills",
+  "description": "A/B evals for prompts and model output, scored by an LLM judge",
   "scripts": {
-    "eval": "node src/cli.ts"
+    "eval": "node src/cli.ts",
+    "test": "node --test \"src/**/*.test.ts\"",
+    "test:coverage": "pnpm run test",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/node": "^26.6.4"
   }
 }

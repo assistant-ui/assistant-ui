@@ -871,6 +871,15 @@ importers:
         specifier: ^7.0.2
         version: 7.0.2
 
+  evals:
+    devDependencies:
+      '@assistant-ui/x-buildutils':
+        specifier: workspace:*
+        version: link:../packages/x-buildutils
+      '@types/node':
+        specifier: ^26.6.4
+        version: 26.6.4
+
   examples/bundle-ai-sdk:
     dependencies:
       '@assistant-ui/ai-sdk':
