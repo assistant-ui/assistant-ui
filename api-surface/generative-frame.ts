@@ -459,6 +459,19 @@ type JsonSchema = {
 
 type JsonSchemaType = "array" | "boolean" | "integer" | "null" | "number" | "object" | "string";
 
+type McpAppInitializeParams = {
+  appInfo?: {
+    name: string;
+    version: string;
+    [key: string]: unknown;
+  };
+  appCapabilities?: {
+    availableDisplayModes?: DisplayMode[];
+    [key: string]: unknown;
+  };
+  protocolVersion?: string;
+};
+
 type McpAppMetadata = {
   readonly resourceUri: string;
   readonly mimeType?: string;
@@ -1487,6 +1500,7 @@ type WidgetHandlers = {
   onMessage?: (params: UiMessageParams) => unknown;
   onOpenLink?: (url: string) => unknown;
   onCallTool?: (call: ToolCallRequest) => unknown;
+  onInitialized?: (params: McpAppInitializeParams) => void;
   onRequestDisplayMode?: (request: {
     mode: DisplayMode;
   }) => unknown;
@@ -1690,7 +1704,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { ClearStorageResult, ColorScheme, ConsoleEntry, ConsoleLevel, CreateWidgetOptions, CspOptions, DEFAULT_CDN_ORIGINS, DEFAULT_DARK_TOKENS, DEFAULT_LIGHT_TOKENS, DisplayMode, EndResult, FrameInspection, HostContext, PreviewOptions, PreviewResult, Screenshot, ScreenshotOptions, ThemeTokenName, ThemeTokenSources, ThemeTokens, ToolCallRequest, UiMessageParams, WidgetError, WidgetErrorKind, WidgetEventMap, WidgetHandle, WidgetHandlers, WidgetInspection, WidgetKind, WidgetSize, buildCsp, clearWidgetStorage, createWidget, defaultThemeTokens, previewWidget, readThemeTokens, widgetStorageSalt };
+  export { ClearStorageResult, ColorScheme, ConsoleEntry, ConsoleLevel, CreateWidgetOptions, CspOptions, DEFAULT_CDN_ORIGINS, DEFAULT_DARK_TOKENS, DEFAULT_LIGHT_TOKENS, DisplayMode, EndResult, FrameInspection, HostContext, McpAppInitializeParams, PreviewOptions, PreviewResult, Screenshot, ScreenshotOptions, ThemeTokenName, ThemeTokenSources, ThemeTokens, ToolCallRequest, UiMessageParams, WidgetError, WidgetErrorKind, WidgetEventMap, WidgetHandle, WidgetHandlers, WidgetInspection, WidgetKind, WidgetSize, buildCsp, clearWidgetStorage, createWidget, defaultThemeTokens, previewWidget, readThemeTokens, widgetStorageSalt };
 }
 
 declare function parseSpecStream(source: string, options?: CreateSpecStreamOptions): SpecStreamResult;
