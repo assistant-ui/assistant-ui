@@ -1,5 +1,4 @@
 import {
-  computed,
   defineComponent,
   h,
   mergeProps,
@@ -120,58 +119,57 @@ export const ComposerPrimitiveAttachmentDropzone = defineComponent({
     const aui = useAui();
     const isDragging = ref(false);
     const threadDisabled = useAuiState((s) => s.thread.isDisabled);
-    const isDisabled = computed(() => props.disabled || threadDisabled.value);
 
-    watch(isDisabled, (disabled) => {
-      if (disabled) isDragging.value = false;
-    });
+    watch(
+      () => props.disabled || threadDisabled.value,
+      (disabled) => {
+        if (disabled) isDragging.value = false;
+      },
+    );
 
     const isFileDrag = (event: DragEvent) =>
       event.dataTransfer?.types.includes("Files") === true;
 
     const onDragenterCapture = (event: DragEvent) => {
-      if (!isFileDrag(event)) return;
+      if (props.disabled || !isFileDrag(event)) return;
       event.preventDefault();
-      if (isDisabled.value) {
-        event.dataTransfer!.dropEffect = "none";
-        return;
-      }
-      if (!aui.thread.getState().capabilities.attachments) {
+      if (
+        threadDisabled.value ||
+        !aui.thread.getState().capabilities.attachments
+      ) {
         event.dataTransfer!.dropEffect = "none";
         return;
       }
       isDragging.value = true;
     };
     const onDragoverCapture = (event: DragEvent) => {
-      if (!isFileDrag(event)) return;
+      if (props.disabled || !isFileDrag(event)) return;
       event.preventDefault();
-      if (isDisabled.value) {
-        event.dataTransfer!.dropEffect = "none";
-        return;
-      }
-      if (!aui.thread.getState().capabilities.attachments) {
+      if (
+        threadDisabled.value ||
+        !aui.thread.getState().capabilities.attachments
+      ) {
         event.dataTransfer!.dropEffect = "none";
         return;
       }
       if (!isDragging.value) isDragging.value = true;
     };
     const onDragleaveCapture = (event: DragEvent) => {
-      if (!isFileDrag(event)) return;
-      if (isDisabled.value) {
-        isDragging.value = false;
-        return;
-      }
+      if (props.disabled || !isFileDrag(event)) return;
       const related = event.relatedTarget as Node | null;
       if (related && (event.currentTarget as Node).contains(related)) return;
       isDragging.value = false;
     };
     const onDropCapture = (event: DragEvent) => {
+      if (props.disabled || !isFileDrag(event)) return;
       isDragging.value = false;
-      if (!isFileDrag(event)) return;
       event.preventDefault();
-      if (props.disabled) return;
       const files = Array.from(event.dataTransfer?.files ?? []);
-      if (!aui.thread.getState().capabilities.attachments || files.length === 0)
+      if (
+        threadDisabled.value ||
+        !aui.thread.getState().capabilities.attachments ||
+        files.length === 0
+      )
         return;
       for (const file of files) {
         aui.composer.addAttachment(file).catch(() => {});
@@ -182,9 +180,9 @@ export const ComposerPrimitiveAttachmentDropzone = defineComponent({
       h(
         "div",
         mergeProps(attrs, {
-          ...(isDisabled.value
-            ? { "data-dragging": undefined }
-            : isDragging.value && { "data-dragging": "true" }),
+          ...(!props.disabled &&
+            !threadDisabled.value &&
+            isDragging.value && { "data-dragging": "true" }),
           onDragenterCapture,
           onDragoverCapture,
           onDragleaveCapture,

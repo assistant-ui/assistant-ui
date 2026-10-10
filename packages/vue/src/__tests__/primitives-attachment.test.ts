@@ -7,7 +7,9 @@ import {
   createApp,
   defineComponent,
   h,
+  inject,
   nextTick,
+  provide,
   ref,
   type Component,
 } from "vue";
@@ -25,6 +27,7 @@ import {
   ExternalStoreRuntimeCore,
 } from "@assistant-ui/core/internal";
 import { AuiProvider } from "../AuiProvider";
+import { auiInjectionKey } from "../context";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 import { ThreadPrimitiveMessages } from "../primitives/ThreadPrimitiveMessages";
@@ -340,9 +343,37 @@ describe("ComposerPrimitiveAttachmentDropzone", () => {
       ),
   });
 
+  const mountSpiedDropzone = (runtime: AssistantRuntimeImpl) => {
+    let composer!: { addAttachment: (file: File) => Promise<void> };
+    const view = defineComponent({
+      setup() {
+        const context = inject(auiInjectionKey)!;
+        composer = {
+          addAttachment: (file) => context.aui.composer.addAttachment(file),
+        };
+        vi.spyOn(composer, "addAttachment");
+        const composerClient = new Proxy(context.aui.composer, {
+          get(target, key) {
+            if (key === "addAttachment") return composer.addAttachment;
+            return Reflect.get(target, key);
+          },
+        });
+        const aui = new Proxy(context.aui, {
+          get(target, key) {
+            if (key === "composer") return composerClient;
+            return Reflect.get(target, key);
+          },
+        });
+        provide(auiInjectionKey, { ...context, aui });
+        return () => h(DropzoneView);
+      },
+    });
+    return { ...mountChat(runtime, view), composer };
+  };
+
   it("flags data-dragging on file drag and adds dropped files", async () => {
     const { runtime, attachmentAdapter } = createTestRuntime();
-    const { el, client, unmount } = mountChat(runtime, DropzoneView);
+    const { el, client, composer, unmount } = mountSpiedDropzone(runtime);
     await nextTick();
     const dz = el.querySelector(".dz") as HTMLElement;
 
@@ -355,6 +386,7 @@ describe("ComposerPrimitiveAttachmentDropzone", () => {
       await nextTick();
       expect(attachmentAdapter.added).toHaveLength(1);
     });
+    expect(composer.addAttachment).toHaveBeenCalledOnce();
     expect(dz.dataset["dragging"]).toBeUndefined();
     await vi.waitFor(() => {
       flushTapSync(() => {});
@@ -453,7 +485,7 @@ describe("ComposerPrimitiveAttachmentDropzone", () => {
     const { runtime, attachmentAdapter } = createTestRuntime({
       isDisabled: true,
     });
-    const { el, unmount } = mountChat(runtime, DropzoneView);
+    const { el, composer, unmount } = mountSpiedDropzone(runtime);
     await nextTick();
     const dz = el.querySelector(".dz") as HTMLElement;
 
@@ -468,7 +500,34 @@ describe("ComposerPrimitiveAttachmentDropzone", () => {
     dz.dispatchEvent(drop);
     await nextTick();
     expect(drop.defaultPrevented).toBe(true);
+    expect(composer.addAttachment).not.toHaveBeenCalled();
     expect(attachmentAdapter.added).toHaveLength(0);
+
+    unmount();
+  });
+
+  it("leaves file drags to the parent when the dropzone is disabled", async () => {
+    const { runtime } = createTestRuntime();
+    const view = defineComponent({
+      setup: () => () =>
+        h(ComposerPrimitiveAttachmentDropzone, {
+          class: "dz",
+          disabled: true,
+          "data-dragging": "passed-through",
+        }),
+    });
+    const { el, unmount } = mountChat(runtime, view);
+    await nextTick();
+    const dz = el.querySelector(".dz") as HTMLElement;
+
+    const over = dragEvent("dragover");
+    const drop = dragEvent("drop", [makeFile("ignored.txt")]);
+    dz.dispatchEvent(over);
+    dz.dispatchEvent(drop);
+
+    expect(over.defaultPrevented).toBe(false);
+    expect(drop.defaultPrevented).toBe(false);
+    expect(dz.dataset["dragging"]).toBe("passed-through");
 
     unmount();
   });
