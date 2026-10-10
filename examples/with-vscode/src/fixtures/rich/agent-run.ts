@@ -588,26 +588,26 @@ export default defineFixtures([
               toolCallId: PRESENT_CALL_ID,
               toolName: PRESENT_TOOL,
               args: {
-                $type: "Card",
+                _type: "Card",
                 title: "Release 0.14",
                 children: [
                   {
-                    $type: "Alert",
+                    _type: "Alert",
                     tone: "warning",
                     title: "E2E timed out",
                     description:
                       "Build and unit tests passed; the preview suite needs a rerun.",
                   },
                   {
-                    $type: "Row",
+                    _type: "Row",
                     justify: "between",
                     children: [
-                      { $type: "Text", value: "Packages", weight: "medium" },
-                      { $type: "Badge", value: "12 ready", variant: "success" },
+                      { _type: "Text", value: "Packages", weight: "medium" },
+                      { _type: "Badge", value: "12 ready", variant: "success" },
                     ],
                   },
                   {
-                    $type: "Markdown",
+                    _type: "Markdown",
                     value: "Rerun with `pnpm test:e2e --filter preview`.",
                   },
                 ],

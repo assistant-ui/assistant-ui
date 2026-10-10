@@ -67,6 +67,24 @@ function PropsTable({
   );
 }
 
+const MODEL_SPELLING: Record<string, string> = {
+  $type: "_type",
+  $key: "_key",
+  $action: "_action",
+};
+
+const toModelSpelling = (value: unknown): unknown =>
+  Array.isArray(value)
+    ? value.map(toModelSpelling)
+    : value !== null && typeof value === "object"
+      ? Object.fromEntries(
+          Object.entries(value).map(([key, entry]) => [
+            MODEL_SPELLING[key] ?? key,
+            toModelSpelling(entry),
+          ]),
+        )
+      : value;
+
 export default async function VocabularyPage() {
   let runningIndex = 0;
 
@@ -77,7 +95,7 @@ export default async function VocabularyPage() {
   for (const category of COMPONENT_CATEGORIES) {
     for (const name of category.components) {
       const example = COMPONENT_EXAMPLES[name]!;
-      const jsonRaw = JSON.stringify(example, null, 2);
+      const jsonRaw = JSON.stringify(toModelSpelling(example), null, 2);
       const jsxRaw = generativeUIToJSX(example, { escape: true, pretty: true });
       highlighted.set(name, {
         jsonRaw,
