@@ -2,6 +2,7 @@ import type { JSONSchema7, JSONSchema7Definition } from "json-schema";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { buildPresentParameters } from "./buildPresentParameters";
+import { defaultGenerativeUILibrary } from "./vocabulary";
 
 const component = (properties: z.ZodType) => ({
   description: "A component",
@@ -242,5 +243,57 @@ describe("component schema references", () => {
       default: literal,
     });
     expect(Object.keys(schema.$defs!)).toEqual(["node", "children"]);
+  });
+});
+
+describe("duplicate prop warnings", () => {
+  it("does not warn for collisions in the shipped vocabulary", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      buildPresentParameters(defaultGenerativeUILibrary);
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("recognizes a styled default component by its shipped property schema", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const markdown = defaultGenerativeUILibrary.Markdown!;
+      buildPresentParameters({
+        ...defaultGenerativeUILibrary,
+        Markdown: {
+          properties: markdown.properties,
+          streamProperties: markdown.streamProperties,
+          description: "Styled markdown",
+          render: markdown.render,
+        },
+      });
+      expect(warn).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("warns when app schemas collide with shipped props and keeps the first schema", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const library = {
+        ...defaultGenerativeUILibrary,
+        Header: component(z.object({ size: z.string() })),
+        Custom: component(z.object({ size: z.boolean() })),
+      };
+      const schema = buildPresentParameters(library);
+      expect(warn).toHaveBeenCalledOnce();
+      expect(warn.mock.calls[0]?.[0]).toContain('Prop "size"');
+      expect(warn.mock.calls[0]?.[0]).toContain('"Header"');
+      expect(warn.mock.calls[0]?.[0]).toContain('"Custom"');
+      expect(schema.properties!.size).toEqual(
+        buildPresentParameters({ Header: library.Header }).properties!.size,
+      );
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
