@@ -23,8 +23,19 @@ test("a tree reports unknown components and invalid props", () => {
   assert.match(error ?? "", /^Text has invalid props \(value: /);
 });
 
-test("props holding a field reference are left to the renderer", () => {
-  assert.deepEqual(checkTree({ $type: "Text", value: { $field: "name" } }), []);
+test("a field reference in display props is invalid, since only actions resolve them", () => {
+  const [error] = checkTree({ $type: "Text", value: { $field: "name" } });
+  assert.match(error ?? "", /^Text has invalid props \(value: /);
+});
+
+test("children that normalize to nothing count as dropped content", () => {
+  assert.deepEqual(
+    checkTree({
+      $type: "Card",
+      children: [{ $type: "Text", value: "Kept" }, { $type: 7 }, true],
+    }),
+    ["2 node(s) are malformed or nest too deeply and render nothing."],
+  );
 });
 
 test("each format exposes only the tools it answers with", async () => {

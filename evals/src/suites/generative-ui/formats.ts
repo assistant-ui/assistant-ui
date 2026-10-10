@@ -1,6 +1,5 @@
 import {
   defaultGenerativeUILibrary,
-  hasFieldReference,
   JSONGenerativeUI,
   normalizeUINode,
   renderGenerativeUI,
@@ -90,6 +89,7 @@ export function checkTree(input: unknown): string[] {
   const root = normalizeUINode(input);
   if (root === null) return ["The tree is malformed or nests too deeply."];
   const errors: string[] = [];
+  let dropped = 0;
   const isList = (
     node: NormalizedUINode,
   ): node is readonly NormalizedUINode[] => Array.isArray(node);
@@ -98,13 +98,17 @@ export function checkTree(input: unknown): string[] {
       for (const child of node) visit(child);
       return;
     }
-    if (node === null || typeof node !== "object") return;
+    if (node === null) {
+      dropped++;
+      return;
+    }
+    if (typeof node !== "object") return;
     const component = Object.hasOwn(library, node.type)
       ? library[node.type]
       : undefined;
     if (!component) {
       errors.push(`Unknown component "${node.type}".`);
-    } else if (!hasFieldReference(node.props)) {
+    } else {
       const result = component.properties.safeParse(node.props);
       if (!result.success) {
         const issues = result.error.issues.map(
@@ -117,6 +121,11 @@ export function checkTree(input: unknown): string[] {
     if (node.children !== undefined) visit(node.children);
   };
   visit(root);
+  if (dropped > 0) {
+    errors.push(
+      `${dropped} node(s) are malformed or nest too deeply and render nothing.`,
+    );
+  }
   if (errors.length > 0) return errors;
   try {
     renderToStaticMarkup(renderGenerativeUI(input, library));
