@@ -229,7 +229,7 @@ describe("McpAppRenderer", () => {
     await waitFor(() => expect(framePropsCalls().length).toBeGreaterThan(0));
     const handlers = framePropsCalls().at(-1)?.handlers;
     expect(handlers?.requestDisplayMode).toBeDefined();
-    handlers?.onInitialized?.();
+    handlers?.onInitialized?.({});
     expect(onInitialized).toHaveBeenCalledOnce();
   });
 
@@ -759,7 +759,7 @@ describe("McpAppRenderer", () => {
     await handlers.updateModelContext?.({ text: "context" });
     await handlers.openLink?.({ url: "https://example.com" });
     await handlers.sendMessage?.({ text: "hello" });
-    handlers.onInitialized?.();
+    handlers.onInitialized?.({});
     await handlers.callTool?.({ name: "search" });
     await handlers.readResource?.({ uri: "ui://resource" });
     await handlers.listResources?.();

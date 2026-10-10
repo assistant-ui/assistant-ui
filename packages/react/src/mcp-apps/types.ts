@@ -99,7 +99,28 @@ export type McpAppBridgeHandlers = {
     mode: McpAppDisplayMode;
   }) => Promise<{ mode: McpAppDisplayMode }> | { mode: McpAppDisplayMode };
   onSizeChange?: (params: { width?: number; height?: number }) => void;
-  onInitialized?: () => void;
+  onInitialized?: (app: {
+    appInfo?: {
+      name: string;
+      version: string;
+      title?: string;
+      description?: string;
+      icons?: Array<{
+        src: string;
+        mimeType?: string;
+        sizes?: string[];
+        theme?: "light" | "dark";
+      }>;
+      websiteUrl?: string;
+      [key: string]: unknown;
+    };
+    appCapabilities?: {
+      tools?: { listChanged?: boolean; [key: string]: unknown };
+      availableDisplayModes?: McpAppDisplayMode[];
+      [key: string]: unknown;
+    };
+    protocolVersion?: string;
+  }) => void;
   onRequestTeardown?: (params: unknown) => void;
   onLog?: (params: unknown) => void;
   onError?: (error: Error) => void;

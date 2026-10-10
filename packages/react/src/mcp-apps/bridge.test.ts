@@ -197,6 +197,71 @@ describe("createMcpAppBridge", () => {
     bridge.dispose();
   });
 
+  it("passes view initialization metadata to onInitialized", () => {
+    const { frame } = makeFrame();
+    const onInitialized = vi.fn();
+    const bridge = createMcpAppBridge({ frame, handlers: { onInitialized } });
+    const appInfo = { name: "example-app", version: "1.2.3" };
+    const appCapabilities = {
+      availableDisplayModes: ["inline", "fullscreen"],
+      tools: { listChanged: true },
+    };
+    const app = {
+      protocolVersion: "2026-01-26",
+      appInfo,
+      appCapabilities,
+    };
+
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "ui/initialize",
+      params: app,
+    });
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      method: "notifications/initialized",
+    });
+
+    expect(onInitialized).toHaveBeenCalledOnce();
+    expect(onInitialized).toHaveBeenCalledWith(app);
+    bridge.dispose();
+  });
+
+  it("omits malformed initialization fields and keeps the protocol fallback", async () => {
+    const { frame, captured } = makeFrame();
+    const onInitialized = vi.fn();
+    const bridge = createMcpAppBridge({ frame, handlers: { onInitialized } });
+
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "ui/initialize",
+      params: {
+        protocolVersion: 1,
+        appInfo: { name: "malformed", version: "1.0.0", title: 1 },
+        appCapabilities: {
+          availableDisplayModes: ["sidebar"],
+          tools: { listChanged: "true" },
+        },
+      },
+    });
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      method: "notifications/initialized",
+    });
+    await flush();
+
+    expect(onInitialized).toHaveBeenCalledOnce();
+    expect(onInitialized).toHaveBeenCalledWith({
+      appCapabilities: {},
+    });
+    expect((captured[0] as McpAppJsonRpcResponse).result).toMatchObject({
+      protocolVersion: MCP_APP_PROTOCOL_VERSION,
+    });
+    bridge.dispose();
+  });
+
   it("routes tools/call to handler", async () => {
     const { frame, captured } = makeFrame();
     const callTool = vi.fn().mockResolvedValue({ ok: true });

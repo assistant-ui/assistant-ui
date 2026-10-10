@@ -94,7 +94,9 @@ type LiveSnapshot = {
 };
 
 type FrameLifecycle = {
-  onInitialized: () => void;
+  onInitialized: (
+    app: Parameters<NonNullable<McpAppBridgeHandlers["onInitialized"]>>[0],
+  ) => void;
   onSizeChange: (params: { width?: number; height?: number }) => void;
 };
 
@@ -143,9 +145,9 @@ function buildLiveHandlers(
     lifecycle.onSizeChange(p);
     live()?.onSizeChange?.(p);
   };
-  out.onInitialized = () => {
-    lifecycle.onInitialized();
-    live()?.onInitialized?.();
+  out.onInitialized = (app) => {
+    lifecycle.onInitialized(app);
+    live()?.onInitialized?.(app);
   };
   out.onRequestTeardown = (p) => live()?.onRequestTeardown?.(p);
   out.onLog = (p) => live()?.onLog?.(p);
