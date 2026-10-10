@@ -1,6 +1,5 @@
 {
   "name": "@assistant-ui/variants",
-  "private": true,
   "version": "0.0.0",
   "description": "Compare UI variants inline in the real page, pick one, and let the production build make sure you did",
   "keywords": [
@@ -48,6 +47,10 @@
     "README.md"
   ],
   "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "build": "aui-build",
     "dev": "vite demo",
