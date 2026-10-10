@@ -27,10 +27,12 @@ one optional bag, and `children` recurses via `$defs` so the tree can nest.
 It is intentionally flat rather than a per-`$type` discriminated union. Tool /
 function-call schemas (OpenAI and others) require the top-level parameters to
 be a plain object and reject a top-level `oneOf`/`anyOf`/`enum`. So props can't
-be refined per `$type` at the root; the model is guided instead by `$type`'s
-description (which lists each component) and each prop's own description. The
-renderer validates nothing here — an unknown `$type` or stray prop is handled
-at render time — so a looser schema only costs the model a hint, not safety.
+be refined per `$type` at the root; when components share a prop, its schema
+can only describe the alternatives without tying them to `$type`. The model
+is guided by `$type`'s description (which lists each component) and each prop
+schema. The renderer validates nothing here — an unknown `$type` or stray prop
+is handled at render time — so a looser schema only costs the model a hint,
+not safety.
 
 <ParametersTable {...buildPresentParameters} />
 
