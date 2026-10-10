@@ -94,21 +94,12 @@ export const createOpenCodeThreadListAdapter = (
     );
   },
   initialize: () => createOpenCodeSession(client),
-  generateTitle: async (remoteId: string) => {
-    await client.session.summarize(
-      {
-        sessionID: remoteId,
-      },
-      OPEN_CODE_REQUEST_OPTIONS,
-    );
-    // Title updates arrive through the OpenCode event stream, so this
-    // placeholder stream only satisfies the remote thread list contract.
-    return new ReadableStream({
+  generateTitle: async (_remoteId: string) =>
+    new ReadableStream({
       start(controller) {
         controller.close();
       },
-    }) as never;
-  },
+    }) as never,
   fetch: async (threadId: string) => {
     const response = await client.session.get(
       {

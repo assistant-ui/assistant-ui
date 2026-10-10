@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createOpenCodeThreadListAdapter } from "./openCodeThreadListAdapter";
 import { rejectWhenThrowing } from "./testUtils";
 
@@ -29,5 +29,38 @@ describe("createOpenCodeThreadListAdapter", () => {
       { sessionID: "session-1", title: "New title" },
       { throwOnError: true },
     );
+  });
+
+  it("does not call session.summarize when generating a title", async () => {
+    const summarize = vi.fn();
+    const adapter = createOpenCodeThreadListAdapter({
+      session: { summarize },
+    } as never);
+
+    const stream = (await adapter.generateTitle("session-1")) as ReadableStream;
+
+    expect(summarize).not.toHaveBeenCalled();
+    expect(await stream.getReader().read()).toEqual({
+      done: true,
+      value: undefined,
+    });
+  });
+
+  it("maps native session titles when listing or fetching threads", async () => {
+    const session = { id: "session-1", title: "Native title", time: {} };
+    const list = vi.fn().mockResolvedValue({ data: [session] });
+    const get = vi.fn().mockResolvedValue({ data: session });
+    const adapter = createOpenCodeThreadListAdapter({
+      experimental: { session: { list } },
+      session: { get },
+    } as never);
+
+    await expect(adapter.list()).resolves.toMatchObject({
+      threads: [{ remoteId: "session-1", title: "Native title" }],
+    });
+    await expect(adapter.fetch("session-1")).resolves.toMatchObject({
+      remoteId: "session-1",
+      title: "Native title",
+    });
   });
 });

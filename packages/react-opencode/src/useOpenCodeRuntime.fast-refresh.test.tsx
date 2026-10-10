@@ -66,7 +66,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@assistant-ui/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/react")>()),
-  useAui: () => ({ threadListItem: { initialize: vi.fn() } }),
+  useAui: () => ({
+    threadListItem: { initialize: vi.fn() },
+    threads: { reload: vi.fn().mockResolvedValue(undefined) },
+  }),
   useAuiState: (selector: (state: unknown) => unknown) =>
     selector({ threadListItem: { remoteId: "session-1" } }),
   useCloudThreadListAdapter: () => ({}),

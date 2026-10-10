@@ -42,6 +42,7 @@ import {
 } from "./openCodeThreadListAdapter";
 import { OPENCODE_SDK } from "./sdkIdentity";
 import { useOpenCodeControllerState } from "./useOpenCodeControllerState";
+import { useOpenCodeThreadListTitleSync } from "./useOpenCodeThreadListTitleSync";
 import { useOpenCodeStreamingTiming } from "./useOpenCodeStreamingTiming";
 
 type OpenCodeControllerRegistry = {
@@ -151,6 +152,17 @@ const useOpenCodeThreadStore = (
   options: OpenCodeRuntimeOptions,
 ): ExternalStoreAdapter<ThreadMessage> => {
   const state = useOpenCodeControllerState(controller);
+  const aui = useAui();
+  const threadListTitle = useAuiState(
+    (current) => current.threadListItem.title,
+  );
+  useOpenCodeThreadListTitleSync(
+    controller,
+    state.session?.title,
+    threadListTitle,
+    aui.threads.reload,
+    !options.cloud,
+  );
   const onLoadError = useLatestRef((error: unknown) => {
     invokeErrorCallback(options.onError, error);
   });
