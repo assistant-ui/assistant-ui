@@ -123,6 +123,21 @@ describe("SafeContentFrame", () => {
     frame.dispose();
   });
 
+  it("rejects an unsafeShimDomain that is not a bare hostname", () => {
+    for (const domain of [
+      "@app.example.com",
+      "example.com/x",
+      "example.com:8080",
+      "localhost",
+      "Example.com",
+      "-a.example.com",
+    ]) {
+      expect(
+        () => new SafeContentFrame("test", { unsafeShimDomain: domain }),
+      ).toThrow(TypeError);
+    }
+  });
+
   it("accepts raw multibyte pathnames from custom location providers", async () => {
     vi.stubGlobal("location", {
       origin: window.location.origin,

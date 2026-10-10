@@ -420,6 +420,25 @@ describe("createWidgetToolkit", () => {
     ).toHaveProperty("screenshot");
   });
 
+  it("previews with the frame mode of the displayed widgets", async () => {
+    mocks.preview.mockResolvedValue({
+      ok: true,
+      kind: "html",
+      width: 680,
+      height: 90,
+      blank: false,
+      errors: [],
+      console: [],
+    });
+    const tools = entries(
+      createWidgetToolkit({ widget: { opaqueOrigin: true } }).toolkit,
+    );
+    await tools["preview_widget"]!.execute!({ widget_code: "<p>a</p>" });
+    expect(mocks.preview).toHaveBeenCalledWith("<p>a</p>", {
+      opaqueOrigin: true,
+    });
+  });
+
   it("gives each widget a host-derived storage id shared by its edits", () => {
     mocks.messages = [
       {

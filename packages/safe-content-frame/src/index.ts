@@ -85,6 +85,8 @@ export function isShimLoadError(error: unknown): error is ShimLoadError {
 
 const DEFAULT_SHIM_DOMAIN = "scf.auiusercontent.com";
 const PRODUCT_HASH = "h184756";
+const SHIM_DOMAIN =
+  /^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
 
 async function sha256(data: ArrayBuffer): Promise<ArrayBuffer> {
   return crypto.subtle.digest("SHA-256", data);
@@ -146,6 +148,14 @@ export class SafeContentFrame {
   private options: SafeContentFrameOptions;
 
   constructor(product: string, options: SafeContentFrameOptions = {}) {
+    if (
+      options.unsafeShimDomain !== undefined &&
+      !SHIM_DOMAIN.test(options.unsafeShimDomain)
+    ) {
+      throw new TypeError(
+        `unsafeShimDomain must be a bare hostname such as "usercontent.example", got ${JSON.stringify(options.unsafeShimDomain)}`,
+      );
+    }
     this.product = product;
     this.options = options;
   }

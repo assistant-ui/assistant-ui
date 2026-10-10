@@ -78,4 +78,4 @@ Site isolation varies by platform. Chrome on Android applies it only to some sit
 
 assistant-ui operates `scf.auiusercontent.com` as a public utility for anyone rendering untrusted HTML.
 
-To serve the shim from your own domain, pass `unsafeShimDomain`. The option is named unsafe because the scheme above depends on the domain being a public suffix: without a Public Suffix List entry, every hashed subdomain belongs to the same site, so frames share cookies and a process with each other and with any app under the same registrable domain.
+To serve the shim from your own domain, pass `unsafeShimDomain`. The option is named unsafe because the scheme above depends on the domain being a public suffix: without a Public Suffix List entry, every hashed subdomain belongs to the same site, so frames can read and set cookies scoped to the parent domain, which reach each other and any app under the same registrable domain, and the browser may run them in one process. The [Generative Frame security page](/generative-frame/docs/security#hosting-the-shim-yourself) lists what serving the shim requires.

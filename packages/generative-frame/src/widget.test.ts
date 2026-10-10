@@ -12,6 +12,7 @@ import {
   type RpcHandlers,
   type RpcPeer,
 } from "./rpc";
+import { previewWidget } from "./preview";
 import { DEFAULT_DARK_TOKENS } from "./theme";
 import {
   clearWidgetStorage,
@@ -449,6 +450,13 @@ describe("widget ids", () => {
         createWidget({ container, opaqueOrigin: true, ...options }),
       ).toThrow(TypeError);
     }
+  });
+
+  it("removes the preview container when the options are rejected", async () => {
+    await expect(
+      previewWidget("<p>a</p>", { opaqueOrigin: true, id: "a" }),
+    ).rejects.toThrow(TypeError);
+    expect(document.body.children).toHaveLength(0);
   });
 
   it("rejects an id together with a preconfigured frame", () => {

@@ -61,7 +61,7 @@ Each renderer returns a `RenderedFrame`:
 | `enableBrowserCaching` | `false`                                      | Derive the salt from the content hash so repeated renders reuse the same origin and HTTP cache.     |
 | `sandbox`              | `["allow-same-origin", "allow-scripts"]`     | Extra `iframe[sandbox]` permissions to grant. The two defaults are always added.                    |
 | `salt`                 | random per render                            | Override the salt explicitly (useful for tests or stable-origin embeds).                            |
-| `unsafeShimDomain`     | `scf.auiusercontent.com`                     | Load the shim from `<hash>-h184756.<domain>` on a domain you host. Isolation holds only if the domain is a public suffix on the [Public Suffix List](https://publicsuffix.org/); otherwise frames share a site with each other and with apps on the same registrable domain. |
+| `unsafeShimDomain`     | `scf.auiusercontent.com`                     | Load the shim from `<hash>-h184756.<domain>` on a domain you host. Isolation holds only if the domain is a public suffix on the [Public Suffix List](https://publicsuffix.org/); otherwise frames share a site with each other and with apps on the same registrable domain. Hosting needs wildcard DNS and TLS for `*.<domain>`, a compatible shim at `/<product>/shim.html`, and a redeploy when the shim version changes; see the [security docs](https://www.assistant-ui.com/generative-frame/docs/security#hosting-the-shim-yourself). |
 
 ## Sub-paths
 

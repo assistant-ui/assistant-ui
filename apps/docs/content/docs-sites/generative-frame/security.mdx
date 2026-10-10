@@ -16,10 +16,10 @@ Each HTML or SVG widget renders in a [Safe Content Frame](/safe-content-frame). 
 `unsafeShimDomain` loads the shim from `https://<hash>-h184756.<domain>/<product>/shim.html` on a domain you serve instead of `scf.auiusercontent.com`:
 
 ```ts
-createWidget({ container, unsafeShimDomain: "frames.example-usercontent.com" });
+createWidget({ container, unsafeShimDomain: "usercontent.example" });
 ```
 
-The isolation boundary holds only if `<domain>` is a public suffix on the [Public Suffix List](https://publicsuffix.org/). Otherwise browsers treat every hashed subdomain as the same site: widgets share cookies and a renderer process with each other, and with your app if it lives under the same registrable domain, where a widget can read and set cookies scoped to that domain. Use a dedicated domain, and get it on the list before you rely on it.
+Here `usercontent.example` stands for a domain you have listed as a public suffix. The isolation boundary holds only if `<domain>` is a public suffix on the [Public Suffix List](https://publicsuffix.org/). Otherwise browsers treat every hashed subdomain as the same site: widgets can read and set cookies scoped to the parent domain, which reach each other and your app if it lives under the same registrable domain, and the browser may run them in one renderer process. Use a dedicated domain, and get it on the list before you rely on it.
 
 Serving the shim needs:
 
