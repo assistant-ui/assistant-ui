@@ -2,4 +2,4 @@
 "@assistant-ui/store": patch
 ---
 
-Cancel pending thread viewport scroll intent on wheel and touch gestures.
+fix(store): cancel a queued bottom scroll on wheel and touch, matching React
