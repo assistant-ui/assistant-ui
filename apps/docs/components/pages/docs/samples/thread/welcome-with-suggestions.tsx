@@ -8,6 +8,7 @@ import {
   Suggestions,
 } from "@assistant-ui/react";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
+import { SampleScope } from "../sample-scope";
 import { useSampleRuntime } from "../use-sample-runtime";
 
 export function ChatWithSuggestions() {
@@ -42,7 +43,9 @@ export function ChatWithSuggestions() {
 export function ThreadWelcomeSuggestionsSample() {
   return (
     <SampleFrame className="bg-muted/40 h-120 overflow-hidden">
-      <ChatWithSuggestions />
+      <SampleScope>
+        <ChatWithSuggestions />
+      </SampleScope>
     </SampleFrame>
   );
 }

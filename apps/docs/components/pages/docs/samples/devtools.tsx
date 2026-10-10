@@ -13,7 +13,6 @@ import {
   AssistantRuntimeProvider,
   AuiIf,
   AuiConfig,
-  AuiProvider,
   ComposerPrimitive,
   DevToolsHooks,
   DevToolsProviderApi,
@@ -37,6 +36,7 @@ import {
   type DevToolsSnapshot,
 } from "@assistant-ui/react-devtools";
 import { SampleFrame } from "./sample-frame";
+import { SampleScope } from "./sample-scope";
 import { useSampleRuntime } from "./use-sample-runtime";
 
 const RESPONSES = [
@@ -298,13 +298,11 @@ function Composer() {
   );
 }
 
-const EMPTY_CONFIG = AuiConfig({});
-
 export function DevToolsSample() {
   return (
-    <AuiProvider extends={null} config={EMPTY_CONFIG}>
+    <SampleScope>
       <DevToolsSampleInner />
-    </AuiProvider>
+    </SampleScope>
   );
 }
 
@@ -358,9 +356,9 @@ function DemoTurnSuggestion() {
  */
 export function DevToolsModalSample() {
   return (
-    <AuiProvider extends={null} config={EMPTY_CONFIG}>
+    <SampleScope>
       <DevToolsModalSampleInner />
-    </AuiProvider>
+    </SampleScope>
   );
 }
 

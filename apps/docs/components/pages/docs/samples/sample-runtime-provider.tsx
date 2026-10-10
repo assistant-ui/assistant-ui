@@ -9,6 +9,7 @@ import {
   type LocalRuntimeOptions,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
+import { SampleScope } from "./sample-scope";
 import { useSampleRuntime } from "./use-sample-runtime";
 
 const noOpAdapter: ChatModelAdapter = {
@@ -46,17 +47,27 @@ function SeedAttachments({ attachments }: { attachments: CreateAttachment[] }) {
   return null;
 }
 
-export function SampleRuntimeProvider({
-  messages = defaultMessages,
-  adapters,
-  initialAttachments,
-  children,
-}: {
+type SampleRuntimeProviderProps = {
   messages?: ThreadMessageLike[];
   adapters?: LocalRuntimeOptions["adapters"];
   initialAttachments?: CreateAttachment[];
   children: ReactNode;
-}) {
+};
+
+export function SampleRuntimeProvider(props: SampleRuntimeProviderProps) {
+  return (
+    <SampleScope>
+      <SampleRuntime {...props} />
+    </SampleScope>
+  );
+}
+
+function SampleRuntime({
+  messages = defaultMessages,
+  adapters,
+  initialAttachments,
+  children,
+}: SampleRuntimeProviderProps) {
   const runtime = useSampleRuntime(noOpAdapter, {
     initialMessages: messages.map((message) => ({
       ...message,
