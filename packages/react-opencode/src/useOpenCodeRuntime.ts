@@ -42,6 +42,7 @@ import {
 } from "./openCodeThreadListAdapter";
 import { OPENCODE_SDK } from "./sdkIdentity";
 import { useOpenCodeControllerState } from "./useOpenCodeControllerState";
+import { useOpenCodeThreadListTitleSync } from "./useOpenCodeThreadListTitleSync";
 import { useOpenCodeStreamingTiming } from "./useOpenCodeStreamingTiming";
 
 type OpenCodeControllerRegistry = {
@@ -149,8 +150,19 @@ const sendOpenCodeMessage = (
 const useOpenCodeThreadStore = (
   controller: OpenCodeThreadControllerLike,
   options: OpenCodeRuntimeOptions,
+  syncTitles: boolean,
 ): ExternalStoreAdapter<ThreadMessage> => {
   const state = useOpenCodeControllerState(controller);
+  const aui = useAui();
+  const threadListTitle = useAuiState(
+    (current) => current.threadListItem.title,
+  );
+  useOpenCodeThreadListTitleSync(
+    state.session?.title,
+    threadListTitle,
+    () => aui.threadListItem.generateTitle(),
+    syncTitles,
+  );
   const onLoadError = useLatestRef((error: unknown) => {
     invokeErrorCallback(options.onError, error);
   });
@@ -374,6 +386,7 @@ const useRuntimeHook = (
   client: ReturnType<typeof createOpencodeClient>,
   registry: OpenCodeControllerRegistry,
   options: OpenCodeRuntimeOptions,
+  syncTitles: boolean,
 ) => {
   const threadListItem = useAuiState((state) => state.threadListItem);
   const sessionId = options.cloud
@@ -384,7 +397,7 @@ const useRuntimeHook = (
     ? getController(registry, client, sessionId)
     : NOOP_CONTROLLER;
 
-  const threadStore = useOpenCodeThreadStore(controller, options);
+  const threadStore = useOpenCodeThreadStore(controller, options, syncTitles);
   const newThreadStore = useNewOpenCodeThreadStore(
     client,
     registry,
@@ -447,6 +460,8 @@ export const useOpenCodeRuntime = (
     },
   });
   const adapter = options.cloud ? cloudAdapter : openCodeAdapter;
+  const aui = useAui();
+  const syncTitles = !options.cloud && aui.threadListItem.source === null;
 
   return useRemoteThreadListRuntime({
     allowNesting: true,
@@ -454,6 +469,6 @@ export const useOpenCodeRuntime = (
     initialThreadId: options.cloud ? undefined : options.initialSessionId,
     onThreadIdChange: options.onThreadIdChange,
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- runtimeHook callback is invoked by useRemoteThreadListRuntime at the appropriate hook position
-    runtimeHook: () => useRuntimeHook(client, registry, options),
+    runtimeHook: () => useRuntimeHook(client, registry, options, syncTitles),
   });
 };

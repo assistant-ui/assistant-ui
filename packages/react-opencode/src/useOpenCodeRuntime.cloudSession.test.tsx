@@ -16,7 +16,9 @@ const mocks = vi.hoisted(() => ({
     externalId: "session-1" as string | undefined,
     remoteId: "cloud-thread-1" as string | undefined,
     status: "regular" as "new" | "regular",
+    source: null,
     initialize: vi.fn(),
+    generateTitle: vi.fn(),
   },
   state: undefined as unknown,
 }));
@@ -83,6 +85,7 @@ afterEach(() => {
   mocks.threadListItem.remoteId = "cloud-thread-1";
   mocks.threadListItem.status = "regular";
   mocks.threadListItem.initialize.mockReset();
+  mocks.threadListItem.generateTitle.mockReset();
 });
 
 describe("useOpenCodeRuntime under Cloud", () => {
@@ -102,6 +105,24 @@ describe("useOpenCodeRuntime under Cloud", () => {
     expect(mocks.sessions).toContain("session-1");
     expect(mocks.sessions).not.toContain("cloud-thread-1");
     expect(mocks.remoteOptions?.initialThreadId).toBeUndefined();
+  });
+  it("leaves the cloud thread list alone when OpenCode titles the session", async () => {
+    mocks.state = {
+      ...createOpenCodeThreadState("session-1"),
+      session: { id: "session-1", title: "Fix the login redirect", time: {} },
+    };
+    const cloud = {} as AssistantCloud;
+    const client = { session: {} } as never;
+
+    const App = () => {
+      useOpenCodeRuntime({ client, cloud });
+      return null;
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
+
+    expect(mocks.threadListItem.generateTitle).not.toHaveBeenCalled();
   });
   it("opens no session for a cloud thread without one, and rejects a send to it", async () => {
     mocks.state = createOpenCodeThreadState("unused");

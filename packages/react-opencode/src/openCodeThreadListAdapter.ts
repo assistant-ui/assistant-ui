@@ -4,6 +4,13 @@ import {
 } from "@opencode-ai/sdk/v2/client";
 import { OPEN_CODE_REQUEST_OPTIONS } from "./openCodeRequestOptions";
 
+// OpenCode's `Session.isDefaultTitle` format, which a session carries until OpenCode titles it on its first prompt.
+const DEFAULT_SESSION_TITLE =
+  /^(New session - |Child session - )\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+
+export const isDefaultSessionTitle = (title: string) =>
+  DEFAULT_SESSION_TITLE.test(title);
+
 const isArchivedSession = (session: Pick<GlobalSession, "time">) => {
   return typeof session.time.archived === "number";
 };
@@ -94,17 +101,28 @@ export const createOpenCodeThreadListAdapter = (
     );
   },
   initialize: () => createOpenCodeSession(client),
+  // OpenCode titles a session itself on its first prompt, so this streams the title the session already has instead of generating one.
   generateTitle: async (remoteId: string) => {
-    await client.session.summarize(
-      {
-        sessionID: remoteId,
-      },
+    const response = await client.session.get(
+      { sessionID: remoteId },
       OPEN_CODE_REQUEST_OPTIONS,
     );
-    // Title updates arrive through the OpenCode event stream, so this
-    // placeholder stream only satisfies the remote thread list contract.
+    const title = response.data?.title;
     return new ReadableStream({
       start(controller) {
+        if (title !== undefined && !isDefaultSessionTitle(title)) {
+          controller.enqueue({
+            type: "part-start",
+            path: [0],
+            part: { type: "text" },
+          });
+          controller.enqueue({
+            type: "text-delta",
+            path: [0],
+            textDelta: title,
+          });
+          controller.enqueue({ type: "part-finish", path: [0] });
+        }
         controller.close();
       },
     }) as never;
