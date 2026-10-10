@@ -153,7 +153,7 @@ export type ThreadRuntimeState = {
   readonly metadata: ThreadListItemRuntimeState;
 
   /**
-   * Whether the thread is disabled. Disabled threads cannot receive new messages.
+   * Whether typing into the composer, adding attachments, sending, and editing messages are disabled for the thread.
    */
   readonly isDisabled: boolean;
 

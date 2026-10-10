@@ -69,6 +69,14 @@ describe("DefaultThreadComposerRuntimeCore.canSend", () => {
     expect(composer.canSend).toBe(false);
   });
 
+  it("is false when the runtime reports isDisabled", () => {
+    const composer = new DefaultThreadComposerRuntimeCore(
+      makeRuntimeStub({ isDisabled: true }),
+    );
+    composer.setText("hi");
+    expect(composer.canSend).toBe(false);
+  });
+
   it("notifies subscribers when isSendDisabled flips", () => {
     const stub = makeRuntimeStub();
     const composer = new DefaultThreadComposerRuntimeCore(stub);
@@ -79,6 +87,19 @@ describe("DefaultThreadComposerRuntimeCore.canSend", () => {
     (stub as { isSendDisabled: boolean }).isSendDisabled = true;
     stub.notify();
     expect(onChange).toHaveBeenCalled();
+    expect(composer.canSend).toBe(false);
+  });
+
+  it("notifies subscribers when isDisabled flips", () => {
+    const stub = makeRuntimeStub();
+    const composer = new DefaultThreadComposerRuntimeCore(stub);
+    composer.setText("hi");
+    const onChange = vi.fn();
+    composer.subscribe(onChange);
+
+    (stub as { isDisabled: boolean }).isDisabled = true;
+    stub.notify();
+    expect(onChange).toHaveBeenCalledOnce();
     expect(composer.canSend).toBe(false);
   });
 
@@ -208,6 +229,16 @@ describe("BaseComposerRuntimeCore.send", () => {
     expect(stub.append).not.toHaveBeenCalled();
   });
 
+  it("is a no-op when canSend is false because the thread is disabled", async () => {
+    const stub = makeRuntimeStub({ isDisabled: true });
+    const composer = new DefaultThreadComposerRuntimeCore(stub);
+    composer.setText("hi");
+
+    await composer.send();
+
+    expect(stub.append).not.toHaveBeenCalled();
+  });
+
   it("dispatches when canSend is true", async () => {
     const stub = makeRuntimeStub();
     const composer = new DefaultThreadComposerRuntimeCore(stub);
@@ -220,6 +251,48 @@ describe("BaseComposerRuntimeCore.send", () => {
 });
 
 describe("DefaultEditComposerRuntimeCore.canSend", () => {
+  it("blocks edits when the thread is disabled", async () => {
+    const stub = makeRuntimeStub({ isDisabled: true });
+    const composer = new DefaultEditComposerRuntimeCore(
+      stub as unknown as ThreadRuntimeCore,
+      () => {},
+      {
+        parentId: null,
+        message: makeUserMessage("seed"),
+      },
+    );
+
+    expect(composer.canSend).toBe(false);
+    await composer.send();
+    expect(stub.append).not.toHaveBeenCalled();
+    await composer.addAttachment({
+      name: "file.txt",
+      type: "file",
+      content: [],
+    });
+    expect(composer.attachments).toHaveLength(0);
+  });
+
+  it("notifies subscribers when isDisabled flips", () => {
+    const stub = makeRuntimeStub();
+    const composer = new DefaultEditComposerRuntimeCore(
+      stub as unknown as ThreadRuntimeCore,
+      () => {},
+      {
+        parentId: null,
+        message: makeUserMessage("seed"),
+      },
+    );
+    const onChange = vi.fn();
+    composer.subscribe(onChange);
+
+    (stub as { isDisabled: boolean }).isDisabled = true;
+    stub.notify();
+
+    expect(onChange).toHaveBeenCalledOnce();
+    expect(composer.canSend).toBe(false);
+  });
+
   it("ignores runtime.isSendDisabled (thread-scoped flag does not block edits)", () => {
     const stub = makeRuntimeStub({ isSendDisabled: true });
     const composer = new DefaultEditComposerRuntimeCore(
