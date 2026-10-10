@@ -3,6 +3,7 @@ import {
   boundSpec,
   clampReasonDetail,
 } from "../convert/boundSpec";
+import { readReserved } from "../constants";
 import { copyBounded } from "../convert/copyBounded";
 import { isElement } from "../convert/isElement";
 import { takeRun } from "../convert/takeRun";
@@ -779,7 +780,7 @@ const cardActionButtons = (
       buttonElement(
         asString(footer["label"]),
         key === "confirm" ? "primary" : undefined,
-        footer["$action"],
+        readReserved(footer, "action"),
         "Card",
         context,
       ),

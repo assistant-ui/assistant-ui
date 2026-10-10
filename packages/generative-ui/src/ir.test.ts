@@ -127,6 +127,70 @@ describe("normalizeUINode", () => {
       expect("$status" in node.props).toBe(false);
       expect("$custom" in node.props).toBe(false);
     });
+
+    it("normalizes the _type/_key/_action spelling models emit to the same element", () => {
+      const node = asElement(
+        normalizeUINode({
+          _type: "Button",
+          _key: "buy",
+          label: "Purchase",
+          _action: { type: "purchase", itemId: "sku-1" },
+          children: [{ $type: "Text", value: "now" }],
+        }),
+      );
+
+      expect(node).toEqual({
+        type: "Button",
+        props: { label: "Purchase" },
+        children: [
+          {
+            type: "Text",
+            props: { value: "now" },
+            children: undefined,
+            key: undefined,
+            action: undefined,
+          },
+        ],
+        key: "buy",
+        action: { type: "purchase", itemId: "sku-1" },
+      });
+    });
+
+    it("prefers the $ spelling when a node carries both, stripping both from props", () => {
+      const node = asElement(
+        normalizeUINode({
+          $type: "Card",
+          _type: "Text",
+          $key: "a",
+          _key: "b",
+          $action: { type: "kept" },
+          _action: { type: "dropped" },
+          title: "hi",
+        }),
+      );
+
+      expect(node.type).toBe("Card");
+      expect(node.key).toBe("a");
+      expect(node.action).toEqual({ type: "kept" });
+      expect(node.props).toEqual({ title: "hi" });
+    });
+
+    it("strips the _ spellings from a legacy node's props", () => {
+      const node = asElement(
+        normalizeUINode({
+          component: "Card",
+          props: {
+            _type: "Text",
+            _key: "k",
+            _action: { type: "x" },
+            title: "hi",
+          },
+        }),
+      );
+
+      expect(node.type).toBe("Card");
+      expect(node.props).toEqual({ title: "hi" });
+    });
   });
 
   describe("nesting", () => {

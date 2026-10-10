@@ -3,6 +3,7 @@ import {
   boundSpec,
   clampReasonDetail,
 } from "../convert/boundSpec";
+import { readReserved } from "../constants";
 import { copyBounded } from "../convert/copyBounded";
 import { isElement } from "../convert/isElement";
 import { takeRun } from "../convert/takeRun";
@@ -306,7 +307,10 @@ function cardFooterActionSet(
     .map((key) => props[key])
     .filter(isRecord)
     .map((footer) =>
-      buildSubmitAction(asString(footer["label"]), footer["$action"]),
+      buildSubmitAction(
+        asString(footer["label"]),
+        readReserved(footer, "action"),
+      ),
     );
   return actions.length > 0 ? { type: "ActionSet", actions } : undefined;
 }

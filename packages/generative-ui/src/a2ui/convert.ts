@@ -1,3 +1,4 @@
+import { isReservedKey } from "../constants";
 import { ICON_NAMES, type UIElement } from "../ir";
 import type { A2uiBinding } from "../binding";
 import { classifyTemporal } from "../temporal";
@@ -1112,7 +1113,7 @@ function convertComponent(
         ? {
             $type: component,
             ...Object.fromEntries(
-              Object.entries(props).filter(([key]) => !key.startsWith("$")),
+              Object.entries(props).filter(([key]) => !isReservedKey(key)),
             ),
           }
         : undefined;

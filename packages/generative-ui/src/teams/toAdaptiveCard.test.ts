@@ -1895,3 +1895,21 @@ it("stringifies boolean table cells", () => {
     .map((row) => (row.cells[0]!.items[0] as { text: string }).text);
   expect(texts).toEqual(["true", "false"]);
 });
+
+it("maps the _type/_action spelling models emit like the $ spelling", () => {
+  const card = (spelling: "$" | "_") => ({
+    [`${spelling}type`]: "Card",
+    title: "Approve request?",
+    children: { [`${spelling}type`]: "Text", value: "Details" },
+    confirm: { label: "Approve", [`${spelling}action`]: { type: "approve" } },
+    cancel: { label: "Reject", [`${spelling}action`]: { type: "reject" } },
+  });
+  const model = toAdaptiveCard(card("_") as never);
+  expect(model).toEqual(toAdaptiveCard(card("$") as never));
+  expect(JSON.stringify(model.card.body)).toContain(
+    '"data":{"aui":{"type":"approve"}}',
+  );
+  expect(JSON.stringify(model.card.body)).toContain(
+    '"data":{"aui":{"type":"reject"}}',
+  );
+});

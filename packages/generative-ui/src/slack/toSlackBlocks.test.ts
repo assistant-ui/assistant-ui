@@ -3177,3 +3177,17 @@ it("resolves a Slider field reference from numeric Slack state", () => {
     }),
   ).toEqual({ type: "submit", count: 3 });
 });
+
+it("maps the _type/_action spelling models emit like the $ spelling", () => {
+  const card = (spelling: "$" | "_") => ({
+    [`${spelling}type`]: "Card",
+    title: "Order #42",
+    confirm: { label: "Ship", [`${spelling}action`]: { type: "ship" } },
+    cancel: { label: "Cancel", [`${spelling}action`]: { type: "cancel" } },
+    children: [{ [`${spelling}type`]: "Text", value: "Shipped" }],
+  });
+  const model = toSlackBlocks(card("_") as never);
+  expect(model).toEqual(toSlackBlocks(card("$") as never));
+  expect(JSON.stringify(model.blocks)).toContain('"action_id":"ship"');
+  expect(JSON.stringify(model.blocks)).toContain('"action_id":"cancel"');
+});

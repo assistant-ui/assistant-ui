@@ -2835,6 +2835,9 @@ describe("convertSurfaceToUISpec", () => {
         $action: { type: "injected" },
         $key: "injected",
         $status: "injected",
+        _action: { type: "injected" },
+        _key: "injected",
+        _type: "Button",
       },
     ]);
     const templateSurface = surfaceFrom(
@@ -2846,6 +2849,9 @@ describe("convertSurfaceToUISpec", () => {
           $action: { type: "injected" },
           $key: "injected",
           $status: "injected",
+          _action: { type: "injected" },
+          _key: "injected",
+          _type: "Button",
           children: { componentId: "item", path: "/items" },
         },
         { id: "item", component: "Text", text: { path: "label" } },
