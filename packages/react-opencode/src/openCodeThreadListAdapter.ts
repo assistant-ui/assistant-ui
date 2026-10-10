@@ -94,7 +94,8 @@ export const createOpenCodeThreadListAdapter = (
     );
   },
   initialize: () => createOpenCodeSession(client),
-  generateTitle: async (_remoteId: string) =>
+  // OpenCode titles a session itself on its first prompt, and the title reaches the list through `session.updated`, so this stream only satisfies the remote thread list contract.
+  generateTitle: async () =>
     new ReadableStream({
       start(controller) {
         controller.close();

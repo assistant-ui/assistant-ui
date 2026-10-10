@@ -37,7 +37,7 @@ describe("createOpenCodeThreadListAdapter", () => {
       session: { summarize },
     } as never);
 
-    const stream = (await adapter.generateTitle("session-1")) as ReadableStream;
+    const stream = (await adapter.generateTitle()) as ReadableStream;
 
     expect(summarize).not.toHaveBeenCalled();
     expect(await stream.getReader().read()).toEqual({
