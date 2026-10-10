@@ -1,4 +1,36 @@
+import type { Analytics } from "@vercel/analytics/next";
+import type { SpeedInsights } from "@vercel/speed-insights/next";
+import { type ComponentProps, createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const mocks = vi.hoisted(() => ({
+  analytics: vi.fn<(props: ComponentProps<typeof Analytics>) => null>(
+    () => null,
+  ),
+  speedInsights: vi.fn<(props: ComponentProps<typeof SpeedInsights>) => null>(
+    () => null,
+  ),
+}));
+
+vi.mock("@vercel/analytics/next", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vercel/analytics/next")>()),
+  Analytics: mocks.analytics,
+}));
+
+vi.mock("@vercel/speed-insights/next", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@vercel/speed-insights/next")>()),
+  SpeedInsights: mocks.speedInsights,
+}));
+
+const analyticsEvent = {
+  type: "pageview",
+  url: "https://www.assistant-ui.com",
+} as const;
+const speedEvent = {
+  type: "vital",
+  url: "https://www.assistant-ui.com",
+} as const;
 
 const stubBrowser = ({
   consent,
@@ -21,7 +53,15 @@ const stubBrowser = ({
   vi.stubGlobal("navigator", { globalPrivacyControl: gpc });
 };
 
-const load = async () => (await import("./analytics-gate")).analyticsAllowed;
+const renderGate = async () => {
+  const { AnalyticsGate } = await import("./analytics-gate");
+  renderToStaticMarkup(createElement(AnalyticsGate));
+  const analytics = mocks.analytics.mock.lastCall?.[0].beforeSend;
+  const speedInsights = mocks.speedInsights.mock.lastCall?.[0].beforeSend;
+  expect(analytics).toBeTypeOf("function");
+  expect(speedInsights).toBeTypeOf("function");
+  return { analytics: analytics!, speedInsights: speedInsights! };
+};
 
 beforeEach(() => vi.resetModules());
 afterEach(() => vi.unstubAllGlobals());
@@ -30,31 +70,39 @@ describe("vercel analytics gate", () => {
   it("measures a visitor who has not answered the banner", async () => {
     stubBrowser();
 
-    expect((await load())()).toBe(true);
+    const send = await renderGate();
+    expect(send.analytics(analyticsEvent)).toBe(analyticsEvent);
+    expect(send.speedInsights(speedEvent)).toBe(speedEvent);
   });
 
   it("measures a visitor who accepted", async () => {
     stubBrowser({ consent: "granted" });
 
-    expect((await load())()).toBe(true);
+    const send = await renderGate();
+    expect(send.analytics(analyticsEvent)).toBe(analyticsEvent);
+    expect(send.speedInsights(speedEvent)).toBe(speedEvent);
   });
 
   it("stops for a visitor who declined", async () => {
     stubBrowser({ consent: "denied" });
 
-    expect((await load())()).toBe(false);
+    const send = await renderGate();
+    expect(send.analytics(analyticsEvent)).toBeNull();
+    expect(send.speedInsights(speedEvent)).toBeNull();
   });
 
   it("stops for a browser broadcasting GPC", async () => {
     stubBrowser({ gpc: true });
 
-    expect((await load())()).toBe(false);
+    const send = await renderGate();
+    expect(send.analytics(analyticsEvent)).toBeNull();
+    expect(send.speedInsights(speedEvent)).toBeNull();
   });
 
   it("stops for a decline that localStorage refused to persist", async () => {
     stubBrowser();
-    const { setStoredConsent } = await import("@/lib/consent");
-    const allowed = await load();
+    const { setStoredConsent } = await import("../lib/consent");
+    const send = await renderGate();
     vi.stubGlobal("window", {
       ...(globalThis as unknown as { window: object }).window,
       localStorage: {
@@ -66,6 +114,7 @@ describe("vercel analytics gate", () => {
     });
     setStoredConsent("denied");
 
-    expect(allowed()).toBe(false);
+    expect(send.analytics(analyticsEvent)).toBeNull();
+    expect(send.speedInsights(speedEvent)).toBeNull();
   });
 });

@@ -155,10 +155,10 @@ const toolInteraction = {
 };
 
 describe("A2AThreadRuntimeCore", () => {
-  let notifyUpdate: ReturnType<typeof vi.fn>;
+  let onUpdate = vi.fn<() => void>();
 
   beforeEach(() => {
-    notifyUpdate = vi.fn();
+    onUpdate = vi.fn<() => void>();
   });
 
   afterEach(() => {
@@ -169,11 +169,12 @@ describe("A2AThreadRuntimeCore", () => {
     clientOverrides: Partial<A2AClient> = {},
     coreOverrides: Record<string, unknown> = {},
   ) {
-    return new A2AThreadRuntimeCore({
+    const core = new A2AThreadRuntimeCore({
       client: createMockClient(clientOverrides),
-      notifyUpdate: notifyUpdate as unknown as () => void,
       ...coreOverrides,
     });
+    core.subscribe(onUpdate);
+    return core;
   }
 
   describe("late history loading", () => {
@@ -406,11 +407,11 @@ describe("A2AThreadRuntimeCore", () => {
       expect(core.isLoading).toBe(true);
       core.applyExternalMessages([]);
       core.resetContext();
-      const updatesAfterReplacement = notifyUpdate.mock.calls.length;
+      const updatesAfterReplacement = onUpdate.mock.calls.length;
       expect(core.isLoading).toBe(false);
       resolve({ messages: [] });
       await loading;
-      expect(notifyUpdate).toHaveBeenCalledTimes(updatesAfterReplacement);
+      expect(onUpdate).toHaveBeenCalledTimes(updatesAfterReplacement);
     });
 
     it("does not import old history when agent-card discovery settles after a thread switch", async () => {
@@ -635,13 +636,10 @@ describe("A2AThreadRuntimeCore", () => {
       const client = createMockClient({ streamMessage });
       const core = new A2AThreadRuntimeCore({
         client,
-        notifyUpdate: notifyUpdate as unknown as () => void,
       });
 
       await core.append(createUserAppendMessage("First"));
 
-      // useA2ARuntime re-applies its options on every render, including the
-      // renders triggered by the stream's own notifyUpdate calls.
       core.updateOptions({ client, contextId: undefined });
 
       await core.append(createUserAppendMessage("Second"));
@@ -657,7 +655,6 @@ describe("A2AThreadRuntimeCore", () => {
       const client = createMockClient({ streamMessage });
       const core = new A2AThreadRuntimeCore({
         client,
-        notifyUpdate: notifyUpdate as unknown as () => void,
       });
 
       await core.append(createUserAppendMessage("First"));
@@ -711,7 +708,6 @@ describe("A2AThreadRuntimeCore", () => {
       const client = createMockClient({ streamMessage });
       const core = new A2AThreadRuntimeCore({
         client,
-        notifyUpdate: notifyUpdate as unknown as () => void,
       });
 
       await core.append(createUserAppendMessage("First"));
@@ -731,7 +727,6 @@ describe("A2AThreadRuntimeCore", () => {
       const client = createMockClient({ streamMessage });
       const core = new A2AThreadRuntimeCore({
         client,
-        notifyUpdate: notifyUpdate as unknown as () => void,
       });
 
       await core.append(createUserAppendMessage("First"));
@@ -1778,7 +1773,6 @@ describe("A2AThreadRuntimeCore", () => {
           }),
         }),
         onArtifactComplete,
-        notifyUpdate: notifyUpdate as unknown as () => void,
       });
 
       await core.append(createUserAppendMessage("Go"));
@@ -2439,13 +2433,13 @@ describe("A2AThreadRuntimeCore", () => {
         status: { state: "working" },
       };
       (core as any).abortController = new AbortController();
-      notifyUpdate.mockClear();
+      onUpdate.mockClear();
 
       await core.cancel();
 
       expect(cancelTask).toHaveBeenCalledWith("t1");
       expect(core.getTask()!.status.state).toBe("canceled");
-      expect(notifyUpdate).toHaveBeenCalledOnce();
+      expect(onUpdate).toHaveBeenCalledOnce();
     });
 
     it("does nothing when no abort controller", async () => {
@@ -2722,7 +2716,6 @@ describe("A2AThreadRuntimeCore", () => {
           })),
         }),
         onError,
-        notifyUpdate: notifyUpdate as unknown as () => void,
       });
 
       await expect(core.append(createUserAppendMessage("Go"))).rejects.toThrow(
@@ -2968,7 +2961,6 @@ describe("outbound message conversion", () => {
     });
     const core = new A2AThreadRuntimeCore({
       client: createMockClient({ streamMessage }),
-      notifyUpdate: vi.fn() as unknown as () => void,
     });
     return { core, streamMessage };
   }

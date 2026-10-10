@@ -352,7 +352,7 @@ describe("buildPresentParameters", () => {
 
       expect(warn).toHaveBeenCalledTimes(1);
       expect(warn).toHaveBeenCalledWith(
-        '[@assistant-ui/react-generative-ui] Prop "value" is declared by "Select", "DatePicker", and "Combobox"; keeping "Select"\'s schema. Rename or align the prop type to avoid an ambiguous schema.',
+        '[@assistant-ui/generative-ui] Prop "value" is declared by "Select", "DatePicker", and "Combobox"; keeping "Select"\'s schema. Rename or align the prop type to avoid an ambiguous schema.',
       );
     } finally {
       warn.mockRestore();

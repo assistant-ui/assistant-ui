@@ -1,5 +1,19 @@
 # @assistant-ui/react-streamdown
 
+## 0.3.20
+
+### Patch Changes
+
+- [#8875](https://github.com/assistant-ui/assistant-ui/pull/8875) [`3aff80b`](https://github.com/assistant-ui/assistant-ui/commit/3aff80bcd2b0579ba4bc0deee0e8998c96b0c216) - serve the preprocess helpers from one source: `@assistant-ui/react-markdown/preprocess` is a new subpath, and `@assistant-ui/react-streamdown` re-exports the same functions instead of carrying a copy ([@okisdev](https://github.com/okisdev))
+
+- [#8973](https://github.com/assistant-ui/assistant-ui/pull/8973) [`8e4852c`](https://github.com/assistant-ui/assistant-ui/commit/8e4852c5d78679c536d7e299e64c61b35e692b05) - chore: maintenance update with no changes to runtime behavior. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#7074](https://github.com/assistant-ui/assistant-ui/pull/7074) [`df4d532`](https://github.com/assistant-ui/assistant-ui/commit/df4d532a40e3a152e6c636922464c8a719fd43c2) - fix: type every `PluginConfig` slot with its streamdown plugin interface instead of `unknown` ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#8897](https://github.com/assistant-ui/assistant-ui/pull/8897) [`dff60b2`](https://github.com/assistant-ui/assistant-ui/commit/dff60b2ab3f20fc55e2988c616243fb20cff22ea) - render `StreamdownTextPrimitive` through a single memoized body component ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`9ea0271`](https://github.com/assistant-ui/assistant-ui/commit/9ea02712b3e16a06dcf44e060fc0212fbd113b6a), [`c306b56`](https://github.com/assistant-ui/assistant-ui/commit/c306b56a1f2957d201ea9d3e6ce14287849963b3), [`3aff80b`](https://github.com/assistant-ui/assistant-ui/commit/3aff80bcd2b0579ba4bc0deee0e8998c96b0c216), [`0a3ca24`](https://github.com/assistant-ui/assistant-ui/commit/0a3ca2482e72e4d1c35805222df44e81ba6b55c5), [`ce74db7`](https://github.com/assistant-ui/assistant-ui/commit/ce74db795727b1d68c7cc3b0ccdec40a22f15bd2), [`c46e1a2`](https://github.com/assistant-ui/assistant-ui/commit/c46e1a2a321f5839403d9045dffc1867d5c7cb81)]:
+  - @assistant-ui/react-markdown@0.14.20
+
 ## 0.3.19
 
 ### Patch Changes

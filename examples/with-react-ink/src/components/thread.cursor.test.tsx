@@ -15,11 +15,9 @@ import { ThreadShell } from "./thread-shell";
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
-const settle = () =>
-  act(() => new Promise<void>((resolve) => setTimeout(resolve, 50)));
-
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -59,14 +57,15 @@ it.each([42, 100])(
       await act(async () => {
         stdin.write(value);
       });
-      await settle();
+      // ink holds a lone ESC on a timer until it knows no escape sequence follows
+      await act(() => vi.runOnlyPendingTimersAsync());
     };
     await vi.waitFor(() => expect(client).toBeDefined());
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     vi.spyOn(stdout, "columns", "get").mockReturnValue(columns);
     await act(async () => {
       stdout.emit("resize");
     });
-    await settle();
     await press("abcd");
     await press("\x1b[D");
     await press("\x1b[D");

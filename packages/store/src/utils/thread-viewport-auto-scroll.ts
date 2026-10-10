@@ -170,10 +170,16 @@ export const createThreadViewportAutoScroll = (input: {
     handleScroll();
   };
 
-  // A pointer gesture clears retained intent and a queued frame so neither can hijack the next content growth.
-  const onPointerdown = () => {
+  const cancelPendingScrollToBottom = () => {
     intent = null;
     cancelFrame();
+  };
+
+  const cancelOnKeyDown = (event: KeyboardEvent) => {
+    if (event.key !== "Enter" && !SCROLL_KEYS.has(event.key)) return;
+    if ((event.target as Element | null)?.closest?.(TEXT_ENTRY_SELECTOR))
+      return;
+    cancelPendingScrollToBottom();
   };
 
   const pauseFollowOnExpand = (event: MouseEvent) => {
@@ -229,7 +235,8 @@ export const createThreadViewportAutoScroll = (input: {
       setAtBottom(true);
       const disconnect = observeContentResize(el, onContentResize);
       el.addEventListener("scroll", handleScroll);
-      el.addEventListener("pointerdown", onPointerdown);
+      el.addEventListener("pointerdown", cancelPendingScrollToBottom);
+      el.addEventListener("keydown", cancelOnKeyDown);
       el.addEventListener("click", pauseFollowOnExpand, true);
       for (const gesture of ["pointerdown", "wheel", "touchmove", "keydown"])
         el.addEventListener(gesture, noteScrollGesture, { passive: true });
@@ -239,7 +246,8 @@ export const createThreadViewportAutoScroll = (input: {
         if (detachAttached !== detach) return;
         disconnect();
         el.removeEventListener("scroll", handleScroll);
-        el.removeEventListener("pointerdown", onPointerdown);
+        el.removeEventListener("pointerdown", cancelPendingScrollToBottom);
+        el.removeEventListener("keydown", cancelOnKeyDown);
         el.removeEventListener("click", pauseFollowOnExpand, true);
         for (const gesture of [
           "pointerdown",

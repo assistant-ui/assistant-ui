@@ -416,9 +416,9 @@ function generativeUIPackageRule(
     "generative-ui",
     placement.page,
     placement.role,
-    "feature:react-generative-ui",
+    "feature:generative-ui-package",
     "strong",
-    "@assistant-ui/react-generative-ui package export",
+    "@assistant-ui/generative-ui package export",
   );
 }
 

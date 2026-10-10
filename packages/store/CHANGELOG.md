@@ -1,5 +1,27 @@
 # @assistant-ui/store
 
+## 0.3.18
+
+### Patch Changes
+
+- [#9094](https://github.com/assistant-ui/assistant-ui/pull/9094) [`3ad209c`](https://github.com/assistant-ui/assistant-ui/commit/3ad209c9b1692dcaa3fcfb4d12130b318ca566eb) - perf(store): wake only the selectors whose clients changed, so a token in a long thread no longer re-runs every message and part selector ([@okisdev](https://github.com/okisdev))
+
+- [#8869](https://github.com/assistant-ui/assistant-ui/pull/8869) [`9125e30`](https://github.com/assistant-ui/assistant-ui/commit/9125e302f47c2cd62e4f39752f913e6bc0287abf) - Forward `ExternalThread` model-context changes through `thread.modelContextUpdate`. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#8865](https://github.com/assistant-ui/assistant-ui/pull/8865) [`4ac25b9`](https://github.com/assistant-ui/assistant-ui/commit/4ac25b9a8cff8857b8b74667e8ff488e9faed00d) - return the registered model context from `ExternalThread`'s `getModelContext` instead of an empty one ([@okisdev](https://github.com/okisdev))
+
+- [#9003](https://github.com/assistant-ui/assistant-ui/pull/9003) [`116424f`](https://github.com/assistant-ui/assistant-ui/commit/116424ff9e2b682ec4687aa3bc4e7597b611b1d8) - Keep thread viewport observers stable and preserve scheduled scroll behavior. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9135](https://github.com/assistant-ui/assistant-ui/pull/9135) [`f306b40`](https://github.com/assistant-ui/assistant-ui/commit/f306b40286c16253c60c68007b5cb6411ed22816) - fix(store): cancel a queued bottom scroll when Enter, Space or a navigation key is pressed outside text entry, matching React ([@okisdev](https://github.com/okisdev))
+
+- [#8909](https://github.com/assistant-ui/assistant-ui/pull/8909) [`0d72f48`](https://github.com/assistant-ui/assistant-ui/commit/0d72f4852980f8a98118753b3bcca053eca75643) - move the Vue thread viewport's auto scroll into a framework-neutral `createThreadViewportAutoScroll` in `@assistant-ui/store/client` ([@okisdev](https://github.com/okisdev))
+
+- [#8903](https://github.com/assistant-ui/assistant-ui/pull/8903) [`df2ab0a`](https://github.com/assistant-ui/assistant-ui/commit/df2ab0a7ebac27430926d6fbb56a97eeb0206faf) - the thread viewport follows content that grows without a DOM change (an expanding collapsible, a loading image, an autosizing textarea) and updates `isAtBottom` so the scroll-to-bottom button shows; the React viewport now shares `observeContentResize` with Vue and Svelte ([@kr1shna-exe](https://github.com/kr1shna-exe))
+
+- [#8915](https://github.com/assistant-ui/assistant-ui/pull/8915) [`8831c76`](https://github.com/assistant-ui/assistant-ui/commit/8831c76821cdcf0e8b5f1d4c562640a33056442d) - cancel a queued scroll to bottom when the user scrolls up in the shared thread viewport auto scroll, as a pointer gesture already does ([@okisdev](https://github.com/okisdev))
+
+- [#8956](https://github.com/assistant-ui/assistant-ui/pull/8956) [`7a3e496`](https://github.com/assistant-ui/assistant-ui/commit/7a3e4966ae50d181a58a73ccb138af8ebee038bf) - pause thread bottom-follow when a message disclosure expands ([@rupic-app](https://github.com/apps/rupic-app))
+
 ## 0.3.17
 
 ### Patch Changes

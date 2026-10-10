@@ -1,5 +1,17 @@
 # assistant-cloud
 
+## 0.2.6
+
+### Patch Changes
+
+- [#8519](https://github.com/assistant-ui/assistant-ui/pull/8519) [`a32e7a8`](https://github.com/assistant-ui/assistant-ui/commit/a32e7a8d41a3f089e76a0daea1c3942c8d3436a5) - fix: add explicit browser authentication invalidation for session changes ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9119](https://github.com/assistant-ui/assistant-ui/pull/9119) [`7886e77`](https://github.com/assistant-ui/assistant-ui/commit/7886e7773c08cf2ab25f910a5204989e9a742de3) - fix(cloud): normalize trailing slashes in the base URL the same way for auth requests and trace export ([@okisdev](https://github.com/okisdev))
+
+- [#9160](https://github.com/assistant-ui/assistant-ui/pull/9160) [`34fa2b6`](https://github.com/assistant-ui/assistant-ui/commit/34fa2b6bd34637b2c9e0c5d5c5c2c1abeee2652c) - refactor(cloud): build request and run streaming headers in one place ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`606bc2d`](https://github.com/assistant-ui/assistant-ui/commit/606bc2d5027ed16b1108bdee6d0908a34ff0d4cd), [`c5a635a`](https://github.com/assistant-ui/assistant-ui/commit/c5a635a92f5d8335888714e245b09641cbeae0bd), [`2252059`](https://github.com/assistant-ui/assistant-ui/commit/2252059cee96c0af37934c0e16867f2de56b327c), [`2abd1e0`](https://github.com/assistant-ui/assistant-ui/commit/2abd1e03ce2a328f16422e866b97d2ce395aa129), [`2ed2043`](https://github.com/assistant-ui/assistant-ui/commit/2ed20432b5b1a13a7a8671eddc86f4d8ebfd0f68), [`ae487aa`](https://github.com/assistant-ui/assistant-ui/commit/ae487aa5c66951faa60ef4f32b3e36e2c0a2ef20), [`01ac83d`](https://github.com/assistant-ui/assistant-ui/commit/01ac83dff50e16959ebf16556db43464e7a82ea4), [`8c32dea`](https://github.com/assistant-ui/assistant-ui/commit/8c32deae521d9e518146a04fea3a03f8d0c7f349), [`0a3ca24`](https://github.com/assistant-ui/assistant-ui/commit/0a3ca2482e72e4d1c35805222df44e81ba6b55c5), [`ee517fb`](https://github.com/assistant-ui/assistant-ui/commit/ee517fbcef3e9b37f4653ef50825e519f4faee4c), [`081a239`](https://github.com/assistant-ui/assistant-ui/commit/081a23960a018742e6b48a0742728518a49050a5), [`542d871`](https://github.com/assistant-ui/assistant-ui/commit/542d8710c360676d6ba6d96bac5474386a46e6a2), [`e79cdd4`](https://github.com/assistant-ui/assistant-ui/commit/e79cdd4490ebd3909d5ce90ab08b156e05f9f722), [`41344cb`](https://github.com/assistant-ui/assistant-ui/commit/41344cba68efe187ec81c02006d50fc6bc833abb), [`e8620c1`](https://github.com/assistant-ui/assistant-ui/commit/e8620c1e8af8d8de20e9fa9919e64995559d9450), [`3b7b337`](https://github.com/assistant-ui/assistant-ui/commit/3b7b3379441cc883dbf15e6caa71adfdbd498472)]:
+  - assistant-stream@0.3.49
+
 ## 0.2.5
 
 ### Patch Changes

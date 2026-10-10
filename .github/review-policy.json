@@ -135,6 +135,10 @@
     {
       "context": "Review Policy Scripts",
       "integrationId": 15368
+    },
+    {
+      "context": "Test Coverage",
+      "integrationId": 15368
     }
   ],
   "mergeQueue": {

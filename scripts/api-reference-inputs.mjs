@@ -9,7 +9,6 @@ export const API_REFERENCE_INPUTS = [
   "packages/cloud",
   "packages/assistant-stream",
   "packages/generative-ui",
-  "packages/react-generative-ui",
   "packages/ai-sdk",
   "packages/react-ai-sdk",
   "packages/react-data-stream",

@@ -4,7 +4,7 @@ description: Convert a generative UI tree into Slack Block Kit, post it, and dec
 platforms: ["react"]
 ---
 
-The `$type` tree your assistant renders in the browser is plain JSON, so it does not have to stay in the browser. `@assistant-ui/react-generative-ui/slack` converts the same tree into [Block Kit](https://docs.slack.dev/reference/block-kit/blocks) JSON, decodes the interactions Slack posts back, and parses Block Kit payloads into the tree.
+The `$type` tree your assistant renders in the browser is plain JSON, so it does not have to stay in the browser. `@assistant-ui/generative-ui/slack` converts the same tree into [Block Kit](https://docs.slack.dev/reference/block-kit/blocks) JSON, decodes the interactions Slack posts back, and parses Block Kit payloads into the tree.
 
 The subpath is React-free, so a server action, queue worker, or webhook handler imports it without pulling React into the bundle.
 
@@ -12,7 +12,7 @@ The subpath is React-free, so a server action, queue worker, or webhook handler 
 
 ```ts
 import { WebClient } from "@slack/web-api";
-import { toSlackBlocks } from "@assistant-ui/react-generative-ui/slack";
+import { toSlackBlocks } from "@assistant-ui/generative-ui/slack";
 
 const slack = new WebClient(process.env.SLACK_BOT_TOKEN);
 
@@ -146,7 +146,7 @@ A single-line `Input` outside a `Form` or `Card` with `asForm`, with a non-empty
 Slack posts interactions to your request URL as a [`block_actions` payload](https://docs.slack.dev/reference/interaction-payloads/block_actions-payload). `decodeBlockAction` takes one entry from its `actions` array and the payload's state values, then rebuilds the action your tree dispatched. Messages carry these values in `payload.state.values`, while modals and Home tabs carry them in `payload.view.state.values`. A control's runtime selection appears under `$input` when supplied; a button with a JSON-serialized `value` contributes its payload fields directly. `{ "$field": name }` references in the action payload resolve from named controls in that state:
 
 ```ts
-import { decodeBlockAction } from "@assistant-ui/react-generative-ui/slack";
+import { decodeBlockAction } from "@assistant-ui/generative-ui/slack";
 
 const action = decodeBlockAction(payload.actions[0], payload.state?.values ?? payload.view?.state?.values);
 // { type: "approve_order", orderId: "48213" }

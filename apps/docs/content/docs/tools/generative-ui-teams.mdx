@@ -4,14 +4,14 @@ description: Convert a generative UI tree into an Adaptive Card, send it from a 
 platforms: ["react"]
 ---
 
-The `$type` tree your assistant renders in the browser is plain JSON, so it does not have to stay in the browser. `@assistant-ui/react-generative-ui/teams` converts the same tree into an [Adaptive Card](https://adaptivecards.io/explorer/) and decodes the submit payload a Teams bot receives back.
+The `$type` tree your assistant renders in the browser is plain JSON, so it does not have to stay in the browser. `@assistant-ui/generative-ui/teams` converts the same tree into an [Adaptive Card](https://adaptivecards.io/explorer/) and decodes the submit payload a Teams bot receives back.
 
 The subpath is React-free, so a server action, queue worker, or bot handler imports it without pulling React into the bundle.
 
 ## Sending a card
 
 ```ts
-import { toAdaptiveCard } from "@assistant-ui/react-generative-ui/teams";
+import { toAdaptiveCard } from "@assistant-ui/generative-ui/teams";
 
 const { card, warnings } = toAdaptiveCard({
   $type: "Card",
@@ -127,7 +127,7 @@ Unlike Slack, the payload is not serialized to a string and carries no size cap 
 A bot receives the merged submit object as `activity.value`. `decodeSubmitData` splits it back into the action your tree dispatched, with the card's input values under `$input`:
 
 ```ts
-import { decodeSubmitData } from "@assistant-ui/react-generative-ui/teams";
+import { decodeSubmitData } from "@assistant-ui/generative-ui/teams";
 
 const action = decodeSubmitData(context.activity.value);
 // { type: "approve_order", orderId: "48213", $input: { quantity: "2" } }

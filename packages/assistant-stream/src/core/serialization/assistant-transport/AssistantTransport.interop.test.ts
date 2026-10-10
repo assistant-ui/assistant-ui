@@ -40,7 +40,15 @@ const EXPECTED_CHUNKS: AssistantStreamChunk[] = [
     path: [2],
   },
   { type: "tool-call-args-text-finish", path: [2] },
-  { type: "result", result: { temp: 70 }, isError: false, path: [2] },
+  {
+    type: "result",
+    result: { temp: 70 },
+    isError: false,
+    messages: [
+      { role: "assistant", content: [{ type: "text", text: "Sunny" }] },
+    ],
+    path: [2],
+  },
   { type: "part-finish", path: [2] },
   { type: "data", data: [{ progress: 1 }], path: [] },
   {
@@ -74,6 +82,13 @@ const EXPECTED_CHUNKS: AssistantStreamChunk[] = [
     finishReason: "stop",
     usage: { inputTokens: 12, outputTokens: 34 },
     isContinued: false,
+    path: [],
+  },
+  {
+    type: "error",
+    error: "Forecast delayed",
+    code: "weather_delay",
+    severity: "warning",
     path: [],
   },
 ];
@@ -167,6 +182,9 @@ describe("Python encoder interop", () => {
       args: { city: "NYC" },
       result: { temp: 70 },
       isError: false,
+      messages: [
+        { role: "assistant", content: [{ type: "text", text: "Sunny" }] },
+      ],
     });
     expect(message.parts[2]).not.toHaveProperty("isPreliminary");
     expect(message.parts[3]).toMatchObject({
@@ -199,5 +217,14 @@ describe("Python encoder interop", () => {
         isContinued: false,
       },
     ]);
+    expect(message.status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      error: {
+        code: "weather_delay",
+        message: "Forecast delayed",
+        severity: "warning",
+      },
+    });
   });
 });

@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import {
   useExternalStoreRuntime,
@@ -43,8 +44,6 @@ const serializeManagedClientOptions = (
 };
 
 export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
-  const [_version, setVersion] = useState(0);
-  const notifyUpdate = useCallback(() => setVersion((v) => v + 1), []);
   const runtimeAdapters = useRuntimeAdapters();
   const historyAdapter = options.adapters?.history ?? runtimeAdapters?.history;
   const threadListAdapter = options.adapters?.threadList;
@@ -118,7 +117,6 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
     new A2AThreadRuntimeCore({
       ...coreOptionsRef.current,
       client,
-      notifyUpdate,
     });
   const [pinnedCore, setPinnedCore] = useState(() => ({
     client,
@@ -130,6 +128,11 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
     setPinnedCore(currentCore);
   }
   const core = currentCore.core;
+  const snapshot = useSyncExternalStore(
+    core.subscribe,
+    core.getSnapshot,
+    core.getSnapshot,
+  );
 
   useEffect(() => {
     core.updateOptions(coreOptions);
@@ -211,18 +214,16 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
   // Build store adapter
   const shared = useExternalStoreSharedOptions(options);
   const store = useMemo(() => {
-    void _version;
-
     return {
       ...shared,
-      isLoading: core.isLoading,
-      messageRepository: core.getMessageRepository(),
-      isRunning: core.isRunning(),
+      isLoading: snapshot.isLoading,
+      messageRepository: snapshot.messageRepository,
+      isRunning: snapshot.isRunning,
       unstable_persistsHistory: true,
       extras: a2aExtras.provide({
-        task: core.getTask(),
-        artifacts: core.getArtifacts(),
-        agentCard: core.getAgentCard(),
+        task: snapshot.task,
+        artifacts: snapshot.artifacts,
+        agentCard: snapshot.agentCard,
       }),
       onNew: (message: AppendMessage) =>
         switchingGenerationRef.current === null
@@ -247,7 +248,7 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
         core.applyExternalMessages(messages),
       adapters: adapterAdapters,
     } satisfies ExternalStoreAdapter<ThreadMessage>;
-  }, [adapterAdapters, core, _version, shared]);
+  }, [adapterAdapters, core, snapshot, shared]);
 
   const runtime = useExternalStoreRuntime(store);
 
