@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
 
-import type { Spec } from "generative-frame/spec";
+import {
+  createStateStore,
+  type Spec,
+  type SpecStateStore,
+} from "generative-frame/spec";
 import { SpecRenderer } from "generative-frame/spec/react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -31,7 +35,11 @@ afterEach(async () => {
 
 type Handler = (params: Record<string, unknown>) => unknown;
 
-async function render(spec: Spec, handlers: Record<string, Handler> = {}) {
+async function render(
+  spec: Spec,
+  handlers: Record<string, Handler> = {},
+  state?: SpecStateStore,
+) {
   const container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -42,6 +50,7 @@ async function render(spec: Spec, handlers: Record<string, Handler> = {}) {
         components={components}
         spec={spec}
         handlers={handlers}
+        {...(state ? { state } : {})}
       />,
     );
   });
@@ -53,6 +62,17 @@ const query = <T extends Element>(container: Element, selector: string) => {
   if (!element) throw new Error(`Missing ${selector}`);
   return element;
 };
+
+const setInputValue = (input: HTMLInputElement, value: string) =>
+  Object.getOwnPropertyDescriptor(
+    HTMLInputElement.prototype,
+    "value",
+  )!.set!.call(input, value);
+
+const dispatch = (target: Element, type: string) =>
+  act(async () => {
+    target.dispatchEvent(new Event(type, { bubbles: true }));
+  });
 
 describe("toSpecCatalog components", () => {
   it("runs the actions a Button binds to `press`", async () => {
@@ -135,19 +155,140 @@ describe("toSpecCatalog components", () => {
     });
 
     const input = query<HTMLInputElement>(container, "input");
-    const setValue = Object.getOwnPropertyDescriptor(
-      HTMLInputElement.prototype,
-      "value",
-    )!.set!;
-    await act(async () => {
-      setValue.call(input, "Leave at the door");
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-    });
+    setInputValue(input, "Leave at the door");
+    await dispatch(input, "input");
 
     expect(query(container, '[data-aui="text"]').textContent).toBe(
       "Leave at the door",
     );
     expect(query(container, "input")).toBe(input);
+  });
+
+  it.each([
+    {
+      type: "Checkbox",
+      props: { label: "Gift wrap", defaultChecked: { $bindState: "/v" } },
+      initial: false,
+      selector: "input",
+      interact: (input: HTMLInputElement) => act(async () => input.click()),
+      next: true,
+    },
+    {
+      type: "RadioGroup",
+      props: {
+        options: [
+          { label: "Small", value: "s" },
+          { label: "Medium", value: "m" },
+        ],
+        defaultValue: { $bindState: "/v" },
+      },
+      initial: "s",
+      selector: 'input[value="m"]',
+      interact: (input: HTMLInputElement) => act(async () => input.click()),
+      next: "m",
+    },
+    {
+      type: "CheckboxGroup",
+      props: {
+        options: [
+          { label: "Basil", value: "basil" },
+          { label: "Olives", value: "olives" },
+        ],
+        defaultValue: { $bindState: "/v" },
+      },
+      initial: ["basil"],
+      selector: 'input[value="olives"]',
+      interact: (input: HTMLInputElement) => act(async () => input.click()),
+      next: ["basil", "olives"],
+    },
+    {
+      type: "Slider",
+      props: { min: 0, max: 10, defaultValue: { $bindState: "/v" } },
+      initial: 4,
+      selector: "input",
+      interact: async (input: HTMLInputElement) => {
+        await dispatch(input, "pointerdown");
+        setInputValue(input, "7");
+        await dispatch(input, "input");
+        await dispatch(input, "pointerup");
+      },
+      next: 7,
+    },
+    {
+      type: "DatePicker",
+      props: { value: { $bindState: "/v" } },
+      initial: "2026-10-12",
+      selector: "input",
+      interact: async (input: HTMLInputElement) => {
+        setInputValue(input, "2026-10-14");
+        await dispatch(input, "input");
+      },
+      next: "2026-10-14",
+    },
+  ])(
+    "writes a bound $type back and emits its value with `change`",
+    async ({ type, props, initial, selector, interact, next }) => {
+      const pick = vi.fn();
+      const state = createStateStore({ v: initial });
+      const container = await render(
+        {
+          root: "control",
+          elements: {
+            control: {
+              type,
+              props,
+              on: { change: { action: "pick", params: { v: { $event: "" } } } },
+            },
+          },
+        },
+        { pick },
+        state,
+      );
+
+      const input = query<HTMLInputElement>(container, selector);
+      await interact(input);
+
+      expect(state.get("/v")).toEqual(next);
+      expect(query(container, selector)).toBe(input);
+      expect(pick).toHaveBeenCalledOnce();
+      expect(pick).toHaveBeenCalledWith({ v: next }, expect.anything());
+    },
+  );
+
+  it("emits `change` when a bound Slider returns to its last value after the state moved", async () => {
+    const pick = vi.fn();
+    const state = createStateStore({ v: 4 });
+    const container = await render(
+      {
+        root: "volume",
+        elements: {
+          volume: {
+            type: "Slider",
+            props: { min: 0, max: 10, defaultValue: { $bindState: "/v" } },
+            on: { change: { action: "pick", params: { v: { $event: "" } } } },
+          },
+        },
+      },
+      { pick },
+      state,
+    );
+    const input = query<HTMLInputElement>(container, "input");
+    const drag = async (value: string) => {
+      await dispatch(input, "pointerdown");
+      setInputValue(input, value);
+      await dispatch(input, "input");
+      await dispatch(input, "pointerup");
+    };
+
+    await drag("7");
+    await act(async () => state.set("/v", 2));
+    expect(input.value).toBe("2");
+    await drag("7");
+
+    expect(pick.mock.calls.map(([params]) => params)).toEqual([
+      { v: 7 },
+      { v: 7 },
+    ]);
   });
 
   it("keeps a ListViewItem plain unless it binds `press`", async () => {
