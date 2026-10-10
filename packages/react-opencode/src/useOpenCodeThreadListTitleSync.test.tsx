@@ -20,12 +20,12 @@ const Probe = ({
   sessionTitle,
   threadListTitle,
   enabled = true,
-  reload,
-}: Titles & { reload: () => Promise<void> }) => {
+  generateTitle,
+}: Titles & { generateTitle: () => void }) => {
   useOpenCodeThreadListTitleSync(
     sessionTitle,
     threadListTitle,
-    reload,
+    generateTitle,
     enabled,
   );
   return null;
@@ -34,12 +34,12 @@ const Probe = ({
 describe("useOpenCodeThreadListTitleSync", () => {
   let root: Root | undefined;
 
-  const render = (titles: Titles, reload: () => Promise<void>) => {
+  const render = (titles: Titles, generateTitle: () => void) => {
     act(() => {
       root ??= createRoot(document.createElement("div"));
       root.render(
         <StrictMode>
-          <Probe {...titles} reload={reload} />
+          <Probe {...titles} generateTitle={generateTitle} />
         </StrictMode>,
       );
     });
@@ -52,68 +52,80 @@ describe("useOpenCodeThreadListTitleSync", () => {
     root = undefined;
   });
 
-  it("reloads the thread list once OpenCode titles the session, not for its default title", () => {
-    const reload = vi.fn().mockResolvedValue(undefined);
+  it("requests the title once OpenCode titles the session, not for its default title", () => {
+    const generateTitle = vi.fn();
 
-    render({ sessionTitle: "New session - 2026-10-10T15:00:51.077Z" }, reload);
-    expect(reload).not.toHaveBeenCalled();
+    render(
+      { sessionTitle: "New session - 2026-10-10T15:00:51.077Z" },
+      generateTitle,
+    );
+    expect(generateTitle).not.toHaveBeenCalled();
 
-    render({ sessionTitle: "Fix the login redirect" }, reload);
-    expect(reload).toHaveBeenCalledOnce();
+    render({ sessionTitle: "Fix the login redirect" }, generateTitle);
+    expect(generateTitle).toHaveBeenCalledOnce();
 
     render(
       {
         sessionTitle: "Fix the login redirect",
         threadListTitle: "Fix the login redirect",
       },
-      reload,
+      generateTitle,
     );
-    expect(reload).toHaveBeenCalledOnce();
+    expect(generateTitle).toHaveBeenCalledOnce();
   });
 
-  it("does not reload for a rename the session then reports", () => {
-    const reload = vi.fn().mockResolvedValue(undefined);
+  it("does not request a title for a rename the session then reports", () => {
+    const generateTitle = vi.fn();
 
-    render({ sessionTitle: "Draft", threadListTitle: "Draft" }, reload);
-    render({ sessionTitle: "Draft", threadListTitle: "Release notes" }, reload);
+    render({ sessionTitle: "Draft", threadListTitle: "Draft" }, generateTitle);
+    render(
+      { sessionTitle: "Draft", threadListTitle: "Release notes" },
+      generateTitle,
+    );
     render(
       { sessionTitle: "Release notes", threadListTitle: "Release notes" },
-      reload,
+      generateTitle,
     );
 
-    expect(reload).not.toHaveBeenCalled();
+    expect(generateTitle).not.toHaveBeenCalled();
   });
 
-  it("reloads a stale listed title once on mount", () => {
-    const reload = vi.fn().mockResolvedValue(undefined);
+  it("requests a stale listed title once on mount", () => {
+    const generateTitle = vi.fn();
 
-    render({ sessionTitle: "New title", threadListTitle: "Old title" }, reload);
+    render(
+      { sessionTitle: "New title", threadListTitle: "Old title" },
+      generateTitle,
+    );
 
-    expect(reload).toHaveBeenCalledOnce();
+    expect(generateTitle).toHaveBeenCalledOnce();
   });
 
-  it("reloads again when the session returns to a title it already reloaded for", () => {
-    const reload = vi.fn().mockResolvedValue(undefined);
+  it("requests again when the session returns to a title it already requested", () => {
+    const generateTitle = vi.fn();
 
-    render({ sessionTitle: "Plan", threadListTitle: "Old title" }, reload);
-    render({ sessionTitle: "Plan", threadListTitle: "Plan" }, reload);
-    render({ sessionTitle: "Ship", threadListTitle: "Ship" }, reload);
-    render({ sessionTitle: "Plan", threadListTitle: "Ship" }, reload);
+    render(
+      { sessionTitle: "Plan", threadListTitle: "Old title" },
+      generateTitle,
+    );
+    render({ sessionTitle: "Plan", threadListTitle: "Plan" }, generateTitle);
+    render({ sessionTitle: "Ship", threadListTitle: "Ship" }, generateTitle);
+    render({ sessionTitle: "Plan", threadListTitle: "Ship" }, generateTitle);
 
-    expect(reload).toHaveBeenCalledTimes(2);
+    expect(generateTitle).toHaveBeenCalledTimes(2);
   });
 
   // Activity is React 19 only.
   it.skipIf(onReact18)(
-    "does not reload again when the thread is revealed before its reload settles",
+    "does not request again when the thread is revealed before the list catches up",
     async () => {
-      const reload = vi.fn(() => new Promise<void>(() => {}));
+      const generateTitle = vi.fn();
       const view = (mode: "visible" | "hidden") => (
         <Activity mode={mode}>
           <Probe
             sessionTitle="New title"
             threadListTitle="Old title"
-            reload={reload}
+            generateTitle={generateTitle}
           />
         </Activity>
       );
@@ -125,12 +137,12 @@ describe("useOpenCodeThreadListTitleSync", () => {
       await act(async () => root!.render(view("hidden")));
       await act(async () => root!.render(view("visible")));
 
-      expect(reload).toHaveBeenCalledOnce();
+      expect(generateTitle).toHaveBeenCalledOnce();
     },
   );
 
   it("does nothing when disabled", () => {
-    const reload = vi.fn().mockResolvedValue(undefined);
+    const generateTitle = vi.fn();
 
     render(
       {
@@ -138,9 +150,9 @@ describe("useOpenCodeThreadListTitleSync", () => {
         threadListTitle: "Old title",
         enabled: false,
       },
-      reload,
+      generateTitle,
     );
 
-    expect(reload).not.toHaveBeenCalled();
+    expect(generateTitle).not.toHaveBeenCalled();
   });
 });

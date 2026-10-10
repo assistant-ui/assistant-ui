@@ -160,7 +160,7 @@ const useOpenCodeThreadStore = (
   useOpenCodeThreadListTitleSync(
     state.session?.title,
     threadListTitle,
-    aui.threads.reload,
+    () => aui.threadListItem.generateTitle(),
     syncTitles,
   );
   const onLoadError = useLatestRef((error: unknown) => {
@@ -417,11 +417,16 @@ export const useOpenCodeRuntime = (
   const clientKey = options.client ?? baseUrl;
   const createPinned = () => {
     const client = options.client ?? createOpencodeClient({ baseUrl });
+    const registry = createRegistry(client);
     return {
       key: clientKey,
       client,
-      registry: createRegistry(client),
-      adapter: createOpenCodeThreadListAdapter(client),
+      registry,
+      adapter: createOpenCodeThreadListAdapter(
+        client,
+        (sessionId) =>
+          registry.controllers.get(sessionId)?.getState().session?.title,
+      ),
     };
   };
   const [pinned, setPinned] = useState(createPinned);

@@ -12,23 +12,20 @@ const mocks = vi.hoisted(() => ({
   sessions: [] as string[],
   remoteOptions: undefined as { initialThreadId?: string } | undefined,
   stores: [] as unknown[],
-  reload: vi.fn().mockResolvedValue(undefined),
   threadListItem: {
     externalId: "session-1" as string | undefined,
     remoteId: "cloud-thread-1" as string | undefined,
     status: "regular" as "new" | "regular",
     source: null,
     initialize: vi.fn(),
+    generateTitle: vi.fn(),
   },
   state: undefined as unknown,
 }));
 
 vi.mock("@assistant-ui/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/react")>()),
-  useAui: () => ({
-    threadListItem: mocks.threadListItem,
-    threads: { reload: mocks.reload },
-  }),
+  useAui: () => ({ threadListItem: mocks.threadListItem }),
   useAuiState: (selector: (state: unknown) => unknown) =>
     selector({ threadListItem: mocks.threadListItem }),
   useCloudThreadListAdapter: () => ({}),
@@ -88,7 +85,7 @@ afterEach(() => {
   mocks.threadListItem.remoteId = "cloud-thread-1";
   mocks.threadListItem.status = "regular";
   mocks.threadListItem.initialize.mockReset();
-  mocks.reload.mockReset().mockResolvedValue(undefined);
+  mocks.threadListItem.generateTitle.mockReset();
 });
 
 describe("useOpenCodeRuntime under Cloud", () => {
@@ -125,7 +122,7 @@ describe("useOpenCodeRuntime under Cloud", () => {
     root = createRoot(document.createElement("div"));
     await act(async () => root!.render(createElement(App)));
 
-    expect(mocks.reload).not.toHaveBeenCalled();
+    expect(mocks.threadListItem.generateTitle).not.toHaveBeenCalled();
   });
   it("opens no session for a cloud thread without one, and rejects a send to it", async () => {
     mocks.state = createOpenCodeThreadState("unused");

@@ -17,13 +17,13 @@ const mocks = vi.hoisted(() => ({
     | Promise<{ remoteId: string; externalId: string }>
     | undefined,
   sessionCreate: vi.fn().mockResolvedValue({ data: { id: "session-1" } }),
-  reload: vi.fn().mockResolvedValue(undefined),
   threadListItem: {
     externalId: "session-1" as string | undefined,
     remoteId: "session-1" as string | undefined,
     status: "regular" as "new" | "regular",
     title: undefined as string | undefined,
     source: null as string | null,
+    generateTitle: vi.fn(),
     initialize: vi.fn(() => {
       mocks.initializeTask ??= (async () => {
         const adapter = mocks.threadListAdapter;
@@ -45,10 +45,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@assistant-ui/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/react")>()),
-  useAui: () => ({
-    threadListItem: mocks.threadListItem,
-    threads: { reload: mocks.reload },
-  }),
+  useAui: () => ({ threadListItem: mocks.threadListItem }),
   useAuiState: (selector: (state: unknown) => unknown) =>
     selector({ threadListItem: mocks.threadListItem }),
   useExternalStoreRuntime: (adapter: unknown) => {
@@ -124,7 +121,7 @@ afterEach(() => {
   mocks.threadListItem.title = undefined;
   mocks.threadListItem.source = null;
   mocks.threadListItem.initialize.mockClear();
-  mocks.reload.mockReset().mockResolvedValue(undefined);
+  mocks.threadListItem.generateTitle.mockClear();
   mocks.sessionCreate
     .mockReset()
     .mockResolvedValue({ data: { id: "session-1" } });
@@ -165,7 +162,7 @@ describe("useOpenCodeRuntime", () => {
     expect(latest).toHaveBeenCalledExactlyOnceWith(loadError);
   });
 
-  it("reloads the thread list when OpenCode retitles the open session", async () => {
+  it("applies the title OpenCode gives the open session to its list item", async () => {
     mocks.state = {
       ...createOpenCodeThreadState("session-1"),
       session: { id: "session-1", title: "Fix the login redirect", time: {} },
@@ -180,7 +177,7 @@ describe("useOpenCodeRuntime", () => {
     root = createRoot(document.createElement("div"));
     await act(async () => root!.render(createElement(App)));
 
-    expect(mocks.reload).toHaveBeenCalledOnce();
+    expect(mocks.threadListItem.generateTitle).toHaveBeenCalledOnce();
   });
 
   it("leaves an outer thread list alone when nested in it", async () => {
@@ -199,7 +196,7 @@ describe("useOpenCodeRuntime", () => {
     root = createRoot(document.createElement("div"));
     await act(async () => root!.render(createElement(App)));
 
-    expect(mocks.reload).not.toHaveBeenCalled();
+    expect(mocks.threadListItem.generateTitle).not.toHaveBeenCalled();
   });
 
   it("keeps a new thread enabled and prompts before ids land", async () => {

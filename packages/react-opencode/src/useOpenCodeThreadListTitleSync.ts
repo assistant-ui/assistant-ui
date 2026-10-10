@@ -1,31 +1,28 @@
 import { useLatestRef } from "@assistant-ui/core/react/internal";
 import { useEffect, useRef } from "react";
-
-// OpenCode's `Session.isDefaultTitle` format, which a session carries until OpenCode titles it on its first prompt.
-const DEFAULT_SESSION_TITLE =
-  /^(New session - |Child session - )\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+import { isDefaultSessionTitle } from "./openCodeThreadListAdapter";
 
 export const useOpenCodeThreadListTitleSync = (
   sessionTitle: string | undefined,
   threadListTitle: string | undefined,
-  reload: () => Promise<void>,
+  generateTitle: () => void,
   enabled: boolean,
 ) => {
-  const latest = useLatestRef({ threadListTitle, reload });
-  const reloadedFor = useRef<string | undefined>(undefined);
+  const latest = useLatestRef({ threadListTitle, generateTitle });
+  const requestedFor = useRef<string | undefined>(undefined);
 
   useEffect(() => {
     if (
       !enabled ||
       sessionTitle === undefined ||
-      DEFAULT_SESSION_TITLE.test(sessionTitle) ||
+      isDefaultSessionTitle(sessionTitle) ||
       sessionTitle === latest.current.threadListTitle
     ) {
-      reloadedFor.current = undefined;
+      requestedFor.current = undefined;
       return;
     }
-    if (reloadedFor.current === sessionTitle) return;
-    reloadedFor.current = sessionTitle;
-    void latest.current.reload();
+    if (requestedFor.current === sessionTitle) return;
+    requestedFor.current = sessionTitle;
+    latest.current.generateTitle();
   }, [enabled, sessionTitle, latest]);
 };
