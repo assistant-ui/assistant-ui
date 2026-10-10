@@ -46,10 +46,14 @@ export type StandardSchemaLike = {
 };
 
 type StandardResult = {
-  readonly issues?: ReadonlyArray<{
-    readonly message: string;
-    readonly path?: ReadonlyArray<PropertyKey | { readonly key: PropertyKey }>;
-  }>;
+  readonly issues?:
+    | ReadonlyArray<{
+        readonly message: string;
+        readonly path?:
+          | ReadonlyArray<PropertyKey | { readonly key: PropertyKey }>
+          | undefined;
+      }>
+    | undefined;
 };
 
 export const isStandardSchema = (value: unknown): value is StandardSchemaLike =>
