@@ -62,7 +62,7 @@ default. Pass `Fallback` to opt into a soft-fail UX.
 
 ### generativeUIToJSX
 
-Serializes a generative-UI node to a JSX-like string for display: the "view source" of a model-produced tree. The wire form `{ _type: "Weather", id: "x" }` (or its `$type` spelling) becomes `<Weather id="x" />`, and nested `children` render between tags: `<Card title="Hi"><Text>hello</Text></Card>`. A model-provided `_key` or `$key` becomes the JSX `key` attribute.
+Serializes a generative-UI node to a JSX-like string for display: the "view source" of a model-produced tree. The wire form `{ _type: "Weather", id: "x" }` (or its `$type` spelling) becomes `<Weather id="x" />`, and nested `children` render between tags: `<Card title="Hi"><Text>hello</Text></Card>`. A model-provided `_key` or `$key` becomes the JSX `key` attribute, and an action in either spelling becomes the `$action` prop components receive.
 
 By default this is a faithful textual rendering, not a parser: text children are emitted verbatim (not HTML/JSX-escaped), so the result is meant to be shown, not re-parsed. Returns `""` for nodes that aren't renderable (no type yet, `null`, booleans).
 

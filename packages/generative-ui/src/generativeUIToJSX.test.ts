@@ -50,6 +50,23 @@ describe("generativeUIToJSX", () => {
     );
   });
 
+  it("emits an action in either spelling as the $action prop components receive", () => {
+    expect(
+      generativeUIToJSX({
+        _type: "Button",
+        _action: { type: "go" },
+        label: "Go",
+      }),
+    ).toBe('<Button label="Go" $action={{"type":"go"}} />');
+    expect(
+      generativeUIToJSX({
+        $type: "Button",
+        $action: { type: "kept" },
+        _action: { type: "dropped" },
+      }),
+    ).toBe('<Button $action={{"type":"kept"}} />');
+  });
+
   it("reads the _type/_key spelling models emit", () => {
     expect(
       generativeUIToJSX(

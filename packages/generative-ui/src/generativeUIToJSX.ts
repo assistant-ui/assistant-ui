@@ -9,7 +9,7 @@ export interface GenerativeUIToJSXOptions {
 }
 
 /**
- * Serializes a generative-UI node to a JSX-like string for display: the "view source" of a model-produced tree. The wire form `{ _type: "Weather", id: "x" }` (or its `$type` spelling) becomes `<Weather id="x" />`, and nested `children` render between tags: `<Card title="Hi"><Text>hello</Text></Card>`. A model-provided `_key` or `$key` becomes the JSX `key` attribute.
+ * Serializes a generative-UI node to a JSX-like string for display: the "view source" of a model-produced tree. The wire form `{ _type: "Weather", id: "x" }` (or its `$type` spelling) becomes `<Weather id="x" />`, and nested `children` render between tags: `<Card title="Hi"><Text>hello</Text></Card>`. A model-provided `_key` or `$key` becomes the JSX `key` attribute, and an action in either spelling becomes the `$action` prop components receive.
  *
  * By default this is a faithful textual rendering, not a parser: text children are emitted verbatim (not HTML/JSX-escaped), so the result is meant to be shown, not re-parsed. Returns `""` for nodes that aren't renderable (no type yet, `null`, booleans).
  *
@@ -34,11 +34,13 @@ const MAX_DEPTH = 64;
 /** Characters that would break JSX if emitted verbatim inside a text child. */
 const UNSAFE_CHILD_CHARS = /[<>&{}]/;
 
-const IDENTITY_KEYS: ReadonlySet<string> = new Set([
+const MAPPED_KEYS: ReadonlySet<string> = new Set([
   TYPE_KEY,
   MODEL_KEYS.type,
   "$key",
   MODEL_KEYS.key,
+  "$action",
+  MODEL_KEYS.action,
 ]);
 
 function toJSX(
@@ -70,9 +72,10 @@ function toJSX(
   const attrs =
     formatAttr("key", readReserved(record, "key"), escape) +
     Object.entries(record)
-      .filter(([key]) => key !== "children" && !IDENTITY_KEYS.has(key))
+      .filter(([key]) => key !== "children" && !MAPPED_KEYS.has(key))
       .map(([key, value]) => formatAttr(key, value, escape))
-      .join("");
+      .join("") +
+    formatAttr("$action", readReserved(record, "action"), escape);
 
   if (!pretty) {
     const inner =
