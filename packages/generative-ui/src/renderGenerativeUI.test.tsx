@@ -318,6 +318,21 @@ describe("renderGenerativeUI", () => {
     }
   });
 
+  it("renders a node by its complete `$type` while a stray `_type` streams", () => {
+    const html = renderToStaticMarkup(
+      <>
+        {renderGenerativeUI(
+          parsePartialJsonObject(
+            '{"$type": "Live", "label": "hi", "_type": "Te',
+          ),
+          library,
+          { status: "streaming" },
+        )}
+      </>,
+    );
+    expect(html).toBe('<span data-status="streaming">hi</span>');
+  });
+
   it("renders nothing for a node without a resolved type", () => {
     const html = renderToStaticMarkup(<>{renderGenerativeUI({}, library)}</>);
     expect(html).toBe("");

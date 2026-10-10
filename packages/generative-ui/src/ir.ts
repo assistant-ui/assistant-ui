@@ -96,11 +96,12 @@ export interface Action {
 }
 
 /**
- * Anything renderable as generative UI. The renderer also accepts `number`,
- * `boolean`, `null`, `undefined`, and arrays at the input boundary (numbers
- * render as text, falsy/boolean as nothing, arrays as lists), and elements
- * whose reserved keys use the `_type`/`_key`/`_action` spelling models emit;
- * {@link normalizeUINode} accepts that full range.
+ * Anything renderable as generative UI, with reserved keys in the `$`
+ * spelling. At the input boundary the renderer also accepts `number`,
+ * `boolean`, `null`, `undefined`, and arrays (numbers render as text,
+ * falsy/boolean as nothing, arrays as lists), and elements in the
+ * `_type`/`_key`/`_action` spelling models emit, which this type does not
+ * describe; {@link normalizeUINode} accepts that full range.
  */
 export type UINode = string | number | UIElement | LegacyComponentNode;
 
@@ -211,14 +212,10 @@ export function normalizeUINode(
   // The flat shape is the canonical form; detect it first so a flat node that
   // happens to use `component` as an ordinary prop is not swallowed by the
   // legacy `component`-shape branch.
-  const type = readReserved(node, "type");
+  const typeKey = node[TYPE_KEY] != null ? TYPE_KEY : MODEL_KEYS.type;
+  const type = node[typeKey];
   if (typeof type === "string") {
-    if (
-      partialPath?.length === 1 &&
-      (partialPath[0] === TYPE_KEY || partialPath[0] === MODEL_KEYS.type)
-    ) {
-      return null;
-    }
+    if (partialPath?.length === 1 && partialPath[0] === typeKey) return null;
     const { children, ...rest } = node;
     // Reserved keys never reach the prop bag the component sees (see the
     // module header), including strays such as `$status`, so they cannot leak
