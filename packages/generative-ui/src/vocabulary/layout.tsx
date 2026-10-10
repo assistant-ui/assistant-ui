@@ -52,7 +52,7 @@ export const layoutVocabulary = {
         .boolean()
         .optional()
         .describe(
-          "Render as a form; submitting it fires `confirm._action`, or the Card's `_action` when there is no confirm footer, with every named child control's value keyed by `name`.",
+          "Render as a form; submitting it fires `confirm._action`, or the Card's own `_action` when `confirm` has none, with every named child control's value keyed by `name`.",
         ),
       confirm: cardFooterButtonSchema
         .optional()
@@ -73,8 +73,7 @@ export const layoutVocabulary = {
       children,
     }) => {
       const Root = asForm ? "form" : "section";
-      const submitAction =
-        confirm === undefined ? $action : footerAction(confirm);
+      const submitAction = footerAction(confirm) ?? $action;
       const cardTitle = toTextContent(title);
       const footer =
         confirm || cancel ? (

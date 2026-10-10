@@ -2,4 +2,4 @@
 "@assistant-ui/generative-ui": patch
 ---
 
-Fire the Card action when an `asForm` Card submits without a `confirm` footer.
+fix(generative-ui): submit an `asForm` card through its own `_action` when its `confirm` footer has none
