@@ -1,0 +1,80 @@
+name: CodeQL
+
+on:
+  # Pushes to main are never path-filtered: every commit there needs an analysis for pull requests to be compared against.
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - "**/*.md"
+      - "**/*.mdx"
+  schedule:
+    - cron: "41 5 * * 2"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [actions, javascript-typescript, python]
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 2
+
+      - name: Test language selection
+        if: strategy.job-index == 0
+        run: node --test scripts/codeql-language-selection.test.mjs
+
+      # A pull request only analyzes the languages it touches. Pushes and scheduled runs skip this step and analyze all three.
+      - name: Select language
+        id: selection
+        if: github.event_name == 'pull_request'
+        env:
+          LANGUAGE: ${{ matrix.language }}
+        run: |
+          set -euo pipefail
+          case "$LANGUAGE" in
+            actions)
+              paths=(.github/workflows ':(glob)**/action.yml' ':(glob)**/action.yaml')
+              ;;
+            javascript-typescript)
+              paths=(. ':(exclude).github/workflows' ':(exclude)python' ':(exclude,glob)**/*.py' ':(exclude,glob)**/*.md' ':(exclude,glob)**/*.mdx')
+              ;;
+            python) paths=(':(glob)**/*.py') ;;
+            *) exit 1 ;;
+          esac
+          run=true
+          if git diff --quiet --no-renames HEAD^1 HEAD -- "${paths[@]}" &&
+            git diff --quiet --no-renames HEAD^1 HEAD -- .github/workflows/codeql.yaml; then
+            run=false
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
+      - name: Initialize CodeQL
+        if: steps.selection.outputs.run != 'false'
+        uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # ratchet:github/codeql-action/init@v4.38.3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+
+      - name: Analyze
+        if: steps.selection.outputs.run != 'false'
+        uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # ratchet:github/codeql-action/analyze@v4.38.3
+        with:
+          category: /language:${{ matrix.language }}
