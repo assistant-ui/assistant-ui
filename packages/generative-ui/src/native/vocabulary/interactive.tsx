@@ -16,11 +16,19 @@ import {
 } from "react-native";
 import { useAnsweredValue } from "../../answeredValues";
 import { useA2uiBinding } from "../../bindingContext";
+import {
+  classifyTemporal,
+  fromLocalDateTime,
+  normalizeTemporalInputValue,
+  toPickerLocalDateTime,
+} from "../../temporal";
 import type { Action, ButtonStyle } from "../../ir";
 import type { GenerativeUIDispatch, GenerativeUILibrary } from "../../types";
 import { interactiveDefinitions } from "../../vocabulary/definitions/interactive";
 import { fire } from "../../vocabulary/dispatch";
 import {
+  clamp,
+  finiteNumber,
   mapOptions,
   UNDO_WINDOW_SECONDS,
   type Option,
@@ -81,6 +89,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   radioDot: { width: 8, height: 8, borderRadius: 4 },
+  stepperRow: { flexDirection: "row", alignItems: "center", gap: 8 },
+  stepperButton: {
+    width: 40,
+    height: 40,
+    borderWidth: 1,
+    borderRadius: RADIUS.control,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  stepperSymbol: { fontSize: 18 },
+  stepperValue: { minWidth: 64, alignItems: "center" },
+  stepperNumber: { fontSize: 14, fontVariant: ["tabular-nums"] },
 });
 
 type ActionProps = {
@@ -247,6 +267,142 @@ function Input({ defaultValue, ...props }: InputProps) {
     typeof answeredValue === "string" ? answeredValue : defaultValue;
   return (
     <InputField key={initialValue} {...props} initialValue={initialValue} />
+  );
+}
+
+type DatePickerProps = ActionProps & {
+  inputType?: "date" | "datetime" | "time";
+  value?: string;
+  min?: string;
+  max?: string;
+  label?: string;
+  name?: string;
+};
+
+const dateText = (value: string | undefined, inputType: string) =>
+  inputType === "datetime"
+    ? toPickerLocalDateTime(value ?? "").replace("T", " ")
+    : normalizeTemporalInputValue(value ?? "");
+
+function DatePickerField({
+  inputType = "date",
+  value,
+  label,
+  name,
+  initialValue,
+  $action,
+  $dispatch,
+}: DatePickerProps & { initialValue: string | undefined }) {
+  const theme = useNativeTheme();
+  const ink = useInk();
+  const answeredValue = useAnsweredValue(name);
+  const updateBinding = useA2uiBinding(name);
+  const boundValue = updateBinding
+    ? typeof answeredValue === "string"
+      ? answeredValue
+      : value
+    : initialValue;
+  const [selection, setSelection] = useState(() => ({
+    initialValue: boundValue,
+    anchor: boundValue,
+    committed: boundValue,
+    text: dateText(boundValue, inputType),
+    invalid: false,
+  }));
+  if (selection.initialValue !== boundValue) {
+    const echo =
+      updateBinding !== undefined && selection.committed === boundValue;
+    setSelection({
+      initialValue: boundValue,
+      anchor: echo ? selection.anchor : boundValue,
+      committed: boundValue,
+      text: dateText(boundValue, inputType),
+      invalid: false,
+    });
+  }
+  const parse = (text: string) => {
+    const raw = inputType === "datetime" ? text.replace(" ", "T") : text;
+    const temporal = classifyTemporal(raw);
+    const valid =
+      raw === "" ||
+      (inputType === "date" && temporal.kind === "date") ||
+      (inputType === "time" && temporal.kind === "time") ||
+      (inputType === "datetime" &&
+        (temporal.kind === "floating" || temporal.kind === "instant"));
+    if (!valid) return undefined;
+    if (raw === "") return "";
+    if (inputType === "date") return raw;
+    const normalized = normalizeTemporalInputValue(raw);
+    if (
+      normalized === dateText(selection.committed, inputType).replace(" ", "T")
+    )
+      return selection.committed ?? "";
+    return inputType === "datetime"
+      ? fromLocalDateTime(normalized, selection.anchor)
+      : normalized;
+  };
+  useField(name, "value", () => parse(selection.text) ?? "");
+  const commit = () => {
+    const next = parse(selection.text);
+    if (next === undefined) {
+      setSelection((current) => ({ ...current, invalid: true }));
+      return;
+    }
+    setSelection((current) => ({
+      ...current,
+      committed: next,
+      invalid: false,
+    }));
+    if (next === selection.committed) return;
+    updateBinding?.(next);
+    fire($action, $dispatch, next);
+  };
+  return (
+    <View style={styles.choiceField}>
+      {label !== undefined ? (
+        <Text style={[styles.choiceLabel, { color: fade(ink, 0.62) }]}>
+          {label}
+        </Text>
+      ) : null}
+      <TextInput
+        accessibilityLabel={label}
+        placeholder={
+          inputType === "time"
+            ? "HH:MM"
+            : inputType === "datetime"
+              ? "YYYY-MM-DD HH:MM"
+              : "YYYY-MM-DD"
+        }
+        placeholderTextColor={fade(ink, 0.45)}
+        value={selection.text}
+        onChangeText={(text) =>
+          setSelection((current) => ({ ...current, text, invalid: false }))
+        }
+        onSubmitEditing={commit}
+        onBlur={commit}
+        style={[
+          styles.field,
+          {
+            borderColor: selection.invalid ? theme.destructive : theme.input,
+            color: ink,
+          },
+        ]}
+      />
+    </View>
+  );
+}
+
+function DatePicker(props: DatePickerProps) {
+  const answeredValue = useAnsweredValue(props.name);
+  const updateBinding = useA2uiBinding(props.name);
+  const initialValue =
+    typeof answeredValue === "string" ? answeredValue : props.value;
+  return (
+    <DatePickerField
+      key={updateBinding ? "bound" : initialValue}
+      {...props}
+      initialValue={initialValue}
+    />
   );
 }
 
@@ -564,6 +720,149 @@ function Checkbox({ defaultChecked, ...props }: CheckboxProps) {
   );
 }
 
+type SliderProps = ActionProps & {
+  value?: number;
+  name?: string;
+  label?: string;
+  min: number;
+  max: number;
+  step?: number;
+  defaultValue?: number;
+  unit?: string;
+};
+
+function SliderField({
+  value,
+  name,
+  label,
+  min,
+  max,
+  step,
+  unit,
+  initialValue,
+  $action,
+  $dispatch,
+}: SliderProps & { initialValue: number }) {
+  const theme = useNativeTheme();
+  const ink = useInk();
+  const answeredValue = useAnsweredValue(name);
+  const updateBinding = useA2uiBinding(name);
+  const safeMin = finiteNumber(min) ? min : 0;
+  const safeMax = finiteNumber(max) ? Math.max(max, safeMin) : safeMin + 100;
+  const safeStep = finiteNumber(step) && step > 0 ? step : 1;
+  const [localValue, setLocalValue] = useState(initialValue);
+  const selected = updateBinding
+    ? clamp(
+        finiteNumber(answeredValue)
+          ? answeredValue
+          : finiteNumber(value)
+            ? value
+            : safeMin,
+        safeMin,
+        safeMax,
+      )
+    : localValue;
+  const text = unit ? `${selected} ${unit}` : String(selected);
+  useField(name, "value", () => selected);
+  const adjust = (direction: -1 | 1) => {
+    const position = (selected - safeMin) / safeStep;
+    const index =
+      direction === 1
+        ? Math.floor(position + 1e-9) + 1
+        : Math.ceil(position - 1e-9) - 1;
+    const decimals = safeStep.toString().split(".")[1]?.length ?? 0;
+    const next = clamp(
+      Number((safeMin + index * safeStep).toFixed(decimals)),
+      safeMin,
+      safeMax,
+    );
+    if (next === selected) return;
+    setLocalValue(next);
+    updateBinding?.(next);
+    fire($action, $dispatch, next);
+  };
+  return (
+    <View style={styles.choiceField}>
+      {label !== undefined ? (
+        <Text style={[styles.choiceLabel, { color: fade(ink, 0.62) }]}>
+          {label}
+        </Text>
+      ) : null}
+      <View style={styles.stepperRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={label ? `Decrease ${label}` : "Decrease"}
+          accessibilityState={{ disabled: selected <= safeMin }}
+          aria-disabled={selected <= safeMin}
+          disabled={selected <= safeMin}
+          onPress={() => adjust(-1)}
+          style={[styles.stepperButton, { borderColor: theme.input }]}
+        >
+          <Text style={[styles.stepperSymbol, { color: ink }]}>−</Text>
+        </Pressable>
+        <View
+          accessibilityRole="adjustable"
+          accessibilityLabel={label}
+          accessibilityValue={{
+            min: safeMin,
+            max: safeMax,
+            now: selected,
+            text,
+          }}
+          aria-valuemin={safeMin}
+          aria-valuemax={safeMax}
+          aria-valuenow={selected}
+          aria-valuetext={text}
+          onAccessibilityAction={(event) => {
+            if (event.nativeEvent.actionName === "increment") adjust(1);
+            if (event.nativeEvent.actionName === "decrement") adjust(-1);
+          }}
+          accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
+          style={styles.stepperValue}
+        >
+          <Text style={[styles.stepperNumber, { color: ink }]}>{text}</Text>
+        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={label ? `Increase ${label}` : "Increase"}
+          accessibilityState={{ disabled: selected >= safeMax }}
+          aria-disabled={selected >= safeMax}
+          disabled={selected >= safeMax}
+          onPress={() => adjust(1)}
+          style={[styles.stepperButton, { borderColor: theme.input }]}
+        >
+          <Text style={[styles.stepperSymbol, { color: ink }]}>+</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function Slider(props: SliderProps) {
+  const answeredValue = useAnsweredValue(props.name);
+  const updateBinding = useA2uiBinding(props.name);
+  const safeMin = finiteNumber(props.min) ? props.min : 0;
+  const safeMax = finiteNumber(props.max)
+    ? Math.max(props.max, safeMin)
+    : safeMin + 100;
+  const initialValue = clamp(
+    finiteNumber(answeredValue)
+      ? answeredValue
+      : finiteNumber(updateBinding ? props.value : props.defaultValue)
+        ? (updateBinding ? props.value : props.defaultValue)!
+        : safeMin,
+    safeMin,
+    safeMax,
+  );
+  return (
+    <SliderField
+      key={`${safeMin}:${safeMax}:${props.step ?? 1}:${updateBinding ? "bound" : initialValue}`}
+      {...props}
+      initialValue={initialValue}
+    />
+  );
+}
+
 type GroupProps = ActionProps & {
   value?: string;
   options: Option[];
@@ -732,6 +1031,10 @@ export const interactiveVocabulary = {
     ...interactiveDefinitions.Input,
     render: (props) => <Input {...props} />,
   },
+  DatePicker: {
+    ...interactiveDefinitions.DatePicker,
+    render: (props) => <DatePicker {...props} />,
+  },
   Select: {
     ...interactiveDefinitions.Select,
     render: (props) => <Select {...props} />,
@@ -739,6 +1042,10 @@ export const interactiveVocabulary = {
   Checkbox: {
     ...interactiveDefinitions.Checkbox,
     render: (props) => <Checkbox {...props} />,
+  },
+  Slider: {
+    ...interactiveDefinitions.Slider,
+    render: (props) => <Slider {...props} />,
   },
   RadioGroup: {
     ...interactiveDefinitions.RadioGroup,

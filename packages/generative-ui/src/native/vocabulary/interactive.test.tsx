@@ -542,3 +542,136 @@ describe("native choice controls", () => {
     ).toBe("true");
   });
 });
+
+const slider = (defaultValue: unknown = 0.3) => ({
+  type: "Slider",
+  props: {
+    label: "Volume",
+    name: "volume",
+    min: 0.1,
+    max: 0.7,
+    step: 0.2,
+    unit: "%",
+    defaultValue,
+  },
+  on: { change: { action: "capture", params: { value: { $event: "" } } } },
+});
+
+describe("native Slider", () => {
+  it("steps on the min grid, rounds, clamps, and exposes its value", async () => {
+    const capture = vi.fn();
+    const { container } = renderNativeSpec(
+      spec({ main: slider(0.35) }),
+      { capture },
+      actions,
+    );
+    const value = () => byRole(container, "slider", "Volume");
+    expect(value().getAttribute("aria-valuenow")).toBe("0.35");
+    expect(value().getAttribute("aria-valuemin")).toBe("0.1");
+    expect(value().getAttribute("aria-valuemax")).toBe("0.7");
+    expect(value().getAttribute("aria-valuetext")).toBe("0.35 %");
+    await press(byRole(container, "button", "Increase Volume"));
+    expect(value().getAttribute("aria-valuenow")).toBe("0.5");
+    await press(byRole(container, "button", "Increase Volume"));
+    expect(value().textContent).toBe("0.7 %");
+    expect(
+      byRole(container, "button", "Increase Volume").getAttribute(
+        "aria-disabled",
+      ),
+    ).toBe("true");
+    await press(byRole(container, "button", "Increase Volume"));
+    expect(capture).toHaveBeenCalledTimes(2);
+    await press(byRole(container, "button", "Decrease Volume"));
+    expect(value().getAttribute("aria-valuenow")).toBe("0.5");
+    expect(capture.mock.calls.map((call) => call[0].value)).toEqual([
+      0.5, 0.7, 0.5,
+    ]);
+    await press(byRole(container, "button", "Decrease Volume"));
+    await press(byRole(container, "button", "Decrease Volume"));
+    expect(value().getAttribute("aria-valuenow")).toBe("0.1");
+    expect(
+      byRole(container, "button", "Decrease Volume").getAttribute(
+        "aria-disabled",
+      ),
+    ).toBe("true");
+    await press(byRole(container, "button", "Decrease Volume"));
+    expect(capture).toHaveBeenCalledTimes(5);
+  });
+
+  it("dispatches the same numeric change as the web", async () => {
+    const input = spec({ main: slider(0.3) });
+    const native = vi.fn();
+    const web = vi.fn();
+    const n = renderNativeSpec(input, { capture: native }, actions);
+    const w = renderWebSpec(input, { capture: web }, actions);
+    await press(byRole(n.container, "button", "Increase Volume"));
+    const range = w.container.querySelector<HTMLInputElement>(
+      'input[type="range"]',
+    )!;
+    await act(async () => {
+      range.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      range.value = "0.5";
+      range.dispatchEvent(new Event("input", { bubbles: true }));
+      range.dispatchEvent(new Event("change", { bubbles: true }));
+      range.dispatchEvent(new Event("pointerup", { bubbles: true }));
+    });
+    expect(native.mock.calls[0]![0]).toEqual(web.mock.calls[0]![0]);
+  });
+
+  it("writes bound values and restarts an unbound value when its default changes", async () => {
+    const bound = renderNativeSpec(
+      spec({ main: slider({ $bindState: "/volume" }) }, { volume: 0.3 }),
+    );
+    await press(byRole(bound.container, "button", "Increase Volume"));
+    expect(bound.state.get("/volume")).toBe(0.5);
+    await act(async () => bound.state.set("/volume", 0.7));
+    expect(
+      byRole(bound.container, "slider", "Volume").getAttribute("aria-valuenow"),
+    ).toBe("0.7");
+    const unbound = renderNativeSpec(spec({ main: slider(0.3) }));
+    await press(byRole(unbound.container, "button", "Increase Volume"));
+    await unbound.update(spec({ main: slider(0.3) }));
+    expect(
+      byRole(unbound.container, "slider", "Volume").getAttribute(
+        "aria-valuenow",
+      ),
+    ).toBe("0.5");
+    await unbound.update(spec({ main: slider(0.1) }));
+    expect(
+      byRole(unbound.container, "slider", "Volume").getAttribute(
+        "aria-valuenow",
+      ),
+    ).toBe("0.1");
+  });
+
+  it("submits a number from an asForm Card like the web", async () => {
+    const input = spec({
+      main: {
+        type: "Card",
+        props: { asForm: true, confirm: { label: "Send" } },
+        children: ["volume"],
+        on: {
+          confirm: { action: "capture", params: { values: { $event: "" } } },
+        },
+      },
+      volume: slider(0.3),
+    });
+    const native = vi.fn();
+    const web = vi.fn();
+    const n = renderNativeSpec(input, { capture: native }, actions);
+    const w = renderWebSpec(input, { capture: web }, actions);
+    await press(byRole(n.container, "button", "Increase Volume"));
+    const range = w.container.querySelector<HTMLInputElement>(
+      'input[type="range"]',
+    )!;
+    await act(async () => {
+      range.value = "0.5";
+      range.dispatchEvent(new Event("input", { bubbles: true }));
+      range.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await press(byRole(n.container, "button", "Send"));
+    await act(async () => w.container.querySelector("form")!.requestSubmit());
+    expect(native.mock.lastCall![0]).toEqual(web.mock.lastCall![0]);
+    expect(native.mock.lastCall![0]).toEqual({ values: { volume: 0.5 } });
+  });
+});
