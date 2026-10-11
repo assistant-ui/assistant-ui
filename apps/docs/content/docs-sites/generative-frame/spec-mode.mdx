@@ -205,6 +205,33 @@ export const GeneratedUI = defineComponent({
 
 A Vue component receives the resolved props it declares, in its own `props` or through `extends` and `mixins`, the element's children through its default slot, and each named slot through the slot of that name. It emits a spec event it declares in `emits` with `emit(event, payload)`, and writes a prop the spec binds with `$bindState` by emitting `update:<prop>`, the `v-model` convention, which needs only the prop declared. Props and events the component does not declare are dropped, so a spec cannot set attributes such as `innerHTML` or `style`, or native listeners such as `onClick`, on the component's root element. A `defineAsyncComponent` wrapper declares no props or events of its own, so it receives none; wrap a lazily loaded component in one that declares them and passes them on. `useSpecElement()` returns the element's `id`, `element`, `bindings`, `state` store, and `streaming` for a component that needs them. Pending children, placeholders, and errors behave as in React.
 
+## Render with React Native
+
+On React Native, Metro resolves `generative-frame/spec/react` and `generative-frame/spec/assistant-ui` to React Native builds through the `react-native` export condition, so the imports stay the same. The renderer is the one React uses; only its default placeholder is drawn with React Native views, and `react-native` is an optional peer of those entries. Components receive the same props as on the web and render React Native primitives:
+
+```tsx
+import { Pressable, Text, View } from "react-native";
+import { SpecRenderer } from "generative-frame/spec/react";
+
+const components = {
+  Card: ({ props, children }) => (
+    <View>
+      <Text>{props.title}</Text>
+      {children}
+    </View>
+  ),
+  Button: ({ props, emit }) => (
+    <Pressable onPress={() => emit("press")}>
+      <Text>{props.label}</Text>
+    </Pressable>
+  ),
+};
+
+<SpecRenderer spec={spec} catalog={catalog} components={components} />;
+```
+
+Frame mode needs a browser and is not available on React Native.
+
 ## Expressions
 
 Any prop or action param can be an expression:

@@ -10,7 +10,7 @@ Render model-generated HTML and SVG widgets safely while they stream. By default
 - **Spec mode**: the model streams JSONL patches against a catalog of your own components; no frame, your design system.
 - **assistant-ui**: toolkit entries that render the tool calls in a thread as their arguments stream.
 
-Framework-agnostic; the React, Vue, and assistant-ui bindings are optional, and each framework is an optional peer of the entries that use it.
+Framework-agnostic; the React, Vue, and assistant-ui bindings are optional, and each framework is an optional peer of the entries that use it. On React Native, `generative-frame/spec/react` and `generative-frame/spec/assistant-ui` resolve to React Native builds through the `react-native` export condition.
 
 | Entry | Contents |
 | --- | --- |
