@@ -265,22 +265,20 @@ const isDisplayMode = (value: unknown): value is DisplayMode =>
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-/** A shared object counts once for each place it appears, so a state built from shared objects cannot make checking or serializing it expand without bound. */
-const MAX_STATE_VALUES = 100_000;
+/** How many characters a widget's state may take as JSON. A shared object counts once for each place it appears, as it does once serialized, so checking and saving a state stay bounded however the widget shares objects. */
+const MAX_STATE_LENGTH = 1_000_000;
 
 const isPlainJson = (state: unknown): boolean => {
-  let budget = MAX_STATE_VALUES;
+  let budget = MAX_STATE_LENGTH;
+  const spend = (length: number) => (budget -= length) >= 0;
   const ancestors = new Set<object>();
   const check = (value: unknown): boolean => {
-    if (--budget < 0) return false;
-    if (
-      value === null ||
-      typeof value === "boolean" ||
-      typeof value === "string"
-    )
-      return true;
-    if (typeof value === "number") return Number.isFinite(value);
-    if (typeof value !== "object" || ancestors.has(value)) return false;
+    if (value === null || typeof value === "boolean") return spend(5);
+    if (typeof value === "string") return spend(value.length + 2);
+    if (typeof value === "number")
+      return Number.isFinite(value) && spend(String(value).length);
+    if (typeof value !== "object" || ancestors.has(value) || !spend(2))
+      return false;
 
     const array = Array.isArray(value);
     const prototype = Object.getPrototypeOf(value);
@@ -297,7 +295,12 @@ const isPlainJson = (state: unknown): boolean => {
     if (array) {
       for (let index = 0; index < value.length; index++) {
         const property = Object.getOwnPropertyDescriptor(value, String(index));
-        if (!property || !("value" in property) || !check(property.value))
+        if (
+          !property ||
+          !("value" in property) ||
+          !spend(1) ||
+          !check(property.value)
+        )
           return false;
       }
     } else {
@@ -308,6 +311,7 @@ const isPlainJson = (state: unknown): boolean => {
           !property ||
           !("value" in property) ||
           !property.enumerable ||
+          !spend(key.length + 4) ||
           !check(property.value)
         )
           return false;

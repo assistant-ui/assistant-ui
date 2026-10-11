@@ -353,7 +353,7 @@ describe("createWidget", () => {
     widget.dispose();
   });
 
-  it("drops state whose shared objects expand past the limit, and keeps one that shares an object", async () => {
+  it("drops state whose JSON would pass the length limit however it shares objects", async () => {
     const onWidgetState = vi.fn();
     const { fake, widget } = setup({ onWidgetState });
     const first = await fake.connect(0);
@@ -361,12 +361,33 @@ describe("createWidget", () => {
     let doubling: unknown = 0;
     for (let depth = 0; depth < 20; depth++) doubling = [doubling, doubling];
     first.notify(METHODS.widgetState, { state: doubling });
+    const long = { s: "x".repeat(1 << 20) };
+    first.notify(METHODS.widgetState, { state: Array(49_000).fill(long) });
+    const short = { s: "x".repeat(1000) };
+    first.notify(METHODS.widgetState, { state: Array(2000).fill(short) });
+    first.notify(METHODS.widgetState, {
+      state: { [`k${"y".repeat(1 << 20)}`]: 1 },
+    });
+    await first.request(METHODS.initialize, {});
+    expect(onWidgetState).not.toHaveBeenCalled();
+    widget.dispose();
+  });
+
+  it("keeps state that shares an object or holds a long string within the limit", async () => {
+    const onWidgetState = vi.fn();
+    const { fake, widget } = setup({ onWidgetState });
+    const first = await fake.connect(0);
+    await widget.ready;
     const item = { id: 1 };
     first.notify(METHODS.widgetState, {
       state: { items: [item], selected: item },
     });
+    first.notify(METHODS.widgetState, {
+      state: { note: "x".repeat(100_000) },
+    });
     await first.request(METHODS.initialize, {});
-    expect(onWidgetState).toHaveBeenCalledExactlyOnceWith({
+    expect(onWidgetState).toHaveBeenCalledTimes(2);
+    expect(onWidgetState).toHaveBeenNthCalledWith(1, {
       items: [{ id: 1 }],
       selected: { id: 1 },
     });
