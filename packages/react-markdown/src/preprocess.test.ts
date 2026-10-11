@@ -467,16 +467,18 @@ describe("normalizeMathDelimiters", () => {
     ).toBe("1. $$\n   F = ma\n   $$\n   Newton\n\n2. $$\n   E = mc^2\n   $$");
   });
 
-  it.each(["+", "-"])(
-    "nests a $$ fence when its formula body has an operator-led %s line",
-    (operator) => {
+  it.each([
+    "+ \\frac{1}{2}mv^2",
+    "- \\frac{1}{2}mv^2",
+    "- 2v + 1",
+    "+ mgh",
+    "- b",
+  ])(
+    "nests a $$ fence whose formula continues on an operator-led line: %j",
+    (line) => {
       expect(
-        normalizeMathDelimiters(
-          `1. $$\nE = mc^2\n${operator} \\frac{1}{2}mv^2\n$$\nTotal energy.`,
-        ),
-      ).toBe(
-        `1. $$\n   E = mc^2\n   ${operator} \\frac{1}{2}mv^2\n   $$\n   Total energy.`,
-      );
+        normalizeMathDelimiters(`1. $$\nE = mc^2\n${line}\n$$\nTotal energy.`),
+      ).toBe(`1. $$\n   E = mc^2\n   ${line}\n   $$\n   Total energy.`);
     },
   );
 
@@ -489,6 +491,9 @@ describe("normalizeMathDelimiters", () => {
     expect(normalizeMathDelimiters("> 1. $$\n> x = 1\n> $$\n> Text")).toBe(
       "> 1. $$\n>    x = 1\n>    $$\n>    Text",
     );
+    expect(normalizeMathDelimiters("> 1. $$\nx = 1\n> $$\n> 2. b")).toBe(
+      "> 1. $$\n>    x = 1\n>    $$\n> 2. b",
+    );
   });
 
   it("scans a $$ fence across a code span without changing its contents", () => {
@@ -497,8 +502,14 @@ describe("normalizeMathDelimiters", () => {
     );
   });
 
-  it("leaves a streaming $$ fence that reaches a code span as written", () => {
-    const text = "1. $$\n\\text{`x`} = 1";
+  it("nests a still-streaming $$ fence across a code span", () => {
+    expect(normalizeMathDelimiters("1. $$\n\\text{`x`} = 1")).toBe(
+      "1. $$\n   \\text{`x`} = 1",
+    );
+  });
+
+  it("leaves a $$ fence that reaches a code fence before it closes", () => {
+    const text = "1. $$\na\n```\ncode\n```\n$$";
     expect(normalizeMathDelimiters(text)).toBe(text);
   });
 
@@ -563,7 +574,11 @@ describe("normalizeMathDelimiters", () => {
     );
   });
 
-  it.each(["1. $$\n   a\n   $$\nText", "- $$\n  a\n  $$\nText"])(
+  it.each([
+    "1. $$\n   a\n   $$\nText",
+    "- $$\n  a\n  $$\nText",
+    "> 1. $$\n>    a\n>    $$\n> Text",
+  ])(
     "leaves a $$ fence already at its item's content column, and the root paragraph after it: %j",
     (text) => {
       expect(normalizeMathDelimiters(text)).toBe(text);
@@ -580,13 +595,21 @@ describe("normalizeMathDelimiters", () => {
   it("leaves a $$ fence that reaches a sibling item before it closes", () => {
     const text = "1. $$\na\n2. b\n$$";
     expect(normalizeMathDelimiters(text)).toBe(text);
-    expect(normalizeMathDelimiters("1. $$\na\n- b\n$$")).toBe(
-      "1. $$\na\n- b\n$$",
-    );
     expect(normalizeMathDelimiters("1. $$\na\n2. $$\nb\n$$")).toBe(
       "1. $$\na\n2. $$\n   b\n   $$",
     );
   });
+
+  it.each([
+    "- $$\nF = ma\n- where $F_{net}$ is the net force\n$$\np = mv\n$$",
+    "- $$\nF = ma\n- the net force on the body\n$$",
+    "- $$\nF = ma\n- \n$$",
+  ])(
+    "leaves a $$ fence that reaches a sibling item of prose or nothing before it closes: %j",
+    (text) => {
+      expect(normalizeMathDelimiters(text)).toBe(text);
+    },
+  );
 
   it.each([
     "1. $$\nF = ma\n\nThat is Newton's second law.",

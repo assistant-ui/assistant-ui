@@ -2,4 +2,4 @@
 "@assistant-ui/react-markdown": patch
 ---
 
-Fix list-item display math nesting across operators, quotes, and code spans
+fix(react-markdown): `normalizeMathDelimiters` also keeps a `$$` fence opened on a list item's marker line inside that item when a formula line starts with `+` or `-`, when the item sits in a blockquote, and when the body holds a code span

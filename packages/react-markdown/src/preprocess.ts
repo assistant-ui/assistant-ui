@@ -928,7 +928,6 @@ function rewriteOutsideCode(
     precededBy: string,
     followedBy: string,
     lineHead: (offset: number) => string,
-    lineTail: (offset: number) => string,
   ) => string,
 ): string {
   return rewriteOutsideBlocks(text, (text, blockStarts) => {
@@ -940,18 +939,12 @@ function rewriteOutsideCode(
       if (segment === "") return;
       const start = plainStart;
       // A segment is cut at code spans, so the line an offset sits on can start
-      // before the segment does and end after it, and only the original text
-      // has the whole line.
+      // before the segment does, and only the original text has its head.
       const lineHead = (offset: number) => {
         const at = start + offset;
         return text.slice(text.lastIndexOf("\n", at - 1) + 1, at);
       };
-      const lineTail = (offset: number) => {
-        const at = start + offset;
-        const lineEnd = text.indexOf("\n", at);
-        return text.slice(at, lineEnd === -1 ? undefined : lineEnd);
-      };
-      out += rewrite(segment, out.slice(-1), followedBy, lineHead, lineTail);
+      out += rewrite(segment, out.slice(-1), followedBy, lineHead);
     };
 
     forEachVerbatimRange(text, blockStarts, (start, end) => {
@@ -1263,12 +1256,14 @@ function opensBlockInContainer(
  *
  * A fence already at the column is valid as written, and so is what follows it.
  * The closing marker is looked for up to the first blank line, which a display
- * body does not hold. A fence that reaches one first, reaches a sibling list
- * marker, or closes on a formula line (`F = ma$$`) is left as written, so a
- * finished message never has its prose pulled into the math. In a closed
- * fence, a `+` or `-` marker line with TeX syntax is formula content. A fence
- * that reaches the end of the text is one still streaming in and is indented
- * to its end unless it crosses such a marker.
+ * body does not hold, and past code spans, whose backticks remark-math reads as
+ * TeX inside the fence. A fence that reaches a blank line or a code fence
+ * first, reaches a sibling list marker, or closes on a formula line
+ * (`F = ma$$`) is left as written, so a finished message never has its prose
+ * pulled into the math. A `+` or `-` marker line holding no `$`, and TeX syntax
+ * or no run of words, continues the formula when the fence closes after it. A
+ * fence that reaches the end of the text is one still streaming in and is
+ * indented to its end unless it crosses such a line.
  */
 function nestListItemDisplayMath(text: string): string {
   return rewriteOutsideBlocks(text, (block, blockStarts) => {
@@ -1283,7 +1278,7 @@ function nestListItemDisplayMath(text: string): string {
     let opener = 0;
     while (opener < last) {
       const prefix = displayMathOpenerPrefix(lines[opener]!);
-      const openingAt = lineStarts[opener]! + (prefix?.length ?? 0);
+      const openingAt = lineStarts[opener]! + lines[opener]!.indexOf("$$");
       if (prefix === null || verbatimRangeAt(ranges, openingAt)) {
         opener += 1;
         continue;
@@ -1294,7 +1289,6 @@ function nestListItemDisplayMath(text: string): string {
       let moved = false;
       let closed = false;
       let resume = -1;
-      let spanResume = -1;
       let operatorResume = -1;
       for (; end <= last; end += 1) {
         const line = lines[end]!;
@@ -1306,12 +1300,6 @@ function nestListItemDisplayMath(text: string): string {
         if (range?.kind === "fence") {
           resume = end;
           break;
-        }
-        if (range?.kind === "span" && spanResume === -1) {
-          spanResume = end + 1;
-          while (spanResume <= last && lineStarts[spanResume]! < range.end) {
-            spanResume += 1;
-          }
         }
 
         if (
@@ -1342,23 +1330,22 @@ function nestListItemDisplayMath(text: string): string {
         const bareMarker = bareMarkerWidth(line, content, line.length);
         if (moves && (markerEnd > content || bareMarker > 0)) {
           const marker = line.slice(content, markerEnd).trim();
-          const operatorLedMath =
+          const rest = line.slice(markerEnd).trim();
+          const continuesFormula =
             (marker === "+" || marker === "-") &&
-            LATEX_SYNTAX.test(line.slice(markerEnd));
-          if (!operatorLedMath) {
+            rest !== "" &&
+            !rest.includes("$") &&
+            (LATEX_SYNTAX.test(rest) || !ADJACENT_WORDS.test(rest));
+          if (!continuesFormula) {
             resume = end;
             break;
           }
           if (operatorResume === -1) operatorResume = end;
         }
 
-        const formulaCloser = line.lastIndexOf("$$");
         if (
           FORMULA_LINE_CLOSER.test(line) &&
-          !verbatimRangeAt(
-            ranges,
-            formulaCloser === -1 ? lineEnd : lineStart + formulaCloser,
-          )
+          !verbatimRangeAt(ranges, lineStart + line.lastIndexOf("$$"))
         ) {
           resume = end + 1;
           break;
@@ -1371,10 +1358,6 @@ function nestListItemDisplayMath(text: string): string {
       }
       if (!closed && operatorResume !== -1) {
         opener = operatorResume;
-        continue;
-      }
-      if (!closed && spanResume !== -1) {
-        opener = spanResume;
         continue;
       }
       if (moved) {
