@@ -85,49 +85,33 @@ describe("listVocabulary $action dispatch", () => {
     expect(handler).toHaveBeenCalledWith({ payload: { type: "open" } });
   });
 
-  type KeyDownEvent = {
-    key: string;
-    target: { closest: (selector: string) => unknown };
-    currentTarget: unknown;
-    preventDefault: () => void;
-  };
-
-  const getOnKeyDown = (dispatch: GenerativeUIDispatch) => {
+  const getButton = (dispatch: GenerativeUIDispatch) => {
     const trigger = rowOut(dispatch).props.children;
-    const button = (trigger.props as { children: ReactElement[] }).children[0]!;
-    return (button.props as { onKeyDown: (e: KeyDownEvent) => void }).onKeyDown;
+    return (trigger.props as { children: ReactElement[] })
+      .children[0]! as ReactElement<{
+      onClick: (event: { currentTarget: unknown }) => void;
+      onKeyDown?: unknown;
+    }>;
   };
 
-  it("Enter and Space keydown both fire $action", () => {
+  const clickButton = (button: ReturnType<typeof getButton>) => {
+    button.props.onClick({ currentTarget: button });
+  };
+
+  it("native button clicks fire $action once per activation", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ open: handler });
-    const onKeyDown = getOnKeyDown(registry.dispatch);
-    const currentTarget = {};
-    onKeyDown({
-      key: "Enter",
-      target: { closest: () => currentTarget },
-      currentTarget,
-      preventDefault: vi.fn(),
-    });
-    onKeyDown({
-      key: " ",
-      target: { closest: () => currentTarget },
-      currentTarget,
-      preventDefault: vi.fn(),
-    });
+    const button = getButton(registry.dispatch);
+    expect(button.props.onKeyDown).toBeUndefined();
+    clickButton(button);
+    clickButton(button);
     expect(handler).toHaveBeenCalledTimes(2);
   });
 
-  it("a keydown for any other key does not fire $action", () => {
+  it("a keydown has no custom button handler", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ open: handler });
-    const onKeyDown = getOnKeyDown(registry.dispatch);
-    onKeyDown({
-      key: "Tab",
-      target: { closest: () => null },
-      currentTarget: {},
-      preventDefault: vi.fn(),
-    });
+    expect(getButton(registry.dispatch).props.onKeyDown).toBeUndefined();
     expect(handler).not.toHaveBeenCalled();
   });
 
@@ -159,35 +143,23 @@ describe("listVocabulary $action dispatch", () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
-  it("Space on the trigger itself fires the row action and prevents default", () => {
+  it("Space activation waits for the native button click", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ open: handler });
-    const onKeyDown = getOnKeyDown(registry.dispatch);
-    const currentTarget = {};
-    const preventDefault = vi.fn();
-    onKeyDown({
-      key: " ",
-      target: { closest: () => currentTarget },
-      currentTarget,
-      preventDefault,
-    });
+    const button = getButton(registry.dispatch);
+    expect(button.props.onKeyDown).toBeUndefined();
+    expect(handler).not.toHaveBeenCalled();
+    clickButton(button);
     expect(handler).toHaveBeenCalledWith({ payload: { type: "open" } });
-    expect(preventDefault).toHaveBeenCalledTimes(1);
   });
 
-  it("Enter on the trigger itself fires and prevents a second native click", () => {
+  it("Enter activation fires from one native button click", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ open: handler });
-    const onKeyDown = getOnKeyDown(registry.dispatch);
-    const currentTarget = {};
-    const preventDefault = vi.fn();
-    onKeyDown({
-      key: "Enter",
-      target: { closest: () => currentTarget },
-      currentTarget,
-      preventDefault,
-    });
+    const button = getButton(registry.dispatch);
+    expect(button.props.onKeyDown).toBeUndefined();
+    clickButton(button);
     expect(handler).toHaveBeenCalledWith({ payload: { type: "open" } });
-    expect(preventDefault).toHaveBeenCalledTimes(1);
+    expect(handler).toHaveBeenCalledTimes(1);
   });
 });

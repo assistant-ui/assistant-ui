@@ -91,7 +91,7 @@ describe("list vocabulary in Vue", () => {
     expect(rendered.match(/data-aui="listview-item-trigger"/g)).toHaveLength(1);
   });
 
-  it.each(["click", "button click", "Enter", " "])(
+  it.each(["click", "button click"])(
     "emits press from %s with the same params and state",
     async (interaction) => {
       const reactHandler = vi.fn();
@@ -107,16 +107,7 @@ describe("list vocabulary in Vue", () => {
           '[data-aui="listview-item-trigger"]',
         )!;
         if (interaction === "click") trigger.click();
-        else if (interaction === "button click")
-          trigger.querySelector("button")!.click();
-        else
-          trigger.querySelector("button")!.dispatchEvent(
-            new KeyboardEvent("keydown", {
-              key: interaction,
-              bubbles: true,
-              cancelable: true,
-            }),
-          );
+        else trigger.querySelector("button")!.click();
       };
       await act(async () => perform(react.container));
       perform(vue.container);
@@ -126,6 +117,106 @@ describe("list vocabulary in Vue", () => {
       );
       expect(vue.state.getState()).toEqual(react.state.getState());
       expect(vue.state.get("/pressed")).toBe(true);
+    },
+  );
+
+  it.each(["Enter", " "])(
+    "waits for the native button click after %s keydown",
+    async (key) => {
+      for (const render of [renderReactSpec, renderVueSpec]) {
+        const { container, state } = render(
+          spec(
+            {
+              main: {
+                type: "ListViewItem",
+                children: ["text"],
+                on: {
+                  press: {
+                    action: "setState",
+                    params: { path: "/pressed", value: true },
+                  },
+                },
+              },
+              text: { type: "Text", props: { value: "Row" } },
+            },
+            { pressed: false },
+          ),
+        );
+        const button = container.querySelector<HTMLButtonElement>(
+          '[data-aui="listview-item-trigger"] > button',
+        )!;
+        button.focus();
+        for (let repeat = 0; repeat < 2; repeat++) {
+          button.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              key,
+              bubbles: true,
+              repeat: repeat > 0,
+            }),
+          );
+        }
+        expect(state.get("/pressed")).toBe(false);
+        button.dispatchEvent(
+          new KeyboardEvent("keyup", { key, bubbles: true }),
+        );
+        expect(state.get("/pressed")).toBe(false);
+        if (render === renderReactSpec) await act(async () => button.click());
+        else button.click();
+        await nextTick();
+        expect(state.get("/pressed")).toBe(true);
+      }
+    },
+  );
+
+  it.each([
+    ["React", renderReactSpec],
+    ["Vue", renderVueSpec],
+  ] as const)(
+    "fires only the inner row action for nested %s rows",
+    async (_, render) => {
+      const nestedRows: Spec["elements"] = {
+        main: {
+          type: "ListView",
+          children: ["outerRow"],
+        },
+        outerRow: {
+          type: "ListViewItem",
+          children: ["outerText", "innerList"],
+          on: {
+            press: { action: "setState", params: { path: "/outer", value: 1 } },
+          },
+        },
+        outerText: { type: "Text", props: { value: "Outer" } },
+        innerList: { type: "ListView", children: ["innerRow"] },
+        innerRow: {
+          type: "ListViewItem",
+          children: ["innerText"],
+          on: {
+            press: { action: "setState", params: { path: "/inner", value: 1 } },
+          },
+        },
+        innerText: { type: "Text", props: { value: "Inner" } },
+      };
+      const { container, state } = render(
+        spec(nestedRows, { inner: 0, outer: 0 }),
+      );
+      const set = vi.spyOn(state, "set");
+      const innerText = container.querySelectorAll(
+        '[data-aui="text"]',
+      )[1] as HTMLElement;
+      if (render === renderReactSpec) await act(async () => innerText.click());
+      else innerText.click();
+      await nextTick();
+      expect(set).toHaveBeenCalledTimes(1);
+      expect(set).toHaveBeenCalledWith("/inner", 1);
+      expect(state.get("/inner")).toBe(1);
+      expect(state.get("/outer")).toBe(0);
+      const outerText =
+        container.querySelector<HTMLElement>('[data-aui="text"]')!;
+      if (render === renderReactSpec) await act(async () => outerText.click());
+      else outerText.click();
+      await nextTick();
+      expect(state.get("/outer")).toBe(1);
     },
   );
 

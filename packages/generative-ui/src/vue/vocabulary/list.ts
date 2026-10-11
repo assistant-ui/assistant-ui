@@ -60,12 +60,6 @@ export const listVocabulary = {
                           cursor: "pointer",
                         },
                         onClick: () => emit("press", undefined),
-                        onKeydown: (event: KeyboardEvent) => {
-                          if (event.key !== "Enter" && event.key !== " ")
-                            return;
-                          event.preventDefault();
-                          emit("press", undefined);
-                        },
                       }),
                       h(
                         "div",

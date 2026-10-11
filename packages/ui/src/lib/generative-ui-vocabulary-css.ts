@@ -778,9 +778,10 @@ export const generativeUiVocabularyCss: CssRuleset = {
   '[data-aui="listview-item-trigger"]:hover': {
     "background-color": "color-mix(in oklab, var(--muted) 50%, transparent)",
   },
-  '[data-aui="listview-item-trigger"]:focus-visible': {
+  '[data-aui="listview-item-trigger"] > button:focus-visible': {
     outline: "2px solid var(--ring)",
     "outline-offset": "2px",
+    "border-radius": "inherit",
   },
 
   '[data-aui="divider"]': {
