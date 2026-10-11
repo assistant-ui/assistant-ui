@@ -477,9 +477,9 @@ describe("createWidget", () => {
     expect(shown).toEqual([fake.rendered[0]!.iframe, fake.rendered[1]!.iframe]);
   });
 
-  it("drops the initialization of a remounted frame that fails to render", async () => {
+  it("disposes a remounted frame that fails to render and drops its initialization", async () => {
     const onInitialized = vi.fn();
-    const { fake, widget } = setup({ onInitialized });
+    const { container, fake, widget } = setup({ onInitialized });
     const result = {
       size: { width: 1, height: 1 },
       blank: false,
@@ -506,6 +506,9 @@ describe("createWidget", () => {
 
     await expect(remounted).rejects.toThrow("render failed");
     expect(onInitialized).not.toHaveBeenCalled();
+    expect(fake.rendered[1]!.dispose).toHaveBeenCalled();
+    expect(container.children).toHaveLength(1);
+    expect(widget.iframe).toBe(fake.rendered[0]!.iframe);
   });
 
   it("ignores window messages from other sources", async () => {

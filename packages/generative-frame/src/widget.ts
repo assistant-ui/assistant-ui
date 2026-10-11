@@ -733,17 +733,23 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
   const remount = async (next: string): Promise<EndResult> => {
     const previous = activeSession;
     const session = createSession(true);
-    await session.ready;
-    if (disposed) throw new Error("Widget disposed");
-    replayState(session);
-    const result = (await session
-      .peer()
-      .request(
-        METHODS.replace,
-        { code: next },
-        { timeoutMs: REQUEST_TIMEOUT_MS },
-      )) as EndResult;
-    if (disposed) throw new Error("Widget disposed");
+    let result: EndResult;
+    try {
+      await session.ready;
+      if (disposed) throw new Error("Widget disposed");
+      replayState(session);
+      result = (await session
+        .peer()
+        .request(
+          METHODS.replace,
+          { code: next },
+          { timeoutMs: REQUEST_TIMEOUT_MS },
+        )) as EndResult;
+      if (disposed) throw new Error("Widget disposed");
+    } catch (error) {
+      session.dispose();
+      throw error;
+    }
     activeSession = session;
     // The new frame has rendered completely, so it swaps in without a fade.
     session.slot.style.cssText = "display:block";
