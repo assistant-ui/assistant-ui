@@ -4,6 +4,10 @@ import {
   getThreadData,
   type RemoteThreadState,
 } from "../runtimes/remote-thread-list/remote-thread-state";
+import type {
+  RemoteThreadListAdapter,
+  RemoteThreadListResponse,
+} from "../runtimes/remote-thread-list/types";
 import {
   createCore,
   deferred,
@@ -47,6 +51,43 @@ const openTitleStream = () => {
     },
   });
   return { stream, close: () => controller.close() };
+};
+
+const initializeDraftDuringReplacement = async (
+  list: RemoteThreadListAdapter["list"],
+) => {
+  const core = createCore(makeAdapter());
+  await core.getLoadThreadsPromise();
+  const mounted = new ReadonlyThreadRuntimeCore();
+  (
+    core as unknown as {
+      _hookManager: { getThreadRuntimeCore: () => unknown };
+    }
+  )._hookManager.getThreadRuntimeCore = () => mounted;
+
+  const generatedTitle = openTitleStream();
+  const replacement = makeAdapter({
+    list,
+    generateTitle: vi.fn(async () => generatedTitle.stream as never),
+  });
+  core.__internal_setOptions({
+    adapter: replacement,
+    runtimeHook: () => ({}) as never,
+  });
+  const load = core.getLoadThreadsPromise();
+  const threadId = core.mainThreadId!;
+  mounted.setMessages([
+    {
+      id: "first-message",
+      role: "user",
+      content: [{ type: "text", text: "hello" }],
+      attachments: [],
+      createdAt: new Date(0),
+      metadata: { custom: {} },
+    },
+  ]);
+  await core.initialize(threadId);
+  return { core, replacement, load, threadId, generatedTitle };
 };
 
 const microtasks = async (count: number) => {
@@ -106,6 +147,84 @@ describe("RemoteThreadListThreadListRuntimeCore title generation", () => {
         content: [{ type: "text", text: "hello" }],
       }),
     ]);
+    core.__internal_dispose();
+  });
+
+  it("waits for a replacement list before generating an automatic title", async () => {
+    const replacementList = deferred<RemoteThreadListResponse>();
+    const { core, replacement, load, threadId, generatedTitle } =
+      await initializeDraftDuringReplacement(() => replacementList.promise);
+    expect(replacement.generateTitle).not.toHaveBeenCalled();
+
+    replacementList.resolve({ threads: [] });
+    await load;
+    await vi.waitFor(() =>
+      expect(replacement.generateTitle).toHaveBeenCalledOnce(),
+    );
+    generatedTitle.close();
+    await vi.waitFor(() =>
+      expect(core.getItemById(threadId)?.title).toBe("Generated"),
+    );
+    core.__internal_dispose();
+  });
+
+  it("generates an automatic title when a reload lands the replacement list", async () => {
+    const { core, replacement, threadId, generatedTitle } =
+      await initializeDraftDuringReplacement(
+        vi
+          .fn<() => Promise<RemoteThreadListResponse>>()
+          .mockReturnValueOnce(new Promise<never>(() => {}))
+          .mockResolvedValueOnce({ threads: [] }),
+      );
+
+    await core.reload();
+    await vi.waitFor(() =>
+      expect(replacement.generateTitle).toHaveBeenCalledOnce(),
+    );
+    generatedTitle.close();
+    await vi.waitFor(() =>
+      expect(core.getItemById(threadId)?.title).toBe("Generated"),
+    );
+    core.__internal_dispose();
+  });
+
+  it("does not send a waiting automatic title to the next adapter when a subscriber throws during the swap", async () => {
+    const { core, replacement, threadId } =
+      await initializeDraftDuringReplacement(
+        () => new Promise<never>(() => {}),
+      );
+    const next = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: threadId,
+            externalId: threadId,
+            title: "Next adapter title",
+          },
+        ],
+      })),
+    });
+    const error = new Error("subscriber failed");
+    let fail = true;
+    core.subscribe(() => {
+      if (!fail) return;
+      fail = false;
+      throw error;
+    });
+
+    expect(() =>
+      core.__internal_setOptions({
+        adapter: next,
+        runtimeHook: () => ({}) as never,
+      }),
+    ).toThrow(error);
+    await core.getLoadThreadsPromise();
+    expect(core.getItemById(threadId)?.title).toBe("Next adapter title");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(next.generateTitle).not.toHaveBeenCalled();
+    expect(replacement.generateTitle).not.toHaveBeenCalled();
     core.__internal_dispose();
   });
 
