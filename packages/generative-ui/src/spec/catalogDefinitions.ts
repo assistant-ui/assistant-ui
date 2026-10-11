@@ -1,5 +1,15 @@
 import { z } from "zod";
-import type { ComponentDefinition, PropsSchema } from "generative-frame/spec";
+import type {
+  ActionDefinition,
+  ComponentDefinition,
+  PropsSchema,
+} from "generative-frame/spec";
+
+/** Options for `toSpecCatalog`. */
+export type ToSpecCatalogOptions = {
+  /** Host actions the model may bind to component events, next to the built-in `setState`. */
+  actions?: Record<string, ActionDefinition>;
+};
 
 type SpecShape = {
   slots?: readonly string[];

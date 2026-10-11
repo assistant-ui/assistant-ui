@@ -2,13 +2,15 @@ import type { Component } from "vue";
 import type { ZodType } from "zod";
 import {
   defineCatalog,
-  type ActionDefinition,
   type Catalog,
   type ComponentDefinition,
 } from "generative-frame/spec";
 import type { SpecComponents } from "generative-frame/spec/vue";
 import { isDefaultGenerativeUIComponent } from "../defaultGenerativeUIComponents";
-import { buildCatalogDefinition } from "../spec/catalogDefinitions";
+import {
+  buildCatalogDefinition,
+  type ToSpecCatalogOptions,
+} from "../spec/catalogDefinitions";
 import { defaultGenerativeUILibrary } from "./vocabulary";
 
 /**
@@ -29,11 +31,7 @@ export type GenerativeUIComponent = {
 /** The components the model may render, keyed by the `type` a spec element names. */
 export type GenerativeUILibrary = Record<string, GenerativeUIComponent>;
 
-/** Options for {@link toSpecCatalog}. */
-export type ToSpecCatalogOptions = {
-  /** Host actions the model may bind to component events, next to the built-in `setState`. */
-  actions?: Record<string, ActionDefinition>;
-};
+export type { ToSpecCatalogOptions } from "../spec/catalogDefinitions";
 
 /**
  * Builds generative-frame spec mode from a Vue generative UI library: a catalog with each component's props, slots, and events, and the Vue components `SpecRenderer` from `generative-frame/spec/vue` renders it with. A built-in component keeps its spec events and slots unless the entry declares `events` or `slots`, which then replace them along with its spec description.

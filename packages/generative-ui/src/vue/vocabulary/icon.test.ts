@@ -1,4 +1,6 @@
 // @vitest-environment jsdom
+import { createApp, h } from "vue";
+import { iconVocabulary } from "./icon";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Spec } from "generative-frame/spec";
 import { ICON_NAMES } from "../../ir";
@@ -27,4 +29,17 @@ describe("icon vocabulary in Vue", () => {
       renderReactSpec(spec(elements)).markup(),
     );
   });
+
+  it.each(["constructor", "toString", "__proto__"])(
+    "renders nothing for the inherited key %s",
+    (name) => {
+      const container = document.createElement("div");
+      const app = createApp({
+        render: () => h(iconVocabulary.Icon.component, { name }),
+      });
+      expect(() => app.mount(container)).not.toThrow();
+      expect(container.innerHTML).toBe("<!---->");
+      app.unmount();
+    },
+  );
 });
