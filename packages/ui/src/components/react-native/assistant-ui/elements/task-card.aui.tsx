@@ -75,16 +75,16 @@ const NestedMessage: FC = () => {
   );
 };
 
-// The transcript sits inside a list row, so it maps the nested messages in a
-// plain view instead of nesting a second virtualized list. The messages come from
-// the readonly thread rather than the prop, because the provider syncs a new
-// prop into its core after the render that carries it.
 const NestedMessageAt = memo(({ index }: { index: number }) => (
   <MessageByIndexProvider index={index}>
     <NestedMessage />
   </MessageByIndexProvider>
 ));
 
+// The transcript sits inside a list row, so it maps the nested messages in a
+// plain view instead of nesting a second virtualized list. The messages come from
+// the readonly thread rather than the prop, because the provider syncs a new
+// prop into its core after the render that carries it.
 const NestedMessages: FC = () => {
   const messages = useAuiState((s) => s.thread.messages);
   return messages.map((message, index) => (
