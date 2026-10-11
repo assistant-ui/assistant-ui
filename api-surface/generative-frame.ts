@@ -10,7 +10,7 @@ import { CSSProperties, ComponentType, ReactNode } from "react";
 
 import "react-textarea-autosize";
 
-import { Component as Component$1, MaybeRefOrGetter, PropType, ShallowRef, VNode } from "vue";
+import { Component as Component$1, ComputedRef, MaybeRefOrGetter, PropType, VNode } from "vue";
 
 import "zustand";
 
@@ -1591,9 +1591,9 @@ type UseSpecStreamOptions$1 = {
 };
 
 type UseSpecStreamResult = {
-  spec: ShallowRef<Spec>;
-  text: ShallowRef<string>;
-  errors: ShallowRef<SpecStreamError[]>;
+  spec: ComputedRef<Spec>;
+  text: ComputedRef<string>;
+  errors: ComputedRef<SpecStreamError[]>;
   push(chunk: string): void;
   end(): void;
   reset(): void;
