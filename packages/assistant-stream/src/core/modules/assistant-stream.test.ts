@@ -344,6 +344,10 @@ describe("raw chunk ordering", () => {
   });
 
   it("cancels promptly while a step-finish is held", async () => {
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     const stream = createAssistantStream(async (controller) => {
       const text = controller.addTextPart();
       const tool = controller.addToolCallPart({
@@ -353,7 +357,7 @@ describe("raw chunk ordering", () => {
       text.append("a");
       tool.argsText.append("{");
       controller.enqueue(stepFinish);
-      await new Promise((resolve) => setTimeout(resolve, 30));
+      await released;
       text.append("late");
       tool.close();
       text.close();
@@ -362,6 +366,7 @@ describe("raw chunk ordering", () => {
     const reader = stream.getReader();
     await reader.read();
     const reasons = await captureUnhandledRejections(() => reader.cancel());
+    release();
     expect(reasons).toEqual([]);
   });
 
