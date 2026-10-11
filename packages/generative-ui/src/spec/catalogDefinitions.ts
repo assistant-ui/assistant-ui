@@ -5,7 +5,7 @@ import type {
   PropsSchema,
 } from "generative-frame/spec";
 
-/** Options for `toSpecCatalog`. */
+/** Options for {@link toSpecCatalog}. */
 export type ToSpecCatalogOptions = {
   /** Host actions the model may bind to component events, next to the built-in `setState`. */
   actions?: Record<string, ActionDefinition>;

@@ -8,7 +8,7 @@ Framework-neutral generative UI for assistant-ui. The root entry holds the React
 npm install @assistant-ui/generative-ui @assistant-ui/react zod
 ```
 
-`react`, `@assistant-ui/react`, and `zod` are optional peers that only `@assistant-ui/generative-ui/react` needs, `@assistant-ui/generative-ui/spec` needs `react`, `zod`, and `generative-frame`, and `@assistant-ui/generative-ui/vue` needs `vue`, `zod`, and `generative-frame`; the root entry and the `slack`, `teams`, and `a2ui` subpaths work without them.
+Every framework and library is an optional peer that only some subpaths need: `@assistant-ui/generative-ui/react` needs `react`, `@assistant-ui/react`, and `zod`; `@assistant-ui/generative-ui/spec` needs `react`, `zod`, and `generative-frame`; and `@assistant-ui/generative-ui/vue` needs `vue`, `zod`, and `generative-frame`. The root entry and the `slack`, `teams`, and `a2ui` subpaths need none of them.
 
 ## Usage
 
@@ -206,11 +206,12 @@ const widgets = createWidgetToolkit({
 
 ```ts
 import { h } from "vue";
+import type { Spec } from "generative-frame/spec";
 import { SpecRenderer } from "generative-frame/spec/vue";
 import { toSpecCatalog } from "@assistant-ui/generative-ui/vue";
 
 const { catalog, components } = toSpecCatalog();
-const render = (spec) => h(SpecRenderer, { spec, catalog, components });
+const render = (spec: Spec) => h(SpecRenderer, { spec, catalog, components });
 ```
 
 ## License

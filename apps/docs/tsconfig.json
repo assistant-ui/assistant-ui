@@ -47,6 +47,9 @@
       "generative-frame/spec": ["../../packages/generative-frame/src/spec"],
       "generative-frame/spec/react": [
         "../../packages/generative-frame/src/spec/react"
+      ],
+      "generative-frame/spec/vue": [
+        "../../packages/generative-frame/src/spec/vue"
       ]
     }
   },
