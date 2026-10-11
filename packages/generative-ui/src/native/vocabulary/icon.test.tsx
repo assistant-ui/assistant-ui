@@ -31,6 +31,8 @@ describe("icon vocabulary on React Native", () => {
       expect(glyph.style.fontSize).toBe("20px");
       expect([...glyph.textContent!.replace("\uFE0E", "")]).toHaveLength(1);
     }
-    expect(glyphs[ICON_NAMES.indexOf("map-pin")]!.textContent).toBe("📍︎");
+    expect(glyphs[ICON_NAMES.indexOf("map-pin")]!.textContent).toBe(
+      "\u{1F4CD}\uFE0E",
+    );
   });
 });

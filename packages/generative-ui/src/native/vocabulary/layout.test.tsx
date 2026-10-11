@@ -145,7 +145,7 @@ describe("layout vocabulary on React Native", () => {
     expect(title.style.color).toBe("rgb(10, 10, 10)");
   });
 
-  it("spaces and aligns Col and Row children, and lets a Badge follow", () => {
+  it("spaces and aligns Col and Row children", () => {
     const { container } = renderNativeSpec(
       spec({
         main: {
@@ -167,32 +167,39 @@ describe("layout vocabulary on React Native", () => {
     const row = col.firstElementChild as HTMLElement;
     expect(row.style.gap).toBe("8px");
     expect(row.style.justifyContent).toBe("space-between");
-    const badge = row.firstElementChild as HTMLElement;
-    expect(badge.style.alignSelf).toBe("flex-start");
+    const badge = row.firstElementChild!.firstElementChild as HTMLElement;
     expect(badge.style.backgroundColor).toBe("rgba(42, 152, 75, 0.15)");
     expect(badge.textContent).toBe("New");
   });
 
-  it.each([
-    ["Col", "Card"],
-    ["Col", "Box"],
-    ["Row", "Card"],
-    ["Row", "Box"],
-  ])("keeps a Badge inside %s > %s at its own start", (parent, type) => {
+  it("lets the parent place a Badge without stretching it", () => {
     const { container } = renderNativeSpec(
       spec({
         main: {
-          type: parent,
+          type: "Col",
           props: { align: "center" },
-          children: ["wrapper"],
+          children: ["direct", "form"],
         },
-        wrapper: { type, props: {}, children: ["badge"] },
-        badge: { type: "Badge", props: { value: "New" } },
+        direct: { type: "Badge", props: { value: "Direct" } },
+        form: { type: "Form", props: {}, children: ["nested"] },
+        nested: { type: "Badge", props: { value: "Nested" } },
       }),
     );
-    const badge = container.firstElementChild!.firstElementChild!
-      .firstElementChild as HTMLElement;
-    expect(badge.style.alignSelf).toBe("flex-start");
+    const col = container.firstElementChild as HTMLElement;
+    const form = col.lastElementChild as HTMLElement;
+    for (const [parent, value] of [
+      [col, "Direct"],
+      [form, "Nested"],
+    ] as const) {
+      const slot = [...parent.children].find(
+        (child) => child.textContent === value,
+      ) as HTMLElement;
+      const pill = slot.firstElementChild as HTMLElement;
+      expect(getComputedStyle(slot).flexDirection).toBe("row");
+      expect(getComputedStyle(slot).alignItems).toBe("flex-start");
+      expect(["", "auto"]).toContain(getComputedStyle(slot).alignSelf);
+      expect(["", "auto"]).toContain(getComputedStyle(pill).alignSelf);
+    }
   });
 
   it("sizes a Box from points, pixels, rems, and percentages", () => {
@@ -229,7 +236,7 @@ describe("layout vocabulary on React Native", () => {
     const { container } = renderNativeSpec(
       spec({ main: { type: "Badge", props: { value: "Tag", variant } } }),
     );
-    const badge = container.firstElementChild as HTMLElement;
+    const badge = container.firstElementChild!.firstElementChild as HTMLElement;
     expect(badge.style.backgroundColor).toBe(background);
     expect((badge.firstElementChild as HTMLElement).style.color).toBe(color);
   });

@@ -2,6 +2,7 @@
 import { act } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  byRole,
   cleanupSpecs,
   renderElement,
   renderNativeSpec,
@@ -52,17 +53,20 @@ describe("media vocabulary on React Native", () => {
   );
 
   it("labels an image and hides one without alt", () => {
-    const labeled = renderNativeSpec(
-      spec({
-        main: {
-          type: "Image",
-          props: { src: "https://example.com/a.png", alt: "Portrait" },
-        },
-      }),
-    ).container.querySelector("img")!;
-    expect(labeled.parentElement!.getAttribute("aria-label")).toBe("Portrait");
-    expect(labeled.parentElement!.getAttribute("role")).toBe("img");
-    expect(labeled.parentElement!.getAttribute("aria-hidden")).not.toBe("true");
+    const labeled = byRole(
+      renderNativeSpec(
+        spec({
+          main: {
+            type: "Image",
+            props: { src: "https://example.com/a.png", alt: "Portrait" },
+          },
+        }),
+      ).container,
+      "img",
+      "Portrait",
+    );
+    expect(labeled.querySelector("img")).not.toBeNull();
+    expect(labeled.getAttribute("aria-hidden")).not.toBe("true");
     const hidden = renderElement(
       <>
         {mediaVocabulary.Image.render({

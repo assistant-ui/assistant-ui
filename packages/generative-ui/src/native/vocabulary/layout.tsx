@@ -1,4 +1,4 @@
-import { createContext, useContext, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import type { Align, Justify } from "../../ir";
 import type { GenerativeUILibrary } from "../../types";
@@ -35,9 +35,6 @@ const JUSTIFY = {
   between: "space-between",
 } as const satisfies Record<Justify, string>;
 
-/** The cross-axis alignment a `Col` or `Row` asks of a `Badge`, which otherwise hugs the start. */
-const AlignContext = createContext<FlexAlign | undefined>(undefined);
-
 const styles = StyleSheet.create({
   card: { flexDirection: "column", gap: 14 },
   surface: { borderWidth: 1, borderRadius: RADIUS.surface, padding: 20 },
@@ -49,6 +46,7 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     borderTopWidth: 1,
   },
+  badgeSlot: { flexDirection: "row", alignItems: "flex-start" },
   badge: {
     flexDirection: "row",
     alignItems: "center",
@@ -118,9 +116,7 @@ function Card({
           {cardTitle}
         </Text>
       ) : null}
-      <AlignContext.Provider value={undefined}>
-        {children}
-      </AlignContext.Provider>
+      {children}
       {confirm || cancel ? (
         <View style={[styles.footer, { borderTopColor: theme.hairline }]}>
           {confirm ? (
@@ -179,13 +175,12 @@ function Stack({
         ...(justify ? { justifyContent: JUSTIFY[justify] } : {}),
       }}
     >
-      <AlignContext.Provider value={alignItems}>
-        {children}
-      </AlignContext.Provider>
+      {children}
     </View>
   );
 }
 
+/** The pill sits in a row of its own, so the parent's alignment places it and a stretching parent leaves it at its own size. */
 function Badge({
   value,
   variant,
@@ -197,7 +192,6 @@ function Badge({
 }) {
   const theme = useNativeTheme();
   const ink = useInk();
-  const align = useContext(AlignContext);
   const tone =
     variant === "info"
       ? theme.primary
@@ -209,19 +203,18 @@ function Badge({
             ? theme.destructive
             : undefined;
   return (
-    <View
-      style={[
-        styles.badge,
-        {
-          alignSelf: align ?? "flex-start",
-          backgroundColor: tone ? fade(tone, 0.15) : theme.secondary,
-        },
-      ]}
-    >
-      <Text style={[styles.badgeText, { color: tone ?? fade(ink, 0.62) }]}>
-        {toTextContent(value)}
-      </Text>
-      {children}
+    <View style={styles.badgeSlot}>
+      <View
+        style={[
+          styles.badge,
+          { backgroundColor: tone ? fade(tone, 0.15) : theme.secondary },
+        ]}
+      >
+        <Text style={[styles.badgeText, { color: tone ?? fade(ink, 0.62) }]}>
+          {toTextContent(value)}
+        </Text>
+        {children}
+      </View>
     </View>
   );
 }
@@ -256,9 +249,7 @@ function Box({
         ...(radius !== undefined ? { overflow: "hidden" } : {}),
       }}
     >
-      <AlignContext.Provider value={undefined}>
-        {children}
-      </AlignContext.Provider>
+      {children}
     </View>
   );
 }
