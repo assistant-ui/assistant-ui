@@ -16,18 +16,19 @@ export type UseWidgetResult = {
   widget: WidgetHandle | null;
 };
 
-const HANDLER_KEYS = [
-  "onPrompt",
-  "onMessage",
-  "onOpenLink",
-  "onCallTool",
-  "onRequestDisplayMode",
-  "onUpdateModelContext",
-  "onWidgetState",
-  "onResize",
-  "onError",
-  "onLog",
-] as const satisfies readonly (keyof WidgetHandlers)[];
+const HANDLER_KEYS = Object.keys({
+  onPrompt: true,
+  onMessage: true,
+  onOpenLink: true,
+  onCallTool: true,
+  onInitialized: true,
+  onRequestDisplayMode: true,
+  onUpdateModelContext: true,
+  onWidgetState: true,
+  onResize: true,
+  onError: true,
+  onLog: true,
+} satisfies Record<keyof WidgetHandlers, true>) as (keyof WidgetHandlers)[];
 
 /**
  * Mounts a widget frame into the element passed to `ref`. Mount options are

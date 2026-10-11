@@ -178,6 +178,22 @@ describe("<Widget>", () => {
     expect((widget.options as CreateWidgetOptions).onCallTool).toBeUndefined();
   });
 
+  it("calls the latest onInitialized handler", () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    const view = render(<Widget code="" onInitialized={first} />);
+    const widget = mocks.instances[0]!;
+    view.rerender(<Widget code="" onInitialized={second} />);
+    const params = {
+      appCapabilities: { availableDisplayModes: ["fullscreen" as const] },
+    };
+    act(() => {
+      (widget.options as CreateWidgetOptions).onInitialized!(params);
+    });
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledWith(params);
+  });
+
   it("disposes the widget on unmount", () => {
     const view = render(<Widget code="<p>x</p>" />);
     const widget = mocks.instances[0] as unknown as WidgetHandle;
