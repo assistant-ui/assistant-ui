@@ -14,7 +14,6 @@ import {
   MessageByIndexProvider,
   MessagePrimitive,
   ReadonlyThreadProvider,
-  unstable_useThreadMessageIds,
   useAui,
   useAuiState,
   type ThreadMessage,
@@ -23,7 +22,7 @@ import {
   type ToolCallMessagePartProps,
   type ToolCallMessagePartStatus,
 } from "@assistant-ui/react-native";
-import { type FC, useState } from "react";
+import { type FC, memo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { TaskCard as TaskCardBase } from "./task-card";
 import {
@@ -76,16 +75,20 @@ const NestedMessage: FC = () => {
   );
 };
 
+const NestedMessageAt = memo(({ index }: { index: number }) => (
+  <MessageByIndexProvider index={index}>
+    <NestedMessage />
+  </MessageByIndexProvider>
+));
+
 // The transcript sits inside a list row, so it maps the nested messages in a
-// plain view instead of nesting a second virtualized list. The ids come from
+// plain view instead of nesting a second virtualized list. The messages come from
 // the readonly thread rather than the prop, because the provider syncs a new
 // prop into its core after the render that carries it.
 const NestedMessages: FC = () => {
-  const messageIds = unstable_useThreadMessageIds();
-  return messageIds.map((messageId, index) => (
-    <MessageByIndexProvider key={messageId} index={index}>
-      <NestedMessage />
-    </MessageByIndexProvider>
+  const messages = useAuiState((s) => s.thread.messages);
+  return messages.map((message, index) => (
+    <NestedMessageAt key={message.id} index={index} />
   ));
 };
 
