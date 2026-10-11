@@ -13,18 +13,21 @@ const onReact18 = version.startsWith("18.");
 type Titles = {
   sessionTitle?: string | undefined;
   threadListTitle?: string | undefined;
+  threadListLoading?: boolean;
   enabled?: boolean;
 };
 
 const Probe = ({
   sessionTitle,
   threadListTitle,
+  threadListLoading = false,
   enabled = true,
   generateTitle,
 }: Titles & { generateTitle: () => void }) => {
   useOpenCodeThreadListTitleSync(
     sessionTitle,
     threadListTitle,
+    threadListLoading,
     generateTitle,
     enabled,
   );
@@ -111,6 +114,57 @@ describe("useOpenCodeThreadListTitleSync", () => {
     render({ sessionTitle: "Plan", threadListTitle: "Plan" }, generateTitle);
     render({ sessionTitle: "Ship", threadListTitle: "Ship" }, generateTitle);
     render({ sessionTitle: "Plan", threadListTitle: "Ship" }, generateTitle);
+
+    expect(generateTitle).toHaveBeenCalledTimes(2);
+  });
+
+  it("waits for the thread list to finish loading before requesting a title", () => {
+    const generateTitle = vi.fn();
+
+    render(
+      {
+        sessionTitle: "Old title",
+        threadListTitle: "Old title",
+        threadListLoading: true,
+      },
+      generateTitle,
+    );
+    render(
+      {
+        sessionTitle: "New title",
+        threadListTitle: "Old title",
+        threadListLoading: true,
+      },
+      generateTitle,
+    );
+    expect(generateTitle).not.toHaveBeenCalled();
+
+    render(
+      { sessionTitle: "New title", threadListTitle: "Old title" },
+      generateTitle,
+    );
+    expect(generateTitle).toHaveBeenCalledOnce();
+  });
+
+  it("requests again when a thread list load ends without the requested title", () => {
+    const generateTitle = vi.fn();
+
+    render(
+      { sessionTitle: "New title", threadListTitle: "Old title" },
+      generateTitle,
+    );
+    render(
+      {
+        sessionTitle: "New title",
+        threadListTitle: "Old title",
+        threadListLoading: true,
+      },
+      generateTitle,
+    );
+    render(
+      { sessionTitle: "New title", threadListTitle: "Old title" },
+      generateTitle,
+    );
 
     expect(generateTitle).toHaveBeenCalledTimes(2);
   });

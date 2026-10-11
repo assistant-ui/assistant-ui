@@ -5,6 +5,7 @@ import { isDefaultSessionTitle } from "./openCodeThreadListAdapter";
 export const useOpenCodeThreadListTitleSync = (
   sessionTitle: string | undefined,
   threadListTitle: string | undefined,
+  threadListLoading: boolean,
   generateTitle: () => void,
   enabled: boolean,
 ) => {
@@ -14,6 +15,7 @@ export const useOpenCodeThreadListTitleSync = (
   useEffect(() => {
     if (
       !enabled ||
+      threadListLoading ||
       sessionTitle === undefined ||
       isDefaultSessionTitle(sessionTitle) ||
       sessionTitle === latest.current.threadListTitle
@@ -24,5 +26,5 @@ export const useOpenCodeThreadListTitleSync = (
     if (requestedFor.current === sessionTitle) return;
     requestedFor.current = sessionTitle;
     latest.current.generateTitle();
-  }, [enabled, sessionTitle, latest]);
+  }, [enabled, threadListLoading, sessionTitle, latest]);
 };

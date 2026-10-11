@@ -40,6 +40,7 @@ const mocks = vi.hoisted(() => ({
     replyToQuestion: vi.fn().mockResolvedValue(undefined),
     rejectQuestion: vi.fn().mockResolvedValue(undefined),
   },
+  threads: { isLoading: false },
   state: undefined as unknown,
 }));
 
@@ -47,7 +48,7 @@ vi.mock("@assistant-ui/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/react")>()),
   useAui: () => ({ threadListItem: mocks.threadListItem }),
   useAuiState: (selector: (state: unknown) => unknown) =>
-    selector({ threadListItem: mocks.threadListItem }),
+    selector({ threadListItem: mocks.threadListItem, threads: mocks.threads }),
   useExternalStoreRuntime: (adapter: unknown) => {
     mocks.adapters.push(adapter);
     return {};
@@ -122,6 +123,7 @@ afterEach(() => {
   mocks.threadListItem.source = null;
   mocks.threadListItem.initialize.mockClear();
   mocks.threadListItem.generateTitle.mockClear();
+  mocks.threads.isLoading = false;
   mocks.sessionCreate
     .mockReset()
     .mockResolvedValue({ data: { id: "session-1" } });
@@ -177,6 +179,28 @@ describe("useOpenCodeRuntime", () => {
     root = createRoot(document.createElement("div"));
     await act(async () => root!.render(createElement(App)));
 
+    expect(mocks.threadListItem.generateTitle).toHaveBeenCalledOnce();
+  });
+
+  it("applies the session title once the thread list has loaded", async () => {
+    mocks.state = {
+      ...createOpenCodeThreadState("session-1"),
+      session: { id: "session-1", title: "Fix the login redirect", time: {} },
+    };
+    mocks.threadListItem.title = "Old title";
+    mocks.threads.isLoading = true;
+
+    const App = () => {
+      useOpenCodeRuntime({ client: stubClient });
+      return null;
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
+    expect(mocks.threadListItem.generateTitle).not.toHaveBeenCalled();
+
+    mocks.threads.isLoading = false;
+    await act(async () => root!.render(createElement(App)));
     expect(mocks.threadListItem.generateTitle).toHaveBeenCalledOnce();
   });
 
