@@ -146,6 +146,16 @@ function children(
   );
 }
 
+type DeclaredOptions = {
+  props?: string[] | Record<string, unknown>;
+  emits?: string[] | Record<string, unknown>;
+};
+
+const declaredNames = (option: DeclaredOptions["props"]) =>
+  new Set(
+    (Array.isArray(option) ? option : Object.keys(option ?? {})).map(camelize),
+  );
+
 const ElementBoundary = defineComponent({
   name: "SpecElementBoundary",
   props: {
@@ -288,8 +298,16 @@ const ResolvedElement = defineComponent({
     );
     return () => {
       const { props: values, bindings } = resolved();
+      const impl = props.impl as DeclaredOptions;
+      const propNames = declaredNames(impl.props);
+      const emitNames = declaredNames(impl.emits);
+      const listens = (event: string) =>
+        emitNames.has(camelize(event)) ||
+        (event.startsWith("update:") &&
+          propNames.has(camelize(event.slice("update:".length))));
       const listeners: Record<string, (value: unknown) => void> = {};
       for (const event of Object.keys(props.element.on ?? {})) {
+        if (!listens(event)) continue;
         listeners[`on${event[0]?.toUpperCase() ?? ""}${event.slice(1)}`] = (
           payload,
         ) => {
@@ -302,6 +320,7 @@ const ResolvedElement = defineComponent({
         };
       }
       for (const [name, path] of Object.entries(bindings)) {
+        if (!propNames.has(camelize(name))) continue;
         const key = `onUpdate:${name}`;
         const action = listeners[key];
         listeners[key] = (value) => {
@@ -344,16 +363,10 @@ const ResolvedElement = defineComponent({
         if (slot !== "default" && Array.isArray(ids))
           slots[slot] = () => children(ids, props.scope, props.ancestors);
       }
-      const declared = (
-        props.impl as { props?: string[] | Record<string, unknown> }
-      ).props;
-      const allowed = new Set(
-        (Array.isArray(declared) ? declared : Object.keys(declared ?? {})).map(
-          camelize,
-        ),
-      );
       const accepted = Object.fromEntries(
-        Object.entries(values).filter(([name]) => allowed.has(camelize(name))),
+        Object.entries(values).filter(([name]) =>
+          propNames.has(camelize(name)),
+        ),
       );
       return h(props.impl, { ...accepted, ...listeners }, slots);
     };

@@ -424,6 +424,79 @@ describe("SpecRenderer", () => {
     }
   });
 
+  it("listens only for events a component declares in emits", async () => {
+    const refresh = vi.fn();
+    const Bare = defineComponent({
+      setup(_, { emit }) {
+        return () =>
+          h("button", { type: "button", onClick: () => emit("click") }, "bare");
+      },
+    });
+    const Declared = defineComponent({
+      emits: ["click"],
+      setup(_, { emit }) {
+        return () =>
+          h(
+            "button",
+            { type: "button", onClick: () => emit("click") },
+            "declared",
+          );
+      },
+    });
+    const view = mount({
+      components: { Stack: components.Stack!, Bare, Declared },
+      handlers: { refresh },
+      spec: spec({
+        main: { type: "Stack", children: ["bare", "declared"] },
+        bare: {
+          type: "Bare",
+          on: {
+            click: { action: "refresh" },
+            mouseover: { action: "refresh" },
+          },
+        },
+        declared: { type: "Declared", on: { click: { action: "refresh" } } },
+      }),
+    });
+    const [bare, declared] = view.container.querySelectorAll("button");
+    bare!.dispatchEvent(new MouseEvent("mouseover", { bubbles: true }));
+    await click(bare!);
+    expect(refresh).not.toHaveBeenCalled();
+    await click(declared!);
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("dispatches update actions for a declared prop without emits", async () => {
+    const store = createStateStore({ on: false });
+    const refresh = vi.fn();
+    const Check = defineComponent({
+      props: { checked: Boolean },
+      setup(_, { emit }) {
+        return () =>
+          h(
+            "button",
+            { type: "button", onClick: () => emit("update:checked", true) },
+            "check",
+          );
+      },
+    });
+    const view = mount({
+      components: { Check },
+      state: store,
+      handlers: { refresh },
+      spec: spec({
+        main: {
+          type: "Check",
+          props: { checked: { $bindState: "/on" } },
+          on: { "update:checked": { action: "refresh" } },
+        },
+      }),
+    });
+    await click(view.container.querySelector("button")!);
+    expect(store.get("/on")).toBe(true);
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
   it("writes a bound update before dispatching its action", async () => {
     const store = createStateStore({ on: false });
     const refresh = vi.fn();
