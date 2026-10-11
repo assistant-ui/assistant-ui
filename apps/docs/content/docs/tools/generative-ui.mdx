@@ -442,9 +442,10 @@ Props are a separate question. Each component's `properties` schema shapes the `
 
 ## Beyond the browser
 
-The tree is plain JSON, so it is not tied to the browser. Only `@assistant-ui/generative-ui/react` imports React; the package root and its other subpaths let a server action, queue worker, or webhook handler consume the tree without pulling React:
+The tree is plain JSON, so it is not tied to the browser. The package root, `/slack`, `/teams`, and `/a2ui` let a server action, queue worker, or webhook handler consume the tree without pulling React, while `/react` and `/spec` import it:
 
 - `@assistant-ui/generative-ui` holds the tree types, normalization, token enums, and `resolveFieldReferences`.
+- `@assistant-ui/generative-ui/spec` exports `toSpecCatalog` and `ToSpecCatalogOptions` to build a generative-frame spec catalog from a generative UI library.
 - `@assistant-ui/generative-ui/slack` converts the tree into Block Kit and decodes `block_actions` back into `$action`. See [Generative UI on Slack](/docs/tools/generative-ui-slack).
 - `@assistant-ui/generative-ui/teams` converts it into an Adaptive Card and decodes the submit payload. See [Generative UI on Microsoft Teams](/docs/tools/generative-ui-teams).
 - `@assistant-ui/generative-ui/a2ui` consumes [A2UI surfaces over AG-UI](/docs/tools/a2ui).

@@ -12,7 +12,8 @@ description: Render widget tool calls in an assistant-ui thread as their argumen
 
 import type { ReactNode } from "react";
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import {
   createWidgetToolkit,
   useWidgetInstructions,
@@ -22,7 +23,9 @@ const widgets = createWidgetToolkit({ widget: { maxHeight: 700 } });
 const config = AuiConfig({ tools: Tools({ toolkit: widgets.toolkit }) });
 
 export function Provider({ children }: { children: ReactNode }) {
-  const runtime = useChatRuntime();
+  const runtime = useChatRuntime({
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+  });
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
       <WidgetInstructions />

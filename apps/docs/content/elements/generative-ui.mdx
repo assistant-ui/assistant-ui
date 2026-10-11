@@ -16,7 +16,7 @@ The library only supplies components; something still has to expose them to the 
 
 ### Build a toolkit around the library
 
-```tsx title="app/toolkit.ts"
+```tsx title="app/toolkit.tsx"
 import { defineToolkit } from "@assistant-ui/react";
 import { JSONGenerativeUI } from "@assistant-ui/generative-ui/react";
 import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
@@ -34,15 +34,26 @@ export default defineToolkit({
 ### Register it on your runtime
 
 ```tsx title="app/page.tsx"
+"use client";
+
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import toolkit from "./toolkit";
 
 const config = AuiConfig({ tools: Tools({ toolkit }) });
-const runtime = useChatRuntime(/* ... */); // or useLocalRuntime, etc.
 
-<AssistantRuntimeProvider config={config} runtime={runtime}>
-  <Thread />
-</AssistantRuntimeProvider>;
+export default function Page() {
+  const runtime = useChatRuntime({
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+  });
+  return (
+    <AssistantRuntimeProvider config={config} runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
 ```
 
 The model can now call `present` with a `{ _type, ...props }` tree; it renders through `styledGenerativeUILibrary`, so a `Markdown` node comes out fully formatted instead of as raw text.
@@ -98,7 +109,7 @@ renderGenerativeUI({ $type: "Markdown", value: "**bold**" }, styledGenerativeUIL
 
 Add to it with a plain object spread. No special wrapper is required for a library that is not split across a client and a server build.
 
-```tsx title="app/toolkit.ts"
+```tsx title="app/toolkit.tsx"
 import { JSONGenerativeUI } from "@assistant-ui/generative-ui/react";
 import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
 import { z } from "zod";

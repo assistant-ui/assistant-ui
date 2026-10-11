@@ -169,7 +169,7 @@ useWidgetInstructions(tools, { preload? }): void
 useAssistantUiThemeTokens(element?): ThemeTokens
 ```
 
-`WidgetToolkitOptions` takes the `createWidgetTools` options except `extraTools`, plus:
+`WidgetToolkitOptions` takes the `createWidgetTools` options, plus:
 
 <ParametersTable
   type="WidgetToolkitOptions"
@@ -177,7 +177,7 @@ useAssistantUiThemeTokens(element?): ThemeTokens
     { name: "execution", type: "\"frontend\" | \"backend\"", default: "\"frontend\"", description: "`frontend` runs the tools in the browser; `backend` only renders." },
     { name: "widget", type: "Omit<UseWidgetOptions, \"tokens\">", description: "Options for every widget frame (csp, product, maxHeight, handlers)." },
     { name: "spec", type: "WidgetToolkitExtension", description: "Spec mode, from `createSpecToolkit(catalog, options)` in `generative-frame/spec/assistant-ui`. Adds `render_spec` and the `spec` module of `read_me`." },
-    { name: "extraTools", type: "Record<string, ToolDefinition>", description: "More tools for the model, such as data lookups. They execute like the widget tools and render nothing in the thread." },
+    { name: "extraTools", type: "Record<string, AnyTool>", description: "More tools for the model, such as data lookups. They execute like the widget tools and render nothing in the thread." },
     { name: "themeElement", type: "Element | null", default: "document root", description: "Where the theme is read from." },
     { name: "display", type: "\"standalone\" | \"inline\"", default: "\"standalone\"", description: "How the widget tools are presented relative to the reasoning trace." },
     { name: "renderReport", type: "{ timeoutMs?, settleMs? } | false", default: "{ timeoutMs: 10000, settleMs: 300 }", description: "Frontend execution: `show_widget` and `edit_widget` results wait for the frame and carry a `render` report. `false` returns at once." },

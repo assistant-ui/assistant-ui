@@ -1,6 +1,6 @@
 ---
 title: Generative UI Example
-description: Live demo of the present tool, where the model composes a dashboard from a component vocabulary at runtime, alongside the Tool UI and legacy primitive routes.
+description: Live demo of the present tool, where the model composes a dashboard from a component vocabulary at runtime, alongside Tool UI and the primitive for backend-emitted `generative-ui` message parts rendered against an allowlist.
 ---
 
 ## Overview
@@ -18,8 +18,8 @@ The main route of `examples/with-generative-ui` demonstrates **generative UI**: 
 |-------|---------------------|
 | `/` | The `present` tool (`JSONGenerativeUI`): the model composes UI from a vocabulary |
 | `/tool-ui` | Tool UI (`Tools({ toolkit })`): a renderer bound to each known tool |
-| `/primitive` | Static `GenerativeUIRender` with a hand-written spec (legacy) |
-| `/gui-chat` | Chat with a `render_gui` tool bridged to `MessagePrimitive.GenerativeUI` (legacy) |
+| `/primitive` | Static `GenerativeUIRender` with a hand-written spec rendered against an allowlist |
+| `/gui-chat` | Chat with `render_gui` tool results bridged to `MessagePrimitive.GenerativeUI` and rendered against an allowlist |
 
 See the [Generative UI guide](/docs/tools/generative-ui) for the full setup, and [Tool UI](/docs/tools/tool-ui) for the per-tool alternative.
 
