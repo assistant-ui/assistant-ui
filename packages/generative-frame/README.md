@@ -66,7 +66,7 @@ Pass `id` to give a widget a stable origin, so its localStorage and IndexedDB pe
 
 Handlers: `onPrompt`, `onMessage`, `onOpenLink`, `onCallTool`, `onInitialized`, `onRequestDisplayMode`, `onUpdateModelContext`, `onWidgetState`, `onResize`, `onError`, `onLog`.
 
-`onInitialized` runs when an MCP Apps widget sends `ui/notifications/initialized` and receives the params of its `ui/initialize` request (`appInfo`, `appCapabilities`, and `protocolVersion`). The MCP Apps spec forbids switching a widget into a display mode missing from `appCapabilities.availableDisplayModes`, so check that list in `onRequestDisplayMode`.
+`onInitialized` runs when an MCP Apps widget sends `ui/notifications/initialized` (for a frame that `replace()` remounts, once that frame is shown) and receives the params of its `ui/initialize` request (`appInfo`, `appCapabilities`, and `protocolVersion`). When a widget declares `appCapabilities.availableDisplayModes`, the MCP Apps spec forbids switching it into a display mode missing from that list, so check the list in `onRequestDisplayMode`.
 
 Code that starts with `<svg` renders as a standalone SVG; anything else is an HTML fragment.
 
