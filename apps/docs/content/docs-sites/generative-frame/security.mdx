@@ -112,6 +112,7 @@ The frame isolates the widget from your page. What a widget can do through the b
 - **`onCallTool`.** Off unless you pass it. The widget chooses the tool name and arguments, so allowlist names and validate arguments in the handler.
 - **`onUpdateModelContext`.** Off unless you pass it. Its content is model-generated and goes back to a model, so treat it as untrusted input.
 - **`onRequestDisplayMode` and `onWidgetState`.** Without a handler, display-mode requests return the current mode and widget state is dropped.
+- **`onInitialized`.** Receives what an MCP Apps widget declares in `ui/initialize`, such as its `appInfo` and the display modes it supports. Widget code writes all of it, so use it to narrow what you grant, never to identify or trust the widget.
 - **Tool data.** Whatever you forward with `notifyToolInput` and `notifyToolResult` is readable by widget code.
 - **Policy.** `connectOrigins` gives widget code network access to those origins, and `allowEval` re-enables `eval`.
 

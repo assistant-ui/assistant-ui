@@ -13,6 +13,7 @@ import {
   type FrameInspection,
   type HostContext,
   type InitMessage,
+  type McpAppInitializeParams,
   type ScreenshotOptions,
   type WidgetError,
   type WidgetSize,
@@ -46,6 +47,7 @@ export type WidgetHandlers = {
   /** Defaults to opening an `http(s)` URL in a new tab with `noopener`. */
   onOpenLink?: (url: string) => unknown;
   onCallTool?: (call: ToolCallRequest) => unknown;
+  onInitialized?: (params: McpAppInitializeParams) => void;
   onRequestDisplayMode?: (request: { mode: DisplayMode }) => unknown;
   onUpdateModelContext?: (params: unknown) => unknown;
   onWidgetState?: (state: unknown) => void;
@@ -250,6 +252,54 @@ const promptText = (params: UiMessageParams) =>
     .map((part) => part.text)
     .join("\n");
 
+const VALID_DISPLAY_MODES = [
+  "inline",
+  "fullscreen",
+  "pip",
+] as const satisfies readonly DisplayMode[];
+
+const isDisplayMode = (value: unknown): value is DisplayMode =>
+  VALID_DISPLAY_MODES.some((mode) => mode === value);
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const isAppInfo = (
+  value: unknown,
+): value is NonNullable<McpAppInitializeParams["appInfo"]> =>
+  isRecord(value) &&
+  typeof value["name"] === "string" &&
+  typeof value["version"] === "string";
+
+const getAppCapabilities = (
+  value: unknown,
+): McpAppInitializeParams["appCapabilities"] => {
+  if (!isRecord(value)) return undefined;
+  const { availableDisplayModes, ...rest } = value;
+  return {
+    ...rest,
+    ...(Array.isArray(availableDisplayModes)
+      ? {
+          availableDisplayModes: Object.values(availableDisplayModes).filter(
+            isDisplayMode,
+          ),
+        }
+      : {}),
+  };
+};
+
+const getInitializeParams = (params: unknown): McpAppInitializeParams => {
+  if (!isRecord(params)) return {};
+  const appCapabilities = getAppCapabilities(params["appCapabilities"]);
+  return {
+    ...(isAppInfo(params["appInfo"]) ? { appInfo: params["appInfo"] } : {}),
+    ...(appCapabilities ? { appCapabilities } : {}),
+    ...(typeof params["protocolVersion"] === "string"
+      ? { protocolVersion: params["protocolVersion"] }
+      : {}),
+  };
+};
+
 const defaultOpenLink = (url: string) => {
   window.open(url, "_blank", "noopener,noreferrer");
 };
@@ -261,6 +311,8 @@ type Session = {
   iframe: () => HTMLIFrameElement | undefined;
   /** Shows the iframe once the runtime has themed and laid out its document. */
   reveal(): void;
+  /** Delivers the frame's MCP Apps initialization if it is the shown frame. */
+  deliverInitialized(): void;
   dispose(): void;
 };
 
@@ -396,7 +448,7 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
       }
       case METHODS.requestDisplayMode: {
         const mode = p["mode"];
-        if (mode !== "inline" && mode !== "fullscreen" && mode !== "pip") {
+        if (!isDisplayMode(mode)) {
           throw new RpcError(
             RPC_ERROR.invalidParams,
             "ui/request-display-mode requires a valid 'mode'",
@@ -451,6 +503,8 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
     let rendered: RenderedFrame | undefined;
     let peer: RpcPeer | undefined;
     let initSent = false;
+    let initializeParams: McpAppInitializeParams = {};
+    let pendingInitialized: McpAppInitializeParams | undefined;
     let sessionDisposed = false;
     let revealed = false;
     let resolveReady!: () => void;
@@ -476,6 +530,16 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
           slot.style.transition = `opacity ${REVEAL_MS}ms ease-out`;
         }
         slot.style.opacity = "1";
+      },
+      deliverInitialized() {
+        if (session !== activeSession || !pendingInitialized) return;
+        const params = pendingInitialized;
+        pendingInitialized = undefined;
+        try {
+          options.onInitialized?.(params);
+        } catch {
+          // A host handler error must not fail a remount that already swapped in.
+        }
       },
       dispose() {
         if (sessionDisposed) return;
@@ -504,13 +568,22 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
       initSent = true;
       const channel = new MessageChannel();
       peer = createRpcPeer(channel.port1, {
-        onRequest,
+        onRequest: (method, params) => {
+          if (method === METHODS.initialize) {
+            initializeParams = getInitializeParams(params);
+          }
+          return onRequest(method, params);
+        },
         onNotification: (method, params) => {
           const p = (params ?? {}) as Record<string, unknown>;
           switch (method) {
             case METHODS.ready:
               clearTimeout(timer);
               resolveReady();
+              return;
+            case METHODS.initialized:
+              pendingInitialized = initializeParams;
+              session.deliverInitialized();
               return;
             case METHODS.sizeChanged:
               if (
@@ -664,22 +737,29 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
   const remount = async (next: string): Promise<EndResult> => {
     const previous = activeSession;
     const session = createSession(true);
-    await session.ready;
-    if (disposed) throw new Error("Widget disposed");
-    replayState(session);
-    const result = (await session
-      .peer()
-      .request(
-        METHODS.replace,
-        { code: next },
-        { timeoutMs: REQUEST_TIMEOUT_MS },
-      )) as EndResult;
-    if (disposed) throw new Error("Widget disposed");
+    let result: EndResult;
+    try {
+      await session.ready;
+      if (disposed) throw new Error("Widget disposed");
+      replayState(session);
+      result = (await session
+        .peer()
+        .request(
+          METHODS.replace,
+          { code: next },
+          { timeoutMs: REQUEST_TIMEOUT_MS },
+        )) as EndResult;
+      if (disposed) throw new Error("Widget disposed");
+    } catch (error) {
+      session.dispose();
+      throw error;
+    }
     activeSession = session;
     // The new frame has rendered completely, so it swaps in without a fade.
     session.slot.style.cssText = "display:block";
-    applySize(session, result.size);
     previous?.dispose();
+    session.deliverInitialized();
+    applySize(session, result.size);
     return result;
   };
 

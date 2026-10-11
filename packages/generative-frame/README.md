@@ -64,7 +64,9 @@ await widget.end();
 
 Pass `id` to give a widget a stable origin, so its localStorage and IndexedDB persist across reloads for that id on your site; choose it on the host, never from model output. `clearWidgetStorage(id)` wipes it. Without `id`, every frame gets a fresh origin.
 
-Handlers: `onPrompt`, `onMessage`, `onOpenLink`, `onCallTool`, `onRequestDisplayMode`, `onUpdateModelContext`, `onWidgetState`, `onResize`, `onError`, `onLog`.
+Handlers: `onPrompt`, `onMessage`, `onOpenLink`, `onCallTool`, `onInitialized`, `onRequestDisplayMode`, `onUpdateModelContext`, `onWidgetState`, `onResize`, `onError`, `onLog`.
+
+`onInitialized` runs when an MCP Apps widget sends `ui/notifications/initialized` (for a frame that `replace()` remounts, once that frame is shown) and receives the params of its `ui/initialize` request (`appInfo`, `appCapabilities`, and `protocolVersion`). When a widget declares `appCapabilities.availableDisplayModes`, the MCP Apps spec forbids switching it into a display mode missing from that list, so check the list in `onRequestDisplayMode`.
 
 Code that starts with `<svg` renders as a standalone SVG; anything else is an HTML fragment.
 

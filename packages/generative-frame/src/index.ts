@@ -35,6 +35,7 @@ export type {
   EndResult,
   FrameInspection,
   HostContext,
+  McpAppInitializeParams,
   ScreenshotOptions,
   WidgetError,
   WidgetErrorKind,

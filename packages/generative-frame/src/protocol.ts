@@ -37,6 +37,20 @@ export type ColorScheme = "light" | "dark";
 
 export type DisplayMode = "inline" | "fullscreen" | "pip";
 
+/**
+ * The params of a widget's MCP Apps `ui/initialize` request, as
+ * `onInitialized` receives them. A malformed field is omitted, and
+ * `availableDisplayModes` keeps only the modes in `DisplayMode`.
+ */
+export type McpAppInitializeParams = {
+  appInfo?: { name: string; version: string; [key: string]: unknown };
+  appCapabilities?: {
+    availableDisplayModes?: DisplayMode[];
+    [key: string]: unknown;
+  };
+  protocolVersion?: string;
+};
+
 /** The MCP Apps host context, plus the fields this package adds. */
 export type HostContext = {
   theme?: ColorScheme;

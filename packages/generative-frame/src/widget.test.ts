@@ -270,16 +270,28 @@ describe("createWidget", () => {
   });
 
   it("answers MCP Apps requests sent to window.parent", async () => {
-    const { fake } = setup({ context: { locale: "de-DE" } });
+    const onInitialized = vi.fn();
+    const { fake } = setup({
+      context: { locale: "de-DE" },
+      onInitialized,
+    });
     await fake.connect(0);
     const rendered = fake.rendered[0]!;
+    const initializeParams = {
+      protocolVersion: "2026-01-26",
+      appInfo: { name: "example-app", version: "1.2.3" },
+      appCapabilities: {
+        availableDisplayModes: ["inline", "sidebar"],
+        tools: { listChanged: true },
+      },
+    };
     window.dispatchEvent(
       new MessageEvent("message", {
         data: {
           jsonrpc: "2.0",
           id: 7,
           method: METHODS.initialize,
-          params: { protocolVersion: "2026-01-26" },
+          params: initializeParams,
         },
         origin: ORIGIN,
         source: rendered.iframe.contentWindow,
@@ -303,6 +315,275 @@ describe("createWidget", () => {
       locale: "de-DE",
       theme: "light",
     });
+    expect(onInitialized).not.toHaveBeenCalled();
+
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { jsonrpc: "2.0", method: METHODS.initialized },
+        origin: ORIGIN,
+        source: rendered.iframe.contentWindow,
+      }),
+    );
+    expect(onInitialized).toHaveBeenCalledOnce();
+    expect(onInitialized).toHaveBeenCalledWith({
+      protocolVersion: "2026-01-26",
+      appInfo: { name: "example-app", version: "1.2.3" },
+      appCapabilities: {
+        availableDisplayModes: ["inline"],
+        tools: { listChanged: true },
+      },
+    });
+  });
+
+  it("omits malformed initialization fields and keeps the protocol fallback", async () => {
+    const onInitialized = vi.fn();
+    const { fake } = setup({ onInitialized });
+    await fake.connect(0);
+    const rendered = fake.rendered[0]!;
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: {
+          jsonrpc: "2.0",
+          id: 8,
+          method: METHODS.initialize,
+          params: {
+            protocolVersion: 1,
+            appInfo: { name: "incomplete" },
+            appCapabilities: { availableDisplayModes: "fullscreen" },
+          },
+        },
+        origin: ORIGIN,
+        source: rendered.iframe.contentWindow,
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(
+        rendered.sent.some(
+          (message) => (message.data as { id?: unknown }).id === 8,
+        ),
+      ).toBe(true),
+    );
+    const response = rendered.sent.find(
+      (message) => (message.data as { id?: unknown }).id === 8,
+    )!.data as { result: { protocolVersion: string } };
+    expect(response.result.protocolVersion).toBe("2026-01-26");
+
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { jsonrpc: "2.0", method: METHODS.initialized },
+        origin: ORIGIN,
+        source: rendered.iframe.contentWindow,
+      }),
+    );
+    expect(onInitialized).toHaveBeenCalledWith({ appCapabilities: {} });
+  });
+
+  it("passes empty initialization params when initialized arrives first", async () => {
+    const onInitialized = vi.fn();
+    const { fake } = setup({ onInitialized });
+    await fake.connect(0);
+    const rendered = fake.rendered[0]!;
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { jsonrpc: "2.0", method: METHODS.initialized },
+        origin: ORIGIN,
+        source: rendered.iframe.contentWindow,
+      }),
+    );
+    expect(onInitialized).toHaveBeenCalledWith({});
+  });
+
+  it("reads present display modes without invoking array-owned methods", async () => {
+    const onInitialized = vi.fn();
+    const { fake } = setup({ onInitialized });
+    await fake.connect(0);
+    const rendered = fake.rendered[0]!;
+    const availableDisplayModes = Object.assign(["inline"], {
+      filter: 0,
+      constructor: 0,
+    });
+    availableDisplayModes.length = 2 ** 32 - 1;
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: {
+          jsonrpc: "2.0",
+          id: 9,
+          method: METHODS.initialize,
+          params: { appCapabilities: { availableDisplayModes } },
+        },
+        origin: ORIGIN,
+        source: rendered.iframe.contentWindow,
+      }),
+    );
+    await vi.waitFor(() =>
+      expect(
+        rendered.sent.some(
+          (message) => (message.data as { id?: unknown }).id === 9,
+        ),
+      ).toBe(true),
+    );
+
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { jsonrpc: "2.0", method: METHODS.initialized },
+        origin: ORIGIN,
+        source: rendered.iframe.contentWindow,
+      }),
+    );
+    expect(onInitialized).toHaveBeenCalledWith({
+      appCapabilities: { availableDisplayModes: ["inline"] },
+    });
+  });
+
+  it("delivers a remounted frame's initialization once it is shown", async () => {
+    const onInitialized = vi.fn();
+    const { fake, widget } = setup({ onInitialized });
+    const shown: unknown[] = [];
+    onInitialized.mockImplementation(() =>
+      shown.push({
+        iframe: widget.iframe,
+        hidden: widget.iframe?.parentElement?.style.visibility === "hidden",
+        firstConnected: fake.rendered[0]!.iframe.isConnected,
+      }),
+    );
+    const result = {
+      size: { width: 1, height: 1 },
+      blank: false,
+      errorCount: 0,
+    };
+    const first = await fake.connect(0, { onRequest: () => result });
+    void first.request(METHODS.initialize, {
+      appCapabilities: { availableDisplayModes: ["inline"] },
+    });
+    first.notify(METHODS.initialized);
+    await vi.waitFor(() => expect(onInitialized).toHaveBeenCalledTimes(1));
+    widget.write("<script>run()</script>");
+    await widget.end();
+
+    let finishReplace!: (value: unknown) => void;
+    const remounted = widget.replace("<p>b</p><script>run()</script>");
+    const second = await fake.connect(1, {
+      onRequest: () =>
+        new Promise((resolve) => {
+          finishReplace = resolve;
+        }),
+    });
+    await vi.waitFor(() => expect(finishReplace).toBeDefined());
+    void second.request(METHODS.initialize, {
+      appCapabilities: { availableDisplayModes: ["fullscreen"] },
+    });
+    second.notify(METHODS.initialized);
+    finishReplace(result);
+    await remounted;
+
+    expect(onInitialized).toHaveBeenCalledTimes(2);
+    expect(onInitialized).toHaveBeenLastCalledWith({
+      appCapabilities: { availableDisplayModes: ["fullscreen"] },
+    });
+    expect(shown).toEqual([
+      { iframe: fake.rendered[0]!.iframe, hidden: false, firstConnected: true },
+      {
+        iframe: fake.rendered[1]!.iframe,
+        hidden: false,
+        firstConnected: false,
+      },
+    ]);
+  });
+
+  it("delivers a remounted frame's initialization before onResize and survives a throwing handler", async () => {
+    const events: string[] = [];
+    const { fake, widget } = setup({
+      onInitialized: () => {
+        events.push("initialized");
+        throw new Error("host handler failed");
+      },
+      onResize: () => events.push("resize"),
+    });
+    const result = {
+      size: { width: 1, height: 1 },
+      blank: false,
+      errorCount: 0,
+    };
+    await fake.connect(0, { onRequest: () => result });
+    widget.write("<script>run()</script>");
+    await widget.end();
+
+    let finishReplace!: (value: unknown) => void;
+    const remounted = widget.replace("<p>b</p><script>run()</script>");
+    const second = await fake.connect(1, {
+      onRequest: () =>
+        new Promise((resolve) => {
+          finishReplace = resolve;
+        }),
+    });
+    await vi.waitFor(() => expect(finishReplace).toBeDefined());
+    void second.request(METHODS.initialize, {});
+    second.notify(METHODS.initialized);
+    finishReplace(result);
+
+    await expect(remounted).resolves.toEqual(result);
+    expect(events).toEqual(["initialized", "resize"]);
+    expect(widget.iframe).toBe(fake.rendered[1]!.iframe);
+  });
+
+  it("disposes the replaced frame even when onResize throws during a remount", async () => {
+    let remounting = false;
+    const { container, fake, widget } = setup({
+      onResize: () => {
+        if (remounting) throw new Error("host handler failed");
+      },
+    });
+    const result = {
+      size: { width: 1, height: 1 },
+      blank: false,
+      errorCount: 0,
+    };
+    await fake.connect(0, { onRequest: () => result });
+    widget.write("<script>run()</script>");
+    await widget.end();
+
+    remounting = true;
+    const remounted = widget.replace("<p>b</p><script>run()</script>");
+    await fake.connect(1, { onRequest: () => result });
+    await remounted.catch(() => {});
+
+    expect(fake.rendered[0]!.dispose).toHaveBeenCalled();
+    expect(container.children).toHaveLength(1);
+    expect(widget.iframe).toBe(fake.rendered[1]!.iframe);
+  });
+
+  it("disposes a remounted frame that fails to render and drops its initialization", async () => {
+    const onInitialized = vi.fn();
+    const { container, fake, widget } = setup({ onInitialized });
+    const result = {
+      size: { width: 1, height: 1 },
+      blank: false,
+      errorCount: 0,
+    };
+    await fake.connect(0, { onRequest: () => result });
+    widget.write("<script>run()</script>");
+    await widget.end();
+
+    let failReplace!: (error: unknown) => void;
+    const remounted = widget.replace("<p>b</p><script>run()</script>");
+    const second = await fake.connect(1, {
+      onRequest: () =>
+        new Promise((_, reject) => {
+          failReplace = reject;
+        }),
+    });
+    await vi.waitFor(() => expect(failReplace).toBeDefined());
+    void second.request(METHODS.initialize, {
+      appCapabilities: { availableDisplayModes: ["fullscreen"] },
+    });
+    second.notify(METHODS.initialized);
+    failReplace(new Error("render failed"));
+
+    await expect(remounted).rejects.toThrow("render failed");
+    expect(onInitialized).not.toHaveBeenCalled();
+    expect(fake.rendered[1]!.dispose).toHaveBeenCalled();
+    expect(container.children).toHaveLength(1);
+    expect(widget.iframe).toBe(fake.rendered[0]!.iframe);
   });
 
   it("ignores window messages from other sources", async () => {
