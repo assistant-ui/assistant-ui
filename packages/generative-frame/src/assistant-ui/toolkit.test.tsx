@@ -652,13 +652,45 @@ describe("createWidgetToolkit", () => {
     });
   });
 
-  it("mounts earlier non-widget tool results by name in call order", () => {
+  it("keeps index 0 on the latest call to a tool when older calls precede it", () => {
     const spec = {
       root: "t",
       elements: {
         t: {
           type: "Text",
-          props: { text: { $state: "/tools/lookup/1/price" } },
+          props: { text: { $state: "/tools/search_flights/0/price" } },
+        },
+      },
+      state: {},
+    };
+    mocks.messages = [
+      { content: [call("la", "search_flights", {}, { price: "$300" })] },
+      { content: [call("sf", "search_flights", {}, { price: "$200" })] },
+      { content: [call("s", "render_spec", { title: "s", spec })] },
+    ];
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, {
+        components: {
+          Text: ({ props }: SpecComponentProps<{ text: string }>) => (
+            <p>{props.text}</p>
+          ),
+        },
+      }),
+    });
+    const RenderSpec = entries(toolkit)["render_spec"]!.render;
+    const view = render(
+      <RenderSpec {...partProps("s", { title: "s", spec })} />,
+    );
+    expect(view.container.textContent).toBe("$200");
+  });
+
+  it("mounts earlier non-widget tool results by name, newest first", () => {
+    const spec = {
+      root: "t",
+      elements: {
+        t: {
+          type: "Text",
+          props: { text: { $state: "/tools/lookup/0/price" } },
         },
       },
       state: {},
@@ -696,7 +728,7 @@ describe("createWidgetToolkit", () => {
       <RenderSpec {...partProps("s", { title: "s", spec })} />,
     );
     expect(view.container.textContent).toBe("$9");
-    expect(tools).toEqual({ lookup: [undefined, { price: "$9" }] });
+    expect(tools).toEqual({ lookup: [{ price: "$9" }, undefined] });
   });
 
   it("keeps the state stable while patches stream", () => {
@@ -749,7 +781,7 @@ describe("createWidgetToolkit", () => {
       modules: ["spec"],
     });
     expect(output).toContain(
-      'Results of earlier tool calls are in state under `/tools/<toolName>/<n>`, one entry per call to that tool in the order you made them, starting at 0. Show their values with `{ "$state": "/tools/<toolName>/<n>/..." }` rather than copying them, and never write `tools` in `state`.',
+      'Results of earlier tool calls are in state under `/tools/<toolName>/<n>`, newest first: `0` is the latest call to that tool before this `render_spec` call, `1` the one before it, and so on. Show their values with `{ "$state": "/tools/<toolName>/<n>/..." }` rather than copying them, and never write `tools` in `state`. Indexes count back from each `render_spec` call, so when a patch follows another call to the same tool, update any binding that should keep showing the older result.',
     );
     expect((output as string).indexOf("Keep labels short.")).toBeLessThan(
       (output as string).indexOf("Results of earlier tool calls"),

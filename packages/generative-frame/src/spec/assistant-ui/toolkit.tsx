@@ -52,11 +52,7 @@ const WIDGET_TOOLS = new Set([
   "render_spec",
 ]);
 
-/**
- * Results of the tool calls before this one, by tool name and in call order,
- * leaving out the widget toolkit's own tools. Tool names and call order are
- * keys every model can see, unlike call ids, which some formats never show.
- */
+/** Results of the tool calls before this one, by tool name and newest first, leaving out the widget toolkit's own tools. Tool names are keys every model can see, unlike call ids, which some formats never show, and counting back from this call keeps an index stable when a host prunes older history. */
 function resolveToolResults(
   messages: readonly MessageLike[],
   toolCallId: string,
@@ -65,7 +61,7 @@ function resolveToolResults(
   for (const call of toolCalls(messages)) {
     if (call.id === toolCallId) break;
     if (WIDGET_TOOLS.has(call.name)) continue;
-    (results[call.name] ??= []).push(decodeResult(call.result));
+    (results[call.name] ??= []).unshift(decodeResult(call.result));
   }
   return results;
 }
@@ -176,7 +172,7 @@ export function createSpecToolkit(
         ...options.specPrompt,
         customRules: [
           ...(options.specPrompt?.customRules ?? []),
-          'Results of earlier tool calls are in state under `/tools/<toolName>/<n>`, one entry per call to that tool in the order you made them, starting at 0. Show their values with `{ "$state": "/tools/<toolName>/<n>/..." }` rather than copying them, and never write `tools` in `state`.',
+          'Results of earlier tool calls are in state under `/tools/<toolName>/<n>`, newest first: `0` is the latest call to that tool before this `render_spec` call, `1` the one before it, and so on. Show their values with `{ "$state": "/tools/<toolName>/<n>/..." }` rather than copying them, and never write `tools` in `state`. Indexes count back from each `render_spec` call, so when a patch follows another call to the same tool, update any binding that should keep showing the older result.',
         ],
       }),
     ],
