@@ -1032,7 +1032,7 @@ describe("frame widget state persistence", () => {
     expect(mocks.widgetProps.at(-1)!["initialState"]).toBeNull();
   });
 
-  it("debounces saves, calls the app handler, and flushes on unmount", () => {
+  it("debounces saves, calls the app handler, and flushes on unmount", async () => {
     vi.useFakeTimers();
     const record = vi.fn(async () => {});
     const onWidgetState = vi.fn();
@@ -1054,7 +1054,7 @@ describe("frame widget state persistence", () => {
     act(() => onState({ count: 2 }));
     act(() => vi.advanceTimersByTime(499));
     expect(record).not.toHaveBeenCalled();
-    act(() => vi.advanceTimersByTime(1));
+    await act(async () => vi.advanceTimersByTime(1));
     expect(record).toHaveBeenCalledExactlyOnceWith({
       type: "action",
       payload: { type: "widgetState", toolCallId: "a", state: { count: 2 } },
@@ -1099,10 +1099,11 @@ describe("frame widget state persistence", () => {
     expect(latest).toHaveBeenCalledOnce();
   });
 
-  it("records one null marker when saving rejects", async () => {
+  it("marks a rejected state once, and only over a state that was saved", async () => {
     vi.useFakeTimers();
     const record = vi.fn((input: { payload: { state: unknown } }) =>
-      input.payload.state === null
+      input.payload.state === null ||
+      JSON.stringify(input.payload.state) === JSON.stringify({ count: 2 })
         ? Promise.resolve()
         : Promise.reject(new Error("rejected")),
     );
@@ -1116,16 +1117,18 @@ describe("frame widget state persistence", () => {
     const onState = mocks.widgetProps.at(-1)!["onWidgetState"] as (
       state: unknown,
     ) => void;
-    act(() => onState({ count: 1 }));
-    await act(async () => vi.advanceTimersByTime(500));
-    expect(record).toHaveBeenCalledTimes(2);
-    expect(record).toHaveBeenLastCalledWith({
-      type: "action",
-      payload: { type: "widgetState", toolCallId: "a", state: null },
-    });
-    act(() => onState({ count: 2 }));
-    await act(async () => vi.advanceTimersByTime(500));
-    expect(record).toHaveBeenCalledTimes(3);
+    for (let count = 1; count <= 4; count++) {
+      act(() => onState({ count }));
+      await act(async () => vi.advanceTimersByTime(500));
+      await act(async () => {});
+    }
+    expect(record.mock.calls.map(([input]) => input.payload.state)).toEqual([
+      { count: 1 },
+      { count: 2 },
+      { count: 3 },
+      null,
+      { count: 4 },
+    ]);
   });
 
   it("restores and records edit state under the edit call", () => {
