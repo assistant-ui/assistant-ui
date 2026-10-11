@@ -1,8 +1,11 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { describe, it, expect } from "vitest";
 import {
   auiCardSurfaceSelectors,
   generativeUiElementsThemeCss,
   generativeUiVocabularyCss,
+  generativeUiThemeVars,
   generativeUiCssText,
 } from "./generative-ui-vocabulary-css";
 
@@ -14,6 +17,149 @@ const themedRules = generativeUiElementsThemeCss as Record<
   string,
   Record<string, string>
 >;
+
+type Oklab = readonly [number, number, number];
+type Srgb = readonly [number, number, number];
+type ThemeMode = "light" | "dark";
+
+const defaultThemeCss = readFileSync(
+  resolve(process.cwd(), "../../templates/minimal/app/globals.css"),
+  "utf8",
+);
+
+const defaultThemeToken = (
+  mode: ThemeMode,
+  name: "background" | "foreground" | "destructive",
+) => {
+  const selector = mode === "light" ? ":root" : "\\.dark";
+  const block = defaultThemeCss.match(
+    new RegExp(`${selector}\\s*\\{([^}]+)\\}`),
+  );
+  if (!block) throw new Error(`Missing ${mode} theme block`);
+  const token = block[1]!.match(new RegExp(`--${name}:\\s*(oklch\\([^;]+\\))`));
+  if (!token) throw new Error(`Missing ${mode} theme token: ${name}`);
+  return token[1]!;
+};
+
+const toOklab = (value: string): Oklab => {
+  const match = value.match(/oklch\(([^)]+)\)/);
+  if (!match) throw new Error(`Expected an oklch color: ${value}`);
+  const [lightness, chroma, hue] = match[1]!.trim().split(/\s+/).map(Number);
+  const radians = (hue! * Math.PI) / 180;
+  return [lightness!, chroma! * Math.cos(radians), chroma! * Math.sin(radians)];
+};
+
+const toSrgb = ([lightness, a, b]: Oklab): Srgb => {
+  const l = (lightness + 0.3963377774 * a + 0.2158037573 * b) ** 3;
+  const m = (lightness - 0.1055613458 * a - 0.0638541728 * b) ** 3;
+  const s = (lightness - 0.0894841775 * a - 1.291485548 * b) ** 3;
+  const encode = (channel: number) => {
+    const clamped = Math.max(0, Math.min(1, channel));
+    return clamped <= 0.0031308
+      ? 12.92 * clamped
+      : 1.055 * clamped ** (1 / 2.4) - 0.055;
+  };
+  return [
+    encode(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
+    encode(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
+    encode(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s),
+  ];
+};
+
+const mixOklab = (
+  [lightness, a, b]: Oklab,
+  [foregroundLightness, foregroundA, foregroundB]: Oklab,
+  colorShare: number,
+): Oklab => [
+  lightness * colorShare + foregroundLightness * (1 - colorShare),
+  a * colorShare + foregroundA * (1 - colorShare),
+  b * colorShare + foregroundB * (1 - colorShare),
+];
+
+const relativeLuminance = ([red, green, blue]: Srgb) => {
+  const linearize = (channel: number) =>
+    channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  return (
+    0.2126 * linearize(red) +
+    0.7152 * linearize(green) +
+    0.0722 * linearize(blue)
+  );
+};
+
+const contrastRatio = (first: Srgb, second: Srgb) => {
+  const firstLuminance = relativeLuminance(first);
+  const secondLuminance = relativeLuminance(second);
+  return (
+    (Math.max(firstLuminance, secondLuminance) + 0.05) /
+    (Math.min(firstLuminance, secondLuminance) + 0.05)
+  );
+};
+
+const toneStyleCases = [
+  {
+    name: "good Fact delta",
+    selector: '[data-aui="fact-delta"][data-aui-tone="good"]',
+    token: "--aui-success",
+  },
+  {
+    name: "bad Fact delta",
+    selector: '[data-aui="fact-delta"][data-aui-tone="bad"]',
+    token: "--destructive",
+  },
+  {
+    name: "success badge",
+    selector: '[data-aui="badge"][data-aui-variant="success"]',
+    token: "--aui-success",
+  },
+  {
+    name: "warning badge",
+    selector: '[data-aui="badge"][data-aui-variant="warning"]',
+    token: "--aui-warning",
+  },
+  {
+    name: "danger badge",
+    selector: '[data-aui="badge"][data-aui-variant="danger"]',
+    token: "--destructive",
+  },
+] as const;
+
+describe("tone text contrast", () => {
+  it.each(toneStyleCases)(
+    "keeps $name above 4.5:1 in both default themes",
+    ({ selector, token }) => {
+      const style = rules[selector]!;
+      expect(style["background-color"]).toBe(
+        `color-mix(in oklab, var(${token}) 15%, transparent)`,
+      );
+      expect(style.color).toBe(
+        `color-mix(in oklab, var(${token}) 60%, var(--foreground))`,
+      );
+
+      for (const mode of ["light", "dark"] as const) {
+        const tone =
+          token === "--destructive"
+            ? defaultThemeToken(mode, "destructive")
+            : generativeUiThemeVars[mode][token];
+        const foreground = defaultThemeToken(mode, "foreground");
+        const background = defaultThemeToken(mode, "background");
+        const textColor = toSrgb(
+          mixOklab(toOklab(tone), toOklab(foreground), 0.6),
+        );
+        const toneRgb = toSrgb(toOklab(tone));
+        const backgroundRgb = toSrgb(toOklab(background));
+        const tintedBackground: Srgb = [
+          toneRgb[0] * 0.15 + backgroundRgb[0] * 0.85,
+          toneRgb[1] * 0.15 + backgroundRgb[1] * 0.85,
+          toneRgb[2] * 0.15 + backgroundRgb[2] * 0.85,
+        ];
+
+        expect(
+          contrastRatio(textColor, tintedBackground),
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+    },
+  );
+});
 
 describe("card surface", () => {
   it("is selected by an attribute rather than :has(), which the browserslist floor lacks", () => {
