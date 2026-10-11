@@ -194,7 +194,10 @@ export function createSpecToolkit(
         [inputSpec, streamed.spec],
       );
       const renderState = useMemo(
-        () => toolResults && { ...spec.state, tools: toolResults },
+        () =>
+          toolResults && spec.state?.["tools"] === undefined
+            ? { ...spec.state, tools: toolResults }
+            : undefined,
         [spec.state, toolResults],
       );
       const renderSpec = useMemo(
