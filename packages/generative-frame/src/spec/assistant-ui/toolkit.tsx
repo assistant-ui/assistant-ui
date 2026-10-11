@@ -3,7 +3,12 @@ import {
   useToolArgsStatus,
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
-import { useInsertionEffect, useState, type ComponentType } from "react";
+import {
+  useInsertionEffect,
+  useMemo,
+  useState,
+  type ComponentType,
+} from "react";
 import {
   toolkitEntry,
   type WidgetToolkitExtension,
@@ -43,6 +48,39 @@ export type SpecToolkitOptions = {
 };
 
 type SpecArgs = Partial<RenderSpecInput>;
+
+const WIDGET_TOOLS = new Set([
+  "read_me",
+  "show_widget",
+  "edit_widget",
+  "preview_widget",
+  "render_spec",
+]);
+
+/** Results of the tool calls before this one, by tool name and newest first, leaving out the widget toolkit's own tools. Tool names are keys every model can see, unlike call ids, which some formats never show, and counting back from this call keeps an index stable when a host prunes older history. */
+function resolveToolResults(
+  messages: readonly MessageLike[],
+  toolCallId: string,
+): Record<string, unknown[]> {
+  const results: Record<string, unknown[]> = Object.create(null);
+  for (const call of toolCalls(messages)) {
+    if (call.id === toolCallId) break;
+    if (WIDGET_TOOLS.has(call.name)) continue;
+    (results[call.name] ??= []).unshift(decodeResult(call.result));
+  }
+  return results;
+}
+
+/** A string result that holds a JSON object or array is decoded, since the model read that string as the structure. */
+function decodeResult(result: unknown): unknown {
+  if (typeof result !== "string") return result;
+  try {
+    const value: unknown = JSON.parse(result);
+    return typeof value === "object" && value !== null ? value : result;
+  } catch {
+    return result;
+  }
+}
 
 /**
  * The spec a `render_spec` call's patches apply onto: the result of the
@@ -111,60 +149,94 @@ export function createSpecToolkit(
     return tools.render_spec.execute(input);
   };
 
-  function RenderSpecUI({
-    args,
-    toolCallId,
-  }: ToolCallMessagePartProps<SpecArgs>) {
-    const { argsStatus } = useToolArgsStatus<RenderSpecInput>();
-    const streaming = argsStatus !== "complete";
-    const messages = useAuiState((s) => s.thread.messages);
-    const title = typeof args.title === "string" ? args.title : "";
-    // The base only depends on earlier calls, so it is read once per call.
-    const [base] = useState(() => resolveSpecBase(messages, toolCallId, title));
-    const [history] = useState<SpecHistory>(() => (callTitle: string) => ({
-      spec: resolveSpecBase(messages, toolCallId, callTitle),
-      version: priorSpecCalls(messages, toolCallId, callTitle),
-    }));
-    useInsertionEffect(() => {
-      histories.set(toolCallId, history);
-      return () => {
-        if (histories.get(toolCallId) === history) histories.delete(toolCallId);
-      };
-    }, [toolCallId, history]);
-    const streamed = useSpecStream({
-      source: typeof args.patches === "string" ? args.patches : "",
-      complete: !streaming,
-      ...(base ? { initial: base } : {}),
-    });
-    const spec =
-      args.spec &&
-      typeof args.spec === "object" &&
-      typeof args.spec.root === "string"
-        ? ({ state: {}, ...args.spec } as Spec)
-        : streamed.spec;
+  const renderSpecUI = (mountsToolResults: boolean) =>
+    function RenderSpecUI({
+      args,
+      toolCallId,
+    }: ToolCallMessagePartProps<SpecArgs>) {
+      const { argsStatus } = useToolArgsStatus<RenderSpecInput>();
+      const streaming = argsStatus !== "complete";
+      const messages = useAuiState((s) => s.thread.messages);
+      const title = typeof args.title === "string" ? args.title : "";
+      // The base and the tool results only depend on earlier calls, so they are read once per call.
+      const [base] = useState(() =>
+        resolveSpecBase(messages, toolCallId, title),
+      );
+      const [toolResults] = useState(() =>
+        mountsToolResults
+          ? resolveToolResults(messages, toolCallId)
+          : undefined,
+      );
+      const [history] = useState<SpecHistory>(() => (callTitle: string) => ({
+        spec: resolveSpecBase(messages, toolCallId, callTitle),
+        version: priorSpecCalls(messages, toolCallId, callTitle),
+      }));
+      useInsertionEffect(() => {
+        histories.set(toolCallId, history);
+        return () => {
+          if (histories.get(toolCallId) === history)
+            histories.delete(toolCallId);
+        };
+      }, [toolCallId, history]);
+      const streamed = useSpecStream({
+        source: typeof args.patches === "string" ? args.patches : "",
+        complete: !streaming,
+        ...(base ? { initial: base } : {}),
+      });
+      const inputSpec = args.spec;
+      const spec = useMemo(
+        () =>
+          inputSpec &&
+          typeof inputSpec === "object" &&
+          typeof inputSpec.root === "string"
+            ? ({ state: {}, ...inputSpec } as Spec)
+            : streamed.spec,
+        [inputSpec, streamed.spec],
+      );
+      const renderState = useMemo(
+        () =>
+          toolResults && spec.state?.["tools"] === undefined
+            ? { ...spec.state, tools: toolResults }
+            : undefined,
+        [spec.state, toolResults],
+      );
+      const renderSpec = useMemo(
+        () => (renderState ? { ...spec, state: renderState } : spec),
+        [spec, renderState],
+      );
 
-    return (
-      <div data-gf-spec={title || undefined}>
-        <SpecRenderer
-          spec={spec}
-          catalog={catalog}
-          components={options.components}
-          streaming={streaming}
-          {...(options.handlers ? { handlers: options.handlers } : {})}
-          {...(options.onAction ? { onAction: options.onAction } : {})}
-          {...(options.placeholder ? { placeholder: options.placeholder } : {})}
-        />
-      </div>
-    );
-  }
+      return (
+        <div data-gf-spec={title || undefined}>
+          <SpecRenderer
+            spec={renderSpec}
+            catalog={catalog}
+            components={options.components}
+            streaming={streaming}
+            {...(options.handlers ? { handlers: options.handlers } : {})}
+            {...(options.onAction ? { onAction: options.onAction } : {})}
+            {...(options.placeholder
+              ? { placeholder: options.placeholder }
+              : {})}
+          />
+        </div>
+      );
+    };
 
   return {
     tools,
-    modules: [specGuidanceModule(catalog, options.specPrompt ?? {})],
+    modules: [
+      specGuidanceModule(catalog, {
+        ...options.specPrompt,
+        customRules: [
+          ...(options.specPrompt?.customRules ?? []),
+          'Results of earlier tool calls are in state under `/tools/<toolName>/<n>`, newest first: `0` is the latest call to that tool before this `render_spec` call, `1` the one before it, and so on. Show their values with `{ "$state": "/tools/<toolName>/<n>/..." }` rather than copying them, and never write `tools` in `state`. Indexes count back from each `render_spec` call, so when a patch follows another call to the same tool, update any binding that should keep showing the older result.',
+        ],
+      }),
+    ],
     entries: (context) => ({
       render_spec: toolkitEntry(
         tools.render_spec,
-        RenderSpecUI as never,
+        renderSpecUI(context.execution === "frontend") as never,
         context,
         execute,
       ),
