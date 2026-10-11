@@ -1258,12 +1258,12 @@ function opensBlockInContainer(
   endsText: boolean,
   depth: number,
 ): boolean {
-  const quote = QUOTE_PREFIX.exec(line)![0];
-  if (depth === 0 || quoteDepth(quote) !== depth) {
-    return opensBlock(line, next, endsText);
-  }
+  if (depth === 0) return opensBlock(line, next, endsText);
 
-  const nextQuote = next === undefined ? "" : QUOTE_PREFIX.exec(next)![0];
+  const quote = quoteMarkers(line, depth);
+  if (quoteDepth(quote) < depth) return true;
+
+  const nextQuote = next === undefined ? "" : quoteMarkers(next, depth);
   const nextLine =
     next !== undefined && quoteDepth(nextQuote) === depth
       ? next.slice(nextQuote.length)
@@ -1286,9 +1286,10 @@ function opensBlockInContainer(
  * The closing marker is looked for up to the first blank line, which a display
  * body does not hold, and past code spans, whose backticks remark-math reads as
  * TeX inside the fence. A fence that reaches a blank line or a code fence
- * first, reaches a sibling list marker or another fence's opener, or closes on
- * a formula line (`F = ma$$`) is left as written, so a finished message never
- * has its prose pulled into the math. A `+` or `-` marker line holding no `$`,
+ * first, reaches a sibling list marker, another fence's opener or a blockquote
+ * nested short of the item's column, or closes on a formula line (`F = ma$$`)
+ * is left as written, so a finished message never has its prose pulled into
+ * the math. A `+` or `-` marker line holding no `$`,
  * and either TeX syntax or no word (four letters in a row, or two words of
  * three), continues the formula when the fence closes after it. A fence that
  * reaches the end of the text is one still streaming in and is indented to its
@@ -1355,7 +1356,11 @@ function nestListItemDisplayMath(text: string): string {
           break;
         }
 
-        if (moves && displayMathOpenerPrefix(line) !== null) {
+        if (
+          moves &&
+          (displayMathOpenerPrefix(line) !== null ||
+            (depth > 0 && line[content] === ">"))
+        ) {
           resume = end;
           break;
         }

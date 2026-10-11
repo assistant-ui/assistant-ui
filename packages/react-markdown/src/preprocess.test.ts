@@ -494,6 +494,9 @@ describe("normalizeMathDelimiters", () => {
     expect(normalizeMathDelimiters("> 1. $$\nx = 1\n> $$\n> 2. b")).toBe(
       "> 1. $$\n>    x = 1\n>    $$\n> 2. b",
     );
+    expect(normalizeMathDelimiters("> 1. $$\n> x = 1\n> $$\nText")).toBe(
+      "> 1. $$\n>    x = 1\n>    $$\nText",
+    );
     expect(normalizeMathDelimiters("1. $$\n> 1. $$\nx = 1\n> $$")).toBe(
       "1. $$\n> 1. $$\n>    x = 1\n>    $$",
     );
@@ -509,6 +512,11 @@ describe("normalizeMathDelimiters", () => {
     expect(normalizeMathDelimiters("1. $$\n\\text{`x`} = 1")).toBe(
       "1. $$\n   \\text{`x`} = 1",
     );
+  });
+
+  it("leaves a quoted $$ fence that reaches a nested blockquote as written", () => {
+    const text = "> 1. $$\n>    x\n> >     code";
+    expect(normalizeMathDelimiters(text)).toBe(text);
   });
 
   it("leaves a $$ fence that reaches a code fence before it closes", () => {
