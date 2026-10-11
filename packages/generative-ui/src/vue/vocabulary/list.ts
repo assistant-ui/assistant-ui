@@ -1,4 +1,4 @@
-import { defineComponent, h } from "vue";
+import { defineComponent, h, useId } from "vue";
 import { useSpecElement } from "generative-frame/spec/vue";
 import { listDefinitions } from "../../vocabulary/definitions/list";
 import { INTERACTIVE_DESCENDANT_SELECTOR } from "../../vocabulary/listItemValues";
@@ -23,6 +23,7 @@ export const listVocabulary = {
       emits: ["press"],
       setup: function GenerativeUIListViewItem(_props, { emit, slots }) {
         const context = useSpecElement();
+        const contentId = useId();
         const isNested = (event: Event) => {
           const hit = (event.target as Element).closest(
             INTERACTIVE_DESCENDANT_SELECTOR,
@@ -38,20 +39,38 @@ export const listVocabulary = {
                   h(
                     "div",
                     {
-                      role: "button",
-                      tabindex: 0,
                       "data-aui": "listview-item-trigger",
+                      style: { position: "relative" },
                       onClick: (event: MouseEvent) => {
                         if (!isNested(event)) emit("press", undefined);
                       },
-                      onKeydown: (event: KeyboardEvent) => {
-                        if (event.key !== "Enter" && event.key !== " ") return;
-                        if (isNested(event)) return;
-                        if (event.key === " ") event.preventDefault();
-                        emit("press", undefined);
-                      },
                     },
-                    slots.default?.() ?? [],
+                    [
+                      h("button", {
+                        type: "button",
+                        "aria-labelledby": contentId,
+                        style: {
+                          position: "absolute",
+                          inset: "0",
+                          width: "100%",
+                          height: "100%",
+                          padding: "0",
+                          border: "0",
+                          background: "transparent",
+                          cursor: "pointer",
+                        },
+                        onClick: () => emit("press", undefined),
+                      }),
+                      h(
+                        "div",
+                        {
+                          "data-aui": "listview-item-content",
+                          id: contentId,
+                          style: { position: "relative" },
+                        },
+                        slots.default?.() ?? [],
+                      ),
+                    ],
                   ),
                 ]
               : (slots.default?.() ?? []),

@@ -190,6 +190,19 @@ describe("card surface", () => {
 });
 
 describe("generative UI surface", () => {
+  it("shows the list row focus ring on its native button", () => {
+    expect(
+      rules['[data-aui="listview-item-trigger"] > button:focus-visible'],
+    ).toMatchObject({
+      outline: "2px solid var(--ring)",
+      "outline-offset": "2px",
+      "border-radius": "inherit",
+    });
+    expect(
+      rules['[data-aui="listview-item-trigger"]:focus-visible'],
+    ).toBeUndefined();
+  });
+
   it("hides itself while it has no children so its margins do not hold a gap open", () => {
     expect(rules['[data-aui="root"]:empty']!["display"]).toBe("none");
   });
