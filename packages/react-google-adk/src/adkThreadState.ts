@@ -361,12 +361,7 @@ export const reduceAdkThreadState = (
       };
     }
     case "results.flush": {
-      if (action.failed)
-        return {
-          ...state,
-          failedRunIds: new Set([...state.failedRunIds, action.runId]),
-          readyBatch: null,
-        };
+      if (action.failed) return { ...state, readyBatch: null };
       const toolResultBuffer = new Map(state.toolResultBuffer);
       const batch: ToolMessage[] = [];
       for (const id of state.toolResultBuffer.keys()) {

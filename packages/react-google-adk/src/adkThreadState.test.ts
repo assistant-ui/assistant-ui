@@ -405,7 +405,6 @@ describe("reduceAdkThreadState", () => {
     });
     expect(failed.readyBatch).toBeNull();
     expect(failed.toolResultBuffer.size).toBe(1);
-    expect(failed.failedRunIds.has("1")).toBe(true);
     expect(
       reduceAdkThreadState(failed, {
         type: "results.received",
@@ -530,6 +529,66 @@ describe("reduceAdkThreadState", () => {
       reduceAdkThreadState(state, { type: "results.received", message: answer })
         .readyBatch,
     ).toEqual([answer]);
+  });
+
+  it("releases every complete group of a run when it ends", () => {
+    const answer = (
+      id: string,
+      name = "lookup",
+    ): Extract<AdkMessage, { type: "tool" }> => ({
+      id: `answer-${id}`,
+      type: "tool",
+      name,
+      tool_call_id: id,
+      content: id,
+    });
+    const calls: AdkMessage = {
+      id: "call",
+      type: "ai",
+      content: "",
+      tool_calls: [
+        { id: "c1", name: "lookup", args: {} },
+        { id: "c2", name: "lookup", args: {} },
+        { id: "input-1", name: "adk_request_input", args: {} },
+      ],
+    };
+    let state = reduceAdkThreadState(createAdkThreadState(), {
+      type: "run.active",
+    });
+    state = reduceAdkThreadState(state, {
+      type: "messages.remember",
+      messages: [calls],
+      runConfig: undefined,
+    });
+    state = {
+      ...state,
+      messages: [calls],
+      longRunningToolIds: ["c1", "c2", "input-1"],
+    };
+    for (const message of [
+      answer("input-1", "adk_request_input"),
+      answer("c1"),
+      answer("c2"),
+    ]) {
+      state = reduceAdkThreadState(state, {
+        type: "results.received",
+        message,
+      });
+      expect(state.readyBatch).toBeNull();
+    }
+    state = reduceAdkThreadState(state, { type: "run.finished", runId: "1" });
+
+    const released = reduceAdkThreadState(state, {
+      type: "results.flush",
+      runId: "1",
+      failed: false,
+    });
+    expect(released.readyBatch).toEqual([
+      answer("input-1", "adk_request_input"),
+      answer("c1"),
+      answer("c2"),
+    ]);
+    expect(released.toolResultBuffer.size).toBe(0);
   });
 
   it("marks only the current run failed and skips calls it already knows", () => {
