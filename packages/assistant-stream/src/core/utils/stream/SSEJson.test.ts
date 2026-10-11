@@ -67,6 +67,42 @@ describe("createSSEJsonEncoder", () => {
 });
 
 describe("createSSEJsonDecoder", () => {
+  it.each(["", "\uFEFF"])(
+    "decodes a stream with %j as its BOM prefix",
+    async (prefix) => {
+      const chunks = await collectChunks(
+        createSSEJsonDecoder({ parse: jsonParse })(
+          fromSSEText(`${prefix}data: {"a":1}\n\n`),
+        ),
+      );
+      expect(chunks).toEqual([{ a: 1 }]);
+    },
+  );
+
+  it.each([0, 1, 2, 3, 4, 5, 6])(
+    "ignores a field prefixed by a second BOM when bytes split at %i",
+    async (split) => {
+      const bytes = new TextEncoder().encode(
+        '\uFEFF\uFEFFdata: {"ignored":true}\ndata: {"a":1}\n\n',
+      );
+      const chunks = await collectChunks(
+        createSSEJsonDecoder({ parse: jsonParse })(
+          fromValues([bytes.slice(0, split), bytes.slice(split)]),
+        ),
+      );
+      expect(chunks).toEqual([{ a: 1 }]);
+    },
+  );
+
+  it("preserves a BOM inside a JSON string", async () => {
+    const chunks = await collectChunks(
+      createSSEJsonDecoder({ parse: jsonParse })(
+        fromSSEText('data: {"text":"\uFEFFkept"}\n\n'),
+      ),
+    );
+    expect(chunks).toEqual([{ text: "\uFEFFkept" }]);
+  });
+
   it("parses message events and terminates on the done marker", async () => {
     const chunks = await collectChunks(
       createSSEJsonDecoder({
