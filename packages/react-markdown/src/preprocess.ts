@@ -1102,21 +1102,42 @@ export function rewriteLatexBracketDelimiters(text: string): string {
       }
       if (opener === -1) continue;
       const end = at + marker[0]!.length;
-      const body = block.slice(opener + openerLength, at);
+      let body = block.slice(opener + openerLength, at);
+      let crossesSpanBoundary =
+        !body.includes("\n") || /\n[ \t]*(?:>[ \t]*)*\r?\n/.test(body);
       let range = firstVerbatimRange(ranges, opener, end);
-      let blocked = false;
       while (range) {
-        if (range.kind === "fence" || !body.includes("\n")) {
-          blocked = true;
-          break;
+        if (range.kind === "fence" || crossesSpanBoundary) {
+          opener = -1;
+          for (const next of block
+            .slice(range.end, at)
+            .matchAll(LATEX_DISPLAY_MARKER)) {
+            const nextAt = range.end + next.index;
+            if (next[0]!.endsWith("[") && !verbatimRangeAt(ranges, nextAt)) {
+              opener = nextAt;
+              openerLength = next[0]!.length;
+              break;
+            }
+          }
+          if (opener === -1) break;
+          body = block.slice(opener + openerLength, at);
+          crossesSpanBoundary =
+            !body.includes("\n") || /\n[ \t]*(?:>[ \t]*)*\r?\n/.test(body);
+          range = firstVerbatimRange(ranges, opener, end);
+          continue;
         }
         range = firstVerbatimRange(ranges, range.end, end);
       }
-      if (blocked) {
+      if (opener === -1) continue;
+      const match = block.slice(opener, end);
+      if (!body.includes("\n")) {
+        out +=
+          block.slice(cursor, opener) +
+          emitDisplayMath(match, body, opener, block, "", "", () => "");
+        cursor = end;
         opener = -1;
         continue;
       }
-      const match = block.slice(opener, end);
       const lineHead = (offset: number) =>
         block.slice(block.lastIndexOf("\n", offset - 1) + 1, offset);
       const head = lineHead(opener);
@@ -1134,14 +1155,16 @@ export function rewriteLatexBracketDelimiters(text: string): string {
       );
       let consumed = end;
       if (
-        body.includes("\n") &&
+        replacement !== match &&
         depth > 0 &&
         listMarkerEnd(head, quote.length, head.length) > quote.length &&
-        block[end] === "\n"
+        (block[end] === "\n" || block.startsWith("\r\n", end))
       ) {
-        const nextEnd = block.indexOf("\n", end + 1);
+        const lineBreak = block.startsWith("\r\n", end) ? "\r\n" : "\n";
+        const lineStart = end + lineBreak.length;
+        const nextEnd = block.indexOf("\n", lineStart);
         const lineEnd = nextEnd === -1 ? block.length : nextEnd;
-        const line = block.slice(end + 1, lineEnd);
+        const line = block.slice(lineStart, lineEnd);
         const nextStart = nextEnd + 1;
         const nextBreak = block.indexOf("\n", nextStart);
         const next =
@@ -1152,8 +1175,9 @@ export function rewriteLatexBracketDelimiters(text: string): string {
           quoteDepth(quoteMarkers(line, depth)) === depth &&
           !opensBlockInContainer(line, next, nextEnd === -1, depth)
         ) {
-          replacement += `\n${indentToPrefix(line, prefix, depth, widthPastQuote(prefix))}`;
-          consumed = lineEnd;
+          const lead = quoteMarkers(line, depth);
+          replacement += `${lineBreak}${indentToPrefix(lead, prefix, depth, widthPastQuote(prefix))}`;
+          consumed = lineStart + lead.length;
         }
       }
       out += block.slice(cursor, opener) + replacement;

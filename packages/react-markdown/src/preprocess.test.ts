@@ -31,6 +31,15 @@ describe("rewriteLatexBracketDelimiters", () => {
     ).toBe("$$\n\\begin{aligned}\nS_n-rS_n\n&=a-ar^{n+1}.\n\\end{aligned}\n$$");
   });
 
+  it("keeps the CRLF after a multiline display closer", () => {
+    expect(rewriteLatexBracketDelimiters("\\[a\nb\\]\r\nrest")).toBe(
+      "$$\na\nb\n$$\r\nrest",
+    );
+    expect(
+      rewriteLatexBracketDelimiters("> 1. \\[\n> a\n> \\]\r\n> Text"),
+    ).toContain("$$\r\n");
+  });
+
   it("gives the fence markers their own lines mid-paragraph", () => {
     expect(rewriteLatexBracketDelimiters("Thus \\[a\nb\\] therefore.")).toBe(
       "Thus \n$$\na\nb\n$$\n therefore.",
@@ -62,6 +71,15 @@ describe("rewriteLatexBracketDelimiters", () => {
     expect(normalizeMathDelimiters(">1. \\[\n>x = 1\n>\\]\n>Text")).toBe(
       ">1. \n>    $$\n>    x = 1\n>    $$\n>    Text",
     );
+  });
+
+  it("rewrites both displays in a quoted list item", () => {
+    const result = normalizeMathDelimiters(
+      "> 1. \\[\n> a\n> \\]\n> \\[\n> b\n> \\]",
+    );
+    expect(result).not.toContain("\\[");
+    expect(result).not.toContain("\\]");
+    expect(result.match(/\$\$/g)).toHaveLength(4);
   });
 
   it("rewrites a multiline bracket display whose TeX body contains backticks", () => {
@@ -132,7 +150,28 @@ describe("rewriteLatexBracketDelimiters", () => {
 
   it("leaves an empty delimiter pair as written", () => {
     expect(rewriteLatexBracketDelimiters("\\[ \\]")).toBe("\\[ \\]");
+    expect(rewriteLatexBracketDelimiters("\\[ \n \\]\nrest")).toBe(
+      "\\[ \n \\]\nrest",
+    );
     expect(rewriteLatexBracketDelimiters("\\( \\)")).toBe("\\( \\)");
+  });
+
+  it("does not pair a prose opener across a blank line and code span", () => {
+    const input = "Read \\[ this\n\n`code`\n\\[ x^2 \\]";
+    expect(rewriteLatexBracketDelimiters(input)).toBe(
+      "Read \\[ this\n\n`code`\n$$x^2$$",
+    );
+    const quoted = "> Read \\[ this\n>\n> `code`\n> \\[ x^2 \\]";
+    expect(rewriteLatexBracketDelimiters(quoted)).toBe(
+      "> Read \\[ this\n>\n> `code`\n> $$x^2$$",
+    );
+  });
+
+  it("resumes at a display opener after a blocked fence", () => {
+    const input = "\\[ prose\n```\ncode\n```\n\\[ x^2 \\]";
+    expect(rewriteLatexBracketDelimiters(input)).toBe(
+      "\\[ prose\n```\ncode\n```\n$$x^2$$",
+    );
   });
 
   it("does not span newlines for inline math", () => {
