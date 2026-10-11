@@ -116,6 +116,242 @@ const setup = (options: Partial<CreateWidgetOptions> = {}) => {
 };
 
 describe("createWidget", () => {
+  it("sends initial state and the latest accepted state to each new session", async () => {
+    const onWidgetState = vi.fn();
+    const { fake, widget } = setup({
+      initialState: { count: 1 },
+      onWidgetState,
+    });
+    const result = {
+      size: { width: 1, height: 1 },
+      blank: false,
+      errorCount: 0,
+    };
+    const first = await fake.connect(0, { onRequest: () => result });
+    expect((fake.rendered[0]!.sent[0]!.data as InitMessage).state).toEqual({
+      count: 1,
+    });
+    await widget.ready;
+    first.notify(METHODS.widgetState, { state: { count: 2 } });
+    await vi.waitFor(() =>
+      expect(onWidgetState).toHaveBeenCalledWith({ count: 2 }),
+    );
+    widget.write("<script>run()</script>");
+    await widget.end();
+    let finishReplace!: (value: unknown) => void;
+    const remounted = widget.replace("<script>again()</script>");
+    const second = await fake.connect(1, {
+      onRequest: () =>
+        new Promise((resolve) => {
+          finishReplace = resolve;
+        }),
+    });
+    await vi.waitFor(() => expect(finishReplace).toBeDefined());
+    second.notify(METHODS.widgetState, { state: { count: 99 } });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onWidgetState).toHaveBeenCalledTimes(1);
+    finishReplace(result);
+    await remounted;
+    expect((fake.rendered[1]!.sent[0]!.data as InitMessage).state).toEqual({
+      count: 2,
+    });
+    widget.dispose();
+  });
+
+  it("keeps state set while a replacement loads and seeds the next remount", async () => {
+    const onWidgetState = vi.fn();
+    const { fake, widget } = setup({ onWidgetState });
+    const result = {
+      size: { width: 1, height: 1 },
+      blank: false,
+      errorCount: 0,
+    };
+    await fake.connect(0, { onRequest: () => result });
+    await widget.ready;
+    widget.write("<script>run()</script>");
+    await widget.end();
+
+    let finishReplace!: (value: unknown) => void;
+    const replacement = widget.replace("<script>again()</script>");
+    const second = await fake.connect(1, {
+      onRequest: () =>
+        new Promise((resolve) => {
+          finishReplace = resolve;
+        }),
+    });
+    await vi.waitFor(() => expect(finishReplace).toBeDefined());
+    second.notify(METHODS.widgetState, { state: { count: 5 } });
+    await second.request(METHODS.initialize, {});
+    expect(onWidgetState).not.toHaveBeenCalled();
+    finishReplace(result);
+    await replacement;
+    expect(onWidgetState).toHaveBeenCalledExactlyOnceWith({ count: 5 });
+
+    const next = widget.replace("<script>third()</script>");
+    await fake.connect(2, { onRequest: () => result });
+    await next;
+    expect((fake.rendered[2]!.sent[0]!.data as InitMessage).state).toEqual({
+      count: 5,
+    });
+    widget.dispose();
+  });
+
+  it("discards a failed replacement's buffered state", async () => {
+    const onWidgetState = vi.fn();
+    const { fake, widget } = setup({
+      initialState: { count: 1 },
+      onWidgetState,
+    });
+    const result = {
+      size: { width: 1, height: 1 },
+      blank: false,
+      errorCount: 0,
+    };
+    const first = await fake.connect(0, { onRequest: () => result });
+    await widget.ready;
+    widget.write("<script>run()</script>");
+    await widget.end();
+
+    let failReplace!: (error: Error) => void;
+    const replacement = widget.replace("<script>again()</script>");
+    const second = await fake.connect(1, {
+      onRequest: () =>
+        new Promise((_, reject) => {
+          failReplace = reject;
+        }),
+    });
+    await vi.waitFor(() => expect(failReplace).toBeDefined());
+    second.notify(METHODS.widgetState, { state: { count: 9 } });
+    await second.request(METHODS.initialize, {});
+    first.notify(METHODS.widgetState, { state: { count: 8 } });
+    await first.request(METHODS.initialize, {});
+    expect(onWidgetState).not.toHaveBeenCalled();
+    failReplace(new Error("render failed"));
+    await expect(replacement).rejects.toThrow("render failed");
+    expect(onWidgetState).not.toHaveBeenCalled();
+
+    first.notify(METHODS.widgetState, { state: { count: 2 } });
+    await vi.waitFor(() =>
+      expect(onWidgetState).toHaveBeenCalledExactlyOnceWith({ count: 2 }),
+    );
+    const next = widget.replace("<script>third()</script>");
+    await fake.connect(2, { onRequest: () => result });
+    await next;
+    expect((fake.rendered[2]!.sent[0]!.data as InitMessage).state).toEqual({
+      count: 2,
+    });
+    widget.dispose();
+  });
+
+  it("ignores the old session's state while its replacement is pending", async () => {
+    const onWidgetState = vi.fn();
+    const { fake, widget } = setup({
+      initialState: { count: 1 },
+      onWidgetState,
+    });
+    const result = {
+      size: { width: 1, height: 1 },
+      blank: false,
+      errorCount: 0,
+    };
+    const first = await fake.connect(0, { onRequest: () => result });
+    await widget.ready;
+    widget.write("<script>run()</script>");
+    await widget.end();
+
+    let finishReplace!: (value: unknown) => void;
+    const replacement = widget.replace("<script>again()</script>");
+    await fake.connect(1, {
+      onRequest: () =>
+        new Promise((resolve) => {
+          finishReplace = resolve;
+        }),
+    });
+    await vi.waitFor(() => expect(finishReplace).toBeDefined());
+    first.notify(METHODS.widgetState, { state: { count: 9 } });
+    await first.request(METHODS.initialize, {});
+    expect(onWidgetState).not.toHaveBeenCalled();
+    finishReplace(result);
+    await replacement;
+    expect((fake.rendered[1]!.sent[0]!.data as InitMessage).state).toEqual({
+      count: 1,
+    });
+    widget.dispose();
+  });
+
+  it("ignores a delivered notification from a superseded pending session", async () => {
+    const onWidgetState = vi.fn();
+    const { fake, widget } = setup({ onWidgetState });
+    const result = {
+      size: { width: 1, height: 1 },
+      blank: false,
+      errorCount: 0,
+    };
+    await fake.connect(0, { onRequest: () => result });
+    await widget.ready;
+    widget.write("<script>run()</script>");
+    await widget.end();
+
+    let finishFirst!: (value: unknown) => void;
+    const firstReplacement = widget.replace("<script>first()</script>");
+    const superseded = await fake.connect(1, {
+      onRequest: () =>
+        new Promise((resolve) => {
+          finishFirst = resolve;
+        }),
+    });
+    await vi.waitFor(() => expect(finishFirst).toBeDefined());
+    let finishSecond!: (value: unknown) => void;
+    const secondReplacement = widget.replace("<script>second()</script>");
+    const latest = await fake.connect(2, {
+      onRequest: () =>
+        new Promise((resolve) => {
+          finishSecond = resolve;
+        }),
+    });
+    await vi.waitFor(() => expect(finishSecond).toBeDefined());
+    superseded.notify(METHODS.widgetState, { state: { count: 9 } });
+    await superseded.request(METHODS.initialize, {});
+    expect(onWidgetState).not.toHaveBeenCalled();
+    latest.notify(METHODS.widgetState, { state: { count: 2 } });
+    await latest.request(METHODS.initialize, {});
+    finishSecond(result);
+    await secondReplacement;
+    expect(onWidgetState).toHaveBeenCalledExactlyOnceWith({ count: 2 });
+    finishFirst(result);
+    await Promise.allSettled([firstReplacement]);
+    widget.dispose();
+  });
+
+  it("drops widget state that cannot be JSON stringified", async () => {
+    const onWidgetState = vi.fn();
+    const { fake, widget } = setup({ onWidgetState });
+    const first = await fake.connect(0);
+    await widget.ready;
+    first.notify(METHODS.widgetState, { state: BigInt(1) });
+    first.notify(METHODS.widgetState, { state: undefined });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onWidgetState).not.toHaveBeenCalled();
+    widget.dispose();
+  });
+
+  it("drops nested values that are not plain JSON", async () => {
+    const onWidgetState = vi.fn();
+    const { fake, widget } = setup({ onWidgetState });
+    const first = await fake.connect(0);
+    await widget.ready;
+    first.notify(METHODS.widgetState, {
+      state: { nested: { date: new Date() } },
+    });
+    first.notify(METHODS.widgetState, { state: { numbers: [1, NaN] } });
+    first.notify(METHODS.widgetState, {
+      state: { nested: { missing: undefined } },
+    });
+    await first.request(METHODS.initialize, {});
+    expect(onWidgetState).not.toHaveBeenCalled();
+    widget.dispose();
+  });
+
   it("renders the bootstrap once and sends the theme with the port", async () => {
     const { fake, widget } = setup({
       tokens: DEFAULT_DARK_TOKENS,

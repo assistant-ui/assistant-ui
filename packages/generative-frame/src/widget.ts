@@ -91,6 +91,7 @@ export type CreateWidgetOptions = WidgetHandlers & {
   maxHeight?: number;
   minHeight?: number;
   readyTimeoutMs?: number;
+  initialState?: unknown;
   /** Complete code to render immediately, as `write(code)` then `end()`. */
   code?: string;
 };
@@ -264,6 +265,54 @@ const isDisplayMode = (value: unknown): value is DisplayMode =>
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
+const isPlainJson = (
+  value: unknown,
+  ancestors = new Set<object>(),
+): boolean => {
+  if (value === null || typeof value === "boolean" || typeof value === "string")
+    return true;
+  if (typeof value === "number") return Number.isFinite(value);
+  if (typeof value !== "object" || ancestors.has(value)) return false;
+
+  const array = Array.isArray(value);
+  const prototype = Object.getPrototypeOf(value);
+  if (
+    array
+      ? prototype !== Array.prototype
+      : prototype !== Object.prototype && prototype !== null
+  )
+    return false;
+
+  ancestors.add(value);
+  const keys = Reflect.ownKeys(value);
+  if (array && keys.length !== value.length + 1) return false;
+  if (array) {
+    for (let index = 0; index < value.length; index++) {
+      const property = Object.getOwnPropertyDescriptor(value, String(index));
+      if (
+        !property ||
+        !("value" in property) ||
+        !isPlainJson(property.value, ancestors)
+      )
+        return false;
+    }
+  } else {
+    for (const key of keys) {
+      if (typeof key !== "string") return false;
+      const property = Object.getOwnPropertyDescriptor(value, key);
+      if (
+        !property ||
+        !("value" in property) ||
+        !property.enumerable ||
+        !isPlainJson(property.value, ancestors)
+      )
+        return false;
+    }
+  }
+  ancestors.delete(value);
+  return true;
+};
+
 const isAppInfo = (
   value: unknown,
 ): value is NonNullable<McpAppInitializeParams["appInfo"]> =>
@@ -338,6 +387,7 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
     ...options.context,
   };
   let code = "";
+  let widgetState: unknown = options.initialState ?? null;
   let ended = false;
   let disposed = false;
   let lastToolInput:
@@ -475,6 +525,9 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
   };
 
   let activeSession: Session | undefined;
+  let pendingSession: Session | undefined;
+  let pendingWidgetState: unknown;
+  let hasPendingWidgetState = false;
 
   const applySize = (session: Session, size: WidgetSize) => {
     const iframe = session.iframe();
@@ -603,7 +656,23 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
               }
               return;
             case METHODS.widgetState:
-              options.onWidgetState?.(p["state"]);
+              if (
+                session !== pendingSession &&
+                (pendingSession || session !== activeSession)
+              )
+                return;
+              try {
+                if (!isPlainJson(p["state"])) return;
+              } catch {
+                return;
+              }
+              if (session === pendingSession) {
+                pendingWidgetState = p["state"];
+                hasPendingWidgetState = true;
+                return;
+              }
+              widgetState = p["state"];
+              options.onWidgetState?.(widgetState);
               return;
             default:
               return;
@@ -613,6 +682,7 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
       const init: InitMessage = {
         type: INIT_MESSAGE,
         context,
+        state: widgetState,
       };
       rendered.sendMessage(init, [channel.port2]);
     };
@@ -737,10 +807,13 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
   const remount = async (next: string): Promise<EndResult> => {
     const previous = activeSession;
     const session = createSession(true);
+    pendingSession = session;
+    hasPendingWidgetState = false;
     let result: EndResult;
     try {
       await session.ready;
-      if (disposed) throw new Error("Widget disposed");
+      if (disposed || pendingSession !== session)
+        throw new Error("Widget replacement superseded");
       replayState(session);
       result = (await session
         .peer()
@@ -749,15 +822,28 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
           { code: next },
           { timeoutMs: REQUEST_TIMEOUT_MS },
         )) as EndResult;
-      if (disposed) throw new Error("Widget disposed");
+      if (disposed || pendingSession !== session)
+        throw new Error("Widget replacement superseded");
     } catch (error) {
+      if (pendingSession === session) {
+        pendingSession = undefined;
+        hasPendingWidgetState = false;
+      }
       session.dispose();
       throw error;
     }
+    pendingSession = undefined;
     activeSession = session;
+    if (hasPendingWidgetState) widgetState = pendingWidgetState;
     // The new frame has rendered completely, so it swaps in without a fade.
     session.slot.style.cssText = "display:block";
     previous?.dispose();
+    if (hasPendingWidgetState) {
+      hasPendingWidgetState = false;
+      try {
+        options.onWidgetState?.(widgetState);
+      } catch {}
+    }
     session.deliverInitialized();
     applySize(session, result.size);
     return result;
