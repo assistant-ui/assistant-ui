@@ -344,6 +344,39 @@ const widgets = createWidgetToolkit({
 
 A spec element binds behavior with `on` instead of carrying `_action`. A `Button` and a `ListViewItem` emit `press`, the value controls emit `change` (an `Input` emits `submit`), a `Form` emits `submit`, and a `Card` emits `cancel` from its cancel button and `confirm` from its confirm button or, with `asForm`, whenever it submits. The payload, which `{ "$event": "" }` reads, is the control's value, or every named control's value when a `Form` emits `submit` or a `Card` with `asForm` emits `confirm`. A control whose value prop (`defaultValue`, `defaultChecked`, or a `DatePicker`'s `value`) is bound with `$bindState` follows that state and writes every change back to it, inside a `Form` too. Declare host actions through `actions` so the model can bind them; `setState` is always available.
 
+Your own components take part through the same library entry. Declare the `events` a component emits and the `slots` it renders: `$dispatch({ type, $input })` emits a declared event, the element's `$action` carries the first one when the element binds it, `default` slot content arrives as `children` and any other slot in `$slots`, and `slots: []` takes no children. A prop the spec binds with `$bindState` arrives as its current value, and `$bindings` holds a setter that writes a new one back to state. The `present` tool ignores `events` and `slots`, and present mode passes neither `$slots` nor `$bindings`. Declaring either on a vocabulary component replaces its spec events, slots, and description, so give the override its own `description` too, since the vocabulary's description covers `present` behavior.
+
+```tsx
+import {
+  defaultGenerativeUILibrary,
+  type GenerativeUIComponent,
+} from "@assistant-ui/generative-ui/react";
+import { toSpecCatalog } from "@assistant-ui/generative-ui/spec";
+import { z } from "zod";
+import { Stars } from "@/components/stars";
+
+const Rating: GenerativeUIComponent<{ value: number }> = {
+  description: "A 1 to 5 star rating the user can change.",
+  properties: z.object({ value: z.number().describe("Stars, from 1 to 5.") }),
+  events: ["rate"],
+  slots: [],
+  render: ({ value, $bindings, $dispatch }) => (
+    <Stars
+      value={value}
+      onChange={(stars) => {
+        $bindings?.value?.(stars);
+        $dispatch?.({ type: "rate", $input: stars });
+      }}
+    />
+  ),
+};
+
+const { catalog, components } = toSpecCatalog({
+  ...defaultGenerativeUILibrary,
+  Rating,
+});
+```
+
 ## Charts
 
 `Chart` accepts positive and negative values. Its scale always includes zero, so bars grow upward or downward from the zero line, areas fill to that line, and stacked bars and areas keep positive and negative totals on their respective sides. A chart that contains both positive and negative values draws a zero baseline. When `showAxis` is set, the ticks include zero and use round values for a mixed domain.

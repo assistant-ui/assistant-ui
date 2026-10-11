@@ -1,9 +1,11 @@
+import { validateSpec } from "generative-frame/spec";
 import { SpecRenderer } from "generative-frame/spec/react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { defaultGenerativeUILibrary } from "../vocabulary";
 import { interactiveVocabulary } from "../vocabulary/interactive";
+import { layoutVocabulary } from "../vocabulary/layout";
 import { toSpecCatalog } from "./toSpecCatalog";
 
 describe("toSpecCatalog", () => {
@@ -128,6 +130,128 @@ describe("toSpecCatalog", () => {
       events: ["press"],
       description: expect.stringContaining("Emits `press`"),
     });
+  });
+
+  it("declares custom events and slots for validation and model guidance", () => {
+    const { catalog: custom } = toSpecCatalog({
+      Rating: {
+        description: "A rating with a footer.",
+        properties: z.object({ value: z.number() }),
+        events: ["rate"],
+        slots: ["default", "footer"],
+        render: () => null,
+      },
+      Text: {
+        description: "Text.",
+        properties: z.object({}),
+        render: () => null,
+      },
+    });
+    expect(custom.component("Rating")).toMatchObject({
+      events: ["rate"],
+      slots: ["default", "footer"],
+    });
+    expect(
+      validateSpec(
+        {
+          root: "rating",
+          elements: {
+            rating: {
+              type: "Rating",
+              props: { value: 4 },
+              slots: { footer: ["note"] },
+              on: {
+                rate: {
+                  action: "setState",
+                  params: { path: "/rating", value: 4 },
+                },
+              },
+            },
+            note: { type: "Text" },
+          },
+        },
+        custom,
+      ),
+    ).toEqual({ ok: true, issues: [] });
+    expect(custom.prompt()).toContain("children: `children`, `slots.footer`");
+    expect(custom.prompt()).toContain("events: `rate`");
+  });
+
+  it("rejects children when a custom entry declares no slots", () => {
+    const { catalog: custom } = toSpecCatalog({
+      Empty: {
+        description: "No children.",
+        properties: z.object({}),
+        slots: [],
+        render: () => null,
+      },
+    });
+    expect(custom.component("Empty")?.slots).toEqual([]);
+    expect(custom.prompt()).toContain("children: none");
+    expect(
+      validateSpec(
+        {
+          root: "empty",
+          elements: { empty: { type: "Empty", children: ["missing"] } },
+        },
+        custom,
+      ).issues.map(({ code }) => code),
+    ).toContain("children-not-allowed");
+  });
+
+  it("uses declared events and slots over a vocabulary shape", () => {
+    const { catalog: custom } = toSpecCatalog({
+      Button: {
+        ...interactiveVocabulary.Button,
+        description: "Rates a selection.",
+        events: ["rate"],
+        slots: ["footer"],
+      },
+    });
+    expect(custom.component("Button")).toMatchObject({
+      events: ["rate"],
+      slots: ["footer"],
+    });
+    expect(custom.prompt()).toContain("children: `slots.footer`");
+    expect(custom.prompt()).toContain("events: `rate`");
+    expect(custom.prompt()).toContain("Rates a selection.");
+    expect(custom.prompt()).not.toContain("Emits `press`");
+    expect(
+      validateSpec(
+        {
+          root: "button",
+          elements: {
+            button: {
+              type: "Button",
+              props: { label: "Rate" },
+              children: ["missing"],
+              on: {
+                press: { action: "setState", params: { path: "/rating" } },
+              },
+            },
+          },
+        },
+        custom,
+      ).issues.map(({ code }) => code),
+    ).toEqual(
+      expect.arrayContaining(["children-not-allowed", "unknown-event"]),
+    );
+  });
+
+  it("drops a vocabulary entry's built-in events when it declares only slots", () => {
+    const { catalog: slotsOnly } = toSpecCatalog({
+      Button: { ...interactiveVocabulary.Button, slots: [] },
+    });
+    expect(slotsOnly.component("Button")).toMatchObject({ slots: [] });
+    expect(slotsOnly.component("Button")?.events).toBeUndefined();
+  });
+
+  it("keeps a vocabulary entry's spec props when it declares events", () => {
+    const { catalog: custom } = toSpecCatalog({
+      Card: { ...layoutVocabulary.Card, events: ["confirm"] },
+    });
+    expect(custom.component("Card")?.events).toEqual(["confirm"]);
+    expect(JSON.stringify(custom.propsSchema("Card"))).not.toContain("_action");
   });
 
   it("adds host actions next to the built-in setState", () => {
