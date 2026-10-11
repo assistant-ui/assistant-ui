@@ -9,6 +9,7 @@ import type {
 } from "@assistant-ui/core";
 import { createAdkStream } from "./AdkClient";
 import { useAdkRuntime } from "./useAdkRuntime";
+import { useAdkSubmitInput } from "./hooks";
 import { settleOutsideAct } from "./tests/settleOutsideAct";
 import type { AdkEvent } from "./types";
 import type { AdkThreadSnapshot } from "./types";
@@ -106,13 +107,20 @@ const mount = async (
     },
   );
   vi.stubGlobal("fetch", fetchStub);
-  const capture: { runtime: AssistantRuntime | null } = { runtime: null };
+  const capture: {
+    runtime: AssistantRuntime | null;
+    submitInput: ((toolCallId: string, result: string) => Promise<void>) | null;
+  } = { runtime: null, submitInput: null };
   const stream = createAdkStream({
     api: "http://localhost:8000",
     appName: "app",
     userId: "user",
   });
   const sessionAdapter = makeThreadListAdapter();
+  const SubmitInput = () => {
+    capture.submitInput = useAdkSubmitInput();
+    return null;
+  };
   const Inner = () => {
     const runtime = useAdkRuntime({
       stream,
@@ -124,7 +132,7 @@ const mount = async (
     capture.runtime = runtime;
     return (
       <AssistantRuntimeProvider runtime={runtime}>
-        {null}
+        <SubmitInput />
       </AssistantRuntimeProvider>
     );
   };
@@ -157,6 +165,7 @@ const mount = async (
   });
   return {
     runtime: capture.runtime!,
+    submitInput: capture.submitInput!,
     requests,
     closeFirstRun,
     publishFirstRun,
@@ -187,6 +196,58 @@ const responseIds = (parts: Record<string, unknown>[]) =>
 afterEach(() => vi.unstubAllGlobals());
 
 describe("useAdkRuntime tool result batching", () => {
+  it("sends two messages appended in the same tick in one request", async () => {
+    const { runtime, requests } = await mount();
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+
+    act(() => {
+      void runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "first" }],
+      });
+      void runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "second" }],
+      });
+    });
+
+    await waitFor(() => expect(requests).toHaveLength(2));
+    expect(
+      requests[1]!.newMessage.parts.flatMap((part) =>
+        typeof part.text === "string" ? [part.text] : [],
+      ),
+    ).toEqual(["first", "second"]);
+  });
+
+  it("sends same-tick HITL replies in one request", async () => {
+    const { runtime, submitInput, requests } = await mount(false, {
+      firstEvent: {
+        ...toolCallEvent,
+        content: {
+          role: "model",
+          parts: [
+            { functionCall: { id: "c1", name: "adk_request_input", args: {} } },
+            { functionCall: { id: "c2", name: "adk_request_input", args: {} } },
+          ],
+        },
+      },
+    });
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+
+    await act(async () => {
+      await Promise.all([
+        submitInput("c1", "first"),
+        submitInput("c2", "second"),
+      ]);
+    });
+    expect(requests).toHaveLength(2);
+    expect(responseIds(requests[1]!.newMessage.parts)).toEqual(["c1", "c2"]);
+  });
+
   it("sends two answers from one event in one request and call order", async () => {
     const { runtime, requests } = await mount();
     await waitFor(() =>
