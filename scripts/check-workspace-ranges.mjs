@@ -72,6 +72,25 @@ export function findNarrowWorkspaceRanges(manifests) {
   return problems;
 }
 
+export function findPrivateWorkspaceDependencies(manifests) {
+  const privateNames = new Set(
+    manifests
+      .filter(({ pkg }) => pkg.private === true)
+      .map(({ pkg }) => pkg.name),
+  );
+  const problems = [];
+  for (const { manifest, pkg } of manifests) {
+    if (pkg.private === true) continue;
+    for (const field of PUBLISHED_FIELDS) {
+      for (const [dependency, range] of Object.entries(pkg[field] ?? {})) {
+        if (!privateNames.has(dependency)) continue;
+        problems.push({ manifest, name: pkg.name, field, dependency, range });
+      }
+    }
+  }
+  return problems;
+}
+
 export function findDriftingPeerRanges(manifests) {
   const workspaceNames = new Set(manifests.map(({ pkg }) => pkg.name));
   const problems = [];
@@ -149,13 +168,13 @@ export function runCheck(root = repoRoot) {
     problems: findNarrowWorkspaceRanges(manifests),
     drifting: findDriftingPeerRanges(manifests),
     privateCopies: findPrivatePeerCopies(manifests),
+    privateTargets: findPrivateWorkspaceDependencies(manifests),
   };
 }
 
 function main() {
-  const { packageCount, problems, drifting, privateCopies } = runCheck(
-    process.env.WORKSPACE_RANGE_CHECK_ROOT,
-  );
+  const { packageCount, problems, drifting, privateCopies, privateTargets } =
+    runCheck(process.env.WORKSPACE_RANGE_CHECK_ROOT);
 
   if (problems.length > 0) {
     console.error(
@@ -273,12 +292,42 @@ function main() {
     console.error("instance resolves.");
   }
 
-  if (problems.length > 0 || drifting.length > 0 || privateCopies.length > 0) {
+  if (privateTargets.length > 0) {
+    if (
+      problems.length > 0 ||
+      drifting.length > 0 ||
+      privateCopies.length > 0
+    ) {
+      console.error("");
+    }
+    console.error(
+      "Published packages declare a dependency on a private workspace package:\n",
+    );
+    for (const { manifest, name, field, dependency, range } of privateTargets) {
+      console.error(
+        `  ${manifest}: "${name}" ${field}["${dependency}"] is "${range}"`,
+      );
+    }
+    console.error(
+      "\nA private package is never published, so consumers cannot install it, and with `privatePackages.version` false",
+    );
+    console.error(
+      "`changeset version` refuses a released package that depends on a skipped one, which blocks every release.",
+    );
+    console.error("Move it to devDependencies or publish it.");
+  }
+
+  if (
+    problems.length > 0 ||
+    drifting.length > 0 ||
+    privateCopies.length > 0 ||
+    privateTargets.length > 0
+  ) {
     process.exit(1);
   }
 
   console.log(
-    `All published workspace dependencies deduplicate and every first-party peer tracks the release train. No published package installs its own copy of a workspace package's peer. (${packageCount} packages scanned)`,
+    `All published workspace dependencies deduplicate and every first-party peer tracks the release train. No published package installs its own copy of a workspace package's peer or depends on a private workspace package. (${packageCount} packages scanned)`,
   );
 }
 
