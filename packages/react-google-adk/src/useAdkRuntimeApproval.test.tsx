@@ -63,17 +63,15 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
 
 vi.mock("./useAdkMessages", async (importOriginal) => {
   const useMockAdkMessages = () => {
+    const { messages, messageRunConfig } = mocks;
     useEffect(() => {
-      mockController.dispatch({
-        type: "messages.set",
-        messages: mocks.messages,
-      });
+      mockController.dispatch({ type: "messages.set", messages });
       mockController.dispatch({
         type: "messages.remember",
-        messages: mocks.messages,
-        runConfig: mocks.messageRunConfig,
+        messages,
+        runConfig: messageRunConfig,
       });
-    }, []);
+    }, [messages, messageRunConfig]);
     const sendMessage = async (
       messages: AdkMessage[],
       config: AdkSendMessageConfig,

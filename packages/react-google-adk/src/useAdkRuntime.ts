@@ -420,7 +420,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
         },
       });
     },
-    [threadListItem, loadController, applySnapshot],
+    [threadListItem, loadController, applySnapshot, controller],
   );
 
   useReplaySafeEffect(() => {
