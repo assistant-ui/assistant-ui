@@ -20,7 +20,7 @@ Framework-agnostic; the React and assistant-ui bindings are optional.
 | `generative-frame/prompts` | `buildWidgetGuidance` |
 | `generative-frame/repair` | `repairLoop` |
 | `generative-frame/assistant-ui` | `createWidgetToolkit`, `useWidgetInstructions`, `useAssistantUiThemeTokens` |
-| `generative-frame/spec` | `defineCatalog`, `createSpecStream`, `applyPatch`, `validateSpec`, expressions, state, actions |
+| `generative-frame/spec` | `emptySpec`, `defineCatalog`, `createSpecStream`, `parseSpecStream`, `applyPatch`, `validateSpec`, `formatSpecIssues`, `createStateStore`, and types |
 | `generative-frame/spec/react` | `<SpecRenderer>`, `useSpecStream` |
 | `generative-frame/spec/tools` | `createSpecTools` (`render_spec`), `specGuidanceModule` |
 | `generative-frame/spec/assistant-ui` | `createSpecToolkit` |
