@@ -733,7 +733,7 @@ function rewriteOutsideBlocks(
 }
 
 const LATEX_INLINE_DELIMITER = /\\{1,2}\(([^\n]+?)\\{1,2}\)/g;
-const LATEX_DISPLAY_DELIMITER = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
+const LATEX_DISPLAY_MARKER = /\\{1,2}[[\]]/g;
 
 // A closer has to sit at its opener's blockquote depth, counted in markers so
 // `> ~~~` and `>~~~` are the same line, and at most three characters deeper
@@ -977,7 +977,22 @@ const LINE_PREFIX = /^(?:[ \t]*(?:>[ \t]*)*)(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)?/;
  * is indented by, and a plain indent is copied.
  */
 function continuationPrefix(lineHead: string): string {
-  return (LINE_PREFIX.exec(lineHead)?.[0] ?? "").replace(/[^>\t]/g, " ");
+  const head = LINE_PREFIX.exec(lineHead)?.[0] ?? "";
+  const marker = head.lastIndexOf(">");
+  const extra =
+    marker !== -1 &&
+    listMarkerEnd(head, marker + 1, head.length) > marker + 1 &&
+    head[marker + 1] !== " "
+      ? " "
+      : "";
+  return head.replace(/[^>\t]/g, " ") + extra;
+}
+
+const SPAN_BOUNDARY =
+  /^(?![ \t]*(?:>[ \t]*)*\r?$)[^\n]*\n(?:[ \t]*(?:>[ \t]*)*\r?\n)+(?![ \t]*(?:>[ \t]*)*\r?$)/m;
+
+function crossesSpanBoundary(body: string): boolean {
+  return !body.includes("\n") || SPAN_BOUNDARY.test(body);
 }
 
 function emitDisplayMath(
@@ -989,9 +1004,22 @@ function emitDisplayMath(
   followedBy: string,
   lineHead: (offset: number) => string,
 ): string {
-  const trimmed = body.trim();
-  if (trimmed === "") return match;
-  if (!trimmed.includes("\n")) return `$$${trimmed}$$`;
+  // Markers written at the root column would end the list item or blockquote the
+  // math was written inside, so they carry that container's prefix and the body
+  // is aligned to it.
+  const prefix = continuationPrefix(lineHead(offset));
+  const depth = quoteDepth(prefix);
+  // The rest of the opener line is formula text, so only later lines carry the
+  // container's blockquote markers.
+  const content = body
+    .split("\n")
+    .map((line, index) =>
+      index === 0 ? line : line.slice(quoteMarkers(line, depth).length),
+    )
+    .join("\n")
+    .trim();
+  if (content === "") return match;
+  if (!body.trim().includes("\n")) return `$$${content}$$`;
 
   const before = offset === 0 ? precededBy : source[offset - 1]!;
   const afterStart = offset + match.length;
@@ -1003,18 +1031,17 @@ function emitDisplayMath(
   const lead = endsLine(before) ? "" : "\n";
   const tail = endsLine(after) ? "" : "\n";
 
-  // Markers written at the root column would end the list item or blockquote the
-  // math was written inside, so they carry that container's prefix and the body
-  // is aligned to it.
-  const prefix = continuationPrefix(lineHead(offset));
-  const depth = quoteDepth(prefix);
   // The body is split before trimming, since trimming would take the shared
   // indentation off the first line only and leave the block ragged.
   const bodyLines = body.split("\n");
-  while (bodyLines.length > 0 && bodyLines[0]!.trim() === "") bodyLines.shift();
-  while (bodyLines.length > 0 && bodyLines.at(-1)!.trim() === "") {
+  const emptyBodyLine = (line: string) =>
+    line.slice(quoteMarkers(line, depth).length).trim() === "";
+  while (bodyLines.length > 0 && emptyBodyLine(bodyLines[0]!))
+    bodyLines.shift();
+  while (bodyLines.length > 0 && emptyBodyLine(bodyLines.at(-1)!)) {
     bodyLines.pop();
   }
+  if (bodyLines.length === 0) return match;
   // Only the indentation the whole body shares is replaced by the container
   // prefix, so an aligned block keeps its relative indentation.
   const shared = bodyLines.reduce(
@@ -1024,18 +1051,31 @@ function emitDisplayMath(
         : Math.min(least, /^[ \t]*/.exec(line)![0].length),
     Number.POSITIVE_INFINITY,
   );
+  const quotedIndent = bodyLines.reduce((least, line) => {
+    const markers = quoteMarkers(line, depth);
+    return quoteDepth(markers) === depth && !emptyBodyLine(line)
+      ? Math.min(least, widthPastQuote(markers))
+      : least;
+  }, Number.POSITIVE_INFINITY);
+  const width = widthPastQuote(prefix);
   const lines = bodyLines.map((line) => {
     // A line already carrying the blockquote markers keeps the spacing it was
     // written with; `>a` and `> a` are the same blockquote. Indentation alone
     // is not that signal, since a body may legitimately be indented, and a line
     // with fewer markers is a lazy continuation whose markers the prefix
     // replaces.
-    const markers = QUOTE_PREFIX.exec(line)![0];
+    const markers = quoteMarkers(line, depth);
     const lineDepth = quoteDepth(markers);
     if (depth > 0 && lineDepth > 0) {
-      return lineDepth >= depth
-        ? line
-        : `${prefix}${line.slice(markers.length)}`;
+      if (lineDepth < depth) return `${prefix}${line.slice(markers.length)}`;
+      return width > 1
+        ? indentToPrefix(
+            line,
+            prefix,
+            depth,
+            width + widthPastQuote(markers) - quotedIndent,
+          )
+        : line;
     }
     return `${prefix}${line.slice(Number.isFinite(shared) ? shared : 0)}`;
   });
@@ -1052,29 +1092,133 @@ function emitDisplayMath(
  * math renders as plain text.
  */
 export function rewriteLatexBracketDelimiters(text: string): string {
-  // The display rewrite runs first: its offsets index the segment as the walker
-  // cut it, and an inline rewrite ahead of it would shift them off the line
-  // whose prefix the fence copies.
-  return rewriteOutsideCode(text, (segment, precededBy, followedBy, lineHead) =>
-    segment
-      .replace(
-        LATEX_DISPLAY_DELIMITER,
-        (match: string, body: string, offset: number, source: string) =>
-          emitDisplayMath(
-            match,
-            body,
-            offset,
-            source,
-            precededBy,
-            followedBy,
-            lineHead,
-          ),
-      )
-      .replace(LATEX_INLINE_DELIMITER, (match: string, body: string) => {
-        const trimmed = body.trim();
-        return trimmed === "" ? match : `$${trimmed}$`;
-      }),
+  const inline = rewriteOutsideCode(text, (segment) =>
+    segment.replace(LATEX_INLINE_DELIMITER, (match: string, body: string) => {
+      const trimmed = body.trim();
+      return trimmed === "" ? match : `$${trimmed}$`;
+    }),
   );
+  return rewriteOutsideBlocks(inline, (block, blockStarts) => {
+    const ranges = verbatimRanges(block, blockStarts);
+    let out = "";
+    let cursor = 0;
+    let opener = -1;
+    let openerLength = 0;
+    let reindentedLineStart = -1;
+    for (const marker of block.matchAll(LATEX_DISPLAY_MARKER)) {
+      const at = marker.index;
+      if (at < cursor) continue;
+      if (verbatimRangeAt(ranges, at)) continue;
+      if (marker[0]!.endsWith("[")) {
+        if (opener === -1) {
+          opener = at;
+          openerLength = marker[0]!.length;
+        }
+        continue;
+      }
+      if (opener === -1) continue;
+      const end = at + marker[0]!.length;
+      let body = block.slice(opener + openerLength, at);
+      let spanBoundary: boolean | undefined;
+      let range = firstVerbatimRange(ranges, opener, end);
+      while (range) {
+        if (
+          range.kind === "fence" ||
+          (spanBoundary ??= crossesSpanBoundary(body))
+        ) {
+          opener = -1;
+          for (const next of block
+            .slice(range.end, at)
+            .matchAll(LATEX_DISPLAY_MARKER)) {
+            const nextAt = range.end + next.index;
+            if (next[0]!.endsWith("[") && !verbatimRangeAt(ranges, nextAt)) {
+              opener = nextAt;
+              openerLength = next[0]!.length;
+              break;
+            }
+          }
+          if (opener === -1) break;
+          body = block.slice(opener + openerLength, at);
+          spanBoundary = undefined;
+          range = firstVerbatimRange(ranges, opener, end);
+          continue;
+        }
+        range = firstVerbatimRange(ranges, range.end, end);
+      }
+      if (opener === -1) continue;
+      const match = block.slice(opener, end);
+      if (!body.includes("\n")) {
+        out +=
+          block.slice(cursor, opener) +
+          emitDisplayMath(match, body, opener, block, "", "", () => "");
+        cursor = end;
+        opener = -1;
+        continue;
+      }
+      const lineHead = (offset: number) => {
+        const start = block.lastIndexOf("\n", offset - 1) + 1;
+        return start === reindentedLineStart
+          ? out.slice(out.lastIndexOf("\n") + 1) + block.slice(cursor, offset)
+          : block.slice(start, offset);
+      };
+      const head = lineHead(opener);
+      const openedOnReindentedLine =
+        reindentedLineStart === block.lastIndexOf("\n", opener - 1) + 1;
+      const prefix = continuationPrefix(head);
+      const quote = QUOTE_PREFIX.exec(head)![0];
+      const depth = quoteDepth(quote);
+      let replacement = emitDisplayMath(
+        match,
+        body,
+        opener,
+        block,
+        "",
+        "",
+        lineHead,
+      );
+      if (
+        openedOnReindentedLine &&
+        block.slice(cursor, opener).trim() === "" &&
+        replacement.startsWith(`\n${prefix}$$`)
+      ) {
+        replacement = replacement.slice(prefix.length + 1);
+      }
+      reindentedLineStart = -1;
+      let consumed = end;
+      if (
+        replacement !== match &&
+        depth > 0 &&
+        (openedOnReindentedLine ||
+          listMarkerEnd(head, quote.length, head.length) > quote.length) &&
+        (block[end] === "\n" || block.startsWith("\r\n", end))
+      ) {
+        const lineBreak = block.startsWith("\r\n", end) ? "\r\n" : "\n";
+        const lineStart = end + lineBreak.length;
+        const nextEnd = block.indexOf("\n", lineStart);
+        const lineEnd = nextEnd === -1 ? block.length : nextEnd;
+        const line = block.slice(lineStart, lineEnd);
+        const nextStart = nextEnd + 1;
+        const nextBreak = block.indexOf("\n", nextStart);
+        const next =
+          nextEnd === -1
+            ? undefined
+            : block.slice(nextStart, nextBreak === -1 ? undefined : nextBreak);
+        if (
+          quoteDepth(quoteMarkers(line, depth)) === depth &&
+          !opensBlockInContainer(line, next, nextEnd === -1, depth)
+        ) {
+          const lead = quoteMarkers(line, depth);
+          replacement += `${lineBreak}${indentToPrefix(lead, prefix, depth, widthPastQuote(prefix))}`;
+          consumed = lineStart + lead.length;
+          reindentedLineStart = lineStart;
+        }
+      }
+      out += block.slice(cursor, opener) + replacement;
+      cursor = consumed;
+      opener = -1;
+    }
+    return out + block.slice(cursor);
+  });
 }
 
 const MATH_TAG = /\[\/math\]([\s\S]*?)\[\/math\]/g;
@@ -1306,10 +1450,35 @@ function nestListItemDisplayMath(text: string): string {
     const last = lines.length - 1;
     let changed = false;
     let opener = 0;
+    let activeMathDepth = -1;
     while (opener < last) {
-      const prefix = displayMathOpenerPrefix(lines[opener]!);
-      const openingAt = lineStarts[opener]! + lines[opener]!.indexOf("$$");
+      const openingLine = lines[opener]!;
+      const quote = QUOTE_PREFIX.exec(openingLine)![0];
+      const lineDepth = quoteDepth(quote);
+      if (activeMathDepth !== -1) {
+        if (lineDepth >= activeMathDepth) {
+          if (
+            lineDepth === activeMathDepth &&
+            openingLine.startsWith("$$", quote.length) &&
+            onlyWhitespace(openingLine, quote.length + 2, openingLine.length)
+          ) {
+            activeMathDepth = -1;
+          }
+          opener += 1;
+          continue;
+        }
+        activeMathDepth = -1;
+      }
+      const prefix = displayMathOpenerPrefix(openingLine);
+      const openingAt = lineStarts[opener]! + openingLine.indexOf("$$");
       if (prefix === null || verbatimRangeAt(ranges, openingAt)) {
+        if (
+          openingLine.startsWith("$$", quote.length) &&
+          !openingLine.slice(quote.length + 2).includes("$$") &&
+          !verbatimRangeAt(ranges, openingAt)
+        ) {
+          activeMathDepth = lineDepth;
+        }
         opener += 1;
         continue;
       }

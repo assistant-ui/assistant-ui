@@ -31,6 +31,15 @@ describe("rewriteLatexBracketDelimiters", () => {
     ).toBe("$$\n\\begin{aligned}\nS_n-rS_n\n&=a-ar^{n+1}.\n\\end{aligned}\n$$");
   });
 
+  it("keeps the CRLF after a multiline display closer", () => {
+    expect(rewriteLatexBracketDelimiters("\\[a\nb\\]\r\nrest")).toBe(
+      "$$\na\nb\n$$\r\nrest",
+    );
+    expect(
+      rewriteLatexBracketDelimiters("> 1. \\[\n> a\n> \\]\r\n> Text"),
+    ).toBe("> 1. \n>    $$\n>    a\n>    $$\r\n>    Text");
+  });
+
   it("gives the fence markers their own lines mid-paragraph", () => {
     expect(rewriteLatexBracketDelimiters("Thus \\[a\nb\\] therefore.")).toBe(
       "Thus \n$$\na\nb\n$$\n therefore.",
@@ -50,6 +59,85 @@ describe("rewriteLatexBracketDelimiters", () => {
     expect(
       rewriteLatexBracketDelimiters("> quote \\[\na\nb\n\\]\n> after"),
     ).toBe("> quote \n> $$\n> a\n> b\n> $$\n> after");
+  });
+
+  it("keeps quoted list display math and its following prose inside the item", () => {
+    expect(
+      normalizeMathDelimiters("> 1. \\[\n> a = 1\n>   b = 2\n> \\]\n> Text"),
+    ).toBe("> 1. \n>    $$\n>    a = 1\n>      b = 2\n>    $$\n>    Text");
+    expect(normalizeMathDelimiters(">1. $$\n>x = 1\n>$$\n>Text")).toBe(
+      ">1. $$\n>    x = 1\n>    $$\n>    Text",
+    );
+    expect(normalizeMathDelimiters(">1. \\[\n>x = 1\n>\\]\n>Text")).toBe(
+      ">1. \n>    $$\n>    x = 1\n>    $$\n>    Text",
+    );
+  });
+
+  it("rewrites both displays in a quoted list item", () => {
+    const result = normalizeMathDelimiters(
+      "> 1. \\[\n> a\n> \\]\n> \\[\n> b\n> \\]",
+    );
+    expect(result).not.toContain("\\[");
+    expect(result).not.toContain("\\]");
+    expect(result.match(/\$\$/g)).toHaveLength(4);
+  });
+
+  it("keeps a later display on a re-indented line inside its list item", () => {
+    expect(
+      rewriteLatexBracketDelimiters(
+        "> 1. \\[\n> a\n> \\]\n> then \\[\n> b\n> \\]",
+      ),
+    ).toBe(
+      "> 1. \n>    $$\n>    a\n>    $$\n>    then \n>    $$\n>    b\n>    $$",
+    );
+  });
+
+  it.each([
+    [
+      "> 1. \\[\n> a\n> \\]\n> \\[\n> b\n> \\]\n> Text",
+      "> 1. \n>    $$\n>    a\n>    $$\n>    $$\n>    b\n>    $$\n>    Text",
+    ],
+    [
+      "> 1. \\[\n> a\n> \\]\n> \\[\n> b\n> \\]\n> \\[\n> c\n> \\]\n> Text",
+      "> 1. \n>    $$\n>    a\n>    $$\n>    $$\n>    b\n>    $$\n>    $$\n>    c\n>    $$\n>    Text",
+    ],
+  ])(
+    "keeps chained displays and following text in a quoted list item",
+    (input, expected) => {
+      expect(rewriteLatexBracketDelimiters(input)).toBe(expected);
+    },
+  );
+
+  it("keeps chained fenced displays inside a quoted list item", () => {
+    expect(
+      rewriteLatexBracketDelimiters(
+        "> 1. \\[\n> a1\n> a2\n> \\]\n> \\[\n> b1\n> b2\n> \\]\n> Text",
+      ),
+    ).toBe(
+      "> 1. \n>    $$\n>    a1\n>    a2\n>    $$\n>    $$\n>    b1\n>    b2\n>    $$\n>    Text",
+    );
+  });
+
+  it("keeps an inline display after a multiline display in a quoted list item", () => {
+    expect(
+      rewriteLatexBracketDelimiters(
+        "> 1. \\[\n> a\n> \\]\n> where \\[x\\] holds",
+      ),
+    ).toBe("> 1. \n>    $$\n>    a\n>    $$\n>    where $$x$$ holds");
+  });
+
+  it("rewrites a multiline bracket display whose TeX body contains backticks", () => {
+    expect(
+      normalizeMathDelimiters("1. \\[\n\\text{`x`} = 1\nE = mc^2\n\\]\nText"),
+    ).toBe("1. \n   $$\n   \\text{`x`} = 1\n   E = mc^2\n   $$\nText");
+    expect(rewriteLatexBracketDelimiters("\\[a `b` c\\]")).toBe(
+      "\\[a `b` c\\]",
+    );
+    expect(rewriteLatexBracketDelimiters("\\[a\n`\\]`\nb\\]")).toBe(
+      "$$\na\n`\\]`\nb\n$$",
+    );
+    const fenced = "\\[a\n`x`\n```\n\\]\n```\nb\\]";
+    expect(rewriteLatexBracketDelimiters(fenced)).toBe(fenced);
   });
 
   it("dedents a body whose lines share an indentation", () => {
@@ -106,7 +194,103 @@ describe("rewriteLatexBracketDelimiters", () => {
 
   it("leaves an empty delimiter pair as written", () => {
     expect(rewriteLatexBracketDelimiters("\\[ \\]")).toBe("\\[ \\]");
+    expect(rewriteLatexBracketDelimiters("\\[ \n \\]\nrest")).toBe(
+      "\\[ \n \\]\nrest",
+    );
     expect(rewriteLatexBracketDelimiters("\\( \\)")).toBe("\\( \\)");
+  });
+
+  it("leaves an empty quoted list display and its following line unchanged", () => {
+    const input = "> 1. \\[\n> \n> \\]\n> Text";
+    expect(rewriteLatexBracketDelimiters(input)).toBe(input);
+  });
+
+  it("leaves an empty quoted display with only markers unchanged", () => {
+    const input = "> 1. \\[\n> \\]";
+    expect(rewriteLatexBracketDelimiters(input)).toBe(input);
+  });
+
+  it("keeps a leading > on the opener line of a quoted one-line display", () => {
+    expect(rewriteLatexBracketDelimiters("> \\[ >= 0\n\\]")).toBe("> $$>= 0$$");
+    expect(rewriteLatexBracketDelimiters("> 1. \\[> x\n\\]")).toBe(
+      "> 1. $$> x$$",
+    );
+    expect(rewriteCustomMathTags("> [/math]> x[/math]")).toBe("> $$> x$$");
+    expect(rewriteCustomMathTags("> 1. [/math]> x[/math]")).toBe(
+      "> 1. $$> x$$",
+    );
+  });
+
+  it("strips quote markers before rewriting a quoted display body", () => {
+    expect(rewriteLatexBracketDelimiters("> 1. \\[\n> w3 \\]")).toBe(
+      "> 1. $$w3$$",
+    );
+    expect(rewriteLatexBracketDelimiters("> 1. \\[\n> \n> w3 \n> \\]")).toBe(
+      "> 1. \n>    $$\n>    w3 \n>    $$",
+    );
+  });
+
+  it("converts displays with blank lines only at the body edges", () => {
+    expect(
+      rewriteLatexBracketDelimiters("\\[\n\\text{`x`} = 1\n\n\\]\nText"),
+    ).toBe("$$\\text{`x`} = 1$$\nText");
+    expect(
+      rewriteLatexBracketDelimiters("\\[\n\n\\text{`x`} = 1\n\\]\nText"),
+    ).toBe("$$\\text{`x`} = 1$$\nText");
+    expect(
+      rewriteLatexBracketDelimiters(
+        "> \\[\n> \\text{`x`} = 1\n>\n> \\]\n> Text",
+      ),
+    ).toBe("> \n> $$\n> \\text{`x`} = 1\n> $$\n> Text");
+  });
+
+  it.each(["\n", "\r\n"])(
+    "does not cross an interior blank line and code span with %j endings",
+    (ending) => {
+      const input = `\\[a${ending}${ending}\`x\`${ending}\\]`;
+      expect(rewriteLatexBracketDelimiters(input)).toBe(input);
+    },
+  );
+
+  it("does not pair a prose opener across a blank line and code span", () => {
+    const input = "Read \\[ this\n\n`code`\n\\[ x^2 \\]";
+    expect(rewriteLatexBracketDelimiters(input)).toBe(
+      "Read \\[ this\n\n`code`\n$$x^2$$",
+    );
+    const quoted = "> Read \\[ this\n>\n> `code`\n> \\[ x^2 \\]";
+    expect(rewriteLatexBracketDelimiters(quoted)).toBe(
+      "> Read \\[ this\n>\n> `code`\n> $$x^2$$",
+    );
+  });
+
+  it("does not pair many blocked openers across code spans", () => {
+    const input = "Read \\[ x\n\n`c`\n\n".repeat(4000) + "\\]";
+    expect(rewriteLatexBracketDelimiters(input)).toBe(input);
+  });
+
+  it("does not pair many blocked openers across fences", () => {
+    const input = "\\[ x\n```\nc\n```\n".repeat(4000) + "\\]";
+    expect(rewriteLatexBracketDelimiters(input)).toBe(input);
+  });
+
+  it("resumes at a display opener after a blocked fence", () => {
+    const input = "\\[ prose\n```\ncode\n```\n\\[ x^2 \\]";
+    expect(rewriteLatexBracketDelimiters(input)).toBe(
+      "\\[ prose\n```\ncode\n```\n$$x^2$$",
+    );
+  });
+
+  it("does not resume at a display opener inside a code span", () => {
+    const input = "\\[ p\n```\nf\n```\n`a \\[ b\nc` \\]";
+    expect(rewriteLatexBracketDelimiters(input)).toBe(input);
+  });
+
+  it("rechecks the blank-line barrier after resuming at a later opener", () => {
+    expect(
+      rewriteLatexBracketDelimiters(
+        "Read \\[ this\n\n`code`\n\\[\n\\text{`x`}\n\\]",
+      ),
+    ).toBe("Read \\[ this\n\n`code`\n$$\\text{`x`}$$");
   });
 
   it("does not span newlines for inline math", () => {
@@ -667,6 +851,14 @@ describe("normalizeMathDelimiters", () => {
     expect(normalizeMathDelimiters("$$\na\n$$")).toBe("$$\na\n$$");
     const fenced = "```md\n1. $$\na\n$$\n```";
     expect(normalizeMathDelimiters(fenced)).toBe(fenced);
+  });
+
+  it("does not nest a list-shaped marker inside an open $$ block", () => {
+    const root = "$$\n1. $$\nx\n$$\nText";
+    expect(normalizeMathDelimiters(root)).toBe(root);
+    const quoted =
+      "> 1. $$\n>    x\n> > $$ meta\n>    > 10. $$\n> > y\n> > $$\n> > Text";
+    expect(normalizeMathDelimiters(quoted)).toBe(quoted);
   });
 });
 
