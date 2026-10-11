@@ -25,6 +25,8 @@ export const auiCardSurfaceSelectors = [
 
 const cardSurface = (scope?: string) =>
   auiCardSurfaceSelectors.map((s) => (scope ? `${scope} ${s}` : s)).join(", ");
+const toneText = (token: string) =>
+  `color-mix(in oklab, var(${token}) 60%, var(--foreground))`;
 
 // Density knobs, host-overridable via CSS custom properties: --aui-control-height, --aui-control-font-size, --aui-button-padding-x, --aui-field-padding-x.
 export const generativeUiVocabularyCss: CssRuleset = {
@@ -119,12 +121,12 @@ export const generativeUiVocabularyCss: CssRuleset = {
   '[data-aui="fact-delta"][data-aui-tone="good"]': {
     "background-color":
       "color-mix(in oklab, var(--aui-success) 15%, transparent)",
-    color: "var(--aui-success)",
+    color: toneText("--aui-success"),
   },
   '[data-aui="fact-delta"][data-aui-tone="bad"]': {
     "background-color":
       "color-mix(in oklab, var(--destructive) 15%, transparent)",
-    color: "var(--destructive)",
+    color: toneText("--destructive"),
   },
   '[data-aui="fact-delta"][data-aui-tone="neutral"]': {
     "background-color": "var(--secondary)",
@@ -922,17 +924,17 @@ export const generativeUiVocabularyCss: CssRuleset = {
   '[data-aui="badge"][data-aui-variant="success"]': {
     "background-color":
       "color-mix(in oklab, var(--aui-success) 15%, transparent)",
-    color: "var(--aui-success)",
+    color: toneText("--aui-success"),
   },
   '[data-aui="badge"][data-aui-variant="warning"]': {
     "background-color":
       "color-mix(in oklab, var(--aui-warning) 15%, transparent)",
-    color: "var(--aui-warning)",
+    color: toneText("--aui-warning"),
   },
   '[data-aui="badge"][data-aui-variant="danger"]': {
     "background-color":
       "color-mix(in oklab, var(--destructive) 15%, transparent)",
-    color: "var(--destructive)",
+    color: toneText("--destructive"),
   },
 };
 
