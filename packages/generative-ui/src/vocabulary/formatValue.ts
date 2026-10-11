@@ -125,3 +125,13 @@ export const formatValue = (value: unknown, format: unknown): string => {
     return raw;
   }
 };
+
+export const factTone = (
+  trend: "up" | "down" | "flat",
+  upIsGood: unknown,
+): "good" | "bad" | "neutral" => {
+  if (trend === "flat") return "neutral";
+  const positive = upIsGood !== false;
+  const isGood = trend === "up" ? positive : !positive;
+  return isGood ? "good" : "bad";
+};

@@ -1,22 +1,11 @@
-import { z } from "zod";
 import type { GenerativeUILibrary } from "../types";
+import { formDefinitions } from "./definitions/form";
 import { actionAttr, fire } from "./dispatch";
 import { collectFormValuesFromEvent } from "./collectFormValues";
 
 export const formVocabulary = {
   Form: {
-    description:
-      "Wraps named child controls (Select/Input/Checkbox/RadioGroup/CheckboxGroup/DatePicker with a `name`). Carries `_action`; on submit it fires with every named control's value, keyed by `name`.",
-    properties: z.object({
-      gap: z
-        .number()
-        .min(0)
-        .max(8)
-        .optional()
-        .describe(
-          "Gap between children in 4px units. 0 to 8 is the supported range.",
-        ),
-    }),
+    ...formDefinitions.Form,
     render: ({ gap, $action, $dispatch, children }) => (
       <form
         data-aui="form"

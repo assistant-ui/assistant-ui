@@ -1,4 +1,3 @@
-import type { FormEvent } from "react";
 import {
   CHECKBOX_GROUP_ATTR,
   FIELD_NAME_ATTR,
@@ -106,9 +105,9 @@ export function collectFormValues(
 /**
  * Convenience wrapper around {@link collectFormValues} for a native form submit event; the cast from `HTMLFormControlsCollection` to `ArrayLike<FormControlElementLike>` lives here once instead of at every call site.
  */
-export function collectFormValuesFromEvent(
-  event: FormEvent<HTMLFormElement>,
-): Record<string, unknown> {
+export function collectFormValuesFromEvent(event: {
+  currentTarget: HTMLFormElement;
+}): Record<string, unknown> {
   return collectFormValues(
     event.currentTarget
       .elements as unknown as ArrayLike<FormControlElementLike>,

@@ -1,10 +1,8 @@
 import * as React from "react";
-import { z } from "zod";
 import type { GenerativeUILibrary } from "../types";
-import { ALERT_TONES } from "../ir";
+import { alertDefinitions } from "./definitions/alert";
 import { toTextContent } from "./toTextContent";
-
-const MAX_CARDS = 10;
+import { MAX_CARDS } from "./carouselValues";
 
 type CarouselRenderProps = {
   label?: string;
@@ -174,19 +172,7 @@ function CarouselRender({ label, children }: CarouselRenderProps) {
 
 export const alertVocabulary = {
   Alert: {
-    description:
-      "A highlighted message conveying urgency. `tone` drives the severity.",
-    properties: z.object({
-      title: z.string().optional().describe("Alert title."),
-      description: z
-        .string()
-        .optional()
-        .describe("Supporting description text."),
-      tone: z
-        .enum(ALERT_TONES)
-        .optional()
-        .describe("Severity tone; defaults to `info`."),
-    }),
+    ...alertDefinitions.Alert,
     render: ({ title, description, tone, children }) => {
       const alertTitle = toTextContent(title);
       const alertDescription = toTextContent(description);
@@ -204,14 +190,7 @@ export const alertVocabulary = {
     },
   },
   Carousel: {
-    description:
-      "A horizontally scrollable group of `Card` children (max 10). Set `label` for an accessible name.",
-    properties: z.object({
-      label: z
-        .string()
-        .optional()
-        .describe("Accessible label for the carousel."),
-    }),
+    ...alertDefinitions.Carousel,
     render: CarouselRender,
   },
 } satisfies GenerativeUILibrary;

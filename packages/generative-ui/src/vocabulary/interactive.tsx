@@ -1,5 +1,4 @@
 import * as React from "react";
-import { z } from "zod";
 import {
   CHECKBOX_GROUP_ATTR,
   FIELD_NAME_ATTR,
@@ -13,6 +12,14 @@ import type {
   GenerativeUILibrary,
   GenerativeUIStatus,
 } from "../types";
+import { interactiveDefinitions } from "./definitions/interactive";
+import {
+  mapOptions,
+  finiteNumber,
+  clamp,
+  UNDO_WINDOW_SECONDS,
+  type Option,
+} from "./interactiveValues";
 import { A2uiBindingContext, useA2uiBinding } from "../bindingContext";
 import { useAnsweredValue } from "../answeredValues";
 import { actionAttr, fire } from "./dispatch";
@@ -26,39 +33,6 @@ import {
   toLocalDateTime,
   toPickerLocalDateTime,
 } from "../temporal";
-
-const optionSchema = z.object({
-  label: z.string(),
-  value: z.string(),
-});
-
-const describedOptionSchema = optionSchema.extend({
-  description: z.string().optional(),
-});
-
-type Option = { label: string; description?: string; value: string };
-
-const isOption = (option: unknown): option is Option =>
-  option !== null &&
-  typeof option === "object" &&
-  "label" in option &&
-  typeof option.label === "string" &&
-  (!("description" in option) || typeof option.description === "string") &&
-  "value" in option &&
-  typeof option.value === "string";
-
-const mapOptions = (
-  options: unknown,
-  render: (option: Option, key: string) => React.ReactNode,
-) => {
-  const occurrences = new Map<string, number>();
-  return (Array.isArray(options) ? options : []).map((option) => {
-    if (!isOption(option)) return null;
-    const occurrence = occurrences.get(option.value) ?? 0;
-    occurrences.set(option.value, occurrence + 1);
-    return render(option, JSON.stringify([option.value, occurrence]));
-  });
-};
 
 const isComposing = (event: React.KeyboardEvent) =>
   event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229;
@@ -637,12 +611,6 @@ function CheckboxRender({
   );
 }
 
-const finiteNumber = (value: unknown): value is number =>
-  typeof value === "number" && Number.isFinite(value);
-
-const clamp = (value: number, min: number, max: number): number =>
-  Math.min(Math.max(value, min), max);
-
 type SliderRenderProps = {
   value?: number;
   name?: string;
@@ -814,8 +782,6 @@ function SliderRender({
   );
 }
 
-const UNDO_WINDOW_SECONDS = 5;
-
 type ButtonRenderProps = {
   label: string;
   buttonStyle?: (typeof BUTTON_STYLES)[number];
@@ -948,165 +914,35 @@ function ButtonRender({
 
 export const interactiveVocabulary = {
   Button: {
-    description:
-      "A clickable button. Carries `_action` describing the side effect or resume value. Set `submit` to submit an ancestor Form/Card instead of firing `_action` on click.",
-    properties: z.object({
-      label: z.string().describe("Button label."),
-      buttonStyle: z.enum(BUTTON_STYLES).optional().describe("Visual style."),
-      block: z
-        .boolean()
-        .optional()
-        .describe("Whether the button spans the full width."),
-      submit: z
-        .boolean()
-        .optional()
-        .describe(
-          "Render as a submit button for an ancestor Form/Card instead of a click button.",
-        ),
-      undoable: z
-        .boolean()
-        .optional()
-        .describe(
-          "Delay the action with an undo control, for sends and other hard-to-reverse actions.",
-        ),
-    }),
+    ...interactiveDefinitions.Button,
     render: ButtonRender,
   },
   Select: {
-    description:
-      "A dropdown selector. Carries `_action` describing the on-select behavior.",
-    properties: z.object({
-      options: z.array(optionSchema).describe("Selectable options."),
-      placeholder: z
-        .string()
-        .optional()
-        .describe("Placeholder shown when nothing is selected."),
-      label: z
-        .string()
-        .optional()
-        .describe("Accessible label for the control."),
-      name: z.string().optional().describe("Field name used inside a Form."),
-      defaultValue: z.string().optional().describe("Initially selected value."),
-    }),
+    ...interactiveDefinitions.Select,
     render: SelectRender,
   },
   Input: {
-    description:
-      "A text input. Carries `_action` describing the on-submit behavior.",
-    properties: z.object({
-      inputType: z
-        .enum(["text", "password", "number"])
-        .optional()
-        .describe("Single-line input type. Values remain strings."),
-      placeholder: z.string().optional().describe("Placeholder text."),
-      multiline: z
-        .boolean()
-        .optional()
-        .describe(
-          'Render a textarea instead of a single-line input; ignored when `inputType` is `"password"` or `"number"`.',
-        ),
-      label: z
-        .string()
-        .optional()
-        .describe("Accessible label for the control."),
-      name: z.string().optional().describe("Field name used inside a Form."),
-      defaultValue: z.string().optional().describe("Initial text."),
-    }),
+    ...interactiveDefinitions.Input,
     render: InputRender,
   },
   DatePicker: {
-    description:
-      "A date, datetime, or time input. Carries `_action`, which runs once per committed value: a pick from the picker, or a typed value on blur or Enter.",
-    properties: z.object({
-      inputType: z
-        .enum(["date", "datetime", "time"])
-        .optional()
-        .describe(
-          'Temporal input type. Defaults to "date". Values remain strings.',
-        ),
-      value: z
-        .string()
-        .optional()
-        .describe(
-          "Initial value: YYYY-MM-DD for date, HH:mm or HH:mm:ss with optional fraction of at most 9 digits for time, YYYY-MM-DDTHH:mm with optional :ss and fraction of at most 9 digits for datetime. A datetime with Z or ±HH:mm is an instant, displayed in the viewer's time zone and submitted with the same offset and precision. A datetime without an offset is local and submitted unchanged. An empty datetime submits with the viewer's offset and seconds.",
-        ),
-      min: z
-        .string()
-        .optional()
-        .describe(
-          "Minimum value: YYYY-MM-DD for date, HH:mm or HH:mm:ss with optional fraction of at most 9 digits for time, YYYY-MM-DDTHH:mm with optional :ss and fraction of at most 9 digits for datetime. Datetimes with Z or ±HH:mm are converted to the viewer's time zone.",
-        ),
-      max: z
-        .string()
-        .optional()
-        .describe(
-          "Maximum value: YYYY-MM-DD for date, HH:mm or HH:mm:ss with optional fraction of at most 9 digits for time, YYYY-MM-DDTHH:mm with optional :ss and fraction of at most 9 digits for datetime. Datetimes with Z or ±HH:mm are converted to the viewer's time zone.",
-        ),
-      label: z
-        .string()
-        .optional()
-        .describe("Accessible label for the control."),
-      name: z.string().optional().describe("Field name used inside a Form."),
-    }),
+    ...interactiveDefinitions.DatePicker,
     render: DatePickerRender,
   },
   Checkbox: {
-    description:
-      "A checkbox with a label. Carries `_action` describing the on-change behavior.",
-    properties: z.object({
-      label: z.string().describe("Label text next to the checkbox."),
-      name: z.string().optional().describe("Field name used inside a Form."),
-      defaultChecked: z
-        .boolean()
-        .optional()
-        .describe("Whether the checkbox starts checked."),
-      variant: z
-        .enum(["checkbox", "switch"])
-        .optional()
-        .describe("Whether to render a checkbox or switch."),
-    }),
+    ...interactiveDefinitions.Checkbox,
     render: CheckboxRender,
   },
   Slider: {
-    description:
-      "A numeric range control. Carries `_action` describing the committed value.",
-    properties: z.object({
-      name: z.string().optional().describe("Field name used inside a Form."),
-      label: z
-        .string()
-        .optional()
-        .describe("Accessible label for the control."),
-      min: z.number().describe("Minimum value."),
-      max: z.number().describe("Maximum value."),
-      step: z.number().optional().describe("Value increment. Defaults to 1."),
-      defaultValue: z.number().optional().describe("Initial value."),
-      unit: z.string().optional().describe("Unit shown with the value."),
-    }),
+    ...interactiveDefinitions.Slider,
     render: SliderRender,
   },
   RadioGroup: {
-    description:
-      "A group of mutually exclusive radio options. Carries `_action` describing the on-change behavior.",
-    properties: z.object({
-      options: z.array(describedOptionSchema).describe("Selectable options."),
-      name: z.string().optional().describe("Field name used inside a Form."),
-      label: z.string().optional().describe("Accessible name for the group."),
-      defaultValue: z.string().optional().describe("Initially selected value."),
-    }),
+    ...interactiveDefinitions.RadioGroup,
     render: RadioGroupRender,
   },
   CheckboxGroup: {
-    description:
-      "A group of checkbox options where any number can be checked. Carries `_action` describing the on-change behavior.",
-    properties: z.object({
-      options: z.array(describedOptionSchema).describe("Selectable options."),
-      name: z.string().optional().describe("Field name used inside a Form."),
-      label: z.string().optional().describe("Accessible name for the group."),
-      defaultValue: z
-        .array(z.string())
-        .optional()
-        .describe("Initially checked values."),
-    }),
+    ...interactiveDefinitions.CheckboxGroup,
     render: CheckboxGroupRender,
   },
 } satisfies GenerativeUILibrary;

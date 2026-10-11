@@ -123,3 +123,28 @@ describe("framework-neutral entries", () => {
     },
   );
 });
+
+describe("framework-neutral vocabulary modules", () => {
+  it.each([
+    "vocabulary/definitions/index.ts",
+    "spec/catalogDefinitions.ts",
+    "vocabulary/tableData.ts",
+    "vocabulary/chartData.ts",
+    "vocabulary/interactiveValues.ts",
+    "vocabulary/layoutValues.ts",
+    "vocabulary/carouselValues.ts",
+    "vocabulary/listItemValues.ts",
+    "vocabulary/imageStyle.ts",
+    "vocabulary/iconGlyphs.ts",
+    "vocabulary/collectFormValues.ts",
+  ])("%s never reaches React, not even through a type import", (entry) => {
+    const reactFiles = [...collectGraph(join(SRC_DIR, entry))]
+      .filter(
+        (file) =>
+          file.endsWith(".tsx") ||
+          REACT_SPECIFIER_RE.test(readFileSync(file, "utf8")),
+      )
+      .map((file) => relative(SRC_DIR, file));
+    expect(reactFiles).toEqual([]);
+  });
+});
