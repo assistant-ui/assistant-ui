@@ -49,8 +49,10 @@ export type GenerativeUIRenderContext = {
  * `"done"`, `P` is complete; while `"streaming"`, `P` is partial. `$action` is
  * the node's behavior payload, present only on interactive nodes. `$dispatch`
  * fires that payload through the host's {@link ActionRegistry}; it is present
- * only when a registry was wired. All three are `$`-prefixed so they never
- * collide with a real `status`/`action`/`dispatch` prop.
+ * only when a registry was wired. All are `$`-prefixed so they never collide
+ * with a real `status`/`action`/`dispatch` prop. Spec mode also passes
+ * `$slots`, the rendered named slots, and `$bindings`, a setter for each prop
+ * the spec binds to state with `$bindState`; present mode passes neither.
  */
 type StreamingRenderProps<P> =
   | (Partial<P> & {
@@ -58,12 +60,16 @@ type StreamingRenderProps<P> =
       $status: "streaming";
       $action?: Action;
       $dispatch?: GenerativeUIDispatch;
+      $slots?: Readonly<Record<string, ReactNode>>;
+      $bindings?: GenerativeUIBindings<P>;
     })
   | (P & {
       children?: ReactNode;
       $status: "done";
       $action?: Action;
       $dispatch?: GenerativeUIDispatch;
+      $slots?: Readonly<Record<string, ReactNode>>;
+      $bindings?: GenerativeUIBindings<P>;
     });
 
 /** Props for a component that only renders once complete — `$status` is always `"done"`. */
@@ -72,6 +78,13 @@ type StaticRenderProps<P> = P & {
   $status: "done";
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
+  $slots?: Readonly<Record<string, ReactNode>>;
+  $bindings?: GenerativeUIBindings<P>;
+};
+
+/** Writes a new value for each prop a spec binds to state, keyed by prop name. */
+export type GenerativeUIBindings<P> = {
+  readonly [K in keyof P]?: (value: P[K]) => void;
 };
 
 /**
@@ -99,6 +112,19 @@ export type GenerativeUIComponent<P = any> =
        * branch below is the only one that promises complete props.
        */
       streamProperties: boolean | undefined;
+      /**
+       * Events the component emits in spec mode, which a spec binds with `on`.
+       * The element's `$action` carries the first one, and
+       * `$dispatch({ type: event, $input })` emits any of them. The `present`
+       * tool ignores this.
+       */
+      events?: readonly string[] | undefined;
+      /**
+       * Slots the component renders in spec mode: `default` arrives as
+       * `children` and any other name in `$slots`. Defaults to `["default"]`;
+       * `[]` takes no children. The `present` tool ignores this.
+       */
+      slots?: readonly string[] | undefined;
       render: (props: StreamingRenderProps<P>) => ReactNode;
     }
   | {
@@ -106,6 +132,8 @@ export type GenerativeUIComponent<P = any> =
       properties: ZodType<P>;
       /** Render only once props are complete (the default). */
       streamProperties?: false | undefined;
+      events?: readonly string[] | undefined;
+      slots?: readonly string[] | undefined;
       render: (props: StaticRenderProps<P>) => ReactNode;
     };
 
