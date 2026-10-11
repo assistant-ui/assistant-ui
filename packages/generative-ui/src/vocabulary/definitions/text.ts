@@ -16,7 +16,9 @@ export const textDefinitions = {
   Text: {
     description: "A run of text. Use for paragraphs, labels, or inline copy.",
     properties: z.object({
-      value: z.string().describe("The text content."),
+      value: z
+        .union([z.string(), z.number()])
+        .describe("The text or number to display."),
       size: z
         .enum(TEXT_SIZES)
         .optional()
@@ -29,7 +31,9 @@ export const textDefinitions = {
   Caption: {
     description: "Secondary, de-emphasized text under a primary element.",
     properties: z.object({
-      value: z.string().describe("The caption text."),
+      value: z
+        .union([z.string(), z.number()])
+        .describe("The caption text or number."),
     }),
     streamProperties: true,
   },

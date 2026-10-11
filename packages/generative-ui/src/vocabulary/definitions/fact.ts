@@ -7,7 +7,9 @@ export const factDefinitions = {
       "A label/value pair, rendered as a key followed by its value. Use for compact metadata.",
     properties: z.object({
       label: z.string().describe("The fact label (key)."),
-      value: z.string().describe("The fact value."),
+      value: z
+        .union([z.string(), z.number()])
+        .describe("The fact value as text or a number."),
       delta: z.string().optional().describe("Change from before."),
       trend: z
         .enum(["up", "down", "flat"])

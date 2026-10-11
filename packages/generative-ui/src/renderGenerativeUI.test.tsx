@@ -39,6 +39,45 @@ const library: GenerativeUILibrary = {
 };
 
 describe("renderGenerativeUI", () => {
+  it.each(["Text", "Caption", "Fact", "Badge"])(
+    "%s accepts and renders numeric values alongside a numeric value owner",
+    (name) => {
+      const entry = defaultGenerativeUILibrary[name]!;
+      expect(
+        entry.properties.safeParse({
+          value: 42,
+          ...(name === "Fact" ? { label: "Answer" } : {}),
+        }).success,
+      ).toBe(true);
+      expect(
+        entry.properties.safeParse({
+          value: "forty two",
+          ...(name === "Fact" ? { label: "Answer" } : {}),
+        }).success,
+      ).toBe(true);
+      const numericLibrary: GenerativeUILibrary = {
+        ...defaultGenerativeUILibrary,
+        Numeric: {
+          description: "A numeric value.",
+          properties: z.object({ value: z.number() }),
+          render: ({ value }) => <span>{value}</span>,
+        },
+      };
+      const html = renderToStaticMarkup(
+        <>
+          {renderGenerativeUI(
+            {
+              $type: name,
+              value: 42,
+              ...(name === "Fact" ? { label: "Answer" } : {}),
+            },
+            numericLibrary,
+          )}
+        </>,
+      );
+      expect(html).toContain(">42<");
+    },
+  );
   it.each(["done", "streaming"] as const)(
     "drops another component's inputType and keeps undeclared props when %s",
     (status) => {
