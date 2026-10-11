@@ -76,6 +76,11 @@ describe("toAdaptiveCard", () => {
       ]);
     });
 
+    it("renders a numeric value", () => {
+      const { card } = toAdaptiveCard({ $type: "Text", value: 42 });
+      expect((card.body[0] as TeamsTextBlock).text).toBe("42");
+    });
+
     it.each([
       ["sm", "small"],
       ["lg", "medium"],
@@ -150,6 +155,11 @@ describe("toAdaptiveCard", () => {
         },
       ]);
     });
+
+    it("renders a numeric value", () => {
+      const { card } = toAdaptiveCard({ $type: "Caption", value: 42 });
+      expect((card.body[0] as TeamsTextBlock).text).toBe("42");
+    });
   });
 
   describe("Badge", () => {
@@ -164,6 +174,11 @@ describe("toAdaptiveCard", () => {
           isSubtle: true,
         },
       ]);
+    });
+
+    it("renders a numeric value", () => {
+      const { card } = toAdaptiveCard({ $type: "Badge", value: 42 });
+      expect((card.body[0] as TeamsTextBlock).text).toBe("42");
     });
   });
 
@@ -189,6 +204,15 @@ describe("toAdaptiveCard", () => {
       expect(card.body).toEqual([
         { type: "FactSet", facts: [{ title: "Status", value: "Active" }] },
       ]);
+    });
+
+    it("renders a numeric value", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Fact",
+        label: "Count",
+        value: 42,
+      });
+      expect((card.body[0] as TeamsFactSet).facts[0]?.value).toBe("42");
     });
 
     it("merges consecutive Fact siblings into one FactSet", () => {

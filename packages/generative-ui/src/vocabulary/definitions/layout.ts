@@ -85,7 +85,9 @@ export const layoutDefinitions = {
   Badge: {
     description: "A small labeled tag, e.g. for status or category.",
     properties: z.object({
-      value: z.string().describe("Badge text."),
+      value: z
+        .union([z.string(), z.number()])
+        .describe("Badge text or number."),
       variant: z.string().optional().describe("Visual variant token."),
     }),
   },

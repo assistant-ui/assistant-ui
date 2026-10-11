@@ -115,6 +115,11 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const asString = (value: unknown): string =>
   typeof value === "string" ? value : "";
 
+const asTextValue = (value: unknown): string =>
+  typeof value === "number" && Number.isFinite(value)
+    ? String(value)
+    : asString(value);
+
 const asFiniteNumber = (value: unknown): number | undefined =>
   typeof value === "number" && Number.isFinite(value) ? value : undefined;
 
@@ -635,7 +640,7 @@ const convertFacts = (
 ): SlackBlock[] => {
   const fields = facts.map((fact) => {
     const label = asString(fact.props["label"]);
-    const value = asString(fact.props["value"]);
+    const value = asTextValue(fact.props["value"]);
     const delta = fact.props["delta"];
     const deltaText =
       typeof delta === "string"
@@ -838,7 +843,18 @@ const collectText = (
   }
   const element = node as NormalizedUIElement;
   const own = ["text", "value", "label", "title", "description"]
-    .map((key) => element.props[key])
+    .map((key) => {
+      const value = element.props[key];
+      return key === "value" &&
+        (element.type === "Text" ||
+          element.type === "Caption" ||
+          element.type === "Badge" ||
+          element.type === "Fact") &&
+        typeof value === "number" &&
+        Number.isFinite(value)
+        ? String(value)
+        : value;
+    })
     .filter((value): value is string => typeof value === "string");
   return [...own, ...collectText(element.children, depth + 1)];
 };
@@ -876,7 +892,7 @@ const extractCardFields = (element: NormalizedUIElement): CardFields => {
       isElement(child) &&
       (child.type === "Text" || child.type === "Markdown")
     ) {
-      bodyRaw = asString(child.props["value"]);
+      bodyRaw = asTextValue(child.props["value"]);
       continue;
     }
     if (
@@ -884,7 +900,7 @@ const extractCardFields = (element: NormalizedUIElement): CardFields => {
       isElement(child) &&
       child.type === "Caption"
     ) {
-      subtextRaw = asString(child.props["value"]);
+      subtextRaw = asTextValue(child.props["value"]);
       continue;
     }
     if (isCardNoOp(child)) continue;
@@ -1171,7 +1187,7 @@ const contextRow = (
       elements: boundedChildren.map((child) => ({
         type: "mrkdwn",
         text: clampText(
-          asString(child.props["value"]),
+          asTextValue(child.props["value"]),
           CONTEXT_TEXT_CAP,
           child.type,
           "value",
@@ -1468,7 +1484,7 @@ const convertElement = (
           text: {
             type: "mrkdwn",
             text: clampText(
-              asString(props["value"]),
+              asTextValue(props["value"]),
               SECTION_TEXT_CAP,
               "Text",
               "value",
@@ -1486,7 +1502,7 @@ const convertElement = (
             {
               type: "mrkdwn",
               text: clampText(
-                asString(props["value"]),
+                asTextValue(props["value"]),
                 CONTEXT_TEXT_CAP,
                 element.type,
                 "value",
