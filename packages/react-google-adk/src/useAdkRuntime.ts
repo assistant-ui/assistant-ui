@@ -57,11 +57,34 @@ import {
   truncateAdkMessages,
 } from "./convertToAdkMessages";
 import {
+  ADK_REQUEST_CONFIRMATION,
   projectAdkToolApprovals,
   toAdkToolConfirmationReply,
 } from "./adkToolApproval";
+import { ADK_REQUEST_CREDENTIAL } from "./adkAuthRequest";
 import { adkExtras } from "./adkExtras";
 import { ADK_SDK } from "./sdkIdentity";
+
+const HITL_REPLY_TOOL_NAMES = new Set([
+  ADK_REQUEST_CONFIRMATION,
+  ADK_REQUEST_CREDENTIAL,
+  "adk_request_input",
+]);
+
+type PendingHitlReplies = {
+  runId: number | undefined;
+  messages: AdkMessage[];
+  config: AdkSendMessageConfig;
+  waiters: { resolve: () => void; reject: (error: unknown) => void }[];
+  completion?: Promise<boolean>;
+  discarded?: boolean;
+  lifecycle?: HitlReplyLifecycle;
+};
+
+type HitlReplyLifecycle = {
+  rollbackSnapshot: AdkThreadSnapshot;
+  responseReceived: boolean;
+};
 
 export type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
   stream: AdkStreamCallback;
@@ -134,16 +157,56 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   } = options;
   const aui = useAui();
   const runConfigByToolCallIdRef = useRef(new Map<string, unknown>());
+  const runIdByToolCallIdRef = useRef(new Map<string, number | undefined>());
+  const currentRunIdRef = useRef<number | null>(null);
+  const nextRunIdRef = useRef(0);
+  const activeRunIdsRef = useRef(new Set<number>());
+  const activeRunWaitersRef = useRef(new Set<() => void>());
+  const hitlReplyGenerationRef = useRef(0);
+  const pendingHitlRepliesRef = useRef(
+    new Map<number | undefined, PendingHitlReplies>(),
+  );
+  const inFlightHitlRepliesRef = useRef<PendingHitlReplies | null>(null);
+  const hitlFlushScheduledRef = useRef(false);
+  const flushHitlRepliesRef = useRef<(() => void) | null>(null);
+
+  const applyPendingHitlReplies = useCallback((messages: AdkMessage[]) => {
+    const ids = new Set(messages.map((message) => message.id));
+    const pendingMessages = [...pendingHitlRepliesRef.current.values()].flatMap(
+      (batch) => batch.messages,
+    );
+    const additions = pendingMessages.filter((message) => !ids.has(message.id));
+    return additions.length > 0 ? [...messages, ...additions] : messages;
+  }, []);
+
+  const clearPendingHitlReplies = useCallback(() => {
+    hitlReplyGenerationRef.current++;
+    const pending = [
+      ...pendingHitlRepliesRef.current.values(),
+      ...(inFlightHitlRepliesRef.current
+        ? [inFlightHitlRepliesRef.current]
+        : []),
+    ];
+    pendingHitlRepliesRef.current = new Map();
+    inFlightHitlRepliesRef.current = null;
+    for (const batch of pending.values()) {
+      batch.discarded = true;
+      for (const waiter of batch.waiters) waiter.resolve();
+    }
+  }, []);
+  useReplaySafeEffect(() => clearPendingHitlReplies, [clearPendingHitlReplies]);
 
   const rememberMessageOwnership = useCallback(
     (newMessages: AdkMessage[], runConfig: unknown) => {
       const toolOwnership = runConfigByToolCallIdRef.current;
+      const runOwnership = runIdByToolCallIdRef.current;
       for (const message of newMessages) {
         if (message.type !== "ai") continue;
         for (const toolCall of message.tool_calls ?? []) {
           if (!isRecord(toolCall)) continue;
           if (!toolOwnership.has(toolCall.id)) {
             toolOwnership.set(toolCall.id, runConfig);
+            runOwnership.set(toolCall.id, currentRunIdRef.current ?? undefined);
           }
         }
       }
@@ -153,7 +216,9 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
 
   const seedMessageOwnership = useCallback((history: AdkMessage[]) => {
     const currentOwnership = runConfigByToolCallIdRef.current;
+    const currentRunOwnership = runIdByToolCallIdRef.current;
     const nextOwnership = new Map<string, unknown>();
+    const nextRunOwnership = new Map<string, number | undefined>();
     for (const message of history) {
       if (message.type !== "ai") continue;
       for (const toolCall of message.tool_calls ?? []) {
@@ -166,9 +231,11 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             ? currentOwnership.get(toolCall.id)
             : undefined,
         );
+        nextRunOwnership.set(toolCall.id, currentRunOwnership.get(toolCall.id));
       }
     }
     runConfigByToolCallIdRef.current = nextOwnership;
+    runIdByToolCallIdRef.current = nextRunOwnership;
   }, []);
 
   const pruneMessageOwnership = useCallback((history: AdkMessage[]) => {
@@ -182,6 +249,9 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     }
     for (const id of runConfigByToolCallIdRef.current.keys()) {
       if (!toolCallIds.has(id)) runConfigByToolCallIdRef.current.delete(id);
+    }
+    for (const id of runIdByToolCallIdRef.current.keys()) {
+      if (!toolCallIds.has(id)) runIdByToolCallIdRef.current.delete(id);
     }
   }, []);
 
@@ -209,6 +279,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     stream,
     ...(eventHandlers && { eventHandlers }),
     onMessages: rememberMessageOwnership,
+    applyMessageOverlay: applyPendingHitlReplies,
   });
 
   const loadRef = useRef(load);
@@ -236,19 +307,27 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   useInsertionEffect(() => {
     messagesRef.current = messages;
   }, [messages]);
+  // Staging and queued replies assign this ref directly, so the effect must
+  // key on committed messages alone or an unrelated commit can clobber them.
+  const adkMessagesRef = useRef(messages);
+  useInsertionEffect(() => {
+    adkMessagesRef.current = messages;
+  }, [messages]);
   const applySnapshot = useCallback(
     (snapshot: AdkThreadSnapshot) => {
+      clearPendingHitlReplies();
       seedMessageOwnership(snapshot.messages);
       applyAdkSnapshot(snapshot);
     },
-    [applyAdkSnapshot, seedMessageOwnership],
+    [applyAdkSnapshot, clearPendingHitlReplies, seedMessageOwnership],
   );
   const replaceMessages = useCallback(
     (nextMessages: AdkMessage[]) => {
+      clearPendingHitlReplies();
       pruneMessageOwnership(nextMessages);
       replaceAdkMessages(nextMessages);
     },
-    [pruneMessageOwnership, replaceAdkMessages],
+    [clearPendingHitlReplies, pruneMessageOwnership, replaceAdkMessages],
   );
   const [isLoadingThread, setIsLoadingThread] = useState(
     () =>
@@ -277,17 +356,28 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     run: (isCurrent: () => boolean) => Promise<void>,
   ) => {
     const lease = runLeases.begin();
+    const runId = ++nextRunIdRef.current;
+    currentRunIdRef.current = runId;
+    activeRunIdsRef.current.add(runId);
     try {
       setIsRunning(true);
       await run(lease.isCurrent);
     } finally {
+      activeRunIdsRef.current.delete(runId);
+      if (currentRunIdRef.current === runId) currentRunIdRef.current = null;
       if (lease.isCurrent()) setIsRunning(false);
+      flushHitlRepliesRef.current?.();
+      if (activeRunIdsRef.current.size === 0) {
+        for (const resolve of activeRunWaitersRef.current) resolve();
+        activeRunWaitersRef.current.clear();
+      }
     }
   };
 
-  const handleSendMessage = (
+  const sendImmediately = (
     msgs: AdkMessage[],
     config: AdkSendMessageConfig,
+    lifecycle?: HitlReplyLifecycle,
   ) => {
     const isToolContinuation =
       msgs.length > 0 && msgs.every((msg) => msg.type === "tool");
@@ -299,12 +389,210 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           }
         : config;
 
-    return runExclusive(() => sendMessage(msgs, continuationConfig));
+    return runExclusive(() => sendMessage(msgs, continuationConfig, lifecycle));
+  };
+
+  const discardPendingHitlReplies = () => {
+    const inFlight = inFlightHitlRepliesRef.current;
+    const discardInFlight = !inFlight?.lifecycle?.responseReceived;
+    const batches = [
+      ...pendingHitlRepliesRef.current.values(),
+      ...(inFlight && discardInFlight ? [inFlight] : []),
+    ];
+    const ids = new Set(
+      batches.flatMap((batch) => batch.messages.map((message) => message.id)),
+    );
+    const toolCallIds = new Set(
+      batches.flatMap((batch) =>
+        batch.messages.flatMap((message) =>
+          message.type === "tool" ? [message.tool_call_id] : [],
+        ),
+      ),
+    );
+    clearPendingHitlReplies();
+    const rollbackSnapshot = discardInFlight
+      ? inFlight?.lifecycle?.rollbackSnapshot
+      : undefined;
+    if (rollbackSnapshot) {
+      const messages = controller
+        .getState()
+        .messages.filter(
+          (message) =>
+            !ids.has(message.id) &&
+            !(message.type === "tool" && toolCallIds.has(message.tool_call_id)),
+        );
+      adkMessagesRef.current = messages;
+      applySnapshot({ ...rollbackSnapshot, messages });
+      return;
+    }
+    if (ids.size === 0) return;
+
+    const currentMessages = controller.getState().messages;
+    const nextMessages = currentMessages.filter(
+      (message) =>
+        !ids.has(message.id) &&
+        !(message.type === "tool" && toolCallIds.has(message.tool_call_id)),
+    );
+    if (nextMessages.length === currentMessages.length) return;
+    adkMessagesRef.current = nextMessages;
+    setMessages(nextMessages);
+  };
+
+  const scheduleHitlReplyFlush = () => {
+    if (
+      activeRunIdsRef.current.size > 0 ||
+      inFlightHitlRepliesRef.current ||
+      hitlFlushScheduledRef.current
+    )
+      return;
+    hitlFlushScheduledRef.current = true;
+    queueMicrotask(() => {
+      hitlFlushScheduledRef.current = false;
+      if (activeRunIdsRef.current.size > 0 || inFlightHitlRepliesRef.current)
+        return;
+      const batches = pendingHitlRepliesRef.current;
+      const nextBatch = [...batches.entries()].find(
+        ([runId]) => runId === undefined || !activeRunIdsRef.current.has(runId),
+      );
+      if (!nextBatch) return;
+      const [runId, pending] = nextBatch;
+      batches.delete(runId);
+      const currentState = controller.getState();
+      const pendingBatches = [pending, ...batches.values()];
+      const pendingIds = new Set(
+        pendingBatches.flatMap((batch) =>
+          batch.messages.map((message) => message.id),
+        ),
+      );
+      const pendingToolCallIds = new Set(
+        pendingBatches.flatMap((batch) =>
+          batch.messages.flatMap((message) =>
+            message.type === "tool" ? [message.tool_call_id] : [],
+          ),
+        ),
+      );
+      const rollbackSnapshot: AdkThreadSnapshot = {
+        messages: currentState.messages.filter(
+          (message) =>
+            !pendingIds.has(message.id) &&
+            !(
+              message.type === "tool" &&
+              pendingToolCallIds.has(message.tool_call_id)
+            ),
+        ),
+        longRunningToolIds: currentState.longRunningToolIds,
+        toolConfirmations: currentState.toolConfirmations,
+        authRequests: currentState.authRequests,
+        escalated: currentState.escalated,
+        messageMetadata: currentState.messageMetadata,
+        stateDelta: currentState.stateDelta,
+        artifactDelta: currentState.artifactDelta,
+        agentInfo: currentState.agentInfo,
+      };
+      pending.lifecycle = {
+        rollbackSnapshot,
+        responseReceived: false,
+      };
+      inFlightHitlRepliesRef.current = pending;
+      let complete!: (shouldContinue: boolean) => void;
+      pending.completion = new Promise<boolean>((resolve) => {
+        complete = resolve;
+      });
+      void sendImmediately(pending.messages, pending.config, pending.lifecycle)
+        .then(
+          () => pending.waiters.forEach((waiter) => waiter.resolve()),
+          (error: unknown) =>
+            pending.waiters.forEach((waiter) => waiter.reject(error)),
+        )
+        .finally(() => {
+          complete(!pending.discarded);
+          if (inFlightHitlRepliesRef.current === pending) {
+            inFlightHitlRepliesRef.current = null;
+          }
+          scheduleHitlReplyFlush();
+        });
+    });
+  };
+  flushHitlRepliesRef.current = scheduleHitlReplyFlush;
+
+  const handleSendMessage = (
+    msgs: AdkMessage[],
+    config: AdkSendMessageConfig,
+    supersedesPendingHitlReplies = false,
+  ) => {
+    const isHitlReplyBatch =
+      msgs.length > 0 &&
+      msgs.every(
+        (message) =>
+          message.type === "tool" && HITL_REPLY_TOOL_NAMES.has(message.name),
+      );
+    if (!isHitlReplyBatch) {
+      if (supersedesPendingHitlReplies) {
+        discardPendingHitlReplies();
+      } else {
+        if (
+          pendingHitlRepliesRef.current.size > 0 &&
+          activeRunIdsRef.current.size > 0
+        ) {
+          const generation = hitlReplyGenerationRef.current;
+          return new Promise<void>((resolve, reject) => {
+            activeRunWaitersRef.current.add(() => {
+              if (generation !== hitlReplyGenerationRef.current) {
+                resolve();
+                return;
+              }
+              scheduleHitlReplyFlush();
+              queueMicrotask(() => {
+                if (generation !== hitlReplyGenerationRef.current) {
+                  resolve();
+                  return;
+                }
+                void handleSendMessage(msgs, config).then(resolve, reject);
+              });
+            });
+          });
+        }
+        const inFlight = inFlightHitlRepliesRef.current;
+        if (inFlight?.completion) {
+          return inFlight.completion.then((shouldContinue) =>
+            shouldContinue ? sendImmediately(msgs, config) : undefined,
+          );
+        }
+      }
+      return sendImmediately(msgs, config);
+    }
+
+    return new Promise<void>((resolve, reject) => {
+      const currentMessages = controller.getState().messages;
+      const existingIds = new Set(currentMessages.map((message) => message.id));
+      const additions = msgs.filter((message) => !existingIds.has(message.id));
+      if (additions.length > 0) {
+        const nextMessages = [...currentMessages, ...additions];
+        adkMessagesRef.current = nextMessages;
+        setMessages(nextMessages);
+      }
+
+      const runId = runIdByToolCallIdRef.current.get(
+        msgs[0]!.type === "tool" ? msgs[0]!.tool_call_id : "",
+      );
+      const batches = pendingHitlRepliesRef.current;
+      const pending = batches.get(runId) ?? {
+        runId,
+        messages: [],
+        config,
+        waiters: [],
+      };
+      pending.messages.push(...msgs);
+      pending.waiters.push({ resolve, reject });
+      batches.set(runId, pending);
+      scheduleHitlReplyFlush();
+    });
   };
 
   const stopRun = () => {
     runLeases.invalidate();
     setIsRunning(false);
+    discardPendingHitlReplies();
     cancel();
   };
 
@@ -348,14 +636,6 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   useInsertionEffect(() => {
     threadMessagesRef.current = threadMessages;
   }, [threadMessages]);
-
-  // Staging assigns adkMessagesRef.current directly, so the effect must key on
-  // the committed messages alone; a dep-less publication would clobber the
-  // optimistic value on any unrelated commit.
-  const adkMessagesRef = useRef(messages);
-  useInsertionEffect(() => {
-    adkMessagesRef.current = messages;
-  }, [messages]);
 
   const stagedMessageCount = useSyncExternalStore(
     controller.subscribe,
@@ -511,6 +791,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           },
         ],
         { runConfig: msg.runConfig },
+        true,
       );
     },
     onEdit: getCheckpointId
@@ -560,9 +841,13 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
                 type: "staged.unstage",
                 ids: stagedRun.messages.map((message) => message.id!),
               });
-              return handleSendMessage(stagedRun.messages, {
-                runConfig: config.runConfig ?? stagedRun.runConfig,
-              });
+              return handleSendMessage(
+                stagedRun.messages,
+                {
+                  runConfig: config.runConfig ?? stagedRun.runConfig,
+                },
+                true,
+              );
             }
 
             if (!getCheckpointId)

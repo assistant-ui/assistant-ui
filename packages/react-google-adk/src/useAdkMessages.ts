@@ -40,6 +40,12 @@ export type UseAdkMessagesOptions = {
 
 type UseAdkMessagesInternalOptions = UseAdkMessagesOptions & {
   onMessages?: (messages: AdkMessage[], runConfig: unknown) => void;
+  applyMessageOverlay?: (messages: AdkMessage[]) => AdkMessage[];
+};
+
+type AdkSendLifecycle = {
+  rollbackSnapshot: AdkThreadSnapshot;
+  responseReceived: boolean;
 };
 
 type AdkRuntimeCallbackName = "onError" | "onCustomEvent" | "onAgentTransfer";
@@ -56,6 +62,7 @@ const useAdkMessagesInternal = ({
   stream,
   eventHandlers,
   onMessages,
+  applyMessageOverlay,
 }: UseAdkMessagesInternalOptions) => {
   const [controller] = useState(() => new AdkThreadController());
   const {
@@ -113,7 +120,11 @@ const useAdkMessagesInternal = ({
 
   const aui = useAui();
   const sendMessage = useCallback(
-    async (newMessages: AdkMessage[], config: AdkSendMessageConfig) => {
+    async (
+      newMessages: AdkMessage[],
+      config: AdkSendMessageConfig,
+      lifecycle?: AdkSendLifecycle,
+    ) => {
       const newMessagesWithId = newMessages.map((m) =>
         m.id ? m : { ...m, id: generateId() },
       ) as AdkMessage[];
@@ -179,6 +190,7 @@ const useAdkMessagesInternal = ({
           ) {
             break;
           }
+          if (lifecycle) lifecycle.responseReceived = true;
           const updatedMessages = accumulator.processEvent(event);
           // Each event part can append at most one message, and a function call
           // stays on the current assistant message until a later part finalizes
@@ -194,7 +206,8 @@ const useAdkMessagesInternal = ({
           controller.dispatch({
             type: "event.published",
             state: {
-              messages: updatedMessages,
+              messages:
+                applyMessageOverlay?.(updatedMessages) ?? updatedMessages,
               stateDelta: accumulator.getStateDelta(),
               agentInfo: accumulator.getAgentInfo(),
               longRunningToolIds: accumulator.getLongRunningToolIds(),
@@ -273,6 +286,15 @@ const useAdkMessagesInternal = ({
                 ),
               );
             }
+            if (lifecycle && !lifecycle.responseReceived) {
+              controller.dispatch({
+                type: "snapshot.applied",
+                snapshot: {
+                  ...lifecycle.rollbackSnapshot,
+                  messages: controller.getState().messages,
+                },
+              });
+            }
           }
           abortControllerRef.current = null;
         }
@@ -287,6 +309,7 @@ const useAdkMessagesInternal = ({
       onCustomEvent,
       onAgentTransfer,
       onMessages,
+      applyMessageOverlay,
     ],
   );
 

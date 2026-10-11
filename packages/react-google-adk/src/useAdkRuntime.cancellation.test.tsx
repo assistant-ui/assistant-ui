@@ -12,7 +12,12 @@ import { useAdkRuntime } from "./useAdkRuntime";
 import { useAdkLongRunningToolIds, useAdkSend } from "./hooks";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
 import { settleOutsideAct } from "./tests/settleOutsideAct";
-import type { AdkEvent, AdkStreamCallback, AdkThreadSnapshot } from "./types";
+import type {
+  AdkEvent,
+  AdkMessage,
+  AdkStreamCallback,
+  AdkThreadSnapshot,
+} from "./types";
 
 const makeThreadListAdapter = (): RemoteThreadListAdapter => ({
   list: vi.fn(async () => ({
@@ -285,6 +290,370 @@ describe("useAdkRuntime cancellation", () => {
         .runtime!.thread.getState()
         .messages.find((m) => m.role === "assistant")?.status,
     ).toEqual({ type: "incomplete", reason: "cancelled" });
+  });
+
+  it("removes a queued HITL reply when its producing run is cancelled", async () => {
+    const stream = vi.fn(
+      makePendingStream({
+        id: "hitl-request",
+        author: "agent",
+        longRunningToolIds: ["input-call"],
+        content: {
+          role: "model",
+          parts: [
+            {
+              functionCall: {
+                id: "input-call",
+                name: "adk_request_input",
+                args: { prompt: "City?" },
+              },
+            },
+          ],
+        },
+        turnComplete: true,
+      }),
+    );
+    const capture = await renderAdkRuntime(stream);
+    act(() => {
+      capture.runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "What city?" }],
+      });
+    });
+    const getInputCall = () =>
+      capture
+        .runtime!.thread.getState()
+        .messages.flatMap((message) =>
+          Array.isArray(message.content) ? message.content : [],
+        )
+        .find(
+          (part) =>
+            part.type === "tool-call" && part.toolCallId === "input-call",
+        );
+    await waitFor(() =>
+      expect(getInputCall()).toMatchObject({ toolCallId: "input-call" }),
+    );
+    expect(stream).toHaveBeenCalledOnce();
+
+    let reply!: Promise<void>;
+    act(() => {
+      reply = capture.send!(
+        [
+          {
+            id: "input-reply",
+            type: "tool",
+            name: "adk_request_input",
+            tool_call_id: "input-call",
+            content: JSON.stringify({ result: "Paris" }),
+          },
+        ],
+        {},
+      );
+    });
+    await waitFor(() =>
+      expect(getInputCall()).toMatchObject({ result: '{"result":"Paris"}' }),
+    );
+
+    act(() => {
+      capture.runtime!.thread.cancelRun();
+    });
+    await act(async () => {
+      await reply;
+    });
+    await waitFor(() =>
+      expect(capture.runtime!.thread.getState().isRunning).toBe(false),
+    );
+
+    expect(stream).toHaveBeenCalledOnce();
+    expect(getInputCall()?.result).toBeUndefined();
+  });
+
+  it("removes an in-flight HITL reply when its response run is cancelled", async () => {
+    const stream = vi.fn(async function* (
+      _messages: AdkMessage[],
+      { abortSignal }: Parameters<AdkStreamCallback>[1],
+    ) {
+      if (stream.mock.calls.length === 1) {
+        yield {
+          id: "hitl-request",
+          author: "agent",
+          longRunningToolIds: ["input-call"],
+          content: {
+            role: "model",
+            parts: [
+              {
+                functionCall: {
+                  id: "input-call",
+                  name: "adk_request_input",
+                  args: { prompt: "City?" },
+                },
+              },
+            ],
+          },
+          turnComplete: true,
+        } satisfies AdkEvent;
+        return;
+      }
+      await new Promise<void>((resolve) => {
+        abortSignal.addEventListener("abort", () => resolve(), {
+          once: true,
+        });
+      });
+    });
+    const capture = await renderAdkRuntime(stream);
+    act(() => {
+      capture.runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "What city?" }],
+      });
+    });
+    await waitFor(() =>
+      expect(capture.longRunningToolIds).toEqual(["input-call"]),
+    );
+    await waitFor(() =>
+      expect(capture.runtime!.thread.getState().isRunning).toBe(false),
+    );
+
+    let reply!: Promise<void>;
+    act(() => {
+      reply = capture.send!(
+        [
+          {
+            id: "input-reply",
+            type: "tool",
+            name: "adk_request_input",
+            tool_call_id: "input-call",
+            content: JSON.stringify({ result: "Paris" }),
+          },
+        ],
+        {},
+      );
+    });
+    await waitFor(() => expect(stream).toHaveBeenCalledTimes(2));
+    const getInputCall = () =>
+      capture
+        .runtime!.thread.getState()
+        .messages.flatMap((message) =>
+          Array.isArray(message.content) ? message.content : [],
+        )
+        .find(
+          (part) =>
+            part.type === "tool-call" && part.toolCallId === "input-call",
+        );
+    await waitFor(() =>
+      expect(getInputCall()).toMatchObject({ result: '{"result":"Paris"}' }),
+    );
+
+    act(() => {
+      capture.runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "staged follow-up" }],
+        startRun: false,
+      });
+    });
+    act(() => {
+      capture.runtime!.thread.cancelRun();
+    });
+    await act(async () => {
+      await reply;
+    });
+    await waitFor(() =>
+      expect(capture.runtime!.thread.getState().isRunning).toBe(false),
+    );
+
+    expect(stream).toHaveBeenCalledTimes(2);
+    expect(getInputCall()?.result).toBeUndefined();
+    expect(
+      JSON.stringify(capture.runtime!.thread.getState().messages),
+    ).toContain("staged follow-up");
+  });
+
+  it("keeps a client tool result behind a same-run HITL reply", async () => {
+    let releaseProducer!: () => void;
+    const producerGate = new Promise<void>((resolve) => {
+      releaseProducer = resolve;
+    });
+    let releaseReply!: () => void;
+    const replyGate = new Promise<void>((resolve) => {
+      releaseReply = resolve;
+    });
+    const stream = vi.fn(async function* (
+      _messages: AdkMessage[],
+      _config: Parameters<AdkStreamCallback>[1],
+    ) {
+      if (stream.mock.calls.length === 1) {
+        yield {
+          id: "hitl-request",
+          author: "agent",
+          longRunningToolIds: ["input-call", "client-call"],
+          content: {
+            role: "model",
+            parts: [
+              {
+                functionCall: {
+                  id: "input-call",
+                  name: "adk_request_input",
+                  args: { prompt: "City?" },
+                },
+              },
+              {
+                functionCall: {
+                  id: "client-call",
+                  name: "client_tool",
+                  args: {},
+                },
+              },
+            ],
+          },
+          turnComplete: true,
+        } satisfies AdkEvent;
+        await producerGate;
+        return;
+      }
+      if (stream.mock.calls.length === 2) await replyGate;
+      yield {
+        id: `response-${stream.mock.calls.length}`,
+        author: "agent",
+        content: { role: "model", parts: [{ text: "Done" }] },
+        turnComplete: true,
+      } satisfies AdkEvent;
+    });
+    const capture = await renderAdkRuntime(stream);
+    act(() => {
+      capture.runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "What city?" }],
+      });
+    });
+    await waitFor(() =>
+      expect(capture.longRunningToolIds).toEqual(["input-call", "client-call"]),
+    );
+    expect(capture.runtime!.thread.getState().isRunning).toBe(true);
+
+    let reply!: Promise<void>;
+    act(() => {
+      reply = capture.send!(
+        [
+          {
+            id: "input-reply",
+            type: "tool",
+            name: "adk_request_input",
+            tool_call_id: "input-call",
+            content: JSON.stringify({ result: "Paris" }),
+          },
+        ],
+        {},
+      );
+    });
+    let toolResult!: Promise<void>;
+    act(() => {
+      toolResult = capture.send!(
+        [
+          {
+            id: "client-result",
+            type: "tool",
+            name: "client_tool",
+            tool_call_id: "client-call",
+            content: JSON.stringify({ ok: true }),
+          },
+        ],
+        {},
+      );
+    });
+    expect(stream).toHaveBeenCalledOnce();
+
+    releaseProducer();
+    await waitFor(() => expect(stream).toHaveBeenCalledTimes(2));
+    releaseReply();
+    await act(async () => {
+      await Promise.all([reply, toolResult]);
+    });
+    await waitFor(() => expect(stream).toHaveBeenCalledTimes(3));
+
+    expect(stream).toHaveBeenCalledTimes(3);
+    expect(stream.mock.calls[2]![0]).toMatchObject([
+      { type: "tool", tool_call_id: "client-call" },
+    ]);
+  });
+
+  it("drops a queued HITL reply when a new user turn supersedes its run", async () => {
+    let secondRunMessages: AdkMessage[] | undefined;
+    const stream = vi.fn(async function* (
+      messages: AdkMessage[],
+      { abortSignal }: Parameters<AdkStreamCallback>[1],
+    ) {
+      if (stream.mock.calls.length === 1) {
+        yield {
+          id: "hitl-request",
+          author: "agent",
+          longRunningToolIds: ["input-call"],
+          content: {
+            role: "model",
+            parts: [
+              {
+                functionCall: {
+                  id: "input-call",
+                  name: "adk_request_input",
+                  args: { prompt: "City?" },
+                },
+              },
+            ],
+          },
+          turnComplete: true,
+        } satisfies AdkEvent;
+        await new Promise<void>((resolve) => {
+          abortSignal.addEventListener("abort", () => resolve(), {
+            once: true,
+          });
+        });
+        return;
+      }
+      secondRunMessages = messages;
+      yield {
+        id: "new-turn-response",
+        author: "agent",
+        content: { role: "model", parts: [{ text: "New turn" }] },
+        turnComplete: true,
+      } satisfies AdkEvent;
+    });
+    const capture = await renderAdkRuntime(stream);
+    act(() => {
+      capture.runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "What city?" }],
+      });
+    });
+    await waitFor(() => expect(stream).toHaveBeenCalledOnce());
+
+    let reply!: Promise<void>;
+    act(() => {
+      reply = capture.send!(
+        [
+          {
+            id: "input-reply",
+            type: "tool",
+            name: "adk_request_input",
+            tool_call_id: "input-call",
+            content: JSON.stringify({ result: "Paris" }),
+          },
+        ],
+        {},
+      );
+    });
+    act(() => {
+      capture.runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "Use another city" }],
+      });
+    });
+    await act(async () => {
+      await reply;
+    });
+    await waitFor(() => expect(stream).toHaveBeenCalledTimes(2));
+
+    expect(secondRunMessages?.some((message) => message.type === "tool")).toBe(
+      false,
+    );
   });
 
   it.each([false, true])(
