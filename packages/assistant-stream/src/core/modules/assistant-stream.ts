@@ -4,9 +4,9 @@ import {
   createMergeStream,
   type MergeStreamFinishOrder,
 } from "../utils/stream/merge";
-import { createTextStreamController, type TextStreamController } from "./text";
+import { TextStreamControllerImpl, type TextStreamController } from "./text";
 import {
-  createToolCallStreamController,
+  ToolCallStreamControllerImpl,
   type ToolCallStreamController,
 } from "./tool-call";
 import { Counter } from "../utils/Counter";
@@ -22,6 +22,7 @@ import type {
 } from "../../utils/json/json-value";
 import type { ToolResponseLike } from "../tool/ToolResponse";
 import { promiseWithResolvers } from "../../utils/promiseWithResolvers";
+import { createControllerStreamPair } from "../utils/stream/createControllerStream";
 
 type ToolCallPartInit = {
   toolCallId?: string;
@@ -113,6 +114,35 @@ type AssistantStreamOptions = {
   strict?: boolean | undefined;
 };
 
+const createCountedPartStream = <TController>(
+  makeController: (
+    controller: ReadableStreamDefaultController<AssistantStreamChunk>,
+  ) => TController,
+) => {
+  let written = 0;
+  const [stream, controller] = createControllerStreamPair<
+    AssistantStreamChunk,
+    TController
+  >((c) =>
+    makeController({
+      get desiredSize() {
+        return c.desiredSize;
+      },
+      enqueue(chunk) {
+        c.enqueue(chunk);
+        written++;
+      },
+      close() {
+        c.close();
+      },
+      error(reason) {
+        c.error(reason);
+      },
+    }),
+  );
+  return [stream, controller, () => written] as const;
+};
+
 // Shared state between controller instances
 type AssistantStreamControllerState = {
   strict: boolean;
@@ -179,7 +209,10 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       AssistantStreamChunk,
       AssistantStreamChunk
     >,
-    orderedFinish?: MergeStreamFinishOrder,
+    options?: {
+      orderedFinish?: MergeStreamFinishOrder | undefined;
+      written?: () => number;
+    },
   ) {
     if (stream.locked) {
       throw new TypeError(
@@ -193,11 +226,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
         await transformer.writable.abort(error).catch(() => undefined);
         throw error;
       });
-    this._state.merger.addStream(
-      transformer.readable,
-      pipeTask,
-      orderedFinish ? { orderedFinish } : undefined,
-    );
+    this._state.merger.addStream(transformer.readable, pipeTask, options);
     return pipeTask;
   }
 
@@ -211,6 +240,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
   private _addPart(
     part: PartInit,
     stream: AssistantStream,
+    written: () => number,
     end?: () => void,
     orderedFinish?: MergeStreamFinishOrder,
   ) {
@@ -227,7 +257,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     const pipeTask = this._addTransformedStream(
       stream,
       new PathAppendEncoder(this._state.contentCounter.value),
-      orderedFinish,
+      { orderedFinish, written },
     );
     if (end) this._trackOpenInput(pipeTask, end);
   }
@@ -275,22 +305,26 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
   }
 
   addTextPart() {
-    const [stream, controller] = createTextStreamController({
-      strict: this._state.strict,
-    });
-    this._addPart(this._withParentIdOption({ type: "text" }), stream, () =>
-      controller.__internal_close(),
+    const [stream, controller, written] = createCountedPartStream(
+      (c) => new TextStreamControllerImpl(c, { strict: this._state.strict }),
+    );
+    this._addPart(
+      this._withParentIdOption({ type: "text" }),
+      stream,
+      written,
+      () => controller.__internal_close(),
     );
     return controller;
   }
 
   addReasoningPart(options?: ReasoningPartInit) {
-    const [stream, controller] = createTextStreamController({
-      strict: this._state.strict,
-    });
+    const [stream, controller, written] = createCountedPartStream(
+      (c) => new TextStreamControllerImpl(c, { strict: this._state.strict }),
+    );
     this._addPart(
       this._withParentIdOption({ type: "reasoning", ...options }),
       stream,
+      written,
       () => controller.__internal_close(),
     );
     return controller;
@@ -305,13 +339,16 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
 
     const delivered = promiseWithResolvers<void>();
     let previous = Promise.resolve();
-    const [stream, controller] = createToolCallStreamController({
-      strict: this._state.strict,
-      onClose: () => {
-        previous = this._state.lastToolCallFinish;
-        this._state.lastToolCallFinish = delivered.promise;
-      },
-    });
+    const [stream, controller, written] = createCountedPartStream(
+      (c) =>
+        new ToolCallStreamControllerImpl(c, {
+          strict: this._state.strict,
+          onClose: () => {
+            previous = this._state.lastToolCallFinish;
+            this._state.lastToolCallFinish = delivered.promise;
+          },
+        }),
+    );
     this._addPart(
       {
         type: "tool-call",
@@ -320,6 +357,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
         ...(this._parentId && { parentId: this._parentId }),
       },
       stream,
+      written,
       () => controller.__internal_truncate(),
       { previous: () => previous, delivered },
     );
@@ -357,6 +395,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     this._addPart(
       this._withParentIdOption(options),
       this._finishedPartStream(),
+      () => 1,
     );
   }
 
@@ -364,6 +403,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     this._addPart(
       this._withParentIdOption(options),
       this._finishedPartStream(),
+      () => 1,
     );
   }
 
@@ -371,6 +411,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     this._addPart(
       this._withParentIdOption(options),
       this._finishedPartStream(),
+      () => 1,
     );
   }
 
