@@ -16,7 +16,7 @@ export type AdkStagedEntry = {
 
 type ToolMessage = Extract<AdkMessage, { type: "tool" }>;
 
-// Interrupts are answered through their own helpers, never as a held answer.
+// Interrupts are answered through their own helpers, so they never join a client call group.
 const INTERRUPT_TOOL_NAMES = new Set([
   ADK_REQUEST_CONFIRMATION,
   ADK_REQUEST_CREDENTIAL,

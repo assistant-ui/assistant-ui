@@ -125,7 +125,7 @@ const mediaToContentPart = ({
 
 // ── Snake_case normalization ──
 
-const normalizeEvent = (event: AdkEvent): AdkEvent => {
+export const normalizeAdkEvent = (event: AdkEvent): AdkEvent => {
   const e = event as Record<string, unknown>;
   const result: Record<string, unknown> = { ...e };
   if ("error_code" in e && !("errorCode" in e)) result.errorCode = e.error_code;
@@ -216,7 +216,7 @@ export class AdkEventAccumulator {
   }
 
   processEvent(rawEvent: AdkEvent): AdkMessage[] {
-    const event = normalizeEvent(rawEvent);
+    const event = normalizeAdkEvent(rawEvent);
 
     // Accumulate state delta
     if (event.actions?.stateDelta) {

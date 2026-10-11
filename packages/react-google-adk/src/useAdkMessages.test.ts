@@ -252,7 +252,7 @@ describe("ADK stream lifecycle", () => {
     expect(runConfigByToolCallId.get("tool-2")).toBe(runConfig);
   });
 
-  it("marks a run failed only when one of its events carries an error", async () => {
+  it("marks a run failed only when one of its events carries an error or an error finish reason", async () => {
     let call = 0;
     const stream: AdkStreamCallback = async function* () {
       call++;
@@ -263,6 +263,14 @@ describe("ADK stream lifecycle", () => {
           errorCode: "MODEL_ERROR",
           errorMessage: "boom",
         };
+        return;
+      }
+      if (call === 4) {
+        yield {
+          id: "event-snake",
+          author: "agent",
+          finish_reason: "UNEXPECTED_TOOL_CALL",
+        } as AdkEvent;
         return;
       }
       if (call === 3) {
@@ -307,8 +315,9 @@ describe("ADK stream lifecycle", () => {
     await run("1", "go");
     await run("2", "retry");
     await run("3", "again");
+    await run("4", "once more");
 
-    expect([...controller.getState().failedRunIds]).toEqual(["1", "3"]);
+    expect([...controller.getState().failedRunIds]).toEqual(["1", "3", "4"]);
   });
 
   it("settles a superseded send while its stream is still opening", async () => {

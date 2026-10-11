@@ -397,6 +397,7 @@ describe("reduceAdkThreadState", () => {
         ["c2", "1"],
       ]),
       toolResultBuffer: new Map([["c1", answer("c1")]]),
+      failedRunIds: new Set(["1"]),
     };
     const failed = reduceAdkThreadState(initial, {
       type: "results.flush",

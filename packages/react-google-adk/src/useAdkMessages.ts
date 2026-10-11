@@ -17,6 +17,7 @@ import {
 import {
   AdkEventAccumulator,
   isErrorFinishReason,
+  normalizeAdkEvent,
 } from "./AdkEventAccumulator";
 import { AdkThreadController } from "./AdkThreadController";
 import { contentToParts } from "./contentToParts";
@@ -167,7 +168,7 @@ const useAdkMessagesInternal = ({
         );
         if (!response) return;
 
-        for await (const event of abortableIterable(
+        for await (const rawEvent of abortableIterable(
           response,
           abortController.signal,
         )) {
@@ -177,6 +178,7 @@ const useAdkMessagesInternal = ({
           ) {
             break;
           }
+          const event = normalizeAdkEvent(rawEvent);
           const updatedMessages = accumulator.processEvent(event);
           // Each event part can append at most one message, and a function call
           // stays on the current assistant message until a later part finalizes
