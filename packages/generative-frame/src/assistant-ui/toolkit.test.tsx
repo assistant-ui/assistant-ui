@@ -1,10 +1,8 @@
 import { act, cleanup, render, renderHook } from "@testing-library/react";
 import type { ComponentType } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  createSpecToolkit,
-  resolveSpecBase,
-} from "../spec/assistant-ui/toolkit";
+import { createSpecToolkit } from "../spec/assistant-ui";
+import { resolveSpecBase } from "../spec/assistant-ui/toolkit";
 import { defineCatalog } from "../spec/catalog";
 import type { SpecComponentProps } from "../spec/react/SpecRenderer";
 import { resolveWidgetCode, resolveWidgetOrigin } from "./history";

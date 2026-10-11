@@ -63,6 +63,28 @@ describe("bundle boundaries", { timeout: 60_000 }, () => {
     ).toEqual([]);
   });
 
+  it("resolves the React Native spec entries without web or frame code", async () => {
+    const bundle: Bundle = await bundleFixture("spec-native.ts", {
+      condition: "react-native",
+    });
+    report("spec react-native", bundle);
+    expect(bundle.modules).toContain(`${PKG}spec/react/native.tsx`);
+    expect(bundle.modules).toContain(`${PKG}spec/assistant-ui/native.tsx`);
+    expect(
+      offending(bundle, [
+        new RegExp(`^${PKG}spec/assistant-ui/web\\.tsx$`),
+        ...FRAME,
+      ]),
+    ).toEqual([]);
+    expect(
+      bundle.imports.filter((id) =>
+        /^(?:react-dom|@assistant-ui\/react)(?:\/|$)/.test(id),
+      ),
+    ).toEqual([]);
+    expect(bundle.imports).toContain("@assistant-ui/react-native");
+    expect(bundle.imports).toContain("react-native");
+  });
+
   it("keeps the halves apart in the assistant-ui entries", async () => {
     const frame: Bundle = await bundleFixture("frame-assistant-ui.ts");
     const spec: Bundle = await bundleFixture("spec-assistant-ui.ts");

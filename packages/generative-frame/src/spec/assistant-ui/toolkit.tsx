@@ -1,26 +1,20 @@
 import {
-  useAuiState,
-  useToolArgsStatus,
-  type ToolCallMessagePartProps,
-} from "@assistant-ui/react";
-import {
   useInsertionEffect,
   useMemo,
   useState,
   type ComponentType,
+  type ReactNode,
 } from "react";
-import {
-  toolkitEntry,
-  type WidgetToolkitExtension,
-} from "../../assistant-ui/extension";
+import { toolkitEntry } from "../../assistant-ui/entry";
+import type { WidgetToolkitExtension } from "../../assistant-ui/extension";
 import { toolCalls, type MessageLike } from "../../assistant-ui/tool-calls";
 import type { ActionHandler } from "../actions";
 import type { Catalog } from "../catalog";
 import type { SpecPromptOptions } from "../prompt";
-import {
-  SpecRenderer,
-  type SpecComponents,
-  type SpecPlaceholderProps,
+import type {
+  SpecComponents,
+  SpecPlaceholderProps,
+  SpecRendererProps,
 } from "../react/SpecRenderer";
 import { useSpecStream } from "../react/useSpecStream";
 import {
@@ -125,121 +119,129 @@ type SpecHistory = (title: string) => {
   version: number;
 };
 
-/**
- * Spec mode for `createWidgetToolkit({ spec })`: adds `render_spec`, which
- * streams patches into a `<SpecRenderer>` with your components, and the
- * `spec` module of `read_me`.
- */
-export function createSpecToolkit(
-  catalog: Catalog,
-  options: SpecToolkitOptions,
-): WidgetToolkitExtension {
-  const specs = new Map<string, { spec: Spec; version: number }>();
-  const tools = createSpecTools(catalog, { specs });
-  // Each mounted call registers what its own thread held before it, so `execute` patches that base even after a reload or in another thread.
-  const histories = new Map<string, SpecHistory>();
+/** What `createSpecToolkit` takes from the platform it runs on. */
+export type SpecToolkitPlatform = {
+  /** The thread's messages, read with the host's `useAuiState`. */
+  useMessages(): readonly MessageLike[];
+  /** Whether the tool call's arguments have fully arrived, read with the host's `useToolArgsStatus`. */
+  useArgsComplete(): boolean;
+  SpecRenderer: ComponentType<SpecRendererProps>;
+  /** Wraps each call's rendered spec. */
+  Frame: ComponentType<{ title: string; children: ReactNode }>;
+};
 
-  const execute = (input: RenderSpecInput, call: { toolCallId: string }) => {
-    const history = histories.get(call.toolCallId);
-    if (history) {
-      const { spec, version } = history(input.title);
-      if (spec) specs.set(input.title, { spec, version });
-      else specs.delete(input.title);
-    }
-    return tools.render_spec.execute(input);
-  };
+type RenderSpecProps = { args: SpecArgs; toolCallId: string };
 
-  const renderSpecUI = (mountsToolResults: boolean) =>
-    function RenderSpecUI({
-      args,
-      toolCallId,
-    }: ToolCallMessagePartProps<SpecArgs>) {
-      const { argsStatus } = useToolArgsStatus<RenderSpecInput>();
-      const streaming = argsStatus !== "complete";
-      const messages = useAuiState((s) => s.thread.messages);
-      const title = typeof args.title === "string" ? args.title : "";
-      // The base and the tool results only depend on earlier calls, so they are read once per call.
-      const [base] = useState(() =>
-        resolveSpecBase(messages, toolCallId, title),
-      );
-      const [toolResults] = useState(() =>
-        mountsToolResults
-          ? resolveToolResults(messages, toolCallId)
-          : undefined,
-      );
-      const [history] = useState<SpecHistory>(() => (callTitle: string) => ({
-        spec: resolveSpecBase(messages, toolCallId, callTitle),
-        version: priorSpecCalls(messages, toolCallId, callTitle),
-      }));
-      useInsertionEffect(() => {
-        histories.set(toolCallId, history);
-        return () => {
-          if (histories.get(toolCallId) === history)
-            histories.delete(toolCallId);
-        };
-      }, [toolCallId, history]);
-      const streamed = useSpecStream({
-        source: typeof args.patches === "string" ? args.patches : "",
-        complete: !streaming,
-        ...(base ? { initial: base } : {}),
-      });
-      const inputSpec = args.spec;
-      const spec = useMemo(
-        () =>
-          inputSpec &&
-          typeof inputSpec === "object" &&
-          typeof inputSpec.root === "string"
-            ? ({ state: {}, ...inputSpec } as Spec)
-            : streamed.spec,
-        [inputSpec, streamed.spec],
-      );
-      const renderState = useMemo(
-        () =>
-          toolResults && spec.state?.["tools"] === undefined
-            ? { ...spec.state, tools: toolResults }
-            : undefined,
-        [spec.state, toolResults],
-      );
-      const renderSpec = useMemo(
-        () => (renderState ? { ...spec, state: renderState } : spec),
-        [spec, renderState],
-      );
+export const specToolkitFor =
+  ({
+    useMessages,
+    useArgsComplete,
+    SpecRenderer,
+    Frame,
+  }: SpecToolkitPlatform) =>
+  (catalog: Catalog, options: SpecToolkitOptions): WidgetToolkitExtension => {
+    const specs = new Map<string, { spec: Spec; version: number }>();
+    const tools = createSpecTools(catalog, { specs });
+    // Each mounted call registers what its own thread held before it, so `execute` patches that base even after a reload or in another thread.
+    const histories = new Map<string, SpecHistory>();
 
-      return (
-        <div data-gf-spec={title || undefined}>
-          <SpecRenderer
-            spec={renderSpec}
-            catalog={catalog}
-            components={options.components}
-            streaming={streaming}
-            {...(options.handlers ? { handlers: options.handlers } : {})}
-            {...(options.onAction ? { onAction: options.onAction } : {})}
-            {...(options.placeholder
-              ? { placeholder: options.placeholder }
-              : {})}
-          />
-        </div>
-      );
+    const execute = (input: RenderSpecInput, call: { toolCallId: string }) => {
+      const history = histories.get(call.toolCallId);
+      if (history) {
+        const { spec, version } = history(input.title);
+        if (spec) specs.set(input.title, { spec, version });
+        else specs.delete(input.title);
+      }
+      return tools.render_spec.execute(input);
     };
 
-  return {
-    tools,
-    modules: [
-      specGuidanceModule(catalog, {
-        ...options.specPrompt,
-        customRules: [
-          ...(options.specPrompt?.customRules ?? []),
-          'Results of earlier tool calls are in state under `/tools/<toolName>/<n>`, newest first: `0` is the latest call to that tool before this `render_spec` call, `1` the one before it, and so on. Show their values with `{ "$state": "/tools/<toolName>/<n>/..." }` rather than copying them, and never write `tools` in `state`. Indexes count back from each `render_spec` call, so when a patch follows another call to the same tool, update any binding that should keep showing the older result.',
-        ],
+    const renderSpecUI = (mountsToolResults: boolean) =>
+      function RenderSpecUI({ args, toolCallId }: RenderSpecProps) {
+        const streaming = !useArgsComplete();
+        const messages = useMessages();
+        const title = typeof args.title === "string" ? args.title : "";
+        // The base and the tool results only depend on earlier calls, so they are read once per call.
+        const [base] = useState(() =>
+          resolveSpecBase(messages, toolCallId, title),
+        );
+        const [toolResults] = useState(() =>
+          mountsToolResults
+            ? resolveToolResults(messages, toolCallId)
+            : undefined,
+        );
+        const [history] = useState<SpecHistory>(() => (callTitle: string) => ({
+          spec: resolveSpecBase(messages, toolCallId, callTitle),
+          version: priorSpecCalls(messages, toolCallId, callTitle),
+        }));
+        useInsertionEffect(() => {
+          histories.set(toolCallId, history);
+          return () => {
+            if (histories.get(toolCallId) === history)
+              histories.delete(toolCallId);
+          };
+        }, [toolCallId, history]);
+        const streamed = useSpecStream({
+          source: typeof args.patches === "string" ? args.patches : "",
+          complete: !streaming,
+          ...(base ? { initial: base } : {}),
+        });
+        const inputSpec = args.spec;
+        const spec = useMemo(
+          () =>
+            inputSpec &&
+            typeof inputSpec === "object" &&
+            typeof inputSpec.root === "string"
+              ? ({ state: {}, ...inputSpec } as Spec)
+              : streamed.spec,
+          [inputSpec, streamed.spec],
+        );
+        const renderState = useMemo(
+          () =>
+            toolResults && spec.state?.["tools"] === undefined
+              ? { ...spec.state, tools: toolResults }
+              : undefined,
+          [spec.state, toolResults],
+        );
+        const renderSpec = useMemo(
+          () => (renderState ? { ...spec, state: renderState } : spec),
+          [spec, renderState],
+        );
+
+        return (
+          <Frame title={title}>
+            <SpecRenderer
+              spec={renderSpec}
+              catalog={catalog}
+              components={options.components}
+              streaming={streaming}
+              {...(options.handlers ? { handlers: options.handlers } : {})}
+              {...(options.onAction ? { onAction: options.onAction } : {})}
+              {...(options.placeholder
+                ? { placeholder: options.placeholder }
+                : {})}
+            />
+          </Frame>
+        );
+      };
+
+    return {
+      tools,
+      modules: [
+        specGuidanceModule(catalog, {
+          ...options.specPrompt,
+          customRules: [
+            ...(options.specPrompt?.customRules ?? []),
+            'Results of earlier tool calls are in state under `/tools/<toolName>/<n>`, newest first: `0` is the latest call to that tool before this `render_spec` call, `1` the one before it, and so on. Show their values with `{ "$state": "/tools/<toolName>/<n>/..." }` rather than copying them, and never write `tools` in `state`. Indexes count back from each `render_spec` call, so when a patch follows another call to the same tool, update any binding that should keep showing the older result.',
+          ],
+        }),
+      ],
+      entries: (context) => ({
+        render_spec: toolkitEntry(
+          tools.render_spec,
+          renderSpecUI(context.execution === "frontend") as never,
+          context,
+          execute,
+        ),
       }),
-    ],
-    entries: (context) => ({
-      render_spec: toolkitEntry(
-        tools.render_spec,
-        renderSpecUI(context.execution === "frontend") as never,
-        context,
-        execute,
-      ),
-    }),
+    };
   };
-}
