@@ -10,6 +10,17 @@ const component = (properties: z.ZodType) => ({
   render: () => null,
 });
 
+describe("spec declarations", () => {
+  it("does not change present parameters when events and slots are declared", () => {
+    const entry = component(z.object({ value: z.number() }));
+    expect(
+      buildPresentParameters({
+        Rating: { ...entry, events: ["rate"], slots: ["default", "footer"] },
+      }),
+    ).toEqual(buildPresentParameters({ Rating: entry }));
+  });
+});
+
 function resolve(root: JSONSchema7, value: JSONSchema7Definition) {
   let schema = value as JSONSchema7;
   if (schema.$ref === "#") return root;

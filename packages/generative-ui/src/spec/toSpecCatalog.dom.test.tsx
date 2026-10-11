@@ -9,6 +9,7 @@ import { SpecRenderer } from "generative-frame/spec/react";
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 import { defaultGenerativeUILibrary } from "../vocabulary";
 import { toSpecCatalog } from "./toSpecCatalog";
 
@@ -39,6 +40,7 @@ async function render(
   spec: Spec,
   handlers: Record<string, Handler> = {},
   state?: SpecStateStore,
+  setup: ReturnType<typeof toSpecCatalog> = { catalog, components },
 ) {
   const container = document.createElement("div");
   document.body.append(container);
@@ -46,8 +48,8 @@ async function render(
   await act(async () => {
     root!.render(
       <SpecRenderer
-        catalog={catalog}
-        components={components}
+        catalog={setup.catalog}
+        components={setup.components}
         spec={spec}
         handlers={handlers}
         {...(state ? { state } : {})}
@@ -75,6 +77,147 @@ const dispatch = (target: Element, type: string) =>
   });
 
 describe("toSpecCatalog components", () => {
+  it("dispatches a custom event with its input payload", async () => {
+    const rate = vi.fn();
+    const custom = toSpecCatalog(
+      {
+        Rating: {
+          description: "A rating.",
+          properties: z.object({}),
+          events: ["rate"],
+          render: ({ $action, $dispatch }) => (
+            <button
+              type="button"
+              onClick={() => $dispatch?.({ type: "rate", $input: 4 })}
+            >
+              {$action?.type}
+            </button>
+          ),
+        },
+      },
+      { actions: { record: { description: "Records the rating." } } },
+    );
+    const container = await render(
+      {
+        root: "rating",
+        elements: {
+          rating: {
+            type: "Rating",
+            on: {
+              rate: { action: "record", params: { value: { $event: "" } } },
+            },
+          },
+        },
+      },
+      { record: rate },
+      undefined,
+      custom,
+    );
+
+    expect(query(container, "button").textContent).toBe("rate");
+    await act(async () => query<HTMLElement>(container, "button").click());
+    expect(rate).toHaveBeenCalledWith({ value: 4 }, expect.anything());
+  });
+
+  it("passes a rendered named slot to a custom component", async () => {
+    const custom = toSpecCatalog({
+      Panel: {
+        description: "A panel.",
+        properties: z.object({}),
+        slots: ["default", "footer"],
+        render: ({ children, $slots }) => (
+          <section>
+            {children}
+            <footer>{$slots?.footer}</footer>
+          </section>
+        ),
+      },
+      Label: {
+        description: "A label.",
+        properties: z.object({ text: z.string() }),
+        render: ({ text }) => <span>{text}</span>,
+      },
+    });
+    const container = await render(
+      {
+        root: "panel",
+        elements: {
+          panel: {
+            type: "Panel",
+            children: ["body"],
+            slots: { footer: ["foot"] },
+          },
+          body: { type: "Label", props: { text: "Body" } },
+          foot: { type: "Label", props: { text: "Footer" } },
+        },
+      },
+      {},
+      undefined,
+      custom,
+    );
+
+    expect(query(container, "section").textContent).toBe("BodyFooter");
+    expect(query(container, "footer").textContent).toBe("Footer");
+  });
+
+  it("writes a custom bound prop to state and re-renders on the same node", async () => {
+    const custom = toSpecCatalog({
+      Counter: {
+        description: "A counter.",
+        properties: z.object({ value: z.number() }),
+        render: ({ value, $bindings }) => (
+          <button type="button" onClick={() => $bindings?.value?.(value + 1)}>
+            {value}
+          </button>
+        ),
+      },
+    });
+    const state = createStateStore({ count: 3 });
+    const container = await render(
+      {
+        root: "counter",
+        elements: {
+          counter: {
+            type: "Counter",
+            props: { value: { $bindState: "/count" } },
+          },
+        },
+      },
+      {},
+      state,
+      custom,
+    );
+
+    const button = query<HTMLElement>(container, "button");
+    expect(button.textContent).toBe("3");
+    await act(async () => button.click());
+    expect(state.get("/count")).toBe(4);
+    expect(query(container, "button")).toBe(button);
+    expect(button.textContent).toBe("4");
+  });
+
+  it("omits bindings for a custom component with literal props", async () => {
+    const custom = toSpecCatalog({
+      Counter: {
+        description: "A counter.",
+        properties: z.object({ value: z.number() }),
+        render: ({ $bindings }) => (
+          <output>{String($bindings === undefined)}</output>
+        ),
+      },
+    });
+    const container = await render(
+      {
+        root: "counter",
+        elements: { counter: { type: "Counter", props: { value: 3 } } },
+      },
+      {},
+      undefined,
+      custom,
+    );
+    expect(query(container, "output").textContent).toBe("true");
+  });
+
   it("runs the actions a Button binds to `press`", async () => {
     const container = await render({
       root: "col",
