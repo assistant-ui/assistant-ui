@@ -112,7 +112,7 @@ Many language models emit math in delimiters that remark-math does not recognize
 - `\(...\)` for inline math and `\[...\]` for display math
 - custom tags like `[/math]...[/math]` and `[/inline]...[/inline]`
 
-`@assistant-ui/react-markdown` exports `normalizeMathDelimiters`, which rewrites these to the `$...$` and `$$...$$` form remark-math parses. It also indents a `$$` block that a model opens on a list item's marker line but writes at the root column, so the formula stays inside its item. Pass it to the `preprocess` prop of `MarkdownTextPrimitive`:
+`@assistant-ui/react-markdown` exports `normalizeMathDelimiters`, which rewrites these to the `$...$` and `$$...$$` form remark-math parses. It also indents a `$$` block that a model opens on an unquoted list item's marker line but writes at the root column, so the formula stays inside its item. Pass it to the `preprocess` prop of `MarkdownTextPrimitive`:
 
 ```tsx title="/components/assistant-ui/elements/markdown-text.tsx"
 import {
