@@ -82,6 +82,17 @@ const validSpec = (): Spec => ({
 });
 
 describe("defineCatalog", () => {
+  it("rejects a host action named setState", () => {
+    expect(() =>
+      defineCatalog({
+        components: {},
+        actions: { setState: { description: "Host action." } },
+      }),
+    ).toThrow(
+      'The action name "setState" is reserved for the built-in action.',
+    );
+  });
+
   it("validates props and treats expressions as placeholders", () => {
     expect(
       catalog.validateProps("Metric", { label: "x", value: { $state: "/n" } }),

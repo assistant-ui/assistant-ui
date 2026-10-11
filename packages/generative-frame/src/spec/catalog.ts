@@ -102,6 +102,11 @@ export function defineCatalog<
 ): Catalog<TComponents, TActions> {
   const components = definition.components;
   const actions = (definition.actions ?? {}) as TActions;
+  if (Object.hasOwn(actions, "setState")) {
+    throw new Error(
+      'The action name "setState" is reserved for the built-in action.',
+    );
+  }
   const schemaCache = new Map<string, JsonSchema | undefined>();
 
   const component = (type: string) =>
