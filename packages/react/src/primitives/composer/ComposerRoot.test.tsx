@@ -77,6 +77,16 @@ describe("ComposerPrimitiveRoot click-to-focus", () => {
     };
   };
 
+  it("forwards the inert attribute and removes it when disabled", () => {
+    const { container, rerender } = render(<ComposerPrimitiveRoot inert />);
+    const form = container.querySelector("form");
+
+    expect(form?.hasAttribute("inert")).toBe(true);
+
+    rerender(<ComposerPrimitiveRoot inert={false} />);
+    expect(form?.hasAttribute("inert")).toBe(false);
+  });
+
   it("focuses the textarea when primary-button mousedown starts on blank form space", () => {
     const { blankSpace, textarea } = setupComposer();
 
