@@ -22,7 +22,7 @@ import {
   type ToolCallMessagePartProps,
   type ToolCallMessagePartStatus,
 } from "@assistant-ui/react-native";
-import { type FC, useState } from "react";
+import { type FC, memo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { TaskCard as TaskCardBase } from "./task-card";
 import {
@@ -79,12 +79,16 @@ const NestedMessage: FC = () => {
 // plain view instead of nesting a second virtualized list. The messages come from
 // the readonly thread rather than the prop, because the provider syncs a new
 // prop into its core after the render that carries it.
+const NestedMessageAt = memo(({ index }: { index: number }) => (
+  <MessageByIndexProvider index={index}>
+    <NestedMessage />
+  </MessageByIndexProvider>
+));
+
 const NestedMessages: FC = () => {
   const messages = useAuiState((s) => s.thread.messages);
   return messages.map((message, index) => (
-    <MessageByIndexProvider key={message.id} index={index}>
-      <NestedMessage />
-    </MessageByIndexProvider>
+    <NestedMessageAt key={message.id} index={index} />
   ));
 };
 

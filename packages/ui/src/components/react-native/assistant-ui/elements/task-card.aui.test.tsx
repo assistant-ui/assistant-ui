@@ -285,6 +285,8 @@ describe("TaskGroup", () => {
       click(nestedHeader);
     });
     const expanded = container.textContent ?? "";
+    expect(expanded).toContain("Found it");
+    expect(expanded).toContain("Docs agree");
     expect(expanded.indexOf("Found it")).toBeLessThan(
       expanded.indexOf("Docs agree"),
     );
