@@ -268,8 +268,8 @@ jobs:
       - name: Check public surface removals
         if: github.event_name == 'pull_request' && steps.package_build_inputs.outputs.run == 'true'
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ steps.package_build_inputs.outputs.base }}
+          HEAD_SHA: ${{ github.sha }}
         run: pnpm run public-surface-removals:check
 
       - name: Test standalone shim and public surface checks

@@ -130,3 +130,64 @@ test("compares Git snapshots and accepts only an added marked changeset for the 
   assert.deepEqual(runCheck(dir, before, acknowledged), []);
   assert.equal(execute(acknowledged).status, 0);
 });
+
+test("reports the shipped surface when a public package is deleted", (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "aui-surface-check-deleted-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const git = (...args) =>
+    execFileSync("git", args, { cwd: dir, encoding: "utf8" }).trim();
+  const put = (file, text) => {
+    const target = path.join(dir, file);
+    mkdirSync(path.dirname(target), { recursive: true });
+    writeFileSync(target, text);
+  };
+  git("init", "-q");
+  put(
+    "packages/core/package.json",
+    JSON.stringify({ name: "@assistant-ui/core", version: "1.0.0" }),
+  );
+  put("api-surface/assistant-ui__core.ts", base);
+  git("add", "-A");
+  const before = git("write-tree");
+  rmSync(path.join(dir, "packages/core/package.json"));
+  git("add", "-A");
+
+  assert.deepEqual(runCheck(dir, before, git("write-tree")), [
+    { package: "@assistant-ui/core", entry: "entry_root", name: "useBar" },
+    { package: "@assistant-ui/core", entry: "entry_root", name: "useFoo" },
+  ]);
+});
+
+test("reports the shipped surface when a public package becomes private", (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "aui-surface-check-private-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const git = (...args) =>
+    execFileSync("git", args, { cwd: dir, encoding: "utf8" }).trim();
+  const put = (file, text) => {
+    const target = path.join(dir, file);
+    mkdirSync(path.dirname(target), { recursive: true });
+    writeFileSync(target, text);
+  };
+  git("init", "-q");
+  put(
+    "packages/core/package.json",
+    JSON.stringify({ name: "@assistant-ui/core", version: "1.0.0" }),
+  );
+  put("api-surface/assistant-ui__core.ts", base);
+  git("add", "-A");
+  const before = git("write-tree");
+  put(
+    "packages/core/package.json",
+    JSON.stringify({
+      name: "@assistant-ui/core",
+      version: "1.0.0",
+      private: true,
+    }),
+  );
+  git("add", "-A");
+
+  assert.deepEqual(runCheck(dir, before, git("write-tree")), [
+    { package: "@assistant-ui/core", entry: "entry_root", name: "useBar" },
+    { package: "@assistant-ui/core", entry: "entry_root", name: "useFoo" },
+  ]);
+});

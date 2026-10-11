@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { diffApiSurface } from "./diff-api-surface.mjs";
 import { parseBumpLine, readChangesetSource } from "./lib/changesets.mjs";
+import { hasIntendedCaretBreakMarker } from "./lib/changeset-markers.mjs";
 import { isExecutedAsMain } from "./lib/main.mjs";
 import { apiSurfaceFileName } from "./lib/workspace.mjs";
 
@@ -11,9 +12,6 @@ const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
 );
-const INTENDED_MARKER =
-  /^\s*(?:<!--\s*)?caret-break:\s*intended\s*(?:-->)?\s*$/m;
-
 function git(root, args) {
   return execFileSync("git", args, {
     cwd: root,
@@ -37,7 +35,7 @@ function atRevision(root, revision, file) {
 
 export function intendedChangesetPackages(source) {
   const changeset = readChangesetSource(source);
-  if (!changeset || !INTENDED_MARKER.test(changeset.body)) return [];
+  if (!changeset || !hasIntendedCaretBreakMarker(changeset.body)) return [];
   return changeset.frontmatter.split("\n").flatMap((line) => {
     const release = parseBumpLine(line);
     return release ? [release.name] : [];
@@ -79,26 +77,29 @@ export function runCheck(
       intendedChangesetPackages(atRevision(root, headSha, file) ?? ""),
     ),
   );
-  const manifests = git(root, [
-    "ls-tree",
-    "-r",
-    "--name-only",
-    headSha,
-    "--",
-    "packages",
-  ])
-    .trim()
-    .split("\n")
-    .filter((file) => /^packages\/[^/]+\/package\.json$/.test(file));
+  const readManifests = (revision) =>
+    git(root, ["ls-tree", "-r", "--name-only", revision, "--", "packages"])
+      .trim()
+      .split("\n")
+      .filter((file) => /^packages\/[^/]+\/package\.json$/.test(file))
+      .map((file) => JSON.parse(atRevision(root, revision, file)));
+  const basePackages = readManifests(baseSha).filter(
+    (pkg) => !pkg.private && pkg.name,
+  );
+  const headPackageNames = new Set(
+    readManifests(headSha)
+      .filter((pkg) => !pkg.private && pkg.name)
+      .map((pkg) => pkg.name),
+  );
   const failures = [];
-  for (const manifest of manifests) {
-    const pkg = JSON.parse(atRevision(root, headSha, manifest));
-    if (pkg.private || !pkg.name) continue;
+  for (const pkg of basePackages) {
     const snapshot = `api-surface/${apiSurfaceFileName(pkg.name)}`;
     const before = atRevision(root, baseSha, snapshot);
-    const after = atRevision(root, headSha, snapshot);
     if (before === null) continue;
     if (allowed.has(pkg.name)) continue;
+    const after = headPackageNames.has(pkg.name)
+      ? atRevision(root, headSha, snapshot)
+      : null;
     for (const { entry, name } of removedSurfaceNames(before, after)) {
       failures.push({ package: pkg.name, entry, name });
     }
