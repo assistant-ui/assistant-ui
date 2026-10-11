@@ -7,7 +7,7 @@ import {
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
 import { useEffect, useMemo, useState, type ComponentType } from "react";
-import { previewWidget } from "../preview";
+import { previewWidget, type PreviewOptions } from "../preview";
 import type { ConsoleEntry, WidgetError } from "../protocol";
 import { buildRepairFeedback } from "../repair/repair";
 import { useThemeTokens } from "../react/useThemeTokens";
@@ -196,6 +196,19 @@ const visuallyHidden = {
   whiteSpace: "nowrap",
 } as const;
 
+const previewFrameOptions = (
+  widget: WidgetToolkitOptions["widget"],
+): PreviewOptions => ({
+  ...(widget?.product !== undefined ? { product: widget.product } : {}),
+  ...(widget?.frame !== undefined ? { frame: widget.frame } : {}),
+  ...(widget?.unsafeShimDomain !== undefined
+    ? { unsafeShimDomain: widget.unsafeShimDomain }
+    : {}),
+  ...(widget?.opaqueOrigin !== undefined
+    ? { opaqueOrigin: widget.opaqueOrigin }
+    : {}),
+});
+
 /**
  * Renders `show_widget`, `edit_widget`, and `render_spec` tool calls in an
  * assistant-ui thread: widget code streams into a frame from the partial
@@ -209,7 +222,13 @@ export function createWidgetToolkit(
   const registry = options.registry ?? createWidgetRegistry();
   const tools: WidgetTools & Record<string, AnyTool> = createWidgetTools({
     ...options,
-    preview: options.preview ?? previewWidget,
+    preview:
+      options.preview ??
+      ((code, previewOptions) =>
+        previewWidget(code, {
+          ...previewFrameOptions(options.widget),
+          ...previewOptions,
+        })),
     registry,
     modules: [...(options.modules ?? []), ...(options.spec?.modules ?? [])],
     extraTools: { ...options.extraTools, ...options.spec?.tools },
@@ -259,7 +278,7 @@ export function createWidgetToolkit(
   }) {
     const widgetProps = useWidgetProps();
     const { ref, widget } = useWidget(
-      storageId !== undefined && !widgetProps.frame
+      storageId !== undefined && !widgetProps.frame && !widgetProps.opaqueOrigin
         ? { ...widgetProps, id: storageId }
         : widgetProps,
     );

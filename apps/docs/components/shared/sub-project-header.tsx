@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 import {
   Activity,
+  Columns3,
   AppWindow,
   Box,
   ChevronDown,
@@ -55,18 +56,8 @@ interface SubProjectHeaderProps {
 }
 
 function projectLabel(project: (typeof SUB_PROJECTS)[number]) {
-  const packageStyled = /^[a-z0-9-]+$/.test(project.label);
-  if (!packageStyled) return project.label;
-  return (
-    <span
-      className={cn(
-        "font-mono text-[13px]",
-        project.slug === "tw-shimmer" && "shimmer",
-      )}
-    >
-      {project.label}
-    </span>
-  );
+  if (project.slug !== "tw-shimmer") return project.label;
+  return <span className="shimmer">{project.label}</span>;
 }
 
 export function SubProjectHeader({
@@ -199,6 +190,7 @@ const PROJECT_ICONS: Record<string, LucideIcon> = {
   "tw-shimmer": Sparkles,
   "heat-graph": Grid3x3,
   "react-o11y": Activity,
+  variants: Columns3,
   native: Smartphone,
   ink: Terminal,
   playground: FlaskConical,

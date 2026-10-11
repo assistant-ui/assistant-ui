@@ -121,6 +121,7 @@
   },
   "devDependencies": {
     "@assistant-ui/shadcn-registry": "workspace:*",
+    "@assistant-ui/variants": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@fumadocs/tailwind": "^0.1.2",
     "@next/env": "^16.4.0",

@@ -27,6 +27,8 @@ const result = await previewWidget(code, { width: 680, appearance: "dark" });
     { name: "csp", type: "CspOptions | string", description: "The frame's Content Security Policy, as in `createWidget`." },
     { name: "product", type: "string", description: "Scopes the frame origin, as in `createWidget`." },
     { name: "frame", type: "SafeContentFrame", description: "A preconfigured Safe Content Frame." },
+    { name: "unsafeShimDomain", type: "string", description: "A self-hosted shim domain, as in `createWidget`." },
+    { name: "opaqueOrigin", type: "boolean", description: "Render in a `null`-origin frame, as in `createWidget`." },
     { name: "css", type: "string", description: "Extra CSS for the frame." },
     { name: "readyTimeoutMs", type: "number", default: "15000", description: "How long to wait for the frame to connect." },
   ]}

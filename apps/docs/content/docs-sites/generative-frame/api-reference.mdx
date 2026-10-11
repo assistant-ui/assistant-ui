@@ -23,7 +23,9 @@ const widget: WidgetHandle = createWidget(options);
     { name: "minHeight", type: "number", default: "0", description: "The smallest height of the iframe." },
     { name: "code", type: "string", description: "Complete code to render immediately, as `write(code)` then `end()`." },
     { name: "product", type: "string", default: "\"generative-frame\"", description: "Scopes the frame origin, see `SafeContentFrame`." },
-    { name: "frame", type: "SafeContentFrame", description: "A preconfigured Safe Content Frame, for example with `useShadowDom`. Cannot be combined with `id`." },
+    { name: "frame", type: "SafeContentFrame", description: "A preconfigured Safe Content Frame, for example with `useShadowDom`. Cannot be combined with `id` or `unsafeShimDomain`." },
+    { name: "unsafeShimDomain", type: "string", default: "\"scf.auiusercontent.com\"", description: "Load the Safe Content Frame shim from a domain you host. Isolation holds only if the domain is a public suffix on the Public Suffix List. See [Security model](/generative-frame/docs/security#hosting-the-shim-yourself)." },
+    { name: "opaqueOrigin", type: "boolean", default: "false", description: "Render in a `sandbox=\"allow-scripts\"` frame with a `null` origin instead of Safe Content Frame: no shim, no storage. Cannot be combined with `id`, `frame`, or `unsafeShimDomain`. See [Security model](/generative-frame/docs/security#opaque-origin-frames)." },
     { name: "id", type: "string", description: "A stable origin, so the widget's storage persists for this id. Choose it on the host. See [Persistent storage](/generative-frame/docs/quickstart#persistent-storage)." },
     { name: "context", type: "HostContext", description: "Extra MCP Apps host context fields (locale, display mode, and so on) merged over the theme." },
     { name: "animate", type: "boolean", default: "true", description: "Fade in elements as they stream in. Always off under reduced motion." },
@@ -66,7 +68,7 @@ const widget: WidgetHandle = createWidget(options);
 
 | Function | Description |
 | --- | --- |
-| `clearWidgetStorage(id, { product?, readyTimeoutMs? })` | Clears the storage of widgets with this `id`; resolves with `{ cleared }`, the storage kinds cleared. |
+| `clearWidgetStorage(id, { product?, unsafeShimDomain?, readyTimeoutMs? })` | Clears the storage of widgets with this `id`; resolves with `{ cleared }`, the storage kinds cleared. |
 | `widgetStorageSalt(id)` | The `SafeContentFrame` salt behind an `id`'s origin. |
 
 ### `previewWidget`

@@ -43,6 +43,13 @@ const frame = new SafeContentFrame(product, options);
       description:
         "Override the salt explicitly, for tests or stable-origin embeds.",
     },
+    {
+      name: "unsafeShimDomain",
+      type: "string",
+      default: '"scf.auiusercontent.com"',
+      description:
+        "Load the shim from `<hash>-h184756.<domain>` on a domain you host. Isolation holds only if the domain is a public suffix on the Public Suffix List; otherwise frames share a site with each other and with apps on the same registrable domain.",
+    },
   ]}
 />
 

@@ -1,5 +1,13 @@
 # setup-agent
 
+## 0.0.5
+
+### Patch Changes
+
+- [#9200](https://github.com/assistant-ui/assistant-ui/pull/9200) [`61d8f4e`](https://github.com/assistant-ui/assistant-ui/commit/61d8f4ecf002c2016c8ac3ec560b2991cc823fcb) - fix(setup-agent): `checkout/cancel` takes an optional checkout `id`, and the host ignores a cancel that names another checkout than the current one ([@Yonom](https://github.com/Yonom))
+
+- [#8731](https://github.com/assistant-ui/assistant-ui/pull/8731) [`c0b41de`](https://github.com/assistant-ui/assistant-ui/commit/c0b41de73756e153b6b0b09961e9620bbbc28c29) - feat(setup-agent): add contextual assistant entry-point questions with validated options and stable selection answers, treat selected product names as starting goals for setup discovery, let installation steps name products outside the starting list, and keep the existing CLI exports and legacy session behavior ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.4
 
 ### Patch Changes

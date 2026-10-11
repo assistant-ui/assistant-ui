@@ -3,7 +3,7 @@ title: Introduction
 description: Render model-generated HTML and SVG widgets in a sandboxed frame while they stream.
 ---
 
-`generative-frame` renders HTML and SVG that a model writes, chunk by chunk, inside a [Safe Content Frame](/safe-content-frame) on its own site. The frame loads once, and code streams into it over a private `MessagePort`, so partial markup renders as it arrives and scripts run once the code is complete.
+`generative-frame` renders HTML and SVG that a model writes, chunk by chunk, inside a [Safe Content Frame](/safe-content-frame) on its own site, or optionally in a `null`-origin sandbox ([Security model](/generative-frame/docs/security)). The frame loads once, and code streams into it over a private `MessagePort`, so partial markup renders as it arrives and scripts run once the code is complete.
 
 The package also ships the model side (tool definitions, prompts, a repair loop), a spec mode that renders your own components from JSONL patches, and bindings for React and assistant-ui. The core is framework-agnostic; React and `@assistant-ui/react` are optional peers.
 

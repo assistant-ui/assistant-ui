@@ -7,9 +7,45 @@ Widget code is written by a model, so treat it as untrusted. This page lists wha
 
 ## Every widget runs on its own site
 
-Each HTML or SVG widget renders in a [Safe Content Frame](/safe-content-frame). The frame is served from a hashed subdomain of a domain on the Public Suffix List, so browsers treat it as a separate site from your app: widget scripts cannot reach your page's DOM, cookies, or storage, even though the frame allows scripts. [How Safe Content Frame works](/safe-content-frame/docs/how-it-works) explains the origin scheme.
+By default, each HTML or SVG widget renders in a [Safe Content Frame](/safe-content-frame). The frame is served from a hashed subdomain of a domain on the Public Suffix List, so browsers treat it as a separate site from your app: widget scripts cannot reach your page's DOM, cookies, or storage, even though the frame allows scripts. [How Safe Content Frame works](/safe-content-frame/docs/how-it-works) explains the origin scheme.
 
 `product` scopes the frame origin (it defaults to `"generative-frame"`), and `frame` accepts a preconfigured `SafeContentFrame`, for example one with `useShadowDom`.
+
+This guarantee depends on the frame mode. A self-hosted shim keeps it only on a domain on the Public Suffix List, and opaque-origin frames isolate by a `null` origin instead of a separate site; both are described below.
+
+### Hosting the shim yourself
+
+`unsafeShimDomain` loads the shim from `https://<hash>-h184756.<domain>/<product>/shim.html` on a domain you serve instead of `scf.auiusercontent.com`:
+
+```ts
+createWidget({ container, unsafeShimDomain: "usercontent.example" });
+```
+
+Here `usercontent.example` stands for a domain you have listed as a public suffix. The isolation boundary holds only if `<domain>` is a public suffix on the [Public Suffix List](https://publicsuffix.org/). Otherwise browsers treat every hashed subdomain as the same site: widgets can read and set cookies scoped to the parent domain, which reach each other and your app if it lives under the same registrable domain, and the browser may run them in one renderer process. Use a dedicated domain, and get it on the list before you rely on it.
+
+Serving the shim needs:
+
+- a wildcard DNS record and a wildcard TLS certificate for `*.<domain>`,
+- `/<product>/shim.html` for every `product` you render with (`generative-frame` by default),
+- a shim that implements the handshake in [How Safe Content Frame works](/safe-content-frame/docs/how-it-works#one-render-step-by-step): it accepts content only from the `origin` in its query, recomputes the hash from the salt, and compares it with its own hostname,
+- a redeploy whenever `safe-content-frame` changes the shim version in the hostname (`h184756` today).
+
+A missing or mismatched shim fails with a `shim-unavailable` or `shim-error` load error.
+
+### Opaque-origin frames
+
+`opaqueOrigin: true` skips Safe Content Frame and renders the bootstrap document with `srcdoc` in an iframe sandboxed with `allow-scripts` only. The frame's origin is `null`, so widget code cannot reach your page, its own storage, or cookies, and nothing is loaded from a shim domain.
+
+```ts
+createWidget({ container, opaqueOrigin: true });
+```
+
+The tradeoffs:
+
+- **No storage.** `localStorage`, `sessionStorage`, IndexedDB, and cookies throw or stay empty, so `id` and `clearWidgetStorage` do not apply, and widgets that expect storage fail.
+- **Your page's policy applies.** A `srcdoc` document inherits the Content Security Policy of the page that embeds it, on top of the widget policy. The runtime and widget scripts are inline, so a page `script-src` without `'unsafe-inline'` (for example a nonce- or hash-based policy) blocks them: if it blocks the runtime, the frame never connects and the widget fails with a ready timeout; if it allows the runtime by hash, widget scripts still do not run.
+- **Process isolation is weaker.** Desktop Chrome puts sandboxed frames in a process apart from your app, but all of them share it; a Safe Content Frame gets a process of its own.
+- **Messages to the frame are untargeted.** A `null` origin cannot be named as a `postMessage` target, so the host posts with `"*"` and accepts messages only from that iframe's window with origin `null`. After widget code navigates the frame and the new page loads, the host stops exchanging messages with it. This is best-effort: the new page can post before it finishes loading, which grants it nothing the widget code could not already do. Widget code can navigate the frame, so anything it could read before navigating it can carry along.
 
 ## How code reaches the frame
 

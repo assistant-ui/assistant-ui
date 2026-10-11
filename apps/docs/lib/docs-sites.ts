@@ -102,6 +102,19 @@ export const SUB_PROJECT_REGISTRY = {
       placement: "bottom",
     },
   },
+  variants: {
+    title: "variants",
+    description:
+      "A /variants skill for your coding agent: it adds design variants live in your app, you switch between them in a sidebar, and the one you pick replaces the rest.",
+    path: "packages/variants",
+    productDescription: "Inline design comparisons",
+    oss: {
+      tier: "minor",
+      npm: "@assistant-ui/variants",
+      footerOrder: 5,
+      placement: "bottom",
+    },
+  },
   playground: {
     title: "Playground",
     description:
