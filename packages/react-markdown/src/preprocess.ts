@@ -1001,12 +1001,12 @@ function emitDisplayMath(
   const endsLine = (char: string) =>
     char === "" || char === "\n" || char === "\r";
   const lead = endsLine(before) ? "" : "\n";
-  const tail = endsLine(after) ? "" : "\n";
+  const prefix = continuationPrefix(lineHead(offset));
+  const tail = endsLine(after) ? "" : `\n${prefix}`;
 
   // Markers written at the root column would end the list item or blockquote the
   // math was written inside, so they carry that container's prefix and the body
   // is aligned to it.
-  const prefix = continuationPrefix(lineHead(offset));
   const depth = quoteDepth(prefix);
   // The body is split before trimming, since trimming would take the shared
   // indentation off the first line only and leave the block ragged.

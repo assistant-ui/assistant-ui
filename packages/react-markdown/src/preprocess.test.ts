@@ -52,6 +52,12 @@ describe("rewriteLatexBracketDelimiters", () => {
     ).toBe("> quote \n> $$\n> a\n> b\n> $$\n> after");
   });
 
+  it("keeps prose after a multiline display inside its quoted list item", () => {
+    expect(
+      rewriteLatexBracketDelimiters("> 1. \\[\n> a\n> \\] then\n> more"),
+    ).toBe("> 1. \n>    $$\n> a\n> \n>    $$\n>     then\n> more");
+  });
+
   it("dedents a body whose lines share an indentation", () => {
     expect(
       rewriteLatexBracketDelimiters("- item \\[\n  a\n  b\n\\]\n- next"),
@@ -407,6 +413,12 @@ describe("rewriteCustomMathTags", () => {
     );
   });
 
+  it("keeps prose after a multiline display inside its quoted list item", () => {
+    expect(
+      rewriteCustomMathTags("> 1. [/math]\n> a\n> [/math] then\n> more"),
+    ).toBe("> 1. \n>    $$\n> a\n> \n>    $$\n>     then\n> more");
+  });
+
   it("keeps a single-line math tag body on its line", () => {
     expect(rewriteCustomMathTags("See [/math]x=1[/math] ok.")).toBe(
       "See $$x=1$$ ok.",
@@ -451,6 +463,16 @@ describe("normalizeMathDelimiters", () => {
     expect(normalizeMathDelimiters("\\(x\\) [/math]y[/math]")).toBe(
       "$x$ $$y$$",
     );
+  });
+
+  it("keeps suffix prose in a quoted list item for both display delimiters", () => {
+    const expected = "> 1. \n>    $$\n> a\n> \n>    $$\n>     then\n> more";
+    expect(normalizeMathDelimiters("> 1. \\[\n> a\n> \\] then\n> more")).toBe(
+      expected,
+    );
+    expect(
+      normalizeMathDelimiters("> 1. [/math]\n> a\n> [/math] then\n> more"),
+    ).toBe(expected);
   });
 
   it("keeps code inert for both delimiter families", () => {
