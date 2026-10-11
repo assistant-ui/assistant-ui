@@ -3,7 +3,7 @@ import { surfaceToOperations } from "./a2ui/snapshot";
 import { applyA2uiOperations } from "./a2ui/reducer";
 /** @vitest-environment jsdom */
 import { describe, it, expect, vi } from "vitest";
-import { act } from "react";
+import { act, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { z } from "zod";
@@ -158,6 +158,33 @@ describe("JSONGenerativeUI — client build", () => {
 
     expect(html).not.toContain('data-aui="answered"');
     expect(html).toContain('value="model default"');
+  });
+
+  it("locks only the prompt tool when its render is mounted as a component", async () => {
+    const ui = new ClientGenUI({ library: defaultGenerativeUILibrary });
+    const mount = async (tool: { render?: unknown }) => {
+      const Render = tool.render as (
+        props: Record<string, unknown>,
+      ) => ReactNode;
+      const container = document.createElement("div");
+      const root = createRoot(container);
+      await act(async () => {
+        root.render(
+          <Render
+            args={{ $type: "Input", name: "note", defaultValue: "x" }}
+            status={{ type: "complete" }}
+            result={{}}
+            toolCallId="call"
+          />,
+        );
+      });
+      const locked = container.querySelector('fieldset[data-aui="answered"]');
+      act(() => root.unmount());
+      return locked !== null;
+    };
+
+    expect(await mount(ui.present())).toBe(false);
+    expect(await mount(ui.promptUser())).toBe(true);
   });
 
   it("locks an answered prompt without recorded actions at its defaults", () => {
