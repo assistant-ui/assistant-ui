@@ -1,5 +1,14 @@
 # @assistant-ui/react-ag-ui
 
+## 0.0.68
+
+### Patch Changes
+
+- Updated dependencies [[`c157aee`](https://github.com/assistant-ui/assistant-ui/commit/c157aeeaa29af0d50dd80e48c89342caf69967ae), [`e47f4df`](https://github.com/assistant-ui/assistant-ui/commit/e47f4df79c3edd76244435cb137a145ef62b682a), [`2c1963a`](https://github.com/assistant-ui/assistant-ui/commit/2c1963a31cbb01285bd0e59bdeef1e04e28c6a9d), [`5c61b44`](https://github.com/assistant-ui/assistant-ui/commit/5c61b4458f9dbe9adea802b73beb0035b577c771), [`11aa9e0`](https://github.com/assistant-ui/assistant-ui/commit/11aa9e077123169b357acf4ab8ee60a61a21b715), [`1636929`](https://github.com/assistant-ui/assistant-ui/commit/16369291970085cec4083bd9b17274338d9bb17a), [`b5fd740`](https://github.com/assistant-ui/assistant-ui/commit/b5fd740e6ade360b072dd74869091b0226114719), [`d203be7`](https://github.com/assistant-ui/assistant-ui/commit/d203be764dce4942fbb299f7ede6342eb3df432c), [`22bbf64`](https://github.com/assistant-ui/assistant-ui/commit/22bbf64d1955367ea607cb563ffabdf465608cae), [`8fcde98`](https://github.com/assistant-ui/assistant-ui/commit/8fcde9898c26b68b1329286f47c061d8216c769c), [`5c61b44`](https://github.com/assistant-ui/assistant-ui/commit/5c61b4458f9dbe9adea802b73beb0035b577c771), [`efbf028`](https://github.com/assistant-ui/assistant-ui/commit/efbf028597dd0652bc88d0bca806a63837fb9cd6), [`8b49f28`](https://github.com/assistant-ui/assistant-ui/commit/8b49f28640bcb97f10f3e5db6334e1bac4906c43), [`8e566e3`](https://github.com/assistant-ui/assistant-ui/commit/8e566e332a9035406f9d82f52b2abfea3828cacc), [`4e86339`](https://github.com/assistant-ui/assistant-ui/commit/4e8633954af2fa5941d43ccf8d6d3bab5de2bfef)]:
+  - @assistant-ui/core@0.3.27
+  - @assistant-ui/generative-ui@0.0.3
+  - assistant-stream@0.3.50
+
 ## 0.0.67
 
 ### Patch Changes

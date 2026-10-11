@@ -1,5 +1,32 @@
 # @assistant-ui/generative-ui
 
+## 0.0.3
+
+### Patch Changes
+
+- [#9271](https://github.com/assistant-ui/assistant-ui/pull/9271) [`e47f4df`](https://github.com/assistant-ui/assistant-ui/commit/e47f4df79c3edd76244435cb137a145ef62b682a) - fix: submit an `asForm` card through its own action in the Slack and Teams converters when its confirm footer has none ([@okisdev](https://github.com/okisdev))
+
+- [#9301](https://github.com/assistant-ui/assistant-ui/pull/9301) [`5c61b44`](https://github.com/assistant-ui/assistant-ui/commit/5c61b4458f9dbe9adea802b73beb0035b577c771) - fix: keep a library component named `__proto__` in `toSpecCatalog`, render an `Icon` with an unknown `size` at the medium size, and page a `Carousel` where `Element.scrollBy` is missing ([@okisdev](https://github.com/okisdev))
+
+- [#9344](https://github.com/assistant-ui/assistant-ui/pull/9344) [`11aa9e0`](https://github.com/assistant-ui/assistant-ui/commit/11aa9e077123169b357acf4ab8ee60a61a21b715) - fix(generative-ui): give a React or Vue ListViewItem row action its own button instead of wrapping nested controls in `role="button"` ([@okisdev](https://github.com/okisdev))
+
+- [#9332](https://github.com/assistant-ui/assistant-ui/pull/9332) [`1636929`](https://github.com/assistant-ui/assistant-ui/commit/16369291970085cec4083bd9b17274338d9bb17a) - fix(generative-ui): declare the number values Text, Caption, Fact and Badge already render, and keep them in the Slack and Teams converters ([@okisdev](https://github.com/okisdev))
+
+- [#9314](https://github.com/assistant-ui/assistant-ui/pull/9314) [`b5fd740`](https://github.com/assistant-ui/assistant-ui/commit/b5fd740e6ade360b072dd74869091b0226114719) - feat: draw the spec vocabulary with React Native components, where `@assistant-ui/generative-ui/spec` resolves to a React Native build through the `react-native` condition with `react-native` as an optional peer, and export `defaultGenerativeUILibrary` from `@assistant-ui/generative-ui/spec` ([@okisdev](https://github.com/okisdev))
+
+- [#9272](https://github.com/assistant-ui/assistant-ui/pull/9272) [`d203be7`](https://github.com/assistant-ui/assistant-ui/commit/d203be764dce4942fbb299f7ede6342eb3df432c) - feat: let a library entry declare its spec mode `events` and `slots`, and give spec components `$slots` and a `$bindings` setter for each prop bound to state ([@okisdev](https://github.com/okisdev))
+
+- [#9297](https://github.com/assistant-ui/assistant-ui/pull/9297) [`22bbf64`](https://github.com/assistant-ui/assistant-ui/commit/22bbf64d1955367ea607cb563ffabdf465608cae) - refactor: keep each vocabulary component's description and schema, the spec catalog shapes, and the render helpers in React-free modules, so renderers for other frameworks can share them ([@okisdev](https://github.com/okisdev))
+
+- [#9329](https://github.com/assistant-ui/assistant-ui/pull/9329) [`8fcde98`](https://github.com/assistant-ui/assistant-ui/commit/8fcde9898c26b68b1329286f47c061d8216c769c) - chore(generative-ui): compare the shipped Vue test helper's markup without React 18's empty input value ([@okisdev](https://github.com/okisdev))
+
+- [#9301](https://github.com/assistant-ui/assistant-ui/pull/9301) [`5c61b44`](https://github.com/assistant-ui/assistant-ui/commit/5c61b4458f9dbe9adea802b73beb0035b577c771) - feat: add `@assistant-ui/generative-ui/vue`, the vocabulary as Vue components for generative-frame's Vue spec renderer, with `vue` as an optional peer ([@okisdev](https://github.com/okisdev))
+
+- [#9273](https://github.com/assistant-ui/assistant-ui/pull/9273) [`8e566e3`](https://github.com/assistant-ui/assistant-ui/commit/8e566e332a9035406f9d82f52b2abfea3828cacc) - fix: keep a `present` call editable on React 18 instead of locking it as an answered prompt ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`1a76908`](https://github.com/assistant-ui/assistant-ui/commit/1a76908402c56b9783f2a6b3eeff8081b94f3d78), [`afb9ad2`](https://github.com/assistant-ui/assistant-ui/commit/afb9ad2d42e4178a51eadf1ef15ad9f25be9df57), [`8b49f28`](https://github.com/assistant-ui/assistant-ui/commit/8b49f28640bcb97f10f3e5db6334e1bac4906c43), [`2b1e1f5`](https://github.com/assistant-ui/assistant-ui/commit/2b1e1f5f95cb4cca9a2d8001e1e3b1ac68e46a0f), [`409b896`](https://github.com/assistant-ui/assistant-ui/commit/409b896bcc11d5b0420cd3bc83b5463046a43558), [`984674e`](https://github.com/assistant-ui/assistant-ui/commit/984674e2e0ab454c166712900e2d225cc8bc1803), [`1881261`](https://github.com/assistant-ui/assistant-ui/commit/1881261fd5d6605cbd1256af4f7c3547d9075d48), [`a151d03`](https://github.com/assistant-ui/assistant-ui/commit/a151d031ca07b9441dcccbc9ad2b3f05970a648b)]:
+  - generative-frame@0.0.4
+  - assistant-stream@0.3.50
+
 ## 0.0.2
 
 ### Patch Changes

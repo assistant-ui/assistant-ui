@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.3.50
+
+### Patch Changes
+
+- [#9307](https://github.com/assistant-ui/assistant-ui/pull/9307) [`8b49f28`](https://github.com/assistant-ui/assistant-ui/commit/8b49f28640bcb97f10f3e5db6334e1bac4906c43) - fix(assistant-stream): emit `step-finish`, `message-finish` and error chunks after the part chunks written before them, so the data stream keeps a tool call's args ([@okisdev](https://github.com/okisdev))
+
 ## 0.3.49
 
 ### Patch Changes

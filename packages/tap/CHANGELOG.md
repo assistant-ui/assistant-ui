@@ -1,5 +1,11 @@
 # @assistant-ui/tap
 
+## 0.9.23
+
+### Patch Changes
+
+- [#9324](https://github.com/assistant-ui/assistant-ui/pull/9324) [`28dc601`](https://github.com/assistant-ui/assistant-ui/commit/28dc601e414f8b1dcf7fa98f928fa2d3400b5a9e) - fix(tap): read the React version from React's default export, so bundles that alias react to the standalone shim (the Svelte and Vue builds) no longer fail on a missing `version` export ([@okisdev](https://github.com/okisdev))
+
 ## 0.9.22
 
 ### Patch Changes

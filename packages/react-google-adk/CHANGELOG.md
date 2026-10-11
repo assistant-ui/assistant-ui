@@ -1,5 +1,16 @@
 # @assistant-ui/react-google-adk
 
+## 0.0.37
+
+### Patch Changes
+
+- [#9309](https://github.com/assistant-ui/assistant-ui/pull/9309) [`7ffc10c`](https://github.com/assistant-ui/assistant-ui/commit/7ffc10ca66404564338cb643f36fa5c5389d09fe) - fix(react-google-adk): send the answers to one run's long-running tool calls in one request once that run ends, instead of letting a later answer abort an earlier one; answers still held when the run is cancelled or the thread reloads are dropped, and `onError` and `onCustomEvent` now also fire for snake_case events ([@okisdev](https://github.com/okisdev))
+
+- [#9335](https://github.com/assistant-ui/assistant-ui/pull/9335) [`2580dd6`](https://github.com/assistant-ui/assistant-ui/commit/2580dd6eacab3ec483057c40a6e191641dbabfa5) - fix(react-google-adk): send messages, tool answers and HITL replies made in the same tick in one request, or in order when their configs differ, instead of letting the later send abort the earlier one before its request leaves ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`c157aee`](https://github.com/assistant-ui/assistant-ui/commit/c157aeeaa29af0d50dd80e48c89342caf69967ae), [`2c1963a`](https://github.com/assistant-ui/assistant-ui/commit/2c1963a31cbb01285bd0e59bdeef1e04e28c6a9d), [`efbf028`](https://github.com/assistant-ui/assistant-ui/commit/efbf028597dd0652bc88d0bca806a63837fb9cd6), [`8b49f28`](https://github.com/assistant-ui/assistant-ui/commit/8b49f28640bcb97f10f3e5db6334e1bac4906c43), [`4e86339`](https://github.com/assistant-ui/assistant-ui/commit/4e8633954af2fa5941d43ccf8d6d3bab5de2bfef)]:
+  - @assistant-ui/core@0.3.27
+  - assistant-stream@0.3.50
+
 ## 0.0.36
 
 ### Patch Changes
