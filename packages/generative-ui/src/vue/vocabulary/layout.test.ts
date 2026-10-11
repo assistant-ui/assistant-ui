@@ -228,7 +228,7 @@ describe("layout vocabulary in Vue", () => {
     },
   );
 
-  it("does not emit an unbound footer event", async () => {
+  it("matches React after a click on an unbound footer button", async () => {
     const input = spec({
       main: { type: "Card", props: { cancel: { label: "Dismiss" } } },
     });

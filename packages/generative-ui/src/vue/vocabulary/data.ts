@@ -1,4 +1,4 @@
-import { defineComponent, h, ref, type VNode } from "vue";
+import { defineComponent, h, ref, watch, type VNode } from "vue";
 import { dataDefinitions } from "../../vocabulary/definitions/data";
 import { formatValue } from "../../vocabulary/formatValue";
 import {
@@ -196,6 +196,12 @@ export const dataVocabulary = {
       props: ["columns", "rows", "sortable"],
       setup(props, { slots }) {
         const sort = ref<TableSort>();
+        watch(
+          () => props.sortable === true,
+          (sortable) => {
+            if (!sortable) sort.value = undefined;
+          },
+        );
         return () => {
           const columns: unknown[] = Array.isArray(props.columns)
             ? props.columns

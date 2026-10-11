@@ -260,4 +260,27 @@ describe("data vocabulary in Vue", () => {
       expect(handler).not.toHaveBeenCalled();
     }
   });
+
+  it("forgets the sort when sortable turns off like React", async () => {
+    const table = (sortable: boolean) =>
+      one("Table", {
+        sortable,
+        columns: [{ label: "Name" }],
+        rows: [["b"], ["a"]],
+      });
+    const vue = renderVueSpec(table(true));
+    const react = renderReactSpec(table(true));
+    await act(async () =>
+      react.container.querySelector<HTMLButtonElement>("th button")!.click(),
+    );
+    vue.container.querySelector<HTMLButtonElement>("th button")!.click();
+    await nextTick();
+    expect(vue.markup()).toContain('aria-sort="ascending"');
+    for (const sortable of [false, true]) {
+      await react.update(table(sortable));
+      await vue.update(table(sortable));
+      expect(vue.markup()).toBe(react.markup());
+    }
+    expect(vue.markup()).not.toContain('aria-sort="ascending"');
+  });
 });

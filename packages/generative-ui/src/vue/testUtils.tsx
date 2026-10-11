@@ -12,6 +12,17 @@ const react = toReactSpecCatalog();
 const vue = toSpecCatalog();
 const unmounts: (() => void)[] = [];
 
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
+
+const escape = (text: string) =>
+  text
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+
 const ID_REFERENCES = new Set([
   "id",
   "for",
@@ -25,7 +36,7 @@ const ID_REFERENCES = new Set([
  * An element tree as canonical text: tags, attributes sorted by name, and text, without comments or empty text nodes. Generated ids are numbered in order of appearance, in `id`, in the attributes that refer to one, and in a `name` marked as generated, because React and Vue generate them differently.
  */
 export function canonical(node: Node, ids = new Map<string, string>()): string {
-  if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? "";
+  if (node.nodeType === Node.TEXT_NODE) return escape(node.textContent ?? "");
   if (node.nodeType !== Node.ELEMENT_NODE) return "";
   const element = node as Element;
   const attributes = [...element.attributes]
@@ -38,12 +49,13 @@ export function canonical(node: Node, ids = new Map<string, string>()): string {
           ? attribute.value
               .split(" ")
               .map((id) => {
+                if (id === "") return id;
                 if (!ids.has(id)) ids.set(id, `id${ids.size}`);
                 return ids.get(id);
               })
               .join(" ")
           : attribute.value;
-      return `${attribute.name}="${value}"`;
+      return `${attribute.name}="${escape(value)}"`;
     })
     .sort()
     .join(" ");

@@ -3,6 +3,7 @@ import { configDefaults, defineConfig } from "vitest/config";
 const temporalTests = [
   "src/temporal.test.ts",
   "src/vocabulary/datepicker.dom.test.tsx",
+  "src/vue/vocabulary/datepicker.test.ts",
 ];
 
 export default defineConfig({

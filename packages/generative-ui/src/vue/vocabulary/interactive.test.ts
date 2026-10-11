@@ -2,7 +2,9 @@
 import { act } from "react";
 import { createElement } from "react";
 import { createRoot } from "react-dom/client";
-import { createApp, h, nextTick, shallowRef } from "vue";
+import { renderToString as renderReactToString } from "react-dom/server";
+import { createApp, createSSRApp, h, nextTick, shallowRef } from "vue";
+import { renderToString as renderVueToString } from "vue/server-renderer";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createStateStore, type Spec } from "generative-frame/spec";
 import { SpecRenderer as ReactSpecRenderer } from "generative-frame/spec/react";
@@ -384,10 +386,77 @@ const cases: [string, Spec][] = [
 ];
 
 describe("interactive vocabulary in Vue", () => {
-  it.each(cases)("renders %s like React", (_name, source) => {
-    expect(renderVueSpec(source).markup()).toBe(
-      renderReactSpec(source).markup(),
-    );
+  it.each([
+    ["Input", { defaultValue: "Typed" }, "input", "Typed"],
+    [
+      "Input",
+      { multiline: true, defaultValue: "Multiline" },
+      "textarea",
+      "Multiline",
+    ],
+    ["Select", { options, defaultValue: "l" }, "select", "l"],
+    ["Checkbox", { label: "Agree", defaultChecked: true }, "input", true],
+    ["Slider", { min: 0, max: 10, defaultValue: 4 }, "input", "4"],
+    ["RadioGroup", { options, defaultValue: "s" }, "input", ["s"]],
+    ["CheckboxGroup", { options, defaultValue: ["s"] }, "input", ["s"]],
+  ] as const)(
+    "server renders and hydrates unbound %s with its initial value",
+    async (type, props, selector, expected) => {
+      const source = spec({ main: { type, props } });
+      const reactHTML = renderReactToString(
+        createElement(ReactSpecRenderer, {
+          spec: source,
+          state: createStateStore({}),
+          ...reactCatalog,
+        }),
+      );
+      const vueApp = createSSRApp({
+        render: () =>
+          h(VueSpecRenderer, {
+            spec: source,
+            state: createStateStore({}),
+            ...vueCatalog,
+          }),
+      });
+      const vueHTML = await renderVueToString(vueApp);
+      const parse = (html: string) => {
+        const container = document.createElement("div");
+        container.innerHTML = html;
+        return container;
+      };
+      const read = (container: HTMLElement) => {
+        if (type === "RadioGroup" || type === "CheckboxGroup")
+          return [...container.querySelectorAll<HTMLInputElement>(selector)]
+            .filter((input) => input.checked)
+            .map((input) => input.value);
+        const control = query<
+          HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+        >(container, selector);
+        return control instanceof HTMLInputElement &&
+          control.type === "checkbox"
+          ? control.checked
+          : control.value;
+      };
+      const container = parse(vueHTML);
+      expect(read(parse(reactHTML))).toEqual(expected);
+      expect(read(container)).toEqual(expected);
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      try {
+        vueApp.mount(container);
+        interactiveUnmounts.push(() => vueApp.unmount());
+        expect(warn).not.toHaveBeenCalled();
+        expect(read(container)).toEqual(expected);
+      } finally {
+        warn.mockRestore();
+      }
+    },
+  );
+
+  it.each(cases)("renders %s like React", async (_name, source) => {
+    const vue = renderVueSpec(source);
+    const react = renderReactSpec(source);
+    await nextTick();
+    expect(vue.markup()).toBe(react.markup());
   });
 
   it.each([
@@ -1032,5 +1101,340 @@ describe("interactive vocabulary in Vue", () => {
     expect(vue.markup()).toBe(react.markup());
     expect(reactHandler).not.toHaveBeenCalled();
     expect(vueHandler).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [
+      "Select",
+      { options, defaultValue: "s" },
+      "select",
+      "l",
+      "change",
+      "label",
+    ],
+    [
+      "Input",
+      { defaultValue: "Start" },
+      "input",
+      "Edited",
+      "input",
+      "placeholder",
+    ],
+    [
+      "Input multiline",
+      { defaultValue: "Start", multiline: true },
+      "textarea",
+      "Edited",
+      "input",
+      "placeholder",
+    ],
+    [
+      "Checkbox",
+      { label: "Agree", defaultChecked: false },
+      "input",
+      true,
+      "click",
+      "label",
+    ],
+    [
+      "Slider",
+      { min: 0, max: 10, defaultValue: 4 },
+      "input",
+      "7",
+      "input",
+      "label",
+    ],
+    [
+      "RadioGroup",
+      { options, defaultValue: "s" },
+      'input[value="l"]',
+      true,
+      "click",
+      "label",
+    ],
+    [
+      "CheckboxGroup",
+      { options, defaultValue: ["s"] },
+      'input[value="l"]',
+      true,
+      "click",
+      "label",
+    ],
+  ] as const)(
+    "preserves an unbound %s edit until its initial value changes",
+    async (kind, props, selector, edited, trigger, changedProp) => {
+      const type = kind === "Input multiline" ? "Input" : kind;
+      const event = type === "Input" ? "submit" : "change";
+      const source = spec({ main: { type, props, on: on(event) } });
+      const reactHandler = vi.fn();
+      const vueHandler = vi.fn();
+      const react = renderWithHandler(source, reactHandler, "react");
+      const vue = renderWithHandler(source, vueHandler, "vue");
+      const edit = (container: HTMLElement) => {
+        const control = query<
+          HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+        >(container, selector);
+        if (trigger === "click") control.click();
+        else {
+          if (type === "Slider")
+            control.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+          if (control instanceof HTMLTextAreaElement)
+            control.value = edited as string;
+          else setValue(control, edited as string);
+          control.dispatchEvent(new Event(trigger, { bubbles: true }));
+        }
+      };
+      const read = (container: HTMLElement) => {
+        const control = query<
+          HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+        >(container, selector);
+        return control instanceof HTMLInputElement &&
+          (control.type === "checkbox" || control.type === "radio")
+          ? control.checked
+          : control.value;
+      };
+      await act(async () => edit(react.container));
+      edit(vue.container);
+      await nextTick();
+      const updated = spec({
+        main: {
+          type,
+          props: { ...props, [changedProp]: "Updated" },
+          on: on(event),
+        },
+      });
+      await react.update(updated);
+      await vue.update(updated);
+      expect(read(vue.container)).toBe(read(react.container));
+      expect(vue.markup()).toBe(react.markup());
+      if (
+        type === "RadioGroup" ||
+        type === "CheckboxGroup" ||
+        type === "Checkbox"
+      )
+        expect(read(vue.container)).toBe(true);
+      else expect(read(vue.container)).toBe(edited);
+
+      const commit = (container: HTMLElement) => {
+        const control = query<
+          HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+        >(container, selector);
+        if (type === "Slider")
+          control.dispatchEvent(new Event("pointerup", { bubbles: true }));
+        if (type === "Input")
+          control.dispatchEvent(
+            new KeyboardEvent("keydown", {
+              key: "Enter",
+              ctrlKey: kind === "Input multiline",
+              bubbles: true,
+            }),
+          );
+      };
+      await act(async () => commit(react.container));
+      commit(vue.container);
+      await nextTick();
+      expect(vueHandler.mock.calls.map(([params]) => params)).toEqual(
+        reactHandler.mock.calls.map(([params]) => params),
+      );
+
+      const editAgain = (container: HTMLElement) => {
+        if (type === "Select") {
+          const control = query<HTMLSelectElement>(container, "select");
+          control.value = "s";
+          control.dispatchEvent(new Event("change", { bubbles: true }));
+        } else if (type === "RadioGroup")
+          query<HTMLInputElement>(container, 'input[value="s"]').click();
+        else query<HTMLInputElement>(container, selector).click();
+      };
+      if (
+        type === "Select" ||
+        type === "RadioGroup" ||
+        type === "CheckboxGroup" ||
+        type === "Checkbox"
+      ) {
+        await act(async () => editAgain(react.container));
+        editAgain(vue.container);
+        await nextTick();
+      }
+      const resetValue =
+        type === "Checkbox" ? "defaultChecked" : "defaultValue";
+      const reset =
+        type === "Checkbox"
+          ? true
+          : type === "CheckboxGroup"
+            ? ["l"]
+            : type === "Slider"
+              ? 2
+              : type === "Input"
+                ? "Reset"
+                : "l";
+      const resetSpec = spec({
+        main: { type, props: { ...props, [resetValue]: reset }, on: on(event) },
+      });
+      await react.update(resetSpec);
+      await vue.update(resetSpec);
+      expect(read(vue.container)).toBe(read(react.container));
+      if (
+        type === "Checkbox" ||
+        type === "RadioGroup" ||
+        type === "CheckboxGroup"
+      )
+        expect(read(vue.container)).toBe(true);
+      else expect(read(vue.container)).toBe(String(reset));
+      if (type === "CheckboxGroup")
+        expect(
+          query<HTMLInputElement>(vue.container, 'input[value="s"]').checked,
+        ).toBe(false);
+      expect(vueHandler.mock.calls.map(([params]) => params)).toEqual(
+        reactHandler.mock.calls.map(([params]) => params),
+      );
+    },
+  );
+
+  it("updates an edited bound multiline Input from state", async () => {
+    const source = spec(
+      {
+        main: {
+          type: "Input",
+          props: { multiline: true, ...bound("defaultValue") },
+        },
+      },
+      { v: "Start" },
+    );
+    const react = renderReactSpec(source);
+    const vue = renderVueSpec(source);
+    for (const rendered of [react, vue]) {
+      const textarea = query<HTMLTextAreaElement>(
+        rendered.container,
+        "textarea",
+      );
+      textarea.value = "Edited";
+      textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    await nextTick();
+    await act(async () => react.state.set("/v", "Written"));
+    vue.state.set("/v", "Written");
+    await nextTick();
+    expect(query<HTMLTextAreaElement>(vue.container, "textarea").value).toBe(
+      query<HTMLTextAreaElement>(react.container, "textarea").value,
+    );
+    expect(query<HTMLTextAreaElement>(vue.container, "textarea").value).toBe(
+      "Written",
+    );
+  });
+
+  it("commits an unbound Slider edit on keyup after a re-render", async () => {
+    const props = { min: 0, max: 10, defaultValue: 4, label: "Size" };
+    const source = spec({ main: { type: "Slider", props, on: on("change") } });
+    const reactHandler = vi.fn();
+    const vueHandler = vi.fn();
+    const react = renderWithHandler(source, reactHandler, "react");
+    const vue = renderWithHandler(source, vueHandler, "vue");
+    const edit = (container: HTMLElement) => {
+      const input = query<HTMLInputElement>(container, "input");
+      input.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }),
+      );
+      setValue(input, "7");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+    await act(async () => edit(react.container));
+    edit(vue.container);
+    await nextTick();
+    const updated = spec({
+      main: {
+        type: "Slider",
+        props: { ...props, label: "Amount" },
+        on: on("change"),
+      },
+    });
+    await react.update(updated);
+    await vue.update(updated);
+    expect(query<HTMLInputElement>(vue.container, "input").value).toBe(
+      query<HTMLInputElement>(react.container, "input").value,
+    );
+    const commit = (container: HTMLElement) =>
+      query<HTMLInputElement>(container, "input").dispatchEvent(
+        new KeyboardEvent("keyup", { key: "ArrowRight", bubbles: true }),
+      );
+    await act(async () => commit(react.container));
+    commit(vue.container);
+    expect(vueHandler.mock.calls.map(([params]) => params)).toEqual(
+      reactHandler.mock.calls.map(([params]) => params),
+    );
+    expect(vueHandler.mock.calls[0]?.[0]).toEqual({ value: 7 });
+  });
+
+  it.each(["Select", "RadioGroup", "CheckboxGroup"] as const)(
+    "keeps %s selection by value when options reorder",
+    async (type) => {
+      const props = {
+        options,
+        ...(type === "CheckboxGroup"
+          ? { defaultValue: ["s"] }
+          : { defaultValue: "s" }),
+      };
+      const source = spec({ main: { type, props } });
+      const react = renderReactSpec(source);
+      const vue = renderVueSpec(source);
+      const selection = (container: HTMLElement) =>
+        type === "Select"
+          ? query<HTMLSelectElement>(container, "select").value
+          : [...container.querySelectorAll<HTMLInputElement>("input")]
+              .filter((input) => input.checked)
+              .map((input) => input.value);
+      if (type === "Select") {
+        const untouched = spec({
+          main: { type, props: { ...props, options: [...options].reverse() } },
+        });
+        await react.update(untouched);
+        await vue.update(untouched);
+        expect(selection(vue.container)).toEqual(selection(react.container));
+        expect(selection(vue.container)).toBe("s");
+      }
+      const edit = (container: HTMLElement) => {
+        if (type === "Select") {
+          const control = query<HTMLSelectElement>(container, "select");
+          control.value = "l";
+          control.dispatchEvent(new Event("change", { bubbles: true }));
+        } else query<HTMLInputElement>(container, 'input[value="l"]').click();
+      };
+      await act(async () => edit(react.container));
+      edit(vue.container);
+      await nextTick();
+      const reordered = spec({
+        main: {
+          type,
+          props: {
+            ...props,
+            options: type === "Select" ? options : [...options].reverse(),
+          },
+        },
+      });
+      await react.update(reordered);
+      await vue.update(reordered);
+      expect(selection(vue.container)).toEqual(selection(react.container));
+      expect(selection(vue.container)).toEqual(
+        type === "Select" ? "l" : type === "RadioGroup" ? ["l"] : ["l", "s"],
+      );
+    },
+  );
+
+  it("keeps the browser's choice for an unbound Select whose default is not an option", async () => {
+    const select = (label: string) =>
+      spec({
+        main: {
+          type: "Select",
+          props: { label, options, defaultValue: "missing" },
+        },
+      });
+    const vue = renderVueSpec(select("Size"));
+    const react = renderReactSpec(select("Size"));
+    await react.update(select("Updated"));
+    await vue.update(select("Updated"));
+    const value = (container: HTMLElement) =>
+      query<HTMLSelectElement>(container, "select").value;
+    expect(value(vue.container)).toBe(value(react.container));
+    expect(value(vue.container)).toBe("s");
   });
 });

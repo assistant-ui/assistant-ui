@@ -1,6 +1,7 @@
 import {
   defineComponent,
   h,
+  onMounted,
   onUpdated,
   onUnmounted,
   ref,
@@ -173,8 +174,22 @@ export const interactiveVocabulary = {
           { flush: "sync" },
         );
         const control = ref<HTMLSelectElement>();
+        let selectedValue: string | undefined;
+        watch(
+          () => props.defaultValue,
+          () => {
+            selectedValue = undefined;
+          },
+          { flush: "sync" },
+        );
         onUpdated(() => {
-          if (!bound() || !control.value) return;
+          if (!control.value) return;
+          if (!bound()) {
+            const value = selectedValue ?? props.defaultValue;
+            for (const option of control.value.options)
+              if (option.value === value) option.selected = true;
+            return;
+          }
           control.value.value = String(props.value ?? props.defaultValue ?? "");
           if (control.value.value !== firstValue.value)
             for (const option of control.value.options)
@@ -198,6 +213,7 @@ export const interactiveVocabulary = {
               "aria-label": props.label,
               onChange: (event: Event) => {
                 const next = target<HTMLSelectElement>(event).value;
+                if (!bound()) selectedValue = next;
                 if (bound())
                   emit(
                     `update:${boundProp()}` as
@@ -222,10 +238,11 @@ export const interactiveVocabulary = {
                     ),
                   ]
                 : []),
-              ...mapOptions(props.options, (option) =>
+              ...mapOptions(props.options, (option, key) =>
                 h(
                   "option",
                   {
+                    key,
                     value: option.value,
                     selected: selected === option.value,
                   },
@@ -256,6 +273,21 @@ export const interactiveVocabulary = {
       setup: function useInput(props, { emit }) {
         const { context, live, action, boundProp } = useEventProps("submit");
         const bound = () => boundProp() !== undefined;
+        const local = ref(props.defaultValue);
+        const control = ref<HTMLInputElement>();
+        watch(
+          () => props.defaultValue,
+          (next) => {
+            if (!bound()) local.value = next;
+          },
+          { flush: "sync" },
+        );
+        onUpdated(() => {
+          if (bound() || !control.value) return;
+          if (props.defaultValue === undefined)
+            control.value.removeAttribute("value");
+          else control.value.defaultValue = String(props.defaultValue);
+        });
         return () => {
           const multiline =
             props.multiline &&
@@ -263,7 +295,7 @@ export const interactiveVocabulary = {
           const name = fieldName(props.name, context.id, bound());
           const value = bound()
             ? (props.value ?? props.defaultValue ?? "")
-            : props.defaultValue;
+            : local.value;
           const attrs = {
             ...(!bound() && props.defaultValue !== undefined
               ? { key: String(props.defaultValue) }
@@ -273,15 +305,19 @@ export const interactiveVocabulary = {
             name,
             "aria-label": props.label,
             placeholder: props.placeholder,
-            onInput: bound()
-              ? (event: Event) =>
-                  emit(
-                    `update:${boundProp()}` as
-                      | "update:defaultValue"
-                      | "update:value",
-                    target<HTMLInputElement>(event).value,
-                  )
-              : undefined,
+            onInput: (event: Event) => {
+              const next = target<HTMLInputElement | HTMLTextAreaElement>(
+                event,
+              ).value;
+              if (bound())
+                emit(
+                  `update:${boundProp()}` as
+                    | "update:defaultValue"
+                    | "update:value",
+                  next,
+                );
+              else local.value = next;
+            },
             onKeydown: (event: KeyboardEvent) => {
               const control = target<HTMLInputElement | HTMLTextAreaElement>(
                 event,
@@ -299,11 +335,18 @@ export const interactiveVocabulary = {
           return multiline
             ? h(
                 "textarea",
-                { ...attrs, "data-aui-multiline": "true" },
-                value === undefined ? undefined : String(value),
+                {
+                  ...attrs,
+                  "data-aui-multiline": "true",
+                  ...(bound() ? { value } : {}),
+                },
+                bound() || props.defaultValue === undefined
+                  ? undefined
+                  : String(props.defaultValue),
               )
             : h("input", {
                 ...attrs,
+                ref: control,
                 type: props.inputType,
                 step: props.inputType === "number" ? "any" : undefined,
                 value,
@@ -320,6 +363,10 @@ export const interactiveVocabulary = {
       emits: ["change", "update:value"],
       setup: function useDatePicker(props, { emit }) {
         const { context, live, action, boundProp } = useEventProps("change");
+        const hydrated = ref(false);
+        onMounted(() => {
+          hydrated.value = true;
+        });
         const bound = () => boundProp() !== undefined;
         const initial = () =>
           typeof props.value === "string" ? props.value : undefined;
@@ -370,10 +417,14 @@ export const interactiveVocabulary = {
           const current = bound() ? initial() : selection.value.value;
           const anchor = classifyTemporal(selection.value.anchor ?? "");
           const instant = kind === "datetime" && anchor.kind === "instant";
+          const showRawValue =
+            kind === "datetime" &&
+            classifyTemporal(current ?? "").kind === "instant" &&
+            !hydrated.value;
           const display =
             current === undefined
               ? undefined
-              : kind === "datetime"
+              : kind === "datetime" && hydrated.value
                 ? toPickerLocalDateTime(current)
                 : normalizeTemporalInputValue(current);
           const canonical = (value: string | undefined) => {
@@ -395,7 +446,7 @@ export const interactiveVocabulary = {
             if (typeof value !== "string") return undefined;
             const precision = classifyTemporal(value);
             return normalizeTemporalInputValue(
-              kind === "datetime"
+              kind === "datetime" && hydrated.value
                 ? toLocalDateTime(
                     value,
                     precision.kind === "instant"
@@ -407,7 +458,12 @@ export const interactiveVocabulary = {
           };
           return h("input", {
             ...(!bound() && initial() !== undefined ? { key: initial()! } : {}),
-            type: kind === "datetime" ? "datetime-local" : kind,
+            type: showRawValue
+              ? "text"
+              : kind === "datetime"
+                ? "datetime-local"
+                : kind,
+            readOnly: showRawValue || undefined,
             "data-aui": "datepicker",
             "data-aui-action": action(),
             [FIELD_VALUE_ATTR]: canonical(current),
@@ -597,7 +653,9 @@ export const interactiveVocabulary = {
         const local = ref(initial());
         const input = ref<HTMLInputElement>();
         onUpdated(() => {
-          if (bound() && input.value) input.value.value = String(initial());
+          if (!input.value) return;
+          if (bound()) input.value.value = String(initial());
+          else input.value.defaultValue = String(initial());
         });
         let pointer = false;
         let keyboard = false;
@@ -649,7 +707,7 @@ export const interactiveVocabulary = {
               min: minimum(),
               max: maximum(),
               step: step(),
-              value: bound() ? value : initial(),
+              value,
               onInput: (event: Event) => {
                 const next = current(target<HTMLInputElement>(event));
                 if (!bound()) local.value = next;
@@ -747,8 +805,8 @@ export const interactiveVocabulary = {
               "aria-label": props.label,
             },
             [
-              ...mapOptions(props.options, (option) =>
-                h("label", { "data-aui": "radiogroup-option" }, [
+              ...mapOptions(props.options, (option, key) =>
+                h("label", { key, "data-aui": "radiogroup-option" }, [
                   h("input", {
                     type: "radio",
                     name: name() ?? generatedName,
@@ -850,8 +908,8 @@ export const interactiveVocabulary = {
               "aria-label": props.label,
             },
             [
-              ...mapOptions(props.options, (option) =>
-                h("label", { "data-aui": "checkboxgroup-option" }, [
+              ...mapOptions(props.options, (option, key) =>
+                h("label", { key, "data-aui": "checkboxgroup-option" }, [
                   h("input", {
                     type: "checkbox",
                     name: name() ?? generatedName,
