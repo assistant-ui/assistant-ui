@@ -58,7 +58,7 @@ type TeamsConversionWarning = {
 | `Image` | `Image` | A numeric `size` is dropped with a warning; `round` is dropped silently |
 | `Fact` | `FactSet` | Consecutive facts merge into one set; `delta` appends as the browser's directional chip in parentheses |
 | `Table` | Native `Table` with the first row as headers | Column formats produce the same formatted text as the browser; sorting and alignment are browser-only; requires schema 1.5, so it will not render on Teams mobile; a column without a string label keeps its position with an empty header and warns |
-| `Card` | `Container`, with the title as a leading heading | Footer buttons become an `ActionSet` beside the container, not inside it |
+| `Card` | `Container`, with the title as a leading heading | Footer buttons become an `ActionSet` beside the container, not inside it; a form card with its own `$action` and no `confirm` footer also gets a "Submit" action |
 | `Alert` | `Container` with a semantic style (`accent`, `good`, `warning`, `attention`) | Title and description become two text blocks |
 | `Carousel` | Multiple attachments through `toTeamsAttachments` | See [Carousels](#carousels); a non-card child that would have rendered is dropped with a warning |
 | `ListView` | One `Container` per item, separated after the first | A non-item child that would have rendered is dropped with a warning, and never reserves an input id |
@@ -83,7 +83,9 @@ type TeamsConversionWarning = {
 
 Teams has no undo surface, so a Button with `undoable` fires immediately.
 
-Presentation props the converter does not map are dropped silently, without a warning, because the node itself still renders. That covers `Box`'s `width`, `height`, `radius`, and `background`; `Card`'s `padding` and `background`; `gap` on `Row`, `Col`, and `Form`, `align` on `Row` and `Col`, and `justify` on `Row`; `Badge`'s `variant`; `Carousel`'s `label`; `Divider`'s `flush`; and `Button`'s `block`. `Card`'s `asForm` and `Button`'s `submit` are dropped for a different reason: every input on an Adaptive Card submits together, so a submit button and a click button both convert to the same `Action.Submit`, and a card marked `asForm` converts exactly like one that is not.
+Presentation props the converter does not map are dropped silently, without a warning, because the node itself still renders. That covers `Box`'s `width`, `height`, `radius`, and `background`; `Card`'s `padding` and `background`; `gap` on `Row`, `Col`, and `Form`, `align` on `Row` and `Col`, and `justify` on `Row`; `Badge`'s `variant`; `Carousel`'s `label`; `Divider`'s `flush`; and `Button`'s `block`. `Button`'s `submit` is dropped for a different reason: every input on an Adaptive Card submits together, so a submit button and a click button both convert to the same `Action.Submit`.
+
+On a `Card` marked `asForm`, the confirm action carries the `confirm` footer's `$action`, or the Card's own `$action` when the footer has none. A form card with its own `$action` and no `confirm` footer gets a "Submit" action where the confirm action would go, ahead of any cancel action.
 
 ## Layout differences
 
@@ -104,7 +106,7 @@ Adaptive Cards merges every input's current value into one submit object keyed b
 
 Datetime pickers use `aui:datetime:date:<encodeURIComponent(fieldId)>` for the date input and `aui:datetime:time:<encodeURIComponent(fieldId)>:<encodeURIComponent(previousValue)>` for the time input. Each ID identifies the field and its role on its own. The time ID's last segment holds the original instant, including its offset and precision, or is empty for a wall clock or initially empty value. Submit actions carry no temporal field map, so adding companion actions does not duplicate that metadata. Keep these IDs intact when forwarding input values to `decodeSubmitData`.
 
-**There is no change event.** Adaptive Cards has no way to dispatch when a control's value changes, so a standalone control carrying `$action` gets a companion "Submit" `ActionSet` appended, plus a `fallback` warning. Five such controls produce five separate submit buttons. The idiomatic shape is to put `$action` on a `Form` or a `Card` footer and leave the controls actionless, which yields one submit for the whole card.
+**There is no change event.** Adaptive Cards has no way to dispatch when a control's value changes, so a standalone control carrying `$action` gets a companion "Submit" `ActionSet` appended, plus a `fallback` warning. Five such controls produce five separate submit buttons. The idiomatic shape is to put `$action` on a `Form`, a `Card` marked `asForm`, or a `Card` footer and leave the controls actionless, which yields one submit for the whole card.
 
 ## Actions
 

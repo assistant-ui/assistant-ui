@@ -769,18 +769,34 @@ const convertActions = (
 };
 
 const cardActionButtons = (
-  props: Readonly<Record<string, unknown>>,
+  element: NormalizedUIElement,
   context: ConversionContext,
 ): SlackButtonElement[] => {
+  const { confirm, cancel } = element.props;
+  const formAction =
+    element.props["asForm"] === true ? element.action : undefined;
   const buttons: SlackButtonElement[] = [];
-  for (const key of ["confirm", "cancel"] as const) {
-    const footer = props[key];
-    if (!isRecord(footer)) continue;
+  if (isRecord(confirm)) {
     buttons.push(
       buttonElement(
-        asString(footer["label"]),
-        key === "confirm" ? "primary" : undefined,
-        readReserved(footer, "action"),
+        asString(confirm["label"]),
+        "primary",
+        readReserved(confirm, "action") ?? formAction,
+        "Card",
+        context,
+      ),
+    );
+  } else if (formAction !== undefined) {
+    buttons.push(
+      buttonElement("Submit", "primary", formAction, "Card", context),
+    );
+  }
+  if (isRecord(cancel)) {
+    buttons.push(
+      buttonElement(
+        asString(cancel["label"]),
+        undefined,
+        readReserved(cancel, "action"),
         "Card",
         context,
       ),
@@ -788,6 +804,11 @@ const cardActionButtons = (
   }
   return buttons;
 };
+
+const cardHasButtons = (element: NormalizedUIElement): boolean =>
+  isRecord(element.props["confirm"]) ||
+  isRecord(element.props["cancel"]) ||
+  (element.props["asForm"] === true && element.action !== undefined);
 
 const cardTitleText = (
   props: Readonly<Record<string, unknown>>,
@@ -960,7 +981,7 @@ const convertCard = (
 ): SlackBlock[] => {
   const titleText = cardTitleText(element.props, context);
   const fields = extractCardFields(element);
-  const buttons = cardActionButtons(element.props, context);
+  const buttons = cardActionButtons(element, context);
 
   if (fields.leftover.length > 0) {
     warn(
@@ -1025,8 +1046,7 @@ const scanLostContent = (
   if (
     CONTROL_TYPES.has(node.type) ||
     (node.type === "ListViewItem" && isRecord(node.action)) ||
-    (node.type === "Card" &&
-      (isRecord(node.props["confirm"]) || isRecord(node.props["cancel"])))
+    (node.type === "Card" && cardHasButtons(node))
   ) {
     into.add("controls");
   }
@@ -1073,7 +1093,7 @@ const degradeCard = (
     "A card inside a carousel was reshaped to title and body.",
   );
   const lostKinds = new Set<string>();
-  if (isRecord(element.props["confirm"]) || isRecord(element.props["cancel"])) {
+  if (cardHasButtons(element)) {
     lostKinds.add("controls");
   }
   scanLostContent(element.children, lostKinds, depth + 1);
@@ -1103,7 +1123,7 @@ const convertCarouselCard = (
       ? assembleCleanCard(
           cardTitleText(element.props, context),
           fields,
-          cardActionButtons(element.props, context),
+          cardActionButtons(element, context),
           context,
         )
       : degradeCard(element, context, depth);

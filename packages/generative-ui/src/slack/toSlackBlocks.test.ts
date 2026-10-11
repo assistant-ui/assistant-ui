@@ -1521,6 +1521,164 @@ describe("toSlackBlocks", () => {
   });
 
   describe("Card", () => {
+    it("uses the confirm action for an asForm card when both actions exist", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Card",
+        asForm: true,
+        $action: { type: "card_submit" },
+        confirm: { label: "Save", $action: { type: "confirm_submit" } },
+      });
+      expect((blocks[0] as SlackCardBlock).actions).toEqual([
+        expect.objectContaining({
+          action_id: "confirm_submit",
+          style: "primary",
+        }),
+      ]);
+    });
+
+    it("uses the card action on a confirm footer without an action", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Card",
+        asForm: true,
+        $action: { type: "card_submit" },
+        confirm: { label: "Save" },
+      });
+      expect((blocks[0] as SlackCardBlock).actions).toEqual([
+        expect.objectContaining({ action_id: "card_submit", style: "primary" }),
+      ]);
+    });
+
+    it("adds a Submit button for an asForm card without a confirm footer", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Card",
+        asForm: true,
+        $action: { type: "card_submit" },
+      });
+      expect((blocks[0] as SlackCardBlock).actions).toEqual([
+        expect.objectContaining({
+          text: { type: "plain_text", text: "Submit" },
+          action_id: "card_submit",
+          style: "primary",
+        }),
+      ]);
+    });
+
+    it("puts an asForm card's Submit button before its cancel footer", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Card",
+        asForm: true,
+        $action: { type: "card_submit" },
+        cancel: { label: "Discard", $action: { type: "discard" } },
+      });
+      expect((blocks[0] as SlackCardBlock).actions).toEqual([
+        expect.objectContaining({
+          text: { type: "plain_text", text: "Submit" },
+          action_id: "card_submit",
+          style: "primary",
+        }),
+        expect.objectContaining({
+          text: { type: "plain_text", text: "Discard" },
+          action_id: "discard",
+        }),
+      ]);
+    });
+
+    it("keeps non-form card actions and actionless form cards unchanged", () => {
+      const nonForm = toSlackBlocks({
+        $type: "Card",
+        title: "Plain",
+        $action: { type: "ignored" },
+      });
+      const actionlessForm = toSlackBlocks({
+        $type: "Card",
+        title: "Plain",
+        asForm: true,
+      });
+      expect(nonForm.blocks).toEqual(actionlessForm.blocks);
+      expect((nonForm.blocks[0] as SlackCardBlock).actions).toBeUndefined();
+    });
+
+    it("adds the asForm card Submit button after inline children", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Card",
+        asForm: true,
+        $action: { type: "card_submit" },
+        children: { $type: "Fact", label: "Status", value: "Ready" },
+      });
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          fields: [{ type: "mrkdwn", text: "*Status*\nReady" }],
+        },
+        {
+          type: "actions",
+          elements: [
+            expect.objectContaining({
+              text: { type: "plain_text", text: "Submit" },
+              action_id: "card_submit",
+            }),
+          ],
+        },
+      ]);
+    });
+
+    it("keeps the Submit button on a clean carousel card", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Carousel",
+        children: [
+          { $type: "Card", asForm: true, $action: { type: "submit" } },
+        ],
+      });
+      expect((blocks[0] as SlackCarouselBlock).elements[0]?.actions).toEqual([
+        expect.objectContaining({ action_id: "submit", style: "primary" }),
+      ]);
+    });
+
+    it("reports a form card's Submit button lost in a carousel reshape", () => {
+      const { warnings } = toSlackBlocks({
+        $type: "Carousel",
+        children: [
+          {
+            $type: "Card",
+            title: "Plan",
+            asForm: true,
+            $action: { type: "submit" },
+            children: { $type: "Fact", label: "Price", value: "$10" },
+          },
+        ],
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Card",
+        detail: "A reshaped carousel card's controls were dropped.",
+      });
+    });
+
+    it("reports a nested form card's Submit button lost in a carousel reshape", () => {
+      const { warnings } = toSlackBlocks({
+        $type: "Carousel",
+        children: [
+          {
+            $type: "Card",
+            title: "Plan",
+            children: {
+              $type: "Col",
+              children: {
+                $type: "Card",
+                asForm: true,
+                $action: { type: "submit" },
+              },
+            },
+          },
+        ],
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Card",
+        detail: "A reshaped carousel card's controls were dropped.",
+      });
+    });
+
     it("maps a clean card into a native card block with title, hero image, body, subtext, and actions", () => {
       const { blocks, warnings } = toSlackBlocks({
         $type: "Card",
