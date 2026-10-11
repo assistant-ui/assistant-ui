@@ -532,7 +532,7 @@ describe("reduceAdkThreadState", () => {
     ).toEqual([answer]);
   });
 
-  it("releases every complete group of a run when it ends", () => {
+  it("releases every complete group of an ended run when it flushes", () => {
     const answer = (
       id: string,
       name = "lookup",

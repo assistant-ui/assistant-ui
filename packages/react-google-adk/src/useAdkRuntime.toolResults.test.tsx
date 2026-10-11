@@ -416,6 +416,7 @@ describe("useAdkRuntime tool result batching", () => {
   it("drops held answers on unmount", async () => {
     const { runtime, requests, unmount, closeFirstRun } = await mount(true);
     act(() => answer(runtime, "c1"));
+    act(() => answer(runtime, "c2"));
     act(() => unmount());
     await act(async () => closeFirstRun());
     await act(async () => {
