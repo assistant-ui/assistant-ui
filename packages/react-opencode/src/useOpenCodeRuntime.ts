@@ -157,9 +157,11 @@ const useOpenCodeThreadStore = (
   const threadListTitle = useAuiState(
     (current) => current.threadListItem.title,
   );
+  const threadListLoading = useAuiState((current) => current.threads.isLoading);
   useOpenCodeThreadListTitleSync(
     state.session?.title,
     threadListTitle,
+    threadListLoading,
     () => aui.threadListItem.generateTitle(),
     syncTitles,
   );

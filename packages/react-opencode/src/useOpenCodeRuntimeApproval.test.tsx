@@ -47,7 +47,10 @@ vi.mock("@assistant-ui/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/react")>()),
   useAui: () => ({ threadListItem: mocks.threadListItem }),
   useAuiState: (selector: (state: unknown) => unknown) =>
-    selector({ threadListItem: mocks.threadListItem }),
+    selector({
+      threadListItem: mocks.threadListItem,
+      threads: { isLoading: false },
+    }),
   useExternalStoreRuntime: (adapter: unknown) => {
     mocks.adapters.push(adapter);
     return {};

@@ -68,7 +68,10 @@ vi.mock("@assistant-ui/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/react")>()),
   useAui: () => ({ threadListItem: { initialize: vi.fn() } }),
   useAuiState: (selector: (state: unknown) => unknown) =>
-    selector({ threadListItem: { remoteId: "session-1" } }),
+    selector({
+      threadListItem: { remoteId: "session-1" },
+      threads: { isLoading: false },
+    }),
   useCloudThreadListAdapter: () => ({}),
   useExternalStoreRuntime: () => ({}),
   useRemoteThreadListRuntime: (options: {
