@@ -203,6 +203,16 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
   });
 
+  it("leaves an unclosed display delimiter's code span as written", () => {
+    const text = "\\[\n`\\(x\\)`";
+    expect(rewriteLatexBracketDelimiters(text)).toBe(text);
+  });
+
+  it("does not pair display delimiters across a code fence", () => {
+    const text = "\\[\n```text\ncode\n```\n\\]";
+    expect(rewriteLatexBracketDelimiters(text)).toBe(text);
+  });
+
   it("rewrites across a lone literal backtick", () => {
     expect(rewriteLatexBracketDelimiters("Use \\(x ` y\\) here")).toBe(
       "Use $x ` y$ here",
@@ -456,6 +466,22 @@ describe("normalizeMathDelimiters", () => {
   it("keeps code inert for both delimiter families", () => {
     expect(normalizeMathDelimiters("`\\(x\\)` and `[/math]y[/math]`")).toBe(
       "`\\(x\\)` and `[/math]y[/math]`",
+    );
+  });
+
+  it("normalizes display math with a code span in its TeX body", () => {
+    const input = ["1. \\[", "\\text{`x`} = 1", "E = mc^2", "\\]", "Text"].join(
+      "\n",
+    );
+    expect(normalizeMathDelimiters(input)).toBe(
+      [
+        "1. ",
+        "   $$",
+        "   \\text{`x`} = 1",
+        "   E = mc^2",
+        "   $$",
+        "Text",
+      ].join("\n"),
     );
   });
 

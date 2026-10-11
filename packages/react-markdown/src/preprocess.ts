@@ -734,6 +734,7 @@ function rewriteOutsideBlocks(
 
 const LATEX_INLINE_DELIMITER = /\\{1,2}\(([^\n]+?)\\{1,2}\)/g;
 const LATEX_DISPLAY_DELIMITER = /\\{1,2}\[([\s\S]+?)\\{1,2}\]/g;
+const LATEX_DISPLAY_DELIMITER_AT_START = /^\\{1,2}\[([\s\S]+?)\\{1,2}\]/;
 
 // A closer has to sit at its opener's blockquote depth, counted in markers so
 // `> ~~~` and `>~~~` are the same line, and at most three characters deeper
@@ -861,13 +862,45 @@ function backtickEnd(
     : codeSpanEnd(text, start, blockStarts);
 }
 
+function isLatexDisplayOpener(text: string, index: number): boolean {
+  const next = text.charCodeAt(index + 1);
+  return (
+    next === LBRACKET ||
+    (next === 92 && text.charCodeAt(index + 2) === LBRACKET)
+  );
+}
+
+function latexDisplayDelimiterEnd(text: string, start: number): number {
+  const match = LATEX_DISPLAY_DELIMITER_AT_START.exec(text.slice(start));
+  if (!match) return -1;
+
+  const end = start + match[0].length;
+  for (let index = start + match[0].indexOf("[") + 1; index < end;) {
+    const char = text.charCodeAt(index);
+    if (char === 92) {
+      index += 2;
+    } else if (
+      (char === BACKTICK && opensBacktickFence(text, index)) ||
+      (char === TILDE && opensTildeFence(text, index))
+    ) {
+      return -1;
+    } else {
+      index += 1;
+    }
+  }
+  return end;
+}
+
 /**
- * Applies `rewrite` to the stretches of `text` outside HTML blocks, indented code, code spans and fences,
- * copying their contents through verbatim, so a delimiter shown as code is never
- * rewritten. `\x` escapes are stepped over when scanning so an escaped
- * backtick does not open a span, and a delimiter pair straddling a code
- * boundary stays as written. Each stretch is passed the characters adjacent to
- * it so the rewrite can make line-boundary decisions that survive the split.
+ * Applies `rewrite` to stretches outside HTML blocks, indented code, code spans
+ * and fences, copying protected contents through verbatim. The bracket-display
+ * caller keeps backticks in complete `\[...\]` bodies with the math, since
+ * remark-math reads those backticks as TeX.
+ *
+ * `\x` escapes are stepped over so an escaped backtick does not open a span,
+ * and a delimiter pair straddling a code boundary outside a complete display
+ * body stays as written. Each stretch receives its adjacent characters so the
+ * rewrite can make line-boundary decisions that survive the split.
  *
  * Backtick regions are found with `backtickEnd`, which {@link
  * escapeCurrencyDollars} also uses, and split the two constructs a backtick run
@@ -888,11 +921,13 @@ function rewriteOutsideCode(
     lineHead: (offset: number) => string,
     lineTail: (offset: number) => string,
   ) => string,
+  displayMathMayContainCodeSpans = false,
 ): string {
   return rewriteOutsideBlocks(text, (text, blockStarts) => {
     let out = "";
     let index = 0;
     let plainStart = 0;
+    let displayEnd = -1;
 
     const flush = (end: number, followedBy: string) => {
       const segment = text.slice(plainStart, end);
@@ -922,12 +957,30 @@ function rewriteOutsideCode(
 
     while (index < text.length) {
       const char = text[index];
+      if (displayEnd <= index) {
+        displayEnd = -1;
+        if (
+          displayMathMayContainCodeSpans &&
+          char === "\\" &&
+          isLatexDisplayOpener(text, index)
+        ) {
+          displayEnd = latexDisplayDelimiterEnd(text, index);
+        }
+      }
       if (char === "\\") {
         index += 2;
       } else if (char === "`") {
-        const end = backtickEnd(text, index, blockStarts);
-        if (end !== -1) copyVerbatim(end);
-        else index += runLength(text, index, "`");
+        if (displayEnd > index) {
+          const end = backtickEnd(text, index, blockStarts);
+          index =
+            end !== -1 && end <= displayEnd
+              ? end
+              : index + runLength(text, index, "`");
+        } else {
+          const end = backtickEnd(text, index, blockStarts);
+          if (end !== -1) copyVerbatim(end);
+          else index += runLength(text, index, "`");
+        }
       } else if (opensTildeFence(text, index)) {
         copyVerbatim(fenceEnd(text, index, "~"));
       } else {
@@ -1037,25 +1090,28 @@ export function rewriteLatexBracketDelimiters(text: string): string {
   // The display rewrite runs first: its offsets index the segment as the walker
   // cut it, and an inline rewrite ahead of it would shift them off the line
   // whose prefix the fence copies.
-  return rewriteOutsideCode(text, (segment, precededBy, followedBy, lineHead) =>
-    segment
-      .replace(
-        LATEX_DISPLAY_DELIMITER,
-        (match: string, body: string, offset: number, source: string) =>
-          emitDisplayMath(
-            match,
-            body,
-            offset,
-            source,
-            precededBy,
-            followedBy,
-            lineHead,
-          ),
-      )
-      .replace(LATEX_INLINE_DELIMITER, (match: string, body: string) => {
-        const trimmed = body.trim();
-        return trimmed === "" ? match : `$${trimmed}$`;
-      }),
+  return rewriteOutsideCode(
+    text,
+    (segment, precededBy, followedBy, lineHead) =>
+      segment
+        .replace(
+          LATEX_DISPLAY_DELIMITER,
+          (match: string, body: string, offset: number, source: string) =>
+            emitDisplayMath(
+              match,
+              body,
+              offset,
+              source,
+              precededBy,
+              followedBy,
+              lineHead,
+            ),
+        )
+        .replace(LATEX_INLINE_DELIMITER, (match: string, body: string) => {
+          const trimmed = body.trim();
+          return trimmed === "" ? match : `$${trimmed}$`;
+        }),
+    true,
   );
 }
 
