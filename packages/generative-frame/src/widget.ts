@@ -446,7 +446,7 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
       }
       case METHODS.requestDisplayMode: {
         const mode = p["mode"];
-        if (mode !== "inline" && mode !== "fullscreen" && mode !== "pip") {
+        if (!isDisplayMode(mode)) {
           throw new RpcError(
             RPC_ERROR.invalidParams,
             "ui/request-display-mode requires a valid 'mode'",
