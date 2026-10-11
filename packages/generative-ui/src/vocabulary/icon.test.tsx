@@ -39,6 +39,15 @@ describe("iconVocabulary", () => {
     );
   });
 
+  it.each(["huge", "toString", "__proto__"])(
+    "renders the size %s at the medium size",
+    (size) => {
+      expect(render({ $type: "Icon", name: "star", size })).toContain(
+        'width="16"',
+      );
+    },
+  );
+
   it("emits the size token as a data-aui-size hook when given", () => {
     expect(render({ $type: "Icon", name: "bell", size: "lg" })).toContain(
       'data-aui-size="lg"',

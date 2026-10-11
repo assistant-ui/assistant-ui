@@ -144,6 +144,12 @@ export const ICON_GLYPHS: Record<(typeof ICON_NAMES)[number], IconGlyph[]> = {
   ],
 };
 
+/** The pixel size for a size token the model wrote, `md` for anything else. */
+export const iconSize = (size: unknown) =>
+  typeof size === "string" && Object.hasOwn(ICON_SIZE_PX, size)
+    ? ICON_SIZE_PX[size as keyof typeof ICON_SIZE_PX]
+    : ICON_SIZE_PX.md;
+
 /** The glyph for an icon name the model wrote, or undefined for a name that is not one of the icons, including keys every object inherits. */
 export const iconGlyph = (name: unknown) =>
   typeof name === "string" && Object.hasOwn(ICON_GLYPHS, name)

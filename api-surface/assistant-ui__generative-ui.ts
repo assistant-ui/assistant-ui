@@ -10,7 +10,9 @@ import { ComponentType, ReactNode } from "react";
 
 import "react-textarea-autosize";
 
-import { ZodType } from "zod";
+import { Component } from "vue";
+
+import { ZodType, z } from "zod";
 
 import "zustand";
 
@@ -420,7 +422,15 @@ type GenerativeUIBindings<P> = {
   readonly [K in keyof P]?: (value: P[K]) => void;
 };
 
-type GenerativeUIComponent<P = any> = {
+type GenerativeUIComponent = {
+  description: string;
+  properties: ZodType;
+  events?: readonly string[] | undefined;
+  slots?: readonly string[] | undefined;
+  component: Component;
+};
+
+type GenerativeUIComponent$1<P = any> = {
   description: string;
   properties: ZodType<P>;
   streamProperties: boolean | undefined;
@@ -441,6 +451,8 @@ type GenerativeUIDispatch = (action: Action) => unknown;
 type GenerativeUIElement = NormalizedUIElement;
 
 type GenerativeUILibrary = Record<string, GenerativeUIComponent>;
+
+type GenerativeUILibrary$1 = Record<string, GenerativeUIComponent$1>;
 
 type GenerativeUIMessagePart = {
   readonly type: "generative-ui";
@@ -548,7 +560,7 @@ declare class JSONGenerativeUI$1 {
 }
 
 type JSONGenerativeUIOptions = {
-  library: GenerativeUILibrary;
+  library: GenerativeUILibrary$1;
   actions?: ActionRegistry;
 };
 
@@ -977,7 +989,9 @@ type SpecComponentProps<P extends Record<string, unknown> = Record<string, unkno
   streaming: boolean;
 };
 
-type SpecComponents = Record<string, ComponentType<SpecComponentProps<any>>>;
+type SpecComponents = Record<string, Component>;
+
+type SpecComponents$1 = Record<string, ComponentType<SpecComponentProps<any>>>;
 
 type SpecElement = {
   type: string;
@@ -1709,7 +1723,7 @@ declare namespace entry_a2ui_exports {
 
 declare function applyA2uiOperations(state: A2uiState, operations: unknown): A2uiOperationResult;
 
-declare function buildPresentParameters(library: GenerativeUILibrary): JSONSchema7;
+declare function buildPresentParameters(library: GenerativeUILibrary$1): JSONSchema7;
 
 declare function convertSurfaceToUISpec(surface: A2uiSurfaceState, options?: {
   readonly keepUnknownComponents?: boolean;
@@ -1726,7 +1740,9 @@ declare function decodeSubmitData(value: unknown): Action | undefined;
 
 declare const defaultGenerativeUILibrary: GenerativeUILibrary;
 
-declare function defineGenerativeComponents(_library: GenerativeUILibrary): GenerativeUILibrary;
+declare const defaultGenerativeUILibrary$1: GenerativeUILibrary$1;
+
+declare function defineGenerativeComponents(_library: GenerativeUILibrary$1): GenerativeUILibrary$1;
 
 declare const emptyActionRegistry: ActionRegistry;
 
@@ -1760,14 +1776,14 @@ declare function normalizeSpec(spec: UISpec): {
 declare function normalizeUINode(node: unknown, partialPath?: readonly string[] | undefined, depth?: number): NormalizedUINode;
 
 declare namespace entry_react_default_exports {
-  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIBindings, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI$1 as JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, hasFieldReference, normalizeSpec, normalizeUINode, renderGenerativeUI, resolveFieldReferences };
+  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIBindings, GenerativeUIComponent$1 as GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary$1 as GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI$1 as JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary$1 as defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, hasFieldReference, normalizeSpec, normalizeUINode, renderGenerativeUI, resolveFieldReferences };
 }
 
 declare namespace entry_react_react_server_exports {
-  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIBindings, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, hasFieldReference, normalizeSpec, normalizeUINode, renderGenerativeUI, resolveFieldReferences };
+  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIBindings, GenerativeUIComponent$1 as GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary$1 as GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary$1 as defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, hasFieldReference, normalizeSpec, normalizeUINode, renderGenerativeUI, resolveFieldReferences };
 }
 
-declare function renderGenerativeUI(node: unknown, library: GenerativeUILibrary, context?: GenerativeUIRenderContext): ReactNode;
+declare function renderGenerativeUI(node: unknown, library: GenerativeUILibrary$1, context?: GenerativeUIRenderContext): ReactNode;
 
 declare const resolveFieldReferences: (value: unknown, fields: Readonly<Record<string, unknown>>) => unknown;
 
@@ -1776,7 +1792,7 @@ declare namespace entry_slack_exports {
 }
 
 declare namespace entry_spec_exports {
-  export { ToSpecCatalogOptions, toSpecCatalog };
+  export { ToSpecCatalogOptions, toSpecCatalog$1 as toSpecCatalog };
 }
 
 declare function surfaceToOperations(surface: A2uiSurfaceState, surfaceId?: string): readonly A2uiSurfaceSnapshotOperation[];
@@ -1799,6 +1815,15 @@ declare function toSpecCatalog(library?: GenerativeUILibrary, options?: ToSpecCa
   components: SpecComponents;
 };
 
+declare function toSpecCatalog$1(library?: GenerativeUILibrary$1, options?: ToSpecCatalogOptions): {
+  catalog: Catalog;
+  components: SpecComponents$1;
+};
+
 declare function toTeamsAttachments(node: unknown, _options?: ToAdaptiveCardOptions): TeamsAttachmentsResult;
 
-export { entry_a2ui_exports as entry_a2ui, entry_react_default_exports as entry_react_default, entry_react_react_server_exports as entry_react_react_server, entry_root_exports as entry_root, entry_slack_exports as entry_slack, entry_spec_exports as entry_spec, entry_teams_exports as entry_teams };
+declare namespace entry_vue_exports {
+  export { GenerativeUIComponent, GenerativeUILibrary, ToSpecCatalogOptions, defaultGenerativeUILibrary, toSpecCatalog };
+}
+
+export { entry_a2ui_exports as entry_a2ui, entry_react_default_exports as entry_react_default, entry_react_react_server_exports as entry_react_react_server, entry_root_exports as entry_root, entry_slack_exports as entry_slack, entry_spec_exports as entry_spec, entry_teams_exports as entry_teams, entry_vue_exports as entry_vue };

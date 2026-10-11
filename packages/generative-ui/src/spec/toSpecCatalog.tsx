@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import {
   defineCatalog,
-  type ActionDefinition,
   type Catalog,
   type ComponentDefinition,
   type SpecElement,
@@ -18,13 +17,10 @@ import { defaultGenerativeUILibrary } from "../vocabulary";
 import {
   BOUND_VALUE_PROPS,
   buildCatalogDefinition,
+  type ToSpecCatalogOptions,
 } from "./catalogDefinitions";
 
-/** Options for {@link toSpecCatalog}. */
-export type ToSpecCatalogOptions = {
-  /** Host actions the model may bind to component events, next to the built-in `setState`. */
-  actions?: Record<string, ActionDefinition>;
-};
+export type { ToSpecCatalogOptions } from "./catalogDefinitions";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -130,8 +126,8 @@ export function toSpecCatalog(
   library: GenerativeUILibrary = defaultGenerativeUILibrary,
   options: ToSpecCatalogOptions = {},
 ): { catalog: Catalog; components: SpecComponents } {
-  const definitions: Record<string, ComponentDefinition> = {};
-  const components: SpecComponents = {};
+  const definitions: Record<string, ComponentDefinition> = Object.create(null);
+  const components: SpecComponents = Object.create(null);
   for (const [name, entry] of Object.entries(library)) {
     const isDefault =
       isDefaultGenerativeUIComponent(name, entry.properties) ||

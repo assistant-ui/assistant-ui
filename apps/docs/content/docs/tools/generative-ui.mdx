@@ -377,6 +377,50 @@ const { catalog, components } = toSpecCatalog({
 });
 ```
 
+### With Vue
+
+`@assistant-ui/generative-ui/vue` ships the vocabulary as Vue components for `SpecRenderer` from `generative-frame/spec/vue`, with `vue` as an optional peer. Its `toSpecCatalog` takes a Vue library and the same `actions` option, and every component renders the same `data-aui` markup, emits the same events with the same payloads, and writes bound values back the same way as the React vocabulary, so the stylesheet and the behavior above carry over:
+
+```ts
+import { defineComponent, h } from "vue";
+import { SpecRenderer } from "generative-frame/spec/vue";
+import {
+  defaultGenerativeUILibrary,
+  toSpecCatalog,
+  type GenerativeUIComponent,
+} from "@assistant-ui/generative-ui/vue";
+import { z } from "zod";
+import { Stars } from "@/components/stars";
+
+const Rating: GenerativeUIComponent = {
+  description: "A 1 to 5 star rating the user can change.",
+  properties: z.object({ value: z.number().describe("Stars, from 1 to 5.") }),
+  events: ["rate"],
+  slots: [],
+  component: defineComponent({
+    props: ["value"],
+    emits: ["rate", "update:value"],
+    setup(props, { emit }) {
+      return () =>
+        h(Stars, {
+          value: props.value,
+          onChange: (stars: number) => {
+            emit("update:value", stars);
+            emit("rate", stars);
+          },
+        });
+    },
+  }),
+};
+
+const { catalog, components } = toSpecCatalog({
+  ...defaultGenerativeUILibrary,
+  Rating,
+});
+```
+
+A Vue entry carries a `component` instead of a `render` function. The component follows the [Vue component contract](/generative-frame/docs/spec-mode#render-with-vue): it declares its props and the events it emits, receives children and named slots as Vue slots, and writes a bound prop by emitting `update:<prop>`.
+
 ## Charts
 
 `Chart` accepts positive and negative values. Its scale always includes zero, so bars grow upward or downward from the zero line, areas fill to that line, and stacked bars and areas keep positive and negative totals on their respective sides. A chart that contains both positive and negative values draws a zero baseline. When `showAxis` is set, the ticks include zero and use round values for a mixed domain.
@@ -442,10 +486,11 @@ Props are a separate question. Each component's `properties` schema shapes the `
 
 ## Beyond the browser
 
-The tree is plain JSON, so it is not tied to the browser. The package root, `/slack`, `/teams`, and `/a2ui` let a server action, queue worker, or webhook handler consume the tree without pulling React, while `/react` and `/spec` import it:
+The tree is plain JSON, so it is not tied to the browser. The package root, `/slack`, `/teams`, and `/a2ui` let a server action, queue worker, or webhook handler consume the tree without pulling React, while `/react` and `/spec` import it and `/vue` imports Vue:
 
 - `@assistant-ui/generative-ui` holds the tree types, normalization, token enums, and `resolveFieldReferences`.
 - `@assistant-ui/generative-ui/spec` exports `toSpecCatalog` and `ToSpecCatalogOptions` to build a generative-frame spec catalog from a generative UI library.
+- `@assistant-ui/generative-ui/vue` exports `toSpecCatalog`, `defaultGenerativeUILibrary`, and the `GenerativeUIComponent` and `GenerativeUILibrary` types for the same catalog with Vue components.
 - `@assistant-ui/generative-ui/slack` converts the tree into Block Kit and decodes `block_actions` back into `$action`. See [Generative UI on Slack](/docs/tools/generative-ui-slack).
 - `@assistant-ui/generative-ui/teams` converts it into an Adaptive Card and decodes the submit payload. See [Generative UI on Microsoft Teams](/docs/tools/generative-ui-teams).
 - `@assistant-ui/generative-ui/a2ui` consumes [A2UI surfaces over AG-UI](/docs/tools/a2ui).
