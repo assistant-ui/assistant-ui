@@ -13,6 +13,7 @@ import type { SubscribableWithState } from "../../subscribable/subscribable";
 import type { ThreadRuntimeCoreBinding } from "./thread-runtime";
 import type { MessageStateBinding } from "./bindings";
 import type { MessagePartRuntimePath } from "./paths";
+import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
 import { ToolResponse } from "assistant-stream";
 
 export type MessagePartState = (
@@ -49,6 +50,11 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
   private contentBinding: MessagePartSnapshotBinding;
   private messageApi: MessageStateBinding | undefined;
   private threadApi: ThreadRuntimeCoreBinding | undefined;
+  private readonly interactionState: MessagePartState;
+  private readonly interactionMessage:
+    | ReturnType<MessageStateBinding["getState"]>
+    | undefined;
+  private readonly interactionCore: ThreadRuntimeCore | undefined;
 
   constructor(
     contentBinding: MessagePartSnapshotBinding,
@@ -58,6 +64,15 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
     this.contentBinding = contentBinding;
     this.messageApi = messageApi;
     this.threadApi = threadApi;
+    this.interactionState = contentBinding.getState();
+    this.interactionMessage =
+      this.interactionState.type === "tool-call"
+        ? messageApi?.getState()
+        : undefined;
+    this.interactionCore =
+      this.interactionState.type === "tool-call"
+        ? threadApi?.getState()
+        : undefined;
     this.__internal_bindMethods();
   }
 
@@ -157,7 +172,7 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
   public async unstable_recordInteraction(
     input: Unstable_ToolInteractionInput,
   ): Promise<void> {
-    const state = this.contentBinding.getState();
+    const state = this.interactionState;
     if (!state) throw new Error("Message part is not available");
 
     if (state.type !== "tool-call")
@@ -169,11 +184,11 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
       );
     if (!this.threadApi) throw new Error("Thread API is not available");
 
-    const message = this.messageApi.getState();
+    const message = this.interactionMessage;
     if (!message) throw new Error("Message is not available");
 
-    const core = this.threadApi.getState();
-    if (!core.unstable_recordToolInteraction)
+    const core = this.interactionCore;
+    if (!core?.unstable_recordToolInteraction)
       throw new Error("Runtime does not support recording tool interactions.");
 
     await core.unstable_recordToolInteraction({

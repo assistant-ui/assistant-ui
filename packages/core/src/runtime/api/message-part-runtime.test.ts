@@ -3,6 +3,10 @@ import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
 import type { MessageStateBinding } from "./bindings";
 import type { MessagePartState } from "./message-part-runtime";
 import { MessagePartRuntimeImpl } from "./message-part-runtime";
+import {
+  MessageRuntimeImpl,
+  type MessageRuntimeState,
+} from "./message-runtime";
 import type { ThreadRuntimeCoreBinding } from "./thread-runtime";
 
 const threadPath = {
@@ -146,6 +150,59 @@ describe("MessagePartRuntime interaction recording", () => {
         occurredAt: expect.any(Number),
       },
     });
+  });
+
+  it("keeps a retained recorder on its original thread, message, and tool call", async () => {
+    let currentMessage: MessageRuntimeState = {
+      ...message,
+      id: "message-a",
+      content: [{ ...toolPart, toolCallId: "call-a" }],
+    };
+    const recordA = vi.fn(async () => {});
+    const recordB = vi.fn(async () => {});
+    let currentCore = {
+      unstable_recordToolInteraction: recordA,
+    } as unknown as ThreadRuntimeCore;
+    const messageBinding: MessageStateBinding = {
+      path: messagePath,
+      getState: () => currentMessage,
+      subscribe: () => () => {},
+    };
+    const threadBinding: ThreadRuntimeCoreBinding = {
+      path: threadPath,
+      getState: () => currentCore,
+      subscribe: () => () => {},
+      outerSubscribe: () => () => {},
+    };
+    const part = new MessageRuntimeImpl(
+      messageBinding,
+      threadBinding,
+    ).getMessagePartByIndex(0);
+
+    currentMessage = {
+      ...message,
+      id: "message-b",
+      content: [{ ...toolPart, toolCallId: "call-b" }],
+    };
+    currentCore = {
+      unstable_recordToolInteraction: recordB,
+    } as unknown as ThreadRuntimeCore;
+
+    await part.unstable_recordInteraction({
+      type: "action",
+      payload: { action: "toggle" },
+    });
+
+    expect(recordA).toHaveBeenCalledExactlyOnceWith({
+      messageId: "message-a",
+      toolCallId: "call-a",
+      interaction: {
+        type: "action",
+        payload: { action: "toggle" },
+        occurredAt: expect.any(Number),
+      },
+    });
+    expect(recordB).not.toHaveBeenCalled();
   });
 });
 
