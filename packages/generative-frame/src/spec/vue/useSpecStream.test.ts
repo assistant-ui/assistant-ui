@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { createApp, defineComponent, h, reactive, ref, type App } from "vue";
 import { afterEach, describe, expect, it } from "vitest";
+import type { Spec } from "../types";
 import {
   useSpecStream,
   type UseSpecStreamOptions,
@@ -28,6 +29,22 @@ function mount(options: UseSpecStreamOptions = {}) {
   app.mount(container);
   mounted.push(app);
   return { input, result };
+}
+function mountDirect(options: UseSpecStreamOptions) {
+  let result!: UseSpecStreamResult;
+  const app = createApp(
+    defineComponent({
+      setup() {
+        result = useSpecStream(options);
+        return () => h("div");
+      },
+    }),
+  );
+  const container = document.createElement("div");
+  document.body.append(container);
+  app.mount(container);
+  mounted.push(app);
+  return result;
 }
 afterEach(() => {
   for (const app of mounted.splice(0)) app.unmount();
@@ -93,5 +110,62 @@ describe("useSpecStream", () => {
     expect(result.spec.value.elements["main"]).toBeDefined();
     result.reset();
     expect(result.spec.value.root).toBe("");
+  });
+
+  it("keeps incremental identity with a fresh initial getter", () => {
+    const source = ref(`${lines[0]}\n`);
+    const result = mountDirect({
+      source,
+      initial: () => ({ root: "base", elements: {}, state: {} }),
+    });
+    const afterRoot = result.spec.value;
+    source.value += '{"op":"add","path":"/elem';
+    expect(result.spec.value).toBe(afterRoot);
+    source.value = `${lines.join("\n")}\n`;
+    expect(result.spec.value).not.toBe(afterRoot);
+    expect(result.spec.value.elements.main?.props).toEqual({ text: "a" });
+  });
+
+  it("keeps source results ahead of push and reset, then reveals the snapshot", () => {
+    const source = ref<string | undefined>(`${lines[0]}\n`);
+    const mode = ref<"jsonl" | "inline">("jsonl");
+    const initial: Spec = { root: "base", elements: {}, state: {} };
+    const result = mountDirect({ source, mode, initial });
+    const followed = result.spec.value;
+    result.push(`${lines[1]}\n`);
+    expect(result.spec.value).toBe(followed);
+    expect(result.spec.value.elements.main).toBeUndefined();
+    source.value = undefined;
+    expect(result.spec.value.elements.main).toBeDefined();
+    source.value = `${lines[0]}\n`;
+    result.reset();
+    expect(result.spec.value).toBe(followed);
+    source.value = undefined;
+    expect(result.spec.value).toBe(initial);
+    expect(result.text.value).toBe("");
+  });
+
+  it("restarts on mode changes and reads ref initial only when parsing starts", () => {
+    const source = ref("Intro\n");
+    const mode = ref<"jsonl" | "inline">("jsonl");
+    const complete = ref(false);
+    const initial = ref<Spec>({ root: "first", elements: {}, state: {} });
+    const result = mountDirect({
+      source,
+      mode: () => mode.value,
+      complete,
+      initial,
+    });
+    expect(result.errors.value).toHaveLength(1);
+    const first = result.spec.value;
+    initial.value = { root: "second", elements: {}, state: {} };
+    expect(result.spec.value).toBe(first);
+    mode.value = "inline";
+    expect(result.errors.value).toEqual([]);
+    expect(result.text.value).toBe("Intro\n");
+    expect(result.spec.value.root).toBe("second");
+    initial.value = { root: "third", elements: {}, state: {} };
+    complete.value = true;
+    expect(result.spec.value.root).toBe("third");
   });
 });

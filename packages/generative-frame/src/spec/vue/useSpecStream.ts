@@ -1,9 +1,10 @@
 import {
+  computed,
   shallowRef,
   toValue,
   watch,
+  type ComputedRef,
   type MaybeRefOrGetter,
-  type ShallowRef,
 } from "vue";
 import {
   createSpecStream,
@@ -21,34 +22,43 @@ export type UseSpecStreamOptions = {
   initial?: MaybeRefOrGetter<Spec | undefined>;
 };
 export type UseSpecStreamResult = {
-  spec: ShallowRef<Spec>;
-  text: ShallowRef<string>;
-  errors: ShallowRef<SpecStreamError[]>;
+  spec: ComputedRef<Spec>;
+  text: ComputedRef<string>;
+  errors: ComputedRef<SpecStreamError[]>;
   push(chunk: string): void;
   end(): void;
   reset(): void;
 };
 
+type Snapshot = { spec: Spec; text: string; errors: SpecStreamError[] };
 type Follower = {
   stream: SpecStream;
   consumed: string;
   mode: SpecStreamMode;
   initial: Spec | undefined;
+  text: string;
+  errors: SpecStreamError[];
 };
 
 export function useSpecStream(
   options: UseSpecStreamOptions = {},
 ): UseSpecStreamResult {
-  const spec = shallowRef<Spec>(toValue(options.initial) ?? emptySpec());
-  const text = shallowRef("");
-  const errors = shallowRef<SpecStreamError[]>([]);
-  const start = (mode: SpecStreamMode, initial: Spec | undefined) =>
-    createSpecStream({ mode, ...(initial ? { initial } : {}) });
+  const snapshot = shallowRef<Snapshot>({
+    spec: toValue(options.initial) ?? emptySpec(),
+    text: "",
+    errors: [],
+  });
+  const followed = shallowRef<Snapshot>();
+  const current = computed(() => followed.value ?? snapshot.value);
+  const spec = computed(() => current.value.spec);
+  const text = computed(() => current.value.text);
+  const errors = computed(() => current.value.errors);
+  const start = (mode: SpecStreamMode) => {
+    const initial = toValue(options.initial);
+    return createSpecStream({ mode, ...(initial ? { initial } : {}) });
+  };
   let follower: Follower | undefined;
   let imperative: SpecStream | undefined;
-  let completed:
-    | { source: string; mode: SpecStreamMode; initial: Spec | undefined }
-    | undefined;
 
   watch(
     () =>
@@ -56,17 +66,14 @@ export function useSpecStream(
         toValue(options.source),
         toValue(options.complete),
         toValue(options.mode) ?? "jsonl",
-        toValue(options.initial),
       ] as const,
-    ([source, complete, mode, initial]) => {
-      if (source === undefined) return;
+    ([source, complete, mode]) => {
+      if (source === undefined) {
+        followed.value = undefined;
+        return;
+      }
       if (complete) {
-        if (
-          completed?.source === source &&
-          completed.mode === mode &&
-          completed.initial === initial
-        )
-          return;
+        const initial = toValue(options.initial);
         let result;
         if (
           follower &&
@@ -82,40 +89,43 @@ export function useSpecStream(
             ...(initial ? { initial } : {}),
           });
         }
-        if (result.spec !== spec.value) spec.value = result.spec;
-        text.value = result.text;
-        errors.value = result.errors;
-        completed = { source, mode, initial };
         follower = undefined;
+        followed.value = {
+          spec: result.spec,
+          text: result.text,
+          errors: result.errors,
+        };
         return;
       }
-      completed = undefined;
       if (
         !follower ||
         follower.mode !== mode ||
-        follower.initial !== initial ||
         !source.startsWith(follower.consumed)
       ) {
+        const initial = toValue(options.initial);
         follower = {
-          stream: start(mode, initial),
+          stream: createSpecStream({ mode, ...(initial ? { initial } : {}) }),
           consumed: "",
           mode,
           initial,
+          text: "",
+          errors: [],
         };
-        spec.value = follower.stream.spec;
-        text.value = "";
-        errors.value = [];
       }
       if (source.length > follower.consumed.length) {
         const update = follower.stream.push(
           source.slice(follower.consumed.length),
         );
         follower.consumed = source;
-        if (update.spec !== spec.value) spec.value = update.spec;
-        if (update.text) text.value += update.text;
+        if (update.text) follower.text += update.text;
         if (update.errors.length)
-          errors.value = [...errors.value, ...update.errors];
+          follower.errors = [...follower.errors, ...update.errors];
       }
+      followed.value = {
+        spec: follower.stream.spec,
+        text: follower.text,
+        errors: follower.errors,
+      };
     },
     { immediate: true, flush: "sync" },
   );
@@ -125,31 +135,36 @@ export function useSpecStream(
     text,
     errors,
     push(chunk) {
-      imperative ??= start(
-        toValue(options.mode) ?? "jsonl",
-        toValue(options.initial),
-      );
+      imperative ??= start(toValue(options.mode) ?? "jsonl");
       const update = imperative.push(chunk);
-      if (update.spec !== spec.value) spec.value = update.spec;
-      if (update.text) text.value += update.text;
-      if (update.errors.length)
-        errors.value = [...errors.value, ...update.errors];
+      const previous = snapshot.value;
+      if (update.spec !== previous.spec || update.text || update.errors.length)
+        snapshot.value = {
+          spec: update.spec,
+          text: previous.text + update.text,
+          errors: update.errors.length
+            ? [...previous.errors, ...update.errors]
+            : previous.errors,
+        };
     },
     end() {
       if (!imperative) return;
       const result = imperative.result();
       imperative = undefined;
-      if (result.spec !== spec.value) spec.value = result.spec;
-      text.value = result.text;
-      errors.value = result.errors;
+      snapshot.value = {
+        spec: result.spec,
+        text: result.text,
+        errors: result.errors,
+      };
     },
     reset() {
       imperative = undefined;
       follower = undefined;
-      completed = undefined;
-      spec.value = toValue(options.initial) ?? emptySpec();
-      text.value = "";
-      errors.value = [];
+      snapshot.value = {
+        spec: toValue(options.initial) ?? emptySpec(),
+        text: "",
+        errors: [],
+      };
     },
   };
 }
