@@ -969,7 +969,10 @@ function rewriteOutsideCode(
  * A delimiter pair wrapping nothing is left as written: `$$$$` would itself
  * open a fence that never closes.
  */
-const LINE_PREFIX = /^(?:[ \t]*(?:>[ \t]*)*)(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)?/;
+const LINE_PREFIX =
+  /^(?:[ \t]*(?:>[ \t]*)*)(?:(?:[-*+]|\d{1,9}[.)])[ \t]+(?:[ \t]*(?:>[ \t]*)*)?)?/;
+const LIST_THEN_QUOTE_PREFIX =
+  /^([ \t]*(?:>[ \t]*)*)((?:[-*+]|\d{1,9}[.)])[ \t]+)((?:>[ \t]*)+)/;
 
 /**
  * The prefix a following line needs to stay inside the block the match opened
@@ -978,6 +981,12 @@ const LINE_PREFIX = /^(?:[ \t]*(?:>[ \t]*)*)(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)?/;
  */
 function continuationPrefix(lineHead: string): string {
   const head = LINE_PREFIX.exec(lineHead)?.[0] ?? "";
+  const listThenQuote = LIST_THEN_QUOTE_PREFIX.exec(head);
+  if (listThenQuote) {
+    const outerQuote = listThenQuote[1]!.replace(/[^>\t]/g, " ");
+    const listIndent = columns(listThenQuote[2]!, 0, listThenQuote[2]!.length);
+    return `${outerQuote}${" ".repeat(listIndent)}${listThenQuote[3]}`;
+  }
   const marker = head.lastIndexOf(">");
   const extra =
     marker !== -1 &&
@@ -1009,6 +1018,12 @@ function emitDisplayMath(
   // is aligned to it.
   const prefix = continuationPrefix(lineHead(offset));
   const depth = quoteDepth(prefix);
+  const openerLineEnd = body.indexOf("\n");
+  const openerHasContent = !onlyWhitespace(
+    body,
+    0,
+    openerLineEnd === -1 ? body.length : openerLineEnd,
+  );
   // The rest of the opener line is formula text, so only later lines carry the
   // container's blockquote markers.
   const content = body
@@ -1058,7 +1073,12 @@ function emitDisplayMath(
       : least;
   }, Number.POSITIVE_INFINITY);
   const width = widthPastQuote(prefix);
-  const lines = bodyLines.map((line) => {
+  const lines = bodyLines.map((line, index) => {
+    if (index === 0 && openerHasContent) {
+      const content = line.slice(Number.isFinite(shared) ? shared : 0);
+      const protectQuote = depth > 0 && content.charCodeAt(0) === GT;
+      return `${prefix}${protectQuote ? " " : ""}${content}`;
+    }
     // A line already carrying the blockquote markers keeps the spacing it was
     // written with; `>a` and `> a` are the same blockquote. Indentation alone
     // is not that signal, since a body may legitimately be indented, and a line

@@ -221,6 +221,23 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
   });
 
+  it.each([
+    ["> \\[ >= 0\n> a\n> \\]", "> \n> $$\n>  >= 0\n> a\n> $$"],
+    ["> \\[> x\n> a\n> \\]", "> \n> $$\n>  > x\n> a\n> $$"],
+    ["> \\[>x\n> a\n> \\]", "> \n> $$\n>  >x\n> a\n> $$"],
+  ])(
+    "preserves an opener-line greater-than operator in %j",
+    (input, expected) => {
+      expect(normalizeMathDelimiters(input)).toBe(expected);
+    },
+  );
+
+  it("keeps display math in a blockquote nested inside a list item", () => {
+    expect(normalizeMathDelimiters("- > \\[x\n  > x\n  > \\]")).toBe(
+      "- > \n  > $$\n  > x\n  > x\n  > $$",
+    );
+  });
+
   it("strips quote markers before rewriting a quoted display body", () => {
     expect(rewriteLatexBracketDelimiters("> 1. \\[\n> w3 \\]")).toBe(
       "> 1. $$w3$$",
