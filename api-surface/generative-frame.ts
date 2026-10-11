@@ -944,7 +944,7 @@ type SpecPromptOptions = {
   omitExample?: boolean;
 };
 
-declare const SpecRenderer: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
+declare const SpecRenderer$1: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
   spec: {
     type: PropType<Spec>;
     required: true;
@@ -1051,7 +1051,7 @@ declare const SpecRenderer: import("vue").DefineComponent<import("vue").ExtractP
   placeholder: Component$1;
 }, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
 
-declare function SpecRenderer$1(_param1: SpecRendererProps$1): import("react").JSX.Element | null;
+declare function SpecRenderer$2(_param1: SpecRendererProps$1): import("react").JSX.Element | null;
 
 type SpecRendererProps = {
   spec: Spec;
@@ -1910,7 +1910,7 @@ declare namespace entry_react_exports {
 }
 
 declare namespace entry_spec_react_exports {
-  export { SpecComponentProps, SpecComponents$1 as SpecComponents, SpecPlaceholder$1 as SpecPlaceholder, SpecPlaceholderProps$1 as SpecPlaceholderProps, SpecRenderer$1 as SpecRenderer, SpecRendererProps$1 as SpecRendererProps, UseSpecStreamOptions$1 as UseSpecStreamOptions, UseSpecStreamResult$1 as UseSpecStreamResult, useSpecStream$1 as useSpecStream };
+  export { SpecComponentProps, SpecComponents$1 as SpecComponents, SpecPlaceholder$1 as SpecPlaceholder, SpecPlaceholderProps$1 as SpecPlaceholderProps, SpecRenderer$2 as SpecRenderer, SpecRendererProps$1 as SpecRendererProps, UseSpecStreamOptions$1 as UseSpecStreamOptions, UseSpecStreamResult$1 as UseSpecStreamResult, useSpecStream$1 as useSpecStream };
 }
 
 declare function readThemeTokens(element?: Element, sources?: ThemeTokenSources): ThemeTokens;
@@ -1962,7 +1962,7 @@ declare function useWidgetInstructions(tools: WidgetTools & Record<string, AnyTo
 declare function validateSpec(spec: Spec, catalog: Catalog, options?: ValidateSpecOptions): SpecValidation;
 
 declare namespace entry_spec_vue_exports {
-  export { SpecComponents, SpecElementContext, SpecPlaceholder, SpecPlaceholderProps, SpecRenderer, SpecRendererProps, UseSpecStreamOptions, UseSpecStreamResult, useSpecElement, useSpecStream };
+  export { SpecComponents, SpecElementContext, SpecPlaceholder, SpecPlaceholderProps, SpecRenderer$1 as SpecRenderer, SpecRendererProps, UseSpecStreamOptions, UseSpecStreamResult, useSpecElement, useSpecStream };
 }
 
 declare const widgetStorageSalt: (id: string) => string;

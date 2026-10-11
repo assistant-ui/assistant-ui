@@ -24,6 +24,7 @@ const HOST_SUPPLIED_PEERS = new Set([
   "@assistant-ui/react",
   "@assistant-ui/react-ink",
   "@assistant-ui/react-markdown",
+  "@assistant-ui/react-native",
   "assistant-cloud",
   "generative-frame",
 ]);
