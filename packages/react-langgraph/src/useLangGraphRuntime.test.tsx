@@ -3718,9 +3718,9 @@ describe("useLangGraphRuntime", () => {
       );
       const wrapper = wrapperFactory(result.current);
       renderHook(() => useAuiState((s) => s.thread.isRunning), { wrapper });
-      await act(async () => {
-        await result.current.threads.switchToThread("lg-thread-1");
-      });
+      await settleOutsideAct(() =>
+        result.current.threads.switchToThread("lg-thread-1"),
+      );
       return result;
     };
 
@@ -3868,9 +3868,9 @@ describe("useLangGraphRuntime", () => {
       );
       const wrapper = wrapperFactory(result.current);
       renderHook(() => useAuiState((s) => s.thread.isRunning), { wrapper });
-      await act(async () => {
-        await result.current.threads.switchToThread("lg-thread-1");
-      });
+      await settleOutsideAct(() =>
+        result.current.threads.switchToThread("lg-thread-1"),
+      );
       await act(async () => {
         result.current.thread.append("question");
       });
@@ -3995,9 +3995,9 @@ describe("useLangGraphRuntime", () => {
       );
       const wrapper = wrapperFactory(result.current);
       renderHook(() => useAuiState((s) => s.thread.isRunning), { wrapper });
-      await act(async () => {
-        await result.current.threads.switchToThread("lg-thread-1");
-      });
+      await settleOutsideAct(() =>
+        result.current.threads.switchToThread("lg-thread-1"),
+      );
       await act(async () => {
         result.current.thread.append("question");
       });
@@ -4087,9 +4087,9 @@ describe("useLangGraphRuntime", () => {
       );
       const wrapper = wrapperFactory(result.current);
       renderHook(() => useAuiState((s) => s.thread.isRunning), { wrapper });
-      await act(async () => {
-        await result.current.threads.switchToThread("lg-thread-1");
-      });
+      await settleOutsideAct(() =>
+        result.current.threads.switchToThread("lg-thread-1"),
+      );
       await act(async () => {
         result.current.thread.append("question");
       });
@@ -4159,9 +4159,9 @@ describe("useLangGraphRuntime", () => {
       );
       const wrapper = wrapperFactory(result.current);
       renderHook(() => useAuiState((s) => s.thread.isRunning), { wrapper });
-      await act(async () => {
-        await result.current.threads.switchToThread("lg-thread-1");
-      });
+      await settleOutsideAct(() =>
+        result.current.threads.switchToThread("lg-thread-1"),
+      );
       await act(async () => {
         result.current.thread.append("question");
       });
@@ -4225,9 +4225,9 @@ describe("useLangGraphRuntime", () => {
       );
       const wrapper = wrapperFactory(result.current);
       const { result: auiResult } = renderHook(() => useAui(), { wrapper });
-      await act(async () => {
-        await result.current.threads.switchToThread("lg-thread-1");
-      });
+      await settleOutsideAct(() =>
+        result.current.threads.switchToThread("lg-thread-1"),
+      );
 
       await act(async () => {
         result.current.thread.append("question");

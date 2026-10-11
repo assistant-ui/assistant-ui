@@ -179,6 +179,7 @@ it("hydrates nested local message and tool call ids", async () => {
   const html = renderOnServer(
     <Outer onRuntime={(runtime) => (serverRuntime = runtime)} />,
   );
+  errors.mockClear();
   const serverMessages = serverRuntime!.thread.getState().messages;
   expect(serverMessages.map(({ id }) => id)).toEqual([
     expect.stringMatching(/-message-0$/),

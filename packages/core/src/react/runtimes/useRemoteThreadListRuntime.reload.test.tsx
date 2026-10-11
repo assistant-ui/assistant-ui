@@ -4,6 +4,7 @@ import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import {
+  actSettled,
   deferred,
   makeAdapter,
 } from "../../tests/remote-thread-list-test-helpers";
@@ -70,8 +71,8 @@ describe("useRemoteThreadListRuntime reload", () => {
         expect(Object.keys(threads().getState().threadItems)).toContain("t2"),
       );
       if (visited) {
-        await act(() => threads().switchToThread("t2"));
-        await act(() => threads().switchToThread("t1"));
+        await actSettled(() => threads().switchToThread("t2"));
+        await actSettled(() => threads().switchToThread("t1"));
       }
 
       await act(() => threads().reload());
@@ -86,7 +87,7 @@ describe("useRemoteThreadListRuntime reload", () => {
         expect(() => threads().getItemById("t2")).toThrow();
       }
 
-      await act(() => threads().switchToThread("t2"));
+      await actSettled(() => threads().switchToThread("t2"));
 
       await waitFor(() =>
         expect(threads().mainItem.getState().remoteId).toBe("t2"),
@@ -149,8 +150,8 @@ describe("useRemoteThreadListRuntime reload", () => {
     await waitFor(() =>
       expect(Object.keys(threads().getState().threadItems)).toContain("t2"),
     );
-    await act(() => threads().switchToThread("t2"));
-    await act(() => threads().switchToThread("t1"));
+    await actSettled(() => threads().switchToThread("t2"));
+    await actSettled(() => threads().switchToThread("t1"));
     await act(() => threads().reload());
 
     rerender(<App mounted={false} />);
@@ -209,8 +210,8 @@ describe("useRemoteThreadListRuntime reload", () => {
     await waitFor(() =>
       expect(Object.keys(threads().getState().threadItems)).toContain("t2"),
     );
-    await act(() => threads().switchToThread("t2"));
-    await act(() => threads().switchToThread("t1"));
+    await actSettled(() => threads().switchToThread("t2"));
+    await actSettled(() => threads().switchToThread("t1"));
     await act(() => threads().reload());
     expect(threads().getItemById("t2").getState().isMain).toBe(false);
 
@@ -259,7 +260,7 @@ describe("useRemoteThreadListRuntime reload", () => {
     await waitFor(() =>
       expect(threads().mainItem.getState().status).toBe("regular"),
     );
-    await act(() => threads().switchToThread("t1"));
+    await actSettled(() => threads().switchToThread("t1"));
     await act(() => threads().reload());
     expect(Object.keys(threads().getState().threadItems)).not.toContain(
       localId,
