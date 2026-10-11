@@ -43,7 +43,7 @@ Later: the same tool, prompt, and repair machinery can back an Assistant Cloud A
 - `generative-frame/agent` — **delegation**: `createWidgetAgent({ model })` where `model` is a BYO streaming completion function; exposes one tool `generate_widget({ brief, data? })` to a main agent, runs read_me/show_widget/preview/repair internally, and streams the result into the host. Inline generation (main agent calls `show_widget` itself) is the default; delegation trades latency for a smaller main context.
 - `generative-frame/spec` — declarative mode: `defineCatalog({ components, actions })` (Zod-free: JSON Schema props so it stays dependency-free; accepts Standard Schema if present), `catalog.prompt()`, `createSpecStream()` (RFC 6902 JSONL patches → flat `{ root, elements, state }` spec, json-render compatible), `$state`/`$bindState`/visibility expressions subset, action dispatch. Rendering is per framework.
 - `generative-frame/react`: `<Widget code streaming theme … />`, `useWidget()`, `useThemeTokens()`.
-- `generative-frame/spec/react`: `<SpecRenderer spec catalog components />`, `useSpecStream()`.
+- `generative-frame/spec/react`: `<SpecRenderer spec catalog components />`, `<SpecPlaceholder />`, `useSpecStream()`.
 - `generative-frame/assistant-ui` — optional peer `@assistant-ui/react`: toolkit entries that render `show_widget`/`edit_widget`/`render_spec` tool calls with streaming args (partial JSON), route `sendPrompt` to the thread composer, and map theme tokens from the assistant-ui theme.
 
 ## In-frame runtime
