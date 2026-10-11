@@ -481,10 +481,16 @@ describe("normalizeMathDelimiters", () => {
     expect(normalizeMathDelimiters("- $$\na\n$$\n- next")).toBe(
       "- $$\n  a\n  $$\n- next",
     );
-    expect(normalizeMathDelimiters("1. $$\na\n$$\nA | B\nmore")).toBe(
-      "1. $$\n   a\n   $$\n   A | B\nmore",
-    );
   });
+
+  it.each(["more", "--- | :", "--- | --- | ---"])(
+    "keeps a line holding a pipe after a nested $$ fence in its item when %j is no delimiter row for it",
+    (after) => {
+      expect(normalizeMathDelimiters(`1. $$\na\n$$\nA | B\n${after}`)).toBe(
+        `1. $$\n   a\n   $$\n   A | B\n${after}`,
+      );
+    },
+  );
 
   it("keeps a paragraph that opens with a code span after a nested $$ fence in its item", () => {
     expect(normalizeMathDelimiters("1. $$\na\n$$\n`a` is the input.")).toBe(

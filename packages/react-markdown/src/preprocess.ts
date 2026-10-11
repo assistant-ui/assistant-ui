@@ -1091,7 +1091,6 @@ export function rewriteCustomMathTags(text: string): string {
 }
 
 const FORMULA_LINE_CLOSER = /\$\$[ \t\r]*$/;
-const TABLE_DELIMITER_ROW = /^[ \t|:\r-]*$/;
 
 function indentTo(line: string, column: number): string {
   const indent = /^[ \t]*/.exec(line)![0];
@@ -1112,6 +1111,25 @@ function displayMathOpenerColumn(line: string): number {
     onlyWhitespace(line, content + 2, line.length)
     ? columns(line, 0, content)
     : -1;
+}
+
+/**
+ * Whether `row` is the delimiter row of a table headed by `header`, as
+ * remark-gfm reads one: a `:?-+:?` cell for each header cell, separated by
+ * pipes, with an optional pipe at either end.
+ */
+function delimitsTable(header: string, row: string): boolean {
+  const cells = (line: string) =>
+    line
+      .replace(/\\\|/g, "")
+      .trim()
+      .replace(/^\||\|$/g, "")
+      .split("|");
+  const delimiters = cells(row);
+  return (
+    delimiters.length === cells(header).length &&
+    delimiters.every((cell) => /^[ \t]*:?-+:?[ \t]*$/.test(cell))
+  );
 }
 
 /**
@@ -1137,11 +1155,7 @@ function opensBlock(
     opensBacktickFence(line, from) ||
     opensTildeFence(line, from) ||
     /^(?:>|\$\$|\||<)/.test(rest) ||
-    (rest.includes("|") &&
-      next !== undefined &&
-      next.includes("|") &&
-      next.includes("-") &&
-      TABLE_DELIMITER_ROW.test(next)) ||
+    (next !== undefined && rest.includes("|") && delimitsTable(rest, next)) ||
     (endsText && /^(?:\d{1,9}|\$|`{1,2}|~{1,2})$/.test(rest))
   );
 }
