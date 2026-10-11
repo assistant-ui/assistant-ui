@@ -238,6 +238,15 @@ describe("ADK stream lifecycle", () => {
       );
     });
 
+    expect(result.current.messages).toContainEqual(
+      expect.objectContaining({
+        type: "ai",
+        tool_calls: [
+          expect.objectContaining({ id: "tool-1" }),
+          expect.objectContaining({ id: "tool-2" }),
+        ],
+      }),
+    );
     const { runConfigByToolCallId } = result.current.controller.getState();
     expect(runConfigByToolCallId.get("tool-1")).toBe(runConfig);
     expect(runConfigByToolCallId.get("tool-2")).toBe(runConfig);
@@ -256,6 +265,15 @@ describe("ADK stream lifecycle", () => {
         };
         return;
       }
+      if (call === 3) {
+        yield {
+          id: "event-malformed",
+          author: "agent",
+          finishReason: "MALFORMED_FUNCTION_CALL",
+          content: { role: "model", parts: [{ text: "oops" }] },
+        };
+        return;
+      }
       yield {
         id: "event-retry",
         author: "agent",
@@ -271,24 +289,26 @@ describe("ADK stream lifecycle", () => {
     };
     const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
     const { controller } = result.current;
+    const run = async (runId: string, content: string) => {
+      act(() => {
+        controller.dispatch({ type: "run.active" });
+      });
+      await act(async () => {
+        await result.current.sendMessage(
+          [{ id: `user-${runId}`, type: "human", content }],
+          {},
+        );
+      });
+      act(() => {
+        controller.dispatch({ type: "run.finished", runId });
+      });
+    };
 
-    controller.dispatch({ type: "run.active" });
-    await act(async () => {
-      await result.current.sendMessage(
-        [{ id: "user-1", type: "human", content: "go" }],
-        {},
-      );
-    });
-    controller.dispatch({ type: "run.finished", runId: "1" });
-    controller.dispatch({ type: "run.active" });
-    await act(async () => {
-      await result.current.sendMessage(
-        [{ id: "user-2", type: "human", content: "retry" }],
-        {},
-      );
-    });
+    await run("1", "go");
+    await run("2", "retry");
+    await run("3", "again");
 
-    expect([...controller.getState().failedRunIds]).toEqual(["1"]);
+    expect([...controller.getState().failedRunIds]).toEqual(["1", "3"]);
   });
 
   it("settles a superseded send while its stream is still opening", async () => {

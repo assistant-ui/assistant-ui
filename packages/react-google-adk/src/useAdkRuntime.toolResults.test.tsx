@@ -97,7 +97,7 @@ const mount = async (
       const response =
         requests.length === 1
           ? firstRun
-          : options.secondEvent
+          : requests.length === 2 && options.secondEvent
             ? `data: ${JSON.stringify(options.secondEvent)}\n\n`
             : "";
       return new Response(response, {
@@ -356,6 +356,13 @@ describe("useAdkRuntime tool result batching", () => {
     act(() => answer(runtime, "c2"));
     await waitFor(() => expect(requests).toHaveLength(3));
     expect(responseIds(requests[2]!.newMessage.parts)).toEqual(["c2"]);
+
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+    act(() => answer(runtime, "c1"));
+    await waitFor(() => expect(requests).toHaveLength(4));
+    expect(responseIds(requests[3]!.newMessage.parts)).toEqual(["c1"]);
   });
 
   it("holds answers from an errored run until the next user turn", async () => {
@@ -411,6 +418,9 @@ describe("useAdkRuntime tool result batching", () => {
     act(() => answer(runtime, "c1"));
     act(() => unmount());
     await act(async () => closeFirstRun());
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
     expect(requests).toHaveLength(1);
   });
 });

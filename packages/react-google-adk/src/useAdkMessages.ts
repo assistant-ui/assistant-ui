@@ -14,7 +14,10 @@ import {
   invokeUserCallback,
   openAbortableIterable,
 } from "@assistant-ui/core/internal";
-import { AdkEventAccumulator } from "./AdkEventAccumulator";
+import {
+  AdkEventAccumulator,
+  isErrorFinishReason,
+} from "./AdkEventAccumulator";
 import { AdkThreadController } from "./AdkThreadController";
 import { contentToParts } from "./contentToParts";
 import { toAdkFunctionResponse } from "./toAdkFunctionResponse";
@@ -227,8 +230,14 @@ const useAdkMessagesInternal = ({
             }
           }
 
-          if (event.errorCode || event.errorMessage) {
+          if (
+            event.errorCode ||
+            event.errorMessage ||
+            isErrorFinishReason(event.finishReason)
+          ) {
             controller.dispatch({ type: "run.failed" });
+          }
+          if (event.errorCode || event.errorMessage) {
             invokeAdkRuntimeCallback(
               "onError",
               onError,

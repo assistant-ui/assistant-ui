@@ -78,6 +78,9 @@ const ERROR_REASONS = new Set([
   "UNEXPECTED_TOOL_CALL",
 ]);
 
+export const isErrorFinishReason = (finishReason: string | undefined) =>
+  finishReason !== undefined && ERROR_REASONS.has(finishReason);
+
 const finishReasonToStatus = (
   finishReason: string | undefined,
 ): MessageStatus => {
@@ -91,7 +94,7 @@ const finishReasonToStatus = (
       error: `Content filtered: ${finishReason}`,
     };
   }
-  if (finishReason && ERROR_REASONS.has(finishReason)) {
+  if (isErrorFinishReason(finishReason)) {
     return {
       type: "incomplete",
       reason: "error",
