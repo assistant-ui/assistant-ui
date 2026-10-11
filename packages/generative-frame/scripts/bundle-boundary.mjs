@@ -19,10 +19,15 @@ const sourceEntries = () => {
   return entries;
 };
 
-const EXTERNAL = [/^react($|\/)/, /^react-dom($|\/)/, /^@assistant-ui\//];
+const EXTERNAL = [
+  /^react($|\/)/,
+  /^react-dom($|\/)/,
+  /^vue($|\/)/,
+  /^@assistant-ui\//,
+];
 
 /**
- * Bundles a fixture the way an app would (minified ESM, React external) and
+ * Bundles a fixture the way an app would (minified ESM, framework peers external) and
  * returns its size and the source modules it contains, relative to the repo.
  */
 export async function bundleFixture(fixture) {

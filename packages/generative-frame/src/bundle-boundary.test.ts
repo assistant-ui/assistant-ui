@@ -40,8 +40,9 @@ describe("bundle boundaries", { timeout: 60_000 }, () => {
 
   it("keeps the frame, runtime, and Safe Content Frame out of a spec-only app", async () => {
     const bundle: Bundle = await bundleFixture("spec.ts");
-    report("spec (spec, spec/react, spec/tools)", bundle);
+    report("spec (spec, spec/react, spec/vue, spec/tools)", bundle);
     expect(bundle.modules).toContain(`${PKG}spec/catalog.ts`);
+    expect(bundle.modules).toContain(`${PKG}spec/vue/SpecRenderer.ts`);
     expect(offending(bundle, FRAME)).toEqual([]);
   });
 
