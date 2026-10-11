@@ -413,6 +413,26 @@ describe("useAdkRuntime tool result batching", () => {
     expect(responseIds(requests[1]!.newMessage.parts)).toEqual([]);
   });
 
+  it("keeps a held answer across a thread switch", async () => {
+    const { runtime, requests } = await mount(false);
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+    act(() => answer(runtime, "c1"));
+
+    await settleOutsideAct(() => runtime.threads.switchToNewThread());
+    await settleOutsideAct(() => runtime.threads.switchToThread("adk-1"));
+    act(() => {
+      runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "next" }],
+      });
+    });
+
+    await waitFor(() => expect(requests).toHaveLength(2));
+    expect(responseIds(requests[1]!.newMessage.parts)).toEqual(["c1"]);
+  });
+
   it("drops held answers on unmount", async () => {
     const { runtime, requests, unmount, closeFirstRun } = await mount(true);
     act(() => answer(runtime, "c1"));
