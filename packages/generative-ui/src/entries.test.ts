@@ -127,6 +127,7 @@ describe("framework-neutral entries", () => {
 describe("framework-neutral vocabulary modules", () => {
   it.each([
     "vocabulary/definitions/index.ts",
+    "vue.ts",
     "spec/catalogDefinitions.ts",
     "vocabulary/tableData.ts",
     "vocabulary/chartData.ts",

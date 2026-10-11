@@ -42,6 +42,10 @@
     "./spec": {
       "types": "./dist/spec.d.ts",
       "default": "./dist/spec.js"
+    },
+    "./vue": {
+      "types": "./dist/vue.d.ts",
+      "default": "./dist/vue.js"
     }
   },
   "main": "./dist/index.js",
@@ -70,6 +74,7 @@
     "@types/react": "*",
     "generative-frame": "^0.0.3",
     "react": "^18 || ^19",
+    "vue": "^3.5.0",
     "zod": "^4.0.0"
   },
   "peerDependenciesMeta": {
@@ -83,6 +88,9 @@
       "optional": true
     },
     "react": {
+      "optional": true
+    },
+    "vue": {
       "optional": true
     },
     "zod": {
@@ -99,6 +107,7 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "vitest": "^5.0.3",
+    "vue": "^3.5.43",
     "zod": "^4.6.5"
   },
   "publishConfig": {
