@@ -988,6 +988,13 @@ function continuationPrefix(lineHead: string): string {
   return head.replace(/[^>\t]/g, " ") + extra;
 }
 
+const SPAN_BOUNDARY =
+  /^(?![ \t]*(?:>[ \t]*)*\r?$)[^\n]*\n(?:[ \t]*(?:>[ \t]*)*\r?\n)+(?![ \t]*(?:>[ \t]*)*\r?$)/m;
+
+function crossesSpanBoundary(body: string): boolean {
+  return !body.includes("\n") || SPAN_BOUNDARY.test(body);
+}
+
 function emitDisplayMath(
   match: string,
   body: string,
@@ -997,9 +1004,14 @@ function emitDisplayMath(
   followedBy: string,
   lineHead: (offset: number) => string,
 ): string {
-  const trimmed = body.trim();
-  if (trimmed === "") return match;
-  if (!trimmed.includes("\n")) return `$$${trimmed}$$`;
+  const depth = quoteDepth(continuationPrefix(lineHead(offset)));
+  const content = body
+    .split("\n")
+    .map((line) => line.slice(quoteMarkers(line, depth).length))
+    .join("\n")
+    .trim();
+  if (content === "") return match;
+  if (!body.trim().includes("\n")) return `$$${content}$$`;
 
   const before = offset === 0 ? precededBy : source[offset - 1]!;
   const afterStart = offset + match.length;
@@ -1015,7 +1027,6 @@ function emitDisplayMath(
   // math was written inside, so they carry that container's prefix and the body
   // is aligned to it.
   const prefix = continuationPrefix(lineHead(offset));
-  const depth = quoteDepth(prefix);
   // The body is split before trimming, since trimming would take the shared
   // indentation off the first line only and leave the block ragged.
   const bodyLines = body.split("\n");
@@ -1077,20 +1088,6 @@ function emitDisplayMath(
  * math renders as plain text.
  */
 export function rewriteLatexBracketDelimiters(text: string): string {
-  const crossesSpanBoundary = (body: string) => {
-    if (!body.includes("\n")) return true;
-    let hasContent = false;
-    let blankAfterContent = false;
-    for (const line of body.split("\n")) {
-      if (/^[ \t]*(?:>[ \t]*)*\r?$/.test(line)) {
-        if (hasContent) blankAfterContent = true;
-      } else {
-        if (blankAfterContent) return true;
-        hasContent = true;
-      }
-    }
-    return false;
-  };
   const inline = rewriteOutsideCode(text, (segment) =>
     segment.replace(LATEX_INLINE_DELIMITER, (match: string, body: string) => {
       const trimmed = body.trim();
@@ -1118,10 +1115,13 @@ export function rewriteLatexBracketDelimiters(text: string): string {
       if (opener === -1) continue;
       const end = at + marker[0]!.length;
       let body = block.slice(opener + openerLength, at);
-      let spanBoundary = crossesSpanBoundary(body);
+      let spanBoundary: boolean | undefined;
       let range = firstVerbatimRange(ranges, opener, end);
       while (range) {
-        if (range.kind === "fence" || spanBoundary) {
+        if (
+          range.kind === "fence" ||
+          (spanBoundary ??= crossesSpanBoundary(body))
+        ) {
           opener = -1;
           for (const next of block
             .slice(range.end, at)
@@ -1135,7 +1135,7 @@ export function rewriteLatexBracketDelimiters(text: string): string {
           }
           if (opener === -1) break;
           body = block.slice(opener + openerLength, at);
-          spanBoundary = crossesSpanBoundary(body);
+          spanBoundary = undefined;
           range = firstVerbatimRange(ranges, opener, end);
           continue;
         }
@@ -1158,6 +1158,8 @@ export function rewriteLatexBracketDelimiters(text: string): string {
           : block.slice(start, offset);
       };
       const head = lineHead(opener);
+      const openedOnReindentedLine =
+        reindentedLineStart === block.lastIndexOf("\n", opener - 1) + 1;
       const prefix = continuationPrefix(head);
       const quote = QUOTE_PREFIX.exec(head)![0];
       const depth = quoteDepth(quote);
@@ -1170,12 +1172,20 @@ export function rewriteLatexBracketDelimiters(text: string): string {
         "",
         lineHead,
       );
+      if (
+        openedOnReindentedLine &&
+        block.slice(cursor, opener).trim() === "" &&
+        replacement.startsWith(`\n${prefix}$$`)
+      ) {
+        replacement = replacement.slice(prefix.length + 1);
+      }
       reindentedLineStart = -1;
       let consumed = end;
       if (
         replacement !== match &&
         depth > 0 &&
-        listMarkerEnd(head, quote.length, head.length) > quote.length &&
+        (openedOnReindentedLine ||
+          listMarkerEnd(head, quote.length, head.length) > quote.length) &&
         (block[end] === "\n" || block.startsWith("\r\n", end))
       ) {
         const lineBreak = block.startsWith("\r\n", end) ? "\r\n" : "\n";

@@ -92,6 +92,40 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
   });
 
+  it.each([
+    [
+      "> 1. \\[\n> a\n> \\]\n> \\[\n> b\n> \\]\n> Text",
+      "> 1. \n>    $$\n>    a\n>    $$\n>    $$\n>    b\n>    $$\n>    Text",
+    ],
+    [
+      "> 1. \\[\n> a\n> \\]\n> \\[\n> b\n> \\]\n> \\[\n> c\n> \\]\n> Text",
+      "> 1. \n>    $$\n>    a\n>    $$\n>    $$\n>    b\n>    $$\n>    $$\n>    c\n>    $$\n>    Text",
+    ],
+  ])(
+    "keeps chained displays and following text in a quoted list item",
+    (input, expected) => {
+      expect(rewriteLatexBracketDelimiters(input)).toBe(expected);
+    },
+  );
+
+  it("keeps chained fenced displays inside a quoted list item", () => {
+    expect(
+      rewriteLatexBracketDelimiters(
+        "> 1. \\[\n> a1\n> a2\n> \\]\n> \\[\n> b1\n> b2\n> \\]\n> Text",
+      ),
+    ).toBe(
+      "> 1. \n>    $$\n>    a1\n>    a2\n>    $$\n>    $$\n>    b1\n>    b2\n>    $$\n>    Text",
+    );
+  });
+
+  it("keeps an inline display after a multiline display in a quoted list item", () => {
+    expect(
+      rewriteLatexBracketDelimiters(
+        "> 1. \\[\n> a\n> \\]\n> where \\[x\\] holds",
+      ),
+    ).toBe("> 1. \n>    $$\n>    a\n>    $$\n>    where $$x$$ holds");
+  });
+
   it("rewrites a multiline bracket display whose TeX body contains backticks", () => {
     expect(
       normalizeMathDelimiters("1. \\[\n\\text{`x`} = 1\nE = mc^2\n\\]\nText"),
@@ -171,6 +205,20 @@ describe("rewriteLatexBracketDelimiters", () => {
     expect(rewriteLatexBracketDelimiters(input)).toBe(input);
   });
 
+  it("leaves an empty quoted display with only markers unchanged", () => {
+    const input = "> 1. \\[\n> \\]";
+    expect(rewriteLatexBracketDelimiters(input)).toBe(input);
+  });
+
+  it("strips quote markers before rewriting a quoted display body", () => {
+    expect(rewriteLatexBracketDelimiters("> 1. \\[\n> w3 \\]")).toBe(
+      "> 1. $$w3$$",
+    );
+    expect(rewriteLatexBracketDelimiters("> 1. \\[\n> \n> w3 \n> \\]")).toBe(
+      "> 1. \n>    $$\n>    w3 \n>    $$",
+    );
+  });
+
   it("converts displays with blank lines only at the body edges", () => {
     expect(
       rewriteLatexBracketDelimiters("\\[\n\\text{`x`} = 1\n\n\\]\nText"),
@@ -202,6 +250,16 @@ describe("rewriteLatexBracketDelimiters", () => {
     expect(rewriteLatexBracketDelimiters(quoted)).toBe(
       "> Read \\[ this\n>\n> `code`\n> $$x^2$$",
     );
+  });
+
+  it("does not pair many blocked openers across code spans", () => {
+    const input = "Read \\[ x\n\n`c`\n\n".repeat(4000) + "\\]";
+    expect(rewriteLatexBracketDelimiters(input)).toBe(input);
+  });
+
+  it("does not pair many blocked openers across fences", () => {
+    const input = "\\[ x\n```\nc\n```\n".repeat(4000) + "\\]";
+    expect(rewriteLatexBracketDelimiters(input)).toBe(input);
   });
 
   it("resumes at a display opener after a blocked fence", () => {
