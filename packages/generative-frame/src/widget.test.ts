@@ -435,6 +435,79 @@ describe("createWidget", () => {
     });
   });
 
+  it("delivers a remounted frame's initialization once it is shown", async () => {
+    const onInitialized = vi.fn();
+    const { fake, widget } = setup({ onInitialized });
+    const shown: unknown[] = [];
+    onInitialized.mockImplementation(() => shown.push(widget.iframe));
+    const result = {
+      size: { width: 1, height: 1 },
+      blank: false,
+      errorCount: 0,
+    };
+    const first = await fake.connect(0, { onRequest: () => result });
+    void first.request(METHODS.initialize, {
+      appCapabilities: { availableDisplayModes: ["inline"] },
+    });
+    first.notify(METHODS.initialized);
+    await vi.waitFor(() => expect(onInitialized).toHaveBeenCalledTimes(1));
+    widget.write("<script>run()</script>");
+    await widget.end();
+
+    let finishReplace!: (value: unknown) => void;
+    const remounted = widget.replace("<p>b</p><script>run()</script>");
+    const second = await fake.connect(1, {
+      onRequest: () =>
+        new Promise((resolve) => {
+          finishReplace = resolve;
+        }),
+    });
+    await vi.waitFor(() => expect(finishReplace).toBeDefined());
+    void second.request(METHODS.initialize, {
+      appCapabilities: { availableDisplayModes: ["fullscreen"] },
+    });
+    second.notify(METHODS.initialized);
+    finishReplace(result);
+    await remounted;
+
+    expect(onInitialized).toHaveBeenCalledTimes(2);
+    expect(onInitialized).toHaveBeenLastCalledWith({
+      appCapabilities: { availableDisplayModes: ["fullscreen"] },
+    });
+    expect(shown).toEqual([fake.rendered[0]!.iframe, fake.rendered[1]!.iframe]);
+  });
+
+  it("drops the initialization of a remounted frame that fails to render", async () => {
+    const onInitialized = vi.fn();
+    const { fake, widget } = setup({ onInitialized });
+    const result = {
+      size: { width: 1, height: 1 },
+      blank: false,
+      errorCount: 0,
+    };
+    await fake.connect(0, { onRequest: () => result });
+    widget.write("<script>run()</script>");
+    await widget.end();
+
+    let failReplace!: (error: unknown) => void;
+    const remounted = widget.replace("<p>b</p><script>run()</script>");
+    const second = await fake.connect(1, {
+      onRequest: () =>
+        new Promise((_, reject) => {
+          failReplace = reject;
+        }),
+    });
+    await vi.waitFor(() => expect(failReplace).toBeDefined());
+    void second.request(METHODS.initialize, {
+      appCapabilities: { availableDisplayModes: ["fullscreen"] },
+    });
+    second.notify(METHODS.initialized);
+    failReplace(new Error("render failed"));
+
+    await expect(remounted).rejects.toThrow("render failed");
+    expect(onInitialized).not.toHaveBeenCalled();
+  });
+
   it("ignores window messages from other sources", async () => {
     const { fake } = setup();
     await vi.waitFor(() => expect(fake.rendered[0]).toBeDefined());

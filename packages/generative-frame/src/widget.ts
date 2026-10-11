@@ -311,6 +311,8 @@ type Session = {
   iframe: () => HTMLIFrameElement | undefined;
   /** Shows the iframe once the runtime has themed and laid out its document. */
   reveal(): void;
+  /** Delivers the frame's MCP Apps initialization once it is the shown frame. */
+  activate(): void;
   dispose(): void;
 };
 
@@ -502,6 +504,7 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
     let peer: RpcPeer | undefined;
     let initSent = false;
     let initializeParams: McpAppInitializeParams = {};
+    let pendingInitialized: McpAppInitializeParams | undefined;
     let sessionDisposed = false;
     let revealed = false;
     let resolveReady!: () => void;
@@ -527,6 +530,12 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
           slot.style.transition = `opacity ${REVEAL_MS}ms ease-out`;
         }
         slot.style.opacity = "1";
+      },
+      activate() {
+        if (!pendingInitialized) return;
+        const params = pendingInitialized;
+        pendingInitialized = undefined;
+        options.onInitialized?.(params);
       },
       dispose() {
         if (sessionDisposed) return;
@@ -569,7 +578,8 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
               resolveReady();
               return;
             case METHODS.initialized:
-              options.onInitialized?.(initializeParams);
+              pendingInitialized = initializeParams;
+              if (session === activeSession) session.activate();
               return;
             case METHODS.sizeChanged:
               if (
@@ -739,6 +749,7 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
     session.slot.style.cssText = "display:block";
     applySize(session, result.size);
     previous?.dispose();
+    session.activate();
     return result;
   };
 
