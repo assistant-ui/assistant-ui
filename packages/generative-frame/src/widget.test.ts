@@ -196,7 +196,7 @@ describe("createWidget", () => {
     widget.dispose();
   });
 
-  it("discards a failed replacement's buffered state", async () => {
+  it("keeps what the shown frame set when its replacement fails, and drops the replacement's state", async () => {
     const onWidgetState = vi.fn();
     const { fake, widget } = setup({
       initialState: { count: 1 },
@@ -228,11 +228,11 @@ describe("createWidget", () => {
     expect(onWidgetState).not.toHaveBeenCalled();
     failReplace(new Error("render failed"));
     await expect(replacement).rejects.toThrow("render failed");
-    expect(onWidgetState).not.toHaveBeenCalled();
+    expect(onWidgetState).toHaveBeenCalledExactlyOnceWith({ count: 8 });
 
     first.notify(METHODS.widgetState, { state: { count: 2 } });
     await vi.waitFor(() =>
-      expect(onWidgetState).toHaveBeenCalledExactlyOnceWith({ count: 2 }),
+      expect(onWidgetState).toHaveBeenLastCalledWith({ count: 2 }),
     );
     const next = widget.replace("<script>third()</script>");
     await fake.connect(2, { onRequest: () => result });
@@ -273,6 +273,7 @@ describe("createWidget", () => {
     expect(onWidgetState).not.toHaveBeenCalled();
     finishReplace(result);
     await replacement;
+    expect(onWidgetState).not.toHaveBeenCalled();
     expect((fake.rendered[1]!.sent[0]!.data as InitMessage).state).toEqual({
       count: 1,
     });
@@ -349,6 +350,26 @@ describe("createWidget", () => {
     });
     await first.request(METHODS.initialize, {});
     expect(onWidgetState).not.toHaveBeenCalled();
+    widget.dispose();
+  });
+
+  it("drops state whose shared objects expand past the limit, and keeps one that shares an object", async () => {
+    const onWidgetState = vi.fn();
+    const { fake, widget } = setup({ onWidgetState });
+    const first = await fake.connect(0);
+    await widget.ready;
+    let doubling: unknown = 0;
+    for (let depth = 0; depth < 20; depth++) doubling = [doubling, doubling];
+    first.notify(METHODS.widgetState, { state: doubling });
+    const item = { id: 1 };
+    first.notify(METHODS.widgetState, {
+      state: { items: [item], selected: item },
+    });
+    await first.request(METHODS.initialize, {});
+    expect(onWidgetState).toHaveBeenCalledExactlyOnceWith({
+      items: [{ id: 1 }],
+      selected: { id: 1 },
+    });
     widget.dispose();
   });
 

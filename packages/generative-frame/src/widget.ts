@@ -265,52 +265,58 @@ const isDisplayMode = (value: unknown): value is DisplayMode =>
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const isPlainJson = (
-  value: unknown,
-  ancestors = new Set<object>(),
-): boolean => {
-  if (value === null || typeof value === "boolean" || typeof value === "string")
+/** A shared object counts once for each place it appears, so a state built from shared objects cannot make checking or serializing it expand without bound. */
+const MAX_STATE_VALUES = 100_000;
+
+const isPlainJson = (state: unknown): boolean => {
+  let budget = MAX_STATE_VALUES;
+  const ancestors = new Set<object>();
+  const check = (value: unknown): boolean => {
+    if (--budget < 0) return false;
+    if (
+      value === null ||
+      typeof value === "boolean" ||
+      typeof value === "string"
+    )
+      return true;
+    if (typeof value === "number") return Number.isFinite(value);
+    if (typeof value !== "object" || ancestors.has(value)) return false;
+
+    const array = Array.isArray(value);
+    const prototype = Object.getPrototypeOf(value);
+    if (
+      array
+        ? prototype !== Array.prototype
+        : prototype !== Object.prototype && prototype !== null
+    )
+      return false;
+
+    ancestors.add(value);
+    const keys = Reflect.ownKeys(value);
+    if (array && keys.length !== value.length + 1) return false;
+    if (array) {
+      for (let index = 0; index < value.length; index++) {
+        const property = Object.getOwnPropertyDescriptor(value, String(index));
+        if (!property || !("value" in property) || !check(property.value))
+          return false;
+      }
+    } else {
+      for (const key of keys) {
+        if (typeof key !== "string") return false;
+        const property = Object.getOwnPropertyDescriptor(value, key);
+        if (
+          !property ||
+          !("value" in property) ||
+          !property.enumerable ||
+          !check(property.value)
+        )
+          return false;
+      }
+    }
+    ancestors.delete(value);
     return true;
-  if (typeof value === "number") return Number.isFinite(value);
-  if (typeof value !== "object" || ancestors.has(value)) return false;
-
-  const array = Array.isArray(value);
-  const prototype = Object.getPrototypeOf(value);
-  if (
-    array
-      ? prototype !== Array.prototype
-      : prototype !== Object.prototype && prototype !== null
-  )
-    return false;
-
-  ancestors.add(value);
-  const keys = Reflect.ownKeys(value);
-  if (array && keys.length !== value.length + 1) return false;
-  if (array) {
-    for (let index = 0; index < value.length; index++) {
-      const property = Object.getOwnPropertyDescriptor(value, String(index));
-      if (
-        !property ||
-        !("value" in property) ||
-        !isPlainJson(property.value, ancestors)
-      )
-        return false;
-    }
-  } else {
-    for (const key of keys) {
-      if (typeof key !== "string") return false;
-      const property = Object.getOwnPropertyDescriptor(value, key);
-      if (
-        !property ||
-        !("value" in property) ||
-        !property.enumerable ||
-        !isPlainJson(property.value, ancestors)
-      )
-        return false;
-    }
-  }
-  ancestors.delete(value);
-  return true;
+  };
+  return check(state);
 };
 
 const isAppInfo = (
@@ -528,6 +534,8 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
   let pendingSession: Session | undefined;
   let pendingWidgetState: unknown;
   let hasPendingWidgetState = false;
+  let heldWidgetState: unknown;
+  let hasHeldWidgetState = false;
 
   const applySize = (session: Session, size: WidgetSize) => {
     const iframe = session.iframe();
@@ -656,10 +664,7 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
               }
               return;
             case METHODS.widgetState:
-              if (
-                session !== pendingSession &&
-                (pendingSession || session !== activeSession)
-              )
+              if (session !== pendingSession && session !== activeSession)
                 return;
               try {
                 if (!isPlainJson(p["state"])) return;
@@ -669,6 +674,11 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
               if (session === pendingSession) {
                 pendingWidgetState = p["state"];
                 hasPendingWidgetState = true;
+                return;
+              }
+              if (pendingSession) {
+                heldWidgetState = p["state"];
+                hasHeldWidgetState = true;
                 return;
               }
               widgetState = p["state"];
@@ -828,11 +838,19 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
       if (pendingSession === session) {
         pendingSession = undefined;
         hasPendingWidgetState = false;
+        if (hasHeldWidgetState && !disposed) {
+          hasHeldWidgetState = false;
+          widgetState = heldWidgetState;
+          try {
+            options.onWidgetState?.(widgetState);
+          } catch {}
+        }
       }
       session.dispose();
       throw error;
     }
     pendingSession = undefined;
+    hasHeldWidgetState = false;
     activeSession = session;
     if (hasPendingWidgetState) widgetState = pendingWidgetState;
     // The new frame has rendered completely, so it swaps in without a fade.
