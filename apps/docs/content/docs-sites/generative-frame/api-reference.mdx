@@ -31,7 +31,7 @@ const widget: WidgetHandle = createWidget(options);
     { name: "animate", type: "boolean", default: "true", description: "Fade in elements as they stream in. Always off under reduced motion." },
     { name: "css", type: "string", description: "Extra CSS appended after the frame's base styles." },
     { name: "readyTimeoutMs", type: "number", default: "15000", description: "How long the frame may take to connect before `ready` rejects and an error is reported." },
-    { name: "initialState", type: "unknown", default: "null", description: "The state `genframe.state` returns when the frame connects. The frame then keeps the latest state the widget sets, also across a remount." },
+    { name: "initialState", type: "unknown", default: "null", description: "The state `genframe.state` returns when the frame connects. The frame then keeps the latest state the widget sets, also across a remount, and `useWidget` starts a frame it creates again (as when `<Activity>` hides and shows it) from that latest state." },
     { name: "onPrompt", type: "(text: string) => unknown", description: "A widget called `sendPrompt(text)`." },
     { name: "onMessage", type: "(params: UiMessageParams) => unknown", description: "The raw MCP Apps `ui/message`. Takes precedence over `onPrompt`." },
     { name: "onOpenLink", type: "(url: string) => unknown", default: "open in a new tab", description: "An http(s) link the widget asked to open." },
