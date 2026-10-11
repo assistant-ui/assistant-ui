@@ -1,6 +1,8 @@
 import {
+  useEffect,
   useInsertionEffect,
   useMemo,
+  useRef,
   useState,
   type ComponentType,
   type ReactNode,
@@ -22,7 +24,11 @@ import {
   specGuidanceModule,
   type RenderSpecInput,
 } from "../render-spec";
-import type { SpecStateStore } from "../state";
+import {
+  createStateStore,
+  type SpecStateStore,
+  type SpecStateWrite,
+} from "../state";
 import { parseSpecStream } from "../stream";
 import type { Spec } from "../types";
 
@@ -42,6 +48,47 @@ export type SpecToolkitOptions = {
 };
 
 type SpecArgs = Partial<RenderSpecInput>;
+
+/** The interactions a host records on a tool call, as its `unstable_interactions` prop holds them. */
+type InteractionLog = {
+  readonly entries: readonly (
+    | {
+        readonly type: "action";
+        readonly payload: Readonly<Record<string, unknown>>;
+      }
+    | { readonly type: "human-response"; readonly payload: unknown }
+  )[];
+};
+
+const SAVE_DELAY_MS = 500;
+
+/**
+ * The state writes saved on a `render_spec` call: the newest `setState` interaction recorded for that call. An entry whose `writes` is not a list marks a save that failed, so the call starts from the model's state rather than from an older snapshot.
+ */
+function savedWrites(
+  log: InteractionLog | undefined,
+  toolCallId: string,
+): SpecStateWrite[] {
+  const entries = log?.entries ?? [];
+  for (let index = entries.length - 1; index >= 0; index--) {
+    const entry = entries[index]!;
+    if (
+      entry.type !== "action" ||
+      entry.payload["type"] !== "setState" ||
+      entry.payload["toolCallId"] !== toolCallId
+    )
+      continue;
+    const writes = entry.payload["writes"];
+    if (!Array.isArray(writes)) return [];
+    return writes.filter(
+      (write): write is SpecStateWrite =>
+        Array.isArray(write) &&
+        write.length === 2 &&
+        typeof write[0] === "string",
+    );
+  }
+  return [];
+}
 
 const WIDGET_TOOLS = new Set([
   "read_me",
@@ -130,7 +177,14 @@ export type SpecToolkitPlatform = {
   Frame: ComponentType<{ title: string; children: ReactNode }>;
 };
 
-type RenderSpecProps = { args: SpecArgs; toolCallId: string };
+type RenderSpecProps = {
+  args: SpecArgs;
+  toolCallId: string;
+  unstable_interactions?: InteractionLog | undefined;
+  unstable_recordInteraction?:
+    | ((input: { type: "action"; payload: unknown }) => Promise<void>)
+    | undefined;
+};
 
 export const specToolkitFor =
   ({
@@ -156,7 +210,12 @@ export const specToolkitFor =
     };
 
     const renderSpecUI = (mountsToolResults: boolean) =>
-      function RenderSpecUI({ args, toolCallId }: RenderSpecProps) {
+      function RenderSpecUI({
+        args,
+        toolCallId,
+        unstable_interactions,
+        unstable_recordInteraction,
+      }: RenderSpecProps) {
         const streaming = !useArgsComplete();
         const messages = useMessages();
         const title = typeof args.title === "string" ? args.title : "";
@@ -206,11 +265,99 @@ export const specToolkitFor =
           () => (renderState ? { ...spec, state: renderState } : spec),
           [spec, renderState],
         );
+        // The user's state writes are saved on the call and restored when it mounts again, such as after a reload.
+        const [store] = useState(() =>
+          createStateStore(renderSpec.state ?? {}, {
+            writes: savedWrites(unstable_interactions, toolCallId),
+          }),
+        );
+        useEffect(() => {
+          if (renderSpec.state) store.seed(renderSpec.state);
+        }, [store, renderSpec.state]);
+        const record = useRef(unstable_recordInteraction);
+        useInsertionEffect(() => {
+          record.current = unstable_recordInteraction;
+        });
+        useEffect(() => {
+          // `saved` is the newest entry recorded for this call: a snapshot's JSON, or "null" once a failed save was marked. Only the latest send may change it, because sends can settle out of order.
+          let saved = JSON.stringify(store.writes());
+          let sending: string | undefined;
+          let latest = 0;
+          let marked = false;
+          let timer: ReturnType<typeof setTimeout> | undefined;
+          const send = (writes: readonly SpecStateWrite[] | null) => {
+            const generation = ++latest;
+            let result: Promise<unknown>;
+            try {
+              result = Promise.resolve(
+                record.current?.({
+                  type: "action",
+                  payload: { type: "setState", toolCallId, writes },
+                }),
+              );
+            } catch (error) {
+              result = Promise.reject(error);
+            }
+            return { generation, result };
+          };
+          const fail = (generation: number) => {
+            if (generation !== latest || marked) return;
+            marked = true;
+            const marker = send(null);
+            marker.result.then(
+              () => {
+                if (marker.generation === latest) saved = "null";
+              },
+              () => {
+                if (marker.generation === latest) marked = false;
+              },
+            );
+          };
+          const save = () => {
+            timer = undefined;
+            const writes = store.writes();
+            let json: string;
+            try {
+              json = JSON.stringify(writes);
+            } catch {
+              fail(latest);
+              return;
+            }
+            if (json === sending || (sending === undefined && json === saved))
+              return;
+            sending = json;
+            const { generation, result } = send(writes);
+            result
+              .then(
+                () => {
+                  if (generation !== latest) return;
+                  saved = json;
+                  marked = false;
+                },
+                () => fail(generation),
+              )
+              .finally(() => {
+                if (sending === json) sending = undefined;
+              });
+          };
+          const unsubscribe = store.subscribe(() => {
+            clearTimeout(timer);
+            timer = setTimeout(save, SAVE_DELAY_MS);
+          });
+          return () => {
+            unsubscribe();
+            if (timer !== undefined) {
+              clearTimeout(timer);
+              save();
+            }
+          };
+        }, [store, toolCallId]);
 
         return (
           <Frame title={title}>
             <SpecRenderer
               spec={renderSpec}
+              state={store}
               catalog={catalog}
               components={options.components}
               streaming={streaming}

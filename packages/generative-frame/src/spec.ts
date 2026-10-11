@@ -37,7 +37,9 @@ export {
 export {
   createStateStore,
   type SpecStateStore,
+  type SpecStateWrite,
   type StateListener,
+  type StateStoreOptions,
 } from "./spec/state";
 export type { ActionHandler, ActionSource } from "./spec/actions";
 export type {
