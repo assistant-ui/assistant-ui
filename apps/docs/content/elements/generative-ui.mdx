@@ -34,19 +34,26 @@ export default defineToolkit({
 ### Register it on your runtime
 
 ```tsx title="app/page.tsx"
+"use client";
+
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import toolkit from "./toolkit";
 
 const config = AuiConfig({ tools: Tools({ toolkit }) });
-const runtime = useChatRuntime({
-  sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-});
 
-<AssistantRuntimeProvider config={config} runtime={runtime}>
-  <Thread />
-</AssistantRuntimeProvider>;
+export default function Page() {
+  const runtime = useChatRuntime({
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+  });
+  return (
+    <AssistantRuntimeProvider config={config} runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
 ```
 
 The model can now call `present` with a `{ _type, ...props }` tree; it renders through `styledGenerativeUILibrary`, so a `Markdown` node comes out fully formatted instead of as raw text.
