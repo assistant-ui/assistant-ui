@@ -16,7 +16,7 @@ The library only supplies components; something still has to expose them to the 
 
 ### Build a toolkit around the library
 
-```tsx title="app/toolkit.ts"
+```tsx title="app/toolkit.tsx"
 import { defineToolkit } from "@assistant-ui/react";
 import { JSONGenerativeUI } from "@assistant-ui/generative-ui/react";
 import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
@@ -35,10 +35,14 @@ export default defineToolkit({
 
 ```tsx title="app/page.tsx"
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import toolkit from "./toolkit";
 
 const config = AuiConfig({ tools: Tools({ toolkit }) });
-const runtime = useChatRuntime(/* ... */); // or useLocalRuntime, etc.
+const runtime = useChatRuntime({
+  sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+});
 
 <AssistantRuntimeProvider config={config} runtime={runtime}>
   <Thread />
@@ -98,7 +102,7 @@ renderGenerativeUI({ $type: "Markdown", value: "**bold**" }, styledGenerativeUIL
 
 Add to it with a plain object spread. No special wrapper is required for a library that is not split across a client and a server build.
 
-```tsx title="app/toolkit.ts"
+```tsx title="app/toolkit.tsx"
 import { JSONGenerativeUI } from "@assistant-ui/generative-ui/react";
 import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
 import { z } from "zod";
