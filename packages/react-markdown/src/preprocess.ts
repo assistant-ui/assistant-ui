@@ -861,6 +861,48 @@ function backtickEnd(
     : codeSpanEnd(text, start, blockStarts);
 }
 
+type VerbatimRange = {
+  start: number;
+  end: number;
+  kind: "span" | "fence";
+};
+
+function forEachVerbatimRange(
+  text: string,
+  blockStarts: number[],
+  visit: (start: number, end: number, kind: VerbatimRange["kind"]) => void,
+): void {
+  let index = 0;
+  while (index < text.length) {
+    const char = text[index];
+    if (char === "\\") {
+      index += 2;
+    } else if (char === "`") {
+      const end = backtickEnd(text, index, blockStarts);
+      if (end !== -1) {
+        visit(index, end, opensBacktickFence(text, index) ? "fence" : "span");
+        index = end;
+      } else {
+        index += runLength(text, index, "`");
+      }
+    } else if (opensTildeFence(text, index)) {
+      const end = fenceEnd(text, index, "~");
+      visit(index, end, "fence");
+      index = end;
+    } else {
+      index += 1;
+    }
+  }
+}
+
+function verbatimRanges(text: string, blockStarts: number[]): VerbatimRange[] {
+  const ranges: VerbatimRange[] = [];
+  forEachVerbatimRange(text, blockStarts, (start, end, kind) => {
+    ranges.push({ start, end, kind });
+  });
+  return ranges;
+}
+
 /**
  * Applies `rewrite` to the stretches of `text` outside HTML blocks, indented code, code spans and fences,
  * copying their contents through verbatim, so a delimiter shown as code is never
@@ -891,7 +933,6 @@ function rewriteOutsideCode(
 ): string {
   return rewriteOutsideBlocks(text, (text, blockStarts) => {
     let out = "";
-    let index = 0;
     let plainStart = 0;
 
     const flush = (end: number, followedBy: string) => {
@@ -913,27 +954,11 @@ function rewriteOutsideCode(
       out += rewrite(segment, out.slice(-1), followedBy, lineHead, lineTail);
     };
 
-    const copyVerbatim = (to: number) => {
-      flush(index, text[index]!);
-      out += text.slice(index, to);
-      index = to;
-      plainStart = to;
-    };
-
-    while (index < text.length) {
-      const char = text[index];
-      if (char === "\\") {
-        index += 2;
-      } else if (char === "`") {
-        const end = backtickEnd(text, index, blockStarts);
-        if (end !== -1) copyVerbatim(end);
-        else index += runLength(text, index, "`");
-      } else if (opensTildeFence(text, index)) {
-        copyVerbatim(fenceEnd(text, index, "~"));
-      } else {
-        index += 1;
-      }
-    }
+    forEachVerbatimRange(text, blockStarts, (start, end) => {
+      flush(start, text[start]!);
+      out += text.slice(start, end);
+      plainStart = end;
+    });
     flush(text.length, "");
 
     return out;
@@ -1099,18 +1124,64 @@ function indentTo(line: string, column: number): string {
     : " ".repeat(column) + line.slice(indent.length);
 }
 
-/**
- * Content column of a line holding nothing but a list marker and the `$$` that
- * opens a fence, or -1 for any other line.
- */
-function displayMathOpenerColumn(line: string): number {
-  const marker = /^[ \t]*/.exec(line)![0].length;
-  const content = listMarkerEnd(line, marker, line.length);
-  return content > marker &&
+function displayMathOpenerPrefix(line: string): string | null {
+  const quote = /^[ \t]*(?:>[ \t]*)*/.exec(line)![0];
+  const content = listMarkerEnd(line, quote.length, line.length);
+  return content > quote.length &&
     line.startsWith("$$", content) &&
     onlyWhitespace(line, content + 2, line.length)
-    ? columns(line, 0, content)
-    : -1;
+    ? continuationPrefix(line.slice(0, content))
+    : null;
+}
+
+function indentToPrefix(line: string, prefix: string): string {
+  const depth = quoteDepth(prefix);
+  if (depth === 0) return indentTo(line, columns(prefix, 0, prefix.length));
+
+  const markers = QUOTE_PREFIX.exec(line)![0];
+  if (quoteDepth(markers) < depth) {
+    return `${prefix}${line.slice(markers.length)}`;
+  }
+
+  const targetQuote = prefix.lastIndexOf(">") + 1;
+  const lineQuote = markers.lastIndexOf(">") + 1;
+  const targetIndent = columns(prefix, targetQuote, prefix.length);
+  const lineIndent = columns(markers, lineQuote, markers.length);
+  const missing = Math.max(0, targetIndent - lineIndent);
+  return missing === 0
+    ? line
+    : `${line.slice(0, markers.length)}${" ".repeat(missing)}${line.slice(markers.length)}`;
+}
+
+function verbatimRangeAt(
+  ranges: VerbatimRange[],
+  index: number,
+): VerbatimRange | undefined {
+  let low = 0;
+  let high = ranges.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if (ranges[middle]!.start <= index) low = middle + 1;
+    else high = middle;
+  }
+  const range = ranges[low - 1];
+  return range && index < range.end ? range : undefined;
+}
+
+function firstVerbatimRange(
+  ranges: VerbatimRange[],
+  from: number,
+  to: number,
+): VerbatimRange | undefined {
+  let low = 0;
+  let high = ranges.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    if (ranges[middle]!.end <= from) low = middle + 1;
+    else high = middle;
+  }
+  const range = ranges[low];
+  return range && range.start < to ? range : undefined;
 }
 
 /**
@@ -1160,9 +1231,28 @@ function opensBlock(
   );
 }
 
+function opensBlockInContainer(
+  line: string,
+  next: string | undefined,
+  endsText: boolean,
+  depth: number,
+): boolean {
+  const quote = QUOTE_PREFIX.exec(line)![0];
+  if (depth === 0 || quoteDepth(quote) !== depth) {
+    return opensBlock(line, next, endsText);
+  }
+
+  const nextQuote = next === undefined ? "" : QUOTE_PREFIX.exec(next)![0];
+  const nextLine =
+    next !== undefined && quoteDepth(nextQuote) === depth
+      ? next.slice(nextQuote.length)
+      : next;
+  return opensBlock(line.slice(quote.length), nextLine, endsText);
+}
+
 /**
- * Indents a `$$` fence opened right after a list marker, and written with its
- * body and closing marker at the root column, to the item's content column.
+ * Indents a `$$` fence opened right after a list marker, including a marker
+ * inside a blockquote, to the item's content column.
  * remark-math reads the unindented form as an empty fence that ends with the
  * item, since a flow construct takes no lazy continuation lines, so the body
  * falls out of the list and the closing marker opens a fence of its own; a
@@ -1175,91 +1265,141 @@ function opensBlock(
  * The closing marker is looked for up to the first blank line, which a display
  * body does not hold. A fence that reaches one first, reaches a sibling list
  * marker, or closes on a formula line (`F = ma$$`) is left as written, so a
- * finished message never has its prose pulled into the math; a fence that
- * reaches the end of the text is one still streaming in and is indented to its
- * end.
+ * finished message never has its prose pulled into the math. In a closed
+ * fence, a `+` or `-` marker line with TeX syntax is formula content. A fence
+ * that reaches the end of the text is one still streaming in and is indented
+ * to its end unless it crosses such a marker.
  */
 function nestListItemDisplayMath(text: string): string {
-  return rewriteOutsideCode(
-    text,
-    (segment, _precededBy, followedBy, lineHead, lineTail) => {
-      const lines = segment.split("\n");
-      const last = lines.length - 1;
-      const fullLine = (index: number) =>
-        index === last
-          ? lines[index]! + lineTail(segment.length)
-          : lines[index]!;
-      let changed = false;
-      let opener = 0;
-      while (opener < last) {
-        const column = displayMathOpenerColumn(lines[opener]!);
-        if (column === -1 || (opener === 0 && lineHead(0) !== "")) {
-          opener += 1;
-          continue;
+  return rewriteOutsideBlocks(text, (block, blockStarts) => {
+    const ranges = verbatimRanges(block, blockStarts);
+    const lines = block.split("\n");
+    const lineStarts = [0];
+    for (let index = 0; index < lines.length - 1; index += 1) {
+      lineStarts.push(lineStarts[index]! + lines[index]!.length + 1);
+    }
+    const last = lines.length - 1;
+    let changed = false;
+    let opener = 0;
+    while (opener < last) {
+      const prefix = displayMathOpenerPrefix(lines[opener]!);
+      const openingAt = lineStarts[opener]! + (prefix?.length ?? 0);
+      if (prefix === null || verbatimRangeAt(ranges, openingAt)) {
+        opener += 1;
+        continue;
+      }
+
+      const depth = quoteDepth(prefix);
+      let end = opener + 1;
+      let moved = false;
+      let closed = false;
+      let resume = -1;
+      let spanResume = -1;
+      let operatorResume = -1;
+      for (; end <= last; end += 1) {
+        const line = lines[end]!;
+        const lineStart = lineStarts[end]!;
+        const lineEnd = lineStart + line.length;
+        const quote = QUOTE_PREFIX.exec(line)![0];
+        const content = quote.length;
+        const range = firstVerbatimRange(ranges, lineStart, lineEnd);
+        if (range?.kind === "fence") {
+          resume = end;
+          break;
         }
-        let end = opener + 1;
-        let moved = false;
-        let closed = false;
-        let resume = -1;
-        for (; end <= last; end += 1) {
-          const line = fullLine(end);
-          const indent = /^[ \t]*/.exec(line)![0].length;
-          if (onlyWhitespace(line, indent, line.length)) {
-            if (end < last) resume = end + 1;
-            break;
+        if (range?.kind === "span" && spanResume === -1) {
+          spanResume = end + 1;
+          while (spanResume <= last && lineStarts[spanResume]! < range.end) {
+            spanResume += 1;
           }
-          const moves = columns(line, 0, indent) < column;
-          if (
-            line.startsWith("$$", indent) &&
-            onlyWhitespace(line, indent + 2, line.length)
-          ) {
-            moved ||= moves;
-            closed = true;
-            end += 1;
-            break;
-          }
-          if (
-            moves &&
-            (listMarkerEnd(line, indent, line.length) > indent ||
-              bareMarkerWidth(line, indent, line.length) > 0)
-          ) {
+        }
+
+        if (
+          onlyWhitespace(line, 0, line.length) ||
+          (depth > 0 &&
+            quoteDepth(quote) > 0 &&
+            onlyWhitespace(line, content, line.length))
+        ) {
+          if (end < last) resume = end + 1;
+          break;
+        }
+
+        const moves = indentToPrefix(line, prefix) !== line;
+        const closeAt = lineStart + content;
+        if (
+          quoteDepth(quote) === depth &&
+          line.startsWith("$$", content) &&
+          onlyWhitespace(line, content + 2, line.length) &&
+          !verbatimRangeAt(ranges, closeAt)
+        ) {
+          moved ||= moves;
+          closed = true;
+          end += 1;
+          break;
+        }
+
+        const markerEnd = listMarkerEnd(line, content, line.length);
+        const bareMarker = bareMarkerWidth(line, content, line.length);
+        if (moves && (markerEnd > content || bareMarker > 0)) {
+          const marker = line.slice(content, markerEnd).trim();
+          const operatorLedMath =
+            (marker === "+" || marker === "-") &&
+            LATEX_SYNTAX.test(line.slice(markerEnd));
+          if (!operatorLedMath) {
             resume = end;
             break;
           }
-          if (FORMULA_LINE_CLOSER.test(line)) {
-            resume = end + 1;
-            break;
-          }
-          moved ||= moves;
+          if (operatorResume === -1) operatorResume = end;
         }
-        if (resume !== -1) {
-          opener = resume;
-          continue;
+
+        const formulaCloser = line.lastIndexOf("$$");
+        if (
+          FORMULA_LINE_CLOSER.test(line) &&
+          !verbatimRangeAt(
+            ranges,
+            formulaCloser === -1 ? lineEnd : lineStart + formulaCloser,
+          )
+        ) {
+          resume = end + 1;
+          break;
         }
-        if (!closed && followedBy !== "") break;
-        if (moved) {
-          for (let index = opener + 1; index < end; index += 1) {
-            lines[index] = indentTo(lines[index]!, column);
-          }
-          if (
-            closed &&
-            end <= last &&
-            !opensBlock(
-              fullLine(end),
-              end < last ? fullLine(end + 1) : undefined,
-              end === last && followedBy === "",
-            )
-          ) {
-            lines[end] = indentTo(lines[end]!, column);
-            end += 1;
-          }
-          changed = true;
-        }
-        opener = end;
+        moved ||= moves;
       }
-      return changed ? lines.join("\n") : segment;
-    },
-  );
+      if (resume !== -1) {
+        opener = resume;
+        continue;
+      }
+      if (!closed && operatorResume !== -1) {
+        opener = operatorResume;
+        continue;
+      }
+      if (!closed && spanResume !== -1) {
+        opener = spanResume;
+        continue;
+      }
+      if (moved) {
+        for (let index = opener + 1; index < end; index += 1) {
+          lines[index] = indentToPrefix(lines[index]!, prefix);
+        }
+        if (
+          closed &&
+          end <= last &&
+          !opensBlockInContainer(
+            lines[end]!,
+            end < last ? lines[end + 1] : undefined,
+            end === last,
+            depth,
+          )
+        ) {
+          lines[end] = indentToPrefix(lines[end]!, prefix);
+          end += 1;
+        }
+        changed = true;
+      }
+      opener = end;
+    }
+    return changed ? lines.join("\n") : block;
+  });
 }
 
 /**

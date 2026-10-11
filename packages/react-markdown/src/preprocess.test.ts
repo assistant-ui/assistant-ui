@@ -467,6 +467,41 @@ describe("normalizeMathDelimiters", () => {
     ).toBe("1. $$\n   F = ma\n   $$\n   Newton\n\n2. $$\n   E = mc^2\n   $$");
   });
 
+  it.each(["+", "-"])(
+    "nests a $$ fence when its formula body has an operator-led %s line",
+    (operator) => {
+      expect(
+        normalizeMathDelimiters(
+          `1. $$\nE = mc^2\n${operator} \\frac{1}{2}mv^2\n$$\nTotal energy.`,
+        ),
+      ).toBe(
+        `1. $$\n   E = mc^2\n   ${operator} \\frac{1}{2}mv^2\n   $$\n   Total energy.`,
+      );
+    },
+  );
+
+  it("leaves a streaming $$ fence that reaches an operator marker as written", () => {
+    const text = "1. $$\nE = mc^2\n+ \\frac{1}{2}mv^2";
+    expect(normalizeMathDelimiters(text)).toBe(text);
+  });
+
+  it("nests a $$ fence in a list item inside a blockquote", () => {
+    expect(normalizeMathDelimiters("> 1. $$\n> x = 1\n> $$\n> Text")).toBe(
+      "> 1. $$\n>    x = 1\n>    $$\n>    Text",
+    );
+  });
+
+  it("scans a $$ fence across a code span without changing its contents", () => {
+    expect(normalizeMathDelimiters("1. $$\n\\text{`x`} = 1\n$$\nText")).toBe(
+      "1. $$\n   \\text{`x`} = 1\n   $$\n   Text",
+    );
+  });
+
+  it("leaves a streaming $$ fence that reaches a code span as written", () => {
+    const text = "1. $$\n\\text{`x`} = 1";
+    expect(normalizeMathDelimiters(text)).toBe(text);
+  });
+
   it("nests a $$ fence to the content column of its marker", () => {
     expect(normalizeMathDelimiters("- $$\na\n$$")).toBe("- $$\n  a\n  $$");
     expect(normalizeMathDelimiters("10. $$\na\n$$")).toBe(
@@ -545,6 +580,9 @@ describe("normalizeMathDelimiters", () => {
   it("leaves a $$ fence that reaches a sibling item before it closes", () => {
     const text = "1. $$\na\n2. b\n$$";
     expect(normalizeMathDelimiters(text)).toBe(text);
+    expect(normalizeMathDelimiters("1. $$\na\n- b\n$$")).toBe(
+      "1. $$\na\n- b\n$$",
+    );
     expect(normalizeMathDelimiters("1. $$\na\n2. $$\nb\n$$")).toBe(
       "1. $$\na\n2. $$\n   b\n   $$",
     );
