@@ -231,10 +231,20 @@ describe("createSnapshotSaver", () => {
       "1970-01-01T00:00:00.000Z",
       instance.record,
     ).schedule(() => new Date(0));
+    const custom = recorder();
+    createSnapshotSaver<unknown>(1, custom.record).schedule(() => ({
+      toJSON: () => 1,
+    }));
+    const key = recorder();
+    createSnapshotSaver<unknown>({}, key.record).schedule(() => ({
+      toJSON: "kept",
+    }));
     vi.advanceTimersByTime(500);
     expect(nan.snapshots()).toEqual([null]);
     expect(missing.snapshots()).toEqual([null]);
     expect(instance.snapshots()).toEqual([null]);
+    expect(custom.snapshots()).toEqual([null]);
+    expect(key.snapshots()).toEqual([{ toJSON: "kept" }]);
   });
 
   it("marks a snapshot that cannot be serialized and a recorder that throws", async () => {

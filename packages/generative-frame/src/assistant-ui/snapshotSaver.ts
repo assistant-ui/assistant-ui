@@ -14,7 +14,10 @@ const serialize = (snapshot: unknown): string | undefined => {
           (typeof raw === "number" && Number.isFinite(raw))
         )
           return value;
-        if (typeof raw === "object" && !Object.hasOwn(raw, "toJSON")) {
+        if (
+          typeof raw === "object" &&
+          typeof (raw as { toJSON?: unknown }).toJSON !== "function"
+        ) {
           const prototype = Object.getPrototypeOf(raw);
           if (
             Array.isArray(raw)
