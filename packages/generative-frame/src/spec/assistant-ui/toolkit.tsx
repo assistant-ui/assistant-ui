@@ -3,7 +3,12 @@ import {
   useToolArgsStatus,
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
-import { useEffect, useMemo, useState, type ComponentType } from "react";
+import {
+  useInsertionEffect,
+  useMemo,
+  useState,
+  type ComponentType,
+} from "react";
 import {
   toolkitEntry,
   type WidgetToolkitExtension,
@@ -69,19 +74,24 @@ export function resolveSpecBase(
   return spec;
 }
 
-/** How many `render_spec` calls with this title the thread holds, up to and including this one. */
-function specVersion(
+/** How many `render_spec` calls with this title come before this one in the thread. */
+function priorSpecCalls(
   messages: readonly MessageLike[],
   toolCallId: string,
   title: string,
 ): number {
-  let version = 0;
+  let count = 0;
   for (const call of toolCalls(messages)) {
-    if (call.name === "render_spec" && call.args["title"] === title) version++;
     if (call.id === toolCallId) break;
+    if (call.name === "render_spec" && call.args["title"] === title) count++;
   }
-  return version;
+  return count;
 }
+
+type SpecHistory = (title: string) => {
+  spec: Spec | undefined;
+  version: number;
+};
 
 /**
  * Spec mode for `createWidgetToolkit({ spec })`: adds `render_spec`, which
@@ -94,6 +104,18 @@ export function createSpecToolkit(
 ): WidgetToolkitExtension {
   const specs = new Map<string, { spec: Spec; version: number }>();
   const tools = createSpecTools(catalog, { specs });
+  // Each mounted call registers what its own thread held before it, so `execute` patches that base even after a reload or in another thread.
+  const histories = new Map<string, SpecHistory>();
+
+  const execute = (input: RenderSpecInput, call: { toolCallId: string }) => {
+    const history = histories.get(call.toolCallId);
+    if (history) {
+      const { spec, version } = history(input.title);
+      if (spec) specs.set(input.title, { spec, version });
+      else specs.delete(input.title);
+    }
+    return tools.render_spec.execute(input);
+  };
 
   function RenderSpecUI({
     args,
@@ -105,7 +127,16 @@ export function createSpecToolkit(
     const title = typeof args.title === "string" ? args.title : "";
     // The base only depends on earlier calls, so it is read once per call.
     const [base] = useState(() => resolveSpecBase(messages, toolCallId, title));
-    const [version] = useState(() => specVersion(messages, toolCallId, title));
+    const [history] = useState<SpecHistory>(() => (callTitle: string) => ({
+      spec: resolveSpecBase(messages, toolCallId, callTitle),
+      version: priorSpecCalls(messages, toolCallId, callTitle),
+    }));
+    useInsertionEffect(() => {
+      histories.set(toolCallId, history);
+      return () => {
+        if (histories.get(toolCallId) === history) histories.delete(toolCallId);
+      };
+    }, [toolCallId, history]);
     const streamed = useSpecStream({
       source: typeof args.patches === "string" ? args.patches : "",
       complete: !streaming,
@@ -121,15 +152,6 @@ export function createSpecToolkit(
       () => (full ? ({ state: {}, ...full } as Spec) : streamed.spec),
       [full, streamed.spec],
     );
-
-    // `render_spec` validates new patches against these specs, so a call rendered from history, as after a reload, records its spec.
-    useEffect(() => {
-      if (streaming || !title) return;
-      const current = specs.get(title);
-      if (!current || current.version <= version) {
-        specs.set(title, { spec, version });
-      }
-    }, [streaming, title, spec, version]);
 
     return (
       <div data-gf-spec={title || undefined}>
@@ -154,6 +176,7 @@ export function createSpecToolkit(
         tools.render_spec,
         RenderSpecUI as never,
         context,
+        execute,
       ),
     }),
   };

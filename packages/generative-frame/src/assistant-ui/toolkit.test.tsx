@@ -570,50 +570,104 @@ describe("render_spec validation", () => {
     patches:
       '{"op":"add","path":"/root","value":"t"}\n{"op":"add","path":"/elements/t","value":{"type":"Text","props":{"text":"a"}}}',
   };
-  const update = {
+  const fromA = {
     title: "s",
-    patches: '{"op":"replace","path":"/elements/t/props/text","value":"b"}',
+    patches:
+      '{"op":"test","path":"/elements/t/props/text","value":"a"}\n{"op":"replace","path":"/elements/t/props/text","value":"b"}',
   };
-
-  it("validates patches after a reload against the spec rendered from history", async () => {
-    mocks.messages = [{ content: [call("e", "render_spec", first)] }];
+  const setup = () => {
     const { toolkit } = createWidgetToolkit({
       spec: createSpecToolkit(catalog, { components }),
     });
-    const renderSpec = entries(toolkit)["render_spec"]!;
-    const RenderSpec = renderSpec.render;
-    render(<RenderSpec {...partProps("e", first)} />);
+    return entries(toolkit)["render_spec"]!;
+  };
 
-    expect(await renderSpec.execute!(update)).toMatchObject({
-      ok: true,
-      version: 2,
-      issues: [],
-    });
-  });
-
-  it("keeps the newest spec when an earlier call renders after it", async () => {
+  it("patches the spec the thread held after a reload", async () => {
     mocks.messages = [
       {
         content: [
           call("e", "render_spec", first),
-          call("f", "render_spec", update),
+          call("f", "render_spec", fromA),
         ],
       },
     ];
-    const { toolkit } = createWidgetToolkit({
-      spec: createSpecToolkit(catalog, { components }),
-    });
-    const renderSpec = entries(toolkit)["render_spec"]!;
+    const renderSpec = setup();
     const RenderSpec = renderSpec.render;
-    render(<RenderSpec {...partProps("f", update)} />);
-    render(<RenderSpec {...partProps("e", first)} />);
+    render(<RenderSpec {...partProps("f", fromA)} />);
 
-    expect(
-      await renderSpec.execute!({
-        title: "s",
-        patches: '{"op":"test","path":"/elements/t/props/text","value":"b"}',
-      }),
-    ).toMatchObject({ ok: true, version: 3 });
+    expect(await renderSpec.execute!(fromA, { toolCallId: "f" })).toMatchObject(
+      { ok: true, version: 2, issues: [] },
+    );
+  });
+
+  it("applies a call's patches once when it renders before it executes", async () => {
+    mocks.messages = [
+      {
+        content: [
+          call("e", "render_spec", first),
+          call("f", "render_spec", fromA),
+        ],
+      },
+    ];
+    const renderSpec = setup();
+    const RenderSpec = renderSpec.render;
+    render(<RenderSpec {...partProps("e", first)} />);
+    render(<RenderSpec {...partProps("f", fromA)} />);
+
+    expect(await renderSpec.execute!(fromA, { toolCallId: "f" })).toMatchObject(
+      { ok: true, version: 2 },
+    );
+  });
+
+  it("patches the spec of the call's own thread", async () => {
+    const renderSpec = setup();
+    const RenderSpec = renderSpec.render;
+    const other = {
+      title: "s",
+      patches:
+        '{"op":"add","path":"/root","value":"t"}\n{"op":"add","path":"/elements/t","value":{"type":"Text","props":{"text":"z"}}}',
+    };
+    mocks.messages = [
+      {
+        content: [
+          call("x", "render_spec", other),
+          call("y", "render_spec", other),
+        ],
+      },
+    ];
+    render(<RenderSpec {...partProps("y", other)} />);
+    mocks.messages = [
+      {
+        content: [
+          call("e", "render_spec", first),
+          call("f", "render_spec", fromA),
+        ],
+      },
+    ];
+    render(<RenderSpec {...partProps("f", fromA)} />);
+
+    expect(await renderSpec.execute!(fromA, { toolCallId: "f" })).toMatchObject(
+      { ok: true, version: 2 },
+    );
+  });
+
+  it("resolves the base from the title the call executes with", async () => {
+    mocks.messages = [
+      {
+        content: [
+          call("e", "render_spec", first),
+          call("f", "render_spec", fromA),
+        ],
+      },
+    ];
+    mocks.argsStatus = "streaming";
+    const renderSpec = setup();
+    const RenderSpec = renderSpec.render;
+    render(<RenderSpec {...partProps("f", {})} />);
+
+    expect(await renderSpec.execute!(fromA, { toolCallId: "f" })).toMatchObject(
+      { ok: true, version: 2 },
+    );
   });
 });
 
