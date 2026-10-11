@@ -421,6 +421,10 @@ const { catalog, components } = toSpecCatalog({
 
 A Vue entry carries a `component` instead of a `render` function. The component follows the [Vue component contract](/generative-frame/docs/spec-mode#render-with-vue): it declares its props and the events it emits, receives children and named slots as Vue slots, and writes a bound prop by emitting `update:<prop>`.
 
+### With React Native
+
+On React Native, `@assistant-ui/generative-ui/spec` resolves to a React Native build through the `react-native` export condition: `toSpecCatalog` and `defaultGenerativeUILibrary` from it draw the same vocabulary with React Native's own components, with the same events, payloads, and bound values. [Generative UI on React Native](/docs/react-native/generative-ui) shows the setup and the components that take a different form on a phone.
+
 ## Charts
 
 `Chart` accepts positive and negative values. Its scale always includes zero, so bars grow upward or downward from the zero line, areas fill to that line, and stacked bars and areas keep positive and negative totals on their respective sides. A chart that contains both positive and negative values draws a zero baseline. When `showAxis` is set, the ticks include zero and use round values for a mixed domain.

@@ -4,9 +4,15 @@ const temporalTests = [
   "src/temporal.test.ts",
   "src/vocabulary/datepicker.dom.test.tsx",
   "src/vue/vocabulary/datepicker.test.ts",
+  "src/native/vocabulary/datepicker.test.tsx",
 ];
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      "react-native": "react-native-web",
+    },
+  },
   test: {
     coverage: {
       include: ["src/**/*.{ts,tsx}"],

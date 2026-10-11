@@ -1,6 +1,6 @@
 # @assistant-ui/generative-ui
 
-Framework-neutral generative UI for assistant-ui. The root entry holds the React-free UI tree types and normalizer, `@assistant-ui/generative-ui/react` renders the tree with React, the `slack`, `teams`, and `a2ui` subpaths convert it for other surfaces, `@assistant-ui/generative-ui/spec` renders a library in generative-frame's spec mode, and `@assistant-ui/generative-ui/vue` does the same with Vue components.
+Framework-neutral generative UI for assistant-ui. The root entry holds the React-free UI tree types and normalizer, `@assistant-ui/generative-ui/react` renders the tree with React, the `slack`, `teams`, and `a2ui` subpaths convert it for other surfaces, `@assistant-ui/generative-ui/spec` renders a library in generative-frame's spec mode (with React Native components under the `react-native` export condition), and `@assistant-ui/generative-ui/vue` does the same with Vue components.
 
 ## Installation
 
@@ -8,7 +8,7 @@ Framework-neutral generative UI for assistant-ui. The root entry holds the React
 npm install @assistant-ui/generative-ui @assistant-ui/react zod
 ```
 
-Every framework and library is an optional peer that only some subpaths need: `@assistant-ui/generative-ui/react` needs `react`, `@assistant-ui/react`, and `zod`; `@assistant-ui/generative-ui/spec` needs `react`, `zod`, and `generative-frame`; and `@assistant-ui/generative-ui/vue` needs `vue`, `zod`, and `generative-frame`. The root entry and the `slack`, `teams`, and `a2ui` subpaths need none of them.
+Every framework and library is an optional peer that only some subpaths need: `@assistant-ui/generative-ui/react` needs `react`, `@assistant-ui/react`, and `zod`; `@assistant-ui/generative-ui/spec` needs `react`, `zod`, and `generative-frame`, plus `react-native` on React Native; and `@assistant-ui/generative-ui/vue` needs `vue`, `zod`, and `generative-frame`. The root entry and the `slack`, `teams`, and `a2ui` subpaths need none of them.
 
 ## Usage
 

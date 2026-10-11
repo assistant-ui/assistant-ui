@@ -1792,7 +1792,7 @@ declare namespace entry_slack_exports {
 }
 
 declare namespace entry_spec_exports {
-  export { ToSpecCatalogOptions, toSpecCatalog$1 as toSpecCatalog };
+  export { ToSpecCatalogOptions, defaultGenerativeUILibrary$1 as defaultGenerativeUILibrary, toSpecCatalog$1 as toSpecCatalog };
 }
 
 declare function surfaceToOperations(surface: A2uiSurfaceState, surfaceId?: string): readonly A2uiSurfaceSnapshotOperation[];

@@ -40,6 +40,10 @@
       "default": "./dist/teams.js"
     },
     "./spec": {
+      "react-native": {
+        "types": "./dist/spec.native.d.ts",
+        "default": "./dist/spec.native.js"
+      },
       "types": "./dist/spec.d.ts",
       "default": "./dist/spec.js"
     },
@@ -74,6 +78,7 @@
     "@types/react": "*",
     "generative-frame": "^0.0.3",
     "react": "^18 || ^19",
+    "react-native": "*",
     "vue": "^3.5.0",
     "zod": "^4.0.0"
   },
@@ -88,6 +93,9 @@
       "optional": true
     },
     "react": {
+      "optional": true
+    },
+    "react-native": {
       "optional": true
     },
     "vue": {
@@ -106,6 +114,8 @@
     "jsdom": "^30.1.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "react-native": "^0.87.1",
+    "react-native-web": "^0.21.3",
     "vitest": "^5.0.3",
     "vue": "^3.5.43",
     "zod": "^4.6.5"
