@@ -1091,6 +1091,7 @@ export function rewriteCustomMathTags(text: string): string {
 }
 
 const FORMULA_LINE_CLOSER = /\$\$[ \t\r]*$/;
+const TABLE_DELIMITER_ROW = /^[ \t|:\r-]*$/;
 
 function indentTo(line: string, column: number): string {
   const indent = /^[ \t]*/.exec(line)![0];
@@ -1115,10 +1116,15 @@ function displayMathOpenerColumn(line: string): number {
 
 /**
  * Whether `line`, the line after a closing `$$`, starts a block instead of
- * continuing a paragraph. On the line the text ends on, the start of one still
+ * continuing a paragraph. A line holding a pipe starts a table when `next` is
+ * a delimiter row, and on the line the text ends on, the start of a block still
  * streaming in (`2`, `$`, a backtick or tilde run) counts as one.
  */
-function opensBlock(line: string, endsText: boolean): boolean {
+function opensBlock(
+  line: string,
+  next: string | undefined,
+  endsText: boolean,
+): boolean {
   const from = /^[ \t]*/.exec(line)![0].length;
   const rest = line.slice(from);
   return (
@@ -1131,6 +1137,11 @@ function opensBlock(line: string, endsText: boolean): boolean {
     opensBacktickFence(line, from) ||
     opensTildeFence(line, from) ||
     /^(?:>|\$\$|\||<)/.test(rest) ||
+    (rest.includes("|") &&
+      next !== undefined &&
+      next.includes("|") &&
+      next.includes("-") &&
+      TABLE_DELIMITER_ROW.test(next)) ||
     (endsText && /^(?:\d{1,9}|\$|`{1,2}|~{1,2})$/.test(rest))
   );
 }
@@ -1219,7 +1230,11 @@ function nestListItemDisplayMath(text: string): string {
           if (
             closed &&
             end <= last &&
-            !opensBlock(fullLine(end), end === last && followedBy === "")
+            !opensBlock(
+              fullLine(end),
+              end < last ? fullLine(end + 1) : undefined,
+              end === last && followedBy === "",
+            )
           ) {
             lines[end] = indentTo(lines[end]!, column);
             end += 1;

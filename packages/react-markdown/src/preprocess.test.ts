@@ -481,6 +481,9 @@ describe("normalizeMathDelimiters", () => {
     expect(normalizeMathDelimiters("- $$\na\n$$\n- next")).toBe(
       "- $$\n  a\n  $$\n- next",
     );
+    expect(normalizeMathDelimiters("1. $$\na\n$$\nA | B\nmore")).toBe(
+      "1. $$\n   a\n   $$\n   A | B\nmore",
+    );
   });
 
   it("keeps a paragraph that opens with a code span after a nested $$ fence in its item", () => {
@@ -500,6 +503,15 @@ describe("normalizeMathDelimiters", () => {
     (next) => {
       expect(normalizeMathDelimiters(`- $$\na\n$$\n${next}`)).toBe(
         `- $$\n  a\n  $$\n${next}`,
+      );
+    },
+  );
+
+  it.each(["A | B\n--- | ---\n1 | 2", "| A | B |\n| - | - |"])(
+    "leaves a table right after a nested $$ fence at the root: %j",
+    (table) => {
+      expect(normalizeMathDelimiters(`1. $$\na\n$$\n${table}`)).toBe(
+        `1. $$\n   a\n   $$\n${table}`,
       );
     },
   );
