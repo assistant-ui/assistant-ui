@@ -483,13 +483,23 @@ describe("normalizeMathDelimiters", () => {
     );
   });
 
-  it("keeps a half-streamed block start after a nested $$ fence at the root column", () => {
-    for (const next of ["-", "2", "2.", "#", "$", "`", "``", "~", "~~"]) {
+  it("keeps a paragraph that opens with a code span after a nested $$ fence in its item", () => {
+    expect(normalizeMathDelimiters("1. $$\na\n$$\n`a` is the input.")).toBe(
+      "1. $$\n   a\n   $$\n   `a` is the input.",
+    );
+    expect(normalizeMathDelimiters("1. $$\na\n$$\n```js\nx\n```")).toBe(
+      "1. $$\n   a\n   $$\n```js\nx\n```",
+    );
+  });
+
+  it.each(["-", "2", "2.", "#", "$", "`", "``", "~", "~~"])(
+    "keeps a half-streamed %j after a nested $$ fence at the root column",
+    (next) => {
       expect(normalizeMathDelimiters(`- $$\na\n$$\n${next}`)).toBe(
         `- $$\n  a\n  $$\n${next}`,
       );
-    }
-  });
+    },
+  );
 
   it("leaves root indented code after a nested $$ fence at the root", () => {
     expect(normalizeMathDelimiters("   - $$\na\n$$\n    code")).toBe(
@@ -497,28 +507,54 @@ describe("normalizeMathDelimiters", () => {
     );
   });
 
-  it("leaves a $$ fence already at its item's content column, and the root paragraph after it", () => {
-    for (const text of ["1. $$\n   a\n   $$\nText", "- $$\n  a\n  $$\nText"]) {
+  it.each(["1. $$\n   a\n   $$\nText", "- $$\n  a\n  $$\nText"])(
+    "leaves a $$ fence already at its item's content column, and the root paragraph after it: %j",
+    (text) => {
       expect(normalizeMathDelimiters(text)).toBe(text);
-    }
-  });
+    },
+  );
 
   it("nests a still-streaming $$ fence opened on a marker line", () => {
     expect(normalizeMathDelimiters("1. $$\nF = ")).toBe("1. $$\n   F = ");
+    expect(normalizeMathDelimiters("1. $$\nF = ma\n ")).toBe(
+      "1. $$\n   F = ma\n ",
+    );
   });
 
   it("leaves a $$ fence that reaches a sibling item before it closes", () => {
     const text = "1. $$\na\n2. b\n$$";
     expect(normalizeMathDelimiters(text)).toBe(text);
+    expect(normalizeMathDelimiters("1. $$\na\n2. $$\nb\n$$")).toBe(
+      "1. $$\na\n2. $$\n   b\n   $$",
+    );
   });
 
-  it("leaves a $$ fence with no closing line before a blank line as written", () => {
-    for (const text of [
-      "1. $$\nF = ma$$\n\nThat is Newton's second law.",
-      "1. $$\nF = ma$$\n\nText\n\n$$\nx\n$$",
-    ]) {
+  it.each([
+    "1. $$\nF = ma\n\nThat is Newton's second law.",
+    "1. $$\nF = ma\n\nText\n\n$$\nx\n$$",
+  ])(
+    "leaves a $$ fence with no closing line before a blank line as written: %j",
+    (text) => {
       expect(normalizeMathDelimiters(text)).toBe(text);
-    }
+    },
+  );
+
+  it.each([
+    "1. $$\nF = ma$$\nThat is Newton's second law.",
+    "1. $$\nF = ma$$\n\nThat is Newton's second law.",
+  ])(
+    "leaves a $$ fence that closes on its formula line as written: %j",
+    (text) => {
+      expect(normalizeMathDelimiters(text)).toBe(text);
+    },
+  );
+
+  it("nests a later $$ fence after one that closes on its formula line", () => {
+    expect(
+      normalizeMathDelimiters(
+        "1. $$\nF = ma$$\nNewton\n2. $$\nE = mc^2\n$$\nEinstein",
+      ),
+    ).toBe("1. $$\nF = ma$$\nNewton\n2. $$\n   E = mc^2\n   $$\n   Einstein");
   });
 
   it("nests a $$ fence written with CRLF line endings", () => {
