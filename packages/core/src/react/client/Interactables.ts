@@ -1,4 +1,11 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+  useInsertionEffect,
+} from "react";
 import { resource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
 import {
@@ -88,7 +95,9 @@ const useInteractablesResource = ({
 
   const clientRef = useAssistantClientRef();
   const clientRefRef = useRef(clientRef);
-  clientRefRef.current = clientRef;
+  useInsertionEffect(() => {
+    clientRefRef.current = clientRef;
+  }, [clientRef]);
 
   const stateRef = useRef(state);
 
@@ -537,16 +546,14 @@ const useInteractablesResource = ({
     const adapter = adapterRef.current;
     if (adapter && saveAdapterRef.current !== adapter) {
       let timer: ReturnType<typeof setTimeout> | undefined;
-      try {
-        await Promise.race([
-          prepareAdapter(adapter),
-          new Promise<boolean>((resolve) => {
-            timer = setTimeout(() => resolve(false), FLUSH_LOAD_TIMEOUT_MS);
-          }),
-        ]);
-      } finally {
+      await Promise.race([
+        prepareAdapter(adapter),
+        new Promise<boolean>((resolve) => {
+          timer = setTimeout(() => resolve(false), FLUSH_LOAD_TIMEOUT_MS);
+        }),
+      ]).finally(() => {
         if (timer !== undefined) clearTimeout(timer);
-      }
+      });
     }
     await flushPersistence();
   }, [flushPersistence, prepareAdapter]);
@@ -868,15 +875,30 @@ const useInteractablesResource = ({
     ],
   );
 
-  return {
-    getState: () => stateRef.current,
-    register,
-    setState: setDefState,
-    exportState,
-    importState,
-    setPersistenceAdapter,
-    flush,
-  };
+  return useMemo(
+    () => ({
+      getState: () => {
+        // The React Compiler keys this memo on what its body reads, so the result has to depend on state.
+        const current = stateRef.current;
+        return current === state ? state : current;
+      },
+      register,
+      setState: setDefState,
+      exportState,
+      importState,
+      setPersistenceAdapter,
+      flush,
+    }),
+    [
+      state,
+      register,
+      setDefState,
+      exportState,
+      importState,
+      setPersistenceAdapter,
+      flush,
+    ],
+  );
 };
 
 /**
