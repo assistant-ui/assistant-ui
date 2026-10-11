@@ -958,6 +958,100 @@ describe("ADK request coalescing", () => {
     ]);
   });
 
+  it("sends same-tick messages with different state deltas separately", async () => {
+    const calls: { message: string; stateDelta: unknown }[] = [];
+    const stream: AdkStreamCallback = async function* (messages, config) {
+      calls.push({
+        message: messages[0]!.id,
+        stateDelta: config.stateDelta,
+      });
+    };
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+    act(() => {
+      first = result.current.sendMessage(
+        [{ id: "first", type: "human", content: "first" }],
+        { stateDelta: { a: 1 } },
+      );
+      second = result.current.sendMessage(
+        [{ id: "second", type: "human", content: "second" }],
+        { stateDelta: { b: 2 } },
+      );
+    });
+    await act(async () => {
+      await Promise.all([first, second]);
+    });
+
+    expect(calls).toEqual([
+      { message: "first", stateDelta: { a: 1 } },
+      { message: "second", stateDelta: { b: 2 } },
+    ]);
+  });
+
+  it("sends same-tick messages with different checkpoints separately", async () => {
+    const calls: { message: string; checkpointId: string | undefined }[] = [];
+    const stream: AdkStreamCallback = async function* (messages, config) {
+      calls.push({
+        message: messages[0]!.id,
+        checkpointId: config.checkpointId,
+      });
+    };
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+    act(() => {
+      first = result.current.sendMessage(
+        [{ id: "first", type: "human", content: "first" }],
+        { checkpointId: "checkpoint-a" },
+      );
+      second = result.current.sendMessage(
+        [{ id: "second", type: "human", content: "second" }],
+        { checkpointId: "checkpoint-b" },
+      );
+    });
+    await act(async () => {
+      await Promise.all([first, second]);
+    });
+
+    expect(calls).toEqual([
+      { message: "first", checkpointId: "checkpoint-a" },
+      { message: "second", checkpointId: "checkpoint-b" },
+    ]);
+  });
+
+  it.each([
+    ["empty configs", {}, {}],
+    ["empty state deltas", { stateDelta: {} }, { stateDelta: {} }],
+    ["missing and empty state deltas", {}, { stateDelta: {} }],
+  ])(
+    "coalesces same-tick messages with %s",
+    async (_label, firstConfig, secondConfig) => {
+      const calls: string[][] = [];
+      const stream: AdkStreamCallback = async function* (messages) {
+        calls.push(messages.map((message) => message.id));
+      };
+      const { result } = renderHook(() => useAdkMessages({ stream }));
+      let first!: Promise<void>;
+      let second!: Promise<void>;
+      act(() => {
+        first = result.current.sendMessage(
+          [{ id: "first", type: "human", content: "first" }],
+          firstConfig,
+        );
+        second = result.current.sendMessage(
+          [{ id: "second", type: "human", content: "second" }],
+          secondConfig,
+        );
+      });
+      await act(async () => {
+        await Promise.all([first, second]);
+      });
+
+      expect(calls).toEqual([["first", "second"]]);
+    },
+  );
+
   it("settles every caller with the shared run error", async () => {
     const failure = new Error("stream failed");
     const stream = vi.fn(async function* () {

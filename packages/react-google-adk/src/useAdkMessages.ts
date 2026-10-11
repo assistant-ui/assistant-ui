@@ -46,10 +46,33 @@ type AdkRuntimeCallbackName = "onError" | "onCustomEvent" | "onAgentTransfer";
 
 type QueuedAdkSend = {
   messages: AdkMessage[];
-  runConfig: unknown;
+  config: Record<PropertyKey, unknown>;
   run: (messageBatches: AdkMessage[][]) => Promise<void>;
   resolve: () => void;
   reject: (error: unknown) => void;
+};
+
+const normalizeSendConfig = (config: AdkSendMessageConfig) =>
+  Object.fromEntries(
+    Reflect.ownKeys(config).map((key) => {
+      const value = Reflect.get(config, key);
+      return [
+        key,
+        value &&
+        typeof value === "object" &&
+        Reflect.ownKeys(value).length === 0
+          ? undefined
+          : value,
+      ];
+    }),
+  );
+
+const sameSendConfig = (
+  left: Record<PropertyKey, unknown>,
+  right: Record<PropertyKey, unknown>,
+) => {
+  const keys = new Set([...Reflect.ownKeys(left), ...Reflect.ownKeys(right)]);
+  return [...keys].every((key) => Object.is(left[key], right[key]));
 };
 
 const invokeAdkRuntimeCallback = <TArgs extends readonly unknown[]>(
@@ -309,15 +332,9 @@ const useAdkMessagesInternal = ({
           for (const older of queued) older.resolve();
           queued.clear();
         }
-        const runConfig =
-          config.runConfig &&
-          typeof config.runConfig === "object" &&
-          Reflect.ownKeys(config.runConfig).length === 0
-            ? undefined
-            : config.runConfig;
         const send = {
           messages: newMessagesWithId,
-          runConfig,
+          config: normalizeSendConfig(config),
           run,
           resolve,
           reject,
@@ -332,7 +349,7 @@ const useAdkMessagesInternal = ({
           for (const send of sends) {
             if (!queued.has(send)) continue;
             const group = groups.at(-1);
-            if (group && Object.is(group[0]!.runConfig, send.runConfig)) {
+            if (group && sameSendConfig(group[0]!.config, send.config)) {
               group.push(send);
             } else {
               groups.push([send]);
