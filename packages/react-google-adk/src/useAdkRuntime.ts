@@ -287,7 +287,9 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           }
         : config;
 
-    return runExclusive(() => sendMessage(msgs, continuationConfig));
+    return sendMessage(msgs, continuationConfig, (run) =>
+      runExclusive(() => run()),
+    );
   };
 
   const stopRun = () => {
@@ -476,7 +478,10 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       },
     }),
     onNew: async (msg) => {
-      const initialLoad = await waitForInitialLoad();
+      const pendingInitialLoad = waitForInitialLoad();
+      const initialLoad = pendingInitialLoad
+        ? await pendingInitialLoad
+        : undefined;
       if (initialLoad && !initialLoad.active) return;
       if (!(msg.startRun ?? msg.role === "user")) {
         stageUserMessage(msg);
@@ -538,16 +543,20 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           const editedMessage = toAdkUserMessage(msg);
           setMessages([...truncated, editedMessage]);
           const externalId = aui.threadListItem.getState().externalId;
-          return runExclusive(async (isCurrent) => {
+          const lease = runLeases.begin();
+          setIsRunning(true);
+          try {
             const checkpointId = externalId
               ? await getCheckpointId(externalId, truncated)
               : null;
-            if (!isCurrent()) return;
-            await sendMessage([editedMessage], {
+            if (!lease.isCurrent()) return;
+            return await handleSendMessage([editedMessage], {
               runConfig: msg.runConfig,
               ...(checkpointId && { checkpointId }),
             });
-          });
+          } finally {
+            if (lease.isCurrent()) setIsRunning(false);
+          }
         }
       : undefined,
     ...(getCheckpointId || hasStagedMessages
@@ -588,31 +597,32 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             );
             replaceMessages(truncated);
             const externalId = aui.threadListItem.getState().externalId;
-            return runExclusive(async (isCurrent) => {
-              const lookup = {
-                lease: runLeases.current(),
-                beforeReload,
-              };
-              reloadLookupRef.current = lookup;
+            const lease = runLeases.begin();
+            setIsRunning(true);
+            const lookup = { lease, beforeReload };
+            reloadLookupRef.current = lookup;
+            try {
               let checkpointId: string | null;
               try {
                 checkpointId = externalId
                   ? await getCheckpointId(externalId, truncated)
                   : null;
               } catch (error) {
-                if (isCurrent() && reloadLookupRef.current === lookup)
+                if (lease.isCurrent() && reloadLookupRef.current === lookup)
                   applySnapshot(beforeReload);
                 throw error;
               } finally {
                 if (reloadLookupRef.current === lookup)
                   reloadLookupRef.current = null;
               }
-              if (!isCurrent()) return;
-              await sendMessage([], {
+              if (!lease.isCurrent()) return;
+              return await handleSendMessage([], {
                 runConfig: config.runConfig,
                 ...(checkpointId && { checkpointId }),
               });
-            });
+            } finally {
+              if (lease.isCurrent()) setIsRunning(false);
+            }
           },
         }
       : {}),

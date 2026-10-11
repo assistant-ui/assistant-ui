@@ -1131,6 +1131,7 @@ describe("ADK request coalescing", () => {
       await send;
     });
     expect(stream).not.toHaveBeenCalled();
+    expect(result.current.messages).toEqual([]);
   });
 
   it("still aborts a run whose request already left when a new message is sent", async () => {
@@ -1224,7 +1225,7 @@ describe("ADK request coalescing", () => {
     ]);
   });
 
-  it("supersedes an older queued group when a later-tick send arrives", async () => {
+  it("retains and exposes queued groups when a later-tick send arrives", async () => {
     const requests: string[] = [];
     vi.stubGlobal(
       "fetch",
@@ -1251,6 +1252,9 @@ describe("ADK request coalescing", () => {
       );
     });
     await vi.waitFor(() => expect(requests).toEqual(["first"]));
+    expect(result.current.messages.map((message) => message.id)).toContain(
+      "queued",
+    );
 
     let latest!: Promise<void>;
     act(() => {
@@ -1262,7 +1266,7 @@ describe("ADK request coalescing", () => {
     await act(async () => {
       await Promise.all([first, queued, latest]);
     });
-    expect(requests).toEqual(["first", "latest"]);
+    expect(requests).toEqual(["first", "queued", "latest"]);
   });
 });
 
