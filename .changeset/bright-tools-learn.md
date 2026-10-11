@@ -2,4 +2,4 @@
 "generative-frame": patch
 ---
 
-Expose validated MCP Apps initialization metadata to `createWidget` hosts.
+fix(generative-frame): pass an MCP Apps widget's `ui/initialize` params to a new `onInitialized` handler, including the display modes it declares
