@@ -40,6 +40,19 @@ export function canonical(node: Node, ids = new Map<string, string>()): string {
   if (node.nodeType !== Node.ELEMENT_NODE) return "";
   const element = node as Element;
   const attributes = [...element.attributes]
+    // React 18 writes `value=""` on an input rendered without a value and React
+    // 19 does not; on a text-like input an empty value attribute carries nothing.
+    .filter(
+      (attribute) =>
+        !(
+          element.localName === "input" &&
+          !["checkbox", "radio"].includes(
+            element.getAttribute("type")?.toLowerCase() ?? "text",
+          ) &&
+          attribute.name === "value" &&
+          attribute.value === ""
+        ),
+    )
     .map((attribute) => {
       const generated =
         attribute.name === "name" &&
