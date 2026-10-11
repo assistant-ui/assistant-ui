@@ -1399,6 +1399,58 @@ describe("render_spec state persistence", () => {
     ]);
   });
 
+  it("marks a failure that settles while an earlier marker is still in flight", async () => {
+    vi.useFakeTimers();
+    const payloads: unknown[] = [];
+    let rejectMarker!: (error: Error) => void;
+    const record = vi.fn(
+      async (input: { payload: Record<string, unknown> }) => {
+        const call = payloads.push(input.payload["writes"]);
+        if (call === 1 || call === 5) return;
+        if (call === 3)
+          return new Promise<void>((_, reject) => {
+            rejectMarker = reject;
+          });
+        throw new Error("rejected");
+      },
+    );
+    const growing = {
+      Text: ({ props, state }: SpecComponentProps<{ text: string }>) => (
+        <button
+          type="button"
+          onClick={() => state.set("/name", `${state.get("/name")}+`)}
+        >
+          {props.text}
+        </button>
+      ),
+    };
+    mocks.messages = [
+      { content: [call("s", "render_spec", { title: "s", spec })] },
+    ];
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, { components: growing }),
+    });
+    const RenderSpec = entries(toolkit)["render_spec"]!.render;
+    const view = render(
+      <RenderSpec
+        {...partProps("s", { title: "s", spec })}
+        unstable_recordInteraction={record}
+      />,
+    );
+    for (let click = 0; click < 3; click++) {
+      act(() => view.getByRole("button").click());
+      await act(async () => vi.advanceTimersByTime(500));
+    }
+    await act(async () => rejectMarker(new Error("rejected")));
+    expect(payloads).toEqual([
+      [["/name", "model+"]],
+      [["/name", "model++"]],
+      null,
+      [["/name", "model+++"]],
+      null,
+    ]);
+  });
+
   it("keeps watch actions silent when it restores saved writes", () => {
     const refresh = vi.fn();
     const watched = {

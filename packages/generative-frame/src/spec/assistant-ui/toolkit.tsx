@@ -180,7 +180,9 @@ export type SpecToolkitPlatform = {
 type RenderSpecProps = {
   args: SpecArgs;
   toolCallId: string;
+  /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
   unstable_interactions?: InteractionLog | undefined;
+  /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
   unstable_recordInteraction?:
     | ((input: { type: "action"; payload: unknown }) => Promise<void>)
     | undefined;
@@ -265,7 +267,6 @@ export const specToolkitFor =
           () => (renderState ? { ...spec, state: renderState } : spec),
           [spec, renderState],
         );
-        // The user's state writes are saved on the call and restored when it mounts again, such as after a reload.
         const [store] = useState(() =>
           createStateStore(renderSpec.state ?? {}, {
             writes: savedWrites(unstable_interactions, toolCallId),
@@ -279,7 +280,7 @@ export const specToolkitFor =
           record.current = unstable_recordInteraction;
         });
         useEffect(() => {
-          // `saved` is the newest entry recorded for this call: a snapshot's JSON, or "null" once a failed save was marked. Only the latest send may change it, because sends can settle out of order.
+          // `saved` is the newest entry recorded for this call: a snapshot's JSON, or "null" once a marker for a failed save was accepted. Only the latest send may change it, because sends can settle out of order, and each failure sends a marker until one is accepted.
           let saved = JSON.stringify(store.writes());
           let sending: string | undefined;
           let latest = 0;
@@ -302,15 +303,14 @@ export const specToolkitFor =
           };
           const fail = (generation: number) => {
             if (generation !== latest || marked) return;
-            marked = true;
             const marker = send(null);
             marker.result.then(
               () => {
-                if (marker.generation === latest) saved = "null";
+                if (marker.generation !== latest) return;
+                saved = "null";
+                marked = true;
               },
-              () => {
-                if (marker.generation === latest) marked = false;
-              },
+              () => {},
             );
           };
           const save = () => {
