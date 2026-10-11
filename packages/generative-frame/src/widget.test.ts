@@ -477,6 +477,42 @@ describe("createWidget", () => {
     expect(shown).toEqual([fake.rendered[0]!.iframe, fake.rendered[1]!.iframe]);
   });
 
+  it("delivers a remounted frame's initialization before onResize and survives a throwing handler", async () => {
+    const events: string[] = [];
+    const { fake, widget } = setup({
+      onInitialized: () => {
+        events.push("initialized");
+        throw new Error("host handler failed");
+      },
+      onResize: () => events.push("resize"),
+    });
+    const result = {
+      size: { width: 1, height: 1 },
+      blank: false,
+      errorCount: 0,
+    };
+    await fake.connect(0, { onRequest: () => result });
+    widget.write("<script>run()</script>");
+    await widget.end();
+
+    let finishReplace!: (value: unknown) => void;
+    const remounted = widget.replace("<p>b</p><script>run()</script>");
+    const second = await fake.connect(1, {
+      onRequest: () =>
+        new Promise((resolve) => {
+          finishReplace = resolve;
+        }),
+    });
+    await vi.waitFor(() => expect(finishReplace).toBeDefined());
+    void second.request(METHODS.initialize, {});
+    second.notify(METHODS.initialized);
+    finishReplace(result);
+
+    await expect(remounted).resolves.toEqual(result);
+    expect(events).toEqual(["initialized", "resize"]);
+    expect(widget.iframe).toBe(fake.rendered[1]!.iframe);
+  });
+
   it("disposes a remounted frame that fails to render and drops its initialization", async () => {
     const onInitialized = vi.fn();
     const { container, fake, widget } = setup({ onInitialized });

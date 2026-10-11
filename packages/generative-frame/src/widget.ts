@@ -311,8 +311,8 @@ type Session = {
   iframe: () => HTMLIFrameElement | undefined;
   /** Shows the iframe once the runtime has themed and laid out its document. */
   reveal(): void;
-  /** Delivers the frame's MCP Apps initialization once it is the shown frame. */
-  activate(): void;
+  /** Delivers the frame's MCP Apps initialization if it is the shown frame. */
+  deliverInitialized(): void;
   dispose(): void;
 };
 
@@ -531,11 +531,15 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
         }
         slot.style.opacity = "1";
       },
-      activate() {
-        if (!pendingInitialized) return;
+      deliverInitialized() {
+        if (session !== activeSession || !pendingInitialized) return;
         const params = pendingInitialized;
         pendingInitialized = undefined;
-        options.onInitialized?.(params);
+        try {
+          options.onInitialized?.(params);
+        } catch {
+          // A host handler error must not fail a remount that already swapped in.
+        }
       },
       dispose() {
         if (sessionDisposed) return;
@@ -579,7 +583,7 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
               return;
             case METHODS.initialized:
               pendingInitialized = initializeParams;
-              if (session === activeSession) session.activate();
+              session.deliverInitialized();
               return;
             case METHODS.sizeChanged:
               if (
@@ -751,11 +755,11 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
       throw error;
     }
     activeSession = session;
+    session.deliverInitialized();
     // The new frame has rendered completely, so it swaps in without a fade.
     session.slot.style.cssText = "display:block";
     applySize(session, result.size);
     previous?.dispose();
-    session.activate();
     return result;
   };
 
