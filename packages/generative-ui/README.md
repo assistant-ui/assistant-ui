@@ -1,6 +1,6 @@
 # @assistant-ui/generative-ui
 
-Framework-neutral generative UI for assistant-ui. The root entry holds the React-free UI tree types and normalizer, `@assistant-ui/generative-ui/react` renders the tree with React, the `slack`, `teams`, and `a2ui` subpaths convert it for other surfaces, and `@assistant-ui/generative-ui/spec` renders a library in generative-frame's spec mode.
+Framework-neutral generative UI for assistant-ui. The root entry holds the React-free UI tree types and normalizer, `@assistant-ui/generative-ui/react` renders the tree with React, the `slack`, `teams`, and `a2ui` subpaths convert it for other surfaces, `@assistant-ui/generative-ui/spec` renders a library in generative-frame's spec mode, and `@assistant-ui/generative-ui/vue` does the same with Vue components.
 
 ## Installation
 
@@ -8,7 +8,7 @@ Framework-neutral generative UI for assistant-ui. The root entry holds the React
 npm install @assistant-ui/generative-ui @assistant-ui/react zod
 ```
 
-`react`, `@assistant-ui/react`, and `zod` are optional peers that only `@assistant-ui/generative-ui/react` needs, and `@assistant-ui/generative-ui/spec` needs `react`, `zod`, and `generative-frame`; the root entry and the `slack`, `teams`, and `a2ui` subpaths work without them.
+`react`, `@assistant-ui/react`, and `zod` are optional peers that only `@assistant-ui/generative-ui/react` needs, `@assistant-ui/generative-ui/spec` needs `react`, `zod`, and `generative-frame`, and `@assistant-ui/generative-ui/vue` needs `vue`, `zod`, and `generative-frame`; the root entry and the `slack`, `teams`, and `a2ui` subpaths work without them.
 
 ## Usage
 
@@ -201,6 +201,17 @@ const widgets = createWidgetToolkit({
 ```
 
 [Spec mode](https://www.assistant-ui.com/docs/tools/generative-ui#spec-mode) lists the events each component emits, how a bound value writes back, and how your own components declare their events and slots.
+
+`toSpecCatalog` from `@assistant-ui/generative-ui/vue` builds the same catalog with Vue components for `SpecRenderer` from `generative-frame/spec/vue`. They render the same `data-aui` markup as the React vocabulary, so the same stylesheet applies:
+
+```ts
+import { h } from "vue";
+import { SpecRenderer } from "generative-frame/spec/vue";
+import { toSpecCatalog } from "@assistant-ui/generative-ui/vue";
+
+const { catalog, components } = toSpecCatalog();
+const render = (spec) => h(SpecRenderer, { spec, catalog, components });
+```
 
 ## License
 
