@@ -58,6 +58,7 @@ describe("data vocabulary on React Native", () => {
       "right",
     ]);
     expect(getComputedStyle(cells[0]!).fontSize).toBe("14px");
+    expect(cells[1]!.getAttribute("aria-label")).toBe("Price: $12.00");
   });
 
   it("cycles Table sorting with the web and forgets it when disabled", async () => {
@@ -67,10 +68,12 @@ describe("data vocabulary on React Native", () => {
         .minHeight,
     ).toBe("40px");
     expect(
-      native.container
-        .querySelector('[data-testid="table-cell"]')
-        ?.getAttribute("style"),
-    ).not.toContain("min-height");
+      getComputedStyle(
+        native.container.querySelector<HTMLElement>(
+          '[data-testid="table-cell"]',
+        )!,
+      ).minHeight,
+    ).not.toBe("40px");
     const web = renderWebSpec(table(true));
     for (const [previous, direction] of [
       ["not sorted", "sorted ascending"],
@@ -115,9 +118,26 @@ describe("data vocabulary on React Native", () => {
     const input = spec({
       main: { type: "Markdown", props: { value: "# Title\n**plain**" } },
     });
-    expect(renderNativeSpec(input).container.textContent).toBe(
-      renderWebSpec(input).container.textContent,
+    const native = renderNativeSpec(input).container;
+    expect(native.textContent).toContain("# Title\n**plain**");
+    expect(native.textContent).toBe(renderWebSpec(input).container.textContent);
+  });
+
+  it("places a Markdown Button outside its source Text", () => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: {
+          type: "Markdown",
+          props: { value: "Source" },
+          children: ["button"],
+        },
+        button: { type: "Button", props: { label: "Open" } },
+      }),
     );
+    const source = container.querySelector("[dir]")!;
+    const button = byRole(container, "button", "Open");
+    expect(source.textContent).toBe("Source");
+    expect(source.contains(button)).toBe(false);
   });
 
   it("draws proportional positive and negative bars with matching tooltips", () => {
@@ -191,6 +211,20 @@ describe("data vocabulary on React Native", () => {
     expect(native.textContent).toContain("East");
     expect(native.textContent).toContain("West");
     expect(native.textContent).toContain("Q1");
+    const labels = [
+      ...native.querySelectorAll<HTMLElement>('[data-testid="chart-x-label"]'),
+    ];
+    expect(labels.map((label) => label.textContent)).toEqual(["Q1", "Q2"]);
+    expect(labels[0]!.parentElement!.parentElement).toBe(
+      marks[0]!.parentElement!.parentElement,
+    );
+    expect(
+      labels.every(
+        (label) =>
+          getComputedStyle(label).flexGrow === "1" &&
+          label.style.textAlign === "center",
+      ),
+    ).toBe(true);
   });
 
   it("keeps a sparkline compact without axis or legend", () => {

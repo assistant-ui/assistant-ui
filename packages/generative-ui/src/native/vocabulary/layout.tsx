@@ -118,7 +118,9 @@ function Card({
           {cardTitle}
         </Text>
       ) : null}
-      {children}
+      <AlignContext.Provider value={undefined}>
+        {children}
+      </AlignContext.Provider>
       {confirm || cancel ? (
         <View style={[styles.footer, { borderTopColor: theme.hairline }]}>
           {confirm ? (
@@ -254,7 +256,9 @@ function Box({
         ...(radius !== undefined ? { overflow: "hidden" } : {}),
       }}
     >
-      {children}
+      <AlignContext.Provider value={undefined}>
+        {children}
+      </AlignContext.Provider>
     </View>
   );
 }

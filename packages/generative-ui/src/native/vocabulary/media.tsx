@@ -33,6 +33,7 @@ function Image({
     <NativeImage
       source={{ uri: src }}
       accessible={!hidden}
+      accessibilityRole={hidden ? undefined : "image"}
       accessibilityLabel={alt}
       accessibilityElementsHidden={hidden}
       importantForAccessibility={hidden ? "no-hide-descendants" : "auto"}

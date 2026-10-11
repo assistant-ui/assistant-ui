@@ -173,6 +173,28 @@ describe("layout vocabulary on React Native", () => {
     expect(badge.textContent).toBe("New");
   });
 
+  it.each([
+    ["Col", "Card"],
+    ["Col", "Box"],
+    ["Row", "Card"],
+    ["Row", "Box"],
+  ])("keeps a Badge inside %s > %s at its own start", (parent, type) => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: {
+          type: parent,
+          props: { align: "center" },
+          children: ["wrapper"],
+        },
+        wrapper: { type, props: {}, children: ["badge"] },
+        badge: { type: "Badge", props: { value: "New" } },
+      }),
+    );
+    const badge = container.firstElementChild!.firstElementChild!
+      .firstElementChild as HTMLElement;
+    expect(badge.style.alignSelf).toBe("flex-start");
+  });
+
   it("sizes a Box from points, pixels, rems, and percentages", () => {
     const { container } = renderNativeSpec(
       spec({

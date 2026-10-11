@@ -34,6 +34,40 @@ describe("interactive vocabulary on React Native", () => {
     );
     expect(byRole(container, "button", "Go").style.width).toBe("100%");
   });
+  it("gives an Icon the primary Button foreground", () => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: {
+          type: "Button",
+          props: { label: "Go", buttonStyle: "primary" },
+          children: ["icon"],
+        },
+        icon: { type: "Icon", props: { name: "arrow-right" } },
+      }),
+    );
+    const button = container.querySelector<HTMLElement>('[role="button"]')!;
+    expect((button.lastElementChild as HTMLElement).style.color).toBe(
+      "rgb(250, 250, 250)",
+    );
+  });
+  it("matches an aria label before button text when finding a role", async () => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: {
+          type: "Button",
+          props: { label: "Delete", undoable: true },
+          on: { press: { action: "go" } },
+        },
+      }),
+      { go: vi.fn() },
+      actions,
+    );
+    await press(byRole(container, "button", "Delete"));
+    expect(byRole(container, "button", "Undo Delete").textContent).toBe(
+      "Undo 5",
+    );
+    expect(() => byRole(container, "button", "Undo 5")).toThrow();
+  });
   it("presses a Button like the web", async () => {
     const input = spec({
       main: {
@@ -568,6 +602,30 @@ const slider = (defaultValue: unknown = 0.3) => ({
 });
 
 describe("native Slider", () => {
+  it.each([
+    [0.15, 0.2, 0.35],
+    [0, 1e-7, 1e-7],
+  ])(
+    "retains min and step precision from %s by %s",
+    async (min, step, expected) => {
+      const capture = vi.fn();
+      const { container } = renderNativeSpec(
+        spec({
+          main: {
+            ...slider(min),
+            props: { ...slider(min).props, min, max: 1, step },
+          },
+        }),
+        { capture },
+        actions,
+      );
+      await press(byRole(container, "button", "Increase Volume"));
+      expect(capture.mock.lastCall![0]).toEqual({ value: expected });
+      expect(
+        byRole(container, "slider", "Volume").getAttribute("aria-valuenow"),
+      ).toBe(String(expected));
+    },
+  );
   it("steps on the min grid, rounds, clamps, and exposes its value", async () => {
     const capture = vi.fn();
     const { container } = renderNativeSpec(

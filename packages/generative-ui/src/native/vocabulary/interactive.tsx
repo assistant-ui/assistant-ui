@@ -311,6 +311,7 @@ function DatePickerField({
     committed: boundValue,
     text: dateText(boundValue, inputType),
     invalid: false,
+    edited: false,
   }));
   if (selection.initialValue !== boundValue) {
     const echo =
@@ -321,6 +322,7 @@ function DatePickerField({
       committed: boundValue,
       text: dateText(boundValue, inputType),
       invalid: false,
+      edited: false,
     });
   }
   const parse = (text: string) => {
@@ -362,6 +364,7 @@ function DatePickerField({
   };
   useField(name, "value", () => parse(selection.text) ?? "");
   const commit = () => {
+    if (!selection.edited) return;
     const next = parse(selection.text);
     if (next === undefined) {
       setSelection((current) => ({ ...current, invalid: true }));
@@ -371,6 +374,7 @@ function DatePickerField({
       ...current,
       committed: next,
       invalid: false,
+      edited: false,
     }));
     if (next === selection.committed) return;
     updateBinding?.(next);
@@ -395,7 +399,12 @@ function DatePickerField({
         placeholderTextColor={fade(ink, 0.45)}
         value={selection.text}
         onChangeText={(text) =>
-          setSelection((current) => ({ ...current, text, invalid: false }))
+          setSelection((current) => ({
+            ...current,
+            text,
+            invalid: false,
+            edited: true,
+          }))
         }
         onSubmitEditing={commit}
         onBlur={commit}
@@ -789,7 +798,14 @@ function SliderField({
       direction === 1
         ? Math.floor(position + 1e-9) + 1
         : Math.ceil(position - 1e-9) - 1;
-    const decimals = safeStep.toString().split(".")[1]?.length ?? 0;
+    const precision = (number: number) => {
+      const [mantissa, exponent] = number.toString().split("e");
+      return Math.max(
+        0,
+        (mantissa!.split(".")[1]?.length ?? 0) - Number(exponent ?? 0),
+      );
+    };
+    const decimals = Math.max(precision(safeMin), precision(safeStep));
     const next = clamp(
       Number((safeMin + index * safeStep).toFixed(decimals)),
       safeMin,

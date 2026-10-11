@@ -64,7 +64,7 @@ function graphMatches(
   matches: (file: string, source: string) => boolean,
 ): string[] {
   return [...collectGraph(join(SRC_DIR, entry))]
-    .map((file) => relative(SRC_DIR, file))
+    .map((file) => relative(SRC_DIR, file).replaceAll("\\", "/"))
     .filter((file) => matches(file, readFileSync(join(SRC_DIR, file), "utf8")));
 }
 

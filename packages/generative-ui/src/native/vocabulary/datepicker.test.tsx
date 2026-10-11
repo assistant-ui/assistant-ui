@@ -35,6 +35,27 @@ const webType = async (input: HTMLInputElement, text: string) => {
 };
 
 describe("native DatePicker", () => {
+  it("does not change an optional empty value without an edit", async () => {
+    const capture = vi.fn();
+    const { container } = renderNativeSpec(
+      spec({ main: picker("date", undefined) }),
+      { capture },
+      actions,
+    );
+    const input = field(container);
+    await act(async () => {
+      input.focus();
+      input.blur();
+    });
+    await pressEnter(input);
+    expect(capture).not.toHaveBeenCalled();
+    await typeText(input, "2026-07-20");
+    await act(async () => input.focus());
+    await act(async () => input.blur());
+    expect(capture).toHaveBeenCalledOnce();
+    expect(capture.mock.lastCall![0]).toEqual({ value: "2026-07-20" });
+  });
+
   it.each([
     ["date", "2026-07-01", "2026-07-31", "2026-08-01", "2026-07-20"],
     ["time", "09:00", "17:00", "18:00", "12:30"],

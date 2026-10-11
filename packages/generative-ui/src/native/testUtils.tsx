@@ -89,8 +89,9 @@ export const byRole = (container: HTMLElement, role: string, name?: string) => {
   ].filter(
     (element) =>
       name === undefined ||
-      element.getAttribute("aria-label") === name ||
-      element.textContent === name,
+      (element.hasAttribute("aria-label")
+        ? element.getAttribute("aria-label") === name
+        : element.textContent === name),
   );
   if (matches.length !== 1)
     throw new Error(

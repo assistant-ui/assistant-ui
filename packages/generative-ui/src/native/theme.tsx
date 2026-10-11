@@ -96,11 +96,12 @@ export const dimension = (
   value: unknown,
 ): number | `${number}%` | undefined => {
   if (typeof value === "number")
-    return Number.isFinite(value) ? value : undefined;
+    return Number.isFinite(value) && value >= 0 ? value : undefined;
   if (typeof value !== "string") return undefined;
   const match = /^(-?\d*\.?\d+)(px|rem|%)?$/.exec(value.trim());
   if (!match) return undefined;
   const amount = Number(match[1]);
+  if (amount < 0) return undefined;
   return match[2] === "%"
     ? `${amount}%`
     : match[2] === "rem"

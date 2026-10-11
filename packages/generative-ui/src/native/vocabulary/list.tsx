@@ -22,7 +22,7 @@ const ListHairline = createContext<string | undefined>(undefined);
 function ListView({ children }: { children?: ReactNode }) {
   const theme = useNativeTheme();
   return (
-    <View style={styles.list}>
+    <View accessibilityRole="list" style={styles.list}>
       <ListHairline.Provider value={theme.hairline}>
         <View style={styles.listContent}>{children}</View>
       </ListHairline.Provider>

@@ -41,6 +41,13 @@ describe("React Native theme", () => {
       undefined,
       undefined,
     ]);
+    expect([-1, "-1", "-2px", "-0.5rem", "-1%"].map(dimension)).toEqual([
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+    ]);
   });
 
   it("switches to the dark palette with the device", () => {

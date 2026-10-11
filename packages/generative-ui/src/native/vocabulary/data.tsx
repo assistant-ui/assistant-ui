@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
   chartRow: { flexDirection: "row", alignItems: "stretch", gap: 4 },
   ticks: { justifyContent: "space-between", alignItems: "flex-end" },
   tick: { fontSize: 11 },
-  xLabels: { flexDirection: "row", justifyContent: "space-between" },
+  xLabels: { flexDirection: "row" },
   legend: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 6 },
   legendItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   legendDot: { width: 8, height: 8, borderRadius: RADIUS.pill },
@@ -141,6 +141,12 @@ function TableView({
               <View key={columnIndex} style={styles.cell}>
                 <Text
                   testID="table-cell"
+                  accessibilityLabel={
+                    isTableColumn(safeColumns[columnIndex]) &&
+                    safeColumns[columnIndex].label
+                      ? `${safeColumns[columnIndex].label}: ${formatValue(cell, safeColumns[columnIndex].format)}`
+                      : undefined
+                  }
                   style={[
                     styles.body,
                     {
@@ -197,10 +203,12 @@ function Markdown({
 }) {
   const ink = useInk();
   return (
-    <Text style={[styles.markdown, { color: ink }]}>
-      {toTextContent(value)}
+    <View>
+      <Text style={[styles.markdown, { color: ink }]}>
+        {toTextContent(value)}
+      </Text>
       {children}
-    </Text>
+    </View>
   );
 }
 
@@ -333,17 +341,26 @@ function Chart({
             ))}
           </View>
         ) : null}
-        <View style={{ flex: 1 }}>{plot}</View>
-      </View>
-      {hasAxis ? (
-        <View style={styles.xLabels}>
-          {series[0]?.labels.map((label, index) => (
-            <Text key={index} style={[styles.tick, { color: fade(ink, 0.62) }]}>
-              {label ?? ""}
-            </Text>
-          ))}
+        <View style={{ flex: 1 }}>
+          {plot}
+          {hasAxis ? (
+            <View style={styles.xLabels}>
+              {series[0]?.labels.map((label, index) => (
+                <Text
+                  key={index}
+                  testID="chart-x-label"
+                  style={[
+                    styles.tick,
+                    { flex: 1, textAlign: "center", color: fade(ink, 0.62) },
+                  ]}
+                >
+                  {label ?? ""}
+                </Text>
+              ))}
+            </View>
+          ) : null}
         </View>
-      ) : null}
+      </View>
       {hasLegend ? (
         <View testID="chart-legend" style={styles.legend}>
           {series.map((item, index) => {

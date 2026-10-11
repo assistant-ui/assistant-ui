@@ -88,7 +88,11 @@ function Body({
   return withChildren(
     <Text
       style={[
-        { fontSize: TEXT_SIZE[size], color: textColor(color, ink, theme) },
+        {
+          fontSize: TEXT_SIZE[size],
+          lineHeight: Math.round(TEXT_SIZE[size] * 1.5),
+          color: textColor(color, ink, theme),
+        },
         display(size),
         weight !== undefined && { fontWeight: FONT_WEIGHT[weight] },
       ]}

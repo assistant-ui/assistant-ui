@@ -236,14 +236,13 @@ describe("alert vocabulary on React Native", () => {
       top: 0,
       behavior: "smooth",
     });
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 110));
-    });
-    expect(
-      byRole(container, "button", "Previous slide").getAttribute(
-        "aria-disabled",
-      ),
-    ).toBe("true");
+    await vi.waitFor(() =>
+      expect(
+        byRole(container, "button", "Previous slide").getAttribute(
+          "aria-disabled",
+        ),
+      ).toBe("true"),
+    );
   });
 
   it("does not animate after reduce motion changes", async () => {

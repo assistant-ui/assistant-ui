@@ -39,9 +39,10 @@ describe("text vocabulary on React Native", () => {
     expect(text.textContent).toBe("Hi");
     expect([
       text.style.fontSize,
+      text.style.lineHeight,
       text.style.fontWeight,
       text.style.color,
-    ]).toEqual(["12px", "700", "rgba(10, 10, 10, 0.62)"]);
+    ]).toEqual(["12px", "18px", "700", "rgba(10, 10, 10, 0.62)"]);
   });
 
   it("follows a tinted Card's white text", () => {

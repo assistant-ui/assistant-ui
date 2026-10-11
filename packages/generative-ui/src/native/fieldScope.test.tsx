@@ -88,6 +88,8 @@ describe("form scope on React Native", () => {
 
     await press(byRole(nativeSpec.container, "button", "Save"));
     await submitWeb(webSpec.container);
+    expect(native.mock.calls[0]![0].values).toHaveProperty("size");
+    expect(web.mock.calls[0]![0].values).toHaveProperty("size");
     expect(native.mock.calls[0]![0]).toEqual(web.mock.calls[0]![0]);
     expect(native.mock.calls[0]![0]).toEqual({
       values: {

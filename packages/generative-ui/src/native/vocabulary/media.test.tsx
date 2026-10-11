@@ -61,6 +61,7 @@ describe("media vocabulary on React Native", () => {
       }),
     ).container.querySelector("img")!;
     expect(labeled.parentElement!.getAttribute("aria-label")).toBe("Portrait");
+    expect(labeled.parentElement!.getAttribute("role")).toBe("img");
     expect(labeled.parentElement!.getAttribute("aria-hidden")).not.toBe("true");
     const hidden = renderElement(
       <>

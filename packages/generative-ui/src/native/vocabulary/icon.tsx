@@ -24,7 +24,7 @@ const ICON_CHARACTERS: Record<IconName, string> = {
   "chevron-right": "›",
   calendar: "▦",
   clock: "◷",
-  "map-pin": "⌖",
+  "map-pin": "\u{1F4CD}︎",
   plane: "✈︎",
   truck: "⛟",
   "credit-card": "▭",

@@ -54,6 +54,7 @@ describe("list vocabulary on React Native", () => {
       webHandler.mock.calls[0]![0],
     );
     const list = native.container.firstElementChild as HTMLElement;
+    expect(list.getAttribute("role")).toBe("list");
     const content = list.firstElementChild as HTMLElement;
     const rows = [...content.children] as HTMLElement[];
     expect(rows).toHaveLength(2);
