@@ -64,6 +64,54 @@ describe("RemoteThreadListThreadListRuntimeCore load errors", () => {
     expect(core.loadError).toBe(error);
   });
 
+  it("clears the adapter-change gate before notifying about a failed replacement", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const error = new Error("replacement failed");
+    const core = createCore(
+      makeAdapter({
+        list: vi.fn(async () => ({ threads: [loadedThread] })),
+      }),
+    );
+    await core.getLoadThreadsPromise();
+
+    const list = deferred<RemoteThreadListResponse>();
+    core.__internal_setOptions({
+      adapter: makeAdapter({ list: vi.fn(() => list.promise) }),
+      runtimeHook: () => ({}) as never,
+    });
+    const load = core.getLoadThreadsPromise();
+    const seen: Array<{
+      isLoading: boolean;
+      replacementPending: boolean;
+      threadIds: readonly string[];
+    }> = [];
+    core.subscribe(() => {
+      seen.push({
+        isLoading: core.isLoading,
+        replacementPending: (
+          core as unknown as { _replaceListOnNextLoad: boolean }
+        )._replaceListOnNextLoad,
+        threadIds: core.threadIds,
+      });
+    });
+
+    list.reject(error);
+    await load;
+
+    expect(seen.length).toBeGreaterThan(0);
+    expect(
+      seen.every(
+        ({ isLoading, replacementPending }) => isLoading || !replacementPending,
+      ),
+    ).toBe(true);
+    expect(seen.at(-1)).toMatchObject({
+      isLoading: false,
+      replacementPending: false,
+      threadIds: [],
+    });
+    expect(core.loadError).toBe(error);
+  });
+
   it("clears the previous adapter's error before loading its replacement", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const error = new Error("network error");

@@ -202,7 +202,16 @@ export class RemoteThreadListThreadListRuntimeCore
       const statusAtRequest = statusSnapshot(this._state.baseValue);
       this._loadThreadsPromise = this._state
         .optimisticUpdate({
-          execute: () => this._options.adapter.list(),
+          execute: async () => {
+            try {
+              return {
+                success: true as const,
+                response: await this._options.adapter.list(),
+              };
+            } catch (error) {
+              return { success: false as const, error };
+            }
+          },
           loading: (state) => {
             if (generation !== this._loadGeneration) return state;
             return {
@@ -211,8 +220,32 @@ export class RemoteThreadListThreadListRuntimeCore
               loadError: undefined,
             };
           },
-          then: (state, l) => {
+          then: (state, result) => {
             if (generation !== this._loadGeneration) return state;
+            if (!result.success) {
+              this._loadThreadsPromise = undefined;
+              console.error(
+                "[assistant-ui] thread list load failed:",
+                result.error,
+              );
+              if (!this._replaceListOnNextLoad) {
+                return {
+                  ...state,
+                  isLoading: false,
+                  loadError: result.error,
+                };
+              }
+              this._replaceListOnNextLoad = false;
+              this._listedAdapterGeneration = this._adapterGeneration;
+              replacedList = true;
+              return this._replaceWithThreads(
+                { ...state, isLoading: false, loadError: result.error },
+                [],
+                undefined,
+              );
+            }
+
+            const l = result.response;
             const replaceList = this._replaceListOnNextLoad;
             appliedList = true;
             if (replaceList) {
@@ -228,29 +261,6 @@ export class RemoteThreadListThreadListRuntimeCore
 
             return applyInitialThreadPage(state, l, statusAtRequest);
           },
-        })
-        .catch((error: unknown) => {
-          if (generation !== this._loadGeneration) return;
-          console.error("[assistant-ui] thread list load failed:", error);
-          this._loadThreadsPromise = undefined;
-          if (!this._replaceListOnNextLoad) {
-            this._state.update({
-              ...this._state.baseValue,
-              isLoading: false,
-              loadError: error,
-            });
-            return;
-          }
-          this._replaceListOnNextLoad = false;
-          this._listedAdapterGeneration = this._adapterGeneration;
-          replacedList = true;
-          this._state.update(
-            this._replaceWithThreads(
-              { ...this._state.baseValue, loadError: error },
-              [],
-              undefined,
-            ),
-          );
         })
         .then(() => {
           if (appliedList || replacedList)
