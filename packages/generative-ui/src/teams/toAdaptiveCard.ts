@@ -65,6 +65,11 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 const asString = (value: unknown): string =>
   typeof value === "string" ? value : "";
 
+const asTextValue = (value: unknown): string =>
+  typeof value === "number" && Number.isFinite(value)
+    ? String(value)
+    : asString(value);
+
 const asFiniteNumber = (value: unknown): number | undefined =>
   typeof value === "number" && Number.isFinite(value) ? value : undefined;
 
@@ -242,7 +247,7 @@ const choicesFrom = (
 
 function convertFacts(facts: readonly NormalizedUIElement[]): TeamsCardElement {
   const set: TeamsFact[] = facts.map((fact) => {
-    const value = asString(fact.props["value"]);
+    const value = asTextValue(fact.props["value"]);
     const delta = fact.props["delta"];
     const deltaText =
       typeof delta === "string"
@@ -477,7 +482,7 @@ export function convertElement(
           ? TEXT_SIZE_MAP[props["size"]]
           : undefined;
       return [
-        textBlock(asString(props["value"]), {
+        textBlock(asTextValue(props["value"]), {
           ...(mappedSize !== undefined ? { size: mappedSize } : {}),
           ...(isBolderWeight(props["weight"]) ? { weight: "bolder" } : {}),
           ...(isSubtleColor(props["color"]) ? { isSubtle: true } : {}),
@@ -486,11 +491,17 @@ export function convertElement(
     }
     case "Caption":
       return [
-        textBlock(asString(props["value"]), { size: "small", isSubtle: true }),
+        textBlock(asTextValue(props["value"]), {
+          size: "small",
+          isSubtle: true,
+        }),
       ];
     case "Badge":
       return [
-        textBlock(asString(props["value"]), { size: "small", isSubtle: true }),
+        textBlock(asTextValue(props["value"]), {
+          size: "small",
+          isSubtle: true,
+        }),
       ];
     case "Markdown":
       // Teams renders a strict subset of markdown (no headings, tables, images,

@@ -73,9 +73,9 @@ describe("list vocabulary in Vue", () => {
       ]) {
         const control = row.querySelector<HTMLElement>(selector)!;
         expect(control).not.toBeNull();
-        expect(control.closest('button, [role="button"]')).toBe(
-          control.matches('button, [role="button"]') ? control : null,
-        );
+        expect(
+          control.parentElement?.closest('button, [role="button"]'),
+        ).toBeNull();
         if (render === renderReactSpec) await act(async () => control.click());
         else control.click();
       }
@@ -121,7 +121,7 @@ describe("list vocabulary in Vue", () => {
   );
 
   it.each(["Enter", " "])(
-    "waits for the native button click after %s keydown",
+    "does not dispatch press directly from %s key events",
     async (key) => {
       for (const render of [renderReactSpec, renderVueSpec]) {
         const { container, state } = render(

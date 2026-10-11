@@ -111,6 +111,11 @@ describe("toSlackBlocks", () => {
       ]);
     });
 
+    it("renders a numeric value", () => {
+      const { blocks } = toSlackBlocks({ $type: "Text", value: 42 });
+      expect((blocks[0] as SlackSectionBlock).text?.text).toBe("42");
+    });
+
     it(`clamps value to ${SECTION_TEXT_CAP} characters and warns`, () => {
       const value = "t".repeat(4000);
       const { blocks, warnings } = toSlackBlocks({ $type: "Text", value });
@@ -137,6 +142,11 @@ describe("toSlackBlocks", () => {
         { type: "context", elements: [{ type: "mrkdwn", text: "Fine print" }] },
       ]);
     });
+
+    it("renders a numeric value", () => {
+      const { blocks } = toSlackBlocks({ $type: "Caption", value: 42 });
+      expect((blocks[0] as SlackContextBlock).elements[0]?.text).toBe("42");
+    });
   });
 
   describe("Badge", () => {
@@ -145,6 +155,11 @@ describe("toSlackBlocks", () => {
       expect(blocks).toEqual([
         { type: "context", elements: [{ type: "mrkdwn", text: "New" }] },
       ]);
+    });
+
+    it("renders a numeric value", () => {
+      const { blocks } = toSlackBlocks({ $type: "Badge", value: 42 });
+      expect((blocks[0] as SlackContextBlock).elements[0]?.text).toBe("42");
     });
   });
 
@@ -161,6 +176,17 @@ describe("toSlackBlocks", () => {
           fields: [{ type: "mrkdwn", text: "*Status*\nActive" }],
         },
       ]);
+    });
+
+    it("renders a numeric value", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Fact",
+        label: "Count",
+        value: 42,
+      });
+      expect((blocks[0] as SlackSectionBlock).fields?.[0]?.text).toBe(
+        "*Count*\n42",
+      );
     });
 
     it("merges consecutive Fact siblings into one section, starting a new section past the field cap", () => {

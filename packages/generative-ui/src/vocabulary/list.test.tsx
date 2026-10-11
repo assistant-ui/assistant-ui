@@ -60,12 +60,15 @@ describe("listVocabulary $action dispatch", () => {
   const rowOut = (dispatch: GenerativeUIDispatch) => {
     let output!: ReactElement<{ children: ReactElement }>;
     function Capture() {
-      output = listVocabulary.ListViewItem.render({
+      const item = listVocabulary.ListViewItem.render({
         $status: "done",
         $action: { type: "open" },
         $dispatch: dispatch,
         children: "row",
-      }) as ReactElement<{ children: ReactElement }>;
+      }) as ReactElement;
+      output = (item.type as (props: typeof item.props) => typeof output)(
+        item.props,
+      );
       return output;
     }
     renderToStaticMarkup(<Capture />);
@@ -108,13 +111,6 @@ describe("listVocabulary $action dispatch", () => {
     expect(handler).toHaveBeenCalledTimes(2);
   });
 
-  it("a keydown has no custom button handler", () => {
-    const handler = vi.fn();
-    const registry = createActionRegistry({ open: handler });
-    expect(getButton(registry.dispatch).props.onKeyDown).toBeUndefined();
-    expect(handler).not.toHaveBeenCalled();
-  });
-
   it("a click whose target sits inside a nested interactive element does not fire the row action", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ open: handler });
@@ -141,25 +137,5 @@ describe("listVocabulary $action dispatch", () => {
     };
     onClick({ target: nestedRoleButton, currentTarget: {} });
     expect(handler).not.toHaveBeenCalled();
-  });
-
-  it("Space activation waits for the native button click", () => {
-    const handler = vi.fn();
-    const registry = createActionRegistry({ open: handler });
-    const button = getButton(registry.dispatch);
-    expect(button.props.onKeyDown).toBeUndefined();
-    expect(handler).not.toHaveBeenCalled();
-    clickButton(button);
-    expect(handler).toHaveBeenCalledWith({ payload: { type: "open" } });
-  });
-
-  it("Enter activation fires from one native button click", () => {
-    const handler = vi.fn();
-    const registry = createActionRegistry({ open: handler });
-    const button = getButton(registry.dispatch);
-    expect(button.props.onKeyDown).toBeUndefined();
-    clickButton(button);
-    expect(handler).toHaveBeenCalledWith({ payload: { type: "open" } });
-    expect(handler).toHaveBeenCalledTimes(1);
   });
 });
