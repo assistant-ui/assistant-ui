@@ -82,14 +82,17 @@ const spec = createSpecToolkit(catalog, { components });
 const tools = Tools({
   toolkit: spec.entries({ execution: "frontend", display: "standalone" }),
 });
+const guidance = (spec.modules ?? [])
+  .map((module) => module.guidance())
+  .join("\n\n");
 
 function SpecInstructions() {
-  useAssistantInstructions(catalog.prompt({ mode: "jsonl" }));
+  useAssistantInstructions(guidance);
   return null;
 }
 ```
 
-Pass `tools` to your `AuiConfig`, and render `SpecInstructions` inside the runtime provider so the model gets the catalog guidance that `read_me` gives it on the web. With `execution: "backend"`, the server defines `render_spec` with `createSpecTools(catalog)` and puts the same guidance in its system prompt instead, as in [spec mode as a tool](/generative-frame/docs/spec-mode#as-a-tool). `@assistant-ui/react-native` is an optional peer of this entry.
+Pass `tools` to your `AuiConfig`, and render `SpecInstructions` inside the runtime provider so the model gets the toolkit's `spec` module, the guidance `read_me` gives it on the web, including your `specPrompt` and the rule for earlier tool results. With `execution: "backend"`, the server defines `render_spec` with `createSpecTools(catalog)` and puts the same guidance in its system prompt instead, as in [spec mode as a tool](/generative-frame/docs/spec-mode#as-a-tool). `@assistant-ui/react-native` is an optional peer of this entry.
 
 ## Frontend and backend execution
 

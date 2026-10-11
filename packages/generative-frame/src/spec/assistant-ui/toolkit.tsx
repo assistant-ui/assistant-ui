@@ -5,10 +5,8 @@ import {
   type ComponentType,
   type ReactNode,
 } from "react";
-import {
-  toolkitEntry,
-  type WidgetToolkitExtension,
-} from "../../assistant-ui/extension";
+import { toolkitEntry } from "../../assistant-ui/entry";
+import type { WidgetToolkitExtension } from "../../assistant-ui/extension";
 import { toolCalls, type MessageLike } from "../../assistant-ui/tool-calls";
 import type { ActionHandler } from "../actions";
 import type { Catalog } from "../catalog";

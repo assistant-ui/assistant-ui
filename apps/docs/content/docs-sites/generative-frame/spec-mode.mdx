@@ -211,16 +211,20 @@ On React Native, Metro resolves `generative-frame/spec/react` and `generative-fr
 
 ```tsx
 import { Pressable, Text, View } from "react-native";
-import { SpecRenderer } from "generative-frame/spec/react";
+import {
+  SpecRenderer,
+  type SpecComponentProps,
+  type SpecComponents,
+} from "generative-frame/spec/react";
 
-const components = {
-  Card: ({ props, children }) => (
+const components: SpecComponents = {
+  Card: ({ props, children }: SpecComponentProps<{ title: string }>) => (
     <View>
       <Text>{props.title}</Text>
       {children}
     </View>
   ),
-  Button: ({ props, emit }) => (
+  Button: ({ props, emit }: SpecComponentProps<{ label: string }>) => (
     <Pressable onPress={() => emit("press")}>
       <Text>{props.label}</Text>
     </Pressable>

@@ -26,11 +26,8 @@ import {
   type WidgetTools,
 } from "../tools/tools";
 import type { AnyTool, ToolDefinition } from "../tools/define";
-import {
-  toolkitEntry,
-  type ToolkitDisplay,
-  type WidgetToolkitExtension,
-} from "./extension";
+import { toolkitEntry } from "./entry";
+import type { ToolkitDisplay, WidgetToolkitExtension } from "./extension";
 import { resolveWidgetCode, resolveWidgetOrigin } from "./history";
 
 /**

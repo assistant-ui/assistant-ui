@@ -2,6 +2,7 @@
 import { cleanup, render } from "@testing-library/react";
 import type { ComponentType } from "react";
 import { Text, View } from "react-native";
+import type { Tools } from "@assistant-ui/react-native";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineCatalog } from "../catalog";
 import type { SpecComponentProps } from "../react/SpecRenderer";
@@ -39,7 +40,9 @@ const catalog = defineCatalog({
 
 type Entry = {
   type: string;
-  execute?: (input: unknown, call: { toolCallId: string }) => Promise<unknown>;
+  execute?:
+    | ((input: unknown, call: { toolCallId: string }) => Promise<unknown>)
+    | undefined;
   render: ComponentType<Record<string, unknown>>;
 };
 
@@ -56,6 +59,14 @@ const setup = (execution: "frontend" | "backend") =>
   }).entries({ execution, display: "standalone" }) as Record<string, Entry>;
 
 describe("createSpecToolkit for React Native", () => {
+  it("returns entries that Tools from @assistant-ui/react-native accepts", () => {
+    const toolkit: Parameters<typeof Tools>[0]["toolkit"] = createSpecToolkit(
+      catalog,
+      { components: {} },
+    ).entries({ execution: "frontend", display: "standalone" });
+    expect(Object.keys(toolkit ?? {})).toEqual(["render_spec"]);
+  });
+
   const spec = {
     root: "t",
     elements: { t: { type: "Label", props: { text: "Hi" } } },
