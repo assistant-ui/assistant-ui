@@ -679,6 +679,8 @@ type AssistantTransportOptions<T> = {
   resumeStateApi?: string;
   protocol?: AssistantTransportProtocol;
   strict?: boolean;
+  maxStreamLineLength?: number | undefined;
+  maxStreamEventLength?: number | undefined;
   converter: AssistantTransportStateConverter<T>;
   headers: HeadersValue | (() => Promise<HeadersValue>);
   body?: object | (() => Promise<object | undefined>);
@@ -1034,8 +1036,10 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   abstract exportExternalState(): any;
   abstract importExternalState(state: any): void;
   abstract unstable_notifySessionReset(): void;
-  protected _voiceMessages: ThreadMessage[];
-  protected _voiceGeneration: number;
+  protected get _voiceMessages(): ThreadMessage[];
+  protected set _voiceMessages(messages: ThreadMessage[]);
+  protected get _voiceGeneration(): number;
+  protected set _voiceGeneration(generation: number);
   protected _markVoiceMessagesDirty(): void;
   protected _getBaseMessages(): readonly ThreadMessage[];
   protected _commitVoiceMessage(_message: ThreadMessage): void | Promise<void>;
@@ -1048,6 +1052,7 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   getModelContext(): ModelContext$1;
   protected enrichAppendMetadata(message: AppendMessage, anchorId?: string | null): AppendMessage;
   getEditComposer(messageId: string): DefaultEditComposerRuntimeCore | undefined;
+  __internal_getEditComposers(): Iterable<DefaultEditComposerRuntimeCore>;
   protected _isVoiceMessage(messageId: string | null): boolean;
   protected _resolveAppendParent(parentId: string | null): string | null;
   beginEdit(messageId: string): void;
@@ -1064,7 +1069,8 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   speech: SpeechState | undefined;
   speak(messageId: string): void;
   stopSpeaking(): void;
-  voice: VoiceSessionState | undefined;
+  get voice(): VoiceSessionState | undefined;
+  set voice(value: VoiceSessionState | undefined);
   getVoiceVolume: () => number;
   subscribeVoiceVolume: (callback: () => void) => Unsubscribe$1;
   protected _onVoiceConnected(): void;
@@ -1076,7 +1082,7 @@ declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements
   disconnectVoice(): void;
   muteVoice(): void;
   unmuteVoice(): void;
-  protected ensureInitialized(): void;
+  protected ensureInitialized(): boolean;
   export(): ExportedMessageRepository;
   import(data: ExportedMessageRepository): void;
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
@@ -1692,6 +1698,7 @@ declare class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   get canCancel(): boolean;
   protected get detachesDraftOnSend(): boolean;
   get canSend(): boolean;
+  addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
   protected getAttachmentAdapter(): AttachmentAdapter | undefined;
   protected getDictationAdapter(): DictationAdapter | undefined;
   constructor(runtime: ThreadRuntimeCore & {
@@ -1713,6 +1720,7 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
   #private;
   get canCancel(): boolean;
   get canSend(): boolean;
+  addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
   cancel(): void;
   protected threadMessageIds(role: MessageRole): string[];
   get queue(): readonly QueueItemState[];
@@ -2359,12 +2367,18 @@ declare const InMemoryThreadList: Resource<ClientOutput<"threads">, [
 ]>;
 
 declare class InMemoryThreadListAdapter implements RemoteThreadListAdapter {
+  #private;
   list(): Promise<RemoteThreadListResponse>;
   rename(): Promise<void>;
+  rename(remoteId: string, newTitle: string): Promise<void>;
   updateCustom(): Promise<void>;
+  updateCustom(remoteId: string, custom: Record<string, unknown> | undefined): Promise<void>;
   archive(): Promise<void>;
+  archive(remoteId: string): Promise<void>;
   unarchive(): Promise<void>;
+  unarchive(remoteId: string): Promise<void>;
   delete(): Promise<void>;
+  delete(remoteId: string): Promise<void>;
   initialize(threadId: string): Promise<RemoteThreadInitializeResponse>;
   generateTitle(): Promise<AssistantStream>;
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
@@ -2646,7 +2660,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
     feedback?: FeedbackAdapter | undefined;
     suggestion?: SuggestionAdapter | undefined;
   };
-  constructor(contextProvider: ModelContextProvider, options: LocalRuntimeOptionsBase);
+  constructor(contextProvider: ModelContextProvider, options: LocalRuntimeOptionsBase, initialMessages?: ExportedMessageRepository);
   __internal_setGetThreadId(getThreadId: () => string | undefined): void;
   __internal_setGetInitializePromise(getPromise: () => Promise<unknown> | undefined): void;
   get extras(): undefined;
@@ -3853,6 +3867,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     getModelContext: () => ModelContext$1;
     composer: ThreadComposerRuntimeCore;
     getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+    __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
     beginEdit: (messageId: string) => void;
     getQueueItems?: () => readonly QueueItemState[];
     getSteerQueueItems?: () => readonly QueueItemState[];
@@ -3911,6 +3926,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     getModelContext: () => ModelContext$1;
     composer: ThreadComposerRuntimeCore;
     getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+    __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
     beginEdit: (messageId: string) => void;
     getQueueItems?: () => readonly QueueItemState[];
     getSteerQueueItems?: () => readonly QueueItemState[];
@@ -3969,6 +3985,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     getModelContext: () => ModelContext$1;
     composer: ThreadComposerRuntimeCore;
     getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+    __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
     beginEdit: (messageId: string) => void;
     getQueueItems?: () => readonly QueueItemState[];
     getSteerQueueItems?: () => readonly QueueItemState[];
@@ -3999,6 +4016,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     unstable_refetchThread?: (() => Promise<void>) | undefined;
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
   }> | undefined;
+  __internal_hasThreadRuntime(threadId: string): boolean;
   __internal_isThreadRunning(threadId: string): boolean;
   __internal_subscribeRunningChanged(callback: () => void): Unsubscribe$1;
   __internal_subscribeThreadEvents(callback: (event: ThreadListRuntimeEvent) => void): Unsubscribe$1;
@@ -4098,6 +4116,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
     getModelContext: () => ModelContext$1;
     composer: ThreadComposerRuntimeCore;
     getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+    __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
     beginEdit: (messageId: string) => void;
     getQueueItems?: () => readonly QueueItemState[];
     getSteerQueueItems?: () => readonly QueueItemState[];
@@ -4156,6 +4175,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
     getModelContext: () => ModelContext$1;
     composer: ThreadComposerRuntimeCore;
     getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+    __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
     beginEdit: (messageId: string) => void;
     getQueueItems?: () => readonly QueueItemState[];
     getSteerQueueItems?: () => readonly QueueItemState[];
@@ -4277,6 +4297,17 @@ type ResumeToolCallOptions = {
 type RunConfig = {
   readonly custom?: Record<string, unknown>;
 };
+
+type RunLease = {
+  isCurrent(): boolean;
+};
+
+declare class RunLeases {
+  #private;
+  begin(): RunLease;
+  current(): RunLease;
+  invalidate(): void;
+}
 
 declare const RuntimeAdapter: Resource<ClientOutput<"threads">, [
   runtime: AssistantRuntime
@@ -5464,6 +5495,7 @@ type ThreadRuntimeCore = Readonly<{
   getModelContext: () => ModelContext$1;
   composer: ThreadComposerRuntimeCore;
   getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+  __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
   beginEdit: (messageId: string) => void;
   getQueueItems?: () => readonly QueueItemState[];
   getSteerQueueItems?: () => readonly QueueItemState[];
@@ -5586,6 +5618,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
         unstable_on: <E extends ComposerRuntimeEventType>(event: E, callback: ComposerRuntimeEventCallback<E>) => Unsubscribe$1;
       }>;
       getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+      __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
       beginEdit: (messageId: string) => void;
       getQueueItems?: () => readonly QueueItemState[];
       getSteerQueueItems?: () => readonly QueueItemState[];
@@ -5665,6 +5698,7 @@ type ThreadRuntimeState = {
   readonly threadId: string;
   readonly metadata: ThreadListItemRuntimeState;
   readonly isDisabled: boolean;
+  readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
   readonly hasEarlier: boolean;
   readonly isLoadingEarlier: boolean;
@@ -5681,6 +5715,7 @@ type ThreadRuntimeState = {
 type ThreadState = {
   readonly isEmpty: boolean;
   readonly isDisabled: boolean;
+  readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
   readonly hasEarlier: boolean;
   readonly isLoadingEarlier: boolean;
@@ -6690,7 +6725,11 @@ declare namespace entry_store_exports {
 }
 
 declare namespace entry_internal_exports {
-  export { AbortableThreadLoadPurpose, AssistantRuntimeImpl, AttachmentRuntimeImpl, BaseAssistantRuntimeCore, BaseComposerRuntimeCore, BaseSubject, BaseSubscribable, BaseThreadRuntimeCore, ComposerRuntimeCoreBinding, ComposerRuntimeImpl, CompositeContextProvider, ConverterCallback, DefaultEditComposerRuntimeCore, DefaultThreadComposerRuntimeCore, EMPTY_THREAD_CORE, EditComposerAttachmentRuntimeImpl, EditComposerRuntimeCoreBinding, EditComposerRuntimeImpl, EventSubscribable, EventSubscriptionSubject, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalMessageMetadataKeySelector, ExternalStoreRuntimeCore, ExternalStoreThreadFactory, ExternalStoreThreadListRuntimeCore, ExternalStoreThreadRuntimeCore, FilePartSource, LazyMemoizeSubject, LocalRuntimeCore, LocalRuntimeOptionsBase, LocalThreadFactory, LocalThreadListRuntimeCore, LocalThreadRuntimeCore, MessageAttachmentRuntimeImpl, MessagePartRuntimeImpl, MessageRepository, MessageRepositorySession, MessageRepositorySessionOptions, MessageRuntimeImpl, MessageStateBinding, NestedSubscribable, NestedSubscriptionSubject, OptimisticState, ReadonlyThreadRuntimeCore, RemoteThreadData, RemoteThreadInitializeResponse, RemoteThreadListOptions, RemoteThreadState, SKIP_UPDATE, SKIP_UPDATE as SKIP_UPDATE_TYPE, ShallowMemoizeSubject, Subscribable, SubscribableWithState, THREAD_MAPPING_ID, TOOL_INTERACTION_LIMITS, ThreadComposerAttachmentRuntimeImpl, ThreadComposerRuntimeCoreBinding, ThreadComposerRuntimeImpl, ThreadListItemRuntimeBinding, ThreadListItemRuntimeImpl, ThreadListItemStateBinding, ThreadListRuntimeCoreBinding, ThreadListRuntimeImpl, ThreadMessageConverter, ThreadRuntimeCoreBinding, ThreadRuntimeImpl, ToolCallTreeEntry, ToolInvocationTracker, abortableIterable, appendToolInteraction, bytesToBase64, consumeSuggestionResult, createAbortableThreadLoad, createCloudThreadListAdapterCreateFallback, createExternalMessageMetadataKey, createMessageRepositorySession, createThreadMappingId, createToolCallCancellationStub, createToolInteraction, dataUrlMediaType, detectImageMediaType, fileMatchesAccept, fromThreadMessageLike, generateErrorMessageId, generateId, getAutoStatus, getFileDataURL, getMessagePartKeys, getSuggestionKeys, getThreadData, getThreadMessageText, getThreadState, hasUpcomingMessage, httpUrlPattern, invokeUserCallback, isAutoStatus, isCreateAttachment, isErrorMessageId, isJSONValue, isJSONValueEqual, isParsableUrl, isRecord, iterateToolCallParts, mapToolCallPartsDeep, notifyEventListeners, nullProtoRecord, openAbortableIterable, parseDataUrl, promoteNewThreadReducer, readToolInteractionLog, resolveFileMediaType, resolveFilePartSource, resolveImageMediaType, resolveToolApprovalResponse, resolveToolRender, scanPendingToolCalls, shallowArrayEqual, shouldContinue, stableStringifyToolArgs, symbolInnerMessage, toMediaWireUrl, toMessagePartStatus, trackToolArgsKeyOrder, updateStatusReducer, walkToolCallTree };
+  export { AbortableThreadLoadPurpose, AssistantRuntimeImpl, AttachmentRuntimeImpl, BaseAssistantRuntimeCore, BaseComposerRuntimeCore, BaseSubject, BaseSubscribable, BaseThreadRuntimeCore, ComposerRuntimeCoreBinding, ComposerRuntimeImpl, CompositeContextProvider, ConverterCallback, DefaultEditComposerRuntimeCore, DefaultThreadComposerRuntimeCore, EMPTY_THREAD_CORE, EditComposerAttachmentRuntimeImpl, EditComposerRuntimeCoreBinding, EditComposerRuntimeImpl, EventSubscribable, EventSubscriptionSubject, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalMessageMetadataKeySelector, ExternalStoreRuntimeCore, ExternalStoreThreadFactory, ExternalStoreThreadListRuntimeCore, ExternalStoreThreadRuntimeCore, FilePartSource, LazyMemoizeSubject, LocalRuntimeCore, LocalRuntimeOptionsBase, LocalThreadFactory, LocalThreadListRuntimeCore, LocalThreadRuntimeCore, MessageAttachmentRuntimeImpl, MessagePartRuntimeImpl, MessageRepository, MessageRepositorySession, MessageRepositorySessionOptions, MessageRuntimeImpl, MessageStateBinding, NestedSubscribable, NestedSubscriptionSubject, OptimisticState, ReadonlyThreadRuntimeCore, RemoteThreadData, RemoteThreadInitializeResponse, RemoteThreadListOptions, RemoteThreadState, RunLease, RunLeases, SKIP_UPDATE, SKIP_UPDATE as SKIP_UPDATE_TYPE, ShallowMemoizeSubject, Subscribable, SubscribableWithState, THREAD_MAPPING_ID, TOOL_INTERACTION_LIMITS, ThreadComposerAttachmentRuntimeImpl, ThreadComposerRuntimeCoreBinding, ThreadComposerRuntimeImpl, ThreadListItemRuntimeBinding, ThreadListItemRuntimeImpl, ThreadListItemStateBinding, ThreadListRuntimeCoreBinding, ThreadListRuntimeImpl, ThreadMessageConverter, ThreadRuntimeCoreBinding, ThreadRuntimeImpl, ToolCallTreeEntry, ToolInvocationTracker, abortableIterable, appendToolInteraction, bytesToBase64, consumeSuggestionResult, createAbortableThreadLoad, createCloudThreadListAdapterCreateFallback, createExternalMessageMetadataKey, createMessageRepositorySession, createThreadMappingId, createToolCallCancellationStub, createToolInteraction, dataUrlMediaType, detectImageMediaType, fileMatchesAccept, fromThreadMessageLike, generateErrorMessageId, generateId, getAutoStatus, getFileDataURL, getMessagePartKeys, getSuggestionKeys, getThreadData, getThreadMessageText, getThreadState, hasUpcomingMessage, httpUrlPattern, invokeUserCallback, isAutoStatus, isCreateAttachment, isErrorMessageId, isJSONValue, isJSONValueEqual, isParsableUrl, isRecord, iterateToolCallParts, mapToolCallPartsDeep, notifyEventListeners, nullProtoRecord, openAbortableIterable, parseDataUrl, promoteNewThreadReducer, raceWithAbortSignal, readToolInteractionLog, resolveFileMediaType, resolveFilePartSource, resolveImageMediaType, resolveToolApprovalResponse, resolveToolRender, scanPendingToolCalls, shallowArrayEqual, shouldContinue, stableStringifyToolArgs, symbolInnerMessage, toMediaWireUrl, toMessagePartStatus, trackToolArgsKeyOrder, updateStatusReducer, walkToolCallTree };
+}
+
+declare namespace entry_react_internal_exports {
+  export { useLatestRef };
 }
 
 declare namespace entry_store_internal_exports {
@@ -6754,6 +6793,8 @@ declare const pickExternalStoreSharedOptions: (options: ExternalStoreSharedOptio
 declare const promoteNewThreadReducer: (state: RemoteThreadState, threadIdOrRemoteId: string, initializeTask: Promise<RemoteThreadInitializeResponse>) => RemoteThreadState;
 
 declare function providerTool(_config: ProviderToolConfig): never;
+
+declare const raceWithAbortSignal: <T>(signal: AbortSignal | undefined, operation: () => T | PromiseLike<T>) => Promise<T>;
 
 declare function readToolInteractionLog(value: unknown): Unstable_ToolInteractionLog | undefined;
 
@@ -7030,6 +7071,10 @@ declare const useInteractableState: <TState>(id: string, fallback: TState) => [
   }
 ];
 
+declare function useLatestRef<T>(value: T): {
+  current: T;
+};
+
 declare const useLocalRuntime: (chatModel: ChatModelAdapter, _param22?: LocalRuntimeOptions) => AssistantRuntime;
 
 declare const useMessageBranching: () => {
@@ -7105,4 +7150,4 @@ declare const useVoiceVolume: () => number;
 
 declare function walkToolCallTree(messages: readonly ThreadMessage[], options?: WalkToolCallTreeOptions): Generator<ToolCallTreeEntry>;
 
-export { entry_internal_exports as entry_internal, entry_react_exports as entry_react, entry_root_exports as entry_root, entry_store_exports as entry_store, entry_store_internal_exports as entry_store_internal };
+export { entry_internal_exports as entry_internal, entry_react_exports as entry_react, entry_react_internal_exports as entry_react_internal, entry_root_exports as entry_root, entry_store_exports as entry_store, entry_store_internal_exports as entry_store_internal };

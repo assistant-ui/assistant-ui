@@ -234,7 +234,7 @@ export const StreamdownTextPrimitive = forwardRef<
       repairDisabled || shouldTailRemend ? false : parseIncompleteMarkdown;
 
     const resolvedPlugins = useMemo(() => {
-      const merged = mergePlugins(userPlugins, {});
+      const merged = mergePlugins(userPlugins);
       return Object.keys(merged).length > 0 ? merged : undefined;
     }, [userPlugins]);
 

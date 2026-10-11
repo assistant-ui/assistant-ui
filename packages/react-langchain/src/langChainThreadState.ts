@@ -13,12 +13,17 @@ export type StagedEntry = {
 };
 
 export type LangChainThreadState = {
+  forkGeneration: number;
+  forkPending: boolean;
   stagedEntries: ReadonlyMap<string, StagedEntry>;
   stagedBaseMessages: LangChainBaseMessage[] | null;
   visibleStagedMessages: LangChainBaseMessage[] | null;
 };
 
 export type LangChainThreadAction =
+  | { type: "supersedeFork" }
+  | { type: "finishFork"; generation: number }
+  | { type: "cancelFork" }
   | {
       type: "stage";
       entry: StagedEntry;
@@ -51,6 +56,8 @@ export type LangChainThreadAction =
     };
 
 export const createLangChainThreadState = (): LangChainThreadState => ({
+  forkGeneration: 0,
+  forkPending: false,
   stagedEntries: new Map(),
   stagedBaseMessages: null,
   visibleStagedMessages: null,
@@ -81,6 +88,22 @@ export const reduceLangChainThreadState = (
   action: LangChainThreadAction,
 ): LangChainThreadState => {
   switch (action.type) {
+    case "supersedeFork":
+      return {
+        ...state,
+        forkGeneration: state.forkGeneration + 1,
+        forkPending: true,
+      };
+    case "finishFork":
+      return state.forkGeneration === action.generation
+        ? { ...state, forkPending: false }
+        : state;
+    case "cancelFork":
+      return {
+        ...state,
+        forkGeneration: state.forkGeneration + 1,
+        forkPending: false,
+      };
     case "stage": {
       const stagedEntries = new Map(state.stagedEntries);
       stagedEntries.set(action.entry.message.id, action.entry);
@@ -97,6 +120,7 @@ export const reduceLangChainThreadState = (
       const stagedEntries = new Map(state.stagedEntries);
       stagedEntries.set(action.entry.message.id, action.entry);
       return {
+        ...state,
         stagedEntries,
         stagedBaseMessages: action.baseMessages,
         visibleStagedMessages: [...action.baseMessages, action.entry.message],
@@ -145,6 +169,7 @@ export const reduceLangChainThreadState = (
           return state;
         }
         return {
+          ...state,
           stagedEntries,
           stagedBaseMessages: null,
           visibleStagedMessages: null,
@@ -177,6 +202,7 @@ export const reduceLangChainThreadState = (
       const stagedEntries = new Map(state.stagedEntries);
       stagedEntries.delete(action.id);
       return {
+        ...state,
         stagedEntries,
         stagedBaseMessages:
           stagedEntries.size === 0 ? null : state.stagedBaseMessages,
@@ -198,6 +224,7 @@ export const reduceLangChainThreadState = (
         stagedEntries.delete(message.id);
       }
       return {
+        ...state,
         stagedEntries,
         stagedBaseMessages: null,
         visibleStagedMessages:

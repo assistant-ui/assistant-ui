@@ -1,5 +1,13 @@
 # @assistant-ui/mcp-docs-server
 
+## 0.3.4
+
+### Patch Changes
+
+- [#9019](https://github.com/assistant-ui/assistant-ui/pull/9019) [`6053dd1`](https://github.com/assistant-ui/assistant-ui/commit/6053dd123accf80daca5eca45a04b1797f632b0a) - support @modelcontextprotocol/server 2.3 ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#8833](https://github.com/assistant-ui/assistant-ui/pull/8833) [`0a3ca24`](https://github.com/assistant-ui/assistant-ui/commit/0a3ca2482e72e4d1c35805222df44e81ba6b55c5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.3.3
 
 ### Patch Changes

@@ -95,6 +95,37 @@ describe("MarkdownText", () => {
       }
     },
   );
+  it("stops wrapping to the terminal when the stream reports no columns", async () => {
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    const text = "one two three four five six seven eight nine ten";
+    let view!: ReturnType<typeof render>;
+    try {
+      await act(async () => {
+        view = render(<MarkdownText text={text} />);
+      });
+      await act(async () => {
+        Object.defineProperty(view.stdout, "columns", {
+          configurable: true,
+          value: 20,
+        });
+        view.stdout.emit("resize");
+      });
+      expect(view.lastFrame()).not.toContain(text);
+      await act(async () => {
+        Object.defineProperty(view.stdout, "columns", {
+          configurable: true,
+          value: undefined,
+        });
+        view.stdout.emit("resize");
+      });
+      expect(view.lastFrame()).toContain(text);
+    } finally {
+      await act(async () => {
+        view.unmount();
+      });
+      vi.unstubAllGlobals();
+    }
+  });
   it("renders plain text", () => {
     const { lastFrame } = render(<MarkdownText text="Hello world" />);
     expect(lastFrame()).toContain("Hello world");

@@ -1,12 +1,7 @@
 "use client";
 
-import {
-  type CSSProperties,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { useIsomorphicLayoutEffect } from "../utils/useIsomorphicLayoutEffect";
 import {
   isShimLoadError,
   type RenderedFrame,
@@ -95,7 +90,7 @@ export function SandboxHost({
     createBridge,
     onError,
   });
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     liveRef.current = { content, sandbox, createBridge, onError };
   }, [content, sandbox, createBridge, onError]);
 

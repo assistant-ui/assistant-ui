@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { SubProjectLayout } from "@/components/shared/sub-project-layout";
+import { subProject, subProjectGithubUrl } from "@/lib/docs-sites";
 import { createOgMetadata } from "@/lib/og";
 
-const title = "Heat Graph";
-const description =
-  "Headless, composable activity heatmap components for React. Radix-style primitives you fully control.";
+const { title, description } = subProject("heat-graph");
 
 export const metadata: Metadata = {
   title,
@@ -21,7 +20,7 @@ export default function HeatGraphLayout({
   return (
     <SubProjectLayout
       name="heat-graph"
-      githubPath="https://github.com/assistant-ui/assistant-ui/tree/main/packages/heat-graph"
+      githubPath={subProjectGithubUrl("heat-graph")}
     >
       {children}
     </SubProjectLayout>

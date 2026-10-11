@@ -20,6 +20,10 @@ export type UIMessageStreamDecoderOptions = {
     data: unknown;
     transient?: boolean;
   }) => void;
+  /** Maximum UTF-16 code units accepted in one SSE line. */
+  maxLineLength?: number | undefined;
+  /** Maximum UTF-16 code units retained across one SSE event. */
+  maxEventLength?: number | undefined;
 };
 
 const isDataChunk = (
@@ -221,6 +225,8 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
 
       return createSSEJsonDecoder<UIMessageStreamChunk>({
         strict: true,
+        maxLineLength: options.maxLineLength,
+        maxEventLength: options.maxEventLength,
         parse(data, controller) {
           let chunk;
           try {

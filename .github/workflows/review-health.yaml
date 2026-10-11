@@ -1,0 +1,64 @@
+name: Review Health
+
+on:
+  schedule:
+    - cron: "0 1 * * 1"
+  workflow_dispatch:
+    inputs:
+      since:
+        description: Start date (YYYY-MM-DD)
+        required: false
+        type: string
+      until:
+        description: End date (YYYY-MM-DD)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    if: vars.REVIEW_POLICY_APP_ID != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        with:
+          runtime: node@24
+          cache: false
+          install: false
+
+      - name: Create review policy App token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # ratchet:actions/create-github-app-token@v3.2.0
+        with:
+          app-id: ${{ vars.REVIEW_POLICY_APP_ID }}
+          private-key: ${{ secrets.REVIEW_POLICY_APP_PRIVATE_KEY }}
+          permission-administration: read
+          permission-contents: read
+          permission-issues: write
+          permission-members: read
+          permission-metadata: read
+          permission-pull-requests: read
+
+      - name: Report review health
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
+          SINCE_INPUT: ${{ inputs.since }}
+          UNTIL_INPUT: ${{ inputs.until }}
+          REVIEW_HEALTH_ISSUE: ${{ vars.REVIEW_HEALTH_ISSUE }}
+        run: |
+          since="${SINCE_INPUT:-$(date -u -d '7 days ago' +%F)}"
+          until="${UNTIL_INPUT:-$(date -u -d 'yesterday' +%F)}"
+          args=(--since "$since" --until "$until")
+          if [[ -n "$REVIEW_HEALTH_ISSUE" ]]; then
+            args+=(--post "$REVIEW_HEALTH_ISSUE")
+          fi
+          node scripts/review-health.mjs "${args[@]}"

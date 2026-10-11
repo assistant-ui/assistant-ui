@@ -3,14 +3,7 @@
 import "leaflet/dist/leaflet.css";
 
 import type { Map as LeafletMap, Marker as LeafletMarker } from "leaflet";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { field, mono, paper } from "./surfaces";
@@ -73,44 +66,11 @@ function markerIcon(leaflet: LeafletModule, selected: boolean) {
   });
 }
 
-function useDarkTheme(theme: "light" | "dark" | "auto") {
-  const subscribe = useCallback(
-    (notify: () => void) => {
-      if (theme !== "auto" || typeof window === "undefined") return () => {};
-
-      const media =
-        typeof window.matchMedia === "function"
-          ? window.matchMedia("(prefers-color-scheme: dark)")
-          : null;
-      const observer =
-        typeof MutationObserver === "function"
-          ? new MutationObserver(notify)
-          : null;
-      observer?.observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ["class"],
-      });
-      media?.addEventListener("change", notify);
-
-      return () => {
-        observer?.disconnect();
-        media?.removeEventListener("change", notify);
-      };
-    },
-    [theme],
-  );
-  const getSnapshot = useCallback(() => {
-    if (theme === "dark") return true;
-    if (theme === "light" || typeof document === "undefined") return false;
-    return (
-      document.documentElement.classList.contains("dark") ||
-      (typeof window.matchMedia === "function" &&
-        window.matchMedia("(prefers-color-scheme: dark)").matches)
-    );
-  }, [theme]);
-
-  return useSyncExternalStore(subscribe, getSnapshot, () => theme === "dark");
-}
+const TILE_INK = {
+  light: "[&_.leaflet-tile-pane]:contrast-90 [&_.leaflet-tile-pane]:grayscale",
+  dark: "[&_.leaflet-tile-pane]:brightness-90 [&_.leaflet-tile-pane]:contrast-90 [&_.leaflet-tile-pane]:grayscale [&_.leaflet-tile-pane]:hue-rotate-180 [&_.leaflet-tile-pane]:invert",
+  auto: "[&_.leaflet-tile-pane]:contrast-90 [&_.leaflet-tile-pane]:grayscale dark:[&_.leaflet-tile-pane]:brightness-90 dark:[&_.leaflet-tile-pane]:hue-rotate-180 dark:[&_.leaflet-tile-pane]:invert",
+} as const;
 
 export function GeoMap({
   places,
@@ -176,7 +136,6 @@ export function GeoMap({
       : validPlaces[0]?.id);
   const activeIdRef = useRef(activeId);
   activeIdRef.current = activeId;
-  const dark = useDarkTheme(theme);
 
   const selectPlace = useCallback(
     (place: GeoMapPlace) => {
@@ -291,20 +250,17 @@ export function GeoMap({
         role="region"
         aria-label={`Map of ${validPlaces.length} places`}
         style={{ height }}
-        data-theme={dark ? "dark" : "light"}
+        data-theme={theme}
         className={cn(
           field,
           "relative overflow-hidden rounded-xl",
           "[&_.leaflet-bar]:border-foreground/10! [&_.leaflet-bar_a]:border-foreground/10! [&_.leaflet-bar_a]:bg-background! [&_.leaflet-bar_a]:text-foreground/80! [&_.leaflet-bar_a:hover]:bg-foreground/[0.06]! [&_.leaflet-bar]:shadow-none!",
-          "[&_.leaflet-control-attribution]:bg-background/80! [&_.leaflet-control-attribution]:text-foreground/55! [&_.leaflet-control-attribution_a]:text-foreground/70!",
-          tileUrl === undefined &&
-            (dark
-              ? "[&_.leaflet-tile-pane]:brightness-90 [&_.leaflet-tile-pane]:contrast-90 [&_.leaflet-tile-pane]:grayscale [&_.leaflet-tile-pane]:hue-rotate-180 [&_.leaflet-tile-pane]:invert"
-              : "[&_.leaflet-tile-pane]:contrast-90 [&_.leaflet-tile-pane]:grayscale"),
+          "[&_.leaflet-control-attribution]:bg-background/80! [&_.leaflet-control-attribution]:text-muted-foreground! [&_.leaflet-control-attribution_a]:text-foreground/70!",
+          tileUrl === undefined && TILE_INK[theme],
         )}
       >
         {!mapReady ? (
-          <span className="text-foreground/45 absolute inset-0 flex items-center justify-center text-xs">
+          <span className="text-muted-foreground absolute inset-0 flex items-center justify-center text-xs">
             Loading map
           </span>
         ) : null}
@@ -329,7 +285,7 @@ export function GeoMap({
                     {place.label}
                   </span>
                   {place.description ? (
-                    <span className="text-foreground/45 block text-xs leading-4 break-words">
+                    <span className="text-muted-foreground block text-xs leading-4 break-words">
                       {place.description}
                     </span>
                   ) : null}
@@ -337,7 +293,7 @@ export function GeoMap({
                 <span
                   className={cn(
                     mono,
-                    "text-foreground/35 shrink-0 pt-0.5 tabular-nums",
+                    "text-muted-foreground shrink-0 pt-0.5 tabular-nums",
                   )}
                 >
                   {place.lat.toFixed(4)}, {place.lng.toFixed(4)}

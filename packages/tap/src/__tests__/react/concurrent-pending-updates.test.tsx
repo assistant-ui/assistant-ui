@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 /**
  * A/B concurrency tests for pending updates in tap-scheduled sub-roots.
  *

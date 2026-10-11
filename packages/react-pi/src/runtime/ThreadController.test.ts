@@ -1,5 +1,6 @@
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import { isMessageNotSentError, type AppendMessage } from "@assistant-ui/react";
+import { createPiHttpClient } from "../client/httpClient";
 import { PiThreadController } from "./ThreadController";
 import type { PiThreadState } from "./threadState";
 import type {
@@ -445,6 +446,36 @@ describe("PiThreadController", () => {
     const controller = new PiThreadController(client, THREAD);
     await controller.cancel();
     expect(client.cancelled).toEqual([THREAD]);
+  });
+
+  it("keeps a new run started during queue clearing out of a captured Stop", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(ev({ type: "agent_start" }, 1));
+
+    await controller.captureCancel()();
+    expect(client.cancelled).toEqual([THREAD]);
+    client.cancelled.length = 0;
+
+    const clear = Promise.withResolvers<{
+      steering: string[];
+      followUp: string[];
+    }>();
+    client.clearQueue = vi.fn(() => clear.promise);
+    const cancel = controller.captureCancel();
+    const clearing = controller.clearQueue();
+
+    client.emit(ev({ type: "agent_end" }, 2));
+    await controller.sendMessage(userMessage("new"));
+    expect(controller.getState().runStatus).toBe("running");
+    clear.resolve({ steering: [], followUp: [] });
+    await clearing;
+    await cancel();
+
+    expect(client.sent.map(({ input }) => input.content)).toEqual(["new"]);
+    expect(client.cancelled).toEqual([]);
+    expect(controller.getState().runStatus).toBe("running");
   });
 
   it("sets model and thinking level via the client", async () => {
@@ -1470,6 +1501,67 @@ describe("PiThreadController", () => {
 
     expect(client.sent).toHaveLength(0);
     expect(controller.getState().lastError).toContain(error);
+  });
+
+  it("resubscribes on the next send after a decoder limit ends the stream", async () => {
+    const sse = (body: string, keepOpen: boolean) =>
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode(body));
+            if (!keepOpen) controller.close();
+          },
+        }),
+        { headers: { "content-type": "text/event-stream" } },
+      );
+    const frame = (event: object) => `data: ${JSON.stringify(event)}\n\n`;
+    let eventStreams = 0;
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (!url.endsWith("/events")) return new Response(null, { status: 204 });
+      eventStreams += 1;
+      return eventStreams === 1
+        ? sse(
+            frame({
+              ...ev({ type: "agent_start" }, 1),
+              padding: "x".repeat(2048),
+            }),
+            false,
+          )
+        : sse(
+            frame(
+              ev(
+                {
+                  type: "message_start",
+                  message: { role: "user", content: "again", timestamp: 2 },
+                },
+                2,
+              ),
+            ),
+            true,
+          );
+    }) as unknown as typeof fetch;
+    const controller = new PiThreadController(
+      createPiHttpClient({
+        fetchImpl,
+        maxStreamLineLength: 1024,
+        streamCloseDelayMs: 0,
+      }),
+      THREAD,
+    );
+    onTestFinished(() => controller.dispose());
+    controller.connect();
+    await vi.waitFor(() =>
+      expect(controller.getState().runStatus).toBe("failed"),
+    );
+
+    await controller.sendMessage(userMessage("again"));
+
+    await vi.waitFor(() =>
+      expect(controller.getState().messages).toEqual([
+        { role: "user", content: "again", timestamp: 2 },
+      ]),
+    );
+    expect(eventStreams).toBe(2);
   });
 
   it("skips the initial subscription snapshot after a thread has loaded", async () => {

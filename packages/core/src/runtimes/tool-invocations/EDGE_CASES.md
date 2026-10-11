@@ -150,9 +150,10 @@ time the callback runs the body has already parked its resolver and set
 `interrupt`. `_onExecutionStart` still registers the execution for
 `_onExecutionEnd` but leaves the status alone when this execution's own
 request is pending. The check is keyed on the request's execution id,
-not on the status map: a pipeline restart (F.4) clears `_executing` but
-keeps the status map, and a stale `interrupt` must not stop the fresh
-execution from reporting `executing` (#6763).
+not on the status map: a pipeline restart (F.4) clears `_executing` and
+abandoned execution statuses while preserving pending human-input statuses.
+A stale `interrupt` must not stop the fresh execution from reporting
+`executing` (#6763).
 
 A call the adapter reports as client-owned (A.9) closes as soon as its
 arguments parse, because the adapter has already said the provider will
@@ -160,16 +161,25 @@ not answer it. Ownership says who answers a call, not whether it is
 gated, so a gate on such a call is still late and A.8 governs it
 (#6677).
 
-### A.11. The turn is discarded while a call waits on the run
-`abort({ discardPending: true })` records every active entry that has
-neither closed its args stream nor holds a result in
-`_discardedToolCallIds`, and marks it `skipExecute`.
+### A.11. The turn is discarded before a call's `execute` starts
+`abort({ discardPending: true })` records every active entry that holds
+no result and whose `execute` has not started in `_discardedToolCallIds`,
+and marks it `skipExecute`. A call whose `execute` already started keeps
+its result.
 
 The abort signal alone does not cover these. A call waiting on the run to
 settle (A.10) has not reached the executor, so there is nothing to signal,
 and `abort()` installs a fresh `AbortController` before the settled
 snapshot arrives; without the record, cancelling a run would be what
-starts the call it was meant to stop.
+starts the call it was meant to stop. The same holds for a call whose args
+closed in the tick the turn was discarded (the settled snapshot and the
+user's next action landing together): the executor calls `execute` only
+after `abort()` has installed the fresh controller.
+
+The record covers only calls the tracker has already observed. A call
+first seen in a snapshot that arrives after the discard, such as a store
+that publishes the assistant message only when its run resolves and still
+publishes it after `cancelRun`, gets a fresh entry and runs.
 
 `discardPending` is the caller's claim that the turn is over, not that it
 is being interrupted, so only the three callers that end it pass it: a new
@@ -303,7 +313,18 @@ demoted: a restored entry is promoted only when its signature changes,
 and a call waiting on the run to settle (A.10) already holds its final
 args, so demoting it would strand it unexecuted.
 
-Starting it over re-fires `streamCall`, which the restart path already
+Restart clears abandoned execution statuses and releases pending `abort()`
+waiters before processing the replacement snapshot. Pending human-input
+requests retain their `interrupt` status and can still be resumed or aborted.
+The outgoing abort signal is cancelled only when no human-input request is
+pending, because every tool in that run shares the signal. With a pending
+request, the tracker retains the outgoing controller so a later `abort()` or
+`reset()` cancels its signal as well as the replacement pipeline's signal.
+Resuming a request leaves its signal live so the tool can continue. Sibling
+executions share that signal; restart drops their statuses and ignores their
+late completions, and a later abort still reaches them.
+
+Restarting a dropped entry re-fires `streamCall`, which the restart path already
 does for any demoted entry whose signature later changes. A change that
 already happened after completion (A.4) is not such a change: the demoted
 entry carries the changed text, so the restart does not promote it. The rebuilt

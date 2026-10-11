@@ -122,7 +122,9 @@ const useResourceFiberHostUtilsReact = () => {
 
 export const useResourceFiberHost = () => {
   const getDevMode = useDevStrictMode();
-  const { root, version, markDirty } = peekResourceFiber()
+  const isReactHost = peekResourceFiber() === null;
+  const reactDevMode = isReactHost ? getDevMode() : null;
+  const { root, version, markDirty } = !isReactHost
     ? // oxlint-disable-next-line react-hooks/rules-of-hooks
       useResourceFiberHostUtilsTap()
     : // oxlint-disable-next-line react-hooks/rules-of-hooks
@@ -142,7 +144,12 @@ export const useResourceFiberHost = () => {
             markDirty?.();
           }
         : markDirty;
-      return createResourceFiber(hook, root, fiberMarkDirty, getDevMode());
+      return createResourceFiber(
+        hook,
+        root,
+        fiberMarkDirty,
+        isReactHost ? reactDevMode : getDevMode(),
+      );
     },
     // oxlint-disable-next-line react-hooks/exhaustive-deps
     [],

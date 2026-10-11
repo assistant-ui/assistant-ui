@@ -35,6 +35,26 @@ function createUIMessageStream(events: string[]): ReadableStream<Uint8Array> {
 }
 
 describe("UIMessageStreamDecoder", () => {
+  it("enforces the configured SSE line limit", async () => {
+    await expect(
+      collectChunks(
+        createUIMessageStream(["[DONE]"]).pipeThrough(
+          new UIMessageStreamDecoder({ maxLineLength: 5 }),
+        ),
+      ),
+    ).rejects.toThrow("SSE line exceeds maxLineLength");
+  });
+
+  it("enforces the configured SSE event limit", async () => {
+    await expect(
+      collectChunks(
+        createUIMessageStream(["[DONE]"]).pipeThrough(
+          new UIMessageStreamDecoder({ maxEventLength: 5 }),
+        ),
+      ),
+    ).rejects.toThrow("SSE event exceeds maxEventLength");
+  });
+
   it("should decode text deltas", async () => {
     const events = [
       JSON.stringify({ type: "start", messageId: "msg_123" }),

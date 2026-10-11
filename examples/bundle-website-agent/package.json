@@ -10,20 +10,20 @@
     "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary"
   },
   "dependencies": {
-    "@assistant-ui/react": "workspace:*",
     "@assistant-ui/ai-sdk": "workspace:*",
-    "ai": "^7.0.101",
+    "@assistant-ui/react": "workspace:*",
+    "ai": "^7.0.130",
+    "bundle-shared": "workspace:*",
     "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "bundle-shared": "workspace:*"
+    "react-dom": "^19.3.0"
   },
   "devDependencies": {
-    "esbuild": "^0.28.2",
-    "typescript": "^7.0.2",
+    "@testing-library/react": "^16.3.3",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "vitest": "^5.0.3",
-    "jsdom": "^30.0.1",
-    "@testing-library/react": "^16.3.3"
+    "esbuild": "^0.28.2",
+    "jsdom": "^30.1.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
   }
 }

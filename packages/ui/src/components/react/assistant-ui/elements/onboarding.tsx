@@ -47,13 +47,13 @@ export function Onboarding({
         key={current}
         className="fade-in animate-in flex flex-col gap-2 duration-300"
       >
-        <span className={cn(mono, "text-foreground/30 tabular-nums")}>
+        <span className={cn(mono, "text-muted-foreground tabular-nums")}>
           {current + 1} of {steps.length}
         </span>
         <span className="text-[15px] font-medium tracking-tight">
           {step.title}
         </span>
-        <p className="text-foreground/55 text-[13px] leading-relaxed break-words">
+        <p className="text-muted-foreground text-[13px] leading-relaxed break-words">
           {step.body}
         </p>
         <span
@@ -83,7 +83,7 @@ export function Onboarding({
         <button
           type="button"
           onClick={onSkip}
-          className="text-foreground/45 hover:bg-foreground/[0.06] hover:text-foreground/90 ms-auto h-8 rounded-full px-3 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96]"
+          className="text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground/90 ms-auto h-8 rounded-full px-3 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96]"
         >
           Skip
         </button>

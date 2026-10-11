@@ -82,7 +82,7 @@ test("the detector watches its own implementation", () => {
     "scripts/app-build-inputs.test.mjs",
   ]) {
     assert.ok(APP_BUILD_INPUTS.includes(file), file);
-    assert.equal(workflow.split(`      - "${file}"`).length - 1, 2, file);
+    assert.equal(workflow.split(`      - "${file}"`).length - 1, 1, file);
   }
 });
 

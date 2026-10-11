@@ -50,11 +50,17 @@ export function ToolError({
     >
       <div className="flex items-center gap-2.5">
         <AlertCircleIcon className="size-3.5 shrink-0 text-red-500" />
-        <span className={cn(mono, "text-foreground/55 shrink-0")}>{name}</span>
+        <span
+          className={cn(mono, "text-muted-foreground min-w-0 wrap-anywhere")}
+        >
+          {name}
+        </span>
         <span className="text-foreground/80 min-w-0 flex-1 truncate text-[13px]">
           {target}
         </span>
-        <span className={cn(mono, "text-foreground/30 shrink-0 tabular-nums")}>
+        <span
+          className={cn(mono, "text-muted-foreground shrink-0 tabular-nums")}
+        >
           {attempt}/{maxAttempts}
         </span>
       </div>
@@ -62,7 +68,7 @@ export function ToolError({
       <div
         className={cn(
           field,
-          "rounded-xl px-3 py-2 font-mono text-[11px] leading-relaxed text-red-700 dark:text-red-300",
+          "rounded-xl px-3 py-2 font-mono text-[11px] leading-relaxed break-words text-red-700 dark:text-red-300",
         )}
       >
         {message}
@@ -73,7 +79,7 @@ export function ToolError({
           type="button"
           onClick={onSkip}
           disabled={!onSkip}
-          className="text-foreground/45 hover:bg-foreground/[0.06] hover:text-foreground/90 h-7 rounded-full px-2.5 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96] disabled:pointer-events-none disabled:opacity-30"
+          className="text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground/90 h-7 rounded-full px-2.5 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.96] disabled:pointer-events-none disabled:opacity-30"
         >
           Skip
         </button>

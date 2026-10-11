@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import Any, AsyncGenerator, Callable, Coroutine, List, Optional, Sequence, Union
+from typing import Any, AsyncGenerator, Callable, Coroutine, List, Literal, Optional, Sequence, Union
 from assistant_stream.assistant_stream_chunk import (
     AssistantStreamChunk,
     TextDeltaChunk,
@@ -141,6 +141,7 @@ class RunController:
         artifact: Any | None = None,
         is_error: bool = False,
         is_preliminary: bool = False,
+        messages: Any | None = None,
     ) -> None:
         """Add a tool result to the stream, optionally marked as an error, as
         preliminary, or carrying a UI-only artifact."""
@@ -150,6 +151,7 @@ class RunController:
             artifact=artifact,
             is_error=is_error,
             is_preliminary=is_preliminary,
+            messages=messages,
         )
         self._flush_and_put_chunk(chunk)
 
@@ -174,9 +176,15 @@ class RunController:
         chunk = DataChunk(data=data)
         self._flush_and_put_chunk(chunk)
 
-    def add_error(self, error: str) -> None:
+    def add_error(
+        self,
+        error: str,
+        *,
+        code: str | None = None,
+        severity: Literal["critical", "warning", "info"] | None = None,
+    ) -> None:
         """Emit an error to the main stream."""
-        chunk = ErrorChunk(error=error)
+        chunk = ErrorChunk(error=error, code=code, severity=severity)
         self._flush_and_put_chunk(chunk)
     
     def add_source(self, id: str, url: str, title: Optional[str] = None) -> None:

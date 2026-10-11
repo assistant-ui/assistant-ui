@@ -4,7 +4,7 @@ import { ELEMENT_INDEX } from "../element-index";
 import { elementProductSlug } from "./elements";
 
 const runtimeWiredAgent = (title: string, registryItem: string) =>
-  `This element reads its state from an assistant-ui runtime. If the project has no AssistantRuntimeProvider yet, do not scaffold it as a side effect. In a setup session, add it (\`ask "<why>" --product assistant-ui --wait\`; the browser accepts the product and answers at once) and install it first; outside one, stop and tell the user to set up assistant-ui first.
+  `This element reads its state from an assistant-ui runtime. If the project has no AssistantRuntimeProvider yet, do not scaffold it as a side effect. In a setup session, read /install.md?items=assistant-ui and include the runtime prerequisite in the plan for approval, then install it first. Selected products are the starting goals; relevant prerequisites do not need to be in the starting list. Outside a setup session, tell the user which prerequisite is needed before changing it.
 
 1. Check components.json. If it has no "@assistant-ui" registry, add \`"@assistant-ui": "https://r.assistant-ui.com/styles/{style}/{name}.json"\` under "registries". If components.json is missing, run \`npx shadcn@latest init --defaults --yes\` first.
 2. Run \`npx shadcn@latest add @assistant-ui/${registryItem} --yes\`.

@@ -11,6 +11,7 @@ from pathlib import Path
 from assistant_stream.assistant_stream_chunk import (
     AnnotationsChunk,
     DataChunk,
+    ErrorChunk,
     FileChunk,
     ReasoningDeltaChunk,
     SourceChunk,
@@ -50,7 +51,11 @@ CHUNKS = [
     ToolResultChunk(
         tool_call_id="call_1", result={"status": "working"}, is_preliminary=True
     ),
-    ToolResultChunk(tool_call_id="call_1", result={"temp": 70}),
+    ToolResultChunk(
+        tool_call_id="call_1",
+        result={"temp": 70},
+        messages=[{"role": "assistant", "content": [{"type": "text", "text": "Sunny"}]}],
+    ),
     DataChunk(data={"progress": 1}),
     AnnotationsChunk(annotations=[{"type": "citation", "id": "a1"}]),
     SourceChunk(id="s1", url="https://example.com", title="Example"),
@@ -62,6 +67,7 @@ CHUNKS = [
         output_tokens=34,
         is_continued=False,
     ),
+    ErrorChunk(error="Forecast delayed", code="weather_delay", severity="warning"),
 ]
 
 

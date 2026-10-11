@@ -46,7 +46,7 @@ export function BackgroundInbox({
             "tabular-nums",
             ready > 0
               ? "text-blue-600 dark:text-blue-400"
-              : "text-foreground/35",
+              : "text-muted-foreground",
           )}
         >
           {ready > 0 ? `${ready} ready` : `${running} in flight`}
@@ -66,7 +66,7 @@ export function BackgroundInbox({
           <>
             <span className="flex size-3.5 shrink-0 items-center justify-center">
               {run.state === "running" ? (
-                <Loader2Icon className="text-foreground/30 size-3 animate-spin motion-reduce:animate-none" />
+                <Loader2Icon className="text-muted-foreground size-3 animate-spin motion-reduce:animate-none" />
               ) : run.state === "failed" ? (
                 <XIcon className="size-3 text-red-500" />
               ) : (
@@ -79,21 +79,24 @@ export function BackgroundInbox({
                 className={cn(
                   "truncate text-[13px]",
                   run.state === "running"
-                    ? "text-foreground/50"
+                    ? "text-muted-foreground"
                     : "text-foreground/90",
                 )}
               >
                 {run.title}
               </span>
               {run.summary && (
-                <span className={cn(mono, "text-foreground/30 truncate")}>
+                <span className={cn(mono, "text-muted-foreground truncate")}>
                   {run.summary}
                 </span>
               )}
             </span>
 
             <span
-              className={cn(mono, "text-foreground/25 shrink-0 tabular-nums")}
+              className={cn(
+                mono,
+                "text-muted-foreground shrink-0 tabular-nums",
+              )}
             >
               {run.elapsed}
             </span>

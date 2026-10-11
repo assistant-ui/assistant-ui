@@ -81,7 +81,7 @@ export function ConfidenceMarker({
             className={cn(
               floating,
               mono,
-              "fade-in zoom-in-95 animate-in text-foreground/55 flex items-center gap-1.5 rounded-full px-2.5 py-1.5 duration-150",
+              "fade-in zoom-in-95 animate-in text-muted-foreground flex items-center gap-1.5 rounded-full px-2.5 py-1.5 duration-150",
             )}
           >
             <span

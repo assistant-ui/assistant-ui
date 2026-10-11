@@ -1,6 +1,7 @@
 import type { AppendMessage, MessageRole } from "../../types/message";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { DictationAdapter } from "../../adapters/speech";
+import type { CreateAttachment } from "../../types/attachment";
 import type {
   SendOptions,
   ThreadComposerRuntimeCore,
@@ -26,6 +27,7 @@ export class DefaultThreadComposerRuntimeCore
   }
 
   public get canSend() {
+    if (this.runtime.isDisabled) return false;
     if (this.isEmpty || this.runtime.isSendDisabled || this.isSubmitting)
       return false;
     const voice = this.runtime.voice;
@@ -33,6 +35,11 @@ export class DefaultThreadComposerRuntimeCore
     return (
       voice.canSendText && this.role === "user" && this.attachments.length === 0
     );
+  }
+
+  public override addAttachment(fileOrAttachment: File | CreateAttachment) {
+    if (this.runtime.isDisabled) return Promise.resolve();
+    return super.addAttachment(fileOrAttachment);
   }
 
   public override cancel() {
@@ -121,6 +128,7 @@ export class DefaultThreadComposerRuntimeCore
 
   public connect() {
     let lastCanCancel = false;
+    let lastIsDisabled = this.runtime.isDisabled;
     let lastIsSendDisabled = this.runtime.isSendDisabled;
     let lastVoiceInput = this.runtime.voice?.canSendText;
     let lastQueue = this.queue;
@@ -130,6 +138,10 @@ export class DefaultThreadComposerRuntimeCore
       const nextCanCancel = this.canCancel;
       if (lastCanCancel !== nextCanCancel) {
         lastCanCancel = nextCanCancel;
+        changed = true;
+      }
+      if (lastIsDisabled !== this.runtime.isDisabled) {
+        lastIsDisabled = this.runtime.isDisabled;
         changed = true;
       }
       if (lastIsSendDisabled !== this.runtime.isSendDisabled) {

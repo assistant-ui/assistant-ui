@@ -1,7 +1,8 @@
 "use client";
 
-import { useLayoutEffect, useState } from "react";
+import { useState } from "react";
 import { useAuiState } from "@assistant-ui/store";
+import { useIsomorphicLayoutEffect } from "../utils/useIsomorphicLayoutEffect";
 
 /**
  * Hook that returns the elapsed wall-clock time of the current tool call in
@@ -36,7 +37,7 @@ export const useToolCallElapsed = (): number | undefined => {
     timing !== undefined && timing.completedAt === undefined && partRunning;
   const [now, setNow] = useState<number | undefined>(undefined);
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!running) return undefined;
     // The clock is read only after mount so a prerender never reads it; the
     // layout effect still catches the elapsed value up before the first paint.

@@ -5,6 +5,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDashboardArtifact } from "./eval-report-adapter.ts";
 import type { CaseResult } from "./types.ts";
+import type {
+  Candidate,
+  EvalCase,
+  Judged,
+} from "./suites/comment-hygiene/types.ts";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const cli = fileURLToPath(
@@ -15,7 +20,7 @@ const cli = fileURLToPath(
 );
 const output = join(root, ".evals_output/smoke/run.json");
 const reportDir = join(root, "results/eval-dashboard");
-const result: CaseResult = {
+const result: CaseResult<EvalCase, Candidate, Judged> = {
   case: {
     id: "dashboard-smoke",
     description: "Synthetic adapter verification",
@@ -27,24 +32,26 @@ const result: CaseResult = {
   variants: [
     {
       candidate: { label: "baseline", prompt: "" },
-      passRate: 0,
       trials: [
         {
-          verdict: {
-            pass: false,
-            reason: "Synthetic expected baseline failure",
+          outcome: {
+            verdict: {
+              pass: false,
+              reason: "Synthetic expected baseline failure",
+            },
+            artifact: "<script>window.UNSAFE_EVAL_PAYLOAD=true</script>",
           },
-          artifact: "<script>window.UNSAFE_EVAL_PAYLOAD=true</script>",
         },
       ],
     },
     {
       candidate: { label: "guided", prompt: "Escape evidence" },
-      passRate: 1,
       trials: [
         {
-          verdict: { pass: true, reason: "Synthetic candidate pass" },
-          artifact: "safe output",
+          outcome: {
+            verdict: { pass: true, reason: "Synthetic candidate pass" },
+            artifact: "safe output",
+          },
         },
       ],
     },
@@ -92,9 +99,7 @@ const html = readFileSync(join(reportDir, "index.html"), "utf8");
 assert.ok(html.includes("dashboard-smoke"));
 assert.ok(!html.includes("<script>window.UNSAFE_EVAL_PAYLOAD=true</script>"));
 
-result.variants[0]!.trials = [
-  { error: true, message: "Synthetic timeout", artifact: "" },
-];
+result.variants[0]!.trials = [{ error: true, message: "Synthetic timeout" }];
 writeFileSync(output, JSON.stringify(createDashboardArtifact([result])));
 run(
   [

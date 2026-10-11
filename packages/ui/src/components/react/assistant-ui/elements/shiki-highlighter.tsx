@@ -1,7 +1,27 @@
 "use client";
 
-import { useMemo, type FC } from "react";
-import { useShikiHighlighter, type ShikiHighlighterProps } from "react-shiki";
+import {
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type FC,
+} from "react";
+import {
+  useShikiHighlighter,
+  type ShikiHighlighterProps,
+} from "react-shiki/core";
+import {
+  createHighlighterCore,
+  guessEmbeddedLanguages,
+  type HighlighterCore,
+  type LanguageInput,
+  type ThemeInput,
+} from "shiki/core";
+import { createJavaScriptRegexEngine } from "shiki/engine/javascript";
+import { bundledLanguages } from "shiki/langs";
+import { bundledThemes } from "shiki/themes";
 import { cn } from "@/lib/utils";
 
 /**
@@ -43,17 +63,197 @@ const createHighlightedLinesTransformer = (
   };
 };
 
-const HighlightedCode: FC<{
+type HighlighterOptions = Omit<
+  ShikiHighlighterProps,
+  "children" | "language" | "theme"
+>;
+type Engine = NonNullable<ShikiHighlighterProps["engine"]>;
+type CodeProps = {
   code: string;
   language: SyntaxHighlighterProps["language"];
   theme: NonNullable<SyntaxHighlighterProps["theme"]>;
-  options: Omit<ShikiHighlighterProps, "children" | "language" | "theme">;
-}> = ({ code, language, theme, options }) => {
+  options: HighlighterOptions;
+};
+
+const namedEngines = {
+  javascript: () => createJavaScriptRegexEngine(),
+  oniguruma: () =>
+    import("shiki/engine/oniguruma").then(({ createOnigurumaEngine }) =>
+      createOnigurumaEngine(import("shiki/wasm")),
+    ),
+};
+const namedEngineKeys = { javascript: {}, oniguruma: {} };
+
+const highlighters = new WeakMap<object, Promise<HighlighterCore>>();
+const attemptedLoads = new WeakMap<HighlighterCore, Set<unknown>>();
+
+const getHighlighter = (engine: Engine) => {
+  const key = typeof engine === "string" ? namedEngineKeys[engine] : engine;
+  const cached = highlighters.get(key);
+  if (cached) return cached;
+  const highlighter = createHighlighterCore({
+    engine: typeof engine === "string" ? namedEngines[engine]() : engine,
+  });
+  highlighters.set(key, highlighter);
+  highlighter.catch(() => highlighters.delete(key));
+  return highlighter;
+};
+
+const findBundled = <T,>(bundle: Record<string, T>, id: string) =>
+  Object.hasOwn(bundle, id) ? bundle[id] : undefined;
+
+type PendingLoad = {
+  key: string;
+  inputs: unknown[];
+  langs: LanguageInput[];
+  themes: ThemeInput[];
+};
+
+const findPendingLoad = (
+  highlighter: HighlighterCore,
+  { code, language, theme, options }: CodeProps,
+): PendingLoad => {
+  const attempted = attemptedLoads.get(highlighter);
+  const loadedLangs = highlighter.getLoadedLanguages();
+  const loadedThemes = highlighter.getLoadedThemes();
+  const pending: PendingLoad = { key: "", inputs: [], langs: [], themes: [] };
+  const isPending = (input: unknown, id: string, loaded: string[]) =>
+    !loaded.includes(id) && !attempted?.has(input);
+  const track = (input: unknown, id: string) => {
+    pending.inputs.push(input);
+    pending.key += `${id}|`;
+  };
+
+  const addBundledLanguage = (lang: string) => {
+    const id = lang.trim();
+    const target =
+      Object.entries(options.langAlias ?? {}).find(
+        ([alias]) => alias.toLowerCase() === id.toLowerCase(),
+      )?.[1] ?? id;
+    const bundled = findBundled(bundledLanguages, target);
+    if (!bundled || !isPending(target, target, loadedLangs)) return;
+    pending.langs.push(bundled);
+    track(target, target);
+  };
+
+  for (const lang of [
+    language,
+    ...[options.preloadLanguages ?? []].flat(),
+    ...[options.customLanguages ?? []].flat(),
+  ]) {
+    if (!lang) continue;
+    if (typeof lang === "string") {
+      addBundledLanguage(lang);
+    } else if ("scopeName" in lang) {
+      if (!isPending(lang, lang.name, loadedLangs)) continue;
+      pending.langs.push(lang);
+      track(lang, lang.name);
+    } else if (!attempted?.has(lang)) {
+      pending.langs.push(lang);
+      track(lang, "*");
+    }
+  }
+  if (typeof language === "string") {
+    for (const embedded of guessEmbeddedLanguages(code, language)) {
+      addBundledLanguage(embedded);
+    }
+  }
+
+  const themes =
+    typeof theme === "string" || "tokenColors" in theme || "settings" in theme
+      ? [theme]
+      : Object.values(theme);
+  for (const name of themes) {
+    if (typeof name !== "string") continue;
+    const bundled = findBundled(bundledThemes, name);
+    if (!bundled || !isPending(name, name, loadedThemes)) continue;
+    pending.themes.push(bundled);
+    track(name, name);
+  }
+  return pending;
+};
+
+/**
+ * Keeps one Shiki highlighter per RegExp engine, unlike react-shiki's page-wide
+ * singleton, so an explicit `engine` is honored. The JavaScript engine is the
+ * default because the Oniguruma engine compiles WebAssembly, which a Content
+ * Security Policy without 'wasm-unsafe-eval' blocks.
+ */
+const useEngineHighlighter = (engine: Engine, props: CodeProps) => {
+  const [resolved, setResolved] = useState<{
+    engine: Engine;
+    highlighter: HighlighterCore;
+  }>();
+  const [, rerender] = useReducer((count: number) => count + 1, 0);
+  const [failedKey, setFailedKey] = useState<string>();
+
+  useEffect(() => {
+    let active = true;
+    getHighlighter(engine).then(
+      (highlighter) => {
+        if (active) setResolved({ engine, highlighter });
+      },
+      (error: unknown) => {
+        console.error("[shiki-highlighter] highlighter failed", error);
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [engine]);
+
+  const highlighter =
+    resolved?.engine === engine ? resolved.highlighter : undefined;
+  const pending = highlighter ? findPendingLoad(highlighter, props) : undefined;
+  const pendingRef = useRef(pending);
+  pendingRef.current = pending;
+
+  useEffect(() => {
+    const load = pendingRef.current;
+    if (!highlighter || !load?.key) return;
+    const attempted = attemptedLoads.get(highlighter) ?? new Set();
+    attemptedLoads.set(highlighter, attempted);
+    Promise.all([
+      highlighter.loadLanguage(...load.langs),
+      highlighter.loadTheme(...load.themes),
+    ]).then(
+      () => {
+        for (const input of load.inputs) attempted.add(input);
+        rerender();
+      },
+      (error: unknown) => {
+        console.error("[shiki-highlighter] loading failed", error);
+        setFailedKey(load.key);
+      },
+    );
+  }, [highlighter, pending?.key]);
+
+  return pending?.key === "" || pending?.key === failedKey
+    ? highlighter
+    : undefined;
+};
+
+const ShikiCode: FC<CodeProps> = ({ code, language, theme, options }) => {
   const highlighted = useShikiHighlighter(code, language, theme, {
     ...options,
     defaultColor: "light-dark()",
   });
   return <>{highlighted ?? <PlainCode code={code} />}</>;
+};
+
+const EngineCode: FC<CodeProps & { engine: Engine }> = ({
+  engine,
+  ...props
+}) => {
+  const highlighter = useEngineHighlighter(engine, props);
+  if (!highlighter) return <PlainCode code={props.code} />;
+  return <ShikiCode {...props} options={{ ...props.options, highlighter }} />;
+};
+
+const HighlightedCode: FC<CodeProps> = (props) => {
+  const { engine = "javascript", highlighter, ...options } = props.options;
+  if (highlighter) return <ShikiCode {...props} />;
+  return <EngineCode {...props} options={options} engine={engine} />;
 };
 
 /**

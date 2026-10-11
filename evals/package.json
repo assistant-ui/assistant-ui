@@ -3,12 +3,13 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "A/B harness for deciding which guidance sentences earn a place in AGENTS.md / skills",
+  "description": "A/B evals for prompts and model output, scored by an LLM judge",
   "scripts": {
-    "eval": "node src/cli.ts",
-    "test": "vitest run src/*.test.ts",
+    "eval": "node --env-file-if-exists=.env src/cli.ts",
+    "test": "node --test \"src/**/*.test.ts\"",
+    "test:coverage": "pnpm run test",
     "typecheck": "tsc --noEmit",
-    "lint:fix": "oxfmt src/cases/*.ts src/*.ts package.json tsconfig.json README.md",
+    "lint:fix": "oxfmt \"src/**/*.ts\" package.json tsconfig.json README.md",
     "dashboard": "eval-dashboards report --input=.evals_output/live --reporter=html --reporter=json-summary --report-dir=results/eval-dashboard",
     "dashboard:lint": "eval-dashboards lint --input=.evals_output/live",
     "dashboard:check": "eval-dashboards check --input=.evals_output/live --min-pass-rate=0 --min-matched-expectation-rate=1",
@@ -17,11 +18,17 @@
     "dashboard:docs": "eval-dashboards report --input=.evals_output/live --reporter=html --reporter=json-summary --report-dir=../apps/docs/public/eval-dashboard"
   },
   "devDependencies": {
+    "@assistant-ui/generative-ui": "workspace:*",
+    "@assistant-ui/x-buildutils": "workspace:*",
+    "@types/node": "^26.6.4",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "ai": "^7.0.130",
+    "generative-frame": "workspace:*",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "zod": "^4.6.5",
     "@icodenet/eval-dashboards": "^0.8.0",
-    "@types/node": "^22.0.0",
-    "http-server": "^14.1.1",
-    "oxfmt": "^0.71.0",
-    "typescript": "^5.9.0",
-    "vitest": "^4.1.11"
+    "http-server": "^14.1.1"
   }
 }

@@ -12,7 +12,7 @@ import {
 } from "react";
 import { Maximize2, Minus, Plus, RotateCcw, X } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -127,11 +127,12 @@ export function FlowExpand({ className, children, ...props }: FlowExpandProps) {
         {...props}
       >
         {children}
-        <Button
+        <button
           ref={triggerRef}
           type="button"
-          variant="ghost"
-          size="icon-sm"
+          data-slot="button"
+          data-variant="ghost"
+          data-size="icon-sm"
           aria-label="Expand diagram"
           title="Expand diagram"
           aria-haspopup="dialog"
@@ -139,12 +140,13 @@ export function FlowExpand({ className, children, ...props }: FlowExpandProps) {
           aria-controls={open ? dialogId : undefined}
           onClick={() => onOpenChange(true)}
           className={cn(
+            buttonVariants({ variant: "ghost", size: "icon-sm" }),
             flowControlButtonClass,
             "aui-flow-expand-trigger absolute end-2 top-2 opacity-0 group-hover/flow:opacity-100 focus-visible:opacity-100",
           )}
         >
           <Maximize2 className="size-3.5" />
-        </Button>
+        </button>
         <DialogContent
           id={dialogId}
           showCloseButton={false}

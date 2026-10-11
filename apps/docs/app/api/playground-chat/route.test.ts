@@ -1,10 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
+import { updateConfigSchema } from "@/lib/playground-config-schema";
 
 const mocks = vi.hoisted(() => ({
   checkRateLimit: vi.fn(),
   resolveChatModel: vi.fn(),
   getDistinctId: vi.fn(),
   streamText: vi.fn(),
+  convertToModelMessages: vi.fn<
+    (messages: unknown, options?: { tools?: unknown }) => unknown
+  >((messages) => messages),
 }));
 
 vi.mock("@/lib/feature-flags", async (importOriginal) => ({
@@ -34,7 +38,7 @@ vi.mock("@/lib/posthog-server", async (importOriginal) => ({
 
 vi.mock("ai", async (importOriginal) => ({
   ...(await importOriginal()),
-  convertToModelMessages: (messages: unknown) => messages,
+  convertToModelMessages: mocks.convertToModelMessages,
   pruneMessages: ({ messages }: { messages: unknown }) => messages,
   stepCountIs: () => () => false,
   streamText: mocks.streamText,
@@ -57,6 +61,45 @@ const request = (overrides?: Record<string, unknown>) =>
   });
 
 describe("POST /api/playground-chat telemetry", () => {
+  it("lists exactly the config schema fields in the system prompt", async () => {
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.resolveChatModel.mockReturnValue({ model: {} });
+    mocks.streamText.mockReturnValue({
+      toUIMessageStreamResponse: () => new Response(null, { status: 200 }),
+    });
+
+    await POST(request());
+
+    const system = mocks.streamText.mock.calls[0]?.[0].system as string;
+    const fieldsIn = (section: string) => {
+      const body = system.split(`### ${section}\n`)[1]?.split("\n\n")[0];
+      return Array.from(
+        body?.matchAll(/^- ([\w.]+) \(/gm) ?? [],
+        ([, field]) => field,
+      );
+    };
+    const components = updateConfigSchema.shape.components.unwrap().shape;
+    const styles = updateConfigSchema.shape.styles.unwrap().shape;
+    const expectedComponents = Object.keys(components).flatMap((key) =>
+      key === "actionBar"
+        ? Object.keys(components.actionBar.unwrap().shape).map(
+            (child) => `${key}.${child}`,
+          )
+        : [key],
+    );
+    const expectedStyles = Object.keys(styles).flatMap((key) =>
+      key === "colors"
+        ? Object.keys(styles.colors.unwrap().shape).map(
+            (child) => `${key}.${child}`,
+          )
+        : [key],
+    );
+
+    expect(fieldsIn("components")).toEqual(expectedComponents);
+    expect(fieldsIn("styles")).toEqual(expectedStyles);
+    expect(system).toContain("### customCSS (string, optional)");
+  });
+
   it("reports under its own capability so it separates from the other chat routes", async () => {
     mocks.checkRateLimit.mockResolvedValue(null);
     mocks.resolveChatModel.mockReturnValue({ model: {} });
@@ -65,15 +108,53 @@ describe("POST /api/playground-chat telemetry", () => {
       toUIMessageStreamResponse: () => new Response(null, { status: 200 }),
     });
 
-    const response = await POST(request());
+    const req = request();
+    const response = await POST(req);
 
     expect(response.status).toBe(200);
     const options = mocks.streamText.mock.calls[0]?.[0];
+    expect(options.abortSignal).toBe(req.signal);
     expect(options.telemetry.functionId).toBe("playground_chat");
     expect(options.runtimeContext.$ai_span_name).toBe("playground_chat");
     expect(options.runtimeContext.posthog_distinct_id).toBe(
       "distinct_1234567890",
     );
+  });
+
+  it("converts messages with the tool set it streams with", async () => {
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.resolveChatModel.mockReturnValue({ model: {} });
+    mocks.streamText.mockReturnValue({
+      toUIMessageStreamResponse: () => new Response(null, { status: 200 }),
+    });
+
+    await POST(
+      request({
+        tools: {
+          update_config: {
+            description: "Update the builder config",
+            parameters: { type: "object", properties: {} },
+          },
+        },
+      }),
+    );
+
+    const tools = mocks.streamText.mock.calls[0]?.[0].tools;
+    expect(Object.keys(tools)).toEqual(["update_config"]);
+    expect(mocks.convertToModelMessages.mock.calls[0]?.[1]?.tools).toBe(tools);
+  });
+
+  it("streams a request that sends no tools", async () => {
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.resolveChatModel.mockReturnValue({ model: {} });
+    mocks.streamText.mockReturnValue({
+      toUIMessageStreamResponse: () => new Response(null, { status: 200 }),
+    });
+
+    const response = await POST(request({ tools: undefined }));
+
+    expect(response.status).toBe(200);
+    expect(mocks.streamText.mock.calls[0]?.[0].tools).toEqual({});
   });
 
   it("does not reach the model when the rate limit answers", async () => {

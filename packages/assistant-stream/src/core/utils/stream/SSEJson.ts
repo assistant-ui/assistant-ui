@@ -21,6 +21,8 @@ type SSEJsonDecoderOptions<T> = {
     controller: TransformStreamDefaultController<T>,
   ) => void;
   done?: SSEJsonDoneOptions<T>;
+  maxLineLength?: number | undefined;
+  maxEventLength?: number | undefined;
 } & (
   | { strict?: true }
   | {
@@ -54,7 +56,12 @@ export const createSSEJsonDecoder =
 
     return readable
       .pipeThrough(new TextDecoderStream())
-      .pipeThrough(new SSEEventDecoderStream())
+      .pipeThrough(
+        new SSEEventDecoderStream({
+          maxLineLength: options.maxLineLength,
+          maxEventLength: options.maxEventLength,
+        }),
+      )
       .pipeThrough(
         new TransformStream<PipelineSSEEvent, T>({
           transform(event, controller) {

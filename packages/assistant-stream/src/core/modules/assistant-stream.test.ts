@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import {
   createAssistantStream,
   createAssistantStreamController,
+  type AssistantStreamController,
 } from "./assistant-stream";
 import { createAssistantStreamResponse } from "./assistant-stream-response";
 import { AssistantStream } from "../AssistantStream";
@@ -9,6 +10,11 @@ import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import { DataStreamDecoder } from "../serialization/data-stream/DataStream";
 import { AssistantMessageAccumulator } from "../accumulators/assistant-message-accumulator";
 import type { AssistantMessage } from "../utils/types";
+import { toolResultStream } from "../tool/toolResultStream";
+import {
+  AssistantTransportDecoder,
+  AssistantTransportEncoder,
+} from "../serialization/assistant-transport/AssistantTransport";
 
 const accumulate = async (response: Response): Promise<AssistantMessage> => {
   const stream = AssistantStream.fromResponse(
@@ -112,6 +118,14 @@ describe("controller close idempotence", () => {
 });
 
 describe("raw chunk ordering", () => {
+  const stepFinish: AssistantStreamChunk = {
+    type: "step-finish",
+    path: [],
+    finishReason: "tool-calls",
+    usage: { inputTokens: 0, outputTokens: 0 },
+    isContinued: false,
+  };
+
   it("emits synchronous raw chunks before an appended part body", async () => {
     const before: AssistantStreamChunk = {
       type: "annotations",
@@ -151,9 +165,496 @@ describe("raw chunk ordering", () => {
       },
     ]);
   });
+
+  it("keeps tool args when step-finish follows the closed args", async () => {
+    const message = await accumulate(
+      createAssistantStreamResponse((controller) => {
+        const tool = controller.addToolCallPart({
+          toolCallId: "t1",
+          toolName: "weather",
+        });
+        tool.argsText.append('{"city":"Paris"}');
+        tool.argsText.close();
+        controller.enqueue({
+          type: "step-finish",
+          path: [],
+          finishReason: "tool-calls",
+          usage: { inputTokens: 0, outputTokens: 0 },
+          isContinued: false,
+        });
+        tool.close();
+      }),
+    );
+
+    expect(message.parts).toContainEqual(
+      expect.objectContaining({
+        type: "tool-call",
+        argsText: '{"city":"Paris"}',
+      }),
+    );
+  });
+
+  it("keeps tool args when message-finish follows the closed tool call", async () => {
+    const message = await accumulate(
+      createAssistantStreamResponse((controller) => {
+        const tool = controller.addToolCallPart({
+          toolCallId: "t1",
+          toolName: "weather",
+        });
+        tool.argsText.append('{"city":"Paris"}');
+        tool.argsText.close();
+        tool.close();
+        controller.enqueue({
+          type: "message-finish",
+          path: [],
+          finishReason: "tool-calls",
+          usage: { inputTokens: 0, outputTokens: 0 },
+        });
+      }),
+    );
+
+    expect(message.parts).toContainEqual(
+      expect.objectContaining({
+        type: "tool-call",
+        argsText: '{"city":"Paris"}',
+      }),
+    );
+  });
+
+  it("keeps a text body ahead of a message-finish enqueued after it", async () => {
+    const chunks = await collectChunks(
+      createAssistantStream((controller) => {
+        controller.appendText("hello");
+        controller.enqueue({
+          type: "message-finish",
+          path: [],
+          finishReason: "stop",
+          usage: { inputTokens: 0, outputTokens: 0 },
+        });
+      }),
+    );
+
+    expect(chunks.map((c) => c.type)).toEqual([
+      "part-start",
+      "text-delta",
+      "message-finish",
+      "part-finish",
+    ]);
+  });
+
+  it("emits part chunks before the error chunk when a callback throws", async () => {
+    const chunks = await collectChunks(
+      createAssistantStream((controller) => {
+        controller.appendText("hello");
+        throw new Error("failed");
+      }),
+    );
+
+    const errorIndex = chunks.findIndex((chunk) => chunk.type === "error");
+    const deltaIndex = chunks.findIndex((chunk) => chunk.type === "text-delta");
+    expect(deltaIndex).toBeGreaterThanOrEqual(0);
+    expect(errorIndex).toBeGreaterThan(deltaIndex);
+  });
+
+  it("starts a part opened after a held step-finish before its body", async () => {
+    const run = (controller: AssistantStreamController) => {
+      const tool = controller.addToolCallPart({
+        toolCallId: "t1",
+        toolName: "weather",
+      });
+      tool.argsText.append('{"city":"Paris"}');
+      controller.enqueue(stepFinish);
+      controller.appendText("next");
+      tool.close();
+    };
+
+    const chunks = await collectChunks(createAssistantStream(run));
+    let started = 0;
+    for (const chunk of chunks) {
+      if (chunk.type === "part-start" && chunk.path.length === 0) started++;
+      else if (chunk.path.length > 0)
+        expect(chunk.path[0]).toBeLessThan(started);
+    }
+
+    const message = await accumulate(createAssistantStreamResponse(run));
+    expect(message.parts).toContainEqual(
+      expect.objectContaining({ type: "text", text: "next" }),
+    );
+    expect(message.parts).toContainEqual(
+      expect.objectContaining({
+        type: "tool-call",
+        argsText: '{"city":"Paris"}',
+      }),
+    );
+  });
+
+  it("keeps a tool call added after a held step-finish", async () => {
+    const message = await accumulate(
+      createAssistantStreamResponse((controller) => {
+        const first = controller.addToolCallPart({
+          toolCallId: "t1",
+          toolName: "weather",
+        });
+        first.argsText.append('{"city":"Paris"}');
+        controller.enqueue(stepFinish);
+        const second = controller.addToolCallPart({
+          toolCallId: "t2",
+          toolName: "weather",
+          args: { city: "Rome" },
+        });
+        second.setResponse({ result: "sunny" });
+        first.close();
+      }),
+    );
+
+    expect(message.parts).toContainEqual(
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "t2",
+        argsText: '{"city":"Rome"}',
+        result: "sunny",
+      }),
+    );
+  });
+
+  it("emits a step-finish without waiting for an open part to close", async () => {
+    const [stream, controller] = createAssistantStreamController();
+    const text = controller.addTextPart();
+    text.append("a");
+    controller.enqueue(stepFinish);
+
+    const reader = stream.getReader();
+    const types: string[] = [];
+    while (!types.includes("step-finish")) {
+      const { value } = await reader.read();
+      types.push(value!.type);
+    }
+    expect(types).toEqual(["part-start", "text-delta", "step-finish"]);
+
+    text.append("b");
+    text.close();
+    controller.close();
+    const rest: string[] = [];
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      rest.push(value.type);
+    }
+    expect(rest).toEqual(["text-delta", "part-finish"]);
+  });
+
+  it("cancels promptly while a step-finish is held", async () => {
+    let release!: () => void;
+    const released = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const stream = createAssistantStream(async (controller) => {
+      const text = controller.addTextPart();
+      const tool = controller.addToolCallPart({
+        toolCallId: "t1",
+        toolName: "weather",
+      });
+      text.append("a");
+      tool.argsText.append("{");
+      controller.enqueue(stepFinish);
+      await released;
+      text.append("late");
+      tool.close();
+      text.close();
+    });
+
+    const reader = stream.getReader();
+    await reader.read();
+    const reasons = await captureUnhandledRejections(() => reader.cancel());
+    release();
+    expect(reasons).toEqual([]);
+  });
+
+  it("does not hold a step-finish for a write the part dropped", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const [stream, controller] = createAssistantStreamController({
+        strict: false,
+      });
+      const tool = controller.addToolCallPart({
+        toolCallId: "t1",
+        toolName: "weather",
+      });
+      tool.argsText.append("{}");
+      tool.argsText.close();
+      tool.argsText.append("dropped");
+      controller.enqueue(stepFinish);
+
+      const reader = stream.getReader();
+      const types: string[] = [];
+      while (!types.includes("step-finish")) {
+        const { value } = await reader.read();
+        types.push(value!.type);
+      }
+      expect(types).toEqual(["part-start", "text-delta", "step-finish"]);
+
+      tool.close();
+      controller.close();
+      await reader.cancel();
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it("emits the error chunk while a merged stream stays open", async () => {
+    let upstream!: ReadableStreamDefaultController<AssistantStreamChunk>;
+    const stream = createAssistantStream((controller) => {
+      controller.merge(
+        new ReadableStream({
+          start(c) {
+            upstream = c;
+          },
+        }),
+      );
+      controller.appendText("partial");
+      throw new Error("failed");
+    });
+
+    const reader = stream.getReader();
+    const types: string[] = [];
+    while (!types.includes("error")) {
+      const { value } = await reader.read();
+      types.push(value!.type);
+    }
+    expect(types).toEqual(["part-start", "text-delta", "error"]);
+
+    upstream.close();
+    await reader.cancel();
+  });
 });
 
 describe("createAssistantStream task settlement", () => {
+  it.each(["text", "reasoning", "tool-call"] as const)(
+    "ignores a background %s writer after the callback fails",
+    async (type) => {
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      let lateWrite!: Promise<void>;
+      const chunks = await collectChunks(
+        createAssistantStream((controller) => {
+          const part =
+            type === "text"
+              ? controller.addTextPart()
+              : type === "reasoning"
+                ? controller.addReasoningPart()
+                : controller.addToolCallPart("search").argsText;
+          lateWrite = gate.then(() => {
+            part.append("late");
+          });
+          throw new Error("provider failed");
+        }),
+      );
+
+      release();
+      await expect(lateWrite).resolves.toBeUndefined();
+      expect(chunks.filter((chunk) => chunk.type === "text-delta")).toEqual([]);
+    },
+  );
+
+  it.each(["text", "reasoning", "tool-call"] as const)(
+    "keeps strict writes after an explicit %s close when the callback fails",
+    async (type) => {
+      let append!: () => void;
+      await collectChunks(
+        createAssistantStream((controller) => {
+          const part =
+            type === "text"
+              ? controller.addTextPart()
+              : type === "reasoning"
+                ? controller.addReasoningPart()
+                : controller.addToolCallPart("search").argsText;
+          part.close();
+          append = () => part.append("late");
+          throw new Error("provider failed");
+        }),
+      );
+
+      expect(append).toThrow("Cannot append to a closed TextStreamController");
+    },
+  );
+
+  it("finishes open text and reasoning parts and cuts off open tool calls when the callback throws", async () => {
+    const chunks = await collectChunks(
+      createAssistantStream(async (controller) => {
+        controller.addTextPart().append("partial");
+        controller.addReasoningPart().append("thinking");
+        controller.addToolCallPart({ toolCallId: "t1", toolName: "search" });
+        throw new Error("provider failed");
+      }),
+    );
+
+    expect(chunks.filter((c) => c.type === "error")).toHaveLength(1);
+    expect(chunks).toContainEqual({
+      type: "text-delta",
+      path: [0],
+      textDelta: "partial",
+    });
+    expect(
+      chunks.filter((c) => c.type === "part-finish").map((c) => c.path),
+    ).toEqual([[0], [1]]);
+    expect(chunks.map((c) => c.type)).not.toContain(
+      "tool-call-args-text-finish",
+    );
+  });
+
+  it.each([false, true])(
+    "keeps the args finish of a tool call whose args completed when the callback throws (async: %s)",
+    async (isAsync) => {
+      const run: Parameters<typeof createAssistantStream>[0] = (controller) => {
+        controller.addToolCallPart({
+          toolCallId: "t1",
+          toolName: "confirm",
+          args: { id: 1 },
+        });
+        throw new Error("upstream failed");
+      };
+      const chunks = await collectChunks(
+        createAssistantStream(isAsync ? async (c) => run(c) : run),
+      );
+
+      expect(chunks.filter((c) => c.type === "error")).toHaveLength(1);
+      expect(chunks.map((c) => c.type)).toContain("tool-call-args-text-finish");
+    },
+  );
+
+  it.each(["appendText", "appendReasoning"] as const)(
+    "finishes the part %s opened when the callback throws",
+    async (method) => {
+      const chunks = await collectChunks(
+        createAssistantStream((controller) => {
+          controller[method]("partial");
+          throw new Error("provider failed");
+        }),
+      );
+
+      expect(chunks.map((c) => c.type)).toEqual([
+        "part-start",
+        "text-delta",
+        "error",
+        "part-finish",
+      ]);
+    },
+  );
+
+  it("does not run a frontend tool whose call was open when the callback threw", async () => {
+    const execute = vi.fn(() => "confirmed");
+    const response = new Response(
+      createAssistantStream((controller) => {
+        controller.appendText("partial");
+        controller.addToolCallPart({ toolCallId: "t1", toolName: "confirm" });
+        controller
+          .addToolCallPart({ toolCallId: "t2", toolName: "confirm" })
+          .argsText.append('{"orderId":');
+        throw new Error("upstream failed");
+      }).pipeThrough(new AssistantTransportEncoder()),
+    );
+
+    let message: AssistantMessage | undefined;
+    await AssistantStream.fromResponse(
+      response,
+      new AssistantTransportDecoder(),
+    )
+      .pipeThrough(
+        toolResultStream(
+          { confirm: { parameters: { type: "object" }, execute } },
+          new AbortController().signal,
+          async () => {},
+        ),
+      )
+      .pipeThrough(new AssistantMessageAccumulator())
+      .pipeTo(
+        new WritableStream({
+          write(m) {
+            message = m;
+          },
+        }),
+      );
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(message?.status).toMatchObject({
+      type: "incomplete",
+      reason: "error",
+    });
+    expect(message?.parts).toMatchObject([
+      { type: "text", text: "partial", status: { type: "complete" } },
+      { toolCallId: "t1", state: "partial-call" },
+      { toolCallId: "t2", state: "partial-call", argsText: '{"orderId":' },
+    ]);
+  });
+
+  it.each([true, false])(
+    "preserves merged output when the outer callback throws (finished: %s)",
+    async (finished) => {
+      const [merged, inner] = createAssistantStreamController();
+      inner.appendText("full answer");
+      if (finished) inner.close();
+
+      const pending = collectChunks(
+        createAssistantStream((controller) => {
+          controller.merge(merged);
+          throw new Error("outer failed");
+        }),
+      );
+      if (!finished) {
+        await Promise.resolve();
+        inner.appendText(" continued");
+        inner.close();
+      }
+
+      const chunks = await pending;
+      expect(
+        chunks
+          .filter((chunk) => chunk.type === "text-delta")
+          .map((chunk) => chunk.textDelta)
+          .join(""),
+      ).toBe(finished ? "full answer" : "full answer continued");
+      expect(chunks.filter((chunk) => chunk.type === "error")).toHaveLength(1);
+      expect(
+        chunks.filter((chunk) => chunk.type === "part-finish"),
+      ).toHaveLength(1);
+    },
+  );
+
+  it("stops tracking an input once it finishes", async () => {
+    let tracked: Set<unknown> | undefined;
+    await collectChunks(
+      createAssistantStream(async (controller) => {
+        tracked = (
+          controller as unknown as { _state: { openInputs: Set<unknown> } }
+        )._state.openInputs;
+        controller.appendText("a");
+        controller.addReasoningPart().close();
+        controller.addToolCallPart("search").setResponse({ result: 1 });
+      }),
+    );
+
+    expect(tracked?.size).toBe(0);
+  });
+
+  it("closes the outer stream when a merged stream throws with an open part", async () => {
+    const chunks = await collectChunks(
+      createAssistantStream((controller) => {
+        controller.merge(
+          createAssistantStream(async (inner) => {
+            inner.addToolCallPart("search");
+            throw new Error("inner failed");
+          }),
+        );
+      }),
+    );
+
+    expect(chunks.map((c) => c.type)).toEqual(["part-start", "error"]);
+  });
+
   it("emits callback failures without leaking an unhandled rejection", async () => {
     let chunks: AssistantStreamChunk[] = [];
     const unhandledRejections = await captureUnhandledRejections(async () => {

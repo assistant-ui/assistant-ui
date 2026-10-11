@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 /**
  * Baseline parity scenarios: mount/render counts, strict-mode ghost
  * invocations, memo caching, effect lifecycles, setState batching, async

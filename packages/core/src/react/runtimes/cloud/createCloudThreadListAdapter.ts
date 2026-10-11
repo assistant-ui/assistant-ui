@@ -167,7 +167,7 @@ export const createCloudThreadListAdapter = (
     const inMemory = new InMemoryThreadListAdapter();
     inMemory.initialize = async (threadId: string) => {
       const result = await getOptions().create?.(threadId);
-      return { remoteId: threadId, externalId: result?.externalId };
+      return inMemory.register(threadId, result?.externalId);
     };
     return inMemory;
   }

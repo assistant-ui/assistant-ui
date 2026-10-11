@@ -35,6 +35,10 @@ vi.mock("@/lib/source", () => {
   return {
     source: emptySource,
     examples: emptySource,
+    docsSiteSources: {
+      "safe-content-frame": emptySource,
+      "generative-frame": emptySource,
+    },
   };
 });
 

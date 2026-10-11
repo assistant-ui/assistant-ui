@@ -1,0 +1,188 @@
+import type { Pt, ScaleKind } from "./types";
+
+export type { ScaleKind };
+
+export function round(n: number): number {
+  return Math.round(n * 100) / 100;
+}
+
+export function clamp01(n: number): number {
+  return Math.max(0, Math.min(1, n));
+}
+
+export function linear(
+  domain0: number,
+  domain1: number,
+  range0: number,
+  range1: number,
+) {
+  const span = domain1 - domain0 || 1;
+  return (v: number) => range0 + ((v - domain0) / span) * (range1 - range0);
+}
+
+/** Maps a value through linear or log paper. Log clamps non-positive input to a tiny positive floor so the scale stays defined. */
+export function project(
+  kind: ScaleKind,
+  domain0: number,
+  domain1: number,
+  range0: number,
+  range1: number,
+) {
+  if (kind === "log") {
+    const d0 = Math.log(Math.max(domain0, Number.EPSILON));
+    const d1 = Math.log(Math.max(domain1, Number.EPSILON));
+    const span = d1 - d0 || 1;
+    return (v: number) =>
+      range0 +
+      ((Math.log(Math.max(v, Number.EPSILON)) - d0) / span) * (range1 - range0);
+  }
+  return linear(domain0, domain1, range0, range1);
+}
+
+/** Extent of strictly positive values; falls back to [1, 10] when none exist. */
+export function positiveExtent(values: number[]): [number, number] {
+  const pos = values.filter((v) => v > 0);
+  if (pos.length === 0) return [1, 10];
+  return extent(pos);
+}
+
+export function rowMid(index: number, rowH: number, top: number): number {
+  return top + (index + 0.5) * rowH;
+}
+
+export function rowMarkH(rowH: number, ratio = 0.42): number {
+  return Math.max(4, Math.min(rowH * ratio, rowH - 2));
+}
+
+export function extent(values: number[]): [number, number] {
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const v of values) {
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
+  }
+  if (!Number.isFinite(lo)) return [0, 1];
+  return [lo, hi];
+}
+
+export function scalePoints(
+  values: number[],
+  x0: number,
+  x1: number,
+  y0: number,
+  y1: number,
+  min?: number,
+  max?: number,
+): Pt[] {
+  const [lo0, hi0] = extent(values);
+  const lo = min ?? Math.min(lo0, 0);
+  const hi = max ?? hi0;
+  const span = hi - lo || 1;
+  const step = values.length > 1 ? (x1 - x0) / (values.length - 1) : 0;
+  return values.map((v, i) => ({
+    x: x0 + i * step,
+    y: y0 - ((v - lo) / span) * (y0 - y1),
+  }));
+}
+
+export function linePath(points: Pt[], smooth = true): string {
+  if (points.length === 0) return "";
+  if (!smooth || points.length < 3) {
+    return points
+      .map((p, i) => `${i === 0 ? "M" : "L"}${round(p.x)} ${round(p.y)}`)
+      .join(" ");
+  }
+  let d = `M${round(points[0]!.x)} ${round(points[0]!.y)}`;
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const p0 = points[Math.max(0, i - 1)]!;
+    const p1 = points[i]!;
+    const p2 = points[i + 1]!;
+    const p3 = points[Math.min(points.length - 1, i + 2)]!;
+    const c1x = p1.x + (p2.x - p0.x) / 6;
+    const c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6;
+    const c2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C${round(c1x)} ${round(c1y)} ${round(c2x)} ${round(c2y)} ${round(p2.x)} ${round(p2.y)}`;
+  }
+  return d;
+}
+
+export function areaPath(points: Pt[], baseY: number, smooth = true): string {
+  if (points.length === 0) return "";
+  const first = points[0]!;
+  const last = points[points.length - 1]!;
+  return `${linePath(points, smooth)} L${round(last.x)} ${round(baseY)} L${round(first.x)} ${round(baseY)} Z`;
+}
+
+export function bandPath(upper: Pt[], lower: Pt[], smooth = true): string {
+  const back = [...lower].reverse();
+  return `${linePath(upper, smooth)} L${linePath(back, smooth).slice(1)} Z`;
+}
+
+export function stepPath(points: Pt[]): string {
+  if (points.length === 0) return "";
+  let d = `M${round(points[0]!.x)} ${round(points[0]!.y)}`;
+  for (let i = 1; i < points.length; i += 1) {
+    d += ` H${round(points[i]!.x)} V${round(points[i]!.y)}`;
+  }
+  return d;
+}
+
+export function polar(cx: number, cy: number, r: number, angle: number): Pt {
+  return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+}
+
+/** Annular sector (donut slice). Angles in radians, clockwise from 12 o'clock. */
+export function ring(
+  cx: number,
+  cy: number,
+  rInner: number,
+  rOuter: number,
+  a0: number,
+  a1: number,
+): string {
+  const start = a0 - Math.PI / 2;
+  const end = a1 - Math.PI / 2;
+  const large = end - start > Math.PI ? 1 : 0;
+  const o0 = polar(cx, cy, rOuter, start);
+  const o1 = polar(cx, cy, rOuter, end);
+  const i0 = polar(cx, cy, rInner, end);
+  const i1 = polar(cx, cy, rInner, start);
+  return [
+    `M${round(o0.x)} ${round(o0.y)}`,
+    `A${rOuter} ${rOuter} 0 ${large} 1 ${round(o1.x)} ${round(o1.y)}`,
+    `L${round(i0.x)} ${round(i0.y)}`,
+    `A${rInner} ${rInner} 0 ${large} 0 ${round(i1.x)} ${round(i1.y)}`,
+    "Z",
+  ].join(" ");
+}
+
+export function arcStroke(
+  cx: number,
+  cy: number,
+  r: number,
+  a0: number,
+  a1: number,
+): string {
+  const start = polar(cx, cy, r, a0 - Math.PI / 2);
+  const end = polar(cx, cy, r, a1 - Math.PI / 2);
+  const large = a1 - a0 > Math.PI ? 1 : 0;
+  return `M${round(start.x)} ${round(start.y)} A${r} ${r} 0 ${large} 1 ${round(end.x)} ${round(end.y)}`;
+}
+
+/**
+ * Bar with the data end rounded and the baseline end square. `end` names the
+ * side that carries the value.
+ */
+export function hexPath(cx: number, cy: number, r: number): string {
+  const pts = Array.from({ length: 6 }, (_, i) =>
+    polar(cx, cy, r, (Math.PI / 3) * i + Math.PI / 6),
+  );
+  return `M${pts.map((p) => `${round(p.x)} ${round(p.y)}`).join(" L")} Z`;
+}
+
+export const stroke = {
+  line: { strokeWidth: 2, vectorEffect: "non-scaling-stroke" },
+  medium: { strokeWidth: 1.5, vectorEffect: "non-scaling-stroke" },
+  hair: { strokeWidth: 1, vectorEffect: "non-scaling-stroke" },
+} as const;

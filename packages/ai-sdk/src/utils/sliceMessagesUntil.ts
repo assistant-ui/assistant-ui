@@ -6,15 +6,11 @@ export const sliceMessagesUntil = <UI_MESSAGE extends UIMessage = UIMessage>(
 ) => {
   if (messageId == null) return [];
 
-  let messageIdx = messages.findIndex((m) => m.id === messageId);
+  const messageIdx = messages.findIndex((m) => m.id === messageId);
   if (messageIdx === -1)
     throw new Error(
       `sliceMessagesUntil: Message "${messageId}" not found in AI SDK messages. This is likely an internal bug in assistant-ui.`,
     );
-
-  while (messages[messageIdx + 1]?.role === "assistant") {
-    messageIdx++;
-  }
 
   return messages.slice(0, messageIdx + 1);
 };

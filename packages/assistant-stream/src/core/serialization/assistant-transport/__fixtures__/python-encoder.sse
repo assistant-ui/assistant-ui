@@ -26,7 +26,7 @@ data: {"type": "result", "result": {"status": "working"}, "isError": false, "isP
 
 data: {"type": "tool-call-args-text-finish", "path": [2]}
 
-data: {"type": "result", "result": {"temp": 70}, "isError": false, "path": [2]}
+data: {"type": "result", "result": {"temp": 70}, "isError": false, "messages": [{"role": "assistant", "content": [{"type": "text", "text": "Sunny"}]}], "path": [2]}
 
 data: {"type": "part-finish", "path": [2]}
 
@@ -49,6 +49,8 @@ data: {"type": "part-start", "part": {"type": "file", "data": "aGVsbG8=", "mimeT
 data: {"type": "part-finish", "path": [5]}
 
 data: {"type": "step-finish", "finishReason": "stop", "usage": {"inputTokens": 12, "outputTokens": 34}, "isContinued": false}
+
+data: {"type": "error", "error": "Forecast delayed", "code": "weather_delay", "severity": "warning"}
 
 data: [DONE]
 

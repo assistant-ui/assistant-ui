@@ -445,12 +445,14 @@ describe("ToolInvocationTracker", () => {
     },
   );
 
-  it.each(["resume", "abort"] as const)(
+  it.each(["resume", "abort", "reset"] as const)(
     "clears the status when %s() ends a request no execution owns after a pipeline restart",
     async (ending) => {
-      const execute = vi.fn((_args, { human }) =>
-        human({ request: "approve" }),
-      );
+      let signal: AbortSignal | undefined;
+      const execute = vi.fn((_args, { human, abortSignal }) => {
+        signal = abortSignal;
+        return human({ request: "approve" });
+      });
       let statuses: Record<string, ToolExecutionStatus> = {};
       const tracker = new ToolInvocationTracker(
         () => ({
@@ -485,11 +487,20 @@ describe("ToolInvocationTracker", () => {
         ),
       );
       expect(execute).toHaveBeenCalledTimes(1);
+      expect(signal).toBeDefined();
+      expect(signal!.aborted).toBe(false);
 
+      expect(statuses["tool-1"]?.type).toBe("interrupt");
       if (ending === "resume")
         expect(tracker.resume("tool-1", true)).toBe(true);
+      else if (ending === "reset") tracker.reset();
       else await tracker.abort();
       expect(statuses).toEqual({});
+      expect(signal!.aborted).toBe(ending !== "resume");
+      if (ending === "resume") {
+        await tracker.abort();
+        expect(signal!.aborted).toBe(true);
+      }
     },
   );
 
@@ -992,6 +1003,44 @@ describe("ToolInvocationTracker", () => {
     expect(onResult).not.toHaveBeenCalled();
   });
 
+  it("never executes a tool whose turn is discarded in the tick its run settles", async () => {
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([], false));
+
+    const complete = (isRunning: boolean) =>
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            { toolName: "deleteFile" },
+          ),
+        ],
+        isRunning,
+      );
+
+    tracker.setState(complete(true));
+    await new Promise((r) => setTimeout(r, 0));
+
+    tracker.setState(complete(false));
+    await tracker.abort({ discardPending: true });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
   it("keeps a discarded call skipped when the pipeline restarts before it settles", async () => {
     const execute = vi.fn(async () => ({ deleted: true }));
     const getTools = () => ({
@@ -1100,6 +1149,71 @@ describe("ToolInvocationTracker", () => {
 
     expect(streamCall).toHaveBeenCalledOnce();
   });
+
+  it.each([false, true])(
+    "clears abandoned execution state when the pipeline restarts (abort first: %s)",
+    async (abortFirst) => {
+      const execution = Promise.withResolvers<{ ok: true }>();
+      let signal: AbortSignal | undefined;
+      const execute = vi.fn((_args, { abortSignal }) => {
+        signal = abortSignal;
+        return execution.promise;
+      });
+      let statuses: ReadonlyMap<string, ToolExecutionStatus> = new Map();
+      const tracker = new ToolInvocationTracker(
+        () => ({
+          weatherSearch: {
+            parameters: { type: "object", properties: {} },
+            execute,
+          } satisfies Tool,
+        }),
+        {
+          onResult: vi.fn(),
+          onStatusesChange: (next) => {
+            statuses = next;
+          },
+        },
+      );
+
+      const complete = () =>
+        createState(
+          [createAssistantMessage('{"query":"London"}', { query: "London" })],
+          false,
+        );
+
+      tracker.setState(createState([], false));
+      tracker.setState(complete());
+      await waitFor(() => {
+        expect(execute).toHaveBeenCalledOnce();
+        expect(statuses.get("tool-1")?.type).toBe("executing");
+      });
+
+      let abortResolved = false;
+      const abort = abortFirst
+        ? tracker.abort({ discardPending: true }).then(() => {
+            abortResolved = true;
+          })
+        : Promise.resolve();
+
+      killPipeline(tracker);
+      tracker.setState(complete());
+
+      await waitFor(() => {
+        expect(abortResolved).toBe(abortFirst);
+        expect(signal).toBeDefined();
+        expect(signal!.aborted).toBe(true);
+        expect(statuses.get("tool-1")).toBeUndefined();
+      });
+      expect(
+        (tracker as unknown as { _executing: Set<symbol> })._executing.size,
+      ).toBe(0);
+
+      execution.resolve({ ok: true });
+      await abort;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(statuses.get("tool-1")).toBeUndefined();
+    },
+  );
 
   it("never executes a registered tool the provider gates before its run ends", async () => {
     const execute = vi.fn(async () => ({ deleted: true }));

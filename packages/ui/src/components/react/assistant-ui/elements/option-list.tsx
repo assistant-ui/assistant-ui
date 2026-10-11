@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, type ComponentProps } from "react";
+import { useCallback, useState, type ComponentProps } from "react";
 import { CheckIcon, Loader2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { inkButton, mono, paper } from "./surfaces";
 import { clamp } from "../utils/range";
+import { useReceiptFocus } from "./receipt-focus";
 
 export interface OptionListOption {
   id: string;
@@ -53,7 +54,7 @@ function OptionText({ option }: { option: OptionListOption }) {
         {option.label}
       </span>
       {option.description ? (
-        <span className="text-foreground/45 text-xs leading-4 break-words">
+        <span className="text-muted-foreground text-xs leading-4 break-words">
           {option.description}
         </span>
       ) : null}
@@ -80,6 +81,18 @@ export function OptionList({
   const [pending, setPending] = useState<readonly string[] | null>(null);
   const [confirmed, setConfirmed] = useState<readonly string[] | undefined>();
   const [error, setError] = useState<string | null>(null);
+  const { receiptRef, focusHandlers } = useReceiptFocus<HTMLDivElement>(props);
+  const setReceiptRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      receiptRef.current = node;
+      const { ref } = props;
+      if (typeof ref === "function") return ref(node);
+      if (ref && typeof ref === "object")
+        (ref as { current: HTMLDivElement | null }).current = node;
+      return undefined;
+    },
+    [props.ref, receiptRef],
+  );
 
   const root = cn(
     paper,
@@ -99,9 +112,12 @@ export function OptionList({
         data-state="receipt"
         className={root}
         {...props}
+        {...focusHandlers}
+        ref={setReceiptRef}
+        tabIndex={-1}
       >
         {chosen.length === 0 ? (
-          <span className={cn(mono, "text-foreground/35 px-2 py-2")}>
+          <span className={cn(mono, "text-muted-foreground px-2 py-2")}>
             Nothing selected
           </span>
         ) : (
@@ -110,7 +126,7 @@ export function OptionList({
               <span className="flex h-5 w-3.5 shrink-0 items-center justify-center">
                 <CheckIcon
                   aria-hidden
-                  className="text-foreground/45 size-3.5"
+                  className="text-muted-foreground size-3.5"
                 />
                 <span className="sr-only">Selected:</span>
               </span>
@@ -124,11 +140,16 @@ export function OptionList({
 
   if (!onConfirm) {
     return (
-      <div data-slot="option-list" className={root} {...props}>
+      <div
+        data-slot="option-list"
+        className={root}
+        {...props}
+        {...focusHandlers}
+      >
         {options.map((option) => (
           <div
             key={option.id}
-            className={cn(row, option.disabled && "text-foreground/35")}
+            className={cn(row, option.disabled && "text-muted-foreground")}
           >
             <OptionText option={option} />
           </div>
@@ -187,6 +208,7 @@ export function OptionList({
       aria-busy={locked || undefined}
       className={root}
       {...props}
+      {...focusHandlers}
     >
       {options.map((option) => {
         const isSelected = multiple
@@ -213,7 +235,7 @@ export function OptionList({
               isSelected
                 ? "bg-foreground/[0.06]"
                 : !unavailable && !locked && "hover:bg-foreground/[0.035]",
-              unavailable ? "text-foreground/35" : "text-foreground/90",
+              unavailable ? "text-muted-foreground" : "text-foreground/90",
               (unavailable || locked) && "cursor-default",
             )}
           >
@@ -240,7 +262,7 @@ export function OptionList({
                 aria-hidden
                 className="flex h-5 w-3.5 shrink-0 items-center justify-center"
               >
-                <Loader2Icon className="text-foreground/45 size-3.5 animate-spin motion-reduce:animate-none" />
+                <Loader2Icon className="text-muted-foreground size-3.5 animate-spin motion-reduce:animate-none" />
               </span>
             ) : null}
             <OptionText option={option} />
@@ -257,7 +279,7 @@ export function OptionList({
       ) : null}
       {multiple ? (
         <div className="flex items-center justify-between gap-3 px-2 pt-1.5 pb-1">
-          <span className={cn(mono, "text-foreground/35 tabular-nums")}>
+          <span className={cn(mono, "text-muted-foreground tabular-nums")}>
             {count} of {max}
           </span>
           <button

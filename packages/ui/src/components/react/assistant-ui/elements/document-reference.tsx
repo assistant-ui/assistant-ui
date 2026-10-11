@@ -45,12 +45,12 @@ export function DocumentReference({
       {...props}
     >
       <div className="flex items-center gap-2.5">
-        <span className="bg-foreground/[0.05] text-foreground/45 flex size-8 shrink-0 items-center justify-center rounded-lg">
+        <span className="bg-foreground/[0.05] text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-lg">
           <FileTextIcon className="size-3.5" />
         </span>
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="truncate text-[13.5px] font-medium">{title}</span>
-          <span className={cn(mono, "text-foreground/30")}>
+          <span className={cn(mono, "text-muted-foreground")}>
             {pages} pages · {anchors.length} cited
           </span>
         </div>
@@ -68,7 +68,7 @@ export function DocumentReference({
           );
           const content = (
             <>
-              <span className={cn(mono, "text-foreground/30")}>
+              <span className={cn(mono, "text-muted-foreground")}>
                 p. {anchor.page}
               </span>
               <span className="text-foreground/65 border-foreground/15 border-s-2 ps-2 text-xs leading-relaxed break-words">

@@ -8,6 +8,7 @@ import { generateId } from "../utils/id";
 
 export type AttachmentAdapter = {
   accept: string;
+  /** Returns the pending attachment for the file, or an async generator yielding successive states of that one attachment. Every yield must have the same id. */
   add(state: {
     file: File;
   }): Promise<PendingAttachment> | AsyncGenerator<PendingAttachment, void>;
@@ -217,17 +218,6 @@ export function fileMatchesAccept(
   }
 
   return false;
-}
-
-export function attachmentsEqual(
-  a: readonly CompleteAttachment[],
-  b: readonly CompleteAttachment[],
-): boolean {
-  if (a.length !== b.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    if (a[i]?.id !== b[i]?.id) return false;
-  }
-  return true;
 }
 
 export function partToCompleteAttachment(

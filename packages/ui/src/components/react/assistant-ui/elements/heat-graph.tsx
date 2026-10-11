@@ -1,21 +1,34 @@
 "use client";
 
 import * as HeatGraphPrimitive from "heat-graph";
+import { useMemo } from "react";
+import { cn } from "@/lib/utils";
 
-const COLORS = ["#ebedf0", "#c6d7f9", "#8fb0f3", "#5888e8", "#2563eb"];
+const LEVEL_TINT = [
+  "bg-foreground/[0.06] inset-ring inset-ring-border forced-colors:border",
+  "bg-blue-500/25 dark:bg-blue-400/25 forced-color-adjust-none",
+  "bg-blue-500/45 dark:bg-blue-400/45 forced-color-adjust-none",
+  "bg-blue-500/70 dark:bg-blue-400/70 forced-color-adjust-none",
+  "bg-blue-500 dark:bg-blue-400 forced-color-adjust-none",
+] as const;
 
 export function HeatGraph({ data }: { data: HeatGraphPrimitive.DataPoint[] }) {
+  const end = useMemo(() => new Date(), [data]);
   return (
     <HeatGraphPrimitive.Root
       data={data}
+      end={end}
       weekStart="monday"
-      colorScale={COLORS}
       className="flex flex-col gap-2"
     >
-      <MonthLabels />
-      <div className="flex gap-2">
-        <DayLabels />
-        <CellGrid />
+      <div className="flex flex-row-reverse overflow-x-auto">
+        <div className="flex min-w-fit grow flex-col gap-2">
+          <MonthLabels end={end} />
+          <div className="flex gap-2">
+            <DayLabels />
+            <CellGrid />
+          </div>
+        </div>
       </div>
       <GraphLegend />
       <CellTooltip />
@@ -23,20 +36,33 @@ export function HeatGraph({ data }: { data: HeatGraphPrimitive.DataPoint[] }) {
   );
 }
 
-function MonthLabels() {
+// A month is labelled over the first week that starts in it, so a month whose first week falls before the grid, and a month starting in the current week, stay unlabelled instead of colliding with a neighbour or running past the grid.
+function labelsMonth({ date, row }: HeatGraphPrimitive.CellData, end: Date) {
+  const weekLater = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate() + 7,
+  );
+  return row === 0 && date.getDate() <= 7 && weekLater <= end;
+}
+
+function MonthLabels({ end }: { end: Date }) {
   return (
-    <div className="relative ms-10 h-5">
-      <HeatGraphPrimitive.MonthLabels>
-        {({ label, totalWeeks }) => (
+    <HeatGraphPrimitive.Grid
+      className="ms-10 h-5 gap-x-[3px] overflow-hidden"
+      style={{ gridTemplateRows: "auto" }}
+    >
+      {({ cell }) =>
+        labelsMonth(cell, end) ? (
           <span
-            className="absolute text-xs text-gray-500"
-            style={{ left: `${(label.column / totalWeeks) * 100}%` }}
+            className="text-muted-foreground w-0 text-xs whitespace-nowrap"
+            style={{ gridColumn: cell.column + 1, gridRow: 1 }}
           >
-            {HeatGraphPrimitive.MONTH_SHORT[label.month]}
+            {HeatGraphPrimitive.MONTH_SHORT[cell.date.getMonth()]}
           </span>
-        )}
-      </HeatGraphPrimitive.MonthLabels>
-    </div>
+        ) : null
+      }
+    </HeatGraphPrimitive.Grid>
   );
 }
 
@@ -45,7 +71,7 @@ function DayLabels() {
     <div className="flex w-8 shrink-0 flex-col justify-between py-[2px]">
       <HeatGraphPrimitive.DayLabels>
         {({ label }) => (
-          <span className="flex h-[13px] items-center text-xs text-gray-500">
+          <span className="text-muted-foreground flex h-[13px] items-center text-xs">
             {label.row % 2 === 0
               ? HeatGraphPrimitive.DAY_SHORT[label.dayOfWeek]
               : ""}
@@ -59,8 +85,13 @@ function DayLabels() {
 function CellGrid() {
   return (
     <HeatGraphPrimitive.Grid className="flex-1 gap-[3px]">
-      {() => (
-        <HeatGraphPrimitive.Cell className="aspect-square w-full rounded-sm" />
+      {({ cell }) => (
+        <HeatGraphPrimitive.Cell
+          className={cn(
+            "aspect-square w-full min-w-[9px] rounded-sm",
+            LEVEL_TINT[cell.level] ?? LEVEL_TINT[0],
+          )}
+        />
       )}
     </HeatGraphPrimitive.Grid>
   );
@@ -68,7 +99,7 @@ function CellGrid() {
 
 function CellTooltip() {
   return (
-    <HeatGraphPrimitive.Tooltip className="pointer-events-none rounded-md bg-gray-900 px-3 py-1.5 text-xs whitespace-nowrap text-white">
+    <HeatGraphPrimitive.Tooltip className="bg-foreground text-background pointer-events-none rounded-md px-3 py-1.5 text-xs whitespace-nowrap">
       {({ cell }) => (
         <>
           <strong>{cell.count} contributions</strong> on{" "}
@@ -85,11 +116,16 @@ function CellTooltip() {
 
 function GraphLegend() {
   return (
-    <div className="ms-auto flex items-center gap-1 text-xs text-gray-500">
+    <div className="text-muted-foreground ms-auto flex items-center gap-1 text-xs">
       <span>Less</span>
       <HeatGraphPrimitive.Legend>
-        {() => (
-          <HeatGraphPrimitive.LegendLevel className="h-[13px] w-[13px] rounded-sm" />
+        {({ item }) => (
+          <HeatGraphPrimitive.LegendLevel
+            className={cn(
+              "h-[13px] w-[13px] rounded-sm",
+              LEVEL_TINT[item.level] ?? LEVEL_TINT[0],
+            )}
+          />
         )}
       </HeatGraphPrimitive.Legend>
       <span>More</span>

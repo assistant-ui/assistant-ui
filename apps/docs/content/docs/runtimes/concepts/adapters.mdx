@@ -53,7 +53,7 @@ type AttachmentAdapter = {
 
 Three lifecycle methods:
 
-- `add` runs when the user picks a file. Upload it, return a record with status `requires-action` so the composer holds the file before sending.
+- `add` runs when the user picks a file. Upload it, return one pending attachment with status `requires-action` so the composer holds the file before sending, or yield successive states of that attachment from an async generator. Every yield must use the same `id`; yields with another `id` are ignored.
 - `send` runs when the user submits the message. Finalize the upload, attach a `content` payload, and mark status `complete`.
 - `remove` runs when the user removes the attachment before sending.
 

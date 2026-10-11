@@ -28,6 +28,14 @@ vi.mock(
         }
         return actual.updateStatusReducer(...args);
       },
+      deleteThreadReducer: (
+        ...args: Parameters<typeof actual.deleteThreadReducer>
+      ) => {
+        if (args[1] === "t1") {
+          selection.whenActed.push(selection.current);
+        }
+        return actual.deleteThreadReducer(...args);
+      },
     };
   },
 );

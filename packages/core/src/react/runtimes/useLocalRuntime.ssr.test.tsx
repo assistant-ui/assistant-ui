@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, render } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { version, type ReactNode } from "react";
 import { hydrateRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, expect, it, vi } from "vitest";
@@ -13,6 +13,8 @@ import { AssistantRuntimeProvider } from "../AssistantRuntimeProvider";
 import { ThreadListItemRuntimeProvider } from "../providers/ThreadListItemRuntimeProvider";
 import { useExternalStoreRuntime } from "./useExternalStoreRuntime";
 import { useLocalRuntime } from "./useLocalRuntime";
+
+const onReact18 = version.startsWith("18.");
 
 const chatModel: ChatModelAdapter = {
   run: async () => ({ content: [] }),
@@ -179,6 +181,7 @@ it("hydrates nested local message and tool call ids", async () => {
   const html = renderOnServer(
     <Outer onRuntime={(runtime) => (serverRuntime = runtime)} />,
   );
+  if (onReact18) errors.mockClear();
   const serverMessages = serverRuntime!.thread.getState().messages;
   expect(serverMessages.map(({ id }) => id)).toEqual([
     expect.stringMatching(/-message-0$/),

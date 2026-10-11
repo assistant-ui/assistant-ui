@@ -27,7 +27,7 @@ export function WeeklyDownloadsStat({
         />
       </div>
       <div className="mt-2 text-sm">Weekly downloads</div>
-      <div className="text-muted-foreground/70 mt-1 font-mono text-[11px] tracking-wide">
+      <div className="text-muted-foreground/70 mt-1 text-xs">
         {canToggle ? (
           <button
             type="button"

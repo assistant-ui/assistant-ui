@@ -5,7 +5,7 @@ import {
   type ToolkitDefinition,
 } from "@assistant-ui/core/react";
 import { AISDKToolkit } from "./generativeTools";
-import { wrapModelContentEnvelope } from "../converters/modelContentEnvelope";
+import { wrapModelContentEnvelope } from "assistant-stream/internal";
 
 const mocks = vi.hoisted(() => ({
   close: vi.fn(),

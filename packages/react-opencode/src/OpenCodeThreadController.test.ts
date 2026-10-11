@@ -5673,6 +5673,101 @@ describe("OpenCodeThreadController", () => {
     ).toBeUndefined();
   });
 
+  describe("cancel", () => {
+    it.each([
+      { newerRun: false, expectedState: "error" },
+      { newerRun: true, expectedState: "streaming" },
+    ])(
+      "handles a delayed abort failure with newerRun=$newerRun",
+      async ({ newerRun, expectedState }) => {
+        const abort = createDeferred<unknown>();
+        const error = new Error("abort failed");
+        const client = {
+          session: {
+            promptAsync: vi.fn().mockResolvedValue({}),
+            abort: vi.fn(() => abort.promise),
+          },
+        };
+        const controller = new OpenCodeThreadController(
+          client as never,
+          () => ({ subscribe: () => () => {} }),
+          "ses_1",
+        );
+        const send = (text: string) =>
+          controller.sendMessage({
+            role: "user",
+            parentId: null,
+            sourceId: null,
+            content: [{ type: "text", text }],
+            attachments: [],
+            metadata: { custom: {} },
+            runConfig: {},
+            createdAt: new Date(),
+          });
+
+        await send("run A");
+        const cancellation = controller.cancel();
+        expect(controller.getState().runState.type).toBe("cancelling");
+
+        if (newerRun) {
+          await send("run B");
+          expect(controller.getState().runState.type).toBe("streaming");
+        }
+
+        abort.reject(error);
+        await expect(cancellation).rejects.toBe(error);
+        expect(controller.getState().runState.type).toBe(expectedState);
+        if (!newerRun) {
+          expect(controller.getState().runState).toEqual({
+            type: "error",
+            error,
+          });
+        }
+      },
+    );
+
+    it("keeps the run idle when abort fails after an idle status", async () => {
+      const abort = createDeferred<unknown>();
+      const error = new Error("abort failed");
+      const eventSource = createEventSource();
+      const client = {
+        session: {
+          promptAsync: vi.fn().mockResolvedValue({}),
+          abort: vi.fn(() => abort.promise),
+        },
+      };
+      const controller = new OpenCodeThreadController(
+        client as never,
+        () => eventSource,
+        "ses_1",
+      );
+      controller.subscribe(vi.fn());
+
+      await controller.sendMessage({
+        role: "user",
+        parentId: null,
+        sourceId: null,
+        content: [{ type: "text", text: "run A" }],
+        attachments: [],
+        metadata: { custom: {} },
+        runConfig: {},
+        createdAt: new Date(),
+      });
+      const cancellation = controller.cancel();
+      eventSource.emit({
+        type: "session.status",
+        sessionId: "ses_1",
+        properties: { status: { type: "idle" } },
+        raw: {},
+      });
+      expect(controller.getState().runState.type).toBe("idle");
+
+      abort.reject(error);
+      await expect(cancellation).rejects.toBe(error);
+      expect(controller.getState().runState.type).toBe("idle");
+    });
+  });
+
   describe("revert", () => {
     const createRevertController = () => {
       const client = {
@@ -5727,6 +5822,136 @@ describe("OpenCodeThreadController", () => {
       await expect(controller.revert("msg_1")).rejects.toThrow("revert failed");
 
       expect(controller.getState().runState).toMatchObject({ type: "error" });
+    });
+
+    it("keeps an idle thread free of errors when an older revert fails", async () => {
+      const first = createDeferred<unknown>();
+      const second = createDeferred<unknown>();
+      const { client, controller } = createRevertController();
+      client.session.revert
+        .mockImplementationOnce(() => first.promise)
+        .mockImplementationOnce(() => second.promise);
+
+      const olderRevert = controller.revert("msg_1");
+      const newerRevert = controller.revert("msg_2");
+
+      first.reject(new Error("older revert failed"));
+      await expect(olderRevert).rejects.toThrow("older revert failed");
+      expect(controller.getState().runState.type).toBe("idle");
+
+      second.resolve({});
+      await newerRevert;
+      expect(controller.getState().runState.type).toBe("idle");
+    });
+
+    it("surfaces the latest idle revert failure despite an older pending revert", async () => {
+      const first = createDeferred<unknown>();
+      const second = createDeferred<unknown>();
+      const { client, controller } = createRevertController();
+      client.session.revert
+        .mockImplementationOnce(() => first.promise)
+        .mockImplementationOnce(() => second.promise);
+
+      const olderRevert = controller.revert("msg_1");
+      const newerRevert = controller.revert("msg_2");
+      const latestError = new Error("latest revert failed");
+
+      second.reject(latestError);
+      await expect(newerRevert).rejects.toBe(latestError);
+      expect(controller.getState().runState).toEqual({
+        type: "error",
+        error: latestError,
+      });
+
+      first.reject(new Error("older revert failed"));
+      await expect(olderRevert).rejects.toThrow("older revert failed");
+      expect(controller.getState().runState).toEqual({
+        type: "error",
+        error: latestError,
+      });
+    });
+
+    it.each(["idle", "running"] as const)(
+      "keeps a newer run active when a revert started while %s fails",
+      async (initialState) => {
+        const revert = createDeferred<unknown>();
+        const error = new Error("revert failed");
+        const client = {
+          session: {
+            revert: vi
+              .fn()
+              .mockImplementationOnce(() => revert.promise)
+              .mockResolvedValue({}),
+            promptAsync: vi.fn().mockResolvedValue({}),
+          },
+        };
+        const controller = new OpenCodeThreadController(
+          client as never,
+          () => ({ subscribe: () => () => {} }),
+          "ses_1",
+        );
+        const send = (text: string) =>
+          controller.sendMessage({
+            role: "user",
+            parentId: null,
+            sourceId: null,
+            content: [{ type: "text", text }],
+            attachments: [],
+            metadata: { custom: {} },
+            runConfig: {},
+            createdAt: new Date(),
+          });
+
+        if (initialState === "running") {
+          await send("run A");
+        }
+        const reverting = controller.revert("msg_1");
+        expect(controller.getState().runState.type).toBe(
+          initialState === "running" ? "reverting" : "idle",
+        );
+
+        await send("run B");
+        expect(controller.getState().runState.type).toBe("streaming");
+        if (initialState === "running") {
+          await controller.revert("msg_2");
+        }
+        const newerRunState =
+          initialState === "running" ? "reverting" : "streaming";
+        expect(controller.getState().runState.type).toBe(newerRunState);
+
+        revert.reject(error);
+        await expect(reverting).rejects.toBe(error);
+        expect(controller.getState().runState.type).toBe(newerRunState);
+      },
+    );
+
+    it("keeps the run idle when revert fails after an idle status", async () => {
+      const revert = createDeferred<unknown>();
+      const error = new Error("revert failed");
+      const eventSource = createEventSource();
+      const client = { session: { revert: vi.fn(() => revert.promise) } };
+      const controller = new OpenCodeThreadController(
+        client as never,
+        () => eventSource,
+        "ses_1",
+      );
+      controller.subscribe(vi.fn());
+      (
+        controller as unknown as { dispatch: (event: unknown) => void }
+      ).dispatch({ type: "run.started" });
+
+      const reverting = controller.revert("msg_1");
+      eventSource.emit({
+        type: "session.status",
+        sessionId: "ses_1",
+        properties: { status: { type: "idle" } },
+        raw: {},
+      });
+      expect(controller.getState().runState.type).toBe("idle");
+
+      revert.reject(error);
+      await expect(reverting).rejects.toBe(error);
+      expect(controller.getState().runState.type).toBe("idle");
     });
   });
 });

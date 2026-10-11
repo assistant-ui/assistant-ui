@@ -1,6 +1,16 @@
 "use client";
 
-import { type ComponentProps, useMemo } from "react";
+import {
+  forwardRef,
+  type ComponentProps,
+  type ComponentPropsWithoutRef,
+  type RefObject,
+  useCallback,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ArrowUpIcon,
   CheckIcon,
@@ -139,16 +149,72 @@ export function ComposerBar({
   );
 }
 
-export function ComposerMenu({
-  open,
-  align = "start",
-  className,
-  ...props
-}: ComponentProps<"div"> & { open: boolean; align?: "start" | "end" }) {
+function useFitInComposer(
+  menuRef: RefObject<HTMLDivElement | null>,
+  align: "start" | "end",
+) {
+  const [fit, setFit] = useState<{ shift: number; maxWidth: number } | null>(
+    null,
+  );
+
+  useLayoutEffect(() => {
+    const menu = menuRef.current;
+    if (!menu) return undefined;
+    const bounds =
+      menu.closest<HTMLElement>('[data-slot="composer"]') ??
+      document.documentElement;
+    const measure = () => {
+      const parent = menu.offsetParent;
+      if (!parent) return;
+      const { left: min, right: max } = bounds.getBoundingClientRect();
+      const left = parent.getBoundingClientRect().left + menu.offsetLeft;
+      const width = Math.min(menu.offsetWidth, max - min);
+      const shift = Math.max(min - left, Math.min(0, max - left - width));
+      setFit((current) =>
+        current?.shift === shift && current.maxWidth === max - min
+          ? current
+          : { shift, maxWidth: max - min },
+      );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(bounds);
+    observer.observe(menu);
+    return () => observer.disconnect();
+  }, [menuRef, align]);
+
+  return fit;
+}
+
+export const ComposerMenu = forwardRef<
+  HTMLDivElement,
+  ComponentPropsWithoutRef<"div"> & { open: boolean; align?: "start" | "end" }
+>(function ComposerMenu(
+  { open, align = "start", className, style, ...props },
+  ref,
+) {
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const fit = useFitInComposer(menuRef, align);
+  const composedRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      menuRef.current = node;
+      if (typeof ref === "function") return ref(node);
+      if (ref) ref.current = node;
+      return undefined;
+    },
+    [ref],
+  );
+
   return (
     <div
+      ref={composedRef}
       data-slot="composer-menu"
       data-open={open || undefined}
+      style={
+        fit
+          ? { maxWidth: fit.maxWidth, translate: `${fit.shift}px 0`, ...style }
+          : style
+      }
       className={cn(
         floating,
         "absolute bottom-full z-10 mb-2 flex w-72 flex-col gap-0.5 rounded-2xl p-1.5",
@@ -164,7 +230,7 @@ export function ComposerMenu({
       {...props}
     />
   );
-}
+});
 
 export function ComposerMenuItem({
   active = false,
@@ -196,13 +262,13 @@ export function ComposerCommandItem({
 }) {
   return (
     <ComposerMenuItem active={active} {...props}>
-      <command.icon className="text-foreground/35 size-3.5 shrink-0" />
+      <command.icon className="text-muted-foreground size-3.5 shrink-0" />
       <span className="font-medium">/{command.name}</span>
-      <span className="text-foreground/45 flex-1 truncate text-start text-xs">
+      <span className="text-muted-foreground flex-1 truncate text-start text-xs">
         {command.description}
       </span>
       {active && (
-        <kbd className="bg-foreground/[0.06] text-foreground/45 rounded px-1 font-mono text-[10px]">
+        <kbd className="bg-foreground/[0.06] text-muted-foreground rounded px-1 font-mono text-[10px]">
           ↵
         </kbd>
       )}
@@ -220,11 +286,11 @@ export function ComposerPersonItem({
 }) {
   return (
     <ComposerMenuItem active={active} {...props}>
-      <span className="bg-foreground/[0.06] text-foreground/45 flex size-5 shrink-0 items-center justify-center rounded-full text-[9px] font-medium">
+      <span className="bg-foreground/[0.06] text-muted-foreground flex size-5 shrink-0 items-center justify-center rounded-full text-[9px] font-medium">
         {person.name[0]}
       </span>
       <span className="flex-1 truncate text-start">{person.name}</span>
-      <span className={cn(mono, "text-foreground/35")}>{person.role}</span>
+      <span className={cn(mono, "text-muted-foreground")}>{person.role}</span>
     </ComposerMenuItem>
   );
 }
@@ -263,7 +329,7 @@ export function ComposerAttachmentChip({
       )}
       {...props}
     >
-      <span className="bg-background text-foreground/45 flex size-8 shrink-0 items-center justify-center rounded-[10px] dark:bg-white/10">
+      <span className="bg-background text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-[10px] dark:bg-white/10">
         <Icon className="size-4" />
       </span>
       <span className="flex flex-col">
@@ -275,7 +341,7 @@ export function ComposerAttachmentChip({
             "text-[11px]",
             attachment.state === "error"
               ? "text-red-600/80 dark:text-red-400/80"
-              : "text-foreground/40",
+              : "text-muted-foreground",
           )}
         >
           {attachment.meta}
@@ -283,7 +349,7 @@ export function ComposerAttachmentChip({
       </span>
       <span className="ms-1 flex w-5 items-center justify-end">
         {attachment.state === "uploading" ? (
-          <Loader2Icon className="text-foreground/35 size-3.5 animate-spin motion-reduce:animate-none" />
+          <Loader2Icon className="text-muted-foreground size-3.5 animate-spin motion-reduce:animate-none" />
         ) : attachment.state === "done" && onRemove ? (
           <button
             type="button"
@@ -320,11 +386,16 @@ export function ComposerInput({
       onKeyDown={(event) => {
         onKeyDown?.(event);
         if (event.defaultPrevented) return;
-        if (event.key !== "Enter" || event.nativeEvent.isComposing) return;
+        if (
+          event.key !== "Enter" ||
+          event.nativeEvent.isComposing ||
+          event.nativeEvent.keyCode === 229
+        )
+          return;
         onSubmit?.();
       }}
       className={cn(
-        "placeholder:text-foreground/35 min-h-11 w-full bg-transparent px-3 text-[15px] caret-blue-500 outline-none dark:caret-blue-400",
+        "placeholder:text-muted-foreground min-h-11 w-full bg-transparent px-3 text-[15px] caret-blue-500 outline-none dark:caret-blue-400",
         className,
       )}
       {...props}
@@ -367,11 +438,11 @@ export function ComposerVoice({
         ))}
       </div>
       {recording ? (
-        <span className={cn(mono, "text-foreground/40 tabular-nums")}>
+        <span className={cn(mono, "text-muted-foreground tabular-nums")}>
           0:{String(seconds).padStart(2, "0")}
         </span>
       ) : (
-        <ShimmerLabel className="text-foreground/55 relative text-[13px]">
+        <ShimmerLabel className="text-muted-foreground relative text-[13px]">
           Transcribing
         </ShimmerLabel>
       )}
@@ -442,7 +513,7 @@ export function ComposerModelTrigger({
       aria-expanded={open}
       data-slot="composer-model-trigger"
       className={cn(
-        "text-foreground/55 hover:bg-foreground/[0.06] hover:text-foreground/90 dark:hover:bg-foreground/[0.09] flex h-8 items-center gap-1.5 rounded-full px-3 text-[12.5px] transition-colors",
+        "text-muted-foreground hover:bg-foreground/[0.06] hover:text-foreground/90 dark:hover:bg-foreground/[0.09] flex h-8 items-center gap-1.5 rounded-full px-3 text-[12.5px] transition-colors",
         className,
       )}
       {...props}
@@ -464,7 +535,7 @@ export function ComposerModelItem({
   return (
     <ComposerMenuItem active={selected} {...props}>
       <span className="flex-1 text-start">{entry.name}</span>
-      <span className={cn(mono, "text-foreground/35 tabular-nums")}>
+      <span className={cn(mono, "text-muted-foreground tabular-nums")}>
         {entry.meta}
       </span>
       <span className="flex w-4 justify-end">
@@ -513,18 +584,18 @@ export function ComposerContext({
             className={cn(
               mono,
               "tabular-nums",
-              warn ? "text-red-500 dark:text-red-400" : "text-foreground/35",
+              warn ? "text-red-500 dark:text-red-400" : "text-muted-foreground",
             )}
           >
             {Math.round(fraction * 100)}%
           </p>
         </div>
-        <div className="bg-foreground/[0.06] flex h-[5px] w-full gap-px overflow-hidden rounded-full">
+        <div className="bg-foreground/[0.06] inset-ring-border flex h-[5px] w-full gap-px overflow-hidden rounded-full inset-ring forced-colors:border">
           {segments.map((segment) => (
             <span
               key={segment.label}
               className={cn(
-                "h-full transition-[width] duration-700 motion-reduce:transition-none",
+                "h-full transition-[width] duration-700 forced-color-adjust-none motion-reduce:transition-none",
                 segment.className,
               )}
               style={{ width: `${pct(segment.value, usage.total)}%` }}
@@ -535,23 +606,26 @@ export function ComposerContext({
           {segments.map((segment) => (
             <div
               key={segment.label}
-              className="text-foreground/55 flex items-center gap-2.5 text-[13px]"
+              className="text-muted-foreground flex items-center gap-2.5 text-[13px]"
             >
               <span
                 aria-hidden
-                className={cn("size-1.5 rounded-full", segment.className)}
+                className={cn(
+                  "size-1.5 rounded-full forced-color-adjust-none",
+                  segment.className,
+                )}
               />
               <span className="flex-1">{segment.label}</span>
-              <span className={cn(mono, "text-foreground/40 tabular-nums")}>
+              <span className={cn(mono, "text-muted-foreground tabular-nums")}>
                 {segment.value}k
               </span>
             </div>
           ))}
         </div>
         <div className="bg-foreground/[0.06] h-px" />
-        <div className="text-foreground/55 flex items-center justify-between text-[13px]">
+        <div className="text-muted-foreground flex items-center justify-between text-[13px]">
           <span>Total</span>
-          <span className={cn(mono, "text-foreground/40 tabular-nums")}>
+          <span className={cn(mono, "text-muted-foreground tabular-nums")}>
             {used}k / {usage.total}k
           </span>
         </div>
@@ -572,7 +646,7 @@ export function ComposerContext({
             r="6"
             fill="none"
             strokeWidth="2.5"
-            className="stroke-foreground/10"
+            className="stroke-border"
           />
           <circle
             cx="8"
@@ -639,7 +713,7 @@ export function ComposerSend({
         "grid size-8 place-items-center rounded-full",
         streaming || !idle
           ? inkButton
-          : "bg-foreground/[0.06] text-foreground/30 dark:bg-foreground/[0.09] transition-colors",
+          : "bg-foreground/[0.06] text-muted-foreground inset-ring-border dark:bg-foreground/[0.09] inset-ring transition-colors forced-colors:border forced-colors:border-[GrayText] forced-colors:text-[GrayText]",
         className,
       )}
       {...props}

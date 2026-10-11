@@ -291,34 +291,48 @@ describe("runProxy", () => {
       required: ["text"],
       additionalProperties: false,
     });
-    const mcpServer = new McpServer({ name: "proxy-test", version: "1.0.0" });
-    mcpServer.registerTool(
-      "echo",
-      { description: "Echo text", inputSchema },
-      ({ text }) => ({ content: [{ type: "text", text }] }),
-    );
-    const transport = new WebStandardStreamableHTTPServerTransport({
-      sessionIdGenerator: undefined,
-      enableJsonResponse: true,
-    });
     let resolveInitialized = () => {};
     const initialized = new Promise<void>((resolve) => {
       resolveInitialized = resolve;
     });
-    mcpServer.server.oninitialized = resolveInitialized;
-    await mcpServer.connect(transport);
 
     const httpServer = createServer((request, response) => {
       void (async () => {
         const webRequest = await toWebRequest(request);
-        const webResponse =
-          webRequest.method === "GET"
-            ? Response.json({
-                name: "assistant-ui",
-                transport: "streamable-http",
-              })
-            : await transport.handleRequest(webRequest);
-        await writeWebResponse(webResponse, response);
+        if (webRequest.method === "GET") {
+          await writeWebResponse(
+            Response.json({
+              name: "assistant-ui",
+              transport: "streamable-http",
+            }),
+            response,
+          );
+          return;
+        }
+
+        const mcpServer = new McpServer({
+          name: "proxy-test",
+          version: "1.0.0",
+        });
+        mcpServer.registerTool(
+          "echo",
+          { description: "Echo text", inputSchema },
+          ({ text }) => ({ content: [{ type: "text", text }] }),
+        );
+        mcpServer.server.oninitialized = resolveInitialized;
+        const transport = new WebStandardStreamableHTTPServerTransport({
+          sessionIdGenerator: undefined,
+          enableJsonResponse: true,
+        });
+
+        try {
+          await mcpServer.connect(transport);
+          const webResponse = await transport.handleRequest(webRequest);
+          await writeWebResponse(webResponse, response);
+        } finally {
+          await transport.close();
+          await mcpServer.close();
+        }
       })().catch((error: unknown) => {
         response.statusCode = 500;
         response.end(error instanceof Error ? error.message : String(error));
@@ -378,7 +392,6 @@ describe("runProxy", () => {
       proxyStdout.destroy(new Error("Proxy test cleanup"));
       await proxy;
       proxyStdin.destroy();
-      await mcpServer.close();
       stderr.mockRestore();
     }
   });

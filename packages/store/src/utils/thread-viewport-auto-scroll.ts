@@ -5,6 +5,39 @@ import {
   viewportOverflows,
 } from "./viewport-scroll";
 
+const MESSAGE_SELECTOR = "[data-message-id]";
+const DISCLOSURE_SELECTOR = "[aria-expanded], summary";
+const TEXT_ENTRY_SELECTOR = [
+  "textarea",
+  "select",
+  "[contenteditable]:not([contenteditable='false'])",
+  "input:not([type='checkbox']):not([type='radio']):not([type='button'])" +
+    ":not([type='submit']):not([type='reset']):not([type='image'])" +
+    ":not([type='range']):not([type='file']):not([type='color'])",
+].join(", ");
+const SCROLL_KEYS = new Set([
+  " ",
+  "ArrowUp",
+  "ArrowDown",
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+]);
+
+const isOpeningDisclosure = (target: Element) => {
+  const control = target.closest(DISCLOSURE_SELECTOR);
+  if (!control) return false;
+  if (control.tagName === "SUMMARY")
+    return control.parentElement?.hasAttribute("open") === false;
+  const popup = control.getAttribute("aria-haspopup");
+  return (
+    control.getAttribute("aria-expanded") === "false" &&
+    (popup === null || popup === "false") &&
+    control.getAttribute("role") !== "combobox"
+  );
+};
+
 export type ThreadViewportAutoScrollOptions = {
   readonly autoScroll: boolean;
   readonly scrollToBottomOnInitialize: boolean;
@@ -31,6 +64,9 @@ export const createThreadViewportAutoScroll = (input: {
   let detachAttached: (() => void) | null = null;
   let intent: ScrollBehavior | null = null;
   let isAtBottom = true;
+  let followBottom = true;
+  let followPaused = false;
+  let scrolledSincePause = false;
   let contentInset = 0;
   let hasMessages = false;
   let initialized = false;
@@ -54,6 +90,9 @@ export const createThreadViewportAutoScroll = (input: {
 
   const scrollToBottom = (behavior: ScrollBehavior = "auto") => {
     if (!element) return;
+    followBottom = true;
+    followPaused = false;
+    scrolledSincePause = false;
     intent = behavior;
     element.scrollTo?.({ top: element.scrollHeight, behavior });
   };
@@ -69,16 +108,29 @@ export const createThreadViewportAutoScroll = (input: {
     });
   };
 
-  const handleScroll = () => {
+  const handleScroll = ({
+    preserveFollow = false,
+  }: { preserveFollow?: boolean } = {}) => {
     if (!element) return;
 
     const newIsAtBottom = isViewportAtBottom(element, contentInset);
+    if (
+      !newIsAtBottom &&
+      (!input.getOptions().autoScroll ||
+        (!preserveFollow && intent === null && !followPaused))
+    )
+      followBottom = false;
     const inFlightDownward =
       !newIsAtBottom && lastScrollTop < element.scrollTop;
     if (!inFlightDownward) {
       if (newIsAtBottom) {
         // At-bottom is ambiguous without overflow, so intent stays alive until content can scroll.
-        if (viewportOverflows(element, contentInset)) intent = null;
+        if (viewportOverflows(element, contentInset)) {
+          intent = null;
+          if (followPaused && scrolledSincePause) followPaused = false;
+          scrolledSincePause = false;
+        }
+        followBottom = true;
       } else if (
         isUserScrollUp(
           { scrollTop: lastScrollTop, scrollHeight: lastScrollHeight },
@@ -87,6 +139,7 @@ export const createThreadViewportAutoScroll = (input: {
       ) {
         intent = null;
         cancelFrame();
+        followBottom = false;
       }
       if (newIsAtBottom || intent === null) setAtBottom(newIsAtBottom);
     }
@@ -95,10 +148,13 @@ export const createThreadViewportAutoScroll = (input: {
     lastScrollHeight = element.scrollHeight;
   };
 
+  const onScroll = () => handleScroll();
+
   const followGrowth = () => {
+    if (frame !== null) return;
     if (intent) {
       scrollToBottom(intent);
-    } else if (input.getOptions().autoScroll && isAtBottom) {
+    } else if (input.getOptions().autoScroll && followBottom && !followPaused) {
       scrollToBottom("instant");
     }
   };
@@ -119,10 +175,44 @@ export const createThreadViewportAutoScroll = (input: {
     handleScroll();
   };
 
-  // A pointer gesture clears retained intent and a queued frame so neither can hijack the next content growth.
-  const onPointerdown = () => {
+  const cancelPendingScrollToBottom = () => {
+    if (intent === null && frame === null) return;
     intent = null;
     cancelFrame();
+    handleScroll({ preserveFollow: true });
+  };
+
+  const cancelOnKeyDown = (event: KeyboardEvent) => {
+    if (event.key !== "Enter" && !SCROLL_KEYS.has(event.key)) return;
+    if ((event.target as Element | null)?.closest?.(TEXT_ENTRY_SELECTOR))
+      return;
+    cancelPendingScrollToBottom();
+  };
+
+  const pauseFollowOnExpand = (event: MouseEvent) => {
+    const target = event.target as Element | null;
+    if (
+      !target?.closest?.(MESSAGE_SELECTOR) ||
+      target.closest(TEXT_ENTRY_SELECTOR) ||
+      !isOpeningDisclosure(target)
+    )
+      return;
+    followPaused = true;
+    scrolledSincePause = false;
+    intent = null;
+    cancelFrame();
+  };
+
+  const noteScrollGesture = (event: Event) => {
+    if (event.type === "keydown") {
+      const keyEvent = event as KeyboardEvent;
+      if (!SCROLL_KEYS.has(keyEvent.key)) return;
+      if ((event.target as Element | null)?.closest?.(TEXT_ENTRY_SELECTOR))
+        return;
+    } else if (event.type === "pointerdown" && event.target !== element) {
+      return;
+    }
+    scrolledSincePause = true;
   };
 
   const checkInitialize = () => {
@@ -146,17 +236,42 @@ export const createThreadViewportAutoScroll = (input: {
       lastObservedScrollHeight = 0;
       lastObservedClientHeight = 0;
       initialized = false;
+      followBottom = true;
+      followPaused = false;
+      scrolledSincePause = false;
       setAtBottom(true);
       const disconnect = observeContentResize(el, onContentResize);
-      el.addEventListener("scroll", handleScroll);
-      el.addEventListener("pointerdown", onPointerdown);
+      el.addEventListener("scroll", onScroll);
+      el.addEventListener("pointerdown", cancelPendingScrollToBottom);
+      el.addEventListener("wheel", cancelPendingScrollToBottom, {
+        passive: true,
+      });
+      el.addEventListener("touchstart", cancelPendingScrollToBottom, {
+        passive: true,
+      });
+      el.addEventListener("keydown", cancelOnKeyDown);
+      el.addEventListener("click", pauseFollowOnExpand, true);
+      for (const gesture of ["pointerdown", "wheel", "touchmove", "keydown"])
+        el.addEventListener(gesture, noteScrollGesture, { passive: true });
       checkInitialize();
       if (contentInset > 0) followGrowth();
       const detach = () => {
         if (detachAttached !== detach) return;
         disconnect();
-        el.removeEventListener("scroll", handleScroll);
-        el.removeEventListener("pointerdown", onPointerdown);
+        el.removeEventListener("scroll", onScroll);
+        el.removeEventListener("pointerdown", cancelPendingScrollToBottom);
+        el.removeEventListener("wheel", cancelPendingScrollToBottom);
+        el.removeEventListener("touchstart", cancelPendingScrollToBottom);
+        el.removeEventListener("keydown", cancelOnKeyDown);
+        el.removeEventListener("click", pauseFollowOnExpand, true);
+        for (const gesture of [
+          "pointerdown",
+          "wheel",
+          "touchmove",
+          "keydown",
+        ]) {
+          el.removeEventListener(gesture, noteScrollGesture);
+        }
         cancelFrame();
         if (element === el) element = null;
         detachAttached = null;
@@ -181,10 +296,14 @@ export const createThreadViewportAutoScroll = (input: {
       checkInitialize();
     },
     runStarted: () => {
+      followPaused = false;
+      scrolledSincePause = false;
       if (input.getOptions().scrollToBottomOnRunStart)
         scheduleScrollToBottom("auto");
     },
     threadSwitched: () => {
+      followPaused = false;
+      scrolledSincePause = false;
       if (input.getOptions().scrollToBottomOnThreadSwitch)
         scheduleScrollToBottom("instant");
     },

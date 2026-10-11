@@ -30,6 +30,7 @@ export type TypeDocParameter = {
   required?: boolean;
   default?: string;
   deprecated?: string;
+  experimental?: boolean;
   children?: { type?: string; parameters: TypeDocParameter[] }[];
 };
 
@@ -102,6 +103,7 @@ function projectPropToTypeDoc(prop: PropModel): TypeDocParameter {
   if (prop.description !== undefined) out.description = prop.description;
   if (prop.default) out.default = prop.default;
   if (prop.deprecated) out.deprecated = prop.deprecated;
+  if (prop.experimental) out.experimental = true;
   if (children) out.children = children;
   return out;
 }

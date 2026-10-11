@@ -26,6 +26,9 @@ type DocsRootLayoutProps = {
   tree: PageTree.Root;
   section: string;
   sectionHref: string;
+  platformSwitcher?: boolean;
+  // Replaces the main docs header, for a sub-project docs site.
+  header?: ReactNode;
   children: ReactNode;
 };
 
@@ -33,6 +36,8 @@ export function DocsRootLayout({
   tree,
   section,
   sectionHref,
+  platformSwitcher = true,
+  header,
   children,
 }: DocsRootLayoutProps) {
   return (
@@ -42,14 +47,19 @@ export function DocsRootLayout({
           <style>{PLATFORM_HINT_STYLE}</style>
           <DocsSidebarProvider>
             <DocsShell>
-              <DocsHeader
-                section={section}
-                sectionHref={sectionHref}
-                tree={tree}
-              />
+              {header ?? (
+                <DocsHeader
+                  section={section}
+                  sectionHref={sectionHref}
+                  tree={tree}
+                />
+              )}
               <DocsContent>{children}</DocsContent>
               <DocsSidebar>
-                <SidebarContent tree={tree} />
+                <SidebarContent
+                  tree={tree}
+                  platformSwitcher={platformSwitcher}
+                />
               </DocsSidebar>
             </DocsShell>
           </DocsSidebarProvider>

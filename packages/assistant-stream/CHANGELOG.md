@@ -1,5 +1,51 @@
 # assistant-stream
 
+## 0.3.49
+
+### Patch Changes
+
+- [#8942](https://github.com/assistant-ui/assistant-ui/pull/8942) [`606bc2d`](https://github.com/assistant-ui/assistant-ui/commit/606bc2d5027ed16b1108bdee6d0908a34ff0d4cd) - fix: cancel polyfilled stream iterators before their first read and forward the cancellation reason. ([@okisdev](https://github.com/okisdev))
+  
+  The fallback now acquires the reader when `[Symbol.asyncIterator]()` is called, so `stream.locked` becomes `true` before the first `next()`, matching native stream iteration.
+
+- [#7876](https://github.com/assistant-ui/assistant-ui/pull/7876) [`c5a635a`](https://github.com/assistant-ui/assistant-ui/commit/c5a635a92f5d8335888714e245b09641cbeae0bd) - fix(assistant-stream): keep the args of a complete tool call frame that follows a tool call start ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#7526](https://github.com/assistant-ui/assistant-ui/pull/7526) [`2252059`](https://github.com/assistant-ui/assistant-ui/commit/2252059cee96c0af37934c0e16867f2de56b327c) - preserve error `code` and `severity` on the data stream wire. an error that sets either now emits an object frame such as `3:{"error":"rate limited","code":"rate_limit"}` that clients older than this release cannot read, so upgrade clients before servers that set them; an error without metadata stays a bare `3:"message"` string, and the decoder reads both shapes. ([@wahajahmed010](https://github.com/wahajahmed010))
+
+- [#7246](https://github.com/assistant-ui/assistant-ui/pull/7246) [`2abd1e0`](https://github.com/assistant-ui/assistant-ui/commit/2abd1e03ce2a328f16422e866b97d2ce395aa129) - fix: reject malformed data-stream frame values at the parse boundary instead of crashing or coercing. Frames such as `e:null` or `0:123` that previously passed through now throw in strict mode and are dropped with a log in `strict: false`. ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#7987](https://github.com/assistant-ui/assistant-ui/pull/7987) [`2ed2043`](https://github.com/assistant-ui/assistant-ui/commit/2ed20432b5b1a13a7a8671eddc86f4d8ebfd0f68) - fix: carry a tool result's `messages` across the data-stream wire ([@ShobhitPatra](https://github.com/ShobhitPatra))
+  
+  The data-stream encoder dropped the nested `messages` a tool call produced from the tool result frame and the decoder never read it, so a server tool that returned a sub-agent transcript through `createAssistantStreamResponse` showed a plain tool call on a `DataStreamDecoder` client while UIMessageStream, AssistantTransport and aui/v0 carried it.
+
+- [#9082](https://github.com/assistant-ui/assistant-ui/pull/9082) [`ae487aa`](https://github.com/assistant-ui/assistant-ui/commit/ae487aa5c66951faa60ef4f32b3e36e2c0a2ef20) - feat: mark every experimental API `@deprecated Experimental since <date>`, so editors strike it through as experimental rather than scheduled for removal; `@typescript-eslint/no-deprecated` reports these APIs too ([@okisdev](https://github.com/okisdev))
+
+- [#7136](https://github.com/assistant-ui/assistant-ui/pull/7136) [`01ac83d`](https://github.com/assistant-ui/assistant-ui/commit/01ac83dff50e16959ebf16556db43464e7a82ea4) - feat: add `assistant-stream/ai-sdk` with `frontendTools` ([@samdickson22](https://github.com/samdickson22))
+  
+  `frontendTools` and its model-content helpers now live in `assistant-stream`, so a backend that only converts uploaded tool schemas can import them from `assistant-stream/ai-sdk` with just `assistant-stream` and `ai` installed. `ai` is an optional peer of `assistant-stream` on `^6.0.0 || ^7.0.0`; `frontendTools` emits the tagged `file` tool-result part on `ai@7` and the `file-data` part on `ai@6`. `@assistant-ui/ai-sdk` keeps exporting `frontendTools` and `FrontendTools` unchanged.
+
+- [#8932](https://github.com/assistant-ui/assistant-ui/pull/8932) [`8c32dea`](https://github.com/assistant-ui/assistant-ui/commit/8c32deae521d9e518146a04fea3a03f8d0c7f349) - fix: deliver tool-call finish chunks in the order the tool calls close ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8833](https://github.com/assistant-ui/assistant-ui/pull/8833) [`0a3ca24`](https://github.com/assistant-ui/assistant-ui/commit/0a3ca2482e72e4d1c35805222df44e81ba6b55c5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#8853](https://github.com/assistant-ui/assistant-ui/pull/8853) [`ee517fb`](https://github.com/assistant-ui/assistant-ui/commit/ee517fbcef3e9b37f4653ef50825e519f4faee4c) - Share resumable partial-JSON parsing across stream runtimes. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8737](https://github.com/assistant-ui/assistant-ui/pull/8737) [`081a239`](https://github.com/assistant-ui/assistant-ui/commit/081a23960a018742e6b48a0742728518a49050a5) - fix: bound retained input in shared line and SSE decoders, with configurable line and event limits across streaming clients ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8291](https://github.com/assistant-ui/assistant-ui/pull/8291) [`542d871`](https://github.com/assistant-ui/assistant-ui/commit/542d8710c360676d6ba6d96bac5474386a46e6a2) - fix: a createAssistantStream callback that throws now ends its own open parts instead of leaving the response hanging. Text and reasoning parts get their part-finish; tool calls whose args were still streaming are cut off without a part-finish or args-finish chunk. Background writes to parts ended by the failure are ignored; writes after an explicit close retain strict-mode errors. Merged streams keep delivering their output until their producers finish. Already completed args and the legacy data-stream encoder's fatal-error handling are unchanged. ([@samdickson22](https://github.com/samdickson22))
+
+- [#8306](https://github.com/assistant-ui/assistant-ui/pull/8306) [`e79cdd4`](https://github.com/assistant-ui/assistant-ui/commit/e79cdd4490ebd3909d5ce90ab08b156e05f9f722) - fix: report asynchronous streamCall errors without blocking streamed arguments or waiting for callbacks that outlive the assistant stream ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#8950](https://github.com/assistant-ui/assistant-ui/pull/8950) [`41344cb`](https://github.com/assistant-ui/assistant-ui/commit/41344cba68efe187ec81c02006d50fc6bc833abb) - Expose `argsStatus` from `useToolArgsStatus` to distinguish incomplete argument objects from completed arguments while a tool is still running. ([@okisdev](https://github.com/okisdev))
+  
+  Mark settled AI SDK tool input as complete while execution continues. This also lets `propStatus` report received fields as complete, rather than streaming, once the input is final.
+  
+  Settled AI SDK `args` are shallow copies of `part.input` with enumerable completion metadata: the top-level object identity changes, while nested values retain their identity. Prototype-named JSON fields remain intact without changing safe parser policy.
+
+- [#8292](https://github.com/assistant-ui/assistant-ui/pull/8292) [`e8620c1`](https://github.com/assistant-ui/assistant-ui/commit/e8620c1e8af8d8de20e9fa9919e64995559d9450) - fix: a tool call's streamed args now reach the stream before its result, so `addToolCallPart({ args, response })` keeps its args over the data stream instead of arriving as `{}` ([@samdickson22](https://github.com/samdickson22))
+
+- [#9139](https://github.com/assistant-ui/assistant-ui/pull/9139) [`3b7b337`](https://github.com/assistant-ui/assistant-ui/commit/3b7b3379441cc883dbf15e6caa71adfdbd498472) - refactor(assistant-stream): share one option type between tool execution and its result stream ([@okisdev](https://github.com/okisdev))
+
 ## 0.3.48
 
 ### Patch Changes

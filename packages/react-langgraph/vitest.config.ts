@@ -5,6 +5,14 @@ export default defineConfig({
     coverage: {
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/testUtils.ts", "src/tests/**"],
+      thresholds: {
+        lines: 93,
+        functions: 94,
+        branches: 85,
+        statements: 91,
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
+      },
     },
     environment: "jsdom",
     include: ["src/**/*.test.{ts,tsx}"],

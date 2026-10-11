@@ -24,6 +24,7 @@ test("detects API reference source and generator changes", () => {
     "apps/docs/content/docs/(reference)/api-reference/meta.json",
     "apps/docs/package.json",
     "scripts/api-reference-inputs.mjs",
+    "scripts/lib/experimental-annotations.mjs",
     ".github/workflows/autofix.yaml",
     ".github/workflows/code-quality.yaml",
   ]) {
@@ -54,7 +55,24 @@ test("package README-only changes do not regenerate API reference pages", () => 
   assert.equal(hasApiReferenceInputs(readmes), false);
 });
 
-test("README edits do not hide source, configuration, or generated page changes", () => {
+test("package test-only edits do not regenerate API reference pages", () => {
+  const files = [
+    "packages/cloud/src/telemetry/index.test.ts",
+    "packages/core/src/react/client/RemoteThreadList.test.tsx",
+    "packages/tap/src/core.spec.ts",
+    "packages/tap/src/core.bench.tsx",
+    "packages/core/src/tests/controlled-runtime.ts",
+    "packages/ai-sdk/src/runtime/__tests__/controlled-transport.ts",
+    "packages/react/src/testUtils.ts",
+    "packages/react/src/testUtils.tsx",
+  ];
+  for (const file of files) {
+    assert.equal(hasApiReferenceInputs([file]), false, file);
+  }
+  assert.equal(hasApiReferenceInputs(files), false);
+});
+
+test("ignored edits do not hide source, configuration, or generated page changes", () => {
   for (const file of [
     "packages/core/src/index.ts",
     "packages/core/package.json",
@@ -62,12 +80,22 @@ test("README edits do not hide source, configuration, or generated page changes"
     "packages/core/src/README.md",
     "packages/core/README.mdx",
     "packages/core/README.md.ts",
-    "packages/tap/src/core.test.ts",
+    "packages/core/src/testing/helper.ts",
+    "packages/core/src/tests-helper.ts",
+    "packages/core/src/testUtilsExtra.ts",
+    "packages/core/src/core.test.mts",
+    "packages/core/src/core.test.tsx.backup",
+    "packages/core/src/tests/fixture.json",
     "apps/docs/scripts/generated-docs/extract.mts",
+    "apps/docs/scripts/generated-docs/extract.test.ts",
     "apps/docs/content/docs/(reference)/api-reference/README.md",
   ]) {
     assert.equal(
-      hasApiReferenceInputs(["packages/core/README.md", file]),
+      hasApiReferenceInputs([
+        "packages/core/README.md",
+        "packages/cloud/src/telemetry/index.test.ts",
+        file,
+      ]),
       true,
       file,
     );
@@ -76,7 +104,8 @@ test("README edits do not hide source, configuration, or generated page changes"
 
 test("the CLI reads NUL-separated paths", () => {
   const relevant = spawnSync(process.execPath, [script], {
-    input: "README.md\0packages/tap/src/index.ts\0",
+    input:
+      "README.md\0packages/cloud/src/telemetry/index.test.ts\0packages/tap/src/index.ts\0",
     encoding: "utf8",
   });
   assert.equal(relevant.status, 0, relevant.stderr);
@@ -84,7 +113,7 @@ test("the CLI reads NUL-separated paths", () => {
 
   const unrelated = spawnSync(process.execPath, [script], {
     input:
-      "README.md\0packages/core/README.md\0examples/with-ai-sdk/app/page.tsx\0",
+      "README.md\0packages/core/README.md\0packages/cloud/src/telemetry/index.test.ts\0examples/with-ai-sdk/app/page.tsx\0",
     encoding: "utf8",
   });
   assert.equal(unrelated.status, 0, unrelated.stderr);

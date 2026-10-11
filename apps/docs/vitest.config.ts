@@ -24,6 +24,14 @@ export default {
         "lib/xulux/learn/courses/*/shared/**",
         "lib/xulux/learn/courses/*/stages/**",
       ],
+      thresholds: {
+        lines: 35,
+        functions: 27,
+        branches: 31,
+        statements: 34,
+        autoUpdate: (threshold: number, previous: number) =>
+          Math.max(previous, Math.floor(threshold) - 1),
+      },
     },
     environment: "node",
     pool: "threads",

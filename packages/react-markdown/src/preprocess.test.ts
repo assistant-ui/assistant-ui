@@ -209,6 +209,11 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
   });
 
+  it("does not pair a lone backtick with a code span in a later list item", () => {
+    const input = "- Press ` to open the console\n- Type `\\(x\\)` literally";
+    expect(rewriteLatexBracketDelimiters(input)).toBe(input);
+  });
+
   it("protects an unclosed fence still streaming in", () => {
     expect(rewriteLatexBracketDelimiters("```\n\\(x\\)\nstill streaming")).toBe(
       "```\n\\(x\\)\nstill streaming",
@@ -452,6 +457,216 @@ describe("normalizeMathDelimiters", () => {
     expect(normalizeMathDelimiters("`\\(x\\)` and `[/math]y[/math]`")).toBe(
       "`\\(x\\)` and `[/math]y[/math]`",
     );
+  });
+
+  it("nests a $$ fence opened on a list item's marker line", () => {
+    expect(
+      normalizeMathDelimiters(
+        "1. $$\nF = ma\n$$\nNewton\n\n2. $$\nE = mc^2\n$$",
+      ),
+    ).toBe("1. $$\n   F = ma\n   $$\n   Newton\n\n2. $$\n   E = mc^2\n   $$");
+  });
+
+  it.each([
+    "+ \\frac{1}{2}mv^2",
+    "- \\frac{1}{2}mv^2",
+    "- 2v + 1",
+    "+ mgh",
+    "- b",
+  ])(
+    "nests a $$ fence whose formula continues on an operator-led line: %j",
+    (line) => {
+      expect(
+        normalizeMathDelimiters(`1. $$\nE = mc^2\n${line}\n$$\nTotal energy.`),
+      ).toBe(`1. $$\n   E = mc^2\n   ${line}\n   $$\n   Total energy.`);
+    },
+  );
+
+  it("leaves a streaming $$ fence that reaches an operator marker as written", () => {
+    const text = "1. $$\nE = mc^2\n+ \\frac{1}{2}mv^2";
+    expect(normalizeMathDelimiters(text)).toBe(text);
+  });
+
+  it("nests a $$ fence in a list item inside a blockquote", () => {
+    expect(normalizeMathDelimiters("> 1. $$\n> x = 1\n> $$\n> Text")).toBe(
+      "> 1. $$\n>    x = 1\n>    $$\n>    Text",
+    );
+    expect(normalizeMathDelimiters("> 1. $$\nx = 1\n> $$\n> 2. b")).toBe(
+      "> 1. $$\n>    x = 1\n>    $$\n> 2. b",
+    );
+    expect(normalizeMathDelimiters("> 1. $$\n> x = 1\n> $$\nText")).toBe(
+      "> 1. $$\n>    x = 1\n>    $$\nText",
+    );
+    expect(normalizeMathDelimiters("1. $$\n> 1. $$\nx = 1\n> $$")).toBe(
+      "1. $$\n> 1. $$\n>    x = 1\n>    $$",
+    );
+  });
+
+  it("scans a $$ fence across a code span without changing its contents", () => {
+    expect(normalizeMathDelimiters("1. $$\n\\text{`x`} = 1\n$$\nText")).toBe(
+      "1. $$\n   \\text{`x`} = 1\n   $$\n   Text",
+    );
+  });
+
+  it("nests a still-streaming $$ fence across a code span", () => {
+    expect(normalizeMathDelimiters("1. $$\n\\text{`x`} = 1")).toBe(
+      "1. $$\n   \\text{`x`} = 1",
+    );
+  });
+
+  it("leaves a quoted $$ fence that reaches a nested blockquote as written", () => {
+    const text = "> 1. $$\n>    x\n> >     code";
+    expect(normalizeMathDelimiters(text)).toBe(text);
+  });
+
+  it("leaves a $$ fence that reaches a code fence before it closes", () => {
+    const text = "1. $$\na\n```\ncode\n```\n$$";
+    expect(normalizeMathDelimiters(text)).toBe(text);
+  });
+
+  it("nests a $$ fence to the content column of its marker", () => {
+    expect(normalizeMathDelimiters("- $$\na\n$$")).toBe("- $$\n  a\n  $$");
+    expect(normalizeMathDelimiters("10. $$\na\n$$")).toBe(
+      "10. $$\n    a\n    $$",
+    );
+  });
+
+  it("keeps the paragraph after a nested $$ fence in its item", () => {
+    expect(normalizeMathDelimiters("1. $$\na\n$$\none two\nthree")).toBe(
+      "1. $$\n   a\n   $$\n   one two\nthree",
+    );
+    expect(normalizeMathDelimiters("- $$\na\n$$\n- next")).toBe(
+      "- $$\n  a\n  $$\n- next",
+    );
+  });
+
+  it.each(["more", "--- | :", "--- | --- | ---"])(
+    "keeps a line holding a pipe after a nested $$ fence in its item when %j is no delimiter row for it",
+    (after) => {
+      expect(normalizeMathDelimiters(`1. $$\na\n$$\nA | B\n${after}`)).toBe(
+        `1. $$\n   a\n   $$\n   A | B\n${after}`,
+      );
+    },
+  );
+
+  it("keeps a paragraph that opens with a code span after a nested $$ fence in its item", () => {
+    expect(normalizeMathDelimiters("1. $$\na\n$$\n`a` is the input.")).toBe(
+      "1. $$\n   a\n   $$\n   `a` is the input.",
+    );
+    expect(normalizeMathDelimiters("1. $$\na\n$$\n```a``` is the input.")).toBe(
+      "1. $$\n   a\n   $$\n   ```a``` is the input.",
+    );
+    expect(normalizeMathDelimiters("1. $$\na\n$$\n```js\nx\n```")).toBe(
+      "1. $$\n   a\n   $$\n```js\nx\n```",
+    );
+  });
+
+  it.each(["-", "2", "2.", "#", "$", "`", "``", "~", "~~"])(
+    "keeps a half-streamed %j after a nested $$ fence at the root column",
+    (next) => {
+      expect(normalizeMathDelimiters(`- $$\na\n$$\n${next}`)).toBe(
+        `- $$\n  a\n  $$\n${next}`,
+      );
+    },
+  );
+
+  it.each(["A | B\n--- | ---\n1 | 2", "| A | B |\n| - | - |"])(
+    "leaves a table right after a nested $$ fence at the root: %j",
+    (table) => {
+      expect(normalizeMathDelimiters(`1. $$\na\n$$\n${table}`)).toBe(
+        `1. $$\n   a\n   $$\n${table}`,
+      );
+    },
+  );
+
+  it("leaves root indented code after a nested $$ fence at the root", () => {
+    expect(normalizeMathDelimiters("   - $$\na\n$$\n    code")).toBe(
+      "   - $$\n     a\n     $$\n    code",
+    );
+  });
+
+  it.each([
+    "1. $$\n   a\n   $$\nText",
+    "- $$\n  a\n  $$\nText",
+    "> 1. $$\n>    a\n>    $$\n> Text",
+    "> 1. $$\n>    x\n>    > y\n>    $$\nText",
+    "> \t1. $$\n>      x\n>      $$\nText",
+  ])(
+    "leaves a $$ fence already at its item's content column, and the root paragraph after it: %j",
+    (text) => {
+      expect(normalizeMathDelimiters(text)).toBe(text);
+    },
+  );
+
+  it("nests a still-streaming $$ fence opened on a marker line", () => {
+    expect(normalizeMathDelimiters("1. $$\nF = ")).toBe("1. $$\n   F = ");
+    expect(normalizeMathDelimiters("1. $$\nF = ma\n ")).toBe(
+      "1. $$\n   F = ma\n ",
+    );
+  });
+
+  it("leaves a $$ fence that reaches a sibling item before it closes", () => {
+    const text = "1. $$\na\n2. b\n$$";
+    expect(normalizeMathDelimiters(text)).toBe(text);
+    expect(normalizeMathDelimiters("1. $$\na\n2. $$\nb\n$$")).toBe(
+      "1. $$\na\n2. $$\n   b\n   $$",
+    );
+  });
+
+  it.each([
+    "- $$\nF = ma\n- where $F_{net}$ is the net force\n$$\np = mv\n$$",
+    "- $$\nF = ma\n- the net force on the body\n$$",
+    "1. $$\nF = ma\n- Summary\n$$",
+    "- $$\nF = ma\n- \n$$",
+  ])(
+    "leaves a $$ fence that reaches a sibling item of prose or nothing before it closes: %j",
+    (text) => {
+      expect(normalizeMathDelimiters(text)).toBe(text);
+    },
+  );
+
+  it.each([
+    "1. $$\nF = ma\n\nThat is Newton's second law.",
+    "1. $$\nF = ma\n\nText\n\n$$\nx\n$$",
+  ])(
+    "leaves a $$ fence with no closing line before a blank line as written: %j",
+    (text) => {
+      expect(normalizeMathDelimiters(text)).toBe(text);
+    },
+  );
+
+  it.each([
+    "1. $$\nF = ma$$\nThat is Newton's second law.",
+    "1. $$\nF = ma$$\n\nThat is Newton's second law.",
+    "1. $$\n`a\nF = ma$$\nb`\nText",
+    "> 1. $$\n>    `a\n>    F = ma$$\n>    b`\nText",
+  ])(
+    "leaves a $$ fence that closes on its formula line as written: %j",
+    (text) => {
+      expect(normalizeMathDelimiters(text)).toBe(text);
+    },
+  );
+
+  it("nests a later $$ fence after one that closes on its formula line", () => {
+    expect(
+      normalizeMathDelimiters(
+        "1. $$\nF = ma$$\nNewton\n2. $$\nE = mc^2\n$$\nEinstein",
+      ),
+    ).toBe("1. $$\nF = ma$$\nNewton\n2. $$\n   E = mc^2\n   $$\n   Einstein");
+  });
+
+  it("nests a $$ fence written with CRLF line endings", () => {
+    expect(
+      normalizeMathDelimiters(
+        "1. $$\r\nF = ma\r\n$$\r\nNewton\r\n\r\n2. $$\r\nx",
+      ),
+    ).toBe("1. $$\r\n   F = ma\r\n   $$\r\n   Newton\r\n\r\n2. $$\r\n   x");
+  });
+
+  it("leaves root and fenced $$ blocks as written", () => {
+    expect(normalizeMathDelimiters("$$\na\n$$")).toBe("$$\na\n$$");
+    const fenced = "```md\n1. $$\na\n$$\n```";
+    expect(normalizeMathDelimiters(fenced)).toBe(fenced);
   });
 });
 
@@ -710,6 +925,41 @@ describe("escapeCurrencyDollars", () => {
     );
   });
 
+  it.each([
+    ["a list item", "- legacy ` syntax\n- Run `cost=$5`"],
+    ["an ordered list item", "1. legacy ` syntax\n2. Run `cost=$5`"],
+    ["a heading", "legacy ` syntax\n# Run `cost=$5`"],
+    ["a blockquote", "legacy ` syntax\n> Run `cost=$5`"],
+    ["a setext underline", "legacy ` syntax\n---\nRun `cost=$5`"],
+    [
+      "a heading in a nested list item",
+      "- outer\n  - legacy ` syntax\n    # Run `cost=$5`",
+    ],
+    [
+      "a thematic break in a nested list item",
+      "- outer\n  - legacy ` syntax\n    ***\n    Run `cost=$5`",
+    ],
+  ])("does not pair a lone backtick with a code span after %s", (_, input) => {
+    expect(escapeCurrencyDollars(input)).toBe(input);
+  });
+
+  it("pairs a lone backtick across a line that continues its paragraph", () => {
+    expect(escapeCurrencyDollars("legacy ` syntax\n2. Run `cost=$5`")).toBe(
+      "legacy ` syntax\n2. Run `cost=\\$5`",
+    );
+  });
+
+  it.each([
+    ["an indented list marker", "see `cost=$5\n    - more` here"],
+    ["a tab-indented list marker", "see `cost=$5\n\t- more` here"],
+    ["a nested item's indented marker", "- see `cost=$5\n      - more` here"],
+    ["an indented quote marker", "see `cost=$5\n    > more` here"],
+    ["a lazy quote continuation", "> see `cost=$5\nmore` here"],
+    ["a CRLF line ending", "see `cost=$5\r\n    - more` here"],
+  ])("keeps a code span open across %s", (_, input) => {
+    expect(escapeCurrencyDollars(input)).toBe(input);
+  });
+
   it("escapes currency glued to a preceding word", () => {
     expect(escapeCurrencyDollars("Prices range from US$50 to US$100")).toBe(
       "Prices range from US\\$50 to US\\$100",
@@ -718,6 +968,331 @@ describe("escapeCurrencyDollars", () => {
 
   it("escapes an amount whose next dollar opens another amount", () => {
     expect(escapeCurrencyDollars("$50 to US$60")).toBe("\\$50 to US\\$60");
+  });
+
+  it("does not rewrite an indented code block", () => {
+    expect(
+      escapeCurrencyDollars("Pricing:\n\n    total = $5 + $10\n\nend"),
+    ).toBe("Pricing:\n\n    total = $5 + $10\n\nend");
+  });
+
+  it("keeps a multi-line indented code block with blank lines intact", () => {
+    expect(
+      escapeCurrencyDollars(
+        "    line1 = $5\n    line2 = $10\n\n    line3 = $15",
+      ),
+    ).toBe("    line1 = $5\n    line2 = $10\n\n    line3 = $15");
+  });
+
+  it("keeps a tab-indented code block intact", () => {
+    expect(escapeCurrencyDollars("\tconst price = $5;")).toBe(
+      "\tconst price = $5;",
+    );
+  });
+
+  it("still escapes currency when an indented line interrupts a paragraph", () => {
+    expect(escapeCurrencyDollars("para\n    not code $5")).toBe(
+      "para\n    not code \\$5",
+    );
+  });
+
+  it("escapes prose currency around an indented code block", () => {
+    expect(escapeCurrencyDollars("$5\n\n    code $10\n\n$15")).toBe(
+      "\\$5\n\n    code $10\n\n\\$15",
+    );
+  });
+
+  it("still escapes a list continuation paragraph", () => {
+    expect(
+      escapeCurrencyDollars(
+        "- Plan A\n\n    Costs $5 per month and $10 extra.",
+      ),
+    ).toBe("- Plan A\n\n    Costs \\$5 per month and \\$10 extra.");
+  });
+
+  it.each(["Heading\n===\n    total = $5", "Heading\n---\n    total = $5"])(
+    "does not rewrite indented code right after a setext heading: %j",
+    (input) => {
+      expect(escapeCurrencyDollars(input)).toBe(input);
+    },
+  );
+
+  it.each(["1. ---\n       total = $5", "1. ***\n       total = $5"])(
+    "does not rewrite indented code right after a thematic break in a list item: %j",
+    (input) => {
+      expect(escapeCurrencyDollars(input)).toBe(input);
+    },
+  );
+
+  it("still escapes a continuation below the code column after a thematic break in a list item", () => {
+    expect(escapeCurrencyDollars("1. ---\n      total = $5")).toBe(
+      "1. ---\n      total = \\$5",
+    );
+  });
+
+  it("closes a list item at root prose after a blank-line-terminated code block", () => {
+    const input = "- item\n\n      code $1\n\nroot prose\n\n    root code $6";
+    expect(escapeCurrencyDollars(input)).toBe(input);
+  });
+
+  it("does not rewrite code indented past a list item's content column", () => {
+    const markdown = "- item\n\n      total = $5";
+    expect(escapeCurrencyDollars(markdown)).toBe(markdown);
+  });
+
+  it("restores the outer list column after leaving a nested item", () => {
+    const markdown = "- outer\n  - inner\n\n  parent prose\n\n      total = $5";
+    expect(escapeCurrencyDollars(markdown)).toBe(markdown);
+  });
+
+  it("does not rewrite code indented past a nested item's content column", () => {
+    const markdown = "- outer\n  - inner\n\n        total = $5";
+    expect(escapeCurrencyDollars(markdown)).toBe(markdown);
+  });
+
+  it("escapes prose below a nested item's code column", () => {
+    expect(escapeCurrencyDollars("- outer\n  - inner\n\n    total = $5")).toBe(
+      "- outer\n  - inner\n\n    total = \\$5",
+    );
+  });
+
+  it("resumes escaping after indented code ends inside a list item", () => {
+    expect(
+      escapeCurrencyDollars("- item\n\n      total = $5\n    prose $10"),
+    ).toBe("- item\n\n      total = $5\n    prose \\$10");
+  });
+
+  it("does not rewrite indented code after an ATX heading", () => {
+    const markdown = "# Pricing\n    total = $5";
+    expect(escapeCurrencyDollars(markdown)).toBe(markdown);
+  });
+
+  it.each(["\r", "\r\n"])(
+    "does not rewrite indented code after a blank line using %j endings",
+    (ending) => {
+      const markdown = `Pricing:${ending}${ending}    total = $5`;
+      expect(escapeCurrencyDollars(markdown)).toBe(markdown);
+    },
+  );
+
+  it("still escapes a nested sublist paragraph", () => {
+    expect(
+      escapeCurrencyDollars("- a\n\n    - b\n\n      costs $5 and $10"),
+    ).toBe("- a\n\n    - b\n\n      costs \\$5 and \\$10");
+  });
+
+  it("still escapes a lazy list continuation paragraph", () => {
+    expect(
+      escapeCurrencyDollars("- Plan A\nwraps here\n\n    costs $5 and $10"),
+    ).toBe("- Plan A\nwraps here\n\n    costs \\$5 and \\$10");
+  });
+
+  it("does not rewrite root code after a closed list", () => {
+    expect(
+      escapeCurrencyDollars("- Plan A\n\nSome text\n\n    total = $5 + $10"),
+    ).toBe("- Plan A\n\nSome text\n\n    total = $5 + $10");
+  });
+
+  it("still escapes prose under a blockquote inside a list item", () => {
+    expect(
+      escapeCurrencyDollars("1. Step\n\n   > Tip: x\n\n    Costs $5 and $10"),
+    ).toBe("1. Step\n\n   > Tip: x\n\n    Costs \\$5 and \\$10");
+  });
+
+  it("still escapes prose under a bare list marker", () => {
+    expect(escapeCurrencyDollars("-\n  foo\n\n    bar costs $5 and $10")).toBe(
+      "-\n  foo\n\n    bar costs \\$5 and \\$10",
+    );
+  });
+
+  it.each([
+    ["1.\n   foo\n\n      bar costs $5", "1.\n   foo\n\n      bar costs \\$5"],
+    [
+      "10.\n    foo\n\n       bar costs $5",
+      "10.\n    foo\n\n       bar costs \\$5",
+    ],
+  ])(
+    "still escapes prose under a bare ordered marker: %j",
+    (input, expected) => {
+      expect(escapeCurrencyDollars(input)).toBe(expected);
+    },
+  );
+
+  it.each(["1.\n   foo\n\n       code $5", "10.\n    foo\n\n        code $5"])(
+    "does not rewrite code indented past a bare ordered marker's content column: %j",
+    (input) => {
+      expect(escapeCurrencyDollars(input)).toBe(input);
+    },
+  );
+
+  it("still escapes list prose inside a blockquote", () => {
+    expect(
+      escapeCurrencyDollars("> - a\n>\n>   para1\n>\n>     para2 costs $5"),
+    ).toBe("> - a\n>\n>   para1\n>\n>     para2 costs \\$5");
+  });
+
+  it("retains the list column across a nested blockquote", () => {
+    expect(
+      escapeCurrencyDollars(
+        "- > item\n  >\n  >     prose $5\n  >\n  >       code $10\n\n    after $15",
+      ),
+    ).toBe(
+      "- > item\n  >\n  >     prose $5\n  >\n  >       code $10\n\n    after \\$15",
+    );
+  });
+
+  it("does not rewrite quoted indented code inside a list item", () => {
+    const markdown = "- item\n\n  >     total = $5";
+    expect(escapeCurrencyDollars(markdown)).toBe(markdown);
+  });
+
+  it("does not rewrite code whose quote marker is itself indented", () => {
+    const markdown = "- item\n\n        >     total = $5";
+    expect(escapeCurrencyDollars(markdown)).toBe(markdown);
+  });
+
+  it.each([
+    "    > first $5\n    > second $10",
+    "    > first $5\n    second $10",
+    "    first $5\n    > second $10",
+    "    > first $5\n    >> second $10",
+    "    >     first $5\n    second $10",
+    "\tfirst $5\n\t> second $10",
+    ">     first $5\n>     > second $10",
+    ">     > first $5\n>     second $10",
+    ">     > first $5\n>     >> second $10",
+    "- item\n\n  >     > first $5\n  >     second $10",
+    "> - item\n>\n>       > first $5\n>       second $10",
+  ])("preserves literal quote markers in indented code: %j", (markdown) => {
+    expect(escapeCurrencyDollars(markdown)).toBe(markdown);
+  });
+
+  it("resumes escaping when literal quote markers leave indented code", () => {
+    expect(escapeCurrencyDollars("    > first $5\n> second $10")).toBe(
+      "    > first $5\n> second \\$10",
+    );
+  });
+
+  it("retains the list content column after literal quote markers", () => {
+    expect(
+      escapeCurrencyDollars("- item\n\n      > code $5\n    prose $10"),
+    ).toBe("- item\n\n      > code $5\n    prose \\$10");
+  });
+
+  it("escapes quoted prose at the content column of a wide list marker", () => {
+    expect(escapeCurrencyDollars("100. item\n\n     > prose $5")).toBe(
+      "100. item\n\n     > prose \\$5",
+    );
+  });
+
+  it("retains quoted list indentation across lazy paragraph continuations", () => {
+    expect(
+      escapeCurrencyDollars("> - a\nlazy\n>\n>     costs $5 and $10"),
+    ).toBe("> - a\nlazy\n>\n>     costs \\$5 and \\$10");
+  });
+
+  it.each([">\t> $5", ">\t $5", "> \t$5", "> \t $5"])(
+    "escapes quoted prose with absolute tab stops: %j",
+    (markdown) => {
+      expect(escapeCurrencyDollars(markdown)).toBe(
+        markdown.replace("$5", "\\$5"),
+      );
+    },
+  );
+
+  it.each([">\t  $5", "> - a\n# heading\n    code $5", "> - a\n\n    code $5"])(
+    "preserves code after tab padding or a quoted list boundary: %j",
+    (markdown) => {
+      expect(escapeCurrencyDollars(markdown)).toBe(markdown);
+    },
+  );
+
+  it("starts a root list after a quoted list paragraph", () => {
+    expect(escapeCurrencyDollars("> - a\n- b\n\n    prose $5")).toBe(
+      "> - a\n- b\n\n    prose \\$5",
+    );
+  });
+
+  it.each(["# Pricing", "***", "```\nx\n```"])(
+    "closes a root list before the block %j",
+    (block) => {
+      const markdown = `- a\n${block}\n    total = $5`;
+      expect(escapeCurrencyDollars(markdown)).toBe(markdown);
+    },
+  );
+
+  it.each([
+    "- > - # Heading\n  >\n  >     costs $5",
+    "> - # Heading\n>\n>     costs $5",
+    "- # Heading\n\n    costs $5",
+  ])("retains list prose after an item heading: %j", (markdown) => {
+    expect(escapeCurrencyDollars(markdown)).toBe(
+      markdown.replace("$5", "\\$5"),
+    );
+  });
+
+  it("still escapes footnote prose", () => {
+    expect(
+      escapeCurrencyDollars("[^1]: Pricing note\n\n    Plans cost $5 and $10"),
+    ).toBe("[^1]: Pricing note\n\n    Plans cost \\$5 and \\$10");
+  });
+
+  it("escapes list prose split across an html block boundary", () => {
+    // The html block hands the callback a fresh slice starting below it, but
+    // the indented line still sits inside the list item, so its currency is
+    // prose rather than code.
+    expect(
+      escapeCurrencyDollars(
+        "- Step\n\n  <details>\n  <summary>Cost</summary>\n\n    Costs $5 and $10\n",
+      ),
+    ).toBe(
+      "- Step\n\n  <details>\n  <summary>Cost</summary>\n\n    Costs \\$5 and \\$10\n",
+    );
+  });
+
+  it("does not veto a code block containing marker-like text", () => {
+    expect(
+      escapeCurrencyDollars("notes:\n\n    - not a list $5\n    more $10"),
+    ).toBe("notes:\n\n    - not a list $5\n    more $10");
+  });
+
+  it("does not hang on input starting with a blank line", () => {
+    expect(escapeCurrencyDollars("\n\n    code $5")).toBe("\n\n    code $5");
+  });
+
+  it("does not hang on a lone leading newline", () => {
+    expect(escapeCurrencyDollars("\nIntro:\n\n    x = $1")).toBe(
+      "\nIntro:\n\n    x = $1",
+    );
+  });
+
+  it("does not rewrite indented code inside a blockquote", () => {
+    expect(escapeCurrencyDollars(">     total = $5")).toBe(">     total = $5");
+  });
+
+  it.each([
+    ["fenced code", "```\n- fake item\n```"],
+    ["HTML block", "<pre>\n- fake item\n</pre>"],
+  ])("ignores a list marker inside %s before root code", (_, block) => {
+    const markdown = `${block}\n\n    total = $5`;
+    expect(escapeCurrencyDollars(markdown)).toBe(markdown);
+  });
+
+  it("preserves alternative math delimiters inside indented code", () => {
+    const markdown =
+      "    \\(x\\) [/math]y[/math] $5\n\nprose \\(z\\) [/math]w[/math]";
+    expect(escapeCurrencyDollars(normalizeMathDelimiters(markdown))).toBe(
+      "    \\(x\\) [/math]y[/math] $5\n\nprose $z$ $$w$$",
+    );
+  });
+
+  it("starts indented code immediately after a fence closes", () => {
+    const markdown = "```\ncode\n```\n    total = $5";
+    expect(escapeCurrencyDollars(markdown)).toBe(markdown);
+  });
+
+  it("still escapes a blockquote paragraph", () => {
+    expect(escapeCurrencyDollars("> total = $5")).toBe("> total = \\$5");
   });
 });
 
@@ -749,6 +1324,11 @@ describe("HTML blocks", () => {
 
   it("preserves currency in a completed pre block", () => {
     const text = "<pre>\ncosts $5 and $10\n</pre>";
+    expect(escapeCurrencyDollars(text)).toBe(text);
+  });
+
+  it("preserves currency in an HTML block inside a nested list item", () => {
+    const text = "- a\n  - b\n    <div>\n    costs $5\n    </div>";
     expect(escapeCurrencyDollars(text)).toBe(text);
   });
 

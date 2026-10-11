@@ -8,12 +8,19 @@ import {
   type SuiteManifest,
 } from "@icodenet/eval-dashboards";
 import type { CaseResult } from "./types.ts";
+import type {
+  Candidate,
+  EvalCase,
+  Judged,
+} from "./suites/comment-hygiene/types.ts";
+
+type CommentHygieneResult = CaseResult<EvalCase, Candidate, Judged>;
 
 const version = (value: unknown) =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex").slice(0, 16);
 
 export function createDashboardArtifact(
-  results: CaseResult[],
+  results: CommentHygieneResult[],
   options: {
     generatedAt?: string;
     agentModel?: string;
@@ -49,16 +56,13 @@ export function createDashboardArtifact(
     for (const variant of result.variants) {
       const trials = variant.trials.length
         ? variant.trials
-        : [
-            {
-              error: true as const,
-              message: "No trials were recorded.",
-              artifact: "" as const,
-            },
-          ];
+        : [{ error: true as const, message: "No trials were recorded." }];
       trials.forEach((trial, index) => {
         const baseline = variant.candidate.label === "baseline";
-        const passed = !trial.error && trial.verdict.pass;
+        const passed = !trial.error && trial.outcome.verdict.pass;
+        const reasoning = trial.error
+          ? trial.message
+          : trial.outcome.verdict.reason;
         rows.push({
           id: `${encodeURIComponent(result.case.id)}:${encodeURIComponent(variant.candidate.label)}:trial-${index + 1}`,
           suite: result.case.id,
@@ -78,19 +82,19 @@ export function createDashboardArtifact(
           promptVersion: version(variant.candidate.prompt),
           agentVersion: options.agentModel ?? "claude-cli-default-unrecorded",
           judgeModel: options.judgeModel ?? "claude-sonnet-5",
-          ...(!trial.error ? { judgeVerdict: trial.verdict.pass } : {}),
-          judgeReasoning: trial.error ? trial.message : trial.verdict.reason,
+          ...(!trial.error ? { judgeVerdict: trial.outcome.verdict.pass } : {}),
+          judgeReasoning: reasoning,
           input: result.case.task,
-          output: trial.artifact,
+          output: trial.error ? "" : trial.outcome.artifact,
           expected: result.case.rubric,
-          reason: trial.error ? trial.message : trial.verdict.reason,
+          reason: reasoning,
           metadata: {
             candidate: variant.candidate.label,
             trial: index + 1,
             executionError: Boolean(trial.error),
             provenance: {
               source: "synthetic",
-              sourceRef: `evals/src/cases/${result.case.id}.ts`,
+              sourceRef: `evals/src/suites/comment-hygiene/cases/${result.case.id}.ts`,
             },
             lifecycle: { status: "active" },
           },
@@ -114,7 +118,7 @@ export function createDashboardArtifact(
 
 export function writeDashboardArtifact(
   file: string,
-  results: CaseResult[],
+  results: CommentHygieneResult[],
 ): EvalReportV1 {
   const report = createDashboardArtifact(results, {
     ...(process.env.AGENT_MODEL ? { agentModel: process.env.AGENT_MODEL } : {}),

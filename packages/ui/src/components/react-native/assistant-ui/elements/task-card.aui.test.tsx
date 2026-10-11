@@ -268,9 +268,28 @@ describe("TaskGroup", () => {
     expect(container.textContent).toContain("instruction");
     expect(container.textContent).toContain("agent");
     expect(container.textContent).toContain("Found it");
-    expect(
-      container.querySelector('[aria-label="Check the docs, done"]'),
-    ).not.toBeNull();
+    const transcript = container.textContent ?? "";
+    expect(transcript.indexOf("instruction")).toBeLessThan(
+      transcript.indexOf("Go"),
+    );
+    expect(transcript.indexOf("Go")).toBeLessThan(transcript.indexOf("agent"));
+    expect(transcript.indexOf("agent")).toBeLessThan(
+      transcript.indexOf("Found it"),
+    );
+    const nestedHeader = container.querySelector(
+      '[aria-label="Check the docs, done"]',
+    ) as HTMLElement;
+    expect(nestedHeader).not.toBeNull();
+
+    await act(async () => {
+      click(nestedHeader);
+    });
+    const expanded = container.textContent ?? "";
+    expect(expanded).toContain("Found it");
+    expect(expanded).toContain("Docs agree");
+    expect(expanded.indexOf("Found it")).toBeLessThan(
+      expanded.indexOf("Docs agree"),
+    );
 
     await act(async () => {
       click(header);

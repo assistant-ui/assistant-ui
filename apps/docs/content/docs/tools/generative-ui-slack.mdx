@@ -4,7 +4,7 @@ description: Convert a generative UI tree into Slack Block Kit, post it, and dec
 platforms: ["react"]
 ---
 
-The `$type` tree your assistant renders in the browser is plain JSON, so it does not have to stay in the browser. `@assistant-ui/react-generative-ui/slack` converts the same tree into [Block Kit](https://docs.slack.dev/reference/block-kit/blocks) JSON, decodes the interactions Slack posts back, and parses Block Kit payloads into the tree.
+The generative UI tree your assistant renders in the browser is plain JSON, so it does not have to stay in the browser. `@assistant-ui/generative-ui/slack` converts the same tree into [Block Kit](https://docs.slack.dev/reference/block-kit/blocks) JSON, decodes the interactions Slack posts back, and parses Block Kit payloads into the tree.
 
 The subpath is React-free, so a server action, queue worker, or webhook handler imports it without pulling React into the bundle.
 
@@ -12,7 +12,7 @@ The subpath is React-free, so a server action, queue worker, or webhook handler 
 
 ```ts
 import { WebClient } from "@slack/web-api";
-import { toSlackBlocks } from "@assistant-ui/react-generative-ui/slack";
+import { toSlackBlocks } from "@assistant-ui/generative-ui/slack";
 
 const slack = new WebClient(process.env.SLACK_BOT_TOKEN);
 
@@ -96,7 +96,9 @@ A datetime without an offset, such as `2025-12-15T17:00`, is local wall time. It
 
 Anything else in the card, including a second image, a `Fact`, or a loose `Button`, makes the card fall back to a header plus the children rendered inline plus an actions block, and reports a `fallback` warning. A card carrying none of an image, title, body, or actions is dropped outright.
 
-Inside a `Carousel` that fallback is unavailable, so an over-full card is reshaped to title and body text instead, with a `fallback` warning. Text carried in a `text`, `value`, `label`, `title`, or `description` prop survives the reshape at any depth, which covers a `Caption`'s text and a `Button`'s label. An image, a `Table`, a `Chart`, and any control do not, since none of them is text, and those are reported separately as `dropped` so the two facts stay distinguishable. A control here is a `Button`, `Select`, `Slider`, `DatePicker`, `Checkbox`, `RadioGroup`, `CheckboxGroup`, `Input`, or `Form`, plus a `ListViewItem` or a nested `Card` footer that carries an action. An `$action` on a layout node such as `Box`, `Col`, or `Row` does not count, because those render no control on the clean path either.
+On a `Card` marked `asForm`, the confirm button carries the `confirm` footer's `$action`, or the Card's own `$action` when the footer has none. A form card with its own `$action` and no `confirm` footer gets a primary "Submit" button where the confirm button would go, ahead of any cancel button.
+
+Inside a `Carousel` that fallback is unavailable, so an over-full card is reshaped to title and body text instead, with a `fallback` warning. Text carried in a `text`, `value`, `label`, `title`, or `description` prop survives the reshape at any depth, which covers a `Caption`'s text and a `Button`'s label. An image, a `Table`, a `Chart`, and any control do not, since none of them is text, and those are reported separately as `dropped` so the two facts stay distinguishable. A control here is a `Button`, `Select`, `Slider`, `DatePicker`, `Checkbox`, `RadioGroup`, `CheckboxGroup`, `Input`, or `Form`, plus a `ListViewItem` or a nested `Card` footer that carries an action, and the "Submit" button a form card gets from its own `$action`. An `$action` on a layout node such as `Box`, `Col`, or `Row` does not count, because those render no control on the clean path either.
 
 ## Limits
 
@@ -146,7 +148,7 @@ A single-line `Input` outside a `Form` or `Card` with `asForm`, with a non-empty
 Slack posts interactions to your request URL as a [`block_actions` payload](https://docs.slack.dev/reference/interaction-payloads/block_actions-payload). `decodeBlockAction` takes one entry from its `actions` array and the payload's state values, then rebuilds the action your tree dispatched. Messages carry these values in `payload.state.values`, while modals and Home tabs carry them in `payload.view.state.values`. A control's runtime selection appears under `$input` when supplied; a button with a JSON-serialized `value` contributes its payload fields directly. `{ "$field": name }` references in the action payload resolve from named controls in that state:
 
 ```ts
-import { decodeBlockAction } from "@assistant-ui/react-generative-ui/slack";
+import { decodeBlockAction } from "@assistant-ui/generative-ui/slack";
 
 const action = decodeBlockAction(payload.actions[0], payload.state?.values ?? payload.view?.state?.values);
 // { type: "approve_order", orderId: "48213" }

@@ -119,6 +119,8 @@ type A2AClientOptions = {
   headers?: Record<string, string> | (() => Record<string, string> | Promise<Record<string, string>>) | undefined;
   extensions?: string[] | undefined;
   fetchOptions?: Omit<RequestInit, "body" | "headers" | "method" | "signal"> | undefined;
+  maxStreamLineLength?: number | undefined;
+  maxStreamEventLength?: number | undefined;
 };
 
 type A2ADeviceCodeOAuthFlow = {
@@ -1597,6 +1599,7 @@ type ThreadRuntimeState = {
   readonly threadId: string;
   readonly metadata: ThreadListItemRuntimeState;
   readonly isDisabled: boolean;
+  readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
   readonly hasEarlier: boolean;
   readonly isLoadingEarlier: boolean;

@@ -1,5 +1,5 @@
 import { SSEEventDecoder, type SSEEvent } from "assistant-stream/utils";
-import { isRecord } from "@assistant-ui/core/internal";
+import { isRecord, raceWithAbortSignal } from "@assistant-ui/core/internal";
 import type {
   A2AAgentCard,
   A2AErrorInfo,
@@ -33,6 +33,10 @@ export type A2AClientOptions = {
   fetchOptions?:
     | Omit<RequestInit, "headers" | "body" | "method" | "signal">
     | undefined;
+  /** Maximum UTF-16 code units accepted in one SSE line. Defaults to 16 MiB. */
+  maxStreamLineLength?: number | undefined;
+  /** Maximum UTF-16 code units retained across one SSE event. Defaults to 16 MiB. */
+  maxStreamEventLength?: number | undefined;
 };
 
 export class A2AError extends Error {
@@ -680,49 +684,6 @@ function signalInit(signal?: AbortSignal): RequestInit {
   return signal ? { signal } : {};
 }
 
-const getAbortReason = (signal: AbortSignal): unknown => {
-  if (signal.reason !== undefined) return signal.reason;
-  const error = new Error("The operation was aborted");
-  error.name = "AbortError";
-  return error;
-};
-
-const raceWithAbortSignal = <T>(
-  signal: AbortSignal | undefined,
-  operation: () => T | PromiseLike<T>,
-): Promise<T> => {
-  if (!signal) return Promise.resolve().then(operation);
-  if (signal.aborted) return Promise.reject(getAbortReason(signal));
-
-  return new Promise<T>((resolve, reject) => {
-    let settled = false;
-    const cleanup = () => signal.removeEventListener("abort", handleAbort);
-    const resolveOnce = (value: T) => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      resolve(value);
-    };
-    const rejectOnce = (error: unknown) => {
-      if (settled) return;
-      settled = true;
-      cleanup();
-      reject(error);
-    };
-    const handleAbort = () => rejectOnce(getAbortReason(signal));
-
-    signal.addEventListener("abort", handleAbort, { once: true });
-    let result: T | PromiseLike<T>;
-    try {
-      result = operation();
-    } catch (error) {
-      rejectOnce(error);
-      return;
-    }
-    Promise.resolve(result).then(resolveOnce, rejectOnce);
-  });
-};
-
 const SKIPPED_FRAME_SNIPPET_LENGTH = 120;
 
 function describeSkippedFrame(data: string, reason: string): string {
@@ -739,6 +700,8 @@ export class A2AClient {
   private basePath: string;
   private tenant: string | undefined;
   private extensionUris: string[] | undefined;
+  private maxStreamLineLength: number | undefined;
+  private maxStreamEventLength: number | undefined;
   private fetchOptions: Omit<
     RequestInit,
     "headers" | "body" | "method" | "signal"
@@ -754,6 +717,8 @@ export class A2AClient {
       : "";
     this.tenant = options.tenant;
     this.extensionUris = options.extensions;
+    this.maxStreamLineLength = options.maxStreamLineLength;
+    this.maxStreamEventLength = options.maxStreamEventLength;
     const {
       headers: _h,
       body: _b,
@@ -1112,7 +1077,6 @@ export class A2AClient {
     if (!reader) throw new Error("No response body");
 
     const decoder = new TextDecoder();
-    const sseDecoder = new SSEEventDecoder();
 
     let firstSkipReason: string | undefined;
     const noteSkip = (data: string, reason: string) => {
@@ -1148,6 +1112,10 @@ export class A2AClient {
 
     let shouldCancel = true;
     try {
+      const sseDecoder = new SSEEventDecoder({
+        maxLineLength: this.maxStreamLineLength,
+        maxEventLength: this.maxStreamEventLength,
+      });
       while (true) {
         let result: ReadableStreamReadResult<Uint8Array>;
         try {

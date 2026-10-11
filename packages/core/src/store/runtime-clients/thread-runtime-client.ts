@@ -190,6 +190,7 @@ const useThreadClient = ({
     return {
       isEmpty: messages.state.length === 0 && !runtimeState.isLoading,
       isDisabled: runtimeState.isDisabled,
+      isSendDisabled: runtimeState.isSendDisabled,
       isLoading: runtimeState.isLoading,
       hasEarlier: runtimeState.hasEarlier,
       isLoadingEarlier: runtimeState.isLoadingEarlier,

@@ -25,7 +25,7 @@ import {
   type VoiceSessionHelpers,
 } from "../../adapters/voice";
 
-const flush = () => new Promise((resolve) => setTimeout(resolve, 10));
+const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -38,6 +38,7 @@ const createThread = (
     history?: LocalRuntimeOptionsBase["adapters"]["history"];
     voice?: LocalRuntimeOptionsBase["adapters"]["voice"];
     maxSteps?: number;
+    initialMessages?: ThreadMessageLike[];
   },
 ) => {
   const core = new LocalRuntimeCore(
@@ -57,7 +58,7 @@ const createThread = (
       unstable_humanToolNames: ["send_email"],
       ...(options?.maxSteps !== undefined && { maxSteps: options.maxSteps }),
     },
-    undefined,
+    options?.initialMessages,
   );
   return core.threads.getMainThreadRuntimeCore();
 };
@@ -3200,6 +3201,336 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
     };
     return { history, appended, updated };
   };
+
+  describe("seeded history", () => {
+    const initialMessages: ThreadMessageLike[] = [
+      { id: "seed-user", role: "user", content: "What is assistant-ui?" },
+      {
+        id: "seed-assistant",
+        role: "assistant",
+        content: "A set of React components.",
+      },
+    ];
+    const chatModel: ChatModelAdapter = {
+      async run() {
+        return { content: [{ type: "text", text: "done" }] };
+      },
+    };
+
+    it("keeps the seed after an empty load without writing history", async () => {
+      const { history, appended, updated } = createHistory();
+      const thread = createThread(chatModel, { history, initialMessages });
+      const seed = thread.messages;
+
+      await thread.__internal_load();
+
+      expect(thread.messages).toEqual(seed);
+      expect(thread.isLoading).toBe(false);
+      expect(appended).toEqual([]);
+      expect(updated).toEqual([]);
+    });
+
+    it("issues the seed before the first send and writes it only once", async () => {
+      const { history, appended } = createHistory();
+      const thread = createThread(chatModel, { history, initialMessages });
+      const seed = thread.messages;
+
+      const send = thread.append({
+        ...userMessage("hello"),
+        parentId: "seed-assistant",
+      });
+
+      expect(appended.slice(0, 3)).toMatchObject([
+        { parentId: null, message: seed[0] },
+        { parentId: "seed-user", message: seed[1] },
+        {
+          parentId: "seed-assistant",
+          message: { role: "user", content: [{ type: "text", text: "hello" }] },
+        },
+      ]);
+      await send;
+      expect(appended).toHaveLength(4);
+      expect(appended[3]?.parentId).toBe(appended[2]?.message.id);
+
+      await thread.append({
+        ...userMessage("again"),
+        parentId: thread.messages.at(-1)!.id,
+      });
+
+      expect(appended).toHaveLength(6);
+      expect(appended.map((item) => item.message)).toEqual(thread.messages);
+    });
+
+    it("defers seed feedback and flushes its current value on the first send", async () => {
+      const { history, appended, updated } = createHistory();
+      const thread = createThread(chatModel, { history, initialMessages });
+
+      thread.submitFeedback({ messageId: "seed-assistant", type: "positive" });
+      await flush();
+
+      expect(appended).toEqual([]);
+      expect(updated).toEqual([]);
+      await thread.__internal_load();
+      await thread.append({
+        ...userMessage("hello"),
+        parentId: "seed-assistant",
+      });
+
+      expect(appended[1]?.message.metadata.submittedFeedback).toEqual({
+        type: "positive",
+      });
+      expect(updated).toEqual([]);
+    });
+
+    it("deletes an unwritten seed locally and flushes its child's live parent", async () => {
+      const { history, appended } = createHistory();
+      const deleteHistory = vi.fn<NonNullable<ThreadHistoryAdapter["delete"]>>(
+        async () => {},
+      );
+      const thread = createThread(chatModel, {
+        history: { ...history, delete: deleteHistory },
+        initialMessages,
+      });
+
+      await thread.deleteMessage("seed-user");
+
+      expect(deleteHistory).not.toHaveBeenCalled();
+      expect(appended).toEqual([]);
+      expect(thread.getMessageById("seed-assistant")?.parentId).toBe(null);
+      await thread.__internal_load();
+      await thread.append({
+        ...userMessage("hello"),
+        parentId: "seed-assistant",
+      });
+
+      expect(
+        appended.map(({ parentId, message }) => [parentId, message.id]),
+      ).toEqual([
+        [null, "seed-assistant"],
+        ["seed-assistant", thread.messages[1]!.id],
+        [thread.messages[1]!.id, thread.messages[2]!.id],
+      ]);
+      expect(deleteHistory).not.toHaveBeenCalled();
+    });
+
+    it("replaces an edited seed with non-empty history and writes only the new send", async () => {
+      const { history, appended, updated } = createHistory();
+      let resolveLoad!: (repository: ExportedMessageRepository) => void;
+      const thread = createThread(chatModel, {
+        history: {
+          ...history,
+          load: () =>
+            new Promise((resolve) => {
+              resolveLoad = resolve;
+            }),
+        },
+        initialMessages,
+      });
+      const loading = thread.__internal_load();
+      thread.submitFeedback({ messageId: "seed-assistant", type: "positive" });
+      await flush();
+      expect(updated).toEqual([]);
+
+      const loaded = ExportedMessageRepository.fromArray([
+        { id: "stored-user", role: "user", content: "stored question" },
+        { id: "seed-assistant", role: "assistant", content: "stored answer" },
+      ]);
+      resolveLoad(loaded);
+      await loading;
+
+      expect(thread.messages).toEqual(
+        loaded.messages.map((item) => item.message),
+      );
+      await thread.append({
+        ...userMessage("hello"),
+        parentId: "seed-assistant",
+        startRun: false,
+      });
+
+      expect(appended).toHaveLength(1);
+      expect(appended[0]).toMatchObject({
+        parentId: "seed-assistant",
+        message: { content: [{ type: "text", text: "hello" }] },
+      });
+      thread.submitFeedback({ messageId: "seed-assistant", type: "negative" });
+      await flush();
+      expect(updated).toHaveLength(1);
+      expect(updated[0]?.message.metadata.submittedFeedback).toEqual({
+        type: "negative",
+      });
+    });
+
+    it("flushes the seed before the assistant message from a reload", async () => {
+      const { history, appended } = createHistory();
+      const thread = createThread(chatModel, { history, initialMessages });
+
+      await thread.startRun({
+        parentId: "seed-user",
+        sourceId: "seed-assistant",
+        runConfig: {},
+      });
+
+      expect(
+        appended.map(({ parentId, message }) => [parentId, message.id]),
+      ).toEqual([
+        [null, "seed-user"],
+        ["seed-user", "seed-assistant"],
+        ["seed-user", thread.messages.at(-1)!.id],
+      ]);
+    });
+
+    it.each([false, true])(
+      "writes the seed when the run of a seeded approval settles (update: %s)",
+      async (update) => {
+        const { history, appended, updated } = createHistory({ update });
+        const thread = createThread(chatModel, {
+          history,
+          initialMessages: [
+            initialMessages[0]!,
+            {
+              id: "seed-assistant",
+              role: "assistant",
+              content: [toolCallPart("send_email", { id: "a1" })],
+              status: { type: "requires-action", reason: "tool-calls" },
+            },
+          ],
+        });
+
+        thread.respondToToolApproval({ approvalId: "a1", approved: true });
+        await flush();
+
+        expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+        const settled = thread.messages.at(-1)!;
+        expect(
+          appended.map(({ parentId, message }) => [parentId, message.id]),
+        ).toEqual([
+          [null, "seed-user"],
+          ["seed-user", "seed-assistant"],
+        ]);
+        expect(appended[1]?.message).toEqual(settled);
+        expect(updated).toEqual([]);
+
+        await thread.append({ ...userMessage("hello"), parentId: settled.id });
+
+        expect(
+          appended
+            .slice(2)
+            .map(({ parentId, message }) => [parentId, message.role]),
+        ).toEqual([
+          ["seed-assistant", "user"],
+          [appended[2]?.message.id, "assistant"],
+        ]);
+      },
+    );
+
+    describe("an approval answered while the history loads", () => {
+      const seededApproval: ThreadMessageLike[] = [
+        initialMessages[0]!,
+        {
+          id: "seed-assistant",
+          role: "assistant",
+          content: [toolCallPart("send_email", { id: "a1" })],
+          status: { type: "requires-action", reason: "tool-calls" },
+        },
+      ];
+      const createLoadingThread = () => {
+        let resolveLoad!: (repository: ExportedMessageRepository) => void;
+        const appended: ExportedMessageRepositoryItem[] = [];
+        const run = vi.fn(chatModel.run);
+        const thread = createThread(
+          { run },
+          {
+            history: {
+              load: () =>
+                new Promise<ExportedMessageRepository>((resolve) => {
+                  resolveLoad = resolve;
+                }),
+              async append(item: ExportedMessageRepositoryItem) {
+                appended.push(item);
+              },
+            },
+            initialMessages: seededApproval,
+          },
+        );
+        const load = thread.__internal_load();
+        thread.respondToToolApproval({ approvalId: "a1", approved: true });
+        return { thread, run, appended, load, resolveLoad };
+      };
+
+      it("does not run when a non-empty load replaces the seed", async () => {
+        const { thread, run, appended, load, resolveLoad } =
+          createLoadingThread();
+        await flush();
+        expect(run).not.toHaveBeenCalled();
+
+        resolveLoad(
+          ExportedMessageRepository.fromArray([
+            { id: "stored-user", role: "user", content: "stored" },
+          ]),
+        );
+        await load;
+        await flush();
+
+        expect(run).not.toHaveBeenCalled();
+        expect(appended).toEqual([]);
+        expect(thread.messages.map((message) => message.id)).toEqual([
+          "stored-user",
+        ]);
+      });
+
+      it("runs and writes the seed once an empty load keeps it", async () => {
+        const { thread, run, appended, load, resolveLoad } =
+          createLoadingThread();
+        await flush();
+
+        resolveLoad({ messages: [] });
+        await load;
+        await flush();
+
+        expect(run).toHaveBeenCalledTimes(1);
+        expect(
+          appended.map(({ parentId, message }) => [parentId, message.id]),
+        ).toEqual([
+          [null, "seed-user"],
+          ["seed-user", "seed-assistant"],
+        ]);
+        expect(appended[1]?.message).toEqual(thread.messages.at(-1));
+      });
+    });
+
+    it("clears the pending seed when the history scope changes", async () => {
+      const { history, appended, updated } = createHistory();
+      const thread = createThread(chatModel, {
+        history: { ...history, scopeId: "first" },
+        initialMessages,
+      });
+      await thread.__internal_load();
+      expect(thread.messages).toHaveLength(2);
+
+      thread.__internal_setOptions({
+        adapters: {
+          chatModel,
+          history: {
+            ...history,
+            scopeId: "second",
+            load: async () =>
+              ExportedMessageRepository.fromArray(initialMessages),
+          },
+        },
+      });
+      await thread.__internal_load();
+      thread.submitFeedback({ messageId: "seed-assistant", type: "positive" });
+      await flush();
+      expect(updated).toHaveLength(1);
+      await thread.append({
+        ...userMessage("hello"),
+        parentId: "seed-assistant",
+        startRun: false,
+      });
+      expect(appended).toHaveLength(1);
+      expect(appended[0]?.message.role).toBe("user");
+    });
+  });
 
   const createApprovalThreadWithHistory = (
     history: LocalRuntimeOptionsBase["adapters"]["history"],
@@ -7559,42 +7890,41 @@ describe("LocalThreadRuntimeCore imported approvals", () => {
 
   it("persists a final result for a preliminary tool call that remains paused", async () => {
     const updated: ExportedMessageRepositoryItem[] = [];
-    const { thread } = createImportedThread(
-      [
-        { role: "user", content: [{ type: "text", text: "send an email" }] },
-        {
-          role: "assistant",
-          status: { type: "requires-action", reason: "tool-calls" },
-          content: [
-            {
-              type: "tool-call",
-              toolCallId: "call-send_email",
-              toolName: "send_email",
-              args: {},
-              argsText: "{}",
-              result: { preview: true },
-              isPreliminary: true,
-            },
-            {
-              type: "tool-call",
-              toolCallId: "call-other",
-              toolName: "send_email",
-              args: {},
-              argsText: "{}",
-            },
-          ],
-        },
-      ],
+    const repository = ExportedMessageRepository.fromArray([
+      { role: "user", content: [{ type: "text", text: "send an email" }] },
       {
-        async load() {
-          return { messages: [] };
-        },
-        async append() {},
-        async update(item) {
-          updated.push(item);
-        },
+        role: "assistant",
+        status: { type: "requires-action", reason: "tool-calls" },
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-send_email",
+            toolName: "send_email",
+            args: {},
+            argsText: "{}",
+            result: { preview: true },
+            isPreliminary: true,
+          },
+          {
+            type: "tool-call",
+            toolCallId: "call-other",
+            toolName: "send_email",
+            args: {},
+            argsText: "{}",
+          },
+        ],
       },
-    );
+    ]);
+    const { thread } = createImportedThread([], {
+      async load() {
+        return repository;
+      },
+      async append() {},
+      async update(item) {
+        updated.push(item);
+      },
+    });
+    await thread.__internal_load();
 
     thread.addToolResult({
       messageId: thread.messages.at(-1)!.id,
@@ -7726,6 +8056,492 @@ describe("LocalThreadRuntimeCore message queue", () => {
 
     expect(dispatched).toEqual(["first", "second", "third"]);
     await releaseRun();
+  });
+});
+
+describe("LocalThreadRuntimeCore message queue with other runs", () => {
+  const createThread = (options: {
+    clearOnCancel?: boolean | undefined;
+    history?: boolean;
+    historyAdapter?: ThreadHistoryAdapter;
+    wait?: (message: ThreadMessage | undefined) => Promise<void>;
+    queue?: boolean;
+  }) => {
+    const dispatched: string[] = [];
+    const runtimeOptions: LocalRuntimeOptionsBase = {
+      adapters: {
+        chatModel: {
+          async run(runOptions) {
+            const last = runOptions.messages.at(-1);
+            dispatched.push(
+              last?.content
+                .filter((part) => part.type === "text")
+                .map((part) => (part as { text: string }).text)
+                .join("") ?? "",
+            );
+            await options.wait?.(last);
+            return { content: [{ type: "text", text: "ok" }] };
+          },
+        },
+        ...(options.historyAdapter !== undefined && {
+          history: options.historyAdapter,
+        }),
+      },
+      unstable_enableMessageQueue: options.queue ?? true,
+      ...(options.clearOnCancel !== undefined && {
+        unstable_queueClearOnCancel: options.clearOnCancel,
+      }),
+    };
+    const core = new LocalRuntimeCore(
+      runtimeOptions,
+      options.history
+        ? [
+            { id: "u0", role: "user", content: "hi" },
+            { id: "a0", role: "assistant", content: "hello" },
+          ]
+        : undefined,
+    );
+    const thread = core.threads.getMainThreadRuntimeCore();
+    const send = (text: string, steer?: boolean) =>
+      void thread.append({
+        ...userMessage(text),
+        parentId: thread.messages.at(-1)?.id ?? null,
+        ...(steer !== undefined && { steer }),
+      });
+    const enableQueue = (enabled = true) =>
+      thread.__internal_setOptions({
+        ...runtimeOptions,
+        unstable_enableMessageQueue: enabled,
+      });
+    return { thread, dispatched, send, enableQueue };
+  };
+
+  const createGate = () => {
+    let release!: () => void;
+    let gate = new Promise<void>((resolve) => (release = resolve));
+    return {
+      wait: () => gate,
+      release: async () => {
+        const releaseCurrent = release;
+        gate = new Promise<void>((resolve) => (release = resolve));
+        releaseCurrent();
+        await flush();
+      },
+    };
+  };
+
+  const createInitialization = () => {
+    let resolve!: () => void;
+    let reject!: (error: unknown) => void;
+    const promise = new Promise<void>((res, rej) => {
+      resolve = res;
+      reject = rej;
+    });
+    return { promise, resolve, reject };
+  };
+
+  it("holds the next queued send when a regenerate ends while a queued send waits to start", async () => {
+    const gate = createGate();
+    const { thread, dispatched, send } = createThread({
+      history: true,
+      wait: gate.wait,
+    });
+    const initialization = createInitialization();
+    thread.__internal_setGetInitializePromise(() => initialization.promise);
+
+    send("first");
+    await flush();
+    send("second");
+    await flush();
+    void thread.startRun({ parentId: "u0", sourceId: "a0", runConfig: {} });
+    await flush();
+    await gate.release();
+
+    initialization.resolve();
+    await flush();
+    expect(dispatched).toEqual(["hi", "first"]);
+
+    await gate.release();
+    expect(dispatched).toEqual(["hi", "first", "second"]);
+    await gate.release();
+  });
+
+  it("keeps sending after a cancel while a queued send waits to start", async () => {
+    const gate = createGate();
+    const { thread, dispatched, send } = createThread({
+      clearOnCancel: false,
+      wait: gate.wait,
+    });
+    const initialization = createInitialization();
+    thread.__internal_setGetInitializePromise(() => initialization.promise);
+
+    send("first");
+    await flush();
+    thread.cancelRun();
+    initialization.resolve();
+    await flush();
+    expect(dispatched).toEqual(["first"]);
+
+    send("second");
+    await flush();
+    expect(dispatched).toEqual(["first"]);
+
+    await gate.release();
+    expect(dispatched).toEqual(["first", "second"]);
+    await gate.release();
+  });
+
+  it("keeps sending after a cancel stops a regenerate while a queued send waits to start", async () => {
+    const gate = createGate();
+    const { thread, dispatched, send } = createThread({
+      history: true,
+      clearOnCancel: false,
+      wait: gate.wait,
+    });
+    const initialization = createInitialization();
+    thread.__internal_setGetInitializePromise(() => initialization.promise);
+
+    send("first");
+    await flush();
+    send("second");
+    await flush();
+    void thread.startRun({ parentId: "u0", sourceId: "a0", runConfig: {} });
+    await flush();
+    thread.cancelRun();
+    await gate.release();
+
+    initialization.resolve();
+    await flush();
+    expect(dispatched).toEqual(["hi", "first"]);
+
+    await gate.release();
+    expect(dispatched).toEqual(["hi", "first", "second"]);
+    await gate.release();
+  });
+
+  it("sends a later queued send when a send waiting on the history load is cancelled", async () => {
+    let releaseLoad!: () => void;
+    const loaded = new Promise<void>((resolve) => (releaseLoad = resolve));
+    const gate = createGate();
+    const { thread, dispatched, send } = createThread({
+      clearOnCancel: false,
+      wait: gate.wait,
+      historyAdapter: {
+        load: () => loaded.then(() => ({ messages: [] })),
+        async append() {},
+      },
+    });
+
+    thread.__internal_load();
+    send("first");
+    await flush();
+    thread.cancelRun();
+    send("second");
+    await flush();
+    releaseLoad();
+    await flush();
+    expect(dispatched).toEqual(["first"]);
+
+    await gate.release();
+    expect(dispatched).toEqual(["first", "second"]);
+    await gate.release();
+  });
+
+  it("holds a queued send behind a run started in the tick after another run ends", async () => {
+    const gate = createGate();
+    const { thread, dispatched, send } = createThread({
+      history: true,
+      wait: gate.wait,
+    });
+    let followUps = 0;
+    thread.unstable_on("runEnd", () => {
+      if (followUps++ > 0) return;
+      queueMicrotask(() => {
+        void thread.startRun({ parentId: "u0", sourceId: null, runConfig: {} });
+      });
+    });
+
+    void thread.startRun({ parentId: "u0", sourceId: "a0", runConfig: {} });
+    await flush();
+    await gate.release();
+    expect(dispatched).toEqual(["hi", "hi"]);
+
+    send("queued");
+    await flush();
+    expect(dispatched).toEqual(["hi", "hi"]);
+
+    await gate.release();
+    expect(dispatched).toEqual(["hi", "hi", "queued"]);
+    await gate.release();
+  });
+
+  it("keeps sending after a cancel between a run's end and a run started in the same tick", async () => {
+    const gate = createGate();
+    const { thread, dispatched, send } = createThread({
+      history: true,
+      clearOnCancel: false,
+      wait: gate.wait,
+    });
+    let followUps = 0;
+    thread.unstable_on("runEnd", () => {
+      if (followUps++ > 0) return;
+      queueMicrotask(() => {
+        thread.cancelRun();
+        void thread.startRun({ parentId: "u0", sourceId: null, runConfig: {} });
+      });
+    });
+
+    void thread.startRun({ parentId: "u0", sourceId: "a0", runConfig: {} });
+    await flush();
+    await gate.release();
+    expect(dispatched).toEqual(["hi", "hi"]);
+    await gate.release();
+
+    send("queued");
+    await flush();
+    expect(dispatched).toEqual(["hi", "hi", "queued"]);
+    await gate.release();
+  });
+
+  it("holds a queued send behind a running send when a cancelled run settles after the runs that replaced it", async () => {
+    const pending: (() => void)[] = [];
+    const { thread, dispatched, send } = createThread({
+      history: true,
+      clearOnCancel: false,
+      wait: async (message) => {
+        const isRegenerate = message?.id === "u0";
+        if (!isRegenerate) await new Promise<void>((r) => pending.push(r));
+      },
+    });
+
+    send("first");
+    await flush();
+    thread.cancelRun();
+    void thread.startRun({ parentId: "u0", sourceId: null, runConfig: {} });
+    await flush();
+    void thread.startRun({ parentId: "u0", sourceId: null, runConfig: {} });
+    await flush();
+
+    let sent = false;
+    thread.unstable_on("runEnd", () => {
+      if (sent) return;
+      sent = true;
+      queueMicrotask(() => send("second"));
+    });
+    pending.shift()!();
+    await flush();
+    expect(dispatched).toContain("second");
+
+    send("third");
+    await flush();
+    expect(dispatched).not.toContain("third");
+    for (const release of pending) release();
+  });
+
+  it("holds a queued send made after a cancel behind a regenerate that replaces the cancelled run", async () => {
+    const pending: (() => void)[] = [];
+    const { thread, dispatched, send } = createThread({
+      history: true,
+      clearOnCancel: false,
+      wait: () => new Promise<void>((r) => pending.push(r)),
+    });
+
+    send("first");
+    await flush();
+    thread.cancelRun();
+    send("second");
+    await flush();
+    void thread.startRun({ parentId: "u0", sourceId: "a0", runConfig: {} });
+    await flush();
+    expect(dispatched).toEqual(["first", "hi"]);
+
+    pending[1]!();
+    await flush();
+    expect(dispatched).toEqual(["first", "hi", "second"]);
+    for (const release of pending) release();
+  });
+
+  it("holds a send behind a run that was active when the queue was enabled", async () => {
+    const pending: (() => void)[] = [];
+    const { dispatched, send, enableQueue } = createThread({
+      queue: false,
+      wait: () => new Promise<void>((r) => pending.push(r)),
+    });
+
+    send("first");
+    await flush();
+    enableQueue();
+    send("second");
+    await flush();
+    expect(dispatched).toEqual(["first"]);
+
+    pending.shift()!();
+    await flush();
+    expect(dispatched).toEqual(["first", "second"]);
+    pending.shift()!();
+  });
+
+  it("holds a send behind an append that was waiting to start when the queue was enabled", async () => {
+    const pending: (() => void)[] = [];
+    const { thread, dispatched, send, enableQueue } = createThread({
+      queue: false,
+      wait: () => new Promise<void>((r) => pending.push(r)),
+    });
+    const initialization = createInitialization();
+    thread.__internal_setGetInitializePromise(() => initialization.promise);
+
+    send("first");
+    await flush();
+    enableQueue();
+    send("second");
+    await flush();
+    initialization.resolve();
+    await flush();
+    expect(dispatched).toEqual(["first"]);
+
+    pending.shift()!();
+    await flush();
+    expect(dispatched).toEqual(["first", "second"]);
+    pending.shift()!();
+  });
+
+  it("holds a send behind an append that was waiting when the queue was enabled while a regenerate ends", async () => {
+    const gate = createGate();
+    const { thread, dispatched, send, enableQueue } = createThread({
+      history: true,
+      queue: false,
+      wait: gate.wait,
+    });
+    const initialization = createInitialization();
+    thread.__internal_setGetInitializePromise(() => initialization.promise);
+
+    send("first");
+    await flush();
+    enableQueue();
+    send("second");
+    void thread.startRun({ parentId: "u0", sourceId: "a0", runConfig: {} });
+    await flush();
+    await gate.release();
+    expect(dispatched).toEqual(["hi"]);
+
+    initialization.resolve();
+    await flush();
+    expect(dispatched).toEqual(["hi", "first"]);
+
+    await gate.release();
+    expect(dispatched).toEqual(["hi", "first", "second"]);
+    await gate.release();
+  });
+
+  it("holds a send behind an append that was waiting when the queue was enabled during a run", async () => {
+    const gate = createGate();
+    const { thread, dispatched, send, enableQueue } = createThread({
+      queue: false,
+      wait: gate.wait,
+    });
+    const initialization = createInitialization();
+
+    send("first");
+    await flush();
+    thread.__internal_setGetInitializePromise(() => initialization.promise);
+    send("second");
+    await flush();
+    enableQueue();
+    send("third");
+    await gate.release();
+    expect(dispatched).toEqual(["first"]);
+
+    initialization.resolve();
+    await flush();
+    expect(dispatched).toEqual(["first", "second"]);
+
+    await gate.release();
+    expect(dispatched).toEqual(["first", "second", "third"]);
+    await gate.release();
+  });
+
+  it("sends after an append that was waiting when the queue was enabled fails to start", async () => {
+    const { thread, dispatched, send, enableQueue } = createThread({
+      queue: false,
+    });
+    const initialization = createInitialization();
+    let initPromise: Promise<void> | undefined = initialization.promise;
+    thread.__internal_setGetInitializePromise(() => initPromise);
+
+    const first = thread.append({
+      ...userMessage("first"),
+      parentId: null,
+    });
+    await flush();
+    enableQueue();
+    initPromise = undefined;
+    send("second");
+    await flush();
+    expect(dispatched).toEqual([]);
+
+    initialization.reject(new Error("init failed"));
+    await expect(first).rejects.toSatisfy(isMessageNotSentError);
+    await flush();
+    expect(dispatched).toEqual(["second"]);
+  });
+
+  it("sends one at a time after cancelling a run that was active when the queue was enabled", async () => {
+    const pending: (() => void)[] = [];
+    const { thread, dispatched, send, enableQueue } = createThread({
+      queue: false,
+      clearOnCancel: false,
+      wait: () => new Promise<void>((r) => pending.push(r)),
+    });
+
+    send("first");
+    await flush();
+    enableQueue();
+    thread.cancelRun();
+    send("second");
+    send("third");
+    await flush();
+    expect(dispatched).toEqual(["first"]);
+
+    pending.shift()!();
+    await flush();
+    expect(dispatched).toEqual(["first", "second"]);
+
+    pending.shift()!();
+    await flush();
+    expect(dispatched).toEqual(["first", "second", "third"]);
+    pending.shift()!();
+  });
+
+  it("holds a send behind a regenerate that replaces a cancelled run after the queue was re-enabled", async () => {
+    const pending: (() => void)[] = [];
+    const { thread, dispatched, send, enableQueue } = createThread({
+      history: true,
+      clearOnCancel: false,
+      wait: () => new Promise<void>((r) => pending.push(r)),
+    });
+
+    send("first");
+    send("second");
+    await flush();
+    thread.cancelRun();
+    enableQueue(false);
+    enableQueue();
+    send("third");
+    send("fourth");
+    await flush();
+    expect(dispatched).toEqual(["first"]);
+    void thread.startRun({ parentId: "u0", sourceId: "a0", runConfig: {} });
+    await flush();
+    expect(dispatched).toEqual(["first", "hi"]);
+
+    pending[1]!();
+    await flush();
+    expect(dispatched).toEqual(["first", "hi", "third"]);
+
+    pending[2]!();
+    await flush();
+    expect(dispatched).toEqual(["first", "hi", "third", "fourth"]);
+    for (const release of pending) release();
   });
 });
 
@@ -7933,6 +8749,41 @@ describe("history scope persistence", () => {
     expect.soft(run).toHaveBeenCalledTimes(2);
     finishFirst({ content: [] });
     await flush();
+  });
+
+  it("starts new queued work while an old scope's append waits to start", async () => {
+    let finishInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      finishInitialization = resolve;
+    });
+    const run = vi.fn<ChatModelAdapter["run"]>(async () => ({ content: [] }));
+    const model: ChatModelAdapter = { run };
+    const thread = new LocalRuntimeCore(
+      {
+        adapters: { chatModel: model, history: historyFor("first") },
+        unstable_enableMessageQueue: true,
+      },
+      undefined,
+    ).threads.getMainThreadRuntimeCore();
+    await thread.__internal_load();
+    thread.__internal_setGetInitializePromise(() => initialization);
+    void thread.append({ ...userMessage("first"), parentId: "shared" });
+    await flush();
+    expect(run).not.toHaveBeenCalled();
+
+    thread.__internal_setOptions({
+      adapters: { chatModel: model, history: historyFor("second") },
+      unstable_enableMessageQueue: true,
+    });
+    thread.__internal_setGetInitializePromise(() => undefined);
+    await thread.__internal_load();
+    await thread.append({ ...userMessage("second"), parentId: "shared" });
+    await flush();
+    expect(run).toHaveBeenCalledOnce();
+
+    finishInitialization();
+    await flush();
+    expect(run).toHaveBeenCalledOnce();
   });
 
   it("does not report an old write failure to the current scope", async () => {

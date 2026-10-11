@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 /**
  * Memo hook benchmark: many memo cells in one resource. Measures stable deps,
  * changing deps, and React Compiler-style memo caches.

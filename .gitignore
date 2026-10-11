@@ -106,5 +106,8 @@ apps/docs/public/example-bundles/
 
 packages/cli/templates/cloud-harness/
 
+# Variants agent mailbox (packages/variants)
+.variants/
+
 # Local eval dashboard: generate deliberately before hosting
 /apps/docs/public/eval-dashboard/

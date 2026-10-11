@@ -147,7 +147,7 @@ Toggle `writing` while your own generation is in progress; the caret appends aft
 </div>
 ```
 
-Below `md`, the thread and the document stack vertically instead of splitting side by side; at `md` and up the layout becomes a row. `CanvasSplitHeader`'s copy and close buttons both disable themselves the same way `ChatPanelComposer`'s send button does, whenever `onCopy` or `onClose` is left `undefined`. `CanvasSplitBody`'s blinking caret is purely presentational: it renders whenever `writing` is true, appended after whatever `children` you pass, so it always trails the last line.
+The layout follows the width of the canvas split itself, not the viewport: below 36rem (the `@xl` container size) the thread and the document stack vertically, and from 36rem up they split into a row, so it also stacks in a narrow sidebar or panel. `CanvasSplitHeader`'s copy and close buttons both disable themselves the same way `ChatPanelComposer`'s send button does, whenever `onCopy` or `onClose` is left `undefined`. `CanvasSplitBody`'s blinking caret is purely presentational: it renders whenever `writing` is true, appended after whatever `children` you pass, so it always trails the last line.
 
 ## Examples
 
@@ -206,7 +206,7 @@ The same is true with a runtime: `CanvasSplitDocument` and its children are plai
 
 | Part | Renders | Props | Description |
 |------|---------|-------|-------------|
-| `CanvasSplit` | `div` | `className` | Root; stacks below `md`, splits row-wise at `md` and up. |
+| `CanvasSplit` | `div` | `className` | Root and size container; stacks below `@xl` (36rem of its own width), splits row-wise from `@xl` up. |
 | `CanvasSplitThread` | `div` | `className` | The narrow message rail. |
 | `CanvasSplitMessage` | `div` | `speaker: "user" \| "assistant"`, `className` | Right-aligned bubble for `"user"`, plain text for `"assistant"`. |
 | `CanvasSplitDocument` | `div` | `className` | The document column. |

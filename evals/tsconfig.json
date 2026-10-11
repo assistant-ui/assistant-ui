@@ -1,12 +1,7 @@
 {
+  "extends": "@assistant-ui/x-buildutils/ts/base-node",
   "compilerOptions": {
-    "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "strict": true,
-    "allowImportingTsExtensions": true,
-    "noEmit": true,
-    "skipLibCheck": false
+    "allowImportingTsExtensions": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src"]
 }

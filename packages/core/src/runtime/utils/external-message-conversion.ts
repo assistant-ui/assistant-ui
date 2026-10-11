@@ -305,7 +305,9 @@ export const joinExternalMessages = (
                 const timing = mergePartTiming(existing.timing, part.timing);
                 assistantMessage.content[existingIdx] = {
                   ...existing,
-                  text: `${existing.text}\n\n${part.text}`,
+                  text: [existing.text, part.text]
+                    .filter((text) => text?.trim())
+                    .join("\n\n"),
                   ...(timing && { timing }),
                   ...mergeInnerMessages(existing, part),
                 };

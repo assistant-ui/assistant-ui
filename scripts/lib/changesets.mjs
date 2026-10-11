@@ -6,13 +6,19 @@ export function parseBumpLine(line) {
   return release && BUMP_VALUES.has(release.bump) ? release : null;
 }
 
+// Mirrors the block-mapping lines that `yaml`, the parser `@changesets/parse`
+// uses, accepts for a changeset: a plain key cannot start with a YAML
+// indicator (nor with `-` or `?` and a space, which open a sequence entry or a
+// complex key), the colon needs a space or tab after it even after a quoted
+// key, and only spaces and tabs count as whitespace (`\s` would also admit
+// U+00A0, a BOM or U+2028, which `yaml` rejects).
 export function parseReleaseLine(line) {
-  const entry = line
-    .trim()
-    .match(/^(?:"([^"]*)"|'([^']*)'|([^#:][^:]*?))\s*:\s*(.*)$/);
+  const entry = line.match(
+    /^[ \t]*(?:"([^"]*)"|'([^']*)'|(?![-?][ \t])([^\s#:@`%!&*|>[\]{},'"][^:]*?))[ \t]*:[ \t]+(.*?)\r?$/,
+  );
   if (!entry) return null;
   const value = entry[4].match(
-    /^(?:"([^"]*)"|'([^']*)'|([^\s#]*))\s*(?:#.*)?$/,
+    /^(?:"([^"]*)"|'([^']*)'|([^ \t#]*))(?:[ \t]+#.*)?[ \t]*$/,
   );
   if (!value) return null;
   const bump = value[1] ?? value[2] ?? value[3];

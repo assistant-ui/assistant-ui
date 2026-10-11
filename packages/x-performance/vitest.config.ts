@@ -33,6 +33,14 @@ export default defineConfig({
   test: {
     coverage: {
       include: ["src/**/*.{ts,tsx}", "lib/**/*.{ts,tsx,mjs}", "bin/**/*.mjs"],
+      thresholds: {
+        lines: 57,
+        functions: 67,
+        branches: 58,
+        statements: 58,
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
+      },
     },
     environment: "jsdom",
     pool: "forks",

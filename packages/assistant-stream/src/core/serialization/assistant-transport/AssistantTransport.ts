@@ -95,7 +95,13 @@ export class AssistantTransportDecoder extends PipeableTransformStream<
   Uint8Array<ArrayBuffer>,
   AssistantStreamChunk
 > {
-  constructor(options: { strict?: boolean | undefined } = {}) {
+  constructor(
+    options: {
+      strict?: boolean | undefined;
+      maxLineLength?: number | undefined;
+      maxEventLength?: number | undefined;
+    } = {},
+  ) {
     const strict = options.strict ?? true;
     const warnedReasons = new Set<string>();
     super(
@@ -126,6 +132,8 @@ export class AssistantTransportDecoder extends PipeableTransformStream<
             );
           },
         },
+        maxLineLength: options.maxLineLength,
+        maxEventLength: options.maxEventLength,
         ...(strict
           ? { strict: true }
           : {

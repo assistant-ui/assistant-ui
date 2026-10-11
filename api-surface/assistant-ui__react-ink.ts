@@ -1529,6 +1529,7 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
   #private;
   get canCancel(): boolean;
   get canSend(): boolean;
+  addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
   cancel(): void;
   protected threadMessageIds(role: MessageRole): string[];
   get queue(): readonly QueueItemState[];
@@ -2114,12 +2115,18 @@ declare const InMemoryThreadList: Resource<ClientOutput<"threads">, [
 ]>;
 
 declare class InMemoryThreadListAdapter implements RemoteThreadListAdapter {
+  #private;
   list(): Promise<RemoteThreadListResponse>;
   rename(): Promise<void>;
+  rename(remoteId: string, newTitle: string): Promise<void>;
   updateCustom(): Promise<void>;
+  updateCustom(remoteId: string, custom: Record<string, unknown> | undefined): Promise<void>;
   archive(): Promise<void>;
+  archive(remoteId: string): Promise<void>;
   unarchive(): Promise<void>;
+  unarchive(remoteId: string): Promise<void>;
   delete(): Promise<void>;
+  delete(remoteId: string): Promise<void>;
   initialize(threadId: string): Promise<RemoteThreadInitializeResponse>;
   generateTitle(): Promise<AssistantStream>;
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
@@ -4431,6 +4438,7 @@ type ThreadRuntimeCore = Readonly<{
   getModelContext: () => ModelContext$1;
   composer: ThreadComposerRuntimeCore;
   getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+  __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
   beginEdit: (messageId: string) => void;
   getQueueItems?: () => readonly QueueItemState[];
   getSteerQueueItems?: () => readonly QueueItemState[];
@@ -4553,6 +4561,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
         unstable_on: <E extends ComposerRuntimeEventType>(event: E, callback: ComposerRuntimeEventCallback<E>) => Unsubscribe$1;
       }>;
       getEditComposer: (messageId: string) => EditComposerRuntimeCore | undefined;
+      __internal_getEditComposers?: () => Iterable<EditComposerRuntimeCore>;
       beginEdit: (messageId: string) => void;
       getQueueItems?: () => readonly QueueItemState[];
       getSteerQueueItems?: () => readonly QueueItemState[];
@@ -4632,6 +4641,7 @@ type ThreadRuntimeState = {
   readonly threadId: string;
   readonly metadata: ThreadListItemRuntimeState;
   readonly isDisabled: boolean;
+  readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
   readonly hasEarlier: boolean;
   readonly isLoadingEarlier: boolean;
@@ -4648,6 +4658,7 @@ type ThreadRuntimeState = {
 type ThreadState = {
   readonly isEmpty: boolean;
   readonly isDisabled: boolean;
+  readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
   readonly hasEarlier: boolean;
   readonly isLoadingEarlier: boolean;

@@ -4,6 +4,14 @@ export default defineConfig({
   test: {
     coverage: {
       include: ["src/**/*.{ts,tsx}"],
+      thresholds: {
+        lines: 71,
+        functions: 66,
+        branches: 55,
+        statements: 69,
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
+      },
     },
     environment: "node",
     pool: "threads",

@@ -1,5 +1,5 @@
 import { toJSONSchema } from "assistant-stream";
-import type { GenerativeUIComponent } from "@assistant-ui/react-generative-ui";
+import type { GenerativeUIComponent } from "@assistant-ui/generative-ui/react";
 
 export type PropRow = {
   name: string;

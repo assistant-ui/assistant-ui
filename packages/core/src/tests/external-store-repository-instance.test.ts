@@ -120,6 +120,138 @@ describe("ExternalStoreThreadRuntimeCore repository instance swap", () => {
     expect(core.messages.map((m) => m.id)).toEqual(["u1", "m1"]);
   });
 
+  it.each([
+    {
+      label: "a user-tailed",
+      next: createUserMessage("b1"),
+      status: undefined,
+    },
+    {
+      label: "an assistant-tailed",
+      next: { ...createAssistantMessage("b1"), status: undefined },
+      status: "complete",
+    },
+  ])(
+    "shows no running reply in $label conversation swapped in while a client tool executes",
+    async ({ next, status }) => {
+      const repoA = new MessageRepository();
+      const repoB = new MessageRepository();
+      const store = (
+        messages: readonly ThreadMessage[],
+        repository: MessageRepository,
+      ): ExternalStoreAdapter<ThreadMessage> => ({
+        ...createAdapter(messages, repository),
+        convertMessage: (message: ThreadMessage) => message,
+        isRunning: false,
+        unstable_enableToolInvocations: true,
+        onAddToolResult: vi.fn(),
+      });
+      const core = new ExternalStoreThreadRuntimeCore(
+        {
+          getModelContext: () => ({
+            tools: {
+              weatherSearch: {
+                parameters: { type: "object", properties: {} },
+                execute: vi.fn(() => new Promise<never>(() => {})),
+              },
+            },
+          }),
+        },
+        store([], repoA),
+      );
+      core.__internal_setAdapter(
+        store(
+          [
+            createUserMessage("u0"),
+            {
+              ...createAssistantMessage("a1"),
+              status: { type: "requires-action", reason: "tool-calls" },
+              content: [
+                {
+                  type: "tool-call",
+                  toolCallId: "tc1",
+                  toolName: "weatherSearch",
+                  args: {},
+                  argsText: "{}",
+                },
+              ],
+            } as ThreadMessage,
+          ],
+          repoA,
+        ),
+      );
+      await vi.waitFor(() => expect(core.isRunning).toBe(true));
+
+      core.__internal_setAdapter(store([next as ThreadMessage], repoB));
+
+      expect(core.isRunning).toBe(false);
+      expect(core.messages.map((m) => m.id)).toEqual(["b1"]);
+      expect(core.messages[0]?.status?.type).toBe(status);
+    },
+  );
+
+  it.each([
+    { label: "the tool call's reply", tail: [], ids: ["u0", "a1"] },
+    {
+      label: "a placeholder after a follow-up",
+      tail: [createUserMessage("u2", "and tomorrow?")],
+      ids: ["u0", "a1", "u2"],
+    },
+  ])(
+    "derives a running $label once a client tool starts executing",
+    async ({ tail, ids }) => {
+      const repository = new MessageRepository();
+      const store = (
+        messages: readonly ThreadMessage[],
+      ): ExternalStoreAdapter<ThreadMessage> => ({
+        ...createAdapter(messages, repository),
+        convertMessage: (message: ThreadMessage) => message,
+        isRunning: false,
+        unstable_enableToolInvocations: true,
+        onAddToolResult: vi.fn(),
+      });
+      const core = new ExternalStoreThreadRuntimeCore(
+        {
+          getModelContext: () => ({
+            tools: {
+              weatherSearch: {
+                parameters: { type: "object", properties: {} },
+                execute: vi.fn(() => new Promise<never>(() => {})),
+              },
+            },
+          }),
+        },
+        store([]),
+      );
+      core.__internal_setAdapter(
+        store([
+          createUserMessage("u0"),
+          {
+            ...createAssistantMessage("a1"),
+            status: undefined,
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "tc1",
+                toolName: "weatherSearch",
+                args: {},
+                argsText: "{}",
+              },
+            ],
+          } as unknown as ThreadMessage,
+          ...tail,
+        ]),
+      );
+
+      await vi.waitFor(() => expect(core.isRunning).toBe(true));
+
+      const last = core.messages.at(-1)!;
+      expect(core.messages.slice(0, ids.length).map((m) => m.id)).toEqual(ids);
+      expect(last.role).toBe("assistant");
+      expect(last.status?.type).toBe("running");
+    },
+  );
+
   it("reconciles a same-reference messages array when only the repository swapped", () => {
     const repoA = new MessageRepository();
     const repoB = new MessageRepository();

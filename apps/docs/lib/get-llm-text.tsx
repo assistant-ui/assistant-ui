@@ -13,7 +13,13 @@ import { unified } from "unified";
 import { AGENT_DOCS_DIRECTIVE_MARKDOWN } from "@/lib/agent-docs-directive";
 import { LLM_COMPONENTS } from "@/lib/llm-components";
 import { DEFAULT_PLATFORM, type Platform } from "@/lib/constants";
-import type { design, elementsDocs, examples, source } from "@/lib/source";
+import type {
+  design,
+  DocsSitePage,
+  elementsDocs,
+  examples,
+  source,
+} from "@/lib/source";
 import type { InferPageType } from "fumadocs-core/source";
 
 const processor = unified()
@@ -344,7 +350,8 @@ type LLMPage =
   | InferPageType<typeof source>
   | InferPageType<typeof examples>
   | InferPageType<typeof design>
-  | InferPageType<typeof elementsDocs>;
+  | InferPageType<typeof elementsDocs>
+  | DocsSitePage;
 
 export async function getLLMText(
   page: LLMPage,

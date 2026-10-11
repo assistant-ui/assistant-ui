@@ -158,7 +158,6 @@ test("only PR jobs use shallow history and prepare their comparison base", () =>
     "build",
     "build-apps",
     "api-reference-drift",
-    "test",
     "typecheck",
   ]) {
     const section = workflow

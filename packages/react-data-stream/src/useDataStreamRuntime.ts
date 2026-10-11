@@ -39,6 +39,10 @@ export type UseDataStreamRuntimeOptions = {
     | object
     | ((options: DataStreamRuntimeBodyOptions) => Promise<object | undefined>);
   sendExtraMessageFields?: boolean;
+  /** Maximum UTF-16 code units accepted in one data-stream or SSE line. Defaults to 16 MiB. */
+  maxStreamLineLength?: number | undefined;
+  /** Maximum UTF-16 code units retained across one UI-message-stream SSE event. Defaults to 16 MiB. */
+  maxStreamEventLength?: number | undefined;
 } & LocalRuntimeOptions;
 
 export const useDataStreamRuntime = (

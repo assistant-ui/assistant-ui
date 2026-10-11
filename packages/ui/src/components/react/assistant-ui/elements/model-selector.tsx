@@ -98,6 +98,7 @@ function ModelSelectorRoot({
       efforts,
       effort: activeEffort,
       setEffort,
+      open: open ?? false,
       setOpen,
     }),
     [
@@ -108,6 +109,7 @@ function ModelSelectorRoot({
       efforts,
       activeEffort,
       setEffort,
+      open,
       setOpen,
     ],
   );

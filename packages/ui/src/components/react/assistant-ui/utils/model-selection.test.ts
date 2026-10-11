@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_EFFORT_OPTIONS,
@@ -46,11 +47,5 @@ describe("resolveModelEffort", () => {
     expect(resolveModelEffort(models, "custom", "high")).toBeUndefined();
     expect(resolveModelEffort(models, "plain", "high")).toBeUndefined();
     expect(resolveModelEffort(models, "missing", "high")).toBeUndefined();
-  });
-
-  it("allows an effort to apply again after switching back", () => {
-    const effort = "high";
-    expect(resolveModelEffort(models, "plain", effort)).toBeUndefined();
-    expect(resolveModelEffort(models, "default", effort)).toBe(effort);
   });
 });

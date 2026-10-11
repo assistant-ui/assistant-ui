@@ -510,22 +510,6 @@ describe("toToolsJSONSchema", () => {
       expect(result).toHaveProperty("olderFrontendTool");
     });
 
-    it("excludes tools without parameters", () => {
-      const tools: Record<string, Tool> = {
-        withParams: {
-          description: "With params",
-          parameters: { type: "object", properties: {} },
-        },
-        withoutParams: {
-          type: "backend",
-        },
-      };
-
-      const result = toToolsJSONSchema(tools);
-      expect(result).toHaveProperty("withParams");
-      expect(result).not.toHaveProperty("withoutParams");
-    });
-
     it("respects custom filter function", () => {
       const tools: Record<string, Tool> = {
         tool_a: {

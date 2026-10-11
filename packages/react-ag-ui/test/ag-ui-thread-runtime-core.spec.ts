@@ -139,7 +139,6 @@ const createCore = (
     ...(hooks.onError ? { onError: hooks.onError } : {}),
     ...(hooks.onCancel ? { onCancel: hooks.onCancel } : {}),
     ...(hooks.history ? { history: hooks.history } : {}),
-    notifyUpdate: () => {},
   });
 
 // On teardown @ag-ui/client rethrows an errored body's reader.cancel()
@@ -3271,6 +3270,71 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(core.getMessages()).toHaveLength(2);
     expect(core.getMessages()[0]?.id).toBe("msg-1");
     expect(core.getMessages()[1]?.id).toBe("msg-2");
+  });
+
+  it("waits for initial history before linking a new turn", async () => {
+    let resolveHistory!: (
+      repository: Awaited<ReturnType<ThreadHistoryAdapter["load"]>>,
+    ) => void;
+    const pendingHistory = new Promise<
+      Awaited<ReturnType<ThreadHistoryAdapter["load"]>>
+    >((resolve) => {
+      resolveHistory = resolve;
+    });
+    const runAgent = vi.fn(async (_input, subscriber) => {
+      subscriber.onTextMessageContentEvent?.({
+        event: { type: "TEXT_MESSAGE_CONTENT", delta: "new answer" },
+      });
+      subscriber.onRunFinalized?.();
+    });
+    const history: ThreadHistoryAdapter = {
+      load: vi.fn(() => pendingHistory),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const core = createCore({ runAgent } as unknown as HttpAgent, { history });
+    const loadPromise = core.__internal_load();
+    const appendPromise = core.append({
+      ...createAppendMessage(),
+      content: [{ type: "text", text: "new question" }],
+    });
+
+    await Promise.resolve();
+    expect(runAgent).not.toHaveBeenCalled();
+    expect(core.getMessages()).toEqual([]);
+
+    resolveHistory({
+      headId: "h1",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "h1",
+            role: "user",
+            content: [{ type: "text", text: "earlier question" }],
+            createdAt: new Date(0),
+            attachments: [],
+            metadata: { custom: {} },
+          },
+        },
+      ],
+    });
+    await Promise.all([loadPromise, appendPromise]);
+
+    const messages = core.getMessages();
+    expect(messages.map(assistantText)).toEqual([
+      "earlier question",
+      "new question",
+      "new answer",
+    ]);
+    expect(
+      core
+        .getMessageRepository()
+        .messages.map(({ parentId, message }) => [parentId, message.id]),
+    ).toEqual([
+      [null, "h1"],
+      ["h1", messages[1]!.id],
+      [messages[1]!.id, messages[2]!.id],
+    ]);
   });
 
   it("preserves branchable history on __internal_load", async () => {
@@ -8403,7 +8467,6 @@ describe("AGUIThreadRuntimeCore", () => {
         agent: { runAgent } as unknown as HttpAgent,
         logger: noopLogger,
         showThinking: false,
-        notifyUpdate: () => {},
       });
 
       await core.append(createAppendMessage());

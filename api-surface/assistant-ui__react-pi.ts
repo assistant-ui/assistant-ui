@@ -1605,6 +1605,7 @@ type PiClientEventBody = {
 } | {
   type: "error";
   error: string;
+  terminal?: boolean;
 };
 
 type PiClientEventEnvelope = {
@@ -1644,6 +1645,8 @@ interface PiEventStreamOptions {
   expectedThreadId?: string;
   snapshotRecoveryUrl?: string;
   reconnectDelay?: () => Promise<void>;
+  maxStreamLineLength?: number | undefined;
+  maxStreamEventLength?: number | undefined;
 }
 
 type PiHostUiRequest = {
@@ -1696,6 +1699,8 @@ interface PiHttpClientOptions {
   onStreamError?: (error: unknown) => void;
   reconnectDelay?: () => Promise<void>;
   streamCloseDelayMs?: number;
+  maxStreamLineLength?: number | undefined;
+  maxStreamEventLength?: number | undefined;
 }
 
 interface PiImageContent {
@@ -2624,6 +2629,7 @@ type ThreadRuntimeState = {
   readonly threadId: string;
   readonly metadata: ThreadListItemRuntimeState;
   readonly isDisabled: boolean;
+  readonly isSendDisabled: boolean;
   readonly isLoading: boolean;
   readonly hasEarlier: boolean;
   readonly isLoadingEarlier: boolean;
@@ -2983,7 +2989,10 @@ declare const createPiNodeClient: (options?: PiNodeClientOptions) => PiClient;
 
 declare const createPiThreadState: (threadId: string) => PiThreadState;
 
-declare const createSseDecoder: () => {
+declare const createSseDecoder: (options?: {
+  maxLineLength?: number | undefined;
+  maxEventLength?: number | undefined;
+}) => {
   push(chunk: string): SseFrame[];
 };
 

@@ -1,5 +1,7 @@
+/** @vitest-environment jsdom */
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { useEffect } from "react";
 import type {
   AddToolResultOptions,
   AppendMessage,
@@ -7,13 +9,20 @@ import type {
   ThreadMessage,
   ToolCallMessagePart,
 } from "@assistant-ui/core";
-import type { AdkMessage, AdkSendMessageConfig } from "./types";
+import type {
+  AdkMessage,
+  AdkSendMessageConfig,
+  AdkThreadSnapshot,
+} from "./types";
+import { AdkThreadController } from "./AdkThreadController";
 
 const mocks = vi.hoisted(() => {
   const threadListItem = {
     source: null as object | null,
+    id: "thread-a",
     externalId: undefined as string | undefined,
     getState: () => ({
+      id: threadListItem.id,
       externalId: threadListItem.externalId,
     }),
     initialize: vi.fn(),
@@ -28,6 +37,8 @@ const mocks = vi.hoisted(() => {
     threadListItem,
   };
 });
+
+let mockController = new AdkThreadController();
 
 vi.mock("@assistant-ui/core/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/core/react")>()),
@@ -44,24 +55,38 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/store")>()),
   useAui: () => ({
     threadListItem: mocks.threadListItem,
+    threads: {
+      getState: () => ({ mainThreadId: mocks.threadListItem.id }),
+    },
   }),
 }));
 
 vi.mock("./useAdkMessages", async (importOriginal) => {
-  const useMockAdkMessages = (options: {
-    onMessages?: (messages: AdkMessage[], runConfig: unknown) => void;
-  }) => {
-    options.onMessages?.(mocks.messages, mocks.messageRunConfig);
+  const useMockAdkMessages = () => {
+    const { messages, messageRunConfig } = mocks;
+    useEffect(() => {
+      mockController.dispatch({ type: "messages.set", messages });
+      mockController.dispatch({
+        type: "messages.remember",
+        messages,
+        runConfig: messageRunConfig,
+      });
+    }, [messages, messageRunConfig]);
     const sendMessage = async (
       messages: AdkMessage[],
       config: AdkSendMessageConfig,
     ) => {
       await mocks.sendMessage(messages, config);
       if (mocks.streamedMessages) {
-        options.onMessages?.(mocks.streamedMessages, config.runConfig);
+        mockController.dispatch({
+          type: "messages.remember",
+          messages: mocks.streamedMessages,
+          runConfig: config.runConfig,
+        });
       }
     };
     return {
+      controller: mockController,
       messages: mocks.messages,
       stateDelta: {},
       agentInfo: {},
@@ -104,6 +129,10 @@ type RuntimeAdapter = {
   onAddToolResult?: (options: AddToolResultOptions) => Promise<void> | void;
   onRespondToToolApproval?: (
     options: RespondToToolApprovalOptions,
+  ) => Promise<void> | void;
+  onReload?: (
+    parentId: string | null,
+    config: { runConfig?: AppendMessage["runConfig"] },
   ) => Promise<void> | void;
   onRefetchThread?: () => Promise<void> | void;
 };
@@ -150,6 +179,7 @@ const approvalPart = () =>
     );
 
 afterEach(() => {
+  mockController = new AdkThreadController();
   mocks.adapters.length = 0;
   mocks.sendMessage.mockClear();
   mocks.messages = [];
@@ -161,6 +191,69 @@ afterEach(() => {
 });
 
 describe("useAdkRuntime tool approvals", () => {
+  it.each([
+    "reload",
+    "tool result",
+    "approval response",
+    "extras send",
+  ] as const)("waits for the initial load before %s", async (route) => {
+    let resolveLoad!: (snapshot: AdkThreadSnapshot) => void;
+    const pendingLoad = new Promise<AdkThreadSnapshot>((resolve) => {
+      resolveLoad = resolve;
+    });
+    const load = vi.fn(() => pendingLoad);
+    mocks.threadListItem.source = {};
+    mocks.threadListItem.externalId = "thread-a";
+    renderHook(() =>
+      useAdkRuntime({
+        stream: vi.fn(),
+        load,
+        getCheckpointId: vi.fn(async () => null),
+      }),
+    );
+    expect(load).toHaveBeenCalledOnce();
+
+    let action: Promise<void>;
+    switch (route) {
+      case "reload":
+        action = Promise.resolve(latestAdapter().onReload!(null, {}));
+        break;
+      case "tool result":
+        action = Promise.resolve(
+          latestAdapter().onAddToolResult!({
+            messageId: "ai-1",
+            toolCallId: "tool-a",
+            toolName: "lookup",
+            result: { value: "done" },
+            isError: false,
+          }),
+        );
+        break;
+      case "approval response":
+        action = Promise.resolve(
+          latestAdapter().onRespondToToolApproval!({
+            approvalId: CONFIRMATION_CALL,
+            approved: true,
+          }),
+        );
+        break;
+      case "extras send":
+        action = latestAdapter().extras.send(
+          [{ id: "new-user", type: "human", content: "new question" }],
+          {},
+        );
+    }
+    void action.catch(() => {});
+    await Promise.resolve();
+    expect(mocks.sendMessage).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveLoad({ messages: [makeConfirmationRequest()] });
+      await action;
+    });
+    expect(mocks.sendMessage).toHaveBeenCalledOnce();
+  });
+
   it("resumes a delayed tool result with its originating run config", async () => {
     const runConfigA = { custom: { model: "model-a" } };
     const runConfigB = { custom: { model: "model-b" } };

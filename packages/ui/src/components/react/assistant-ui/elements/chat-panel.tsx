@@ -112,7 +112,7 @@ export function ChatPanelComposer({
       )}
       {...props}
     >
-      <span className="text-foreground/35 text-[13px]">{placeholder}</span>
+      <span className="text-muted-foreground text-[13px]">{placeholder}</span>
       <button
         type="button"
         aria-label="Send"

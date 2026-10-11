@@ -36,6 +36,7 @@ export function SubagentListDemo() {
       progress={progress}
       showSummary={phase === 2}
       summaryAgent={SUMMARY_AGENT}
+      className="min-h-[14.5rem]"
     />
   );
 }

@@ -74,11 +74,12 @@ The numeric aliases (`--radius-lg`, `--radius-2xl`, `--radius-3xl`) exist for Ta
 
 ## Register: type
 
-Three faces, assigned by meaning rather than by size:
+Two faces, assigned by meaning rather than by size:
 
-- **Display** (`--font-display`) is for headings: `h1`, `h2`, `h3`, and the large figures a page is built around.
-- **Sans** (`--font-sans`) is reading text.
-- **Mono** (`--font-mono`) is only for **the thing you type or install** (a command, a package name, a path, an identifier, a version, a count). Never use mono for prose or for emphasis.
+- **Public Sans** is used for both display (`--font-display`) and reading text (`--font-sans`). Headings establish hierarchy through size and weight. Labels, navigation, captions, and statistics use the same face as prose.
+- **JetBrains Mono** (`--font-mono`) is only for **the thing you type or install**: code, commands, package names, paths, identifiers, and versions. Never use mono for prose or for emphasis. Counts and measurements use sans with `tabular-nums` when alignment matters.
+
+Labels and captions use sentence case, normal letter spacing, and a minimum of 12px. Preserve the case of acronyms, brands, and code. Never style a label with all caps or expanded tracking.
 
 Type roles are a closed set in `components/shared/type.ts`: `typeHero`, `typeSection`, `typePage`, `typeDeck`, `typePackage`. Use the role. Do not compose a one-off size, and never resize one peer because its string is longer.
 

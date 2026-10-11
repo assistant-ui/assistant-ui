@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -213,9 +214,8 @@ describe("ADK runtime callbacks", () => {
 });
 
 describe("ADK stream lifecycle", () => {
-  it("reports streamed tool calls with the run config that produced them", async () => {
+  it("attributes streamed tool calls to the run config that produced them", async () => {
     const runConfig = { custom: { model: "model-a" } };
-    const onMessages = vi.fn();
     const stream: AdkStreamCallback = async function* () {
       yield {
         id: "event-1",
@@ -229,9 +229,7 @@ describe("ADK stream lifecycle", () => {
         },
       };
     };
-    const { result } = renderHook(() =>
-      useAdkMessagesInternal({ stream, onMessages }),
-    );
+    const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
 
     await act(async () => {
       await result.current.sendMessage(
@@ -240,18 +238,86 @@ describe("ADK stream lifecycle", () => {
       );
     });
 
-    expect(onMessages).toHaveBeenLastCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({
-          type: "ai",
-          tool_calls: [
-            expect.objectContaining({ id: "tool-1" }),
-            expect.objectContaining({ id: "tool-2" }),
-          ],
-        }),
-      ]),
-      runConfig,
+    expect(result.current.messages).toContainEqual(
+      expect.objectContaining({
+        type: "ai",
+        tool_calls: [
+          expect.objectContaining({ id: "tool-1" }),
+          expect.objectContaining({ id: "tool-2" }),
+        ],
+      }),
     );
+    const { runConfigByToolCallId } = result.current.controller.getState();
+    expect(runConfigByToolCallId.get("tool-1")).toBe(runConfig);
+    expect(runConfigByToolCallId.get("tool-2")).toBe(runConfig);
+  });
+
+  it("marks a run failed only when one of its events carries an error or an error finish reason", async () => {
+    let call = 0;
+    const stream: AdkStreamCallback = async function* () {
+      call++;
+      if (call === 1) {
+        yield {
+          id: "event-error",
+          author: "agent",
+          errorCode: "MODEL_ERROR",
+          errorMessage: "boom",
+        };
+        return;
+      }
+      if (call === 4) {
+        yield {
+          id: "event-snake",
+          author: "agent",
+          finish_reason: "UNEXPECTED_TOOL_CALL",
+        } as AdkEvent;
+        return;
+      }
+      if (call === 3) {
+        yield {
+          id: "event-malformed",
+          author: "agent",
+          finishReason: "MALFORMED_FUNCTION_CALL",
+          content: { role: "model", parts: [{ text: "oops" }] },
+        };
+        return;
+      }
+      yield {
+        id: "event-retry",
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [
+            { text: "retrying" },
+            { functionCall: { id: "tool-1", name: "lookup", args: {} } },
+            { functionCall: { id: "tool-2", name: "lookup", args: {} } },
+          ],
+        },
+      };
+    };
+    const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
+    const { controller } = result.current;
+    const run = async (runId: string, content: string) => {
+      act(() => {
+        controller.dispatch({ type: "run.active" });
+      });
+      await act(async () => {
+        await result.current.sendMessage(
+          [{ id: `user-${runId}`, type: "human", content }],
+          {},
+        );
+      });
+      act(() => {
+        controller.dispatch({ type: "run.finished", runId });
+      });
+    };
+
+    await run("1", "go");
+    await run("2", "retry");
+    await run("3", "again");
+    await run("4", "once more");
+
+    expect([...controller.getState().failedRunIds]).toEqual(["1", "3", "4"]);
   });
 
   it("settles a superseded send while its stream is still opening", async () => {

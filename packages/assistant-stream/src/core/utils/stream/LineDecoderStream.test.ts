@@ -112,6 +112,38 @@ describe("LineDecoderStream", () => {
     ).rejects.toThrow("Stream ended with an incomplete line");
   });
 
+  it("should reject a fragmented line that exceeds the configured limit", async () => {
+    const stream = createTextStream(["1234", "5"]);
+    const decoder = new LineDecoderStream({ maxLineLength: 4 });
+    await expect(collectLines(stream.pipeThrough(decoder))).rejects.toThrow(
+      "Stream line exceeds maxLineLength (5 > 4)",
+    );
+    expect((decoder as unknown as { buffer: string }).buffer).toBe("");
+  });
+
+  it("should reject a complete line that exceeds the configured limit", async () => {
+    const stream = createTextStream(["12345\n"]);
+    await expect(
+      collectLines(
+        stream.pipeThrough(new LineDecoderStream({ maxLineLength: 4 })),
+      ),
+    ).rejects.toThrow("Stream line exceeds maxLineLength (5 > 4)");
+  });
+
+  it("should accept lines that reach exactly the configured limit", async () => {
+    const stream = createTextStream(["1234\n", "12", "34\n"]);
+    const lines = await collectLines(
+      stream.pipeThrough(new LineDecoderStream({ maxLineLength: 4 })),
+    );
+    expect(lines).toEqual(["1234", "1234"]);
+  });
+
+  it("should validate the configured line limit", () => {
+    expect(() => new LineDecoderStream({ maxLineLength: 0 })).toThrow(
+      "maxLineLength must be a positive safe integer",
+    );
+  });
+
   it("should handle SSE-like data with CRLF", async () => {
     const sseData = 'data: {"type":"text"}\r\n\r\ndata: [DONE]\r\n\r\n';
     const stream = createTextStream([sseData]);

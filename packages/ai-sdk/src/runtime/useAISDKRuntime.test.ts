@@ -953,10 +953,9 @@ describe("useAISDKRuntime", () => {
     expect(chat.sendMessage).not.toHaveBeenCalled();
     expect(chat.messages.map((m: any) => m.id)).toEqual([
       "u1",
-      "a1",
       expect.any(String),
     ]);
-    expect(chat.messages[2]).toEqual(
+    expect(chat.messages[1]).toEqual(
       expect.objectContaining({
         role: "user",
         parts: expect.arrayContaining([
@@ -1152,8 +1151,7 @@ describe("useAISDKRuntime", () => {
       expect(chat.sendMessage).toHaveBeenCalledTimes(1);
     });
 
-    // sliceMessagesUntil("u1") keeps u1 + following assistant messages (a1)
-    expect(chat.messages.map((m: any) => m.id)).toEqual(["u1", "a1"]);
+    expect(chat.messages.map((m: any) => m.id)).toEqual(["u1"]);
     expect(chat.sendMessage).toHaveBeenCalledWith(
       expect.objectContaining({ role: "user" }),
       { metadata: { custom: { temperature: 0.2 } } },
@@ -2207,5 +2205,131 @@ describe("useAISDKRuntime", () => {
     ).toMatchObject({
       error: { code: "AI_APICallError", message: "upstream failed" },
     });
+  });
+
+  it("keeps a cancelled output when the runtime remounts over its owner", async () => {
+    let resolveStop!: () => void;
+    const chat = createChatHelpers([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "text", text: "partial", state: "streaming" }],
+      },
+    ]);
+    chat.status = "streaming";
+    chat.stop = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveStop = resolve;
+        }),
+    );
+    const owner = {};
+
+    const first = renderHook(() =>
+      useAISDKRuntime(chat, { unstable_hostApprovalOwner: owner }),
+    );
+
+    act(() => {
+      first.result.current.thread.cancelRun();
+      chat.status = "ready";
+      first.rerender();
+    });
+
+    await waitFor(() => {
+      expect(
+        first.result.current.thread.getState().messages.at(-1)?.status,
+      ).toMatchObject({
+        type: "incomplete",
+        reason: "cancelled",
+      });
+    });
+
+    await act(async () => {
+      resolveStop();
+      await Promise.resolve();
+    });
+    first.unmount();
+
+    const second = renderHook(() =>
+      useAISDKRuntime(chat, { unstable_hostApprovalOwner: owner }),
+    );
+
+    expect(
+      second.result.current.thread.getState().messages.at(-1)?.status,
+    ).toMatchObject({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+
+    act(() => {
+      chat.status = "streaming";
+      second.rerender();
+    });
+    await waitFor(() => {
+      expect(
+        second.result.current.thread.getState().messages.at(-1)?.status,
+      ).toMatchObject({ type: "running" });
+    });
+
+    act(() => {
+      chat.status = "ready";
+      second.rerender();
+    });
+    await waitFor(() => {
+      expect(
+        second.result.current.thread.getState().messages.at(-1)?.status,
+      ).toMatchObject({ type: "complete", reason: "unknown" });
+    });
+    second.unmount();
+
+    const third = renderHook(() =>
+      useAISDKRuntime(chat, { unstable_hostApprovalOwner: owner }),
+    );
+    expect(
+      third.result.current.thread.getState().messages.at(-1)?.status,
+    ).toMatchObject({ type: "complete", reason: "unknown" });
+    third.unmount();
+  });
+
+  it("keeps a cancellation when the runtime unmounts before rendering it", async () => {
+    let resolveStop!: () => void;
+    const chat = createChatHelpers([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "text", text: "partial", state: "streaming" }],
+      },
+    ]);
+    chat.status = "streaming";
+    chat.stop = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveStop = resolve;
+        }),
+    );
+    const owner = {};
+    const first = renderHook(() =>
+      useAISDKRuntime(chat, { unstable_hostApprovalOwner: owner }),
+    );
+
+    act(() => {
+      first.result.current.thread.cancelRun();
+      first.unmount();
+    });
+    expect(chat.stop).toHaveBeenCalledOnce();
+
+    chat.status = "ready";
+    await act(async () => {
+      resolveStop();
+      await Promise.resolve();
+    });
+
+    const second = renderHook(() =>
+      useAISDKRuntime(chat, { unstable_hostApprovalOwner: owner }),
+    );
+    expect(
+      second.result.current.thread.getState().messages.at(-1)?.status,
+    ).toMatchObject({ type: "incomplete", reason: "cancelled" });
+    second.unmount();
   });
 });
