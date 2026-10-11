@@ -64,6 +64,49 @@ describe("RemoteThreadListThreadListRuntimeCore load errors", () => {
     expect(core.loadError).toBe(error);
   });
 
+  it("removes the previous adapter's threads when its replacement response cannot be applied", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const core = createCore(
+      makeAdapter({
+        list: vi.fn(async () => ({ threads: [loadedThread] })),
+      }),
+    );
+    await core.getLoadThreadsPromise();
+
+    const list = vi
+      .fn<() => Promise<RemoteThreadListResponse>>()
+      .mockResolvedValueOnce({
+        threads: [{ ...loadedThread, status: "deleted" as never }],
+      })
+      .mockResolvedValueOnce({
+        threads: [{ ...loadedThread, title: "Replacement thread" }],
+      });
+    core.__internal_setOptions({
+      adapter: makeAdapter({ list }),
+      runtimeHook: () => ({}) as never,
+    });
+
+    await core.getLoadThreadsPromise();
+
+    expect(core.threadIds).toEqual([]);
+    expect(core.getItemById("thread-1")).toBeUndefined();
+    expect(core.mainThreadId).not.toBe("thread-1");
+    expect(core.loadError).toBeInstanceOf(Error);
+    expect(
+      (
+        core as unknown as {
+          _staleThreadIdsOnReplace?: ReadonlySet<string>;
+        }
+      )._staleThreadIdsOnReplace,
+    ).toBeUndefined();
+
+    await core.reload();
+
+    expect(core.threadIds).toEqual(["thread-1"]);
+    expect(core.loadError).toBeUndefined();
+    expect(list).toHaveBeenCalledTimes(2);
+  });
+
   it("clears the adapter-change gate before notifying about a failed replacement", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const error = new Error("replacement failed");
