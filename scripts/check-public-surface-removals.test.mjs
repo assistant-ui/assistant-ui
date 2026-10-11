@@ -115,6 +115,10 @@ test("compares Git snapshots and accepts only an added marked changeset for the 
     failed.stderr,
     /@assistant-ui\/core entry_root: removed export useFoo/,
   );
+  assert.match(
+    failed.stderr,
+    /A package that is deleted or made private cannot take a changeset, so removing it needs an owner bypass\./,
+  );
   put(
     ".changeset/intent.md",
     '---\n"@assistant-ui/store": patch\n---\n<!-- caret-break: intended -->\n',
@@ -129,6 +133,56 @@ test("compares Git snapshots and accepts only an added marked changeset for the 
   const acknowledged = git("write-tree");
   assert.deepEqual(runCheck(dir, before, acknowledged), []);
   assert.equal(execute(acknowledged).status, 0);
+});
+
+test("only newly added marked changesets acknowledge a removal", (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "aui-surface-check-added-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const git = (...args) =>
+    execFileSync("git", args, { cwd: dir, encoding: "utf8" }).trim();
+  const put = (file, text) => {
+    const target = path.join(dir, file);
+    mkdirSync(path.dirname(target), { recursive: true });
+    writeFileSync(target, text);
+  };
+  const marked =
+    '---\n"@assistant-ui/core": patch\n---\n<!-- caret-break: intended -->\n';
+  const draft = '---\n"@assistant-ui/core": patch\n---\nDraft.\n';
+  const expected = [
+    { package: "@assistant-ui/core", entry: "entry_root", name: "useFoo" },
+  ];
+  git("init", "-q");
+  put(
+    "packages/core/package.json",
+    JSON.stringify({ name: "@assistant-ui/core" }),
+  );
+  put("api-surface/assistant-ui__core.ts", base);
+  put(".changeset/marked.md", marked);
+  git("add", "-A");
+  const alreadyMarked = git("write-tree");
+  put(
+    "api-surface/assistant-ui__core.ts",
+    base.replace("useFoo, useBar", "useBar"),
+  );
+  git("add", "-A");
+  assert.deepEqual(runCheck(dir, alreadyMarked, git("write-tree")), expected);
+
+  put("api-surface/assistant-ui__core.ts", base);
+  put(".changeset/draft.md", draft);
+  git("add", "-A");
+  const draftBase = git("write-tree");
+  put(
+    "api-surface/assistant-ui__core.ts",
+    base.replace("useFoo, useBar", "useBar"),
+  );
+  put(".changeset/draft.md", marked);
+  git("add", "-A");
+  assert.deepEqual(runCheck(dir, draftBase, git("write-tree")), expected);
+
+  put(".changeset/draft.md", draft);
+  put(".changeset/中文.md", marked);
+  git("add", "-A");
+  assert.deepEqual(runCheck(dir, draftBase, git("write-tree")), []);
 });
 
 test("reports the shipped surface when a public package is deleted", (t) => {

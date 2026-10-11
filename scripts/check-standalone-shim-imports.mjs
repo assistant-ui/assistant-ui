@@ -13,7 +13,9 @@ const ts = createRequire(
   path.join(repoRoot, "packages/x-buildutils/package.json"),
 )("typescript");
 const SHIM = "@assistant-ui/tap/react-shim";
-const SOURCES = new Set(["react", SHIM]);
+const SOURCES = new Set(["react", SHIM, "@assistant-ui/tap/standalone-shim"]);
+const has = (pkg, name) =>
+  Boolean(pkg.dependencies?.[name] || pkg.peerDependencies?.[name]);
 
 export function namedImports(source, file = "input.js") {
   const parsed = ts.createSourceFile(
@@ -26,12 +28,20 @@ export function namedImports(source, file = "input.js") {
   const imports = [];
   for (const statement of parsed.statements) {
     if (
-      !ts.isImportDeclaration(statement) ||
+      (!ts.isImportDeclaration(statement) &&
+        !ts.isExportDeclaration(statement)) ||
+      !statement.moduleSpecifier ||
       !SOURCES.has(statement.moduleSpecifier.text)
     )
       continue;
-    const bindings = statement.importClause?.namedBindings;
-    if (!bindings || !ts.isNamedImports(bindings)) continue;
+    const bindings = ts.isImportDeclaration(statement)
+      ? statement.importClause?.namedBindings
+      : statement.exportClause;
+    if (
+      !bindings ||
+      (!ts.isNamedImports(bindings) && !ts.isNamedExports(bindings))
+    )
+      continue;
     for (const element of bindings.elements)
       imports.push((element.propertyName ?? element.name).text);
   }
@@ -79,12 +89,7 @@ export function missingShimImports(file, source, exports) {
 }
 
 export function routesReactToShim(pkg) {
-  const has = (name) =>
-    Boolean(pkg.dependencies?.[name] || pkg.peerDependencies?.[name]);
-  return (
-    pkg.name === "@assistant-ui/tap" ||
-    (has("@assistant-ui/tap") && has("react"))
-  );
+  return pkg.name === "@assistant-ui/tap" || has(pkg, "@assistant-ui/tap");
 }
 
 function* jsFiles(dir) {
@@ -118,8 +123,6 @@ export function runCheck(root = repoRoot) {
       packages.set(pkg.name, { pkg, packageDir });
     }
   }
-  const has = (pkg, name) =>
-    Boolean(pkg.dependencies?.[name] || pkg.peerDependencies?.[name]);
   const queue = [...packages.values()]
     .filter(({ pkg }) => has(pkg, "@assistant-ui/tap") && !has(pkg, "react"))
     .map(({ pkg }) => pkg.name);
@@ -165,7 +168,9 @@ export function runCheck(root = repoRoot) {
 
 if (isExecutedAsMain(import.meta.url, process.argv[1])) {
   try {
-    const { failures, scanned } = runCheck(process.argv[2] ?? repoRoot);
+    const { failures, scanned, skipped } = runCheck(
+      process.argv[2] ?? repoRoot,
+    );
     if (failures.length) {
       for (const { file, name } of failures)
         console.error(
@@ -174,7 +179,7 @@ if (isExecutedAsMain(import.meta.url, process.argv[1])) {
       process.exitCode = 1;
     } else
       console.log(
-        `Standalone shim imports resolve. (${scanned} built files scanned)`,
+        `Standalone shim imports resolve. (${scanned} built files scanned${skipped.length ? `; skipped unbuilt: ${skipped.join(", ")}` : ""})`,
       );
   } catch (error) {
     console.error(error.message);

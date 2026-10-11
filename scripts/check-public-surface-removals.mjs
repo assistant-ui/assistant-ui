@@ -63,14 +63,14 @@ export function runCheck(
   const changedChangesets = git(root, [
     "diff",
     "--name-only",
+    "-z",
     "--diff-filter=A",
     baseSha,
     headSha,
     "--",
     ".changeset",
   ])
-    .trim()
-    .split("\n")
+    .split("\0")
     .filter((file) => /^\.changeset\/[^/]+\.md$/.test(file));
   const allowed = new Set(
     changedChangesets.flatMap((file) =>
@@ -114,7 +114,7 @@ if (isExecutedAsMain(import.meta.url, process.argv[1])) {
       for (const { package: pkg, entry, name } of failures)
         console.error(`${pkg} ${entry}: removed export ${name}`);
       console.error(
-        "Add a changeset for each affected package with <!-- caret-break: intended --> to acknowledge the removal.",
+        "Add a changeset for each affected package with <!-- caret-break: intended --> to acknowledge the removal. A package that is deleted or made private cannot take a changeset, so removing it needs an owner bypass.",
       );
       process.exitCode = 1;
     } else console.log("No unacknowledged public surface removals.");
