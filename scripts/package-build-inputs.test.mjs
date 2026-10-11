@@ -25,8 +25,19 @@ assert.ok(buildJob, "Build Changed Packages job");
 test("detects package build and checker inputs", () => {
   for (const file of [
     "packages/react/src/index.ts",
+    "packages/core/package.json",
+    "packages/core/src/client.spec.ts",
+    "packages/core/src/client.bench.ts",
+    "packages/core/src/testUtils.ts",
+    "packages/core/src/tests/fixture.ts",
+    "packages/core/src/client.test.mts",
+    "packages/core/tests/client.test.ts",
+    "packages/ui/src/components/react/thread.test.tsx",
+    "packages/react-devtools/src/views/thread.test.tsx",
+    "packages/metro/src/transformer.test.ts",
     "api-surface/assistant-ui__react.ts",
     "scripts/check-built-declarations.mjs",
+    "scripts/lib/package-test-inputs.mjs",
     "package.json",
     "pnpm-lock.yaml",
     "pnpm-workspace.yaml",
@@ -48,6 +59,10 @@ test("ignores changes outside the package build job", () => {
     "templates/minimal/app/page.tsx",
     ".changeset/example.md",
     "README.md",
+    "packages/cloud/src/telemetry/index.test.ts",
+    "packages/core/src/react/client/RemoteThreadList.concurrent.test.tsx",
+    "packages/react/src/index.test.ts",
+    "packages/x-buildutils/src/declarations.test.ts",
     "packages-extra/react/src/index.ts",
     "apps/docs/turbo.json.bak",
     "examples/with-resumable-stream/turbo.json.bak",
@@ -57,16 +72,33 @@ test("ignores changes outside the package build job", () => {
   assert.equal(hasPackageBuildInputs([]), false);
 });
 
+test("keeps real build inputs in mixed package-test changes", () => {
+  const packageTest = "packages/cloud/src/telemetry/index.test.ts";
+  for (const input of [
+    "packages/cloud/src/telemetry/index.ts",
+    "packages/ui/src/components/react/thread.test.tsx",
+    "packages/react-devtools/src/views/thread.test.tsx",
+    "packages/metro/src/transformer.test.ts",
+    "api-surface/assistant-ui__react.ts",
+    "pnpm-lock.yaml",
+  ]) {
+    assert.equal(hasPackageBuildInputs([packageTest, input]), true, input);
+    assert.equal(hasPackageBuildInputs([input, packageTest]), true, input);
+  }
+});
+
 test("the CLI reads NUL-separated paths", () => {
   const relevant = spawnSync(process.execPath, [script], {
-    input: "README.md\0packages/tap/src/index.ts\0",
+    input:
+      "README.md\0packages/cloud/src/telemetry/index.test.ts\0packages/tap/src/index.ts\0",
     encoding: "utf8",
   });
   assert.equal(relevant.status, 0, relevant.stderr);
   assert.equal(relevant.stdout, "true\n");
 
   const unrelated = spawnSync(process.execPath, [script], {
-    input: "README.md\0examples/with-ai-sdk-v7/app/page.tsx\0",
+    input:
+      "README.md\0examples/with-ai-sdk-v7/app/page.tsx\0packages/cloud/src/telemetry/index.test.ts\0",
     encoding: "utf8",
   });
   assert.equal(unrelated.status, 0, unrelated.stderr);
@@ -75,6 +107,27 @@ test("the CLI reads NUL-separated paths", () => {
 
 test("the detector watches its own implementation", () => {
   assert.ok(PACKAGE_BUILD_INPUTS.includes("scripts"));
+});
+
+test("test-only changes still run coverage and affected typechecks", () => {
+  const typecheck = workflow.match(/\n  typecheck:\n[\s\S]*$/)?.[0];
+  assert.ok(typecheck);
+  assert.match(typecheck, /if: \$\{\{ !cancelled\(\) \}\}/);
+  assert.doesNotMatch(typecheck, /package_build_inputs/);
+  assert.match(typecheck, /scripts\/typecheck\.sh --continue --filter=/);
+
+  const coverage = readFileSync(
+    path.join(repoRoot, ".github/workflows/test-coverage.yaml"),
+    "utf8",
+  );
+  assert.match(
+    coverage,
+    /git diff --quiet "\$BASE" HEAD -- \\\n\s+packages \\/,
+  );
+  assert.match(coverage, /pnpm turbo build --filter="\.\/packages\/\*"/);
+  assert.match(coverage, /pnpm test:coverage --continue/);
+  const turbo = JSON.parse(readFileSync(path.join(repoRoot, "turbo.json")));
+  assert.ok(turbo.tasks.typecheck.dependsOn.includes("^build"));
 });
 
 test("the workflow runs for detector changes", () => {

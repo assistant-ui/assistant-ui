@@ -49,6 +49,7 @@ test("detects app build inputs", () => {
     "scripts/app-build-inputs.test.mjs",
     "apps/docs/content/docs/index.mdx",
     "scripts/lib/script-options.mjs",
+    "scripts/lib/package-test-inputs.mjs",
     "scripts/build-example-bundle.mjs",
     "scripts/run-example-bundles.mjs",
     "scripts/example-bundles.json",
