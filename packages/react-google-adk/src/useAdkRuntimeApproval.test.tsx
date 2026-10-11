@@ -73,7 +73,7 @@ vi.mock("./useAdkMessages", async (importOriginal) => {
         messages: mocks.messages,
         runConfig: mocks.messageRunConfig,
       });
-    }, [mocks.messageRunConfig]);
+    }, []);
     const sendMessage = async (
       messages: AdkMessage[],
       config: AdkSendMessageConfig,
