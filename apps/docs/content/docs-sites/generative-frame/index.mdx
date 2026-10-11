@@ -40,8 +40,9 @@ The package has two halves that never import each other: the frame half renders 
 | `generative-frame/prompts` | `buildWidgetGuidance` |
 | `generative-frame/repair` | `repairLoop`, `buildRepairFeedback` |
 | `generative-frame/assistant-ui` | `createWidgetToolkit`, `useWidgetInstructions`, `useAssistantUiThemeTokens` |
-| `generative-frame/spec` | `defineCatalog`, `createSpecStream`, `applyPatch`, `validateSpec`, expressions, state, actions |
+| `generative-frame/spec` | `emptySpec`, `defineCatalog`, `createSpecStream`, `parseSpecStream`, `applyPatch`, `validateSpec`, `formatSpecIssues`, `createStateStore`, and types |
 | `generative-frame/spec/react` | `<SpecRenderer>`, `<SpecPlaceholder>`, `useSpecStream` |
+| `generative-frame/spec/vue` | `SpecRenderer`, `SpecPlaceholder`, `useSpecStream`, `useSpecElement` for Vue |
 | `generative-frame/spec/tools` | `createSpecTools`, `specGuidanceModule` |
 | `generative-frame/spec/assistant-ui` | `createSpecToolkit` |
 

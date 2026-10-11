@@ -227,6 +227,17 @@ The `RenderReportOptions`, `WidgetRenderReport`, `WidgetToolkitExtension`, `Tool
   ]}
 />
 
+## `generative-frame/spec/vue`
+
+The Vue renderer, with `vue` as an optional peer. `SpecRenderer` takes the same props as the React one, with `placeholder` a Vue component.
+
+| Export | Description |
+| --- | --- |
+| `SpecRenderer` | Renders a spec with Vue components. |
+| `useSpecStream({ source?, complete?, mode?, initial? })` | `{ spec, text, errors, push, end, reset }`; the options accept plain values, refs, or getters, and `spec`, `text`, and `errors` are refs. |
+| `useSpecElement()` | The rendering element's `{ id, element, bindings, state, streaming }`, for a component that needs them. |
+| `SpecPlaceholder` | The default placeholder for elements that cannot render. |
+
 ## `generative-frame/spec/tools`
 
 | Export | Description |
