@@ -952,6 +952,96 @@ describe("toAdaptiveCard", () => {
   });
 
   describe("Card", () => {
+    it("uses the confirm action for an asForm card when both actions exist", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Card",
+        asForm: true,
+        $action: { type: "card_submit" },
+        confirm: { label: "Save", $action: { type: "confirm_submit" } },
+      });
+      expect(card.body[1]).toEqual({
+        type: "ActionSet",
+        actions: [
+          expect.objectContaining({
+            title: "Save",
+            data: { aui: { type: "confirm_submit" } },
+          }),
+        ],
+      });
+    });
+
+    it("uses the card action on a confirm footer without an action", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Card",
+        asForm: true,
+        $action: { type: "card_submit" },
+        confirm: { label: "Save" },
+      });
+      expect(card.body[1]).toEqual({
+        type: "ActionSet",
+        actions: [
+          expect.objectContaining({
+            title: "Save",
+            data: { aui: { type: "card_submit" } },
+          }),
+        ],
+      });
+    });
+
+    it("adds a Submit action for an asForm card without a confirm footer", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Card",
+        asForm: true,
+        $action: { type: "card_submit" },
+      });
+      expect(card.body[1]).toEqual({
+        type: "ActionSet",
+        actions: [
+          expect.objectContaining({
+            title: "Submit",
+            data: { aui: { type: "card_submit" } },
+          }),
+        ],
+      });
+    });
+
+    it("puts an asForm card's Submit action before its cancel footer", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Card",
+        asForm: true,
+        $action: { type: "card_submit" },
+        cancel: { label: "Discard", $action: { type: "discard" } },
+      });
+      expect(card.body[1]).toEqual({
+        type: "ActionSet",
+        actions: [
+          expect.objectContaining({
+            title: "Submit",
+            data: { aui: { type: "card_submit" } },
+          }),
+          expect.objectContaining({
+            title: "Discard",
+            data: { aui: { type: "discard" } },
+          }),
+        ],
+      });
+    });
+
+    it("keeps non-form card actions and actionless form cards unchanged", () => {
+      const nonForm = toAdaptiveCard({
+        $type: "Card",
+        title: "Plain",
+        $action: { type: "ignored" },
+      });
+      const actionlessForm = toAdaptiveCard({
+        $type: "Card",
+        title: "Plain",
+        asForm: true,
+      });
+      expect(nonForm.card).toEqual(actionlessForm.card);
+      expect(nonForm.card.body).toHaveLength(1);
+    });
+
     it("renders a titled Container followed by a confirm/cancel ActionSet", () => {
       const { card } = toAdaptiveCard({
         $type: "Card",

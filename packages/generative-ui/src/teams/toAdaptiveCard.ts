@@ -44,6 +44,7 @@ import type {
   TeamsConversionWarning,
   TeamsFact,
   TeamsInputChoice,
+  TeamsSubmitAction,
   TeamsTable,
   TeamsTableColumnDefinition,
   TeamsTableRow,
@@ -301,17 +302,30 @@ function withCompanionSubmit(
 }
 
 function cardFooterActionSet(
-  props: Readonly<Record<string, unknown>>,
+  element: NormalizedUIElement,
 ): TeamsActionSet | undefined {
-  const actions = (["confirm", "cancel"] as const)
-    .map((key) => props[key])
-    .filter(isRecord)
-    .map((footer) =>
+  const { confirm, cancel } = element.props;
+  const formAction =
+    element.props["asForm"] === true ? element.action : undefined;
+  const actions: TeamsSubmitAction[] = [];
+  if (isRecord(confirm)) {
+    actions.push(
       buildSubmitAction(
-        asString(footer["label"]),
-        readReserved(footer, "action"),
+        asString(confirm["label"]),
+        readReserved(confirm, "action") ?? formAction,
       ),
     );
+  } else if (formAction !== undefined) {
+    actions.push(buildSubmitAction("Submit", formAction));
+  }
+  if (isRecord(cancel)) {
+    actions.push(
+      buildSubmitAction(
+        asString(cancel["label"]),
+        readReserved(cancel, "action"),
+      ),
+    );
+  }
   return actions.length > 0 ? { type: "ActionSet", actions } : undefined;
 }
 
@@ -809,7 +823,7 @@ export function convertElement(
         style: "default",
         items,
       };
-      const actionSet = cardFooterActionSet(props);
+      const actionSet = cardFooterActionSet(element);
       return actionSet !== undefined ? [container, actionSet] : [container];
     }
     case "Col":
