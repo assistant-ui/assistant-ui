@@ -10,7 +10,7 @@ Render model-generated HTML and SVG widgets safely while they stream. By default
 - **Spec mode**: the model streams JSONL patches against a catalog of your own components; no frame, your design system.
 - **assistant-ui**: toolkit entries that render the tool calls in a thread as their arguments stream.
 
-Framework-agnostic; the React and assistant-ui bindings are optional.
+Framework-agnostic; the React, Vue, and assistant-ui bindings are optional, and each framework is an optional peer of the entries that use it.
 
 | Entry | Contents |
 | --- | --- |
@@ -177,6 +177,7 @@ const { spec, text } = useSpecStream({ source: modelOutput, mode: "inline", comp
 - **Actions**: `on: { press: { action, params } }` runs the built-in `setState` or a catalog action through your handlers; `watch: { "/path": action }` runs when a state value changes. User changes to state survive the model streaming more state.
 - **Validation**: `validateSpec(spec, catalog)` returns issues with codes and JSON Pointers (`unknown-type`, `invalid-props`, `missing-child`, `cycle`, `unknown-action`, …); `formatSpecIssues` turns them into repair feedback.
 - **Tool**: `createSpecTools(catalog)` from `generative-frame/spec/tools` returns `render_spec({ title, patches | spec })`, which validates and returns the issues. Patches on a title already rendered apply to that spec, so repairs are small. A spec-only app puts `catalog.prompt()` in its system prompt; next to the widget tools, compose them with `createWidgetTools({ extraTools: createSpecTools(catalog), modules: [specGuidanceModule(catalog)] })`, which also adds a `spec` module to `read_me`.
+- **Vue**: `generative-frame/spec/vue` exports the same `SpecRenderer` and `useSpecStream` for Vue and needs `vue` (an optional peer, imported only by that entry). A Vue component gets the props it declares, its children and named slots as slots, and emits spec events with `emit`.
 
 The format follows the flat-spec and JSONL-patch shape of Vercel's json-render, without depending on it.
 
