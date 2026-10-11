@@ -143,4 +143,16 @@ describe("useSpecStream", () => {
     complete.value = true;
     expect(result.spec.value.root).toBe("third");
   });
+
+  it("keeps a completed spec while a new holder carries the same source", () => {
+    const holder = ref({ args: lines.join("\n") });
+    const result = mountDirect({
+      source: () => holder.value.args,
+      complete: true,
+    });
+    const completed = result.spec.value;
+    expect(completed.elements["main"]).toBeDefined();
+    holder.value = { args: lines.join("\n") };
+    expect(result.spec.value).toBe(completed);
+  });
 });

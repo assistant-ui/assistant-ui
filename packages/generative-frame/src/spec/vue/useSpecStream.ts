@@ -61,12 +61,11 @@ export function useSpecStream(
   let imperative: SpecStream | undefined;
 
   watch(
-    () =>
-      [
-        toValue(options.source),
-        toValue(options.complete),
-        toValue(options.mode) ?? "jsonl",
-      ] as const,
+    [
+      () => toValue(options.source),
+      () => toValue(options.complete),
+      () => toValue(options.mode) ?? "jsonl",
+    ],
     ([source, complete, mode]) => {
       if (source === undefined) {
         followed.value = undefined;
