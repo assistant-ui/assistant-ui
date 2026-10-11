@@ -203,7 +203,7 @@ export const GeneratedUI = defineComponent({
 });
 ```
 
-A Vue component receives the resolved props it declares in its `props` option, the element's children through its default slot, and each named slot through the slot of that name. Props the component does not declare are dropped, so a spec cannot set attributes such as `innerHTML` or `style` on the component's root element. It emits a spec event with `emit(event, payload)`, and writes a prop the spec binds with `$bindState` by emitting `update:<prop>`, the `v-model` convention. `useSpecElement()` returns the element's `id`, `element`, `bindings`, `state` store, and `streaming` for a component that needs them. Pending children, placeholders, and errors behave as in React.
+A Vue component receives the resolved props it declares in its `props` option, the element's children through its default slot, and each named slot through the slot of that name. It emits a spec event it declares in `emits` with `emit(event, payload)`, and writes a prop the spec binds with `$bindState` by emitting `update:<prop>`, the `v-model` convention, which needs only the prop declared. Props and events the component does not declare are dropped, so a spec cannot set attributes such as `innerHTML` or `style`, or native listeners such as `onClick`, on the component's root element. `useSpecElement()` returns the element's `id`, `element`, `bindings`, `state` store, and `streaming` for a component that needs them. Pending children, placeholders, and errors behave as in React.
 
 ## Expressions
 

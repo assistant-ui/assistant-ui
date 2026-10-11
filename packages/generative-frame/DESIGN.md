@@ -44,7 +44,7 @@ Later: the same tool, prompt, and repair machinery can back an Assistant Cloud A
 - `generative-frame/spec` — declarative mode: `defineCatalog({ components, actions })` (Zod-free: JSON Schema props so it stays dependency-free; accepts Standard Schema if present), `catalog.prompt()`, `createSpecStream()` (RFC 6902 JSONL patches → flat `{ root, elements, state }` spec, json-render compatible), `$state`/`$bindState`/visibility expressions subset, action dispatch. Rendering is per framework.
 - `generative-frame/react`: `<Widget code streaming theme … />`, `useWidget()`, `useThemeTokens()`.
 - `generative-frame/spec/react`: `<SpecRenderer spec catalog components />`, `<SpecPlaceholder />`, `useSpecStream()`.
-- `generative-frame/spec/vue`: the same renderer for Vue, with `vue` an optional peer. A component gets the resolved props it declares as Vue props (nothing else, so model-written attributes never fall through to the host DOM), its children and named slots as slots, emits spec events with `emit`, and writes a bound prop with `update:<prop>`; `useSpecElement()` gives the element context.
+- `generative-frame/spec/vue`: the same renderer for Vue, with `vue` an optional peer. A component gets the resolved props it declares as Vue props and listeners for the events it declares in `emits` (nothing else, so model-written attributes and listeners never fall through to the host DOM), its children and named slots as slots, emits spec events with `emit`, and writes a bound prop with `update:<prop>`; `useSpecElement()` gives the element context.
 - `generative-frame/assistant-ui` — optional peer `@assistant-ui/react`: toolkit entries that render `show_widget`/`edit_widget`/`render_spec` tool calls with streaming args (partial JSON), route `sendPrompt` to the thread composer, and map theme tokens from the assistant-ui theme.
 
 ## In-frame runtime
@@ -135,7 +135,7 @@ The HTML/SVG frame and spec mode are separate halves that never import each othe
 | --- | --- | --- |
 | Frame: `createWidget`, `<Widget>`, `createWidgetTools` | 75.3 kB / 27.4 kB (included `spec/{types,pointer,patch,stream,validate}` and the JSON Schema validator) | 63.7 kB / 23.5 kB, no spec modules |
 | Spec: `/spec`, `SpecRenderer` + `useSpecStream`, `render_spec` tool | 53.8 kB / 20.5 kB (included `csp.ts`, `theme.ts`, `prompts/guidance.ts`, the widget tools) | 28.9 kB / 10.6 kB, no frame modules |
-| Spec for Vue: `/spec`, Vue `SpecRenderer` + `useSpecStream` | did not exist | 24.1 kB / 9.0 kB, no React or frame modules |
+| Spec for Vue: `/spec`, Vue `SpecRenderer` + `useSpecStream` | did not exist | 24.2 kB / 9.1 kB, no React or frame modules |
 | `createWidgetToolkit` (frame assistant-ui) | not measured | 75.8 kB / 27.3 kB |
 | `createSpecToolkit` (spec assistant-ui) | not measured | 21.5 kB / 7.8 kB |
 
