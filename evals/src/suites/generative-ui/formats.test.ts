@@ -19,7 +19,7 @@ test("a tree reports unknown components and invalid props", () => {
   assert.deepEqual(checkTree({ $type: "Chart3D" }), [
     'Unknown component "Chart3D".',
   ]);
-  const [error] = checkTree({ $type: "Text", value: 42 });
+  const [error] = checkTree({ $type: "Text", value: true });
   assert.match(error ?? "", /^Text has invalid props \(value: /);
 });
 
