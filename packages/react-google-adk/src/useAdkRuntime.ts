@@ -62,6 +62,19 @@ import {
 } from "./adkToolApproval";
 import { adkExtras } from "./adkExtras";
 import { ADK_SDK } from "./sdkIdentity";
+import { takeBufferedToolResults } from "./bufferToolResults";
+
+const overlayBufferedToolResults = (
+  messages: AdkMessage[],
+  bufferedResults: ReadonlyMap<string, Extract<AdkMessage, { type: "tool" }>>,
+): AdkMessage[] => {
+  if (bufferedResults.size === 0) return messages;
+  const ids = new Set(messages.map((message) => message.id));
+  return [
+    ...messages,
+    ...[...bufferedResults.values()].filter((message) => !ids.has(message.id)),
+  ];
+};
 
 export type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
   stream: AdkStreamCallback;
@@ -134,6 +147,38 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   } = options;
   const aui = useAui();
   const runConfigByToolCallIdRef = useRef(new Map<string, unknown>());
+  const producingRunByToolCallIdRef = useRef(new Map<string, object>());
+  const activeRunRef = useRef<object | null>(null);
+  const clientToolCallOwnershipRef = useRef(new Map<string, boolean>());
+  const bufferedToolResultsRef = useRef(
+    new Map<string, Extract<AdkMessage, { type: "tool" }>>(),
+  );
+  const bufferedToolCallIdsRef = useRef<string[]>([]);
+  const [bufferVersion, setBufferVersion] = useState(0);
+  const clearBufferedToolResults = () => {
+    if (bufferedToolResultsRef.current.size > 0)
+      setBufferVersion((version) => version + 1);
+    bufferedToolResultsRef.current.clear();
+    bufferedToolCallIdsRef.current = [];
+  };
+  const takeBufferedResults = (includePartial = false) => {
+    const batch = takeBufferedToolResults(
+      bufferedToolResultsRef.current,
+      bufferedToolCallIdsRef.current,
+      includePartial,
+    );
+    if (batch) {
+      bufferedToolCallIdsRef.current = [];
+      setBufferVersion((version) => version + 1);
+    }
+    return batch;
+  };
+  const isProducingRunActive = () =>
+    bufferedToolCallIdsRef.current.some(
+      (id) =>
+        activeRunRef.current !== null &&
+        producingRunByToolCallIdRef.current.get(id) === activeRunRef.current,
+    );
 
   const rememberMessageOwnership = useCallback(
     (newMessages: AdkMessage[], runConfig: unknown) => {
@@ -144,6 +189,11 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           if (!isRecord(toolCall)) continue;
           if (!toolOwnership.has(toolCall.id)) {
             toolOwnership.set(toolCall.id, runConfig);
+            if (activeRunRef.current)
+              producingRunByToolCallIdRef.current.set(
+                toolCall.id,
+                activeRunRef.current,
+              );
           }
         }
       }
@@ -169,6 +219,16 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       }
     }
     runConfigByToolCallIdRef.current = nextOwnership;
+    producingRunByToolCallIdRef.current = new Map(
+      [...producingRunByToolCallIdRef.current].filter(([id]) =>
+        nextOwnership.has(id),
+      ),
+    );
+    clientToolCallOwnershipRef.current = new Map(
+      [...clientToolCallOwnershipRef.current].filter(([id]) =>
+        nextOwnership.has(id),
+      ),
+    );
   }, []);
 
   const pruneMessageOwnership = useCallback((history: AdkMessage[]) => {
@@ -183,6 +243,12 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     for (const id of runConfigByToolCallIdRef.current.keys()) {
       if (!toolCallIds.has(id)) runConfigByToolCallIdRef.current.delete(id);
     }
+    for (const id of producingRunByToolCallIdRef.current.keys()) {
+      if (!toolCallIds.has(id)) producingRunByToolCallIdRef.current.delete(id);
+    }
+    for (const id of clientToolCallOwnershipRef.current.keys()) {
+      if (!toolCallIds.has(id)) clientToolCallOwnershipRef.current.delete(id);
+    }
   }, []);
 
   const getToolRunConfig = useCallback((toolCallId: string) => {
@@ -191,7 +257,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
 
   const {
     controller,
-    messages,
+    messages: publishedMessages,
     stateDelta,
     agentInfo,
     longRunningToolIds,
@@ -210,6 +276,14 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     ...(eventHandlers && { eventHandlers }),
     onMessages: rememberMessageOwnership,
   });
+  const messages = useMemo(
+    () =>
+      overlayBufferedToolResults(
+        publishedMessages,
+        bufferedToolResultsRef.current,
+      ),
+    [publishedMessages, bufferVersion],
+  );
 
   const loadRef = useRef(load);
   useInsertionEffect(() => {
@@ -238,6 +312,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   }, [messages]);
   const applySnapshot = useCallback(
     (snapshot: AdkThreadSnapshot) => {
+      clearBufferedToolResults();
       seedMessageOwnership(snapshot.messages);
       applyAdkSnapshot(snapshot);
     },
@@ -245,6 +320,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   );
   const replaceMessages = useCallback(
     (nextMessages: AdkMessage[]) => {
+      clearBufferedToolResults();
       pruneMessageOwnership(nextMessages);
       replaceAdkMessages(nextMessages);
     },
@@ -277,11 +353,18 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     run: (isCurrent: () => boolean) => Promise<void>,
   ) => {
     const lease = runLeases.begin();
+    const runToken = {};
+    activeRunRef.current = runToken;
     try {
       setIsRunning(true);
       await run(lease.isCurrent);
     } finally {
-      if (lease.isCurrent()) setIsRunning(false);
+      if (activeRunRef.current === runToken) {
+        activeRunRef.current = null;
+        if (lease.isCurrent()) setIsRunning(false);
+        const batch = takeBufferedResults();
+        if (batch) await handleSendMessage(batch, {});
+      }
     }
   };
 
@@ -303,7 +386,9 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   };
 
   const stopRun = () => {
+    clearBufferedToolResults();
     runLeases.invalidate();
+    activeRunRef.current = null;
     setIsRunning(false);
     cancel();
   };
@@ -324,11 +409,16 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   // ADK resolves every call it did not mark long-running itself, and yields
   // that call to the client one or more events before its own response, so
   // only a long-running call is the client's to execute.
-  const isClientToolCall = useCallback(
-    (toolCall: ToolCallMessagePart) =>
-      longRunningToolIdsRef.current.includes(toolCall.toolCallId),
-    [],
-  );
+  const isClientToolCall = useCallback((toolCall: ToolCallMessagePart) => {
+    const ownership = clientToolCallOwnershipRef.current;
+    if (!ownership.has(toolCall.toolCallId)) {
+      ownership.set(
+        toolCall.toolCallId,
+        longRunningToolIdsRef.current.includes(toolCall.toolCallId),
+      );
+    }
+    return ownership.get(toolCall.toolCallId)!;
+  }, []);
 
   const messageConverter = useMemo(
     () =>
@@ -382,6 +472,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
 
   const runLoad = useCallback(
     (purpose: "initial" | "reload" = "initial") => {
+      if (purpose === "reload") clearBufferedToolResults();
       const loadFn = loadRef.current;
       if (!loadFn || !threadListItem) return Promise.resolve();
 
@@ -450,6 +541,9 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     void runLoad().then(settle, settle);
     return () => {
       barrier.active = false;
+      clearBufferedToolResults();
+      clientToolCallOwnershipRef.current.clear();
+      producingRunByToolCallIdRef.current.clear();
       // Whatever is current, not this effect's own controller: a refetch swaps
       // the ref, and one in flight at unmount must be aborted too.
       loadController.abort();
@@ -500,10 +594,19 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
                 longRunningToolIdsRef.current,
             )
           : [];
+      const bufferedResults = takeBufferedResults(true) ?? [];
+      const answeredIds = new Set(
+        bufferedResults.map((result) => result.tool_call_id),
+      );
 
       return handleSendMessage(
         [
-          ...cancellations,
+          ...bufferedResults,
+          ...cancellations.filter(
+            (cancellation) =>
+              cancellation.type !== "tool" ||
+              !answeredIds.has(cancellation.tool_call_id),
+          ),
           {
             id: generateId(),
             type: "human",
@@ -552,6 +655,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     ...(getCheckpointId || hasStagedMessages
       ? {
           onReload: async (parentId, config) => {
+            clearBufferedToolResults();
             const initialLoad = waitForInitialLoad();
             if (initialLoad && !(await initialLoad).active) return;
             const stagedRun = controller.getStagedRun(parentId);
@@ -623,20 +727,35 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     }) => {
       const initialLoad = waitForInitialLoad();
       if (initialLoad && !(await initialLoad).active) return;
-      await handleSendMessage(
-        [
-          {
-            id: generateId(),
-            type: "tool",
-            name: toolName,
-            tool_call_id: toolCallId,
-            content: JSON.stringify(result),
-            artifact,
-            status: isError ? "error" : "success",
-          },
-        ],
-        {},
-      );
+      const message: Extract<AdkMessage, { type: "tool" }> = {
+        id: generateId(),
+        type: "tool",
+        name: toolName,
+        tool_call_id: toolCallId,
+        content: JSON.stringify(result),
+        artifact,
+        status: isError ? "error" : "success",
+      };
+      if (bufferedToolCallIdsRef.current.length === 0) {
+        const pendingIds = new Set(longRunningToolIdsRef.current);
+        bufferedToolCallIdsRef.current = threadMessagesRef.current.flatMap(
+          (threadMessage) =>
+            threadMessage.content.flatMap((part) =>
+              part.type === "tool-call" &&
+              pendingIds.has(part.toolCallId) &&
+              isClientToolCall(part)
+                ? [part.toolCallId]
+                : [],
+            ),
+        );
+        if (!bufferedToolCallIdsRef.current.includes(toolCallId))
+          bufferedToolCallIdsRef.current = [toolCallId];
+      }
+      bufferedToolResultsRef.current.set(toolCallId, message);
+      setBufferVersion((version) => version + 1);
+      if (isProducingRunActive()) return;
+      const batch = takeBufferedResults();
+      if (batch) await handleSendMessage(batch, {});
     },
     onRespondToToolApproval: async (options) => {
       const initialLoad = waitForInitialLoad();
