@@ -276,9 +276,18 @@ describe("TaskGroup", () => {
     expect(transcript.indexOf("agent")).toBeLessThan(
       transcript.indexOf("Found it"),
     );
-    expect(
-      container.querySelector('[aria-label="Check the docs, done"]'),
-    ).not.toBeNull();
+    const nestedHeader = container.querySelector(
+      '[aria-label="Check the docs, done"]',
+    ) as HTMLElement;
+    expect(nestedHeader).not.toBeNull();
+
+    await act(async () => {
+      click(nestedHeader);
+    });
+    const expanded = container.textContent ?? "";
+    expect(expanded.indexOf("Found it")).toBeLessThan(
+      expanded.indexOf("Docs agree"),
+    );
 
     await act(async () => {
       click(header);
