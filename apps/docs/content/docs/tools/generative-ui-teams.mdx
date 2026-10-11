@@ -85,7 +85,7 @@ Teams has no undo surface, so a Button with `undoable` fires immediately.
 
 Presentation props the converter does not map are dropped silently, without a warning, because the node itself still renders. That covers `Box`'s `width`, `height`, `radius`, and `background`; `Card`'s `padding` and `background`; `gap` on `Row`, `Col`, and `Form`, `align` on `Row` and `Col`, and `justify` on `Row`; `Badge`'s `variant`; `Carousel`'s `label`; `Divider`'s `flush`; and `Button`'s `block`. `Button`'s `submit` is dropped for a different reason: every input on an Adaptive Card submits together, so a submit button and a click button both convert to the same `Action.Submit`.
 
-A `Card` marked `asForm` submits the way it does in the browser: its confirm action carries the `confirm` footer's `$action`, or the Card's own `$action` when the footer has none. A form card with its own `$action` and no `confirm` footer gets a "Submit" action where the confirm action would go, ahead of any cancel action.
+On a `Card` marked `asForm`, the confirm action carries the `confirm` footer's `$action`, or the Card's own `$action` when the footer has none. A form card with its own `$action` and no `confirm` footer gets a "Submit" action where the confirm action would go, ahead of any cancel action.
 
 ## Layout differences
 
