@@ -3,7 +3,7 @@ import {
   useToolArgsStatus,
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
-import { useState, type ComponentType } from "react";
+import { useMemo, useState, type ComponentType } from "react";
 import {
   toolkitEntry,
   type WidgetToolkitExtension,
@@ -43,6 +43,29 @@ export type SpecToolkitOptions = {
 };
 
 type SpecArgs = Partial<RenderSpecInput>;
+
+const WIDGET_TOOLS = new Set([
+  "read_me",
+  "show_widget",
+  "edit_widget",
+  "preview_widget",
+  "render_spec",
+]);
+
+/** Results of the tool calls before this one, by call id, leaving out the widget toolkit's own tools. */
+function resolveToolResults(
+  messages: readonly MessageLike[],
+  toolCallId: string,
+): Record<string, unknown> {
+  const results: Record<string, unknown> = Object.create(null);
+  for (const call of toolCalls(messages)) {
+    if (call.id === toolCallId) break;
+    if (call.result !== undefined && !WIDGET_TOOLS.has(call.name)) {
+      results[call.id] = call.result;
+    }
+  }
+  return results;
+}
 
 /**
  * The spec a `render_spec` call's patches apply onto: the result of the
@@ -88,24 +111,35 @@ export function createSpecToolkit(
     const streaming = argsStatus !== "complete";
     const messages = useAuiState((s) => s.thread.messages);
     const title = typeof args.title === "string" ? args.title : "";
-    // The base only depends on earlier calls, so it is read once per call.
+    // The base and the tool results only depend on earlier calls, so they are read once per call.
     const [base] = useState(() => resolveSpecBase(messages, toolCallId, title));
+    const [toolResults] = useState(() =>
+      resolveToolResults(messages, toolCallId),
+    );
     const streamed = useSpecStream({
       source: typeof args.patches === "string" ? args.patches : "",
       complete: !streaming,
       ...(base ? { initial: base } : {}),
     });
-    const spec =
-      args.spec &&
-      typeof args.spec === "object" &&
-      typeof args.spec.root === "string"
-        ? ({ state: {}, ...args.spec } as Spec)
-        : streamed.spec;
+    const inputSpec = args.spec;
+    const spec = useMemo(
+      () =>
+        inputSpec &&
+        typeof inputSpec === "object" &&
+        typeof inputSpec.root === "string"
+          ? ({ state: {}, ...inputSpec } as Spec)
+          : streamed.spec,
+      [inputSpec, streamed.spec],
+    );
+    const renderSpec = useMemo(
+      () => ({ ...spec, state: { ...spec.state, tools: toolResults } }),
+      [spec, toolResults],
+    );
 
     return (
       <div data-gf-spec={title || undefined}>
         <SpecRenderer
-          spec={spec}
+          spec={renderSpec}
           catalog={catalog}
           components={options.components}
           streaming={streaming}
@@ -119,7 +153,15 @@ export function createSpecToolkit(
 
   return {
     tools,
-    modules: [specGuidanceModule(catalog, options.specPrompt ?? {})],
+    modules: [
+      specGuidanceModule(catalog, {
+        ...options.specPrompt,
+        customRules: [
+          ...(options.specPrompt?.customRules ?? []),
+          'Results of earlier tool calls are in state under `/tools/<toolCallId>`. Show their values with `{ "$state": "/tools/<toolCallId>/..." }` instead of copying them, and never write `tools` in `state`.',
+        ],
+      }),
+    ],
     entries: (context) => ({
       render_spec: toolkitEntry(
         tools.render_spec,

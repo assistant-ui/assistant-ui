@@ -124,12 +124,14 @@ const call = (
   toolCallId: string,
   toolName: string,
   args: Record<string, unknown>,
+  result?: unknown,
 ) => ({
   type: "tool-call",
   toolCallId,
   toolName,
   args,
   argsText: JSON.stringify(args),
+  result,
 });
 
 const catalog = defineCatalog({
@@ -561,6 +563,108 @@ describe("createWidgetToolkit", () => {
       />,
     );
     expect(view.container.textContent).toBe("Hello");
+  });
+
+  it("renders earlier tool results through state and replaces model-written tools", () => {
+    const spec = {
+      root: "t",
+      elements: {
+        t: { type: "Text", props: { text: { $state: "/tools/price/price" } } },
+      },
+      state: { tools: { price: { price: "copied" } } },
+    };
+    const result = { price: "$42" };
+    mocks.messages = [
+      { content: [call("price", "get_price", {}, result)] },
+      { content: [call("s", "render_spec", { title: "s", spec })] },
+    ];
+    let renderedState: Record<string, unknown> | undefined;
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, {
+        components: {
+          Text: ({ props, state }: SpecComponentProps<{ text: string }>) => {
+            renderedState = state.getState();
+            return <p>{props.text}</p>;
+          },
+        },
+      }),
+    });
+    const RenderSpec = entries(toolkit)["render_spec"]!.render;
+    const view = render(
+      <RenderSpec {...partProps("s", { title: "s", spec })} />,
+    );
+    expect(view.container.textContent).toBe("$42");
+    expect(renderedState?.["tools"]).toEqual({ price: result });
+
+    const firstState = renderedState;
+    mocks.messages = [
+      ...mocks.messages,
+      { content: [call("later", "other", {})] },
+    ];
+    view.rerender(<RenderSpec {...partProps("s", { title: "s", spec })} />);
+    expect(renderedState).toBe(firstState);
+  });
+
+  it("mounts only earlier non-widget tool results", () => {
+    const spec = {
+      root: "t",
+      elements: {
+        t: { type: "Text", props: { text: { $state: "/tools/data/price" } } },
+      },
+      state: {},
+    };
+    mocks.messages = [
+      {
+        content: [
+          call("data", "lookup", {}, { price: "$9" }),
+          call("pending", "lookup", {}),
+          ...[
+            "read_me",
+            "show_widget",
+            "edit_widget",
+            "preview_widget",
+            "render_spec",
+          ].map((name) => call(name, name, {}, { price: "excluded" })),
+          call("s", "render_spec", { title: "s", spec }),
+          call("late", "lookup", {}, { price: "too late" }),
+        ],
+      },
+    ];
+    let tools: unknown;
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, {
+        components: {
+          Text: ({ props, state }: SpecComponentProps<{ text: string }>) => {
+            tools = state.get("/tools");
+            return <p>{props.text}</p>;
+          },
+        },
+      }),
+    });
+    const RenderSpec = entries(toolkit)["render_spec"]!.render;
+    const view = render(
+      <RenderSpec {...partProps("s", { title: "s", spec })} />,
+    );
+    expect(view.container.textContent).toBe("$9");
+    expect(tools).toEqual({ data: { price: "$9" } });
+  });
+
+  it("appends tool result guidance after caller rules in read_me", async () => {
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, {
+        components,
+        specPrompt: { customRules: ["Keep labels short."] },
+      }),
+    });
+    const output = await entries(toolkit)["read_me"]!.execute!({
+      modules: ["spec"],
+    });
+    expect(output).toContain(
+      'Results of earlier tool calls are in state under `/tools/<toolCallId>`. Show their values with `{ "$state": "/tools/<toolCallId>/..." }` instead of copying them, and never write `tools` in `state`.',
+    );
+    expect((output as string).indexOf("Keep labels short.")).toBeLessThan(
+      (output as string).indexOf("Results of earlier tool calls"),
+    );
   });
 });
 

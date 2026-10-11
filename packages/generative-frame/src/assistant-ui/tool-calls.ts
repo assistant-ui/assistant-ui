@@ -3,6 +3,7 @@ type ToolCallLike = {
   toolName?: string;
   toolCallId?: string;
   args?: unknown;
+  result?: unknown;
 };
 
 /** The part of a thread message the history readers need. */
@@ -18,6 +19,7 @@ export function* toolCalls(messages: readonly MessageLike[]) {
           id: call.toolCallId,
           name: call.toolName,
           args: (call.args ?? {}) as Record<string, unknown>,
+          result: call.result,
         };
       }
     }
