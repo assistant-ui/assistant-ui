@@ -47,7 +47,7 @@ type AdkRuntimeCallbackName = "onError" | "onCustomEvent" | "onAgentTransfer";
 type QueuedAdkSend = {
   messages: AdkMessage[];
   runConfig: unknown;
-  run: (messages: AdkMessage[]) => Promise<void>;
+  run: (messageBatches: AdkMessage[][]) => Promise<void>;
   resolve: () => void;
   reject: (error: unknown) => void;
 };
@@ -113,7 +113,7 @@ const useAdkMessagesInternal = ({
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const pendingSendsRef = useRef<QueuedAdkSend[]>([]);
-  const queuedSendsRef = useRef(new Set<QueuedAdkSend>());
+  const queuedSendsRef = useRef<Set<QueuedAdkSend> | null>(null);
 
   const { onError, onCustomEvent, onAgentTransfer } = useMemo(
     () => eventHandlers ?? {},
@@ -127,40 +127,41 @@ const useAdkMessagesInternal = ({
         m.id ? m : { ...m, id: generateId() },
       ) as AdkMessage[];
 
-      // A staged message is already in the thread under its own id, and the
-      // merged event below re-emits the whole batch under the first one. Seeding
-      // with the originals would leave every later staged id beside the merged
-      // copy of itself.
-      const resentIds = new Set(newMessagesWithId.map((m) => m.id));
-      // The optimistic event for a tool-only batch carries no author, so the accumulator cannot settle the calls this send answers.
-      const answeredToolCallIds = new Set(
-        newMessagesWithId.flatMap((m) =>
-          m.type === "tool" ? [m.tool_call_id] : [],
-        ),
-      );
-      const currentState = controller.getState();
-      const accumulator = new AdkEventAccumulator(
-        currentState.messages.filter((m) => !resentIds.has(m.id)),
-        currentState.longRunningToolIds.filter(
-          (id) => !answeredToolCallIds.has(id),
-        ),
-      );
-      for (const event of messagesToEvents(newMessagesWithId)) {
-        accumulator.processEvent(event);
-      }
-      const initialMessages = accumulator.getMessages();
-      const initialMessageIds = new Set(initialMessages.map((m) => m.id));
-      const initialLongRunningToolIds = accumulator.getLongRunningToolIds();
-      controller.dispatch({
-        type: "run.started",
-        messages: initialMessages,
-        longRunningToolIds: initialLongRunningToolIds,
-        toolConfirmations: accumulator.getToolConfirmations(),
-        authRequests: accumulator.getAuthRequests(),
-      });
-      let lastTransferToAgent: string | undefined;
+      const run = async (messageBatches: AdkMessage[][]) => {
+        const messages = messageBatches.flat();
+        // A staged message is already in the thread under its own id, and the
+        // merged event below re-emits the whole batch under the first one. Seeding
+        // with the originals would leave every later staged id beside the merged
+        // copy of itself.
+        const resentIds = new Set(messages.map((m) => m.id));
+        // The optimistic event for a tool-only batch carries no author, so the accumulator cannot settle the calls this send answers.
+        const answeredToolCallIds = new Set(
+          messages.flatMap((m) => (m.type === "tool" ? [m.tool_call_id] : [])),
+        );
+        const currentState = controller.getState();
+        const accumulator = new AdkEventAccumulator(
+          currentState.messages.filter((m) => !resentIds.has(m.id)),
+          currentState.longRunningToolIds.filter(
+            (id) => !answeredToolCallIds.has(id),
+          ),
+        );
+        for (const batch of messageBatches) {
+          for (const event of messagesToEvents(batch)) {
+            accumulator.processEvent(event);
+          }
+        }
+        const initialMessages = accumulator.getMessages();
+        const initialMessageIds = new Set(initialMessages.map((m) => m.id));
+        const initialLongRunningToolIds = accumulator.getLongRunningToolIds();
+        controller.dispatch({
+          type: "run.started",
+          messages: initialMessages,
+          longRunningToolIds: initialLongRunningToolIds,
+          toolConfirmations: accumulator.getToolConfirmations(),
+          authRequests: accumulator.getAuthRequests(),
+        });
+        let lastTransferToAgent: string | undefined;
 
-      const run = async (messages: AdkMessage[]) => {
         abortControllerRef.current?.abort();
         const abortController = new AbortController();
         abortControllerRef.current = abortController;
@@ -303,6 +304,11 @@ const useAdkMessagesInternal = ({
 
       return await new Promise<void>((resolve, reject) => {
         const pending = pendingSendsRef.current;
+        const queued = (queuedSendsRef.current ??= new Set<QueuedAdkSend>());
+        if (pending.length === 0) {
+          for (const older of queued) older.resolve();
+          queued.clear();
+        }
         const runConfig =
           config.runConfig &&
           typeof config.runConfig === "object" &&
@@ -317,14 +323,14 @@ const useAdkMessagesInternal = ({
           reject,
         };
         pending.push(send);
-        queuedSendsRef.current.add(send);
+        queued.add(send);
         if (pending.length !== 1) return;
 
         queueMicrotask(() => {
           const sends = pending.splice(0);
           const groups: (typeof sends)[] = [];
           for (const send of sends) {
-            if (!queuedSendsRef.current.has(send)) continue;
+            if (!queued.has(send)) continue;
             const group = groups.at(-1);
             if (group && Object.is(group[0]!.runConfig, send.runConfig)) {
               group.push(send);
@@ -335,13 +341,11 @@ const useAdkMessagesInternal = ({
 
           void (async () => {
             for (const group of groups) {
-              const ready = group.filter((send) =>
-                queuedSendsRef.current.has(send),
-              );
+              const ready = group.filter((send) => queued.has(send));
               if (ready.length === 0) continue;
-              for (const send of ready) queuedSendsRef.current.delete(send);
+              for (const send of ready) queued.delete(send);
               try {
-                await ready.at(-1)!.run(ready.flatMap((send) => send.messages));
+                await ready.at(-1)!.run(ready.map((send) => send.messages));
                 for (const send of ready) send.resolve();
               } catch (error) {
                 for (const send of ready) send.reject(error);
@@ -363,8 +367,10 @@ const useAdkMessagesInternal = ({
   );
 
   const cancel = useCallback(() => {
-    for (const send of queuedSendsRef.current) send.resolve();
-    queuedSendsRef.current.clear();
+    if (queuedSendsRef.current) {
+      for (const send of queuedSendsRef.current) send.resolve();
+      queuedSendsRef.current.clear();
+    }
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }

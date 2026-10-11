@@ -908,8 +908,13 @@ describe("optimistic multi-message sends", () => {
 });
 
 describe("ADK request coalescing", () => {
-  const response = () =>
-    new Response("", { headers: { "Content-Type": "text/event-stream" } });
+  const response = (reply?: string) =>
+    new Response(
+      reply
+        ? `data: ${JSON.stringify({ id: `reply-${reply}`, author: "agent", content: { role: "model", parts: [{ text: reply }] } })}\n\n`
+        : "",
+      { headers: { "Content-Type": "text/event-stream" } },
+    );
 
   it("sends two messages appended in the same tick in one request", async () => {
     const requests: { newMessage: { parts: { text: string }[] } }[] = [];
@@ -1044,13 +1049,13 @@ describe("ADK request coalescing", () => {
     const requests: { runConfig: unknown; message: string }[] = [];
     let releaseFirst!: () => void;
     const firstResponse = new Promise<Response>((resolve) => {
-      releaseFirst = () => resolve(response());
+      releaseFirst = () => resolve(response("first reply"));
     });
     vi.stubGlobal(
       "fetch",
       vi.fn(async (_url: URL, init: RequestInit) => {
         requests.push(JSON.parse(init.body as string));
-        return requests.length === 1 ? firstResponse : response();
+        return requests.length === 1 ? firstResponse : response("second reply");
       }),
     );
     const stream = createAdkStream({ api: "http://localhost:8000/proxy" });
@@ -1083,6 +1088,53 @@ describe("ADK request coalescing", () => {
       { sessionId: "thread-1", runConfig: firstConfig, message: "first" },
       { sessionId: "thread-1", runConfig: secondConfig, message: "second" },
     ]);
+    expect(result.current.messages.map((message) => message.content)).toEqual([
+      "first",
+      [{ type: "text", text: "first reply" }],
+      "second",
+      [{ type: "text", text: "second reply" }],
+    ]);
+  });
+
+  it("supersedes an older queued group when a later-tick send arrives", async () => {
+    const requests: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url: URL, init: RequestInit) => {
+        const body = JSON.parse(init.body as string) as { message: string };
+        requests.push(body.message);
+        return body.message === "first"
+          ? new Promise<Response>(() => {})
+          : Promise.resolve(response());
+      }),
+    );
+    const stream = createAdkStream({ api: "http://localhost:8000/proxy" });
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    let first!: Promise<void>;
+    let queued!: Promise<void>;
+    act(() => {
+      first = result.current.sendMessage(
+        [{ id: "first", type: "human", content: "first" }],
+        { runConfig: { model: "a" } },
+      );
+      queued = result.current.sendMessage(
+        [{ id: "queued", type: "human", content: "queued" }],
+        { runConfig: { model: "b" } },
+      );
+    });
+    await vi.waitFor(() => expect(requests).toEqual(["first"]));
+
+    let latest!: Promise<void>;
+    act(() => {
+      latest = result.current.sendMessage(
+        [{ id: "latest", type: "human", content: "latest" }],
+        {},
+      );
+    });
+    await act(async () => {
+      await Promise.all([first, queued, latest]);
+    });
+    expect(requests).toEqual(["first", "latest"]);
   });
 });
 
