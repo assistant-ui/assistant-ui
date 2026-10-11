@@ -5,7 +5,7 @@ import {
   render,
   screen,
 } from "@testing-library/react";
-import { version } from "react";
+import { createRef, version } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { OptionList, type OptionListOption } from "./option-list";
@@ -39,6 +39,18 @@ describe("OptionList", () => {
       unmount();
       expect(cleanupRef).toHaveBeenCalledOnce();
       expect(ref).not.toHaveBeenCalledWith(null);
+    },
+  );
+
+  it.skipIf(version.startsWith("18."))(
+    "forwards the receipt to an object ref",
+    () => {
+      const ref = createRef<HTMLDivElement>();
+      render(<OptionList options={OPTIONS} choice={["keep"]} ref={ref} />);
+
+      expect(ref.current).toBe(
+        screen.getByText("Keep all").closest('[data-slot="option-list"]'),
+      );
     },
   );
 

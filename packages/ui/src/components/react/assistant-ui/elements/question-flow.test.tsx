@@ -5,7 +5,7 @@ import {
   render,
   screen,
 } from "@testing-library/react";
-import { version } from "react";
+import { createRef, version } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { QuestionFlow, type QuestionFlowStep } from "./question-flow";
@@ -85,6 +85,23 @@ describe("QuestionFlow", () => {
       expect(ref).toHaveBeenCalledWith(document.activeElement);
       unmount();
       expect(cleanupRef).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.skipIf(version.startsWith("18."))(
+    "forwards the receipt to an object ref",
+    async () => {
+      const ref = createRef<HTMLDivElement>();
+      render(
+        <QuestionFlow ref={ref} steps={[STEPS[0]!]} onComplete={() => {}} />,
+      );
+      const answer = screen.getByRole("button", { name: "The whole team" });
+      answer.focus();
+      await act(async () => {
+        fireEvent.click(answer);
+      });
+
+      expect(ref.current).toBe(document.activeElement);
     },
   );
 
