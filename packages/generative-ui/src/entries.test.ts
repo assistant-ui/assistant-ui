@@ -149,3 +149,20 @@ describe("framework-neutral vocabulary modules", () => {
     expect(reactFiles).toEqual([]);
   });
 });
+
+const WEB_SPECIFIER_RE =
+  /\b(?:from|import)\s*\(?\s*["'](?:react-dom|@assistant-ui\/react)(?:\/[^"']*)?["']/;
+
+describe("React Native entry", () => {
+  it("spec.native.ts never reaches react-dom, @assistant-ui/react, or the web vocabulary", () => {
+    const webFiles = [...collectGraph(join(SRC_DIR, "spec.native.ts"))]
+      .map((file) => relative(SRC_DIR, file))
+      .filter(
+        (file) =>
+          /^vocabulary\/(?:index\.ts|[^/]+\.tsx)$/.test(file) ||
+          file === "spec/toSpecCatalog.tsx" ||
+          WEB_SPECIFIER_RE.test(readFileSync(join(SRC_DIR, file), "utf8")),
+      );
+    expect(webFiles).toEqual([]);
+  });
+});
