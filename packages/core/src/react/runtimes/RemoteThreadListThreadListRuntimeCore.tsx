@@ -401,13 +401,15 @@ export class RemoteThreadListThreadListRuntimeCore
           .filter((item) => item.status !== "new")
           .map((item) => item.id),
       );
+      // Subscribers of the update below can throw, and a title request must
+      // never outlive the adapter it was made for.
+      this._titleStates.clear();
+      this._disarmAutomaticTitles();
       this._state.update({
         ...this._state.baseValue,
         cursor: undefined,
         loadError: undefined,
       });
-      this._titleStates.clear();
-      this._disarmAutomaticTitles();
     }
 
     if (controlledThreadIdChanged) {
