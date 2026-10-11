@@ -3,12 +3,7 @@ import {
   useToolArgsStatus,
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
-import {
-  useInsertionEffect,
-  useMemo,
-  useState,
-  type ComponentType,
-} from "react";
+import { useInsertionEffect, useState, type ComponentType } from "react";
 import {
   toolkitEntry,
   type WidgetToolkitExtension,
@@ -74,7 +69,6 @@ export function resolveSpecBase(
   return spec;
 }
 
-/** How many `render_spec` calls with this title come before this one in the thread. */
 function priorSpecCalls(
   messages: readonly MessageLike[],
   toolCallId: string,
@@ -142,16 +136,12 @@ export function createSpecToolkit(
       complete: !streaming,
       ...(base ? { initial: base } : {}),
     });
-    const full =
+    const spec =
       args.spec &&
       typeof args.spec === "object" &&
       typeof args.spec.root === "string"
-        ? args.spec
-        : undefined;
-    const spec = useMemo(
-      () => (full ? ({ state: {}, ...full } as Spec) : streamed.spec),
-      [full, streamed.spec],
-    );
+        ? ({ state: {}, ...args.spec } as Spec)
+        : streamed.spec;
 
     return (
       <div data-gf-spec={title || undefined}>

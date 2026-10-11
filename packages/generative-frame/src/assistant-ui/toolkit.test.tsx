@@ -636,6 +636,7 @@ describe("render_spec validation", () => {
       },
     ];
     render(<RenderSpec {...partProps("y", other)} />);
+    await renderSpec.execute!(other, { toolCallId: "y" });
     mocks.messages = [
       {
         content: [
@@ -647,7 +648,7 @@ describe("render_spec validation", () => {
     render(<RenderSpec {...partProps("f", fromA)} />);
 
     expect(await renderSpec.execute!(fromA, { toolCallId: "f" })).toMatchObject(
-      { ok: true, version: 2 },
+      { ok: true, version: 2, issues: [] },
     );
   });
 
