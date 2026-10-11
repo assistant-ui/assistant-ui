@@ -107,6 +107,35 @@ describe("RemoteThreadListThreadListRuntimeCore load errors", () => {
     expect(list).toHaveBeenCalledTimes(2);
   });
 
+  it("keeps a thread created under the replacement adapter when its response cannot be applied", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const core = createCore(
+      makeAdapter({
+        list: vi.fn(async () => ({ threads: [loadedThread] })),
+      }),
+    );
+    await core.getLoadThreadsPromise();
+
+    const replacementLoad = deferred<RemoteThreadListResponse>();
+    core.__internal_setOptions({
+      adapter: makeAdapter({ list: vi.fn(() => replacementLoad.promise) }),
+      runtimeHook: () => ({}) as never,
+    });
+    const load = core.getLoadThreadsPromise();
+    const createdThreadId = core.newThreadId!;
+    await core.initialize(createdThreadId);
+
+    replacementLoad.resolve({
+      threads: [{ ...loadedThread, status: "deleted" as never }],
+    });
+    await load;
+
+    expect(core.threadIds).toEqual([createdThreadId]);
+    expect(core.getItemById(createdThreadId)?.status).toBe("regular");
+    expect(core.getItemById("thread-1")).toBeUndefined();
+    expect(core.loadError).toBeInstanceOf(Error);
+  });
+
   it("clears the adapter-change gate before notifying about a failed replacement", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const error = new Error("replacement failed");
