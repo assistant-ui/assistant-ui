@@ -43,6 +43,10 @@
       "types": "./dist/spec/react.d.ts",
       "default": "./dist/spec/react.js"
     },
+    "./spec/vue": {
+      "types": "./dist/spec/vue.d.ts",
+      "default": "./dist/spec/vue.js"
+    },
     "./spec/tools": {
       "types": "./dist/spec/tools.d.ts",
       "default": "./dist/spec/tools.js"
@@ -82,7 +86,8 @@
   "peerDependencies": {
     "@assistant-ui/react": "^0.15.0",
     "@types/react": "*",
-    "react": "^18 || ^19"
+    "react": "^18 || ^19",
+    "vue": "^3.5.0"
   },
   "peerDependenciesMeta": {
     "@assistant-ui/react": {
@@ -92,6 +97,9 @@
       "optional": true
     },
     "react": {
+      "optional": true
+    },
+    "vue": {
       "optional": true
     }
   },
@@ -107,7 +115,8 @@
     "react-dom": "^19.3.0",
     "rolldown": "^1.2.12",
     "vite": "^8.3.3",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.3",
+    "vue": "^3.5.43"
   },
   "publishConfig": {
     "access": "public",

@@ -3,7 +3,12 @@ import {
   useToolArgsStatus,
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
-import { useMemo, useState, type ComponentType } from "react";
+import {
+  useInsertionEffect,
+  useMemo,
+  useState,
+  type ComponentType,
+} from "react";
 import {
   toolkitEntry,
   type WidgetToolkitExtension,
@@ -102,6 +107,24 @@ export function resolveSpecBase(
   return spec;
 }
 
+function priorSpecCalls(
+  messages: readonly MessageLike[],
+  toolCallId: string,
+  title: string,
+): number {
+  let count = 0;
+  for (const call of toolCalls(messages)) {
+    if (call.id === toolCallId) break;
+    if (call.name === "render_spec" && call.args["title"] === title) count++;
+  }
+  return count;
+}
+
+type SpecHistory = (title: string) => {
+  spec: Spec | undefined;
+  version: number;
+};
+
 /**
  * Spec mode for `createWidgetToolkit({ spec })`: adds `render_spec`, which
  * streams patches into a `<SpecRenderer>` with your components, and the
@@ -111,7 +134,20 @@ export function createSpecToolkit(
   catalog: Catalog,
   options: SpecToolkitOptions,
 ): WidgetToolkitExtension {
-  const tools = createSpecTools(catalog);
+  const specs = new Map<string, { spec: Spec; version: number }>();
+  const tools = createSpecTools(catalog, { specs });
+  // Each mounted call registers what its own thread held before it, so `execute` patches that base even after a reload or in another thread.
+  const histories = new Map<string, SpecHistory>();
+
+  const execute = (input: RenderSpecInput, call: { toolCallId: string }) => {
+    const history = histories.get(call.toolCallId);
+    if (history) {
+      const { spec, version } = history(input.title);
+      if (spec) specs.set(input.title, { spec, version });
+      else specs.delete(input.title);
+    }
+    return tools.render_spec.execute(input);
+  };
 
   function RenderSpecUI({
     args,
@@ -126,6 +162,16 @@ export function createSpecToolkit(
     const [toolResults] = useState(() =>
       resolveToolResults(messages, toolCallId),
     );
+    const [history] = useState<SpecHistory>(() => (callTitle: string) => ({
+      spec: resolveSpecBase(messages, toolCallId, callTitle),
+      version: priorSpecCalls(messages, toolCallId, callTitle),
+    }));
+    useInsertionEffect(() => {
+      histories.set(toolCallId, history);
+      return () => {
+        if (histories.get(toolCallId) === history) histories.delete(toolCallId);
+      };
+    }, [toolCallId, history]);
     const streamed = useSpecStream({
       source: typeof args.patches === "string" ? args.patches : "",
       complete: !streaming,
@@ -181,6 +227,7 @@ export function createSpecToolkit(
         tools.render_spec,
         RenderSpecUI as never,
         context,
+        execute,
       ),
     }),
   };

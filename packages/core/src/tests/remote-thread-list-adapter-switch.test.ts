@@ -411,7 +411,7 @@ describe("RemoteThreadList adapter changes", () => {
     ).toHaveLength(1);
   });
 
-  it("does not send a rename through the replacement adapter while its list is pending", async () => {
+  it("does not send a rename or title request through the replacement adapter while its list is pending", async () => {
     const adapterA = makeAdapter({
       list: async () => ({ threads: [thread("thread-a")] }),
     });
@@ -431,14 +431,19 @@ describe("RemoteThreadList adapter changes", () => {
     await expect(core.rename("thread-a", "leaked")).rejects.toThrow(
       "adapter changed",
     );
+    await expect(core.generateTitle("thread-a")).rejects.toThrow(
+      "adapter changed",
+    );
     await expect(core.switchToThread("thread-a")).rejects.toThrow(
       "adapter changed",
     );
     expect(adapterB.rename).not.toHaveBeenCalled();
+    expect(adapterB.generateTitle).not.toHaveBeenCalled();
 
     listB.resolve({ threads: [thread("thread-b")] });
     await core.getLoadThreadsPromise();
     expect(adapterB.rename).not.toHaveBeenCalled();
+    expect(adapterB.generateTitle).not.toHaveBeenCalled();
     expect(core.getItemById("thread-a")).toBeUndefined();
   });
 

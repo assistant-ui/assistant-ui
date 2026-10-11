@@ -886,6 +886,7 @@ function rewriteOutsideCode(
     precededBy: string,
     followedBy: string,
     lineHead: (offset: number) => string,
+    lineTail: (offset: number) => string,
   ) => string,
 ): string {
   return rewriteOutsideBlocks(text, (text, blockStarts) => {
@@ -897,13 +898,19 @@ function rewriteOutsideCode(
       const segment = text.slice(plainStart, end);
       if (segment === "") return;
       const start = plainStart;
-      // A segment begins after any code span, so the line it sits on can start
-      // earlier than the segment does and only the original text has it.
+      // A segment is cut at code spans, so the line an offset sits on can start
+      // before the segment does and end after it, and only the original text
+      // has the whole line.
       const lineHead = (offset: number) => {
         const at = start + offset;
         return text.slice(text.lastIndexOf("\n", at - 1) + 1, at);
       };
-      out += rewrite(segment, out.slice(-1), followedBy, lineHead);
+      const lineTail = (offset: number) => {
+        const at = start + offset;
+        const lineEnd = text.indexOf("\n", at);
+        return text.slice(at, lineEnd === -1 ? undefined : lineEnd);
+      };
+      out += rewrite(segment, out.slice(-1), followedBy, lineHead, lineTail);
     };
 
     const copyVerbatim = (to: number) => {
@@ -1083,17 +1090,192 @@ export function rewriteCustomMathTags(text: string): string {
   );
 }
 
+const FORMULA_LINE_CLOSER = /\$\$[ \t\r]*$/;
+
+function indentTo(line: string, column: number): string {
+  const indent = /^[ \t]*/.exec(line)![0];
+  return columns(indent, 0, indent.length) >= column
+    ? line
+    : " ".repeat(column) + line.slice(indent.length);
+}
+
+/**
+ * Content column of a line holding nothing but a list marker and the `$$` that
+ * opens a fence, or -1 for any other line.
+ */
+function displayMathOpenerColumn(line: string): number {
+  const marker = /^[ \t]*/.exec(line)![0].length;
+  const content = listMarkerEnd(line, marker, line.length);
+  return content > marker &&
+    line.startsWith("$$", content) &&
+    onlyWhitespace(line, content + 2, line.length)
+    ? columns(line, 0, content)
+    : -1;
+}
+
+/**
+ * Whether `row` is the delimiter row of a table headed by `header`, as
+ * remark-gfm reads one: a `:?-+:?` cell for each header cell, separated by
+ * pipes, with an optional pipe at either end.
+ */
+function delimitsTable(header: string, row: string): boolean {
+  const cells = (line: string) =>
+    line
+      .replace(/\\\|/g, "")
+      .trim()
+      .replace(/^\||\|$/g, "")
+      .split("|");
+  const delimiters = cells(row);
+  return (
+    delimiters.length === cells(header).length &&
+    delimiters.every((cell) => /^[ \t]*:?-+:?[ \t]*$/.test(cell))
+  );
+}
+
+/**
+ * Whether `line`, the line after a closing `$$`, starts a block instead of
+ * continuing a paragraph. A line holding a pipe starts a table when `next` is
+ * a delimiter row, and on the line the text ends on, the start of a block still
+ * streaming in (`2`, `$`, a backtick or tilde run) counts as one.
+ */
+function opensBlock(
+  line: string,
+  next: string | undefined,
+  endsText: boolean,
+): boolean {
+  const from = /^[ \t]*/.exec(line)![0].length;
+  const rest = line.slice(from);
+  return (
+    columns(line, 0, from) >= 4 ||
+    onlyWhitespace(line, from, line.length) ||
+    listMarkerEnd(line, from, line.length) > from ||
+    bareMarkerWidth(line, from, line.length) > 0 ||
+    isAtxHeading(line, from, line.length) ||
+    isRuleLine(line, from, line.length, false) ||
+    opensBacktickFence(line, from) ||
+    opensTildeFence(line, from) ||
+    /^(?:>|\$\$|\||<)/.test(rest) ||
+    (next !== undefined && rest.includes("|") && delimitsTable(rest, next)) ||
+    (endsText && /^(?:\d{1,9}|\$|`{1,2}|~{1,2})$/.test(rest))
+  );
+}
+
+/**
+ * Indents a `$$` fence opened right after a list marker, and written with its
+ * body and closing marker at the root column, to the item's content column.
+ * remark-math reads the unindented form as an empty fence that ends with the
+ * item, since a flow construct takes no lazy continuation lines, so the body
+ * falls out of the list and the closing marker opens a fence of its own; a
+ * bracket body gets the same nesting from {@link emitDisplayMath}. The first
+ * line of a paragraph right after the closing marker moves with the fence,
+ * since it was written under it, and its later lines follow as lazy
+ * continuation.
+ *
+ * A fence already at the column is valid as written, and so is what follows it.
+ * The closing marker is looked for up to the first blank line, which a display
+ * body does not hold. A fence that reaches one first, reaches a sibling list
+ * marker, or closes on a formula line (`F = ma$$`) is left as written, so a
+ * finished message never has its prose pulled into the math; a fence that
+ * reaches the end of the text is one still streaming in and is indented to its
+ * end.
+ */
+function nestListItemDisplayMath(text: string): string {
+  return rewriteOutsideCode(
+    text,
+    (segment, _precededBy, followedBy, lineHead, lineTail) => {
+      const lines = segment.split("\n");
+      const last = lines.length - 1;
+      const fullLine = (index: number) =>
+        index === last
+          ? lines[index]! + lineTail(segment.length)
+          : lines[index]!;
+      let changed = false;
+      let opener = 0;
+      while (opener < last) {
+        const column = displayMathOpenerColumn(lines[opener]!);
+        if (column === -1 || (opener === 0 && lineHead(0) !== "")) {
+          opener += 1;
+          continue;
+        }
+        let end = opener + 1;
+        let moved = false;
+        let closed = false;
+        let resume = -1;
+        for (; end <= last; end += 1) {
+          const line = fullLine(end);
+          const indent = /^[ \t]*/.exec(line)![0].length;
+          if (onlyWhitespace(line, indent, line.length)) {
+            if (end < last) resume = end + 1;
+            break;
+          }
+          const moves = columns(line, 0, indent) < column;
+          if (
+            line.startsWith("$$", indent) &&
+            onlyWhitespace(line, indent + 2, line.length)
+          ) {
+            moved ||= moves;
+            closed = true;
+            end += 1;
+            break;
+          }
+          if (
+            moves &&
+            (listMarkerEnd(line, indent, line.length) > indent ||
+              bareMarkerWidth(line, indent, line.length) > 0)
+          ) {
+            resume = end;
+            break;
+          }
+          if (FORMULA_LINE_CLOSER.test(line)) {
+            resume = end + 1;
+            break;
+          }
+          moved ||= moves;
+        }
+        if (resume !== -1) {
+          opener = resume;
+          continue;
+        }
+        if (!closed && followedBy !== "") break;
+        if (moved) {
+          for (let index = opener + 1; index < end; index += 1) {
+            lines[index] = indentTo(lines[index]!, column);
+          }
+          if (
+            closed &&
+            end <= last &&
+            !opensBlock(
+              fullLine(end),
+              end < last ? fullLine(end + 1) : undefined,
+              end === last && followedBy === "",
+            )
+          ) {
+            lines[end] = indentTo(lines[end]!, column);
+            end += 1;
+          }
+          changed = true;
+        }
+        opener = end;
+      }
+      return changed ? lines.join("\n") : segment;
+    },
+  );
+}
+
 /**
  * Normalizes the alternative math delimiters language models commonly emit (LaTeX
  * `\(...\)` / `\[...\]` brackets and `[/math]` / `[/inline]` tags) to the `$...$` /
- * `$$...$$` delimiters remark-math parses. Pass it to the `preprocess` prop of
+ * `$$...$$` delimiters remark-math parses, and nests a `$$` fence opened on a
+ * list item's marker line inside that item. Pass it to the `preprocess` prop of
  * `MarkdownTextPrimitive` or `StreamdownTextPrimitive`.
  *
  * It does not touch currency. Compose it with {@link escapeCurrencyDollars} when
  * single-dollar math is enabled and your content includes prices.
  */
 export function normalizeMathDelimiters(text: string): string {
-  return rewriteLatexBracketDelimiters(rewriteCustomMathTags(text));
+  return nestListItemDisplayMath(
+    rewriteLatexBracketDelimiters(rewriteCustomMathTags(text)),
+  );
 }
 
 const LATEX_SYNTAX = /\\[a-zA-Z]|[_^{}]/;

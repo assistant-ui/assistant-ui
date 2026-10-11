@@ -401,13 +401,15 @@ export class RemoteThreadListThreadListRuntimeCore
           .filter((item) => item.status !== "new")
           .map((item) => item.id),
       );
+      // Subscribers of the update below can throw, and a title request must
+      // never outlive the adapter it was made for.
+      this._titleStates.clear();
+      this._disarmAutomaticTitles();
       this._state.update({
         ...this._state.baseValue,
         cursor: undefined,
         loadError: undefined,
       });
-      this._titleStates.clear();
-      this._disarmAutomaticTitles();
     }
 
     if (controlledThreadIdChanged) {
@@ -984,6 +986,16 @@ export class RemoteThreadListThreadListRuntimeCore
         messages.length === 0
       )
         return;
+      // A reload can settle the replacement list while an earlier list
+      // request never settles, so the wait follows state updates.
+      if (this._replaceListOnNextLoad) {
+        generating = true;
+        void this._state.waitForUpdate().then(() => {
+          generating = false;
+          check();
+        });
+        return;
+      }
       generating = true;
       this._generateTitle(threadId, { automatic: true }, () =>
         active ? messages : undefined,
