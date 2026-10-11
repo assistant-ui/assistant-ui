@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-Drop previous adapter threads when a replacement list response cannot be applied.
+fix(core): drop the previous adapter's threads when a replacement thread list response cannot be applied, keeping threads created under the replacement
