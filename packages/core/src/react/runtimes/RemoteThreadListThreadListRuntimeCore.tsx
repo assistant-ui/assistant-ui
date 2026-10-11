@@ -262,6 +262,16 @@ export class RemoteThreadListThreadListRuntimeCore
             return applyInitialThreadPage(state, l, statusAtRequest);
           },
         })
+        .catch((error: unknown) => {
+          if (generation !== this._loadGeneration) return;
+          console.error("[assistant-ui] thread list load failed:", error);
+          this._loadThreadsPromise = undefined;
+          this._state.update({
+            ...this._state.baseValue,
+            isLoading: false,
+            loadError: error,
+          });
+        })
         .then(() => {
           if (appliedList || replacedList)
             this._reapplyControlledThread(replacedList, switchGeneration);

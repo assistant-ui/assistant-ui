@@ -112,6 +112,22 @@ describe("RemoteThreadListThreadListRuntimeCore load errors", () => {
     expect(core.loadError).toBe(error);
   });
 
+  it("reports a load whose response cannot be applied and retries it", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const list = vi.fn(async () => ({
+      threads: [{ ...loadedThread, status: "deleted" as never }],
+    }));
+    const core = createCore(makeAdapter({ list }));
+
+    await core.getLoadThreadsPromise();
+
+    expect(core.isLoading).toBe(false);
+    expect(core.loadError).toBeInstanceOf(Error);
+
+    await core.getLoadThreadsPromise();
+    expect(list).toHaveBeenCalledTimes(2);
+  });
+
   it("clears the previous adapter's error before loading its replacement", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const error = new Error("network error");
