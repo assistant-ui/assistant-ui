@@ -210,6 +210,17 @@ describe("rewriteLatexBracketDelimiters", () => {
     expect(rewriteLatexBracketDelimiters(input)).toBe(input);
   });
 
+  it("keeps a leading > on the opener line of a quoted one-line display", () => {
+    expect(rewriteLatexBracketDelimiters("> \\[ >= 0\n\\]")).toBe("> $$>= 0$$");
+    expect(rewriteLatexBracketDelimiters("> 1. \\[> x\n\\]")).toBe(
+      "> 1. $$> x$$",
+    );
+    expect(rewriteCustomMathTags("> [/math]> x[/math]")).toBe("> $$> x$$");
+    expect(rewriteCustomMathTags("> 1. [/math]> x[/math]")).toBe(
+      "> 1. $$> x$$",
+    );
+  });
+
   it("strips quote markers before rewriting a quoted display body", () => {
     expect(rewriteLatexBracketDelimiters("> 1. \\[\n> w3 \\]")).toBe(
       "> 1. $$w3$$",

@@ -1004,10 +1004,18 @@ function emitDisplayMath(
   followedBy: string,
   lineHead: (offset: number) => string,
 ): string {
-  const depth = quoteDepth(continuationPrefix(lineHead(offset)));
+  // Markers written at the root column would end the list item or blockquote the
+  // math was written inside, so they carry that container's prefix and the body
+  // is aligned to it.
+  const prefix = continuationPrefix(lineHead(offset));
+  const depth = quoteDepth(prefix);
+  // The rest of the opener line is formula text, so only later lines carry the
+  // container's blockquote markers.
   const content = body
     .split("\n")
-    .map((line) => line.slice(quoteMarkers(line, depth).length))
+    .map((line, index) =>
+      index === 0 ? line : line.slice(quoteMarkers(line, depth).length),
+    )
     .join("\n")
     .trim();
   if (content === "") return match;
@@ -1023,10 +1031,6 @@ function emitDisplayMath(
   const lead = endsLine(before) ? "" : "\n";
   const tail = endsLine(after) ? "" : "\n";
 
-  // Markers written at the root column would end the list item or blockquote the
-  // math was written inside, so they carry that container's prefix and the body
-  // is aligned to it.
-  const prefix = continuationPrefix(lineHead(offset));
   // The body is split before trimming, since trimming would take the shared
   // indentation off the first line only and leave the block ragged.
   const bodyLines = body.split("\n");
