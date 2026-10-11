@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { defaultGenerativeUILibrary } from "../vocabulary";
 import { interactiveVocabulary } from "../vocabulary/interactive";
+import { layoutVocabulary } from "../vocabulary/layout";
 import { toSpecCatalog } from "./toSpecCatalog";
 
 describe("toSpecCatalog", () => {
@@ -170,8 +171,8 @@ describe("toSpecCatalog", () => {
           },
         },
         custom,
-      ).ok,
-    ).toBe(true);
+      ),
+    ).toEqual({ ok: true, issues: [] });
     expect(custom.prompt()).toContain("children: `children`, `slots.footer`");
     expect(custom.prompt()).toContain("events: `rate`");
   });
@@ -215,11 +216,6 @@ describe("toSpecCatalog", () => {
     expect(custom.prompt()).toContain("events: `rate`");
     expect(custom.prompt()).toContain("Rates a selection.");
     expect(custom.prompt()).not.toContain("Emits `press`");
-    const { catalog: slotsOnly } = toSpecCatalog({
-      Button: { ...interactiveVocabulary.Button, slots: [] },
-    });
-    expect(slotsOnly.component("Button")).toMatchObject({ slots: [] });
-    expect(slotsOnly.component("Button")?.events).toBeUndefined();
     expect(
       validateSpec(
         {
@@ -240,6 +236,22 @@ describe("toSpecCatalog", () => {
     ).toEqual(
       expect.arrayContaining(["children-not-allowed", "unknown-event"]),
     );
+  });
+
+  it("drops a vocabulary entry's built-in events when it declares only slots", () => {
+    const { catalog: slotsOnly } = toSpecCatalog({
+      Button: { ...interactiveVocabulary.Button, slots: [] },
+    });
+    expect(slotsOnly.component("Button")).toMatchObject({ slots: [] });
+    expect(slotsOnly.component("Button")?.events).toBeUndefined();
+  });
+
+  it("keeps a vocabulary entry's spec props when it declares events", () => {
+    const { catalog: custom } = toSpecCatalog({
+      Card: { ...layoutVocabulary.Card, events: ["confirm"] },
+    });
+    expect(custom.component("Card")?.events).toEqual(["confirm"]);
+    expect(JSON.stringify(custom.propsSchema("Card"))).not.toContain("_action");
   });
 
   it("adds host actions next to the built-in setState", () => {

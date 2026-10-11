@@ -237,7 +237,7 @@ function toSpecComponent(
 }
 
 /**
- * Builds generative-frame spec mode from a generative UI library: a catalog with each component's props, slots, and events, and the React implementations `SpecRenderer` and `createSpecToolkit` render it with. Value controls emit their value as the event payload, and a control whose value prop is bound with `$bindState` follows that state and writes every change back to it. An entry that declares `events` or `slots` defines its own spec shape; its component receives rendered named slots in `$slots` and a setter for each bound prop in `$bindings`.
+ * Builds generative-frame spec mode from a generative UI library: a catalog with each component's props, slots, and events, and the React implementations `SpecRenderer` and `createSpecToolkit` render it with. Value controls emit their value as the event payload, and a control whose value prop is bound with `$bindState` follows that state and writes every change back to it. An entry that declares `events` or `slots` replaces a vocabulary component's built-in events, slots, and spec description, and its component receives rendered named slots in `$slots` and a setter for each bound prop in `$bindings`.
  */
 export function toSpecCatalog(
   library: GenerativeUILibrary = defaultGenerativeUILibrary,
@@ -250,21 +250,20 @@ export function toSpecCatalog(
       isDefaultGenerativeUIComponent(name, entry.properties) ||
       (Object.hasOwn(defaultGenerativeUILibrary, name) &&
         entry.render === defaultGenerativeUILibrary[name]?.render);
+    const builtIn = isDefault ? DEFAULT_SHAPES[name] : undefined;
     const declared = entry.events !== undefined || entry.slots !== undefined;
     const shape: SpecShape | undefined = declared
       ? {
           slots: entry.slots ?? DEFAULT_SLOT,
           ...(entry.events ? { events: entry.events } : {}),
         }
-      : isDefault
-        ? DEFAULT_SHAPES[name]
-        : { slots: DEFAULT_SLOT };
+      : (builtIn ?? { slots: DEFAULT_SLOT });
     const events = shape?.events ?? [];
     definitions[name] = {
       description: shape?.description ?? entry.description,
       props:
-        shape?.props && entry.properties instanceof z.ZodObject
-          ? shape.props(entry.properties)
+        builtIn?.props && entry.properties instanceof z.ZodObject
+          ? builtIn.props(entry.properties)
           : (entry.properties as PropsSchema),
       ...(shape?.slots ? { slots: shape.slots } : {}),
       ...(events.length > 0 ? { events } : {}),
