@@ -44,6 +44,37 @@ export type UseAdkMessagesOptions = {
 
 type AdkRuntimeCallbackName = "onError" | "onCustomEvent" | "onAgentTransfer";
 
+type QueuedAdkSend = {
+  messages: AdkMessage[];
+  config: Record<PropertyKey, unknown>;
+  run: (messageBatches: AdkMessage[][]) => Promise<void>;
+  resolve: () => void;
+  reject: (error: unknown) => void;
+};
+
+const normalizeSendConfig = (config: AdkSendMessageConfig) =>
+  Object.fromEntries(
+    Reflect.ownKeys(config).map((key) => {
+      const value = Reflect.get(config, key);
+      return [
+        key,
+        value &&
+        typeof value === "object" &&
+        Reflect.ownKeys(value).length === 0
+          ? undefined
+          : value,
+      ];
+    }),
+  );
+
+const sameSendConfig = (
+  left: Record<PropertyKey, unknown>,
+  right: Record<PropertyKey, unknown>,
+) => {
+  const keys = new Set([...Reflect.ownKeys(left), ...Reflect.ownKeys(right)]);
+  return [...keys].every((key) => Object.is(left[key], right[key]));
+};
+
 const invokeAdkRuntimeCallback = <TArgs extends readonly unknown[]>(
   name: AdkRuntimeCallbackName,
   callback: ((...args: TArgs) => unknown) | undefined,
@@ -104,6 +135,8 @@ const useAdkMessagesInternal = ({
   );
 
   const abortControllerRef = useRef<AbortController | null>(null);
+  const pendingSendsRef = useRef<QueuedAdkSend[]>([]);
+  const queuedSendsRef = useRef<Set<QueuedAdkSend> | null>(null);
 
   const { onError, onCustomEvent, onAgentTransfer } = useMemo(
     () => eventHandlers ?? {},
@@ -117,177 +150,227 @@ const useAdkMessagesInternal = ({
         m.id ? m : { ...m, id: generateId() },
       ) as AdkMessage[];
 
-      // A staged message is already in the thread under its own id, and the
-      // merged event below re-emits the whole batch under the first one. Seeding
-      // with the originals would leave every later staged id beside the merged
-      // copy of itself.
-      const resentIds = new Set(newMessagesWithId.map((m) => m.id));
-      // The optimistic event for a tool-only batch carries no author, so the accumulator cannot settle the calls this send answers.
-      const answeredToolCallIds = new Set(
-        newMessagesWithId.flatMap((m) =>
-          m.type === "tool" ? [m.tool_call_id] : [],
-        ),
-      );
-      const currentState = controller.getState();
-      const accumulator = new AdkEventAccumulator(
-        currentState.messages.filter((m) => !resentIds.has(m.id)),
-        currentState.longRunningToolIds.filter(
-          (id) => !answeredToolCallIds.has(id),
-        ),
-      );
-      for (const event of messagesToEvents(newMessagesWithId)) {
-        accumulator.processEvent(event);
-      }
-      const initialMessages = accumulator.getMessages();
-      const initialMessageIds = new Set(initialMessages.map((m) => m.id));
-      const initialLongRunningToolIds = accumulator.getLongRunningToolIds();
-      controller.dispatch({
-        type: "run.started",
-        messages: initialMessages,
-        longRunningToolIds: initialLongRunningToolIds,
-        toolConfirmations: accumulator.getToolConfirmations(),
-        authRequests: accumulator.getAuthRequests(),
-      });
-      let lastTransferToAgent: string | undefined;
-
-      // Google ADK replaces active runs, while React LangGraph queues sends.
-      abortControllerRef.current?.abort();
-      const abortController = new AbortController();
-      abortControllerRef.current = abortController;
-
-      try {
-        const response = await openAbortableIterable(
-          stream(newMessagesWithId, {
-            ...config,
-            abortSignal: abortController.signal,
-            initialize: async () => {
-              return await aui.threadListItem.initialize();
-            },
-          }),
-          abortController.signal,
+      const run = async (messageBatches: AdkMessage[][]) => {
+        const messages = messageBatches.flat();
+        // A staged message is already in the thread under its own id, and the
+        // merged event below re-emits the whole batch under the first one. Seeding
+        // with the originals would leave every later staged id beside the merged
+        // copy of itself.
+        const resentIds = new Set(messages.map((m) => m.id));
+        // The optimistic event for a tool-only batch carries no author, so the accumulator cannot settle the calls this send answers.
+        const answeredToolCallIds = new Set(
+          messages.flatMap((m) => (m.type === "tool" ? [m.tool_call_id] : [])),
         );
-        if (!response) return;
-
-        for await (const rawEvent of abortableIterable(
-          response,
-          abortController.signal,
-        )) {
-          if (
-            abortController.signal.aborted ||
-            abortControllerRef.current !== abortController
-          ) {
-            break;
+        const currentState = controller.getState();
+        const accumulator = new AdkEventAccumulator(
+          currentState.messages.filter((m) => !resentIds.has(m.id)),
+          currentState.longRunningToolIds.filter(
+            (id) => !answeredToolCallIds.has(id),
+          ),
+        );
+        for (const batch of messageBatches) {
+          for (const event of messagesToEvents(batch)) {
+            accumulator.processEvent(event);
           }
-          const event = normalizeAdkEvent(rawEvent);
-          const updatedMessages = accumulator.processEvent(event);
-          // Each event part can append at most one message, and a function call
-          // stays on the current assistant message until a later part finalizes
-          // it, so every message touched by this event is within this tail.
-          const affectedMessageCount = Math.max(
-            event.content?.parts?.length ?? 0,
-            1,
+        }
+        const initialMessages = accumulator.getMessages();
+        const initialMessageIds = new Set(initialMessages.map((m) => m.id));
+        const initialLongRunningToolIds = accumulator.getLongRunningToolIds();
+        controller.dispatch({
+          type: "run.started",
+          messages: initialMessages,
+          longRunningToolIds: initialLongRunningToolIds,
+          toolConfirmations: accumulator.getToolConfirmations(),
+          authRequests: accumulator.getAuthRequests(),
+        });
+        let lastTransferToAgent: string | undefined;
+
+        abortControllerRef.current?.abort();
+        const abortController = new AbortController();
+        abortControllerRef.current = abortController;
+
+        try {
+          const response = await openAbortableIterable(
+            stream(messages, {
+              ...config,
+              abortSignal: abortController.signal,
+              initialize: async () => {
+                return await aui.threadListItem.initialize();
+              },
+            }),
+            abortController.signal,
           );
-          const affectedMessages = updatedMessages.slice(-affectedMessageCount);
-          if (affectedMessages.length > 0) {
-            controller.dispatch({
-              type: "messages.remember",
-              messages: affectedMessages,
-              runConfig: config.runConfig,
-            });
-          }
-          controller.dispatch({
-            type: "event.published",
-            state: {
-              messages: updatedMessages,
-              stateDelta: accumulator.getStateDelta(),
-              agentInfo: accumulator.getAgentInfo(),
-              longRunningToolIds: accumulator.getLongRunningToolIds(),
-              artifactDelta: accumulator.getArtifactDelta(),
-              toolConfirmations: accumulator.getToolConfirmations(),
-              authRequests: accumulator.getAuthRequests(),
-              escalated: accumulator.isEscalated(),
-              messageMetadata: accumulator.getMessageMetadata(),
-            },
-          });
+          if (!response) return;
 
-          const transfer = accumulator.getLastTransferToAgent();
-          if (transfer && transfer !== lastTransferToAgent) {
-            lastTransferToAgent = transfer;
-            invokeAdkRuntimeCallback(
-              "onAgentTransfer",
-              onAgentTransfer,
-              transfer,
-            );
-          }
-
-          // Fire custom event callback for events with customMetadata
-          if (event.customMetadata && onCustomEvent) {
-            for (const [key, value] of Object.entries(event.customMetadata)) {
-              invokeAdkRuntimeCallback(
-                "onCustomEvent",
-                onCustomEvent,
-                key,
-                value,
-              );
-            }
-          }
-
-          if (
-            event.errorCode ||
-            event.errorMessage ||
-            isErrorFinishReason(event.finishReason)
-          ) {
-            controller.dispatch({ type: "run.failed" });
-          }
-          if (event.errorCode || event.errorMessage) {
-            invokeAdkRuntimeCallback(
-              "onError",
-              onError,
-              event.errorMessage ?? event.errorCode,
-            );
-          }
-        }
-      } catch (error) {
-        if (
-          !abortController.signal.aborted &&
-          abortControllerRef.current === abortController &&
-          !(error instanceof Error && error.name === "AbortError")
-        ) {
-          throw error;
-        }
-      } finally {
-        if (abortControllerRef.current === abortController) {
-          if (abortController.signal.aborted) {
-            controller.dispatch({
-              type: "longRunningToolIds.set",
-              ids: accumulator
-                .getLongRunningToolIds()
-                .filter((id) => initialLongRunningToolIds.includes(id)),
-            });
-            const updatedMessages = controller.getState().messages;
-            const lastAssistantMessage = updatedMessages.findLast(
-              (m) => m.type === "ai",
-            );
+          for await (const rawEvent of abortableIterable(
+            response,
+            abortController.signal,
+          )) {
             if (
-              lastAssistantMessage &&
-              !initialMessageIds.has(lastAssistantMessage.id) &&
-              !lastAssistantMessage.status
+              abortController.signal.aborted ||
+              abortControllerRef.current !== abortController
             ) {
-              setMessagesImmediate(
-                updatedMessages.map((m) =>
-                  m === lastAssistantMessage
-                    ? {
-                        ...lastAssistantMessage,
-                        status: { type: "incomplete", reason: "cancelled" },
-                      }
-                    : m,
-                ),
+              break;
+            }
+            const event = normalizeAdkEvent(rawEvent);
+            const updatedMessages = accumulator.processEvent(event);
+            // Each event part can append at most one message, and a function call
+            // stays on the current assistant message until a later part finalizes
+            // it, so every message touched by this event is within this tail.
+            const affectedMessageCount = Math.max(
+              event.content?.parts?.length ?? 0,
+              1,
+            );
+            const affectedMessages =
+              updatedMessages.slice(-affectedMessageCount);
+            if (affectedMessages.length > 0) {
+              controller.dispatch({
+                type: "messages.remember",
+                messages: affectedMessages,
+                runConfig: config.runConfig,
+              });
+            }
+            controller.dispatch({
+              type: "event.published",
+              state: {
+                messages: updatedMessages,
+                stateDelta: accumulator.getStateDelta(),
+                agentInfo: accumulator.getAgentInfo(),
+                longRunningToolIds: accumulator.getLongRunningToolIds(),
+                artifactDelta: accumulator.getArtifactDelta(),
+                toolConfirmations: accumulator.getToolConfirmations(),
+                authRequests: accumulator.getAuthRequests(),
+                escalated: accumulator.isEscalated(),
+                messageMetadata: accumulator.getMessageMetadata(),
+              },
+            });
+
+            const transfer = accumulator.getLastTransferToAgent();
+            if (transfer && transfer !== lastTransferToAgent) {
+              lastTransferToAgent = transfer;
+              invokeAdkRuntimeCallback(
+                "onAgentTransfer",
+                onAgentTransfer,
+                transfer,
+              );
+            }
+
+            // Fire custom event callback for events with customMetadata
+            if (event.customMetadata && onCustomEvent) {
+              for (const [key, value] of Object.entries(event.customMetadata)) {
+                invokeAdkRuntimeCallback(
+                  "onCustomEvent",
+                  onCustomEvent,
+                  key,
+                  value,
+                );
+              }
+            }
+
+            if (
+              event.errorCode ||
+              event.errorMessage ||
+              isErrorFinishReason(event.finishReason)
+            ) {
+              controller.dispatch({ type: "run.failed" });
+            }
+            if (event.errorCode || event.errorMessage) {
+              invokeAdkRuntimeCallback(
+                "onError",
+                onError,
+                event.errorMessage ?? event.errorCode,
               );
             }
           }
-          abortControllerRef.current = null;
+        } catch (error) {
+          if (
+            !abortController.signal.aborted &&
+            abortControllerRef.current === abortController &&
+            !(error instanceof Error && error.name === "AbortError")
+          ) {
+            throw error;
+          }
+        } finally {
+          if (abortControllerRef.current === abortController) {
+            if (abortController.signal.aborted) {
+              controller.dispatch({
+                type: "longRunningToolIds.set",
+                ids: accumulator
+                  .getLongRunningToolIds()
+                  .filter((id) => initialLongRunningToolIds.includes(id)),
+              });
+              const updatedMessages = controller.getState().messages;
+              const lastAssistantMessage = updatedMessages.findLast(
+                (m) => m.type === "ai",
+              );
+              if (
+                lastAssistantMessage &&
+                !initialMessageIds.has(lastAssistantMessage.id) &&
+                !lastAssistantMessage.status
+              ) {
+                setMessagesImmediate(
+                  updatedMessages.map((m) =>
+                    m === lastAssistantMessage
+                      ? {
+                          ...lastAssistantMessage,
+                          status: { type: "incomplete", reason: "cancelled" },
+                        }
+                      : m,
+                  ),
+                );
+              }
+            }
+            abortControllerRef.current = null;
+          }
         }
-      }
+      };
+
+      return await new Promise<void>((resolve, reject) => {
+        const pending = pendingSendsRef.current;
+        const queued = (queuedSendsRef.current ??= new Set<QueuedAdkSend>());
+        if (pending.length === 0) {
+          for (const older of queued) older.resolve();
+          queued.clear();
+        }
+        const send = {
+          messages: newMessagesWithId,
+          config: normalizeSendConfig(config),
+          run,
+          resolve,
+          reject,
+        };
+        pending.push(send);
+        queued.add(send);
+        if (pending.length !== 1) return;
+
+        queueMicrotask(() => {
+          const sends = pending.splice(0);
+          const groups: (typeof sends)[] = [];
+          for (const send of sends) {
+            if (!queued.has(send)) continue;
+            const group = groups.at(-1);
+            if (group && sameSendConfig(group[0]!.config, send.config)) {
+              group.push(send);
+            } else {
+              groups.push([send]);
+            }
+          }
+
+          void (async () => {
+            for (const group of groups) {
+              const ready = group.filter((send) => queued.has(send));
+              if (ready.length === 0) continue;
+              for (const send of ready) queued.delete(send);
+              try {
+                await ready.at(-1)!.run(ready.map((send) => send.messages));
+                for (const send of ready) send.resolve();
+              } catch (error) {
+                for (const send of ready) send.reject(error);
+              }
+            }
+          })();
+        });
+      });
     },
     [
       aui,
@@ -301,6 +384,10 @@ const useAdkMessagesInternal = ({
   );
 
   const cancel = useCallback(() => {
+    if (queuedSendsRef.current) {
+      for (const send of queuedSendsRef.current) send.resolve();
+      queuedSendsRef.current.clear();
+    }
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }

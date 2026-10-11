@@ -907,6 +907,365 @@ describe("optimistic multi-message sends", () => {
   });
 });
 
+describe("ADK request coalescing", () => {
+  const response = (reply?: string) =>
+    new Response(
+      reply
+        ? `data: ${JSON.stringify({ id: `reply-${reply}`, author: "agent", content: { role: "model", parts: [{ text: reply }] } })}\n\n`
+        : "",
+      { headers: { "Content-Type": "text/event-stream" } },
+    );
+
+  it("sends two messages appended in the same tick in one request", async () => {
+    const requests: { newMessage: { parts: { text: string }[] } }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: URL, init: RequestInit) => {
+        requests.push(JSON.parse(init.body as string));
+        return response();
+      }),
+    );
+    const stream = createAdkStream({
+      api: "http://localhost:8000",
+      appName: "app",
+      userId: "user",
+    });
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+    act(() => {
+      first = result.current.sendMessage(
+        [{ id: "first", type: "human", content: "first" }],
+        {},
+      );
+      second = result.current.sendMessage(
+        [{ id: "second", type: "human", content: "second" }],
+        {},
+      );
+    });
+    await act(async () => {
+      await Promise.all([first, second]);
+    });
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0]!.newMessage.parts).toEqual([
+      { text: "first" },
+      { text: "second" },
+    ]);
+    expect(result.current.messages.map((message) => message.id)).toEqual([
+      "first",
+      "second",
+    ]);
+  });
+
+  it("sends same-tick messages with different state deltas separately", async () => {
+    const calls: { message: string; stateDelta: unknown }[] = [];
+    const stream: AdkStreamCallback = async function* (messages, config) {
+      calls.push({
+        message: messages[0]!.id,
+        stateDelta: config.stateDelta,
+      });
+    };
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+    act(() => {
+      first = result.current.sendMessage(
+        [{ id: "first", type: "human", content: "first" }],
+        { stateDelta: { a: 1 } },
+      );
+      second = result.current.sendMessage(
+        [{ id: "second", type: "human", content: "second" }],
+        { stateDelta: { b: 2 } },
+      );
+    });
+    await act(async () => {
+      await Promise.all([first, second]);
+    });
+
+    expect(calls).toEqual([
+      { message: "first", stateDelta: { a: 1 } },
+      { message: "second", stateDelta: { b: 2 } },
+    ]);
+  });
+
+  it("sends same-tick messages with different checkpoints separately", async () => {
+    const calls: { message: string; checkpointId: string | undefined }[] = [];
+    const stream: AdkStreamCallback = async function* (messages, config) {
+      calls.push({
+        message: messages[0]!.id,
+        checkpointId: config.checkpointId,
+      });
+    };
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+    act(() => {
+      first = result.current.sendMessage(
+        [{ id: "first", type: "human", content: "first" }],
+        { checkpointId: "checkpoint-a" },
+      );
+      second = result.current.sendMessage(
+        [{ id: "second", type: "human", content: "second" }],
+        { checkpointId: "checkpoint-b" },
+      );
+    });
+    await act(async () => {
+      await Promise.all([first, second]);
+    });
+
+    expect(calls).toEqual([
+      { message: "first", checkpointId: "checkpoint-a" },
+      { message: "second", checkpointId: "checkpoint-b" },
+    ]);
+  });
+
+  it.each([
+    ["empty configs", {}, {}, [["first", "second"]]],
+    [
+      "empty state deltas",
+      { stateDelta: {} },
+      { stateDelta: {} },
+      [["first", "second"]],
+    ],
+    [
+      "missing and empty state deltas",
+      {},
+      { stateDelta: {} },
+      [["first", "second"]],
+    ],
+    [
+      "a checkpoint only on the second",
+      {},
+      { checkpointId: "checkpoint" },
+      [["first"], ["second"]],
+    ],
+    [
+      "a checkpoint only on the first",
+      { checkpointId: "checkpoint" },
+      {},
+      [["first"], ["second"]],
+    ],
+    [
+      "a state delta only on the second",
+      {},
+      { stateDelta: { a: 1 } },
+      [["first"], ["second"]],
+    ],
+    [
+      "a state delta only on the first",
+      { stateDelta: { a: 1 } },
+      {},
+      [["first"], ["second"]],
+    ],
+  ])(
+    "groups same-tick messages with %s",
+    async (_label, firstConfig, secondConfig, expected) => {
+      const calls: string[][] = [];
+      const stream: AdkStreamCallback = async function* (messages) {
+        calls.push(messages.map((message) => message.id));
+      };
+      const { result } = renderHook(() => useAdkMessages({ stream }));
+      let first!: Promise<void>;
+      let second!: Promise<void>;
+      act(() => {
+        first = result.current.sendMessage(
+          [{ id: "first", type: "human", content: "first" }],
+          firstConfig,
+        );
+        second = result.current.sendMessage(
+          [{ id: "second", type: "human", content: "second" }],
+          secondConfig,
+        );
+      });
+      await act(async () => {
+        await Promise.all([first, second]);
+      });
+
+      expect(calls).toEqual(expected);
+    },
+  );
+
+  it("settles every caller with the shared run error", async () => {
+    const failure = new Error("stream failed");
+    const stream = vi.fn(async function* () {
+      throw failure;
+    });
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+    act(() => {
+      first = result.current.sendMessage(
+        [{ id: "first", type: "human", content: "first" }],
+        {},
+      );
+      second = result.current.sendMessage(
+        [{ id: "second", type: "human", content: "second" }],
+        {},
+      );
+    });
+    let outcomes!: PromiseSettledResult<void>[];
+    await act(async () => {
+      outcomes = await Promise.allSettled([first, second]);
+    });
+
+    expect(stream).toHaveBeenCalledOnce();
+    expect(outcomes).toEqual([
+      { status: "rejected", reason: failure },
+      { status: "rejected", reason: failure },
+    ]);
+  });
+
+  it("does not start a queued request after cancellation", async () => {
+    const stream = vi.fn(async function* () {});
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    let send!: Promise<void>;
+    act(() => {
+      send = result.current.sendMessage(
+        [{ id: "first", type: "human", content: "first" }],
+        {},
+      );
+      result.current.cancel();
+    });
+    await act(async () => {
+      await send;
+    });
+    expect(stream).not.toHaveBeenCalled();
+  });
+
+  it("still aborts a run whose request already left when a new message is sent", async () => {
+    const signals: AbortSignal[] = [];
+    let calls = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url: URL, init: RequestInit) => {
+        signals.push(init.signal!);
+        return ++calls === 1
+          ? new Promise<Response>(() => {})
+          : Promise.resolve(response());
+      }),
+    );
+    const stream = createAdkStream({
+      api: "http://localhost:8000",
+      appName: "app",
+      userId: "user",
+    });
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    let first!: Promise<void>;
+    act(() => {
+      first = result.current.sendMessage(
+        [{ id: "first", type: "human", content: "first" }],
+        {},
+      );
+    });
+    await vi.waitFor(() => expect(signals).toHaveLength(1));
+    let second!: Promise<void>;
+    act(() => {
+      second = result.current.sendMessage(
+        [{ id: "second", type: "human", content: "second" }],
+        {},
+      );
+    });
+    await act(async () => {
+      await Promise.all([first, second]);
+    });
+    expect(signals[0]!.aborted).toBe(true);
+    expect(signals).toHaveLength(2);
+  });
+
+  it("sends same-tick messages with different run configs in order, both reaching the server", async () => {
+    const requests: { runConfig: unknown; message: string }[] = [];
+    let releaseFirst!: () => void;
+    const firstResponse = new Promise<Response>((resolve) => {
+      releaseFirst = () => resolve(response("first reply"));
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: URL, init: RequestInit) => {
+        requests.push(JSON.parse(init.body as string));
+        return requests.length === 1 ? firstResponse : response("second reply");
+      }),
+    );
+    const stream = createAdkStream({ api: "http://localhost:8000/proxy" });
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    const firstConfig = { model: "a" };
+    const secondConfig = { model: "a" };
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+    act(() => {
+      first = result.current.sendMessage(
+        [{ id: "first", type: "human", content: "first" }],
+        { runConfig: firstConfig },
+      );
+      second = result.current.sendMessage(
+        [{ id: "second", type: "human", content: "second" }],
+        { runConfig: secondConfig },
+      );
+    });
+    await vi.waitFor(() => expect(requests).toHaveLength(1));
+    expect(requests[0]).toEqual({
+      sessionId: "thread-1",
+      runConfig: firstConfig,
+      message: "first",
+    });
+    releaseFirst();
+    await act(async () => {
+      await Promise.all([first, second]);
+    });
+    expect(requests).toEqual([
+      { sessionId: "thread-1", runConfig: firstConfig, message: "first" },
+      { sessionId: "thread-1", runConfig: secondConfig, message: "second" },
+    ]);
+    expect(result.current.messages.map((message) => message.content)).toEqual([
+      "first",
+      [{ type: "text", text: "first reply" }],
+      "second",
+      [{ type: "text", text: "second reply" }],
+    ]);
+  });
+
+  it("supersedes an older queued group when a later-tick send arrives", async () => {
+    const requests: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url: URL, init: RequestInit) => {
+        const body = JSON.parse(init.body as string) as { message: string };
+        requests.push(body.message);
+        return body.message === "first"
+          ? new Promise<Response>(() => {})
+          : Promise.resolve(response());
+      }),
+    );
+    const stream = createAdkStream({ api: "http://localhost:8000/proxy" });
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    let first!: Promise<void>;
+    let queued!: Promise<void>;
+    act(() => {
+      first = result.current.sendMessage(
+        [{ id: "first", type: "human", content: "first" }],
+        { runConfig: { model: "a" } },
+      );
+      queued = result.current.sendMessage(
+        [{ id: "queued", type: "human", content: "queued" }],
+        { runConfig: { model: "b" } },
+      );
+    });
+    await vi.waitFor(() => expect(requests).toEqual(["first"]));
+
+    let latest!: Promise<void>;
+    act(() => {
+      latest = result.current.sendMessage(
+        [{ id: "latest", type: "human", content: "latest" }],
+        {},
+      );
+    });
+    await act(async () => {
+      await Promise.all([first, queued, latest]);
+    });
+    expect(requests).toEqual(["first", "latest"]);
+  });
+});
+
 describe("messageToEvent (contentToParts)", () => {
   it("skips a null tool_calls entry", () => {
     const event = messageToEvent({
