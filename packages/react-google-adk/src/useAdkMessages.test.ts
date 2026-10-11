@@ -243,6 +243,54 @@ describe("ADK stream lifecycle", () => {
     expect(runConfigByToolCallId.get("tool-2")).toBe(runConfig);
   });
 
+  it("marks a run failed only when one of its events carries an error", async () => {
+    let call = 0;
+    const stream: AdkStreamCallback = async function* () {
+      call++;
+      if (call === 1) {
+        yield {
+          id: "event-error",
+          author: "agent",
+          errorCode: "MODEL_ERROR",
+          errorMessage: "boom",
+        };
+        return;
+      }
+      yield {
+        id: "event-retry",
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [
+            { text: "retrying" },
+            { functionCall: { id: "tool-1", name: "lookup", args: {} } },
+            { functionCall: { id: "tool-2", name: "lookup", args: {} } },
+          ],
+        },
+      };
+    };
+    const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
+    const { controller } = result.current;
+
+    controller.dispatch({ type: "run.active" });
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ id: "user-1", type: "human", content: "go" }],
+        {},
+      );
+    });
+    controller.dispatch({ type: "run.finished", runId: "1" });
+    controller.dispatch({ type: "run.active" });
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ id: "user-2", type: "human", content: "retry" }],
+        {},
+      );
+    });
+
+    expect([...controller.getState().failedRunIds]).toEqual(["1"]);
+  });
+
   it("settles a superseded send while its stream is still opening", async () => {
     const signals: AbortSignal[] = [];
     const parked = new Promise<AsyncGenerator<AdkEvent>>(() => {});

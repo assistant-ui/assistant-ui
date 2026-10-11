@@ -228,6 +228,7 @@ const useAdkMessagesInternal = ({
           }
 
           if (event.errorCode || event.errorMessage) {
+            controller.dispatch({ type: "run.failed" });
             invokeAdkRuntimeCallback(
               "onError",
               onError,

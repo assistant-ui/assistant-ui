@@ -370,14 +370,14 @@ describe("reduceAdkThreadState", () => {
     expect([...pruned.runConfigByToolCallId.keys()]).toEqual(["loaded"]);
   });
 
-  it("keeps failed answers for the next turn and clears them on cancellation or snapshot", () => {
-    const answer: Extract<AdkMessage, { type: "tool" }> = {
-      id: "answer",
+  it("holds a failed run's answers until their group completes or a new turn starts", () => {
+    const answer = (id: string): Extract<AdkMessage, { type: "tool" }> => ({
+      id: `answer-${id}`,
       type: "tool",
       name: "lookup",
-      tool_call_id: "c1",
-      content: "ok",
-    };
+      tool_call_id: id,
+      content: id,
+    });
     const initial = {
       ...createAdkThreadState(),
       messages: [
@@ -385,12 +385,18 @@ describe("reduceAdkThreadState", () => {
           id: "call",
           type: "ai" as const,
           content: "",
-          tool_calls: [{ id: "c1", name: "lookup", args: {} }],
+          tool_calls: [
+            { id: "c1", name: "lookup", args: {} },
+            { id: "c2", name: "lookup", args: {} },
+          ],
         },
       ],
-      longRunningToolIds: ["c1"],
-      runIdByToolCallId: new Map([["c1", "1"]]),
-      toolResultBuffer: new Map([["c1", answer]]),
+      longRunningToolIds: ["c1", "c2"],
+      runIdByToolCallId: new Map([
+        ["c1", "1"],
+        ["c2", "1"],
+      ]),
+      toolResultBuffer: new Map([["c1", answer("c1")]]),
     };
     const failed = reduceAdkThreadState(initial, {
       type: "results.flush",
@@ -403,31 +409,156 @@ describe("reduceAdkThreadState", () => {
     expect(
       reduceAdkThreadState(failed, {
         type: "results.received",
-        message: answer,
+        message: answer("c2"),
       }).readyBatch,
-    ).toBeNull();
+    ).toEqual([answer("c1"), answer("c2")]);
+
     const turn = reduceAdkThreadState(failed, { type: "run.newTurn" });
-    expect(turn.readyBatch).toEqual([answer]);
+    expect(turn.readyBatch).toEqual([answer("c1")]);
     expect(turn.toolResultBuffer.size).toBe(0);
     expect(turn.failedRunIds.size).toBe(0);
-    const cancelled = reduceAdkThreadState(initial, { type: "run.cancelled" });
+  });
+
+  it("clears held answers on cancellation, reload and snapshot", () => {
+    const held = reduceAdkThreadState(
+      {
+        ...createAdkThreadState(),
+        toolResultBuffer: new Map([
+          [
+            "c1",
+            {
+              id: "answer",
+              type: "tool" as const,
+              name: "lookup",
+              tool_call_id: "c1",
+              content: "ok",
+            },
+          ],
+        ]),
+      },
+      { type: "run.active" },
+    );
+    expect(held.activeRunIds.size).toBe(1);
+
+    const cancelled = reduceAdkThreadState(held, { type: "run.cancelled" });
     expect(cancelled.toolResultBuffer.size).toBe(0);
     expect(cancelled.activeRunIds.size).toBe(0);
     expect(
-      reduceAdkThreadState(initial, { type: "results.clear" }).toolResultBuffer
+      reduceAdkThreadState(held, { type: "results.clear" }).toolResultBuffer
         .size,
     ).toBe(0);
     expect(
-      reduceAdkThreadState(initial, {
+      reduceAdkThreadState(held, {
         type: "snapshot.applied",
         snapshot: { messages: [] },
       }).toolResultBuffer.size,
     ).toBe(0);
     expect(
-      reduceAdkThreadState(initial, {
+      reduceAdkThreadState(held, {
         type: "messages.replaced",
         messages: [],
       }).toolResultBuffer.size,
     ).toBe(0);
+  });
+
+  it("groups calls loaded without a run by their assistant message", () => {
+    const answer = (id: string): Extract<AdkMessage, { type: "tool" }> => ({
+      id: `answer-${id}`,
+      type: "tool",
+      name: "lookup",
+      tool_call_id: id,
+      content: id,
+    });
+    const loaded = {
+      ...createAdkThreadState(),
+      messages: [
+        {
+          id: "call",
+          type: "ai" as const,
+          content: "",
+          tool_calls: [
+            { id: "c1", name: "lookup", args: {} },
+            { id: "c2", name: "lookup", args: {} },
+          ],
+        },
+      ],
+      longRunningToolIds: ["c1", "c2"],
+    };
+
+    const first = reduceAdkThreadState(loaded, {
+      type: "results.received",
+      message: answer("c1"),
+    });
+    expect(first.readyBatch).toBeNull();
+    expect(
+      reduceAdkThreadState(first, {
+        type: "results.received",
+        message: answer("c2"),
+      }).readyBatch,
+    ).toEqual([answer("c1"), answer("c2")]);
+  });
+
+  it("releases an interrupt answer without waiting for its run's client calls", () => {
+    const answer: Extract<AdkMessage, { type: "tool" }> = {
+      id: "answer-input",
+      type: "tool",
+      name: "adk_request_input",
+      tool_call_id: "input-1",
+      content: "{}",
+    };
+    const state = {
+      ...createAdkThreadState(),
+      messages: [
+        {
+          id: "call",
+          type: "ai" as const,
+          content: "",
+          tool_calls: [
+            { id: "c1", name: "lookup", args: {} },
+            { id: "input-1", name: "adk_request_input", args: {} },
+          ],
+        },
+      ],
+      longRunningToolIds: ["c1", "input-1"],
+      runIdByToolCallId: new Map([
+        ["c1", "1"],
+        ["input-1", "1"],
+      ]),
+    };
+
+    expect(
+      reduceAdkThreadState(state, { type: "results.received", message: answer })
+        .readyBatch,
+    ).toEqual([answer]);
+  });
+
+  it("marks only the current run failed and skips calls it already knows", () => {
+    const idle = createAdkThreadState();
+    expect(reduceAdkThreadState(idle, { type: "run.failed" })).toBe(idle);
+    const failed = reduceAdkThreadState(
+      reduceAdkThreadState(idle, { type: "run.active" }),
+      { type: "run.failed" },
+    );
+    expect([...failed.failedRunIds]).toEqual(["1"]);
+
+    const call: AdkMessage = {
+      id: "call",
+      type: "ai",
+      content: "",
+      tool_calls: [{ id: "c1", name: "lookup", args: {} }],
+    };
+    const remembered = reduceAdkThreadState(failed, {
+      type: "messages.remember",
+      messages: [call],
+      runConfig: undefined,
+    });
+    expect(remembered.runIdByToolCallId.get("c1")).toBe("1");
+    expect(
+      reduceAdkThreadState(remembered, {
+        type: "messages.remember",
+        messages: [call],
+        runConfig: undefined,
+      }),
+    ).toBe(remembered);
   });
 });

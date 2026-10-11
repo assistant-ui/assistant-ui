@@ -70,6 +70,7 @@ export type AdkThreadAction =
   | { type: "messages.seed"; history: AdkMessage[] }
   | { type: "messages.prune"; history: AdkMessage[] }
   | { type: "run.active" }
+  | { type: "run.failed" }
   | { type: "run.finished"; runId: string }
   | { type: "run.cancelled" }
   | { type: "run.newTurn" }
@@ -119,25 +120,46 @@ const orderedToolCallIds = (state: AdkThreadState): string[] => {
   return ids;
 };
 
-const releaseGroup = (
-  state: AdkThreadState,
-  buffer: Map<string, ToolMessage>,
-  toolCallId: string,
-): AdkThreadState => {
+const groupOf = (state: AdkThreadState, toolCallId: string): string[] => {
+  const message = state.messages.find(
+    (m) =>
+      m.type === "ai" && m.tool_calls?.some((call) => call?.id === toolCallId),
+  );
+  const calls = message?.type === "ai" ? (message.tool_calls ?? []) : [];
+  const call = calls.find((c) => c?.id === toolCallId);
+  if (!call || INTERRUPT_TOOL_NAMES.has(call.name)) return [toolCallId];
+
   const runId = state.runIdByToolCallId.get(toolCallId);
-  if (runId && (state.activeRunIds.has(runId) || state.failedRunIds.has(runId)))
-    return { ...state, toolResultBuffer: buffer, readyBatch: null };
+  const pending = new Set(state.longRunningToolIds);
+  // A call loaded with the thread has no known run, so the calls of its
+  // assistant message stand in for that run's group.
   const group = runId
     ? orderedToolCallIds(state).filter(
         (id) => state.runIdByToolCallId.get(id) === runId,
       )
-    : [toolCallId];
-  if (!group.includes(toolCallId)) group.push(toolCallId);
-  if (!group.every((id) => buffer.has(id)))
-    return { ...state, toolResultBuffer: buffer, readyBatch: null };
-  const readyBatch = group.map((id) => buffer.get(id)!);
+    : calls.flatMap((c) =>
+        c &&
+        typeof c.id === "string" &&
+        pending.has(c.id) &&
+        !INTERRUPT_TOOL_NAMES.has(c.name)
+          ? [c.id]
+          : [],
+      );
+  return group.includes(toolCallId) ? group : [...group, toolCallId];
+};
+
+const takeGroup = (
+  state: AdkThreadState,
+  buffer: Map<string, ToolMessage>,
+  toolCallId: string,
+): ToolMessage[] => {
+  const runId = state.runIdByToolCallId.get(toolCallId);
+  if (runId && state.activeRunIds.has(runId)) return [];
+  const group = groupOf(state, toolCallId);
+  if (!group.every((id) => buffer.has(id))) return [];
+  const batch = group.map((id) => buffer.get(id)!);
   for (const id of group) buffer.delete(id);
-  return { ...state, toolResultBuffer: buffer, readyBatch };
+  return batch;
 };
 
 export const reduceAdkThreadState = (
@@ -211,31 +233,25 @@ export const reduceAdkThreadState = (
       return { ...state, stagedEntries };
     }
     case "messages.remember": {
+      const newIds = action.messages.flatMap((message) =>
+        message.type === "ai"
+          ? (message.tool_calls ?? []).flatMap((call) =>
+              call &&
+              typeof call.id === "string" &&
+              !state.runConfigByToolCallId.has(call.id)
+                ? [call.id]
+                : [],
+            )
+          : [],
+      );
+      if (newIds.length === 0) return state;
       const runConfigByToolCallId = new Map(state.runConfigByToolCallId);
       const runIdByToolCallId = new Map(state.runIdByToolCallId);
-      const failedRunIds = new Set(state.failedRunIds);
-      for (const message of action.messages) {
-        if (message.type !== "ai") continue;
-        if (
-          state.currentRunId &&
-          message.status?.type === "incomplete" &&
-          message.status.reason === "error"
-        )
-          failedRunIds.add(state.currentRunId);
-        for (const call of message.tool_calls ?? []) {
-          if (!call || typeof call.id !== "string") continue;
-          const isNewTool = !runConfigByToolCallId.has(call.id);
-          if (isNewTool) runConfigByToolCallId.set(call.id, action.runConfig);
-          if (state.currentRunId && isNewTool)
-            runIdByToolCallId.set(call.id, state.currentRunId);
-        }
+      for (const id of newIds) {
+        runConfigByToolCallId.set(id, action.runConfig);
+        if (state.currentRunId) runIdByToolCallId.set(id, state.currentRunId);
       }
-      return {
-        ...state,
-        runConfigByToolCallId,
-        runIdByToolCallId,
-        failedRunIds,
-      };
+      return { ...state, runConfigByToolCallId, runIdByToolCallId };
     }
     case "messages.seed": {
       const runConfigByToolCallId = new Map<string, unknown>();
@@ -283,6 +299,13 @@ export const reduceAdkThreadState = (
         readyBatch: null,
       };
     }
+    case "run.failed":
+      return state.currentRunId
+        ? {
+            ...state,
+            failedRunIds: new Set([...state.failedRunIds, state.currentRunId]),
+          }
+        : state;
     case "run.finished": {
       const activeRunIds = new Set(state.activeRunIds);
       activeRunIds.delete(action.runId);
@@ -324,9 +347,18 @@ export const reduceAdkThreadState = (
         readyBatch: null,
       };
     case "results.received": {
-      const buffer = new Map(state.toolResultBuffer);
-      buffer.set(action.message.tool_call_id, action.message);
-      return releaseGroup(state, buffer, action.message.tool_call_id);
+      const toolResultBuffer = new Map(state.toolResultBuffer);
+      toolResultBuffer.set(action.message.tool_call_id, action.message);
+      const batch = takeGroup(
+        state,
+        toolResultBuffer,
+        action.message.tool_call_id,
+      );
+      return {
+        ...state,
+        toolResultBuffer,
+        readyBatch: batch.length > 0 ? batch : null,
+      };
     }
     case "results.flush": {
       if (action.failed)
@@ -335,12 +367,18 @@ export const reduceAdkThreadState = (
           failedRunIds: new Set([...state.failedRunIds, action.runId]),
           readyBatch: null,
         };
-      const first = [...state.toolResultBuffer.keys()].find(
-        (id) => state.runIdByToolCallId.get(id) === action.runId,
-      );
-      return first
-        ? releaseGroup(state, new Map(state.toolResultBuffer), first)
-        : { ...state, readyBatch: null };
+      const toolResultBuffer = new Map(state.toolResultBuffer);
+      const batch: ToolMessage[] = [];
+      for (const id of state.toolResultBuffer.keys()) {
+        if (!toolResultBuffer.has(id)) continue;
+        if (state.runIdByToolCallId.get(id) !== action.runId) continue;
+        batch.push(...takeGroup(state, toolResultBuffer, id));
+      }
+      return {
+        ...state,
+        toolResultBuffer,
+        readyBatch: batch.length > 0 ? batch : null,
+      };
     }
     case "run.started":
       return {
