@@ -38,10 +38,6 @@ export type UseAdkMessagesOptions = {
   };
 };
 
-type UseAdkMessagesInternalOptions = UseAdkMessagesOptions & {
-  onMessages?: (messages: AdkMessage[], runConfig: unknown) => void;
-};
-
 type AdkRuntimeCallbackName = "onError" | "onCustomEvent" | "onAgentTransfer";
 
 const invokeAdkRuntimeCallback = <TArgs extends readonly unknown[]>(
@@ -55,8 +51,7 @@ const invokeAdkRuntimeCallback = <TArgs extends readonly unknown[]>(
 const useAdkMessagesInternal = ({
   stream,
   eventHandlers,
-  onMessages,
-}: UseAdkMessagesInternalOptions) => {
+}: UseAdkMessagesOptions) => {
   const [controller] = useState(() => new AdkThreadController());
   const {
     messages,
@@ -189,7 +184,11 @@ const useAdkMessagesInternal = ({
           );
           const affectedMessages = updatedMessages.slice(-affectedMessageCount);
           if (affectedMessages.length > 0) {
-            onMessages?.(affectedMessages, config.runConfig);
+            controller.dispatch({
+              type: "messages.remember",
+              messages: affectedMessages,
+              runConfig: config.runConfig,
+            });
           }
           controller.dispatch({
             type: "event.published",
@@ -286,7 +285,6 @@ const useAdkMessagesInternal = ({
       onError,
       onCustomEvent,
       onAgentTransfer,
-      onMessages,
     ],
   );
 

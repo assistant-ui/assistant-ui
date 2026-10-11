@@ -38,8 +38,9 @@ export class AdkThreadController {
 
   public dispatch = (action: AdkThreadAction) => {
     const nextState = reduceAdkThreadState(this.state, action);
-    if (nextState === this.state) return;
+    if (nextState === this.state) return this.state;
     this.state = nextState;
     for (const listener of this.listeners) listener();
+    return this.state;
   };
 }

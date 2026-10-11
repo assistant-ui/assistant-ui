@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { useEffect } from "react";
 import type {
   AddToolResultOptions,
   AppendMessage,
@@ -13,6 +14,7 @@ import type {
   AdkSendMessageConfig,
   AdkThreadSnapshot,
 } from "./types";
+import { AdkThreadController } from "./AdkThreadController";
 
 const mocks = vi.hoisted(() => {
   const threadListItem = {
@@ -36,13 +38,7 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-const mockController = {
-  subscribe: () => () => {},
-  getStagedMessageCount: () => 0,
-  getState: () => ({ messages: mocks.messages }),
-  dispatch: vi.fn(),
-  getStagedRun: () => null,
-};
+let mockController = new AdkThreadController();
 
 vi.mock("@assistant-ui/core/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/core/react")>()),
@@ -66,17 +62,29 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
 }));
 
 vi.mock("./useAdkMessages", async (importOriginal) => {
-  const useMockAdkMessages = (options: {
-    onMessages?: (messages: AdkMessage[], runConfig: unknown) => void;
-  }) => {
-    options.onMessages?.(mocks.messages, mocks.messageRunConfig);
+  const useMockAdkMessages = () => {
+    useEffect(() => {
+      mockController.dispatch({
+        type: "messages.set",
+        messages: mocks.messages,
+      });
+      mockController.dispatch({
+        type: "messages.remember",
+        messages: mocks.messages,
+        runConfig: mocks.messageRunConfig,
+      });
+    }, [mocks.messageRunConfig]);
     const sendMessage = async (
       messages: AdkMessage[],
       config: AdkSendMessageConfig,
     ) => {
       await mocks.sendMessage(messages, config);
       if (mocks.streamedMessages) {
-        options.onMessages?.(mocks.streamedMessages, config.runConfig);
+        mockController.dispatch({
+          type: "messages.remember",
+          messages: mocks.streamedMessages,
+          runConfig: config.runConfig,
+        });
       }
     };
     return {
@@ -173,6 +181,7 @@ const approvalPart = () =>
     );
 
 afterEach(() => {
+  mockController = new AdkThreadController();
   mocks.adapters.length = 0;
   mocks.sendMessage.mockClear();
   mocks.messages = [];

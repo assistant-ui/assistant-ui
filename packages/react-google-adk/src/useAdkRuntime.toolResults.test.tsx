@@ -11,6 +11,7 @@ import { createAdkStream } from "./AdkClient";
 import { useAdkRuntime } from "./useAdkRuntime";
 import { settleOutsideAct } from "./tests/settleOutsideAct";
 import type { AdkEvent } from "./types";
+import type { AdkThreadSnapshot } from "./types";
 
 const makeThreadListAdapter = (): RemoteThreadListAdapter => ({
   list: vi.fn(async () => ({
@@ -51,7 +52,27 @@ const toolCallEvent: AdkEvent = {
   },
 };
 
-const mount = async (holdFirstRun = false) => {
+const callEvent = (id: string, run: string): AdkEvent => ({
+  id: `event-${id}`,
+  invocationId: run,
+  author: "agent",
+  longRunningToolIds: [id],
+  content: {
+    role: "model",
+    parts: [{ functionCall: { id, name: "lookup", args: {} } }],
+  },
+});
+
+const mount = async (
+  holdFirstRun = false,
+  options: {
+    firstEvent?: AdkEvent;
+    secondEvent?: AdkEvent;
+    waitForCall?: string;
+    autoCancelPendingToolCalls?: boolean;
+    load?: () => Promise<AdkThreadSnapshot>;
+  } = {},
+) => {
   const requests: { newMessage: { parts: Record<string, unknown>[] } }[] = [];
   let closeFirstRun!: () => void;
   let publishFirstRun!: (event: AdkEvent) => void;
@@ -62,7 +83,9 @@ const mount = async (holdFirstRun = false) => {
           new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`),
         );
       controller.enqueue(
-        new TextEncoder().encode(`data: ${JSON.stringify(toolCallEvent)}\n\n`),
+        new TextEncoder().encode(
+          `data: ${JSON.stringify(options.firstEvent ?? toolCallEvent)}\n\n`,
+        ),
       );
       closeFirstRun = () => controller.close();
       if (!holdFirstRun) controller.close();
@@ -71,7 +94,13 @@ const mount = async (holdFirstRun = false) => {
   const fetchStub = vi.fn(
     async (_input: RequestInfo | URL, init?: RequestInit) => {
       requests.push(JSON.parse(init!.body as string));
-      return new Response(requests.length === 1 ? firstRun : "", {
+      const response =
+        requests.length === 1
+          ? firstRun
+          : options.secondEvent
+            ? `data: ${JSON.stringify(options.secondEvent)}\n\n`
+            : "";
+      return new Response(response, {
         headers: { "Content-Type": "text/event-stream" },
       });
     },
@@ -87,6 +116,8 @@ const mount = async (holdFirstRun = false) => {
       }),
       sessionAdapter: makeThreadListAdapter(),
       unstable_allowCancellation: true,
+      autoCancelPendingToolCalls: options.autoCancelPendingToolCalls,
+      ...(options.load && { load: options.load }),
     });
     capture.runtime = runtime;
     return (
@@ -95,8 +126,9 @@ const mount = async (holdFirstRun = false) => {
       </AssistantRuntimeProvider>
     );
   };
+  let view!: ReturnType<typeof render>;
   await act(async () => {
-    render(<Inner />);
+    view = render(<Inner />);
   });
   await settleOutsideAct(() =>
     capture.runtime!.threads.switchToThread("adk-1"),
@@ -114,7 +146,9 @@ const mount = async (holdFirstRun = false) => {
         .runtime!.thread.getState()
         .messages.some((message) =>
           message.content.some(
-            (part) => part.type === "tool-call" && part.toolCallId === "c2",
+            (part) =>
+              part.type === "tool-call" &&
+              part.toolCallId === (options.waitForCall ?? "c2"),
           ),
         ),
     ).toBe(true);
@@ -124,6 +158,7 @@ const mount = async (holdFirstRun = false) => {
     requests,
     closeFirstRun,
     publishFirstRun,
+    unmount: () => view.unmount(),
   };
 };
 
@@ -259,5 +294,121 @@ describe("useAdkRuntime tool result batching", () => {
     expect(JSON.stringify(requests[1]!.newMessage.parts)).not.toContain(
       '"value"',
     );
+  });
+
+  it("sends an answer to a call produced later in the same run", async () => {
+    const { runtime, requests, publishFirstRun, closeFirstRun } = await mount(
+      true,
+      { firstEvent: callEvent("c1", "run-1"), waitForCall: "c1" },
+    );
+    act(() => answer(runtime, "c1"));
+    act(() => publishFirstRun(callEvent("c3", "run-1")));
+    await waitFor(() =>
+      expect(
+        runtime.thread
+          .getState()
+          .messages.some((message) =>
+            message.content.some(
+              (part) => part.type === "tool-call" && part.toolCallId === "c3",
+            ),
+          ),
+      ).toBe(true),
+    );
+    act(() => answer(runtime, "c3"));
+    expect(requests).toHaveLength(1);
+    await act(async () => closeFirstRun());
+    await waitFor(() => expect(requests).toHaveLength(2));
+    expect(responseIds(requests[1]!.newMessage.parts)).toEqual(["c1", "c3"]);
+  });
+
+  it("groups answers by the run that produced them", async () => {
+    const { runtime, requests } = await mount(false, {
+      firstEvent: callEvent("c1", "run-1"),
+      secondEvent: callEvent("c2", "run-2"),
+      waitForCall: "c1",
+      autoCancelPendingToolCalls: false,
+    });
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+    act(() =>
+      runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "second" }],
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        runtime.thread
+          .getState()
+          .messages.some((message) =>
+            message.content.some(
+              (part) => part.type === "tool-call" && part.toolCallId === "c2",
+            ),
+          ),
+      ).toBe(true),
+    );
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+    act(() => answer(runtime, "c2"));
+    await waitFor(() => expect(requests).toHaveLength(3));
+    expect(responseIds(requests[2]!.newMessage.parts)).toEqual(["c2"]);
+  });
+
+  it("holds answers from an errored run until the next user turn", async () => {
+    const { runtime, requests, publishFirstRun, closeFirstRun } =
+      await mount(true);
+    act(() => {
+      answer(runtime, "c1");
+      answer(runtime, "c2");
+      publishFirstRun({
+        id: "error",
+        invocationId: "run-1",
+        author: "agent",
+        errorMessage: "run failed",
+      });
+    });
+    await act(async () => closeFirstRun());
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+    expect(requests).toHaveLength(1);
+    act(() =>
+      runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "next" }],
+      }),
+    );
+    await waitFor(() => expect(requests).toHaveLength(2));
+    expect(responseIds(requests[1]!.newMessage.parts)).toEqual(["c1", "c2"]);
+    expect(requests[1]!.newMessage.parts.at(-1)).toEqual({ text: "next" });
+  });
+
+  it("drops held answers on reload", async () => {
+    const { runtime, requests } = await mount(false, {
+      load: async () => ({ messages: [] }),
+    });
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+    act(() => answer(runtime, "c1"));
+    await settleOutsideAct(() => runtime.threads.reloadMainThread());
+    act(() =>
+      runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "next" }],
+      }),
+    );
+    await waitFor(() => expect(requests).toHaveLength(2));
+    expect(responseIds(requests[1]!.newMessage.parts)).toEqual([]);
+  });
+
+  it("drops held answers on unmount", async () => {
+    const { runtime, requests, unmount, closeFirstRun } = await mount(true);
+    act(() => answer(runtime, "c1"));
+    act(() => unmount());
+    await act(async () => closeFirstRun());
+    expect(requests).toHaveLength(1);
   });
 });

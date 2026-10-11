@@ -214,9 +214,8 @@ describe("ADK runtime callbacks", () => {
 });
 
 describe("ADK stream lifecycle", () => {
-  it("reports streamed tool calls with the run config that produced them", async () => {
+  it("attributes streamed tool calls to the run config that produced them", async () => {
     const runConfig = { custom: { model: "model-a" } };
-    const onMessages = vi.fn();
     const stream: AdkStreamCallback = async function* () {
       yield {
         id: "event-1",
@@ -230,9 +229,7 @@ describe("ADK stream lifecycle", () => {
         },
       };
     };
-    const { result } = renderHook(() =>
-      useAdkMessagesInternal({ stream, onMessages }),
-    );
+    const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
 
     await act(async () => {
       await result.current.sendMessage(
@@ -241,18 +238,9 @@ describe("ADK stream lifecycle", () => {
       );
     });
 
-    expect(onMessages).toHaveBeenLastCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({
-          type: "ai",
-          tool_calls: [
-            expect.objectContaining({ id: "tool-1" }),
-            expect.objectContaining({ id: "tool-2" }),
-          ],
-        }),
-      ]),
-      runConfig,
-    );
+    const { runConfigByToolCallId } = result.current.controller.getState();
+    expect(runConfigByToolCallId.get("tool-1")).toBe(runConfig);
+    expect(runConfigByToolCallId.get("tool-2")).toBe(runConfig);
   });
 
   it("settles a superseded send while its stream is still opening", async () => {
