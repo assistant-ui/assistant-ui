@@ -28,6 +28,7 @@ const useDevStrictModeReact = () => {
   renderedSinceEffect.current = true;
 
   useEffect(() => {
+    // The standalone shim's default export has no `version`.
     if (!React.version?.startsWith("18.")) return;
     if (!renderedSinceEffect.current) strictMode.current = true;
     renderedSinceEffect.current = false;
