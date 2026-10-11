@@ -109,11 +109,23 @@ const REACT_SPECIFIER_RE =
   /\b(?:from|import)\s*\(?\s*["'](?:react|react-dom|@assistant-ui\/react|@assistant-ui\/core\/react)(?:\/[^"']*)?["']/;
 
 describe("framework-neutral entries", () => {
+  it.each(["index.ts", "a2ui.ts", "slack.ts", "teams.ts"])(
+    "%s never reaches React, not even through a type import",
+    (entry) => {
+      const reactFiles = [...collectGraph(join(SRC_DIR, entry))]
+        .filter(
+          (file) =>
+            file.endsWith(".tsx") ||
+            REACT_SPECIFIER_RE.test(readFileSync(file, "utf8")),
+        )
+        .map((file) => relative(SRC_DIR, file));
+      expect(reactFiles).toEqual([]);
+    },
+  );
+});
+
+describe("framework-neutral vocabulary modules", () => {
   it.each([
-    "index.ts",
-    "a2ui.ts",
-    "slack.ts",
-    "teams.ts",
     "vocabulary/definitions/index.ts",
     "spec/catalogDefinitions.ts",
     "vocabulary/tableData.ts",
@@ -124,6 +136,7 @@ describe("framework-neutral entries", () => {
     "vocabulary/listItemValues.ts",
     "vocabulary/imageStyle.ts",
     "vocabulary/iconGlyphs.ts",
+    "vocabulary/collectFormValues.ts",
   ])("%s never reaches React, not even through a type import", (entry) => {
     const reactFiles = [...collectGraph(join(SRC_DIR, entry))]
       .filter(
