@@ -76,6 +76,42 @@ const hostileSpecies = <T>(
 };
 
 describe("toSlackBlocks", () => {
+  describe("numeric text props", () => {
+    it("stringifies numeric labels and descriptions", () => {
+      const { blocks } = toSlackBlocks([
+        { $type: "Header", text: 101 },
+        { $type: "Alert", title: 102, description: 103 },
+        { $type: "Fact", label: 104, value: "ready" },
+        {
+          $type: "Card",
+          title: 105,
+          confirm: { label: 106 },
+          cancel: { label: 107 },
+        },
+        {
+          $type: "Select",
+          options: [],
+          placeholder: 108,
+          $action: { type: "select" },
+        },
+        { $type: "Checkbox", label: 109, $action: { type: "check" } },
+        { $type: "Button", label: 110, $action: { type: "submit" } },
+      ]);
+      const payload = JSON.stringify(blocks);
+
+      expect(payload).toContain('"text":"101"');
+      expect(payload).toContain("*102*");
+      expect(payload).toContain('"text":"103"');
+      expect(payload).toContain("*104*");
+      expect(payload).toContain('"105"');
+      expect(payload).toContain('"text":"106"');
+      expect(payload).toContain('"text":"107"');
+      expect(payload).toContain('"text":"108"');
+      expect(payload).toContain('"text":"109"');
+      expect(payload).toContain('"text":"110"');
+    });
+  });
+
   describe("Header", () => {
     it("renders a header block", () => {
       const { blocks } = toSlackBlocks({ $type: "Header", text: "Title" });

@@ -254,7 +254,7 @@ function convertFacts(facts: readonly NormalizedUIElement[]): TeamsCardElement {
         ? formatFactDelta(delta, factTrend(delta, fact.props["trend"]))
         : undefined;
     return {
-      title: asString(fact.props["label"]),
+      title: asTextValue(fact.props["label"]),
       value: deltaText === undefined ? value : `${value} (${deltaText})`,
     };
   });
@@ -277,7 +277,7 @@ function convertButtons(
   }
   const actions = buttons.map((button, index) =>
     buildSubmitAction(
-      asString(button.props["label"]),
+      asTextValue(button.props["label"]),
       button.action,
       index >= PRIMARY_ACTION_CAP ? "secondary" : undefined,
     ),
@@ -316,7 +316,7 @@ function cardFooterActionSet(
   if (isRecord(confirm)) {
     actions.push(
       buildSubmitAction(
-        asString(confirm["label"]),
+        asTextValue(confirm["label"]),
         readReserved(confirm, "action") ?? formAction,
       ),
     );
@@ -326,7 +326,7 @@ function cardFooterActionSet(
   if (isRecord(cancel)) {
     actions.push(
       buildSubmitAction(
-        asString(cancel["label"]),
+        asTextValue(cancel["label"]),
         readReserved(cancel, "action"),
       ),
     );
@@ -470,7 +470,7 @@ export function convertElement(
   switch (element.type) {
     case "Header":
       return [
-        textBlock(asString(props["text"]), {
+        textBlock(asTextValue(props["text"]), {
           size: "large",
           weight: "bolder",
           style: "heading",
@@ -535,7 +535,7 @@ export function convertElement(
       return [convertButtons([element], context)];
     case "Select": {
       const name = asString(props["name"]);
-      const placeholder = asString(props["placeholder"]);
+      const placeholder = asTextValue(props["placeholder"]);
       const label = asString(props["label"]);
       const defaultValue = props["defaultValue"];
       const input: TeamsCardElement = {
@@ -589,7 +589,7 @@ export function convertElement(
     }
     case "Checkbox": {
       const name = asString(props["name"]);
-      const label = asString(props["label"]);
+      const label = asTextValue(props["label"]);
       const input: TeamsCardElement = {
         type: "Input.Toggle",
         id: reservedSafeId(name || label || "checkbox", "Checkbox", context),
@@ -817,7 +817,7 @@ export function convertElement(
         },
       ];
     case "Card": {
-      const titleText = asString(props["title"]);
+      const titleText = asTextValue(props["title"]);
       const items: TeamsCardElement[] = [];
       if (titleText) {
         items.push(
@@ -889,8 +889,8 @@ export function convertElement(
         typeof tone === "string"
           ? (ALERT_STYLE_MAP[tone] ?? "default")
           : "default";
-      const titleText = asString(props["title"]);
-      const description = asString(props["description"]);
+      const titleText = asTextValue(props["title"]);
+      const description = asTextValue(props["description"]);
       const items: TeamsCardElement[] = [];
       if (titleText) items.push(textBlock(titleText, { weight: "bolder" }));
       if (description) items.push(textBlock(description));

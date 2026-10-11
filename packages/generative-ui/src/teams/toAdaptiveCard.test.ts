@@ -52,6 +52,37 @@ const hostileSpecies = <T>(
 };
 
 describe("toAdaptiveCard", () => {
+  describe("numeric text props", () => {
+    it("stringifies numeric labels and descriptions", () => {
+      const { card } = toAdaptiveCard([
+        { $type: "Header", text: 101 },
+        { $type: "Alert", title: 102, description: 103 },
+        { $type: "Fact", label: 104, value: "ready" },
+        {
+          $type: "Card",
+          title: 105,
+          confirm: { label: 106 },
+          cancel: { label: 107 },
+        },
+        { $type: "Select", options: [], placeholder: 108 },
+        { $type: "Checkbox", label: 109 },
+        { $type: "Button", label: 110 },
+      ]);
+      const payload = JSON.stringify(card);
+
+      expect(payload).toContain('"text":"101"');
+      expect(payload).toContain('"text":"102"');
+      expect(payload).toContain('"text":"103"');
+      expect(payload).toContain('"title":"104"');
+      expect(payload).toContain('"text":"105"');
+      expect(payload).toContain('"title":"106"');
+      expect(payload).toContain('"title":"107"');
+      expect(payload).toContain('"placeholder":"108"');
+      expect(payload).toContain('"title":"109"');
+      expect(payload).toContain('"title":"110"');
+    });
+  });
+
   describe("Header", () => {
     it("renders a heading TextBlock", () => {
       const { card } = toAdaptiveCard({ $type: "Header", text: "Title" });

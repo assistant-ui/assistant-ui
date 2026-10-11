@@ -9,7 +9,9 @@ const cardActionSchema = z.looseObject({
 });
 
 const cardFooterButtonSchema = z.object({
-  label: z.string().describe("Footer button label."),
+  label: z
+    .union([z.string(), z.number()])
+    .describe("Footer button label text or number."),
   _action: cardActionSchema
     .optional()
     .describe("Action fired when the button is activated."),
@@ -20,7 +22,10 @@ export const layoutDefinitions = {
     description:
       "A titled section of related content, the default way to break a response into parts. It renders as plain content, so several in a row read as one answer rather than a stack of boxes; it takes on a framed surface only when `background` is set, when `confirm`/`cancel` add a footer, or when it is a slot in a `Carousel`. Set `asForm` to collect named child control values on submit.",
     properties: z.object({
-      title: z.string().optional().describe("Optional card title."),
+      title: z
+        .union([z.string(), z.number()])
+        .optional()
+        .describe("Optional card title text or number."),
       padding: z
         .number()
         .min(0)

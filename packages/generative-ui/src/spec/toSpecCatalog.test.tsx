@@ -52,14 +52,24 @@ describe("toSpecCatalog", () => {
     );
     expect(catalog.propsSchema("Card")).toMatchObject({
       properties: {
-        confirm: { properties: { label: { type: "string" } } },
+        confirm: {
+          properties: {
+            label: { type: ["string", "number"] },
+          },
+        },
       },
     });
   });
 
   it("validates props against the vocabulary schemas", () => {
     expect(catalog.validateProps("Button", { label: "Go" })).toEqual([]);
-    expect(catalog.validateProps("Button", { label: 3 })).not.toEqual([]);
+    expect(catalog.validateProps("Button", { label: 3 })).toEqual([]);
+    expect(
+      catalog.validateProps("Card", {
+        confirm: { label: 3 },
+        cancel: { label: 4 },
+      }),
+    ).toEqual([]);
     expect(
       catalog.validateProps("Text", { value: { $state: "/greeting" } }),
     ).toEqual([]);
