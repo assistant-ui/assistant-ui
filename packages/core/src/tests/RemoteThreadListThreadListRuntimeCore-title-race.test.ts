@@ -109,6 +109,108 @@ describe("RemoteThreadListThreadListRuntimeCore title generation", () => {
     core.__internal_dispose();
   });
 
+  it("waits for a replacement list before generating an automatic title", async () => {
+    const core = createCore(makeAdapter());
+    await core.getLoadThreadsPromise();
+    const mounted = new ReadonlyThreadRuntimeCore();
+    const internals = core as unknown as {
+      _hookManager: { getThreadRuntimeCore: () => unknown };
+    };
+    internals._hookManager.getThreadRuntimeCore = () => mounted;
+
+    const replacementList = deferred<{ threads: never[] }>();
+    const generatedTitle = openTitleStream();
+    const replacement = makeAdapter({
+      list: vi.fn(() => replacementList.promise),
+      initialize: vi.fn(async () => ({
+        remoteId: "s-new",
+        externalId: "s-new",
+      })),
+      generateTitle: vi.fn(async () => generatedTitle.stream as never),
+    });
+    core.__internal_setOptions({
+      adapter: replacement,
+      runtimeHook: () => ({}) as never,
+    });
+    const load = core.getLoadThreadsPromise();
+    const threadId = core.mainThreadId!;
+    mounted.setMessages([
+      {
+        id: "first-message",
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+        attachments: [],
+        createdAt: new Date(0),
+        metadata: { custom: {} },
+      },
+    ]);
+
+    await core.initialize(threadId);
+    expect(replacement.generateTitle).not.toHaveBeenCalled();
+
+    replacementList.resolve({ threads: [] });
+    await load;
+    await vi.waitFor(() =>
+      expect(replacement.generateTitle).toHaveBeenCalledOnce(),
+    );
+    generatedTitle.close();
+    await vi.waitFor(() =>
+      expect(core.getItemById(threadId)?.title).toBe("Generated"),
+    );
+    core.__internal_dispose();
+  });
+
+  it("keeps explicit title requests canceled while a replacement list is pending", async () => {
+    const adapterA = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "same",
+            externalId: "same",
+            title: "Adapter A title",
+          },
+        ],
+      })),
+    });
+    const replacementList = deferred<{
+      threads: {
+        status: "regular";
+        remoteId: string;
+        externalId: string;
+        title: string;
+      }[];
+    }>();
+    const adapterB = makeAdapter({
+      list: vi.fn(() => replacementList.promise),
+      generateTitle: vi.fn(),
+    });
+    const core = createCore(adapterA);
+    await core.getLoadThreadsPromise();
+
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+    });
+    const load = core.getLoadThreadsPromise();
+
+    await expect(core.generateTitle("same")).rejects.toThrow("adapter changed");
+    expect(adapterB.generateTitle).not.toHaveBeenCalled();
+
+    replacementList.resolve({
+      threads: [
+        {
+          status: "regular",
+          remoteId: "same",
+          externalId: "same",
+          title: "Adapter B title",
+        },
+      ],
+    });
+    await load;
+    core.__internal_dispose();
+  });
+
   it("preserves an existing title when generation returns no title", async () => {
     const adapter = makeAdapter({
       list: vi.fn(async () => ({

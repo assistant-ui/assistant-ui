@@ -984,6 +984,23 @@ export class RemoteThreadListThreadListRuntimeCore
         messages.length === 0
       )
         return;
+      if (this._replaceListOnNextLoad) {
+        generating = true;
+        const adapterGeneration = this._adapterGeneration;
+        void this.getLoadThreadsPromise().then(
+          () => {
+            generating = false;
+            if (active && adapterGeneration === this._adapterGeneration)
+              check();
+          },
+          () => {
+            generating = false;
+            if (active && adapterGeneration === this._adapterGeneration)
+              this._disarmAutomaticTitle(threadId);
+          },
+        );
+        return;
+      }
       generating = true;
       this._generateTitle(threadId, { automatic: true }, () =>
         active ? messages : undefined,
