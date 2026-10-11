@@ -156,6 +156,96 @@ describe("raw chunk ordering", () => {
       },
     ]);
   });
+
+  it("keeps tool args when step-finish follows the closed args", async () => {
+    const message = await accumulate(
+      createAssistantStreamResponse((controller) => {
+        const tool = controller.addToolCallPart({
+          toolCallId: "t1",
+          toolName: "weather",
+        });
+        tool.argsText.append('{"city":"Paris"}');
+        tool.argsText.close();
+        controller.enqueue({
+          type: "step-finish",
+          path: [],
+          finishReason: "tool-calls",
+          usage: { inputTokens: 0, outputTokens: 0 },
+          isContinued: false,
+        });
+        tool.close();
+      }),
+    );
+
+    expect(message.parts).toContainEqual(
+      expect.objectContaining({
+        type: "tool-call",
+        argsText: '{"city":"Paris"}',
+      }),
+    );
+  });
+
+  it("keeps tool args when message-finish follows the closed tool call", async () => {
+    const message = await accumulate(
+      createAssistantStreamResponse((controller) => {
+        const tool = controller.addToolCallPart({
+          toolCallId: "t1",
+          toolName: "weather",
+        });
+        tool.argsText.append('{"city":"Paris"}');
+        tool.argsText.close();
+        tool.close();
+        controller.enqueue({
+          type: "message-finish",
+          path: [],
+          finishReason: "tool-calls",
+          usage: { inputTokens: 0, outputTokens: 0 },
+        });
+      }),
+    );
+
+    expect(message.parts).toContainEqual(
+      expect.objectContaining({
+        type: "tool-call",
+        argsText: '{"city":"Paris"}',
+      }),
+    );
+  });
+
+  it("emits nothing after a message-finish enqueued last", async () => {
+    const chunks = await collectChunks(
+      createAssistantStream((controller) => {
+        controller.appendText("hello");
+        controller.enqueue({
+          type: "message-finish",
+          path: [],
+          finishReason: "stop",
+          usage: { inputTokens: 0, outputTokens: 0 },
+        });
+      }),
+    );
+
+    expect(chunks.at(-1)?.type).toBe("message-finish");
+    expect(chunks).toContainEqual({
+      type: "text-delta",
+      path: [0],
+      textDelta: "hello",
+    });
+  });
+
+  it("emits part chunks before the error chunk when a callback throws", async () => {
+    const chunks = await collectChunks(
+      createAssistantStream((controller) => {
+        controller.appendText("hello");
+        throw new Error("failed");
+      }),
+    );
+
+    const errorIndex = chunks.findIndex((chunk) => chunk.type === "error");
+    const deltaIndex = chunks.findIndex((chunk) => chunk.type === "text-delta");
+    expect(deltaIndex).toBeGreaterThanOrEqual(0);
+    expect(errorIndex).toBeGreaterThan(deltaIndex);
+  });
 });
 
 describe("createAssistantStream task settlement", () => {
@@ -266,9 +356,9 @@ describe("createAssistantStream task settlement", () => {
 
       expect(chunks.map((c) => c.type)).toEqual([
         "part-start",
-        "error",
         "text-delta",
         "part-finish",
+        "error",
       ]);
     },
   );

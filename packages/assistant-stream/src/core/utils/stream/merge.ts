@@ -8,6 +8,7 @@ export type MergeStreamFinishOrder = {
 
 type MergeStreamItem = {
   reader: ReadableStreamDefaultReader<AssistantStreamChunk>;
+  delivered: ReturnType<typeof promiseWithResolvers<void>>;
   pipeTask?: Promise<unknown> | undefined;
   promise?: Promise<unknown> | undefined;
   orderedFinish?: MergeStreamFinishOrder | undefined;
@@ -24,6 +25,7 @@ export const createMergeStream = () => {
   let errored = false;
   let controller: ReadableStreamDefaultController<AssistantStreamChunk>;
   let rawChunkBatch: AssistantStreamChunk[] | undefined;
+  let rawBarrier: Promise<void> | undefined;
   let pendingRawBatches = 0;
   let currentPull: ReturnType<typeof promiseWithResolvers<void>> | undefined;
   let cleanupPromise: Promise<void> | undefined;
@@ -33,7 +35,10 @@ export const createMergeStream = () => {
     rawChunkBatch = undefined;
     if (!cleanupPromise) {
       const items = list.splice(0);
-      for (const item of items) item.orderedFinish?.delivered.resolve();
+      for (const item of items) {
+        item.delivered.resolve();
+        item.orderedFinish?.delivered.resolve();
+      }
       cleanupPromise = Promise.all(
         items.map(async (item) => {
           try {
@@ -77,6 +82,7 @@ export const createMergeStream = () => {
             item.orderedFinish?.delivered.resolve();
             list.splice(list.indexOf(item), 1);
             item.reader.releaseLock();
+            item.delivered.resolve();
             if (sealed && list.length === 0 && pendingRawBatches === 0) {
               controller.close();
             }
@@ -124,17 +130,29 @@ export const createMergeStream = () => {
   });
 
   const enqueueRawChunk = (chunk: AssistantStreamChunk) => {
+    const isMessageLevel =
+      chunk.type === "step-finish" ||
+      chunk.type === "message-finish" ||
+      chunk.type === "error";
     // Active child reads split raw batches to preserve microtask ordering.
-    if (list.length > 0) rawChunkBatch = undefined;
+    if (list.length > 0 || isMessageLevel) rawChunkBatch = undefined;
 
     if (!rawChunkBatch) {
       const batch: AssistantStreamChunk[] = [];
       rawChunkBatch = batch;
       pendingRawBatches++;
+      const previousBarrier = rawBarrier;
+      const partsDelivered =
+        isMessageLevel && list.length > 0
+          ? Promise.all(list.map((item) => item.delivered.promise))
+          : undefined;
+      const barrier = isMessageLevel ? promiseWithResolvers<void>() : undefined;
+      if (barrier) rawBarrier = barrier.promise;
 
-      // Match the readiness ordering of the one-chunk streams this replaces.
       void Promise.resolve()
-        .then(() => {
+        .then(async () => {
+          if (previousBarrier) await previousBarrier;
+          if (partsDelivered) await partsDelivered;
           pendingRawBatches--;
           if (rawChunkBatch === batch) rawChunkBatch = undefined;
           if (cancelled || errored) return;
@@ -147,10 +165,17 @@ export const createMergeStream = () => {
           currentPull?.resolve();
           currentPull = undefined;
         })
-        .catch(handleError);
+        .catch(handleError)
+        .finally(() => {
+          if (barrier) {
+            barrier.resolve();
+            if (rawBarrier === barrier.promise) rawBarrier = undefined;
+          }
+        });
     }
 
     rawChunkBatch.push(chunk);
+    if (isMessageLevel) rawChunkBatch = undefined;
   };
 
   const addStream = (
@@ -174,6 +199,7 @@ export const createMergeStream = () => {
     const orderedFinish = options?.orderedFinish;
     const item = {
       reader: stream.getReader(),
+      delivered: promiseWithResolvers<void>(),
       pipeTask: handledPipeTask,
       orderedFinish,
     };
