@@ -6,16 +6,26 @@ export type MergeStreamFinishOrder = {
   delivered: ReturnType<typeof promiseWithResolvers<void>>;
 };
 
+type MergeStreamHold = {
+  writtenBefore: number;
+  reached: ReturnType<typeof promiseWithResolvers<void>>;
+  flushed: Promise<void>;
+};
+
 type MergeStreamItem = {
   reader: ReadableStreamDefaultReader<AssistantStreamChunk>;
-  delivered: ReturnType<typeof promiseWithResolvers<void>>;
   pipeTask?: Promise<unknown> | undefined;
   promise?: Promise<unknown> | undefined;
   orderedFinish?: MergeStreamFinishOrder | undefined;
+  written?: (() => number) | undefined;
+  delivered: number;
+  gate?: Promise<void> | undefined;
+  holds: MergeStreamHold[];
 };
 
 type MergeStreamOptions = {
   orderedFinish?: MergeStreamFinishOrder | undefined;
+  written?: (() => number) | undefined;
 };
 
 export const createMergeStream = () => {
@@ -30,14 +40,19 @@ export const createMergeStream = () => {
   let currentPull: ReturnType<typeof promiseWithResolvers<void>> | undefined;
   let cleanupPromise: Promise<void> | undefined;
 
+  const releaseHolds = (item: MergeStreamItem) => {
+    for (const hold of item.holds) hold.reached.resolve();
+    item.holds = [];
+  };
+
   const cancelAllReaders = () => {
     // Repeated cancellation must wait for cleanup already in progress.
     rawChunkBatch = undefined;
     if (!cleanupPromise) {
       const items = list.splice(0);
       for (const item of items) {
-        item.delivered.resolve();
         item.orderedFinish?.delivered.resolve();
+        releaseHolds(item);
       }
       cleanupPromise = Promise.all(
         items.map(async (item) => {
@@ -82,16 +97,33 @@ export const createMergeStream = () => {
             item.orderedFinish?.delivered.resolve();
             list.splice(list.indexOf(item), 1);
             item.reader.releaseLock();
-            item.delivered.resolve();
+            releaseHolds(item);
             if (sealed && list.length === 0 && pendingRawBatches === 0) {
               controller.close();
             }
           } else {
+            if (item.gate) {
+              await item.gate;
+              item.gate = undefined;
+              if (cancelled || errored) return;
+            }
+            while (
+              item.holds[0] &&
+              item.delivered >= item.holds[0].writtenBefore
+            ) {
+              await item.holds[0].flushed;
+              item.holds.shift();
+              if (cancelled || errored) return;
+            }
             if (value.type === "part-finish" && item.orderedFinish) {
               await item.orderedFinish.previous();
               if (cancelled || errored) return;
             }
             controller.enqueue(value);
+            item.delivered++;
+            for (const hold of item.holds) {
+              if (item.delivered >= hold.writtenBefore) hold.reached.resolve();
+            }
             if (value.type === "part-finish") {
               item.orderedFinish?.delivered.resolve();
             }
@@ -129,7 +161,20 @@ export const createMergeStream = () => {
     },
   });
 
+  const holdChild = (item: MergeStreamItem, flushed: Promise<void>) => {
+    const hold: MergeStreamHold = {
+      writtenBefore: item.written!(),
+      reached: promiseWithResolvers<void>(),
+      flushed,
+    };
+    if (item.delivered >= hold.writtenBefore) hold.reached.resolve();
+    item.holds.push(hold);
+    return hold.reached.promise;
+  };
+
   const enqueueRawChunk = (chunk: AssistantStreamChunk) => {
+    // A step or message boundary, or an error, waits for the part chunks
+    // written before it; everything enqueued or added after it waits in turn.
     const isMessageLevel =
       chunk.type === "step-finish" ||
       chunk.type === "message-finish" ||
@@ -141,18 +186,20 @@ export const createMergeStream = () => {
       const batch: AssistantStreamChunk[] = [];
       rawChunkBatch = batch;
       pendingRawBatches++;
-      const previousBarrier = rawBarrier;
-      const partsDelivered =
-        isMessageLevel && list.length > 0
-          ? Promise.all(list.map((item) => item.delivered.promise))
-          : undefined;
-      const barrier = isMessageLevel ? promiseWithResolvers<void>() : undefined;
-      if (barrier) rawBarrier = barrier.promise;
+      const previous = rawBarrier;
+      const parts = isMessageLevel ? list.filter((item) => item.written) : [];
+      const flushed =
+        previous || parts.length > 0 ? promiseWithResolvers<void>() : undefined;
+      const reached = flushed
+        ? parts.map((item) => holdChild(item, flushed.promise))
+        : [];
+      if (flushed) rawBarrier = flushed.promise;
 
+      // Match the readiness ordering of the one-chunk streams this replaces.
       void Promise.resolve()
         .then(async () => {
-          if (previousBarrier) await previousBarrier;
-          if (partsDelivered) await partsDelivered;
+          if (previous) await previous;
+          if (reached.length > 0) await Promise.all(reached);
           pendingRawBatches--;
           if (rawChunkBatch === batch) rawChunkBatch = undefined;
           if (cancelled || errored) return;
@@ -167,10 +214,9 @@ export const createMergeStream = () => {
         })
         .catch(handleError)
         .finally(() => {
-          if (barrier) {
-            barrier.resolve();
-            if (rawBarrier === barrier.promise) rawBarrier = undefined;
-          }
+          if (!flushed) return;
+          flushed.resolve();
+          if (rawBarrier === flushed.promise) rawBarrier = undefined;
         });
     }
 
@@ -196,12 +242,14 @@ export const createMergeStream = () => {
 
     // A ready child must stay ahead of raw chunks enqueued after it.
     rawChunkBatch = undefined;
-    const orderedFinish = options?.orderedFinish;
-    const item = {
+    const item: MergeStreamItem = {
       reader: stream.getReader(),
-      delivered: promiseWithResolvers<void>(),
       pipeTask: handledPipeTask,
-      orderedFinish,
+      orderedFinish: options?.orderedFinish,
+      written: options?.written,
+      delivered: 0,
+      gate: rawBarrier,
+      holds: [],
     };
     list.push(item);
     handlePull(item);
