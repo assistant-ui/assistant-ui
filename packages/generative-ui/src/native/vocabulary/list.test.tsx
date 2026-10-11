@@ -5,10 +5,12 @@ import {
   byRole,
   cleanupSpecs,
   press,
+  renderElement,
   renderNativeSpec,
   renderWebSpec,
   spec,
 } from "../testUtils";
+import { listVocabulary } from "./list";
 
 afterEach(cleanupSpecs);
 
@@ -51,12 +53,50 @@ describe("list vocabulary on React Native", () => {
     expect(nativeHandler.mock.calls[0]![0]).toEqual(
       webHandler.mock.calls[0]![0],
     );
-    const rows = [
-      ...(native.container.firstElementChild as HTMLElement).children,
-    ] as HTMLElement[];
+    const list = native.container.firstElementChild as HTMLElement;
+    const content = list.firstElementChild as HTMLElement;
+    const rows = [...content.children] as HTMLElement[];
     expect(rows).toHaveLength(2);
-    expect(rows[0]!.style.borderTopWidth).toBe("");
-    expect(rows[1]!.style.borderTopWidth).toBe("1px");
-    expect(rows[1]!.style.borderTopColor).toBe("rgba(229, 229, 229, 0.6)");
+    expect(getComputedStyle(content).marginBottom).toBe("-1px");
+    expect(getComputedStyle(rows[0]!).borderBottomWidth).toBe("1px");
+    expect(getComputedStyle(rows[1]!).borderBottomColor).toBe(
+      "rgba(229, 229, 229, 0.6)",
+    );
+  });
+
+  it("draws one divider when the middle item is hidden", () => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: { type: "ListView", children: ["first", "hidden", "last"] },
+        first: { type: "ListViewItem", children: ["a"] },
+        hidden: { type: "ListViewItem", visible: false, children: ["b"] },
+        last: { type: "ListViewItem", children: ["c"] },
+        a: { type: "Text", props: { value: "A" } },
+        b: { type: "Text", props: { value: "B" } },
+        c: { type: "Text", props: { value: "C" } },
+      }),
+    );
+    const list = container.firstElementChild as HTMLElement;
+    const content = list.firstElementChild as HTMLElement;
+    const rows = [...content.children] as HTMLElement[];
+    expect(rows.map((row) => row.textContent)).toEqual(["A", "C"]);
+    expect(rows.map((row) => getComputedStyle(row).borderBottomWidth)).toEqual([
+      "1px",
+      "1px",
+    ]);
+    expect(getComputedStyle(content).marginBottom).toBe("-1px");
+  });
+
+  it("does not press an action without a dispatch function", () => {
+    const container = renderElement(
+      <>
+        {listVocabulary.ListViewItem.render({
+          $action: { action: "open" },
+          children: "A",
+        } as never)}
+      </>,
+    );
+    expect(container.querySelector('[role="button"]')).toBeNull();
+    expect(container.textContent).toBe("A");
   });
 });

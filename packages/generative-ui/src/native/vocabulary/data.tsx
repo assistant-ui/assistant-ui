@@ -38,6 +38,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", borderBottomWidth: 1 },
   lastRow: { borderBottomWidth: 0 },
   cell: { width: 120, paddingVertical: 8, paddingHorizontal: 12 },
+  sortableCell: { minHeight: 40 },
   header: { fontSize: 12, fontWeight: FONT_WEIGHT.semibold },
   body: { fontSize: 14, fontVariant: ["tabular-nums"] },
   markdown: { fontSize: TEXT_SIZE.md },
@@ -114,7 +115,7 @@ function TableView({
                   accessibilityRole="button"
                   accessibilityLabel={`${label}, ${direction ? `sorted ${direction}` : "not sorted"}`}
                   onPress={() => onSort(index)}
-                  style={styles.cell}
+                  style={[styles.cell, styles.sortableCell]}
                 >
                   {heading}
                 </Pressable>
@@ -240,9 +241,7 @@ function Chart({
   const { count, series } = normalizeSeries(seriesProp, data);
   const isSparkline = variant === "sparkline";
   const hasAxis = !!showAxis && !isSparkline;
-  const hasLegend =
-    !isSparkline &&
-    (!!showLegend || series.some((item) => item.label !== undefined));
+  const hasLegend = !isSparkline && !!showLegend;
   const isStacked = !!stacked && (variant === "bar" || variant === "area");
   const rawScale = computeScale(series, count, isStacked);
   const scale = hasAxis ? axisScale(rawScale) : rawScale;

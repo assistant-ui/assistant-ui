@@ -30,7 +30,7 @@ const ICON_CHARACTERS: Record<IconName, string> = {
   "credit-card": "▭",
   user: "☺︎",
   search: "⌕",
-  bell: "⍾",
+  bell: "\u{1F514}\uFE0E",
 };
 
 function Icon({ name, size }: { name?: unknown; size?: unknown }) {

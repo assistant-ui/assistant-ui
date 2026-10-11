@@ -16,6 +16,7 @@ import {
 afterEach(() => {
   cleanupSpecs();
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 const actions = {
@@ -24,6 +25,15 @@ const actions = {
 };
 
 describe("interactive vocabulary on React Native", () => {
+  it("makes a block Button full width inside a Row", () => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: { type: "Row", children: ["button"] },
+        button: { type: "Button", props: { label: "Go", block: true } },
+      }),
+    );
+    expect(byRole(container, "button", "Go").style.width).toBe("100%");
+  });
   it("presses a Button like the web", async () => {
     const input = spec({
       main: {
@@ -673,5 +683,25 @@ describe("native Slider", () => {
     await act(async () => w.container.querySelector("form")!.requestSubmit());
     expect(native.mock.lastCall![0]).toEqual(web.mock.lastCall![0]);
     expect(native.mock.lastCall![0]).toEqual({ values: { volume: 0.5 } });
+  });
+
+  it.each([
+    ["primary", "rgb(23, 23, 23)", "rgb(250, 250, 250)"],
+    ["secondary", "rgb(245, 245, 245)", "rgb(23, 23, 23)"],
+    ["outline", "rgba(0, 0, 0, 0)", "rgb(10, 10, 10)"],
+    ["ghost", "rgba(0, 0, 0, 0)", "rgb(10, 10, 10)"],
+    ["danger", "rgb(231, 0, 11)", "rgb(250, 250, 250)"],
+  ])("paints a %s Button", (buttonStyle, background, color) => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: {
+          type: "Button",
+          props: { label: "Go", buttonStyle, block: true },
+        },
+      }),
+    );
+    const button = byRole(container, "button", "Go");
+    expect(button.style.backgroundColor).toBe(background);
+    expect((button.firstElementChild as HTMLElement).style.color).toBe(color);
   });
 });

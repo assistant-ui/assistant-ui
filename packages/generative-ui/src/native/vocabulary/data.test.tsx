@@ -62,6 +62,15 @@ describe("data vocabulary on React Native", () => {
 
   it("cycles Table sorting with the web and forgets it when disabled", async () => {
     const native = renderNativeSpec(table(true));
+    expect(
+      getComputedStyle(byRole(native.container, "button", "Name, not sorted"))
+        .minHeight,
+    ).toBe("40px");
+    expect(
+      native.container
+        .querySelector('[data-testid="table-cell"]')
+        ?.getAttribute("style"),
+    ).not.toContain("min-height");
     const web = renderWebSpec(table(true));
     for (const [previous, direction] of [
       ["not sorted", "sorted ascending"],
@@ -229,6 +238,7 @@ describe("data vocabulary on React Native", () => {
   it("places unstacked series side by side with palette colors and named legend", () => {
     const native = renderNativeSpec(
       chart({
+        showLegend: true,
         series: [
           { label: "East", data: [{ value: 2 }] },
           { label: "West", data: [{ value: 3 }] },
@@ -247,5 +257,13 @@ describe("data vocabulary on React Native", () => {
     expect(
       native.querySelector('[data-testid="chart-legend"]')?.textContent,
     ).toBe("EastWest");
+  });
+
+  it("hides named series when showLegend is absent", () => {
+    const input = chart({ series: [{ label: "East", data: [{ value: 2 }] }] });
+    const native = renderNativeSpec(input).container;
+    const web = renderWebSpec(input).container;
+    expect(native.querySelector('[data-testid="chart-legend"]')).toBeNull();
+    expect(web.querySelector('[data-aui="chart-legend"]')).toBeNull();
   });
 });

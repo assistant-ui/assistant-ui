@@ -1,4 +1,4 @@
-import { Children, type ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import type { GenerativeUILibrary } from "../../types";
 import { listDefinitions } from "../../vocabulary/definitions/list";
@@ -6,7 +6,8 @@ import { fire } from "../../vocabulary/dispatch";
 import { RADIUS, useNativeTheme } from "../theme";
 
 const styles = StyleSheet.create({
-  list: { flexDirection: "column" },
+  list: { overflow: "hidden" },
+  listContent: { flexDirection: "column", marginBottom: -1 },
   item: {
     flexDirection: "row",
     alignItems: "center",
@@ -16,21 +17,15 @@ const styles = StyleSheet.create({
   trigger: { borderRadius: RADIUS.control },
 });
 
+const ListHairline = createContext<string | undefined>(undefined);
+
 function ListView({ children }: { children?: ReactNode }) {
   const theme = useNativeTheme();
   return (
     <View style={styles.list}>
-      {Children.map(children, (child, index) => (
-        <View
-          style={
-            index > 0
-              ? { borderTopWidth: 1, borderTopColor: theme.hairline }
-              : undefined
-          }
-        >
-          {child}
-        </View>
-      ))}
+      <ListHairline.Provider value={theme.hairline}>
+        <View style={styles.listContent}>{children}</View>
+      </ListHairline.Provider>
     </View>
   );
 }
@@ -44,13 +39,21 @@ function ListViewItem({
   $dispatch?: Parameters<typeof fire>[1];
   children?: ReactNode;
 }) {
-  if (!$action) return <View style={styles.item}>{children}</View>;
+  const hairline = useContext(ListHairline);
+  const style = [
+    styles.item,
+    hairline !== undefined && {
+      borderBottomWidth: 1,
+      borderBottomColor: hairline,
+    },
+  ];
+  if (!$action || !$dispatch) return <View style={style}>{children}</View>;
   return (
     <Pressable
       accessibilityRole="button"
       onPress={() => fire($action, $dispatch)}
       style={({ pressed }) => [
-        styles.item,
+        ...style,
         styles.trigger,
         pressed && { opacity: 0.85 },
       ]}

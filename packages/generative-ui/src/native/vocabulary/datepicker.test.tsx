@@ -36,6 +36,74 @@ const webType = async (input: HTMLInputElement, text: string) => {
 
 describe("native DatePicker", () => {
   it.each([
+    ["date", "2026-07-01", "2026-07-31", "2026-08-01", "2026-07-20"],
+    ["time", "09:00", "17:00", "18:00", "12:30"],
+  ])(
+    "rejects out-of-range %s and commits an in-range value",
+    async (inputType, min, max, outside, inside) => {
+      const capture = vi.fn();
+      const selected = picker(inputType, inside);
+      const { container } = renderNativeSpec(
+        spec({
+          main: {
+            type: "Card",
+            props: { asForm: true, confirm: { label: "Send" } },
+            children: ["when"],
+            on: {
+              confirm: {
+                action: "capture",
+                params: { values: { $event: "" } },
+              },
+            },
+          },
+          when: { ...selected, props: { ...selected.props, min, max } },
+        }),
+        { capture },
+        actions,
+      );
+      await typeText(field(container), outside);
+      await pressEnter(field(container));
+      expect(field(container).style.borderTopColor).toBe("rgb(231, 0, 11)");
+      expect(capture).not.toHaveBeenCalled();
+      await press(byRole(container, "button", "Send"));
+      expect(capture.mock.lastCall![0]).toEqual({ values: { when: "" } });
+      capture.mockClear();
+      await typeText(
+        field(container),
+        inside === "2026-07-20" ? "2026-07-21" : "12:31",
+      );
+      await pressEnter(field(container));
+      expect(field(container).style.borderTopColor).not.toBe("rgb(231, 0, 11)");
+      expect(capture.mock.lastCall![0]).toEqual({
+        value: inside === "2026-07-20" ? "2026-07-21" : "12:31",
+      });
+    },
+  );
+
+  it("submits unedited fractional time like the web", async () => {
+    const input = spec({
+      main: {
+        type: "Card",
+        props: { asForm: true, confirm: { label: "Send" } },
+        children: ["when"],
+        on: {
+          confirm: { action: "capture", params: { values: { $event: "" } } },
+        },
+      },
+      when: picker("time", "12:00:05.1200"),
+    });
+    const native = vi.fn();
+    const web = vi.fn();
+    const n = renderNativeSpec(input, { capture: native }, actions);
+    const w = renderWebSpec(input, { capture: web }, actions);
+    await press(byRole(n.container, "button", "Send"));
+    await act(async () => w.container.querySelector("form")!.requestSubmit());
+    expect(native.mock.lastCall![0]).toEqual(web.mock.lastCall![0]);
+    expect(native.mock.lastCall![0]).toEqual({
+      values: { when: "12:00:05.1200" },
+    });
+  });
+  it.each([
     ["date", "2026-07-15", "2026-07-16", "2026-07-16", "YYYY-MM-DD"],
     ["time", "12:00:05.1200", "08:30", "08:30", "HH:MM"],
     [

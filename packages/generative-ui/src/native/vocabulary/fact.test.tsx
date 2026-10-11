@@ -48,7 +48,7 @@ describe("Fact on React Native", () => {
       undefined,
       undefined,
       "→ +0.0%",
-      "rgba(10, 10, 10, 0.62)",
+      "rgb(23, 23, 23)",
       "rgb(245, 245, 245)",
     ],
     [
@@ -81,6 +81,9 @@ describe("Fact on React Native", () => {
           element.textContent === text && element.children.length === 0,
       )!;
       expect(chip).toBeDefined();
+      expect(chip.textContent).toBe(
+        web.querySelector('[data-aui="fact-delta"]')!.textContent,
+      );
       expect(chip.style.color).toBe(color);
       if (background)
         expect(chip.parentElement!.style.backgroundColor).toBe(background);

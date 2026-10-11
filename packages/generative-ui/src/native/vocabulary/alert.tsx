@@ -1,5 +1,6 @@
 import {
   Children,
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -114,7 +115,8 @@ function Carousel({
   const track = useRef<ComponentRef<typeof ScrollView>>(null);
   const [viewport, setViewport] = useState(0);
   const [layouts, setLayouts] = useState<(SlideLayout | undefined)[]>([]);
-  const [offset, setOffset] = useState(0);
+  const offset = useRef(0);
+  const [edges, setEdges] = useState({ atStart: true, atEnd: true });
   const [reduceMotion, setReduceMotion] = useState(true);
   const cards = Children.toArray(children).slice(0, MAX_CARDS);
   const starts = layouts
@@ -126,8 +128,25 @@ function Carousel({
     viewport > 0 &&
     layouts.slice(0, cards.length).every(Boolean) &&
     maxOffset > 0;
-  const atStart = offset <= 1;
-  const atEnd = offset >= maxOffset - 1;
+  const { atStart, atEnd } = edges;
+  const updateEdges = useCallback(
+    (position: number) => {
+      const next = {
+        atStart: position <= 1,
+        atEnd: position >= maxOffset - 1,
+      };
+      setEdges((current) =>
+        current.atStart === next.atStart && current.atEnd === next.atEnd
+          ? current
+          : next,
+      );
+    },
+    [maxOffset],
+  );
+
+  useEffect(() => {
+    updateEdges(offset.current);
+  }, [updateEdges]);
 
   useEffect(() => {
     let active = true;
@@ -160,16 +179,15 @@ function Carousel({
   };
 
   const move = (direction: -1 | 1) => {
-    let current = 0;
-    starts.forEach((start, index) => {
-      if (
-        Math.abs(start - offset) < Math.abs((starts[current] ?? start) - offset)
-      )
-        current = index;
+    const target =
+      direction === 1
+        ? (starts.find((start) => start > offset.current + 1) ?? maxOffset)
+        : (starts.findLast((start) => start < offset.current - 1) ?? 0);
+    track.current?.scrollTo({
+      x: Math.min(maxOffset, target),
+      y: 0,
+      animated: !reduceMotion,
     });
-    const target = starts[current + direction];
-    if (target !== undefined)
-      track.current?.scrollTo({ x: target, y: 0, animated: !reduceMotion });
   };
 
   return (
@@ -180,20 +198,24 @@ function Carousel({
         showsHorizontalScrollIndicator={false}
         decelerationRate="fast"
         scrollEventThrottle={16}
-        accessibilityRole={label ? "region" : "group"}
+        role={label ? "region" : "group"}
         accessibilityLabel={label}
         style={styles.track}
         contentContainerStyle={styles.slides}
-        snapToOffsets={starts}
+        snapToOffsets={[
+          ...starts.filter((start) => start < maxOffset),
+          maxOffset,
+        ]}
         onLayout={(event) => setViewport(event.nativeEvent.layout.width)}
-        onScroll={(event: NativeSyntheticEvent<NativeScrollEvent>) =>
-          setOffset(event.nativeEvent.contentOffset.x)
-        }
+        onScroll={(event: NativeSyntheticEvent<NativeScrollEvent>) => {
+          offset.current = event.nativeEvent.contentOffset.x;
+          updateEdges(offset.current);
+        }}
       >
         {cards.map((card, index) => (
           <View
             key={index}
-            accessibilityRole="group"
+            role="group"
             accessibilityLabel={`${index + 1} of ${cards.length}`}
             style={styles.slide}
             onLayout={(event) => measureSlide(index, event)}
@@ -209,6 +231,7 @@ function Carousel({
             accessibilityLabel="Previous slide"
             accessibilityState={{ disabled: atStart }}
             disabled={atStart}
+            hitSlop={6}
             onPress={() => move(-1)}
             style={[styles.control, atStart && { opacity: 0.5 }]}
           >
@@ -219,6 +242,7 @@ function Carousel({
             accessibilityLabel="Next slide"
             accessibilityState={{ disabled: atEnd }}
             disabled={atEnd}
+            hitSlop={6}
             onPress={() => move(1)}
             style={[styles.control, atEnd && { opacity: 0.5 }]}
           >

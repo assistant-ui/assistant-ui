@@ -78,7 +78,7 @@ function Divider({ flush }: { flush?: boolean }) {
 export const mediaVocabulary = {
   Image: {
     ...mediaDefinitions.Image,
-    render: (props) => <Image {...props} />,
+    render: (props) => <Image key={props.src} {...props} />,
   },
   Divider: {
     ...mediaDefinitions.Divider,

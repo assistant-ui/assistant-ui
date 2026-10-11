@@ -29,7 +29,7 @@ describe("icon vocabulary on React Native", () => {
     for (const glyph of glyphs) {
       expect(glyph.getAttribute("aria-hidden")).toBe("true");
       expect(glyph.style.fontSize).toBe("20px");
-      expect([...glyph.textContent!.replace("︎", "")]).toHaveLength(1);
+      expect([...glyph.textContent!.replace("\uFE0E", "")]).toHaveLength(1);
     }
   });
 });

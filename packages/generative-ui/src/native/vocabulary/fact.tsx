@@ -47,7 +47,7 @@ function Fact({
       ? theme.success
       : tone === "bad"
         ? theme.destructive
-        : fade(ink, 0.62);
+        : theme.secondaryForeground;
   return (
     <View>
       <Text style={[styles.label, { color: fade(ink, 0.62) }]}>

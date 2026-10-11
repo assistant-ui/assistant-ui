@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from "vitest";
+import { act } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   cleanupSpecs,
   renderElement,
@@ -9,7 +10,10 @@ import {
 } from "../testUtils";
 import { mediaVocabulary } from "./media";
 
-afterEach(cleanupSpecs);
+afterEach(() => {
+  cleanupSpecs();
+  vi.unstubAllGlobals();
+});
 
 describe("media vocabulary on React Native", () => {
   it.each([
@@ -73,5 +77,48 @@ describe("media vocabulary on React Native", () => {
       .container.firstElementChild as HTMLElement;
     expect(getComputedStyle(divider).height).toBe("1px");
     expect(divider.style.backgroundColor).toBe("rgba(229, 229, 229, 0.6)");
+  });
+
+  it("resets a measured ratio when the image source changes", async () => {
+    const loads: MockImage[] = [];
+    class MockImage {
+      onload?: (event: { source: { width: number; height: number } }) => void;
+      uri = "";
+      set src(value: string) {
+        this.uri = value;
+        loads.push(this);
+      }
+    }
+    vi.stubGlobal("Image", MockImage);
+    const view = (src: string) =>
+      spec({ main: { type: "Image", props: { src, alt: "Photo" } } });
+    const rendered = renderNativeSpec(view("https://example.com/a.png"));
+    const first = rendered.container.querySelector("img")!;
+    await act(async () => {
+      loads
+        .find((image) => image.uri.endsWith("a.png"))!
+        .onload?.({
+          source: { width: 200, height: 100 },
+        });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(getComputedStyle(first.parentElement!).aspectRatio).toBe("2 / 1");
+    await rendered.update(view("https://example.com/b.png"));
+    expect(
+      getComputedStyle(rendered.container.querySelector("img")!.parentElement!)
+        .aspectRatio,
+    ).toBe("1 / 1");
+    await act(async () => {
+      loads
+        .find((image) => image.uri.endsWith("b.png"))!
+        .onload?.({
+          source: { width: 200, height: 100 },
+        });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(
+      getComputedStyle(rendered.container.querySelector("img")!.parentElement!)
+        .aspectRatio,
+    ).toBe("2 / 1");
   });
 });

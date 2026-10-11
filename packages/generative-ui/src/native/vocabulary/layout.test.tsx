@@ -40,6 +40,10 @@ const card = (props: Record<string, unknown>, children?: string[]) =>
   });
 
 describe("layout vocabulary on React Native", () => {
+  it("omits an empty Card title", () => {
+    const { container } = renderNativeSpec(card({ title: "" }));
+    expect(container.querySelector('[role="heading"]')).toBeNull();
+  });
   it.each([false, true])(
     "dispatches Card footer events like the web with asForm %s",
     async (asForm) => {
@@ -192,5 +196,51 @@ describe("layout vocabulary on React Native", () => {
       ["50%", "32px", "rgb(255, 0, 0)"],
     );
     expect([b!.style.width, b!.style.height]).toEqual(["12px", "8px"]);
+  });
+
+  it.each([
+    ["info", "rgba(23, 23, 23, 0.15)", "rgb(23, 23, 23)"],
+    ["warning", "rgba(213, 131, 0, 0.15)", "rgb(213, 131, 0)"],
+    ["danger", "rgba(231, 0, 11, 0.15)", "rgb(231, 0, 11)"],
+    ["unknown", "rgb(245, 245, 245)", "rgba(10, 10, 10, 0.62)"],
+  ])("colors a %s Badge", (variant, background, color) => {
+    const { container } = renderNativeSpec(
+      spec({ main: { type: "Badge", props: { value: "Tag", variant } } }),
+    );
+    const badge = container.firstElementChild as HTMLElement;
+    expect(badge.style.backgroundColor).toBe(background);
+    expect((badge.firstElementChild as HTMLElement).style.color).toBe(color);
+  });
+
+  it("pads a Card by its token and frames a cancel-only footer", async () => {
+    const dismiss = vi.fn();
+    const { container } = renderNativeSpec(
+      spec({
+        main: {
+          type: "Card",
+          props: { title: "Plan", padding: 2, cancel: { label: "Close" } },
+          on: { cancel: { action: "dismiss" } },
+        },
+      }),
+      { dismiss },
+      actions,
+    );
+    const title = byRole(container, "heading", "Plan");
+    expect(title.parentElement!.style.padding).toBe("8px");
+    expect(title.parentElement!.style.backgroundColor).toBe(
+      "rgb(255, 255, 255)",
+    );
+    await press(byRole(container, "button", "Close"));
+    expect(dismiss).toHaveBeenCalledOnce();
+  });
+
+  it("rounds a Box by points", () => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: { type: "Box", props: { radius: 6, background: "#000000" } },
+      }),
+    );
+    const box = container.firstElementChild as HTMLElement;
+    expect(box.style.borderTopLeftRadius || box.style.borderRadius).toBe("6px");
   });
 });

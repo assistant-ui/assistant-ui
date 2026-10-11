@@ -31,7 +31,7 @@ const input = spec({
 });
 
 describe("Form on React Native", () => {
-  it.each(["button", "return"])(
+  it.each(["button", "return key (web requestSubmit)"])(
     "submits named values from %s like the web",
     async (trigger) => {
       const nativeHandler = vi.fn();
@@ -45,7 +45,6 @@ describe("Form on React Native", () => {
         await press(web.container.querySelector("button")!);
       } else {
         await pressEnter(native.container.querySelector("input")!);
-        await pressEnter(web.container.querySelector("input")!);
         await act(async () =>
           web.container.querySelector("form")!.requestSubmit(),
         );

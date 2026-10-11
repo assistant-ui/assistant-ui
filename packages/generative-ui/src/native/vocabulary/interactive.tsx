@@ -20,6 +20,7 @@ import {
   classifyTemporal,
   fromLocalDateTime,
   normalizeTemporalInputValue,
+  toLocalDateTime,
   toPickerLocalDateTime,
 } from "../../temporal";
 import type { Action, ButtonStyle } from "../../ir";
@@ -287,6 +288,8 @@ const dateText = (value: string | undefined, inputType: string) =>
 function DatePickerField({
   inputType = "date",
   value,
+  min,
+  max,
   label,
   name,
   initialValue,
@@ -331,6 +334,22 @@ function DatePickerField({
         (temporal.kind === "floating" || temporal.kind === "instant"));
     if (!valid) return undefined;
     if (raw === "") return "";
+    const compare = (candidate: string) =>
+      inputType === "time"
+        ? Date.parse(`1970-01-01T${candidate}Z`)
+        : Date.parse(candidate);
+    const current = compare(
+      inputType === "datetime" && temporal.kind === "instant"
+        ? toLocalDateTime(raw)
+        : raw,
+    );
+    const bound = (value: string) =>
+      compare(inputType === "datetime" ? toLocalDateTime(value) : value);
+    if (
+      (min !== undefined && current < bound(min)) ||
+      (max !== undefined && current > bound(max))
+    )
+      return undefined;
     if (inputType === "date") return raw;
     const normalized = normalizeTemporalInputValue(raw);
     if (
@@ -801,6 +820,7 @@ function SliderField({
           <Text style={[styles.stepperSymbol, { color: ink }]}>−</Text>
         </Pressable>
         <View
+          accessible
           accessibilityRole="adjustable"
           accessibilityLabel={label}
           accessibilityValue={{
@@ -970,11 +990,7 @@ function CheckboxGroupField({
     .map(({ option }) => option.value);
   useField(name, "checkboxes", () => values);
   return (
-    <View
-      accessibilityRole="group"
-      accessibilityLabel={label}
-      style={styles.choiceField}
-    >
+    <View role="group" accessibilityLabel={label} style={styles.choiceField}>
       {label !== undefined ? (
         <Text style={[styles.choiceLabel, { color: fade(ink, 0.62) }]}>
           {label}

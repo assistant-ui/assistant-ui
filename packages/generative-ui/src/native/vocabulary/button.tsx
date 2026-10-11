@@ -71,7 +71,7 @@ export function ActionButton({
             : colors.background,
         },
         colors.border !== undefined && { borderColor: colors.border },
-        block && { alignSelf: "stretch" },
+        block && { width: "100%" },
         pressed && { opacity: 0.85 },
       ]}
     >
