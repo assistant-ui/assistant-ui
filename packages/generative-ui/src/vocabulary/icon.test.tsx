@@ -52,6 +52,14 @@ describe("iconVocabulary", () => {
     expect(render({ $type: "Icon", name: "not-a-real-icon" })).toBe("");
   });
 
+  it.each(["constructor", "toString", "__proto__"])(
+    "renders nothing for the inherited key %s",
+    (name) => {
+      expect(() => render({ $type: "Icon", name })).not.toThrow();
+      expect(render({ $type: "Icon", name })).toBe("");
+    },
+  );
+
   it("exposes the closed name enum in buildPresentParameters", () => {
     const schema = buildPresentParameters(iconVocabulary) as Record<
       string,

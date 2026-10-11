@@ -1,13 +1,13 @@
 import * as React from "react";
 import type { GenerativeUILibrary } from "../types";
 import { iconDefinitions } from "./definitions/icon";
-import { ICON_GLYPHS, ICON_SIZE_PX } from "./iconGlyphs";
+import { ICON_SIZE_PX, iconGlyph } from "./iconGlyphs";
 
 export const iconVocabulary = {
   Icon: {
     ...iconDefinitions.Icon,
     render: ({ name, size }) => {
-      const glyph = ICON_GLYPHS[name as keyof typeof ICON_GLYPHS];
+      const glyph = iconGlyph(name);
       if (!glyph) return null;
       const px = ICON_SIZE_PX[(size as keyof typeof ICON_SIZE_PX) ?? "md"];
 

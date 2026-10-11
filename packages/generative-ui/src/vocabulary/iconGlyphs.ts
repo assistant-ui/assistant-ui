@@ -143,3 +143,9 @@ export const ICON_GLYPHS: Record<(typeof ICON_NAMES)[number], IconGlyph[]> = {
     ["path", { d: "M10 19a2 2 0 0 0 4 0" }],
   ],
 };
+
+/** The glyph for an icon name the model wrote, or undefined for a name that is not one of the icons, including keys every object inherits. */
+export const iconGlyph = (name: unknown) =>
+  typeof name === "string" && Object.hasOwn(ICON_GLYPHS, name)
+    ? ICON_GLYPHS[name as keyof typeof ICON_GLYPHS]
+    : undefined;
