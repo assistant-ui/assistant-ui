@@ -1,0 +1,148 @@
+---
+title: Moving to spec mode
+description: Map a present tree, its actions, and its setup onto generative-frame spec mode, and keep present for what spec mode does not do.
+platforms: ["react"]
+---
+
+`present` and [generative-frame's spec mode](/generative-frame/docs/spec-mode) render the same component vocabulary, so moving between them changes what the model writes, not what the user sees. A `present` call is one nested tree. A `render_spec` call is a flat spec of elements, streamed as JSON Patch lines, with state, bindings, conditions, repetition, and validation that the model gets back as feedback.
+
+## When to move
+
+Spec mode fits UI that holds state the model does not write: controls that feed each other, a list rendered from state with `repeat`, a section that shows only when `visible` holds, or a button that reads other controls' values. Its catalog checks every element, and `render_spec` returns the issues for the model to fix.
+
+Keep `present`, alone or registered next to spec mode, for anything below, since spec mode has no equivalent:
+
+- The [Slack](/docs/tools/generative-ui-slack) and [Teams](/docs/tools/generative-ui-teams) converters and `generativeUIToJSX` take only the `present` tree.
+- [A2UI](/docs/tools/a2ui) surfaces arrive as synthesized `present` calls, so an app that receives them needs `present` on the client.
+- `promptUser()` waits for the user, sends the answer back as the tool result, and locks the answered controls. A spec handler's return value is discarded.
+- `Text`, `Caption`, and `Markdown` grow as their props stream in. In spec mode each element appears whole once its patch line arrives.
+
+## Setup
+
+Build the catalog from the same library and add spec mode to a widget toolkit. Its tools run in the browser and upload their schemas, so the route from the [quick start](/docs/tools/generative-ui#quick-start) serves them through `frontend` without changes.
+
+```tsx title="app/widgets.tsx"
+"use client";
+
+import {
+  createWidgetToolkit,
+  useWidgetInstructions,
+} from "generative-frame/assistant-ui";
+import { createSpecToolkit } from "generative-frame/spec/assistant-ui";
+import { defaultGenerativeUILibrary } from "@assistant-ui/generative-ui/react";
+import { toSpecCatalog } from "@assistant-ui/generative-ui/spec";
+import { approveOrder } from "@/lib/orders";
+
+const { catalog, components } = toSpecCatalog(defaultGenerativeUILibrary, {
+  actions: {
+    approve_order: {
+      description: "Approves the order in `orderId`.",
+      params: {
+        type: "object",
+        properties: { orderId: { type: "string" } },
+        required: ["orderId"],
+      },
+    },
+  },
+});
+
+export const widgets = createWidgetToolkit({
+  spec: createSpecToolkit(catalog, {
+    components,
+    handlers: {
+      approve_order: (params) => approveOrder(String(params["orderId"])),
+    },
+  }),
+});
+
+export function WidgetInstructions() {
+  useWidgetInstructions(widgets.tools);
+  return null;
+}
+```
+
+Register it in the provider from the quick start. Spread the two toolkits in that client module rather than in the `"use generative"` file, since the compiler cannot analyze a spread entry, and render `<WidgetInstructions />` inside the provider, which tells the model to load the `spec` module of `read_me` before it writes a spec:
+
+```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
+import {
+  AssistantRuntimeProvider,
+  AuiConfig,
+  Tools,
+} from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+import toolkit from "./toolkit";
+import { WidgetInstructions, widgets } from "./widgets";
+
+export function MyRuntimeProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const runtime = useChatRuntime({
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+  });
+  const config = AuiConfig({
+    tools: Tools({ toolkit: { ...toolkit, ...widgets.toolkit } }),
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      <WidgetInstructions />
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+`useWidgetInstructions(widgets.tools, { preload: { modules: ["spec"] } })` puts that guidance in the system prompt instead, saving the model a call at the cost of a longer prompt.
+
+`createWidgetToolkit` also registers the frame tools (`read_me`, `show_widget`, `edit_widget`, and `preview_widget`), so the model can answer with a sandboxed widget when the vocabulary cannot express something.
+
+## The same card in both formats
+
+As a `present` call:
+
+```json
+{
+  "_type": "Card",
+  "title": "Order #1042",
+  "children": [
+    { "_type": "Fact", "label": "Total", "value": "$42.00" },
+    {
+      "_type": "Button",
+      "label": "Approve",
+      "_action": { "type": "approve_order", "orderId": "1042" }
+    }
+  ]
+}
+```
+
+As the `patches` of a `render_spec` call titled `order_1042`, one operation per line:
+
+```text
+{"op":"add","path":"/root","value":"order-card"}
+{"op":"add","path":"/elements/order-card","value":{"type":"Card","props":{"title":"Order #1042"},"children":["order-total","approve"]}}
+{"op":"add","path":"/elements/order-total","value":{"type":"Fact","props":{"label":"Total","value":"$42.00"}}}
+{"op":"add","path":"/elements/approve","value":{"type":"Button","props":{"label":"Approve"},"on":{"press":{"action":"approve_order","params":{"orderId":"1042"}}}}}
+```
+
+## Mapping
+
+| `present` | Spec mode |
+| --- | --- |
+| A node's `_type` | An element's `type`, stored under its id in `elements` |
+| Props next to `_type` | The element's `props` |
+| Nested `children`, strings included | `children` as element ids; text needs its own `Text` element |
+| `_key` on a list item | The element id, or `repeat.key` for items rendered from state |
+| `_action: { type, ...payload }` | An `on` binding for the component's event, such as `"on": { "press": { "action": "approve_order", "params": { "orderId": "1042" } } }` |
+| `createActionRegistry({ approve_order })` | `actions` in the `toSpecCatalog` options and `handlers` in `createSpecToolkit` |
+| A handler's `payload.$input` | `{ "$event": "" }` in the binding's `params` |
+| `{ "$field": "note" }` in an action | `{ "$bindState": "/note" }` on the control's value prop and `{ "$state": "/note" }` in the binding's `params` |
+| `streamProperties` and `$status: "streaming"` | Elements appear whole as patch lines arrive; components always receive `$status: "done"` |
+| `present()` renders inline unless `display: "standalone"` | `createWidgetToolkit` renders `render_spec`, `show_widget`, and `edit_widget` standalone unless `display: "inline"` |
+| Props reach components unchecked | `render_spec` checks the spec against the catalog and returns the issues, and the renderer shows a placeholder for an element whose props fail |
+
+[Spec mode](/docs/tools/generative-ui#spec-mode) lists the events each vocabulary component emits and what `$event` holds for each, and shows how your own components declare theirs.
