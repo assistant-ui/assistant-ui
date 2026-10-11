@@ -1,10 +1,19 @@
+// @vitest-environment jsdom
+
 import { describe, it, expect, vi } from "vitest";
+import { act } from "react";
 import type { ReactElement } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { renderGenerativeUI } from "../renderGenerativeUI";
 import { createActionRegistry } from "../actionRegistry";
 import type { GenerativeUIDispatch } from "../types";
+import { alertVocabulary } from "./alert";
 import { listVocabulary } from "./list";
+
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
 
 const render = (node: unknown) =>
   renderToStaticMarkup(<>{renderGenerativeUI(node, listVocabulary)}</>);
@@ -38,7 +47,7 @@ describe("listVocabulary", () => {
     ).toBe('<li data-aui="listview-item">row</li>');
   });
 
-  it("ListViewItem wraps children in a clickable trigger when $action and dispatch are both present", () => {
+  it("ListViewItem places a named button beside its content when $action and dispatch are both present", () => {
     const registry = createActionRegistry({ open: vi.fn() });
     const html = renderToStaticMarkup(
       <>
@@ -50,19 +59,79 @@ describe("listVocabulary", () => {
       </>,
     );
     expect(html).toContain('data-aui="listview-item-trigger"');
-    expect(html).toContain('role="button"');
-    expect(html).toContain('tabindex="0"');
+    expect(html).toContain('<button type="button" aria-labelledby=');
+    expect(html).toContain('data-aui="listview-item-content"');
+    expect(html).not.toContain('role="button"');
+  });
+
+  it("switches a root ListViewItem to a Carousel and back without changing hook order", async () => {
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const registry = createActionRegistry({ open: vi.fn() });
+    const library = { ...listVocabulary, ...alertVocabulary };
+    const item = {
+      $type: "ListViewItem",
+      $action: { type: "open" },
+      children: "row",
+    };
+    const renderRoot = (node: unknown) =>
+      root.render(
+        renderGenerativeUI(node, library, {
+          status: "done",
+          dispatch: registry.dispatch,
+        }),
+      );
+
+    try {
+      await act(async () => renderRoot(item));
+      expect(
+        container.querySelector('[data-aui="listview-item-trigger"]'),
+      ).not.toBeNull();
+      await act(async () =>
+        renderRoot({ $type: "Carousel", label: "Cards", children: [] }),
+      );
+      expect(
+        container.querySelector('[data-aui="listview-item-trigger"]'),
+      ).toBeNull();
+      await act(async () => renderRoot(item));
+      expect(
+        container.querySelector('[data-aui="listview-item-trigger"]'),
+      ).not.toBeNull();
+      expect(
+        errors.mock.calls
+          .flat()
+          .filter((message) =>
+            /hook order|order of hooks|rendered (more|fewer) hooks/i.test(
+              String(message),
+            ),
+          ),
+      ).toEqual([]);
+    } finally {
+      await act(async () => root.unmount());
+      errors.mockRestore();
+    }
   });
 });
 
 describe("listVocabulary $action dispatch", () => {
-  const rowOut = (dispatch: GenerativeUIDispatch) =>
-    listVocabulary.ListViewItem.render({
-      $status: "done",
-      $action: { type: "open" },
-      $dispatch: dispatch,
-      children: "row",
-    }) as ReactElement<{ children: ReactElement }>;
+  const rowOut = (dispatch: GenerativeUIDispatch) => {
+    let output!: ReactElement<{ children: ReactElement }>;
+    function Capture() {
+      const item = listVocabulary.ListViewItem.render({
+        $status: "done",
+        $action: { type: "open" },
+        $dispatch: dispatch,
+        children: "row",
+      }) as ReactElement;
+      output = (item.type as (props: typeof item.props) => typeof output)(
+        item.props,
+      );
+      return output;
+    }
+    renderToStaticMarkup(<Capture />);
+    return output;
+  };
 
   it("clicking the trigger fires $action with no $input", () => {
     const handler = vi.fn();
@@ -71,56 +140,33 @@ describe("listVocabulary $action dispatch", () => {
     const onClick = (trigger.props as { onClick: (e: unknown) => void })
       .onClick;
     onClick({
-      target: { closest: () => trigger },
+      target: { closest: () => null },
       currentTarget: trigger,
     });
     expect(handler).toHaveBeenCalledWith({ payload: { type: "open" } });
   });
 
-  type KeyDownEvent = {
-    key: string;
-    target: { closest: (selector: string) => unknown };
-    currentTarget: unknown;
-    preventDefault: () => void;
-  };
-
-  const getOnKeyDown = (dispatch: GenerativeUIDispatch) => {
+  const getButton = (dispatch: GenerativeUIDispatch) => {
     const trigger = rowOut(dispatch).props.children;
-    return (trigger.props as { onKeyDown: (e: KeyDownEvent) => void })
-      .onKeyDown;
+    return (trigger.props as { children: ReactElement[] })
+      .children[0]! as ReactElement<{
+      onClick: (event: { currentTarget: unknown }) => void;
+      onKeyDown?: unknown;
+    }>;
   };
 
-  it("Enter and Space keydown both fire $action", () => {
-    const handler = vi.fn();
-    const registry = createActionRegistry({ open: handler });
-    const onKeyDown = getOnKeyDown(registry.dispatch);
-    const currentTarget = {};
-    onKeyDown({
-      key: "Enter",
-      target: { closest: () => currentTarget },
-      currentTarget,
-      preventDefault: vi.fn(),
-    });
-    onKeyDown({
-      key: " ",
-      target: { closest: () => currentTarget },
-      currentTarget,
-      preventDefault: vi.fn(),
-    });
-    expect(handler).toHaveBeenCalledTimes(2);
-  });
+  const clickButton = (button: ReturnType<typeof getButton>) => {
+    button.props.onClick({ currentTarget: button });
+  };
 
-  it("a keydown for any other key does not fire $action", () => {
+  it("native button clicks fire $action once per activation", () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ open: handler });
-    const onKeyDown = getOnKeyDown(registry.dispatch);
-    onKeyDown({
-      key: "Tab",
-      target: { closest: () => null },
-      currentTarget: {},
-      preventDefault: vi.fn(),
-    });
-    expect(handler).not.toHaveBeenCalled();
+    const button = getButton(registry.dispatch);
+    expect(button.props.onKeyDown).toBeUndefined();
+    clickButton(button);
+    clickButton(button);
+    expect(handler).toHaveBeenCalledTimes(2);
   });
 
   it("a click whose target sits inside a nested interactive element does not fire the row action", () => {
@@ -137,25 +183,6 @@ describe("listVocabulary $action dispatch", () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
-  it("a keydown Enter whose target sits inside a nested interactive element does not fire the row action", () => {
-    const handler = vi.fn();
-    const registry = createActionRegistry({ open: handler });
-    const onKeyDown = getOnKeyDown(registry.dispatch);
-    const nestedInput = {
-      closest: (selector: string) =>
-        selector.includes("input") ? nestedInput : null,
-    };
-    const preventDefault = vi.fn();
-    onKeyDown({
-      key: "Enter",
-      target: nestedInput,
-      currentTarget: {},
-      preventDefault,
-    });
-    expect(handler).not.toHaveBeenCalled();
-    expect(preventDefault).not.toHaveBeenCalled();
-  });
-
   it('a click whose target sits inside a nested role="button" element does not fire the row action', () => {
     const handler = vi.fn();
     const registry = createActionRegistry({ open: handler });
@@ -168,55 +195,5 @@ describe("listVocabulary $action dispatch", () => {
     };
     onClick({ target: nestedRoleButton, currentTarget: {} });
     expect(handler).not.toHaveBeenCalled();
-  });
-
-  it('a keydown Enter whose target sits inside a nested role="button" element (e.g. a nested ListViewItem trigger) does not fire the row action', () => {
-    const handler = vi.fn();
-    const registry = createActionRegistry({ open: handler });
-    const onKeyDown = getOnKeyDown(registry.dispatch);
-    const nestedRoleButton = {
-      closest: (selector: string) =>
-        selector.includes('[role="button"]') ? nestedRoleButton : null,
-    };
-    const preventDefault = vi.fn();
-    onKeyDown({
-      key: "Enter",
-      target: nestedRoleButton,
-      currentTarget: {},
-      preventDefault,
-    });
-    expect(handler).not.toHaveBeenCalled();
-  });
-
-  it("Space on the trigger itself fires the row action and prevents default", () => {
-    const handler = vi.fn();
-    const registry = createActionRegistry({ open: handler });
-    const onKeyDown = getOnKeyDown(registry.dispatch);
-    const currentTarget = {};
-    const preventDefault = vi.fn();
-    onKeyDown({
-      key: " ",
-      target: { closest: () => currentTarget },
-      currentTarget,
-      preventDefault,
-    });
-    expect(handler).toHaveBeenCalledWith({ payload: { type: "open" } });
-    expect(preventDefault).toHaveBeenCalledTimes(1);
-  });
-
-  it("Enter on the trigger itself fires without calling preventDefault", () => {
-    const handler = vi.fn();
-    const registry = createActionRegistry({ open: handler });
-    const onKeyDown = getOnKeyDown(registry.dispatch);
-    const currentTarget = {};
-    const preventDefault = vi.fn();
-    onKeyDown({
-      key: "Enter",
-      target: { closest: () => currentTarget },
-      currentTarget,
-      preventDefault,
-    });
-    expect(handler).toHaveBeenCalledWith({ payload: { type: "open" } });
-    expect(preventDefault).not.toHaveBeenCalled();
   });
 });
