@@ -487,6 +487,9 @@ describe("normalizeMathDelimiters", () => {
     expect(normalizeMathDelimiters("1. $$\na\n$$\n`a` is the input.")).toBe(
       "1. $$\n   a\n   $$\n   `a` is the input.",
     );
+    expect(normalizeMathDelimiters("1. $$\na\n$$\n```a``` is the input.")).toBe(
+      "1. $$\n   a\n   $$\n   ```a``` is the input.",
+    );
     expect(normalizeMathDelimiters("1. $$\na\n$$\n```js\nx\n```")).toBe(
       "1. $$\n   a\n   $$\n```js\nx\n```",
     );

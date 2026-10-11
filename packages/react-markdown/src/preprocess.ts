@@ -1128,7 +1128,9 @@ function opensBlock(line: string, endsText: boolean): boolean {
     bareMarkerWidth(line, from, line.length) > 0 ||
     isAtxHeading(line, from, line.length) ||
     isRuleLine(line, from, line.length, false) ||
-    /^(?:>|\$\$|`{3}|~{3}|\||<)/.test(rest) ||
+    opensBacktickFence(line, from) ||
+    opensTildeFence(line, from) ||
+    /^(?:>|\$\$|\||<)/.test(rest) ||
     (endsText && /^(?:\d{1,9}|\$|`{1,2}|~{1,2})$/.test(rest))
   );
 }
@@ -1163,10 +1165,10 @@ function nestListItemDisplayMath(text: string): string {
           ? lines[index]! + lineTail(segment.length)
           : lines[index]!;
       let changed = false;
-      let opener = lineHead(0) === "" ? 0 : 1;
+      let opener = 0;
       while (opener < last) {
         const column = displayMathOpenerColumn(lines[opener]!);
-        if (column === -1) {
+        if (column === -1 || (opener === 0 && lineHead(0) !== "")) {
           opener += 1;
           continue;
         }
