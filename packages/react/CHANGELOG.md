@@ -1,5 +1,16 @@
 # @assistant-ui/react
 
+## 0.15.28
+
+### Patch Changes
+
+- [#9323](https://github.com/assistant-ui/assistant-ui/pull/9323) [`2be98de`](https://github.com/assistant-ui/assistant-ui/commit/2be98ded519f4ee0cf4bab844d80a444bf4a1c40) - fix(react): render an inert composer's `inert` attribute on React 18, so the cancel focus loop skips it as it does on React 19 ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`c157aee`](https://github.com/assistant-ui/assistant-ui/commit/c157aeeaa29af0d50dd80e48c89342caf69967ae), [`2c1963a`](https://github.com/assistant-ui/assistant-ui/commit/2c1963a31cbb01285bd0e59bdeef1e04e28c6a9d), [`afb9ad2`](https://github.com/assistant-ui/assistant-ui/commit/afb9ad2d42e4178a51eadf1ef15ad9f25be9df57), [`efbf028`](https://github.com/assistant-ui/assistant-ui/commit/efbf028597dd0652bc88d0bca806a63837fb9cd6), [`8b49f28`](https://github.com/assistant-ui/assistant-ui/commit/8b49f28640bcb97f10f3e5db6334e1bac4906c43), [`4e86339`](https://github.com/assistant-ui/assistant-ui/commit/4e8633954af2fa5941d43ccf8d6d3bab5de2bfef), [`28dc601`](https://github.com/assistant-ui/assistant-ui/commit/28dc601e414f8b1dcf7fa98f928fa2d3400b5a9e)]:
+  - @assistant-ui/core@0.3.27
+  - safe-content-frame@0.0.34
+  - assistant-stream@0.3.50
+  - @assistant-ui/tap@0.9.23
+
 ## 0.15.27
 
 ### Patch Changes

@@ -1,5 +1,17 @@
 # @assistant-ui/react-markdown
 
+## 0.14.21
+
+### Patch Changes
+
+- [#9291](https://github.com/assistant-ui/assistant-ui/pull/9291) [`c925241`](https://github.com/assistant-ui/assistant-ui/commit/c92524165066e98986fe08fd865cc553cb6a5209) - fix(react-markdown): `normalizeMathDelimiters` also keeps a `$$` fence opened on a list item's marker line inside that item when a formula line starts with `+` or `-`, when the item sits in a blockquote, and when the body holds a code span ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9267](https://github.com/assistant-ui/assistant-ui/pull/9267) [`55fb0cb`](https://github.com/assistant-ui/assistant-ui/commit/55fb0cbda237605b2af43f934abec00c79493182) - fix(react-markdown): `normalizeMathDelimiters` keeps a `$$` fence opened on a list item's marker line, and the paragraph after it, inside that item instead of letting the body fall out of the list ([@Mohamed3nan](https://github.com/Mohamed3nan))
+
+- [#9351](https://github.com/assistant-ui/assistant-ui/pull/9351) [`b664784`](https://github.com/assistant-ui/assistant-ui/commit/b6647843760d322574aff8cca7d5cc8e1e6e51a0) - perf(react-markdown): stop rescanning to the paragraph end for every inline code span while preprocessing ([@okisdev](https://github.com/okisdev))
+
+- [#9331](https://github.com/assistant-ui/assistant-ui/pull/9331) [`d8251f4`](https://github.com/assistant-ui/assistant-ui/commit/d8251f4934b78a1e9cc0d82b268193b78bd53dd6) - fix(react-markdown): keep display math inside a quoted list item, rewrite a `\[...\]` display whose body holds a code span, and stop reading a list marker line inside an open `$$` block as an opener ([@okisdev](https://github.com/okisdev))
+
 ## 0.14.20
 
 ### Patch Changes

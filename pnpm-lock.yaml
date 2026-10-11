@@ -351,7 +351,7 @@ importers:
   apps/checkout-worker:
     dependencies:
       '@assistant-ui/tap':
-        specifier: ^0.9.22
+        specifier: ^0.9.23
         version: link:../../packages/tap
       '@statewire/cloudflare':
         specifier: ^0.2.1
@@ -4227,10 +4227,10 @@ importers:
         specifier: ^1.7.0
         version: 1.7.0(zod@4.6.5)
       '@assistant-ui/core':
-        specifier: ^0.3.26
+        specifier: ^0.3.27
         version: link:../core
       assistant-stream:
-        specifier: ^0.3.49
+        specifier: ^0.3.50
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/store':
@@ -4494,7 +4494,7 @@ importers:
   packages/core:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.49
+        specifier: ^0.3.50
         version: link:../assistant-stream
       nanoid:
         specifier: ^6.0.2
@@ -4733,7 +4733,7 @@ importers:
         specifier: ^7.0.15
         version: 7.0.15
       assistant-stream:
-        specifier: ^0.3.49
+        specifier: ^0.3.50
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/react':
@@ -4888,19 +4888,19 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.26
+        specifier: ^0.3.27
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.19
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.9.22
+        specifier: ^0.9.23
         version: link:../tap
       assistant-cloud:
         specifier: ^0.2.7
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.49
+        specifier: ^0.3.50
         version: link:../assistant-stream
       radix-ui:
         specifier: ^1.7.0
@@ -4909,7 +4909,7 @@ importers:
         specifier: ^8.5.9
         version: 8.5.9(@types/react@19.3.0)(react@19.3.0)
       safe-content-frame:
-        specifier: ^0.0.33
+        specifier: ^0.0.34
         version: link:../safe-content-frame
       zod:
         specifier: ^4.6.5
@@ -4958,16 +4958,16 @@ importers:
   packages/react-a2a:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.26
+        specifier: ^0.3.27
         version: link:../core
       '@assistant-ui/generative-ui':
-        specifier: ^0.0.2
+        specifier: ^0.0.3
         version: link:../generative-ui
       '@assistant-ui/store':
         specifier: ^0.3.19
         version: link:../store
       assistant-stream:
-        specifier: ^0.3.49
+        specifier: ^0.3.50
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -5004,16 +5004,16 @@ importers:
         specifier: ^0.0.59
         version: 0.0.59
       '@assistant-ui/core':
-        specifier: ^0.3.26
+        specifier: ^0.3.27
         version: link:../core
       '@assistant-ui/generative-ui':
-        specifier: ^0.0.2
+        specifier: ^0.0.3
         version: link:../generative-ui
       '@assistant-ui/store':
         specifier: ^0.3.19
         version: link:../store
       assistant-stream:
-        specifier: ^0.3.49
+        specifier: ^0.3.50
         version: link:../assistant-stream
       fast-json-patch:
         specifier: ^3.1.1
@@ -5185,7 +5185,7 @@ importers:
   packages/react-generative-ui:
     dependencies:
       '@assistant-ui/generative-ui':
-        specifier: ^0.0.2
+        specifier: ^0.0.3
         version: link:../generative-ui
     devDependencies:
       '@assistant-ui/react':
@@ -5219,7 +5219,7 @@ importers:
   packages/react-google-adk:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.25
+        specifier: ^0.3.27
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.18
@@ -5231,7 +5231,7 @@ importers:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.49
+        specifier: ^0.3.50
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -5360,7 +5360,7 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.26
+        specifier: ^0.3.27
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.19
@@ -5727,7 +5727,7 @@ importers:
   packages/react-opencode:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.26
+        specifier: ^0.3.27
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.19
@@ -5785,7 +5785,7 @@ importers:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.49
+        specifier: ^0.3.50
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/react':
@@ -5825,7 +5825,7 @@ importers:
   packages/react-streamdown:
     dependencies:
       '@assistant-ui/react-markdown':
-        specifier: ^0.14.20
+        specifier: ^0.14.21
         version: link:../react-markdown
       '@types/hast':
         specifier: ^3.0.5
@@ -6013,13 +6013,13 @@ importers:
   packages/svelte:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.26
+        specifier: ^0.3.27
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.19
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.9.22
+        specifier: ^0.9.23
         version: link:../tap
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -6349,7 +6349,7 @@ importers:
   packages/vscode:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.26
+        specifier: ^0.3.27
         version: link:../core
     devDependencies:
       '@assistant-ui/store':
@@ -29870,7 +29870,7 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.3.0
 
-  '@react-native/virtualized-lists@0.87.1(@types/react@19.3.0)(react-native@0.87.1(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(react@19.3.0)':
+  '@react-native/virtualized-lists@0.87.1(@types/react@19.3.0)(react-native@0.87.1(@babel/core@8.0.7)(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(react@19.3.0)':
     dependencies:
       invariant: 2.2.4
       nullthrows: 1.1.1
@@ -39893,7 +39893,7 @@ snapshots:
       '@react-native/community-cli-plugin': 0.87.1(supports-color@10.2.2)
       '@react-native/gradle-plugin': 0.87.1
       '@react-native/normalize-colors': 0.87.1
-      '@react-native/virtualized-lists': 0.87.1(@types/react@19.3.0)(react-native@0.87.1(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(react@19.3.0)
+      '@react-native/virtualized-lists': 0.87.1(@types/react@19.3.0)(react-native@0.87.1(@babel/core@8.0.7)(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(react@19.3.0)
       anser: 1.4.10
       ansi-regex: 5.0.1
       babel-plugin-syntax-hermes-parser: 0.36.1
