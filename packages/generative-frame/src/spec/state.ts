@@ -2,6 +2,9 @@ import { getAtPointer, parsePointer, writeAtPointer } from "./pointer";
 
 export type StateListener = (state: Record<string, unknown>) => void;
 
+/** A value written at a JSON Pointer with `set`. */
+export type SpecStateWrite = readonly [path: string, value: unknown];
+
 /** A small state container for spec expressions and `setState` actions. */
 export type SpecStateStore = {
   getState(): Record<string, unknown>;
@@ -21,12 +24,24 @@ export type SpecStateStore = {
 const normalize = (path: string) =>
   path === "" || path.startsWith("/") ? path : `/${path}`;
 
+export type StateStoreOptions = {
+  /** Writes to apply over the initial state and keep, such as changes saved from an earlier session. One that no longer applies is dropped. */
+  writes?: readonly SpecStateWrite[];
+};
+
 export function createStateStore(
   initial: Record<string, unknown> = {},
-): SpecStateStore {
+  options: StateStoreOptions = {},
+): SpecStateStore & {
+  /**
+   * The writes `seed` re-applies, oldest first, as `[path, value]` pairs: what to save to restore the user's changes later. A write that replaces a value drops earlier writes at its path and below it, except those made before an insert at an index of an array on its path, which may have moved them to another item; one that inserts into an array, at an index or at `-`, keeps them, so replaying the list in order gives the same state. The array is replaced, never mutated, when it changes.
+   */
+  writes(): readonly SpecStateWrite[];
+} {
   let base = initial;
   let state = initial;
-  const writes = new Map<string, unknown>();
+  let writes: readonly SpecStateWrite[] = [];
+  const shifting = new WeakSet<SpecStateWrite>();
   const listeners = new Set<StateListener>();
 
   const write = (
@@ -38,32 +53,70 @@ export function createStateStore(
       createMissing: true,
     }) as Record<string, unknown>;
 
+  const parentOf = (path: string) => path.slice(0, path.lastIndexOf("/"));
+
+  const inserts = (target: Record<string, unknown>, path: string) =>
+    path !== "" && Array.isArray(getAtPointer(target, parentOf(path)));
+
+  const record = (path: string, value: unknown, inserted: boolean) => {
+    const entry: SpecStateWrite = [path, value];
+    if (inserted) {
+      if (!path.endsWith("/-")) shifting.add(entry);
+      writes = [...writes, entry];
+      return;
+    }
+    const moved = writes.findLastIndex(
+      (write) =>
+        shifting.has(write) && path.startsWith(`${parentOf(write[0])}/`),
+    );
+    writes = [
+      ...writes.filter(
+        ([written], index) =>
+          index <= moved ||
+          (written !== path && !written.startsWith(`${path}/`)),
+      ),
+      entry,
+    ];
+  };
+
   const emit = () => {
     for (const listener of [...listeners]) listener(state);
   };
+
+  for (const [rawPath, value] of options.writes ?? []) {
+    const path = normalize(rawPath);
+    try {
+      const inserted = inserts(state, path);
+      state = write(state, path, value);
+      record(path, value, inserted);
+    } catch {}
+  }
 
   return {
     getState: () => state,
     get: (path) => getAtPointer(state, normalize(path)),
     set(rawPath, value) {
       const path = normalize(rawPath);
+      const inserted = inserts(state, path);
       const next = write(state, path, value);
-      writes.delete(path);
-      writes.set(path, value);
+      record(path, value, inserted);
       state = next;
       emit();
     },
+    writes: () => writes,
     seed(next) {
       if (next === base) return;
       base = next;
       let merged = next;
-      for (const [path, value] of writes) {
+      const applied = writes.filter(([path, value]) => {
         try {
           merged = write(merged, path, value);
+          return true;
         } catch {
-          writes.delete(path);
+          return false;
         }
-      }
+      });
+      if (applied.length !== writes.length) writes = applied;
       state = merged;
       emit();
     },

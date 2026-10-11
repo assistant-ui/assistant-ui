@@ -1,5 +1,5 @@
 import { act, cleanup, render, renderHook } from "@testing-library/react";
-import type { ComponentType } from "react";
+import { Activity, version, type ComponentType } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createSpecToolkit } from "../spec/assistant-ui";
 import { resolveSpecBase } from "../spec/assistant-ui/toolkit";
@@ -969,5 +969,580 @@ describe("useWidgetInstructions", () => {
     expect(last.disabled).toBe(false);
     expect(last.instruction).toContain("## Visual widgets");
     expect(last.instruction).toContain("# Declarative UI");
+  });
+});
+
+describe("render_spec state persistence", () => {
+  const spec = {
+    root: "t",
+    elements: { t: { type: "Text", props: { text: { $state: "/name" } } } },
+    state: { name: "model" },
+  };
+  const editable = {
+    Text: ({ props, state }: SpecComponentProps<{ text: string }>) => (
+      <button type="button" onClick={() => state.set("/name", "Ada")}>
+        {props.text}
+      </button>
+    ),
+  };
+  const saved = (...snapshots: unknown[]) => ({
+    entries: snapshots.map((writes, index) => ({
+      type: "action",
+      occurredAt: index,
+      payload: { type: "setState", toolCallId: "s", writes },
+    })),
+  });
+  const setup = () => {
+    mocks.messages = [
+      { content: [call("s", "render_spec", { title: "s", spec })] },
+    ];
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, { components: editable }),
+    });
+    return entries(toolkit)["render_spec"]!.render;
+  };
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("restores the newest saved writes over the model's state", () => {
+    const RenderSpec = setup();
+    const view = render(
+      <RenderSpec
+        {...partProps("s", { title: "s", spec })}
+        unstable_interactions={saved([["/name", "Old"]], [["/name", "Ada"]])}
+      />,
+    );
+    expect(view.container.textContent).toBe("Ada");
+    view.rerender(
+      <RenderSpec
+        {...partProps("s", {
+          title: "s",
+          spec: { ...spec, state: { name: "streamed" } },
+        })}
+        unstable_interactions={saved([["/name", "Ada"]])}
+      />,
+    );
+    expect(view.container.textContent).toBe("Ada");
+  });
+
+  it("saves the user's writes once they settle and again on unmount", () => {
+    vi.useFakeTimers();
+    const record = vi.fn(async () => {});
+    const RenderSpec = setup();
+    const view = render(
+      <RenderSpec
+        {...partProps("s", { title: "s", spec })}
+        unstable_recordInteraction={record}
+      />,
+    );
+    act(() => view.getByRole("button").click());
+    expect(view.container.textContent).toBe("Ada");
+    expect(record).not.toHaveBeenCalled();
+    act(() => vi.advanceTimersByTime(500));
+    expect(record).toHaveBeenCalledExactlyOnceWith({
+      type: "action",
+      payload: {
+        type: "setState",
+        toolCallId: "s",
+        writes: [["/name", "Ada"]],
+      },
+    });
+
+    act(() => view.getByRole("button").click());
+    act(() => vi.advanceTimersByTime(500));
+    expect(record).toHaveBeenCalledTimes(1);
+
+    view.rerender(
+      <RenderSpec
+        {...partProps("s", {
+          title: "s",
+          spec: {
+            ...spec,
+            elements: {
+              t: { type: "Text", props: { text: { $state: "/other" } } },
+            },
+            state: { name: "model", other: "x" },
+          },
+        })}
+        unstable_recordInteraction={record}
+      />,
+    );
+    view.unmount();
+    expect(record).toHaveBeenCalledTimes(1);
+  });
+
+  it("flushes a pending save when the call unmounts", () => {
+    vi.useFakeTimers();
+    const record = vi.fn(async () => {});
+    const RenderSpec = setup();
+    const view = render(
+      <RenderSpec
+        {...partProps("s", { title: "s", spec })}
+        unstable_recordInteraction={record}
+      />,
+    );
+    act(() => view.getByRole("button").click());
+    view.unmount();
+    expect(record).toHaveBeenCalledExactlyOnceWith({
+      type: "action",
+      payload: {
+        type: "setState",
+        toolCallId: "s",
+        writes: [["/name", "Ada"]],
+      },
+    });
+  });
+
+  it("records nothing for restored writes alone and survives a runtime that cannot record", () => {
+    vi.useFakeTimers();
+    const record = vi.fn(() => Promise.reject(new Error("unsupported")));
+    const RenderSpec = setup();
+    const view = render(
+      <RenderSpec
+        {...partProps("s", { title: "s", spec })}
+        unstable_interactions={saved([["/name", "Grace"]])}
+        unstable_recordInteraction={record}
+      />,
+    );
+    view.rerender(
+      <RenderSpec
+        {...partProps("s", {
+          title: "s",
+          spec: { ...spec, state: { name: "streamed" } },
+        })}
+        unstable_interactions={saved([["/name", "Grace"]])}
+        unstable_recordInteraction={record}
+      />,
+    );
+    act(() => vi.advanceTimersByTime(500));
+    expect(record).not.toHaveBeenCalled();
+    expect(view.container.textContent).toBe("Grace");
+    act(() => view.getByRole("button").click());
+    act(() => vi.advanceTimersByTime(500));
+    expect(record).toHaveBeenCalledTimes(1);
+    expect(view.container.textContent).toBe("Ada");
+  });
+  it("restores only writes saved for its own call", () => {
+    const RenderSpec = setup();
+    const view = render(
+      <RenderSpec
+        {...partProps("s", { title: "s", spec })}
+        unstable_interactions={{
+          entries: [
+            {
+              type: "action",
+              occurredAt: 1,
+              payload: {
+                type: "setState",
+                toolCallId: "other",
+                writes: [["/name", "Ada"]],
+              },
+            },
+          ],
+        }}
+      />,
+    );
+    expect(view.container.textContent).toBe("model");
+  });
+
+  it("falls back to the model's state after a save that could not be recorded", async () => {
+    vi.useFakeTimers();
+    const calls: unknown[] = [];
+    const record = vi.fn(
+      async (input: { payload: Record<string, unknown> }) => {
+        calls.push(input.payload);
+        if (input.payload["writes"] !== null && calls.length > 1) {
+          throw new Error("too large");
+        }
+      },
+    );
+    const RenderSpec = setup();
+    const view = render(
+      <RenderSpec
+        {...partProps("s", { title: "s", spec })}
+        unstable_recordInteraction={record}
+      />,
+    );
+    act(() => view.getByRole("button").click());
+    await act(async () => vi.advanceTimersByTime(500));
+    expect(calls).toEqual([
+      { type: "setState", toolCallId: "s", writes: [["/name", "Ada"]] },
+    ]);
+    const store = (view.container.querySelector("button") as HTMLButtonElement)
+      .textContent;
+    expect(store).toBe("Ada");
+    view.rerender(
+      <RenderSpec
+        {...partProps("s", {
+          title: "s",
+          spec: {
+            ...spec,
+            elements: {
+              t: { type: "Text", props: { text: { $state: "/other" } } },
+            },
+          },
+        })}
+        unstable_recordInteraction={record}
+      />,
+    );
+    await act(async () => vi.advanceTimersByTime(500));
+    expect(calls).toHaveLength(1);
+
+    const restored = render(
+      <RenderSpec
+        {...partProps("s", { title: "s", spec })}
+        unstable_interactions={saved([["/name", "Ada"]], null)}
+      />,
+    );
+    expect(restored.container.textContent).toBe("model");
+  });
+
+  it("marks the saved state stale when a later save is rejected", async () => {
+    vi.useFakeTimers();
+    const payloads: Record<string, unknown>[] = [];
+    let accept = true;
+    const record = vi.fn(
+      async (input: { payload: Record<string, unknown> }) => {
+        payloads.push(input.payload);
+        if (!accept && input.payload["writes"] !== null)
+          throw new Error("rejected");
+      },
+    );
+    const states = { name: "model", other: "x" };
+    const twoSpec = {
+      root: "t",
+      elements: { t: { type: "Text", props: { text: { $state: "/name" } } } },
+      state: states,
+    };
+    const toggles = {
+      Text: ({ props, state }: SpecComponentProps<{ text: string }>) => (
+        <button
+          type="button"
+          onClick={() =>
+            state.set("/name", state.get("/name") === "Ada" ? "Grace" : "Ada")
+          }
+        >
+          {props.text}
+        </button>
+      ),
+    };
+    mocks.messages = [
+      { content: [call("s", "render_spec", { title: "s", spec: twoSpec })] },
+    ];
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, { components: toggles }),
+    });
+    const RenderSpec = entries(toolkit)["render_spec"]!.render;
+    const view = render(
+      <RenderSpec
+        {...partProps("s", { title: "s", spec: twoSpec })}
+        unstable_recordInteraction={record}
+      />,
+    );
+    act(() => view.getByRole("button").click());
+    await act(async () => vi.advanceTimersByTime(500));
+    accept = false;
+    act(() => view.getByRole("button").click());
+    await act(async () => vi.advanceTimersByTime(500));
+    act(() => view.getByRole("button").click());
+    await act(async () => vi.advanceTimersByTime(500));
+    expect(payloads.map((payload) => payload["writes"])).toEqual([
+      [["/name", "Ada"]],
+      [["/name", "Grace"]],
+      null,
+      [["/name", "Ada"]],
+    ]);
+  });
+
+  it("saves the newer state instead of a marker when an earlier save rejects", async () => {
+    vi.useFakeTimers();
+    const payloads: unknown[] = [];
+    let rejectFirst: (error: Error) => void = () => {};
+    const record = vi.fn((input: { payload: Record<string, unknown> }) => {
+      payloads.push(input.payload["writes"]);
+      return payloads.length === 1
+        ? new Promise<void>((_, reject) => {
+            rejectFirst = reject;
+          })
+        : Promise.resolve();
+    });
+    const toggles = {
+      Text: ({ props, state }: SpecComponentProps<{ text: string }>) => (
+        <button
+          type="button"
+          onClick={() =>
+            state.set("/name", state.get("/name") === "Ada" ? "Grace" : "Ada")
+          }
+        >
+          {props.text}
+        </button>
+      ),
+    };
+    mocks.messages = [
+      { content: [call("s", "render_spec", { title: "s", spec })] },
+    ];
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, { components: toggles }),
+    });
+    const RenderSpec = entries(toolkit)["render_spec"]!.render;
+    const view = render(
+      <RenderSpec
+        {...partProps("s", { title: "s", spec })}
+        unstable_recordInteraction={record}
+      />,
+    );
+    act(() => view.getByRole("button").click());
+    await act(async () => vi.advanceTimersByTime(500));
+    act(() => view.getByRole("button").click());
+    await act(async () => vi.advanceTimersByTime(500));
+    await act(async () => rejectFirst(new Error("rejected late")));
+    expect(payloads).toEqual([[["/name", "Ada"]], [["/name", "Grace"]]]);
+  });
+
+  it("records a revert to the saved writes while a different save is in flight", async () => {
+    vi.useFakeTimers();
+    const payloads: unknown[] = [];
+    let finishSecond: () => void = () => {};
+    const record = vi.fn((input: { payload: Record<string, unknown> }) => {
+      payloads.push(input.payload["writes"]);
+      return payloads.length === 2
+        ? new Promise<void>((resolve) => {
+            finishSecond = resolve;
+          })
+        : Promise.resolve();
+    });
+    const toggles = {
+      Text: ({ props, state }: SpecComponentProps<{ text: string }>) => (
+        <button
+          type="button"
+          onClick={() =>
+            state.set("/name", state.get("/name") === "Ada" ? "Grace" : "Ada")
+          }
+        >
+          {props.text}
+        </button>
+      ),
+    };
+    mocks.messages = [
+      { content: [call("s", "render_spec", { title: "s", spec })] },
+    ];
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, { components: toggles }),
+    });
+    const RenderSpec = entries(toolkit)["render_spec"]!.render;
+    const view = render(
+      <RenderSpec
+        {...partProps("s", { title: "s", spec })}
+        unstable_recordInteraction={record}
+      />,
+    );
+    for (let click = 0; click < 3; click++) {
+      act(() => view.getByRole("button").click());
+      await act(async () => vi.advanceTimersByTime(500));
+    }
+    await act(async () => finishSecond());
+    expect(payloads).toEqual([
+      [["/name", "Ada"]],
+      [["/name", "Grace"]],
+      [["/name", "Ada"]],
+    ]);
+  });
+
+  it("marks a later failure again after a rejected marker", async () => {
+    vi.useFakeTimers();
+    const payloads: unknown[] = [];
+    let accept = true;
+    const record = vi.fn(
+      async (input: { payload: Record<string, unknown> }) => {
+        payloads.push(input.payload["writes"]);
+        if (!accept) throw new Error("rejected");
+      },
+    );
+    const growing = {
+      Text: ({ props, state }: SpecComponentProps<{ text: string }>) => (
+        <button
+          type="button"
+          onClick={() => state.set("/name", `${state.get("/name")}+`)}
+        >
+          {props.text}
+        </button>
+      ),
+    };
+    mocks.messages = [
+      { content: [call("s", "render_spec", { title: "s", spec })] },
+    ];
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, { components: growing }),
+    });
+    const RenderSpec = entries(toolkit)["render_spec"]!.render;
+    const view = render(
+      <RenderSpec
+        {...partProps("s", { title: "s", spec })}
+        unstable_recordInteraction={record}
+      />,
+    );
+    act(() => view.getByRole("button").click());
+    await act(async () => vi.advanceTimersByTime(500));
+    accept = false;
+    for (let click = 0; click < 2; click++) {
+      act(() => view.getByRole("button").click());
+      await act(async () => vi.advanceTimersByTime(500));
+    }
+    expect(payloads).toEqual([
+      [["/name", "model+"]],
+      [["/name", "model++"]],
+      null,
+      [["/name", "model+++"]],
+      null,
+    ]);
+  });
+
+  it("marks a change that fails after a marker that was still in flight", async () => {
+    vi.useFakeTimers();
+    const payloads: unknown[] = [];
+    let rejectMarker!: (error: Error) => void;
+    const record = vi.fn(
+      async (input: { payload: Record<string, unknown> }) => {
+        const call = payloads.push(input.payload["writes"]);
+        if (call === 1 || call === 5) return;
+        if (call === 3)
+          return new Promise<void>((_, reject) => {
+            rejectMarker = reject;
+          });
+        throw new Error("rejected");
+      },
+    );
+    const growing = {
+      Text: ({ props, state }: SpecComponentProps<{ text: string }>) => (
+        <button
+          type="button"
+          onClick={() => state.set("/name", `${state.get("/name")}+`)}
+        >
+          {props.text}
+        </button>
+      ),
+    };
+    mocks.messages = [
+      { content: [call("s", "render_spec", { title: "s", spec })] },
+    ];
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, { components: growing }),
+    });
+    const RenderSpec = entries(toolkit)["render_spec"]!.render;
+    const view = render(
+      <RenderSpec
+        {...partProps("s", { title: "s", spec })}
+        unstable_recordInteraction={record}
+      />,
+    );
+    for (let click = 0; click < 3; click++) {
+      act(() => view.getByRole("button").click());
+      await act(async () => vi.advanceTimersByTime(500));
+    }
+    await act(async () => rejectMarker(new Error("rejected")));
+    expect(payloads).toEqual([
+      [["/name", "model+"]],
+      [["/name", "model++"]],
+      null,
+      [["/name", "model+++"]],
+      null,
+    ]);
+  });
+
+  it.skipIf(version.startsWith("18."))(
+    "keeps one record in flight per call when its effects run again under Activity",
+    async () => {
+      vi.useFakeTimers();
+      const payloads: unknown[] = [];
+      let finishFirst!: () => void;
+      const record = vi.fn((input: { payload: Record<string, unknown> }) => {
+        payloads.push(input.payload["writes"]);
+        return payloads.length === 1
+          ? new Promise<void>((resolve) => {
+              finishFirst = resolve;
+            })
+          : Promise.resolve();
+      });
+      const toggles = {
+        Text: ({ props, state }: SpecComponentProps<{ text: string }>) => (
+          <button
+            type="button"
+            onClick={() =>
+              state.set("/name", state.get("/name") === "Ada" ? "Grace" : "Ada")
+            }
+          >
+            {props.text}
+          </button>
+        ),
+      };
+      mocks.messages = [
+        { content: [call("s", "render_spec", { title: "s", spec })] },
+      ];
+      const { toolkit } = createWidgetToolkit({
+        spec: createSpecToolkit(catalog, { components: toggles }),
+      });
+      const RenderSpec = entries(toolkit)["render_spec"]!.render;
+      const Host = ({ hidden }: { hidden: boolean }) => (
+        <Activity mode={hidden ? "hidden" : "visible"}>
+          <RenderSpec
+            {...partProps("s", { title: "s", spec })}
+            unstable_recordInteraction={record}
+          />
+        </Activity>
+      );
+      const view = render(<Host hidden={false} />);
+      act(() => view.getByRole("button").click());
+      await act(async () => vi.advanceTimersByTime(500));
+      view.rerender(<Host hidden />);
+      view.rerender(<Host hidden={false} />);
+      act(() => view.getByRole("button").click());
+      await act(async () => vi.advanceTimersByTime(500));
+      expect(payloads).toEqual([[["/name", "Ada"]]]);
+      await act(async () => finishFirst());
+      expect(payloads).toEqual([[["/name", "Ada"]], [["/name", "Grace"]]]);
+    },
+  );
+
+  it("keeps watch actions silent when it restores saved writes", () => {
+    const refresh = vi.fn();
+    const watched = {
+      ...spec,
+      elements: {
+        t: {
+          type: "Text",
+          props: { text: { $state: "/name" } },
+          watch: { "/name": { action: "refresh" } },
+        },
+      },
+    };
+    mocks.messages = [
+      { content: [call("s", "render_spec", { title: "s", spec: watched })] },
+    ];
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, {
+        components: editable,
+        handlers: { refresh },
+      }),
+    });
+    const RenderSpec = entries(toolkit)["render_spec"]!.render;
+    const view = render(
+      <RenderSpec
+        {...partProps("s", { title: "s", spec: watched })}
+        unstable_interactions={saved([["/name", "Ada"]])}
+      />,
+    );
+    view.rerender(
+      <RenderSpec
+        {...partProps("s", {
+          title: "s",
+          spec: { ...watched, state: { name: "streamed" } },
+        })}
+        unstable_interactions={saved([["/name", "Ada"]])}
+      />,
+    );
+    expect(view.container.textContent).toBe("Ada");
+    expect(refresh).not.toHaveBeenCalled();
   });
 });
