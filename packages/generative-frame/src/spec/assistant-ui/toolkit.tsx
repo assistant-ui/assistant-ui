@@ -9,6 +9,7 @@ import {
 } from "react";
 import { toolkitEntry } from "../../assistant-ui/entry";
 import type { WidgetToolkitExtension } from "../../assistant-ui/extension";
+import { createSnapshotSaver } from "../../assistant-ui/snapshotSaver";
 import { toolCalls, type MessageLike } from "../../assistant-ui/tool-calls";
 import type { ActionHandler } from "../actions";
 import type { Catalog } from "../catalog";
@@ -59,8 +60,6 @@ type InteractionLog = {
     | { readonly type: "human-response"; readonly payload: unknown }
   )[];
 };
-
-const SAVE_DELAY_MS = 500;
 
 /**
  * The state writes saved on a `render_spec` call: the newest `setState` interaction recorded for that call. An entry whose `writes` is not a list marks a save that failed, so the call starts from the model's state rather than from an older snapshot.
@@ -279,79 +278,23 @@ export const specToolkitFor =
         useInsertionEffect(() => {
           record.current = unstable_recordInteraction;
         });
+        const [saver] = useState(() =>
+          createSnapshotSaver(store.writes(), (writes) =>
+            record.current?.({
+              type: "action",
+              payload: { type: "setState", toolCallId, writes },
+            }),
+          ),
+        );
         useEffect(() => {
-          // `saved` is the newest entry recorded for this call: a snapshot's JSON, or "null" once a marker for a failed save was accepted. Only the latest send may change it, because sends can settle out of order, and each failure sends a marker until one is accepted.
-          let saved = JSON.stringify(store.writes());
-          let sending: string | undefined;
-          let latest = 0;
-          let marked = false;
-          let timer: ReturnType<typeof setTimeout> | undefined;
-          const send = (writes: readonly SpecStateWrite[] | null) => {
-            const generation = ++latest;
-            let result: Promise<unknown>;
-            try {
-              result = Promise.resolve(
-                record.current?.({
-                  type: "action",
-                  payload: { type: "setState", toolCallId, writes },
-                }),
-              );
-            } catch (error) {
-              result = Promise.reject(error);
-            }
-            return { generation, result };
-          };
-          const fail = (generation: number) => {
-            if (generation !== latest || marked) return;
-            const marker = send(null);
-            marker.result.then(
-              () => {
-                if (marker.generation !== latest) return;
-                saved = "null";
-                marked = true;
-              },
-              () => {},
-            );
-          };
-          const save = () => {
-            timer = undefined;
-            const writes = store.writes();
-            let json: string;
-            try {
-              json = JSON.stringify(writes);
-            } catch {
-              fail(latest);
-              return;
-            }
-            if (json === sending || (sending === undefined && json === saved))
-              return;
-            sending = json;
-            const { generation, result } = send(writes);
-            result
-              .then(
-                () => {
-                  if (generation !== latest) return;
-                  saved = json;
-                  marked = false;
-                },
-                () => fail(generation),
-              )
-              .finally(() => {
-                if (sending === json) sending = undefined;
-              });
-          };
-          const unsubscribe = store.subscribe(() => {
-            clearTimeout(timer);
-            timer = setTimeout(save, SAVE_DELAY_MS);
-          });
+          const unsubscribe = store.subscribe(() =>
+            saver.schedule(() => store.writes()),
+          );
           return () => {
             unsubscribe();
-            if (timer !== undefined) {
-              clearTimeout(timer);
-              save();
-            }
+            saver.flush();
           };
-        }, [store, toolCallId]);
+        }, [store, saver]);
 
         return (
           <Frame title={title}>

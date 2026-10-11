@@ -1,5 +1,5 @@
 import { act, cleanup, render, renderHook } from "@testing-library/react";
-import type { ComponentType } from "react";
+import { Activity, version, type ComponentType } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createSpecToolkit } from "../spec/assistant-ui";
 import { resolveSpecBase } from "../spec/assistant-ui/toolkit";
@@ -1256,7 +1256,7 @@ describe("render_spec state persistence", () => {
     ]);
   });
 
-  it("marks nothing when an older save rejects after a newer one was recorded", async () => {
+  it("saves the newer state instead of a marker when an earlier save rejects", async () => {
     vi.useFakeTimers();
     const payloads: unknown[] = [];
     let rejectFirst: (error: Error) => void = () => {};
@@ -1399,7 +1399,7 @@ describe("render_spec state persistence", () => {
     ]);
   });
 
-  it("marks a failure that settles while an earlier marker is still in flight", async () => {
+  it("marks a change that fails after a marker that was still in flight", async () => {
     vi.useFakeTimers();
     const payloads: unknown[] = [];
     let rejectMarker!: (error: Error) => void;
@@ -1450,6 +1450,60 @@ describe("render_spec state persistence", () => {
       null,
     ]);
   });
+
+  it.skipIf(version.startsWith("18."))(
+    "keeps one record in flight per call when its effects run again under Activity",
+    async () => {
+      vi.useFakeTimers();
+      const payloads: unknown[] = [];
+      let finishFirst!: () => void;
+      const record = vi.fn((input: { payload: Record<string, unknown> }) => {
+        payloads.push(input.payload["writes"]);
+        return payloads.length === 1
+          ? new Promise<void>((resolve) => {
+              finishFirst = resolve;
+            })
+          : Promise.resolve();
+      });
+      const toggles = {
+        Text: ({ props, state }: SpecComponentProps<{ text: string }>) => (
+          <button
+            type="button"
+            onClick={() =>
+              state.set("/name", state.get("/name") === "Ada" ? "Grace" : "Ada")
+            }
+          >
+            {props.text}
+          </button>
+        ),
+      };
+      mocks.messages = [
+        { content: [call("s", "render_spec", { title: "s", spec })] },
+      ];
+      const { toolkit } = createWidgetToolkit({
+        spec: createSpecToolkit(catalog, { components: toggles }),
+      });
+      const RenderSpec = entries(toolkit)["render_spec"]!.render;
+      const Host = ({ hidden }: { hidden: boolean }) => (
+        <Activity mode={hidden ? "hidden" : "visible"}>
+          <RenderSpec
+            {...partProps("s", { title: "s", spec })}
+            unstable_recordInteraction={record}
+          />
+        </Activity>
+      );
+      const view = render(<Host hidden={false} />);
+      act(() => view.getByRole("button").click());
+      await act(async () => vi.advanceTimersByTime(500));
+      view.rerender(<Host hidden />);
+      view.rerender(<Host hidden={false} />);
+      act(() => view.getByRole("button").click());
+      await act(async () => vi.advanceTimersByTime(500));
+      expect(payloads).toEqual([[["/name", "Ada"]]]);
+      await act(async () => finishFirst());
+      expect(payloads).toEqual([[["/name", "Ada"]], [["/name", "Grace"]]]);
+    },
+  );
 
   it("keeps watch actions silent when it restores saved writes", () => {
     const refresh = vi.fn();
