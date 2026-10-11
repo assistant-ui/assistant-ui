@@ -68,7 +68,7 @@ const widgets = createWidgetToolkit({
 
 This adds `render_spec` to the toolkit and the `spec` module to `read_me`. `createSpecToolkit(catalog, options)` takes `components` (required), `handlers`, `onAction`, `placeholder`, and `specPrompt`. See [Spec mode](/generative-frame/docs/spec-mode) for the catalog and components.
 
-Results of the tool calls before a `render_spec` call are in its state under `/tools/<toolCallId>`, so a spec can show a value such as a price straight from a tool result with `{ "$state": "/tools/<toolCallId>/price" }` instead of the model copying it. The `spec` module tells the model so. The widget tools' own results are left out, and a `tools` key the model writes in `state` is replaced.
+Results of the tool calls before a `render_spec` call are in its state under `/tools/<toolName>/<n>`, one entry per call to that tool in call order, so a spec can show a value such as a price straight from a tool result with `{ "$state": "/tools/search_flights/0/price" }` instead of the model copying it. Tool names and call order are keys every model sees, which call ids are not. The `spec` module tells the model so. The widget tools' own results are left out, a call without a result yet holds `undefined`, and a `tools` key the model writes in `state` is replaced.
 
 ## Frontend and backend execution
 

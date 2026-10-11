@@ -569,9 +569,12 @@ describe("createWidgetToolkit", () => {
     const spec = {
       root: "t",
       elements: {
-        t: { type: "Text", props: { text: { $state: "/tools/price/price" } } },
+        t: {
+          type: "Text",
+          props: { text: { $state: "/tools/get_price/0/price" } },
+        },
       },
-      state: { tools: { price: { price: "copied" } } },
+      state: { tools: { get_price: [{ price: "copied" }] } },
     };
     const result = { price: "$42" };
     mocks.messages = [
@@ -594,7 +597,7 @@ describe("createWidgetToolkit", () => {
       <RenderSpec {...partProps("s", { title: "s", spec })} />,
     );
     expect(view.container.textContent).toBe("$42");
-    expect(renderedState?.["tools"]).toEqual({ price: result });
+    expect(renderedState?.["tools"]).toEqual({ get_price: [result] });
 
     const firstState = renderedState;
     mocks.messages = [
@@ -605,19 +608,22 @@ describe("createWidgetToolkit", () => {
     expect(renderedState).toBe(firstState);
   });
 
-  it("mounts only earlier non-widget tool results", () => {
+  it("mounts earlier non-widget tool results by name in call order", () => {
     const spec = {
       root: "t",
       elements: {
-        t: { type: "Text", props: { text: { $state: "/tools/data/price" } } },
+        t: {
+          type: "Text",
+          props: { text: { $state: "/tools/lookup/1/price" } },
+        },
       },
       state: {},
     };
     mocks.messages = [
       {
         content: [
-          call("data", "lookup", {}, { price: "$9" }),
           call("pending", "lookup", {}),
+          call("data", "lookup", {}, { price: "$9" }),
           ...[
             "read_me",
             "show_widget",
@@ -646,7 +652,46 @@ describe("createWidgetToolkit", () => {
       <RenderSpec {...partProps("s", { title: "s", spec })} />,
     );
     expect(view.container.textContent).toBe("$9");
-    expect(tools).toEqual({ data: { price: "$9" } });
+    expect(tools).toEqual({ lookup: [undefined, { price: "$9" }] });
+  });
+
+  it("keeps the state stable while patches stream", () => {
+    const lines = [
+      '{"op":"add","path":"/root","value":"t"}',
+      '{"op":"add","path":"/elements/t","value":{"type":"Text","props":{"text":"a"}}}',
+      '{"op":"add","path":"/elements/u","value":{"type":"Text","props":{"text":"b"}}}',
+    ];
+    mocks.messages = [
+      { content: [call("p", "get_price", {}, { price: "$1" })] },
+    ];
+    const states: unknown[] = [];
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, {
+        components: {
+          Text: ({ props, state }: SpecComponentProps<{ text: string }>) => {
+            states.push(state.getState());
+            return <p>{props.text}</p>;
+          },
+        },
+      }),
+    });
+    const RenderSpec = entries(toolkit)["render_spec"]!.render;
+    mocks.argsStatus = "streaming";
+    const view = render(
+      <RenderSpec
+        {...partProps("s", {
+          title: "s",
+          patches: `${lines.slice(0, 2).join("\n")}\n`,
+        })}
+      />,
+    );
+    view.rerender(
+      <RenderSpec
+        {...partProps("s", { title: "s", patches: `${lines.join("\n")}\n` })}
+      />,
+    );
+    expect(states.length).toBeGreaterThan(1);
+    expect(new Set(states).size).toBe(1);
   });
 
   it("appends tool result guidance after caller rules in read_me", async () => {
@@ -660,7 +705,7 @@ describe("createWidgetToolkit", () => {
       modules: ["spec"],
     });
     expect(output).toContain(
-      'Results of earlier tool calls are in state under `/tools/<toolCallId>`. Show their values with `{ "$state": "/tools/<toolCallId>/..." }` instead of copying them, and never write `tools` in `state`.',
+      'Results of earlier tool calls are in state under `/tools/<toolName>/<n>`, one entry per call to that tool in the order you made them, starting at 0. Show their values with `{ "$state": "/tools/<toolName>/<n>/..." }` rather than copying them, and never write `tools` in `state`.',
     );
     expect((output as string).indexOf("Keep labels short.")).toBeLessThan(
       (output as string).indexOf("Results of earlier tool calls"),

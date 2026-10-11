@@ -52,17 +52,20 @@ const WIDGET_TOOLS = new Set([
   "render_spec",
 ]);
 
-/** Results of the tool calls before this one, by call id, leaving out the widget toolkit's own tools. */
+/**
+ * Results of the tool calls before this one, by tool name and in call order,
+ * leaving out the widget toolkit's own tools. Tool names and call order are
+ * keys every model can see, unlike call ids, which some formats never show.
+ */
 function resolveToolResults(
   messages: readonly MessageLike[],
   toolCallId: string,
-): Record<string, unknown> {
-  const results: Record<string, unknown> = Object.create(null);
+): Record<string, unknown[]> {
+  const results: Record<string, unknown[]> = Object.create(null);
   for (const call of toolCalls(messages)) {
     if (call.id === toolCallId) break;
-    if (call.result !== undefined && !WIDGET_TOOLS.has(call.name)) {
-      results[call.id] = call.result;
-    }
+    if (WIDGET_TOOLS.has(call.name)) continue;
+    (results[call.name] ??= []).push(call.result);
   }
   return results;
 }
@@ -131,9 +134,13 @@ export function createSpecToolkit(
           : streamed.spec,
       [inputSpec, streamed.spec],
     );
+    const renderState = useMemo(
+      () => ({ ...spec.state, tools: toolResults }),
+      [spec.state, toolResults],
+    );
     const renderSpec = useMemo(
-      () => ({ ...spec, state: { ...spec.state, tools: toolResults } }),
-      [spec, toolResults],
+      () => ({ ...spec, state: renderState }),
+      [spec, renderState],
     );
 
     return (
@@ -158,7 +165,7 @@ export function createSpecToolkit(
         ...options.specPrompt,
         customRules: [
           ...(options.specPrompt?.customRules ?? []),
-          'Results of earlier tool calls are in state under `/tools/<toolCallId>`. Show their values with `{ "$state": "/tools/<toolCallId>/..." }` instead of copying them, and never write `tools` in `state`.',
+          'Results of earlier tool calls are in state under `/tools/<toolName>/<n>`, one entry per call to that tool in the order you made them, starting at 0. Show their values with `{ "$state": "/tools/<toolName>/<n>/..." }` rather than copying them, and never write `tools` in `state`.',
         ],
       }),
     ],
