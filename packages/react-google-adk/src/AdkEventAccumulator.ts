@@ -78,6 +78,9 @@ const ERROR_REASONS = new Set([
   "UNEXPECTED_TOOL_CALL",
 ]);
 
+export const isErrorFinishReason = (finishReason: string | undefined) =>
+  finishReason !== undefined && ERROR_REASONS.has(finishReason);
+
 const finishReasonToStatus = (
   finishReason: string | undefined,
 ): MessageStatus => {
@@ -91,7 +94,7 @@ const finishReasonToStatus = (
       error: `Content filtered: ${finishReason}`,
     };
   }
-  if (finishReason && ERROR_REASONS.has(finishReason)) {
+  if (isErrorFinishReason(finishReason)) {
     return {
       type: "incomplete",
       reason: "error",
@@ -122,7 +125,7 @@ const mediaToContentPart = ({
 
 // ── Snake_case normalization ──
 
-const normalizeEvent = (event: AdkEvent): AdkEvent => {
+export const normalizeAdkEvent = (event: AdkEvent): AdkEvent => {
   const e = event as Record<string, unknown>;
   const result: Record<string, unknown> = { ...e };
   if ("error_code" in e && !("errorCode" in e)) result.errorCode = e.error_code;
@@ -213,7 +216,7 @@ export class AdkEventAccumulator {
   }
 
   processEvent(rawEvent: AdkEvent): AdkMessage[] {
-    const event = normalizeEvent(rawEvent);
+    const event = normalizeAdkEvent(rawEvent);
 
     // Accumulate state delta
     if (event.actions?.stateDelta) {

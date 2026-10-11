@@ -14,7 +14,11 @@ import {
   invokeUserCallback,
   openAbortableIterable,
 } from "@assistant-ui/core/internal";
-import { AdkEventAccumulator } from "./AdkEventAccumulator";
+import {
+  AdkEventAccumulator,
+  isErrorFinishReason,
+  normalizeAdkEvent,
+} from "./AdkEventAccumulator";
 import { AdkThreadController } from "./AdkThreadController";
 import { contentToParts } from "./contentToParts";
 import { toAdkFunctionResponse } from "./toAdkFunctionResponse";
@@ -38,10 +42,6 @@ export type UseAdkMessagesOptions = {
   };
 };
 
-type UseAdkMessagesInternalOptions = UseAdkMessagesOptions & {
-  onMessages?: (messages: AdkMessage[], runConfig: unknown) => void;
-};
-
 type AdkRuntimeCallbackName = "onError" | "onCustomEvent" | "onAgentTransfer";
 
 const invokeAdkRuntimeCallback = <TArgs extends readonly unknown[]>(
@@ -55,8 +55,7 @@ const invokeAdkRuntimeCallback = <TArgs extends readonly unknown[]>(
 const useAdkMessagesInternal = ({
   stream,
   eventHandlers,
-  onMessages,
-}: UseAdkMessagesInternalOptions) => {
+}: UseAdkMessagesOptions) => {
   const [controller] = useState(() => new AdkThreadController());
   const {
     messages,
@@ -169,7 +168,7 @@ const useAdkMessagesInternal = ({
         );
         if (!response) return;
 
-        for await (const event of abortableIterable(
+        for await (const rawEvent of abortableIterable(
           response,
           abortController.signal,
         )) {
@@ -179,6 +178,7 @@ const useAdkMessagesInternal = ({
           ) {
             break;
           }
+          const event = normalizeAdkEvent(rawEvent);
           const updatedMessages = accumulator.processEvent(event);
           // Each event part can append at most one message, and a function call
           // stays on the current assistant message until a later part finalizes
@@ -189,7 +189,11 @@ const useAdkMessagesInternal = ({
           );
           const affectedMessages = updatedMessages.slice(-affectedMessageCount);
           if (affectedMessages.length > 0) {
-            onMessages?.(affectedMessages, config.runConfig);
+            controller.dispatch({
+              type: "messages.remember",
+              messages: affectedMessages,
+              runConfig: config.runConfig,
+            });
           }
           controller.dispatch({
             type: "event.published",
@@ -228,6 +232,13 @@ const useAdkMessagesInternal = ({
             }
           }
 
+          if (
+            event.errorCode ||
+            event.errorMessage ||
+            isErrorFinishReason(event.finishReason)
+          ) {
+            controller.dispatch({ type: "run.failed" });
+          }
           if (event.errorCode || event.errorMessage) {
             invokeAdkRuntimeCallback(
               "onError",
@@ -286,7 +297,6 @@ const useAdkMessagesInternal = ({
       onError,
       onCustomEvent,
       onAgentTransfer,
-      onMessages,
     ],
   );
 
