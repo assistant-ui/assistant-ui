@@ -4,4 +4,4 @@
 "@assistant-ui/react-ag-ui": patch
 ---
 
-Avoid React 18 server-render warnings while preserving client layout effects.
+fix: run layout effects through `useIsomorphicLayoutEffect` so React 18 server renders stop warning, while Ink keeps its layout phase

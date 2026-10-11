@@ -16,8 +16,10 @@ import { RemoteThreadListThreadListRuntimeCore } from "./RemoteThreadListThreadL
 import { WritableSubscribable } from "../../subscribable/subscribable";
 import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
 import { useAui } from "@assistant-ui/store";
-import { useIsomorphicLayoutEffect } from "@assistant-ui/store/internal";
-import { useIsServerRender } from "../utils/useIsServerRender";
+import {
+  useIsomorphicLayoutEffect,
+  useIsServerRender,
+} from "@assistant-ui/store/internal";
 
 class RemoteThreadListRuntimeCore
   extends BaseAssistantRuntimeCore
