@@ -15,6 +15,7 @@ import {
   useCardSurface,
   RADIUS,
   space,
+  toneTextColor,
   useInk,
   useNativeTheme,
 } from "../theme";
@@ -202,6 +203,10 @@ function Badge({
           : variant === "danger"
             ? theme.destructive
             : undefined;
+  const textColor =
+    tone && variant !== "info"
+      ? toneTextColor(tone, ink)
+      : (tone ?? fade(ink, 0.62));
   return (
     <View style={styles.badgeSlot}>
       <View
@@ -210,7 +215,7 @@ function Badge({
           { backgroundColor: tone ? fade(tone, 0.15) : theme.secondary },
         ]}
       >
-        <Text style={[styles.badgeText, { color: tone ?? fade(ink, 0.62) }]}>
+        <Text style={[styles.badgeText, { color: textColor }]}>
           {toTextContent(value)}
         </Text>
         {children}

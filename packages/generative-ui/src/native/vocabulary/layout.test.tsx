@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   byRole,
   cleanupSpecs,
+  contrastRatio,
   press,
   renderElement,
   renderNativeSpec,
@@ -14,7 +15,17 @@ import {
   typeText,
 } from "../testUtils";
 
-afterEach(cleanupSpecs);
+const scheme = vi.hoisted(() => ({ current: "light" as "light" | "dark" }));
+
+vi.mock("react-native", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react-native")>()),
+  useColorScheme: () => scheme.current,
+}));
+
+afterEach(() => {
+  cleanupSpecs();
+  scheme.current = "light";
+});
 
 const actions = {
   save: { description: "Save values" },
@@ -229,10 +240,11 @@ describe("layout vocabulary on React Native", () => {
 
   it.each([
     ["info", "rgba(23, 23, 23, 0.15)", "rgb(23, 23, 23)"],
-    ["warning", "rgba(213, 131, 0, 0.15)", "rgb(213, 131, 0)"],
-    ["danger", "rgba(231, 0, 11, 0.15)", "rgb(231, 0, 11)"],
+    ["success", "rgba(42, 152, 75, 0.15)", "rgb(35, 90, 48)"],
+    ["warning", "rgba(213, 131, 0, 0.15)", "rgb(123, 79, 24)"],
+    ["danger", "rgba(231, 0, 11, 0.15)", "rgb(134, 27, 22)"],
     ["unknown", "rgb(245, 245, 245)", "rgba(10, 10, 10, 0.62)"],
-  ])("colors a %s Badge", (variant, background, color) => {
+  ] as const)("colors a %s Badge", (variant, background, color) => {
     const { container } = renderNativeSpec(
       spec({ main: { type: "Badge", props: { value: "Tag", variant } } }),
     );
@@ -240,6 +252,34 @@ describe("layout vocabulary on React Native", () => {
     expect(badge.style.backgroundColor).toBe(background);
     expect((badge.firstElementChild as HTMLElement).style.color).toBe(color);
   });
+
+  it.each(["light", "dark"] as const)(
+    "keeps tone Badge text above 4.5:1 in the %s theme",
+    (mode) => {
+      scheme.current = mode;
+      const surfaces =
+        mode === "light"
+          ? ["rgb(255, 255, 255)"]
+          : ["rgb(10, 10, 10)", "rgb(23, 23, 23)"];
+
+      for (const variant of ["info", "success", "warning", "danger"] as const) {
+        const { container } = renderNativeSpec(
+          spec({ main: { type: "Badge", props: { value: "Tag", variant } } }),
+        );
+        const badge = container.firstElementChild!
+          .firstElementChild as HTMLElement;
+        const text = badge.firstElementChild as HTMLElement;
+        for (const surface of surfaces)
+          expect(
+            contrastRatio(
+              text.style.color,
+              badge.style.backgroundColor,
+              surface,
+            ),
+          ).toBeGreaterThanOrEqual(4.5);
+      }
+    },
+  );
 
   it("pads a Card by its token and frames a cancel-only footer", async () => {
     const dismiss = vi.fn();
