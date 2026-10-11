@@ -1,0 +1,152 @@
+import { z } from "zod";
+import type { ComponentDefinition, PropsSchema } from "generative-frame/spec";
+
+type SpecShape = {
+  slots?: readonly string[];
+  // The first event is the one the component's own `$action` emits; a later event fires only through the object prop named after it.
+  events?: readonly string[];
+  description?: string;
+  props?: (properties: z.ZodObject) => PropsSchema;
+};
+
+const DEFAULT_SLOT = ["default"] as const;
+
+const footerButton = (label: string, event: string) =>
+  z
+    .object({ label: z.string().describe("Footer button label.") })
+    .optional()
+    .describe(`${label} button shown in the footer; emits \`${event}\`.`);
+
+// Spec mode binds behavior with `on`, so the components the `present` tool describes as carrying `_action` describe the events they emit instead.
+const DEFAULT_SHAPES: Readonly<Record<string, SpecShape>> = {
+  Alert: { slots: DEFAULT_SLOT },
+  Carousel: { slots: DEFAULT_SLOT },
+  Table: { slots: DEFAULT_SLOT },
+  Markdown: { slots: DEFAULT_SLOT },
+  Chart: {},
+  Fact: { slots: DEFAULT_SLOT },
+  Form: {
+    slots: DEFAULT_SLOT,
+    events: ["submit"],
+    description:
+      "Wraps named child controls (Select, Input, Checkbox, RadioGroup, CheckboxGroup, or DatePicker with a `name`). Emits `submit` with every named control's value, keyed by `name`.",
+  },
+  Icon: {},
+  Button: {
+    slots: DEFAULT_SLOT,
+    events: ["press"],
+    description:
+      "A clickable button. Emits `press` on click. Set `submit` to submit an ancestor Form or Card instead.",
+  },
+  Select: {
+    slots: DEFAULT_SLOT,
+    events: ["change"],
+    description: "A dropdown selector. Emits `change` with the selected value.",
+  },
+  Input: {
+    events: ["submit"],
+    description:
+      "A text input. Outside a Form it emits `submit` with its text on Enter (Ctrl or Cmd+Enter when `multiline`); inside a Form its value arrives with the Form's `submit`.",
+  },
+  DatePicker: {
+    events: ["change"],
+    description:
+      "A date, datetime, or time input. Emits `change` once per committed value: a pick from the picker, or a typed value on blur or Enter.",
+  },
+  Checkbox: {
+    events: ["change"],
+    description:
+      "A checkbox with a label. Emits `change` with whether it is checked.",
+  },
+  Slider: {
+    events: ["change"],
+    description:
+      "A numeric range control. Emits `change` with the value once an adjustment finishes.",
+  },
+  RadioGroup: {
+    slots: DEFAULT_SLOT,
+    events: ["change"],
+    description:
+      "A group of mutually exclusive radio options. Emits `change` with the selected value.",
+  },
+  CheckboxGroup: {
+    slots: DEFAULT_SLOT,
+    events: ["change"],
+    description:
+      "A group of checkbox options where any number can be checked. Emits `change` with the checked values.",
+  },
+  Card: {
+    slots: DEFAULT_SLOT,
+    events: ["confirm", "cancel"],
+    props: (properties) =>
+      properties.extend({
+        asForm: z
+          .boolean()
+          .optional()
+          .describe(
+            "Render as a form; submitting it, through the confirm button or a child Button with `submit`, emits `confirm` with every named child control's value, keyed by `name`.",
+          ),
+        confirm: footerButton("Confirm", "confirm"),
+        cancel: footerButton("Cancel", "cancel"),
+      }) as PropsSchema,
+  },
+  Col: { slots: DEFAULT_SLOT },
+  Row: { slots: DEFAULT_SLOT },
+  Spacer: {},
+  Badge: { slots: DEFAULT_SLOT },
+  Box: { slots: DEFAULT_SLOT },
+  ListView: { slots: DEFAULT_SLOT },
+  ListViewItem: {
+    slots: DEFAULT_SLOT,
+    events: ["press"],
+    description:
+      "A row inside a ListView. Emits `press` when the row is clicked or activated with Enter or Space.",
+  },
+  Image: {},
+  Divider: {},
+  Header: { slots: DEFAULT_SLOT },
+  Text: { slots: DEFAULT_SLOT },
+  Caption: { slots: DEFAULT_SLOT },
+};
+
+// A control whose schema prop a spec binds with `$bindState` reads the controlled prop instead, so it stays mounted and reports every change through the binding context.
+export const BOUND_VALUE_PROPS = [
+  ["defaultValue", "value"],
+  ["value", "value"],
+  ["defaultChecked", "checked"],
+] as const;
+
+type CatalogEntry = {
+  description: string;
+  properties: z.ZodType;
+  events?: readonly string[] | undefined;
+  slots?: readonly string[] | undefined;
+};
+
+export function buildCatalogDefinition(
+  name: string,
+  entry: CatalogEntry,
+  isDefault: boolean,
+): { definition: ComponentDefinition; events: readonly string[] } {
+  const builtIn = isDefault ? DEFAULT_SHAPES[name] : undefined;
+  const declared = entry.events !== undefined || entry.slots !== undefined;
+  const shape: SpecShape | undefined = declared
+    ? {
+        slots: entry.slots ?? DEFAULT_SLOT,
+        ...(entry.events ? { events: entry.events } : {}),
+      }
+    : (builtIn ?? { slots: DEFAULT_SLOT });
+  const events = shape?.events ?? [];
+  return {
+    definition: {
+      description: shape?.description ?? entry.description,
+      props:
+        builtIn?.props && entry.properties instanceof z.ZodObject
+          ? builtIn.props(entry.properties)
+          : (entry.properties as PropsSchema),
+      ...(shape?.slots ? { slots: shape.slots } : {}),
+      ...(events.length > 0 ? { events } : {}),
+    },
+    events,
+  };
+}

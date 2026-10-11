@@ -1,21 +1,15 @@
-import { z } from "zod";
 import type { GenerativeUILibrary } from "../types";
+import { listDefinitions } from "./definitions/list";
 import { fire } from "./dispatch";
-
-const INTERACTIVE_DESCENDANT_SELECTOR =
-  'button, a, input, select, textarea, label, [role="button"], [role="link"], [role="checkbox"], [role="radio"], [role="switch"], [role="textbox"], [role="combobox"], [role="menuitem"]';
+import { INTERACTIVE_DESCENDANT_SELECTOR } from "./listItemValues";
 
 export const listVocabulary = {
   ListView: {
-    description:
-      "A vertical list container. Wrap `ListViewItem` children as rows.",
-    properties: z.object({}),
+    ...listDefinitions.ListView,
     render: ({ children }) => <ul data-aui="listview">{children}</ul>,
   },
   ListViewItem: {
-    description:
-      "A row inside a ListView. Carries `_action` to make the whole row clickable and keyboard-activatable.",
-    properties: z.object({}),
+    ...listDefinitions.ListViewItem,
     render: ({ $action, $dispatch, children }) => {
       if (!$action || !$dispatch) {
         return <li data-aui="listview-item">{children}</li>;

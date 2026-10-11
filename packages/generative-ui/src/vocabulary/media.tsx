@@ -1,33 +1,12 @@
-import type { CSSProperties } from "react";
-import { z } from "zod";
 import type { GenerativeUILibrary } from "../types";
-import { IMAGE_SIZE_TOKENS } from "../ir";
+import { mediaDefinitions } from "./definitions/media";
+import { imageStyle } from "./imageStyle";
 
 export const mediaVocabulary = {
   Image: {
-    description: "An image. Provide `src` and `alt` for accessibility.",
-    properties: z.object({
-      src: z.string().describe("Image URL."),
-      alt: z.string().describe("Alt text for accessibility."),
-      size: z
-        .union([z.enum(IMAGE_SIZE_TOKENS), z.number()])
-        .optional()
-        .describe("Size token or pixel value."),
-      round: z
-        .boolean()
-        .optional()
-        .describe(
-          "Render as a circular avatar (fully rounded, cropped to a square).",
-        ),
-    }),
+    ...mediaDefinitions.Image,
     render: ({ src, alt, size, round }) => {
-      const numericSize = typeof size === "number" ? size : undefined;
-      const style: CSSProperties | undefined =
-        numericSize === undefined
-          ? undefined
-          : round
-            ? { width: `${numericSize}px`, height: `${numericSize}px` }
-            : { maxWidth: `${numericSize}px` };
+      const { numericSize, style } = imageStyle(size, round);
 
       return (
         <img
@@ -42,13 +21,7 @@ export const mediaVocabulary = {
     },
   },
   Divider: {
-    description: "A horizontal rule between sections.",
-    properties: z.object({
-      flush: z
-        .boolean()
-        .optional()
-        .describe("Whether the divider spans the full width with no inset."),
-    }),
+    ...mediaDefinitions.Divider,
     render: ({ flush }) => (
       <hr data-aui="divider" data-aui-flush={flush || undefined} />
     ),

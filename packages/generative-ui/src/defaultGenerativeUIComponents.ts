@@ -1,9 +1,7 @@
-import type { GenerativeUILibrary } from "./types";
-
 const defaultComponents = new WeakMap<object, Set<string>>();
 
 export function registerDefaultGenerativeUILibrary(
-  library: GenerativeUILibrary,
+  library: Readonly<Record<string, { properties: object }>>,
 ) {
   for (const [name, component] of Object.entries(library)) {
     const names =
