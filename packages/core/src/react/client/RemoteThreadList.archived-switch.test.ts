@@ -122,11 +122,14 @@ const switchToArchivedThread = async (backgroundThreads: boolean) => {
     ]);
   });
   flushTapSync(() => handle.getClient().threads.switchToThread("t1"));
-  await vi.waitFor(() => {
-    expect(
-      handle.getClient().threads.item({ id: "t1" }).getState().status,
-    ).toBe("regular");
-  });
+  await vi.waitFor(
+    () => {
+      expect(
+        handle.getClient().threads.item({ id: "t1" }).getState().status,
+      ).toBe("regular");
+    },
+    { interval: 5 },
+  );
   return { handle, alive, settleUnarchive: () => unarchive.resolve() };
 };
 
