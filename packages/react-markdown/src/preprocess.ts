@@ -820,19 +820,55 @@ function fenceEnd(text: string, start: number, marker: "`" | "~"): number {
  * wider reading is that a run indented four columns at the root, where
  * CommonMark reads an indented code block, opens a fence here.
  */
-function opensBacktickFence(text: string, start: number): boolean {
+function opensBacktickFence(
+  text: string,
+  start: number,
+  backtickFenceOpeners?: Set<number>,
+): boolean {
+  if (backtickFenceOpeners !== undefined) {
+    return backtickFenceOpeners.has(start);
+  }
+
   const fenceLength = runLength(text, start, "`");
   if (fenceLength < 3) return false;
+
+  for (let index = start + fenceLength; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === "`") return false;
+    if (char === "\n") break;
+  }
 
   const lineStart = text.lastIndexOf("\n", start - 1) + 1;
   if (!FENCE_OPEN_PREFIX.test(text.slice(lineStart, start))) return false;
 
-  const lineEnd = text.indexOf("\n", start + fenceLength);
-  const info = text.slice(
-    start + fenceLength,
-    lineEnd === -1 ? undefined : lineEnd,
-  );
-  return !info.includes("`");
+  return true;
+}
+
+// A fence opener is the last backtick run on its line; its info string forbids backticks.
+function findBacktickFenceOpeners(text: string): Set<number> {
+  const openers = new Set<number>();
+  let lastRun = -1;
+
+  for (let index = 0; index <= text.length;) {
+    if (index === text.length || text[index] === "\n") {
+      if (
+        lastRun !== -1 &&
+        runLength(text, lastRun, "`") >= 3 &&
+        opensBacktickFence(text, lastRun)
+      ) {
+        openers.add(lastRun);
+      }
+      lastRun = -1;
+      index += 1;
+    } else if (text[index] === "`") {
+      lastRun = index;
+      index += runLength(text, index, "`");
+    } else {
+      index += 1;
+    }
+  }
+
+  return openers;
 }
 
 /**
@@ -855,10 +891,12 @@ function backtickEnd(
   text: string,
   start: number,
   blockStarts: number[],
+  paragraphBreaks: number[],
+  backtickFenceOpeners: Set<number>,
 ): number {
-  return opensBacktickFence(text, start)
+  return opensBacktickFence(text, start, backtickFenceOpeners)
     ? fenceEnd(text, start, "`")
-    : codeSpanEnd(text, start, blockStarts);
+    : codeSpanEnd(text, start, blockStarts, paragraphBreaks);
 }
 
 type VerbatimRange = {
@@ -873,14 +911,25 @@ function forEachVerbatimRange(
   visit: (start: number, end: number, kind: VerbatimRange["kind"]) => void,
 ): void {
   let index = 0;
+  const hasBackticks = text.includes("`");
+  const paragraphBreaks = hasBackticks ? findParagraphBreaks(text) : [];
+  const backtickFenceOpeners = hasBackticks
+    ? findBacktickFenceOpeners(text)
+    : new Set<number>();
   while (index < text.length) {
     const char = text[index];
     if (char === "\\") {
       index += 2;
     } else if (char === "`") {
-      const end = backtickEnd(text, index, blockStarts);
+      const end = backtickEnd(
+        text,
+        index,
+        blockStarts,
+        paragraphBreaks,
+        backtickFenceOpeners,
+      );
       if (end !== -1) {
-        visit(index, end, opensBacktickFence(text, index) ? "fence" : "span");
+        visit(index, end, backtickFenceOpeners.has(index) ? "fence" : "span");
         index = end;
       } else {
         index += runLength(text, index, "`");
@@ -1612,11 +1661,19 @@ const BLANK_LINE = /\n[ \t]*\n/;
 const ADJACENT_WORDS = /[A-Za-z]{3,}\s+[A-Za-z]{3,}/;
 const TRAILING_OPERATOR = /[-+*/=<>,;:([\u2013\u2014\u2212]$/;
 
-// The paragraph break a code span cannot reach past. `BLANK_LINE` cannot serve
-// here: it does not admit the carriage return of a CRLF document, and widening
-// it would change which bodies `isMathBody` accepts. Sticky so the scan starts
-// at the run without copying the rest of the input on every backtick.
+// `BLANK_LINE` cannot serve here: it does not admit the carriage return of a
+// CRLF document, and widening it would change which bodies `isMathBody` accepts.
 const PARAGRAPH_BREAK = /\n[ \t\r]*\n/g;
+
+function findParagraphBreaks(text: string): number[] {
+  const breaks: number[] = [];
+  PARAGRAPH_BREAK.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = PARAGRAPH_BREAK.exec(text)) !== null) {
+    breaks.push(match.index);
+  }
+  return breaks;
+}
 
 /** Length of the run of `char` starting at `start`. */
 function runLength(text: string, start: number, char: string): number {
@@ -1637,13 +1694,19 @@ function codeSpanEnd(
   text: string,
   start: number,
   blockStarts: number[],
+  paragraphBreaks: number[],
 ): number {
   const delimiterLength = runLength(text, start, "`");
   const delimiter = "`".repeat(delimiterLength);
   // A span is an inline construct, so it cannot reach past the paragraph it
   // opens in and a run left open in prose does not swallow a later fence.
-  PARAGRAPH_BREAK.lastIndex = start;
-  const blank = PARAGRAPH_BREAK.exec(text);
+  let paragraphLow = 0;
+  let paragraphHigh = paragraphBreaks.length;
+  while (paragraphLow < paragraphHigh) {
+    const middle = (paragraphLow + paragraphHigh) >>> 1;
+    if (paragraphBreaks[middle]! < start) paragraphLow = middle + 1;
+    else paragraphHigh = middle;
+  }
   let low = 0;
   let high = blockStarts.length;
   while (low < high) {
@@ -1652,7 +1715,7 @@ function codeSpanEnd(
     else low = middle + 1;
   }
   const limit = Math.min(
-    blank ? blank.index : text.length,
+    paragraphBreaks[paragraphLow] ?? text.length,
     blockStarts[low] ?? text.length,
   );
   let closed = text.indexOf(delimiter, start + delimiterLength);
@@ -1675,6 +1738,8 @@ function findClosingDollar(
   text: string,
   openIndex: number,
   blockStarts: number[],
+  paragraphBreaks: number[],
+  backtickFenceOpeners: Set<number>,
 ): number {
   let index = openIndex + 1;
   while (index < text.length) {
@@ -1682,7 +1747,13 @@ function findClosingDollar(
     if (char === "$") return index;
     if (char === "\\") index += 2;
     else if (char === "`") {
-      const end = backtickEnd(text, index, blockStarts);
+      const end = backtickEnd(
+        text,
+        index,
+        blockStarts,
+        paragraphBreaks,
+        backtickFenceOpeners,
+      );
       index = end === -1 ? index + runLength(text, index, "`") : end;
     } else index += 1;
   }
@@ -1772,11 +1843,19 @@ function endOfVerbatimRun(
   text: string,
   index: number,
   blockStarts: number[],
+  paragraphBreaks: number[],
+  backtickFenceOpeners: Set<number>,
 ): number {
   const char = text[index];
   if (char === "\\") return Math.min(index + 2, text.length);
   if (char === "`") {
-    const end = backtickEnd(text, index, blockStarts);
+    const end = backtickEnd(
+      text,
+      index,
+      blockStarts,
+      paragraphBreaks,
+      backtickFenceOpeners,
+    );
     return end === -1 ? index + runLength(text, index, "`") : end;
   }
   if (opensTildeFence(text, index)) return fenceEnd(text, index, "~");
@@ -1785,7 +1864,13 @@ function endOfVerbatimRun(
   const dollars = runLength(text, index, "$");
   if (dollars >= 2) return index + dollars;
 
-  const close = findClosingDollar(text, index, blockStarts);
+  const close = findClosingDollar(
+    text,
+    index,
+    blockStarts,
+    paragraphBreaks,
+    backtickFenceOpeners,
+  );
   const opensMath =
     close !== -1 &&
     !opensCurrencyAmount(text, close) &&
@@ -1810,9 +1895,20 @@ export function escapeCurrencyDollars(text: string): string {
   return rewriteOutsideBlocks(text, (slice, blockStarts) => {
     let out = "";
     let index = 0;
+    const hasBackticks = slice.includes("`");
+    const paragraphBreaks = hasBackticks ? findParagraphBreaks(slice) : [];
+    const backtickFenceOpeners = hasBackticks
+      ? findBacktickFenceOpeners(slice)
+      : new Set<number>();
 
     while (index < slice.length) {
-      const verbatimEnd = endOfVerbatimRun(slice, index, blockStarts);
+      const verbatimEnd = endOfVerbatimRun(
+        slice,
+        index,
+        blockStarts,
+        paragraphBreaks,
+        backtickFenceOpeners,
+      );
       if (verbatimEnd > index) {
         out += slice.slice(index, verbatimEnd);
         index = verbatimEnd;

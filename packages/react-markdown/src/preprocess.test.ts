@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   rewriteLatexBracketDelimiters,
   rewriteCustomMathTags,
@@ -935,6 +935,19 @@ describe("escapeCurrencyDollars", () => {
     expect(escapeCurrencyDollars("Use `$5` as the placeholder.")).toBe(
       "Use `$5` as the placeholder.",
     );
+  });
+
+  it("does not rescan the line prefix for repeated triple-backtick spans", () => {
+    const input = "x ```$5``` ".repeat(1_000);
+    const lastIndexOf = vi.spyOn(String.prototype, "lastIndexOf");
+    try {
+      expect(escapeCurrencyDollars(input)).toBe(input);
+      expect(
+        lastIndexOf.mock.calls.filter(([search]) => search === "\n").length,
+      ).toBeLessThan(10);
+    } finally {
+      lastIndexOf.mockRestore();
+    }
   });
 
   it("does not close one- or two-backtick code spans on a longer run", () => {
