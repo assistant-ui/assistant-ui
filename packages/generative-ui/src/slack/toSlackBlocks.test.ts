@@ -1605,10 +1605,21 @@ describe("toSlackBlocks", () => {
         $action: { type: "card_submit" },
         children: { $type: "Fact", label: "Status", value: "Ready" },
       });
-      expect(blocks.at(-1)).toEqual({
-        type: "actions",
-        elements: [expect.objectContaining({ action_id: "card_submit" })],
-      });
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          fields: [{ type: "mrkdwn", text: "*Status*\nReady" }],
+        },
+        {
+          type: "actions",
+          elements: [
+            expect.objectContaining({
+              text: { type: "plain_text", text: "Submit" },
+              action_id: "card_submit",
+            }),
+          ],
+        },
+      ]);
     });
 
     it("keeps the Submit button on a clean carousel card", () => {
