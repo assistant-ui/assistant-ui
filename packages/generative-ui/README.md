@@ -200,7 +200,7 @@ const widgets = createWidgetToolkit({
 });
 ```
 
-[Spec mode](https://www.assistant-ui.com/docs/tools/generative-ui#spec-mode) lists the events each component emits and how a bound value writes back.
+[Spec mode](https://www.assistant-ui.com/docs/tools/generative-ui#spec-mode) lists the events each component emits, how a bound value writes back, and how your own components declare their events and slots.
 
 ## License
 
