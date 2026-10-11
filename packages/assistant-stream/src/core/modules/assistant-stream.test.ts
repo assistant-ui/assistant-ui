@@ -343,6 +343,61 @@ describe("raw chunk ordering", () => {
     expect(rest).toEqual(["text-delta", "part-finish"]);
   });
 
+  it("cancels promptly while a step-finish is held", async () => {
+    const stream = createAssistantStream(async (controller) => {
+      const text = controller.addTextPart();
+      const tool = controller.addToolCallPart({
+        toolCallId: "t1",
+        toolName: "weather",
+      });
+      text.append("a");
+      tool.argsText.append("{");
+      controller.enqueue(stepFinish);
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      text.append("late");
+      tool.close();
+      text.close();
+    });
+
+    const reader = stream.getReader();
+    await reader.read();
+    const reasons = await captureUnhandledRejections(() => reader.cancel());
+    expect(reasons).toEqual([]);
+  });
+
+  it("does not hold a step-finish for a write the part dropped", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const [stream, controller] = createAssistantStreamController({
+        strict: false,
+      });
+      const tool = controller.addToolCallPart({
+        toolCallId: "t1",
+        toolName: "weather",
+      });
+      tool.argsText.append("{}");
+      tool.argsText.close();
+      tool.argsText.append("dropped");
+      controller.enqueue(stepFinish);
+
+      const reader = stream.getReader();
+      const types: string[] = [];
+      while (!types.includes("step-finish")) {
+        const { value } = await reader.read();
+        types.push(value!.type);
+      }
+      expect(types).toEqual(["part-start", "text-delta", "step-finish"]);
+
+      tool.close();
+      controller.close();
+      await reader.cancel();
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it("emits the error chunk while a merged stream stays open", async () => {
     let upstream!: ReadableStreamDefaultController<AssistantStreamChunk>;
     const stream = createAssistantStream((controller) => {
