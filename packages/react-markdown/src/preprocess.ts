@@ -886,6 +886,7 @@ function rewriteOutsideCode(
     precededBy: string,
     followedBy: string,
     lineHead: (offset: number) => string,
+    lineTail: (offset: number) => string,
   ) => string,
 ): string {
   return rewriteOutsideBlocks(text, (text, blockStarts) => {
@@ -897,13 +898,19 @@ function rewriteOutsideCode(
       const segment = text.slice(plainStart, end);
       if (segment === "") return;
       const start = plainStart;
-      // A segment begins after any code span, so the line it sits on can start
-      // earlier than the segment does and only the original text has it.
+      // A segment is cut at code spans, so the line an offset sits on can start
+      // before the segment does and end after it, and only the original text
+      // has the whole line.
       const lineHead = (offset: number) => {
         const at = start + offset;
         return text.slice(text.lastIndexOf("\n", at - 1) + 1, at);
       };
-      out += rewrite(segment, out.slice(-1), followedBy, lineHead);
+      const lineTail = (offset: number) => {
+        const at = start + offset;
+        const lineEnd = text.indexOf("\n", at);
+        return text.slice(at, lineEnd === -1 ? undefined : lineEnd);
+      };
+      out += rewrite(segment, out.slice(-1), followedBy, lineHead, lineTail);
     };
 
     const copyVerbatim = (to: number) => {
@@ -1083,9 +1090,48 @@ export function rewriteCustomMathTags(text: string): string {
   );
 }
 
-const LIST_ITEM_DISPLAY_MATH =
-  /^([ \t]*(?:[-*+]|\d{1,9}[.)])[ \t]+)\$\$[ \t\r]*\n(?:(?![ \t\r]*$)[^\n]*\n)*?(?:^([ \t]*\$\$)[ \t\r]*$(?:\n(?!(?: {0,3}\t| {4})|[ \t]*(?:[-*+](?:[ \t]|$)|\d{1,9}(?:[.)](?:[ \t]|$)|(?![\s\S]))|#{1,6}(?:[ \t]|$)|>|\$\$|(?:\$|`{1,2}|~{1,2})(?![\s\S])|`{3}|~{3}|\||<|(?:[-*_][ \t]*){3,}$|[ \t\r]*$))(.*))?|(?![ \t\r]*$)[^\n]*(?![\s\S])|(?![\s\S]))/gm;
-const LIST_MARKER_LINE = /^[ \t]*(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/;
+const FORMULA_LINE_CLOSER = /\$\$[ \t\r]*$/;
+
+function indentTo(line: string, column: number): string {
+  const indent = /^[ \t]*/.exec(line)![0];
+  return columns(indent, 0, indent.length) >= column
+    ? line
+    : " ".repeat(column) + line.slice(indent.length);
+}
+
+/**
+ * Content column of a line holding nothing but a list marker and the `$$` that
+ * opens a fence, or -1 for any other line.
+ */
+function displayMathOpenerColumn(line: string): number {
+  const marker = /^[ \t]*/.exec(line)![0].length;
+  const content = listMarkerEnd(line, marker, line.length);
+  return content > marker &&
+    line.startsWith("$$", content) &&
+    onlyWhitespace(line, content + 2, line.length)
+    ? columns(line, 0, content)
+    : -1;
+}
+
+/**
+ * Whether `line`, the line after a closing `$$`, starts a block instead of
+ * continuing a paragraph. On the line the text ends on, the start of one still
+ * streaming in (`2`, `$`, a backtick or tilde run) counts as one.
+ */
+function opensBlock(line: string, endsText: boolean): boolean {
+  const from = /^[ \t]*/.exec(line)![0].length;
+  const rest = line.slice(from);
+  return (
+    columns(line, 0, from) >= 4 ||
+    onlyWhitespace(line, from, line.length) ||
+    listMarkerEnd(line, from, line.length) > from ||
+    bareMarkerWidth(line, from, line.length) > 0 ||
+    isAtxHeading(line, from, line.length) ||
+    isRuleLine(line, from, line.length, false) ||
+    /^(?:>|\$\$|`{3}|~{3}|\||<)/.test(rest) ||
+    (endsText && /^(?:\d{1,9}|\$|`{1,2}|~{1,2})$/.test(rest))
+  );
+}
 
 /**
  * Indents a `$$` fence opened right after a list marker, and written with its
@@ -1093,58 +1139,95 @@ const LIST_MARKER_LINE = /^[ \t]*(?:[-*+]|\d{1,9}[.)])(?:[ \t]|$)/;
  * remark-math reads the unindented form as an empty fence that ends with the
  * item, since a flow construct takes no lazy continuation lines, so the body
  * falls out of the list and the closing marker opens a fence of its own; a
- * bracket body gets the same nesting from {@link emitDisplayMath}. When the
- * fence moves, the first line of a paragraph right after its closing marker
- * moves with it, since that paragraph was written under the same unindented
- * fence, and its later lines stay in the item as lazy continuation; a line
- * indented as code or starting a block stays where it is, and at the end of the
- * text so does the start of one still streaming in (`2`, `$`, a backtick or
- * tilde run). A fence already at the column is valid as written, and so is a
- * root paragraph after it. The closing marker is looked for up to the first blank line, which a
- * display body does not hold, and a fence that reaches one first is left as
- * written, as is one that reaches a sibling item; a fence that reaches the end
- * of the text instead is one still streaming in and is indented to its end.
+ * bracket body gets the same nesting from {@link emitDisplayMath}. The first
+ * line of a paragraph right after the closing marker moves with the fence,
+ * since it was written under it, and its later lines follow as lazy
+ * continuation.
+ *
+ * A fence already at the column is valid as written, and so is what follows it.
+ * The closing marker is looked for up to the first blank line, which a display
+ * body does not hold. A fence that reaches one first, reaches a sibling list
+ * marker, or closes on a formula line (`F = ma$$`) is left as written, so a
+ * finished message never has its prose pulled into the math; a fence that
+ * reaches the end of the text is one still streaming in and is indented to its
+ * end.
  */
 function nestListItemDisplayMath(text: string): string {
   return rewriteOutsideCode(
     text,
-    (segment, _precededBy, followedBy, lineHead) =>
-      segment.replace(
-        LIST_ITEM_DISPLAY_MATH,
-        (
-          match: string,
-          marker: string,
-          closer: string | undefined,
-          paragraph: string | undefined,
-          offset: number,
-        ) => {
-          if (lineHead(offset) !== "") return match;
-          if (closer === undefined && followedBy !== "") return match;
-          const column = columns(marker, 0, marker.length);
-          const nest = (line: string) => {
-            const indent = /^[ \t]*/.exec(line)![0];
-            return line.trim() === "" ||
-              columns(indent, 0, indent.length) >= column
-              ? line
-              : " ".repeat(column) + line.slice(indent.length);
-          };
-          const [opener, ...rest] = match.split("\n");
-          const fence = paragraph === undefined ? rest : rest.slice(0, -1);
-          const nested = fence.map(nest);
-          if (nested.every((line, index) => line === fence[index]))
-            return match;
-          if (
-            fence.some(
-              (line, index) =>
-                line !== nested[index] && LIST_MARKER_LINE.test(line),
-            )
-          ) {
-            return match;
+    (segment, _precededBy, followedBy, lineHead, lineTail) => {
+      const lines = segment.split("\n");
+      const last = lines.length - 1;
+      const fullLine = (index: number) =>
+        index === last
+          ? lines[index]! + lineTail(segment.length)
+          : lines[index]!;
+      let changed = false;
+      let opener = lineHead(0) === "" ? 0 : 1;
+      while (opener < last) {
+        const column = displayMathOpenerColumn(lines[opener]!);
+        if (column === -1) {
+          opener += 1;
+          continue;
+        }
+        let end = opener + 1;
+        let moved = false;
+        let closed = false;
+        let resume = -1;
+        for (; end <= last; end += 1) {
+          const line = fullLine(end);
+          const indent = /^[ \t]*/.exec(line)![0].length;
+          if (onlyWhitespace(line, indent, line.length)) {
+            if (end < last) resume = end + 1;
+            break;
           }
-          if (paragraph !== undefined) nested.push(nest(paragraph));
-          return [opener, ...nested].join("\n");
-        },
-      ),
+          const moves = columns(line, 0, indent) < column;
+          if (
+            line.startsWith("$$", indent) &&
+            onlyWhitespace(line, indent + 2, line.length)
+          ) {
+            moved ||= moves;
+            closed = true;
+            end += 1;
+            break;
+          }
+          if (
+            moves &&
+            (listMarkerEnd(line, indent, line.length) > indent ||
+              bareMarkerWidth(line, indent, line.length) > 0)
+          ) {
+            resume = end;
+            break;
+          }
+          if (FORMULA_LINE_CLOSER.test(line)) {
+            resume = end + 1;
+            break;
+          }
+          moved ||= moves;
+        }
+        if (resume !== -1) {
+          opener = resume;
+          continue;
+        }
+        if (!closed && followedBy !== "") break;
+        if (moved) {
+          for (let index = opener + 1; index < end; index += 1) {
+            lines[index] = indentTo(lines[index]!, column);
+          }
+          if (
+            closed &&
+            end <= last &&
+            !opensBlock(fullLine(end), end === last && followedBy === "")
+          ) {
+            lines[end] = indentTo(lines[end]!, column);
+            end += 1;
+          }
+          changed = true;
+        }
+        opener = end;
+      }
+      return changed ? lines.join("\n") : segment;
+    },
   );
 }
 
