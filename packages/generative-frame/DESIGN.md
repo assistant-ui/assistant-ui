@@ -135,7 +135,7 @@ The HTML/SVG frame and spec mode are separate halves that never import each othe
 | --- | --- | --- |
 | Frame: `createWidget`, `<Widget>`, `createWidgetTools` | 75.3 kB / 27.4 kB (included `spec/{types,pointer,patch,stream,validate}` and the JSON Schema validator) | 63.7 kB / 23.5 kB, no spec modules |
 | Spec: `/spec`, `SpecRenderer` + `useSpecStream`, `render_spec` tool | 53.8 kB / 20.5 kB (included `csp.ts`, `theme.ts`, `prompts/guidance.ts`, the widget tools) | 28.9 kB / 10.6 kB, no frame modules |
-| Spec for Vue: `/spec`, Vue `SpecRenderer` + `useSpecStream` | did not exist | 24.2 kB / 9.1 kB, no React or frame modules |
+| Spec for Vue: `/spec`, Vue `SpecRenderer` + `useSpecStream` | did not exist | 24.3 kB / 9.1 kB, no React or frame modules |
 | `createWidgetToolkit` (frame assistant-ui) | not measured | 75.8 kB / 27.3 kB |
 | `createSpecToolkit` (spec assistant-ui) | not measured | 21.5 kB / 7.8 kB |
 
