@@ -608,6 +608,50 @@ describe("createWidgetToolkit", () => {
     expect(renderedState).toBe(firstState);
   });
 
+  it("mounts a JSON string result as the structure the model read", () => {
+    const spec = {
+      root: "t",
+      elements: {
+        t: {
+          type: "Text",
+          props: { text: { $state: "/tools/search/0/price" } },
+        },
+      },
+      state: {},
+    };
+    mocks.messages = [
+      {
+        content: [
+          call("search", "search", {}, '{"price":"$42"}'),
+          call("note", "note", {}, "plain text"),
+          call("count", "count", {}, "42"),
+          call("s", "render_spec", { title: "s", spec }),
+        ],
+      },
+    ];
+    let tools: unknown;
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, {
+        components: {
+          Text: ({ props, state }: SpecComponentProps<{ text: string }>) => {
+            tools = state.get("/tools");
+            return <p>{props.text}</p>;
+          },
+        },
+      }),
+    });
+    const RenderSpec = entries(toolkit)["render_spec"]!.render;
+    const view = render(
+      <RenderSpec {...partProps("s", { title: "s", spec })} />,
+    );
+    expect(view.container.textContent).toBe("$42");
+    expect(tools).toEqual({
+      search: [{ price: "$42" }],
+      note: ["plain text"],
+      count: ["42"],
+    });
+  });
+
   it("mounts earlier non-widget tool results by name in call order", () => {
     const spec = {
       root: "t",

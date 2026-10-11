@@ -65,9 +65,20 @@ function resolveToolResults(
   for (const call of toolCalls(messages)) {
     if (call.id === toolCallId) break;
     if (WIDGET_TOOLS.has(call.name)) continue;
-    (results[call.name] ??= []).push(call.result);
+    (results[call.name] ??= []).push(decodeResult(call.result));
   }
   return results;
+}
+
+/** A string result that holds a JSON object or array is decoded, since the model read that string as the structure. */
+function decodeResult(result: unknown): unknown {
+  if (typeof result !== "string") return result;
+  try {
+    const value: unknown = JSON.parse(result);
+    return typeof value === "object" && value !== null ? value : result;
+  } catch {
+    return result;
+  }
 }
 
 /**
