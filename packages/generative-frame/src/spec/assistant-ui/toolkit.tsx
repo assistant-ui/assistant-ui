@@ -3,7 +3,7 @@ import {
   useToolArgsStatus,
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
-import { useState, type ComponentType } from "react";
+import { useEffect, useMemo, useState, type ComponentType } from "react";
 import {
   toolkitEntry,
   type WidgetToolkitExtension,
@@ -69,6 +69,20 @@ export function resolveSpecBase(
   return spec;
 }
 
+/** How many `render_spec` calls with this title the thread holds, up to and including this one. */
+function specVersion(
+  messages: readonly MessageLike[],
+  toolCallId: string,
+  title: string,
+): number {
+  let version = 0;
+  for (const call of toolCalls(messages)) {
+    if (call.name === "render_spec" && call.args["title"] === title) version++;
+    if (call.id === toolCallId) break;
+  }
+  return version;
+}
+
 /**
  * Spec mode for `createWidgetToolkit({ spec })`: adds `render_spec`, which
  * streams patches into a `<SpecRenderer>` with your components, and the
@@ -78,7 +92,8 @@ export function createSpecToolkit(
   catalog: Catalog,
   options: SpecToolkitOptions,
 ): WidgetToolkitExtension {
-  const tools = createSpecTools(catalog);
+  const specs = new Map<string, { spec: Spec; version: number }>();
+  const tools = createSpecTools(catalog, { specs });
 
   function RenderSpecUI({
     args,
@@ -90,17 +105,31 @@ export function createSpecToolkit(
     const title = typeof args.title === "string" ? args.title : "";
     // The base only depends on earlier calls, so it is read once per call.
     const [base] = useState(() => resolveSpecBase(messages, toolCallId, title));
+    const [version] = useState(() => specVersion(messages, toolCallId, title));
     const streamed = useSpecStream({
       source: typeof args.patches === "string" ? args.patches : "",
       complete: !streaming,
       ...(base ? { initial: base } : {}),
     });
-    const spec =
+    const full =
       args.spec &&
       typeof args.spec === "object" &&
       typeof args.spec.root === "string"
-        ? ({ state: {}, ...args.spec } as Spec)
-        : streamed.spec;
+        ? args.spec
+        : undefined;
+    const spec = useMemo(
+      () => (full ? ({ state: {}, ...full } as Spec) : streamed.spec),
+      [full, streamed.spec],
+    );
+
+    // `render_spec` validates new patches against these specs, so a call rendered from history, as after a reload, records its spec.
+    useEffect(() => {
+      if (streaming || !title) return;
+      const current = specs.get(title);
+      if (!current || current.version <= version) {
+        specs.set(title, { spec, version });
+      }
+    }, [streaming, title, spec, version]);
 
     return (
       <div data-gf-spec={title || undefined}>

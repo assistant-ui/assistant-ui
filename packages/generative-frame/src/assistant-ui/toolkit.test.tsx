@@ -564,6 +564,59 @@ describe("createWidgetToolkit", () => {
   });
 });
 
+describe("render_spec validation", () => {
+  const first = {
+    title: "s",
+    patches:
+      '{"op":"add","path":"/root","value":"t"}\n{"op":"add","path":"/elements/t","value":{"type":"Text","props":{"text":"a"}}}',
+  };
+  const update = {
+    title: "s",
+    patches: '{"op":"replace","path":"/elements/t/props/text","value":"b"}',
+  };
+
+  it("validates patches after a reload against the spec rendered from history", async () => {
+    mocks.messages = [{ content: [call("e", "render_spec", first)] }];
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, { components }),
+    });
+    const renderSpec = entries(toolkit)["render_spec"]!;
+    const RenderSpec = renderSpec.render;
+    render(<RenderSpec {...partProps("e", first)} />);
+
+    expect(await renderSpec.execute!(update)).toMatchObject({
+      ok: true,
+      version: 2,
+      issues: [],
+    });
+  });
+
+  it("keeps the newest spec when an earlier call renders after it", async () => {
+    mocks.messages = [
+      {
+        content: [
+          call("e", "render_spec", first),
+          call("f", "render_spec", update),
+        ],
+      },
+    ];
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, { components }),
+    });
+    const renderSpec = entries(toolkit)["render_spec"]!;
+    const RenderSpec = renderSpec.render;
+    render(<RenderSpec {...partProps("f", update)} />);
+    render(<RenderSpec {...partProps("e", first)} />);
+
+    expect(
+      await renderSpec.execute!({
+        title: "s",
+        patches: '{"op":"test","path":"/elements/t/props/text","value":"b"}',
+      }),
+    ).toMatchObject({ ok: true, version: 3 });
+  });
+});
+
 describe("useWidgetInstructions", () => {
   it("registers the instructions once built", async () => {
     const { tools } = createWidgetToolkit({
