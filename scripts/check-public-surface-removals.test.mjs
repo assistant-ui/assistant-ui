@@ -14,13 +14,13 @@ const root = path.resolve(import.meta.dirname, "..");
 const base =
   "declare const useFoo: number; declare const useBar: number; declare namespace entry_root_exports { export { useFoo, useBar }; } export { entry_root_exports as entry_root };";
 
-const runScript = (dir, base, head) =>
+const runScript = (dir, baseSha, headSha) =>
   spawnSync(
     process.execPath,
     [path.join(root, "scripts/check-public-surface-removals.mjs"), dir],
     {
       encoding: "utf8",
-      env: { ...process.env, BASE_SHA: base, HEAD_SHA: head },
+      env: { ...process.env, BASE_SHA: baseSha, HEAD_SHA: headSha },
     },
   );
 
