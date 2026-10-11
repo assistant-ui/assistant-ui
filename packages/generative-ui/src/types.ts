@@ -52,7 +52,9 @@ export type GenerativeUIRenderContext = {
  * only when a registry was wired. All are `$`-prefixed so they never collide
  * with a real `status`/`action`/`dispatch` prop. Spec mode also passes
  * `$slots`, the rendered named slots, and `$bindings`, a setter for each prop
- * the spec binds to state with `$bindState`; present mode passes neither.
+ * the spec binds to state with `$bindState`; present mode passes neither. In
+ * spec mode `$dispatch` is always present and emits the event its action's
+ * `type` names.
  */
 type StreamingRenderProps<P> =
   | (Partial<P> & {
@@ -114,9 +116,9 @@ export type GenerativeUIComponent<P = any> =
       streamProperties: boolean | undefined;
       /**
        * Events the component emits in spec mode, which a spec binds with `on`.
-       * The element's `$action` carries the first one, and
-       * `$dispatch({ type: event, $input })` emits any of them. The `present`
-       * tool ignores this.
+       * `$dispatch({ type: event, $input })` emits any of them, and when the
+       * element binds the first one, `$action` carries it. The `present` tool
+       * ignores this.
        */
       events?: readonly string[] | undefined;
       /**
