@@ -52,6 +52,32 @@ describe("rewriteLatexBracketDelimiters", () => {
     ).toBe("> quote \n> $$\n> a\n> b\n> $$\n> after");
   });
 
+  it("keeps quoted list display math and its following prose inside the item", () => {
+    expect(
+      normalizeMathDelimiters("> 1. \\[\n> a = 1\n>   b = 2\n> \\]\n> Text"),
+    ).toBe("> 1. \n>    $$\n>    a = 1\n>      b = 2\n>    $$\n>    Text");
+    expect(normalizeMathDelimiters(">1. $$\n>x = 1\n>$$\n>Text")).toBe(
+      ">1. $$\n>    x = 1\n>    $$\n>    Text",
+    );
+    expect(normalizeMathDelimiters(">1. \\[\n>x = 1\n>\\]\n>Text")).toBe(
+      ">1. \n>    $$\n>    x = 1\n>    $$\n>    Text",
+    );
+  });
+
+  it("rewrites a multiline bracket display whose TeX body contains backticks", () => {
+    expect(
+      normalizeMathDelimiters("1. \\[\n\\text{`x`} = 1\nE = mc^2\n\\]\nText"),
+    ).toBe("1. \n   $$\n   \\text{`x`} = 1\n   E = mc^2\n   $$\nText");
+    expect(rewriteLatexBracketDelimiters("\\[a `b` c\\]")).toBe(
+      "\\[a `b` c\\]",
+    );
+    expect(rewriteLatexBracketDelimiters("\\[a\n`\\]`\nb\\]")).toBe(
+      "$$\na\n`\\]`\nb\n$$",
+    );
+    const fenced = "\\[a\n`x`\n```\n\\]\n```\nb\\]";
+    expect(rewriteLatexBracketDelimiters(fenced)).toBe(fenced);
+  });
+
   it("dedents a body whose lines share an indentation", () => {
     expect(
       rewriteLatexBracketDelimiters("- item \\[\n  a\n  b\n\\]\n- next"),
@@ -667,6 +693,14 @@ describe("normalizeMathDelimiters", () => {
     expect(normalizeMathDelimiters("$$\na\n$$")).toBe("$$\na\n$$");
     const fenced = "```md\n1. $$\na\n$$\n```";
     expect(normalizeMathDelimiters(fenced)).toBe(fenced);
+  });
+
+  it("does not nest a list-shaped marker inside an open $$ block", () => {
+    const root = "$$\n1. $$\nx\n$$\nText";
+    expect(normalizeMathDelimiters(root)).toBe(root);
+    const quoted =
+      "> 1. $$\n>    x\n> > $$ meta\n>    > 10. $$\n> > y\n> > $$\n> > Text";
+    expect(normalizeMathDelimiters(quoted)).toBe(quoted);
   });
 });
 
