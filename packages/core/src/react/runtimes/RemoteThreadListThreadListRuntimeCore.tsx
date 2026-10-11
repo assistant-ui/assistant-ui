@@ -984,21 +984,14 @@ export class RemoteThreadListThreadListRuntimeCore
         messages.length === 0
       )
         return;
+      // A reload can settle the replacement list while an earlier list
+      // request never settles, so the wait follows state updates.
       if (this._replaceListOnNextLoad) {
         generating = true;
-        const adapterGeneration = this._adapterGeneration;
-        void this.getLoadThreadsPromise().then(
-          () => {
-            generating = false;
-            if (active && adapterGeneration === this._adapterGeneration)
-              check();
-          },
-          () => {
-            generating = false;
-            if (active && adapterGeneration === this._adapterGeneration)
-              this._disarmAutomaticTitle(threadId);
-          },
-        );
+        void this._state.waitForUpdate().then(() => {
+          generating = false;
+          check();
+        });
         return;
       }
       generating = true;

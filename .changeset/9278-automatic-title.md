@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-Retry automatic title generation after a replacement thread list finishes loading.
+A thread created while a replacement thread list loads now gets its automatic title once the list lands.
