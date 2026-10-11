@@ -119,6 +119,71 @@ describe("toSpecCatalog components", () => {
     expect(rate).toHaveBeenCalledWith({ value: 4 }, expect.anything());
   });
 
+  it("dispatches a later declared event and ignores an unbound one", async () => {
+    const accept = vi.fn();
+    const dismiss = vi.fn();
+    const custom = toSpecCatalog(
+      {
+        Prompt: {
+          description: "A prompt.",
+          properties: z.object({}),
+          events: ["confirm", "cancel", "skip"],
+          render: ({ $action, $dispatch }) => (
+            <>
+              <output>{$action?.type}</output>
+              <button
+                type="button"
+                onClick={() => $dispatch?.({ type: "cancel", $input: "no" })}
+              >
+                cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => $dispatch?.({ type: "skip" })}
+              >
+                skip
+              </button>
+            </>
+          ),
+        },
+      },
+      {
+        actions: {
+          accept: { description: "Accepts." },
+          dismiss: { description: "Dismisses." },
+        },
+      },
+    );
+    const container = await render(
+      {
+        root: "prompt",
+        elements: {
+          prompt: {
+            type: "Prompt",
+            on: {
+              confirm: { action: "accept" },
+              cancel: {
+                action: "dismiss",
+                params: { reason: { $event: "" } },
+              },
+            },
+          },
+        },
+      },
+      { accept, dismiss },
+      undefined,
+      custom,
+    );
+
+    expect(query(container, "output").textContent).toBe("confirm");
+    const [cancel, skip] = container.querySelectorAll("button");
+    await act(async () => cancel!.click());
+    expect(dismiss).toHaveBeenCalledWith({ reason: "no" }, expect.anything());
+    await act(async () => skip!.click());
+    expect(dismiss).toHaveBeenCalledTimes(1);
+    expect(accept).not.toHaveBeenCalled();
+  });
+
   it("passes a rendered named slot to a custom component", async () => {
     const custom = toSpecCatalog({
       Panel: {
