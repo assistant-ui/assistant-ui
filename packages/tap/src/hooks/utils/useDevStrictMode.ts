@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, version } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { isDevelopment } from "../../core/helpers/env";
 import {
   getCurrentResourceFiber,
@@ -28,7 +28,7 @@ const useDevStrictModeReact = () => {
   renderedSinceEffect.current = true;
 
   useEffect(() => {
-    if (!version.startsWith("18.")) return;
+    if (!React.version?.startsWith("18.")) return;
     if (!renderedSinceEffect.current) strictMode.current = true;
     renderedSinceEffect.current = false;
   }, []);
