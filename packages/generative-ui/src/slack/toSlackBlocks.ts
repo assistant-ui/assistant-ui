@@ -843,7 +843,18 @@ const collectText = (
   }
   const element = node as NormalizedUIElement;
   const own = ["text", "value", "label", "title", "description"]
-    .map((key) => element.props[key])
+    .map((key) => {
+      const value = element.props[key];
+      return key === "value" &&
+        (element.type === "Text" ||
+          element.type === "Caption" ||
+          element.type === "Badge" ||
+          element.type === "Fact") &&
+        typeof value === "number" &&
+        Number.isFinite(value)
+        ? String(value)
+        : value;
+    })
     .filter((value): value is string => typeof value === "string");
   return [...own, ...collectText(element.children, depth + 1)];
 };
@@ -881,7 +892,7 @@ const extractCardFields = (element: NormalizedUIElement): CardFields => {
       isElement(child) &&
       (child.type === "Text" || child.type === "Markdown")
     ) {
-      bodyRaw = asString(child.props["value"]);
+      bodyRaw = asTextValue(child.props["value"]);
       continue;
     }
     if (
@@ -889,7 +900,7 @@ const extractCardFields = (element: NormalizedUIElement): CardFields => {
       isElement(child) &&
       child.type === "Caption"
     ) {
-      subtextRaw = asString(child.props["value"]);
+      subtextRaw = asTextValue(child.props["value"]);
       continue;
     }
     if (isCardNoOp(child)) continue;
@@ -1176,7 +1187,7 @@ const contextRow = (
       elements: boundedChildren.map((child) => ({
         type: "mrkdwn",
         text: clampText(
-          asString(child.props["value"]),
+          asTextValue(child.props["value"]),
           CONTEXT_TEXT_CAP,
           child.type,
           "value",

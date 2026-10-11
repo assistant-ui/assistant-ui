@@ -1547,6 +1547,18 @@ describe("toSlackBlocks", () => {
   });
 
   describe("Card", () => {
+    it("keeps numeric body and subtext values", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Card",
+        children: [
+          { $type: "Text", value: 42 },
+          { $type: "Caption", value: 7 },
+        ],
+      });
+      const card = blocks[0] as SlackCardBlock;
+      expect([card.body?.text, card.subtext?.text]).toEqual(["42", "7"]);
+    });
+
     it("uses the confirm action for an asForm card when both actions exist", () => {
       const { blocks } = toSlackBlocks({
         $type: "Card",
@@ -2314,6 +2326,21 @@ describe("toSlackBlocks", () => {
   });
 
   describe("Row", () => {
+    it("keeps a numeric Badge in a context row", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Row",
+        children: [
+          { $type: "Badge", value: 3 },
+          { $type: "Caption", value: "open" },
+        ],
+      });
+      expect(
+        (blocks[0] as SlackContextBlock).elements.map(
+          (element) => element.text,
+        ),
+      ).toEqual(["3", "open"]);
+    });
+
     it("flattens children in order when they are not all Badge/Caption", () => {
       const { blocks } = toSlackBlocks({
         $type: "Row",
@@ -2764,6 +2791,26 @@ describe("toSlackBlocks", () => {
   });
 
   describe("ListView and ListViewItem", () => {
+    it("keeps numeric Text and Fact values in an item", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "ListView",
+        children: [
+          {
+            $type: "ListViewItem",
+            children: [
+              { $type: "Text", value: 42 },
+              { $type: "Fact", label: "n", value: 5 },
+            ],
+          },
+        ],
+      });
+      expect((blocks[0] as SlackSectionBlock).text?.text.split("\n")).toEqual([
+        "42",
+        "5",
+        "n",
+      ]);
+    });
+
     it("forwards a discarded child's own dropped warning and counts it", () => {
       const { warnings } = toSlackBlocks({
         $type: "ListView",
