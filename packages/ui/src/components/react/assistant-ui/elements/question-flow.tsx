@@ -63,8 +63,10 @@ export function QuestionFlow({
   const setReceiptRef = useCallback(
     (node: HTMLDivElement | null) => {
       receiptRef.current = node;
-      if (typeof props.ref === "function") return props.ref(node);
-      if (props.ref) props.ref.current = node;
+      const { ref } = props;
+      if (typeof ref === "function") return ref(node);
+      if (ref && typeof ref === "object")
+        (ref as { current: HTMLDivElement | null }).current = node;
       return undefined;
     },
     [props.ref, receiptRef],
