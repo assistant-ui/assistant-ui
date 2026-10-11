@@ -494,6 +494,9 @@ describe("normalizeMathDelimiters", () => {
     expect(normalizeMathDelimiters("> 1. $$\nx = 1\n> $$\n> 2. b")).toBe(
       "> 1. $$\n>    x = 1\n>    $$\n> 2. b",
     );
+    expect(normalizeMathDelimiters("1. $$\n> 1. $$\nx = 1\n> $$")).toBe(
+      "1. $$\n> 1. $$\n>    x = 1\n>    $$",
+    );
   });
 
   it("scans a $$ fence across a code span without changing its contents", () => {
@@ -578,6 +581,8 @@ describe("normalizeMathDelimiters", () => {
     "1. $$\n   a\n   $$\nText",
     "- $$\n  a\n  $$\nText",
     "> 1. $$\n>    a\n>    $$\n> Text",
+    "> 1. $$\n>    x\n>    > y\n>    $$\nText",
+    "> \t1. $$\n>      x\n>      $$\nText",
   ])(
     "leaves a $$ fence already at its item's content column, and the root paragraph after it: %j",
     (text) => {
@@ -603,6 +608,7 @@ describe("normalizeMathDelimiters", () => {
   it.each([
     "- $$\nF = ma\n- where $F_{net}$ is the net force\n$$\np = mv\n$$",
     "- $$\nF = ma\n- the net force on the body\n$$",
+    "1. $$\nF = ma\n- Summary\n$$",
     "- $$\nF = ma\n- \n$$",
   ])(
     "leaves a $$ fence that reaches a sibling item of prose or nothing before it closes: %j",
@@ -624,6 +630,8 @@ describe("normalizeMathDelimiters", () => {
   it.each([
     "1. $$\nF = ma$$\nThat is Newton's second law.",
     "1. $$\nF = ma$$\n\nThat is Newton's second law.",
+    "1. $$\n`a\nF = ma$$\nb`\nText",
+    "> 1. $$\n>    `a\n>    F = ma$$\n>    b`\nText",
   ])(
     "leaves a $$ fence that closes on its formula line as written: %j",
     (text) => {

@@ -1127,23 +1127,51 @@ function displayMathOpenerPrefix(line: string): string | null {
     : null;
 }
 
-function indentToPrefix(line: string, prefix: string): string {
-  const depth = quoteDepth(prefix);
-  if (depth === 0) return indentTo(line, columns(prefix, 0, prefix.length));
+/**
+ * The blockquote markers `line` carries for a container `depth` deep, with the
+ * whitespace after the last of them. A `>` past that depth is the line's
+ * content, such as one written in a formula, and a line with fewer markers
+ * gets the ones it has.
+ */
+function quoteMarkers(line: string, depth: number): string {
+  let end = 0;
+  for (let marker = 0; marker < depth; marker += 1) {
+    while (line[end] === " " || line[end] === "\t") end += 1;
+    if (line[end] !== ">") return QUOTE_PREFIX.exec(line)![0];
+    end += 1;
+  }
+  while (line[end] === " " || line[end] === "\t") end += 1;
+  return line.slice(0, end);
+}
 
-  const markers = QUOTE_PREFIX.exec(line)![0];
+/**
+ * Columns of indentation past the last blockquote marker in `prefix`, or of
+ * the whole prefix when it has none, with tabs expanded from the line start.
+ */
+function widthPastQuote(prefix: string): number {
+  return (
+    columns(prefix, 0, prefix.length) -
+    columns(prefix, 0, prefix.lastIndexOf(">") + 1)
+  );
+}
+
+function indentToPrefix(
+  line: string,
+  prefix: string,
+  depth: number,
+  width: number,
+): string {
+  if (depth === 0) return indentTo(line, width);
+
+  const markers = quoteMarkers(line, depth);
   if (quoteDepth(markers) < depth) {
     return `${prefix}${line.slice(markers.length)}`;
   }
 
-  const targetQuote = prefix.lastIndexOf(">") + 1;
-  const lineQuote = markers.lastIndexOf(">") + 1;
-  const targetIndent = columns(prefix, targetQuote, prefix.length);
-  const lineIndent = columns(markers, lineQuote, markers.length);
-  const missing = Math.max(0, targetIndent - lineIndent);
-  return missing === 0
+  const missing = width - widthPastQuote(markers);
+  return missing <= 0
     ? line
-    : `${line.slice(0, markers.length)}${" ".repeat(missing)}${line.slice(markers.length)}`;
+    : `${markers}${" ".repeat(missing)}${line.slice(markers.length)}`;
 }
 
 function verbatimRangeAt(
@@ -1258,12 +1286,13 @@ function opensBlockInContainer(
  * The closing marker is looked for up to the first blank line, which a display
  * body does not hold, and past code spans, whose backticks remark-math reads as
  * TeX inside the fence. A fence that reaches a blank line or a code fence
- * first, reaches a sibling list marker, or closes on a formula line
- * (`F = ma$$`) is left as written, so a finished message never has its prose
- * pulled into the math. A `+` or `-` marker line holding no `$`, and TeX syntax
- * or no run of words, continues the formula when the fence closes after it. A
- * fence that reaches the end of the text is one still streaming in and is
- * indented to its end unless it crosses such a line.
+ * first, reaches a sibling list marker or another fence's opener, or closes on
+ * a formula line (`F = ma$$`) is left as written, so a finished message never
+ * has its prose pulled into the math. A `+` or `-` marker line holding no `$`,
+ * and either TeX syntax or no word (four letters in a row, or two words of
+ * three), continues the formula when the fence closes after it. A fence that
+ * reaches the end of the text is one still streaming in and is indented to its
+ * end unless it crosses such a line.
  */
 function nestListItemDisplayMath(text: string): string {
   return rewriteOutsideBlocks(text, (block, blockStarts) => {
@@ -1285,6 +1314,7 @@ function nestListItemDisplayMath(text: string): string {
       }
 
       const depth = quoteDepth(prefix);
+      const width = widthPastQuote(prefix);
       let end = opener + 1;
       let moved = false;
       let closed = false;
@@ -1294,7 +1324,7 @@ function nestListItemDisplayMath(text: string): string {
         const line = lines[end]!;
         const lineStart = lineStarts[end]!;
         const lineEnd = lineStart + line.length;
-        const quote = QUOTE_PREFIX.exec(line)![0];
+        const quote = quoteMarkers(line, depth);
         const content = quote.length;
         const range = firstVerbatimRange(ranges, lineStart, lineEnd);
         if (range?.kind === "fence") {
@@ -1312,17 +1342,21 @@ function nestListItemDisplayMath(text: string): string {
           break;
         }
 
-        const moves = indentToPrefix(line, prefix) !== line;
-        const closeAt = lineStart + content;
+        const moves =
+          quoteDepth(quote) < depth || widthPastQuote(quote) < width;
         if (
           quoteDepth(quote) === depth &&
           line.startsWith("$$", content) &&
-          onlyWhitespace(line, content + 2, line.length) &&
-          !verbatimRangeAt(ranges, closeAt)
+          onlyWhitespace(line, content + 2, line.length)
         ) {
           moved ||= moves;
           closed = true;
           end += 1;
+          break;
+        }
+
+        if (moves && displayMathOpenerPrefix(line) !== null) {
+          resume = end;
           break;
         }
 
@@ -1335,7 +1369,8 @@ function nestListItemDisplayMath(text: string): string {
             (marker === "+" || marker === "-") &&
             rest !== "" &&
             !rest.includes("$") &&
-            (LATEX_SYNTAX.test(rest) || !ADJACENT_WORDS.test(rest));
+            (LATEX_SYNTAX.test(rest) ||
+              !(/[A-Za-z]{4}/.test(rest) || ADJACENT_WORDS.test(rest)));
           if (!continuesFormula) {
             resume = end;
             break;
@@ -1343,10 +1378,7 @@ function nestListItemDisplayMath(text: string): string {
           if (operatorResume === -1) operatorResume = end;
         }
 
-        if (
-          FORMULA_LINE_CLOSER.test(line) &&
-          !verbatimRangeAt(ranges, lineStart + line.lastIndexOf("$$"))
-        ) {
+        if (FORMULA_LINE_CLOSER.test(line)) {
           resume = end + 1;
           break;
         }
@@ -1362,7 +1394,7 @@ function nestListItemDisplayMath(text: string): string {
       }
       if (moved) {
         for (let index = opener + 1; index < end; index += 1) {
-          lines[index] = indentToPrefix(lines[index]!, prefix);
+          lines[index] = indentToPrefix(lines[index]!, prefix, depth, width);
         }
         if (
           closed &&
@@ -1374,7 +1406,7 @@ function nestListItemDisplayMath(text: string): string {
             depth,
           )
         ) {
-          lines[end] = indentToPrefix(lines[end]!, prefix);
+          lines[end] = indentToPrefix(lines[end]!, prefix, depth, width);
           end += 1;
         }
         changed = true;
