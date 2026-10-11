@@ -268,6 +268,14 @@ describe("TaskGroup", () => {
     expect(container.textContent).toContain("instruction");
     expect(container.textContent).toContain("agent");
     expect(container.textContent).toContain("Found it");
+    const transcript = container.textContent ?? "";
+    expect(transcript.indexOf("instruction")).toBeLessThan(
+      transcript.indexOf("Go"),
+    );
+    expect(transcript.indexOf("Go")).toBeLessThan(transcript.indexOf("agent"));
+    expect(transcript.indexOf("agent")).toBeLessThan(
+      transcript.indexOf("Found it"),
+    );
     expect(
       container.querySelector('[aria-label="Check the docs, done"]'),
     ).not.toBeNull();

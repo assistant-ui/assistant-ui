@@ -14,7 +14,6 @@ import {
   MessageByIndexProvider,
   MessagePrimitive,
   ReadonlyThreadProvider,
-  unstable_useThreadMessageIds,
   useAui,
   useAuiState,
   type ThreadMessage,
@@ -81,9 +80,9 @@ const NestedMessage: FC = () => {
 // the readonly thread rather than the prop, because the provider syncs a new
 // prop into its core after the render that carries it.
 const NestedMessages: FC = () => {
-  const messageIds = unstable_useThreadMessageIds();
-  return messageIds.map((messageId, index) => (
-    <MessageByIndexProvider key={messageId} index={index}>
+  const messages = useAuiState((s) => s.thread.messages);
+  return messages.map((message, index) => (
+    <MessageByIndexProvider key={message.id} index={index}>
       <NestedMessage />
     </MessageByIndexProvider>
   ));
