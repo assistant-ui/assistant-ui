@@ -14,6 +14,16 @@ const root = path.resolve(import.meta.dirname, "..");
 const base =
   "declare const useFoo: number; declare const useBar: number; declare namespace entry_root_exports { export { useFoo, useBar }; } export { entry_root_exports as entry_root };";
 
+const runScript = (dir, base, head) =>
+  spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/check-public-surface-removals.mjs"), dir],
+    {
+      encoding: "utf8",
+      env: { ...process.env, BASE_SHA: base, HEAD_SHA: head },
+    },
+  );
+
 test("detects removed names, including a deleted entry or snapshot", () => {
   const head = base.replace("useFoo, useBar", "useBar");
   assert.deepEqual(removedSurfaceNames(base, head), [
@@ -105,15 +115,7 @@ test("compares Git snapshots and accepts only an added marked changeset for the 
       requiresOwnerBypass: false,
     },
   ]);
-  const execute = (head) =>
-    spawnSync(
-      process.execPath,
-      [path.join(root, "scripts/check-public-surface-removals.mjs"), dir],
-      {
-        encoding: "utf8",
-        env: { ...process.env, BASE_SHA: before, HEAD_SHA: head },
-      },
-    );
+  const execute = (head) => runScript(dir, before, head);
   const failed = execute(removed);
   assert.equal(failed.status, 1);
   assert.match(
@@ -228,7 +230,7 @@ test("a renamed changeset with a new marker acknowledges a removal", (t) => {
   const after = git("write-tree");
 
   assert.match(
-    git("diff", "--name-status", before, after, "--", ".changeset"),
+    git("diff", "-M", "--name-status", before, after, "--", ".changeset"),
     /^R\d{3}\s+\.changeset\/old-note\.md\s+\.changeset\/new-note\.md$/,
   );
   assert.deepEqual(runCheck(dir, before, after), []);
@@ -270,14 +272,7 @@ test("reports the shipped surface when a public package is deleted", (t) => {
       requiresOwnerBypass: true,
     },
   ]);
-  const result = spawnSync(
-    process.execPath,
-    [path.join(root, "scripts/check-public-surface-removals.mjs"), dir],
-    {
-      encoding: "utf8",
-      env: { ...process.env, BASE_SHA: before, HEAD_SHA: after },
-    },
-  );
+  const result = runScript(dir, before, after);
   assert.equal(result.status, 1);
   assert.match(result.stderr, /owner bypass/);
 });
@@ -325,14 +320,7 @@ test("reports the shipped surface when a public package becomes private", (t) =>
       requiresOwnerBypass: true,
     },
   ]);
-  const result = spawnSync(
-    process.execPath,
-    [path.join(root, "scripts/check-public-surface-removals.mjs"), dir],
-    {
-      encoding: "utf8",
-      env: { ...process.env, BASE_SHA: before, HEAD_SHA: after },
-    },
-  );
+  const result = runScript(dir, before, after);
   assert.equal(result.status, 1);
   assert.match(result.stderr, /owner bypass/);
 });
