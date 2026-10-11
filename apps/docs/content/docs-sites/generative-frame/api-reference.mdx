@@ -200,7 +200,7 @@ The `RenderReportOptions`, `WidgetRenderReport`, `WidgetToolkitExtension`, `Tool
 | `applyPatch(doc, operations)` | Applies RFC 6902 operations. |
 | `validateSpec(spec, catalog, { partial? })` | `{ ok, issues }`. |
 | `formatSpecIssues(issues)` | Issues as model-readable text. |
-| `createStateStore(initial?, { writes? }?)` | `{ getState, get, set, writes, seed, subscribe }`. `writes()` lists the writes `seed` re-applies as `[path, value]` pairs, oldest first, a replacing write dropping earlier ones at and below its path; `writes` applies saved ones over `initial`. |
+| `createStateStore(initial?, { writes? }?)` | `{ getState, get, set, writes, seed, subscribe }`. `writes()` lists the writes `seed` re-applies as `[path, value]` pairs, oldest first, a replacing write dropping earlier ones at and below its path that no insert at an index on that path has since moved; `writes` applies saved ones over `initial`. |
 | `emptySpec()` | An empty spec. |
 
 ## `generative-frame/spec/react`
