@@ -98,8 +98,8 @@ export type GenerativeUIBindings<P> = {
  * only rendered once its props are complete.
  *
  * `render` is a function of `props`, not a React component. Direct hook use is
- * fine (each node is mounted on its own fiber), but a given node must keep its
- * `type` across renders for hook identity to be stable.
+ * fine because each node's renderer is keyed by its type: changing the type
+ * remounts it, while updates of the same type preserve its hook state.
  */
 export type GenerativeUIComponent<P = any> =
   | {
