@@ -1,5 +1,36 @@
 const SAVE_DELAY_MS = 500;
 
+/** The snapshot as JSON only when it is plain JSON throughout, since `JSON.stringify` quietly turns `NaN`, `undefined`, and class instances into other values, which would compare equal to a different snapshot and restore something else. */
+const serialize = (snapshot: unknown): string | undefined => {
+  try {
+    return JSON.stringify(
+      snapshot,
+      function (this: Record<string, unknown>, key: string, value: unknown) {
+        const raw = this[key];
+        if (
+          raw === null ||
+          typeof raw === "string" ||
+          typeof raw === "boolean" ||
+          (typeof raw === "number" && Number.isFinite(raw))
+        )
+          return value;
+        if (typeof raw === "object" && !Object.hasOwn(raw, "toJSON")) {
+          const prototype = Object.getPrototypeOf(raw);
+          if (
+            Array.isArray(raw)
+              ? prototype === Array.prototype
+              : prototype === Object.prototype || prototype === null
+          )
+            return value;
+        }
+        throw new TypeError("Not plain JSON");
+      },
+    );
+  } catch {
+    return undefined;
+  }
+};
+
 export type SnapshotSaver<T> = {
   /** Saves `read()` once changes settle, if it differs from the newest entry recorded. */
   schedule(read: () => T): void;
@@ -52,7 +83,7 @@ export function createSnapshotSaver<T>(
     let json: string | undefined;
     try {
       snapshot = read();
-      json = JSON.stringify(snapshot);
+      json = serialize(snapshot);
     } catch {}
     if (json === recorded) return;
     if (json !== undefined && json !== failed) {

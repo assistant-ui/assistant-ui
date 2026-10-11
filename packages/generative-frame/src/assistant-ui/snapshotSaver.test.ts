@@ -216,6 +216,27 @@ describe("createSnapshotSaver", () => {
     expect(snapshots()).toEqual([1, null, 2, 1]);
   });
 
+  it("marks a snapshot that is not plain JSON even when it serializes like the newest entry", () => {
+    vi.useFakeTimers();
+    const nan = recorder();
+    createSnapshotSaver<unknown>([["/x", null]], nan.record).schedule(() => [
+      ["/x", Number.NaN],
+    ]);
+    const missing = recorder();
+    createSnapshotSaver<unknown>({}, missing.record).schedule(() => ({
+      a: undefined,
+    }));
+    const instance = recorder();
+    createSnapshotSaver<unknown>(
+      "1970-01-01T00:00:00.000Z",
+      instance.record,
+    ).schedule(() => new Date(0));
+    vi.advanceTimersByTime(500);
+    expect(nan.snapshots()).toEqual([null]);
+    expect(missing.snapshots()).toEqual([null]);
+    expect(instance.snapshots()).toEqual([null]);
+  });
+
   it("marks a snapshot that cannot be serialized and a recorder that throws", async () => {
     vi.useFakeTimers();
     const { snapshots, record } = recorder();
