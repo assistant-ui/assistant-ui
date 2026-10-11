@@ -37,7 +37,7 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
     expect(
       rewriteLatexBracketDelimiters("> 1. \\[\n> a\n> \\]\r\n> Text"),
-    ).toContain("$$\r\n");
+    ).toBe("> 1. \n>    $$\n>    a\n>    $$\r\n>    Text");
   });
 
   it("gives the fence markers their own lines mid-paragraph", () => {
@@ -80,6 +80,16 @@ describe("rewriteLatexBracketDelimiters", () => {
     expect(result).not.toContain("\\[");
     expect(result).not.toContain("\\]");
     expect(result.match(/\$\$/g)).toHaveLength(4);
+  });
+
+  it("keeps a later display on a re-indented line inside its list item", () => {
+    expect(
+      rewriteLatexBracketDelimiters(
+        "> 1. \\[\n> a\n> \\]\n> then \\[\n> b\n> \\]",
+      ),
+    ).toBe(
+      "> 1. \n>    $$\n>    a\n>    $$\n>    then \n>    $$\n>    b\n>    $$",
+    );
   });
 
   it("rewrites a multiline bracket display whose TeX body contains backticks", () => {
@@ -156,6 +166,33 @@ describe("rewriteLatexBracketDelimiters", () => {
     expect(rewriteLatexBracketDelimiters("\\( \\)")).toBe("\\( \\)");
   });
 
+  it("leaves an empty quoted list display and its following line unchanged", () => {
+    const input = "> 1. \\[\n> \n> \\]\n> Text";
+    expect(rewriteLatexBracketDelimiters(input)).toBe(input);
+  });
+
+  it("converts displays with blank lines only at the body edges", () => {
+    expect(
+      rewriteLatexBracketDelimiters("\\[\n\\text{`x`} = 1\n\n\\]\nText"),
+    ).toBe("$$\\text{`x`} = 1$$\nText");
+    expect(
+      rewriteLatexBracketDelimiters("\\[\n\n\\text{`x`} = 1\n\\]\nText"),
+    ).toBe("$$\\text{`x`} = 1$$\nText");
+    expect(
+      rewriteLatexBracketDelimiters(
+        "> \\[\n> \\text{`x`} = 1\n>\n> \\]\n> Text",
+      ),
+    ).toBe("> \n> $$\n> \\text{`x`} = 1\n> $$\n> Text");
+  });
+
+  it.each(["\n", "\r\n"])(
+    "does not cross an interior blank line and code span with %j endings",
+    (ending) => {
+      const input = `\\[a${ending}${ending}\`x\`${ending}\\]`;
+      expect(rewriteLatexBracketDelimiters(input)).toBe(input);
+    },
+  );
+
   it("does not pair a prose opener across a blank line and code span", () => {
     const input = "Read \\[ this\n\n`code`\n\\[ x^2 \\]";
     expect(rewriteLatexBracketDelimiters(input)).toBe(
@@ -172,6 +209,19 @@ describe("rewriteLatexBracketDelimiters", () => {
     expect(rewriteLatexBracketDelimiters(input)).toBe(
       "\\[ prose\n```\ncode\n```\n$$x^2$$",
     );
+  });
+
+  it("does not resume at a display opener inside a code span", () => {
+    const input = "\\[ p\n```\nf\n```\n`a \\[ b\nc` \\]";
+    expect(rewriteLatexBracketDelimiters(input)).toBe(input);
+  });
+
+  it("rechecks the blank-line barrier after resuming at a later opener", () => {
+    expect(
+      rewriteLatexBracketDelimiters(
+        "Read \\[ this\n\n`code`\n\\[\n\\text{`x`}\n\\]",
+      ),
+    ).toBe("Read \\[ this\n\n`code`\n$$\\text{`x`}$$");
   });
 
   it("does not span newlines for inline math", () => {

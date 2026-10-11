@@ -1077,6 +1077,20 @@ function emitDisplayMath(
  * math renders as plain text.
  */
 export function rewriteLatexBracketDelimiters(text: string): string {
+  const crossesSpanBoundary = (body: string) => {
+    if (!body.includes("\n")) return true;
+    let hasContent = false;
+    let blankAfterContent = false;
+    for (const line of body.split("\n")) {
+      if (/^[ \t]*(?:>[ \t]*)*\r?$/.test(line)) {
+        if (hasContent) blankAfterContent = true;
+      } else {
+        if (blankAfterContent) return true;
+        hasContent = true;
+      }
+    }
+    return false;
+  };
   const inline = rewriteOutsideCode(text, (segment) =>
     segment.replace(LATEX_INLINE_DELIMITER, (match: string, body: string) => {
       const trimmed = body.trim();
@@ -1089,6 +1103,7 @@ export function rewriteLatexBracketDelimiters(text: string): string {
     let cursor = 0;
     let opener = -1;
     let openerLength = 0;
+    let reindentedLineStart = -1;
     for (const marker of block.matchAll(LATEX_DISPLAY_MARKER)) {
       const at = marker.index;
       if (at < cursor) continue;
@@ -1103,11 +1118,10 @@ export function rewriteLatexBracketDelimiters(text: string): string {
       if (opener === -1) continue;
       const end = at + marker[0]!.length;
       let body = block.slice(opener + openerLength, at);
-      let crossesSpanBoundary =
-        !body.includes("\n") || /\n[ \t]*(?:>[ \t]*)*\r?\n/.test(body);
+      let spanBoundary = crossesSpanBoundary(body);
       let range = firstVerbatimRange(ranges, opener, end);
       while (range) {
-        if (range.kind === "fence" || crossesSpanBoundary) {
+        if (range.kind === "fence" || spanBoundary) {
           opener = -1;
           for (const next of block
             .slice(range.end, at)
@@ -1121,8 +1135,7 @@ export function rewriteLatexBracketDelimiters(text: string): string {
           }
           if (opener === -1) break;
           body = block.slice(opener + openerLength, at);
-          crossesSpanBoundary =
-            !body.includes("\n") || /\n[ \t]*(?:>[ \t]*)*\r?\n/.test(body);
+          spanBoundary = crossesSpanBoundary(body);
           range = firstVerbatimRange(ranges, opener, end);
           continue;
         }
@@ -1138,8 +1151,12 @@ export function rewriteLatexBracketDelimiters(text: string): string {
         opener = -1;
         continue;
       }
-      const lineHead = (offset: number) =>
-        block.slice(block.lastIndexOf("\n", offset - 1) + 1, offset);
+      const lineHead = (offset: number) => {
+        const start = block.lastIndexOf("\n", offset - 1) + 1;
+        return start === reindentedLineStart
+          ? out.slice(out.lastIndexOf("\n") + 1) + block.slice(cursor, offset)
+          : block.slice(start, offset);
+      };
       const head = lineHead(opener);
       const prefix = continuationPrefix(head);
       const quote = QUOTE_PREFIX.exec(head)![0];
@@ -1153,6 +1170,7 @@ export function rewriteLatexBracketDelimiters(text: string): string {
         "",
         lineHead,
       );
+      reindentedLineStart = -1;
       let consumed = end;
       if (
         replacement !== match &&
@@ -1178,6 +1196,7 @@ export function rewriteLatexBracketDelimiters(text: string): string {
           const lead = quoteMarkers(line, depth);
           replacement += `${lineBreak}${indentToPrefix(lead, prefix, depth, widthPastQuote(prefix))}`;
           consumed = lineStart + lead.length;
+          reindentedLineStart = lineStart;
         }
       }
       out += block.slice(cursor, opener) + replacement;
