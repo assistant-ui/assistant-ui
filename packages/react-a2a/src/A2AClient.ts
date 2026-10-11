@@ -1076,7 +1076,7 @@ export class A2AClient {
     const reader = response.body?.getReader();
     if (!reader) throw new Error("No response body");
 
-    const decoder = new TextDecoder();
+    const decoder = new TextDecoder("utf-8", { ignoreBOM: true });
 
     let firstSkipReason: string | undefined;
     const noteSkip = (data: string, reason: string) => {

@@ -340,7 +340,7 @@ export const createPiEventStreamConnection = (
         emitConnect();
 
         const reader = response.body.getReader();
-        const textDecoder = new TextDecoder();
+        const textDecoder = new TextDecoder("utf-8", { ignoreBOM: true });
         const handleFrame = (frame: { event?: string; data: string }) => {
           if (frame.event === "ping" || frame.data === "") return;
           let parsed: PiAnyClientEvent;

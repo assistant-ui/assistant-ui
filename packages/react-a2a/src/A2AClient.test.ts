@@ -1113,6 +1113,41 @@ describe("A2AClient", () => {
   // --- SSE streaming ---
 
   describe("streamMessage", () => {
+    it.each([
+      ["one initial BOM", "\uFEFF", ["working", "completed"]],
+      ["two initial BOMs", "\uFEFF\uFEFF", ["completed"]],
+    ] as const)(
+      "strips only one initial BOM: %s",
+      async (_, prefix, expected) => {
+        const statusUpdate = (state: string) =>
+          JSON.stringify({
+            status_update: {
+              task_id: "t1",
+              context_id: "ctx-1",
+              status: { state },
+            },
+          });
+        fetchMock.mockResolvedValue(
+          mockSSETextResponse(
+            `${prefix}data: ${statusUpdate("TASK_STATE_WORKING")}\n\ndata: ${statusUpdate("TASK_STATE_COMPLETED")}\n\n`,
+          ),
+        );
+
+        const events: A2AStreamEvent[] = [];
+        for await (const event of client.streamMessage(userMessage)) {
+          events.push(event);
+        }
+
+        expect(
+          events.map((event) =>
+            event.type === "statusUpdate"
+              ? event.event.status.state
+              : "unexpected",
+          ),
+        ).toEqual(expected);
+      },
+    );
+
     it("parses SSE status update events", async () => {
       const sseData = JSON.stringify({
         status_update: {

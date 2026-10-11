@@ -274,7 +274,7 @@ async function* parseSSEResponse(
     throw new Error("Expected ADK stream response body, received no body");
   }
   const reader = response.body.getReader();
-  const decoder = new TextDecoder();
+  const decoder = new TextDecoder("utf-8", { ignoreBOM: true });
 
   let shouldCancel = true;
   try {

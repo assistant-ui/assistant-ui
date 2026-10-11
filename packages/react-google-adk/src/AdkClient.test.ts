@@ -601,6 +601,37 @@ describe("createAdkStream - direct mode", () => {
 // ── SSE parsing ──
 
 describe("createAdkStream - SSE parsing", () => {
+  it.each([
+    ["one initial BOM", "\uFEFF", ["e1", "e2"]],
+    ["two initial BOMs", "\uFEFF\uFEFF", ["e2"]],
+  ] as const)(
+    "strips only one initial BOM: %s",
+    async (_, prefix, expected) => {
+      const first: AdkEvent = {
+        id: "e1",
+        content: { parts: [{ text: "first" }] },
+      };
+      const second: AdkEvent = {
+        id: "e2",
+        content: { parts: [{ text: "second" }] },
+      };
+      const text =
+        `${prefix}data: ${JSON.stringify(first)}\n\n` +
+        `data: ${JSON.stringify(second)}\n\n`;
+      mockFetch.mockResolvedValueOnce(sseResponse(sseBody(text)));
+
+      const stream = createAdkStream({ api: "/api/adk" });
+      const events = await stream(
+        [{ id: "m1", type: "human", content: "Hi" }],
+        makeConfig(),
+      );
+      const collected: AdkEvent[] = [];
+      for await (const event of events) collected.push(event);
+
+      expect(collected.map((event) => event.id)).toEqual(expected);
+    },
+  );
+
   it("parses data lines into AdkEvent objects", async () => {
     const events: AdkEvent[] = [
       { id: "e1", content: { parts: [{ text: "hello" }] } },
