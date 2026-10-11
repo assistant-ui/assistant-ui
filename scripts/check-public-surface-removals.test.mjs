@@ -98,7 +98,12 @@ test("compares Git snapshots and accepts only an added marked changeset for the 
   git("add", "-A");
   const removed = git("write-tree");
   assert.deepEqual(runCheck(dir, before, removed), [
-    { package: "@assistant-ui/core", entry: "entry_root", name: "useFoo" },
+    {
+      package: "@assistant-ui/core",
+      entry: "entry_root",
+      name: "useFoo",
+      requiresOwnerBypass: false,
+    },
   ]);
   const execute = (head) =>
     spawnSync(
@@ -117,8 +122,9 @@ test("compares Git snapshots and accepts only an added marked changeset for the 
   );
   assert.match(
     failed.stderr,
-    /A package that is deleted or made private cannot take a changeset, so removing it needs an owner bypass\./,
+    /Add a changeset for each affected package with <!-- caret-break: intended -->/,
   );
+  assert.doesNotMatch(failed.stderr, /owner bypass/);
   put(
     ".changeset/intent.md",
     '---\n"@assistant-ui/store": patch\n---\n<!-- caret-break: intended -->\n',
@@ -149,7 +155,12 @@ test("only newly added marked changesets acknowledge a removal", (t) => {
     '---\n"@assistant-ui/core": patch\n---\n<!-- caret-break: intended -->\n';
   const draft = '---\n"@assistant-ui/core": patch\n---\nDraft.\n';
   const expected = [
-    { package: "@assistant-ui/core", entry: "entry_root", name: "useFoo" },
+    {
+      package: "@assistant-ui/core",
+      entry: "entry_root",
+      name: "useFoo",
+      requiresOwnerBypass: false,
+    },
   ];
   git("init", "-q");
   put(
@@ -185,6 +196,44 @@ test("only newly added marked changesets acknowledge a removal", (t) => {
   assert.deepEqual(runCheck(dir, draftBase, git("write-tree")), []);
 });
 
+test("a renamed changeset with a new marker acknowledges a removal", (t) => {
+  const dir = mkdtempSync(path.join(tmpdir(), "aui-surface-check-rename-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const git = (...args) =>
+    execFileSync("git", args, { cwd: dir, encoding: "utf8" }).trim();
+  const put = (file, text) => {
+    const target = path.join(dir, file);
+    mkdirSync(path.dirname(target), { recursive: true });
+    writeFileSync(target, text);
+  };
+  const oldNote =
+    '---\n"@assistant-ui/core": patch\n---\n' +
+    "This change updates the package surface.\n".repeat(10);
+  git("init", "-q");
+  put(
+    "packages/core/package.json",
+    JSON.stringify({ name: "@assistant-ui/core" }),
+  );
+  put("api-surface/assistant-ui__core.ts", base);
+  put(".changeset/old-note.md", oldNote);
+  git("add", "-A");
+  const before = git("write-tree");
+  put(
+    "api-surface/assistant-ui__core.ts",
+    base.replace("useFoo, useBar", "useBar"),
+  );
+  rmSync(path.join(dir, ".changeset/old-note.md"));
+  put(".changeset/new-note.md", `${oldNote}<!-- caret-break: intended -->\n`);
+  git("add", "-A");
+  const after = git("write-tree");
+
+  assert.match(
+    git("diff", "--name-status", before, after, "--", ".changeset"),
+    /^R\d{3}\s+\.changeset\/old-note\.md\s+\.changeset\/new-note\.md$/,
+  );
+  assert.deepEqual(runCheck(dir, before, after), []);
+});
+
 test("reports the shipped surface when a public package is deleted", (t) => {
   const dir = mkdtempSync(path.join(tmpdir(), "aui-surface-check-deleted-"));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
@@ -206,10 +255,31 @@ test("reports the shipped surface when a public package is deleted", (t) => {
   rmSync(path.join(dir, "packages/core/package.json"));
   git("add", "-A");
 
-  assert.deepEqual(runCheck(dir, before, git("write-tree")), [
-    { package: "@assistant-ui/core", entry: "entry_root", name: "useBar" },
-    { package: "@assistant-ui/core", entry: "entry_root", name: "useFoo" },
+  const after = git("write-tree");
+  assert.deepEqual(runCheck(dir, before, after), [
+    {
+      package: "@assistant-ui/core",
+      entry: "entry_root",
+      name: "useBar",
+      requiresOwnerBypass: true,
+    },
+    {
+      package: "@assistant-ui/core",
+      entry: "entry_root",
+      name: "useFoo",
+      requiresOwnerBypass: true,
+    },
   ]);
+  const result = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/check-public-surface-removals.mjs"), dir],
+    {
+      encoding: "utf8",
+      env: { ...process.env, BASE_SHA: before, HEAD_SHA: after },
+    },
+  );
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /owner bypass/);
 });
 
 test("reports the shipped surface when a public package becomes private", (t) => {
@@ -240,8 +310,29 @@ test("reports the shipped surface when a public package becomes private", (t) =>
   );
   git("add", "-A");
 
-  assert.deepEqual(runCheck(dir, before, git("write-tree")), [
-    { package: "@assistant-ui/core", entry: "entry_root", name: "useBar" },
-    { package: "@assistant-ui/core", entry: "entry_root", name: "useFoo" },
+  const after = git("write-tree");
+  assert.deepEqual(runCheck(dir, before, after), [
+    {
+      package: "@assistant-ui/core",
+      entry: "entry_root",
+      name: "useBar",
+      requiresOwnerBypass: true,
+    },
+    {
+      package: "@assistant-ui/core",
+      entry: "entry_root",
+      name: "useFoo",
+      requiresOwnerBypass: true,
+    },
   ]);
+  const result = spawnSync(
+    process.execPath,
+    [path.join(root, "scripts/check-public-surface-removals.mjs"), dir],
+    {
+      encoding: "utf8",
+      env: { ...process.env, BASE_SHA: before, HEAD_SHA: after },
+    },
+  );
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /owner bypass/);
 });

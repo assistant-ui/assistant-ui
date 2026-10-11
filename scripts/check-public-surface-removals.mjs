@@ -62,6 +62,7 @@ export function runCheck(
   git(root, ["rev-parse", "--verify", `${headSha}^{tree}`]);
   const changedChangesets = git(root, [
     "diff",
+    "--no-renames",
     "--name-only",
     "-z",
     "--diff-filter=A",
@@ -97,11 +98,12 @@ export function runCheck(
     const before = atRevision(root, baseSha, snapshot);
     if (before === null) continue;
     if (allowed.has(pkg.name)) continue;
-    const after = headPackageNames.has(pkg.name)
-      ? atRevision(root, headSha, snapshot)
-      : null;
+    const requiresOwnerBypass = !headPackageNames.has(pkg.name);
+    const after = requiresOwnerBypass
+      ? null
+      : atRevision(root, headSha, snapshot);
     for (const { entry, name } of removedSurfaceNames(before, after)) {
-      failures.push({ package: pkg.name, entry, name });
+      failures.push({ package: pkg.name, entry, name, requiresOwnerBypass });
     }
   }
   return failures;
@@ -114,7 +116,10 @@ if (isExecutedAsMain(import.meta.url, process.argv[1])) {
       for (const { package: pkg, entry, name } of failures)
         console.error(`${pkg} ${entry}: removed export ${name}`);
       console.error(
-        "Add a changeset for each affected package with <!-- caret-break: intended --> to acknowledge the removal. A package that is deleted or made private cannot take a changeset, so removing it needs an owner bypass.",
+        "Add a changeset for each affected package with <!-- caret-break: intended --> to acknowledge the removal." +
+          (failures.some(({ requiresOwnerBypass }) => requiresOwnerBypass)
+            ? " A package that is deleted or made private cannot take a changeset, so removing it needs an owner bypass."
+            : ""),
       );
       process.exitCode = 1;
     } else console.log("No unacknowledged public surface removals.");
