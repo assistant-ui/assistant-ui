@@ -1420,6 +1420,46 @@ describe("interactive vocabulary in Vue", () => {
     },
   );
 
+  it.each([
+    ["Select", "defaultValue", { options }, "s", "l"],
+    ["Input", "defaultValue", {}, "Start", "Edited"],
+    ["DatePicker", "value", { inputType: "date" }, "2026-01-02", "2026-03-04"],
+  ] as const)(
+    "starts an unbound %s from its default after a binding comes and goes",
+    async (type, prop, rest, initial, edited) => {
+      const props = { ...rest, [prop]: initial };
+      const unbound = spec({ main: { type, props } });
+      const bound = spec({
+        main: { type, props: { ...rest, [prop]: { $bindState: "/value" } } },
+      });
+      const selector = type === "Select" ? "select" : "input";
+      const edit = (container: HTMLElement) => {
+        const control = query<HTMLInputElement | HTMLSelectElement>(
+          container,
+          selector,
+        );
+        control.value = edited;
+        for (const event of ["input", "change"])
+          control.dispatchEvent(new Event(event, { bubbles: true }));
+      };
+      const read = (container: HTMLElement) =>
+        query<HTMLInputElement | HTMLSelectElement>(container, selector).value;
+      const vue = renderVueSpec(unbound);
+      const react = renderReactSpec(unbound);
+      await act(async () => edit(react.container));
+      edit(vue.container);
+      await nextTick();
+      react.state.set("/value", initial);
+      vue.state.set("/value", initial);
+      for (const next of [bound, unbound]) {
+        await react.update(next);
+        await vue.update(next);
+      }
+      expect(read(vue.container)).toBe(read(react.container));
+      expect(read(vue.container)).toBe(initial);
+    },
+  );
+
   it("keeps the browser's choice for an unbound Select whose default is not an option", async () => {
     const select = (label: string) =>
       spec({

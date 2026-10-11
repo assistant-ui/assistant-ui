@@ -176,7 +176,7 @@ export const interactiveVocabulary = {
         const control = ref<HTMLSelectElement>();
         let selectedValue: string | undefined;
         watch(
-          () => props.defaultValue,
+          [() => props.defaultValue, bound],
           () => {
             selectedValue = undefined;
           },
@@ -276,9 +276,9 @@ export const interactiveVocabulary = {
         const local = ref(props.defaultValue);
         const control = ref<HTMLInputElement>();
         watch(
-          () => props.defaultValue,
-          (next) => {
-            if (!bound()) local.value = next;
+          [() => props.defaultValue, bound],
+          () => {
+            if (!bound()) local.value = props.defaultValue;
           },
           { flush: "sync" },
         );
@@ -370,13 +370,21 @@ export const interactiveVocabulary = {
         const bound = () => boundProp() !== undefined;
         const initial = () =>
           typeof props.value === "string" ? props.value : undefined;
-        const selection = ref({
-          initialValue: initial(),
-          value: initial(),
-          anchor: initial(),
-          committedValue: initial(),
+        const fresh = (value: string | undefined) => ({
+          initialValue: value,
+          value,
+          anchor: value,
+          committedValue: value,
           edited: false,
         });
+        const selection = ref(fresh(initial()));
+        watch(
+          bound,
+          () => {
+            selection.value = fresh(initial());
+          },
+          { flush: "sync" },
+        );
         let keyboardActive = false;
         watch(
           initial,
