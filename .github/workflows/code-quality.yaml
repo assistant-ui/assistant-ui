@@ -16,6 +16,10 @@ on:
       - "scripts/update-api-surface.test.mjs"
       - "scripts/lib/**"
       - "scripts/check-api-surface.mjs"
+      - "scripts/check-public-surface-removals.mjs"
+      - "scripts/check-public-surface-removals.test.mjs"
+      - "scripts/check-standalone-shim-imports.mjs"
+      - "scripts/check-standalone-shim-imports.test.mjs"
       - "scripts/check-built-declarations.mjs"
       - "scripts/check-built-declarations.test.mjs"
       - "scripts/check-distribution-barrels.mjs"
@@ -256,6 +260,21 @@ jobs:
         env:
           BASE: ${{ steps.package_build_inputs.outputs.base }}
         run: pnpm run api-surface:check -- --skip-build --base="$BASE"
+
+      - name: Check standalone shim imports
+        if: steps.package_build_inputs.outputs.run == 'true'
+        run: pnpm run standalone-shim-imports:check
+
+      - name: Check public surface removals
+        if: github.event_name == 'pull_request' && steps.package_build_inputs.outputs.run == 'true'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: pnpm run public-surface-removals:check
+
+      - name: Test standalone shim and public surface checks
+        if: steps.package_build_inputs.outputs.run == 'true'
+        run: node --test scripts/check-standalone-shim-imports.test.mjs scripts/check-public-surface-removals.test.mjs
 
       - name: Check distribution barrels
         if: steps.package_build_inputs.outputs.run == 'true'
