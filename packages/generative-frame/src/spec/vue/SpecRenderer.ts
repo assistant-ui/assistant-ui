@@ -7,6 +7,7 @@ import {
   onErrorCaptured,
   provide,
   shallowRef,
+  toHandlerKey,
   watch,
   type Component,
   type PropType,
@@ -149,12 +150,25 @@ function children(
 type DeclaredOptions = {
   props?: string[] | Record<string, unknown>;
   emits?: string[] | Record<string, unknown>;
+  extends?: DeclaredOptions;
+  mixins?: DeclaredOptions[];
 };
 
-const declaredNames = (option: DeclaredOptions["props"]) =>
-  new Set(
-    (Array.isArray(option) ? option : Object.keys(option ?? {})).map(camelize),
-  );
+function declaredNames(
+  component: DeclaredOptions,
+  option: "props" | "emits",
+  names = new Set<string>(),
+): Set<string> {
+  if (component.extends) declaredNames(component.extends, option, names);
+  for (const mixin of component.mixins ?? [])
+    declaredNames(mixin, option, names);
+  const declared = component[option];
+  const own = Array.isArray(declared) ? declared : Object.keys(declared ?? {});
+  for (const name of own) names.add(camelize(name));
+  return names;
+}
+
+const handlerKey = (event: string) => toHandlerKey(camelize(event));
 
 const ElementBoundary = defineComponent({
   name: "SpecElementBoundary",
@@ -299,8 +313,8 @@ const ResolvedElement = defineComponent({
     return () => {
       const { props: values, bindings } = resolved();
       const impl = props.impl as DeclaredOptions;
-      const propNames = declaredNames(impl.props);
-      const emitNames = declaredNames(impl.emits);
+      const propNames = declaredNames(impl, "props");
+      const emitNames = declaredNames(impl, "emits");
       const listens = (event: string) =>
         emitNames.has(camelize(event)) ||
         (event.startsWith("update:") &&
@@ -308,9 +322,7 @@ const ResolvedElement = defineComponent({
       const listeners: Record<string, (value: unknown) => void> = {};
       for (const event of Object.keys(props.element.on ?? {})) {
         if (!listens(event)) continue;
-        listeners[`on${event[0]?.toUpperCase() ?? ""}${event.slice(1)}`] = (
-          payload,
-        ) => {
+        listeners[handlerKey(event)] = (payload) => {
           void ctx.dispatch(props.element.on?.[event], {
             ...props.scope,
             elementId: props.id,
@@ -321,7 +333,7 @@ const ResolvedElement = defineComponent({
       }
       for (const [name, path] of Object.entries(bindings)) {
         if (!propNames.has(camelize(name))) continue;
-        const key = `onUpdate:${name}`;
+        const key = handlerKey(`update:${name}`);
         const action = listeners[key];
         listeners[key] = (value) => {
           ctx.store.set(path, value);

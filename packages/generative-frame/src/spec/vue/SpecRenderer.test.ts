@@ -497,6 +497,65 @@ describe("SpecRenderer", () => {
     expect(refresh).toHaveBeenCalledTimes(1);
   });
 
+  it("matches a kebab-case spec event to its camelCase emit", async () => {
+    const refresh = vi.fn();
+    const Item = defineComponent({
+      emits: ["itemClick"],
+      setup(_, { emit }) {
+        return () =>
+          h(
+            "button",
+            { type: "button", onClick: () => emit("itemClick") },
+            "item",
+          );
+      },
+    });
+    const view = mount({
+      components: { Item },
+      handlers: { refresh },
+      spec: spec({
+        main: { type: "Item", on: { "item-click": { action: "refresh" } } },
+      }),
+    });
+    await click(view.container.querySelector("button")!);
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts props and events declared through extends and mixins", async () => {
+    const refresh = vi.fn();
+    const Inherited = defineComponent({
+      extends: defineComponent({ props: { label: String }, emits: ["press"] }),
+      mixins: [defineComponent({ props: { hint: String } })],
+      render() {
+        return h(
+          "button",
+          {
+            type: "button",
+            title: this.hint,
+            onClick: () => this.$emit("press"),
+          },
+          this.label,
+        );
+      },
+    });
+    const view = mount({
+      components: { Inherited },
+      handlers: { refresh },
+      spec: spec({
+        main: {
+          type: "Inherited",
+          props: { label: "go", hint: "tip" },
+          on: { press: { action: "refresh" } },
+        },
+      }),
+    });
+    const button = view.container.querySelector("button")!;
+    expect(button.textContent).toBe("go");
+    expect(button.getAttribute("title")).toBe("tip");
+    await click(button);
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
   it("writes a bound update before dispatching its action", async () => {
     const store = createStateStore({ on: false });
     const refresh = vi.fn();
