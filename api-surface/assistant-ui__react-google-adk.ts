@@ -2741,6 +2741,7 @@ declare const useAdkLongRunningToolIds: () => string[];
 declare const useAdkMessageMetadata: () => Map<string, AdkMessageMetadata>;
 
 declare const useAdkMessages: (_param3: UseAdkMessagesOptions) => {
+  sendMessage: (messages: AdkMessage[], config: AdkSendMessageConfig) => Promise<void>;
   messages: AdkMessage[];
   stateDelta: Record<string, unknown>;
   agentInfo: {
@@ -2753,7 +2754,6 @@ declare const useAdkMessages: (_param3: UseAdkMessagesOptions) => {
   authRequests: AdkAuthRequest[];
   escalated: boolean;
   messageMetadata: Map<string, AdkMessageMetadata>;
-  sendMessage: (newMessages: AdkMessage[], config: AdkSendMessageConfig) => Promise<void>;
   cancel: () => void;
   setMessages: (msgs: AdkMessage[]) => void;
   replaceMessages: (msgs: AdkMessage[]) => void;
