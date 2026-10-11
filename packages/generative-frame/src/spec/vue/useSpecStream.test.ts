@@ -15,20 +15,7 @@ const lines = [
 const mounted: App[] = [];
 function mount(options: UseSpecStreamOptions = {}) {
   const input = reactive(options);
-  let result!: UseSpecStreamResult;
-  const app = createApp(
-    defineComponent({
-      setup() {
-        result = useSpecStream(input);
-        return () => h("div");
-      },
-    }),
-  );
-  const container = document.createElement("div");
-  document.body.append(container);
-  app.mount(container);
-  mounted.push(app);
-  return { input, result };
+  return { input, result: mountDirect(input) };
 }
 function mountDirect(options: UseSpecStreamOptions) {
   let result!: UseSpecStreamResult;
@@ -81,19 +68,7 @@ describe("useSpecStream", () => {
   it("follows refs and getters as well as a reactive object", () => {
     const source = ref(`${lines[0]}\n`);
     const complete = ref(false);
-    let result!: UseSpecStreamResult;
-    const app = createApp(
-      defineComponent({
-        setup() {
-          result = useSpecStream({ source, complete: () => complete.value });
-          return () => h("div");
-        },
-      }),
-    );
-    const container = document.createElement("div");
-    document.body.append(container);
-    app.mount(container);
-    mounted.push(app);
+    const result = mountDirect({ source, complete: () => complete.value });
     expect(result.spec.value.root).toBe("main");
     source.value = lines.join("\n");
     expect(result.spec.value.elements["main"]).toBeUndefined();

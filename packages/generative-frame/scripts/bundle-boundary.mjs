@@ -27,7 +27,7 @@ const EXTERNAL = [
 ];
 
 /**
- * Bundles a fixture the way an app would (minified ESM, framework peers external) and returns its size, the source modules it contains, relative to the repo, and the imports it leaves external.
+ * Bundles a fixture the way an app would (minified ESM, framework peers external) and returns its size, the source modules it contains (relative to the repo), and the static and dynamic imports it leaves external.
  */
 export async function bundleFixture(fixture) {
   const entries = sourceEntries();
@@ -65,7 +65,7 @@ export async function bundleFixture(fixture) {
     .map((id) => relative(join(root, "../.."), id.replace(/^\0/, "")));
   const imports = output
     .filter((chunk) => chunk.type === "chunk")
-    .flatMap((chunk) => chunk.imports);
+    .flatMap((chunk) => [...chunk.imports, ...chunk.dynamicImports]);
   return {
     modules,
     imports,
