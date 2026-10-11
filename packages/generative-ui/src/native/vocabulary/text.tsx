@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { StyleSheet, Text } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import type { Color, TextSize, Weight } from "../../ir";
 import type { GenerativeUILibrary } from "../../types";
 import { textDefinitions } from "../../vocabulary/definitions/text";
@@ -14,9 +14,26 @@ import {
 } from "../theme";
 
 const styles = StyleSheet.create({
+  withChildren: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 4,
+  },
   header: { fontWeight: "600", letterSpacing: -0.18 },
   caption: { fontSize: 12, lineHeight: 17 },
 });
+
+/** Text with spec children: the children sit beside the text in a wrapping row, because a React Native View nested inside Text is only partly supported. */
+const withChildren = (text: ReactNode, children: ReactNode) =>
+  children == null || children === false ? (
+    text
+  ) : (
+    <View style={styles.withChildren}>
+      {text}
+      {children}
+    </View>
+  );
 
 /** The larger sizes tighten their letter spacing and turn semibold, as on the web. */
 const display = (size: TextSize) =>
@@ -34,7 +51,7 @@ function Header({
   children?: ReactNode;
 }) {
   const ink = useInk();
-  return (
+  return withChildren(
     <Text
       accessibilityRole="header"
       style={[
@@ -48,8 +65,8 @@ function Header({
       ]}
     >
       {toTextContent(text)}
-      {children}
-    </Text>
+    </Text>,
+    children,
   );
 }
 
@@ -68,7 +85,7 @@ function Body({
 }) {
   const theme = useNativeTheme();
   const ink = useInk();
-  return (
+  return withChildren(
     <Text
       style={[
         { fontSize: TEXT_SIZE[size], color: textColor(color, ink, theme) },
@@ -77,8 +94,8 @@ function Body({
       ]}
     >
       {toTextContent(value)}
-      {children}
-    </Text>
+    </Text>,
+    children,
   );
 }
 
@@ -90,11 +107,11 @@ function Caption({
   children?: ReactNode;
 }) {
   const ink = useInk();
-  return (
+  return withChildren(
     <Text style={[styles.caption, { color: fade(ink, 0.62) }]}>
       {toTextContent(value)}
-      {children}
-    </Text>
+    </Text>,
+    children,
   );
 }
 

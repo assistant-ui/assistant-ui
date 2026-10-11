@@ -62,4 +62,20 @@ describe("text vocabulary on React Native", () => {
     expect(text!.style.color).toBe("rgba(255, 255, 255, 0.62)");
     expect(caption!.style.color).toBe("rgba(255, 255, 255, 0.62)");
   });
+
+  it("places children beside the text rather than inside it", () => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: { type: "Text", props: { value: "Total" }, children: ["badge"] },
+        badge: { type: "Badge", props: { value: "New" } },
+      }),
+    );
+    const row = container.firstElementChild as HTMLElement;
+    const [text, badge] = [...row.children] as HTMLElement[];
+    expect(row.style.flexDirection || getComputedStyle(row).flexDirection).toBe(
+      "row",
+    );
+    expect(text!.textContent).toBe("Total");
+    expect(badge!.textContent).toBe("New");
+  });
 });
