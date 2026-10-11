@@ -1021,12 +1021,46 @@ describe("ADK request coalescing", () => {
   });
 
   it.each([
-    ["empty configs", {}, {}],
-    ["empty state deltas", { stateDelta: {} }, { stateDelta: {} }],
-    ["missing and empty state deltas", {}, { stateDelta: {} }],
+    ["empty configs", {}, {}, [["first", "second"]]],
+    [
+      "empty state deltas",
+      { stateDelta: {} },
+      { stateDelta: {} },
+      [["first", "second"]],
+    ],
+    [
+      "missing and empty state deltas",
+      {},
+      { stateDelta: {} },
+      [["first", "second"]],
+    ],
+    [
+      "a checkpoint only on the second",
+      {},
+      { checkpointId: "checkpoint" },
+      [["first"], ["second"]],
+    ],
+    [
+      "a checkpoint only on the first",
+      { checkpointId: "checkpoint" },
+      {},
+      [["first"], ["second"]],
+    ],
+    [
+      "a state delta only on the second",
+      {},
+      { stateDelta: { a: 1 } },
+      [["first"], ["second"]],
+    ],
+    [
+      "a state delta only on the first",
+      { stateDelta: { a: 1 } },
+      {},
+      [["first"], ["second"]],
+    ],
   ])(
-    "coalesces same-tick messages with %s",
-    async (_label, firstConfig, secondConfig) => {
+    "groups same-tick messages with %s",
+    async (_label, firstConfig, secondConfig, expected) => {
       const calls: string[][] = [];
       const stream: AdkStreamCallback = async function* (messages) {
         calls.push(messages.map((message) => message.id));
@@ -1048,7 +1082,7 @@ describe("ADK request coalescing", () => {
         await Promise.all([first, second]);
       });
 
-      expect(calls).toEqual([["first", "second"]]);
+      expect(calls).toEqual(expected);
     },
   );
 
