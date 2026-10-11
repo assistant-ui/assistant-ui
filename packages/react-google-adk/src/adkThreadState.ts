@@ -6,6 +6,8 @@ import type {
   AdkThreadSnapshot,
   AdkToolConfirmation,
 } from "./types";
+import { ADK_REQUEST_CREDENTIAL } from "./adkAuthRequest";
+import { ADK_REQUEST_CONFIRMATION } from "./adkToolApproval";
 
 export type AdkStagedEntry = {
   message: AdkMessage & { id: string };
@@ -13,6 +15,13 @@ export type AdkStagedEntry = {
 };
 
 type ToolMessage = Extract<AdkMessage, { type: "tool" }>;
+
+// Interrupts are answered through their own helpers, never as a held answer.
+const INTERRUPT_TOOL_NAMES = new Set([
+  ADK_REQUEST_CONFIRMATION,
+  ADK_REQUEST_CREDENTIAL,
+  "adk_request_input",
+]);
 
 export type AdkThreadState = {
   messages: AdkMessage[];
@@ -103,6 +112,7 @@ const orderedToolCallIds = (state: AdkThreadState): string[] => {
     if (message.type !== "ai") continue;
     for (const call of message.tool_calls ?? []) {
       if (!call || typeof call.id !== "string") continue;
+      if (INTERRUPT_TOOL_NAMES.has(call.name)) continue;
       if (pending.has(call.id) && !ids.includes(call.id)) ids.push(call.id);
     }
   }

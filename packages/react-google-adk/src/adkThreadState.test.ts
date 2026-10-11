@@ -269,6 +269,50 @@ describe("reduceAdkThreadState", () => {
     expect(firstAnswer.toolResultBuffer.size).toBe(1);
   });
 
+  it("releases a run's answers without waiting for its interrupt calls", () => {
+    const answer: Extract<AdkMessage, { type: "tool" }> = {
+      id: "result-c1",
+      type: "tool",
+      name: "lookup",
+      tool_call_id: "c1",
+      content: "c1",
+    };
+    const calls: AdkMessage = {
+      id: "message-1",
+      type: "ai",
+      content: "",
+      tool_calls: [
+        { id: "c1", name: "lookup", args: {} },
+        { id: "confirm-1", name: "adk_request_confirmation", args: {} },
+        { id: "auth-1", name: "adk_request_credential", args: {} },
+        { id: "input-1", name: "adk_request_input", args: {} },
+      ],
+    };
+    const started = reduceAdkThreadState(createAdkThreadState(), {
+      type: "run.active",
+    });
+    const remembered = reduceAdkThreadState(started, {
+      type: "messages.remember",
+      messages: [calls],
+      runConfig: undefined,
+    });
+    const finished = reduceAdkThreadState(
+      {
+        ...remembered,
+        messages: [calls],
+        longRunningToolIds: ["c1", "confirm-1", "auth-1", "input-1"],
+      },
+      { type: "run.finished", runId: "1" },
+    );
+
+    const released = reduceAdkThreadState(finished, {
+      type: "results.received",
+      message: answer,
+    });
+
+    expect(released.readyBatch).toEqual([answer]);
+  });
+
   it("preserves known run configuration when seeding and prunes removed calls", () => {
     const call = (id: string): AdkMessage => ({
       id: `message-${id}`,

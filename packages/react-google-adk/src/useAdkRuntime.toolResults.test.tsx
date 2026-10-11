@@ -107,14 +107,16 @@ const mount = async (
   );
   vi.stubGlobal("fetch", fetchStub);
   const capture: { runtime: AssistantRuntime | null } = { runtime: null };
+  const stream = createAdkStream({
+    api: "http://localhost:8000",
+    appName: "app",
+    userId: "user",
+  });
+  const sessionAdapter = makeThreadListAdapter();
   const Inner = () => {
     const runtime = useAdkRuntime({
-      stream: createAdkStream({
-        api: "http://localhost:8000",
-        appName: "app",
-        userId: "user",
-      }),
-      sessionAdapter: makeThreadListAdapter(),
+      stream,
+      sessionAdapter,
       unstable_allowCancellation: true,
       autoCancelPendingToolCalls: options.autoCancelPendingToolCalls,
       ...(options.load && { load: options.load }),
