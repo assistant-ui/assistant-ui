@@ -99,7 +99,8 @@ export const ComposerPrimitiveRoot = forwardRef<
       : false,
   );
   const isCompact = stateAllowsCompact && !multiline;
-  const inertAttribute = isReact18 ? (inert ? "" : undefined) : inert;
+  const inertAttribute =
+    isReact18 && typeof inert === "boolean" ? (inert ? "" : undefined) : inert;
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();

@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { act } from "react";
+import { act, version } from "react";
 import type { MouseEvent, ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { createRoot } from "react-dom/client";
@@ -11,6 +11,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useComposerCompactContextOptional } from "./ComposerCompactContext";
 import type { ComposerCompactContextValue } from "./ComposerCompactContext";
 import { ComposerPrimitiveRoot } from "./ComposerRoot";
+
+const onReact18 = version.startsWith("18.");
 
 type StoreState = {
   composer: {
@@ -85,6 +87,14 @@ describe("ComposerPrimitiveRoot click-to-focus", () => {
 
     rerender(<ComposerPrimitiveRoot inert={false} />);
     expect(form?.hasAttribute("inert")).toBe(false);
+  });
+
+  it.skipIf(!onReact18)("keeps a string inert on React 18", () => {
+    const { container } = render(
+      <ComposerPrimitiveRoot inert={"" as unknown as boolean} />,
+    );
+
+    expect(container.querySelector("form")?.hasAttribute("inert")).toBe(true);
   });
 
   it("focuses the textarea when primary-button mousedown starts on blank form space", () => {
