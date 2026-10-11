@@ -1449,7 +1449,7 @@ describe("interactive vocabulary in Vue", () => {
       await act(async () => edit(react.container));
       edit(vue.container);
       await nextTick();
-      react.state.set("/value", initial);
+      await act(async () => react.state.set("/value", initial));
       vue.state.set("/value", initial);
       for (const next of [bound, unbound]) {
         await react.update(next);

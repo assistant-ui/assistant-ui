@@ -139,7 +139,10 @@ export const alertVocabulary = {
           const origin = starts[current];
           const target = starts[current + (direction === "next" ? 1 : -1)];
           if (origin === undefined || target === undefined) return;
-          carousel.scrollBy({ left: rtl ? origin - target : target - origin });
+          const left = rtl ? origin - target : target - origin;
+          if (typeof carousel.scrollBy === "function")
+            carousel.scrollBy({ left });
+          else carousel.scrollLeft += left;
         };
 
         const arrow = (previous: boolean) =>

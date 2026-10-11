@@ -363,6 +363,23 @@ describe("alertVocabulary", () => {
     expect(scrollBy).toHaveBeenCalledWith({ left: 200 });
   });
 
+  it("Carousel moves to the next slide start without Element.scrollBy", async () => {
+    const { container, track } = await mountCarousel();
+    setCarouselLayout(track, {
+      scrollWidth: 600,
+      clientWidth: 300,
+      scrollLeft: 0,
+    });
+    delete (track as { scrollBy?: unknown }).scrollBy;
+    await measure();
+
+    const next = container.querySelector<HTMLButtonElement>(
+      '[data-aui="carousel-next"]',
+    );
+    await act(async () => next!.click());
+    expect(track.scrollLeft).toBe(200);
+  });
+
   it("Carousel moves back one slide from the middle", async () => {
     const { container, track } = await mountCarousel();
     const scrollBy = setCarouselLayout(track, {

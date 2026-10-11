@@ -137,4 +137,49 @@ describe("alert vocabulary in Vue", () => {
     await nextTick();
     expect(vue.markup()).toBe(react.markup());
   });
+
+  it("moves without Element.scrollBy like React", async () => {
+    const tree = spec(slides(3));
+    const react = renderReactSpec(tree);
+    const vue = renderVueSpec(tree);
+    const tracks = [react.container, vue.container].map((container) => {
+      const track = container.querySelector<HTMLElement>(
+        '[data-aui="carousel"]',
+      )!;
+      Object.defineProperties(track, {
+        scrollWidth: { configurable: true, value: 600 },
+        clientWidth: { configurable: true, value: 300 },
+        scrollLeft: { configurable: true, value: 0, writable: true },
+        getBoundingClientRect: {
+          configurable: true,
+          value: () => ({ left: 140, right: 328 }) as DOMRect,
+        },
+      });
+      track
+        .querySelectorAll(':scope > [data-aui="carousel-slide"]')
+        .forEach((slide, index) => {
+          Object.defineProperty(slide, "getBoundingClientRect", {
+            configurable: true,
+            value: () =>
+              ({
+                left: 140 + index * 200,
+                right: 328 + index * 200,
+              }) as DOMRect,
+          });
+        });
+      return track;
+    });
+    await act(async () => window.dispatchEvent(new Event("resize")));
+    await nextTick();
+    await act(async () =>
+      react.container
+        .querySelector<HTMLButtonElement>('[data-aui="carousel-next"]')!
+        .click(),
+    );
+    vue.container
+      .querySelector<HTMLButtonElement>('[data-aui="carousel-next"]')!
+      .click();
+    await nextTick();
+    expect(tracks.map((track) => track.scrollLeft)).toEqual([200, 200]);
+  });
 });
