@@ -439,7 +439,13 @@ describe("createWidget", () => {
     const onInitialized = vi.fn();
     const { fake, widget } = setup({ onInitialized });
     const shown: unknown[] = [];
-    onInitialized.mockImplementation(() => shown.push(widget.iframe));
+    onInitialized.mockImplementation(() =>
+      shown.push({
+        iframe: widget.iframe,
+        hidden: widget.iframe?.parentElement?.style.visibility === "hidden",
+        firstConnected: fake.rendered[0]!.iframe.isConnected,
+      }),
+    );
     const result = {
       size: { width: 1, height: 1 },
       blank: false,
@@ -474,7 +480,14 @@ describe("createWidget", () => {
     expect(onInitialized).toHaveBeenLastCalledWith({
       appCapabilities: { availableDisplayModes: ["fullscreen"] },
     });
-    expect(shown).toEqual([fake.rendered[0]!.iframe, fake.rendered[1]!.iframe]);
+    expect(shown).toEqual([
+      { iframe: fake.rendered[0]!.iframe, hidden: false, firstConnected: true },
+      {
+        iframe: fake.rendered[1]!.iframe,
+        hidden: false,
+        firstConnected: false,
+      },
+    ]);
   });
 
   it("delivers a remounted frame's initialization before onResize and survives a throwing handler", async () => {
@@ -510,6 +523,32 @@ describe("createWidget", () => {
 
     await expect(remounted).resolves.toEqual(result);
     expect(events).toEqual(["initialized", "resize"]);
+    expect(widget.iframe).toBe(fake.rendered[1]!.iframe);
+  });
+
+  it("disposes the replaced frame even when onResize throws during a remount", async () => {
+    let remounting = false;
+    const { container, fake, widget } = setup({
+      onResize: () => {
+        if (remounting) throw new Error("host handler failed");
+      },
+    });
+    const result = {
+      size: { width: 1, height: 1 },
+      blank: false,
+      errorCount: 0,
+    };
+    await fake.connect(0, { onRequest: () => result });
+    widget.write("<script>run()</script>");
+    await widget.end();
+
+    remounting = true;
+    const remounted = widget.replace("<p>b</p><script>run()</script>");
+    await fake.connect(1, { onRequest: () => result });
+    await remounted.catch(() => {});
+
+    expect(fake.rendered[0]!.dispose).toHaveBeenCalled();
+    expect(container.children).toHaveLength(1);
     expect(widget.iframe).toBe(fake.rendered[1]!.iframe);
   });
 

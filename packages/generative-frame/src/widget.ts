@@ -755,11 +755,11 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
       throw error;
     }
     activeSession = session;
-    session.deliverInitialized();
     // The new frame has rendered completely, so it swaps in without a fade.
     session.slot.style.cssText = "display:block";
-    applySize(session, result.size);
     previous?.dispose();
+    session.deliverInitialized();
+    applySize(session, result.size);
     return result;
   };
 
