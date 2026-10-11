@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 // @ts-expect-error The script is plain JavaScript without declarations.
 import { bundleFixture } from "../scripts/bundle-boundary.mjs";
 
-type Bundle = { modules: string[]; bytes: number; gzip: number };
+type Bundle = {
+  modules: string[];
+  imports: string[];
+  bytes: number;
+  gzip: number;
+};
 
 const PKG = "packages/generative-frame/src/";
 const SPEC = [
@@ -42,7 +47,20 @@ describe("bundle boundaries", { timeout: 60_000 }, () => {
     const bundle: Bundle = await bundleFixture("spec.ts");
     report("spec (spec, spec/react, spec/tools)", bundle);
     expect(bundle.modules).toContain(`${PKG}spec/catalog.ts`);
+    expect(bundle.modules).toContain(`${PKG}spec/react/SpecRenderer.tsx`);
     expect(offending(bundle, FRAME)).toEqual([]);
+  });
+
+  it("keeps React and frame code out of a Vue-only spec app", async () => {
+    const bundle: Bundle = await bundleFixture("spec-vue.ts");
+    report("spec vue", bundle);
+    expect(bundle.modules).toContain(`${PKG}spec/vue/SpecRenderer.ts`);
+    expect(
+      offending(bundle, [new RegExp(`^${PKG}spec/react/`), ...FRAME]),
+    ).toEqual([]);
+    expect(
+      bundle.imports.filter((id) => /^react(?:-dom)?(?:\/|$)/.test(id)),
+    ).toEqual([]);
   });
 
   it("keeps the halves apart in the assistant-ui entries", async () => {

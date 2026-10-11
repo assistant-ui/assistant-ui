@@ -19,11 +19,15 @@ const sourceEntries = () => {
   return entries;
 };
 
-const EXTERNAL = [/^react($|\/)/, /^react-dom($|\/)/, /^@assistant-ui\//];
+const EXTERNAL = [
+  /^react($|\/)/,
+  /^react-dom($|\/)/,
+  /^vue($|\/)/,
+  /^@assistant-ui\//,
+];
 
 /**
- * Bundles a fixture the way an app would (minified ESM, React external) and
- * returns its size and the source modules it contains, relative to the repo.
+ * Bundles a fixture the way an app would (minified ESM, framework peers external) and returns its size, the source modules it contains (relative to the repo), and the static and dynamic imports it leaves external.
  */
 export async function bundleFixture(fixture) {
   const entries = sourceEntries();
@@ -59,8 +63,12 @@ export async function bundleFixture(fixture) {
     .filter((chunk) => chunk.type === "chunk")
     .flatMap((chunk) => chunk.moduleIds)
     .map((id) => relative(join(root, "../.."), id.replace(/^\0/, "")));
+  const imports = output
+    .filter((chunk) => chunk.type === "chunk")
+    .flatMap((chunk) => [...chunk.imports, ...chunk.dynamicImports]);
   return {
     modules,
+    imports,
     bytes: Buffer.byteLength(code),
     gzip: gzipSync(code).length,
   };
