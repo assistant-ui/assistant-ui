@@ -948,9 +948,10 @@ describe("escapeCurrencyDollars", () => {
   });
 
   it("does not carry an unmatched code span across a CRLF paragraph break", () => {
-    expect(escapeCurrencyDollars("`open\r\n\r\nclose` costs $5")).toBe(
-      "`open\r\n\r\nclose` costs \\$5",
+    expect(escapeCurrencyDollars("$$\r\n`$5\r\n\r\n`")).toBe(
+      "$$\r\n`\\$5\r\n\r\n`",
     );
+    expect(normalizeMathDelimiters("\\[`\r\n\r\n\\]`")).toBe("$$`$$`");
   });
 
   it("does not close one- or two-backtick code spans on a longer run", () => {

@@ -2,4 +2,4 @@
 "@assistant-ui/react-markdown": patch
 ---
 
-perf(react-markdown): preprocess a paragraph with many inline code spans in linear time instead of rescanning to its end for every span
+perf(react-markdown): stop rescanning to the paragraph end for every inline code span while preprocessing
