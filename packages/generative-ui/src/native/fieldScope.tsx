@@ -1,4 +1,11 @@
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useInsertionEffect,
+  useRef,
+  useState,
+} from "react";
 
 /** How a control contributes to a submitted form, mirroring the web's `collectFormValues`. */
 export type FieldKind = "value" | "radio" | "checkboxes";
@@ -49,7 +56,9 @@ export function useFieldScopeOwner(
   onSubmit: (values: Record<string, unknown>) => void,
 ): FieldScope {
   const handler = useRef(onSubmit);
-  handler.current = onSubmit;
+  useInsertionEffect(() => {
+    handler.current = onSubmit;
+  });
   const [scope] = useState<FieldScope>(() => {
     const fields = new Set<Field>();
     return {
@@ -75,7 +84,9 @@ export function useField(
 ): FieldScope | undefined {
   const scope = useContext(FieldScopeContext);
   const reader = useRef(read);
-  reader.current = read;
+  useInsertionEffect(() => {
+    reader.current = read;
+  });
   useEffect(() => {
     if (!scope || typeof name !== "string" || name === "") return;
     return scope.register({ name, kind, read: () => reader.current() });

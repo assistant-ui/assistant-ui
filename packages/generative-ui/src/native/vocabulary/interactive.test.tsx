@@ -201,3 +201,344 @@ describe("interactive vocabulary on React Native", () => {
     expect(capture).not.toHaveBeenCalled();
   });
 });
+
+const options = [
+  { label: "Alpha", value: "a" },
+  { label: "Beta", value: "b", description: "Second choice" },
+  { label: "Gamma", value: "c" },
+];
+
+const choices = [
+  { type: "Select", initial: "a", reset: "c", selected: "b" },
+  { type: "Checkbox", initial: false, reset: true, selected: true },
+  { type: "RadioGroup", initial: "a", reset: "c", selected: "b" },
+  {
+    type: "CheckboxGroup",
+    initial: ["a"],
+    reset: ["c"],
+    selected: ["a", "b"],
+  },
+] as const;
+
+const control = (type: string, initial: unknown, label = "Choices") => ({
+  type,
+  props:
+    type === "Checkbox"
+      ? { label, name: "choice", defaultChecked: initial }
+      : {
+          label,
+          name: "choice",
+          options,
+          defaultValue: initial,
+          ...(type === "Select" ? { placeholder: "Pick one" } : {}),
+        },
+  on: {
+    change: { action: "capture", params: { value: { $event: "" } } },
+  },
+});
+
+const row = (container: HTMLElement, type: string, label?: string) =>
+  byRole(
+    container,
+    type === "Checkbox" || type === "CheckboxGroup" ? "checkbox" : "radio",
+    label ?? (type === "Checkbox" ? "Choices" : "Beta"),
+  );
+
+const changeWeb = async (container: HTMLElement, type: string) => {
+  if (type === "Select") {
+    const select = container.querySelector("select")!;
+    await act(async () => {
+      select.value = "b";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  } else {
+    const target =
+      type === "Checkbox"
+        ? container.querySelector<HTMLInputElement>("input[type=checkbox]")!
+        : container.querySelector<HTMLInputElement>('input[value="b"]')!;
+    await act(async () => target.click());
+  }
+};
+
+describe("native choice controls", () => {
+  it.each(["Select", "RadioGroup"])(
+    "does not dispatch a repeated $type selection",
+    async (type) => {
+      const capture = vi.fn();
+      const { container } = renderNativeSpec(
+        spec({ main: control(type, "a") }),
+        { capture },
+        actions,
+      );
+      await press(row(container, type, "Alpha"));
+      expect(capture).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps CheckboxGroup changes in option order", async () => {
+    const capture = vi.fn();
+    const { container } = renderNativeSpec(
+      spec({ main: control("CheckboxGroup", ["c"]) }),
+      { capture },
+      actions,
+    );
+    await press(row(container, "CheckboxGroup"));
+    expect(capture.mock.calls[0]![0]).toEqual({ value: ["b", "c"] });
+  });
+
+  it.each(choices)(
+    "dispatches $type changes like the web",
+    async ({ type, initial, selected }) => {
+      const input = spec({ main: control(type, initial) });
+      const native = vi.fn();
+      const web = vi.fn();
+      const nativeSpec = renderNativeSpec(input, { capture: native }, actions);
+      const webSpec = renderWebSpec(input, { capture: web }, actions);
+      await press(row(nativeSpec.container, type));
+      await changeWeb(webSpec.container, type);
+      expect(native).toHaveBeenCalledOnce();
+      expect(native.mock.calls[0]![0]).toEqual(web.mock.calls[0]![0]);
+      expect(native.mock.calls[0]![0]).toEqual({ value: selected });
+    },
+  );
+
+  it.each(choices)(
+    "writes bound $type values and follows state",
+    async ({ type, initial, selected }) => {
+      const field = control(type, { $bindState: "/choice" });
+      const rendered = renderNativeSpec(
+        spec({ main: field }, { choice: initial }),
+        { capture: vi.fn() },
+        actions,
+      );
+      await press(row(rendered.container, type));
+      expect(rendered.state.get("/choice")).toEqual(selected);
+      expect(row(rendered.container, type).getAttribute("aria-checked")).toBe(
+        "true",
+      );
+      await act(async () => rendered.state.set("/choice", initial));
+      expect(row(rendered.container, type).getAttribute("aria-checked")).toBe(
+        "false",
+      );
+      expect(
+        row(
+          rendered.container,
+          type,
+          type === "Checkbox" ? "Choices" : "Alpha",
+        ).getAttribute("aria-checked"),
+      ).toBe(type === "Checkbox" ? "false" : "true");
+    },
+  );
+
+  it.each(choices)(
+    "resets unbound $type only when its initial value changes",
+    async ({ type, initial, reset }) => {
+      const view = (value: unknown, label = "Choices") =>
+        spec({ main: control(type, value, label) });
+      const rendered = renderNativeSpec(
+        view(initial),
+        { capture: vi.fn() },
+        actions,
+      );
+      await press(row(rendered.container, type));
+      await rendered.update(view(initial, "Updated choices"));
+      expect(
+        row(
+          rendered.container,
+          type,
+          type === "Checkbox" ? "Updated choices" : "Beta",
+        ).getAttribute("aria-checked"),
+      ).toBe("true");
+      await rendered.update(view(reset, "Updated choices"));
+      if (type === "Checkbox") {
+        await rendered.update(view(false, "Updated choices"));
+        expect(
+          row(rendered.container, type, "Updated choices").getAttribute(
+            "aria-checked",
+          ),
+        ).toBe("false");
+      } else {
+        expect(
+          row(rendered.container, type, "Gamma").getAttribute("aria-checked"),
+        ).toBe("true");
+        expect(
+          row(rendered.container, type, "Beta").getAttribute("aria-checked"),
+        ).toBe("false");
+      }
+    },
+  );
+
+  it.each(choices)(
+    "submits $type values in an asForm Card like the web",
+    async ({ type, initial, selected }) => {
+      const input = spec({
+        main: {
+          type: "Card",
+          props: { asForm: true, confirm: { label: "Send" } },
+          children: ["choice"],
+          on: {
+            confirm: { action: "capture", params: { values: { $event: "" } } },
+          },
+        },
+        choice: control(type, initial),
+      });
+      const native = vi.fn();
+      const web = vi.fn();
+      const nativeSpec = renderNativeSpec(input, { capture: native }, actions);
+      const webSpec = renderWebSpec(input, { capture: web }, actions);
+      await press(row(nativeSpec.container, type));
+      await changeWeb(webSpec.container, type);
+      await press(byRole(nativeSpec.container, "button", "Send"));
+      await act(async () =>
+        webSpec.container.querySelector("form")!.requestSubmit(),
+      );
+      expect(native.mock.calls.at(-1)![0]).toEqual(web.mock.calls.at(-1)![0]);
+      expect(native.mock.calls.at(-1)![0]).toEqual({
+        values: { choice: selected },
+      });
+    },
+  );
+
+  it.each(choices)(
+    "exposes $type roles, labels, and checked state",
+    ({ type, initial }) => {
+      const { container } = renderNativeSpec(
+        spec({ main: control(type, initial) }),
+      );
+      if (type !== "Checkbox") {
+        const group = byRole(
+          container,
+          type === "CheckboxGroup" ? "group" : "radiogroup",
+          "Choices",
+        );
+        expect(group.getAttribute("aria-label")).toBe("Choices");
+      }
+      expect(
+        row(
+          container,
+          type,
+          type === "Checkbox" ? "Choices" : "Alpha",
+        ).getAttribute("aria-checked"),
+      ).toBe(type === "Checkbox" ? "false" : "true");
+      expect(row(container, type).getAttribute("aria-label")).toBe(
+        type === "Checkbox" ? "Choices" : "Beta",
+      );
+    },
+  );
+
+  it.each([
+    { type: "Select", expected: "" },
+    { type: "Checkbox", expected: false },
+    { type: "RadioGroup", expected: undefined },
+    { type: "CheckboxGroup", expected: [] },
+  ])(
+    "submits untouched $type values like the web",
+    async ({ type, expected }) => {
+      const input = spec({
+        main: {
+          type: "Card",
+          props: { asForm: true, confirm: { label: "Send" } },
+          children: ["choice"],
+          on: {
+            confirm: { action: "capture", params: { values: { $event: "" } } },
+          },
+        },
+        choice: control(type, undefined),
+      });
+      const native = vi.fn();
+      const web = vi.fn();
+      const nativeSpec = renderNativeSpec(input, { capture: native }, actions);
+      const webSpec = renderWebSpec(input, { capture: web }, actions);
+      await press(byRole(nativeSpec.container, "button", "Send"));
+      await act(async () =>
+        webSpec.container.querySelector("form")!.requestSubmit(),
+      );
+      expect(native.mock.calls[0]![0].values).toHaveProperty("choice");
+      expect(native.mock.calls[0]![0]).toEqual(web.mock.calls[0]![0]);
+      expect(native.mock.calls[0]![0]).toEqual({
+        values: { choice: expected },
+      });
+    },
+  );
+
+  it("submits the first Select option when there is no placeholder", async () => {
+    const input = spec({
+      main: {
+        type: "Card",
+        props: { asForm: true, confirm: { label: "Send" } },
+        children: ["choice"],
+        on: {
+          confirm: { action: "capture", params: { values: { $event: "" } } },
+        },
+      },
+      choice: {
+        type: "Select",
+        props: { name: "choice", options },
+      },
+    });
+    const native = vi.fn();
+    const web = vi.fn();
+    const nativeSpec = renderNativeSpec(input, { capture: native }, actions);
+    const webSpec = renderWebSpec(input, { capture: web }, actions);
+    await press(byRole(nativeSpec.container, "button", "Send"));
+    await act(async () =>
+      webSpec.container.querySelector("form")!.requestSubmit(),
+    );
+    expect(native.mock.calls[0]![0]).toEqual(web.mock.calls[0]![0]);
+    expect(native.mock.calls[0]![0]).toEqual({ values: { choice: "a" } });
+  });
+
+  it.each(["Select", "RadioGroup", "CheckboxGroup"])(
+    "renders $type children after the options",
+    (type) => {
+      const { container } = renderNativeSpec(
+        spec({
+          main: {
+            ...control(type, type === "CheckboxGroup" ? [] : "a"),
+            children: ["after"],
+          },
+          after: { type: "Text", props: { value: "After options" } },
+        }),
+      );
+      const group = byRole(
+        container,
+        type === "CheckboxGroup" ? "group" : "radiogroup",
+        "Choices",
+      );
+      expect(group.textContent!.indexOf("After options")).toBeGreaterThan(
+        group.textContent!.indexOf("Gamma"),
+      );
+    },
+  );
+
+  it("renders a switch Checkbox as a native switch that toggles like the web", async () => {
+    const input = spec({
+      main: {
+        type: "Checkbox",
+        props: { label: "Alerts", variant: "switch" },
+        on: {
+          change: { action: "capture", params: { value: { $event: "" } } },
+        },
+      },
+    });
+    const native = vi.fn();
+    const web = vi.fn();
+    const nativeSpec = renderNativeSpec(input, { capture: native }, actions);
+    const webSpec = renderWebSpec(input, { capture: web }, actions);
+    const row = byRole(nativeSpec.container, "switch", "Alerts");
+    expect(row.getAttribute("aria-checked")).toBe("false");
+    await press(row);
+    await act(async () =>
+      webSpec.container
+        .querySelector<HTMLInputElement>('[role="switch"]')!
+        .click(),
+    );
+    expect(native.mock.calls[0]![0]).toEqual(web.mock.calls[0]![0]);
+    expect(native.mock.calls[0]![0]).toEqual({ value: true });
+    expect(
+      byRole(nativeSpec.container, "switch", "Alerts").getAttribute(
+        "aria-checked",
+      ),
+    ).toBe("true");
+  });
+});
