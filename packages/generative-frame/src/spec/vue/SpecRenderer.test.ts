@@ -521,6 +521,38 @@ describe("SpecRenderer", () => {
     expect(refresh).toHaveBeenCalledTimes(1);
   });
 
+  it("runs every action a spec binds to one event in either spelling", async () => {
+    const refresh = vi.fn();
+    const reload = vi.fn();
+    const Item = defineComponent({
+      emits: ["itemClick"],
+      setup(_, { emit }) {
+        return () =>
+          h(
+            "button",
+            { type: "button", onClick: () => emit("itemClick") },
+            "item",
+          );
+      },
+    });
+    const view = mount({
+      components: { Item },
+      handlers: { refresh, reload },
+      spec: spec({
+        main: {
+          type: "Item",
+          on: {
+            "item-click": { action: "refresh" },
+            itemClick: { action: "reload" },
+          },
+        },
+      }),
+    });
+    await click(view.container.querySelector("button")!);
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
   it("accepts props and events declared through extends and mixins", async () => {
     const refresh = vi.fn();
     const Inherited = defineComponent({

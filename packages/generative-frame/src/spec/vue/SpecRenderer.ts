@@ -322,7 +322,10 @@ const ResolvedElement = defineComponent({
       const listeners: Record<string, (value: unknown) => void> = {};
       for (const event of Object.keys(props.element.on ?? {})) {
         if (!listens(event)) continue;
-        listeners[handlerKey(event)] = (payload) => {
+        const key = handlerKey(event);
+        const previous = listeners[key];
+        listeners[key] = (payload) => {
+          previous?.(payload);
           void ctx.dispatch(props.element.on?.[event], {
             ...props.scope,
             elementId: props.id,
