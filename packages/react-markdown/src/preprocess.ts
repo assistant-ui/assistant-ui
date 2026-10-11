@@ -855,10 +855,11 @@ function backtickEnd(
   text: string,
   start: number,
   blockStarts: number[],
+  paragraphBreaks: number[],
 ): number {
   return opensBacktickFence(text, start)
     ? fenceEnd(text, start, "`")
-    : codeSpanEnd(text, start, blockStarts);
+    : codeSpanEnd(text, start, blockStarts, paragraphBreaks);
 }
 
 type VerbatimRange = {
@@ -873,12 +874,13 @@ function forEachVerbatimRange(
   visit: (start: number, end: number, kind: VerbatimRange["kind"]) => void,
 ): void {
   let index = 0;
+  const paragraphBreaks = text.includes("`") ? findParagraphBreaks(text) : [];
   while (index < text.length) {
     const char = text[index];
     if (char === "\\") {
       index += 2;
     } else if (char === "`") {
-      const end = backtickEnd(text, index, blockStarts);
+      const end = backtickEnd(text, index, blockStarts, paragraphBreaks);
       if (end !== -1) {
         visit(index, end, opensBacktickFence(text, index) ? "fence" : "span");
         index = end;
@@ -931,8 +933,15 @@ function rewriteOutsideCode(
   ) => string,
 ): string {
   return rewriteOutsideBlocks(text, (text, blockStarts) => {
-    let out = "";
+    const out: string[] = [];
+    let lastOutChar = "";
     let plainStart = 0;
+
+    const append = (value: string) => {
+      if (value === "") return;
+      out.push(value);
+      lastOutChar = value[value.length - 1]!;
+    };
 
     const flush = (end: number, followedBy: string) => {
       const segment = text.slice(plainStart, end);
@@ -944,17 +953,17 @@ function rewriteOutsideCode(
         const at = start + offset;
         return text.slice(text.lastIndexOf("\n", at - 1) + 1, at);
       };
-      out += rewrite(segment, out.slice(-1), followedBy, lineHead);
+      append(rewrite(segment, lastOutChar, followedBy, lineHead));
     };
 
     forEachVerbatimRange(text, blockStarts, (start, end) => {
       flush(start, text[start]!);
-      out += text.slice(start, end);
+      append(text.slice(start, end));
       plainStart = end;
     });
     flush(text.length, "");
 
-    return out;
+    return out.join("");
   });
 }
 
@@ -1614,9 +1623,19 @@ const TRAILING_OPERATOR = /[-+*/=<>,;:([\u2013\u2014\u2212]$/;
 
 // The paragraph break a code span cannot reach past. `BLANK_LINE` cannot serve
 // here: it does not admit the carriage return of a CRLF document, and widening
-// it would change which bodies `isMathBody` accepts. Sticky so the scan starts
-// at the run without copying the rest of the input on every backtick.
+// it would change which bodies `isMathBody` accepts.
 const PARAGRAPH_BREAK = /\n[ \t\r]*\n/g;
+
+function findParagraphBreaks(text: string): number[] {
+  const breaks: number[] = [];
+  PARAGRAPH_BREAK.lastIndex = 0;
+  let match = PARAGRAPH_BREAK.exec(text);
+  while (match !== null) {
+    breaks.push(match.index);
+    match = PARAGRAPH_BREAK.exec(text);
+  }
+  return breaks;
+}
 
 /** Length of the run of `char` starting at `start`. */
 function runLength(text: string, start: number, char: string): number {
@@ -1637,13 +1656,20 @@ function codeSpanEnd(
   text: string,
   start: number,
   blockStarts: number[],
+  paragraphBreaks: number[],
 ): number {
   const delimiterLength = runLength(text, start, "`");
   const delimiter = "`".repeat(delimiterLength);
   // A span is an inline construct, so it cannot reach past the paragraph it
   // opens in and a run left open in prose does not swallow a later fence.
-  PARAGRAPH_BREAK.lastIndex = start;
-  const blank = PARAGRAPH_BREAK.exec(text);
+  let paragraphLow = 0;
+  let paragraphHigh = paragraphBreaks.length;
+  while (paragraphLow < paragraphHigh) {
+    const middle = (paragraphLow + paragraphHigh) >>> 1;
+    if (paragraphBreaks[middle]! >= start) paragraphHigh = middle;
+    else paragraphLow = middle + 1;
+  }
+  const paragraphEnd = paragraphBreaks[paragraphLow] ?? text.length;
   let low = 0;
   let high = blockStarts.length;
   while (low < high) {
@@ -1651,10 +1677,7 @@ function codeSpanEnd(
     if (blockStarts[middle]! > start) high = middle;
     else low = middle + 1;
   }
-  const limit = Math.min(
-    blank ? blank.index : text.length,
-    blockStarts[low] ?? text.length,
-  );
+  const limit = Math.min(paragraphEnd, blockStarts[low] ?? text.length);
   let closed = text.indexOf(delimiter, start + delimiterLength);
 
   while (closed !== -1 && closed < limit) {
@@ -1675,6 +1698,7 @@ function findClosingDollar(
   text: string,
   openIndex: number,
   blockStarts: number[],
+  paragraphBreaks: number[],
 ): number {
   let index = openIndex + 1;
   while (index < text.length) {
@@ -1682,7 +1706,7 @@ function findClosingDollar(
     if (char === "$") return index;
     if (char === "\\") index += 2;
     else if (char === "`") {
-      const end = backtickEnd(text, index, blockStarts);
+      const end = backtickEnd(text, index, blockStarts, paragraphBreaks);
       index = end === -1 ? index + runLength(text, index, "`") : end;
     } else index += 1;
   }
@@ -1772,11 +1796,12 @@ function endOfVerbatimRun(
   text: string,
   index: number,
   blockStarts: number[],
+  paragraphBreaks: number[],
 ): number {
   const char = text[index];
   if (char === "\\") return Math.min(index + 2, text.length);
   if (char === "`") {
-    const end = backtickEnd(text, index, blockStarts);
+    const end = backtickEnd(text, index, blockStarts, paragraphBreaks);
     return end === -1 ? index + runLength(text, index, "`") : end;
   }
   if (opensTildeFence(text, index)) return fenceEnd(text, index, "~");
@@ -1785,7 +1810,7 @@ function endOfVerbatimRun(
   const dollars = runLength(text, index, "$");
   if (dollars >= 2) return index + dollars;
 
-  const close = findClosingDollar(text, index, blockStarts);
+  const close = findClosingDollar(text, index, blockStarts, paragraphBreaks);
   const opensMath =
     close !== -1 &&
     !opensCurrencyAmount(text, close) &&
@@ -1810,9 +1835,17 @@ export function escapeCurrencyDollars(text: string): string {
   return rewriteOutsideBlocks(text, (slice, blockStarts) => {
     let out = "";
     let index = 0;
+    const paragraphBreaks = slice.includes("`")
+      ? findParagraphBreaks(slice)
+      : [];
 
     while (index < slice.length) {
-      const verbatimEnd = endOfVerbatimRun(slice, index, blockStarts);
+      const verbatimEnd = endOfVerbatimRun(
+        slice,
+        index,
+        blockStarts,
+        paragraphBreaks,
+      );
       if (verbatimEnd > index) {
         out += slice.slice(index, verbatimEnd);
         index = verbatimEnd;

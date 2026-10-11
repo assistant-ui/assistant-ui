@@ -643,6 +643,11 @@ describe("normalizeMathDelimiters", () => {
     );
   });
 
+  it("keeps many inline code spans in one paragraph unchanged", () => {
+    const input = "a `\\(x\\)` ".repeat(1000);
+    expect(normalizeMathDelimiters(input)).toBe(input);
+  });
+
   it("nests a $$ fence opened on a list item's marker line", () => {
     expect(
       normalizeMathDelimiters(
@@ -934,6 +939,17 @@ describe("escapeCurrencyDollars", () => {
   it("does not rewrite a code span", () => {
     expect(escapeCurrencyDollars("Use `$5` as the placeholder.")).toBe(
       "Use `$5` as the placeholder.",
+    );
+  });
+
+  it("keeps many inline code spans in one paragraph unchanged", () => {
+    const input = "a `$5` ".repeat(1000);
+    expect(escapeCurrencyDollars(input)).toBe(input);
+  });
+
+  it("does not carry an unmatched code span across a CRLF paragraph break", () => {
+    expect(escapeCurrencyDollars("`open\r\n\r\nclose` costs $5")).toBe(
+      "`open\r\n\r\nclose` costs \\$5",
     );
   });
 
