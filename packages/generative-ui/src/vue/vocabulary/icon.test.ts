@@ -30,6 +30,19 @@ describe("icon vocabulary in Vue", () => {
     );
   });
 
+  it.each(["huge", "toString", "__proto__"])(
+    "renders the size %s at the medium size",
+    (size) => {
+      const container = document.createElement("div");
+      const app = createApp({
+        render: () => h(iconVocabulary.Icon.component, { name: "star", size }),
+      });
+      app.mount(container);
+      expect(container.querySelector("svg")?.getAttribute("width")).toBe("16");
+      app.unmount();
+    },
+  );
+
   it.each(["constructor", "toString", "__proto__"])(
     "renders nothing for the inherited key %s",
     (name) => {

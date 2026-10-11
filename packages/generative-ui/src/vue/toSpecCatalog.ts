@@ -40,8 +40,8 @@ export function toSpecCatalog(
   library: GenerativeUILibrary = defaultGenerativeUILibrary,
   options: ToSpecCatalogOptions = {},
 ): { catalog: Catalog; components: SpecComponents } {
-  const definitions: Record<string, ComponentDefinition> = {};
-  const components: SpecComponents = {};
+  const definitions: Record<string, ComponentDefinition> = Object.create(null);
+  const components: SpecComponents = Object.create(null);
   for (const [name, entry] of Object.entries(library)) {
     const isDefault =
       isDefaultGenerativeUIComponent(name, entry.properties) ||

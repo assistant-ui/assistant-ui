@@ -1,7 +1,7 @@
 import * as React from "react";
 import type { GenerativeUILibrary } from "../types";
 import { iconDefinitions } from "./definitions/icon";
-import { ICON_SIZE_PX, iconGlyph } from "./iconGlyphs";
+import { iconGlyph, iconSize } from "./iconGlyphs";
 
 export const iconVocabulary = {
   Icon: {
@@ -9,7 +9,7 @@ export const iconVocabulary = {
     render: ({ name, size }) => {
       const glyph = iconGlyph(name);
       if (!glyph) return null;
-      const px = ICON_SIZE_PX[(size as keyof typeof ICON_SIZE_PX) ?? "md"];
+      const px = iconSize(size);
 
       return (
         <svg

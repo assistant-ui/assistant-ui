@@ -65,6 +65,20 @@ describe("toSpecCatalog", () => {
     ).toEqual([]);
   });
 
+  it("keeps a component named __proto__", () => {
+    const custom = toSpecCatalog({
+      ["__proto__"]: {
+        description: "A component with an unusual name.",
+        properties: z.object({}),
+        render: () => <p>proto</p>,
+      },
+    });
+    expect(Object.hasOwn(custom.components, "__proto__")).toBe(true);
+    expect(custom.catalog.component("__proto__")).toMatchObject({
+      description: "A component with an unusual name.",
+    });
+  });
+
   it("keeps a custom component's description and gives it the default slot", () => {
     const custom = toSpecCatalog({
       Weather: {

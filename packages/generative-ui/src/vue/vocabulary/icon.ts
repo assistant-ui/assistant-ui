@@ -1,6 +1,6 @@
 import { defineComponent, h } from "vue";
 import { iconDefinitions } from "../../vocabulary/definitions/icon";
-import { ICON_SIZE_PX, iconGlyph } from "../../vocabulary/iconGlyphs";
+import { iconGlyph, iconSize } from "../../vocabulary/iconGlyphs";
 
 export const iconVocabulary = {
   Icon: {
@@ -12,8 +12,7 @@ export const iconVocabulary = {
         return () => {
           const glyph = iconGlyph(props.name);
           if (!glyph) return null;
-          const px =
-            ICON_SIZE_PX[(props.size as keyof typeof ICON_SIZE_PX) ?? "md"];
+          const px = iconSize(props.size);
           return h(
             "svg",
             {
