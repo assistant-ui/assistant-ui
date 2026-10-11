@@ -353,7 +353,7 @@ describe("createWidget", () => {
     widget.dispose();
   });
 
-  it("drops state whose JSON would pass the length limit however it shares objects", async () => {
+  it("drops state whose JSON would pass the length limit, counting escapes and shared objects", async () => {
     const onWidgetState = vi.fn();
     const { fake, widget } = setup({ onWidgetState });
     const first = await fake.connect(0);
@@ -368,6 +368,9 @@ describe("createWidget", () => {
     first.notify(METHODS.widgetState, {
       state: { [`k${"y".repeat(1 << 20)}`]: 1 },
     });
+    const control = String.fromCharCode(1).repeat(200_000);
+    first.notify(METHODS.widgetState, { state: control });
+    first.notify(METHODS.widgetState, { state: { [control]: 1 } });
     await first.request(METHODS.initialize, {});
     expect(onWidgetState).not.toHaveBeenCalled();
     widget.dispose();

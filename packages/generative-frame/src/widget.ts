@@ -268,13 +268,39 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 /** How many characters a widget's state may take as JSON. A shared object counts once for each place it appears, as it does once serialized, so checking and saving a state stay bounded however the widget shares objects. */
 const MAX_STATE_LENGTH = 1_000_000;
 
+/** The length of `text` once JSON quotes and escapes it. */
+const jsonStringLength = (text: string) => {
+  let length = text.length + 2;
+  for (let index = 0; index < text.length; index++) {
+    const code = text.charCodeAt(index);
+    if (code === 0x22 || code === 0x5c) length += 1;
+    else if (code < 0x20)
+      length +=
+        code === 0x08 ||
+        code === 0x09 ||
+        code === 0x0a ||
+        code === 0x0c ||
+        code === 0x0d
+          ? 1
+          : 5;
+    else if (code >= 0xd800 && code <= 0xdbff) {
+      const next = text.charCodeAt(index + 1);
+      if (next >= 0xdc00 && next <= 0xdfff) index++;
+      else length += 5;
+    } else if (code >= 0xdc00 && code <= 0xdfff) length += 5;
+  }
+  return length;
+};
+
 const isPlainJson = (state: unknown): boolean => {
   let budget = MAX_STATE_LENGTH;
   const spend = (length: number) => (budget -= length) >= 0;
+  const spendText = (text: string) =>
+    text.length + 2 <= budget && spend(jsonStringLength(text));
   const ancestors = new Set<object>();
   const check = (value: unknown): boolean => {
     if (value === null || typeof value === "boolean") return spend(5);
-    if (typeof value === "string") return spend(value.length + 2);
+    if (typeof value === "string") return spendText(value);
     if (typeof value === "number")
       return Number.isFinite(value) && spend(String(value).length);
     if (typeof value !== "object" || ancestors.has(value) || !spend(2))
@@ -311,7 +337,8 @@ const isPlainJson = (state: unknown): boolean => {
           !property ||
           !("value" in property) ||
           !property.enumerable ||
-          !spend(key.length + 4) ||
+          !spendText(key) ||
+          !spend(2) ||
           !check(property.value)
         )
           return false;
