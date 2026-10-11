@@ -149,67 +149,75 @@ export function createSpecToolkit(
     return tools.render_spec.execute(input);
   };
 
-  function RenderSpecUI({
-    args,
-    toolCallId,
-  }: ToolCallMessagePartProps<SpecArgs>) {
-    const { argsStatus } = useToolArgsStatus<RenderSpecInput>();
-    const streaming = argsStatus !== "complete";
-    const messages = useAuiState((s) => s.thread.messages);
-    const title = typeof args.title === "string" ? args.title : "";
-    // The base and the tool results only depend on earlier calls, so they are read once per call.
-    const [base] = useState(() => resolveSpecBase(messages, toolCallId, title));
-    const [toolResults] = useState(() =>
-      resolveToolResults(messages, toolCallId),
-    );
-    const [history] = useState<SpecHistory>(() => (callTitle: string) => ({
-      spec: resolveSpecBase(messages, toolCallId, callTitle),
-      version: priorSpecCalls(messages, toolCallId, callTitle),
-    }));
-    useInsertionEffect(() => {
-      histories.set(toolCallId, history);
-      return () => {
-        if (histories.get(toolCallId) === history) histories.delete(toolCallId);
-      };
-    }, [toolCallId, history]);
-    const streamed = useSpecStream({
-      source: typeof args.patches === "string" ? args.patches : "",
-      complete: !streaming,
-      ...(base ? { initial: base } : {}),
-    });
-    const inputSpec = args.spec;
-    const spec = useMemo(
-      () =>
-        inputSpec &&
-        typeof inputSpec === "object" &&
-        typeof inputSpec.root === "string"
-          ? ({ state: {}, ...inputSpec } as Spec)
-          : streamed.spec,
-      [inputSpec, streamed.spec],
-    );
-    const renderState = useMemo(
-      () => ({ ...spec.state, tools: toolResults }),
-      [spec.state, toolResults],
-    );
-    const renderSpec = useMemo(
-      () => ({ ...spec, state: renderState }),
-      [spec, renderState],
-    );
+  const renderSpecUI = (mountsToolResults: boolean) =>
+    function RenderSpecUI({
+      args,
+      toolCallId,
+    }: ToolCallMessagePartProps<SpecArgs>) {
+      const { argsStatus } = useToolArgsStatus<RenderSpecInput>();
+      const streaming = argsStatus !== "complete";
+      const messages = useAuiState((s) => s.thread.messages);
+      const title = typeof args.title === "string" ? args.title : "";
+      // The base and the tool results only depend on earlier calls, so they are read once per call.
+      const [base] = useState(() =>
+        resolveSpecBase(messages, toolCallId, title),
+      );
+      const [toolResults] = useState(() =>
+        mountsToolResults
+          ? resolveToolResults(messages, toolCallId)
+          : undefined,
+      );
+      const [history] = useState<SpecHistory>(() => (callTitle: string) => ({
+        spec: resolveSpecBase(messages, toolCallId, callTitle),
+        version: priorSpecCalls(messages, toolCallId, callTitle),
+      }));
+      useInsertionEffect(() => {
+        histories.set(toolCallId, history);
+        return () => {
+          if (histories.get(toolCallId) === history)
+            histories.delete(toolCallId);
+        };
+      }, [toolCallId, history]);
+      const streamed = useSpecStream({
+        source: typeof args.patches === "string" ? args.patches : "",
+        complete: !streaming,
+        ...(base ? { initial: base } : {}),
+      });
+      const inputSpec = args.spec;
+      const spec = useMemo(
+        () =>
+          inputSpec &&
+          typeof inputSpec === "object" &&
+          typeof inputSpec.root === "string"
+            ? ({ state: {}, ...inputSpec } as Spec)
+            : streamed.spec,
+        [inputSpec, streamed.spec],
+      );
+      const renderState = useMemo(
+        () => toolResults && { ...spec.state, tools: toolResults },
+        [spec.state, toolResults],
+      );
+      const renderSpec = useMemo(
+        () => (renderState ? { ...spec, state: renderState } : spec),
+        [spec, renderState],
+      );
 
-    return (
-      <div data-gf-spec={title || undefined}>
-        <SpecRenderer
-          spec={renderSpec}
-          catalog={catalog}
-          components={options.components}
-          streaming={streaming}
-          {...(options.handlers ? { handlers: options.handlers } : {})}
-          {...(options.onAction ? { onAction: options.onAction } : {})}
-          {...(options.placeholder ? { placeholder: options.placeholder } : {})}
-        />
-      </div>
-    );
-  }
+      return (
+        <div data-gf-spec={title || undefined}>
+          <SpecRenderer
+            spec={renderSpec}
+            catalog={catalog}
+            components={options.components}
+            streaming={streaming}
+            {...(options.handlers ? { handlers: options.handlers } : {})}
+            {...(options.onAction ? { onAction: options.onAction } : {})}
+            {...(options.placeholder
+              ? { placeholder: options.placeholder }
+              : {})}
+          />
+        </div>
+      );
+    };
 
   return {
     tools,
@@ -225,7 +233,7 @@ export function createSpecToolkit(
     entries: (context) => ({
       render_spec: toolkitEntry(
         tools.render_spec,
-        RenderSpecUI as never,
+        renderSpecUI(context.execution === "frontend") as never,
         context,
         execute,
       ),

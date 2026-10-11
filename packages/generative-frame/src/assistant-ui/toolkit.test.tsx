@@ -652,6 +652,35 @@ describe("createWidgetToolkit", () => {
     });
   });
 
+  it("leaves model-written state alone in backend execution", () => {
+    const spec = {
+      root: "t",
+      elements: {
+        t: { type: "Text", props: { text: { $state: "/tools/0" } } },
+      },
+      state: { tools: ["hammer"] },
+    };
+    mocks.messages = [
+      { content: [call("price", "get_price", {}, { price: "$42" })] },
+      { content: [call("s", "render_spec", { title: "s", spec })] },
+    ];
+    const { toolkit } = createWidgetToolkit({
+      execution: "backend",
+      spec: createSpecToolkit(catalog, {
+        components: {
+          Text: ({ props }: SpecComponentProps<{ text: string }>) => (
+            <p>{props.text}</p>
+          ),
+        },
+      }),
+    });
+    const RenderSpec = entries(toolkit)["render_spec"]!.render;
+    const view = render(
+      <RenderSpec {...partProps("s", { title: "s", spec })} />,
+    );
+    expect(view.container.textContent).toBe("hammer");
+  });
+
   it("keeps index 0 on the latest call to a tool when older calls precede it", () => {
     const spec = {
       root: "t",
