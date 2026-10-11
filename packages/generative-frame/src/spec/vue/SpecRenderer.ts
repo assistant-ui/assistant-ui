@@ -1,5 +1,6 @@
 import {
   defineComponent,
+  camelize,
   Fragment,
   h,
   inject,
@@ -154,12 +155,6 @@ const ElementBoundary = defineComponent({
   setup(props, { slots }) {
     const ctx = inject<RenderContext>(renderContextKey)!;
     const error = shallowRef<Error | null>(null);
-    watch(
-      () => props.element,
-      () => {
-        error.value = null;
-      },
-    );
     onErrorCaptured((caught) => {
       const normalized =
         caught instanceof Error ? caught : new Error(String(caught));
@@ -307,7 +302,12 @@ const ResolvedElement = defineComponent({
         };
       }
       for (const [name, path] of Object.entries(bindings)) {
-        listeners[`onUpdate:${name}`] = (value) => ctx.store.set(path, value);
+        const key = `onUpdate:${name}`;
+        const action = listeners[key];
+        listeners[key] = (value) => {
+          ctx.store.set(path, value);
+          action?.(value);
+        };
       }
       const slots: Record<string, () => VNode[]> = {};
       slots.default = () => {
@@ -341,10 +341,21 @@ const ResolvedElement = defineComponent({
         );
       };
       for (const [slot, ids] of Object.entries(props.element.slots ?? {})) {
-        if (Array.isArray(ids))
+        if (slot !== "default" && Array.isArray(ids))
           slots[slot] = () => children(ids, props.scope, props.ancestors);
       }
-      return h(props.impl, { ...values, ...listeners }, slots);
+      const declared = (
+        props.impl as { props?: string[] | Record<string, unknown> }
+      ).props;
+      const allowed = new Set(
+        (Array.isArray(declared) ? declared : Object.keys(declared ?? {})).map(
+          camelize,
+        ),
+      );
+      const accepted = Object.fromEntries(
+        Object.entries(values).filter(([name]) => allowed.has(camelize(name))),
+      );
+      return h(props.impl, { ...accepted, ...listeners }, slots);
     };
   },
 });

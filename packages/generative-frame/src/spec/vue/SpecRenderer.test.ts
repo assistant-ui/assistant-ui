@@ -254,7 +254,6 @@ describe("SpecRenderer", () => {
 
   it("renders placeholders and captures each element error", async () => {
     const onError = vi.fn();
-    vi.spyOn(console, "warn").mockImplementation(() => {});
     const view = mount({
       catalog,
       components,
@@ -370,5 +369,145 @@ describe("SpecRenderer", () => {
     expect(context?.bindings).toEqual({ value: "/value" });
     expect(context?.state).toBe(store);
     expect(context?.streaming).toBe(true);
+  });
+
+  it("passes only declared array and object props without DOM fallthrough", () => {
+    const hosts = {
+      Stack: components.Stack!,
+      ArrayHost: defineComponent({
+        props: ["safeValue"],
+        setup(props) {
+          return () => h("div", props.safeValue);
+        },
+      }),
+      ObjectHost: defineComponent({
+        props: { safeValue: String },
+        setup(props) {
+          return () => h("div", props.safeValue);
+        },
+      }),
+      BareHost: defineComponent({
+        setup() {
+          return () => h("div", "bare");
+        },
+      }),
+    };
+    const hostile = {
+      "safe-value": "accepted",
+      innerHTML: "<img src=x>",
+      style: "color: red",
+      class: "injected",
+      href: "https://example.com",
+      key: "injected",
+      ref: "injected",
+    };
+    const view = mount({
+      components: hosts,
+      spec: spec({
+        main: { type: "Stack", children: ["array", "object", "bare"] },
+        array: { type: "ArrayHost", props: hostile },
+        object: { type: "ObjectHost", props: hostile },
+        bare: { type: "BareHost", props: hostile },
+      }),
+    });
+    const roots = [...view.container.querySelectorAll("section > div")];
+    expect(roots.map((root) => root.textContent)).toEqual([
+      "accepted",
+      "accepted",
+      "bare",
+    ]);
+    for (const root of roots) {
+      expect(root.getAttribute("style")).toBeNull();
+      expect(root.getAttribute("class")).toBeNull();
+      expect(root.getAttribute("href")).toBeNull();
+      expect(root.querySelector("img")).toBeNull();
+    }
+  });
+
+  it("writes a bound update before dispatching its action", async () => {
+    const store = createStateStore({ on: false });
+    const refresh = vi.fn();
+    const view = mount({
+      components,
+      state: store,
+      handlers: { refresh },
+      spec: spec({
+        main: {
+          type: "Toggle",
+          props: { checked: { $bindState: "/on" } },
+          on: {
+            "update:checked": {
+              action: "refresh",
+              params: { current: { $state: "/on" } },
+            },
+          },
+        },
+      }),
+    });
+    await click(view.container.querySelector("input")!);
+    expect(store.get("/on")).toBe(true);
+    expect(refresh).toHaveBeenCalledWith(
+      { current: true },
+      expect.objectContaining({ trigger: "update:checked" }),
+    );
+  });
+
+  it("uses children as the repeated default slot despite slots.default", () => {
+    const view = mount({
+      components,
+      state: createStateStore({ items: ["a", "b"] }),
+      spec: spec({
+        main: {
+          type: "Stack",
+          repeat: { path: "/items" },
+          children: ["item"],
+          slots: { default: ["wrong"], footer: ["footer"] },
+        },
+        item: { type: "Text", props: { text: { $item: "" } } },
+        wrong: { type: "Text", props: { text: "wrong" } },
+        footer: { type: "Text", props: { text: "footer" } },
+      }),
+    });
+    expect(view.container.querySelector("section")?.textContent).toBe(
+      "abfooter",
+    );
+  });
+
+  it("keeps a caught error until the element remounts", async () => {
+    const onError = vi.fn();
+    const hosts = {
+      MaybeBoom: defineComponent({
+        props: { fail: Boolean },
+        setup(props) {
+          return () => {
+            if (props.fail) throw new Error("kaboom");
+            return h("div", "recovered");
+          };
+        },
+      }),
+    };
+    const failing = spec({
+      main: { type: "MaybeBoom", props: { fail: true } },
+    });
+    const recovered = spec({
+      main: { type: "MaybeBoom", props: { fail: false } },
+    });
+    const view = mount({ components: hosts, onError, spec: failing });
+    await nextTick();
+    expect(
+      view.container.querySelector('[data-gf-spec-placeholder="error"]'),
+    ).not.toBeNull();
+    await view.update({ components: hosts, onError, spec: recovered });
+    expect(
+      view.container.querySelector('[data-gf-spec-placeholder="error"]'),
+    ).not.toBeNull();
+    expect(view.container.textContent).not.toContain("recovered");
+    await view.update({
+      components: hosts,
+      onError,
+      spec: { ...recovered, root: "" },
+    });
+    await view.update({ components: hosts, onError, spec: recovered });
+    expect(view.container.textContent).toBe("recovered");
   });
 });
