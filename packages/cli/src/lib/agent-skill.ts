@@ -5,7 +5,7 @@ import { withStagedDownload } from "./utils/download";
 import { dlxCommand, type PackageManagerName } from "./utils/package-manager";
 
 export const SKILLS_PACKAGE = "assistant-ui/skills";
-export const SKILLS_COMMIT = "139674dc888ee076982b6726e8e6f5d0fe0b5f67";
+export const SKILLS_COMMIT = "1ba8e9105c504fe4ac2591e432783872d6b3c8ba";
 export const SKILLS_PLUGIN_SOURCE = `gh:${SKILLS_PACKAGE}/assistant-ui#${SKILLS_COMMIT}`;
 
 export function resolveSkillsInstall(params: {
