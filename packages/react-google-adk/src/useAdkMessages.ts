@@ -46,6 +46,12 @@ export type UseAdkMessagesOptions = {
 
 type AdkRuntimeCallbackName = "onError" | "onCustomEvent" | "onAgentTransfer";
 
+type UseAdkMessagesInternalOptions = UseAdkMessagesOptions & {
+  onFirstEvent?:
+    | ((rollbackState: AdkThreadState | undefined) => void)
+    | undefined;
+};
+
 type QueuedAdkSend = {
   messages: AdkMessage[];
   config: Record<PropertyKey, unknown>;
@@ -78,7 +84,8 @@ const invokeAdkRuntimeCallback = <TArgs extends readonly unknown[]>(
 const useAdkMessagesInternal = ({
   stream,
   eventHandlers,
-}: UseAdkMessagesOptions) => {
+  onFirstEvent,
+}: UseAdkMessagesInternalOptions) => {
   const [controller] = useState(() => new AdkThreadController());
   const {
     messages,
@@ -269,7 +276,10 @@ const useAdkMessagesInternal = ({
             ) {
               break;
             }
-            receivedEvent = true;
+            if (!receivedEvent) {
+              receivedEvent = true;
+              onFirstEvent?.(rollbackState);
+            }
             const event = normalizeAdkEvent(rawEvent);
             const updatedMessages = accumulator.processEvent(event);
             // Each event part can append at most one message, and a function call
@@ -448,6 +458,7 @@ const useAdkMessagesInternal = ({
       onError,
       onCustomEvent,
       onAgentTransfer,
+      onFirstEvent,
     ],
   );
 

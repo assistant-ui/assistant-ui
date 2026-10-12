@@ -59,7 +59,7 @@ import {
   projectAdkToolApprovals,
   toAdkToolConfirmationReply,
 } from "./adkToolApproval";
-import { isInterruptReply } from "./adkThreadState";
+import { isInterruptReply, type AdkThreadState } from "./adkThreadState";
 import { adkExtras } from "./adkExtras";
 import { ADK_SDK } from "./sdkIdentity";
 
@@ -145,6 +145,17 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     eventHandlers,
   } = options;
   const aui = useAui();
+  const sentTruncationRef = useRef<{
+    lease: RunLease;
+    snapshot: AdkThreadState;
+  } | null>(null);
+  const clearSentTruncation = useCallback(
+    (rollbackState: AdkThreadState | undefined) => {
+      if (sentTruncationRef.current?.snapshot === rollbackState)
+        sentTruncationRef.current = null;
+    },
+    [],
+  );
   const {
     controller,
     messages: publishedMessages,
@@ -164,6 +175,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   } = useAdkMessagesInternal({
     stream,
     ...(eventHandlers && { eventHandlers }),
+    onFirstEvent: clearSentTruncation,
   });
   const threadState = useSyncExternalStore(
     controller.subscribe,
@@ -258,6 +270,10 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     snapshot: ReturnType<typeof controller.getState>;
     ownIds: readonly string[];
   } | null>(null);
+  const inheritedSnapshot = () =>
+    [checkpointLookupRef.current, sentTruncationRef.current].find((pending) =>
+      pending?.lease.isCurrent(),
+    )?.snapshot;
 
   const runExclusive = async (
     run: (isCurrent: () => boolean) => Promise<void>,
@@ -555,11 +571,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       ? async (msg) => {
           const initialLoad = waitForInitialLoad();
           if (initialLoad && !(await initialLoad).active) return;
-          const pendingLookup = checkpointLookupRef.current;
-          const beforeEdit =
-            (pendingLookup?.lease.isCurrent()
-              ? pendingLookup.snapshot
-              : undefined) ?? controller.getState();
+          const beforeEdit = inheritedSnapshot() ?? controller.getState();
           stopRun();
           const truncated = truncateAdkMessages(
             threadMessagesRef.current,
@@ -605,6 +617,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
                 checkpointLookupRef.current = null;
             }
             if (!isCurrent()) return;
+            sentTruncationRef.current = lookup;
             await sendMessageWithExecutor(
               [editedMessage],
               {
@@ -613,7 +626,10 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
               },
               undefined,
               beforeEdit,
-            );
+            ).finally(() => {
+              if (sentTruncationRef.current === lookup)
+                sentTruncationRef.current = null;
+            });
           });
         }
       : undefined,
@@ -642,12 +658,9 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             if (!getCheckpointId)
               throw new Error("Runtime does not support reloading messages.");
 
-            const previousReload = checkpointLookupRef.current;
-            const inheritedSnapshot = previousReload?.lease.isCurrent()
-              ? previousReload.snapshot
-              : undefined;
+            const inherited = inheritedSnapshot();
             stopRun();
-            const beforeReloadState = inheritedSnapshot ?? beforeReload;
+            const beforeReloadState = inherited ?? beforeReload;
             const truncated = truncateAdkMessages(
               threadMessagesRef.current,
               parentId,
@@ -678,6 +691,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
                   checkpointLookupRef.current = null;
               }
               if (!isCurrent()) return;
+              sentTruncationRef.current = lookup;
               await sendMessageWithExecutor(
                 [],
                 {
@@ -686,7 +700,10 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
                 },
                 undefined,
                 beforeReloadState,
-              );
+              ).finally(() => {
+                if (sentTruncationRef.current === lookup)
+                  sentTruncationRef.current = null;
+              });
             });
           },
         }
