@@ -101,6 +101,401 @@ describe("reduceAdkThreadState", () => {
     expect(staged.stagedEntries?.size).toBe(1);
   });
 
+  it("rolls back a run without losing staged entries or run ownership", () => {
+    const toolCall: AdkMessage = {
+      id: "tool-call",
+      type: "ai",
+      content: "calling tool",
+      tool_calls: [{ id: "call-1", name: "lookup", args: {} }],
+    };
+    const stagedMessage: AdkMessage = {
+      ...message,
+      id: "staged-1",
+      content: "staged",
+    };
+    const before = {
+      ...createAdkThreadState(),
+      messages: [toolCall, stagedMessage],
+      stagedEntries: new Map([
+        [
+          "staged-1",
+          {
+            message: stagedMessage as AdkMessage & { id: string },
+            runConfig: { custom: { model: "staged" } },
+          },
+        ],
+      ]),
+      runConfigByToolCallId: new Map([
+        ["call-1", { custom: { model: "original" } }],
+      ]),
+    };
+    const pruned = reduceAdkThreadState(before, {
+      type: "messages.prune",
+      history: [],
+    });
+    const replaced = reduceAdkThreadState(pruned, {
+      type: "messages.replaced",
+      messages: [],
+    });
+    const unstaged = reduceAdkThreadState(replaced, {
+      type: "staged.unstage",
+      ids: ["staged-1"],
+    });
+    const active = reduceAdkThreadState(unstaged, { type: "run.active" });
+    const started = reduceAdkThreadState(active, {
+      type: "run.started",
+      messages: [],
+      queuedMessageIds: [],
+      longRunningToolIds: [],
+      toolConfirmations: [],
+      authRequests: [],
+    });
+    const rolledBack = reduceAdkThreadState(started, {
+      type: "run.rollback",
+      state: before,
+    });
+
+    expect(rolledBack.messages).toEqual([toolCall, stagedMessage]);
+    expect([...rolledBack.stagedEntries.keys()]).toEqual(["staged-1"]);
+    expect(rolledBack.runConfigByToolCallId.get("call-1")).toEqual({
+      custom: { model: "original" },
+    });
+    expect(rolledBack.currentRunId).toBe(active.currentRunId);
+    expect(rolledBack.activeRunIds).toBe(active.activeRunIds);
+  });
+
+  it("does not restore a queued snapshot message cancelled from live state", () => {
+    const queued = { ...message, id: "queued" };
+    const snapshot = {
+      ...createAdkThreadState(),
+      messages: [message, queued],
+      queuedMessageIds: new Set([queued.id]),
+    };
+    const live = reduceAdkThreadState(snapshot, {
+      type: "messages.queue.remove",
+      ids: [queued.id],
+    });
+
+    const restored = reduceAdkThreadState(live, {
+      type: "run.rollback",
+      state: snapshot,
+    });
+
+    expect(restored.messages).toEqual([message]);
+  });
+
+  it("ignores rollback snapshots older than an applied server snapshot", () => {
+    const beforeLoad = {
+      ...createAdkThreadState(),
+      messages: [{ ...message, id: "old" }],
+    };
+    const loaded = reduceAdkThreadState(beforeLoad, {
+      type: "snapshot.applied",
+      snapshot: { messages: [{ ...message, id: "fresh" }] },
+    });
+
+    expect(
+      reduceAdkThreadState(loaded, {
+        type: "run.rollback",
+        state: beforeLoad,
+      }),
+    ).toBe(loaded);
+  });
+
+  it("keeps a live cancelled status when restoring settled messages", () => {
+    const completed: AdkMessage = {
+      id: "assistant",
+      type: "ai",
+      content: "partial answer",
+      status: { type: "complete", reason: "stop" },
+    };
+    const cancelled: AdkMessage = {
+      ...completed,
+      status: { type: "incomplete", reason: "cancelled" },
+    };
+    const snapshot = {
+      ...createAdkThreadState(),
+      messages: [completed],
+    };
+    const live = { ...snapshot, messages: [cancelled] };
+
+    const restored = reduceAdkThreadState(live, {
+      type: "run.rollback",
+      state: snapshot,
+    });
+
+    expect(restored.messages).toEqual([cancelled]);
+  });
+
+  it("keeps answered tool results beside their call and removes stale gates on rollback", () => {
+    const toolCall: AdkMessage = {
+      id: "assistant-call",
+      type: "ai",
+      content: "calling tool",
+      tool_calls: [{ id: "call-x", name: "lookup", args: {} }],
+    };
+    const answer: AdkMessage = {
+      id: "tool-result",
+      type: "tool",
+      tool_call_id: "call-x",
+      name: "lookup",
+      content: "done",
+    };
+    const staged: AdkMessage & { id: string } = {
+      id: "staged-human",
+      type: "human",
+      content: "next question",
+    };
+    const confirmation = {
+      toolCallId: "call-x",
+      toolName: "lookup",
+      args: {},
+      hint: "confirm",
+      confirmed: false,
+    };
+    const authRequest = { toolCallId: "call-x", authConfig: {} };
+    const snapshot = {
+      ...createAdkThreadState(),
+      messages: [toolCall],
+      longRunningToolIds: ["call-x"],
+      toolConfirmations: [confirmation],
+      authRequests: [authRequest],
+    };
+    const live = {
+      ...snapshot,
+      messages: [toolCall, staged, answer],
+      longRunningToolIds: [],
+      toolConfirmations: [],
+      authRequests: [],
+      stagedEntries: new Map([
+        [staged.id, { message: staged, runConfig: undefined }],
+      ]),
+    };
+
+    const restored = reduceAdkThreadState(live, {
+      type: "run.rollback",
+      state: snapshot,
+      ownIds: ["failed-send"],
+    });
+
+    expect(restored.messages).toEqual([toolCall, answer, staged]);
+    expect(restored.longRunningToolIds).toEqual([]);
+    expect(restored.toolConfirmations).toEqual([]);
+    expect(restored.authRequests).toEqual([]);
+  });
+
+  it("keeps queued sends and their answers in live order on rollback", () => {
+    const questionB = { ...message, id: "qb", content: "Qb" };
+    const questionC = { ...message, id: "qc", content: "Qc" };
+    const answerB: AdkMessage = { id: "ab", type: "ai", content: "Ab" };
+    const answerC: AdkMessage = { id: "ac", type: "ai", content: "Ac" };
+    const snapshot = {
+      ...createAdkThreadState(),
+      messages: [message, questionB, questionC],
+      queuedMessageIds: new Set([questionB.id, questionC.id]),
+    };
+    const live = {
+      ...snapshot,
+      messages: [message, questionB, answerB, questionC, answerC],
+      queuedMessageIds: new Set<string>(),
+    };
+
+    const restored = reduceAdkThreadState(live, {
+      type: "run.rollback",
+      state: snapshot,
+    });
+
+    expect(restored.messages.map((entry) => entry.id)).toEqual([
+      "message-1",
+      "qb",
+      "ab",
+      "qc",
+      "ac",
+    ]);
+  });
+
+  it.each([
+    [true, false],
+    [false, true],
+  ])(
+    "combines snapshot escalation %s and live escalation %s",
+    (before, after) => {
+      const snapshot = { ...createAdkThreadState(), escalated: before };
+      const live = { ...createAdkThreadState(), escalated: after };
+
+      expect(
+        reduceAdkThreadState(live, {
+          type: "run.rollback",
+          state: snapshot,
+        }).escalated,
+      ).toBe(true);
+    },
+  );
+
+  it("prefers live message metadata during rollback", () => {
+    const snapshot = {
+      ...createAdkThreadState(),
+      messageMetadata: new Map([
+        ["shared", { usageMetadata: "snapshot" }],
+        ["snapshot", { citationMetadata: "snapshot" }],
+      ]),
+    };
+    const live = {
+      ...createAdkThreadState(),
+      messageMetadata: new Map([
+        ["shared", { usageMetadata: "live" }],
+        ["live", { groundingMetadata: "live" }],
+      ]),
+    };
+
+    expect([
+      ...reduceAdkThreadState(live, { type: "run.rollback", state: snapshot })
+        .messageMetadata,
+    ]).toEqual([
+      ["shared", { usageMetadata: "live" }],
+      ["snapshot", { citationMetadata: "snapshot" }],
+      ["live", { groundingMetadata: "live" }],
+    ]);
+  });
+
+  it("restores truncated tool state while retaining later sends and tool events", () => {
+    const original = {
+      ...createAdkThreadState(),
+      messages: [
+        {
+          id: "old",
+          type: "ai" as const,
+          content: "calling tool",
+          tool_calls: [{ id: "old-call", name: "lookup", args: {} }],
+        },
+      ],
+      longRunningToolIds: ["old-call"],
+      toolConfirmations: [
+        {
+          toolCallId: "old-confirm",
+          toolName: "approve",
+          args: {},
+          hint: "old",
+          confirmed: false,
+        },
+      ],
+      authRequests: [{ toolCallId: "old-auth", authConfig: {} }],
+      runConfigByToolCallId: new Map([["old-call", { model: "old" }]]),
+      runIdByToolCallId: new Map([["old-call", "old-run"]]),
+    };
+    const stagedMessage = {
+      id: "staged",
+      type: "human" as const,
+      content: "staged",
+    };
+    const queuedMessage = {
+      id: "later",
+      type: "human" as const,
+      content: "later",
+    };
+    const bufferedResult = {
+      id: "result",
+      type: "tool" as const,
+      tool_call_id: "old-call",
+      name: "lookup",
+      content: "done",
+    };
+    const after = {
+      ...reduceAdkThreadState(
+        reduceAdkThreadState(
+          reduceAdkThreadState(original, {
+            type: "messages.replaced",
+            messages: [],
+          }),
+          {
+            type: "messages.queued",
+            messages: [queuedMessage],
+            ids: ["later"],
+          },
+        ),
+        {
+          type: "staged.stage",
+          entry: { message: stagedMessage, runConfig: undefined },
+        },
+      ),
+      messages: [
+        queuedMessage,
+        stagedMessage,
+        {
+          id: "own",
+          type: "ai" as const,
+          content: "calling tools",
+          tool_calls: [
+            { id: "own-call", name: "lookup", args: {} },
+            { id: "own-confirm", name: "adk_request_confirmation", args: {} },
+            { id: "own-auth", name: "adk_request_credential", args: {} },
+          ],
+        },
+      ],
+      longRunningToolIds: ["later-call", "own-call"],
+      toolConfirmations: [
+        {
+          toolCallId: "later-confirm",
+          toolName: "approve",
+          args: {},
+          hint: "later",
+          confirmed: false,
+        },
+        {
+          toolCallId: "own-confirm",
+          toolName: "approve",
+          args: {},
+          hint: "own",
+          confirmed: false,
+        },
+      ],
+      authRequests: [
+        { toolCallId: "later-auth", authConfig: {} },
+        { toolCallId: "own-auth", authConfig: {} },
+      ],
+      toolResultBuffer: new Map([["old-call", bufferedResult]]),
+      runConfigByToolCallId: new Map([
+        ["later-call", { model: "later" }],
+        ["own-call", { model: "own" }],
+      ]),
+      runIdByToolCallId: new Map([
+        ["later-call", "later-run"],
+        ["own-call", "own-run"],
+      ]),
+    };
+    const restored = reduceAdkThreadState(after, {
+      type: "run.rollback",
+      state: original,
+      ownIds: ["own"],
+    });
+
+    expect(restored.messages.map((entry) => entry.id)).toEqual([
+      "old",
+      "later",
+      "staged",
+    ]);
+    expect([...restored.queuedMessageIds]).toEqual(["later"]);
+    expect([...restored.stagedEntries.keys()]).toEqual(["staged"]);
+    expect(restored.toolResultBuffer.get("old-call")).toEqual(bufferedResult);
+    expect(restored.longRunningToolIds).toEqual(["old-call", "later-call"]);
+    expect(restored.toolConfirmations.map((item) => item.toolCallId)).toEqual([
+      "old-confirm",
+      "later-confirm",
+    ]);
+    expect(restored.authRequests.map((item) => item.toolCallId)).toEqual([
+      "old-auth",
+      "later-auth",
+    ]);
+    expect([...restored.runConfigByToolCallId]).toEqual([
+      ["old-call", { model: "old" }],
+      ["later-call", { model: "later" }],
+    ]);
+    expect([...restored.runIdByToolCallId]).toEqual([
+      ["old-call", "old-run"],
+      ["later-call", "later-run"],
+    ]);
+  });
+
   it("unstages a promoted run and preserves remaining entries through snapshots", () => {
     const entries = ["message-1", "message-2", "message-3"].map((id) => ({
       message: { ...message, id },
@@ -229,6 +624,7 @@ describe("reduceAdkThreadState", () => {
       escalated: false,
       messageMetadata: snapshot.messageMetadata,
       stagedEntries: previous.stagedEntries,
+      snapshotGeneration: previous.snapshotGeneration + 1,
     });
   });
 
@@ -735,6 +1131,67 @@ describe("reduceAdkThreadState", () => {
       authRequests,
       stateDelta: { retained: true },
     });
+  });
+
+  it("does not resurrect an answered tool call after another pre-event failure", () => {
+    const toolCall: AdkMessage = {
+      id: "assistant-call",
+      type: "ai",
+      content: "calling tool",
+      tool_calls: [{ id: "call-x", name: "lookup", args: {} }],
+    };
+    const answer: AdkMessage = {
+      id: "tool-result",
+      type: "tool",
+      tool_call_id: "call-x",
+      name: "lookup",
+      content: "done",
+    };
+    const failingSend: AdkMessage = {
+      id: "failed-resend",
+      type: "human",
+      content: "staged resend",
+    };
+    const confirmation = {
+      toolCallId: "call-x",
+      toolName: "lookup",
+      args: {},
+      hint: "confirm",
+      confirmed: false,
+    };
+    const before = {
+      ...createAdkThreadState(),
+      messages: [toolCall],
+      longRunningToolIds: ["call-x"],
+      toolConfirmations: [confirmation],
+    };
+    const started = reduceAdkThreadState(before, {
+      type: "run.started",
+      messages: [toolCall, failingSend],
+      queuedMessageIds: [failingSend.id!],
+      longRunningToolIds: ["call-x"],
+      toolConfirmations: [confirmation],
+      authRequests: [],
+    });
+    const answered = reduceAdkThreadState(started, {
+      type: "run.started",
+      messages: [toolCall, answer, failingSend],
+      queuedMessageIds: [failingSend.id!],
+      longRunningToolIds: [],
+      toolConfirmations: [],
+      authRequests: [],
+    });
+    const failed = reduceAdkThreadState(answered, {
+      type: "run.preEventFailed",
+      ownIds: [failingSend.id!],
+      longRunningToolIds: before.longRunningToolIds,
+      toolConfirmations: before.toolConfirmations,
+      authRequests: before.authRequests,
+    });
+
+    expect(failed.messages).toEqual([toolCall, answer]);
+    expect(failed.longRunningToolIds).toEqual([]);
+    expect(failed.toolConfirmations).toEqual([]);
   });
 
   it("keeps another group's queued message when the running group fails", () => {

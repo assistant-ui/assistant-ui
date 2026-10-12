@@ -43,6 +43,7 @@ export type AdkThreadState = {
   activeRunIds: ReadonlySet<string>;
   failedRunIds: ReadonlySet<string>;
   readyBatch: ToolMessage[] | null;
+  snapshotGeneration: number;
 };
 
 export type AdkThreadAction =
@@ -60,6 +61,7 @@ export type AdkThreadAction =
         | "activeRunIds"
         | "failedRunIds"
         | "readyBatch"
+        | "snapshotGeneration"
       >;
     }
   | { type: "snapshot.applied"; snapshot: AdkThreadSnapshot }
@@ -77,6 +79,7 @@ export type AdkThreadAction =
   | { type: "messages.remember"; messages: AdkMessage[]; runConfig: unknown }
   | { type: "messages.seed"; history: AdkMessage[] }
   | { type: "messages.prune"; history: AdkMessage[] }
+  | { type: "run.rollback"; state: AdkThreadState; ownIds?: readonly string[] }
   | { type: "run.active" }
   | { type: "run.failed" }
   | {
@@ -121,6 +124,7 @@ export const createAdkThreadState = (): AdkThreadState => ({
   activeRunIds: new Set(),
   failedRunIds: new Set(),
   readyBatch: null,
+  snapshotGeneration: 0,
 });
 
 const orderedToolCallIds = (state: AdkThreadState): string[] => {
@@ -179,6 +183,33 @@ const takeGroup = (
   return batch;
 };
 
+const answeredToolCallIds = (messages: readonly AdkMessage[]) =>
+  new Set(
+    messages.flatMap((message) =>
+      message.type === "tool" ? [message.tool_call_id] : [],
+    ),
+  );
+
+const ownedToolCallIds = (
+  messages: readonly AdkMessage[],
+  ownIds: ReadonlySet<string>,
+) =>
+  new Set(
+    messages.flatMap((message) =>
+      message.type === "ai" && ownIds.has(message.id)
+        ? (message.tool_calls ?? []).flatMap((call) =>
+            call && typeof call.id === "string" ? [call.id] : [],
+          )
+        : [],
+    ),
+  );
+
+const mergeToolIds = (
+  original: readonly string[],
+  current: readonly string[],
+  excluded: ReadonlySet<string>,
+) => [...new Set([...original, ...current])].filter((id) => !excluded.has(id));
+
 export const reduceAdkThreadState = (
   state: AdkThreadState,
   action: AdkThreadAction,
@@ -225,6 +256,7 @@ export const reduceAdkThreadState = (
         failedRunIds: new Set(),
         currentRunId: null,
         readyBatch: null,
+        snapshotGeneration: state.snapshotGeneration + 1,
       };
     }
     case "messages.replaced":
@@ -337,6 +369,133 @@ export const reduceAdkThreadState = (
         ),
       };
     }
+    case "run.rollback": {
+      if (action.state.snapshotGeneration !== state.snapshotGeneration)
+        return state;
+      const ownIds = new Set(action.ownIds);
+      const settled = action.state.messages.filter(
+        (message) => !action.state.queuedMessageIds.has(message.id),
+      );
+      const liveMessages = state.messages.filter(
+        (message) => !ownIds.has(message.id),
+      );
+      const liveById = new Map(
+        liveMessages.map((message) => [message.id, message]),
+      );
+      const messages = settled.map(
+        (message) => liveById.get(message.id) ?? message,
+      );
+      const messageIds = new Set(messages.map((message) => message.id));
+      for (const message of liveMessages) {
+        if (messageIds.has(message.id)) continue;
+        if (message.type === "tool") {
+          const parentIndex = messages.findIndex(
+            (candidate) =>
+              candidate.type === "ai" &&
+              candidate.tool_calls?.some(
+                (call) => call?.id === message.tool_call_id,
+              ),
+          );
+          if (parentIndex >= 0) {
+            const parent = messages[parentIndex]!;
+            const parentCallIds = new Set(
+              parent.type === "ai"
+                ? parent.tool_calls?.flatMap((call) =>
+                    call && typeof call.id === "string" ? [call.id] : [],
+                  )
+                : [],
+            );
+            let insertAt = parentIndex + 1;
+            while (insertAt < messages.length) {
+              const next = messages[insertAt]!;
+              if (next.type !== "tool" || !parentCallIds.has(next.tool_call_id))
+                break;
+              insertAt++;
+            }
+            messages.splice(insertAt, 0, message);
+            messageIds.add(message.id);
+            continue;
+          }
+        }
+        messages.push(message);
+        messageIds.add(message.id);
+      }
+      const stagedEntries = new Map(action.state.stagedEntries);
+      for (const [id, entry] of state.stagedEntries) {
+        if (stagedEntries.has(id)) continue;
+        stagedEntries.set(id, entry);
+        if (!messages.some((message) => message.id === id))
+          messages.push(entry.message);
+      }
+      const ownToolIds = ownedToolCallIds(state.messages, ownIds);
+      const readyBatch =
+        state.readyBatch?.filter(
+          (message) =>
+            !ownIds.has(message.id) && !ownToolIds.has(message.tool_call_id),
+        ) ?? null;
+      const toolResultBuffer = new Map([
+        ...action.state.toolResultBuffer,
+        ...[...state.toolResultBuffer].filter(
+          ([id, message]) => !ownToolIds.has(id) && !ownIds.has(message.id),
+        ),
+      ]);
+      const answeredToolIds = answeredToolCallIds(messages);
+      const mergeToolMap = <T>(
+        original: ReadonlyMap<string, T>,
+        current: ReadonlyMap<string, T>,
+      ) =>
+        new Map([
+          ...original,
+          ...[...current].filter(([id]) => !ownToolIds.has(id)),
+        ]);
+      const mergeByToolCallId = <T extends { toolCallId: string }>(
+        original: T[],
+        current: T[],
+      ) => [
+        ...original,
+        ...current.filter(
+          (item) =>
+            !original.some((old) => old.toolCallId === item.toolCallId) &&
+            !ownToolIds.has(item.toolCallId),
+        ),
+      ];
+      return {
+        ...state,
+        messages,
+        queuedMessageIds: new Set(
+          [...state.queuedMessageIds].filter((id) => !ownIds.has(id)),
+        ),
+        longRunningToolIds: mergeToolIds(
+          action.state.longRunningToolIds,
+          state.longRunningToolIds,
+          ownToolIds,
+        ).filter((id) => !answeredToolIds.has(id)),
+        toolConfirmations: mergeByToolCallId(
+          action.state.toolConfirmations,
+          state.toolConfirmations,
+        ).filter((item) => !answeredToolIds.has(item.toolCallId)),
+        authRequests: mergeByToolCallId(
+          action.state.authRequests,
+          state.authRequests,
+        ).filter((item) => !answeredToolIds.has(item.toolCallId)),
+        escalated: action.state.escalated || state.escalated,
+        messageMetadata: new Map([
+          ...action.state.messageMetadata,
+          ...state.messageMetadata,
+        ]),
+        stagedEntries,
+        runConfigByToolCallId: mergeToolMap(
+          action.state.runConfigByToolCallId,
+          state.runConfigByToolCallId,
+        ),
+        runIdByToolCallId: mergeToolMap(
+          action.state.runIdByToolCallId,
+          state.runIdByToolCallId,
+        ),
+        toolResultBuffer,
+        readyBatch,
+      };
+    }
     case "run.active": {
       const runId = String(state.nextRunId + 1);
       return {
@@ -356,12 +515,40 @@ export const reduceAdkThreadState = (
         : state;
     case "run.preEventFailed": {
       const ownIds = new Set(action.ownIds);
+      const messages = state.messages.filter(
+        (message) => !ownIds.has(message.id),
+      );
+      const ownToolIds = ownedToolCallIds(state.messages, ownIds);
+      const answeredToolIds = answeredToolCallIds(messages);
+      const mergeByToolCallId = <T extends { toolCallId: string }>(
+        original: T[],
+        current: T[],
+      ) =>
+        [
+          ...new Map([
+            ...original.map((item) => [item.toolCallId, item] as const),
+            ...current
+              .filter((item) => !ownToolIds.has(item.toolCallId))
+              .map((item) => [item.toolCallId, item] as const),
+          ]).values(),
+        ].filter((item) => !answeredToolIds.has(item.toolCallId));
+      const longRunningToolIds = mergeToolIds(
+        action.longRunningToolIds,
+        state.longRunningToolIds,
+        ownToolIds,
+      ).filter((id) => !answeredToolIds.has(id));
       return {
         ...state,
-        messages: state.messages.filter((message) => !ownIds.has(message.id)),
-        longRunningToolIds: action.longRunningToolIds,
-        toolConfirmations: action.toolConfirmations,
-        authRequests: action.authRequests,
+        messages,
+        longRunningToolIds,
+        toolConfirmations: mergeByToolCallId(
+          action.toolConfirmations,
+          state.toolConfirmations,
+        ),
+        authRequests: mergeByToolCallId(
+          action.authRequests,
+          state.authRequests,
+        ),
       };
     }
     case "run.finished": {
