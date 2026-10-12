@@ -5,6 +5,7 @@ import {
   useRef,
   useMemo,
   useSyncExternalStore,
+  useInsertionEffect,
 } from "react";
 import { generateId } from "@assistant-ui/core";
 import { useReplaySafeEffect } from "@assistant-ui/store/internal";
@@ -47,10 +48,14 @@ type AdkRuntimeCallbackName = "onError" | "onCustomEvent" | "onAgentTransfer";
 type QueuedAdkSend = {
   messages: AdkMessage[];
   config: Record<PropertyKey, unknown>;
+  batchId: number;
+  ids: string[];
   run: (messageBatches: AdkMessage[][]) => Promise<void>;
   resolve: () => void;
   reject: (error: unknown) => void;
 };
+
+type RunExecutor = (run: () => Promise<void>) => Promise<void>;
 
 const normalizeSendConfig = (config: AdkSendMessageConfig) =>
   Object.fromEntries(
@@ -136,7 +141,9 @@ const useAdkMessagesInternal = ({
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const pendingSendsRef = useRef<QueuedAdkSend[]>([]);
-  const queuedSendsRef = useRef<Set<QueuedAdkSend> | null>(null);
+  const scheduledSendsRef = useRef(false);
+  const sendBatchIdRef = useRef(0);
+  const drainSendsRef = useRef<(() => Promise<void>) | null>(null);
 
   const { onError, onCustomEvent, onAgentTransfer } = useMemo(
     () => eventHandlers ?? {},
@@ -144,8 +151,51 @@ const useAdkMessagesInternal = ({
   );
 
   const aui = useAui();
-  const sendMessage = useCallback(
-    async (newMessages: AdkMessage[], config: AdkSendMessageConfig) => {
+  const scheduleSends = () => {
+    if (scheduledSendsRef.current) return;
+    scheduledSendsRef.current = true;
+    queueMicrotask(() => {
+      scheduledSendsRef.current = false;
+      sendBatchIdRef.current += 1;
+      void drainSendsRef.current?.();
+    });
+  };
+  const drainSends = async () => {
+    if (abortControllerRef.current) return;
+    while (pendingSendsRef.current.length > 0 && !abortControllerRef.current) {
+      const first = pendingSendsRef.current[0]!;
+      const sends: QueuedAdkSend[] = [];
+      while (pendingSendsRef.current.length > 0) {
+        const next = pendingSendsRef.current[0]!;
+        if (
+          next.batchId !== first.batchId ||
+          !sameSendConfig(first.config, next.config)
+        ) {
+          break;
+        }
+        sends.push(pendingSendsRef.current.shift()!);
+      }
+      try {
+        await sends.at(-1)!.run(sends.map((send) => send.messages));
+        for (const send of sends) send.resolve();
+      } catch (error) {
+        controller.dispatch({
+          type: "messages.queue.remove",
+          ids: sends.flatMap((send) => send.ids),
+        });
+        for (const send of sends) send.reject(error);
+      }
+    }
+  };
+  useInsertionEffect(() => {
+    drainSendsRef.current = drainSends;
+  });
+  const sendMessageWithExecutor = useCallback(
+    async (
+      newMessages: AdkMessage[],
+      config: AdkSendMessageConfig,
+      executeWithRun?: RunExecutor,
+    ) => {
       const newMessagesWithId = newMessages.map((m) =>
         m.id ? m : { ...m, id: generateId() },
       ) as AdkMessage[];
@@ -156,14 +206,17 @@ const useAdkMessagesInternal = ({
         // merged event below re-emits the whole batch under the first one. Seeding
         // with the originals would leave every later staged id beside the merged
         // copy of itself.
-        const resentIds = new Set(messages.map((m) => m.id));
         // The optimistic event for a tool-only batch carries no author, so the accumulator cannot settle the calls this send answers.
         const answeredToolCallIds = new Set(
           messages.flatMap((m) => (m.type === "tool" ? [m.tool_call_id] : [])),
         );
         const currentState = controller.getState();
+        const queuedMessageIds = currentState.queuedMessageIds;
+        const seed = currentState.messages.filter(
+          (m) => !queuedMessageIds.has(m.id),
+        );
         const accumulator = new AdkEventAccumulator(
-          currentState.messages.filter((m) => !resentIds.has(m.id)),
+          seed,
           currentState.longRunningToolIds.filter(
             (id) => !answeredToolCallIds.has(id),
           ),
@@ -175,17 +228,26 @@ const useAdkMessagesInternal = ({
         }
         const initialMessages = accumulator.getMessages();
         const initialMessageIds = new Set(initialMessages.map((m) => m.id));
+        const seeded = new Set(seed);
+        const ownIds = initialMessages
+          .filter((m) => !seeded.has(m))
+          .map((m) => m.id);
+        const pendingMessages = currentState.messages.filter(
+          (message) =>
+            queuedMessageIds.has(message.id) &&
+            !initialMessageIds.has(message.id),
+        );
         const initialLongRunningToolIds = accumulator.getLongRunningToolIds();
         controller.dispatch({
           type: "run.started",
-          messages: initialMessages,
+          messages: [...initialMessages, ...pendingMessages],
+          queuedMessageIds: ownIds,
           longRunningToolIds: initialLongRunningToolIds,
           toolConfirmations: accumulator.getToolConfirmations(),
           authRequests: accumulator.getAuthRequests(),
         });
         let lastTransferToAgent: string | undefined;
 
-        abortControllerRef.current?.abort();
         const abortController = new AbortController();
         abortControllerRef.current = abortController;
 
@@ -325,51 +387,46 @@ const useAdkMessagesInternal = ({
         }
       };
 
+      const currentState = controller.getState();
+      const sentIds = new Set(newMessagesWithId.map((message) => message.id));
+      const queuedSeed = currentState.messages.filter(
+        (message) => !sentIds.has(message.id),
+      );
+      const optimistic = new AdkEventAccumulator(
+        queuedSeed,
+        currentState.longRunningToolIds,
+      );
+      for (const event of messagesToEvents(newMessagesWithId)) {
+        optimistic.processEvent(event);
+      }
+      const projected = optimistic.getMessages();
+      const seededMessages = new Set(queuedSeed);
+      const queuedIds = projected
+        .filter((message) => !seededMessages.has(message))
+        .map((message) => message.id);
+      controller.dispatch({
+        type: "messages.queued",
+        messages: projected,
+        ids: queuedIds,
+      });
+
       return await new Promise<void>((resolve, reject) => {
         const pending = pendingSendsRef.current;
-        const queued = (queuedSendsRef.current ??= new Set<QueuedAdkSend>());
-        if (pending.length === 0) {
-          for (const older of queued) older.resolve();
-          queued.clear();
-        }
+        abortControllerRef.current?.abort();
         const send = {
           messages: newMessagesWithId,
           config: normalizeSendConfig(config),
-          run,
+          batchId: sendBatchIdRef.current,
+          ids: queuedIds,
+          run: (messageBatches: AdkMessage[][]) =>
+            executeWithRun
+              ? executeWithRun(() => run(messageBatches))
+              : run(messageBatches),
           resolve,
           reject,
         };
         pending.push(send);
-        queued.add(send);
-        if (pending.length !== 1) return;
-
-        queueMicrotask(() => {
-          const sends = pending.splice(0);
-          const groups: (typeof sends)[] = [];
-          for (const send of sends) {
-            if (!queued.has(send)) continue;
-            const group = groups.at(-1);
-            if (group && sameSendConfig(group[0]!.config, send.config)) {
-              group.push(send);
-            } else {
-              groups.push([send]);
-            }
-          }
-
-          void (async () => {
-            for (const group of groups) {
-              const ready = group.filter((send) => queued.has(send));
-              if (ready.length === 0) continue;
-              for (const send of ready) queued.delete(send);
-              try {
-                await ready.at(-1)!.run(ready.map((send) => send.messages));
-                for (const send of ready) send.resolve();
-              } catch (error) {
-                for (const send of ready) send.reject(error);
-              }
-            }
-          })();
-        });
+        scheduleSends();
       });
     },
     [
@@ -383,15 +440,26 @@ const useAdkMessagesInternal = ({
     ],
   );
 
+  const sendMessage = useCallback(
+    (newMessages: AdkMessage[], config: AdkSendMessageConfig) =>
+      sendMessageWithExecutor(newMessages, config),
+    [sendMessageWithExecutor],
+  );
+
   const cancel = useCallback(() => {
-    if (queuedSendsRef.current) {
-      for (const send of queuedSendsRef.current) send.resolve();
-      queuedSendsRef.current.clear();
+    const queued = pendingSendsRef.current;
+    pendingSendsRef.current = [];
+    if (queued.length > 0) {
+      for (const send of queued) send.resolve();
+      controller.dispatch({
+        type: "messages.queue.remove",
+        ids: queued.flatMap((send) => send.ids),
+      });
     }
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
-  }, []);
+  }, [controller]);
 
   useReplaySafeEffect(() => cancel, []);
 
@@ -407,6 +475,7 @@ const useAdkMessagesInternal = ({
     escalated,
     messageMetadata,
     sendMessage,
+    sendMessageWithExecutor,
     cancel,
     setMessages: setMessagesImmediate,
     replaceMessages,
@@ -418,7 +487,11 @@ export const useAdkMessages = ({
   stream,
   eventHandlers,
 }: UseAdkMessagesOptions) => {
-  const { controller: _controller, ...result } = useAdkMessagesInternal({
+  const {
+    controller: _controller,
+    sendMessageWithExecutor: _sendMessageWithExecutor,
+    ...result
+  } = useAdkMessagesInternal({
     stream,
     ...(eventHandlers !== undefined && { eventHandlers }),
   });
