@@ -111,18 +111,24 @@ export const TABLE_CAPTION = "Table";
 /** The cumulative character limit for native markdown blocks. */
 export const MARKDOWN_TEXT_BUDGET = 12000;
 
+const ALERT_FALLBACK_EMOJI = {
+  info: "ℹ️",
+  success: "✅",
+  warning: "⚠️",
+  danger: "🛑",
+} as const;
+
+export const ALERT_FALLBACK_TITLE_MARKUP_LENGTH = Math.max(
+  ...Object.values(ALERT_FALLBACK_EMOJI).map((emoji) => `${emoji} **`.length),
+);
+
 /** Builds the message-surface fallback for an alert. */
 export function buildAlertFallback(
   title: string,
   description: string,
   tone: "info" | "success" | "warning" | "danger",
 ): readonly [SlackContextBlock, SlackSectionBlock] {
-  const emoji = {
-    info: "ℹ️",
-    success: "✅",
-    warning: "⚠️",
-    danger: "🛑",
-  }[tone];
+  const emoji = ALERT_FALLBACK_EMOJI[tone];
   return [
     {
       type: "context",

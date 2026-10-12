@@ -4,6 +4,8 @@ import { findChrome } from "./chrome.ts";
 import { createRenderer, RENDER_WIDTH } from "./render.ts";
 import type { Format } from "./types.ts";
 
+const noProse = { before: "", after: "" };
+
 const size = (screenshot: string) => {
   const png = Buffer.from(screenshot, "base64");
   return { width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
@@ -34,6 +36,24 @@ const answers: [Format, string][] = [
   ],
   ["present", JSON.stringify({ _type: "Input", placeholder: "Amount" })],
   ["frame", "<h3>Bill</h3><p>Each of the four pays $30.</p>"],
+  [
+    "present",
+    JSON.stringify({
+      _type: "Diagram",
+      code: "flowchart LR\n  A[Order] --> B[Ship]",
+    }),
+  ],
+  [
+    "present",
+    JSON.stringify({
+      _type: "Map",
+      route: true,
+      places: [
+        { label: "Monterey", lat: 36.6002, lng: -121.8947 },
+        { label: "Big Sur", lat: 36.2704, lng: -121.8081 },
+      ],
+    }),
+  ],
 ];
 
 test(
@@ -46,6 +66,7 @@ test(
         const { screenshots, cutOff, runtimeErrors } = await renderer.render(
           format,
           artifact,
+          noProse,
         );
         assert.deepEqual(runtimeErrors, [], artifact);
         assert.equal(cutOff, false);
@@ -58,6 +79,7 @@ test(
       const tall = await renderer.render(
         "text",
         Array.from({ length: 80 }, (_, i) => `Step ${i + 1}.`).join("\n\n"),
+        noProse,
       );
       assert.ok(tall.screenshots.length > 1);
       for (const screenshot of tall.screenshots) {
@@ -69,6 +91,7 @@ test(
       const broken = await renderer.render(
         "frame",
         "<p>Bill</p><script>throw new Error('boom')</script>",
+        noProse,
       );
       assert.ok(
         broken.runtimeErrors.some((error) => error.includes("boom")),
@@ -76,8 +99,8 @@ test(
       );
 
       const [prose, markdown] = await Promise.all([
-        renderer.render("present", "Sure."),
-        renderer.render("text", "Each of the four pays $30."),
+        renderer.render("present", "Sure.", noProse),
+        renderer.render("text", "Each of the four pays $30.", noProse),
       ]);
       assert.deepEqual(prose.runtimeErrors, [
         "The answer is not JSON, so nothing renders.",
@@ -89,6 +112,58 @@ test(
           size(markdown.screenshots[0]!).height,
         "each screenshot shows its own answer",
       );
+    } finally {
+      await renderer.close();
+    }
+  },
+);
+
+test(
+  "prose does not hide a blank spec answer",
+  { skip: findChrome() ? false : "no Chrome to render in" },
+  async () => {
+    const renderer = await createRenderer();
+    try {
+      const rendered = await renderer.render("spec", "{}", {
+        before: "Here is your plan.",
+        after: "",
+      });
+      assert.ok(
+        rendered.runtimeErrors.includes("The answer rendered blank."),
+        rendered.runtimeErrors.join("; "),
+      );
+    } finally {
+      await renderer.close();
+    }
+  },
+);
+
+test(
+  "prose before and after a spec answer and a widget each render",
+  { skip: findChrome() ? false : "no Chrome to render in" },
+  async () => {
+    const height = (screenshots: string[]) =>
+      screenshots.reduce((sum, png) => sum + size(png).height, 0);
+    const renderer = await createRenderer();
+    try {
+      for (const [format, artifact] of answers.filter(
+        ([format]) => format === "spec" || format === "frame",
+      )) {
+        const bare = height(
+          (await renderer.render(format, artifact, noProse)).screenshots,
+        );
+        for (const prose of [
+          { before: "Here is the split for all four of you.", after: "" },
+          { before: "", after: "Tell me if anyone pays extra." },
+        ]) {
+          const rendered = await renderer.render(format, artifact, prose);
+          assert.deepEqual(rendered.runtimeErrors, []);
+          assert.ok(
+            height(rendered.screenshots) > bare + 20,
+            `${format} with ${prose.before ? "prose before" : "prose after"}: ${height(rendered.screenshots)} px against ${bare} px without prose`,
+          );
+        }
+      }
     } finally {
       await renderer.close();
     }

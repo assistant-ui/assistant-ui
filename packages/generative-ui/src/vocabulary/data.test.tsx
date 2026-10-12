@@ -15,6 +15,19 @@ const render = (node: unknown) =>
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("dataVocabulary", () => {
+  it("renders numeric Citation text including a linked title", () => {
+    const html = render({
+      $type: "Citation",
+      title: 0,
+      url: "https://example.com",
+      source: 12,
+      snippet: 34,
+    });
+    expect(html).toContain('data-aui="citation-source">12</div>');
+    expect(html).toContain('rel="noopener noreferrer">0</a>');
+    expect(html).toContain('data-aui="citation-snippet">34</div>');
+  });
+
   it("Citation links its title to an http source and names the site", () => {
     const html = render({
       $type: "Citation",

@@ -147,6 +147,26 @@ describe("list vocabulary on React Native", () => {
     ).toBe("No time");
   });
 
+  it.each([
+    ["Steps", "steps", [{ title: 0, detail: 12 }], "1012", "012"],
+    [
+      "Timeline",
+      "items",
+      [{ time: 0, title: 12, detail: 34 }],
+      "01234",
+      "01234",
+    ],
+  ] as const)(
+    "renders numeric %s entries",
+    (type, prop, entries, nativeText, webText) => {
+      const input = spec({ main: { type, props: { [prop]: entries } } });
+      const native = renderNativeSpec(input);
+      const web = renderWebSpec(input);
+      expect(native.container.textContent).toBe(nativeText);
+      expect(web.container.textContent).toBe(webText);
+    },
+  );
+
   it("uses Steps titles and details to name a bound row", () => {
     const { container } = renderNativeSpec(
       spec({

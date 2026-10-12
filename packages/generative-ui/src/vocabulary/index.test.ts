@@ -8,6 +8,8 @@ const EXPECTED_KEYS = [
   "Caption",
   "Image",
   "Divider",
+  "Diagram",
+  "Map",
   "Fact",
   "Button",
   "Select",

@@ -59,6 +59,7 @@ import {
   projectAdkToolApprovals,
   toAdkToolConfirmationReply,
 } from "./adkToolApproval";
+import { isInterruptReply } from "./adkThreadState";
 import { adkExtras } from "./adkExtras";
 import { ADK_SDK } from "./sdkIdentity";
 
@@ -176,6 +177,20 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
         threadState.toolResultBuffer,
       ),
     [publishedMessages, threadState.toolResultBuffer],
+  );
+  const visibleToolConfirmations = useMemo(
+    () =>
+      toolConfirmations.filter(
+        (request) => !threadState.toolResultBuffer.has(request.toolCallId),
+      ),
+    [toolConfirmations, threadState.toolResultBuffer],
+  );
+  const visibleAuthRequests = useMemo(
+    () =>
+      authRequests.filter(
+        (request) => !threadState.toolResultBuffer.has(request.toolCallId),
+      ),
+    [authRequests, threadState.toolResultBuffer],
   );
 
   const loadRef = useRef(load);
@@ -295,6 +310,16 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       (run) => runExclusive(() => run()),
       rollbackState,
     );
+  };
+
+  const receiveToolResult = async (
+    message: Extract<AdkMessage, { type: "tool" }>,
+  ) => {
+    const batch = controller.dispatch({
+      type: "results.received",
+      message,
+    }).readyBatch;
+    if (batch) await handleSendMessage(batch, {});
   };
 
   const stopRun = () => {
@@ -470,16 +495,18 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       stateDelta,
       artifactDelta,
       longRunningToolIds,
-      toolConfirmations,
-      authRequests,
+      toolConfirmations: visibleToolConfirmations,
+      authRequests: visibleAuthRequests,
       escalated,
       messageMetadata,
       send: (messages, config) => {
         const initialLoad = waitForInitialLoad();
-        if (!initialLoad) return handleSendMessage(messages, config);
-        return initialLoad.then(({ active }) =>
-          active ? handleSendMessage(messages, config) : undefined,
-        );
+        const send = () =>
+          isInterruptReply(messages, config)
+            ? receiveToolResult(messages[0])
+            : handleSendMessage(messages, config);
+        if (!initialLoad) return send();
+        return initialLoad.then(({ active }) => (active ? send() : undefined));
       },
     }),
     onNew: async (msg) => {
@@ -678,23 +705,16 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
         artifact,
         status: isError ? "error" : "success",
       };
-      const batch = controller.dispatch({
-        type: "results.received",
-        message,
-      }).readyBatch;
-      if (batch) await handleSendMessage(batch, {});
+      await receiveToolResult(message);
     },
     onRespondToToolApproval: async (options) => {
       const initialLoad = waitForInitialLoad();
       if (initialLoad && !(await initialLoad).active) return;
-      await handleSendMessage(
-        [
-          toAdkToolConfirmationReply(
-            options,
-            projectAdkToolApprovals(adkMessagesRef.current).approvals,
-          ),
-        ],
-        {},
+      await receiveToolResult(
+        toAdkToolConfirmationReply(
+          options,
+          projectAdkToolApprovals(adkMessagesRef.current).approvals,
+        ),
       );
     },
     onCancel: unstable_allowCancellation

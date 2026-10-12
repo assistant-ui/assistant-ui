@@ -99,21 +99,25 @@ export const dataDefinitions = {
     description:
       "A source the answer draws on, shown as a card with its title and site that links to it. Use one per source.",
     properties: z.object({
-      title: z.string().describe("The source's title."),
+      title: z
+        .union([z.string(), z.number()])
+        .describe("The source's title as text or a number."),
       url: z
         .string()
         .optional()
         .describe("Link to the source; only http and https links open."),
       source: z
-        .string()
+        .union([z.string(), z.number()])
         .optional()
         .describe(
-          "Where it comes from, such as a site or publication. Defaults to the link's domain.",
+          "Where it comes from, such as a site or publication, as text or a number. Defaults to the link's domain.",
         ),
       snippet: z
-        .string()
+        .union([z.string(), z.number()])
         .optional()
-        .describe("A short quote or summary of what the source says."),
+        .describe(
+          "A short quote or summary of what the source says, as text or a number.",
+        ),
     }),
   },
 } satisfies Record<string, VocabularyDefinition>;

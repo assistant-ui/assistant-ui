@@ -23,7 +23,7 @@ function MyComponent() {
   // Accumulated session state delta
   const state = useAdkSessionState();
 
-  // Send raw ADK messages programmatically
+  // Send ADK messages programmatically
   const send = useAdkSend();
 }
 ```
@@ -665,7 +665,7 @@ This hook reports every tool call ADK marked via `long_running_tool_ids`, includ
 
 That same set decides which tool calls the client owns. A registered frontend tool's `execute` runs only for a call ADK marked long-running, because ADK resolves every other call itself and yields the call to the client before its own response. Register a tool the client executes as a `LongRunningFunctionTool` on the agent.
 
-The client answers the long-running calls of one run together. An answer shows in the thread at once but is held until the run that produced the call has ended and every client-owned long-running call from that run has an answer; the answers then go out as one request, in the order the calls appear in the thread. Calls loaded with the thread group by their assistant message instead, and an interrupt answered through `addResult` goes out without waiting for other calls. A held answer stays in this hook's report until it is sent. When a run ends in an error, the answers it holds wait for the rest of their group or for the next user message, which sends them first. A held answer stays with its thread when you switch away and back, and a run that a newer run replaces holds its answers for the rest of their group or the next user message. Cancelling the run or reloading the thread drops held answers.
+The client answers the long-running calls of one run together. Answers from `addToolResult`, approval replies, and the HITL helpers show in the thread at once but wait while any run is active. Once no run is active, held replies go out one producing run per request; replies given in the same tick still share a request even if they come from different runs. Client-owned long-running calls from the same run wait until all have answers, then go out in the order the calls appear in the thread. Calls loaded with the thread group by their assistant message instead, and an interrupt answer does not wait for other calls. A held answer remains in `useAdkLongRunningToolIds` until it is sent, but a held confirmation or auth request disappears from its pending request hook as soon as it is buffered. A held reply's promise resolves when it is buffered, as with `addToolResult`. When a run ends in an error, the release that follows it holds back that run's own answers; they go out once another run finishes, or with the next user message, ahead of it. A held answer stays with its thread when you switch away and back. Cancelling the run or reloading the thread drops held answers.
 
 A long-running call is not background work. `@assistant-ui/core` keeps a message `running` after its run ends only while a tool call carries a nested conversation whose trailing assistant message is still running; an ADK long-running call carries no nested conversation, and the run that yielded it has ended. It normally settles on `requires-action` with reason `tool-calls` until the function response is sent; an unresolved confirmation approval instead uses reason `interrupt`. Either state renders the tool UI and keeps `useAdkSubmitInput`, `useAdkConfirmTool`, and `useAdkSubmitAuth` answerable. When a frontend tool is registered for the call, its `execute` puts the thread back into `isRunning` for as long as it runs.
 
@@ -744,7 +744,7 @@ for (const e of structured) {
 | `useAdkAppState()` | App-level state (`app:*` prefix, stripped). |
 | `useAdkUserState()` | User-level state (`user:*` prefix, stripped). |
 | `useAdkTempState()` | Temp state (`temp:*` prefix, stripped, not persisted). |
-| `useAdkSend()` | Send raw ADK messages. |
+| `useAdkSend()` | Send ADK messages. A single interrupt tool reply with a string call ID and empty config (including `{ runConfig: undefined }`) is held like the HITL helpers while any run is active; other shapes send immediately. |
 | `useAdkConfirmTool()` | Confirm or deny a pending tool confirmation. |
 | `useAdkSubmitAuth()` | Submit auth credentials for a pending auth request. |
 | `useAdkSubmitInput()` | Submit the user's answer for a pending `adk_request_input` HITL interrupt. |

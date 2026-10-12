@@ -8,17 +8,25 @@ import { judgeAnswer } from "./judge.ts";
 import { createRenderer, type Renderer } from "./render.ts";
 import { formatScore, mean, overall, renderReport } from "./report.ts";
 import { tasks } from "./tasks.ts";
-import type { Candidate, Format, Judged, RenderAnswer, Task } from "./types.ts";
+import type {
+  Candidate,
+  CandidateFormat,
+  Judged,
+  RenderAnswer,
+  Task,
+} from "./types.ts";
 
-const FORMATS: Format[] = ["text", "present", "spec", "frame"];
+const FORMATS: CandidateFormat[] = ["text", "present", "spec", "frame", "auto"];
 
 const modelName = (model: LanguageModel) =>
   typeof model === "string" ? model : model.modelId;
 
 /**
  * Which answer format do models write best, and what does spec mode's lack of
- * computed values cost? Every model answers every task in every format, the
- * answer renders in a browser, and a separate judge scores its screenshots.
+ * computed values cost, and does a model pick the right format when it may
+ * choose? Every model answers every task in every format and once in a format
+ * it chooses, the answer renders in a browser, and a separate judge scores its
+ * screenshots.
  */
 export function createGenerativeUISuite({
   models,
@@ -38,9 +46,9 @@ export function createGenerativeUISuite({
   let renderer: Promise<Renderer> | undefined;
   const renderAnswer: RenderAnswer =
     render ??
-    (async (format, artifact) => {
+    (async (format, artifact, prose) => {
       renderer ??= createRenderer();
-      return (await renderer).render(format, artifact);
+      return (await renderer).render(format, artifact, prose);
     });
 
   const saved = new Map<string, number>();
@@ -76,7 +84,11 @@ export function createGenerativeUISuite({
         candidate.format,
         maxRepairRounds,
       );
-      const rendered = await renderAnswer(answer.answeredIn, answer.artifact);
+      const rendered = await renderAnswer(
+        answer.answeredIn,
+        answer.artifact,
+        answer.prose,
+      );
       const path = trialPath(task, candidate);
       const screenshots = path
         ? rendered.screenshots.map((png, i) => {

@@ -129,6 +129,39 @@ describe("toSlackBlocks", () => {
   });
 
   describe("structure components", () => {
+    it("renders numeric Citation title, source, and snippet", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Citation",
+        title: 0,
+        url: "https://example.com",
+        source: 12,
+        snippet: 34,
+      });
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          text: { type: "mrkdwn", text: "<https://example.com|0>\n34" },
+        },
+        { type: "context", elements: [{ type: "mrkdwn", text: "12" }] },
+      ]);
+      expect(warnings).toEqual([]);
+    });
+
+    it("leaves out an explicitly empty Citation source instead of showing the link's site", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Citation",
+        title: "Reference",
+        url: "https://example.com",
+        source: "",
+      });
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          text: { type: "mrkdwn", text: "<https://example.com|Reference>" },
+        },
+      ]);
+    });
+
     it("renders every Tabs panel in order with a label, including a missing label", () => {
       const { blocks, warnings } = toSlackBlocks({
         $type: "Tabs",
@@ -299,6 +332,213 @@ describe("toSlackBlocks", () => {
         code: "dropped",
         component: "Unknown",
         detail: "Unknown component type was dropped.",
+      });
+    });
+
+    it("keeps a fence inside the Diagram source from closing the code block", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Diagram",
+        code: "flowchart LR\n  A --> B\n```\nnot code",
+      });
+      const text = (blocks[0] as { text: { text: string } }).text.text;
+      expect(text.startsWith("```\n")).toBe(true);
+      expect(text.endsWith("not code\n```")).toBe(true);
+      expect(text.slice(4, -4)).not.toContain("```");
+    });
+
+    it("renders an escaped Diagram source and title", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Diagram",
+        code: "flowchart LR\nA[You & me] --> B[<Done>]",
+        title: "Plan <today> & tomorrow",
+      });
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "```\nflowchart LR\nA[You &amp; me] --&gt; B[&lt;Done&gt;]\n```",
+          },
+        },
+        {
+          type: "context",
+          elements: [
+            { type: "mrkdwn", text: "Plan &lt;today&gt; &amp; tomorrow" },
+          ],
+        },
+      ]);
+      expect(warnings).toEqual([]);
+    });
+
+    it("captions a Diagram with a numeric title and skips an empty one", () => {
+      const caption = (title: unknown) =>
+        toSlackBlocks({ $type: "Diagram", code: "flowchart LR", title })
+          .blocks[1];
+      expect(caption(2024)).toEqual({
+        type: "context",
+        elements: [{ type: "mrkdwn", text: "2024" }],
+      });
+      expect(caption("")).toBeUndefined();
+    });
+
+    it("renders a Diagram without a title and closes an oversized code fence", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Diagram",
+        code: "x".repeat(SECTION_TEXT_CAP),
+      });
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `\`\`\`\n${"x".repeat(SECTION_TEXT_CAP - 8)}\n\`\`\``,
+          },
+        },
+      ]);
+      expect(warnings).toEqual([
+        {
+          code: "clamped",
+          component: "Diagram",
+          detail: `code was clamped to ${SECTION_TEXT_CAP - 8} characters.`,
+        },
+      ]);
+    });
+
+    it("clamps a Diagram title to the context text cap", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Diagram",
+        code: "flowchart LR",
+        title: "t".repeat(CONTEXT_TEXT_CAP + 1),
+      });
+      expect((blocks[1] as SlackContextBlock).elements[0]?.text).toHaveLength(
+        CONTEXT_TEXT_CAP,
+      );
+      expect(warnings).toEqual([
+        {
+          code: "clamped",
+          component: "Diagram",
+          detail: `title was clamped to ${CONTEXT_TEXT_CAP} characters.`,
+        },
+      ]);
+    });
+
+    it("clamps escaped Diagram source and title at entity boundaries", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Diagram",
+        code: `${"x".repeat(SECTION_TEXT_CAP - 9)}<`,
+        title: `${"x".repeat(CONTEXT_TEXT_CAP - 1)}<`,
+      });
+      const code = (blocks[0] as SlackSectionBlock).text?.text ?? "";
+      const title = (blocks[1] as SlackContextBlock).elements[0]?.text ?? "";
+
+      expect(code).toBe(`\`\`\`\n${"x".repeat(SECTION_TEXT_CAP - 9)}\n\`\`\``);
+      expect(title).toBe("x".repeat(CONTEXT_TEXT_CAP - 1));
+      expect(code).not.toMatch(/&[a-z]*$/);
+      expect(title).not.toMatch(/&[a-z]*$/);
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Diagram",
+        detail: `code was clamped to ${SECTION_TEXT_CAP - 8} characters.`,
+      });
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Diagram",
+        detail: `title was clamped to ${CONTEXT_TEXT_CAP} characters.`,
+      });
+    });
+
+    it("links valid Map places, keeps optional details, and warns for invalid coordinates", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Map",
+        places: [
+          { label: "A & <B>", lat: 25, lng: 121, detail: "Meet > here" },
+          { label: "Invalid", lat: 91, lng: 0 },
+          { label: "Second", lat: -3, lng: 4 },
+        ],
+        route: true,
+      });
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "<https://www.openstreetmap.org/?mlat=25&amp;mlon=121#map=14/25/121|A &amp; &lt;B&gt;>\nMeet &gt; here",
+          },
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "<https://www.openstreetmap.org/?mlat=-3&amp;mlon=4#map=14/-3/4|Second>",
+          },
+        },
+      ]);
+      expect(warnings).toEqual([
+        {
+          code: "dropped",
+          component: "Map",
+          detail: "1 malformed entry was dropped.",
+        },
+      ]);
+    });
+
+    it("clamps escaped Map labels and details at entity boundaries", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Map",
+        places: [
+          {
+            label: `${"x".repeat(499)}<`,
+            lat: 0,
+            lng: 0,
+            detail: `${"x".repeat(1999)}<`,
+          },
+        ],
+      });
+      const text = (blocks[0] as SlackSectionBlock).text?.text ?? "";
+
+      expect(text).toContain(`|${"x".repeat(499)}>\n${"x".repeat(1999)}`);
+      expect(text).not.toMatch(/&[a-z]*$/);
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Map",
+        detail: "label was clamped to 500 characters.",
+      });
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Map",
+        detail: "detail was clamped to 2000 characters.",
+      });
+    });
+
+    it("clamps Map entries and reports multiple invalid places", () => {
+      const { warnings } = toSlackBlocks({
+        $type: "Map",
+        places: [
+          { label: "No latitude", lat: 91, lng: 0 },
+          { label: "No longitude", lat: 0, lng: 181 },
+          ...Array.from({ length: CHILDREN_CAP }, (_, index) => ({
+            label: `Place ${index}`,
+            lat: 0,
+            lng: 0,
+          })),
+        ],
+      });
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Map",
+        detail: `places were clamped to ${CHILDREN_CAP} entries.`,
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Map",
+        detail: "2 malformed entries were dropped.",
+      });
+    });
+
+    it("renders an absent Map places list without warnings", () => {
+      expect(toSlackBlocks({ $type: "Map" })).toEqual({
+        blocks: [],
+        warnings: [],
       });
     });
 
@@ -3768,4 +4008,305 @@ it("resolves a Slider field reference from numeric Slack state", () => {
       },
     }),
   ).toEqual({ type: "submit", count: 3 });
+});
+
+describe("Slack mrkdwn escaping", () => {
+  it("escapes structured component fields once after adding Slack formatting", () => {
+    const { blocks } = toSlackBlocks([
+      {
+        $type: "Tabs",
+        tabs: ["A & <@U1>"],
+        children: [{ $type: "Text", value: "<@U2> &" }],
+      },
+      {
+        $type: "Steps",
+        steps: [{ title: "<@U3> &", detail: "<!here> >" }],
+      },
+      {
+        $type: "Timeline",
+        items: [{ time: "A & B", title: "<@U4>", detail: "x > y" }],
+      },
+      {
+        $type: "Citation",
+        title: "A & <@U5>",
+        url: "https://example.com/?a=1&b=2",
+        snippet: "See <!channel> & more",
+        source: "From <@U6> & docs",
+      },
+    ]);
+
+    expect(blocks).toEqual([
+      {
+        type: "section",
+        text: { type: "mrkdwn", text: "*A &amp; &lt;@U1&gt;*" },
+      },
+      { type: "section", text: { type: "mrkdwn", text: "&lt;@U2&gt; &amp;" } },
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: "*1. &lt;@U3&gt; &amp;*\n&lt;!here&gt; &gt;",
+        },
+      },
+      {
+        type: "section",
+        text: { type: "mrkdwn", text: "*A &amp; B*\n&lt;@U4&gt;\nx &gt; y" },
+      },
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: "<https://example.com/?a=1&amp;b=2|A &amp; &lt;@U5&gt;>\nSee &lt;!channel&gt; &amp; more",
+        },
+      },
+      {
+        type: "context",
+        elements: [{ type: "mrkdwn", text: "From &lt;@U6&gt; &amp; docs" }],
+      },
+    ]);
+    expect(JSON.stringify(blocks)).not.toContain("&amp;amp;");
+  });
+
+  it("clamps escaped structured fields without splitting an entity", () => {
+    const { blocks } = toSlackBlocks([
+      { $type: "Tabs", tabs: ["<".repeat(SECTION_TEXT_CAP)] },
+      {
+        $type: "Citation",
+        title: "Short",
+        url: "https://example.com/a",
+        snippet: "<".repeat(SECTION_TEXT_CAP),
+        source: "<".repeat(CONTEXT_TEXT_CAP),
+      },
+      { $type: "Citation", title: "<".repeat(SECTION_TEXT_CAP) },
+    ]);
+    const texts = [
+      (blocks[0] as SlackSectionBlock).text?.text ?? "",
+      (blocks[1] as SlackSectionBlock).text?.text ?? "",
+      (blocks[2] as SlackContextBlock).elements[0]?.text ?? "",
+      (blocks[3] as SlackSectionBlock).text?.text ?? "",
+    ];
+
+    expect(texts[0]?.length).toBeLessThanOrEqual(SECTION_TEXT_CAP);
+    expect(texts[1]?.length).toBeLessThanOrEqual(SECTION_TEXT_CAP);
+    expect(texts[2]?.length).toBeLessThanOrEqual(CONTEXT_TEXT_CAP);
+    expect(texts[3]?.length).toBeLessThanOrEqual(SECTION_TEXT_CAP);
+    for (const text of texts) {
+      expect(text).not.toMatch(/&[a-z]*$/);
+    }
+  });
+
+  it("escapes collected text once when numeric props become strings", () => {
+    const { blocks } = toSlackBlocks({
+      $type: "ListViewItem",
+      children: [
+        { $type: "Text", value: 2 },
+        { $type: "Fact", label: "A & B", value: 3 },
+      ],
+    });
+
+    expect(blocks[0]).toMatchObject({
+      type: "section",
+      text: { type: "mrkdwn", text: "2\n3\nA &amp; B" },
+    });
+  });
+
+  it("escapes direct and flattened model text", () => {
+    const { blocks } = toSlackBlocks([
+      { $type: "Text", value: "Fees < $5 & > $1 <!channel> <@U123>" },
+      "<!here>",
+    ]);
+
+    expect(blocks).toEqual([
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: "Fees &lt; $5 &amp; &gt; $1 &lt;!channel&gt; &lt;@U123&gt;",
+        },
+      },
+      {
+        type: "section",
+        text: { type: "mrkdwn", text: "&lt;!here&gt;" },
+      },
+    ]);
+  });
+
+  it("escapes Fact data while retaining its generated bold label", () => {
+    const { blocks } = toSlackBlocks({
+      $type: "Fact",
+      label: "Price < $5 & <@U123>",
+      value: "Fees < $5 & > $1",
+      delta: "<1% &",
+      trend: "down",
+    });
+
+    expect(blocks).toEqual([
+      {
+        type: "section",
+        fields: [
+          {
+            type: "mrkdwn",
+            text: "*Price &lt; $5 &amp; &lt;@U123&gt;*\nFees &lt; $5 &amp; &gt; $1 (↓ &lt;1% &amp;)",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("escapes context rows and collected list-item text", () => {
+    const row = toSlackBlocks({
+      $type: "Row",
+      children: [
+        { $type: "Caption", value: "From <@U123>" },
+        { $type: "Badge", value: "Fees < $5 & > $1" },
+      ],
+    });
+    const item = toSlackBlocks({
+      $type: "ListViewItem",
+      children: [
+        { $type: "Text", value: "Notify <!channel>" },
+        { $type: "Fact", label: "Price < $5", value: "$5 > $1" },
+      ],
+    });
+
+    expect(row.blocks[0]).toMatchObject({
+      type: "context",
+      elements: [
+        { type: "mrkdwn", text: "From &lt;@U123&gt;" },
+        { type: "mrkdwn", text: "Fees &lt; $5 &amp; &gt; $1" },
+      ],
+    });
+    expect(item.blocks[0]).toMatchObject({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: "Notify &lt;!channel&gt;\n$5 &gt; $1\nPrice &lt; $5",
+      },
+    });
+  });
+
+  it("escapes clean and reshaped card fields but leaves plain text alone", () => {
+    const clean = toSlackBlocks({
+      $type: "Card",
+      title: "<@U123>",
+      children: [
+        { $type: "Text", value: "Fees < $5" },
+        { $type: "Caption", value: "<!here>" },
+      ],
+    });
+    const reshaped = toSlackBlocks({
+      $type: "Carousel",
+      children: [
+        {
+          $type: "Card",
+          title: "<card>",
+          children: {
+            $type: "Fact",
+            label: "Price < $5",
+            value: "<@U123>",
+          },
+        },
+      ],
+    });
+    const inline = toSlackBlocks({
+      $type: "Card",
+      title: "<@U123>",
+      children: { $type: "Fact", label: "Status", value: "Ready" },
+    });
+
+    expect(clean.blocks[0]).toMatchObject({
+      type: "card",
+      title: { type: "mrkdwn", text: "&lt;@U123&gt;" },
+      body: { type: "mrkdwn", text: "Fees &lt; $5" },
+      subtext: { type: "mrkdwn", text: "&lt;!here&gt;" },
+    });
+    expect(reshaped.blocks[0]).toMatchObject({
+      type: "carousel",
+      elements: [
+        {
+          type: "card",
+          title: { type: "mrkdwn", text: "&lt;card&gt;" },
+          body: { type: "mrkdwn", text: "&lt;@U123&gt;\nPrice &lt; $5" },
+        },
+      ],
+    });
+    expect(inline.blocks[0]).toMatchObject({
+      type: "header",
+      text: { type: "plain_text", text: "<@U123>" },
+    });
+  });
+
+  it("escapes alert text before applying its generated formatting", () => {
+    const message = toSlackBlocks({
+      $type: "Alert",
+      title: "<@U123>",
+      description: "Fees < $5 & <!channel>",
+    });
+    const modal = toSlackBlocks(
+      {
+        $type: "Alert",
+        title: "<@U123>",
+        description: "Fees < $5 & <!channel>",
+      },
+      { surface: "modal" },
+    );
+
+    expect(message.blocks).toMatchObject([
+      { elements: [{ type: "mrkdwn", text: "ℹ️ *&lt;@U123&gt;*" }] },
+      {
+        text: {
+          type: "mrkdwn",
+          text: "Fees &lt; $5 &amp; &lt;!channel&gt;",
+        },
+      },
+    ]);
+    expect(modal.blocks[0]).toMatchObject({
+      type: "alert",
+      text: {
+        type: "mrkdwn",
+        text: "&lt;@U123&gt;\nFees &lt; $5 &amp; &lt;!channel&gt;",
+      },
+    });
+  });
+
+  it("keeps escaped alert titles within the Slack context text cap", () => {
+    const { blocks } = toSlackBlocks({
+      $type: "Alert",
+      title: "<".repeat(CONTEXT_TEXT_CAP),
+    });
+    const title = (blocks[0] as SlackContextBlock).elements[0]?.text ?? "";
+
+    expect(title.length).toBeLessThanOrEqual(CONTEXT_TEXT_CAP);
+    expect(title.slice(0, -1)).not.toMatch(/&[a-z]*$/);
+  });
+
+  it("keeps standard Markdown intact and escapes its mrkdwn overflow fallback", () => {
+    const markdown = toSlackBlocks({ $type: "Markdown", value: "<@U123>" });
+    const overflow = toSlackBlocks([
+      { $type: "Markdown", value: "m".repeat(MARKDOWN_TEXT_BUDGET) },
+      { $type: "Markdown", value: "<@U123>" },
+    ]);
+
+    expect(markdown.blocks).toEqual([{ type: "markdown", text: "<@U123>" }]);
+    expect(overflow.blocks[1]).toMatchObject({
+      type: "section",
+      text: { type: "mrkdwn", text: "&lt;@U123&gt;" },
+    });
+  });
+
+  it("clamps after escaping without leaving a partial entity", () => {
+    const { blocks, warnings } = toSlackBlocks({
+      $type: "Text",
+      value: `${"x".repeat(SECTION_TEXT_CAP - 1)}<`,
+    });
+    const text = (blocks[0] as SlackSectionBlock).text?.text;
+
+    expect(text).toBe("x".repeat(SECTION_TEXT_CAP - 1));
+    expect(text).toHaveLength(SECTION_TEXT_CAP - 1);
+    expect(warnings).toContainEqual({
+      code: "clamped",
+      component: "Text",
+      detail: `value was clamped to ${SECTION_TEXT_CAP} characters.`,
+    });
+  });
 });

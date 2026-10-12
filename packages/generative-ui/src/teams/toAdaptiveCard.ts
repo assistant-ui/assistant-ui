@@ -26,6 +26,8 @@ import {
 import {
   linkHost,
   linkHref,
+  mapPlaces,
+  placeHref,
   sequenceItems,
   tabLabels,
 } from "../vocabulary/structureValues";
@@ -65,6 +67,9 @@ export interface ConversionContext {
   readonly warnings: TeamsConversionWarning[];
   usedInputIds: Set<string>;
 }
+
+const DIAGRAM_SOURCE_CAP = 3000;
+const DIAGRAM_LINE_CAP = 200;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -993,14 +998,12 @@ export function convertElement(
     }
     case "Citation": {
       const href = linkHref(props["url"]);
+      const sourceText = asTextValue(props["source"]);
       const source =
-        typeof props["source"] === "string"
-          ? props["source"]
-          : href
-            ? linkHost(href)
-            : undefined;
-      const title = asString(props["title"]);
-      const snippet = props["snippet"];
+        sourceText ||
+        (props["source"] === "" ? "" : href ? linkHost(href) : undefined);
+      const title = asTextValue(props["title"]);
+      const snippet = asTextValue(props["snippet"]);
       return [
         {
           type: "Container",
@@ -1018,12 +1021,88 @@ export function convertElement(
                 ? `[${escapeLinkText(title)}](${markdownHref(href)})`
                 : title,
             ),
-            ...(typeof snippet === "string"
+            ...(snippet !== "" || props["snippet"] === ""
               ? [textBlock(unlinked(snippet), { isSubtle: true })]
               : []),
           ],
         },
       ];
+    }
+    case "Diagram": {
+      const code = asString(props["code"]);
+      if (code.length > DIAGRAM_SOURCE_CAP)
+        warn(
+          context,
+          "clamped",
+          "Diagram",
+          `code was clamped to ${DIAGRAM_SOURCE_CAP} characters.`,
+        );
+      const lines = code.slice(0, DIAGRAM_SOURCE_CAP).split("\n");
+      if (lines.length > DIAGRAM_LINE_CAP)
+        warn(
+          context,
+          "clamped",
+          "Diagram",
+          `code was clamped to ${DIAGRAM_LINE_CAP} lines.`,
+        );
+      const title = asTextValue(props["title"]);
+      const space = String.fromCharCode(0xa0);
+      return [
+        {
+          type: "Container",
+          // Teams breaks a TextBlock's line only inside a list and trims leading spaces, so each source line gets a block of its own and keeps its indent as non-breaking spaces.
+          items: lines.slice(0, DIAGRAM_LINE_CAP).map((line, index) =>
+            textBlock(
+              unlinked(line).replace(/^ +/, (indent) =>
+                space.repeat(indent.length),
+              ) || space,
+              {
+                fontType: "Monospace",
+                ...(index > 0 ? { spacing: "none" as const } : {}),
+              },
+            ),
+          ),
+        },
+        ...(title
+          ? [textBlock(unlinked(title), { size: "small", isSubtle: true })]
+          : []),
+      ];
+    }
+    case "Map": {
+      const { items: raw, truncated } = clampArray(
+        props["places"],
+        CHILDREN_CAP,
+      );
+      if (truncated)
+        warn(
+          context,
+          "clamped",
+          "Map",
+          `places were clamped to ${CHILDREN_CAP} entries.`,
+        );
+      const places = mapPlaces(raw);
+      const dropped = raw.length - places.length;
+      if (dropped > 0)
+        warn(
+          context,
+          "dropped",
+          "Map",
+          `${dropped} malformed ${dropped === 1 ? "entry was" : "entries were"} dropped.`,
+        );
+      return places.map((place) => {
+        const href = placeHref(place);
+        return {
+          type: "Container",
+          items: [
+            textBlock(
+              `[${escapeLinkText(place.label)}](${markdownHref(href)})`,
+            ),
+            ...(place.detail !== undefined
+              ? [textBlock(unlinked(place.detail))]
+              : []),
+          ],
+        };
+      });
     }
     case "Table":
       return [convertTable(props, context)];

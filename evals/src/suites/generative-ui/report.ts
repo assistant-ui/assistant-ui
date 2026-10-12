@@ -1,5 +1,5 @@
 import type { CaseResult, TrialResult } from "../../types.ts";
-import type { Candidate, Judged, Scores, Task } from "./types.ts";
+import type { Candidate, Format, Judged, Scores, Task } from "./types.ts";
 
 export const overall = (scores: Scores) =>
   (scores.clarity + scores.usefulness + scores.completeness) / 3;
@@ -31,7 +31,7 @@ const formatCount = (value: number | undefined) =>
 const formatSeconds = (value: number | undefined) =>
   value === undefined ? "N/A" : `${(value / 1000).toFixed(1)} s`;
 
-/** Per model: each format's averages, then each task's overall score by format. */
+/** Per model: each format's averages, each task's overall score by format, and which format `auto` chose on each task. */
 export function renderReport(
   results: CaseResult<Task, Candidate, Judged>[],
 ): string {
@@ -85,6 +85,25 @@ export function renderReport(
         formatScore(mean(trialsOf(candidate, [r]), (j) => overall(j.scores))),
       );
       lines.push(`| ${r.case.id} | ${cells.join(" | ")} |`);
+    }
+    const auto = formats.find((c) => c.format === "auto");
+    if (auto) {
+      const choices: Format[] = ["text", "spec", "frame"];
+      const chosen = (tasks: typeof results) => {
+        const answers = trialsOf(auto, tasks).flatMap((t) =>
+          t.error ? [] : [t.outcome.attempted ?? t.outcome.answeredIn],
+        );
+        return choices.map((format) =>
+          String(answers.filter((choice) => choice === format).length),
+        );
+      };
+      lines.push(
+        "",
+        `| task | ${choices.map((format) => `auto chose ${format}`).join(" | ")} |`,
+        `| --- | ${choices.map(() => "---:").join(" | ")} |`,
+        ...results.map((r) => `| ${r.case.id} | ${chosen([r]).join(" | ")} |`),
+        `| all tasks | ${chosen(results).join(" | ")} |`,
+      );
     }
   }
 

@@ -1,6 +1,8 @@
 import { isStepCount, streamText, type LanguageModel } from "ai";
 import { startFormat } from "./formats.ts";
-import type { Answer, Format, Task } from "./types.ts";
+import type { Answer, CandidateFormat, Task } from "./types.ts";
+
+const MIXED = "The model answered in more than one format at once.";
 
 /**
  * Ask the model for one answer in `format`. A tool format validates each call
@@ -10,7 +12,7 @@ import type { Answer, Format, Task } from "./types.ts";
 export async function generateAnswer(
   model: LanguageModel,
   task: Task,
-  format: Format,
+  format: CandidateFormat,
   maxRepairRounds: number,
 ): Promise<Answer> {
   const run = await startFormat(format);
@@ -26,7 +28,7 @@ export async function generateAnswer(
         prompt: task.prompt,
         onError,
         tools: run.tools,
-        // Opus 5.5 rejects a forced tool call, so every model may answer without the tool, which counts as an error.
+        // Opus 5.5 rejects a forced tool call, so every model may answer without a tool, which is an error unless the candidate takes prose.
         toolChoice: "auto",
         stopWhen: [
           // Two steps of headroom for calls that are not answers, such as frame mode's `read_me`.
@@ -49,7 +51,7 @@ export async function generateAnswer(
       firstTextMs ??= performance.now() - started;
     } else if (
       part.type === "tool-input-start" &&
-      part.toolName === run.answerTool
+      run.answerTools.includes(part.toolName)
     ) {
       firstToolMs ??= performance.now() - started;
     }
@@ -61,33 +63,80 @@ export async function generateAnswer(
     totalMs: performance.now() - started,
   };
 
+  const steps = await result.steps;
+  const final = steps.at(-1);
+  const formatsOf = (step: (typeof steps)[number]) =>
+    step.toolCalls.flatMap((call) => run.toolFormats[call.toolName] ?? []);
+  const mixed = steps.some((step) => new Set(formatsOf(step)).size > 1);
+  // When prose is an answer, prose that ends the run answers even after failed tool calls, as when the model gives up on a spec that kept failing validation.
+  const proseAnswer =
+    run.prose &&
+    final !== undefined &&
+    final.toolCalls.length === 0 &&
+    final.text.trim() !== "";
   const last = run.attempts.at(-1);
-  if (!run.tools) {
-    const text = await result.text;
-    const errors = text.trim() ? [] : ["The answer is empty."];
+  if (!last || proseAnswer) {
+    const attempted = proseAnswer ? undefined : steps.flatMap(formatsOf).at(-1);
+    const errors = proseAnswer
+      ? []
+      : attempted !== undefined
+        ? [
+            "The model's answer tool call failed before it ran.",
+            ...(mixed ? [MIXED] : []),
+          ]
+        : !run.prose
+          ? [
+              `The model never called ${run.answerTools.map((name) => `\`${name}\``).join(" or ")}.`,
+            ]
+          : ["The answer is empty."];
     return {
-      artifact: text,
+      artifact: final?.text ?? "",
+      prose: { before: "", after: "" },
       answeredIn: "text",
+      ...(attempted !== undefined ? { attempted } : {}),
       errors,
-      repairRounds: 0,
-      firstOutputMs: firstTextMs,
+      repairRounds: run.attempts.length,
+      firstOutputMs: attempted !== undefined ? firstToolMs : firstTextMs,
       ...measured,
     };
   }
-  if (!last) {
-    return {
-      artifact: await result.text,
-      answeredIn: "text",
-      errors: [`The model never called \`${run.answerTool}\`.`],
-      repairRounds: 0,
-      firstOutputMs: firstTextMs,
-      ...measured,
-    };
-  }
+  // The SDK rejects an invalid call before `execute`, so the last call that is not invalid produced `last`.
+  const anchor = steps
+    .flatMap((step, index) =>
+      step.toolCalls
+        .filter(
+          (call) =>
+            run.toolFormats[call.toolName] !== undefined &&
+            !("invalid" in call && call.invalid),
+        )
+        .map((call) => ({ index, toolCallId: call.toolCallId })),
+    )
+    .at(-1);
+  const textOf = (parts: (typeof steps)[number]["content"]) =>
+    parts.flatMap((part) =>
+      part.type === "text" && part.text.trim() !== "" ? [part.text] : [],
+    );
+  const before: string[] = [];
+  const after: string[] = [];
+  steps.forEach((step, index) => {
+    if (anchor === undefined || index < anchor.index) {
+      before.push(...textOf(step.content));
+    } else if (index > anchor.index) {
+      after.push(...textOf(step.content));
+    } else {
+      const at = step.content.findIndex(
+        (part) =>
+          part.type === "tool-call" && part.toolCallId === anchor.toolCallId,
+      );
+      before.push(...textOf(step.content.slice(0, at)));
+      after.push(...textOf(step.content.slice(at + 1)));
+    }
+  });
   return {
     artifact: last.artifact,
-    answeredIn: format,
-    errors: last.errors,
+    prose: { before: before.join("\n\n"), after: after.join("\n\n") },
+    answeredIn: last.format,
+    errors: mixed ? [...last.errors, MIXED] : last.errors,
     repairRounds: run.attempts.length - 1,
     firstOutputMs: firstToolMs,
     ...measured,

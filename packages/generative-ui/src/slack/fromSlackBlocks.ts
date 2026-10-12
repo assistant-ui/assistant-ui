@@ -25,7 +25,14 @@ const asString = (value: unknown): string =>
   typeof value === "string" ? value : "";
 
 const textOf = (value: unknown): string =>
-  isRecord(value) && typeof value["text"] === "string" ? value["text"] : "";
+  isRecord(value) && typeof value["text"] === "string"
+    ? value["type"] === "mrkdwn"
+      ? value["text"]
+          .replace(/&lt;/g, "<")
+          .replace(/&gt;/g, ">")
+          .replace(/&amp;/g, "&")
+      : value["text"]
+    : "";
 
 const warn = (
   warnings: SlackConversionWarning[],

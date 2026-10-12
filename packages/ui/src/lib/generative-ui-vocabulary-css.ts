@@ -982,6 +982,48 @@ export const generativeUiVocabularyCss: CssRuleset = {
   '[data-aui="divider"][data-aui-flush]': { margin: "0" },
   '[data-aui="card"] > [data-aui="divider"]': { margin: "0" },
 
+  '[data-aui="diagram"]': {
+    display: "flex",
+    "flex-direction": "column",
+    gap: "0.375rem",
+    margin: "0",
+  },
+  '[data-aui="diagram-code"]': {
+    margin: "0",
+    padding: "0.75rem 0.875rem",
+    "overflow-x": "auto",
+    "border-radius": "calc(var(--radius) - 2px)",
+    "background-color": "color-mix(in oklab, var(--muted) 60%, transparent)",
+    "font-family":
+      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+    "font-size": "0.8125rem",
+    "line-height": "1.5",
+  },
+  '[data-aui="diagram-title"]': {
+    "font-size": "0.75rem",
+    "line-height": "1.4",
+    color: "color-mix(in oklab, currentColor 62%, transparent)",
+  },
+  'ol[data-aui="map"]': {
+    display: "flex",
+    "flex-direction": "column",
+    gap: "0.5rem",
+    margin: "0",
+    padding: "0",
+    "list-style": "none",
+  },
+  '[data-aui="map-place-label"]': {
+    color: "inherit",
+    "font-weight": "500",
+    "text-decoration": "underline",
+    "text-underline-offset": "2px",
+  },
+  '[data-aui="map-place-detail"]': {
+    "font-size": "0.8125rem",
+    "line-height": "1.5",
+    color: "color-mix(in oklab, currentColor 70%, transparent)",
+  },
+
   '[data-aui="image"]': {
     "max-width": "100%",
     display: "block",
