@@ -3,14 +3,12 @@ import {
   JSONGenerativeUI,
   normalizeUINode,
   renderGenerativeUI,
+  type GenerativeUILibrary,
   type NormalizedUINode,
 } from "@assistant-ui/generative-ui/react";
+import { toSpecCatalog } from "@assistant-ui/generative-ui/spec";
 import { jsonSchema, tool, type JSONSchema7, type ToolSet } from "ai";
-import {
-  defineCatalog,
-  type JsonSchema,
-  type Spec,
-} from "generative-frame/spec";
+import type { Spec } from "generative-frame/spec";
 import { createSpecTools } from "generative-frame/spec/tools";
 import {
   buildWidgetInstructions,
@@ -38,32 +36,24 @@ export interface FormatRun {
 
 const INTRO = "You are the assistant in a chat app.";
 
-const library = defaultGenerativeUILibrary;
+/**
+ * The vocabulary as the kit's generative UI element ships it
+ * (`styledGenerativeUILibrary`), whose `Markdown` renders GitHub-flavored
+ * markdown. Node cannot load that TSX file, so only the description the model
+ * reads is carried over; the harness renders with the element itself.
+ */
+export const kitLibrary: GenerativeUILibrary = {
+  ...defaultGenerativeUILibrary,
+  Markdown: {
+    ...defaultGenerativeUILibrary.Markdown!,
+    description: "A markdown string, rendered with GitHub-flavored markdown.",
+  },
+};
+const library = kitLibrary;
 const present = new JSONGenerativeUI({ library }).present();
 
-/**
- * The components `present` offers, so spec mode differs only in format. Every
- * component takes children and fires `press` and `change`, matching `present`,
- * where any node may carry children and an `$action`. Props are the JSON Schema
- * `present` builds from the same zod schemas: generative-frame skips a whole
- * Standard Schema when any prop holds an expression, but skips only the
- * expression in a JSON Schema.
- */
-const catalog = defineCatalog({
-  components: Object.fromEntries(
-    Object.entries(library).map(([name, component]) => [
-      name,
-      {
-        description: component.description,
-        props: component.properties["~standard"].jsonSchema.input({
-          target: "draft-07",
-        }) as JsonSchema,
-        slots: ["default"],
-        events: ["press", "change"],
-      },
-    ]),
-  ),
-});
+/** The components `present` offers, as the catalog a spec mode host builds with `toSpecCatalog`, so spec mode differs only in format. */
+const { catalog } = toSpecCatalog(library);
 
 const sdk = {
   jsonSchema: (schema: object) => jsonSchema(schema as JSONSchema7),

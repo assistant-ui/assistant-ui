@@ -37,10 +37,10 @@ export const alertVocabulary = {
             },
             [
               ...(title
-                ? [h("header", { "data-aui": "alert-title" }, String(title))]
+                ? [h("header", { "data-aui": "alert-title" }, title)]
                 : []),
               ...(description
-                ? [h("p", { "data-aui": "alert-desc" }, String(description))]
+                ? [h("p", { "data-aui": "alert-desc" }, description)]
                 : []),
               ...(slots.default?.() ?? []),
             ],

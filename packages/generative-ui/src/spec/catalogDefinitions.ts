@@ -23,7 +23,11 @@ const DEFAULT_SLOT = ["default"] as const;
 
 const footerButton = (label: string, event: string) =>
   z
-    .object({ label: z.string().describe("Footer button label.") })
+    .object({
+      label: z
+        .union([z.string(), z.number()])
+        .describe("Footer button label text or number."),
+    })
     .optional()
     .describe(`${label} button shown in the footer; emits \`${event}\`.`);
 
@@ -83,7 +87,7 @@ const DEFAULT_SHAPES: Readonly<Record<string, SpecShape>> = {
     slots: DEFAULT_SLOT,
     events: ["change"],
     description:
-      "A group of checkbox options where any number can be checked. Emits `change` with the checked values.",
+      "A group of checkbox options where any number can be checked. Set `progress` for a checklist the user works through. Emits `change` with the checked values.",
   },
   Card: {
     slots: DEFAULT_SLOT,
@@ -105,6 +109,7 @@ const DEFAULT_SHAPES: Readonly<Record<string, SpecShape>> = {
   Spacer: {},
   Badge: { slots: DEFAULT_SLOT },
   Box: { slots: DEFAULT_SLOT },
+  Tabs: { slots: DEFAULT_SLOT },
   ListView: { slots: DEFAULT_SLOT },
   ListViewItem: {
     slots: DEFAULT_SLOT,
@@ -112,6 +117,9 @@ const DEFAULT_SHAPES: Readonly<Record<string, SpecShape>> = {
     description:
       "A row inside a ListView. Emits `press` when the row is clicked or activated with Enter or Space.",
   },
+  Steps: {},
+  Timeline: {},
+  Citation: {},
   Image: {},
   Divider: {},
   Header: { slots: DEFAULT_SLOT },

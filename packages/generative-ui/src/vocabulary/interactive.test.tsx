@@ -13,6 +13,16 @@ const render = (node: unknown) =>
   renderToStaticMarkup(<>{renderGenerativeUI(node, interactiveVocabulary)}</>);
 
 describe("interactiveVocabulary", () => {
+  it("renders a zero Select placeholder", () => {
+    expect(
+      render({
+        $type: "Select",
+        options: [{ label: "A", value: "a" }],
+        placeholder: 0,
+      }),
+    ).toContain('<option value="" disabled="" selected="">0</option>');
+  });
+
   it("Button renders a button with style/block hooks and the label", () => {
     expect(
       render({

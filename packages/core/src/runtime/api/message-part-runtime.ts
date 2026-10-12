@@ -10,9 +10,13 @@ import { createToolInteraction } from "../utils/tool-interactions";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { MessagePartStatus } from "../../types/message";
 import type { SubscribableWithState } from "../../subscribable/subscribable";
-import type { ThreadRuntimeCoreBinding } from "./thread-runtime";
+import type {
+  ThreadRuntimeCoreBinding,
+  ThreadRuntimeImpl,
+} from "./thread-runtime";
 import type { MessageStateBinding } from "./bindings";
 import type { MessagePartRuntimePath } from "./paths";
+import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
 import { ToolResponse } from "assistant-stream";
 
 export type MessagePartState = (
@@ -41,6 +45,9 @@ export type MessagePartRuntime = {
   subscribe(callback: () => void): Unsubscribe;
 };
 
+type ThreadBindingWithState = ThreadRuntimeCoreBinding &
+  Partial<Pick<ThreadRuntimeImpl["__internal_threadBinding"], "getStateState">>;
+
 export class MessagePartRuntimeImpl implements MessagePartRuntime {
   public get path() {
     return this.contentBinding.path;
@@ -48,7 +55,11 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
 
   private contentBinding: MessagePartSnapshotBinding;
   private messageApi: MessageStateBinding | undefined;
-  private threadApi: ThreadRuntimeCoreBinding | undefined;
+  private threadApi: ThreadBindingWithState | undefined;
+  private readonly interactionState: MessagePartState;
+  private readonly interactionMessageId: string | undefined;
+  private readonly interactionThreadId: string | undefined;
+  private readonly interactionCore: ThreadRuntimeCore | undefined;
 
   constructor(
     contentBinding: MessagePartSnapshotBinding,
@@ -58,6 +69,19 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
     this.contentBinding = contentBinding;
     this.messageApi = messageApi;
     this.threadApi = threadApi;
+    this.interactionState = contentBinding.getState();
+    this.interactionMessageId =
+      this.interactionState.type === "tool-call"
+        ? messageApi?.getState().id
+        : undefined;
+    this.interactionThreadId =
+      this.interactionState.type === "tool-call"
+        ? this.threadApi?.getStateState?.().threadId
+        : undefined;
+    this.interactionCore =
+      this.interactionState.type === "tool-call"
+        ? threadApi?.getState()
+        : undefined;
     this.__internal_bindMethods();
   }
 
@@ -157,27 +181,23 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
   public async unstable_recordInteraction(
     input: Unstable_ToolInteractionInput,
   ): Promise<void> {
-    const state = this.contentBinding.getState();
-    if (!state) throw new Error("Message part is not available");
-
+    const state = this.interactionState;
     if (state.type !== "tool-call")
       throw new Error("Tried to record interaction on non-tool message part");
 
-    if (!this.messageApi)
-      throw new Error(
-        "Message API is not available. This is likely a bug in assistant-ui.",
-      );
-    if (!this.threadApi) throw new Error("Thread API is not available");
+    const messageId = this.interactionMessageId;
+    if (messageId === undefined) throw new Error("Message is not available");
 
-    const message = this.messageApi.getState();
-    if (!message) throw new Error("Message is not available");
-
-    const core = this.threadApi.getState();
-    if (!core.unstable_recordToolInteraction)
+    const core =
+      this.interactionThreadId !== undefined &&
+      this.threadApi?.getStateState?.().threadId === this.interactionThreadId
+        ? this.threadApi.getState()
+        : this.interactionCore;
+    if (!core?.unstable_recordToolInteraction)
       throw new Error("Runtime does not support recording tool interactions.");
 
     await core.unstable_recordToolInteraction({
-      messageId: message.id,
+      messageId,
       toolCallId: state.toolCallId,
       interaction: createToolInteraction(input),
     });
