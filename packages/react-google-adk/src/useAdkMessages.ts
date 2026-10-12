@@ -21,6 +21,7 @@ import {
   normalizeAdkEvent,
 } from "./AdkEventAccumulator";
 import { AdkThreadController } from "./AdkThreadController";
+import { normalizeSendConfig } from "./adkThreadState";
 import { contentToParts } from "./contentToParts";
 import { toAdkFunctionResponse } from "./toAdkFunctionResponse";
 import type {
@@ -56,21 +57,6 @@ type QueuedAdkSend = {
 };
 
 type RunExecutor = (run: () => Promise<void>) => Promise<void>;
-
-const normalizeSendConfig = (config: AdkSendMessageConfig) =>
-  Object.fromEntries(
-    Reflect.ownKeys(config).map((key) => {
-      const value = Reflect.get(config, key);
-      return [
-        key,
-        value &&
-        typeof value === "object" &&
-        Reflect.ownKeys(value).length === 0
-          ? undefined
-          : value,
-      ];
-    }),
-  );
 
 const sameSendConfig = (
   left: Record<PropertyKey, unknown>,
