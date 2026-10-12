@@ -37,6 +37,7 @@
     "chatgpt-subscription",
     "---Environments---",
     "electron",
+    "tauri",
     "---Resilience---",
     "resumable-streams",
     "resumable-stream-stores",
