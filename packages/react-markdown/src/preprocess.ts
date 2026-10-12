@@ -708,7 +708,7 @@ function htmlBlockRanges(text: string): {
 
 function rewriteOutsideBlocks(
   text: string,
-  rewrite: (text: string, blockStarts: number[]) => string,
+  rewrite: (text: string, blockStarts: number[], offset: number) => string,
 ): string {
   const { ranges, blockStarts } = htmlBlockRanges(text);
   let next = 0;
@@ -719,7 +719,7 @@ function rewriteOutsideBlocks(
       sliceStarts.push(blockStarts[next]! - from);
       next += 1;
     }
-    return rewrite(text.slice(from, to), sliceStarts);
+    return rewrite(text.slice(from, to), sliceStarts, from);
   };
   let out = "";
   let cursor = 0;
@@ -939,9 +939,10 @@ function rewriteOutsideCode(
     precededBy: string,
     followedBy: string,
     lineHead: (offset: number) => string,
+    segmentStart: number,
   ) => string,
 ): string {
-  return rewriteOutsideBlocks(text, (text, blockStarts) => {
+  return rewriteOutsideBlocks(text, (text, blockStarts, blockOffset) => {
     const out: string[] = [];
     let lastOutChar = "";
     let plainStart = 0;
@@ -962,7 +963,15 @@ function rewriteOutsideCode(
         const at = start + offset;
         return text.slice(text.lastIndexOf("\n", at - 1) + 1, at);
       };
-      append(rewrite(segment, lastOutChar, followedBy, lineHead));
+      append(
+        rewrite(
+          segment,
+          lastOutChar,
+          followedBy,
+          lineHead,
+          blockOffset + start,
+        ),
+      );
     };
 
     forEachVerbatimRange(text, blockStarts, (start, end) => {
@@ -1147,6 +1156,9 @@ export function rewriteLatexBracketDelimiters(text: string): string {
     let opener = -1;
     let openerLength = 0;
     let reindentedLineStart = -1;
+    let closerLineStart = -1;
+    let closerPrefix = "";
+    let closerReindents = false;
     for (const marker of block.matchAll(LATEX_DISPLAY_MARKER)) {
       const at = marker.index;
       if (at < cursor) continue;
@@ -1199,16 +1211,23 @@ export function rewriteLatexBracketDelimiters(text: string): string {
       }
       const lineHead = (offset: number) => {
         const start = block.lastIndexOf("\n", offset - 1) + 1;
-        return start === reindentedLineStart
-          ? out.slice(out.lastIndexOf("\n") + 1) + block.slice(cursor, offset)
-          : block.slice(start, offset);
+        return start === closerLineStart
+          ? closerPrefix
+          : start === reindentedLineStart
+            ? out.slice(out.lastIndexOf("\n") + 1) + block.slice(cursor, offset)
+            : block.slice(start, offset);
       };
       const head = lineHead(opener);
-      const openedOnReindentedLine =
-        reindentedLineStart === block.lastIndexOf("\n", opener - 1) + 1;
+      const openerLineStart = block.lastIndexOf("\n", opener - 1) + 1;
+      const openedOnReindentedLine = reindentedLineStart === openerLineStart;
       const prefix = continuationPrefix(head);
       const quote = QUOTE_PREFIX.exec(head)![0];
       const depth = quoteDepth(prefix);
+      const reindents: boolean =
+        depth > 0 &&
+        (openedOnReindentedLine ||
+          (closerLineStart === openerLineStart && closerReindents) ||
+          listMarkerEnd(head, quote.length, head.length) > quote.length);
       let replacement = emitDisplayMath(
         match,
         body,
@@ -1225,13 +1244,16 @@ export function rewriteLatexBracketDelimiters(text: string): string {
       ) {
         replacement = replacement.slice(prefix.length + 1);
       }
+      closerLineStart = replacement.endsWith(`\n${prefix}`)
+        ? opener + match.lastIndexOf("\n") + 1
+        : -1;
+      closerPrefix = prefix;
+      closerReindents = reindents;
       reindentedLineStart = -1;
       let consumed = end;
       if (
         replacement !== match &&
-        depth > 0 &&
-        (openedOnReindentedLine ||
-          listMarkerEnd(head, quote.length, head.length) > quote.length) &&
+        reindents &&
         (block[end] === "\n" || block.startsWith("\r\n", end))
       ) {
         const lineBreak = block.startsWith("\r\n", end) ? "\r\n" : "\n";
@@ -1272,25 +1294,47 @@ const INLINE_TAG = /\[\/inline\]([\s\S]*?)\[\/inline\]/g;
  * {@link emitDisplayMath}) and `[/inline]...[/inline]` becomes `$...$`.
  */
 export function rewriteCustomMathTags(text: string): string {
-  return rewriteOutsideCode(text, (segment, precededBy, followedBy, lineHead) =>
-    segment
-      .replace(
-        MATH_TAG,
-        (match: string, body: string, offset: number, source: string) =>
-          emitDisplayMath(
-            match,
-            body,
-            offset,
-            source,
-            precededBy,
-            followedBy,
-            lineHead,
-          ),
-      )
-      .replace(INLINE_TAG, (match: string, body: string) => {
-        const trimmed = body.trim();
-        return trimmed === "" ? match : `$${trimmed}$`;
-      }),
+  let continuedLineStart = -1;
+  let continuedLineEnd = -1;
+  let continuedPrefix = "";
+  return rewriteOutsideCode(
+    text,
+    (segment, precededBy, followedBy, lineHead, segmentStart) => {
+      return segment
+        .replace(
+          MATH_TAG,
+          (match: string, body: string, offset: number, source: string) => {
+            const head = (at: number) =>
+              segmentStart + at >= continuedLineStart &&
+              segmentStart + at < continuedLineEnd
+                ? continuedPrefix
+                : lineHead(at);
+            const prefix = continuationPrefix(head(offset));
+            const replacement = emitDisplayMath(
+              match,
+              body,
+              offset,
+              source,
+              precededBy,
+              followedBy,
+              head,
+            );
+            if (replacement.endsWith(`\n${prefix}`)) {
+              const end = segmentStart + offset + match.length;
+              continuedLineStart =
+                segmentStart + offset + match.lastIndexOf("\n") + 1;
+              const lineEnd = text.indexOf("\n", end);
+              continuedLineEnd = lineEnd === -1 ? text.length : lineEnd;
+              continuedPrefix = prefix;
+            }
+            return replacement;
+          },
+        )
+        .replace(INLINE_TAG, (match: string, body: string) => {
+          const trimmed = body.trim();
+          return trimmed === "" ? match : `$${trimmed}$`;
+        });
+    },
   );
 }
 
