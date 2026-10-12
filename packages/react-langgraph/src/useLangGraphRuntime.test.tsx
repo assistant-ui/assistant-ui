@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, onTestFinished, vi } from "vitest";
 import { act, render, renderHook, waitFor } from "@testing-library/react";
 import type {
   AssistantRuntime,
@@ -4053,6 +4053,7 @@ describe("useLangGraphRuntime", () => {
       const consoleError = vi
         .spyOn(console, "error")
         .mockImplementation(() => {});
+      onTestFinished(() => consoleError.mockRestore());
       const result = await renderWithCheckpoint(
         stream as unknown as LangGraphStreamCallback<LangChainMessage>,
         getCheckpointId,
@@ -4099,7 +4100,6 @@ describe("useLangGraphRuntime", () => {
         "answer from server",
       ]);
       expect(consoleError).toHaveBeenCalled();
-      consoleError.mockRestore();
     });
 
     it("keeps refetched content when an inherited edit fails after the refetch", async () => {
@@ -4129,6 +4129,7 @@ describe("useLangGraphRuntime", () => {
       const consoleError = vi
         .spyOn(console, "error")
         .mockImplementation(() => {});
+      onTestFinished(() => consoleError.mockRestore());
       const result = await renderWithCheckpoint(
         stream as unknown as LangGraphStreamCallback<LangChainMessage>,
         getCheckpointId,
@@ -4179,7 +4180,6 @@ describe("useLangGraphRuntime", () => {
         "answer from server",
       ]);
       expect(consoleError).toHaveBeenCalled();
-      consoleError.mockRestore();
     });
 
     it("restores the original turn when an edit chained to a reload fails before its first event", async () => {
@@ -4198,6 +4198,7 @@ describe("useLangGraphRuntime", () => {
       const consoleError = vi
         .spyOn(console, "error")
         .mockImplementation(() => {});
+      onTestFinished(() => consoleError.mockRestore());
       const result = await renderWithCheckpoint(
         stream as unknown as LangGraphStreamCallback<LangChainMessage>,
         () => checkpoint.promise,
@@ -4232,7 +4233,6 @@ describe("useLangGraphRuntime", () => {
       expect(stream).toHaveBeenCalledTimes(2);
       expect(textsOf(result.current)).toEqual(["question", "answer"]);
       expect(consoleError).toHaveBeenCalled();
-      consoleError.mockRestore();
     });
 
     it("restores the original turn when an edit follows a reload's checkpoint lookup", async () => {
@@ -4252,6 +4252,7 @@ describe("useLangGraphRuntime", () => {
       const consoleError = vi
         .spyOn(console, "error")
         .mockImplementation(() => {});
+      onTestFinished(() => consoleError.mockRestore());
       const result = await renderWithCheckpoint(
         stream as unknown as LangGraphStreamCallback<LangChainMessage>,
         async () => "cp-1",
@@ -4284,7 +4285,6 @@ describe("useLangGraphRuntime", () => {
       expect(stream).toHaveBeenCalledTimes(3);
       expect(textsOf(result.current)).toEqual(["question", "answer"]);
       expect(consoleError).toHaveBeenCalled();
-      consoleError.mockRestore();
     });
 
     it("places a message added during a failing edit after the restored turn", async () => {
@@ -4306,6 +4306,7 @@ describe("useLangGraphRuntime", () => {
       const consoleError = vi
         .spyOn(console, "error")
         .mockImplementation(() => {});
+      onTestFinished(() => consoleError.mockRestore());
       const result = await renderWithCheckpoint(
         stream as unknown as LangGraphStreamCallback<LangChainMessage>,
         async () => "cp-1",
@@ -4340,7 +4341,6 @@ describe("useLangGraphRuntime", () => {
 
       expect(textsOf(result.current)).toEqual(["question", "answer", "later"]);
       expect(consoleError).toHaveBeenCalled();
-      consoleError.mockRestore();
     });
 
     it("restores the original turn when checkpoint lookup rejects", async () => {
