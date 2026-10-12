@@ -712,6 +712,12 @@ describe("rewriteLatexBracketDelimiters", () => {
 });
 
 describe("rewriteCustomMathTags", () => {
+  it("does not inherit a bracket display prefix", () => {
+    expect(
+      rewriteCustomMathTags("> 1. \\[\n> a\n> \\] x [/math]\n> b\n> [/math]"),
+    ).toBe("> 1. \\[\n> a\n> \\] x \n> $$\n> b\n> $$");
+  });
+
   it("rewrites [/math] to display dollars and [/inline] to inline dollars", () => {
     expect(
       rewriteCustomMathTags("[/math]a+b[/math] and [/inline]c[/inline]"),
@@ -816,6 +822,26 @@ describe("rewriteCustomMathTags", () => {
 });
 
 describe("normalizeMathDelimiters", () => {
+  it.each([
+    [
+      "a blank line in the bracket body",
+      "> 1. \\[\n> a\n>\n> b\n> \\] x [/math]\n> c\n> [/math]",
+      "> 1. \n>    $$\n>    a\n>   \n>    b\n>    $$\n>     x \n>    $$\n>    c\n>    $$",
+    ],
+    [
+      "a code span in the bracket body",
+      "> 1. \\[\n> a `x` b\n> \\] x [/math]\n> c\n> [/math]",
+      "> 1. \n>    $$\n>    a `x` b\n>    $$\n>     x \n>    $$\n>    c\n>    $$",
+    ],
+    [
+      "a code span between the bracket closer and math tag",
+      "> 1. \\[\n> a\n> \\] `x` [/math]\n> c\n> [/math]",
+      "> 1. \n>    $$\n>    a\n>    $$\n>     `x` \n>    $$\n>    c\n>    $$",
+    ],
+  ])("hands off across %s", (_, input, expected) => {
+    expect(normalizeMathDelimiters(input)).toBe(expected);
+  });
+
   it.each([
     [
       "bracket display followed by a math tag",

@@ -2,4 +2,4 @@
 "@assistant-ui/react-markdown": patch
 ---
 
-Preserve quoted list nesting when different display math delimiters are chained.
+fix(react-markdown): keep a math tag display opened on a bracket closer's line inside its quoted list item
