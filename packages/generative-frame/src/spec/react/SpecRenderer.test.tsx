@@ -7,7 +7,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineCatalog } from "../catalog";
-import { createStateStore } from "../state";
+import { createStateStore, type SpecStateStore } from "../state";
 import type { Spec } from "../types";
 import {
   SpecRenderer,
@@ -440,4 +440,28 @@ it("does not dispatch a root watch when mounting a spec without state", () => {
   expect(refresh).not.toHaveBeenCalled();
   fireEvent.click(view.getByRole("button"));
   expect(refresh).toHaveBeenCalledTimes(1);
+});
+
+it("isolates the empty model base between renderer instances", () => {
+  const stores: SpecStateStore[] = [];
+  const capture = ({ state }: SpecComponentProps) => {
+    stores.push(state);
+    return null;
+  };
+  const input: Spec = {
+    root: "capture",
+    elements: { capture: { type: "Capture" } },
+  };
+  const mount = () =>
+    render(<SpecRenderer spec={input} components={{ Capture: capture }} />);
+  const first = mount();
+  const firstState = stores.at(-1)!.getState();
+  first.unmount();
+  mount();
+  const secondState = stores.at(-1)!.getState();
+  expect(secondState).not.toBe(firstState);
+  firstState["name"] = "first renderer";
+  expect(secondState).toEqual({});
+  mount();
+  expect(stores.at(-1)!.getState()).toEqual({});
 });
