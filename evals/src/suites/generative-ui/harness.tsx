@@ -143,8 +143,22 @@ async function renderFrame(code: string, errors: string[]) {
     onPrompt: () => {},
   });
   disposeWidget = () => widget.dispose();
+  let connected = false;
+  void widget.ready.then(
+    () => {
+      connected = true;
+    },
+    () => {},
+  );
   widget.write(code);
-  await widget.end();
+  try {
+    await widget.end();
+  } catch (error) {
+    // A frame that connected but never finished failed on the widget's own code, such as a script that never yields; one that never connected failed on the browser or the frame host.
+    if (!connected) throw error;
+    errors.push(`The widget never finished rendering (${describe(error)}).`);
+    return;
+  }
   // Matches previewWidget's default settle time for scripts, fonts, and animations.
   await new Promise((resolve) => setTimeout(resolve, 600));
   const inspection = await widget.inspect();
