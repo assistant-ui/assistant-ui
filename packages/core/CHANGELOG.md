@@ -1,5 +1,19 @@
 # @assistant-ui/core
 
+## 0.3.27
+
+### Patch Changes
+
+- [#9284](https://github.com/assistant-ui/assistant-ui/pull/9284) [`c157aee`](https://github.com/assistant-ui/assistant-ui/commit/c157aeeaa29af0d50dd80e48c89342caf69967ae) - A thread created while a replacement thread list loads now gets its automatic title once the list lands. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9312](https://github.com/assistant-ui/assistant-ui/pull/9312) [`2c1963a`](https://github.com/assistant-ui/assistant-ui/commit/2c1963a31cbb01285bd0e59bdeef1e04e28c6a9d) - fix(core): clear the adapter-change gate before a failed replacement thread list load reports `isLoading: false`, so a thread action started from that notification is not rejected ([@okisdev](https://github.com/okisdev))
+
+- [#9306](https://github.com/assistant-ui/assistant-ui/pull/9306) [`efbf028`](https://github.com/assistant-ui/assistant-ui/commit/efbf028597dd0652bc88d0bca806a63837fb9cd6) - fix(core): keep `unstable_useInteractableState` readers updating once the React Compiler optimizes the interactables resource ([@okisdev](https://github.com/okisdev))
+
+- [#9337](https://github.com/assistant-ui/assistant-ui/pull/9337) [`4e86339`](https://github.com/assistant-ui/assistant-ui/commit/4e8633954af2fa5941d43ccf8d6d3bab5de2bfef) - fix(core): drop the previous adapter's threads when a replacement thread list response cannot be applied, keeping threads created under the replacement ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`8b49f28`](https://github.com/assistant-ui/assistant-ui/commit/8b49f28640bcb97f10f3e5db6334e1bac4906c43)]:
+  - assistant-stream@0.3.50
+
 ## 0.3.26
 
 ### Patch Changes

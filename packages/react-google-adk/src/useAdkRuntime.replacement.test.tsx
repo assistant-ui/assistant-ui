@@ -206,6 +206,59 @@ describe("useAdkRuntime replacement runs", () => {
     ]);
   });
 
+  it("removes a user turn when its request fails before the first event", async () => {
+    const failure = new Error("ADK request failed: 409 Conflict");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const stream = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
+        throw failure;
+      });
+      const previousMessages: AdkMessage[] = [
+        { id: "u0", type: "human", content: "first" },
+        { id: "a0", type: "ai", content: "first answer" },
+        { id: "u1", type: "human", content: "second" },
+        { id: "a1", type: "ai", content: "second answer" },
+      ];
+      const runtime = await mountWithCheckpoint(
+        stream,
+        async () => null,
+        false,
+        async () => ({ messages: previousMessages }),
+      );
+      await waitFor(() =>
+        expect(runtime.thread.getState().messages.map(({ id }) => id)).toEqual([
+          "u0",
+          "a0",
+          "u1",
+          "a1",
+        ]),
+      );
+
+      await act(async () => {
+        await runtime.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "hello" }],
+        });
+      });
+
+      expect(stream).toHaveBeenCalledOnce();
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] Message append failed",
+        failure,
+      );
+      expect(runtime.thread.getState().messages.map(({ id }) => id)).toEqual([
+        "u0",
+        "a0",
+        "u1",
+        "a1",
+      ]);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it("starts an edit made while a run streams from the truncated thread", async () => {
     const releaseStale = deferred();
     const checkpoint = deferred();

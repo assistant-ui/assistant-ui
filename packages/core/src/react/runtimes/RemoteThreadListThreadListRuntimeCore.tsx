@@ -235,8 +235,9 @@ export class RemoteThreadListThreadListRuntimeCore
             if (!result.success) return failLoad(state, result.error);
 
             const l = result.response;
+            let replaceList = false;
             try {
-              const replaceList = this._replaceListOnNextLoad;
+              replaceList = this._replaceListOnNextLoad;
               appliedList = true;
               if (replaceList) {
                 this._replaceListOnNextLoad = false;
@@ -251,6 +252,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
               return applyInitialThreadPage(state, l, statusAtRequest);
             } catch (error) {
+              if (replaceList) this._replaceListOnNextLoad = true;
               return failLoad(state, error);
             }
           },
@@ -489,8 +491,6 @@ export class RemoteThreadListThreadListRuntimeCore
         carried.push(item);
       }
     }
-    this._staleThreadIdsOnReplace = undefined;
-    this._staleThreadsAdapter = undefined;
 
     const seed: ClassifyAccumulator = {
       threadIds: [],
@@ -510,6 +510,8 @@ export class RemoteThreadListThreadListRuntimeCore
 
     const { threadIds, archivedThreadIds, threadIdMap, threadData } =
       classifyThreads(threads, seed);
+    this._staleThreadIdsOnReplace = undefined;
+    this._staleThreadsAdapter = undefined;
 
     for (const item of carried) {
       if (item.remoteId === undefined) continue;

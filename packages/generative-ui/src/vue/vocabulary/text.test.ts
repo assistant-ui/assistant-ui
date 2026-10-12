@@ -11,6 +11,13 @@ import {
 afterEach(cleanupSpecs);
 
 describe("text vocabulary in Vue", () => {
+  it("renders a numeric Text value", () => {
+    const { container } = renderVueSpec(
+      spec({ main: { type: "Text", props: { value: 42 } } }),
+    );
+    expect(container.textContent).toBe("42");
+  });
+
   it.each<[string, Spec["elements"]]>([
     ["a header", { main: { type: "Header", props: { text: "Title" } } }],
     [

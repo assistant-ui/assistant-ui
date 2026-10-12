@@ -92,7 +92,7 @@ function SpecInstructions() {
 }
 ```
 
-Pass `tools` to your `AuiConfig`, and render `SpecInstructions` inside the runtime provider so the model gets the toolkit's `spec` module, the guidance `read_me` gives it on the web, including your `specPrompt` and the rule for earlier tool results. With `execution: "backend"`, the server defines `render_spec` with `createSpecTools(catalog)` and puts the catalog guidance in its system prompt instead, as in [spec mode as a tool](/generative-frame/docs/spec-mode#as-a-tool); earlier tool results reach a spec's state only in frontend execution, so that guidance leaves out their rule. `@assistant-ui/react-native` is an optional peer of this entry.
+Pass `tools` to your `AuiConfig`, and render `SpecInstructions` inside the runtime provider so the model gets the toolkit's `spec` module, the guidance `read_me` gives it on the web, including your `specPrompt` and the rule for earlier tool results. With `execution: "backend"`, the server defines `render_spec` with `createSpecTools(catalog)` and puts the catalog guidance in its system prompt instead, as in [spec mode as a tool](/generative-frame/docs/spec-mode#as-a-tool); earlier tool results reach a spec's state only in frontend execution, so that guidance leaves out their rule. What the user changes in a rendered spec is saved and restored as on the web (see [History after a reload](#history-after-a-reload)). `@assistant-ui/react-native` is an optional peer of this entry.
 
 ## Frontend and backend execution
 
@@ -180,6 +180,10 @@ const tokens = useAssistantUiThemeTokens();
 ## History after a reload
 
 The renderers derive their state from the thread, not from memory. `show_widget` renders from its arguments, `edit_widget` replays the edits of earlier calls with the same title, and `render_spec` applies its patches onto the spec built by earlier calls with that title. The registry is filled from rendered calls, so `edit_widget` also executes after a reload. Scripts run again when a widget mounts.
+
+What the user changes in a rendered spec, through a bound input, a `setState` action, or a value a handler writes, is saved on its `render_spec` call with `unstable_recordInteraction` half a second after the last change and when the call unmounts, and restored when the call renders again. It comes back after a reload with any runtime that keeps tool interactions with the thread (see [Recording interactions](/docs/tools/tool-ui#recording-interactions)), and it is not sent to the model. Each call keeps its own changes, so a later `render_spec` call with the same title starts from the spec the model wrote. Saving is best effort: the state has to be plain JSON within the runtime's 16,384-character limit for one interaction, and a save that fails is recorded as such, so the call starts from the model's state after a reload rather than from an older save. A change made in the last half second before the call unmounts, for example when switching threads, may not be saved.
+
+A widget's own state, the value its script passes to `genframe.setState`, is saved the same way on the `show_widget` or `edit_widget` call that drew it, and `genframe.state` holds the saved value when the widget's scripts run again after a reload. Each call keeps its own state, so an `edit_widget` call starts from the state its own frame saved, or `null`, and the same plain JSON limit applies. Your `onWidgetState` handler still receives every state the host accepts: plain JSON from the frame that is showing.
 
 ## Storage
 

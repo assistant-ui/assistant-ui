@@ -5,6 +5,13 @@ import { byRole, cleanupSpecs, renderNativeSpec, spec } from "../testUtils";
 afterEach(cleanupSpecs);
 
 describe("text vocabulary on React Native", () => {
+  it("renders a numeric Text value", () => {
+    const { container } = renderNativeSpec(
+      spec({ main: { type: "Text", props: { value: 42 } } }),
+    );
+    expect(container.textContent).toBe("42");
+  });
+
   it("renders a Header as a heading at its size", () => {
     const { container } = renderNativeSpec(
       spec({

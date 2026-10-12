@@ -116,10 +116,20 @@ const validatePart = (part: Record<string, unknown>, index: number) => {
       field("inlineData.mimeType"),
     );
     validateOptionalPartString(content, "data", field("inlineData.data"));
+    validateOptionalPartString(
+      content,
+      "displayName",
+      field("inlineData.displayName"),
+    );
   });
   validateRecordField("fileData", (content) => {
     validateOptionalPartString(content, "fileUri", field("fileData.fileUri"));
     validateOptionalPartString(content, "mimeType", field("fileData.mimeType"));
+    validateOptionalPartString(
+      content,
+      "displayName",
+      field("fileData.displayName"),
+    );
   });
 };
 

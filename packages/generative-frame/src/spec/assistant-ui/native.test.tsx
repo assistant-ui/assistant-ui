@@ -95,6 +95,40 @@ describe("createSpecToolkit for React Native", () => {
     expect(view.container.querySelector("[data-gf-spec]")).toBeNull();
   });
 
+  it("restores the state the user saved on the call", () => {
+    mocks.messages = [];
+    const RenderSpec = setup("frontend")["render_spec"]!.render;
+    const view = render(
+      <RenderSpec
+        args={{
+          title: "s",
+          spec: {
+            root: "t",
+            elements: {
+              t: { type: "Label", props: { text: { $state: "/name" } } },
+            },
+            state: { name: "model" },
+          },
+        }}
+        toolCallId="s"
+        unstable_interactions={{
+          entries: [
+            {
+              type: "action",
+              occurredAt: 0,
+              payload: {
+                type: "setState",
+                toolCallId: "s",
+                writes: [["/name", "Ada"]],
+              },
+            },
+          ],
+        }}
+      />,
+    );
+    expect(view.container.textContent).toBe("Ada");
+  });
+
   it("shows a streaming call with the React Native placeholder", () => {
     mocks.argsStatus = "streaming";
     mocks.messages = [];

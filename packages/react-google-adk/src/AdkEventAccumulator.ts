@@ -109,18 +109,37 @@ const mediaToContentPart = ({
   fileData,
 }: Record<string, unknown>): AdkMessageContentPart | undefined => {
   if (isRecord(inlineData)) {
-    const { mimeType, data } = inlineData;
+    const { mimeType, data, displayName } = inlineData;
     if (typeof mimeType !== "string" || typeof data !== "string") return;
     return mimeType.startsWith("image/")
-      ? { type: "image", mimeType, data }
-      : { type: "file", mimeType, data };
+      ? {
+          type: "image",
+          mimeType,
+          data,
+          ...(typeof displayName === "string" && { filename: displayName }),
+        }
+      : {
+          type: "file",
+          mimeType,
+          data,
+          ...(typeof displayName === "string" && { filename: displayName }),
+        };
   }
   if (!isRecord(fileData)) return;
-  const { fileUri, mimeType } = fileData;
+  const { fileUri, mimeType, displayName } = fileData;
   if (typeof fileUri !== "string") return;
   return typeof mimeType !== "string" || mimeType.startsWith("image/")
-    ? { type: "image_url", url: fileUri }
-    : { type: "file_url", url: fileUri, mimeType };
+    ? {
+        type: "image_url",
+        url: fileUri,
+        ...(typeof displayName === "string" && { filename: displayName }),
+      }
+    : {
+        type: "file_url",
+        url: fileUri,
+        mimeType,
+        ...(typeof displayName === "string" && { filename: displayName }),
+      };
 };
 
 // ── Snake_case normalization ──

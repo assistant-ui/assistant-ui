@@ -3,7 +3,11 @@ import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
 import type { MessageStateBinding } from "./bindings";
 import type { MessagePartState } from "./message-part-runtime";
 import { MessagePartRuntimeImpl } from "./message-part-runtime";
-import type { ThreadRuntimeCoreBinding } from "./thread-runtime";
+import {
+  MessageRuntimeImpl,
+  type MessageRuntimeState,
+} from "./message-runtime";
+import type { ThreadRuntimeImpl } from "./thread-runtime";
 
 const threadPath = {
   ref: "threads.main",
@@ -75,9 +79,11 @@ const createRuntime = ({
     getState: () => message,
     subscribe: () => () => {},
   };
-  const threadBinding: ThreadRuntimeCoreBinding = {
+  const threadBinding: ThreadRuntimeImpl["__internal_threadBinding"] = {
     path: threadPath,
     getState: () => core,
+    getStateState: () =>
+      ({ threadId: "thread-1" }) as ReturnType<ThreadRuntimeImpl["getState"]>,
     subscribe: () => () => {},
     outerSubscribe: () => () => {},
   };
@@ -146,6 +152,188 @@ describe("MessagePartRuntime interaction recording", () => {
         occurredAt: expect.any(Number),
       },
     });
+  });
+
+  it("keeps a retained recorder on its original thread, message, and tool call", async () => {
+    let currentMessage: MessageRuntimeState = {
+      ...message,
+      id: "message-a",
+      content: [{ ...toolPart, toolCallId: "call-a" }],
+    };
+    const recordA = vi.fn(async () => {});
+    const recordB = vi.fn(async () => {});
+    let currentCore = {
+      unstable_recordToolInteraction: recordA,
+    } as unknown as ThreadRuntimeCore;
+    let currentThreadId = "thread-a";
+    const messageBinding: MessageStateBinding = {
+      path: messagePath,
+      getState: () => currentMessage,
+      subscribe: () => () => {},
+    };
+    const threadBinding: ThreadRuntimeImpl["__internal_threadBinding"] = {
+      path: threadPath,
+      getState: () => currentCore,
+      getStateState: () =>
+        ({ threadId: currentThreadId }) as ReturnType<
+          ThreadRuntimeImpl["getState"]
+        >,
+      subscribe: () => () => {},
+      outerSubscribe: () => () => {},
+    };
+    const part = new MessageRuntimeImpl(
+      messageBinding,
+      threadBinding,
+    ).getMessagePartByIndex(0);
+
+    currentMessage = {
+      ...message,
+      id: "message-b",
+      content: [{ ...toolPart, toolCallId: "call-b" }],
+    };
+    currentCore = {
+      unstable_recordToolInteraction: recordB,
+    } as unknown as ThreadRuntimeCore;
+    currentThreadId = "thread-b";
+
+    await part.unstable_recordInteraction({
+      type: "action",
+      payload: { action: "toggle" },
+    });
+
+    expect(recordA).toHaveBeenCalledExactlyOnceWith({
+      messageId: "message-a",
+      toolCallId: "call-a",
+      interaction: {
+        type: "action",
+        payload: { action: "toggle" },
+        occurredAt: expect.any(Number),
+      },
+    });
+    expect(recordB).not.toHaveBeenCalled();
+  });
+
+  it("records through a plain thread binding that has no thread state", async () => {
+    const record = vi.fn(async () => {});
+    const core = {
+      unstable_recordToolInteraction: record,
+    } as unknown as ThreadRuntimeCore;
+    const part = new MessagePartRuntimeImpl(
+      {
+        path: partPath,
+        getState: () => toolPart,
+        subscribe: () => () => {},
+      },
+      {
+        path: messagePath,
+        getState: () => message,
+        subscribe: () => () => {},
+      },
+      {
+        path: threadPath,
+        getState: () => core,
+        subscribe: () => () => {},
+        outerSubscribe: () => () => {},
+      },
+    );
+
+    await part.unstable_recordInteraction({
+      type: "action",
+      payload: { action: "toggle" },
+    });
+
+    expect(record).toHaveBeenCalledExactlyOnceWith({
+      messageId: "message-1",
+      toolCallId: "call-1",
+      interaction: {
+        type: "action",
+        payload: { action: "toggle" },
+        occurredAt: expect.any(Number),
+      },
+    });
+  });
+
+  it("keeps a plain binding's recorder on the core it captured", async () => {
+    const recordA = vi.fn(async () => {});
+    const recordB = vi.fn(async () => {});
+    let currentCore = {
+      unstable_recordToolInteraction: recordA,
+    } as unknown as ThreadRuntimeCore;
+    const part = new MessagePartRuntimeImpl(
+      {
+        path: partPath,
+        getState: () => toolPart,
+        subscribe: () => () => {},
+      },
+      {
+        path: messagePath,
+        getState: () => message,
+        subscribe: () => () => {},
+      },
+      {
+        path: threadPath,
+        getState: () => currentCore,
+        subscribe: () => () => {},
+        outerSubscribe: () => () => {},
+      },
+    );
+
+    currentCore = {
+      unstable_recordToolInteraction: recordB,
+    } as unknown as ThreadRuntimeCore;
+
+    await part.unstable_recordInteraction({
+      type: "action",
+      payload: { action: "toggle" },
+    });
+
+    expect(recordA).toHaveBeenCalledOnce();
+    expect(recordB).not.toHaveBeenCalled();
+  });
+
+  it("records into a successor core of the same thread", async () => {
+    const recordA = vi.fn(async () => {});
+    const recordB = vi.fn(async () => {});
+    let currentCore = {
+      unstable_recordToolInteraction: recordA,
+    } as unknown as ThreadRuntimeCore;
+    const messageBinding: MessageStateBinding = {
+      path: messagePath,
+      getState: () => message,
+      subscribe: () => () => {},
+    };
+    const threadBinding: ThreadRuntimeImpl["__internal_threadBinding"] = {
+      path: threadPath,
+      getState: () => currentCore,
+      getStateState: () =>
+        ({ threadId: "thread-a" }) as ReturnType<ThreadRuntimeImpl["getState"]>,
+      subscribe: () => () => {},
+      outerSubscribe: () => () => {},
+    };
+    const part = new MessageRuntimeImpl(
+      messageBinding,
+      threadBinding,
+    ).getMessagePartByIndex(0);
+
+    currentCore = {
+      unstable_recordToolInteraction: recordB,
+    } as unknown as ThreadRuntimeCore;
+
+    await part.unstable_recordInteraction({
+      type: "action",
+      payload: { action: "toggle" },
+    });
+
+    expect(recordB).toHaveBeenCalledExactlyOnceWith({
+      messageId: "message-1",
+      toolCallId: "call-1",
+      interaction: {
+        type: "action",
+        payload: { action: "toggle" },
+        occurredAt: expect.any(Number),
+      },
+    });
+    expect(recordA).not.toHaveBeenCalled();
   });
 });
 

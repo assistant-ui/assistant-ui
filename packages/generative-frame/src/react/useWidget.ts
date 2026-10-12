@@ -33,13 +33,16 @@ const HANDLER_KEYS = Object.keys({
 /**
  * Mounts a widget frame into the element passed to `ref`. Mount options are
  * read once per mount; handlers always call their latest version, and a
- * changed `tokens` object is sent to the frame as a theme change.
+ * changed `tokens` object is sent to the frame as a theme change. A frame the
+ * hook creates again, as when `<Activity>` hides and shows it, starts from the
+ * latest state its widget set rather than `initialState`.
  */
 export function useWidget(options: UseWidgetOptions = {}): UseWidgetResult {
   const [element, setElement] = useState<HTMLElement | null>(null);
   const [widget, setWidget] = useState<WidgetHandle | null>(null);
   const optionsRef = useRef(options);
   optionsRef.current = options;
+  const widgetState = useRef<{ value: unknown } | undefined>(undefined);
 
   useEffect(() => {
     if (!element) return;
@@ -63,6 +66,13 @@ export function useWidget(options: UseWidgetOptions = {}): UseWidgetResult {
     const handle = createWidget({
       ...initial,
       ...(handlers as WidgetHandlers),
+      ...(widgetState.current
+        ? { initialState: widgetState.current.value }
+        : {}),
+      onWidgetState: (state) => {
+        widgetState.current = { value: state };
+        optionsRef.current.onWidgetState?.(state);
+      },
       container: element,
     });
     setWidget(handle);

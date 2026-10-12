@@ -124,7 +124,13 @@ function renderElement(
     props["children"] = renderNode(element.children, library, context);
   }
 
-  return <GenerativeUIComponentRenderer render={entry.render} props={props} />;
+  return (
+    <GenerativeUIComponentRenderer
+      key={element.type}
+      render={entry.render}
+      props={props}
+    />
+  );
 }
 
 const propOwnersByLibrary = new WeakMap<

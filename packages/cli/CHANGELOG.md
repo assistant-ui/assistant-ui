@@ -1,5 +1,11 @@
 # assistant-ui
 
+## 0.0.123
+
+### Patch Changes
+
+- [#9274](https://github.com/assistant-ui/assistant-ui/pull/9274) [`36691cc`](https://github.com/assistant-ui/assistant-ui/commit/36691cc0f089368d1145acdb5e3a086e5290f83d) - the agent skill the CLI installs now comes from the skills commit that teaches `@assistant-ui/generative-ui` and the `_type`, `_key` and `_action` keys `present` models write ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.122
 
 ### Patch Changes

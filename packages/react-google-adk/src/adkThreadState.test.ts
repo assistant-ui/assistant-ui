@@ -9,6 +9,69 @@ const message: AdkMessage = {
 };
 
 describe("reduceAdkThreadState", () => {
+  it("tracks queued projections and removes only queued messages", () => {
+    const queued = { ...message, id: "queued" };
+    const initial = { ...createAdkThreadState(), messages: [message] };
+    const projected = reduceAdkThreadState(initial, {
+      type: "messages.queued",
+      messages: [message, queued],
+      ids: ["queued"],
+    });
+    expect([...projected.queuedMessageIds]).toEqual(["queued"]);
+    expect(initial.queuedMessageIds.size).toBe(0);
+
+    const removed = reduceAdkThreadState(projected, {
+      type: "messages.queue.remove",
+      ids: ["queued", "message-1"],
+    });
+    expect(removed.messages).toEqual([message]);
+    expect(removed.queuedMessageIds.size).toBe(0);
+    expect(
+      reduceAdkThreadState(removed, {
+        type: "messages.queue.remove",
+        ids: ["missing"],
+      }),
+    ).toBe(removed);
+  });
+
+  it("keeps queued messages through published events and clears queue flags on replacement", () => {
+    const queued = { ...message, id: "queued" };
+    const projected = reduceAdkThreadState(createAdkThreadState(), {
+      type: "messages.queued",
+      messages: [queued],
+      ids: ["queued"],
+    });
+    const base = createAdkThreadState();
+    const publishedState = {
+      messages: [message],
+      stateDelta: base.stateDelta,
+      agentInfo: base.agentInfo,
+      longRunningToolIds: base.longRunningToolIds,
+      artifactDelta: base.artifactDelta,
+      toolConfirmations: base.toolConfirmations,
+      authRequests: base.authRequests,
+      escalated: base.escalated,
+      messageMetadata: base.messageMetadata,
+    };
+    const published = reduceAdkThreadState(projected, {
+      type: "event.published",
+      state: publishedState,
+    });
+    expect(published.messages).toEqual([message, queued]);
+    expect(
+      reduceAdkThreadState(published, {
+        type: "messages.replaced",
+        messages: [message],
+      }).queuedMessageIds.size,
+    ).toBe(0);
+    expect(
+      reduceAdkThreadState(published, {
+        type: "snapshot.applied",
+        snapshot: { messages: [message] },
+      }).queuedMessageIds.size,
+    ).toBe(0);
+  });
+
   it("stages messages by id without changing the prior state", () => {
     const initial = createAdkThreadState();
     const first = {
@@ -620,5 +683,85 @@ describe("reduceAdkThreadState", () => {
         runConfig: undefined,
       }),
     ).toBe(remembered);
+  });
+
+  it("restores the pre-event message and per-turn state", () => {
+    const previousMessages: AdkMessage[] = [message];
+    const optimisticMessage: AdkMessage = {
+      id: "optimistic",
+      type: "human",
+      content: "pending",
+    };
+    const toolConfirmations = [
+      {
+        toolCallId: "confirmation",
+        toolName: "approve",
+        args: {},
+        hint: "approval required",
+        confirmed: false,
+      },
+    ];
+    const authRequests = [
+      { toolCallId: "auth", authConfig: { type: "oauth2" } },
+    ];
+    const previous = {
+      ...createAdkThreadState(),
+      messages: previousMessages,
+      stateDelta: { retained: true },
+      longRunningToolIds: ["pending-tool"],
+      toolConfirmations,
+      authRequests,
+    };
+    const started = reduceAdkThreadState(previous, {
+      type: "run.started",
+      messages: [...previousMessages, optimisticMessage],
+      queuedMessageIds: [],
+      longRunningToolIds: [],
+      toolConfirmations: [],
+      authRequests: [],
+    });
+    const restored = reduceAdkThreadState(started, {
+      type: "run.preEventFailed",
+      ownIds: [optimisticMessage.id],
+      longRunningToolIds: previous.longRunningToolIds,
+      toolConfirmations: previous.toolConfirmations,
+      authRequests: previous.authRequests,
+    });
+
+    expect(restored).toMatchObject({
+      messages: previousMessages,
+      longRunningToolIds: ["pending-tool"],
+      toolConfirmations,
+      authRequests,
+      stateDelta: { retained: true },
+    });
+  });
+
+  it("keeps another group's queued message when the running group fails", () => {
+    const running = { ...message, id: "running" };
+    const queued = { ...message, id: "queued" };
+    const initial = reduceAdkThreadState(createAdkThreadState(), {
+      type: "messages.queued",
+      messages: [running, queued],
+      ids: [running.id, queued.id],
+    });
+    const started = reduceAdkThreadState(initial, {
+      type: "run.started",
+      messages: [running, queued],
+      queuedMessageIds: [running.id],
+      longRunningToolIds: [],
+      toolConfirmations: [],
+      authRequests: [],
+    });
+    const failed = reduceAdkThreadState(started, {
+      type: "run.preEventFailed",
+      ownIds: [running.id],
+      longRunningToolIds: [],
+      toolConfirmations: [],
+      authRequests: [],
+    });
+
+    expect(failed.messages).toEqual([queued]);
+    expect([...failed.queuedMessageIds]).toEqual([queued.id]);
   });
 });

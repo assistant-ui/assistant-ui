@@ -6,7 +6,7 @@ platforms: ["react"]
 
 With generative UI, you ship a **vocabulary** of components and let the model assemble them, instead of writing one component per tool. The model calls a single `present` tool whose arguments are a JSON tree of component names and props, and assistant-ui renders that tree.
 
-The package ships a default vocabulary of 29 components (cards, facts, tables, charts, forms, controls), so the shortest useful setup registers one tool and writes no components at all.
+The package ships a default vocabulary of 33 components (cards, facts, tables, charts, tabs, steps, timelines, citations, forms, controls), so the shortest useful setup registers one tool and writes no components at all.
 
 ## Which generative UI pattern?
 
@@ -442,6 +442,20 @@ Use `series[].color` to set an individual series to `emphasis`, `secondary`, `al
 ## Carousels
 
 Carousel paging controls appear only when cards overflow the available width. Each press moves one card, and motion follows the user's reduced motion preference.
+
+## Tabs, steps, and timelines
+
+`Tabs` shows one child panel at a time under a row of tabs, labeled in order by its `tabs` strings, and `label` names the row for screen readers; a panel without a label is labeled with its number. Every panel stays mounted, so a control on a hidden tab keeps its value. On the web, the arrow keys, Home, and End move between tabs. Slack and Teams show every panel in order under its label.
+
+`Steps` numbers its `steps`, each a `title` with an optional `detail`, for instructions to follow in order. `Timeline` lists its `items`, each a `time` label, a `title`, and an optional `detail`, for schedules, itineraries, and histories. A `present` tree skips an entry without a title; spec mode reports it to the model as an invalid prop instead.
+
+## Citations
+
+`Citation` shows a source the answer draws on: its `title`, an optional `snippet`, and the `source` it comes from, which defaults to the link's domain. Only an `http` or `https` `url` to a plain host makes the title a link, which opens in a new tab on the web and through `Linking` on React Native; any other value leaves the title as plain text.
+
+## Checklists
+
+Set `progress` on a `CheckboxGroup` to show how many of its options are checked, as a count and a bar, for a checklist the user works through. The count follows the boxes as the user checks them, also when spec mode binds the group's value. Slack and Teams show the options without the count.
 
 ## Styling
 

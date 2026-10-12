@@ -1,12 +1,15 @@
 import {
+  useEffect,
   useInsertionEffect,
   useMemo,
+  useRef,
   useState,
   type ComponentType,
   type ReactNode,
 } from "react";
 import { toolkitEntry } from "../../assistant-ui/entry";
 import type { WidgetToolkitExtension } from "../../assistant-ui/extension";
+import { createSnapshotSaver } from "../../assistant-ui/snapshotSaver";
 import { toolCalls, type MessageLike } from "../../assistant-ui/tool-calls";
 import type { ActionHandler } from "../actions";
 import type { Catalog } from "../catalog";
@@ -22,7 +25,11 @@ import {
   specGuidanceModule,
   type RenderSpecInput,
 } from "../render-spec";
-import type { SpecStateStore } from "../state";
+import {
+  createStateStore,
+  type SpecStateStore,
+  type SpecStateWrite,
+} from "../state";
 import { parseSpecStream } from "../stream";
 import type { Spec } from "../types";
 
@@ -42,6 +49,45 @@ export type SpecToolkitOptions = {
 };
 
 type SpecArgs = Partial<RenderSpecInput>;
+
+/** The interactions a host records on a tool call, as its `unstable_interactions` prop holds them. */
+type InteractionLog = {
+  readonly entries: readonly (
+    | {
+        readonly type: "action";
+        readonly payload: Readonly<Record<string, unknown>>;
+      }
+    | { readonly type: "human-response"; readonly payload: unknown }
+  )[];
+};
+
+/**
+ * The state writes saved on a `render_spec` call: the newest `setState` interaction recorded for that call. An entry whose `writes` is not a list marks a save that failed, so the call starts from the model's state rather than from an older snapshot.
+ */
+function savedWrites(
+  log: InteractionLog | undefined,
+  toolCallId: string,
+): SpecStateWrite[] {
+  const entries = log?.entries ?? [];
+  for (let index = entries.length - 1; index >= 0; index--) {
+    const entry = entries[index]!;
+    if (
+      entry.type !== "action" ||
+      entry.payload["type"] !== "setState" ||
+      entry.payload["toolCallId"] !== toolCallId
+    )
+      continue;
+    const writes = entry.payload["writes"];
+    if (!Array.isArray(writes)) return [];
+    return writes.filter(
+      (write): write is SpecStateWrite =>
+        Array.isArray(write) &&
+        write.length === 2 &&
+        typeof write[0] === "string",
+    );
+  }
+  return [];
+}
 
 const WIDGET_TOOLS = new Set([
   "read_me",
@@ -130,7 +176,16 @@ export type SpecToolkitPlatform = {
   Frame: ComponentType<{ title: string; children: ReactNode }>;
 };
 
-type RenderSpecProps = { args: SpecArgs; toolCallId: string };
+type RenderSpecProps = {
+  args: SpecArgs;
+  toolCallId: string;
+  /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
+  unstable_interactions?: InteractionLog | undefined;
+  /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
+  unstable_recordInteraction?:
+    | ((input: { type: "action"; payload: unknown }) => Promise<void>)
+    | undefined;
+};
 
 export const specToolkitFor =
   ({
@@ -156,7 +211,12 @@ export const specToolkitFor =
     };
 
     const renderSpecUI = (mountsToolResults: boolean) =>
-      function RenderSpecUI({ args, toolCallId }: RenderSpecProps) {
+      function RenderSpecUI({
+        args,
+        toolCallId,
+        unstable_interactions,
+        unstable_recordInteraction,
+      }: RenderSpecProps) {
         const streaming = !useArgsComplete();
         const messages = useMessages();
         const title = typeof args.title === "string" ? args.title : "";
@@ -206,11 +266,41 @@ export const specToolkitFor =
           () => (renderState ? { ...spec, state: renderState } : spec),
           [spec, renderState],
         );
+        const [store] = useState(() =>
+          createStateStore(renderSpec.state ?? {}, {
+            writes: savedWrites(unstable_interactions, toolCallId),
+          }),
+        );
+        useEffect(() => {
+          if (renderSpec.state) store.seed(renderSpec.state);
+        }, [store, renderSpec.state]);
+        const record = useRef(unstable_recordInteraction);
+        useInsertionEffect(() => {
+          record.current = unstable_recordInteraction;
+        });
+        const [saver] = useState(() =>
+          createSnapshotSaver(store.writes(), (writes) =>
+            record.current?.({
+              type: "action",
+              payload: { type: "setState", toolCallId, writes },
+            }),
+          ),
+        );
+        useEffect(() => {
+          const unsubscribe = store.subscribe(() =>
+            saver.schedule(() => store.writes()),
+          );
+          return () => {
+            unsubscribe();
+            saver.flush();
+          };
+        }, [store, saver]);
 
         return (
           <Frame title={title}>
             <SpecRenderer
               spec={renderSpec}
+              state={store}
               catalog={catalog}
               components={options.components}
               streaming={streaming}
