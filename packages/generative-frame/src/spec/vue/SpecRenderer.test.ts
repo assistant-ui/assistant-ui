@@ -5,6 +5,7 @@ import {
   h,
   nextTick,
   shallowRef,
+  ref,
   type App,
   type Component,
 } from "vue";
@@ -140,6 +141,71 @@ afterEach(() => {
 });
 
 describe("SpecRenderer", () => {
+  it.each(["default", "footer"])(
+    "preserves repeated child identities when %s siblings move",
+    async (slot) => {
+      const Editor = defineComponent({
+        setup() {
+          const value = ref("");
+          return () =>
+            h("input", {
+              value: value.value,
+              onInput: (event: Event) => {
+                value.value = (event.target as HTMLInputElement).value;
+              },
+            });
+        },
+      });
+      const registry = { ...components, Editor };
+      const draw = (ids: string[]): SpecRendererProps => ({
+        components: registry,
+        spec: spec({
+          main: {
+            type: "Stack",
+            ...(slot === "default"
+              ? { children: ids }
+              : { slots: { footer: ids } }),
+          },
+          editor: { type: "Editor" },
+          other: { type: "Editor" },
+          label: { type: "Text", props: { text: "new label" } },
+        }),
+      });
+      const view = mount(draw(["editor", "editor", "other"]));
+      const [first, second, other] = [
+        ...view.container.querySelectorAll("input"),
+      ];
+      for (const [input, value] of [
+        [first!, "first draft"],
+        [second!, "second draft"],
+        [other!, "other draft"],
+      ] as const) {
+        input.value = value;
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      await nextTick();
+      second!.focus();
+      await view.update(draw(["label", "other", "editor", "editor"]));
+      expect([...view.container.querySelectorAll("input")]).toEqual([
+        other,
+        first,
+        second,
+      ]);
+      expect(
+        [...view.container.querySelectorAll("input")].map(
+          (input) => input.value,
+        ),
+      ).toEqual(["other draft", "first draft", "second draft"]);
+      expect(document.activeElement).toBe(second);
+      await view.update(draw(["editor", "editor"]));
+      expect([...view.container.querySelectorAll("input")]).toEqual([
+        first,
+        second,
+      ]);
+      expect(document.activeElement).toBe(second);
+    },
+  );
+
   it("renders expressions, default and named slots, visibility, and event setState", async () => {
     const view = mount({
       catalog,

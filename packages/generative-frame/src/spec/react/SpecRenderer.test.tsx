@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   act,
   cleanup,
@@ -90,6 +91,75 @@ const spec = (elements: Spec["elements"], state: Spec["state"] = {}): Spec => ({
 });
 
 describe("SpecRenderer", () => {
+  it.each(["default", "footer"])(
+    "preserves repeated child identities when %s siblings move",
+    (slot) => {
+      function Editor() {
+        const [value, setValue] = useState("");
+        return (
+          <input
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+          />
+        );
+      }
+      const registry = { ...components, Editor };
+      const draw = (ids: string[]) =>
+        spec({
+          main: {
+            type: "Stack",
+            ...(slot === "default"
+              ? { children: ids }
+              : { slots: { footer: ids } }),
+          },
+          editor: { type: "Editor" },
+          other: { type: "Editor" },
+          label: { type: "Text", props: { text: "new label" } },
+        });
+      const view = render(
+        <SpecRenderer
+          components={registry}
+          spec={draw(["editor", "editor", "other"])}
+        />,
+      );
+      const [first, second, other] = [
+        ...view.container.querySelectorAll("input"),
+      ];
+      fireEvent.change(first!, { target: { value: "first draft" } });
+      fireEvent.change(second!, { target: { value: "second draft" } });
+      fireEvent.change(other!, { target: { value: "other draft" } });
+      second!.focus();
+      view.rerender(
+        <SpecRenderer
+          components={registry}
+          spec={draw(["label", "other", "editor", "editor"])}
+        />,
+      );
+      expect([...view.container.querySelectorAll("input")]).toEqual([
+        other,
+        first,
+        second,
+      ]);
+      expect(
+        [...view.container.querySelectorAll("input")].map(
+          (input) => input.value,
+        ),
+      ).toEqual(["other draft", "first draft", "second draft"]);
+      expect(document.activeElement).toBe(second);
+      view.rerender(
+        <SpecRenderer
+          components={registry}
+          spec={draw(["editor", "editor"])}
+        />,
+      );
+      expect([...view.container.querySelectorAll("input")]).toEqual([
+        first,
+        second,
+      ]);
+      expect(document.activeElement).toBe(second);
+    },
+  );
+
   it("renders the tree, resolves expressions, and runs setState on events", () => {
     const view = render(
       <SpecRenderer

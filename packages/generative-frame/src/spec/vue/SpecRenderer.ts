@@ -140,11 +140,15 @@ function children(
   scope: Scope,
   ancestors: readonly string[],
 ): VNode[] {
-  return ids.flatMap((id, index) =>
-    typeof id === "string"
-      ? [h(ElementView, { key: `${id}:${index}`, id, scope, ancestors })]
-      : [],
-  );
+  const occurrences = new Map<string, number>();
+  return ids.flatMap((id) => {
+    if (typeof id !== "string") return [];
+    const occurrence = occurrences.get(id) ?? 0;
+    occurrences.set(id, occurrence + 1);
+    return [
+      h(ElementView, { key: `${id}:${occurrence}`, id, scope, ancestors }),
+    ];
+  });
 }
 
 type DeclaredOptions = {
