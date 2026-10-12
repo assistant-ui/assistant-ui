@@ -21,7 +21,6 @@
 "@assistant-ui/react-native": patch
 "@assistant-ui/react-opencode": patch
 "@assistant-ui/react-pi": patch
-"@assistant-ui/react-streamdown": patch
 "@assistant-ui/react-syntax-highlighter": patch
 "@assistant-ui/react": patch
 "safe-content-frame": patch
