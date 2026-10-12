@@ -290,33 +290,23 @@ function ResolvedElement({
   const latest = useRef({ element, scope, ctx });
   latest.current = { element, scope, ctx };
 
-  const watched = element.watch ? Object.keys(element.watch) : [];
-  const watchedValues = watched.map((path) =>
-    getAtPointer(ctx.state, safePointer(path)),
-  );
   const previousWatch = useRef<Map<string, unknown> | null>(null);
   useEffect(() => {
-    const {
-      element: current,
-      scope: currentScope,
-      ctx: currentCtx,
-    } = latest.current;
     const previous = previousWatch.current;
     const next = new Map<string, unknown>();
-    for (const path of Object.keys(current.watch ?? {})) {
-      const value = getAtPointer(currentCtx.state, safePointer(path));
+    for (const path of Object.keys(element.watch ?? {})) {
+      const value = getAtPointer(ctx.state, safePointer(path));
       next.set(path, value);
       if (previous?.has(path) && !Object.is(previous.get(path), value)) {
-        void currentCtx.dispatch(current.watch![path], {
-          ...currentScope,
+        void ctx.dispatch(element.watch![path], {
+          ...scope,
           elementId: id,
           trigger: path,
         });
       }
     }
     previousWatch.current = next;
-    // oxlint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, ...watchedValues]);
+  });
 
   const api = useMemo(
     () => ({

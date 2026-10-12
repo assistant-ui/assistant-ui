@@ -291,6 +291,75 @@ describe("SpecRenderer", () => {
     expect((view.getByRole("checkbox") as HTMLInputElement).checked).toBe(true);
   });
 
+  it("tracks the first change after switching to an equally valued watched path", () => {
+    const store = createStateStore({ a: 0, b: 0 });
+    const refresh = vi.fn();
+    const draw = (path: string) => (
+      <SpecRenderer
+        components={components}
+        state={store}
+        handlers={{ refresh }}
+        spec={spec({
+          main: { type: "Stack", watch: { [path]: { action: "refresh" } } },
+        })}
+      />
+    );
+    const view = render(draw("/a"));
+    view.rerender(draw("/b"));
+    expect(refresh).not.toHaveBeenCalled();
+    act(() => store.set("/b", 1));
+    expect(refresh).toHaveBeenCalledExactlyOnceWith(
+      {},
+      expect.objectContaining({ trigger: "/b" }),
+    );
+    view.rerender(draw("/b"));
+    act(() => store.set("/a", 1));
+    expect(refresh).toHaveBeenCalledTimes(1);
+    act(() => store.set("/b", 2));
+    expect(refresh).toHaveBeenCalledTimes(2);
+  });
+
+  it("baselines added and re-added watches without dependency-array warnings", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const store = createStateStore({ a: 0, b: 0 });
+      const refresh = vi.fn();
+      const draw = (paths: string[]) => (
+        <SpecRenderer
+          components={components}
+          state={store}
+          handlers={{ refresh }}
+          spec={spec({
+            main: {
+              type: "Stack",
+              watch: Object.fromEntries(
+                paths.map((path) => [path, { action: "refresh" }]),
+              ),
+            },
+          })}
+        />
+      );
+      const view = render(draw(["/a"]));
+      view.rerender(draw(["/a", "/b"]));
+      expect(refresh).not.toHaveBeenCalled();
+      act(() => store.set("/b", 1));
+      expect(refresh).toHaveBeenCalledTimes(1);
+      view.rerender(draw(["/b"]));
+      act(() => store.set("/a", 1));
+      expect(refresh).toHaveBeenCalledTimes(1);
+      view.rerender(draw(["/b", "/a"]));
+      expect(refresh).toHaveBeenCalledTimes(1);
+      act(() => store.set("/a", 2));
+      expect(refresh).toHaveBeenCalledTimes(2);
+      view.rerender(draw([]));
+      act(() => store.set("/b", 2));
+      expect(refresh).toHaveBeenCalledTimes(2);
+      expect(error).not.toHaveBeenCalled();
+    } finally {
+      error.mockRestore();
+    }
+  });
+
   it("runs watch actions when a watched value changes", () => {
     const refresh = vi.fn();
     const store = createStateStore({ range: "7d" });
