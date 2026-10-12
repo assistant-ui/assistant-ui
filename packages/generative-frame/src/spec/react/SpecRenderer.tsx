@@ -472,7 +472,7 @@ export function SpecRenderer({
 
   const specState = spec.state;
   useEffect(() => {
-    if (!state && specState) ownStore.seed(specState);
+    if (!state) ownStore.seed(specState ?? {});
   }, [state, ownStore, specState]);
 
   const snapshot = useSyncExternalStore(

@@ -1302,3 +1302,33 @@ describe("SpecRenderer", () => {
     expect(view.container.textContent).toBe("recovered");
   });
 });
+
+describe("SpecRenderer model state", () => {
+  it.each([false, true])(
+    "clears a removed model base while preserving user writes (external: %s)",
+    async (external) => {
+      const initial = spec(
+        {
+          main: { type: "Stack", children: ["label", "toggle"] },
+          label: { type: "Text", props: { text: { $state: "/label" } } },
+          toggle: { type: "Toggle", props: { checked: { $bindState: "/on" } } },
+        },
+        { label: "model", on: false },
+      );
+      const state = external
+        ? createStateStore({ label: "external", on: false })
+        : undefined;
+      const optionalState = state ? { state } : {};
+      const next: Spec = { root: initial.root, elements: initial.elements };
+      const view = mount({ components, spec: initial, ...optionalState });
+      await click(view.container.querySelector("input")!);
+      expect(view.container.textContent).toBe(external ? "external" : "model");
+      await view.update({ components, spec: next, ...optionalState });
+      expect(view.container.textContent).toBe(external ? "external" : "");
+      expect(view.container.querySelector("input")!.checked).toBe(true);
+      await view.update({ components, spec: { ...next }, ...optionalState });
+      expect(view.container.textContent).toBe(external ? "external" : "");
+      expect(view.container.querySelector("input")!.checked).toBe(true);
+    },
+  );
+});

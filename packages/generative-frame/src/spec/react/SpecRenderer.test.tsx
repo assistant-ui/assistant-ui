@@ -1105,3 +1105,47 @@ describe("useSpecStream", () => {
     });
   });
 });
+
+describe("SpecRenderer model state", () => {
+  it.each([false, true])(
+    "clears a removed model base while preserving user writes (external: %s)",
+    (external) => {
+      const initial = spec(
+        {
+          main: { type: "Stack", children: ["label", "toggle"] },
+          label: { type: "Text", props: { text: { $state: "/label" } } },
+          toggle: { type: "Toggle", props: { checked: { $bindState: "/on" } } },
+        },
+        { label: "model", on: false },
+      );
+      const state = external
+        ? createStateStore({ label: "external", on: false })
+        : undefined;
+      const optionalState = state ? { state } : {};
+      const next: Spec = { root: initial.root, elements: initial.elements };
+      const view = render(
+        <SpecRenderer
+          components={components}
+          spec={initial}
+          {...optionalState}
+        />,
+      );
+      fireEvent.click(view.container.querySelector("input")!);
+      expect(view.container.textContent).toBe(external ? "external" : "model");
+      view.rerender(
+        <SpecRenderer components={components} spec={next} {...optionalState} />,
+      );
+      expect(view.container.textContent).toBe(external ? "external" : "");
+      expect(view.container.querySelector("input")!.checked).toBe(true);
+      view.rerender(
+        <SpecRenderer
+          components={components}
+          spec={{ ...next }}
+          {...optionalState}
+        />,
+      );
+      expect(view.container.textContent).toBe(external ? "external" : "");
+      expect(view.container.querySelector("input")!.checked).toBe(true);
+    },
+  );
+});

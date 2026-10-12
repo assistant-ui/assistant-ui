@@ -182,7 +182,7 @@ export const specToolkitFor =
           }),
         );
         useEffect(() => {
-          if (renderSpec.state) store.seed(renderSpec.state);
+          store.seed(renderSpec.state ?? {});
         }, [store, renderSpec.state]);
         const record = useRef(unstable_recordInteraction);
         useInsertionEffect(() => {
