@@ -1114,11 +1114,16 @@ describe("A2AClient", () => {
 
   describe("streamMessage", () => {
     it.each([
-      ["one initial BOM", "\uFEFF", ["working", "completed"]],
-      ["two initial BOMs", "\uFEFF\uFEFF", ["completed"]],
+      ["one initial BOM", ["\uFEFF"], ["working", "completed"]],
+      ["two initial BOMs", ["\uFEFF\uFEFF"], ["completed"]],
+      [
+        "two initial BOMs in separate chunks",
+        ["\uFEFF", "\uFEFF"],
+        ["completed"],
+      ],
     ] as const)(
       "strips only one initial BOM: %s",
-      async (_, prefix, expected) => {
+      async (_, prefixes, expected) => {
         const statusUpdate = (state: string) =>
           JSON.stringify({
             status_update: {
@@ -1127,11 +1132,13 @@ describe("A2AClient", () => {
               status: { state },
             },
           });
-        fetchMock.mockResolvedValue(
-          mockSSETextResponse(
-            `${prefix}data: ${statusUpdate("TASK_STATE_WORKING")}\n\ndata: ${statusUpdate("TASK_STATE_COMPLETED")}\n\n`,
-          ),
+        const text =
+          `data: ${statusUpdate("TASK_STATE_WORKING")}\n\n` +
+          `data: ${statusUpdate("TASK_STATE_COMPLETED")}\n\n`;
+        const chunks = prefixes.map((prefix, index) =>
+          index === prefixes.length - 1 ? `${prefix}${text}` : prefix,
         );
+        fetchMock.mockResolvedValue(mockSSETextResponse(chunks));
 
         const events: A2AStreamEvent[] = [];
         for await (const event of client.streamMessage(userMessage)) {

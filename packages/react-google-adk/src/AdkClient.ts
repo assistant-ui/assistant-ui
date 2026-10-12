@@ -274,6 +274,7 @@ async function* parseSSEResponse(
     throw new Error("Expected ADK stream response body, received no body");
   }
   const reader = response.body.getReader();
+  // Let the SSE parser consume the single permitted leading BOM.
   const decoder = new TextDecoder("utf-8", { ignoreBOM: true });
 
   let shouldCancel = true;

@@ -340,6 +340,7 @@ export const createPiEventStreamConnection = (
         emitConnect();
 
         const reader = response.body.getReader();
+        // Let the SSE parser consume the single permitted leading BOM.
         const textDecoder = new TextDecoder("utf-8", { ignoreBOM: true });
         const handleFrame = (frame: { event?: string; data: string }) => {
           if (frame.event === "ping" || frame.data === "") return;

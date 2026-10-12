@@ -4,4 +4,4 @@
 "@assistant-ui/react-pi": patch
 ---
 
-Preserve leading BOMs until the SSE parser removes the single spec-defined marker.
+fix: ignore the first SSE field when a stream starts with two byte order marks, as required by the event stream spec

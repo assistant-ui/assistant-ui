@@ -27,15 +27,18 @@ const makeConfig = (
 });
 
 /** Encode SSE text into a ReadableStream of Uint8Array chunks. */
-const sseBody = (text: string): ReadableStream<Uint8Array> => {
+const sseBodyChunks = (chunks: string[]): ReadableStream<Uint8Array> => {
   const encoder = new TextEncoder();
   return new ReadableStream({
     start(controller) {
-      controller.enqueue(encoder.encode(text));
+      for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
       controller.close();
     },
   });
 };
+
+const sseBody = (text: string): ReadableStream<Uint8Array> =>
+  sseBodyChunks([text]);
 
 const sseResponse = (
   body: BodyInit | null,
@@ -602,11 +605,12 @@ describe("createAdkStream - direct mode", () => {
 
 describe("createAdkStream - SSE parsing", () => {
   it.each([
-    ["one initial BOM", "\uFEFF", ["e1", "e2"]],
-    ["two initial BOMs", "\uFEFF\uFEFF", ["e2"]],
+    ["one initial BOM", ["\uFEFF"], ["e1", "e2"]],
+    ["two initial BOMs", ["\uFEFF\uFEFF"], ["e2"]],
+    ["two initial BOMs in separate chunks", ["\uFEFF", "\uFEFF"], ["e2"]],
   ] as const)(
     "strips only one initial BOM: %s",
-    async (_, prefix, expected) => {
+    async (_, prefixes, expected) => {
       const first: AdkEvent = {
         id: "e1",
         content: { parts: [{ text: "first" }] },
@@ -616,9 +620,12 @@ describe("createAdkStream - SSE parsing", () => {
         content: { parts: [{ text: "second" }] },
       };
       const text =
-        `${prefix}data: ${JSON.stringify(first)}\n\n` +
+        `data: ${JSON.stringify(first)}\n\n` +
         `data: ${JSON.stringify(second)}\n\n`;
-      mockFetch.mockResolvedValueOnce(sseResponse(sseBody(text)));
+      const chunks = prefixes.map((prefix, index) =>
+        index === prefixes.length - 1 ? `${prefix}${text}` : prefix,
+      );
+      mockFetch.mockResolvedValueOnce(sseResponse(sseBodyChunks(chunks)));
 
       const stream = createAdkStream({ api: "/api/adk" });
       const events = await stream(
