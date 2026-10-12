@@ -275,8 +275,11 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     ownIds: readonly string[];
   } | null>(null);
   const inheritedSnapshot = () =>
-    [checkpointLookupRef.current, sentTruncationRef.current].find((pending) =>
-      pending?.lease.isCurrent(),
+    [checkpointLookupRef.current, sentTruncationRef.current].find(
+      (pending) =>
+        pending?.lease.isCurrent() &&
+        pending.snapshot.loadGeneration ===
+          controller.getState().loadGeneration,
     )?.snapshot;
 
   const runExclusive = async (

@@ -419,8 +419,8 @@ export const reduceAdkThreadState = (
         ),
       ];
       for (const [id, entry] of stagedEntries) {
-        const message = liveMessages.get(id) ?? entry.message;
-        if (!messages.some((item) => item.id === id)) messages.push(message);
+        if (!messages.some((item) => item.id === id))
+          messages.push(entry.message);
       }
       const answeredToolIds = new Set(
         messages.flatMap((message) =>
