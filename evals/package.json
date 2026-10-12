@@ -8,7 +8,14 @@
     "eval": "node --env-file-if-exists=.env src/cli.ts",
     "test": "node --test \"src/**/*.test.ts\"",
     "test:coverage": "pnpm run test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint:fix": "oxfmt \"src/**/*.ts\" package.json tsconfig.json README.md",
+    "dashboard": "eval-dashboards report --input=.evals_output/live --reporter=html --reporter=json-summary --report-dir=results/eval-dashboard",
+    "dashboard:lint": "eval-dashboards lint --input=.evals_output/live",
+    "dashboard:check": "eval-dashboards check --input=.evals_output/live --min-pass-rate=0 --min-matched-expectation-rate=1",
+    "dashboard:smoke": "node src/smoke-dashboard.ts",
+    "dashboard:serve": "http-server results -a 127.0.0.1 -p 4318 -c-1",
+    "dashboard:docs": "eval-dashboards report --input=.evals_output/live --reporter=html --reporter=json-summary --report-dir=../apps/docs/public/eval-dashboard"
   },
   "devDependencies": {
     "@assistant-ui/generative-ui": "workspace:*",
@@ -20,6 +27,8 @@
     "generative-frame": "workspace:*",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "zod": "^4.6.5"
+    "zod": "^4.6.5",
+    "@icodenet/eval-dashboards": "^0.8.0",
+    "http-server": "^14.1.1"
   }
 }

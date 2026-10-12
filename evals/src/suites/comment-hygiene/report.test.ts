@@ -57,3 +57,28 @@ test("renders each candidate's pass rate per case and the baseline failure", () 
     ].join("\n"),
   );
 });
+
+test("shows scoped candidates without inventing failures for other cases", () => {
+  const result = (
+    caseId: string,
+    variants: Array<{ label: string; pass: boolean }>,
+  ) => ({
+    case: evalCase(caseId),
+    variants: variants.map(({ label, pass }) => ({
+      candidate: { label, prompt: "" },
+      trials: [judged(pass)],
+    })),
+  });
+  const report = renderReport([
+    result("comments", [
+      { label: "baseline", pass: false },
+      { label: "delete-stale", pass: true },
+    ]),
+    result("packaging", [
+      { label: "baseline", pass: false },
+      { label: "optional-peer", pass: true },
+    ]),
+  ]);
+  assert.match(report, /delete-stale\s+100%\s+—/);
+  assert.match(report, /optional-peer\s+—\s+100%/);
+});

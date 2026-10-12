@@ -19,7 +19,13 @@ export function renderReport(
   results: CaseResult<EvalCase, Candidate, Judged>[],
 ): string {
   const caseIds = results.map((r) => r.case.id);
-  const labels = results[0]?.variants.map((v) => v.candidate.label) ?? [];
+  const labels = [
+    ...new Set(
+      results.flatMap((result) =>
+        result.variants.map((variant) => variant.candidate.label),
+      ),
+    ),
+  ];
   const labelW = Math.max(9, ...labels.map((l) => l.length));
   const colW = Math.max(8, ...caseIds.map((c) => c.length));
 
@@ -32,7 +38,7 @@ export function renderReport(
   for (const label of labels) {
     const cells = results.map((r) => {
       const v = r.variants.find((x) => x.candidate.label === label);
-      return cell(formatPassRate(v ? passRate(v.trials) : undefined));
+      return cell(v ? formatPassRate(passRate(v.trials)) : "—");
     });
     lines.push(`${label.padEnd(labelW)}  ${cells.join("  ")}`);
   }

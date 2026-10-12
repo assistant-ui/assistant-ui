@@ -39,9 +39,8 @@ export function runAgent(c: EvalCase, guidance: string): string {
     });
     if (res.error) throw res.error;
     if (res.status !== 0) {
-      throw new Error(
-        `agent exited with status ${res.status}: ${res.stderr?.trim() ?? ""}`,
-      );
+      const detail = res.stderr?.trim() || res.stdout?.trim() || "no output";
+      throw new Error(`agent exited with status ${res.status}: ${detail}`);
     }
 
     return c.inspect

@@ -8,6 +8,8 @@ export interface SuiteCase {
 export interface SuiteCandidate {
   /** Short label for reports and the CANDIDATES filter. */
   label: string;
+  /** Restrict specialized guidance to the cases it is intended to test. */
+  caseIds?: string[];
 }
 
 /**
