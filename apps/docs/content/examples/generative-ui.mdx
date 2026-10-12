@@ -31,7 +31,7 @@ See the [Generative UI guide](/docs/tools/generative-ui) for the full setup, and
 
 ### Specs and widgets from one toolkit
 
-`createWidgetToolkit` provides `show_widget`, `edit_widget`, and `read_me`; passing `spec` adds `render_spec` with the kit's catalog. The composition rules are appended to the spec guidance the model loads through `read_me`:
+`createWidgetToolkit` provides `show_widget`, `edit_widget`, and `read_me`; passing `spec` adds `render_spec` with the kit's catalog. The composition rules are appended to the spec guidance:
 
 ```ts title="app/generative-ui-toolkit.ts"
 const { catalog, components } = toSpecCatalog(styledGenerativeUILibrary);
@@ -45,7 +45,7 @@ export const widgets = createWidgetToolkit({
 });
 ```
 
-The page registers the toolkit and adds the format rules, plus one line of its own that asks for photos:
+The page registers the toolkit and adds the format rules with the spec guidance preloaded, so every model reads the composition rules and can call `render_spec` without a `read_me` round trip. It also adds one instruction of its own that asks for photos:
 
 ```tsx title="app/page.tsx"
 const config = AuiConfig({
@@ -54,7 +54,7 @@ const config = AuiConfig({
 });
 
 function WidgetInstructions() {
-  useWidgetInstructions(widgets.tools);
+  useWidgetInstructions(widgets.tools, { preload: { modules: ["spec"] } });
   useAssistantInstructions(
     "When an answer is about places, dishes, or products, call `search_images` for them before `render_spec`, so the answer can show photos.",
   );
