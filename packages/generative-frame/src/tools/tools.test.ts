@@ -315,17 +315,31 @@ describe("server helpers", () => {
     const plain = await buildWidgetInstructions(createWidgetTools());
     expect(plain).toContain("## Visual widgets");
     expect(plain).not.toContain("render_spec");
+    expect(plain).toContain("instead of describing it");
     const preloaded = await buildWidgetInstructions(withSpec(), {
       preload: { modules: ["spec"] },
     });
+    expect(preloaded).toContain("## Choosing how to answer");
     expect(preloaded).toContain(
-      "`render_spec` after loading the `spec` module",
+      "- Markdown, with no tool call, for explanations, advice, short answers, and anything read once.",
     );
+    expect(preloaded).not.toContain("## Visual widgets");
+    expect(preloaded).toContain(
+      "its output rules apply to those patches, not to your answer.",
+    );
+    expect(preloaded).not.toContain("`spec` module");
     expect(preloaded).toContain("# Declarative UI");
+    const onDemand = await buildWidgetInstructions(withSpec());
+    expect(onDemand).toContain(
+      "Load the `spec` module with `read_me` before your first `render_spec` call.",
+    );
     const withoutModule = await buildWidgetInstructions(
       createWidgetTools({ extraTools: createSpecTools(catalog) }),
     );
-    expect(withoutModule).toContain("use `render_spec`.");
+    expect(withoutModule).toContain("## Choosing how to answer");
+    expect(withoutModule).toContain(
+      "- `render_spec` for structured content the user scans or acts on, built from the app's components:",
+    );
     expect(withoutModule).not.toContain("`spec` module");
   });
 });

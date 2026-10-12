@@ -301,28 +301,52 @@ const readMeOffers = (tools: WidgetTools, module: string) =>
     tools.read_me.inputSchema.properties?.["modules"]?.items?.enum ?? []
   ).includes(module);
 
+const WIDGET_TOOL_RULES = [
+  "- Call `read_me` once, silently, before your first widget, with the modules you need.",
+  "- Change an existing widget with `edit_widget` (exact string replacements) instead of re-sending it.",
+];
+
 /**
  * A short system prompt section telling the model when and how to use the
- * widget tools, optionally with `read_me` guidance preloaded.
+ * widget tools, optionally with `read_me` guidance preloaded. With
+ * `render_spec` among the tools, it also tells the model when to answer in
+ * Markdown, with a spec, or with a widget.
  */
 export async function buildWidgetInstructions(
   tools: WidgetTools & Record<string, AnyTool>,
   options: WidgetInstructionsOptions = {},
 ): Promise<string> {
-  const lines = [
-    "## Visual widgets",
-    "",
-    "When a visual would explain better than text (charts, diagrams, comparisons, small interactive tools, forms), show it with `show_widget` instead of describing it. Keep surrounding prose short and do not repeat what the widget shows.",
-    "- Call `read_me` once, silently, before your first widget, with the modules you need.",
-    "- Change an existing widget with `edit_widget` (exact string replacements) instead of re-sending it.",
-    ...("render_spec" in tools
+  const lines =
+    "render_spec" in tools
       ? [
-          readMeOffers(tools, "spec")
-            ? "- For UI that should use the app's own components (cards, tables, forms bound to actions), use `render_spec` after loading the `spec` module."
-            : "- For UI that should use the app's own components (cards, tables, forms bound to actions), use `render_spec`.",
+          "## Choosing how to answer",
+          "",
+          "Use the lightest format that fully answers the request:",
+          "",
+          "- Markdown, with no tool call, for explanations, advice, short answers, and anything read once. Most answers are text.",
+          "- `render_spec` for structured content the user scans or acts on, built from the app's components: comparisons, step-by-step guides, plans and itineraries, summaries of facts, and forms or choices. A spec can switch between states you write out, but it cannot calculate unless one of the app's actions does.",
+          "- `show_widget` for interactive tools that calculate as the user changes inputs, such as calculators, simulations, and games, and for visuals the components cannot draw.",
+          "",
+          "Do not render a paragraph or a short list. Around a rendered answer, keep prose to a sentence or two and do not repeat what it shows.",
+          "",
+          "The Declarative UI guidance describes what goes inside a `render_spec` call; its output rules apply to those patches, not to your answer.",
+          "",
+          "## Widgets",
+          "",
+          ...WIDGET_TOOL_RULES,
+          ...(readMeOffers(tools, "spec") &&
+          !options.preload?.modules?.includes("spec")
+            ? [
+                "- Load the `spec` module with `read_me` before your first `render_spec` call.",
+              ]
+            : []),
         ]
-      : []),
-  ];
+      : [
+          "## Visual widgets",
+          "",
+          "When a visual would explain better than text (charts, diagrams, comparisons, small interactive tools, forms), show it with `show_widget` instead of describing it. Keep surrounding prose short and do not repeat what the widget shows.",
+          ...WIDGET_TOOL_RULES,
+        ];
   if (options.preload) {
     lines.push("", await tools.read_me.execute(options.preload));
   }
