@@ -1027,21 +1027,20 @@ function continuationPrefix(lineHead: string): string {
   return prefix.join("");
 }
 
-function isNestedListMarkerPrefix(lineHead: string): boolean {
+function leavesThematicBreak(lineHead: string): boolean {
   const quote = QUOTE_PREFIX.exec(lineHead)![0];
-  let from = quote.length;
-  let count = 0;
-  for (;;) {
+  const markerEnd = skipListMarkers(lineHead, quote.length, lineHead.length);
+  if (markerEnd !== lineHead.length) return false;
+  let ruleStart = quote.length;
+  for (let from = ruleStart; from < markerEnd;) {
     const next = listMarkerEnd(lineHead, from, lineHead.length);
     if (next === from) break;
+    if (lineHead.charCodeAt(from) !== lineHead.charCodeAt(ruleStart)) {
+      ruleStart = from;
+    }
     from = next;
-    count += 1;
   }
-  return (
-    count > 1 &&
-    onlyWhitespace(lineHead, from, lineHead.length) &&
-    isRuleLine(lineHead, quote.length, lineHead.length, false)
-  );
+  return isRuleLine(lineHead, ruleStart, lineHead.length, false);
 }
 
 const SPAN_BOUNDARY =
@@ -1065,7 +1064,7 @@ function emitDisplayMath(
   // is aligned to it.
   const head = lineHead(offset);
   const prefix = continuationPrefix(head);
-  const nestedListMarkerPrefix = isNestedListMarkerPrefix(head);
+  const thematicBreak = leavesThematicBreak(head);
   const depth = quoteDepth(prefix);
   const [openerText = "", ...bodyLines] = body.split("\n");
   const openerHasContent = !onlyWhitespace(openerText, 0, openerText.length);
@@ -1087,7 +1086,7 @@ function emitDisplayMath(
   // count as already being at a line boundary.
   const endsLine = (char: string) =>
     char === "" || char === "\n" || char === "\r";
-  const lead = endsLine(before) || nestedListMarkerPrefix ? "" : "\n";
+  const lead = endsLine(before) || thematicBreak ? "" : "\n";
   const tail = endsLine(after) ? "" : "\n";
 
   // The body is split before trimming, since trimming would take the shared
@@ -1150,7 +1149,8 @@ function emitDisplayMath(
     );
   }
 
-  const openerPrefix = nestedListMarkerPrefix ? "" : prefix;
+  // A marker-only line would parse as a thematic break.
+  const openerPrefix = thematicBreak ? "" : prefix;
   return `${lead}${openerPrefix}$$\n${lines.join("\n")}\n${prefix}$$${tail}${tail === "" ? "" : prefix}`;
 }
 
@@ -1369,7 +1369,7 @@ function indentTo(line: string, column: number): string {
 
 function displayMathOpenerPrefix(line: string): string | null {
   const quote = /^[ \t]*(?:>[ \t]*)*/.exec(line)![0];
-  const content = listMarkerEnd(line, quote.length, line.length);
+  const content = skipListMarkers(line, quote.length, line.length);
   return content > quote.length &&
     line.startsWith("$$", content) &&
     onlyWhitespace(line, content + 2, line.length)
