@@ -1043,10 +1043,23 @@ export function convertElement(
           `code was clamped to ${DIAGRAM_SOURCE_CAP} characters.`,
         );
       const title = props["title"];
+      const space = String.fromCharCode(0xa0);
       return [
-        textBlock(escapeSource(code.slice(0, DIAGRAM_SOURCE_CAP)), {
-          fontType: "Monospace",
-        }),
+        {
+          type: "Container",
+          // Teams breaks a TextBlock's line only inside a list and trims leading spaces, so each source line gets a block of its own and keeps its indent as non-breaking spaces.
+          items: code
+            .slice(0, DIAGRAM_SOURCE_CAP)
+            .split("\n")
+            .map((line) =>
+              textBlock(
+                escapeSource(line).replace(/^ +/, (indent) =>
+                  space.repeat(indent.length),
+                ) || space,
+                { fontType: "Monospace" },
+              ),
+            ),
+        },
         ...(typeof title === "string"
           ? [textBlock(title, { size: "small", isSubtle: true })]
           : []),

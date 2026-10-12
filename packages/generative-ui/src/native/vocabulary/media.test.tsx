@@ -155,10 +155,35 @@ describe("media vocabulary on React Native", () => {
     expect(byRole(native, "link", "Monterey").parentElement!.textContent).toBe(
       "MontereyNight 1",
     );
-    await press(byRole(native, "link", "Monterey"));
-    expect(openURL).toHaveBeenCalledExactlyOnceWith(
-      "https://www.openstreetmap.org/?mlat=36.6002&mlon=-121.8947#map=14/36.6002/-121.8947",
-    );
+    try {
+      await press(byRole(native, "link", "Monterey"));
+      expect(openURL).toHaveBeenCalledExactlyOnceWith(
+        "https://www.openstreetmap.org/?mlat=36.6002&mlon=-121.8947#map=14/36.6002/-121.8947",
+      );
+    } finally {
+      openURL.mockRestore();
+    }
+  });
+
+  it("swallows a Map link no app can open", async () => {
+    const openURL = vi
+      .spyOn(Linking, "openURL")
+      .mockRejectedValue(new Error("No app handles this URL"));
+    try {
+      const native = renderNativeSpec(
+        spec({
+          main: {
+            type: "Map",
+            props: { places: [{ label: "Monterey", lat: 36.6, lng: -121.9 }] },
+          },
+        }),
+      ).container;
+      await press(byRole(native, "link", "Monterey"));
+      await Promise.resolve();
+      expect(openURL).toHaveBeenCalledOnce();
+    } finally {
+      openURL.mockRestore();
+    }
   });
 
   it("resets a measured ratio when the image source changes", async () => {

@@ -42,7 +42,6 @@ export const tabLabels = (labels: unknown, panelCount: number): string[] => {
   );
 };
 
-/** A Map entry with a label and coordinates on the globe. */
 export type MapPlace = {
   label: string;
   lat: number;

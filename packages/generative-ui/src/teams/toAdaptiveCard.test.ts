@@ -270,16 +270,26 @@ describe("toAdaptiveCard", () => {
       });
     });
 
-    it("escapes Diagram source so Teams shows it as written", () => {
+    it("shows Diagram source line by line, escaped and indented as written", () => {
+      const space = String.fromCharCode(0xa0);
       const { card } = toAdaptiveCard({
         $type: "Diagram",
-        code: "flowchart LR\n  user_id --> order_id\n  A[*cart*]",
+        code: "flowchart LR\n  user_id --> order_id\n\n  A[*cart*]",
       });
-      expect(card.body).toMatchObject([
+      expect(card.body).toEqual([
         {
-          type: "TextBlock",
-          fontType: "Monospace",
-          text: "flowchart LR\n  user\\_id --> order\\_id\n  A\\[\\*cart\\*\\]",
+          type: "Container",
+          items: [
+            "flowchart LR",
+            `${space}${space}user\\_id --> order\\_id`,
+            space,
+            `${space}${space}A\\[\\*cart\\*\\]`,
+          ].map((text) => ({
+            type: "TextBlock",
+            text,
+            wrap: true,
+            fontType: "Monospace",
+          })),
         },
       ]);
     });
@@ -292,10 +302,15 @@ describe("toAdaptiveCard", () => {
       });
       expect(card.body).toEqual([
         {
-          type: "TextBlock",
-          text: "flowchart LR\nA\\[You & me\\] --> B\\[Done\\]",
-          wrap: true,
-          fontType: "Monospace",
+          type: "Container",
+          items: ["flowchart LR", "A\\[You & me\\] --> B\\[Done\\]"].map(
+            (text) => ({
+              type: "TextBlock",
+              text,
+              wrap: true,
+              fontType: "Monospace",
+            }),
+          ),
         },
         {
           type: "TextBlock",
@@ -315,10 +330,15 @@ describe("toAdaptiveCard", () => {
       });
       expect(card.body).toEqual([
         {
-          type: "TextBlock",
-          text: "x".repeat(3000),
-          wrap: true,
-          fontType: "Monospace",
+          type: "Container",
+          items: [
+            {
+              type: "TextBlock",
+              text: "x".repeat(3000),
+              wrap: true,
+              fontType: "Monospace",
+            },
+          ],
         },
       ]);
       expect(warnings).toEqual([
