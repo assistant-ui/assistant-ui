@@ -26,10 +26,7 @@ import {
   type MessagePartState,
 } from "./message-part-runtime";
 import type { MessageRuntimePath } from "./paths";
-import type {
-  ThreadRuntimeCoreBinding,
-  ThreadRuntimeImpl,
-} from "./thread-runtime";
+import type { ThreadRuntimeCoreBinding } from "./thread-runtime";
 import type { MessageStateBinding } from "./bindings";
 
 const getMessagePartState = (
@@ -123,15 +120,14 @@ export class MessageRuntimeImpl implements MessageRuntime {
   }
 
   private _core: MessageStateBinding;
-  private _threadBinding: ThreadRuntimeImpl["__internal_threadBinding"];
+  private _threadBinding: ThreadRuntimeCoreBinding;
 
   constructor(
     _core: MessageStateBinding,
     _threadBinding: ThreadRuntimeCoreBinding,
   ) {
     this._core = _core;
-    this._threadBinding =
-      _threadBinding as ThreadRuntimeImpl["__internal_threadBinding"];
+    this._threadBinding = _threadBinding;
     this.composer = new EditComposerRuntimeImpl(
       new NestedSubscriptionSubject({
         path: {

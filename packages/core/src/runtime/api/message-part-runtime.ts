@@ -45,6 +45,9 @@ export type MessagePartRuntime = {
   subscribe(callback: () => void): Unsubscribe;
 };
 
+type ThreadBindingWithState = ThreadRuntimeCoreBinding &
+  Partial<Pick<ThreadRuntimeImpl["__internal_threadBinding"], "getStateState">>;
+
 export class MessagePartRuntimeImpl implements MessagePartRuntime {
   public get path() {
     return this.contentBinding.path;
@@ -52,7 +55,7 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
 
   private contentBinding: MessagePartSnapshotBinding;
   private messageApi: MessageStateBinding | undefined;
-  private threadApi: ThreadRuntimeImpl["__internal_threadBinding"] | undefined;
+  private threadApi: ThreadBindingWithState | undefined;
   private readonly interactionState: MessagePartState;
   private readonly interactionMessageId: string | undefined;
   private readonly interactionThreadId: string | undefined;
@@ -65,9 +68,7 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
   ) {
     this.contentBinding = contentBinding;
     this.messageApi = messageApi;
-    this.threadApi = threadApi as
-      | ThreadRuntimeImpl["__internal_threadBinding"]
-      | undefined;
+    this.threadApi = threadApi;
     this.interactionState = contentBinding.getState();
     this.interactionMessageId =
       this.interactionState.type === "tool-call"
@@ -75,7 +76,7 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
         : undefined;
     this.interactionThreadId =
       this.interactionState.type === "tool-call"
-        ? this.threadApi?.getStateState().threadId
+        ? this.threadApi?.getStateState?.().threadId
         : undefined;
     this.interactionCore =
       this.interactionState.type === "tool-call"
@@ -188,7 +189,7 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
     if (messageId === undefined) throw new Error("Message is not available");
 
     const core =
-      this.threadApi?.getStateState().threadId === this.interactionThreadId
+      this.threadApi?.getStateState?.().threadId === this.interactionThreadId
         ? this.threadApi?.getState()
         : this.interactionCore;
     if (!core?.unstable_recordToolInteraction)

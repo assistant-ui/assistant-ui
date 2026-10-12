@@ -213,6 +213,46 @@ describe("MessagePartRuntime interaction recording", () => {
     expect(recordB).not.toHaveBeenCalled();
   });
 
+  it("records through a plain thread binding that has no thread state", async () => {
+    const record = vi.fn(async () => {});
+    const core = {
+      unstable_recordToolInteraction: record,
+    } as unknown as ThreadRuntimeCore;
+    const part = new MessagePartRuntimeImpl(
+      {
+        path: partPath,
+        getState: () => toolPart,
+        subscribe: () => () => {},
+      },
+      {
+        path: messagePath,
+        getState: () => message,
+        subscribe: () => () => {},
+      },
+      {
+        path: threadPath,
+        getState: () => core,
+        subscribe: () => () => {},
+        outerSubscribe: () => () => {},
+      },
+    );
+
+    await part.unstable_recordInteraction({
+      type: "action",
+      payload: { action: "toggle" },
+    });
+
+    expect(record).toHaveBeenCalledExactlyOnceWith({
+      messageId: "message-1",
+      toolCallId: "call-1",
+      interaction: {
+        type: "action",
+        payload: { action: "toggle" },
+        occurredAt: expect.any(Number),
+      },
+    });
+  });
+
   it("records into a successor core of the same thread", async () => {
     const recordA = vi.fn(async () => {});
     const recordB = vi.fn(async () => {});
