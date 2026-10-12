@@ -513,7 +513,7 @@ describe("useAdkRuntime replacement runs", () => {
       runtime.thread
         .getState()
         .messages.map((m) => (m.content[0] as { text: string }).text),
-    ).toEqual(["edited question"]);
+    ).toEqual(["question", "answer"]);
   });
 
   const reloadAndStop = async () => {
@@ -667,7 +667,7 @@ describe("useAdkRuntime replacement runs", () => {
     expect(messages).not.toContain("answer 0");
   });
 
-  it("keeps an edit made while a reload looks up its checkpoint", async () => {
+  it("restores the pre-edit turn when Stop interrupts an edit after reload", async () => {
     const lookups = [deferred(), deferred()];
     const waiting = [...lookups];
     const stream = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
@@ -718,7 +718,7 @@ describe("useAdkRuntime replacement runs", () => {
     });
 
     expect(stream).toHaveBeenCalledTimes(1);
-    expect(texts(runtime)).toEqual(["edited question"]);
+    expect(texts(runtime)).toEqual(["question"]);
   });
 
   it("keeps a history load that lands while a reload looks up its checkpoint when Stop follows", async () => {

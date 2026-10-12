@@ -1081,6 +1081,60 @@ describe("useAdkRuntime refetch", () => {
     }
   });
 
+  it("sends a held tool answer with its peer after a failed reload", async () => {
+    const streamMock = vi.fn(async function* (
+      _messages: unknown,
+    ): AsyncGenerator<AdkEvent> {
+      throw new Error("reload failed before first event");
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { capture } = await renderAdk(
+        async () => ({
+          messages: [
+            { id: "q-1", type: "human", content: "question" },
+            {
+              id: "a-1",
+              type: "ai",
+              content: "calling tools",
+              tool_calls: [
+                { id: "x", name: "lookup", args: {} },
+                { id: "y", name: "lookup", args: {} },
+              ],
+            },
+          ],
+          longRunningToolIds: ["x", "y"],
+        }),
+        async () => null,
+        streamMock,
+      );
+      const answer = capture.runtime!.thread.getMessageById("a-1");
+
+      act(() =>
+        answer.getMessagePartByToolCallId("x").addToolResult({ value: "X" }),
+      );
+      expect(streamMock).not.toHaveBeenCalled();
+      act(() => answer.reload());
+      await waitFor(() => expect(streamMock).toHaveBeenCalledOnce());
+      await waitFor(() => expect(consoleError).toHaveBeenCalledOnce());
+
+      act(() =>
+        capture
+          .runtime!.thread.getMessageById("a-1")
+          .getMessagePartByToolCallId("y")
+          .addToolResult({ value: "Y" }),
+      );
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      const request = JSON.stringify(streamMock.mock.calls[1]?.[0]);
+      expect(request).toContain('"tool_call_id":"x"');
+      expect(request).toContain('"tool_call_id":"y"');
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it("restages a staged message when its resend fails before its first event", async () => {
     const streamMock = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
       throw new Error("request failed before first event");
@@ -1326,6 +1380,46 @@ describe("useAdkRuntime refetch", () => {
       );
     });
     expect(streamMock.mock.calls[1]?.[1]).toMatchObject({ runConfig });
+    checkpoint.resolve(null);
+  });
+
+  it("restores an edit when Stop interrupts checkpoint lookup", async () => {
+    const checkpoint = deferred<string | null>();
+    const getCheckpointId = vi.fn(() => checkpoint.promise);
+    const { capture, streamMock } = await renderAdk(
+      async () => ({
+        messages: [
+          { id: "q-1", type: "human", content: "question" },
+          aiMessage("a-1", "answer"),
+        ],
+      }),
+      getCheckpointId,
+      undefined,
+      false,
+      true,
+    );
+    const question = capture.runtime!.thread.getState().messages[0]!;
+    act(() => {
+      capture.runtime!.thread.append({
+        role: "user",
+        parentId: null,
+        sourceId: question.id,
+        content: [{ type: "text", text: "edited question" }],
+      });
+    });
+    await waitFor(() => expect(getCheckpointId).toHaveBeenCalledOnce());
+    expect(
+      JSON.stringify(capture.runtime!.thread.getState().messages),
+    ).not.toContain("answer");
+
+    act(() => capture.runtime!.thread.cancelRun());
+    const messages = JSON.stringify(
+      capture.runtime!.thread.getState().messages,
+    );
+    expect(messages).toContain("question");
+    expect(messages).toContain("answer");
+    expect(messages).not.toContain("edited question");
+    expect(streamMock).not.toHaveBeenCalled();
     checkpoint.resolve(null);
   });
 
