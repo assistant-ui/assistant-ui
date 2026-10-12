@@ -16,6 +16,26 @@ const one = (type: string, props: Record<string, unknown>): Spec =>
   spec({ main: { type, props } });
 
 describe("Citation in Vue", () => {
+  it("renders numeric Citation text like React", () => {
+    const input = one("Citation", {
+      title: 0,
+      url: "https://example.com",
+      source: 12,
+      snippet: 34,
+    });
+    const vue = renderVueSpec(input);
+    expect(vue.markup()).toBe(renderReactSpec(input).markup());
+    expect(
+      vue.container.querySelector('[data-aui="citation-title"]')?.textContent,
+    ).toBe("0");
+    expect(
+      vue.container.querySelector('[data-aui="citation-source"]')?.textContent,
+    ).toBe("12");
+    expect(
+      vue.container.querySelector('[data-aui="citation-snippet"]')?.textContent,
+    ).toBe("34");
+  });
+
   it.each([
     { title: "Guide", url: "https://www.example.com/path", snippet: "Excerpt" },
     { title: "Report", url: "http://example.com", source: "Publisher" },

@@ -1880,7 +1880,7 @@ const convertElement = (
       const linked =
         target !== undefined && target.length + 3 < SECTION_TEXT_CAP;
       const title = clampText(
-        escapeMrkdwn(asString(props["title"])),
+        escapeMrkdwn(asTextValue(props["title"])),
         SECTION_TEXT_CAP - (linked ? target.length + 3 : 0),
         "Citation",
         "title",
@@ -1888,10 +1888,8 @@ const convertElement = (
       );
       const head = linked ? `<${target}|${title}>` : title;
       const room = SECTION_TEXT_CAP - head.length - 1;
-      const quoted =
-        typeof props["snippet"] === "string" && props["snippet"] !== ""
-          ? escapeMrkdwn(props["snippet"])
-          : undefined;
+      const snippetText = asTextValue(props["snippet"]);
+      const quoted = snippetText ? escapeMrkdwn(snippetText) : undefined;
       if (quoted !== undefined && room <= 0)
         warn(
           context,
@@ -1903,12 +1901,10 @@ const convertElement = (
         quoted !== undefined && room > 0
           ? clampText(quoted, room, "Citation", "snippet", context)
           : undefined;
+      const sourceText = asTextValue(props["source"]);
       const source =
-        typeof props["source"] === "string"
-          ? props["source"]
-          : href
-            ? linkHost(href)
-            : undefined;
+        sourceText ||
+        (props["source"] === "" || !href ? undefined : linkHost(href));
       return [
         structuredSection(
           snippet !== undefined ? `${head}\n${snippet}` : head,

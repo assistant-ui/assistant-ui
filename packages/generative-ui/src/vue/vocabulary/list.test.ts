@@ -14,6 +14,20 @@ afterEach(cleanupSpecs);
 
 describe("structured lists in Vue", () => {
   it.each([
+    ["Steps", "steps", [{ title: 0, detail: 12 }], "012"],
+    ["Timeline", "items", [{ time: 0, title: 12, detail: 34 }], "01234"],
+  ] as const)(
+    "renders numeric %s entries like React",
+    (type, prop, entries, text) => {
+      const input = spec({ main: { type, props: { [prop]: entries } } });
+      const react = renderReactSpec(input);
+      const vue = renderVueSpec(input);
+      expect(vue.markup()).toBe(react.markup());
+      expect(vue.container.textContent).toBe(text);
+    },
+  );
+
+  it.each([
     [
       "Steps",
       "steps",

@@ -238,28 +238,47 @@ function Citation({
   source,
   snippet,
 }: {
-  title: string;
+  title: string | number;
   url?: string;
-  source?: string;
-  snippet?: string;
+  source?: string | number;
+  snippet?: string | number;
 }) {
   const theme = useNativeTheme();
   const ink = useInk();
   const href = linkHref(url);
   const site = toTextContent(source) ?? (href ? linkHost(href) : null);
+  const titleText = toTextContent(title);
   const quote = toTextContent(snippet);
+  const sourceConsumed = useListViewItemText(
+    href ? undefined : (site ?? undefined),
+  );
+  const titleConsumed = useListViewItemText(
+    href ? undefined : (titleText ?? undefined),
+  );
+  const snippetConsumed = useListViewItemText(
+    href ? undefined : (quote ?? undefined),
+  );
   const content = (
     <>
       {site != null ? (
-        <Text style={[styles.citationSource, { color: fade(ink, 0.62) }]}>
+        <Text
+          aria-hidden={sourceConsumed}
+          style={[styles.citationSource, { color: fade(ink, 0.62) }]}
+        >
           {site}
         </Text>
       ) : null}
-      <Text style={[styles.citationTitle, { color: ink }]}>
-        {toTextContent(title)}
+      <Text
+        aria-hidden={titleConsumed}
+        style={[styles.citationTitle, { color: ink }]}
+      >
+        {titleText}
       </Text>
       {quote != null ? (
-        <Text style={[styles.citationSnippet, { color: fade(ink, 0.62) }]}>
+        <Text
+          aria-hidden={snippetConsumed}
+          style={[styles.citationSnippet, { color: fade(ink, 0.62) }]}
+        >
           {quote}
         </Text>
       ) : null}

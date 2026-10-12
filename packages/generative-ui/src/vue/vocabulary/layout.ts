@@ -201,8 +201,7 @@ export const layoutVocabulary = {
               "div",
               {
                 role: "tablist",
-                "aria-label":
-                  typeof props.label === "string" ? props.label : undefined,
+                "aria-label": toTextContent(props.label) ?? undefined,
                 "data-aui": "tabs-list",
                 onKeydown: (event: KeyboardEvent) => {
                   const next =
