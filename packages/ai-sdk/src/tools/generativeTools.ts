@@ -1,5 +1,5 @@
 import { jsonSchema, type ToolSet } from "ai";
-import type { MCPClient, MCPClientConfig } from "@ai-sdk/mcp";
+import type { MCPClientConfig } from "@ai-sdk/mcp";
 import { createMCPClient } from "@ai-sdk/mcp";
 import { Experimental_StdioMCPTransport } from "#mcp-stdio";
 import {
@@ -175,7 +175,7 @@ export const generativeTools = (options: GenerativeToolsOptions): ToolSet => {
 
 export class AISDKToolkit {
   readonly #toolkit: Toolkit;
-  readonly #mcpClients = new Map<string, Promise<MCPClient>>();
+  readonly #mcpClients = new Map<string, ReturnType<typeof createMCPClient>>();
 
   constructor(options: AISDKToolkitOptions) {
     this.#toolkit = options.toolkit;
@@ -296,11 +296,11 @@ export class AISDKToolkit {
     name: string,
     config: McpServerConfig,
     startedAt: number,
-  ): Promise<MCPClient> {
+  ): ReturnType<typeof createMCPClient> {
     const existing = this.#mcpClients.get(name);
     if (existing) return existing;
     const createPromise = createMCPClient(toMCPClientConfig(config));
-    let next: Promise<MCPClient>;
+    let next: ReturnType<typeof createMCPClient>;
     next = withMcpConnectionTimeout(createPromise, {
       name,
       config,

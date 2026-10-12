@@ -46,7 +46,10 @@ describe("mapSessionEvent", () => {
     >["entry"];
 
     expect(
-      mapSessionEvent({ type: "agent_settled" }, { turnIndex: 0 }),
+      mapSessionEvent(
+        { type: "agent_settled", aborted: false },
+        { turnIndex: 0 },
+      ),
     ).toEqual({ type: "agent_settled" });
     expect(
       mapSessionEvent({ type: "entry_appended", entry }, { turnIndex: 0 }),
