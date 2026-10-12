@@ -1129,6 +1129,7 @@ export function rewriteLatexBracketDelimiters(text: string): string {
     let opener = -1;
     let openerLength = 0;
     let reindentedLineStart = -1;
+    let reindentedPrefix = "";
     for (const marker of block.matchAll(LATEX_DISPLAY_MARKER)) {
       const at = marker.index;
       if (at < cursor) continue;
@@ -1182,7 +1183,7 @@ export function rewriteLatexBracketDelimiters(text: string): string {
       const lineHead = (offset: number) => {
         const start = block.lastIndexOf("\n", offset - 1) + 1;
         return start === reindentedLineStart
-          ? out.slice(out.lastIndexOf("\n") + 1) + block.slice(cursor, offset)
+          ? reindentedPrefix
           : block.slice(start, offset);
       };
       const head = lineHead(opener);
@@ -1207,7 +1208,10 @@ export function rewriteLatexBracketDelimiters(text: string): string {
       ) {
         replacement = replacement.slice(prefix.length + 1);
       }
-      reindentedLineStart = -1;
+      reindentedLineStart = replacement.endsWith(`\n${prefix}`)
+        ? opener + match.lastIndexOf("\n") + 1
+        : -1;
+      reindentedPrefix = prefix;
       let consumed = end;
       if (
         replacement !== match &&
@@ -1254,25 +1258,47 @@ const INLINE_TAG = /\[\/inline\]([\s\S]*?)\[\/inline\]/g;
  * {@link emitDisplayMath}) and `[/inline]...[/inline]` becomes `$...$`.
  */
 export function rewriteCustomMathTags(text: string): string {
-  return rewriteOutsideCode(text, (segment, precededBy, followedBy, lineHead) =>
-    segment
-      .replace(
-        MATH_TAG,
-        (match: string, body: string, offset: number, source: string) =>
-          emitDisplayMath(
-            match,
-            body,
-            offset,
-            source,
-            precededBy,
-            followedBy,
-            lineHead,
-          ),
-      )
-      .replace(INLINE_TAG, (match: string, body: string) => {
-        const trimmed = body.trim();
-        return trimmed === "" ? match : `$${trimmed}$`;
-      }),
+  return rewriteOutsideCode(
+    text,
+    (segment, precededBy, followedBy, lineHead) => {
+      let continuedLineStart = -1;
+      let continuedLineEnd = -1;
+      let continuedPrefix = "";
+      return segment
+        .replace(
+          MATH_TAG,
+          (match: string, body: string, offset: number, source: string) => {
+            const head = (at: number) =>
+              at >= continuedLineStart && at < continuedLineEnd
+                ? continuedPrefix
+                : lineHead(at);
+            const prefix = continuationPrefix(head(offset));
+            const replacement = emitDisplayMath(
+              match,
+              body,
+              offset,
+              source,
+              precededBy,
+              followedBy,
+              head,
+            );
+            if (replacement.endsWith(`\n${prefix}`)) {
+              const end = offset + match.length;
+              continuedLineStart = offset + match.lastIndexOf("\n") + 1;
+              const lineEnd = source.indexOf("\n", end);
+              continuedLineEnd = lineEnd === -1 ? source.length : lineEnd;
+            } else {
+              continuedLineStart = -1;
+            }
+            continuedPrefix = prefix;
+            return replacement;
+          },
+        )
+        .replace(INLINE_TAG, (match: string, body: string) => {
+          const trimmed = body.trim();
+          return trimmed === "" ? match : `$${trimmed}$`;
+        });
+    },
   );
 }
 

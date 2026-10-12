@@ -141,6 +141,27 @@ describe("rewriteLatexBracketDelimiters", () => {
     ).toBe("> 1. \n>    $$\n>    a\n>    $$\n>     then\n> more");
   });
 
+  describe.each([
+    ["\\[", "\\]"],
+    ["\\\\[", "\\\\]"],
+    ["[/math]", "[/math]"],
+  ])("%s displays sharing a closer line", (open, close) => {
+    it.each([
+      ["quoted list", "> 1. ", "> ", ">    "],
+      ["plain quote", "> ", "> ", "> "],
+      ["plain list", "- item ", "  ", "  "],
+      ["nested quoted list", "> - > ", ">   > ", ">   > "],
+    ])("keeps the second display in the %s", (_, start, body, continuation) => {
+      expect(
+        normalizeMathDelimiters(
+          `${start}${open}\n${body}a1\n${body}a2\n${body}${close} x ${open}\n${body}b1\n${body}b2\n${body}${close} then`,
+        ),
+      ).toBe(
+        `${start}\n${continuation}$$\n${continuation}a1\n${continuation}a2\n${continuation}$$\n${continuation} x \n${continuation}$$\n${continuation}b1\n${continuation}b2\n${continuation}$$\n${continuation} then`,
+      );
+    });
+  });
+
   it("keeps display math and following prose in an ordered list then quote", () => {
     expect(
       normalizeMathDelimiters("1. > \\[\n   > a\n   > \\] then\n   > more"),
