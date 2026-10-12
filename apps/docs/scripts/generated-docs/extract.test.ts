@@ -8,9 +8,16 @@ import {
   processTypeOrInterface,
 } from "./extract.mts";
 
+const project = new Project({ useInMemoryFileSystem: true });
+
+afterEach(() => {
+  for (const sourceFile of project.getSourceFiles()) {
+    project.removeSourceFile(sourceFile);
+  }
+});
+
 describe("signature text cleanup", () => {
   it("preserves undefined in callable return types", () => {
-    const project = new Project({ useInMemoryFileSystem: true });
     const sourceFile = project.createSourceFile(
       "hooks.ts",
       "export const useEveError = (): Error | undefined => undefined;",
@@ -30,7 +37,6 @@ describe("signature text cleanup", () => {
   });
 
   it("deduplicates imported and re-exported local types", () => {
-    const project = new Project({ useInMemoryFileSystem: true });
     project.createSourceFile(
       "/dedupe/adapters.ts",
       "export type WidgetAdapters = { foo?: string };",
@@ -60,7 +66,6 @@ describe("signature text cleanup", () => {
 
 describe("class member descriptions", () => {
   it("keeps constructor, property and method prose without changing their shape", () => {
-    const project = new Project({ useInMemoryFileSystem: true });
     const source = project.createSourceFile(
       "client.ts",
       `
@@ -99,7 +104,6 @@ describe("class member descriptions", () => {
   });
 
   it("uses the configured JSDoc link renderer for each member kind", () => {
-    const project = new Project({ useInMemoryFileSystem: true });
     const source = project.createSourceFile(
       "links.ts",
       `
@@ -129,7 +133,6 @@ describe("class member descriptions", () => {
   });
 
   it("keeps undocumented members blank and excludes non-public members", () => {
-    const project = new Project({ useInMemoryFileSystem: true });
     const source = project.createSourceFile(
       "visibility.ts",
       `
@@ -166,7 +169,6 @@ describe("deprecation tags", () => {
     "@deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.";
 
   it("reads the tag on an export specifier and ignores one above the statement", () => {
-    const project = new Project({ useInMemoryFileSystem: true });
     const source = project.createSourceFile(
       "barrel.ts",
       [
@@ -197,7 +199,6 @@ describe("deprecation tags", () => {
   });
 
   it("follows re-exports to the specifier that carries the tag", () => {
-    const project = new Project({ useInMemoryFileSystem: true });
     project.createSourceFile("/chain/base.ts", "export function convert() {}");
     project.createSourceFile(
       "/chain/middle.ts",
@@ -226,7 +227,6 @@ describe("deprecation tags", () => {
   });
 
   it("reads the tag on a specifier that exports a local declaration", () => {
-    const project = new Project({ useInMemoryFileSystem: true });
     const source = project.createSourceFile(
       "/local/index.ts",
       [
@@ -247,7 +247,6 @@ describe("deprecation tags", () => {
   });
 
   it("marks an experimental property instead of reporting it deprecated", () => {
-    const project = new Project({ useInMemoryFileSystem: true });
     const source = project.createSourceFile(
       "options.ts",
       [
