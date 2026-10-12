@@ -19,6 +19,7 @@ import {
   useNativeTheme,
 } from "../theme";
 import { ActionButton } from "./button";
+import { useListViewItemText } from "./list";
 
 type FlexAlign = "flex-start" | "center" | "flex-end";
 
@@ -97,6 +98,7 @@ function Card({
     cancel !== undefined;
   const cardInk = tint !== undefined ? "#ffffff" : ink;
   const cardTitle = toTextContent(title);
+  const titleConsumed = useListViewItemText(cardTitle?.toString());
   const content = (
     <View
       style={[
@@ -111,6 +113,7 @@ function Card({
       {cardTitle ? (
         <Text
           accessibilityRole="header"
+          aria-hidden={titleConsumed}
           style={[styles.title, { color: cardInk }]}
         >
           {cardTitle}
@@ -192,6 +195,8 @@ function Badge({
 }) {
   const theme = useNativeTheme();
   const ink = useInk();
+  const badgeValue = toTextContent(value);
+  const consumed = useListViewItemText(badgeValue?.toString());
   const tone =
     variant === "info"
       ? theme.primary
@@ -210,8 +215,11 @@ function Badge({
           { backgroundColor: tone ? fade(tone, 0.15) : theme.secondary },
         ]}
       >
-        <Text style={[styles.badgeText, { color: tone ?? fade(ink, 0.62) }]}>
-          {toTextContent(value)}
+        <Text
+          aria-hidden={consumed}
+          style={[styles.badgeText, { color: tone ?? fade(ink, 0.62) }]}
+        >
+          {badgeValue}
         </Text>
         {children}
       </View>

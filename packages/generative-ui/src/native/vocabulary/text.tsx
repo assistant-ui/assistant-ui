@@ -12,6 +12,7 @@ import {
   useInk,
   useNativeTheme,
 } from "../theme";
+import { useListViewItemText } from "./list";
 
 const styles = StyleSheet.create({
   withChildren: {
@@ -51,9 +52,12 @@ function Header({
   children?: ReactNode;
 }) {
   const ink = useInk();
+  const content = toTextContent(text);
+  const consumed = useListViewItemText(content?.toString());
   return withChildren(
     <Text
       accessibilityRole="header"
+      aria-hidden={consumed}
       style={[
         styles.header,
         {
@@ -64,7 +68,7 @@ function Header({
         display(size),
       ]}
     >
-      {toTextContent(text)}
+      {content}
     </Text>,
     children,
   );
@@ -85,8 +89,11 @@ function Body({
 }) {
   const theme = useNativeTheme();
   const ink = useInk();
+  const content = toTextContent(value);
+  const consumed = useListViewItemText(content?.toString());
   return withChildren(
     <Text
+      aria-hidden={consumed}
       style={[
         {
           fontSize: TEXT_SIZE[size],
@@ -97,7 +104,7 @@ function Body({
         weight !== undefined && { fontWeight: FONT_WEIGHT[weight] },
       ]}
     >
-      {toTextContent(value)}
+      {content}
     </Text>,
     children,
   );
@@ -111,9 +118,14 @@ function Caption({
   children?: ReactNode;
 }) {
   const ink = useInk();
+  const content = toTextContent(value);
+  const consumed = useListViewItemText(content?.toString());
   return withChildren(
-    <Text style={[styles.caption, { color: fade(ink, 0.62) }]}>
-      {toTextContent(value)}
+    <Text
+      aria-hidden={consumed}
+      style={[styles.caption, { color: fade(ink, 0.62) }]}
+    >
+      {content}
     </Text>,
     children,
   );
