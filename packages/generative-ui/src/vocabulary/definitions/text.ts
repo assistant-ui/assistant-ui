@@ -6,7 +6,9 @@ export const textDefinitions = {
   Header: {
     description: "A section heading. Renders as a bold title.",
     properties: z.object({
-      text: z.string().describe("The heading text."),
+      text: z
+        .union([z.string(), z.number()])
+        .describe("The heading text or number."),
       size: z
         .enum(TEXT_SIZES)
         .optional()

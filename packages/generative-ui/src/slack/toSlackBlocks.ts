@@ -1,4 +1,5 @@
 import {
+  CHILDREN_CAP,
   MAX_TRAVERSAL_DEPTH,
   boundSpec,
   clampReasonDetail,
@@ -18,6 +19,14 @@ import {
   formatFactDelta,
   formatValue,
 } from "../vocabulary/formatValue";
+import {
+  linkHost,
+  linkHref,
+  mapPlaces,
+  placeHref,
+  sequenceItems,
+  tabLabels,
+} from "../vocabulary/structureValues";
 import {
   ACTION_ID_CAP,
   ACTIONS_ELEMENT_CAP,
@@ -167,6 +176,25 @@ const asActionId = (
 const plainText = (text: string): SlackPlainText => ({
   type: "plain_text",
   text,
+});
+
+const escapeMrkdwn = (text: string): string =>
+  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+// An OpenStreetMap link stays under 100 characters, so these caps keep a place's section under Slack's limit with its link intact.
+const PLACE_LABEL_CAP = 500;
+const PLACE_DETAIL_CAP = 2000;
+
+const structuredSection = (
+  text: string,
+  component: string,
+  context: ConversionContext,
+): SlackBlock => ({
+  type: "section",
+  text: {
+    type: "mrkdwn",
+    text: clampText(text, SECTION_TEXT_CAP, component, "text", context),
+  },
 });
 
 const serializeFieldBlockId = (
@@ -385,7 +413,7 @@ const toActionElement = (
   switch (element.type) {
     case "Button":
       return buttonElement(
-        asString(props["label"]),
+        asTextValue(props["label"]),
         props["buttonStyle"],
         action,
         "Button",
@@ -417,7 +445,7 @@ const toActionElement = (
         context,
       );
       const placeholder = clampText(
-        asString(props["placeholder"]),
+        asTextValue(props["placeholder"]),
         PLACEHOLDER_TEXT_CAP,
         "Select",
         "placeholder",
@@ -520,7 +548,7 @@ const toActionElement = (
     }
     case "Checkbox": {
       const label = clampText(
-        asString(props["label"]),
+        asTextValue(props["label"]),
         INTERACTIVE_TEXT_CAP,
         "Checkbox",
         "label",
@@ -639,7 +667,7 @@ const convertFacts = (
   context: ConversionContext,
 ): SlackBlock[] => {
   const fields = facts.map((fact) => {
-    const label = asString(fact.props["label"]);
+    const label = asTextValue(fact.props["label"]);
     const value = asTextValue(fact.props["value"]);
     const delta = fact.props["delta"];
     const deltaText =
@@ -784,7 +812,7 @@ const cardActionButtons = (
   if (isRecord(confirm)) {
     buttons.push(
       buttonElement(
-        asString(confirm["label"]),
+        asTextValue(confirm["label"]),
         "primary",
         readReserved(confirm, "action") ?? formAction,
         "Card",
@@ -799,7 +827,7 @@ const cardActionButtons = (
   if (isRecord(cancel)) {
     buttons.push(
       buttonElement(
-        asString(cancel["label"]),
+        asTextValue(cancel["label"]),
         undefined,
         readReserved(cancel, "action"),
         "Card",
@@ -819,7 +847,7 @@ const cardTitleText = (
   props: Readonly<Record<string, unknown>>,
   context: ConversionContext,
 ): string | undefined => {
-  const rawTitle = asString(props["title"]);
+  const rawTitle = asTextValue(props["title"]);
   return rawTitle
     ? clampText(rawTitle, CARD_TITLE_CAP, "Card", "title", context)
     : undefined;
@@ -827,6 +855,18 @@ const cardTitleText = (
 
 const isCardNoOp = (node: NormalizedUINode): boolean =>
   isElement(node) && (node.type === "Spacer" || node.type === "Icon");
+
+const NUMERIC_TEXT_PROPS: ReadonlyMap<string, readonly string[]> = new Map([
+  ["Text", ["value"]],
+  ["Caption", ["value"]],
+  ["Badge", ["value"]],
+  ["Fact", ["value", "label"]],
+  ["Header", ["text"]],
+  ["Alert", ["title", "description"]],
+  ["Card", ["title"]],
+  ["Checkbox", ["label"]],
+  ["Button", ["label"]],
+]);
 
 const collectText = (
   node: NormalizedUINode | undefined,
@@ -845,13 +885,9 @@ const collectText = (
   const own = ["text", "value", "label", "title", "description"]
     .map((key) => {
       const value = element.props[key];
-      return key === "value" &&
-        (element.type === "Text" ||
-          element.type === "Caption" ||
-          element.type === "Badge" ||
-          element.type === "Fact") &&
-        typeof value === "number" &&
-        Number.isFinite(value)
+      return typeof value === "number" &&
+        Number.isFinite(value) &&
+        NUMERIC_TEXT_PROPS.get(element.type)?.includes(key)
         ? String(value)
         : value;
     })
@@ -1084,7 +1120,7 @@ const degradeCard = (
   context: ConversionContext,
   depth: number,
 ): SlackCardBlock => {
-  const rawTitle = asString(element.props["title"]);
+  const rawTitle = asTextValue(element.props["title"]);
   const textChunks = collectText(element.children, depth + 1);
   const titleSource = rawTitle || textChunks[0] || "";
   const bodyChunks = rawTitle ? textChunks : textChunks.slice(1);
@@ -1468,7 +1504,7 @@ const convertElement = (
           type: "header",
           text: plainText(
             clampText(
-              asString(props["text"]),
+              asTextValue(props["text"]),
               HEADER_TEXT_CAP,
               "Header",
               "text",
@@ -1653,8 +1689,8 @@ const convertElement = (
         props["tone"] === "danger"
           ? props["tone"]
           : "info";
-      const titleText = asString(props["title"]);
-      const description = asString(props["description"]);
+      const titleText = asTextValue(props["title"]);
+      const description = asTextValue(props["description"]);
       if (context.surface === "modal") {
         const combined = [titleText, description].filter(Boolean).join("\n");
         return [
@@ -1750,6 +1786,221 @@ const convertElement = (
       return convertListView(element, context, depth);
     case "ListViewItem":
       return [convertListItem(element, context, depth)];
+    case "Tabs": {
+      const panels = normalizedList(element.children);
+      const { items: given, truncated } = copyBounded(
+        Array.isArray(props["tabs"]) ? props["tabs"] : [],
+        CHILDREN_CAP,
+      );
+      if (truncated)
+        warn(
+          context,
+          "clamped",
+          "Tabs",
+          `tabs were clamped to ${CHILDREN_CAP} entries.`,
+        );
+      const labels = tabLabels(given, panels.length);
+      return labels.flatMap((label, index) => [
+        structuredSection(`*${escapeMrkdwn(label)}*`, "Tabs", context),
+        ...(panels[index] !== undefined
+          ? convertSequence(panels[index], context, depth + 1)
+          : []),
+      ]);
+    }
+    case "Steps": {
+      const { items: raw, truncated } = copyBounded(
+        Array.isArray(props["steps"]) ? props["steps"] : [],
+        CHILDREN_CAP,
+      );
+      if (truncated)
+        warn(
+          context,
+          "clamped",
+          "Steps",
+          `steps were clamped to ${CHILDREN_CAP} entries.`,
+        );
+      const steps = sequenceItems(raw);
+      const dropped = raw.length - steps.length;
+      if (dropped > 0)
+        warn(
+          context,
+          "dropped",
+          "Steps",
+          `${dropped} malformed ${dropped === 1 ? "entry was" : "entries were"} dropped.`,
+        );
+      return steps.map((step, index) =>
+        structuredSection(
+          `*${index + 1}. ${escapeMrkdwn(step.title)}*${step.detail !== undefined ? `\n${escapeMrkdwn(step.detail)}` : ""}`,
+          "Steps",
+          context,
+        ),
+      );
+    }
+    case "Timeline": {
+      const { items: raw, truncated } = copyBounded(
+        Array.isArray(props["items"]) ? props["items"] : [],
+        CHILDREN_CAP,
+      );
+      if (truncated)
+        warn(
+          context,
+          "clamped",
+          "Timeline",
+          `items were clamped to ${CHILDREN_CAP} entries.`,
+        );
+      const items = sequenceItems(raw);
+      const dropped = raw.length - items.length;
+      if (dropped > 0)
+        warn(
+          context,
+          "dropped",
+          "Timeline",
+          `${dropped} malformed ${dropped === 1 ? "entry was" : "entries were"} dropped.`,
+        );
+      return items.map((item) =>
+        structuredSection(
+          [
+            ...(item.time !== undefined
+              ? [`*${escapeMrkdwn(item.time)}*`]
+              : []),
+            escapeMrkdwn(item.title),
+            ...(item.detail !== undefined ? [escapeMrkdwn(item.detail)] : []),
+          ].join("\n"),
+          "Timeline",
+          context,
+        ),
+      );
+    }
+    case "Citation": {
+      const href = linkHref(props["url"]);
+      const target =
+        href === undefined
+          ? undefined
+          : escapeMrkdwn(href).replace(/\|/g, "%7C");
+      const linked =
+        target !== undefined && target.length + 3 < SECTION_TEXT_CAP;
+      const title = clampText(
+        escapeMrkdwn(asString(props["title"])),
+        SECTION_TEXT_CAP - (linked ? target.length + 3 : 0),
+        "Citation",
+        "title",
+        context,
+      );
+      const head = linked ? `<${target}|${title}>` : title;
+      const room = SECTION_TEXT_CAP - head.length - 1;
+      const quoted =
+        typeof props["snippet"] === "string" && props["snippet"] !== ""
+          ? escapeMrkdwn(props["snippet"])
+          : undefined;
+      if (quoted !== undefined && room <= 0)
+        warn(
+          context,
+          "dropped",
+          "Citation",
+          "snippet did not fit beside the title.",
+        );
+      const snippet =
+        quoted !== undefined && room > 0
+          ? clampText(quoted, room, "Citation", "snippet", context)
+          : undefined;
+      const source =
+        typeof props["source"] === "string"
+          ? props["source"]
+          : href
+            ? linkHost(href)
+            : undefined;
+      return [
+        structuredSection(
+          snippet !== undefined ? `${head}\n${snippet}` : head,
+          "Citation",
+          context,
+        ),
+        ...(source !== undefined
+          ? [
+              {
+                type: "context" as const,
+                elements: [
+                  {
+                    type: "mrkdwn" as const,
+                    text: clampText(
+                      escapeMrkdwn(source),
+                      CONTEXT_TEXT_CAP,
+                      "Citation",
+                      "source",
+                      context,
+                    ),
+                  },
+                ],
+              },
+            ]
+          : []),
+      ];
+    }
+    case "Diagram": {
+      // A fence inside the source would close the code block early, so a zero-width space splits it.
+      const code = clampText(
+        escapeMrkdwn(asString(props["code"])).replaceAll(
+          "```",
+          `\`\`${String.fromCharCode(0x200b)}\``,
+        ),
+        SECTION_TEXT_CAP - 8,
+        "Diagram",
+        "code",
+        context,
+      );
+      const title = asTextValue(props["title"]);
+      return [
+        structuredSection(`\`\`\`\n${code}\n\`\`\``, "Diagram", context),
+        ...(title
+          ? [
+              {
+                type: "context" as const,
+                elements: [
+                  {
+                    type: "mrkdwn" as const,
+                    text: clampText(
+                      escapeMrkdwn(title),
+                      CONTEXT_TEXT_CAP,
+                      "Diagram",
+                      "title",
+                      context,
+                    ),
+                  },
+                ],
+              },
+            ]
+          : []),
+      ];
+    }
+    case "Map": {
+      const { items: raw, truncated } = copyBounded(
+        Array.isArray(props["places"]) ? props["places"] : [],
+        CHILDREN_CAP,
+      );
+      if (truncated)
+        warn(
+          context,
+          "clamped",
+          "Map",
+          `places were clamped to ${CHILDREN_CAP} entries.`,
+        );
+      const places = mapPlaces(raw);
+      const dropped = raw.length - places.length;
+      if (dropped > 0)
+        warn(
+          context,
+          "dropped",
+          "Map",
+          `${dropped} malformed ${dropped === 1 ? "entry was" : "entries were"} dropped.`,
+        );
+      return places.map((place) =>
+        structuredSection(
+          `<${escapeMrkdwn(placeHref(place))}|${clampText(escapeMrkdwn(place.label), PLACE_LABEL_CAP, "Map", "label", context)}>${place.detail !== undefined ? `\n${clampText(escapeMrkdwn(place.detail), PLACE_DETAIL_CAP, "Map", "detail", context)}` : ""}`,
+          "Map",
+          context,
+        ),
+      );
+    }
     case "Form":
       return [
         ...convertFormChildren(element, context, depth),

@@ -1,24 +1,39 @@
-import { useState } from "react";
-import { Image as NativeImage, StyleSheet, View } from "react-native";
+import { useState, type ComponentProps } from "react";
+import {
+  Image as NativeImage,
+  Linking,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import type { ImageSize } from "../../ir";
 import type { GenerativeUILibrary } from "../../types";
 import { mediaDefinitions } from "../../vocabulary/definitions/media";
-import { RADIUS, useNativeTheme } from "../theme";
+import { mapPlaces, placeHref } from "../../vocabulary/structureValues";
+import { toTextContent } from "../../vocabulary/toTextContent";
+import { useListViewItemText } from "../rowLabel";
+import { fade, RADIUS, useInk, useNativeTheme } from "../theme";
 
 const SIZE = { sm: 128, md: 256, lg: 384 } as const;
 const ROUND_SIZE = { sm: 32, md: 40, lg: 52 } as const;
 
-function Image({
-  src,
-  alt,
-  size,
-  round,
-}: {
+type ImageProps = {
   src?: string;
   alt?: string;
   size?: ImageSize;
   round?: boolean;
-}) {
+};
+
+function ImageContent({
+  src,
+  alt,
+  size,
+  round,
+  hidden,
+}: ImageProps & { hidden: boolean }) {
   const [aspectRatio, setAspectRatio] = useState<number | undefined>();
   const width =
     typeof size === "number"
@@ -28,7 +43,6 @@ function Image({
         : size
           ? SIZE[size]
           : undefined;
-  const hidden = !alt;
   return (
     <NativeImage
       source={{ uri: src }}
@@ -59,8 +73,32 @@ function Image({
   );
 }
 
+function Image(props: ImageProps) {
+  const consumed = useListViewItemText(props.alt);
+  return (
+    <ImageContent key={props.src} {...props} hidden={!props.alt || consumed} />
+  );
+}
+
 const styles = StyleSheet.create({
   divider: { height: 1, alignSelf: "stretch", marginVertical: 12 },
+  diagram: { gap: 8 },
+  diagramCode: { borderRadius: RADIUS.surface },
+  diagramCodeContent: { padding: 12 },
+  diagramSource: {
+    fontFamily: Platform.select({ ios: "Menlo", default: "monospace" }),
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  diagramCaption: { fontSize: 12, lineHeight: 18 },
+  places: { gap: 12 },
+  place: { gap: 3 },
+  placeLabel: {
+    fontSize: 14,
+    fontWeight: "600",
+    textDecorationLine: "underline",
+  },
+  placeDetail: { fontSize: 12, lineHeight: 18 },
 });
 
 function Divider({ flush }: { flush?: boolean }) {
@@ -76,13 +114,90 @@ function Divider({ flush }: { flush?: boolean }) {
   );
 }
 
+function RowText({
+  value,
+  style,
+}: {
+  value: string;
+  style: ComponentProps<typeof Text>["style"];
+}) {
+  const consumed = useListViewItemText(value);
+  return (
+    <Text aria-hidden={consumed} style={style}>
+      {value}
+    </Text>
+  );
+}
+
+function Diagram({ code, title }: { code: unknown; title?: unknown }) {
+  const theme = useNativeTheme();
+  const ink = useInk();
+  const caption = toTextContent(title);
+  return (
+    <View style={styles.diagram}>
+      <ScrollView
+        horizontal
+        style={[styles.diagramCode, { backgroundColor: theme.secondary }]}
+        contentContainerStyle={styles.diagramCodeContent}
+      >
+        <RowText
+          value={String(toTextContent(code) ?? "")}
+          style={[styles.diagramSource, { color: theme.foreground }]}
+        />
+      </ScrollView>
+      {caption != null ? (
+        <RowText
+          value={String(caption)}
+          style={[styles.diagramCaption, { color: fade(ink, 0.62) }]}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+function MapPlaces({ places }: { places: unknown }) {
+  const ink = useInk();
+  return (
+    <View accessibilityRole="list" style={styles.places}>
+      {mapPlaces(places).map((place, index) => (
+        <View key={index} style={styles.place}>
+          <Pressable
+            accessibilityRole="link"
+            onPress={() =>
+              void Linking.openURL(placeHref(place)).catch(() => {})
+            }
+          >
+            <Text style={[styles.placeLabel, { color: ink }]}>
+              {place.label}
+            </Text>
+          </Pressable>
+          {place.detail !== undefined ? (
+            <RowText
+              value={place.detail}
+              style={[styles.placeDetail, { color: fade(ink, 0.62) }]}
+            />
+          ) : null}
+        </View>
+      ))}
+    </View>
+  );
+}
+
 export const mediaVocabulary = {
   Image: {
     ...mediaDefinitions.Image,
-    render: (props) => <Image key={props.src} {...props} />,
+    render: (props) => <Image {...props} />,
   },
   Divider: {
     ...mediaDefinitions.Divider,
     render: (props) => <Divider {...props} />,
+  },
+  Diagram: {
+    ...mediaDefinitions.Diagram,
+    render: (props) => <Diagram {...props} />,
+  },
+  Map: {
+    ...mediaDefinitions.Map,
+    render: (props) => <MapPlaces {...props} />,
   },
 } satisfies GenerativeUILibrary;

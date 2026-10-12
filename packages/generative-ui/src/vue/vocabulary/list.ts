@@ -2,6 +2,7 @@ import { defineComponent, h, useId } from "vue";
 import { useSpecElement } from "generative-frame/spec/vue";
 import { listDefinitions } from "../../vocabulary/definitions/list";
 import { INTERACTIVE_DESCENDANT_SELECTOR } from "../../vocabulary/listItemValues";
+import { sequenceItems } from "../../vocabulary/structureValues";
 
 export const listVocabulary = {
   ListView: {
@@ -74,6 +75,53 @@ export const listVocabulary = {
                   ),
                 ]
               : (slots.default?.() ?? []),
+          );
+      },
+    }),
+  },
+  Steps: {
+    ...listDefinitions.Steps,
+    component: defineComponent({
+      name: "GenerativeUISteps",
+      props: ["steps"],
+      setup(props) {
+        return () =>
+          h(
+            "ol",
+            { "data-aui": "steps" },
+            sequenceItems(props.steps).map((step, index) =>
+              h("li", { key: index, "data-aui": "steps-item" }, [
+                h("div", { "data-aui": "steps-title" }, step.title),
+                step.detail !== undefined
+                  ? h("div", { "data-aui": "steps-detail" }, step.detail)
+                  : null,
+              ]),
+            ),
+          );
+      },
+    }),
+  },
+  Timeline: {
+    ...listDefinitions.Timeline,
+    component: defineComponent({
+      name: "GenerativeUITimeline",
+      props: ["items"],
+      setup(props) {
+        return () =>
+          h(
+            "ol",
+            { "data-aui": "timeline" },
+            sequenceItems(props.items).map((item, index) =>
+              h("li", { key: index, "data-aui": "timeline-item" }, [
+                item.time !== undefined
+                  ? h("div", { "data-aui": "timeline-time" }, item.time)
+                  : null,
+                h("div", { "data-aui": "timeline-title" }, item.title),
+                item.detail !== undefined
+                  ? h("div", { "data-aui": "timeline-detail" }, item.detail)
+                  : null,
+              ]),
+            ),
           );
       },
     }),

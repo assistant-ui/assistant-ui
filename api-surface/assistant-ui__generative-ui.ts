@@ -1283,12 +1283,13 @@ interface TeamsTextBlock {
   readonly type: "TextBlock";
   readonly text: string;
   readonly wrap: true;
+  readonly fontType?: "Monospace";
   readonly size?: TeamsTextSize;
   readonly weight?: "bolder";
   readonly style?: "heading";
   readonly isSubtle?: true;
   readonly separator?: true;
-  readonly spacing?: "large";
+  readonly spacing?: "large" | "none";
 }
 
 type TeamsTextSize = "extraLarge" | "large" | "medium" | "small";

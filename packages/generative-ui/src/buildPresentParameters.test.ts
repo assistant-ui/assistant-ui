@@ -21,6 +21,36 @@ describe("spec declarations", () => {
   });
 });
 
+describe("numeric vocabulary text props", () => {
+  const includesNumber = (definition: JSONSchema7Definition): boolean => {
+    if (typeof definition === "boolean") return false;
+    if (
+      definition.type === "number" ||
+      (Array.isArray(definition.type) && definition.type.includes("number"))
+    ) {
+      return true;
+    }
+    return [definition.anyOf, definition.oneOf, definition.allOf]
+      .flatMap((schemas) => schemas ?? [])
+      .some(includesNumber);
+  };
+
+  it("advertises numbers for text props in the present tool schema", () => {
+    const schema = buildPresentParameters(defaultGenerativeUILibrary);
+    const props = schema.properties as Record<string, JSONSchema7Definition>;
+
+    for (const name of [
+      "text",
+      "title",
+      "description",
+      "label",
+      "placeholder",
+    ]) {
+      expect(includesNumber(props[name]!), name).toBe(true);
+    }
+  });
+});
+
 function resolve(root: JSONSchema7, value: JSONSchema7Definition) {
   let schema = value as JSONSchema7;
   if (schema.$ref === "#") return root;

@@ -1253,12 +1253,38 @@ describe("ADK request coalescing", () => {
     },
   );
 
-  it("settles every caller with the shared run error", async () => {
+  it("rejects every caller and restores state after a pre-event run error", async () => {
     const failure = new Error("stream failed");
     const stream = vi.fn(async function* () {
       throw failure;
     });
-    const { result } = renderHook(() => useAdkMessages({ stream }));
+    const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
+    const previousMessages: AdkMessage[] = [
+      { id: "prior-user", type: "human", content: "first" },
+      { id: "prior-assistant", type: "ai", content: "answer" },
+    ];
+    const previousToolConfirmations = [
+      {
+        toolCallId: "pending-confirmation",
+        toolName: "approve",
+        args: {},
+        hint: "approval required",
+        confirmed: false,
+      },
+    ];
+    const previousAuthRequests = [
+      { toolCallId: "pending-auth", authConfig: { type: "oauth2" } },
+    ];
+    act(() => {
+      result.current.controller.dispatch({
+        type: "run.started",
+        messages: previousMessages,
+        queuedMessageIds: [],
+        longRunningToolIds: ["pending-tool"],
+        toolConfirmations: previousToolConfirmations,
+        authRequests: previousAuthRequests,
+      });
+    });
     let first!: Promise<void>;
     let second!: Promise<void>;
     act(() => {
@@ -1281,6 +1307,163 @@ describe("ADK request coalescing", () => {
       { status: "rejected", reason: failure },
       { status: "rejected", reason: failure },
     ]);
+    expect(result.current.messages).toEqual(previousMessages);
+    expect(result.current.longRunningToolIds).toEqual(["pending-tool"]);
+    expect(result.current.toolConfirmations).toEqual(previousToolConfirmations);
+    expect(result.current.authRequests).toEqual(previousAuthRequests);
+  });
+
+  it("keeps a message staged while a run waits for its first event", async () => {
+    const failure = new Error("request failed");
+    let fail!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      fail = resolve;
+    });
+    const stream = vi.fn(async function* () {
+      await gate;
+      throw failure;
+    });
+    const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
+    let send!: Promise<void>;
+    act(() => {
+      send = result.current.sendMessage(
+        [{ id: "running", type: "human", content: "running" }],
+        {},
+      );
+    });
+    await vi.waitFor(() => expect(stream).toHaveBeenCalledOnce());
+    const staged = { id: "staged", type: "human", content: "later" } as const;
+    act(() => {
+      result.current.controller.dispatch({
+        type: "staged.stage",
+        entry: { message: staged, runConfig: undefined },
+      });
+      result.current.setMessages([...result.current.messages, staged]);
+    });
+    await act(async () => {
+      fail();
+      await expect(send).rejects.toBe(failure);
+    });
+
+    expect(result.current.messages).toEqual([staged]);
+    expect(
+      result.current.controller.getState().stagedEntries.has(staged.id),
+    ).toBe(true);
+  });
+
+  it("keeps the optimistic message when a run aborts before its first event", async () => {
+    let ready!: () => void;
+    const started = new Promise<void>((resolve) => {
+      ready = resolve;
+    });
+    const stream = vi.fn(async function* (
+      _messages: AdkMessage[],
+      { abortSignal }: { abortSignal: AbortSignal },
+    ) {
+      await new Promise<void>((resolve) => {
+        abortSignal.addEventListener("abort", () => resolve(), { once: true });
+        ready();
+      });
+    });
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    const message: AdkMessage = {
+      id: "running",
+      type: "human",
+      content: "keep me",
+    };
+    let send!: Promise<void>;
+    act(() => {
+      send = result.current.sendMessage([message], {});
+    });
+    await started;
+    expect(stream).toHaveBeenCalledOnce();
+    act(() => result.current.cancel());
+    await act(async () => {
+      await send;
+    });
+
+    expect(result.current.messages).toEqual([message]);
+  });
+
+  it("restores long-running tool ids when a tool-only run fails before an event", async () => {
+    const failure = new Error("request failed");
+    const stream: AdkStreamCallback = async function* () {
+      throw failure;
+    };
+    const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
+    const call: AdkMessage = {
+      id: "call",
+      type: "ai",
+      content: "",
+      tool_calls: [{ id: "tool-1", name: "lookup", args: {} }],
+    };
+    act(() => {
+      result.current.applySnapshot({
+        messages: [call],
+        longRunningToolIds: ["tool-1"],
+      });
+    });
+    let send!: Promise<void>;
+    await act(async () => {
+      send = result.current.sendMessage(
+        [
+          {
+            id: "answer",
+            type: "tool",
+            name: "lookup",
+            tool_call_id: "tool-1",
+            content: "done",
+          },
+        ],
+        {},
+      );
+      await expect(send).rejects.toBe(failure);
+    });
+
+    expect(result.current.messages).toEqual([call]);
+    expect(result.current.longRunningToolIds).toEqual(["tool-1"]);
+  });
+
+  it("keeps the optimistic state when a stream fails after its first event", async () => {
+    const failure = new Error("stream failed after an event");
+    const stream: AdkStreamCallback = async function* () {
+      yield {
+        id: "partial-answer",
+        author: "agent",
+        content: { role: "model", parts: [{ text: "partial" }] },
+      };
+      throw failure;
+    };
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    const previousMessages: AdkMessage[] = [
+      { id: "prior-user", type: "human", content: "first" },
+      { id: "prior-assistant", type: "ai", content: "answer" },
+    ];
+    act(() => result.current.setMessages(previousMessages));
+
+    let outcome!: PromiseSettledResult<void>;
+    await act(async () => {
+      outcome = await Promise.allSettled([
+        result.current.sendMessage(
+          [{ id: "submitted", type: "human", content: "hello" }],
+          {},
+        ),
+      ]).then(([entry]) => entry!);
+    });
+
+    expect(outcome).toEqual({ status: "rejected", reason: failure });
+    expect(result.current.messages).toHaveLength(4);
+    expect(result.current.messages).toContainEqual({
+      id: "submitted",
+      type: "human",
+      content: "hello",
+    });
+    expect(result.current.messages).toContainEqual(
+      expect.objectContaining({
+        type: "ai",
+        content: expect.arrayContaining([{ type: "text", text: "partial" }]),
+      }),
+    );
   });
 
   it("does not start a queued request after cancellation", async () => {

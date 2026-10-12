@@ -1,4 +1,4 @@
-import React, { FC, PropsWithChildren, ReactNode } from "react";
+import React, { FC, PropsWithChildren, ReactNode, useLayoutEffect } from "react";
 
 type AncestorsOf<K extends ClientNames, Seen extends ClientNames = never> = K extends Seen ? never : ParentOf<K> extends never ? never : ParentOf<K> | AncestorsOf<ParentOf<K>, Seen | K>;
 
@@ -311,7 +311,7 @@ declare namespace entry_root_exports {
 }
 
 declare namespace entry_internal_exports {
-  export { shallowEqual, useAssistantClientDestroySignal, useHostDestroySignal, useOptionalAssistantClientRef, useOptionalAssistantEmit, useOptionalAssistantScopeEffect, useReplaySafeEffect, useShallowSelector, useShallowStable };
+  export { shallowEqual, useAssistantClientDestroySignal, useHostDestroySignal, useIsServerRender, useIsomorphicLayoutEffect, useOptionalAssistantClientRef, useOptionalAssistantEmit, useOptionalAssistantScopeEffect, useReplaySafeEffect, useShallowSelector, useShallowStable };
 }
 
 declare const isUserScrollUp: (previous: {
@@ -402,6 +402,10 @@ declare const useConfiguredAui: (parent: AssistantClient, clients: AuiConfig.Inp
 declare const useDestroySignalProvider: <TResult>(destroySignal: AbortSignal | undefined, fn: () => TResult) => TResult;
 
 declare const useHostDestroySignal: () => AbortSignal;
+
+declare const useIsServerRender: () => boolean;
+
+declare const useIsomorphicLayoutEffect: typeof useLayoutEffect;
 
 declare const useOptionalAssistantClientRef: () => {
   parent: AssistantClient;

@@ -3,6 +3,10 @@ import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
 import type { MessageStateBinding } from "./bindings";
 import type { MessagePartState } from "./message-part-runtime";
 import { MessagePartRuntimeImpl } from "./message-part-runtime";
+import {
+  MessageRuntimeImpl,
+  type MessageRuntimeState,
+} from "./message-runtime";
 import type { ThreadRuntimeImpl, ThreadRuntimeState } from "./thread-runtime";
 
 const threadPath = {
@@ -78,7 +82,8 @@ const createRuntime = ({
   const threadBinding: ThreadRuntimeImpl["__internal_threadBinding"] = {
     path: threadPath,
     getState: () => core,
-    getStateState: () => ({ threadId: "thread-1" }) as ThreadRuntimeState,
+    getStateState: () =>
+      ({ threadId: "thread-1" }) as ReturnType<ThreadRuntimeImpl["getState"]>,
     subscribe: () => () => {},
     outerSubscribe: () => () => {},
   };
@@ -101,8 +106,11 @@ const replacementToolPart: MessagePartState = {
   approval: { id: "approval-2" },
 };
 
-const createRetainedRuntime = (core: ThreadRuntimeCore) => {
-  let part: MessagePartState = retainedToolPart;
+const createRetainedRuntime = (
+  core: ThreadRuntimeCore,
+  initialPart: MessagePartState = retainedToolPart,
+) => {
+  let part: MessagePartState = initialPart;
   let messageId = "message-1";
   let currentCore = core;
   let threadId = "thread-1";
@@ -204,6 +212,188 @@ describe("MessagePartRuntime interaction recording", () => {
       },
     });
   });
+
+  it("keeps a retained recorder on its original thread, message, and tool call", async () => {
+    let currentMessage: MessageRuntimeState = {
+      ...message,
+      id: "message-a",
+      content: [{ ...toolPart, toolCallId: "call-a" }],
+    };
+    const recordA = vi.fn(async () => {});
+    const recordB = vi.fn(async () => {});
+    let currentCore = {
+      unstable_recordToolInteraction: recordA,
+    } as unknown as ThreadRuntimeCore;
+    let currentThreadId = "thread-a";
+    const messageBinding: MessageStateBinding = {
+      path: messagePath,
+      getState: () => currentMessage,
+      subscribe: () => () => {},
+    };
+    const threadBinding: ThreadRuntimeImpl["__internal_threadBinding"] = {
+      path: threadPath,
+      getState: () => currentCore,
+      getStateState: () =>
+        ({ threadId: currentThreadId }) as ReturnType<
+          ThreadRuntimeImpl["getState"]
+        >,
+      subscribe: () => () => {},
+      outerSubscribe: () => () => {},
+    };
+    const part = new MessageRuntimeImpl(
+      messageBinding,
+      threadBinding,
+    ).getMessagePartByIndex(0);
+
+    currentMessage = {
+      ...message,
+      id: "message-b",
+      content: [{ ...toolPart, toolCallId: "call-b" }],
+    };
+    currentCore = {
+      unstable_recordToolInteraction: recordB,
+    } as unknown as ThreadRuntimeCore;
+    currentThreadId = "thread-b";
+
+    await part.unstable_recordInteraction({
+      type: "action",
+      payload: { action: "toggle" },
+    });
+
+    expect(recordA).toHaveBeenCalledExactlyOnceWith({
+      messageId: "message-a",
+      toolCallId: "call-a",
+      interaction: {
+        type: "action",
+        payload: { action: "toggle" },
+        occurredAt: expect.any(Number),
+      },
+    });
+    expect(recordB).not.toHaveBeenCalled();
+  });
+
+  it("records through a plain thread binding that has no thread state", async () => {
+    const record = vi.fn(async () => {});
+    const core = {
+      unstable_recordToolInteraction: record,
+    } as unknown as ThreadRuntimeCore;
+    const part = new MessagePartRuntimeImpl(
+      {
+        path: partPath,
+        getState: () => toolPart,
+        subscribe: () => () => {},
+      },
+      {
+        path: messagePath,
+        getState: () => message,
+        subscribe: () => () => {},
+      },
+      {
+        path: threadPath,
+        getState: () => core,
+        subscribe: () => () => {},
+        outerSubscribe: () => () => {},
+      },
+    );
+
+    await part.unstable_recordInteraction({
+      type: "action",
+      payload: { action: "toggle" },
+    });
+
+    expect(record).toHaveBeenCalledExactlyOnceWith({
+      messageId: "message-1",
+      toolCallId: "call-1",
+      interaction: {
+        type: "action",
+        payload: { action: "toggle" },
+        occurredAt: expect.any(Number),
+      },
+    });
+  });
+
+  it("keeps a plain binding's recorder on the core it captured", async () => {
+    const recordA = vi.fn(async () => {});
+    const recordB = vi.fn(async () => {});
+    let currentCore = {
+      unstable_recordToolInteraction: recordA,
+    } as unknown as ThreadRuntimeCore;
+    const part = new MessagePartRuntimeImpl(
+      {
+        path: partPath,
+        getState: () => toolPart,
+        subscribe: () => () => {},
+      },
+      {
+        path: messagePath,
+        getState: () => message,
+        subscribe: () => () => {},
+      },
+      {
+        path: threadPath,
+        getState: () => currentCore,
+        subscribe: () => () => {},
+        outerSubscribe: () => () => {},
+      },
+    );
+
+    currentCore = {
+      unstable_recordToolInteraction: recordB,
+    } as unknown as ThreadRuntimeCore;
+
+    await part.unstable_recordInteraction({
+      type: "action",
+      payload: { action: "toggle" },
+    });
+
+    expect(recordA).toHaveBeenCalledOnce();
+    expect(recordB).not.toHaveBeenCalled();
+  });
+
+  it("records into a successor core of the same thread", async () => {
+    const recordA = vi.fn(async () => {});
+    const recordB = vi.fn(async () => {});
+    let currentCore = {
+      unstable_recordToolInteraction: recordA,
+    } as unknown as ThreadRuntimeCore;
+    const messageBinding: MessageStateBinding = {
+      path: messagePath,
+      getState: () => message,
+      subscribe: () => () => {},
+    };
+    const threadBinding: ThreadRuntimeImpl["__internal_threadBinding"] = {
+      path: threadPath,
+      getState: () => currentCore,
+      getStateState: () =>
+        ({ threadId: "thread-a" }) as ReturnType<ThreadRuntimeImpl["getState"]>,
+      subscribe: () => () => {},
+      outerSubscribe: () => () => {},
+    };
+    const part = new MessageRuntimeImpl(
+      messageBinding,
+      threadBinding,
+    ).getMessagePartByIndex(0);
+
+    currentCore = {
+      unstable_recordToolInteraction: recordB,
+    } as unknown as ThreadRuntimeCore;
+
+    await part.unstable_recordInteraction({
+      type: "action",
+      payload: { action: "toggle" },
+    });
+
+    expect(recordB).toHaveBeenCalledExactlyOnceWith({
+      messageId: "message-1",
+      toolCallId: "call-1",
+      interaction: {
+        type: "action",
+        payload: { action: "toggle" },
+        occurredAt: expect.any(Number),
+      },
+    });
+    expect(recordA).not.toHaveBeenCalled();
+  });
 });
 
 describe("MessagePartRuntime resumeToolCall", () => {
@@ -272,6 +462,49 @@ describe("MessagePartRuntime resumeToolCall", () => {
 });
 
 describe("MessagePartRuntime retained tool actions", () => {
+  it("answers an approval streamed after construction and rejects it once answered", async () => {
+    const respondToToolApproval = vi.fn(async () => {});
+    const { runtime, replace } = createRetainedRuntime(
+      { respondToToolApproval } as unknown as ThreadRuntimeCore,
+      toolPart,
+    );
+
+    replace({ part: retainedToolPart });
+    await runtime.respondToToolApproval({ approved: true });
+    expect(respondToToolApproval).toHaveBeenCalledExactlyOnceWith({
+      approvalId: "approval-1",
+      approved: true,
+    });
+
+    replace({
+      part: {
+        ...retainedToolPart,
+        approval: { id: "approval-1", approved: true },
+      },
+    });
+    expect(() => runtime.respondToToolApproval({ approved: true })).toThrow(
+      "Tool call has no pending approval",
+    );
+  });
+
+  it("rejects an approval answered after construction", () => {
+    const respondToToolApproval = vi.fn(async () => {});
+    const { runtime, replace } = createRetainedRuntime({
+      respondToToolApproval,
+    } as unknown as ThreadRuntimeCore);
+
+    replace({
+      part: {
+        ...retainedToolPart,
+        approval: { id: "approval-1", approved: true },
+      },
+    });
+    expect(() => runtime.respondToToolApproval({ approved: true })).toThrow(
+      "Tool call has no pending approval",
+    );
+    expect(respondToToolApproval).not.toHaveBeenCalled();
+  });
+
   it.each([
     {
       name: "a thread switch",
@@ -353,4 +586,32 @@ describe("MessagePartRuntime retained tool actions", () => {
       expect(otherCore.unstable_recordToolInteraction).not.toHaveBeenCalled();
     },
   );
+});
+
+describe("MessagePartRuntime non-tool actions", () => {
+  it.each([
+    {
+      name: "addToolResult",
+      invoke: (part: MessagePartRuntimeImpl) => part.addToolResult("result"),
+      error: "Tried to add tool result to non-tool message part",
+    },
+    {
+      name: "resumeToolCall",
+      invoke: (part: MessagePartRuntimeImpl) => part.resumeToolCall("payload"),
+      error: "Tried to resume tool call on non-tool message part",
+    },
+    {
+      name: "respondToToolApproval",
+      invoke: (part: MessagePartRuntimeImpl) =>
+        part.respondToToolApproval({ approved: true }),
+      error: "Tried to respond to tool approval on non-tool message part",
+    },
+  ])("preserves the $name error", ({ invoke, error }) => {
+    const part = createRuntime({
+      core: {} as ThreadRuntimeCore,
+      part: textPart,
+    });
+
+    expect(() => invoke(part)).toThrow(error);
+  });
 });
