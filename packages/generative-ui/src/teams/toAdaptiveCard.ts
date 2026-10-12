@@ -1075,9 +1075,10 @@ export function convertElement(
             textBlock(
               `[${escapeLinkText(place.label)}](${markdownHref(href)})`,
             ),
-            ...(place.detail !== undefined ? [textBlock(place.detail)] : []),
+            ...(place.detail !== undefined
+              ? [textBlock(unlinked(place.detail))]
+              : []),
           ],
-          selectAction: { type: "Action.OpenUrl", url: href },
         };
       });
     }

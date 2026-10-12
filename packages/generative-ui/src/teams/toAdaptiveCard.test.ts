@@ -337,10 +337,6 @@ describe("toAdaptiveCard", () => {
             },
             { type: "TextBlock", text: "Meet <here>", wrap: true },
           ],
-          selectAction: {
-            type: "Action.OpenUrl",
-            url: "https://www.openstreetmap.org/?mlat=25&mlon=121#map=14/25/121",
-          },
         },
         {
           type: "Container",
@@ -351,10 +347,6 @@ describe("toAdaptiveCard", () => {
               wrap: true,
             },
           ],
-          selectAction: {
-            type: "Action.OpenUrl",
-            url: "https://www.openstreetmap.org/?mlat=-3&mlon=4#map=14/-3/4",
-          },
         },
       ]);
       expect(warnings).toEqual([

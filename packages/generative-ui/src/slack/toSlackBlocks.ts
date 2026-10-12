@@ -181,6 +181,10 @@ const plainText = (text: string): SlackPlainText => ({
 const escapeMrkdwn = (text: string): string =>
   text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+// An OpenStreetMap link stays under 100 characters, so these caps keep a place's section under Slack's limit with its link intact.
+const PLACE_LABEL_CAP = 500;
+const PLACE_DETAIL_CAP = 2000;
+
 const structuredSection = (
   text: string,
   component: string,
@@ -1987,7 +1991,7 @@ const convertElement = (
         );
       return places.map((place) =>
         structuredSection(
-          `<${escapeMrkdwn(placeHref(place))}|${escapeMrkdwn(place.label)}>${place.detail !== undefined ? `\n${escapeMrkdwn(place.detail)}` : ""}`,
+          `<${escapeMrkdwn(placeHref(place))}|${clampText(escapeMrkdwn(place.label), PLACE_LABEL_CAP, "Map", "label", context)}>${place.detail !== undefined ? `\n${clampText(escapeMrkdwn(place.detail), PLACE_DETAIL_CAP, "Map", "detail", context)}` : ""}`,
           "Map",
           context,
         ),

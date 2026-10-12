@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   Image as NativeImage,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -84,7 +85,11 @@ const styles = StyleSheet.create({
   diagram: { gap: 8 },
   diagramCode: { borderRadius: RADIUS.surface },
   diagramCodeContent: { padding: 12 },
-  diagramSource: { fontFamily: "monospace", fontSize: 12, lineHeight: 18 },
+  diagramSource: {
+    fontFamily: Platform.select({ ios: "Menlo", default: "monospace" }),
+    fontSize: 12,
+    lineHeight: 18,
+  },
   diagramCaption: { fontSize: 12, lineHeight: 18 },
   places: { gap: 12 },
   place: { gap: 3 },
@@ -141,7 +146,9 @@ function MapPlaces({ places }: { places: unknown }) {
         <View key={index} style={styles.place}>
           <Pressable
             accessibilityRole="link"
-            onPress={() => Linking.openURL(placeHref(place))}
+            onPress={() =>
+              void Linking.openURL(placeHref(place)).catch(() => {})
+            }
           >
             <Text style={[styles.placeLabel, { color: ink }]}>
               {place.label}
