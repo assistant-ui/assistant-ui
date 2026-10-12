@@ -118,7 +118,7 @@ const config = AuiConfig({
 });
 
 function WidgetInstructions() {
-  useWidgetInstructions(widgets.tools);
+  useWidgetInstructions(widgets.tools, { preload: { modules: ["spec"] } });
   useAssistantInstructions(
     "When an answer is about places, dishes, or products, call `search_images` for them before `render_spec`, so the answer can show photos.",
   );
