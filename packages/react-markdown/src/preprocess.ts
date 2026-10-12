@@ -941,6 +941,11 @@ function rewriteOutsideCode(
     lineHead: (offset: number) => string,
     segmentStart: number,
   ) => string,
+  onVerbatim?: (
+    start: number,
+    end: number,
+    kind: VerbatimRange["kind"],
+  ) => void,
 ): string {
   return rewriteOutsideBlocks(text, (text, blockStarts, blockOffset) => {
     const out: string[] = [];
@@ -974,8 +979,9 @@ function rewriteOutsideCode(
       );
     };
 
-    forEachVerbatimRange(text, blockStarts, (start, end) => {
+    forEachVerbatimRange(text, blockStarts, (start, end, kind) => {
       flush(start, text[start]!);
+      onVerbatim?.(blockOffset + start, blockOffset + end, kind);
       append(text.slice(start, end));
       plainStart = end;
     });
@@ -1314,47 +1320,144 @@ const INLINE_TAG = /\[\/inline\]([\s\S]*?)\[\/inline\]/g;
  * {@link emitDisplayMath}) and `[/inline]...[/inline]` becomes `$...$`.
  */
 export function rewriteCustomMathTags(text: string): string {
+  return rewriteMathTags(text, false);
+}
+
+function rewriteMathTags(text: string, handoffBrackets: boolean): string {
   let continuedLineStart = -1;
   let continuedLineEnd = -1;
   let continuedPrefix = "";
+  let scanCursor = 0;
+  let scanLineStart = 0;
+  let scanNextLineEnd = text.indexOf("\n");
+  let bracketOpener = -1;
+  let bracketOpenerLength = 0;
+  let bracketOpenerLineStart = 0;
+  let bracketInheritedPrefix: string | undefined;
+
+  const advanceScan = (end: number) => {
+    while (scanNextLineEnd !== -1 && scanNextLineEnd < end) {
+      scanLineStart = scanNextLineEnd + 1;
+      scanNextLineEnd = text.indexOf("\n", scanLineStart);
+    }
+    scanCursor = end;
+  };
+
+  const scanBrackets = (
+    segment: string,
+    from: number,
+    to: number,
+    segmentStart: number,
+  ) => {
+    if (scanCursor < segmentStart + from) {
+      if (scanCursor < segmentStart) bracketOpener = -1;
+      advanceScan(segmentStart + from);
+    }
+    for (const marker of segment
+      .slice(from, to)
+      .matchAll(LATEX_DISPLAY_MARKER)) {
+      const at = from + marker.index;
+      const absoluteAt = segmentStart + at;
+      advanceScan(absoluteAt);
+      if (marker[0]!.endsWith("[")) {
+        if (bracketOpener === -1) {
+          bracketOpener = absoluteAt;
+          bracketOpenerLength = marker[0]!.length;
+          bracketOpenerLineStart = scanLineStart;
+          bracketInheritedPrefix =
+            absoluteAt >= continuedLineStart && absoluteAt < continuedLineEnd
+              ? continuedPrefix
+              : undefined;
+        }
+      } else if (bracketOpener !== -1) {
+        const body = text.slice(
+          bracketOpener + bracketOpenerLength,
+          absoluteAt,
+        );
+        if (body.includes("\n") && !crossesSpanBoundary(body)) {
+          const prefix =
+            bracketInheritedPrefix ??
+            continuationPrefix(
+              text.slice(bracketOpenerLineStart, bracketOpener),
+            );
+          const depth = quoteDepth(prefix);
+          if (
+            body
+              .split("\n")
+              .some(
+                (line, index) =>
+                  (index === 0
+                    ? line
+                    : line.slice(quoteMarkers(line, depth).length)
+                  ).trim() !== "",
+              )
+          ) {
+            continuedLineStart = scanLineStart;
+            const lineEnd = text.indexOf("\n", absoluteAt);
+            continuedLineEnd = lineEnd === -1 ? text.length : lineEnd;
+            continuedPrefix = prefix;
+          }
+        }
+        bracketOpener = -1;
+      }
+    }
+    advanceScan(segmentStart + to);
+  };
+
   return rewriteOutsideCode(
     text,
     (segment, precededBy, followedBy, lineHead, segmentStart) => {
-      return segment
-        .replace(
-          MATH_TAG,
-          (match: string, body: string, offset: number, source: string) => {
-            const head = (at: number) =>
-              segmentStart + at >= continuedLineStart &&
-              segmentStart + at < continuedLineEnd
-                ? continuedPrefix
-                : lineHead(at);
-            const prefix = continuationPrefix(head(offset));
-            const replacement = emitDisplayMath(
-              match,
-              body,
-              offset,
-              source,
-              precededBy,
-              followedBy,
-              head,
-            );
-            if (replacement.endsWith(`\n${prefix}`)) {
-              const end = segmentStart + offset + match.length;
-              continuedLineStart =
-                segmentStart + offset + match.lastIndexOf("\n") + 1;
-              const lineEnd = text.indexOf("\n", end);
-              continuedLineEnd = lineEnd === -1 ? text.length : lineEnd;
-              continuedPrefix = prefix;
-            }
-            return replacement;
-          },
-        )
-        .replace(INLINE_TAG, (match: string, body: string) => {
-          const trimmed = body.trim();
-          return trimmed === "" ? match : `$${trimmed}$`;
-        });
+      let scannedTo = 0;
+      const rewritten = segment.replace(
+        MATH_TAG,
+        (match: string, body: string, offset: number, source: string) => {
+          if (handoffBrackets) {
+            scanBrackets(source, scannedTo, offset, segmentStart);
+            scannedTo = offset + match.length;
+            advanceScan(segmentStart + scannedTo);
+          }
+          const head = (at: number) =>
+            segmentStart + at >= continuedLineStart &&
+            segmentStart + at < continuedLineEnd
+              ? continuedPrefix
+              : lineHead(at);
+          const prefix = continuationPrefix(head(offset));
+          const replacement = emitDisplayMath(
+            match,
+            body,
+            offset,
+            source,
+            precededBy,
+            followedBy,
+            head,
+          );
+          if (replacement.endsWith(`\n${prefix}`)) {
+            const end = segmentStart + offset + match.length;
+            continuedLineStart =
+              segmentStart + offset + match.lastIndexOf("\n") + 1;
+            const lineEnd = text.indexOf("\n", end);
+            continuedLineEnd = lineEnd === -1 ? text.length : lineEnd;
+            continuedPrefix = prefix;
+          }
+          return replacement;
+        },
+      );
+      if (handoffBrackets) {
+        scanBrackets(segment, scannedTo, segment.length, segmentStart);
+      }
+      return rewritten.replace(INLINE_TAG, (match: string, body: string) => {
+        const trimmed = body.trim();
+        return trimmed === "" ? match : `$${trimmed}$`;
+      });
     },
+    handoffBrackets
+      ? (start, end, kind) => {
+          if (scanCursor < start) bracketOpener = -1;
+          advanceScan(start);
+          if (kind === "fence") bracketOpener = -1;
+          advanceScan(end);
+        }
+      : undefined,
   );
 }
 
@@ -1709,7 +1812,9 @@ function nestListItemDisplayMath(text: string): string {
  */
 export function normalizeMathDelimiters(text: string): string {
   return nestListItemDisplayMath(
-    rewriteLatexBracketDelimiters(rewriteCustomMathTags(text)),
+    rewriteLatexBracketDelimiters(
+      rewriteMathTags(text, text.includes("[/math]")),
+    ),
   );
 }
 

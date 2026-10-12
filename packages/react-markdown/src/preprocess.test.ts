@@ -712,6 +712,12 @@ describe("rewriteLatexBracketDelimiters", () => {
 });
 
 describe("rewriteCustomMathTags", () => {
+  it("does not inherit a bracket display prefix", () => {
+    expect(
+      rewriteCustomMathTags("> 1. \\[\n> a\n> \\] x [/math]\n> b\n> [/math]"),
+    ).toBe("> 1. \\[\n> a\n> \\] x \n> $$\n> b\n> $$");
+  });
+
   it("rewrites [/math] to display dollars and [/inline] to inline dollars", () => {
     expect(
       rewriteCustomMathTags("[/math]a+b[/math] and [/inline]c[/inline]"),
@@ -816,6 +822,84 @@ describe("rewriteCustomMathTags", () => {
 });
 
 describe("normalizeMathDelimiters", () => {
+  it("does not hand off a bracket body with only blank quoted lines", () => {
+    expect(
+      normalizeMathDelimiters("> 1. \\[\n>\n> \\] x [/math]\n> b\n> [/math]"),
+    ).toBe("> 1. \\[\n>\n> \\] x \n> $$\n> b\n> $$");
+  });
+
+  it("keeps a blank-line bracket display from handing off its list prefix", () => {
+    expect(
+      normalizeMathDelimiters(
+        "> 1. \\[\n> a\n>\n> b\n> \\] x [/math]\n> c\n> [/math]",
+      ),
+    ).toBe(
+      "> 1. \n>    $$\n>    a\n>   \n>    b\n>    $$\n>     x \n> $$\n> c\n> $$",
+    );
+  });
+
+  it("normalizes inline math after a blank-line bracket and tag display", () => {
+    const result = normalizeMathDelimiters(
+      "> 1. \\[\n> a\n>\n> b\n> \\] x [/math]\n> c\n> [/math] then \\(y\\)",
+    );
+    expect(result).toContain("then $y$");
+  });
+
+  it.each([
+    [
+      "a code span in the bracket body",
+      "> 1. \\[\n> a `x` b\n> \\] x [/math]\n> c\n> [/math]",
+      "> 1. \n>    $$\n>    a `x` b\n>    $$\n>     x \n>    $$\n>    c\n>    $$",
+    ],
+    [
+      "a code span between the bracket closer and math tag",
+      "> 1. \\[\n> a\n> \\] `x` [/math]\n> c\n> [/math]",
+      "> 1. \n>    $$\n>    a\n>    $$\n>     `x` \n>    $$\n>    c\n>    $$",
+    ],
+  ])("hands off across %s", (_, input, expected) => {
+    expect(normalizeMathDelimiters(input)).toBe(expected);
+  });
+
+  it.each([
+    [
+      "bracket display followed by a math tag",
+      "> 1. \\[\n> a\n> \\] x [/math]\n> b\n> [/math] then",
+      "> 1. \n>    $$\n>    a\n>    $$\n>     x \n>    $$\n>    b\n>    $$\n>     then",
+    ],
+    [
+      "math tag followed by a bracket display",
+      "> 1. [/math]\n> a\n> [/math] x \\[\n> b\n> \\] then",
+      "> 1. \n>    $$\n>    a\n>    $$\n>     x \n>     $$\n>     b\n>     $$\n>      then",
+    ],
+    [
+      "double-backslash bracket display followed by a math tag",
+      "> 1. \\\\[\n> a\n> \\\\] x [/math]\n> b\n> [/math] then",
+      "> 1. \n>    $$\n>    a\n>    $$\n>     x \n>    $$\n>    b\n>    $$\n>     then",
+    ],
+  ])("hands off a quoted list prefix across a %s", (_, input, expected) => {
+    expect(normalizeMathDelimiters(input)).toBe(expected);
+  });
+
+  it("keeps three chained displays inside a quoted list item", () => {
+    expect(
+      normalizeMathDelimiters(
+        "> 1. [/math]\n> a\n> [/math] x \\[\n> b\n> \\] y [/math]\n> c\n> [/math] then",
+      ),
+    ).toBe(
+      "> 1. \n>    $$\n>    a\n>    $$\n>     x \n>     $$\n>     b\n>     $$\n>      y \n>    $$\n>    c\n>    $$\n>     then",
+    );
+  });
+
+  it("carries an inherited prefix through a bracket closer and tag opener", () => {
+    expect(
+      normalizeMathDelimiters(
+        "> 12. [/math]\n> a\n> [/math] plus \\[\n> b\n> \\] after [/math]\n> c\n> [/math] end",
+      ),
+    ).toBe(
+      "> 12. \n>     $$\n>     a\n>     $$\n>      plus \n>      $$\n>      b\n>      $$\n>       after \n>     $$\n>     c\n>     $$\n>      end",
+    );
+  });
+
   it("normalizes both bracket delimiters and custom tags", () => {
     expect(normalizeMathDelimiters("\\(x\\) [/math]y[/math]")).toBe(
       "$x$ $$y$$",
@@ -884,6 +968,17 @@ describe("normalizeMathDelimiters", () => {
   it("keeps many inline code spans in one paragraph unchanged", () => {
     const input = "a `\\(x\\)` ".repeat(1000);
     expect(normalizeMathDelimiters(input)).toBe(input);
+  });
+
+  it("keeps code-heavy output identical with and without bracket scanning", () => {
+    const withoutScan = "a `b` ".repeat(5_000) + "\\[x\\]";
+    const withScan = withoutScan.replace("`b`", "`[/math]`");
+    expect(normalizeMathDelimiters(withoutScan)).toBe(
+      "a `b` ".repeat(5_000) + "$$x$$",
+    );
+    expect(normalizeMathDelimiters(withScan).replace("`[/math]`", "`b`")).toBe(
+      normalizeMathDelimiters(withoutScan),
+    );
   });
 
   it.each([
