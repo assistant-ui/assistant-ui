@@ -95,4 +95,25 @@ export const dataDefinitions = {
         ),
     }),
   },
+  Citation: {
+    description:
+      "A source the answer draws on, shown as a card with its title and site that links to it. Use one per source.",
+    properties: z.object({
+      title: z.string().describe("The source's title."),
+      url: z
+        .string()
+        .optional()
+        .describe("Link to the source; only http and https links open."),
+      source: z
+        .string()
+        .optional()
+        .describe(
+          "Where it comes from, such as a site or publication. Defaults to the link's domain.",
+        ),
+      snippet: z
+        .string()
+        .optional()
+        .describe("A short quote or summary of what the source says."),
+    }),
+  },
 } satisfies Record<string, VocabularyDefinition>;

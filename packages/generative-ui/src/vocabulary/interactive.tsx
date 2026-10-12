@@ -109,6 +109,7 @@ type CheckboxGroupRenderProps = {
   name?: string;
   label?: string;
   defaultValue?: string[];
+  progress?: boolean;
   children?: React.ReactNode;
   $status: GenerativeUIStatus;
   $action?: Action;
@@ -131,6 +132,7 @@ function CheckboxGroupRender({
   name,
   label,
   defaultValue,
+  progress,
   children,
   $action,
   $dispatch,
@@ -147,13 +149,44 @@ function CheckboxGroupRender({
       : Array.isArray(defaultValue)
         ? defaultValue
         : [];
+  const resetKey = JSON.stringify(checkedValues);
+  const [picked, setPicked] = React.useState({
+    key: resetKey,
+    values: checkedValues,
+  });
+  const current = isBound
+    ? Array.isArray(answeredValue)
+      ? checkedValues
+      : (value ?? [])
+    : picked.key === resetKey
+      ? picked.values
+      : checkedValues;
+  const optionValues = mapOptions(options, (option) => option.value).filter(
+    (option) => option !== null,
+  );
+  const done = optionValues.filter((option) => current.includes(option)).length;
   return (
     <fieldset
-      key={JSON.stringify(checkedValues)}
+      key={resetKey}
       data-aui="checkboxgroup"
       data-aui-action={actionAttr($action)}
       aria-label={label}
     >
+      {progress ? (
+        <div data-aui="checkboxgroup-progress">
+          <span data-aui="checkboxgroup-progress-label">
+            {`${done} of ${optionValues.length}`}
+          </span>
+          <span data-aui="checkboxgroup-progress-track" aria-hidden="true">
+            <span
+              data-aui="checkboxgroup-progress-fill"
+              style={{
+                width: `${optionValues.length ? (done / optionValues.length) * 100 : 0}%`,
+              }}
+            />
+          </span>
+        </div>
+      ) : null}
       {mapOptions(options, (option, key) => (
         <label key={key} data-aui="checkboxgroup-option">
           <input
@@ -172,6 +205,7 @@ function CheckboxGroupRender({
               : { defaultChecked: checkedValues.includes(option.value) })}
             onChange={(e) => {
               const selected = checkedGroupValues(e.currentTarget);
+              setPicked({ key: resetKey, values: selected });
               updateBinding?.(selected);
               fire($action, $dispatch, selected, e.currentTarget);
             }}

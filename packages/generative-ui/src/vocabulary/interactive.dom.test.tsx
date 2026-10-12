@@ -410,6 +410,44 @@ describe("option identity", () => {
 });
 
 describe("CheckboxGroup", () => {
+  it("counts the checked options of a progress checklist as the user works through it", async () => {
+    const container = await mount(
+      {
+        $type: "CheckboxGroup",
+        options: toppings,
+        defaultValue: ["onion"],
+        progress: true,
+      },
+      {},
+    );
+    const label = () =>
+      container.querySelector('[data-aui="checkboxgroup-progress-label"]')
+        ?.textContent;
+    const fill = () =>
+      container.querySelector<HTMLElement>(
+        '[data-aui="checkboxgroup-progress-fill"]',
+      )?.style.width;
+    expect(label()).toBe("1 of 3");
+    const [basil, olives] = container.querySelectorAll("input");
+
+    await act(async () => basil!.click());
+    await act(async () => olives!.click());
+    expect(label()).toBe("3 of 3");
+    expect(fill()).toBe("100%");
+    await act(async () => basil!.click());
+    expect(label()).toBe("2 of 3");
+  });
+
+  it("shows no progress unless asked", async () => {
+    const container = await mount(
+      { $type: "CheckboxGroup", options: toppings },
+      {},
+    );
+    expect(
+      container.querySelector('[data-aui="checkboxgroup-progress"]'),
+    ).toBeNull();
+  });
+
   it("dispatches its checked option values in option order on every change", async () => {
     const pick = vi.fn();
     const container = await mount(
