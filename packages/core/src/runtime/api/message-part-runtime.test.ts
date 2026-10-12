@@ -212,6 +212,51 @@ describe("MessagePartRuntime interaction recording", () => {
     });
     expect(recordB).not.toHaveBeenCalled();
   });
+
+  it("records into a successor core of the same thread", async () => {
+    const recordA = vi.fn(async () => {});
+    const recordB = vi.fn(async () => {});
+    let currentCore = {
+      unstable_recordToolInteraction: recordA,
+    } as unknown as ThreadRuntimeCore;
+    const messageBinding: MessageStateBinding = {
+      path: messagePath,
+      getState: () => message,
+      subscribe: () => () => {},
+    };
+    const threadBinding: ThreadRuntimeImpl["__internal_threadBinding"] = {
+      path: threadPath,
+      getState: () => currentCore,
+      getStateState: () =>
+        ({ threadId: "thread-a" }) as ReturnType<ThreadRuntimeImpl["getState"]>,
+      subscribe: () => () => {},
+      outerSubscribe: () => () => {},
+    };
+    const part = new MessageRuntimeImpl(
+      messageBinding,
+      threadBinding,
+    ).getMessagePartByIndex(0);
+
+    currentCore = {
+      unstable_recordToolInteraction: recordB,
+    } as unknown as ThreadRuntimeCore;
+
+    await part.unstable_recordInteraction({
+      type: "action",
+      payload: { action: "toggle" },
+    });
+
+    expect(recordB).toHaveBeenCalledExactlyOnceWith({
+      messageId: "message-1",
+      toolCallId: "call-1",
+      interaction: {
+        type: "action",
+        payload: { action: "toggle" },
+        occurredAt: expect.any(Number),
+      },
+    });
+    expect(recordA).not.toHaveBeenCalled();
+  });
 });
 
 describe("MessagePartRuntime resumeToolCall", () => {

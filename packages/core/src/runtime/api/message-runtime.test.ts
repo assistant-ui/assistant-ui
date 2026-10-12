@@ -67,7 +67,8 @@ const messageBinding: MessageStateBinding = {
   subscribe: () => () => {},
 };
 
-const threadBinding = {
+const threadBinding: ThreadRuntimeImpl["__internal_threadBinding"] = {
+  path: { ref: "threads.main", threadSelector: { type: "main" } },
   getState: () =>
     ({}) as ReturnType<
       ThreadRuntimeImpl["__internal_threadBinding"]["getState"]
@@ -75,7 +76,8 @@ const threadBinding = {
   getStateState: () =>
     ({ threadId: "thread-1" }) as ReturnType<ThreadRuntimeImpl["getState"]>,
   subscribe: () => () => {},
-} as ThreadRuntimeImpl["__internal_threadBinding"];
+  outerSubscribe: () => () => {},
+};
 
 const createAssistantMessage = (
   content: ThreadAssistantMessage["content"],
