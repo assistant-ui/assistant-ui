@@ -2,6 +2,7 @@ import { isReservedKey } from "../constants";
 import { ICON_NAMES, type UIElement } from "../ir";
 import type { A2uiBinding } from "../binding";
 import { classifyTemporal } from "../temporal";
+import { tabLabels } from "../vocabulary/structureValues";
 import { A2UI_SURFACE_ID, type A2uiSurfaceState } from "./types";
 import {
   evaluateA2uiValueFunction,
@@ -31,6 +32,7 @@ const SUPPORTED_COMPONENTS = new Set([
   "ChoicePicker",
   "DateTimeInput",
   "Slider",
+  "Tabs",
 ]);
 
 const CHILD_LIST_COMPONENTS: ReadonlySet<string> = new Set([
@@ -535,15 +537,19 @@ const childrenOf = (
   visited: Set<string>,
 ): UIElement[] => {
   const result: UIElement[] = [];
+  // A Tabs panel that cannot convert stays as an empty panel, so every later panel keeps its own label.
+  const keepPositions = node["component"] === "Tabs";
   for (const childId of childReferences(node)) {
     if (typeof childId !== "string") {
       context.warnings.push(
         `Component "${String(node["id"] ?? "")}" has a malformed child reference.`,
       );
+      if (keepPositions) result.push({ $type: "Col" });
       continue;
     }
     const child = convertComponent(childId, scope, context, depth + 1, visited);
     if (child) result.push(child);
+    else if (keepPositions) result.push({ $type: "Col" });
   }
   return result;
 };
@@ -656,6 +662,19 @@ const mappedProps = (
     return {
       $type: "Markdown",
       ...(text !== undefined ? { value: text } : {}),
+    };
+  }
+
+  if (component === "Tabs") {
+    const tabs = Array.isArray(props["tabs"]) ? props["tabs"] : [];
+    return {
+      $type: "Tabs",
+      tabs: tabLabels(
+        tabs.map((tab) =>
+          isRecord(tab) ? stringProp(tab, ["title"]) : undefined,
+        ),
+        tabs.length,
+      ),
     };
   }
 

@@ -76,6 +76,191 @@ const hostileSpecies = <T>(
 };
 
 describe("toSlackBlocks", () => {
+  describe("structure components", () => {
+    it("renders every Tabs panel in order with a label, including a missing label", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Tabs",
+        tabs: ["First & <one>"],
+        children: [
+          { $type: "Text", value: "one" },
+          { $type: "Text", value: "two" },
+        ],
+      });
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          text: { type: "mrkdwn", text: "*First &amp; &lt;one&gt;*" },
+        },
+        { type: "section", text: { type: "mrkdwn", text: "one" } },
+        { type: "section", text: { type: "mrkdwn", text: "*2*" } },
+        { type: "section", text: { type: "mrkdwn", text: "two" } },
+      ]);
+      expect(warnings).toEqual([]);
+    });
+
+    it("keeps a Tabs label even when its panel is missing", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Tabs",
+        tabs: ["One", "Two"],
+        children: [{ $type: "Text", value: "First panel" }],
+      });
+      expect(blocks).toEqual([
+        { type: "section", text: { type: "mrkdwn", text: "*One*" } },
+        { type: "section", text: { type: "mrkdwn", text: "First panel" } },
+        { type: "section", text: { type: "mrkdwn", text: "*Two*" } },
+      ]);
+    });
+
+    it("numbers valid Steps after malformed entries and keeps optional details", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Steps",
+        steps: [
+          null,
+          { detail: "missing title" },
+          { title: "Open <box>", detail: "Take & keep" },
+          { title: "Finish" },
+        ],
+      });
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "*1. Open &lt;box&gt;*\nTake &amp; keep",
+          },
+        },
+        { type: "section", text: { type: "mrkdwn", text: "*2. Finish*" } },
+      ]);
+      expect(warnings).toEqual([
+        {
+          code: "dropped",
+          component: "Steps",
+          detail: "2 malformed entries were dropped.",
+        },
+      ]);
+    });
+
+    it("renders Timeline time, title, and detail without dropping missing optional fields", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Timeline",
+        items: [
+          { time: "Day 1", title: "Arrive", detail: "At noon" },
+          { time: "Yesterday" },
+          { title: "Leave" },
+        ],
+      });
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          text: { type: "mrkdwn", text: "*Day 1*\nArrive\nAt noon" },
+        },
+        { type: "section", text: { type: "mrkdwn", text: "Leave" } },
+      ]);
+      expect(warnings).toEqual([
+        {
+          code: "dropped",
+          component: "Timeline",
+          detail: "1 malformed entry was dropped.",
+        },
+      ]);
+    });
+
+    it("links an http Citation and renders a non-http Citation as plain text", () => {
+      const { blocks } = toSlackBlocks([
+        {
+          $type: "Citation",
+          title: "A & B",
+          url: "https://www.example.com/a?x=1&y=2",
+          snippet: "Quote <here>",
+        },
+        {
+          $type: "Citation",
+          title: "Local",
+          url: "javascript:alert(1)",
+          source: "Notes",
+          snippet: "Read me",
+        },
+      ]);
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "<https://www.example.com/a?x=1&amp;y=2|A &amp; B>\nQuote &lt;here&gt;",
+          },
+        },
+        {
+          type: "context",
+          elements: [{ type: "mrkdwn", text: "example.com" }],
+        },
+        { type: "section", text: { type: "mrkdwn", text: "Local\nRead me" } },
+        { type: "context", elements: [{ type: "mrkdwn", text: "Notes" }] },
+      ]);
+    });
+
+    it("renders a Citation without optional fields and forwards dropped panel warnings", () => {
+      const { blocks, warnings } = toSlackBlocks([
+        { $type: "Citation", title: "Unlinked" },
+        { $type: "Tabs", tabs: ["Missing"], children: [{ $type: "Unknown" }] },
+      ]);
+      expect(blocks).toEqual([
+        { type: "section", text: { type: "mrkdwn", text: "Unlinked" } },
+        { type: "section", text: { type: "mrkdwn", text: "*Missing*" } },
+      ]);
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Unknown",
+        detail: "Unknown component type was dropped.",
+      });
+    });
+
+    it("clamps structured text through the section warning path", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Steps",
+        steps: [{ title: "a".repeat(SECTION_TEXT_CAP) }],
+      });
+      expect((blocks[0] as SlackSectionBlock).text?.text).toHaveLength(
+        SECTION_TEXT_CAP,
+      );
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Steps",
+        detail: `text was clamped to ${SECTION_TEXT_CAP} characters.`,
+      });
+    });
+
+    it.each([
+      [
+        "Tabs",
+        "tabs",
+        "tabs",
+        Array.from({ length: CHILDREN_CAP + 1 }, (_, i) => `Tab ${i}`),
+      ],
+      [
+        "Steps",
+        "steps",
+        "steps",
+        Array.from({ length: CHILDREN_CAP + 1 }, (_, i) => ({
+          title: `Step ${i}`,
+        })),
+      ],
+      [
+        "Timeline",
+        "items",
+        "items",
+        Array.from({ length: CHILDREN_CAP + 1 }, (_, i) => ({
+          title: `Event ${i}`,
+        })),
+      ],
+    ])("clamps %s entries", (component, prop, field, entries) => {
+      const { warnings } = toSlackBlocks({ $type: component, [prop]: entries });
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component,
+        detail: `${field} were clamped to ${CHILDREN_CAP} entries.`,
+      });
+    });
+  });
   describe("Header", () => {
     it("renders a header block", () => {
       const { blocks } = toSlackBlocks({ $type: "Header", text: "Title" });
@@ -1250,6 +1435,13 @@ describe("toSlackBlocks", () => {
       { label: "Small", value: "s" },
       { label: "Large", value: "l" },
     ];
+
+    it("drops progress without changing the checkboxes", () => {
+      const base = { $type: "CheckboxGroup", options, defaultValue: ["l"] };
+      expect(toSlackBlocks({ ...base, progress: true })).toEqual(
+        toSlackBlocks(base),
+      );
+    });
 
     it("emits a multi-option checkboxes element", () => {
       const { blocks } = toSlackBlocks({
