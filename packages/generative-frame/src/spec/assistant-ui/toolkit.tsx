@@ -210,20 +210,99 @@ export const specToolkitFor =
       return tools.render_spec.execute(input);
     };
 
+    function SpecContent({
+      args,
+      toolCallId,
+      unstable_interactions,
+      unstable_recordInteraction,
+      title,
+      base,
+      toolResults,
+    }: RenderSpecProps & {
+      title: string;
+      base: Spec | undefined;
+      toolResults: ReturnType<typeof resolveToolResults> | undefined;
+    }) {
+      const streaming = !useArgsComplete();
+      const streamed = useSpecStream({
+        source: typeof args.patches === "string" ? args.patches : "",
+        complete: !streaming,
+        ...(base ? { initial: base } : {}),
+      });
+      const inputSpec = args.spec;
+      const spec = useMemo(
+        () =>
+          inputSpec &&
+          typeof inputSpec === "object" &&
+          typeof inputSpec.root === "string"
+            ? ({ state: {}, ...inputSpec } as Spec)
+            : streamed.spec,
+        [inputSpec, streamed.spec],
+      );
+      const renderState = useMemo(
+        () =>
+          toolResults && spec.state?.["tools"] === undefined
+            ? { ...spec.state, tools: toolResults }
+            : undefined,
+        [spec.state, toolResults],
+      );
+      const renderSpec = useMemo(
+        () => (renderState ? { ...spec, state: renderState } : spec),
+        [spec, renderState],
+      );
+      const [store] = useState(() =>
+        createStateStore(renderSpec.state ?? {}, {
+          writes: savedWrites(unstable_interactions, toolCallId),
+        }),
+      );
+      useEffect(() => {
+        if (renderSpec.state) store.seed(renderSpec.state);
+      }, [store, renderSpec.state]);
+      const record = useRef(unstable_recordInteraction);
+      useInsertionEffect(() => {
+        record.current = unstable_recordInteraction;
+      });
+      const [saver] = useState(() =>
+        createSnapshotSaver(store.writes(), (writes) =>
+          record.current?.({
+            type: "action",
+            payload: { type: "setState", toolCallId, writes },
+          }),
+        ),
+      );
+      useEffect(() => {
+        const unsubscribe = store.subscribe(() =>
+          saver.schedule(() => store.writes()),
+        );
+        return () => {
+          unsubscribe();
+          saver.flush();
+        };
+      }, [store, saver]);
+
+      return (
+        <Frame title={title}>
+          <SpecRenderer
+            spec={renderSpec}
+            state={store}
+            catalog={catalog}
+            components={options.components}
+            streaming={streaming}
+            {...(options.handlers ? { handlers: options.handlers } : {})}
+            {...(options.onAction ? { onAction: options.onAction } : {})}
+            {...(options.placeholder
+              ? { placeholder: options.placeholder }
+              : {})}
+          />
+        </Frame>
+      );
+    }
+
     const renderSpecUI = (mountsToolResults: boolean) =>
-      function RenderSpecUI({
-        args,
-        toolCallId,
-        unstable_interactions,
-        unstable_recordInteraction,
-      }: RenderSpecProps) {
-        const streaming = !useArgsComplete();
+      function RenderSpecUI(props: RenderSpecProps) {
+        const { args, toolCallId } = props;
         const messages = useMessages();
         const title = typeof args.title === "string" ? args.title : "";
-        // The base and the tool results only depend on earlier calls, so they are read once per call.
-        const [base] = useState(() =>
-          resolveSpecBase(messages, toolCallId, title),
-        );
         const [toolResults] = useState(() =>
           mountsToolResults
             ? resolveToolResults(messages, toolCallId)
@@ -233,6 +312,7 @@ export const specToolkitFor =
           spec: resolveSpecBase(messages, toolCallId, callTitle),
           version: priorSpecCalls(messages, toolCallId, callTitle),
         }));
+        const base = useMemo(() => history(title).spec, [history, title]);
         useInsertionEffect(() => {
           histories.set(toolCallId, history);
           return () => {
@@ -240,77 +320,14 @@ export const specToolkitFor =
               histories.delete(toolCallId);
           };
         }, [toolCallId, history]);
-        const streamed = useSpecStream({
-          source: typeof args.patches === "string" ? args.patches : "",
-          complete: !streaming,
-          ...(base ? { initial: base } : {}),
-        });
-        const inputSpec = args.spec;
-        const spec = useMemo(
-          () =>
-            inputSpec &&
-            typeof inputSpec === "object" &&
-            typeof inputSpec.root === "string"
-              ? ({ state: {}, ...inputSpec } as Spec)
-              : streamed.spec,
-          [inputSpec, streamed.spec],
-        );
-        const renderState = useMemo(
-          () =>
-            toolResults && spec.state?.["tools"] === undefined
-              ? { ...spec.state, tools: toolResults }
-              : undefined,
-          [spec.state, toolResults],
-        );
-        const renderSpec = useMemo(
-          () => (renderState ? { ...spec, state: renderState } : spec),
-          [spec, renderState],
-        );
-        const [store] = useState(() =>
-          createStateStore(renderSpec.state ?? {}, {
-            writes: savedWrites(unstable_interactions, toolCallId),
-          }),
-        );
-        useEffect(() => {
-          if (renderSpec.state) store.seed(renderSpec.state);
-        }, [store, renderSpec.state]);
-        const record = useRef(unstable_recordInteraction);
-        useInsertionEffect(() => {
-          record.current = unstable_recordInteraction;
-        });
-        const [saver] = useState(() =>
-          createSnapshotSaver(store.writes(), (writes) =>
-            record.current?.({
-              type: "action",
-              payload: { type: "setState", toolCallId, writes },
-            }),
-          ),
-        );
-        useEffect(() => {
-          const unsubscribe = store.subscribe(() =>
-            saver.schedule(() => store.writes()),
-          );
-          return () => {
-            unsubscribe();
-            saver.flush();
-          };
-        }, [store, saver]);
-
         return (
-          <Frame title={title}>
-            <SpecRenderer
-              spec={renderSpec}
-              state={store}
-              catalog={catalog}
-              components={options.components}
-              streaming={streaming}
-              {...(options.handlers ? { handlers: options.handlers } : {})}
-              {...(options.onAction ? { onAction: options.onAction } : {})}
-              {...(options.placeholder
-                ? { placeholder: options.placeholder }
-                : {})}
-            />
-          </Frame>
+          <SpecContent
+            key={title}
+            {...props}
+            title={title}
+            base={base}
+            toolResults={toolResults}
+          />
         );
       };
 
