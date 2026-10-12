@@ -485,10 +485,30 @@ export class RemoteThreadListThreadListRuntimeCore
 
     const stale = this._staleThreadIdsOnReplace;
     if (stale) {
+      const listed = new Map(
+        threads.map((thread) => [thread.remoteId, thread]),
+      );
       for (const item of Object.values(state.threadData)) {
-        if (stale.has(item.id)) continue;
-        if (item.status !== "new" && item.remoteId === undefined) continue;
-        carried.push(item);
+        if (!stale.has(item.id)) {
+          if (item.status !== "new" && item.remoteId === undefined) continue;
+          carried.push(item);
+          continue;
+        }
+        if (
+          item.remoteId === undefined ||
+          item.localOrigin !== true ||
+          getThreadData(this._state.value, item.id) === undefined
+        )
+          continue;
+        const listedThread = listed.get(item.remoteId);
+        if (listedThread === undefined) continue;
+        carried.push({
+          ...item,
+          initializeTask: Promise.resolve({
+            remoteId: listedThread.remoteId,
+            externalId: listedThread.externalId,
+          }),
+        });
       }
     }
 
