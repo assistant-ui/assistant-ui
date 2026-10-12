@@ -42,24 +42,48 @@ export const text = (value: string) =>
     "stop",
   );
 
-/** One streamed step that calls `toolName` with `input`. */
-export const call = (toolName: string, input: unknown) => {
+const toolCallParts = (toolName: string, input: unknown): StreamPart[] => {
   const id = `call-${++calls}`;
-  return reply(
-    [
-      { type: "tool-input-start", id, toolName },
-      { type: "tool-input-delta", id, delta: JSON.stringify(input) },
-      { type: "tool-input-end", id },
-      {
-        type: "tool-call",
-        toolCallId: id,
-        toolName,
-        input: JSON.stringify(input),
-      },
-    ],
+  return [
+    { type: "tool-input-start", id, toolName },
+    { type: "tool-input-delta", id, delta: JSON.stringify(input) },
+    { type: "tool-input-end", id },
+    {
+      type: "tool-call",
+      toolCallId: id,
+      toolName,
+      input: JSON.stringify(input),
+    },
+  ];
+};
+
+/** One streamed step that calls `toolName` with `input`. */
+export const call = (toolName: string, input: unknown) =>
+  reply(toolCallParts(toolName, input), "tool-calls");
+
+/** One streamed step that calls each of `toolNames` with input that is not JSON, which the SDK rejects before the tool runs. */
+export const malformedCall = (...toolNames: string[]) =>
+  reply(
+    toolNames.flatMap((toolName): StreamPart[] => {
+      const id = `call-${++calls}`;
+      return [
+        { type: "tool-input-start", id, toolName },
+        { type: "tool-input-delta", id, delta: "{" },
+        { type: "tool-input-end", id },
+        { type: "tool-call", toolCallId: id, toolName, input: "{" },
+      ];
+    }),
     "tool-calls",
   );
-};
+
+/** One streamed step that calls several tools at once. */
+export const parallelCalls = (
+  ...entries: [toolName: string, input: unknown][]
+) =>
+  reply(
+    entries.flatMap(([toolName, input]) => toolCallParts(toolName, input)),
+    "tool-calls",
+  );
 
 /** A model that streams `steps` in order, one per call. */
 export const streamingModel = (...steps: StreamResult[]) =>

@@ -44,6 +44,76 @@ const chart = (props: Record<string, unknown>) =>
   spec({ main: { type: "Chart", props: { variant: "bar", ...props } } });
 
 describe("data vocabulary on React Native", () => {
+  it("renders numeric Citation text as a link", () => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: {
+          type: "Citation",
+          props: {
+            title: 0,
+            url: "https://example.com",
+            source: 12,
+            snippet: 34,
+          },
+        },
+      }),
+    );
+    expect(byRole(container, "link").textContent).toBe("12034");
+  });
+
+  it("uses unlinked Citation text to name a bound row", () => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: { type: "ListView", children: ["row"] },
+        row: {
+          type: "ListViewItem",
+          children: ["citation"],
+          on: { press: { action: "open" } },
+        },
+        citation: {
+          type: "Citation",
+          props: { title: 0, source: 12, snippet: 34 },
+        },
+      }),
+      { open: vi.fn() },
+      { open: { description: "Open" } },
+    );
+    expect(byRole(container, "button", "12, 0, 34")).toBeTruthy();
+    for (const value of ["12", "0", "34"]) {
+      expect(
+        [
+          ...container.querySelectorAll<HTMLElement>("[aria-hidden='true']"),
+        ].find((element) => element.textContent === value),
+      ).toBeTruthy();
+    }
+  });
+
+  it("keeps a linked Citation separate from a bound row label", () => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: { type: "ListView", children: ["row"] },
+        row: {
+          type: "ListViewItem",
+          children: ["citation"],
+          on: { press: { action: "open" } },
+        },
+        citation: {
+          type: "Citation",
+          props: {
+            title: 0,
+            url: "https://example.com",
+            source: 12,
+            snippet: 34,
+          },
+        },
+      }),
+      { open: vi.fn() },
+      { open: { description: "Open" } },
+    );
+    expect(byRole(container, "link").textContent).toBe("12034");
+    expect(byRole(container, "button").getAttribute("aria-label")).toBeNull();
+  });
+
   it("renders Citation content without making a non-http URL pressable", () => {
     const input = spec({
       main: {

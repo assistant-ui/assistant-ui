@@ -90,6 +90,50 @@ test("lists every distinct error a candidate left on a task, then every error ra
   );
 });
 
+test("counts which format auto chose on each task", () => {
+  const auto = candidate("auto");
+  const report = renderReport([
+    {
+      case: task("t1", true),
+      variants: [
+        {
+          candidate: auto,
+          trials: [
+            judged([4, 4, 4], { answeredIn: "frame" }),
+            judged([3, 3, 3], { answeredIn: "spec" }),
+            errored,
+          ],
+        },
+      ],
+    },
+    {
+      case: task("t2", false),
+      variants: [
+        {
+          candidate: auto,
+          trials: [
+            judged([5, 5, 5]),
+            judged([4, 4, 4], { answeredIn: "spec" }),
+            judged([1, 1, 1], { answeredIn: "text", attempted: "spec" }),
+          ],
+        },
+      ],
+    },
+  ]);
+  assert.ok(
+    report.includes(
+      [
+        "| task | auto chose text | auto chose spec | auto chose frame |",
+        "| --- | ---: | ---: | ---: |",
+        "| t1 | 0 | 1 | 1 |",
+        "| t2 | 1 | 2 | 0 |",
+        "| all tasks | 1 | 3 | 1 |",
+      ].join("\n"),
+    ),
+    report,
+  );
+});
+
 test("renders each format's averages and each task's score per model", () => {
   const text = candidate("text");
   const spec = candidate("spec");

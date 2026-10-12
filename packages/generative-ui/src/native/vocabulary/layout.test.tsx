@@ -51,6 +51,16 @@ const card = (props: Record<string, unknown>, children?: string[]) =>
   });
 
 describe("layout vocabulary on React Native", () => {
+  it("names a numeric tab list and renders a numeric tab label", () => {
+    const { container } = renderNativeSpec(
+      spec({ main: { type: "Tabs", props: { tabs: [0], label: 42 } } }),
+    );
+    expect(
+      container.querySelector('[role="tablist"]')?.getAttribute("aria-label"),
+    ).toBe("42");
+    expect(container.querySelector('[role="tab"]')?.textContent).toBe("0");
+  });
+
   it("renders a zero Card title", () => {
     const { container } = renderNativeSpec(card({ title: 0 }));
     expect(byRole(container, "heading").textContent).toBe("0");

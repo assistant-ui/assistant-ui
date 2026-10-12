@@ -2,4 +2,4 @@
 "@assistant-ui/generative-ui": patch
 ---
 
-Escape model-supplied text before emitting Slack mrkdwn blocks.
+fix(generative-ui): escape model text before it reaches slack mrkdwn, so `<!channel>`, `<@user>` and `<url|label>` in model output render as plain text

@@ -86,6 +86,45 @@ describe("toAdaptiveCard", () => {
   });
 
   describe("structure components", () => {
+    it("renders numeric Citation title, source, and snippet", () => {
+      const { card, warnings } = toAdaptiveCard({
+        $type: "Citation",
+        title: 0,
+        url: "https://example.com",
+        source: 12,
+        snippet: 34,
+      });
+      expect(card.body).toMatchObject([
+        {
+          items: [
+            { text: "12" },
+            { text: "[0](https://example.com)" },
+            { text: "34" },
+          ],
+        },
+      ]);
+      expect(warnings).toEqual([]);
+    });
+
+    it("keeps explicitly empty Citation source and snippet text", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Citation",
+        title: "Reference",
+        url: "https://example.com",
+        source: "",
+        snippet: "",
+      });
+      expect(card.body).toMatchObject([
+        {
+          items: [
+            { text: "" },
+            { text: "[Reference](https://example.com)" },
+            { text: "" },
+          ],
+        },
+      ]);
+    });
+
     it("renders every Tabs panel in order with a bolder label", () => {
       const { card, warnings } = toAdaptiveCard({
         $type: "Tabs",
@@ -268,6 +307,203 @@ describe("toAdaptiveCard", () => {
         component: "Unknown",
         detail: "Unknown component type was dropped.",
       });
+    });
+
+    it("shows Diagram source line by line, as written, with only links broken", () => {
+      const space = String.fromCharCode(0xa0);
+      const zeroWidthSpace = String.fromCharCode(0x200b);
+      const { card } = toAdaptiveCard({
+        $type: "Diagram",
+        code: "flowchart LR\n  user_id --> order_id\n\n  A[home](https://example.com)",
+        title: "See [map](https://example.com)",
+      });
+      expect(card.body).toEqual([
+        {
+          type: "Container",
+          items: [
+            "flowchart LR",
+            `${space}${space}user_id --> order_id`,
+            space,
+            `${space}${space}A[home]${zeroWidthSpace}(https://example.com)`,
+          ].map((text, index) => ({
+            type: "TextBlock",
+            text,
+            wrap: true,
+            fontType: "Monospace",
+            ...(index > 0 ? { spacing: "none" } : {}),
+          })),
+        },
+        {
+          type: "TextBlock",
+          text: `See [map]${zeroWidthSpace}(https://example.com)`,
+          wrap: true,
+          size: "small",
+          isSubtle: true,
+        },
+      ]);
+    });
+
+    it("clamps a Diagram to its first 200 lines", () => {
+      const { card, warnings } = toAdaptiveCard({
+        $type: "Diagram",
+        code: "\n".repeat(400),
+      });
+      expect(card.body[0]).toHaveProperty("items.length", 200);
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Diagram",
+        detail: "code was clamped to 200 lines.",
+      });
+    });
+
+    it("renders Diagram source in monospace and keeps its title", () => {
+      const { card, warnings } = toAdaptiveCard({
+        $type: "Diagram",
+        code: "flowchart LR\nA[You & me] --> B[Done]",
+        title: "Plan <today>",
+      });
+      expect(card.body).toEqual([
+        {
+          type: "Container",
+          items: [
+            {
+              type: "TextBlock",
+              text: "flowchart LR",
+              wrap: true,
+              fontType: "Monospace",
+            },
+            {
+              type: "TextBlock",
+              text: "A[You & me] --> B[Done]",
+              wrap: true,
+              fontType: "Monospace",
+              spacing: "none",
+            },
+          ],
+        },
+        {
+          type: "TextBlock",
+          text: "Plan <today>",
+          wrap: true,
+          size: "small",
+          isSubtle: true,
+        },
+      ]);
+      expect(warnings).toEqual([]);
+    });
+
+    it("captions a Diagram with a numeric title and skips an empty one", () => {
+      const caption = (title: unknown) =>
+        toAdaptiveCard({ $type: "Diagram", code: "flowchart LR", title }).card
+          .body[1];
+      expect(caption(2024)).toEqual({
+        type: "TextBlock",
+        text: "2024",
+        wrap: true,
+        size: "small",
+        isSubtle: true,
+      });
+      expect(caption("")).toBeUndefined();
+    });
+
+    it("renders a Diagram without a title and clamps oversized source", () => {
+      const { card, warnings } = toAdaptiveCard({
+        $type: "Diagram",
+        code: "x".repeat(3001),
+      });
+      expect(card.body).toEqual([
+        {
+          type: "Container",
+          items: [
+            {
+              type: "TextBlock",
+              text: "x".repeat(3000),
+              wrap: true,
+              fontType: "Monospace",
+            },
+          ],
+        },
+      ]);
+      expect(warnings).toEqual([
+        {
+          code: "clamped",
+          component: "Diagram",
+          detail: "code was clamped to 3000 characters.",
+        },
+      ]);
+    });
+
+    it("links valid Map places and warns for invalid coordinates", () => {
+      const { card, warnings } = toAdaptiveCard({
+        $type: "Map",
+        places: [
+          { label: "A [place]", lat: 25, lng: 121, detail: "Meet <here>" },
+          { label: "Invalid", lat: 91, lng: 0 },
+          { label: "Second", lat: -3, lng: 4 },
+        ],
+        route: true,
+      });
+      expect(card.body).toEqual([
+        {
+          type: "Container",
+          items: [
+            {
+              type: "TextBlock",
+              text: "[A \\[place\\]](https://www.openstreetmap.org/?mlat=25&mlon=121#map=14/25/121)",
+              wrap: true,
+            },
+            { type: "TextBlock", text: "Meet <here>", wrap: true },
+          ],
+        },
+        {
+          type: "Container",
+          items: [
+            {
+              type: "TextBlock",
+              text: "[Second](https://www.openstreetmap.org/?mlat=-3&mlon=4#map=14/-3/4)",
+              wrap: true,
+            },
+          ],
+        },
+      ]);
+      expect(warnings).toEqual([
+        {
+          code: "dropped",
+          component: "Map",
+          detail: "1 malformed entry was dropped.",
+        },
+      ]);
+    });
+
+    it("clamps Map entries and reports multiple invalid places", () => {
+      const { warnings } = toAdaptiveCard({
+        $type: "Map",
+        places: [
+          { label: "No latitude", lat: 91, lng: 0 },
+          { label: "No longitude", lat: 0, lng: 181 },
+          ...Array.from({ length: CHILDREN_CAP }, (_, index) => ({
+            label: `Place ${index}`,
+            lat: 0,
+            lng: 0,
+          })),
+        ],
+      });
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Map",
+        detail: `places were clamped to ${CHILDREN_CAP} entries.`,
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Map",
+        detail: "2 malformed entries were dropped.",
+      });
+    });
+
+    it("renders an absent Map places list without warnings", () => {
+      const { card, warnings } = toAdaptiveCard({ $type: "Map" });
+      expect(card.body).toEqual([]);
+      expect(warnings).toEqual([]);
     });
 
     it("passes structured text through like Text and escapes only a citation's link text", () => {

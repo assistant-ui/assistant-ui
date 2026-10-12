@@ -277,8 +277,8 @@ function Tabs({
   label,
   children,
 }: {
-  tabs: string[];
-  label?: string;
+  tabs: (string | number)[];
+  label?: string | number;
   children?: ReactNode;
 }) {
   const theme = useNativeTheme();
@@ -287,6 +287,7 @@ function Tabs({
   const labels = tabLabels(tabs, panels.length);
   const [selected, setSelected] = useState(0);
   const id = useId();
+  const tabListLabel = toTextContent(label);
   if (labels.length === 0) return null;
   const current = Math.min(selected, labels.length - 1);
   return (
@@ -294,7 +295,9 @@ function Tabs({
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View
           role="tablist"
-          {...(typeof label === "string" ? { accessibilityLabel: label } : {})}
+          {...(tabListLabel !== null
+            ? { accessibilityLabel: tabListLabel }
+            : {})}
           style={[styles.tabRow, { borderBottomColor: theme.hairline }]}
         >
           {labels.map((label, index) => (

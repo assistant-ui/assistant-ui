@@ -3,7 +3,7 @@ title: "Generative UI"
 description: "A styled component library for rendering structured generative UI output."
 ---
 
-`styledGenerativeUILibrary` is `@assistant-ui/generative-ui`'s default component vocabulary (headings, text, cards, lists, and more) with one entry swapped: its `Markdown` component renders with `react-markdown` and GitHub-flavored markdown instead of dumping the raw source as plain text. With a runtime the library backs a tool the model calls to render structured UI; standalone you call `renderGenerativeUI` yourself with any spec built against the same library.
+`styledGenerativeUILibrary` is `@assistant-ui/generative-ui`'s default component vocabulary (headings, text, cards, lists, and more) with three entries swapped: its `Markdown` component renders with `react-markdown` and GitHub-flavored markdown instead of dumping the raw source as plain text, `Diagram` draws its Mermaid source with the [Mermaid diagram](/elements/mermaid-diagram) element, and `Map` puts its places on the [Geo map](/elements/geo-map) element. With a runtime the library backs a tool the model calls to render structured UI; standalone you call `renderGenerativeUI` yourself with any spec built against the same library.
 
 ## Getting started
 

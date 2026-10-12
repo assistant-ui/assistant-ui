@@ -22,12 +22,15 @@ import {
 import {
   linkHost,
   linkHref,
+  mapPlaces,
+  placeHref,
   sequenceItems,
   tabLabels,
 } from "../vocabulary/structureValues";
 import {
   ACTION_ID_CAP,
   ACTIONS_ELEMENT_CAP,
+  ALERT_FALLBACK_TITLE_MARKUP_LENGTH,
   ALERT_TEXT_CAP,
   BUTTON_VALUE_CAP,
   CARD_ACTIONS_CAP,
@@ -91,7 +94,6 @@ type ConversionContext = {
 };
 
 const SLACK_BLOCK_ID_CAP = 255;
-const ALERT_FALLBACK_TITLE_MARKUP_LENGTH = "ℹ️ **".length;
 
 const INTERACTIVE_TYPES = new Set([
   "Button",
@@ -204,7 +206,11 @@ const plainText = (text: string): SlackPlainText => ({
   text,
 });
 
-const structuredSection = (
+// An OpenStreetMap link stays under 100 characters, so these caps keep a place's section under Slack's limit with its link intact.
+const PLACE_LABEL_CAP = 500;
+const PLACE_DETAIL_CAP = 2000;
+
+const escapedSection = (
   text: string,
   component: string,
   context: ConversionContext,
@@ -1849,7 +1855,7 @@ const convertElement = (
         );
       const labels = tabLabels(given, panels.length);
       return labels.flatMap((label, index) => [
-        structuredSection(`*${escapeMrkdwn(label)}*`, "Tabs", context),
+        escapedSection(`*${escapeMrkdwn(label)}*`, "Tabs", context),
         ...(panels[index] !== undefined
           ? convertSequence(panels[index], context, depth + 1)
           : []),
@@ -1877,7 +1883,7 @@ const convertElement = (
           `${dropped} malformed ${dropped === 1 ? "entry was" : "entries were"} dropped.`,
         );
       return steps.map((step, index) =>
-        structuredSection(
+        escapedSection(
           `*${index + 1}. ${escapeMrkdwn(step.title)}*${step.detail !== undefined ? `\n${escapeMrkdwn(step.detail)}` : ""}`,
           "Steps",
           context,
@@ -1906,7 +1912,7 @@ const convertElement = (
           `${dropped} malformed ${dropped === 1 ? "entry was" : "entries were"} dropped.`,
         );
       return items.map((item) =>
-        structuredSection(
+        escapedSection(
           [
             ...(item.time !== undefined
               ? [`*${escapeMrkdwn(item.time)}*`]
@@ -1928,7 +1934,7 @@ const convertElement = (
       const linked =
         target !== undefined && target.length + 3 < SECTION_TEXT_CAP;
       const title = clampEscapedMrkdwn(
-        escapeMrkdwn(asString(props["title"])),
+        escapeMrkdwn(asTextValue(props["title"])),
         SECTION_TEXT_CAP - (linked ? target.length + 3 : 0),
         "Citation",
         "title",
@@ -1936,10 +1942,8 @@ const convertElement = (
       );
       const head = linked ? `<${target}|${title}>` : title;
       const room = SECTION_TEXT_CAP - head.length - 1;
-      const quoted =
-        typeof props["snippet"] === "string" && props["snippet"] !== ""
-          ? escapeMrkdwn(props["snippet"])
-          : undefined;
+      const snippetText = asTextValue(props["snippet"]);
+      const quoted = snippetText ? escapeMrkdwn(snippetText) : undefined;
       if (quoted !== undefined && room <= 0)
         warn(
           context,
@@ -1951,14 +1955,12 @@ const convertElement = (
         quoted !== undefined && room > 0
           ? clampEscapedMrkdwn(quoted, room, "Citation", "snippet", context)
           : undefined;
+      const sourceText = asTextValue(props["source"]);
       const source =
-        typeof props["source"] === "string"
-          ? props["source"]
-          : href
-            ? linkHost(href)
-            : undefined;
+        sourceText ||
+        (props["source"] === "" || !href ? undefined : linkHost(href));
       return [
-        structuredSection(
+        escapedSection(
           snippet !== undefined ? `${head}\n${snippet}` : head,
           "Citation",
           context,
@@ -1983,6 +1985,71 @@ const convertElement = (
             ]
           : []),
       ];
+    }
+    case "Diagram": {
+      // A fence inside the source would close the code block early, so a zero-width space splits it.
+      const code = clampEscapedMrkdwn(
+        escapeMrkdwn(asString(props["code"])).replaceAll(
+          "```",
+          `\`\`${String.fromCharCode(0x200b)}\``,
+        ),
+        SECTION_TEXT_CAP - 8,
+        "Diagram",
+        "code",
+        context,
+      );
+      const title = asTextValue(props["title"]);
+      return [
+        escapedSection(`\`\`\`\n${code}\n\`\`\``, "Diagram", context),
+        ...(title
+          ? [
+              {
+                type: "context" as const,
+                elements: [
+                  {
+                    type: "mrkdwn" as const,
+                    text: clampEscapedMrkdwn(
+                      escapeMrkdwn(title),
+                      CONTEXT_TEXT_CAP,
+                      "Diagram",
+                      "title",
+                      context,
+                    ),
+                  },
+                ],
+              },
+            ]
+          : []),
+      ];
+    }
+    case "Map": {
+      const { items: raw, truncated } = copyBounded(
+        Array.isArray(props["places"]) ? props["places"] : [],
+        CHILDREN_CAP,
+      );
+      if (truncated)
+        warn(
+          context,
+          "clamped",
+          "Map",
+          `places were clamped to ${CHILDREN_CAP} entries.`,
+        );
+      const places = mapPlaces(raw);
+      const dropped = raw.length - places.length;
+      if (dropped > 0)
+        warn(
+          context,
+          "dropped",
+          "Map",
+          `${dropped} malformed ${dropped === 1 ? "entry was" : "entries were"} dropped.`,
+        );
+      return places.map((place) =>
+        escapedSection(
+          `<${escapeMrkdwn(placeHref(place))}|${clampEscapedMrkdwn(escapeMrkdwn(place.label), PLACE_LABEL_CAP, "Map", "label", context)}>${place.detail !== undefined ? `\n${clampEscapedMrkdwn(escapeMrkdwn(place.detail), PLACE_DETAIL_CAP, "Map", "detail", context)}` : ""}`,
+          "Map",
+          context,
+        ),
+      );
     }
     case "Form":
       return [

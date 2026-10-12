@@ -1044,6 +1044,7 @@ describe("fromSlackBlocks", () => {
       expect(fromSlackBlocks(toSlackBlocks(tree).blocks).nodes).toEqual(tree);
     });
 
+    const escapedText = "A & < B > C";
     const fixtures: readonly {
       readonly name: string;
       readonly tree: unknown;
@@ -1061,9 +1062,24 @@ describe("fromSlackBlocks", () => {
         expected: [{ $type: "Text", value: "Hello" }],
       },
       {
+        name: "Text with mrkdwn entities",
+        tree: { $type: "Text", value: escapedText },
+        expected: [{ $type: "Text", value: escapedText }],
+      },
+      {
         name: "Caption",
         tree: { $type: "Caption", value: "Fine print" },
         expected: [{ $type: "Caption", value: "Fine print" }],
+      },
+      {
+        name: "Caption with mrkdwn entities",
+        tree: { $type: "Caption", value: escapedText },
+        expected: [{ $type: "Caption", value: escapedText }],
+      },
+      {
+        name: "plain text keeps entity spelling",
+        tree: { $type: "Header", text: "&amp; &lt; &gt;" },
+        expected: [{ $type: "Header", text: "&amp; &lt; &gt;" }],
       },
       {
         name: "Image",
@@ -1231,6 +1247,11 @@ describe("fromSlackBlocks", () => {
         ],
       },
       {
+        name: "Fact with mrkdwn entities",
+        tree: { $type: "Fact", label: escapedText, value: escapedText },
+        expected: [{ $type: "Fact", label: escapedText, value: escapedText }],
+      },
+      {
         name: "simple Card with title and body text",
         tree: {
           $type: "Card",
@@ -1242,6 +1263,27 @@ describe("fromSlackBlocks", () => {
             $type: "Card",
             title: "Order #42",
             children: [{ $type: "Text", value: "Shipped" }],
+          },
+        ],
+      },
+      {
+        name: "simple Card with mrkdwn entities",
+        tree: {
+          $type: "Card",
+          title: escapedText,
+          children: [
+            { $type: "Text", value: escapedText },
+            { $type: "Caption", value: escapedText },
+          ],
+        },
+        expected: [
+          {
+            $type: "Card",
+            title: escapedText,
+            children: [
+              { $type: "Text", value: escapedText },
+              { $type: "Caption", value: escapedText },
+            ],
           },
         ],
       },
@@ -1259,6 +1301,14 @@ describe("fromSlackBlocks", () => {
             description: "Something happened.",
             tone: "danger",
           },
+        ],
+      },
+      {
+        name: "modal Alert with mrkdwn entities",
+        tree: { $type: "Alert", description: escapedText, tone: "danger" },
+        options: { surface: "modal" },
+        expected: [
+          { $type: "Alert", description: escapedText, tone: "danger" },
         ],
       },
       {
@@ -1326,6 +1376,29 @@ describe("fromSlackBlocks", () => {
                 $type: "ListViewItem",
                 $action: { type: "open_two" },
                 children: { $type: "Text", value: "Row two" },
+              },
+            ],
+          },
+        ],
+      },
+      {
+        name: "ListViewItem with mrkdwn entities",
+        tree: {
+          $type: "ListView",
+          children: {
+            $type: "ListViewItem",
+            $action: { type: "open" },
+            children: { $type: "Text", value: escapedText },
+          },
+        },
+        expected: [
+          {
+            $type: "ListView",
+            children: [
+              {
+                $type: "ListViewItem",
+                $action: { type: "open" },
+                children: { $type: "Text", value: escapedText },
               },
             ],
           },

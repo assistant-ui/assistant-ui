@@ -885,6 +885,9 @@ importers:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../packages/x-buildutils
+      '@tailwindcss/postcss':
+        specifier: ^4.3.3
+        version: 4.3.3
       '@types/node':
         specifier: ^26.6.4
         version: 26.6.4
@@ -900,6 +903,9 @@ importers:
       generative-frame:
         specifier: workspace:*
         version: link:../packages/generative-frame
+      postcss:
+        specifier: ^8.5.29
+        version: 8.5.29
       react:
         specifier: ^19.3.0
         version: 19.3.0
@@ -915,6 +921,9 @@ importers:
       rolldown:
         specifier: ^1.2.12
         version: 1.2.12
+      tailwindcss:
+        specifier: ^4.3.3
+        version: 4.3.3
       zod:
         specifier: ^4.6.5
         version: 4.6.5
