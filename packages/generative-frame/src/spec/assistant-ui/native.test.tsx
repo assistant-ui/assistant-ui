@@ -5,6 +5,7 @@ import { Text, View } from "react-native";
 import type { Tools } from "@assistant-ui/react-native";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineCatalog } from "../catalog";
+import type { SpecStateStore } from "../state";
 import type { SpecComponentProps } from "../react/SpecRenderer";
 import {
   createSpecToolkit,
@@ -313,4 +314,43 @@ it("does not dispatch a root watch while mounting a stateless backend spec", () 
   render(<RenderSpec toolCallId="quiet" args={{ title: "quiet", patches }} />);
   expect(refresh).not.toHaveBeenCalled();
   mocks.argsStatus = "complete";
+});
+
+it("isolates the empty model base between backend tool calls", () => {
+  mocks.messages = [];
+  mocks.argsStatus = "complete";
+  const stores: SpecStateStore[] = [];
+  const toolkit = createSpecToolkit(catalog, {
+    components: {
+      Label: ({ state }: SpecComponentProps) => {
+        stores.push(state);
+        return null;
+      },
+    },
+  }).entries({ execution: "backend", display: "standalone" }) as Record<
+    string,
+    Entry
+  >;
+  const RenderSpec = toolkit["render_spec"]!.render;
+  const patches =
+    JSON.stringify({
+      op: "replace",
+      path: "",
+      value: {
+        root: "label",
+        elements: { label: { type: "Label", props: { text: "quiet" } } },
+      },
+    }) + "\n";
+  const mount = (id: string) =>
+    render(<RenderSpec toolCallId={id} args={{ title: id, patches }} />);
+  const first = mount("first");
+  const firstState = stores.at(-1)!.getState();
+  first.unmount();
+  mount("second");
+  const secondState = stores.at(-1)!.getState();
+  expect(secondState).not.toBe(firstState);
+  firstState["name"] = "first call";
+  expect(secondState).toEqual({});
+  mount("third");
+  expect(stores.at(-1)!.getState()).toEqual({});
 });

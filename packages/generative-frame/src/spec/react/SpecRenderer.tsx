@@ -36,8 +36,6 @@ import { createStateStore, type SpecStateStore } from "../state";
 import { childIdsOf, repeatItems, safePointer } from "../tree";
 import type { Spec, SpecElement } from "../types";
 
-const EMPTY_STATE: Record<string, unknown> = {};
-
 /** What a component implementation receives for one element. */
 export type SpecComponentProps<
   P extends Record<string, unknown> = Record<string, unknown>,
@@ -469,15 +467,14 @@ export function SpecRenderer({
   streaming = false,
   placeholder = SpecPlaceholder,
 }: SpecRendererProps) {
-  const [ownStore] = useState(() =>
-    createStateStore(spec.state ?? EMPTY_STATE),
-  );
+  const [emptyState] = useState<Record<string, unknown>>(() => ({}));
+  const [ownStore] = useState(() => createStateStore(spec.state ?? emptyState));
   const store = state ?? ownStore;
 
   const specState = spec.state;
   useEffect(() => {
-    if (!state) ownStore.seed(specState ?? EMPTY_STATE);
-  }, [state, ownStore, specState]);
+    if (!state) ownStore.seed(specState ?? emptyState);
+  }, [state, ownStore, specState, emptyState]);
 
   const snapshot = useSyncExternalStore(
     store.subscribe,
