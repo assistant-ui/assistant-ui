@@ -75,6 +75,97 @@ function renderEventSpec(
   };
 }
 
+const tabsSpec = (tabs: string[]) =>
+  spec({
+    main: {
+      type: "Tabs",
+      props: { tabs },
+      children: ["first", "second", "third"],
+    },
+    first: { type: "Text", props: { value: "First panel" } },
+    second: { type: "Text", props: { value: "Second panel" } },
+    third: { type: "Text", props: { value: "Third panel" } },
+  });
+
+describe("Tabs in Vue", () => {
+  it("renders no tabs when there are no labels or panels", () => {
+    const input = spec({ main: { type: "Tabs", props: { tabs: [] } } });
+    expect(renderVueSpec(input).markup()).toBe(renderReactSpec(input).markup());
+  });
+
+  it("renders mounted panels and fallback labels like React", () => {
+    for (const labels of [
+      ["One", "Two", "Three"],
+      ["One"],
+      [],
+      ["One", "Two", "Three", "Four"],
+    ]) {
+      const react = renderReactSpec(tabsSpec(labels));
+      const vue = renderVueSpec(tabsSpec(labels));
+      expect(vue.markup()).toBe(react.markup());
+      const tabs = [
+        ...vue.container.querySelectorAll<HTMLElement>('[role="tab"]'),
+      ];
+      const panels = [
+        ...vue.container.querySelectorAll<HTMLElement>('[role="tabpanel"]'),
+      ];
+      expect(tabs.map((tab) => tab.textContent)).toEqual(
+        labels.length >= 3 ? labels : [labels[0] ?? "1", "2", "3"],
+      );
+      expect(panels.map((panel) => panel.hidden)).toEqual(
+        labels.length === 4 ? [false, true, true, true] : [false, true, true],
+      );
+      for (const [index, tab] of tabs.entries()) {
+        expect(tab.getAttribute("aria-controls")).toBe(panels[index]!.id);
+        expect(panels[index]!.getAttribute("aria-labelledby")).toBe(tab.id);
+      }
+      expect(panels[2]!.textContent).toContain("Third panel");
+    }
+  });
+
+  it("moves focus and selection through ArrowRight, ArrowLeft, Home, and End", async () => {
+    const react = renderReactSpec(tabsSpec(["One", "Two", "Three"]));
+    const vue = renderVueSpec(tabsSpec(["One", "Two", "Three"]));
+    const tabs = (container: HTMLElement) => [
+      ...container.querySelectorAll<HTMLButtonElement>('[role="tab"]'),
+    ];
+    const press = (container: HTMLElement, key: string) =>
+      tabs(container)[0]!.parentElement!.dispatchEvent(
+        new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
+      );
+    press(vue.container, "Tab");
+    await nextTick();
+    expect(vue.markup()).toBe(react.markup());
+    for (const [key, expected] of [
+      ["End", 2],
+      ["ArrowRight", 0],
+      ["ArrowLeft", 2],
+      ["Home", 0],
+      ["ArrowRight", 1],
+    ] as const) {
+      await act(async () => press(react.container, key));
+      press(vue.container, key);
+      await nextTick();
+      expect(vue.markup()).toBe(react.markup());
+      expect(document.activeElement).toBe(tabs(vue.container)[expected]);
+      expect(tabs(vue.container).map((tab) => tab.tabIndex)).toEqual(
+        tabs(react.container).map((tab) => tab.tabIndex),
+      );
+    }
+    await act(async () => tabs(react.container)[2]!.click());
+    tabs(vue.container)[2]!.click();
+    await nextTick();
+    expect(vue.markup()).toBe(react.markup());
+    const reduced = spec({
+      main: { type: "Tabs", props: { tabs: ["One"] }, children: ["first"] },
+      first: { type: "Text", props: { value: "First panel" } },
+    });
+    await react.update(reduced);
+    await vue.update(reduced);
+    expect(vue.markup()).toBe(react.markup());
+  });
+});
+
 const element = (
   type: string,
   props: Record<string, unknown> = {},

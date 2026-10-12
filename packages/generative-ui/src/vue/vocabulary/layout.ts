@@ -1,8 +1,9 @@
-import { defineComponent, h } from "vue";
+import { defineComponent, h, ref, useId } from "vue";
 import { useSpecElement } from "generative-frame/spec/vue";
 import { layoutDefinitions } from "../../vocabulary/definitions/layout";
 import { collectFormValuesFromEvent } from "../../vocabulary/collectFormValues";
 import { boxStyle } from "../../vocabulary/layoutValues";
+import { tabLabels } from "../../vocabulary/structureValues";
 import { toTextContent } from "../../vocabulary/toTextContent";
 import { textChildren } from "./textChildren";
 
@@ -180,6 +181,87 @@ export const layoutVocabulary = {
             },
             slots.default?.() ?? [],
           );
+      },
+    }),
+  },
+  Tabs: {
+    ...layoutDefinitions.Tabs,
+    component: defineComponent({
+      name: "GenerativeUITabs",
+      props: ["tabs"],
+      setup(props, { slots }) {
+        const selected = ref(0);
+        const id = useId();
+        return () => {
+          const panels = slots.default?.() ?? [];
+          const labels = tabLabels(props.tabs, panels.length);
+          if (labels.length === 0) return null;
+          const current = Math.min(selected.value, labels.length - 1);
+          const last = labels.length - 1;
+          return h("div", { "data-aui": "tabs" }, [
+            h(
+              "div",
+              {
+                role: "tablist",
+                "data-aui": "tabs-list",
+                onKeydown: (event: KeyboardEvent) => {
+                  const next =
+                    event.key === "ArrowRight"
+                      ? current === last
+                        ? 0
+                        : current + 1
+                      : event.key === "ArrowLeft"
+                        ? current === 0
+                          ? last
+                          : current - 1
+                        : event.key === "Home"
+                          ? 0
+                          : event.key === "End"
+                            ? last
+                            : undefined;
+                  if (next === undefined) return;
+                  event.preventDefault();
+                  selected.value = next;
+                  (event.currentTarget as HTMLElement)
+                    .querySelectorAll<HTMLButtonElement>('[role="tab"]')
+                    [next]?.focus();
+                },
+              },
+              labels.map((label, index) =>
+                h(
+                  "button",
+                  {
+                    key: index,
+                    type: "button",
+                    role: "tab",
+                    id: `${id}-tab-${index}`,
+                    "aria-selected": index === current,
+                    "aria-controls": `${id}-panel-${index}`,
+                    tabindex: index === current ? 0 : -1,
+                    "data-aui": "tabs-tab",
+                    onClick: () => (selected.value = index),
+                  },
+                  label,
+                ),
+              ),
+            ),
+            ...labels.map((_, index) =>
+              h(
+                "div",
+                {
+                  key: index,
+                  role: "tabpanel",
+                  id: `${id}-panel-${index}`,
+                  "aria-labelledby": `${id}-tab-${index}`,
+                  hidden: index !== current,
+                  tabindex: 0,
+                  "data-aui": "tabs-panel",
+                },
+                panels[index],
+              ),
+            ),
+          ]);
+        };
       },
     }),
   },

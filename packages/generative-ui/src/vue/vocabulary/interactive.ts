@@ -863,7 +863,7 @@ export const interactiveVocabulary = {
     ...interactiveDefinitions.CheckboxGroup,
     component: defineComponent({
       name: "GenerativeUICheckboxGroup",
-      props: ["value", "options", "name", "label", "defaultValue"],
+      props: ["value", "options", "name", "label", "defaultValue", "progress"],
       emits: ["change", "update:defaultValue", "update:value"],
       setup: function useCheckboxGroup(props, { emit, slots }) {
         const { context, live, action, boundProp } = useEventProps("change");
@@ -872,6 +872,13 @@ export const interactiveVocabulary = {
           Array.isArray(props.value ?? props.defaultValue)
             ? (props.value ?? props.defaultValue)
             : [],
+        );
+        const picked = ref(firstValue.value);
+        watch(
+          () => props.defaultValue,
+          (value) => {
+            picked.value = Array.isArray(value) ? value : [];
+          },
         );
         watch(
           bound,
@@ -906,6 +913,18 @@ export const interactiveVocabulary = {
             : Array.isArray(props.defaultValue)
               ? props.defaultValue
               : [];
+          const current: string[] = bound()
+            ? Array.isArray(props.value ?? props.defaultValue)
+              ? (props.value ?? props.defaultValue)
+              : []
+            : picked.value;
+          const optionValues = mapOptions(
+            props.options,
+            (option) => option.value,
+          ).filter((option) => option !== null);
+          const done = optionValues.filter((option) =>
+            current.includes(option),
+          ).length;
           return h(
             "fieldset",
             {
@@ -916,6 +935,30 @@ export const interactiveVocabulary = {
               "aria-label": props.label,
             },
             [
+              props.progress
+                ? h("div", { "data-aui": "checkboxgroup-progress" }, [
+                    h(
+                      "span",
+                      { "data-aui": "checkboxgroup-progress-label" },
+                      `${done} of ${optionValues.length}`,
+                    ),
+                    h(
+                      "span",
+                      {
+                        "data-aui": "checkboxgroup-progress-track",
+                        "aria-hidden": "true",
+                      },
+                      [
+                        h("span", {
+                          "data-aui": "checkboxgroup-progress-fill",
+                          style: {
+                            width: `${optionValues.length ? (done / optionValues.length) * 100 : 0}%`,
+                          },
+                        }),
+                      ],
+                    ),
+                  ])
+                : null,
               ...mapOptions(props.options, (option, key) =>
                 h("label", { key, "data-aui": "checkboxgroup-option" }, [
                   h("input", {
@@ -935,6 +978,7 @@ export const interactiveVocabulary = {
                           ) ?? [],
                         (checkbox) => checkbox.value,
                       );
+                      picked.value = selected;
                       if (bound())
                         emit(
                           `update:${boundProp()}` as

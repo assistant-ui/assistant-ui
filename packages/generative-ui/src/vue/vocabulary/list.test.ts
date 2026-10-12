@@ -12,6 +12,52 @@ import {
 
 afterEach(cleanupSpecs);
 
+describe("structured lists in Vue", () => {
+  it.each([
+    [
+      "Steps",
+      "steps",
+      [{ title: "Start", detail: "Prepare" }, { title: "Finish" }],
+    ],
+    [
+      "Steps",
+      "steps",
+      [
+        { title: "Valid" },
+        null,
+        { detail: "Missing title" },
+        { title: 12, detail: 4 },
+      ],
+    ],
+    [
+      "Timeline",
+      "items",
+      [
+        { title: "Launch", time: "Monday", detail: "Live" },
+        { title: "Review", time: "Tuesday" },
+      ],
+    ],
+    ["Timeline", "items", []],
+  ] as const)("renders %s entries like React", (type, prop, entries) => {
+    const input = spec({ main: { type, props: { [prop]: entries } } });
+    const react = renderReactSpec(input);
+    const vue = renderVueSpec(input);
+    expect(vue.markup()).toBe(react.markup());
+    if (
+      entries.some(
+        (entry) =>
+          entry === null ||
+          !("title" in entry) ||
+          typeof entry.title !== "string",
+      )
+    )
+      expect(vue.markup()).toContain(
+        'data-gf-spec-placeholder="invalid-props"',
+      );
+    else expect(vue.markup()).toContain(`data-aui="${type.toLowerCase()}"`);
+  });
+});
+
 const rows: Spec["elements"] = {
   main: { type: "ListView", children: ["plain", "linked"] },
   plain: { type: "ListViewItem", children: ["plainText"] },
