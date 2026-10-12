@@ -216,3 +216,37 @@ describe("createSpecToolkit for React Native", () => {
     expect(setup("backend")["render_spec"]!.type).toBe("backend");
   });
 });
+
+it("does not dispatch a root watch while mounting a stateless backend spec", () => {
+  mocks.messages = [];
+  mocks.argsStatus = "streaming";
+  const refresh = vi.fn();
+  const toolkit = createSpecToolkit(
+    defineCatalog({
+      components: { Label: { description: "Text" } },
+      actions: { refresh: { description: "Refresh" } },
+    }),
+    {
+      components: { Label: () => <Text>quiet</Text> },
+      handlers: { refresh },
+    },
+  ).entries({ execution: "backend", display: "standalone" }) as Record<
+    string,
+    Entry
+  >;
+  const RenderSpec = toolkit["render_spec"]!.render;
+  const patches =
+    JSON.stringify({
+      op: "replace",
+      path: "",
+      value: {
+        root: "label",
+        elements: {
+          label: { type: "Label", watch: { "": { action: "refresh" } } },
+        },
+      },
+    }) + "\n";
+  render(<RenderSpec toolCallId="quiet" args={{ title: "quiet", patches }} />);
+  expect(refresh).not.toHaveBeenCalled();
+  mocks.argsStatus = "complete";
+});
