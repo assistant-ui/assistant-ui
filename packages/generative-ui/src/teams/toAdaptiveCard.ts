@@ -998,14 +998,12 @@ export function convertElement(
     }
     case "Citation": {
       const href = linkHref(props["url"]);
+      const sourceText = asTextValue(props["source"]);
       const source =
-        typeof props["source"] === "string"
-          ? props["source"]
-          : href
-            ? linkHost(href)
-            : undefined;
-      const title = asString(props["title"]);
-      const snippet = props["snippet"];
+        sourceText ||
+        (props["source"] === "" ? "" : href ? linkHost(href) : undefined);
+      const title = asTextValue(props["title"]);
+      const snippet = asTextValue(props["snippet"]);
       return [
         {
           type: "Container",
@@ -1023,7 +1021,7 @@ export function convertElement(
                 ? `[${escapeLinkText(title)}](${markdownHref(href)})`
                 : title,
             ),
-            ...(typeof snippet === "string"
+            ...(snippet !== "" || props["snippet"] === ""
               ? [textBlock(unlinked(snippet), { isSubtle: true })]
               : []),
           ],

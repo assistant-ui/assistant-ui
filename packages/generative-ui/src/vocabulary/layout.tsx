@@ -13,8 +13,8 @@ function TabsRender({
   label,
   children,
 }: {
-  tabs: string[];
-  label?: string;
+  tabs: (string | number)[];
+  label?: string | number;
   children?: ReactNode;
 }) {
   const panels = React.Children.toArray(children);
@@ -49,7 +49,7 @@ function TabsRender({
     <div data-aui="tabs">
       <div
         role="tablist"
-        aria-label={typeof label === "string" ? label : undefined}
+        aria-label={toTextContent(label) ?? undefined}
         data-aui="tabs-list"
         onKeyDown={onKeyDown}
       >

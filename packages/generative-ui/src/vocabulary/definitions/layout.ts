@@ -125,12 +125,14 @@ export const layoutDefinitions = {
       "Panels the user switches between with tabs, one visible at a time. Use it for parallel content the user looks at one part at a time, such as options, plans, or days. Each child is one panel, usually a Col, labeled by the matching entry in `tabs`.",
     properties: z.object({
       tabs: z
-        .array(z.string())
-        .describe("Tab labels, one per child panel, in order."),
+        .array(z.union([z.string(), z.number()]))
+        .describe(
+          "Tab labels as text or numbers, one per child panel, in order.",
+        ),
       label: z
-        .string()
+        .union([z.string(), z.number()])
         .optional()
-        .describe("Accessible name for the row of tabs."),
+        .describe("Accessible name as text or a number for the row of tabs."),
     }),
   },
 } satisfies Record<string, VocabularyDefinition>;

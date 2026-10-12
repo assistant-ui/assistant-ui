@@ -129,6 +129,37 @@ describe("toSlackBlocks", () => {
   });
 
   describe("structure components", () => {
+    it("renders numeric Citation title, source, and snippet", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Citation",
+        title: 0,
+        url: "https://example.com",
+        source: 12,
+        snippet: 34,
+      });
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          text: { type: "mrkdwn", text: "<https://example.com|0>\n34" },
+        },
+        { type: "context", elements: [{ type: "mrkdwn", text: "12" }] },
+      ]);
+      expect(warnings).toEqual([]);
+    });
+
+    it("keeps an explicitly empty Citation source", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Citation",
+        title: "Reference",
+        url: "https://example.com",
+        source: "",
+      });
+      expect(blocks[1]).toEqual({
+        type: "context",
+        elements: [{ type: "mrkdwn", text: "" }],
+      });
+    });
+
     it("renders every Tabs panel in order with a label, including a missing label", () => {
       const { blocks, warnings } = toSlackBlocks({
         $type: "Tabs",

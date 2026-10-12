@@ -86,6 +86,45 @@ describe("toAdaptiveCard", () => {
   });
 
   describe("structure components", () => {
+    it("renders numeric Citation title, source, and snippet", () => {
+      const { card, warnings } = toAdaptiveCard({
+        $type: "Citation",
+        title: 0,
+        url: "https://example.com",
+        source: 12,
+        snippet: 34,
+      });
+      expect(card.body).toMatchObject([
+        {
+          items: [
+            { text: "12" },
+            { text: "[0](https://example.com)" },
+            { text: "34" },
+          ],
+        },
+      ]);
+      expect(warnings).toEqual([]);
+    });
+
+    it("keeps explicitly empty Citation source and snippet text", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Citation",
+        title: "Reference",
+        url: "https://example.com",
+        source: "",
+        snippet: "",
+      });
+      expect(card.body).toMatchObject([
+        {
+          items: [
+            { text: "" },
+            { text: "[Reference](https://example.com)" },
+            { text: "" },
+          ],
+        },
+      ]);
+    });
+
     it("renders every Tabs panel in order with a bolder label", () => {
       const { card, warnings } = toAdaptiveCard({
         $type: "Tabs",
