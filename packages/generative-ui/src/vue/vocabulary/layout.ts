@@ -189,7 +189,7 @@ export const layoutVocabulary = {
     component: defineComponent({
       name: "GenerativeUITabs",
       props: ["tabs"],
-      setup(props, { slots }) {
+      setup: function useTabs(props, { slots }) {
         const selected = ref(0);
         const id = useId();
         return () => {
