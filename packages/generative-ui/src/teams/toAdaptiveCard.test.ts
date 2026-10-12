@@ -68,18 +68,20 @@ describe("toAdaptiveCard", () => {
         { $type: "Checkbox", label: 109 },
         { $type: "Button", label: 110 },
       ]);
-      const payload = JSON.stringify(card);
-
-      expect(payload).toContain('"text":"101"');
-      expect(payload).toContain('"text":"102"');
-      expect(payload).toContain('"text":"103"');
-      expect(payload).toContain('"title":"104"');
-      expect(payload).toContain('"text":"105"');
-      expect(payload).toContain('"title":"106"');
-      expect(payload).toContain('"title":"107"');
-      expect(payload).toContain('"placeholder":"108"');
-      expect(payload).toContain('"title":"109"');
-      expect(payload).toContain('"title":"110"');
+      expect((card.body[0] as TeamsTextBlock).text).toBe("101");
+      const alert = card.body[1] as TeamsContainer;
+      expect((alert.items[0] as TeamsTextBlock).text).toBe("102");
+      expect((alert.items[1] as TeamsTextBlock).text).toBe("103");
+      expect((card.body[2] as TeamsFactSet).facts[0]?.title).toBe("104");
+      expect(
+        ((card.body[3] as TeamsContainer).items[0] as TeamsTextBlock).text,
+      ).toBe("105");
+      const footer = card.body[4] as TeamsActionSet;
+      expect(footer.actions[0]?.title).toBe("106");
+      expect(footer.actions[1]?.title).toBe("107");
+      expect((card.body[5] as TeamsInputChoiceSet).placeholder).toBe("108");
+      expect((card.body[6] as TeamsInputToggle).title).toBe("109");
+      expect((card.body[7] as TeamsActionSet).actions[0]?.title).toBe("110");
     });
   });
 

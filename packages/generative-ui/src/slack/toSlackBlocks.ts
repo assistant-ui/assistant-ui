@@ -828,6 +828,18 @@ const cardTitleText = (
 const isCardNoOp = (node: NormalizedUINode): boolean =>
   isElement(node) && (node.type === "Spacer" || node.type === "Icon");
 
+const NUMERIC_TEXT_PROPS: Readonly<Record<string, readonly string[]>> = {
+  Text: ["value"],
+  Caption: ["value"],
+  Badge: ["value"],
+  Fact: ["value", "label"],
+  Header: ["text"],
+  Alert: ["title", "description"],
+  Card: ["title"],
+  Checkbox: ["label"],
+  Button: ["label"],
+};
+
 const collectText = (
   node: NormalizedUINode | undefined,
   depth: number,
@@ -845,13 +857,9 @@ const collectText = (
   const own = ["text", "value", "label", "title", "description"]
     .map((key) => {
       const value = element.props[key];
-      return key === "value" &&
-        (element.type === "Text" ||
-          element.type === "Caption" ||
-          element.type === "Badge" ||
-          element.type === "Fact") &&
-        typeof value === "number" &&
-        Number.isFinite(value)
+      return typeof value === "number" &&
+        Number.isFinite(value) &&
+        NUMERIC_TEXT_PROPS[element.type]?.includes(key)
         ? String(value)
         : value;
     })
@@ -1084,7 +1092,7 @@ const degradeCard = (
   context: ConversionContext,
   depth: number,
 ): SlackCardBlock => {
-  const rawTitle = asString(element.props["title"]);
+  const rawTitle = asTextValue(element.props["title"]);
   const textChunks = collectText(element.children, depth + 1);
   const titleSource = rawTitle || textChunks[0] || "";
   const bodyChunks = rawTitle ? textChunks : textChunks.slice(1);

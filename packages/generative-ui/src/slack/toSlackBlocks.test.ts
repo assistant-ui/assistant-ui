@@ -38,11 +38,13 @@ import {
 import type {
   SlackActionsBlock,
   SlackAlertBlock,
+  SlackButtonElement,
   SlackCardBlock,
   SlackCarouselBlock,
   SlackCheckboxesElement,
   SlackContextBlock,
   SlackDataTableBlock,
+  SlackHeaderBlock,
   SlackInputBlock,
   SlackRadioButtonsElement,
   SlackSectionBlock,
@@ -97,18 +99,32 @@ describe("toSlackBlocks", () => {
         { $type: "Checkbox", label: 109, $action: { type: "check" } },
         { $type: "Button", label: 110, $action: { type: "submit" } },
       ]);
-      const payload = JSON.stringify(blocks);
-
-      expect(payload).toContain('"text":"101"');
-      expect(payload).toContain("*102*");
-      expect(payload).toContain('"text":"103"');
-      expect(payload).toContain("*104*");
-      expect(payload).toContain('"105"');
-      expect(payload).toContain('"text":"106"');
-      expect(payload).toContain('"text":"107"');
-      expect(payload).toContain('"text":"108"');
-      expect(payload).toContain('"text":"109"');
-      expect(payload).toContain('"text":"110"');
+      expect((blocks[0] as SlackHeaderBlock).text.text).toBe("101");
+      expect((blocks[1] as SlackContextBlock).elements[0]?.text).toBe(
+        "ℹ️ *102*",
+      );
+      expect((blocks[2] as SlackSectionBlock).text?.text).toBe("103");
+      expect((blocks[3] as SlackSectionBlock).fields?.[0]?.text).toBe(
+        "*104*\nready",
+      );
+      const card = blocks[4] as SlackCardBlock;
+      expect(card.title?.text).toBe("105");
+      expect(card.actions?.[0]?.text.text).toBe("106");
+      expect(card.actions?.[1]?.text.text).toBe("107");
+      expect(
+        (
+          (blocks[5] as SlackActionsBlock)
+            .elements[0] as SlackStaticSelectElement
+        ).placeholder?.text,
+      ).toBe("108");
+      expect(
+        ((blocks[5] as SlackActionsBlock).elements[1] as SlackCheckboxesElement)
+          .options[0]?.text.text,
+      ).toBe("109");
+      expect(
+        ((blocks[5] as SlackActionsBlock).elements[2] as SlackButtonElement)
+          .text.text,
+      ).toBe("110");
     });
   });
 
@@ -2008,6 +2024,28 @@ describe("toSlackBlocks", () => {
       expect(warnings).toEqual([]);
     });
 
+    it.each([7, "7"])(
+      "keeps a %s title when reshaping a card with numeric child text",
+      (title) => {
+        const { blocks } = toSlackBlocks({
+          $type: "Carousel",
+          children: [
+            {
+              $type: "Card",
+              title,
+              children: [
+                { $type: "Header", text: 8 },
+                { $type: "Text", value: "body" },
+              ],
+            },
+          ],
+        });
+        const card = (blocks[0] as SlackCarouselBlock).elements[0];
+        expect(card?.title?.text).toBe("7");
+        expect(card?.body?.text).toBe("8\nbody");
+      },
+    );
+
     it(`clamps to ${CAROUSEL_CARD_CAP} elements and warns`, () => {
       const cards = Array.from({ length: CAROUSEL_CARD_CAP + 1 }, (_, i) => ({
         $type: "Card",
@@ -2827,6 +2865,26 @@ describe("toSlackBlocks", () => {
   });
 
   describe("ListView and ListViewItem", () => {
+    it.each([8, "8"])("flattens %s text props in a list item", (text) => {
+      const { blocks } = toSlackBlocks({
+        $type: "ListView",
+        children: [
+          {
+            $type: "ListViewItem",
+            children: [
+              { $type: "Header", text },
+              { $type: "Fact", label: text, value: "v" },
+              { $type: "Alert", title: text, description: text },
+              { $type: "Text", value: "tail" },
+            ],
+          },
+        ],
+      });
+      expect((blocks[0] as SlackSectionBlock).text?.text).toBe(
+        "8\nv\n8\n8\n8\ntail",
+      );
+    });
+
     it("keeps numeric Text and Fact values in an item", () => {
       const { blocks } = toSlackBlocks({
         $type: "ListView",

@@ -64,6 +64,7 @@ describe("toSpecCatalog", () => {
   it("validates props against the vocabulary schemas", () => {
     expect(catalog.validateProps("Button", { label: "Go" })).toEqual([]);
     expect(catalog.validateProps("Button", { label: 3 })).toEqual([]);
+    expect(catalog.validateProps("Button", { label: true })).toHaveLength(1);
     expect(
       catalog.validateProps("Card", {
         confirm: { label: 3 },
