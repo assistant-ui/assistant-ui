@@ -630,6 +630,11 @@ describe("rewriteCustomMathTags", () => {
     ).toBe("$$\n\\begin{aligned}\na&=b\n\\end{aligned}\n$$\nDone.");
   });
 
+  it("trims many leading blank lines from a display body", () => {
+    const input = `[/math]${"\n".repeat(20_000)}x\ny[/math]`;
+    expect(rewriteCustomMathTags(input)).toBe("$$\nx\ny\n$$");
+  });
+
   it("gives the fence markers their own lines mid-paragraph", () => {
     expect(rewriteCustomMathTags("Thus [/math]a\nb[/math] therefore.")).toBe(
       "Thus \n$$\na\nb\n$$\n therefore.",
@@ -770,6 +775,17 @@ describe("normalizeMathDelimiters", () => {
       "x ```js\n\\$5\n\n\\$7\n```",
     );
   });
+
+  it.each([
+    ["currency", escapeCurrencyDollars],
+    ["math", normalizeMathDelimiters],
+  ] as const)(
+    "keeps one long tilde run after prose literal in %s",
+    (_, preprocess) => {
+      const input = `x ${"~".repeat(20_000)}`;
+      expect(preprocess(input)).toBe(input);
+    },
+  );
 
   it("nests a $$ fence opened on a list item's marker line", () => {
     expect(

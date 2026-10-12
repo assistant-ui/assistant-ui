@@ -892,10 +892,14 @@ function forEachVerbatimRange(
       } else {
         index += runLength(text, index, "`");
       }
-    } else if (opensTildeFence(text, index)) {
-      const end = fenceEnd(text, index, "~");
-      visit(index, end, "fence");
-      index = end;
+    } else if (char === "~") {
+      if (opensTildeFence(text, index)) {
+        const end = fenceEnd(text, index, "~");
+        visit(index, end, "fence");
+        index = end;
+      } else {
+        index += runLength(text, index, "~");
+      }
     } else {
       index += 1;
     }
@@ -1051,33 +1055,37 @@ function emitDisplayMath(
   // indentation off the first line only and leave the block ragged.
   const emptyBodyLine = (line: string) =>
     line.slice(quoteMarkers(line, depth).length).trim() === "";
+  let bodyLineStart = 0;
   while (
     !openerHasContent &&
-    bodyLines.length > 0 &&
-    emptyBodyLine(bodyLines[0]!)
-  )
-    bodyLines.shift();
-  while (bodyLines.length > 0 && emptyBodyLine(bodyLines.at(-1)!)) {
-    bodyLines.pop();
+    bodyLineStart < bodyLines.length &&
+    emptyBodyLine(bodyLines[bodyLineStart]!)
+  ) {
+    bodyLineStart += 1;
   }
-  if (!openerHasContent && bodyLines.length === 0) return match;
+  const contentLines =
+    bodyLineStart === 0 ? bodyLines : bodyLines.slice(bodyLineStart);
+  while (contentLines.length > 0 && emptyBodyLine(contentLines.at(-1)!)) {
+    contentLines.pop();
+  }
+  if (!openerHasContent && contentLines.length === 0) return match;
   // Only the indentation the whole body shares is replaced by the container
   // prefix, so an aligned block keeps its relative indentation.
-  const shared = [openerText, ...bodyLines].reduce(
+  const shared = [openerText, ...contentLines].reduce(
     (least, line) =>
       line.trim() === ""
         ? least
         : Math.min(least, /^[ \t]*/.exec(line)![0].length),
     Number.POSITIVE_INFINITY,
   );
-  const quotedIndent = bodyLines.reduce((least, line) => {
+  const quotedIndent = contentLines.reduce((least, line) => {
     const markers = quoteMarkers(line, depth);
     return quoteDepth(markers) === depth && !emptyBodyLine(line)
       ? Math.min(least, widthPastQuote(markers))
       : least;
   }, Number.POSITIVE_INFINITY);
   const width = widthPastQuote(prefix);
-  const lines = bodyLines.map((line) => {
+  const lines = contentLines.map((line) => {
     // A line already carrying the blockquote markers keeps the spacing it was
     // written with; `>a` and `> a` are the same blockquote. Indentation alone
     // is not that signal, since a body may legitimately be indented, and a line
@@ -1819,7 +1827,11 @@ function endOfVerbatimRun(
     const end = backtickEnd(text, index, blockStarts, paragraphBreaks);
     return end === -1 ? index + runLength(text, index, "`") : end;
   }
-  if (opensTildeFence(text, index)) return fenceEnd(text, index, "~");
+  if (char === "~") {
+    return opensTildeFence(text, index)
+      ? fenceEnd(text, index, "~")
+      : index + runLength(text, index, "~");
+  }
   if (char !== "$") return index + 1;
 
   const dollars = runLength(text, index, "$");
