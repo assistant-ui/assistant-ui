@@ -151,6 +151,53 @@ test("an empty widget is an error the model can repair", async () => {
   assert.equal(answer.repairRounds, 1);
 });
 
+test("an auto answer in prose is a valid text answer", async () => {
+  const answer = await generateAnswer(
+    streamingModel(text("Swap the tube.")),
+    task,
+    "auto",
+    2,
+  );
+  assert.equal(answer.answeredIn, "text");
+  assert.equal(answer.artifact, "Swap the tube.");
+  assert.deepEqual(answer.errors, []);
+  assert.equal(typeof answer.firstOutputMs, "number");
+});
+
+test("an auto answer is in the format of the tool it called", async () => {
+  const patches = [
+    { op: "add", path: "/root", value: "main" },
+    {
+      op: "add",
+      path: "/elements/main",
+      value: { type: "Text", props: { value: "Hi" } },
+    },
+  ]
+    .map((patch) => JSON.stringify(patch))
+    .join("\n");
+  const spec = await generateAnswer(
+    streamingModel(call("render_spec", { title: "Greeting", patches })),
+    task,
+    "auto",
+    2,
+  );
+  assert.equal(spec.answeredIn, "spec");
+  assert.deepEqual(spec.errors, []);
+  assert.equal(JSON.parse(spec.artifact).root, "main");
+
+  const frame = await generateAnswer(
+    streamingModel(
+      call("show_widget", { title: "Hello", widget_code: "<p>Hello</p>" }),
+    ),
+    task,
+    "auto",
+    2,
+  );
+  assert.equal(frame.answeredIn, "frame");
+  assert.equal(frame.artifact, "<p>Hello</p>");
+  assert.equal(typeof frame.firstOutputMs, "number");
+});
+
 test("a model error fails the trial instead of scoring it", async () => {
   const model = new MockLanguageModelV4({
     doStream: async () => {

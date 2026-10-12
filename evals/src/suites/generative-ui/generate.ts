@@ -1,6 +1,6 @@
 import { isStepCount, streamText, type LanguageModel } from "ai";
 import { startFormat } from "./formats.ts";
-import type { Answer, Format, Task } from "./types.ts";
+import type { Answer, CandidateFormat, Task } from "./types.ts";
 
 /**
  * Ask the model for one answer in `format`. A tool format validates each call
@@ -10,7 +10,7 @@ import type { Answer, Format, Task } from "./types.ts";
 export async function generateAnswer(
   model: LanguageModel,
   task: Task,
-  format: Format,
+  format: CandidateFormat,
   maxRepairRounds: number,
 ): Promise<Answer> {
   const run = await startFormat(format);
@@ -26,7 +26,7 @@ export async function generateAnswer(
         prompt: task.prompt,
         onError,
         tools: run.tools,
-        // Opus 5.5 rejects a forced tool call, so every model may answer without the tool, which counts as an error.
+        // Opus 5.5 rejects a forced tool call, so every model may answer without a tool, which is an error unless the candidate takes prose.
         toolChoice: "auto",
         stopWhen: [
           // Two steps of headroom for calls that are not answers, such as frame mode's `read_me`.
@@ -49,7 +49,7 @@ export async function generateAnswer(
       firstTextMs ??= performance.now() - started;
     } else if (
       part.type === "tool-input-start" &&
-      part.toolName === run.answerTool
+      run.answerTools.includes(part.toolName)
     ) {
       firstToolMs ??= performance.now() - started;
     }
@@ -62,9 +62,15 @@ export async function generateAnswer(
   };
 
   const last = run.attempts.at(-1);
-  if (!run.tools) {
+  if (!last) {
     const text = await result.text;
-    const errors = text.trim() ? [] : ["The answer is empty."];
+    const errors = !run.prose
+      ? [
+          `The model never called ${run.answerTools.map((name) => `\`${name}\``).join(" or ")}.`,
+        ]
+      : text.trim()
+        ? []
+        : ["The answer is empty."];
     return {
       artifact: text,
       answeredIn: "text",
@@ -74,19 +80,9 @@ export async function generateAnswer(
       ...measured,
     };
   }
-  if (!last) {
-    return {
-      artifact: await result.text,
-      answeredIn: "text",
-      errors: [`The model never called \`${run.answerTool}\`.`],
-      repairRounds: 0,
-      firstOutputMs: firstTextMs,
-      ...measured,
-    };
-  }
   return {
     artifact: last.artifact,
-    answeredIn: format,
+    answeredIn: last.format,
     errors: last.errors,
     repairRounds: run.attempts.length - 1,
     firstOutputMs: firstToolMs,
