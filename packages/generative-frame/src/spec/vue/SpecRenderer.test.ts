@@ -779,9 +779,12 @@ describe("SpecRenderer", () => {
       {},
       expect.objectContaining({ trigger: "/b" }),
     );
+    store.set("/a", 1);
+    await nextTick();
+    expect(refresh).toHaveBeenCalledTimes(1);
     await view.update(draw(["/b", "/a"]));
     expect(refresh).toHaveBeenCalledTimes(1);
-    store.set("/a", 1);
+    store.set("/a", 2);
     await nextTick();
     expect(refresh).toHaveBeenCalledTimes(2);
   });
