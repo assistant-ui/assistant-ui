@@ -3428,3 +3428,205 @@ it("resolves a Slider field reference from numeric Slack state", () => {
     }),
   ).toEqual({ type: "submit", count: 3 });
 });
+
+describe("Slack mrkdwn escaping", () => {
+  it("escapes direct and flattened model text", () => {
+    const { blocks } = toSlackBlocks([
+      { $type: "Text", value: "Fees < $5 & > $1 <!channel> <@U123>" },
+      "<!here>",
+    ]);
+
+    expect(blocks).toEqual([
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: "Fees &lt; $5 &amp; &gt; $1 &lt;!channel&gt; &lt;@U123&gt;",
+        },
+      },
+      {
+        type: "section",
+        text: { type: "mrkdwn", text: "&lt;!here&gt;" },
+      },
+    ]);
+  });
+
+  it("escapes Fact data while retaining its generated bold label", () => {
+    const { blocks } = toSlackBlocks({
+      $type: "Fact",
+      label: "Price < $5 & <@U123>",
+      value: "Fees < $5 & > $1",
+      delta: "<1% &",
+      trend: "down",
+    });
+
+    expect(blocks).toEqual([
+      {
+        type: "section",
+        fields: [
+          {
+            type: "mrkdwn",
+            text: "*Price &lt; $5 &amp; &lt;@U123&gt;*\nFees &lt; $5 &amp; &gt; $1 (↓ &lt;1% &amp;)",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("escapes context rows and collected list-item text", () => {
+    const row = toSlackBlocks({
+      $type: "Row",
+      children: [
+        { $type: "Caption", value: "From <@U123>" },
+        { $type: "Badge", value: "Fees < $5 & > $1" },
+      ],
+    });
+    const item = toSlackBlocks({
+      $type: "ListViewItem",
+      children: [
+        { $type: "Text", value: "Notify <!channel>" },
+        { $type: "Fact", label: "Price < $5", value: "$5 > $1" },
+      ],
+    });
+
+    expect(row.blocks[0]).toMatchObject({
+      type: "context",
+      elements: [
+        { type: "mrkdwn", text: "From &lt;@U123&gt;" },
+        { type: "mrkdwn", text: "Fees &lt; $5 &amp; &gt; $1" },
+      ],
+    });
+    expect(item.blocks[0]).toMatchObject({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: "Notify &lt;!channel&gt;\n$5 &gt; $1\nPrice &lt; $5",
+      },
+    });
+  });
+
+  it("escapes clean and reshaped card fields but leaves plain text alone", () => {
+    const clean = toSlackBlocks({
+      $type: "Card",
+      title: "<@U123>",
+      children: [
+        { $type: "Text", value: "Fees < $5" },
+        { $type: "Caption", value: "<!here>" },
+      ],
+    });
+    const reshaped = toSlackBlocks({
+      $type: "Carousel",
+      children: [
+        {
+          $type: "Card",
+          title: "<card>",
+          children: {
+            $type: "Fact",
+            label: "Price < $5",
+            value: "<@U123>",
+          },
+        },
+      ],
+    });
+    const inline = toSlackBlocks({
+      $type: "Card",
+      title: "<@U123>",
+      children: { $type: "Fact", label: "Status", value: "Ready" },
+    });
+
+    expect(clean.blocks[0]).toMatchObject({
+      type: "card",
+      title: { type: "mrkdwn", text: "&lt;@U123&gt;" },
+      body: { type: "mrkdwn", text: "Fees &lt; $5" },
+      subtext: { type: "mrkdwn", text: "&lt;!here&gt;" },
+    });
+    expect(reshaped.blocks[0]).toMatchObject({
+      type: "carousel",
+      elements: [
+        {
+          type: "card",
+          title: { type: "mrkdwn", text: "&lt;card&gt;" },
+          body: { type: "mrkdwn", text: "&lt;@U123&gt;\nPrice &lt; $5" },
+        },
+      ],
+    });
+    expect(inline.blocks[0]).toMatchObject({
+      type: "header",
+      text: { type: "plain_text", text: "<@U123>" },
+    });
+  });
+
+  it("escapes alert text before applying its generated formatting", () => {
+    const message = toSlackBlocks({
+      $type: "Alert",
+      title: "<@U123>",
+      description: "Fees < $5 & <!channel>",
+    });
+    const modal = toSlackBlocks(
+      {
+        $type: "Alert",
+        title: "<@U123>",
+        description: "Fees < $5 & <!channel>",
+      },
+      { surface: "modal" },
+    );
+
+    expect(message.blocks).toMatchObject([
+      { elements: [{ type: "mrkdwn", text: "ℹ️ *&lt;@U123&gt;*" }] },
+      {
+        text: {
+          type: "mrkdwn",
+          text: "Fees &lt; $5 &amp; &lt;!channel&gt;",
+        },
+      },
+    ]);
+    expect(modal.blocks[0]).toMatchObject({
+      type: "alert",
+      text: {
+        type: "mrkdwn",
+        text: "&lt;@U123&gt;\nFees &lt; $5 &amp; &lt;!channel&gt;",
+      },
+    });
+  });
+
+  it("keeps escaped alert titles within the Slack context text cap", () => {
+    const { blocks } = toSlackBlocks({
+      $type: "Alert",
+      title: "<".repeat(CONTEXT_TEXT_CAP),
+    });
+    const title = (blocks[0] as SlackContextBlock).elements[0]?.text ?? "";
+
+    expect(title.length).toBeLessThanOrEqual(CONTEXT_TEXT_CAP);
+    expect(title.slice(0, -1)).not.toMatch(/&(?:amp|lt|gt)?$/);
+  });
+
+  it("keeps standard Markdown intact and escapes its mrkdwn overflow fallback", () => {
+    const markdown = toSlackBlocks({ $type: "Markdown", value: "<@U123>" });
+    const overflow = toSlackBlocks([
+      { $type: "Markdown", value: "m".repeat(MARKDOWN_TEXT_BUDGET) },
+      { $type: "Markdown", value: "<@U123>" },
+    ]);
+
+    expect(markdown.blocks).toEqual([{ type: "markdown", text: "<@U123>" }]);
+    expect(overflow.blocks[1]).toMatchObject({
+      type: "section",
+      text: { type: "mrkdwn", text: "&lt;@U123&gt;" },
+    });
+  });
+
+  it("clamps after escaping without leaving a partial entity", () => {
+    const { blocks, warnings } = toSlackBlocks({
+      $type: "Text",
+      value: `${"x".repeat(SECTION_TEXT_CAP - 1)}<`,
+    });
+    const text = (blocks[0] as SlackSectionBlock).text?.text;
+
+    expect(text).toBe("x".repeat(SECTION_TEXT_CAP - 1));
+    expect(text).toHaveLength(SECTION_TEXT_CAP - 1);
+    expect(warnings).toContainEqual({
+      code: "clamped",
+      component: "Text",
+      detail: `value was clamped to ${SECTION_TEXT_CAP} characters.`,
+    });
+  });
+});
