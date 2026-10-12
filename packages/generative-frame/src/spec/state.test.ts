@@ -40,6 +40,22 @@ describe("createStateStore writes", () => {
     expect(store.getState()).toEqual({ name: "Ada", count: 1 });
   });
 
+  it.each(["remove", "unknown", null])(
+    "keeps add semantics for an unsupported saved mode: %s",
+    (mode) => {
+      const store = createStateStore(
+        { list: ["original"] },
+        {
+          writes: JSON.parse(JSON.stringify([["/list/0", "restored", mode]])),
+        },
+      );
+      expect(store.get("/list")).toEqual(["restored", "original"]);
+      expect(store.writes()).toEqual([["/list/0", "restored"]]);
+      store.seed({ list: ["streamed"] });
+      expect(store.get("/list")).toEqual(["restored", "streamed"]);
+    },
+  );
+
   it("drops a restored write that no longer applies", () => {
     const store = createStateStore(
       { text: "plain" },

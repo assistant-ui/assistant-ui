@@ -94,7 +94,8 @@ export function createStateStore(
     for (const listener of [...listeners]) listener(state);
   };
 
-  for (const [rawPath, value, mode = "add"] of options.writes ?? []) {
+  for (const [rawPath, value, saved] of options.writes ?? []) {
+    const mode = saved === "replace" ? "replace" : "add";
     const path = normalize(rawPath);
     try {
       const inserted = mode === "add" && inserts(state, path);
