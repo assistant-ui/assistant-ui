@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createAdkThreadState, reduceAdkThreadState } from "./adkThreadState";
+import {
+  createAdkThreadState,
+  getToolResultOwnerKey,
+  reduceAdkThreadState,
+} from "./adkThreadState";
 import type { AdkMessage } from "./types";
 
 const message: AdkMessage = {
@@ -16,6 +20,32 @@ const interruptAnswer = (
   name: "adk_request_input",
   tool_call_id: id,
   content: id,
+});
+
+describe("getToolResultOwnerKey", () => {
+  it("uses the producing run, then the loaded assistant message, then the call id", () => {
+    const state = {
+      ...createAdkThreadState(),
+      messages: [
+        {
+          id: "loaded-message",
+          type: "ai" as const,
+          content: "",
+          tool_calls: [
+            { id: "known", name: "lookup", args: {} },
+            { id: "loaded", name: "lookup", args: {} },
+          ],
+        },
+      ],
+      runIdByToolCallId: new Map([["known", "run-1"]]),
+    };
+
+    expect(getToolResultOwnerKey(state, "known")).toBe("run:run-1");
+    expect(getToolResultOwnerKey(state, "loaded")).toBe(
+      "message:loaded-message",
+    );
+    expect(getToolResultOwnerKey(state, "orphan")).toBe("message:orphan");
+  });
 });
 
 describe("reduceAdkThreadState", () => {

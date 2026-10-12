@@ -1125,6 +1125,72 @@ describe("ADK request coalescing", () => {
     ]);
   });
 
+  it.each([
+    { owners: ["one", "two"], requests: [["c1"], ["c2"]] },
+    { owners: ["one", "one"], requests: [["c1", "c2"]] },
+  ])(
+    "keeps same-tick tool sends within their owner ($owners)",
+    async ({ owners, requests }) => {
+      const calls: string[][] = [];
+      const stream: AdkStreamCallback = async function* (messages) {
+        calls.push(
+          messages.flatMap((message) =>
+            message.type === "tool" ? [message.tool_call_id] : [],
+          ),
+        );
+      };
+      const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
+      act(() => {
+        result.current.applySnapshot({
+          messages: [...new Set(owners)].map((owner) => ({
+            id: owner,
+            type: "ai",
+            content: "",
+            tool_calls: owners.flatMap((value, index) =>
+              value === owner
+                ? [{ id: `c${index + 1}`, name: "lookup", args: {} }]
+                : [],
+            ),
+          })),
+          longRunningToolIds: ["c1", "c2"],
+        });
+      });
+      let first!: Promise<void>;
+      let second!: Promise<void>;
+      act(() => {
+        first = result.current.sendMessageWithExecutor(
+          [
+            {
+              id: "answer-1",
+              type: "tool",
+              name: "lookup",
+              tool_call_id: "c1",
+              content: "one",
+            },
+          ],
+          {},
+        );
+        second = result.current.sendMessageWithExecutor(
+          [
+            {
+              id: "answer-2",
+              type: "tool",
+              name: "lookup",
+              tool_call_id: "c2",
+              content: "two",
+            },
+          ],
+          {},
+        );
+      });
+      await act(async () => {
+        await Promise.all([first, second]);
+      });
+
+      expect(calls).toEqual(requests);
+    },
+  );
+
   it("keeps a send with failure restoration separate from a later send", async () => {
     const calls: string[][] = [];
     const stream: AdkStreamCallback = async function* (messages) {

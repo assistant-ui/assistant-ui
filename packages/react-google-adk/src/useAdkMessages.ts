@@ -21,7 +21,11 @@ import {
   normalizeAdkEvent,
 } from "./AdkEventAccumulator";
 import { AdkThreadController } from "./AdkThreadController";
-import { normalizeSendConfig, type AdkThreadState } from "./adkThreadState";
+import {
+  getToolResultOwnerKey,
+  normalizeSendConfig,
+  type AdkThreadState,
+} from "./adkThreadState";
 import { contentToParts } from "./contentToParts";
 import { toAdkFunctionResponse } from "./toAdkFunctionResponse";
 import type {
@@ -50,6 +54,7 @@ type QueuedAdkSend = {
   messages: AdkMessage[];
   config: Record<PropertyKey, unknown>;
   batchId: number;
+  toolResultOwnerKey: string | undefined;
   ids: string[];
   run: (messageBatches: AdkMessage[][]) => Promise<void>;
   rollbackState: AdkThreadState | undefined;
@@ -152,16 +157,21 @@ const useAdkMessagesInternal = ({
     while (pendingSendsRef.current.length > 0 && !abortControllerRef.current) {
       const first = pendingSendsRef.current[0]!;
       const sends: QueuedAdkSend[] = [];
+      let toolResultOwnerKey = first.toolResultOwnerKey;
       while (pendingSendsRef.current.length > 0) {
         const next = pendingSendsRef.current[0]!;
         if (
           next.batchId !== first.batchId ||
+          (toolResultOwnerKey !== undefined &&
+            next.toolResultOwnerKey !== undefined &&
+            next.toolResultOwnerKey !== toolResultOwnerKey) ||
           !sameSendConfig(first.config, next.config) ||
           (sends.length > 0 && (first.rollbackState || next.rollbackState))
         ) {
           break;
         }
         sends.push(pendingSendsRef.current.shift()!);
+        toolResultOwnerKey ??= next.toolResultOwnerKey;
       }
       try {
         await sends.at(-1)!.run(sends.map((send) => send.messages));
@@ -398,6 +408,13 @@ const useAdkMessagesInternal = ({
       };
 
       const currentState = controller.getState();
+      const toolMessage = newMessagesWithId.find(
+        (message) => message.type === "tool",
+      );
+      const toolResultOwnerKey =
+        toolMessage?.type === "tool"
+          ? getToolResultOwnerKey(currentState, toolMessage.tool_call_id)
+          : undefined;
       const sentIds = new Set(newMessagesWithId.map((message) => message.id));
       const queuedSeed = currentState.messages.filter(
         (message) => !sentIds.has(message.id),
@@ -427,6 +444,7 @@ const useAdkMessagesInternal = ({
           messages: newMessagesWithId,
           config: normalizeSendConfig(config),
           batchId: sendBatchIdRef.current,
+          toolResultOwnerKey,
           ids: queuedIds,
           rollbackState,
           run: (messageBatches: AdkMessage[][]) =>
