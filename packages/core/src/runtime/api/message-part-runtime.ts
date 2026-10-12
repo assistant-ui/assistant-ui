@@ -10,9 +10,13 @@ import { createToolInteraction } from "../utils/tool-interactions";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { MessagePartStatus } from "../../types/message";
 import type { SubscribableWithState } from "../../subscribable/subscribable";
-import type { ThreadRuntimeCoreBinding } from "./thread-runtime";
+import type {
+  ThreadRuntimeCoreBinding,
+  ThreadRuntimeImpl,
+} from "./thread-runtime";
 import type { MessageStateBinding } from "./bindings";
 import type { MessagePartRuntimePath } from "./paths";
+import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
 import { ToolResponse } from "assistant-stream";
 
 export type MessagePartState = (
@@ -47,8 +51,22 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
   }
 
   private contentBinding: MessagePartSnapshotBinding;
-  private messageApi: MessageStateBinding | undefined;
-  private threadApi: ThreadRuntimeCoreBinding | undefined;
+  private threadApi: ThreadRuntimeImpl["__internal_threadBinding"] | undefined;
+
+  /**
+   * The tool call this part runtime was created for, captured at construction.
+   * A tool UI may retain a part runtime past a thread switch, a branch switch,
+   * or a reload; resolving the target at call time would then address whatever
+   * part now sits at the same position (the bug #9386 describes). Callers that
+   * resolve through {@link resolveTarget} send their payload to the captured
+   * tool call while it still exists on the current thread, and to the captured
+   * thread's core otherwise — the same policy `unstable_recordInteraction`
+   * follows (see #9340).
+   */
+  private readonly capturedState: MessagePartState;
+  private readonly capturedThreadId: string | undefined;
+  private readonly capturedMessageId: string | undefined;
+  private readonly capturedCore: ThreadRuntimeCore | undefined;
 
   constructor(
     contentBinding: MessagePartSnapshotBinding,
@@ -56,9 +74,67 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
     threadApi?: ThreadRuntimeCoreBinding,
   ) {
     this.contentBinding = contentBinding;
-    this.messageApi = messageApi;
-    this.threadApi = threadApi;
+    this.threadApi = threadApi as
+      | ThreadRuntimeImpl["__internal_threadBinding"]
+      | undefined;
+    const state = contentBinding.getState();
+    if (!state) throw new Error("Message part is not available");
+    this.capturedState = state;
+    if (state.type === "tool-call") {
+      this.capturedMessageId = messageApi?.getState().id;
+      // Not every binding carries the thread state (plain core bindings do
+      // not); without it there is nothing to compare against at call time,
+      // so the live core stays the target.
+      this.capturedThreadId = this.#liveThreadId();
+      this.capturedCore =
+        typeof threadApi?.getState === "function"
+          ? threadApi.getState()
+          : undefined;
+    }
     this.__internal_bindMethods();
+  }
+
+  /**
+   * Resolve the tool call, message id, and thread core a tool-call-facing
+   * operation should address: the captured identity from construction, with
+   * the live core while it still hosts the captured thread and the captured
+   * core once the runtime has moved on (thread switch, branch switch, reload).
+   * `action` completes the non-tool error, preserving each method's original
+   * message.
+   */
+  private resolveTarget(action: string): {
+    state: MessagePartState & { type: "tool-call" };
+    messageId: string;
+    core: ThreadRuntimeCore;
+  } {
+    const state = this.capturedState;
+    if (state.type !== "tool-call")
+      throw new Error(`Tried to ${action} non-tool message part`);
+
+    const messageId = this.capturedMessageId;
+    if (messageId === undefined) throw new Error("Message is not available");
+
+    const liveThreadId = this.#liveThreadId();
+    const core =
+      liveThreadId === this.capturedThreadId
+        ? this.threadApi?.getState()
+        : this.capturedCore;
+    if (!core) throw new Error("Thread API is not available");
+
+    return { state, messageId, core };
+  }
+
+  /**
+   * The live thread id from the binding's thread state, or `undefined` when
+   * the binding does not carry one (plain core bindings) — in which case the
+   * live core stays the target because there is nothing to compare against.
+   */
+  #liveThreadId(): string | undefined {
+    const binding = this.threadApi;
+    if (!binding) return undefined;
+    if (!("getStateState" in binding)) return undefined;
+    if (typeof binding.getStateState !== "function") return undefined;
+    return binding.getStateState().threadId;
   }
 
   protected __internal_bindMethods() {
@@ -76,27 +152,16 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
   }
 
   public addToolResult(result: any | ToolResponse<any>) {
-    const state = this.contentBinding.getState();
-    if (!state) throw new Error("Message part is not available");
-
-    if (state.type !== "tool-call")
-      throw new Error("Tried to add tool result to non-tool message part");
-
-    if (!this.messageApi)
-      throw new Error(
-        "Message API is not available. This is likely a bug in assistant-ui.",
-      );
-    if (!this.threadApi) throw new Error("Thread API is not available");
-
-    const message = this.messageApi.getState();
-    if (!message) throw new Error("Message is not available");
+    const { state, messageId, core } = this.resolveTarget(
+      "add tool result to a",
+    );
 
     const toolName = state.toolName;
     const toolCallId = state.toolCallId;
 
     const response = ToolResponse.toResponse(result);
-    this.threadApi.getState().addToolResult({
-      messageId: message.id,
+    core.addToolResult({
+      messageId,
       toolName,
       toolCallId,
       result: response.result,
@@ -109,16 +174,10 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
   }
 
   public resumeToolCall(payload: unknown) {
-    const state = this.contentBinding.getState();
-    if (!state) throw new Error("Message part is not available");
-
-    if (state.type !== "tool-call")
-      throw new Error("Tried to resume tool call on non-tool message part");
-
-    if (!this.threadApi) throw new Error("Thread API is not available");
+    const { state, core } = this.resolveTarget("resume tool call on a");
 
     const toolCallId = state.toolCallId;
-    this.threadApi.getState().resumeToolCall({
+    core.resumeToolCall({
       toolCallId,
       payload,
     });
@@ -129,13 +188,7 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
   }
 
   public respondToToolApproval(response: ToolApprovalResponse): Promise<void> {
-    const state = this.contentBinding.getState();
-    if (!state) throw new Error("Message part is not available");
-
-    if (state.type !== "tool-call")
-      throw new Error(
-        "Tried to respond to tool approval on non-tool message part",
-      );
+    const { state, core } = this.resolveTarget("respond to tool approval on a");
 
     if (
       !state.approval ||
@@ -144,40 +197,24 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
     )
       throw new Error("Tool call has no pending approval");
 
-    if (!this.threadApi) throw new Error("Thread API is not available");
-
-    return this.threadApi
-      .getState()
-      .respondToToolApproval(
-        resolveToolApprovalResponse(state.approval, response),
-      );
+    return core.respondToToolApproval(
+      resolveToolApprovalResponse(state.approval, response),
+    );
   }
 
   /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
   public async unstable_recordInteraction(
     input: Unstable_ToolInteractionInput,
   ): Promise<void> {
-    const state = this.contentBinding.getState();
-    if (!state) throw new Error("Message part is not available");
+    const { state, messageId, core } = this.resolveTarget(
+      "record interaction on",
+    );
 
-    if (state.type !== "tool-call")
-      throw new Error("Tried to record interaction on non-tool message part");
-
-    if (!this.messageApi)
-      throw new Error(
-        "Message API is not available. This is likely a bug in assistant-ui.",
-      );
-    if (!this.threadApi) throw new Error("Thread API is not available");
-
-    const message = this.messageApi.getState();
-    if (!message) throw new Error("Message is not available");
-
-    const core = this.threadApi.getState();
     if (!core.unstable_recordToolInteraction)
       throw new Error("Runtime does not support recording tool interactions.");
 
     await core.unstable_recordToolInteraction({
-      messageId: message.id,
+      messageId,
       toolCallId: state.toolCallId,
       interaction: createToolInteraction(input),
     });

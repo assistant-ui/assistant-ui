@@ -61,32 +61,63 @@ const message = {
 const createRuntime = ({
   part = toolPart,
   core,
+  message: messageOverride,
+  live,
 }: {
   part?: MessagePartState;
   core: ThreadRuntimeCore;
+  message?: ReturnType<typeof makeMessage>;
+  live?: {
+    part: MessagePartState;
+    core: ThreadRuntimeCore;
+    threadId: string;
+  };
 }) => {
+  // The captured identity is read at construction; the live state only
+  // applies once the runtime has moved on. Every binding serves the
+  // original objects for the whole construction window (flagged by
+  // `constructing`) and the moved-on ones afterwards.
+  let constructing = true;
   const contentBinding = {
     path: partPath,
-    getState: () => part,
+    getState: () => (constructing ? part : (live?.part ?? part)),
     subscribe: () => () => {},
   };
   const messageBinding: MessageStateBinding = {
     path: messagePath,
-    getState: () => message,
+    getState: () => messageOverride ?? message,
     subscribe: () => () => {},
   };
-  const threadBinding: ThreadRuntimeCoreBinding = {
+  const threadBinding = {
     path: threadPath,
-    getState: () => core,
+    getState: () => (constructing ? core : (live?.core ?? core)),
+    // The production binding is a `ThreadRuntimeImpl.__internal_threadBinding`,
+    // which carries `getStateState`; the implementation probes for it.
+    getStateState: () => ({
+      threadId: constructing ? "thread-1" : (live?.threadId ?? "thread-1"),
+    }),
     subscribe: () => () => {},
     outerSubscribe: () => () => {},
-  };
-  return new MessagePartRuntimeImpl(
+  } as ThreadRuntimeCoreBinding;
+  const runtime = new MessagePartRuntimeImpl(
     contentBinding,
     messageBinding,
     threadBinding,
   );
+  constructing = false;
+  return runtime;
 };
+
+const makeMessage = (id: string) => ({
+  ...message,
+  id,
+  content: [
+    {
+      ...toolPart,
+      toolCallId: `call-${id}`,
+    },
+  ],
+});
 
 describe("MessagePartRuntime interaction recording", () => {
   it("rejects invalid inputs without throwing synchronously", async () => {
@@ -146,6 +177,107 @@ describe("MessagePartRuntime interaction recording", () => {
         occurredAt: expect.any(Number),
       },
     });
+  });
+});
+
+describe("MessagePartRuntime retained part after a thread switch (#9386)", () => {
+  const makeCores = () => {
+    const recordOriginal = vi.fn(async () => {});
+    const recordSuccessor = vi.fn(async () => {});
+    const addResultSuccessor = vi.fn();
+    const addResultOriginal = vi.fn();
+    const originalCore = {
+      addToolResult: addResultOriginal,
+      unstable_recordToolInteraction: recordOriginal,
+    } as unknown as ThreadRuntimeCore;
+    const successorCore = {
+      addToolResult: addResultSuccessor,
+      unstable_recordToolInteraction: recordSuccessor,
+    } as unknown as ThreadRuntimeCore;
+    return {
+      recordOriginal,
+      recordSuccessor,
+      addResultOriginal,
+      addResultSuccessor,
+      originalCore,
+      successorCore,
+    };
+  };
+
+  it("records against the original thread's core after a thread switch", async () => {
+    const { recordOriginal, recordSuccessor, originalCore, successorCore } =
+      makeCores();
+    const runtime = createRuntime({
+      core: originalCore,
+      live: {
+        part: { ...toolPart, toolCallId: "call-successor" },
+        core: successorCore,
+        threadId: "thread-2",
+      },
+    });
+
+    await runtime.unstable_recordInteraction({
+      type: "action",
+      payload: { source: "retained" },
+    });
+
+    expect(recordOriginal).toHaveBeenCalledExactlyOnceWith({
+      messageId: "message-1",
+      toolCallId: "call-1",
+      interaction: expect.objectContaining({ type: "action" }),
+    });
+    expect(recordSuccessor).not.toHaveBeenCalled();
+  });
+
+  it("uses the live core while it still hosts the captured thread", async () => {
+    const { recordOriginal, recordSuccessor, originalCore, successorCore } =
+      makeCores();
+    const runtime = createRuntime({
+      core: originalCore,
+      // A reload rebuilt the core object but the thread id is unchanged —
+      // the live core is the right target.
+      live: {
+        part: toolPart,
+        core: successorCore,
+        threadId: "thread-1",
+      },
+    });
+
+    await runtime.unstable_recordInteraction({
+      type: "action",
+      payload: {},
+    });
+
+    expect(recordSuccessor).toHaveBeenCalledOnce();
+    expect(recordOriginal).not.toHaveBeenCalled();
+  });
+
+  it("sends a retained addToolResult with the captured tool call ids, not the successor's", () => {
+    const {
+      addResultOriginal,
+      addResultSuccessor,
+      originalCore,
+      successorCore,
+    } = makeCores();
+    const runtime = createRuntime({
+      core: originalCore,
+      live: {
+        part: { ...toolPart, toolCallId: "call-successor", toolName: "other" },
+        core: successorCore,
+        threadId: "thread-2",
+      },
+    });
+
+    runtime.addToolResult({ result: "done" });
+
+    expect(addResultOriginal).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        messageId: "message-1",
+        toolName: "weather",
+        toolCallId: "call-1",
+      }),
+    );
+    expect(addResultSuccessor).not.toHaveBeenCalled();
   });
 });
 
