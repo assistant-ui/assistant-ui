@@ -3,7 +3,7 @@ import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
 import type { MessageStateBinding } from "./bindings";
 import type { MessagePartState } from "./message-part-runtime";
 import { MessagePartRuntimeImpl } from "./message-part-runtime";
-import type { ThreadRuntimeCoreBinding } from "./thread-runtime";
+import type { ThreadRuntimeImpl, ThreadRuntimeState } from "./thread-runtime";
 
 const threadPath = {
   ref: "threads.main",
@@ -75,9 +75,10 @@ const createRuntime = ({
     getState: () => message,
     subscribe: () => () => {},
   };
-  const threadBinding: ThreadRuntimeCoreBinding = {
+  const threadBinding: ThreadRuntimeImpl["__internal_threadBinding"] = {
     path: threadPath,
     getState: () => core,
+    getStateState: () => ({ threadId: "thread-1" }) as ThreadRuntimeState,
     subscribe: () => () => {},
     outerSubscribe: () => () => {},
   };
@@ -86,6 +87,62 @@ const createRuntime = ({
     messageBinding,
     threadBinding,
   );
+};
+
+const retainedToolPart: MessagePartState = {
+  ...toolPart,
+  approval: { id: "approval-1" },
+};
+
+const replacementToolPart: MessagePartState = {
+  ...toolPart,
+  toolCallId: "call-2",
+  toolName: "replacement",
+  approval: { id: "approval-2" },
+};
+
+const createRetainedRuntime = (core: ThreadRuntimeCore) => {
+  let part: MessagePartState = retainedToolPart;
+  let messageId = "message-1";
+  let currentCore = core;
+  let threadId = "thread-1";
+
+  const contentBinding = {
+    path: partPath,
+    getState: () => part,
+    subscribe: () => () => {},
+  };
+  const messageBinding: MessageStateBinding = {
+    path: messagePath,
+    getState: () => ({ ...message, id: messageId }),
+    subscribe: () => () => {},
+  };
+  const threadBinding: ThreadRuntimeImpl["__internal_threadBinding"] = {
+    path: threadPath,
+    getState: () => currentCore,
+    getStateState: () => ({ threadId }) as ThreadRuntimeState,
+    subscribe: () => () => {},
+    outerSubscribe: () => () => {},
+  };
+
+  return {
+    runtime: new MessagePartRuntimeImpl(
+      contentBinding,
+      messageBinding,
+      threadBinding,
+    ),
+    replace: (replacement: {
+      part?: MessagePartState;
+      messageId?: string;
+      core?: ThreadRuntimeCore;
+      threadId?: string;
+    }) => {
+      part = replacement.part ?? replacementToolPart;
+      messageId = replacement.messageId ?? "message-2";
+      currentCore = replacement.core ?? currentCore;
+      threadId = replacement.threadId ?? threadId;
+    },
+  };
 };
 
 describe("MessagePartRuntime interaction recording", () => {
@@ -212,4 +269,88 @@ describe("MessagePartRuntime resumeToolCall", () => {
     await Promise.resolve();
     expect(resumeToolCall).toHaveBeenCalledOnce();
   });
+});
+
+describe("MessagePartRuntime retained tool actions", () => {
+  it.each([
+    {
+      name: "a thread switch",
+      threadId: "thread-2",
+      currentCore: "successor",
+      expectedCore: "original",
+    },
+    {
+      name: "a branch switch",
+      threadId: "thread-1",
+      currentCore: "original",
+      expectedCore: "original",
+    },
+    {
+      name: "a same-thread restart",
+      threadId: "thread-1",
+      currentCore: "successor",
+      expectedCore: "successor",
+    },
+  ])(
+    "keeps action targets through $name",
+    async ({ threadId, currentCore, expectedCore }) => {
+      const originalCore = {
+        addToolResult: vi.fn(),
+        resumeToolCall: vi.fn(),
+        respondToToolApproval: vi.fn(async () => {}),
+        unstable_recordToolInteraction: vi.fn(async () => {}),
+      } as unknown as ThreadRuntimeCore;
+      const successorCore = {
+        addToolResult: vi.fn(),
+        resumeToolCall: vi.fn(),
+        respondToToolApproval: vi.fn(async () => {}),
+        unstable_recordToolInteraction: vi.fn(async () => {}),
+      } as unknown as ThreadRuntimeCore;
+      const { runtime, replace } = createRetainedRuntime(originalCore);
+
+      replace({
+        core: currentCore === "successor" ? successorCore : originalCore,
+        threadId,
+      });
+
+      runtime.addToolResult({ answer: "result" });
+      runtime.resumeToolCall({ answer: "resume" });
+      await runtime.respondToToolApproval({ approved: true });
+
+      const targetCore =
+        expectedCore === "successor" ? successorCore : originalCore;
+      const otherCore =
+        expectedCore === "successor" ? originalCore : successorCore;
+      expect(targetCore.addToolResult).toHaveBeenCalledWith(
+        expect.objectContaining({
+          messageId: "message-1",
+          toolName: "weather",
+          toolCallId: "call-1",
+          result: { answer: "result" },
+        }),
+      );
+      expect(targetCore.resumeToolCall).toHaveBeenCalledWith({
+        toolCallId: "call-1",
+        payload: { answer: "resume" },
+      });
+      expect(targetCore.respondToToolApproval).toHaveBeenCalledWith({
+        approvalId: "approval-1",
+        approved: true,
+      });
+      expect(targetCore.unstable_recordToolInteraction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          messageId: "message-1",
+          toolCallId: "call-1",
+          interaction: expect.objectContaining({
+            type: "human-response",
+            payload: { answer: "resume" },
+          }),
+        }),
+      );
+      expect(otherCore.addToolResult).not.toHaveBeenCalled();
+      expect(otherCore.resumeToolCall).not.toHaveBeenCalled();
+      expect(otherCore.respondToToolApproval).not.toHaveBeenCalled();
+      expect(otherCore.unstable_recordToolInteraction).not.toHaveBeenCalled();
+    },
+  );
 });
