@@ -754,6 +754,38 @@ describe("SpecRenderer", () => {
     ).toBeNull();
   });
 
+  it("tracks replacement watches from their first subsequent change", async () => {
+    const store = createStateStore({ a: 0, b: 0 });
+    const refresh = vi.fn();
+    const draw = (paths: string[]): SpecRendererProps => ({
+      components,
+      state: store,
+      handlers: { refresh },
+      spec: spec({
+        main: {
+          type: "Stack",
+          watch: Object.fromEntries(
+            paths.map((path) => [path, { action: "refresh" }]),
+          ),
+        },
+      }),
+    });
+    const view = mount(draw(["/a"]));
+    await view.update(draw(["/b"]));
+    expect(refresh).not.toHaveBeenCalled();
+    store.set("/b", 1);
+    await nextTick();
+    expect(refresh).toHaveBeenCalledExactlyOnceWith(
+      {},
+      expect.objectContaining({ trigger: "/b" }),
+    );
+    await view.update(draw(["/b", "/a"]));
+    expect(refresh).toHaveBeenCalledTimes(1);
+    store.set("/a", 1);
+    await nextTick();
+    expect(refresh).toHaveBeenCalledTimes(2);
+  });
+
   it("runs watch actions after watched state changes", async () => {
     const refresh = vi.fn();
     const store = createStateStore({ range: "7d" });
