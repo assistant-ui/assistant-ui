@@ -23,6 +23,8 @@ export interface Candidate extends SuiteCandidate {
 export interface Answer {
   /** The Markdown, the final tree or spec, or the widget source: what renders. */
   artifact: string;
+  /** Markdown the model wrote around a tool answer, in message order; empty strings when the answer is Markdown itself. */
+  prose: { before: string; after: string };
   /** The format `artifact` is in: the one asked for or chosen, or `text` when the model answered in prose without calling an answer tool. */
   answeredIn: Format;
   /** The format of the last answer tool call when every one failed before it ran: the answer renders as the `text` the user sees, and `auto`'s choice tally counts this format. */
@@ -57,6 +59,7 @@ export interface Rendered {
 export type RenderAnswer = (
   format: Format,
   artifact: string,
+  prose: Answer["prose"],
 ) => Promise<Rendered>;
 
 export interface Judged extends Answer {

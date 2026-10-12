@@ -21,6 +21,7 @@ import {
   normalizeAdkEvent,
 } from "./AdkEventAccumulator";
 import { AdkThreadController } from "./AdkThreadController";
+import { normalizeSendConfig, type AdkThreadState } from "./adkThreadState";
 import { contentToParts } from "./contentToParts";
 import { toAdkFunctionResponse } from "./toAdkFunctionResponse";
 import type {
@@ -51,26 +52,12 @@ type QueuedAdkSend = {
   batchId: number;
   ids: string[];
   run: (messageBatches: AdkMessage[][]) => Promise<void>;
+  rollbackState: AdkThreadState | undefined;
   resolve: () => void;
   reject: (error: unknown) => void;
 };
 
 type RunExecutor = (run: () => Promise<void>) => Promise<void>;
-
-const normalizeSendConfig = (config: AdkSendMessageConfig) =>
-  Object.fromEntries(
-    Reflect.ownKeys(config).map((key) => {
-      const value = Reflect.get(config, key);
-      return [
-        key,
-        value &&
-        typeof value === "object" &&
-        Reflect.ownKeys(value).length === 0
-          ? undefined
-          : value,
-      ];
-    }),
-  );
 
 const sameSendConfig = (
   left: Record<PropertyKey, unknown>,
@@ -169,7 +156,8 @@ const useAdkMessagesInternal = ({
         const next = pendingSendsRef.current[0]!;
         if (
           next.batchId !== first.batchId ||
-          !sameSendConfig(first.config, next.config)
+          !sameSendConfig(first.config, next.config) ||
+          (sends.length > 0 && (first.rollbackState || next.rollbackState))
         ) {
           break;
         }
@@ -195,6 +183,7 @@ const useAdkMessagesInternal = ({
       newMessages: AdkMessage[],
       config: AdkSendMessageConfig,
       executeWithRun?: RunExecutor,
+      rollbackState?: AdkThreadState,
     ) => {
       const newMessagesWithId = newMessages.map((m) =>
         m.id ? m : { ...m, id: generateId() },
@@ -358,11 +347,18 @@ const useAdkMessagesInternal = ({
             !(error instanceof Error && error.name === "AbortError")
           ) {
             if (!receivedEvent) {
-              controller.dispatch({
-                type: "run.preEventFailed",
-                ownIds,
-                ...previousRunState,
-              });
+              if (rollbackState)
+                controller.dispatch({
+                  type: "run.rollback",
+                  state: rollbackState,
+                  ownIds: [...ownIds, ...queuedIds],
+                });
+              else
+                controller.dispatch({
+                  type: "run.preEventFailed",
+                  ownIds,
+                  ...previousRunState,
+                });
             }
             throw error;
           }
@@ -432,6 +428,7 @@ const useAdkMessagesInternal = ({
           config: normalizeSendConfig(config),
           batchId: sendBatchIdRef.current,
           ids: queuedIds,
+          rollbackState,
           run: (messageBatches: AdkMessage[][]) =>
             executeWithRun
               ? executeWithRun(() => run(messageBatches))
