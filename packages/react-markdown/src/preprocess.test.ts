@@ -225,6 +225,26 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
   });
 
+  it.each([
+    [
+      "a bullet then an ordered marker, each touching a quote",
+      ">- >1) \\[x\n>   >    a\n>   >    \\]",
+      ">- >1) \n>   >    $$\n>   >    x\n>   >    a\n>   >    $$",
+    ],
+    [
+      "two ordered markers, each touching a quote",
+      ">1) >2) \\[x\n>    >    a\n>    >    \\]",
+      ">1) >2) \n>    >    $$\n>    >    x\n>    >    a\n>    >    $$",
+    ],
+    [
+      "nested list markers in a quote with a [/math] display",
+      "> - 1. [/math]x\n>      a\n>      [/math]",
+      "> - 1. \n>      $$\n>      x\n>      a\n>      $$",
+    ],
+  ])("keeps math after %s", (_, input, expected) => {
+    expect(normalizeMathDelimiters(input)).toBe(expected);
+  });
+
   it("reads the block prefix past a code span on the same line", () => {
     expect(
       rewriteLatexBracketDelimiters("- see `x` \\[\na\nb\n\\]\n- next"),
