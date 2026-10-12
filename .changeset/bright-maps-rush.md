@@ -2,4 +2,4 @@
 "@assistant-ui/react-google-adk": patch
 ---
 
-Restore the prior ADK thread state when a request fails before its first event.
+fix(react-google-adk): remove the optimistic user message when its request fails before the first event

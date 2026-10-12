@@ -241,6 +241,7 @@ type CreateWidgetOptions = WidgetHandlers & {
   maxHeight?: number;
   minHeight?: number;
   readyTimeoutMs?: number;
+  initialState?: unknown;
   code?: string;
 };
 
@@ -1779,7 +1780,7 @@ type WidgetToolkitExtension = {
 type WidgetToolkitOptions = Omit<CreateWidgetToolsOptions, "registry"> & {
   registry?: WidgetRegistry;
   execution?: "backend" | "frontend";
-  widget?: Omit<UseWidgetOptions, "tokens">;
+  widget?: Omit<UseWidgetOptions, "initialState" | "tokens">;
   spec?: WidgetToolkitExtension;
   extraTools?: Record<string, AnyTool>;
   themeElement?: Element | null;
