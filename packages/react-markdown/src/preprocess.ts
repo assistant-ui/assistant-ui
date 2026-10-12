@@ -1314,7 +1314,6 @@ function rewriteMathTags(text: string, handoffBrackets: boolean): string {
   let bracketOpenerLength = 0;
   let bracketOpenerLineStart = 0;
   let bracketInheritedPrefix: string | undefined;
-  let bracketCrossedSpan = false;
 
   const advanceScan = (end: number) => {
     while (scanNextLineEnd !== -1 && scanNextLineEnd < end) {
@@ -1349,17 +1348,13 @@ function rewriteMathTags(text: string, handoffBrackets: boolean): string {
             absoluteAt >= continuedLineStart && absoluteAt < continuedLineEnd
               ? continuedPrefix
               : undefined;
-          bracketCrossedSpan = false;
         }
       } else if (bracketOpener !== -1) {
         const body = text.slice(
           bracketOpener + bracketOpenerLength,
           absoluteAt,
         );
-        if (
-          body.includes("\n") &&
-          (!bracketCrossedSpan || !crossesSpanBoundary(body))
-        ) {
+        if (body.includes("\n") && !crossesSpanBoundary(body)) {
           continuedLineStart = scanLineStart;
           const lineEnd = text.indexOf("\n", absoluteAt);
           continuedLineEnd = lineEnd === -1 ? text.length : lineEnd;
@@ -1426,7 +1421,6 @@ function rewriteMathTags(text: string, handoffBrackets: boolean): string {
           if (scanCursor < start) bracketOpener = -1;
           advanceScan(start);
           if (kind === "fence") bracketOpener = -1;
-          else if (bracketOpener !== -1) bracketCrossedSpan = true;
           advanceScan(end);
         }
       : undefined,

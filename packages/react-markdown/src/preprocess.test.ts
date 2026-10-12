@@ -822,12 +822,24 @@ describe("rewriteCustomMathTags", () => {
 });
 
 describe("normalizeMathDelimiters", () => {
+  it("keeps a blank-line bracket display from handing off its list prefix", () => {
+    expect(
+      normalizeMathDelimiters(
+        "> 1. \\[\n> a\n>\n> b\n> \\] x [/math]\n> c\n> [/math]",
+      ),
+    ).toBe(
+      "> 1. \n>    $$\n>    a\n>   \n>    b\n>    $$\n>     x \n> $$\n> c\n> $$",
+    );
+  });
+
+  it("normalizes inline math after a blank-line bracket and tag display", () => {
+    const result = normalizeMathDelimiters(
+      "> 1. \\[\n> a\n>\n> b\n> \\] x [/math]\n> c\n> [/math] then \\(y\\)",
+    );
+    expect(result).toContain("then $y$");
+  });
+
   it.each([
-    [
-      "a blank line in the bracket body",
-      "> 1. \\[\n> a\n>\n> b\n> \\] x [/math]\n> c\n> [/math]",
-      "> 1. \n>    $$\n>    a\n>   \n>    b\n>    $$\n>     x \n>    $$\n>    c\n>    $$",
-    ],
     [
       "a code span in the bracket body",
       "> 1. \\[\n> a `x` b\n> \\] x [/math]\n> c\n> [/math]",
@@ -860,6 +872,26 @@ describe("normalizeMathDelimiters", () => {
     ],
   ])("hands off a quoted list prefix across a %s", (_, input, expected) => {
     expect(normalizeMathDelimiters(input)).toBe(expected);
+  });
+
+  it("keeps three chained displays inside a quoted list item", () => {
+    expect(
+      normalizeMathDelimiters(
+        "> 1. [/math]\n> a\n> [/math] x \\[\n> b\n> \\] y [/math]\n> c\n> [/math] then",
+      ),
+    ).toBe(
+      "> 1. \n>    $$\n>    a\n>    $$\n>     x \n>     $$\n>     b\n>     $$\n>      y \n>    $$\n>    c\n>    $$\n>     then",
+    );
+  });
+
+  it("carries an inherited prefix through a bracket closer and tag opener", () => {
+    expect(
+      normalizeMathDelimiters(
+        "> 12. [/math]\n> a\n> [/math] plus \\[\n> b\n> \\] after [/math]\n> c\n> [/math] end",
+      ),
+    ).toBe(
+      "> 12. \n>     $$\n>     a\n>     $$\n>      plus \n>      $$\n>      b\n>      $$\n>       after \n>     $$\n>     c\n>     $$\n>      end",
+    );
   });
 
   it("normalizes both bracket delimiters and custom tags", () => {
