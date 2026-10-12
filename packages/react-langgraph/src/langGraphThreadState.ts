@@ -302,10 +302,6 @@ export const reduceLangGraphThreadState = (
           previous.toolResultBuffer,
           state.toolResultBuffer,
         ),
-        pendingResume: restoreMissingEntries(
-          previous.pendingResume,
-          state.pendingResume,
-        ),
         autoCancelledToolCallTokens: restoreMissingEntries(
           previous.autoCancelledToolCallTokens,
           state.autoCancelledToolCallTokens,
@@ -314,11 +310,6 @@ export const reduceLangGraphThreadState = (
           state.interruptRunConfig === undefined
             ? previous.interruptRunConfig
             : state.interruptRunConfig,
-        runErrorBalance:
-          state.runErrorBalance === 0
-            ? previous.runErrorBalance
-            : state.runErrorBalance,
-        readyBatch: state.readyBatch ?? previous.readyBatch,
       };
     }
     case "run.error":

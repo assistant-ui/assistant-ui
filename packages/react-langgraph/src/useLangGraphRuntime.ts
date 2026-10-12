@@ -750,19 +750,20 @@ const useLangGraphRuntimeImpl = (
   ) => {
     if (truncationRef.current !== operation) return;
 
-    const restoredMessages = appendMissing(
-      langGraphMessagesRef.current.filter(
-        (message) => !message.id || !omittedMessageIds.has(message.id),
-      ),
-      snapshot.messages,
-    );
-    langGraphMessagesRef.current = restoredMessages;
-    setMessages(restoredMessages);
-    setUIMessages(
-      appendMissing(
-        uiMessagesRef.current.filter(
-          (message) => !omittedMessageIds.has(message.id),
+    let restoredMessages: LangChainMessage[] = [];
+    setMessages((current) => {
+      restoredMessages = appendMissing(
+        current.filter(
+          (message) => !message.id || !omittedMessageIds.has(message.id),
         ),
+        snapshot.messages,
+      );
+      return restoredMessages;
+    });
+    langGraphMessagesRef.current = restoredMessages;
+    setUIMessages((current) =>
+      appendMissing(
+        current.filter((message) => !omittedMessageIds.has(message.id)),
         snapshot.uiMessages,
       ),
     );
@@ -783,7 +784,7 @@ const useLangGraphRuntimeImpl = (
     });
     if (pendingStateRef.current === undefined)
       pendingStateRef.current = snapshot.pendingState;
-    if (interruptRef.current === undefined) setInterrupt(snapshot.interrupt);
+    setInterrupt((current) => current ?? snapshot.interrupt);
     pruneMessageCaches(restoredMessages);
   };
 
@@ -1133,7 +1134,18 @@ const useLangGraphRuntimeImpl = (
                 { runConfig: config.runConfig ?? stagedRun.runConfig },
                 undefined,
                 undefined,
-                () => restoreOperationSnapshot(snapshot, truncation),
+                () => {
+                  if (truncationRef.current !== truncation) return;
+                  for (const [id, staged] of snapshot.stagedMessages) {
+                    if (!stagedMessagesRef.current.has(id))
+                      stagedMessagesRef.current.set(id, staged);
+                  }
+                  setStagedMessageCount(stagedMessagesRef.current.size);
+                  threadController.dispatch({
+                    type: "run.preEventFailed",
+                    previous: snapshot.threadState,
+                  });
+                },
               );
             }
 

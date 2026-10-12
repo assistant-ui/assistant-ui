@@ -318,10 +318,15 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
     interruptRef.current = interrupt;
   }, [interrupt]);
 
-  const setMessagesImmediate = useCallback((msgs: TMessage[]) => {
-    messagesRef.current = msgs;
-    _setMessages(msgs);
-  }, []);
+  const setMessagesImmediate = useCallback(
+    (msgs: TMessage[] | ((current: TMessage[]) => TMessage[])) => {
+      const next =
+        typeof msgs === "function" ? msgs(messagesRef.current) : msgs;
+      messagesRef.current = next;
+      _setMessages(next);
+    },
+    [],
+  );
 
   const [uiMessages, _setUIMessages] = useState<UIMessage[]>([]);
   const uiMessagesRef = useRef(uiMessages);
@@ -333,10 +338,15 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
     LangGraphMessageAccumulator<TMessage> | undefined
   >(undefined);
 
-  const setUIMessagesImmediate = useCallback((next: UIMessage[]) => {
-    uiMessagesRef.current = next;
-    _setUIMessages(next);
-  }, []);
+  const setUIMessagesImmediate = useCallback(
+    (next: UIMessage[] | ((current: UIMessage[]) => UIMessage[])) => {
+      const resolved =
+        typeof next === "function" ? next(uiMessagesRef.current) : next;
+      uiMessagesRef.current = resolved;
+      _setUIMessages(resolved);
+    },
+    [],
+  );
 
   const [messageMetadata, setMessageMetadata] = useState<
     Map<string, LangGraphTupleMetadata>
@@ -864,12 +874,48 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     onSubgraphError?: OnSubgraphErrorEventCallback;
     onCustomEvent?: OnCustomEventCallback;
   };
-}) =>
-  useLangGraphMessagesInternal({
+}) => {
+  const {
+    interrupt,
+    values,
+    messages,
+    messageMetadata,
+    uiMessages,
+    sendMessage,
+    cancel,
+    setInterrupt,
+    setValues,
+    setMessages,
+    setUIMessages,
+    reconcileMessages,
+    reconcileUIMessages,
+    reconcileInterrupt,
+  } = useLangGraphMessagesInternal({
     stream,
     ...(appendMessage !== undefined && { appendMessage }),
     ...(eventHandlers !== undefined && { eventHandlers }),
     ...(uiStateKey !== undefined && { uiStateKey }),
   });
+  return {
+    interrupt,
+    values,
+    messages,
+    messageMetadata,
+    uiMessages,
+    sendMessage: sendMessage as (
+      newMessages: TMessage[],
+      config: LangGraphSendMessageConfig,
+      onComplete?: ((finalMessages: TMessage[]) => void) | undefined,
+    ) => Promise<void>,
+    cancel,
+    setInterrupt,
+    setValues,
+    setMessages: setMessages as (msgs: TMessage[]) => void,
+    setUIMessages: setUIMessages as (next: UIMessage[]) => void,
+    reconcileMessages,
+    reconcileUIMessages,
+    reconcileInterrupt,
+  };
+};
 
 export { useLangGraphMessagesInternal };
