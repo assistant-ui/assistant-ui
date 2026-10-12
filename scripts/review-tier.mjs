@@ -11,11 +11,13 @@ import { hasOption, optionValues } from "./lib/script-options.mjs";
 
 const marker = "<!-- review-tier -->";
 const rawAccept = "application/vnd.github.raw";
+const transientStatuses = new Set([0, 502, 503, 504]);
 
 export function createGitHubClient({
   token,
   fetch = globalThis.fetch,
   apiRoot = "https://api.github.com",
+  wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 }) {
   async function rest(
     method,
@@ -23,6 +25,19 @@ export function createGitHubClient({
     body,
     accept = "application/vnd.github+json",
   ) {
+    const retries = method === "GET" || resource === "/graphql" ? 2 : 0;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await request(method, resource, body, accept);
+      } catch (error) {
+        if (attempt === retries || !transientStatuses.has(error.status))
+          throw error;
+        await wait(1000 * 2 ** attempt);
+      }
+    }
+  }
+
+  async function request(method, resource, body, accept) {
     const url = /^https?:\/\//.test(resource)
       ? resource
       : `${apiRoot.replace(/\/$/, "")}/${resource.replace(/^\//, "")}`;

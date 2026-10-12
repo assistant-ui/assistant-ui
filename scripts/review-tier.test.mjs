@@ -518,6 +518,7 @@ test("HTTP, transport, and invalid JSON failures carry a status", async () => {
   await assert.rejects(client.rest("GET", "/missing"), { status: 404 });
   const offline = createGitHubClient({
     token: "token",
+    wait: async () => {},
     fetch: async () => {
       throw new Error("Offline");
     },
@@ -531,6 +532,66 @@ test("HTTP, transport, and invalid JSON failures carry a status", async () => {
     fetch: async () => new Response("not json"),
   });
   await assert.rejects(invalid.rest("GET", "/items"), { status: 200 });
+});
+
+test("the GitHub client retries transient failures on reads but never on writes", async () => {
+  const methods = [];
+  const waits = [];
+  const responses = [
+    new Response("Bad gateway", { status: 502 }),
+    new Response(JSON.stringify([{ id: 1 }])),
+    new Response("Gateway timeout", { status: 504 }),
+    new Response(JSON.stringify({ data: { viewer: { login: "octo" } } })),
+    new Response("Bad gateway", { status: 502 }),
+  ];
+  const client = createGitHubClient({
+    token: "token",
+    wait: async (ms) => {
+      waits.push(ms);
+    },
+    fetch: async (_url, options) => {
+      methods.push(options.method);
+      return responses.shift();
+    },
+  });
+  assert.deepEqual((await client.rest("GET", "/items")).data, [{ id: 1 }]);
+  assert.deepEqual(await client.graphql("query Viewer", {}), {
+    viewer: { login: "octo" },
+  });
+  await assert.rejects(client.rest("POST", "/items", { name: "new" }), {
+    status: 502,
+  });
+  assert.deepEqual(methods, ["GET", "GET", "POST", "POST", "POST"]);
+  assert.deepEqual(waits, [1000, 1000]);
+});
+
+test("the GitHub client stops after three attempts and leaves other statuses alone", async () => {
+  const waits = [];
+  let unavailable = 0;
+  const failing = createGitHubClient({
+    token: "token",
+    wait: async (ms) => {
+      waits.push(ms);
+    },
+    fetch: async () => {
+      unavailable++;
+      return new Response("Unavailable", { status: 503 });
+    },
+  });
+  await assert.rejects(failing.rest("GET", "/items"), { status: 503 });
+  assert.equal(unavailable, 3);
+  assert.deepEqual(waits, [1000, 2000]);
+  let missing = 0;
+  const notFound = createGitHubClient({
+    token: "token",
+    wait: async () => {},
+    fetch: async () => {
+      missing++;
+      return new Response("Missing", { status: 404 });
+    },
+  });
+  await assert.rejects(notFound.rest("GET", "/missing"), { status: 404 });
+  assert.equal(missing, 1);
 });
 
 test("the merged tap fixture is T3 with owner, decision, and window still needed", async () => {
