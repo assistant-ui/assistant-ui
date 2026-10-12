@@ -54,7 +54,9 @@ const isSpecShape = (value: unknown): value is Spec =>
   value !== null &&
   !Array.isArray(value) &&
   typeof (value as Spec).root === "string" &&
-  typeof (value as Spec).elements === "object";
+  typeof (value as Spec).elements === "object" &&
+  (value as Spec).elements !== null &&
+  !Array.isArray((value as Spec).elements);
 
 /**
  * Turns a stream of JSONL patch lines (optionally interleaved with prose)
@@ -149,7 +151,13 @@ export function createSpecStream(
         continue;
       }
       try {
-        spec = applyPatchOperation(spec, checked.op, { createMissing: true });
+        const next = applyPatchOperation(spec, checked.op, {
+          createMissing: true,
+        });
+        if (!isSpecShape(next)) {
+          throw new Error("A spec needs a string root and an elements object");
+        }
+        spec = next;
         update.patches.push(checked.op);
         allPatches.push(checked.op);
       } catch (error) {

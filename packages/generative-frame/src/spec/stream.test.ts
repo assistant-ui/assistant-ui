@@ -9,6 +9,60 @@ const LINES = [
 ];
 
 describe("createSpecStream", () => {
+  it.each([
+    null,
+    [],
+    false,
+    7,
+    "text",
+    { root: "main", elements: null },
+    { root: "main", elements: [] },
+    { elements: {} },
+  ])(
+    "rejects an invalid document replacement %j without losing the current spec",
+    (value) => {
+      const initial = parseSpecStream(LINES.join("\n")).spec;
+      const stream = createSpecStream({ initial });
+      const update = stream.push(
+        JSON.stringify({ op: "replace", path: "", value }) + "\n",
+      );
+      expect(update.spec).toBe(initial);
+      expect(update.errors).toHaveLength(1);
+      expect(update.patches).toEqual([]);
+      stream.push(
+        '{"op":"replace","path":"/elements/t/props/text","value":"repaired"}\n',
+      );
+      expect(stream.result().spec.elements["t"]?.props?.["text"]).toBe(
+        "repaired",
+      );
+    },
+  );
+
+  it.each(["/root", "/elements"])(
+    "rejects removing the required %s field",
+    (path) => {
+      const initial = parseSpecStream(LINES.join("\n")).spec;
+      const result = parseSpecStream(JSON.stringify({ op: "remove", path }), {
+        initial,
+      });
+      expect(result.spec).toBe(initial);
+      expect(result.errors).toHaveLength(1);
+    },
+  );
+
+  it.each([null, []])(
+    "skips a complete spec with an invalid elements value %j",
+    (elements) => {
+      const initial = parseSpecStream(LINES.join("\n")).spec;
+      const result = parseSpecStream(
+        JSON.stringify({ root: "main", elements }),
+        { initial },
+      );
+      expect(result.spec).toBe(initial);
+      expect(result.errors).toHaveLength(1);
+    },
+  );
+
   it("builds the spec across arbitrary chunk boundaries", () => {
     const source = `${LINES.join("\n")}\n`;
     const stream = createSpecStream();
