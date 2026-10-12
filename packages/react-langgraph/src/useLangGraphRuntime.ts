@@ -689,7 +689,6 @@ const useLangGraphRuntimeImpl = (
     // A new turn abandons any half-collected parallel tool batch and any
     // queued resume; the cancellations below answer the dangling tool calls.
     const previous = threadController.getState();
-    const previousInterrupt = interruptRef.current;
     threadController.dispatch({ type: "run.newTurn" });
     runQueue.drop();
     const cancellations =
@@ -715,10 +714,7 @@ const useLangGraphRuntimeImpl = (
       { runConfig: msg.runConfig },
       undefined,
       undefined,
-      () => {
-        threadController.dispatch({ type: "run.preEventFailed", previous });
-        setInterrupt((current) => current ?? previousInterrupt);
-      },
+      () => threadController.dispatch({ type: "run.preEventFailed", previous }),
     ).catch((error: unknown) => {
       for (const { tool_call_id: toolCallId } of cancellations) {
         threadController.dispatch({
