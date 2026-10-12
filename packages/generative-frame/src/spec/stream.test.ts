@@ -9,6 +9,21 @@ const LINES = [
 ];
 
 describe("createSpecStream", () => {
+  it.each([null, [], false, 7, "text"])(
+    "rejects invalid state %j in whole specs and patches",
+    (state) => {
+      const initial = parseSpecStream(LINES.join("\n")).spec;
+      for (const source of [
+        JSON.stringify({ ...initial, state }),
+        JSON.stringify({ op: "add", path: "/state", value: state }),
+      ]) {
+        const result = parseSpecStream(source, { initial });
+        expect(result.spec).toBe(initial);
+        expect(result.errors).toHaveLength(1);
+      }
+    },
+  );
+
   it.each([
     null,
     [],
