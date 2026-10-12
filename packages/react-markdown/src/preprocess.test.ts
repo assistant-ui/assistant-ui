@@ -656,23 +656,75 @@ describe("normalizeMathDelimiters", () => {
   ] as const)(
     "does not rescan the line prefix in %s for %s runs",
     (_, _marker, preprocess, segment) => {
+      const fencePrefixSource =
+        /^[ \t]*(?:>[ \t]*|(?:[-*+]|\d{1,9}[.)])[ \t]+)*$/.source;
+      const fencePrefixCharSource = /[ \t>*+\-0-9.)]/.source;
+      const scannedFor = (input: string) => {
+        const test = RegExp.prototype.test;
+        const lastIndexOf = String.prototype.lastIndexOf;
+        let scanned = 0;
+        let charChecks = 0;
+        const regexScan = vi
+          .spyOn(RegExp.prototype, "test")
+          .mockImplementation(function (this: RegExp, candidate) {
+            if (this.source === fencePrefixSource) scanned += candidate.length;
+            if (this.source === fencePrefixCharSource) {
+              scanned += candidate.length;
+              charChecks += 1;
+            }
+            return Reflect.apply(test, this, [candidate]);
+          });
+        const newlineScan = vi
+          .spyOn(String.prototype, "lastIndexOf")
+          .mockImplementation(function (this: string, search, position) {
+            if (this.valueOf() === input && search === "\n") {
+              scanned +=
+                position === undefined
+                  ? input.length
+                  : Math.min(input.length, Math.max(0, position + 1));
+            }
+            return Reflect.apply(lastIndexOf, this, [search, position]);
+          });
+        let output: string;
+        try {
+          output = preprocess(input);
+        } finally {
+          newlineScan.mockRestore();
+          regexScan.mockRestore();
+        }
+        expect(output).toBe(input);
+        return { scanned, charChecks };
+      };
+
       const input = segment.repeat(100);
-      const lastIndexOf = String.prototype.lastIndexOf;
-      let lookbacks = 0;
-      const scan = vi
-        .spyOn(String.prototype, "lastIndexOf")
-        .mockImplementation(function (this: string, search, position) {
-          if (this.valueOf() === input && search === "\n") lookbacks += 1;
-          return Reflect.apply(lastIndexOf, this, [search, position]);
-        });
-      try {
-        expect(preprocess(input)).toBe(input);
-      } finally {
-        scan.mockRestore();
-      }
-      expect(lookbacks).toBe(0);
+      const first = scannedFor(input);
+      const second = scannedFor(input + input);
+      expect(first.scanned).toBeLessThanOrEqual(input.length * 3);
+      expect(second.scanned).toBeLessThanOrEqual(input.length * 6);
+      expect(second.scanned).toBeLessThanOrEqual(first.scanned * 2);
+      expect(second.charChecks).toBeLessThanOrEqual(first.charChecks * 2);
     },
   );
+
+  it.each([
+    ["\t", "$5\n\n$7"],
+    ["- ", "$5\n\n$7"],
+    ["* ", "$5\n\n$7"],
+    ["+ ", "$5\n\n$7"],
+    ["1. ", "$5\n\n$7"],
+    ["1) ", "$5\n\n$7"],
+    ["x ", "\\$5\n\n\\$7"],
+  ])("handles tilde runs after prefix %j", (prefix, body) => {
+    expect(escapeCurrencyDollars(`${prefix}~~~js\n$5\n\n$7\n~~~`)).toBe(
+      `${prefix}~~~js\n${body}\n~~~`,
+    );
+  });
+
+  it("does not open a backtick fence after prose", () => {
+    expect(escapeCurrencyDollars("x ```js\n$5\n\n$7\n```")).toBe(
+      "x ```js\n\\$5\n\n\\$7\n```",
+    );
+  });
 
   it("nests a $$ fence opened on a list item's marker line", () => {
     expect(
