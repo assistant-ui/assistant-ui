@@ -26,16 +26,17 @@ test("every model answers in every format", () => {
 
 test("a trial answers, renders the answer, then a separate judge scores the screenshot", async () => {
   const rendered: [string, string][] = [];
+  const judge = generatingModel(
+    JSON.stringify({
+      clarity: 5,
+      usefulness: 4,
+      completeness: 3,
+      reason: "Useful.",
+    }),
+  );
   const suite = createGenerativeUISuite({
     models: [streamingModel(text("# Plan"))],
-    judge: generatingModel(
-      JSON.stringify({
-        clarity: 5,
-        usefulness: 4,
-        completeness: 3,
-        reason: "Useful.",
-      }),
-    ),
+    judge,
     render: async (format, artifact) => {
       rendered.push([format, artifact]);
       return {
@@ -51,6 +52,10 @@ test("a trial answers, renders the answer, then a separate judge scores the scre
   const judged = await suite.run(task, candidate);
   assert.equal(judged.artifact, "# Plan");
   assert.deepEqual(rendered, [["text", "# Plan"]]);
+  assert.ok(
+    JSON.stringify(judge.doGenerateCalls[0]?.prompt).includes("iVBORw0KGgo="),
+    "the judge sees the rendered screenshot",
+  );
   assert.deepEqual(judged.runtimeErrors, ["slow font"]);
   assert.deepEqual(judged.screenshots, []);
   assert.deepEqual(judged.scores, {

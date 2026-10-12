@@ -208,7 +208,7 @@ async function renderAnswer(format: Format, artifact: string) {
     if (
       !container.textContent?.trim() &&
       !container.querySelector(
-        "img, svg, canvas, video, iframe, input, select, textarea, button",
+        "img, svg, canvas, video, iframe, input, select, textarea, button, hr",
       )
     ) {
       errors.push("The answer rendered blank.");

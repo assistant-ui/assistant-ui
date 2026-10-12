@@ -33,6 +33,7 @@ const answers: [Format, string][] = [
     }),
   ],
   ["present", JSON.stringify({ _type: "Input", placeholder: "Amount" })],
+  ["frame", "<h3>Bill</h3><p>Each of the four pays $30.</p>"],
 ];
 
 test(
@@ -64,6 +65,15 @@ test(
         assert.equal(width, RENDER_WIDTH);
         assert.ok(height <= 1_000);
       }
+
+      const broken = await renderer.render(
+        "frame",
+        "<p>Bill</p><script>throw new Error('boom')</script>",
+      );
+      assert.ok(
+        broken.runtimeErrors.some((error) => error.includes("boom")),
+        broken.runtimeErrors.join("; "),
+      );
 
       const [prose, markdown] = await Promise.all([
         renderer.render("present", "Sure."),

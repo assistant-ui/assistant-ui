@@ -45,7 +45,13 @@ export async function runCase<
   candidates: TCandidate[],
   trials: number,
 ): Promise<CaseResult<TCase, TCandidate, TOutcome>> {
-  const limit = limiter(suite.concurrency ?? 1);
+  const concurrency = suite.concurrency ?? 1;
+  if (!Number.isInteger(concurrency) || concurrency < 1) {
+    throw new RangeError(
+      `${suite.id}: concurrency must be a positive integer, got ${concurrency}.`,
+    );
+  }
+  const limit = limiter(concurrency);
   const attempt = async (
     candidate: TCandidate,
   ): Promise<TrialResult<TOutcome>> => {

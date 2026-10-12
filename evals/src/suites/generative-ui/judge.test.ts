@@ -102,7 +102,7 @@ test("a Markdown answer has no controls, so the judge gets no source", async () 
     model,
     task,
     "text",
-    { ...answer, artifact: "# Bill" },
+    { ...answer, answeredIn: "text", artifact: "# Bill" },
     rendered,
   );
   const serialized = JSON.stringify(model.doGenerateCalls[0]?.prompt);

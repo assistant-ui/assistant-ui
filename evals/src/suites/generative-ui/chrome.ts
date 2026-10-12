@@ -82,10 +82,20 @@ export async function openChromePage(
       "--hide-scrollbars",
       "about:blank",
     ],
-    { stdio: "ignore" },
+    { stdio: ["ignore", "ignore", "pipe"] },
   );
+  let log = "";
+  child.stderr.setEncoding("utf8");
+  child.stderr.on("data", (chunk: string) => {
+    log = (log + chunk).slice(-2_000);
+  });
+  let spawnError: Error | undefined;
+  child.once("error", (error) => {
+    spawnError = error;
+  });
   let socket: WebSocket | undefined;
   const exited = new Promise((resolve) => child.once("exit", resolve));
+  const closed = new Promise((resolve) => child.once("close", resolve));
   const close = async () => {
     socket?.close();
     child.kill();
@@ -96,11 +106,30 @@ export async function openChromePage(
 
   try {
     const portFile = join(profile, "DevToolsActivePort");
-    for (let i = 0; i < 100 && !existsSync(portFile); i++) await sleep(100);
+    const stopped = () =>
+      spawnError !== undefined ||
+      child.exitCode !== null ||
+      child.signalCode !== null;
+    const deadline = Date.now() + 30_000;
+    while (!existsSync(portFile) && !stopped() && Date.now() < deadline) {
+      await sleep(100);
+    }
     const port = existsSync(portFile)
       ? readFileSync(portFile, "utf8").split("\n")[0]
       : undefined;
-    if (!port) throw new Error(`Chrome did not start within 10 s (${chrome}).`);
+    if (!port) {
+      if (stopped()) {
+        await withTimeout(closed, 1_000, "Chrome's log").catch(() => {});
+      }
+      const why = spawnError
+        ? `could not be launched (${spawnError.message})`
+        : stopped()
+          ? `exited with ${child.exitCode ?? child.signalCode} before it started`
+          : "did not start within 30 s";
+      throw new Error(
+        `Chrome ${why} (${chrome})${log.trim() ? `:\n${log.trim()}` : "."}`,
+      );
+    }
     const { webSocketDebuggerUrl } = (await withTimeout(
       fetch(`http://127.0.0.1:${port}/json/version`).then((response) =>
         response.json(),

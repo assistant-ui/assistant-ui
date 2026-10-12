@@ -15,7 +15,8 @@ export async function generateAnswer(
 ): Promise<Answer> {
   const run = await startFormat(format);
   const started = performance.now();
-  let firstOutputMs: number | undefined;
+  let firstTextMs: number | undefined;
+  let firstToolMs: number | undefined;
   // The runner records a failed call from the stream's error part, so the default console report would only garble the progress line.
   const onError = () => {};
   const result = run.tools
@@ -44,19 +45,19 @@ export async function generateAnswer(
 
   for await (const part of result.fullStream) {
     if (part.type === "error") throw part.error;
-    const answering =
-      part.type === "text-delta"
-        ? !run.tools
-        : part.type === "tool-input-start" && part.toolName === run.answerTool;
-    if (firstOutputMs === undefined && answering) {
-      firstOutputMs = performance.now() - started;
+    if (part.type === "text-delta") {
+      firstTextMs ??= performance.now() - started;
+    } else if (
+      part.type === "tool-input-start" &&
+      part.toolName === run.answerTool
+    ) {
+      firstToolMs ??= performance.now() - started;
     }
   }
   const usage = await result.totalUsage;
   const measured = {
     inputTokens: usage.inputTokens ?? 0,
     outputTokens: usage.outputTokens ?? 0,
-    firstOutputMs,
     totalMs: performance.now() - started,
   };
 
@@ -69,6 +70,7 @@ export async function generateAnswer(
       answeredIn: "text",
       errors,
       repairRounds: 0,
+      firstOutputMs: firstTextMs,
       ...measured,
     };
   }
@@ -78,6 +80,7 @@ export async function generateAnswer(
       answeredIn: "text",
       errors: [`The model never called \`${run.answerTool}\`.`],
       repairRounds: 0,
+      firstOutputMs: firstTextMs,
       ...measured,
     };
   }
@@ -86,6 +89,7 @@ export async function generateAnswer(
     answeredIn: format,
     errors: last.errors,
     repairRounds: run.attempts.length - 1,
+    firstOutputMs: firstToolMs,
     ...measured,
   };
 }
