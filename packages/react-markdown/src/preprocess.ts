@@ -980,8 +980,6 @@ function rewriteOutsideCode(
  */
 const LINE_PREFIX =
   /^(?:[ \t]*(?:>[ \t]*)*)(?:(?:[-*+]|\d{1,9}[.)])[ \t]+(?:[ \t]*(?:>[ \t]*)*)?)?/;
-const LIST_THEN_QUOTE_PREFIX =
-  /^([ \t]*(?:>[ \t]*)*)((?:[-*+]|\d{1,9}[.)])[ \t]+)((?:>[ \t]*)+)/;
 
 /**
  * The prefix a following line needs to stay inside the block the match opened
@@ -990,12 +988,6 @@ const LIST_THEN_QUOTE_PREFIX =
  */
 function continuationPrefix(lineHead: string): string {
   const head = LINE_PREFIX.exec(lineHead)?.[0] ?? "";
-  const listThenQuote = LIST_THEN_QUOTE_PREFIX.exec(head);
-  if (listThenQuote) {
-    const outerQuote = listThenQuote[1]!.replace(/[^>\t]/g, " ");
-    const listIndent = columns(listThenQuote[2]!, 0, listThenQuote[2]!.length);
-    return `${outerQuote}${" ".repeat(listIndent)}${listThenQuote[3]}`;
-  }
   const marker = head.lastIndexOf(">");
   const extra =
     marker !== -1 &&
@@ -1027,19 +1019,14 @@ function emitDisplayMath(
   // is aligned to it.
   const prefix = continuationPrefix(lineHead(offset));
   const depth = quoteDepth(prefix);
-  const openerLineEnd = body.indexOf("\n");
-  const openerHasContent = !onlyWhitespace(
-    body,
-    0,
-    openerLineEnd === -1 ? body.length : openerLineEnd,
-  );
+  const [openerText = "", ...bodyLines] = body.split("\n");
+  const openerHasContent = !onlyWhitespace(openerText, 0, openerText.length);
   // The rest of the opener line is formula text, so only later lines carry the
   // container's blockquote markers.
-  const content = body
-    .split("\n")
-    .map((line, index) =>
-      index === 0 ? line : line.slice(quoteMarkers(line, depth).length),
-    )
+  const content = [
+    openerText,
+    ...bodyLines.map((line) => line.slice(quoteMarkers(line, depth).length)),
+  ]
     .join("\n")
     .trim();
   if (content === "") return match;
@@ -1057,18 +1044,21 @@ function emitDisplayMath(
 
   // The body is split before trimming, since trimming would take the shared
   // indentation off the first line only and leave the block ragged.
-  const bodyLines = body.split("\n");
   const emptyBodyLine = (line: string) =>
     line.slice(quoteMarkers(line, depth).length).trim() === "";
-  while (bodyLines.length > 0 && emptyBodyLine(bodyLines[0]!))
+  while (
+    !openerHasContent &&
+    bodyLines.length > 0 &&
+    emptyBodyLine(bodyLines[0]!)
+  )
     bodyLines.shift();
   while (bodyLines.length > 0 && emptyBodyLine(bodyLines.at(-1)!)) {
     bodyLines.pop();
   }
-  if (bodyLines.length === 0) return match;
+  if (!openerHasContent && bodyLines.length === 0) return match;
   // Only the indentation the whole body shares is replaced by the container
   // prefix, so an aligned block keeps its relative indentation.
-  const shared = bodyLines.reduce(
+  const shared = [openerText, ...bodyLines].reduce(
     (least, line) =>
       line.trim() === ""
         ? least
@@ -1082,12 +1072,7 @@ function emitDisplayMath(
       : least;
   }, Number.POSITIVE_INFINITY);
   const width = widthPastQuote(prefix);
-  const lines = bodyLines.map((line, index) => {
-    if (index === 0 && openerHasContent) {
-      const content = line.slice(Number.isFinite(shared) ? shared : 0);
-      const protectQuote = depth > 0 && content.charCodeAt(0) === GT;
-      return `${prefix}${protectQuote ? " " : ""}${content}`;
-    }
+  const lines = bodyLines.map((line) => {
     // A line already carrying the blockquote markers keeps the spacing it was
     // written with; `>a` and `> a` are the same blockquote. Indentation alone
     // is not that signal, since a body may legitimately be indented, and a line
@@ -1108,8 +1093,13 @@ function emitDisplayMath(
     }
     return `${prefix}${line.slice(Number.isFinite(shared) ? shared : 0)}`;
   });
+  if (openerHasContent) {
+    lines.unshift(
+      `${prefix}${openerText.slice(Number.isFinite(shared) ? shared : 0)}`,
+    );
+  }
 
-  return `${lead}${prefix}$$\n${lines.join("\n")}\n${prefix}$$${tail}`;
+  return `${lead}${prefix}$$\n${lines.join("\n")}\n${prefix}$$${tail}${tail === "" ? "" : prefix}`;
 }
 
 /**
@@ -1195,7 +1185,7 @@ export function rewriteLatexBracketDelimiters(text: string): string {
         reindentedLineStart === block.lastIndexOf("\n", opener - 1) + 1;
       const prefix = continuationPrefix(head);
       const quote = QUOTE_PREFIX.exec(head)![0];
-      const depth = quoteDepth(quote);
+      const depth = quoteDepth(prefix);
       let replacement = emitDisplayMath(
         match,
         body,
