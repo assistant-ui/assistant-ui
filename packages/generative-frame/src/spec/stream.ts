@@ -178,8 +178,9 @@ export function createSpecStream(
       buffer.length > proseEmitted &&
       PROSE_START.test(buffer)
     ) {
-      const text = buffer.slice(proseEmitted);
-      proseEmitted = buffer.length;
+      const end = buffer.endsWith("\r") ? buffer.length - 1 : buffer.length;
+      const text = buffer.slice(proseEmitted, end);
+      proseEmitted = end;
       update.text += text;
       allText += text;
     }
