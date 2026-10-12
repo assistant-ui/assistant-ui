@@ -388,14 +388,25 @@ export const reduceAdkThreadState = (
     }
     case "run.rollback": {
       const ownIds = new Set(action.ownIds);
-      if (action.state.loadGeneration < state.loadGeneration)
+      if (action.state.loadGeneration < state.loadGeneration) {
+        const stagedEntries = new Map(state.stagedEntries);
+        const messages = state.messages.filter(
+          (message) => !ownIds.has(message.id),
+        );
+        for (const [id, entry] of action.state.stagedEntries) {
+          if (!ownIds.has(id) || stagedEntries.has(id)) continue;
+          stagedEntries.set(id, entry);
+          messages.push(entry.message);
+        }
         return {
           ...state,
-          messages: state.messages.filter((message) => !ownIds.has(message.id)),
+          messages,
+          stagedEntries,
           queuedMessageIds: new Set(
             [...state.queuedMessageIds].filter((id) => !ownIds.has(id)),
           ),
         };
+      }
       const stagedEntries = new Map(action.state.stagedEntries);
       for (const [id, entry] of state.stagedEntries) {
         if (!stagedEntries.has(id)) stagedEntries.set(id, entry);

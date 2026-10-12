@@ -2157,6 +2157,71 @@ describe("useAdkRuntime refetch", () => {
     }
   });
 
+  it("restages a failed resend after a same-tick refetch", async () => {
+    const releaseSend = deferred<void>();
+    const load = vi.fn(async () =>
+      load.mock.calls.length === 1
+        ? { messages: [aiMessage("old", "old history")] }
+        : { messages: [aiMessage("fresh", "fresh history")] },
+    );
+    const streamMock = vi.fn(async function* (
+      _messages: unknown,
+    ): AsyncGenerator<AdkEvent> {
+      await releaseSend.promise;
+      throw new Error("resend failed before first event");
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { capture } = await renderAdk(load, async () => null, streamMock);
+      await act(async () => {
+        await capture.runtime!.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "staged question" }],
+          startRun: false,
+        });
+      });
+      const staged = capture.runtime!.thread.getState().messages.at(-1)!;
+      let resend!: Promise<void>;
+      let refetch!: Promise<void>;
+      act(() => {
+        resend = capture.runtime!.thread.startRun({
+          parentId: staged.id,
+        }) as unknown as Promise<void>;
+        void resend.catch(() => {});
+        refetch = capture.runtime!.threads.reloadMainThread();
+      });
+      await act(async () => {
+        await refetch;
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledOnce());
+      await act(async () => {
+        releaseSend.resolve();
+        await expect(resend).rejects.toThrow(
+          "resend failed before first event",
+        );
+      });
+
+      expect(threadTexts(capture.runtime!)).toEqual([
+        "assistant:fresh history",
+        "user:staged question",
+      ]);
+      await act(async () => {
+        await expect(
+          capture.runtime!.thread.startRun({ parentId: staged.id }),
+        ).rejects.toThrow("resend failed before first event");
+      });
+      expect(streamMock).toHaveBeenCalledTimes(2);
+      expect(JSON.stringify(streamMock.mock.calls[1]?.[0])).toContain(
+        "staged question",
+      );
+    } finally {
+      releaseSend.resolve();
+      consoleError.mockRestore();
+    }
+  });
+
   it("restores fresh history when a reload chained after a same-tick refetch fails", async () => {
     const checkpoint = deferred<string | null>();
     const firstStarted = deferred<void>();

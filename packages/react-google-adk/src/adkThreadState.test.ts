@@ -501,6 +501,48 @@ describe("reduceAdkThreadState", () => {
     expect(restored.loadGeneration).toBe(fresh.loadGeneration);
   });
 
+  it("restages only a failed send's staged entries after a newer load", () => {
+    const stagedMessage = { ...message, id: "staged", content: "retry" };
+    const unrelated = { ...message, id: "unrelated" };
+    const alreadyStaged = { ...message, id: "already-staged" };
+    const freshMessage = { ...message, id: "fresh", content: "new history" };
+    const snapshot = {
+      ...createAdkThreadState(),
+      messages: [stagedMessage, unrelated, alreadyStaged],
+      stagedEntries: new Map([
+        [stagedMessage.id, { message: stagedMessage, runConfig: undefined }],
+        [unrelated.id, { message: unrelated, runConfig: undefined }],
+        [alreadyStaged.id, { message: alreadyStaged, runConfig: undefined }],
+      ]),
+    };
+    const liveEntry = {
+      message: { ...alreadyStaged, content: "live staged" },
+      runConfig: undefined,
+    };
+    const fresh = {
+      ...reduceAdkThreadState(snapshot, {
+        type: "snapshot.applied",
+        snapshot: { messages: [freshMessage] },
+      }),
+      messages: [freshMessage, stagedMessage, alreadyStaged],
+      stagedEntries: new Map([[alreadyStaged.id, liveEntry]]),
+      queuedMessageIds: new Set([stagedMessage.id, "other-queued"]),
+    };
+    const restored = reduceAdkThreadState(fresh, {
+      type: "run.rollback",
+      state: snapshot,
+      ownIds: [stagedMessage.id, alreadyStaged.id],
+    });
+
+    expect(restored.messages).toEqual([freshMessage, stagedMessage]);
+    expect([...restored.stagedEntries]).toEqual([
+      [alreadyStaged.id, liveEntry],
+      [stagedMessage.id, snapshot.stagedEntries.get(stagedMessage.id)],
+    ]);
+    expect([...restored.queuedMessageIds]).toEqual(["other-queued"]);
+    expect(restored.loadGeneration).toBe(fresh.loadGeneration);
+  });
+
   it("uses the live copy of a settled snapshot message", () => {
     const snapshotMessage: AdkMessage = {
       id: "reply",
