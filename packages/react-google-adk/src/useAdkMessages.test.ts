@@ -1315,7 +1315,13 @@ describe("messageToEvent (contentToParts)", () => {
     };
     const event = messageToEvent(msg);
     expect(event.content?.parts).toEqual([
-      { inlineData: { mimeType: "application/pdf", data: "JVBERi0xLjQK" } },
+      {
+        inlineData: {
+          mimeType: "application/pdf",
+          data: "JVBERi0xLjQK",
+          displayName: "report.pdf",
+        },
+      },
     ]);
   });
 

@@ -104,6 +104,7 @@ describe("convertAdkMessage - human messages", () => {
           type: "file_url",
           url: "gs://bucket/report.pdf",
           mimeType: "application/pdf",
+          filename: "report.pdf",
         },
       ],
     };
@@ -116,6 +117,89 @@ describe("convertAdkMessage - human messages", () => {
           data: "gs://bucket/report.pdf",
           mimeType: "application/pdf",
           sourceType: "url",
+          filename: "report.pdf",
+        },
+      ],
+    });
+  });
+
+  it("preserves file_url filenames in assistant data parts", () => {
+    const msg: AdkMessage = {
+      id: "m1",
+      type: "ai",
+      content: [
+        {
+          type: "file_url",
+          url: "gs://bucket/report.pdf",
+          mimeType: "application/pdf",
+          filename: "report.pdf",
+        },
+      ],
+    };
+    expect(convertAdkMessage(msg, {})).toMatchObject({
+      role: "assistant",
+      content: [
+        {
+          type: "data",
+          name: "file_url",
+          data: {
+            url: "gs://bucket/report.pdf",
+            mimeType: "application/pdf",
+            filename: "report.pdf",
+          },
+        },
+      ],
+    });
+  });
+
+  it("preserves image filenames from inline and URL media", () => {
+    const inline = convertAdkMessage(
+      {
+        id: "m1",
+        type: "human",
+        content: [
+          {
+            type: "image",
+            mimeType: "image/png",
+            data: "AAAA",
+            filename: "photo.png",
+          },
+        ],
+      },
+      {},
+    );
+    expect(inline).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "image",
+          image: "data:image/png;base64,AAAA",
+          filename: "photo.png",
+        },
+      ],
+    });
+
+    const url = convertAdkMessage(
+      {
+        id: "m2",
+        type: "human",
+        content: [
+          {
+            type: "image_url",
+            url: "https://example.com/photo.png",
+            filename: "photo.png",
+          },
+        ],
+      },
+      {},
+    );
+    expect(url).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "image",
+          image: "https://example.com/photo.png",
+          filename: "photo.png",
         },
       ],
     });
