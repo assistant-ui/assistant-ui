@@ -189,8 +189,9 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
     if (messageId === undefined) throw new Error("Message is not available");
 
     const core =
+      this.interactionThreadId !== undefined &&
       this.threadApi?.getStateState?.().threadId === this.interactionThreadId
-        ? this.threadApi?.getState()
+        ? this.threadApi.getState()
         : this.interactionCore;
     if (!core?.unstable_recordToolInteraction)
       throw new Error("Runtime does not support recording tool interactions.");

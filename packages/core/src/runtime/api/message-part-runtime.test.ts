@@ -253,6 +253,44 @@ describe("MessagePartRuntime interaction recording", () => {
     });
   });
 
+  it("keeps a plain binding's recorder on the core it captured", async () => {
+    const recordA = vi.fn(async () => {});
+    const recordB = vi.fn(async () => {});
+    let currentCore = {
+      unstable_recordToolInteraction: recordA,
+    } as unknown as ThreadRuntimeCore;
+    const part = new MessagePartRuntimeImpl(
+      {
+        path: partPath,
+        getState: () => toolPart,
+        subscribe: () => () => {},
+      },
+      {
+        path: messagePath,
+        getState: () => message,
+        subscribe: () => () => {},
+      },
+      {
+        path: threadPath,
+        getState: () => currentCore,
+        subscribe: () => () => {},
+        outerSubscribe: () => () => {},
+      },
+    );
+
+    currentCore = {
+      unstable_recordToolInteraction: recordB,
+    } as unknown as ThreadRuntimeCore;
+
+    await part.unstable_recordInteraction({
+      type: "action",
+      payload: { action: "toggle" },
+    });
+
+    expect(recordA).toHaveBeenCalledOnce();
+    expect(recordB).not.toHaveBeenCalled();
+  });
+
   it("records into a successor core of the same thread", async () => {
     const recordA = vi.fn(async () => {});
     const recordB = vi.fn(async () => {});
