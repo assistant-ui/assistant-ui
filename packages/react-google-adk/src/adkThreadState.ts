@@ -16,12 +16,43 @@ export type AdkStagedEntry = {
 
 type ToolMessage = Extract<AdkMessage, { type: "tool" }>;
 
+export const normalizeSendConfig = (config: Record<PropertyKey, unknown>) =>
+  Object.fromEntries(
+    Reflect.ownKeys(config).map((key) => {
+      const value = Reflect.get(config, key);
+      return [
+        key,
+        value &&
+        typeof value === "object" &&
+        Reflect.ownKeys(value).length === 0
+          ? undefined
+          : value,
+      ];
+    }),
+  );
+
 // Interrupts are answered through their own helpers, so they never join a client call group.
 export const INTERRUPT_TOOL_NAMES: ReadonlySet<string> = new Set([
   ADK_REQUEST_CONFIRMATION,
   ADK_REQUEST_CREDENTIAL,
   "adk_request_input",
 ]);
+
+export const isInterruptReply = (
+  messages: AdkMessage[],
+  config: Record<PropertyKey, unknown>,
+): messages is [ToolMessage] => {
+  const normalizedConfig = normalizeSendConfig(config);
+  return (
+    messages.length === 1 &&
+    messages[0]?.type === "tool" &&
+    INTERRUPT_TOOL_NAMES.has(messages[0].name) &&
+    typeof messages[0].tool_call_id === "string" &&
+    Reflect.ownKeys(normalizedConfig).every(
+      (key) => Reflect.get(normalizedConfig, key) === undefined,
+    )
+  );
+};
 
 export type AdkThreadState = {
   messages: AdkMessage[];
@@ -418,19 +449,27 @@ export const reduceAdkThreadState = (
       };
     }
     case "results.flush": {
-      if (action.failed) return { ...state, readyBatch: null };
       const toolResultBuffer = new Map(state.toolResultBuffer);
       const batch: ToolMessage[] = [];
+      let batchOwner: string | undefined;
+      let batchGroup: string | undefined;
       for (const id of state.toolResultBuffer.keys()) {
         if (!toolResultBuffer.has(id)) continue;
         const owner = state.runIdByToolCallId.get(id);
+        if (action.failed && owner === action.runId) continue;
+        const group = groupOf(state, id);
         if (
-          owner !== action.runId &&
-          (state.activeRunIds.size > 0 ||
-            (owner !== undefined && state.failedRunIds.has(owner)))
+          batch.length > 0 &&
+          (owner !== batchOwner ||
+            (owner === undefined && group[0] !== batchGroup))
         )
           continue;
-        batch.push(...takeGroup(state, toolResultBuffer, id));
+        if (!group.every((groupId) => toolResultBuffer.has(groupId))) continue;
+        const ready = takeGroup(state, toolResultBuffer, id);
+        if (ready.length === 0) continue;
+        batchOwner = owner;
+        batchGroup = group[0];
+        batch.push(...ready);
       }
       return {
         ...state,

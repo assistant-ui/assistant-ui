@@ -59,7 +59,7 @@ import {
   projectAdkToolApprovals,
   toAdkToolConfirmationReply,
 } from "./adkToolApproval";
-import { INTERRUPT_TOOL_NAMES } from "./adkThreadState";
+import { isInterruptReply } from "./adkThreadState";
 import { adkExtras } from "./adkExtras";
 import { ADK_SDK } from "./sdkIdentity";
 
@@ -177,6 +177,20 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
         threadState.toolResultBuffer,
       ),
     [publishedMessages, threadState.toolResultBuffer],
+  );
+  const visibleToolConfirmations = useMemo(
+    () =>
+      toolConfirmations.filter(
+        (request) => !threadState.toolResultBuffer.has(request.toolCallId),
+      ),
+    [toolConfirmations, threadState.toolResultBuffer],
+  );
+  const visibleAuthRequests = useMemo(
+    () =>
+      authRequests.filter(
+        (request) => !threadState.toolResultBuffer.has(request.toolCallId),
+      ),
+    [authRequests, threadState.toolResultBuffer],
   );
 
   const loadRef = useRef(load);
@@ -476,18 +490,15 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       stateDelta,
       artifactDelta,
       longRunningToolIds,
-      toolConfirmations,
-      authRequests,
+      toolConfirmations: visibleToolConfirmations,
+      authRequests: visibleAuthRequests,
       escalated,
       messageMetadata,
       send: (messages, config) => {
         const initialLoad = waitForInitialLoad();
         const send = () =>
-          messages.length === 1 &&
-          messages[0]!.type === "tool" &&
-          INTERRUPT_TOOL_NAMES.has(messages[0]!.name) &&
-          Object.keys(config).length === 0
-            ? receiveToolResult(messages[0]!)
+          isInterruptReply(messages, config)
+            ? receiveToolResult(messages[0])
             : handleSendMessage(messages, config);
         if (!initialLoad) return send();
         return initialLoad.then(({ active }) => (active ? send() : undefined));

@@ -8,7 +8,116 @@ const message: AdkMessage = {
   content: "hello",
 };
 
+const interruptAnswer = (
+  id: string,
+): Extract<AdkMessage, { type: "tool" }> => ({
+  id: `answer-${id}`,
+  type: "tool",
+  name: "adk_request_input",
+  tool_call_id: id,
+  content: id,
+});
+
 describe("reduceAdkThreadState", () => {
+  it("flushes healthy answers when an unrelated run fails", () => {
+    const state = {
+      ...createAdkThreadState(),
+      toolResultBuffer: new Map([
+        ["failed", interruptAnswer("failed")],
+        ["healthy", interruptAnswer("healthy")],
+      ]),
+      runIdByToolCallId: new Map([
+        ["failed", "1"],
+        ["healthy", "2"],
+      ]),
+      failedRunIds: new Set(["1"]),
+    };
+    const flushed = reduceAdkThreadState(state, {
+      type: "results.flush",
+      runId: "1",
+      failed: true,
+    });
+    expect(flushed.readyBatch).toEqual([interruptAnswer("healthy")]);
+    expect([...flushed.toolResultBuffer.keys()]).toEqual(["failed"]);
+  });
+
+  it("holds a failing run's own complete reply group", () => {
+    const state = {
+      ...createAdkThreadState(),
+      toolResultBuffer: new Map([["failed", interruptAnswer("failed")]]),
+      runIdByToolCallId: new Map([["failed", "1"]]),
+      failedRunIds: new Set(["1"]),
+    };
+    const flushed = reduceAdkThreadState(state, {
+      type: "results.flush",
+      runId: "1",
+      failed: true,
+    });
+    expect(flushed.readyBatch).toBeNull();
+    expect([...flushed.toolResultBuffer.keys()]).toEqual(["failed"]);
+  });
+
+  it("releases a failed owner's later reply after its continuation finishes", () => {
+    const failed = {
+      ...createAdkThreadState(),
+      nextRunId: 1,
+      runIdByToolCallId: new Map([
+        ["first", "1"],
+        ["later", "1"],
+      ]),
+      failedRunIds: new Set(["1"]),
+    };
+    const first = reduceAdkThreadState(failed, {
+      type: "results.received",
+      message: interruptAnswer("first"),
+    });
+    expect(first.readyBatch).toEqual([interruptAnswer("first")]);
+    const continuing = reduceAdkThreadState(first, { type: "run.active" });
+    const held = reduceAdkThreadState(continuing, {
+      type: "results.received",
+      message: interruptAnswer("later"),
+    });
+    expect(held.readyBatch).toBeNull();
+    const finished = reduceAdkThreadState(held, {
+      type: "run.finished",
+      runId: "2",
+    });
+    const flushed = reduceAdkThreadState(finished, {
+      type: "results.flush",
+      runId: "2",
+      failed: false,
+    });
+    expect(flushed.readyBatch).toEqual([interruptAnswer("later")]);
+    expect(flushed.toolResultBuffer.size).toBe(0);
+  });
+
+  it("sends one producing run's answers per flushed batch", () => {
+    const state = {
+      ...createAdkThreadState(),
+      toolResultBuffer: new Map([
+        ["first", interruptAnswer("first")],
+        ["second", interruptAnswer("second")],
+      ]),
+      runIdByToolCallId: new Map([
+        ["first", "1"],
+        ["second", "2"],
+      ]),
+    };
+    const first = reduceAdkThreadState(state, {
+      type: "results.flush",
+      runId: "2",
+      failed: false,
+    });
+    expect(first.readyBatch).toEqual([interruptAnswer("first")]);
+    expect([...first.toolResultBuffer.keys()]).toEqual(["second"]);
+    const second = reduceAdkThreadState(first, {
+      type: "results.flush",
+      runId: "3",
+      failed: false,
+    });
+    expect(second.readyBatch).toEqual([interruptAnswer("second")]);
+    expect(second.toolResultBuffer.size).toBe(0);
+  });
   it("tracks queued projections and removes only queued messages", () => {
     const queued = { ...message, id: "queued" };
     const initial = { ...createAdkThreadState(), messages: [message] };

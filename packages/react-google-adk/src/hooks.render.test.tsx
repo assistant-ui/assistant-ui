@@ -11,8 +11,11 @@ import {
   useAdkAppState,
   useAdkAuthRequests,
   useAdkConfirmTool,
+  useAdkLongRunningToolIds,
+  useAdkSend,
   useAdkSubmitAuth,
   useAdkSubmitInput,
+  useAdkToolConfirmations,
 } from "./hooks";
 import type { AdkAuthRequest, AdkEvent, AdkMessage } from "./types";
 import { useAdkRuntime } from "./useAdkRuntime";
@@ -179,6 +182,7 @@ describe("useAdkSubmitAuth", () => {
 
 type RequestRecord = {
   ids: string[];
+  texts: string[];
   aborted: boolean;
   abortedBeforeFetch: boolean;
 };
@@ -251,12 +255,17 @@ const mount = async (
     "fetch",
     vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
       const body = JSON.parse(init!.body as string) as {
-        newMessage: { parts: { functionResponse?: { id: string } }[] };
+        newMessage: {
+          parts: { functionResponse?: { id: string }; text?: string }[];
+        };
       };
       const signal = init!.signal!;
       const record: RequestRecord = {
         ids: body.newMessage.parts.flatMap((part) =>
           part.functionResponse ? [part.functionResponse.id] : [],
+        ),
+        texts: body.newMessage.parts.flatMap((part) =>
+          part.text === undefined ? [] : [part.text],
         ),
         aborted: signal.aborted,
         abortedBeforeFetch: signal.aborted,
@@ -280,11 +289,19 @@ const mount = async (
     confirm?: ReturnType<typeof useAdkConfirmTool>;
     input?: ReturnType<typeof useAdkSubmitInput>;
     auth?: ReturnType<typeof useAdkSubmitAuth>;
+    send?: ReturnType<typeof useAdkSend>;
+    confirmations?: ReturnType<typeof useAdkToolConfirmations>;
+    authRequests?: ReturnType<typeof useAdkAuthRequests>;
+    longRunningToolIds?: ReturnType<typeof useAdkLongRunningToolIds>;
   } = {};
   const Helpers = () => {
     capture.confirm = useAdkConfirmTool();
     capture.input = useAdkSubmitInput();
     capture.auth = useAdkSubmitAuth();
+    capture.send = useAdkSend();
+    capture.confirmations = useAdkToolConfirmations();
+    capture.authRequests = useAdkAuthRequests();
+    capture.longRunningToolIds = useAdkLongRunningToolIds();
     return null;
   };
   const App = () => {
@@ -339,6 +356,10 @@ const mount = async (
     confirm: capture.confirm!,
     input: capture.input!,
     auth: capture.auth!,
+    send: capture.send!,
+    getConfirmations: () => capture.confirmations!,
+    getAuthRequests: () => capture.authRequests!,
+    getLongRunningToolIds: () => capture.longRunningToolIds!,
     requests,
     closeProducer,
     closeFirstReply,
@@ -355,6 +376,168 @@ const nextTick = () =>
 afterEach(() => vi.unstubAllGlobals());
 
 describe("HITL reply ownership", () => {
+  it("hides a held confirmation while retaining its long-running id", async () => {
+    const h = await mount(
+      [{ id: "confirm", name: "adk_request_confirmation" }],
+      true,
+    );
+    expect(h.getConfirmations().map((request) => request.toolCallId)).toEqual([
+      "confirm",
+    ]);
+    await act(async () => {
+      await h.confirm("confirm", true);
+    });
+    expect(h.requests).toHaveLength(1);
+    expect(h.getConfirmations()).toEqual([]);
+    expect(h.getLongRunningToolIds()).toContain("confirm");
+    act(() => h.closeProducer());
+    await waitFor(() => expect(h.requests).toHaveLength(2));
+  });
+
+  it("hides a held auth request while retaining its long-running id", async () => {
+    const h = await mount(
+      [{ id: "auth", name: "adk_request_credential" }],
+      true,
+    );
+    expect(h.getAuthRequests().map((request) => request.toolCallId)).toEqual([
+      "auth",
+    ]);
+    await act(async () => {
+      await h.auth("auth", { authType: "apiKey", apiKey: "secret" });
+    });
+    expect(h.requests).toHaveLength(1);
+    expect(h.getAuthRequests()).toEqual([]);
+    expect(h.getLongRunningToolIds()).toContain("auth");
+    act(() => h.closeProducer());
+    await waitFor(() => expect(h.requests).toHaveLength(2));
+  });
+
+  it("drops a held confirmation reply on Stop", async () => {
+    const h = await mount(
+      [{ id: "confirm", name: "adk_request_confirmation" }],
+      true,
+    );
+    await act(async () => {
+      await h.confirm("confirm", true);
+    });
+    expect(h.getConfirmations()).toEqual([]);
+    await act(async () => {
+      await h.runtime.thread.cancelRun();
+    });
+    expect(h.requests).toHaveLength(1);
+    expect(h.getConfirmations().map((request) => request.toolCallId)).toEqual([
+      "confirm",
+    ]);
+  });
+
+  it("bundles a held reply with the next user turn", async () => {
+    const h = await mount(
+      [{ id: "confirm", name: "adk_request_confirmation" }],
+      true,
+    );
+    await act(async () => {
+      await h.confirm("confirm", true);
+    });
+    act(() => {
+      void h.runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "next" }],
+      });
+    });
+    await waitFor(() => expect(h.requests).toHaveLength(2));
+    expect(h.requests[1]!.ids).toEqual(["confirm"]);
+    expect(h.requests[1]!.texts).toEqual(["next"]);
+  });
+
+  it("holds addToolResult behind an unrelated active run", async () => {
+    const h = await mount([{ id: "lookup", name: "lookup" }], false, true);
+    act(() => {
+      void h.runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "unrelated" }],
+      });
+    });
+    await waitFor(() => expect(h.requests).toHaveLength(2));
+    const index = h.runtime.thread
+      .getState()
+      .messages.findIndex((message) =>
+        message.content.some(
+          (part) => part.type === "tool-call" && part.toolCallId === "lookup",
+        ),
+      );
+    act(() => {
+      void h.runtime.thread
+        .getMessageByIndex(index)
+        .getMessagePartByToolCallId("lookup")
+        .addToolResult({ value: "done" });
+    });
+    await nextTick();
+    expect(h.requests).toHaveLength(2);
+    act(() => h.closeFirstReply());
+    await waitFor(() => expect(h.requests).toHaveLength(3));
+    expect(replies(h.requests)).toEqual([[], ["lookup"]]);
+  });
+
+  it("holds a send interrupt reply with an undefined runConfig", async () => {
+    const h = await mount([{ id: "input", name: "adk_request_input" }], true);
+    await act(async () => {
+      await h.send(
+        [
+          {
+            id: "reply",
+            type: "tool",
+            tool_call_id: "input",
+            name: "adk_request_input",
+            content: "{}",
+          },
+        ],
+        { runConfig: undefined },
+      );
+    });
+    expect(h.requests).toHaveLength(1);
+    act(() => h.closeProducer());
+    await waitFor(() => expect(h.requests).toHaveLength(2));
+    expect(replies(h.requests)).toEqual([["input"]]);
+  });
+
+  it("sends an id-less interrupt reply through the raw send path", async () => {
+    const h = await mount([{ id: "input", name: "adk_request_input" }], true);
+    act(() => {
+      void h.send(
+        [
+          {
+            id: "reply",
+            type: "tool",
+            name: "adk_request_input",
+            content: "{}",
+          } as AdkMessage,
+        ],
+        {},
+      );
+    });
+    await waitFor(() => expect(h.requests).toHaveLength(2));
+  });
+
+  it("sends an interrupt reply with a nonempty config immediately", async () => {
+    const h = await mount([{ id: "input", name: "adk_request_input" }], true);
+    act(() => {
+      void h.send(
+        [
+          {
+            id: "reply",
+            type: "tool",
+            tool_call_id: "input",
+            name: "adk_request_input",
+            content: "{}",
+          },
+        ],
+        { runConfig: { custom: { mode: "next" } } },
+      );
+    });
+    await waitFor(() => expect(h.requests).toHaveLength(2));
+    expect(replies(h.requests)).toEqual([["input"]]);
+  });
+
   it("same tick confirm plus submitInput", async () => {
     const h = await mount(
       [
