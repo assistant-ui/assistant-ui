@@ -50,6 +50,7 @@ type QueuedAdkSend = {
   messages: AdkMessage[];
   config: Record<PropertyKey, unknown>;
   batchId: number;
+  toolResultOwnerKey: string | symbol | undefined;
   ids: string[];
   run: (messageBatches: AdkMessage[][]) => Promise<void>;
   resolve: () => void;
@@ -151,15 +152,20 @@ const useAdkMessagesInternal = ({
     while (pendingSendsRef.current.length > 0 && !abortControllerRef.current) {
       const first = pendingSendsRef.current[0]!;
       const sends: QueuedAdkSend[] = [];
+      let toolResultOwnerKey = first.toolResultOwnerKey;
       while (pendingSendsRef.current.length > 0) {
         const next = pendingSendsRef.current[0]!;
         if (
           next.batchId !== first.batchId ||
+          (toolResultOwnerKey !== undefined &&
+            next.toolResultOwnerKey !== undefined &&
+            next.toolResultOwnerKey !== toolResultOwnerKey) ||
           !sameSendConfig(first.config, next.config)
         ) {
           break;
         }
         sends.push(pendingSendsRef.current.shift()!);
+        toolResultOwnerKey ??= next.toolResultOwnerKey;
       }
       try {
         await sends.at(-1)!.run(sends.map((send) => send.messages));
@@ -181,6 +187,7 @@ const useAdkMessagesInternal = ({
       newMessages: AdkMessage[],
       config: AdkSendMessageConfig,
       executeWithRun?: RunExecutor,
+      toolResultOwnerKey?: string | symbol,
     ) => {
       const newMessagesWithId = newMessages.map((m) =>
         m.id ? m : { ...m, id: generateId() },
@@ -417,6 +424,7 @@ const useAdkMessagesInternal = ({
           messages: newMessagesWithId,
           config: normalizeSendConfig(config),
           batchId: sendBatchIdRef.current,
+          toolResultOwnerKey,
           ids: queuedIds,
           run: (messageBatches: AdkMessage[][]) =>
             executeWithRun

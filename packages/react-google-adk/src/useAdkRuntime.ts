@@ -59,7 +59,7 @@ import {
   projectAdkToolApprovals,
   toAdkToolConfirmationReply,
 } from "./adkToolApproval";
-import { isInterruptReply } from "./adkThreadState";
+import { getToolResultOwnerKey, isInterruptReply } from "./adkThreadState";
 import { adkExtras } from "./adkExtras";
 import { ADK_SDK } from "./sdkIdentity";
 
@@ -289,7 +289,30 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   const handleSendMessage = (
     msgs: AdkMessage[],
     config: AdkSendMessageConfig,
-  ) => {
+  ): Promise<void> => {
+    const toolResultBatches = new Map<string, AdkMessage[]>();
+    const otherMessages: AdkMessage[] = [];
+    for (const message of msgs) {
+      if (message.type !== "tool") {
+        otherMessages.push(message);
+        continue;
+      }
+      const ownerKey = getToolResultOwnerKey(
+        controller.getState(),
+        message.tool_call_id,
+      );
+      const batch = toolResultBatches.get(ownerKey);
+      if (batch) batch.push(message);
+      else toolResultBatches.set(ownerKey, [message]);
+    }
+    if (toolResultBatches.size > 1) {
+      const batches = [...toolResultBatches.values()];
+      batches.at(-1)!.push(...otherMessages);
+      return Promise.all(
+        batches.map((batch) => handleSendMessage(batch, config)),
+      ).then(() => undefined);
+    }
+
     const isToolContinuation =
       msgs.length > 0 && msgs.every((msg) => msg.type === "tool");
     const continuationConfig =
@@ -302,8 +325,16 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           }
         : config;
 
-    return sendMessageWithExecutor(msgs, continuationConfig, (run) =>
-      runExclusive(() => run()),
+    const toolResultOwnerKey =
+      toolResultBatches.size === 1
+        ? toolResultBatches.keys().next().value
+        : undefined;
+
+    return sendMessageWithExecutor(
+      msgs,
+      continuationConfig,
+      (run) => runExclusive(() => run()),
+      toolResultOwnerKey,
     );
   };
 

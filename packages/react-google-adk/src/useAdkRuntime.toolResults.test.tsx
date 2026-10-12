@@ -100,12 +100,24 @@ const mount = async (
   const fetchStub = vi.fn(
     async (_input: RequestInfo | URL, init?: RequestInit) => {
       requests.push(JSON.parse(init!.body as string));
-      const responseEvent = options.responseEvents?.[requests.length - 1];
+      const responseEvent =
+        options.responseEvents?.[requests.length - 1] ??
+        (requests.length === 2 ? options.secondEvent : undefined);
       const response =
         requests.length === 1
           ? firstRun
           : requests.length === 2 && options.holdSecondRun
-            ? new ReadableStream<Uint8Array>()
+            ? new ReadableStream<Uint8Array>({
+                start(controller) {
+                  if (responseEvent) {
+                    controller.enqueue(
+                      new TextEncoder().encode(
+                        `data: ${JSON.stringify(responseEvent)}\n\n`,
+                      ),
+                    );
+                  }
+                },
+              })
             : options.responseEvents
               ? responseEvent
                 ? `data: ${JSON.stringify(responseEvent)}\n\n`
@@ -299,6 +311,112 @@ describe("useAdkRuntime tool result batching", () => {
     });
     expect(requests).toHaveLength(2);
     expect(responseIds(requests[1]!.newMessage.parts)).toEqual(["c1", "c2"]);
+  });
+
+  it("splits same-tick HITL replies from different producing runs", async () => {
+    const inputCallEvent = (id: string, run: string): AdkEvent => ({
+      ...callEvent(id, run),
+      content: {
+        role: "model",
+        parts: [{ functionCall: { id, name: "adk_request_input", args: {} } }],
+      },
+    });
+    const { runtime, submitInput, requests } = await mount(false, {
+      firstEvent: inputCallEvent("c1", "run-1"),
+      secondEvent: inputCallEvent("c2", "run-2"),
+      waitForCall: "c1",
+      autoCancelPendingToolCalls: false,
+    });
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+
+    act(() =>
+      runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "second" }],
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        runtime.thread
+          .getState()
+          .messages.some((message) =>
+            message.content.some(
+              (part) => part.type === "tool-call" && part.toolCallId === "c2",
+            ),
+          ),
+      ).toBe(true),
+    );
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+
+    await act(async () => {
+      await Promise.all([
+        submitInput("c1", "first"),
+        submitInput("c2", "second"),
+      ]);
+    });
+    expect(requests).toHaveLength(4);
+    expect(responseIds(requests[2]!.newMessage.parts)).toEqual(["c1"]);
+    expect(responseIds(requests[3]!.newMessage.parts)).toEqual(["c2"]);
+  });
+
+  it("splits buffered replies from different runs when starting a new turn", async () => {
+    const inputCallEvent = (id: string, run: string): AdkEvent => ({
+      ...callEvent(id, run),
+      content: {
+        role: "model",
+        parts: [{ functionCall: { id, name: "adk_request_input", args: {} } }],
+      },
+    });
+    const { runtime, submitInput, requests } = await mount(false, {
+      firstEvent: inputCallEvent("c1", "run-1"),
+      secondEvent: inputCallEvent("c2", "run-2"),
+      waitForCall: "c1",
+      holdSecondRun: true,
+      autoCancelPendingToolCalls: false,
+    });
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+
+    act(() =>
+      runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "second" }],
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        runtime.thread
+          .getState()
+          .messages.some((message) =>
+            message.content.some(
+              (part) => part.type === "tool-call" && part.toolCallId === "c2",
+            ),
+          ),
+      ).toBe(true),
+    );
+
+    await act(async () => {
+      await Promise.all([
+        submitInput("c1", "first"),
+        submitInput("c2", "second"),
+      ]);
+    });
+    act(() =>
+      runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "third" }],
+      }),
+    );
+
+    await waitFor(() => expect(requests).toHaveLength(4));
+    expect(responseIds(requests[2]!.newMessage.parts)).toEqual(["c1"]);
+    expect(responseIds(requests[3]!.newMessage.parts)).toEqual(["c2"]);
+    expect(requests[3]!.newMessage.parts).toContainEqual({ text: "third" });
   });
 
   it("sends two answers from one event in one request and call order", async () => {

@@ -167,6 +167,21 @@ const orderedToolCallIds = (state: AdkThreadState): string[] => {
   return ids;
 };
 
+export const getToolResultOwnerKey = (
+  state: AdkThreadState,
+  toolCallId: string,
+): string => {
+  const runId = state.runIdByToolCallId.get(toolCallId);
+  if (runId !== undefined) return `run:${runId}`;
+
+  const messageId = state.messages.find(
+    (message) =>
+      message.type === "ai" &&
+      message.tool_calls?.some((call) => call?.id === toolCallId),
+  )?.id;
+  return `message:${messageId ?? toolCallId}`;
+};
+
 const groupOf = (state: AdkThreadState, toolCallId: string): string[] => {
   const message = state.messages.find(
     (m) =>
@@ -450,30 +465,16 @@ export const reduceAdkThreadState = (
     case "results.flush": {
       const toolResultBuffer = new Map(state.toolResultBuffer);
       const batch: ToolMessage[] = [];
-      let batchOwner: string | undefined;
-      let batchMessageId: string | undefined;
+      let batchOwnerKey: string | undefined;
       for (const id of state.toolResultBuffer.keys()) {
         if (!toolResultBuffer.has(id)) continue;
         const owner = state.runIdByToolCallId.get(id);
         if (action.failed && owner === action.runId) continue;
-        const messageId =
-          owner === undefined
-            ? (state.messages.find(
-                (message) =>
-                  message.type === "ai" &&
-                  message.tool_calls?.some((call) => call?.id === id),
-              )?.id ?? id)
-            : undefined;
-        if (
-          batch.length > 0 &&
-          (owner !== batchOwner ||
-            (owner === undefined && messageId !== batchMessageId))
-        )
-          continue;
+        const ownerKey = getToolResultOwnerKey(state, id);
+        if (batch.length > 0 && ownerKey !== batchOwnerKey) continue;
         const ready = takeGroup(state, toolResultBuffer, id);
         if (ready.length === 0) continue;
-        batchOwner = owner;
-        batchMessageId = messageId;
+        batchOwnerKey = ownerKey;
         batch.push(...ready);
       }
       return {
