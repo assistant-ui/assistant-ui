@@ -8,6 +8,26 @@ import type {
   VariantResult,
 } from "./types.ts";
 
+/** Runs tasks with at most `concurrency` of them in flight, starting them in the order they were added. */
+const limiter = (concurrency: number) => {
+  let active = 0;
+  const queue: (() => void)[] = [];
+  return <T>(task: () => Promise<T>) =>
+    new Promise<T>((resolve, reject) => {
+      const start = () => {
+        active++;
+        task()
+          .then(resolve, reject)
+          .finally(() => {
+            active--;
+            queue.shift()?.();
+          });
+      };
+      if (active < concurrency) start();
+      else queue.push(start);
+    });
+};
+
 /**
  * Run every candidate against a case `trials` times.
  *
@@ -25,21 +45,30 @@ export async function runCase<
   candidates: TCandidate[],
   trials: number,
 ): Promise<CaseResult<TCase, TCandidate, TOutcome>> {
+  const limit = limiter(suite.concurrency ?? 1);
+  const attempt = async (
+    candidate: TCandidate,
+  ): Promise<TrialResult<TOutcome>> => {
+    try {
+      return { outcome: await suite.run(c, candidate) };
+    } catch (err) {
+      return {
+        error: true,
+        message: err instanceof Error ? err.message : String(err),
+      };
+    }
+  };
+  const scheduled = candidates.map((candidate) =>
+    Array.from({ length: trials }, () => limit(() => attempt(candidate))),
+  );
+
   const variants: VariantResult<TCandidate, TOutcome>[] = [];
   const labelW = Math.max(14, ...candidates.map((c) => c.label.length));
-  for (const candidate of candidates) {
+  for (const [index, candidate] of candidates.entries()) {
     process.stdout.write(`  ${candidate.label.padEnd(labelW)} `);
     const ts: TrialResult<TOutcome>[] = [];
-    for (let i = 0; i < trials; i++) {
-      let trial: TrialResult<TOutcome>;
-      try {
-        trial = { outcome: await suite.run(c, candidate) };
-      } catch (err) {
-        trial = {
-          error: true,
-          message: err instanceof Error ? err.message : String(err),
-        };
-      }
+    for (const [i, pending] of scheduled[index]!.entries()) {
+      const trial = await pending;
       ts.push(trial);
       const view: TrialView = trial.error
         ? { mark: "E", verdict: `ERROR: ${trial.message}`, artifact: "" }

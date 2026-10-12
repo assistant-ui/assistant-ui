@@ -879,6 +879,9 @@ importers:
       '@assistant-ui/generative-ui':
         specifier: workspace:*
         version: link:../packages/generative-ui
+      '@assistant-ui/ui':
+        specifier: workspace:*
+        version: link:../packages/ui
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../packages/x-buildutils
@@ -903,6 +906,15 @@ importers:
       react-dom:
         specifier: ^19.3.0
         version: 19.3.0(react@19.3.0)
+      react-markdown:
+        specifier: ^10.1.0
+        version: 10.1.0(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2)
+      remark-gfm:
+        specifier: ^4.0.1
+        version: 4.0.1(supports-color@10.2.2)
+      rolldown:
+        specifier: ^1.2.12
+        version: 1.2.12
       zod:
         specifier: ^4.6.5
         version: 4.6.5

@@ -25,7 +25,8 @@ export async function generateAnswer(
         prompt: task.prompt,
         onError,
         tools: run.tools,
-        toolChoice: "required",
+        // Opus 5.5 rejects a forced tool call, so every model may answer without the tool, which counts as an error.
+        toolChoice: "auto",
         stopWhen: [
           // Two steps of headroom for calls that are not answers, such as frame mode's `read_me`.
           isStepCount(maxRepairRounds + 3),
@@ -63,11 +64,18 @@ export async function generateAnswer(
   if (!run.tools) {
     const text = await result.text;
     const errors = text.trim() ? [] : ["The answer is empty."];
-    return { artifact: text, errors, repairRounds: 0, ...measured };
+    return {
+      artifact: text,
+      answeredIn: "text",
+      errors,
+      repairRounds: 0,
+      ...measured,
+    };
   }
   if (!last) {
     return {
       artifact: await result.text,
+      answeredIn: "text",
       errors: [`The model never called \`${run.answerTool}\`.`],
       repairRounds: 0,
       ...measured,
@@ -75,6 +83,7 @@ export async function generateAnswer(
   }
   return {
     artifact: last.artifact,
+    answeredIn: format,
     errors: last.errors,
     repairRounds: run.attempts.length - 1,
     ...measured,

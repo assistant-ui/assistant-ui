@@ -18,8 +18,10 @@ export interface Candidate extends SuiteCandidate {
 }
 
 export interface Answer {
-  /** What the judge reads: the Markdown, the final tree or spec, or the widget source. */
+  /** The Markdown, the final tree or spec, or the widget source: what renders. */
   artifact: string;
+  /** The format `artifact` is in: the one asked for, or `text` when the model answered in prose without calling the format's tool. */
+  answeredIn: Format;
   /** Validation errors left after the last attempt; empty when the answer passed validation. */
   errors: string[];
   /** Tool calls after the first, each answering the previous call's validation errors. */
@@ -37,7 +39,25 @@ export interface Scores {
   completeness: number;
 }
 
+/** The answer as a chat app shows it, before any interaction. */
+export interface Rendered {
+  /** PNGs of the rendered answer from top to bottom, base64-encoded. */
+  screenshots: string[];
+  /** The answer is taller than the screenshots, which stop partway. */
+  cutOff: boolean;
+  /** Errors the answer raised while rendering, such as a widget's script error or a blank render. */
+  runtimeErrors: string[];
+}
+
+export type RenderAnswer = (
+  format: Format,
+  artifact: string,
+) => Promise<Rendered>;
+
 export interface Judged extends Answer {
+  runtimeErrors: string[];
+  /** Where the screenshots the judge scored were saved, when the suite saves them. */
+  screenshots: string[];
   scores: Scores;
   reason: string;
 }

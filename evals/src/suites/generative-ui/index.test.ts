@@ -24,7 +24,8 @@ test("every model answers in every format", () => {
   assert.equal(suite.cases.length, 6);
 });
 
-test("a trial answers, then a separate judge scores the answer", async () => {
+test("a trial answers, renders the answer, then a separate judge scores the screenshot", async () => {
+  const rendered: [string, string][] = [];
   const suite = createGenerativeUISuite({
     models: [streamingModel(text("# Plan"))],
     judge: generatingModel(
@@ -35,20 +36,32 @@ test("a trial answers, then a separate judge scores the answer", async () => {
         reason: "Useful.",
       }),
     ),
+    render: async (format, artifact) => {
+      rendered.push([format, artifact]);
+      return {
+        screenshots: ["iVBORw0KGgo="],
+        cutOff: false,
+        runtimeErrors: ["slow font"],
+      };
+    },
   });
   const candidate = suite.candidates.find((c) => c.format === "text");
   const task = suite.cases[0];
   assert.ok(candidate && task);
   const judged = await suite.run(task, candidate);
   assert.equal(judged.artifact, "# Plan");
+  assert.deepEqual(rendered, [["text", "# Plan"]]);
+  assert.deepEqual(judged.runtimeErrors, ["slow font"]);
+  assert.deepEqual(judged.screenshots, []);
   assert.deepEqual(judged.scores, {
     clarity: 5,
     usefulness: 4,
     completeness: 3,
   });
   assert.deepEqual(suite.view(judged), {
-    mark: ".",
-    verdict: "4.0, 0 repair round(s), 0 error(s) left: Useful.",
+    mark: "x",
+    verdict:
+      "4.0, 0 repair round(s), 0 error(s) left, 1 while rendering: Useful.",
     artifact: "# Plan",
   });
   assert.equal(
@@ -58,4 +71,33 @@ test("a trial answers, then a separate judge scores the answer", async () => {
     ]),
     "4.0",
   );
+});
+
+test("a tool format answered in prose renders as the Markdown the user would see", async () => {
+  const rendered: [string, string][] = [];
+  const suite = createGenerativeUISuite({
+    models: [streamingModel(text("Each pays $30."))],
+    judge: generatingModel(
+      JSON.stringify({
+        clarity: 2,
+        usefulness: 2,
+        completeness: 2,
+        reason: "No UI.",
+      }),
+    ),
+    render: async (format, artifact) => {
+      rendered.push([format, artifact]);
+      return {
+        screenshots: ["iVBORw0KGgo="],
+        cutOff: false,
+        runtimeErrors: [],
+      };
+    },
+  });
+  const candidate = suite.candidates.find((c) => c.format === "present");
+  const task = suite.cases[0];
+  assert.ok(candidate && task);
+  const judged = await suite.run(task, candidate);
+  assert.deepEqual(rendered, [["text", "Each pays $30."]]);
+  assert.deepEqual(judged.errors, ["The model never called `present`."]);
 });
