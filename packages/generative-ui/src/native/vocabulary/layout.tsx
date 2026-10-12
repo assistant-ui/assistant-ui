@@ -193,6 +193,7 @@ function Badge({
 }) {
   const theme = useNativeTheme();
   const ink = useInk();
+  const tinted = ink !== theme.foreground;
   const tone =
     variant === "info"
       ? theme.primary
@@ -203,16 +204,24 @@ function Badge({
           : variant === "danger"
             ? theme.destructive
             : undefined;
-  const labelColor =
-    tone && variant !== "info"
+  const infoOnTintedCard = variant === "info" && tinted;
+  const labelColor = infoOnTintedCard
+    ? theme.primaryForeground
+    : tone && variant !== "info"
       ? toneTextColor(tone, ink)
-      : (tone ?? fade(ink, 0.62));
+      : (tone ?? (tinted ? theme.secondaryForeground : fade(ink, 0.62)));
   return (
     <View style={styles.badgeSlot}>
       <View
         style={[
           styles.badge,
-          { backgroundColor: tone ? fade(tone, 0.15) : theme.secondary },
+          {
+            backgroundColor: infoOnTintedCard
+              ? theme.primary
+              : tone
+                ? fade(tone, 0.15)
+                : theme.secondary,
+          },
         ]}
       >
         <Text style={[styles.badgeText, { color: labelColor }]}>
