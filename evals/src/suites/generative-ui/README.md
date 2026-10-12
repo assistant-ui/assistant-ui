@@ -16,7 +16,7 @@ Each trial sends one task as the only user message, with the format's system pro
 
 `present` and `spec` share one vocabulary, so the comparison between them is about the format alone. `auto` leaves out `present`, which spec mode replaces as the declarative format; its scores show whether the draft rules pick a format that serves each task as well as the best fixed one. A tool returns its validation errors to the model, which gets up to two more calls to fix them, the way a host feeds back render problems. The last call's tree, spec, or widget source is the answer.
 
-The answer then renders 680 px wide the way a chat app shows it: Markdown with the kit's text styles, `present` and spec answers with the kit's generative UI element and vocabulary styles (so a `Markdown` node renders formatted, a `Diagram` draws with Mermaid, and a `Map` on Leaflet tiles, as the element documents, with Tailwind compiled over the kit's element sources the way an app that installs it compiles them), and a widget in generative-frame's Safe Content Frame. Before the capture, the page waits for nothing in the answer to be busy (`aria-busy`, as a map is while Leaflet loads) and for it to stop changing for 300 ms, then for its images to load or fail; each wait gives up after five seconds, and a widget gets a fixed 600 ms instead, so a slow tile can still be missing from a screenshot. A script error, a blank render, or a spec that fails to render counts as an error while rendering.
+The answer then renders 680 px wide the way a chat app shows it: Markdown with the kit's text styles, `present` and spec answers with the kit's generative UI element and vocabulary styles (so a `Markdown` node renders formatted, a `Diagram` draws with Mermaid, and a `Map` on Leaflet tiles, as the element documents, with Tailwind compiled over the kit's element sources the way an app that installs it compiles them), and a widget in generative-frame's Safe Content Frame. Any prose the model writes around a tool answer renders as Markdown above and below it, in message order. Before the capture, the page waits for nothing in the answer to be busy (`aria-busy`, as a map is while Leaflet loads) and for it to stop changing for 300 ms, then for its images to load or fail; each wait gives up after five seconds, and a widget gets a fixed 600 ms instead, so a slow tile can still be missing from a screenshot. A script error, a blank render, or a spec that fails to render counts as an error while rendering.
 
 The page is captured in slices 1,000 px tall, since vision models shrink a taller image until its text is unreadable; an answer taller than eight slices is cut off, and the judge is told so.
 
@@ -26,7 +26,7 @@ A fresh judge sees the request, the screenshots of the rendered answer, and any 
 
 - Nothing is clicked or typed: the judge sees each answer before any interaction and learns what its controls do from the source.
 - Time to first output is when the answer's text or answer tool input starts streaming, not the first paint.
-- Prose a model writes around a tool answer is not shown to the judge, for every tool format alike, so the comparison stays about the rendered answer.
+- Only the last tool answer renders: attempts that a repair replaced, which a chat app would still show, are left out.
 - Frame mode has no static validation beyond an empty widget or an edit that does not apply.
 - One judge grades every model, so expect some bias toward its own vendor's style; rerun with another `JUDGE_MODEL` to check a result.
 

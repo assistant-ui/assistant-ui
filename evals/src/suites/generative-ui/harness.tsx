@@ -13,7 +13,7 @@ import { flushSync } from "react-dom";
 import { createRoot, type Root } from "react-dom/client";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { Format } from "./types.ts";
+import type { Answer, Format } from "./types.ts";
 
 // The shadcn light theme the kit's registry and examples ship, which the vocabulary's styles read.
 const THEME = `:root {
@@ -50,6 +50,7 @@ ${Object.entries(generativeUiThemeVars.light)
 const MARKDOWN = `.markdown { line-height: 1.625; }
 .markdown > :first-child { margin-top: 0; }
 .markdown > :last-child { margin-bottom: 0; }
+.markdown + [data-answer-content], [data-answer-content] + .markdown { margin-top: 0.75rem; }
 .markdown h1, .markdown h2, .markdown h3, .markdown h4, .markdown h5, .markdown h6 { margin: 1.25rem 0 0.5rem; line-height: 1.4; }
 .markdown h1 { font-size: 1.25rem; font-weight: 600; }
 .markdown h2 { font-size: 1.125rem; font-weight: 600; }
@@ -162,9 +163,7 @@ function reset() {
   container.replaceChildren();
 }
 
-async function renderFrame(code: string, errors: string[]) {
-  const host = document.createElement("div");
-  container.appendChild(host);
+async function renderFrame(code: string, errors: string[], host: HTMLElement) {
   const widget = createWidget({
     container: host,
     tokens,
@@ -207,14 +206,14 @@ function parse(artifact: string, errors: string[]): unknown {
   }
 }
 
+const markdown = (value: string) => (
+  <div className="markdown">
+    <Markdown remarkPlugins={[remarkGfm]}>{value}</Markdown>
+  </div>
+);
+
 function declarative(format: Format, artifact: string, errors: string[]) {
-  if (format === "text") {
-    return (
-      <div className="markdown">
-        <Markdown remarkPlugins={[remarkGfm]}>{artifact}</Markdown>
-      </div>
-    );
-  }
+  if (format === "text") return markdown(artifact);
   const value = parse(artifact, errors);
   if (value === undefined) return null;
   if (format === "present") {
@@ -237,21 +236,39 @@ function declarative(format: Format, artifact: string, errors: string[]) {
 }
 
 /** Renders one answer the way a chat app shows it and reports what went wrong, so the page can be captured. */
-async function renderAnswer(format: Format, artifact: string) {
+async function renderAnswer(
+  format: Format,
+  artifact: string,
+  prose: Answer["prose"],
+) {
   reset();
   const errors: string[] = [];
+  root = createRoot(container, {
+    onCaughtError: (error) => errors.push(describe(error)),
+    onUncaughtError: (error) => errors.push(describe(error)),
+  });
+  const content =
+    format === "frame" ? null : declarative(format, artifact, errors);
+  flushSync(() =>
+    root!.render(
+      <>
+        {prose.before ? markdown(prose.before) : null}
+        <div data-answer-content="">
+          <Boundary>{content}</Boundary>
+        </div>
+        {prose.after ? markdown(prose.after) : null}
+      </>,
+    ),
+  );
+  const answerElement = container.querySelector<HTMLElement>(
+    "[data-answer-content]",
+  )!;
   if (format === "frame") {
-    await renderFrame(artifact, errors);
+    await renderFrame(artifact, errors, answerElement);
   } else {
-    root = createRoot(container, {
-      onCaughtError: (error) => errors.push(describe(error)),
-      onUncaughtError: (error) => errors.push(describe(error)),
-    });
-    const content = declarative(format, artifact, errors);
-    flushSync(() => root!.render(<Boundary>{content}</Boundary>));
     if (
-      !container.textContent?.trim() &&
-      !container.querySelector(
+      !answerElement.textContent?.trim() &&
+      !answerElement.querySelector(
         "img, svg, canvas, video, iframe, input, select, textarea, button, hr",
       )
     ) {

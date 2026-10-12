@@ -3,7 +3,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { fileURLToPath } from "node:url";
 import { openChromePage } from "./chrome.ts";
-import type { Format, Rendered } from "./types.ts";
+import type { Answer, Format, Rendered } from "./types.ts";
 
 /** The chat column answers render in, the width generative-frame previews widgets at. */
 export const RENDER_WIDTH = 680;
@@ -91,7 +91,11 @@ async function bundleHarness(): Promise<{ script: string; styles: string }> {
 }
 
 export interface Renderer {
-  render(format: Format, artifact: string): Promise<Rendered>;
+  render(
+    format: Format,
+    artifact: string,
+    prose: Answer["prose"],
+  ): Promise<Rendered>;
   close(): Promise<void>;
 }
 
@@ -124,12 +128,16 @@ export async function createRenderer(): Promise<Renderer> {
       `http://127.0.0.1:${port}/`,
       RENDER_WIDTH,
     );
-    const renderOne = async (format: Format, artifact: string) => {
+    const renderOne = async (
+      format: Format,
+      artifact: string,
+      prose: Answer["prose"],
+    ) => {
       const { height, errors } = await page.evaluate<{
         height: number;
         errors: string[];
       }>(
-        `window.renderAnswer(${JSON.stringify(format)}, ${JSON.stringify(artifact)})`,
+        `window.renderAnswer(${JSON.stringify(format)}, ${JSON.stringify(artifact)}, ${JSON.stringify(prose)})`,
         60_000,
       );
       const captured = Math.min(Math.max(height, 1), MAX_SLICES * SLICE_HEIGHT);
@@ -152,8 +160,8 @@ export async function createRenderer(): Promise<Renderer> {
     // The page renders one answer at a time, so concurrent trials queue for it.
     let last: Promise<unknown> = Promise.resolve();
     return {
-      render(format, artifact) {
-        const next = last.then(() => renderOne(format, artifact));
+      render(format, artifact, prose) {
+        const next = last.then(() => renderOne(format, artifact, prose));
         last = next.catch(() => {});
         return next;
       },

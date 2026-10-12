@@ -12,6 +12,7 @@ const task: Task = {
 };
 const answer: Answer = {
   artifact: '{"root":"main"}',
+  prose: { before: "", after: "" },
   answeredIn: "spec",
   errors: [],
   repairRounds: 0,
@@ -108,4 +109,21 @@ test("a Markdown answer has no controls, so the judge gets no source", async () 
   const serialized = JSON.stringify(model.doGenerateCalls[0]?.prompt);
   assert.ok(!serialized.includes("<source>"));
   assert.ok(!serialized.includes("# Bill"));
+});
+
+test("the judge sees that screenshots include prose around a tool answer", async () => {
+  const model = generatingModel(verdict);
+  await judgeAnswer(
+    model,
+    task,
+    "spec",
+    { ...answer, prose: { before: "Here is your plan.", after: "" } },
+    rendered,
+  );
+  const serialized = JSON.stringify(model.doGenerateCalls[0]?.prompt);
+  assert.ok(
+    serialized.includes(
+      "The assistant answered with a flat spec of native components with state, bindings, and conditions that the host app renders (`render_spec` tool), with text it wrote above or below it. These screenshots show both from top to bottom, the way the user first sees them, 680 px wide:",
+    ),
+  );
 });
