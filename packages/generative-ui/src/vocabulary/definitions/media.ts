@@ -38,7 +38,10 @@ export const mediaDefinitions = {
         .describe(
           "Mermaid source, such as `flowchart LR` followed by `A[Order] --> B[Ship]`.",
         ),
-      title: z.string().optional().describe("A caption for the diagram."),
+      title: z
+        .union([z.string(), z.number()])
+        .optional()
+        .describe("A caption for the diagram, as text or a number."),
     }),
   },
   Map: {
