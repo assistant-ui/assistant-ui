@@ -1904,7 +1904,7 @@ const convertElement = (
       const sourceText = asTextValue(props["source"]);
       const source =
         sourceText ||
-        (props["source"] === "" ? "" : href ? linkHost(href) : undefined);
+        (props["source"] === "" || !href ? undefined : linkHost(href));
       return [
         structuredSection(
           snippet !== undefined ? `${head}\n${snippet}` : head,

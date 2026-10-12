@@ -147,17 +147,19 @@ describe("toSlackBlocks", () => {
       expect(warnings).toEqual([]);
     });
 
-    it("keeps an explicitly empty Citation source", () => {
+    it("leaves out an explicitly empty Citation source instead of showing the link's site", () => {
       const { blocks } = toSlackBlocks({
         $type: "Citation",
         title: "Reference",
         url: "https://example.com",
         source: "",
       });
-      expect(blocks[1]).toEqual({
-        type: "context",
-        elements: [{ type: "mrkdwn", text: "" }],
-      });
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          text: { type: "mrkdwn", text: "<https://example.com|Reference>" },
+        },
+      ]);
     });
 
     it("renders every Tabs panel in order with a label, including a missing label", () => {
