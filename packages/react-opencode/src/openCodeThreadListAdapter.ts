@@ -81,16 +81,8 @@ export const createOpenCodeThreadListAdapter = (
       OPEN_CODE_REQUEST_OPTIONS,
     );
   },
-  unarchive: async (remoteId: string) => {
-    await client.session.update(
-      {
-        sessionID: remoteId,
-        // The SDK models archived timestamps as numbers, but OpenCode uses
-        // `null` here to clear the archived flag when unarchiving.
-        time: { archived: null as never } as never,
-      },
-      OPEN_CODE_REQUEST_OPTIONS,
-    );
+  unarchive: async () => {
+    throw new Error("OpenCode cannot unarchive a session.");
   },
   delete: async (remoteId: string) => {
     await client.session.delete(
