@@ -59,7 +59,10 @@ export function createGitHubClient({
           `GitHub request failed (${status} ${response.statusText}): ${method} ${url}`,
         );
       }
-      const text = await response.text();
+      const text = await response.text().catch((error) => {
+        status = 0;
+        throw error;
+      });
       return {
         status,
         data:

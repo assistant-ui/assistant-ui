@@ -535,10 +535,17 @@ test("HTTP, transport, and invalid JSON failures carry a status", async () => {
 });
 
 test("the GitHub client retries transient failures on reads but never on writes", async () => {
-  const methods = [];
+  const requests = [];
   const waits = [];
   const responses = [
     new Response("Bad gateway", { status: 502 }),
+    new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.error(new Error("Connection reset"));
+        },
+      }),
+    ),
     new Response(JSON.stringify([{ id: 1 }])),
     new Response("Gateway timeout", { status: 504 }),
     new Response(JSON.stringify({ data: { viewer: { login: "octo" } } })),
@@ -549,8 +556,8 @@ test("the GitHub client retries transient failures on reads but never on writes"
     wait: async (ms) => {
       waits.push(ms);
     },
-    fetch: async (_url, options) => {
-      methods.push(options.method);
+    fetch: async (url, options) => {
+      requests.push(`${options.method} ${url}`);
       return responses.shift();
     },
   });
@@ -561,8 +568,15 @@ test("the GitHub client retries transient failures on reads but never on writes"
   await assert.rejects(client.rest("POST", "/items", { name: "new" }), {
     status: 502,
   });
-  assert.deepEqual(methods, ["GET", "GET", "POST", "POST", "POST"]);
-  assert.deepEqual(waits, [1000, 1000]);
+  assert.deepEqual(requests, [
+    "GET https://api.github.com/items",
+    "GET https://api.github.com/items",
+    "GET https://api.github.com/items",
+    "POST https://api.github.com/graphql",
+    "POST https://api.github.com/graphql",
+    "POST https://api.github.com/items",
+  ]);
+  assert.deepEqual(waits, [1000, 2000, 1000]);
 });
 
 test("the GitHub client stops after three attempts and leaves other statuses alone", async () => {
