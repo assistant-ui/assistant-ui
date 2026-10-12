@@ -118,6 +118,68 @@ describe("reduceAdkThreadState", () => {
     expect(second.readyBatch).toEqual([interruptAnswer("second")]);
     expect(second.toolResultBuffer.size).toBe(0);
   });
+
+  it("flushes held replies from one loaded assistant message together", () => {
+    const answer = (id: string) => ({
+      ...interruptAnswer(id),
+      name: "adk_request_confirmation",
+    });
+    const calls: AdkMessage = {
+      id: "loaded",
+      type: "ai",
+      content: "",
+      tool_calls: ["c1", "c2", "c3"].map((id) => ({
+        id,
+        name: "adk_request_confirmation",
+        args: {},
+      })),
+    };
+    let state = reduceAdkThreadState(
+      {
+        ...createAdkThreadState(),
+        messages: [
+          calls,
+          {
+            id: "other",
+            type: "ai",
+            content: "",
+            tool_calls: [
+              { id: "other-call", name: "adk_request_confirmation", args: {} },
+            ],
+          },
+        ],
+      },
+      { type: "run.active" },
+    );
+    for (const id of ["c1", "c2", "c3", "other-call"]) {
+      state = reduceAdkThreadState(state, {
+        type: "results.received",
+        message: answer(id),
+      });
+      expect(state.readyBatch).toBeNull();
+    }
+    state = reduceAdkThreadState(state, { type: "run.finished", runId: "1" });
+
+    const flushed = reduceAdkThreadState(state, {
+      type: "results.flush",
+      runId: "1",
+      failed: false,
+    });
+    expect(flushed.readyBatch).toEqual([
+      answer("c1"),
+      answer("c2"),
+      answer("c3"),
+    ]);
+    expect([...flushed.toolResultBuffer.keys()]).toEqual(["other-call"]);
+    const next = reduceAdkThreadState(flushed, {
+      type: "results.flush",
+      runId: "1",
+      failed: false,
+    });
+    expect(next.readyBatch).toEqual([answer("other-call")]);
+    expect(next.toolResultBuffer.size).toBe(0);
+  });
+
   it("tracks queued projections and removes only queued messages", () => {
     const queued = { ...message, id: "queued" };
     const initial = { ...createAdkThreadState(), messages: [message] };

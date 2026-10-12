@@ -500,24 +500,6 @@ describe("HITL reply ownership", () => {
     expect(replies(h.requests)).toEqual([["input"]]);
   });
 
-  it("sends an id-less interrupt reply through the raw send path", async () => {
-    const h = await mount([{ id: "input", name: "adk_request_input" }], true);
-    act(() => {
-      void h.send(
-        [
-          {
-            id: "reply",
-            type: "tool",
-            name: "adk_request_input",
-            content: "{}",
-          } as AdkMessage,
-        ],
-        {},
-      );
-    });
-    await waitFor(() => expect(h.requests).toHaveLength(2));
-  });
-
   it("sends an interrupt reply with a nonempty config immediately", async () => {
     const h = await mount([{ id: "input", name: "adk_request_input" }], true);
     act(() => {

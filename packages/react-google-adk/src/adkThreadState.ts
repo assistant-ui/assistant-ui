@@ -47,7 +47,6 @@ export const isInterruptReply = (
     messages.length === 1 &&
     messages[0]?.type === "tool" &&
     INTERRUPT_TOOL_NAMES.has(messages[0].name) &&
-    typeof messages[0].tool_call_id === "string" &&
     Reflect.ownKeys(normalizedConfig).every(
       (key) => Reflect.get(normalizedConfig, key) === undefined,
     )
@@ -452,23 +451,29 @@ export const reduceAdkThreadState = (
       const toolResultBuffer = new Map(state.toolResultBuffer);
       const batch: ToolMessage[] = [];
       let batchOwner: string | undefined;
-      let batchGroup: string | undefined;
+      let batchMessageId: string | undefined;
       for (const id of state.toolResultBuffer.keys()) {
         if (!toolResultBuffer.has(id)) continue;
         const owner = state.runIdByToolCallId.get(id);
         if (action.failed && owner === action.runId) continue;
-        const group = groupOf(state, id);
+        const messageId =
+          owner === undefined
+            ? (state.messages.find(
+                (message) =>
+                  message.type === "ai" &&
+                  message.tool_calls?.some((call) => call?.id === id),
+              )?.id ?? id)
+            : undefined;
         if (
           batch.length > 0 &&
           (owner !== batchOwner ||
-            (owner === undefined && group[0] !== batchGroup))
+            (owner === undefined && messageId !== batchMessageId))
         )
           continue;
-        if (!group.every((groupId) => toolResultBuffer.has(groupId))) continue;
         const ready = takeGroup(state, toolResultBuffer, id);
         if (ready.length === 0) continue;
         batchOwner = owner;
-        batchGroup = group[0];
+        batchMessageId = messageId;
         batch.push(...ready);
       }
       return {
