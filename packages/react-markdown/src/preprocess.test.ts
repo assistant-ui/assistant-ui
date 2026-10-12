@@ -37,7 +37,7 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
     expect(
       rewriteLatexBracketDelimiters("> 1. \\[\n> a\n> \\]\r\n> Text"),
-    ).toBe("> 1. \n>    $$\n>    a\n>    $$\r\n>    Text");
+    ).toBe("> 1. $$\n>    a\n>    $$\r\n>    Text");
   });
 
   it("gives the fence markers their own lines mid-paragraph", () => {
@@ -64,12 +64,12 @@ describe("rewriteLatexBracketDelimiters", () => {
   it("keeps quoted list display math and its following prose inside the item", () => {
     expect(
       normalizeMathDelimiters("> 1. \\[\n> a = 1\n>   b = 2\n> \\]\n> Text"),
-    ).toBe("> 1. \n>    $$\n>    a = 1\n>      b = 2\n>    $$\n>    Text");
+    ).toBe("> 1. $$\n>    a = 1\n>      b = 2\n>    $$\n>    Text");
     expect(normalizeMathDelimiters(">1. $$\n>x = 1\n>$$\n>Text")).toBe(
       ">1. $$\n>    x = 1\n>    $$\n>    Text",
     );
     expect(normalizeMathDelimiters(">1. \\[\n>x = 1\n>\\]\n>Text")).toBe(
-      ">1. \n>    $$\n>    x = 1\n>    $$\n>    Text",
+      ">1. $$\n>    x = 1\n>    $$\n>    Text",
     );
   });
 
@@ -87,19 +87,17 @@ describe("rewriteLatexBracketDelimiters", () => {
       rewriteLatexBracketDelimiters(
         "> 1. \\[\n> a\n> \\]\n> then \\[\n> b\n> \\]",
       ),
-    ).toBe(
-      "> 1. \n>    $$\n>    a\n>    $$\n>    then \n>    $$\n>    b\n>    $$",
-    );
+    ).toBe("> 1. $$\n>    a\n>    $$\n>    then \n>    $$\n>    b\n>    $$");
   });
 
   it.each([
     [
       "> 1. \\[\n> a\n> \\]\n> \\[\n> b\n> \\]\n> Text",
-      "> 1. \n>    $$\n>    a\n>    $$\n>    $$\n>    b\n>    $$\n>    Text",
+      "> 1. $$\n>    a\n>    $$\n>    $$\n>    b\n>    $$\n>    Text",
     ],
     [
       "> 1. \\[\n> a\n> \\]\n> \\[\n> b\n> \\]\n> \\[\n> c\n> \\]\n> Text",
-      "> 1. \n>    $$\n>    a\n>    $$\n>    $$\n>    b\n>    $$\n>    $$\n>    c\n>    $$\n>    Text",
+      "> 1. $$\n>    a\n>    $$\n>    $$\n>    b\n>    $$\n>    $$\n>    c\n>    $$\n>    Text",
     ],
   ])(
     "keeps chained displays and following text in a quoted list item",
@@ -114,7 +112,7 @@ describe("rewriteLatexBracketDelimiters", () => {
         "> 1. \\[\n> a1\n> a2\n> \\]\n> \\[\n> b1\n> b2\n> \\]\n> Text",
       ),
     ).toBe(
-      "> 1. \n>    $$\n>    a1\n>    a2\n>    $$\n>    $$\n>    b1\n>    b2\n>    $$\n>    Text",
+      "> 1. $$\n>    a1\n>    a2\n>    $$\n>    $$\n>    b1\n>    b2\n>    $$\n>    Text",
     );
   });
 
@@ -123,12 +121,12 @@ describe("rewriteLatexBracketDelimiters", () => {
       rewriteLatexBracketDelimiters(
         "> 1. \\[\n> a\n> \\]\n> where \\[x\\] holds",
       ),
-    ).toBe("> 1. \n>    $$\n>    a\n>    $$\n>    where $$x$$ holds");
+    ).toBe("> 1. $$\n>    a\n>    $$\n>    where $$x$$ holds");
   });
 
   it("keeps prose after a bracket closer in the quoted list item", () => {
     expect(normalizeMathDelimiters("> 1. \\[\n> a\n> \\] then\n> more")).toBe(
-      "> 1. \n>    $$\n>    a\n>    $$\n>     then\n> more",
+      "> 1. $$\n>    a\n>    $$\n>     then\n> more",
     );
     expect(rewriteLatexBracketDelimiters("> \\[\n> a\n> \\] then")).toBe(
       "> \n> $$\n> a\n> $$\n>  then",
@@ -138,7 +136,7 @@ describe("rewriteLatexBracketDelimiters", () => {
   it("keeps prose after a math tag closer in the quoted list item", () => {
     expect(
       normalizeMathDelimiters("> 1. [/math]\n> a\n> [/math] then\n> more"),
-    ).toBe("> 1. \n>    $$\n>    a\n>    $$\n>     then\n> more");
+    ).toBe("> 1. $$\n>    a\n>    $$\n>     then\n> more");
   });
 
   describe.each([
@@ -147,19 +145,25 @@ describe("rewriteLatexBracketDelimiters", () => {
     ["[/math]", "[/math]"],
   ])("%s displays sharing a closer line", (open, close) => {
     it.each([
-      ["quoted list", "> 1. ", "> ", ">    "],
-      ["plain quote", "> ", "> ", "> "],
-      ["plain list", "- item ", "  ", "  "],
-      ["nested quoted list", "> - > ", ">   > ", ">   > "],
-    ])("keeps the second display in the %s", (_, start, body, continuation) => {
-      expect(
-        normalizeMathDelimiters(
-          `${start}${open}\n${body}a1\n${body}a2\n${body}${close} x ${open}\n${body}b1\n${body}b2\n${body}${close} then`,
-        ),
-      ).toBe(
-        `${start}\n${continuation}$$\n${continuation}a1\n${continuation}a2\n${continuation}$$\n${continuation} x \n${continuation}$$\n${continuation}b1\n${continuation}b2\n${continuation}$$\n${continuation} then`,
-      );
-    });
+      ["quoted list", "> 1. ", "> ", ">    ", true],
+      ["plain quote", "> ", "> ", "> ", false],
+      ["plain list", "- item ", "  ", "  ", false],
+      ["nested quoted list", "> - > ", ">   > ", ">   > ", true],
+    ])(
+      "keeps the second display in the %s",
+      (_, start, body, continuation, openerOnMarker) => {
+        const opener = openerOnMarker
+          ? `${start}$$`
+          : `${start}\n${continuation}$$`;
+        expect(
+          normalizeMathDelimiters(
+            `${start}${open}\n${body}a1\n${body}a2\n${body}${close} x ${open}\n${body}b1\n${body}b2\n${body}${close} then`,
+          ),
+        ).toBe(
+          `${opener}\n${continuation}a1\n${continuation}a2\n${continuation}$$\n${continuation} x \n${continuation}$$\n${continuation}b1\n${continuation}b2\n${continuation}$$\n${continuation} then`,
+        );
+      },
+    );
   });
 
   it.each([
@@ -171,12 +175,12 @@ describe("rewriteLatexBracketDelimiters", () => {
     [
       "a single-line display before a third multiline display in a list item",
       "> 1. \\[\n> a1\n> a2 \\] , \\[ bx \\]\\[\n> c1\n> \\] then",
-      "> 1. \n>    $$\n>    a1\n>    a2 \n>    $$\n>     , $$bx$$\n>    $$\n>    c1\n>    $$\n>     then",
+      "> 1. $$\n>    a1\n>    a2 \n>    $$\n>     , $$bx$$\n>    $$\n>    c1\n>    $$\n>     then",
     ],
     [
       "a single-line math tag before a third multiline display in a list item",
       "> 1. [/math]\n> a1\n> a2 [/math] , [/math]bx[/math][/math]\n> c1\n> [/math] then",
-      "> 1. \n>    $$\n>    a1\n>    a2 \n>    $$\n>     , $$bx$$\n>    $$\n>    c1\n>    $$\n>     then",
+      "> 1. $$\n>    a1\n>    a2 \n>    $$\n>     , $$bx$$\n>    $$\n>    c1\n>    $$\n>     then",
     ],
     [
       "whitespace between the second closer and third opener",
@@ -186,12 +190,12 @@ describe("rewriteLatexBracketDelimiters", () => {
     [
       "the line after a closer-line display",
       "> 1. \\[\n> a\n> \\] x \\[\n> b\n> \\] then\n> more",
-      "> 1. \n>    $$\n>    a\n>    $$\n>     x \n>    $$\n>    b\n>    $$\n>     then\n> more",
+      "> 1. $$\n>    a\n>    $$\n>     x \n>    $$\n>    b\n>    $$\n>     then\n> more",
     ],
     [
       "the line after a second display in a list item",
       "> 1. \\[\n> a\n> \\] x \\[\n> b\n> \\]\n> more",
-      "> 1. \n>    $$\n>    a\n>    $$\n>     x \n>    $$\n>    b\n>    $$\n>    more",
+      "> 1. $$\n>    a\n>    $$\n>     x \n>    $$\n>    b\n>    $$\n>    more",
     ],
     [
       "the line after a second display in a plain quote",
@@ -201,17 +205,17 @@ describe("rewriteLatexBracketDelimiters", () => {
     [
       "CRLF lines",
       "> 1. \\[\r\n> a\r\n> \\] x \\[\r\n> b\r\n> \\] then",
-      "> 1. \n>    $$\n>    a\r\n>    $$\n>     x \n>    $$\n>    b\r\n>    $$\n>     then",
+      "> 1. $$\n>    a\r\n>    $$\n>     x \n>    $$\n>    b\r\n>    $$\n>     then",
     ],
     [
       "a code span between bracket displays",
       "> 1. \\[\n> a\n> \\] `x` \\[\n> b\n> \\]",
-      "> 1. \n>    $$\n>    a\n>    $$\n>     `x` \n>    $$\n>    b\n>    $$",
+      "> 1. $$\n>    a\n>    $$\n>     `x` \n>    $$\n>    b\n>    $$",
     ],
     [
       "a code span between math tags",
       "> 1. [/math]\n> a\n> [/math] `x` [/math]\n> b\n> [/math]",
-      "> 1. \n>    $$\n>    a\n>    $$\n>     `x` \n>    $$\n>    b\n>    $$",
+      "> 1. $$\n>    a\n>    $$\n>     `x` \n>    $$\n>    b\n>    $$",
     ],
   ])("preserves %s", (_, input, expected) => {
     expect(normalizeMathDelimiters(input)).toBe(expected);
@@ -220,19 +224,19 @@ describe("rewriteLatexBracketDelimiters", () => {
   it("keeps display math and following prose in an ordered list then quote", () => {
     expect(
       normalizeMathDelimiters("1. > \\[\n   > a\n   > \\] then\n   > more"),
-    ).toBe("1. > \n   > $$\n   > a\n   > $$\n   >  then\n   > more");
+    ).toBe("1. > $$\n   > a\n   > $$\n   >  then\n   > more");
   });
 
   it("keeps display math and following prose at quote depth two", () => {
     expect(
       normalizeMathDelimiters("> - > \\[\n>   > a\n>   > \\] then\n>   > more"),
-    ).toBe("> - > \n>   > $$\n>   > a\n>   > $$\n>   >  then\n>   > more");
+    ).toBe("> - > $$\n>   > a\n>   > $$\n>   >  then\n>   > more");
   });
 
   it("rewrites a multiline bracket display whose TeX body contains backticks", () => {
     expect(
       normalizeMathDelimiters("1. \\[\n\\text{`x`} = 1\nE = mc^2\n\\]\nText"),
-    ).toBe("1. \n   $$\n   \\text{`x`} = 1\n   E = mc^2\n   $$\nText");
+    ).toBe("1. $$\n   \\text{`x`} = 1\n   E = mc^2\n   $$\nText");
     expect(rewriteLatexBracketDelimiters("\\[a `b` c\\]")).toBe(
       "\\[a `b` c\\]",
     );
@@ -285,19 +289,19 @@ describe("rewriteLatexBracketDelimiters", () => {
 
   it("keeps math after an ordered-list marker and touching quote in both containers", () => {
     expect(normalizeMathDelimiters(">1) > \\[ > x\n>    > >\n>    > \\]")).toBe(
-      ">1) > \n>    > $$\n>    >  > x\n>    > >\n>    > $$",
+      ">1) > $$\n>    >  > x\n>    > >\n>    > $$",
     );
   });
 
   it("keeps math after a bullet marker and touching quote in both containers", () => {
     expect(normalizeMathDelimiters(">* > \\[x\n>   > x\n>   > \\]")).toBe(
-      ">* > \n>   > $$\n>   > x\n>   > x\n>   > $$",
+      ">* > $$\n>   > x\n>   > x\n>   > $$",
     );
   });
 
   it("keeps math after nested list markers inside the inner quote", () => {
     expect(normalizeMathDelimiters("- - > \\[x\n    > a\n    > \\]")).toBe(
-      "- - > \n    > $$\n    > x\n    > a\n    > $$",
+      "- - > $$\n    > x\n    > a\n    > $$",
     );
   });
 
@@ -305,17 +309,17 @@ describe("rewriteLatexBracketDelimiters", () => {
     [
       "a bullet then an ordered marker, each touching a quote",
       ">- >1) \\[x\n>   >    a\n>   >    \\]",
-      ">- >1) \n>   >    $$\n>   >    x\n>   >    a\n>   >    $$",
+      ">- >1) $$\n>   >    x\n>   >    a\n>   >    $$",
     ],
     [
       "two ordered markers, each touching a quote",
       ">1) >2) \\[x\n>    >    a\n>    >    \\]",
-      ">1) >2) \n>    >    $$\n>    >    x\n>    >    a\n>    >    $$",
+      ">1) >2) $$\n>    >    x\n>    >    a\n>    >    $$",
     ],
     [
       "nested list markers in a quote with a [/math] display",
       "> - 1. [/math]x\n>      a\n>      [/math]",
-      "> - 1. \n>      $$\n>      x\n>      a\n>      $$",
+      "> - 1. $$\n>      x\n>      a\n>      $$",
     ],
   ])("keeps math after %s", (_, input, expected) => {
     expect(normalizeMathDelimiters(input)).toBe(expected);
@@ -376,7 +380,7 @@ describe("rewriteLatexBracketDelimiters", () => {
 
   it("keeps display math in a blockquote nested inside a list item", () => {
     expect(normalizeMathDelimiters("- > \\[x\n  > x\n  > \\]")).toBe(
-      "- > \n  > $$\n  > x\n  > x\n  > $$",
+      "- > $$\n  > x\n  > x\n  > $$",
     );
   });
 
@@ -385,7 +389,7 @@ describe("rewriteLatexBracketDelimiters", () => {
       "> 1. $$w3$$",
     );
     expect(rewriteLatexBracketDelimiters("> 1. \\[\n> \n> w3 \n> \\]")).toBe(
-      "> 1. \n>    $$\n>    w3 \n>    $$",
+      "> 1. $$\n>    w3 \n>    $$",
     );
   });
 
@@ -861,13 +865,39 @@ describe("normalizeMathDelimiters", () => {
     ["- - ", "    "],
     ["+ + + ", "      "],
   ])(
-    "keeps the existing display layout without a thematic break in %j",
+    "keeps a display on a list-marker head without a thematic break in %j",
     (head, prefix) => {
       expect(normalizeMathDelimiters(`${head}\\[x\na\n\\]`)).toBe(
-        `${head}\n${prefix}$$\n${prefix}x\n${prefix}a\n${prefix}$$`,
+        `${head}$$\n${prefix}x\n${prefix}a\n${prefix}$$`,
       );
     },
   );
+
+  it.each([
+    ["dash", "-", "  "],
+    ["star", "*", "  "],
+    ["plus", "+", "  "],
+    ["ordered", "1.", "   "],
+  ] as const)(
+    "keeps multiline display math in an empty %s item after a paragraph",
+    (_name, marker, prefix) => {
+      expect(normalizeMathDelimiters(`Steps:\n${marker} \\[\nx\ny\n\\]`)).toBe(
+        `Steps:\n${marker} $$\n${prefix}x\n${prefix}y\n${prefix}$$`,
+      );
+    },
+  );
+
+  it("keeps a one-equation display inline after an empty list marker", () => {
+    expect(normalizeMathDelimiters("Steps:\n- \\[\nx\n\\]")).toBe(
+      "Steps:\n- $$x$$",
+    );
+  });
+
+  it("keeps a nested list-and-quote display opener on its marker line", () => {
+    expect(normalizeMathDelimiters("- > - - - \\[x\na\n\\]")).toBe(
+      "- > - - - $$\n  >       x\n  >       a\n  >       $$",
+    );
+  });
 
   it("keeps a later list fence separate from a display after three markers", () => {
     expect(normalizeMathDelimiters("- - - \\[x\na\n\\]\n\n- $$\na+b\n$$")).toBe(

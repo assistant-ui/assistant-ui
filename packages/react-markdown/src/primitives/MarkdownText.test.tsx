@@ -105,4 +105,44 @@ describe("MarkdownTextPrimitive preprocess wiring", () => {
     expect(html).toContain("$$a^2+b^2=c^2$$");
     expect(html).toContain("and more");
   });
+
+  it.each([
+    ["dash", "Steps:\n- \\[\nx\ny\n\\]", "ul"],
+    ["star", "Steps:\n* \\[\nx\ny\n\\]", "ul"],
+    ["plus", "Steps:\n+ \\[\nx\ny\n\\]", "ul"],
+    ["ordered", "Steps:\n1. \\[\nx\ny\n\\]", "ol"],
+  ])(
+    "keeps display math in an empty %s list item after prose",
+    (_, text, list) => {
+      mocks.messagePartText = {
+        type: "text",
+        text,
+        status: { type: "complete" },
+      };
+
+      const html = renderToStaticMarkup(
+        <MarkdownTextPrimitive preprocess={normalizeMathDelimiters} />,
+      );
+
+      expect(html).toContain("<p>Steps:</p>");
+      expect(html).toContain(`<${list}>`);
+      expect(html).toContain("<li>$$\nx\ny\n$$</li>");
+    },
+  );
+
+  it("keeps math after nested list markers inside a blockquote", () => {
+    mocks.messagePartText = {
+      type: "text",
+      text: "- > - - - \\[x\na\n\\]",
+      status: { type: "complete" },
+    };
+
+    const html = renderToStaticMarkup(
+      <MarkdownTextPrimitive preprocess={normalizeMathDelimiters} />,
+    );
+
+    expect(html).toContain("<blockquote>");
+    expect(html).toContain("<ul>");
+    expect(html).not.toContain("<hr/>");
+  });
 });

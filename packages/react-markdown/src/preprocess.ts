@@ -1027,20 +1027,13 @@ function continuationPrefix(lineHead: string): string {
   return prefix.join("");
 }
 
-function leavesThematicBreak(lineHead: string): boolean {
-  const quote = QUOTE_PREFIX.exec(lineHead)![0];
-  const markerEnd = skipListMarkers(lineHead, quote.length, lineHead.length);
-  if (markerEnd !== lineHead.length) return false;
-  let ruleStart = quote.length;
-  for (let from = ruleStart; from < markerEnd;) {
-    const next = listMarkerEnd(lineHead, from, lineHead.length);
-    if (next === from) break;
-    if (lineHead.charCodeAt(from) !== lineHead.charCodeAt(ruleStart)) {
-      ruleStart = from;
-    }
-    from = next;
+function hasListMarkerOnlyHead(lineHead: string): boolean {
+  const head = LINE_PREFIX.exec(lineHead)?.[0] ?? "";
+  if (head !== lineHead) return false;
+  for (let index = 0; index < head.length; index += 1) {
+    if (listMarkerEnd(head, index, head.length) > index) return true;
   }
-  return isRuleLine(lineHead, ruleStart, lineHead.length, false);
+  return false;
 }
 
 const SPAN_BOUNDARY =
@@ -1064,7 +1057,7 @@ function emitDisplayMath(
   // is aligned to it.
   const head = lineHead(offset);
   const prefix = continuationPrefix(head);
-  const thematicBreak = leavesThematicBreak(head);
+  const markerOnlyListHead = hasListMarkerOnlyHead(head);
   const depth = quoteDepth(prefix);
   const [openerText = "", ...bodyLines] = body.split("\n");
   const openerHasContent = !onlyWhitespace(openerText, 0, openerText.length);
@@ -1086,7 +1079,7 @@ function emitDisplayMath(
   // count as already being at a line boundary.
   const endsLine = (char: string) =>
     char === "" || char === "\n" || char === "\r";
-  const lead = endsLine(before) || thematicBreak ? "" : "\n";
+  const lead = endsLine(before) || markerOnlyListHead ? "" : "\n";
   const tail = endsLine(after) ? "" : "\n";
 
   // The body is split before trimming, since trimming would take the shared
@@ -1149,8 +1142,7 @@ function emitDisplayMath(
     );
   }
 
-  // A marker-only line would parse as a thematic break.
-  const openerPrefix = thematicBreak ? "" : prefix;
+  const openerPrefix = markerOnlyListHead ? "" : prefix;
   return `${lead}${openerPrefix}$$\n${lines.join("\n")}\n${prefix}$$${tail}${tail === "" ? "" : prefix}`;
 }
 
