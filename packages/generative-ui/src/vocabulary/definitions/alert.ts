@@ -7,11 +7,14 @@ export const alertDefinitions = {
     description:
       "A highlighted message conveying urgency. `tone` drives the severity.",
     properties: z.object({
-      title: z.string().optional().describe("Alert title."),
-      description: z
-        .string()
+      title: z
+        .union([z.string(), z.number()])
         .optional()
-        .describe("Supporting description text."),
+        .describe("Alert title text or number."),
+      description: z
+        .union([z.string(), z.number()])
+        .optional()
+        .describe("Supporting description text or number."),
       tone: z
         .enum(ALERT_TONES)
         .optional()

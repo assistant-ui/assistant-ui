@@ -33,6 +33,101 @@ const options = [
   { label: "Small", value: "s" },
   { label: "Large", value: "l" },
 ];
+
+describe("CheckboxGroup progress in Vue", () => {
+  it.each([false, true])(
+    "tracks selection like React with binding %s",
+    async (isBound) => {
+      const input = spec(
+        {
+          main: {
+            type: "CheckboxGroup",
+            props: {
+              options,
+              progress: true,
+              ...(isBound ? bound("defaultValue") : { defaultValue: ["s"] }),
+            },
+          },
+        },
+        { v: ["s"] },
+      );
+      const react = renderReactSpec(input);
+      const vue = renderVueSpec(input);
+      const label = (container: HTMLElement) =>
+        container.querySelector('[data-aui="checkboxgroup-progress-label"]')
+          ?.textContent;
+      const fill = (container: HTMLElement) =>
+        container.querySelector<HTMLElement>(
+          '[data-aui="checkboxgroup-progress-fill"]',
+        )?.style.width;
+      expect(vue.markup()).toBe(react.markup());
+      expect(label(vue.container)).toBe("1 of 2");
+      expect(fill(vue.container)).toBe("50%");
+      await act(async () =>
+        react.container
+          .querySelector<HTMLInputElement>('input[value="l"]')!
+          .click(),
+      );
+      vue.container
+        .querySelector<HTMLInputElement>('input[value="l"]')!
+        .click();
+      await nextTick();
+      expect(vue.markup()).toBe(react.markup());
+      expect(label(vue.container)).toBe("2 of 2");
+      expect(fill(vue.container)).toBe("100%");
+      if (isBound) expect(vue.state.get("/v")).toEqual(["s", "l"]);
+    },
+  );
+
+  it("counts each checked box once when two options share a value, like React", async () => {
+    const input = spec({
+      main: {
+        type: "CheckboxGroup",
+        props: {
+          progress: true,
+          options: [
+            { label: "Levers", value: "tools" },
+            { label: "Pump", value: "tools" },
+            { label: "Patch kit", value: "patches" },
+          ],
+        },
+      },
+    });
+    const react = renderReactSpec(input);
+    const vue = renderVueSpec(input);
+    const label = () =>
+      vue.container.querySelector('[data-aui="checkboxgroup-progress-label"]')
+        ?.textContent;
+    for (const [index, expected] of [
+      [0, "1 of 3"],
+      [1, "2 of 3"],
+      [0, "1 of 3"],
+    ] as const) {
+      await act(async () =>
+        react.container
+          .querySelectorAll<HTMLInputElement>("input")
+          [index]!.click(),
+      );
+      vue.container.querySelectorAll<HTMLInputElement>("input")[index]!.click();
+      await nextTick();
+      expect(vue.markup()).toBe(react.markup());
+      expect(label()).toBe(expected);
+    }
+  });
+
+  it("renders empty progress like React", () => {
+    const input = spec({
+      main: { type: "CheckboxGroup", props: { options: [], progress: true } },
+    });
+    const react = renderReactSpec(input);
+    const vue = renderVueSpec(input);
+    expect(vue.markup()).toBe(react.markup());
+    expect(
+      vue.container.querySelector('[data-aui="checkboxgroup-progress-label"]')
+        ?.textContent,
+    ).toBe("0 of 0");
+  });
+});
 const described = [
   { label: "Small", value: "s", description: "Compact" },
   { label: "Large", value: "l" },
@@ -386,6 +481,20 @@ const cases: [string, Spec][] = [
 ];
 
 describe("interactive vocabulary in Vue", () => {
+  it("renders a zero Select placeholder", () => {
+    const { markup } = renderVueSpec(
+      spec({
+        main: {
+          type: "Select",
+          props: { options: [{ label: "A", value: "a" }], placeholder: 0 },
+        },
+      }),
+    );
+    expect(markup()).toContain(
+      '<option disabled="" selected="" value="">0</option>',
+    );
+  });
+
   it.each([
     ["Input", { defaultValue: "Typed" }, "input", "Typed"],
     [

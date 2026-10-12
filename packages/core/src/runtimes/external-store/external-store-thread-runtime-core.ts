@@ -1,5 +1,9 @@
 import { shallowEqual } from "@assistant-ui/store/client";
-import type { AppendMessage, ThreadMessage } from "../../types/message";
+import type {
+  AppendMessage,
+  ThreadAssistantMessage,
+  ThreadMessage,
+} from "../../types/message";
 import type { Attachment } from "../../types/attachment";
 import type {
   AddToolResultOptions,
@@ -58,6 +62,22 @@ import { captureThreadRuntimeGeneration } from "../../runtime/utils/thread-runti
 import { RunLeases } from "../../utils/run-lease";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
+
+type SubmittedFeedback = NonNullable<
+  ThreadAssistantMessage["metadata"]["submittedFeedback"]
+>;
+
+type SubmittedFeedbackOverlay = {
+  feedback: SubmittedFeedback;
+  external: SubmittedFeedback | undefined;
+  source: ThreadAssistantMessage;
+  message: ThreadAssistantMessage;
+};
+
+const sameSubmittedFeedback = (
+  left: SubmittedFeedback | undefined,
+  right: SubmittedFeedback | undefined,
+) => left?.type === right?.type && left?.comment === right?.comment;
 
 const observeAdapterCallback = (
   name: "onAddToolResult" | "onCancel",
@@ -168,6 +188,7 @@ export class ExternalStoreThreadRuntimeCore
   public extras: unknown = undefined;
 
   private _converter = new ThreadMessageConverter();
+  private _submittedFeedback = new Map<string, SubmittedFeedbackOverlay>();
 
   // Ids the host was asked to delete via onDelete, mapped to the onDelete
   // calls still pending for them. The snapshot pass evicts them from the
@@ -189,9 +210,9 @@ export class ExternalStoreThreadRuntimeCore
   // keeps one identity per response.
   private _optimistic: { id: string; parentId: string | null } | null = null;
 
-  // What the host holds or has moved past, as far as this runtime knows: the
-  // branch the last snapshot pass derived, before the placeholder, or the array
-  // last handed to setMessages, whichever was written last.
+  // The last host branch with locally submitted feedback applied, or the array
+  // last handed to setMessages, whichever was written last. Excludes the
+  // optimistic placeholder so cancel resync only writes a real rollback.
   private _storeMessages: readonly ThreadMessage[] = [];
 
   private readonly _runStartLeases = new RunLeases();
@@ -228,6 +249,73 @@ export class ExternalStoreThreadRuntimeCore
   private _effectiveIsRunning = false;
   private _inTrackerUpdate = false;
   private _pendingRunningRefresh = false;
+
+  protected override _onMessageMetadataChanged(
+    previousMessage: ThreadAssistantMessage,
+    message: ThreadAssistantMessage,
+  ): void {
+    this._storeMessages = this._storeMessages.map((storedMessage) =>
+      storedMessage.id === message.id ? message : storedMessage,
+    );
+    if (message.id.startsWith(FALLBACK_ID_PREFIX)) return;
+    const previousOverlay = this._submittedFeedback.get(message.id);
+    const external =
+      previousOverlay &&
+      sameSubmittedFeedback(
+        previousMessage.metadata.submittedFeedback,
+        previousOverlay.feedback,
+      )
+        ? previousOverlay.external
+        : previousMessage.metadata.submittedFeedback;
+    const feedback = message.metadata.submittedFeedback;
+    if (!feedback) return;
+    this._submittedFeedback.set(message.id, {
+      feedback,
+      external,
+      source:
+        previousOverlay?.message === previousMessage
+          ? previousOverlay.source
+          : previousMessage,
+      message,
+    });
+  }
+
+  private _applySubmittedFeedback(
+    messages: readonly ThreadMessage[],
+  ): readonly ThreadMessage[] {
+    if (this._submittedFeedback.size === 0) return messages;
+    const incomingIds = new Set(messages.map((message) => message.id));
+    for (const id of this._submittedFeedback.keys()) {
+      if (!incomingIds.has(id)) this._submittedFeedback.delete(id);
+    }
+
+    return messages.map((message) => {
+      const overlay = this._submittedFeedback.get(message.id);
+      if (!overlay) return message;
+      if (
+        message.role !== "assistant" ||
+        !sameSubmittedFeedback(
+          message.metadata.submittedFeedback,
+          overlay.external,
+        )
+      ) {
+        this._submittedFeedback.delete(message.id);
+        return message;
+      }
+
+      if (overlay.source === message) return overlay.message;
+      const updatedMessage = {
+        ...message,
+        metadata: {
+          ...message.metadata,
+          submittedFeedback: overlay.feedback,
+        },
+      };
+      overlay.source = message;
+      overlay.message = updatedMessage;
+      return updatedMessage;
+    });
+  }
 
   /**
    * Tracker mutations initiated by this class (setState, reset) can publish
@@ -308,6 +396,7 @@ export class ExternalStoreThreadRuntimeCore
     if (repositoryChanged) {
       this.repository = repositoryInstance;
       this._pendingDeleteEvictions.clear();
+      this._submittedFeedback.clear();
       // Keep the live placeholder so resetHead cannot evict an id still used
       // by clients rendering the previous snapshot.
       const head = this.repository.getMessages();
@@ -388,8 +477,14 @@ export class ExternalStoreThreadRuntimeCore
         messages = this.repository.getMessages();
       } else {
         const incomingIds = new Set(incoming.map(({ message }) => message.id));
-        for (const { message, parentId } of incoming) {
-          this.repository.addOrUpdateMessage(parentId, message);
+        const reconciledMessages = this._applySubmittedFeedback(
+          incoming.map(({ message }) => message),
+        );
+        for (let i = 0; i < incoming.length; i++) {
+          this.repository.addOrUpdateMessage(
+            incoming[i]!.parentId,
+            reconciledMessages[i]!,
+          );
         }
         for (const { message } of this.repository.export().messages) {
           if (!incomingIds.has(message.id)) {
@@ -469,6 +564,8 @@ export class ExternalStoreThreadRuntimeCore
         deduped.push(message);
       }
       if (deduped.length !== messages.length) messages = deduped.reverse();
+
+      messages = this._applySubmittedFeedback(messages);
 
       for (let i = 0; i < messages.length; i++) {
         const message = messages[i]!;
@@ -1195,6 +1292,7 @@ export class ExternalStoreThreadRuntimeCore
 
   public override reset(initialMessages?: readonly ThreadMessageLike[]) {
     this._cancelRunResyncLeases.invalidate();
+    this._submittedFeedback.clear();
     const repo = new MessageRepository();
     repo.import(ExportedMessageRepository.fromArray(initialMessages ?? []));
     this.updateMessages(repo.getMessages());
@@ -1205,6 +1303,7 @@ export class ExternalStoreThreadRuntimeCore
       throw new Error("Runtime does not support importing messages.");
 
     this._cancelRunResyncLeases.invalidate();
+    this._submittedFeedback.clear();
     super.import(data);
     this._store.onImport(this.repository.getMessages());
   }

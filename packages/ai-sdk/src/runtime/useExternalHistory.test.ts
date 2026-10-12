@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
 
-import { act, renderHook, waitFor } from "@testing-library/react";
+import {
+  act,
+  renderHook,
+  waitFor as waitForAssertion,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { bindExternalStoreMessage } from "@assistant-ui/core";
 import type {
@@ -44,6 +48,9 @@ import {
   toExportedMessageRepository,
   useExternalHistory,
 } from "./useExternalHistory";
+
+const waitFor = (assertion: () => void) =>
+  waitForAssertion(assertion, { interval: 10 });
 
 const noopThread = {
   subscribe: () => () => {},

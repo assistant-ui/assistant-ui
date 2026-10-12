@@ -4,6 +4,7 @@ import type { GenerativeUIDispatch, GenerativeUILibrary } from "../types";
 import { listDefinitions } from "./definitions/list";
 import { fire } from "./dispatch";
 import { INTERACTIVE_DESCENDANT_SELECTOR } from "./listItemValues";
+import { sequenceItems } from "./structureValues";
 
 function ListViewItemRender({
   $action,
@@ -67,5 +68,38 @@ export const listVocabulary = {
   ListViewItem: {
     ...listDefinitions.ListViewItem,
     render: (props) => <ListViewItemRender {...props} />,
+  },
+  Steps: {
+    ...listDefinitions.Steps,
+    render: ({ steps }) => (
+      <ol data-aui="steps">
+        {sequenceItems(steps).map((step, index) => (
+          <li key={index} data-aui="steps-item">
+            <div data-aui="steps-title">{step.title}</div>
+            {step.detail !== undefined ? (
+              <div data-aui="steps-detail">{step.detail}</div>
+            ) : null}
+          </li>
+        ))}
+      </ol>
+    ),
+  },
+  Timeline: {
+    ...listDefinitions.Timeline,
+    render: ({ items }) => (
+      <ol data-aui="timeline">
+        {sequenceItems(items).map((item, index) => (
+          <li key={index} data-aui="timeline-item">
+            {item.time !== undefined ? (
+              <div data-aui="timeline-time">{item.time}</div>
+            ) : null}
+            <div data-aui="timeline-title">{item.title}</div>
+            {item.detail !== undefined ? (
+              <div data-aui="timeline-detail">{item.detail}</div>
+            ) : null}
+          </li>
+        ))}
+      </ol>
+    ),
   },
 } satisfies GenerativeUILibrary;

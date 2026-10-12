@@ -30,6 +30,7 @@ import {
   type ChartVariant,
 } from "./chartData";
 import { toTextContent } from "./toTextContent";
+import { linkHost, linkHref } from "./structureValues";
 
 type TableViewProps = {
   columns: unknown;
@@ -510,6 +511,34 @@ export const dataVocabulary = {
                 </span>
               ))}
             </div>
+          ) : null}
+        </div>
+      );
+    },
+  },
+  Citation: {
+    ...dataDefinitions.Citation,
+    render: ({ title, url, source, snippet }) => {
+      const href = linkHref(url);
+      const site = toTextContent(source) ?? (href ? linkHost(href) : null);
+      const quote = toTextContent(snippet);
+      return (
+        <div data-aui="citation">
+          {site != null ? <div data-aui="citation-source">{site}</div> : null}
+          {href ? (
+            <a
+              data-aui="citation-title"
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {toTextContent(title)}
+            </a>
+          ) : (
+            <div data-aui="citation-title">{toTextContent(title)}</div>
+          )}
+          {quote != null ? (
+            <div data-aui="citation-snippet">{quote}</div>
           ) : null}
         </div>
       );

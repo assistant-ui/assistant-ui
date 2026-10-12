@@ -751,6 +751,8 @@ const FENCE_CLOSE = {
 // prefix that fails cannot be re-split across two markers, and a list marker
 // still requires the space that separates it from its content.
 const FENCE_OPEN_PREFIX = /^[ \t]*(?:>[ \t]*|(?:[-*+]|\d{1,9}[.)])[ \t]+)*$/;
+// Every character FENCE_OPEN_PREFIX can match.
+const FENCE_OPEN_PREFIX_CHAR = /[ \t>*+\-0-9.)]/;
 const QUOTE_PREFIX = /^[ \t>]*/;
 
 function quoteDepth(prefix: string): number {
@@ -824,15 +826,14 @@ function opensBacktickFence(text: string, start: number): boolean {
   const fenceLength = runLength(text, start, "`");
   if (fenceLength < 3) return false;
 
-  const lineStart = text.lastIndexOf("\n", start - 1) + 1;
-  if (!FENCE_OPEN_PREFIX.test(text.slice(lineStart, start))) return false;
+  for (let index = start + fenceLength; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === "`") return false;
+    if (char === "\n") break;
+  }
 
-  const lineEnd = text.indexOf("\n", start + fenceLength);
-  const info = text.slice(
-    start + fenceLength,
-    lineEnd === -1 ? undefined : lineEnd,
-  );
-  return !info.includes("`");
+  const lineStart = text.lastIndexOf("\n", start - 1) + 1;
+  return FENCE_OPEN_PREFIX.test(text.slice(lineStart, start));
 }
 
 /**
@@ -842,7 +843,11 @@ function opensBacktickFence(text: string, start: number): boolean {
  */
 function opensTildeFence(text: string, index: number): boolean {
   if (text[index] !== "~" || runLength(text, index, "~") < 3) return false;
-  const lineStart = text.lastIndexOf("\n", index - 1) + 1;
+  let lineStart = index;
+  while (lineStart > 0 && text[lineStart - 1] !== "\n") {
+    if (!FENCE_OPEN_PREFIX_CHAR.test(text[lineStart - 1]!)) return false;
+    lineStart -= 1;
+  }
   return FENCE_OPEN_PREFIX.test(text.slice(lineStart, index));
 }
 
@@ -978,7 +983,8 @@ function rewriteOutsideCode(
  * A delimiter pair wrapping nothing is left as written: `$$$$` would itself
  * open a fence that never closes.
  */
-const LINE_PREFIX = /^(?:[ \t]*(?:>[ \t]*)*)(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)?/;
+const LINE_PREFIX =
+  /^(?:[ \t]*(?:>[ \t]*)*)(?:(?:[-*+]|\d{1,9}[.)])[ \t]+(?:[ \t]*(?:>[ \t]*)*)?)?/;
 
 /**
  * The prefix a following line needs to stay inside the block the match opened
@@ -1018,13 +1024,14 @@ function emitDisplayMath(
   // is aligned to it.
   const prefix = continuationPrefix(lineHead(offset));
   const depth = quoteDepth(prefix);
+  const [openerText = "", ...bodyLines] = body.split("\n");
+  const openerHasContent = !onlyWhitespace(openerText, 0, openerText.length);
   // The rest of the opener line is formula text, so only later lines carry the
   // container's blockquote markers.
-  const content = body
-    .split("\n")
-    .map((line, index) =>
-      index === 0 ? line : line.slice(quoteMarkers(line, depth).length),
-    )
+  const content = [
+    openerText,
+    ...bodyLines.map((line) => line.slice(quoteMarkers(line, depth).length)),
+  ]
     .join("\n")
     .trim();
   if (content === "") return match;
@@ -1042,18 +1049,21 @@ function emitDisplayMath(
 
   // The body is split before trimming, since trimming would take the shared
   // indentation off the first line only and leave the block ragged.
-  const bodyLines = body.split("\n");
   const emptyBodyLine = (line: string) =>
     line.slice(quoteMarkers(line, depth).length).trim() === "";
-  while (bodyLines.length > 0 && emptyBodyLine(bodyLines[0]!))
+  while (
+    !openerHasContent &&
+    bodyLines.length > 0 &&
+    emptyBodyLine(bodyLines[0]!)
+  )
     bodyLines.shift();
   while (bodyLines.length > 0 && emptyBodyLine(bodyLines.at(-1)!)) {
     bodyLines.pop();
   }
-  if (bodyLines.length === 0) return match;
+  if (!openerHasContent && bodyLines.length === 0) return match;
   // Only the indentation the whole body shares is replaced by the container
   // prefix, so an aligned block keeps its relative indentation.
-  const shared = bodyLines.reduce(
+  const shared = [openerText, ...bodyLines].reduce(
     (least, line) =>
       line.trim() === ""
         ? least
@@ -1088,8 +1098,13 @@ function emitDisplayMath(
     }
     return `${prefix}${line.slice(Number.isFinite(shared) ? shared : 0)}`;
   });
+  if (openerHasContent) {
+    lines.unshift(
+      `${prefix}${openerText.slice(Number.isFinite(shared) ? shared : 0)}`,
+    );
+  }
 
-  return `${lead}${prefix}$$\n${lines.join("\n")}\n${prefix}$$${tail}`;
+  return `${lead}${prefix}$$\n${lines.join("\n")}\n${prefix}$$${tail}${tail === "" ? "" : prefix}`;
 }
 
 /**
@@ -1175,7 +1190,7 @@ export function rewriteLatexBracketDelimiters(text: string): string {
         reindentedLineStart === block.lastIndexOf("\n", opener - 1) + 1;
       const prefix = continuationPrefix(head);
       const quote = QUOTE_PREFIX.exec(head)![0];
-      const depth = quoteDepth(quote);
+      const depth = quoteDepth(prefix);
       let replacement = emitDisplayMath(
         match,
         body,

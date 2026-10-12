@@ -52,10 +52,14 @@ export interface Suite<
   id: string;
   cases: TCase[];
   candidates: TCandidate[];
+  /** How many of a case's trials may run at once; one when omitted. */
+  concurrency?: number;
   /** Runs and judges one trial; throws on an infrastructure failure. */
   run(c: TCase, candidate: TCandidate): TOutcome | Promise<TOutcome>;
   view(outcome: TOutcome): TrialView;
   /** Printed after a candidate's trials, such as its pass rate. */
   summarize(trials: TrialResult<TOutcome>[]): string;
   report(results: CaseResult<TCase, TCandidate, TOutcome>[]): string;
+  /** Releases what the trials held open, such as a browser, once the run ends. */
+  close?(): void | Promise<void>;
 }
