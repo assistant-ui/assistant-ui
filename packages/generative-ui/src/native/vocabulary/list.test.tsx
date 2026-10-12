@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, type ComponentProps } from "react";
+import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   byRole,
@@ -10,9 +11,33 @@ import {
   renderWebSpec,
   spec,
 } from "../testUtils";
+import {
+  createRowLabelStore,
+  RowLabelProvider,
+  useListViewItemText,
+} from "../rowLabel";
 import { listVocabulary } from "./list";
 
-afterEach(cleanupSpecs);
+const pressables = vi.hoisted(() => ({
+  props: [] as ComponentProps<typeof import("react-native").Pressable>[],
+}));
+
+vi.mock("react-native", async (importOriginal) => {
+  const original = await importOriginal<typeof import("react-native")>();
+  const OriginalPressable = original.Pressable;
+  return {
+    ...original,
+    Pressable: (props: ComponentProps<typeof OriginalPressable>) => {
+      pressables.props.push(props);
+      return <OriginalPressable {...props} />;
+    },
+  };
+});
+
+afterEach(() => {
+  cleanupSpecs();
+  pressables.props.length = 0;
+});
 
 const input = spec({
   main: { type: "ListView", children: ["plain", "linked"] },
@@ -27,6 +52,56 @@ const input = spec({
 });
 
 describe("list vocabulary on React Native", () => {
+  it("sets the native row and row action accessibility props", () => {
+    renderNativeSpec(
+      spec({
+        main: { type: "ListView", children: ["row"] },
+        row: {
+          type: "ListViewItem",
+          children: ["name"],
+          on: { press: { action: "open" } },
+        },
+        name: { type: "Text", props: { value: "Order 42" } },
+      }),
+      { open: vi.fn() },
+      { open: { description: "Open" } },
+    );
+    const row = pressables.props.find(
+      (props) => typeof props.style === "function",
+    );
+    const action = pressables.props.findLast(
+      (props) => typeof props.style !== "function",
+    );
+    expect(row).toBeDefined();
+    expect(action).toBeDefined();
+    expect(row?.accessible).toBe(false);
+    expect(row?.focusable).toBe(false);
+    expect(row?.importantForAccessibility).toBe("no");
+    expect(action?.accessibilityRole).toBe("button");
+    expect(action?.accessibilityLabel).toBe("Order 42");
+    expect(action?.onAccessibilityTap).toBe(row?.onPress);
+  });
+
+  it("server renders row text registration without layout effect warnings", () => {
+    const Registrant = () => {
+      useListViewItemText("Photo");
+      return null;
+    };
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      renderToString(
+        <RowLabelProvider value={createRowLabelStore()}>
+          <Registrant />
+        </RowLabelProvider>,
+      );
+      expect(error.mock.calls.flat().join(" ")).not.toContain(
+        "useLayoutEffect does nothing on the server",
+      );
+    } finally {
+      error.mockRestore();
+    }
+  });
+
   it("presses only bound rows with the web payload", async () => {
     const nativeHandler = vi.fn();
     const webHandler = vi.fn();
@@ -327,6 +402,64 @@ describe("list vocabulary on React Native", () => {
       ),
     ).toEqual(["Order 42 shipped", ""]);
   });
+
+  it("keeps an Image alt in place when its source changes", async () => {
+    const input = (src: string) =>
+      spec({
+        main: { type: "ListView", children: ["row"] },
+        row: {
+          type: "ListViewItem",
+          children: ["name", "image", "status"],
+          on: { press: { action: "open" } },
+        },
+        name: { type: "Text", props: { value: "Order 42" } },
+        image: { type: "Image", props: { src, alt: "Photo" } },
+        status: { type: "Caption", props: { value: "Shipped" } },
+      });
+    const rendered = renderNativeSpec(
+      input("https://example.com/a.png"),
+      { open: vi.fn() },
+      { open: { description: "Open" } },
+    );
+    expect(
+      byRole(rendered.container, "button", "Order 42, Photo, Shipped"),
+    ).toBeTruthy();
+    await rendered.update(input("https://example.com/b.png"));
+    expect(
+      byRole(rendered.container, "button", "Order 42, Photo, Shipped"),
+    ).toBeTruthy();
+  });
+
+  it.each(["Select", "CheckboxGroup"] as const)(
+    "leaves text inside a nested %s out of the row name",
+    (type) => {
+      const { container } = renderNativeSpec(
+        spec({
+          main: { type: "ListView", children: ["row"] },
+          row: {
+            type: "ListViewItem",
+            children: ["name", "control"],
+            on: { press: { action: "open" } },
+          },
+          name: { type: "Text", props: { value: "Order 42" } },
+          control: {
+            type,
+            props: { options: [{ value: "a", label: "Choice A" }] },
+            children: ["hint"],
+          },
+          hint: { type: "Caption", props: { value: "Choose carefully" } },
+        }),
+        { open: vi.fn() },
+        { open: { description: "Open" } },
+      );
+      expect(byRole(container, "button", "Order 42")).toBeTruthy();
+      expect(
+        [
+          ...container.querySelectorAll<HTMLElement>('[aria-hidden="true"]'),
+        ].map((text) => text.textContent),
+      ).toEqual(["Order 42"]);
+    },
+  );
 
   it("leaves text inside a nested Button out of the row name", () => {
     const { container } = renderNativeSpec(

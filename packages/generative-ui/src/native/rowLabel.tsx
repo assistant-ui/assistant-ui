@@ -1,11 +1,12 @@
 import {
   createContext,
   useContext,
-  useLayoutEffect,
+  useEffect,
   useState,
   type ReactNode,
 } from "react";
 
+/** Stores a row's text fragments in their reserved render order. */
 export function createRowLabelStore() {
   const labels = new Map<number, string>();
   const listeners = new Set<() => void>();
@@ -37,18 +38,21 @@ const RowLabelContext = createContext<ReturnType<
   typeof createRowLabelStore
 > | null>(null);
 
+/** Shares a bound row's label store with its text descendants. */
 export const RowLabelProvider = RowLabelContext.Provider;
 
+/** Registers text with the enclosing row and reports whether it was consumed. */
 export function useListViewItemText(text: string | undefined): boolean {
   const store = useContext(RowLabelContext);
   const [slot] = useState(() => store?.reserve() ?? 0);
-  useLayoutEffect(() => {
+  useEffect(() => {
     store?.set(slot, text);
   }, [store, slot, text]);
-  useLayoutEffect(() => () => store?.set(slot, undefined), [store, slot]);
+  useEffect(() => () => store?.set(slot, undefined), [store, slot]);
   return store !== null && !!text?.trim();
 }
 
+/** Keeps a nested control's children out of the enclosing row label. */
 export function ListViewItemTextBoundary({
   children,
 }: {
