@@ -682,6 +682,24 @@ describe("normalizeMathDelimiters", () => {
     );
   });
 
+  it.each([
+    ["- - - \\[x\na\n\\]", "- - - $$\n      x\n      a\n      $$"],
+    [
+      "* * *   * \\[x\na\n\\]",
+      "* * *   * $$\n          x\n          a\n          $$",
+    ],
+    ["- - - [/math]x\na[/math]", "- - - $$\n      x\n      a\n      $$"],
+    [
+      "* * *   * [/math]x\na[/math]",
+      "* * *   * $$\n          x\n          a\n          $$",
+    ],
+  ])(
+    "keeps a multiline display in every same-line list item for %j",
+    (input, expected) => {
+      expect(normalizeMathDelimiters(input)).toBe(expected);
+    },
+  );
+
   it("keeps code inert for both delimiter families", () => {
     expect(normalizeMathDelimiters("`\\(x\\)` and `[/math]y[/math]`")).toBe(
       "`\\(x\\)` and `[/math]y[/math]`",

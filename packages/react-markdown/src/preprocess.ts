@@ -984,7 +984,7 @@ function rewriteOutsideCode(
  * open a fence that never closes.
  */
 const LINE_PREFIX =
-  /^(?:[ \t]*(?:>[ \t]*)*)(?:(?:[-*+]|\d{1,9}[.)])[ \t]+(?:[ \t]*(?:>[ \t]*)*)?)?/;
+  /^(?:[ \t]*(?:>[ \t]*)*)(?:(?:[-*+]|\d{1,9}[.)])[ \t]+(?:[ \t]*(?:>[ \t]*)*)?)*/;
 
 /**
  * The prefix a following line needs to stay inside the block the match opened
@@ -1001,6 +1001,19 @@ function continuationPrefix(lineHead: string): string {
       ? " "
       : "";
   return head.replace(/[^>\t]/g, " ") + extra;
+}
+
+function isNestedListMarkerPrefix(lineHead: string): boolean {
+  const quote = QUOTE_PREFIX.exec(lineHead)![0];
+  let from = quote.length;
+  let count = 0;
+  for (;;) {
+    const next = listMarkerEnd(lineHead, from, lineHead.length);
+    if (next === from) break;
+    from = next;
+    count += 1;
+  }
+  return count > 1 && onlyWhitespace(lineHead, from, lineHead.length);
 }
 
 const SPAN_BOUNDARY =
@@ -1022,7 +1035,9 @@ function emitDisplayMath(
   // Markers written at the root column would end the list item or blockquote the
   // math was written inside, so they carry that container's prefix and the body
   // is aligned to it.
-  const prefix = continuationPrefix(lineHead(offset));
+  const head = lineHead(offset);
+  const prefix = continuationPrefix(head);
+  const nestedListMarkerPrefix = isNestedListMarkerPrefix(head);
   const depth = quoteDepth(prefix);
   const [openerText = "", ...bodyLines] = body.split("\n");
   const openerHasContent = !onlyWhitespace(openerText, 0, openerText.length);
@@ -1044,7 +1059,7 @@ function emitDisplayMath(
   // count as already being at a line boundary.
   const endsLine = (char: string) =>
     char === "" || char === "\n" || char === "\r";
-  const lead = endsLine(before) ? "" : "\n";
+  const lead = endsLine(before) || nestedListMarkerPrefix ? "" : "\n";
   const tail = endsLine(after) ? "" : "\n";
 
   // The body is split before trimming, since trimming would take the shared
@@ -1104,7 +1119,8 @@ function emitDisplayMath(
     );
   }
 
-  return `${lead}${prefix}$$\n${lines.join("\n")}\n${prefix}$$${tail}${tail === "" ? "" : prefix}`;
+  const openerPrefix = nestedListMarkerPrefix ? "" : prefix;
+  return `${lead}${openerPrefix}$$\n${lines.join("\n")}\n${prefix}$$${tail}${tail === "" ? "" : prefix}`;
 }
 
 /**
