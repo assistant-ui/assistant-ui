@@ -1,9 +1,21 @@
-import { createContext, useContext, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useSyncExternalStore,
+  type ComponentProps,
+  type ReactNode,
+} from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { GenerativeUILibrary } from "../../types";
 import { listDefinitions } from "../../vocabulary/definitions/list";
 import { fire } from "../../vocabulary/dispatch";
 import { sequenceItems } from "../../vocabulary/structureValues";
+import {
+  createRowLabelStore,
+  RowLabelProvider,
+  useListViewItemText,
+} from "../rowLabel";
 import { fade, RADIUS, useInk, useNativeTheme } from "../theme";
 
 const styles = StyleSheet.create({
@@ -16,6 +28,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   trigger: { borderRadius: RADIUS.control },
+  rowAction: { ...StyleSheet.absoluteFill, pointerEvents: "none" },
   sequence: { gap: 14 },
   sequenceItem: { flexDirection: "row", gap: 12 },
   stepMarker: {
@@ -36,6 +49,29 @@ const styles = StyleSheet.create({
 });
 
 const ListHairline = createContext<string | undefined>(undefined);
+
+function RowAction({
+  store,
+  activate,
+}: {
+  store: ReturnType<typeof createRowLabelStore>;
+  activate: () => void;
+}) {
+  const name = useSyncExternalStore(
+    store.subscribe,
+    store.getSnapshot,
+    store.getSnapshot,
+  );
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={name}
+      onPress={activate}
+      onAccessibilityTap={activate}
+      style={styles.rowAction}
+    />
+  );
+}
 
 function ListView({ children }: { children?: ReactNode }) {
   const theme = useNativeTheme();
@@ -58,6 +94,7 @@ function ListViewItem({
   children?: ReactNode;
 }) {
   const hairline = useContext(ListHairline);
+  const [labelStore] = useState(createRowLabelStore);
   const style = [
     styles.item,
     hairline !== undefined && {
@@ -66,18 +103,37 @@ function ListViewItem({
     },
   ];
   if (!$action || !$dispatch) return <View style={style}>{children}</View>;
+  const activate = () => fire($action, $dispatch);
   return (
     <Pressable
-      accessibilityRole="button"
-      onPress={() => fire($action, $dispatch)}
+      accessible={false}
+      focusable={false}
+      importantForAccessibility="no"
+      onPress={activate}
       style={({ pressed }) => [
         ...style,
         styles.trigger,
         pressed && { opacity: 0.85 },
       ]}
     >
-      {children}
+      <RowAction store={labelStore} activate={activate} />
+      <RowLabelProvider value={labelStore}>{children}</RowLabelProvider>
     </Pressable>
+  );
+}
+
+function SequenceText({
+  value,
+  style,
+}: {
+  value: string;
+  style: ComponentProps<typeof Text>["style"];
+}) {
+  const consumed = useListViewItemText(value);
+  return (
+    <Text aria-hidden={consumed} style={style}>
+      {value}
+    </Text>
   );
 }
 
@@ -98,13 +154,15 @@ function Steps({ steps }: { steps: unknown }) {
             </Text>
           </View>
           <View style={styles.sequenceBody}>
-            <Text style={[styles.sequenceTitle, { color: ink }]}>
-              {step.title}
-            </Text>
+            <SequenceText
+              value={step.title}
+              style={[styles.sequenceTitle, { color: ink }]}
+            />
             {step.detail !== undefined ? (
-              <Text style={[styles.sequenceDetail, { color: fade(ink, 0.62) }]}>
-                {step.detail}
-              </Text>
+              <SequenceText
+                value={step.detail}
+                style={[styles.sequenceDetail, { color: fade(ink, 0.62) }]}
+              />
             ) : null}
           </View>
         </View>
@@ -136,17 +194,20 @@ function Timeline({ items }: { items: unknown }) {
           </View>
           <View style={styles.sequenceBody}>
             {item.time !== undefined ? (
-              <Text style={[styles.timelineTime, { color: fade(ink, 0.62) }]}>
-                {item.time}
-              </Text>
+              <SequenceText
+                value={item.time}
+                style={[styles.timelineTime, { color: fade(ink, 0.62) }]}
+              />
             ) : null}
-            <Text style={[styles.sequenceTitle, { color: ink }]}>
-              {item.title}
-            </Text>
+            <SequenceText
+              value={item.title}
+              style={[styles.sequenceTitle, { color: ink }]}
+            />
             {item.detail !== undefined ? (
-              <Text style={[styles.sequenceDetail, { color: fade(ink, 0.62) }]}>
-                {item.detail}
-              </Text>
+              <SequenceText
+                value={item.detail}
+                style={[styles.sequenceDetail, { color: fade(ink, 0.62) }]}
+              />
             ) : null}
           </View>
         </View>

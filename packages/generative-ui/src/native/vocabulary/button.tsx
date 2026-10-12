@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
 import type { ButtonStyle } from "../../ir";
+import { ListViewItemTextBoundary } from "../rowLabel";
 import {
   fade,
   InkProvider,
@@ -90,7 +91,7 @@ export function ActionButton({
         {label}
       </Text>
       <InkProvider value={pending ? theme.secondaryForeground : colors.text}>
-        {children}
+        <ListViewItemTextBoundary>{children}</ListViewItemTextBoundary>
       </InkProvider>
     </Pressable>
   );
