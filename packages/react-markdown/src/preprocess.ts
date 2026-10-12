@@ -978,7 +978,7 @@ function rewriteOutsideCode(
  * A delimiter pair wrapping nothing is left as written: `$$$$` would itself
  * open a fence that never closes.
  */
-const LINE_PREFIX = /^(?:[ \t]*(?:>[ \t]*)*)(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)?/;
+const LINE_PREFIX = /^[ \t]*(?:>[ \t]*|(?:[-*+]|\d{1,9}[.)])[ \t]+)*/;
 
 /**
  * The prefix a following line needs to stay inside the block the match opened
@@ -987,14 +987,26 @@ const LINE_PREFIX = /^(?:[ \t]*(?:>[ \t]*)*)(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)?/;
  */
 function continuationPrefix(lineHead: string): string {
   const head = LINE_PREFIX.exec(lineHead)?.[0] ?? "";
-  const marker = head.lastIndexOf(">");
-  const extra =
-    marker !== -1 &&
-    listMarkerEnd(head, marker + 1, head.length) > marker + 1 &&
-    head[marker + 1] !== " "
-      ? " "
-      : "";
-  return head.replace(/[^>\t]/g, " ") + extra;
+  const extraColumns = new Set<number>();
+  for (
+    let marker = head.indexOf(">");
+    marker !== -1;
+    marker = head.indexOf(">", marker + 1)
+  ) {
+    const end = listMarkerEnd(head, marker + 1, head.length);
+    if (end > marker + 1 && head[marker + 1] !== " ") extraColumns.add(end);
+  }
+
+  const prefix: string[] = [];
+  for (let index = 0; index <= head.length; index += 1) {
+    if (extraColumns.has(index)) prefix.push(" ");
+    if (index < head.length) {
+      prefix.push(
+        head[index] === ">" || head[index] === "\t" ? head[index]! : " ",
+      );
+    }
+  }
+  return prefix.join("");
 }
 
 const SPAN_BOUNDARY =

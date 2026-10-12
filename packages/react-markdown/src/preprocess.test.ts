@@ -180,6 +180,24 @@ describe("rewriteLatexBracketDelimiters", () => {
     ).toBe(">  - item \n>    $$\n>    a\n>    b\n>    $$\n>  - next");
   });
 
+  it("keeps math after an ordered-list marker and touching quote in both containers", () => {
+    expect(normalizeMathDelimiters(">1) > \\[ > x\n>    > >\n>    > \\]")).toBe(
+      ">1) > \n>    > $$\n>    > x\n>    > >\n>    > $$",
+    );
+  });
+
+  it("keeps math after a bullet marker and touching quote in both containers", () => {
+    expect(normalizeMathDelimiters(">* > \\[x\n>   > x\n>   > \\]")).toBe(
+      ">* > \n>   > $$\n>   > x\n>   > x\n>   > $$",
+    );
+  });
+
+  it("keeps math after nested list markers inside the inner quote", () => {
+    expect(normalizeMathDelimiters("- - > \\[x\n    > a\n    > \\]")).toBe(
+      "- - > \n    > $$\n    > x\n    > a\n    > $$",
+    );
+  });
+
   it("reads the block prefix past a code span on the same line", () => {
     expect(
       rewriteLatexBracketDelimiters("- see `x` \\[\na\nb\n\\]\n- next"),
