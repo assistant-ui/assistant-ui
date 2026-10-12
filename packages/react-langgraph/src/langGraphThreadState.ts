@@ -54,6 +54,7 @@ export type LangGraphThreadAction =
   | { type: "interrupt.set"; runConfig: unknown }
   | { type: "run.started"; messages: LangChainMessage[] }
   | { type: "run.finished"; runId: string }
+  | { type: "run.preEventFailed"; previous: LangGraphThreadState }
   | { type: "run.error"; delta: number }
   | { type: "run.cancelled" }
   | { type: "run.initialLoad" }
@@ -98,6 +99,11 @@ export const createLangGraphThreadState = (): LangGraphThreadState => ({
   readyBatch: null,
   startedMessages: null,
 });
+
+const restoreMissingEntries = <K, V>(
+  previous: ReadonlyMap<K, V>,
+  current: ReadonlyMap<K, V>,
+) => new Map([...previous, ...current]);
 
 export const reduceLangGraphThreadState = (
   state: LangGraphThreadState,
@@ -267,6 +273,53 @@ export const reduceLangGraphThreadState = (
       const activeRunIds = new Set(state.activeRunIds);
       activeRunIds.delete(action.runId);
       return { ...state, activeRunIds, startedMessages: null };
+    }
+    case "run.preEventFailed": {
+      const previous = action.previous;
+      return {
+        ...state,
+        runConfigByMessageId: restoreMissingEntries(
+          previous.runConfigByMessageId,
+          state.runConfigByMessageId,
+        ),
+        runConfigByToolCallId: restoreMissingEntries(
+          previous.runConfigByToolCallId,
+          state.runConfigByToolCallId,
+        ),
+        runIdByMessageId: restoreMissingEntries(
+          previous.runIdByMessageId,
+          state.runIdByMessageId,
+        ),
+        runIdByToolCallId: restoreMissingEntries(
+          previous.runIdByToolCallId,
+          state.runIdByToolCallId,
+        ),
+        pendingToolCallIdsByRun: restoreMissingEntries(
+          previous.pendingToolCallIdsByRun,
+          state.pendingToolCallIdsByRun,
+        ),
+        toolResultBuffer: restoreMissingEntries(
+          previous.toolResultBuffer,
+          state.toolResultBuffer,
+        ),
+        pendingResume: restoreMissingEntries(
+          previous.pendingResume,
+          state.pendingResume,
+        ),
+        autoCancelledToolCallTokens: restoreMissingEntries(
+          previous.autoCancelledToolCallTokens,
+          state.autoCancelledToolCallTokens,
+        ),
+        interruptRunConfig:
+          state.interruptRunConfig === undefined
+            ? previous.interruptRunConfig
+            : state.interruptRunConfig,
+        runErrorBalance:
+          state.runErrorBalance === 0
+            ? previous.runErrorBalance
+            : state.runErrorBalance,
+        readyBatch: state.readyBatch ?? previous.readyBatch,
+      };
     }
     case "run.error":
       return {

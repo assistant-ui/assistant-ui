@@ -358,10 +358,12 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
       newMessages: TMessage[],
       config: LangGraphSendMessageConfig,
       onComplete?: (finalMessages: TMessage[]) => void,
+      onPreEventFailure?: () => void,
     ) => {
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
       let accumulator: LangGraphMessageAccumulator<TMessage> | undefined;
+      let receivedEvent = false;
       try {
         // ensure all messages have an ID
         const newMessagesWithId = newMessages.map((m) =>
@@ -400,6 +402,7 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
         )) {
           // Holds even when the caller's `stream` ignores its abortSignal.
           if (abortController.signal.aborted) break;
+          receivedEvent = true;
           const { type: eventType, namespace: eventNamespace } = parseEventType(
             chunk.event,
           );
@@ -616,6 +619,7 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
           !abortController.signal.aborted &&
           !(error instanceof Error && error.name === "AbortError")
         ) {
+          if (!receivedEvent) onPreEventFailure?.();
           throw error;
         }
       } finally {
