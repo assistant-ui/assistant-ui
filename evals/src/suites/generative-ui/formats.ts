@@ -34,6 +34,8 @@ export interface FormatRun {
   answerTools: string[];
   /** An answer in prose that calls no answer tool is a text answer rather than an error. */
   prose: boolean;
+  /** The format each tool that records an attempt answers in, to catch one step that answers in two. */
+  toolFormats: Readonly<Record<string, Format>>;
   attempts: Attempt[];
 }
 
@@ -136,6 +138,7 @@ function startPresent(): FormatRun {
     system: `${INTRO} Answer by calling \`present\` with a component tree; the user sees the rendered components.`,
     answerTools: ["present"],
     prose: false,
+    toolFormats: { present: "present" },
     attempts,
     tools: {
       present: tool({
@@ -226,6 +229,7 @@ export async function startFormat(format: CandidateFormat): Promise<FormatRun> {
         tools: undefined,
         answerTools: [],
         prose: true,
+        toolFormats: {},
         attempts,
       };
     case "present":
@@ -236,6 +240,7 @@ export async function startFormat(format: CandidateFormat): Promise<FormatRun> {
         tools: specTools(attempts),
         answerTools: ["render_spec"],
         prose: false,
+        toolFormats: { render_spec: "spec" },
         attempts,
       };
     case "frame": {
@@ -245,15 +250,21 @@ export async function startFormat(format: CandidateFormat): Promise<FormatRun> {
         tools,
         answerTools: ["show_widget"],
         prose: false,
+        toolFormats: { show_widget: "frame", edit_widget: "frame" },
         attempts,
       };
     }
     case "auto":
       return {
-        system: `${INTRO} Answer in Markdown, or with interface the app renders when that serves the user better.\n\n${CHOOSING}\n\n${catalog.prompt()}`,
+        system: `${INTRO} Answer in Markdown, or with interface the app renders when that serves the user better.\n\n${CHOOSING}\n\nThe declarative UI section below describes what goes inside a \`render_spec\` call; its output rules apply to those patches, not to your answer.\n\n${catalog.prompt()}`,
         tools: { ...specTools(attempts), ...frameTools(attempts).tools },
         answerTools: ["render_spec", "show_widget"],
         prose: true,
+        toolFormats: {
+          render_spec: "spec",
+          show_widget: "frame",
+          edit_widget: "frame",
+        },
         attempts,
       };
   }

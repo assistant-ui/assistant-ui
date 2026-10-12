@@ -26,6 +26,7 @@ A fresh judge sees the request, the screenshots of the rendered answer, and any 
 
 - Nothing is clicked or typed: the judge sees each answer before any interaction and learns what its controls do from the source.
 - Time to first output is when the answer's text or answer tool input starts streaming, not the first paint.
+- Prose a model writes around a tool answer is not shown to the judge, for every tool format alike, so the comparison stays about the rendered answer.
 - Frame mode has no static validation beyond an empty widget or an edit that does not apply.
 - One judge grades every model, so expect some bias toward its own vendor's style; rerun with another `JUDGE_MODEL` to check a result.
 

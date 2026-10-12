@@ -2,7 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { MockLanguageModelV4 } from "ai/test";
 import { generateAnswer } from "./generate.ts";
-import { call, streamingModel, text } from "./mock-models.ts";
+import {
+  call,
+  malformedCall,
+  parallelCalls,
+  streamingModel,
+  text,
+} from "./mock-models.ts";
 import type { Task } from "./types.ts";
 
 const task: Task = {
@@ -196,6 +202,71 @@ test("an auto answer is in the format of the tool it called", async () => {
   assert.equal(frame.answeredIn, "frame");
   assert.equal(frame.artifact, "<p>Hello</p>");
   assert.equal(typeof frame.firstOutputMs, "number");
+});
+
+test("an auto answer that gives up on a failing spec and answers in prose is that prose", async () => {
+  const patches = [
+    { op: "add", path: "/root", value: "main" },
+    { op: "add", path: "/elements/main", value: { type: "Nope" } },
+  ]
+    .map((patch) => JSON.stringify(patch))
+    .join("\n");
+  const answer = await generateAnswer(
+    streamingModel(
+      call("render_spec", { title: "Plan", patches }),
+      text("Here is the plan in words."),
+    ),
+    task,
+    "auto",
+    2,
+  );
+  assert.equal(answer.answeredIn, "text");
+  assert.equal(answer.artifact, "Here is the plan in words.");
+  assert.deepEqual(answer.errors, []);
+  assert.equal(answer.repairRounds, 1);
+});
+
+test("an auto answer whose tool call fails before it runs is an error, not prose", async () => {
+  const invalid = () => malformedCall("render_spec");
+  const answer = await generateAnswer(
+    streamingModel(invalid(), invalid(), invalid()),
+    task,
+    "auto",
+    0,
+  );
+  assert.equal(answer.answeredIn, "text");
+  assert.deepEqual(answer.errors, [
+    "The model's answer tool call failed before it ran.",
+  ]);
+});
+
+test("an auto answer that calls a spec and a widget at once is an error", async () => {
+  const patches = [
+    { op: "add", path: "/root", value: "main" },
+    {
+      op: "add",
+      path: "/elements/main",
+      value: { type: "Text", props: { value: "Hi" } },
+    },
+  ]
+    .map((patch) => JSON.stringify(patch))
+    .join("\n");
+  const answer = await generateAnswer(
+    streamingModel(
+      parallelCalls(
+        ["render_spec", { title: "Greeting", patches }],
+        ["show_widget", { title: "Hello", widget_code: "<p>Hello</p>" }],
+      ),
+    ),
+    task,
+    "auto",
+    2,
+  );
+  assert.ok(
+    answer.errors.includes(
+      "The model answered in more than one format at once.",
+    ),
+  );
 });
 
 test("a model error fails the trial instead of scoring it", async () => {

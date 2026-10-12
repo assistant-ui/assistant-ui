@@ -61,29 +61,45 @@ export async function generateAnswer(
     totalMs: performance.now() - started,
   };
 
+  const steps = await result.steps;
+  const final = steps.at(-1);
+  const answering = (step: (typeof steps)[number]) =>
+    new Set(
+      step.toolCalls.flatMap((call) => run.toolFormats[call.toolName] ?? []),
+    );
+  // When prose is an answer, prose that ends the run answers even after failed tool calls, as when the model gives up on a spec that kept failing validation.
+  const proseAnswer =
+    run.prose &&
+    final !== undefined &&
+    final.toolCalls.length === 0 &&
+    final.text.trim() !== "";
   const last = run.attempts.at(-1);
-  if (!last) {
-    const text = await result.text;
-    const errors = !run.prose
-      ? [
-          `The model never called ${run.answerTools.map((name) => `\`${name}\``).join(" or ")}.`,
-        ]
-      : text.trim()
-        ? []
-        : ["The answer is empty."];
+  if (!last || proseAnswer) {
+    const errors = proseAnswer
+      ? []
+      : !run.prose
+        ? [
+            `The model never called ${run.answerTools.map((name) => `\`${name}\``).join(" or ")}.`,
+          ]
+        : final !== undefined && answering(final).size > 0
+          ? ["The model's answer tool call failed before it ran."]
+          : ["The answer is empty."];
     return {
-      artifact: text,
+      artifact: final?.text ?? "",
       answeredIn: "text",
       errors,
-      repairRounds: 0,
+      repairRounds: run.attempts.length,
       firstOutputMs: firstTextMs,
       ...measured,
     };
   }
+  const mixed = steps.some((step) => answering(step).size > 1);
   return {
     artifact: last.artifact,
     answeredIn: last.format,
-    errors: last.errors,
+    errors: mixed
+      ? [...last.errors, "The model answered in more than one format at once."]
+      : last.errors,
     repairRounds: run.attempts.length - 1,
     firstOutputMs: firstToolMs,
     ...measured,
