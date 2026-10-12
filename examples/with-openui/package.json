@@ -14,7 +14,7 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
-    "@openuidev/assistant-ui": "^0.2.0",
+    "@openuidev/assistant-ui": "^0.1.2",
     "@openuidev/react-headless": "^0.17.1",
     "@openuidev/react-lang": "^0.4.1",
     "@openuidev/react-ui": "^0.17.1",

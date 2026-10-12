@@ -6,7 +6,7 @@
   "private": true,
   "publisher": "assistant-ui",
   "engines": {
-    "vscode": "^1.140.0"
+    "vscode": "^1.110.0"
   },
   "main": "./dist/extension.js",
   "scripts": {
@@ -170,7 +170,7 @@
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "@types/vscode": "^1.140.0",
+    "@types/vscode": "^1.110.0",
     "@vscode/test-electron": "^3.1.0",
     "esbuild": "^0.28.2",
     "postcss": "^8.5.29",
