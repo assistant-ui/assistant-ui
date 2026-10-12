@@ -455,6 +455,7 @@ describe("AISDKThreads", () => {
           { type: "finish" },
         );
         await waitFor(() => expect(onToolCall).toHaveBeenCalledOnce());
+        expect(execute).not.toHaveBeenCalled();
 
         flushTapSync(() => handle.getClient().threads.switchToThread("main"));
         close();
