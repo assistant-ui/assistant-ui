@@ -9,10 +9,10 @@ export default defineConfig({
         "lib/**/*.{ts,tsx}",
       ],
       thresholds: {
-        lines: 15,
-        functions: 15,
-        branches: 14,
-        statements: 16,
+        lines: 20,
+        functions: 18,
+        branches: 16,
+        statements: 20,
         autoUpdate: (threshold, previous) =>
           Math.max(previous, Math.floor(threshold) - 1),
       },

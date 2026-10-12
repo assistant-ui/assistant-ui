@@ -9,13 +9,13 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { browserStorage } from "@/lib/browser-storage";
 import { DEFAULT_MODEL, isModelId, MODELS, type ModelId } from "@/lib/models";
 import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
 import {
   createLocalStorageAdapter,
   createSimpleTitleAdapter,
   useRemoteThreadListRuntime,
-  type AsyncStorageLike,
 } from "@assistant-ui/core/react";
 import {
   AssistantRuntimeProvider,
@@ -57,12 +57,6 @@ const chooseModel = (model: ModelId) => {
     // Storage can be unavailable, as in a private window; the choice then lasts for this page view.
   }
   window.dispatchEvent(new Event(MODEL_EVENT));
-};
-
-const browserStorage: AsyncStorageLike = {
-  getItem: async (key) => localStorage.getItem(key),
-  setItem: async (key, value) => localStorage.setItem(key, value),
-  removeItem: async (key) => localStorage.removeItem(key),
 };
 
 const transport = new AssistantChatTransport({
