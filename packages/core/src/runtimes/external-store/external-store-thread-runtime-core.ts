@@ -1,5 +1,9 @@
 import { shallowEqual } from "@assistant-ui/store/client";
-import type { AppendMessage, ThreadMessage } from "../../types/message";
+import type {
+  AppendMessage,
+  ThreadAssistantMessage,
+  ThreadMessage,
+} from "../../types/message";
 import type { Attachment } from "../../types/attachment";
 import type {
   AddToolResultOptions,
@@ -58,6 +62,20 @@ import { captureThreadRuntimeGeneration } from "../../runtime/utils/thread-runti
 import { RunLeases } from "../../utils/run-lease";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
+
+type SubmittedFeedback = NonNullable<
+  ThreadAssistantMessage["metadata"]["submittedFeedback"]
+>;
+
+type SubmittedFeedbackOverlay = {
+  feedback: SubmittedFeedback;
+  external: SubmittedFeedback | undefined;
+};
+
+const sameSubmittedFeedback = (
+  left: SubmittedFeedback | undefined,
+  right: SubmittedFeedback | undefined,
+) => left?.type === right?.type && left?.comment === right?.comment;
 
 const observeAdapterCallback = (
   name: "onAddToolResult" | "onCancel",
@@ -168,6 +186,7 @@ export class ExternalStoreThreadRuntimeCore
   public extras: unknown = undefined;
 
   private _converter = new ThreadMessageConverter();
+  private _submittedFeedback = new Map<string, SubmittedFeedbackOverlay>();
 
   // Ids the host was asked to delete via onDelete, mapped to the onDelete
   // calls still pending for them. The snapshot pass evicts them from the
@@ -228,6 +247,56 @@ export class ExternalStoreThreadRuntimeCore
   private _effectiveIsRunning = false;
   private _inTrackerUpdate = false;
   private _pendingRunningRefresh = false;
+
+  protected override _onMessageMetadataChanged(
+    previousMessage: ThreadAssistantMessage,
+    message: ThreadAssistantMessage,
+  ): void {
+    const previousOverlay = this._submittedFeedback.get(message.id);
+    const external =
+      previousOverlay &&
+      sameSubmittedFeedback(
+        previousMessage.metadata.submittedFeedback,
+        previousOverlay.feedback,
+      )
+        ? previousOverlay.external
+        : previousMessage.metadata.submittedFeedback;
+    const feedback = message.metadata.submittedFeedback;
+    if (!feedback) return;
+    this._submittedFeedback.set(message.id, { feedback, external });
+  }
+
+  private _applySubmittedFeedback(
+    messages: readonly ThreadMessage[],
+  ): ThreadMessage[] {
+    const incomingIds = new Set(messages.map((message) => message.id));
+    for (const id of this._submittedFeedback.keys()) {
+      if (!incomingIds.has(id)) this._submittedFeedback.delete(id);
+    }
+
+    return messages.map((message) => {
+      const overlay = this._submittedFeedback.get(message.id);
+      if (!overlay) return message;
+      if (
+        message.role !== "assistant" ||
+        !sameSubmittedFeedback(
+          message.metadata.submittedFeedback,
+          overlay.external,
+        )
+      ) {
+        this._submittedFeedback.delete(message.id);
+        return message;
+      }
+
+      return {
+        ...message,
+        metadata: {
+          ...message.metadata,
+          submittedFeedback: overlay.feedback,
+        },
+      };
+    });
+  }
 
   /**
    * Tracker mutations initiated by this class (setState, reset) can publish
@@ -308,6 +377,7 @@ export class ExternalStoreThreadRuntimeCore
     if (repositoryChanged) {
       this.repository = repositoryInstance;
       this._pendingDeleteEvictions.clear();
+      this._submittedFeedback.clear();
       // Keep the live placeholder so resetHead cannot evict an id still used
       // by clients rendering the previous snapshot.
       const head = this.repository.getMessages();
@@ -361,6 +431,7 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     let messages: readonly ThreadMessage[];
+    let storeMessages: readonly ThreadMessage[];
 
     if (store.messageRepository) {
       // Handle messageRepository
@@ -386,10 +457,16 @@ export class ExternalStoreThreadRuntimeCore
       ) {
         this.repository.resetHead(headId);
         messages = this.repository.getMessages();
+        storeMessages = messages;
       } else {
         const incomingIds = new Set(incoming.map(({ message }) => message.id));
-        for (const { message, parentId } of incoming) {
-          this.repository.addOrUpdateMessage(parentId, message);
+        storeMessages = incoming.map(({ message }) => message);
+        const reconciledMessages = this._applySubmittedFeedback(storeMessages);
+        for (let i = 0; i < incoming.length; i++) {
+          this.repository.addOrUpdateMessage(
+            incoming[i]!.parentId,
+            reconciledMessages[i]!,
+          );
         }
         for (const { message } of this.repository.export().messages) {
           if (!incomingIds.has(message.id)) {
@@ -470,6 +547,9 @@ export class ExternalStoreThreadRuntimeCore
       }
       if (deduped.length !== messages.length) messages = deduped.reverse();
 
+      storeMessages = messages;
+      messages = this._applySubmittedFeedback(messages);
+
       for (let i = 0; i < messages.length; i++) {
         const message = messages[i]!;
         const parent = messages[i - 1];
@@ -504,7 +584,7 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     // Common logic for both paths
-    this._storeMessages = messages;
+    this._storeMessages = storeMessages;
     if (messages.length > 0) this.ensureInitialized();
 
     this._effectiveIsRunning = isRunning;
@@ -1195,6 +1275,7 @@ export class ExternalStoreThreadRuntimeCore
 
   public override reset(initialMessages?: readonly ThreadMessageLike[]) {
     this._cancelRunResyncLeases.invalidate();
+    this._submittedFeedback.clear();
     const repo = new MessageRepository();
     repo.import(ExportedMessageRepository.fromArray(initialMessages ?? []));
     this.updateMessages(repo.getMessages());
@@ -1205,6 +1286,7 @@ export class ExternalStoreThreadRuntimeCore
       throw new Error("Runtime does not support importing messages.");
 
     this._cancelRunResyncLeases.invalidate();
+    this._submittedFeedback.clear();
     super.import(data);
     this._store.onImport(this.repository.getMessages());
   }

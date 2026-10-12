@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ModelContextProvider } from "../../model-context/types";
 import type { Unstable_RecordToolInteractionOptions } from "../../runtime/interfaces/thread-runtime-core";
+import { ExportedMessageRepository } from "../../runtime/utils/message-repository";
+import type { ThreadMessageLike } from "../../runtime/utils/thread-message-like";
 import type { ExternalStoreAdapter } from "./external-store-adapter";
 import { ExternalStoreThreadRuntimeCore } from "./external-store-thread-runtime-core";
 
@@ -25,6 +27,55 @@ const createRuntime = (overrides: Partial<ExternalStoreAdapter> = {}) =>
     ...overrides,
   } as ExternalStoreAdapter);
 
+type FeedbackSource = {
+  id: string;
+  role: "assistant" | "user";
+  text: string;
+  submittedFeedback?: { type: "positive" | "negative"; comment?: string };
+};
+
+const feedbackMessage = (message: FeedbackSource): ThreadMessageLike => ({
+  id: message.id,
+  role: message.role,
+  content: [{ type: "text", text: message.text }],
+  ...(message.submittedFeedback && {
+    metadata: { submittedFeedback: message.submittedFeedback },
+  }),
+});
+
+const createFeedbackStore = (
+  messages: readonly FeedbackSource[],
+  convertMessage: (
+    message: FeedbackSource,
+  ) => ThreadMessageLike = feedbackMessage,
+) =>
+  ({
+    messages,
+    convertMessage,
+    onNew: async () => {},
+    adapters: { feedback: { submit: vi.fn() } },
+  }) as unknown as ExternalStoreAdapter<any>;
+
+const createFeedbackRuntime = (
+  messages: readonly FeedbackSource[],
+  convertMessage?: (message: FeedbackSource) => ThreadMessageLike,
+) =>
+  new ExternalStoreThreadRuntimeCore(
+    modelContextProvider,
+    createFeedbackStore(messages, convertMessage),
+  );
+
+const feedbackUser: FeedbackSource = {
+  id: "u1",
+  role: "user",
+  text: "hi",
+};
+const feedbackAssistant: FeedbackSource = {
+  id: "a1",
+  role: "assistant",
+  text: "hello",
+};
+
 describe("ExternalStoreThreadRuntimeCore interaction recording", () => {
   it("delegates interaction records to the adapter", async () => {
     const onRecordToolInteraction = vi.fn(async () => {});
@@ -45,6 +96,147 @@ describe("ExternalStoreThreadRuntimeCore interaction recording", () => {
     await expect(
       runtime.unstable_recordToolInteraction(interaction),
     ).rejects.toThrow("Runtime does not support recording tool interactions.");
+  });
+});
+
+describe("ExternalStoreThreadRuntimeCore submitted feedback", () => {
+  it("preserves feedback when the host supplies a new array and converter", () => {
+    const messages = [feedbackUser, feedbackAssistant];
+    const runtime = createFeedbackRuntime(messages, (message) =>
+      feedbackMessage(message),
+    );
+
+    runtime.submitFeedback({ messageId: "a1", type: "positive" });
+    runtime.__internal_setAdapter(
+      createFeedbackStore([...messages], (message) => feedbackMessage(message)),
+    );
+
+    expect(
+      runtime.getMessageById("a1")?.message.metadata.submittedFeedback,
+    ).toEqual({ type: "positive" });
+  });
+
+  it("preserves feedback when a new array reuses the converter cache", () => {
+    const messages = [feedbackUser, feedbackAssistant];
+    const converter = (message: FeedbackSource) => feedbackMessage(message);
+    const runtime = createFeedbackRuntime(messages, converter);
+
+    runtime.submitFeedback({ messageId: "a1", type: "positive" });
+    runtime.__internal_setAdapter(
+      createFeedbackStore([...messages], converter),
+    );
+
+    expect(
+      runtime.getMessageById("a1")?.message.metadata.submittedFeedback,
+    ).toEqual({ type: "positive" });
+  });
+
+  it("preserves feedback across exported repository snapshots", () => {
+    const createMessageRepository = () =>
+      ExportedMessageRepository.fromArray([
+        { id: "u1", role: "user", content: "hi" },
+        { id: "a1", role: "assistant", content: "hello" },
+      ]);
+    const createStore = () =>
+      ({
+        messageRepository: createMessageRepository(),
+        onNew: async () => {},
+        adapters: { feedback: { submit: vi.fn() } },
+      }) as ExternalStoreAdapter;
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      modelContextProvider,
+      createStore(),
+    );
+
+    runtime.submitFeedback({ messageId: "a1", type: "positive" });
+    runtime.__internal_setAdapter(createStore());
+
+    expect(
+      runtime.getMessageById("a1")?.message.metadata.submittedFeedback,
+    ).toEqual({ type: "positive" });
+  });
+
+  it("keeps a later local rating against the original host value", () => {
+    const messages = [feedbackUser, feedbackAssistant];
+    const converter = (message: FeedbackSource) => feedbackMessage(message);
+    const runtime = createFeedbackRuntime(messages, converter);
+
+    runtime.submitFeedback({ messageId: "a1", type: "positive" });
+    runtime.submitFeedback({ messageId: "a1", type: "negative" });
+    runtime.__internal_setAdapter(
+      createFeedbackStore([...messages], converter),
+    );
+
+    expect(
+      runtime.getMessageById("a1")?.message.metadata.submittedFeedback,
+    ).toEqual({ type: "negative" });
+  });
+
+  it("honors changed host feedback and a later host clear", () => {
+    const messages = [
+      feedbackUser,
+      {
+        ...feedbackAssistant,
+        submittedFeedback: { type: "positive" as const },
+      },
+    ];
+    const converter = (message: FeedbackSource) => feedbackMessage(message);
+    const runtime = createFeedbackRuntime(messages, converter);
+
+    runtime.submitFeedback({ messageId: "a1", type: "negative" });
+    runtime.__internal_setAdapter(
+      createFeedbackStore(
+        [
+          feedbackUser,
+          { ...feedbackAssistant, submittedFeedback: { type: "negative" } },
+        ],
+        converter,
+      ),
+    );
+    expect(
+      runtime.getMessageById("a1")?.message.metadata.submittedFeedback,
+    ).toEqual({ type: "negative" });
+
+    runtime.__internal_setAdapter(
+      createFeedbackStore([feedbackUser, feedbackAssistant], converter),
+    );
+    expect(
+      runtime.getMessageById("a1")?.message.metadata.submittedFeedback,
+    ).toBeUndefined();
+  });
+
+  it("drops feedback for a message removed by the host", () => {
+    const messages = [feedbackUser, feedbackAssistant];
+    const converter = (message: FeedbackSource) => feedbackMessage(message);
+    const runtime = createFeedbackRuntime(messages, converter);
+
+    runtime.submitFeedback({ messageId: "a1", type: "positive" });
+    runtime.__internal_setAdapter(
+      createFeedbackStore([feedbackUser], converter),
+    );
+    runtime.__internal_setAdapter(
+      createFeedbackStore([feedbackUser, feedbackAssistant], converter),
+    );
+
+    expect(
+      runtime.getMessageById("a1")?.message.metadata.submittedFeedback,
+    ).toBeUndefined();
+  });
+
+  it("does not carry feedback through a thread reset", () => {
+    const messages = [feedbackUser, feedbackAssistant];
+    const converter = (message: FeedbackSource) => feedbackMessage(message);
+    const runtime = createFeedbackRuntime(messages, converter);
+
+    runtime.submitFeedback({ messageId: "a1", type: "positive" });
+    runtime.reset(messages.map(feedbackMessage));
+    runtime.__internal_setAdapter(
+      createFeedbackStore([...messages], converter),
+    );
+
+    expect(
+      runtime.getMessageById("a1")?.message.metadata.submittedFeedback,
+    ).toBeUndefined();
   });
 });
 
