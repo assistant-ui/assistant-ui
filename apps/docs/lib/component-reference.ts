@@ -29,7 +29,7 @@ export const COMPONENT_CATEGORIES: readonly ComponentCategory[] = [
   },
   {
     label: "Media",
-    components: ["Image", "Icon"],
+    components: ["Image", "Icon", "Diagram", "Map"],
   },
   {
     label: "Controls",
@@ -441,6 +441,20 @@ export const COMPONENT_EXAMPLES: Record<string, UISpec> = {
         detail: "1 h drive. Catch Bixby Creek Bridge at sunset.",
       },
       { time: "Day 3", title: "Big Sur to San Luis Obispo" },
+    ],
+  },
+  Diagram: {
+    $type: "Diagram",
+    title: "Order flow",
+    code: "flowchart LR\n  A[Cart] --> B[Checkout]\n  B --> C{Paid?}\n  C -->|Yes| D[Ship]\n  C -->|No| B",
+  },
+  Map: {
+    $type: "Map",
+    route: true,
+    places: [
+      { label: "San Francisco", lat: 37.7749, lng: -122.4194, detail: "Start" },
+      { label: "Monterey", lat: 36.6002, lng: -121.8947, detail: "Night 1" },
+      { label: "Big Sur", lat: 36.2704, lng: -121.8081, detail: "Night 2" },
     ],
   },
   Citation: {

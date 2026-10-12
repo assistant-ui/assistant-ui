@@ -6,7 +6,7 @@ platforms: ["react"]
 
 With generative UI, you ship a **vocabulary** of components and let the model assemble them, instead of writing one component per tool. The model calls a single `present` tool whose arguments are a JSON tree of component names and props, and assistant-ui renders that tree.
 
-The package ships a default vocabulary of 33 components (cards, facts, tables, charts, tabs, steps, timelines, citations, forms, controls), so the shortest useful setup registers one tool and writes no components at all.
+The package ships a default vocabulary of 35 components (cards, facts, tables, charts, tabs, steps, timelines, citations, diagrams, maps, forms, controls), so the shortest useful setup registers one tool and writes no components at all.
 
 ## Which generative UI pattern?
 
@@ -37,7 +37,7 @@ The vocabulary renders as unstyled semantic HTML with `data-aui` attributes. Add
 
 <InstallCommand shadcn={["generative-ui"]} />
 
-This merges the vocabulary stylesheet and theme variables into your CSS, which is what the rest of this page assumes, and lands `components/assistant-ui/elements/generative-ui.tsx`. That file exports `styledGenerativeUILibrary`, whose only difference from the default vocabulary is a real markdown renderer; [Styling](#styling) wires it in.
+This merges the vocabulary stylesheet and theme variables into your CSS, which is what the rest of this page assumes, and lands `components/assistant-ui/elements/generative-ui.tsx`. That file exports `styledGenerativeUILibrary`, which differs from the default vocabulary in three entries: a real markdown renderer, and a drawn `Diagram` and `Map` (see [Diagrams and maps](#diagrams-and-maps)); [Styling](#styling) wires it in.
 
 </Step>
 
@@ -457,6 +457,12 @@ Carousel paging controls appear only when cards overflow the available width. Ea
 
 Set `progress` on a `CheckboxGroup` to show how many of its options are checked, as a count and a bar, for a checklist the user works through. The count follows the boxes as the user checks them, also when spec mode binds the group's value. Slack and Teams show the options without the count.
 
+## Diagrams and maps
+
+`Diagram` takes Mermaid source in `code` and an optional `title`. `Map` takes `places`, each a `label` with `lat`, `lng`, and an optional `detail`, and `route` to draw a line through them in order; a place without valid coordinates is skipped.
+
+The default vocabulary draws neither, so it adds no dependency: `Diagram` shows its source, and `Map` lists its places, each linking to OpenStreetMap. Slack, Teams, and React Native show the same. The `generative-ui` registry item draws them with the [Mermaid diagram](/elements/mermaid-diagram) and [Geo map](/elements/geo-map) elements, which bring `beautiful-mermaid` and `leaflet` into your app, and the map loads OpenStreetMap tiles.
+
 ## Styling
 
 The vocabulary renders semantic HTML tagged with `data-aui` and `data-aui-*` attributes and ships no styles of its own, so it cannot conflict with your CSS. The `generative-ui` registry item above installs the shipped stylesheet, which is written entirely against your existing theme variables: change `--radius` or `--primary` in your own CSS and the rendered widgets follow.
@@ -472,12 +478,14 @@ To restyle a single component, target its attribute:
 }
 ```
 
-Overriding a component's markup rather than its appearance is a library-level change: spread `defaultGenerativeUILibrary` and replace that one entry through `defineGenerativeComponents`. The default `Markdown` renders its source as plain text, which is why the registry item ships a replacement. Wiring it is the same override:
+Overriding a component's markup rather than its appearance is a library-level change: spread `defaultGenerativeUILibrary` and replace that one entry through `defineGenerativeComponents`. The default `Markdown` renders its source as plain text, and `Diagram` and `Map` draw nothing, which is why the registry item ships replacements. Wiring them is the same override:
 
 ```tsx title="app/toolkit.tsx"
 import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
 
 const markdown = defaultGenerativeUILibrary.Markdown!;
+const diagram = defaultGenerativeUILibrary.Diagram!;
+const map = defaultGenerativeUILibrary.Map!;
 
 const generative = new JSONGenerativeUI({
   library: {
@@ -488,6 +496,16 @@ const generative = new JSONGenerativeUI({
         streamProperties: markdown.streamProperties,
         description: "A markdown string, rendered with GitHub-flavored markdown.",
         render: styledGenerativeUILibrary.Markdown!.render,
+      },
+      Diagram: {
+        properties: diagram.properties,
+        description: diagram.description,
+        render: styledGenerativeUILibrary.Diagram!.render,
+      },
+      Map: {
+        properties: map.properties,
+        description: map.description,
+        render: styledGenerativeUILibrary.Map!.render,
       },
     }),
   },
