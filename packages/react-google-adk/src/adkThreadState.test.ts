@@ -38,6 +38,68 @@ describe("reduceAdkThreadState", () => {
     expect(staged.stagedEntries?.size).toBe(1);
   });
 
+  it("rolls back a run without losing staged entries or run ownership", () => {
+    const toolCall: AdkMessage = {
+      id: "tool-call",
+      type: "ai",
+      content: "calling tool",
+      tool_calls: [{ id: "call-1", name: "lookup", args: {} }],
+    };
+    const stagedMessage: AdkMessage = {
+      ...message,
+      id: "staged-1",
+      content: "staged",
+    };
+    const before = {
+      ...createAdkThreadState(),
+      messages: [toolCall, stagedMessage],
+      stagedEntries: new Map([
+        [
+          "staged-1",
+          {
+            message: stagedMessage as AdkMessage & { id: string },
+            runConfig: { custom: { model: "staged" } },
+          },
+        ],
+      ]),
+      runConfigByToolCallId: new Map([
+        ["call-1", { custom: { model: "original" } }],
+      ]),
+    };
+    const pruned = reduceAdkThreadState(before, {
+      type: "messages.prune",
+      history: [],
+    });
+    const replaced = reduceAdkThreadState(pruned, {
+      type: "messages.replaced",
+      messages: [],
+    });
+    const unstaged = reduceAdkThreadState(replaced, {
+      type: "staged.unstage",
+      ids: ["staged-1"],
+    });
+    const active = reduceAdkThreadState(unstaged, { type: "run.active" });
+    const started = reduceAdkThreadState(active, {
+      type: "run.started",
+      messages: [],
+      longRunningToolIds: [],
+      toolConfirmations: [],
+      authRequests: [],
+    });
+    const rolledBack = reduceAdkThreadState(started, {
+      type: "run.rollback",
+      state: before,
+    });
+
+    expect(rolledBack.messages).toEqual([toolCall, stagedMessage]);
+    expect([...rolledBack.stagedEntries.keys()]).toEqual(["staged-1"]);
+    expect(rolledBack.runConfigByToolCallId.get("call-1")).toEqual({
+      custom: { model: "original" },
+    });
+    expect(rolledBack.currentRunId).toBe(active.currentRunId);
+    expect(rolledBack.activeRunIds).toBe(active.activeRunIds);
+  });
+
   it("unstages a promoted run and preserves remaining entries through snapshots", () => {
     const entries = ["message-1", "message-2", "message-3"].map((id) => ({
       message: { ...message, id },

@@ -83,10 +83,10 @@ const invokeAdkRuntimeCallback = <TArgs extends readonly unknown[]>(
   void invokeUserCallback("react-google-adk", name, callback, ...args);
 };
 
-const useAdkMessagesInternal = ({
-  stream,
-  eventHandlers,
-}: UseAdkMessagesOptions) => {
+const useAdkMessagesInternal = (
+  { stream, eventHandlers }: UseAdkMessagesOptions,
+  onFirstEvent?: () => void,
+) => {
   const [controller] = useState(() => new AdkThreadController());
   const {
     messages,
@@ -212,6 +212,7 @@ const useAdkMessagesInternal = ({
             ) {
               break;
             }
+            onFirstEvent?.();
             const event = normalizeAdkEvent(rawEvent);
             const updatedMessages = accumulator.processEvent(event);
             // Each event part can append at most one message, and a function call
@@ -380,6 +381,7 @@ const useAdkMessagesInternal = ({
       onError,
       onCustomEvent,
       onAgentTransfer,
+      onFirstEvent,
     ],
   );
 

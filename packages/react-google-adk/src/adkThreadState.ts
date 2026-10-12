@@ -69,6 +69,7 @@ export type AdkThreadAction =
   | { type: "messages.remember"; messages: AdkMessage[]; runConfig: unknown }
   | { type: "messages.seed"; history: AdkMessage[] }
   | { type: "messages.prune"; history: AdkMessage[] }
+  | { type: "run.rollback"; state: AdkThreadState }
   | { type: "run.active" }
   | { type: "run.failed" }
   | { type: "run.finished"; runId: string }
@@ -287,6 +288,26 @@ export const reduceAdkThreadState = (
         runIdByToolCallId: new Map(
           [...state.runIdByToolCallId].filter(([id]) => ids.has(id)),
         ),
+      };
+    }
+    case "run.rollback": {
+      const stagedEntries = new Map(action.state.stagedEntries);
+      const stagedMessages: AdkMessage[] = [];
+      for (const [id, entry] of state.stagedEntries) {
+        if (stagedEntries.has(id)) continue;
+        stagedEntries.set(id, entry);
+        if (!action.state.messages.some((message) => message.id === id))
+          stagedMessages.push(entry.message);
+      }
+      return {
+        ...action.state,
+        messages: [...action.state.messages, ...stagedMessages],
+        stagedEntries,
+        currentRunId: state.currentRunId,
+        nextRunId: state.nextRunId,
+        activeRunIds: state.activeRunIds,
+        failedRunIds: state.failedRunIds,
+        readyBatch: state.readyBatch,
       };
     }
     case "run.active": {
