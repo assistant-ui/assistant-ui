@@ -190,6 +190,47 @@ describe("ExternalStoreThreadRuntimeCore repository instance swap", () => {
     expect(secondActive.onAddToolResult).not.toHaveBeenCalled();
   });
 
+  it("leaves the new host's tools alone when the previous host later resets", async () => {
+    const repository = new MessageRepository();
+    let signal: AbortSignal | undefined;
+    const provider: ModelContextProvider = {
+      getModelContext: () => ({
+        tools: {
+          lookup: {
+            parameters: { type: "object", properties: {} },
+            execute: (_args: unknown, context: { abortSignal: AbortSignal }) =>
+              new Promise<string>(() => {
+                signal = context.abortSignal;
+              }),
+          },
+        },
+      }),
+    };
+    const messages = [createUserMessage("u1"), toolMessage("tc1")];
+    const coreA = new ExternalStoreThreadRuntimeCore(
+      provider,
+      toolAdapter([createUserMessage("u1")], repository),
+    );
+    coreA.__internal_setAdapter(toolAdapter(messages, repository));
+    await vi.waitFor(() => expect(signal).toBeDefined());
+
+    const coreB = new ExternalStoreThreadRuntimeCore(
+      provider,
+      toolAdapter(messages, repository),
+    );
+    expect(coreB.isRunning).toBe(true);
+
+    coreA.__internal_setAdapter({
+      ...toolAdapter(messages, repository),
+      unstable_enableToolInvocations: false,
+    });
+    coreA.__internal_setAdapter(
+      toolAdapter([createUserMessage("u2")], new MessageRepository()),
+    );
+    expect(signal?.aborted).toBe(false);
+    expect(coreB.isRunning).toBe(true);
+  });
+
   it("keeps tool trackers separate when repository instances are omitted", async () => {
     let signal: AbortSignal | undefined;
     const provider: ModelContextProvider = {
