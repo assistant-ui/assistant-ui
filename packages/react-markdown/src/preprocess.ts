@@ -1068,7 +1068,6 @@ function emitDisplayMath(
   while (contentLines.length > 0 && emptyBodyLine(contentLines.at(-1)!)) {
     contentLines.pop();
   }
-  if (!openerHasContent && contentLines.length === 0) return match;
   // Only the indentation the whole body shares is replaced by the container
   // prefix, so an aligned block keeps its relative indentation.
   const shared = [openerText, ...contentLines].reduce(

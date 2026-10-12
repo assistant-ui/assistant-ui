@@ -630,10 +630,31 @@ describe("rewriteCustomMathTags", () => {
     ).toBe("$$\n\\begin{aligned}\na&=b\n\\end{aligned}\n$$\nDone.");
   });
 
-  it("trims many leading blank lines from a display body", () => {
-    const input = `[/math]${"\n".repeat(20_000)}x\ny[/math]`;
-    expect(rewriteCustomMathTags(input)).toBe("$$\nx\ny\n$$");
-  });
+  it.each([
+    ["brackets", rewriteLatexBracketDelimiters, "\\[", "\\]"],
+    ["tags", rewriteCustomMathTags, "[/math]", "[/math]"],
+  ] as const)(
+    "trims leading blank display lines without shifting the body in %s",
+    (_, preprocess, open, close) => {
+      const input = `${open}${"\n".repeat(256)}x\ny${close}`;
+      const shift = Array.prototype.shift;
+      let shiftedEntries = 0;
+      const spy = vi
+        .spyOn(Array.prototype, "shift")
+        .mockImplementation(function (this: unknown[]) {
+          if (this.length > 100 && this[0] === "") {
+            shiftedEntries += this.length - 1;
+          }
+          return Reflect.apply(shift, this, []);
+        });
+      try {
+        expect(preprocess(input)).toBe("$$\nx\ny\n$$");
+      } finally {
+        spy.mockRestore();
+      }
+      expect(shiftedEntries).toBeLessThanOrEqual(256);
+    },
+  );
 
   it("gives the fence markers their own lines mid-paragraph", () => {
     expect(rewriteCustomMathTags("Thus [/math]a\nb[/math] therefore.")).toBe(
@@ -780,10 +801,30 @@ describe("normalizeMathDelimiters", () => {
     ["currency", escapeCurrencyDollars],
     ["math", normalizeMathDelimiters],
   ] as const)(
-    "keeps one long tilde run after prose literal in %s",
+    "keeps rejected tilde prefix checks constant in %s",
     (_, preprocess) => {
-      const input = `x ${"~".repeat(20_000)}`;
-      expect(preprocess(input)).toBe(input);
+      const prefixCharSource = /[ \t>*+\-0-9.)]/.source;
+      const checksFor = (length: number) => {
+        const input = `x ${"~".repeat(length)}`;
+        const test = RegExp.prototype.test;
+        let checks = 0;
+        const spy = vi
+          .spyOn(RegExp.prototype, "test")
+          .mockImplementation(function (this: RegExp, candidate) {
+            if (this.source === prefixCharSource) checks += 1;
+            return Reflect.apply(test, this, [candidate]);
+          });
+        try {
+          expect(preprocess(input)).toBe(input);
+        } finally {
+          spy.mockRestore();
+        }
+        return checks;
+      };
+
+      const first = checksFor(256);
+      const second = checksFor(512);
+      expect(second).toBe(first);
     },
   );
 
