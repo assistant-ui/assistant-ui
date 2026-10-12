@@ -1033,9 +1033,16 @@ function continuationPrefix(lineHead: string): string {
   return prefix.join("");
 }
 
-function isMarkerOnlyHeadWithList(lineHead: string): boolean {
+// A list item opened by an ordered marker other than a literal `1` cannot
+// interrupt a paragraph, nested items on the line included, so the opener stays
+// on the marker line only when every list marker in the head is a bullet or `1`.
+function keepsOpenerOnMarkerLine(lineHead: string): boolean {
   const head = LINE_PREFIX.exec(lineHead)?.[0] ?? "";
-  return head === lineHead && /[-*+\d]/.test(head);
+  if (head !== lineHead) return false;
+  const markers = head.match(/[-*+]|\d+/g);
+  return (
+    markers?.every((marker) => !/\d/.test(marker) || marker === "1") ?? false
+  );
 }
 
 const SPAN_BOUNDARY =
@@ -1059,7 +1066,7 @@ function emitDisplayMath(
   // is aligned to it.
   const head = lineHead(offset);
   const prefix = continuationPrefix(head);
-  const markerOnlyListHead = isMarkerOnlyHeadWithList(head);
+  const openerOnMarkerLine = keepsOpenerOnMarkerLine(head);
   const depth = quoteDepth(prefix);
   const [openerText = "", ...bodyLines] = body.split("\n");
   const openerHasContent = !onlyWhitespace(openerText, 0, openerText.length);
@@ -1081,7 +1088,7 @@ function emitDisplayMath(
   // count as already being at a line boundary.
   const endsLine = (char: string) =>
     char === "" || char === "\n" || char === "\r";
-  const lead = endsLine(before) || markerOnlyListHead ? "" : "\n";
+  const lead = endsLine(before) || openerOnMarkerLine ? "" : "\n";
   const tail = endsLine(after) ? "" : "\n";
 
   // The body is split before trimming, since trimming would take the shared
@@ -1144,7 +1151,7 @@ function emitDisplayMath(
     );
   }
 
-  const openerPrefix = markerOnlyListHead ? "" : prefix;
+  const openerPrefix = openerOnMarkerLine ? "" : prefix;
   return `${lead}${openerPrefix}$$\n${lines.join("\n")}\n${prefix}$$${tail}${tail === "" ? "" : prefix}`;
 }
 

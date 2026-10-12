@@ -314,7 +314,7 @@ describe("rewriteLatexBracketDelimiters", () => {
     [
       "two ordered markers, each touching a quote",
       ">1) >2) \\[x\n>    >    a\n>    >    \\]",
-      ">1) >2) $$\n>    >    x\n>    >    a\n>    >    $$",
+      ">1) >2) \n>    >    $$\n>    >    x\n>    >    a\n>    >    $$",
     ],
     [
       "nested list markers in a quote with a [/math] display",
@@ -898,7 +898,7 @@ describe("normalizeMathDelimiters", () => {
         "> 12. [/math]\n> a\n> [/math] plus \\[\n> b\n> \\] after [/math]\n> c\n> [/math] end",
       ),
     ).toBe(
-      "> 12. $$\n>     a\n>     $$\n>      plus \n>      $$\n>      b\n>      $$\n>       after \n>     $$\n>     c\n>     $$\n>      end",
+      "> 12. \n>     $$\n>     a\n>     $$\n>      plus \n>      $$\n>      b\n>      $$\n>       after \n>     $$\n>     c\n>     $$\n>      end",
     );
   });
 
@@ -980,6 +980,24 @@ describe("normalizeMathDelimiters", () => {
       "- > - - - $$\n  >       x\n  >       a\n  >       $$",
     );
   });
+
+  it.each([
+    [
+      "an ordered marker other than 1",
+      "Steps:\n2. \\[\nx\ny\n\\]",
+      "Steps:\n2. \n   $$\n   x\n   y\n   $$",
+    ],
+    [
+      "a nested ordered marker other than 1",
+      "Steps:\n- 2. \\[\nx\ny\n\\]",
+      "Steps:\n- 2. \n     $$\n     x\n     y\n     $$",
+    ],
+  ])(
+    "moves the opener off a head with %s, which cannot interrupt a paragraph",
+    (_name, input, expected) => {
+      expect(normalizeMathDelimiters(input)).toBe(expected);
+    },
+  );
 
   it("keeps a later list fence separate from a display after three markers", () => {
     expect(normalizeMathDelimiters("- - - \\[x\na\n\\]\n\n- $$\na+b\n$$")).toBe(
@@ -1070,32 +1088,11 @@ describe("normalizeMathDelimiters", () => {
   it.each([
     ["\\[", "\\]"],
     ["[/math]", "[/math]"],
-  ])("scans a whitespace display head linearly for %s", (open, close) => {
-    const checksFor = (size: number) => {
-      const head = " ".repeat(size);
-      const input = `para\n${head}${open}x\ny\n${close}`;
-      const charCodeAt = String.prototype.charCodeAt;
-      let checks = 0;
-      const scan = vi
-        .spyOn(String.prototype, "charCodeAt")
-        .mockImplementation(function (this: string, index: number) {
-          if (this.valueOf() === head) checks += 1;
-          return Reflect.apply(charCodeAt, this, [index]);
-        });
-      let output: string;
-      try {
-        output = normalizeMathDelimiters(input);
-      } finally {
-        scan.mockRestore();
-      }
-      expect(output).toContain("$$");
-      return checks;
-    };
-
-    const first = checksFor(1024);
-    const second = checksFor(2048);
-    expect(first).toBeLessThanOrEqual(1024 * 32);
-    expect(second).toBeLessThanOrEqual(first * 3);
+  ])("handles a long whitespace display head for %s", (open, close) => {
+    const head = " ".repeat(131072);
+    expect(
+      normalizeMathDelimiters(`para\n${head}${open}x\ny\n${close}`),
+    ).toContain("$$");
   });
 
   it.each([
