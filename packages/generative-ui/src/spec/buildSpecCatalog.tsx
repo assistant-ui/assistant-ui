@@ -13,6 +13,7 @@ import { A2uiBindingContext } from "../bindingContext";
 import { MODEL_KEYS } from "../constants";
 import { isDefaultGenerativeUIComponent } from "../defaultGenerativeUIComponents";
 import type { GenerativeUIDispatch, GenerativeUILibrary } from "../types";
+import { PositionProvider } from "./position";
 import {
   BOUND_VALUE_PROPS,
   buildCatalogDefinition,
@@ -45,6 +46,7 @@ function toSpecComponent(
   return function GenerativeUISpecElement({
     id,
     element,
+    positionPath = [],
     props,
     children,
     slots,
@@ -101,7 +103,10 @@ function toSpecComponent(
         }}
       />
     );
-    if (!bound || !A2uiBindingContext) return rendered;
+    const positioned = (
+      <PositionProvider value={positionPath}>{rendered}</PositionProvider>
+    );
+    if (!bound || !A2uiBindingContext) return positioned;
     const [prop] = bound;
     return (
       <A2uiBindingContext.Provider
@@ -110,7 +115,7 @@ function toSpecComponent(
           update: (_field, value) => setProp(prop, value),
         }}
       >
-        {rendered}
+        {positioned}
       </A2uiBindingContext.Provider>
     );
   };

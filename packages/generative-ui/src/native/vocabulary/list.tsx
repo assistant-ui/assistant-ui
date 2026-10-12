@@ -1,8 +1,15 @@
-import { createContext, useContext, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { GenerativeUILibrary } from "../../types";
 import { listDefinitions } from "../../vocabulary/definitions/list";
 import { fire } from "../../vocabulary/dispatch";
+import { createRowLabelStore, RowLabelProvider } from "../rowLabel";
 import { sequenceItems } from "../../vocabulary/structureValues";
 import { fade, RADIUS, useInk, useNativeTheme } from "../theme";
 
@@ -16,6 +23,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   trigger: { borderRadius: RADIUS.control },
+  rowAction: { ...StyleSheet.absoluteFill, pointerEvents: "none" },
   sequence: { gap: 14 },
   sequenceItem: { flexDirection: "row", gap: 12 },
   stepMarker: {
@@ -36,6 +44,29 @@ const styles = StyleSheet.create({
 });
 
 const ListHairline = createContext<string | undefined>(undefined);
+
+function RowAction({
+  store,
+  activate,
+}: {
+  store: ReturnType<typeof createRowLabelStore>;
+  activate: () => void;
+}) {
+  const name = useSyncExternalStore(
+    store.subscribe,
+    store.getSnapshot,
+    store.getSnapshot,
+  );
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={name}
+      onPress={activate}
+      onAccessibilityTap={activate}
+      style={styles.rowAction}
+    />
+  );
+}
 
 function ListView({ children }: { children?: ReactNode }) {
   const theme = useNativeTheme();
@@ -58,6 +89,7 @@ function ListViewItem({
   children?: ReactNode;
 }) {
   const hairline = useContext(ListHairline);
+  const [labelStore] = useState(createRowLabelStore);
   const style = [
     styles.item,
     hairline !== undefined && {
@@ -66,17 +98,21 @@ function ListViewItem({
     },
   ];
   if (!$action || !$dispatch) return <View style={style}>{children}</View>;
+  const activate = () => fire($action, $dispatch);
   return (
     <Pressable
-      accessibilityRole="button"
-      onPress={() => fire($action, $dispatch)}
+      accessible={false}
+      focusable={false}
+      importantForAccessibility="no"
+      onPress={activate}
       style={({ pressed }) => [
         ...style,
         styles.trigger,
         pressed && { opacity: 0.85 },
       ]}
     >
-      {children}
+      <RowAction store={labelStore} activate={activate} />
+      <RowLabelProvider value={labelStore}>{children}</RowLabelProvider>
     </Pressable>
   );
 }

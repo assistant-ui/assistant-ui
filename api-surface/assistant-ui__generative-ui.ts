@@ -979,6 +979,7 @@ type SourceProviderMetadata = PartProviderMetadata;
 type SpecComponentProps<P extends Record<string, unknown> = Record<string, unknown>> = {
   id: string;
   element: SpecElement;
+  positionPath?: readonly number[];
   props: P;
   children: ReactNode;
   slots: Record<string, ReactNode>;

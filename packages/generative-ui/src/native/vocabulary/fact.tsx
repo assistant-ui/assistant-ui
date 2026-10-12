@@ -9,6 +9,7 @@ import {
 } from "../../vocabulary/formatValue";
 import { toTextContent } from "../../vocabulary/toTextContent";
 import { fade, RADIUS, toneTextColor, useInk, useNativeTheme } from "../theme";
+import { useListViewItemText } from "../rowLabel";
 
 const styles = StyleSheet.create({
   label: { fontSize: 11, textTransform: "uppercase", letterSpacing: 0.55 },
@@ -48,17 +49,30 @@ function Fact({
       : tone === "bad"
         ? theme.destructive
         : theme.secondaryForeground;
+  const factLabel = toTextContent(label);
+  const factValue = toTextContent(value);
+  const factDelta =
+    typeof delta === "string" ? formatFactDelta(delta, direction) : null;
+  const labelConsumed = useListViewItemText(factLabel?.toString(), 0);
+  const valueConsumed = useListViewItemText(factValue?.toString(), 1);
+  const deltaConsumed = useListViewItemText(factDelta?.toString(), 2);
   const chipColor = tone === "neutral" ? color : toneTextColor(color, ink);
   return (
     <View>
-      <Text style={[styles.label, { color: fade(ink, 0.62) }]}>
-        {toTextContent(label)}
+      <Text
+        aria-hidden={labelConsumed}
+        style={[styles.label, { color: fade(ink, 0.62) }]}
+      >
+        {factLabel}
       </Text>
       <View style={styles.valueRow}>
-        <Text style={[styles.value, { color: ink }]}>
-          {toTextContent(value)}
+        <Text
+          aria-hidden={valueConsumed}
+          style={[styles.value, { color: ink }]}
+        >
+          {factValue}
         </Text>
-        {typeof delta === "string" ? (
+        {factDelta !== null ? (
           <View
             style={[
               styles.chip,
@@ -68,8 +82,11 @@ function Fact({
               },
             ]}
           >
-            <Text style={[styles.chipText, { color: chipColor }]}>
-              {formatFactDelta(delta, direction)}
+            <Text
+              aria-hidden={deltaConsumed}
+              style={[styles.chipText, { color: chipColor }]}
+            >
+              {factDelta}
             </Text>
           </View>
         ) : null}

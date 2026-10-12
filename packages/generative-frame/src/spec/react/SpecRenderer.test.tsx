@@ -90,6 +90,44 @@ const spec = (elements: Spec["elements"], state: Spec["state"] = {}): Spec => ({
 });
 
 describe("SpecRenderer", () => {
+  it("exposes stable child positions across visibility changes", () => {
+    const positionedComponents: SpecComponents = {
+      Stack: ({ children }) => <>{children}</>,
+      Position: ({ id, positionPath }) => (
+        <span data-id={id} data-position={positionPath?.join(".")} />
+      ),
+    };
+    const tree = (showMiddle: boolean) =>
+      spec({
+        main: { type: "Stack", children: ["first", "middle", "last"] },
+        first: { type: "Position" },
+        middle: { type: "Position", visible: showMiddle },
+        last: { type: "Position" },
+      });
+    const view = render(
+      <SpecRenderer components={positionedComponents} spec={tree(false)} />,
+    );
+
+    expect(
+      view.container
+        .querySelector('[data-id="first"]')
+        ?.getAttribute("data-position"),
+    ).toBe("0");
+    expect(
+      view.container
+        .querySelector('[data-id="last"]')
+        ?.getAttribute("data-position"),
+    ).toBe("2");
+    view.rerender(
+      <SpecRenderer components={positionedComponents} spec={tree(true)} />,
+    );
+    expect(
+      view.container
+        .querySelector('[data-id="middle"]')
+        ?.getAttribute("data-position"),
+    ).toBe("1");
+  });
+
   it("renders the tree, resolves expressions, and runs setState on events", () => {
     const view = render(
       <SpecRenderer

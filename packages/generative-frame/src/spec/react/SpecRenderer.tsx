@@ -35,6 +35,8 @@ export type SpecComponentProps<
 > = {
   id: string;
   element: SpecElement;
+  /** Stable zero-based path through the element's parent child arrays. */
+  positionPath?: readonly number[];
   /** Props with expressions resolved against current state. */
   props: P;
   /** The rendered default slot. */
@@ -177,6 +179,7 @@ function renderChildren(
   ids: readonly unknown[],
   scope: Scope,
   ancestors: readonly string[],
+  positionPath: readonly number[],
 ) {
   return ids.map((childId, index) =>
     typeof childId === "string" ? (
@@ -185,6 +188,7 @@ function renderChildren(
         id={childId}
         scope={scope}
         ancestors={ancestors}
+        positionPath={[...positionPath, index]}
       />
     ) : null,
   );
@@ -194,10 +198,12 @@ function ElementView({
   id,
   scope,
   ancestors,
+  positionPath,
 }: {
   id: string;
   scope: Scope;
   ancestors: readonly string[];
+  positionPath: readonly number[];
 }) {
   const ctx = useContext(SpecContext)!;
   const Placeholder = ctx.placeholder;
@@ -263,6 +269,7 @@ function ElementView({
         Impl={Impl}
         scope={scope}
         ancestors={[...ancestors, id]}
+        positionPath={positionPath}
       />
     </ElementBoundary>
   );
@@ -274,12 +281,14 @@ function ResolvedElement({
   Impl,
   scope,
   ancestors,
+  positionPath,
 }: {
   id: string;
   element: SpecElement;
   Impl: ComponentType<SpecComponentProps>;
   scope: Scope;
   ancestors: readonly string[];
+  positionPath: readonly number[];
 }) {
   const ctx = useContext(SpecContext)!;
   const { props, bindings } = resolveProps(element.props, {
@@ -368,24 +377,32 @@ function ResolvedElement({
                 childIdsOf(element, "default"),
                 { item, index, itemPath: itemPointer(repeatPath, index) },
                 ancestors,
+                [...positionPath, index],
               )}
             </Fragment>
           );
         })
       : null;
   } else {
-    children = renderChildren(childIdsOf(element, "default"), scope, ancestors);
+    children = renderChildren(
+      childIdsOf(element, "default"),
+      scope,
+      ancestors,
+      positionPath,
+    );
   }
 
   const slots: Record<string, ReactNode> = {};
   for (const [slot, ids] of Object.entries(element.slots ?? {})) {
-    if (Array.isArray(ids)) slots[slot] = renderChildren(ids, scope, ancestors);
+    if (Array.isArray(ids))
+      slots[slot] = renderChildren(ids, scope, ancestors, positionPath);
   }
 
   return (
     <Impl
       id={id}
       element={element}
+      positionPath={positionPath}
       props={props}
       bindings={bindings}
       slots={slots}
@@ -494,7 +511,7 @@ export function SpecRenderer({
   if (!spec.root) return null;
   return (
     <SpecContext.Provider value={ctx}>
-      <ElementView id={spec.root} scope={{}} ancestors={[]} />
+      <ElementView id={spec.root} scope={{}} ancestors={[]} positionPath={[]} />
     </SpecContext.Provider>
   );
 }

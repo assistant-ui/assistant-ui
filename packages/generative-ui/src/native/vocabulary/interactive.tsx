@@ -36,6 +36,7 @@ import {
 } from "../../vocabulary/interactiveValues";
 import { toTextContent } from "../../vocabulary/toTextContent";
 import { useField, useFieldScope } from "../fieldScope";
+import { ListViewItemTextBoundary } from "../rowLabel";
 import { fade, RADIUS, TEXT_SIZE, useInk, useNativeTheme } from "../theme";
 import { ActionButton } from "./button";
 
@@ -538,7 +539,7 @@ function ChoiceRows({
             </Pressable>
           );
         })}
-        {children}
+        <ListViewItemTextBoundary>{children}</ListViewItemTextBoundary>
       </View>
     </View>
   );
@@ -1063,7 +1064,7 @@ function CheckboxGroupField({
           }}
         />
       ))}
-      {children}
+      <ListViewItemTextBoundary>{children}</ListViewItemTextBoundary>
     </View>
   );
 }

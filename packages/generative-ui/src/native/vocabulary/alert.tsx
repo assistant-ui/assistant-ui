@@ -29,6 +29,7 @@ import {
   useInk,
   useNativeTheme,
 } from "../theme";
+import { useListViewItemText } from "../rowLabel";
 
 const styles = StyleSheet.create({
   alert: {
@@ -81,6 +82,11 @@ function Alert({
           : theme.primary;
   const alertTitle = toTextContent(title);
   const alertDescription = toTextContent(description);
+  const titleConsumed = useListViewItemText(alertTitle?.toString(), 0);
+  const descriptionConsumed = useListViewItemText(
+    alertDescription?.toString(),
+    1,
+  );
   return (
     <View
       accessibilityRole="alert"
@@ -90,10 +96,18 @@ function Alert({
       ]}
     >
       {alertTitle ? (
-        <Text style={[styles.title, { color: ink }]}>{alertTitle}</Text>
+        <Text
+          aria-hidden={titleConsumed}
+          style={[styles.title, { color: ink }]}
+        >
+          {alertTitle}
+        </Text>
       ) : null}
       {alertDescription ? (
-        <Text style={[styles.description, { color: fade(ink, 0.62) }]}>
+        <Text
+          aria-hidden={descriptionConsumed}
+          style={[styles.description, { color: fade(ink, 0.62) }]}
+        >
           {alertDescription}
         </Text>
       ) : null}
