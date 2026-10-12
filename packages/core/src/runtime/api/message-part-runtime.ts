@@ -167,11 +167,20 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
         "Tried to respond to tool approval on non-tool message part",
       );
 
-    const live = this.contentBinding.getState();
-    const { approval } =
-      live.type === "tool-call" && live.toolCallId === state.toolCallId
-        ? live
-        : state;
+    if (!this.threadApi) throw new Error("Thread API is not available");
+
+    const core = this.getInteractionCore();
+    const part =
+      this.interactionMessageId === undefined
+        ? undefined
+        : core
+            .getMessageById(this.interactionMessageId)
+            ?.message.content.find(
+              (part) =>
+                part.type === "tool-call" &&
+                part.toolCallId === state.toolCallId,
+            );
+    const approval = part?.type === "tool-call" ? part.approval : undefined;
     if (
       !approval ||
       approval.approved !== undefined ||
@@ -179,9 +188,7 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
     )
       throw new Error("Tool call has no pending approval");
 
-    if (!this.threadApi) throw new Error("Thread API is not available");
-
-    return this.getInteractionCore().respondToToolApproval(
+    return core.respondToToolApproval(
       resolveToolApprovalResponse(approval, response),
     );
   }

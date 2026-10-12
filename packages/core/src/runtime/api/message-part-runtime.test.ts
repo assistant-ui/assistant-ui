@@ -464,11 +464,20 @@ describe("MessagePartRuntime resumeToolCall", () => {
 describe("MessagePartRuntime retained tool actions", () => {
   it("answers an approval streamed after construction and rejects it once answered", async () => {
     const respondToToolApproval = vi.fn(async () => {});
+    let originalPart: MessagePartState = toolPart;
     const { runtime, replace } = createRetainedRuntime(
-      { respondToToolApproval } as unknown as ThreadRuntimeCore,
+      {
+        getMessageById: () => ({
+          parentId: null,
+          message: { ...message, content: [originalPart] },
+          index: 0,
+        }),
+        respondToToolApproval,
+      } as unknown as ThreadRuntimeCore,
       toolPart,
     );
 
+    originalPart = retainedToolPart;
     replace({ part: retainedToolPart });
     await runtime.respondToToolApproval({ approved: true });
     expect(respondToToolApproval).toHaveBeenCalledExactlyOnceWith({
@@ -476,12 +485,11 @@ describe("MessagePartRuntime retained tool actions", () => {
       approved: true,
     });
 
-    replace({
-      part: {
-        ...retainedToolPart,
-        approval: { id: "approval-1", approved: true },
-      },
-    });
+    originalPart = {
+      ...retainedToolPart,
+      approval: { id: "approval-1", approved: true },
+    };
+    replace({ part: originalPart });
     expect(() => runtime.respondToToolApproval({ approved: true })).toThrow(
       "Tool call has no pending approval",
     );
@@ -489,16 +497,108 @@ describe("MessagePartRuntime retained tool actions", () => {
 
   it("rejects an approval answered after construction", () => {
     const respondToToolApproval = vi.fn(async () => {});
+    let originalPart: MessagePartState = retainedToolPart;
     const { runtime, replace } = createRetainedRuntime({
+      getMessageById: () => ({
+        parentId: null,
+        message: { ...message, content: [originalPart] },
+        index: 0,
+      }),
       respondToToolApproval,
     } as unknown as ThreadRuntimeCore);
 
+    originalPart = {
+      ...retainedToolPart,
+      approval: { id: "approval-1", approved: true },
+    };
+    replace({ part: originalPart });
+    expect(() => runtime.respondToToolApproval({ approved: true })).toThrow(
+      "Tool call has no pending approval",
+    );
+    expect(respondToToolApproval).not.toHaveBeenCalled();
+  });
+
+  it("uses the original approval when another message reuses the tool call id", async () => {
+    const respondToToolApproval = vi.fn(async () => {});
+    const originalCore = {
+      getMessageById: () => ({
+        parentId: null,
+        message: { ...message, content: [retainedToolPart] },
+        index: 0,
+      }),
+      respondToToolApproval,
+    } as unknown as ThreadRuntimeCore;
+    const replacementCore = {
+      getMessageById: () => ({
+        parentId: null,
+        message: {
+          ...message,
+          id: "message-2",
+          content: [{ ...retainedToolPart, approval: { id: "approval-2" } }],
+        },
+        index: 0,
+      }),
+      respondToToolApproval: vi.fn(async () => {}),
+    } as unknown as ThreadRuntimeCore;
+    const { runtime, replace } = createRetainedRuntime(originalCore);
+
     replace({
-      part: {
-        ...retainedToolPart,
-        approval: { id: "approval-1", approved: true },
-      },
+      part: { ...retainedToolPart, approval: { id: "approval-2" } },
+      core: replacementCore,
+      threadId: "thread-2",
     });
+
+    await runtime.respondToToolApproval({ approved: true });
+    expect(respondToToolApproval).toHaveBeenCalledExactlyOnceWith({
+      approvalId: "approval-1",
+      approved: true,
+    });
+    expect(replacementCore.respondToToolApproval).not.toHaveBeenCalled();
+  });
+
+  it("rejects a second response after the original approval settles and the binding switches", async () => {
+    let originalPart: MessagePartState = retainedToolPart;
+    const respondToToolApproval = vi.fn(async () => {});
+    const originalCore = {
+      getMessageById: () => ({
+        parentId: null,
+        message: { ...message, content: [originalPart] },
+        index: 0,
+      }),
+      respondToToolApproval,
+    } as unknown as ThreadRuntimeCore;
+    const { runtime, replace } = createRetainedRuntime(originalCore);
+
+    await runtime.respondToToolApproval({ approved: true });
+    originalPart = {
+      ...retainedToolPart,
+      approval: { id: "approval-1", approved: true },
+    };
+    replace({ part: replacementToolPart });
+
+    expect(() => runtime.respondToToolApproval({ approved: true })).toThrow(
+      "Tool call has no pending approval",
+    );
+    expect(respondToToolApproval).toHaveBeenCalledExactlyOnceWith({
+      approvalId: "approval-1",
+      approved: true,
+    });
+  });
+
+  it.each([
+    { name: "message is gone", content: undefined },
+    { name: "tool call is gone", content: [replacementToolPart] },
+  ])("rejects when the original $name", ({ content }) => {
+    const respondToToolApproval = vi.fn(async () => {});
+    const core = {
+      getMessageById: () =>
+        content === undefined
+          ? undefined
+          : { parentId: null, message: { ...message, content }, index: 0 },
+      respondToToolApproval,
+    } as unknown as ThreadRuntimeCore;
+    const { runtime } = createRetainedRuntime(core);
+
     expect(() => runtime.respondToToolApproval({ approved: true })).toThrow(
       "Tool call has no pending approval",
     );
@@ -528,12 +628,22 @@ describe("MessagePartRuntime retained tool actions", () => {
     "keeps action targets through $name",
     async ({ threadId, currentCore, expectedCore }) => {
       const originalCore = {
+        getMessageById: () => ({
+          parentId: null,
+          message: { ...message, content: [retainedToolPart] },
+          index: 0,
+        }),
         addToolResult: vi.fn(),
         resumeToolCall: vi.fn(),
         respondToToolApproval: vi.fn(async () => {}),
         unstable_recordToolInteraction: vi.fn(async () => {}),
       } as unknown as ThreadRuntimeCore;
       const successorCore = {
+        getMessageById: () => ({
+          parentId: null,
+          message: { ...message, content: [retainedToolPart] },
+          index: 0,
+        }),
         addToolResult: vi.fn(),
         resumeToolCall: vi.fn(),
         respondToToolApproval: vi.fn(async () => {}),
