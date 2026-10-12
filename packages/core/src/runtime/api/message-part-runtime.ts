@@ -99,9 +99,18 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
     return this.contentBinding.getState();
   }
 
+  private getInteractionCore() {
+    const core =
+      this.interactionThreadId !== undefined &&
+      this.threadApi?.getStateState?.().threadId === this.interactionThreadId
+        ? this.threadApi.getState()
+        : this.interactionCore;
+    if (!core) throw new Error("Thread API is not available");
+    return core;
+  }
+
   public addToolResult(result: any | ToolResponse<any>) {
-    const state = this.contentBinding.getState();
-    if (!state) throw new Error("Message part is not available");
+    const state = this.interactionState;
 
     if (state.type !== "tool-call")
       throw new Error("Tried to add tool result to non-tool message part");
@@ -112,15 +121,15 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
       );
     if (!this.threadApi) throw new Error("Thread API is not available");
 
-    const message = this.messageApi.getState();
-    if (!message) throw new Error("Message is not available");
+    const messageId = this.interactionMessageId;
+    if (messageId === undefined) throw new Error("Message is not available");
 
     const toolName = state.toolName;
     const toolCallId = state.toolCallId;
 
     const response = ToolResponse.toResponse(result);
-    this.threadApi.getState().addToolResult({
-      messageId: message.id,
+    this.getInteractionCore().addToolResult({
+      messageId,
       toolName,
       toolCallId,
       result: response.result,
@@ -133,17 +142,15 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
   }
 
   public resumeToolCall(payload: unknown) {
-    const state = this.contentBinding.getState();
-    if (!state) throw new Error("Message part is not available");
+    const state = this.interactionState;
 
     if (state.type !== "tool-call")
       throw new Error("Tried to resume tool call on non-tool message part");
 
     if (!this.threadApi) throw new Error("Thread API is not available");
 
-    const toolCallId = state.toolCallId;
-    this.threadApi.getState().resumeToolCall({
-      toolCallId,
+    this.getInteractionCore().resumeToolCall({
+      toolCallId: state.toolCallId,
       payload,
     });
     void this.unstable_recordInteraction({
@@ -153,28 +160,37 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
   }
 
   public respondToToolApproval(response: ToolApprovalResponse): Promise<void> {
-    const state = this.contentBinding.getState();
-    if (!state) throw new Error("Message part is not available");
+    const state = this.interactionState;
 
     if (state.type !== "tool-call")
       throw new Error(
         "Tried to respond to tool approval on non-tool message part",
       );
 
+    if (!this.threadApi) throw new Error("Thread API is not available");
+
+    const core = this.getInteractionCore();
+    const part =
+      this.interactionMessageId === undefined
+        ? undefined
+        : core
+            .getMessageById(this.interactionMessageId)
+            ?.message.content.find(
+              (part) =>
+                part.type === "tool-call" &&
+                part.toolCallId === state.toolCallId,
+            );
+    const approval = part?.type === "tool-call" ? part.approval : undefined;
     if (
-      !state.approval ||
-      state.approval.approved !== undefined ||
-      state.approval.resolution !== undefined
+      !approval ||
+      approval.approved !== undefined ||
+      approval.resolution !== undefined
     )
       throw new Error("Tool call has no pending approval");
 
-    if (!this.threadApi) throw new Error("Thread API is not available");
-
-    return this.threadApi
-      .getState()
-      .respondToToolApproval(
-        resolveToolApprovalResponse(state.approval, response),
-      );
+    return core.respondToToolApproval(
+      resolveToolApprovalResponse(approval, response),
+    );
   }
 
   /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
@@ -188,12 +204,8 @@ export class MessagePartRuntimeImpl implements MessagePartRuntime {
     const messageId = this.interactionMessageId;
     if (messageId === undefined) throw new Error("Message is not available");
 
-    const core =
-      this.interactionThreadId !== undefined &&
-      this.threadApi?.getStateState?.().threadId === this.interactionThreadId
-        ? this.threadApi.getState()
-        : this.interactionCore;
-    if (!core?.unstable_recordToolInteraction)
+    const core = this.getInteractionCore();
+    if (!core.unstable_recordToolInteraction)
       throw new Error("Runtime does not support recording tool interactions.");
 
     await core.unstable_recordToolInteraction({

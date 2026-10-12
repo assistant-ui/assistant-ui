@@ -7,7 +7,7 @@ import {
   MessageRuntimeImpl,
   type MessageRuntimeState,
 } from "./message-runtime";
-import type { ThreadRuntimeImpl } from "./thread-runtime";
+import type { ThreadRuntimeImpl, ThreadRuntimeState } from "./thread-runtime";
 
 const threadPath = {
   ref: "threads.main",
@@ -92,6 +92,65 @@ const createRuntime = ({
     messageBinding,
     threadBinding,
   );
+};
+
+const retainedToolPart: MessagePartState = {
+  ...toolPart,
+  approval: { id: "approval-1" },
+};
+
+const replacementToolPart: MessagePartState = {
+  ...toolPart,
+  toolCallId: "call-2",
+  toolName: "replacement",
+  approval: { id: "approval-2" },
+};
+
+const createRetainedRuntime = (
+  core: ThreadRuntimeCore,
+  initialPart: MessagePartState = retainedToolPart,
+) => {
+  let part: MessagePartState = initialPart;
+  let messageId = "message-1";
+  let currentCore = core;
+  let threadId = "thread-1";
+
+  const contentBinding = {
+    path: partPath,
+    getState: () => part,
+    subscribe: () => () => {},
+  };
+  const messageBinding: MessageStateBinding = {
+    path: messagePath,
+    getState: () => ({ ...message, id: messageId }),
+    subscribe: () => () => {},
+  };
+  const threadBinding: ThreadRuntimeImpl["__internal_threadBinding"] = {
+    path: threadPath,
+    getState: () => currentCore,
+    getStateState: () => ({ threadId }) as ThreadRuntimeState,
+    subscribe: () => () => {},
+    outerSubscribe: () => () => {},
+  };
+
+  return {
+    runtime: new MessagePartRuntimeImpl(
+      contentBinding,
+      messageBinding,
+      threadBinding,
+    ),
+    replace: (replacement: {
+      part?: MessagePartState;
+      messageId?: string;
+      core?: ThreadRuntimeCore;
+      threadId?: string;
+    }) => {
+      part = replacement.part ?? replacementToolPart;
+      messageId = replacement.messageId ?? "message-2";
+      currentCore = replacement.core ?? currentCore;
+      threadId = replacement.threadId ?? threadId;
+    },
+  };
 };
 
 describe("MessagePartRuntime interaction recording", () => {
@@ -399,5 +458,270 @@ describe("MessagePartRuntime resumeToolCall", () => {
     expect(() => runtime.resumeToolCall({ answer: "yes" })).not.toThrow();
     await Promise.resolve();
     expect(resumeToolCall).toHaveBeenCalledOnce();
+  });
+});
+
+describe("MessagePartRuntime retained tool actions", () => {
+  it("answers an approval streamed after construction and rejects it once answered", async () => {
+    const respondToToolApproval = vi.fn(async () => {});
+    let originalPart: MessagePartState = toolPart;
+    const { runtime, replace } = createRetainedRuntime(
+      {
+        getMessageById: () => ({
+          parentId: null,
+          message: { ...message, content: [originalPart] },
+          index: 0,
+        }),
+        respondToToolApproval,
+      } as unknown as ThreadRuntimeCore,
+      toolPart,
+    );
+
+    originalPart = retainedToolPart;
+    replace({ part: retainedToolPart });
+    await runtime.respondToToolApproval({ approved: true });
+    expect(respondToToolApproval).toHaveBeenCalledExactlyOnceWith({
+      approvalId: "approval-1",
+      approved: true,
+    });
+
+    originalPart = {
+      ...retainedToolPart,
+      approval: { id: "approval-1", approved: true },
+    };
+    replace({ part: originalPart });
+    expect(() => runtime.respondToToolApproval({ approved: true })).toThrow(
+      "Tool call has no pending approval",
+    );
+  });
+
+  it("rejects an approval answered after construction", () => {
+    const respondToToolApproval = vi.fn(async () => {});
+    let originalPart: MessagePartState = retainedToolPart;
+    const { runtime, replace } = createRetainedRuntime({
+      getMessageById: () => ({
+        parentId: null,
+        message: { ...message, content: [originalPart] },
+        index: 0,
+      }),
+      respondToToolApproval,
+    } as unknown as ThreadRuntimeCore);
+
+    originalPart = {
+      ...retainedToolPart,
+      approval: { id: "approval-1", approved: true },
+    };
+    replace({ part: originalPart });
+    expect(() => runtime.respondToToolApproval({ approved: true })).toThrow(
+      "Tool call has no pending approval",
+    );
+    expect(respondToToolApproval).not.toHaveBeenCalled();
+  });
+
+  it("uses the original approval when another message reuses the tool call id", async () => {
+    const respondToToolApproval = vi.fn(async () => {});
+    const originalCore = {
+      getMessageById: () => ({
+        parentId: null,
+        message: { ...message, content: [retainedToolPart] },
+        index: 0,
+      }),
+      respondToToolApproval,
+    } as unknown as ThreadRuntimeCore;
+    const replacementCore = {
+      getMessageById: () => ({
+        parentId: null,
+        message: {
+          ...message,
+          id: "message-2",
+          content: [{ ...retainedToolPart, approval: { id: "approval-2" } }],
+        },
+        index: 0,
+      }),
+      respondToToolApproval: vi.fn(async () => {}),
+    } as unknown as ThreadRuntimeCore;
+    const { runtime, replace } = createRetainedRuntime(originalCore);
+
+    replace({
+      part: { ...retainedToolPart, approval: { id: "approval-2" } },
+      core: replacementCore,
+      threadId: "thread-2",
+    });
+
+    await runtime.respondToToolApproval({ approved: true });
+    expect(respondToToolApproval).toHaveBeenCalledExactlyOnceWith({
+      approvalId: "approval-1",
+      approved: true,
+    });
+    expect(replacementCore.respondToToolApproval).not.toHaveBeenCalled();
+  });
+
+  it("rejects a second response after the original approval settles and the binding switches", async () => {
+    let originalPart: MessagePartState = retainedToolPart;
+    const respondToToolApproval = vi.fn(async () => {});
+    const originalCore = {
+      getMessageById: () => ({
+        parentId: null,
+        message: { ...message, content: [originalPart] },
+        index: 0,
+      }),
+      respondToToolApproval,
+    } as unknown as ThreadRuntimeCore;
+    const { runtime, replace } = createRetainedRuntime(originalCore);
+
+    await runtime.respondToToolApproval({ approved: true });
+    originalPart = {
+      ...retainedToolPart,
+      approval: { id: "approval-1", approved: true },
+    };
+    replace({ part: replacementToolPart });
+
+    expect(() => runtime.respondToToolApproval({ approved: true })).toThrow(
+      "Tool call has no pending approval",
+    );
+    expect(respondToToolApproval).toHaveBeenCalledExactlyOnceWith({
+      approvalId: "approval-1",
+      approved: true,
+    });
+  });
+
+  it.each([
+    { name: "message is gone", content: undefined },
+    { name: "tool call is gone", content: [replacementToolPart] },
+  ])("rejects when the original $name", ({ content }) => {
+    const respondToToolApproval = vi.fn(async () => {});
+    const core = {
+      getMessageById: () =>
+        content === undefined
+          ? undefined
+          : { parentId: null, message: { ...message, content }, index: 0 },
+      respondToToolApproval,
+    } as unknown as ThreadRuntimeCore;
+    const { runtime } = createRetainedRuntime(core);
+
+    expect(() => runtime.respondToToolApproval({ approved: true })).toThrow(
+      "Tool call has no pending approval",
+    );
+    expect(respondToToolApproval).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      name: "a thread switch",
+      threadId: "thread-2",
+      currentCore: "successor",
+      expectedCore: "original",
+    },
+    {
+      name: "a branch switch",
+      threadId: "thread-1",
+      currentCore: "original",
+      expectedCore: "original",
+    },
+    {
+      name: "a same-thread restart",
+      threadId: "thread-1",
+      currentCore: "successor",
+      expectedCore: "successor",
+    },
+  ])(
+    "keeps action targets through $name",
+    async ({ threadId, currentCore, expectedCore }) => {
+      const originalCore = {
+        getMessageById: () => ({
+          parentId: null,
+          message: { ...message, content: [retainedToolPart] },
+          index: 0,
+        }),
+        addToolResult: vi.fn(),
+        resumeToolCall: vi.fn(),
+        respondToToolApproval: vi.fn(async () => {}),
+        unstable_recordToolInteraction: vi.fn(async () => {}),
+      } as unknown as ThreadRuntimeCore;
+      const successorCore = {
+        getMessageById: () => ({
+          parentId: null,
+          message: { ...message, content: [retainedToolPart] },
+          index: 0,
+        }),
+        addToolResult: vi.fn(),
+        resumeToolCall: vi.fn(),
+        respondToToolApproval: vi.fn(async () => {}),
+        unstable_recordToolInteraction: vi.fn(async () => {}),
+      } as unknown as ThreadRuntimeCore;
+      const { runtime, replace } = createRetainedRuntime(originalCore);
+
+      replace({
+        core: currentCore === "successor" ? successorCore : originalCore,
+        threadId,
+      });
+
+      runtime.addToolResult({ answer: "result" });
+      runtime.resumeToolCall({ answer: "resume" });
+      await runtime.respondToToolApproval({ approved: true });
+
+      const targetCore =
+        expectedCore === "successor" ? successorCore : originalCore;
+      const otherCore =
+        expectedCore === "successor" ? originalCore : successorCore;
+      expect(targetCore.addToolResult).toHaveBeenCalledWith(
+        expect.objectContaining({
+          messageId: "message-1",
+          toolName: "weather",
+          toolCallId: "call-1",
+          result: { answer: "result" },
+        }),
+      );
+      expect(targetCore.resumeToolCall).toHaveBeenCalledWith({
+        toolCallId: "call-1",
+        payload: { answer: "resume" },
+      });
+      expect(targetCore.respondToToolApproval).toHaveBeenCalledWith({
+        approvalId: "approval-1",
+        approved: true,
+      });
+      expect(targetCore.unstable_recordToolInteraction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          messageId: "message-1",
+          toolCallId: "call-1",
+          interaction: expect.objectContaining({
+            type: "human-response",
+            payload: { answer: "resume" },
+          }),
+        }),
+      );
+      expect(otherCore.addToolResult).not.toHaveBeenCalled();
+      expect(otherCore.resumeToolCall).not.toHaveBeenCalled();
+      expect(otherCore.respondToToolApproval).not.toHaveBeenCalled();
+      expect(otherCore.unstable_recordToolInteraction).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe("MessagePartRuntime non-tool actions", () => {
+  it.each([
+    {
+      name: "addToolResult",
+      invoke: (part: MessagePartRuntimeImpl) => part.addToolResult("result"),
+      error: "Tried to add tool result to non-tool message part",
+    },
+    {
+      name: "resumeToolCall",
+      invoke: (part: MessagePartRuntimeImpl) => part.resumeToolCall("payload"),
+      error: "Tried to resume tool call on non-tool message part",
+    },
+    {
+      name: "respondToToolApproval",
+      invoke: (part: MessagePartRuntimeImpl) =>
+        part.respondToToolApproval({ approved: true }),
+      error: "Tried to respond to tool approval on non-tool message part",
+    },
+  ])("preserves the $name error", ({ invoke, error }) => {
+    const part = createRuntime({
+      core: {} as ThreadRuntimeCore,
+      part: textPart,
+    });
+
+    expect(() => invoke(part)).toThrow(error);
   });
 });
