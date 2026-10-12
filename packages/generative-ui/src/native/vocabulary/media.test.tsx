@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 import { act } from "react";
+import { Linking } from "react-native";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   byRole,
   cleanupSpecs,
+  press,
   renderElement,
   renderNativeSpec,
   renderWebSpec,
@@ -14,6 +16,7 @@ import { mediaVocabulary } from "./media";
 afterEach(() => {
   cleanupSpecs();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("media vocabulary on React Native", () => {
@@ -82,6 +85,80 @@ describe("media vocabulary on React Native", () => {
       .container.firstElementChild as HTMLElement;
     expect(getComputedStyle(divider).height).toBe("1px");
     expect(divider.style.backgroundColor).toBe("rgba(229, 229, 229, 0.6)");
+  });
+
+  it("shows Diagram Mermaid source and its caption", () => {
+    const input = spec({
+      main: {
+        type: "Diagram",
+        props: {
+          code: "flowchart LR\n  A[Order] --> B[Ship]",
+          title: "Order flow",
+        },
+      },
+    });
+    const native = renderNativeSpec(input).container;
+    const web = renderWebSpec(input).container;
+    expect(native.textContent).toBe(web.textContent);
+    expect(native.textContent).toBe(
+      "flowchart LR\n  A[Order] --> B[Ship]Order flow",
+    );
+    const source = [
+      ...native.querySelectorAll<HTMLElement>('div[dir="auto"]'),
+    ].find(
+      (element) =>
+        element.textContent === "flowchart LR\n  A[Order] --> B[Ship]",
+    );
+    expect(getComputedStyle(source!).fontFamily).toContain("monospace");
+    expect(
+      getComputedStyle(source!.parentElement!.parentElement!).overflowX,
+    ).toBe("auto");
+  });
+
+  it("shows Diagram source without adding a caption when title is absent", () => {
+    const native = renderNativeSpec(
+      spec({ main: { type: "Diagram", props: { code: "flowchart TD" } } }),
+    ).container;
+    expect(native.textContent).toBe("flowchart TD");
+  });
+
+  it("lists valid Map places in order, with details under their links", async () => {
+    const openURL = vi.spyOn(Linking, "openURL").mockResolvedValue(undefined);
+    const input = spec({
+      main: {
+        type: "Map",
+        props: {
+          route: true,
+          places: [
+            {
+              label: "Monterey",
+              lat: 36.6002,
+              lng: -121.8947,
+              detail: "Night 1",
+            },
+            { label: "Nowhere", lat: 120, lng: 0 },
+            { label: "Big Sur", lat: 36.2704, lng: -121.8081 },
+          ],
+        },
+      },
+    });
+    const native = renderNativeSpec(input).container;
+    const web = renderWebSpec(input).container;
+    const list = byRole(native, "list");
+    const links = [...list.querySelectorAll<HTMLElement>('[role="link"]')];
+    expect(links.map((link) => link.textContent)).toEqual([
+      "Monterey",
+      "Big Sur",
+    ]);
+    expect(list.textContent).toBe(web.textContent);
+    expect(list.textContent).toBe("MontereyNight 1Big Sur");
+    expect(byRole(native, "link", "Monterey").parentElement!.textContent).toBe(
+      "MontereyNight 1",
+    );
+    await press(byRole(native, "link", "Monterey"));
+    expect(openURL).toHaveBeenCalledExactlyOnceWith(
+      "https://www.openstreetmap.org/?mlat=36.6002&mlon=-121.8947#map=14/36.6002/-121.8947",
+    );
   });
 
   it("resets a measured ratio when the image source changes", async () => {
