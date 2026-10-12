@@ -676,6 +676,26 @@ describe("rewriteCustomMathTags", () => {
 });
 
 describe("normalizeMathDelimiters", () => {
+  it.each([
+    [
+      "bracket display followed by a math tag",
+      "> 1. \\[\n> a\n> \\] x [/math]\n> b\n> [/math] then",
+      "> 1. \n>    $$\n>    a\n>    $$\n>     x \n>    $$\n>    b\n>    $$\n>     then",
+    ],
+    [
+      "math tag followed by a bracket display",
+      "> 1. [/math]\n> a\n> [/math] x \\[\n> b\n> \\] then",
+      "> 1. \n>    $$\n>    a\n>    $$\n>     x \n>     $$\n>     b\n>     $$\n>      then",
+    ],
+    [
+      "double-backslash bracket display followed by a math tag",
+      "> 1. \\\\[\n> a\n> \\\\] x [/math]\n> b\n> [/math] then",
+      "> 1. \n>    $$\n>    a\n>    $$\n>     x \n>    $$\n>    b\n>    $$\n>     then",
+    ],
+  ])("hands off a quoted list prefix across a %s", (_, input, expected) => {
+    expect(normalizeMathDelimiters(input)).toBe(expected);
+  });
+
   it("normalizes both bracket delimiters and custom tags", () => {
     expect(normalizeMathDelimiters("\\(x\\) [/math]y[/math]")).toBe(
       "$x$ $$y$$",

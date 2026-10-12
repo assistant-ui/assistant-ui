@@ -1248,32 +1248,101 @@ export function rewriteLatexBracketDelimiters(text: string): string {
 const MATH_TAG = /\[\/math\]([\s\S]*?)\[\/math\]/g;
 const INLINE_TAG = /\[\/inline\]([\s\S]*?)\[\/inline\]/g;
 
+function createBracketDisplayHandoff(
+  lineHead: (offset: number) => string,
+): (source: string, match: string, offset: number) => string | undefined {
+  let cursor = 0;
+  let opener: { at: number; length: number } | undefined;
+  let completedOpener: number | undefined;
+  let completedLineStart = -1;
+
+  return (source, match, offset) => {
+    const lineStart = source.lastIndexOf("\n", offset - 1) + 1;
+    if (lineStart !== completedLineStart) completedOpener = undefined;
+
+    for (const marker of source
+      .slice(cursor, offset)
+      .matchAll(LATEX_DISPLAY_MARKER)) {
+      const at = cursor + marker.index;
+      if (marker[0]!.endsWith("[")) {
+        if (opener === undefined) {
+          opener = { at, length: marker[0]!.length };
+          completedOpener = undefined;
+        }
+      } else if (opener !== undefined) {
+        const body = source.slice(opener.at + opener.length, at);
+        completedOpener =
+          at >= lineStart && body.includes("\n") && !crossesSpanBoundary(body)
+            ? opener.at
+            : undefined;
+        completedLineStart = lineStart;
+        opener = undefined;
+      }
+    }
+
+    cursor = offset + match.length;
+    return completedOpener === undefined
+      ? undefined
+      : lineHead(completedOpener);
+  };
+}
+
+function rewriteCustomMathTagsWithDisplay(
+  text: string,
+  createDisplayRewriter: (
+    lineHead: (offset: number) => string,
+  ) => typeof emitDisplayMath,
+): string {
+  return rewriteOutsideCode(
+    text,
+    (segment, precededBy, followedBy, lineHead) => {
+      const rewriteDisplay = createDisplayRewriter(lineHead);
+      return segment
+        .replace(
+          MATH_TAG,
+          (match: string, body: string, offset: number, source: string) =>
+            rewriteDisplay(
+              match,
+              body,
+              offset,
+              source,
+              precededBy,
+              followedBy,
+              lineHead,
+            ),
+        )
+        .replace(INLINE_TAG, (match: string, body: string) => {
+          const trimmed = body.trim();
+          return trimmed === "" ? match : `$${trimmed}$`;
+        });
+    },
+  );
+}
+
+function rewriteCustomMathTagsWithBracketHandoff(text: string): string {
+  return rewriteCustomMathTagsWithDisplay(text, (lineHead) => {
+    const handoff = createBracketDisplayHandoff(lineHead);
+    return (match, body, offset, source, precededBy, followedBy) => {
+      const inheritedLineHead = handoff(source, match, offset);
+      return emitDisplayMath(
+        match,
+        body,
+        offset,
+        source,
+        precededBy,
+        followedBy,
+        inheritedLineHead === undefined ? lineHead : () => inheritedLineHead,
+      );
+    };
+  });
+}
 /**
  * Rewrites the custom math tags some models emit to dollar delimiters:
  * `[/math]...[/math]` becomes `$$...$$` (fenced when the body spans lines — see
  * {@link emitDisplayMath}) and `[/inline]...[/inline]` becomes `$...$`.
  */
 export function rewriteCustomMathTags(text: string): string {
-  return rewriteOutsideCode(text, (segment, precededBy, followedBy, lineHead) =>
-    segment
-      .replace(
-        MATH_TAG,
-        (match: string, body: string, offset: number, source: string) =>
-          emitDisplayMath(
-            match,
-            body,
-            offset,
-            source,
-            precededBy,
-            followedBy,
-            lineHead,
-          ),
-      )
-      .replace(INLINE_TAG, (match: string, body: string) => {
-        const trimmed = body.trim();
-        return trimmed === "" ? match : `$${trimmed}$`;
-      }),
-  );
+  return rewriteCustomMathTagsWithDisplay(text, () => emitDisplayMath);
 }
 
 const FORMULA_LINE_CLOSER = /\$\$[ \t\r]*$/;
@@ -1627,7 +1696,9 @@ function nestListItemDisplayMath(text: string): string {
  */
 export function normalizeMathDelimiters(text: string): string {
   return nestListItemDisplayMath(
-    rewriteLatexBracketDelimiters(rewriteCustomMathTags(text)),
+    rewriteLatexBracketDelimiters(
+      rewriteCustomMathTagsWithBracketHandoff(text),
+    ),
   );
 }
 
