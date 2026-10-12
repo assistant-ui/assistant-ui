@@ -55,6 +55,7 @@ export const isInterruptReply = (
 
 export type AdkThreadState = {
   messages: AdkMessage[];
+  loadGeneration: number;
   queuedMessageIds: ReadonlySet<string>;
   stateDelta: Record<string, unknown>;
   agentInfo: { name?: string | undefined; branch?: string | undefined };
@@ -80,6 +81,7 @@ export type AdkThreadAction =
       type: "event.published";
       state: Omit<
         AdkThreadState,
+        | "loadGeneration"
         | "queuedMessageIds"
         | "stagedEntries"
         | "toolResultBuffer"
@@ -134,6 +136,7 @@ export type AdkThreadAction =
 
 export const createAdkThreadState = (): AdkThreadState => ({
   messages: [],
+  loadGeneration: 0,
   queuedMessageIds: new Set(),
   stateDelta: {},
   agentInfo: {},
@@ -254,6 +257,7 @@ export const reduceAdkThreadState = (
       const snapshot = action.snapshot;
       return {
         ...state,
+        loadGeneration: state.loadGeneration + 1,
         messages: snapshot.messages,
         queuedMessageIds: new Set(),
         stateDelta: snapshot.stateDelta ?? {},
@@ -384,23 +388,56 @@ export const reduceAdkThreadState = (
     }
     case "run.rollback": {
       const ownIds = new Set(action.ownIds);
+      if (action.state.loadGeneration < state.loadGeneration) {
+        const stagedEntries = new Map(state.stagedEntries);
+        const messages = state.messages.filter(
+          (message) => !ownIds.has(message.id),
+        );
+        for (const [id, entry] of action.state.stagedEntries) {
+          if (!ownIds.has(id) || stagedEntries.has(id)) continue;
+          stagedEntries.set(id, entry);
+          messages.push(entry.message);
+        }
+        return {
+          ...state,
+          messages,
+          stagedEntries,
+          queuedMessageIds: new Set(
+            [...state.queuedMessageIds].filter((id) => !ownIds.has(id)),
+          ),
+        };
+      }
+      const stagedEntries = new Map(action.state.stagedEntries);
+      for (const [id, entry] of state.stagedEntries) {
+        if (!stagedEntries.has(id)) stagedEntries.set(id, entry);
+      }
+      const liveMessages = new Map(
+        state.messages.map((message) => [message.id, message]),
+      );
       const settled = action.state.messages.filter(
-        (message) => !action.state.queuedMessageIds.has(message.id),
+        (message) =>
+          !action.state.queuedMessageIds.has(message.id) &&
+          !stagedEntries.has(message.id),
       );
       const settledIds = new Set(settled.map((message) => message.id));
       const messages = [
-        ...settled,
+        ...settled.map((message) => liveMessages.get(message.id) ?? message),
         ...state.messages.filter(
-          (message) => !settledIds.has(message.id) && !ownIds.has(message.id),
+          (message) =>
+            !settledIds.has(message.id) &&
+            !ownIds.has(message.id) &&
+            !stagedEntries.has(message.id),
         ),
       ];
-      const stagedEntries = new Map(action.state.stagedEntries);
-      for (const [id, entry] of state.stagedEntries) {
-        if (stagedEntries.has(id)) continue;
-        stagedEntries.set(id, entry);
-        if (!messages.some((message) => message.id === id))
+      for (const [id, entry] of stagedEntries) {
+        if (!messages.some((item) => item.id === id))
           messages.push(entry.message);
       }
+      const answeredToolIds = new Set(
+        messages.flatMap((message) =>
+          message.type === "tool" ? [message.tool_call_id] : [],
+        ),
+      );
       const ownToolIds = new Set(
         state.messages.flatMap((message) =>
           message.type === "ai" && ownIds.has(message.id)
@@ -444,15 +481,15 @@ export const reduceAdkThreadState = (
         longRunningToolIds: mergeToolIds(
           action.state.longRunningToolIds,
           state.longRunningToolIds,
-        ),
+        ).filter((id) => !answeredToolIds.has(id)),
         toolConfirmations: mergeByToolCallId(
           action.state.toolConfirmations,
           state.toolConfirmations,
-        ),
+        ).filter((item) => !answeredToolIds.has(item.toolCallId)),
         authRequests: mergeByToolCallId(
           action.state.authRequests,
           state.authRequests,
-        ),
+        ).filter((item) => !answeredToolIds.has(item.toolCallId)),
         escalated: action.state.escalated || state.escalated,
         messageMetadata: new Map([
           ...action.state.messageMetadata,

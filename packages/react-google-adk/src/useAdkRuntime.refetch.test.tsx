@@ -10,7 +10,7 @@ import type {
 } from "@assistant-ui/core";
 import { useAui } from "@assistant-ui/store";
 import { useAdkRuntime } from "./useAdkRuntime";
-import { useAdkSend } from "./hooks";
+import { useAdkLongRunningToolIds, useAdkSend } from "./hooks";
 import type { AdkEvent, AdkMessage, AdkThreadSnapshot } from "./types";
 import { settleOutsideAct } from "./tests/settleOutsideAct";
 
@@ -68,6 +68,43 @@ const aiMessage = (id: string, text: string): AdkMessage => ({
   content: [{ type: "text", text }],
 });
 
+const originalTurn = async (): Promise<AdkThreadSnapshot> => ({
+  messages: [
+    { id: "q-0", type: "human", content: "earlier question" },
+    aiMessage("a-0", "earlier answer"),
+    { id: "q-1", type: "human", content: "original question" },
+    aiMessage("a-1", "original answer"),
+  ],
+});
+
+const threadTexts = (runtime: AssistantRuntime) =>
+  runtime.thread
+    .getState()
+    .messages.map(
+      (message) =>
+        `${message.role}:${message.content
+          .map((part) => (part.type === "text" ? part.text : part.type))
+          .join("|")}`,
+    );
+
+const originalTexts = [
+  "user:earlier question",
+  "assistant:earlier answer",
+  "user:original question",
+  "assistant:original answer",
+];
+
+const editAt = (
+  aui: ReturnType<typeof useAui>,
+  index: number,
+  text: string,
+) => {
+  const composer = aui.thread.message({ index }).composer();
+  composer.beginEdit();
+  composer.setText(text);
+  composer.send();
+};
+
 const renderAdk = async (
   load?: (
     threadId: string,
@@ -87,10 +124,12 @@ const renderAdk = async (
   const capture: {
     runtime: AssistantRuntime | null;
     send: ReturnType<typeof useAdkSend> | null;
-  } = { runtime: null, send: null };
+    longRunningToolIds: ReturnType<typeof useAdkLongRunningToolIds> | null;
+  } = { runtime: null, send: null, longRunningToolIds: null };
 
   const CaptureSend = () => {
     capture.send = useAdkSend();
+    capture.longRunningToolIds = useAdkLongRunningToolIds();
     return null;
   };
 
@@ -462,6 +501,397 @@ describe("useAdkRuntime refetch", () => {
         JSON.stringify(capture.runtime!.thread.getState().messages),
       ).toContain("answer");
     } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it("restores the original turn when a second pending edit fails", async () => {
+    const firstStreamStarted = deferred<void>();
+    const releaseFirstStream = deferred<void>();
+    let streamCall = 0;
+    const streamMock = vi.fn(async function* (
+      _messages: unknown,
+      _config: { checkpointId?: string },
+    ): AsyncGenerator<AdkEvent> {
+      if (streamCall++ === 0) {
+        firstStreamStarted.resolve();
+        await releaseFirstStream.promise;
+        return;
+      }
+      throw new Error("second edit failed before its first event");
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { capture } = await renderAdk(
+        originalTurn,
+        async () => null,
+        streamMock,
+      );
+      const { result } = renderHook(() => useAui(), {
+        wrapper: wrapperFactory(capture.runtime!),
+      });
+      const editComposer = () =>
+        result.current.thread.message({ index: 2 }).composer();
+
+      act(() => {
+        editComposer().beginEdit();
+        editComposer().setText("first edit");
+        editComposer().send();
+      });
+      await firstStreamStarted.promise;
+
+      act(() => {
+        editComposer().beginEdit();
+        editComposer().setText("second edit");
+        editComposer().send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      await waitFor(() =>
+        expect(
+          JSON.stringify(capture.runtime!.thread.getState().messages),
+        ).toContain("original answer"),
+      );
+
+      const messages = JSON.stringify(
+        capture.runtime!.thread.getState().messages,
+      );
+      expect(messages).toContain("original question");
+      expect(messages).toContain("original answer");
+      expect(messages).not.toContain("first edit");
+      expect(messages).not.toContain("second edit");
+    } finally {
+      releaseFirstStream.resolve();
+      consoleError.mockRestore();
+    }
+  });
+
+  it("keeps streamed progress when a later edit fails", async () => {
+    const firstStreamStarted = deferred<void>();
+    const releaseFirstStream = deferred<void>();
+    let streamCall = 0;
+    const streamMock = vi.fn(async function* (
+      _messages: unknown,
+      _config: { checkpointId?: string },
+    ): AsyncGenerator<AdkEvent> {
+      if (streamCall++ === 0) {
+        yield {
+          id: "first-edit-event",
+          invocationId: "first-edit-run",
+          author: "agent",
+          content: { role: "model", parts: [{ text: "first answer" }] },
+        };
+        firstStreamStarted.resolve();
+        await releaseFirstStream.promise;
+        return;
+      }
+      throw new Error("later edit failed before its first event");
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { capture } = await renderAdk(
+        originalTurn,
+        async () => null,
+        streamMock,
+      );
+      const { result } = renderHook(() => useAui(), {
+        wrapper: wrapperFactory(capture.runtime!),
+      });
+      const editComposer = () =>
+        result.current.thread.message({ index: 2 }).composer();
+
+      act(() => {
+        editComposer().beginEdit();
+        editComposer().setText("first edit");
+        editComposer().send();
+      });
+      await firstStreamStarted.promise;
+      await waitFor(() =>
+        expect(
+          JSON.stringify(capture.runtime!.thread.getState().messages),
+        ).toContain("first answer"),
+      );
+
+      act(() => {
+        editComposer().beginEdit();
+        editComposer().setText("second edit");
+        editComposer().send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      await waitFor(() =>
+        expect(
+          JSON.stringify(capture.runtime!.thread.getState().messages),
+        ).toContain("first answer"),
+      );
+
+      const messages = JSON.stringify(
+        capture.runtime!.thread.getState().messages,
+      );
+      expect(messages).toContain("first edit");
+      expect(messages).not.toContain("original answer");
+      expect(messages).not.toContain("second edit");
+    } finally {
+      releaseFirstStream.resolve();
+      consoleError.mockRestore();
+    }
+  });
+
+  it("restores the original turn when a reload chained onto a pending reload send fails", async () => {
+    const firstStreamStarted = deferred<void>();
+    const releaseFirstStream = deferred<void>();
+    let streamCall = 0;
+    const streamMock = vi.fn(async function* (
+      _messages: unknown,
+      _config: { checkpointId?: string },
+    ): AsyncGenerator<AdkEvent> {
+      if (streamCall++ === 0) {
+        firstStreamStarted.resolve();
+        await releaseFirstStream.promise;
+        return;
+      }
+      throw new Error("second reload failed before its first event");
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { capture } = await renderAdk(
+        originalTurn,
+        async () => null,
+        streamMock,
+      );
+      const answer = capture
+        .runtime!.thread.getState()
+        .messages.findLast((message) => message.role === "assistant")!;
+
+      act(() => {
+        capture.runtime!.thread.getMessageById(answer.id).reload();
+      });
+      await firstStreamStarted.promise;
+
+      act(() => {
+        capture.runtime!.thread.getMessageById(answer.id).reload();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      await waitFor(() =>
+        expect(
+          JSON.stringify(capture.runtime!.thread.getState().messages),
+        ).toContain("original answer"),
+      );
+
+      const messages = JSON.stringify(
+        capture.runtime!.thread.getState().messages,
+      );
+      expect(messages).toContain("original question");
+      expect(messages).toContain("original answer");
+    } finally {
+      releaseFirstStream.resolve();
+      consoleError.mockRestore();
+    }
+  });
+
+  it("restores an earlier answer when a reload follows a pending edit and fails", async () => {
+    const firstStarted = deferred<void>();
+    const releaseFirst = deferred<void>();
+    let streamCall = 0;
+    const streamMock = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
+      if (streamCall++ === 0) {
+        firstStarted.resolve();
+        await releaseFirst.promise;
+        return;
+      }
+      throw new Error("reload failed before its first event");
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { capture } = await renderAdk(
+        originalTurn,
+        async () => null,
+        streamMock,
+      );
+      const { result } = renderHook(() => useAui(), {
+        wrapper: wrapperFactory(capture.runtime!),
+      });
+      const earlierAnswer = capture.runtime!.thread.getState().messages[1]!;
+
+      act(() => editAt(result.current, 2, "first edit"));
+      await firstStarted.promise;
+      act(() => {
+        capture.runtime!.thread.getMessageById(earlierAnswer.id).reload();
+      });
+
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      await waitFor(() =>
+        expect(threadTexts(capture.runtime!)).toEqual(originalTexts),
+      );
+    } finally {
+      releaseFirst.resolve();
+      consoleError.mockRestore();
+    }
+  });
+
+  it("restores the original turn when an edit follows a pending reload and fails", async () => {
+    const firstStarted = deferred<void>();
+    const releaseFirst = deferred<void>();
+    let streamCall = 0;
+    const streamMock = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
+      if (streamCall++ === 0) {
+        firstStarted.resolve();
+        await releaseFirst.promise;
+        return;
+      }
+      throw new Error("edit failed before its first event");
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { capture } = await renderAdk(
+        originalTurn,
+        async () => null,
+        streamMock,
+      );
+      const { result } = renderHook(() => useAui(), {
+        wrapper: wrapperFactory(capture.runtime!),
+      });
+      const answer = capture.runtime!.thread.getState().messages[3]!;
+
+      act(() => capture.runtime!.thread.getMessageById(answer.id).reload());
+      await firstStarted.promise;
+      act(() => editAt(result.current, 2, "chained edit"));
+
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      await waitFor(() =>
+        expect(threadTexts(capture.runtime!)).toEqual(originalTexts),
+      );
+    } finally {
+      releaseFirst.resolve();
+      consoleError.mockRestore();
+    }
+  });
+
+  it("restores the original turn when a chained edit's checkpoint lookup fails", async () => {
+    const firstStarted = deferred<void>();
+    const releaseFirst = deferred<void>();
+    const streamMock = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
+      firstStarted.resolve();
+      await releaseFirst.promise;
+    });
+    let lookupCall = 0;
+    const getCheckpointId = vi.fn(async () => {
+      if (lookupCall++ === 0) return null;
+      throw new Error("checkpoint lookup failed");
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { capture } = await renderAdk(
+        originalTurn,
+        getCheckpointId,
+        streamMock,
+      );
+      const { result } = renderHook(() => useAui(), {
+        wrapper: wrapperFactory(capture.runtime!),
+      });
+
+      act(() => editAt(result.current, 2, "first edit"));
+      await firstStarted.promise;
+      act(() => editAt(result.current, 2, "second edit"));
+
+      await waitFor(() => expect(getCheckpointId).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(consoleError).toHaveBeenCalled());
+      expect(streamMock).toHaveBeenCalledOnce();
+      expect(threadTexts(capture.runtime!)).toEqual(originalTexts);
+    } finally {
+      releaseFirst.resolve();
+      consoleError.mockRestore();
+    }
+  });
+
+  it("restores the original turn when Stop interrupts a chained edit lookup", async () => {
+    const firstStarted = deferred<void>();
+    const releaseFirst = deferred<void>();
+    const secondLookup = deferred<string | null>();
+    const streamMock = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
+      firstStarted.resolve();
+      await releaseFirst.promise;
+    });
+    let lookupCall = 0;
+    const getCheckpointId = vi.fn(() =>
+      lookupCall++ === 0 ? Promise.resolve(null) : secondLookup.promise,
+    );
+    try {
+      const { capture } = await renderAdk(
+        originalTurn,
+        getCheckpointId,
+        streamMock,
+        false,
+        true,
+      );
+      const { result } = renderHook(() => useAui(), {
+        wrapper: wrapperFactory(capture.runtime!),
+      });
+
+      act(() => editAt(result.current, 2, "first edit"));
+      await firstStarted.promise;
+      act(() => editAt(result.current, 2, "second edit"));
+      await waitFor(() => expect(getCheckpointId).toHaveBeenCalledTimes(2));
+      act(() => capture.runtime!.thread.cancelRun());
+
+      await waitFor(() =>
+        expect(threadTexts(capture.runtime!)).toEqual(originalTexts),
+      );
+      expect(streamMock).toHaveBeenCalledOnce();
+    } finally {
+      secondLookup.resolve(null);
+      releaseFirst.resolve();
+    }
+  });
+
+  it("restores the original turn after three chained edits fail before an event", async () => {
+    const firstStarted = deferred<void>();
+    const secondStarted = deferred<void>();
+    const releasePending = deferred<void>();
+    let streamCall = 0;
+    const streamMock = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
+      const call = streamCall++;
+      if (call < 2) {
+        (call === 0 ? firstStarted : secondStarted).resolve();
+        await releasePending.promise;
+        return;
+      }
+      throw new Error("third edit failed before its first event");
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { capture } = await renderAdk(
+        originalTurn,
+        async () => null,
+        streamMock,
+      );
+      const { result } = renderHook(() => useAui(), {
+        wrapper: wrapperFactory(capture.runtime!),
+      });
+
+      act(() => editAt(result.current, 2, "first edit"));
+      await firstStarted.promise;
+      act(() => editAt(result.current, 2, "second edit"));
+      await secondStarted.promise;
+      act(() => editAt(result.current, 2, "third edit"));
+
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(3));
+      await waitFor(() => expect(consoleError).toHaveBeenCalled());
+      expect(threadTexts(capture.runtime!)).toEqual(originalTexts);
+    } finally {
+      releasePending.resolve();
       consoleError.mockRestore();
     }
   });
@@ -1177,6 +1607,50 @@ describe("useAdkRuntime refetch", () => {
     }
   });
 
+  it("restages each message separately when a combined resend fails before its first event", async () => {
+    const streamMock = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
+      throw new Error("resend failed before first event");
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { capture } = await renderAdk(
+        async () => ({ messages: [aiMessage("a-1", "answer")] }),
+        async () => null,
+        streamMock,
+      );
+      await act(async () => {
+        await capture.runtime!.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "staged one" }],
+          startRun: false,
+        });
+        await capture.runtime!.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "staged two" }],
+          startRun: false,
+        });
+      });
+      const staged = capture.runtime!.thread.getState().messages.at(-1)!;
+
+      await act(async () => {
+        await expect(
+          capture.runtime!.thread.startRun({ parentId: staged.id }),
+        ).rejects.toThrow("resend failed before first event");
+      });
+
+      expect(streamMock).toHaveBeenCalledOnce();
+      expect(threadTexts(capture.runtime!)).toEqual([
+        "assistant:answer",
+        "user:staged one",
+        "user:staged two",
+      ]);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it("keeps streamed progress when a reload fails after its first event", async () => {
     const streamMock = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
       yield {
@@ -1567,6 +2041,329 @@ describe("useAdkRuntime refetch", () => {
         requests.filter((request) => request.includes("other send")),
       ).toHaveLength(1);
     } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it("keeps a same-tick tool answer ahead of a failed staged resend", async () => {
+    const streamMock = vi.fn(async function* (
+      messages: unknown,
+    ): AsyncGenerator<AdkEvent> {
+      if (JSON.stringify(messages).includes("staged question"))
+        throw new Error("resend failed");
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { capture } = await renderAdk(
+        async () => ({
+          messages: [
+            {
+              id: "call",
+              type: "ai",
+              content: "calling",
+              tool_calls: [{ id: "x", name: "lookup", args: {} }],
+            },
+          ],
+          longRunningToolIds: ["x"],
+        }),
+        async () => null,
+        streamMock,
+      );
+      await act(async () => {
+        await capture.runtime!.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "staged question" }],
+          startRun: false,
+        });
+      });
+      const staged = capture.runtime!.thread.getState().messages.at(-1)!;
+      act(() => {
+        capture
+          .runtime!.thread.getMessageById("call")
+          .getMessagePartByToolCallId("x")
+          .addToolResult({ value: "X" });
+      });
+      await act(async () => {
+        await expect(
+          capture.runtime!.thread.startRun({ parentId: staged.id }),
+        ).rejects.toThrow("resend failed");
+      });
+      const messages = capture.runtime!.thread.getState().messages;
+      const callIndex = messages.findIndex((entry) => entry.id === "call");
+      const stagedIndex = messages.findIndex((entry) => entry.id === staged.id);
+      expect(callIndex).toBeGreaterThanOrEqual(0);
+      expect(messages[callIndex]?.content).toContainEqual(
+        expect.objectContaining({
+          type: "tool-call",
+          toolCallId: "x",
+          result: '{"value":"X"}',
+        }),
+      );
+      expect(stagedIndex).toBeGreaterThan(callIndex);
+      expect(capture.longRunningToolIds).toEqual([]);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it("keeps a fresh refetch after a same-tick reload send fails", async () => {
+    const loadResult = deferred<AdkThreadSnapshot>();
+    const checkpoint = deferred<string | null>();
+    const getCheckpointId = vi.fn(() => checkpoint.promise);
+    const load = vi.fn(async () =>
+      load.mock.calls.length === 1
+        ? {
+            messages: [
+              {
+                id: "old-question",
+                type: "human" as const,
+                content: "old question",
+              },
+              aiMessage("old-answer", "old answer"),
+            ],
+          }
+        : loadResult.promise,
+    );
+    const streamMock = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
+      throw new Error("reload send failed");
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { capture } = await renderAdk(load, getCheckpointId, streamMock);
+      const answer = capture
+        .runtime!.thread.getState()
+        .messages.find((entry) => entry.role === "assistant")!;
+      let refetch!: Promise<void>;
+      await act(async () => {
+        capture.runtime!.thread.getMessageById(answer.id).reload();
+        refetch = capture.runtime!.threads.reloadMainThread();
+        loadResult.resolve({ messages: [aiMessage("fresh", "fresh history")] });
+        await refetch;
+        checkpoint.resolve(null);
+      });
+      expect(load).toHaveBeenCalledTimes(2);
+      expect(getCheckpointId).toHaveBeenCalledOnce();
+      await waitFor(() => expect(streamMock).toHaveBeenCalledOnce());
+      await waitFor(() => expect(consoleError).toHaveBeenCalledOnce());
+      expect(threadTexts(capture.runtime!)).toEqual([
+        "assistant:fresh history",
+      ]);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it("restages a failed resend after a same-tick refetch", async () => {
+    const releaseSend = deferred<void>();
+    const load = vi.fn(async () =>
+      load.mock.calls.length === 1
+        ? { messages: [aiMessage("old", "old history")] }
+        : { messages: [aiMessage("fresh", "fresh history")] },
+    );
+    const streamMock = vi.fn(async function* (
+      _messages: unknown,
+    ): AsyncGenerator<AdkEvent> {
+      await releaseSend.promise;
+      throw new Error("resend failed before first event");
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { capture } = await renderAdk(load, async () => null, streamMock);
+      await act(async () => {
+        await capture.runtime!.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "staged question" }],
+          startRun: false,
+        });
+      });
+      const staged = capture.runtime!.thread.getState().messages.at(-1)!;
+      let resend!: Promise<void>;
+      let refetch!: Promise<void>;
+      act(() => {
+        resend = capture.runtime!.thread.startRun({
+          parentId: staged.id,
+        }) as unknown as Promise<void>;
+        void resend.catch(() => {});
+        refetch = capture.runtime!.threads.reloadMainThread();
+      });
+      await act(async () => {
+        await refetch;
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledOnce());
+      await act(async () => {
+        releaseSend.resolve();
+        await expect(resend).rejects.toThrow(
+          "resend failed before first event",
+        );
+      });
+
+      expect(threadTexts(capture.runtime!)).toEqual([
+        "assistant:fresh history",
+        "user:staged question",
+      ]);
+      await act(async () => {
+        await expect(
+          capture.runtime!.thread.startRun({ parentId: staged.id }),
+        ).rejects.toThrow("resend failed before first event");
+      });
+      expect(streamMock).toHaveBeenCalledTimes(2);
+      expect(JSON.stringify(streamMock.mock.calls[1]?.[0])).toContain(
+        "staged question",
+      );
+    } finally {
+      releaseSend.resolve();
+      consoleError.mockRestore();
+    }
+  });
+
+  it("restores fresh history when a reload chained after a same-tick refetch fails", async () => {
+    const checkpoint = deferred<string | null>();
+    const firstStarted = deferred<void>();
+    const releaseFirst = deferred<void>();
+    const freshTexts = [
+      ...originalTexts,
+      "user:fresh question",
+      "assistant:fresh answer",
+    ];
+    const load = vi.fn(async () =>
+      load.mock.calls.length === 1
+        ? {
+            messages: [
+              {
+                id: "q-1",
+                type: "human" as const,
+                content: "original question",
+              },
+              aiMessage("a-1", "original answer"),
+            ],
+          }
+        : {
+            messages: [
+              ...(await originalTurn()).messages,
+              { id: "q-2", type: "human" as const, content: "fresh question" },
+              aiMessage("a-2", "fresh answer"),
+            ],
+          },
+    );
+    const getCheckpointId = vi.fn(() =>
+      getCheckpointId.mock.calls.length === 1
+        ? checkpoint.promise
+        : Promise.resolve(null),
+    );
+    let streamCall = 0;
+    const streamMock = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
+      if (streamCall++ === 0) {
+        firstStarted.resolve();
+        await releaseFirst.promise;
+        return;
+      }
+      throw new Error("chained reload failed before its first event");
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { capture } = await renderAdk(load, getCheckpointId, streamMock);
+      const answer = capture.runtime!.thread.getState().messages[1]!;
+      let refetch!: Promise<void>;
+      await act(async () => {
+        capture.runtime!.thread.getMessageById(answer.id).reload();
+        refetch = capture.runtime!.threads.reloadMainThread();
+        await refetch;
+      });
+      expect(load).toHaveBeenCalledTimes(2);
+      expect(threadTexts(capture.runtime!)).toEqual(freshTexts);
+
+      await act(async () => checkpoint.resolve(null));
+      await firstStarted.promise;
+      act(() => capture.runtime!.thread.getMessageById("a-2").reload());
+
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      await waitFor(() =>
+        expect(threadTexts(capture.runtime!)).toEqual(freshTexts),
+      );
+    } finally {
+      checkpoint.resolve(null);
+      releaseFirst.resolve();
+      consoleError.mockRestore();
+    }
+  });
+
+  it("keeps a cancelled partial reply when a staged resend fails", async () => {
+    const pending = deferred<void>();
+    const streamMock = vi.fn(async function* (
+      messages: unknown,
+    ): AsyncGenerator<AdkEvent> {
+      if (JSON.stringify(messages).includes("staged question"))
+        throw new Error("resend failed");
+      yield {
+        id: "partial",
+        invocationId: "run-1",
+        author: "agent",
+        partial: true,
+        content: { role: "model", parts: [{ text: "partial answer" }] },
+      };
+      await pending.promise;
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { capture } = await renderAdk(
+        async () => ({ messages: [] }),
+        async () => null,
+        streamMock,
+      );
+      await act(async () => {
+        await capture.runtime!.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "staged question" }],
+          startRun: false,
+        });
+      });
+      const staged = capture.runtime!.thread.getState().messages.at(-1)!;
+      act(() => {
+        void capture.send!(
+          [{ id: "first", type: "human", content: "first" }],
+          {},
+        );
+      });
+      await waitFor(() =>
+        expect(
+          capture
+            .runtime!.thread.getState()
+            .messages.some((entry) =>
+              entry.content.some(
+                (part) =>
+                  part.type === "text" && part.text === "partial answer",
+              ),
+            ),
+        ).toBe(true),
+      );
+      await act(async () => {
+        await expect(
+          capture.runtime!.thread.startRun({ parentId: staged.id }),
+        ).rejects.toThrow("resend failed");
+      });
+      const reply = capture
+        .runtime!.thread.getState()
+        .messages.find((entry) =>
+          entry.content.some(
+            (part) => part.type === "text" && part.text === "partial answer",
+          ),
+        );
+      expect(reply?.status).toEqual({
+        type: "incomplete",
+        reason: "cancelled",
+      });
+    } finally {
+      pending.resolve();
       consoleError.mockRestore();
     }
   });
