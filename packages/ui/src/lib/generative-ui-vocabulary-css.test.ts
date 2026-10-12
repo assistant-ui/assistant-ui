@@ -29,7 +29,14 @@ const defaultThemeCss = readFileSync(
 
 const defaultThemeToken = (
   mode: ThemeMode,
-  name: "background" | "foreground" | "destructive",
+  name:
+    | "background"
+    | "foreground"
+    | "destructive"
+    | "muted"
+    | "primary"
+    | "primary-foreground"
+    | "secondary-foreground",
 ) => {
   const selector = mode === "light" ? ":root" : "\\.dark";
   const block = defaultThemeCss.match(
@@ -159,6 +166,60 @@ describe("tone text contrast", () => {
       }
     },
   );
+});
+
+describe("Badge contrast inside tinted Cards", () => {
+  const defaultSelector =
+    '[data-aui="card"][data-aui-background][data-aui-surface] [data-aui="badge"]:not([data-aui-variant="info"]):not([data-aui-variant="success"]):not([data-aui-variant="warning"]):not([data-aui-variant="danger"])';
+  const infoSelector =
+    '[data-aui="card"][data-aui-background][data-aui-surface] [data-aui="badge"][data-aui-variant="info"]';
+
+  it("gives default and info Badges opaque theme surface pairs", () => {
+    expect(rules[defaultSelector]).toEqual({
+      "background-color": "var(--muted)",
+      color: "var(--secondary-foreground)",
+    });
+    expect(rules[infoSelector]).toEqual({
+      "background-color": "var(--primary)",
+      color: "var(--primary-foreground)",
+    });
+  });
+
+  it("keeps both pairs readable in the light and dark themes", () => {
+    for (const mode of ["light", "dark"] as const) {
+      const muted = toSrgb(toOklab(defaultThemeToken(mode, "muted")));
+      const secondaryForeground = toSrgb(
+        toOklab(defaultThemeToken(mode, "secondary-foreground")),
+      );
+      const primary = toSrgb(toOklab(defaultThemeToken(mode, "primary")));
+      const primaryForeground = toSrgb(
+        toOklab(defaultThemeToken(mode, "primary-foreground")),
+      );
+
+      expect(contrastRatio(secondaryForeground, muted)).toBeGreaterThanOrEqual(
+        4.5,
+      );
+      expect(contrastRatio(primaryForeground, primary)).toBeGreaterThanOrEqual(
+        4.5,
+      );
+    }
+  });
+
+  it("keeps the opaque pairs when the Elements theme overrides Badge colors", () => {
+    for (const scope of [
+      '[data-aui-theme="elements"]',
+      '.dark [data-aui-theme="elements"]',
+    ]) {
+      expect(themedRules[`${scope} ${defaultSelector}`]).toMatchObject({
+        "background-color": "var(--muted)",
+        color: "var(--secondary-foreground)",
+      });
+      expect(themedRules[`${scope} ${infoSelector}`]).toMatchObject({
+        "background-color": "var(--primary)",
+        color: "var(--primary-foreground)",
+      });
+    }
+  });
 });
 
 describe("card surface", () => {

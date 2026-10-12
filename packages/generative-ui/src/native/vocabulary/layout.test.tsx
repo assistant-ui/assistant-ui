@@ -260,6 +260,96 @@ describe("layout vocabulary on React Native", () => {
     expect(badge.style.color).toBe(toneTextColor("#d58300", "#ffffff"));
   });
 
+  it.each([
+    {
+      mode: "light",
+      tint: "#fff7ed",
+      secondary: "rgb(245, 245, 245)",
+      secondaryForeground: "rgb(23, 23, 23)",
+      primary: "rgb(23, 23, 23)",
+      primaryForeground: "rgb(250, 250, 250)",
+    },
+    {
+      mode: "light",
+      tint: "#1e3a8a",
+      secondary: "rgb(245, 245, 245)",
+      secondaryForeground: "rgb(23, 23, 23)",
+      primary: "rgb(23, 23, 23)",
+      primaryForeground: "rgb(250, 250, 250)",
+    },
+    {
+      mode: "dark",
+      tint: "#fff7ed",
+      secondary: "rgb(38, 38, 38)",
+      secondaryForeground: "rgb(250, 250, 250)",
+      primary: "rgb(229, 229, 229)",
+      primaryForeground: "rgb(23, 23, 23)",
+    },
+    {
+      mode: "dark",
+      tint: "#1e3a8a",
+      secondary: "rgb(38, 38, 38)",
+      secondaryForeground: "rgb(250, 250, 250)",
+      primary: "rgb(229, 229, 229)",
+      primaryForeground: "rgb(23, 23, 23)",
+    },
+  ] as const)(
+    "uses opaque default and info Badge pairs in the $mode theme on $tint",
+    ({
+      mode,
+      tint,
+      secondary,
+      secondaryForeground,
+      primary,
+      primaryForeground,
+    }) => {
+      scheme.current = mode;
+      const { container } = renderNativeSpec(
+        spec({
+          main: {
+            type: "Card",
+            props: { background: tint },
+            children: ["defaultBadge", "infoBadge"],
+          },
+          defaultBadge: { type: "Badge", props: { value: "Default" } },
+          infoBadge: {
+            type: "Badge",
+            props: { value: "Info", variant: "info" },
+          },
+        }),
+      );
+      const text = (value: string) =>
+        [...container.querySelectorAll<HTMLElement>("div")].find(
+          (element) =>
+            element.textContent === value && element.children.length === 0,
+        )!;
+      const defaultText = text("Default");
+      const infoText = text("Info");
+
+      expect(defaultText.style.color).toBe(secondaryForeground);
+      expect(defaultText.parentElement!.style.backgroundColor).toBe(secondary);
+      expect(infoText.style.color).toBe(primaryForeground);
+      expect(infoText.parentElement!.style.backgroundColor).toBe(primary);
+    },
+  );
+
+  it("preserves the translucent info Badge outside a tinted Card", () => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: { type: "Badge", props: { value: "Info", variant: "info" } },
+      }),
+    );
+    const info = [...container.querySelectorAll<HTMLElement>("div")].find(
+      (element) =>
+        element.textContent === "Info" && element.children.length === 0,
+    )!;
+
+    expect(info.style.color).toBe("rgb(23, 23, 23)");
+    expect(info.parentElement!.style.backgroundColor).toBe(
+      "rgba(23, 23, 23, 0.15)",
+    );
+  });
+
   it("frames a plain Card as a surface inside a Carousel slide", () => {
     const container = renderElement(
       createElement(
