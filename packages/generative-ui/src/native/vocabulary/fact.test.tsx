@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { toneTextColor } from "../theme";
 import {
   cleanupSpecs,
   contrastRatio,
@@ -135,8 +134,4 @@ describe("Fact on React Native", () => {
       }
     },
   );
-
-  it("derives native tone text with the same Oklab mix as the web", () => {
-    expect(toneTextColor("#2a984b", "#0a0a0a")).toBe("rgb(35, 90, 48)");
-  });
 });

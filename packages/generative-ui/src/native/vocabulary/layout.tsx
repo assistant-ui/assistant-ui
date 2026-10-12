@@ -203,7 +203,7 @@ function Badge({
           : variant === "danger"
             ? theme.destructive
             : undefined;
-  const textColor =
+  const labelColor =
     tone && variant !== "info"
       ? toneTextColor(tone, ink)
       : (tone ?? fade(ink, 0.62));
@@ -215,7 +215,7 @@ function Badge({
           { backgroundColor: tone ? fade(tone, 0.15) : theme.secondary },
         ]}
       >
-        <Text style={[styles.badgeText, { color: textColor }]}>
+        <Text style={[styles.badgeText, { color: labelColor }]}>
           {toTextContent(value)}
         </Text>
         {children}

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { dimension, nativeColor } from "./theme";
+import { dimension, nativeColor, toneTextColor } from "./theme";
 import { byRole, cleanupSpecs, renderNativeSpec, spec } from "./testUtils";
 
 const scheme = vi.hoisted(() => ({ current: "light" as "light" | "dark" }));
@@ -16,6 +16,10 @@ afterEach(() => {
 });
 
 describe("React Native theme", () => {
+  it("mixes 60% tone with 40% ink in Oklab", () => {
+    expect(toneTextColor("#2a984b", "#0a0a0a")).toBe("rgb(35, 90, 48)");
+  });
+
   it("paints only colors React Native understands", () => {
     expect(["#123456", "red", "rgb(1, 2, 3)"].map(nativeColor)).toEqual([
       "#123456",

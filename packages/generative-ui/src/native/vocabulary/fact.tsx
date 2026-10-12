@@ -48,7 +48,7 @@ function Fact({
       : tone === "bad"
         ? theme.destructive
         : theme.secondaryForeground;
-  const textColor = tone === "neutral" ? color : toneTextColor(color, ink);
+  const chipColor = tone === "neutral" ? color : toneTextColor(color, ink);
   return (
     <View>
       <Text style={[styles.label, { color: fade(ink, 0.62) }]}>
@@ -68,7 +68,7 @@ function Fact({
               },
             ]}
           >
-            <Text style={[styles.chipText, { color: textColor }]}>
+            <Text style={[styles.chipText, { color: chipColor }]}>
               {formatFactDelta(delta, direction)}
             </Text>
           </View>

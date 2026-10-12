@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { act, createElement } from "react";
-import { CardSurfaceProvider } from "../theme";
+import { CardSurfaceProvider, toneTextColor } from "../theme";
 import { layoutVocabulary } from "./layout";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -126,6 +126,37 @@ describe("layout vocabulary on React Native", () => {
     const title = byRole(container, "heading", "Plan");
     expect(title.parentElement!.style.backgroundColor).toBe("rgb(18, 52, 86)");
     expect(title.style.color).toBe("rgb(255, 255, 255)");
+  });
+
+  it("mixes Fact delta and Badge text with a tinted Card's white ink", () => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: {
+          type: "Card",
+          props: { background: "#123456" },
+          children: ["fact", "badge"],
+        },
+        fact: {
+          type: "Fact",
+          props: { label: "Revenue", value: "$12k", delta: "+8%" },
+        },
+        badge: {
+          type: "Badge",
+          props: { value: "Caution", variant: "warning" },
+        },
+      }),
+    );
+    const text = [...container.querySelectorAll<HTMLElement>("div")];
+    const delta = text.find(
+      (element) =>
+        element.textContent === "↑ 8%" && element.children.length === 0,
+    )!;
+    const badge = text.find(
+      (element) =>
+        element.textContent === "Caution" && element.children.length === 0,
+    )!;
+    expect(delta.style.color).toBe(toneTextColor("#2a984b", "#ffffff"));
+    expect(badge.style.color).toBe(toneTextColor("#d58300", "#ffffff"));
   });
 
   it("frames a plain Card as a surface inside a Carousel slide", () => {

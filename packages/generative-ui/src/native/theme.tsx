@@ -67,6 +67,7 @@ const fromOklab = ([lightness, a, b]: Oklab) => {
   ];
 };
 
+/** Mixes a `#rrggbb` tone at 60% with 40% ink in Oklab. */
 export const toneTextColor = (tone: string, foreground: string) => {
   const [lightness, a, b] = toOklab(tone);
   const [foregroundLightness, foregroundA, foregroundB] = toOklab(foreground);
