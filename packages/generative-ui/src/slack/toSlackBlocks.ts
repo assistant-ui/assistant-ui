@@ -30,6 +30,7 @@ import {
 import {
   ACTION_ID_CAP,
   ACTIONS_ELEMENT_CAP,
+  ALERT_FALLBACK_TITLE_MARKUP_LENGTH,
   ALERT_TEXT_CAP,
   BUTTON_VALUE_CAP,
   CARD_ACTIONS_CAP,
@@ -158,6 +159,33 @@ const clampText = (
   return value.slice(0, cap);
 };
 
+const escapeMrkdwn = (value: string): string =>
+  value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+const clampEscapedMrkdwn = (
+  value: string,
+  cap: number,
+  component: string,
+  field: string,
+  context: ConversionContext,
+): string => {
+  const clamped = clampText(value, cap, component, field, context);
+  if (clamped.length === value.length) return clamped;
+  const entityStart = clamped.lastIndexOf("&");
+  return entityStart > clamped.lastIndexOf(";")
+    ? clamped.slice(0, entityStart)
+    : clamped;
+};
+
+const clampMrkdwn = (
+  value: string,
+  cap: number,
+  component: string,
+  field: string,
+  context: ConversionContext,
+): string =>
+  clampEscapedMrkdwn(escapeMrkdwn(value), cap, component, field, context);
+
 const asActionId = (
   action: unknown,
   component: string,
@@ -178,14 +206,11 @@ const plainText = (text: string): SlackPlainText => ({
   text,
 });
 
-const escapeMrkdwn = (text: string): string =>
-  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
 // An OpenStreetMap link stays under 100 characters, so these caps keep a place's section under Slack's limit with its link intact.
 const PLACE_LABEL_CAP = 500;
 const PLACE_DETAIL_CAP = 2000;
 
-const structuredSection = (
+const escapedSection = (
   text: string,
   component: string,
   context: ConversionContext,
@@ -193,7 +218,13 @@ const structuredSection = (
   type: "section",
   text: {
     type: "mrkdwn",
-    text: clampText(text, SECTION_TEXT_CAP, component, "text", context),
+    text: clampEscapedMrkdwn(
+      text,
+      SECTION_TEXT_CAP,
+      component,
+      "text",
+      context,
+    ),
   },
 });
 
@@ -667,16 +698,18 @@ const convertFacts = (
   context: ConversionContext,
 ): SlackBlock[] => {
   const fields = facts.map((fact) => {
-    const label = asTextValue(fact.props["label"]);
-    const value = asTextValue(fact.props["value"]);
+    const label = escapeMrkdwn(asTextValue(fact.props["label"]));
+    const value = escapeMrkdwn(asTextValue(fact.props["value"]));
     const delta = fact.props["delta"];
     const deltaText =
       typeof delta === "string"
-        ? formatFactDelta(delta, factTrend(delta, fact.props["trend"]))
+        ? escapeMrkdwn(
+            formatFactDelta(delta, factTrend(delta, fact.props["trend"])),
+          )
         : undefined;
     return {
       type: "mrkdwn" as const,
-      text: clampText(
+      text: clampEscapedMrkdwn(
         `*${label}*\n${deltaText === undefined ? value : `${value} (${deltaText})`}`,
         FACT_FIELD_TEXT_CAP,
         "Fact",
@@ -845,12 +878,9 @@ const cardHasButtons = (element: NormalizedUIElement): boolean =>
 
 const cardTitleText = (
   props: Readonly<Record<string, unknown>>,
-  context: ConversionContext,
 ): string | undefined => {
   const rawTitle = asTextValue(props["title"]);
-  return rawTitle
-    ? clampText(rawTitle, CARD_TITLE_CAP, "Card", "title", context)
-    : undefined;
+  return rawTitle || undefined;
 };
 
 const isCardNoOp = (node: NormalizedUINode): boolean =>
@@ -956,7 +986,7 @@ const assembleCleanCard = (
     fields.bodyRaw !== undefined
       ? {
           type: "mrkdwn",
-          text: clampText(
+          text: clampMrkdwn(
             fields.bodyRaw,
             CARD_BODY_CAP,
             "Card",
@@ -969,7 +999,7 @@ const assembleCleanCard = (
     fields.subtextRaw !== undefined
       ? {
           type: "mrkdwn",
-          text: clampText(
+          text: clampMrkdwn(
             fields.subtextRaw,
             CARD_SUBTEXT_CAP,
             "Card",
@@ -993,7 +1023,18 @@ const assembleCleanCard = (
   return buildCardBlock({
     ...(fields.heroImage !== undefined ? { heroImage: fields.heroImage } : {}),
     ...(titleText !== undefined
-      ? { title: { type: "mrkdwn", text: titleText } }
+      ? {
+          title: {
+            type: "mrkdwn",
+            text: clampMrkdwn(
+              titleText,
+              CARD_TITLE_CAP,
+              "Card",
+              "title",
+              context,
+            ),
+          },
+        }
       : {}),
     ...(body !== undefined ? { body } : {}),
     ...(subtext !== undefined ? { subtext } : {}),
@@ -1031,7 +1072,7 @@ const convertCard = (
   context: ConversionContext,
   depth: number,
 ): SlackBlock[] => {
-  const titleText = cardTitleText(element.props, context);
+  const titleText = cardTitleText(element.props);
   const fields = extractCardFields(element);
   const buttons = cardActionButtons(element, context);
 
@@ -1044,7 +1085,14 @@ const convertCard = (
     );
     return [
       ...(titleText
-        ? [{ type: "header" as const, text: plainText(titleText) }]
+        ? [
+            {
+              type: "header" as const,
+              text: plainText(
+                clampText(titleText, CARD_TITLE_CAP, "Card", "title", context),
+              ),
+            },
+          ]
         : []),
       ...(element.props["asForm"] === true
         ? convertFormChildren(element, context, depth)
@@ -1124,14 +1172,14 @@ const degradeCard = (
   const textChunks = collectText(element.children, depth + 1);
   const titleSource = rawTitle || textChunks[0] || "";
   const bodyChunks = rawTitle ? textChunks : textChunks.slice(1);
-  const titleText = clampText(
+  const titleText = clampMrkdwn(
     titleSource,
     CARD_TITLE_CAP,
     "Card",
     "title",
     context,
   );
-  const bodyText = clampText(
+  const bodyText = clampMrkdwn(
     bodyChunks.join("\n"),
     CARD_BODY_CAP,
     "Card",
@@ -1173,7 +1221,7 @@ const convertCarouselCard = (
   const card =
     fields.leftover.length === 0
       ? assembleCleanCard(
-          cardTitleText(element.props, context),
+          cardTitleText(element.props),
           fields,
           cardActionButtons(element, context),
           context,
@@ -1222,7 +1270,7 @@ const contextRow = (
       type: "context",
       elements: boundedChildren.map((child) => ({
         type: "mrkdwn",
-        text: clampText(
+        text: clampMrkdwn(
           asTextValue(child.props["value"]),
           CONTEXT_TEXT_CAP,
           child.type,
@@ -1239,7 +1287,7 @@ const convertListItem = (
   context: ConversionContext,
   depth: number,
 ): SlackBlock => {
-  const text = clampText(
+  const text = clampMrkdwn(
     collectText(element.children, depth + 1).join("\n"),
     SECTION_TEXT_CAP,
     "ListViewItem",
@@ -1519,7 +1567,7 @@ const convertElement = (
           type: "section",
           text: {
             type: "mrkdwn",
-            text: clampText(
+            text: clampMrkdwn(
               asTextValue(props["value"]),
               SECTION_TEXT_CAP,
               "Text",
@@ -1537,7 +1585,7 @@ const convertElement = (
           elements: [
             {
               type: "mrkdwn",
-              text: clampText(
+              text: clampMrkdwn(
                 asTextValue(props["value"]),
                 CONTEXT_TEXT_CAP,
                 element.type,
@@ -1695,7 +1743,7 @@ const convertElement = (
         const combined = [titleText, description].filter(Boolean).join("\n");
         return [
           buildAlertBlock(
-            clampText(combined, ALERT_TEXT_CAP, "Alert", "text", context),
+            clampMrkdwn(combined, ALERT_TEXT_CAP, "Alert", "text", context),
             tone,
           ),
         ];
@@ -1708,8 +1756,14 @@ const convertElement = (
       );
       return [
         ...buildAlertFallback(
-          titleText,
-          clampText(
+          clampMrkdwn(
+            titleText,
+            CONTEXT_TEXT_CAP - ALERT_FALLBACK_TITLE_MARKUP_LENGTH,
+            "Alert",
+            "title",
+            context,
+          ),
+          clampMrkdwn(
             description,
             SECTION_TEXT_CAP,
             "Alert",
@@ -1758,7 +1812,7 @@ const convertElement = (
           type: "section",
           text: {
             type: "mrkdwn",
-            text: clampText(
+            text: clampMrkdwn(
               value,
               SECTION_TEXT_CAP,
               "Markdown",
@@ -1801,7 +1855,7 @@ const convertElement = (
         );
       const labels = tabLabels(given, panels.length);
       return labels.flatMap((label, index) => [
-        structuredSection(`*${escapeMrkdwn(label)}*`, "Tabs", context),
+        escapedSection(`*${escapeMrkdwn(label)}*`, "Tabs", context),
         ...(panels[index] !== undefined
           ? convertSequence(panels[index], context, depth + 1)
           : []),
@@ -1829,7 +1883,7 @@ const convertElement = (
           `${dropped} malformed ${dropped === 1 ? "entry was" : "entries were"} dropped.`,
         );
       return steps.map((step, index) =>
-        structuredSection(
+        escapedSection(
           `*${index + 1}. ${escapeMrkdwn(step.title)}*${step.detail !== undefined ? `\n${escapeMrkdwn(step.detail)}` : ""}`,
           "Steps",
           context,
@@ -1858,7 +1912,7 @@ const convertElement = (
           `${dropped} malformed ${dropped === 1 ? "entry was" : "entries were"} dropped.`,
         );
       return items.map((item) =>
-        structuredSection(
+        escapedSection(
           [
             ...(item.time !== undefined
               ? [`*${escapeMrkdwn(item.time)}*`]
@@ -1879,7 +1933,7 @@ const convertElement = (
           : escapeMrkdwn(href).replace(/\|/g, "%7C");
       const linked =
         target !== undefined && target.length + 3 < SECTION_TEXT_CAP;
-      const title = clampText(
+      const title = clampEscapedMrkdwn(
         escapeMrkdwn(asTextValue(props["title"])),
         SECTION_TEXT_CAP - (linked ? target.length + 3 : 0),
         "Citation",
@@ -1899,14 +1953,14 @@ const convertElement = (
         );
       const snippet =
         quoted !== undefined && room > 0
-          ? clampText(quoted, room, "Citation", "snippet", context)
+          ? clampEscapedMrkdwn(quoted, room, "Citation", "snippet", context)
           : undefined;
       const sourceText = asTextValue(props["source"]);
       const source =
         sourceText ||
         (props["source"] === "" || !href ? undefined : linkHost(href));
       return [
-        structuredSection(
+        escapedSection(
           snippet !== undefined ? `${head}\n${snippet}` : head,
           "Citation",
           context,
@@ -1918,7 +1972,7 @@ const convertElement = (
                 elements: [
                   {
                     type: "mrkdwn" as const,
-                    text: clampText(
+                    text: clampEscapedMrkdwn(
                       escapeMrkdwn(source),
                       CONTEXT_TEXT_CAP,
                       "Citation",
@@ -1934,7 +1988,7 @@ const convertElement = (
     }
     case "Diagram": {
       // A fence inside the source would close the code block early, so a zero-width space splits it.
-      const code = clampText(
+      const code = clampEscapedMrkdwn(
         escapeMrkdwn(asString(props["code"])).replaceAll(
           "```",
           `\`\`${String.fromCharCode(0x200b)}\``,
@@ -1946,7 +2000,7 @@ const convertElement = (
       );
       const title = asTextValue(props["title"]);
       return [
-        structuredSection(`\`\`\`\n${code}\n\`\`\``, "Diagram", context),
+        escapedSection(`\`\`\`\n${code}\n\`\`\``, "Diagram", context),
         ...(title
           ? [
               {
@@ -1954,7 +2008,7 @@ const convertElement = (
                 elements: [
                   {
                     type: "mrkdwn" as const,
-                    text: clampText(
+                    text: clampEscapedMrkdwn(
                       escapeMrkdwn(title),
                       CONTEXT_TEXT_CAP,
                       "Diagram",
@@ -1990,8 +2044,8 @@ const convertElement = (
           `${dropped} malformed ${dropped === 1 ? "entry was" : "entries were"} dropped.`,
         );
       return places.map((place) =>
-        structuredSection(
-          `<${escapeMrkdwn(placeHref(place))}|${clampText(escapeMrkdwn(place.label), PLACE_LABEL_CAP, "Map", "label", context)}>${place.detail !== undefined ? `\n${clampText(escapeMrkdwn(place.detail), PLACE_DETAIL_CAP, "Map", "detail", context)}` : ""}`,
+        escapedSection(
+          `<${escapeMrkdwn(placeHref(place))}|${clampEscapedMrkdwn(escapeMrkdwn(place.label), PLACE_LABEL_CAP, "Map", "label", context)}>${place.detail !== undefined ? `\n${clampEscapedMrkdwn(escapeMrkdwn(place.detail), PLACE_DETAIL_CAP, "Map", "detail", context)}` : ""}`,
           "Map",
           context,
         ),
@@ -2057,7 +2111,7 @@ function convertSequence(
         type: "section",
         text: {
           type: "mrkdwn",
-          text: clampText(
+          text: clampMrkdwn(
             String(current),
             SECTION_TEXT_CAP,
             "Text",

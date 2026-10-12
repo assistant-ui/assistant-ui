@@ -46,9 +46,9 @@ export function createGenerativeUISuite({
   let renderer: Promise<Renderer> | undefined;
   const renderAnswer: RenderAnswer =
     render ??
-    (async (format, artifact) => {
+    (async (format, artifact, prose) => {
       renderer ??= createRenderer();
-      return (await renderer).render(format, artifact);
+      return (await renderer).render(format, artifact, prose);
     });
 
   const saved = new Map<string, number>();
@@ -84,7 +84,11 @@ export function createGenerativeUISuite({
         candidate.format,
         maxRepairRounds,
       );
-      const rendered = await renderAnswer(answer.answeredIn, answer.artifact);
+      const rendered = await renderAnswer(
+        answer.answeredIn,
+        answer.artifact,
+        answer.prose,
+      );
       const path = trialPath(task, candidate);
       const screenshots = path
         ? rendered.screenshots.map((png, i) => {

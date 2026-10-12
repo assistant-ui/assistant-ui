@@ -30,7 +30,7 @@ export const useAdkAgentInfo = () =>
 export const useAdkSessionState = () =>
   adkExtras.use((e) => e.stateDelta, EMPTY_STATE_DELTA);
 
-/** Returns a function to send raw ADK messages. */
+/** Returns a function to send ADK messages. */
 export const useAdkSend = () => {
   const aui = useAui();
   return (messages: AdkMessage[], config: AdkSendMessageConfig) =>

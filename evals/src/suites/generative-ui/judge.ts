@@ -61,7 +61,9 @@ export async function judgeAnswer(
               task.prompt,
               "</request>",
               "",
-              `The assistant answered with ${RENDERED_AS[format]}. These screenshots show it from top to bottom, the way the user first sees it, ${RENDER_WIDTH} px wide:`,
+              answer.prose.before || answer.prose.after
+                ? `The assistant answered with ${RENDERED_AS[format]}, with text it wrote above or below it. These screenshots show both from top to bottom, the way the user first sees them, ${RENDER_WIDTH} px wide:`
+                : `The assistant answered with ${RENDERED_AS[format]}. These screenshots show it from top to bottom, the way the user first sees it, ${RENDER_WIDTH} px wide:`,
             ].join("\n"),
           },
           ...rendered.screenshots.map((data) => ({

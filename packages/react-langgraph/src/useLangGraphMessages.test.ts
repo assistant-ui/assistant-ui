@@ -1444,6 +1444,339 @@ describe("useLangGraphMessages", {}, () => {
     });
 
     await expect(sendMessagePromise).rejects.toBe(streamError);
+    expect(result.current.messages).toHaveLength(1);
+    expect(result.current.messages[0]?.content).toBe("trigger error");
+  });
+
+  it("restores the earlier message when a synchronous stream failure reuses its id", async () => {
+    const streamError = new Error("stream failed before the first event");
+    const streamSpy = vi.fn().mockImplementation(() => {
+      throw streamError;
+    });
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamSpy,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+    const previousMessage = {
+      id: "previous-message",
+      type: "human" as const,
+      content: "Earlier turn",
+    };
+    act(() => result.current.setMessages([previousMessage]));
+
+    let sendMessagePromise!: Promise<void>;
+    act(() => {
+      sendMessagePromise = result.current.sendMessage(
+        [{ ...previousMessage, content: "Failed turn" }],
+        {},
+      );
+    });
+
+    await expect(sendMessagePromise).rejects.toBe(streamError);
+    expect(result.current.messages).toEqual([previousMessage]);
+  });
+
+  it("removes a fresh submitted message when the stream throws synchronously", async () => {
+    const streamError = new Error("stream failed before the first event");
+    const streamSpy = vi.fn().mockImplementation(() => {
+      throw streamError;
+    });
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamSpy,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+    const previousMessage = {
+      id: "previous-message",
+      type: "human" as const,
+      content: "Earlier turn",
+    };
+    act(() => result.current.setMessages([previousMessage]));
+
+    let sendMessagePromise!: Promise<void>;
+    act(() => {
+      sendMessagePromise = result.current.sendMessage(
+        [{ id: "failed-message", type: "human", content: "Failed turn" }],
+        {},
+      );
+    });
+
+    await expect(sendMessagePromise).rejects.toBe(streamError);
+    expect(result.current.messages).toEqual([previousMessage]);
+  });
+
+  it("removes submitted messages when the stream fails before its first event", async () => {
+    const streamError = new Error("stream failed before the first event");
+    const streamSpy = vi.fn().mockImplementation(async () => {
+      async function* streamResponse() {
+        throw streamError;
+      }
+
+      return streamResponse();
+    });
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamSpy,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+    const previousMessage = {
+      id: "previous-message",
+      type: "human" as const,
+      content: "Earlier turn",
+    };
+    act(() => result.current.setMessages([previousMessage]));
+
+    let sendMessagePromise!: Promise<void>;
+    act(() => {
+      sendMessagePromise = result.current.sendMessage(
+        [{ id: "failed-message", type: "human", content: "Failed turn" }],
+        {},
+      );
+    });
+
+    await act(async () => {
+      await expect(sendMessagePromise).rejects.toBe(streamError);
+    });
+    expect(result.current.messages).toEqual([previousMessage]);
+  });
+
+  it("restores an explicitly removed message when the stream fails before its first event", async () => {
+    const streamError = new Error("stream failed before the first event");
+    const streamSpy = vi.fn(async function* () {
+      throw streamError;
+    });
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamSpy,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+    const earlier = { id: "earlier", type: "human" as const, content: "First" };
+    const later = { id: "later", type: "human" as const, content: "Second" };
+    act(() => result.current.setMessages([earlier, later]));
+
+    let sendMessagePromise!: Promise<void>;
+    act(() => {
+      sendMessagePromise = result.current.sendMessage(
+        [
+          { id: "earlier", type: "remove", content: [] },
+          { id: "failed", type: "human", content: "Failed turn" },
+        ],
+        {},
+      );
+    });
+
+    await act(async () => {
+      await expect(sendMessagePromise).rejects.toBe(streamError);
+    });
+    expect(result.current.messages).toEqual([earlier, later]);
+  });
+
+  it("restores all removed messages when the stream fails before its first event", async () => {
+    const streamError = new Error("stream failed before the first event");
+    const streamSpy = vi.fn(async function* () {
+      throw streamError;
+    });
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamSpy,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+    const earlier = { id: "earlier", type: "human" as const, content: "First" };
+    const later = { id: "later", type: "human" as const, content: "Second" };
+    act(() => result.current.setMessages([earlier, later]));
+
+    let sendMessagePromise!: Promise<void>;
+    act(() => {
+      sendMessagePromise = result.current.sendMessage(
+        [
+          { id: "__remove_all__", type: "remove", content: [] },
+          { id: "failed", type: "human", content: "Failed turn" },
+        ],
+        {},
+      );
+    });
+
+    await act(async () => {
+      await expect(sendMessagePromise).rejects.toBe(streamError);
+    });
+    expect(result.current.messages).toEqual([earlier, later]);
+  });
+
+  it("keeps a staged message after restoring removed messages on a pre-event failure", async () => {
+    const streamError = new Error("stream failed before the first event");
+    let fail!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      fail = resolve;
+    });
+    const streamSpy = vi.fn(async function* () {
+      await gate;
+      throw streamError;
+    });
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamSpy,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+    const earlier = { id: "earlier", type: "human" as const, content: "First" };
+    const later = { id: "later", type: "human" as const, content: "Second" };
+    act(() => result.current.setMessages([earlier, later]));
+
+    let sendMessagePromise!: Promise<void>;
+    act(() => {
+      sendMessagePromise = result.current.sendMessage(
+        [
+          { id: "__remove_all__", type: "remove", content: [] },
+          { id: "failed", type: "human", content: "Failed turn" },
+        ],
+        {},
+      );
+    });
+    await waitFor(() => expect(streamSpy).toHaveBeenCalledOnce());
+    const staged = {
+      id: "staged",
+      type: "human" as const,
+      content: "Later turn",
+    };
+    act(() => result.current.setMessages([...result.current.messages, staged]));
+
+    await act(async () => {
+      fail();
+      await expect(sendMessagePromise).rejects.toBe(streamError);
+    });
+    expect(result.current.messages).toEqual([earlier, later, staged]);
+  });
+
+  it("keeps a message staged while a run waits for its first event", async () => {
+    const streamError = new Error("stream failed before the first event");
+    let fail!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      fail = resolve;
+    });
+    const streamSpy = vi.fn(async function* () {
+      await gate;
+      throw streamError;
+    });
+    const onComplete = vi.fn();
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamSpy,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+    const previousMessage = {
+      id: "previous-message",
+      type: "human" as const,
+      content: "Earlier turn",
+    };
+    act(() => result.current.setMessages([previousMessage]));
+
+    let sendMessagePromise!: Promise<void>;
+    act(() => {
+      sendMessagePromise = result.current.sendMessage(
+        [{ id: "failed-message", type: "human", content: "Failed turn" }],
+        {},
+        onComplete,
+      );
+    });
+    await waitFor(() => expect(streamSpy).toHaveBeenCalledOnce());
+    const staged = {
+      id: "staged",
+      type: "human" as const,
+      content: "Later turn",
+    };
+    act(() => {
+      result.current.setMessages([...result.current.messages, staged]);
+    });
+
+    await act(async () => {
+      fail();
+      await expect(sendMessagePromise).rejects.toBe(streamError);
+    });
+
+    expect(result.current.messages).toEqual([previousMessage, staged]);
+    expect(onComplete).toHaveBeenCalledWith([previousMessage, staged]);
+  });
+
+  it("keeps the optimistic message when a run aborts before its first event", async () => {
+    let ready!: () => void;
+    const started = new Promise<void>((resolve) => {
+      ready = resolve;
+    });
+    const streamSpy = vi.fn().mockImplementation(async (_messages, config) => {
+      async function* streamResponse() {
+        await new Promise<void>((resolve) => {
+          config.abortSignal.addEventListener("abort", resolve, {
+            once: true,
+          });
+          ready();
+        });
+      }
+      return streamResponse();
+    });
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamSpy,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+    const message = {
+      id: "running",
+      type: "human" as const,
+      content: "Keep me",
+    };
+    let sendMessagePromise!: Promise<void>;
+    act(() => {
+      sendMessagePromise = result.current.sendMessage([message], {});
+    });
+    await started;
+
+    act(() => result.current.cancel());
+    await act(async () => {
+      await expect(sendMessagePromise).resolves.toBeUndefined();
+    });
+
+    expect(result.current.messages).toEqual([message]);
+  });
+
+  it("keeps the optimistic message when handling the first chunk throws", async () => {
+    const chunkError = new Error("failed to append the first chunk");
+    const streamSpy = vi.fn(async function* () {
+      yield {
+        event: "messages",
+        data: [
+          { id: "answer", type: "AIMessageChunk", content: "partial" },
+          { run_attempt: 1 },
+        ],
+      };
+    });
+    const appendMessage: typeof appendLangChainChunk = (previous, current) => {
+      if (current.id === "answer") throw chunkError;
+      return appendLangChainChunk(previous, current);
+    };
+    const { result } = renderHook(() =>
+      useLangGraphMessages({ stream: streamSpy, appendMessage }),
+    );
+    const message = {
+      id: "running",
+      type: "human" as const,
+      content: "Keep me",
+    };
+    let sendMessagePromise!: Promise<void>;
+    await act(async () => {
+      sendMessagePromise = result.current.sendMessage([message], {});
+      await expect(sendMessagePromise).rejects.toBe(chunkError);
+    });
+
+    expect(result.current.messages).toEqual([message]);
   });
 
   it("normalizes python tool_call_chunks args_json in messages tuple streams", async () => {

@@ -141,6 +141,82 @@ describe("rewriteLatexBracketDelimiters", () => {
     ).toBe("> 1. \n>    $$\n>    a\n>    $$\n>     then\n> more");
   });
 
+  describe.each([
+    ["\\[", "\\]"],
+    ["\\\\[", "\\\\]"],
+    ["[/math]", "[/math]"],
+  ])("%s displays sharing a closer line", (open, close) => {
+    it.each([
+      ["quoted list", "> 1. ", "> ", ">    "],
+      ["plain quote", "> ", "> ", "> "],
+      ["plain list", "- item ", "  ", "  "],
+      ["nested quoted list", "> - > ", ">   > ", ">   > "],
+    ])("keeps the second display in the %s", (_, start, body, continuation) => {
+      expect(
+        normalizeMathDelimiters(
+          `${start}${open}\n${body}a1\n${body}a2\n${body}${close} x ${open}\n${body}b1\n${body}b2\n${body}${close} then`,
+        ),
+      ).toBe(
+        `${start}\n${continuation}$$\n${continuation}a1\n${continuation}a2\n${continuation}$$\n${continuation} x \n${continuation}$$\n${continuation}b1\n${continuation}b2\n${continuation}$$\n${continuation} then`,
+      );
+    });
+  });
+
+  it.each([
+    [
+      "a single-line display before a third multiline display",
+      "> item \\[\n> a1\n> a2 \\] , \\[ bx \\]\\[\n> c1\n> \\] then",
+      "> item \n> $$\n> a1\n> a2 \n> $$\n>  , $$bx$$\n> $$\n> c1\n> $$\n>  then",
+    ],
+    [
+      "a single-line display before a third multiline display in a list item",
+      "> 1. \\[\n> a1\n> a2 \\] , \\[ bx \\]\\[\n> c1\n> \\] then",
+      "> 1. \n>    $$\n>    a1\n>    a2 \n>    $$\n>     , $$bx$$\n>    $$\n>    c1\n>    $$\n>     then",
+    ],
+    [
+      "a single-line math tag before a third multiline display in a list item",
+      "> 1. [/math]\n> a1\n> a2 [/math] , [/math]bx[/math][/math]\n> c1\n> [/math] then",
+      "> 1. \n>    $$\n>    a1\n>    a2 \n>    $$\n>     , $$bx$$\n>    $$\n>    c1\n>    $$\n>     then",
+    ],
+    [
+      "whitespace between the second closer and third opener",
+      "> item \\[\n> a1\n> a2 \\]   \\[ bx \\] \t \\[\n> c1\n> \\] then",
+      "> item \n> $$\n> a1\n> a2 \n> $$\n>    $$bx$$ \t \n> $$\n> c1\n> $$\n>  then",
+    ],
+    [
+      "the line after a closer-line display",
+      "> 1. \\[\n> a\n> \\] x \\[\n> b\n> \\] then\n> more",
+      "> 1. \n>    $$\n>    a\n>    $$\n>     x \n>    $$\n>    b\n>    $$\n>     then\n> more",
+    ],
+    [
+      "the line after a second display in a list item",
+      "> 1. \\[\n> a\n> \\] x \\[\n> b\n> \\]\n> more",
+      "> 1. \n>    $$\n>    a\n>    $$\n>     x \n>    $$\n>    b\n>    $$\n>    more",
+    ],
+    [
+      "the line after a second display in a plain quote",
+      "> \\[\n> a\n> \\] x \\[\n> b\n> \\]\n> more",
+      "> \n> $$\n> a\n> $$\n>  x \n> $$\n> b\n> $$\n> more",
+    ],
+    [
+      "CRLF lines",
+      "> 1. \\[\r\n> a\r\n> \\] x \\[\r\n> b\r\n> \\] then",
+      "> 1. \n>    $$\n>    a\r\n>    $$\n>     x \n>    $$\n>    b\r\n>    $$\n>     then",
+    ],
+    [
+      "a code span between bracket displays",
+      "> 1. \\[\n> a\n> \\] `x` \\[\n> b\n> \\]",
+      "> 1. \n>    $$\n>    a\n>    $$\n>     `x` \n>    $$\n>    b\n>    $$",
+    ],
+    [
+      "a code span between math tags",
+      "> 1. [/math]\n> a\n> [/math] `x` [/math]\n> b\n> [/math]",
+      "> 1. \n>    $$\n>    a\n>    $$\n>     `x` \n>    $$\n>    b\n>    $$",
+    ],
+  ])("preserves %s", (_, input, expected) => {
+    expect(normalizeMathDelimiters(input)).toBe(expected);
+  });
+
   it("keeps display math and following prose in an ordered list then quote", () => {
     expect(
       normalizeMathDelimiters("1. > \\[\n   > a\n   > \\] then\n   > more"),
@@ -205,6 +281,44 @@ describe("rewriteLatexBracketDelimiters", () => {
     expect(
       rewriteLatexBracketDelimiters(">  - item \\[\na\nb\n\\]\n>  - next"),
     ).toBe(">  - item \n>    $$\n>    a\n>    b\n>    $$\n>  - next");
+  });
+
+  it("keeps math after an ordered-list marker and touching quote in both containers", () => {
+    expect(normalizeMathDelimiters(">1) > \\[ > x\n>    > >\n>    > \\]")).toBe(
+      ">1) > \n>    > $$\n>    >  > x\n>    > >\n>    > $$",
+    );
+  });
+
+  it("keeps math after a bullet marker and touching quote in both containers", () => {
+    expect(normalizeMathDelimiters(">* > \\[x\n>   > x\n>   > \\]")).toBe(
+      ">* > \n>   > $$\n>   > x\n>   > x\n>   > $$",
+    );
+  });
+
+  it("keeps math after nested list markers inside the inner quote", () => {
+    expect(normalizeMathDelimiters("- - > \\[x\n    > a\n    > \\]")).toBe(
+      "- - > \n    > $$\n    > x\n    > a\n    > $$",
+    );
+  });
+
+  it.each([
+    [
+      "a bullet then an ordered marker, each touching a quote",
+      ">- >1) \\[x\n>   >    a\n>   >    \\]",
+      ">- >1) \n>   >    $$\n>   >    x\n>   >    a\n>   >    $$",
+    ],
+    [
+      "two ordered markers, each touching a quote",
+      ">1) >2) \\[x\n>    >    a\n>    >    \\]",
+      ">1) >2) \n>    >    $$\n>    >    x\n>    >    a\n>    >    $$",
+    ],
+    [
+      "nested list markers in a quote with a [/math] display",
+      "> - 1. [/math]x\n>      a\n>      [/math]",
+      "> - 1. \n>      $$\n>      x\n>      a\n>      $$",
+    ],
+  ])("keeps math after %s", (_, input, expected) => {
+    expect(normalizeMathDelimiters(input)).toBe(expected);
   });
 
   it("reads the block prefix past a code span on the same line", () => {
@@ -630,6 +744,32 @@ describe("rewriteCustomMathTags", () => {
     ).toBe("$$\n\\begin{aligned}\na&=b\n\\end{aligned}\n$$\nDone.");
   });
 
+  it.each([
+    ["brackets", rewriteLatexBracketDelimiters, "\\[", "\\]"],
+    ["tags", rewriteCustomMathTags, "[/math]", "[/math]"],
+  ] as const)(
+    "trims leading blank display lines without shifting the body in %s",
+    (_, preprocess, open, close) => {
+      const input = `${open}${"\n".repeat(256)}x\ny${close}`;
+      const shift = Array.prototype.shift;
+      let shiftedEntries = 0;
+      const spy = vi
+        .spyOn(Array.prototype, "shift")
+        .mockImplementation(function (this: unknown[]) {
+          if (this.length > 100 && this[0] === "") {
+            shiftedEntries += this.length - 1;
+          }
+          return Reflect.apply(shift, this, []);
+        });
+      try {
+        expect(preprocess(input)).toBe("$$\nx\ny\n$$");
+      } finally {
+        spy.mockRestore();
+      }
+      expect(shiftedEntries).toBeLessThanOrEqual(256);
+    },
+  );
+
   it("gives the fence markers their own lines mid-paragraph", () => {
     expect(rewriteCustomMathTags("Thus [/math]a\nb[/math] therefore.")).toBe(
       "Thus \n$$\na\nb\n$$\n therefore.",
@@ -790,6 +930,38 @@ describe("normalizeMathDelimiters", () => {
       "x ```js\n\\$5\n\n\\$7\n```",
     );
   });
+
+  it.each([
+    ["currency", escapeCurrencyDollars],
+    ["math", normalizeMathDelimiters],
+  ] as const)(
+    "keeps rejected tilde prefix checks constant in %s",
+    (_, preprocess) => {
+      const prefixCharSource = /[ \t>*+\-0-9.)]/.source;
+      const checksFor = (length: number) => {
+        const input = `x ${"~".repeat(length)}`;
+        const test = RegExp.prototype.test;
+        let checks = 0;
+        const spy = vi
+          .spyOn(RegExp.prototype, "test")
+          .mockImplementation(function (this: RegExp, candidate) {
+            if (this.source === prefixCharSource) checks += 1;
+            return Reflect.apply(test, this, [candidate]);
+          });
+        try {
+          expect(preprocess(input)).toBe(input);
+        } finally {
+          spy.mockRestore();
+        }
+        return checks;
+      };
+
+      const first = checksFor(256);
+      const second = checksFor(512);
+      expect(first).toBeGreaterThan(0);
+      expect(second).toBe(first);
+    },
+  );
 
   it("nests a $$ fence opened on a list item's marker line", () => {
     expect(
