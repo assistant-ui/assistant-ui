@@ -967,7 +967,7 @@ describe("useWidgetInstructions", () => {
       disabled: boolean;
     };
     expect(last.disabled).toBe(false);
-    expect(last.instruction).toContain("## Visual widgets");
+    expect(last.instruction).toContain("## Choosing how to answer");
     expect(last.instruction).toContain("# Declarative UI");
   });
 });
