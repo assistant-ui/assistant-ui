@@ -34,9 +34,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.26",
+    "@assistant-ui/core": "^0.3.27",
     "@assistant-ui/store": "^0.3.19",
-    "@assistant-ui/tap": "^0.9.22"
+    "@assistant-ui/tap": "^0.9.23"
   },
   "peerDependencies": {
     "@types/react": "*",
@@ -44,7 +44,7 @@
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^26.6.4",
+    "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "assistant-cloud": "workspace:*",
     "jsdom": "^30.1.2",

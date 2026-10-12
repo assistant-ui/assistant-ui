@@ -13,27 +13,27 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@assistant-ui/react": "workspace:*",
     "@assistant-ui/flue": "workspace:*",
+    "@assistant-ui/react": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
-    "@flue/runtime": "^2.1.0",
-    "@hono/node-server": "^2.0.3",
-    "hono": "^4.12.32",
+    "@flue/runtime": "^2.2.2",
+    "@hono/node-server": "^2.1.4",
+    "hono": "^4.13.13",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "valibot": "^1.1.0"
+    "valibot": "^1.5.0"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@flue/vite": "^2.1.0",
+    "@flue/vite": "^2.2.2",
     "@tailwindcss/vite": "^4.3.3",
-    "@types/node": "^26.5.1",
+    "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "concurrently": "^10.0.5",
+    "concurrently": "^10.0.6",
     "tailwindcss": "^4.3.3",
     "tw-animate-css": "^1.4.0",
     "typescript": "^7.0.2",
-    "vite": "^8.3.0"
+    "vite": "^8.3.4"
   }
 }

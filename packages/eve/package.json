@@ -37,7 +37,7 @@
     "test:types:peer-react18": "aui-react18-types"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.26",
+    "@assistant-ui/core": "^0.3.27",
     "@assistant-ui/store": "^0.3.19",
     "assistant-cloud": "*"
   },
@@ -57,7 +57,7 @@
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
     "@types/react": "^19.3.0",
-    "eve": "^0.74.0",
+    "eve": "^0.77.0",
     "jsdom": "^30.1.2",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",

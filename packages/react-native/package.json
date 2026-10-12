@@ -40,11 +40,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.25",
-    "@assistant-ui/store": "^0.3.18",
-    "@assistant-ui/tap": "^0.9.22",
+    "@assistant-ui/core": "^0.3.27",
+    "@assistant-ui/store": "^0.3.19",
+    "@assistant-ui/tap": "^0.9.23",
     "assistant-cloud": "workspace:^",
-    "assistant-stream": "^0.3.49"
+    "assistant-stream": "^0.3.50"
   },
   "peerDependencies": {
     "@types/react": "*",
@@ -66,7 +66,7 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-native": "^0.87.1",
-    "react-native-web": "^0.21.3",
+    "react-native-web": "^0.21.4",
     "vitest": "^5.0.3"
   },
   "publishConfig": {

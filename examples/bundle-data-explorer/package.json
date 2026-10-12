@@ -13,7 +13,7 @@
   "dependencies": {
     "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/react": "workspace:*",
-    "ai": "^7.0.130",
+    "ai": "^7.0.137",
     "bundle-shared": "workspace:*",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
