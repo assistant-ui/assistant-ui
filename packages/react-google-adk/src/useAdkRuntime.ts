@@ -555,7 +555,11 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       ? async (msg) => {
           const initialLoad = waitForInitialLoad();
           if (initialLoad && !(await initialLoad).active) return;
-          const beforeEdit = controller.getState();
+          const pendingLookup = checkpointLookupRef.current;
+          const beforeEdit =
+            (pendingLookup?.lease.isCurrent()
+              ? pendingLookup.snapshot
+              : undefined) ?? controller.getState();
           stopRun();
           const truncated = truncateAdkMessages(
             threadMessagesRef.current,

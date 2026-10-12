@@ -667,7 +667,7 @@ describe("useAdkRuntime replacement runs", () => {
     expect(messages).not.toContain("answer 0");
   });
 
-  it("restores the pre-edit turn when Stop interrupts an edit after reload", async () => {
+  it("restores the turn a pending reload truncated when Stop interrupts an edit made during its lookup", async () => {
     const lookups = [deferred(), deferred()];
     const waiting = [...lookups];
     const stream = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
@@ -718,7 +718,7 @@ describe("useAdkRuntime replacement runs", () => {
     });
 
     expect(stream).toHaveBeenCalledTimes(1);
-    expect(texts(runtime)).toEqual(["question"]);
+    expect(texts(runtime)).toEqual(["question", "answer 0"]);
   });
 
   it("keeps a history load that lands while a reload looks up its checkpoint when Stop follows", async () => {

@@ -2,4 +2,4 @@
 "@assistant-ui/react-google-adk": patch
 ---
 
-Restore thread state after edit and reload requests fail before their first event.
+fix(react-google-adk): restore the thread when an edit or reload fails before its first event or Stop interrupts its checkpoint lookup
