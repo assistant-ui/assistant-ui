@@ -169,6 +169,22 @@ describe("ExternalStoreThreadRuntimeCore submitted feedback", () => {
       );
       expect(runtime.getMessageById("a1")!.message).toBe(votedMessage);
     }
+
+    runtime.submitFeedback({ messageId: "a1", type: "negative" });
+    const revisedMessage = runtime.getMessageById("a1")!.message;
+    expect(revisedMessage.metadata.submittedFeedback).toEqual({
+      type: "negative",
+    });
+    runtime.__internal_setAdapter(
+      createFeedbackStore([...messages], converter),
+    );
+    expect(runtime.getMessageById("a1")!.message).toBe(revisedMessage);
+    for (let i = 0; i < 5; i++) {
+      runtime.__internal_setAdapter(
+        createFeedbackStore([...messages], converter),
+      );
+      expect(runtime.getMessageById("a1")!.message).toBe(revisedMessage);
+    }
   });
 
   it("preserves feedback across exported repository snapshots", () => {
