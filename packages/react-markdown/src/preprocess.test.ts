@@ -126,6 +126,33 @@ describe("rewriteLatexBracketDelimiters", () => {
     ).toBe("> 1. \n>    $$\n>    a\n>    $$\n>    where $$x$$ holds");
   });
 
+  it("keeps prose after a bracket closer in the quoted list item", () => {
+    expect(normalizeMathDelimiters("> 1. \\[\n> a\n> \\] then\n> more")).toBe(
+      "> 1. \n>    $$\n>    a\n>    $$\n>     then\n> more",
+    );
+    expect(rewriteLatexBracketDelimiters("> \\[\n> a\n> \\] then")).toBe(
+      "> \n> $$\n> a\n> $$\n>  then",
+    );
+  });
+
+  it("keeps prose after a math tag closer in the quoted list item", () => {
+    expect(
+      normalizeMathDelimiters("> 1. [/math]\n> a\n> [/math] then\n> more"),
+    ).toBe("> 1. \n>    $$\n>    a\n>    $$\n>     then\n> more");
+  });
+
+  it("keeps display math and following prose in an ordered list then quote", () => {
+    expect(
+      normalizeMathDelimiters("1. > \\[\n   > a\n   > \\] then\n   > more"),
+    ).toBe("1. > \n   > $$\n   > a\n   > $$\n   >  then\n   > more");
+  });
+
+  it("keeps display math and following prose at quote depth two", () => {
+    expect(
+      normalizeMathDelimiters("> - > \\[\n>   > a\n>   > \\] then\n>   > more"),
+    ).toBe("> - > \n>   > $$\n>   > a\n>   > $$\n>   >  then\n>   > more");
+  });
+
   it("rewrites a multiline bracket display whose TeX body contains backticks", () => {
     expect(
       normalizeMathDelimiters("1. \\[\n\\text{`x`} = 1\nE = mc^2\n\\]\nText"),
@@ -218,6 +245,24 @@ describe("rewriteLatexBracketDelimiters", () => {
     expect(rewriteCustomMathTags("> [/math]> x[/math]")).toBe("> $$> x$$");
     expect(rewriteCustomMathTags("> 1. [/math]> x[/math]")).toBe(
       "> 1. $$> x$$",
+    );
+  });
+
+  it.each([
+    ["> \\[ >= 0\n> a\n> \\]", "> \n> $$\n>  >= 0\n> a\n> $$"],
+    ["> \\[> x\n> a\n> \\]", "> \n> $$\n> > x\n> a\n> $$"],
+    ["> \\[>x\n> a\n> \\]", "> \n> $$\n> >x\n> a\n> $$"],
+    ["> \\[>\n> a\n> \\]", "> \n> $$\n> >\n> a\n> $$"],
+  ])(
+    "preserves an opener-line greater-than operator in %j",
+    (input, expected) => {
+      expect(normalizeMathDelimiters(input)).toBe(expected);
+    },
+  );
+
+  it("keeps display math in a blockquote nested inside a list item", () => {
+    expect(normalizeMathDelimiters("- > \\[x\n  > x\n  > \\]")).toBe(
+      "- > \n  > $$\n  > x\n  > x\n  > $$",
     );
   });
 
