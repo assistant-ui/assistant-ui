@@ -90,9 +90,9 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "ai": "^7.0.137",
-    "ai-v6": "npm:ai@^7.0.137",
+    "ai-v6": "npm:ai@^6.0.277",
     "ioredis": "^6.0.0",
-    "ioredis-v5": "npm:ioredis@^6.0.0",
+    "ioredis-v5": "npm:ioredis@^5.11.1",
     "redis": "^6.3.0",
     "vitest": "^5.0.3"
   },
