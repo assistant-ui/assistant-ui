@@ -824,6 +824,7 @@ describe("normalizeMathDelimiters", () => {
 
       const first = checksFor(256);
       const second = checksFor(512);
+      expect(first).toBeGreaterThan(0);
       expect(second).toBe(first);
     },
   );
