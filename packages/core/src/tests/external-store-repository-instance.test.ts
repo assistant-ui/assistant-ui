@@ -46,7 +46,182 @@ const createAdapter = (
   unstable_messageRepositoryInstance: repository,
 });
 
+const toolMessage = (...toolCallIds: string[]): ThreadMessage =>
+  ({
+    ...createAssistantMessage("a1"),
+    status: { type: "requires-action", reason: "tool-calls" },
+    content: toolCallIds.map((toolCallId) => ({
+      type: "tool-call",
+      toolCallId,
+      toolName: "lookup",
+      args: {},
+      argsText: "{}",
+    })),
+  }) as ThreadMessage;
+
+const toolAdapter = (
+  messages: readonly ThreadMessage[],
+  repository?: MessageRepository,
+) => ({
+  messages,
+  onNew: vi.fn(async () => {}),
+  onCancel: vi.fn(async () => {}),
+  onAddToolResult: vi.fn(),
+  setToolStatuses: vi.fn(),
+  isRunning: false,
+  unstable_enableToolInvocations: true,
+  ...(repository && { unstable_messageRepositoryInstance: repository }),
+});
+
 describe("ExternalStoreThreadRuntimeCore repository instance swap", () => {
+  it("hands executing tool statuses and result callbacks to the latest repository host", async () => {
+    const repository = new MessageRepository();
+    const pending: Array<(value: string) => void> = [];
+    const execute = vi.fn(
+      () =>
+        new Promise<string>((resolve) => {
+          pending.push(resolve);
+        }),
+    );
+    const provider: ModelContextProvider = {
+      getModelContext: () => ({
+        tools: {
+          lookup: { parameters: { type: "object", properties: {} }, execute },
+        },
+      }),
+    };
+    const initial = [createUserMessage("u1")];
+    const first = toolAdapter(initial, repository);
+    const coreA = new ExternalStoreThreadRuntimeCore(provider, first);
+    const firstActive = toolAdapter(
+      [...initial, toolMessage("tc1")],
+      repository,
+    );
+    coreA.__internal_setAdapter(firstActive);
+    await vi.waitFor(() => expect(pending).toHaveLength(1));
+
+    const second = toolAdapter([...initial, toolMessage("tc1")], repository);
+    const coreB = new ExternalStoreThreadRuntimeCore(provider, second);
+    expect(coreB.isRunning).toBe(true);
+    expect(second.setToolStatuses).toHaveBeenCalledWith({
+      tc1: { type: "executing" },
+    });
+
+    pending[0]!("first result");
+    await vi.waitFor(() =>
+      expect(second.onAddToolResult).toHaveBeenCalledWith(
+        expect.objectContaining({ toolCallId: "tc1", result: "first result" }),
+      ),
+    );
+    expect(firstActive.onAddToolResult).not.toHaveBeenCalled();
+
+    const next = [createUserMessage("u1"), toolMessage("tc1", "tc2")];
+    const secondNext = toolAdapter(next, repository);
+    coreB.__internal_setAdapter(secondNext);
+    await vi.waitFor(() => expect(pending).toHaveLength(2));
+
+    const firstNext = toolAdapter(next, repository);
+    coreA.__internal_setAdapter(firstNext);
+    pending[1]!("second result");
+    await vi.waitFor(() =>
+      expect(firstNext.onAddToolResult).toHaveBeenCalledWith(
+        expect.objectContaining({ toolCallId: "tc2", result: "second result" }),
+      ),
+    );
+    expect(secondNext.onAddToolResult).not.toHaveBeenCalled();
+  });
+
+  it("resets its old tool and adopts the new repository's executing tool on an instance swap", async () => {
+    const firstRepository = new MessageRepository();
+    const secondRepository = new MessageRepository();
+    const signals: AbortSignal[] = [];
+    const pending: Array<(value: string) => void> = [];
+    const execute = vi.fn(
+      (_args: unknown, { abortSignal }: { abortSignal: AbortSignal }) =>
+        new Promise<string>((resolve) => {
+          signals.push(abortSignal);
+          pending.push(resolve);
+        }),
+    );
+    const provider: ModelContextProvider = {
+      getModelContext: () => ({
+        tools: {
+          lookup: { parameters: { type: "object", properties: {} }, execute },
+        },
+      }),
+    };
+    const core = new ExternalStoreThreadRuntimeCore(
+      provider,
+      toolAdapter([], firstRepository),
+    );
+    const firstActive = toolAdapter(
+      [createUserMessage("u1"), toolMessage("tc1")],
+      firstRepository,
+    );
+    core.__internal_setAdapter(firstActive);
+    await vi.waitFor(() => expect(signals).toHaveLength(1));
+
+    const other = new ExternalStoreThreadRuntimeCore(
+      provider,
+      toolAdapter([], secondRepository),
+    );
+    const secondActive = toolAdapter(
+      [createUserMessage("u2"), toolMessage("tc2")],
+      secondRepository,
+    );
+    other.__internal_setAdapter(secondActive);
+    await vi.waitFor(() => expect(signals).toHaveLength(2));
+
+    const next = toolAdapter(secondActive.messages, secondRepository);
+    core.__internal_setAdapter(next);
+    expect(signals[0]?.aborted).toBe(true);
+    expect(signals[1]?.aborted).toBe(false);
+    expect(core.isRunning).toBe(true);
+    expect(next.setToolStatuses).toHaveBeenCalledWith({
+      tc2: { type: "executing" },
+    });
+    pending[1]!("second result");
+    await vi.waitFor(() =>
+      expect(next.onAddToolResult).toHaveBeenCalledWith(
+        expect.objectContaining({ toolCallId: "tc2", result: "second result" }),
+      ),
+    );
+    expect(firstActive.onAddToolResult).not.toHaveBeenCalled();
+    expect(secondActive.onAddToolResult).not.toHaveBeenCalled();
+  });
+
+  it("keeps tool trackers separate when repository instances are omitted", async () => {
+    let signal: AbortSignal | undefined;
+    const provider: ModelContextProvider = {
+      getModelContext: () => ({
+        tools: {
+          lookup: {
+            parameters: { type: "object", properties: {} },
+            execute: (_args: unknown, context: { abortSignal: AbortSignal }) =>
+              new Promise<string>(() => {
+                signal = context.abortSignal;
+              }),
+          },
+        },
+      }),
+    };
+    const coreA = new ExternalStoreThreadRuntimeCore(provider, toolAdapter([]));
+    coreA.__internal_setAdapter(
+      toolAdapter([createUserMessage("u1"), toolMessage("tc1")]),
+    );
+    await vi.waitFor(() => expect(signal).toBeDefined());
+    const second = toolAdapter([], undefined);
+    const coreB = new ExternalStoreThreadRuntimeCore(provider, second);
+    expect(coreA.isRunning).toBe(true);
+    expect(coreB.isRunning).toBe(false);
+    expect(second.setToolStatuses).not.toHaveBeenCalledWith({
+      tc1: { type: "executing" },
+    });
+
+    coreB.cancelRun();
+    expect(signal?.aborted).toBe(false);
+  });
+
   it("keeps each conversation's history in its own repository across swaps", () => {
     const repoA = new MessageRepository();
     const repoB = new MessageRepository();

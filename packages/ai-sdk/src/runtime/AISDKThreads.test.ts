@@ -409,6 +409,62 @@ describe("AISDKThreads", () => {
       flushTapSync(() => handle.getClient().threads.switchToThread("main"));
     };
 
+    it("executes a tool call streamed while switched away once after switching back", async () => {
+      const execute = vi.fn(() => new Promise<string>(() => {}));
+      const { transport, emit, close } = createControlledTransport();
+      const sendMessages = vi.spyOn(transport, "sendMessages");
+      const onToolCall = vi.fn();
+      const handle = createAssistantClient(
+        AuiConfig({ threads: AISDKThreads({ transport, onToolCall }) }),
+      );
+      handle.subscribe(() => {});
+      try {
+        flushTapSync(() =>
+          handle.getClient().modelContext.register({
+            getModelContext: () => ({
+              tools: {
+                lookup: {
+                  parameters: { type: "object", properties: {} },
+                  execute,
+                },
+              },
+            }),
+          }),
+        );
+        flushTapSync(() => handle.getClient().composer.setText("look up"));
+        flushTapSync(() => handle.getClient().composer.send());
+        await waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(1));
+
+        emit({ type: "start", messageId: "assistant-1" });
+        await waitFor(() =>
+          expect(
+            handle
+              .getClient()
+              .thread.getState()
+              .messages.some((message) => message.role === "assistant"),
+          ).toBe(true),
+        );
+        flushTapSync(() => handle.getClient().threads.switchToNewThread());
+        emit(
+          {
+            type: "tool-input-available",
+            toolCallId: "call-after-switch",
+            toolName: "lookup",
+            input: {},
+          },
+          { type: "finish" },
+        );
+        await waitFor(() => expect(onToolCall).toHaveBeenCalledOnce());
+
+        flushTapSync(() => handle.getClient().threads.switchToThread("main"));
+        close();
+        await waitFor(() => expect(execute).toHaveBeenCalledOnce());
+        expect(handle.getClient().thread.getState().isRunning).toBe(true);
+      } finally {
+        handle.destroy();
+      }
+    });
+
     it("keeps the thread running after switching back, and Stop aborts it", async () => {
       let signal: AbortSignal | undefined;
       const execute = vi.fn(

@@ -707,7 +707,9 @@ export class ExternalStoreThreadRuntimeCore
     this._toolInvocations = retained.tracker;
     if (retained.host !== this) {
       retained.host = this;
-      this._applyToolStatuses(retained.tracker.getStatuses());
+      const statuses = retained.tracker.getStatuses();
+      if (statuses.size > 0 || this._toolStatuses.size > 0)
+        this._applyToolStatuses(statuses);
     }
 
     this._toolInvocations.setState({
