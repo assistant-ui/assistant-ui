@@ -7,7 +7,7 @@ import {
   MessageRuntimeImpl,
   type MessageRuntimeState,
 } from "./message-runtime";
-import type { ThreadRuntimeCoreBinding } from "./thread-runtime";
+import type { ThreadRuntimeImpl } from "./thread-runtime";
 
 const threadPath = {
   ref: "threads.main",
@@ -79,9 +79,11 @@ const createRuntime = ({
     getState: () => message,
     subscribe: () => () => {},
   };
-  const threadBinding: ThreadRuntimeCoreBinding = {
+  const threadBinding: ThreadRuntimeImpl["__internal_threadBinding"] = {
     path: threadPath,
     getState: () => core,
+    getStateState: () =>
+      ({ threadId: "thread-1" }) as ReturnType<ThreadRuntimeImpl["getState"]>,
     subscribe: () => () => {},
     outerSubscribe: () => () => {},
   };
@@ -163,14 +165,19 @@ describe("MessagePartRuntime interaction recording", () => {
     let currentCore = {
       unstable_recordToolInteraction: recordA,
     } as unknown as ThreadRuntimeCore;
+    let currentThreadId = "thread-a";
     const messageBinding: MessageStateBinding = {
       path: messagePath,
       getState: () => currentMessage,
       subscribe: () => () => {},
     };
-    const threadBinding: ThreadRuntimeCoreBinding = {
+    const threadBinding: ThreadRuntimeImpl["__internal_threadBinding"] = {
       path: threadPath,
       getState: () => currentCore,
+      getStateState: () =>
+        ({ threadId: currentThreadId }) as ReturnType<
+          ThreadRuntimeImpl["getState"]
+        >,
       subscribe: () => () => {},
       outerSubscribe: () => () => {},
     };
@@ -187,6 +194,7 @@ describe("MessagePartRuntime interaction recording", () => {
     currentCore = {
       unstable_recordToolInteraction: recordB,
     } as unknown as ThreadRuntimeCore;
+    currentThreadId = "thread-b";
 
     await part.unstable_recordInteraction({
       type: "action",

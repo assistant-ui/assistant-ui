@@ -4,7 +4,7 @@ import type {
   ThreadAssistantMessage,
   ToolCallMessagePartStatus,
 } from "../../types/message";
-import type { ThreadRuntimeCoreBinding } from "./thread-runtime";
+import type { ThreadRuntimeImpl } from "./thread-runtime";
 import {
   MessageRuntimeImpl,
   type MessageRuntimeState,
@@ -68,8 +68,14 @@ const messageBinding: MessageStateBinding = {
 };
 
 const threadBinding = {
+  getState: () =>
+    ({}) as ReturnType<
+      ThreadRuntimeImpl["__internal_threadBinding"]["getState"]
+    >,
+  getStateState: () =>
+    ({ threadId: "thread-1" }) as ReturnType<ThreadRuntimeImpl["getState"]>,
   subscribe: () => () => {},
-} as unknown as ThreadRuntimeCoreBinding;
+} as ThreadRuntimeImpl["__internal_threadBinding"];
 
 const createAssistantMessage = (
   content: ThreadAssistantMessage["content"],
