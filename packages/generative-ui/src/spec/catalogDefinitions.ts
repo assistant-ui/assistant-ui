@@ -122,6 +122,8 @@ const DEFAULT_SHAPES: Readonly<Record<string, SpecShape>> = {
   Citation: {},
   Image: {},
   Divider: {},
+  Diagram: {},
+  Map: {},
   Header: { slots: DEFAULT_SLOT },
   Text: { slots: DEFAULT_SLOT },
   Caption: { slots: DEFAULT_SLOT },

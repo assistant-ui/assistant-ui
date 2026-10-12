@@ -9,13 +9,13 @@ Each trial sends one task as the only user message, with the format's system pro
 | Format | The model gets | The answer counts as valid when |
 | --- | --- | --- |
 | `text` | an instruction to answer in Markdown | it is not empty |
-| `present` | the `present` tool from `@assistant-ui/generative-ui` with the 29 components of the kit's generative UI element (`styledGenerativeUILibrary`) | every node is a known component with valid props, and the tree renders with `react-dom/server` |
-| `spec` | `render_spec` from `generative-frame`, with the catalog `toSpecCatalog` builds from the same 29 components and the catalog's prompt | `render_spec` finds no errors in the patches or the finished spec |
+| `present` | the `present` tool from `@assistant-ui/generative-ui` with the 35 components of the kit's generative UI element (`styledGenerativeUILibrary`) | every node is a known component with valid props, and the tree renders with `react-dom/server` |
+| `spec` | `render_spec` from `generative-frame`, with the catalog `toSpecCatalog` builds from the same 35 components and the catalog's prompt | `render_spec` finds no errors in the patches or the finished spec |
 | `frame` | `read_me`, `show_widget`, and `edit_widget` from `generative-frame`, with its widget instructions | the widget is not empty and every edit applies |
 
 `present` and `spec` share one vocabulary, so the comparison between them is about the format alone. A tool returns its validation errors to the model, which gets up to two more calls to fix them, the way a host feeds back render problems. The last call's tree, spec, or widget source is the answer.
 
-The answer then renders 680 px wide the way a chat app shows it: Markdown with the kit's text styles, `present` and spec answers with the kit's generative UI element and vocabulary styles (so a `Markdown` node renders formatted, as the element documents), and a widget in generative-frame's Safe Content Frame. A script error, a blank render, or a spec that fails to render counts as an error while rendering.
+The answer then renders 680 px wide the way a chat app shows it: Markdown with the kit's text styles, `present` and spec answers with the kit's generative UI element and vocabulary styles (so a `Markdown` node renders formatted, a `Diagram` draws with Mermaid, and a `Map` on Leaflet tiles, as the element documents, with Tailwind compiled over the kit's element sources the way an app that installs it compiles them), and a widget in generative-frame's Safe Content Frame. Before the capture, the page waits for nothing in the answer to be busy (`aria-busy`, as a map is while Leaflet loads) and for it to stop changing for 300 ms, then for its images to load or fail; each wait gives up after five seconds, and a widget gets a fixed 600 ms instead, so a slow tile can still be missing from a screenshot. A script error, a blank render, or a spec that fails to render counts as an error while rendering.
 
 The page is captured in slices 1,000 px tall, since vision models shrink a taller image until its text is unreadable; an answer taller than eight slices is cut off, and the judge is told so.
 

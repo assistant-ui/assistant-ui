@@ -105,6 +105,36 @@ class Boundary extends Component<{ children: ReactNode }, { failed: boolean }> {
 const nextFrame = () =>
   new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
 
+/** Waits until nothing in the answer is busy and it has stopped changing for 300 ms, for content drawn after it mounts such as a map or a diagram, for at most five seconds. */
+const domSettled = () =>
+  new Promise<void>((resolve) => {
+    const finish = () => {
+      observer.disconnect();
+      clearTimeout(quiet);
+      clearTimeout(limit);
+      resolve();
+    };
+    const settle = () => {
+      if (container.querySelector('[aria-busy="true"]')) {
+        quiet = setTimeout(settle, 300);
+      } else {
+        finish();
+      }
+    };
+    let quiet = setTimeout(settle, 300);
+    const limit = setTimeout(finish, 5_000);
+    const observer = new MutationObserver(() => {
+      clearTimeout(quiet);
+      quiet = setTimeout(settle, 300);
+    });
+    observer.observe(container, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      characterData: true,
+    });
+  });
+
 /** Waits until every image has loaded or failed, for at most five seconds. */
 const imagesSettled = () =>
   Promise.race([
@@ -227,6 +257,7 @@ async function renderAnswer(format: Format, artifact: string) {
     ) {
       errors.push("The answer rendered blank.");
     }
+    await domSettled();
     await imagesSettled();
   }
   await document.fonts.ready;

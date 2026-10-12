@@ -34,6 +34,24 @@ const answers: [Format, string][] = [
   ],
   ["present", JSON.stringify({ _type: "Input", placeholder: "Amount" })],
   ["frame", "<h3>Bill</h3><p>Each of the four pays $30.</p>"],
+  [
+    "present",
+    JSON.stringify({
+      _type: "Diagram",
+      code: "flowchart LR\n  A[Order] --> B[Ship]",
+    }),
+  ],
+  [
+    "present",
+    JSON.stringify({
+      _type: "Map",
+      route: true,
+      places: [
+        { label: "Monterey", lat: 36.6002, lng: -121.8947 },
+        { label: "Big Sur", lat: 36.2704, lng: -121.8081 },
+      ],
+    }),
+  ],
 ];
 
 test(

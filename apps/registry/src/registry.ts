@@ -2279,6 +2279,8 @@ export const registry: RegistryItem[] = [
     ],
     registryDependencies: [
       "https://r.assistant-ui.com/generative-ui-style.json",
+      "https://r.assistant-ui.com/elements-mermaid-diagram.json",
+      "https://r.assistant-ui.com/elements-geo-map.json",
     ],
     registryDependencyUsageExemptions: {
       "https://r.assistant-ui.com/generative-ui-style.json":

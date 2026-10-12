@@ -42,6 +42,45 @@ export const tabLabels = (labels: unknown, panelCount: number): string[] => {
   );
 };
 
+export type MapPlace = {
+  label: string;
+  lat: number;
+  lng: number;
+  detail?: string;
+};
+
+const coordinate = (value: unknown, limit: number): value is number =>
+  typeof value === "number" &&
+  Number.isFinite(value) &&
+  Math.abs(value) <= limit;
+
+/** The entries of a Map's `places` with a label and valid coordinates; any other entry is left out. */
+export const mapPlaces = (value: unknown): MapPlace[] =>
+  (Array.isArray(value) ? value : []).flatMap((entry: unknown) => {
+    if (entry === null || typeof entry !== "object") return [];
+    const { label, lat, lng, detail } = entry as Record<string, unknown>;
+    const labelText = toText(label);
+    if (
+      labelText === undefined ||
+      !coordinate(lat, 90) ||
+      !coordinate(lng, 180)
+    )
+      return [];
+    const detailText = toText(detail);
+    return [
+      {
+        label: labelText,
+        lat,
+        lng,
+        ...(detailText !== undefined ? { detail: detailText } : {}),
+      },
+    ];
+  });
+
+/** An OpenStreetMap link centered on a place, for surfaces that cannot draw a map. */
+export const placeHref = ({ lat, lng }: MapPlace): string =>
+  `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=14/${lat}/${lng}`;
+
 // A host of plain DNS labels and a path without whitespace or backslashes: browsers read credentials, spaces, and backslashes in an authority differently from how a regular expression splits it, so such a link could open a different site than the one shown.
 const LINK =
   /^https?:\/\/((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)(?::(\d{1,5}))?(?:[/?#][^\s\\]*)?$/i;

@@ -62,6 +62,8 @@ type SlackConversionWarning = {
 | `Steps` | One `section` per step, with the bold numbered title and the detail under it | An entry without a title is dropped with a warning |
 | `Timeline` | One `section` per item, with the bold time, then the title and the detail | An entry without a title is dropped with a warning |
 | `Citation` | A `section` with the title, linked to its `url`, and the snippet under it, then a `context` block with the source or the link's domain | Only an `http` or `https` `url` becomes a link |
+| `Diagram` | A `section` with the Mermaid source in a code block, then a `context` block with the title | Slack cannot draw the diagram; a source over the section limit is clamped with a warning |
+| `Map` | One `section` per place, with the label linked to OpenStreetMap and the detail under it | Slack cannot draw a map, so `route` is dropped silently; a place without valid coordinates is dropped with a warning |
 | `Button` | `button` element inside an `actions` block | `primary` and `danger` styles survive; other styles are dropped |
 | `Select` | `static_select` element | An option without a string label and value is dropped with a warning |
 | `RadioGroup` | `radio_buttons` element | An option without a string label and value is dropped with a warning |

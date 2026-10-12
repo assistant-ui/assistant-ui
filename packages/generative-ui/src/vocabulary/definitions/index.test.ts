@@ -9,6 +9,7 @@ const numericTextProps = [
   ["Select", { options: [], placeholder: 108 }],
   ["Checkbox", { label: 109 }],
   ["Button", { label: 110 }],
+  ["Diagram", { code: "flowchart LR", title: 111 }],
 ] as const;
 
 describe("vocabularyDefinitions", () => {

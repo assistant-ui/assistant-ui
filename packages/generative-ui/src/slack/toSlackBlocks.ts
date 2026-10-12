@@ -22,6 +22,8 @@ import {
 import {
   linkHost,
   linkHref,
+  mapPlaces,
+  placeHref,
   sequenceItems,
   tabLabels,
 } from "../vocabulary/structureValues";
@@ -178,6 +180,10 @@ const plainText = (text: string): SlackPlainText => ({
 
 const escapeMrkdwn = (text: string): string =>
   text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+// An OpenStreetMap link stays under 100 characters, so these caps keep a place's section under Slack's limit with its link intact.
+const PLACE_LABEL_CAP = 500;
+const PLACE_DETAIL_CAP = 2000;
 
 const structuredSection = (
   text: string,
@@ -1929,6 +1935,71 @@ const convertElement = (
             ]
           : []),
       ];
+    }
+    case "Diagram": {
+      // A fence inside the source would close the code block early, so a zero-width space splits it.
+      const code = clampText(
+        escapeMrkdwn(asString(props["code"])).replaceAll(
+          "```",
+          `\`\`${String.fromCharCode(0x200b)}\``,
+        ),
+        SECTION_TEXT_CAP - 8,
+        "Diagram",
+        "code",
+        context,
+      );
+      const title = asTextValue(props["title"]);
+      return [
+        structuredSection(`\`\`\`\n${code}\n\`\`\``, "Diagram", context),
+        ...(title
+          ? [
+              {
+                type: "context" as const,
+                elements: [
+                  {
+                    type: "mrkdwn" as const,
+                    text: clampText(
+                      escapeMrkdwn(title),
+                      CONTEXT_TEXT_CAP,
+                      "Diagram",
+                      "title",
+                      context,
+                    ),
+                  },
+                ],
+              },
+            ]
+          : []),
+      ];
+    }
+    case "Map": {
+      const { items: raw, truncated } = copyBounded(
+        Array.isArray(props["places"]) ? props["places"] : [],
+        CHILDREN_CAP,
+      );
+      if (truncated)
+        warn(
+          context,
+          "clamped",
+          "Map",
+          `places were clamped to ${CHILDREN_CAP} entries.`,
+        );
+      const places = mapPlaces(raw);
+      const dropped = raw.length - places.length;
+      if (dropped > 0)
+        warn(
+          context,
+          "dropped",
+          "Map",
+          `${dropped} malformed ${dropped === 1 ? "entry was" : "entries were"} dropped.`,
+        );
+      return places.map((place) =>
+        structuredSection(
+          `<${escapeMrkdwn(placeHref(place))}|${clampText(escapeMrkdwn(place.label), PLACE_LABEL_CAP, "Map", "label", context)}>${place.detail !== undefined ? `\n${clampText(escapeMrkdwn(place.detail), PLACE_DETAIL_CAP, "Map", "detail", context)}` : ""}`,
+          "Map",
+          context,
+        ),
+      );
     }
     case "Form":
       return [
