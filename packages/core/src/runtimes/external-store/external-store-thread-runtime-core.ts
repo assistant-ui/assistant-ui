@@ -54,6 +54,7 @@ import { walkToolCallTree } from "../../runtime/utils/tool-call-tree";
 import {
   NO_TOOL_EXECUTIONS,
   ToolInvocationTracker,
+  type AddToolResultCommand,
   type ToolExecutionStatus,
 } from "../tool-invocations/ToolInvocationTracker";
 import { EMPTY_QUEUE_ITEMS } from "../../runtime/queue/queue-item";
@@ -78,6 +79,19 @@ const sameSubmittedFeedback = (
   left: SubmittedFeedback | undefined,
   right: SubmittedFeedback | undefined,
 ) => left?.type === right?.type && left?.comment === right?.comment;
+
+type RetainedToolInvocations = {
+  host: ExternalStoreThreadRuntimeCore;
+  readonly tracker: ToolInvocationTracker;
+};
+
+// Tool executions belong to the conversation, not to one runtime: a host that
+// remounts its runtime with the same repository instance hands them to the new
+// runtime, which then delivers their results and stops them.
+const retainedToolInvocations = new WeakMap<
+  MessageRepository,
+  RetainedToolInvocations
+>();
 
 const observeAdapterCallback = (
   name: "onAddToolResult" | "onCancel",
@@ -685,61 +699,15 @@ export class ExternalStoreThreadRuntimeCore
       return;
     }
 
-    if (!this._toolInvocations) {
-      this._toolInvocations = new ToolInvocationTracker(
-        () => this.getModelContext().tools,
-        {
-          onResult: (command) => {
-            try {
-              const messageId = this._findMessageIdForToolCall(
-                command.toolCallId,
-              );
-              if (messageId === undefined) {
-                // The tool call no longer exists in the snapshot (e.g.
-                // rolled back). Drop the result.
-                return;
-              }
-              observeAdapterCallback(
-                "onAddToolResult",
-                this._store.onAddToolResult?.({
-                  messageId,
-                  toolCallId: command.toolCallId,
-                  toolName: command.toolName,
-                  result: command.result,
-                  isError: command.isError,
-                  ...(command.artifact !== undefined && {
-                    artifact: command.artifact,
-                  }),
-                  ...(command.modelContent !== undefined && {
-                    modelContent: command.modelContent,
-                  }),
-                }),
-              );
-            } catch (err) {
-              console.error(
-                "[ExternalStoreThreadRuntimeCore] onAddToolResult dispatch failed",
-                err,
-              );
-            }
-          },
-          onStatusesChange: (statuses) => {
-            const hadExecutingTools = this._hasExecutingTools(this._store);
-            this._toolStatuses = statuses;
-            try {
-              this._store.setToolStatuses?.(Object.fromEntries(statuses));
-            } finally {
-              if (hadExecutingTools !== this._hasExecutingTools(this._store)) {
-                if (this._inTrackerUpdate) {
-                  this._pendingRunningRefresh = true;
-                } else {
-                  this._updateStoreSnapshot(this._store);
-                }
-              }
-            }
-          },
-        },
-        (toolCall) => this._store.unstable_isClientToolCall?.(toolCall),
-      );
+    let retained = retainedToolInvocations.get(this.repository);
+    if (!retained) {
+      retained = this._createToolInvocations();
+      retainedToolInvocations.set(this.repository, retained);
+    }
+    this._toolInvocations = retained.tracker;
+    if (retained.host !== this) {
+      retained.host = this;
+      this._applyToolStatuses(retained.tracker.getStatuses());
     }
 
     this._toolInvocations.setState({
@@ -749,6 +717,73 @@ export class ExternalStoreThreadRuntimeCore
         isLoading: this._store.isLoading,
       }),
     });
+  }
+
+  private _createToolInvocations(): RetainedToolInvocations {
+    const retained: RetainedToolInvocations = {
+      host: this,
+      tracker: new ToolInvocationTracker(
+        () => retained.host.getModelContext().tools,
+        {
+          onResult: (command) => retained.host._dispatchToolResult(command),
+          onStatusesChange: (statuses) =>
+            retained.host._applyToolStatuses(statuses),
+        },
+        (toolCall) =>
+          retained.host._store.unstable_isClientToolCall?.(toolCall),
+      ),
+    };
+    return retained;
+  }
+
+  private _dispatchToolResult(command: AddToolResultCommand): void {
+    try {
+      const messageId = this._findMessageIdForToolCall(command.toolCallId);
+      if (messageId === undefined) {
+        // The tool call no longer exists in the snapshot (e.g. rolled back).
+        // Drop the result.
+        return;
+      }
+      observeAdapterCallback(
+        "onAddToolResult",
+        this._store.onAddToolResult?.({
+          messageId,
+          toolCallId: command.toolCallId,
+          toolName: command.toolName,
+          result: command.result,
+          isError: command.isError,
+          ...(command.artifact !== undefined && {
+            artifact: command.artifact,
+          }),
+          ...(command.modelContent !== undefined && {
+            modelContent: command.modelContent,
+          }),
+        }),
+      );
+    } catch (err) {
+      console.error(
+        "[ExternalStoreThreadRuntimeCore] onAddToolResult dispatch failed",
+        err,
+      );
+    }
+  }
+
+  private _applyToolStatuses(
+    statuses: ReadonlyMap<string, ToolExecutionStatus>,
+  ): void {
+    const hadExecutingTools = this._hasExecutingTools(this._store);
+    this._toolStatuses = statuses;
+    try {
+      this._store.setToolStatuses?.(Object.fromEntries(statuses));
+    } finally {
+      if (hadExecutingTools !== this._hasExecutingTools(this._store)) {
+        if (this._inTrackerUpdate) {
+          this._pendingRunningRefresh = true;
+        } else {
+          this._updateStoreSnapshot(this._store);
+        }
+      }
+    }
   }
 
   /**
