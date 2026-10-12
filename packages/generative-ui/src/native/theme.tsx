@@ -1,6 +1,7 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { processColor, useColorScheme } from "react-native";
 import type { Color, TextSize, Weight } from "../ir";
+import { useElementDepth } from "../spec/elementDepth";
 
 export type NativeTheme = {
   background: string;
@@ -148,12 +149,24 @@ export const InsideCardProvider = InsideCardContext.Provider;
 
 export const useInsideCard = () => useContext(InsideCardContext);
 
-const RowChildContext = createContext(false);
+const RowDepthContext = createContext<number | undefined>(undefined);
 
-/** Marks the content of a Row, where a Fact reads as a headline figure and an Image as a gallery tile; a Col or Card inside it starts over. */
-export const RowChildProvider = RowChildContext.Provider;
+/** Marks the content of a Row, where a Fact directly inside reads as a headline figure and an Image as a gallery tile. */
+export function RowContent({ children }: { children?: ReactNode }) {
+  const depth = useElementDepth();
+  return (
+    <RowDepthContext.Provider value={depth}>
+      {children}
+    </RowDepthContext.Provider>
+  );
+}
 
-export const useRowChild = () => useContext(RowChildContext);
+/** Whether the caller's element sits directly in a Row rather than deeper inside one of its children. */
+export const useRowChild = () => {
+  const row = useContext(RowDepthContext);
+  const depth = useElementDepth();
+  return row !== undefined && depth === row + 1;
+};
 
 /** A color React Native can paint, or `undefined` for anything else, such as a CSS gradient. */
 export const nativeColor = (value: unknown) =>

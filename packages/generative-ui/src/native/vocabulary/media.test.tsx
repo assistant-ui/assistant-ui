@@ -217,7 +217,7 @@ describe("media vocabulary on React Native", () => {
     }
   });
 
-  it("lays out images in a Row as 4:3 tiles that share the width, and a sm image as a thumbnail", () => {
+  it("lays out images directly in a Row as 4:3 tiles that share the width, and a sm image as a thumbnail", () => {
     const image = (src: string, size?: string) => ({
       type: "Image",
       props: { src: `https://example.com/${src}.png`, alt: src, size },
@@ -225,16 +225,18 @@ describe("media vocabulary on React Native", () => {
     const { container } = renderNativeSpec(
       spec({
         main: { type: "Col", children: ["row", "alone"] },
-        row: { type: "Row", children: ["a", "b", "thumb"] },
+        row: { type: "Row", children: ["a", "b", "thumb", "box"] },
         a: image("a", "md"),
         b: image("b"),
         thumb: image("thumb", "sm"),
+        box: { type: "Box", children: ["boxed"] },
+        boxed: image("boxed"),
         alone: image("alone"),
       }),
     );
-    const [a, b, thumb, alone] = [...container.querySelectorAll("img")].map(
-      (img) => img.parentElement!,
-    );
+    const [a, b, thumb, boxed, alone] = [
+      ...container.querySelectorAll("img"),
+    ].map((img) => img.parentElement!);
     for (const tile of [a!, b!]) {
       expect(getComputedStyle(tile).flexGrow).toBe("1");
       expect(getComputedStyle(tile).aspectRatio).toBe(
@@ -247,6 +249,7 @@ describe("media vocabulary on React Native", () => {
     );
     expect(a!.style.maxWidth).toBe("256px");
     expect([thumb!.style.width, thumb!.style.height]).toEqual(["72px", "72px"]);
+    expect(boxed!.style.width).toBe("100%");
     expect(alone!.style.width).toBe("100%");
   });
 

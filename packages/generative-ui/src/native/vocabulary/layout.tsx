@@ -15,7 +15,7 @@ import {
   InkProvider,
   InsideCardProvider,
   nativeColor,
-  RowChildProvider,
+  RowContent,
   useCardSurface,
   useInsideCard,
   RADIUS,
@@ -131,9 +131,7 @@ function Card({
           {cardTitle}
         </Text>
       ) : null}
-      <InsideCardProvider value>
-        <RowChildProvider value={false}>{children}</RowChildProvider>
-      </InsideCardProvider>
+      <InsideCardProvider value>{children}</InsideCardProvider>
       {confirm || cancel ? (
         <View style={[styles.footer, { borderTopColor: theme.hairline }]}>
           {confirm ? (
@@ -192,9 +190,7 @@ function Stack({
         ...(justify ? { justifyContent: JUSTIFY[justify] } : {}),
       }}
     >
-      <RowChildProvider value={direction === "row"}>
-        {children}
-      </RowChildProvider>
+      {direction === "row" ? <RowContent>{children}</RowContent> : children}
     </View>
   );
 }
