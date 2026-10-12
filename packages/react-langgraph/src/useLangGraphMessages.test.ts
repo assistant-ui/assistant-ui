@@ -1444,6 +1444,76 @@ describe("useLangGraphMessages", {}, () => {
     });
 
     await expect(sendMessagePromise).rejects.toBe(streamError);
+    expect(result.current.messages).toHaveLength(1);
+    expect(result.current.messages[0]?.content).toBe("trigger error");
+  });
+
+  it("removes submitted messages when stream throws before its first event", async () => {
+    const streamError = new Error("stream failed before the first event");
+    const streamSpy = vi.fn().mockImplementation(() => {
+      throw streamError;
+    });
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamSpy,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+    const previousMessage = {
+      id: "previous-message",
+      type: "human" as const,
+      content: "Earlier turn",
+    };
+    act(() => result.current.setMessages([previousMessage]));
+
+    let sendMessagePromise!: Promise<void>;
+    act(() => {
+      sendMessagePromise = result.current.sendMessage(
+        [{ ...previousMessage, content: "Failed turn" }],
+        {},
+      );
+    });
+
+    await expect(sendMessagePromise).rejects.toBe(streamError);
+    expect(result.current.messages).toEqual([previousMessage]);
+  });
+
+  it("removes submitted messages when the stream fails before its first event", async () => {
+    const streamError = new Error("stream failed before the first event");
+    const streamSpy = vi.fn().mockImplementation(async () => {
+      async function* streamResponse() {
+        throw streamError;
+      }
+
+      return streamResponse();
+    });
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamSpy,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+    const previousMessage = {
+      id: "previous-message",
+      type: "human" as const,
+      content: "Earlier turn",
+    };
+    act(() => result.current.setMessages([previousMessage]));
+
+    let sendMessagePromise!: Promise<void>;
+    act(() => {
+      sendMessagePromise = result.current.sendMessage(
+        [{ id: "failed-message", type: "human", content: "Failed turn" }],
+        {},
+      );
+    });
+
+    await act(async () => {
+      await expect(sendMessagePromise).rejects.toBe(streamError);
+    });
+    expect(result.current.messages).toEqual([previousMessage]);
   });
 
   it("normalizes python tool_call_chunks args_json in messages tuple streams", async () => {
