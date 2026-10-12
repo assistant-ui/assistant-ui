@@ -253,9 +253,10 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     isRunningRef.current = effectiveIsRunning;
   }, [effectiveIsRunning]);
   const [runLeases] = useState(() => new RunLeases());
-  const reloadLookupRef = useRef<{
+  const checkpointLookupRef = useRef<{
     lease: RunLease;
-    beforeReload: AdkThreadSnapshot;
+    snapshot: ReturnType<typeof controller.getState>;
+    ownIds: readonly string[];
   } | null>(null);
 
   const runExclusive = async (
@@ -289,6 +290,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   const handleSendMessage = (
     msgs: AdkMessage[],
     config: AdkSendMessageConfig,
+    rollbackState?: ReturnType<typeof controller.getState>,
   ) => {
     const isToolContinuation =
       msgs.length > 0 && msgs.every((msg) => msg.type === "tool");
@@ -302,8 +304,11 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           }
         : config;
 
-    return sendMessageWithExecutor(msgs, continuationConfig, (run) =>
-      runExclusive(() => run()),
+    return sendMessageWithExecutor(
+      msgs,
+      continuationConfig,
+      (run) => runExclusive(() => run()),
+      rollbackState,
     );
   };
 
@@ -430,7 +435,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
               messagesRef.current !== messagesAtLoadStart)
           )
             return;
-          reloadLookupRef.current = null;
+          checkpointLookupRef.current = null;
           applySnapshot(snapshot);
           messagesRef.current = snapshot.messages;
           adkMessagesRef.current = snapshot.messages;
@@ -550,6 +555,11 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       ? async (msg) => {
           const initialLoad = waitForInitialLoad();
           if (initialLoad && !(await initialLoad).active) return;
+          const pendingLookup = checkpointLookupRef.current;
+          const beforeEdit =
+            (pendingLookup?.lease.isCurrent()
+              ? pendingLookup.snapshot
+              : undefined) ?? controller.getState();
           stopRun();
           const truncated = truncateAdkMessages(
             threadMessagesRef.current,
@@ -570,86 +580,114 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           const editedMessage = toAdkUserMessage(msg);
           setMessages([...truncated, editedMessage]);
           const externalId = aui.threadListItem.getState().externalId;
-          const lease = runLeases.begin();
-          setIsRunning(true);
-          try {
-            const checkpointId = externalId
-              ? await getCheckpointId(externalId, truncated)
-              : null;
-            if (!lease.isCurrent()) return;
-            return await handleSendMessage([editedMessage], {
-              runConfig: msg.runConfig,
-              ...(checkpointId && { checkpointId }),
-            });
-          } finally {
-            if (lease.isCurrent()) setIsRunning(false);
-          }
+          return runExclusive(async (isCurrent) => {
+            const lookup = {
+              lease: runLeases.current(),
+              snapshot: beforeEdit,
+              ownIds: [editedMessage.id!],
+            };
+            checkpointLookupRef.current = lookup;
+            let checkpointId: string | null;
+            try {
+              checkpointId = externalId
+                ? await getCheckpointId(externalId, truncated)
+                : null;
+            } catch (error) {
+              if (isCurrent() && checkpointLookupRef.current === lookup)
+                controller.dispatch({
+                  type: "run.rollback",
+                  state: beforeEdit,
+                  ownIds: lookup.ownIds,
+                });
+              throw error;
+            } finally {
+              if (checkpointLookupRef.current === lookup)
+                checkpointLookupRef.current = null;
+            }
+            if (!isCurrent()) return;
+            await sendMessageWithExecutor(
+              [editedMessage],
+              {
+                runConfig: msg.runConfig,
+                ...(checkpointId && { checkpointId }),
+              },
+              undefined,
+              beforeEdit,
+            );
+          });
         }
       : undefined,
     ...(getCheckpointId || hasStagedMessages
       ? {
           onReload: async (parentId, config) => {
-            controller.dispatch({ type: "results.clear" });
             const initialLoad = waitForInitialLoad();
             if (initialLoad && !(await initialLoad).active) return;
+            const beforeReload = controller.getState();
+            controller.dispatch({ type: "results.clear" });
             const stagedRun = controller.getStagedRun(parentId);
             if (stagedRun) {
               controller.dispatch({
                 type: "staged.unstage",
                 ids: stagedRun.messages.map((message) => message.id!),
               });
-              return handleSendMessage(stagedRun.messages, {
-                runConfig: config.runConfig ?? stagedRun.runConfig,
-              });
+              return handleSendMessage(
+                stagedRun.messages,
+                {
+                  runConfig: config.runConfig ?? stagedRun.runConfig,
+                },
+                beforeReload,
+              );
             }
 
             if (!getCheckpointId)
               throw new Error("Runtime does not support reloading messages.");
 
+            const previousReload = checkpointLookupRef.current;
+            const inheritedSnapshot = previousReload?.lease.isCurrent()
+              ? previousReload.snapshot
+              : undefined;
             stopRun();
-            const beforeReload: AdkThreadSnapshot = {
-              messages: adkMessagesRef.current,
-              longRunningToolIds,
-              toolConfirmations,
-              authRequests,
-              escalated,
-              messageMetadata,
-              stateDelta,
-              artifactDelta,
-              agentInfo,
-            };
+            const beforeReloadState = inheritedSnapshot ?? beforeReload;
             const truncated = truncateAdkMessages(
               threadMessagesRef.current,
               parentId,
             );
             replaceMessages(truncated);
             const externalId = aui.threadListItem.getState().externalId;
-            const lease = runLeases.begin();
-            setIsRunning(true);
-            const lookup = { lease, beforeReload };
-            reloadLookupRef.current = lookup;
-            try {
+            return runExclusive(async (isCurrent) => {
+              const lookup = {
+                lease: runLeases.current(),
+                snapshot: beforeReloadState,
+                ownIds: [],
+              };
+              checkpointLookupRef.current = lookup;
               let checkpointId: string | null;
               try {
                 checkpointId = externalId
                   ? await getCheckpointId(externalId, truncated)
                   : null;
               } catch (error) {
-                if (lease.isCurrent() && reloadLookupRef.current === lookup)
-                  applySnapshot(beforeReload);
+                if (isCurrent() && checkpointLookupRef.current === lookup)
+                  controller.dispatch({
+                    type: "run.rollback",
+                    state: beforeReloadState,
+                  });
                 throw error;
               } finally {
-                if (reloadLookupRef.current === lookup)
-                  reloadLookupRef.current = null;
+                if (checkpointLookupRef.current === lookup)
+                  checkpointLookupRef.current = null;
               }
-              if (!lease.isCurrent()) return;
-              return await handleSendMessage([], {
-                runConfig: config.runConfig,
-                ...(checkpointId && { checkpointId }),
-              });
-            } finally {
-              if (lease.isCurrent()) setIsRunning(false);
-            }
+              if (!isCurrent()) return;
+              await sendMessageWithExecutor(
+                [],
+                {
+                  runConfig: config.runConfig,
+                  ...(checkpointId && { checkpointId }),
+                },
+                undefined,
+                beforeReloadState,
+              );
+            });
           },
         }
       : {}),
@@ -685,14 +723,17 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     },
     onCancel: unstable_allowCancellation
       ? async () => {
-          const lookup = reloadLookupRef.current;
-          const beforeReload = lookup?.lease.isCurrent()
-            ? lookup.beforeReload
-            : undefined;
+          const pendingLookup = checkpointLookupRef.current;
+          const lookup = pendingLookup?.lease.isCurrent()
+            ? pendingLookup
+            : null;
           stopRun();
-          // A reload stopped before it sent leaves the ADK session holding the
-          // turn it removed, so the thread shows that turn again.
-          if (beforeReload) applySnapshot(beforeReload);
+          if (lookup)
+            controller.dispatch({
+              type: "run.rollback",
+              state: lookup.snapshot,
+              ownIds: lookup.ownIds,
+            });
         }
       : undefined,
     ...(load !== undefined && {

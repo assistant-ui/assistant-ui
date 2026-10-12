@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
@@ -1123,6 +1123,92 @@ describe("ADK request coalescing", () => {
       "first",
       "second",
     ]);
+  });
+
+  it("keeps a send with failure restoration separate from a later send", async () => {
+    const calls: string[][] = [];
+    const stream: AdkStreamCallback = async function* (messages) {
+      calls.push(messages.map((message) => message.id));
+      if (calls.length === 1) throw new Error("request failed");
+    };
+    const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
+    const snapshot = result.current.controller.getState();
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+    act(() => {
+      first = result.current.sendMessageWithExecutor(
+        [{ id: "first", type: "human", content: "first" }],
+        {},
+        undefined,
+        snapshot,
+      );
+      second = result.current.sendMessage(
+        [{ id: "second", type: "human", content: "second" }],
+        {},
+      );
+    });
+    let results!: PromiseSettledResult<void>[];
+    await act(async () => {
+      results = await Promise.allSettled([first, second]);
+    });
+
+    expect(results.map((entry) => entry.status)).toEqual([
+      "rejected",
+      "fulfilled",
+    ]);
+    expect(calls).toEqual([["first"], ["second"]]);
+    expect(result.current.messages.map((message) => message.id)).toEqual([
+      "second",
+    ]);
+    expect([...result.current.controller.getState().queuedMessageIds]).toEqual(
+      [],
+    );
+  });
+
+  it("keeps a message staged while a pre-event send is running", async () => {
+    let fail!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      fail = resolve;
+    });
+    const stream = vi.fn(async function* () {
+      await pending;
+      throw new Error("request failed");
+    });
+    const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
+    const snapshot = result.current.controller.getState();
+    let send!: Promise<void>;
+    act(() => {
+      send = result.current.sendMessageWithExecutor(
+        [{ id: "first", type: "human", content: "first" }],
+        {},
+        undefined,
+        snapshot,
+      );
+    });
+    await waitFor(() => expect(stream).toHaveBeenCalledOnce());
+    act(() => {
+      const staged = {
+        id: "staged",
+        type: "human" as const,
+        content: "staged",
+      };
+      result.current.controller.dispatch({
+        type: "staged.stage",
+        entry: { message: staged, runConfig: undefined },
+      });
+      result.current.controller.dispatch({
+        type: "messages.set",
+        messages: [...result.current.controller.getState().messages, staged],
+      });
+    });
+    await act(async () => {
+      fail();
+      await expect(send).rejects.toThrow("request failed");
+    });
+    expect(result.current.messages.map((item) => item.id)).toEqual(["staged"]);
+    expect(
+      result.current.controller.getState().stagedEntries.has("staged"),
+    ).toBe(true);
   });
 
   it("sends same-tick messages with different state deltas separately", async () => {
