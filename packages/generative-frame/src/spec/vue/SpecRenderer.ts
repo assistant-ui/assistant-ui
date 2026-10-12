@@ -405,12 +405,13 @@ export const SpecRenderer = defineComponent({
     },
   },
   setup(props) {
-    const ownStore = createStateStore(props.spec.state ?? {});
+    const emptySpecState: Record<string, unknown> = {};
+    const ownStore = createStateStore(props.spec.state ?? emptySpecState);
     const snapshot = shallowRef((props.state ?? ownStore).getState());
     watch(
       () => [props.state, props.spec.state] as const,
       ([state, specState]) => {
-        if (!state && specState) ownStore.seed(specState);
+        if (!state) ownStore.seed(specState ?? emptySpecState);
       },
       { flush: "sync" },
     );

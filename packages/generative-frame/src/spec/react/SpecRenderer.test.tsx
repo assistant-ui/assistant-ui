@@ -7,6 +7,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineCatalog } from "../catalog";
+import { applyPatchOperation } from "../patch";
 import { createStateStore } from "../state";
 import type { Spec } from "../types";
 import {
@@ -289,6 +290,58 @@ describe("SpecRenderer", () => {
     );
     expect(view.container.textContent).toBe("Streamed");
     expect((view.getByRole("checkbox") as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("clears removed model state while preserving user writes", () => {
+    const first = spec(
+      {
+        main: { type: "Stack", children: ["label", "toggle"] },
+        label: { type: "Text", props: { text: { $state: "/label" } } },
+        toggle: { type: "Toggle", props: { checked: { $bindState: "/on" } } },
+      },
+      { label: "stale", on: false },
+    );
+    const view = render(
+      <SpecRenderer catalog={catalog} components={components} spec={first} />,
+    );
+    fireEvent.click(view.getByRole("checkbox"));
+    expect(view.container.textContent).toBe("stale");
+
+    const next = applyPatchOperation(first, { op: "remove", path: "/state" });
+    view.rerender(
+      <SpecRenderer catalog={catalog} components={components} spec={next} />,
+    );
+    expect(view.container.textContent).toBe("");
+    expect((view.getByRole("checkbox") as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("does not seed caller-owned state when spec state is removed", () => {
+    const state = createStateStore({ label: "caller" });
+    const first = spec(
+      { main: { type: "Text", props: { text: { $state: "/label" } } } },
+      { label: "model" },
+    );
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        state={state}
+        spec={first}
+      />,
+    );
+    expect(view.container.textContent).toBe("caller");
+
+    const next = applyPatchOperation(first, { op: "remove", path: "/state" });
+    view.rerender(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        state={state}
+        spec={next}
+      />,
+    );
+    expect(view.container.textContent).toBe("caller");
+    expect(state.get("/label")).toBe("caller");
   });
 
   it("runs watch actions when a watched value changes", () => {

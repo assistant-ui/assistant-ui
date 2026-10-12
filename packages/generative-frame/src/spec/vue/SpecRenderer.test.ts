@@ -10,6 +10,7 @@ import {
 } from "vue";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineCatalog } from "../catalog";
+import { applyPatchOperation } from "../patch";
 import { createStateStore } from "../state";
 import type { Spec } from "../types";
 import {
@@ -315,6 +316,42 @@ describe("SpecRenderer", () => {
     expect(
       (view.container.querySelector("input") as HTMLInputElement).checked,
     ).toBe(true);
+  });
+
+  it("clears removed model state while preserving user writes", async () => {
+    const first = spec(
+      {
+        main: { type: "Stack", children: ["label", "toggle"] },
+        label: { type: "Text", props: { text: { $state: "/label" } } },
+        toggle: { type: "Toggle", props: { checked: { $bindState: "/on" } } },
+      },
+      { label: "stale", on: false },
+    );
+    const view = mount({ catalog, components, spec: first });
+    await click(view.container.querySelector("input")!);
+    expect(view.container.textContent).toBe("stale");
+
+    const next = applyPatchOperation(first, { op: "remove", path: "/state" });
+    await view.update({ catalog, components, spec: next });
+    expect(view.container.textContent).toBe("");
+    expect(
+      (view.container.querySelector("input") as HTMLInputElement).checked,
+    ).toBe(true);
+  });
+
+  it("does not seed caller-owned state when spec state is removed", async () => {
+    const state = createStateStore({ label: "caller" });
+    const first = spec(
+      { main: { type: "Text", props: { text: { $state: "/label" } } } },
+      { label: "model" },
+    );
+    const view = mount({ catalog, components, state, spec: first });
+    expect(view.container.textContent).toBe("caller");
+
+    const next = applyPatchOperation(first, { op: "remove", path: "/state" });
+    await view.update({ catalog, components, state, spec: next });
+    expect(view.container.textContent).toBe("caller");
+    expect(state.get("/label")).toBe("caller");
   });
 
   it("runs watch actions after watched state changes", async () => {
