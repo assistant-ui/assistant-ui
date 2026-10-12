@@ -325,13 +325,21 @@ describe("server helpers", () => {
     );
     expect(preloaded).not.toContain("## Visual widgets");
     expect(preloaded).toContain(
+      "its output rules apply to those patches, not to your answer.",
+    );
+    expect(preloaded).not.toContain("`spec` module");
+    expect(preloaded).toContain("# Declarative UI");
+    const onDemand = await buildWidgetInstructions(withSpec());
+    expect(onDemand).toContain(
       "Load the `spec` module with `read_me` before your first `render_spec` call.",
     );
-    expect(preloaded).toContain("# Declarative UI");
     const withoutModule = await buildWidgetInstructions(
       createWidgetTools({ extraTools: createSpecTools(catalog) }),
     );
     expect(withoutModule).toContain("## Choosing how to answer");
+    expect(withoutModule).toContain(
+      "- `render_spec` for structured content the user scans or acts on, built from the app's components:",
+    );
     expect(withoutModule).not.toContain("`spec` module");
   });
 });
