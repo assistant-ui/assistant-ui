@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it, vi } from "vitest";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import type { AssistantCloud } from "assistant-cloud";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig, createAssistantClient } from "@assistant-ui/store/client";
@@ -84,6 +85,116 @@ const makeCloud = (id: string) =>
   }) as unknown as AssistantCloud;
 
 describe("AISDKThreads", () => {
+  const startTool = async (
+    execute: (
+      args: unknown,
+      context: {
+        abortSignal: AbortSignal;
+        human: (payload: unknown) => Promise<unknown>;
+      },
+    ) => Promise<unknown>,
+  ) => {
+    const { transport, emit, close } = createControlledTransport();
+    const sendMessages = vi.spyOn(transport, "sendMessages");
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: AISDKThreads({
+          transport,
+          sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+        }),
+      }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+    flushTapSync(() =>
+      aui.modelContext.register({
+        getModelContext: () => ({
+          tools: {
+            lookup: {
+              parameters: { type: "object", properties: {} },
+              execute,
+            },
+          },
+        }),
+      }),
+    );
+    flushTapSync(() => aui.composer.setText("look up"));
+    flushTapSync(() => aui.composer.send());
+    await waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(1));
+    emit(
+      { type: "start", messageId: "assistant-1" },
+      {
+        type: "tool-input-available",
+        toolCallId: "call-1",
+        toolName: "lookup",
+        input: {},
+      },
+      { type: "finish" },
+    );
+    close();
+    return { handle, aui, sendMessages };
+  };
+
+  it.each([
+    ["pending", (_signal: AbortSignal) => new Promise<string>(() => {})],
+    [
+      "rejecting with AbortError",
+      (signal: AbortSignal) =>
+        new Promise<string>((_resolve, reject) => {
+          signal.addEventListener(
+            "abort",
+            () => reject(new DOMException("aborted", "AbortError")),
+            { once: true },
+          );
+        }),
+    ],
+  ])(
+    "keeps a stopped frontend tool result from starting another request when $0",
+    async (_settlement, createExecution) => {
+      let signal: AbortSignal | undefined;
+      const execute = vi.fn(
+        (_args: unknown, context: { abortSignal: AbortSignal }) => {
+          signal = context.abortSignal;
+          return createExecution(signal);
+        },
+      );
+      const { handle, aui, sendMessages } = await startTool(execute);
+      try {
+        await waitFor(() => expect(execute).toHaveBeenCalledOnce());
+        await waitFor(() => expect(aui.thread.getState().isRunning).toBe(true));
+
+        flushTapSync(() => aui.thread.cancelRun());
+
+        await waitFor(() => expect(signal?.aborted).toBe(true));
+        await waitFor(() => {
+          const toolCall = aui.thread
+            .getState()
+            .messages.filter((message) => message.role === "assistant")
+            .flatMap((message) => message.content)
+            .find(
+              (part) =>
+                part.type === "tool-call" && part.toolCallId === "call-1",
+            );
+          expect(toolCall?.type === "tool-call" && toolCall.isError).toBe(true);
+        });
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        expect(sendMessages).toHaveBeenCalledTimes(1);
+      } finally {
+        handle.destroy();
+      }
+    },
+  );
+
+  it("still auto-sends after a successful frontend tool result", async () => {
+    const execute = vi.fn(async () => "done");
+    const { handle, sendMessages } = await startTool(execute);
+    try {
+      await waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(2));
+    } finally {
+      handle.destroy();
+    }
+  });
+
   it.each(
     (["client", "scope", "both", "rapid"] as const).flatMap((change) =>
       (["uncontrolled", "changed", "unchanged"] as const).map((selection) => ({
