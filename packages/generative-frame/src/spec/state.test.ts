@@ -109,6 +109,36 @@ describe("createStateStore writes", () => {
     ]);
   });
 
+  it("replays replacements and insertions without losing shifted edits", () => {
+    const initial = { list: ["a", "b"] };
+    const store = createStateStore(initial);
+    store.set("/list/0", "edited", "replace");
+    store.set("/list/0", "inserted");
+    store.set("/list/0", "edited insert", "replace");
+    store.set("/list/0", "final", "replace");
+    expect(store.get("/list")).toEqual(["final", "edited", "b"]);
+    expect(store.writes()).toEqual([
+      ["/list/0", "edited", "replace"],
+      ["/list/0", "inserted"],
+      ["/list/0", "final", "replace"],
+    ]);
+    store.seed({ list: ["a", "streamed"] });
+    expect(store.get("/list")).toEqual(["final", "edited", "streamed"]);
+    expect(
+      createStateStore(initial, {
+        writes: JSON.parse(JSON.stringify(store.writes())),
+      }).get("/list"),
+    ).toEqual(["final", "edited", "b"]);
+  });
+
+  it("drops a replacement when its array item no longer exists", () => {
+    const store = createStateStore({ list: ["a"] });
+    store.set("/list/0", "edited", "replace");
+    store.seed({ list: [] });
+    expect(store.get("/list")).toEqual([]);
+    expect(store.writes()).toEqual([]);
+  });
+
   it("treats `-` under an object as an ordinary key", () => {
     const store = createStateStore({ map: {} });
     store.set("/map/-", 1);

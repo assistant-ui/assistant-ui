@@ -3,15 +3,19 @@ import { getAtPointer, parsePointer, writeAtPointer } from "./pointer";
 export type StateListener = (state: Record<string, unknown>) => void;
 
 /** A value written at a JSON Pointer with `set`. */
-export type SpecStateWrite = readonly [path: string, value: unknown];
+export type SpecStateWrite = readonly [
+  path: string,
+  value: unknown,
+  mode?: "replace",
+];
 
 /** A small state container for spec expressions and `setState` actions. */
 export type SpecStateStore = {
   getState(): Record<string, unknown>;
   /** The value at a JSON Pointer, or undefined. */
   get(path: string): unknown;
-  /** Writes a value at a JSON Pointer, creating missing parent objects. */
-  set(path: string, value: unknown): void;
+  /** Writes at a JSON Pointer, creating missing parent objects. Defaults to add (inserting at array indices); replace updates an existing array item. */
+  set(path: string, value: unknown, mode?: "add" | "replace"): void;
   /**
    * Replaces the base state, typically the spec's `state` as it streams in,
    * and re-applies every `set` made so far on top of it, so model updates
@@ -34,7 +38,7 @@ export function createStateStore(
   options: StateStoreOptions = {},
 ): SpecStateStore & {
   /**
-   * The writes `seed` re-applies, oldest first, as `[path, value]` pairs: what to save to restore the user's changes later. A write that replaces a value drops earlier writes at its path and below it, except those made before an insert at an index of an array on its path, which may have moved them to another item; one that inserts into an array, at an index or at `-`, keeps them, so replaying the list in order gives the same state. The array is replaced, never mutated, when it changes.
+   * The writes `seed` re-applies, oldest first, as `[path, value]` or `[path, value, "replace"]`: what to save to restore the user's changes later. A write that replaces a value drops earlier writes at its path and below it, except those made before an insert at an index of an array on its path, which may have moved them to another item; one that inserts into an array, at an index or at `-`, keeps them, so replaying the list in order gives the same state. The array is replaced, never mutated, when it changes.
    */
   writes(): readonly SpecStateWrite[];
 } {
@@ -48,8 +52,9 @@ export function createStateStore(
     target: Record<string, unknown>,
     path: string,
     value: unknown,
+    mode: "add" | "replace",
   ) =>
-    writeAtPointer(target, parsePointer(path), "add", value, {
+    writeAtPointer(target, parsePointer(path), mode, value, {
       createMissing: true,
     }) as Record<string, unknown>;
 
@@ -58,8 +63,14 @@ export function createStateStore(
   const inserts = (target: Record<string, unknown>, path: string) =>
     path !== "" && Array.isArray(getAtPointer(target, parentOf(path)));
 
-  const record = (path: string, value: unknown, inserted: boolean) => {
-    const entry: SpecStateWrite = [path, value];
+  const record = (
+    path: string,
+    value: unknown,
+    inserted: boolean,
+    mode: "add" | "replace",
+  ) => {
+    const entry: SpecStateWrite =
+      mode === "replace" ? [path, value, mode] : [path, value];
     if (inserted) {
       if (!path.endsWith("/-")) shifting.add(entry);
       writes = [...writes, entry];
@@ -83,23 +94,23 @@ export function createStateStore(
     for (const listener of [...listeners]) listener(state);
   };
 
-  for (const [rawPath, value] of options.writes ?? []) {
+  for (const [rawPath, value, mode = "add"] of options.writes ?? []) {
     const path = normalize(rawPath);
     try {
-      const inserted = inserts(state, path);
-      state = write(state, path, value);
-      record(path, value, inserted);
+      const inserted = mode === "add" && inserts(state, path);
+      state = write(state, path, value, mode);
+      record(path, value, inserted, mode);
     } catch {}
   }
 
   return {
     getState: () => state,
     get: (path) => getAtPointer(state, normalize(path)),
-    set(rawPath, value) {
+    set(rawPath, value, mode = "add") {
       const path = normalize(rawPath);
-      const inserted = inserts(state, path);
-      const next = write(state, path, value);
-      record(path, value, inserted);
+      const inserted = mode === "add" && inserts(state, path);
+      const next = write(state, path, value, mode);
+      record(path, value, inserted, mode);
       state = next;
       emit();
     },
@@ -108,9 +119,9 @@ export function createStateStore(
       if (next === base) return;
       base = next;
       let merged = next;
-      const applied = writes.filter(([path, value]) => {
+      const applied = writes.filter(([path, value, mode = "add" as const]) => {
         try {
-          merged = write(merged, path, value);
+          merged = write(merged, path, value, mode);
           return true;
         } catch {
           return false;

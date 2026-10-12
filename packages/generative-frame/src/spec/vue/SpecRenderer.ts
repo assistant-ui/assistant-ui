@@ -339,7 +339,7 @@ const ResolvedElement = defineComponent({
         const key = handlerKey(`update:${name}`);
         const action = listeners[key];
         listeners[key] = (value) => {
-          ctx.store.set(path, value);
+          ctx.store.set(path, value, "replace");
           action?.(value);
         };
       }

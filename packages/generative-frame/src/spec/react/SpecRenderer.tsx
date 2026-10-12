@@ -345,7 +345,7 @@ function ResolvedElement({
           ...currentScope,
           state: currentCtx.state,
         }).bindings[name];
-        if (path) currentCtx.store.set(path, value);
+        if (path) currentCtx.store.set(path, value, "replace");
       },
     }),
     [id],

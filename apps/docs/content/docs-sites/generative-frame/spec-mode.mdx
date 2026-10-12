@@ -259,6 +259,8 @@ Any prop or action param can be an expression:
 
 State lives in a store created from `spec.state`. When the model streams more state, the store re-applies what the user already changed on top of it, so user input is not lost. Pass `state={createStateStore(initial)}` to own the store; an external store is not seeded from `spec.state`. A store from `createStateStore` also has `writes()`, the writes `seed` re-applies, oldest first: a write that replaces a value drops earlier writes at and below its path, unless an insert at an index of an array on that path came after them and may have moved them to another item, while inserts into an array are all kept. `createStateStore(initial, { writes })` applies saved ones again, so an app can keep the user's changes between sessions. The assistant-ui toolkit does this for each `render_spec` call.
 
+Bound edits replace their target, including an entire repeated item bound with `{ "$bindItem": "" }`. For direct store writes, `store.set(path, value)` keeps JSON Pointer add semantics, inserting at array indices; `store.set(path, value, "replace")` replaces an existing array item. Saved replacements use `[path, value, "replace"]`, while existing `[path, value]` writes retain add semantics.
+
 ## Validation
 
 ```ts
