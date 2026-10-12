@@ -385,6 +385,113 @@ describe("reduceAdkThreadState", () => {
     ]);
   });
 
+  it("keeps answered calls settled and places restaged messages after their results", () => {
+    const call: AdkMessage = {
+      id: "call",
+      type: "ai",
+      content: "calling",
+      tool_calls: [{ id: "x", name: "lookup", args: {} }],
+    };
+    const result: AdkMessage = {
+      id: "result",
+      type: "tool",
+      tool_call_id: "x",
+      name: "lookup",
+      content: "answer",
+    };
+    const staged = { id: "staged", type: "human" as const, content: "retry" };
+    const confirmation = {
+      toolCallId: "x",
+      toolName: "lookup",
+      args: {},
+      hint: "approve",
+      confirmed: false,
+    };
+    const auth = { toolCallId: "x", authConfig: {} };
+    const snapshot = {
+      ...createAdkThreadState(),
+      messages: [call, staged],
+      longRunningToolIds: ["x"],
+      toolConfirmations: [confirmation],
+      authRequests: [auth],
+    };
+    const live = {
+      ...snapshot,
+      messages: [call, result],
+      stagedEntries: new Map([
+        [staged.id, { message: staged, runConfig: undefined }],
+      ]),
+      longRunningToolIds: [],
+      toolConfirmations: [],
+      authRequests: [],
+    };
+
+    const restored = reduceAdkThreadState(live, {
+      type: "run.rollback",
+      state: snapshot,
+    });
+
+    expect(restored.messages.map((entry) => entry.id)).toEqual([
+      "call",
+      "result",
+      "staged",
+    ]);
+    expect(restored.longRunningToolIds).toEqual([]);
+    expect(restored.toolConfirmations).toEqual([]);
+    expect(restored.authRequests).toEqual([]);
+  });
+
+  it("does not restore a snapshot older than the latest load", () => {
+    const freshMessage: AdkMessage = {
+      id: "fresh",
+      type: "ai",
+      content: "new history",
+    };
+    const snapshot = {
+      ...createAdkThreadState(),
+      messages: [message],
+      longRunningToolIds: ["old"],
+    };
+    const fresh = reduceAdkThreadState(snapshot, {
+      type: "snapshot.applied",
+      snapshot: { messages: [freshMessage], longRunningToolIds: ["fresh"] },
+    });
+    const failed = {
+      ...fresh,
+      messages: [...fresh.messages, { ...message, id: "failed" }],
+    };
+    const restored = reduceAdkThreadState(failed, {
+      type: "run.rollback",
+      state: snapshot,
+      ownIds: ["failed"],
+    });
+
+    expect(restored.messages).toEqual([freshMessage]);
+    expect(restored.longRunningToolIds).toEqual(["fresh"]);
+    expect(restored.loadGeneration).toBe(fresh.loadGeneration);
+  });
+
+  it("uses the live copy of a settled snapshot message", () => {
+    const snapshotMessage: AdkMessage = {
+      id: "reply",
+      type: "ai",
+      content: "partial",
+    };
+    const liveMessage: AdkMessage = {
+      ...snapshotMessage,
+      status: { type: "incomplete", reason: "cancelled" },
+    };
+    const snapshot = { ...createAdkThreadState(), messages: [snapshotMessage] };
+    const live = { ...snapshot, messages: [liveMessage] };
+
+    const restored = reduceAdkThreadState(live, {
+      type: "run.rollback",
+      state: snapshot,
+    });
+
+    expect(restored.messages).toEqual([liveMessage]);
+  });
+
   it.each([
     [true, false],
     [false, true],
@@ -685,6 +792,7 @@ describe("reduceAdkThreadState", () => {
 
     expect(next).toEqual({
       ...createAdkThreadState(),
+      loadGeneration: 1,
       messages: snapshot.messages,
       stateDelta: snapshot.stateDelta,
       agentInfo: {},

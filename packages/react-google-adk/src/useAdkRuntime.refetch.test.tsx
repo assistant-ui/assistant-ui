@@ -10,7 +10,7 @@ import type {
 } from "@assistant-ui/core";
 import { useAui } from "@assistant-ui/store";
 import { useAdkRuntime } from "./useAdkRuntime";
-import { useAdkSend } from "./hooks";
+import { useAdkLongRunningToolIds, useAdkSend } from "./hooks";
 import type { AdkEvent, AdkMessage, AdkThreadSnapshot } from "./types";
 import { settleOutsideAct } from "./tests/settleOutsideAct";
 
@@ -124,10 +124,12 @@ const renderAdk = async (
   const capture: {
     runtime: AssistantRuntime | null;
     send: ReturnType<typeof useAdkSend> | null;
-  } = { runtime: null, send: null };
+    longRunningToolIds: ReturnType<typeof useAdkLongRunningToolIds> | null;
+  } = { runtime: null, send: null, longRunningToolIds: null };
 
   const CaptureSend = () => {
     capture.send = useAdkSend();
+    capture.longRunningToolIds = useAdkLongRunningToolIds();
     return null;
   };
 
@@ -1976,6 +1978,191 @@ describe("useAdkRuntime refetch", () => {
         requests.filter((request) => request.includes("other send")),
       ).toHaveLength(1);
     } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it("keeps a same-tick tool answer ahead of a failed staged resend", async () => {
+    const streamMock = vi.fn(async function* (
+      messages: unknown,
+    ): AsyncGenerator<AdkEvent> {
+      if (JSON.stringify(messages).includes("staged question"))
+        throw new Error("resend failed");
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { capture } = await renderAdk(
+        async () => ({
+          messages: [
+            {
+              id: "call",
+              type: "ai",
+              content: "calling",
+              tool_calls: [{ id: "x", name: "lookup", args: {} }],
+            },
+          ],
+          longRunningToolIds: ["x"],
+        }),
+        async () => null,
+        streamMock,
+      );
+      await act(async () => {
+        await capture.runtime!.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "staged question" }],
+          startRun: false,
+        });
+      });
+      const staged = capture.runtime!.thread.getState().messages.at(-1)!;
+      act(() => {
+        capture
+          .runtime!.thread.getMessageById("call")
+          .getMessagePartByToolCallId("x")
+          .addToolResult({ value: "X" });
+      });
+      await act(async () => {
+        await expect(
+          capture.runtime!.thread.startRun({ parentId: staged.id }),
+        ).rejects.toThrow("resend failed");
+      });
+      const messages = capture.runtime!.thread.getState().messages;
+      const callIndex = messages.findIndex((entry) => entry.id === "call");
+      const stagedIndex = messages.findIndex((entry) => entry.id === staged.id);
+      expect(callIndex).toBeGreaterThanOrEqual(0);
+      expect(messages[callIndex]?.content).toContainEqual(
+        expect.objectContaining({
+          type: "tool-call",
+          toolCallId: "x",
+          result: '{"value":"X"}',
+        }),
+      );
+      expect(stagedIndex).toBeGreaterThan(callIndex);
+      expect(capture.longRunningToolIds).toEqual([]);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it("keeps a fresh refetch after a same-tick reload send fails", async () => {
+    const loadResult = deferred<AdkThreadSnapshot>();
+    const checkpoint = deferred<string | null>();
+    const getCheckpointId = vi.fn(() => checkpoint.promise);
+    const load = vi.fn(async () =>
+      load.mock.calls.length === 1
+        ? {
+            messages: [
+              {
+                id: "old-question",
+                type: "human" as const,
+                content: "old question",
+              },
+              aiMessage("old-answer", "old answer"),
+            ],
+          }
+        : loadResult.promise,
+    );
+    const streamMock = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
+      throw new Error("reload send failed");
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { capture } = await renderAdk(load, getCheckpointId, streamMock);
+      const answer = capture
+        .runtime!.thread.getState()
+        .messages.find((entry) => entry.role === "assistant")!;
+      let refetch!: Promise<void>;
+      await act(async () => {
+        capture.runtime!.thread.getMessageById(answer.id).reload();
+        refetch = capture.runtime!.threads.reloadMainThread();
+        loadResult.resolve({ messages: [aiMessage("fresh", "fresh history")] });
+        await refetch;
+        checkpoint.resolve(null);
+      });
+      expect(load).toHaveBeenCalledTimes(2);
+      expect(getCheckpointId).toHaveBeenCalledOnce();
+      await waitFor(() => expect(streamMock).toHaveBeenCalledOnce());
+      await waitFor(() => expect(consoleError).toHaveBeenCalledOnce());
+      expect(threadTexts(capture.runtime!)).toEqual([
+        "assistant:fresh history",
+      ]);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it("keeps a cancelled partial reply when a staged resend fails", async () => {
+    const pending = deferred<void>();
+    const streamMock = vi.fn(async function* (
+      messages: unknown,
+    ): AsyncGenerator<AdkEvent> {
+      if (JSON.stringify(messages).includes("staged question"))
+        throw new Error("resend failed");
+      yield {
+        id: "partial",
+        invocationId: "run-1",
+        author: "agent",
+        partial: true,
+        content: { role: "model", parts: [{ text: "partial answer" }] },
+      };
+      await pending.promise;
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { capture } = await renderAdk(
+        async () => ({ messages: [] }),
+        async () => null,
+        streamMock,
+      );
+      await act(async () => {
+        await capture.runtime!.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "staged question" }],
+          startRun: false,
+        });
+      });
+      const staged = capture.runtime!.thread.getState().messages.at(-1)!;
+      act(() => {
+        void capture.send!(
+          [{ id: "first", type: "human", content: "first" }],
+          {},
+        );
+      });
+      await waitFor(() =>
+        expect(
+          capture
+            .runtime!.thread.getState()
+            .messages.some((entry) =>
+              entry.content.some(
+                (part) =>
+                  part.type === "text" && part.text === "partial answer",
+              ),
+            ),
+        ).toBe(true),
+      );
+      await act(async () => {
+        await expect(
+          capture.runtime!.thread.startRun({ parentId: staged.id }),
+        ).rejects.toThrow("resend failed");
+      });
+      const reply = capture
+        .runtime!.thread.getState()
+        .messages.find((entry) =>
+          entry.content.some(
+            (part) => part.type === "text" && part.text === "partial answer",
+          ),
+        );
+      expect(reply?.status).toEqual({
+        type: "incomplete",
+        reason: "cancelled",
+      });
+    } finally {
+      pending.resolve();
       consoleError.mockRestore();
     }
   });
