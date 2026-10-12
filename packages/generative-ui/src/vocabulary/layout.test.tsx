@@ -30,6 +30,12 @@ const getFooterButtons = (out: ReactElement) => {
 };
 
 describe("layoutVocabulary", () => {
+  it("renders a zero Card title", () => {
+    expect(render({ $type: "Card", title: 0 })).toContain(
+      '<header data-aui="card-title">0</header>',
+    );
+  });
+
   it("Card renders a section with optional title and padding/background hooks", () => {
     expect(
       render({

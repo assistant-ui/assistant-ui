@@ -81,7 +81,7 @@ export const interactiveVocabulary = {
           }, 1000);
         };
         return () => {
-          const label = String(toTextContent(props.label) ?? "");
+          const label = toTextContent(props.label) ?? "";
           const undo = label.trim();
           const canUndo = props.undoable && !props.submit && live();
           return h(
@@ -234,7 +234,7 @@ export const interactiveVocabulary = {
                         disabled: true,
                         selected: selected === "",
                       },
-                      String(placeholder),
+                      placeholder,
                     ),
                   ]
                 : []),
@@ -611,7 +611,7 @@ export const interactiveVocabulary = {
               h(
                 "span",
                 { "data-aui": "checkbox-label" },
-                String(toTextContent(props.label) ?? ""),
+                toTextContent(props.label) ?? "",
               ),
             ],
           );

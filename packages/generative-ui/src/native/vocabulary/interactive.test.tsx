@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, createElement, forwardRef } from "react";
 import { AccessibilityInfo } from "react-native";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
@@ -13,8 +13,22 @@ import {
   typeText,
 } from "../testUtils";
 
+const { pressables } = vi.hoisted(() => ({
+  pressables: [] as Record<string, unknown>[],
+}));
+
+vi.mock("react-native", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-native")>();
+  const Pressable = forwardRef((props: Record<string, unknown>, ref) => {
+    pressables.push(props);
+    return createElement(actual.Pressable, { ...props, ref } as never);
+  });
+  return { ...actual, Pressable };
+});
+
 afterEach(() => {
   cleanupSpecs();
+  pressables.length = 0;
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
@@ -305,6 +319,31 @@ const changeWeb = async (container: HTMLElement, type: string) => {
 };
 
 describe("native choice controls", () => {
+  it("shows a zero Select placeholder instead of selecting the first option", () => {
+    const { container } = renderNativeSpec(
+      spec({ main: { type: "Select", props: { options, placeholder: 0 } } }),
+    );
+    expect(container.textContent).toContain("0");
+    expect(
+      byRole(container, "radio", "Alpha").getAttribute("aria-checked"),
+    ).toBe("false");
+  });
+
+  it.each([["checkbox"], ["switch"]])(
+    "names a numeric-label %s with a string",
+    (variant) => {
+      renderNativeSpec(
+        spec({
+          main: { type: "Checkbox", props: { label: 105, variant } },
+        }),
+      );
+      const row = pressables.find(
+        (props) => props.accessibilityRole === variant,
+      );
+      expect(row?.accessibilityLabel).toBe("105");
+    },
+  );
+
   it("updates CheckboxGroup progress with the web count and payload", async () => {
     const input = spec({
       main: {

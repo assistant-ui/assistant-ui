@@ -858,7 +858,7 @@ function ButtonRender({
   const [remaining, setRemaining] = React.useState<number | undefined>(
     undefined,
   );
-  const labelText = String(toTextContent(label) ?? "");
+  const labelText = toTextContent(label) ?? "";
   const undoLabel = labelText.trim();
   const pendingAction = React.useRef<
     | {

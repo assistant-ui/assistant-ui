@@ -135,7 +135,7 @@ function Button({
   const pending = useRef<{ $action: Action; $dispatch: GenerativeUIDispatch }>(
     undefined,
   );
-  const labelText = String(toTextContent(label) ?? "");
+  const labelText = toTextContent(label) ?? "";
   const undoLabel = labelText.trim();
 
   useEffect(() => {
@@ -441,7 +441,7 @@ function DatePicker(props: DatePickerProps) {
 type ChoiceProps = ActionProps & {
   value?: string;
   options: Option[];
-  placeholder?: string;
+  placeholder?: string | number;
   label?: string;
   name?: string;
   defaultValue?: string;
@@ -564,12 +564,13 @@ function SelectField({
       ? answeredValue
       : (value ?? "")
     : choice;
+  const placeholderText = toTextContent(placeholder);
   const entries = mapOptions(options, (option) => option).filter(
     (option) => option !== null,
   );
   const effective = entries.some((option) => option.value === selected)
     ? selected
-    : placeholder && selected === ""
+    : placeholderText && selected === ""
       ? ""
       : (entries[0]?.value ?? "");
   useField(name, "value", () => effective);
@@ -580,9 +581,9 @@ function SelectField({
           {label}
         </Text>
       ) : null}
-      {effective === "" && placeholder ? (
+      {effective === "" && placeholderText ? (
         <Text style={[styles.choiceHint, { color: fade(ink, 0.45) }]}>
-          {placeholder}
+          {placeholderText}
         </Text>
       ) : null}
       <ChoiceRows
@@ -618,7 +619,7 @@ function Select({ defaultValue, ...props }: ChoiceProps) {
 
 type CheckboxProps = ActionProps & {
   checked?: boolean;
-  label: string;
+  label: string | number;
   name?: string;
   defaultChecked?: boolean;
   variant?: "checkbox" | "switch";
@@ -725,7 +726,7 @@ function CheckboxField({
   const Row = variant === "switch" ? SwitchRow : CheckboxRow;
   return (
     <Row
-      label={label}
+      label={toTextContent(label) ?? ""}
       checked={selected}
       onPress={() => {
         const next = !selected;

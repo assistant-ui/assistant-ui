@@ -127,7 +127,7 @@ function Card({
         <View style={[styles.footer, { borderTopColor: theme.hairline }]}>
           {confirm ? (
             <ActionButton
-              label={String(toTextContent(confirm.label) ?? "")}
+              label={toTextContent(confirm.label) ?? ""}
               tone="primary"
               onPress={() =>
                 asForm ? scope.submit() : fire(footerAction(confirm), $dispatch)
@@ -136,7 +136,7 @@ function Card({
           ) : null}
           {cancel ? (
             <ActionButton
-              label={String(toTextContent(cancel.label) ?? "")}
+              label={toTextContent(cancel.label) ?? ""}
               tone="ghost"
               onPress={() => fire(footerAction(cancel), $dispatch)}
             />

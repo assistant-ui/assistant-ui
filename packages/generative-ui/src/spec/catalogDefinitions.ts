@@ -23,7 +23,11 @@ const DEFAULT_SLOT = ["default"] as const;
 
 const footerButton = (label: string, event: string) =>
   z
-    .object({ label: z.string().describe("Footer button label.") })
+    .object({
+      label: z
+        .union([z.string(), z.number()])
+        .describe("Footer button label text or number."),
+    })
     .optional()
     .describe(`${label} button shown in the footer; emits \`${event}\`.`);
 

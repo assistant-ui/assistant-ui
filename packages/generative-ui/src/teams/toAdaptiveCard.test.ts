@@ -52,6 +52,39 @@ const hostileSpecies = <T>(
 };
 
 describe("toAdaptiveCard", () => {
+  describe("numeric text props", () => {
+    it("stringifies numeric labels and descriptions", () => {
+      const { card } = toAdaptiveCard([
+        { $type: "Header", text: 101 },
+        { $type: "Alert", title: 102, description: 103 },
+        { $type: "Fact", label: 104, value: "ready" },
+        {
+          $type: "Card",
+          title: 105,
+          confirm: { label: 106 },
+          cancel: { label: 107 },
+        },
+        { $type: "Select", options: [], placeholder: 108 },
+        { $type: "Checkbox", label: 109 },
+        { $type: "Button", label: 110 },
+      ]);
+      expect((card.body[0] as TeamsTextBlock).text).toBe("101");
+      const alert = card.body[1] as TeamsContainer;
+      expect((alert.items[0] as TeamsTextBlock).text).toBe("102");
+      expect((alert.items[1] as TeamsTextBlock).text).toBe("103");
+      expect((card.body[2] as TeamsFactSet).facts[0]?.title).toBe("104");
+      expect(
+        ((card.body[3] as TeamsContainer).items[0] as TeamsTextBlock).text,
+      ).toBe("105");
+      const footer = card.body[4] as TeamsActionSet;
+      expect(footer.actions[0]?.title).toBe("106");
+      expect(footer.actions[1]?.title).toBe("107");
+      expect((card.body[5] as TeamsInputChoiceSet).placeholder).toBe("108");
+      expect((card.body[6] as TeamsInputToggle).title).toBe("109");
+      expect((card.body[7] as TeamsActionSet).actions[0]?.title).toBe("110");
+    });
+  });
+
   describe("structure components", () => {
     it("renders every Tabs panel in order with a bolder label", () => {
       const { card, warnings } = toAdaptiveCard({
@@ -354,6 +387,14 @@ describe("toAdaptiveCard", () => {
       });
       expect((card.body[0] as TeamsTextBlock).size).toBeUndefined();
     });
+
+    it.each(["constructor", "toString", "__proto__"])(
+      "omits an unsupported size %s",
+      (size) => {
+        const { card } = toAdaptiveCard({ $type: "Text", value: "x", size });
+        expect((card.body[0] as TeamsTextBlock).size).toBeUndefined();
+      },
+    );
 
     it.each(["medium", "semibold", "bold"] as const)(
       "maps weight %s to bolder",
@@ -1853,6 +1894,14 @@ describe("toAdaptiveCard", () => {
   });
 
   describe("Alert", () => {
+    it.each(["constructor", "toString", "__proto__"])(
+      "uses the default style for unsupported tone %s",
+      (tone) => {
+        const { card } = toAdaptiveCard({ $type: "Alert", tone });
+        expect((card.body[0] as TeamsContainer).style).toBe("default");
+      },
+    );
+
     it.each([
       ["info", "accent"],
       ["success", "good"],
