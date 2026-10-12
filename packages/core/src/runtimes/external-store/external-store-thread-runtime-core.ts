@@ -70,6 +70,8 @@ type SubmittedFeedback = NonNullable<
 type SubmittedFeedbackOverlay = {
   feedback: SubmittedFeedback;
   external: SubmittedFeedback | undefined;
+  source: ThreadAssistantMessage;
+  message: ThreadAssistantMessage;
 };
 
 const sameSubmittedFeedback = (
@@ -208,9 +210,9 @@ export class ExternalStoreThreadRuntimeCore
   // keeps one identity per response.
   private _optimistic: { id: string; parentId: string | null } | null = null;
 
-  // What the host holds or has moved past, as far as this runtime knows: the
-  // branch the last snapshot pass derived, before the placeholder, or the array
-  // last handed to setMessages, whichever was written last.
+  // The last host branch with locally submitted feedback applied, or the array
+  // last handed to setMessages, whichever was written last. Excludes the
+  // optimistic placeholder so cancel resync only writes a real rollback.
   private _storeMessages: readonly ThreadMessage[] = [];
 
   private readonly _runStartLeases = new RunLeases();
@@ -252,6 +254,10 @@ export class ExternalStoreThreadRuntimeCore
     previousMessage: ThreadAssistantMessage,
     message: ThreadAssistantMessage,
   ): void {
+    this._storeMessages = this._storeMessages.map((storedMessage) =>
+      storedMessage.id === message.id ? message : storedMessage,
+    );
+    if (message.id.startsWith(FALLBACK_ID_PREFIX)) return;
     const previousOverlay = this._submittedFeedback.get(message.id);
     const external =
       previousOverlay &&
@@ -263,12 +269,21 @@ export class ExternalStoreThreadRuntimeCore
         : previousMessage.metadata.submittedFeedback;
     const feedback = message.metadata.submittedFeedback;
     if (!feedback) return;
-    this._submittedFeedback.set(message.id, { feedback, external });
+    this._submittedFeedback.set(message.id, {
+      feedback,
+      external,
+      source:
+        previousOverlay?.message === previousMessage
+          ? previousOverlay.source
+          : previousMessage,
+      message,
+    });
   }
 
   private _applySubmittedFeedback(
     messages: readonly ThreadMessage[],
-  ): ThreadMessage[] {
+  ): readonly ThreadMessage[] {
+    if (this._submittedFeedback.size === 0) return messages;
     const incomingIds = new Set(messages.map((message) => message.id));
     for (const id of this._submittedFeedback.keys()) {
       if (!incomingIds.has(id)) this._submittedFeedback.delete(id);
@@ -288,13 +303,17 @@ export class ExternalStoreThreadRuntimeCore
         return message;
       }
 
-      return {
+      if (overlay.source === message) return overlay.message;
+      const updatedMessage = {
         ...message,
         metadata: {
           ...message.metadata,
           submittedFeedback: overlay.feedback,
         },
       };
+      overlay.source = message;
+      overlay.message = updatedMessage;
+      return updatedMessage;
     });
   }
 
@@ -431,7 +450,6 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     let messages: readonly ThreadMessage[];
-    let storeMessages: readonly ThreadMessage[];
 
     if (store.messageRepository) {
       // Handle messageRepository
@@ -457,11 +475,11 @@ export class ExternalStoreThreadRuntimeCore
       ) {
         this.repository.resetHead(headId);
         messages = this.repository.getMessages();
-        storeMessages = messages;
       } else {
         const incomingIds = new Set(incoming.map(({ message }) => message.id));
-        storeMessages = incoming.map(({ message }) => message);
-        const reconciledMessages = this._applySubmittedFeedback(storeMessages);
+        const reconciledMessages = this._applySubmittedFeedback(
+          incoming.map(({ message }) => message),
+        );
         for (let i = 0; i < incoming.length; i++) {
           this.repository.addOrUpdateMessage(
             incoming[i]!.parentId,
@@ -547,7 +565,6 @@ export class ExternalStoreThreadRuntimeCore
       }
       if (deduped.length !== messages.length) messages = deduped.reverse();
 
-      storeMessages = messages;
       messages = this._applySubmittedFeedback(messages);
 
       for (let i = 0; i < messages.length; i++) {
@@ -584,7 +601,7 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     // Common logic for both paths
-    this._storeMessages = storeMessages;
+    this._storeMessages = messages;
     if (messages.length > 0) this.ensureInitialized();
 
     this._effectiveIsRunning = isRunning;

@@ -131,6 +131,46 @@ describe("ExternalStoreThreadRuntimeCore submitted feedback", () => {
     ).toEqual({ type: "positive" });
   });
 
+  it("does not move feedback to a new message at a positional fallback id", () => {
+    const withoutIds = (message: FeedbackSource): ThreadMessageLike => ({
+      role: message.role,
+      content: [{ type: "text", text: message.text }],
+    });
+    const messages = [feedbackUser, feedbackAssistant];
+    const runtime = createFeedbackRuntime(messages, withoutIds);
+    const ratedId = runtime.messages[1]!.id;
+
+    runtime.submitFeedback({ messageId: ratedId, type: "positive" });
+    runtime.__internal_setAdapter(
+      createFeedbackStore(
+        [
+          { id: "u0", role: "user", text: "earlier" },
+          { id: "a0", role: "assistant", text: "earlier reply" },
+          ...messages,
+        ],
+        withoutIds,
+      ),
+    );
+
+    expect(runtime.messages[1]?.metadata.submittedFeedback).toBeUndefined();
+    expect(runtime.messages[3]?.metadata.submittedFeedback).toBeUndefined();
+  });
+
+  it("keeps a voted message's identity across identical host snapshots", () => {
+    const messages = [feedbackUser, feedbackAssistant];
+    const converter = (message: FeedbackSource) => feedbackMessage(message);
+    const runtime = createFeedbackRuntime(messages, converter);
+
+    runtime.submitFeedback({ messageId: "a1", type: "positive" });
+    const votedMessage = runtime.getMessageById("a1")!.message;
+    for (let i = 0; i < 5; i++) {
+      runtime.__internal_setAdapter(
+        createFeedbackStore([...messages], converter),
+      );
+      expect(runtime.getMessageById("a1")!.message).toBe(votedMessage);
+    }
+  });
+
   it("preserves feedback across exported repository snapshots", () => {
     const createMessageRepository = () =>
       ExportedMessageRepository.fromArray([

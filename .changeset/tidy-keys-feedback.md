@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-Preserve locally submitted feedback across external-store message snapshots.
+fix(core): keep a submitted rating visible when the host refreshes its messages

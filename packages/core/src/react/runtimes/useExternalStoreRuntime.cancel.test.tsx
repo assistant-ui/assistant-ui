@@ -32,6 +32,54 @@ afterEach(() => {
 });
 
 describe("useExternalStoreRuntime cancel", () => {
+  it("keeps an immediate send after stopping a rated reply", async () => {
+    const probe = {} as {
+      runtime: AssistantRuntime;
+      messages: readonly ThreadMessage[];
+    };
+    let sent!: () => void;
+    const onNewCalled = new Promise<void>((resolve) => {
+      sent = resolve;
+    });
+    const Host = () => {
+      const [messages, setMessages] = useState<readonly ThreadMessage[]>([
+        message("u0", "user"),
+        message("a0", "assistant"),
+      ]);
+      probe.messages = messages;
+      probe.runtime = useExternalStoreRuntime<ThreadMessage>({
+        messages,
+        setMessages,
+        onNew: async () => {
+          setMessages((current) => [...current, message("u1", "user")]);
+          sent();
+        },
+        onCancel: async () => {},
+        adapters: { feedback: { submit: vi.fn() } },
+      });
+      return null;
+    };
+    render(<Host />);
+
+    probe.runtime.thread
+      .getMessageById("a0")
+      .submitFeedback({ type: "positive" });
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", false);
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    probe.runtime.thread.cancelRun();
+    probe.runtime.thread.append("hello");
+    await onNewCalled;
+    vi.runAllTimers();
+    vi.useRealTimers();
+
+    await waitFor(() =>
+      expect(probe.runtime.thread.getState().messages.map((m) => m.id)).toEqual(
+        ["u0", "a0", "u1"],
+      ),
+    );
+    expect(probe.messages.map((m) => m.id)).toEqual(["u0", "a0", "u1"]);
+  });
+
   it("keeps a message sent right after a programmatic stop", async () => {
     const probe = {} as {
       runtime: AssistantRuntime;
