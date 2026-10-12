@@ -229,6 +229,32 @@ describe("answer layout", () => {
     expect(label["letter-spacing"]).toBeUndefined();
     expect(label["font-size"]).toBe("0.75rem");
   });
+
+  it("keeps facts in a card's row lighter than the card title", () => {
+    const value =
+      rules[
+        '[data-aui="card"] [data-aui="row"] > [data-aui="fact"] > [data-aui="fact-value"]'
+      ]!;
+    const title = rules['[data-aui="card-title"]']!;
+    expect(value["font-size"]).toBe(title["font-size"]);
+    expect(Number(value["font-weight"])).toBeLessThan(
+      Number(title["font-weight"]),
+    );
+  });
+
+  it("lets row images shrink to fit while keeping a fifth of the row beside text", () => {
+    const gallery =
+      rules[
+        '[data-aui="row"] > [data-aui="image"]:not([data-aui-size="sm"], [data-aui-round])'
+      ]!;
+    expect(gallery["flex"]).toBe("1 1 0");
+    expect(gallery["min-width"]).toBe("max(5rem, 22%)");
+    expect(
+      rules[
+        '[data-aui="row"] > [data-aui="image"][data-aui-size="sm"]:not([data-aui-round])'
+      ]!["flex"],
+    ).toBe("none");
+  });
 });
 
 describe("generative UI surface", () => {

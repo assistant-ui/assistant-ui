@@ -109,12 +109,18 @@ export const generativeUiVocabularyCss: CssRuleset = {
     "font-variant-numeric": "tabular-nums",
   },
   // Facts side by side are the answer's headline figures, so their values
-  // carry the size and weight a reader scans for.
+  // carry the size and weight a reader scans for; inside a card they are the
+  // card's details and stay below its title.
   '[data-aui="row"] > [data-aui="fact"] > [data-aui="fact-value"]': {
     "font-size": "1.25rem",
     "font-weight": "600",
     "line-height": "1.3",
   },
+  '[data-aui="card"] [data-aui="row"] > [data-aui="fact"] > [data-aui="fact-value"]':
+    {
+      "font-size": "0.9375rem",
+      "font-weight": "500",
+    },
   '[data-aui="fact-delta"]': {
     display: "inline-flex",
     "align-items": "center",
@@ -1068,12 +1074,12 @@ export const generativeUiVocabularyCss: CssRuleset = {
     width: "3.25rem",
     height: "3.25rem",
   },
-  // In a row, unsized images split the width into an evenly cropped gallery,
-  // and a small one beside text is a square thumbnail.
-  '[data-aui="row"] > [data-aui="image"]:not([data-aui-size], [data-aui-round])':
+  // In a row, images split the width into an evenly cropped gallery, keeping
+  // at least a fifth of it beside text, and a small one is a square thumbnail.
+  '[data-aui="row"] > [data-aui="image"]:not([data-aui-size="sm"], [data-aui-round])':
     {
       flex: "1 1 0",
-      "min-width": "0",
+      "min-width": "max(5rem, 22%)",
       "aspect-ratio": "4 / 3",
       "object-fit": "cover",
     },
