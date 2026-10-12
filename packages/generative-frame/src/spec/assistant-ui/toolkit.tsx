@@ -79,12 +79,26 @@ function savedWrites(
       continue;
     const writes = entry.payload["writes"];
     if (!Array.isArray(writes)) return [];
-    return writes.filter(
-      (write): write is SpecStateWrite =>
-        Array.isArray(write) &&
-        write.length === 2 &&
-        typeof write[0] === "string",
-    );
+    return writes.flatMap((write): SpecStateWrite[] => {
+      if (
+        !Array.isArray(write) ||
+        typeof write[0] !== "string" ||
+        (write.length !== 2 && write.length !== 3 && write.length !== 4)
+      ) {
+        return [];
+      }
+      if (write.length === 2) return [[write[0], write[1]]];
+      if (typeof write[2] !== "string") return [];
+      const mode = write[2] === "replace" ? "replace" : "add";
+      if (write.length === 3) return [[write[0], write[1], mode]];
+      if (
+        !Array.isArray(write[3]) ||
+        !write[3].every((path) => typeof path === "string")
+      ) {
+        return [];
+      }
+      return [[write[0], write[1], mode, write[3]]];
+    });
   }
   return [];
 }

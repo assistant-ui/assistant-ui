@@ -1096,7 +1096,9 @@ type SpecStateStore = {
 
 type SpecStateWrite = readonly [
   path: string,
-  value: unknown
+  value: unknown,
+  mode?: "add" | "replace",
+  arrayParents?: readonly string[]
 ];
 
 type SpecStream = {

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { createStateStore } from "./state";
+import { createStateStore, type SpecStateWrite } from "./state";
 
 describe("createStateStore writes", () => {
   it("lists writes oldest first, a later write replacing one at the same path", () => {
@@ -28,6 +28,91 @@ describe("createStateStore writes", () => {
     store.set("/list/-", "y");
     store.seed({ list: ["base"] });
     expect(store.get("/list")).toEqual(["base", "x", "y"]);
+  });
+
+  it("preserves array appends when the model array is absent", () => {
+    const store = createStateStore({ items: [] });
+    store.set("/items/-", "first");
+    store.set("/items/-", "second");
+    const writes = JSON.parse(
+      JSON.stringify(store.writes()),
+    ) as SpecStateWrite[];
+
+    store.seed({});
+    expect(store.getState()).toEqual({ items: ["first", "second"] });
+    expect(createStateStore({}, { writes }).getState()).toEqual({
+      items: ["first", "second"],
+    });
+
+    store.seed({ items: ["model"] });
+    expect(store.getState()).toEqual({ items: ["model", "first", "second"] });
+  });
+
+  it("preserves nested array parents when restoring serialized writes", () => {
+    const store = createStateStore({ groups: [{ items: [] }] });
+    store.set("/groups/0/items/-", "first");
+    store.set("/groups/0/items/-", "second");
+    const writes = JSON.parse(
+      JSON.stringify(store.writes()),
+    ) as SpecStateWrite[];
+
+    expect(createStateStore({}, { writes }).getState()).toEqual({
+      groups: [{ items: ["first", "second"] }],
+    });
+  });
+
+  it("keeps a present object parent when saved writes recorded an array", () => {
+    const source = createStateStore({ items: [] });
+    source.set("/items/-", "first");
+    source.set("/items/-", "second");
+    const writes = JSON.parse(
+      JSON.stringify(source.writes()),
+    ) as SpecStateWrite[];
+    const restored = createStateStore({ items: {} }, { writes });
+
+    expect(restored.getState()).toEqual({ items: { "-": "second" } });
+    expect(restored.writes()).toEqual([
+      ["/items/-", "second", "add", ["/items"]],
+    ]);
+  });
+
+  it.each(["-", "0"])(
+    "keeps `%s` as an object key while replaying writes",
+    (key) => {
+      const store = createStateStore({ map: {} });
+      store.set(`/map/${key}`, "first");
+      store.set(`/map/${key}`, "second");
+      const writes = JSON.parse(
+        JSON.stringify(store.writes()),
+      ) as SpecStateWrite[];
+
+      store.seed({});
+      expect(store.getState()).toEqual({ map: { [key]: "second" } });
+      expect(createStateStore({}, { writes }).getState()).toEqual({
+        map: { [key]: "second" },
+      });
+    },
+  );
+
+  it("preserves the replacement marker when restoring an array write", () => {
+    const writes = JSON.parse(
+      JSON.stringify([["/items/0", "edited", "replace"]]),
+    ) as SpecStateWrite[];
+    const store = createStateStore({ items: ["model"] }, { writes });
+
+    expect(store.getState()).toEqual({ items: ["edited"] });
+    expect(store.writes()).toEqual([
+      ["/items/0", "edited", "replace", ["/items"]],
+    ]);
+    const restored = createStateStore(
+      {},
+      {
+        writes: JSON.parse(JSON.stringify(store.writes())) as SpecStateWrite[],
+      },
+    );
+    expect(restored.getState()).toEqual({ items: ["edited"] });
+    store.seed({});
+    expect(store.getState()).toEqual({ items: ["edited"] });
   });
 
   it("applies restored writes over the initial state and keeps them through seeds", () => {
@@ -94,8 +179,8 @@ describe("createStateStore writes", () => {
     store.set("/list/0/done", true);
     store.set("/list/0/done", false);
     expect(store.writes()).toEqual([
-      ["/list/0", { done: false }],
-      ["/list/0/done", false],
+      ["/list/0", { done: false }, "add", ["/list"]],
+      ["/list/0/done", false, "add", ["/list"]],
     ]);
   });
 
@@ -105,8 +190,8 @@ describe("createStateStore writes", () => {
     store.set("/list/-", { done: false });
     store.set("/list/0/done", false);
     expect(store.writes()).toEqual([
-      ["/list/-", { done: false }],
-      ["/list/0/done", false],
+      ["/list/-", { done: false }, "add", ["/list"]],
+      ["/list/0/done", false, "add", ["/list"]],
     ]);
   });
 

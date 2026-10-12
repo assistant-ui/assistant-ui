@@ -201,7 +201,7 @@ The `RenderReportOptions`, `WidgetRenderReport`, `WidgetToolkitExtension`, `Tool
 | `applyPatch(doc, operations)` | Applies RFC 6902 operations. |
 | `validateSpec(spec, catalog, { partial? })` | `{ ok, issues }`. |
 | `formatSpecIssues(issues)` | Issues as model-readable text. |
-| `createStateStore(initial?, { writes? }?)` | `{ getState, get, set, writes, seed, subscribe }`. `writes()` lists the writes `seed` re-applies as `[path, value]` pairs, oldest first, a replacing write dropping earlier ones at and below its path that no insert at an index on that path has since moved; `writes` applies saved ones over `initial`. |
+| `createStateStore(initial?, { writes? }?)` | `{ getState, get, set, writes, seed, subscribe }`. `writes()` lists entries oldest first. A legacy/default entry is `[path, value]`; a replacement is `[path, value, "replace"]`; an array-backed entry is `[path, value, mode, arrayParents]`, where `mode` is `"add"` or `"replace"` and `arrayParents` lists JSON Pointer paths. These parent paths preserve array shape when new saved writes are restored without a model base, while numeric and `-` object keys keep their object meaning. Earlier two-item logs remain readable but cannot identify an absent array parent. Replacing writes drop earlier ones at and below their path unless an array insert moved them; inserts are kept. `writes` applies saved entries over `initial`. |
 | `emptySpec()` | An empty spec. |
 
 ## `generative-frame/spec/react`

@@ -1235,6 +1235,51 @@ describe("render_spec state persistence", () => {
     expect(view.container.textContent).toBe("Ada");
   });
 
+  it("restores array-shaped writes from JSON interaction logs", () => {
+    const writes = JSON.parse(
+      JSON.stringify([
+        ["/items/-", "first", "add", ["/items"]],
+        ["/items/-", "second", "add", ["/items"]],
+        ["/items/0", "edited", "replace", ["/items"]],
+        ["/status", "saved", "replace"],
+        ["/fallback", "kept", "remove"],
+      ]),
+    );
+    const arraySpec = {
+      root: "t",
+      elements: { t: { type: "Text", props: { text: "state" } } },
+      state: {},
+    };
+    mocks.messages = [
+      { content: [call("s", "render_spec", { title: "s", spec: arraySpec })] },
+    ];
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, {
+        components: {
+          Text: ({ state }: SpecComponentProps<{ text: string }>) => (
+            <p>{JSON.stringify(state.getState())}</p>
+          ),
+        },
+      }),
+    });
+    const RenderSpec = entries(toolkit)["render_spec"]!.render;
+    const view = render(
+      <RenderSpec
+        {...partProps("s", { title: "s", spec: arraySpec })}
+        unstable_interactions={saved(writes)}
+      />,
+    );
+
+    expect(view.container.textContent).toBe(
+      JSON.stringify({
+        tools: {},
+        items: ["edited", "second"],
+        status: "saved",
+        fallback: "kept",
+      }),
+    );
+  });
+
   it("saves the user's writes once they settle and again on unmount", () => {
     vi.useFakeTimers();
     const record = vi.fn(async () => {});
