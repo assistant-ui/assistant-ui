@@ -77,7 +77,7 @@ export type AdkThreadAction =
   | { type: "messages.remember"; messages: AdkMessage[]; runConfig: unknown }
   | { type: "messages.seed"; history: AdkMessage[] }
   | { type: "messages.prune"; history: AdkMessage[] }
-  | { type: "run.rollback"; state: AdkThreadState }
+  | { type: "run.rollback"; state: AdkThreadState; ownIds?: readonly string[] }
   | { type: "run.active" }
   | { type: "run.failed" }
   | {
@@ -339,23 +339,99 @@ export const reduceAdkThreadState = (
       };
     }
     case "run.rollback": {
+      const ownIds = new Set(action.ownIds);
+      const originalIds = new Set(
+        action.state.messages.map((message) => message.id),
+      );
+      const messages = [
+        ...action.state.messages.map((message) =>
+          action.state.queuedMessageIds.has(message.id) &&
+          !state.queuedMessageIds.has(message.id)
+            ? (state.messages.find((current) => current.id === message.id) ??
+              message)
+            : message,
+        ),
+        ...state.messages.filter(
+          (message) => !originalIds.has(message.id) && !ownIds.has(message.id),
+        ),
+      ];
       const stagedEntries = new Map(action.state.stagedEntries);
-      const stagedMessages: AdkMessage[] = [];
       for (const [id, entry] of state.stagedEntries) {
         if (stagedEntries.has(id)) continue;
         stagedEntries.set(id, entry);
-        if (!action.state.messages.some((message) => message.id === id))
-          stagedMessages.push(entry.message);
+        if (!messages.some((message) => message.id === id))
+          messages.push(entry.message);
       }
+      const ownToolIds = new Set(
+        state.messages.flatMap((message) =>
+          message.type === "ai" && ownIds.has(message.id)
+            ? (message.tool_calls ?? []).flatMap((call) =>
+                call && typeof call.id === "string" ? [call.id] : [],
+              )
+            : [],
+        ),
+      );
+      const mergeToolMap = <T>(
+        original: ReadonlyMap<string, T>,
+        current: ReadonlyMap<string, T>,
+      ) =>
+        new Map([
+          ...original,
+          ...[...current].filter(([id]) => !ownToolIds.has(id)),
+        ]);
+      const mergeToolIds = (original: string[], current: string[]) => [
+        ...original,
+        ...current.filter(
+          (id) => !original.includes(id) && !ownToolIds.has(id),
+        ),
+      ];
+      const mergeByToolCallId = <T extends { toolCallId: string }>(
+        original: T[],
+        current: T[],
+      ) => [
+        ...original,
+        ...current.filter(
+          (item) =>
+            !original.some((old) => old.toolCallId === item.toolCallId) &&
+            !ownToolIds.has(item.toolCallId),
+        ),
+      ];
       return {
-        ...action.state,
-        messages: [...action.state.messages, ...stagedMessages],
+        ...state,
+        messages,
+        queuedMessageIds: new Set(
+          [...state.queuedMessageIds].filter((id) => !ownIds.has(id)),
+        ),
+        longRunningToolIds: mergeToolIds(
+          action.state.longRunningToolIds,
+          state.longRunningToolIds,
+        ),
+        toolConfirmations: mergeByToolCallId(
+          action.state.toolConfirmations,
+          state.toolConfirmations,
+        ),
+        authRequests: mergeByToolCallId(
+          action.state.authRequests,
+          state.authRequests,
+        ),
+        escalated: action.state.escalated || state.escalated,
+        messageMetadata: new Map([
+          ...action.state.messageMetadata,
+          ...state.messageMetadata,
+        ]),
         stagedEntries,
-        currentRunId: state.currentRunId,
-        nextRunId: state.nextRunId,
-        activeRunIds: state.activeRunIds,
-        failedRunIds: state.failedRunIds,
-        readyBatch: state.readyBatch,
+        runConfigByToolCallId: mergeToolMap(
+          action.state.runConfigByToolCallId,
+          state.runConfigByToolCallId,
+        ),
+        runIdByToolCallId: mergeToolMap(
+          action.state.runIdByToolCallId,
+          state.runIdByToolCallId,
+        ),
+        toolResultBuffer: new Map([
+          ...action.state.toolResultBuffer,
+          ...state.toolResultBuffer,
+        ]),
       };
     }
     case "run.active": {

@@ -244,20 +244,14 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   } | null>(null);
 
   const runExclusive = async (
-    run: (
-      isCurrent: () => boolean,
-      onPreEventFailure: () => void,
-    ) => Promise<void>,
-    onPreEventFailure?: () => void,
+    run: (isCurrent: () => boolean) => Promise<void>,
   ) => {
     const lease = runLeases.begin();
     const runId = controller.dispatch({ type: "run.active" }).currentRunId!;
     let failed = false;
     try {
       setIsRunning(true);
-      await run(lease.isCurrent, () => {
-        if (lease.isCurrent()) onPreEventFailure?.();
-      });
+      await run(lease.isCurrent);
     } catch (error) {
       failed = true;
       throw error;
@@ -280,7 +274,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   const handleSendMessage = (
     msgs: AdkMessage[],
     config: AdkSendMessageConfig,
-    onPreEventFailure?: () => void,
+    rollbackState?: ReturnType<typeof controller.getState>,
   ) => {
     const isToolContinuation =
       msgs.length > 0 && msgs.every((msg) => msg.type === "tool");
@@ -297,8 +291,8 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     return sendMessageWithExecutor(
       msgs,
       continuationConfig,
-      (run) => runExclusive((isCurrent) => run(isCurrent)),
-      onPreEventFailure,
+      (run) => runExclusive(() => run()),
+      rollbackState,
     );
   };
 
@@ -533,8 +527,8 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       ? async (msg) => {
           const initialLoad = waitForInitialLoad();
           if (initialLoad && !(await initialLoad).active) return;
-          stopRun();
           const beforeEdit = controller.getState();
+          stopRun();
           const truncated = truncateAdkMessages(
             threadMessagesRef.current,
             msg.parentId,
@@ -554,36 +548,32 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           const editedMessage = toAdkUserMessage(msg);
           setMessages([...truncated, editedMessage]);
           const externalId = aui.threadListItem.getState().externalId;
-          return runExclusive(
-            async (isCurrent, onPreEventFailure) => {
-              let checkpointId: string | null;
-              try {
-                checkpointId = externalId
-                  ? await getCheckpointId(externalId, truncated)
-                  : null;
-              } catch (error) {
-                if (isCurrent())
-                  controller.dispatch({
-                    type: "run.rollback",
-                    state: beforeEdit,
-                  });
-                throw error;
-              }
-              if (!isCurrent()) return;
-              await sendMessageWithExecutor(
-                [editedMessage],
-                {
-                  runConfig: msg.runConfig,
-                  ...(checkpointId && { checkpointId }),
-                },
-                undefined,
-                onPreEventFailure,
-              );
-            },
-            () => {
-              controller.dispatch({ type: "run.rollback", state: beforeEdit });
-            },
-          );
+          return runExclusive(async (isCurrent) => {
+            let checkpointId: string | null;
+            try {
+              checkpointId = externalId
+                ? await getCheckpointId(externalId, truncated)
+                : null;
+            } catch (error) {
+              if (isCurrent())
+                controller.dispatch({
+                  type: "run.rollback",
+                  state: beforeEdit,
+                  ownIds: [editedMessage.id!],
+                });
+              throw error;
+            }
+            if (!isCurrent()) return;
+            await sendMessageWithExecutor(
+              [editedMessage],
+              {
+                runConfig: msg.runConfig,
+                ...(checkpointId && { checkpointId }),
+              },
+              undefined,
+              beforeEdit,
+            );
+          });
         }
       : undefined,
     ...(getCheckpointId || hasStagedMessages
@@ -604,12 +594,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
                 {
                   runConfig: config.runConfig ?? stagedRun.runConfig,
                 },
-                () => {
-                  controller.dispatch({
-                    type: "run.rollback",
-                    state: beforeReload,
-                  });
-                },
+                beforeReload,
               );
             }
 
@@ -621,55 +606,46 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
               ? previousReload.beforeReload
               : undefined;
             stopRun();
-            const beforeReloadState =
-              inheritedSnapshot ?? controller.getState();
+            const beforeReloadState = inheritedSnapshot ?? beforeReload;
             const truncated = truncateAdkMessages(
               threadMessagesRef.current,
               parentId,
             );
             replaceMessages(truncated);
             const externalId = aui.threadListItem.getState().externalId;
-            return runExclusive(
-              async (isCurrent, onPreEventFailure) => {
-                const lookup = {
-                  lease: runLeases.current(),
-                  beforeReload: beforeReloadState,
-                };
-                reloadLookupRef.current = lookup;
-                let checkpointId: string | null;
-                try {
-                  checkpointId = externalId
-                    ? await getCheckpointId(externalId, truncated)
-                    : null;
-                } catch (error) {
-                  if (isCurrent() && reloadLookupRef.current === lookup)
-                    controller.dispatch({
-                      type: "run.rollback",
-                      state: beforeReloadState,
-                    });
-                  throw error;
-                } finally {
-                  if (reloadLookupRef.current === lookup)
-                    reloadLookupRef.current = null;
-                }
-                if (!isCurrent()) return;
-                await sendMessageWithExecutor(
-                  [],
-                  {
-                    runConfig: config.runConfig,
-                    ...(checkpointId && { checkpointId }),
-                  },
-                  undefined,
-                  onPreEventFailure,
-                );
-              },
-              () => {
-                controller.dispatch({
-                  type: "run.rollback",
-                  state: beforeReloadState,
-                });
-              },
-            );
+            return runExclusive(async (isCurrent) => {
+              const lookup = {
+                lease: runLeases.current(),
+                beforeReload: beforeReloadState,
+              };
+              reloadLookupRef.current = lookup;
+              let checkpointId: string | null;
+              try {
+                checkpointId = externalId
+                  ? await getCheckpointId(externalId, truncated)
+                  : null;
+              } catch (error) {
+                if (isCurrent() && reloadLookupRef.current === lookup)
+                  controller.dispatch({
+                    type: "run.rollback",
+                    state: beforeReloadState,
+                  });
+                throw error;
+              } finally {
+                if (reloadLookupRef.current === lookup)
+                  reloadLookupRef.current = null;
+              }
+              if (!isCurrent()) return;
+              await sendMessageWithExecutor(
+                [],
+                {
+                  runConfig: config.runConfig,
+                  ...(checkpointId && { checkpointId }),
+                },
+                undefined,
+                beforeReloadState,
+              );
+            });
           },
         }
       : {}),
@@ -719,7 +695,8 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           stopRun();
           // A reload stopped before it sent leaves the ADK session holding the
           // turn it removed, so the thread shows that turn again.
-          if (beforeReload) applySnapshot(beforeReload);
+          if (beforeReload)
+            controller.dispatch({ type: "run.rollback", state: beforeReload });
         }
       : undefined,
     ...(load !== undefined && {

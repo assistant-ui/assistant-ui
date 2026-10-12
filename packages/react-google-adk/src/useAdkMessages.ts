@@ -21,6 +21,7 @@ import {
   normalizeAdkEvent,
 } from "./AdkEventAccumulator";
 import { AdkThreadController } from "./AdkThreadController";
+import type { AdkThreadState } from "./adkThreadState";
 import { contentToParts } from "./contentToParts";
 import { toAdkFunctionResponse } from "./toAdkFunctionResponse";
 import type {
@@ -50,18 +51,13 @@ type QueuedAdkSend = {
   config: Record<PropertyKey, unknown>;
   batchId: number;
   ids: string[];
-  run: (
-    messageBatches: AdkMessage[][],
-    onPreEventFailure: () => void,
-  ) => Promise<void>;
-  onPreEventFailure: (() => void) | undefined;
+  run: (messageBatches: AdkMessage[][]) => Promise<void>;
+  rollbackState: AdkThreadState | undefined;
   resolve: () => void;
   reject: (error: unknown) => void;
 };
 
-type RunExecutor = (
-  run: (isCurrent: () => boolean) => Promise<void>,
-) => Promise<void>;
+type RunExecutor = (run: () => Promise<void>) => Promise<void>;
 
 const normalizeSendConfig = (config: AdkSendMessageConfig) =>
   Object.fromEntries(
@@ -176,18 +172,14 @@ const useAdkMessagesInternal = ({
         if (
           next.batchId !== first.batchId ||
           !sameSendConfig(first.config, next.config) ||
-          (sends.length > 0 &&
-            (first.onPreEventFailure || next.onPreEventFailure))
+          (sends.length > 0 && (first.rollbackState || next.rollbackState))
         ) {
           break;
         }
         sends.push(pendingSendsRef.current.shift()!);
       }
       try {
-        await sends.at(-1)!.run(
-          sends.map((send) => send.messages),
-          () => sends.at(-1)!.onPreEventFailure?.(),
-        );
+        await sends.at(-1)!.run(sends.map((send) => send.messages));
         for (const send of sends) send.resolve();
       } catch (error) {
         controller.dispatch({
@@ -206,16 +198,13 @@ const useAdkMessagesInternal = ({
       newMessages: AdkMessage[],
       config: AdkSendMessageConfig,
       executeWithRun?: RunExecutor,
-      onPreEventFailure?: () => void,
+      rollbackState?: AdkThreadState,
     ) => {
       const newMessagesWithId = newMessages.map((m) =>
         m.id ? m : { ...m, id: generateId() },
       ) as AdkMessage[];
 
-      const run = async (
-        messageBatches: AdkMessage[][],
-        notifyPreEventFailure: () => void,
-      ) => {
+      const run = async (messageBatches: AdkMessage[][]) => {
         const messages = messageBatches.flat();
         // A staged message is already in the thread under its own id, and the
         // merged event below re-emits the whole batch under the first one. Seeding
@@ -373,12 +362,18 @@ const useAdkMessagesInternal = ({
             !(error instanceof Error && error.name === "AbortError")
           ) {
             if (!receivedEvent) {
-              controller.dispatch({
-                type: "run.preEventFailed",
-                ownIds,
-                ...previousRunState,
-              });
-              notifyPreEventFailure();
+              if (rollbackState)
+                controller.dispatch({
+                  type: "run.rollback",
+                  state: rollbackState,
+                  ownIds: [...ownIds, ...queuedIds],
+                });
+              else
+                controller.dispatch({
+                  type: "run.preEventFailed",
+                  ownIds,
+                  ...previousRunState,
+                });
             }
             throw error;
           }
@@ -448,18 +443,11 @@ const useAdkMessagesInternal = ({
           config: normalizeSendConfig(config),
           batchId: sendBatchIdRef.current,
           ids: queuedIds,
-          onPreEventFailure,
-          run: (
-            messageBatches: AdkMessage[][],
-            notifyPreEventFailure: () => void,
-          ) =>
+          rollbackState,
+          run: (messageBatches: AdkMessage[][]) =>
             executeWithRun
-              ? executeWithRun((isCurrent) =>
-                  run(messageBatches, () => {
-                    if (isCurrent()) notifyPreEventFailure();
-                  }),
-                )
-              : run(messageBatches, notifyPreEventFailure),
+              ? executeWithRun(() => run(messageBatches))
+              : run(messageBatches),
           resolve,
           reject,
         };

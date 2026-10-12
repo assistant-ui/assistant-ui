@@ -164,6 +164,144 @@ describe("reduceAdkThreadState", () => {
     expect(rolledBack.activeRunIds).toBe(active.activeRunIds);
   });
 
+  it("restores truncated tool state while retaining later sends and tool events", () => {
+    const original = {
+      ...createAdkThreadState(),
+      messages: [
+        {
+          id: "old",
+          type: "ai" as const,
+          content: "calling tool",
+          tool_calls: [{ id: "old-call", name: "lookup", args: {} }],
+        },
+      ],
+      longRunningToolIds: ["old-call"],
+      toolConfirmations: [
+        {
+          toolCallId: "old-confirm",
+          toolName: "approve",
+          args: {},
+          hint: "old",
+          confirmed: false,
+        },
+      ],
+      authRequests: [{ toolCallId: "old-auth", authConfig: {} }],
+      runConfigByToolCallId: new Map([["old-call", { model: "old" }]]),
+      runIdByToolCallId: new Map([["old-call", "old-run"]]),
+    };
+    const stagedMessage = {
+      id: "staged",
+      type: "human" as const,
+      content: "staged",
+    };
+    const queuedMessage = {
+      id: "later",
+      type: "human" as const,
+      content: "later",
+    };
+    const bufferedResult = {
+      id: "result",
+      type: "tool" as const,
+      tool_call_id: "old-call",
+      name: "lookup",
+      content: "done",
+    };
+    const after = {
+      ...reduceAdkThreadState(
+        reduceAdkThreadState(
+          reduceAdkThreadState(original, {
+            type: "messages.replaced",
+            messages: [],
+          }),
+          {
+            type: "messages.queued",
+            messages: [queuedMessage],
+            ids: ["later"],
+          },
+        ),
+        {
+          type: "staged.stage",
+          entry: { message: stagedMessage, runConfig: undefined },
+        },
+      ),
+      messages: [
+        queuedMessage,
+        stagedMessage,
+        {
+          id: "own",
+          type: "ai" as const,
+          content: "calling tools",
+          tool_calls: [
+            { id: "own-call", name: "lookup", args: {} },
+            { id: "own-confirm", name: "adk_request_confirmation", args: {} },
+            { id: "own-auth", name: "adk_request_credential", args: {} },
+          ],
+        },
+      ],
+      longRunningToolIds: ["later-call", "own-call"],
+      toolConfirmations: [
+        {
+          toolCallId: "later-confirm",
+          toolName: "approve",
+          args: {},
+          hint: "later",
+          confirmed: false,
+        },
+        {
+          toolCallId: "own-confirm",
+          toolName: "approve",
+          args: {},
+          hint: "own",
+          confirmed: false,
+        },
+      ],
+      authRequests: [
+        { toolCallId: "later-auth", authConfig: {} },
+        { toolCallId: "own-auth", authConfig: {} },
+      ],
+      toolResultBuffer: new Map([["old-call", bufferedResult]]),
+      runConfigByToolCallId: new Map([
+        ["later-call", { model: "later" }],
+        ["own-call", { model: "own" }],
+      ]),
+      runIdByToolCallId: new Map([
+        ["later-call", "later-run"],
+        ["own-call", "own-run"],
+      ]),
+    };
+    const restored = reduceAdkThreadState(after, {
+      type: "run.rollback",
+      state: original,
+      ownIds: ["own"],
+    });
+
+    expect(restored.messages.map((entry) => entry.id)).toEqual([
+      "old",
+      "later",
+      "staged",
+    ]);
+    expect([...restored.queuedMessageIds]).toEqual(["later"]);
+    expect([...restored.stagedEntries.keys()]).toEqual(["staged"]);
+    expect(restored.toolResultBuffer.get("old-call")).toEqual(bufferedResult);
+    expect(restored.longRunningToolIds).toEqual(["old-call", "later-call"]);
+    expect(restored.toolConfirmations.map((item) => item.toolCallId)).toEqual([
+      "old-confirm",
+      "later-confirm",
+    ]);
+    expect(restored.authRequests.map((item) => item.toolCallId)).toEqual([
+      "old-auth",
+      "later-auth",
+    ]);
+    expect([...restored.runConfigByToolCallId]).toEqual([
+      ["old-call", { model: "old" }],
+      ["later-call", { model: "later" }],
+    ]);
+    expect([...restored.runIdByToolCallId]).toEqual([
+      ["old-call", "old-run"],
+      ["later-call", "later-run"],
+    ]);
+  });
+
   it("unstages a promoted run and preserves remaining entries through snapshots", () => {
     const entries = ["message-1", "message-2", "message-3"].map((id) => ({
       message: { ...message, id },
