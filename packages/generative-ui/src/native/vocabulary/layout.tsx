@@ -1,10 +1,11 @@
-import type { ReactNode } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Children, useState, type ReactNode } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Align, Justify } from "../../ir";
 import type { GenerativeUILibrary } from "../../types";
 import { layoutDefinitions } from "../../vocabulary/definitions/layout";
 import { fire } from "../../vocabulary/dispatch";
 import { footerAction } from "../../vocabulary/layoutValues";
+import { tabLabels } from "../../vocabulary/structureValues";
 import { toTextContent } from "../../vocabulary/toTextContent";
 import { FieldScopeProvider, useFieldScopeOwner } from "../fieldScope";
 import {
@@ -57,6 +58,10 @@ const styles = StyleSheet.create({
   },
   badgeText: { fontSize: 12, fontWeight: "500", lineHeight: 17 },
   spacer: { flexGrow: 1 },
+  tabs: { gap: 12 },
+  tabRow: { flexDirection: "row", borderBottomWidth: 1 },
+  tab: { paddingVertical: 10, paddingHorizontal: 14, borderBottomWidth: 2 },
+  tabText: { fontSize: 14, fontWeight: "500" },
 });
 
 type CardProps = {
@@ -254,6 +259,61 @@ function Box({
   );
 }
 
+function Tabs({ tabs, children }: { tabs: string[]; children?: ReactNode }) {
+  const theme = useNativeTheme();
+  const ink = useInk();
+  const panels = Children.toArray(children);
+  const labels = tabLabels(tabs, panels.length);
+  const [selected, setSelected] = useState(0);
+  if (labels.length === 0) return null;
+  const current = Math.min(selected, labels.length - 1);
+  return (
+    <View style={styles.tabs}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View
+          role="tablist"
+          style={[styles.tabRow, { borderBottomColor: theme.hairline }]}
+        >
+          {labels.map((label, index) => (
+            <Pressable
+              key={index}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: index === current }}
+              aria-selected={index === current}
+              onPress={() => setSelected(index)}
+              style={[
+                styles.tab,
+                {
+                  borderBottomColor:
+                    index === current ? theme.primary : "transparent",
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  { color: index === current ? ink : fade(ink, 0.62) },
+                ]}
+              >
+                {label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </ScrollView>
+      {labels.map((_, index) => (
+        <View
+          key={index}
+          role="tabpanel"
+          style={index === current ? undefined : { display: "none" }}
+        >
+          {panels[index]}
+        </View>
+      ))}
+    </View>
+  );
+}
+
 export const layoutVocabulary = {
   Card: {
     ...layoutDefinitions.Card,
@@ -304,5 +364,9 @@ export const layoutVocabulary = {
         {children}
       </Box>
     ),
+  },
+  Tabs: {
+    ...layoutDefinitions.Tabs,
+    render: ({ tabs, children }) => <Tabs tabs={tabs}>{children}</Tabs>,
   },
 } satisfies GenerativeUILibrary;
