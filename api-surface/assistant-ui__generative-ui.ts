@@ -1016,7 +1016,7 @@ type SpecPromptOptions = {
 type SpecStateStore = {
   getState(): Record<string, unknown>;
   get(path: string): unknown;
-  set(path: string, value: unknown): void;
+  set(path: string, value: unknown, mode?: "add" | "replace"): void;
   seed(state: Record<string, unknown>): void;
   subscribe(listener: StateListener): () => void;
 };
