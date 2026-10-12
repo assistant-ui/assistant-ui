@@ -4,6 +4,8 @@ import { findChrome } from "./chrome.ts";
 import { createRenderer, RENDER_WIDTH } from "./render.ts";
 import type { Format } from "./types.ts";
 
+const noProse = { before: "", after: "" };
+
 const size = (screenshot: string) => {
   const png = Buffer.from(screenshot, "base64");
   return { width: png.readUInt32BE(16), height: png.readUInt32BE(20) };
@@ -64,6 +66,7 @@ test(
         const { screenshots, cutOff, runtimeErrors } = await renderer.render(
           format,
           artifact,
+          noProse,
         );
         assert.deepEqual(runtimeErrors, [], artifact);
         assert.equal(cutOff, false);
@@ -76,6 +79,7 @@ test(
       const tall = await renderer.render(
         "text",
         Array.from({ length: 80 }, (_, i) => `Step ${i + 1}.`).join("\n\n"),
+        noProse,
       );
       assert.ok(tall.screenshots.length > 1);
       for (const screenshot of tall.screenshots) {
@@ -87,6 +91,7 @@ test(
       const broken = await renderer.render(
         "frame",
         "<p>Bill</p><script>throw new Error('boom')</script>",
+        noProse,
       );
       assert.ok(
         broken.runtimeErrors.some((error) => error.includes("boom")),
@@ -94,8 +99,8 @@ test(
       );
 
       const [prose, markdown] = await Promise.all([
-        renderer.render("present", "Sure."),
-        renderer.render("text", "Each of the four pays $30."),
+        renderer.render("present", "Sure.", noProse),
+        renderer.render("text", "Each of the four pays $30.", noProse),
       ]);
       assert.deepEqual(prose.runtimeErrors, [
         "The answer is not JSON, so nothing renders.",
@@ -106,6 +111,26 @@ test(
         size(prose.screenshots[0]!).height <
           size(markdown.screenshots[0]!).height,
         "each screenshot shows its own answer",
+      );
+    } finally {
+      await renderer.close();
+    }
+  },
+);
+
+test(
+  "prose does not hide a blank spec answer",
+  { skip: findChrome() ? false : "no Chrome to render in" },
+  async () => {
+    const renderer = await createRenderer();
+    try {
+      const rendered = await renderer.render("spec", "{}", {
+        before: "Here is your plan.",
+        after: "",
+      });
+      assert.ok(
+        rendered.runtimeErrors.includes("The answer rendered blank."),
+        rendered.runtimeErrors.join("; "),
       );
     } finally {
       await renderer.close();

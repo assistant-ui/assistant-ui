@@ -8,6 +8,7 @@ import {
   parallelCalls,
   streamingModel,
   text,
+  textThenCall,
 } from "./mock-models.ts";
 import type { Task } from "./types.ts";
 
@@ -27,6 +28,7 @@ test("a text answer is its Markdown", async () => {
     2,
   );
   assert.equal(answer.artifact, "# Plan");
+  assert.deepEqual(answer.prose, { before: "", after: "" });
   assert.deepEqual(answer.errors, []);
   assert.equal(answer.repairRounds, 0);
   assert.equal(answer.inputTokens, 10);
@@ -106,6 +108,59 @@ test("a spec answer is the spec its patches build", async () => {
     root: "main",
     elements: { main: { type: "Text", props: { value: "Hi" } } },
     state: {},
+  });
+});
+
+test("a spec answer keeps text written before its tool call", async () => {
+  const patches = [
+    { op: "add", path: "/root", value: "main" },
+    {
+      op: "add",
+      path: "/elements/main",
+      value: { type: "Text", props: { value: "Hi" } },
+    },
+  ]
+    .map((patch) => JSON.stringify(patch))
+    .join("\n");
+  const answer = await generateAnswer(
+    streamingModel(
+      textThenCall("Here is your plan.", "render_spec", {
+        title: "Plan",
+        patches,
+      }),
+    ),
+    task,
+    "spec",
+    1,
+  );
+  assert.deepEqual(answer.errors, []);
+  assert.deepEqual(answer.prose, {
+    before: "Here is your plan.",
+    after: "",
+  });
+});
+
+test("a spec answer keeps text written after its last failed attempt", async () => {
+  const patches = [
+    { op: "add", path: "/root", value: "main" },
+    { op: "add", path: "/elements/main", value: { type: "Nope" } },
+  ]
+    .map((patch) => JSON.stringify(patch))
+    .join("\n");
+  const answer = await generateAnswer(
+    streamingModel(
+      call("render_spec", { title: "Plan", patches }),
+      text("Here is your plan in words."),
+    ),
+    task,
+    "spec",
+    1,
+  );
+  assert.equal(answer.answeredIn, "spec");
+  assert.ok(answer.errors.some((error) => error.includes("Nope")));
+  assert.deepEqual(answer.prose, {
+    before: "",
+    after: "Here is your plan in words.",
   });
 });
 

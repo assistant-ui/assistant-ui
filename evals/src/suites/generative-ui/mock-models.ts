@@ -61,6 +61,18 @@ const toolCallParts = (toolName: string, input: unknown): StreamPart[] => {
 export const call = (toolName: string, input: unknown) =>
   reply(toolCallParts(toolName, input), "tool-calls");
 
+/** One streamed step that writes `value` as text before calling `toolName` with `input`. */
+export const textThenCall = (value: string, toolName: string, input: unknown) =>
+  reply(
+    [
+      { type: "text-start", id: "text" },
+      { type: "text-delta", id: "text", delta: value },
+      { type: "text-end", id: "text" },
+      ...toolCallParts(toolName, input),
+    ],
+    "tool-calls",
+  );
+
 /** One streamed step that calls each of `toolNames` with input that is not JSON, which the SDK rejects before the tool runs. */
 export const malformedCall = (...toolNames: string[]) =>
   reply(

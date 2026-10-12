@@ -91,6 +91,7 @@ export async function generateAnswer(
           : ["The answer is empty."];
     return {
       artifact: final?.text ?? "",
+      prose: { before: "", after: "" },
       answeredIn: "text",
       ...(attempted !== undefined ? { attempted } : {}),
       errors,
@@ -99,8 +100,20 @@ export async function generateAnswer(
       ...measured,
     };
   }
+  const lastAnswerStep = steps.findLastIndex(
+    (step) => formatsOf(step).length > 0,
+  );
+  const proseOf = (selected: typeof steps) =>
+    selected
+      .map((step) => step.text.trim())
+      .filter(Boolean)
+      .join("\n\n");
   return {
     artifact: last.artifact,
+    prose: {
+      before: proseOf(steps.slice(0, lastAnswerStep + 1)),
+      after: proseOf(steps.slice(lastAnswerStep + 1)),
+    },
     answeredIn: last.format,
     errors: mixed ? [...last.errors, MIXED] : last.errors,
     repairRounds: run.attempts.length - 1,
