@@ -2089,6 +2089,7 @@ declare class ExternalStoreThreadRuntimeCore extends BaseThreadRuntimeCore imple
   loadEarlier(): Promise<void>;
   get isRunning(): boolean | undefined;
   protected _getBaseMessages(): readonly ThreadMessage[];
+  protected _onMessageMetadataChanged(_previousMessage: ThreadAssistantMessage, message: ThreadAssistantMessage): void;
   get state(): string | number | boolean | ReadonlyJSONObject | ReadonlyJSONArray | null;
   get adapters(): {
     attachments?: AttachmentAdapter | undefined;
@@ -5229,6 +5230,8 @@ type ThreadMessageClientProps = {
 
 declare class ThreadMessageConverter {
   #private;
+  setCachedMessage(message: WeakKey, converted: ThreadMessage): void;
+  deleteCachedMessage(message: WeakKey): void;
   convertMessages<TIn extends WeakKey>(messages: readonly TIn[], converter: ConverterCallback<TIn>): ThreadMessage[];
 }
 

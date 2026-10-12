@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ModelContextProvider } from "../../model-context/types";
 import type { Unstable_RecordToolInteractionOptions } from "../../runtime/interfaces/thread-runtime-core";
+import type { ThreadMessageLike } from "../../runtime/utils/thread-message-like";
 import type { ExternalStoreAdapter } from "./external-store-adapter";
 import { ExternalStoreThreadRuntimeCore } from "./external-store-thread-runtime-core";
 
@@ -108,5 +109,84 @@ describe("ExternalStoreThreadRuntimeCore earlier messages", () => {
     await runtime.loadEarlier();
     expect(onLoadEarlier).not.toHaveBeenCalled();
     expect(runtime.isLoadingEarlier).toBe(false);
+  });
+});
+
+describe("ExternalStoreThreadRuntimeCore feedback with converted messages", () => {
+  type RawMessage = {
+    id: string;
+    role: "user" | "assistant";
+    text: string;
+  };
+
+  const convertMessage = (message: RawMessage): ThreadMessageLike => ({
+    id: message.id,
+    role: message.role,
+    content: [{ type: "text", text: message.text }],
+  });
+
+  it("retains feedback across an external-store branch round trip", () => {
+    const user = { id: "u", role: "user", text: "hi" } as const;
+    const first = { id: "a1", role: "assistant", text: "first" } as const;
+    const sibling = { id: "a2", role: "assistant", text: "second" } as const;
+    let messages: readonly RawMessage[] = [user, first];
+    const adapter = () =>
+      ({
+        messages,
+        convertMessage,
+        setMessages: (next: readonly RawMessage[]) => {
+          messages = next;
+        },
+        onNew: async () => {},
+      }) as ExternalStoreAdapter;
+    const runtime = createRuntime(adapter());
+
+    messages = [user, sibling];
+    runtime.__internal_setAdapter(adapter());
+    runtime.switchToBranch("a1");
+    runtime.__internal_setAdapter(adapter());
+    runtime.submitFeedback({ messageId: "a1", type: "positive" });
+
+    runtime.switchToBranch("a2");
+    runtime.__internal_setAdapter(adapter());
+    runtime.switchToBranch("a1");
+    runtime.__internal_setAdapter(adapter());
+
+    expect(
+      runtime.messages.find((message) => message.id === "a1")?.metadata
+        .submittedFeedback,
+    ).toEqual({ type: "positive" });
+  });
+
+  it("does not restore feedback when a deleted host message is re-added", async () => {
+    const user = { id: "u", role: "user", text: "hi" } as const;
+    const assistant = { id: "a1", role: "assistant", text: "first" } as const;
+    let messages: readonly RawMessage[] = [user, assistant];
+    let runtime!: ExternalStoreThreadRuntimeCore;
+    const adapter = () =>
+      ({
+        messages,
+        convertMessage,
+        setMessages: (next: readonly RawMessage[]) => {
+          messages = next;
+        },
+        onDelete: async (id: string) => {
+          messages = messages.filter((message) => message.id !== id);
+          runtime.__internal_setAdapter(adapter());
+        },
+        onNew: async () => {},
+      }) as ExternalStoreAdapter;
+    runtime = createRuntime(adapter());
+
+    runtime.submitFeedback({ messageId: "a1", type: "positive" });
+    await runtime.deleteMessage("a1");
+
+    messages = [user, assistant];
+    runtime.__internal_setAdapter(adapter());
+
+    expect(
+      runtime.messages.find((message) => message.id === "a1")?.metadata
+        .submittedFeedback,
+    ).toBeUndefined();
   });
 });

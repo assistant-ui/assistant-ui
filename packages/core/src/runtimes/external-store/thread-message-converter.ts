@@ -9,6 +9,14 @@ export type ConverterCallback<TIn> = (
 export class ThreadMessageConverter {
   private readonly cache = new WeakMap<WeakKey, ThreadMessage>();
 
+  setCachedMessage(message: WeakKey, converted: ThreadMessage): void {
+    this.cache.set(message, converted);
+  }
+
+  deleteCachedMessage(message: WeakKey): void {
+    this.cache.delete(message);
+  }
+
   convertMessages<TIn extends WeakKey>(
     messages: readonly TIn[],
     converter: ConverterCallback<TIn>,

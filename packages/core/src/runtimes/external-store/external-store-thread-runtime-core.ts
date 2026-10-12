@@ -1,5 +1,9 @@
 import { shallowEqual } from "@assistant-ui/store/client";
-import type { AppendMessage, ThreadMessage } from "../../types/message";
+import type {
+  AppendMessage,
+  ThreadAssistantMessage,
+  ThreadMessage,
+} from "../../types/message";
 import type { Attachment } from "../../types/attachment";
 import type {
   AddToolResultOptions,
@@ -147,6 +151,15 @@ export class ExternalStoreThreadRuntimeCore
 
   protected override _getBaseMessages(): readonly ThreadMessage[] {
     return this._messages;
+  }
+
+  protected override _onMessageMetadataChanged(
+    _previousMessage: ThreadAssistantMessage,
+    message: ThreadAssistantMessage,
+  ): void {
+    for (const externalMessage of getExternalStoreMessages<object>(message)) {
+      this._converter.setCachedMessage(externalMessage, message);
+    }
   }
 
   public override get state() {
@@ -393,7 +406,7 @@ export class ExternalStoreThreadRuntimeCore
         }
         for (const { message } of this.repository.export().messages) {
           if (!incomingIds.has(message.id)) {
-            this.repository.deleteMessage(message.id);
+            this._deleteRepositoryMessage(message.id);
           }
         }
         this._pendingDeleteEvictions.clear();
@@ -494,7 +507,7 @@ export class ExternalStoreThreadRuntimeCore
           } catch {
             continue;
           }
-          this.repository.deleteMessage(id);
+          this._deleteRepositoryMessage(id);
         }
       }
     } else {
@@ -676,6 +689,14 @@ export class ExternalStoreThreadRuntimeCore
       this._messagesForToolCallIndex = this._messages;
     }
     return this._toolCallToMessageId.get(toolCallId);
+  }
+
+  private _deleteRepositoryMessage(messageId: string): void {
+    const { message } = this.repository.getMessage(messageId);
+    for (const externalMessage of getExternalStoreMessages<object>(message)) {
+      this._converter.deleteCachedMessage(externalMessage);
+    }
+    this.repository.deleteMessage(messageId);
   }
 
   public override switchToBranch(branchId: string): void {
@@ -901,7 +922,7 @@ export class ExternalStoreThreadRuntimeCore
       return;
     }
 
-    this.repository.deleteMessage(messageId);
+    this._deleteRepositoryMessage(messageId);
     this._publishRepositoryMessages();
   }
 
@@ -1065,7 +1086,7 @@ export class ExternalStoreThreadRuntimeCore
         quote: trailingUserLeaf.metadata.custom.quote as QuoteInfo | undefined,
       };
       if (this.composer.restoreDraft(draft)) {
-        this.repository.deleteMessage(trailingUserLeaf.id);
+        this._deleteRepositoryMessage(trailingUserLeaf.id);
         movedLeaf = { id: trailingUserLeaf.id, draft };
       }
     }
@@ -1092,7 +1113,7 @@ export class ExternalStoreThreadRuntimeCore
         const current = this.repository.getMessages();
         if (current.at(-1)?.id === movedLeaf.id) {
           // Unanswered tail: the removal has not reached the store yet.
-          this.repository.deleteMessage(movedLeaf.id);
+          this._deleteRepositoryMessage(movedLeaf.id);
         } else if (current.some((m) => m.id === movedLeaf.id)) {
           // The store kept the turn in the thread; take the untouched draft
           // back so the same content does not sit in both places.
@@ -1115,7 +1136,7 @@ export class ExternalStoreThreadRuntimeCore
   private dropEmptyOptimisticHead(): void {
     const head = this.repository.getMessages().at(-1);
     if (head && head.metadata.isOptimistic && head.content.length === 0) {
-      this.repository.deleteMessage(head.id);
+      this._deleteRepositoryMessage(head.id);
     }
   }
 
