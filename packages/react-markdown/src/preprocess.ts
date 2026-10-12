@@ -751,6 +751,8 @@ const FENCE_CLOSE = {
 // prefix that fails cannot be re-split across two markers, and a list marker
 // still requires the space that separates it from its content.
 const FENCE_OPEN_PREFIX = /^[ \t]*(?:>[ \t]*|(?:[-*+]|\d{1,9}[.)])[ \t]+)*$/;
+// Every character FENCE_OPEN_PREFIX can match.
+const FENCE_OPEN_PREFIX_CHAR = /[ \t>*+\-0-9.)]/;
 const QUOTE_PREFIX = /^[ \t>]*/;
 
 function quoteDepth(prefix: string): number {
@@ -824,15 +826,14 @@ function opensBacktickFence(text: string, start: number): boolean {
   const fenceLength = runLength(text, start, "`");
   if (fenceLength < 3) return false;
 
-  const lineStart = text.lastIndexOf("\n", start - 1) + 1;
-  if (!FENCE_OPEN_PREFIX.test(text.slice(lineStart, start))) return false;
+  for (let index = start + fenceLength; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === "`") return false;
+    if (char === "\n") break;
+  }
 
-  const lineEnd = text.indexOf("\n", start + fenceLength);
-  const info = text.slice(
-    start + fenceLength,
-    lineEnd === -1 ? undefined : lineEnd,
-  );
-  return !info.includes("`");
+  const lineStart = text.lastIndexOf("\n", start - 1) + 1;
+  return FENCE_OPEN_PREFIX.test(text.slice(lineStart, start));
 }
 
 /**
@@ -842,7 +843,11 @@ function opensBacktickFence(text: string, start: number): boolean {
  */
 function opensTildeFence(text: string, index: number): boolean {
   if (text[index] !== "~" || runLength(text, index, "~") < 3) return false;
-  const lineStart = text.lastIndexOf("\n", index - 1) + 1;
+  let lineStart = index;
+  while (lineStart > 0 && text[lineStart - 1] !== "\n") {
+    if (!FENCE_OPEN_PREFIX_CHAR.test(text[lineStart - 1]!)) return false;
+    lineStart -= 1;
+  }
   return FENCE_OPEN_PREFIX.test(text.slice(lineStart, index));
 }
 

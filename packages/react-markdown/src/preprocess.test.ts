@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   rewriteLatexBracketDelimiters,
   rewriteCustomMathTags,
@@ -647,6 +647,32 @@ describe("normalizeMathDelimiters", () => {
     const input = "a `\\(x\\)` ".repeat(1000);
     expect(normalizeMathDelimiters(input)).toBe(input);
   });
+
+  it.each([
+    ["currency", "triple-backtick", escapeCurrencyDollars, "a ```b``` "],
+    ["math", "triple-backtick", normalizeMathDelimiters, "a ```b``` "],
+    ["currency", "tilde", escapeCurrencyDollars, "x ~~~ "],
+    ["math", "tilde", normalizeMathDelimiters, "x ~~~ "],
+  ] as const)(
+    "does not rescan the line prefix in %s for %s runs",
+    (_, _marker, preprocess, segment) => {
+      const input = segment.repeat(100);
+      const lastIndexOf = String.prototype.lastIndexOf;
+      let lookbacks = 0;
+      const scan = vi
+        .spyOn(String.prototype, "lastIndexOf")
+        .mockImplementation(function (this: string, search, position) {
+          if (this.valueOf() === input && search === "\n") lookbacks += 1;
+          return Reflect.apply(lastIndexOf, this, [search, position]);
+        });
+      try {
+        expect(preprocess(input)).toBe(input);
+      } finally {
+        scan.mockRestore();
+      }
+      expect(lookbacks).toBe(0);
+    },
+  );
 
   it("nests a $$ fence opened on a list item's marker line", () => {
     expect(
