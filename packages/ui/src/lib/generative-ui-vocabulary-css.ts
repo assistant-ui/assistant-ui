@@ -1076,7 +1076,7 @@ export const generativeUiVocabularyCss: CssRuleset = {
   },
   // In a row, images split the width into an evenly cropped gallery, keeping
   // at least a fifth of it beside text, and a small one is a square thumbnail.
-  '[data-aui="row"] > [data-aui="image"]:not([data-aui-size="sm"], [data-aui-round])':
+  '[data-aui="row"] > [data-aui="image"]:not([data-aui-size="sm"], [data-aui-sized], [data-aui-round])':
     {
       flex: "1 1 0",
       "min-width": "max(5rem, 22%)",

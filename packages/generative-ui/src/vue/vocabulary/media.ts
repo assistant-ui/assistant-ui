@@ -19,6 +19,7 @@ export const mediaVocabulary = {
           return h("img", {
             "data-aui": "image",
             "data-aui-size": numericSize === undefined ? props.size : undefined,
+            "data-aui-sized": numericSize !== undefined || undefined,
             "data-aui-round": props.round || undefined,
             src: props.src,
             alt: props.alt,

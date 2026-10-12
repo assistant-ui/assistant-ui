@@ -245,7 +245,7 @@ describe("answer layout", () => {
   it("lets row images shrink to fit while keeping a fifth of the row beside text", () => {
     const gallery =
       rules[
-        '[data-aui="row"] > [data-aui="image"]:not([data-aui-size="sm"], [data-aui-round])'
+        '[data-aui="row"] > [data-aui="image"]:not([data-aui-size="sm"], [data-aui-sized], [data-aui-round])'
       ]!;
     expect(gallery["flex"]).toBe("1 1 0");
     expect(gallery["min-width"]).toBe("max(5rem, 22%)");
