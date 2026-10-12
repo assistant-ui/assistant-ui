@@ -161,7 +161,7 @@ function CheckboxGroupRender({
     key: resetKey,
     keys: defaultKeys(),
   }));
-  if (progress && tally.key !== resetKey) {
+  if (tally.key !== resetKey) {
     setTally({ key: resetKey, keys: defaultKeys() });
   }
   const checkedKeys = tally.key === resetKey ? tally.keys : defaultKeys();
@@ -213,15 +213,13 @@ function CheckboxGroupRender({
               : { defaultChecked: checkedValues.includes(option.value) })}
             onChange={(e) => {
               const selected = checkedGroupValues(e.currentTarget);
-              if (progress) {
-                const box = e.currentTarget.checked;
-                setTally((previous) => {
-                  const keys = (
-                    previous.key === resetKey ? previous.keys : defaultKeys()
-                  ).filter((checkedKey) => checkedKey !== key);
-                  return { key: resetKey, keys: box ? [...keys, key] : keys };
-                });
-              }
+              const box = e.currentTarget.checked;
+              setTally((previous) => {
+                const keys = (
+                  previous.key === resetKey ? previous.keys : defaultKeys()
+                ).filter((checkedKey) => checkedKey !== key);
+                return { key: resetKey, keys: box ? [...keys, key] : keys };
+              });
               updateBinding?.(selected);
               fire($action, $dispatch, selected, e.currentTarget);
             }}
