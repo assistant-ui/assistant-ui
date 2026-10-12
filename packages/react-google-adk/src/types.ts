@@ -27,10 +27,12 @@ export type AdkEventPart = {
   inlineData?: {
     mimeType: string;
     data: string;
+    displayName?: string | undefined;
   };
   fileData?: {
     fileUri: string;
     mimeType?: string;
+    displayName?: string | undefined;
   };
 };
 
@@ -107,8 +109,13 @@ export type AdkMessage =
 export type AdkMessageContentPart =
   | { type: "text"; text: string }
   | { type: "reasoning"; text: string }
-  | { type: "image"; mimeType: string; data: string }
-  | { type: "image_url"; url: string }
+  | {
+      type: "image";
+      mimeType: string;
+      data: string;
+      filename?: string | undefined;
+    }
+  | { type: "image_url"; url: string; filename?: string | undefined }
   | {
       type: "file";
       mimeType: string;
@@ -119,6 +126,7 @@ export type AdkMessageContentPart =
       type: "file_url";
       url: string;
       mimeType?: string | undefined;
+      filename?: string | undefined;
     }
   | { type: "code"; code: string; language: string }
   | { type: "code_result"; output: string; outcome: string }

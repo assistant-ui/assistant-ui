@@ -278,7 +278,12 @@ describe("createAdkStream - proxy mode", () => {
         type: "human",
         content: [
           { type: "text", text: "Look" },
-          { type: "image", mimeType: "image/png", data: "abc" },
+          {
+            type: "image",
+            mimeType: "image/png",
+            data: "abc",
+            filename: "photo.png",
+          },
         ],
       },
     ];
@@ -291,7 +296,11 @@ describe("createAdkStream - proxy mode", () => {
     expect(body.parts).toHaveLength(2);
     expect(body.parts[0]).toEqual({ text: "Look" });
     expect(body.parts[1]).toEqual({
-      inlineData: { mimeType: "image/png", data: "abc" },
+      inlineData: {
+        mimeType: "image/png",
+        data: "abc",
+        displayName: "photo.png",
+      },
     });
   });
 
@@ -322,7 +331,11 @@ describe("createAdkStream - proxy mode", () => {
     const body = JSON.parse(mockFetch.mock.calls[0]![1]?.body as string);
     expect(body.parts).toHaveLength(2);
     expect(body.parts[1]).toEqual({
-      inlineData: { mimeType: "application/pdf", data: "JVBERi0xLjQK" },
+      inlineData: {
+        mimeType: "application/pdf",
+        data: "JVBERi0xLjQK",
+        displayName: "report.pdf",
+      },
     });
   });
 
@@ -1335,7 +1348,13 @@ describe("createAdkStream - content conversion", () => {
       {
         id: "m1",
         type: "human",
-        content: [{ type: "image_url", url: "https://example.com/img.png" }],
+        content: [
+          {
+            type: "image_url",
+            url: "https://example.com/img.png",
+            filename: "photo.png",
+          },
+        ],
       },
     ];
     const gen = await stream(messages, makeConfig());
@@ -1345,7 +1364,10 @@ describe("createAdkStream - content conversion", () => {
 
     const body = JSON.parse(mockFetch.mock.calls[0]![1]?.body as string);
     expect(body.newMessage.parts[0]).toEqual({
-      fileData: { fileUri: "https://example.com/img.png" },
+      fileData: {
+        fileUri: "https://example.com/img.png",
+        displayName: "photo.png",
+      },
     });
   });
 
@@ -1378,7 +1400,11 @@ describe("createAdkStream - content conversion", () => {
 
     const body = JSON.parse(mockFetch.mock.calls[0]![1]?.body as string);
     expect(body.newMessage.parts[0]).toEqual({
-      inlineData: { mimeType: "application/pdf", data: "JVBERi0xLjQK" },
+      inlineData: {
+        mimeType: "application/pdf",
+        data: "JVBERi0xLjQK",
+        displayName: "report.pdf",
+      },
     });
   });
 
@@ -1399,6 +1425,7 @@ describe("createAdkStream - content conversion", () => {
             type: "file_url",
             url: "gs://bucket/report.pdf",
             mimeType: "application/pdf",
+            filename: "report.pdf",
           },
         ],
       },
@@ -1413,6 +1440,7 @@ describe("createAdkStream - content conversion", () => {
       fileData: {
         fileUri: "gs://bucket/report.pdf",
         mimeType: "application/pdf",
+        displayName: "report.pdf",
       },
     });
   });

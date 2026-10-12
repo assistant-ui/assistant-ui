@@ -11,16 +11,34 @@ export const contentToParts = (
       case "reasoning":
         return { text: part.text, thought: true };
       case "image":
-        return { inlineData: { mimeType: part.mimeType, data: part.data } };
+        return {
+          inlineData: {
+            mimeType: part.mimeType,
+            data: part.data,
+            ...(part.filename != null && { displayName: part.filename }),
+          },
+        };
       case "image_url":
-        return { fileData: { fileUri: part.url } };
+        return {
+          fileData: {
+            fileUri: part.url,
+            ...(part.filename != null && { displayName: part.filename }),
+          },
+        };
       case "file":
-        return { inlineData: { mimeType: part.mimeType, data: part.data } };
+        return {
+          inlineData: {
+            mimeType: part.mimeType,
+            data: part.data,
+            ...(part.filename != null && { displayName: part.filename }),
+          },
+        };
       case "file_url":
         return {
           fileData: {
             fileUri: part.url,
             ...(part.mimeType != null && { mimeType: part.mimeType }),
+            ...(part.filename != null && { displayName: part.filename }),
           },
         };
       case "code":

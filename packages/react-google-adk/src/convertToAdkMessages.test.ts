@@ -203,6 +203,60 @@ describe("getMessageContent", () => {
     ]);
   });
 
+  it("preserves image filenames for inline and URL media", () => {
+    const inline = getMessageContent(
+      makeAppendMessage([
+        {
+          type: "image",
+          image: "data:image/png;base64,AAAA",
+          filename: "photo.png",
+        },
+      ]),
+    );
+    expect(inline).toEqual([
+      {
+        type: "image",
+        mimeType: "image/png",
+        data: "AAAA",
+        filename: "photo.png",
+      },
+    ]);
+    expect(contentToParts(inline)).toEqual([
+      {
+        inlineData: {
+          mimeType: "image/png",
+          data: "AAAA",
+          displayName: "photo.png",
+        },
+      },
+    ]);
+
+    const url = getMessageContent(
+      makeAppendMessage([
+        {
+          type: "image",
+          image: "https://example.com/photo.png",
+          filename: "photo.png",
+        },
+      ]),
+    );
+    expect(url).toEqual([
+      {
+        type: "image_url",
+        url: "https://example.com/photo.png",
+        filename: "photo.png",
+      },
+    ]);
+    expect(contentToParts(url)).toEqual([
+      {
+        fileData: {
+          fileUri: "https://example.com/photo.png",
+          displayName: "photo.png",
+        },
+      },
+    ]);
+  });
+
   it("prefers an attachment's declared image MIME type", () => {
     const message = makeAppendMessage([]);
     const content = getMessageContent({
@@ -266,6 +320,16 @@ describe("getMessageContent", () => {
         filename: "report.pdf",
       },
     ]);
+    expect(contentToParts(result)).toEqual([
+      { text: "see attached" },
+      {
+        inlineData: {
+          mimeType: "application/pdf",
+          data: "JVBERi0xLjQK",
+          displayName: "report.pdf",
+        },
+      },
+    ]);
   });
 
   it("keeps file-only content as an array (does not collapse to a text marker)", () => {
@@ -297,6 +361,25 @@ describe("getMessageContent", () => {
     );
     expect(result).toEqual([
       { type: "file", mimeType: "application/pdf", data: "AAAA" },
+    ]);
+    expect(contentToParts(result)).toEqual([
+      { inlineData: { mimeType: "application/pdf", data: "AAAA" } },
+    ]);
+    expect(
+      contentToParts([
+        {
+          type: "file_url",
+          url: "gs://bucket/report.pdf",
+          mimeType: "application/pdf",
+        },
+      ]),
+    ).toEqual([
+      {
+        fileData: {
+          fileUri: "gs://bucket/report.pdf",
+          mimeType: "application/pdf",
+        },
+      },
     ]);
   });
 
@@ -336,6 +419,16 @@ describe("getMessageContent", () => {
         type: "file_url",
         url: "gs://bucket/report.pdf",
         mimeType: "application/pdf",
+        filename: "report.pdf",
+      },
+    ]);
+    expect(contentToParts(result)).toEqual([
+      {
+        fileData: {
+          fileUri: "gs://bucket/report.pdf",
+          mimeType: "application/pdf",
+          displayName: "report.pdf",
+        },
       },
     ]);
   });
@@ -369,6 +462,7 @@ describe("getMessageContent", () => {
             type: "file_url",
             url: "gs://bucket/report.pdf",
             mimeType: "application/pdf",
+            filename: "report.pdf",
           },
         ],
       },
@@ -382,6 +476,7 @@ describe("getMessageContent", () => {
         type: "file_url",
         url: "gs://bucket/report.pdf",
         mimeType: "application/pdf",
+        filename: "report.pdf",
       },
     ]);
   });
