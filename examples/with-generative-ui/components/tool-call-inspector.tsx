@@ -1,46 +1,13 @@
 "use client";
 
+import { inspectToolCalls } from "@/lib/tool-calls";
 import { useAuiState } from "@assistant-ui/react";
 import { useMemo } from "react";
 
-type InspectedCall = {
-  id: string;
-  name: string;
-  body: string;
-  result: string | undefined;
-};
-
-const textOf = (value: unknown) =>
-  typeof value === "string" ? value : JSON.stringify(value, null, 2);
-
-/** What the model wrote for each tool call in the latest assistant message: spec patches, widget code, or arguments. */
+/** Lists the tool calls behind the latest answer and what each returned. */
 export function ToolCallInspector() {
   const messages = useAuiState((s) => s.thread.messages);
-  const calls = useMemo<InspectedCall[]>(() => {
-    const last = [...messages].reverse().find((m) => m.role === "assistant");
-    return (last?.content ?? []).flatMap((part) => {
-      if (part.type !== "tool-call") return [];
-      const args = part.args as Record<string, unknown>;
-      const body =
-        part.toolName === "render_spec" && typeof args["patches"] === "string"
-          ? args["patches"]
-          : part.toolName === "show_widget" &&
-              typeof args["widget_code"] === "string"
-            ? args["widget_code"]
-            : part.argsText || textOf(part.args);
-      return [
-        {
-          id: part.toolCallId,
-          name: part.toolName,
-          body,
-          result:
-            part.toolName === "search_flights" && part.result !== undefined
-              ? textOf(part.result)
-              : undefined,
-        },
-      ];
-    });
-  }, [messages]);
+  const calls = useMemo(() => inspectToolCalls(messages), [messages]);
 
   return (
     <div className="flex h-full flex-col">

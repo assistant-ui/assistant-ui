@@ -1,9 +1,14 @@
 "use client";
 
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
-import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
+import { ThreadListSidebar } from "@/components/assistant-ui/elements/threadlist-sidebar.aui";
 import { ExampleNav } from "@/components/example-nav";
 import { ToolCallInspector } from "@/components/tool-call-inspector";
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
 import { DEFAULT_MODEL, isModelId, MODELS, type ModelId } from "@/lib/models";
 import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
 import {
@@ -173,33 +178,36 @@ export default function GenerativeUIPage() {
   return (
     <AssistantRuntimeProvider config={config} runtime={runtime}>
       <WidgetInstructions />
-      <div className="flex h-full flex-col">
-        <ExampleNav />
-        <div className="flex items-center gap-4 border-b px-4 py-2 text-sm">
-          <ModelPicker />
-          <button
-            type="button"
-            aria-pressed={inspecting}
-            onClick={() => setInspecting((open) => !open)}
-            className="hover:bg-muted ml-auto hidden rounded-md border px-2 py-1 lg:block"
-          >
-            {inspecting ? "Hide tool calls" : "Show tool calls"}
-          </button>
+      <SidebarProvider>
+        <div className="flex h-dvh w-full overflow-hidden">
+          <ThreadListSidebar />
+          <SidebarInset className="min-w-0">
+            <ExampleNav />
+            <div className="flex items-center gap-4 border-b px-4 py-2 text-sm">
+              <SidebarTrigger />
+              <ModelPicker />
+              <button
+                type="button"
+                aria-pressed={inspecting}
+                onClick={() => setInspecting((open) => !open)}
+                className="hover:bg-muted ml-auto hidden rounded-md border px-2 py-1 lg:block"
+              >
+                {inspecting ? "Hide tool calls" : "Show tool calls"}
+              </button>
+            </div>
+            <div className="flex min-h-0 flex-1">
+              <div className="min-h-0 min-w-0 flex-1">
+                <Thread />
+              </div>
+              {inspecting ? (
+                <aside className="hidden w-[28rem] shrink-0 border-l lg:block">
+                  <ToolCallInspector />
+                </aside>
+              ) : null}
+            </div>
+          </SidebarInset>
         </div>
-        <div className="flex min-h-0 flex-1">
-          <aside className="hidden w-64 shrink-0 overflow-y-auto border-r p-2 md:block">
-            <ThreadList />
-          </aside>
-          <main className="min-h-0 flex-1">
-            <Thread />
-          </main>
-          {inspecting ? (
-            <aside className="hidden w-[28rem] shrink-0 border-l lg:block">
-              <ToolCallInspector />
-            </aside>
-          ) : null}
-        </div>
-      </div>
+      </SidebarProvider>
     </AssistantRuntimeProvider>
   );
 }
