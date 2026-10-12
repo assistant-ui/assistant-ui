@@ -6,6 +6,7 @@ export type NativeTheme = {
   background: string;
   foreground: string;
   card: string;
+  panel: string;
   primary: string;
   primaryForeground: string;
   secondary: string;
@@ -83,6 +84,7 @@ const light: NativeTheme = {
   background: "#ffffff",
   foreground: "#0a0a0a",
   card: "#ffffff",
+  panel: fade("#0a0a0a", 0.04),
   primary: "#171717",
   primaryForeground: "#fafafa",
   secondary: "#f5f5f5",
@@ -101,6 +103,7 @@ const dark: NativeTheme = {
   background: "#0a0a0a",
   foreground: "#fafafa",
   card: "#171717",
+  panel: fade("#fafafa", 0.06),
   primary: "#e5e5e5",
   primaryForeground: "#171717",
   secondary: "#262626",
@@ -137,6 +140,13 @@ const CardSurfaceContext = createContext(false);
 export const CardSurfaceProvider = CardSurfaceContext.Provider;
 
 export const useCardSurface = () => useContext(CardSurfaceContext);
+
+const InsideCardContext = createContext(false);
+
+/** Marks the content of a Card, so a Card inside it renders plain instead of as a second panel. */
+export const InsideCardProvider = InsideCardContext.Provider;
+
+export const useInsideCard = () => useContext(InsideCardContext);
 
 /** A color React Native can paint, or `undefined` for anything else, such as a CSS gradient. */
 export const nativeColor = (value: unknown) =>

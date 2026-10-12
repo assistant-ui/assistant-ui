@@ -177,7 +177,7 @@ describe("card surface", () => {
     expect(surface!["padding"]).toBeUndefined();
     expect(surface!["--aui-card-padding"]).toBe("1.25rem");
     expect(rules['[data-aui="card"]']!["padding"]).toBe(
-      "var(--aui-card-padding, 0)",
+      "var(--aui-card-padding, 1rem 1.125rem)",
     );
   });
 
@@ -186,6 +186,48 @@ describe("card surface", () => {
     expect(keys.indexOf('[data-aui-padding="2"]')).toBeGreaterThan(
       keys.indexOf(auiCardSurfaceSelectors.join(", ")),
     );
+  });
+
+  it("renders a plain card as a borderless panel filled from the theme", () => {
+    const card = rules['[data-aui="card"]']!;
+    expect(card["background-color"]).toBe(
+      "var(--aui-panel, color-mix(in oklab, var(--foreground) 4%, transparent))",
+    );
+    expect(card["border"]).toBeUndefined();
+    expect(generativeUiThemeVars.light["--aui-panel"]).toBe(
+      "color-mix(in oklab, var(--foreground) 4%, transparent)",
+    );
+    expect(generativeUiThemeVars.dark["--aui-panel"]).toBe(
+      "color-mix(in oklab, var(--foreground) 6%, transparent)",
+    );
+  });
+
+  it("keeps a card inside a card plain, before the surface rule so a nested surface keeps its frame", () => {
+    const nested = '[data-aui="card"] [data-aui="card"]';
+    expect(rules[nested]).toEqual({
+      "--aui-card-padding": "0",
+      "border-radius": "0",
+      "background-color": "transparent",
+    });
+    const keys = Object.keys(generativeUiVocabularyCss);
+    expect(keys.indexOf(nested)).toBeLessThan(
+      keys.indexOf(auiCardSurfaceSelectors.join(", ")),
+    );
+  });
+});
+
+describe("answer layout", () => {
+  it("spaces a render_spec frame from the reply's text the way a present root is spaced", () => {
+    expect(rules["[data-gf-spec]"]!["margin-block"]).toBe(
+      rules['[data-aui="root"]']!["margin-block"],
+    );
+  });
+
+  it("labels a fact in sentence case at the 12px floor", () => {
+    const label = rules['[data-aui="fact-label"]']!;
+    expect(label["text-transform"]).toBeUndefined();
+    expect(label["letter-spacing"]).toBeUndefined();
+    expect(label["font-size"]).toBe("0.75rem");
   });
 });
 

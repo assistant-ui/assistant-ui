@@ -1581,6 +1581,18 @@ test("collectAttributeSelectorValues groups value-selectors by component:attribu
   assert.equal(values.has("button:block"), false);
 });
 
+test("collectAttributeSelectorValues reads each value-selector's component from its own compound selector", () => {
+  const values = collectAttributeSelectorValues({
+    '[data-aui="row"] > [data-aui="image"][data-aui-size="sm"]:not([data-aui-round], [data-aui-flush])':
+      { width: "4.5rem" },
+    '[data-aui="table"] td[data-aui-align="end"]': { "text-align": "end" },
+  });
+
+  assert.deepEqual([...(values.get("image:size") ?? [])], ["sm"]);
+  assert.equal(values.has("row:size"), false);
+  assert.deepEqual([...(values.get("table:align") ?? [])], ["end"]);
+});
+
 // Every attribute-mapped prop backed by a closed enum, keyed by the components
 // that emit it. A shared attribute name (`size`) can carry a different enum per
 // component, so contracts are scoped to a component list rather than the bare
