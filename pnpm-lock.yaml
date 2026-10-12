@@ -2417,6 +2417,9 @@ importers:
       '@assistant-ui/ai-sdk':
         specifier: workspace:*
         version: link:../../packages/ai-sdk
+      '@assistant-ui/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@assistant-ui/generative-ui':
         specifier: workspace:*
         version: link:../../packages/generative-ui
@@ -2435,6 +2438,9 @@ importers:
       cn:
         specifier: ^0.4.0
         version: 0.4.0
+      generative-frame:
+        specifier: workspace:*
+        version: link:../../packages/generative-frame
       lucide-react:
         specifier: ^1.52.0
         version: 1.52.0(@types/react@19.3.0)(react@19.3.0)

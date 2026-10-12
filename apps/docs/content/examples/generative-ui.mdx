@@ -1,22 +1,26 @@
 ---
 title: Generative UI Example
-description: Live demo of the present tool, where the model composes a dashboard from a component vocabulary at runtime, alongside Tool UI and the primitive for backend-emitted `generative-ui` message parts rendered against an allowlist.
+description: Live demo where the model answers each question in Markdown, with a spec built from the app's components, or with a sandboxed widget, alongside the present tool, Tool UI, and the primitive for backend-emitted `generative-ui` message parts.
 ---
 
 ## Overview
 
-The main route of `examples/with-generative-ui` demonstrates **generative UI**: the model composes an interface at runtime by calling the `present` tool, choosing components from a vocabulary the app ships. Nothing in the app binds a component to a specific tool call.
+The main route of `examples/with-generative-ui` answers each question in the format that fits it, using [generative-frame](/generative-frame/docs/spec-mode) with assistant-ui: Markdown for an answer read once, `render_spec` for structured content built from the app's components, and `show_widget` for a tool that calculates as the user changes inputs. The model picks the format from the rules `useWidgetInstructions` adds to the system prompt; [Choosing an answer format](/docs/tools/generative-ui-formats) explains them.
 
-- **Default vocabulary**: cards, facts, rows, tables, and charts come from `defaultGenerativeUILibrary`, so the app registers one tool and writes no renderers
-- **A custom component**: `DashboardHeader` is added through `defineGenerativeComponents`, showing how to extend the vocabulary with your own React component, and `Markdown` is swapped for the registry item's real renderer
-- **Styled output**: the vocabulary stylesheet is mounted from `@assistant-ui/ui` through the monorepo's tsconfig alias, the way every in-repo example consumes that package; in your own app the same CSS arrives through `shadcn add generative-ui`
-- **Dashboard prompts**: the suggestions describe data, not layout, and let the model decide the composition
+- **Components from the kit**: `toSpecCatalog(styledGenerativeUILibrary)` turns the vocabulary, with the registry item's Markdown, Diagram, and Map renderers, into the catalog spec mode renders, styled by the same stylesheet `shadcn add generative-ui` installs
+- **Tool results in the UI**: `search_flights` returns sample flights, and the spec binds each price to the result under `/tools/search_flights/0` instead of copying it
+- **Photos**: `search_images` looks up photos on Wikipedia, and the spec binds each `Image` to its result
+- **Composition rules**: `specPrompt.customRules` tells the model how this app composes an answer: the takeaway first, photos for what can be seen, a map for places, and a card for each module
+- **Model picker**: the route answers through the Vercel AI Gateway with Claude Opus 5.5 (the default), GPT-6 astra, or Gemini 3.1 Pro
+- **Threads and state**: threads persist in local storage, and a choice made in a spec survives a reload
+- **Tool call panel**: on wide screens, "Show tool calls" lists the patches, widget code, and tool results behind the latest answer
 
 ### Routes in the same example app
 
 | Route | What it demonstrates |
 |-------|---------------------|
-| `/` | The `present` tool (`JSONGenerativeUI`): the model composes UI from a vocabulary |
+| `/` | generative-frame's `render_spec` and `show_widget` with the format rules, the kit's component catalog, and two data tools |
+| `/present` | The `present` tool (`JSONGenerativeUI`): the model composes a dashboard from a vocabulary |
 | `/tool-ui` | Tool UI (`Tools({ toolkit })`): a renderer bound to each known tool |
 | `/primitive` | Static `GenerativeUIRender` with a hand-written spec rendered against an allowlist |
 | `/gui-chat` | Chat with `render_gui` tool results bridged to `MessagePrimitive.GenerativeUI` and rendered against an allowlist |
@@ -25,7 +29,57 @@ See the [Generative UI guide](/docs/tools/generative-ui) for the full setup, and
 
 ## Patterns Demonstrated
 
-### The present tool
+### Specs and widgets from one toolkit
+
+`createWidgetToolkit` provides `show_widget`, `edit_widget`, and `read_me`; passing `spec` adds `render_spec` with the kit's catalog. The composition rules are appended to the spec guidance the model loads through `read_me`:
+
+```ts title="app/generative-ui-toolkit.ts"
+const { catalog, components } = toSpecCatalog(styledGenerativeUILibrary);
+
+export const widgets = createWidgetToolkit({
+  widget: { maxHeight: 720 },
+  spec: createSpecToolkit(catalog, {
+    components,
+    specPrompt: { customRules: compositionRules },
+  }),
+});
+```
+
+The page registers the toolkit and adds the format rules, plus one line of its own that asks for photos:
+
+```tsx title="app/page.tsx"
+const config = AuiConfig({
+  tools: Tools({ toolkit: widgets.toolkit }),
+  suggestions: Suggestions([/* ... */]),
+});
+
+function WidgetInstructions() {
+  useWidgetInstructions(widgets.tools);
+  useAssistantInstructions(
+    "When an answer is about places, dishes, or products, call `search_images` for them before `render_spec`, so the answer can show photos.",
+  );
+  return null;
+}
+```
+
+The widget tools run in the browser, so `sendAutomaticallyWhen` continues the run once a spec or widget has rendered. The route forwards them with `frontendTools` next to its own data tools, and reads the model the picker chose from the request body:
+
+```ts title="app/api/generative-ui/route.ts"
+const tools = {
+  ...frontendTools(clientTools ?? {}),
+  search_flights: searchFlights,
+  search_images: searchImages,
+};
+const result = streamText({
+  model: gateway(isModelId(model) ? model : DEFAULT_MODEL),
+  messages: await convertToModelMessages(messages, { tools }),
+  stopWhen: stepCountIs(10),
+  ...(system ? { system } : {}),
+  tools,
+});
+```
+
+### The present tool (`/present`)
 
 One toolkit entry exposes the whole vocabulary. `display: "standalone"` renders the result on its own surface rather than inside the chain-of-thought trace:
 
@@ -64,11 +118,11 @@ export default defineToolkit({
 });
 ```
 
-The two demos keep separate toolkits and separate routes. If `/` also carried the Tool UI entries, `generate_chart` would compete with `present` for every prompt that mentions a chart, and the demo would render a Recharts widget instead of a composed dashboard.
+The demos keep separate toolkits and separate routes. If `/present` also carried the Tool UI entries, `generate_chart` would compete with `present` for every prompt that mentions a chart, and the demo would render a Recharts widget instead of a composed dashboard.
 
 Because `present` resolves in the browser, the provider passes `sendAutomaticallyWhen` so the run continues once the UI has rendered. The transport points this route at its own endpoint, which is what keeps the two demos' tool sets apart:
 
-```tsx title="app/page.tsx"
+```tsx title="app/present/page.tsx"
 const runtime = useChatRuntime({
   transport: new AssistantChatTransport({ api: "/api/present" }),
   sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
@@ -119,9 +173,14 @@ const toolkit = defineToolkit({
 
 | Concept | Used In | Description |
 |---------|---------|-------------|
-| `JSONGenerativeUI` | `/` | Turn a component library into the model-facing schema for `present` |
-| `defineGenerativeComponents` | `/` | Add your own component to the vocabulary |
-| `sendAutomaticallyWhen` | `/` | Continue the run once the frontend tool has resolved |
+| `createWidgetToolkit` | `/` | Provide `show_widget`, `edit_widget`, and `read_me`, and with `spec`, `render_spec` |
+| `createSpecToolkit` | `/` | Render specs with a catalog's components, with app rules appended through `specPrompt` |
+| `toSpecCatalog` | `/` | Turn a generative UI library into a spec catalog |
+| `useWidgetInstructions` | `/` | Add the format rules to the system prompt |
+| `/tools/<name>/<n>` | `/` | Bind a spec prop to an earlier tool result |
+| `JSONGenerativeUI` | `/present` | Turn a component library into the model-facing schema for `present` |
+| `defineGenerativeComponents` | `/present` | Add your own component to the vocabulary |
+| `sendAutomaticallyWhen` | `/`, `/present` | Continue the run once a frontend tool has resolved |
 | `Tools({ toolkit })` | `/tool-ui` | Register a React renderer for a specific tool call |
 | `addResult` | Date Picker, Contact Form | Send user input back to the AI as the tool result |
 | `status.type` | Chart, Location | Show loading states while the AI streams tool arguments |
