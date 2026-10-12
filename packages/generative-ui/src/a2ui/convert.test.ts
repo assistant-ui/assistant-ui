@@ -2668,10 +2668,16 @@ describe("convertSurfaceToUISpec", () => {
       ],
       { dropLabel: "Drop off" },
     );
+    expect(convertSurfaceToUISpec(surface)).toEqual(
+      convertSurfaceToUISpec(surface, { keepUnknownComponents: true }),
+    );
     expect(convertSurfaceToUISpec(surface)).toEqual({
       spec: {
         $type: "Tabs",
-        tabs: ["Pickup", "Drop off"],
+        tabs: [
+          { title: "Pickup", child: "pickup" },
+          { title: "Drop off", child: "drop-off" },
+        ],
         children: [
           { $type: "Markdown", value: "A courier collects it." },
           { $type: "Markdown", value: "Any service point." },
@@ -2681,7 +2687,7 @@ describe("convertSurfaceToUISpec", () => {
     });
   });
 
-  it("uses numbered labels for Tabs titles that do not resolve to strings", () => {
+  it("keeps a Tabs entry whose title does not resolve, which the renderer labels by number", () => {
     const surface = surfaceFrom([
       {
         id: "root",
@@ -2693,7 +2699,7 @@ describe("convertSurfaceToUISpec", () => {
     expect(convertSurfaceToUISpec(surface)).toEqual({
       spec: {
         $type: "Tabs",
-        tabs: ["1"],
+        tabs: [{ child: "panel" }],
         children: [{ $type: "Markdown", value: "Still visible" }],
       },
       warnings: [],
@@ -2712,7 +2718,7 @@ describe("convertSurfaceToUISpec", () => {
     expect(convertSurfaceToUISpec(surface)).toEqual({
       spec: {
         $type: "Tabs",
-        tabs: ["1", "2"],
+        tabs: [{}, { title: 12, child: "panel" }],
         children: [{ $type: "Col" }, { $type: "Markdown", value: "Kept" }],
       },
       warnings: ['Component "root" has a malformed child reference.'],
@@ -2734,10 +2740,32 @@ describe("convertSurfaceToUISpec", () => {
     ).toEqual({
       spec: {
         $type: "Tabs",
-        tabs: ["Gone", "Here"],
+        tabs: [
+          { title: "Gone", child: "missing" },
+          { title: "Here", child: "panel" },
+        ],
         children: [{ $type: "Col" }, { $type: "Markdown", value: "Kept" }],
       },
       warnings: ['A2UI component "missing" was not found.'],
+    });
+    expect(
+      convertSurfaceToUISpec(
+        surfaceFrom([
+          {
+            id: "root",
+            component: "Tabs",
+            tabs: [{ path: "/tabZero" }, { title: "Here", child: "panel" }],
+          },
+          { id: "panel", component: "Text", text: "Kept" },
+        ]),
+      ),
+    ).toEqual({
+      spec: {
+        $type: "Tabs",
+        tabs: [{}, { title: "Here", child: "panel" }],
+        children: [{ $type: "Col" }, { $type: "Markdown", value: "Kept" }],
+      },
+      warnings: ['Component "root" has a malformed child reference.'],
     });
     expect(
       convertSurfaceToUISpec(surfaceFrom([{ id: "root", component: "Tabs" }])),

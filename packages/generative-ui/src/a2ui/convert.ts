@@ -2,7 +2,6 @@ import { isReservedKey } from "../constants";
 import { ICON_NAMES, type UIElement } from "../ir";
 import type { A2uiBinding } from "../binding";
 import { classifyTemporal } from "../temporal";
-import { tabLabels } from "../vocabulary/structureValues";
 import { A2UI_SURFACE_ID, type A2uiSurfaceState } from "./types";
 import {
   evaluateA2uiValueFunction,
@@ -544,12 +543,13 @@ const childrenOf = (
       context.warnings.push(
         `Component "${String(node["id"] ?? "")}" has a malformed child reference.`,
       );
-      if (keepPositions) result.push({ $type: "Col" });
+      if (keepPositions && reserveNode(context)) result.push({ $type: "Col" });
       continue;
     }
     const child = convertComponent(childId, scope, context, depth + 1, visited);
     if (child) result.push(child);
-    else if (keepPositions) result.push({ $type: "Col" });
+    else if (keepPositions && reserveNode(context))
+      result.push({ $type: "Col" });
   }
   return result;
 };
@@ -669,12 +669,7 @@ const mappedProps = (
     const tabs = Array.isArray(props["tabs"]) ? props["tabs"] : [];
     return {
       $type: "Tabs",
-      tabs: tabLabels(
-        tabs.map((tab) =>
-          isRecord(tab) ? stringProp(tab, ["title"]) : undefined,
-        ),
-        tabs.length,
-      ),
+      tabs: tabs.map((tab) => (isRecord(tab) ? tab : {})),
     };
   }
 
@@ -1074,10 +1069,11 @@ function convertComponent(
           context,
           key !== "checks",
           0,
-          key === "action" &&
+          (key === "action" &&
             component === "Button" &&
             isRecord(value) &&
-            eventContext(value) !== undefined,
+            eventContext(value) !== undefined) ||
+            (key === "tabs" && component === "Tabs"),
         );
         if (resolved !== undefined) setOwnProperty(props, key, resolved);
       }
