@@ -4462,6 +4462,7 @@ describe("useLangGraphRuntime", () => {
       const consoleError = vi
         .spyOn(console, "error")
         .mockImplementation(() => {});
+      onTestFinished(() => consoleError.mockRestore());
       const { result } = renderHook(() =>
         useLangGraphRuntime({
           stream:
@@ -4508,7 +4509,6 @@ describe("useLangGraphRuntime", () => {
         state: { retry_state: "preserved" },
       });
       expect(consoleError).toHaveBeenCalled();
-      consoleError.mockRestore();
     });
 
     it("restores an interrupt when a reload fails before React commits its clear", async () => {
