@@ -69,6 +69,7 @@ export interface ConversionContext {
 }
 
 const DIAGRAM_SOURCE_CAP = 3000;
+const DIAGRAM_LINE_CAP = 200;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -201,10 +202,6 @@ function textBlock(
 // Teams reads a TextBlock as markdown, so a quoted `[text](url)` would become a second link next to the citation's own; a zero-width space between `]` and `(` keeps it plain text.
 const unlinked = (text: string): string =>
   text.replaceAll("](", `]${String.fromCharCode(0x200b)}(`);
-
-// Diagram source is code, so the characters Teams would read as emphasis, links, or code are escaped to show as written.
-const escapeSource = (text: string): string =>
-  text.replace(/[\\*_`~[\]]/g, "\\$&");
 
 const escapeLinkText = (text: string): string =>
   text.replace(/[\\[\]]/g, "\\$&");
@@ -1042,26 +1039,34 @@ export function convertElement(
           "Diagram",
           `code was clamped to ${DIAGRAM_SOURCE_CAP} characters.`,
         );
+      const lines = code.slice(0, DIAGRAM_SOURCE_CAP).split("\n");
+      if (lines.length > DIAGRAM_LINE_CAP)
+        warn(
+          context,
+          "clamped",
+          "Diagram",
+          `code was clamped to ${DIAGRAM_LINE_CAP} lines.`,
+        );
       const title = props["title"];
       const space = String.fromCharCode(0xa0);
       return [
         {
           type: "Container",
           // Teams breaks a TextBlock's line only inside a list and trims leading spaces, so each source line gets a block of its own and keeps its indent as non-breaking spaces.
-          items: code
-            .slice(0, DIAGRAM_SOURCE_CAP)
-            .split("\n")
-            .map((line) =>
-              textBlock(
-                escapeSource(line).replace(/^ +/, (indent) =>
-                  space.repeat(indent.length),
-                ) || space,
-                { fontType: "Monospace" },
-              ),
+          items: lines.slice(0, DIAGRAM_LINE_CAP).map((line, index) =>
+            textBlock(
+              unlinked(line).replace(/^ +/, (indent) =>
+                space.repeat(indent.length),
+              ) || space,
+              {
+                fontType: "Monospace",
+                ...(index > 0 ? { spacing: "none" as const } : {}),
+              },
             ),
+          ),
         },
         ...(typeof title === "string"
-          ? [textBlock(title, { size: "small", isSubtle: true })]
+          ? [textBlock(unlinked(title), { size: "small", isSubtle: true })]
           : []),
       ];
     }

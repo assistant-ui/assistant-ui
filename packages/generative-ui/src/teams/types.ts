@@ -21,7 +21,7 @@ export interface TeamsTextBlock {
   readonly style?: "heading";
   readonly isSubtle?: true;
   readonly separator?: true;
-  readonly spacing?: "large";
+  readonly spacing?: "large" | "none";
 }
 
 /** An image element. */

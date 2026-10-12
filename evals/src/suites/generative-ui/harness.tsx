@@ -105,7 +105,7 @@ class Boundary extends Component<{ children: ReactNode }, { failed: boolean }> {
 const nextFrame = () =>
   new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
 
-/** Waits until the answer stops changing for 300 ms, for content drawn after it mounts such as a map or a diagram, for at most five seconds. */
+/** Waits until nothing in the answer is busy and it has stopped changing for 300 ms, for content drawn after it mounts such as a map or a diagram, for at most five seconds. */
 const domSettled = () =>
   new Promise<void>((resolve) => {
     const finish = () => {
@@ -114,11 +114,18 @@ const domSettled = () =>
       clearTimeout(limit);
       resolve();
     };
-    let quiet = setTimeout(finish, 300);
+    const settle = () => {
+      if (container.querySelector('[aria-busy="true"]')) {
+        quiet = setTimeout(settle, 300);
+      } else {
+        finish();
+      }
+    };
+    let quiet = setTimeout(settle, 300);
     const limit = setTimeout(finish, 5_000);
     const observer = new MutationObserver(() => {
       clearTimeout(quiet);
-      quiet = setTimeout(finish, 300);
+      quiet = setTimeout(settle, 300);
     });
     observer.observe(container, {
       subtree: true,

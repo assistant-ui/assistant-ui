@@ -249,6 +249,7 @@ export function GeoMap({
         ref={containerRef}
         role="region"
         aria-label={`Map of ${validPlaces.length} places`}
+        aria-busy={!mapReady || undefined}
         style={{ height }}
         data-theme={theme}
         className={cn(

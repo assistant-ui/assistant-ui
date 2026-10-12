@@ -270,28 +270,51 @@ describe("toAdaptiveCard", () => {
       });
     });
 
-    it("shows Diagram source line by line, escaped and indented as written", () => {
+    it("shows Diagram source line by line, as written, with only links broken", () => {
       const space = String.fromCharCode(0xa0);
+      const zeroWidthSpace = String.fromCharCode(0x200b);
       const { card } = toAdaptiveCard({
         $type: "Diagram",
-        code: "flowchart LR\n  user_id --> order_id\n\n  A[*cart*]",
+        code: "flowchart LR\n  user_id --> order_id\n\n  A[home](https://example.com)",
+        title: "See [map](https://example.com)",
       });
       expect(card.body).toEqual([
         {
           type: "Container",
           items: [
             "flowchart LR",
-            `${space}${space}user\\_id --> order\\_id`,
+            `${space}${space}user_id --> order_id`,
             space,
-            `${space}${space}A\\[\\*cart\\*\\]`,
-          ].map((text) => ({
+            `${space}${space}A[home]${zeroWidthSpace}(https://example.com)`,
+          ].map((text, index) => ({
             type: "TextBlock",
             text,
             wrap: true,
             fontType: "Monospace",
+            ...(index > 0 ? { spacing: "none" } : {}),
           })),
         },
+        {
+          type: "TextBlock",
+          text: `See [map]${zeroWidthSpace}(https://example.com)`,
+          wrap: true,
+          size: "small",
+          isSubtle: true,
+        },
       ]);
+    });
+
+    it("clamps a Diagram to its first 200 lines", () => {
+      const { card, warnings } = toAdaptiveCard({
+        $type: "Diagram",
+        code: "\n".repeat(400),
+      });
+      expect((card.body[0] as { items: unknown[] }).items).toHaveLength(200);
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Diagram",
+        detail: "code was clamped to 200 lines.",
+      });
     });
 
     it("renders Diagram source in monospace and keeps its title", () => {
@@ -303,14 +326,21 @@ describe("toAdaptiveCard", () => {
       expect(card.body).toEqual([
         {
           type: "Container",
-          items: ["flowchart LR", "A\\[You & me\\] --> B\\[Done\\]"].map(
-            (text) => ({
+          items: [
+            {
               type: "TextBlock",
-              text,
+              text: "flowchart LR",
               wrap: true,
               fontType: "Monospace",
-            }),
-          ),
+            },
+            {
+              type: "TextBlock",
+              text: "A[You & me] --> B[Done]",
+              wrap: true,
+              fontType: "Monospace",
+              spacing: "none",
+            },
+          ],
         },
         {
           type: "TextBlock",
