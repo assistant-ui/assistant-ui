@@ -96,6 +96,13 @@ async function layout(
 }
 
 describe("alert vocabulary on React Native", () => {
+  it("renders a zero Alert title and description", () => {
+    const { container } = renderNativeSpec(
+      spec({ main: { type: "Alert", props: { title: 0, description: 0 } } }),
+    );
+    expect(byRole(container, "alert").textContent).toBe("00");
+  });
+
   it("pages a single wide card to its end and back", async () => {
     const { container } = renderNativeSpec(carouselSpec(1));
     const track = await layout(container, 200, 400);

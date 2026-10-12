@@ -1,4 +1,5 @@
 import {
+  CHILDREN_CAP,
   MAX_TRAVERSAL_DEPTH,
   boundSpec,
   clampReasonDetail,
@@ -22,6 +23,12 @@ import {
   formatFactDelta,
   formatValue,
 } from "../vocabulary/formatValue";
+import {
+  linkHost,
+  linkHref,
+  sequenceItems,
+  tabLabels,
+} from "../vocabulary/structureValues";
 import {
   CHOICE_OPTION_CAP,
   PAYLOAD_SOFT_CAP,
@@ -187,6 +194,20 @@ function textBlock(
   return { type: "TextBlock", text, wrap: true, ...extra };
 }
 
+// Teams reads a TextBlock as markdown, so a quoted `[text](url)` would become a second link next to the citation's own; a zero-width space between `]` and `(` keeps it plain text.
+const unlinked = (text: string): string =>
+  text.replaceAll("](", `]${String.fromCharCode(0x200b)}(`);
+
+const escapeLinkText = (text: string): string =>
+  text.replace(/[\\[\]]/g, "\\$&");
+
+const markdownHref = (href: string): string =>
+  href.replace(
+    /[()\s]/g,
+    (char) =>
+      `%${char.charCodeAt(0).toString(16).padStart(2, "0").toUpperCase()}`,
+  );
+
 function applyPending(
   element: TeamsCardElement,
   separator: boolean,
@@ -254,7 +275,7 @@ function convertFacts(facts: readonly NormalizedUIElement[]): TeamsCardElement {
         ? formatFactDelta(delta, factTrend(delta, fact.props["trend"]))
         : undefined;
     return {
-      title: asString(fact.props["label"]),
+      title: asTextValue(fact.props["label"]),
       value: deltaText === undefined ? value : `${value} (${deltaText})`,
     };
   });
@@ -277,7 +298,7 @@ function convertButtons(
   }
   const actions = buttons.map((button, index) =>
     buildSubmitAction(
-      asString(button.props["label"]),
+      asTextValue(button.props["label"]),
       button.action,
       index >= PRIMARY_ACTION_CAP ? "secondary" : undefined,
     ),
@@ -316,7 +337,7 @@ function cardFooterActionSet(
   if (isRecord(confirm)) {
     actions.push(
       buildSubmitAction(
-        asString(confirm["label"]),
+        asTextValue(confirm["label"]),
         readReserved(confirm, "action") ?? formAction,
       ),
     );
@@ -326,7 +347,7 @@ function cardFooterActionSet(
   if (isRecord(cancel)) {
     actions.push(
       buildSubmitAction(
-        asString(cancel["label"]),
+        asTextValue(cancel["label"]),
         readReserved(cancel, "action"),
       ),
     );
@@ -470,7 +491,7 @@ export function convertElement(
   switch (element.type) {
     case "Header":
       return [
-        textBlock(asString(props["text"]), {
+        textBlock(asTextValue(props["text"]), {
           size: "large",
           weight: "bolder",
           style: "heading",
@@ -478,7 +499,8 @@ export function convertElement(
       ];
     case "Text": {
       const mappedSize =
-        typeof props["size"] === "string"
+        typeof props["size"] === "string" &&
+        Object.hasOwn(TEXT_SIZE_MAP, props["size"])
           ? TEXT_SIZE_MAP[props["size"]]
           : undefined;
       return [
@@ -535,7 +557,7 @@ export function convertElement(
       return [convertButtons([element], context)];
     case "Select": {
       const name = asString(props["name"]);
-      const placeholder = asString(props["placeholder"]);
+      const placeholder = asTextValue(props["placeholder"]);
       const label = asString(props["label"]);
       const defaultValue = props["defaultValue"];
       const input: TeamsCardElement = {
@@ -589,7 +611,7 @@ export function convertElement(
     }
     case "Checkbox": {
       const name = asString(props["name"]);
-      const label = asString(props["label"]);
+      const label = asTextValue(props["label"]);
       const input: TeamsCardElement = {
         type: "Input.Toggle",
         id: reservedSafeId(name || label || "checkbox", "Checkbox", context),
@@ -817,7 +839,7 @@ export function convertElement(
         },
       ];
     case "Card": {
-      const titleText = asString(props["title"]);
+      const titleText = asTextValue(props["title"]);
       const items: TeamsCardElement[] = [];
       if (titleText) {
         items.push(
@@ -881,16 +903,138 @@ export function convertElement(
     }
     case "ListViewItem":
       return [convertListViewItem(element, context, depth)];
+    case "Tabs": {
+      const panels = normalizedList(element.children);
+      const { items: given, truncated } = clampArray(
+        props["tabs"],
+        CHILDREN_CAP,
+      );
+      if (truncated)
+        warn(
+          context,
+          "clamped",
+          "Tabs",
+          `tabs were clamped to ${CHILDREN_CAP} entries.`,
+        );
+      const labels = tabLabels(given, panels.length);
+      return labels.flatMap((label, index) => [
+        textBlock(label, { weight: "bolder" }),
+        ...(panels[index] !== undefined
+          ? convertSequence(panels[index], context, depth + 1)
+          : []),
+      ]);
+    }
+    case "Steps": {
+      const { items: raw, truncated } = clampArray(
+        props["steps"],
+        CHILDREN_CAP,
+      );
+      if (truncated)
+        warn(
+          context,
+          "clamped",
+          "Steps",
+          `steps were clamped to ${CHILDREN_CAP} entries.`,
+        );
+      const steps = sequenceItems(raw);
+      const dropped = raw.length - steps.length;
+      if (dropped > 0)
+        warn(
+          context,
+          "dropped",
+          "Steps",
+          `${dropped} malformed ${dropped === 1 ? "entry was" : "entries were"} dropped.`,
+        );
+      return steps.flatMap((step, index) => [
+        textBlock(`${index + 1}. ${step.title}`, {
+          weight: "bolder",
+        }),
+        ...(step.detail !== undefined
+          ? [textBlock(step.detail, { isSubtle: true })]
+          : []),
+      ]);
+    }
+    case "Timeline": {
+      const { items: raw, truncated } = clampArray(
+        props["items"],
+        CHILDREN_CAP,
+      );
+      if (truncated)
+        warn(
+          context,
+          "clamped",
+          "Timeline",
+          `items were clamped to ${CHILDREN_CAP} entries.`,
+        );
+      const items = sequenceItems(raw);
+      const dropped = raw.length - items.length;
+      if (dropped > 0)
+        warn(
+          context,
+          "dropped",
+          "Timeline",
+          `${dropped} malformed ${dropped === 1 ? "entry was" : "entries were"} dropped.`,
+        );
+      return items.map((item) => ({
+        type: "Container" as const,
+        items: [
+          ...(item.time !== undefined
+            ? [
+                textBlock(item.time, {
+                  size: "small",
+                  isSubtle: true,
+                }),
+              ]
+            : []),
+          textBlock(item.title, { weight: "bolder" }),
+          ...(item.detail !== undefined ? [textBlock(item.detail)] : []),
+        ],
+      }));
+    }
+    case "Citation": {
+      const href = linkHref(props["url"]);
+      const source =
+        typeof props["source"] === "string"
+          ? props["source"]
+          : href
+            ? linkHost(href)
+            : undefined;
+      const title = asString(props["title"]);
+      const snippet = props["snippet"];
+      return [
+        {
+          type: "Container",
+          items: [
+            ...(source !== undefined
+              ? [
+                  textBlock(unlinked(source), {
+                    size: "small",
+                    isSubtle: true,
+                  }),
+                ]
+              : []),
+            textBlock(
+              href
+                ? `[${escapeLinkText(title)}](${markdownHref(href)})`
+                : title,
+            ),
+            ...(typeof snippet === "string"
+              ? [textBlock(unlinked(snippet), { isSubtle: true })]
+              : []),
+          ],
+        },
+      ];
+    }
     case "Table":
       return [convertTable(props, context)];
     case "Alert": {
       const tone = props["tone"] ?? "info";
       const style =
-        typeof tone === "string"
+        typeof tone === "string" && Object.hasOwn(ALERT_STYLE_MAP, tone)
           ? (ALERT_STYLE_MAP[tone] ?? "default")
           : "default";
-      const titleText = asString(props["title"]);
-      const description = asString(props["description"]);
+      const titleText = asTextValue(props["title"]);
+      const description = asTextValue(props["description"]);
       const items: TeamsCardElement[] = [];
       if (titleText) items.push(textBlock(titleText, { weight: "bolder" }));
       if (description) items.push(textBlock(description));

@@ -6,7 +6,7 @@ import {
 } from "./convertToAdkMessages";
 import { convertAdkMessage } from "./convertAdkMessages";
 import type { AppendMessage } from "@assistant-ui/core";
-import type { AdkMessage } from "./types";
+import type { AdkMessage, AdkMessageContentPart, AdkEventPart } from "./types";
 import { contentToParts } from "./contentToParts";
 
 const makeAppendMessage = (content: AppendMessage["content"]): AppendMessage =>
@@ -203,6 +203,60 @@ describe("getMessageContent", () => {
     ]);
   });
 
+  it("preserves image filenames for inline and URL media", () => {
+    const inline = getMessageContent(
+      makeAppendMessage([
+        {
+          type: "image",
+          image: "data:image/png;base64,AAAA",
+          filename: "photo.png",
+        },
+      ]),
+    );
+    expect(inline).toEqual([
+      {
+        type: "image",
+        mimeType: "image/png",
+        data: "AAAA",
+        filename: "photo.png",
+      },
+    ]);
+    expect(contentToParts(inline)).toEqual([
+      {
+        inlineData: {
+          mimeType: "image/png",
+          data: "AAAA",
+          displayName: "photo.png",
+        },
+      },
+    ]);
+
+    const url = getMessageContent(
+      makeAppendMessage([
+        {
+          type: "image",
+          image: "https://example.com/photo.png",
+          filename: "photo.png",
+        },
+      ]),
+    );
+    expect(url).toEqual([
+      {
+        type: "image_url",
+        url: "https://example.com/photo.png",
+        filename: "photo.png",
+      },
+    ]);
+    expect(contentToParts(url)).toEqual([
+      {
+        fileData: {
+          fileUri: "https://example.com/photo.png",
+          displayName: "photo.png",
+        },
+      },
+    ]);
+  });
+
   it("prefers an attachment's declared image MIME type", () => {
     const message = makeAppendMessage([]);
     const content = getMessageContent({
@@ -266,6 +320,16 @@ describe("getMessageContent", () => {
         filename: "report.pdf",
       },
     ]);
+    expect(contentToParts(result)).toEqual([
+      { text: "see attached" },
+      {
+        inlineData: {
+          mimeType: "application/pdf",
+          data: "JVBERi0xLjQK",
+          displayName: "report.pdf",
+        },
+      },
+    ]);
   });
 
   it("keeps file-only content as an array (does not collapse to a text marker)", () => {
@@ -298,6 +362,68 @@ describe("getMessageContent", () => {
     expect(result).toEqual([
       { type: "file", mimeType: "application/pdf", data: "AAAA" },
     ]);
+    expect(contentToParts(result)).toEqual([
+      { inlineData: { mimeType: "application/pdf", data: "AAAA" } },
+    ]);
+    expect(
+      contentToParts([
+        {
+          type: "file_url",
+          url: "gs://bucket/report.pdf",
+          mimeType: "application/pdf",
+        },
+      ]),
+    ).toEqual([
+      {
+        fileData: {
+          fileUri: "gs://bucket/report.pdf",
+          mimeType: "application/pdf",
+        },
+      },
+    ]);
+  });
+
+  it.each([
+    {
+      kind: "inline image",
+      part: {
+        type: "image",
+        mimeType: "image/png",
+        data: "AAAA",
+        filename: "",
+      },
+      expected: { inlineData: { mimeType: "image/png", data: "AAAA" } },
+    },
+    {
+      kind: "image URL",
+      part: {
+        type: "image_url",
+        url: "https://example.com/img.png",
+        filename: "",
+      },
+      expected: { fileData: { fileUri: "https://example.com/img.png" } },
+    },
+    {
+      kind: "inline file",
+      part: {
+        type: "file",
+        mimeType: "application/pdf",
+        data: "AAAA",
+        filename: "",
+      },
+      expected: { inlineData: { mimeType: "application/pdf", data: "AAAA" } },
+    },
+    {
+      kind: "file URL",
+      part: { type: "file_url", url: "gs://bucket/report.pdf", filename: "" },
+      expected: { fileData: { fileUri: "gs://bucket/report.pdf" } },
+    },
+  ] satisfies Array<{
+    kind: string;
+    part: AdkMessageContentPart;
+    expected: AdkEventPart;
+  }>)("omits an empty filename for $kind", ({ part, expected }) => {
+    expect(contentToParts([part])).toEqual([expected]);
   });
 
   it("uses the binary data URL default for a media-less file", () => {
@@ -336,6 +462,16 @@ describe("getMessageContent", () => {
         type: "file_url",
         url: "gs://bucket/report.pdf",
         mimeType: "application/pdf",
+        filename: "report.pdf",
+      },
+    ]);
+    expect(contentToParts(result)).toEqual([
+      {
+        fileData: {
+          fileUri: "gs://bucket/report.pdf",
+          mimeType: "application/pdf",
+          displayName: "report.pdf",
+        },
       },
     ]);
   });
@@ -369,6 +505,7 @@ describe("getMessageContent", () => {
             type: "file_url",
             url: "gs://bucket/report.pdf",
             mimeType: "application/pdf",
+            filename: "report.pdf",
           },
         ],
       },
@@ -382,6 +519,7 @@ describe("getMessageContent", () => {
         type: "file_url",
         url: "gs://bucket/report.pdf",
         mimeType: "application/pdf",
+        filename: "report.pdf",
       },
     ]);
   });

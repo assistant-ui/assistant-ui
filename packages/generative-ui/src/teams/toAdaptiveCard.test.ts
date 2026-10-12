@@ -52,6 +52,293 @@ const hostileSpecies = <T>(
 };
 
 describe("toAdaptiveCard", () => {
+  describe("numeric text props", () => {
+    it("stringifies numeric labels and descriptions", () => {
+      const { card } = toAdaptiveCard([
+        { $type: "Header", text: 101 },
+        { $type: "Alert", title: 102, description: 103 },
+        { $type: "Fact", label: 104, value: "ready" },
+        {
+          $type: "Card",
+          title: 105,
+          confirm: { label: 106 },
+          cancel: { label: 107 },
+        },
+        { $type: "Select", options: [], placeholder: 108 },
+        { $type: "Checkbox", label: 109 },
+        { $type: "Button", label: 110 },
+      ]);
+      expect((card.body[0] as TeamsTextBlock).text).toBe("101");
+      const alert = card.body[1] as TeamsContainer;
+      expect((alert.items[0] as TeamsTextBlock).text).toBe("102");
+      expect((alert.items[1] as TeamsTextBlock).text).toBe("103");
+      expect((card.body[2] as TeamsFactSet).facts[0]?.title).toBe("104");
+      expect(
+        ((card.body[3] as TeamsContainer).items[0] as TeamsTextBlock).text,
+      ).toBe("105");
+      const footer = card.body[4] as TeamsActionSet;
+      expect(footer.actions[0]?.title).toBe("106");
+      expect(footer.actions[1]?.title).toBe("107");
+      expect((card.body[5] as TeamsInputChoiceSet).placeholder).toBe("108");
+      expect((card.body[6] as TeamsInputToggle).title).toBe("109");
+      expect((card.body[7] as TeamsActionSet).actions[0]?.title).toBe("110");
+    });
+  });
+
+  describe("structure components", () => {
+    it("renders every Tabs panel in order with a bolder label", () => {
+      const { card, warnings } = toAdaptiveCard({
+        $type: "Tabs",
+        tabs: ["First"],
+        children: [
+          { $type: "Text", value: "one" },
+          { $type: "Text", value: "two" },
+        ],
+      });
+      expect(card.body).toEqual([
+        { type: "TextBlock", text: "First", wrap: true, weight: "bolder" },
+        { type: "TextBlock", text: "one", wrap: true },
+        { type: "TextBlock", text: "2", wrap: true, weight: "bolder" },
+        { type: "TextBlock", text: "two", wrap: true },
+      ]);
+      expect(warnings).toEqual([]);
+    });
+
+    it("keeps a Tabs label even when its panel is missing", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Tabs",
+        tabs: ["One", "Two"],
+        children: [{ $type: "Text", value: "First panel" }],
+      });
+      expect(card.body).toEqual([
+        { type: "TextBlock", text: "One", wrap: true, weight: "bolder" },
+        { type: "TextBlock", text: "First panel", wrap: true },
+        { type: "TextBlock", text: "Two", wrap: true, weight: "bolder" },
+      ]);
+    });
+
+    it("renders numbered Steps with subtle details and skips malformed entries", () => {
+      const { card, warnings } = toAdaptiveCard({
+        $type: "Steps",
+        steps: [
+          { detail: "invalid" },
+          { title: "Open", detail: "Carefully" },
+          { title: "Finish" },
+        ],
+      });
+      expect(card.body).toEqual([
+        { type: "TextBlock", text: "1. Open", wrap: true, weight: "bolder" },
+        { type: "TextBlock", text: "Carefully", wrap: true, isSubtle: true },
+        { type: "TextBlock", text: "2. Finish", wrap: true, weight: "bolder" },
+      ]);
+      expect(warnings).toEqual([
+        {
+          code: "dropped",
+          component: "Steps",
+          detail: "1 malformed entry was dropped.",
+        },
+      ]);
+    });
+
+    it("renders Timeline entries as containers with their available fields", () => {
+      const { card, warnings } = toAdaptiveCard({
+        $type: "Timeline",
+        items: [
+          { time: "Day 1", title: "Arrive", detail: "At noon" },
+          { detail: "invalid" },
+          { title: "Leave" },
+        ],
+      });
+      expect(card.body).toEqual([
+        {
+          type: "Container",
+          items: [
+            {
+              type: "TextBlock",
+              text: "Day 1",
+              wrap: true,
+              size: "small",
+              isSubtle: true,
+            },
+            { type: "TextBlock", text: "Arrive", wrap: true, weight: "bolder" },
+            { type: "TextBlock", text: "At noon", wrap: true },
+          ],
+        },
+        {
+          type: "Container",
+          items: [
+            { type: "TextBlock", text: "Leave", wrap: true, weight: "bolder" },
+          ],
+        },
+      ]);
+      expect(warnings).toEqual([
+        {
+          code: "dropped",
+          component: "Timeline",
+          detail: "1 malformed entry was dropped.",
+        },
+      ]);
+    });
+
+    it("keeps a link written in a Citation's snippet or source from becoming clickable", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Citation",
+        title: "Specs",
+        source: "[home](https://attacker.example)",
+        snippet: "See [here](https://attacker.example).",
+      });
+      const zeroWidthSpace = String.fromCharCode(0x200b);
+      expect(card.body).toMatchObject([
+        {
+          items: [
+            { text: `[home]${zeroWidthSpace}(https://attacker.example)` },
+            { text: "Specs" },
+            { text: `See [here]${zeroWidthSpace}(https://attacker.example).` },
+          ],
+        },
+      ]);
+    });
+
+    it("links an http Citation and leaves a non-http Citation unlinked", () => {
+      const { card } = toAdaptiveCard([
+        {
+          $type: "Citation",
+          title: "A [source]",
+          url: "https://www.example.com/a(b)",
+          snippet: "Summary",
+        },
+        {
+          $type: "Citation",
+          title: "Local",
+          url: "javascript:alert(1)",
+          source: "Notes",
+          snippet: "Read me",
+        },
+      ]);
+      expect(card.body).toEqual([
+        {
+          type: "Container",
+          items: [
+            {
+              type: "TextBlock",
+              text: "example.com",
+              wrap: true,
+              size: "small",
+              isSubtle: true,
+            },
+            {
+              type: "TextBlock",
+              text: "[A \\[source\\]](https://www.example.com/a%28b%29)",
+              wrap: true,
+            },
+            { type: "TextBlock", text: "Summary", wrap: true, isSubtle: true },
+          ],
+        },
+        {
+          type: "Container",
+          items: [
+            {
+              type: "TextBlock",
+              text: "Notes",
+              wrap: true,
+              size: "small",
+              isSubtle: true,
+            },
+            { type: "TextBlock", text: "Local", wrap: true },
+            { type: "TextBlock", text: "Read me", wrap: true, isSubtle: true },
+          ],
+        },
+      ]);
+    });
+
+    it("renders a Citation without optional fields and forwards dropped panel warnings", () => {
+      const { card, warnings } = toAdaptiveCard([
+        { $type: "Citation", title: "Unlinked" },
+        { $type: "Tabs", tabs: ["Missing"], children: [{ $type: "Unknown" }] },
+      ]);
+      expect(card.body).toEqual([
+        {
+          type: "Container",
+          items: [{ type: "TextBlock", text: "Unlinked", wrap: true }],
+        },
+        { type: "TextBlock", text: "Missing", wrap: true, weight: "bolder" },
+      ]);
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Unknown",
+        detail: "Unknown component type was dropped.",
+      });
+    });
+
+    it("passes structured text through like Text and escapes only a citation's link text", () => {
+      const { card } = toAdaptiveCard([
+        {
+          $type: "Tabs",
+          tabs: ["Option (a)"],
+          children: [
+            {
+              $type: "Steps",
+              steps: [
+                { title: "Open the box (carefully)", detail: "Keep it dry" },
+              ],
+            },
+          ],
+        },
+        {
+          $type: "Citation",
+          title: "Specs [2024]",
+          url: "https://example.com/specs",
+        },
+      ]);
+      expect(card.body).toMatchObject([
+        { text: "Option (a)" },
+        { text: "1. Open the box (carefully)" },
+        { text: "Keep it dry" },
+        {
+          items: [
+            { text: "example.com" },
+            { text: "[Specs \\[2024\\]](https://example.com/specs)" },
+          ],
+        },
+      ]);
+    });
+
+    it.each([
+      [
+        "Tabs",
+        "tabs",
+        "tabs",
+        Array.from({ length: CHILDREN_CAP + 1 }, (_, i) => `Tab ${i}`),
+      ],
+      [
+        "Steps",
+        "steps",
+        "steps",
+        Array.from({ length: CHILDREN_CAP + 1 }, (_, i) => ({
+          title: `Step ${i}`,
+        })),
+      ],
+      [
+        "Timeline",
+        "items",
+        "items",
+        Array.from({ length: CHILDREN_CAP + 1 }, (_, i) => ({
+          title: `Event ${i}`,
+        })),
+      ],
+    ])("clamps %s entries", (component, prop, field, entries) => {
+      const { card, warnings } = toAdaptiveCard({
+        $type: component,
+        [prop]: entries,
+      });
+      expect(card.body).toHaveLength(CHILDREN_CAP);
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component,
+        detail: `${field} were clamped to ${CHILDREN_CAP} entries.`,
+      });
+    });
+  });
   describe("Header", () => {
     it("renders a heading TextBlock", () => {
       const { card } = toAdaptiveCard({ $type: "Header", text: "Title" });
@@ -100,6 +387,14 @@ describe("toAdaptiveCard", () => {
       });
       expect((card.body[0] as TeamsTextBlock).size).toBeUndefined();
     });
+
+    it.each(["constructor", "toString", "__proto__"])(
+      "omits an unsupported size %s",
+      (size) => {
+        const { card } = toAdaptiveCard({ $type: "Text", value: "x", size });
+        expect((card.body[0] as TeamsTextBlock).size).toBeUndefined();
+      },
+    );
 
     it.each(["medium", "semibold", "bold"] as const)(
       "maps weight %s to bolder",
@@ -633,6 +928,17 @@ describe("toAdaptiveCard", () => {
   });
 
   describe("CheckboxGroup", () => {
+    it("drops progress without changing the choice set", () => {
+      const base = {
+        $type: "CheckboxGroup",
+        options: [{ label: "A", value: "a" }],
+        defaultValue: ["a"],
+      };
+      expect(toAdaptiveCard({ ...base, progress: true })).toEqual(
+        toAdaptiveCard(base),
+      );
+    });
+
     it("renders an expanded multi-select Input.ChoiceSet with the default values joined by commas", () => {
       const { card } = toAdaptiveCard({
         $type: "CheckboxGroup",
@@ -1588,6 +1894,14 @@ describe("toAdaptiveCard", () => {
   });
 
   describe("Alert", () => {
+    it.each(["constructor", "toString", "__proto__"])(
+      "uses the default style for unsupported tone %s",
+      (tone) => {
+        const { card } = toAdaptiveCard({ $type: "Alert", tone });
+        expect((card.body[0] as TeamsContainer).style).toBe("default");
+      },
+    );
+
     it.each([
       ["info", "accent"],
       ["success", "good"],

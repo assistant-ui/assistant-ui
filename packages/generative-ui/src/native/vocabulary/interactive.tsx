@@ -36,6 +36,7 @@ import {
 } from "../../vocabulary/interactiveValues";
 import { toTextContent } from "../../vocabulary/toTextContent";
 import { useField, useFieldScope } from "../fieldScope";
+import { ListViewItemTextBoundary } from "../rowLabel";
 import { fade, RADIUS, TEXT_SIZE, useInk, useNativeTheme } from "../theme";
 import { ActionButton } from "./button";
 
@@ -66,6 +67,10 @@ const styles = StyleSheet.create({
   choiceText: { fontSize: TEXT_SIZE.md, flexGrow: 1, flexShrink: 1 },
   choiceDescription: { fontSize: TEXT_SIZE.sm },
   choiceMark: { fontSize: TEXT_SIZE.md },
+  progress: { gap: 6, marginBottom: 4 },
+  progressLabel: { fontSize: TEXT_SIZE.sm, fontVariant: ["tabular-nums"] },
+  progressTrack: { height: 6, borderRadius: RADIUS.pill, overflow: "hidden" },
+  progressFill: { height: 6, borderRadius: RADIUS.pill },
   checkboxRow: {
     minHeight: 40,
     flexDirection: "row",
@@ -131,7 +136,7 @@ function Button({
   const pending = useRef<{ $action: Action; $dispatch: GenerativeUIDispatch }>(
     undefined,
   );
-  const labelText = String(toTextContent(label) ?? "");
+  const labelText = toTextContent(label) ?? "";
   const undoLabel = labelText.trim();
 
   useEffect(() => {
@@ -437,7 +442,7 @@ function DatePicker(props: DatePickerProps) {
 type ChoiceProps = ActionProps & {
   value?: string;
   options: Option[];
-  placeholder?: string;
+  placeholder?: string | number;
   label?: string;
   name?: string;
   defaultValue?: string;
@@ -534,7 +539,7 @@ function ChoiceRows({
             </Pressable>
           );
         })}
-        {children}
+        <ListViewItemTextBoundary>{children}</ListViewItemTextBoundary>
       </View>
     </View>
   );
@@ -560,12 +565,13 @@ function SelectField({
       ? answeredValue
       : (value ?? "")
     : choice;
+  const placeholderText = toTextContent(placeholder);
   const entries = mapOptions(options, (option) => option).filter(
     (option) => option !== null,
   );
   const effective = entries.some((option) => option.value === selected)
     ? selected
-    : placeholder && selected === ""
+    : placeholderText && selected === ""
       ? ""
       : (entries[0]?.value ?? "");
   useField(name, "value", () => effective);
@@ -576,9 +582,9 @@ function SelectField({
           {label}
         </Text>
       ) : null}
-      {effective === "" && placeholder ? (
+      {effective === "" && placeholderText ? (
         <Text style={[styles.choiceHint, { color: fade(ink, 0.45) }]}>
-          {placeholder}
+          {placeholderText}
         </Text>
       ) : null}
       <ChoiceRows
@@ -614,7 +620,7 @@ function Select({ defaultValue, ...props }: ChoiceProps) {
 
 type CheckboxProps = ActionProps & {
   checked?: boolean;
-  label: string;
+  label: string | number;
   name?: string;
   defaultChecked?: boolean;
   variant?: "checkbox" | "switch";
@@ -721,7 +727,7 @@ function CheckboxField({
   const Row = variant === "switch" ? SwitchRow : CheckboxRow;
   return (
     <Row
-      label={label}
+      label={toTextContent(label) ?? ""}
       checked={selected}
       onPress={() => {
         const next = !selected;
@@ -968,6 +974,7 @@ type CheckboxGroupProps = ActionProps & {
   name?: string;
   label?: string;
   defaultValue?: string[];
+  progress?: boolean;
   children?: ReactNode;
 };
 
@@ -977,10 +984,12 @@ function CheckboxGroupField({
   options,
   name,
   label,
+  progress,
   children,
   $action,
   $dispatch,
 }: CheckboxGroupProps & { initialValues: string[] }) {
+  const theme = useNativeTheme();
   const ink = useInk();
   const answeredValue = useAnsweredValue(name);
   const updateBinding = useA2uiBinding(name);
@@ -1012,6 +1021,31 @@ function CheckboxGroupField({
           {label}
         </Text>
       ) : null}
+      {progress ? (
+        <View style={styles.progress}>
+          <Text
+            testID="checkboxgroup-progress-label"
+            style={[styles.progressLabel, { color: fade(ink, 0.62) }]}
+          >
+            {`${values.length} of ${entries.length}`}
+          </Text>
+          <View
+            testID="checkboxgroup-progress-track"
+            style={[styles.progressTrack, { backgroundColor: theme.secondary }]}
+          >
+            <View
+              testID="checkboxgroup-progress-fill"
+              style={[
+                styles.progressFill,
+                {
+                  width: `${entries.length ? (values.length / entries.length) * 100 : 0}%`,
+                  backgroundColor: theme.primary,
+                },
+              ]}
+            />
+          </View>
+        </View>
+      ) : null}
       {entries.map(({ option, key }) => (
         <CheckboxRow
           key={key}
@@ -1031,7 +1065,7 @@ function CheckboxGroupField({
           }}
         />
       ))}
-      {children}
+      <ListViewItemTextBoundary>{children}</ListViewItemTextBoundary>
     </View>
   );
 }

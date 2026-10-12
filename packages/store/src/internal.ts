@@ -5,6 +5,10 @@ export {
   useOptionalAssistantScopeEffect,
 } from "./utils/tap-assistant-context";
 export { useHostDestroySignal } from "./utils/useHostDestroySignal";
+export {
+  useIsomorphicLayoutEffect,
+  useIsServerRender,
+} from "./utils/useIsomorphicLayoutEffect";
 export { useReplaySafeEffect } from "./utils/useReplaySafeEffect";
 export {
   shallowEqual,

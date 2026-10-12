@@ -1,6 +1,8 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { checkTree, startFormat } from "./formats.ts";
+import { checkTree, kitLibrary, startFormat } from "./formats.ts";
 
 test("a tree of known components with valid props renders", () => {
   assert.deepEqual(
@@ -49,4 +51,17 @@ test("each format exposes only the tools it answers with", async () => {
     "show_widget",
     "edit_widget",
   ]);
+});
+
+test("the vocabulary tells the model what the kit's element renders", () => {
+  const element = readFileSync(
+    fileURLToPath(
+      new URL(
+        "../../../../packages/ui/src/components/react/assistant-ui/elements/generative-ui.tsx",
+        import.meta.url,
+      ),
+    ),
+    "utf8",
+  );
+  assert.ok(element.includes(JSON.stringify(kitLibrary.Markdown!.description)));
 });

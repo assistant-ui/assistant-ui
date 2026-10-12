@@ -77,6 +77,48 @@ export function cleanupSpecs() {
   document.body.replaceChildren();
 }
 
+const colorChannels = (value: string) => {
+  const channels = value.match(/[\d.]+/g)?.map(Number);
+  if (!channels || channels.length < 3)
+    throw new Error(`expected an rgb color, received ${value}`);
+  return [channels[0]!, channels[1]!, channels[2]!, channels[3] ?? 1] as const;
+};
+
+const relativeLuminance = (red: number, green: number, blue: number) => {
+  const linearize = (channel: number) =>
+    channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+  return (
+    0.2126 * linearize(red / 255) +
+    0.7152 * linearize(green / 255) +
+    0.0722 * linearize(blue / 255)
+  );
+};
+
+export const contrastRatio = (
+  textColor: string,
+  tintColor: string,
+  surfaceColor: string,
+) => {
+  const [red, green, blue] = colorChannels(textColor);
+  const [tintRed, tintGreen, tintBlue, alpha] = colorChannels(tintColor);
+  const [surfaceRed, surfaceGreen, surfaceBlue] = colorChannels(surfaceColor);
+  const background = [
+    tintRed * alpha + surfaceRed * (1 - alpha),
+    tintGreen * alpha + surfaceGreen * (1 - alpha),
+    tintBlue * alpha + surfaceBlue * (1 - alpha),
+  ];
+  const textLuminance = relativeLuminance(red, green, blue);
+  const backgroundLuminance = relativeLuminance(
+    background[0]!,
+    background[1]!,
+    background[2]!,
+  );
+  return (
+    (Math.max(textLuminance, backgroundLuminance) + 0.05) /
+    (Math.min(textLuminance, backgroundLuminance) + 0.05)
+  );
+};
+
 export const spec = (
   elements: Spec["elements"],
   state: Spec["state"] = {},

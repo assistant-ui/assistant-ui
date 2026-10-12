@@ -2,7 +2,6 @@
 
 import {
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -13,7 +12,10 @@ import {
   useExternalStoreSharedOptions,
   useRuntimeAdapters,
 } from "@assistant-ui/core/react";
-import { useReplaySafeEffect } from "@assistant-ui/store/internal";
+import {
+  useIsomorphicLayoutEffect,
+  useReplaySafeEffect,
+} from "@assistant-ui/store/internal";
 import { createMessageQueue } from "@assistant-ui/core";
 import type {
   MessageQueueController,
@@ -158,7 +160,7 @@ export function useAgUiRuntime(
   const queueController = options.unstable_enableMessageQueue
     ? queueRef.current
     : null;
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (options.unstable_enableMessageQueue || !queueRef.current) return;
     const controller = queueRef.current;
     queueRef.current = null;

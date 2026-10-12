@@ -25,6 +25,7 @@ const INTERRUPT_TOOL_NAMES = new Set([
 
 export type AdkThreadState = {
   messages: AdkMessage[];
+  queuedMessageIds: ReadonlySet<string>;
   stateDelta: Record<string, unknown>;
   agentInfo: { name?: string | undefined; branch?: string | undefined };
   longRunningToolIds: string[];
@@ -49,6 +50,7 @@ export type AdkThreadAction =
       type: "event.published";
       state: Omit<
         AdkThreadState,
+        | "queuedMessageIds"
         | "stagedEntries"
         | "toolResultBuffer"
         | "runConfigByToolCallId"
@@ -63,6 +65,12 @@ export type AdkThreadAction =
   | { type: "snapshot.applied"; snapshot: AdkThreadSnapshot }
   | { type: "messages.replaced"; messages: AdkMessage[] }
   | { type: "messages.set"; messages: AdkMessage[] }
+  | {
+      type: "messages.queued";
+      messages: AdkMessage[];
+      ids: readonly string[];
+    }
+  | { type: "messages.queue.remove"; ids: readonly string[] }
   | { type: "longRunningToolIds.set"; ids: string[] }
   | { type: "staged.stage"; entry: AdkStagedEntry }
   | { type: "staged.unstage"; ids: readonly string[] }
@@ -72,6 +80,13 @@ export type AdkThreadAction =
   | { type: "run.rollback"; state: AdkThreadState }
   | { type: "run.active" }
   | { type: "run.failed" }
+  | {
+      type: "run.preEventFailed";
+      ownIds: readonly string[];
+      longRunningToolIds: string[];
+      toolConfirmations: AdkToolConfirmation[];
+      authRequests: AdkAuthRequest[];
+    }
   | { type: "run.finished"; runId: string }
   | { type: "run.cancelled" }
   | { type: "run.newTurn" }
@@ -81,6 +96,7 @@ export type AdkThreadAction =
   | {
       type: "run.started";
       messages: AdkMessage[];
+      queuedMessageIds: readonly string[];
       longRunningToolIds: string[];
       toolConfirmations: AdkToolConfirmation[];
       authRequests: AdkAuthRequest[];
@@ -88,6 +104,7 @@ export type AdkThreadAction =
 
 export const createAdkThreadState = (): AdkThreadState => ({
   messages: [],
+  queuedMessageIds: new Set(),
   stateDelta: {},
   agentInfo: {},
   longRunningToolIds: [],
@@ -170,7 +187,7 @@ export const reduceAdkThreadState = (
   switch (action.type) {
     case "event.published": {
       const next = action.state;
-      return {
+      const merged = {
         ...state,
         ...next,
         stateDelta: { ...state.stateDelta, ...next.stateDelta },
@@ -180,12 +197,21 @@ export const reduceAdkThreadState = (
             ? new Map([...state.messageMetadata, ...next.messageMetadata])
             : state.messageMetadata,
       };
+      if (state.queuedMessageIds.size === 0) return merged;
+      const publishedIds = new Set(next.messages.map((message) => message.id));
+      const queuedMessages = state.messages.filter(
+        (message) =>
+          state.queuedMessageIds.has(message.id) &&
+          !publishedIds.has(message.id),
+      );
+      return { ...merged, messages: [...next.messages, ...queuedMessages] };
     }
     case "snapshot.applied": {
       const snapshot = action.snapshot;
       return {
         ...state,
         messages: snapshot.messages,
+        queuedMessageIds: new Set(),
         stateDelta: snapshot.stateDelta ?? {},
         agentInfo: snapshot.agentInfo ?? {},
         longRunningToolIds: snapshot.longRunningToolIds ?? [],
@@ -206,6 +232,7 @@ export const reduceAdkThreadState = (
       return {
         ...state,
         messages: action.messages,
+        queuedMessageIds: new Set(),
         longRunningToolIds: [],
         toolConfirmations: [],
         authRequests: [],
@@ -220,6 +247,27 @@ export const reduceAdkThreadState = (
       };
     case "messages.set":
       return { ...state, messages: action.messages };
+    case "messages.queued":
+      return {
+        ...state,
+        messages: action.messages,
+        queuedMessageIds: new Set([...state.queuedMessageIds, ...action.ids]),
+      };
+    case "messages.queue.remove": {
+      const removedIds = new Set(
+        action.ids.filter((id) => state.queuedMessageIds.has(id)),
+      );
+      if (removedIds.size === 0) return state;
+      return {
+        ...state,
+        messages: state.messages.filter(
+          (message) => !removedIds.has(message.id),
+        ),
+        queuedMessageIds: new Set(
+          [...state.queuedMessageIds].filter((id) => !removedIds.has(id)),
+        ),
+      };
+    }
     case "longRunningToolIds.set":
       return { ...state, longRunningToolIds: action.ids };
     case "staged.stage": {
@@ -327,6 +375,16 @@ export const reduceAdkThreadState = (
             failedRunIds: new Set([...state.failedRunIds, state.currentRunId]),
           }
         : state;
+    case "run.preEventFailed": {
+      const ownIds = new Set(action.ownIds);
+      return {
+        ...state,
+        messages: state.messages.filter((message) => !ownIds.has(message.id)),
+        longRunningToolIds: action.longRunningToolIds,
+        toolConfirmations: action.toolConfirmations,
+        authRequests: action.authRequests,
+      };
+    }
     case "run.finished": {
       const activeRunIds = new Set(state.activeRunIds);
       activeRunIds.delete(action.runId);
@@ -396,13 +454,17 @@ export const reduceAdkThreadState = (
         readyBatch: batch.length > 0 ? batch : null,
       };
     }
-    case "run.started":
+    case "run.started": {
+      const queuedMessageIds = new Set(state.queuedMessageIds);
+      for (const id of action.queuedMessageIds) queuedMessageIds.delete(id);
       return {
         ...state,
         messages: action.messages,
+        queuedMessageIds,
         longRunningToolIds: action.longRunningToolIds,
         toolConfirmations: action.toolConfirmations,
         authRequests: action.authRequests,
       };
+    }
   }
 };

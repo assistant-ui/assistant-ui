@@ -1,7 +1,6 @@
 import {
   useEffect,
   useId,
-  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -18,7 +17,10 @@ import { useRemoteThreadListRuntime } from "./useRemoteThreadListRuntime";
 import { useCloudThreadListAdapter } from "./cloud/useCloudThreadListAdapter";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
 import type { AssistantCloud } from "assistant-cloud";
-import { useReplaySafeEffect } from "@assistant-ui/store/internal";
+import {
+  useIsomorphicLayoutEffect,
+  useReplaySafeEffect,
+} from "@assistant-ui/store/internal";
 
 const subscribeNever = () => () => {};
 
@@ -90,7 +92,7 @@ const useLocalThreadRuntime = (
     };
   }, [runtime]);
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     runtime.threads.getMainThreadRuntimeCore().__internal_setOptions(opt);
   });
 

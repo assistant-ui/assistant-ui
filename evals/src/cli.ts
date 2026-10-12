@@ -51,10 +51,14 @@ console.log(
 );
 
 const results = [];
-for (const c of selectedCases) {
-  console.log(`# ${c.id}: ${c.description}`);
-  results.push(await runCase(suite, c, candidates, trials));
-  console.log("");
+try {
+  for (const c of selectedCases) {
+    console.log(`# ${c.id}: ${c.description}`);
+    results.push(await runCase(suite, c, candidates, trials));
+    console.log("");
+  }
+} finally {
+  await suite.close?.();
 }
 
 const report = suite.report(results);

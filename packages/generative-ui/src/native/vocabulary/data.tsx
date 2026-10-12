@@ -1,5 +1,12 @@
 import { useState, type ReactNode } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Linking,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import type { Color } from "../../ir";
 import type { GenerativeUILibrary } from "../../types";
 import {
@@ -15,6 +22,7 @@ import {
 } from "../../vocabulary/chartData";
 import { dataDefinitions } from "../../vocabulary/definitions/data";
 import { formatValue } from "../../vocabulary/formatValue";
+import { linkHost, linkHref } from "../../vocabulary/structureValues";
 import {
   isTableColumn,
   nextTableSort,
@@ -23,6 +31,7 @@ import {
   type TableSort,
 } from "../../vocabulary/tableData";
 import { toTextContent } from "../../vocabulary/toTextContent";
+import { useListViewItemText } from "../rowLabel";
 import {
   fade,
   FONT_WEIGHT,
@@ -57,6 +66,15 @@ const styles = StyleSheet.create({
   legendItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   legendDot: { width: 8, height: 8, borderRadius: RADIUS.pill },
   legendLabel: { fontSize: 12 },
+  citation: {
+    borderWidth: 1,
+    borderRadius: RADIUS.surface,
+    padding: 14,
+    gap: 5,
+  },
+  citationSource: { fontSize: 12 },
+  citationTitle: { fontSize: 14, fontWeight: FONT_WEIGHT.semibold },
+  citationSnippet: { fontSize: 12, lineHeight: 18 },
 });
 
 type TableProps = {
@@ -202,13 +220,65 @@ function Markdown({
   children?: ReactNode;
 }) {
   const ink = useInk();
+  const content = toTextContent(value);
+  const consumed = useListViewItemText(content?.toString());
   return (
     <View>
-      <Text style={[styles.markdown, { color: ink }]}>
-        {toTextContent(value)}
+      <Text aria-hidden={consumed} style={[styles.markdown, { color: ink }]}>
+        {content}
       </Text>
       {children}
     </View>
+  );
+}
+
+function Citation({
+  title,
+  url,
+  source,
+  snippet,
+}: {
+  title: string;
+  url?: string;
+  source?: string;
+  snippet?: string;
+}) {
+  const theme = useNativeTheme();
+  const ink = useInk();
+  const href = linkHref(url);
+  const site = toTextContent(source) ?? (href ? linkHost(href) : null);
+  const quote = toTextContent(snippet);
+  const content = (
+    <>
+      {site != null ? (
+        <Text style={[styles.citationSource, { color: fade(ink, 0.62) }]}>
+          {site}
+        </Text>
+      ) : null}
+      <Text style={[styles.citationTitle, { color: ink }]}>
+        {toTextContent(title)}
+      </Text>
+      {quote != null ? (
+        <Text style={[styles.citationSnippet, { color: fade(ink, 0.62) }]}>
+          {quote}
+        </Text>
+      ) : null}
+    </>
+  );
+  const style = [
+    styles.citation,
+    { backgroundColor: theme.card, borderColor: theme.hairline },
+  ];
+  return href ? (
+    <Pressable
+      accessibilityRole="link"
+      onPress={() => void Linking.openURL(href).catch(() => {})}
+      style={style}
+    >
+      {content}
+    </Pressable>
+  ) : (
+    <View style={style}>{content}</View>
   );
 }
 
@@ -390,4 +460,8 @@ export const dataVocabulary = {
     render: (props) => <Markdown {...props} />,
   },
   Chart: { ...dataDefinitions.Chart, render: (props) => <Chart {...props} /> },
+  Citation: {
+    ...dataDefinitions.Citation,
+    render: (props) => <Citation {...props} />,
+  },
 } satisfies GenerativeUILibrary;

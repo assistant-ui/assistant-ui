@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   rewriteLatexBracketDelimiters,
   rewriteCustomMathTags,
@@ -126,6 +126,33 @@ describe("rewriteLatexBracketDelimiters", () => {
     ).toBe("> 1. \n>    $$\n>    a\n>    $$\n>    where $$x$$ holds");
   });
 
+  it("keeps prose after a bracket closer in the quoted list item", () => {
+    expect(normalizeMathDelimiters("> 1. \\[\n> a\n> \\] then\n> more")).toBe(
+      "> 1. \n>    $$\n>    a\n>    $$\n>     then\n> more",
+    );
+    expect(rewriteLatexBracketDelimiters("> \\[\n> a\n> \\] then")).toBe(
+      "> \n> $$\n> a\n> $$\n>  then",
+    );
+  });
+
+  it("keeps prose after a math tag closer in the quoted list item", () => {
+    expect(
+      normalizeMathDelimiters("> 1. [/math]\n> a\n> [/math] then\n> more"),
+    ).toBe("> 1. \n>    $$\n>    a\n>    $$\n>     then\n> more");
+  });
+
+  it("keeps display math and following prose in an ordered list then quote", () => {
+    expect(
+      normalizeMathDelimiters("1. > \\[\n   > a\n   > \\] then\n   > more"),
+    ).toBe("1. > \n   > $$\n   > a\n   > $$\n   >  then\n   > more");
+  });
+
+  it("keeps display math and following prose at quote depth two", () => {
+    expect(
+      normalizeMathDelimiters("> - > \\[\n>   > a\n>   > \\] then\n>   > more"),
+    ).toBe("> - > \n>   > $$\n>   > a\n>   > $$\n>   >  then\n>   > more");
+  });
+
   it("rewrites a multiline bracket display whose TeX body contains backticks", () => {
     expect(
       normalizeMathDelimiters("1. \\[\n\\text{`x`} = 1\nE = mc^2\n\\]\nText"),
@@ -218,6 +245,24 @@ describe("rewriteLatexBracketDelimiters", () => {
     expect(rewriteCustomMathTags("> [/math]> x[/math]")).toBe("> $$> x$$");
     expect(rewriteCustomMathTags("> 1. [/math]> x[/math]")).toBe(
       "> 1. $$> x$$",
+    );
+  });
+
+  it.each([
+    ["> \\[ >= 0\n> a\n> \\]", "> \n> $$\n>  >= 0\n> a\n> $$"],
+    ["> \\[> x\n> a\n> \\]", "> \n> $$\n> > x\n> a\n> $$"],
+    ["> \\[>x\n> a\n> \\]", "> \n> $$\n> >x\n> a\n> $$"],
+    ["> \\[>\n> a\n> \\]", "> \n> $$\n> >\n> a\n> $$"],
+  ])(
+    "preserves an opener-line greater-than operator in %j",
+    (input, expected) => {
+      expect(normalizeMathDelimiters(input)).toBe(expected);
+    },
+  );
+
+  it("keeps display math in a blockquote nested inside a list item", () => {
+    expect(normalizeMathDelimiters("- > \\[x\n  > x\n  > \\]")).toBe(
+      "- > \n  > $$\n  > x\n  > x\n  > $$",
     );
   });
 
@@ -646,6 +691,84 @@ describe("normalizeMathDelimiters", () => {
   it("keeps many inline code spans in one paragraph unchanged", () => {
     const input = "a `\\(x\\)` ".repeat(1000);
     expect(normalizeMathDelimiters(input)).toBe(input);
+  });
+
+  it.each([
+    ["currency", "triple-backtick", escapeCurrencyDollars, "a ```b``` "],
+    ["math", "triple-backtick", normalizeMathDelimiters, "a ```b``` "],
+    ["currency", "tilde", escapeCurrencyDollars, "x ~~~ "],
+    ["math", "tilde", normalizeMathDelimiters, "x ~~~ "],
+  ] as const)(
+    "does not rescan the line prefix in %s for %s runs",
+    (_, _marker, preprocess, segment) => {
+      const fencePrefixSource =
+        /^[ \t]*(?:>[ \t]*|(?:[-*+]|\d{1,9}[.)])[ \t]+)*$/.source;
+      const fencePrefixCharSource = /[ \t>*+\-0-9.)]/.source;
+      const scannedFor = (input: string) => {
+        const test = RegExp.prototype.test;
+        const lastIndexOf = String.prototype.lastIndexOf;
+        let scanned = 0;
+        let charChecks = 0;
+        const regexScan = vi
+          .spyOn(RegExp.prototype, "test")
+          .mockImplementation(function (this: RegExp, candidate) {
+            if (this.source === fencePrefixSource) scanned += candidate.length;
+            if (this.source === fencePrefixCharSource) {
+              scanned += candidate.length;
+              charChecks += 1;
+            }
+            return Reflect.apply(test, this, [candidate]);
+          });
+        const newlineScan = vi
+          .spyOn(String.prototype, "lastIndexOf")
+          .mockImplementation(function (this: string, search, position) {
+            if (this.valueOf() === input && search === "\n") {
+              scanned +=
+                position === undefined
+                  ? input.length
+                  : Math.min(input.length, Math.max(0, position + 1));
+            }
+            return Reflect.apply(lastIndexOf, this, [search, position]);
+          });
+        let output: string;
+        try {
+          output = preprocess(input);
+        } finally {
+          newlineScan.mockRestore();
+          regexScan.mockRestore();
+        }
+        expect(output).toBe(input);
+        return { scanned, charChecks };
+      };
+
+      const input = segment.repeat(100);
+      const first = scannedFor(input);
+      const second = scannedFor(input + input);
+      expect(first.scanned).toBeLessThanOrEqual(input.length * 3);
+      expect(second.scanned).toBeLessThanOrEqual(input.length * 6);
+      expect(second.scanned).toBeLessThanOrEqual(first.scanned * 2);
+      expect(second.charChecks).toBeLessThanOrEqual(first.charChecks * 2);
+    },
+  );
+
+  it.each([
+    ["\t", "$5\n\n$7"],
+    ["- ", "$5\n\n$7"],
+    ["* ", "$5\n\n$7"],
+    ["+ ", "$5\n\n$7"],
+    ["1. ", "$5\n\n$7"],
+    ["1) ", "$5\n\n$7"],
+    ["x ", "\\$5\n\n\\$7"],
+  ])("handles tilde runs after prefix %j", (prefix, body) => {
+    expect(escapeCurrencyDollars(`${prefix}~~~js\n$5\n\n$7\n~~~`)).toBe(
+      `${prefix}~~~js\n${body}\n~~~`,
+    );
+  });
+
+  it("does not open a backtick fence after prose", () => {
+    expect(escapeCurrencyDollars("x ```js\n$5\n\n$7\n```")).toBe(
+      "x ```js\n\\$5\n\n\\$7\n```",
+    );
   });
 
   it("nests a $$ fence opened on a list item's marker line", () => {
