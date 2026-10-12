@@ -189,6 +189,16 @@ describe("rewriteLatexBracketDelimiters", () => {
       "> 1. \n>    $$\n>    a\n>    $$\n>     x \n>    $$\n>    b\n>    $$\n>     then\n> more",
     ],
     [
+      "the line after a second display in a list item",
+      "> 1. \\[\n> a\n> \\] x \\[\n> b\n> \\]\n> more",
+      "> 1. \n>    $$\n>    a\n>    $$\n>     x \n>    $$\n>    b\n>    $$\n>    more",
+    ],
+    [
+      "the line after a second display in a plain quote",
+      "> \\[\n> a\n> \\] x \\[\n> b\n> \\]\n> more",
+      "> \n> $$\n> a\n> $$\n>  x \n> $$\n> b\n> $$\n> more",
+    ],
+    [
       "CRLF lines",
       "> 1. \\[\r\n> a\r\n> \\] x \\[\r\n> b\r\n> \\] then",
       "> 1. \n>    $$\n>    a\r\n>    $$\n>     x \n>    $$\n>    b\r\n>    $$\n>     then",

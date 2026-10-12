@@ -1140,6 +1140,7 @@ export function rewriteLatexBracketDelimiters(text: string): string {
     let reindentedLineStart = -1;
     let closerLineStart = -1;
     let closerPrefix = "";
+    let closerReindents = false;
     for (const marker of block.matchAll(LATEX_DISPLAY_MARKER)) {
       const at = marker.index;
       if (at < cursor) continue;
@@ -1199,11 +1200,16 @@ export function rewriteLatexBracketDelimiters(text: string): string {
             : block.slice(start, offset);
       };
       const head = lineHead(opener);
-      const openedOnReindentedLine =
-        reindentedLineStart === block.lastIndexOf("\n", opener - 1) + 1;
+      const openerLineStart = block.lastIndexOf("\n", opener - 1) + 1;
+      const openedOnReindentedLine = reindentedLineStart === openerLineStart;
       const prefix = continuationPrefix(head);
       const quote = QUOTE_PREFIX.exec(head)![0];
       const depth = quoteDepth(prefix);
+      const reindents: boolean =
+        depth > 0 &&
+        (openedOnReindentedLine ||
+          (closerLineStart === openerLineStart && closerReindents) ||
+          listMarkerEnd(head, quote.length, head.length) > quote.length);
       let replacement = emitDisplayMath(
         match,
         body,
@@ -1224,13 +1230,12 @@ export function rewriteLatexBracketDelimiters(text: string): string {
         ? opener + match.lastIndexOf("\n") + 1
         : -1;
       closerPrefix = prefix;
+      closerReindents = reindents;
       reindentedLineStart = -1;
       let consumed = end;
       if (
         replacement !== match &&
-        depth > 0 &&
-        (openedOnReindentedLine ||
-          listMarkerEnd(head, quote.length, head.length) > quote.length) &&
+        reindents &&
         (block[end] === "\n" || block.startsWith("\r\n", end))
       ) {
         const lineBreak = block.startsWith("\r\n", end) ? "\r\n" : "\n";
