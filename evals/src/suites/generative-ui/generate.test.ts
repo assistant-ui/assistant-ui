@@ -4,11 +4,13 @@ import { MockLanguageModelV4 } from "ai/test";
 import { generateAnswer } from "./generate.ts";
 import {
   call,
+  callThenText,
   malformedCall,
   parallelCalls,
   streamingModel,
   text,
   textThenCall,
+  textThenMalformedCall,
 } from "./mock-models.ts";
 import type { Task } from "./types.ts";
 
@@ -379,4 +381,71 @@ test("a model error fails the trial instead of scoring it", async () => {
     },
   });
   await assert.rejects(generateAnswer(model, task, "text", 2), /rate limited/);
+});
+
+const planSpec = {
+  title: "Plan",
+  patches: [
+    { op: "add", path: "/root", value: "main" },
+    {
+      op: "add",
+      path: "/elements/main",
+      value: { type: "Text", props: { value: "Hi" } },
+    },
+  ]
+    .map((patch) => JSON.stringify(patch))
+    .join("\n"),
+};
+
+test("text written after the answer call in the same step renders below the answer", async () => {
+  const answer = await generateAnswer(
+    streamingModel(callThenText("render_spec", planSpec, "Want changes?")),
+    task,
+    "spec",
+    1,
+  );
+  assert.deepEqual(answer.errors, []);
+  assert.deepEqual(answer.prose, { before: "", after: "Want changes?" });
+});
+
+test("a malformed call after the answer leaves the text that followed the answer below it", async () => {
+  const broken = {
+    title: "Plan",
+    patches: JSON.stringify({
+      op: "add",
+      path: "/elements/main",
+      value: { type: "Nope" },
+    }),
+  };
+  const answer = await generateAnswer(
+    streamingModel(
+      textThenCall("Here is your plan.", "render_spec", broken),
+      textThenMalformedCall("Let me fix that.", "render_spec"),
+      text("I could not fix it."),
+    ),
+    task,
+    "spec",
+    2,
+  );
+  assert.equal(answer.answeredIn, "spec");
+  assert.deepEqual(answer.prose, {
+    before: "Here is your plan.",
+    after: "Let me fix that.\n\nI could not fix it.",
+  });
+});
+
+test("prose that starts with an indented code block keeps it", async () => {
+  const answer = await generateAnswer(
+    streamingModel(
+      textThenCall(
+        "    npm install\n    npm run build",
+        "render_spec",
+        planSpec,
+      ),
+    ),
+    task,
+    "spec",
+    1,
+  );
+  assert.equal(answer.prose.before, "    npm install\n    npm run build");
 });
