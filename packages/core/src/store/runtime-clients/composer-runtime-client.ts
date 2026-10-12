@@ -12,6 +12,7 @@ import type { QueueItemState } from "../scopes/queue-item";
 import type { QueuePlacement } from "../../runtime/queue/external-thread-queue-adapter";
 import { AttachmentRuntimeClient } from "./attachment-runtime-client";
 import { useSubscribable } from "./useSubscribable";
+import { liveRef } from "./liveRef";
 import { runCleanups } from "../../subscribable/subscribable";
 
 const useComposerAttachmentClientByIndex = ({
@@ -68,6 +69,7 @@ const useComposerClient = ({
   isSuggestion?: ((text: string) => boolean) | undefined;
 }): ClientOutput<"composer"> => {
   const runtimeState = useSubscribable(runtime);
+  const liveState = useMemo(() => liveRef(() => runtime.getState()), [runtime]);
   const emit = useAssistantEmit();
   const pendingSuggestion = useRef(false);
 
@@ -151,15 +153,21 @@ const useComposerClient = ({
 
   const state = useMemo<ComposerState>(() => {
     return {
-      text: runtimeState.text,
+      get text() {
+        return liveState.current.text;
+      },
       role: runtimeState.role,
       attachments: attachments.state,
       runConfig: runtimeState.runConfig,
       isEditing: runtimeState.isEditing,
       canCancel: runtimeState.canCancel,
-      canSend: runtimeState.canSend,
+      get canSend() {
+        return liveState.current.canSend;
+      },
       attachmentAccept: runtimeState.attachmentAccept,
-      isEmpty: runtimeState.isEmpty,
+      get isEmpty() {
+        return liveState.current.isEmpty;
+      },
       type: runtimeState.type ?? "thread",
       dictation: runtimeState.dictation,
       quote: runtimeState.quote,
@@ -167,7 +175,7 @@ const useComposerClient = ({
       submission: runtimeState.submission,
       inTransit: runtimeState.inTransit,
     };
-  }, [runtimeState, attachments.state, queue]);
+  }, [runtimeState, attachments.state, queue, liveState]);
 
   return {
     getState: () => state,
