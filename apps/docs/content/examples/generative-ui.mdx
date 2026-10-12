@@ -45,7 +45,7 @@ export const widgets = createWidgetToolkit({
 });
 ```
 
-The page registers the toolkit and adds the format rules with the spec guidance preloaded, so every model reads the composition rules and calls `render_spec` without a `read_me` round trip. It also adds one instruction of its own that asks for photos:
+The page registers the toolkit and adds the format rules with the spec guidance preloaded, so every model reads the composition rules and can call `render_spec` without a `read_me` round trip. It also adds one instruction of its own that asks for photos:
 
 ```tsx title="app/page.tsx"
 const config = AuiConfig({
