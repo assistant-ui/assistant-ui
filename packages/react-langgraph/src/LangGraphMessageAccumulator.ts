@@ -14,8 +14,8 @@ export type LangGraphStateAccumulatorConfig<TMessage> = {
 // LangChain RemoveMessage (type: "remove") deletes the message with the
 // matching id; the REMOVE_ALL_MESSAGES sentinel id clears every message,
 // mirroring server-side messagesStateReducer.
-const REMOVE_ALL_MESSAGES = "__remove_all__";
-const isRemoveMessage = (message: { id?: string }): boolean =>
+export const REMOVE_ALL_MESSAGES = "__remove_all__";
+export const isRemoveMessage = (message: { id?: string }): boolean =>
   (message as Record<string, unknown>).type === "remove";
 
 export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {

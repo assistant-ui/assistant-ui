@@ -1546,6 +1546,115 @@ describe("useLangGraphMessages", {}, () => {
     expect(result.current.messages).toEqual([previousMessage]);
   });
 
+  it("restores an explicitly removed message when the stream fails before its first event", async () => {
+    const streamError = new Error("stream failed before the first event");
+    const streamSpy = vi.fn(async function* () {
+      throw streamError;
+    });
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamSpy,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+    const earlier = { id: "earlier", type: "human" as const, content: "First" };
+    const later = { id: "later", type: "human" as const, content: "Second" };
+    act(() => result.current.setMessages([earlier, later]));
+
+    let sendMessagePromise!: Promise<void>;
+    act(() => {
+      sendMessagePromise = result.current.sendMessage(
+        [
+          { id: "earlier", type: "remove", content: [] },
+          { id: "failed", type: "human", content: "Failed turn" },
+        ],
+        {},
+      );
+    });
+
+    await act(async () => {
+      await expect(sendMessagePromise).rejects.toBe(streamError);
+    });
+    expect(result.current.messages).toEqual([earlier, later]);
+  });
+
+  it("restores all removed messages when the stream fails before its first event", async () => {
+    const streamError = new Error("stream failed before the first event");
+    const streamSpy = vi.fn(async function* () {
+      throw streamError;
+    });
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamSpy,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+    const earlier = { id: "earlier", type: "human" as const, content: "First" };
+    const later = { id: "later", type: "human" as const, content: "Second" };
+    act(() => result.current.setMessages([earlier, later]));
+
+    let sendMessagePromise!: Promise<void>;
+    act(() => {
+      sendMessagePromise = result.current.sendMessage(
+        [
+          { id: "__remove_all__", type: "remove", content: [] },
+          { id: "failed", type: "human", content: "Failed turn" },
+        ],
+        {},
+      );
+    });
+
+    await act(async () => {
+      await expect(sendMessagePromise).rejects.toBe(streamError);
+    });
+    expect(result.current.messages).toEqual([earlier, later]);
+  });
+
+  it("keeps a staged message after restoring removed messages on a pre-event failure", async () => {
+    const streamError = new Error("stream failed before the first event");
+    let fail!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      fail = resolve;
+    });
+    const streamSpy = vi.fn(async function* () {
+      await gate;
+      throw streamError;
+    });
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamSpy,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+    const earlier = { id: "earlier", type: "human" as const, content: "First" };
+    const later = { id: "later", type: "human" as const, content: "Second" };
+    act(() => result.current.setMessages([earlier, later]));
+
+    let sendMessagePromise!: Promise<void>;
+    act(() => {
+      sendMessagePromise = result.current.sendMessage(
+        [
+          { id: "__remove_all__", type: "remove", content: [] },
+          { id: "failed", type: "human", content: "Failed turn" },
+        ],
+        {},
+      );
+    });
+    await waitFor(() => expect(streamSpy).toHaveBeenCalledOnce());
+    const staged = {
+      id: "staged",
+      type: "human" as const,
+      content: "Later turn",
+    };
+    act(() => result.current.setMessages([...result.current.messages, staged]));
+
+    await act(async () => {
+      fail();
+      await expect(sendMessagePromise).rejects.toBe(streamError);
+    });
+    expect(result.current.messages).toEqual([earlier, later, staged]);
+  });
+
   it("keeps a message staged while a run waits for its first event", async () => {
     const streamError = new Error("stream failed before the first event");
     let fail!: () => void;
