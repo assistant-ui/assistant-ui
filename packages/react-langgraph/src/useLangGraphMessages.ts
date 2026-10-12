@@ -318,10 +318,15 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
     interruptRef.current = interrupt;
   }, [interrupt]);
 
-  const setMessagesImmediate = useCallback((msgs: TMessage[]) => {
-    messagesRef.current = msgs;
-    _setMessages(msgs);
-  }, []);
+  const setMessagesImmediate = useCallback(
+    (msgs: TMessage[] | ((current: TMessage[]) => TMessage[])) => {
+      const next =
+        typeof msgs === "function" ? msgs(messagesRef.current) : msgs;
+      messagesRef.current = next;
+      _setMessages(next);
+    },
+    [],
+  );
 
   const [uiMessages, _setUIMessages] = useState<UIMessage[]>([]);
   const uiMessagesRef = useRef(uiMessages);
@@ -333,10 +338,15 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
     LangGraphMessageAccumulator<TMessage> | undefined
   >(undefined);
 
-  const setUIMessagesImmediate = useCallback((next: UIMessage[]) => {
-    uiMessagesRef.current = next;
-    _setUIMessages(next);
-  }, []);
+  const setUIMessagesImmediate = useCallback(
+    (next: UIMessage[] | ((current: UIMessage[]) => UIMessage[])) => {
+      const resolved =
+        typeof next === "function" ? next(uiMessagesRef.current) : next;
+      uiMessagesRef.current = resolved;
+      _setUIMessages(resolved);
+    },
+    [],
+  );
 
   const [messageMetadata, setMessageMetadata] = useState<
     Map<string, LangGraphTupleMetadata>
@@ -362,6 +372,7 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
       newMessages: TMessage[],
       config: LangGraphSendMessageConfig,
       onComplete?: (finalMessages: TMessage[]) => void,
+      onPreEventFailure?: () => void,
     ) => {
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
@@ -639,61 +650,65 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
           !abortController.signal.aborted &&
           !(error instanceof Error && error.name === "AbortError")
         ) {
-          if (!receivedEvent && accumulator) {
-            const previousMessagesById = new Map(
-              previousMessages.flatMap((message) =>
-                message.id !== undefined
-                  ? [[message.id, message] as const]
-                  : [],
-              ),
-            );
-            const rolledBackMessages = messagesRef.current.flatMap(
-              (message) => {
-                const messageId = message.id;
-                if (
-                  messageId === undefined ||
-                  !submittedMessageIds.has(messageId)
-                )
-                  return [message];
-                const previousMessage = previousMessagesById.get(messageId);
-                return previousMessage ? [previousMessage] : [];
-              },
-            );
-            const presentIds = new Set(
-              rolledBackMessages.flatMap((message) =>
-                message.id !== undefined ? [message.id] : [],
-              ),
-            );
-            const removeAll = removedMessageIds.has(REMOVE_ALL_MESSAGES);
-            const messagesToRestore = previousMessages.filter(
-              (message) =>
-                (removeAll ||
-                  (message.id !== undefined &&
-                    removedMessageIds.has(message.id))) &&
-                (message.id === undefined
-                  ? !rolledBackMessages.includes(message)
-                  : !presentIds.has(message.id)),
-            );
-            if (messagesToRestore.length === 0) {
-              setMessagesImmediate(rolledBackMessages);
-            } else {
-              const restoreSet = new Set(messagesToRestore);
-              setMessagesImmediate(
-                mergeByServerOrder(
-                  previousMessages.filter(
-                    (message) =>
-                      restoreSet.has(message) ||
-                      (message.id !== undefined && presentIds.has(message.id)),
-                  ),
-                  rolledBackMessages,
-                  {
-                    idOf: (message) => message.id,
-                    isRunTouched: () => true,
-                    keepUnmatched: true,
-                  },
+          if (!receivedEvent) {
+            if (accumulator) {
+              const previousMessagesById = new Map(
+                previousMessages.flatMap((message) =>
+                  message.id !== undefined
+                    ? [[message.id, message] as const]
+                    : [],
                 ),
               );
+              const rolledBackMessages = messagesRef.current.flatMap(
+                (message) => {
+                  const messageId = message.id;
+                  if (
+                    messageId === undefined ||
+                    !submittedMessageIds.has(messageId)
+                  )
+                    return [message];
+                  const previousMessage = previousMessagesById.get(messageId);
+                  return previousMessage ? [previousMessage] : [];
+                },
+              );
+              const presentIds = new Set(
+                rolledBackMessages.flatMap((message) =>
+                  message.id !== undefined ? [message.id] : [],
+                ),
+              );
+              const removeAll = removedMessageIds.has(REMOVE_ALL_MESSAGES);
+              const messagesToRestore = previousMessages.filter(
+                (message) =>
+                  (removeAll ||
+                    (message.id !== undefined &&
+                      removedMessageIds.has(message.id))) &&
+                  (message.id === undefined
+                    ? !rolledBackMessages.includes(message)
+                    : !presentIds.has(message.id)),
+              );
+              if (messagesToRestore.length === 0) {
+                setMessagesImmediate(rolledBackMessages);
+              } else {
+                const restoreSet = new Set(messagesToRestore);
+                setMessagesImmediate(
+                  mergeByServerOrder(
+                    previousMessages.filter(
+                      (message) =>
+                        restoreSet.has(message) ||
+                        (message.id !== undefined &&
+                          presentIds.has(message.id)),
+                    ),
+                    rolledBackMessages,
+                    {
+                      idOf: (message) => message.id,
+                      isRunTouched: () => true,
+                      keepUnmatched: true,
+                    },
+                  ),
+                );
+              }
             }
+            onPreEventFailure?.();
             finalMessages = messagesRef.current;
           }
           throw error;
@@ -859,12 +874,48 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     onSubgraphError?: OnSubgraphErrorEventCallback;
     onCustomEvent?: OnCustomEventCallback;
   };
-}) =>
-  useLangGraphMessagesInternal({
+}) => {
+  const {
+    interrupt,
+    values,
+    messages,
+    messageMetadata,
+    uiMessages,
+    sendMessage,
+    cancel,
+    setInterrupt,
+    setValues,
+    setMessages,
+    setUIMessages,
+    reconcileMessages,
+    reconcileUIMessages,
+    reconcileInterrupt,
+  } = useLangGraphMessagesInternal({
     stream,
     ...(appendMessage !== undefined && { appendMessage }),
     ...(eventHandlers !== undefined && { eventHandlers }),
     ...(uiStateKey !== undefined && { uiStateKey }),
   });
+  return {
+    interrupt,
+    values,
+    messages,
+    messageMetadata,
+    uiMessages,
+    sendMessage: sendMessage as (
+      newMessages: TMessage[],
+      config: LangGraphSendMessageConfig,
+      onComplete?: ((finalMessages: TMessage[]) => void) | undefined,
+    ) => Promise<void>,
+    cancel,
+    setInterrupt,
+    setValues,
+    setMessages: setMessages as (msgs: TMessage[]) => void,
+    setUIMessages: setUIMessages as (next: UIMessage[]) => void,
+    reconcileMessages,
+    reconcileUIMessages,
+    reconcileInterrupt,
+  };
+};
 
 export { useLangGraphMessagesInternal };
