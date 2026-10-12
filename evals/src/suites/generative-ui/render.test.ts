@@ -139,13 +139,9 @@ test(
 );
 
 test(
-  "prose renders above and below a spec answer and a widget",
+  "prose before and after a spec answer and a widget each render",
   { skip: findChrome() ? false : "no Chrome to render in" },
   async () => {
-    const prose = {
-      before: "Here is the split.\n\nIt covers all four of you.",
-      after: "Tell me if anyone pays extra.",
-    };
     const height = (screenshots: string[]) =>
       screenshots.reduce((sum, png) => sum + size(png).height, 0);
     const renderer = await createRenderer();
@@ -153,13 +149,20 @@ test(
       for (const [format, artifact] of answers.filter(
         ([format]) => format === "spec" || format === "frame",
       )) {
-        const bare = await renderer.render(format, artifact, noProse);
-        const withProse = await renderer.render(format, artifact, prose);
-        assert.deepEqual(withProse.runtimeErrors, []);
-        assert.ok(
-          height(withProse.screenshots) > height(bare.screenshots) + 60,
-          `${format}: ${height(bare.screenshots)} px without prose, ${height(withProse.screenshots)} px with it`,
+        const bare = height(
+          (await renderer.render(format, artifact, noProse)).screenshots,
         );
+        for (const prose of [
+          { before: "Here is the split for all four of you.", after: "" },
+          { before: "", after: "Tell me if anyone pays extra." },
+        ]) {
+          const rendered = await renderer.render(format, artifact, prose);
+          assert.deepEqual(rendered.runtimeErrors, []);
+          assert.ok(
+            height(rendered.screenshots) > bare + 20,
+            `${format} with ${prose.before ? "prose before" : "prose after"}: ${height(rendered.screenshots)} px against ${bare} px without prose`,
+          );
+        }
       }
     } finally {
       await renderer.close();
