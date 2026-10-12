@@ -23,6 +23,7 @@ import {
   type TableSort,
 } from "../../vocabulary/tableData";
 import { toTextContent } from "../../vocabulary/toTextContent";
+import { useListViewItemText } from "../rowLabel";
 import {
   fade,
   FONT_WEIGHT,
@@ -202,10 +203,12 @@ function Markdown({
   children?: ReactNode;
 }) {
   const ink = useInk();
+  const content = toTextContent(value);
+  const consumed = useListViewItemText(content?.toString());
   return (
     <View>
-      <Text style={[styles.markdown, { color: ink }]}>
-        {toTextContent(value)}
+      <Text aria-hidden={consumed} style={[styles.markdown, { color: ink }]}>
+        {content}
       </Text>
       {children}
     </View>

@@ -3,6 +3,7 @@ import { Image as NativeImage, StyleSheet, View } from "react-native";
 import type { ImageSize } from "../../ir";
 import type { GenerativeUILibrary } from "../../types";
 import { mediaDefinitions } from "../../vocabulary/definitions/media";
+import { useListViewItemText } from "../rowLabel";
 import { RADIUS, useNativeTheme } from "../theme";
 
 const SIZE = { sm: 128, md: 256, lg: 384 } as const;
@@ -28,7 +29,8 @@ function Image({
         : size
           ? SIZE[size]
           : undefined;
-  const hidden = !alt;
+  const consumed = useListViewItemText(alt);
+  const hidden = !alt || consumed;
   return (
     <NativeImage
       source={{ uri: src }}

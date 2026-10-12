@@ -8,8 +8,8 @@ import {
   formatFactDelta,
 } from "../../vocabulary/formatValue";
 import { toTextContent } from "../../vocabulary/toTextContent";
-import { fade, RADIUS, useInk, useNativeTheme } from "../theme";
-import { useListViewItemText } from "./list";
+import { fade, RADIUS, toneTextColor, useInk, useNativeTheme } from "../theme";
+import { useListViewItemText } from "../rowLabel";
 
 const styles = StyleSheet.create({
   label: { fontSize: 11, textTransform: "uppercase", letterSpacing: 0.55 },
@@ -56,6 +56,7 @@ function Fact({
   const labelConsumed = useListViewItemText(factLabel?.toString());
   const valueConsumed = useListViewItemText(factValue?.toString());
   const deltaConsumed = useListViewItemText(factDelta?.toString());
+  const chipColor = tone === "neutral" ? color : toneTextColor(color, ink);
   return (
     <View>
       <Text
@@ -83,7 +84,7 @@ function Fact({
           >
             <Text
               aria-hidden={deltaConsumed}
-              style={[styles.chipText, { color }]}
+              style={[styles.chipText, { color: chipColor }]}
             >
               {factDelta}
             </Text>

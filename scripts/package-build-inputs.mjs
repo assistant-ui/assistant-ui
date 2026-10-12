@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { isExecutedAsMain } from "./lib/main.mjs";
+import { isExcludedPackageTest } from "./lib/package-test-inputs.mjs";
 
 export const PACKAGE_BUILD_INPUTS = [
   ".github/workflows",
@@ -22,8 +23,9 @@ const isExampleManifest = (file) =>
 export function hasPackageBuildInputs(changedFiles) {
   return changedFiles.some(
     (file) =>
-      isExampleManifest(file) ||
-      PACKAGE_BUILD_INPUTS.some((input) => touches(file, input)),
+      !isExcludedPackageTest(file) &&
+      (isExampleManifest(file) ||
+        PACKAGE_BUILD_INPUTS.some((input) => touches(file, input))),
   );
 }
 

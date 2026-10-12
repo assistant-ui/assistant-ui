@@ -1,8 +1,6 @@
 import {
   createContext,
   useContext,
-  useId,
-  useLayoutEffect,
   useState,
   useSyncExternalStore,
   type ReactNode,
@@ -11,6 +9,7 @@ import { Pressable, StyleSheet, View } from "react-native";
 import type { GenerativeUILibrary } from "../../types";
 import { listDefinitions } from "../../vocabulary/definitions/list";
 import { fire } from "../../vocabulary/dispatch";
+import { createRowLabelStore, RowLabelProvider } from "../rowLabel";
 import { RADIUS, useNativeTheme } from "../theme";
 
 const styles = StyleSheet.create({
@@ -27,41 +26,6 @@ const styles = StyleSheet.create({
 });
 
 const ListHairline = createContext<string | undefined>(undefined);
-
-function createRowLabelStore() {
-  const labels = new Map<string, string>();
-  const listeners = new Set<() => void>();
-  let name: string | undefined;
-  return {
-    set(key: string, text: string | undefined) {
-      if (text) labels.set(key, text);
-      else labels.delete(key);
-      const next = [...labels.values()].join(", ") || undefined;
-      if (next === name) return;
-      name = next;
-      listeners.forEach((listener) => listener());
-    },
-    subscribe(listener: () => void) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-    getSnapshot: () => name,
-  };
-}
-
-const RowLabelContext = createContext<ReturnType<
-  typeof createRowLabelStore
-> | null>(null);
-
-export function useListViewItemText(text: string | undefined): boolean {
-  const store = useContext(RowLabelContext);
-  const key = useId();
-  useLayoutEffect(() => {
-    store?.set(key, text);
-  }, [store, key, text]);
-  useLayoutEffect(() => () => store?.set(key, undefined), [store, key]);
-  return store !== null;
-}
 
 function RowAction({
   store,
@@ -130,9 +94,7 @@ function ListViewItem({
       ]}
     >
       <RowAction store={labelStore} activate={activate} />
-      <RowLabelContext.Provider value={labelStore}>
-        {children}
-      </RowLabelContext.Provider>
+      <RowLabelProvider value={labelStore}>{children}</RowLabelProvider>
     </Pressable>
   );
 }

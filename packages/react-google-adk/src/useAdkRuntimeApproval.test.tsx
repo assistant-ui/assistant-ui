@@ -99,6 +99,7 @@ vi.mock("./useAdkMessages", async (importOriginal) => {
       escalated: false,
       messageMetadata: new Map(),
       sendMessage,
+      sendMessageWithExecutor: sendMessage,
       cancel: vi.fn(),
       setMessages: vi.fn(),
       replaceMessages: vi.fn(),

@@ -237,4 +237,255 @@ describe("list vocabulary on React Native", () => {
       standalone.container.firstElementChild?.getAttribute("aria-hidden"),
     ).not.toBe("true");
   });
+
+  it("names a row in tree order when text sits inside other text", () => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: { type: "ListView", children: ["row"] },
+        row: {
+          type: "ListViewItem",
+          children: ["header", "card"],
+          on: { press: { action: "open" } },
+        },
+        header: {
+          type: "Header",
+          props: { text: "Order 42" },
+          children: ["badge"],
+        },
+        badge: { type: "Badge", props: { value: "New" } },
+        card: {
+          type: "Card",
+          props: { title: "Shipping" },
+          children: ["status"],
+        },
+        status: { type: "Text", props: { value: "Shipped" } },
+      }),
+      { open: vi.fn() },
+      { open: { description: "Open" } },
+    );
+    expect(
+      byRole(container, "button", "Order 42, New, Shipping, Shipped"),
+    ).toBeTruthy();
+  });
+
+  it("keeps a text that clears and refills in its place", async () => {
+    const input = (name: string) =>
+      spec({
+        main: { type: "ListView", children: ["row"] },
+        row: {
+          type: "ListViewItem",
+          children: ["name", "status"],
+          on: { press: { action: "open" } },
+        },
+        name: { type: "Text", props: { value: name } },
+        status: { type: "Caption", props: { value: "Shipped" } },
+      });
+    const rendered = renderNativeSpec(
+      input("Order 42"),
+      { open: vi.fn() },
+      { open: { description: "Open" } },
+    );
+    expect(
+      byRole(rendered.container, "button", "Order 42, Shipped"),
+    ).toBeTruthy();
+    await rendered.update(input(""));
+    expect(byRole(rendered.container, "button", "Shipped")).toBeTruthy();
+    await rendered.update(input("Order 42"));
+    expect(
+      byRole(rendered.container, "button", "Order 42, Shipped"),
+    ).toBeTruthy();
+  });
+
+  it("names a row made of Markdown or an Image", () => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: { type: "ListView", children: ["notes", "photo"] },
+        notes: {
+          type: "ListViewItem",
+          children: ["markdown"],
+          on: { press: { action: "open" } },
+        },
+        markdown: { type: "Markdown", props: { value: "Order 42 shipped" } },
+        photo: {
+          type: "ListViewItem",
+          children: ["image"],
+          on: { press: { action: "open" } },
+        },
+        image: {
+          type: "Image",
+          props: { src: "https://example.com/box.png", alt: "Order photo" },
+        },
+      }),
+      { open: vi.fn() },
+      { open: { description: "Open" } },
+    );
+    expect(byRole(container, "button", "Order 42 shipped")).toBeTruthy();
+    expect(byRole(container, "button", "Order photo")).toBeTruthy();
+    expect(
+      [...container.querySelectorAll("[aria-hidden='true']")].map(
+        (element) => element.textContent,
+      ),
+    ).toEqual(["Order 42 shipped", ""]);
+  });
+
+  it("leaves text inside a nested Button out of the row name", () => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: { type: "ListView", children: ["row"] },
+        row: {
+          type: "ListViewItem",
+          children: ["name", "buy"],
+          on: { press: { action: "open" } },
+        },
+        name: { type: "Text", props: { value: "Order 42" } },
+        buy: {
+          type: "Button",
+          props: { label: "Buy" },
+          children: ["price"],
+          on: { press: { action: "buy" } },
+        },
+        price: { type: "Caption", props: { value: "Cannot undo" } },
+      }),
+      { open: vi.fn(), buy: vi.fn() },
+      { open: { description: "Open" }, buy: { description: "Buy" } },
+    );
+    expect(byRole(container, "button", "Order 42")).toBeTruthy();
+    expect(
+      [...container.querySelectorAll('[aria-hidden="true"]')].map(
+        (text) => text.textContent,
+      ),
+    ).toEqual(["Order 42"]);
+  });
+
+  it("names rows from Header, Alert, Fact, Badge, and Card text", () => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: { type: "ListView", children: ["row"] },
+        row: {
+          type: "ListViewItem",
+          children: ["header", "alert", "fact", "badge", "card"],
+          on: { press: { action: "open" } },
+        },
+        header: { type: "Header", props: { text: "Order 42" } },
+        alert: {
+          type: "Alert",
+          props: { title: "Delayed", description: "One day" },
+        },
+        fact: {
+          type: "Fact",
+          props: { label: "Items", value: 2, delta: "+1" },
+        },
+        badge: { type: "Badge", props: { value: "New" } },
+        card: { type: "Card", props: { title: "Shipping" } },
+      }),
+      { open: vi.fn() },
+      { open: { description: "Open" } },
+    );
+    expect(
+      byRole(
+        container,
+        "button",
+        "Order 42, Delayed, One day, Items, 2, ↑ 1, New, Shipping",
+      ),
+    ).toBeTruthy();
+    expect(container.querySelectorAll('[aria-hidden="true"]')).toHaveLength(8);
+  });
+
+  it("does not add whitespace-only text to a row name", () => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: { type: "ListView", children: ["row"] },
+        row: {
+          type: "ListViewItem",
+          children: ["blank", "name"],
+          on: { press: { action: "open" } },
+        },
+        blank: { type: "Text", props: { value: "   " } },
+        name: { type: "Caption", props: { value: "Shipped" } },
+      }),
+      { open: vi.fn() },
+      { open: { description: "Open" } },
+    );
+    expect(byRole(container, "button", "Shipped")).toBeTruthy();
+    expect(
+      container.querySelector('[dir="auto"]')?.getAttribute("aria-hidden"),
+    ).not.toBe("true");
+  });
+
+  it("removes an unmounted text child from the row name", async () => {
+    const row = (show: boolean) =>
+      spec({
+        main: { type: "ListView", children: ["row"] },
+        row: {
+          type: "ListViewItem",
+          children: show ? ["name", "status"] : ["name"],
+          on: { press: { action: "open" } },
+        },
+        name: { type: "Text", props: { value: "Order 42" } },
+        status: { type: "Caption", props: { value: "Shipped" } },
+      });
+    const rendered = renderNativeSpec(
+      row(true),
+      { open: vi.fn() },
+      { open: { description: "Open" } },
+    );
+    expect(
+      byRole(rendered.container, "button", "Order 42, Shipped"),
+    ).toBeTruthy();
+    await rendered.update(row(false));
+    expect(byRole(rendered.container, "button", "Order 42")).toBeTruthy();
+  });
+
+  it("switches a row between bound and unbound without console errors", async () => {
+    const row = (bound: boolean) =>
+      spec({
+        main: { type: "ListView", children: ["row"] },
+        row: {
+          type: "ListViewItem",
+          children: ["name", "status"],
+          ...(bound ? { on: { press: { action: "open" } } } : {}),
+        },
+        name: { type: "Text", props: { value: "Order 42" } },
+        status: { type: "Caption", props: { value: "Shipped" } },
+      });
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const rendered = renderNativeSpec(
+        row(true),
+        { open: vi.fn() },
+        { open: { description: "Open" } },
+      );
+      expect(
+        byRole(rendered.container, "button", "Order 42, Shipped"),
+      ).toBeTruthy();
+      await rendered.update(row(false));
+      expect(rendered.container.querySelector('[role="button"]')).toBeNull();
+      await rendered.update(row(true));
+      expect(
+        byRole(rendered.container, "button", "Order 42, Shipped"),
+      ).toBeTruthy();
+      expect(error).not.toHaveBeenCalled();
+    } finally {
+      error.mockRestore();
+    }
+  });
+
+  it("covers the row with a non-intercepting action button", () => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: { type: "ListView", children: ["row"] },
+        row: {
+          type: "ListViewItem",
+          children: ["name"],
+          on: { press: { action: "open" } },
+        },
+        name: { type: "Text", props: { value: "Order 42" } },
+      }),
+      { open: vi.fn() },
+      { open: { description: "Open" } },
+    );
+    const style = getComputedStyle(byRole(container, "button", "Order 42"));
+    expect(style.position).toBe("absolute");
+    expect(style.pointerEvents).toBe("none");
+  });
 });

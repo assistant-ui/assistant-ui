@@ -7,6 +7,7 @@ import { fire } from "../../vocabulary/dispatch";
 import { footerAction } from "../../vocabulary/layoutValues";
 import { toTextContent } from "../../vocabulary/toTextContent";
 import { FieldScopeProvider, useFieldScopeOwner } from "../fieldScope";
+import { useListViewItemText } from "../rowLabel";
 import {
   dimension,
   fade,
@@ -15,11 +16,11 @@ import {
   useCardSurface,
   RADIUS,
   space,
+  toneTextColor,
   useInk,
   useNativeTheme,
 } from "../theme";
 import { ActionButton } from "./button";
-import { useListViewItemText } from "./list";
 
 type FlexAlign = "flex-start" | "center" | "flex-end";
 
@@ -207,6 +208,10 @@ function Badge({
           : variant === "danger"
             ? theme.destructive
             : undefined;
+  const labelColor =
+    tone && variant !== "info"
+      ? toneTextColor(tone, ink)
+      : (tone ?? fade(ink, 0.62));
   return (
     <View style={styles.badgeSlot}>
       <View
@@ -217,7 +222,7 @@ function Badge({
       >
         <Text
           aria-hidden={consumed}
-          style={[styles.badgeText, { color: tone ?? fade(ink, 0.62) }]}
+          style={[styles.badgeText, { color: labelColor }]}
         >
           {badgeValue}
         </Text>

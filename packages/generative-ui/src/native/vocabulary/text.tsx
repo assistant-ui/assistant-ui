@@ -12,7 +12,7 @@ import {
   useInk,
   useNativeTheme,
 } from "../theme";
-import { useListViewItemText } from "./list";
+import { useListViewItemText } from "../rowLabel";
 
 const styles = StyleSheet.create({
   withChildren: {

@@ -1,13 +1,24 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   cleanupSpecs,
+  contrastRatio,
   renderNativeSpec,
   renderWebSpec,
   spec,
 } from "../testUtils";
 
-afterEach(cleanupSpecs);
+const scheme = vi.hoisted(() => ({ current: "light" as "light" | "dark" }));
+
+vi.mock("react-native", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react-native")>()),
+  useColorScheme: () => scheme.current,
+}));
+
+afterEach(() => {
+  cleanupSpecs();
+  scheme.current = "light";
+});
 
 describe("Fact on React Native", () => {
   it.each([
@@ -16,7 +27,7 @@ describe("Fact on React Native", () => {
       undefined,
       undefined,
       "↑ 8%",
-      "rgb(42, 152, 75)",
+      "rgb(35, 90, 48)",
       "rgba(42, 152, 75, 0.15)",
     ],
     [
@@ -24,7 +35,7 @@ describe("Fact on React Native", () => {
       undefined,
       undefined,
       "↓ 8%",
-      "rgb(231, 0, 11)",
+      "rgb(134, 27, 22)",
       "rgba(231, 0, 11, 0.15)",
     ],
     [
@@ -32,7 +43,7 @@ describe("Fact on React Native", () => {
       undefined,
       false,
       "↓ 8%",
-      "rgb(42, 152, 75)",
+      "rgb(35, 90, 48)",
       "rgba(42, 152, 75, 0.15)",
     ],
     [
@@ -40,7 +51,7 @@ describe("Fact on React Native", () => {
       undefined,
       false,
       "↑ 8%",
-      "rgb(231, 0, 11)",
+      "rgb(134, 27, 22)",
       "rgba(231, 0, 11, 0.15)",
     ],
     [
@@ -56,7 +67,7 @@ describe("Fact on React Native", () => {
       "up",
       undefined,
       "↑ -8%",
-      "rgb(42, 152, 75)",
+      "rgb(35, 90, 48)",
       "rgba(42, 152, 75, 0.15)",
     ],
   ] as const)(
@@ -87,6 +98,40 @@ describe("Fact on React Native", () => {
       expect(chip.style.color).toBe(color);
       if (background)
         expect(chip.parentElement!.style.backgroundColor).toBe(background);
+    },
+  );
+
+  it.each(["light", "dark"] as const)(
+    "keeps good and bad delta text above 4.5:1 in the %s theme",
+    (mode) => {
+      scheme.current = mode;
+      const surfaces =
+        mode === "light"
+          ? ["rgb(255, 255, 255)"]
+          : ["rgb(10, 10, 10)", "rgb(23, 23, 23)"];
+
+      for (const [delta, text] of [
+        ["+8%", "↑ 8%"],
+        ["-8%", "↓ 8%"],
+      ] as const) {
+        const { container } = renderNativeSpec(
+          spec({
+            main: {
+              type: "Fact",
+              props: { label: "Revenue", value: "$12k", delta },
+            },
+          }),
+        );
+        const chip = [...container.querySelectorAll<HTMLElement>("div")].find(
+          (element) =>
+            element.textContent === text && element.children.length === 0,
+        )!;
+        const tint = chip.parentElement!.style.backgroundColor;
+        for (const surface of surfaces)
+          expect(
+            contrastRatio(chip.style.color, tint, surface),
+          ).toBeGreaterThanOrEqual(4.5);
+      }
     },
   );
 });

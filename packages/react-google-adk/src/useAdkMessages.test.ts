@@ -2,16 +2,17 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({
-  initialize: vi.fn(async () => ({
+const mocks = vi.hoisted(() => {
+  const initialize = vi.fn(async () => ({
     remoteId: "thread-1",
     externalId: undefined,
-  })),
-}));
+  }));
+  return { initialize, aui: { threadListItem: { initialize } } };
+});
 
 vi.mock("@assistant-ui/store", async (importOriginal) => ({
   ...(await importOriginal()),
-  useAui: () => ({ threadListItem: { initialize: mocks.initialize } }),
+  useAui: () => mocks.aui,
 }));
 
 import {
@@ -916,6 +917,172 @@ describe("ADK request coalescing", () => {
       { headers: { "Content-Type": "text/event-stream" } },
     );
 
+  it("keeps the public send callback stable across renders", () => {
+    const stream: AdkStreamCallback = async function* () {};
+    const { result, rerender } = renderHook(() => useAdkMessages({ stream }));
+    const send = result.current.sendMessage;
+    rerender();
+    expect(result.current.sendMessage).toBe(send);
+  });
+
+  it("flags a projected tool reply and removes it when its queued group is cancelled", async () => {
+    const requests: string[] = [];
+    const stream: AdkStreamCallback = async function* (
+      messages,
+      { abortSignal },
+    ) {
+      requests.push(messages[0]!.id);
+      await new Promise<void>((resolve) => {
+        abortSignal.addEventListener("abort", () => resolve(), { once: true });
+      });
+    };
+    const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
+    act(() =>
+      result.current.applySnapshot({
+        messages: [
+          {
+            id: "call",
+            type: "ai",
+            content: "",
+            tool_calls: [{ id: "c1", name: "lookup", args: {} }],
+          },
+        ],
+        longRunningToolIds: ["c1"],
+      }),
+    );
+    let first!: Promise<void>;
+    let queued!: Promise<void>;
+    act(() => {
+      first = result.current.sendMessage(
+        [{ id: "first", type: "human", content: "first" }],
+        { runConfig: { model: "a" } },
+      );
+      queued = result.current.sendMessage(
+        [
+          {
+            id: "answer",
+            type: "tool",
+            name: "lookup",
+            tool_call_id: "c1",
+            content: "done",
+          },
+        ],
+        { runConfig: { model: "b" } },
+      );
+    });
+    await vi.waitFor(() => expect(requests).toEqual(["first"]));
+    const queuedTool = result.current.messages.find(
+      (message) => message.type === "tool",
+    );
+    expect(queuedTool).toBeDefined();
+    expect(
+      result.current.controller.getState().queuedMessageIds.has(queuedTool!.id),
+    ).toBe(true);
+    act(() => result.current.cancel());
+    await act(async () => {
+      await Promise.all([first, queued]);
+    });
+    expect(
+      result.current.messages.some((message) => message.type === "tool"),
+    ).toBe(false);
+    expect(requests).toEqual(["first"]);
+  });
+
+  it("keeps a later queued group visible while the earlier group streams", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const calls: string[] = [];
+    const stream: AdkStreamCallback = async function* (messages) {
+      calls.push(messages[0]!.id);
+      if (messages[0]!.id === "first") {
+        yield {
+          id: "reply",
+          author: "agent",
+          content: { role: "model", parts: [{ text: "streaming" }] },
+        };
+        await gate;
+      }
+    };
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    let first!: Promise<void>;
+    let queued!: Promise<void>;
+    act(() => {
+      first = result.current.sendMessage(
+        [{ id: "first", type: "human", content: "first" }],
+        { runConfig: { model: "a" } },
+      );
+      queued = result.current.sendMessage(
+        [{ id: "queued", type: "human", content: "queued" }],
+        { runConfig: { model: "b" } },
+      );
+    });
+    await vi.waitFor(() =>
+      expect(
+        result.current.messages.some(
+          (message) =>
+            message.type === "ai" &&
+            JSON.stringify(message.content).includes("streaming"),
+        ),
+      ).toBe(true),
+    );
+    expect(result.current.messages.map((message) => message.id)).toEqual([
+      "first",
+      expect.stringContaining("reply"),
+      "queued",
+    ]);
+    expect(calls).toEqual(["first"]);
+    release();
+    await act(async () => {
+      await Promise.all([first, queued]);
+    });
+    expect(calls).toEqual(["first", "queued"]);
+  });
+
+  it("removes a queued tool projection when its run fails", async () => {
+    const failure = new Error("failed");
+    const stream: AdkStreamCallback = async function* () {};
+    const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
+    act(() =>
+      result.current.applySnapshot({
+        messages: [
+          {
+            id: "call",
+            type: "ai",
+            content: "",
+            tool_calls: [{ id: "c1", name: "lookup", args: {} }],
+          },
+        ],
+        longRunningToolIds: ["c1"],
+      }),
+    );
+    let send!: Promise<void>;
+    act(() => {
+      send = result.current.sendMessageWithExecutor(
+        [
+          {
+            id: "answer",
+            type: "tool",
+            name: "lookup",
+            tool_call_id: "c1",
+            content: "done",
+          },
+        ],
+        {},
+        async () => {
+          throw failure;
+        },
+      );
+    });
+    await act(async () => {
+      await expect(send).rejects.toBe(failure);
+    });
+    expect(
+      result.current.messages.some((message) => message.type === "tool"),
+    ).toBe(false);
+  });
+
   it("sends two messages appended in the same tick in one request", async () => {
     const requests: { newMessage: { parts: { text: string }[] } }[] = [];
     vi.stubGlobal(
@@ -1131,6 +1298,7 @@ describe("ADK request coalescing", () => {
       await send;
     });
     expect(stream).not.toHaveBeenCalled();
+    expect(result.current.messages).toEqual([]);
   });
 
   it("still aborts a run whose request already left when a new message is sent", async () => {
@@ -1224,7 +1392,7 @@ describe("ADK request coalescing", () => {
     ]);
   });
 
-  it("supersedes an older queued group when a later-tick send arrives", async () => {
+  it("retains and exposes queued groups when a later-tick send arrives", async () => {
     const requests: string[] = [];
     vi.stubGlobal(
       "fetch",
@@ -1251,6 +1419,9 @@ describe("ADK request coalescing", () => {
       );
     });
     await vi.waitFor(() => expect(requests).toEqual(["first"]));
+    expect(result.current.messages.map((message) => message.id)).toContain(
+      "queued",
+    );
 
     let latest!: Promise<void>;
     act(() => {
@@ -1262,7 +1433,7 @@ describe("ADK request coalescing", () => {
     await act(async () => {
       await Promise.all([first, queued, latest]);
     });
-    expect(requests).toEqual(["first", "latest"]);
+    expect(requests).toEqual(["first", "queued", "latest"]);
   });
 });
 
@@ -1315,7 +1486,13 @@ describe("messageToEvent (contentToParts)", () => {
     };
     const event = messageToEvent(msg);
     expect(event.content?.parts).toEqual([
-      { inlineData: { mimeType: "application/pdf", data: "JVBERi0xLjQK" } },
+      {
+        inlineData: {
+          mimeType: "application/pdf",
+          data: "JVBERi0xLjQK",
+          displayName: "report.pdf",
+        },
+      },
     ]);
   });
 

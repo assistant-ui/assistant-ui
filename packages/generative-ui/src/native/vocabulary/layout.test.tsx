@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { act, createElement } from "react";
-import { CardSurfaceProvider } from "../theme";
+import { CardSurfaceProvider, toneTextColor } from "../theme";
 import { layoutVocabulary } from "./layout";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   byRole,
   cleanupSpecs,
+  contrastRatio,
   press,
   renderElement,
   renderNativeSpec,
@@ -14,7 +15,17 @@ import {
   typeText,
 } from "../testUtils";
 
-afterEach(cleanupSpecs);
+const scheme = vi.hoisted(() => ({ current: "light" as "light" | "dark" }));
+
+vi.mock("react-native", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("react-native")>()),
+  useColorScheme: () => scheme.current,
+}));
+
+afterEach(() => {
+  cleanupSpecs();
+  scheme.current = "light";
+});
 
 const actions = {
   save: { description: "Save values" },
@@ -115,6 +126,37 @@ describe("layout vocabulary on React Native", () => {
     const title = byRole(container, "heading", "Plan");
     expect(title.parentElement!.style.backgroundColor).toBe("rgb(18, 52, 86)");
     expect(title.style.color).toBe("rgb(255, 255, 255)");
+  });
+
+  it("mixes Fact delta and Badge text with a tinted Card's white ink", () => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: {
+          type: "Card",
+          props: { background: "#123456" },
+          children: ["fact", "badge"],
+        },
+        fact: {
+          type: "Fact",
+          props: { label: "Revenue", value: "$12k", delta: "+8%" },
+        },
+        badge: {
+          type: "Badge",
+          props: { value: "Caution", variant: "warning" },
+        },
+      }),
+    );
+    const text = [...container.querySelectorAll<HTMLElement>("div")];
+    const delta = text.find(
+      (element) =>
+        element.textContent === "↑ 8%" && element.children.length === 0,
+    )!;
+    const badge = text.find(
+      (element) =>
+        element.textContent === "Caution" && element.children.length === 0,
+    )!;
+    expect(delta.style.color).toBe(toneTextColor("#2a984b", "#ffffff"));
+    expect(badge.style.color).toBe(toneTextColor("#d58300", "#ffffff"));
   });
 
   it("frames a plain Card as a surface inside a Carousel slide", () => {
@@ -229,10 +271,11 @@ describe("layout vocabulary on React Native", () => {
 
   it.each([
     ["info", "rgba(23, 23, 23, 0.15)", "rgb(23, 23, 23)"],
-    ["warning", "rgba(213, 131, 0, 0.15)", "rgb(213, 131, 0)"],
-    ["danger", "rgba(231, 0, 11, 0.15)", "rgb(231, 0, 11)"],
+    ["success", "rgba(42, 152, 75, 0.15)", "rgb(35, 90, 48)"],
+    ["warning", "rgba(213, 131, 0, 0.15)", "rgb(123, 79, 24)"],
+    ["danger", "rgba(231, 0, 11, 0.15)", "rgb(134, 27, 22)"],
     ["unknown", "rgb(245, 245, 245)", "rgba(10, 10, 10, 0.62)"],
-  ])("colors a %s Badge", (variant, background, color) => {
+  ] as const)("colors a %s Badge", (variant, background, color) => {
     const { container } = renderNativeSpec(
       spec({ main: { type: "Badge", props: { value: "Tag", variant } } }),
     );
@@ -240,6 +283,34 @@ describe("layout vocabulary on React Native", () => {
     expect(badge.style.backgroundColor).toBe(background);
     expect((badge.firstElementChild as HTMLElement).style.color).toBe(color);
   });
+
+  it.each(["light", "dark"] as const)(
+    "keeps tone Badge text above 4.5:1 in the %s theme",
+    (mode) => {
+      scheme.current = mode;
+      const surfaces =
+        mode === "light"
+          ? ["rgb(255, 255, 255)"]
+          : ["rgb(10, 10, 10)", "rgb(23, 23, 23)"];
+
+      for (const variant of ["info", "success", "warning", "danger"] as const) {
+        const { container } = renderNativeSpec(
+          spec({ main: { type: "Badge", props: { value: "Tag", variant } } }),
+        );
+        const badge = container.firstElementChild!
+          .firstElementChild as HTMLElement;
+        const text = badge.firstElementChild as HTMLElement;
+        for (const surface of surfaces)
+          expect(
+            contrastRatio(
+              text.style.color,
+              badge.style.backgroundColor,
+              surface,
+            ),
+          ).toBeGreaterThanOrEqual(4.5);
+      }
+    },
+  );
 
   it("pads a Card by its token and frames a cancel-only footer", async () => {
     const dismiss = vi.fn();

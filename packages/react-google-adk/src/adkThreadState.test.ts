@@ -9,6 +9,69 @@ const message: AdkMessage = {
 };
 
 describe("reduceAdkThreadState", () => {
+  it("tracks queued projections and removes only queued messages", () => {
+    const queued = { ...message, id: "queued" };
+    const initial = { ...createAdkThreadState(), messages: [message] };
+    const projected = reduceAdkThreadState(initial, {
+      type: "messages.queued",
+      messages: [message, queued],
+      ids: ["queued"],
+    });
+    expect([...projected.queuedMessageIds]).toEqual(["queued"]);
+    expect(initial.queuedMessageIds.size).toBe(0);
+
+    const removed = reduceAdkThreadState(projected, {
+      type: "messages.queue.remove",
+      ids: ["queued", "message-1"],
+    });
+    expect(removed.messages).toEqual([message]);
+    expect(removed.queuedMessageIds.size).toBe(0);
+    expect(
+      reduceAdkThreadState(removed, {
+        type: "messages.queue.remove",
+        ids: ["missing"],
+      }),
+    ).toBe(removed);
+  });
+
+  it("keeps queued messages through published events and clears queue flags on replacement", () => {
+    const queued = { ...message, id: "queued" };
+    const projected = reduceAdkThreadState(createAdkThreadState(), {
+      type: "messages.queued",
+      messages: [queued],
+      ids: ["queued"],
+    });
+    const base = createAdkThreadState();
+    const publishedState = {
+      messages: [message],
+      stateDelta: base.stateDelta,
+      agentInfo: base.agentInfo,
+      longRunningToolIds: base.longRunningToolIds,
+      artifactDelta: base.artifactDelta,
+      toolConfirmations: base.toolConfirmations,
+      authRequests: base.authRequests,
+      escalated: base.escalated,
+      messageMetadata: base.messageMetadata,
+    };
+    const published = reduceAdkThreadState(projected, {
+      type: "event.published",
+      state: publishedState,
+    });
+    expect(published.messages).toEqual([message, queued]);
+    expect(
+      reduceAdkThreadState(published, {
+        type: "messages.replaced",
+        messages: [message],
+      }).queuedMessageIds.size,
+    ).toBe(0);
+    expect(
+      reduceAdkThreadState(published, {
+        type: "snapshot.applied",
+        snapshot: { messages: [message] },
+      }).queuedMessageIds.size,
+    ).toBe(0);
+  });
+
   it("stages messages by id without changing the prior state", () => {
     const initial = createAdkThreadState();
     const first = {
