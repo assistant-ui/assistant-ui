@@ -114,3 +114,47 @@ test("prints every trial's verdict and artifact with DUMP", async (t) => {
     ].join("\n"),
   );
 });
+
+test("runs up to `concurrency` trials at once and reports them in order", async (t) => {
+  const dump = process.env.DUMP;
+  delete process.env.DUMP;
+  t.after(() => {
+    if (dump !== undefined) process.env.DUMP = dump;
+  });
+  // While real timers run, the test runner reports through stdout too, so its binary messages pass through and only the runner's strings are kept.
+  const write = process.stdout.write.bind(process.stdout);
+  let output = "";
+  t.mock.method(process.stdout, "write", (chunk: string | Uint8Array) => {
+    if (typeof chunk !== "string") return write(chunk);
+    output += chunk;
+    return true;
+  });
+  let active = 0;
+  let peak = 0;
+  const suite: Suite<SuiteCase, SuiteCandidate, boolean> = {
+    ...fakeSuite(() => true),
+    concurrency: 3,
+    async run(_, candidate) {
+      active++;
+      peak = Math.max(peak, active);
+      await new Promise((resolve) =>
+        setTimeout(resolve, candidate.label === "a" ? 20 : 5),
+      );
+      active--;
+      return candidate.label === "a";
+    },
+  };
+  const result = await runCase(suite, c, [{ label: "a" }, { label: "b" }], 2);
+  assert.equal(peak, 3);
+  assert.deepEqual(
+    result.variants.map((v) => v.trials),
+    [
+      [{ outcome: true }, { outcome: true }],
+      [{ outcome: false }, { outcome: false }],
+    ],
+  );
+  assert.equal(
+    output,
+    `  ${"a".padEnd(14)} ..  2/2\n  ${"b".padEnd(14)} xx  0/2\n`,
+  );
+});

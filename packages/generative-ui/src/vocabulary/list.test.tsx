@@ -19,6 +19,34 @@ const render = (node: unknown) =>
   renderToStaticMarkup(<>{renderGenerativeUI(node, listVocabulary)}</>);
 
 describe("listVocabulary", () => {
+  it("Steps renders its titled steps in order and skips an entry without a title", () => {
+    const html = render({
+      $type: "Steps",
+      steps: [
+        { title: "Remove the wheel", detail: "Open the quick release." },
+        { detail: "No title" },
+        "junk",
+        { title: "Patch the tube" },
+      ],
+    });
+    expect(html).toBe(
+      '<ol data-aui="steps"><li data-aui="steps-item"><div data-aui="steps-title">Remove the wheel</div><div data-aui="steps-detail">Open the quick release.</div></li><li data-aui="steps-item"><div data-aui="steps-title">Patch the tube</div></li></ol>',
+    );
+  });
+
+  it("Timeline renders each event's time, title, and detail in order", () => {
+    const html = render({
+      $type: "Timeline",
+      items: [
+        { time: "Day 1", title: "San Francisco to Monterey", detail: "2 h" },
+        { time: "Day 2", title: "Big Sur" },
+      ],
+    });
+    expect(html).toBe(
+      '<ol data-aui="timeline"><li data-aui="timeline-item"><div data-aui="timeline-time">Day 1</div><div data-aui="timeline-title">San Francisco to Monterey</div><div data-aui="timeline-detail">2 h</div></li><li data-aui="timeline-item"><div data-aui="timeline-time">Day 2</div><div data-aui="timeline-title">Big Sur</div></li></ol>',
+    );
+  });
+
   it("ListView renders a ul wrapping its children", () => {
     const html = render({
       $type: "ListView",

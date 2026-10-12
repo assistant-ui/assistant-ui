@@ -66,11 +66,16 @@ test("a frame answer that never shows a widget is an error", async () => {
   assert.equal(model.doStreamCalls.length, 3);
 });
 
-test("a tool format answered in prose fails the trial", async () => {
-  await assert.rejects(
-    generateAnswer(streamingModel(text("Sure.")), task, "present", 2),
-    /did not contain a tool call/,
+test("a tool format answered in prose is an error", async () => {
+  const answer = await generateAnswer(
+    streamingModel(text("Sure.")),
+    task,
+    "present",
+    2,
   );
+  assert.equal(answer.artifact, "Sure.");
+  assert.equal(answer.answeredIn, "text");
+  assert.deepEqual(answer.errors, ["The model never called `present`."]);
 });
 
 test("a spec answer is the spec its patches build", async () => {

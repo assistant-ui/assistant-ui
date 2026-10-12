@@ -1,4 +1,5 @@
 import {
+  CHILDREN_CAP,
   MAX_TRAVERSAL_DEPTH,
   boundSpec,
   clampReasonDetail,
@@ -18,6 +19,12 @@ import {
   formatFactDelta,
   formatValue,
 } from "../vocabulary/formatValue";
+import {
+  linkHost,
+  linkHref,
+  sequenceItems,
+  tabLabels,
+} from "../vocabulary/structureValues";
 import {
   ACTION_ID_CAP,
   ACTIONS_ELEMENT_CAP,
@@ -167,6 +174,21 @@ const asActionId = (
 const plainText = (text: string): SlackPlainText => ({
   type: "plain_text",
   text,
+});
+
+const escapeMrkdwn = (text: string): string =>
+  text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+const structuredSection = (
+  text: string,
+  component: string,
+  context: ConversionContext,
+): SlackBlock => ({
+  type: "section",
+  text: {
+    type: "mrkdwn",
+    text: clampText(text, SECTION_TEXT_CAP, component, "text", context),
+  },
 });
 
 const serializeFieldBlockId = (
@@ -1758,6 +1780,156 @@ const convertElement = (
       return convertListView(element, context, depth);
     case "ListViewItem":
       return [convertListItem(element, context, depth)];
+    case "Tabs": {
+      const panels = normalizedList(element.children);
+      const { items: given, truncated } = copyBounded(
+        Array.isArray(props["tabs"]) ? props["tabs"] : [],
+        CHILDREN_CAP,
+      );
+      if (truncated)
+        warn(
+          context,
+          "clamped",
+          "Tabs",
+          `tabs were clamped to ${CHILDREN_CAP} entries.`,
+        );
+      const labels = tabLabels(given, panels.length);
+      return labels.flatMap((label, index) => [
+        structuredSection(`*${escapeMrkdwn(label)}*`, "Tabs", context),
+        ...(panels[index] !== undefined
+          ? convertSequence(panels[index], context, depth + 1)
+          : []),
+      ]);
+    }
+    case "Steps": {
+      const { items: raw, truncated } = copyBounded(
+        Array.isArray(props["steps"]) ? props["steps"] : [],
+        CHILDREN_CAP,
+      );
+      if (truncated)
+        warn(
+          context,
+          "clamped",
+          "Steps",
+          `steps were clamped to ${CHILDREN_CAP} entries.`,
+        );
+      const steps = sequenceItems(raw);
+      const dropped = raw.length - steps.length;
+      if (dropped > 0)
+        warn(
+          context,
+          "dropped",
+          "Steps",
+          `${dropped} malformed ${dropped === 1 ? "entry was" : "entries were"} dropped.`,
+        );
+      return steps.map((step, index) =>
+        structuredSection(
+          `*${index + 1}. ${escapeMrkdwn(step.title)}*${step.detail !== undefined ? `\n${escapeMrkdwn(step.detail)}` : ""}`,
+          "Steps",
+          context,
+        ),
+      );
+    }
+    case "Timeline": {
+      const { items: raw, truncated } = copyBounded(
+        Array.isArray(props["items"]) ? props["items"] : [],
+        CHILDREN_CAP,
+      );
+      if (truncated)
+        warn(
+          context,
+          "clamped",
+          "Timeline",
+          `items were clamped to ${CHILDREN_CAP} entries.`,
+        );
+      const items = sequenceItems(raw);
+      const dropped = raw.length - items.length;
+      if (dropped > 0)
+        warn(
+          context,
+          "dropped",
+          "Timeline",
+          `${dropped} malformed ${dropped === 1 ? "entry was" : "entries were"} dropped.`,
+        );
+      return items.map((item) =>
+        structuredSection(
+          [
+            ...(item.time !== undefined
+              ? [`*${escapeMrkdwn(item.time)}*`]
+              : []),
+            escapeMrkdwn(item.title),
+            ...(item.detail !== undefined ? [escapeMrkdwn(item.detail)] : []),
+          ].join("\n"),
+          "Timeline",
+          context,
+        ),
+      );
+    }
+    case "Citation": {
+      const href = linkHref(props["url"]);
+      const target =
+        href === undefined
+          ? undefined
+          : escapeMrkdwn(href).replace(/\|/g, "%7C");
+      const linked =
+        target !== undefined && target.length + 3 < SECTION_TEXT_CAP;
+      const title = clampText(
+        escapeMrkdwn(asString(props["title"])),
+        SECTION_TEXT_CAP - (linked ? target.length + 3 : 0),
+        "Citation",
+        "title",
+        context,
+      );
+      const head = linked ? `<${target}|${title}>` : title;
+      const room = SECTION_TEXT_CAP - head.length - 1;
+      const quoted =
+        typeof props["snippet"] === "string" && props["snippet"] !== ""
+          ? escapeMrkdwn(props["snippet"])
+          : undefined;
+      if (quoted !== undefined && room <= 0)
+        warn(
+          context,
+          "dropped",
+          "Citation",
+          "snippet did not fit beside the title.",
+        );
+      const snippet =
+        quoted !== undefined && room > 0
+          ? clampText(quoted, room, "Citation", "snippet", context)
+          : undefined;
+      const source =
+        typeof props["source"] === "string"
+          ? props["source"]
+          : href
+            ? linkHost(href)
+            : undefined;
+      return [
+        structuredSection(
+          snippet !== undefined ? `${head}\n${snippet}` : head,
+          "Citation",
+          context,
+        ),
+        ...(source !== undefined
+          ? [
+              {
+                type: "context" as const,
+                elements: [
+                  {
+                    type: "mrkdwn" as const,
+                    text: clampText(
+                      escapeMrkdwn(source),
+                      CONTEXT_TEXT_CAP,
+                      "Citation",
+                      "source",
+                      context,
+                    ),
+                  },
+                ],
+              },
+            ]
+          : []),
+      ];
+    }
     case "Form":
       return [
         ...convertFormChildren(element, context, depth),

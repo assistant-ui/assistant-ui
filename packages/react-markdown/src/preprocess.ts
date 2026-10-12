@@ -751,6 +751,8 @@ const FENCE_CLOSE = {
 // prefix that fails cannot be re-split across two markers, and a list marker
 // still requires the space that separates it from its content.
 const FENCE_OPEN_PREFIX = /^[ \t]*(?:>[ \t]*|(?:[-*+]|\d{1,9}[.)])[ \t]+)*$/;
+// Every character FENCE_OPEN_PREFIX can match.
+const FENCE_OPEN_PREFIX_CHAR = /[ \t>*+\-0-9.)]/;
 const QUOTE_PREFIX = /^[ \t>]*/;
 
 function quoteDepth(prefix: string): number {
@@ -824,15 +826,14 @@ function opensBacktickFence(text: string, start: number): boolean {
   const fenceLength = runLength(text, start, "`");
   if (fenceLength < 3) return false;
 
-  const lineStart = text.lastIndexOf("\n", start - 1) + 1;
-  if (!FENCE_OPEN_PREFIX.test(text.slice(lineStart, start))) return false;
+  for (let index = start + fenceLength; index < text.length; index += 1) {
+    const char = text[index];
+    if (char === "`") return false;
+    if (char === "\n") break;
+  }
 
-  const lineEnd = text.indexOf("\n", start + fenceLength);
-  const info = text.slice(
-    start + fenceLength,
-    lineEnd === -1 ? undefined : lineEnd,
-  );
-  return !info.includes("`");
+  const lineStart = text.lastIndexOf("\n", start - 1) + 1;
+  return FENCE_OPEN_PREFIX.test(text.slice(lineStart, start));
 }
 
 /**
@@ -842,7 +843,11 @@ function opensBacktickFence(text: string, start: number): boolean {
  */
 function opensTildeFence(text: string, index: number): boolean {
   if (text[index] !== "~" || runLength(text, index, "~") < 3) return false;
-  const lineStart = text.lastIndexOf("\n", index - 1) + 1;
+  let lineStart = index;
+  while (lineStart > 0 && text[lineStart - 1] !== "\n") {
+    if (!FENCE_OPEN_PREFIX_CHAR.test(text[lineStart - 1]!)) return false;
+    lineStart -= 1;
+  }
   return FENCE_OPEN_PREFIX.test(text.slice(lineStart, index));
 }
 
@@ -855,10 +860,11 @@ function backtickEnd(
   text: string,
   start: number,
   blockStarts: number[],
+  paragraphBreaks: number[],
 ): number {
   return opensBacktickFence(text, start)
     ? fenceEnd(text, start, "`")
-    : codeSpanEnd(text, start, blockStarts);
+    : codeSpanEnd(text, start, blockStarts, paragraphBreaks);
 }
 
 type VerbatimRange = {
@@ -873,12 +879,13 @@ function forEachVerbatimRange(
   visit: (start: number, end: number, kind: VerbatimRange["kind"]) => void,
 ): void {
   let index = 0;
+  const paragraphBreaks = text.includes("`") ? findParagraphBreaks(text) : [];
   while (index < text.length) {
     const char = text[index];
     if (char === "\\") {
       index += 2;
     } else if (char === "`") {
-      const end = backtickEnd(text, index, blockStarts);
+      const end = backtickEnd(text, index, blockStarts, paragraphBreaks);
       if (end !== -1) {
         visit(index, end, opensBacktickFence(text, index) ? "fence" : "span");
         index = end;
@@ -931,8 +938,15 @@ function rewriteOutsideCode(
   ) => string,
 ): string {
   return rewriteOutsideBlocks(text, (text, blockStarts) => {
-    let out = "";
+    const out: string[] = [];
+    let lastOutChar = "";
     let plainStart = 0;
+
+    const append = (value: string) => {
+      if (value === "") return;
+      out.push(value);
+      lastOutChar = value[value.length - 1]!;
+    };
 
     const flush = (end: number, followedBy: string) => {
       const segment = text.slice(plainStart, end);
@@ -944,17 +958,17 @@ function rewriteOutsideCode(
         const at = start + offset;
         return text.slice(text.lastIndexOf("\n", at - 1) + 1, at);
       };
-      out += rewrite(segment, out.slice(-1), followedBy, lineHead);
+      append(rewrite(segment, lastOutChar, followedBy, lineHead));
     };
 
     forEachVerbatimRange(text, blockStarts, (start, end) => {
       flush(start, text[start]!);
-      out += text.slice(start, end);
+      append(text.slice(start, end));
       plainStart = end;
     });
     flush(text.length, "");
 
-    return out;
+    return out.join("");
   });
 }
 
@@ -969,7 +983,8 @@ function rewriteOutsideCode(
  * A delimiter pair wrapping nothing is left as written: `$$$$` would itself
  * open a fence that never closes.
  */
-const LINE_PREFIX = /^(?:[ \t]*(?:>[ \t]*)*)(?:(?:[-*+]|\d{1,9}[.)])[ \t]+)?/;
+const LINE_PREFIX =
+  /^(?:[ \t]*(?:>[ \t]*)*)(?:(?:[-*+]|\d{1,9}[.)])[ \t]+(?:[ \t]*(?:>[ \t]*)*)?)?/;
 
 /**
  * The prefix a following line needs to stay inside the block the match opened
@@ -1009,13 +1024,14 @@ function emitDisplayMath(
   // is aligned to it.
   const prefix = continuationPrefix(lineHead(offset));
   const depth = quoteDepth(prefix);
+  const [openerText = "", ...bodyLines] = body.split("\n");
+  const openerHasContent = !onlyWhitespace(openerText, 0, openerText.length);
   // The rest of the opener line is formula text, so only later lines carry the
   // container's blockquote markers.
-  const content = body
-    .split("\n")
-    .map((line, index) =>
-      index === 0 ? line : line.slice(quoteMarkers(line, depth).length),
-    )
+  const content = [
+    openerText,
+    ...bodyLines.map((line) => line.slice(quoteMarkers(line, depth).length)),
+  ]
     .join("\n")
     .trim();
   if (content === "") return match;
@@ -1033,18 +1049,21 @@ function emitDisplayMath(
 
   // The body is split before trimming, since trimming would take the shared
   // indentation off the first line only and leave the block ragged.
-  const bodyLines = body.split("\n");
   const emptyBodyLine = (line: string) =>
     line.slice(quoteMarkers(line, depth).length).trim() === "";
-  while (bodyLines.length > 0 && emptyBodyLine(bodyLines[0]!))
+  while (
+    !openerHasContent &&
+    bodyLines.length > 0 &&
+    emptyBodyLine(bodyLines[0]!)
+  )
     bodyLines.shift();
   while (bodyLines.length > 0 && emptyBodyLine(bodyLines.at(-1)!)) {
     bodyLines.pop();
   }
-  if (bodyLines.length === 0) return match;
+  if (!openerHasContent && bodyLines.length === 0) return match;
   // Only the indentation the whole body shares is replaced by the container
   // prefix, so an aligned block keeps its relative indentation.
-  const shared = bodyLines.reduce(
+  const shared = [openerText, ...bodyLines].reduce(
     (least, line) =>
       line.trim() === ""
         ? least
@@ -1079,8 +1098,13 @@ function emitDisplayMath(
     }
     return `${prefix}${line.slice(Number.isFinite(shared) ? shared : 0)}`;
   });
+  if (openerHasContent) {
+    lines.unshift(
+      `${prefix}${openerText.slice(Number.isFinite(shared) ? shared : 0)}`,
+    );
+  }
 
-  return `${lead}${prefix}$$\n${lines.join("\n")}\n${prefix}$$${tail}`;
+  return `${lead}${prefix}$$\n${lines.join("\n")}\n${prefix}$$${tail}${tail === "" ? "" : prefix}`;
 }
 
 /**
@@ -1166,7 +1190,7 @@ export function rewriteLatexBracketDelimiters(text: string): string {
         reindentedLineStart === block.lastIndexOf("\n", opener - 1) + 1;
       const prefix = continuationPrefix(head);
       const quote = QUOTE_PREFIX.exec(head)![0];
-      const depth = quoteDepth(quote);
+      const depth = quoteDepth(prefix);
       let replacement = emitDisplayMath(
         match,
         body,
@@ -1614,9 +1638,19 @@ const TRAILING_OPERATOR = /[-+*/=<>,;:([\u2013\u2014\u2212]$/;
 
 // The paragraph break a code span cannot reach past. `BLANK_LINE` cannot serve
 // here: it does not admit the carriage return of a CRLF document, and widening
-// it would change which bodies `isMathBody` accepts. Sticky so the scan starts
-// at the run without copying the rest of the input on every backtick.
+// it would change which bodies `isMathBody` accepts.
 const PARAGRAPH_BREAK = /\n[ \t\r]*\n/g;
+
+function findParagraphBreaks(text: string): number[] {
+  const breaks: number[] = [];
+  PARAGRAPH_BREAK.lastIndex = 0;
+  let match = PARAGRAPH_BREAK.exec(text);
+  while (match !== null) {
+    breaks.push(match.index);
+    match = PARAGRAPH_BREAK.exec(text);
+  }
+  return breaks;
+}
 
 /** Length of the run of `char` starting at `start`. */
 function runLength(text: string, start: number, char: string): number {
@@ -1637,13 +1671,20 @@ function codeSpanEnd(
   text: string,
   start: number,
   blockStarts: number[],
+  paragraphBreaks: number[],
 ): number {
   const delimiterLength = runLength(text, start, "`");
   const delimiter = "`".repeat(delimiterLength);
   // A span is an inline construct, so it cannot reach past the paragraph it
   // opens in and a run left open in prose does not swallow a later fence.
-  PARAGRAPH_BREAK.lastIndex = start;
-  const blank = PARAGRAPH_BREAK.exec(text);
+  let paragraphLow = 0;
+  let paragraphHigh = paragraphBreaks.length;
+  while (paragraphLow < paragraphHigh) {
+    const middle = (paragraphLow + paragraphHigh) >>> 1;
+    if (paragraphBreaks[middle]! >= start) paragraphHigh = middle;
+    else paragraphLow = middle + 1;
+  }
+  const paragraphEnd = paragraphBreaks[paragraphLow] ?? text.length;
   let low = 0;
   let high = blockStarts.length;
   while (low < high) {
@@ -1651,10 +1692,7 @@ function codeSpanEnd(
     if (blockStarts[middle]! > start) high = middle;
     else low = middle + 1;
   }
-  const limit = Math.min(
-    blank ? blank.index : text.length,
-    blockStarts[low] ?? text.length,
-  );
+  const limit = Math.min(paragraphEnd, blockStarts[low] ?? text.length);
   let closed = text.indexOf(delimiter, start + delimiterLength);
 
   while (closed !== -1 && closed < limit) {
@@ -1675,6 +1713,7 @@ function findClosingDollar(
   text: string,
   openIndex: number,
   blockStarts: number[],
+  paragraphBreaks: number[],
 ): number {
   let index = openIndex + 1;
   while (index < text.length) {
@@ -1682,7 +1721,7 @@ function findClosingDollar(
     if (char === "$") return index;
     if (char === "\\") index += 2;
     else if (char === "`") {
-      const end = backtickEnd(text, index, blockStarts);
+      const end = backtickEnd(text, index, blockStarts, paragraphBreaks);
       index = end === -1 ? index + runLength(text, index, "`") : end;
     } else index += 1;
   }
@@ -1772,11 +1811,12 @@ function endOfVerbatimRun(
   text: string,
   index: number,
   blockStarts: number[],
+  paragraphBreaks: number[],
 ): number {
   const char = text[index];
   if (char === "\\") return Math.min(index + 2, text.length);
   if (char === "`") {
-    const end = backtickEnd(text, index, blockStarts);
+    const end = backtickEnd(text, index, blockStarts, paragraphBreaks);
     return end === -1 ? index + runLength(text, index, "`") : end;
   }
   if (opensTildeFence(text, index)) return fenceEnd(text, index, "~");
@@ -1785,7 +1825,7 @@ function endOfVerbatimRun(
   const dollars = runLength(text, index, "$");
   if (dollars >= 2) return index + dollars;
 
-  const close = findClosingDollar(text, index, blockStarts);
+  const close = findClosingDollar(text, index, blockStarts, paragraphBreaks);
   const opensMath =
     close !== -1 &&
     !opensCurrencyAmount(text, close) &&
@@ -1810,9 +1850,17 @@ export function escapeCurrencyDollars(text: string): string {
   return rewriteOutsideBlocks(text, (slice, blockStarts) => {
     let out = "";
     let index = 0;
+    const paragraphBreaks = slice.includes("`")
+      ? findParagraphBreaks(slice)
+      : [];
 
     while (index < slice.length) {
-      const verbatimEnd = endOfVerbatimRun(slice, index, blockStarts);
+      const verbatimEnd = endOfVerbatimRun(
+        slice,
+        index,
+        blockStarts,
+        paragraphBreaks,
+      );
       if (verbatimEnd > index) {
         out += slice.slice(index, verbatimEnd);
         index = verbatimEnd;

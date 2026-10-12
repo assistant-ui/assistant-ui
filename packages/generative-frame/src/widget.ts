@@ -91,6 +91,7 @@ export type CreateWidgetOptions = WidgetHandlers & {
   maxHeight?: number;
   minHeight?: number;
   readyTimeoutMs?: number;
+  initialState?: unknown;
   /** Complete code to render immediately, as `write(code)` then `end()`. */
   code?: string;
 };
@@ -264,6 +265,91 @@ const isDisplayMode = (value: unknown): value is DisplayMode =>
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
+/** How many characters a widget's state may take as JSON. A shared object counts once for each place it appears, as it does once serialized, so checking and saving a state stay bounded however the widget shares objects. */
+const MAX_STATE_LENGTH = 1_000_000;
+
+/** The length of `text` once JSON quotes and escapes it. */
+const jsonStringLength = (text: string) => {
+  let length = text.length + 2;
+  for (let index = 0; index < text.length; index++) {
+    const code = text.charCodeAt(index);
+    if (code === 0x22 || code === 0x5c) length += 1;
+    else if (code < 0x20)
+      length +=
+        code === 0x08 ||
+        code === 0x09 ||
+        code === 0x0a ||
+        code === 0x0c ||
+        code === 0x0d
+          ? 1
+          : 5;
+    else if (code >= 0xd800 && code <= 0xdbff) {
+      const next = text.charCodeAt(index + 1);
+      if (next >= 0xdc00 && next <= 0xdfff) index++;
+      else length += 5;
+    } else if (code >= 0xdc00 && code <= 0xdfff) length += 5;
+  }
+  return length;
+};
+
+const isPlainJson = (state: unknown): boolean => {
+  let budget = MAX_STATE_LENGTH;
+  const spend = (length: number) => (budget -= length) >= 0;
+  const spendText = (text: string) =>
+    text.length + 2 <= budget && spend(jsonStringLength(text));
+  const ancestors = new Set<object>();
+  const check = (value: unknown): boolean => {
+    if (value === null || typeof value === "boolean") return spend(5);
+    if (typeof value === "string") return spendText(value);
+    if (typeof value === "number")
+      return Number.isFinite(value) && spend(String(value).length);
+    if (typeof value !== "object" || ancestors.has(value) || !spend(2))
+      return false;
+
+    const array = Array.isArray(value);
+    const prototype = Object.getPrototypeOf(value);
+    if (
+      array
+        ? prototype !== Array.prototype
+        : prototype !== Object.prototype && prototype !== null
+    )
+      return false;
+
+    ancestors.add(value);
+    const keys = Reflect.ownKeys(value);
+    if (array && keys.length !== value.length + 1) return false;
+    if (array) {
+      for (let index = 0; index < value.length; index++) {
+        const property = Object.getOwnPropertyDescriptor(value, String(index));
+        if (
+          !property ||
+          !("value" in property) ||
+          !spend(1) ||
+          !check(property.value)
+        )
+          return false;
+      }
+    } else {
+      for (const key of keys) {
+        if (typeof key !== "string") return false;
+        const property = Object.getOwnPropertyDescriptor(value, key);
+        if (
+          !property ||
+          !("value" in property) ||
+          !property.enumerable ||
+          !spendText(key) ||
+          !spend(2) ||
+          !check(property.value)
+        )
+          return false;
+      }
+    }
+    ancestors.delete(value);
+    return true;
+  };
+  return check(state);
+};
+
 const isAppInfo = (
   value: unknown,
 ): value is NonNullable<McpAppInitializeParams["appInfo"]> =>
@@ -338,6 +424,7 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
     ...options.context,
   };
   let code = "";
+  let widgetState: unknown = options.initialState ?? null;
   let ended = false;
   let disposed = false;
   let lastToolInput:
@@ -475,6 +562,11 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
   };
 
   let activeSession: Session | undefined;
+  let pendingSession: Session | undefined;
+  let pendingWidgetState: unknown;
+  let hasPendingWidgetState = false;
+  let heldWidgetState: unknown;
+  let hasHeldWidgetState = false;
 
   const applySize = (session: Session, size: WidgetSize) => {
     const iframe = session.iframe();
@@ -603,7 +695,25 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
               }
               return;
             case METHODS.widgetState:
-              options.onWidgetState?.(p["state"]);
+              if (session !== pendingSession && session !== activeSession)
+                return;
+              try {
+                if (!isPlainJson(p["state"])) return;
+              } catch {
+                return;
+              }
+              if (session === pendingSession) {
+                pendingWidgetState = p["state"];
+                hasPendingWidgetState = true;
+                return;
+              }
+              if (pendingSession) {
+                heldWidgetState = p["state"];
+                hasHeldWidgetState = true;
+                return;
+              }
+              widgetState = p["state"];
+              options.onWidgetState?.(widgetState);
               return;
             default:
               return;
@@ -613,6 +723,7 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
       const init: InitMessage = {
         type: INIT_MESSAGE,
         context,
+        state: widgetState,
       };
       rendered.sendMessage(init, [channel.port2]);
     };
@@ -737,10 +848,13 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
   const remount = async (next: string): Promise<EndResult> => {
     const previous = activeSession;
     const session = createSession(true);
+    pendingSession = session;
+    hasPendingWidgetState = false;
     let result: EndResult;
     try {
       await session.ready;
-      if (disposed) throw new Error("Widget disposed");
+      if (disposed || pendingSession !== session)
+        throw new Error("Widget replacement superseded");
       replayState(session);
       result = (await session
         .peer()
@@ -749,15 +863,36 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
           { code: next },
           { timeoutMs: REQUEST_TIMEOUT_MS },
         )) as EndResult;
-      if (disposed) throw new Error("Widget disposed");
+      if (disposed || pendingSession !== session)
+        throw new Error("Widget replacement superseded");
     } catch (error) {
+      if (pendingSession === session) {
+        pendingSession = undefined;
+        hasPendingWidgetState = false;
+        if (hasHeldWidgetState && !disposed) {
+          hasHeldWidgetState = false;
+          widgetState = heldWidgetState;
+          try {
+            options.onWidgetState?.(widgetState);
+          } catch {}
+        }
+      }
       session.dispose();
       throw error;
     }
+    pendingSession = undefined;
+    hasHeldWidgetState = false;
     activeSession = session;
+    if (hasPendingWidgetState) widgetState = pendingWidgetState;
     // The new frame has rendered completely, so it swaps in without a fade.
     session.slot.style.cssText = "display:block";
     previous?.dispose();
+    if (hasPendingWidgetState) {
+      hasPendingWidgetState = false;
+      try {
+        options.onWidgetState?.(widgetState);
+      } catch {}
+    }
     session.deliverInitialized();
     applySize(session, result.size);
     return result;

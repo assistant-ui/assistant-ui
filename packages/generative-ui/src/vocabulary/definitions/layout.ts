@@ -120,4 +120,17 @@ export const layoutDefinitions = {
         .describe("Background color or gradient (any CSS background value)."),
     }),
   },
+  Tabs: {
+    description:
+      "Panels the user switches between with tabs, one visible at a time. Use it for parallel content the user looks at one part at a time, such as options, plans, or days. Each child is one panel, usually a Col, labeled by the matching entry in `tabs`.",
+    properties: z.object({
+      tabs: z
+        .array(z.string())
+        .describe("Tab labels, one per child panel, in order."),
+      label: z
+        .string()
+        .optional()
+        .describe("Accessible name for the row of tabs."),
+    }),
+  },
 } satisfies Record<string, VocabularyDefinition>;

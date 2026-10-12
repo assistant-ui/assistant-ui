@@ -136,10 +136,12 @@ type AdkEventPart = {
   inlineData?: {
     mimeType: string;
     data: string;
+    displayName?: string;
   };
   fileData?: {
     fileUri: string;
     mimeType?: string;
+    displayName?: string;
   };
 };
 
@@ -192,9 +194,11 @@ type AdkMessageContentPart = {
   type: "image";
   mimeType: string;
   data: string;
+  filename?: string | undefined;
 } | {
   type: "image_url";
   url: string;
+  filename?: string | undefined;
 } | {
   type: "file";
   mimeType: string;
@@ -204,6 +208,7 @@ type AdkMessageContentPart = {
   type: "file_url";
   url: string;
   mimeType?: string | undefined;
+  filename?: string | undefined;
 } | {
   type: "code";
   code: string;

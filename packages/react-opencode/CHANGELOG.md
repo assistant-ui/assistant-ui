@@ -1,5 +1,13 @@
 # @assistant-ui/react-opencode
 
+## 0.2.31
+
+### Patch Changes
+
+- [#9279](https://github.com/assistant-ui/assistant-ui/pull/9279) [`b60613e`](https://github.com/assistant-ui/assistant-ui/commit/b60613e4abd69ff34d30cf13bcd2f187d7fb5afc) - Keep a thread's list title in sync when its OpenCode session is retitled while the thread list loads, such as after the runtime receives a new client. ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`c157aee`](https://github.com/assistant-ui/assistant-ui/commit/c157aeeaa29af0d50dd80e48c89342caf69967ae), [`2c1963a`](https://github.com/assistant-ui/assistant-ui/commit/2c1963a31cbb01285bd0e59bdeef1e04e28c6a9d), [`efbf028`](https://github.com/assistant-ui/assistant-ui/commit/efbf028597dd0652bc88d0bca806a63837fb9cd6), [`4e86339`](https://github.com/assistant-ui/assistant-ui/commit/4e8633954af2fa5941d43ccf8d6d3bab5de2bfef)]:
+  - @assistant-ui/core@0.3.27
+
 ## 0.2.30
 
 ### Patch Changes

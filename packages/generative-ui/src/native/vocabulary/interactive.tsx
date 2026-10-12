@@ -66,6 +66,10 @@ const styles = StyleSheet.create({
   choiceText: { fontSize: TEXT_SIZE.md, flexGrow: 1, flexShrink: 1 },
   choiceDescription: { fontSize: TEXT_SIZE.sm },
   choiceMark: { fontSize: TEXT_SIZE.md },
+  progress: { gap: 6, marginBottom: 4 },
+  progressLabel: { fontSize: TEXT_SIZE.sm, fontVariant: ["tabular-nums"] },
+  progressTrack: { height: 6, borderRadius: RADIUS.pill, overflow: "hidden" },
+  progressFill: { height: 6, borderRadius: RADIUS.pill },
   checkboxRow: {
     minHeight: 40,
     flexDirection: "row",
@@ -969,6 +973,7 @@ type CheckboxGroupProps = ActionProps & {
   name?: string;
   label?: string;
   defaultValue?: string[];
+  progress?: boolean;
   children?: ReactNode;
 };
 
@@ -978,10 +983,12 @@ function CheckboxGroupField({
   options,
   name,
   label,
+  progress,
   children,
   $action,
   $dispatch,
 }: CheckboxGroupProps & { initialValues: string[] }) {
+  const theme = useNativeTheme();
   const ink = useInk();
   const answeredValue = useAnsweredValue(name);
   const updateBinding = useA2uiBinding(name);
@@ -1012,6 +1019,31 @@ function CheckboxGroupField({
         <Text style={[styles.choiceLabel, { color: fade(ink, 0.62) }]}>
           {label}
         </Text>
+      ) : null}
+      {progress ? (
+        <View style={styles.progress}>
+          <Text
+            testID="checkboxgroup-progress-label"
+            style={[styles.progressLabel, { color: fade(ink, 0.62) }]}
+          >
+            {`${values.length} of ${entries.length}`}
+          </Text>
+          <View
+            testID="checkboxgroup-progress-track"
+            style={[styles.progressTrack, { backgroundColor: theme.secondary }]}
+          >
+            <View
+              testID="checkboxgroup-progress-fill"
+              style={[
+                styles.progressFill,
+                {
+                  width: `${entries.length ? (values.length / entries.length) * 100 : 0}%`,
+                  backgroundColor: theme.primary,
+                },
+              ]}
+            />
+          </View>
+        </View>
       ) : null}
       {entries.map(({ option, key }) => (
         <CheckboxRow

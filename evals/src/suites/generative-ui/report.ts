@@ -52,13 +52,14 @@ export function renderReport(
       "",
       `## ${model}`,
       "",
-      "| format | valid | repairs | clarity | usefulness | completeness | computed tasks | other tasks | input tokens | output tokens | first output | total |",
-      "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+      "| format | valid | render errors | repairs | clarity | usefulness | completeness | computed tasks | other tasks | input tokens | output tokens | first output | total |",
+      "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     );
     for (const candidate of formats) {
       const trials = trialsOf(candidate);
       const cells = [
         formatShare(mean(trials, (j) => (j.errors.length ? 0 : 1))),
+        formatShare(mean(trials, (j) => (j.runtimeErrors.length ? 1 : 0))),
         formatScore(mean(trials, (j) => j.repairRounds)),
         formatScore(mean(trials, (j) => j.scores.clarity)),
         formatScore(mean(trials, (j) => j.scores.usefulness)),
@@ -87,20 +88,22 @@ export function renderReport(
     }
   }
 
-  const failures = results.flatMap((r) =>
-    r.variants.flatMap((v) => {
-      const errors = new Set(
-        v.trials.flatMap((t) => (t.error ? [] : t.outcome.errors)),
-      );
-      return errors.size
-        ? [
-            `- \`${v.candidate.label}\` on \`${r.case.id}\`: ${[...errors].join("; ")}`,
-          ]
-        : [];
-    }),
-  );
-  if (failures.length) {
-    lines.push("", "## Validation errors left after repairs", "", ...failures);
-  }
+  const listErrors = (heading: string, pick: (judged: Judged) => string[]) => {
+    const entries = results.flatMap((r) =>
+      r.variants.flatMap((v) => {
+        const errors = new Set(
+          v.trials.flatMap((t) => (t.error ? [] : pick(t.outcome))),
+        );
+        return errors.size
+          ? [
+              `- \`${v.candidate.label}\` on \`${r.case.id}\`: ${[...errors].join("; ")}`,
+            ]
+          : [];
+      }),
+    );
+    if (entries.length) lines.push("", `## ${heading}`, "", ...entries);
+  };
+  listErrors("Validation errors left after repairs", (j) => j.errors);
+  listErrors("Errors while rendering", (j) => j.runtimeErrors);
   return lines.join("\n");
 }

@@ -142,6 +142,7 @@ describe("framework-neutral vocabulary modules", () => {
     "vocabulary/layoutValues.ts",
     "vocabulary/carouselValues.ts",
     "vocabulary/listItemValues.ts",
+    "vocabulary/structureValues.ts",
     "vocabulary/imageStyle.ts",
     "vocabulary/iconGlyphs.ts",
     "vocabulary/collectFormValues.ts",

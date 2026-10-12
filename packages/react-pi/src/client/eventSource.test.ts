@@ -221,6 +221,41 @@ const knownEventBodies = {
 };
 
 describe("openPiEventStream", () => {
+  it.each([
+    ["one initial BOM", ["\uFEFF"], [1, 2]],
+    ["two initial BOMs", ["\uFEFF\uFEFF"], [2]],
+    ["two initial BOMs in separate chunks", ["\uFEFF", "\uFEFF"], [2]],
+  ] as const)(
+    "strips only one initial BOM: %s",
+    async (_, prefixes, expected) => {
+      const text =
+        `data: ${JSON.stringify({ type: "agent_start", threadId: "t1", seq: 1 })}\n\n` +
+        `data: ${JSON.stringify({ type: "agent_end", threadId: "t1", seq: 2 })}\n\n`;
+      const chunks = prefixes.map((prefix, index) =>
+        index === prefixes.length - 1 ? `${prefix}${text}` : prefix,
+      );
+      const fetchImpl = (async () =>
+        sseResponse(chunks)) as unknown as typeof fetch;
+      const events = await new Promise<PiAnyClientEvent[]>((resolve) => {
+        const collected: PiAnyClientEvent[] = [];
+        const close = openPiEventStream({
+          url: "/events",
+          fetchImpl,
+          reconnectDelay: () => Promise.resolve(),
+          onEvent: (event) => {
+            collected.push(event);
+            if (event.seq === 2) {
+              close();
+              resolve(collected);
+            }
+          },
+        });
+      });
+
+      expect(events.map((event) => event.seq)).toEqual(expected);
+    },
+  );
+
   it("delivers parsed events from the stream", async () => {
     const events: PiAnyClientEvent[] = [];
     const fetchImpl = (async () =>

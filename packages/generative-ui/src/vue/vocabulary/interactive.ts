@@ -863,7 +863,7 @@ export const interactiveVocabulary = {
     ...interactiveDefinitions.CheckboxGroup,
     component: defineComponent({
       name: "GenerativeUICheckboxGroup",
-      props: ["value", "options", "name", "label", "defaultValue"],
+      props: ["value", "options", "name", "label", "defaultValue", "progress"],
       emits: ["change", "update:defaultValue", "update:value"],
       setup: function useCheckboxGroup(props, { emit, slots }) {
         const { context, live, action, boundProp } = useEventProps("change");
@@ -872,6 +872,13 @@ export const interactiveVocabulary = {
           Array.isArray(props.value ?? props.defaultValue)
             ? (props.value ?? props.defaultValue)
             : [],
+        );
+        const tally = ref<string[] | undefined>(undefined);
+        watch(
+          () => JSON.stringify(props.defaultValue),
+          () => {
+            tally.value = undefined;
+          },
         );
         watch(
           bound,
@@ -906,6 +913,27 @@ export const interactiveVocabulary = {
             : Array.isArray(props.defaultValue)
               ? props.defaultValue
               : [];
+          const optionKeys = mapOptions(
+            props.options,
+            (_option, key) => key,
+          ).filter((key) => key !== null);
+          const defaultKeys = mapOptions(props.options, (option, key) =>
+            checked.includes(option.value) ? key : null,
+          ).filter((key) => key !== null);
+          const boundValues: string[] = Array.isArray(
+            props.value ?? props.defaultValue,
+          )
+            ? (props.value ?? props.defaultValue)
+            : [];
+          const done = !props.progress
+            ? 0
+            : bound()
+              ? mapOptions(props.options, (option) =>
+                  boundValues.includes(option.value),
+                ).filter(Boolean).length
+              : optionKeys.filter((key) =>
+                  (tally.value ?? defaultKeys).includes(key),
+                ).length;
           return h(
             "fieldset",
             {
@@ -916,6 +944,30 @@ export const interactiveVocabulary = {
               "aria-label": props.label,
             },
             [
+              props.progress
+                ? h("div", { "data-aui": "checkboxgroup-progress" }, [
+                    h(
+                      "span",
+                      { "data-aui": "checkboxgroup-progress-label" },
+                      `${done} of ${optionKeys.length}`,
+                    ),
+                    h(
+                      "span",
+                      {
+                        "data-aui": "checkboxgroup-progress-track",
+                        "aria-hidden": "true",
+                      },
+                      [
+                        h("span", {
+                          "data-aui": "checkboxgroup-progress-fill",
+                          style: {
+                            width: `${optionKeys.length ? (done / optionKeys.length) * 100 : 0}%`,
+                          },
+                        }),
+                      ],
+                    ),
+                  ])
+                : null,
               ...mapOptions(props.options, (option, key) =>
                 h("label", { key, "data-aui": "checkboxgroup-option" }, [
                   h("input", {
@@ -935,6 +987,10 @@ export const interactiveVocabulary = {
                           ) ?? [],
                         (checkbox) => checkbox.value,
                       );
+                      const keys = (tally.value ?? defaultKeys).filter(
+                        (checkedKey) => checkedKey !== key,
+                      );
+                      tally.value = input.checked ? [...keys, key] : keys;
                       if (bound())
                         emit(
                           `update:${boundProp()}` as

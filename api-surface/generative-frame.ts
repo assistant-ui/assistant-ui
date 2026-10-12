@@ -241,6 +241,7 @@ type CreateWidgetOptions = WidgetHandlers & {
   maxHeight?: number;
   minHeight?: number;
   readyTimeoutMs?: number;
+  initialState?: unknown;
   code?: string;
 };
 
@@ -1093,6 +1094,11 @@ type SpecStateStore = {
   subscribe(listener: StateListener): () => void;
 };
 
+type SpecStateWrite = readonly [
+  path: string,
+  value: unknown
+];
+
 type SpecStream = {
   push(chunk: string): SpecStreamUpdate;
   result(): SpecStreamResult;
@@ -1178,6 +1184,10 @@ type StandardSchemaLike = {
 };
 
 type StateListener = (state: Record<string, unknown>) => void;
+
+type StateStoreOptions = {
+  writes?: readonly SpecStateWrite[];
+};
 
 declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 
@@ -1770,7 +1780,7 @@ type WidgetToolkitExtension = {
 type WidgetToolkitOptions = Omit<CreateWidgetToolsOptions, "registry"> & {
   registry?: WidgetRegistry;
   execution?: "backend" | "frontend";
-  widget?: Omit<UseWidgetOptions, "tokens">;
+  widget?: Omit<UseWidgetOptions, "initialState" | "tokens">;
   spec?: WidgetToolkitExtension;
   extraTools?: Record<string, AnyTool>;
   themeElement?: Element | null;
@@ -1850,7 +1860,9 @@ declare function createSpecToolkit(catalog: Catalog, options: SpecToolkitOptions
 
 declare function createSpecTools(catalog: Catalog, options?: CreateSpecToolsOptions): SpecTools;
 
-declare function createStateStore(initial?: Record<string, unknown>): SpecStateStore;
+declare function createStateStore(initial?: Record<string, unknown>, options?: StateStoreOptions): SpecStateStore & {
+  writes(): readonly SpecStateWrite[];
+};
 
 declare function createWidget(options: CreateWidgetOptions): WidgetHandle;
 
@@ -1924,7 +1936,7 @@ declare namespace entry_repair_exports {
 declare function specGuidanceModule(catalog: Catalog, options?: Omit<SpecPromptOptions, "mode">): GuidanceModule;
 
 declare namespace entry_spec_exports {
-  export { ActionBinding, ActionDefinition, ActionHandler, ActionSource, Catalog, CatalogDefinition, ComponentDefinition, Condition, CreateSpecStreamOptions, JsonSchema, JsonSchemaType, PatchOperation, PropsSchema, Spec, SpecElement, SpecIssue, SpecIssueCode, SpecPromptOptions, SpecStateStore, SpecStream, SpecStreamError, SpecStreamMode, SpecStreamResult, SpecStreamUpdate, SpecValidation, StandardSchemaLike, StateListener, ValidateSpecOptions, applyPatch, createSpecStream, createStateStore, defineCatalog, emptySpec, formatSpecIssues, parseSpecStream, validateSpec };
+  export { ActionBinding, ActionDefinition, ActionHandler, ActionSource, Catalog, CatalogDefinition, ComponentDefinition, Condition, CreateSpecStreamOptions, JsonSchema, JsonSchemaType, PatchOperation, PropsSchema, Spec, SpecElement, SpecIssue, SpecIssueCode, SpecPromptOptions, SpecStateStore, SpecStateWrite, SpecStream, SpecStreamError, SpecStreamMode, SpecStreamResult, SpecStreamUpdate, SpecValidation, StandardSchemaLike, StateListener, StateStoreOptions, ValidateSpecOptions, applyPatch, createSpecStream, createStateStore, defineCatalog, emptySpec, formatSpecIssues, parseSpecStream, validateSpec };
 }
 
 declare function toAISDKTools<T extends Record<string, AnyTool>, Schema>(tools: T, sdk: {
