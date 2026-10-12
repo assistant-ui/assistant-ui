@@ -3,7 +3,7 @@ import test from "node:test";
 import { createGenerativeUISuite } from "./index.ts";
 import { generatingModel, streamingModel, text } from "./mock-models.ts";
 
-test("every model answers in every format", () => {
+test("every model answers in every format and in one it chooses", () => {
   const suite = createGenerativeUISuite({
     models: ["openai/gpt-6-astra", "google/gemini-3.1-pro-preview"],
     judge: "anthropic/claude-sonnet-5.5",
@@ -15,10 +15,12 @@ test("every model answers in every format", () => {
       "present:openai/gpt-6-astra",
       "spec:openai/gpt-6-astra",
       "frame:openai/gpt-6-astra",
+      "auto:openai/gpt-6-astra",
       "text:google/gemini-3.1-pro-preview",
       "present:google/gemini-3.1-pro-preview",
       "spec:google/gemini-3.1-pro-preview",
       "frame:google/gemini-3.1-pro-preview",
+      "auto:google/gemini-3.1-pro-preview",
     ],
   );
   assert.equal(suite.cases.length, 6);

@@ -3,6 +3,9 @@ import type { SuiteCandidate, SuiteCase } from "../../types.ts";
 
 export type Format = "text" | "present" | "spec" | "frame";
 
+/** The format a candidate asks for; `auto` offers text, spec, and frame and lets the model choose. */
+export type CandidateFormat = Format | "auto";
+
 export interface Task extends SuiteCase {
   /** The user's request, sent as the only message. */
   prompt: string;
@@ -11,7 +14,7 @@ export interface Task extends SuiteCase {
 }
 
 export interface Candidate extends SuiteCandidate {
-  format: Format;
+  format: CandidateFormat;
   model: LanguageModel;
   /** The model's id, which the report groups candidates by. */
   modelName: string;
@@ -20,8 +23,10 @@ export interface Candidate extends SuiteCandidate {
 export interface Answer {
   /** The Markdown, the final tree or spec, or the widget source: what renders. */
   artifact: string;
-  /** The format `artifact` is in: the one asked for, or `text` when the model answered in prose without calling the format's tool. */
+  /** The format `artifact` is in: the one asked for or chosen, or `text` when the model answered in prose without calling an answer tool. */
   answeredIn: Format;
+  /** The format of the last answer tool call when every one failed before it ran: the answer renders as the `text` the user sees, and `auto`'s choice tally counts this format. */
+  attempted?: Format;
   /** Validation errors left after the last attempt; empty when the answer passed validation. */
   errors: string[];
   /** Tool calls after the first, each answering the previous call's validation errors. */
