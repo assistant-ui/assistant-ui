@@ -59,6 +59,7 @@ import {
   projectAdkToolApprovals,
   toAdkToolConfirmationReply,
 } from "./adkToolApproval";
+import { INTERRUPT_TOOL_NAMES } from "./adkThreadState";
 import { adkExtras } from "./adkExtras";
 import { ADK_SDK } from "./sdkIdentity";
 
@@ -292,6 +293,16 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     );
   };
 
+  const receiveToolResult = async (
+    message: Extract<AdkMessage, { type: "tool" }>,
+  ) => {
+    const batch = controller.dispatch({
+      type: "results.received",
+      message,
+    }).readyBatch;
+    if (batch) await handleSendMessage(batch, {});
+  };
+
   const stopRun = () => {
     controller.dispatch({ type: "run.cancelled" });
     runLeases.invalidate();
@@ -471,10 +482,15 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       messageMetadata,
       send: (messages, config) => {
         const initialLoad = waitForInitialLoad();
-        if (!initialLoad) return handleSendMessage(messages, config);
-        return initialLoad.then(({ active }) =>
-          active ? handleSendMessage(messages, config) : undefined,
-        );
+        const send = () =>
+          messages.length === 1 &&
+          messages[0]!.type === "tool" &&
+          INTERRUPT_TOOL_NAMES.has(messages[0]!.name) &&
+          Object.keys(config).length === 0
+            ? receiveToolResult(messages[0]!)
+            : handleSendMessage(messages, config);
+        if (!initialLoad) return send();
+        return initialLoad.then(({ active }) => (active ? send() : undefined));
       },
     }),
     onNew: async (msg) => {
@@ -644,23 +660,16 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
         artifact,
         status: isError ? "error" : "success",
       };
-      const batch = controller.dispatch({
-        type: "results.received",
-        message,
-      }).readyBatch;
-      if (batch) await handleSendMessage(batch, {});
+      await receiveToolResult(message);
     },
     onRespondToToolApproval: async (options) => {
       const initialLoad = waitForInitialLoad();
       if (initialLoad && !(await initialLoad).active) return;
-      await handleSendMessage(
-        [
-          toAdkToolConfirmationReply(
-            options,
-            projectAdkToolApprovals(adkMessagesRef.current).approvals,
-          ),
-        ],
-        {},
+      await receiveToolResult(
+        toAdkToolConfirmationReply(
+          options,
+          projectAdkToolApprovals(adkMessagesRef.current).approvals,
+        ),
       );
     },
     onCancel: unstable_allowCancellation

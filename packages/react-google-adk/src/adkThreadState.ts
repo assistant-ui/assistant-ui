@@ -17,7 +17,7 @@ export type AdkStagedEntry = {
 type ToolMessage = Extract<AdkMessage, { type: "tool" }>;
 
 // Interrupts are answered through their own helpers, so they never join a client call group.
-const INTERRUPT_TOOL_NAMES = new Set([
+export const INTERRUPT_TOOL_NAMES: ReadonlySet<string> = new Set([
   ADK_REQUEST_CONFIRMATION,
   ADK_REQUEST_CREDENTIAL,
   "adk_request_input",
@@ -170,8 +170,7 @@ const takeGroup = (
   buffer: Map<string, ToolMessage>,
   toolCallId: string,
 ): ToolMessage[] => {
-  const runId = state.runIdByToolCallId.get(toolCallId);
-  if (runId && state.activeRunIds.has(runId)) return [];
+  if (state.activeRunIds.size > 0) return [];
   const group = groupOf(state, toolCallId);
   if (!group.every((id) => buffer.has(id))) return [];
   const batch = group.map((id) => buffer.get(id)!);
@@ -424,7 +423,13 @@ export const reduceAdkThreadState = (
       const batch: ToolMessage[] = [];
       for (const id of state.toolResultBuffer.keys()) {
         if (!toolResultBuffer.has(id)) continue;
-        if (state.runIdByToolCallId.get(id) !== action.runId) continue;
+        const owner = state.runIdByToolCallId.get(id);
+        if (
+          owner !== action.runId &&
+          (state.activeRunIds.size > 0 ||
+            (owner !== undefined && state.failedRunIds.has(owner)))
+        )
+          continue;
         batch.push(...takeGroup(state, toolResultBuffer, id));
       }
       return {
