@@ -2865,6 +2865,25 @@ describe("toSlackBlocks", () => {
   });
 
   describe("ListView and ListViewItem", () => {
+    it.each(["constructor", "toString", "__proto__"])(
+      "ignores a numeric value on a component named %s",
+      (type) => {
+        const { blocks } = toSlackBlocks({
+          $type: "ListView",
+          children: [
+            {
+              $type: "ListViewItem",
+              children: [
+                { $type: type, value: 5 },
+                { $type: "Text", value: "tail" },
+              ],
+            },
+          ],
+        });
+        expect((blocks[0] as SlackSectionBlock).text?.text).toBe("tail");
+      },
+    );
+
     it.each([8, "8"])("flattens %s text props in a list item", (text) => {
       const { blocks } = toSlackBlocks({
         $type: "ListView",

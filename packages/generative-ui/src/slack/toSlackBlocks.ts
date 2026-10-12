@@ -828,17 +828,17 @@ const cardTitleText = (
 const isCardNoOp = (node: NormalizedUINode): boolean =>
   isElement(node) && (node.type === "Spacer" || node.type === "Icon");
 
-const NUMERIC_TEXT_PROPS: Readonly<Record<string, readonly string[]>> = {
-  Text: ["value"],
-  Caption: ["value"],
-  Badge: ["value"],
-  Fact: ["value", "label"],
-  Header: ["text"],
-  Alert: ["title", "description"],
-  Card: ["title"],
-  Checkbox: ["label"],
-  Button: ["label"],
-};
+const NUMERIC_TEXT_PROPS: ReadonlyMap<string, readonly string[]> = new Map([
+  ["Text", ["value"]],
+  ["Caption", ["value"]],
+  ["Badge", ["value"]],
+  ["Fact", ["value", "label"]],
+  ["Header", ["text"]],
+  ["Alert", ["title", "description"]],
+  ["Card", ["title"]],
+  ["Checkbox", ["label"]],
+  ["Button", ["label"]],
+]);
 
 const collectText = (
   node: NormalizedUINode | undefined,
@@ -859,7 +859,7 @@ const collectText = (
       const value = element.props[key];
       return typeof value === "number" &&
         Number.isFinite(value) &&
-        NUMERIC_TEXT_PROPS[element.type]?.includes(key)
+        NUMERIC_TEXT_PROPS.get(element.type)?.includes(key)
         ? String(value)
         : value;
     })
