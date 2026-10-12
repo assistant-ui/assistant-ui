@@ -507,6 +507,26 @@ describe("AISDKThreads", () => {
       }
     });
 
+    it("continues the turn when it settles while the thread is in the background", async () => {
+      let finishTool!: (value: string) => void;
+      const execute = vi.fn(
+        () =>
+          new Promise<string>((resolve) => {
+            finishTool = resolve;
+          }),
+      );
+      const { handle, sendMessages } = await startTool(execute);
+      try {
+        await waitFor(() => expect(execute).toHaveBeenCalledOnce());
+
+        flushTapSync(() => handle.getClient().threads.switchToNewThread());
+        finishTool("done");
+        await waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(2));
+      } finally {
+        handle.destroy();
+      }
+    });
+
     it("stays resumable when it waits on human input", async () => {
       const execute = vi.fn(
         async (
