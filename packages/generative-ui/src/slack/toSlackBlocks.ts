@@ -858,6 +858,7 @@ const NUMERIC_TEXT_PROPS: ReadonlyMap<string, readonly string[]> = new Map([
   ["Header", ["text"]],
   ["Alert", ["title", "description"]],
   ["Card", ["title"]],
+  ["Citation", ["title"]],
   ["Checkbox", ["label"]],
   ["Button", ["label"]],
 ]);
@@ -1867,6 +1868,7 @@ const convertElement = (
     }
     case "Citation": {
       const href = linkHref(props["url"]);
+      const sourceValue = props["source"];
       const target =
         href === undefined
           ? undefined
@@ -1874,7 +1876,7 @@ const convertElement = (
       const linked =
         target !== undefined && target.length + 3 < SECTION_TEXT_CAP;
       const title = clampText(
-        escapeMrkdwn(asString(props["title"])),
+        escapeMrkdwn(asTextValue(props["title"])),
         SECTION_TEXT_CAP - (linked ? target.length + 3 : 0),
         "Citation",
         "title",
@@ -1882,10 +1884,8 @@ const convertElement = (
       );
       const head = linked ? `<${target}|${title}>` : title;
       const room = SECTION_TEXT_CAP - head.length - 1;
-      const quoted =
-        typeof props["snippet"] === "string" && props["snippet"] !== ""
-          ? escapeMrkdwn(props["snippet"])
-          : undefined;
+      const snippetText = asTextValue(props["snippet"]);
+      const quoted = snippetText !== "" ? escapeMrkdwn(snippetText) : undefined;
       if (quoted !== undefined && room <= 0)
         warn(
           context,
@@ -1898,8 +1898,9 @@ const convertElement = (
           ? clampText(quoted, room, "Citation", "snippet", context)
           : undefined;
       const source =
-        typeof props["source"] === "string"
-          ? props["source"]
+        typeof sourceValue === "string" ||
+        (typeof sourceValue === "number" && Number.isFinite(sourceValue))
+          ? asTextValue(sourceValue)
           : href
             ? linkHost(href)
             : undefined;

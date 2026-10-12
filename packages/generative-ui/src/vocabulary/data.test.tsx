@@ -27,6 +27,18 @@ describe("dataVocabulary", () => {
     );
   });
 
+  it("renders numeric Citation text", () => {
+    const html = render({
+      $type: "Citation",
+      title: 42,
+      source: 7,
+      snippet: 9,
+    });
+    expect(html).toBe(
+      '<div data-aui="citation"><div data-aui="citation-source">7</div><div data-aui="citation-title">42</div><div data-aui="citation-snippet">9</div></div>',
+    );
+  });
+
   it("Citation shows a link that is not http or https as plain text", () => {
     const html = render({
       $type: "Citation",

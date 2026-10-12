@@ -277,7 +277,7 @@ function Tabs({
   label,
   children,
 }: {
-  tabs: string[];
+  tabs: (string | number)[];
   label?: string;
   children?: ReactNode;
 }) {

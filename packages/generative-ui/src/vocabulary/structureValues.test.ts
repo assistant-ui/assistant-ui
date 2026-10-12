@@ -38,16 +38,16 @@ it("linkHost names the host without www", () => {
 
 it("tabLabels reads strings and A2UI title entries, numbering the rest", () => {
   expect(
-    tabLabels(["Day 1", { title: "Day 2", child: "b" }, { child: "c" }, 4], 5),
-  ).toEqual(["Day 1", "Day 2", "3", "4", "5"]);
+    tabLabels([42, { title: 43, child: "b" }, { child: "c" }, 4], 5),
+  ).toEqual(["42", "43", "3", "4", "5"]);
 });
 
 it("sequenceItems keeps entries with a title and reads numbers as text", () => {
   expect(
     sequenceItems([
-      { title: "Step", detail: 2, time: 1969 },
+      { title: 1, detail: 2, time: 1969 },
       { detail: "no title" },
       null,
     ]),
-  ).toEqual([{ title: "Step", detail: "2", time: "1969" }]);
+  ).toEqual([{ title: "1", detail: "2", time: "1969" }]);
 });

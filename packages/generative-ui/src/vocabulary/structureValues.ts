@@ -1,27 +1,22 @@
+import { toTextContent } from "./toTextContent";
+
 /** A Steps or Timeline entry, keeping only the text an entry may carry. */
 export type SequenceItem = { title: string; detail?: string; time?: string };
-
-const toText = (value: unknown): string | undefined =>
-  typeof value === "string"
-    ? value
-    : typeof value === "number"
-      ? String(value)
-      : undefined;
 
 /** The entries of a Steps or Timeline array that have a title; a malformed entry renders nothing instead of breaking the list. */
 export const sequenceItems = (value: unknown): SequenceItem[] =>
   (Array.isArray(value) ? value : []).flatMap((entry: unknown) => {
     if (entry === null || typeof entry !== "object") return [];
     const { title, detail, time } = entry as Record<string, unknown>;
-    const titleText = toText(title);
-    if (titleText === undefined) return [];
-    const detailText = toText(detail);
-    const timeText = toText(time);
+    const titleText = toTextContent(title);
+    if (titleText === null) return [];
+    const detailText = toTextContent(detail);
+    const timeText = toTextContent(time);
     return [
       {
         title: titleText,
-        ...(detailText !== undefined ? { detail: detailText } : {}),
-        ...(timeText !== undefined ? { time: timeText } : {}),
+        ...(detailText !== null ? { detail: detailText } : {}),
+        ...(timeText !== null ? { time: timeText } : {}),
       },
     ];
   });
@@ -37,7 +32,7 @@ export const tabLabels = (labels: unknown, panelCount: number): string[] => {
         entry !== null && typeof entry === "object"
           ? (entry as { title?: unknown }).title
           : entry;
-      return toText(label) ?? String(index + 1);
+      return toTextContent(label) ?? String(index + 1);
     },
   );
 };

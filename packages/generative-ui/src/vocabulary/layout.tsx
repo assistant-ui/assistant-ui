@@ -13,7 +13,7 @@ function TabsRender({
   label,
   children,
 }: {
-  tabs: string[];
+  tabs: (string | number)[];
   label?: string;
   children?: ReactNode;
 }) {

@@ -19,16 +19,7 @@ describe("structured lists in Vue", () => {
       "steps",
       [{ title: "Start", detail: "Prepare" }, { title: "Finish" }],
     ],
-    [
-      "Steps",
-      "steps",
-      [
-        { title: "Valid" },
-        null,
-        { detail: "Missing title" },
-        { title: 12, detail: 4 },
-      ],
-    ],
+    ["Steps", "steps", [{ title: "Valid" }, null, { detail: "Missing title" }]],
     [
       "Timeline",
       "items",
@@ -43,18 +34,35 @@ describe("structured lists in Vue", () => {
     const react = renderReactSpec(input);
     const vue = renderVueSpec(input);
     expect(vue.markup()).toBe(react.markup());
-    if (
-      entries.some(
-        (entry) =>
-          entry === null ||
-          !("title" in entry) ||
-          typeof entry.title !== "string",
-      )
-    )
+    if (entries.some((entry) => entry === null || !("title" in entry)))
       expect(vue.markup()).toContain(
         'data-gf-spec-placeholder="invalid-props"',
       );
     else expect(vue.markup()).toContain(`data-aui="${type.toLowerCase()}"`);
+  });
+
+  it("renders numeric Steps and Timeline text like React", () => {
+    for (const input of [
+      spec({
+        main: {
+          type: "Steps",
+          props: { steps: [{ title: 12, detail: 4 }] },
+        },
+      }),
+      spec({
+        main: {
+          type: "Timeline",
+          props: { items: [{ time: 9, title: 12, detail: 4 }] },
+        },
+      }),
+    ]) {
+      const react = renderReactSpec(input);
+      const vue = renderVueSpec(input);
+      expect(vue.markup()).toBe(react.markup());
+      expect(vue.markup()).not.toContain(
+        'data-gf-spec-placeholder="invalid-props"',
+      );
+    }
   });
 });
 

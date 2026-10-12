@@ -45,6 +45,15 @@ const mount = async (node: unknown) => {
 };
 
 describe("Tabs", () => {
+  it("renders a numeric tab label", async () => {
+    const { tabs } = await mount({
+      $type: "Tabs",
+      tabs: [42],
+      children: [{ $type: "Text", value: "Panel" }],
+    });
+    expect(tabs().map((tab) => tab.textContent)).toEqual(["42"]);
+  });
+
   it("renders every panel on the server and shows the first", () => {
     const html = renderToStaticMarkup(
       <>{renderGenerativeUI(days, defaultGenerativeUILibrary)}</>,

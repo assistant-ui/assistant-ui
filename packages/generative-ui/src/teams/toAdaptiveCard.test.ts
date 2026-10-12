@@ -251,6 +251,19 @@ describe("toAdaptiveCard", () => {
       ]);
     });
 
+    it("stringifies numeric Citation fields", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Citation",
+        title: 42,
+        source: 7,
+        snippet: 9,
+      });
+      const citation = card.body[0] as TeamsContainer;
+      expect(
+        citation.items.map((item) => (item as TeamsTextBlock).text),
+      ).toEqual(["7", "42", "9"]);
+    });
+
     it("renders a Citation without optional fields and forwards dropped panel warnings", () => {
       const { card, warnings } = toAdaptiveCard([
         { $type: "Citation", title: "Unlinked" },

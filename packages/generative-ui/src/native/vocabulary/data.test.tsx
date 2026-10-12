@@ -44,6 +44,19 @@ const chart = (props: Record<string, unknown>) =>
   spec({ main: { type: "Chart", props: { variant: "bar", ...props } } });
 
 describe("data vocabulary on React Native", () => {
+  it("renders numeric Citation text like the web", () => {
+    const input = spec({
+      main: {
+        type: "Citation",
+        props: { title: 42, source: 7, snippet: 9 },
+      },
+    });
+    const native = renderNativeSpec(input).container;
+    const web = renderWebSpec(input).container;
+    expect(native.textContent).toBe(web.textContent);
+    expect(native.textContent).toBe("7429");
+  });
+
   it("renders Citation content without making a non-http URL pressable", () => {
     const input = spec({
       main: {

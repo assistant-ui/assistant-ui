@@ -88,6 +88,21 @@ const tabsSpec = (tabs: string[]) =>
   });
 
 describe("Tabs in Vue", () => {
+  it("renders numeric tab labels like React", () => {
+    const input = spec({
+      main: {
+        type: "Tabs",
+        props: { tabs: [42] },
+        children: ["first"],
+      },
+      first: { type: "Text", props: { value: "First panel" } },
+    });
+    const react = renderReactSpec(input);
+    const vue = renderVueSpec(input);
+    expect(vue.markup()).toBe(react.markup());
+    expect(vue.container.querySelector('[role="tab"]')?.textContent).toBe("42");
+  });
+
   it("names the tab list like React", () => {
     const input = spec({
       main: {

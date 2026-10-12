@@ -147,6 +147,35 @@ describe("list vocabulary on React Native", () => {
     ).toBe("No time");
   });
 
+  it("renders numeric Steps and Timeline text like the web", () => {
+    const steps = spec({
+      main: {
+        type: "Steps",
+        props: { steps: [{ title: 12, detail: 4 }] },
+      },
+    });
+    const timeline = spec({
+      main: {
+        type: "Timeline",
+        props: { items: [{ time: 9, title: 12, detail: 4 }] },
+      },
+    });
+    const nativeSteps = renderNativeSpec(steps);
+    const webSteps = renderWebSpec(steps);
+    expect(nativeSteps.container.textContent?.slice(1)).toBe(
+      webSteps.container.textContent,
+    );
+    expect(nativeSteps.container.textContent).not.toContain("invalid-props");
+    const nativeTimeline = renderNativeSpec(timeline);
+    const webTimeline = renderWebSpec(timeline);
+    expect(nativeTimeline.container.textContent).toBe(
+      webTimeline.container.textContent,
+    );
+    expect(nativeTimeline.container.textContent).not.toContain("invalid-props");
+    expect(nativeSteps.container.textContent).toBe("1124");
+    expect(nativeTimeline.container.textContent).toBe("9124");
+  });
+
   it("uses Steps titles and details to name a bound row", () => {
     const { container } = renderNativeSpec(
       spec({

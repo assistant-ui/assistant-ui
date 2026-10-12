@@ -19,11 +19,15 @@ export const listDefinitions = {
       steps: z
         .array(
           z.object({
-            title: z.string().describe("What to do, in a few words."),
+            title: z
+              .union([z.string(), z.number()])
+              .describe("What to do, in a few words; text or a number."),
             detail: z
-              .string()
+              .union([z.string(), z.number()])
               .optional()
-              .describe("How to do it, or what to watch for."),
+              .describe(
+                "How to do it, or what to watch for; text or a number.",
+              ),
           }),
         )
         .describe("The steps, in order."),
@@ -37,12 +41,17 @@ export const listDefinitions = {
         .array(
           z.object({
             time: z
-              .string()
+              .union([z.string(), z.number()])
               .describe(
-                "When it happens, as the user should read it, such as `Day 1`, `6:00 pm`, or `1969`.",
+                "When it happens, as the user should read it, such as `Day 1`, `6:00 pm`, or `1969`; text or a number.",
               ),
-            title: z.string().describe("What happens."),
-            detail: z.string().optional().describe("More about it."),
+            title: z
+              .union([z.string(), z.number()])
+              .describe("What happens; text or a number."),
+            detail: z
+              .union([z.string(), z.number()])
+              .optional()
+              .describe("More about it; text or a number."),
           }),
         )
         .describe("The events, in time order."),

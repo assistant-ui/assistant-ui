@@ -302,6 +302,17 @@ describe("toSlackBlocks", () => {
       });
     });
 
+    it("stringifies numeric Citation fields", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Citation",
+        title: 42,
+        source: 7,
+        snippet: 9,
+      });
+      expect((blocks[0] as SlackSectionBlock).text?.text).toBe("42\n9");
+      expect((blocks[1] as SlackContextBlock).elements[0]?.text).toBe("7");
+    });
+
     it("clamps structured text through the section warning path", () => {
       const { blocks, warnings } = toSlackBlocks({
         $type: "Steps",
@@ -2262,6 +2273,7 @@ describe("toSlackBlocks", () => {
               $type: "Card",
               title,
               children: [
+                { $type: "Citation", title: 9 },
                 { $type: "Header", text: 8 },
                 { $type: "Text", value: "body" },
               ],
@@ -2270,7 +2282,7 @@ describe("toSlackBlocks", () => {
         });
         const card = (blocks[0] as SlackCarouselBlock).elements[0];
         expect(card?.title?.text).toBe("7");
-        expect(card?.body?.text).toBe("8\nbody");
+        expect(card?.body?.text).toBe("9\n8\nbody");
       },
     );
 

@@ -47,6 +47,16 @@ describe("listVocabulary", () => {
     );
   });
 
+  it("renders numeric text in Steps and Timeline", () => {
+    const html = render([
+      { $type: "Steps", steps: [{ title: 1, detail: 2 }] },
+      { $type: "Timeline", items: [{ time: 3, title: 4, detail: 5 }] },
+    ]);
+    expect(html).toBe(
+      '<ol data-aui="steps"><li data-aui="steps-item"><div data-aui="steps-title">1</div><div data-aui="steps-detail">2</div></li></ol><ol data-aui="timeline"><li data-aui="timeline-item"><div data-aui="timeline-time">3</div><div data-aui="timeline-title">4</div><div data-aui="timeline-detail">5</div></li></ol>',
+    );
+  });
+
   it("ListView renders a ul wrapping its children", () => {
     const html = render({
       $type: "ListView",

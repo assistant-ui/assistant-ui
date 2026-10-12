@@ -238,10 +238,10 @@ function Citation({
   source,
   snippet,
 }: {
-  title: string;
+  title: string | number;
   url?: string;
-  source?: string;
-  snippet?: string;
+  source?: string | number;
+  snippet?: string | number;
 }) {
   const theme = useNativeTheme();
   const ink = useInk();

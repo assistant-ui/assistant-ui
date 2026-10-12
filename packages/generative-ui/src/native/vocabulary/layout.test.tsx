@@ -56,6 +56,23 @@ describe("layout vocabulary on React Native", () => {
     expect(byRole(container, "heading").textContent).toBe("0");
   });
 
+  it("renders a numeric tab label like the web", () => {
+    const input = spec({
+      main: {
+        type: "Tabs",
+        props: { tabs: [42] },
+        children: ["one"],
+      },
+      one: { type: "Text", props: { value: "Panel" } },
+    });
+    const native = renderNativeSpec(input);
+    const web = renderWebSpec(input);
+    expect(native.container.querySelector('[role="tab"]')?.textContent).toBe(
+      "42",
+    );
+    expect(native.container.textContent).toBe(web.container.textContent);
+  });
+
   it("names the tab row and ties each panel to its tab", () => {
     const { container } = renderNativeSpec(
       spec({
