@@ -451,12 +451,33 @@ describe("CheckboxGroup", () => {
       },
       {},
     );
-    const [levers] = container.querySelectorAll("input");
+    const label = () =>
+      container.querySelector('[data-aui="checkboxgroup-progress-label"]')
+        ?.textContent;
+    const [levers, pump] = container.querySelectorAll("input");
     await act(async () => levers!.click());
+    expect(label()).toBe("1 of 3");
+    await act(async () => pump!.click());
+    expect(label()).toBe("2 of 3");
+    await act(async () => levers!.click());
+    expect(label()).toBe("1 of 3");
+  });
+
+  it("leaves a removed option out of the count", async () => {
+    const tree = (choices: typeof toppings) => ({
+      $type: "CheckboxGroup",
+      progress: true,
+      options: choices,
+    });
+    const container = await mount(tree(toppings), {});
+    const [basil, olives] = container.querySelectorAll("input");
+    await act(async () => basil!.click());
+    await act(async () => olives!.click());
+    await act(async () => root!.render(view(tree(toppings.slice(1)))));
     expect(
       container.querySelector('[data-aui="checkboxgroup-progress-label"]')
         ?.textContent,
-    ).toBe("1 of 3");
+    ).toBe("1 of 2");
   });
 
   it("shows no progress unless asked", async () => {

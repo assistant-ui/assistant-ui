@@ -150,23 +150,29 @@ function CheckboxGroupRender({
         ? defaultValue
         : [];
   const resetKey = JSON.stringify(checkedValues);
-  const optionValues = mapOptions(options, (option) => option.value).filter(
-    (option) => option !== null,
+  const optionKeys = mapOptions(options, (_option, key) => key).filter(
+    (key) => key !== null,
   );
-  const countChecked = (values: readonly string[]) =>
-    optionValues.filter((option) => values.includes(option)).length;
-  const [tally, setTally] = React.useState({
+  const defaultKeys = () =>
+    mapOptions(options, (option, key) =>
+      checkedValues.includes(option.value) ? key : null,
+    ).filter((key) => key !== null);
+  const [tally, setTally] = React.useState(() => ({
     key: resetKey,
-    done: countChecked(checkedValues),
-  });
+    keys: defaultKeys(),
+  }));
   if (progress && tally.key !== resetKey) {
-    setTally({ key: resetKey, done: countChecked(checkedValues) });
+    setTally({ key: resetKey, keys: defaultKeys() });
   }
+  const checkedKeys = tally.key === resetKey ? tally.keys : defaultKeys();
+  const boundValues = Array.isArray(answeredValue)
+    ? checkedValues
+    : (value ?? []);
   const done = isBound
-    ? countChecked(Array.isArray(answeredValue) ? checkedValues : (value ?? []))
-    : tally.key === resetKey
-      ? tally.done
-      : countChecked(checkedValues);
+    ? mapOptions(options, (option) =>
+        boundValues.includes(option.value),
+      ).filter(Boolean).length
+    : optionKeys.filter((key) => checkedKeys.includes(key)).length;
   return (
     <fieldset
       key={resetKey}
@@ -177,13 +183,13 @@ function CheckboxGroupRender({
       {progress ? (
         <div data-aui="checkboxgroup-progress">
           <span data-aui="checkboxgroup-progress-label">
-            {`${done} of ${optionValues.length}`}
+            {`${done} of ${optionKeys.length}`}
           </span>
           <span data-aui="checkboxgroup-progress-track" aria-hidden="true">
             <span
               data-aui="checkboxgroup-progress-fill"
               style={{
-                width: `${optionValues.length ? (done / optionValues.length) * 100 : 0}%`,
+                width: `${optionKeys.length ? (done / optionKeys.length) * 100 : 0}%`,
               }}
             />
           </span>
@@ -207,7 +213,15 @@ function CheckboxGroupRender({
               : { defaultChecked: checkedValues.includes(option.value) })}
             onChange={(e) => {
               const selected = checkedGroupValues(e.currentTarget);
-              if (progress) setTally({ key: resetKey, done: selected.length });
+              if (progress) {
+                const box = e.currentTarget.checked;
+                setTally((previous) => {
+                  const keys = (
+                    previous.key === resetKey ? previous.keys : defaultKeys()
+                  ).filter((checkedKey) => checkedKey !== key);
+                  return { key: resetKey, keys: box ? [...keys, key] : keys };
+                });
+              }
               updateBinding?.(selected);
               fire($action, $dispatch, selected, e.currentTarget);
             }}

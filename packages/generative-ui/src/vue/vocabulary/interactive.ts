@@ -873,7 +873,7 @@ export const interactiveVocabulary = {
             ? (props.value ?? props.defaultValue)
             : [],
         );
-        const tally = ref<number | undefined>(undefined);
+        const tally = ref<string[] | undefined>(undefined);
         watch(
           () => JSON.stringify(props.defaultValue),
           () => {
@@ -913,19 +913,27 @@ export const interactiveVocabulary = {
             : Array.isArray(props.defaultValue)
               ? props.defaultValue
               : [];
-          const optionValues = mapOptions(
+          const optionKeys = mapOptions(
             props.options,
-            (option) => option.value,
-          ).filter((option) => option !== null);
-          const countChecked = (values: readonly string[]) =>
-            optionValues.filter((option) => values.includes(option)).length;
-          const done = bound()
-            ? countChecked(
-                Array.isArray(props.value ?? props.defaultValue)
-                  ? (props.value ?? props.defaultValue)
-                  : [],
-              )
-            : (tally.value ?? countChecked(checked));
+            (_option, key) => key,
+          ).filter((key) => key !== null);
+          const defaultKeys = mapOptions(props.options, (option, key) =>
+            checked.includes(option.value) ? key : null,
+          ).filter((key) => key !== null);
+          const boundValues: string[] = Array.isArray(
+            props.value ?? props.defaultValue,
+          )
+            ? (props.value ?? props.defaultValue)
+            : [];
+          const done = !props.progress
+            ? 0
+            : bound()
+              ? mapOptions(props.options, (option) =>
+                  boundValues.includes(option.value),
+                ).filter(Boolean).length
+              : optionKeys.filter((key) =>
+                  (tally.value ?? defaultKeys).includes(key),
+                ).length;
           return h(
             "fieldset",
             {
@@ -941,7 +949,7 @@ export const interactiveVocabulary = {
                     h(
                       "span",
                       { "data-aui": "checkboxgroup-progress-label" },
-                      `${done} of ${optionValues.length}`,
+                      `${done} of ${optionKeys.length}`,
                     ),
                     h(
                       "span",
@@ -953,7 +961,7 @@ export const interactiveVocabulary = {
                         h("span", {
                           "data-aui": "checkboxgroup-progress-fill",
                           style: {
-                            width: `${optionValues.length ? (done / optionValues.length) * 100 : 0}%`,
+                            width: `${optionKeys.length ? (done / optionKeys.length) * 100 : 0}%`,
                           },
                         }),
                       ],
@@ -979,7 +987,10 @@ export const interactiveVocabulary = {
                           ) ?? [],
                         (checkbox) => checkbox.value,
                       );
-                      if (props.progress) tally.value = selected.length;
+                      const keys = (tally.value ?? defaultKeys).filter(
+                        (checkedKey) => checkedKey !== key,
+                      );
+                      tally.value = input.checked ? [...keys, key] : keys;
                       if (bound())
                         emit(
                           `update:${boundProp()}` as

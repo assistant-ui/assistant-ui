@@ -44,11 +44,14 @@ export const tabLabels = (labels: unknown, panelCount: number): string[] => {
 
 // A host of plain DNS labels and a path without whitespace or backslashes: browsers read credentials, spaces, and backslashes in an authority differently from how a regular expression splits it, so such a link could open a different site than the one shown.
 const LINK =
-  /^https?:\/\/((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)(?::\d{1,5})?(?:[/?#][^\s\\]*)?$/i;
+  /^https?:\/\/((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)(?::(\d{1,5}))?(?:[/?#][^\s\\]*)?$/i;
 
 /** `url` when it is an http or https link to a plain host, the only kind a citation opens. */
-export const linkHref = (url: unknown): string | undefined =>
-  typeof url === "string" && LINK.test(url) ? url : undefined;
+export const linkHref = (url: unknown): string | undefined => {
+  if (typeof url !== "string") return undefined;
+  const match = LINK.exec(url);
+  return match && Number(match[2] ?? 0) <= 65535 ? url : undefined;
+};
 
 /** The site an http or https link points to, without a leading `www.`. */
 export const linkHost = (href: string): string | undefined =>

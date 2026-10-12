@@ -1874,15 +1874,20 @@ const convertElement = (
       );
       const head = linked ? `<${target}|${title}>` : title;
       const room = SECTION_TEXT_CAP - head.length - 1;
+      const quoted =
+        typeof props["snippet"] === "string" && props["snippet"] !== ""
+          ? escapeMrkdwn(props["snippet"])
+          : undefined;
+      if (quoted !== undefined && room <= 0)
+        warn(
+          context,
+          "dropped",
+          "Citation",
+          "snippet did not fit beside the title.",
+        );
       const snippet =
-        typeof props["snippet"] === "string" && room > 0
-          ? clampText(
-              escapeMrkdwn(props["snippet"]),
-              room,
-              "Citation",
-              "snippet",
-              context,
-            )
+        quoted !== undefined && room > 0
+          ? clampText(quoted, room, "Citation", "snippet", context)
           : undefined;
       const source =
         typeof props["source"] === "string"

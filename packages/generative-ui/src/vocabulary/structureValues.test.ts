@@ -25,6 +25,7 @@ describe("linkHref", () => {
     " https://example.com",
     "https://",
     "https://-bad.com",
+    "https://example.com:65536/",
   ])("refuses %s", (url) => {
     expect(linkHref(url)).toBeUndefined();
   });

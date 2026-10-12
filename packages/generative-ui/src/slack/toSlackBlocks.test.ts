@@ -179,6 +179,26 @@ describe("toSlackBlocks", () => {
       expect(warnings).toContainEqual(
         expect.objectContaining({ code: "clamped", component: "Citation" }),
       );
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Citation",
+        detail: "snippet did not fit beside the title.",
+      });
+
+      const short = toSlackBlocks({
+        $type: "Citation",
+        title: "Short",
+        url: "https://example.com/a",
+        snippet: "s".repeat(SECTION_TEXT_CAP),
+      });
+      const kept = (short.blocks[0] as { text: { text: string } }).text.text;
+      expect(kept.length).toBe(SECTION_TEXT_CAP);
+      expect(kept.startsWith("<https://example.com/a|Short>\nsss")).toBe(true);
+      expect(short.warnings).toContainEqual({
+        code: "clamped",
+        component: "Citation",
+        detail: `snippet was clamped to ${SECTION_TEXT_CAP - 30} characters.`,
+      });
     });
 
     it("links an http Citation and renders a non-http Citation as plain text", () => {

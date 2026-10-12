@@ -95,16 +95,24 @@ describe("CheckboxGroup progress in Vue", () => {
     });
     const react = renderReactSpec(input);
     const vue = renderVueSpec(input);
-    await act(async () =>
-      react.container.querySelector<HTMLInputElement>("input")!.click(),
-    );
-    vue.container.querySelector<HTMLInputElement>("input")!.click();
-    await nextTick();
-    expect(vue.markup()).toBe(react.markup());
-    expect(
+    const label = () =>
       vue.container.querySelector('[data-aui="checkboxgroup-progress-label"]')
-        ?.textContent,
-    ).toBe("1 of 3");
+        ?.textContent;
+    for (const [index, expected] of [
+      [0, "1 of 3"],
+      [1, "2 of 3"],
+      [0, "1 of 3"],
+    ] as const) {
+      await act(async () =>
+        react.container
+          .querySelectorAll<HTMLInputElement>("input")
+          [index]!.click(),
+      );
+      vue.container.querySelectorAll<HTMLInputElement>("input")[index]!.click();
+      await nextTick();
+      expect(vue.markup()).toBe(react.markup());
+      expect(label()).toBe(expected);
+    }
   });
 
   it("renders empty progress like React", () => {
