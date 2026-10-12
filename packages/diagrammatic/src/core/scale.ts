@@ -89,9 +89,12 @@ export function niceTicks(
   const step = niceStep(span / Math.max(1, count));
   const first = Math.ceil(lo / step) * step;
   const ticks: Tick[] = [];
-  for (let at = first; at <= hi + step * 1e-9; at += step) {
+  for (let at = first; Number.isFinite(at) && at <= hi + step * 1e-9;) {
     const value = Math.abs(at) < step * 1e-9 ? 0 : at;
     ticks.push({ at: value, label: format(value) });
+    const next = at + step;
+    if (next <= at) break;
+    at = next;
   }
   return ticks;
 }
