@@ -1302,10 +1302,8 @@ export function rewriteCustomMathTags(text: string): string {
                 segmentStart + offset + match.lastIndexOf("\n") + 1;
               const lineEnd = text.indexOf("\n", end);
               continuedLineEnd = lineEnd === -1 ? text.length : lineEnd;
-            } else {
-              continuedLineStart = -1;
+              continuedPrefix = prefix;
             }
-            continuedPrefix = prefix;
             return replacement;
           },
         )

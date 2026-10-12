@@ -169,6 +169,11 @@ describe("rewriteLatexBracketDelimiters", () => {
       "> item \n> $$\n> a1\n> a2 \n> $$\n>  , $$bx$$\n> $$\n> c1\n> $$\n>  then",
     ],
     [
+      "a single-line math tag before a third multiline display",
+      "> item [/math]\n> a1\n> a2 [/math] , [/math]bx[/math][/math]\n> c1\n> [/math] then",
+      "> item \n> $$\n> a1\n> a2 \n> $$\n>  , $$bx$$\n> $$\n> c1\n> $$\n>  then",
+    ],
+    [
       "whitespace between the second closer and third opener",
       "> item \\[\n> a1\n> a2 \\]   \\[ bx \\] \t \\[\n> c1\n> \\] then",
       "> item \n> $$\n> a1\n> a2 \n> $$\n>    $$bx$$ \t \n> $$\n> c1\n> $$\n>  then",
