@@ -60,6 +60,7 @@ afterEach(() => {
 
 it("prerenders a remote thread list without reading Math.random", () => {
   const random = vi.spyOn(Math, "random");
+  const errors = vi.spyOn(console, "error").mockImplementation(() => {});
   let serverRuntime: AssistantRuntime | undefined;
 
   renderOnServer(
@@ -71,6 +72,9 @@ it("prerenders a remote thread list without reading Math.random", () => {
   );
 
   expect(random).not.toHaveBeenCalled();
+  expect(errors.mock.calls.flat().join(" ")).not.toMatch(
+    /useLayoutEffect does nothing on the server/,
+  );
   expect(serverRuntime!.threads.getState().mainThreadId).toMatch(
     localIdPattern,
   );
