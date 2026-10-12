@@ -2102,6 +2102,7 @@ declare class ExternalStoreThreadRuntimeCore extends BaseThreadRuntimeCore imple
   suggestions: readonly ThreadSuggestion[];
   extras: unknown;
   __internal_setGetInitializePromise(getPromise: () => Promise<unknown> | undefined): void;
+  protected _onMessageMetadataChanged(previousMessage: ThreadAssistantMessage, message: ThreadAssistantMessage): void;
   beginEdit(messageId: string): void;
   constructor(contextProvider: ModelContextProvider, store: ExternalStoreAdapter<any>);
   __internal_setAdapter(store: ExternalStoreAdapter<any>): void;
