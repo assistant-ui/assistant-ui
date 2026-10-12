@@ -410,7 +410,7 @@ export const SpecRenderer = defineComponent({
     watch(
       () => [props.state, props.spec.state] as const,
       ([state, specState]) => {
-        if (!state && specState) ownStore.seed(specState);
+        if (!state) ownStore.seed(specState ?? {});
       },
       { flush: "sync" },
     );

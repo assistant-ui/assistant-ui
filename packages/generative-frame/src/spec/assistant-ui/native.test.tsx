@@ -59,6 +59,62 @@ const setup = (execution: "frontend" | "backend") =>
   }).entries({ execution, display: "standalone" }) as Record<string, Entry>;
 
 describe("createSpecToolkit for React Native", () => {
+  it.each(["frontend", "backend"] as const)(
+    "clears removed streamed model state in %s execution while keeping saved writes",
+    (execution) => {
+      mocks.messages = [];
+      mocks.argsStatus = "streaming";
+      const RenderSpec = setup(execution)["render_spec"]!.render;
+      const patches =
+        JSON.stringify({
+          op: "add",
+          path: "",
+          value: {
+            root: "t",
+            state: { name: "model" },
+            elements: {
+              t: {
+                type: "Label",
+                props: { text: { $template: "${/name}/${/saved}" } },
+              },
+            },
+          },
+        }) + "\n";
+      const unstable_interactions = {
+        entries: [
+          {
+            type: "action",
+            payload: {
+              type: "setState",
+              toolCallId: "s",
+              writes: [["/saved", "user"]],
+            },
+          },
+        ],
+      };
+      const view = render(
+        <RenderSpec
+          args={{ title: "s", patches }}
+          toolCallId="s"
+          unstable_interactions={unstable_interactions}
+        />,
+      );
+      expect(view.container.textContent).toBe("model/user");
+      view.rerender(
+        <RenderSpec
+          args={{
+            title: "s",
+            patches: patches + '{"op":"remove","path":"/state"}\n',
+          }}
+          toolCallId="s"
+          unstable_interactions={unstable_interactions}
+        />,
+      );
+      expect(view.container.textContent).toBe("/user");
+      mocks.argsStatus = "complete";
+    },
+  );
+
   it("returns entries that Tools from @assistant-ui/react-native accepts", () => {
     const toolkit: Parameters<typeof Tools>[0]["toolkit"] = createSpecToolkit(
       catalog,
