@@ -26,18 +26,27 @@ export const sequenceItems = (value: unknown): SequenceItem[] =>
     ];
   });
 
-/** One label per tab, covering every panel; a missing label falls back to the tab's number. */
+/** One label per tab, covering every panel: a string, or the `title` of a `{ title, child }` entry as A2UI writes tabs. A missing label falls back to the tab's number. */
 export const tabLabels = (labels: unknown, panelCount: number): string[] => {
   const given: unknown[] = Array.isArray(labels) ? labels : [];
   return Array.from(
     { length: Math.max(given.length, panelCount) },
-    (_, index) => toText(given[index]) ?? String(index + 1),
+    (_, index) => {
+      const entry = given[index];
+      const label =
+        entry !== null && typeof entry === "object"
+          ? (entry as { title?: unknown }).title
+          : entry;
+      return toText(label) ?? String(index + 1);
+    },
   );
 };
 
-const LINK = /^https?:\/\/(?:[^/?#@]*@)?([^/?#:]+)/i;
+// A host of plain DNS labels and a path without whitespace or backslashes: browsers read credentials, spaces, and backslashes in an authority differently from how a regular expression splits it, so such a link could open a different site than the one shown.
+const LINK =
+  /^https?:\/\/((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)(?::\d{1,5})?(?:[/?#][^\s\\]*)?$/i;
 
-/** `url` when it is an http or https link, the only kind a citation opens. */
+/** `url` when it is an http or https link to a plain host, the only kind a citation opens. */
 export const linkHref = (url: unknown): string | undefined =>
   typeof url === "string" && LINK.test(url) ? url : undefined;
 

@@ -438,6 +438,27 @@ describe("CheckboxGroup", () => {
     expect(label()).toBe("2 of 3");
   });
 
+  it("counts each checked box once when two options share a value", async () => {
+    const container = await mount(
+      {
+        $type: "CheckboxGroup",
+        progress: true,
+        options: [
+          { label: "Levers", value: "tools" },
+          { label: "Pump", value: "tools" },
+          { label: "Patch kit", value: "patches" },
+        ],
+      },
+      {},
+    );
+    const [levers] = container.querySelectorAll("input");
+    await act(async () => levers!.click());
+    expect(
+      container.querySelector('[data-aui="checkboxgroup-progress-label"]')
+        ?.textContent,
+    ).toBe("1 of 3");
+  });
+
   it("shows no progress unless asked", async () => {
     const container = await mount(
       { $type: "CheckboxGroup", options: toppings },

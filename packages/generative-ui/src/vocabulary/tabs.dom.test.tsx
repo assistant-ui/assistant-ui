@@ -86,6 +86,13 @@ describe("Tabs", () => {
     expect(visible()).toEqual(["Santa Barbara"]);
   });
 
+  it("names the row of tabs with its label", async () => {
+    await mount({ ...days, label: "Trip days" });
+    expect(
+      document.querySelector('[role="tablist"]')?.getAttribute("aria-label"),
+    ).toBe("Trip days");
+  });
+
   it("labels each panel's tab and names a tab missing its label by number", async () => {
     const { tabs } = await mount({ ...days, tabs: ["Day 1"] });
     expect(tabs().map((tab) => tab.textContent)).toEqual(["Day 1", "2", "3"]);

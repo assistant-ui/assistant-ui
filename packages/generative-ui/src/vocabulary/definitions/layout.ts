@@ -122,6 +122,10 @@ export const layoutDefinitions = {
       tabs: z
         .array(z.string())
         .describe("Tab labels, one per child panel, in order."),
+      label: z
+        .string()
+        .optional()
+        .describe("Accessible name for the row of tabs."),
     }),
   },
 } satisfies Record<string, VocabularyDefinition>;

@@ -10,9 +10,11 @@ import { tabLabels } from "./structureValues";
 
 function TabsRender({
   tabs,
+  label,
   children,
 }: {
   tabs: string[];
+  label?: string;
   children?: ReactNode;
 }) {
   const panels = React.Children.toArray(children);
@@ -45,7 +47,12 @@ function TabsRender({
   };
   return (
     <div data-aui="tabs">
-      <div role="tablist" data-aui="tabs-list" onKeyDown={onKeyDown}>
+      <div
+        role="tablist"
+        aria-label={typeof label === "string" ? label : undefined}
+        data-aui="tabs-list"
+        onKeyDown={onKeyDown}
+      >
         {labels.map((label, index) => (
           <button
             key={index}
@@ -229,8 +236,10 @@ export const layoutVocabulary = {
   },
   Tabs: {
     ...layoutDefinitions.Tabs,
-    render: ({ tabs, children }) => (
-      <TabsRender tabs={tabs}>{children}</TabsRender>
+    render: ({ tabs, label, children }) => (
+      <TabsRender tabs={tabs} {...(label !== undefined ? { label } : {})}>
+        {children}
+      </TabsRender>
     ),
   },
 } satisfies GenerativeUILibrary;

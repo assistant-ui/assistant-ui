@@ -150,21 +150,23 @@ function CheckboxGroupRender({
         ? defaultValue
         : [];
   const resetKey = JSON.stringify(checkedValues);
-  const [picked, setPicked] = React.useState({
-    key: resetKey,
-    values: checkedValues,
-  });
-  const current = isBound
-    ? Array.isArray(answeredValue)
-      ? checkedValues
-      : (value ?? [])
-    : picked.key === resetKey
-      ? picked.values
-      : checkedValues;
   const optionValues = mapOptions(options, (option) => option.value).filter(
     (option) => option !== null,
   );
-  const done = optionValues.filter((option) => current.includes(option)).length;
+  const countChecked = (values: readonly string[]) =>
+    optionValues.filter((option) => values.includes(option)).length;
+  const [tally, setTally] = React.useState({
+    key: resetKey,
+    done: countChecked(checkedValues),
+  });
+  if (progress && tally.key !== resetKey) {
+    setTally({ key: resetKey, done: countChecked(checkedValues) });
+  }
+  const done = isBound
+    ? countChecked(Array.isArray(answeredValue) ? checkedValues : (value ?? []))
+    : tally.key === resetKey
+      ? tally.done
+      : countChecked(checkedValues);
   return (
     <fieldset
       key={resetKey}
@@ -205,7 +207,7 @@ function CheckboxGroupRender({
               : { defaultChecked: checkedValues.includes(option.value) })}
             onChange={(e) => {
               const selected = checkedGroupValues(e.currentTarget);
-              setPicked({ key: resetKey, values: selected });
+              if (progress) setTally({ key: resetKey, done: selected.length });
               updateBinding?.(selected);
               fire($action, $dispatch, selected, e.currentTarget);
             }}
