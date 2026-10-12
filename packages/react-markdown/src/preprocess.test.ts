@@ -822,6 +822,59 @@ describe("normalizeMathDelimiters", () => {
     );
   });
 
+  it.each([
+    ["- - - \\[x\na\n\\]", "- - - $$\n      x\n      a\n      $$"],
+    [
+      "* * *   * \\[x\na\n\\]",
+      "* * *   * $$\n          x\n          a\n          $$",
+    ],
+    ["- - - [/math]x\na[/math]", "- - - $$\n      x\n      a\n      $$"],
+    [
+      "* * *   * [/math]x\na[/math]",
+      "* * *   * $$\n          x\n          a\n          $$",
+    ],
+  ])(
+    "keeps a multiline display in every same-line list item for %j",
+    (input, expected) => {
+      expect(normalizeMathDelimiters(input)).toBe(expected);
+    },
+  );
+
+  it.each([
+    ["- * * * ", "        "],
+    ["+ - - - ", "        "],
+    ["1. - - - ", "         "],
+    ["* - - - - ", "          "],
+    ["> + - - - ", ">         "],
+  ])("keeps a display after a thematic-break suffix in %j", (head, prefix) => {
+    for (const [open, close] of [
+      ["\\[", "\\]"],
+      ["[/math]", "[/math]"],
+    ]) {
+      expect
+        .soft(normalizeMathDelimiters(`${head}${open}x\na\n${close}`))
+        .toBe(`${head}$$\n${prefix}x\n${prefix}a\n${prefix}$$`);
+    }
+  });
+
+  it.each([
+    ["- - ", "    "],
+    ["+ + + ", "      "],
+  ])(
+    "keeps the existing display layout without a thematic break in %j",
+    (head, prefix) => {
+      expect(normalizeMathDelimiters(`${head}\\[x\na\n\\]`)).toBe(
+        `${head}\n${prefix}$$\n${prefix}x\n${prefix}a\n${prefix}$$`,
+      );
+    },
+  );
+
+  it("keeps a later list fence separate from a display after three markers", () => {
+    expect(normalizeMathDelimiters("- - - \\[x\na\n\\]\n\n- $$\na+b\n$$")).toBe(
+      "- - - $$\n      x\n      a\n      $$\n\n- $$\n  a+b\n  $$",
+    );
+  });
+
   it("keeps code inert for both delimiter families", () => {
     expect(normalizeMathDelimiters("`\\(x\\)` and `[/math]y[/math]`")).toBe(
       "`\\(x\\)` and `[/math]y[/math]`",
