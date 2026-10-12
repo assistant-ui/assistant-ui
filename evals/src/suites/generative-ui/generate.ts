@@ -2,6 +2,8 @@ import { isStepCount, streamText, type LanguageModel } from "ai";
 import { startFormat } from "./formats.ts";
 import type { Answer, CandidateFormat, Task } from "./types.ts";
 
+const MIXED = "The model answered in more than one format at once.";
+
 /**
  * Ask the model for one answer in `format`. A tool format validates each call
  * in the tool's `execute` and hands the errors back, so the model gets
@@ -63,10 +65,9 @@ export async function generateAnswer(
 
   const steps = await result.steps;
   const final = steps.at(-1);
-  const answering = (step: (typeof steps)[number]) =>
-    new Set(
-      step.toolCalls.flatMap((call) => run.toolFormats[call.toolName] ?? []),
-    );
+  const formatsOf = (step: (typeof steps)[number]) =>
+    step.toolCalls.flatMap((call) => run.toolFormats[call.toolName] ?? []);
+  const mixed = steps.some((step) => new Set(formatsOf(step)).size > 1);
   // When prose is an answer, prose that ends the run answers even after failed tool calls, as when the model gives up on a spec that kept failing validation.
   const proseAnswer =
     run.prose &&
@@ -75,12 +76,14 @@ export async function generateAnswer(
     final.text.trim() !== "";
   const last = run.attempts.at(-1);
   if (!last || proseAnswer) {
-    const attempted =
-      proseAnswer || final === undefined ? undefined : [...answering(final)][0];
+    const attempted = proseAnswer ? undefined : steps.flatMap(formatsOf).at(-1);
     const errors = proseAnswer
       ? []
       : attempted !== undefined
-        ? ["The model's answer tool call failed before it ran."]
+        ? [
+            "The model's answer tool call failed before it ran.",
+            ...(mixed ? [MIXED] : []),
+          ]
         : !run.prose
           ? [
               `The model never called ${run.answerTools.map((name) => `\`${name}\``).join(" or ")}.`,
@@ -96,13 +99,10 @@ export async function generateAnswer(
       ...measured,
     };
   }
-  const mixed = steps.some((step) => answering(step).size > 1);
   return {
     artifact: last.artifact,
     answeredIn: last.format,
-    errors: mixed
-      ? [...last.errors, "The model answered in more than one format at once."]
-      : last.errors,
+    errors: mixed ? [...last.errors, MIXED] : last.errors,
     repairRounds: run.attempts.length - 1,
     firstOutputMs: firstToolMs,
     ...measured,

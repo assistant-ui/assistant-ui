@@ -61,19 +61,20 @@ const toolCallParts = (toolName: string, input: unknown): StreamPart[] => {
 export const call = (toolName: string, input: unknown) =>
   reply(toolCallParts(toolName, input), "tool-calls");
 
-/** One streamed step that calls `toolName` with input that is not JSON, which the SDK rejects before the tool runs. */
-export const malformedCall = (toolName: string) => {
-  const id = `call-${++calls}`;
-  return reply(
-    [
-      { type: "tool-input-start", id, toolName },
-      { type: "tool-input-delta", id, delta: "{" },
-      { type: "tool-input-end", id },
-      { type: "tool-call", toolCallId: id, toolName, input: "{" },
-    ],
+/** One streamed step that calls each of `toolNames` with input that is not JSON, which the SDK rejects before the tool runs. */
+export const malformedCall = (...toolNames: string[]) =>
+  reply(
+    toolNames.flatMap((toolName): StreamPart[] => {
+      const id = `call-${++calls}`;
+      return [
+        { type: "tool-input-start", id, toolName },
+        { type: "tool-input-delta", id, delta: "{" },
+        { type: "tool-input-end", id },
+        { type: "tool-call", toolCallId: id, toolName, input: "{" },
+      ];
+    }),
     "tool-calls",
   );
-};
 
 /** One streamed step that calls several tools at once. */
 export const parallelCalls = (

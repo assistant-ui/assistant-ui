@@ -25,7 +25,7 @@ export interface Answer {
   artifact: string;
   /** The format `artifact` is in: the one asked for or chosen, or `text` when the model answered in prose without calling an answer tool. */
   answeredIn: Format;
-  /** The format of an answer tool call that failed before it ran: the answer renders as the `text` the user sees, and `auto`'s choice tally counts this format. */
+  /** The format of the last answer tool call when every one failed before it ran: the answer renders as the `text` the user sees, and `auto`'s choice tally counts this format. */
   attempted?: Format;
   /** Validation errors left after the last attempt; empty when the answer passed validation. */
   errors: string[];

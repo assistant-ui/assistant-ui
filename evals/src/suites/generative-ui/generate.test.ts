@@ -242,6 +242,36 @@ test("an auto answer whose tool call fails before it runs is an error, not prose
   ]);
 });
 
+test("an auto answer that goes quiet after a call fails before it runs still counts that call's format", async () => {
+  const answer = await generateAnswer(
+    streamingModel(malformedCall("render_spec"), text("")),
+    task,
+    "auto",
+    0,
+  );
+  assert.equal(answer.answeredIn, "text");
+  assert.equal(answer.attempted, "spec");
+  assert.equal(typeof answer.firstOutputMs, "number");
+  assert.deepEqual(answer.errors, [
+    "The model's answer tool call failed before it ran.",
+  ]);
+});
+
+test("an auto answer whose failed calls use two formats at once is an error that counts the last call", async () => {
+  const invalid = () => malformedCall("render_spec", "show_widget");
+  const answer = await generateAnswer(
+    streamingModel(invalid(), invalid(), invalid()),
+    task,
+    "auto",
+    0,
+  );
+  assert.equal(answer.attempted, "frame");
+  assert.deepEqual(answer.errors, [
+    "The model's answer tool call failed before it ran.",
+    "The model answered in more than one format at once.",
+  ]);
+});
+
 test("a spec answer whose tool call fails before it runs says so", async () => {
   const invalid = () => malformedCall("render_spec");
   const answer = await generateAnswer(
