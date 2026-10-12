@@ -66,7 +66,7 @@ type TeamsConversionWarning = {
 | `Tabs` | A bolder `TextBlock` with each label, followed by that panel | Adaptive Cards has no tabs, so every panel shows in order |
 | `Steps` | A bolder `TextBlock` per step, numbered, with a subtle detail `TextBlock` under it | An entry without a title is dropped with a warning |
 | `Timeline` | One `Container` per item with a small subtle time, a bolder title, and the detail | An entry without a title is dropped with a warning |
-| `Citation` | `Container` with the source or the link's domain, the title, and a subtle snippet | An `http` or `https` `url` makes the title a markdown link and the whole container open it |
+| `Citation` | `Container` with the source or the link's domain, the title, and a subtle snippet | An `http` or `https` `url` makes the title a markdown link; a link written inside the snippet or source stays plain text |
 | `Button` | `Action.Submit` inside an `ActionSet` | Consecutive buttons merge into one set; `buttonStyle` is dropped, since Teams [ignores action styling](https://learn.microsoft.com/en-us/microsoftteams/platform/task-modules-and-cards/cards/cards-reference) |
 | `Select` | `Input.ChoiceSet`, compact | An option without a string value is dropped with a warning |
 | `RadioGroup` | `Input.ChoiceSet`, expanded | An option without a string value is dropped with a warning; descriptions append to the choice title |
