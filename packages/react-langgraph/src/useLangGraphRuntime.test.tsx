@@ -3709,11 +3709,13 @@ describe("useLangGraphRuntime", () => {
     const renderWithCheckpoint = async (
       stream: LangGraphStreamCallback<LangChainMessage>,
       getCheckpointId: () => Promise<string | null>,
+      load?: () => Promise<LoadResult>,
     ) => {
       const { result } = renderHook(() =>
         useLangGraphRuntime({
           stream,
           getCheckpointId,
+          ...(load && { load }),
           unstable_threadListAdapter: makeThreadListAdapter(),
         }),
       );
@@ -4024,6 +4026,158 @@ describe("useLangGraphRuntime", () => {
       );
 
       expect(textsOf(result.current)).toEqual(["question", "answer 1"]);
+      expect(consoleError).toHaveBeenCalled();
+      consoleError.mockRestore();
+    });
+
+    it("uses the refetched thread for an edit started after a reload lookup", async () => {
+      const checkpoint = deferred<string | null>();
+      let checkpointCalls = 0;
+      const getCheckpointId = vi.fn(() =>
+        ++checkpointCalls === 1
+          ? checkpoint.promise
+          : Promise.resolve(`cp-${checkpointCalls}`),
+      );
+      const stream = vi.fn(() => {
+        const call = stream.mock.calls.length;
+        return (async function* () {
+          if (call === 2) throw new Error("edit refused");
+          yield {
+            event: "messages/complete",
+            data: [{ type: "ai", id: "answer", content: "answer" }],
+          };
+        })();
+      });
+      let serverMessages: LangChainMessage[] = [];
+      const load = vi.fn(async () => ({ messages: serverMessages }));
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const result = await renderWithCheckpoint(
+        stream as unknown as LangGraphStreamCallback<LangChainMessage>,
+        getCheckpointId,
+        load,
+      );
+      await act(async () => {
+        result.current.thread.append("question");
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      const question = result.current.thread.getState().messages[0]!;
+      act(() => {
+        void result.current.thread.getMessageById("answer").reload();
+      });
+      await waitFor(() => expect(getCheckpointId).toHaveBeenCalledTimes(1));
+
+      serverMessages = [
+        { type: "human", id: question.id, content: "question" },
+        { type: "ai", id: "answer", content: "answer from server" },
+      ];
+      await settleOutsideAct(() => result.current.threads.reloadMainThread());
+      expect(load).toHaveBeenCalledTimes(2);
+      expect(textsOf(result.current)).toEqual([
+        "question",
+        "answer from server",
+      ]);
+
+      act(() => {
+        result.current.thread.append({
+          role: "user",
+          parentId: null,
+          sourceId: question.id,
+          content: [{ type: "text", text: "edited" }],
+        });
+      });
+      await waitFor(() => expect(stream).toHaveBeenCalledTimes(2));
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+
+      expect(textsOf(result.current)).toEqual([
+        "question",
+        "answer from server",
+      ]);
+      expect(consoleError).toHaveBeenCalled();
+      consoleError.mockRestore();
+    });
+
+    it("keeps refetched content when an inherited edit fails after the refetch", async () => {
+      const checkpoint = deferred<string | null>();
+      const gate = deferred<void>();
+      let checkpointCalls = 0;
+      const getCheckpointId = vi.fn(() =>
+        ++checkpointCalls === 1
+          ? checkpoint.promise
+          : Promise.resolve(`cp-${checkpointCalls}`),
+      );
+      const stream = vi.fn(() => {
+        const call = stream.mock.calls.length;
+        return (async function* () {
+          if (call === 2) {
+            await gate.promise;
+            throw new Error("edit refused");
+          }
+          yield {
+            event: "messages/complete",
+            data: [{ type: "ai", id: "answer", content: "answer" }],
+          };
+        })();
+      });
+      let serverMessages: LangChainMessage[] = [];
+      const load = vi.fn(async () => ({ messages: serverMessages }));
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const result = await renderWithCheckpoint(
+        stream as unknown as LangGraphStreamCallback<LangChainMessage>,
+        getCheckpointId,
+        load,
+      );
+      await act(async () => {
+        result.current.thread.append("question");
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      const question = result.current.thread.getState().messages[0]!;
+      act(() => {
+        void result.current.thread.getMessageById("answer").reload();
+      });
+      await waitFor(() => expect(getCheckpointId).toHaveBeenCalledTimes(1));
+      act(() => {
+        result.current.thread.append({
+          role: "user",
+          parentId: null,
+          sourceId: question.id,
+          content: [{ type: "text", text: "edited" }],
+        });
+      });
+      await waitFor(() => expect(stream).toHaveBeenCalledTimes(2));
+
+      serverMessages = [
+        { type: "human", id: question.id, content: "question" },
+        { type: "human", id: "server-note", content: "server note" },
+        { type: "ai", id: "answer", content: "answer from server" },
+      ];
+      await settleOutsideAct(() => result.current.threads.reloadMainThread());
+      expect(load).toHaveBeenCalledTimes(2);
+      expect(textsOf(result.current).slice(0, 3)).toEqual([
+        "question",
+        "server note",
+        "answer from server",
+      ]);
+
+      await act(async () => gate.resolve());
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+
+      expect(textsOf(result.current)).toEqual([
+        "question",
+        "server note",
+        "answer from server",
+      ]);
       expect(consoleError).toHaveBeenCalled();
       consoleError.mockRestore();
     });

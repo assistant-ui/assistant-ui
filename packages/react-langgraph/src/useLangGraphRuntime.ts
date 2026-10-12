@@ -1172,10 +1172,10 @@ const useLangGraphRuntimeImpl = (
       ? {
           onReload: async (parentId, config) => {
             const truncation = ++truncationRef.current;
-            const snapshot = captureOperationSnapshot();
-            queueRef.current?.clear();
             const stagedRun = getStagedRun(parentId);
-            if (stagedRun) {
+            const snapshot = stagedRun ? captureOperationSnapshot() : null;
+            queueRef.current?.clear();
+            if (stagedRun && snapshot) {
               for (const message of stagedRun.messages) {
                 if (message.id) stagedMessagesRef.current.delete(message.id);
               }
