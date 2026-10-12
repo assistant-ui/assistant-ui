@@ -26,6 +26,8 @@ import {
 import {
   linkHost,
   linkHref,
+  mapPlaces,
+  placeHref,
   sequenceItems,
   tabLabels,
 } from "../vocabulary/structureValues";
@@ -65,6 +67,8 @@ export interface ConversionContext {
   readonly warnings: TeamsConversionWarning[];
   usedInputIds: Set<string>;
 }
+
+const DIAGRAM_SOURCE_CAP = 3000;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -1024,6 +1028,58 @@ export function convertElement(
           ],
         },
       ];
+    }
+    case "Diagram": {
+      const code = asString(props["code"]);
+      if (code.length > DIAGRAM_SOURCE_CAP)
+        warn(
+          context,
+          "clamped",
+          "Diagram",
+          `code was clamped to ${DIAGRAM_SOURCE_CAP} characters.`,
+        );
+      const title = props["title"];
+      return [
+        textBlock(code.slice(0, DIAGRAM_SOURCE_CAP), { fontType: "Monospace" }),
+        ...(typeof title === "string"
+          ? [textBlock(title, { size: "small", isSubtle: true })]
+          : []),
+      ];
+    }
+    case "Map": {
+      const { items: raw, truncated } = clampArray(
+        props["places"],
+        CHILDREN_CAP,
+      );
+      if (truncated)
+        warn(
+          context,
+          "clamped",
+          "Map",
+          `places were clamped to ${CHILDREN_CAP} entries.`,
+        );
+      const places = mapPlaces(raw);
+      const dropped = raw.length - places.length;
+      if (dropped > 0)
+        warn(
+          context,
+          "dropped",
+          "Map",
+          `${dropped} malformed ${dropped === 1 ? "entry was" : "entries were"} dropped.`,
+        );
+      return places.map((place) => {
+        const href = placeHref(place);
+        return {
+          type: "Container",
+          items: [
+            textBlock(
+              `[${escapeLinkText(place.label)}](${markdownHref(href)})`,
+            ),
+            ...(place.detail !== undefined ? [textBlock(place.detail)] : []),
+          ],
+          selectAction: { type: "Action.OpenUrl", url: href },
+        };
+      });
     }
     case "Table":
       return [convertTable(props, context)];

@@ -302,6 +302,138 @@ describe("toSlackBlocks", () => {
       });
     });
 
+    it("renders an escaped Diagram source and title", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Diagram",
+        code: "flowchart LR\nA[You & me] --> B[<Done>]",
+        title: "Plan <today> & tomorrow",
+      });
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "```\nflowchart LR\nA[You &amp; me] --&gt; B[&lt;Done&gt;]\n```",
+          },
+        },
+        {
+          type: "context",
+          elements: [
+            { type: "mrkdwn", text: "Plan &lt;today&gt; &amp; tomorrow" },
+          ],
+        },
+      ]);
+      expect(warnings).toEqual([]);
+    });
+
+    it("renders a Diagram without a title and closes an oversized code fence", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Diagram",
+        code: "x".repeat(SECTION_TEXT_CAP),
+      });
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `\`\`\`\n${"x".repeat(SECTION_TEXT_CAP - 8)}\n\`\`\``,
+          },
+        },
+      ]);
+      expect(warnings).toEqual([
+        {
+          code: "clamped",
+          component: "Diagram",
+          detail: `code was clamped to ${SECTION_TEXT_CAP - 8} characters.`,
+        },
+      ]);
+    });
+
+    it("clamps a Diagram title to the context text cap", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Diagram",
+        code: "flowchart LR",
+        title: "t".repeat(CONTEXT_TEXT_CAP + 1),
+      });
+      expect((blocks[1] as SlackContextBlock).elements[0]?.text).toHaveLength(
+        CONTEXT_TEXT_CAP,
+      );
+      expect(warnings).toEqual([
+        {
+          code: "clamped",
+          component: "Diagram",
+          detail: `title was clamped to ${CONTEXT_TEXT_CAP} characters.`,
+        },
+      ]);
+    });
+
+    it("links valid Map places, keeps optional details, and warns for invalid coordinates", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Map",
+        places: [
+          { label: "A & <B>", lat: 25, lng: 121, detail: "Meet > here" },
+          { label: "Invalid", lat: 91, lng: 0 },
+          { label: "Second", lat: -3, lng: 4 },
+        ],
+        route: true,
+      });
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "<https://www.openstreetmap.org/?mlat=25&amp;mlon=121#map=14/25/121|A &amp; &lt;B&gt;>\nMeet &gt; here",
+          },
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "<https://www.openstreetmap.org/?mlat=-3&amp;mlon=4#map=14/-3/4|Second>",
+          },
+        },
+      ]);
+      expect(warnings).toEqual([
+        {
+          code: "dropped",
+          component: "Map",
+          detail: "1 malformed entry was dropped.",
+        },
+      ]);
+    });
+
+    it("clamps Map entries and reports multiple invalid places", () => {
+      const { warnings } = toSlackBlocks({
+        $type: "Map",
+        places: [
+          { label: "No latitude", lat: 91, lng: 0 },
+          { label: "No longitude", lat: 0, lng: 181 },
+          ...Array.from({ length: CHILDREN_CAP }, (_, index) => ({
+            label: `Place ${index}`,
+            lat: 0,
+            lng: 0,
+          })),
+        ],
+      });
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Map",
+        detail: `places were clamped to ${CHILDREN_CAP} entries.`,
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Map",
+        detail: "2 malformed entries were dropped.",
+      });
+    });
+
+    it("renders an absent Map places list without warnings", () => {
+      expect(toSlackBlocks({ $type: "Map" })).toEqual({
+        blocks: [],
+        warnings: [],
+      });
+    });
+
     it("clamps structured text through the section warning path", () => {
       const { blocks, warnings } = toSlackBlocks({
         $type: "Steps",

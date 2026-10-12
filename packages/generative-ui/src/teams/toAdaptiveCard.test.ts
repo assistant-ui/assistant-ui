@@ -270,6 +270,133 @@ describe("toAdaptiveCard", () => {
       });
     });
 
+    it("renders Diagram source in monospace and keeps its title", () => {
+      const { card, warnings } = toAdaptiveCard({
+        $type: "Diagram",
+        code: "flowchart LR\nA[You & me] --> B[Done]",
+        title: "Plan <today>",
+      });
+      expect(card.body).toEqual([
+        {
+          type: "TextBlock",
+          text: "flowchart LR\nA[You & me] --> B[Done]",
+          wrap: true,
+          fontType: "Monospace",
+        },
+        {
+          type: "TextBlock",
+          text: "Plan <today>",
+          wrap: true,
+          size: "small",
+          isSubtle: true,
+        },
+      ]);
+      expect(warnings).toEqual([]);
+    });
+
+    it("renders a Diagram without a title and clamps oversized source", () => {
+      const { card, warnings } = toAdaptiveCard({
+        $type: "Diagram",
+        code: "x".repeat(3001),
+      });
+      expect(card.body).toEqual([
+        {
+          type: "TextBlock",
+          text: "x".repeat(3000),
+          wrap: true,
+          fontType: "Monospace",
+        },
+      ]);
+      expect(warnings).toEqual([
+        {
+          code: "clamped",
+          component: "Diagram",
+          detail: "code was clamped to 3000 characters.",
+        },
+      ]);
+    });
+
+    it("links valid Map places and warns for invalid coordinates", () => {
+      const { card, warnings } = toAdaptiveCard({
+        $type: "Map",
+        places: [
+          { label: "A [place]", lat: 25, lng: 121, detail: "Meet <here>" },
+          { label: "Invalid", lat: 91, lng: 0 },
+          { label: "Second", lat: -3, lng: 4 },
+        ],
+        route: true,
+      });
+      expect(card.body).toEqual([
+        {
+          type: "Container",
+          items: [
+            {
+              type: "TextBlock",
+              text: "[A \\[place\\]](https://www.openstreetmap.org/?mlat=25&mlon=121#map=14/25/121)",
+              wrap: true,
+            },
+            { type: "TextBlock", text: "Meet <here>", wrap: true },
+          ],
+          selectAction: {
+            type: "Action.OpenUrl",
+            url: "https://www.openstreetmap.org/?mlat=25&mlon=121#map=14/25/121",
+          },
+        },
+        {
+          type: "Container",
+          items: [
+            {
+              type: "TextBlock",
+              text: "[Second](https://www.openstreetmap.org/?mlat=-3&mlon=4#map=14/-3/4)",
+              wrap: true,
+            },
+          ],
+          selectAction: {
+            type: "Action.OpenUrl",
+            url: "https://www.openstreetmap.org/?mlat=-3&mlon=4#map=14/-3/4",
+          },
+        },
+      ]);
+      expect(warnings).toEqual([
+        {
+          code: "dropped",
+          component: "Map",
+          detail: "1 malformed entry was dropped.",
+        },
+      ]);
+    });
+
+    it("clamps Map entries and reports multiple invalid places", () => {
+      const { warnings } = toAdaptiveCard({
+        $type: "Map",
+        places: [
+          { label: "No latitude", lat: 91, lng: 0 },
+          { label: "No longitude", lat: 0, lng: 181 },
+          ...Array.from({ length: CHILDREN_CAP }, (_, index) => ({
+            label: `Place ${index}`,
+            lat: 0,
+            lng: 0,
+          })),
+        ],
+      });
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Map",
+        detail: `places were clamped to ${CHILDREN_CAP} entries.`,
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Map",
+        detail: "2 malformed entries were dropped.",
+      });
+    });
+
+    it("renders an absent Map places list without warnings", () => {
+      const { card, warnings } = toAdaptiveCard({ $type: "Map" });
+      expect(card.body).toEqual([]);
+      expect(warnings).toEqual([]);
+    });
+
     it("passes structured text through like Text and escapes only a citation's link text", () => {
       const { card } = toAdaptiveCard([
         {

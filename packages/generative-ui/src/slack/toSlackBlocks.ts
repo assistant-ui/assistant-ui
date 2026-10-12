@@ -22,6 +22,8 @@ import {
 import {
   linkHost,
   linkHref,
+  mapPlaces,
+  placeHref,
   sequenceItems,
   tabLabels,
 } from "../vocabulary/structureValues";
@@ -1929,6 +1931,67 @@ const convertElement = (
             ]
           : []),
       ];
+    }
+    case "Diagram": {
+      const code = clampText(
+        escapeMrkdwn(asString(props["code"])),
+        SECTION_TEXT_CAP - 8,
+        "Diagram",
+        "code",
+        context,
+      );
+      const title = props["title"];
+      return [
+        structuredSection(`\`\`\`\n${code}\n\`\`\``, "Diagram", context),
+        ...(typeof title === "string"
+          ? [
+              {
+                type: "context" as const,
+                elements: [
+                  {
+                    type: "mrkdwn" as const,
+                    text: clampText(
+                      escapeMrkdwn(title),
+                      CONTEXT_TEXT_CAP,
+                      "Diagram",
+                      "title",
+                      context,
+                    ),
+                  },
+                ],
+              },
+            ]
+          : []),
+      ];
+    }
+    case "Map": {
+      const { items: raw, truncated } = copyBounded(
+        Array.isArray(props["places"]) ? props["places"] : [],
+        CHILDREN_CAP,
+      );
+      if (truncated)
+        warn(
+          context,
+          "clamped",
+          "Map",
+          `places were clamped to ${CHILDREN_CAP} entries.`,
+        );
+      const places = mapPlaces(raw);
+      const dropped = raw.length - places.length;
+      if (dropped > 0)
+        warn(
+          context,
+          "dropped",
+          "Map",
+          `${dropped} malformed ${dropped === 1 ? "entry was" : "entries were"} dropped.`,
+        );
+      return places.map((place) =>
+        structuredSection(
+          `<${escapeMrkdwn(placeHref(place))}|${escapeMrkdwn(place.label)}>${place.detail !== undefined ? `\n${escapeMrkdwn(place.detail)}` : ""}`,
+          "Map",
+          context,
+        ),
+      );
     }
     case "Form":
       return [
