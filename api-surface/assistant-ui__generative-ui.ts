@@ -1145,10 +1145,7 @@ interface TeamsContainer {
   readonly type: "Container";
   readonly style?: TeamsContainerStyle;
   readonly items: readonly TeamsCardElement[];
-  readonly selectAction?: TeamsSubmitAction | {
-    readonly type: "Action.OpenUrl";
-    readonly url: string;
-  };
+  readonly selectAction?: TeamsSubmitAction;
   readonly separator?: true;
   readonly spacing?: "large";
 }

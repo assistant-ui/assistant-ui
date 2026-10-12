@@ -194,6 +194,10 @@ function textBlock(
   return { type: "TextBlock", text, wrap: true, ...extra };
 }
 
+// Teams reads a TextBlock as markdown, so a quoted `[text](url)` would become a second link next to the citation's own; a zero-width space between `]` and `(` keeps it plain text.
+const unlinked = (text: string): string =>
+  text.replaceAll("](", `]${String.fromCharCode(0x200b)}(`);
+
 const escapeLinkText = (text: string): string =>
   text.replace(/[\\[\]]/g, "\\$&");
 
@@ -1002,7 +1006,7 @@ export function convertElement(
           items: [
             ...(source !== undefined
               ? [
-                  textBlock(source, {
+                  textBlock(unlinked(source), {
                     size: "small",
                     isSubtle: true,
                   }),
@@ -1014,12 +1018,9 @@ export function convertElement(
                 : title,
             ),
             ...(typeof snippet === "string"
-              ? [textBlock(snippet, { isSubtle: true })]
+              ? [textBlock(unlinked(snippet), { isSubtle: true })]
               : []),
           ],
-          ...(href !== undefined
-            ? { selectAction: { type: "Action.OpenUrl", url: href } }
-            : {}),
         },
       ];
     }

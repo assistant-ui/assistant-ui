@@ -1859,8 +1859,31 @@ const convertElement = (
     }
     case "Citation": {
       const href = linkHref(props["url"]);
-      const title = escapeMrkdwn(asString(props["title"]));
-      const snippet = props["snippet"];
+      const target =
+        href === undefined
+          ? undefined
+          : escapeMrkdwn(href).replace(/\|/g, "%7C");
+      const linked =
+        target !== undefined && target.length + 3 < SECTION_TEXT_CAP;
+      const title = clampText(
+        escapeMrkdwn(asString(props["title"])),
+        SECTION_TEXT_CAP - (linked ? target.length + 3 : 0),
+        "Citation",
+        "title",
+        context,
+      );
+      const head = linked ? `<${target}|${title}>` : title;
+      const room = SECTION_TEXT_CAP - head.length - 1;
+      const snippet =
+        typeof props["snippet"] === "string" && room > 0
+          ? clampText(
+              escapeMrkdwn(props["snippet"]),
+              room,
+              "Citation",
+              "snippet",
+              context,
+            )
+          : undefined;
       const source =
         typeof props["source"] === "string"
           ? props["source"]
@@ -1869,7 +1892,7 @@ const convertElement = (
             : undefined;
       return [
         structuredSection(
-          `${href ? `<${escapeMrkdwn(href).replace(/\|/g, "%7C")}|${title}>` : title}${typeof snippet === "string" ? `\n${escapeMrkdwn(snippet)}` : ""}`,
+          snippet !== undefined ? `${head}\n${snippet}` : head,
           "Citation",
           context,
         ),

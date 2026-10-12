@@ -147,6 +147,25 @@ describe("toAdaptiveCard", () => {
       ]);
     });
 
+    it("keeps a link written in a Citation's snippet or source from becoming clickable", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Citation",
+        title: "Specs",
+        source: "[home](https://attacker.example)",
+        snippet: "See [here](https://attacker.example).",
+      });
+      const zeroWidthSpace = String.fromCharCode(0x200b);
+      expect(card.body).toMatchObject([
+        {
+          items: [
+            { text: `[home]${zeroWidthSpace}(https://attacker.example)` },
+            { text: "Specs" },
+            { text: `See [here]${zeroWidthSpace}(https://attacker.example).` },
+          ],
+        },
+      ]);
+    });
+
     it("links an http Citation and leaves a non-http Citation unlinked", () => {
       const { card } = toAdaptiveCard([
         {
@@ -181,10 +200,6 @@ describe("toAdaptiveCard", () => {
             },
             { type: "TextBlock", text: "Summary", wrap: true, isSubtle: true },
           ],
-          selectAction: {
-            type: "Action.OpenUrl",
-            url: "https://www.example.com/a(b)",
-          },
         },
         {
           type: "Container",
@@ -279,10 +294,11 @@ describe("toAdaptiveCard", () => {
         })),
       ],
     ])("clamps %s entries", (component, prop, field, entries) => {
-      const { warnings } = toAdaptiveCard({
+      const { card, warnings } = toAdaptiveCard({
         $type: component,
         [prop]: entries,
       });
+      expect(card.body).toHaveLength(CHILDREN_CAP);
       expect(warnings).toContainEqual({
         code: "clamped",
         component,

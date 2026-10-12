@@ -165,6 +165,22 @@ describe("toSlackBlocks", () => {
       ]);
     });
 
+    it("clamps a long Citation title and snippet without cutting the link apart", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Citation",
+        title: "t".repeat(SECTION_TEXT_CAP),
+        url: "https://example.com/a",
+        snippet: "s".repeat(SECTION_TEXT_CAP),
+      });
+      const text = (blocks[0] as { text: { text: string } }).text.text;
+      expect(text.length).toBeLessThanOrEqual(SECTION_TEXT_CAP);
+      expect(text.startsWith("<https://example.com/a|t")).toBe(true);
+      expect(text.endsWith(">")).toBe(true);
+      expect(warnings).toContainEqual(
+        expect.objectContaining({ code: "clamped", component: "Citation" }),
+      );
+    });
+
     it("links an http Citation and renders a non-http Citation as plain text", () => {
       const { blocks } = toSlackBlocks([
         {
