@@ -448,6 +448,7 @@ export class PiThreadController implements PiThreadControllerLike {
   private readonly pendingSends = new Set<PendingSend>();
   private runStateRevision = 0;
   private readonly runLeases = new RunLeases();
+  private runStartedByAgentStart = false;
   private messageFlushScheduled = false;
   /** Fallback sequence for snapshots without a supervisor-provided sequence. */
   private readonly localSnapshotSeq = 0;
@@ -912,7 +913,16 @@ export class PiThreadController implements PiThreadControllerLike {
   /** @internal */
   public captureCancel(): () => Promise<void> {
     const lease = this.runLeases.current();
-    return () => (lease.isCurrent() ? this.cancel() : Promise.resolve());
+    const hadQueuedPrompt =
+      this.state.queue.steering.length > 0 ||
+      this.state.queue.followUp.length > 0;
+    return () =>
+      lease.isCurrent() ||
+      (hadQueuedPrompt &&
+        this.runStartedByAgentStart &&
+        this.state.runStatus === "running")
+        ? this.cancel()
+        : Promise.resolve();
   }
 
   private abortPendingSendsBeforeDispatch() {
@@ -1041,6 +1051,7 @@ export class PiThreadController implements PiThreadControllerLike {
     if (changed) {
       if (this.state.runStatus !== "running" && next.runStatus === "running") {
         this.runLeases.begin();
+        this.runStartedByAgentStart = event.type === "agent_start";
       }
       this.state = next;
       if (RUN_STATE_EVENT_TYPES.has(event.type)) {
@@ -1077,6 +1088,7 @@ export class PiThreadController implements PiThreadControllerLike {
     if (next === this.state) return;
     if (this.state.runStatus !== "running" && next.runStatus === "running") {
       this.runLeases.begin();
+      this.runStartedByAgentStart = false;
     }
     this.state = next;
     this.notifyMetadataListeners();

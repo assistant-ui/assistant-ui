@@ -478,6 +478,62 @@ describe("PiThreadController", () => {
     expect(controller.getState().runStatus).toBe("running");
   });
 
+  it("cancels a queued run promoted while Stop clears the queue", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(ev({ type: "agent_start" }, 1));
+    client.emit(
+      ev({ type: "queue_update", steering: [], followUp: ["queued"] }, 2),
+    );
+
+    const clear = Promise.withResolvers<{
+      steering: string[];
+      followUp: string[];
+    }>();
+    client.clearQueue = vi.fn(() => clear.promise);
+    const cancel = controller.captureCancel();
+    const clearing = controller.clearQueue();
+
+    client.emit(ev({ type: "agent_end" }, 3));
+    client.emit(ev({ type: "queue_update", steering: [], followUp: [] }, 4));
+    client.emit(ev({ type: "agent_start" }, 5));
+    clear.resolve({ steering: [], followUp: [] });
+    await clearing;
+    await cancel();
+
+    expect(client.cancelled).toEqual([THREAD]);
+  });
+
+  it("preserves a locally started run despite a queue at Stop", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(ev({ type: "agent_start" }, 1));
+    client.emit(
+      ev({ type: "queue_update", steering: [], followUp: ["queued"] }, 2),
+    );
+
+    const clear = Promise.withResolvers<{
+      steering: string[];
+      followUp: string[];
+    }>();
+    client.clearQueue = vi.fn(() => clear.promise);
+    const cancel = controller.captureCancel();
+    const clearing = controller.clearQueue();
+
+    client.emit(ev({ type: "agent_end" }, 3));
+    await controller.sendMessage(userMessage("new"));
+    client.emit(ev({ type: "agent_start" }, 4));
+    clear.resolve({ steering: [], followUp: [] });
+    await clearing;
+    await cancel();
+
+    expect(client.sent.map(({ input }) => input.content)).toEqual(["new"]);
+    expect(client.cancelled).toEqual([]);
+    expect(controller.getState().runStatus).toBe("running");
+  });
+
   it("sets model and thinking level via the client", async () => {
     const client = createFakeClient();
     const controller = new PiThreadController(client, THREAD);
