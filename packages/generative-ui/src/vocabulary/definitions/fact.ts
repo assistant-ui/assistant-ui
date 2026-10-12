@@ -4,7 +4,7 @@ import type { VocabularyDefinition } from "./types";
 export const factDefinitions = {
   Fact: {
     description:
-      "A label/value pair, rendered as a key followed by its value. Use for compact metadata.",
+      "A label/value pair, rendered as a key followed by its value. Use for compact metadata, and put an answer's key figures side by side in a `Row`.",
     properties: z.object({
       label: z
         .union([z.string(), z.number()])

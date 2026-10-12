@@ -4,9 +4,14 @@ import type { VocabularyDefinition } from "./types";
 
 export const mediaDefinitions = {
   Image: {
-    description: "An image. Provide `src` and `alt` for accessibility.",
+    description:
+      "An image. Provide `src` and `alt` for accessibility. Put several images in a `Row` for a gallery, or a `sm` image beside text for a thumbnail.",
     properties: z.object({
-      src: z.string().describe("Image URL."),
+      src: z
+        .string()
+        .describe(
+          "Image URL, taken from a tool result or the user; never invent one.",
+        ),
       alt: z.string().describe("Alt text for accessibility."),
       size: z
         .union([z.enum(IMAGE_SIZE_TOKENS), z.number()])

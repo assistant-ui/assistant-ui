@@ -15,10 +15,11 @@ import { mediaDefinitions } from "../../vocabulary/definitions/media";
 import { mapPlaces, placeHref } from "../../vocabulary/structureValues";
 import { toTextContent } from "../../vocabulary/toTextContent";
 import { useListViewItemText } from "../rowLabel";
-import { fade, RADIUS, useInk, useNativeTheme } from "../theme";
+import { fade, RADIUS, useInk, useNativeTheme, useRowChild } from "../theme";
 
 const SIZE = { sm: 128, md: 256, lg: 384 } as const;
 const ROUND_SIZE = { sm: 32, md: 40, lg: 52 } as const;
+const THUMBNAIL_SIZE = 72;
 
 type ImageProps = {
   src?: string;
@@ -35,6 +36,7 @@ function ImageContent({
   hidden,
 }: ImageProps & { hidden: boolean }) {
   const [aspectRatio, setAspectRatio] = useState<number | undefined>();
+  const rowChild = useRowChild();
   const width =
     typeof size === "number"
       ? size
@@ -43,6 +45,8 @@ function ImageContent({
         : size
           ? SIZE[size]
           : undefined;
+  const thumbnail = !round && rowChild && size === "sm";
+  const tile = !round && rowChild && !thumbnail && typeof size !== "number";
   return (
     <NativeImage
       source={{ uri: src }}
@@ -52,7 +56,7 @@ function ImageContent({
       accessibilityElementsHidden={hidden}
       importantForAccessibility={hidden ? "no-hide-descendants" : "auto"}
       aria-hidden={hidden}
-      resizeMode={round ? "cover" : "contain"}
+      resizeMode={round || thumbnail || tile ? "cover" : "contain"}
       onLoad={(event) => {
         const { width: naturalWidth, height: naturalHeight } =
           event.nativeEvent.source;
@@ -60,13 +64,22 @@ function ImageContent({
           setAspectRatio(naturalWidth / naturalHeight);
       }}
       style={{
-        width: round ? (width ?? 40) : "100%",
         ...(round
-          ? { height: width ?? 40 }
-          : {
-              ...(width !== undefined ? { maxWidth: width } : {}),
-              aspectRatio: aspectRatio ?? 1,
-            }),
+          ? { width: width ?? 40, height: width ?? 40 }
+          : thumbnail
+            ? { width: THUMBNAIL_SIZE, height: THUMBNAIL_SIZE }
+            : tile
+              ? {
+                  flex: 1,
+                  minWidth: 0,
+                  ...(width !== undefined ? { maxWidth: width } : {}),
+                  aspectRatio: 4 / 3,
+                }
+              : {
+                  width: "100%",
+                  ...(width !== undefined ? { maxWidth: width } : {}),
+                  aspectRatio: aspectRatio ?? 1,
+                }),
         borderRadius: round ? RADIUS.pill : RADIUS.control,
       }}
     />

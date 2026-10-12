@@ -52,8 +52,21 @@ describe("mediaVocabulary", () => {
       alt: "alt",
       size: 128,
     });
-    expect(html).not.toContain("data-aui-size");
+    expect(html).not.toContain('data-aui-size="');
     expect(html).toContain('style="max-width:128px"');
+  });
+
+  it("Image flags a numeric size so a row keeps it at that size instead of cropping it into a gallery tile", () => {
+    const html = render({
+      $type: "Image",
+      src: "/logo.png",
+      alt: "logo",
+      size: 48,
+    });
+    expect(html).toContain('data-aui-sized="true"');
+    expect(
+      render({ $type: "Image", src: "/a.png", alt: "alt", size: "md" }),
+    ).not.toContain("data-aui-sized");
   });
 
   it("Image renders a numeric size on a round avatar as an inline width/height square", () => {
@@ -64,7 +77,7 @@ describe("mediaVocabulary", () => {
       size: 64,
       round: true,
     });
-    expect(html).not.toContain("data-aui-size");
+    expect(html).not.toContain('data-aui-size="');
     expect(html).toContain('style="width:64px;height:64px"');
   });
 

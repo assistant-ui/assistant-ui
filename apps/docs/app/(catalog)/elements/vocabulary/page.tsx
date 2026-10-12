@@ -166,7 +166,7 @@ export default async function VocabularyPage() {
                             data-aui-theme="elements"
                             className={cn(
                               demoCanvasClass,
-                              "[&_[data-aui='card']]:bg-background min-h-[180px] py-10",
+                              "min-h-[180px] py-10",
                             )}
                           >
                             <div className="w-full max-w-sm">
