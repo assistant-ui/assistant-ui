@@ -6,7 +6,7 @@ import {
 } from "./convertToAdkMessages";
 import { convertAdkMessage } from "./convertAdkMessages";
 import type { AppendMessage } from "@assistant-ui/core";
-import type { AdkMessage } from "./types";
+import type { AdkMessage, AdkMessageContentPart, AdkEventPart } from "./types";
 import { contentToParts } from "./contentToParts";
 
 const makeAppendMessage = (content: AppendMessage["content"]): AppendMessage =>
@@ -381,6 +381,49 @@ describe("getMessageContent", () => {
         },
       },
     ]);
+  });
+
+  it.each([
+    {
+      kind: "inline image",
+      part: {
+        type: "image",
+        mimeType: "image/png",
+        data: "AAAA",
+        filename: "",
+      },
+      expected: { inlineData: { mimeType: "image/png", data: "AAAA" } },
+    },
+    {
+      kind: "image URL",
+      part: {
+        type: "image_url",
+        url: "https://example.com/img.png",
+        filename: "",
+      },
+      expected: { fileData: { fileUri: "https://example.com/img.png" } },
+    },
+    {
+      kind: "inline file",
+      part: {
+        type: "file",
+        mimeType: "application/pdf",
+        data: "AAAA",
+        filename: "",
+      },
+      expected: { inlineData: { mimeType: "application/pdf", data: "AAAA" } },
+    },
+    {
+      kind: "file URL",
+      part: { type: "file_url", url: "gs://bucket/report.pdf", filename: "" },
+      expected: { fileData: { fileUri: "gs://bucket/report.pdf" } },
+    },
+  ] satisfies Array<{
+    kind: string;
+    part: AdkMessageContentPart;
+    expected: AdkEventPart;
+  }>)("omits an empty filename for $kind", ({ part, expected }) => {
+    expect(contentToParts([part])).toEqual([expected]);
   });
 
   it("uses the binary data URL default for a media-less file", () => {

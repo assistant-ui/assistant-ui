@@ -1371,6 +1371,32 @@ describe("createAdkStream - content conversion", () => {
     });
   });
 
+  it("converts an unnamed image_url part without a displayName in direct mode", async () => {
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
+
+    const stream = createAdkStream({
+      api: "http://localhost:8000",
+      appName: "app",
+      userId: "u",
+    });
+    const messages: AdkMessage[] = [
+      {
+        id: "m1",
+        type: "human",
+        content: [{ type: "image_url", url: "https://example.com/img.png" }],
+      },
+    ];
+    const gen = await stream(messages, makeConfig());
+    for await (const _ of gen) {
+      /* noop */
+    }
+
+    const body = JSON.parse(mockFetch.mock.calls[0]![1]?.body as string);
+    expect(body.newMessage.parts[0]).toEqual({
+      fileData: { fileUri: "https://example.com/img.png" },
+    });
+  });
+
   it("converts file content parts to inlineData in direct mode", async () => {
     mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
 

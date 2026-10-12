@@ -15,14 +15,14 @@ export const contentToParts = (
           inlineData: {
             mimeType: part.mimeType,
             data: part.data,
-            ...(part.filename != null && { displayName: part.filename }),
+            ...(part.filename && { displayName: part.filename }),
           },
         };
       case "image_url":
         return {
           fileData: {
             fileUri: part.url,
-            ...(part.filename != null && { displayName: part.filename }),
+            ...(part.filename && { displayName: part.filename }),
           },
         };
       case "file":
@@ -30,7 +30,7 @@ export const contentToParts = (
           inlineData: {
             mimeType: part.mimeType,
             data: part.data,
-            ...(part.filename != null && { displayName: part.filename }),
+            ...(part.filename && { displayName: part.filename }),
           },
         };
       case "file_url":
@@ -38,7 +38,7 @@ export const contentToParts = (
           fileData: {
             fileUri: part.url,
             ...(part.mimeType != null && { mimeType: part.mimeType }),
-            ...(part.filename != null && { displayName: part.filename }),
+            ...(part.filename && { displayName: part.filename }),
           },
         };
       case "code":

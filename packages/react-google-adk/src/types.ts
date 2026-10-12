@@ -27,12 +27,12 @@ export type AdkEventPart = {
   inlineData?: {
     mimeType: string;
     data: string;
-    displayName?: string | undefined;
+    displayName?: string;
   };
   fileData?: {
     fileUri: string;
     mimeType?: string;
-    displayName?: string | undefined;
+    displayName?: string;
   };
 };
 
