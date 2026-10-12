@@ -309,7 +309,7 @@ describe("toAdaptiveCard", () => {
         $type: "Diagram",
         code: "\n".repeat(400),
       });
-      expect((card.body[0] as { items: unknown[] }).items).toHaveLength(200);
+      expect(card.body[0]).toHaveProperty("items.length", 200);
       expect(warnings).toContainEqual({
         code: "clamped",
         component: "Diagram",
