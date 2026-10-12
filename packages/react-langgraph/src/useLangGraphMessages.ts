@@ -628,28 +628,26 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
           !(error instanceof Error && error.name === "AbortError")
         ) {
           if (!receivedEvent && accumulator) {
-            if (submittedMessageIds.size > 0) {
-              const previousMessagesById = new Map(
-                previousMessages.flatMap((message) =>
-                  message.id !== undefined
-                    ? [[message.id, message] as const]
-                    : [],
-                ),
-              );
-              const rolledBackMessages = messagesRef.current.flatMap(
-                (message) => {
-                  const messageId = message.id;
-                  if (
-                    messageId === undefined ||
-                    !submittedMessageIds.has(messageId)
-                  )
-                    return [message];
-                  const previousMessage = previousMessagesById.get(messageId);
-                  return previousMessage ? [previousMessage] : [];
-                },
-              );
-              setMessagesImmediate(rolledBackMessages);
-            }
+            const previousMessagesById = new Map(
+              previousMessages.flatMap((message) =>
+                message.id !== undefined
+                  ? [[message.id, message] as const]
+                  : [],
+              ),
+            );
+            const rolledBackMessages = messagesRef.current.flatMap(
+              (message) => {
+                const messageId = message.id;
+                if (
+                  messageId === undefined ||
+                  !submittedMessageIds.has(messageId)
+                )
+                  return [message];
+                const previousMessage = previousMessagesById.get(messageId);
+                return previousMessage ? [previousMessage] : [];
+              },
+            );
+            setMessagesImmediate(rolledBackMessages);
             finalMessages = messagesRef.current;
           }
           throw error;
