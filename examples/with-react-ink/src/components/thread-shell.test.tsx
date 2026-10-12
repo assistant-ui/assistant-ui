@@ -56,8 +56,8 @@ import { ThreadShell } from "./thread-shell";
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
-const settle = () =>
-  act(() => new Promise<void>((resolve) => setTimeout(resolve, 40)));
+// Ink buffers a lone Escape on a timer until it can rule out a sequence.
+const settle = () => act(() => vi.runOnlyPendingTimersAsync());
 const create = async () => {
   let result!: ReturnType<typeof render>;
   await act(async () => {
@@ -69,6 +69,7 @@ const create = async () => {
       </ThreadShell>,
     );
   });
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   const press = async (key: string) => {
     await act(async () => {
       result.stdin.write(key);
@@ -88,7 +89,10 @@ beforeEach(() => {
   });
   mocks.rename.mockReset();
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 describe("terminal thread controls", () => {
   it.each([null, "/", "?"])(
