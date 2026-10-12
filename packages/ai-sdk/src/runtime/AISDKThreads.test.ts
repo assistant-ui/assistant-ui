@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it, vi } from "vitest";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import type { AssistantCloud } from "assistant-cloud";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig, createAssistantClient } from "@assistant-ui/store/client";
@@ -348,6 +349,208 @@ describe("AISDKThreads", () => {
     });
 
     handle.destroy();
+  });
+
+  describe("a frontend tool running across a thread switch", () => {
+    const startTool = async (
+      execute: (
+        args: unknown,
+        context: {
+          abortSignal: AbortSignal;
+          human: (payload: unknown) => Promise<unknown>;
+        },
+      ) => Promise<unknown>,
+    ) => {
+      const { transport, emit, close } = createControlledTransport();
+      const sendMessages = vi.spyOn(transport, "sendMessages");
+      const handle = createAssistantClient(
+        AuiConfig({
+          threads: AISDKThreads({
+            transport,
+            sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+          }),
+        }),
+      );
+      handle.subscribe(() => {});
+      const aui = handle.getClient();
+      flushTapSync(() =>
+        aui.modelContext.register({
+          getModelContext: () => ({
+            tools: {
+              lookup: {
+                parameters: { type: "object", properties: {} },
+                execute,
+              },
+            },
+          }),
+        }),
+      );
+      flushTapSync(() => aui.composer.setText("look up"));
+      flushTapSync(() => aui.composer.send());
+      await waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(1));
+      emit(
+        { type: "start", messageId: "assistant-1" },
+        {
+          type: "tool-input-available",
+          toolCallId: "call-1",
+          toolName: "lookup",
+          input: {},
+        },
+        { type: "finish" },
+      );
+      close();
+      return { handle, sendMessages };
+    };
+
+    const switchAwayAndBack = (
+      handle: ReturnType<typeof createAssistantClient>,
+    ) => {
+      flushTapSync(() => handle.getClient().threads.switchToNewThread());
+      flushTapSync(() => handle.getClient().threads.switchToThread("main"));
+    };
+
+    it("executes a tool call streamed while switched away once after switching back", async () => {
+      const execute = vi.fn(() => new Promise<string>(() => {}));
+      const { transport, emit, close } = createControlledTransport();
+      const sendMessages = vi.spyOn(transport, "sendMessages");
+      const onToolCall = vi.fn();
+      const handle = createAssistantClient(
+        AuiConfig({ threads: AISDKThreads({ transport, onToolCall }) }),
+      );
+      handle.subscribe(() => {});
+      try {
+        flushTapSync(() =>
+          handle.getClient().modelContext.register({
+            getModelContext: () => ({
+              tools: {
+                lookup: {
+                  parameters: { type: "object", properties: {} },
+                  execute,
+                },
+              },
+            }),
+          }),
+        );
+        flushTapSync(() => handle.getClient().composer.setText("look up"));
+        flushTapSync(() => handle.getClient().composer.send());
+        await waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(1));
+
+        emit({ type: "start", messageId: "assistant-1" });
+        await waitFor(() =>
+          expect(
+            handle
+              .getClient()
+              .thread.getState()
+              .messages.some((message) => message.role === "assistant"),
+          ).toBe(true),
+        );
+        flushTapSync(() => handle.getClient().threads.switchToNewThread());
+        emit(
+          {
+            type: "tool-input-available",
+            toolCallId: "call-after-switch",
+            toolName: "lookup",
+            input: {},
+          },
+          { type: "finish" },
+        );
+        await waitFor(() => expect(onToolCall).toHaveBeenCalledOnce());
+        expect(execute).not.toHaveBeenCalled();
+
+        flushTapSync(() => handle.getClient().threads.switchToThread("main"));
+        close();
+        await waitFor(() => expect(execute).toHaveBeenCalledOnce());
+        expect(handle.getClient().thread.getState().isRunning).toBe(true);
+      } finally {
+        handle.destroy();
+      }
+    });
+
+    it("keeps the thread running after switching back, and Stop aborts it", async () => {
+      let signal: AbortSignal | undefined;
+      const execute = vi.fn(
+        (_args: unknown, { abortSignal }: { abortSignal: AbortSignal }) =>
+          new Promise<string>(() => {
+            signal = abortSignal;
+          }),
+      );
+      const { handle } = await startTool(execute);
+      try {
+        await waitFor(() => expect(execute).toHaveBeenCalledOnce());
+
+        switchAwayAndBack(handle);
+        expect(handle.getClient().thread.getState().isRunning).toBe(true);
+        flushTapSync(() => handle.getClient().thread.cancelRun());
+        expect(signal?.aborted).toBe(true);
+      } finally {
+        handle.destroy();
+      }
+    });
+
+    it("still continues the turn with its result when nobody stops it", async () => {
+      let finishTool!: (value: string) => void;
+      const execute = vi.fn(
+        () =>
+          new Promise<string>((resolve) => {
+            finishTool = resolve;
+          }),
+      );
+      const { handle, sendMessages } = await startTool(execute);
+      try {
+        await waitFor(() => expect(execute).toHaveBeenCalledOnce());
+
+        switchAwayAndBack(handle);
+        finishTool("done");
+        await waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(2));
+      } finally {
+        handle.destroy();
+      }
+    });
+
+    it("continues the turn when it settles while the thread is in the background", async () => {
+      let finishTool!: (value: string) => void;
+      const execute = vi.fn(
+        () =>
+          new Promise<string>((resolve) => {
+            finishTool = resolve;
+          }),
+      );
+      const { handle, sendMessages } = await startTool(execute);
+      try {
+        await waitFor(() => expect(execute).toHaveBeenCalledOnce());
+
+        flushTapSync(() => handle.getClient().threads.switchToNewThread());
+        finishTool("done");
+        await waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(2));
+      } finally {
+        handle.destroy();
+      }
+    });
+
+    it("stays resumable when it waits on human input", async () => {
+      const execute = vi.fn(
+        async (
+          _args: unknown,
+          { human }: { human: (p: unknown) => unknown },
+        ) => ({ answer: await human({ question: "proceed?" }) }),
+      );
+      const { handle, sendMessages } = await startTool(execute);
+      try {
+        await waitFor(() => expect(execute).toHaveBeenCalledOnce());
+
+        switchAwayAndBack(handle);
+        expect(() =>
+          handle
+            .getClient()
+            .thread.message({ index: 1 })
+            .part({ toolCallId: "call-1" })
+            .resumeToolCall("yes"),
+        ).not.toThrow();
+        await waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(2));
+      } finally {
+        handle.destroy();
+      }
+    });
   });
 
   it("stops all in-flight chats when its client is destroyed", async () => {
