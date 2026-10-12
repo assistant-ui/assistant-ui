@@ -131,7 +131,7 @@ function Button({
   const pending = useRef<{ $action: Action; $dispatch: GenerativeUIDispatch }>(
     undefined,
   );
-  const labelText = String(toTextContent(label) ?? "");
+  const labelText = toTextContent(label) ?? "";
   const undoLabel = labelText.trim();
 
   useEffect(() => {

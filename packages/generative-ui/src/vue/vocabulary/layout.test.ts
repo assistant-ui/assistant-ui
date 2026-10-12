@@ -85,6 +85,11 @@ const element = (
 });
 
 describe("layout vocabulary in Vue", () => {
+  it("renders a zero Card title", () => {
+    const { markup } = renderVueSpec(spec(element("Card", { title: 0 })));
+    expect(markup()).toContain('<header data-aui="card-title">0</header>');
+  });
+
   it.each<[string, Spec["elements"]]>([
     ["Card default", element("Card")],
     [

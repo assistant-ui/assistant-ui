@@ -134,6 +134,14 @@ describe("toAdaptiveCard", () => {
       expect((card.body[0] as TeamsTextBlock).size).toBeUndefined();
     });
 
+    it.each(["constructor", "toString", "__proto__"])(
+      "omits an unsupported size %s",
+      (size) => {
+        const { card } = toAdaptiveCard({ $type: "Text", value: "x", size });
+        expect((card.body[0] as TeamsTextBlock).size).toBeUndefined();
+      },
+    );
+
     it.each(["medium", "semibold", "bold"] as const)(
       "maps weight %s to bolder",
       (weight) => {
@@ -1621,6 +1629,14 @@ describe("toAdaptiveCard", () => {
   });
 
   describe("Alert", () => {
+    it.each(["constructor", "toString", "__proto__"])(
+      "uses the default style for unsupported tone %s",
+      (tone) => {
+        const { card } = toAdaptiveCard({ $type: "Alert", tone });
+        expect((card.body[0] as TeamsContainer).style).toBe("default");
+      },
+    );
+
     it.each([
       ["info", "accent"],
       ["success", "good"],

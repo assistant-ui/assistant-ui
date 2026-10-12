@@ -386,6 +386,20 @@ const cases: [string, Spec][] = [
 ];
 
 describe("interactive vocabulary in Vue", () => {
+  it("renders a zero Select placeholder", () => {
+    const { markup } = renderVueSpec(
+      spec({
+        main: {
+          type: "Select",
+          props: { options: [{ label: "A", value: "a" }], placeholder: 0 },
+        },
+      }),
+    );
+    expect(markup()).toContain(
+      '<option disabled="" selected="" value="">0</option>',
+    );
+  });
+
   it.each([
     ["Input", { defaultValue: "Typed" }, "input", "Typed"],
     [

@@ -40,6 +40,11 @@ const card = (props: Record<string, unknown>, children?: string[]) =>
   });
 
 describe("layout vocabulary on React Native", () => {
+  it("renders a zero Card title", () => {
+    const { container } = renderNativeSpec(card({ title: 0 }));
+    expect(byRole(container, "heading").textContent).toBe("0");
+  });
+
   it("omits an empty Card title", () => {
     const { container } = renderNativeSpec(card({ title: "" }));
     expect(container.querySelector('[role="heading"]')).toBeNull();

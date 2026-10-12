@@ -478,7 +478,8 @@ export function convertElement(
       ];
     case "Text": {
       const mappedSize =
-        typeof props["size"] === "string"
+        typeof props["size"] === "string" &&
+        Object.hasOwn(TEXT_SIZE_MAP, props["size"])
           ? TEXT_SIZE_MAP[props["size"]]
           : undefined;
       return [
@@ -886,7 +887,7 @@ export function convertElement(
     case "Alert": {
       const tone = props["tone"] ?? "info";
       const style =
-        typeof tone === "string"
+        typeof tone === "string" && Object.hasOwn(ALERT_STYLE_MAP, tone)
           ? (ALERT_STYLE_MAP[tone] ?? "default")
           : "default";
       const titleText = asTextValue(props["title"]);

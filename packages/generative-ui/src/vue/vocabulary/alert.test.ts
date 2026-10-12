@@ -27,6 +27,16 @@ const slides = (count: number, label?: string): Spec["elements"] => ({
 });
 
 describe("alert vocabulary in Vue", () => {
+  it.each([
+    ["title", '<header data-aui="alert-title">0</header>'],
+    ["description", '<p data-aui="alert-desc">0</p>'],
+  ] as const)("renders a zero Alert %s", (prop, expected) => {
+    const { markup } = renderVueSpec(
+      spec({ main: { type: "Alert", props: { [prop]: 0 } } }),
+    );
+    expect(markup()).toContain(expected);
+  });
+
   it.each<[string, Spec["elements"]]>([
     [
       "an alert with invalid text",
