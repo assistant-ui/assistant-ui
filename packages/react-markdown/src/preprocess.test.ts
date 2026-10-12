@@ -162,6 +162,41 @@ describe("rewriteLatexBracketDelimiters", () => {
     });
   });
 
+  it.each([
+    [
+      "a single-line display before a third multiline display",
+      "> item \\[\n> a1\n> a2 \\] , \\[ bx \\]\\[\n> c1\n> \\] then",
+      "> item \n> $$\n> a1\n> a2 \n> $$\n>  , $$bx$$\n> $$\n> c1\n> $$\n>  then",
+    ],
+    [
+      "whitespace between the second closer and third opener",
+      "> item \\[\n> a1\n> a2 \\]   \\[ bx \\] \t \\[\n> c1\n> \\] then",
+      "> item \n> $$\n> a1\n> a2 \n> $$\n>    $$bx$$ \t \n> $$\n> c1\n> $$\n>  then",
+    ],
+    [
+      "the line after a closer-line display",
+      "> 1. \\[\n> a\n> \\] x \\[\n> b\n> \\] then\n> more",
+      "> 1. \n>    $$\n>    a\n>    $$\n>     x \n>    $$\n>    b\n>    $$\n>     then\n> more",
+    ],
+    [
+      "CRLF lines",
+      "> 1. \\[\r\n> a\r\n> \\] x \\[\r\n> b\r\n> \\] then",
+      "> 1. \n>    $$\n>    a\r\n>    $$\n>     x \n>    $$\n>    b\r\n>    $$\n>     then",
+    ],
+    [
+      "a code span between bracket displays",
+      "> 1. \\[\n> a\n> \\] `x` \\[\n> b\n> \\]",
+      "> 1. \n>    $$\n>    a\n>    $$\n>     `x` \n>    $$\n>    b\n>    $$",
+    ],
+    [
+      "a code span between math tags",
+      "> 1. [/math]\n> a\n> [/math] `x` [/math]\n> b\n> [/math]",
+      "> 1. \n>    $$\n>    a\n>    $$\n>     `x` \n>    $$\n>    b\n>    $$",
+    ],
+  ])("preserves %s", (_, input, expected) => {
+    expect(normalizeMathDelimiters(input)).toBe(expected);
+  });
+
   it("keeps display math and following prose in an ordered list then quote", () => {
     expect(
       normalizeMathDelimiters("1. > \\[\n   > a\n   > \\] then\n   > more"),
