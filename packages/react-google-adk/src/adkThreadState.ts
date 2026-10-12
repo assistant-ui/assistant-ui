@@ -71,6 +71,13 @@ export type AdkThreadAction =
   | { type: "messages.prune"; history: AdkMessage[] }
   | { type: "run.active" }
   | { type: "run.failed" }
+  | {
+      type: "run.preEventFailed";
+      messages: AdkMessage[];
+      longRunningToolIds: string[];
+      toolConfirmations: AdkToolConfirmation[];
+      authRequests: AdkAuthRequest[];
+    }
   | { type: "run.finished"; runId: string }
   | { type: "run.cancelled" }
   | { type: "run.newTurn" }
@@ -306,6 +313,14 @@ export const reduceAdkThreadState = (
             failedRunIds: new Set([...state.failedRunIds, state.currentRunId]),
           }
         : state;
+    case "run.preEventFailed":
+      return {
+        ...state,
+        messages: action.messages,
+        longRunningToolIds: action.longRunningToolIds,
+        toolConfirmations: action.toolConfirmations,
+        authRequests: action.authRequests,
+      };
     case "run.finished": {
       const activeRunIds = new Set(state.activeRunIds);
       activeRunIds.delete(action.runId);

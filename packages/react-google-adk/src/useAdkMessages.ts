@@ -162,8 +162,14 @@ const useAdkMessagesInternal = ({
           messages.flatMap((m) => (m.type === "tool" ? [m.tool_call_id] : [])),
         );
         const currentState = controller.getState();
+        const previousRunState = {
+          messages: currentState.messages.filter((m) => !resentIds.has(m.id)),
+          longRunningToolIds: currentState.longRunningToolIds,
+          toolConfirmations: currentState.toolConfirmations,
+          authRequests: currentState.authRequests,
+        };
         const accumulator = new AdkEventAccumulator(
-          currentState.messages.filter((m) => !resentIds.has(m.id)),
+          previousRunState.messages,
           currentState.longRunningToolIds.filter(
             (id) => !answeredToolCallIds.has(id),
           ),
@@ -184,6 +190,7 @@ const useAdkMessagesInternal = ({
           authRequests: accumulator.getAuthRequests(),
         });
         let lastTransferToAgent: string | undefined;
+        let receivedEvent = false;
 
         abortControllerRef.current?.abort();
         const abortController = new AbortController();
@@ -212,6 +219,7 @@ const useAdkMessagesInternal = ({
             ) {
               break;
             }
+            receivedEvent = true;
             const event = normalizeAdkEvent(rawEvent);
             const updatedMessages = accumulator.processEvent(event);
             // Each event part can append at most one message, and a function call
@@ -288,6 +296,12 @@ const useAdkMessagesInternal = ({
             abortControllerRef.current === abortController &&
             !(error instanceof Error && error.name === "AbortError")
           ) {
+            if (!receivedEvent) {
+              controller.dispatch({
+                type: "run.preEventFailed",
+                ...previousRunState,
+              });
+            }
             throw error;
           }
         } finally {

@@ -621,4 +621,55 @@ describe("reduceAdkThreadState", () => {
       }),
     ).toBe(remembered);
   });
+
+  it("restores the pre-event message and per-turn state", () => {
+    const previousMessages: AdkMessage[] = [message];
+    const optimisticMessage: AdkMessage = {
+      id: "optimistic",
+      type: "human",
+      content: "pending",
+    };
+    const toolConfirmations = [
+      {
+        toolCallId: "confirmation",
+        toolName: "approve",
+        args: {},
+        hint: "approval required",
+        confirmed: false,
+      },
+    ];
+    const authRequests = [
+      { toolCallId: "auth", authConfig: { type: "oauth2" } },
+    ];
+    const previous = {
+      ...createAdkThreadState(),
+      messages: previousMessages,
+      stateDelta: { retained: true },
+      longRunningToolIds: ["pending-tool"],
+      toolConfirmations,
+      authRequests,
+    };
+    const started = reduceAdkThreadState(previous, {
+      type: "run.started",
+      messages: [...previousMessages, optimisticMessage],
+      longRunningToolIds: [],
+      toolConfirmations: [],
+      authRequests: [],
+    });
+    const restored = reduceAdkThreadState(started, {
+      type: "run.preEventFailed",
+      messages: previousMessages,
+      longRunningToolIds: previous.longRunningToolIds,
+      toolConfirmations: previous.toolConfirmations,
+      authRequests: previous.authRequests,
+    });
+
+    expect(restored).toMatchObject({
+      messages: previousMessages,
+      longRunningToolIds: ["pending-tool"],
+      toolConfirmations,
+      authRequests,
+      stateDelta: { retained: true },
+    });
+  });
 });
