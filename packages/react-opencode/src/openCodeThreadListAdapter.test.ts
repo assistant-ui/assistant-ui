@@ -37,6 +37,18 @@ describe("createOpenCodeThreadListAdapter", () => {
     );
   });
 
+  it("rejects unarchiving without sending a request", async () => {
+    const update = vi.fn();
+    const adapter = createOpenCodeThreadListAdapter({
+      session: { update },
+    } as never);
+
+    await expect(adapter.unarchive("session-1")).rejects.toThrow(
+      "OpenCode cannot unarchive a session.",
+    );
+    expect(update).not.toHaveBeenCalled();
+  });
+
   it("streams the session's own title without asking OpenCode for one", async () => {
     const get = vi.fn().mockResolvedValue({
       data: { id: "session-1", title: "Fix the login redirect" },
