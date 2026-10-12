@@ -41,6 +41,10 @@ export type GuidanceOptions = {
   /** The tokens the host sends; their names become the token reference. */
   tokens?: ThemeTokens;
   cdnOrigins?: readonly string[];
+  /** Extra font stylesheet origins; match the frame's CSP. Empty by default. */
+  fontStyleOrigins?: readonly string[];
+  /** Extra font file origins; match the frame's CSP. Empty by default. */
+  fontOrigins?: readonly string[];
   connectOrigins?: readonly string[];
   allowEval?: boolean;
   /** Frame width in CSS pixels. Defaults to 680 on desktop and 360 on mobile. */
@@ -52,6 +56,8 @@ type Context = {
   width: number;
   platform: Platform;
   cdn: readonly string[];
+  fontStyles: readonly string[];
+  fonts: readonly string[];
   connect: readonly string[];
   allowEval: boolean;
   hostApi: Required<HostApiOptions>;
@@ -106,7 +112,9 @@ ${themeTable(ctx)}
 
 ## Libraries and network
 
-- Scripts, stylesheets, images, and fonts load only from: ${ctx.cdn.length > 0 ? ctx.cdn.join(", ") : "nowhere (inline everything)"}. Anything else is blocked by the frame's Content Security Policy and fails silently.
+- Scripts, stylesheets, images, and fonts load only from: ${ctx.cdn.length > 0 ? ctx.cdn.join(", ") : "nowhere (inline everything)"}. Additional font stylesheet and font file origins are listed below. Anything outside these lists is blocked by the frame's Content Security Policy.
+- Extra font stylesheets load only from: ${ctx.fontStyles.length > 0 ? ctx.fontStyles.join(", ") : "nowhere"}. These origins do not allow scripts, images, or font files.
+- Extra font files load only from: ${ctx.fonts.length > 0 ? ctx.fonts.join(", ") : "nowhere"}. These origins do not allow scripts, stylesheets, or images.
 - ${
   ctx.connect.length > 0
     ? `\`fetch\`, XHR, and WebSocket may reach only: ${ctx.connect.join(", ")}.`
@@ -308,6 +316,8 @@ const createContext = (options: GuidanceOptions): Context => {
     platform,
     width: options.width ?? (platform === "mobile" ? 360 : 680),
     cdn,
+    fontStyles: options.fontStyleOrigins ?? [],
+    fonts: options.fontOrigins ?? [],
     connect: options.connectOrigins ?? [],
     allowEval: options.allowEval ?? false,
     hostApi: {

@@ -257,6 +257,8 @@ type CreateWidgetToolsOptions = {
 
 type CspOptions = {
   cdnOrigins?: readonly string[];
+  fontStyleOrigins?: readonly string[];
+  fontOrigins?: readonly string[];
   connectOrigins?: readonly string[];
   imageOrigins?: readonly string[];
   frameOrigins?: readonly string[];
@@ -395,6 +397,8 @@ type GuidanceOptions = {
   platform?: Platform;
   tokens?: ThemeTokens;
   cdnOrigins?: readonly string[];
+  fontStyleOrigins?: readonly string[];
+  fontOrigins?: readonly string[];
   connectOrigins?: readonly string[];
   allowEval?: boolean;
   width?: number;

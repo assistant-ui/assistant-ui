@@ -83,6 +83,35 @@ describe("buildWidgetGuidance", () => {
     expect(open).toContain("`eval` and `new Function` are allowed");
   });
 
+  it("documents no hidden font allowance when external origins are empty", () => {
+    const text = buildWidgetGuidance({ cdnOrigins: [] });
+    expect(text).toContain("nowhere (inline everything)");
+    expect(text).toContain("Extra font stylesheets load only from: nowhere.");
+    expect(text).toContain("Extra font files load only from: nowhere.");
+    expect(text).not.toContain("fonts.googleapis.com");
+    expect(text).not.toContain("fonts.gstatic.com");
+  });
+
+  it("lists explicit font origins separately from the CDN allowance", () => {
+    const text = buildWidgetGuidance({
+      cdnOrigins: [],
+      fontStyleOrigins: ["https://fonts.googleapis.com"],
+      fontOrigins: ["https://fonts.gstatic.com"],
+    });
+    expect(text).toContain(
+      "Extra font stylesheets load only from: https://fonts.googleapis.com.",
+    );
+    expect(text).toContain(
+      "Extra font files load only from: https://fonts.gstatic.com.",
+    );
+    expect(text).toContain(
+      "These origins do not allow scripts, images, or font files.",
+    );
+    expect(text).toContain(
+      "These origins do not allow scripts, stylesheets, or images.",
+    );
+  });
+
   it("adapts width and layout advice to the platform", () => {
     const desktop = buildWidgetGuidance();
     const mobile = buildWidgetGuidance({ platform: "mobile" });
