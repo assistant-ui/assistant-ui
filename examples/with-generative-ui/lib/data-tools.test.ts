@@ -74,15 +74,16 @@ describe("searchImages", () => {
     );
   });
 
-  it("answers each query with one photo by default, and none when Wikipedia fails", async () => {
+  it("answers each query with one photo by default, and none when Wikipedia fails or cannot be reached", async () => {
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(
         Response.json({ query: { pages: [page(1, "Hearst Castle")] } }),
       )
-      .mockResolvedValueOnce(new Response(null, { status: 503 }));
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockRejectedValueOnce(new TypeError("fetch failed"));
 
     const output = await searchImages.execute!(
-      { queries: ["Hearst Castle", "Morro Rock"] },
+      { queries: ["Hearst Castle", "Morro Rock", "Pismo Beach"] },
       options,
     );
 
@@ -90,6 +91,7 @@ describe("searchImages", () => {
       results: [
         { query: "Hearst Castle", images: [{ alt: "Hearst Castle" }] },
         { query: "Morro Rock", images: [] },
+        { query: "Pismo Beach", images: [] },
       ],
     });
   });

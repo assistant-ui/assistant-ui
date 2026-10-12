@@ -4,7 +4,6 @@ import { inspectToolCalls } from "@/lib/tool-calls";
 import { useAuiState } from "@assistant-ui/react";
 import { useMemo } from "react";
 
-/** Lists the tool calls behind the latest answer and what each returned. */
 export function ToolCallInspector() {
   const messages = useAuiState((s) => s.thread.messages);
   const calls = useMemo(() => inspectToolCalls(messages), [messages]);

@@ -92,7 +92,7 @@ export const searchImages = tool({
     results: await Promise.all(
       queries.map(async (query) => ({
         query,
-        images: await findImages(query, perQuery, abortSignal),
+        images: await findImages(query, perQuery, abortSignal).catch(() => []),
       })),
     ),
   }),

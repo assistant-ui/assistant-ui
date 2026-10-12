@@ -10,7 +10,6 @@ export type InspectedCall = {
 const textOf = (value: unknown) =>
   typeof value === "string" ? value : JSON.stringify(value, null, 2);
 
-/** What the model wrote for each tool call in the latest assistant message (spec patches, widget code, or arguments) and what each call returned. */
 export function inspectToolCalls(
   messages: readonly Pick<ThreadMessage, "role" | "content">[],
 ): InspectedCall[] {
