@@ -34,7 +34,7 @@ export interface FormatRun {
   answerTools: string[];
   /** An answer in prose that calls no answer tool is a text answer rather than an error. */
   prose: boolean;
-  /** The format each tool that records an attempt answers in, to catch one step that answers in two. */
+  /** The format each tool that records an attempt answers in, to catch one step that answers in two and to name the format of a call that failed before it ran. */
   toolFormats: Readonly<Record<string, Format>>;
   attempts: Attempt[];
 }

@@ -235,6 +235,24 @@ test("an auto answer whose tool call fails before it runs is an error, not prose
     0,
   );
   assert.equal(answer.answeredIn, "text");
+  assert.equal(answer.attempted, "spec");
+  assert.equal(typeof answer.firstOutputMs, "number");
+  assert.deepEqual(answer.errors, [
+    "The model's answer tool call failed before it ran.",
+  ]);
+});
+
+test("a spec answer whose tool call fails before it runs says so", async () => {
+  const invalid = () => malformedCall("render_spec");
+  const answer = await generateAnswer(
+    streamingModel(invalid(), invalid(), invalid()),
+    task,
+    "spec",
+    0,
+  );
+  assert.equal(answer.answeredIn, "text");
+  assert.equal(answer.attempted, "spec");
+  assert.equal(typeof answer.firstOutputMs, "number");
   assert.deepEqual(answer.errors, [
     "The model's answer tool call failed before it ran.",
   ]);

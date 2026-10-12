@@ -91,10 +91,10 @@ export function renderReport(
       const choices: Format[] = ["text", "spec", "frame"];
       const chosen = (tasks: typeof results) => {
         const answers = trialsOf(auto, tasks).flatMap((t) =>
-          t.error ? [] : [t.outcome.answeredIn],
+          t.error ? [] : [t.outcome.attempted ?? t.outcome.answeredIn],
         );
         return choices.map((format) =>
-          String(answers.filter((answeredIn) => answeredIn === format).length),
+          String(answers.filter((choice) => choice === format).length),
         );
       };
       lines.push(

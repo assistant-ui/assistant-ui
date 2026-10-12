@@ -114,6 +114,7 @@ test("counts which format auto chose on each task", () => {
           trials: [
             judged([5, 5, 5]),
             judged([4, 4, 4], { answeredIn: "spec" }),
+            judged([1, 1, 1], { answeredIn: "text", attempted: "spec" }),
           ],
         },
       ],
@@ -125,8 +126,8 @@ test("counts which format auto chose on each task", () => {
         "| task | auto chose text | auto chose spec | auto chose frame |",
         "| --- | ---: | ---: | ---: |",
         "| t1 | 0 | 1 | 1 |",
-        "| t2 | 1 | 1 | 0 |",
-        "| all tasks | 1 | 2 | 1 |",
+        "| t2 | 1 | 2 | 0 |",
+        "| all tasks | 1 | 3 | 1 |",
       ].join("\n"),
     ),
     report,

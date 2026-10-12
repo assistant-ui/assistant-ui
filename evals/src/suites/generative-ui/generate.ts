@@ -75,21 +75,24 @@ export async function generateAnswer(
     final.text.trim() !== "";
   const last = run.attempts.at(-1);
   if (!last || proseAnswer) {
+    const attempted =
+      proseAnswer || final === undefined ? undefined : [...answering(final)][0];
     const errors = proseAnswer
       ? []
-      : !run.prose
-        ? [
-            `The model never called ${run.answerTools.map((name) => `\`${name}\``).join(" or ")}.`,
-          ]
-        : final !== undefined && answering(final).size > 0
-          ? ["The model's answer tool call failed before it ran."]
+      : attempted !== undefined
+        ? ["The model's answer tool call failed before it ran."]
+        : !run.prose
+          ? [
+              `The model never called ${run.answerTools.map((name) => `\`${name}\``).join(" or ")}.`,
+            ]
           : ["The answer is empty."];
     return {
       artifact: final?.text ?? "",
       answeredIn: "text",
+      ...(attempted !== undefined ? { attempted } : {}),
       errors,
       repairRounds: run.attempts.length,
-      firstOutputMs: firstTextMs,
+      firstOutputMs: attempted !== undefined ? firstToolMs : firstTextMs,
       ...measured,
     };
   }
