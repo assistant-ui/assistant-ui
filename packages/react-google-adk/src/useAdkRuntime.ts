@@ -287,11 +287,20 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     if (!snapshot) return undefined;
     const toolResultBuffer = controller.getState().toolResultBuffer;
     if (toolResultBuffer.size === 0) return snapshot;
+    const toolCallIds = new Set(
+      snapshot.messages.flatMap((message) =>
+        message.type === "ai"
+          ? (message.tool_calls ?? []).flatMap((call) =>
+              call && typeof call.id === "string" ? [call.id] : [],
+            )
+          : [],
+      ),
+    );
     return {
       ...snapshot,
       toolResultBuffer: new Map([
         ...snapshot.toolResultBuffer,
-        ...toolResultBuffer,
+        ...[...toolResultBuffer].filter(([id]) => toolCallIds.has(id)),
       ]),
     };
   };

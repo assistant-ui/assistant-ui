@@ -1012,6 +1012,193 @@ describe("useAdkRuntime refetch", () => {
     },
   );
 
+  it.each([
+    "adk_request_input",
+    "adk_request_confirmation",
+    "adk_request_credential",
+  ] as const)(
+    "drops a held %s reply absent from a chained edit's snapshot",
+    async (replyName) => {
+      const firstStarted = deferred<void>();
+      const releaseFirst = deferred<void>();
+      const streamMock = vi.fn(async function* (
+        _messages: unknown,
+        _config: { checkpointId?: string },
+      ): AsyncGenerator<AdkEvent> {
+        if (streamMock.mock.calls.length === 1) {
+          firstStarted.resolve();
+          await releaseFirst.promise;
+        } else if (streamMock.mock.calls.length === 2) {
+          throw new Error("chained edit failed before its first event");
+        }
+      });
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      try {
+        const { capture } = await renderAdk(
+          async () => ({
+            messages: [
+              { id: "q-0", type: "human", content: "earlier question" },
+              aiMessage("a-0", "earlier answer"),
+              { id: "q-1", type: "human", content: "original question" },
+              {
+                id: "a-1",
+                type: "ai",
+                content: "calling tools",
+                tool_calls: [
+                  { id: "old-x", name: "lookup", args: {} },
+                  { id: "old-y", name: "lookup", args: {} },
+                ],
+              },
+            ],
+            longRunningToolIds: ["old-x", "old-y"],
+          }),
+          async () => null,
+          streamMock,
+        );
+        const { result } = renderHook(() => useAui(), {
+          wrapper: wrapperFactory(capture.runtime!),
+        });
+        const restoredCall = capture
+          .runtime!.thread.getMessageById("a-1")
+          .getMessagePartByToolCallId("old-x");
+
+        act(() => editAt(result.current, 2, "first edit"));
+        await firstStarted.promise;
+        act(() => restoredCall.addToolResult({ value: "old" }));
+        await act(async () => {
+          await capture.send!(
+            [
+              {
+                id: "new-result",
+                type: "tool",
+                tool_call_id: "new-x",
+                name: replyName,
+                content: "new",
+              },
+            ],
+            {},
+          );
+        });
+        expect(streamMock).toHaveBeenCalledOnce();
+
+        act(() => editAt(result.current, 2, "second edit"));
+        await waitFor(() => expect(consoleError).toHaveBeenCalled());
+        expect(
+          JSON.stringify(capture.runtime!.thread.getState().messages),
+        ).not.toContain("new-x");
+
+        await act(async () => {
+          await capture.runtime!.thread.append({
+            role: "user",
+            content: [{ type: "text", text: "next question" }],
+          });
+        });
+        const sent = streamMock.mock.calls
+          .slice(2)
+          .flatMap((call) => call[0] as AdkMessage[])
+          .filter((message) => message.type === "tool")
+          .map((message) => message.tool_call_id);
+        expect(sent).toEqual(["old-x"]);
+      } finally {
+        releaseFirst.resolve();
+        consoleError.mockRestore();
+      }
+    },
+  );
+
+  it("keeps a held reply when Stop interrupts a chained edit lookup", async () => {
+    const firstStarted = deferred<void>();
+    const releaseFirst = deferred<void>();
+    const secondLookup = deferred<string | null>();
+    const streamMock = vi.fn(async function* (
+      _messages: unknown,
+      _config: { checkpointId?: string },
+    ): AsyncGenerator<AdkEvent> {
+      if (streamMock.mock.calls.length === 1) {
+        firstStarted.resolve();
+        await releaseFirst.promise;
+      }
+    });
+    let lookupCall = 0;
+    const getCheckpointId = vi.fn(() =>
+      lookupCall++ === 0 ? Promise.resolve(null) : secondLookup.promise,
+    );
+    try {
+      const { capture } = await renderAdk(
+        async () => ({
+          messages: [
+            { id: "q-0", type: "human", content: "earlier question" },
+            aiMessage("a-0", "earlier answer"),
+            { id: "q-1", type: "human", content: "original question" },
+            {
+              id: "a-1",
+              type: "ai",
+              content: "calling tools",
+              tool_calls: [
+                { id: "x", name: "lookup", args: {} },
+                { id: "y", name: "lookup", args: {} },
+              ],
+            },
+          ],
+          longRunningToolIds: ["x", "y"],
+        }),
+        getCheckpointId,
+        streamMock,
+        false,
+        true,
+      );
+      const { result } = renderHook(() => useAui(), {
+        wrapper: wrapperFactory(capture.runtime!),
+      });
+      const heldCall = capture
+        .runtime!.thread.getMessageById("a-1")
+        .getMessagePartByToolCallId("x");
+
+      act(() => editAt(result.current, 2, "first edit"));
+      await firstStarted.promise;
+      act(() => heldCall.addToolResult({ value: "X" }));
+      act(() => editAt(result.current, 2, "second edit"));
+      await waitFor(() => expect(getCheckpointId).toHaveBeenCalledTimes(2));
+      act(() => capture.runtime!.thread.cancelRun());
+
+      await waitFor(() =>
+        expect(threadTexts(capture.runtime!).slice(0, 3)).toEqual(
+          originalTexts.slice(0, 3),
+        ),
+      );
+      expect(streamMock).toHaveBeenCalledOnce();
+      const messages = capture.runtime!.thread.getState().messages;
+      expect(messages[3]?.content).toContainEqual(
+        expect.objectContaining({
+          type: "tool-call",
+          toolCallId: "x",
+          result: '{"value":"X"}',
+        }),
+      );
+      expect(messages[3]?.content).toContainEqual(
+        expect.objectContaining({ type: "tool-call", toolCallId: "y" }),
+      );
+      expect(capture.longRunningToolIds).toEqual(["x", "y"]);
+
+      act(() => {
+        capture.runtime!.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "next question" }],
+        });
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      const sent = (streamMock.mock.calls[1]![0] as AdkMessage[]).filter(
+        (message) => message.type === "tool",
+      );
+      expect(sent.map((message) => message.tool_call_id)).toEqual(["x"]);
+    } finally {
+      secondLookup.resolve(null);
+      releaseFirst.resolve();
+    }
+  });
+
   it("restores a failed reload but does not overwrite a newer send", async () => {
     const checkpoints = [deferred<string | null>(), deferred<string | null>()];
     const getCheckpointId = vi.fn(
