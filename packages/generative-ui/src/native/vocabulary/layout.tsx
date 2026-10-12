@@ -108,7 +108,7 @@ function Card({
         padding !== undefined && { padding: space(padding, 0) },
       ]}
     >
-      {cardTitle ? (
+      {cardTitle !== null && cardTitle !== "" ? (
         <Text
           accessibilityRole="header"
           style={[styles.title, { color: cardInk }]}

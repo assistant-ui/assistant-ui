@@ -92,7 +92,7 @@ export const layoutVocabulary = {
               : undefined
           }
         >
-          {cardTitle ? (
+          {cardTitle !== null && cardTitle !== "" ? (
             <header data-aui="card-title">{cardTitle}</header>
           ) : null}
           {children}

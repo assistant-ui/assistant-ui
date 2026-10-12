@@ -563,9 +563,11 @@ function SelectField({
   const entries = mapOptions(options, (option) => option).filter(
     (option) => option !== null,
   );
+  const placeholderText = toTextContent(placeholder);
+  const hasPlaceholder = placeholderText !== null && placeholderText !== "";
   const effective = entries.some((option) => option.value === selected)
     ? selected
-    : placeholder && selected === ""
+    : hasPlaceholder && selected === ""
       ? ""
       : (entries[0]?.value ?? "");
   useField(name, "value", () => effective);
@@ -576,9 +578,9 @@ function SelectField({
           {label}
         </Text>
       ) : null}
-      {effective === "" && placeholder ? (
+      {effective === "" && hasPlaceholder ? (
         <Text style={[styles.choiceHint, { color: fade(ink, 0.45) }]}>
-          {placeholder}
+          {placeholderText}
         </Text>
       ) : null}
       <ChoiceRows
@@ -718,10 +720,11 @@ function CheckboxField({
       : checked === true
     : choice;
   useField(name, "value", () => selected);
+  const labelText = String(toTextContent(label) ?? "");
   const Row = variant === "switch" ? SwitchRow : CheckboxRow;
   return (
     <Row
-      label={label}
+      label={labelText}
       checked={selected}
       onPress={() => {
         const next = !selected;

@@ -225,7 +225,7 @@ export const interactiveVocabulary = {
               },
             },
             [
-              ...(placeholder
+              ...(placeholder !== null && placeholder !== ""
                 ? [
                     h(
                       "option",

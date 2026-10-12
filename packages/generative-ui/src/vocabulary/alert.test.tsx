@@ -123,6 +123,12 @@ describe("alertVocabulary", () => {
     ).toContain('data-aui-tone="danger"');
   });
 
+  it("Alert renders numeric zero in the title and description", () => {
+    expect(render({ $type: "Alert", title: 0, description: 0 })).toContain(
+      '<header data-aui="alert-title">0</header><p data-aui="alert-desc">0</p>',
+    );
+  });
+
   it("Alert ignores malformed text properties", () => {
     expect(
       render({

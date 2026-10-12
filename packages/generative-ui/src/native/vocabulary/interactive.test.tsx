@@ -7,11 +7,13 @@ import {
   cleanupSpecs,
   press,
   pressEnter,
+  renderElement,
   renderNativeSpec,
   renderWebSpec,
   spec,
   typeText,
 } from "../testUtils";
+import { interactiveVocabulary } from "./interactive";
 
 afterEach(() => {
   cleanupSpecs();
@@ -25,6 +27,16 @@ const actions = {
 };
 
 describe("interactive vocabulary on React Native", () => {
+  it("renders a numeric zero Select placeholder", () => {
+    const container = renderElement(
+      interactiveVocabulary.Select.render({
+        options: [{ label: "A", value: "a" }],
+        placeholder: 0,
+      } as never),
+    );
+    expect(container.textContent).toContain("0");
+  });
+
   it("makes a block Button full width inside a Row", () => {
     const { container } = renderNativeSpec(
       spec({

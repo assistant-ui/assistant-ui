@@ -54,6 +54,16 @@ describe("interactiveVocabulary", () => {
     expect(html).toContain('aria-label="Choose"');
   });
 
+  it("Select renders a numeric zero placeholder", () => {
+    expect(
+      render({
+        $type: "Select",
+        options: [{ label: "A", value: "a" }],
+        placeholder: 0,
+      }),
+    ).toContain('<option value="" disabled="" selected="">0</option>');
+  });
+
   it("Select renders every option when values are duplicated", () => {
     const html = render({
       $type: "Select",

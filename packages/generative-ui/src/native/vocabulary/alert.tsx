@@ -89,10 +89,10 @@ function Alert({
         { borderColor: fade(color, 0.45), backgroundColor: fade(color, 0.08) },
       ]}
     >
-      {alertTitle ? (
+      {alertTitle !== null && alertTitle !== "" ? (
         <Text style={[styles.title, { color: ink }]}>{alertTitle}</Text>
       ) : null}
-      {alertDescription ? (
+      {alertDescription !== null && alertDescription !== "" ? (
         <Text style={[styles.description, { color: fade(ink, 0.62) }]}>
           {alertDescription}
         </Text>

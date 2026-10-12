@@ -131,6 +131,13 @@ describe("layout vocabulary on React Native", () => {
     );
   });
 
+  it("renders a numeric zero Card title", () => {
+    const container = renderElement(
+      layoutVocabulary.Card.render({ title: 0 } as never),
+    );
+    expect(byRole(container, "heading", "0")).toBeTruthy();
+  });
+
   it("keeps a Card plain for a background React Native cannot paint", () => {
     const { container } = renderNativeSpec(
       spec({

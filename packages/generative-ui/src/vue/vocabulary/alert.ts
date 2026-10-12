@@ -36,10 +36,10 @@ export const alertVocabulary = {
               role: "alert",
             },
             [
-              ...(title
+              ...(title !== null && title !== ""
                 ? [h("header", { "data-aui": "alert-title" }, String(title))]
                 : []),
-              ...(description
+              ...(description !== null && description !== ""
                 ? [h("p", { "data-aui": "alert-desc" }, String(description))]
                 : []),
               ...(slots.default?.() ?? []),

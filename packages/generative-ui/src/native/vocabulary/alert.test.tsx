@@ -187,6 +187,13 @@ describe("alert vocabulary on React Native", () => {
     ]);
   });
 
+  it("renders numeric zero in the Alert title and description", () => {
+    const container = renderElement(
+      alertVocabulary.Alert.render({ title: 0, description: 0 } as never),
+    );
+    expect(container.textContent).toBe("00");
+  });
+
   it("caps and labels slides and frames a Card in each slide", () => {
     const { container } = renderNativeSpec(carouselSpec(MAX_CARDS + 2));
     const track = byRole(container, "region", "Offers");

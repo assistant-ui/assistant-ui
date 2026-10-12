@@ -243,7 +243,7 @@ function SelectRender({
         fire($action, $dispatch, e.currentTarget.value, e.currentTarget);
       }}
     >
-      {placeholderText ? (
+      {placeholderText !== null && placeholderText !== "" ? (
         <option value="" disabled>
           {placeholderText}
         </option>

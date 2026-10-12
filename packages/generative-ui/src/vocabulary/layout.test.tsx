@@ -83,6 +83,12 @@ describe("layoutVocabulary", () => {
     );
   });
 
+  it("Card renders a numeric zero title", () => {
+    expect(render({ $type: "Card", title: 0 })).toContain(
+      '<header data-aui="card-title">0</header>',
+    );
+  });
+
   it("Col renders a div with gap/align hooks and nested children", () => {
     expect(
       render({

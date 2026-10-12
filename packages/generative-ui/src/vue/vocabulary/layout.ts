@@ -84,7 +84,7 @@ export const layoutVocabulary = {
                 : undefined,
             },
             [
-              title
+              title !== null && title !== ""
                 ? h("header", { "data-aui": "card-title" }, String(title))
                 : null,
               ...(slots.default?.() ?? []),

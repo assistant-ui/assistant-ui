@@ -180,10 +180,10 @@ export const alertVocabulary = {
       const alertDescription = toTextContent(description);
       return (
         <div data-aui="alert" data-aui-tone={tone ?? "info"} role="alert">
-          {alertTitle ? (
+          {alertTitle !== null && alertTitle !== "" ? (
             <header data-aui="alert-title">{alertTitle}</header>
           ) : null}
-          {alertDescription ? (
+          {alertDescription !== null && alertDescription !== "" ? (
             <p data-aui="alert-desc">{alertDescription}</p>
           ) : null}
           {children}
