@@ -6,8 +6,6 @@ platforms: ["react"]
 
 Tauri packages a web frontend and a Rust host into a desktop app. Use `@assistant-ui/react` in its webview: your existing thread, composer, and message components render through React DOM. No separate assistant-ui Tauri package is needed.
 
-Unlike [React Ink](/docs/ink), which renders a terminal interface, Tauri displays a graphical window. Compared with [Electron](/docs/guides/electron), it uses the operating system's webview and a Rust host; native work crosses Tauri's command bridge instead of an Electron preload bridge.
-
 ## Choose where requests run
 
 | Pattern | Use it when | Runtime |
