@@ -46,6 +46,8 @@ import {
   type SpecArgs,
 } from "./thread";
 
+const EMPTY_STATE: Record<string, unknown> = {};
+
 export type SpecToolkitOptions = {
   /** Implementations for the catalog's components. */
   components: SpecComponents;
@@ -177,12 +179,12 @@ export const specToolkitFor =
           [spec, renderState],
         );
         const [store] = useState(() =>
-          createStateStore(renderSpec.state ?? {}, {
+          createStateStore(renderSpec.state ?? EMPTY_STATE, {
             writes: savedWrites(unstable_interactions, toolCallId),
           }),
         );
         useEffect(() => {
-          store.seed(renderSpec.state ?? {});
+          store.seed(renderSpec.state ?? EMPTY_STATE);
         }, [store, renderSpec.state]);
         const record = useRef(unstable_recordInteraction);
         useInsertionEffect(() => {

@@ -1149,3 +1149,32 @@ describe("SpecRenderer model state", () => {
     },
   );
 });
+
+it("does not dispatch a root watch when mounting a spec without state", () => {
+  const refresh = vi.fn();
+  const view = render(
+    <SpecRenderer
+      components={components}
+      handlers={{ refresh }}
+      spec={{
+        root: "main",
+        elements: {
+          main: {
+            type: "Button",
+            props: { label: "change" },
+            watch: { "": { action: "refresh" } },
+            on: {
+              press: {
+                action: "setState",
+                params: { path: "/count", value: 1 },
+              },
+            },
+          },
+        },
+      }}
+    />,
+  );
+  expect(refresh).not.toHaveBeenCalled();
+  fireEvent.click(view.getByRole("button"));
+  expect(refresh).toHaveBeenCalledTimes(1);
+});
