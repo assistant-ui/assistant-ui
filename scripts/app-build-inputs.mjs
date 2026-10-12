@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { isExecutedAsMain } from "./lib/main.mjs";
+import { isExcludedPackageTest } from "./lib/package-test-inputs.mjs";
 
 export const APP_BUILD_INPUTS = [
   ".github/workflows/code-quality.yaml",
@@ -14,6 +15,7 @@ export const APP_BUILD_INPUTS = [
   "scripts/app-build-inputs.test.mjs",
   "turbo.json",
   "scripts/lib/script-options.mjs",
+  "scripts/lib/package-test-inputs.mjs",
   "scripts/build-example-bundle.mjs",
   "scripts/package-example-bundles.mjs",
   "scripts/prepare-example-bundles.mjs",
@@ -26,12 +28,6 @@ const touches = (file, input) => file === input || file.startsWith(`${input}/`);
 
 const touchesBuiltApp = (file) =>
   file.startsWith("apps/") && !file.startsWith("apps/docs/");
-
-// UI and DevTools scan sources for CSS; Metro uses a separate declaration build.
-const isExcludedPackageTest = (file) =>
-  /^packages\/(?!ui\/|react-devtools\/|metro\/)[^/]+\/src\/.*\.test\.tsx?$/.test(
-    file,
-  );
 
 export function hasAppBuildInputs(changedFiles) {
   return changedFiles.some(
