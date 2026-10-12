@@ -1076,7 +1076,8 @@ export class A2AClient {
     const reader = response.body?.getReader();
     if (!reader) throw new Error("No response body");
 
-    const decoder = new TextDecoder();
+    // Let the SSE parser consume the single permitted leading BOM.
+    const decoder = new TextDecoder("utf-8", { ignoreBOM: true });
 
     let firstSkipReason: string | undefined;
     const noteSkip = (data: string, reason: string) => {
