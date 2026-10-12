@@ -1937,8 +1937,12 @@ const convertElement = (
       ];
     }
     case "Diagram": {
+      // A fence inside the source would close the code block early, so a zero-width space splits it.
       const code = clampText(
-        escapeMrkdwn(asString(props["code"])),
+        escapeMrkdwn(asString(props["code"])).replaceAll(
+          "```",
+          `\`\`${String.fromCharCode(0x200b)}\``,
+        ),
         SECTION_TEXT_CAP - 8,
         "Diagram",
         "code",

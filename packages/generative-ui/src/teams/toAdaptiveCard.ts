@@ -202,6 +202,10 @@ function textBlock(
 const unlinked = (text: string): string =>
   text.replaceAll("](", `]${String.fromCharCode(0x200b)}(`);
 
+// Diagram source is code, so the characters Teams would read as emphasis, links, or code are escaped to show as written.
+const escapeSource = (text: string): string =>
+  text.replace(/[\\*_`~[\]]/g, "\\$&");
+
 const escapeLinkText = (text: string): string =>
   text.replace(/[\\[\]]/g, "\\$&");
 
@@ -1040,7 +1044,9 @@ export function convertElement(
         );
       const title = props["title"];
       return [
-        textBlock(code.slice(0, DIAGRAM_SOURCE_CAP), { fontType: "Monospace" }),
+        textBlock(escapeSource(code.slice(0, DIAGRAM_SOURCE_CAP)), {
+          fontType: "Monospace",
+        }),
         ...(typeof title === "string"
           ? [textBlock(title, { size: "small", isSubtle: true })]
           : []),

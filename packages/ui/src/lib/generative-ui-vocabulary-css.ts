@@ -1004,7 +1004,7 @@ export const generativeUiVocabularyCss: CssRuleset = {
     "line-height": "1.4",
     color: "color-mix(in oklab, currentColor 62%, transparent)",
   },
-  '[data-aui="map"]': {
+  'ol[data-aui="map"]': {
     display: "flex",
     "flex-direction": "column",
     gap: "0.5rem",

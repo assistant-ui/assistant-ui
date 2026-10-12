@@ -302,6 +302,17 @@ describe("toSlackBlocks", () => {
       });
     });
 
+    it("keeps a fence inside the Diagram source from closing the code block", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Diagram",
+        code: "flowchart LR\n  A --> B\n```\nnot code",
+      });
+      const text = (blocks[0] as { text: { text: string } }).text.text;
+      expect(text.startsWith("```\n")).toBe(true);
+      expect(text.endsWith("not code\n```")).toBe(true);
+      expect(text.slice(4, -4)).not.toContain("```");
+    });
+
     it("renders an escaped Diagram source and title", () => {
       const { blocks, warnings } = toSlackBlocks({
         $type: "Diagram",

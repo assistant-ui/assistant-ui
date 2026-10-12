@@ -270,6 +270,20 @@ describe("toAdaptiveCard", () => {
       });
     });
 
+    it("escapes Diagram source so Teams shows it as written", () => {
+      const { card } = toAdaptiveCard({
+        $type: "Diagram",
+        code: "flowchart LR\n  user_id --> order_id\n  A[*cart*]",
+      });
+      expect(card.body).toMatchObject([
+        {
+          type: "TextBlock",
+          fontType: "Monospace",
+          text: "flowchart LR\n  user\\_id --> order\\_id\n  A\\[\\*cart\\*\\]",
+        },
+      ]);
+    });
+
     it("renders Diagram source in monospace and keeps its title", () => {
       const { card, warnings } = toAdaptiveCard({
         $type: "Diagram",
@@ -279,7 +293,7 @@ describe("toAdaptiveCard", () => {
       expect(card.body).toEqual([
         {
           type: "TextBlock",
-          text: "flowchart LR\nA[You & me] --> B[Done]",
+          text: "flowchart LR\nA\\[You & me\\] --> B\\[Done\\]",
           wrap: true,
           fontType: "Monospace",
         },
