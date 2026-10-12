@@ -365,6 +365,7 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
       let previousMessages: TMessage[] = [];
       let submittedMessageIds = new Set<string>();
       let receivedEvent = false;
+      let finalMessages: TMessage[] | undefined;
       try {
         // ensure all messages have an ID
         const newMessagesWithId = newMessages.map((m) =>
@@ -627,30 +628,29 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
           !(error instanceof Error && error.name === "AbortError")
         ) {
           if (!receivedEvent && accumulator) {
-            const previousMessagesById = new Map(
-              previousMessages.flatMap((message) =>
-                message.id !== undefined
-                  ? [[message.id, message] as const]
-                  : [],
-              ),
-            );
-            const rolledBackMessages = messagesRef.current.flatMap(
-              (message) => {
-                const messageId = message.id;
-                if (
-                  messageId === undefined ||
-                  !submittedMessageIds.has(messageId)
-                )
-                  return [message];
-                const previousMessage = previousMessagesById.get(messageId);
-                return previousMessage ? [previousMessage] : [];
-              },
-            );
-            if (activeAccumulatorRef.current === accumulator) {
-              activeAccumulatorRef.current = undefined;
+            if (submittedMessageIds.size > 0) {
+              const previousMessagesById = new Map(
+                previousMessages.flatMap((message) =>
+                  message.id !== undefined
+                    ? [[message.id, message] as const]
+                    : [],
+                ),
+              );
+              const rolledBackMessages = messagesRef.current.flatMap(
+                (message) => {
+                  const messageId = message.id;
+                  if (
+                    messageId === undefined ||
+                    !submittedMessageIds.has(messageId)
+                  )
+                    return [message];
+                  const previousMessage = previousMessagesById.get(messageId);
+                  return previousMessage ? [previousMessage] : [];
+                },
+              );
+              setMessagesImmediate(rolledBackMessages);
             }
-            accumulator = undefined;
-            setMessagesImmediate(rolledBackMessages);
+            finalMessages = messagesRef.current;
           }
           throw error;
         }
@@ -661,7 +661,9 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
         if (activeAccumulatorRef.current === accumulator) {
           activeAccumulatorRef.current = undefined;
         }
-        onComplete?.(accumulator?.getMessages() ?? messagesRef.current);
+        onComplete?.(
+          finalMessages ?? accumulator?.getMessages() ?? messagesRef.current,
+        );
       }
     },
     [
