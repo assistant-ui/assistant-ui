@@ -1307,9 +1307,14 @@ describe("SpecRenderer model state", () => {
   it.each([false, true])(
     "clears a removed model base while preserving user writes (external: %s)",
     async (external) => {
+      const refresh = vi.fn();
       const initial = spec(
         {
-          main: { type: "Stack", children: ["label", "toggle"] },
+          main: {
+            type: "Stack",
+            children: ["label", "toggle"],
+            watch: { "": { action: "refresh" } },
+          },
           label: { type: "Text", props: { text: { $state: "/label" } } },
           toggle: { type: "Toggle", props: { checked: { $bindState: "/on" } } },
         },
@@ -1320,15 +1325,31 @@ describe("SpecRenderer model state", () => {
         : undefined;
       const optionalState = state ? { state } : {};
       const next: Spec = { root: initial.root, elements: initial.elements };
-      const view = mount({ components, spec: initial, ...optionalState });
+      const view = mount({
+        components,
+        handlers: { refresh },
+        spec: initial,
+        ...optionalState,
+      });
       await click(view.container.querySelector("input")!);
       expect(view.container.textContent).toBe(external ? "external" : "model");
-      await view.update({ components, spec: next, ...optionalState });
+      await view.update({
+        components,
+        handlers: { refresh },
+        spec: next,
+        ...optionalState,
+      });
       expect(view.container.textContent).toBe(external ? "external" : "");
       expect(view.container.querySelector("input")!.checked).toBe(true);
-      await view.update({ components, spec: { ...next }, ...optionalState });
+      await view.update({
+        components,
+        handlers: { refresh },
+        spec: { ...next },
+        ...optionalState,
+      });
       expect(view.container.textContent).toBe(external ? "external" : "");
       expect(view.container.querySelector("input")!.checked).toBe(true);
+      expect(refresh).toHaveBeenCalledTimes(external ? 1 : 2);
     },
   );
 });

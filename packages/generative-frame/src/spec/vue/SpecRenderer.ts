@@ -459,7 +459,7 @@ export const SpecRenderer = defineComponent({
     const ownStore = createStateStore(props.spec.state ?? {});
     const snapshot = shallowRef((props.state ?? ownStore).getState());
     watch(
-      () => [props.state, props.spec.state] as const,
+      [() => props.state, () => props.spec.state],
       ([state, specState]) => {
         if (!state) ownStore.seed(specState ?? {});
       },
