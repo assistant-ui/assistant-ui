@@ -144,6 +144,13 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     eventHandlers,
   } = options;
   const aui = useAui();
+  const truncationSnapshotRef = useRef<{
+    snapshot: AdkThreadSnapshot;
+    operation: object;
+  } | null>(null);
+  const clearTruncationSnapshot = useCallback(() => {
+    truncationSnapshotRef.current = null;
+  }, []);
   const {
     controller,
     messages: publishedMessages,
@@ -163,6 +170,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   } = useAdkMessagesInternal({
     stream,
     ...(eventHandlers && { eventHandlers }),
+    onFirstEvent: clearTruncationSnapshot,
   });
   const threadState = useSyncExternalStore(
     controller.subscribe,
@@ -205,6 +213,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   }, [messages]);
   const applySnapshot = useCallback(
     (snapshot: AdkThreadSnapshot) => {
+      truncationSnapshotRef.current = null;
       controller.dispatch({
         type: "messages.seed",
         history: snapshot.messages,
@@ -213,6 +222,26 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     },
     [applyAdkSnapshot, controller],
   );
+  const captureSnapshot = () => {
+    const state = controller.getState();
+    return {
+      messages: state.messages,
+      longRunningToolIds: state.longRunningToolIds,
+      toolConfirmations: state.toolConfirmations,
+      authRequests: state.authRequests,
+      escalated: state.escalated,
+      messageMetadata: state.messageMetadata,
+      stateDelta: state.stateDelta,
+      artifactDelta: state.artifactDelta,
+      agentInfo: state.agentInfo,
+    } satisfies AdkThreadSnapshot;
+  };
+  const getTruncationSnapshot = (snapshotAtStart = captureSnapshot()) => {
+    const snapshot = truncationSnapshotRef.current?.snapshot ?? snapshotAtStart;
+    const operation = {};
+    truncationSnapshotRef.current = { snapshot, operation };
+    return { snapshot, operation };
+  };
   const replaceMessages = useCallback(
     (nextMessages: AdkMessage[]) => {
       controller.dispatch({ type: "messages.prune", history: nextMessages });
@@ -274,7 +303,9 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   const handleSendMessage = (
     msgs: AdkMessage[],
     config: AdkSendMessageConfig,
+    truncationSnapshot?: AdkThreadSnapshot,
   ) => {
+    if (truncationSnapshot === undefined) truncationSnapshotRef.current = null;
     const isToolContinuation =
       msgs.length > 0 && msgs.every((msg) => msg.type === "tool");
     const continuationConfig =
@@ -524,12 +555,15 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           const initialLoad = waitForInitialLoad();
           if (initialLoad && !(await initialLoad).active) return;
           stopRun();
+          const shouldStartRun = msg.startRun ?? msg.role === "user";
+          const truncation = shouldStartRun ? getTruncationSnapshot() : null;
+          if (!shouldStartRun) truncationSnapshotRef.current = null;
           const truncated = truncateAdkMessages(
             threadMessagesRef.current,
             msg.parentId,
           );
           replaceMessages(truncated);
-          if (!(msg.startRun ?? msg.role === "user")) {
+          if (!shouldStartRun) {
             const stagedMessage = toAdkUserMessage(msg);
             controller.dispatch({
               type: "staged.stage",
@@ -550,12 +584,28 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
               ? await getCheckpointId(externalId, truncated)
               : null;
             if (!lease.isCurrent()) return;
-            return await handleSendMessage([editedMessage], {
-              runConfig: msg.runConfig,
-              ...(checkpointId && { checkpointId }),
-            });
+            return await handleSendMessage(
+              [editedMessage],
+              {
+                runConfig: msg.runConfig,
+                ...(checkpointId && { checkpointId }),
+              },
+              truncation!.snapshot,
+            );
+          } catch (error) {
+            if (
+              truncationSnapshotRef.current?.operation === truncation!.operation
+            )
+              applySnapshot(truncation!.snapshot);
+            throw error;
           } finally {
-            if (lease.isCurrent()) setIsRunning(false);
+            if (
+              truncationSnapshotRef.current?.operation === truncation!.operation
+            )
+              truncationSnapshotRef.current = null;
+            if (lease.isCurrent()) {
+              setIsRunning(false);
+            }
           }
         }
       : undefined,
@@ -580,17 +630,8 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
               throw new Error("Runtime does not support reloading messages.");
 
             stopRun();
-            const beforeReload: AdkThreadSnapshot = {
-              messages: adkMessagesRef.current,
-              longRunningToolIds,
-              toolConfirmations,
-              authRequests,
-              escalated,
-              messageMetadata,
-              stateDelta,
-              artifactDelta,
-              agentInfo,
-            };
+            const beforeReload = captureSnapshot();
+            const truncation = getTruncationSnapshot(beforeReload);
             const truncated = truncateAdkMessages(
               threadMessagesRef.current,
               parentId,
@@ -607,21 +648,35 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
                 checkpointId = externalId
                   ? await getCheckpointId(externalId, truncated)
                   : null;
-              } catch (error) {
-                if (lease.isCurrent() && reloadLookupRef.current === lookup)
-                  applySnapshot(beforeReload);
-                throw error;
               } finally {
                 if (reloadLookupRef.current === lookup)
                   reloadLookupRef.current = null;
               }
               if (!lease.isCurrent()) return;
-              return await handleSendMessage([], {
-                runConfig: config.runConfig,
-                ...(checkpointId && { checkpointId }),
-              });
+              return await handleSendMessage(
+                [],
+                {
+                  runConfig: config.runConfig,
+                  ...(checkpointId && { checkpointId }),
+                },
+                truncation.snapshot,
+              );
+            } catch (error) {
+              if (
+                truncationSnapshotRef.current?.operation ===
+                truncation.operation
+              )
+                applySnapshot(truncation.snapshot);
+              throw error;
             } finally {
-              if (lease.isCurrent()) setIsRunning(false);
+              if (
+                truncationSnapshotRef.current?.operation ===
+                truncation.operation
+              )
+                truncationSnapshotRef.current = null;
+              if (lease.isCurrent()) {
+                setIsRunning(false);
+              }
             }
           },
         }
@@ -670,6 +725,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             ? lookup.beforeReload
             : undefined;
           stopRun();
+          truncationSnapshotRef.current = null;
           // A reload stopped before it sent leaves the ADK session holding the
           // turn it removed, so the thread shows that turn again.
           if (beforeReload) applySnapshot(beforeReload);

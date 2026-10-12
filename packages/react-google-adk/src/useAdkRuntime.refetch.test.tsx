@@ -455,6 +455,215 @@ describe("useAdkRuntime refetch", () => {
     }
   });
 
+  it("restores the original turn when a second pending edit fails", async () => {
+    const firstStreamStarted = deferred<void>();
+    const releaseFirstStream = deferred<void>();
+    let streamCall = 0;
+    const streamMock = vi.fn(async function* (
+      _messages: unknown,
+      _config: { checkpointId?: string },
+    ): AsyncGenerator<AdkEvent> {
+      if (streamCall++ === 0) {
+        firstStreamStarted.resolve();
+        await releaseFirstStream.promise;
+        return;
+      }
+      throw new Error("second edit failed before its first event");
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { capture } = await renderAdk(
+        async () => ({
+          messages: [
+            { id: "q-0", type: "human", content: "earlier question" },
+            aiMessage("a-0", "earlier answer"),
+            { id: "q-1", type: "human", content: "original question" },
+            aiMessage("a-1", "original answer"),
+          ],
+        }),
+        async () => null,
+        streamMock,
+      );
+      const { result } = renderHook(() => useAui(), {
+        wrapper: wrapperFactory(capture.runtime!),
+      });
+      const editComposer = () =>
+        result.current.thread.message({ index: 2 }).composer();
+
+      act(() => {
+        editComposer().beginEdit();
+        editComposer().setText("first edit");
+        editComposer().send();
+      });
+      await firstStreamStarted.promise;
+
+      act(() => {
+        editComposer().beginEdit();
+        editComposer().setText("second edit");
+        editComposer().send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      await waitFor(() =>
+        expect(
+          JSON.stringify(capture.runtime!.thread.getState().messages),
+        ).toContain("original answer"),
+      );
+
+      const messages = JSON.stringify(
+        capture.runtime!.thread.getState().messages,
+      );
+      expect(messages).toContain("original question");
+      expect(messages).toContain("original answer");
+      expect(messages).not.toContain("first edit");
+      expect(messages).not.toContain("second edit");
+    } finally {
+      releaseFirstStream.resolve();
+      consoleError.mockRestore();
+    }
+  });
+
+  it("keeps streamed progress when a later edit fails", async () => {
+    const firstStreamStarted = deferred<void>();
+    const releaseFirstStream = deferred<void>();
+    let streamCall = 0;
+    const streamMock = vi.fn(async function* (
+      _messages: unknown,
+      _config: { checkpointId?: string },
+    ): AsyncGenerator<AdkEvent> {
+      if (streamCall++ === 0) {
+        yield {
+          id: "first-edit-event",
+          invocationId: "first-edit-run",
+          author: "agent",
+          content: { role: "model", parts: [{ text: "first answer" }] },
+        };
+        firstStreamStarted.resolve();
+        await releaseFirstStream.promise;
+        return;
+      }
+      throw new Error("later edit failed before its first event");
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { capture } = await renderAdk(
+        async () => ({
+          messages: [
+            { id: "q-0", type: "human", content: "earlier question" },
+            aiMessage("a-0", "earlier answer"),
+            { id: "q-1", type: "human", content: "original question" },
+            aiMessage("a-1", "original answer"),
+          ],
+        }),
+        async () => null,
+        streamMock,
+      );
+      const { result } = renderHook(() => useAui(), {
+        wrapper: wrapperFactory(capture.runtime!),
+      });
+      const editComposer = () =>
+        result.current.thread.message({ index: 2 }).composer();
+
+      act(() => {
+        editComposer().beginEdit();
+        editComposer().setText("first edit");
+        editComposer().send();
+      });
+      await firstStreamStarted.promise;
+      await waitFor(() =>
+        expect(
+          JSON.stringify(capture.runtime!.thread.getState().messages),
+        ).toContain("first answer"),
+      );
+
+      act(() => {
+        editComposer().beginEdit();
+        editComposer().setText("second edit");
+        editComposer().send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      await waitFor(() =>
+        expect(
+          JSON.stringify(capture.runtime!.thread.getState().messages),
+        ).toContain("first answer"),
+      );
+
+      const messages = JSON.stringify(
+        capture.runtime!.thread.getState().messages,
+      );
+      expect(messages).toContain("first edit");
+      expect(messages).not.toContain("original answer");
+      expect(messages).not.toContain("second edit");
+    } finally {
+      releaseFirstStream.resolve();
+      consoleError.mockRestore();
+    }
+  });
+
+  it("restores the original turn when a reload chained onto a pending reload send fails", async () => {
+    const firstStreamStarted = deferred<void>();
+    const releaseFirstStream = deferred<void>();
+    let streamCall = 0;
+    const streamMock = vi.fn(async function* (
+      _messages: unknown,
+      _config: { checkpointId?: string },
+    ): AsyncGenerator<AdkEvent> {
+      if (streamCall++ === 0) {
+        firstStreamStarted.resolve();
+        await releaseFirstStream.promise;
+        return;
+      }
+      throw new Error("second reload failed before its first event");
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const { capture } = await renderAdk(
+        async () => ({
+          messages: [
+            { id: "q-0", type: "human", content: "earlier question" },
+            aiMessage("a-0", "earlier answer"),
+            { id: "q-1", type: "human", content: "original question" },
+            aiMessage("a-1", "original answer"),
+          ],
+        }),
+        async () => null,
+        streamMock,
+      );
+      const answer = capture
+        .runtime!.thread.getState()
+        .messages.findLast((message) => message.role === "assistant")!;
+
+      act(() => {
+        capture.runtime!.thread.getMessageById(answer.id).reload();
+      });
+      await firstStreamStarted.promise;
+
+      act(() => {
+        capture.runtime!.thread.getMessageById(answer.id).reload();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      await waitFor(() =>
+        expect(
+          JSON.stringify(capture.runtime!.thread.getState().messages),
+        ).toContain("original answer"),
+      );
+
+      const messages = JSON.stringify(
+        capture.runtime!.thread.getState().messages,
+      );
+      expect(messages).toContain("original question");
+      expect(messages).toContain("original answer");
+    } finally {
+      releaseFirstStream.resolve();
+      consoleError.mockRestore();
+    }
+  });
+
   it("restores a failed reload but does not overwrite a newer send", async () => {
     const checkpoints = [deferred<string | null>(), deferred<string | null>()];
     const getCheckpointId = vi.fn(
