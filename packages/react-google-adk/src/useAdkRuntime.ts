@@ -155,7 +155,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     authRequests,
     escalated,
     messageMetadata,
-    sendMessage,
+    sendMessageWithExecutor,
     cancel,
     setMessages,
     replaceMessages: replaceAdkMessages,
@@ -287,7 +287,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           }
         : config;
 
-    return sendMessage(msgs, continuationConfig, (run) =>
+    return sendMessageWithExecutor(msgs, continuationConfig, (run) =>
       runExclusive(() => run()),
     );
   };

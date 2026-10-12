@@ -179,17 +179,9 @@ export const reduceAdkThreadState = (
   switch (action.type) {
     case "event.published": {
       const next = action.state;
-      const publishedIds = new Set(next.messages.map((message) => message.id));
-      const queuedMessages = state.messages.filter((message) =>
-        state.queuedMessageIds.has(message.id),
-      );
-      return {
+      const merged = {
         ...state,
         ...next,
-        messages: [
-          ...next.messages,
-          ...queuedMessages.filter((message) => !publishedIds.has(message.id)),
-        ],
         stateDelta: { ...state.stateDelta, ...next.stateDelta },
         artifactDelta: { ...state.artifactDelta, ...next.artifactDelta },
         messageMetadata:
@@ -197,6 +189,14 @@ export const reduceAdkThreadState = (
             ? new Map([...state.messageMetadata, ...next.messageMetadata])
             : state.messageMetadata,
       };
+      if (state.queuedMessageIds.size === 0) return merged;
+      const publishedIds = new Set(next.messages.map((message) => message.id));
+      const queuedMessages = state.messages.filter(
+        (message) =>
+          state.queuedMessageIds.has(message.id) &&
+          !publishedIds.has(message.id),
+      );
+      return { ...merged, messages: [...next.messages, ...queuedMessages] };
     }
     case "snapshot.applied": {
       const snapshot = action.snapshot;

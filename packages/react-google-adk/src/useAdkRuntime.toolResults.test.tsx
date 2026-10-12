@@ -73,6 +73,7 @@ const mount = async (
     waitForCall?: string | null;
     autoCancelPendingToolCalls?: boolean;
     load?: () => Promise<AdkThreadSnapshot>;
+    holdSecondRun?: boolean;
   } = {},
 ) => {
   const requests: { newMessage: { parts: Record<string, unknown>[] } }[] = [];
@@ -103,13 +104,15 @@ const mount = async (
       const response =
         requests.length === 1
           ? firstRun
-          : options.responseEvents
-            ? responseEvent
-              ? `data: ${JSON.stringify(responseEvent)}\n\n`
-              : ""
-            : requests.length === 2 && options.secondEvent
-              ? `data: ${JSON.stringify(options.secondEvent)}\n\n`
-              : "";
+          : requests.length === 2 && options.holdSecondRun
+            ? new ReadableStream<Uint8Array>()
+            : options.responseEvents
+              ? responseEvent
+                ? `data: ${JSON.stringify(responseEvent)}\n\n`
+                : ""
+              : requests.length === 2 && options.secondEvent
+                ? `data: ${JSON.stringify(options.secondEvent)}\n\n`
+                : "";
       return new Response(response, {
         headers: { "Content-Type": "text/event-stream" },
       });
@@ -207,6 +210,45 @@ const responseIds = (parts: Record<string, unknown>[]) =>
 afterEach(() => vi.unstubAllGlobals());
 
 describe("useAdkRuntime tool result batching", () => {
+  it("clears a queued tool answer when Stop cancels an earlier run", async () => {
+    const { runtime, requests } = await mount(false, {
+      firstEvent: callEvent("c1", "run-1"),
+      waitForCall: "c1",
+      holdSecondRun: true,
+      autoCancelPendingToolCalls: false,
+    });
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+
+    act(() => {
+      runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "next" }],
+        runConfig: { custom: { group: "other" } },
+      });
+      answer(runtime, "c1");
+    });
+    await waitFor(() => expect(requests).toHaveLength(2));
+    expect(responseIds(requests[1]!.newMessage.parts)).toEqual([]);
+    await act(async () => {
+      await runtime.thread.cancelRun();
+    });
+    expect(requests).toHaveLength(2);
+    const toolMessage = runtime.thread
+      .getState()
+      .messages.find((message) =>
+        message.content.some(
+          (part) => part.type === "tool-call" && part.toolCallId === "c1",
+        ),
+      );
+    expect(toolMessage).toBeDefined();
+    expect(toolMessage?.content).toContainEqual(
+      expect.objectContaining({ type: "tool-call", toolCallId: "c1" }),
+    );
+    expect(JSON.stringify(toolMessage?.content)).not.toContain('"result"');
+  });
+
   it("sends two messages appended in the same tick in one request", async () => {
     const { runtime, requests } = await mount();
     await waitFor(() =>
