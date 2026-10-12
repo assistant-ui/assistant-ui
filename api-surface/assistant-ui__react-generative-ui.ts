@@ -993,7 +993,10 @@ interface TeamsContainer {
   readonly type: "Container";
   readonly style?: TeamsContainerStyle;
   readonly items: readonly TeamsCardElement[];
-  readonly selectAction?: TeamsSubmitAction;
+  readonly selectAction?: TeamsSubmitAction | {
+    readonly type: "Action.OpenUrl";
+    readonly url: string;
+  };
   readonly separator?: true;
   readonly spacing?: "large";
 }
