@@ -87,6 +87,37 @@ describe("media vocabulary on React Native", () => {
     expect(divider.style.backgroundColor).toBe("rgba(229, 229, 229, 0.6)");
   });
 
+  it("uses Diagram text and Map details to name a bound row", () => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: { type: "ListView", children: ["row"] },
+        row: {
+          type: "ListViewItem",
+          children: ["diagram", "map"],
+          on: { press: { action: "open" } },
+        },
+        diagram: {
+          type: "Diagram",
+          props: { code: "flowchart LR", title: "Order flow" },
+        },
+        map: {
+          type: "Map",
+          props: {
+            places: [
+              { label: "Monterey", lat: 36.6, lng: -121.9, detail: "Night 1" },
+            ],
+          },
+        },
+      }),
+      { open: vi.fn() },
+      { open: { description: "Open" } },
+    );
+    expect(
+      byRole(container, "button", "flowchart LR, Order flow, Night 1"),
+    ).toBeTruthy();
+    expect(byRole(container, "link", "Monterey")).toBeTruthy();
+  });
+
   it("shows Diagram Mermaid source and its caption", () => {
     const input = spec({
       main: {

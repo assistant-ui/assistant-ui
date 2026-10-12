@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ComponentProps } from "react";
 import {
   Image as NativeImage,
   Linking,
@@ -114,6 +114,21 @@ function Divider({ flush }: { flush?: boolean }) {
   );
 }
 
+function RowText({
+  value,
+  style,
+}: {
+  value: string;
+  style: ComponentProps<typeof Text>["style"];
+}) {
+  const consumed = useListViewItemText(value);
+  return (
+    <Text aria-hidden={consumed} style={style}>
+      {value}
+    </Text>
+  );
+}
+
 function Diagram({ code, title }: { code: unknown; title?: unknown }) {
   const theme = useNativeTheme();
   const ink = useInk();
@@ -125,14 +140,16 @@ function Diagram({ code, title }: { code: unknown; title?: unknown }) {
         style={[styles.diagramCode, { backgroundColor: theme.secondary }]}
         contentContainerStyle={styles.diagramCodeContent}
       >
-        <Text style={[styles.diagramSource, { color: theme.foreground }]}>
-          {toTextContent(code)}
-        </Text>
+        <RowText
+          value={String(toTextContent(code) ?? "")}
+          style={[styles.diagramSource, { color: theme.foreground }]}
+        />
       </ScrollView>
       {caption != null ? (
-        <Text style={[styles.diagramCaption, { color: fade(ink, 0.62) }]}>
-          {caption}
-        </Text>
+        <RowText
+          value={String(caption)}
+          style={[styles.diagramCaption, { color: fade(ink, 0.62) }]}
+        />
       ) : null}
     </View>
   );
@@ -155,9 +172,10 @@ function MapPlaces({ places }: { places: unknown }) {
             </Text>
           </Pressable>
           {place.detail !== undefined ? (
-            <Text style={[styles.placeDetail, { color: fade(ink, 0.62) }]}>
-              {place.detail}
-            </Text>
+            <RowText
+              value={place.detail}
+              style={[styles.placeDetail, { color: fade(ink, 0.62) }]}
+            />
           ) : null}
         </View>
       ))}
