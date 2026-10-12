@@ -1355,14 +1355,28 @@ function rewriteMathTags(text: string, handoffBrackets: boolean): string {
           absoluteAt,
         );
         if (body.includes("\n") && !crossesSpanBoundary(body)) {
-          continuedLineStart = scanLineStart;
-          const lineEnd = text.indexOf("\n", absoluteAt);
-          continuedLineEnd = lineEnd === -1 ? text.length : lineEnd;
-          continuedPrefix =
+          const prefix =
             bracketInheritedPrefix ??
             continuationPrefix(
               text.slice(bracketOpenerLineStart, bracketOpener),
             );
+          const depth = quoteDepth(prefix);
+          if (
+            body
+              .split("\n")
+              .some(
+                (line, index) =>
+                  (index === 0
+                    ? line
+                    : line.slice(quoteMarkers(line, depth).length)
+                  ).trim() !== "",
+              )
+          ) {
+            continuedLineStart = scanLineStart;
+            const lineEnd = text.indexOf("\n", absoluteAt);
+            continuedLineEnd = lineEnd === -1 ? text.length : lineEnd;
+            continuedPrefix = prefix;
+          }
         }
         bracketOpener = -1;
       }
@@ -1778,7 +1792,9 @@ function nestListItemDisplayMath(text: string): string {
  */
 export function normalizeMathDelimiters(text: string): string {
   return nestListItemDisplayMath(
-    rewriteLatexBracketDelimiters(rewriteMathTags(text, true)),
+    rewriteLatexBracketDelimiters(
+      rewriteMathTags(text, text.includes("[/math]")),
+    ),
   );
 }
 

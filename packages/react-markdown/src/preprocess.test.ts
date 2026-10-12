@@ -822,6 +822,12 @@ describe("rewriteCustomMathTags", () => {
 });
 
 describe("normalizeMathDelimiters", () => {
+  it("does not hand off a bracket body with only blank quoted lines", () => {
+    expect(
+      normalizeMathDelimiters("> 1. \\[\n>\n> \\] x [/math]\n> b\n> [/math]"),
+    ).toBe("> 1. \\[\n>\n> \\] x \n> $$\n> b\n> $$");
+  });
+
   it("keeps a blank-line bracket display from handing off its list prefix", () => {
     expect(
       normalizeMathDelimiters(
@@ -909,6 +915,17 @@ describe("normalizeMathDelimiters", () => {
   it("keeps many inline code spans in one paragraph unchanged", () => {
     const input = "a `\\(x\\)` ".repeat(1000);
     expect(normalizeMathDelimiters(input)).toBe(input);
+  });
+
+  it("keeps code-heavy output identical with and without bracket scanning", () => {
+    const withoutScan = "a `b` ".repeat(5_000) + "\\[x\\]";
+    const withScan = withoutScan.replace("`b`", "`[/math]`");
+    expect(normalizeMathDelimiters(withoutScan)).toBe(
+      "a `b` ".repeat(5_000) + "$$x$$",
+    );
+    expect(normalizeMathDelimiters(withScan).replace("`[/math]`", "`b`")).toBe(
+      normalizeMathDelimiters(withoutScan),
+    );
   });
 
   it.each([
