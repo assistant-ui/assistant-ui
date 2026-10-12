@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it } from "vitest";
+import { Linking } from "react-native";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   byRole,
   cleanupSpecs,
@@ -43,6 +44,83 @@ const chart = (props: Record<string, unknown>) =>
   spec({ main: { type: "Chart", props: { variant: "bar", ...props } } });
 
 describe("data vocabulary on React Native", () => {
+  it("renders Citation content without making a non-http URL pressable", () => {
+    const input = spec({
+      main: {
+        type: "Citation",
+        props: {
+          title: "Local source",
+          url: "file:///private/note",
+          source: "Notebook",
+          snippet: "A passage",
+        },
+      },
+    });
+    const native = renderNativeSpec(input).container;
+    const web = renderWebSpec(input).container;
+    expect(native.querySelector('[role="link"]')).toBeNull();
+    expect(native.textContent).toBe(web.textContent);
+    expect(native.textContent).toBe("NotebookLocal sourceA passage");
+    const titleOnly = renderNativeSpec(
+      spec({
+        main: {
+          type: "Citation",
+          props: { title: "Untitled source" },
+        },
+      }),
+    ).container;
+    expect(titleOnly.textContent).toBe("Untitled source");
+    expect(titleOnly.querySelector('[role="link"]')).toBeNull();
+  });
+
+  it("swallows a Citation link no app can open", async () => {
+    const openURL = vi
+      .spyOn(Linking, "openURL")
+      .mockRejectedValue(new Error("No app handles this URL"));
+    try {
+      const native = renderNativeSpec(
+        spec({
+          main: {
+            type: "Citation",
+            props: { title: "Reference", url: "https://example.com/a" },
+          },
+        }),
+      ).container;
+      await press(byRole(native, "link"));
+      await Promise.resolve();
+      expect(openURL).toHaveBeenCalledOnce();
+    } finally {
+      openURL.mockRestore();
+    }
+  });
+
+  it.each(["http", "https"])(
+    "opens a %s Citation and uses the link host when source is absent",
+    async (scheme) => {
+      const openURL = vi.spyOn(Linking, "openURL").mockResolvedValue(undefined);
+      const url = `${scheme}://www.example.com/article`;
+      const input = spec({
+        main: {
+          type: "Citation",
+          props: {
+            title: "Reference",
+            url,
+          },
+        },
+      });
+      const native = renderNativeSpec(input).container;
+      const web = renderWebSpec(input).container;
+      expect(native.textContent).toBe(web.textContent);
+      expect(native.textContent).toBe("example.comReference");
+      try {
+        await press(byRole(native, "link"));
+        expect(openURL).toHaveBeenCalledExactlyOnceWith(url);
+      } finally {
+        openURL.mockRestore();
+      }
+    },
+  );
+
   it("formats and aligns Table cells like the web", () => {
     const native = renderNativeSpec(table(false)).container;
     const web = renderWebSpec(table(false)).container;

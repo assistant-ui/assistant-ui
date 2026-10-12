@@ -109,6 +109,7 @@ type CheckboxGroupRenderProps = {
   name?: string;
   label?: string;
   defaultValue?: string[];
+  progress?: boolean;
   children?: React.ReactNode;
   $status: GenerativeUIStatus;
   $action?: Action;
@@ -131,6 +132,7 @@ function CheckboxGroupRender({
   name,
   label,
   defaultValue,
+  progress,
   children,
   $action,
   $dispatch,
@@ -147,13 +149,52 @@ function CheckboxGroupRender({
       : Array.isArray(defaultValue)
         ? defaultValue
         : [];
+  const resetKey = JSON.stringify(checkedValues);
+  const optionKeys = mapOptions(options, (_option, key) => key).filter(
+    (key) => key !== null,
+  );
+  const defaultKeys = () =>
+    mapOptions(options, (option, key) =>
+      checkedValues.includes(option.value) ? key : null,
+    ).filter((key) => key !== null);
+  const [tally, setTally] = React.useState(() => ({
+    key: resetKey,
+    keys: defaultKeys(),
+  }));
+  if (tally.key !== resetKey) {
+    setTally({ key: resetKey, keys: defaultKeys() });
+  }
+  const checkedKeys = tally.key === resetKey ? tally.keys : defaultKeys();
+  const boundValues = Array.isArray(answeredValue)
+    ? checkedValues
+    : (value ?? []);
+  const done = isBound
+    ? mapOptions(options, (option) =>
+        boundValues.includes(option.value),
+      ).filter(Boolean).length
+    : optionKeys.filter((key) => checkedKeys.includes(key)).length;
   return (
     <fieldset
-      key={JSON.stringify(checkedValues)}
+      key={resetKey}
       data-aui="checkboxgroup"
       data-aui-action={actionAttr($action)}
       aria-label={label}
     >
+      {progress ? (
+        <div data-aui="checkboxgroup-progress">
+          <span data-aui="checkboxgroup-progress-label">
+            {`${done} of ${optionKeys.length}`}
+          </span>
+          <span data-aui="checkboxgroup-progress-track" aria-hidden="true">
+            <span
+              data-aui="checkboxgroup-progress-fill"
+              style={{
+                width: `${optionKeys.length ? (done / optionKeys.length) * 100 : 0}%`,
+              }}
+            />
+          </span>
+        </div>
+      ) : null}
       {mapOptions(options, (option, key) => (
         <label key={key} data-aui="checkboxgroup-option">
           <input
@@ -172,6 +213,13 @@ function CheckboxGroupRender({
               : { defaultChecked: checkedValues.includes(option.value) })}
             onChange={(e) => {
               const selected = checkedGroupValues(e.currentTarget);
+              const box = e.currentTarget.checked;
+              setTally((previous) => {
+                const keys = (
+                  previous.key === resetKey ? previous.keys : defaultKeys()
+                ).filter((checkedKey) => checkedKey !== key);
+                return { key: resetKey, keys: box ? [...keys, key] : keys };
+              });
               updateBinding?.(selected);
               fire($action, $dispatch, selected, e.currentTarget);
             }}

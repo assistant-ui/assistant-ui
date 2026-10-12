@@ -1,4 +1,5 @@
 import {
+  CHILDREN_CAP,
   MAX_TRAVERSAL_DEPTH,
   boundSpec,
   clampReasonDetail,
@@ -22,6 +23,12 @@ import {
   formatFactDelta,
   formatValue,
 } from "../vocabulary/formatValue";
+import {
+  linkHost,
+  linkHref,
+  sequenceItems,
+  tabLabels,
+} from "../vocabulary/structureValues";
 import {
   CHOICE_OPTION_CAP,
   PAYLOAD_SOFT_CAP,
@@ -186,6 +193,20 @@ function textBlock(
 ): TeamsTextBlock {
   return { type: "TextBlock", text, wrap: true, ...extra };
 }
+
+// Teams reads a TextBlock as markdown, so a quoted `[text](url)` would become a second link next to the citation's own; a zero-width space between `]` and `(` keeps it plain text.
+const unlinked = (text: string): string =>
+  text.replaceAll("](", `]${String.fromCharCode(0x200b)}(`);
+
+const escapeLinkText = (text: string): string =>
+  text.replace(/[\\[\]]/g, "\\$&");
+
+const markdownHref = (href: string): string =>
+  href.replace(
+    /[()\s]/g,
+    (char) =>
+      `%${char.charCodeAt(0).toString(16).padStart(2, "0").toUpperCase()}`,
+  );
 
 function applyPending(
   element: TeamsCardElement,
@@ -881,6 +902,128 @@ export function convertElement(
     }
     case "ListViewItem":
       return [convertListViewItem(element, context, depth)];
+    case "Tabs": {
+      const panels = normalizedList(element.children);
+      const { items: given, truncated } = clampArray(
+        props["tabs"],
+        CHILDREN_CAP,
+      );
+      if (truncated)
+        warn(
+          context,
+          "clamped",
+          "Tabs",
+          `tabs were clamped to ${CHILDREN_CAP} entries.`,
+        );
+      const labels = tabLabels(given, panels.length);
+      return labels.flatMap((label, index) => [
+        textBlock(label, { weight: "bolder" }),
+        ...(panels[index] !== undefined
+          ? convertSequence(panels[index], context, depth + 1)
+          : []),
+      ]);
+    }
+    case "Steps": {
+      const { items: raw, truncated } = clampArray(
+        props["steps"],
+        CHILDREN_CAP,
+      );
+      if (truncated)
+        warn(
+          context,
+          "clamped",
+          "Steps",
+          `steps were clamped to ${CHILDREN_CAP} entries.`,
+        );
+      const steps = sequenceItems(raw);
+      const dropped = raw.length - steps.length;
+      if (dropped > 0)
+        warn(
+          context,
+          "dropped",
+          "Steps",
+          `${dropped} malformed ${dropped === 1 ? "entry was" : "entries were"} dropped.`,
+        );
+      return steps.flatMap((step, index) => [
+        textBlock(`${index + 1}. ${step.title}`, {
+          weight: "bolder",
+        }),
+        ...(step.detail !== undefined
+          ? [textBlock(step.detail, { isSubtle: true })]
+          : []),
+      ]);
+    }
+    case "Timeline": {
+      const { items: raw, truncated } = clampArray(
+        props["items"],
+        CHILDREN_CAP,
+      );
+      if (truncated)
+        warn(
+          context,
+          "clamped",
+          "Timeline",
+          `items were clamped to ${CHILDREN_CAP} entries.`,
+        );
+      const items = sequenceItems(raw);
+      const dropped = raw.length - items.length;
+      if (dropped > 0)
+        warn(
+          context,
+          "dropped",
+          "Timeline",
+          `${dropped} malformed ${dropped === 1 ? "entry was" : "entries were"} dropped.`,
+        );
+      return items.map((item) => ({
+        type: "Container" as const,
+        items: [
+          ...(item.time !== undefined
+            ? [
+                textBlock(item.time, {
+                  size: "small",
+                  isSubtle: true,
+                }),
+              ]
+            : []),
+          textBlock(item.title, { weight: "bolder" }),
+          ...(item.detail !== undefined ? [textBlock(item.detail)] : []),
+        ],
+      }));
+    }
+    case "Citation": {
+      const href = linkHref(props["url"]);
+      const source =
+        typeof props["source"] === "string"
+          ? props["source"]
+          : href
+            ? linkHost(href)
+            : undefined;
+      const title = asString(props["title"]);
+      const snippet = props["snippet"];
+      return [
+        {
+          type: "Container",
+          items: [
+            ...(source !== undefined
+              ? [
+                  textBlock(unlinked(source), {
+                    size: "small",
+                    isSubtle: true,
+                  }),
+                ]
+              : []),
+            textBlock(
+              href
+                ? `[${escapeLinkText(title)}](${markdownHref(href)})`
+                : title,
+            ),
+            ...(typeof snippet === "string"
+              ? [textBlock(unlinked(snippet), { isSubtle: true })]
+              : []),
+          ],
+        },
+      ];
+    }
     case "Table":
       return [convertTable(props, context)];
     case "Alert": {
