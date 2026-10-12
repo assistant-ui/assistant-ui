@@ -1033,13 +1033,9 @@ function continuationPrefix(lineHead: string): string {
   return prefix.join("");
 }
 
-function hasListMarkerOnlyHead(lineHead: string): boolean {
+function isMarkerOnlyHeadWithList(lineHead: string): boolean {
   const head = LINE_PREFIX.exec(lineHead)?.[0] ?? "";
-  if (head !== lineHead) return false;
-  for (let index = 0; index < head.length; index += 1) {
-    if (listMarkerEnd(head, index, head.length) > index) return true;
-  }
-  return false;
+  return head === lineHead && /[-*+\d]/.test(head);
 }
 
 const SPAN_BOUNDARY =
@@ -1063,7 +1059,7 @@ function emitDisplayMath(
   // is aligned to it.
   const head = lineHead(offset);
   const prefix = continuationPrefix(head);
-  const markerOnlyListHead = hasListMarkerOnlyHead(head);
+  const markerOnlyListHead = isMarkerOnlyHeadWithList(head);
   const depth = quoteDepth(prefix);
   const [openerText = "", ...bodyLines] = body.split("\n");
   const openerHasContent = !onlyWhitespace(openerText, 0, openerText.length);

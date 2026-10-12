@@ -837,9 +837,7 @@ describe("normalizeMathDelimiters", () => {
       normalizeMathDelimiters(
         "> 1. \\[\n> a\n>\n> b\n> \\] x [/math]\n> c\n> [/math]",
       ),
-    ).toBe(
-      "> 1. \n>    $$\n>    a\n>   \n>    b\n>    $$\n>     x \n> $$\n> c\n> $$",
-    );
+    ).toBe("> 1. $$\n>    a\n>   \n>    b\n>    $$\n>     x \n> $$\n> c\n> $$");
   });
 
   it("normalizes inline math after a blank-line bracket and tag display", () => {
@@ -853,12 +851,12 @@ describe("normalizeMathDelimiters", () => {
     [
       "a code span in the bracket body",
       "> 1. \\[\n> a `x` b\n> \\] x [/math]\n> c\n> [/math]",
-      "> 1. \n>    $$\n>    a `x` b\n>    $$\n>     x \n>    $$\n>    c\n>    $$",
+      "> 1. $$\n>    a `x` b\n>    $$\n>     x \n>    $$\n>    c\n>    $$",
     ],
     [
       "a code span between the bracket closer and math tag",
       "> 1. \\[\n> a\n> \\] `x` [/math]\n> c\n> [/math]",
-      "> 1. \n>    $$\n>    a\n>    $$\n>     `x` \n>    $$\n>    c\n>    $$",
+      "> 1. $$\n>    a\n>    $$\n>     `x` \n>    $$\n>    c\n>    $$",
     ],
   ])("hands off across %s", (_, input, expected) => {
     expect(normalizeMathDelimiters(input)).toBe(expected);
@@ -868,17 +866,17 @@ describe("normalizeMathDelimiters", () => {
     [
       "bracket display followed by a math tag",
       "> 1. \\[\n> a\n> \\] x [/math]\n> b\n> [/math] then",
-      "> 1. \n>    $$\n>    a\n>    $$\n>     x \n>    $$\n>    b\n>    $$\n>     then",
+      "> 1. $$\n>    a\n>    $$\n>     x \n>    $$\n>    b\n>    $$\n>     then",
     ],
     [
       "math tag followed by a bracket display",
       "> 1. [/math]\n> a\n> [/math] x \\[\n> b\n> \\] then",
-      "> 1. \n>    $$\n>    a\n>    $$\n>     x \n>     $$\n>     b\n>     $$\n>      then",
+      "> 1. $$\n>    a\n>    $$\n>     x \n>     $$\n>     b\n>     $$\n>      then",
     ],
     [
       "double-backslash bracket display followed by a math tag",
       "> 1. \\\\[\n> a\n> \\\\] x [/math]\n> b\n> [/math] then",
-      "> 1. \n>    $$\n>    a\n>    $$\n>     x \n>    $$\n>    b\n>    $$\n>     then",
+      "> 1. $$\n>    a\n>    $$\n>     x \n>    $$\n>    b\n>    $$\n>     then",
     ],
   ])("hands off a quoted list prefix across a %s", (_, input, expected) => {
     expect(normalizeMathDelimiters(input)).toBe(expected);
@@ -890,7 +888,7 @@ describe("normalizeMathDelimiters", () => {
         "> 1. [/math]\n> a\n> [/math] x \\[\n> b\n> \\] y [/math]\n> c\n> [/math] then",
       ),
     ).toBe(
-      "> 1. \n>    $$\n>    a\n>    $$\n>     x \n>     $$\n>     b\n>     $$\n>      y \n>    $$\n>    c\n>    $$\n>     then",
+      "> 1. $$\n>    a\n>    $$\n>     x \n>     $$\n>     b\n>     $$\n>      y \n>    $$\n>    c\n>    $$\n>     then",
     );
   });
 
@@ -900,7 +898,7 @@ describe("normalizeMathDelimiters", () => {
         "> 12. [/math]\n> a\n> [/math] plus \\[\n> b\n> \\] after [/math]\n> c\n> [/math] end",
       ),
     ).toBe(
-      "> 12. \n>     $$\n>     a\n>     $$\n>      plus \n>      $$\n>      b\n>      $$\n>       after \n>     $$\n>     c\n>     $$\n>      end",
+      "> 12. $$\n>     a\n>     $$\n>      plus \n>      $$\n>      b\n>      $$\n>       after \n>     $$\n>     c\n>     $$\n>      end",
     );
   });
 
@@ -1068,6 +1066,37 @@ describe("normalizeMathDelimiters", () => {
       expect(second.charChecks).toBeLessThanOrEqual(first.charChecks * 2);
     },
   );
+
+  it.each([
+    ["\\[", "\\]"],
+    ["[/math]", "[/math]"],
+  ])("scans a whitespace display head linearly for %s", (open, close) => {
+    const checksFor = (size: number) => {
+      const head = " ".repeat(size);
+      const input = `para\n${head}${open}x\ny\n${close}`;
+      const charCodeAt = String.prototype.charCodeAt;
+      let checks = 0;
+      const scan = vi
+        .spyOn(String.prototype, "charCodeAt")
+        .mockImplementation(function (this: string, index: number) {
+          if (this.valueOf() === head) checks += 1;
+          return Reflect.apply(charCodeAt, this, [index]);
+        });
+      let output: string;
+      try {
+        output = normalizeMathDelimiters(input);
+      } finally {
+        scan.mockRestore();
+      }
+      expect(output).toContain("$$");
+      return checks;
+    };
+
+    const first = checksFor(1024);
+    const second = checksFor(2048);
+    expect(first).toBeLessThanOrEqual(1024 * 32);
+    expect(second).toBeLessThanOrEqual(first * 3);
+  });
 
   it.each([
     ["\t", "$5\n\n$7"],
