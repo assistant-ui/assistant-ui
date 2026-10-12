@@ -249,6 +249,12 @@ describe("answer layout", () => {
       ]!;
     expect(gallery["flex"]).toBe("1 1 0");
     expect(gallery["min-width"]).toBe("max(5rem, 22%)");
+    const longGallery = Object.entries(rules).find(([selector]) =>
+      selector.includes(
+        ':first-child:nth-last-child(n+4) ~ [data-aui="image"]',
+      ),
+    )?.[1];
+    expect(longGallery?.["min-width"]).toBe("0");
     expect(
       rules[
         '[data-aui="row"] > [data-aui="image"][data-aui-size="sm"]:not([data-aui-round])'

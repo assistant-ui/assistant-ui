@@ -1083,6 +1083,9 @@ export const generativeUiVocabularyCss: CssRuleset = {
       "aspect-ratio": "4 / 3",
       "object-fit": "cover",
     },
+  // Four or more images give up that minimum, so a long gallery still fits.
+  '[data-aui="row"] > [data-aui="image"]:first-child:nth-last-child(n+4):not([data-aui-size="sm"], [data-aui-sized], [data-aui-round]), [data-aui="row"] > [data-aui="image"]:first-child:nth-last-child(n+4) ~ [data-aui="image"]:not([data-aui-size="sm"], [data-aui-sized], [data-aui-round])':
+    { "min-width": "0" },
   '[data-aui="row"] > [data-aui="image"][data-aui-size="sm"]:not([data-aui-round])':
     {
       flex: "none",

@@ -2,8 +2,12 @@
  * Docs-only staging CSS for the generative-ui gallery: canvas, card fill, elevation, and hover. These are properties of the gallery's presentation context (a showroom), not of the vocabulary's own anatomy, so they stay out of the shipped stylesheet in packages/ui and never affect how a widget renders inside a real chat stream.
  */
 export const galleryStagingCss = `
-.aui-gallery {
+.aui-gallery,
+.aui-gallery .dark {
   --aui-panel: var(--background);
+}
+
+.aui-gallery {
   --aui-control-height: 2.25rem;
   --aui-control-font-size: 0.8125rem;
   --aui-button-padding-x: 1rem;

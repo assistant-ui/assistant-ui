@@ -217,6 +217,39 @@ describe("media vocabulary on React Native", () => {
     }
   });
 
+  it("lays out images in a Row as 4:3 tiles that share the width, and a sm image as a thumbnail", () => {
+    const image = (src: string, size?: string) => ({
+      type: "Image",
+      props: { src: `https://example.com/${src}.png`, alt: src, size },
+    });
+    const { container } = renderNativeSpec(
+      spec({
+        main: { type: "Col", children: ["row", "alone"] },
+        row: { type: "Row", children: ["a", "b", "thumb"] },
+        a: image("a", "md"),
+        b: image("b"),
+        thumb: image("thumb", "sm"),
+        alone: image("alone"),
+      }),
+    );
+    const [a, b, thumb, alone] = [...container.querySelectorAll("img")].map(
+      (img) => img.parentElement!,
+    );
+    for (const tile of [a!, b!]) {
+      expect(getComputedStyle(tile).flexGrow).toBe("1");
+      expect(getComputedStyle(tile).aspectRatio).toBe(
+        getComputedStyle(a!).aspectRatio,
+      );
+      expect(tile.style.width).toBe("");
+    }
+    expect(Number.parseFloat(getComputedStyle(a!).aspectRatio)).toBeCloseTo(
+      4 / 3,
+    );
+    expect(a!.style.maxWidth).toBe("256px");
+    expect([thumb!.style.width, thumb!.style.height]).toEqual(["72px", "72px"]);
+    expect(alone!.style.width).toBe("100%");
+  });
+
   it("resets a measured ratio when the image source changes", async () => {
     const loads: MockImage[] = [];
     class MockImage {

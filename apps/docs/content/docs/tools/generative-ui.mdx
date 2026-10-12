@@ -469,7 +469,7 @@ The default vocabulary draws neither, so it adds no dependency: `Diagram` shows 
 
 The vocabulary renders semantic HTML tagged with `data-aui` and `data-aui-*` attributes and ships no styles of its own, so it cannot conflict with your CSS. The `generative-ui` registry item above installs the shipped stylesheet, which is written entirely against your existing theme variables: change `--radius` or `--primary` in your own CSS and the rendered widgets follow.
 
-A `Card` is a module the reader scans or acts on, such as a summary, a calculator, or one option in a comparison, so it renders as a panel: a fill from the vocabulary's `--aui-panel` token, with no border. A card inside another card stays plain, so a module never nests a second panel. A card takes on a framed surface where one is warranted: when the model sets a `background`, when `confirm` or `cancel` add a footer whose buttons need a delimited target, or when it is a carousel slot.
+A `Card` is a module the reader scans or acts on, such as a summary, a checklist, or one option in a comparison, so it renders as a panel: a fill from the vocabulary's `--aui-panel` token, with no border. A card inside another card stays plain, so a module never nests a second panel. A card takes on a framed surface where one is warranted: when the model sets a `background`, when `confirm` or `cancel` add a footer whose buttons need a delimited target, or when it is a carousel slot.
 
 To restyle a single component, target its attribute:
 

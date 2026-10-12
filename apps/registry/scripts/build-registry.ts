@@ -744,14 +744,33 @@ function splitTopLevel(selector: string, isBreak: (char: string) => boolean) {
   return parts.map((part) => part.trim()).filter(Boolean);
 }
 
+/** Expands each `:is(...)` and `:where(...)` into one selector per argument, so every alternative is read on its own. */
+function expandSelectorLists(selector: string): string[] {
+  const match = /:(?:is|where)\(/.exec(selector);
+  if (!match) return [selector];
+  const open = match.index + match[0].length - 1;
+  let close = open;
+  for (let depth = 0; close < selector.length; close++) {
+    if (selector[close] === "(") depth++;
+    else if (selector[close] === ")" && --depth === 0) break;
+  }
+  const head = selector.slice(0, match.index);
+  const tail = selector.slice(close + 1);
+  return splitTopLevel(
+    selector.slice(open + 1, close),
+    (char) => char === ",",
+  ).flatMap((argument) => expandSelectorLists(head + argument + tail));
+}
+
 /**
  * Walks a generative-ui CSS ruleset and collects every `[data-aui-<attr>="<value>"]`
  * value-selector, keyed by `<component>:<attribute>`. The component is read from
  * the same compound selector, so `[data-aui="row"] > [data-aui="image"][data-aui-size="sm"]`
  * counts as `image:size`, or from the nearest compound before it when that one
  * names none, so `[data-aui="table"] td[data-aui-align="end"]` counts as
- * `table:align`. Presence-only boolean selectors like `[data-aui-flush]` carry
- * no `="value"` and are not matched, by design.
+ * `table:align`; an `:is(...)` or `:where(...)` list counts once per argument.
+ * Presence-only boolean selectors like `[data-aui-flush]` carry no `="value"`
+ * and are not matched, by design.
  */
 export function collectAttributeSelectorValues(
   css: Record<string, unknown>,
@@ -759,7 +778,10 @@ export function collectAttributeSelectorValues(
   const values = new Map<string, Set<string>>();
 
   const visitSelectorKey = (selectorKey: string) => {
-    for (const branch of splitTopLevel(selectorKey, (char) => char === ",")) {
+    for (const branch of splitTopLevel(
+      selectorKey,
+      (char) => char === ",",
+    ).flatMap(expandSelectorLists)) {
       let component: string | undefined;
       for (const compound of splitTopLevel(branch, (char) =>
         /[\s>+~]/.test(char),

@@ -148,6 +148,13 @@ export const InsideCardProvider = InsideCardContext.Provider;
 
 export const useInsideCard = () => useContext(InsideCardContext);
 
+const RowChildContext = createContext(false);
+
+/** Marks the content of a Row, where a Fact reads as a headline figure and an Image as a gallery tile; a Col or Card inside it starts over. */
+export const RowChildProvider = RowChildContext.Provider;
+
+export const useRowChild = () => useContext(RowChildContext);
+
 /** A color React Native can paint, or `undefined` for anything else, such as a CSS gradient. */
 export const nativeColor = (value: unknown) =>
   typeof value === "string" && processColor(value) != null ? value : undefined;

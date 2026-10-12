@@ -1586,11 +1586,16 @@ test("collectAttributeSelectorValues reads each value-selector's component from 
     '[data-aui="row"] > [data-aui="image"][data-aui-size="sm"]:not([data-aui-round], [data-aui-flush])':
       { width: "4.5rem" },
     '[data-aui="table"] td[data-aui-align="end"]': { "text-align": "end" },
+    ':is([data-aui="text"], [data-aui="header"])[data-aui-size="lg"]': {
+      "font-size": "1.125rem",
+    },
   });
 
   assert.deepEqual([...(values.get("image:size") ?? [])], ["sm"]);
   assert.equal(values.has("row:size"), false);
   assert.deepEqual([...(values.get("table:align") ?? [])], ["end"]);
+  assert.deepEqual([...(values.get("text:size") ?? [])], ["lg"]);
+  assert.deepEqual([...(values.get("header:size") ?? [])], ["lg"]);
 });
 
 // Every attribute-mapped prop backed by a closed enum, keyed by the components

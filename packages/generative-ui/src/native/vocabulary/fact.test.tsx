@@ -21,6 +21,42 @@ afterEach(() => {
 });
 
 describe("Fact on React Native", () => {
+  it("labels a fact in sentence case and sets facts side by side as headline figures, quieter inside a card", () => {
+    const fact = (value: string) => ({
+      type: "Fact",
+      props: { label: "Total distance", value },
+    });
+    const { container } = renderNativeSpec(
+      spec({
+        main: { type: "Col", children: ["figures", "plain", "card"] },
+        figures: { type: "Row", children: ["headline"] },
+        headline: fact("455 mi"),
+        plain: fact("3 nights"),
+        card: {
+          type: "Card",
+          props: { title: "Day 1" },
+          children: ["cardRow"],
+        },
+        cardRow: { type: "Row", children: ["detail"] },
+        detail: fact("125 mi"),
+      }),
+    );
+    const text = (content: string) =>
+      [...container.querySelectorAll<HTMLElement>("div")].find(
+        (element) =>
+          element.textContent === content && element.children.length === 0,
+      )!;
+    const label = getComputedStyle(text("Total distance"));
+    expect([label.fontSize, label.textTransform]).toEqual(["12px", "none"]);
+    const size = (content: string) => {
+      const style = getComputedStyle(text(content));
+      return [style.fontSize, style.fontWeight];
+    };
+    expect(size("455 mi")).toEqual(["20px", "600"]);
+    expect(size("3 nights")[0]).toBe("14px");
+    expect(size("125 mi")).toEqual(["15px", "500"]);
+  });
+
   it.each([
     [
       "+8%",
