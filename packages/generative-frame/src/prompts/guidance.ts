@@ -41,9 +41,9 @@ export type GuidanceOptions = {
   /** The tokens the host sends; their names become the token reference. */
   tokens?: ThemeTokens;
   cdnOrigins?: readonly string[];
-  /** Extra font stylesheet origins; match the frame's CSP. Empty by default. */
+  /** Font stylesheet origins to describe to the model; also configure them in `createWidget` CSP. Empty by default. */
   fontStyleOrigins?: readonly string[];
-  /** Extra font file origins; match the frame's CSP. Empty by default. */
+  /** Font file origins to describe to the model; also configure them in `createWidget` CSP. Empty by default. */
   fontOrigins?: readonly string[];
   connectOrigins?: readonly string[];
   allowEval?: boolean;
@@ -112,13 +112,14 @@ ${themeTable(ctx)}
 
 ## Libraries and network
 
-- Scripts, stylesheets, images, and fonts load only from: ${ctx.cdn.length > 0 ? ctx.cdn.join(", ") : "nowhere (inline everything)"}. Additional font stylesheet and font file origins are listed below. Anything outside these lists is blocked by the frame's Content Security Policy.
+- Shared CDN origins for external scripts, stylesheets, images, fonts, and media: ${ctx.cdn.length > 0 ? ctx.cdn.join(", ") : "none"}. The font-specific exceptions below add access only to their resource type.
 - Extra font stylesheets load only from: ${ctx.fontStyles.length > 0 ? ctx.fontStyles.join(", ") : "nowhere"}. These origins do not allow scripts, images, or font files.
 - Extra font files load only from: ${ctx.fonts.length > 0 ? ctx.fonts.join(", ") : "nowhere"}. These origins do not allow scripts, stylesheets, or images.
+- Inline scripts and styles, \`data:\` fonts, and \`data:\`/\`blob:\` images and media are allowed. External resource URLs must match the corresponding resource allowlist. When no external resource origins are configured, inline everything.
 - ${
   ctx.connect.length > 0
     ? `\`fetch\`, XHR, and WebSocket may reach only: ${ctx.connect.join(", ")}.`
-    : "There is no network access: `fetch`, XHR, and WebSocket are blocked. Embed the data in the script as literals."
+    : "`fetch`, XHR, and WebSocket are blocked. Embed the data in the script as literals."
 }
 - Pin exact versions in library URLs, for example \`${ctx.example("chart.js@4.4.1/dist/chart.umd.min.js")}\`. Prefer UMD builds loaded with \`<script src>\`; use \`<script type="module">\` with ES module URLs only when no UMD build exists.
 - ${ctx.allowEval ? "`eval` and `new Function` are allowed." : "`eval` and `new Function` are blocked; avoid libraries that compile templates or expressions at runtime."}
@@ -149,7 +150,7 @@ ${platformSection(ctx)}
 ${list([
   "Fragment or single `<svg>`, with style, then markup, then scripts.",
   "Every color, font, and radius comes from a token, or is a deliberate data color that works in both themes.",
-  "Nothing loads from outside the allowed origins, and nothing depends on the network.",
+  "Every external resource or request uses its allowed origins; embed data when network requests are blocked.",
   "Fixed-height containers for script-drawn content; no fixed height on the outer element.",
   "An accessible name: hidden `<h2>` for HTML, `<title>` and `<desc>` for SVG.",
 ])}`;
@@ -333,7 +334,8 @@ const createContext = (options: GuidanceOptions): Context => {
 /**
  * Builds the model-facing widget guidance: base rules, the theme token
  * reference, platform notes, and the requested modules. The output depends
- * only on the options, so it can be cached and diffed.
+ * only on the options, so it can be cached and diffed. It does not configure
+ * the frame CSP; pass matching policy options to `createWidget`.
  */
 export function buildWidgetGuidance(options: GuidanceOptions = {}): string {
   const ctx = createContext(options);

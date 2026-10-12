@@ -23,7 +23,7 @@ export type CspOptions = {
   fontStyleOrigins?: readonly string[];
   /** Extra origins for font files, allowed only in `font-src`. Empty by default. */
   fontOrigins?: readonly string[];
-  /** Origins `fetch`, XHR, and WebSocket may reach. Empty (the default) blocks all network access. */
+  /** Origins `fetch`, XHR, and WebSocket may reach. Empty by default, blocking those requests. */
   connectOrigins?: readonly string[];
   /** Extra image origins, such as an image proxy. */
   imageOrigins?: readonly string[];
