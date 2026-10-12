@@ -164,6 +164,100 @@ describe("reduceAdkThreadState", () => {
     expect(rolledBack.activeRunIds).toBe(active.activeRunIds);
   });
 
+  it("does not restore a queued snapshot message cancelled from live state", () => {
+    const queued = { ...message, id: "queued" };
+    const snapshot = {
+      ...createAdkThreadState(),
+      messages: [message, queued],
+      queuedMessageIds: new Set([queued.id]),
+    };
+    const live = reduceAdkThreadState(snapshot, {
+      type: "messages.queue.remove",
+      ids: [queued.id],
+    });
+
+    const restored = reduceAdkThreadState(live, {
+      type: "run.rollback",
+      state: snapshot,
+    });
+
+    expect(restored.messages).toEqual([message]);
+  });
+
+  it("keeps queued sends and their answers in live order on rollback", () => {
+    const questionB = { ...message, id: "qb", content: "Qb" };
+    const questionC = { ...message, id: "qc", content: "Qc" };
+    const answerB: AdkMessage = { id: "ab", type: "ai", content: "Ab" };
+    const answerC: AdkMessage = { id: "ac", type: "ai", content: "Ac" };
+    const snapshot = {
+      ...createAdkThreadState(),
+      messages: [message, questionB, questionC],
+      queuedMessageIds: new Set([questionB.id, questionC.id]),
+    };
+    const live = {
+      ...snapshot,
+      messages: [message, questionB, answerB, questionC, answerC],
+      queuedMessageIds: new Set<string>(),
+    };
+
+    const restored = reduceAdkThreadState(live, {
+      type: "run.rollback",
+      state: snapshot,
+    });
+
+    expect(restored.messages.map((entry) => entry.id)).toEqual([
+      "message-1",
+      "qb",
+      "ab",
+      "qc",
+      "ac",
+    ]);
+  });
+
+  it.each([
+    [true, false],
+    [false, true],
+  ])(
+    "combines snapshot escalation %s and live escalation %s",
+    (before, after) => {
+      const snapshot = { ...createAdkThreadState(), escalated: before };
+      const live = { ...createAdkThreadState(), escalated: after };
+
+      expect(
+        reduceAdkThreadState(live, {
+          type: "run.rollback",
+          state: snapshot,
+        }).escalated,
+      ).toBe(true);
+    },
+  );
+
+  it("prefers live message metadata during rollback", () => {
+    const snapshot = {
+      ...createAdkThreadState(),
+      messageMetadata: new Map([
+        ["shared", { usageMetadata: "snapshot" }],
+        ["snapshot", { citationMetadata: "snapshot" }],
+      ]),
+    };
+    const live = {
+      ...createAdkThreadState(),
+      messageMetadata: new Map([
+        ["shared", { usageMetadata: "live" }],
+        ["live", { groundingMetadata: "live" }],
+      ]),
+    };
+
+    expect([
+      ...reduceAdkThreadState(live, { type: "run.rollback", state: snapshot })
+        .messageMetadata,
+    ]).toEqual([
+      ["shared", { usageMetadata: "live" }],
+      ["snapshot", { citationMetadata: "snapshot" }],
+      ["live", { groundingMetadata: "live" }],
+    ]);
+  });
+
   it("restores truncated tool state while retaining later sends and tool events", () => {
     const original = {
       ...createAdkThreadState(),
