@@ -91,6 +91,7 @@ export async function generateAnswer(
           : ["The answer is empty."];
     return {
       artifact: final?.text ?? "",
+      prose: { before: "", after: "" },
       answeredIn: "text",
       ...(attempted !== undefined ? { attempted } : {}),
       errors,
@@ -99,8 +100,41 @@ export async function generateAnswer(
       ...measured,
     };
   }
+  // The SDK rejects an invalid call before `execute`, so the last call that is not invalid produced `last`.
+  const anchor = steps
+    .flatMap((step, index) =>
+      step.toolCalls
+        .filter(
+          (call) =>
+            run.toolFormats[call.toolName] !== undefined &&
+            !("invalid" in call && call.invalid),
+        )
+        .map((call) => ({ index, toolCallId: call.toolCallId })),
+    )
+    .at(-1);
+  const textOf = (parts: (typeof steps)[number]["content"]) =>
+    parts.flatMap((part) =>
+      part.type === "text" && part.text.trim() !== "" ? [part.text] : [],
+    );
+  const before: string[] = [];
+  const after: string[] = [];
+  steps.forEach((step, index) => {
+    if (anchor === undefined || index < anchor.index) {
+      before.push(...textOf(step.content));
+    } else if (index > anchor.index) {
+      after.push(...textOf(step.content));
+    } else {
+      const at = step.content.findIndex(
+        (part) =>
+          part.type === "tool-call" && part.toolCallId === anchor.toolCallId,
+      );
+      before.push(...textOf(step.content.slice(0, at)));
+      after.push(...textOf(step.content.slice(at + 1)));
+    }
+  });
   return {
     artifact: last.artifact,
+    prose: { before: before.join("\n\n"), after: after.join("\n\n") },
     answeredIn: last.format,
     errors: mixed ? [...last.errors, MIXED] : last.errors,
     repairRounds: run.attempts.length - 1,

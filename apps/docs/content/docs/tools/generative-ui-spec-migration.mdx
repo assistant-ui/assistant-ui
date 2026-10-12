@@ -17,6 +17,8 @@ Keep `present`, alone or registered next to spec mode, for anything below, since
 - `promptUser()` waits for the user, sends the answer back as the tool result, and locks the answered controls. A spec handler's return value is discarded.
 - `Text`, `Caption`, and `Markdown` grow as their props stream in. In spec mode each element appears whole once its patch line arrives.
 
+For answers that need a widget or plain Markdown instead, see [Choosing an answer format](/docs/tools/generative-ui-formats).
+
 ## Setup
 
 Build the catalog from the same library and add spec mode to a widget toolkit. Its tools run in the browser and upload their schemas, so the route from the [quick start](/docs/tools/generative-ui#quick-start) serves them through `frontend` without changes.

@@ -16,12 +16,42 @@ export type AdkStagedEntry = {
 
 type ToolMessage = Extract<AdkMessage, { type: "tool" }>;
 
+export const normalizeSendConfig = (config: Record<PropertyKey, unknown>) =>
+  Object.fromEntries(
+    Reflect.ownKeys(config).map((key) => {
+      const value = Reflect.get(config, key);
+      return [
+        key,
+        value &&
+        typeof value === "object" &&
+        Reflect.ownKeys(value).length === 0
+          ? undefined
+          : value,
+      ];
+    }),
+  );
+
 // Interrupts are answered through their own helpers, so they never join a client call group.
-const INTERRUPT_TOOL_NAMES = new Set([
+export const INTERRUPT_TOOL_NAMES: ReadonlySet<string> = new Set([
   ADK_REQUEST_CONFIRMATION,
   ADK_REQUEST_CREDENTIAL,
   "adk_request_input",
 ]);
+
+export const isInterruptReply = (
+  messages: AdkMessage[],
+  config: Record<PropertyKey, unknown>,
+): messages is [ToolMessage] => {
+  const normalizedConfig = normalizeSendConfig(config);
+  return (
+    messages.length === 1 &&
+    messages[0]?.type === "tool" &&
+    INTERRUPT_TOOL_NAMES.has(messages[0].name) &&
+    Reflect.ownKeys(normalizedConfig).every(
+      (key) => Reflect.get(normalizedConfig, key) === undefined,
+    )
+  );
+};
 
 export type AdkThreadState = {
   messages: AdkMessage[];
@@ -77,6 +107,7 @@ export type AdkThreadAction =
   | { type: "messages.remember"; messages: AdkMessage[]; runConfig: unknown }
   | { type: "messages.seed"; history: AdkMessage[] }
   | { type: "messages.prune"; history: AdkMessage[] }
+  | { type: "run.rollback"; state: AdkThreadState; ownIds?: readonly string[] }
   | { type: "run.active" }
   | { type: "run.failed" }
   | {
@@ -170,8 +201,7 @@ const takeGroup = (
   buffer: Map<string, ToolMessage>,
   toolCallId: string,
 ): ToolMessage[] => {
-  const runId = state.runIdByToolCallId.get(toolCallId);
-  if (runId && state.activeRunIds.has(runId)) return [];
+  if (state.activeRunIds.size > 0) return [];
   const group = groupOf(state, toolCallId);
   if (!group.every((id) => buffer.has(id))) return [];
   const batch = group.map((id) => buffer.get(id)!);
@@ -337,6 +367,97 @@ export const reduceAdkThreadState = (
         ),
       };
     }
+    case "run.rollback": {
+      const ownIds = new Set(action.ownIds);
+      const settled = action.state.messages.filter(
+        (message) => !action.state.queuedMessageIds.has(message.id),
+      );
+      const settledIds = new Set(settled.map((message) => message.id));
+      const messages = [
+        ...settled,
+        ...state.messages.filter(
+          (message) => !settledIds.has(message.id) && !ownIds.has(message.id),
+        ),
+      ];
+      const stagedEntries = new Map(action.state.stagedEntries);
+      for (const [id, entry] of state.stagedEntries) {
+        if (stagedEntries.has(id)) continue;
+        stagedEntries.set(id, entry);
+        if (!messages.some((message) => message.id === id))
+          messages.push(entry.message);
+      }
+      const ownToolIds = new Set(
+        state.messages.flatMap((message) =>
+          message.type === "ai" && ownIds.has(message.id)
+            ? (message.tool_calls ?? []).flatMap((call) =>
+                call && typeof call.id === "string" ? [call.id] : [],
+              )
+            : [],
+        ),
+      );
+      const mergeToolMap = <T>(
+        original: ReadonlyMap<string, T>,
+        current: ReadonlyMap<string, T>,
+      ) =>
+        new Map([
+          ...original,
+          ...[...current].filter(([id]) => !ownToolIds.has(id)),
+        ]);
+      const mergeToolIds = (original: string[], current: string[]) => [
+        ...original,
+        ...current.filter(
+          (id) => !original.includes(id) && !ownToolIds.has(id),
+        ),
+      ];
+      const mergeByToolCallId = <T extends { toolCallId: string }>(
+        original: T[],
+        current: T[],
+      ) => [
+        ...original,
+        ...current.filter(
+          (item) =>
+            !original.some((old) => old.toolCallId === item.toolCallId) &&
+            !ownToolIds.has(item.toolCallId),
+        ),
+      ];
+      return {
+        ...state,
+        messages,
+        queuedMessageIds: new Set(
+          [...state.queuedMessageIds].filter((id) => !ownIds.has(id)),
+        ),
+        longRunningToolIds: mergeToolIds(
+          action.state.longRunningToolIds,
+          state.longRunningToolIds,
+        ),
+        toolConfirmations: mergeByToolCallId(
+          action.state.toolConfirmations,
+          state.toolConfirmations,
+        ),
+        authRequests: mergeByToolCallId(
+          action.state.authRequests,
+          state.authRequests,
+        ),
+        escalated: action.state.escalated || state.escalated,
+        messageMetadata: new Map([
+          ...action.state.messageMetadata,
+          ...state.messageMetadata,
+        ]),
+        stagedEntries,
+        runConfigByToolCallId: mergeToolMap(
+          action.state.runConfigByToolCallId,
+          state.runConfigByToolCallId,
+        ),
+        runIdByToolCallId: mergeToolMap(
+          action.state.runIdByToolCallId,
+          state.runIdByToolCallId,
+        ),
+        toolResultBuffer: new Map([
+          ...action.state.toolResultBuffer,
+          ...state.toolResultBuffer,
+        ]),
+      };
+    }
     case "run.active": {
       const runId = String(state.nextRunId + 1);
       return {
@@ -419,13 +540,33 @@ export const reduceAdkThreadState = (
       };
     }
     case "results.flush": {
-      if (action.failed) return { ...state, readyBatch: null };
       const toolResultBuffer = new Map(state.toolResultBuffer);
       const batch: ToolMessage[] = [];
+      let batchOwner: string | undefined;
+      let batchMessageId: string | undefined;
       for (const id of state.toolResultBuffer.keys()) {
         if (!toolResultBuffer.has(id)) continue;
-        if (state.runIdByToolCallId.get(id) !== action.runId) continue;
-        batch.push(...takeGroup(state, toolResultBuffer, id));
+        const owner = state.runIdByToolCallId.get(id);
+        if (action.failed && owner === action.runId) continue;
+        const messageId =
+          owner === undefined
+            ? (state.messages.find(
+                (message) =>
+                  message.type === "ai" &&
+                  message.tool_calls?.some((call) => call?.id === id),
+              )?.id ?? id)
+            : undefined;
+        if (
+          batch.length > 0 &&
+          (owner !== batchOwner ||
+            (owner === undefined && messageId !== batchMessageId))
+        )
+          continue;
+        const ready = takeGroup(state, toolResultBuffer, id);
+        if (ready.length === 0) continue;
+        batchOwner = owner;
+        batchMessageId = messageId;
+        batch.push(...ready);
       }
       return {
         ...state,

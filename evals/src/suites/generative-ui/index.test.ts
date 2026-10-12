@@ -27,7 +27,7 @@ test("every model answers in every format and in one it chooses", () => {
 });
 
 test("a trial answers, renders the answer, then a separate judge scores the screenshot", async () => {
-  const rendered: [string, string][] = [];
+  const rendered: [string, string, { before: string; after: string }][] = [];
   const judge = generatingModel(
     JSON.stringify({
       clarity: 5,
@@ -39,8 +39,8 @@ test("a trial answers, renders the answer, then a separate judge scores the scre
   const suite = createGenerativeUISuite({
     models: [streamingModel(text("# Plan"))],
     judge,
-    render: async (format, artifact) => {
-      rendered.push([format, artifact]);
+    render: async (format, artifact, prose) => {
+      rendered.push([format, artifact, prose]);
       return {
         screenshots: ["iVBORw0KGgo="],
         cutOff: false,
@@ -53,7 +53,7 @@ test("a trial answers, renders the answer, then a separate judge scores the scre
   assert.ok(candidate && task);
   const judged = await suite.run(task, candidate);
   assert.equal(judged.artifact, "# Plan");
-  assert.deepEqual(rendered, [["text", "# Plan"]]);
+  assert.deepEqual(rendered, [["text", "# Plan", { before: "", after: "" }]]);
   assert.ok(
     JSON.stringify(judge.doGenerateCalls[0]?.prompt).includes("iVBORw0KGgo="),
     "the judge sees the rendered screenshot",
@@ -81,7 +81,7 @@ test("a trial answers, renders the answer, then a separate judge scores the scre
 });
 
 test("a tool format answered in prose renders as the Markdown the user would see", async () => {
-  const rendered: [string, string][] = [];
+  const rendered: [string, string, { before: string; after: string }][] = [];
   const suite = createGenerativeUISuite({
     models: [streamingModel(text("Each pays $30."))],
     judge: generatingModel(
@@ -92,8 +92,8 @@ test("a tool format answered in prose renders as the Markdown the user would see
         reason: "No UI.",
       }),
     ),
-    render: async (format, artifact) => {
-      rendered.push([format, artifact]);
+    render: async (format, artifact, prose) => {
+      rendered.push([format, artifact, prose]);
       return {
         screenshots: ["iVBORw0KGgo="],
         cutOff: false,
@@ -105,6 +105,8 @@ test("a tool format answered in prose renders as the Markdown the user would see
   const task = suite.cases[0];
   assert.ok(candidate && task);
   const judged = await suite.run(task, candidate);
-  assert.deepEqual(rendered, [["text", "Each pays $30."]]);
+  assert.deepEqual(rendered, [
+    ["text", "Each pays $30.", { before: "", after: "" }],
+  ]);
   assert.deepEqual(judged.errors, ["The model never called `present`."]);
 });

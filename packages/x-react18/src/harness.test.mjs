@@ -16,9 +16,10 @@ import test from "node:test";
 const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 const bin = join(packageRoot, "bin/aui-react18-types.mjs");
 
-// Fixtures live inside the package so they resolve its node_modules and the workspace's React 19 types.
+// Fixtures live inside the package so they resolve its node_modules and the workspace's React 19 types, each in its own git repository so the package's ignore rule for fixtures doesn't hide their sources from the staleness check.
 function fixture(files) {
   const dir = mkdtempSync(join(packageRoot, ".fixture-"));
+  spawnSync("git", ["init", "-q"], { cwd: dir });
   for (const [path, content] of Object.entries({
     "package.json": JSON.stringify({ name: "fixture", private: true }),
     ...files,

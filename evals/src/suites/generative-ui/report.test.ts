@@ -10,6 +10,7 @@ const judged = (
 ): TrialResult<Judged> => ({
   outcome: {
     artifact: "answer",
+    prose: { before: "", after: "" },
     answeredIn: "text",
     errors: [],
     repairRounds: 0,
