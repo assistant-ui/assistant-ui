@@ -92,7 +92,7 @@ Deviations from the sections above, with reasons:
 - **Preview frames stay inside the viewport** (fixed, opacity 0.01, behind the page). Chrome stops animation frames in cross-origin frames outside the viewport, which froze Chart.js mid-animation in screenshots.
 - **The frame hides its scrollbar** unless content exceeds the host's `maxHeight` (sent as `containerDimensions.maxHeight`); otherwise the scrollbar flashes while the iframe catches up with its content and steals width.
 - **The AI SDK adapter takes the SDK's `jsonSchema` helper as an argument** (`toAISDKTools(tools, { jsonSchema })`), so `ai` is neither a dependency nor a peer.
-- **Widget state** (`genframe.setState`) is a `genframe/widget-state` notification handled by `onWidgetState`.
+- **Widget state** (`genframe.setState`) is a `genframe/widget-state` notification handled by `onWidgetState`. The host keeps the latest plain JSON state from the frame that is showing, up to about 1,000,000 characters as JSON with a shared object counted once per place, so that checking and serializing it stay bounded, and sends it in each session's init, where `genframe.state` reads it, so a remount keeps it and `initialState` restores a saved one. What the showing frame sets while its replacement loads is kept only if the replacement fails. The assistant-ui toolkit saves it per call through the save loop it shares with spec state.
 - **Streaming morph** matches children by position, tag, and `id`, with one node of lookahead for single insertions and deletions. A trailing unclosed `<style>` is held back until it closes. After held scripts run, the runtime dispatches `DOMContentLoaded` and `load` once, for widgets written for a fresh page.
 
 

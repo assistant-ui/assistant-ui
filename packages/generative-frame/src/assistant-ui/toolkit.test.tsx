@@ -972,6 +972,214 @@ describe("useWidgetInstructions", () => {
   });
 });
 
+describe("frame widget state persistence", () => {
+  const interaction = (
+    toolCallId: string,
+    state: unknown,
+    type = "widgetState",
+  ) => ({
+    type: "action",
+    occurredAt: 1,
+    payload: { type, toolCallId, state },
+  });
+  const show = () => {
+    const { toolkit } = createWidgetToolkit();
+    return entries(toolkit)["show_widget"]!.render;
+  };
+
+  afterEach(() => vi.useRealTimers());
+
+  it("restores the newest matching action and defaults to null", () => {
+    const ShowWidget = show();
+    const view = render(
+      <ShowWidget
+        {...partProps("a", { title: "w", widget_code: "<p>w</p>" })}
+        unstable_interactions={{
+          entries: [
+            interaction("a", { count: 1 }),
+            interaction("other", { count: 9 }),
+            interaction("a", { count: 8 }, "other"),
+            interaction("a", { count: 2 }),
+            interaction("other", { count: 10 }),
+            { ...interaction("a", { count: 11 }), type: "other" },
+          ],
+        }}
+      />,
+    );
+    expect(mocks.widgetProps.at(-1)!["initialState"]).toEqual({ count: 2 });
+    view.unmount();
+    render(
+      <ShowWidget
+        {...partProps("a", { title: "w", widget_code: "<p>w</p>" })}
+        unstable_interactions={{
+          entries: [
+            interaction("other", 9),
+            {
+              type: "action",
+              payload: { type: "widgetState", toolCallId: "a" },
+            },
+          ],
+        }}
+      />,
+    );
+    expect(mocks.widgetProps.at(-1)!["initialState"]).toBeNull();
+    render(
+      <ShowWidget
+        {...partProps("a", { title: "w", widget_code: "<p>w</p>" })}
+        unstable_interactions={{ entries: [interaction("other", 9)] }}
+      />,
+    );
+    expect(mocks.widgetProps.at(-1)!["initialState"]).toBeNull();
+  });
+
+  it("debounces saves, calls the app handler, and flushes on unmount", async () => {
+    vi.useFakeTimers();
+    const record = vi.fn(async () => {});
+    const onWidgetState = vi.fn();
+    const { toolkit } = createWidgetToolkit({ widget: { onWidgetState } });
+    const ShowWidget = entries(toolkit)["show_widget"]!.render;
+    const view = render(
+      <ShowWidget
+        {...partProps("a", { title: "w", widget_code: "<p>w</p>" })}
+        unstable_interactions={{ entries: [interaction("a", { count: 1 })] }}
+        unstable_recordInteraction={record}
+      />,
+    );
+    const onState = mocks.widgetProps.at(-1)!["onWidgetState"] as (
+      state: unknown,
+    ) => void;
+    act(() => onState({ count: 1 }));
+    act(() => vi.advanceTimersByTime(500));
+    expect(record).not.toHaveBeenCalled();
+    act(() => onState({ count: 2 }));
+    act(() => vi.advanceTimersByTime(499));
+    expect(record).not.toHaveBeenCalled();
+    await act(async () => vi.advanceTimersByTime(1));
+    expect(record).toHaveBeenCalledExactlyOnceWith({
+      type: "action",
+      payload: { type: "widgetState", toolCallId: "a", state: { count: 2 } },
+    });
+    act(() => onState({ count: 2 }));
+    act(() => vi.advanceTimersByTime(500));
+    expect(record).toHaveBeenCalledTimes(1);
+    act(() => onState({ count: 3 }));
+    view.unmount();
+    expect(record).toHaveBeenLastCalledWith({
+      type: "action",
+      payload: { type: "widgetState", toolCallId: "a", state: { count: 3 } },
+    });
+    expect(record).toHaveBeenCalledTimes(2);
+    expect(onWidgetState).toHaveBeenCalledTimes(4);
+  });
+
+  it("records through the latest interaction callback", () => {
+    vi.useFakeTimers();
+    const first = vi.fn();
+    const latest = vi.fn();
+    const ShowWidget = show();
+    const view = render(
+      <ShowWidget
+        {...partProps("a", { title: "w", widget_code: "<p>w</p>" })}
+        unstable_recordInteraction={first}
+      />,
+    );
+    view.rerender(
+      <ShowWidget
+        {...partProps("a", { title: "w", widget_code: "<p>w</p>" })}
+        unstable_recordInteraction={latest}
+      />,
+    );
+    act(() =>
+      (mocks.widgetProps.at(-1)!["onWidgetState"] as (state: unknown) => void)({
+        count: 1,
+      }),
+    );
+    act(() => vi.advanceTimersByTime(500));
+    expect(first).not.toHaveBeenCalled();
+    expect(latest).toHaveBeenCalledOnce();
+  });
+
+  it("marks a rejected state once, and only over a state that was saved", async () => {
+    vi.useFakeTimers();
+    const record = vi.fn((input: { payload: { state: unknown } }) =>
+      input.payload.state === null ||
+      JSON.stringify(input.payload.state) === JSON.stringify({ count: 2 })
+        ? Promise.resolve()
+        : Promise.reject(new Error("rejected")),
+    );
+    const ShowWidget = show();
+    render(
+      <ShowWidget
+        {...partProps("a", { title: "w", widget_code: "<p>w</p>" })}
+        unstable_recordInteraction={record}
+      />,
+    );
+    const onState = mocks.widgetProps.at(-1)!["onWidgetState"] as (
+      state: unknown,
+    ) => void;
+    for (let count = 1; count <= 4; count++) {
+      act(() => onState({ count }));
+      await act(async () => vi.advanceTimersByTime(500));
+      await act(async () => {});
+    }
+    expect(record.mock.calls.map(([input]) => input.payload.state)).toEqual([
+      { count: 1 },
+      { count: 2 },
+      { count: 3 },
+      null,
+      { count: 4 },
+    ]);
+  });
+
+  it("restores and records edit state under the edit call", () => {
+    vi.useFakeTimers();
+    mocks.messages = [
+      {
+        content: [
+          call("a", "show_widget", { title: "w", widget_code: "<p>one</p>" }),
+          call("b", "edit_widget", {
+            title: "w",
+            edits: [{ old_string: "one", new_string: "two" }],
+          }),
+        ],
+      },
+    ];
+    const record = vi.fn(async () => {});
+    const { toolkit } = createWidgetToolkit();
+    const EditWidget = entries(toolkit)["edit_widget"]!.render;
+    render(
+      <EditWidget
+        {...partProps("b", { title: "w" })}
+        unstable_interactions={{
+          entries: [
+            interaction("a", { owner: "show" }),
+            interaction("b", { owner: "edit" }),
+          ],
+        }}
+        unstable_recordInteraction={record}
+      />,
+    );
+    expect(mocks.widgetProps.at(-1)).toMatchObject({
+      id: "aui:a",
+      initialState: { owner: "edit" },
+    });
+    act(() =>
+      (mocks.widgetProps.at(-1)!["onWidgetState"] as (state: unknown) => void)({
+        owner: "edited",
+      }),
+    );
+    act(() => vi.advanceTimersByTime(500));
+    expect(record).toHaveBeenCalledWith({
+      type: "action",
+      payload: {
+        type: "widgetState",
+        toolCallId: "b",
+        state: { owner: "edited" },
+      },
+    });
+  });
+});
+
 describe("render_spec state persistence", () => {
   const spec = {
     root: "t",

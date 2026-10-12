@@ -300,6 +300,7 @@ export function startRuntime(win: Window & typeof globalThis = window): void {
 
   const connect = (port: MessagePort, init: InitMessage) => {
     peer = createRpcPeer(port, { onRequest, onNotification });
+    widgetState = init.state ?? null;
     applyContext(init.context ?? {});
     peer.notify(METHODS.ready, { version: VERSION });
     scheduleSize();

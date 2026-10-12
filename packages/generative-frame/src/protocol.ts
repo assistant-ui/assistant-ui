@@ -66,6 +66,7 @@ export type HostContext = {
 export type InitMessage = {
   type: typeof INIT_MESSAGE;
   context: HostContext;
+  state?: unknown;
 };
 
 export type WidgetErrorKind =

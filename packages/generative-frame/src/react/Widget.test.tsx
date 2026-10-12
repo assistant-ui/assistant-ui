@@ -1,4 +1,5 @@
 import { act, cleanup, render } from "@testing-library/react";
+import { Activity, version } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_DARK_TOKENS, DEFAULT_LIGHT_TOKENS } from "../theme";
 import type { CreateWidgetOptions, WidgetHandle } from "../widget";
@@ -200,4 +201,34 @@ describe("<Widget>", () => {
     view.unmount();
     expect(widget.dispose).toHaveBeenCalledTimes(1);
   });
+
+  it.skipIf(version.startsWith("18."))(
+    "starts a frame created again under Activity from the latest widget state",
+    () => {
+      const onWidgetState = vi.fn();
+      const Host = ({ hidden }: { hidden: boolean }) => (
+        <Activity mode={hidden ? "hidden" : "visible"}>
+          <Widget
+            code=""
+            initialState={{ count: 0 }}
+            onWidgetState={onWidgetState}
+          />
+        </Activity>
+      );
+      const view = render(<Host hidden={false} />);
+      act(() => {
+        (mocks.instances[0]!.options as CreateWidgetOptions).onWidgetState!({
+          count: 2,
+        });
+      });
+      expect(onWidgetState).toHaveBeenCalledWith({ count: 2 });
+      view.rerender(<Host hidden />);
+      view.rerender(<Host hidden={false} />);
+      expect(mocks.instances).toHaveLength(2);
+      expect(mocks.instances[0]!.dispose).toHaveBeenCalledTimes(1);
+      expect(
+        (mocks.instances[1]!.options as CreateWidgetOptions).initialState,
+      ).toEqual({ count: 2 });
+    },
+  );
 });
