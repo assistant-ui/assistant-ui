@@ -478,32 +478,49 @@ describe("PiThreadController", () => {
     expect(controller.getState().runStatus).toBe("running");
   });
 
-  it("cancels a queued run promoted while Stop clears the queue", async () => {
-    const client = createFakeClient();
-    const controller = new PiThreadController(client, THREAD);
-    controller.connect();
-    client.emit(ev({ type: "agent_start" }, 1));
-    client.emit(
-      ev({ type: "queue_update", steering: [], followUp: ["queued"] }, 2),
-    );
+  it.each([
+    [
+      "the server announces it",
+      [
+        { type: "agent_start" },
+        { type: "queue_update", steering: [], followUp: [] },
+      ],
+    ],
+    [
+      "the queue drains first",
+      [
+        { type: "queue_update", steering: [], followUp: [] },
+        { type: "agent_start" },
+      ],
+    ],
+  ] satisfies [string, PiClientEventBody[]][])(
+    "cancels a queued run promoted while Stop clears the queue when %s",
+    async (_order, promotion) => {
+      const client = createFakeClient();
+      const controller = new PiThreadController(client, THREAD);
+      controller.connect();
+      client.emit(ev({ type: "agent_start" }, 1));
+      client.emit(
+        ev({ type: "queue_update", steering: [], followUp: ["queued"] }, 2),
+      );
 
-    const clear = Promise.withResolvers<{
-      steering: string[];
-      followUp: string[];
-    }>();
-    client.clearQueue = vi.fn(() => clear.promise);
-    const cancel = controller.captureCancel();
-    const clearing = controller.clearQueue();
+      const clear = Promise.withResolvers<{
+        steering: string[];
+        followUp: string[];
+      }>();
+      client.clearQueue = vi.fn(() => clear.promise);
+      const cancel = controller.captureCancel();
+      const clearing = controller.clearQueue();
 
-    client.emit(ev({ type: "agent_end" }, 3));
-    client.emit(ev({ type: "agent_start" }, 4));
-    client.emit(ev({ type: "queue_update", steering: [], followUp: [] }, 5));
-    clear.resolve({ steering: [], followUp: [] });
-    await clearing;
-    await cancel();
+      client.emit(ev({ type: "agent_end" }, 3));
+      promotion.forEach((body, index) => client.emit(ev(body, 4 + index)));
+      clear.resolve({ steering: [], followUp: [] });
+      await clearing;
+      await cancel();
 
-    expect(client.cancelled).toEqual([THREAD]);
-  });
+      expect(client.cancelled).toEqual([THREAD]);
+    },
+  );
 
   it("cancels a queued run first seen in a snapshot while Stop clears the queue", async () => {
     const client = createFakeClient();
