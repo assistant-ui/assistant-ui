@@ -8,7 +8,7 @@ import {
   formatFactDelta,
 } from "../../vocabulary/formatValue";
 import { toTextContent } from "../../vocabulary/toTextContent";
-import { fade, RADIUS, useInk, useNativeTheme } from "../theme";
+import { fade, RADIUS, toneTextColor, useInk, useNativeTheme } from "../theme";
 
 const styles = StyleSheet.create({
   label: { fontSize: 11, textTransform: "uppercase", letterSpacing: 0.55 },
@@ -48,6 +48,7 @@ function Fact({
       : tone === "bad"
         ? theme.destructive
         : theme.secondaryForeground;
+  const chipColor = tone === "neutral" ? color : toneTextColor(color, ink);
   return (
     <View>
       <Text style={[styles.label, { color: fade(ink, 0.62) }]}>
@@ -67,7 +68,7 @@ function Fact({
               },
             ]}
           >
-            <Text style={[styles.chipText, { color }]}>
+            <Text style={[styles.chipText, { color: chipColor }]}>
               {formatFactDelta(delta, direction)}
             </Text>
           </View>
