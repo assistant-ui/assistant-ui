@@ -294,6 +294,51 @@ describe("SpecRenderer", () => {
     expect(restored.getState()).toEqual({ name: "edited" });
   });
 
+  it.each(["state", "item"])(
+    "replaces a %s-bound array item without growing the list",
+    (binding) => {
+      const store = createStateStore({ items: [false, true] });
+      const view = render(
+        <SpecRenderer
+          catalog={catalog}
+          components={components}
+          state={store}
+          spec={spec({
+            main: {
+              type: "Stack",
+              children: ["toggle"],
+              ...(binding === "item" ? { repeat: { path: "/items" } } : {}),
+            },
+            toggle: {
+              type: "Toggle",
+              props: {
+                checked:
+                  binding === "item"
+                    ? { $bindItem: "" }
+                    : { $bindState: "/items/0" },
+              },
+            },
+          })}
+        />,
+      );
+      fireEvent.click(view.getAllByRole("checkbox")[0]!);
+      expect(store.get("/items")).toEqual([true, true]);
+      fireEvent.click(view.getAllByRole("checkbox")[0]!);
+      expect(store.get("/items")).toEqual([false, true]);
+      act(() => store.seed({ items: [true, false], extra: "streamed" }));
+      expect(store.getState()).toEqual({
+        items: [false, false],
+        extra: "streamed",
+      });
+      expect(
+        createStateStore(
+          { items: [true, false] },
+          { writes: store.writes() },
+        ).get("/items"),
+      ).toEqual([false, false]);
+    },
+  );
+
   it("sends catalog actions to handlers and onAction", () => {
     const refresh = vi.fn();
     const onAction = vi.fn();

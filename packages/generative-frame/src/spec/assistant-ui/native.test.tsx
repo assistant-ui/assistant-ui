@@ -151,6 +151,48 @@ describe("createSpecToolkit for React Native", () => {
     expect(view.container.textContent).toBe("Ada");
   });
 
+  it("restores array replacements alongside legacy saved writes", () => {
+    mocks.messages = [];
+    const RenderSpec = setup("frontend")["render_spec"]!.render;
+    const view = render(
+      <RenderSpec
+        args={{
+          title: "s",
+          spec: {
+            root: "t",
+            elements: {
+              t: {
+                type: "Label",
+                props: {
+                  text: { $template: "${/names/0} ${/names/1} ${/suffix}" },
+                },
+              },
+            },
+            state: { names: ["model", "other"], suffix: "" },
+          },
+        }}
+        toolCallId="s"
+        unstable_interactions={{
+          entries: [
+            {
+              type: "action",
+              payload: {
+                type: "setState",
+                toolCallId: "s",
+                writes: [
+                  ["/names/0", "Ada", "replace"],
+                  ["/suffix", "saved"],
+                  ["/names/1", "invalid", "remove"],
+                ],
+              },
+            },
+          ],
+        }}
+      />,
+    );
+    expect(view.container.textContent).toBe("Ada other saved");
+  });
+
   it("shows a streaming call with the React Native placeholder", () => {
     mocks.argsStatus = "streaming";
     mocks.messages = [];

@@ -883,6 +883,48 @@ describe("SpecRenderer", () => {
     expect(refresh).toHaveBeenCalledTimes(2);
   });
 
+  it.each(["state", "item"])(
+    "replaces a %s-bound array item without growing the list",
+    async (binding) => {
+      const store = createStateStore({ items: [false, true] });
+      const view = mount({
+        catalog,
+        components,
+        state: store,
+        spec: spec({
+          main: {
+            type: "Stack",
+            children: ["toggle"],
+            ...(binding === "item" ? { repeat: { path: "/items" } } : {}),
+          },
+          toggle: {
+            type: "Toggle",
+            props: {
+              checked:
+                binding === "item"
+                  ? { $bindItem: "" }
+                  : { $bindState: "/items/0" },
+            },
+          },
+        }),
+      });
+      const toggle = view.container.querySelector("input")!;
+      toggle.checked = true;
+      toggle.dispatchEvent(new Event("change", { bubbles: true }));
+      await nextTick();
+      expect(store.get("/items")).toEqual([true, true]);
+      expect(view.container.querySelectorAll("input")).toHaveLength(
+        binding === "item" ? 2 : 1,
+      );
+      store.seed({ items: [false, false], extra: "streamed" });
+      await nextTick();
+      expect(store.getState()).toEqual({
+        items: [true, false],
+        extra: "streamed",
+      });
+    },
+  );
+
   it("runs watch actions after watched state changes", async () => {
     const refresh = vi.fn();
     const store = createStateStore({ range: "7d" });
