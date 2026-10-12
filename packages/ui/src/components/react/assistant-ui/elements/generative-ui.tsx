@@ -60,6 +60,7 @@ export const styledGenerativeUILibrary: GenerativeUILibrary = {
       return (
         <GeoMap
           data-aui="map"
+          className="max-w-none [&_[data-slot=geo-map-coordinates]]:hidden"
           places={pins}
           routes={
             route && pins.length > 1

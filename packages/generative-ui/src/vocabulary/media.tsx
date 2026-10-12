@@ -14,6 +14,7 @@ export const mediaVocabulary = {
         <img
           data-aui="image"
           data-aui-size={numericSize === undefined ? size : undefined}
+          data-aui-sized={numericSize !== undefined || undefined}
           data-aui-round={round || undefined}
           src={src}
           alt={alt}

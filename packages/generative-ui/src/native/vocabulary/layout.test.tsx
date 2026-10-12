@@ -274,7 +274,7 @@ describe("layout vocabulary on React Native", () => {
     );
   });
 
-  it("keeps a Card plain for a background React Native cannot paint", () => {
+  it("renders a Card as a panel for a background React Native cannot paint", () => {
     const { container } = renderNativeSpec(
       spec({
         main: {
@@ -284,8 +284,42 @@ describe("layout vocabulary on React Native", () => {
       }),
     );
     const title = byRole(container, "heading", "Plan");
-    expect(title.parentElement!.style.backgroundColor).toBe("");
+    expect(title.parentElement!.style.backgroundColor).toBe(
+      "rgba(10, 10, 10, 0.04)",
+    );
+    expect(title.parentElement!.style.borderWidth).toBe("");
     expect(title.style.color).toBe("rgb(10, 10, 10)");
+  });
+
+  it.each([
+    ["light", "rgba(10, 10, 10, 0.04)"],
+    ["dark", "rgba(250, 250, 250, 0.06)"],
+  ] as const)("renders a plain Card as a %s panel", (colorScheme, fill) => {
+    scheme.current = colorScheme;
+    const { container } = renderNativeSpec(
+      spec({ main: { type: "Card", props: { title: "Summary" } } }),
+    );
+    const panel = byRole(container, "heading", "Summary").parentElement!;
+    expect(panel.style.backgroundColor).toBe(fill);
+    expect(getComputedStyle(panel).paddingTop).toBe("16px");
+  });
+
+  it("keeps a Card inside a Card plain", () => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: {
+          type: "Card",
+          props: { title: "Outer" },
+          children: ["inner"],
+        },
+        inner: { type: "Card", props: { title: "Inner" } },
+      }),
+    );
+    const outer = byRole(container, "heading", "Outer").parentElement!;
+    const inner = byRole(container, "heading", "Inner").parentElement!;
+    expect(outer.style.backgroundColor).toBe("rgba(10, 10, 10, 0.04)");
+    expect(inner.style.backgroundColor).toBe("");
+    expect(getComputedStyle(inner).paddingTop).toBe("0px");
   });
 
   it("spaces and aligns Col and Row children", () => {

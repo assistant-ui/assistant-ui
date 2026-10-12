@@ -13,8 +13,11 @@ import {
   dimension,
   fade,
   InkProvider,
+  InsideCardProvider,
   nativeColor,
+  RowContent,
   useCardSurface,
+  useInsideCard,
   RADIUS,
   space,
   toneTextColor,
@@ -40,6 +43,7 @@ const JUSTIFY = {
 
 const styles = StyleSheet.create({
   card: { flexDirection: "column", gap: 14 },
+  panel: { borderRadius: RADIUS.surface, padding: 16 },
   surface: { borderWidth: 1, borderRadius: RADIUS.surface, padding: 20 },
   title: { fontSize: 15, fontWeight: "600" },
   footer: {
@@ -97,6 +101,7 @@ function Card({
     fire(submitAction, $dispatch, values),
   );
   const slide = useCardSurface();
+  const nested = useInsideCard();
   const surface =
     slide ||
     tint !== undefined ||
@@ -109,6 +114,7 @@ function Card({
     <View
       style={[
         styles.card,
+        !surface && !nested && [styles.panel, { backgroundColor: theme.panel }],
         surface && [
           styles.surface,
           { backgroundColor: tint ?? theme.card, borderColor: theme.hairline },
@@ -125,7 +131,7 @@ function Card({
           {cardTitle}
         </Text>
       ) : null}
-      {children}
+      <InsideCardProvider value>{children}</InsideCardProvider>
       {confirm || cancel ? (
         <View style={[styles.footer, { borderTopColor: theme.hairline }]}>
           {confirm ? (
@@ -184,7 +190,7 @@ function Stack({
         ...(justify ? { justifyContent: JUSTIFY[justify] } : {}),
       }}
     >
-      {children}
+      {direction === "row" ? <RowContent>{children}</RowContent> : children}
     </View>
   );
 }
