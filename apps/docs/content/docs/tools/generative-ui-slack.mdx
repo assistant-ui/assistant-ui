@@ -108,7 +108,7 @@ Inside a `Carousel` that fallback is unavailable, so an over-full card is reshap
 
 ## Limits
 
-The converter clamps to Slack's published budgets rather than letting the API reject the payload. Character caps for `mrkdwn` fields count escaped text, including `&amp;`, `&lt;`, and `&gt;`. The ones you are most likely to hit:
+The converter clamps to Slack's published budgets rather than letting the API reject the payload. Caps on `mrkdwn` fields count the escaped text, where `&`, `<`, and `>` take five, four, and four characters (`&amp;`, `&lt;`, `&gt;`). The budgets you are most likely to hit:
 
 | Budget | Value | Behavior when exceeded |
 |---|---|---|

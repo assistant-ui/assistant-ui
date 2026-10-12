@@ -1044,7 +1044,7 @@ describe("fromSlackBlocks", () => {
       expect(fromSlackBlocks(toSlackBlocks(tree).blocks).nodes).toEqual(tree);
     });
 
-    const escapedText = "A & < B > C";
+    const escapedText = "A & < B > C, literally &lt; and &amp;gt;";
     const fixtures: readonly {
       readonly name: string;
       readonly tree: unknown;
