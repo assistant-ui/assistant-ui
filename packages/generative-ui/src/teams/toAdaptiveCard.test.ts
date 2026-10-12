@@ -353,6 +353,20 @@ describe("toAdaptiveCard", () => {
       expect(warnings).toEqual([]);
     });
 
+    it("captions a Diagram with a numeric title and skips an empty one", () => {
+      const caption = (title: unknown) =>
+        toAdaptiveCard({ $type: "Diagram", code: "flowchart LR", title }).card
+          .body[1];
+      expect(caption(2024)).toEqual({
+        type: "TextBlock",
+        text: "2024",
+        wrap: true,
+        size: "small",
+        isSubtle: true,
+      });
+      expect(caption("")).toBeUndefined();
+    });
+
     it("renders a Diagram without a title and clamps oversized source", () => {
       const { card, warnings } = toAdaptiveCard({
         $type: "Diagram",

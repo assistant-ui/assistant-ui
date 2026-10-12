@@ -1047,7 +1047,7 @@ export function convertElement(
           "Diagram",
           `code was clamped to ${DIAGRAM_LINE_CAP} lines.`,
         );
-      const title = props["title"];
+      const title = asTextValue(props["title"]);
       const space = String.fromCharCode(0xa0);
       return [
         {
@@ -1065,7 +1065,7 @@ export function convertElement(
             ),
           ),
         },
-        ...(typeof title === "string"
+        ...(title
           ? [textBlock(unlinked(title), { size: "small", isSubtle: true })]
           : []),
       ];

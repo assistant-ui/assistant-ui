@@ -337,6 +337,17 @@ describe("toSlackBlocks", () => {
       expect(warnings).toEqual([]);
     });
 
+    it("captions a Diagram with a numeric title and skips an empty one", () => {
+      const caption = (title: unknown) =>
+        toSlackBlocks({ $type: "Diagram", code: "flowchart LR", title })
+          .blocks[1];
+      expect(caption(2024)).toEqual({
+        type: "context",
+        elements: [{ type: "mrkdwn", text: "2024" }],
+      });
+      expect(caption("")).toBeUndefined();
+    });
+
     it("renders a Diagram without a title and closes an oversized code fence", () => {
       const { blocks, warnings } = toSlackBlocks({
         $type: "Diagram",

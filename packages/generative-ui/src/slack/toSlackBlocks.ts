@@ -1948,10 +1948,10 @@ const convertElement = (
         "code",
         context,
       );
-      const title = props["title"];
+      const title = asTextValue(props["title"]);
       return [
         structuredSection(`\`\`\`\n${code}\n\`\`\``, "Diagram", context),
-        ...(typeof title === "string"
+        ...(title
           ? [
               {
                 type: "context" as const,

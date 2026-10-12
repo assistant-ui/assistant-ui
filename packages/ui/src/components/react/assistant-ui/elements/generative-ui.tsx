@@ -47,7 +47,7 @@ export const styledGenerativeUILibrary: GenerativeUILibrary = {
     render: ({ code, title }) => (
       <figure data-aui="diagram">
         <MermaidDiagram code={typeof code === "string" ? code : ""} />
-        {typeof title === "string" ? (
+        {typeof title === "string" || typeof title === "number" ? (
           <figcaption data-aui="diagram-title">{title}</figcaption>
         ) : null}
       </figure>
