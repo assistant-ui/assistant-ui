@@ -22,6 +22,7 @@ const inputs = [
   ["5,000 code spans in one paragraph", "a `b` ".repeat(5_000)],
   ["20,000 triple-backtick spans on one line", "a ```b``` ".repeat(20_000)],
   ["20,000 tilde runs on one line", "x ~~~ ".repeat(20_000)],
+  ["20,000 tildes after prose", "x " + "~".repeat(20_000)],
   ["mixed message, 100 sections", message],
 ] as const;
 
