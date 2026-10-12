@@ -12,6 +12,7 @@
   },
   "devDependencies": {
     "@assistant-ui/generative-ui": "workspace:*",
+    "@assistant-ui/ui": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^26.6.4",
     "@types/react": "^19.3.0",
@@ -20,6 +21,9 @@
     "generative-frame": "workspace:*",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
+    "rolldown": "^1.2.12",
     "zod": "^4.6.5"
   }
 }

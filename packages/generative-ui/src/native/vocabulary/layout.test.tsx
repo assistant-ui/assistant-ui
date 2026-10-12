@@ -51,6 +51,92 @@ const card = (props: Record<string, unknown>, children?: string[]) =>
   });
 
 describe("layout vocabulary on React Native", () => {
+  it("names the tab row and ties each panel to its tab", () => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: {
+          type: "Tabs",
+          props: { tabs: ["First", "Second"], label: "Trip days" },
+          children: ["one", "two"],
+        },
+        one: { type: "Text", props: { value: "One" } },
+        two: { type: "Text", props: { value: "Two" } },
+      }),
+    );
+    expect(
+      container.querySelector('[role="tablist"]')?.getAttribute("aria-label"),
+    ).toBe("Trip days");
+    const tabs = [...container.querySelectorAll<HTMLElement>('[role="tab"]')];
+    const panels = [
+      ...container.querySelectorAll<HTMLElement>('[role="tabpanel"]'),
+    ];
+    expect(
+      panels.map((panel) => panel.getAttribute("aria-labelledby")),
+    ).toEqual(tabs.map((tab) => tab.id));
+  });
+
+  it("switches Tabs while keeping every panel mounted", async () => {
+    const input = spec({
+      main: {
+        type: "Tabs",
+        props: { tabs: ["First"] },
+        children: ["one", "two"],
+      },
+      one: { type: "Input", props: { label: "Name" } },
+      two: { type: "Text", props: { value: "Second panel" } },
+    });
+    const native = renderNativeSpec(input);
+    const web = renderWebSpec(input);
+    const tabs = () => [
+      ...native.container.querySelectorAll<HTMLElement>('[role="tab"]'),
+    ];
+    const panels = () => [
+      ...native.container.querySelectorAll<HTMLElement>('[role="tabpanel"]'),
+    ];
+    expect(tabs().map((tab) => tab.textContent)).toEqual(
+      [...web.container.querySelectorAll('[role="tab"]')].map(
+        (tab) => tab.textContent,
+      ),
+    );
+    expect(tabs().map((tab) => tab.getAttribute("aria-selected"))).toEqual([
+      "true",
+      "false",
+    ]);
+    expect(getComputedStyle(tabs()[0]!).borderBottomColor).toBe(
+      "rgb(23, 23, 23)",
+    );
+    expect(panels()).toHaveLength(2);
+    expect(panels()[1]!.style.display).toBe("none");
+    await typeText(native.container.querySelector("input")!, "Saved");
+    await press(byRole(native.container, "tab", "2"));
+    await press(
+      web.container.querySelectorAll<HTMLElement>('[role="tab"]')[1]!,
+    );
+    expect(tabs().map((tab) => tab.getAttribute("aria-selected"))).toEqual([
+      "false",
+      "true",
+    ]);
+    expect(getComputedStyle(tabs()[1]!).borderBottomColor).toBe(
+      "rgb(23, 23, 23)",
+    );
+    expect(panels()[0]!.style.display).toBe("none");
+    expect(panels()[1]!.textContent).toBe("Second panel");
+    expect(panels()[1]!.textContent).toBe(
+      [
+        ...web.container.querySelectorAll<HTMLElement>('[role="tabpanel"]'),
+      ].find((panel) => !panel.hidden)!.textContent,
+    );
+    await press(byRole(native.container, "tab", "First"));
+    expect(native.container.querySelector("input")!.value).toBe("Saved");
+  });
+
+  it("omits Tabs with no labels or panels", () => {
+    const container = renderElement(
+      layoutVocabulary.Tabs.render({ tabs: [] } as never),
+    );
+    expect(container.textContent).toBe("");
+  });
+
   it("omits an empty Card title", () => {
     const { container } = renderNativeSpec(card({ title: "" }));
     expect(container.querySelector('[role="heading"]')).toBeNull();

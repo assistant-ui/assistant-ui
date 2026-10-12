@@ -155,7 +155,7 @@ export const interactiveDefinitions = {
   },
   CheckboxGroup: {
     description:
-      "A group of checkbox options where any number can be checked. Carries `_action` describing the on-change behavior.",
+      "A group of checkbox options where any number can be checked. Set `progress` for a checklist the user works through. Carries `_action` describing the on-change behavior.",
     properties: z.object({
       options: z.array(describedOptionSchema).describe("Selectable options."),
       name: z.string().optional().describe("Field name used inside a Form."),
@@ -164,6 +164,10 @@ export const interactiveDefinitions = {
         .array(z.string())
         .optional()
         .describe("Initially checked values."),
+      progress: z
+        .boolean()
+        .optional()
+        .describe("Show how many options are checked, with a progress bar."),
     }),
   },
 } satisfies Record<string, VocabularyDefinition>;

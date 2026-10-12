@@ -99,6 +99,30 @@ describe("AssistantTransportEncoder", () => {
 });
 
 describe("AssistantTransportDecoder", () => {
+  it("decodes a valid chunk after a field prefixed by a second BOM", async () => {
+    const chunk = {
+      type: "text-delta",
+      textDelta: "kept",
+      path: [0],
+    } satisfies AssistantStreamChunk;
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(
+            `\uFEFF\uFEFFdata: {"ignored":true}\ndata: ${JSON.stringify(chunk)}\n\ndata: [DONE]\n\n`,
+          ),
+        );
+        controller.close();
+      },
+    });
+
+    const chunks = await collectChunks(
+      stream.pipeThrough(new AssistantTransportDecoder()),
+    );
+
+    expect(chunks).toEqual([chunk]);
+  });
+
   it("should decode SSE format back to chunks", async () => {
     const originalChunks: AssistantStreamChunk[] = [
       { type: "text-delta", textDelta: "Hello", path: [] },

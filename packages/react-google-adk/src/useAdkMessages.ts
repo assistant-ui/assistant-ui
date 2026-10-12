@@ -211,6 +211,11 @@ const useAdkMessagesInternal = ({
           messages.flatMap((m) => (m.type === "tool" ? [m.tool_call_id] : [])),
         );
         const currentState = controller.getState();
+        const previousRunState = {
+          longRunningToolIds: currentState.longRunningToolIds,
+          toolConfirmations: currentState.toolConfirmations,
+          authRequests: currentState.authRequests,
+        };
         const queuedMessageIds = currentState.queuedMessageIds;
         const seed = currentState.messages.filter(
           (m) => !queuedMessageIds.has(m.id),
@@ -247,6 +252,7 @@ const useAdkMessagesInternal = ({
           authRequests: accumulator.getAuthRequests(),
         });
         let lastTransferToAgent: string | undefined;
+        let receivedEvent = false;
 
         const abortController = new AbortController();
         abortControllerRef.current = abortController;
@@ -274,6 +280,7 @@ const useAdkMessagesInternal = ({
             ) {
               break;
             }
+            receivedEvent = true;
             const event = normalizeAdkEvent(rawEvent);
             const updatedMessages = accumulator.processEvent(event);
             // Each event part can append at most one message, and a function call
@@ -350,6 +357,13 @@ const useAdkMessagesInternal = ({
             abortControllerRef.current === abortController &&
             !(error instanceof Error && error.name === "AbortError")
           ) {
+            if (!receivedEvent) {
+              controller.dispatch({
+                type: "run.preEventFailed",
+                ownIds,
+                ...previousRunState,
+              });
+            }
             throw error;
           }
         } finally {

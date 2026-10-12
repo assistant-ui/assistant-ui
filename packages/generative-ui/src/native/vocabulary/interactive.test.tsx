@@ -305,6 +305,90 @@ const changeWeb = async (container: HTMLElement, type: string) => {
 };
 
 describe("native choice controls", () => {
+  it("updates CheckboxGroup progress with the web count and payload", async () => {
+    const input = spec({
+      main: {
+        ...control("CheckboxGroup", ["a"]),
+        props: { ...control("CheckboxGroup", ["a"]).props, progress: true },
+      },
+    });
+    const nativeHandler = vi.fn();
+    const webHandler = vi.fn();
+    const native = renderNativeSpec(input, { capture: nativeHandler }, actions);
+    const web = renderWebSpec(input, { capture: webHandler }, actions);
+    const count = () =>
+      native.container.querySelector<HTMLElement>(
+        '[data-testid="checkboxgroup-progress-label"]',
+      )!;
+    const fill = () =>
+      native.container.querySelector<HTMLElement>(
+        '[data-testid="checkboxgroup-progress-fill"]',
+      )!;
+    const webCount = () =>
+      web.container.querySelector<HTMLElement>(
+        '[data-aui="checkboxgroup-progress-label"]',
+      )!;
+    expect(count().textContent).toBe(webCount().textContent);
+    expect(count().textContent).toBe("1 of 3");
+    expect(fill().style.width).toBe("33.33333333333333%");
+    await press(row(native.container, "CheckboxGroup"));
+    await changeWeb(web.container, "CheckboxGroup");
+    expect(count().textContent).toBe(webCount().textContent);
+    expect(count().textContent).toBe("2 of 3");
+    expect(fill().style.width).toBe("66.66666666666666%");
+    expect(nativeHandler).toHaveBeenCalledOnce();
+    expect(webHandler).toHaveBeenCalledOnce();
+    expect(nativeHandler.mock.calls[0]![0]).toEqual(
+      webHandler.mock.calls[0]![0],
+    );
+  });
+
+  it("follows bound CheckboxGroup progress and handles an empty checklist", async () => {
+    const bound = renderNativeSpec(
+      spec(
+        {
+          main: {
+            type: "CheckboxGroup",
+            props: {
+              name: "tasks",
+              options,
+              progress: true,
+              defaultValue: { $bindState: "/tasks" },
+            },
+          },
+        },
+        { tasks: ["a"] },
+      ),
+    );
+    const count = () =>
+      bound.container.querySelector<HTMLElement>(
+        '[data-testid="checkboxgroup-progress-label"]',
+      )!.textContent;
+    expect(count()).toBe("1 of 3");
+    await press(byRole(bound.container, "checkbox", "Beta"));
+    expect(bound.state.get("/tasks")).toEqual(["a", "b"]);
+    expect(count()).toBe("2 of 3");
+    await act(async () => bound.state.set("/tasks", ["c"]));
+    expect(count()).toBe("1 of 3");
+    const empty = renderNativeSpec(
+      spec({
+        main: {
+          type: "CheckboxGroup",
+          props: { options: [], progress: true },
+        },
+      }),
+    ).container;
+    expect(
+      empty.querySelector('[data-testid="checkboxgroup-progress-label"]')!
+        .textContent,
+    ).toBe("0 of 0");
+    expect(
+      empty.querySelector<HTMLElement>(
+        '[data-testid="checkboxgroup-progress-fill"]',
+      )!.style.width,
+    ).toBe("0%");
+  });
+
   it.each(["Select", "RadioGroup"])(
     "does not dispatch a repeated $type selection",
     async (type) => {
