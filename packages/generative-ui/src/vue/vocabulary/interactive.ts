@@ -873,11 +873,11 @@ export const interactiveVocabulary = {
             ? (props.value ?? props.defaultValue)
             : [],
         );
-        const picked = ref(firstValue.value);
+        const tally = ref<number | undefined>(undefined);
         watch(
-          () => props.defaultValue,
-          (value) => {
-            picked.value = Array.isArray(value) ? value : [];
+          () => JSON.stringify(props.defaultValue),
+          () => {
+            tally.value = undefined;
           },
         );
         watch(
@@ -913,18 +913,19 @@ export const interactiveVocabulary = {
             : Array.isArray(props.defaultValue)
               ? props.defaultValue
               : [];
-          const current: string[] = bound()
-            ? Array.isArray(props.value ?? props.defaultValue)
-              ? (props.value ?? props.defaultValue)
-              : []
-            : picked.value;
           const optionValues = mapOptions(
             props.options,
             (option) => option.value,
           ).filter((option) => option !== null);
-          const done = optionValues.filter((option) =>
-            current.includes(option),
-          ).length;
+          const countChecked = (values: readonly string[]) =>
+            optionValues.filter((option) => values.includes(option)).length;
+          const done = bound()
+            ? countChecked(
+                Array.isArray(props.value ?? props.defaultValue)
+                  ? (props.value ?? props.defaultValue)
+                  : [],
+              )
+            : (tally.value ?? countChecked(checked));
           return h(
             "fieldset",
             {
@@ -978,7 +979,7 @@ export const interactiveVocabulary = {
                           ) ?? [],
                         (checkbox) => checkbox.value,
                       );
-                      picked.value = selected;
+                      if (props.progress) tally.value = selected.length;
                       if (bound())
                         emit(
                           `update:${boundProp()}` as

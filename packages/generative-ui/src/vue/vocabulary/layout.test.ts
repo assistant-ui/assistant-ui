@@ -88,6 +88,24 @@ const tabsSpec = (tabs: string[]) =>
   });
 
 describe("Tabs in Vue", () => {
+  it("names the tab list like React", () => {
+    const input = spec({
+      main: {
+        type: "Tabs",
+        props: { tabs: ["One"], label: "Trip days" },
+        children: ["first"],
+      },
+      first: { type: "Text", props: { value: "First panel" } },
+    });
+    const vue = renderVueSpec(input);
+    expect(vue.markup()).toBe(renderReactSpec(input).markup());
+    expect(
+      vue.container
+        .querySelector('[role="tablist"]')
+        ?.getAttribute("aria-label"),
+    ).toBe("Trip days");
+  });
+
   it("renders no tabs when there are no labels or panels", () => {
     const input = spec({ main: { type: "Tabs", props: { tabs: [] } } });
     expect(renderVueSpec(input).markup()).toBe(renderReactSpec(input).markup());

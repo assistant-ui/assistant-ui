@@ -336,6 +336,8 @@ describe("native choice controls", () => {
     expect(count().textContent).toBe(webCount().textContent);
     expect(count().textContent).toBe("2 of 3");
     expect(fill().style.width).toBe("66.66666666666666%");
+    expect(nativeHandler).toHaveBeenCalledOnce();
+    expect(webHandler).toHaveBeenCalledOnce();
     expect(nativeHandler.mock.calls[0]![0]).toEqual(
       webHandler.mock.calls[0]![0],
     );

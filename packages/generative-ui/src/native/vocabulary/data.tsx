@@ -269,7 +269,7 @@ function Citation({
   return href ? (
     <Pressable
       accessibilityRole="link"
-      onPress={() => Linking.openURL(href)}
+      onPress={() => void Linking.openURL(href).catch(() => {})}
       style={style}
     >
       {content}

@@ -31,7 +31,7 @@ const styles = StyleSheet.create({
   sequenceDetail: { fontSize: 12, lineHeight: 18 },
   timelineRail: { width: 12, alignItems: "center" },
   timelineDot: { width: 8, height: 8, borderRadius: 4 },
-  timelineLine: { width: 1, flex: 1, marginTop: 3 },
+  timelineLine: { width: 1, flex: 1, marginTop: 3, marginBottom: -14 },
   timelineTime: { fontSize: 12 },
 });
 
@@ -91,7 +91,11 @@ function Steps({ steps }: { steps: unknown }) {
           <View
             style={[styles.stepMarker, { backgroundColor: theme.secondary }]}
           >
-            <Text style={[styles.stepNumber, { color: ink }]}>{index + 1}</Text>
+            <Text
+              style={[styles.stepNumber, { color: theme.secondaryForeground }]}
+            >
+              {index + 1}
+            </Text>
           </View>
           <View style={styles.sequenceBody}>
             <Text style={[styles.sequenceTitle, { color: ink }]}>

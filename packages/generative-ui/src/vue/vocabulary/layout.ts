@@ -188,7 +188,7 @@ export const layoutVocabulary = {
     ...layoutDefinitions.Tabs,
     component: defineComponent({
       name: "GenerativeUITabs",
-      props: ["tabs"],
+      props: ["tabs", "label"],
       setup: function useTabs(props, { slots }) {
         const selected = ref(0);
         const id = useId();
@@ -203,6 +203,8 @@ export const layoutVocabulary = {
               "div",
               {
                 role: "tablist",
+                "aria-label":
+                  typeof props.label === "string" ? props.label : undefined,
                 "data-aui": "tabs-list",
                 onKeydown: (event: KeyboardEvent) => {
                   const next =

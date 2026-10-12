@@ -79,6 +79,34 @@ describe("CheckboxGroup progress in Vue", () => {
     },
   );
 
+  it("counts each checked box once when two options share a value, like React", async () => {
+    const input = spec({
+      main: {
+        type: "CheckboxGroup",
+        props: {
+          progress: true,
+          options: [
+            { label: "Levers", value: "tools" },
+            { label: "Pump", value: "tools" },
+            { label: "Patch kit", value: "patches" },
+          ],
+        },
+      },
+    });
+    const react = renderReactSpec(input);
+    const vue = renderVueSpec(input);
+    await act(async () =>
+      react.container.querySelector<HTMLInputElement>("input")!.click(),
+    );
+    vue.container.querySelector<HTMLInputElement>("input")!.click();
+    await nextTick();
+    expect(vue.markup()).toBe(react.markup());
+    expect(
+      vue.container.querySelector('[data-aui="checkboxgroup-progress-label"]')
+        ?.textContent,
+    ).toBe("1 of 3");
+  });
+
   it("renders empty progress like React", () => {
     const input = spec({
       main: { type: "CheckboxGroup", props: { options: [], progress: true } },

@@ -73,6 +73,27 @@ describe("data vocabulary on React Native", () => {
     expect(titleOnly.querySelector('[role="link"]')).toBeNull();
   });
 
+  it("swallows a Citation link no app can open", async () => {
+    const openURL = vi
+      .spyOn(Linking, "openURL")
+      .mockRejectedValue(new Error("No app handles this URL"));
+    try {
+      const native = renderNativeSpec(
+        spec({
+          main: {
+            type: "Citation",
+            props: { title: "Reference", url: "https://example.com/a" },
+          },
+        }),
+      ).container;
+      await press(byRole(native, "link"));
+      await Promise.resolve();
+      expect(openURL).toHaveBeenCalledOnce();
+    } finally {
+      openURL.mockRestore();
+    }
+  });
+
   it.each(["http", "https"])(
     "opens a %s Citation and uses the link host when source is absent",
     async (scheme) => {
@@ -91,9 +112,12 @@ describe("data vocabulary on React Native", () => {
       const web = renderWebSpec(input).container;
       expect(native.textContent).toBe(web.textContent);
       expect(native.textContent).toBe("example.comReference");
-      await press(byRole(native, "link"));
-      expect(openURL).toHaveBeenCalledExactlyOnceWith(url);
-      openURL.mockRestore();
+      try {
+        await press(byRole(native, "link"));
+        expect(openURL).toHaveBeenCalledExactlyOnceWith(url);
+      } finally {
+        openURL.mockRestore();
+      }
     },
   );
 

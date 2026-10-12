@@ -445,13 +445,13 @@ Carousel paging controls appear only when cards overflow the available width. Ea
 
 ## Tabs, steps, and timelines
 
-`Tabs` shows one child panel at a time under a row of tabs, labeled in order by its `tabs` strings; a panel without a label is labeled with its number. Every panel stays mounted, so a control on a hidden tab keeps its value, and the arrow keys, Home, and End move between tabs. Slack and Teams show every panel in order under its label.
+`Tabs` shows one child panel at a time under a row of tabs, labeled in order by its `tabs` strings, and `label` names the row for screen readers; a panel without a label is labeled with its number. Every panel stays mounted, so a control on a hidden tab keeps its value. On the web, the arrow keys, Home, and End move between tabs. Slack and Teams show every panel in order under its label.
 
-`Steps` numbers its `steps`, each a `title` with an optional `detail`, for instructions to follow in order. `Timeline` lists its `items`, each a `time` label, a `title`, and an optional `detail`, for schedules, itineraries, and histories. An entry without a title is skipped.
+`Steps` numbers its `steps`, each a `title` with an optional `detail`, for instructions to follow in order. `Timeline` lists its `items`, each a `time` label, a `title`, and an optional `detail`, for schedules, itineraries, and histories. A `present` tree skips an entry without a title; spec mode reports it to the model as an invalid prop instead.
 
 ## Citations
 
-`Citation` shows a source the answer draws on: its `title`, an optional `snippet`, and the `source` it comes from, which defaults to the link's domain. Only an `http` or `https` `url` makes the title a link, which opens in a new tab; any other value leaves the title as plain text.
+`Citation` shows a source the answer draws on: its `title`, an optional `snippet`, and the `source` it comes from, which defaults to the link's domain. Only an `http` or `https` `url` to a plain host makes the title a link, which opens in a new tab on the web and through `Linking` on React Native; any other value leaves the title as plain text.
 
 ## Checklists
 

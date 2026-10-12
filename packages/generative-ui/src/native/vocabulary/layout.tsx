@@ -1,4 +1,4 @@
-import { Children, useState, type ReactNode } from "react";
+import { Children, useId, useState, type ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Align, Justify } from "../../ir";
 import type { GenerativeUILibrary } from "../../types";
@@ -259,12 +259,21 @@ function Box({
   );
 }
 
-function Tabs({ tabs, children }: { tabs: string[]; children?: ReactNode }) {
+function Tabs({
+  tabs,
+  label,
+  children,
+}: {
+  tabs: string[];
+  label?: string;
+  children?: ReactNode;
+}) {
   const theme = useNativeTheme();
   const ink = useInk();
   const panels = Children.toArray(children);
   const labels = tabLabels(tabs, panels.length);
   const [selected, setSelected] = useState(0);
+  const id = useId();
   if (labels.length === 0) return null;
   const current = Math.min(selected, labels.length - 1);
   return (
@@ -272,11 +281,13 @@ function Tabs({ tabs, children }: { tabs: string[]; children?: ReactNode }) {
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View
           role="tablist"
+          {...(typeof label === "string" ? { accessibilityLabel: label } : {})}
           style={[styles.tabRow, { borderBottomColor: theme.hairline }]}
         >
           {labels.map((label, index) => (
             <Pressable
               key={index}
+              nativeID={`${id}-tab-${index}`}
               accessibilityRole="tab"
               accessibilityState={{ selected: index === current }}
               aria-selected={index === current}
@@ -305,6 +316,7 @@ function Tabs({ tabs, children }: { tabs: string[]; children?: ReactNode }) {
         <View
           key={index}
           role="tabpanel"
+          aria-labelledby={`${id}-tab-${index}`}
           style={index === current ? undefined : { display: "none" }}
         >
           {panels[index]}
@@ -367,6 +379,10 @@ export const layoutVocabulary = {
   },
   Tabs: {
     ...layoutDefinitions.Tabs,
-    render: ({ tabs, children }) => <Tabs tabs={tabs}>{children}</Tabs>,
+    render: ({ tabs, label, children }) => (
+      <Tabs tabs={tabs} {...(label !== undefined ? { label } : {})}>
+        {children}
+      </Tabs>
+    ),
   },
 } satisfies GenerativeUILibrary;

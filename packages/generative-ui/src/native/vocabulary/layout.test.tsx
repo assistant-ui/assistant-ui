@@ -40,6 +40,30 @@ const card = (props: Record<string, unknown>, children?: string[]) =>
   });
 
 describe("layout vocabulary on React Native", () => {
+  it("names the tab row and ties each panel to its tab", () => {
+    const { container } = renderNativeSpec(
+      spec({
+        main: {
+          type: "Tabs",
+          props: { tabs: ["First", "Second"], label: "Trip days" },
+          children: ["one", "two"],
+        },
+        one: { type: "Text", props: { value: "One" } },
+        two: { type: "Text", props: { value: "Two" } },
+      }),
+    );
+    expect(
+      container.querySelector('[role="tablist"]')?.getAttribute("aria-label"),
+    ).toBe("Trip days");
+    const tabs = [...container.querySelectorAll<HTMLElement>('[role="tab"]')];
+    const panels = [
+      ...container.querySelectorAll<HTMLElement>('[role="tabpanel"]'),
+    ];
+    expect(
+      panels.map((panel) => panel.getAttribute("aria-labelledby")),
+    ).toEqual(tabs.map((tab) => tab.id));
+  });
+
   it("switches Tabs while keeping every panel mounted", async () => {
     const input = spec({
       main: {
