@@ -274,13 +274,27 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     snapshot: ReturnType<typeof controller.getState>;
     ownIds: readonly string[];
   } | null>(null);
-  const inheritedSnapshot = () =>
-    [checkpointLookupRef.current, sentTruncationRef.current].find(
+  const inheritedSnapshot = () => {
+    const snapshot = [
+      checkpointLookupRef.current,
+      sentTruncationRef.current,
+    ].find(
       (pending) =>
         pending?.lease.isCurrent() &&
         pending.snapshot.loadGeneration ===
           controller.getState().loadGeneration,
     )?.snapshot;
+    if (!snapshot) return undefined;
+    const toolResultBuffer = controller.getState().toolResultBuffer;
+    if (toolResultBuffer.size === 0) return snapshot;
+    return {
+      ...snapshot,
+      toolResultBuffer: new Map([
+        ...snapshot.toolResultBuffer,
+        ...toolResultBuffer,
+      ]),
+    };
+  };
 
   const runExclusive = async (
     run: (isCurrent: () => boolean) => Promise<void>,
@@ -668,6 +682,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             const initialLoad = waitForInitialLoad();
             if (initialLoad && !(await initialLoad).active) return;
             const beforeReload = controller.getState();
+            const inherited = inheritedSnapshot();
             controller.dispatch({ type: "results.clear" });
             const stagedRun = controller.getStagedRun(parentId);
             if (stagedRun) {
@@ -687,7 +702,6 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             if (!getCheckpointId)
               throw new Error("Runtime does not support reloading messages.");
 
-            const inherited = inheritedSnapshot();
             stopRun();
             const beforeReloadState = inherited ?? beforeReload;
             const truncated = truncateAdkMessages(

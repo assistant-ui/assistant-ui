@@ -896,6 +896,122 @@ describe("useAdkRuntime refetch", () => {
     }
   });
 
+  it.each([
+    { name: "two edits", editCount: 2, lastOperation: "edit" },
+    { name: "three edits", editCount: 3, lastOperation: "edit" },
+    { name: "an edit and regenerate", editCount: 2, lastOperation: "reload" },
+  ])(
+    "keeps a held reply through $name when the last fails before an event",
+    async ({ editCount, lastOperation }) => {
+      const started = Array.from({ length: editCount - 1 }, () =>
+        deferred<void>(),
+      );
+      const releasePending = deferred<void>();
+      let streamCall = 0;
+      const streamMock = vi.fn(async function* (
+        _messages: unknown,
+        _config: { checkpointId?: string },
+      ): AsyncGenerator<AdkEvent> {
+        const call = streamCall++;
+        if (call < editCount - 1) {
+          started[call]!.resolve();
+          await releasePending.promise;
+          return;
+        }
+        if (call === editCount - 1)
+          throw new Error("chained edit failed before its first event");
+      });
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      try {
+        const { capture } = await renderAdk(
+          async () => ({
+            messages: [
+              { id: "q-0", type: "human", content: "earlier question" },
+              aiMessage("a-0", "earlier answer"),
+              { id: "q-1", type: "human", content: "original question" },
+              {
+                id: "a-1",
+                type: "ai",
+                content: "calling tools",
+                tool_calls: [
+                  { id: "x", name: "lookup", args: {} },
+                  { id: "y", name: "lookup", args: {} },
+                ],
+              },
+            ],
+            longRunningToolIds: ["x", "y"],
+          }),
+          async () => null,
+          streamMock,
+        );
+        const { result } = renderHook(() => useAui(), {
+          wrapper: wrapperFactory(capture.runtime!),
+        });
+        const heldCall = capture
+          .runtime!.thread.getMessageById("a-1")
+          .getMessagePartByToolCallId("x");
+
+        act(() => editAt(result.current, 2, "first edit"));
+        await started[0]!.promise;
+        act(() => heldCall.addToolResult({ value: "X" }));
+        expect(streamMock).toHaveBeenCalledOnce();
+
+        for (let edit = 1; edit < editCount; edit++) {
+          if (lastOperation === "reload" && edit === editCount - 1)
+            act(() => capture.runtime!.thread.getMessageById("a-0").reload());
+          else act(() => editAt(result.current, 2, `edit ${edit + 1}`));
+          if (edit < editCount - 1) await started[edit]!.promise;
+        }
+        await waitFor(() =>
+          expect(streamMock).toHaveBeenCalledTimes(editCount),
+        );
+        await waitFor(() => expect(consoleError).toHaveBeenCalled());
+
+        const messages = capture.runtime!.thread.getState().messages;
+        expect(messages.map((message) => message.role)).toEqual([
+          "user",
+          "assistant",
+          "user",
+          "assistant",
+        ]);
+        expect(JSON.stringify(messages)).toContain("original question");
+        expect(messages[1]?.content).toContainEqual(
+          expect.objectContaining({ type: "text", text: "earlier answer" }),
+        );
+        expect(messages[3]?.content).toContainEqual(
+          expect.objectContaining({
+            type: "tool-call",
+            toolCallId: "x",
+            result: '{"value":"X"}',
+          }),
+        );
+        expect(capture.longRunningToolIds).toEqual(["x", "y"]);
+
+        act(() =>
+          capture
+            .runtime!.thread.getMessageById("a-1")
+            .getMessagePartByToolCallId("y")
+            .addToolResult({ value: "Y" }),
+        );
+        await waitFor(() =>
+          expect(streamMock).toHaveBeenCalledTimes(editCount + 1),
+        );
+        const sent = (
+          streamMock.mock.calls[editCount]![0] as AdkMessage[]
+        ).filter((message) => message.type === "tool");
+        expect(sent.map((message) => message.tool_call_id)).toEqual(["x", "y"]);
+        expect(
+          sent.filter((message) => message.tool_call_id === "x"),
+        ).toHaveLength(1);
+      } finally {
+        releasePending.resolve();
+        consoleError.mockRestore();
+      }
+    },
+  );
+
   it("restores a failed reload but does not overwrite a newer send", async () => {
     const checkpoints = [deferred<string | null>(), deferred<string | null>()];
     const getCheckpointId = vi.fn(
