@@ -217,8 +217,8 @@ describe("card surface", () => {
 });
 
 describe("answer layout", () => {
-  it("spaces a render_spec frame from the reply's text the way a present root is spaced", () => {
-    expect(rules["[data-gf-spec]"]!["margin-block"]).toBe(
+  it("spaces a render_spec or show_widget frame from the reply's text the way a present root is spaced", () => {
+    expect(rules["[data-gf-spec], [data-gf-widget]"]!["margin-block"]).toBe(
       rules['[data-aui="root"]']!["margin-block"],
     );
   });

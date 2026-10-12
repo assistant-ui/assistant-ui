@@ -418,18 +418,18 @@ export const generativeUiVocabularyCss: CssRuleset = {
       opacity: "0.55",
     },
 
-  // The surface spaces itself: several `present` calls, or a `render_spec`
-  // frame next to the reply's text, land as adjacent blocks in a host container
-  // this stylesheet does not own. In a block context these margins collapse
-  // into one gap between neighbours; a flex or grid host adds them to its own
-  // spacing instead.
+  // The surface spaces itself: several `present` calls, or a `render_spec` or
+  // `show_widget` frame next to the reply's text, land as adjacent blocks in a
+  // host container this stylesheet does not own. In a block context these
+  // margins collapse into one gap between neighbours; a flex or grid host adds
+  // them to its own spacing instead.
   '[data-aui="root"]': {
     display: "flex",
     "flex-direction": "column",
     gap: "0.875rem",
     "margin-block": "0.875rem",
   },
-  "[data-gf-spec]": { "margin-block": "0.875rem" },
+  "[data-gf-spec], [data-gf-widget]": { "margin-block": "0.875rem" },
   // A call whose nodes have not arrived yet renders no children, and an empty
   // surface would otherwise hold its margins open for the length of the stream.
   '[data-aui="root"]:empty': { display: "none" },
