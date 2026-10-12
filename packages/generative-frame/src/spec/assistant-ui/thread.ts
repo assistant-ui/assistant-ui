@@ -50,9 +50,13 @@ export function savedWrites(
     return writes.filter(
       (write): write is SpecStateWrite =>
         Array.isArray(write) &&
+        typeof write[0] === "string" &&
         (write.length === 2 ||
-          (write.length === 3 && write[2] === "replace")) &&
-        typeof write[0] === "string",
+          (write.length === 3 && write[2] === "replace") ||
+          (write.length === 4 &&
+            (write[2] === "add" || write[2] === "replace") &&
+            Array.isArray(write[3]) &&
+            write[3].every((path: unknown) => typeof path === "string"))),
     );
   }
   return [];

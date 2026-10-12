@@ -1,12 +1,18 @@
-import { getAtPointer, parsePointer, writeAtPointer } from "./pointer";
+import {
+  getAtPointer,
+  joinPointer,
+  parsePointer,
+  writeAtPointer,
+} from "./pointer";
 
 export type StateListener = (state: Record<string, unknown>) => void;
 
-/** A value written at a JSON Pointer with `set`. */
+/** A value written at a JSON Pointer with `set`: an optional mode marks a replacement, and optional array-parent paths keep the shape of arrays the write went through. */
 export type SpecStateWrite = readonly [
   path: string,
   value: unknown,
-  mode?: "replace",
+  mode?: "add" | "replace",
+  arrayParents?: readonly string[],
 ];
 
 /** A small state container for spec expressions and `setState` actions. */
@@ -38,7 +44,7 @@ export function createStateStore(
   options: StateStoreOptions = {},
 ): SpecStateStore & {
   /**
-   * The writes `seed` re-applies, oldest first, as `[path, value]` or `[path, value, "replace"]`: what to save to restore the user's changes later. A write that replaces a value drops earlier writes at its path and below it, except those made before an insert at an index of an array on its path, which may have moved them to another item; one that inserts into an array, at an index or at `-`, keeps them, so replaying the list in order gives the same state. The array is replaced, never mutated, when it changes.
+   * The writes `seed` re-applies, oldest first, as `[path, value]`, `[path, value, "replace"]`, or, for a write that went through an array, `[path, value, mode, arrayParents]`, whose array-parent paths recreate those arrays when the write is replayed without them: what to save to restore the user's changes later. A write that replaces a value drops earlier writes at its path and below it, except those made before an insert at an index of an array on its path, which may have moved them to another item; one that inserts into an array, at an index or at `-`, keeps them, so replaying the list in order gives the same state. The array is replaced, never mutated, when it changes.
    */
   writes(): readonly SpecStateWrite[];
 } {
@@ -48,29 +54,56 @@ export function createStateStore(
   const shifting = new WeakSet<SpecStateWrite>();
   const listeners = new Set<StateListener>();
 
-  const write = (
+  const arrayParentsAt = (target: Record<string, unknown>, path: string) => {
+    const tokens = parsePointer(path);
+    return tokens.flatMap((_, index) => {
+      const parent = joinPointer(tokens.slice(0, index));
+      return Array.isArray(getAtPointer(target, parent)) ? [parent] : [];
+    });
+  };
+
+  const parentOf = (path: string) => path.slice(0, path.lastIndexOf("/"));
+
+  const apply = (
     target: Record<string, unknown>,
     path: string,
     value: unknown,
     mode: "add" | "replace",
-  ) =>
-    writeAtPointer(target, parsePointer(path), mode, value, {
-      createMissing: true,
-    }) as Record<string, unknown>;
+    savedArrayParents: readonly string[] = [],
+  ) => {
+    const arrayParents = [
+      ...new Set([...savedArrayParents, ...arrayParentsAt(target, path)]),
+    ];
+    const parent =
+      path === "" ? undefined : getAtPointer(target, parentOf(path));
+    const inserted =
+      mode === "add" &&
+      path !== "" &&
+      (Array.isArray(parent) ||
+        (parent === undefined && arrayParents.includes(parentOf(path))));
+    const next = writeAtPointer(
+      target,
+      parsePointer(path),
+      mode,
+      value,
+      { createMissing: true },
+      arrayParents,
+    ) as Record<string, unknown>;
+    return { next, inserted, arrayParents };
+  };
 
-  const parentOf = (path: string) => path.slice(0, path.lastIndexOf("/"));
-
-  const inserts = (target: Record<string, unknown>, path: string) =>
-    path !== "" && Array.isArray(getAtPointer(target, parentOf(path)));
-
-  const record = (
+  const entryFor = (
     path: string,
     value: unknown,
-    inserted: boolean,
     mode: "add" | "replace",
-  ) => {
-    const entry: SpecStateWrite =
-      mode === "replace" ? [path, value, mode] : [path, value];
+    arrayParents: readonly string[],
+  ): SpecStateWrite => {
+    if (arrayParents.length > 0) return [path, value, mode, arrayParents];
+    return mode === "replace" ? [path, value, mode] : [path, value];
+  };
+
+  const record = (entry: SpecStateWrite, inserted: boolean) => {
+    const path = entry[0];
     if (inserted) {
       if (!path.endsWith("/-")) shifting.add(entry);
       writes = [...writes, entry];
@@ -90,17 +123,26 @@ export function createStateStore(
     ];
   };
 
+  const modeOf = (saved: unknown) => (saved === "replace" ? "replace" : "add");
+
   const emit = () => {
     for (const listener of [...listeners]) listener(state);
   };
 
-  for (const [rawPath, value, saved] of options.writes ?? []) {
-    const mode = saved === "replace" ? "replace" : "add";
+  for (const [rawPath, value, saved, savedArrayParents] of options.writes ??
+    []) {
     const path = normalize(rawPath);
+    const mode = modeOf(saved);
     try {
-      const inserted = mode === "add" && inserts(state, path);
-      state = write(state, path, value, mode);
-      record(path, value, inserted, mode);
+      const result = apply(
+        state,
+        path,
+        value,
+        mode,
+        savedArrayParents?.map(normalize),
+      );
+      state = result.next;
+      record(entryFor(path, value, mode, result.arrayParents), result.inserted);
     } catch {}
   }
 
@@ -109,10 +151,9 @@ export function createStateStore(
     get: (path) => getAtPointer(state, normalize(path)),
     set(rawPath, value, mode = "add") {
       const path = normalize(rawPath);
-      const inserted = mode === "add" && inserts(state, path);
-      const next = write(state, path, value, mode);
-      record(path, value, inserted, mode);
-      state = next;
+      const result = apply(state, path, value, mode);
+      record(entryFor(path, value, mode, result.arrayParents), result.inserted);
+      state = result.next;
       emit();
     },
     writes: () => writes,
@@ -120,15 +161,27 @@ export function createStateStore(
       if (next === base) return;
       base = next;
       let merged = next;
-      const applied = writes.filter(([path, value, mode = "add" as const]) => {
+      let changed = false;
+      const applied: SpecStateWrite[] = [];
+      for (const write of writes) {
+        const [path, value, saved, savedArrayParents] = write;
+        const mode = modeOf(saved);
         try {
-          merged = write(merged, path, value, mode);
-          return true;
+          const result = apply(merged, path, value, mode, savedArrayParents);
+          merged = result.next;
+          if (result.arrayParents.length === (savedArrayParents?.length ?? 0)) {
+            applied.push(write);
+            continue;
+          }
+          const entry = entryFor(path, value, mode, result.arrayParents);
+          if (shifting.has(write)) shifting.add(entry);
+          applied.push(entry);
+          changed = true;
         } catch {
-          return false;
+          changed = true;
         }
-      });
-      if (applied.length !== writes.length) writes = applied;
+      }
+      if (changed) writes = applied;
       state = merged;
       emit();
     },

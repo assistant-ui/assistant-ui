@@ -63,6 +63,20 @@ export function writeAtPointer(
   mode: WriteMode,
   value?: unknown,
   options: WriteOptions = {},
+  arrayParents: readonly string[] = [],
+): unknown {
+  return writeAtPointerAt(doc, tokens, mode, value, options, arrayParents, []);
+}
+
+function writeAtPointerAt(
+  doc: unknown,
+  tokens: readonly string[],
+  mode: WriteMode,
+  value: unknown,
+  options: WriteOptions,
+  arrayParents: readonly string[],
+  prefix: readonly string[],
+  created = false,
 ): unknown {
   if (tokens.length === 0) {
     if (mode === "remove") throw new Error("Cannot remove the whole document");
@@ -92,6 +106,9 @@ export function writeAtPointer(
         }
         copy.splice(index, 0, value);
       } else {
+        if (created && mode === "replace") {
+          while (copy.length <= index) copy.push(undefined);
+        }
         if (index >= copy.length) {
           throw new Error(`Index ${index} is out of bounds`);
         }
@@ -100,15 +117,37 @@ export function writeAtPointer(
       }
       return copy;
     }
+    if (created && mode !== "remove") {
+      while (copy.length <= index) copy.push(undefined);
+    }
     if (index >= copy.length)
       throw new Error(`Index ${index} is out of bounds`);
-    copy[index] = writeAtPointer(copy[index], rest, mode, value, options);
+    copy[index] = writeAtPointerAt(
+      copy[index],
+      rest,
+      mode,
+      value,
+      options,
+      arrayParents,
+      [...prefix, token],
+    );
     return copy;
   }
 
   if (!isContainer(doc)) {
     if (options.createMissing && doc === undefined && mode !== "remove") {
-      return writeAtPointer({}, tokens, mode, value, options);
+      // An array the write went through is recreated as one, so its indices and `-` do not become object keys; only such a new array grows to reach an index.
+      const array = arrayParents.includes(joinPointer(prefix));
+      return writeAtPointerAt(
+        array ? [] : {},
+        tokens,
+        mode,
+        value,
+        options,
+        arrayParents,
+        prefix,
+        array,
+      );
     }
     throw new Error(`Path segment "${token}" does not exist`);
   }
@@ -127,6 +166,14 @@ export function writeAtPointer(
   if (!Object.hasOwn(copy, token) && !options.createMissing) {
     throw new Error(`Path segment "${token}" does not exist`);
   }
-  copy[token] = writeAtPointer(copy[token], rest, mode, value, options);
+  copy[token] = writeAtPointerAt(
+    copy[token],
+    rest,
+    mode,
+    value,
+    options,
+    arrayParents,
+    [...prefix, token],
+  );
   return copy;
 }
