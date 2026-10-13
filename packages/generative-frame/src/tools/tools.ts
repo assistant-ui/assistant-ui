@@ -101,7 +101,7 @@ export function createWidgetTools<
     read_me: {
       name: "read_me",
       description:
-        "Returns the rules for writing widgets plus guidance for the requested modules. Call it silently before your first widget, and again when you need a module you have not loaded. Do not mention this call to the user.",
+        "Returns the rules for writing widgets plus guidance for the requested modules. Call it silently before your first `show_widget` call, and again when you need a module whose guidance you do not have yet. Do not mention this call to the user.",
       inputSchema: {
         type: "object",
         properties: {
