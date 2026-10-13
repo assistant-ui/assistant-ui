@@ -16,7 +16,7 @@ import {
   GENERATED_NAME_ATTR,
 } from "../../constants";
 import { interactiveDefinitions } from "../../vocabulary/definitions/interactive";
-import { BOUND_VALUE_PROPS } from "../../spec/catalogDefinitions";
+import { BOUND_VALUE_PROPS } from "../../spec/wiring";
 import {
   clamp,
   finiteNumber,
