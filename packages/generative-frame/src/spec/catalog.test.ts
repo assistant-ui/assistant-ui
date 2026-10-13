@@ -229,7 +229,7 @@ describe("catalog.prompt", () => {
     expect(prompt).toContain('{"op":"add","path":"/root","value":"main"}');
     expect(prompt).toContain("$bindState");
     expect(prompt).toContain(
-      "fills `${…}` placeholders with state values; a placeholder in any other string shows as written.",
+      "fills `${…}` placeholders with state values; outside `$template` and `$calc`, a placeholder shows as written.",
     );
     expect(prompt).toContain(
       '`{ "$calc": "round(${/guests} * 0.5, 1) + \' lb\'" }`',
@@ -401,14 +401,24 @@ describe("validateSpec", () => {
     spec.elements["b"]!.on = {
       press: { action: "refresh", params: { range: "${$item/range}" } },
     };
+    spec.elements["b"]!.watch = {
+      "/range": { action: "refresh", params: { range: "Row ${$index}" } },
+    };
+    spec.elements["main"]!.visible = {
+      $cond: { $state: "/total" },
+      $then: true,
+      $else: "${ /total }",
+    };
     const issues = validateSpec(spec, catalog).issues.filter(
       (issue) => issue.code === "unfilled-placeholder",
     );
     expect(issues.map((issue) => issue.path)).toEqual([
+      "/elements/main/visible/$else",
       "/elements/card/props/title",
       "/elements/b/on/press/params/range",
+      "/elements/b/watch/~1range/params/range",
     ]);
-    expect(issues[0]!.message).toBe(
+    expect(issues.find((issue) => issue.elementId === "card")!.message).toBe(
       '"card" shows `${/guests}` as written, since only `$template` and `$calc` fill placeholders. Write the string as `{ "$template": "…" }`, or compute the value with `$calc`.',
     );
   });

@@ -43,7 +43,7 @@ export type ValidateSpecOptions = {
 
 const elementPath = (id: string) => `/elements/${escapePointerToken(id)}`;
 
-const PLACEHOLDER = /\$\{(?:\/|\$item\b|\$index\b)[^}]*\}/;
+const PLACEHOLDER = /\$\{\s*(?:\/|\$item\b|\$index\b)[^}]*\}/;
 
 const bindingsOf = (
   value: ActionBinding | ActionBinding[] | undefined,
