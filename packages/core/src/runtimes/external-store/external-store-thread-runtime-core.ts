@@ -647,8 +647,7 @@ export class ExternalStoreThreadRuntimeCore
           messages.map((message) => message.id),
         ) &&
         (importedHostMessages === undefined ||
-          importedHostMessages === store.messages ||
-          !shallowArrayEqual(importedHostMessages, store.messages));
+          importedHostMessages === store.messages);
       if (preservingImportedMessages) {
         this._importedHostMessages = store.messages;
       } else {
@@ -1489,6 +1488,19 @@ export class ExternalStoreThreadRuntimeCore
     const repo = new MessageRepository();
     repo.import(ExportedMessageRepository.fromArray(initialMessages ?? []));
     this.updateMessages(repo.getMessages());
+  }
+
+  public override export(): ExportedMessageRepository {
+    const exported = super.export();
+    if (
+      (this._importedMessageIds === undefined &&
+        !this._store.messageRepository) ||
+      !hasUpcomingMessage(this._effectiveIsRunning, this._storeMessages) ||
+      this.repository.headId !== this._optimistic?.id
+    ) {
+      return exported;
+    }
+    return { ...exported, headId: this._optimistic.parentId };
   }
 
   public override import(data: ExportedMessageRepository) {

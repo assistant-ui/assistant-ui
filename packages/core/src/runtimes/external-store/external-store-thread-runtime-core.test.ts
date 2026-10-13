@@ -140,6 +140,91 @@ describe("ExternalStoreThreadRuntimeCore message repository", () => {
     expect(exportedIds(runtime)).toEqual(["u1", "a1"]);
   });
 
+  it("prunes imported descendants when the host edits the same visible path", () => {
+    let hostMessages: readonly ThreadMessage[] = [];
+    const store = {
+      messages: hostMessages,
+      onNew: async () => {},
+      onImport: (messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      },
+    };
+    const runtime = createRuntime(store);
+    runtime.import(repositoryWithDescendants("a1"));
+    runtime.__internal_setAdapter({ ...store, messages: hostMessages });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+
+    const editedMessages = hostMessages.map((message) =>
+      message.id === "a1"
+        ? { ...message, content: [{ type: "text" as const, text: "edited" }] }
+        : message,
+    );
+    runtime.__internal_setAdapter({ ...store, messages: editedMessages });
+    expect(visibleIds(runtime)).toEqual(["u1", "a1"]);
+    expect(exportedIds(runtime)).toEqual(["u1", "a1"]);
+  });
+
+  it("prunes a host-dropped tail after the import echo", () => {
+    let hostMessages: readonly ThreadMessage[] = [];
+    const store = {
+      messages: hostMessages,
+      onNew: async () => {},
+      onImport: (messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      },
+    };
+    const runtime = createRuntime(store);
+    runtime.import(repositoryWithDescendants("u2"));
+    runtime.__internal_setAdapter({ ...store, messages: hostMessages });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+
+    runtime.__internal_setAdapter({
+      ...store,
+      messages: hostMessages.slice(0, -1),
+    });
+    expect(visibleIds(runtime)).toEqual(["u1", "a1"]);
+    expect(exportedIds(runtime)).toEqual(["u1", "a1"]);
+  });
+
+  it("exports the imported array head while showing a running placeholder", () => {
+    let hostMessages: readonly ThreadMessage[] = [];
+    const store = {
+      messages: hostMessages,
+      onNew: async () => {},
+      onImport: (messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      },
+    };
+    const runtime = createRuntime(store);
+    runtime.import(repositoryWithDescendants("u2"));
+    runtime.__internal_setAdapter({ ...store, messages: hostMessages });
+    runtime.__internal_setAdapter({
+      ...store,
+      messages: hostMessages,
+      isRunning: true,
+    });
+
+    expect(visibleIds(runtime).slice(0, -1)).toEqual(["u1", "a1", "u2"]);
+    expect(runtime.messages.at(-1)?.metadata.isOptimistic).toBe(true);
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+    expect(runtime.export().headId).toBe("u2");
+  });
+
+  it("exports the imported repository head while showing a running placeholder", () => {
+    const store = {
+      messageRepository: repositoryWithDescendants("u2"),
+      onNew: async () => {},
+      isRunning: false,
+    };
+    const runtime = createRuntime(store);
+    runtime.__internal_setAdapter({ ...store, isRunning: true });
+
+    expect(visibleIds(runtime).slice(0, -1)).toEqual(["u1", "a1", "u2"]);
+    expect(runtime.messages.at(-1)?.metadata.isOptimistic).toBe(true);
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+    expect(runtime.export().headId).toBe("u2");
+  });
+
   it.each(["u2", "a1"])(
     "keeps the exact head across store updates during a run with head %s",
     (headId) => {
