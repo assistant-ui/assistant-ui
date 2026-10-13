@@ -32,14 +32,25 @@ const useRemoteThreadListRuntimeThreads = ({
 }) => {
   const options = useSubscribable(optionsStore);
   const generation = useSubscribable(generationStore);
-  const thread = useMemo(
-    () => (id: string) =>
-      withKey(
-        `${id}:${generation}`,
-        RemoteThreadListRuntimeThread({ optionsStore, modelContext }),
-      ),
-    [generation, modelContext, optionsStore],
+  const threadOptions = useMemo(
+    () => ({ optionsStore, modelContext }),
+    [optionsStore, modelContext],
   );
+  const thread = useMemo(() => {
+    const elements = new Map<
+      string,
+      ReturnType<typeof RemoteThreadListRuntimeThread>
+    >();
+    return (id: string) => {
+      const key = `${id}:${generation}`;
+      let element = elements.get(key);
+      if (!element) {
+        element = withKey(key, RemoteThreadListRuntimeThread(threadOptions));
+        elements.set(key, element);
+      }
+      return element;
+    };
+  }, [generation, threadOptions]);
   const clientRef = useAssistantClientRef();
   useEffect(() => {
     clientCore?.__internal_bindClient(clientRef.current!);

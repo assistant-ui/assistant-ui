@@ -8,9 +8,9 @@ import { useMemo, useEffect, useCallback, type RefObject } from "react";
 import { useResource, resource, withKey } from "@assistant-ui/tap";
 import { liveRef } from "./liveRef";
 import type { ClientOutput } from "@assistant-ui/store";
-import { useAui } from "@assistant-ui/store";
 import {
   useAssistantEmit,
+  useAssistantContextValue,
   useClientLookup,
   useClientResource,
 } from "@assistant-ui/store/client";
@@ -60,7 +60,7 @@ const useThreadClient = ({
 }): ClientOutput<"thread"> => {
   const runtimeState = useSubscribable(runtime);
   const emit = useAssistantEmit();
-  const aui = useAui();
+  const aui = useAssistantContextValue();
 
   useEffect(() => {
     const unsubscribers: Unsubscribe[] = [];

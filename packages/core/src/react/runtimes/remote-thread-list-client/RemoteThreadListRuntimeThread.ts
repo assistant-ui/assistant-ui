@@ -1,7 +1,17 @@
-import { useEffect, useEffectEvent, useMemo, useRef } from "react";
-import { resource } from "@assistant-ui/tap";
+import {
+  useEffect,
+  useEffectEvent,
+  useInsertionEffect,
+  useMemo,
+  useRef,
+} from "react";
+import { resource, useResources, withKey } from "@assistant-ui/tap";
 import { useAui } from "@assistant-ui/store";
-import { useClientResource } from "@assistant-ui/store/client";
+import {
+  createClientFacade,
+  useAssistantContextProvider,
+  useClientLookup,
+} from "@assistant-ui/store/client";
 import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
 import type { ThreadRuntimeImpl } from "../../../runtime/api/thread-runtime";
 import type { ThreadRuntimeCore } from "../../../runtime/interfaces/thread-runtime-core";
@@ -17,13 +27,15 @@ import {
   useRuntimeAdaptersProvider,
 } from "../useRuntimeAdapters";
 
-const useRemoteThreadListRuntimeThread = ({
-  optionsStore,
-  modelContext,
-}: {
+type ThreadOptions = {
   optionsStore: WritableSubscribable<RemoteThreadListOptions>;
   modelContext: ModelContextProvider;
-}) => {
+};
+
+const useRemoteThreadListRuntimeHook = ({
+  optionsStore,
+  modelContext,
+}: ThreadOptions) => {
   const aui = useAui();
   const destroySignal = useAssistantClientDestroySignal();
   const inheritedAdapters = useRuntimeAdapters();
@@ -102,7 +114,40 @@ const useRemoteThreadListRuntimeThread = ({
     return runtime.threads.main.unstable_on("initialize", handleInitialize);
   }, [runtime]);
 
-  return useClientResource(ThreadClient({ runtime: runtime.thread })).methods;
+  return runtime.thread;
+};
+
+const RemoteThreadListRuntimeHook = resource(useRemoteThreadListRuntimeHook);
+
+const useRemoteThreadListRuntimeThread = (options: ThreadOptions) => {
+  const aui = useAui();
+  const auiRef = useRef(aui);
+  useInsertionEffect(() => {
+    auiRef.current = aui;
+  }, [aui]);
+  const stableAui = useMemo(
+    () =>
+      createClientFacade({
+        getClient: () => auiRef.current,
+        subscribe: (listener) => auiRef.current.subscribe(listener),
+      }),
+    [],
+  );
+  const hookElement = useMemo(
+    () => withKey("runtime", RemoteThreadListRuntimeHook(options)),
+    [options],
+  );
+  const runtime = useAssistantContextProvider(
+    stableAui,
+    function WithStableAssistantClient() {
+      return useResources([hookElement])[0]!;
+    },
+  );
+  const threadElement = useMemo(
+    () => withKey("thread", ThreadClient({ runtime })),
+    [runtime],
+  );
+  return useClientLookup([threadElement]).get({ key: "thread" });
 };
 
 export const RemoteThreadListRuntimeThread = resource(
