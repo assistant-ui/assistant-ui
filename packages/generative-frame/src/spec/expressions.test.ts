@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   evaluateCondition,
   isExpression,
+  itemPointer,
   renderTemplate,
   resolveProps,
   resolveValue,
@@ -123,6 +124,23 @@ describe("evaluateCondition", () => {
 });
 
 describe("resolveProps", () => {
+  it("preserves the empty-key base when binding a repeated item", () => {
+    const itemPath = itemPointer("/", 0);
+    expect(
+      resolveProps(
+        { value: { $bindItem: "/value" } },
+        {
+          state: { "": [{ value: "before" }] },
+          item: { value: "before" },
+          itemPath,
+        },
+      ),
+    ).toEqual({
+      props: { value: "before" },
+      bindings: { value: "//0/value" },
+    });
+  });
+
   it("resolves formulas as prop values", () => {
     expect(
       resolveProps({ total: { $calc: "${/count} * 2" } }, { state }),
@@ -150,5 +168,13 @@ describe("resolveProps", () => {
       props: { value: "all", done: true, label: "L" },
       bindings: { value: "/filter", done: "/todos/1/done" },
     });
+  });
+});
+
+describe("itemPointer", () => {
+  it("distinguishes the whole document from the empty-string key", () => {
+    expect(itemPointer("", 0)).toBe("/0");
+    expect(itemPointer("/", 0)).toBe("//0");
+    expect(itemPointer("/todos", 1)).toBe("/todos/1");
   });
 });

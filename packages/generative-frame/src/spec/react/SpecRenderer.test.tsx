@@ -172,6 +172,33 @@ describe("SpecRenderer", () => {
     );
   });
 
+  it("writes repeated bindings under the empty-string state key", () => {
+    const store = createStateStore({ "": [{ value: false }] });
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        state={store}
+        spec={spec({
+          main: {
+            type: "Stack",
+            repeat: { path: "/" },
+            children: ["item"],
+          },
+          item: {
+            type: "Toggle",
+            props: { checked: { $bindItem: "/value" } },
+          },
+        })}
+      />,
+    );
+
+    fireEvent.click(view.getByRole("checkbox"));
+
+    expect(store.get("//0/value")).toBe(true);
+    expect(store.get("/0")).toBeUndefined();
+  });
+
   it("sends catalog actions to handlers and onAction", () => {
     const refresh = vi.fn();
     const onAction = vi.fn();

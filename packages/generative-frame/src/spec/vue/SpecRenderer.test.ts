@@ -219,6 +219,31 @@ describe("SpecRenderer", () => {
     expect(boxes[0]!.checked).toBe(true);
   });
 
+  it("writes repeated bindings under the empty-string state key", async () => {
+    const store = createStateStore({ "": [{ value: false }] });
+    const view = mount({
+      catalog,
+      components,
+      state: store,
+      spec: spec({
+        main: {
+          type: "Stack",
+          repeat: { path: "/" },
+          children: ["item"],
+        },
+        item: {
+          type: "Toggle",
+          props: { checked: { $bindItem: "/value" } },
+        },
+      }),
+    });
+
+    await click(view.container.querySelector("input")!);
+
+    expect(store.get("//0/value")).toBe(true);
+    expect(store.get("/0")).toBeUndefined();
+  });
+
   it("sends emitted payloads to handlers and onAction", async () => {
     const refresh = vi.fn();
     const onAction = vi.fn();
