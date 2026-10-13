@@ -464,3 +464,252 @@ describe("ExternalStoreThreadRuntimeCore earlier messages", () => {
     expect(runtime.isLoadingEarlier).toBe(false);
   });
 });
+
+describe("ExternalStoreThreadRuntimeCore delete during reload", () => {
+  const message = (id: string, role: "user" | "assistant") =>
+    fromThreadMessageLike({ id, role, content: id }, id, {
+      type: "complete",
+      reason: "stop",
+    });
+
+  const setup = (
+    reloadFails = false,
+    deferReloadFailure = false,
+    truncateBeforeReloadFailure = false,
+  ) => {
+    const originalMessages = [
+      message("u1", "user"),
+      message("a1", "assistant"),
+      message("u2", "user"),
+      message("a2", "assistant"),
+    ];
+    let messages = originalMessages;
+    let isRunning = false;
+    let confirmDelete!: () => void;
+    let declineDelete!: () => void;
+    let rejectReload!: () => void;
+    let markReloadStarted!: () => void;
+    const reloadStarted = new Promise<void>((resolve) => {
+      markReloadStarted = resolve;
+    });
+    const setMessages = vi.fn();
+    const adapter = () =>
+      ({
+        messages,
+        isRunning,
+        onNew: async () => {},
+        onDelete: (id: string) =>
+          new Promise<void>((resolve, reject) => {
+            confirmDelete = () => {
+              messages = messages.filter((item) => item.id !== id);
+              resolve();
+            };
+            declineDelete = () => reject(new Error("deletion declined"));
+          }),
+        onReload: async () => {
+          if (reloadFails) {
+            if (truncateBeforeReloadFailure) {
+              isRunning = true;
+              messages = messages.slice(0, 1);
+            }
+            if (deferReloadFailure) {
+              markReloadStarted();
+              await new Promise<void>((_resolve, reject) => {
+                rejectReload = () => reject(new Error("reload failed"));
+              });
+            }
+            throw new Error("reload failed");
+          }
+          isRunning = true;
+          messages = messages.slice(0, 1);
+        },
+        setMessages,
+      }) as ExternalStoreAdapter;
+    const runtime = createRuntime(adapter());
+
+    return {
+      runtime,
+      setMessages,
+      confirmDelete: () => confirmDelete(),
+      declineDelete: () => declineDelete(),
+      rejectReload: () => rejectReload(),
+      reloadStarted,
+      publish: () => {
+        messages = [...messages];
+        runtime.__internal_setAdapter(adapter());
+      },
+      publishUnrelated: () => {
+        messages = [...originalMessages];
+        runtime.__internal_setAdapter(adapter());
+      },
+      publishTruncation: () => {
+        messages = messages.slice(0, 1);
+        runtime.__internal_setAdapter(adapter());
+      },
+      finishRun: () => {
+        isRunning = false;
+        messages = [message("u1", "user"), message("a1b", "assistant")];
+        runtime.__internal_setAdapter(adapter());
+      },
+    };
+  };
+
+  const startRun = (runtime: ExternalStoreThreadRuntimeCore) =>
+    runtime.startRun({ parentId: "u1", sourceId: "a1", runConfig: {} });
+
+  it("keeps a rejected delete registered after the reload scan", async () => {
+    const { runtime, setMessages, declineDelete, publish, finishRun } = setup();
+
+    await startRun(runtime);
+    const deletion = runtime.deleteMessage("u2");
+    publish();
+    declineDelete();
+    await expect(deletion).rejects.toThrow("deletion declined");
+    finishRun();
+    runtime.switchToBranch("a1");
+
+    expect(
+      setMessages.mock.lastCall?.[0].map((item: { id: string }) => item.id),
+    ).toEqual(["u1", "a1", "u2", "a2"]);
+  });
+
+  it("keeps a rejected delete when the reload snapshot arrives after rejection", async () => {
+    const { runtime, setMessages, declineDelete, publish, finishRun } = setup();
+
+    await startRun(runtime);
+    const deletion = runtime.deleteMessage("u2");
+    declineDelete();
+    await expect(deletion).rejects.toThrow("deletion declined");
+    publish();
+    finishRun();
+    runtime.switchToBranch("a1");
+
+    expect(
+      setMessages.mock.lastCall?.[0].map((item: { id: string }) => item.id),
+    ).toEqual(["u1", "a1", "u2", "a2"]);
+  });
+
+  it("keeps a rejected delete that settled before the reload scan", async () => {
+    const { runtime, setMessages, declineDelete, publish, finishRun } = setup();
+
+    const deletion = runtime.deleteMessage("u2");
+    declineDelete();
+    await expect(deletion).rejects.toThrow("deletion declined");
+    await startRun(runtime);
+    publish();
+    finishRun();
+    runtime.switchToBranch("a1");
+
+    expect(
+      setMessages.mock.lastCall?.[0].map((item: { id: string }) => item.id),
+    ).toEqual(["u1", "a1", "u2", "a2"]);
+  });
+
+  it("evicts a delete confirmed after the reload snapshot", async () => {
+    const { runtime, setMessages, confirmDelete, publish, finishRun } = setup();
+
+    await startRun(runtime);
+    const deletion = runtime.deleteMessage("u2");
+    publish();
+    confirmDelete();
+    await deletion;
+    finishRun();
+    runtime.switchToBranch("a1");
+
+    expect(
+      setMessages.mock.lastCall?.[0].map((item: { id: string }) => item.id),
+    ).toEqual(["u1", "a1", "a2"]);
+  });
+
+  it("keeps the reload boundary through an unrelated host snapshot", async () => {
+    const {
+      runtime,
+      setMessages,
+      declineDelete,
+      publishUnrelated,
+      publishTruncation,
+      finishRun,
+    } = setup();
+
+    await startRun(runtime);
+    publishUnrelated();
+    const deletion = runtime.deleteMessage("u2");
+    publishTruncation();
+    declineDelete();
+    await expect(deletion).rejects.toThrow("deletion declined");
+    finishRun();
+    runtime.switchToBranch("a1");
+
+    expect(
+      setMessages.mock.lastCall?.[0].map((item: { id: string }) => item.id),
+    ).toEqual(["u1", "a1", "u2", "a2"]);
+  });
+
+  it("clears the reload boundary when onReload fails", async () => {
+    const { runtime, setMessages, confirmDelete } = setup(true);
+
+    const reload = startRun(runtime);
+    const deletion = runtime.deleteMessage("u2");
+    await expect(reload).rejects.toThrow("reload failed");
+    confirmDelete();
+    await deletion;
+    runtime.switchToBranch("a1");
+
+    expect(
+      setMessages.mock.lastCall?.[0].map((item: { id: string }) => item.id),
+    ).toEqual(["u1", "a1", "u2", "a2"]);
+  });
+
+  it("keeps a confirmed delete marker until the host publishes its removal after reload failure", async () => {
+    const {
+      runtime,
+      setMessages,
+      confirmDelete,
+      rejectReload,
+      reloadStarted,
+      publish,
+    } = setup(true, true);
+
+    const reload = startRun(runtime);
+    await reloadStarted;
+    const deletion = runtime.deleteMessage("u2");
+    confirmDelete();
+    await deletion;
+    rejectReload();
+    await expect(reload).rejects.toThrow("reload failed");
+    publish();
+    runtime.switchToBranch("a1");
+
+    expect(
+      setMessages.mock.lastCall?.[0].map((item: { id: string }) => item.id),
+    ).toEqual(["u1", "a1", "a2"]);
+  });
+
+  it("keeps a rejected delete when reload fails after the host truncates", async () => {
+    const {
+      runtime,
+      setMessages,
+      declineDelete,
+      rejectReload,
+      reloadStarted,
+      publish,
+      finishRun,
+    } = setup(true, true, true);
+
+    const reload = startRun(runtime);
+    await reloadStarted;
+    const deletion = runtime.deleteMessage("u2");
+    rejectReload();
+    await expect(reload).rejects.toThrow("reload failed");
+    publish();
+    declineDelete();
+    await expect(deletion).rejects.toThrow("deletion declined");
+    publish();
+    finishRun();
+    runtime.switchToBranch("a1");
+
+    expect(
+      setMessages.mock.lastCall?.[0].map((item: { id: string }) => item.id),
+    ).toEqual(["u1", "a1", "u2", "a2"]);
+  });
+});

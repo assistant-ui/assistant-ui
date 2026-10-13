@@ -199,7 +199,10 @@ type ExternalStoreAdapterBase<T> = {
    * from its branches when `messages` stops carrying the id, and reads a
    * `messages` update that still carries it after every call for it has
    * settled as a declined delete. A host that accepts the delete therefore
-   * publishes the removal before the returned promise settles.
+   * publishes the removal before the returned promise settles. When a reload
+   * truncates the host array past the message, the runtime waits for this
+   * callback to distinguish a rejected delete from the reload's omission: a
+   * rejection preserves the message, and a resolution evicts it.
    */
   onDelete?: ((messageId: string) => Promise<void> | void) | undefined;
   onReload?: // TODO: remove parentId in 0.12.0

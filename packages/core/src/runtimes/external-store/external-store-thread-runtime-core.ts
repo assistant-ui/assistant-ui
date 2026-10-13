@@ -83,6 +83,18 @@ type SubmittedFeedbackOverlay = {
   message: ThreadAssistantMessage;
 };
 
+type ReloadDeleteBoundary = {
+  prefixIds: readonly string[];
+  omittedIds: ReadonlySet<string>;
+};
+
+type PendingDeleteEviction = {
+  calls: Set<symbol>;
+  boundary: ReloadDeleteBoundary | undefined;
+  awaitingDeleteOutcome: boolean;
+  resolved: boolean;
+};
+
 const sameSubmittedFeedback = (
   left: SubmittedFeedback | undefined,
   right: SubmittedFeedback | undefined,
@@ -212,20 +224,10 @@ export class ExternalStoreThreadRuntimeCore
   private _converter = new ThreadMessageConverter();
   private _submittedFeedback = new Map<string, SubmittedFeedbackOverlay>();
 
-  // Ids the host was asked to delete via onDelete, mapped to the onDelete
-  // calls still pending for them. The snapshot pass evicts them from the
-  // repository once the host's array no longer carries them; an id the host
-  // still carries after every onDelete call for it settled, resolved or
-  // rejected, is dropped from the map without eviction.
-  // Branch-changing mutations (edit, branch switch) invalidate the map,
-  // because after them the incoming array omits off-branch ids for reasons
-  // unrelated to deletion. A reload invalidates only the ids after the parent
-  // it regenerates from: the host keeps the prefix up to that parent, so an
-  // id absent from it is still a deletion. Plain tail sends do not clear: a
-  // tail append cannot make a visible id absent, so id-absence stays
-  // unambiguous and a delete whose confirmation races a send keeps its
-  // eviction.
-  private _pendingDeleteEvictions = new Map<string, Set<symbol>>();
+  // A reload can omit its old suffix without deleting it, so pending host
+  // deletes in that suffix wait for the callback outcome before eviction.
+  private _pendingDeleteEvictions = new Map<string, PendingDeleteEviction>();
+  private _activeReloadBoundary: ReloadDeleteBoundary | undefined;
 
   // Placeholder id for the upcoming assistant message, reused across snapshot
   // passes while the same tail message awaits its response so the placeholder
@@ -422,7 +424,7 @@ export class ExternalStoreThreadRuntimeCore
       repositoryInstance !== this.repository;
     if (repositoryChanged) {
       this.repository = repositoryInstance;
-      this._pendingDeleteEvictions.clear();
+      this._clearPendingDeleteEvictions();
       this._submittedFeedback.clear();
       // Keep the live placeholder so resetHead cannot evict an id still used
       // by clients rendering the previous snapshot.
@@ -518,7 +520,7 @@ export class ExternalStoreThreadRuntimeCore
             this.repository.deleteMessage(message.id);
           }
         }
-        this._pendingDeleteEvictions.clear();
+        this._clearPendingDeleteEvictions();
         this.repository.resetHead(headId);
         messages = this.repository.getMessages();
       }
@@ -602,23 +604,39 @@ export class ExternalStoreThreadRuntimeCore
 
       // A pass over the host's previous array, such as a client tool's
       // running refresh, can predate the host's answer to onDelete.
-      if (
-        this._pendingDeleteEvictions.size > 0 &&
-        oldStore?.messages !== store.messages
-      ) {
+      if (oldStore?.messages !== store.messages) {
         const incomingIds = new Set(messages.map((m) => m.id));
-        for (const [id, calls] of this._pendingDeleteEvictions) {
-          if (incomingIds.has(id)) {
-            if (calls.size === 0) this._pendingDeleteEvictions.delete(id);
-            continue;
+        const boundary = this._activeReloadBoundary;
+        if (
+          boundary &&
+          boundary.prefixIds.every((id, index) => messages[index]?.id === id) &&
+          [...boundary.omittedIds].every((id) => !incomingIds.has(id))
+        ) {
+          this._activeReloadBoundary = undefined;
+          for (const [id, pending] of this._pendingDeleteEvictions) {
+            if (pending.boundary !== boundary) continue;
+            pending.boundary = undefined;
+            if (pending.calls.size > 0) pending.awaitingDeleteOutcome = true;
+            else if (!pending.resolved) this._pendingDeleteEvictions.delete(id);
           }
-          this._pendingDeleteEvictions.delete(id);
-          try {
-            this.repository.getMessage(id);
-          } catch {
-            continue;
+        }
+
+        if (this._pendingDeleteEvictions.size > 0) {
+          for (const [id, pending] of this._pendingDeleteEvictions) {
+            if (pending.boundary || pending.awaitingDeleteOutcome) continue;
+            if (incomingIds.has(id)) {
+              if (pending.calls.size === 0)
+                this._pendingDeleteEvictions.delete(id);
+              continue;
+            }
+            this._pendingDeleteEvictions.delete(id);
+            try {
+              this.repository.getMessage(id);
+            } catch {
+              continue;
+            }
+            this.repository.deleteMessage(id);
           }
-          this.repository.deleteMessage(id);
         }
       }
     } else {
@@ -842,7 +860,7 @@ export class ExternalStoreThreadRuntimeCore
       : null;
 
     this.repository.switchToBranch(branchId);
-    this._pendingDeleteEvictions.clear();
+    this._clearPendingDeleteEvictions();
     this.updateMessages(this.repository.getMessages());
     if (onBranchChange) {
       this._notifyBranchChange(previousHeadId, onBranchChange);
@@ -956,7 +974,7 @@ export class ExternalStoreThreadRuntimeCore
     if (isEdit) {
       if (!this._store.onEdit)
         throw new Error("Runtime does not support editing messages.");
-      this._pendingDeleteEvictions.clear();
+      this._clearPendingDeleteEvictions();
       await this._store.onEdit(message);
     } else {
       await this._store.onNew(message);
@@ -1005,13 +1023,39 @@ export class ExternalStoreThreadRuntimeCore
         .some((m) => m.id === messageId);
       const call = Symbol();
       if (wasVisible) {
-        const calls = this._pendingDeleteEvictions.get(messageId) ?? new Set();
-        this._pendingDeleteEvictions.set(messageId, calls.add(call));
+        const pending = this._pendingDeleteEvictions.get(messageId) ?? {
+          calls: new Set<symbol>(),
+          boundary: undefined,
+          awaitingDeleteOutcome: false,
+          resolved: false,
+        };
+        pending.calls.add(call);
+        if (this._activeReloadBoundary?.omittedIds.has(messageId)) {
+          pending.boundary = this._activeReloadBoundary;
+        }
+        this._pendingDeleteEvictions.set(messageId, pending);
       }
+      let resolved = false;
       try {
         await this._store.onDelete(messageId);
+        resolved = true;
       } finally {
-        this._pendingDeleteEvictions.get(messageId)?.delete(call);
+        const pending = this._pendingDeleteEvictions.get(messageId);
+        if (pending) {
+          pending.calls.delete(call);
+          if (resolved) pending.resolved = true;
+          if (pending.awaitingDeleteOutcome) {
+            if (pending.resolved) {
+              pending.awaitingDeleteOutcome = false;
+              if (!this._storeMessages.some((m) => m.id === messageId)) {
+                this._pendingDeleteEvictions.delete(messageId);
+                this._evictDeletedMessage(messageId);
+              }
+            } else if (pending.calls.size === 0) {
+              this._pendingDeleteEvictions.delete(messageId);
+            }
+          }
+        }
       }
       return;
     }
@@ -1027,7 +1071,7 @@ export class ExternalStoreThreadRuntimeCore
     const messageIndex = messages.findIndex((m) => m.id === messageId);
     if (messageIndex === -1) throw new Error("Message not found.");
 
-    this._pendingDeleteEvictions.clear();
+    this._clearPendingDeleteEvictions();
     this.updateMessages(messages.filter((message) => message.id !== messageId));
     this._evictDeletedMessage(messageId);
   }
@@ -1062,6 +1106,34 @@ export class ExternalStoreThreadRuntimeCore
     this._notifySubscribers();
   }
 
+  private _clearPendingDeleteEvictions() {
+    this._pendingDeleteEvictions.clear();
+    this._activeReloadBoundary = undefined;
+  }
+
+  private _discardReloadBoundary(boundary: ReloadDeleteBoundary) {
+    if (this._activeReloadBoundary === boundary) {
+      this._activeReloadBoundary = undefined;
+    }
+    for (const [id, pending] of this._pendingDeleteEvictions) {
+      if (pending.boundary !== boundary) continue;
+      pending.boundary = undefined;
+      if (pending.calls.size > 0) {
+        pending.awaitingDeleteOutcome = true;
+        continue;
+      }
+      if (
+        pending.resolved &&
+        !this._storeMessages.some((message) => message.id === id)
+      ) {
+        this._pendingDeleteEvictions.delete(id);
+        this._evictDeletedMessage(id);
+      } else if (!pending.resolved) {
+        this._pendingDeleteEvictions.delete(id);
+      }
+    }
+  }
+
   public getQueueItems() {
     // The composer reads this during base-thread construction, before the
     // constructor assigns `_store`, so guard against the unset field.
@@ -1090,23 +1162,47 @@ export class ExternalStoreThreadRuntimeCore
 
     this._runStartLeases.begin();
     const visible = this.repository.getMessages();
-    const kept = new Set(
-      visible
-        .slice(0, visible.findIndex((m) => m.id === config.parentId) + 1)
-        .map((m) => m.id),
+    const keptMessages = visible.slice(
+      0,
+      visible.findIndex((m) => m.id === config.parentId) + 1,
     );
-    for (const id of this._pendingDeleteEvictions.keys()) {
-      if (!kept.has(id)) this._pendingDeleteEvictions.delete(id);
+    const kept = new Set(keptMessages.map((m) => m.id));
+    const omittedIds = new Set(
+      visible.filter((message) => !kept.has(message.id)).map((m) => m.id),
+    );
+    const boundary: ReloadDeleteBoundary | undefined =
+      omittedIds.size > 0
+        ? { prefixIds: keptMessages.map((m) => m.id), omittedIds }
+        : undefined;
+    if (this._activeReloadBoundary) {
+      this._discardReloadBoundary(this._activeReloadBoundary);
+    }
+    this._activeReloadBoundary = boundary;
+    for (const [id, pending] of this._pendingDeleteEvictions) {
+      if (kept.has(id)) continue;
+      if (boundary) {
+        pending.boundary = boundary;
+      } else {
+        this._pendingDeleteEvictions.delete(id);
+      }
     }
 
     const cancellationLease = this._runCancellationLeases.current();
     // Auto-abort in-flight client-side tool executions when a run reloads;
     // any results that land afterward would target a turn that no longer
     // exists. See `append` above for full rationale.
-    await this._toolInvocations?.abort({ discardPending: true });
-    if (!cancellationLease.isCurrent()) return;
+    try {
+      await this._toolInvocations?.abort({ discardPending: true });
+      if (!cancellationLease.isCurrent()) {
+        if (boundary) this._discardReloadBoundary(boundary);
+        return;
+      }
 
-    await this._store.onReload(config.parentId, config);
+      await this._store.onReload(config.parentId, config);
+    } catch (error) {
+      if (boundary) this._discardReloadBoundary(boundary);
+      throw error;
+    }
   }
 
   public async resumeRun(config: ResumeRunConfig): Promise<void> {
