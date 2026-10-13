@@ -296,12 +296,22 @@ describe("catalog.prompt", () => {
     });
     const prompt = flat.prompt();
     expect(prompt).toContain(
-      "never one you write yourself: lead with two or three photos, or put a small photo beside each item's text.",
+      "- Show what can be seen with `Image`, but only from an image URL a tool returned, never one you write yourself.\n",
     );
     expect(prompt).not.toContain("Make each module a `Card`");
     expect(prompt).not.toContain("a `Row` of `Fact`s");
     expect(prompt).not.toContain("`Button`, each stepping it");
     expect(prompt).not.toContain("render them with `repeat`");
+
+    const stacked = defineCatalog({
+      components: {
+        Stack: { description: "Stack", slots: ["default"] },
+        Image: { description: "Image" },
+      },
+    });
+    expect(stacked.prompt()).toContain(
+      "never one you write yourself: lead with two or three photos.\n",
+    );
   });
 
   it("carries the rules in render_spec's description, the app's last", () => {
