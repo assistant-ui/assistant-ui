@@ -1,5 +1,10 @@
-import { useAuiState, useToolArgsStatus } from "@assistant-ui/react";
-import type { ReactNode } from "react";
+import {
+  useAssistantInstructions,
+  useAui,
+  useAuiState,
+  useToolArgsStatus,
+} from "@assistant-ui/react";
+import { useCallback, type ReactNode } from "react";
 import type { WidgetToolkitExtension } from "../../assistant-ui/extension";
 import type { Catalog } from "../catalog";
 import { SpecRenderer } from "../react/SpecRenderer";
@@ -17,11 +22,25 @@ function Frame({ title, children }: { title: string; children: ReactNode }) {
   return <div data-gf-spec={title || undefined}>{children}</div>;
 }
 
+function useSendMessage() {
+  const aui = useAui();
+  return useCallback((text: string) => aui.thread.append(text), [aui]);
+}
+
+function useInstruction(instruction: string | undefined) {
+  useAssistantInstructions({
+    instruction: instruction ?? "",
+    disabled: instruction === undefined,
+  });
+}
+
 const build = specToolkitFor({
   useMessages,
   useArgsComplete,
   SpecRenderer,
   Frame,
+  useSendMessage,
+  useInstruction,
 });
 
 /**

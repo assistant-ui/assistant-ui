@@ -120,11 +120,12 @@ export function validateSpec(
           code: "unknown-action",
           elementId: id,
           path: `${at}/action`,
-          message: `Unknown action "${binding.action}". Known: setState${Object.keys(
-            catalog.actions,
-          )
-            .map((a) => `, ${a}`)
-            .join("")}.`,
+          message: `Unknown action "${binding.action}". Known: ${[
+            "setState",
+            "sendMessage",
+            "updateModelContext",
+            ...Object.keys(catalog.actions),
+          ].join(", ")}.`,
         });
         return;
       }

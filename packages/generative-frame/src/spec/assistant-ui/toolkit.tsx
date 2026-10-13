@@ -9,6 +9,10 @@ import {
 } from "react";
 import { toolkitEntry } from "../../assistant-ui/entry";
 import type { WidgetToolkitExtension } from "../../assistant-ui/extension";
+import {
+  toSharedContext,
+  useSharedContext,
+} from "../../assistant-ui/modelContext";
 import { createSnapshotSaver } from "../../assistant-ui/snapshotSaver";
 import { toolCalls, type MessageLike } from "../../assistant-ui/tool-calls";
 import type { ActionHandler } from "../actions";
@@ -174,6 +178,10 @@ export type SpecToolkitPlatform = {
   SpecRenderer: ComponentType<SpecRendererProps>;
   /** Wraps each call's rendered spec. */
   Frame: ComponentType<{ title: string; children: ReactNode }>;
+  /** Appends a user message to the thread, for the `sendMessage` action. */
+  useSendMessage(): (text: string) => void;
+  /** Adds an instruction to the model context while it is defined, for what `updateModelContext` shares. */
+  useInstruction(instruction: string | undefined): void;
 };
 
 type RenderSpecProps = {
@@ -193,6 +201,8 @@ export const specToolkitFor =
     useArgsComplete,
     SpecRenderer,
     Frame,
+    useSendMessage,
+    useInstruction,
   }: SpecToolkitPlatform) =>
   (catalog: Catalog, options: SpecToolkitOptions): WidgetToolkitExtension => {
     const specs = new Map<string, { spec: Spec; version: number }>();
@@ -220,6 +230,26 @@ export const specToolkitFor =
         const streaming = !useArgsComplete();
         const messages = useMessages();
         const title = typeof args.title === "string" ? args.title : "";
+        const sendMessage = useSendMessage();
+        const share = useSharedContext({
+          title,
+          toolCallId,
+          interactions: unstable_interactions,
+          record: unstable_recordInteraction,
+          useInstruction,
+        });
+        const handlers = useMemo(
+          () => ({
+            sendMessage: (params: Record<string, unknown>) => {
+              const text = params["text"];
+              if (typeof text === "string" && text.trim()) sendMessage(text);
+            },
+            updateModelContext: (params: Record<string, unknown>) =>
+              share(toSharedContext(params["text"], params["data"])),
+            ...options.handlers,
+          }),
+          [sendMessage, share],
+        );
         // The base and the tool results only depend on earlier calls, so they are read once per call.
         const [base] = useState(() =>
           resolveSpecBase(messages, toolCallId, title),
@@ -304,7 +334,7 @@ export const specToolkitFor =
               catalog={catalog}
               components={options.components}
               streaming={streaming}
-              {...(options.handlers ? { handlers: options.handlers } : {})}
+              handlers={handlers}
               {...(options.onAction ? { onAction: options.onAction } : {})}
               {...(options.placeholder
                 ? { placeholder: options.placeholder }
@@ -319,6 +349,11 @@ export const specToolkitFor =
       modules: [
         specGuidanceModule(catalog, {
           ...options.specPrompt,
+          hostApi: {
+            prompt: true,
+            modelContext: true,
+            ...options.specPrompt?.hostApi,
+          },
           customRules: [
             ...(options.specPrompt?.customRules ?? []),
             'Results of earlier tool calls are in state under `/tools/<toolName>/<n>`, newest first: `0` is the latest call to that tool before this `render_spec` call, `1` the one before it, and so on. Show their values with `{ "$state": "/tools/<toolName>/<n>/..." }` rather than copying them, and never write `tools` in `state`. Indexes count back from each `render_spec` call, so when a patch follows another call to the same tool, update any binding that should keep showing the older result.',

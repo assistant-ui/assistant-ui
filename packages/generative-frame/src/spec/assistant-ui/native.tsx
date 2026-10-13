@@ -1,9 +1,11 @@
 import {
+  useAssistantInstructions,
+  useAui,
   useAuiState,
   useToolArgsStatus,
   type Toolkit,
 } from "@assistant-ui/react-native";
-import type { ReactNode } from "react";
+import { useCallback, type ReactNode } from "react";
 import type {
   ToolkitDisplay,
   ToolkitExecution,
@@ -33,11 +35,25 @@ export type NativeSpecToolkit = Omit<WidgetToolkitExtension, "entries"> & {
   }): Toolkit;
 };
 
+function useSendMessage() {
+  const aui = useAui();
+  return useCallback((text: string) => aui.thread.append(text), [aui]);
+}
+
+function useInstruction(instruction: string | undefined) {
+  useAssistantInstructions({
+    instruction: instruction ?? "",
+    disabled: instruction === undefined,
+  });
+}
+
 const build = specToolkitFor({
   useMessages,
   useArgsComplete,
   SpecRenderer,
   Frame,
+  useSendMessage,
+  useInstruction,
 });
 
 /**

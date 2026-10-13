@@ -33,6 +33,8 @@ export type HostApiOptions = {
   prompt?: boolean;
   /** The host exposes tools through `genframe.callTool`. Defaults to false. */
   callTool?: boolean;
+  /** The host passes what `genframe.updateModelContext` shares to the model. Defaults to false. */
+  modelContext?: boolean;
 };
 
 export type GuidanceOptions = {
@@ -177,6 +179,11 @@ const hostApiSection = (ctx: Context) => {
   if (ctx.hostApi.callTool) {
     items.push(
       "`await genframe.callTool(name, args)` calls one of the host's tools and resolves with its result. Call it only from a user action, and show a pending state while it runs.",
+    );
+  }
+  if (ctx.hostApi.modelContext) {
+    items.push(
+      '`genframe.updateModelContext({ content: [{ type: "text", text }] })` tells you what the user chose in the widget, such as the option they picked, with every later message, replacing what it shared before; nothing is sent. Call it when a choice should shape your next answer.',
     );
   }
   items.push(
@@ -324,6 +331,7 @@ const createContext = (options: GuidanceOptions): Context => {
     hostApi: {
       prompt: options.hostApi?.prompt ?? true,
       callTool: options.hostApi?.callTool ?? false,
+      modelContext: options.hostApi?.modelContext ?? false,
     },
     tokenNames: names,
     extraTokens: names.filter((name) => !canonical.has(name)).sort(),

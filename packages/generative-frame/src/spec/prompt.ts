@@ -13,6 +13,8 @@ export type SpecPromptOptions = {
   customRules?: readonly string[];
   /** Leave out the worked example. */
   omitExample?: boolean;
+  /** Built-in actions the host handles, which the guidance then describes: `prompt` for `sendMessage`, `modelContext` for `updateModelContext`. Both default to false. */
+  hostApi?: { prompt?: boolean; modelContext?: boolean };
 };
 
 const list = (items: readonly string[]) =>
@@ -45,9 +47,22 @@ const componentSection = (catalog: Catalog) => {
   return `## Components\n\nUse only these types.\n\n${entries.join("\n\n")}`;
 };
 
-const actionSection = (catalog: Catalog) => {
+const actionSection = (
+  catalog: Catalog,
+  hostApi: NonNullable<SpecPromptOptions["hostApi"]>,
+) => {
   const entries = [
     "- `setState` — params `{ path: string; value?: unknown }`. Writes `value` at the JSON Pointer `path` in state. Built in.",
+    ...(hostApi.prompt
+      ? [
+          "- `sendMessage` — params `{ text: string }`. Sends `text` as the user's next message, as if they typed it. Use it behind a button for a follow-up the user asks for. Built in.",
+        ]
+      : []),
+    ...(hostApi.modelContext
+      ? [
+          "- `updateModelContext` — params `{ text?: string; data?: unknown }`. Tells you what the user chose in this UI, with every later message, replacing what it shared before; nothing is sent. Use it when a choice should shape your next answer, such as the option the user picked. Built in.",
+        ]
+      : []),
     ...Object.entries(catalog.actions).map(([name, def]) => {
       const params = catalog.paramsSchema(name);
       const schema = params ? describeSchema(params) : undefined;
@@ -136,7 +151,7 @@ export function buildSpecPrompt(
     "You describe UI as a spec of trusted components that the host renders with its own design system. You choose components and data; the host owns styling.",
     protocolSection(mode),
     componentSection(catalog),
-    actionSection(catalog),
+    actionSection(catalog, options.hostApi ?? {}),
     expressionSection(),
     `## Rules\n\n${list(rules)}`,
     ...(options.omitExample ? [] : [EXAMPLE]),

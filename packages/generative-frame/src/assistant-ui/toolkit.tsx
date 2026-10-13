@@ -36,6 +36,7 @@ import type { AnyTool, ToolDefinition } from "../tools/define";
 import { toolkitEntry } from "./entry";
 import type { ToolkitDisplay, WidgetToolkitExtension } from "./extension";
 import { resolveWidgetCode, resolveWidgetOrigin } from "./history";
+import { frameContext, useSharedContext } from "./modelContext";
 import { createSnapshotSaver } from "./snapshotSaver";
 
 /**
@@ -232,6 +233,13 @@ function savedWidgetState(
   return null;
 }
 
+function useWidgetInstruction(instruction: string | undefined) {
+  useAssistantInstructions({
+    instruction: instruction ?? "",
+    disabled: instruction === undefined,
+  });
+}
+
 /**
  * Renders `show_widget`, `edit_widget`, and `render_spec` tool calls in an
  * assistant-ui thread: widget code streams into a frame from the partial
@@ -245,6 +253,10 @@ export function createWidgetToolkit(
   const registry = options.registry ?? createWidgetRegistry();
   const tools: WidgetTools & Record<string, AnyTool> = createWidgetTools({
     ...options,
+    guidance: {
+      ...options.guidance,
+      hostApi: { modelContext: true, ...options.guidance?.hostApi },
+    },
     preview:
       options.preview ??
       ((code, previewOptions) =>
@@ -291,6 +303,7 @@ export function createWidgetToolkit(
   function ToolWidget({
     code,
     streaming,
+    title,
     toolCallId,
     storageId,
     unstable_interactions,
@@ -298,6 +311,7 @@ export function createWidgetToolkit(
   }: {
     code: string;
     streaming: boolean;
+    title: string;
     toolCallId: string;
     storageId: string | undefined;
     unstable_interactions: ToolCallMessagePartProps<ShowArgs>["unstable_interactions"];
@@ -320,6 +334,13 @@ export function createWidgetToolkit(
       ),
     );
     useEffect(() => () => saver.flush(), [saver]);
+    const share = useSharedContext({
+      title,
+      toolCallId,
+      interactions: unstable_interactions,
+      record: unstable_recordInteraction,
+      useInstruction: useWidgetInstruction,
+    });
     const widgetOptions = {
       ...widgetProps,
       initialState,
@@ -327,6 +348,12 @@ export function createWidgetToolkit(
         saver.schedule(() => state);
         widgetProps.onWidgetState?.(state);
       },
+      onUpdateModelContext:
+        widgetProps.onUpdateModelContext ??
+        ((params: unknown) => {
+          share(frameContext(params));
+          return {};
+        }),
     };
     const { ref, widget } = useWidget(
       storageId !== undefined && !widgetProps.frame && !widgetProps.opaqueOrigin
@@ -403,6 +430,7 @@ export function createWidgetToolkit(
         <ToolWidget
           code={code}
           streaming={streaming}
+          title={title}
           toolCallId={toolCallId}
           storageId={storageId}
           unstable_interactions={unstable_interactions}
@@ -457,6 +485,7 @@ export function createWidgetToolkit(
         <ToolWidget
           code={code}
           streaming={false}
+          title={title}
           toolCallId={toolCallId}
           storageId={storageId}
           unstable_interactions={unstable_interactions}
