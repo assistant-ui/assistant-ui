@@ -115,15 +115,14 @@ export function createSpecToolkit(
             histories.delete(toolCallId);
         });
 
-        // A stream reads its base when it starts, so it starts with the patches, which come after the title.
         const streamed = useSpecStream({
           source: () =>
-            typeof args.value.patches === "string"
-              ? args.value.patches
-              : undefined,
+            typeof args.value.patches === "string" ? args.value.patches : "",
           complete: () => !streaming.value,
           initial: base,
         });
+        // A stream reads its base when it starts, so it starts over when the title brings a new one.
+        watch(base, () => streamed.reset());
         const spec = computed(() => {
           const input = args.value.spec;
           return input &&
