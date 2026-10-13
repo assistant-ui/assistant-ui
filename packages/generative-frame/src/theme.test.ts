@@ -88,6 +88,14 @@ describe("readThemeTokens", () => {
     expect(font).toMatch(/, sans-serif$/);
   });
 
+  it("follows a page's own --font-sans with the default stack too", () => {
+    const font = readThemeTokens(
+      element({ "--font-sans": '"Inter", "Inter Fallback"' }),
+    ).variables["--font-sans"];
+    expect(font).toMatch(/^"Inter", "Inter Fallback", /);
+    expect(font).toMatch(/, sans-serif$/);
+  });
+
   it("fills every canonical token from the defaults of the detected scheme", () => {
     const tokens = readThemeTokens(element({}, "dark"));
     expect(tokens.colorScheme).toBe("dark");

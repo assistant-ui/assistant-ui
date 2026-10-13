@@ -292,9 +292,8 @@ export function readThemeTokens(
 ): ThemeTokens {
   const colorScheme = detectColorScheme(element);
   const style = element.ownerDocument.defaultView?.getComputedStyle(element);
-  const variables: Record<string, string> = {
-    ...defaultThemeTokens(colorScheme).variables,
-  };
+  const defaults = defaultThemeTokens(colorScheme).variables;
+  const variables: Record<string, string> = { ...defaults };
   if (!style) return { colorScheme, variables };
 
   for (const info of THEME_TOKENS) {
@@ -323,15 +322,15 @@ export function readThemeTokens(
   if (radius && !style.getPropertyValue("--radius-lg").trim()) {
     variables["--radius-lg"] = `calc(${radius} + 4px)`;
   }
-  if (!style.getPropertyValue("--font-sans").trim()) {
-    const doc = element.ownerDocument;
-    const fontElement =
-      element === doc.documentElement && doc.body ? doc.body : element;
-    const family = doc.defaultView?.getComputedStyle(fontElement).fontFamily;
-    // The page's web fonts do not load inside the frame, so the default stack follows them.
-    if (family)
-      variables["--font-sans"] = `${family}, ${SHARED["--font-sans"]}`;
-  }
+  const doc = element.ownerDocument;
+  const font =
+    variables["--font-sans"] !== defaults["--font-sans"]
+      ? variables["--font-sans"]
+      : doc.defaultView?.getComputedStyle(
+          element === doc.documentElement && doc.body ? doc.body : element,
+        ).fontFamily;
+  // The page's web fonts do not load inside the frame, so the default stack follows them.
+  if (font) variables["--font-sans"] = `${font}, ${SHARED["--font-sans"]}`;
 
   return { colorScheme, variables };
 }
