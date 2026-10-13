@@ -225,12 +225,12 @@ export class ExternalStoreThreadRuntimeCore
   // array can omit off-branch ids without deleting them. A reload or edit can
   // omit the suffix after its parent for the same reason. Deletes outside
   // that prefix are marked while the window is open, until a host snapshot
-  // drops the old suffix, the next runtime change, cancellation, or a rejected
-  // reload or edit closes it. Already marked records settle from onDelete
-  // instead of snapshot absence. Plain tail sends do not mark anything: a
-  // tail append cannot make a visible id absent, so id-absence stays
-  // unambiguous and a delete whose confirmation races a send keeps its
-  // eviction.
+  // drops its old suffix, the next change other than a reload or edit,
+  // cancellation, or its own callback rejection closes it. Already marked
+  // records settle from onDelete instead of snapshot absence. Plain tail
+  // sends do not mark anything: a tail append cannot make a visible id
+  // absent, so id-absence stays unambiguous and a delete whose confirmation
+  // races a send keeps its eviction.
   private _pendingDeleteEvictions = new Map<
     string,
     {
@@ -245,7 +245,6 @@ export class ExternalStoreThreadRuntimeCore
   }>();
 
   private _openDeleteWindow(parentId: string | null) {
-    this._pendingDeleteWindows.clear();
     const visible = this.repository.getMessages();
     const prefixLength = visible.findIndex((m) => m.id === parentId) + 1;
     const window = {
@@ -1031,14 +1030,13 @@ export class ExternalStoreThreadRuntimeCore
       return;
     }
 
-    this._pendingDeleteWindows.clear();
-
     const onBranchChange = this._store.unstable_onBranchChange;
     const previousHeadId = onBranchChange
       ? this.repository.canonicalHeadId
       : null;
 
     this.repository.switchToBranch(branchId);
+    this._pendingDeleteWindows.clear();
     for (const [id, pending] of this._pendingDeleteEvictions) {
       if (pending.calls.size > 0) pending.reloaded = true;
       else this._pendingDeleteEvictions.delete(id);
@@ -1071,12 +1069,14 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public async append(rawMessage: AppendMessage): Promise<void> {
-    this._pendingDeleteWindows.clear();
     let message = {
       ...rawMessage,
       parentId: this._resolveAppendParent(rawMessage.parentId),
     };
-    if (this.voice) return this._appendToVoiceSession(message);
+    if (this.voice) {
+      this._pendingDeleteWindows.clear();
+      return this._appendToVoiceSession(message);
+    }
     if (this._isVoiceMessage(message.sourceId))
       throw new Error("Voice transcript messages cannot be edited");
     // sourceId marks an edit send; the parent may coincide with the head
@@ -1084,6 +1084,7 @@ export class ExternalStoreThreadRuntimeCore
     const isEdit =
       message.sourceId != null ||
       message.parentId !== (this._getBaseMessages().at(-1)?.id ?? null);
+    if (!isEdit) this._pendingDeleteWindows.clear();
 
     // A transformed-queue send is stamped at flush; any other queue's
     // transform would gate against its own thread's messages, so those stamp

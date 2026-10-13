@@ -1272,6 +1272,95 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
     expect(runtime.getBranches("u2")).toEqual(["u2"]);
   });
 
+  it("keeps a delete registered after a newer reload when the older reload truncates", async () => {
+    let current = [
+      message("u1", "user"),
+      message("a1", "assistant"),
+      message("u2", "user"),
+      message("a2", "assistant"),
+    ];
+    let decline!: () => void;
+    let isRunning = false;
+    const finishReloads: Array<() => void> = [];
+    const store = () =>
+      ({
+        messages: current,
+        isRunning,
+        onNew: async () => {},
+        onReload: () =>
+          new Promise<void>((resolve) => finishReloads.push(resolve)),
+        onDelete: () =>
+          new Promise<void>((_, reject) => {
+            decline = () => reject(new Error("deletion declined"));
+          }),
+        setMessages: () => {},
+      }) as ExternalStoreAdapter;
+    const runtime = createRuntime(store());
+
+    const older = runtime.startRun({
+      parentId: "u1",
+      sourceId: "a1",
+      runConfig: {},
+    });
+    await Promise.resolve();
+    const newer = runtime.startRun({
+      parentId: "u2",
+      sourceId: "a2",
+      runConfig: {},
+    });
+    await Promise.resolve();
+    expect(finishReloads).toHaveLength(2);
+    const deletion = runtime.deleteMessage("u2");
+    current = [current[0]!];
+    isRunning = true;
+    finishReloads[0]!();
+    await older;
+    runtime.__internal_setAdapter(store());
+
+    expect(runtime.getMessageById("u2")?.message.id).toBe("u2");
+    decline();
+    await expect(deletion).rejects.toThrow("deletion declined");
+    finishReloads[1]!();
+    await newer;
+    expect(runtime.getMessageById("u2")?.message.id).toBe("u2");
+  });
+
+  it("keeps a reload window after a failed branch switch", async () => {
+    let current = [
+      message("u1", "user"),
+      message("a1", "assistant"),
+      message("u2", "user"),
+      message("a2", "assistant"),
+    ];
+    let decline!: () => void;
+    let isRunning = false;
+    const store = () =>
+      ({
+        messages: current,
+        isRunning,
+        onNew: async () => {},
+        onReload: async () => {},
+        onDelete: () =>
+          new Promise<void>((_, reject) => {
+            decline = () => reject(new Error("deletion declined"));
+          }),
+        setMessages: () => {},
+      }) as ExternalStoreAdapter;
+    const runtime = createRuntime(store());
+
+    await runtime.startRun({ parentId: "u1", sourceId: "a1", runConfig: {} });
+    expect(() => runtime.switchToBranch("missing")).toThrow(/Branch not found/);
+    const deletion = runtime.deleteMessage("u2");
+    current = [current[0]!];
+    isRunning = true;
+    runtime.__internal_setAdapter(store());
+
+    expect(runtime.getMessageById("u2")?.message.id).toBe("u2");
+    decline();
+    await expect(deletion).rejects.toThrow("deletion declined");
+    expect(runtime.getMessageById("u2")?.message.id).toBe("u2");
+  });
+
   const setup = ({
     reloadFails = false,
     holdReload = false,
