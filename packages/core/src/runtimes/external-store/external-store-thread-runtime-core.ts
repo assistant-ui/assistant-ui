@@ -298,7 +298,7 @@ export class ExternalStoreThreadRuntimeCore
     messages: readonly ThreadMessage[],
   ): readonly ThreadMessage[] {
     if (this._submittedFeedback.size === 0) return messages;
-    // An array host omits off-branch messages that the repository keeps, and a removed message is evicted, so the overlay follows the repository.
+    // An array host omits off-branch messages that the repository still keeps, so the overlay keeps an entry for as long as the repository holds its message.
     for (const id of this._submittedFeedback.keys()) {
       try {
         this.repository.getMessage(id);

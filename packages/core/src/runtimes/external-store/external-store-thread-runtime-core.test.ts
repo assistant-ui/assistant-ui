@@ -361,6 +361,29 @@ describe("ExternalStoreThreadRuntimeCore submitted feedback across branches", ()
     ).toEqual({ type: "negative" });
   });
 
+  it("keeps feedback for a message the host drops mid-thread while the repository holds it", () => {
+    const followUp: FeedbackSource = { id: "u2", role: "user", text: "more" };
+    const reply: FeedbackSource = {
+      id: "a2",
+      role: "assistant",
+      text: "deeper",
+    };
+    const { runtime, publish } = createBranchingHost([
+      feedbackUser,
+      feedbackAssistant,
+      followUp,
+      reply,
+    ]);
+    runtime.submitFeedback({ messageId: "a1", type: "positive" });
+
+    publish([feedbackUser, followUp, reply]);
+    publish([feedbackUser, feedbackAssistant, followUp, reply]);
+
+    expect(
+      runtime.getMessageById("a1")?.message.metadata.submittedFeedback,
+    ).toEqual({ type: "positive" });
+  });
+
   it.each(["onDelete", "setMessages"] as const)(
     "does not restore feedback when a message deleted through %s is re-added",
     async (route) => {
