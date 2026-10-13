@@ -976,6 +976,12 @@ type SourceMessagePart = {
 
 type SourceProviderMetadata = PartProviderMetadata;
 
+type Spec = {
+  root: string;
+  elements: Record<string, SpecElement>;
+  state?: Record<string, unknown>;
+};
+
 type SpecComponentProps<P extends Record<string, unknown> = Record<string, unknown>> = {
   id: string;
   element: SpecElement;
@@ -1026,6 +1032,10 @@ type SpecStateStore = {
 };
 
 type SpecStreamMode = "inline" | "jsonl";
+
+type SpecToUISpecOptions = {
+  state?: unknown;
+};
 
 interface SpeechRecognitionConstructor {
   new (): SpeechRecognitionInstance;
@@ -1796,8 +1806,10 @@ declare namespace entry_slack_exports {
   export { FromSlackBlocksResult, SlackActionElement, SlackActionsBlock, SlackAlertBlock, SlackAlertLevel, SlackBlock, SlackBlocksResult, SlackButtonElement, SlackCardBlock, SlackCarouselBlock, SlackCheckboxesElement, SlackContextBlock, SlackConversionWarning, SlackDataTableBlock, SlackDataTableCell, SlackDataTableRawNumberCell, SlackDataTableRawTextCell, SlackDatePickerElement, SlackDateTimePickerElement, SlackDividerBlock, SlackHeaderBlock, SlackImageBlock, SlackInputBlock, SlackMarkdownBlock, SlackMrkdwnText, SlackOption, SlackPlainText, SlackPlainTextInputElement, SlackRadioButtonsElement, SlackSectionBlock, SlackStaticSelectElement, SlackTextObject, SlackTimePickerElement, ToSlackBlocksOptions, decodeBlockAction, fromSlackBlocks, toSlackBlocks };
 }
 
+declare function specToUISpec(spec: Spec, options?: SpecToUISpecOptions): UISpec;
+
 declare namespace entry_spec_exports {
-  export { ToSpecCatalogOptions, defaultGenerativeUILibrary$1 as defaultGenerativeUILibrary, toSpecCatalog$1 as toSpecCatalog };
+  export { SpecToUISpecOptions, ToSpecCatalogOptions, defaultGenerativeUILibrary$1 as defaultGenerativeUILibrary, specToUISpec, toSpecCatalog$1 as toSpecCatalog };
 }
 
 declare function surfaceToOperations(surface: A2uiSurfaceState, surfaceId?: string): readonly A2uiSurfaceSnapshotOperation[];
