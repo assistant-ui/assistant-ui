@@ -256,6 +256,19 @@ export class ExternalStoreThreadRuntimeCore
     parentOpen: boolean;
     lease: RunLease;
   } | null = null;
+  private readonly _pendingCancelResyncs = new Set<() => void>();
+  private _movedLeaf:
+    | {
+        id: string;
+        draft: {
+          text: string;
+          attachments: readonly Attachment[];
+          quote: QuoteInfo | undefined;
+        };
+        resyncLease: ReturnType<RunLeases["current"]>;
+        generation: ReturnType<typeof captureThreadRuntimeGeneration>;
+      }
+    | undefined;
 
   private _store!: ExternalStoreAdapter<any>;
 
@@ -277,6 +290,7 @@ export class ExternalStoreThreadRuntimeCore
     const owner = queuedMessageRuntimes.get(message);
     const runtime =
       owner && !captureThreadRuntimeDisposal(owner).aborted ? owner : this;
+    runtime._settleCancelResyncs();
     const parentId = runtime.messages.at(-1)?.id ?? null;
     return runtime.enrichAppendMetadata({ ...message, parentId }, parentId);
   };
@@ -327,9 +341,13 @@ export class ExternalStoreThreadRuntimeCore
     messages: readonly ThreadMessage[],
   ): readonly ThreadMessage[] {
     if (this._submittedFeedback.size === 0) return messages;
-    const incomingIds = new Set(messages.map((message) => message.id));
+    // An array host omits off-branch messages that the repository still keeps, so the overlay keeps an entry for as long as the repository holds its message.
     for (const id of this._submittedFeedback.keys()) {
-      if (!incomingIds.has(id)) this._submittedFeedback.delete(id);
+      try {
+        this.repository.getMessage(id);
+      } catch {
+        this._submittedFeedback.delete(id);
+      }
     }
 
     return messages.map((message) => {
@@ -421,6 +439,16 @@ export class ExternalStoreThreadRuntimeCore
     this._updateStoreSnapshot(store);
   }
 
+  private _evictPlaceholder() {
+    if (!this._optimistic) return;
+    try {
+      this.repository.getMessage(this._optimistic.id);
+    } catch {
+      return;
+    }
+    this.repository.deleteMessage(this._optimistic.id);
+  }
+
   private _updateStoreSnapshot(
     store: ExternalStoreAdapter<any>,
     fromHostSnapshot = true,
@@ -441,6 +469,7 @@ export class ExternalStoreThreadRuntimeCore
       this._cancelledToolTurn = null;
       this._pendingDeleteEvictions.clear();
       this._submittedFeedback.clear();
+      this._movedLeaf = undefined;
       // Keep the live placeholder so resetHead cannot evict an id still used
       // by clients rendering the previous snapshot.
       const head = this.repository.getMessages();
@@ -511,13 +540,14 @@ export class ExternalStoreThreadRuntimeCore
       const incoming = store.messageRepository.messages;
       const headId =
         store.messageRepository.headId ?? incoming.at(-1)?.message.id ?? null;
+      this._evictPlaceholder();
 
       if (
         oldStore &&
         !repositoryChanged &&
         oldStore.messageRepository === store.messageRepository
       ) {
-        this.repository.resetHead(headId);
+        this.repository.import({ headId, messages: [] });
         messages = this.repository.getMessages();
       } else {
         const incomingIds = new Set(incoming.map(({ message }) => message.id));
@@ -536,7 +566,7 @@ export class ExternalStoreThreadRuntimeCore
           }
         }
         this._pendingDeleteEvictions.clear();
-        this.repository.resetHead(headId);
+        this.repository.import({ headId, messages: [] });
         messages = this.repository.getMessages();
       }
     } else if (store.messages) {
@@ -650,6 +680,27 @@ export class ExternalStoreThreadRuntimeCore
     this._storeMessages = messages;
     if (messages.length > 0) this.ensureInitialized();
 
+    const movedLeaf = this._movedLeaf;
+    if (movedLeaf) {
+      if (
+        movedLeaf.generation.aborted ||
+        !movedLeaf.resyncLease.isCurrent() ||
+        this.composer.text !== movedLeaf.draft.text
+      ) {
+        this._movedLeaf = undefined;
+      } else {
+        const index = messages.findIndex((m) => m.id === movedLeaf.id);
+        if (index !== -1) {
+          if (getThreadMessageText(messages[index]!) !== movedLeaf.draft.text) {
+            this._movedLeaf = undefined;
+          } else if (index < messages.length - 1) {
+            this.composer.retractDraft(movedLeaf.draft);
+            this._movedLeaf = undefined;
+          }
+        }
+      }
+    }
+
     this._effectiveIsRunning = isRunning;
     if (previousIsRunning !== isRunning) {
       if (isRunning) {
@@ -673,8 +724,9 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     // Append an optimistic placeholder while running but before a trailing
-    // assistant message exists. resetHead evicts off-branch optimistic messages
-    // (prior placeholders, mid-run id-swap siblings); export() never persists them.
+    // assistant message exists. Setting the head evicts off-branch optimistic
+    // messages (prior placeholders, mid-run id-swap siblings); export() never
+    // persists them.
     let optimisticId: string | null = null;
     if (hasUpcomingMessage(isRunning, messages)) {
       const parentId = messages.at(-1)?.id ?? null;
@@ -693,7 +745,12 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     if (optimisticId === null) this._optimistic = null;
-    this.repository.resetHead(optimisticId ?? messages.at(-1)?.id ?? null);
+    const visibleHeadId = optimisticId ?? messages.at(-1)?.id ?? null;
+    if (store.messageRepository) {
+      this.repository.import({ headId: visibleHeadId, messages: [] });
+    } else {
+      this.repository.resetHead(visibleHeadId);
+    }
 
     const messagesSnapshot = this.repository.getMessages();
     if (
@@ -1011,6 +1068,8 @@ export class ExternalStoreThreadRuntimeCore
     }
     if (generation.aborted) return;
 
+    this._settleCancelResyncs();
+
     if (isEdit) {
       if (!this._store.onEdit)
         throw new Error("Runtime does not support editing messages.");
@@ -1265,6 +1324,7 @@ export class ExternalStoreThreadRuntimeCore
     if (!this._store.onCancel)
       throw new Error("Runtime does not support cancelling runs.");
 
+    const isRunning = this._getEffectiveIsRunning(this._store);
     this._runCancellationLeases.invalidate();
     const generation = captureThreadRuntimeGeneration(this);
     const resyncLease = this._cancelRunResyncLeases.current();
@@ -1304,6 +1364,7 @@ export class ExternalStoreThreadRuntimeCore
     const cancelledTailId = previousMessage?.id ?? null;
     const runStartLease = this._runStartLeases.current();
     const trailingUserLeaf =
+      isRunning &&
       this._store.setMessages !== undefined &&
       previousMessage?.role === "user" &&
       previousMessage.id === messages.at(-1)?.id && // ensure the previous message is a leaf node
@@ -1315,16 +1376,7 @@ export class ExternalStoreThreadRuntimeCore
     // one move: the composer refuses while the user is writing, and removing
     // the message then would leave it nowhere. A message the composer cannot
     // hold whole, carrying content parts it has no home for, is not moved.
-    let movedLeaf:
-      | {
-          id: string;
-          draft: {
-            text: string;
-            attachments: readonly Attachment[];
-            quote: QuoteInfo | undefined;
-          };
-        }
-      | undefined;
+    let movedLeaf: typeof this._movedLeaf;
     if (trailingUserLeaf) {
       const draft = {
         text: getThreadMessageText(trailingUserLeaf),
@@ -1333,7 +1385,13 @@ export class ExternalStoreThreadRuntimeCore
       };
       if (this.composer.restoreDraft(draft)) {
         this.repository.deleteMessage(trailingUserLeaf.id);
-        movedLeaf = { id: trailingUserLeaf.id, draft };
+        movedLeaf = {
+          id: trailingUserLeaf.id,
+          draft,
+          resyncLease,
+          generation,
+        };
+        this._movedLeaf = movedLeaf;
       }
     }
     this._publishRepositoryMessages();
@@ -1342,8 +1400,9 @@ export class ExternalStoreThreadRuntimeCore
     // store may move in that gap; a server settling the cancelled turn lands
     // in the same tick. Read the repository at flush time and re-apply the
     // rollbacks to it, instead of stamping a snapshot captured above over the
-    // newer state.
-    setTimeout(() => {
+    // newer state. A send runs it early so the rollback reaches the store
+    // before the message does, and the timer still runs it last.
+    const resync = () => {
       if (generation.aborted || !resyncLease.isCurrent()) return;
 
       // A placeholder under a message other than the cancelled tail, or one
@@ -1357,13 +1416,13 @@ export class ExternalStoreThreadRuntimeCore
       if (!startedSinceCancel) this.dropEmptyOptimisticHead();
       if (movedLeaf) {
         const current = this.repository.getMessages();
-        if (current.at(-1)?.id === movedLeaf.id) {
+        if (
+          this._movedLeaf === movedLeaf &&
+          current.at(-1)?.id === movedLeaf.id &&
+          this.composer.text === movedLeaf.draft.text
+        ) {
           // Unanswered tail: the removal has not reached the store yet.
           this.repository.deleteMessage(movedLeaf.id);
-        } else if (current.some((m) => m.id === movedLeaf.id)) {
-          // The store kept the turn in the thread; take the untouched draft
-          // back so the same content does not sit in both places.
-          this.composer.retractDraft(movedLeaf.draft);
         }
       }
       this._publishRepositoryMessages();
@@ -1374,7 +1433,16 @@ export class ExternalStoreThreadRuntimeCore
       const view = this._messages.filter((m) => m.id !== this._optimistic?.id);
       if (!shallowArrayEqual(view, this._storeMessages))
         this.updateMessages(view);
+    };
+    this._pendingCancelResyncs.add(resync);
+    setTimeout(() => {
+      this._pendingCancelResyncs.delete(resync);
+      resync();
     }, 0);
+  }
+
+  private _settleCancelResyncs(): void {
+    for (const resync of this._pendingCancelResyncs) resync();
   }
 
   // Placeholder or pre-stream message; a partially-streamed one is kept and

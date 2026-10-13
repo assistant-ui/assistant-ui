@@ -36,6 +36,184 @@ const createRuntime = (overrides: Partial<ExternalStoreAdapter> = {}) =>
     ...overrides,
   } as ExternalStoreAdapter);
 
+describe("ExternalStoreThreadRuntimeCore message repository", () => {
+  const repositoryWithHead = (headId: string) =>
+    ExportedMessageRepository.fromBranchableArray(
+      [
+        { parentId: null, message: { id: "u1", role: "user", content: "u1" } },
+        {
+          parentId: "u1",
+          message: { id: "a1", role: "assistant", content: "a1" },
+        },
+        { parentId: "a1", message: { id: "u2", role: "user", content: "u2" } },
+      ],
+      { headId },
+    );
+  const visibleIds = (runtime: ExternalStoreThreadRuntimeCore) =>
+    runtime.messages.map((message) => message.id);
+  const exportedIds = (runtime: ExternalStoreThreadRuntimeCore) =>
+    runtime.export().messages.map((item) => item.message.id);
+
+  it("keeps descendants of a non-leaf head across store updates", () => {
+    const store = {
+      messageRepository: repositoryWithHead("a1"),
+      onNew: async () => {},
+      isRunning: false,
+    };
+    const runtime = createRuntime(store);
+
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2"]);
+    expect(visibleIds(runtime)).toEqual(["u1", "a1"]);
+    expect(runtime.export().headId).toBe("a1");
+
+    runtime.__internal_setAdapter({ ...store, isRunning: true });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2"]);
+    expect(visibleIds(runtime)).toEqual(["u1", "a1"]);
+
+    runtime.__internal_setAdapter(store);
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2"]);
+    expect(visibleIds(runtime)).toEqual(["u1", "a1"]);
+  });
+
+  it.each(["u2", "a1"])(
+    "keeps the exact head across store updates during a run with head %s",
+    (headId) => {
+      const store = {
+        messageRepository: repositoryWithHead(headId),
+        onNew: async () => {},
+        isRunning: true,
+      };
+      const runtime = createRuntime(store);
+      const visible = headId === "a1" ? ["u1", "a1"] : ["u1", "a1", "u2"];
+      const placeholderId =
+        headId === "u2" ? runtime.messages.at(-1)!.id : null;
+      if (placeholderId) {
+        expect(runtime.messages.at(-1)?.metadata.isOptimistic).toBe(true);
+      }
+      expect(visibleIds(runtime)).toEqual(
+        placeholderId ? [...visible, placeholderId] : visible,
+      );
+
+      runtime.__internal_setAdapter({
+        ...store,
+        messageRepository: repositoryWithHead(headId),
+      });
+      expect(visibleIds(runtime)).toEqual(
+        placeholderId ? [...visible, placeholderId] : visible,
+      );
+
+      runtime.__internal_setAdapter({
+        ...store,
+        messageRepository: repositoryWithHead(headId),
+        isRunning: false,
+      });
+      expect(visibleIds(runtime)).toEqual(visible);
+      expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2"]);
+    },
+  );
+
+  it("shows a running sibling while retaining the previous answer", () => {
+    const messages = [
+      {
+        parentId: null,
+        message: { id: "u1", role: "user" as const, content: "u1" },
+      },
+      {
+        parentId: "u1",
+        message: { id: "a1", role: "assistant" as const, content: "a1" },
+      },
+      {
+        parentId: "a1",
+        message: { id: "u2", role: "user" as const, content: "u2" },
+      },
+      {
+        parentId: "u2",
+        message: { id: "a2", role: "assistant" as const, content: "a2" },
+      },
+    ];
+    const store = {
+      messageRepository: ExportedMessageRepository.fromBranchableArray(
+        messages,
+        { headId: "a2" },
+      ),
+      onNew: async () => {},
+      isRunning: false,
+    };
+    const runtime = createRuntime(store);
+
+    runtime.__internal_setAdapter({
+      ...store,
+      isRunning: true,
+      messageRepository: ExportedMessageRepository.fromBranchableArray(
+        messages,
+        { headId: "u2" },
+      ),
+    });
+    const placeholder = runtime.messages.at(-1)!;
+    expect(placeholder.metadata.isOptimistic).toBe(true);
+    expect(visibleIds(runtime)).toEqual(["u1", "a1", "u2", placeholder.id]);
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+
+    runtime.__internal_setAdapter({
+      ...store,
+      messageRepository: ExportedMessageRepository.fromBranchableArray(
+        [
+          ...messages,
+          {
+            parentId: "u2",
+            message: { id: "a2b", role: "assistant", content: "a2b" },
+          },
+        ],
+        { headId: "a2b" },
+      ),
+    });
+    expect(visibleIds(runtime)).toEqual(["u1", "a1", "u2", "a2b"]);
+    expect(runtime.export().headId).toBe("a2b");
+    expect(
+      runtime
+        .export()
+        .messages.filter((item) => item.parentId === "u2")
+        .map((item) => item.message.id),
+    ).toEqual(["a2", "a2b"]);
+  });
+
+  it("drops an optimistic message the host stops carrying under its head", () => {
+    const user = { id: "u1", role: "user" as const, content: "u1" };
+    const store = {
+      messageRepository: ExportedMessageRepository.fromBranchableArray(
+        [
+          { parentId: null, message: user },
+          {
+            parentId: "u1",
+            message: {
+              id: "a1",
+              role: "assistant",
+              content: "",
+              metadata: { isOptimistic: true },
+            },
+          },
+        ],
+        { headId: "a1" },
+      ),
+      onNew: async () => {},
+      setMessages: () => {},
+      isRunning: false,
+    };
+    const runtime = createRuntime(store);
+    expect(visibleIds(runtime)).toEqual(["u1", "a1"]);
+
+    runtime.__internal_setAdapter({
+      ...store,
+      messageRepository: ExportedMessageRepository.fromBranchableArray(
+        [{ parentId: null, message: user }],
+        { headId: "u1" },
+      ),
+    });
+    expect(visibleIds(runtime)).toEqual(["u1"]);
+    expect(() => runtime.switchToBranch("a1")).toThrow(/Branch not found/);
+  });
+});
+
 describe("ExternalStoreThreadRuntimeCore shared message queue", () => {
   const tail = (id: string) =>
     fromThreadMessageLike({ id, role: "assistant", content: id }, id, {
@@ -103,6 +281,60 @@ describe("ExternalStoreThreadRuntimeCore shared message queue", () => {
       );
     },
   );
+
+  it("settles the queued runtime's cancel rollback before a shared queue dispatch", async () => {
+    const user = (id: string, text: string) =>
+      fromThreadMessageLike({ id, role: "user", content: text }, id, {
+        type: "complete",
+        reason: "stop",
+      });
+    const writes: string[] = [];
+    let hostA = [tail("a0"), user("a1", "unanswered")];
+    const setMessagesA = vi.fn((messages: readonly ThreadMessage[]) => {
+      writes.push("rollback");
+      hostA = [...messages];
+    });
+    const run = vi.fn((queued: AppendMessage) => {
+      writes.push("send");
+      expect(queued.parentId).toBe("a0");
+      hostA = [...hostA, user("a2", "next")];
+    });
+    const queue = createMessageQueue({ run });
+    queue.notifyBusy();
+    const runtimeA = createRuntime({
+      messages: hostA,
+      isRunning: true,
+      onCancel: vi.fn(),
+      setMessages: setMessagesA,
+      queue: queue.adapter,
+    });
+
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    try {
+      runtimeA.cancelRun();
+      await runtimeA.append(message("a0"));
+
+      const setMessagesB = vi.fn();
+      const runtimeB = createRuntime({
+        messages: [tail("b0")],
+        setMessages: setMessagesB,
+        queue: queue.adapter,
+      });
+      expect(run).not.toHaveBeenCalled();
+
+      queue.notifyIdle();
+      expect(writes).toEqual(["rollback", "send"]);
+      vi.runAllTimers();
+
+      expect(hostA.map(({ id }) => id)).toEqual(["a0", "a2"]);
+      expect(runtimeA.composer.text).toBe("unanswered");
+      expect(setMessagesA).toHaveBeenCalledOnce();
+      expect(runtimeB.messages.map(({ id }) => id)).toEqual(["b0"]);
+      expect(setMessagesB).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 
   it("flushes pending items through the replacement core after a thread switch", async () => {
     const run = vi.fn();
@@ -403,6 +635,109 @@ describe("ExternalStoreThreadRuntimeCore submitted feedback", () => {
       runtime.getMessageById("a1")?.message.metadata.submittedFeedback,
     ).toBeUndefined();
   });
+});
+
+describe("ExternalStoreThreadRuntimeCore submitted feedback across branches", () => {
+  const sibling: FeedbackSource = {
+    id: "a2",
+    role: "assistant",
+    text: "again",
+  };
+
+  const createBranchingHost = (initial: readonly FeedbackSource[]) => {
+    let messages = initial;
+    const createStore = () =>
+      ({
+        ...createFeedbackStore(messages),
+        setMessages: (next: readonly FeedbackSource[]) => {
+          messages = next;
+        },
+      }) as ExternalStoreAdapter<any>;
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      modelContextProvider,
+      createStore(),
+    );
+    const publish = (next?: readonly FeedbackSource[]) => {
+      if (next) messages = next;
+      runtime.__internal_setAdapter(createStore());
+    };
+    return { runtime, publish };
+  };
+
+  it("keeps feedback for a message that leaves the branch and returns", () => {
+    const { runtime, publish } = createBranchingHost([
+      feedbackUser,
+      feedbackAssistant,
+    ]);
+    publish([feedbackUser, sibling]);
+    runtime.switchToBranch("a1");
+    publish();
+    runtime.submitFeedback({ messageId: "a1", type: "positive" });
+
+    runtime.switchToBranch("a2");
+    publish();
+    runtime.switchToBranch("a1");
+    publish();
+
+    expect(
+      runtime.getMessageById("a1")?.message.metadata.submittedFeedback,
+    ).toEqual({ type: "positive" });
+  });
+
+  it("keeps feedback for a reply below a branch the host replaced", () => {
+    const { runtime, publish } = createBranchingHost([
+      feedbackUser,
+      feedbackAssistant,
+      { id: "u2", role: "user", text: "more" },
+      { id: "a3", role: "assistant", text: "deeper" },
+    ]);
+    runtime.submitFeedback({ messageId: "a3", type: "negative" });
+
+    publish([feedbackUser, sibling]);
+    runtime.switchToBranch("a1");
+    publish();
+
+    expect(
+      runtime.getMessageById("a3")?.message.metadata.submittedFeedback,
+    ).toEqual({ type: "negative" });
+  });
+
+  it.each(["onDelete", "setMessages"] as const)(
+    "does not restore feedback when a message deleted through %s is re-added",
+    async (route) => {
+      let messages: readonly FeedbackSource[] = [
+        feedbackUser,
+        feedbackAssistant,
+      ];
+      let runtime!: ExternalStoreThreadRuntimeCore;
+      const createStore = () =>
+        ({
+          ...createFeedbackStore(messages),
+          setMessages: (next: readonly FeedbackSource[]) => {
+            messages = next;
+          },
+          ...(route === "onDelete" && {
+            onDelete: async (id: string) => {
+              messages = messages.filter((message) => message.id !== id);
+              runtime.__internal_setAdapter(createStore());
+            },
+          }),
+        }) as ExternalStoreAdapter<any>;
+      runtime = new ExternalStoreThreadRuntimeCore(
+        modelContextProvider,
+        createStore(),
+      );
+
+      runtime.submitFeedback({ messageId: "a1", type: "positive" });
+      await runtime.deleteMessage("a1");
+      messages = [feedbackUser, feedbackAssistant];
+      runtime.__internal_setAdapter(createStore());
+
+      expect(
+        runtime.getMessageById("a1")?.message.metadata.submittedFeedback,
+      ).toBeUndefined();
+    },
+  );
 });
 
 describe("ExternalStoreThreadRuntimeCore earlier messages", () => {

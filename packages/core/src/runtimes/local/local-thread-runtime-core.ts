@@ -186,7 +186,8 @@ export class LocalThreadRuntimeCore
   // queue runs overlap, and the previous dispatch settles after the next one
   // has already started.
   private _queueRunInFlight: object | null = null;
-  private _activeRun: object | null = null;
+  private _activeRun: { resumedFromPause: boolean; isRunning: boolean } | null =
+    null;
   // The queue hears busy and idle only when _isQueueBusy() changes;
   // _queueBusy is what this controller was last told.
   private _queueBusy = false;
@@ -411,6 +412,13 @@ export class LocalThreadRuntimeCore
 
   public readonly isDisabled = false;
   public readonly isSendDisabled = false;
+
+  // Idle defers to the trailing message, which carries a voice reply in progress.
+  public get isRunning(): boolean | undefined {
+    return this._activeRun?.isRunning || this._roundtripsInFlight.size > 0
+      ? true
+      : undefined;
+  }
 
   private _isLoading = false;
   public get isLoading() {
@@ -693,6 +701,7 @@ export class LocalThreadRuntimeCore
       ) {
         this._unwrittenSeedMessages.clear();
         this._loadImports++;
+        this.repository.clear();
         this.repository.import(withLocalPauseReasons(repository));
       }
       if (repository.messages.length > 0) {
@@ -1193,6 +1202,7 @@ export class LocalThreadRuntimeCore
 
     const run = {
       resumedFromPause: message.status.type === "requires-action",
+      isRunning: true,
     };
     this._activeRun = run;
 
@@ -1233,12 +1243,15 @@ export class LocalThreadRuntimeCore
         !this.repository.hasChildren(message.id)
       );
     } finally {
+      const previousIsRunning = this.isRunning;
+      run.isRunning = false;
       if (scopeGeneration === this._loadGeneration)
         this._notifyEventSubscribers("runEnd", {});
       active =
         scopeGeneration === this._loadGeneration && this._activeRun === run;
       if (active) this._activeRun = null;
       if (scopeGeneration === this._loadGeneration) this._syncQueue();
+      if (previousIsRunning !== this.isRunning) this._notifySubscribers();
     }
 
     if (
@@ -1287,7 +1300,7 @@ export class LocalThreadRuntimeCore
     parentId: string | null,
     message: ThreadAssistantMessage,
     runConfig: RunConfig | undefined,
-    run: { resumedFromPause: boolean },
+    run: { resumedFromPause: boolean; isRunning: boolean },
     runCallback?: ChatModelAdapter["run"],
   ) {
     const scopeGeneration = this._loadGeneration;
@@ -1577,6 +1590,7 @@ export class LocalThreadRuntimeCore
         throw e;
       }
     } finally {
+      const previousIsRunning = this.isRunning;
       if (this.abortController === abortController) {
         this.abortController = null;
       }
@@ -1647,9 +1661,13 @@ export class LocalThreadRuntimeCore
           written = this._persistSettled(parentId, message);
         }
       }
+      run.isRunning =
+        shouldContinue(message, this._options.unstable_humanToolNames) &&
+        !this.repository.hasChildren(message.id);
       // Notified after the write is queued, so a change a subscriber makes in
       // response is written after it.
-      if (settled) this._notifySubscribers();
+      if (settled || previousIsRunning !== this.isRunning)
+        this._notifySubscribers();
       if (written) await written;
     }
     return message;

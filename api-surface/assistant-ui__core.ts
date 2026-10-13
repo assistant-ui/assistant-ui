@@ -2649,6 +2649,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   };
   readonly isDisabled = false;
   readonly isSendDisabled = false;
+  get isRunning(): boolean | undefined;
   get isLoading(): boolean;
   get suggestions(): readonly ThreadSuggestion[];
   get adapters(): {
