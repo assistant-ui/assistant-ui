@@ -47,10 +47,34 @@ const readReference = (path: string, ctx: ExpressionContext) => {
   return readPath(ctx.state, path);
 };
 
+const eachChild = (
+  value: object,
+  visit: (child: unknown, key: string) => boolean,
+) => {
+  if (Array.isArray(value)) {
+    for (let index = 0; index < value.length; index++) {
+      if (!visit(value[index], String(index))) return false;
+    }
+    return true;
+  }
+  for (const key in value) {
+    if (
+      Object.hasOwn(value, key) &&
+      !visit((value as Record<string, unknown>)[key], key)
+    ) {
+      return false;
+    }
+  }
+  return true;
+};
+
 const visitAll = (value: unknown, step: () => void): void => {
   step();
   if (typeof value === "object" && value !== null) {
-    for (const child of Object.values(value)) visitAll(child, step);
+    eachChild(value, (child) => {
+      visitAll(child, step);
+      return true;
+    });
   }
 };
 
@@ -397,21 +421,24 @@ const parsedFormula = (formula: string): Node | string => {
   return result;
 };
 
+const childCount = (value: object, step: () => void) => {
+  let count = 0;
+  eachChild(value, () => {
+    step();
+    count++;
+    return true;
+  });
+  return count;
+};
+
 const equal = (a: unknown, b: unknown, step: () => void): boolean => {
   step();
   if (a === b) return true;
   if (typeof a !== "object" || typeof b !== "object" || !a || !b) return false;
   if (Array.isArray(a) !== Array.isArray(b)) return false;
-  const keys = Object.keys(a);
-  return (
-    keys.length === Object.keys(b).length &&
-    keys.every((key) =>
-      equal(
-        (a as Record<string, unknown>)[key],
-        (b as Record<string, unknown>)[key],
-        step,
-      ),
-    )
+  if (childCount(a, step) !== childCount(b, step)) return false;
+  return eachChild(a, (child, key) =>
+    equal(child, (b as Record<string, unknown>)[key], step),
   );
 };
 
