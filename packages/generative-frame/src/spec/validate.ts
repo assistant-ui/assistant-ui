@@ -17,6 +17,7 @@ export type SpecIssueCode =
   | "unknown-action"
   | "invalid-params"
   | "invalid-formula"
+  | "unfilled-placeholder"
   | "invalid-repeat"
   | "unreachable"
   | "invalid-patch";
@@ -41,6 +42,8 @@ export type ValidateSpecOptions = {
 };
 
 const elementPath = (id: string) => `/elements/${escapePointerToken(id)}`;
+
+const PLACEHOLDER = /\$\{(?:\/|\$item\b|\$index\b)[^}]*\}/;
 
 const bindingsOf = (
   value: ActionBinding | ActionBinding[] | undefined,
@@ -144,7 +147,7 @@ export function validateSpec(
     });
   };
 
-  const checkFormulas = (id: string, path: string, value: unknown) => {
+  const checkExpressions = (id: string, path: string, value: unknown) => {
     const seen = new Set<object>();
     const pending: [string, unknown][] = [[path, value]];
     for (let next = pending.pop(); next; next = pending.pop()) {
@@ -156,6 +159,19 @@ export function validateSpec(
       for (const [key, child] of Object.entries(current)) {
         const childPath = `${at}/${escapePointerToken(key)}`;
         if (key !== "$calc" || Array.isArray(current)) {
+          const placeholder =
+            typeof child === "string" &&
+            (key !== "$template" || Array.isArray(current))
+              ? PLACEHOLDER.exec(child)?.[0]
+              : undefined;
+          if (placeholder) {
+            error({
+              code: "unfilled-placeholder",
+              elementId: id,
+              path: childPath,
+              message: `"${id}" shows \`${placeholder}\` as written, since only \`$template\` and \`$calc\` fill placeholders. Write the string as \`{ "$template": "…" }\`, or compute the value with \`$calc\`.`,
+            });
+          }
           children.push([childPath, child]);
           continue;
         }
@@ -279,7 +295,7 @@ export function validateSpec(
       );
     }
     for (const key of ["props", "visible", "on", "watch"] as const) {
-      checkFormulas(id, `${path}/${key}`, element[key]);
+      checkExpressions(id, `${path}/${key}`, element[key]);
     }
     if (
       element.repeat !== undefined &&

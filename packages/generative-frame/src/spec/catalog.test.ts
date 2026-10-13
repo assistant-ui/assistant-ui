@@ -229,6 +229,9 @@ describe("catalog.prompt", () => {
     expect(prompt).toContain('{"op":"add","path":"/root","value":"main"}');
     expect(prompt).toContain("$bindState");
     expect(prompt).toContain(
+      "fills `${…}` placeholders with state values; a placeholder in any other string shows as written.",
+    );
+    expect(prompt).toContain(
       '`{ "$calc": "round(${/guests} * 0.5, 1) + \' lb\'" }`',
     );
     expect(prompt).toContain('"value":{"$calc":"${/count} + 1"}');
@@ -385,6 +388,28 @@ describe("validateSpec", () => {
     );
     expect(text).toContain(
       'Warnings:\n- /elements/x: "x" is not reachable from the root.',
+    );
+  });
+
+  it("reports placeholders a plain string shows as written", () => {
+    const spec = validSpec();
+    spec.elements["card"]!.props = { title: "Serves ${/guests}" };
+    spec.elements["m"]!.props = {
+      label: { $template: "Total for ${/guests}" },
+      value: { $calc: "${/total} * 2" },
+    };
+    spec.elements["b"]!.on = {
+      press: { action: "refresh", params: { range: "${$item/range}" } },
+    };
+    const issues = validateSpec(spec, catalog).issues.filter(
+      (issue) => issue.code === "unfilled-placeholder",
+    );
+    expect(issues.map((issue) => issue.path)).toEqual([
+      "/elements/card/props/title",
+      "/elements/b/on/press/params/range",
+    ]);
+    expect(issues[0]!.message).toBe(
+      '"card" shows `${/guests}` as written, since only `$template` and `$calc` fill placeholders. Write the string as `{ "$template": "…" }`, or compute the value with `$calc`.',
     );
   });
 
