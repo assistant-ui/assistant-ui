@@ -64,6 +64,165 @@ const createThread = (
   return core.threads.getMainThreadRuntimeCore();
 };
 
+describe("LocalThreadRuntimeCore import with a non-leaf head", () => {
+  const stored = ExportedMessageRepository.fromBranchableArray(
+    [
+      { parentId: null, message: { id: "u1", role: "user", content: "u1" } },
+      {
+        parentId: "u1",
+        message: { id: "a1", role: "assistant", content: "a1" },
+      },
+      { parentId: "a1", message: { id: "u2", role: "user", content: "u2" } },
+      {
+        parentId: "u2",
+        message: { id: "a2", role: "assistant", content: "a2" },
+      },
+    ],
+    { headId: "a1" },
+  );
+
+  it("keeps every message on thread.import", () => {
+    const thread = createThread({
+      async run() {
+        return {};
+      },
+    });
+    thread.import(stored);
+
+    expect(thread.export().messages.map((item) => item.message.id)).toEqual([
+      "u1",
+      "a1",
+      "u2",
+      "a2",
+    ]);
+    expect(thread.messages.map((message) => message.id)).toEqual(["u1", "a1"]);
+    expect(thread.export().headId).toBe("a1");
+  });
+
+  it("keeps every message loaded from a history adapter", async () => {
+    const thread = createThread(
+      {
+        async run() {
+          return {};
+        },
+      },
+      {
+        history: {
+          scopeId: "thread",
+          load: async () => stored,
+          append: async () => {},
+        },
+      },
+    );
+    await thread.__internal_load();
+
+    expect(thread.export().messages.map((item) => item.message.id)).toEqual([
+      "u1",
+      "a1",
+      "u2",
+      "a2",
+    ]);
+    expect(thread.messages.map((message) => message.id)).toEqual(["u1", "a1"]);
+    expect(thread.export().headId).toBe("a1");
+  });
+
+  it("replaces seeded descendants missing from loaded history", async () => {
+    const thread = createThread(
+      {
+        async run() {
+          return {};
+        },
+      },
+      {
+        initialMessages: [
+          { id: "u1", role: "user", content: "u1" },
+          { id: "a1", role: "assistant", content: "a1" },
+          { id: "u2", role: "user", content: "u2" },
+        ],
+        history: {
+          scopeId: "thread",
+          load: async () =>
+            ExportedMessageRepository.fromBranchableArray(
+              [
+                {
+                  parentId: null,
+                  message: { id: "u1", role: "user", content: "u1" },
+                },
+                {
+                  parentId: "u1",
+                  message: { id: "a1", role: "assistant", content: "a1" },
+                },
+              ],
+              { headId: "a1" },
+            ),
+          append: async () => {},
+        },
+      },
+    );
+
+    expect(thread.messages.map((message) => message.id)).toEqual([
+      "u1",
+      "a1",
+      "u2",
+    ]);
+    await thread.__internal_load();
+
+    expect(thread.messages.map((message) => message.id)).toEqual(["u1", "a1"]);
+    expect(thread.export().messages.map((item) => item.message.id)).toEqual([
+      "u1",
+      "a1",
+    ]);
+  });
+
+  it("resumes a loaded run under the head it names", async () => {
+    const thread = createThread(
+      {
+        async run() {
+          return {};
+        },
+      },
+      {
+        history: {
+          scopeId: "thread",
+          load: async () => ({
+            ...ExportedMessageRepository.fromBranchableArray(
+              [
+                {
+                  parentId: null,
+                  message: { id: "u1", role: "user", content: "u1" },
+                },
+                {
+                  parentId: "u1",
+                  message: { id: "a1", role: "assistant", content: "a1" },
+                },
+              ],
+              { headId: "u1" },
+            ),
+            unstable_resume: true,
+          }),
+          append: async () => {},
+          async *resume() {
+            yield { content: [{ type: "text", text: "resumed" }] };
+          },
+        },
+      },
+    );
+    await thread.__internal_load();
+    await vi.waitFor(() =>
+      expect(thread.messages.at(-1)?.content).toMatchObject([
+        { type: "text", text: "resumed" },
+      ]),
+    );
+
+    const resumed = thread.messages.at(-1)!;
+    const items = thread.export().messages;
+    expect(items.find((item) => item.message.id === resumed.id)?.parentId).toBe(
+      "u1",
+    );
+    expect(items.find((item) => item.message.id === "a1")?.parentId).toBe("u1");
+  });
+});
+
 const userMessage = (text: string): AppendMessage => ({
   parentId: null,
   sourceId: null,

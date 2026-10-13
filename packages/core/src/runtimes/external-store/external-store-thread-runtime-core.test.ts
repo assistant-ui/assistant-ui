@@ -36,6 +36,184 @@ const createRuntime = (overrides: Partial<ExternalStoreAdapter> = {}) =>
     ...overrides,
   } as ExternalStoreAdapter);
 
+describe("ExternalStoreThreadRuntimeCore message repository", () => {
+  const repositoryWithHead = (headId: string) =>
+    ExportedMessageRepository.fromBranchableArray(
+      [
+        { parentId: null, message: { id: "u1", role: "user", content: "u1" } },
+        {
+          parentId: "u1",
+          message: { id: "a1", role: "assistant", content: "a1" },
+        },
+        { parentId: "a1", message: { id: "u2", role: "user", content: "u2" } },
+      ],
+      { headId },
+    );
+  const visibleIds = (runtime: ExternalStoreThreadRuntimeCore) =>
+    runtime.messages.map((message) => message.id);
+  const exportedIds = (runtime: ExternalStoreThreadRuntimeCore) =>
+    runtime.export().messages.map((item) => item.message.id);
+
+  it("keeps descendants of a non-leaf head across store updates", () => {
+    const store = {
+      messageRepository: repositoryWithHead("a1"),
+      onNew: async () => {},
+      isRunning: false,
+    };
+    const runtime = createRuntime(store);
+
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2"]);
+    expect(visibleIds(runtime)).toEqual(["u1", "a1"]);
+    expect(runtime.export().headId).toBe("a1");
+
+    runtime.__internal_setAdapter({ ...store, isRunning: true });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2"]);
+    expect(visibleIds(runtime)).toEqual(["u1", "a1"]);
+
+    runtime.__internal_setAdapter(store);
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2"]);
+    expect(visibleIds(runtime)).toEqual(["u1", "a1"]);
+  });
+
+  it.each(["u2", "a1"])(
+    "keeps the exact head across store updates during a run with head %s",
+    (headId) => {
+      const store = {
+        messageRepository: repositoryWithHead(headId),
+        onNew: async () => {},
+        isRunning: true,
+      };
+      const runtime = createRuntime(store);
+      const visible = headId === "a1" ? ["u1", "a1"] : ["u1", "a1", "u2"];
+      const placeholderId =
+        headId === "u2" ? runtime.messages.at(-1)!.id : null;
+      if (placeholderId) {
+        expect(runtime.messages.at(-1)?.metadata.isOptimistic).toBe(true);
+      }
+      expect(visibleIds(runtime)).toEqual(
+        placeholderId ? [...visible, placeholderId] : visible,
+      );
+
+      runtime.__internal_setAdapter({
+        ...store,
+        messageRepository: repositoryWithHead(headId),
+      });
+      expect(visibleIds(runtime)).toEqual(
+        placeholderId ? [...visible, placeholderId] : visible,
+      );
+
+      runtime.__internal_setAdapter({
+        ...store,
+        messageRepository: repositoryWithHead(headId),
+        isRunning: false,
+      });
+      expect(visibleIds(runtime)).toEqual(visible);
+      expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2"]);
+    },
+  );
+
+  it("shows a running sibling while retaining the previous answer", () => {
+    const messages = [
+      {
+        parentId: null,
+        message: { id: "u1", role: "user" as const, content: "u1" },
+      },
+      {
+        parentId: "u1",
+        message: { id: "a1", role: "assistant" as const, content: "a1" },
+      },
+      {
+        parentId: "a1",
+        message: { id: "u2", role: "user" as const, content: "u2" },
+      },
+      {
+        parentId: "u2",
+        message: { id: "a2", role: "assistant" as const, content: "a2" },
+      },
+    ];
+    const store = {
+      messageRepository: ExportedMessageRepository.fromBranchableArray(
+        messages,
+        { headId: "a2" },
+      ),
+      onNew: async () => {},
+      isRunning: false,
+    };
+    const runtime = createRuntime(store);
+
+    runtime.__internal_setAdapter({
+      ...store,
+      isRunning: true,
+      messageRepository: ExportedMessageRepository.fromBranchableArray(
+        messages,
+        { headId: "u2" },
+      ),
+    });
+    const placeholder = runtime.messages.at(-1)!;
+    expect(placeholder.metadata.isOptimistic).toBe(true);
+    expect(visibleIds(runtime)).toEqual(["u1", "a1", "u2", placeholder.id]);
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+
+    runtime.__internal_setAdapter({
+      ...store,
+      messageRepository: ExportedMessageRepository.fromBranchableArray(
+        [
+          ...messages,
+          {
+            parentId: "u2",
+            message: { id: "a2b", role: "assistant", content: "a2b" },
+          },
+        ],
+        { headId: "a2b" },
+      ),
+    });
+    expect(visibleIds(runtime)).toEqual(["u1", "a1", "u2", "a2b"]);
+    expect(runtime.export().headId).toBe("a2b");
+    expect(
+      runtime
+        .export()
+        .messages.filter((item) => item.parentId === "u2")
+        .map((item) => item.message.id),
+    ).toEqual(["a2", "a2b"]);
+  });
+
+  it("drops an optimistic message the host stops carrying under its head", () => {
+    const user = { id: "u1", role: "user" as const, content: "u1" };
+    const store = {
+      messageRepository: ExportedMessageRepository.fromBranchableArray(
+        [
+          { parentId: null, message: user },
+          {
+            parentId: "u1",
+            message: {
+              id: "a1",
+              role: "assistant",
+              content: "",
+              metadata: { isOptimistic: true },
+            },
+          },
+        ],
+        { headId: "a1" },
+      ),
+      onNew: async () => {},
+      setMessages: () => {},
+      isRunning: false,
+    };
+    const runtime = createRuntime(store);
+    expect(visibleIds(runtime)).toEqual(["u1", "a1"]);
+
+    runtime.__internal_setAdapter({
+      ...store,
+      messageRepository: ExportedMessageRepository.fromBranchableArray(
+        [{ parentId: null, message: user }],
+        { headId: "u1" },
+      ),
+    });
+    expect(visibleIds(runtime)).toEqual(["u1"]);
+    expect(() => runtime.switchToBranch("a1")).toThrow(/Branch not found/);
+  });
+});
+
 describe("ExternalStoreThreadRuntimeCore shared message queue", () => {
   const tail = (id: string) =>
     fromThreadMessageLike({ id, role: "assistant", content: id }, id, {
