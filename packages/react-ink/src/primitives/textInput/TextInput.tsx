@@ -37,18 +37,16 @@ const TextInputInternal = ({
   const { text, cursorOffset, preferredColumn, dispatchAction, setText } =
     useTextBuffer(value);
   const bufferStateRef = useRef({ text, cursorOffset, preferredColumn });
-  const pendingEchoesRef = useRef<string[]>([]);
+  const lastEmittedValueRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
-    const pendingEchoes = pendingEchoesRef.current;
-    const echoIndex = pendingEchoes.lastIndexOf(value);
-    if (echoIndex !== -1) {
-      pendingEchoes.splice(0, echoIndex + 1);
+    if (value === lastEmittedValueRef.current) {
+      if (text === value) lastEmittedValueRef.current = undefined;
       return;
     }
 
-    const isCorrection = pendingEchoes.length > 0;
-    pendingEchoes.length = 0;
+    const isCorrection = lastEmittedValueRef.current !== undefined;
+    lastEmittedValueRef.current = undefined;
     if (value === bufferStateRef.current.text) return;
     const previousCursorOffset = bufferStateRef.current.cursorOffset;
     let nextState = textBufferReducer(bufferStateRef.current, {
@@ -79,7 +77,7 @@ const TextInputInternal = ({
     dispatchAction(action);
 
     if (options?.syncText !== false && nextState.text !== currentState.text) {
-      pendingEchoesRef.current.push(nextState.text);
+      lastEmittedValueRef.current = nextState.text;
       onChange(nextState.text);
     }
   };

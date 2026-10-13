@@ -271,7 +271,7 @@ describe("TextInput controlled updates", () => {
     expect(onChange).toHaveBeenLastCalledWith("zabz");
   });
 
-  it("keeps a later edit when an intermediate owner echo arrives", async () => {
+  it("applies an intermediate owner correction after batched edits", async () => {
     const control = createRef<{ setValue: (text: string) => void }>();
     const onChange = vi.fn();
     const onSubmit = vi.fn();
@@ -298,18 +298,18 @@ describe("TextInput controlled updates", () => {
       input.handle!("b", {});
       control.current!.setValue("a");
     });
+    await vi.waitFor(() => expect(lastFrame?.()?.trim()).toBe("a"));
     await vi.waitFor(() =>
-      expect(input.commits).toContainEqual({
+      expect(input.commits.at(-1)).toEqual({
         value: "a",
-        text: "ab",
-        cursorOffset: 2,
+        text: "a",
+        cursorOffset: 1,
       }),
     );
-    await vi.waitFor(() => expect(lastFrame?.()?.trim()).toBe("ab"));
     expect(onChange.mock.calls.map(([text]) => text)).toEqual(["a", "ab"]);
 
     await act(async () => input.handle!("", { return: true }));
-    expect(onSubmit).toHaveBeenLastCalledWith("ab");
+    expect(onSubmit).toHaveBeenLastCalledWith("a");
 
     await act(async () => control.current!.setValue("ab"));
     await vi.waitFor(() => expect(lastFrame?.()?.trim()).toBe("ab"));
@@ -318,7 +318,7 @@ describe("TextInput controlled updates", () => {
     expect(onChange).toHaveBeenLastCalledWith("abz");
   });
 
-  it("applies an unmatched owner correction after an intermediate echo", async () => {
+  it("applies a later owner correction after an intermediate correction", async () => {
     const control = createRef<{ setValue: (text: string) => void }>();
     const onChange = vi.fn();
     const App = () => {
@@ -337,11 +337,63 @@ describe("TextInput controlled updates", () => {
       input.handle!("b", {});
       control.current!.setValue("a");
     });
-    await vi.waitFor(() => expect(lastFrame?.()?.trim()).toBe("ab"));
+    await vi.waitFor(() => expect(lastFrame?.()?.trim()).toBe("a"));
     await act(async () => control.current!.setValue("x"));
     await vi.waitFor(() => expect(lastFrame?.()?.trim()).toBe("x"));
     await act(async () => input.handle!("z", {}));
     await vi.waitFor(() => expect(lastFrame?.()?.trim()).toBe("x"));
     expect(onChange).toHaveBeenLastCalledWith("xz");
+  });
+
+  it("applies a normalizing owner correction after batched edits and a rerender", async () => {
+    const control = createRef<{ rerender: () => void }>();
+    const onChange = vi.fn();
+    const App = () => {
+      const [value, setValue] = useState("");
+      const [, setTick] = useState(0);
+      useImperativeHandle(
+        control,
+        () => ({ rerender: () => setTick((tick) => tick + 1) }),
+        [],
+      );
+      return (
+        <TextInput
+          value={value}
+          onChange={(text) => {
+            onChange(text);
+            setValue(text.slice(0, 1));
+          }}
+        />
+      );
+    };
+    let lastFrame: ReturnType<typeof render>["lastFrame"] | undefined;
+    await act(async () => {
+      lastFrame = render(<App />).lastFrame;
+    });
+    await vi.waitFor(() => expect(input.handle).toBeDefined());
+
+    await act(async () => {
+      input.handle!("a", {});
+      input.handle!("b", {});
+    });
+    await vi.waitFor(() => expect(lastFrame?.()?.trim()).toBe("a"));
+    expect(onChange.mock.calls.map(([text]) => text)).toEqual(["a", "ab"]);
+    expect(input.commits.at(-1)).toEqual({
+      value: "a",
+      text: "a",
+      cursorOffset: 1,
+    });
+
+    const commitCount = input.commits.length;
+    await act(async () => control.current!.rerender());
+    await vi.waitFor(() =>
+      expect(input.commits.length).toBeGreaterThan(commitCount),
+    );
+    expect(lastFrame?.()?.trim()).toBe("a");
+    expect(input.commits.at(-1)).toEqual({
+      value: "a",
+      text: "a",
+      cursorOffset: 1,
+    });
   });
 });
