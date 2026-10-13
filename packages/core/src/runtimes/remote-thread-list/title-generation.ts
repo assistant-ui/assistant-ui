@@ -359,6 +359,15 @@ export async function runThreadTitleGeneration(
   const retainManualTitle = () =>
     automatic && takeManualTitle(states, threadId, state) !== undefined;
 
+  const awaitOutrankingGeneration = async () => {
+    while (!generation.superseded) {
+      const winner = state.latestExplicit;
+      if (winner === null || winner.order <= generation.order) return;
+      await winner.persisted;
+      if (state.latestExplicit === winner) return;
+    }
+  };
+
   // `generate` resolves only once the run has persisted its title, so a run
   // that lost the ordering race while it streamed has already overwritten the
   // winner. It waits for the winning generation to persist its own title and
@@ -369,8 +378,9 @@ export async function runThreadTitleGeneration(
       const claim = generation.claim;
       if (
         claim !== null &&
-        claim.order > persistedOrder &&
-        isCurrentClaim(state, claim)
+        isCurrentClaim(state, claim) &&
+        (claim.order > persistedOrder ||
+          (claim.renamed === true && claim.title !== persistedTitle))
       ) {
         const renamed = await settleClaim(claim);
         if (renamed === true) {
@@ -409,6 +419,9 @@ export async function runThreadTitleGeneration(
       if (retainManualTitle()) return;
       break;
     }
+    if (automatic && !isCurrentGeneration(state, generation)) {
+      await awaitOutrankingGeneration();
+    }
     if (!isCurrentGeneration(state, generation)) return;
 
     await generate(async (title) => {
@@ -439,12 +452,20 @@ export async function runThreadTitleGeneration(
       if (renamed === undefined) continue;
       if (renamed === false) {
         if (retainManualTitle()) return;
-        if (sawTitle && isCurrentGeneration(state, generation)) {
+        if (
+          sawTitle &&
+          persistedTitle !== undefined &&
+          isCurrentGeneration(state, generation)
+        ) {
           await applyTitle(lastTitle);
         }
         return;
       }
-      if (!isCurrentClaim(state, claim)) return;
+      if (!isCurrentClaim(state, claim)) {
+        await awaitOutrankingGeneration();
+        if (!isCurrentClaim(state, claim)) return;
+        if (generation.claim !== claim) continue;
+      }
       await rename(claim.title);
       persistedTitle = claim.title;
       persistedOrder = claim.order;
@@ -458,15 +479,22 @@ export async function runThreadTitleGeneration(
 
   try {
     await runGeneration();
+    if (persistedTitle !== undefined) await awaitOutrankingGeneration();
     await repairLostRace();
     if (
-      sawTitle &&
       persistedTitle !== undefined &&
-      generation.claim === null &&
-      isCurrentGeneration(state, generation) &&
-      appliedTitle !== lastTitle
+      isCurrentGeneration(state, generation)
     ) {
-      await applyTitle(lastTitle);
+      const claim = generation.claim;
+      if (
+        claim !== null &&
+        claim.renamed === true &&
+        isCurrentClaim(state, claim)
+      ) {
+        if (appliedTitle !== claim.title) await applyTitle(claim.title);
+      } else if (claim === null && sawTitle && appliedTitle !== lastTitle) {
+        await applyTitle(lastTitle);
+      }
     }
   } finally {
     if (persistedTitle === undefined) retractGeneration(state, generation);
