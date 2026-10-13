@@ -55,25 +55,23 @@ export class OpenAIRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
       let closed = false;
       let generating = false;
       let speaking = false;
-      let transcript = "";
-      let transcriptItem: string | undefined;
+      let transcribing = false;
       let volumeTimer: ReturnType<typeof setInterval> | undefined;
       let connectionTimer: ReturnType<typeof setTimeout> | undefined;
       type Transcript = {
         ready: boolean;
         value: RealtimeVoiceAdapter.TranscriptItem | undefined;
       };
+      let assistantTranscript: (Transcript & { id: string }) | undefined;
       const transcriptQueue: Transcript[] = [];
       const pendingTranscripts = new Map<string, Transcript>();
       const flushTranscripts = () => {
         while (transcriptQueue[0]?.ready) {
-          const { value } = transcriptQueue.shift()!;
-          if (value) session.emitTranscript(value);
+          const item = transcriptQueue[0];
+          item.ready = false;
+          if (item.value?.isFinal !== false) transcriptQueue.shift();
+          if (item.value) session.emitTranscript(item.value);
         }
-      };
-      const emitTranscript = (value: RealtimeVoiceAdapter.TranscriptItem) => {
-        transcriptQueue.push({ ready: true, value });
-        flushTranscripts();
       };
       const finishUserTranscript = (
         id: unknown,
@@ -85,8 +83,8 @@ export class OpenAIRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
           item.ready = true;
           item.value = value;
           pendingTranscripts.delete(id as string);
-          flushTranscripts();
-        } else if (value) emitTranscript(value);
+        } else if (value) transcriptQueue.push({ ready: true, value });
+        flushTranscripts();
       };
       const pending = new Map<
         string,
@@ -103,15 +101,13 @@ export class OpenAIRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
         controller.abort();
         clearInterval(volumeTimer);
         clearTimeout(connectionTimer);
-        for (const item of pending.values()) {
-          clearTimeout(item.timer);
-          item.reject(
+        for (const id of pending.keys())
+          settle(
+            id,
             new Error(
               "OpenAI Realtime session disconnected before accepting the message.",
             ),
           );
-        }
-        pending.clear();
         pendingTranscripts.clear();
         transcriptQueue.length = 0;
         channel.onopen =
@@ -133,10 +129,38 @@ export class OpenAIRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
       };
 
       const send = (event: Record<string, unknown>) => {
-        if (closed || channel.readyState !== "open") {
+        if (closed || channel.readyState !== "open")
           throw new Error("OpenAI Realtime session is not connected.");
-        }
         channel.send(JSON.stringify(event));
+      };
+
+      const request = (id: string, event: Record<string, unknown>) =>
+        new Promise<void>((resolve, reject) => {
+          const timer = setTimeout(() => {
+            pending.delete(id);
+            reject(
+              new Error("OpenAI Realtime did not acknowledge the message."),
+            );
+          }, 10_000);
+          pending.set(id, { resolve, reject, timer });
+          try {
+            send({ ...event, event_id: id });
+          } catch (error) {
+            clearTimeout(timer);
+            pending.delete(id);
+            reject(error);
+          }
+        });
+
+      const settle = (id: unknown, error?: Error) => {
+        if (typeof id !== "string") return false;
+        const message = pending.get(id);
+        if (!message) return false;
+        clearTimeout(message.timer);
+        pending.delete(id);
+        if (error) message.reject(error);
+        else message.resolve();
+        return true;
       };
 
       const setSpeaking = (value: boolean) => {
@@ -154,8 +178,16 @@ export class OpenAIRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
         }
         if (!event) return;
         switch (event.type) {
+          case "session.created":
+          case "session.updated": {
+            const audio = asRecord(asRecord(event.session)?.audio);
+            const input = asRecord(audio?.input);
+            transcribing = asRecord(input?.transcription) !== undefined;
+            break;
+          }
           case "input_audio_buffer.committed":
             if (
+              transcribing &&
               typeof event.item_id === "string" &&
               !pendingTranscripts.has(event.item_id)
             ) {
@@ -176,38 +208,43 @@ export class OpenAIRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
           case "response.output_audio_transcript.delta":
           case "response.output_audio_transcript.done": {
             if (typeof event.item_id !== "string") break;
-            if (transcriptItem !== event.item_id) {
-              transcriptItem = event.item_id;
-              transcript = "";
-            }
             const final =
               event.type === "response.output_audio_transcript.done";
-            if (final) {
-              if (typeof event.transcript !== "string") break;
-              transcript = event.transcript;
-            } else {
-              if (typeof event.delta !== "string") break;
-              transcript += event.delta;
+            const text = final ? event.transcript : event.delta;
+            if (typeof text !== "string") break;
+            if (assistantTranscript?.id !== event.item_id) {
+              assistantTranscript = {
+                id: event.item_id,
+                ready: false,
+                value: undefined,
+              };
+              transcriptQueue.push(assistantTranscript);
             }
-            emitTranscript({
+            assistantTranscript.ready = true;
+            assistantTranscript.value = {
               role: "assistant",
-              text: transcript,
+              text: final
+                ? text
+                : (assistantTranscript.value?.text ?? "") + text,
               isFinal: final,
-            });
+            };
+            flushTranscripts();
             break;
           }
           case "response.created":
             generating = true;
+            settle(
+              asRecord(asRecord(event.response)?.metadata)?.aui_request_id,
+            );
             break;
           case "response.done": {
             generating = false;
             const response = asRecord(event.response);
-            if (response?.status === "failed") {
+            if (response?.status === "failed")
               console.warn(
                 "OpenAI Realtime response failed.",
                 response.status_details,
               );
-            }
             break;
           }
           case "output_audio_buffer.started":
@@ -217,16 +254,9 @@ export class OpenAIRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
           case "output_audio_buffer.cleared":
             setSpeaking(false);
             break;
-          case "conversation.item.added": {
-            const item = asRecord(event.item);
-            if (typeof item?.id !== "string") break;
-            const message = pending.get(item.id);
-            if (!message) break;
-            clearTimeout(message.timer);
-            pending.delete(item.id);
-            message.resolve();
+          case "conversation.item.added":
+            settle(asRecord(event.item)?.id);
             break;
-          }
           case "conversation.item.input_audio_transcription.failed":
             finishUserTranscript(event.item_id);
             console.warn("OpenAI Realtime transcription failed.", event.error);
@@ -234,20 +264,17 @@ export class OpenAIRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
           case "error": {
             const error = asRecord(event.error);
             if (error?.code === "response_cancel_not_active") break;
-            const requestId =
-              typeof error?.event_id === "string" ? error.event_id : "";
-            const message = pending.get(requestId);
-            if (message) {
-              clearTimeout(message.timer);
-              pending.delete(requestId);
-              message.reject(
+            if (
+              !settle(
+                error?.event_id,
                 new Error(
                   typeof error?.message === "string"
                     ? error.message
                     : "OpenAI Realtime rejected the message.",
                 ),
-              );
-            } else console.warn("OpenAI Realtime error.", event.error);
+              )
+            )
+              console.warn("OpenAI Realtime error.", event.error);
             break;
           }
         }
@@ -340,32 +367,20 @@ export class OpenAIRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
           if (generating) send({ type: "response.cancel" });
           if (speaking) send({ type: "output_audio_buffer.clear" });
           const id = crypto.randomUUID().replaceAll("-", "");
-          await new Promise<void>((resolve, reject) => {
-            const timer = setTimeout(() => {
-              pending.delete(id);
-              reject(
-                new Error("OpenAI Realtime did not acknowledge the message."),
-              );
-            }, 10_000);
-            pending.set(id, { resolve, reject, timer });
-            try {
-              send({
-                type: "conversation.item.create",
-                event_id: id,
-                item: {
-                  id,
-                  type: "message",
-                  role: "user",
-                  content: [{ type: "input_text", text }],
-                },
-              });
-            } catch (error) {
-              clearTimeout(timer);
-              pending.delete(id);
-              reject(error);
-            }
+          await request(id, {
+            type: "conversation.item.create",
+            item: {
+              id,
+              type: "message",
+              role: "user",
+              content: [{ type: "input_text", text }],
+            },
           });
-          send({ type: "response.create" });
+          const responseId = crypto.randomUUID().replaceAll("-", "");
+          await request(responseId, {
+            type: "response.create",
+            response: { metadata: { aui_request_id: responseId } },
+          });
         },
       };
     });

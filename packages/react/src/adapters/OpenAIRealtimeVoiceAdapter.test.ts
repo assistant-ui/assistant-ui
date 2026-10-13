@@ -90,6 +90,12 @@ const connected = async () => {
     expect(result.peer.setRemoteDescription).toHaveBeenCalled(),
   );
   result.channel.open();
+  result.channel.emit({
+    type: "session.created",
+    session: {
+      audio: { input: { transcription: { model: "gpt-4o-mini-transcribe" } } },
+    },
+  });
   return result;
 };
 
@@ -290,7 +296,87 @@ describe("OpenAIRealtimeVoiceAdapter", () => {
     }
   });
 
-  it("acknowledges typed messages before returning, without echoing their transcript", async () => {
+  it.each(["session.created", "session.updated"])(
+    "streams replies with transcription disabled by %s",
+    async (type) => {
+      const { session, channel } = await connected();
+      const onTranscript = vi.fn();
+      session.onTranscript(onTranscript);
+      channel.emit({
+        type,
+        session: { audio: { input: { transcription: null } } },
+      });
+      channel.emit({ type: "input_audio_buffer.committed", item_id: "user" });
+      channel.emit({
+        type: "response.output_audio_transcript.delta",
+        item_id: "reply",
+        delta: "Hello",
+      });
+      channel.emit({
+        type: "response.output_audio_transcript.done",
+        item_id: "reply",
+        transcript: "Hello!",
+      });
+      expect(onTranscript.mock.calls.map(([item]) => item)).toEqual([
+        { role: "assistant", text: "Hello", isFinal: false },
+        { role: "assistant", text: "Hello!", isFinal: true },
+      ]);
+    },
+  );
+
+  it.each([true, false])(
+    "keeps an uninterrupted assistant message together when the next user transcript finishes early: %s",
+    async (early) => {
+      const { session, channel } = await connected();
+      const onTranscript = vi.fn();
+      session.onTranscript(onTranscript);
+      channel.emit({
+        type: "session.updated",
+        session: {
+          audio: {
+            input: {
+              transcription: { model: "gpt-4o-mini-transcribe" },
+              turn_detection: { type: "server_vad", interrupt_response: false },
+            },
+          },
+        },
+      });
+      channel.emit({
+        type: "response.output_audio_transcript.delta",
+        item_id: "reply",
+        delta: "Good ",
+      });
+      channel.emit({
+        type: "input_audio_buffer.committed",
+        item_id: "next-user",
+      });
+      const user = {
+        type: "conversation.item.input_audio_transcription.completed",
+        item_id: "next-user",
+        transcript: "Next question",
+      };
+      if (early) channel.emit(user);
+      channel.emit({
+        type: "response.output_audio_transcript.delta",
+        item_id: "reply",
+        delta: "morning",
+      });
+      channel.emit({
+        type: "response.output_audio_transcript.done",
+        item_id: "reply",
+        transcript: "Good morning",
+      });
+      if (!early) channel.emit(user);
+      expect(onTranscript.mock.calls.map(([item]) => item)).toEqual([
+        { role: "assistant", text: "Good ", isFinal: false },
+        { role: "assistant", text: "Good morning", isFinal: false },
+        { role: "assistant", text: "Good morning", isFinal: true },
+        { role: "user", text: "Next question", isFinal: true },
+      ]);
+    },
+  );
+
+  it("waits for both typed item and response acceptance without echoing the transcript", async () => {
     const { session, channel } = await connected();
     const onTranscript = vi.fn();
     const accepted = vi.fn();
@@ -319,9 +405,55 @@ describe("OpenAIRealtimeVoiceAdapter", () => {
       type: "conversation.item.added",
       item: { id: events[2].item.id },
     });
+    await vi.waitFor(() =>
+      expect(channel.events().at(-1).type).toBe("response.create"),
+    );
+    expect(accepted).not.toHaveBeenCalled();
+    channel.emit({
+      type: "response.created",
+      response: { metadata: { aui_request_id: "unrelated" } },
+    });
+    await Promise.resolve();
+    expect(accepted).not.toHaveBeenCalled();
+    const response = channel.events().at(-1);
+    expect(response.response.metadata.aui_request_id).toBe(response.event_id);
+    channel.emit({
+      type: "response.created",
+      response: { metadata: response.response.metadata },
+    });
     await sent;
-    expect(channel.events().at(-1)).toEqual({ type: "response.create" });
     expect(onTranscript).not.toHaveBeenCalled();
+  });
+
+  it("rejects a typed send whose response request fails after the item was accepted", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { session, channel } = await connected();
+      const rejected = expect(session.sendText!("Hello")).rejects.toThrow(
+        "Already responding",
+      );
+      const item = channel.events().at(-1);
+      channel.emit({
+        type: "conversation.item.added",
+        item: { id: item.item.id },
+      });
+      await vi.waitFor(() =>
+        expect(channel.events().at(-1).type).toBe("response.create"),
+      );
+      channel.emit({
+        type: "error",
+        error: {
+          event_id: channel.events().at(-1).event_id,
+          code: "conversation_already_has_active_response",
+          message: "Already responding",
+        },
+      });
+      await rejected;
+      expect(session.status.type).toBe("running");
+      expect(track.stop).not.toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it("rejects a pending text send on disconnect", async () => {
@@ -333,6 +465,30 @@ describe("OpenAIRealtimeVoiceAdapter", () => {
     session.disconnect();
     await rejected;
   });
+
+  it.each(["disconnect", "timeout"])(
+    "rejects a typed send on %s while waiting for response acceptance",
+    async (failure) => {
+      const { session, channel } = await connected();
+      vi.useFakeTimers();
+      const rejected = expect(session.sendText!("Hello")).rejects.toThrow(
+        failure === "disconnect"
+          ? "disconnected before accepting"
+          : "did not acknowledge",
+      );
+      channel.emit({
+        type: "conversation.item.added",
+        item: { id: channel.events().at(-1).item.id },
+      });
+      await Promise.resolve();
+      expect(channel.events().at(-1).type).toBe("response.create");
+      if (failure === "disconnect") session.disconnect();
+      else await vi.advanceTimersByTimeAsync(10_000);
+      await rejected;
+      session.disconnect();
+      expect(vi.getTimerCount()).toBe(0);
+    },
+  );
 
   it("rejects an unacknowledged text send instead of committing it to history", async () => {
     const { session } = await connected();
