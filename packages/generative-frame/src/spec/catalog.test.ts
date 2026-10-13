@@ -365,6 +365,24 @@ describe("state store and actions", () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
+  it("computes setState values with formulas, so a button can step a count", async () => {
+    const store = createStateStore({ guests: 19 });
+    const dispatch = createActionDispatcher({ store, catalog });
+    const step = [
+      {
+        action: "setState",
+        params: {
+          path: "/guests",
+          value: { $calc: "min(${/guests} + 1, 20)" },
+        },
+      },
+    ];
+    await dispatch(step, { elementId: "b", trigger: "press" });
+    expect(store.get("/guests")).toBe(20);
+    await dispatch(step, { elementId: "b", trigger: "press" });
+    expect(store.get("/guests")).toBe(20);
+  });
+
   it("routes unhandled catalog actions to onAction and reports unknown ones", async () => {
     const store = createStateStore();
     const onAction = vi.fn();
