@@ -22,12 +22,12 @@ import {
 import type { Catalog } from "../catalog";
 import {
   evaluateCondition,
-  itemPointer,
   resolveProps,
   type ExpressionContext,
 } from "../expressions";
 import { getAtPointer } from "../pointer";
 import { createStateStore, type SpecStateStore } from "../state";
+import { childIdsOf, repeatItems, safePointer } from "../tree";
 import type { Spec, SpecElement } from "../types";
 
 export type SpecComponents = Record<string, Component>;
@@ -130,10 +130,6 @@ type RenderContext = {
   readonly onError: SpecRendererProps["onError"];
 };
 const renderContextKey = Symbol("SpecRenderer");
-const safePointer = (path: string) =>
-  path.startsWith("/") || path === "" ? path : `/${path}`;
-const childIdsOf = (element: SpecElement, slot: string) =>
-  (slot === "default" ? element.children : element.slots?.[slot]) ?? [];
 
 function children(
   ids: readonly unknown[],
@@ -349,26 +345,17 @@ const ResolvedElement = defineComponent({
       slots.default = () => {
         const repeat = props.element.repeat;
         if (repeat && typeof repeat.path === "string") {
-          const items = getAtPointer(ctx.state, safePointer(repeat.path));
-          return Array.isArray(items)
-            ? items.map((item, index) => {
-                const key =
-                  repeat.key && item && typeof item === "object"
-                    ? String(
-                        (item as Record<string, unknown>)[repeat.key] ?? index,
-                      )
-                    : String(index);
-                return h(
-                  Fragment,
-                  { key },
-                  children(
-                    childIdsOf(props.element, "default"),
-                    { item, index, itemPath: itemPointer(repeat.path, index) },
-                    props.ancestors,
-                  ),
-                );
-              })
-            : [];
+          return (repeatItems(repeat, ctx.state) ?? []).map((item) =>
+            h(
+              Fragment,
+              { key: item.key },
+              children(
+                childIdsOf(props.element, "default"),
+                item.scope,
+                props.ancestors,
+              ),
+            ),
+          );
         }
         return children(
           childIdsOf(props.element, "default"),

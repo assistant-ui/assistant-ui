@@ -47,6 +47,10 @@
       "types": "./dist/spec.d.ts",
       "default": "./dist/spec.js"
     },
+    "./spec/tree": {
+      "types": "./dist/spec/tree.d.ts",
+      "default": "./dist/spec/tree.js"
+    },
     "./vue": {
       "types": "./dist/vue.d.ts",
       "default": "./dist/vue.js"

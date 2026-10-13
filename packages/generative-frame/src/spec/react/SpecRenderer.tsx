@@ -21,12 +21,12 @@ import {
 import type { Catalog } from "../catalog";
 import {
   evaluateCondition,
-  itemPointer,
   resolveProps,
   type ExpressionContext,
 } from "../expressions";
 import { getAtPointer } from "../pointer";
 import { createStateStore, type SpecStateStore } from "../state";
+import { childIdsOf, repeatItems, safePointer } from "../tree";
 import type { Spec, SpecElement } from "../types";
 
 /** What a component implementation receives for one element. */
@@ -169,9 +169,6 @@ class ElementBoundary extends Component<
       : this.props.children;
   }
 }
-
-const childIdsOf = (element: SpecElement, slot: string) =>
-  (slot === "default" ? element.children : element.slots?.[slot]) ?? [];
 
 function renderChildren(
   ids: readonly unknown[],
@@ -355,25 +352,17 @@ function ResolvedElement({
 
   let children: ReactNode;
   if (element.repeat && typeof element.repeat.path === "string") {
-    const repeatPath = element.repeat.path;
-    const items = getAtPointer(ctx.state, safePointer(repeatPath));
-    const keyField = element.repeat.key;
-    children = Array.isArray(items)
-      ? items.map((item, index) => {
-          const key =
-            keyField && item && typeof item === "object"
-              ? String((item as Record<string, unknown>)[keyField] ?? index)
-              : String(index);
-          return (
-            <Fragment key={key}>
-              {renderChildren(
-                childIdsOf(element, "default"),
-                { item, index, itemPath: itemPointer(repeatPath, index) },
-                ancestors,
-              )}
-            </Fragment>
-          );
-        })
+    const items = repeatItems(element.repeat, ctx.state);
+    children = items
+      ? items.map((item) => (
+          <Fragment key={item.key}>
+            {renderChildren(
+              childIdsOf(element, "default"),
+              item.scope,
+              ancestors,
+            )}
+          </Fragment>
+        ))
       : null;
   } else {
     children = renderChildren(childIdsOf(element, "default"), scope, ancestors);
@@ -400,9 +389,6 @@ function ResolvedElement({
     </Impl>
   );
 }
-
-const safePointer = (path: string) =>
-  path.startsWith("/") || path === "" ? path : `/${path}`;
 
 /**
  * Renders a spec with trusted host components. It renders whatever has

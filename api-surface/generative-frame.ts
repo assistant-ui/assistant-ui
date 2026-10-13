@@ -761,6 +761,27 @@ type ReservedAccessorProps = "name" | "query" | "source";
 
 type ReservedScopeNames = "on" | "optional" | "subscribe";
 
+type ResolveSpecOptions = {
+  state?: unknown;
+};
+
+type ResolvedAction = {
+  action: string;
+  params: Record<string, unknown>;
+};
+
+type ResolvedElement = {
+  id: string;
+  type: string;
+  props: Record<string, unknown>;
+  bindings: Record<string, string>;
+  on: Record<string, ResolvedAction[]>;
+  children: ResolvedElement[];
+  slots: Record<string, ResolvedElement[]>;
+  key?: string;
+  itemPath?: string;
+};
+
 declare class SafeContentFrame {
   #private;
   constructor(product: string, options?: SafeContentFrameOptions);
@@ -1943,10 +1964,12 @@ declare namespace entry_repair_exports {
   export { GenerateContext, GenerateResult, RenderReport, RepairFeedback, RepairLoopOptions, RepairLoopResult, RepairRound, buildRepairFeedback, repairLoop };
 }
 
+declare function resolveSpec(spec: Spec, options?: ResolveSpecOptions): ResolvedElement | null;
+
 declare function specGuidanceModule(catalog: Catalog, options?: Omit<SpecPromptOptions, "mode">): GuidanceModule;
 
 declare namespace entry_spec_exports {
-  export { ActionBinding, ActionDefinition, ActionHandler, ActionSource, Catalog, CatalogDefinition, ComponentDefinition, Condition, CreateSpecStreamOptions, JsonSchema, JsonSchemaType, PatchOperation, PropsSchema, Spec, SpecElement, SpecIssue, SpecIssueCode, SpecPromptOptions, SpecStateStore, SpecStateWrite, SpecStream, SpecStreamError, SpecStreamMode, SpecStreamResult, SpecStreamUpdate, SpecValidation, StandardSchemaLike, StateListener, StateStoreOptions, ValidateSpecOptions, applyPatch, createSpecStream, createStateStore, defineCatalog, emptySpec, formatSpecIssues, parseSpecStream, validateSpec };
+  export { ActionBinding, ActionDefinition, ActionHandler, ActionSource, Catalog, CatalogDefinition, ComponentDefinition, Condition, CreateSpecStreamOptions, JsonSchema, JsonSchemaType, PatchOperation, PropsSchema, ResolveSpecOptions, ResolvedAction, ResolvedElement, Spec, SpecElement, SpecIssue, SpecIssueCode, SpecPromptOptions, SpecStateStore, SpecStateWrite, SpecStream, SpecStreamError, SpecStreamMode, SpecStreamResult, SpecStreamUpdate, SpecValidation, StandardSchemaLike, StateListener, StateStoreOptions, ValidateSpecOptions, applyPatch, createSpecStream, createStateStore, defineCatalog, emptySpec, formatSpecIssues, parseSpecStream, resolveSpec, validateSpec };
 }
 
 declare function toAISDKTools<T extends Record<string, AnyTool>, Schema>(tools: T, sdk: {
