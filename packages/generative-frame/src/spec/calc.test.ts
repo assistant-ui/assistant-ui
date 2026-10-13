@@ -396,6 +396,14 @@ describe("formula bounds and parsing", () => {
     expect(evaluateFormula("sum(${/a}) + sum(${/b})", shared)).toBeNull();
   });
 
+  it("counts every value a text join serializes against the budget", () => {
+    expect(evaluateFormula("'v: ' + ${/o}", { state: { o: { a: [1] } } })).toBe(
+      'v: {"a":[1]}',
+    );
+    const big = Array.from({ length: 12_000 }, (_, i) => i);
+    expect(evaluateFormula("'v: ' + ${/big}", { state: { big } })).toBeNull();
+  });
+
   it("counts every value an equality visits against the budget", () => {
     const list = (length: number) => Array.from({ length }, (_, i) => ({ i }));
     expect(

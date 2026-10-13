@@ -170,7 +170,7 @@ export function validateSpec(
           });
         }
       }
-      pending.push(...children.reverse());
+      for (let i = children.length - 1; i >= 0; i--) pending.push(children[i]!);
     }
   };
 

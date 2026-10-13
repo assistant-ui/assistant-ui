@@ -47,12 +47,19 @@ const readReference = (path: string, ctx: ExpressionContext) => {
   return readPath(ctx.state, path);
 };
 
-const formatText = (value: unknown) =>
-  value === null || value === undefined
-    ? ""
-    : typeof value === "object"
-      ? JSON.stringify(value)
-      : String(value);
+const visitAll = (value: unknown, step: () => void): void => {
+  step();
+  if (typeof value === "object" && value !== null) {
+    for (const child of Object.values(value)) visitAll(child, step);
+  }
+};
+
+const formatText = (value: unknown, step: () => void) => {
+  if (value === null || value === undefined) return "";
+  if (typeof value !== "object") return String(value);
+  visitAll(value, step);
+  return JSON.stringify(value);
+};
 
 const fractionDigits = (value: number) =>
   Math.max(0, Math.min(20, Math.trunc(value)));
@@ -100,6 +107,7 @@ const formatNumber = (value: unknown, options: Intl.NumberFormatOptions) => {
     } catch {
       return null;
     }
+    if (formatters.size >= 64) formatters.clear();
     formatters.set(key, formatter);
   }
   return formatter.format(value);
@@ -419,7 +427,7 @@ const calculate = (
     operator === "+" &&
     (typeof left === "string" || typeof right === "string")
   ) {
-    return formatText(left) + formatText(right);
+    return formatText(left, step) + formatText(right, step);
   }
   if (["<", "<=", ">", ">="].includes(operator)) {
     if (
