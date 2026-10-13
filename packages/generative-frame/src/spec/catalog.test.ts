@@ -332,6 +332,9 @@ describe("catalog.prompt", () => {
       customRules: ["Prefer cards."],
     }).render_spec;
     expect(description).toContain(
+      "Follow the spec guidance in the system prompt; only when it has none, load the `spec` module with read_me, if read_me offers one.",
+    );
+    expect(description).toContain(
       "Every spec follows these rules:\n- Open with a heading that names the answer",
     );
     expect(description.endsWith("- Prefer cards.")).toBe(true);
