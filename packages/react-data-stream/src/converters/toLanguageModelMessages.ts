@@ -113,8 +113,12 @@ export function toLanguageModelMessages(
 
   const result: LanguageModelV2Message[] = [];
 
-  for (const message of messages) {
-    for (const generic of toGenericMessages([message] as any)) {
+  for (const [index, message] of messages.entries()) {
+    const source =
+      message.role === "assistant" && index < messages.length - 1
+        ? { ...message, status: { type: "incomplete" } }
+        : message;
+    for (const generic of toGenericMessages([source] as any)) {
       const converted = convertGenericToLanguageModel(generic);
       if (generic.role !== "tool") {
         (converted as any).unstable_id = message.id;
