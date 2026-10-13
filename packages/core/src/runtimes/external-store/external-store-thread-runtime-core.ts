@@ -217,16 +217,15 @@ export class ExternalStoreThreadRuntimeCore
   // repository once the host's array no longer carries them; an id the host
   // still carries after every onDelete call for it settled, resolved or
   // rejected, is dropped from the map without eviction.
-  // Branch-changing mutations (edit, branch switch) mark the records with a
-  // pending call as reloaded, because after them the incoming array omits
-  // off-branch ids for reasons unrelated to deletion; such a record settles
-  // from its onDelete outcome instead. A reload keeps only the prefix up to the
-  // parent it regenerates from in the host's array, so while its window is open
-  // (until the host drops the old suffix or onReload settles) an id after that
-  // parent is absent whether or not its delete was declined and is marked the
-  // same way. Plain tail sends do not mark anything: a tail append cannot make
-  // a visible id absent, so id-absence stays unambiguous and a delete whose
-  // confirmation races a send keeps its eviction.
+  // A branch switch marks records with pending calls, because the incoming
+  // array can omit off-branch ids without deleting them. A reload or edit can
+  // omit the suffix after its parent for the same reason, so deletes outside
+  // that prefix are marked until a host snapshot drops the old suffix, or the
+  // first snapshot after the callback settles keeps it. Marked records settle
+  // from onDelete instead of snapshot absence. Plain tail sends do not mark
+  // anything: a tail append cannot make a visible id absent, so id-absence
+  // stays unambiguous and a delete whose confirmation races a send keeps its
+  // eviction.
   private _pendingDeleteEvictions = new Map<
     string,
     {
@@ -235,15 +234,37 @@ export class ExternalStoreThreadRuntimeCore
       message: ThreadMessage;
     }
   >();
-  private _pendingReloadDeleteWindows = new Set<{
+  private _pendingDeleteWindows = new Set<{
     prefix: ReadonlySet<string>;
     suffix: ReadonlySet<string>;
+    settled: boolean;
   }>();
 
-  private _closeReloadDeleteWindows(incomingIds: ReadonlySet<string>) {
-    for (const window of this._pendingReloadDeleteWindows) {
-      if ([...window.suffix].every((id) => !incomingIds.has(id)))
-        this._pendingReloadDeleteWindows.delete(window);
+  private _openDeleteWindow(parentId: string | null) {
+    const visible = this.repository.getMessages();
+    const prefixLength = visible.findIndex((m) => m.id === parentId) + 1;
+    const window = {
+      prefix: new Set(visible.slice(0, prefixLength).map((m) => m.id)),
+      suffix: new Set(visible.slice(prefixLength).map((m) => m.id)),
+      settled: false,
+    };
+    this._pendingDeleteWindows.add(window);
+    for (const [id, pending] of this._pendingDeleteEvictions) {
+      if (window.prefix.has(id)) continue;
+      if (pending.calls.size > 0) pending.reloaded = true;
+      else this._pendingDeleteEvictions.delete(id);
+    }
+    return window;
+  }
+
+  private _closeDeleteWindows(incomingIds: ReadonlySet<string>) {
+    for (const window of this._pendingDeleteWindows) {
+      if (
+        window.settled ||
+        (window.suffix.size > 0 &&
+          [...window.suffix].every((id) => !incomingIds.has(id)))
+      )
+        this._pendingDeleteWindows.delete(window);
     }
   }
 
@@ -478,7 +499,7 @@ export class ExternalStoreThreadRuntimeCore
       this.repository = repositoryInstance;
       this._cancelledToolTurn = null;
       this._pendingDeleteEvictions.clear();
-      this._pendingReloadDeleteWindows.clear();
+      this._pendingDeleteWindows.clear();
       this._submittedFeedback.clear();
       this._movedLeaf = undefined;
       // Keep the live placeholder so resetHead cannot evict an id still used
@@ -544,16 +565,19 @@ export class ExternalStoreThreadRuntimeCore
         oldStore.messageRepository === store.messageRepository &&
         previousIsRunning === isRunning
       ) {
+        if (fromHostSnapshot && this._pendingDeleteWindows.size > 0)
+          this._closeDeleteWindows(
+            new Set(
+              store.messageRepository.messages.map(({ message }) => message.id),
+            ),
+          );
         this._notifySubscribers();
         return;
       }
 
       const incoming = store.messageRepository.messages;
-      if (
-        this._pendingReloadDeleteWindows.size > 0 &&
-        oldStore?.messageRepository !== store.messageRepository
-      )
-        this._closeReloadDeleteWindows(
+      if (fromHostSnapshot && this._pendingDeleteWindows.size > 0)
+        this._closeDeleteWindows(
           new Set(incoming.map(({ message }) => message.id)),
         );
       const headId =
@@ -600,6 +624,10 @@ export class ExternalStoreThreadRuntimeCore
           oldStore.messages === store.messages &&
           previousIsRunning === isRunning
         ) {
+          if (fromHostSnapshot && this._pendingDeleteWindows.size > 0)
+            this._closeDeleteWindows(
+              new Set(this._storeMessages.map((message) => message.id)),
+            );
           this._notifySubscribers();
           // no conversion update
           return;
@@ -668,26 +696,28 @@ export class ExternalStoreThreadRuntimeCore
       // A pass over the host's previous array, such as a client tool's
       // running refresh, can predate the host's answer to onDelete.
       if (
-        (this._pendingDeleteEvictions.size > 0 ||
-          this._pendingReloadDeleteWindows.size > 0) &&
-        oldStore?.messages !== store.messages
+        (this._pendingDeleteEvictions.size > 0 &&
+          oldStore?.messages !== store.messages) ||
+        (fromHostSnapshot && this._pendingDeleteWindows.size > 0)
       ) {
         const incomingIds = new Set(messages.map((m) => m.id));
-        this._closeReloadDeleteWindows(incomingIds);
-        for (const [id, pending] of this._pendingDeleteEvictions) {
-          if (pending.reloaded) continue;
-          if (incomingIds.has(id)) {
-            if (pending.calls.size === 0)
-              this._pendingDeleteEvictions.delete(id);
-            continue;
+        if (fromHostSnapshot) this._closeDeleteWindows(incomingIds);
+        if (oldStore?.messages !== store.messages) {
+          for (const [id, pending] of this._pendingDeleteEvictions) {
+            if (pending.reloaded) continue;
+            if (incomingIds.has(id)) {
+              if (pending.calls.size === 0)
+                this._pendingDeleteEvictions.delete(id);
+              continue;
+            }
+            this._pendingDeleteEvictions.delete(id);
+            try {
+              this.repository.getMessage(id);
+            } catch {
+              continue;
+            }
+            this.repository.deleteMessage(id);
           }
-          this._pendingDeleteEvictions.delete(id);
-          try {
-            this.repository.getMessage(id);
-          } catch {
-            continue;
-          }
-          this.repository.deleteMessage(id);
         }
       }
     } else {
@@ -1096,11 +1126,12 @@ export class ExternalStoreThreadRuntimeCore
     if (isEdit) {
       if (!this._store.onEdit)
         throw new Error("Runtime does not support editing messages.");
-      for (const [id, pending] of this._pendingDeleteEvictions) {
-        if (pending.calls.size > 0) pending.reloaded = true;
-        else this._pendingDeleteEvictions.delete(id);
+      const window = this._openDeleteWindow(message.parentId);
+      try {
+        await this._store.onEdit(message);
+      } finally {
+        window.settled = true;
       }
-      await this._store.onEdit(message);
     } else {
       await this._store.onNew(message);
     }
@@ -1150,7 +1181,7 @@ export class ExternalStoreThreadRuntimeCore
       let pending = this._pendingDeleteEvictions.get(messageId);
       if (visibleMessage) {
         let reloaded = false;
-        for (const window of this._pendingReloadDeleteWindows) {
+        for (const window of this._pendingDeleteWindows) {
           if (!window.prefix.has(messageId)) {
             reloaded = true;
             break;
@@ -1277,20 +1308,7 @@ export class ExternalStoreThreadRuntimeCore
     this._runStartLeases.begin();
     if (this._cancelledToolTurn?.parentId === config.parentId)
       this._cancelledToolTurn.parentOpen = false;
-    const visible = this.repository.getMessages();
-    const prefix = visible
-      .slice(0, visible.findIndex((m) => m.id === config.parentId) + 1)
-      .map((m) => m.id);
-    const window = {
-      prefix: new Set(prefix),
-      suffix: new Set(visible.slice(prefix.length).map((m) => m.id)),
-    };
-    this._pendingReloadDeleteWindows.add(window);
-    for (const [id, pending] of this._pendingDeleteEvictions) {
-      if (window.prefix.has(id)) continue;
-      if (pending.calls.size > 0) pending.reloaded = true;
-      else this._pendingDeleteEvictions.delete(id);
-    }
+    const window = this._openDeleteWindow(config.parentId);
 
     const cancellationLease = this._runCancellationLeases.current();
     // Auto-abort in-flight client-side tool executions when a run reloads;
@@ -1300,10 +1318,13 @@ export class ExternalStoreThreadRuntimeCore
       await this._toolInvocations?.abort({
         discardPending: true,
       });
-      if (!cancellationLease.isCurrent()) return;
+      if (!cancellationLease.isCurrent()) {
+        this._pendingDeleteWindows.delete(window);
+        return;
+      }
       await this._store.onReload(config.parentId, config);
     } finally {
-      this._pendingReloadDeleteWindows.delete(window);
+      window.settled = true;
     }
   }
 

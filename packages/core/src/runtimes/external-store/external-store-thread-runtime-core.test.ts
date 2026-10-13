@@ -856,6 +856,7 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
     const deletion = runtime.deleteMessage("u3");
     runtime.__internal_setAdapter(store());
 
+    expect(runtime.getMessageById("u3")).toBeUndefined();
     expect(runtime.getBranches("a3")).toEqual(["a3"]);
     resolveDelete();
     await deletion;
@@ -926,7 +927,11 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
     expect(runtime.getBranches("u2")).toEqual(["u2"]);
   });
 
-  const setup = ({ reloadFails = false, holdReload = false } = {}) => {
+  const setup = ({
+    reloadFails = false,
+    holdReload = false,
+    holdEdit = false,
+  } = {}) => {
     let current = [
       message("u1", "user"),
       message("a1", "assistant"),
@@ -938,6 +943,7 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
     const declines: Array<() => void> = [];
     const ignores: Array<() => void> = [];
     let finishReload!: () => void;
+    let finishEdit!: () => void;
     const onDelete = vi.fn(
       (id: string) =>
         new Promise<void>((resolve, reject) => {
@@ -971,6 +977,10 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
         onDelete,
         onReload,
         onEdit: async () => {
+          if (holdEdit)
+            await new Promise<void>((resolve) => {
+              finishEdit = resolve;
+            });
           current = [current[0]!, message("a1b", "assistant")];
         },
         setMessages,
@@ -984,6 +994,7 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
       regenerate: () =>
         runtime.startRun({ parentId: "u1", sourceId: "a1", runConfig: {} }),
       finishReload: () => finishReload(),
+      finishEdit: () => finishEdit(),
       rerender: () => {
         current = [...current];
         runtime.__internal_setAdapter(store());
@@ -1009,6 +1020,136 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
         }),
     };
   };
+
+  it("closes a settled reload window after its truncation before a later optimistic delete", async () => {
+    let current = [
+      message("u1", "user"),
+      message("a1", "assistant"),
+      message("u2", "user"),
+      message("a2", "assistant"),
+    ];
+    let decline!: () => void;
+    let confirm!: () => void;
+    const store = () =>
+      ({
+        messages: current,
+        onNew: async () => {},
+        onReload: async () => {
+          current = [current[0]!, message("a1b", "assistant")];
+        },
+        onDelete: (id: string) =>
+          new Promise<void>((resolve, reject) => {
+            if (id === "u2") {
+              decline = () => reject(new Error("deletion declined"));
+            } else {
+              current = current.filter((m) => m.id !== id);
+              confirm = resolve;
+            }
+          }),
+        setMessages: () => {},
+      }) as ExternalStoreAdapter;
+    const runtime = createRuntime(store());
+
+    await runtime.startRun({ parentId: "u1", sourceId: "a1", runConfig: {} });
+    const declined = runtime.deleteMessage("u2");
+    runtime.__internal_setAdapter(store());
+    expect(runtime.getBranches("u2")).toEqual(["u2"]);
+    decline();
+    await expect(declined).rejects.toThrow("deletion declined");
+
+    current = [...current, message("u3", "user"), message("a3", "assistant")];
+    runtime.__internal_setAdapter(store());
+    const confirmed = runtime.deleteMessage("u3");
+    runtime.__internal_setAdapter(store());
+    expect(runtime.getMessageById("u3")).toBeUndefined();
+    confirm();
+    await confirmed;
+  });
+
+  it("keeps a delete rejected after onReload returns before the host truncation arrives", async () => {
+    const {
+      runtime,
+      regenerate,
+      rerender,
+      declineDelete,
+      finishRun,
+      switchToOldBranch,
+    } = setup();
+
+    await regenerate();
+    const deletion = runtime.deleteMessage("u2");
+    rerender();
+    expect(runtime.getBranches("u2")).toEqual(["u2"]);
+    declineDelete();
+    await expect(deletion).rejects.toThrow("deletion declined");
+    finishRun();
+
+    expect(switchToOldBranch()).toEqual(["u1", "a1", "u2", "a2"]);
+  });
+
+  it("evicts a delete confirmed after onReload returns and the host truncates", async () => {
+    const {
+      runtime,
+      regenerate,
+      rerender,
+      confirmDelete,
+      finishRun,
+      switchToOldBranch,
+    } = setup();
+
+    await regenerate();
+    const deletion = runtime.deleteMessage("u2");
+    rerender();
+    expect(runtime.getBranches("u2")).toEqual(["u2"]);
+    confirmDelete();
+    await deletion;
+    finishRun();
+
+    expect(switchToOldBranch()).toEqual(["u1", "a1", "a2"]);
+    expect(runtime.getBranches("a2")).toEqual(["a2"]);
+  });
+
+  it("keeps a delete rejected while an edit is pending", async () => {
+    const {
+      runtime,
+      editEarlierReply,
+      finishEdit,
+      rerender,
+      declineDelete,
+      switchToOldBranch,
+    } = setup({ holdEdit: true });
+
+    const editing = editEarlierReply();
+    await Promise.resolve();
+    const deletion = runtime.deleteMessage("u2");
+    finishEdit();
+    await editing;
+    rerender();
+    expect(runtime.getBranches("u2")).toEqual(["u2"]);
+    declineDelete();
+    await expect(deletion).rejects.toThrow("deletion declined");
+
+    expect(switchToOldBranch()).toEqual(["u1", "a1", "u2", "a2"]);
+  });
+
+  it("evicts a delete confirmed while an edit is pending", async () => {
+    const { runtime, editEarlierReply, finishEdit, rerender, confirmDelete } =
+      setup({ holdEdit: true });
+
+    const editing = editEarlierReply();
+    await Promise.resolve();
+    const deletion = runtime.deleteMessage("u2");
+    finishEdit();
+    await editing;
+    rerender();
+    expect(runtime.getBranches("u2")).toEqual(["u2"]);
+    confirmDelete();
+    await deletion;
+    rerender();
+
+    expect(runtime.getMessageById("u2")).toBeUndefined();
+    expect(runtime.getBranches("a2")).toEqual(["a2"]);
+  });
 
   it("keeps a delete declined after the reload scan and host truncation", async () => {
     const {
