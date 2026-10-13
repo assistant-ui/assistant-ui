@@ -6819,6 +6819,47 @@ describe("LocalThreadRuntimeCore runs", () => {
     }
   });
 
+  it("reports running at every notification between continued tool roundtrips", async () => {
+    let calls = 0;
+    const thread = createPlainThread({
+      async run() {
+        if (++calls === 1)
+          return {
+            content: [{ ...toolCallPart("lookup"), result: "found" }],
+            status: { type: "requires-action", reason: "tool-calls" },
+          } as const;
+        return { content: [{ type: "text", text: "done" }] } as const;
+      },
+    });
+    const notifications: { status: string; running: boolean }[] = [];
+    thread.subscribe(() => {
+      const message = thread.messages.at(-1);
+      if (message?.role !== "assistant") return;
+      notifications.push({
+        status: message.status.type,
+        running: getThreadRuntimeCoreIsRunning(thread),
+      });
+    });
+
+    await thread.append(userMessage("look up"));
+
+    const terminalIndex = notifications.findIndex(
+      ({ status }) => status === "complete",
+    );
+    expect(calls).toBe(2);
+    expect(
+      notifications.some(({ status }) => status === "requires-action"),
+    ).toBe(true);
+    expect(terminalIndex).toBeGreaterThan(0);
+    expect(
+      notifications.slice(0, terminalIndex).every(({ running }) => running),
+    ).toBe(true);
+    expect(notifications.at(-1)).toEqual({
+      status: "complete",
+      running: false,
+    });
+  });
+
   it("reports an idle thread to runEnd listeners after a hidden answer settles", async () => {
     const { thread, regenerate, release } = await createStreamingRegenerate();
     const observed = vi.fn(() => ({

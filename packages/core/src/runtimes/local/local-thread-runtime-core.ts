@@ -186,7 +186,8 @@ export class LocalThreadRuntimeCore
   // queue runs overlap, and the previous dispatch settles after the next one
   // has already started.
   private _queueRunInFlight: object | null = null;
-  private _activeRun: object | null = null;
+  private _activeRun: { resumedFromPause: boolean; isRunning: boolean } | null =
+    null;
   // The queue hears busy and idle only when _isQueueBusy() changes;
   // _queueBusy is what this controller was last told.
   private _queueBusy = false;
@@ -414,7 +415,9 @@ export class LocalThreadRuntimeCore
 
   // Idle defers to the trailing message, which carries a voice reply in progress.
   public get isRunning(): boolean | undefined {
-    return this._roundtripsInFlight.size > 0 ? true : undefined;
+    return this._activeRun?.isRunning || this._roundtripsInFlight.size > 0
+      ? true
+      : undefined;
   }
 
   private _isLoading = false;
@@ -1198,6 +1201,7 @@ export class LocalThreadRuntimeCore
 
     const run = {
       resumedFromPause: message.status.type === "requires-action",
+      isRunning: true,
     };
     this._activeRun = run;
 
@@ -1238,6 +1242,7 @@ export class LocalThreadRuntimeCore
         !this.repository.hasChildren(message.id)
       );
     } finally {
+      run.isRunning = false;
       if (scopeGeneration === this._loadGeneration)
         this._notifyEventSubscribers("runEnd", {});
       active =
@@ -1292,7 +1297,7 @@ export class LocalThreadRuntimeCore
     parentId: string | null,
     message: ThreadAssistantMessage,
     runConfig: RunConfig | undefined,
-    run: { resumedFromPause: boolean },
+    run: { resumedFromPause: boolean; isRunning: boolean },
     runCallback?: ChatModelAdapter["run"],
   ) {
     const scopeGeneration = this._loadGeneration;
@@ -1591,8 +1596,6 @@ export class LocalThreadRuntimeCore
         this._roundtripsInFlight.get(message.id)?.controller ===
         abortController;
       if (holdsMessage) this._roundtripsInFlight.delete(message.id);
-      const stoppedRunning =
-        holdsMessage && this._roundtripsInFlight.size === 0;
 
       const history = this._options.adapters.history;
       const ownsCurrentMessage = syncOwnedMessage();
@@ -1654,6 +1657,13 @@ export class LocalThreadRuntimeCore
           written = this._persistSettled(parentId, message);
         }
       }
+      run.isRunning =
+        shouldContinue(message, this._options.unstable_humanToolNames) &&
+        !this.repository.hasChildren(message.id);
+      const stoppedRunning =
+        holdsMessage &&
+        this._roundtripsInFlight.size === 0 &&
+        !this._activeRun?.isRunning;
       // Notified after the write is queued, so a change a subscriber makes in
       // response is written after it.
       if (settled || stoppedRunning) this._notifySubscribers();
