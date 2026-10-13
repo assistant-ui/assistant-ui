@@ -253,29 +253,51 @@ describe("SpecRenderer", () => {
     );
   });
 
-  it("hides an unfinished visibility condition until streamed state enables it", async () => {
-    const stream = createSpecStream({
-      initial: spec(
-        { main: { type: "Button", props: { label: "Continue" }, visible: {} } },
-        { open: false },
-      ),
-    });
-    const view = mount({ components, spec: stream.spec, streaming: true });
-    expect(view.container.querySelector("button")).toBeNull();
-    stream.push(
-      '{"op":"add","path":"/elements/main/visible/$state","value":"/open"}\n',
-    );
-    await view.update({ components, spec: stream.spec, streaming: true });
-    expect(view.container.querySelector("button")).toBeNull();
-    stream.push('{"op":"replace","path":"/state/open","value":true}\n');
-    await view.update({ components, spec: stream.spec, streaming: true });
-    expect(view.container.querySelector("button")?.textContent).toBe(
-      "Continue",
-    );
-    stream.push('{"op":"replace","path":"/state/open","value":false}\n');
-    await view.update({ components, spec: stream.spec });
-    expect(view.container.querySelector("button")).toBeNull();
-  });
+  it.each([false, true])(
+    "hides an unfinished visibility condition until streamed state enables it (negated: %s)",
+    async (negated) => {
+      const stream = createSpecStream({
+        initial: spec(
+          {
+            main: {
+              type: "Button",
+              props: { label: "Continue" },
+              visible: negated ? { not: {} } : {},
+            },
+          },
+          { open: negated },
+        ),
+      });
+      const view = mount({ components, spec: stream.spec, streaming: true });
+      expect(view.container.querySelector("button")).toBeNull();
+      stream.push(
+        JSON.stringify({
+          op: "add",
+          path: `/elements/main/visible${negated ? "/not" : ""}/$state`,
+          value: "/open",
+        }) + "\n",
+      );
+      await view.update({ components, spec: stream.spec, streaming: true });
+      expect(view.container.querySelector("button")).toBeNull();
+      stream.push(
+        JSON.stringify({
+          op: "replace",
+          path: "/state/open",
+          value: !negated,
+        }) + "\n",
+      );
+      await view.update({ components, spec: stream.spec, streaming: true });
+      expect(view.container.querySelector("button")?.textContent).toBe(
+        "Continue",
+      );
+      stream.push(
+        JSON.stringify({ op: "replace", path: "/state/open", value: negated }) +
+          "\n",
+      );
+      await view.update({ components, spec: stream.spec });
+      expect(view.container.querySelector("button")).toBeNull();
+    },
+  );
 
   it("renders placeholders and captures each element error", async () => {
     const onError = vi.fn();

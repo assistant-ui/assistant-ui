@@ -154,28 +154,48 @@ export function evaluateCondition(
   condition: Condition | undefined,
   ctx: ExpressionContext,
 ): boolean {
+  return evaluateConditionValue(condition, ctx) ?? false;
+}
+
+function evaluateConditionValue(
+  condition: Condition | undefined,
+  ctx: ExpressionContext,
+): boolean | undefined {
   if (condition === undefined) return true;
   if (typeof condition === "boolean") return condition;
   if (Array.isArray(condition)) {
-    return condition.every((part) => evaluateCondition(part as Condition, ctx));
+    const values = condition.map((part) =>
+      evaluateConditionValue(part as Condition, ctx),
+    );
+    return values.includes(false)
+      ? false
+      : values.includes(undefined)
+        ? undefined
+        : true;
   }
   if (!isRecord(condition)) return Boolean(condition);
   if (Array.isArray(condition["$and"])) {
-    return (condition["$and"] as Condition[]).every((part) =>
-      evaluateCondition(part, ctx),
-    );
+    return evaluateConditionValue(condition["$and"] as Condition[], ctx);
   }
   if (Array.isArray(condition["$or"])) {
-    return (condition["$or"] as Condition[]).some((part) =>
-      evaluateCondition(part, ctx),
+    const values = (condition["$or"] as Condition[]).map((part) =>
+      evaluateConditionValue(part, ctx),
     );
+    return values.includes(true)
+      ? true
+      : values.includes(undefined)
+        ? undefined
+        : false;
   }
   const hasSource = SOURCE_KEYS.some((key) => key in condition);
   if (!hasSource && "not" in condition) {
-    return !evaluateCondition(condition["not"] as Condition, ctx);
+    const value = evaluateConditionValue(condition["not"] as Condition, ctx);
+    return value === undefined ? undefined : !value;
   }
   if (!hasSource)
-    return isExpression(condition) && Boolean(resolveValue(condition, ctx));
+    return isExpression(condition)
+      ? Boolean(resolveValue(condition, ctx))
+      : undefined;
 
   const value = readSource(condition, ctx);
   let result = true;
