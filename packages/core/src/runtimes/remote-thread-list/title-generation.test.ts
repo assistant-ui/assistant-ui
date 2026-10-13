@@ -783,7 +783,7 @@ describe("runThreadTitleGeneration", () => {
     expect(generate).toHaveBeenCalledTimes(1);
   });
 
-  it("applies an automatic title when a failed rename leaves only a rename an explicit generation outranked", async () => {
+  it("yields an automatic run that starts while an explicit generation waits on an earlier rename", async () => {
     const states = new Map<string, ThreadTitleState>();
     const applied: (string | undefined)[] = [];
     const streamOpen = deferred<void>();
@@ -822,11 +822,11 @@ describe("runThreadTitleGeneration", () => {
     finishThreadTitleRename(states, "t1", outranked, true);
     await Promise.all([explicit, automatic]);
 
-    expect(server).toBe("Generated");
-    expect(applied).toEqual(["Generated"]);
+    expect(server).toBeUndefined();
+    expect(applied).toEqual([]);
   });
 
-  it("does not hand the pending claim to a rename an explicit generation outranked", async () => {
+  it("yields an automatic run that starts after a failed rename while an explicit generation is in flight", async () => {
     const states = new Map<string, ThreadTitleState>();
     const outranked = startThreadTitleRename(states, "t1", "Outranked");
     const explicit = runThreadTitleGeneration({
@@ -854,7 +854,7 @@ describe("runThreadTitleGeneration", () => {
     finishThreadTitleRename(states, "t1", outranked, true);
     await Promise.all([explicit, automatic]);
 
-    expect(generate).toHaveBeenCalledTimes(1);
+    expect(generate).toHaveBeenCalledTimes(0);
   });
 
   it("waits for an earlier rename still in flight when the rename it waited on fails", async () => {

@@ -180,6 +180,11 @@ function startThreadTitleGeneration(
   automatic: boolean,
 ): ThreadTitleGeneration | null {
   const state = getThreadTitleState(states, threadId);
+  if (automatic) {
+    for (const generation of state.generations) {
+      if (!generation.automatic) return null;
+    }
+  }
   if (
     automatic &&
     state.pendingClaim === null &&
