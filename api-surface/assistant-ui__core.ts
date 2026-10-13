@@ -2125,7 +2125,6 @@ declare class ExternalStoreThreadRuntimeCore extends BaseThreadRuntimeCore imple
   respondToToolApproval(options: RespondToToolApprovalOptions): Promise<void>;
   unstable_recordToolInteraction(options: Unstable_RecordToolInteractionOptions): Promise<void>;
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
-  export(): ExportedMessageRepository;
   import(data: ExportedMessageRepository): void;
 }
 
