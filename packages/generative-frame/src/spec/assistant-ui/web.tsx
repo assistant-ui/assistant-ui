@@ -4,6 +4,7 @@ import type { ModelContextSource } from "../../assistant-ui/modelContext";
 import type { WidgetToolkitExtension } from "../../assistant-ui/extension";
 import type { Catalog } from "../catalog";
 import { SpecRenderer } from "../react/SpecRenderer";
+import { writeClipboard } from "./thread";
 import { specToolkitFor, type SpecToolkitOptions } from "./toolkit";
 
 function useMessages() {
@@ -45,10 +46,7 @@ const build = specToolkitFor({
   Frame,
   useSendMessage,
   useModelContext,
-  copyText: (text) =>
-    navigator.clipboard
-      ? navigator.clipboard.writeText(text)
-      : Promise.reject(new Error("Clipboard API is unavailable")),
+  copyText: writeClipboard,
 });
 
 /**

@@ -270,3 +270,11 @@ Pass the result of `createSpecToolkit` to `createWidgetToolkit({ spec })`.
     { name: "specPrompt", type: "Omit<SpecPromptOptions, \"mode\">", description: "Options for the `spec` module guidance (`customRules`, `omitExample`)." },
   ]}
 />
+
+## `generative-frame/spec/assistant-ui/vue`
+
+```ts
+createSpecToolkit(catalog: Catalog, options: SpecToolkitOptions): VueSpecToolkit
+```
+
+The same options with Vue implementations: `components` from `generative-frame/spec/vue`'s `SpecComponents`, and `placeholder` as a Vue `Component`. `entries({ execution, display })` returns a `Toolkit` for `Tools({ toolkit })` from `@assistant-ui/core/react`, and `modules` holds the `spec` module guidance.
