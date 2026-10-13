@@ -189,7 +189,8 @@ export function evaluateCondition(
   if (!hasSource && "not" in condition) {
     return !evaluateCondition(condition["not"] as Condition, ctx);
   }
-  if (!hasSource) return Boolean(resolveValue(condition, ctx));
+  if (!hasSource)
+    return isExpression(condition) && Boolean(resolveValue(condition, ctx));
 
   const value = readSource(condition, ctx);
   let result = true;
