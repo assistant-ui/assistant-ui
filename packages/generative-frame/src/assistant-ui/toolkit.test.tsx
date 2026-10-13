@@ -9,7 +9,7 @@ import {
 import { Activity, version, type ComponentType } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createSpecToolkit } from "../spec/assistant-ui";
-import { resolveSpecBase } from "../spec/assistant-ui/toolkit";
+import { resolveSpecBase } from "../spec/assistant-ui/thread";
 import { defineCatalog } from "../spec/catalog";
 import type { SpecComponentProps } from "../spec/react/SpecRenderer";
 import { resolveWidgetCode, resolveWidgetOrigin } from "./history";
