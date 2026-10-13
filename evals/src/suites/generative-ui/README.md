@@ -1,6 +1,6 @@
 # Generative UI
 
-Which answer format do models write best, what does spec mode's lack of computed values cost, and does a model pick the right format when it may choose? Every model answers every task in every format and once in a format it chooses, each answer renders in a headless Chrome, and a separate judge scores the screenshot.
+Which answer format do models write best, how do spec mode's `$calc` formulas compare with a widget's code on tasks that compute, and does a model pick the right format when it may choose? Every model answers every task in every format and once in a format it chooses, each answer renders in a headless Chrome, and a separate judge scores the screenshot.
 
 ## How it works
 

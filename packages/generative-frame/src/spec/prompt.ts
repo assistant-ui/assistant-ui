@@ -13,6 +13,8 @@ export type SpecPromptOptions = {
   customRules?: readonly string[];
   /** Leave out the worked example. */
   omitExample?: boolean;
+  /** Built-in actions the host handles, which the guidance then describes: `prompt` for `sendMessage`, `modelContext` for `updateModelContext`. Both default to false. */
+  hostApi?: { prompt?: boolean; modelContext?: boolean };
 };
 
 const list = (items: readonly string[]) =>
@@ -105,9 +107,22 @@ const componentSection = (catalog: Catalog) => {
   return `## Components\n\nUse only these types.\n\n${entries.join("\n\n")}`;
 };
 
-const actionSection = (catalog: Catalog) => {
+const actionSection = (
+  catalog: Catalog,
+  hostApi: NonNullable<SpecPromptOptions["hostApi"]>,
+) => {
   const entries = [
     "- `setState` — params `{ path: string; value?: unknown }`. Writes `value` at the JSON Pointer `path` in state. Built in.",
+    ...(hostApi.prompt
+      ? [
+          "- `sendMessage` — params `{ text: string }`. Sends `text` as the user's next message, as if they typed it. Use it behind a button for a follow-up the user asks for. Built in.",
+        ]
+      : []),
+    ...(hostApi.modelContext
+      ? [
+          "- `updateModelContext` — params `{ text?: string; data?: unknown }`. Tells you what the user chose in this UI, with every later message, replacing what it shared before, and clears it when both are missing; nothing is sent. Use it when a choice should shape your next answer, such as the option the user picked. Built in.",
+        ]
+      : []),
     ...Object.entries(catalog.actions).map(([name, def]) => {
       const params = catalog.paramsSchema(name);
       const schema = params ? describeSchema(params) : undefined;
@@ -151,13 +166,14 @@ ${list([
   '`{ "$bindState": "/path" }` reads state and lets the component write it back (inputs, toggles, selects).',
   '`{ "$template": "Hello ${/user/name}" }` fills `${…}` placeholders with state values.',
   '`{ "$cond": condition, "$then": a, "$else": b }` picks a value.',
+  "`{ \"$calc\": \"round(${/guests} * 0.5, 1) + ' lb'\" }` computes a value with a formula over `${…}` references, numbers, and `'text'`: `+ - * / %`, `== != < <= > >=`, `a ? b : c`, and `&& || !`, which give `true` or `false` (write a default as `${/name} ? ${/name} : 'Guest'`). Functions: `round(x, digits)`, `floor`, `ceil`, `abs`, `clamp(x, low, high)`, `min` and `max` (of numbers, or of a list), `count(list)`, `sum(list)` and `avg(list)` (or of a field, `sum(list, '/price')`), and, formatting in en-US, `number(x, digits)`, `currency(x, 'USD')`, `percent(fraction)`, `time(minutesAfterMidnight)`, and `plural(n, 'item', 'items')`. `+` joins text when either side is text. A formula that cannot compute gives `null`.",
   'Inside `repeat`: `{ "$item": "/field" }`, `{ "$bindItem": "/field" }`, `{ "$index": true }`, and `${$item/field}` in templates.',
 ])}
 
 ## Visibility and repetition
 
 ${list([
-  '`"visible"` takes a condition: `true`/`false`, `{ "$state": "/open" }` (truthy), a comparison `{ "$state": "/count", "gt": 0 }` with `eq`, `neq`, `gt`, `gte`, `lt`, or `lte`, `{ "not": condition }`, `{ "$or": [ … ] }`, `{ "$and": [ … ] }`, or an array (all must hold).',
+  '`"visible"` takes a condition: `true`/`false`, `{ "$state": "/open" }` (truthy), a comparison `{ "$state": "/count", "gt": 0 }` with `eq`, `neq`, `gt`, `gte`, `lt`, or `lte`, a formula `{ "$calc": "${/count} > 2" }`, `{ "not": condition }`, `{ "$or": [ … ] }`, `{ "$and": [ … ] }`, or an array (all must hold).',
   '`"repeat": { "path": "/items", "key": "id" }` renders the element\'s children once per item of the state array at `path`.',
   '`"watch": { "/path": action }` runs an action whenever that state value changes.',
 ])}`;
@@ -169,7 +185,7 @@ const EXAMPLE = `## Example
 {"op":"add","path":"/elements/main","value":{"type":"Stack","props":{"gap":"md"},"children":["title","counter","bump"]}}
 {"op":"add","path":"/elements/title","value":{"type":"Heading","props":{"text":"Clicks"}}}
 {"op":"add","path":"/elements/counter","value":{"type":"Text","props":{"text":{"$template":"Clicked \${/count} times"}}}}
-{"op":"add","path":"/elements/bump","value":{"type":"Button","props":{"label":"Click"},"on":{"press":{"action":"setState","params":{"path":"/count","value":1}}}}}
+{"op":"add","path":"/elements/bump","value":{"type":"Button","props":{"label":"Click"},"on":{"press":{"action":"setState","params":{"path":"/count","value":{"$calc":"\${/count} + 1"}}}}}}
 
 (The example's types are illustrative; use the components listed above.)`;
 
@@ -194,7 +210,7 @@ export function buildSpecPrompt(
     "You describe UI as a spec of trusted components that the host renders with its own design system. You choose components and data; the host owns styling.",
     protocolSection(mode),
     componentSection(catalog),
-    actionSection(catalog),
+    actionSection(catalog, options.hostApi ?? {}),
     expressionSection(),
     `## Rules\n\n${list(rules)}`,
     ...(options.omitExample ? [] : [EXAMPLE]),

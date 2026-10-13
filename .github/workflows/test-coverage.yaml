@@ -46,6 +46,8 @@ jobs:
           - 6379:6379
         options: >-
           --health-cmd "redis-cli ping"
+          --health-start-period 10s
+          --health-start-interval 1s
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10

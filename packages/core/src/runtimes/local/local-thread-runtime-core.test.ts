@@ -19,6 +19,7 @@ import {
 import type { ThreadMessageLike } from "../../runtime/utils/thread-message-like";
 import type { ThreadSuggestion } from "../../runtime/interfaces/thread-runtime-core";
 import { isMessageNotSentError } from "../../types/error";
+import { getThreadRuntimeCoreIsRunning } from "../../runtime/api/thread-runtime";
 import {
   createVoiceSession,
   type RealtimeVoiceAdapter,
@@ -62,6 +63,165 @@ const createThread = (
   );
   return core.threads.getMainThreadRuntimeCore();
 };
+
+describe("LocalThreadRuntimeCore import with a non-leaf head", () => {
+  const stored = ExportedMessageRepository.fromBranchableArray(
+    [
+      { parentId: null, message: { id: "u1", role: "user", content: "u1" } },
+      {
+        parentId: "u1",
+        message: { id: "a1", role: "assistant", content: "a1" },
+      },
+      { parentId: "a1", message: { id: "u2", role: "user", content: "u2" } },
+      {
+        parentId: "u2",
+        message: { id: "a2", role: "assistant", content: "a2" },
+      },
+    ],
+    { headId: "a1" },
+  );
+
+  it("keeps every message on thread.import", () => {
+    const thread = createThread({
+      async run() {
+        return {};
+      },
+    });
+    thread.import(stored);
+
+    expect(thread.export().messages.map((item) => item.message.id)).toEqual([
+      "u1",
+      "a1",
+      "u2",
+      "a2",
+    ]);
+    expect(thread.messages.map((message) => message.id)).toEqual(["u1", "a1"]);
+    expect(thread.export().headId).toBe("a1");
+  });
+
+  it("keeps every message loaded from a history adapter", async () => {
+    const thread = createThread(
+      {
+        async run() {
+          return {};
+        },
+      },
+      {
+        history: {
+          scopeId: "thread",
+          load: async () => stored,
+          append: async () => {},
+        },
+      },
+    );
+    await thread.__internal_load();
+
+    expect(thread.export().messages.map((item) => item.message.id)).toEqual([
+      "u1",
+      "a1",
+      "u2",
+      "a2",
+    ]);
+    expect(thread.messages.map((message) => message.id)).toEqual(["u1", "a1"]);
+    expect(thread.export().headId).toBe("a1");
+  });
+
+  it("replaces seeded descendants missing from loaded history", async () => {
+    const thread = createThread(
+      {
+        async run() {
+          return {};
+        },
+      },
+      {
+        initialMessages: [
+          { id: "u1", role: "user", content: "u1" },
+          { id: "a1", role: "assistant", content: "a1" },
+          { id: "u2", role: "user", content: "u2" },
+        ],
+        history: {
+          scopeId: "thread",
+          load: async () =>
+            ExportedMessageRepository.fromBranchableArray(
+              [
+                {
+                  parentId: null,
+                  message: { id: "u1", role: "user", content: "u1" },
+                },
+                {
+                  parentId: "u1",
+                  message: { id: "a1", role: "assistant", content: "a1" },
+                },
+              ],
+              { headId: "a1" },
+            ),
+          append: async () => {},
+        },
+      },
+    );
+
+    expect(thread.messages.map((message) => message.id)).toEqual([
+      "u1",
+      "a1",
+      "u2",
+    ]);
+    await thread.__internal_load();
+
+    expect(thread.messages.map((message) => message.id)).toEqual(["u1", "a1"]);
+    expect(thread.export().messages.map((item) => item.message.id)).toEqual([
+      "u1",
+      "a1",
+    ]);
+  });
+
+  it("resumes a loaded run under the head it names", async () => {
+    const thread = createThread(
+      {
+        async run() {
+          return {};
+        },
+      },
+      {
+        history: {
+          scopeId: "thread",
+          load: async () => ({
+            ...ExportedMessageRepository.fromBranchableArray(
+              [
+                {
+                  parentId: null,
+                  message: { id: "u1", role: "user", content: "u1" },
+                },
+                {
+                  parentId: "u1",
+                  message: { id: "a1", role: "assistant", content: "a1" },
+                },
+              ],
+              { headId: "u1" },
+            ),
+            unstable_resume: true,
+          }),
+          append: async () => {},
+          async *resume() {
+            yield { content: [{ type: "text", text: "resumed" }] };
+          },
+        },
+      },
+    );
+    await thread.__internal_load();
+    await vi.waitFor(() =>
+      expect(thread.messages.at(-1)?.content).toMatchObject([
+        { type: "text", text: "resumed" },
+      ]),
+    );
+
+    const resumed = thread.messages.at(-1)!;
+    const items = thread.export().messages;
+    expect(items.find((item) => item.message.id === resumed.id)?.parentId).toBe(
+      "u1",
+    );
+    expect(items.find((item) => item.message.id === "a1")?.parentId).toBe("u1");
+  });
+});
 
 const userMessage = (text: string): AppendMessage => ({
   parentId: null,
@@ -6576,6 +6736,39 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
 });
 
 describe("LocalThreadRuntimeCore runs", () => {
+  const createStreamingRegenerate = async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const signals: AbortSignal[] = [];
+    let calls = 0;
+    const thread = createThread({
+      async *run({ abortSignal }) {
+        signals.push(abortSignal);
+        if (++calls === 1) {
+          yield { content: [{ type: "text" as const, text: "first" }] };
+          return;
+        }
+        yield { content: [{ type: "text" as const, text: "partial" }] };
+        await gate;
+        if (abortSignal.aborted) return;
+        yield { content: [{ type: "text" as const, text: "finished" }] };
+      },
+    });
+    await thread.append(userMessage("question"));
+    const [question, firstAnswer] = thread.messages.map(
+      (message) => message.id,
+    );
+    const regenerate = thread.startRun({
+      parentId: question!,
+      sourceId: firstAnswer!,
+      runConfig: {},
+    });
+    await flush();
+    const hiddenAnswer = thread.messages.at(-1)!.id;
+    thread.switchToBranch(firstAnswer!);
+    return { thread, signals, regenerate, release, hiddenAnswer, firstAnswer };
+  };
+
   const createPlainThread = (
     adapter: ChatModelAdapter,
     options?: { maxSteps?: number },
@@ -6668,6 +6861,258 @@ describe("LocalThreadRuntimeCore runs", () => {
 
     expect(calls).toBe(3);
     expect(thread.messages.at(-1)?.id).toBe(firstAnswer);
+  });
+
+  it("still reports the thread running after switching away from a streaming regenerate", async () => {
+    const { thread, signals, regenerate, release, hiddenAnswer, firstAnswer } =
+      await createStreamingRegenerate();
+    const runningUpdates: boolean[] = [];
+    const unsubscribe = thread.subscribe(() =>
+      runningUpdates.push(getThreadRuntimeCoreIsRunning(thread)),
+    );
+    try {
+      expect(signals[1]?.aborted).toBe(false);
+      expect(thread.messages.at(-1)?.id).toBe(firstAnswer);
+      expect(
+        thread
+          .export()
+          .messages.find((item) => item.message.id === hiddenAnswer)?.message
+          .status?.type,
+      ).toBe("running");
+      expect(getThreadRuntimeCoreIsRunning(thread)).toBe(true);
+      expect(thread.composer.canCancel).toBe(true);
+    } finally {
+      release();
+      await regenerate;
+      unsubscribe();
+    }
+    expect(getThreadRuntimeCoreIsRunning(thread)).toBe(false);
+    expect(runningUpdates.at(-1)).toBe(false);
+  });
+
+  it("keeps Stop available for a run hidden by a branch switch", async () => {
+    const { thread, signals, regenerate, release, hiddenAnswer } =
+      await createStreamingRegenerate();
+    try {
+      expect(thread.composer.canCancel).toBe(true);
+      thread.composer.cancel();
+      expect(signals[1]?.aborted).toBe(true);
+    } finally {
+      release();
+      await regenerate;
+    }
+    expect(
+      thread.export().messages.find((item) => item.message.id === hiddenAnswer)
+        ?.message.status,
+    ).toEqual({ type: "incomplete", reason: "cancelled" });
+  });
+
+  it("reports a voice reply in progress as running while no run is active", async () => {
+    let emitTranscript!: VoiceSessionHelpers["emitTranscript"];
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [] };
+        },
+      },
+      {
+        voice: {
+          connect: (options) =>
+            createVoiceSession(options, async (helpers) => {
+              emitTranscript = helpers.emitTranscript;
+              return { disconnect: vi.fn(), mute: vi.fn(), unmute: vi.fn() };
+            }),
+        },
+      },
+    );
+
+    thread.connectVoice();
+    await flush();
+    emitTranscript({ role: "assistant", text: "Hi", isFinal: false });
+    await flush();
+
+    expect(getThreadRuntimeCoreIsRunning(thread)).toBe(true);
+  });
+
+  it("stops reporting the thread running when the answer completes, before its history write settles", async () => {
+    let commit!: () => void;
+    const write = new Promise<void>((resolve) => (commit = resolve));
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [{ type: "text", text: "answer" }] };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          append: (item) =>
+            item.message.role === "assistant" ? write : Promise.resolve(),
+        },
+      },
+    );
+    await thread.__internal_load();
+    const runningUpdates: boolean[] = [];
+    const unsubscribe = thread.subscribe(() =>
+      runningUpdates.push(getThreadRuntimeCoreIsRunning(thread)),
+    );
+
+    const sent = thread.append(userMessage("hi"));
+    await vi.waitFor(() =>
+      expect(thread.messages.at(-1)).toMatchObject({
+        role: "assistant",
+        status: { type: "complete" },
+      }),
+    );
+
+    try {
+      expect(getThreadRuntimeCoreIsRunning(thread)).toBe(false);
+      expect(thread.composer.canCancel).toBe(false);
+      expect(runningUpdates.at(-1)).toBe(false);
+    } finally {
+      commit();
+      await sent;
+      unsubscribe();
+    }
+    expect(runningUpdates).toContain(true);
+    expect(
+      runningUpdates
+        .slice(runningUpdates.indexOf(true))
+        .filter((value) => !value),
+    ).toHaveLength(1);
+  });
+
+  it("reports running at every notification between continued tool roundtrips", async () => {
+    let calls = 0;
+    const thread = createPlainThread({
+      async run() {
+        if (++calls === 1)
+          return {
+            content: [{ ...toolCallPart("lookup"), result: "found" }],
+            status: { type: "requires-action", reason: "tool-calls" },
+          } as const;
+        return { content: [{ type: "text", text: "done" }] } as const;
+      },
+    });
+    const notifications: { status: string; running: boolean }[] = [];
+    thread.subscribe(() => {
+      const message = thread.messages.at(-1);
+      if (message?.role !== "assistant") return;
+      notifications.push({
+        status: message.status.type,
+        running: getThreadRuntimeCoreIsRunning(thread),
+      });
+    });
+
+    await thread.append(userMessage("look up"));
+
+    const terminalIndex = notifications.findIndex(
+      ({ status }) => status === "complete",
+    );
+    expect(calls).toBe(2);
+    expect(
+      notifications.some(({ status }) => status === "requires-action"),
+    ).toBe(true);
+    expect(terminalIndex).toBeGreaterThan(0);
+    expect(
+      notifications.slice(0, terminalIndex).every(({ running }) => running),
+    ).toBe(true);
+    expect(notifications.at(-1)).toEqual({
+      status: "complete",
+      running: false,
+    });
+  });
+
+  it("notifies idle when a continuing tool message is replaced before the next roundtrip", async () => {
+    let calls = 0;
+    const thread = createPlainThread({
+      async *run() {
+        calls++;
+        yield {
+          content: [{ ...toolCallPart("lookup"), result: "found" }],
+          status: { type: "requires-action", reason: "tool-calls" },
+        } as const;
+        await thread.unstable_recordToolInteraction({
+          messageId: thread.messages.at(-1)!.id,
+          toolCallId: "call-lookup",
+          interaction: {
+            type: "action",
+            occurredAt: 1,
+            payload: { $input: "confirm" },
+          },
+        });
+      },
+    });
+    const updates: boolean[] = [];
+    thread.subscribe(() => {
+      if (thread.messages.at(-1)?.role === "assistant")
+        updates.push(getThreadRuntimeCoreIsRunning(thread));
+    });
+
+    await thread.append(userMessage("look up"));
+
+    expect(calls).toBe(1);
+    expect(thread.messages.at(-1)?.status?.type).toBe("requires-action");
+    expect(updates).toContain(true);
+    expect(updates.at(-1)).toBe(false);
+    expect(getThreadRuntimeCoreIsRunning(thread)).toBe(false);
+  });
+
+  it.each(["reset", "import"])(
+    "notifies idle when a streaming run finishes after %s",
+    async (operation) => {
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => (release = resolve));
+      const thread = createPlainThread({
+        async *run() {
+          yield { content: [{ type: "text" as const, text: "partial" }] };
+          await gate;
+          yield { content: [{ type: "text" as const, text: "done" }] };
+        },
+      });
+      const updates: boolean[] = [];
+      thread.subscribe(() =>
+        updates.push(getThreadRuntimeCoreIsRunning(thread)),
+      );
+
+      const sent = thread.append(userMessage("hi"));
+      await vi.waitFor(() =>
+        expect(thread.messages.at(-1)).toMatchObject({
+          role: "assistant",
+          status: { type: "running" },
+          content: [{ type: "text", text: "partial" }],
+        }),
+      );
+      if (operation === "reset") thread.reset();
+      else thread.import({ messages: [] });
+      expect(updates.at(-1)).toBe(true);
+
+      release();
+      await sent;
+
+      expect(updates.at(-1)).toBe(false);
+      expect(getThreadRuntimeCoreIsRunning(thread)).toBe(false);
+    },
+  );
+
+  it("reports an idle thread to runEnd listeners after a hidden answer settles", async () => {
+    const { thread, regenerate, release } = await createStreamingRegenerate();
+    const observed = vi.fn(() => ({
+      running: getThreadRuntimeCoreIsRunning(thread),
+      canCancel: thread.composer.canCancel,
+    }));
+    thread.unstable_on("runEnd", observed);
+
+    release();
+    await regenerate;
+
+    expect(observed).toHaveBeenCalledExactlyOnceWith({});
+    expect(observed.mock.results[0]?.value).toEqual({
+      running: false,
+      canCancel: false,
+    });
   });
 
   it("marks the message errored when the adapter rejects", async () => {

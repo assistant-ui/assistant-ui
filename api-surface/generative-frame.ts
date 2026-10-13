@@ -31,6 +31,7 @@ type ActionHandler = (params: Record<string, unknown>, context: ActionSource & {
 type ActionSource = {
   elementId?: string;
   trigger?: string;
+  kind?: "event" | "watch";
 };
 
 type AncestorsOf<K extends ClientNames, Seen extends ClientNames = never> = K extends Seen ? never : ParentOf<K> extends never ? never : ParentOf<K> | AncestorsOf<ParentOf<K>, Seen | K>;
@@ -409,6 +410,7 @@ type GuidanceOptions = {
 type HostApiOptions = {
   prompt?: boolean;
   callTool?: boolean;
+  modelContext?: boolean;
 };
 
 type HostContext = {
@@ -898,7 +900,7 @@ type SpecIssue = {
   elementId?: string;
 };
 
-type SpecIssueCode = "children-not-allowed" | "cycle" | "invalid-element" | "invalid-params" | "invalid-patch" | "invalid-props" | "invalid-repeat" | "missing-child" | "missing-root" | "unknown-action" | "unknown-event" | "unknown-root" | "unknown-slot" | "unknown-type" | "unreachable";
+type SpecIssueCode = "children-not-allowed" | "cycle" | "invalid-element" | "invalid-formula" | "invalid-params" | "invalid-patch" | "invalid-props" | "invalid-repeat" | "missing-child" | "missing-root" | "unknown-action" | "unknown-event" | "unknown-root" | "unknown-slot" | "unknown-type" | "unreachable";
 
 declare const SpecPlaceholder: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
   id: {
@@ -948,6 +950,10 @@ type SpecPromptOptions = {
   mode?: SpecStreamMode;
   customRules?: readonly string[];
   omitExample?: boolean;
+  hostApi?: {
+    prompt?: boolean;
+    modelContext?: boolean;
+  };
 };
 
 declare const SpecRenderer$1: import("vue").DefineComponent<import("vue").ExtractPropTypes<{

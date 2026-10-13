@@ -246,6 +246,7 @@ Any prop or action param can be an expression:
 | `{ "$bindState": "/path" }` | The same, and the component can write it back with `setProp`. |
 | `{ "$template": "Hi ${/name}" }` | A string with state values filled in. |
 | `{ "$cond": condition, "$then": a, "$else": b }` | `a` or `b`. |
+| `{ "$calc": "${/price} * ${/qty}" }` | A value computed by a formula; see [Formulas](#formulas). |
 | `{ "$item": "/field" }`, `{ "$bindItem": "/field" }`, `{ "$index": true }` | The current item, a two-way binding to it, and its index, inside `repeat`. |
 | `{ "$event": "" }` | The payload of the event that triggered an action. |
 
@@ -253,9 +254,24 @@ Any prop or action param can be an expression:
 
 `repeat: { path, key? }` renders the element's children once per item of the state array at `path`.
 
+### Formulas
+
+A `$calc` formula reads values with the same `${…}` references as `$template` (`${/path}` for state, `${$item/field}` and `${$index}` inside `repeat`, `${$event/field}` in action params) and combines them with numbers, `'text'` or `"text"`, `true`, `false`, and `null`:
+
+| Kind | Forms |
+| --- | --- |
+| Operators, loosest first | `? :`, `\|\|`, `&&`, `==` `!=`, `<` `<=` `>` `>=`, `+` `-`, `*` `/` `%`, unary `-` `!`, and parentheses |
+| Numbers | `round(x, digits?)`, `floor(x)`, `ceil(x)`, `abs(x)`, `clamp(x, low, high)`, `min(…)`, `max(…)` |
+| Lists | `count(list)`, `sum(list, field?)`, `avg(list, field?)`, and `min` or `max` over `(list, field?)`, where `field` is a JSON Pointer inside each item such as `'/price'` |
+| Text | `number(x, digits?)`, `currency(x, code)`, `percent(fraction, digits?)`, `time(minutes)` for minutes after midnight as a clock time, `plural(n, one, other)` |
+
+`+` adds numbers and joins text when either side is text, `==` compares deeply, like `eq`, and `&&`, `||`, and `!` give `true` or `false`, so a default is written `${/name} ? ${/name} : 'Guest'`. Text functions format in `en-US`. A formula that cannot compute, such as a division by zero, a missing value, arithmetic on text, or a syntax error, gives `null` and never throws: a component receives `null` like a missing prop, and an action receives it as the param's value. A formula is at most 500 characters and 32 levels deep and stops after 10,000 steps, comparisons included, and a list function's field is at most 500 characters and 32 levels. Its value depends only on the state, repeat item, and event it reads, never on the clock, randomness, or the network. `validateSpec` reports a formula that does not parse as `invalid-formula`, so the model can fix it in a repair round.
+
+A button that adds a guest, up to 20: `{ "action": "setState", "params": { "path": "/guests", "value": { "$calc": "min(${/guests} + 1, 20)" } } }`.
+
 ## Actions and state
 
-`on: { press: { action, params } }` runs actions when a component emits an event; a list runs in order. `setState` is built in and writes `params.value` at `params.path`. Every other action goes to `handlers[name]`, then to `onAction`. `watch: { "/path": action }` runs an action when that state value changes.
+`on: { press: { action, params } }` runs actions when a component emits an event; a list runs in order. `setState` is built in and writes `params.value` at `params.path`. `sendMessage` (`{ text }`) and `updateModelContext` (`{ text?, data? }`) are built in too, so validation accepts them and `defineCatalog` rejects a host action with either name, but the host runs them: like every other action, they go to `handlers[name]`, then to `onAction`. The guidance describes them only when `catalog.prompt({ hostApi: { prompt: true, modelContext: true } })` says the host handles them. The [assistant-ui toolkit](/generative-frame/docs/assistant-ui) handles both with `handlers` of its own, so `onAction` never sees them there and an app replaces them through `handlers`. A handler's second argument says what dispatched the action: `elementId`, `trigger` (the event name or the watched path), and `kind`, `"event"` or `"watch"`, which the toolkit's `sendMessage` checks so that only a user's event sends a message. `watch: { "/path": action }` runs an action when that state value changes.
 
 State lives in a store created from `spec.state`. When the model streams more state, the store re-applies what the user already changed on top of it, so user input is not lost. Pass `state={createStateStore(initial)}` to own the store; an external store is not seeded from `spec.state`. A store from `createStateStore` also has `writes()`, the writes `seed` re-applies, oldest first: a write that replaces a value drops earlier writes at and below its path, unless an insert at an index of an array on that path came after them and may have moved them to another item, while inserts into an array are all kept. `createStateStore(initial, { writes })` applies saved ones again, so an app can keep the user's changes between sessions. The assistant-ui toolkit does this for each `render_spec` call.
 
@@ -268,7 +284,7 @@ const { ok, issues } = validateSpec(spec, catalog);
 const feedback = formatSpecIssues(issues);
 ```
 
-Each issue has a `code`, a `severity`, a `message`, and a JSON Pointer `path`. Codes include `missing-root`, `unknown-type`, `invalid-props`, `missing-child`, `children-not-allowed`, `unknown-slot`, `cycle`, `unknown-event`, `unknown-action`, `invalid-params`, `invalid-repeat`, and `unreachable`. Pass `{ partial: true }` while the spec is still streaming, so children not yet added and unreachable elements are not reported.
+Each issue has a `code`, a `severity`, a `message`, and a JSON Pointer `path`. Codes include `missing-root`, `unknown-type`, `invalid-props`, `missing-child`, `children-not-allowed`, `unknown-slot`, `cycle`, `unknown-event`, `unknown-action`, `invalid-params`, `invalid-formula`, `invalid-repeat`, and `unreachable`. Pass `{ partial: true }` while the spec is still streaming, so children not yet added and unreachable elements are not reported.
 
 ## As a tool
 

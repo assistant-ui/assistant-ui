@@ -1,3 +1,4 @@
+import { formulaIssue } from "./calc";
 import type { Catalog } from "./catalog";
 import { escapePointerToken } from "./pointer";
 import type { ActionBinding, Spec, SpecElement } from "./types";
@@ -15,6 +16,7 @@ export type SpecIssueCode =
   | "unknown-event"
   | "unknown-action"
   | "invalid-params"
+  | "invalid-formula"
   | "invalid-repeat"
   | "unreachable"
   | "invalid-patch";
@@ -118,11 +120,12 @@ export function validateSpec(
           code: "unknown-action",
           elementId: id,
           path: `${at}/action`,
-          message: `Unknown action "${binding.action}". Known: setState${Object.keys(
-            catalog.actions,
-          )
-            .map((a) => `, ${a}`)
-            .join("")}.`,
+          message: `Unknown action "${binding.action}". Known: ${[
+            "setState",
+            "sendMessage",
+            "updateModelContext",
+            ...Object.keys(catalog.actions),
+          ].join(", ")}.`,
         });
         return;
       }
@@ -138,6 +141,38 @@ export function validateSpec(
         });
       }
     });
+  };
+
+  const checkFormulas = (id: string, path: string, value: unknown) => {
+    const seen = new Set<object>();
+    const pending: [string, unknown][] = [[path, value]];
+    for (let next = pending.pop(); next; next = pending.pop()) {
+      const [at, current] = next;
+      if (typeof current !== "object" || current === null) continue;
+      if (seen.has(current)) continue;
+      seen.add(current);
+      const children: [string, unknown][] = [];
+      for (const [key, child] of Object.entries(current)) {
+        const childPath = `${at}/${escapePointerToken(key)}`;
+        if (key !== "$calc" || Array.isArray(current)) {
+          children.push([childPath, child]);
+          continue;
+        }
+        const issue =
+          typeof child === "string"
+            ? formulaIssue(child)
+            : "`$calc` needs a formula string";
+        if (issue) {
+          error({
+            code: "invalid-formula",
+            elementId: id,
+            path: childPath,
+            message: `Formula in "${id}": ${issue}.`,
+          });
+        }
+      }
+      for (let i = children.length - 1; i >= 0; i--) pending.push(children[i]!);
+    }
   };
 
   for (const [id, element] of Object.entries(elements)) {
@@ -241,6 +276,9 @@ export function validateSpec(
         `${path}/watch/${escapePointerToken(watched)}`,
         bindingsOf(bindings),
       );
+    }
+    for (const key of ["props", "visible", "on", "watch"] as const) {
+      checkFormulas(id, `${path}/${key}`, element[key]);
     }
     if (
       element.repeat !== undefined &&

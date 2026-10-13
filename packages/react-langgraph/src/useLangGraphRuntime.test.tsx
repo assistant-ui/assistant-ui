@@ -1,5 +1,10 @@
 import { describe, it, expect, onTestFinished, vi } from "vitest";
-import { act, render, renderHook, waitFor } from "@testing-library/react";
+import {
+  act,
+  render,
+  renderHook,
+  waitFor as waitForDefault,
+} from "@testing-library/react";
 import type {
   AssistantRuntime,
   AttachmentAdapter,
@@ -22,6 +27,9 @@ import type {
   LangGraphStreamCallback,
 } from "./useLangGraphMessages";
 import { useMemo, type ReactNode } from "react";
+
+const waitFor: typeof waitForDefault = (callback, options) =>
+  waitForDefault(callback, { interval: 10, ...options });
 
 type LoadResult = {
   messages: LangChainMessage[];

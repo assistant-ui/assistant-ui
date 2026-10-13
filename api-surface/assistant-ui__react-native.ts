@@ -844,6 +844,7 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   abstract get canCancel(): boolean;
   abstract get canSend(): boolean;
   get isEmpty(): boolean;
+  protected get sendableAttachments(): Attachment[];
   get text(): string;
   get role(): "assistant" | "system" | "user";
   get runConfig(): RunConfig;
@@ -881,6 +882,7 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   protected abstract handleCancel(): void;
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
   removeAttachment(attachmentId: string): Promise<void>;
+  protected get cleanupOwner(): BaseComposerRuntimeCore;
   get dictation(): DictationState | undefined;
   startDictation(): void;
   stopDictation(): void;

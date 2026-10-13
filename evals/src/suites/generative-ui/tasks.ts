@@ -4,8 +4,8 @@ import type { Task } from "./types.ts";
  * The six demos OpenAI used to introduce Intelligent UI, rewritten as user
  * requests, and three everyday requests whose best answer is a composed plan
  * rather than a tool. `computed` marks a task whose answer must recompute
- * values as the user changes an input, which spec mode can only do through
- * host actions.
+ * values as the user changes an input, which spec mode does with `$calc`
+ * formulas and a widget with its own code.
  */
 export const tasks: Task[] = [
   {

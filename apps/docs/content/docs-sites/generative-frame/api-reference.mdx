@@ -151,7 +151,7 @@ These options change model guidance, not the frame's enforced policy. Configure 
     { name: "connectOrigins", type: "string[]", default: "[]", description: "Where widget code may send requests." },
     { name: "allowEval", type: "boolean", default: "false", description: "Whether `eval` is available." },
     { name: "width", type: "number", default: "680 on desktop, 360 on mobile", description: "Frame width in CSS pixels." },
-    { name: "hostApi", type: "{ prompt?: boolean; callTool?: boolean }", default: "{ prompt: true, callTool: false }", description: "Which host functions the guidance documents." },
+    { name: "hostApi", type: "{ prompt?: boolean; callTool?: boolean; modelContext?: boolean }", default: "{ prompt: true, callTool: false, modelContext: false }", description: "Which host functions the guidance documents. `createWidgetToolkit` turns on `modelContext`." },
   ]}
 />
 
@@ -199,7 +199,7 @@ The `RenderReportOptions`, `WidgetRenderReport`, `WidgetToolkitExtension`, `Tool
 | Export | Description |
 | --- | --- |
 | `defineCatalog({ components, actions? })` | A `Catalog` with `component`, `action`, `propsSchema`, `paramsSchema`, `validateProps`, `validateParams`, and `prompt`. |
-| `catalog.prompt({ mode?, customRules?, omitExample? })` | Model guidance; `mode` is `"jsonl"` (default) or `"inline"`. |
+| `catalog.prompt({ mode?, customRules?, omitExample?, hostApi? })` | Model guidance; `mode` is `"jsonl"` (default) or `"inline"`, and `hostApi: { prompt?, modelContext? }` documents the built-in `sendMessage` and `updateModelContext` actions. |
 | `createSpecStream({ mode?, initial? })` | `{ push(chunk), result(), spec }`; `mode` is `"jsonl"` (default) or `"inline"`. |
 | `parseSpecStream(source, options?)` | The same for a complete string. |
 | `applyPatch(doc, operations)` | Applies RFC 6902 operations. |

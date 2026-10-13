@@ -305,6 +305,7 @@ const ResolvedElement = defineComponent({
               ...props.scope,
               elementId: props.id,
               trigger: path,
+              kind: "watch",
             });
         }
       },
@@ -330,6 +331,7 @@ const ResolvedElement = defineComponent({
             ...props.scope,
             elementId: props.id,
             trigger: event,
+            kind: "event",
             payload,
           });
         };

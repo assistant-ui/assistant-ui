@@ -190,7 +190,7 @@ It contains the base rules (fragment format, streaming order, theme tokens, allo
 | `elicitation` | a form that collects several answers from the user at once |
 | `art` | illustrations, generative art, decorative or explanatory drawings |
 
-Guidance describes the policy to the model; it does not configure the frame CSP. Keep the guidance consistent with the frame: if you pass `csp: { cdnOrigins, fontStyleOrigins, fontOrigins, connectOrigins, allowEval }` to `createWidget`, pass the same values to `buildWidgetGuidance`, and set `hostApi.callTool` only when the host handles `onCallTool`. `buildModuleGuidance(module, options)` returns one module on its own.
+Guidance describes the policy to the model; it does not configure the frame CSP. Keep the guidance consistent with the frame: if you pass `csp: { cdnOrigins, fontStyleOrigins, fontOrigins, connectOrigins, allowEval }` to `createWidget`, pass the same values to `buildWidgetGuidance`, set `hostApi.callTool` only when the host handles `onCallTool`, and set `hostApi.modelContext` only when it handles `onUpdateModelContext`. `buildModuleGuidance(module, options)` returns one module on its own.
 
 ## The registry
 

@@ -14,6 +14,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@assistant-ui/react-native", () => ({
+  useAui: () => ({
+    thread: { append: () => undefined },
+    modelContext: { register: () => () => undefined },
+  }),
   useAuiState: (selector: (state: unknown) => unknown) =>
     selector({ thread: { messages: mocks.messages } }),
   useToolArgsStatus: () => ({ argsStatus: mocks.argsStatus }),
