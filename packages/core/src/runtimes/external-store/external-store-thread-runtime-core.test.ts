@@ -101,6 +101,64 @@ describe("ExternalStoreThreadRuntimeCore shared message queue", () => {
     },
   );
 
+  it("keeps the queuing runtime when the host edits a shared queue item", async () => {
+    const run = vi.fn();
+    const queue = createMessageQueue({ run });
+    queue.notifyBusy();
+    const storeA: ExternalStoreAdapter = {
+      messages: [tail("a1")],
+      onNew: async () => {},
+      queue: queue.adapter,
+    };
+    const runtimeA = new ExternalStoreThreadRuntimeCore(
+      {
+        getModelContext: () => ({
+          unstable_composerMetadata: { owner: "a" },
+        }),
+      },
+      storeA,
+    );
+    const runtimeB = new ExternalStoreThreadRuntimeCore(
+      {
+        getModelContext: () => ({
+          unstable_composerMetadata: { owner: "b" },
+        }),
+      },
+      {
+        messages: [tail("b1")],
+        onNew: async () => {},
+        queue: queue.adapter,
+      },
+    );
+    await runtimeA.append(message("a1"));
+    await runtimeB.append(message("b1"));
+    runtimeA.__internal_setAdapter({
+      ...storeA,
+      messages: [tail("a1"), tail("a2")],
+    });
+
+    queue.adapter.edit(queue.adapter.items[0]!.id, message("edited"));
+    queue.notifyIdle();
+
+    expect(run).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        parentId: "a2",
+        metadata: { custom: { owner: "a" } },
+      }),
+      { steer: false },
+    );
+    queue.notifyIdle();
+    expect(run).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        parentId: "b1",
+        metadata: { custom: { owner: "b" } },
+      }),
+      { steer: false },
+    );
+  });
+
   it("flushes pending items through the replacement core after a thread switch", async () => {
     const run = vi.fn();
     const queue = createMessageQueue({ run });
@@ -113,6 +171,7 @@ describe("ExternalStoreThreadRuntimeCore shared message queue", () => {
     };
     const runtime = new ExternalStoreRuntimeCore(store);
     await runtime.threads.getMainThreadRuntimeCore().append(message("a1"));
+    queue.adapter.edit(queue.adapter.items[0]!.id, message("edited"));
     runtime.setAdapter({
       ...store,
       messages: [tail("b1")],
