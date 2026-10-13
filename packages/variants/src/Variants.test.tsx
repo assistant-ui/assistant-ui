@@ -103,6 +103,10 @@ afterEach(() => {
 });
 
 describe("resolution order", () => {
+  beforeEach(() => {
+    store = createStore();
+  });
+
   it("falls back to the first child", () => {
     const { container } = renderWithStore(<Hero />);
     expect(shown(container)).toEqual(["a"]);
@@ -163,6 +167,10 @@ describe("resolution order", () => {
 });
 
 describe("zero layout impact", () => {
+  beforeEach(() => {
+    store = createStore();
+  });
+
   const Fixture = ({ wrapped }: { wrapped: boolean }) => {
     const rows = (
       <>
@@ -1490,6 +1498,10 @@ describe("outline", () => {
 });
 
 describe("dev validation", () => {
+  beforeEach(() => {
+    store = createStore();
+  });
+
   const errors = () => {
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     return () => spy.mock.calls.map((call) => String(call[0]));
