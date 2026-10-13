@@ -405,9 +405,8 @@ export class ExternalStoreThreadRuntimeCore
     this._updateStoreSnapshot(store);
   }
 
-  // Switching to the host's head selects an optimistic leaf under it, so the
-  // pass first drops the optimistic messages the host no longer carries; the
-  // placeholder is appended again last.
+  // Remove optimistic messages the host dropped before switching its head,
+  // which would otherwise select a stale leaf.
   private _evictUncarriedOptimistic(carriedIds: ReadonlySet<string>) {
     for (const message of this.repository.getMessages()) {
       if (message.metadata.isOptimistic && !carriedIds.has(message.id)) {

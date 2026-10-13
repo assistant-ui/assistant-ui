@@ -121,6 +121,54 @@ describe("LocalThreadRuntimeCore import with a non-leaf head", () => {
     ]);
   });
 
+  it("replaces seeded descendants missing from loaded history", async () => {
+    const thread = createThread(
+      {
+        async run() {
+          return {};
+        },
+      },
+      {
+        initialMessages: [
+          { id: "u1", role: "user", content: "u1" },
+          { id: "a1", role: "assistant", content: "a1" },
+          { id: "u2", role: "user", content: "u2" },
+        ],
+        history: {
+          scopeId: "thread",
+          load: async () =>
+            ExportedMessageRepository.fromBranchableArray(
+              [
+                {
+                  parentId: null,
+                  message: { id: "u1", role: "user", content: "u1" },
+                },
+                {
+                  parentId: "u1",
+                  message: { id: "a1", role: "assistant", content: "a1" },
+                },
+              ],
+              { headId: "a1" },
+            ),
+          append: async () => {},
+        },
+      },
+    );
+
+    expect(thread.messages.map((message) => message.id)).toEqual([
+      "u1",
+      "a1",
+      "u2",
+    ]);
+    await thread.__internal_load();
+
+    expect(thread.messages.map((message) => message.id)).toEqual(["u1", "a1"]);
+    expect(thread.export().messages.map((item) => item.message.id)).toEqual([
+      "u1",
+      "a1",
+    ]);
+  });
+
   it("resumes a loaded run under the head it names", async () => {
     const thread = createThread(
       {

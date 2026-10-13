@@ -693,6 +693,7 @@ export class LocalThreadRuntimeCore
       ) {
         this._unwrittenSeedMessages.clear();
         this._loadImports++;
+        this.repository.clear();
         this.repository.import(withLocalPauseReasons(repository));
       }
       if (repository.messages.length > 0) {
