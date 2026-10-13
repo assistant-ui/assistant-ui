@@ -246,6 +246,44 @@ describe("createSpecToolkit for Vue", () => {
     expect(container.textContent).toBe("b");
   });
 
+  it("rebuilds on the same-title base when patches stream before the title", async () => {
+    const first = {
+      title: "s",
+      patches:
+        '{"op":"add","path":"/root","value":"t"}\n{"op":"add","path":"/elements/t","value":{"type":"Label","props":{"text":"a"}}}',
+    };
+    const patches =
+      '{"op":"test","path":"/elements/t/props/text","value":"a"}\n{"op":"replace","path":"/elements/t/props/text","value":"b"}';
+    mocks.messages = [
+      {
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "e",
+            toolName: "render_spec",
+            args: first,
+            argsText: JSON.stringify(first),
+          },
+        ],
+      },
+    ];
+    const { container, update } = mount(
+      setup("frontend").render,
+      toolProp({ id: "f", args: { patches }, running: true }),
+    );
+    update(toolProp({ id: "f", args: { patches, title: "s" }, running: true }));
+    await nextTick();
+    update(
+      toolProp({
+        id: "f",
+        args: { patches: `${patches}\n`, title: "s" },
+        running: true,
+      }),
+    );
+    await nextTick();
+    expect(container.textContent).toBe("b");
+  });
+
   it("shares the user's choice before sendMessage starts a request, and never sends from watch", async () => {
     let system: string | undefined;
     mocks.append.mockImplementation(() => {
