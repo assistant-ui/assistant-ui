@@ -120,7 +120,7 @@ The result is a `PreviewResult`: `{ ok, kind, width, height, blank, errors, cons
 
 ## `render_spec`
 
-`createSpecTools(catalog, { specs? })` from `generative-frame/spec/tools` returns `{ render_spec }`. It validates and records a spec built from your components. Pass `specs`, a `Map<string, { spec, version }>`, to share the latest spec per title with the host. The description tells the model to follow the spec guidance it was given, either the `spec` module of `read_me` or the system prompt.
+`createSpecTools(catalog, { specs?, customRules? })` from `generative-frame/spec/tools` returns `{ render_spec }`. It validates and records a spec built from your components. Pass `specs`, a `Map<string, { spec, version }>`, to share the latest spec per title with the host. The description tells the model to follow the spec guidance it was given, either the `spec` module of `read_me` or the system prompt, and carries the rules for composing an answer followed by your `customRules`, so they hold even when the model never loads that guidance.
 
 | Input | Type | Notes |
 | --- | --- | --- |

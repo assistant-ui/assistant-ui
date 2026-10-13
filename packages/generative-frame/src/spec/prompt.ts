@@ -25,29 +25,32 @@ const joinClauses = (clauses: readonly string[]) =>
     ? `${clauses.slice(0, -1).join(", ")}, and ${clauses.at(-1)}`
     : (clauses[0] ?? "");
 
-/** How to compose an answer from the catalog's components, naming only the ones it has. */
+/** How to compose an answer from the catalog's components, naming only the ones it has and only uses their slots and events allow. */
 const compositionRules = (catalog: Catalog) => {
   const has = (type: string) => catalog.component(type) !== undefined;
+  const nests = (type: string) =>
+    catalog.component(type)?.slots?.includes("default") ?? false;
+  const emits = (type: string) =>
+    (catalog.component(type)?.events?.length ?? 0) > 0;
   const rules = [
     has("Header") && has("Text")
       ? "Open with a `Header` that names the answer and a `Text` with the one-line takeaway, then give each part of the answer its own section."
       : "Open with a heading that names the answer and its one-line takeaway, then give each part of the answer its own section.",
   ];
-  if (has("Card")) {
-    rules.push(
-      [
-        "Make each module a `Card`: a summary, a checklist, a form, or one option, with running prose outside cards.",
-        ...(has("Row") && has("Fact")
-          ? ["Put the answer's key figures side by side in a `Row` of `Fact`s."]
-          : []),
-        ...(has("Badge")
-          ? [
-              "Show short tags, such as a duration or a price tier, as `Badge`s.",
-            ]
-          : []),
-      ].join(" "),
-    );
-  }
+  const modules = [
+    ...(nests("Card")
+      ? [
+          "Make each module a `Card`: a summary, a checklist, a form, or one option, with running prose outside cards.",
+        ]
+      : []),
+    ...(nests("Row") && has("Fact")
+      ? ["Put the answer's key figures side by side in a `Row` of `Fact`s."]
+      : []),
+    ...(has("Badge")
+      ? ["Show short tags, such as a duration or a price tier, as `Badge`s."]
+      : []),
+  ];
+  if (modules.length) rules.push(modules.join(" "));
   const layouts = [
     ...(has("Map") ? ["put places with coordinates on a `Map`"] : []),
     ...(has("Timeline")
@@ -64,16 +67,20 @@ const compositionRules = (catalog: Catalog) => {
   }
   if (has("Image")) {
     rules.push(
-      `Show what can be seen with \`Image\`, but only from an image URL a tool returned, never one you write yourself: lead with two or three photos${has("Row") ? " in a `Row`" : ""},${has("Card") ? " open each option's `Card` with its photo," : ""} or put a small photo beside each item's text.`,
+      `Show what can be seen with \`Image\`, but only from an image URL a tool returned, never one you write yourself: lead with two or three photos${nests("Row") ? " in a `Row`" : ""},${nests("Card") ? " open each option's `Card` with its photo," : ""} or put a small photo beside each item's text.`,
     );
   }
-  if (has("Button")) {
+  if (emits("Button")) {
     rules.push(
-      `For a number the user adjusts, such as guests or servings, put it between a \`-\` and a \`+\` \`Button\`${has("Row") ? " in a `Row`" : ""}, each stepping it with a \`setState\` whose \`$calc\` value stays in a sensible range, and compute every amount that depends on it with \`$calc\`.`,
+      `For a number the user adjusts, such as guests or servings, put it between a \`-\` and a \`+\` \`Button\`${nests("Row") ? " in a `Row`" : ""}, each stepping it with a \`setState\` whose \`$calc\` value stays in a sensible range, and compute every amount that depends on it with \`$calc\`.`,
+    );
+  }
+  if (Object.keys(catalog.components).some(nests)) {
+    rules.push(
+      "Keep lists in `/state` and render them with `repeat`, except a list a component takes as a prop, such as table rows or chart series, which you bind to that prop.",
     );
   }
   rules.push(
-    "Keep lists in `/state` and render them with `repeat`.",
     "Keep the tree shallow and give every element a job: no filler, and no decoration that adds nothing.",
   );
   return rules;
