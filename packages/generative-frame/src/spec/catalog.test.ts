@@ -287,12 +287,15 @@ describe("catalog.prompt", () => {
 
   it("leaves out uses a component's slots and events do not allow", () => {
     const flat = defineCatalog({
-      components: Object.fromEntries(
-        ["Card", "Row", "Fact", "Image", "Button"].map((name) => [
-          name,
-          { description: name },
-        ]),
-      ),
+      components: {
+        ...Object.fromEntries(
+          ["Card", "Row", "Fact", "Image"].map((name) => [
+            name,
+            { description: name },
+          ]),
+        ),
+        Button: { description: "Button", events: ["press"] },
+      },
     });
     const prompt = flat.prompt();
     expect(prompt).toContain(
@@ -311,6 +314,16 @@ describe("catalog.prompt", () => {
     });
     expect(stacked.prompt()).toContain(
       "never one you write yourself: lead with two or three photos.\n",
+    );
+
+    const rowed = defineCatalog({
+      components: {
+        Row: { description: "Row", slots: ["default"] },
+        Image: { description: "Image" },
+      },
+    });
+    expect(rowed.prompt()).toContain(
+      "never one you write yourself: lead with two or three photos in a `Row` or put a small photo beside each item's text.\n",
     );
   });
 

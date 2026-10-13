@@ -21,9 +21,9 @@ const list = (items: readonly string[]) =>
   items.map((item) => `- ${item}`).join("\n");
 
 const joinClauses = (clauses: readonly string[], conjunction = "and") =>
-  clauses.length > 1
+  clauses.length > 2
     ? `${clauses.slice(0, -1).join(", ")}, ${conjunction} ${clauses.at(-1)}`
-    : (clauses[0] ?? "");
+    : clauses.join(` ${conjunction} `);
 
 /** How to compose an answer from the catalog's components, naming only the ones it has and only uses their slots and events allow. */
 const compositionRules = (catalog: Catalog) => {
@@ -78,7 +78,7 @@ const compositionRules = (catalog: Catalog) => {
       `Show what can be seen with \`Image\`, but only from an image URL a tool returned, never one you write yourself${placements.length ? `: ${joinClauses(placements, "or")}` : ""}.`,
     );
   }
-  if (emits("Button")) {
+  if (emits("Button") && nestsAny) {
     rules.push(
       `For a number the user adjusts, such as guests or servings, put it between a \`-\` and a \`+\` \`Button\`${nests("Row") ? " in a `Row`" : ""}, each stepping it with a \`setState\` whose \`$calc\` value stays in a sensible range, and compute every amount that depends on it with \`$calc\`.`,
     );
