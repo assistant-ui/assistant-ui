@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-Preserve locally submitted feedback on converted messages across branch changes.
+fix(core): keep a rating on an off-branch message after switching branches in an external-store runtime
