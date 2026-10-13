@@ -339,6 +339,78 @@ describe("createResumableStreamContext", () => {
     });
   });
 
+  it("publishes producer errors before source cancellation settles", async () => {
+    let releaseCancel!: (error: Error) => void;
+    const cancelGate = new Promise<void>((_resolve, reject) => {
+      releaseCancel = reject;
+    });
+    let signalCancel!: () => void;
+    const cancelStarted = new Promise<void>((resolve) => {
+      signalCancel = resolve;
+    });
+    const cancel = vi.fn(() => {
+      signalCancel();
+      return cancelGate;
+    });
+    const source = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(bytes("too large"));
+      },
+      cancel,
+    });
+    const store = createInMemoryResumableStreamStore({ maxChunkBytes: 1 });
+    const tasks: Promise<unknown>[] = [];
+    const ctx = createResumableStreamContext({
+      store,
+      waitUntil: (task) => tasks.push(task),
+    });
+    const response = await ctx.run("a", () => source);
+    const reader = response.getReader();
+    const read = reader.read().then(
+      () => "unexpected success",
+      (error: Error) => error.message,
+    );
+    const task = tasks[0]!;
+    const cleanupError = new Error("cleanup failed");
+    let taskSettled = false;
+    void task.then(
+      () => {
+        taskSettled = true;
+      },
+      () => {
+        taskSettled = true;
+      },
+    );
+    const cancelErrorLog = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    try {
+      await cancelStarted;
+      expect(cancel).toHaveBeenCalledOnce();
+      expect(await ctx.status("a")).toBe("error");
+      await expect(read).resolves.toContain("Chunk exceeds maxChunkBytes");
+      expect(taskSettled).toBe(false);
+      expect(source.locked).toBe(true);
+    } finally {
+      releaseCancel(cleanupError);
+      try {
+        await task;
+      } finally {
+        await read;
+        reader.releaseLock();
+        store.dispose();
+      }
+    }
+
+    expect(cancelErrorLog).toHaveBeenCalledWith(
+      "resumable stream reader cancel failed:",
+      cleanupError,
+    );
+    expect(taskSettled).toBe(true);
+    expect(source.locked).toBe(false);
+  });
+
   it("propagates producer errors and releases the source reader", async () => {
     const tasks: Promise<unknown>[] = [];
     const ctx = createResumableStreamContext({

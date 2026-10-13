@@ -181,11 +181,9 @@ function startProducerTask(
     } catch (err) {
       invokeObservabilityHook("onError", onError, streamId, err);
       const message = err instanceof Error ? err.message : String(err);
-      try {
-        await reader?.cancel(err);
-      } catch (cancelErr) {
+      const cancellation = reader?.cancel(err).catch((cancelErr) => {
         console.error("resumable stream reader cancel failed:", cancelErr);
-      }
+      });
       try {
         const finalized = await store.finalize(
           streamId,
@@ -193,17 +191,19 @@ function startProducerTask(
           message,
           lease,
         );
-        if (finalized === false) return;
-        invokeObservabilityHook(
-          "onFinalize",
-          onFinalize,
-          streamId,
-          "error",
-          message,
-        );
+        if (finalized !== false) {
+          invokeObservabilityHook(
+            "onFinalize",
+            onFinalize,
+            streamId,
+            "error",
+            message,
+          );
+        }
       } catch (finalizeErr) {
         console.error("resumable stream finalize failed:", finalizeErr);
       }
+      await cancellation;
     } finally {
       reader?.releaseLock();
     }
