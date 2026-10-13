@@ -1,11 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import type { ModelContextProvider } from "../../model-context/types";
+import { createMessageQueue } from "../../runtime/queue/message-queue";
 import type { Unstable_RecordToolInteractionOptions } from "../../runtime/interfaces/thread-runtime-core";
 import { ExportedMessageRepository } from "../../runtime/utils/message-repository";
-import { fromThreadMessageLike } from "../../runtime/utils/thread-message-like";
-import type { ThreadMessageLike } from "../../runtime/utils/thread-message-like";
-import type { ThreadMessage } from "../../types/message";
+import {
+  fromThreadMessageLike,
+  type ThreadMessageLike,
+} from "../../runtime/utils/thread-message-like";
+import type { AppendMessage, ThreadMessage } from "../../types/message";
 import type { ExternalStoreAdapter } from "./external-store-adapter";
+import { ExternalStoreRuntimeCore } from "./external-store-runtime-core";
 import { ExternalStoreThreadRuntimeCore } from "./external-store-thread-runtime-core";
 
 const modelContextProvider: ModelContextProvider = {
@@ -28,6 +32,106 @@ const createRuntime = (overrides: Partial<ExternalStoreAdapter> = {}) =>
     onNew: async () => {},
     ...overrides,
   } as ExternalStoreAdapter);
+
+describe("ExternalStoreThreadRuntimeCore shared message queue", () => {
+  const tail = (id: string) =>
+    fromThreadMessageLike({ id, role: "assistant", content: id }, id, {
+      type: "complete",
+      reason: "stop",
+    });
+  const message = (parentId: string, steer = false): AppendMessage => ({
+    parentId,
+    sourceId: null,
+    role: "user",
+    createdAt: new Date(0),
+    content: [{ type: "text", text: `after ${parentId}` }],
+    metadata: { custom: {} },
+    runConfig: {},
+    steer,
+  });
+
+  it.each([false, true])(
+    "dispatches through the runtime that queued the item (steer: %s)",
+    async (steer) => {
+      const run = vi.fn();
+      const queue = createMessageQueue({ run });
+      queue.notifyBusy();
+      const storeA: ExternalStoreAdapter = {
+        messages: [tail("a1")],
+        onNew: async () => {},
+        queue: queue.adapter,
+      };
+      const runtimeA = new ExternalStoreThreadRuntimeCore(
+        {
+          getModelContext: () => ({
+            unstable_composerMetadata: { owner: "a" },
+          }),
+        },
+        storeA,
+      );
+      await runtimeA.append(message("a1", steer));
+
+      const runtimeB = createRuntime({
+        messages: [tail("b1")],
+        queue: queue.adapter,
+      });
+      await runtimeB.append(message("b1"));
+      runtimeA.__internal_setAdapter({
+        ...storeA,
+        messages: [tail("a1"), tail("a2")],
+      });
+      expect(run).not.toHaveBeenCalled();
+
+      queue.notifyIdle();
+
+      expect(run).toHaveBeenNthCalledWith(
+        1,
+        expect.objectContaining({
+          parentId: "a2",
+          metadata: { custom: { owner: "a" } },
+        }),
+        { steer: false },
+      );
+      queue.notifyIdle();
+      expect(run).toHaveBeenNthCalledWith(
+        2,
+        expect.objectContaining({ parentId: "b1" }),
+        { steer: false },
+      );
+    },
+  );
+
+  it("flushes pending items through the replacement core after a thread switch", async () => {
+    const run = vi.fn();
+    const queue = createMessageQueue({ run });
+    queue.notifyBusy();
+    const store: ExternalStoreAdapter = {
+      messages: [tail("a1")],
+      onNew: async () => {},
+      queue: queue.adapter,
+      adapters: { threadList: { threadId: "a" } },
+    };
+    const runtime = new ExternalStoreRuntimeCore(store);
+    await runtime.threads.getMainThreadRuntimeCore().append(message("a1"));
+    runtime.setAdapter({
+      ...store,
+      messages: [tail("b1")],
+      adapters: { threadList: { threadId: "b" } },
+    });
+    runtime.setAdapter({
+      ...store,
+      messages: [tail("b1"), tail("b2")],
+      adapters: { threadList: { threadId: "b" } },
+    });
+
+    queue.notifyIdle();
+
+    expect(run).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ parentId: "b2" }),
+      { steer: false },
+    );
+  });
+});
 
 type FeedbackSource = {
   id: string;

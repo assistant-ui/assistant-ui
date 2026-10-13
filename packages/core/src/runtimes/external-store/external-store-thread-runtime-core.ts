@@ -59,10 +59,18 @@ import {
 } from "../tool-invocations/ToolInvocationTracker";
 import { EMPTY_QUEUE_ITEMS } from "../../runtime/queue/queue-item";
 import type { QuoteInfo } from "../../types/quote";
-import { captureThreadRuntimeGeneration } from "../../runtime/utils/thread-runtime-lifecycle";
+import {
+  captureThreadRuntimeDisposal,
+  captureThreadRuntimeGeneration,
+} from "../../runtime/utils/thread-runtime-lifecycle";
 import { RunLeases } from "../../utils/run-lease";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
+
+const queuedMessageRuntimes = new WeakMap<
+  AppendMessage,
+  ExternalStoreThreadRuntimeCore
+>();
 
 type SubmittedFeedback = NonNullable<
   ThreadAssistantMessage["metadata"]["submittedFeedback"]
@@ -252,10 +260,15 @@ export class ExternalStoreThreadRuntimeCore
   // Re-point at the tail, as LocalThreadRuntimeCore's driver does, so the
   // prefix gated against is the one the message lands on whatever the host
   // routes by. Queuing only ever accepts a tail append, so a later tail is the
-  // same intent.
+  // same intent. Runtimes sharing the queue replace one another's transform, so
+  // a message re-points at its queuing runtime's tail until a thread switch
+  // disposes that runtime.
   private _queueDispatchTransform = (message: AppendMessage) => {
-    const parentId = this.messages.at(-1)?.id ?? null;
-    return this.enrichAppendMetadata({ ...message, parentId }, parentId);
+    const owner = queuedMessageRuntimes.get(message);
+    const runtime =
+      owner && !captureThreadRuntimeDisposal(owner).aborted ? owner : this;
+    const parentId = runtime.messages.at(-1)?.id ?? null;
+    return runtime.enrichAppendMetadata({ ...message, parentId }, parentId);
   };
 
   private _transformedQueue: ExternalThreadQueueAdapter | undefined;
@@ -913,10 +926,10 @@ export class ExternalStoreThreadRuntimeCore
       message = stamped ?? this.enrichAppendMetadata(message);
 
     if (queue) {
-      // The queue holds one transform, which another runtime sharing it may
-      // have replaced, so the runtime queuing the message claims it.
-      if (queue === this._transformedQueue)
+      if (queue === this._transformedQueue) {
+        queuedMessageRuntimes.set(message, this);
         queue.__internal_setDispatchTransform?.(this._queueDispatchTransform);
+      }
       // Buffering does not start a run, so the tool-abort below must wait
       // until the queue flushes. By then the prior run (and its tools) has
       // settled.

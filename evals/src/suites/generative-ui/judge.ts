@@ -20,6 +20,7 @@ const verdictSchema = z.object({
   clarity: score,
   usefulness: score,
   completeness: score,
+  presentation: score,
   reason: z.string(),
 });
 
@@ -93,6 +94,7 @@ export async function judgeAnswer(
               "- clarity: the user can scan and understand it, and its structure suits the content.",
               "- usefulness: it helps the user do what they asked, including any interaction the request calls for, such as changing an input and seeing the results update.",
               "- completeness: it covers everything the request asks for, and its content is correct.",
+              "- presentation: it looks composed for its content the way a well-designed app would show it: a visual hierarchy makes the main point stand out, and photos, maps, key figures, or tables appear where they help the user take it in. Visuals the content calls for but the answer lacks lower it, and so do decoration and filler that do not help. Leave how scannable and well organized it is to clarity.",
               "Explain the scores in one sentence as `reason`.",
             ].join("\n"),
           },
