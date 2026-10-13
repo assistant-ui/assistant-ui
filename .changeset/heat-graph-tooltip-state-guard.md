@@ -2,4 +2,4 @@
 "heat-graph": patch
 ---
 
-Throw from `useTooltipState` outside `Root`, matching the other context hooks
+`HeatGraph.Tooltip` now throws when rendered outside `HeatGraph.Root`, matching the other parts
