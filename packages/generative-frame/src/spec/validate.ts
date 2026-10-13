@@ -160,10 +160,13 @@ export function validateSpec(
       for (const [key, child] of Object.entries(current)) {
         const childPath = `${at}/${escapePointerToken(key)}`;
         if (key !== "$calc" || Array.isArray(current)) {
+          // Ending the scan at the last `}` keeps it linear on a long string whose placeholders never close.
           const placeholder =
             typeof child === "string" &&
             (key !== "$template" || Array.isArray(current))
-              ? PLACEHOLDER.exec(child)?.[0]
+              ? PLACEHOLDER.exec(
+                  child.slice(0, child.lastIndexOf("}") + 1),
+                )?.[0]
               : undefined;
           if (placeholder) {
             error({
