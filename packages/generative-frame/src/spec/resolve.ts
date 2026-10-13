@@ -23,6 +23,8 @@ export type ResolvedElement = {
   slots: Record<string, ResolvedElement[]>;
   /** The key of the `repeat` item a child of a `repeat` renders for. */
   key?: string;
+  /** The state path of the `repeat` item an element inside a `repeat` renders for, which `$item` reads resolve against. */
+  itemPath?: string;
 };
 
 export type ResolveSpecOptions = {
@@ -114,6 +116,7 @@ export function resolveSpec(
       children,
       slots,
       ...(key !== undefined ? { key } : {}),
+      ...(scope.itemPath !== undefined ? { itemPath: scope.itemPath } : {}),
     };
   };
   return resolve(spec.root, {}, []);

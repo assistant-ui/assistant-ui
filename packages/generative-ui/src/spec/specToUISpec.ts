@@ -1,10 +1,9 @@
 import {
   resolveSpec,
+  type ActionBinding,
   type ResolvedElement,
   type Spec,
-  type SpecElement,
 } from "generative-frame/spec";
-import { decodeAbsolutePointer } from "../a2ui/pointer";
 import type { Action, UIElement, UISpec } from "../ir";
 import { BOUND_VALUE_PROPS, vocabularyEvents } from "./wiring";
 
@@ -14,10 +13,12 @@ export type SpecToUISpecOptions = {
   state?: unknown;
 };
 
+type Conversion = { spec: Spec; fields: Map<string, string> };
+
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-const statePath = (path: string) =>
+const normalize = (path: string) =>
   path === "" || path.startsWith("/") ? path : `/${path}`;
 
 const escapeToken = (key: string) =>
@@ -25,16 +26,6 @@ const escapeToken = (key: string) =>
 
 const unescapeToken = (token: string) =>
   token.replaceAll("~1", "/").replaceAll("~0", "~");
-
-function readState(state: unknown, path: string): unknown {
-  let value = state;
-  for (const token of decodeAbsolutePointer(path) ?? []) {
-    if (typeof value !== "object" || value === null) return undefined;
-    if (!Object.hasOwn(value, token)) return undefined;
-    value = (value as Record<string, unknown>)[token];
-  }
-  return value;
-}
 
 const boundPath = (element: ResolvedElement) =>
   BOUND_VALUE_PROPS.map(([prop]) => element.bindings[prop]).find(
@@ -63,111 +54,124 @@ function boundFields(
   return fields;
 }
 
+/** The state path a read in an action param stands for, in the order the renderer resolves its keys. */
+function readPath(
+  raw: Record<string, unknown>,
+  itemPath: string | undefined,
+): string | undefined {
+  for (const key of ["$state", "$bindState"]) {
+    if (key in raw) {
+      const path = raw[key];
+      return typeof path === "string" ? normalize(path) : undefined;
+    }
+  }
+  for (const key of ["$item", "$bindItem"]) {
+    if (key in raw) {
+      const field = raw[key];
+      if (itemPath === undefined || typeof field !== "string") return undefined;
+      return field ? `${itemPath}${normalize(field)}` : itemPath;
+    }
+  }
+  return undefined;
+}
+
 /**
- * A `{ $state }` read rewritten so that each bound control under `path` is
- * read through `$field` when the action runs, with its value now as the
- * fallback. A read of a path above bound controls, such as a whole form
- * object, follows the shape of the state down to them, and every other value
- * stays a `$state` read, which resolves without reinterpreting state data.
+ * The resolved `value` of a read of `path`, with each bound control at or
+ * under `path` read through `$field` when the action runs and its value now
+ * as the fallback. A control can bind a path the state does not hold yet,
+ * such as an empty form field, so its key is added.
  */
-function liveRead(
+function overlay(
+  value: unknown,
   path: string,
   fields: Map<string, string>,
-  state: unknown,
 ): unknown {
   const name = fields.get(path);
-  if (name !== undefined) return { $field: name, fallback: { $state: path } };
+  if (name !== undefined) {
+    return value === undefined
+      ? { $field: name }
+      : { $field: name, fallback: value };
+  }
   const below = [...fields.keys()].filter((bound) =>
     bound.startsWith(`${path}/`),
   );
-  if (below.length === 0) return { $state: path };
-  const value = readState(state, path);
+  if (below.length === 0) return value;
   if (Array.isArray(value)) {
-    return value.map((_, index) => liveRead(`${path}/${index}`, fields, state));
+    return value.map((item, index) =>
+      overlay(item, `${path}/${index}`, fields),
+    );
   }
-  // A control can bind a path the state does not hold yet, such as an empty form field.
-  const keys = new Set(isRecord(value) ? Object.keys(value) : []);
+  if (value !== undefined && !isRecord(value)) return value;
+  const keys = new Set(value ? Object.keys(value) : []);
   for (const bound of below) {
     keys.add(unescapeToken(bound.slice(path.length + 1).split("/")[0]!));
   }
-  if (!isRecord(value) && value !== undefined) return { $state: path };
   return Object.fromEntries(
     [...keys].map((key) => [
       key,
-      liveRead(`${path}/${escapeToken(key)}`, fields, state),
+      overlay(
+        value && Object.hasOwn(value, key) ? value[key] : undefined,
+        `${path}/${escapeToken(key)}`,
+        fields,
+      ),
     ]),
   );
 }
 
-function fieldParams(
+/** Walks an action's params as the spec wrote them beside their resolved values, overlaying each read of state. */
+function live(
+  raw: unknown,
   value: unknown,
+  itemPath: string | undefined,
   fields: Map<string, string>,
-  state: unknown,
 ): unknown {
-  if (Array.isArray(value))
-    return value.map((item) => fieldParams(item, fields, state));
-  if (!isRecord(value)) return value;
-  const keys = Object.keys(value);
-  if (keys.length === 1 && typeof value["$state"] === "string") {
-    return liveRead(statePath(value["$state"]), fields, state);
+  if (Array.isArray(raw)) {
+    return Array.isArray(value)
+      ? raw.map((item, index) => live(item, value[index], itemPath, fields))
+      : value;
   }
-  if (keys.some((key) => key.startsWith("$"))) return value;
+  if (!isRecord(raw)) return value;
+  if (["$cond", "$calc", "$template"].some((key) => key in raw)) return value;
+  const path = readPath(raw, itemPath);
+  if (path !== undefined) return overlay(value, path, fields);
+  if (Object.keys(raw).some((key) => key.startsWith("$")) || !isRecord(value))
+    return value;
   return Object.fromEntries(
-    keys.map((key) => [key, fieldParams(value[key], fields, state)]),
+    Object.keys(raw).map((key) => [
+      key,
+      live(raw[key], value[key], itemPath, fields),
+    ]),
   );
 }
 
-const withFields = (
-  spec: Spec,
-  fields: Map<string, string>,
-  state: unknown,
-): Spec => ({
-  ...spec,
-  elements: Object.fromEntries(
-    Object.entries(spec.elements).map(
-      ([id, element]): [string, SpecElement] => [
-        id,
-        element?.on
-          ? {
-              ...element,
-              on: Object.fromEntries(
-                Object.entries(element.on).map(([event, bound]) => [
-                  event,
-                  (Array.isArray(bound) ? bound : [bound]).map((binding) =>
-                    isRecord(binding) && isRecord(binding.params)
-                      ? {
-                          ...binding,
-                          params: fieldParams(
-                            binding.params,
-                            fields,
-                            state,
-                          ) as Record<string, unknown>,
-                        }
-                      : binding,
-                  ),
-                ]),
-              ),
-            }
-          : element,
-      ],
-    ),
-  ),
-});
+const rawBindings = (spec: Spec, id: string, event: string) => {
+  const bound = spec.elements[id]?.on?.[event];
+  return (Array.isArray(bound) ? bound : [bound]).filter(
+    (binding: unknown): binding is ActionBinding =>
+      typeof (binding as ActionBinding | null | undefined)?.action === "string",
+  );
+};
 
-function toNode(
-  element: ResolvedElement,
-  fields: Map<string, string>,
-): UIElement {
+function toNode(element: ResolvedElement, conversion: Conversion): UIElement {
+  const { spec, fields } = conversion;
   const events = vocabularyEvents(element.type);
   const actionFor = (event: string): Action | undefined => {
-    const bound = element.on[event]?.find(
-      (entry) => entry.action !== "setState",
-    );
-    if (!bound) return undefined;
-    const params = Object.entries(bound.params).filter(
-      ([, value]) => value !== undefined,
-    );
-    return { ...Object.fromEntries(params), type: bound.action };
+    const resolved = element.on[event] ?? [];
+    const index = resolved.findIndex((entry) => entry.action !== "setState");
+    if (index === -1) return undefined;
+    const raw = rawBindings(spec, element.id, event)[index]?.params ?? {};
+    const params = live(
+      raw,
+      resolved[index]!.params,
+      element.itemPath,
+      fields,
+    ) as Record<string, unknown>;
+    return {
+      ...Object.fromEntries(
+        Object.entries(params).filter(([, value]) => value !== undefined),
+      ),
+      type: resolved[index]!.action,
+    };
   };
   const props: Record<string, unknown> = { ...element.props };
   for (const event of events) {
@@ -187,7 +191,9 @@ function toNode(
       ? { $key: `${element.key}:${element.id}` }
       : {}),
     ...(element.children.length > 0
-      ? { children: element.children.map((child) => toNode(child, fields)) }
+      ? {
+          children: element.children.map((child) => toNode(child, conversion)),
+        }
       : {}),
     ...(action ? { $action: action } : {}),
   };
@@ -201,11 +207,12 @@ function toNode(
  * `$action`: the first action bound to the event other than `setState`, with
  * its resolved params. A control whose value is bound gets a `name` unless it
  * has one: its element id for `$bindState`, or its state path for
- * `$bindItem`, which differs per item. A param that reads a bound path with
- * `{ $state }` becomes a `{ $field }` reference to that control with its value
- * now as the `fallback`, so the action reads what the user entered, and a
- * param that reads a path above bound controls, such as a whole form object,
- * carries such a reference in each control's place. A param that reads
+ * `$bindItem`, which differs per item. A param that reads a bound control's
+ * state, through `$state` or through `$item` inside a `repeat`, becomes a
+ * `{ $field }` reference to that control with its value now as the
+ * `fallback`, so the action reads what the user entered, and a param that
+ * reads a path above bound controls, such as a whole form object or a list
+ * item, carries such a reference in each control's place. A param that reads
  * `$event` is left out, since the platform passes what the event carries as
  * `$input`. `watch` and named slots have no equivalent and are left out.
  */
@@ -215,10 +222,5 @@ export function specToUISpec(
 ): UISpec {
   const resolved = resolveSpec(spec, options);
   if (!resolved) return [];
-  const fields = boundFields(spec, resolved);
-  if (fields.size === 0) return toNode(resolved, fields);
-  const state =
-    options.state === undefined ? (spec.state ?? {}) : options.state;
-  const live = resolveSpec(withFields(spec, fields, state), options);
-  return live ? toNode(live, fields) : [];
+  return toNode(resolved, { spec, fields: boundFields(spec, resolved) });
 }

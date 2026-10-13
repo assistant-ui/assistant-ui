@@ -204,7 +204,7 @@ The `RenderReportOptions`, `WidgetRenderReport`, `WidgetToolkitExtension`, `Tool
 | `parseSpecStream(source, options?)` | The same for a complete string. |
 | `applyPatch(doc, operations)` | Applies RFC 6902 operations. |
 | `validateSpec(spec, catalog, { partial? })` | `{ ok, issues }`. |
-| `resolveSpec(spec, { state? })` | The element tree the renderer draws for one state, each `ResolvedElement` with `id`, `type`, `props`, `bindings`, `on`, `children`, `slots`, and, on a direct child of a `repeat`, its item's `key`; `null` when the root does not resolve. |
+| `resolveSpec(spec, { state? })` | The element tree the renderer draws for one state, each `ResolvedElement` with `id`, `type`, `props`, `bindings`, `on`, `children`, `slots`, and, inside a `repeat`, its `itemPath`, with the item's `key` on a direct child of the `repeat`; `null` when the root does not resolve. |
 | `formatSpecIssues(issues)` | Issues as model-readable text. |
 | `createStateStore(initial?, { writes? }?)` | `{ getState, get, set, writes, seed, subscribe }`. `writes()` lists the writes `seed` re-applies as `[path, value]` pairs, oldest first, a replacing write dropping earlier ones at and below its path that no insert at an index on that path has since moved; `writes` applies saved ones over `initial`. |
 | `emptySpec()` | An empty spec. |

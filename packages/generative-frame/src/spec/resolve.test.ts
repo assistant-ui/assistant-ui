@@ -101,6 +101,7 @@ describe("resolveSpec", () => {
               children: [],
               slots: {},
               key: "soup",
+              itemPath: "/dishes/0",
             },
             {
               id: "dish",
@@ -118,6 +119,7 @@ describe("resolveSpec", () => {
               children: [],
               slots: {},
               key: "lamb",
+              itemPath: "/dishes/1",
             },
           ],
           slots: {},

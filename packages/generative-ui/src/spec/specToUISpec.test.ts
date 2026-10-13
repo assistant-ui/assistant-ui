@@ -234,6 +234,54 @@ describe("specToUISpec", () => {
     });
   });
 
+  it("reads a repeated control through $field when a param reads its item", () => {
+    const tree = specToUISpec({
+      root: "list",
+      elements: {
+        list: {
+          type: "Box",
+          repeat: { path: "/dishes", key: "id" },
+          children: ["done", "save"],
+        },
+        done: {
+          type: "Checkbox",
+          props: {
+            label: { $item: "/name" },
+            defaultChecked: { $bindItem: "done" },
+          },
+        },
+        save: {
+          type: "Button",
+          props: { label: "Save" },
+          on: {
+            press: {
+              action: "save",
+              params: { dish: { $item: "" }, done: { $item: "/done" } },
+            },
+          },
+        },
+      },
+      state: { dishes: [{ id: "soup", name: "Soup", done: true }] },
+    });
+    expect(tree).toMatchObject({
+      children: [
+        { $type: "Checkbox", name: "/dishes/0/done" },
+        {
+          $type: "Button",
+          $action: {
+            type: "save",
+            dish: {
+              id: "soup",
+              name: "Soup",
+              done: { $field: "/dishes/0/done", fallback: true },
+            },
+            done: { $field: "/dishes/0/done", fallback: true },
+          },
+        },
+      ],
+    });
+  });
+
   it("names a control repeated per item by its state path and keys repeated nodes", () => {
     const tree = specToUISpec({
       root: "list",
