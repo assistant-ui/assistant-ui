@@ -40,8 +40,10 @@ const setup = () => {
       automatic,
       generate: async (onTitle) => {
         await gate.promise;
-        if (title !== undefined) server.title = title;
-        await onTitle(title);
+        if (title !== undefined) {
+          server.title = title;
+          await onTitle(title);
+        }
       },
       rename,
       applyTitle,
@@ -61,10 +63,9 @@ describe("title generation retraction", () => {
         states: h.states,
         threadId: "t1",
         automatic: false,
-        generate: async (onTitle) => {
+        generate: async () => {
           await eGate.promise;
           if (ending === "rejects") throw new Error("generation failed");
-          await onTitle(undefined);
         },
         rename: h.rename,
         applyTitle: h.applyTitle,
@@ -161,8 +162,10 @@ describe("title generation retraction", () => {
         automatic: true,
         generate: async (onTitle) => {
           await secondGate.promise;
-          if (secondTitle !== undefined) h.server.title = secondTitle;
-          await onTitle(secondTitle);
+          if (secondTitle !== undefined) {
+            h.server.title = secondTitle;
+            await onTitle(secondTitle);
+          }
         },
         rename: secondRename,
         applyTitle: h.applyTitle,
@@ -220,9 +223,9 @@ describe("title generation retraction", () => {
     finishThreadTitleRename(h.states, "t1", pending, false);
     await Promise.all([automatic, explicit]);
 
-    expect(generate).toHaveBeenCalledOnce();
-    expect(h.rename).toHaveBeenCalledExactlyOnceWith("Manual");
-    expect(h.applied).toEqual(["Manual"]);
+    expect(generate).not.toHaveBeenCalled();
+    expect(h.rename).not.toHaveBeenCalled();
+    expect(h.applied).toEqual([]);
     expect(h.server.title).toBe("Manual");
 
     const next = vi.fn(
@@ -422,6 +425,43 @@ describe("title generation retraction", () => {
     expect(h.server.title).toBe("Automatic");
   });
 
+  it("starts a waiting automatic when its explicit retracts behind an older persisted explicit", async () => {
+    const h = setup();
+    const olderAutomaticGate = deferred();
+    const firstExplicitGate = deferred();
+    const secondExplicitGate = deferred();
+    const olderAutomatic = h.start(true, "Older automatic", olderAutomaticGate);
+    const firstExplicit = h.start(false, "First explicit", firstExplicitGate);
+    firstExplicitGate.resolve();
+    await firstExplicit;
+
+    const secondExplicit = h.start(false, undefined, secondExplicitGate);
+    const generate = vi.fn(
+      async (onTitle: (title: string | undefined) => Promise<void>) => {
+        h.server.title = "Waiting automatic";
+        await onTitle("Waiting automatic");
+      },
+    );
+    const waitingAutomatic = runThreadTitleGeneration({
+      states: h.states,
+      threadId: "t1",
+      automatic: true,
+      generate,
+      rename: h.rename,
+      applyTitle: h.applyTitle,
+    });
+    expect(generate).not.toHaveBeenCalled();
+    secondExplicitGate.resolve();
+    await secondExplicit;
+    await waitingAutomatic;
+    olderAutomaticGate.resolve();
+    await olderAutomatic;
+
+    expect(generate).toHaveBeenCalledOnce();
+    expect(h.applied.at(-1)).toBe("Waiting automatic");
+    expect(h.server.title).toBe("Waiting automatic");
+  });
+
   it("S11 does not affect a cleared thread", async () => {
     const h = setup();
     const eGate = deferred();
@@ -507,7 +547,7 @@ describe("title generation retraction", () => {
                     server.title = title;
                     allowedTitles.add(title);
                   }
-                  await onTitle(title);
+                  if (title !== undefined) await onTitle(title);
                 },
                 rename: async (title) => {
                   renames.push(title);

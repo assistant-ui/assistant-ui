@@ -226,7 +226,8 @@ function retractGeneration(
     state.manualClaim = hidden;
   }
   for (const active of state.generations) {
-    if (!active.automatic || active.claim !== null) continue;
+    if (active === generation || !active.automatic || active.claim !== null)
+      continue;
     active.claim = newestClaim(state, [
       ...active.claims,
       ...state.inFlightClaims,
@@ -297,30 +298,21 @@ export async function runThreadTitleGeneration(
 ): Promise<void> {
   const { states, threadId, automatic } = run;
   const state = getThreadTitleState(states, threadId);
-  const waitingForExplicit =
-    automatic &&
-    [...state.generations].some((generation) => !generation.automatic);
+  const explicitAtStart = automatic
+    ? [...state.generations].filter((generation) => !generation.automatic)
+    : [];
+  const waitingForExplicit = explicitAtStart.length > 0;
   if (waitingForExplicit) {
     waitingAutomatics.set(state, (waitingAutomatics.get(state) ?? 0) + 1);
   }
   let generation: ThreadTitleGeneration | null;
   try {
     if (waitingForExplicit) {
-      while (true) {
-        const explicit = [...state.generations].filter(
-          (generation) => !generation.automatic,
-        );
-        if (explicit.length > 0) {
-          await Promise.all(explicit.map((generation) => generation.persisted));
-          continue;
-        }
-        const latestExplicit = latestExplicitGeneration(state);
-        const title = await latestExplicit?.persisted;
-        if (states.get(threadId) !== state) return;
-        if (latestExplicitGeneration(state) !== latestExplicit) continue;
-        if (title !== undefined) return;
-        break;
-      }
+      const titles = await Promise.all(
+        explicitAtStart.map((generation) => generation.persisted),
+      );
+      if (states.get(threadId) !== state) return;
+      if (titles.some((title) => title !== undefined)) return;
     }
     generation = startThreadTitleGeneration(states, threadId, automatic);
   } finally {
@@ -436,20 +428,25 @@ export async function runThreadTitleGeneration(
         generation.beforeGenerationClaims.map((claim) => claim.settled),
       );
     }
-    while (generation.claim !== null) {
-      const renamed = await settleClaim(generation.claim);
-      if (renamed === undefined) continue;
-      if (renamed) {
-        generation.superseded = true;
-        return;
+    while (true) {
+      while (generation.claim !== null) {
+        const renamed = await settleClaim(generation.claim);
+        if (renamed === undefined) continue;
+        if (renamed) {
+          generation.superseded = true;
+          return;
+        }
+        if (retainManualTitle()) return;
+        break;
       }
-      if (retainManualTitle()) return;
+      if (automatic && !isCurrentGeneration(state, generation)) {
+        await awaitOutrankingGeneration();
+        if (!isCurrentGeneration(state, generation)) return;
+        continue;
+      }
+      if (!isCurrentGeneration(state, generation)) return;
       break;
     }
-    if (automatic && !isCurrentGeneration(state, generation)) {
-      await awaitOutrankingGeneration();
-    }
-    if (!isCurrentGeneration(state, generation)) return;
 
     await generate(async (title) => {
       sawTitle = true;
