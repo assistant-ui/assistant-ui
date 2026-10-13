@@ -25,6 +25,9 @@ vi.mock("./openCodeTaskSession", async (importOriginal) => {
   };
 });
 
+const waitFor = (assertion: () => void) =>
+  vi.waitFor(assertion, { interval: 10 });
+
 const createDeferred = <T>() => {
   let resolve!: (value: T) => void;
   let reject!: (error: unknown) => void;
@@ -1110,7 +1113,7 @@ describe("OpenCodeThreadController", () => {
 
     const unsubscribe = controller.subscribe(vi.fn());
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(messages).toHaveBeenCalledTimes(2);
       expect(
         controller.getState().childSessionsById.ses_child?.loadState.type,
@@ -1161,7 +1164,7 @@ describe("OpenCodeThreadController", () => {
     controller.subscribe(vi.fn());
 
     await controller.load();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(
         controller.getState().childSessionsById.ses_child?.loadState.type,
       ).toBe("ready");
@@ -1170,7 +1173,7 @@ describe("OpenCodeThreadController", () => {
 
     eventSource.emit(streamReconnected);
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(sessionMessages.mock.calls.length).toBeGreaterThan(
         callsBeforeReconnect + 1,
       );
@@ -1218,7 +1221,7 @@ describe("OpenCodeThreadController", () => {
     );
     controller.subscribe(vi.fn());
     await controller.load();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(
         controller.getState().childSessionsById.ses_child?.loadState.type,
       ).toBe("ready");
@@ -1226,7 +1229,7 @@ describe("OpenCodeThreadController", () => {
 
     eventSource.emit(streamReconnected);
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       const child = controller.getState().childSessionsById.ses_child;
       expect(child?.interactions.permissions.pending.perm_child).toBeDefined();
       expect(child?.interactions.questions.pending.q_child).toBeDefined();
@@ -1279,7 +1282,7 @@ describe("OpenCodeThreadController", () => {
     );
     controller.subscribe(vi.fn());
     await controller.load();
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(
         controller.getState().childSessionsById.ses_child?.loadState.type,
       ).toBe("ready"),
@@ -1298,7 +1301,7 @@ describe("OpenCodeThreadController", () => {
       raw: {},
     });
     eventSource.emit(streamReconnected);
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(client.permission.list).toHaveBeenCalled();
       expect(client.question.list).toHaveBeenCalled();
     });
@@ -1366,7 +1369,7 @@ describe("OpenCodeThreadController", () => {
     const first = controller.replyToPermission("perm_1", "once" as never);
     const second = controller.replyToPermission("perm_1", "always" as never);
     eventSource.emit(streamReconnected);
-    await vi.waitFor(() => expect(client.permission.list).toHaveBeenCalled());
+    await waitFor(() => expect(client.permission.list).toHaveBeenCalled());
 
     const firstResult = expect(first).rejects.toThrow("reply failed");
     firstReply.reject(new Error("reply failed"));
@@ -1419,7 +1422,7 @@ describe("OpenCodeThreadController", () => {
     await controller.load();
 
     eventSource.emit(streamReconnected);
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(
         controller.getState().childSessionsById.ses_child?.loadState.type,
       ).toBe("ready"),
@@ -1444,7 +1447,7 @@ describe("OpenCodeThreadController", () => {
       ],
     });
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       const child = controller.getState().childSessionsById.ses_child;
       expect(child?.interactions.permissions.pending.perm_child).toBeDefined();
       expect(child?.interactions.questions.pending.q_child).toBeDefined();
@@ -1478,7 +1481,7 @@ describe("OpenCodeThreadController", () => {
     await controller.load();
 
     eventSource.emit(streamReconnected);
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(client.permission.list).toHaveBeenCalled();
       expect(client.question.list).toHaveBeenCalled();
       expect(messages).toHaveBeenCalledTimes(2);
@@ -1511,7 +1514,7 @@ describe("OpenCodeThreadController", () => {
         createTaskMessage("ses_parent", "parent-assistant", ["ses_child"]),
       ],
     });
-    await vi.waitFor(() => {
+    await waitFor(() => {
       const child = controller.getState().childSessionsById.ses_child;
       expect(child?.interactions.permissions.pending.perm_child).toBeDefined();
       expect(child?.interactions.questions.pending.q_child).toBeDefined();
@@ -1556,7 +1559,7 @@ describe("OpenCodeThreadController", () => {
     await controller.load();
 
     eventSource.emit(streamReconnected);
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(client.permission.list).toHaveBeenCalled();
       expect(client.question.list).toHaveBeenCalled();
       expect(messages).toHaveBeenCalledTimes(2);
@@ -1584,7 +1587,7 @@ describe("OpenCodeThreadController", () => {
       ],
     });
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(
         controller.getState().childSessionsById.ses_child?.loadState.type,
       ).toBe("ready");
@@ -1632,7 +1635,7 @@ describe("OpenCodeThreadController", () => {
       await controller.load();
 
       eventSource.emit(streamReconnected);
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(client.session.messages).toHaveBeenCalledTimes(2),
       );
       eventSource.emit({
@@ -1652,7 +1655,7 @@ describe("OpenCodeThreadController", () => {
         ],
       });
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         const child = controller.getState().childSessionsById.ses_child;
         expect(child?.loadState.type).toBe("ready");
         const interactions = child?.interactions;
@@ -1704,7 +1707,7 @@ describe("OpenCodeThreadController", () => {
     await controller.load();
 
     eventSource.emit(streamReconnected);
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(client.session.messages).toHaveBeenCalledTimes(2),
     );
     eventSource.emit({
@@ -1752,7 +1755,7 @@ describe("OpenCodeThreadController", () => {
         createTaskMessage("ses_parent", "parent-assistant", ["ses_child"]),
       ],
     });
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(controller["interactionRecoveryEvents"].permissions.size).toBe(0);
       expect(controller["interactionRecoveryEvents"].questions.size).toBe(0);
       const interactions =
@@ -1809,14 +1812,14 @@ describe("OpenCodeThreadController", () => {
       );
       controller.subscribe(vi.fn());
       await controller.load();
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(
           controller.getState().childSessionsById.ses_child?.loadState.type,
         ).toBe("ready"),
       );
 
       eventSource.emit(streamReconnected);
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(
           kind === "permission" ? client.permission.list : client.question.list,
         ).toHaveBeenCalled(),
@@ -1849,7 +1852,7 @@ describe("OpenCodeThreadController", () => {
       }
 
       list.resolve({ data: [request] });
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(
           kind === "permission"
             ? controller["permissionRecoveryToken"]
@@ -1908,7 +1911,7 @@ describe("OpenCodeThreadController", () => {
       await controller.load();
 
       eventSource.emit(streamReconnected);
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(client.session.messages).toHaveBeenCalledTimes(2);
         expect(
           kind === "permission" ? client.permission.list : client.question.list,
@@ -1945,7 +1948,7 @@ describe("OpenCodeThreadController", () => {
         ],
       });
 
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(
           controller.getState().childSessionsById.ses_child?.loadState.type,
         ).toBe("ready"),
@@ -2011,7 +2014,7 @@ describe("OpenCodeThreadController", () => {
     await controller.load();
 
     eventSource.emit(streamReconnected);
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(messages).toHaveBeenCalledWith(
         { sessionID: "ses_child" },
         expect.anything(),
@@ -2023,7 +2026,7 @@ describe("OpenCodeThreadController", () => {
       ],
     });
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       const grandchild =
         controller.getState().childSessionsById.ses_child?.childSessionsById
           .ses_grandchild;
@@ -2085,21 +2088,21 @@ describe("OpenCodeThreadController", () => {
     );
     controller.subscribe(vi.fn());
     await controller.load();
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(
         controller.getState().childSessionsById.ses_child?.loadState.type,
       ).toBe("ready"),
     );
 
     eventSource.emit(streamReconnected);
-    await vi.waitFor(() => expect(childLoads).toBe(2));
+    await waitFor(() => expect(childLoads).toBe(2));
     childRefresh.resolve({
       data: [
         createTaskMessage("ses_child", "child-assistant", ["ses_grandchild"]),
       ],
     });
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       const grandchild =
         controller.getState().childSessionsById.ses_child?.childSessionsById
           .ses_grandchild;
@@ -2154,7 +2157,7 @@ describe("OpenCodeThreadController", () => {
     await controller.load();
 
     eventSource.emit(streamReconnected);
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(
         controller.getState().childSessionsById.ses_child?.loadState.type,
       ).toBe("ready"),
@@ -2163,7 +2166,7 @@ describe("OpenCodeThreadController", () => {
 
     eventSource.emit(streamReconnected);
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(
         controller.getState().childSessionsById.ses_child?.interactions
           .permissions.pending.perm_child,
@@ -2245,7 +2248,7 @@ describe("OpenCodeThreadController", () => {
     controller.subscribe(vi.fn());
 
     await controller.load();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(
         controller.getState().childSessionsById.ses_child?.childSessionsById
           .ses_grandchild?.loadState.type,
@@ -2288,7 +2291,7 @@ describe("OpenCodeThreadController", () => {
 
     eventSource.emit(streamReconnected);
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       const state = controller.getState();
       const child = state.childSessionsById.ses_child;
       const grandchild = child?.childSessionsById.ses_grandchild;
@@ -2368,13 +2371,13 @@ describe("OpenCodeThreadController", () => {
     await controller.load();
 
     eventSource.emit(streamReconnected);
-    await vi.waitFor(() => expect(permissions).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(permissions).toHaveBeenCalledTimes(1));
 
     reconnectMessages.resolve({
       data: [createTaskMessage("ses_1", "parent-assistant", ["ses_child"])],
     });
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(
         controller.getState().childSessionsById.ses_child?.interactions
           .permissions.pending.perm_child,
@@ -2411,7 +2414,7 @@ describe("OpenCodeThreadController", () => {
 
     eventSource.emit(streamReconnected);
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(
         controller.getState().interactions.permissions.pending.perm_root,
       ).toBeDefined();
@@ -2454,7 +2457,7 @@ describe("OpenCodeThreadController", () => {
         controller.dispose();
       });
       await controller.load();
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(
           controller.getState().childSessionsById.ses_child?.loadState.type,
         ).toBe("ready"),
@@ -2493,7 +2496,7 @@ describe("OpenCodeThreadController", () => {
 
       eventSource.emit(streamReconnected);
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(
           state().interactions.permissions.pending.perm_offline,
         ).toBeUndefined();
@@ -2546,7 +2549,7 @@ describe("OpenCodeThreadController", () => {
       controller.getState().interactions.questions.pending.question_1;
 
     eventSource.emit(streamReconnected);
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(client.permission.list).toHaveBeenCalledTimes(1);
       expect(client.question.list).toHaveBeenCalledTimes(1);
     });
@@ -2591,7 +2594,7 @@ describe("OpenCodeThreadController", () => {
         subject: ReturnType<typeof createSubject>,
       ): Promise<void> => {
         subject.eventSource.emit(streamReconnected);
-        await vi.waitFor(() => {
+        await waitFor(() => {
           expect(subject.client.permission.list).toHaveBeenCalledTimes(1);
           expect(subject.client.question.list).toHaveBeenCalledTimes(1);
         });
@@ -2764,7 +2767,7 @@ describe("OpenCodeThreadController", () => {
 
     eventSource.emit(streamReconnected);
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(
         controller.getState().interactions.permissions.pending.perm_1?.title,
       ).toBe("Current permission");
@@ -2807,7 +2810,7 @@ describe("OpenCodeThreadController", () => {
 
     await controller.load();
     const unsubscribe = controller.subscribe(vi.fn());
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(
         controller.getState().childSessionsById.ses_child?.loadState.type,
       ).toBe("ready");
@@ -2907,7 +2910,7 @@ describe("OpenCodeThreadController", () => {
 
     resolveChildMessages?.({ data: [] });
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(
         controller.getState().childSessionsById.ses_child?.loadState.type,
       ).toBe("ready");
@@ -2958,7 +2961,7 @@ describe("OpenCodeThreadController", () => {
 
     await controller.load();
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(client.session.messages).toHaveBeenCalledTimes(4);
       expect(
         controller.getState().childSessionsById.ses_child_a?.childSessionsById
@@ -3054,7 +3057,7 @@ describe("OpenCodeThreadController", () => {
     const unsubscribe = controller.subscribe(listener);
 
     await controller.load();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(
         controller.getState().childSessionsById.ses_child?.loadState.type,
       ).toBe("ready");
@@ -3177,7 +3180,7 @@ describe("OpenCodeThreadController", () => {
     const unsubscribe = controller.subscribe(vi.fn());
 
     await controller.load();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(
         controller.getState().childSessionsById.ses_child?.loadState.type,
       ).toBe("ready");
@@ -3236,7 +3239,7 @@ describe("OpenCodeThreadController", () => {
     const unsubscribe = controller.subscribe(vi.fn());
 
     await controller.load();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(
         controller.getState().childSessionsById.ses_child?.loadState.type,
       ).toBe("ready");
@@ -3303,7 +3306,7 @@ describe("OpenCodeThreadController", () => {
     const unsubscribe = controller.subscribe(vi.fn());
 
     await controller.load();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(messages).toHaveBeenCalledTimes(2);
       expect(eventSource.subscribe).toHaveBeenCalledTimes(2);
     });
@@ -3357,7 +3360,7 @@ describe("OpenCodeThreadController", () => {
 
     eventSource.emit(streamReconnected);
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(controller.getState().sessionStatus).toMatchObject({
         type: "idle",
       });
@@ -3382,7 +3385,7 @@ describe("OpenCodeThreadController", () => {
 
     eventSource.emit(streamReconnected);
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(controller.getState().sessionStatus).toMatchObject({
         type: "busy",
       });
@@ -3416,7 +3419,7 @@ describe("OpenCodeThreadController", () => {
       raw: {},
     });
 
-    await vi.waitFor(() => expect(get).toHaveBeenCalledOnce());
+    await waitFor(() => expect(get).toHaveBeenCalledOnce());
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(controller.getState().loadState).toMatchObject({ type: "error" });
@@ -3462,14 +3465,14 @@ describe("OpenCodeThreadController", () => {
 
     firstSession.resolve({ data: { id: "stale_session", time: {} } });
     firstMessages.resolve({ data: [] });
-    await vi.waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
     expect(listMessages).toHaveBeenCalledTimes(2);
     expect(controller.getState().loadState).toMatchObject({ type: "loading" });
     expect(controller.getState().session).toBeNull();
 
     secondSession.resolve({ data: { id: "fresh_session", time: {} } });
     secondMessages.resolve({ data: [] });
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(controller.getState().loadState).toMatchObject({ type: "ready" }),
     );
     expect(controller.getState().session).toMatchObject({
@@ -3543,7 +3546,7 @@ describe("OpenCodeThreadController", () => {
 
     eventSource.emit(streamReconnected);
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(client.session.get).toHaveBeenCalledTimes(1);
       expect(client.session.status).toHaveBeenCalledTimes(1);
     });
@@ -3576,7 +3579,7 @@ describe("OpenCodeThreadController", () => {
 
     eventSource.emit(streamReconnected);
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(status).toHaveBeenCalledWith(undefined, { throwOnError: true });
       expect(permissions).toHaveBeenCalledWith(undefined, {
         throwOnError: true,
@@ -3627,7 +3630,7 @@ describe("OpenCodeThreadController", () => {
 
     eventSource.emit(streamReconnected);
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(
         Object.keys(controller.getState().interactions.permissions.pending),
       ).toEqual(["perm_1"]);
@@ -3872,7 +3875,7 @@ describe("OpenCodeThreadController", () => {
     controller.subscribe(vi.fn());
 
     eventSource.emit(streamReconnected);
-    await vi.waitFor(() => expect(client.permission.list).toHaveBeenCalled());
+    await waitFor(() => expect(client.permission.list).toHaveBeenCalled());
     controller.dispose();
     permissions.resolve({ data: [createPermissionRequest()] });
     await permissions.promise;
@@ -3914,7 +3917,7 @@ describe("OpenCodeThreadController", () => {
       controller.subscribe(vi.fn());
 
       eventSource.emit(streamReconnected);
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(
           isPermission ? client.permission.list : client.question.list,
         ).toHaveBeenCalled(),
@@ -3986,7 +3989,7 @@ describe("OpenCodeThreadController", () => {
       await controller.load();
 
       eventSource.emit(streamReconnected);
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(
           isPermission ? client.permission.list : client.question.list,
         ).toHaveBeenCalled(),
@@ -4003,7 +4006,7 @@ describe("OpenCodeThreadController", () => {
       });
       list.resolve({ data: [request] });
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         const interactions = controller.getState().interactions;
         const record = isPermission
           ? interactions.permissions.resolved[request.id]
@@ -4056,7 +4059,7 @@ describe("OpenCodeThreadController", () => {
         : controller.getState().interactions.questions.pending[request.id];
 
       eventSource.emit(streamReconnected);
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(
           isPermission ? client.permission.list : client.question.list,
         ).toHaveBeenCalled(),
@@ -4119,7 +4122,7 @@ describe("OpenCodeThreadController", () => {
       } as never);
 
       eventSource.emit(streamReconnected);
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(
           isPermission ? client.permission.list : client.question.list,
         ).toHaveBeenCalled(),
@@ -4165,7 +4168,7 @@ describe("OpenCodeThreadController", () => {
 
     eventSource.emit(streamReconnected);
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(
         controller.getState().interactions.permissions.pending.perm_1,
       ).toBeUndefined();
@@ -4226,7 +4229,7 @@ describe("OpenCodeThreadController", () => {
       } as never);
 
       eventSource.emit(streamReconnected);
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(
           isPermission ? client.permission.list : client.question.list,
         ).toHaveBeenCalled(),
@@ -4311,7 +4314,7 @@ describe("OpenCodeThreadController", () => {
       raw: {},
     });
     eventSource.emit(streamReconnected);
-    await vi.waitFor(() => expect(client.permission.list).toHaveBeenCalled());
+    await waitFor(() => expect(client.permission.list).toHaveBeenCalled());
 
     permissions.resolve({ data: [] });
     await permissions.promise;
@@ -4381,7 +4384,7 @@ describe("OpenCodeThreadController", () => {
       );
 
       eventSource.emit(streamReconnected);
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(
           isPermission ? client.permission.list : client.question.list,
         ).toHaveBeenCalled(),
@@ -4409,7 +4412,7 @@ describe("OpenCodeThreadController", () => {
       // still lists the request. It must not resurrect an answered one.
       list.resolve({ data: [snapshotItem] });
       await list.promise;
-      await vi.waitFor(() => expect(client.session.get).toHaveBeenCalled());
+      await waitFor(() => expect(client.session.get).toHaveBeenCalled());
 
       expect(settledOf()[id]).toBeDefined();
       const interactions = controller.getState().interactions;
@@ -4455,7 +4458,7 @@ describe("OpenCodeThreadController", () => {
     });
 
     eventSource.emit(streamReconnected);
-    await vi.waitFor(() => expect(client.permission.list).toHaveBeenCalled());
+    await waitFor(() => expect(client.permission.list).toHaveBeenCalled());
 
     const first = controller
       .replyToPermission("perm_1", "once" as never)
@@ -4496,7 +4499,7 @@ describe("OpenCodeThreadController", () => {
 
     eventSource.emit(streamReconnected);
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(
         controller.getState().interactions.questions.pending.q_1,
       ).toBeUndefined();
@@ -4574,7 +4577,7 @@ describe("OpenCodeThreadController", () => {
       await first;
 
       eventSource.emit(streamReconnected);
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(
           isPermission ? client.permission.list : client.question.list,
         ).toHaveBeenCalled(),
@@ -4700,7 +4703,7 @@ describe("OpenCodeThreadController", () => {
           : controller.replyToQuestion("shared_id", []);
 
       eventSource.emit(streamReconnected);
-      await vi.waitFor(() => {
+      await waitFor(() => {
         const recovered =
           replyKind === "permission"
             ? controller.getState().interactions.questions.pending.shared_id
@@ -4756,7 +4759,7 @@ describe("OpenCodeThreadController", () => {
       );
       controller.subscribe(vi.fn());
       eventSource.emit(streamReconnected);
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(
           isPermission ? client.permission.list : client.question.list,
         ).toHaveBeenCalled(),
@@ -4801,7 +4804,7 @@ describe("OpenCodeThreadController", () => {
 
     secondStatus.resolve({ data: {} });
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(controller.getState().sessionStatus).toMatchObject({
         type: "idle",
       });
@@ -5122,7 +5125,7 @@ describe("OpenCodeThreadController", () => {
       raw: {},
     });
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(controller.getState().messagesById.message_1?.parts).toMatchObject(
         [{ id: "part_1", text: "Live output" }],
       );
