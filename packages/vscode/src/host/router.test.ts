@@ -9,9 +9,12 @@ import { createVSCodeFetch } from "../webview/fetch";
 import { serveRoutes } from "./router";
 
 const waitFor = (predicate: () => boolean) =>
-  vi.waitFor(() => {
-    if (!predicate()) throw new Error("condition not met");
-  });
+  vi.waitFor(
+    () => {
+      if (!predicate()) throw new Error("condition not met");
+    },
+    { interval: 10 },
+  );
 
 const request = (id: string, method = "GET"): FetchRequestMessage => ({
   channel: VSCODE_BRIDGE_CHANNEL,
@@ -47,14 +50,18 @@ describe("serveRoutes", () => {
     try {
       bridge.port.postMessage(request("reused"));
       bridge.port.postMessage(request("another"));
-      await vi.waitFor(() => expect(requests).toHaveLength(2));
+      await vi.waitFor(() => expect(requests).toHaveLength(2), {
+        interval: 10,
+      });
       bridge.port.postMessage({
         channel: VSCODE_BRIDGE_CHANNEL,
         kind: "fetch:reset",
         id: "",
       });
       bridge.port.postMessage(request("reused"));
-      await vi.waitFor(() => expect(requests).toHaveLength(3));
+      await vi.waitFor(() => expect(requests).toHaveLength(3), {
+        interval: 10,
+      });
       expect(requests[0]?.signal.aborted).toBe(true);
       expect(requests[1]?.signal.aborted).toBe(true);
       expect(requests[2]?.signal.aborted).toBe(false);
@@ -62,14 +69,18 @@ describe("serveRoutes", () => {
       lateResponse.resolve(
         new Response(new ReadableStream({ cancel: cancelled })),
       );
-      await vi.waitFor(() => expect(cancelled).toHaveBeenCalledOnce());
+      await vi.waitFor(() => expect(cancelled).toHaveBeenCalledOnce(), {
+        interval: 10,
+      });
       expect(bridge.hostToWebview).toHaveLength(0);
       bridge.port.postMessage({
         channel: VSCODE_BRIDGE_CHANNEL,
         kind: "fetch:abort",
         id: "reused",
       });
-      await vi.waitFor(() => expect(requests[2]?.signal.aborted).toBe(true));
+      await vi.waitFor(() => expect(requests[2]?.signal.aborted).toBe(true), {
+        interval: 10,
+      });
       expect(onError).not.toHaveBeenCalled();
     } finally {
       server.dispose();
