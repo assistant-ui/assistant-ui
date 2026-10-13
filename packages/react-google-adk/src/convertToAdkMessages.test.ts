@@ -170,6 +170,24 @@ describe("getPendingCancellations", () => {
 });
 
 describe("getMessageContent", () => {
+  it.each(["file", "image"] as const)(
+    "sends percent-encoded %s data URL bytes as bare Gemini inline data",
+    (type) => {
+      const value = "data:image/png;base64,aGk%3D";
+      const content = getMessageContent(
+        makeAppendMessage(
+          type === "file"
+            ? [{ type: "file", data: value, mimeType: "image/png" }]
+            : [{ type: "image", image: value }],
+        ),
+      );
+
+      expect(contentToParts(content)).toEqual([
+        { inlineData: { mimeType: "image/png", data: "aGk=" } },
+      ]);
+    },
+  );
+
   it("sends activity messages as text parts", () => {
     expect(
       contentToParts([{ type: "activity", message: "Working on it" }]),
