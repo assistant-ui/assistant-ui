@@ -1,5 +1,6 @@
 import { deepEqual } from "../json-schema";
-import { getAtPointer, joinPointer, parsePointer } from "./pointer";
+import { evaluateFormula } from "./formula";
+import { getAtPointer, joinPointer, safePointerTokens } from "./pointer";
 import type { Condition } from "./types";
 
 /** What expressions can read while an element renders or an action runs. */
@@ -22,13 +23,18 @@ const SOURCE_KEYS = [
   "$index",
   "$event",
 ] as const;
-const EXPRESSION_KEYS = new Set<string>([...SOURCE_KEYS, "$cond", "$template"]);
+const EXPRESSION_KEYS = new Set<string>([
+  ...SOURCE_KEYS,
+  "$cond",
+  "$template",
+  "$calc",
+]);
 const COMPARATORS = ["eq", "neq", "gt", "gte", "lt", "lte"] as const;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-/** True for `{ $state }`, `{ $bindState }`, `{ $item }`, `{ $bindItem }`, `{ $index }`, `{ $event }`, `{ $cond }`, and `{ $template }`. */
+/** True for any supported state, binding, conditional, template, or formula expression. */
 export const isExpression = (
   value: unknown,
 ): value is Record<string, unknown> =>
@@ -36,16 +42,8 @@ export const isExpression = (
 
 const readPath = (base: unknown, path: unknown) =>
   typeof path === "string" && path !== ""
-    ? getAtPointer(base, safeTokens(path))
+    ? getAtPointer(base, safePointerTokens(path))
     : base;
-
-const safeTokens = (path: string) => {
-  try {
-    return parsePointer(path.startsWith("/") ? path : `/${path}`);
-  } catch {
-    return [];
-  }
-};
 
 const readSource = (
   expression: Record<string, unknown>,
@@ -103,6 +101,7 @@ export function renderTemplate(
 export function resolveValue(value: unknown, ctx: ExpressionContext): unknown {
   if (Array.isArray(value)) return value.map((item) => resolveValue(item, ctx));
   if (!isRecord(value)) return value;
+  if ("$calc" in value) return evaluateFormula(value["$calc"], ctx);
   if ("$cond" in value) {
     return evaluateCondition(value["$cond"] as Condition, ctx)
       ? resolveValue(value["$then"], ctx)

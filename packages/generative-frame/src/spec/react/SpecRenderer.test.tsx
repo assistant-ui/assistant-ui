@@ -112,7 +112,7 @@ describe("SpecRenderer", () => {
               on: {
                 press: {
                   action: "setState",
-                  params: { path: "/count", value: 5 },
+                  params: { path: "/count", value: { $calc: "${/count} + 1" } },
                 },
               },
             },
@@ -128,7 +128,7 @@ describe("SpecRenderer", () => {
     );
     expect(view.container.textContent).toBe("Count: 0Add");
     fireEvent.click(view.getByText("Add"));
-    expect(view.container.textContent).toBe("Count: 5AddPositive");
+    expect(view.container.textContent).toBe("Count: 1AddPositive");
     expect(view.container.querySelector("footer")?.textContent).toBe(
       "Positive",
     );

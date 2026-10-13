@@ -10,6 +10,14 @@ export function parsePointer(pointer: string): string[] {
     .map((token) => token.replace(/~1/g, "/").replace(/~0/g, "~"));
 }
 
+export const safePointerTokens = (path: string): string[] => {
+  try {
+    return parsePointer(path.startsWith("/") ? path : `/${path}`);
+  } catch {
+    return [];
+  }
+};
+
 export const escapePointerToken = (token: string | number): string =>
   String(token).replace(/~/g, "~0").replace(/\//g, "~1");
 

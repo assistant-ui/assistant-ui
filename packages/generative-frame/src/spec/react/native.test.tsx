@@ -16,13 +16,32 @@ const components: SpecComponents = {
   },
 };
 
-const spec = (elements: Spec["elements"]): Spec => ({
+const spec = (elements: Spec["elements"], state: Spec["state"] = {}): Spec => ({
   root: "main",
   elements,
-  state: {},
+  state,
 });
 
 describe("SpecRenderer for React Native", () => {
+  it("resolves calculated props", () => {
+    const view = render(
+      <SpecRenderer
+        components={components}
+        spec={spec(
+          {
+            main: { type: "Stack", children: ["count"] },
+            count: {
+              type: "Label",
+              props: { text: { $calc: "${/count} * 2" } },
+            },
+          },
+          { count: 3 },
+        )}
+      />,
+    );
+    expect(view.container.textContent).toBe("6");
+  });
+
   it("renders a pending child with a React Native placeholder", () => {
     const view = render(
       <SpecRenderer

@@ -160,7 +160,7 @@ import { buildWidgetInstructions } from "generative-frame/tools";
 const system = `${basePrompt}\n\n${await buildWidgetInstructions(tools)}`;
 ```
 
-`buildWidgetInstructions(tools, { preload })` returns a short section that tells the model when to show a widget, to call `read_me` first, and to change widgets with `edit_widget`. When `render_spec` is among the tools, the section instead tells the model to answer in Markdown when the answer is read once, with `render_spec` for structured content the user scans or acts on, and with `show_widget` for tools that calculate and visuals the components cannot draw, as [Choosing an answer format](/docs/tools/generative-ui-formats) describes. With `preload: { modules, platform }`, it appends the `read_me` output for those modules.
+`buildWidgetInstructions(tools, { preload })` returns a short section that tells the model when to show a widget, to call `read_me` first, and to change widgets with `edit_widget`. When `render_spec` is among the tools, the section instead tells the model to answer in Markdown when the answer is read once, with `render_spec` for structured content and bounded `$calc` formulas, and with `show_widget` for calculations outside `$calc` and visuals the components cannot draw, as [Choosing an answer format](/docs/tools/generative-ui-formats) describes. With `preload: { modules, platform }`, it appends the `read_me` output for those modules.
 
 ## Guidance
 

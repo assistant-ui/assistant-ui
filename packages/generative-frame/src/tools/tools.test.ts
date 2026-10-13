@@ -340,6 +340,7 @@ describe("server helpers", () => {
     expect(withoutModule).toContain(
       "- `render_spec` for structured content the user scans or acts on, built from the app's components:",
     );
+    expect(withoutModule).toContain("bounded `$calc` formulas");
     expect(withoutModule).not.toContain("`spec` module");
   });
 });

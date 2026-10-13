@@ -86,6 +86,12 @@ describe("defineCatalog", () => {
     expect(
       catalog.validateProps("Metric", { label: "x", value: { $state: "/n" } }),
     ).toEqual([]);
+    expect(
+      catalog.validateProps("Metric", {
+        label: "x",
+        value: { $calc: "1 + 1" },
+      }),
+    ).toEqual([]);
     expect(catalog.validateProps("Metric", { label: 1 })).toEqual([
       { path: "/value", message: "is required" },
       { path: "/label", message: "expected string, got integer" },
@@ -173,6 +179,8 @@ describe("catalog.prompt", () => {
     expect(prompt).toContain("- `setState`");
     expect(prompt).toContain('{"op":"add","path":"/root","value":"main"}');
     expect(prompt).toContain("$bindState");
+    expect(prompt).toContain("$calc");
+    expect(prompt).toContain("clamp(x, low, high)");
     expect(prompt).toContain("- Prefer cards.");
     expect(prompt).toContain("Output only patch lines");
   });
@@ -191,6 +199,57 @@ describe("validateSpec", () => {
       ok: true,
       issues: [],
     });
+  });
+
+  it("reports formula errors at props, visibility, and action parameter paths", () => {
+    const spec = validSpec();
+    spec.elements.m!.props = { label: "Total", value: { $calc: "1 +" } };
+    spec.elements.m!.visible = { $calc: "abs()" };
+    spec.elements.b!.on = {
+      press: {
+        action: "setState",
+        params: { path: "/count", value: { $calc: "missing(1)" } },
+      },
+    };
+
+    const { issues } = validateSpec(spec, catalog);
+    expect(
+      issues
+        .filter((issue) => issue.code === "invalid-expression")
+        .map(({ path, message }) => [path, message]),
+    ).toEqual([
+      [
+        "/elements/m/props/value/$calc",
+        expect.stringContaining("Expected a value"),
+      ],
+      [
+        "/elements/m/visible/$calc",
+        expect.stringContaining("expects 1 argument"),
+      ],
+      [
+        "/elements/b/on/press/params/value/$calc",
+        expect.stringContaining("Unknown function"),
+      ],
+    ]);
+  });
+
+  it("reports formulas that exceed the evaluation step limit for spec state", () => {
+    const spec = validSpec();
+    spec.state = {
+      values: Array.from({ length: 10_000 }, (_, index) => index),
+    };
+    spec.elements.m!.props = {
+      label: "Total",
+      value: { $calc: "sum(${/values})" },
+    };
+
+    expect(validateSpec(spec, catalog).issues).toContainEqual(
+      expect.objectContaining({
+        code: "invalid-expression",
+        path: "/elements/m/props/value/$calc",
+        message: expect.stringContaining("10000-step evaluation limit"),
+      }),
+    );
   });
 
   it("reports structured errors with JSON Pointers", () => {
@@ -274,7 +333,11 @@ describe("state store and actions", () => {
   });
 
   it("dispatches setState and catalog actions with resolved params", async () => {
-    const store = createStateStore({ range: "7d", items: [{ id: 1 }] });
+    const store = createStateStore({
+      range: "7d",
+      count: 2,
+      items: [{ id: 1 }],
+    });
     const refresh = vi.fn(() => "refreshed");
     const onError = vi.fn();
     const dispatch = createActionDispatcher({
@@ -290,6 +353,10 @@ describe("state store and actions", () => {
           params: { path: "/range", value: { $event: "/next" } },
         },
         {
+          action: "setState",
+          params: { path: "/count", value: { $calc: "${/count} + 1" } },
+        },
+        {
           action: "refresh",
           params: { range: { $state: "/range" }, id: { $item: "/id" } },
         },
@@ -302,11 +369,12 @@ describe("state store and actions", () => {
       },
     );
     expect(store.get("/range")).toBe("30d");
+    expect(store.get("/count")).toBe(3);
     expect(refresh).toHaveBeenCalledWith(
       { range: "30d", id: 7 },
       { elementId: "b", trigger: "press", state: store },
     );
-    expect(results).toEqual([undefined, "refreshed"]);
+    expect(results).toEqual([undefined, undefined, "refreshed"]);
     expect(onError).not.toHaveBeenCalled();
   });
 

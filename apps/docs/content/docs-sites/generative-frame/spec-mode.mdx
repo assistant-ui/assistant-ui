@@ -245,11 +245,16 @@ Any prop or action param can be an expression:
 | `{ "$state": "/path" }` | The state value at a JSON Pointer. |
 | `{ "$bindState": "/path" }` | The same, and the component can write it back with `setProp`. |
 | `{ "$template": "Hi ${/name}" }` | A string with state values filled in. |
+| `{ "$calc": "round(${/guests} * 0.5, 1)" }` | A bounded formula that computes a value from state, repeat items, indexes, or event data. |
 | `{ "$cond": condition, "$then": a, "$else": b }` | `a` or `b`. |
 | `{ "$item": "/field" }`, `{ "$bindItem": "/field" }`, `{ "$index": true }` | The current item, a two-way binding to it, and its index, inside `repeat`. |
 | `{ "$event": "" }` | The payload of the event that triggered an action. |
 
-`visible` takes a condition: a boolean, a value expression (truthy), a comparison such as `{ "$state": "/count", "gt": 0 }` with `eq`, `neq`, `gt`, `gte`, `lt`, or `lte`, `{ "not": condition }`, `{ "$and": [...] }`, `{ "$or": [...] }`, or an array (all must hold). A condition with an unknown shape is false, so a half-streamed condition hides its element.
+`$calc` supports numbers, quoted strings, booleans, `null`, and `${…}` references. Operators, from loosest to tightest, are `? :`, `||`, `&&`, `== !=`, `< <= > >=`, `+ -`, `* / %`, unary `- !`, and parentheses. `+` adds numbers and joins text when either side is a string, with `null` as empty text; other arithmetic needs numbers. Equality uses deep equality, and ordered comparisons accept two numbers or two strings.
+
+Functions are `round(x, digits?)`, `floor(x)`, `ceil(x)`, `abs(x)`, `min(...numbers)` or `min(list, field?)`, `max(...numbers)` or `max(list, field?)`, `clamp(x, low, high)`, `count(list)`, `sum(list, field?)`, `avg(list, field?)`, `number(x, digits?)`, `currency(x, code)`, `percent(x, digits?)`, `time(minutes)`, and `plural(n, one, other)`. List functions can read a field with a JSON Pointer, for example `sum(${/items}, '/price')`. Text formatting uses `en-US`; explicit `number` and `percent` digits set exact fraction digits, and `time` formats minutes after midnight. Missing references, division by zero, non-finite results, and arithmetic on non-numbers evaluate to `null`. Formulas are limited to 500 characters, 32 nested levels, and 10,000 evaluation steps. Validation reports formula syntax, function, argument-count, and known evaluation-limit errors, but does not check a formula's result type against the prop schema; invalid formulas evaluate to `null`.
+
+`visible` takes a condition: a boolean, a value expression (truthy), a comparison such as `{ "$state": "/count", "gt": 0 }` with `eq`, `neq`, `gt`, `gte`, `lt`, or `lte`, `{ "$calc": "${/count} > 0" }`, `{ "not": condition }`, `{ "$and": [...] }`, `{ "$or": [...] }`, or an array (all must hold). A condition with an unknown shape is false, so a half-streamed condition hides its element.
 
 `repeat: { path, key? }` renders the element's children once per item of the state array at `path`.
 

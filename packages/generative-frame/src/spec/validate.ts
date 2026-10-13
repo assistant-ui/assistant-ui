@@ -1,4 +1,5 @@
 import type { Catalog } from "./catalog";
+import { formulaIssue } from "./formula";
 import { escapePointerToken } from "./pointer";
 import type { ActionBinding, Spec, SpecElement } from "./types";
 
@@ -15,6 +16,7 @@ export type SpecIssueCode =
   | "unknown-event"
   | "unknown-action"
   | "invalid-params"
+  | "invalid-expression"
   | "invalid-repeat"
   | "unreachable"
   | "invalid-patch";
@@ -59,6 +61,32 @@ export function validateSpec(
   const issues: SpecIssue[] = [];
   const error = (issue: Omit<SpecIssue, "severity">) =>
     issues.push({ severity: "error", ...issue });
+  const checkFormulas = (value: unknown, path: string, id: string) => {
+    if (Array.isArray(value)) {
+      value.forEach((item, index) =>
+        checkFormulas(item, `${path}/${index}`, id),
+      );
+      return;
+    }
+    if (typeof value !== "object" || value === null) return;
+    const record = value as Record<string, unknown>;
+    if (Object.hasOwn(record, "$calc")) {
+      const message = formulaIssue(record["$calc"], { state: spec?.state });
+      if (message) {
+        error({
+          code: "invalid-expression",
+          elementId: id,
+          path: `${path}/$calc`,
+          message,
+        });
+      }
+    }
+    for (const [key, child] of Object.entries(record)) {
+      if (key !== "$calc") {
+        checkFormulas(child, `${path}/${escapePointerToken(key)}`, id);
+      }
+    }
+  };
   const elements: Record<string, SpecElement> =
     spec && typeof spec.elements === "object" && spec.elements
       ? spec.elements
@@ -137,6 +165,7 @@ export function validateSpec(
           message: `${binding.action} params ${issue.path === "/" ? "" : `${issue.path} `}${issue.message}`,
         });
       }
+      checkFormulas(binding.params, `${at}/params`, id);
     });
   };
 
@@ -156,6 +185,8 @@ export function validateSpec(
       continue;
     }
     const definition = catalog.component(element.type);
+    checkFormulas(element.props, `${path}/props`, id);
+    checkFormulas(element.visible, `${path}/visible`, id);
     if (!definition) {
       error({
         code: "unknown-type",

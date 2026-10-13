@@ -146,4 +146,4 @@ What a widget knows is what the model wrote into it plus what you send it. Theme
 
 ## Spec mode runs no model code
 
-In [spec mode](/generative-frame/docs/spec-mode) there is no frame and no model-written code. The model writes data: which of your catalog's components to render, with which props, bound to which of your actions. With the catalog passed to `SpecRenderer`, props are validated before rendering. Expressions only read and write the spec's state, and every action other than the built-in `setState` runs through a handler you wrote. The components and handlers you supply are the whole attack surface.
+In [spec mode](/generative-frame/docs/spec-mode) there is no frame and no model-written code. The model writes data: which of your catalog's components to render, with which props, bound to which of your actions. With the catalog passed to `SpecRenderer`, props are validated before rendering. Expressions read state and `$calc` evaluates bounded formulas over that data; every action other than the built-in `setState` runs through a handler you wrote. The components and handlers you supply are the whole attack surface.

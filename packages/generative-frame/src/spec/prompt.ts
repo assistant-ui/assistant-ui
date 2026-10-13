@@ -90,14 +90,21 @@ ${list([
   '`{ "$state": "/path" }` reads state.',
   '`{ "$bindState": "/path" }` reads state and lets the component write it back (inputs, toggles, selects).',
   '`{ "$template": "Hello ${/user/name}" }` fills `${…}` placeholders with state values.',
+  '`{ "$calc": "min(${/guests} + 1, 20)" }` evaluates a bounded formula and returns a number, boolean, string, or null.',
   '`{ "$cond": condition, "$then": a, "$else": b }` picks a value.',
   'Inside `repeat`: `{ "$item": "/field" }`, `{ "$bindItem": "/field" }`, `{ "$index": true }`, and `${$item/field}` in templates.',
+  "Formulas use numbers, quoted strings, `true`, `false`, `null`, and references such as `${/path}`, `${$item/price}`, `${$index}`, and `${$event/value}`.",
+  "Operators, from loosest to tightest: `? :`, `||`, `&&`, `== !=`, `< <= > >=`, `+ -`, `* / %`, unary `- !`, and parentheses.",
+  "Functions: `round(x, digits?)`, `floor(x)`, `ceil(x)`, `abs(x)`, `min(...numbers)` or `min(list, field?)`, `max(...numbers)` or `max(list, field?)`, `clamp(x, low, high)`, `count(list)`, `sum(list, field?)`, `avg(list, field?)`, `number(x, digits?)`, `currency(x, code)`, `percent(x, digits?)`, `time(minutes)`, and `plural(n, one, other)`. List field pointers look like `'/price'`.",
+  "The `+` operator adds numbers and joins text when either side is a string; `null` becomes empty text. Other arithmetic needs numbers. Comparisons use deep equality or compare two numbers or two strings.",
+  "`&&`, `||`, and `!` use truthiness and produce booleans. Text functions format with `en-US`; `number` and `percent` digits set the exact fraction digits, and `time` formats minutes after midnight.",
+  "Missing references, division by zero, and non-finite results evaluate to `null`. A formula is limited to 500 characters, 32 nested levels, and 10,000 evaluation steps. Invalid formulas are reported by spec validation and evaluate to `null`.",
 ])}
 
 ## Visibility and repetition
 
 ${list([
-  '`"visible"` takes a condition: `true`/`false`, `{ "$state": "/open" }` (truthy), a comparison `{ "$state": "/count", "gt": 0 }` with `eq`, `neq`, `gt`, `gte`, `lt`, or `lte`, `{ "not": condition }`, `{ "$or": [ … ] }`, `{ "$and": [ … ] }`, or an array (all must hold).',
+  '`"visible"` takes a condition: `true`/`false`, `{ "$state": "/open" }` or `{ "$calc": "${/count} > 0" }` (truthy), a comparison `{ "$state": "/count", "gt": 0 }` with `eq`, `neq`, `gt`, `gte`, `lt`, or `lte`, `{ "not": condition }`, `{ "$or": [ … ] }`, `{ "$and": [ … ] }`, or an array (all must hold).',
   '`"repeat": { "path": "/items", "key": "id" }` renders the element\'s children once per item of the state array at `path`.',
   '`"watch": { "/path": action }` runs an action whenever that state value changes.',
 ])}`;
@@ -109,7 +116,7 @@ const EXAMPLE = `## Example
 {"op":"add","path":"/elements/main","value":{"type":"Stack","props":{"gap":"md"},"children":["title","counter","bump"]}}
 {"op":"add","path":"/elements/title","value":{"type":"Heading","props":{"text":"Clicks"}}}
 {"op":"add","path":"/elements/counter","value":{"type":"Text","props":{"text":{"$template":"Clicked \${/count} times"}}}}
-{"op":"add","path":"/elements/bump","value":{"type":"Button","props":{"label":"Click"},"on":{"press":{"action":"setState","params":{"path":"/count","value":1}}}}}
+{"op":"add","path":"/elements/bump","value":{"type":"Button","props":{"label":"Click"},"on":{"press":{"action":"setState","params":{"path":"/count","value":{"$calc":"\${/count} + 1"}}}}}}
 
 (The example's types are illustrative; use the components listed above.)`;
 

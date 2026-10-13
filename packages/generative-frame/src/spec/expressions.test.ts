@@ -44,6 +44,22 @@ describe("resolveValue", () => {
     ).toEqual({ label: "many", list: ["x", 1] });
   });
 
+  it("evaluates formulas in props, conditional branches, and visibility", () => {
+    const ctx = { state: { guests: 4, count: 1 } };
+    expect(resolveValue({ $calc: "round(${/guests} * 0.5, 1)" }, ctx)).toBe(2);
+    expect(
+      resolveValue(
+        {
+          $cond: { $state: "/guests", gt: 2 },
+          $then: { $calc: "${/count} + 1" },
+          $else: 0,
+        },
+        ctx,
+      ),
+    ).toBe(2);
+    expect(evaluateCondition({ $calc: "${/guests} > 2" }, ctx)).toBe(true);
+  });
+
   it("fills templates", () => {
     expect(
       renderTemplate(
@@ -70,6 +86,7 @@ describe("resolveValue", () => {
   it("detects expressions", () => {
     expect(isExpression({ $state: "/a" })).toBe(true);
     expect(isExpression({ $template: "" })).toBe(true);
+    expect(isExpression({ $calc: "1 + 1" })).toBe(true);
     expect(isExpression({ state: "/a" })).toBe(false);
     expect(isExpression(["$state"])).toBe(false);
   });
