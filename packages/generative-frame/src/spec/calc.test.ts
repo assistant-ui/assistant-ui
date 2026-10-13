@@ -396,6 +396,18 @@ describe("formula bounds and parsing", () => {
     expect(evaluateFormula("sum(${/a}) + sum(${/b})", shared)).toBeNull();
   });
 
+  it("counts every value an equality visits against the budget", () => {
+    const list = (length: number) => Array.from({ length }, (_, i) => ({ i }));
+    expect(
+      evaluateFormula("${/a} == ${/b}", { state: { a: list(3), b: list(3) } }),
+    ).toBe(true);
+    expect(
+      evaluateFormula("${/a} != ${/b}", {
+        state: { a: list(6000), b: list(6000) },
+      }),
+    ).toBeNull();
+  });
+
   it("spends steps on every visited item, including non-numeric items", () => {
     const context = {
       state: { large: Array.from({ length: 20_000 }, () => null) },

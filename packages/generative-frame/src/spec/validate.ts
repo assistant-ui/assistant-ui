@@ -142,16 +142,21 @@ export function validateSpec(
     });
   };
 
-  const checkFormulas = (
-    id: string,
-    path: string,
-    value: unknown,
-    depth: number,
-  ) => {
-    if (typeof value !== "object" || value === null || depth > 64) return;
-    for (const [key, child] of Object.entries(value)) {
-      const at = `${path}/${escapePointerToken(key)}`;
-      if (key === "$calc" && !Array.isArray(value)) {
+  const checkFormulas = (id: string, path: string, value: unknown) => {
+    const seen = new Set<object>();
+    const pending: [string, unknown][] = [[path, value]];
+    for (let next = pending.pop(); next; next = pending.pop()) {
+      const [at, current] = next;
+      if (typeof current !== "object" || current === null) continue;
+      if (seen.has(current)) continue;
+      seen.add(current);
+      const children: [string, unknown][] = [];
+      for (const [key, child] of Object.entries(current)) {
+        const childPath = `${at}/${escapePointerToken(key)}`;
+        if (key !== "$calc" || Array.isArray(current)) {
+          children.push([childPath, child]);
+          continue;
+        }
         const issue =
           typeof child === "string"
             ? formulaIssue(child)
@@ -160,13 +165,12 @@ export function validateSpec(
           error({
             code: "invalid-formula",
             elementId: id,
-            path: at,
+            path: childPath,
             message: `Formula in "${id}": ${issue}.`,
           });
         }
-      } else {
-        checkFormulas(id, at, child, depth + 1);
       }
+      pending.push(...children.reverse());
     }
   };
 
@@ -273,7 +277,7 @@ export function validateSpec(
       );
     }
     for (const key of ["props", "visible", "on", "watch"] as const) {
-      checkFormulas(id, `${path}/${key}`, element[key], 0);
+      checkFormulas(id, `${path}/${key}`, element[key]);
     }
     if (
       element.repeat !== undefined &&

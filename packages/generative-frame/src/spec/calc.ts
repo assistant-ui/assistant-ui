@@ -1,4 +1,3 @@
-import { deepEqual } from "../json-schema";
 import type { ExpressionContext } from "./expressions";
 import { getAtPointer, parsePointer } from "./pointer";
 
@@ -390,13 +389,32 @@ const parsedFormula = (formula: string): Node | string => {
   return result;
 };
 
+const equal = (a: unknown, b: unknown, step: () => void): boolean => {
+  step();
+  if (a === b) return true;
+  if (typeof a !== "object" || typeof b !== "object" || !a || !b) return false;
+  if (Array.isArray(a) !== Array.isArray(b)) return false;
+  const keys = Object.keys(a);
+  return (
+    keys.length === Object.keys(b).length &&
+    keys.every((key) =>
+      equal(
+        (a as Record<string, unknown>)[key],
+        (b as Record<string, unknown>)[key],
+        step,
+      ),
+    )
+  );
+};
+
 const calculate = (
   operator: string,
   left: unknown,
   right: unknown,
+  step: () => void,
 ): unknown => {
-  if (operator === "==") return deepEqual(left, right);
-  if (operator === "!=") return !deepEqual(left, right);
+  if (operator === "==") return equal(left, right, step);
+  if (operator === "!=") return !equal(left, right, step);
   if (
     operator === "+" &&
     (typeof left === "string" || typeof right === "string")
@@ -457,7 +475,7 @@ const evaluate = (
         return Boolean(left) && Boolean(visit(node.right));
       if (node.operator === "||")
         return Boolean(left) || Boolean(visit(node.right));
-      return calculate(node.operator, left, visit(node.right));
+      return calculate(node.operator, left, visit(node.right), step);
     }
   }
 };

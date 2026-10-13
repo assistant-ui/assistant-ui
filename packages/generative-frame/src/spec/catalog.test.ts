@@ -268,6 +268,21 @@ describe("validateSpec", () => {
     ]);
   });
 
+  it("finds formulas at any depth and stops at repeated objects", () => {
+    const spec = validSpec();
+    let deep: Record<string, unknown> = { $calc: "1 +" };
+    for (let i = 0; i < 100; i++) deep = { inner: deep };
+    const looped: Record<string, unknown> = {};
+    looped["self"] = looped;
+    spec.elements["m"]!.props = { label: "Total", value: 1, deep, looped };
+    const paths = validateSpec(spec, catalog)
+      .issues.filter((issue) => issue.code === "invalid-formula")
+      .map((issue) => issue.path);
+    expect(paths).toEqual([
+      `/elements/m/props/deep${"/inner".repeat(100)}/$calc`,
+    ]);
+  });
+
   it("finds cycles, including self references", () => {
     const spec: Spec = {
       root: "a",
