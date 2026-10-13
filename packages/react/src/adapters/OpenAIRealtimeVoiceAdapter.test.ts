@@ -182,6 +182,7 @@ describe("OpenAIRealtimeVoiceAdapter", () => {
     channel.emit({ type: "response.done", response: { status: "completed" } });
     expect(onMode.mock.calls).toEqual([["speaking"]]);
     channel.emit({ type: "input_audio_buffer.speech_started" });
+    expect(onMode.mock.calls).toEqual([["speaking"]]);
     channel.emit({ type: "output_audio_buffer.cleared" });
     expect(onMode).toHaveBeenLastCalledWith("listening");
   });

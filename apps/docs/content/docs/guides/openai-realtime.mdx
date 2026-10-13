@@ -28,8 +28,25 @@ export async function POST(request: Request) {
   if (!apiKey) {
     return new Response("Voice is not configured", { status: 503 });
   }
-  const sdp = await request.text();
-  if (!sdp.startsWith("v=0") || sdp.length > 64_000) {
+  const reader = request.body?.getReader();
+  if (!reader) {
+    return new Response("Missing connection offer", { status: 400 });
+  }
+  const decoder = new TextDecoder();
+  let sdp = "";
+  let bytes = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    bytes += value.byteLength;
+    if (bytes > 64_000) {
+      await reader.cancel();
+      return new Response("Connection offer too large", { status: 413 });
+    }
+    sdp += decoder.decode(value, { stream: true });
+  }
+  sdp += decoder.decode();
+  if (!sdp.startsWith("v=0")) {
     return new Response("Invalid connection offer", { status: 400 });
   }
 
@@ -118,7 +135,7 @@ export function Assistant() {
 
 This assumes an existing AI SDK chat setup, including `/api/chat`, the [Thread element](/elements/thread), the [voice controls](/elements/orb), and the [Voice Conversation element](/elements/voice-conversation). The adapter also works with other runtimes that accept `adapters.voice`; their [transcript persistence behavior](/docs/guides/voice#realtimevoiceadapter) still applies.
 
-Use HTTPS or localhost and connect from a user action so the browser can request microphone permission and play audio. Microphone or playback failures end the session with an error exposed by `useVoiceState`.
+Use HTTPS or localhost and connect from a user action so the browser can request microphone permission and play audio. Microphone or playback failures end the session; `useVoiceState()` returns `undefined` once the session ends.
 
 ## Conversation behavior
 

@@ -215,7 +215,6 @@ export class OpenAIRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
             break;
           case "output_audio_buffer.stopped":
           case "output_audio_buffer.cleared":
-          case "input_audio_buffer.speech_started":
             setSpeaking(false);
             break;
           case "conversation.item.added": {
