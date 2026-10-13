@@ -115,7 +115,7 @@ export function createGenerativeUISuite({
     },
     view: (judged) => ({
       mark: judged.errors.length || judged.runtimeErrors.length ? "x" : ".",
-      verdict: `${formatScore(overall(judged.scores))}, ${judged.repairRounds} repair round(s), ${judged.errors.length} error(s) left, ${judged.runtimeErrors.length} while rendering: ${judged.reason}`,
+      verdict: `${formatScore(overall(judged.scores))}, presentation ${judged.scores.presentation}, ${judged.repairRounds} repair round(s), ${judged.errors.length} error(s) left, ${judged.runtimeErrors.length} while rendering: ${judged.reason}`,
       artifact: judged.screenshots.length
         ? `${judged.artifact}\n(screenshots: ${judged.screenshots.join(", ")})`
         : judged.artifact,

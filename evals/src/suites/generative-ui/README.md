@@ -20,7 +20,7 @@ The answer then renders 680 px wide the way a chat app shows it: Markdown with t
 
 The page is captured in slices 1,000 px tall, since vision models shrink a taller image until its text is unreadable; an answer taller than eight slices is cut off, and the judge is told so.
 
-A fresh judge sees the request, the screenshots of the rendered answer, and any errors left, then scores clarity, usefulness, and completeness from 1 to 5. Usefulness covers the interaction the request asks for, such as changing the guest count and seeing quantities update; three of the six tasks need that kind of computed value. A screenshot cannot show what a control does, so a `present`, spec, or frame answer also gives the judge its source, to be read only for what its controls change.
+A fresh judge sees the request, the screenshots of the rendered answer, and any errors left, then scores clarity, usefulness, completeness, and presentation from 1 to 5. The mean of the first three is the answer's score, as in earlier runs; presentation, whether the answer is laid out for its content the way a well-designed app would show it, is reported on its own. Usefulness covers the interaction the request asks for, such as changing the guest count and seeing quantities update; three of the nine tasks need that kind of computed value. A screenshot cannot show what a control does, so a `present`, spec, or frame answer also gives the judge its source, to be read only for what its controls change.
 
 ## What it does not measure yet
 
@@ -29,6 +29,7 @@ A fresh judge sees the request, the screenshots of the rendered answer, and any 
 - Only the last tool answer renders: attempts that a repair replaced, which a chat app would still show, are left out.
 - Frame mode has no static validation beyond an empty widget or an edit that does not apply.
 - One judge grades every model, so expect some bias toward its own vendor's style; rerun with another `JUDGE_MODEL` to check a result.
+- The models get no image or place search, so an answer shows photos only when it writes image URLs itself; `examples/with-generative-ui` gives its model a `search_images` tool.
 
 ## Tasks
 
@@ -40,6 +41,9 @@ A fresh judge sees the request, the screenshots of the rendered answer, and any 
 | `monty-hall` | an explanation the user can play with | yes |
 | `laptop-comparison` | a comparison of several options | no |
 | `road-trip` | a multi-day route plan | no |
+| `dinner-party` | a dinner plan with a menu, shopping, and timing | no |
+| `capsule-wardrobe` | a wardrobe to buy and combine | no |
+| `pnw-road-trip` | a ten-day route with places to stay and a budget | no |
 
 ## Running
 
@@ -54,15 +58,15 @@ MODELS=openai/gpt-6-astra pnpm eval generative-ui            # one model
 CANDIDATES=spec:openai/gpt-6-astra,frame:openai/gpt-6-astra MODELS=openai/gpt-6-astra pnpm eval generative-ui
 ```
 
-`MODELS` takes comma-separated gateway model ids and defaults to `anthropic/claude-opus-5.5`, `openai/gpt-6-astra`, and `google/gemini-3.1-pro-preview`. `JUDGE_MODEL` defaults to `anthropic/claude-sonnet-5.5`. A full run makes 6 tasks × 5 candidates × 3 models × `TRIALS` answers, plus one judge call for each. A task's trials run a dozen at a time while the browser renders one answer at a time, so a full run with the default 3 trials takes about half an hour.
+`MODELS` takes comma-separated gateway model ids and defaults to `anthropic/claude-opus-5.5`, `openai/gpt-6-astra`, and `google/gemini-3.1-pro-preview`. `JUDGE_MODEL` defaults to `anthropic/claude-sonnet-5.5`. A full run makes 9 tasks × 5 candidates × 3 models × `TRIALS` answers, plus one judge call for each. A task's trials run a dozen at a time while the browser renders one answer at a time, so a full run with the default 3 trials takes about 40 minutes.
 
-The report lists, per model, each format's share of answers that passed validation, share that raised errors while rendering, repair rounds, scores, mean score on computed and other tasks, tokens, time to first output, and total time, then each task's mean score by format and how often `auto` chose each format on it, counting an answer tool call that failed before it ran as a choice of its tool's format. Comparing `spec` with `frame` on computed tasks answers the second question, and comparing `auto` with the best format on each task answers the third. Each trial's screenshots, one file per slice, and a JSON file with its answer, errors, scores, and the judge's reason are saved in `results/generative-ui/trials/<task>/`.
+The report lists, per model, each format's share of answers that passed validation, share that raised errors while rendering, repair rounds, scores including presentation, mean score on computed and other tasks, tokens, time to first output, and total time, then each task's mean score and mean presentation by format and how often `auto` chose each format on it, counting an answer tool call that failed before it ran as a choice of its tool's format. Comparing `spec` with `frame` on computed tasks answers the second question, and comparing `auto` with the best format on each task answers the third. Each trial's screenshots, one file per slice, and a JSON file with its answer, errors, scores, and the judge's reason are saved in `results/generative-ui/trials/<task>/`.
 
 ## Layout
 
 ```
 index.ts        the suite: one candidate per model and format
-tasks.ts        the six requests
+tasks.ts        the nine requests
 formats.ts      each format's system prompt, tools, and validation
 generate.ts     one answer, with its repair rounds
 render.ts       renders an answer in Chrome and captures it
