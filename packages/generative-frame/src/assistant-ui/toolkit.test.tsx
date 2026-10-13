@@ -1335,7 +1335,8 @@ describe("sharing with the model", () => {
               press: { action: "setState", params: { path: "/n", value: 1 } },
             },
             watch: {
-              "/n": { action: "sendMessage", params: { text: "auto" } },
+              n: { action: "sendMessage", params: { text: "auto" } },
+              "": { action: "sendMessage", params: { text: "root" } },
             },
           }),
         })}
@@ -1345,6 +1346,66 @@ describe("sharing with the model", () => {
       fireEvent.click(screen.getByText("Go"));
     });
     expect(mocks.append).not.toHaveBeenCalled();
+  });
+
+  it("keeps saving state when a spec shares data that is not plain JSON", async () => {
+    const record = vi.fn(async (_input: unknown) => {});
+    const RenderSpec = entries(specToolkit())["render_spec"]!.render;
+    const view = render(
+      <RenderSpec
+        {...partProps("s", {
+          title: "flights",
+          patches: button({
+            on: {
+              press: {
+                action: "updateModelContext",
+                params: { data: { seat: { $state: "/seat" } } },
+              },
+            },
+          }),
+        })}
+        unstable_recordInteraction={record}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByText("Go"));
+    });
+    view.unmount();
+    expect(record).toHaveBeenLastCalledWith({
+      type: "action",
+      payload: {
+        type: "setState",
+        toolCallId: "s",
+        writes: [],
+        context: { data: {} },
+      },
+    });
+  });
+
+  it("restores nothing for the model when the host handles widget context itself", () => {
+    const { toolkit } = createWidgetToolkit({
+      widget: { onUpdateModelContext: () => ({}) },
+    });
+    const ShowWidget = entries(toolkit)["show_widget"]!.render;
+    render(
+      <ShowWidget
+        {...partProps("a", { title: "flights", widget_code: "<p>w</p>" })}
+        unstable_interactions={{
+          entries: [
+            {
+              type: "action",
+              payload: {
+                type: "widgetState",
+                toolCallId: "a",
+                state: null,
+                context,
+              },
+            },
+          ],
+        }}
+      />,
+    );
+    expect(shared()).toBe("");
   });
 
   it("documents the built-in actions in the spec module", async () => {

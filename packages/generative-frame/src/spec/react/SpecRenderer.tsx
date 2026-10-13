@@ -311,6 +311,7 @@ function ResolvedElement({
           ...currentScope,
           elementId: id,
           trigger: path,
+          kind: "watch",
         });
       }
     }
@@ -332,6 +333,7 @@ function ResolvedElement({
           ...currentScope,
           elementId: id,
           trigger: event,
+          kind: "event",
           payload,
         });
       },

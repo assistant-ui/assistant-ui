@@ -367,7 +367,7 @@ export function createWidgetToolkit(
     const share = useSharedContext({
       title,
       toolCallId,
-      initial: initialContext,
+      initial: widgetProps.onUpdateModelContext ? undefined : initialContext,
       useModelContext: useWidgetModelContext,
       onShare: (context) => {
         latest.current.context = context;

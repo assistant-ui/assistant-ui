@@ -319,7 +319,9 @@ export const specToolkitFor =
         const share = useSharedContext({
           title,
           toolCallId,
-          initial: initialContext,
+          initial: options.handlers?.["updateModelContext"]
+            ? undefined
+            : initialContext,
           useModelContext,
           onShare: (next) => {
             context.current = next;
@@ -330,11 +332,10 @@ export const specToolkitFor =
           () => ({
             sendMessage: (
               params: Record<string, unknown>,
-              source: { trigger?: string },
+              source: { kind?: string },
             ) => {
               const text = params["text"];
-              // `watch` bindings report the watched state path as their trigger, and a message must follow a user's action.
-              if (source.trigger?.startsWith("/")) return;
+              if (source.kind === "watch") return;
               if (typeof text === "string" && text.trim()) sendMessage(text);
             },
             updateModelContext: (params: Record<string, unknown>) =>

@@ -8,6 +8,8 @@ export type ActionSource = {
   elementId?: string;
   /** The event name, or the watched path for `watch`. */
   trigger?: string;
+  /** Whether a component's event or a `watch` binding dispatched the action. */
+  kind?: "event" | "watch";
 };
 
 export type ActionHandler = (
@@ -68,7 +70,7 @@ export function createActionDispatcher(
           : [bindings];
     const results: unknown[] = [];
     for (const binding of list as ActionBinding[]) {
-      const { payload, elementId, trigger, ...scope } = context;
+      const { payload, elementId, trigger, kind, ...scope } = context;
       const params = (resolveValue(binding.params ?? {}, {
         ...scope,
         state: options.store.getState(),
@@ -77,6 +79,7 @@ export function createActionDispatcher(
       const source = {
         ...(elementId !== undefined ? { elementId } : {}),
         ...(trigger !== undefined ? { trigger } : {}),
+        ...(kind !== undefined ? { kind } : {}),
         state: options.store,
       };
       try {

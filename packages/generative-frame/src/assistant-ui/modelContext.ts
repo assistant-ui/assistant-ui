@@ -61,12 +61,18 @@ export function frameContext(params: unknown): SharedContext | undefined {
   return toSharedContext(text, params["structuredContent"]);
 }
 
-/** A context small enough to record and to put in a prompt: one whose JSON exceeds the cap keeps its text and data only as truncated text. */
-export function boundContext(context: SharedContext): SharedContext {
-  if (stringify(context).length <= MAX_CONTEXT) return context;
-  const data = context.data === undefined ? "" : stringify(context.data);
+/** A context as plain JSON, so it never makes the snapshot it rides in unrecordable, and small enough for a record and a prompt: one whose JSON exceeds the cap keeps its text and data only as truncated text. */
+export function boundContext(
+  context: SharedContext,
+): SharedContext | undefined {
+  const json = stringify(context);
+  if (!json) return undefined;
+  const plain = JSON.parse(json) as Record<string, unknown>;
+  const bounded = toSharedContext(plain["text"], plain["data"]);
+  if (!bounded || json.length <= MAX_CONTEXT) return bounded;
+  const data = bounded.data === undefined ? "" : stringify(bounded.data);
   return {
-    text: truncate([context.text, data].filter(Boolean).join(" "), MAX_CONTEXT),
+    text: truncate([bounded.text, data].filter(Boolean).join(" "), MAX_CONTEXT),
   };
 }
 

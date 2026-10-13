@@ -60,11 +60,18 @@ describe("shared model context", () => {
 
   it("bounds a context that would not fit in a record or a prompt", () => {
     const small = { text: "x", data: [1] };
-    expect(boundContext(small)).toBe(small);
-    const large = boundContext({ text: "y", data: "z".repeat(5000) });
+    expect(boundContext(small)).toEqual(small);
+    const large = boundContext({ text: "y", data: "z".repeat(5000) })!;
     expect(Object.keys(large)).toEqual(["text"]);
     expect(large.text).toHaveLength(4000);
     expect(large.text!.endsWith("…")).toBe(true);
+  });
+
+  it("turns a context into plain JSON, so it cannot make a snapshot unrecordable", () => {
+    expect(
+      boundContext({ data: { seat: undefined, n: Number.NaN, at: [1] } }),
+    ).toEqual({ data: { n: null, at: [1] } });
+    expect(boundContext({ data: undefined })).toBeUndefined();
   });
 
   it("names the UI and marks what it shares as data that cannot close its element", () => {
