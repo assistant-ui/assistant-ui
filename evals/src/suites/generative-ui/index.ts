@@ -22,11 +22,11 @@ const modelName = (model: LanguageModel) =>
   typeof model === "string" ? model : model.modelId;
 
 /**
- * Which answer format do models write best, and what does spec mode's lack of
- * computed values cost, and does a model pick the right format when it may
- * choose? Every model answers every task in every format and once in a format
- * it chooses, the answer renders in a browser, and a separate judge scores its
- * screenshots.
+ * Which answer format do models write best, how do spec mode's `$calc`
+ * formulas compare with a widget's code on tasks that compute, and does a model
+ * pick the right format when it may choose? Every model answers every task in
+ * every format and once in a format it chooses, the answer renders in a
+ * browser, and a separate judge scores its screenshots.
  */
 export function createGenerativeUISuite({
   models,
@@ -115,7 +115,7 @@ export function createGenerativeUISuite({
     },
     view: (judged) => ({
       mark: judged.errors.length || judged.runtimeErrors.length ? "x" : ".",
-      verdict: `${formatScore(overall(judged.scores))}, ${judged.repairRounds} repair round(s), ${judged.errors.length} error(s) left, ${judged.runtimeErrors.length} while rendering: ${judged.reason}`,
+      verdict: `${formatScore(overall(judged.scores))}, presentation ${judged.scores.presentation}, ${judged.repairRounds} repair round(s), ${judged.errors.length} error(s) left, ${judged.runtimeErrors.length} while rendering: ${judged.reason}`,
       artifact: judged.screenshots.length
         ? `${judged.artifact}\n(screenshots: ${judged.screenshots.join(", ")})`
         : judged.artifact,

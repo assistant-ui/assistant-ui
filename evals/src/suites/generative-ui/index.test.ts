@@ -23,7 +23,7 @@ test("every model answers in every format and in one it chooses", () => {
       "auto:google/gemini-3.1-pro-preview",
     ],
   );
-  assert.equal(suite.cases.length, 6);
+  assert.equal(suite.cases.length, 9);
 });
 
 test("a trial answers, renders the answer, then a separate judge scores the screenshot", async () => {
@@ -33,6 +33,7 @@ test("a trial answers, renders the answer, then a separate judge scores the scre
       clarity: 5,
       usefulness: 4,
       completeness: 3,
+      presentation: 2,
       reason: "Useful.",
     }),
   );
@@ -64,11 +65,12 @@ test("a trial answers, renders the answer, then a separate judge scores the scre
     clarity: 5,
     usefulness: 4,
     completeness: 3,
+    presentation: 2,
   });
   assert.deepEqual(suite.view(judged), {
     mark: "x",
     verdict:
-      "4.0, 0 repair round(s), 0 error(s) left, 1 while rendering: Useful.",
+      "4.0, presentation 2, 0 repair round(s), 0 error(s) left, 1 while rendering: Useful.",
     artifact: "# Plan",
   });
   assert.equal(
@@ -89,6 +91,7 @@ test("a tool format answered in prose renders as the Markdown the user would see
         clarity: 2,
         usefulness: 2,
         completeness: 2,
+        presentation: 1,
         reason: "No UI.",
       }),
     ),

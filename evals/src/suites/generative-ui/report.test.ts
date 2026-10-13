@@ -5,7 +5,12 @@ import { mean, renderReport } from "./report.ts";
 import type { Candidate, Judged, Task } from "./types.ts";
 
 const judged = (
-  [clarity, usefulness, completeness]: [number, number, number],
+  [clarity, usefulness, completeness, presentation = 3]: [
+    number,
+    number,
+    number,
+    number?,
+  ],
   overrides: Partial<Judged> = {},
 ): TrialResult<Judged> => ({
   outcome: {
@@ -20,7 +25,7 @@ const judged = (
     totalMs: 2000,
     runtimeErrors: [],
     screenshots: [],
-    scores: { clarity, usefulness, completeness },
+    scores: { clarity, usefulness, completeness, presentation },
     reason: "",
     ...overrides,
   },
@@ -142,11 +147,11 @@ test("renders each format's averages and each task's score per model", () => {
     {
       case: task("t1", true),
       variants: [
-        { candidate: text, trials: [judged([4, 4, 4])] },
+        { candidate: text, trials: [judged([4, 4, 4, 5])] },
         {
           candidate: spec,
           trials: [
-            judged([2, 1, 3], {
+            judged([2, 1, 3, 1], {
               errors: ["bad"],
               runtimeErrors: ["script: boom"],
               repairRounds: 2,
@@ -163,11 +168,11 @@ test("renders each format's averages and each task's score per model", () => {
     {
       case: task("t2", false),
       variants: [
-        { candidate: text, trials: [judged([5, 5, 5])] },
+        { candidate: text, trials: [judged([5, 5, 5, 4])] },
         {
           candidate: spec,
           trials: [
-            judged([3, 4, 5], {
+            judged([3, 4, 5, 4], {
               inputTokens: 200,
               outputTokens: 100,
               firstOutputMs: 1500,
@@ -185,15 +190,20 @@ test("renders each format's averages and each task's score per model", () => {
       "",
       "## m",
       "",
-      "| format | valid | render errors | repairs | clarity | usefulness | completeness | computed tasks | other tasks | input tokens | output tokens | first output | total |",
-      "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
-      "| text | 100% | 0% | 0.0 | 4.5 | 4.5 | 4.5 | 4.0 | 5.0 | 100 | 50 | 1.0 s | 2.0 s |",
-      "| spec | 50% | 50% | 1.0 | 2.5 | 2.5 | 4.0 | 2.0 | 4.0 | 250 | 125 | 1.0 s | 3.5 s |",
+      "| format | valid | render errors | repairs | clarity | usefulness | completeness | presentation | computed tasks | other tasks | input tokens | output tokens | first output | total |",
+      "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+      "| text | 100% | 0% | 0.0 | 4.5 | 4.5 | 4.5 | 4.5 | 4.0 | 5.0 | 100 | 50 | 1.0 s | 2.0 s |",
+      "| spec | 50% | 50% | 1.0 | 2.5 | 2.5 | 4.0 | 2.5 | 2.0 | 4.0 | 250 | 125 | 1.0 s | 3.5 s |",
       "",
       "| task | text | spec |",
       "| --- | ---: | ---: |",
       "| t1 | 4.0 | 2.0 |",
       "| t2 | 5.0 | 4.0 |",
+      "",
+      "| task, presentation | text | spec |",
+      "| --- | ---: | ---: |",
+      "| t1 | 5.0 | 1.0 |",
+      "| t2 | 4.0 | 4.0 |",
       "",
       "## Validation errors left after repairs",
       "",
