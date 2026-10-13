@@ -14,11 +14,11 @@ import { MODEL_KEYS } from "../constants";
 import { isDefaultGenerativeUIComponent } from "../defaultGenerativeUIComponents";
 import type { GenerativeUIDispatch, GenerativeUILibrary } from "../types";
 import {
-  BOUND_VALUE_PROPS,
   buildCatalogDefinition,
   type ToSpecCatalogOptions,
 } from "./catalogDefinitions";
 import { ElementLevel } from "./elementDepth";
+import { BOUND_VALUE_PROPS } from "./wiring";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);

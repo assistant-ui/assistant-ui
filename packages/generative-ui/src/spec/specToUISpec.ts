@@ -5,7 +5,7 @@ import {
   type SpecElement,
 } from "generative-frame/spec";
 import type { Action, UIElement, UISpec } from "../ir";
-import { BOUND_VALUE_PROPS, vocabularyEvents } from "./catalogDefinitions";
+import { BOUND_VALUE_PROPS, vocabularyEvents } from "./wiring";
 
 /** Options for {@link specToUISpec}. */
 export type SpecToUISpecOptions = {
@@ -18,14 +18,18 @@ const isRecord = (value: unknown): value is Record<string, unknown> =>
 
 const pointer = (path: string) => (path.startsWith("/") ? path : `/${path}`);
 
-const fieldName = (element: ResolvedElement) =>
-  typeof element.props["name"] === "string"
-    ? element.props["name"]
-    : element.id;
+const boundPath = (element: ResolvedElement) =>
+  BOUND_VALUE_PROPS.map(([prop]) => element.bindings[prop]).find(
+    (path) => path !== undefined,
+  );
 
-const stateBound = (spec: Spec, element: ResolvedElement, prop: string) => {
-  const raw = spec.elements[element.id]?.props?.[prop];
-  return isRecord(raw) && typeof raw["$bindState"] === "string";
+// A control repeated per item binds its own path, so that path names it when it has no `name`.
+const fieldName = (spec: Spec, element: ResolvedElement, path: string) => {
+  if (typeof element.props["name"] === "string") return element.props["name"];
+  const raw = BOUND_VALUE_PROPS.map(
+    ([prop]) => spec.elements[element.id]?.props?.[prop],
+  ).find(isRecord);
+  return typeof raw?.["$bindState"] === "string" ? element.id : path;
 };
 
 function boundFields(
@@ -33,11 +37,9 @@ function boundFields(
   element: ResolvedElement,
   fields = new Map<string, string>(),
 ) {
-  for (const [prop] of BOUND_VALUE_PROPS) {
-    const path = element.bindings[prop];
-    if (path !== undefined && stateBound(spec, element, prop)) {
-      if (!fields.has(path)) fields.set(path, fieldName(element));
-    }
+  const path = boundPath(element);
+  if (path !== undefined && !fields.has(path)) {
+    fields.set(path, fieldName(spec, element, path));
   }
   for (const child of element.children) boundFields(spec, child, fields);
   return fields;
@@ -112,14 +114,16 @@ function toNode(
     if (action && isRecord(footer))
       props[event] = { ...footer, $action: action };
   }
-  const named = BOUND_VALUE_PROPS.some(
-    ([prop]) => fields.get(element.bindings[prop] ?? "") === fieldName(element),
-  );
-  if (named) props["name"] = fieldName(element);
+  const path = boundPath(element);
+  const name = path === undefined ? undefined : fields.get(path);
+  if (name !== undefined) props["name"] = name;
   const action = events[0] === undefined ? undefined : actionFor(events[0]);
   return {
     ...props,
     $type: element.type,
+    ...(element.key !== undefined
+      ? { $key: `${element.key}:${element.id}` }
+      : {}),
     ...(element.children.length > 0
       ? { children: element.children.map((child) => toNode(child, fields)) }
       : {}),
@@ -133,11 +137,13 @@ function toNode(
  * renderer would for one state (see `resolveSpec`). The first event a
  * component emits, and the event a Card footer button emits, become its
  * `$action`: the first action bound to the event other than `setState`, with
- * its resolved params. A param that reads a `$bindState` control's state with
- * `{ $state }` becomes a `{ $field }` reference to the control, which gets a
- * `name`, so the action reads what the user entered; a param that reads
- * `$event` is left out, since the platform passes the event's value as
- * `$input`. `watch` and named slots have no equivalent and are left out.
+ * its resolved params. A control whose value is bound gets a `name` unless it
+ * has one: its element id for `$bindState`, or its state path for
+ * `$bindItem`, which differs per item. A param that reads a bound path with
+ * `{ $state }` becomes a `{ $field }` reference to that control, so the action
+ * reads what the user entered; a param that reads `$event` is left out, since
+ * the platform passes what the event carries as `$input`. `watch` and named
+ * slots have no equivalent and are left out.
  */
 export function specToUISpec(
   spec: Spec,

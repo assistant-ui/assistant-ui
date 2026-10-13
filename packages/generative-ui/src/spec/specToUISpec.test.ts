@@ -91,16 +91,73 @@ describe("specToUISpec", () => {
 
   it("lets Slack and Teams actions read the control the user changed", () => {
     const tree = specToUISpec(order);
-    const blocks = JSON.stringify(toSlackBlocks(tree).blocks);
-    expect(blocks).toContain('"action_id":"order"');
-    expect(blocks).toContain(
-      '"value":"{\\"size\\":{\\"$field\\":\\"size\\"},\\"name\\":\\"Ada\\",\\"qty\\":2}"',
+    const elements = toSlackBlocks(tree).blocks.flatMap((block) =>
+      "elements" in block && Array.isArray(block.elements)
+        ? (block.elements as Record<string, unknown>[])
+        : [],
     );
-    const card = JSON.stringify(toAdaptiveCard(tree).card);
-    expect(card).toContain('"type":"Input.ChoiceSet","id":"size"');
-    expect(card).toContain(
-      '"data":{"aui":{"type":"order","payload":{"size":{"$field":"size"},"name":"Ada","qty":2}}}',
+    const button = elements.find((element) => element["type"] === "button");
+    expect(button?.["action_id"]).toBe("order");
+    expect(JSON.parse(String(button?.["value"]))).toEqual({
+      size: { $field: "size" },
+      name: "Ada",
+      qty: 2,
+    });
+    const body: unknown = toAdaptiveCard(tree).card.body;
+    const items = (body as Record<string, unknown>[]).flatMap(
+      (item) => (item["items"] as Record<string, unknown>[] | undefined) ?? [],
     );
+    expect(
+      items.find((item) => item["type"] === "Input.ChoiceSet"),
+    ).toMatchObject({ id: "size" });
+    const actions = items.flatMap(
+      (item) =>
+        (item["actions"] as Record<string, unknown>[] | undefined) ?? [],
+    );
+    expect(actions).toEqual([
+      expect.objectContaining({
+        type: "Action.Submit",
+        data: {
+          aui: {
+            type: "order",
+            payload: { size: { $field: "size" }, name: "Ada", qty: 2 },
+          },
+        },
+      }),
+    ]);
+  });
+
+  it("names a control repeated per item by its state path and keys repeated nodes", () => {
+    const tree = specToUISpec({
+      root: "list",
+      elements: {
+        list: {
+          type: "Box",
+          repeat: { path: "/dishes", key: "id" },
+          children: ["dish"],
+        },
+        dish: {
+          type: "Checkbox",
+          props: {
+            label: { $item: "/name" },
+            defaultChecked: { $bindItem: "/done" },
+          },
+        },
+      },
+      state: { dishes: [{ id: "soup", name: "Soup", done: true }] },
+    });
+    expect(tree).toEqual({
+      $type: "Box",
+      children: [
+        {
+          $type: "Checkbox",
+          $key: "soup:dish",
+          label: "Soup",
+          defaultChecked: true,
+          name: "/dishes/0/done",
+        },
+      ],
+    });
   });
 
   it("wires Card footer events and leaves out setState, watch, and named slots", () => {

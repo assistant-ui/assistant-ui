@@ -43,7 +43,8 @@ export function resolveSpec(
   spec: Spec,
   options: ResolveSpecOptions = {},
 ): ResolvedElement | null {
-  const state = options.state ?? spec.state ?? {};
+  const state =
+    options.state === undefined ? (spec.state ?? {}) : options.state;
   const resolve = (
     id: unknown,
     scope: RepeatScope,

@@ -167,6 +167,9 @@ describe("resolveSpec", () => {
       "save",
     ]);
     expect(resolved?.children[1]?.children).toEqual([]);
+    expect(resolveSpec(spec, { state: null })?.props).toEqual({
+      title: "Dinner for ",
+    });
   });
 
   it("leaves out missing elements, malformed ones, and cycles", () => {
