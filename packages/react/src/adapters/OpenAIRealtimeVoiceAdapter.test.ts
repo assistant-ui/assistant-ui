@@ -324,6 +324,59 @@ describe("OpenAIRealtimeVoiceAdapter", () => {
     },
   );
 
+  it("releases later turns when a failed response omits the final transcript event", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { session, channel } = await connected();
+      const onTranscript = vi.fn();
+      session.onTranscript(onTranscript);
+      channel.emit({
+        type: "response.output_audio_transcript.delta",
+        item_id: "reply",
+        delta: "Partial",
+      });
+      channel.emit({ type: "input_audio_buffer.committed", item_id: "user" });
+      channel.emit({
+        type: "conversation.item.input_audio_transcription.completed",
+        item_id: "user",
+        transcript: "Next question",
+      });
+      channel.emit({ type: "response.done", response: { status: "failed" } });
+      channel.emit({
+        type: "response.output_audio_transcript.done",
+        item_id: "next-reply",
+        transcript: "Next reply",
+      });
+      channel.emit({
+        type: "response.done",
+        response: { status: "completed" },
+      });
+      expect(onTranscript.mock.calls.map(([item]) => item)).toEqual([
+        { role: "assistant", text: "Partial", isFinal: false },
+        { role: "assistant", text: "Partial", isFinal: true },
+        { role: "user", text: "Next question", isFinal: true },
+        { role: "assistant", text: "Next reply", isFinal: true },
+      ]);
+      expect(session.status.type).toBe("running");
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("cleans up a typed request when the data channel rejects the send", async () => {
+    vi.useFakeTimers();
+    const { session, channel } = await connected();
+    channel.send.mockImplementation(() => {
+      throw new Error("Channel unavailable");
+    });
+    await expect(session.sendText!("Hello")).rejects.toThrow(
+      "Channel unavailable",
+    );
+    expect(vi.getTimerCount()).toBe(1);
+    session.disconnect();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it.each([true, false])(
     "keeps an uninterrupted assistant message together when the next user transcript finishes early: %s",
     async (early) => {
@@ -480,8 +533,9 @@ describe("OpenAIRealtimeVoiceAdapter", () => {
         type: "conversation.item.added",
         item: { id: channel.events().at(-1).item.id },
       });
-      await Promise.resolve();
-      expect(channel.events().at(-1).type).toBe("response.create");
+      await vi.waitFor(() =>
+        expect(channel.events().at(-1).type).toBe("response.create"),
+      );
       if (failure === "disconnect") session.disconnect();
       else await vi.advanceTimersByTimeAsync(10_000);
       await rejected;

@@ -137,20 +137,13 @@ export class OpenAIRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
       const request = (id: string, event: Record<string, unknown>) =>
         new Promise<void>((resolve, reject) => {
           const timer = setTimeout(() => {
-            pending.delete(id);
             reject(
               new Error("OpenAI Realtime did not acknowledge the message."),
             );
           }, 10_000);
           pending.set(id, { resolve, reject, timer });
-          try {
-            send({ ...event, event_id: id });
-          } catch (error) {
-            clearTimeout(timer);
-            pending.delete(id);
-            reject(error);
-          }
-        });
+          send({ ...event, event_id: id });
+        }).finally(() => settle(id));
 
       const settle = (id: unknown, error?: Error) => {
         if (typeof id !== "string") return false;
@@ -197,13 +190,12 @@ export class OpenAIRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
             }
             break;
           case "conversation.item.input_audio_transcription.completed":
-            if (typeof event.transcript === "string") {
+            if (typeof event.transcript === "string")
               finishUserTranscript(event.item_id, {
                 role: "user",
                 text: event.transcript,
                 isFinal: true,
               });
-            }
             break;
           case "response.output_audio_transcript.delta":
           case "response.output_audio_transcript.done": {
@@ -240,6 +232,14 @@ export class OpenAIRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
           case "response.done": {
             generating = false;
             const response = asRecord(event.response);
+            if (assistantTranscript?.value?.isFinal === false) {
+              assistantTranscript.value = {
+                ...assistantTranscript.value,
+                isFinal: true,
+              };
+              assistantTranscript.ready = true;
+              flushTranscripts();
+            }
             if (response?.status === "failed")
               console.warn(
                 "OpenAI Realtime response failed.",
