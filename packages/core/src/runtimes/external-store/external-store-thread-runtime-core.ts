@@ -392,16 +392,15 @@ export class ExternalStoreThreadRuntimeCore
     this._updateStoreSnapshot(store);
   }
 
-  // The pass appends the placeholder last. A stale one under the host's head
-  // would be selected as its leaf, so it is rebuilt rather than kept.
-  private _evictPlaceholder() {
-    if (!this._optimistic) return;
-    try {
-      this.repository.getMessage(this._optimistic.id);
-    } catch {
-      return;
+  // Switching to the host's head selects an optimistic leaf under it, so the
+  // pass first drops the optimistic messages the host no longer carries; the
+  // placeholder is appended again last.
+  private _evictUncarriedOptimistic(carriedIds: ReadonlySet<string>) {
+    for (const message of this.repository.getMessages()) {
+      if (message.metadata.isOptimistic && !carriedIds.has(message.id)) {
+        this.repository.deleteMessage(message.id);
+      }
     }
-    this.repository.deleteMessage(this._optimistic.id);
   }
 
   private _updateStoreSnapshot(
@@ -491,9 +490,10 @@ export class ExternalStoreThreadRuntimeCore
       }
 
       const incoming = store.messageRepository.messages;
+      const incomingIds = new Set(incoming.map(({ message }) => message.id));
       const headId =
         store.messageRepository.headId ?? incoming.at(-1)?.message.id ?? null;
-      this._evictPlaceholder();
+      this._evictUncarriedOptimistic(incomingIds);
 
       if (
         oldStore &&
@@ -504,7 +504,6 @@ export class ExternalStoreThreadRuntimeCore
         else this.repository.switchToBranch(headId);
         messages = this.repository.getMessages();
       } else {
-        const incomingIds = new Set(incoming.map(({ message }) => message.id));
         const reconciledMessages = this._applySubmittedFeedback(
           incoming.map(({ message }) => message),
         );

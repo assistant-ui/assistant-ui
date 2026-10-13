@@ -92,6 +92,40 @@ describe("ExternalStoreThreadRuntimeCore message repository", () => {
       expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2"]);
     },
   );
+
+  it("drops an optimistic message the host stops carrying under its head", () => {
+    const user = { id: "u1", role: "user" as const, content: "u1" };
+    const store = {
+      messageRepository: ExportedMessageRepository.fromBranchableArray(
+        [
+          { parentId: null, message: user },
+          {
+            parentId: "u1",
+            message: {
+              id: "a1",
+              role: "assistant",
+              content: "",
+              metadata: { isOptimistic: true },
+            },
+          },
+        ],
+        { headId: "a1" },
+      ),
+      onNew: async () => {},
+      isRunning: false,
+    };
+    const runtime = createRuntime(store);
+    expect(visibleIds(runtime)).toEqual(["u1", "a1"]);
+
+    runtime.__internal_setAdapter({
+      ...store,
+      messageRepository: ExportedMessageRepository.fromBranchableArray(
+        [{ parentId: null, message: user }],
+        { headId: "u1" },
+      ),
+    });
+    expect(visibleIds(runtime)).toEqual(["u1"]);
+  });
 });
 
 type FeedbackSource = {

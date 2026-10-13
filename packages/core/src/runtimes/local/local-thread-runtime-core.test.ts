@@ -120,6 +120,54 @@ describe("LocalThreadRuntimeCore import with a non-leaf head", () => {
       "a2",
     ]);
   });
+
+  it("resumes a loaded run under the head it names", async () => {
+    const thread = createThread(
+      {
+        async run() {
+          return {};
+        },
+      },
+      {
+        history: {
+          scopeId: "thread",
+          load: async () => ({
+            ...ExportedMessageRepository.fromBranchableArray(
+              [
+                {
+                  parentId: null,
+                  message: { id: "u1", role: "user", content: "u1" },
+                },
+                {
+                  parentId: "u1",
+                  message: { id: "a1", role: "assistant", content: "a1" },
+                },
+              ],
+              { headId: "u1" },
+            ),
+            unstable_resume: true,
+          }),
+          append: async () => {},
+          async *resume() {
+            yield { content: [{ type: "text", text: "resumed" }] };
+          },
+        },
+      },
+    );
+    await thread.__internal_load();
+    await vi.waitFor(() =>
+      expect(thread.messages.at(-1)?.content).toMatchObject([
+        { type: "text", text: "resumed" },
+      ]),
+    );
+
+    const resumed = thread.messages.at(-1)!;
+    const items = thread.export().messages;
+    expect(items.find((item) => item.message.id === resumed.id)?.parentId).toBe(
+      "u1",
+    );
+    expect(items.find((item) => item.message.id === "a1")?.parentId).toBe("u1");
+  });
 });
 
 const userMessage = (text: string): AppendMessage => ({
