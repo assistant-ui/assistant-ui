@@ -27,6 +27,9 @@ describe("buildWidgetGuidance", () => {
     expect(headings(text)).toEqual([]);
     for (const module of WIDGET_MODULES)
       expect(text).toContain(`\`${module}\``);
+    expect(text).toContain(
+      "Call `read_me` with the modules you need that these instructions do not already include, before your first widget of that kind.",
+    );
     expect(text).toContain("## Streaming order");
     expect(text).toContain("## Accessibility");
   });
