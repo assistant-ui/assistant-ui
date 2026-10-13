@@ -5,6 +5,60 @@ import type { MCPStorage } from "./storage/types";
 import { McpCustomServersResource } from "./McpCustomServerPersistence";
 
 describe("McpCustomServersResource", () => {
+  it("allows a revisited scope to hydrate after the previous load rejects", async () => {
+    let rejectLoad!: (error: Error) => void;
+    const loaded = new Promise<MCPCustomServerRecord[]>((_, reject) => {
+      rejectLoad = reject;
+    });
+    const persisted: MCPCustomServerRecord = {
+      id: "docs",
+      name: "Docs",
+      url: "https://example.com/docs/mcp",
+      auth: { type: "none" },
+      createdAt: 1,
+    };
+    const storage: MCPStorage = {
+      loadCustomServers: vi.fn(() => loaded),
+      saveCustomServers: vi.fn(async () => {}),
+      loadAuthState: async () => null,
+      saveAuthState: async () => {},
+      clearAuthState: async () => {},
+    };
+    const replacement = {
+      ...storage,
+      loadCustomServers: vi.fn(async () => [persisted]),
+    };
+    const persistenceQueues = new Map<string, Promise<void>>();
+    const mount = (current: MCPStorage) =>
+      createTapRoot(function Root() {
+        return useResource(
+          McpCustomServersResource({
+            storage: current,
+            scopeKey: "test",
+            persistenceQueues,
+          }),
+        );
+      });
+    const first = mount(storage);
+    await vi.waitFor(() =>
+      expect(storage.loadCustomServers).toHaveBeenCalled(),
+    );
+    first.unmount();
+    const second = mount(replacement);
+
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(replacement.loadCustomServers).not.toHaveBeenCalled();
+      rejectLoad(new Error("storage unavailable"));
+      await vi.waitFor(() => expect(second.getValue().isHydrated).toBe(true));
+      expect(second.getValue().customServers).toEqual([persisted]);
+      expect(storage.saveCustomServers).not.toHaveBeenCalled();
+    } finally {
+      rejectLoad(new Error("storage unavailable"));
+      second.unmount();
+    }
+  });
+
   it("merges a local mutation made before hydration and persists the result", async () => {
     let resolveLoad: (records: MCPCustomServerRecord[]) => void = () => {};
     const loaded = new Promise<MCPCustomServerRecord[]>((resolve) => {
