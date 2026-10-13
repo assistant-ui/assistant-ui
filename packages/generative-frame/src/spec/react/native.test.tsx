@@ -3,6 +3,7 @@ import { cleanup, render } from "@testing-library/react";
 import { Text, View } from "react-native";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Spec } from "../types";
+import { createSpecStream } from "../stream";
 import { SpecRenderer } from "../react.native";
 import type { SpecComponents } from "./SpecRenderer";
 
@@ -41,6 +42,37 @@ describe("SpecRenderer for React Native", () => {
     expect(
       view.container.querySelector("[data-gf-spec-placeholder]"),
     ).toBeNull();
+  });
+
+  it("hides an unfinished visibility condition until streamed state enables it", () => {
+    const stream = createSpecStream({
+      initial: {
+        root: "main",
+        state: { open: false },
+        elements: {
+          main: { type: "Label", props: { text: "Visible" }, visible: {} },
+        },
+      },
+    });
+    const view = render(
+      <SpecRenderer components={components} spec={stream.spec} streaming />,
+    );
+    expect(view.container.textContent).toBe("");
+    stream.push(
+      '{"op":"add","path":"/elements/main/visible/$state","value":"/open"}\n',
+    );
+    view.rerender(
+      <SpecRenderer components={components} spec={stream.spec} streaming />,
+    );
+    expect(view.container.textContent).toBe("");
+    stream.push('{"op":"replace","path":"/state/open","value":true}\n');
+    view.rerender(
+      <SpecRenderer components={components} spec={stream.spec} streaming />,
+    );
+    expect(view.container.textContent).toBe("Visible");
+    stream.push('{"op":"replace","path":"/state/open","value":false}\n');
+    view.rerender(<SpecRenderer components={components} spec={stream.spec} />);
+    expect(view.container.textContent).toBe("");
   });
 
   it("names an unknown type and a failed element in React Native placeholders", () => {

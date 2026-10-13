@@ -79,6 +79,18 @@ describe("evaluateCondition", () => {
   const ctx = { state };
   it.each([
     [undefined, true],
+    [true, true],
+    [{}, false],
+    [{ $and: {} }, false],
+    [{ $or: {} }, false],
+    [{ unknown: true }, false],
+    [[], true],
+    [{ $and: [] }, true],
+    [{ $or: [] }, false],
+    [{ $template: "${/user/name}" }, true],
+    [{ $template: "${/missing}" }, false],
+    [{ $cond: { $state: "/count", gt: 2 }, $then: "visible", $else: "" }, true],
+    [{ $cond: { $state: "/open" }, $then: "visible", $else: "" }, false],
     [false, false],
     [{ $state: "/open" }, false],
     [{ $state: "/count", eq: 3 }, true],

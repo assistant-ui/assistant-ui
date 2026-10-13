@@ -11,6 +11,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineCatalog } from "../catalog";
 import { createStateStore } from "../state";
+import { createSpecStream } from "../stream";
 import type { Spec } from "../types";
 import {
   SpecRenderer,
@@ -250,6 +251,30 @@ describe("SpecRenderer", () => {
       { from: 1 },
       expect.objectContaining({ elementId: "a" }),
     );
+  });
+
+  it("hides an unfinished visibility condition until streamed state enables it", async () => {
+    const stream = createSpecStream({
+      initial: spec(
+        { main: { type: "Button", props: { label: "Continue" }, visible: {} } },
+        { open: false },
+      ),
+    });
+    const view = mount({ components, spec: stream.spec, streaming: true });
+    expect(view.container.querySelector("button")).toBeNull();
+    stream.push(
+      '{"op":"add","path":"/elements/main/visible/$state","value":"/open"}\n',
+    );
+    await view.update({ components, spec: stream.spec, streaming: true });
+    expect(view.container.querySelector("button")).toBeNull();
+    stream.push('{"op":"replace","path":"/state/open","value":true}\n');
+    await view.update({ components, spec: stream.spec, streaming: true });
+    expect(view.container.querySelector("button")?.textContent).toBe(
+      "Continue",
+    );
+    stream.push('{"op":"replace","path":"/state/open","value":false}\n');
+    await view.update({ components, spec: stream.spec });
+    expect(view.container.querySelector("button")).toBeNull();
   });
 
   it("renders placeholders and captures each element error", async () => {
