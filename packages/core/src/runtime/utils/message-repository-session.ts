@@ -131,8 +131,8 @@ export const createMessageRepositorySession = (
         previousId = message.id;
       }
       resetHead(previousId);
-    } else {
-      resetHead(headId);
+    } else if (headId !== null) {
+      switchToBranch(headId);
     }
   };
 

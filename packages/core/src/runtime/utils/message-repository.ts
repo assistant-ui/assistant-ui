@@ -588,10 +588,10 @@ export class MessageRepository {
   }
 
   /**
-   * The head as it would be if the optimistic messages were deleted. Import
-   * resets to the exported head and drops its descendants, so an optimistic
-   * head resolves to a leaf of the exported tree rather than to its persisted
-   * ancestor, whose other children would be lost.
+   * The head as it would be if the optimistic messages were deleted. An
+   * optimistic head resolves to a leaf of the exported tree, so an import
+   * returns to the branch that was visible instead of the one its persisted
+   * ancestor selects.
    */
   private exportedHeadId(): string | null {
     let head = this.head;
@@ -635,6 +635,8 @@ export class MessageRepository {
       this.addOrUpdateMessage(parentId, message);
     }
 
-    this.resetHead(headId ?? ordered.at(-1)?.message.id ?? null);
+    const importedHeadId = headId ?? ordered.at(-1)?.message.id ?? null;
+    if (importedHeadId === null) this.clear();
+    else this.switchToBranch(importedHeadId);
   }
 }

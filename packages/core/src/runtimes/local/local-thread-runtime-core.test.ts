@@ -63,6 +63,65 @@ const createThread = (
   return core.threads.getMainThreadRuntimeCore();
 };
 
+describe("LocalThreadRuntimeCore import with a non-leaf head", () => {
+  const stored = ExportedMessageRepository.fromBranchableArray(
+    [
+      { parentId: null, message: { id: "u1", role: "user", content: "u1" } },
+      {
+        parentId: "u1",
+        message: { id: "a1", role: "assistant", content: "a1" },
+      },
+      { parentId: "a1", message: { id: "u2", role: "user", content: "u2" } },
+      {
+        parentId: "u2",
+        message: { id: "a2", role: "assistant", content: "a2" },
+      },
+    ],
+    { headId: "a1" },
+  );
+
+  it("keeps every message on thread.import", () => {
+    const thread = createThread({
+      async run() {
+        return {};
+      },
+    });
+    thread.import(stored);
+
+    expect(thread.export().messages.map((item) => item.message.id)).toEqual([
+      "u1",
+      "a1",
+      "u2",
+      "a2",
+    ]);
+  });
+
+  it("keeps every message loaded from a history adapter", async () => {
+    const thread = createThread(
+      {
+        async run() {
+          return {};
+        },
+      },
+      {
+        history: {
+          scopeId: "thread",
+          load: async () => stored,
+          append: async () => {},
+        },
+      },
+    );
+    await thread.__internal_load();
+
+    expect(thread.export().messages.map((item) => item.message.id)).toEqual([
+      "u1",
+      "a1",
+      "u2",
+      "a2",
+    ]);
+  });
+});
+
 const userMessage = (text: string): AppendMessage => ({
   parentId: null,
   sourceId: null,

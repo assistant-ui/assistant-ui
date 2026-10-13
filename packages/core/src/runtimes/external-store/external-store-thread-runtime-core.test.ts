@@ -27,6 +27,73 @@ const createRuntime = (overrides: Partial<ExternalStoreAdapter> = {}) =>
     ...overrides,
   } as ExternalStoreAdapter);
 
+describe("ExternalStoreThreadRuntimeCore message repository", () => {
+  const repositoryWithHead = (headId: string) =>
+    ExportedMessageRepository.fromBranchableArray(
+      [
+        { parentId: null, message: { id: "u1", role: "user", content: "u1" } },
+        {
+          parentId: "u1",
+          message: { id: "a1", role: "assistant", content: "a1" },
+        },
+        { parentId: "a1", message: { id: "u2", role: "user", content: "u2" } },
+      ],
+      { headId },
+    );
+  const visibleIds = (runtime: ExternalStoreThreadRuntimeCore) =>
+    runtime.messages.map((message) => message.id);
+  const exportedIds = (runtime: ExternalStoreThreadRuntimeCore) =>
+    runtime.export().messages.map((item) => item.message.id);
+
+  it("keeps descendants of a non-leaf head across store updates", () => {
+    const store = {
+      messageRepository: repositoryWithHead("a1"),
+      onNew: async () => {},
+      isRunning: false,
+    };
+    const runtime = createRuntime(store);
+
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2"]);
+    expect(visibleIds(runtime)).toEqual(["u1", "a1", "u2"]);
+
+    runtime.__internal_setAdapter({ ...store, isRunning: true });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2"]);
+
+    runtime.__internal_setAdapter(store);
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2"]);
+    expect(visibleIds(runtime)).toEqual(["u1", "a1", "u2"]);
+  });
+
+  it.each(["u2", "a1"])(
+    "keeps one placeholder across store updates during a run with head %s",
+    (headId) => {
+      const store = {
+        messageRepository: repositoryWithHead(headId),
+        onNew: async () => {},
+        isRunning: true,
+      };
+      const runtime = createRuntime(store);
+      const placeholder = runtime.messages.at(-1)!;
+      expect(placeholder.metadata.isOptimistic).toBe(true);
+      expect(visibleIds(runtime)).toEqual(["u1", "a1", "u2", placeholder.id]);
+
+      runtime.__internal_setAdapter({
+        ...store,
+        messageRepository: repositoryWithHead(headId),
+      });
+      expect(visibleIds(runtime)).toEqual(["u1", "a1", "u2", placeholder.id]);
+
+      runtime.__internal_setAdapter({
+        ...store,
+        messageRepository: repositoryWithHead(headId),
+        isRunning: false,
+      });
+      expect(visibleIds(runtime)).toEqual(["u1", "a1", "u2"]);
+      expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2"]);
+    },
+  );
+});
+
 type FeedbackSource = {
   id: string;
   role: "assistant" | "user";

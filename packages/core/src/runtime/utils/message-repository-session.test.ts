@@ -19,6 +19,26 @@ const withRootAndChild = () => {
 };
 
 describe("createMessageRepositorySession", () => {
+  it("keeps descendants of a loaded non-leaf head", () => {
+    const session = createMessageRepositorySession();
+    session.applyExternalMessageRepository({
+      headId: "a1",
+      messages: [
+        { parentId: null, message: message("u1") },
+        { parentId: "u1", message: message("a1") },
+        { parentId: "a1", message: message("u2") },
+        { parentId: "u2", message: message("a2") },
+      ],
+    });
+
+    expect(session.export().messages.map((item) => item.message.id)).toEqual([
+      "u1",
+      "a1",
+      "u2",
+      "a2",
+    ]);
+  });
+
   it("memoizes exports and invalidates them after every mutator", () => {
     const cases = [
       () => {

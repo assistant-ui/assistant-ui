@@ -392,6 +392,18 @@ export class ExternalStoreThreadRuntimeCore
     this._updateStoreSnapshot(store);
   }
 
+  // The pass appends the placeholder last. A stale one under the host's head
+  // would be selected as its leaf, so it is rebuilt rather than kept.
+  private _evictPlaceholder() {
+    if (!this._optimistic) return;
+    try {
+      this.repository.getMessage(this._optimistic.id);
+    } catch {
+      return;
+    }
+    this.repository.deleteMessage(this._optimistic.id);
+  }
+
   private _updateStoreSnapshot(
     store: ExternalStoreAdapter<any>,
     fromHostSnapshot = true,
@@ -481,13 +493,15 @@ export class ExternalStoreThreadRuntimeCore
       const incoming = store.messageRepository.messages;
       const headId =
         store.messageRepository.headId ?? incoming.at(-1)?.message.id ?? null;
+      this._evictPlaceholder();
 
       if (
         oldStore &&
         !repositoryChanged &&
         oldStore.messageRepository === store.messageRepository
       ) {
-        this.repository.resetHead(headId);
+        if (headId === null) this.repository.clear();
+        else this.repository.switchToBranch(headId);
         messages = this.repository.getMessages();
       } else {
         const incomingIds = new Set(incoming.map(({ message }) => message.id));
@@ -506,7 +520,8 @@ export class ExternalStoreThreadRuntimeCore
           }
         }
         this._pendingDeleteEvictions.clear();
-        this.repository.resetHead(headId);
+        if (headId === null) this.repository.clear();
+        else this.repository.switchToBranch(headId);
         messages = this.repository.getMessages();
       }
     } else if (store.messages) {
