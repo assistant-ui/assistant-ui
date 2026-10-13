@@ -97,7 +97,7 @@ const useThreadListItemClient = (props: {
 
 const ThreadListItemClient = resource(useThreadListItemClient);
 
-const createThreadLifetimes = () => {
+export const createThreadLifetimes = () => {
   const controllers = new Map<string, AbortController>();
   let owner: AbortSignal | undefined;
   let unlinkOwner: (() => void) | undefined;
@@ -121,6 +121,10 @@ const createThreadLifetimes = () => {
     release(threadId: string) {
       controllers.get(threadId)?.abort();
       controllers.delete(threadId);
+    },
+    releaseAll() {
+      for (const controller of controllers.values()) controller.abort();
+      controllers.clear();
     },
     bindOwner(signal: AbortSignal | undefined) {
       if (owner === signal) return;
@@ -149,7 +153,7 @@ const useOwnedThread = ({
     return useClientResource(thread).methods;
   });
 
-const OwnedThread = resource(useOwnedThread);
+export const OwnedThread = resource(useOwnedThread);
 
 const INITIAL_THREAD_ID = "main";
 

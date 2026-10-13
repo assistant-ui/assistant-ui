@@ -9,7 +9,10 @@ import {
 } from "react";
 import { resource, withKey, type ResourceElement } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
-import { useIsServerRender } from "@assistant-ui/store/internal";
+import {
+  useAssistantClientDestroySignal,
+  useIsServerRender,
+} from "@assistant-ui/store/internal";
 import {
   attachTransformScopes,
   Derived,
@@ -49,7 +52,9 @@ import type { ThreadMessage } from "../../types/message";
 import { handleThreadListAction } from "../../store/runtime-clients/handle-thread-list-action";
 import { useAfterStateCommit } from "../../store/runtime-clients/useAfterStateCommit";
 import {
+  createThreadLifetimes,
   inMemoryThreadListTransformScopes,
+  OwnedThread,
   type InMemoryThreadListProps,
 } from "./InMemoryThreadList";
 import { AdaptedRemoteThread } from "./AdaptedRemoteThread";
@@ -337,6 +342,8 @@ const useRemoteThreadListView = ({
   startedIds,
   pendingAutomaticTitles,
   backgroundThreads,
+  lifetimes,
+  ownerDestroySignal,
   threadFactory,
   useAdapters,
   onSwitchTo,
@@ -355,6 +362,8 @@ const useRemoteThreadListView = ({
   startedIds: readonly string[];
   pendingAutomaticTitles: Map<string, readonly ThreadMessage[]>;
   backgroundThreads: boolean;
+  lifetimes: ReturnType<typeof createThreadLifetimes>;
+  ownerDestroySignal: AbortSignal | undefined;
   threadFactory: RemoteThreadListProps["thread"];
   useAdapters: RemoteThreadListAdapter["unstable_useAdapters"];
   onSwitchTo: (
@@ -481,7 +490,13 @@ const useRemoteThreadListView = ({
               onAutomaticTitle,
             })
           : wrapped;
-      return withKey(backgroundThreads ? id : (made.key ?? "main"), element);
+      return withKey(
+        backgroundThreads ? id : (made.key ?? "main"),
+        OwnedThread({
+          destroySignal: lifetimes.signalFor(id, ownerDestroySignal),
+          thread: element,
+        }),
+      );
     }),
   );
   // A reload can remap a local thread id to its remote identity while the
@@ -540,6 +555,11 @@ const useRemoteThreadList = (
     onSwitchToNewThread,
     onDelete,
   } = props;
+  const ownerDestroySignal = useAssistantClientDestroySignal();
+  const [lifetimes] = useState(createThreadLifetimes);
+  useEffect(() => {
+    lifetimes.bindOwner(ownerDestroySignal);
+  }, [lifetimes, ownerDestroySignal]);
   const serverThreadIdSeed = useId();
   const isServerRender = useIsServerRender();
 
@@ -672,12 +692,12 @@ const useRemoteThreadList = (
     session.loadPromise = undefined;
     session.loadMorePromise = undefined;
     if (adapterChanged) {
+      lifetimes.releaseAll();
       session.adapterGeneration++;
       session.titleStates.clear();
       session.pendingAutomaticTitles.clear();
       const preserveControlled =
         session.lastControlledThreadId !== undefined &&
-        session.controlledSwitchAdapter === adapter &&
         session.controlledSwitchGeneration === session.switchGeneration;
       session.switchGeneration++;
       session.controlledReloadPending = preserveControlled;
@@ -702,6 +722,7 @@ const useRemoteThreadList = (
     adapter,
     assignMainThreadId,
     getLoadThreadsPromise,
+    lifetimes,
     notifyRemoteId,
     session,
     store,
@@ -1259,6 +1280,7 @@ const useRemoteThreadList = (
       // id is its remote id, so a replacement adapter can re-list this slot
       // while the deletion is in flight.
       if (getThreadData(store.value, data.id) !== undefined) return result;
+      lifetimes.release(data.id);
       clearThreadTitleState(session.titleStates, data.id);
       session.pendingAutomaticTitles.delete(data.id);
       onDelete?.(data.id);
@@ -1267,6 +1289,7 @@ const useRemoteThreadList = (
     [
       ensureNotMain,
       leaveRemovedMainThread,
+      lifetimes,
       onDelete,
       requireAdapterGeneration,
       session,
@@ -1349,9 +1372,10 @@ const useRemoteThreadList = (
       do {
         await ensureNotMain(threadId);
       } while (isSameThread(store.value, threadId, session.mainThreadId));
+      lifetimes.release(threadId);
       setStartedIds((prev) => prev.filter((id) => id !== threadId));
     },
-    [ensureNotMain, session, store],
+    [ensureNotMain, lifetimes, session, store],
   );
 
   const { mainThreadClient, itemOrder, threadListItems, bodyMethodsOf } =
@@ -1362,6 +1386,8 @@ const useRemoteThreadList = (
       startedIds,
       pendingAutomaticTitles: session.pendingAutomaticTitles,
       backgroundThreads,
+      lifetimes,
+      ownerDestroySignal,
       threadFactory,
       useAdapters: adapter.unstable_useAdapters,
       onSwitchTo: (id, options) => switchToThread(id, options),
@@ -1422,19 +1448,32 @@ const useRemoteThreadList = (
     if (listState.isLoading || listState.isLoadingMore) return;
     if (controlledId === undefined) return;
     if (session.controlledSwitchGeneration !== session.switchGeneration) return;
-    if (session.controlledReloadPending && listState.loadError !== undefined)
-      return;
     if (
       !session.controlledReloadPending &&
       getThreadData(listState, controlledId) === undefined
     )
       return;
+    const retryAfterFailure = session.controlledReloadPending;
     session.controlledReloadPending = false;
     if (isSameThread(listState, controlledId, session.mainThreadId)) return;
     handleThreadListAction("switch", () => {
       const task = switchToThread(controlledId, undefined, false);
-      session.controlledSwitchGeneration = session.switchGeneration;
-      session.controlledSwitchAdapter = session.adapter;
+      const switchGeneration = session.switchGeneration;
+      const switchAdapter = session.adapter;
+      session.controlledSwitchGeneration = switchGeneration;
+      session.controlledSwitchAdapter = switchAdapter;
+      if (retryAfterFailure) {
+        void task.catch(() => {
+          if (
+            session.switchGeneration === switchGeneration &&
+            session.controlledSwitchGeneration === switchGeneration &&
+            session.lastControlledThreadId === controlledId &&
+            session.adapter === switchAdapter
+          ) {
+            session.controlledReloadPending = true;
+          }
+        });
+      }
       return task;
     });
     // oxlint-disable-next-line react/exhaustive-deps -- runs when a load settles
