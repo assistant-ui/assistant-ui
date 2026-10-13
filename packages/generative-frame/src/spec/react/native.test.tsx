@@ -44,9 +44,10 @@ describe("SpecRenderer for React Native", () => {
     ).toBeNull();
   });
 
-  it.each([false, true])(
-    "hides an unfinished visibility condition until streamed state enables it (negated: %s)",
-    (negated) => {
+  it.each(["plain", "not", "$cond"] as const)(
+    "hides an unfinished visibility condition until streamed state enables it (form: %s)",
+    (form) => {
+      const negated = form !== "plain";
       const stream = createSpecStream({
         initial: {
           root: "main",
@@ -55,7 +56,12 @@ describe("SpecRenderer for React Native", () => {
             main: {
               type: "Label",
               props: { text: "Visible" },
-              visible: negated ? { not: {} } : {},
+              visible:
+                form === "$cond"
+                  ? { $cond: {}, $then: false, $else: true }
+                  : negated
+                    ? { not: {} }
+                    : {},
             },
           },
         },
@@ -67,7 +73,7 @@ describe("SpecRenderer for React Native", () => {
       stream.push(
         JSON.stringify({
           op: "add",
-          path: `/elements/main/visible${negated ? "/not" : ""}/$state`,
+          path: `/elements/main/visible${form === "plain" ? "" : `/${form}`}/$state`,
           value: "/open",
         }) + "\n",
       );
