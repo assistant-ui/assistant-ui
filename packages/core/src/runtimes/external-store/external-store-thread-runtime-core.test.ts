@@ -49,6 +49,22 @@ describe("ExternalStoreThreadRuntimeCore message repository", () => {
       ],
       { headId },
     );
+  const repositoryWithDescendants = (headId: string) =>
+    ExportedMessageRepository.fromBranchableArray(
+      [
+        { parentId: null, message: { id: "u1", role: "user", content: "u1" } },
+        {
+          parentId: "u1",
+          message: { id: "a1", role: "assistant", content: "a1" },
+        },
+        { parentId: "a1", message: { id: "u2", role: "user", content: "u2" } },
+        {
+          parentId: "u2",
+          message: { id: "a2", role: "assistant", content: "a2" },
+        },
+      ],
+      { headId },
+    );
   const visibleIds = (runtime: ExternalStoreThreadRuntimeCore) =>
     runtime.messages.map((message) => message.id);
   const exportedIds = (runtime: ExternalStoreThreadRuntimeCore) =>
@@ -73,6 +89,205 @@ describe("ExternalStoreThreadRuntimeCore message repository", () => {
     runtime.__internal_setAdapter(store);
     expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2"]);
     expect(visibleIds(runtime)).toEqual(["u1", "a1"]);
+  });
+
+  it("keeps imported descendants until the host changes its visible path", () => {
+    let hostMessages: readonly ThreadMessage[] = [];
+    const store = {
+      messages: hostMessages,
+      onNew: async () => {},
+      onImport: (messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      },
+    };
+    const runtime = createRuntime(store);
+    runtime.import(repositoryWithDescendants("a1"));
+
+    runtime.__internal_setAdapter({ ...store, messages: hostMessages });
+    expect(visibleIds(runtime)).toEqual(["u1", "a1"]);
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+
+    runtime.__internal_setAdapter({
+      ...store,
+      messages: hostMessages,
+      isRunning: true,
+    });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+
+    runtime.__internal_setAdapter({
+      ...store,
+      messages: hostMessages.slice(0, 1),
+      isRunning: false,
+    });
+    expect(exportedIds(runtime)).toEqual(["u1"]);
+  });
+
+  it("keeps imported descendants when the host republishes the same path", () => {
+    let hostMessages: readonly ThreadMessage[] = [];
+    const store = {
+      messages: hostMessages,
+      onNew: async () => {},
+      onImport: (messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      },
+    };
+    const runtime = createRuntime(store);
+    runtime.import(repositoryWithDescendants("a1"));
+    runtime.__internal_setAdapter({ ...store, messages: hostMessages });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+
+    runtime.__internal_setAdapter({ ...store, messages: [...hostMessages] });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+  });
+
+  it("keeps imported descendants when the host edits the same visible path", () => {
+    let hostMessages: readonly ThreadMessage[] = [];
+    const store = {
+      messages: hostMessages,
+      onNew: async () => {},
+      onImport: (messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      },
+    };
+    const runtime = createRuntime(store);
+    runtime.import(repositoryWithDescendants("a1"));
+    runtime.__internal_setAdapter({ ...store, messages: hostMessages });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+
+    const editedMessages = hostMessages.map((message) =>
+      message.id === "a1"
+        ? { ...message, content: [{ type: "text" as const, text: "edited" }] }
+        : message,
+    );
+    runtime.__internal_setAdapter({ ...store, messages: editedMessages });
+    expect(visibleIds(runtime)).toEqual(["u1", "a1"]);
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+  });
+
+  it("keeps descendants when a matching pre-import path precedes the host echo", () => {
+    const imported = repositoryWithDescendants("a1");
+    const priorMessages = imported.messages
+      .slice(0, 2)
+      .map(({ message }) => message);
+    let hostMessages: readonly ThreadMessage[] = [];
+    const store = {
+      messages: priorMessages,
+      onNew: async () => {},
+      onImport: (messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      },
+    };
+    const runtime = createRuntime(store);
+    runtime.import(imported);
+
+    runtime.__internal_setAdapter({ ...store, isRunning: true });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+
+    runtime.__internal_setAdapter({
+      ...store,
+      messages: hostMessages,
+      isRunning: true,
+    });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+  });
+
+  it("ends import preservation after the visible id path changes", () => {
+    const imported = repositoryWithDescendants("a1");
+    let hostMessages: readonly ThreadMessage[] = [];
+    const store = {
+      messages: hostMessages,
+      onNew: async () => {},
+      onImport: (messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      },
+    };
+    const runtime = createRuntime(store);
+    runtime.import(imported);
+    runtime.__internal_setAdapter({ ...store, messages: hostMessages });
+
+    runtime.__internal_setAdapter({
+      ...store,
+      messages: [...hostMessages, imported.messages[2]!.message],
+    });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2"]);
+
+    runtime.__internal_setAdapter({ ...store, messages: [...hostMessages] });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1"]);
+  });
+
+  it("prunes a host-dropped tail after the import echo", () => {
+    let hostMessages: readonly ThreadMessage[] = [];
+    const store = {
+      messages: hostMessages,
+      onNew: async () => {},
+      onImport: (messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      },
+    };
+    const runtime = createRuntime(store);
+    runtime.import(repositoryWithDescendants("u2"));
+    runtime.__internal_setAdapter({ ...store, messages: hostMessages });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+
+    runtime.__internal_setAdapter({
+      ...store,
+      messages: hostMessages.slice(0, -1),
+    });
+    expect(visibleIds(runtime)).toEqual(["u1", "a1"]);
+    expect(exportedIds(runtime)).toEqual(["u1", "a1"]);
+  });
+
+  it("prunes below the host tail when its path changes during a run", () => {
+    let hostMessages: readonly ThreadMessage[] = [];
+    const store = {
+      messages: hostMessages,
+      onNew: async () => {},
+      onImport: (messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      },
+    };
+    const runtime = createRuntime(store);
+    runtime.import(repositoryWithDescendants("u2"));
+    runtime.__internal_setAdapter({ ...store, messages: hostMessages });
+
+    runtime.__internal_setAdapter({
+      ...store,
+      messages: hostMessages.slice(0, 1),
+      isRunning: true,
+    });
+    expect(visibleIds(runtime).slice(0, -1)).toEqual(["u1"]);
+    expect(runtime.messages.at(-1)?.metadata.isOptimistic).toBe(true);
+    expect(exportedIds(runtime)).toEqual(["u1"]);
+  });
+
+  it("keeps descendants through a running same-path republish", () => {
+    let hostMessages: readonly ThreadMessage[] = [];
+    const store = {
+      messages: hostMessages,
+      onNew: async () => {},
+      onImport: (messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      },
+    };
+    const runtime = createRuntime(store);
+    runtime.import(repositoryWithDescendants("u2"));
+    runtime.__internal_setAdapter({ ...store, messages: hostMessages });
+    runtime.__internal_setAdapter({
+      ...store,
+      messages: [...hostMessages],
+      isRunning: true,
+    });
+
+    expect(visibleIds(runtime).slice(0, -1)).toEqual(["u1", "a1", "u2"]);
+    expect(runtime.messages.at(-1)?.metadata.isOptimistic).toBe(true);
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+
+    runtime.__internal_setAdapter({
+      ...store,
+      messages: [...hostMessages],
+      isRunning: false,
+    });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
   });
 
   it.each(["u2", "a1"])(
