@@ -7,7 +7,7 @@ import {
   screen,
 } from "@testing-library/react";
 import { Activity, version, type ComponentType } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { createSpecToolkit } from "../spec/assistant-ui";
 import { resolveSpecBase } from "../spec/assistant-ui/toolkit";
 import { defineCatalog } from "../spec/catalog";
@@ -1464,7 +1464,7 @@ describe("sharing with the model", () => {
   });
 
   it.each([
-    ["succeeds", { writeText: async () => {} }, "Copied"],
+    ["succeeds", { writeText: async () => {} }, "2 lb lamb", "Copied"],
     [
       "is rejected",
       {
@@ -1472,12 +1472,19 @@ describe("sharing with the model", () => {
           throw new Error("denied");
         },
       },
+      "2 lb lamb",
       "Copy list",
     ],
-    ["has no clipboard API", undefined, "Copy list"],
+    ["has no clipboard API", undefined, "2 lb lamb", "Copy list"],
+    [
+      "has no text",
+      { writeText: async () => {} },
+      { $state: "/missing" },
+      "Copy list",
+    ],
   ])(
     "confirms a copy only when the write %s",
-    async (_case, clipboard, label) => {
+    async (_case, clipboard, text, label) => {
       if (clipboard) {
         Object.defineProperty(navigator, "clipboard", {
           value: clipboard,
@@ -1485,6 +1492,7 @@ describe("sharing with the model", () => {
         });
       }
       const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      onTestFinished(() => warn.mockRestore());
       const RenderSpec = entries(specToolkit())["render_spec"]!.render;
       render(
         <RenderSpec
@@ -1500,7 +1508,7 @@ describe("sharing with the model", () => {
               },
               on: {
                 press: [
-                  { action: "copyText", params: { text: "2 lb lamb" } },
+                  { action: "copyText", params: { text } },
                   {
                     action: "setState",
                     params: { path: "/copied", value: true },
@@ -1515,7 +1523,6 @@ describe("sharing with the model", () => {
         fireEvent.click(screen.getByText("Copy list"));
       });
       expect(screen.getByRole("button").textContent).toBe(label);
-      warn.mockRestore();
     },
   );
 

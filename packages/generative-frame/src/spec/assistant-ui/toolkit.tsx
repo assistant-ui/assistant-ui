@@ -359,10 +359,17 @@ export const specToolkitFor =
                     params: Record<string, unknown>,
                     source: { kind?: string },
                   ) => {
+                    // A copy that does not happen fails, so the rest of the list, such as a confirmation, does not run.
+                    if (source.kind === "watch") {
+                      throw new Error(
+                        "copyText runs only from an event a component emits, never from `watch`",
+                      );
+                    }
                     const text = params["text"];
-                    return source.kind !== "watch" && typeof text === "string"
-                      ? copyText(text)
-                      : undefined;
+                    if (typeof text !== "string") {
+                      throw new Error("copyText needs a string `text`");
+                    }
+                    return copyText(text);
                   },
                 }
               : {}),
