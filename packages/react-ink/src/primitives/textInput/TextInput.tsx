@@ -8,9 +8,6 @@ import {
   useTextBuffer,
 } from "./useTextBuffer";
 
-// cap dedup map so an owner that drops echoes can't grow the counter without bound
-const PENDING_SYNC_CAP = 64;
-
 export type TextInputProps = ComponentProps<typeof Box> & {
   value: string;
   onChange: (text: string) => void;
@@ -40,24 +37,16 @@ const TextInputInternal = ({
   const { text, cursorOffset, preferredColumn, dispatchAction, setText } =
     useTextBuffer(value);
   const bufferStateRef = useRef({ text, cursorOffset, preferredColumn });
-  const pendingLocalSyncTextsRef = useRef(new Map<string, number>());
+  const pendingEditRef = useRef(false);
   bufferStateRef.current = { text, cursorOffset, preferredColumn };
 
+  // A committed batch can settle an edit without changing the text or cursor.
   useEffect(() => {
-    const counter = pendingLocalSyncTextsRef.current;
-    const pending = counter.get(value) ?? 0;
-    if (pending > 0) {
-      if (pending === 1) counter.delete(value);
-      else counter.set(value, pending - 1);
-      return;
-    }
+    const isCorrection = pendingEditRef.current;
+    pendingEditRef.current = false;
     if (value === text) return;
 
-    // a mismatched value while echoes are pending is the owner correcting our
-    // own edit; keep the cursor at the edit instead of jumping to the end
-    const isCorrection = counter.size > 0;
     const previousCursorOffset = bufferStateRef.current.cursorOffset;
-    counter.clear();
     setText(value);
     let nextState = textBufferReducer(bufferStateRef.current, {
       type: "set-text",
@@ -72,7 +61,7 @@ const TextInputInternal = ({
       nextState = textBufferReducer(nextState, restoreCursor);
     }
     bufferStateRef.current = nextState;
-  }, [setText, value, text, dispatchAction]);
+  });
 
   const commitAction = (
     action: Parameters<typeof textBufferReducer>[1],
@@ -85,9 +74,7 @@ const TextInputInternal = ({
     bufferStateRef.current = nextState;
 
     if (options?.syncText !== false && nextState.text !== currentState.text) {
-      const counter = pendingLocalSyncTextsRef.current;
-      if (counter.size >= PENDING_SYNC_CAP) counter.clear();
-      counter.set(nextState.text, (counter.get(nextState.text) ?? 0) + 1);
+      pendingEditRef.current = true;
       onChange(nextState.text);
     }
   };
