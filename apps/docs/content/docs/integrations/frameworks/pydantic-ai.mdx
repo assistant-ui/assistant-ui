@@ -1,0 +1,122 @@
+---
+title: Pydantic AI
+description: Connect a Pydantic AI Python agent to assistant-ui through the AG-UI runtime.
+platforms: ["react"]
+---
+
+[Pydantic AI](https://pydantic.dev/docs/ai/) runs agents and tools in Python. Its `AGUIAdapter` accepts chat history and streams agent events to assistant-ui's existing [AG-UI runtime](/docs/runtimes/ag-ui/overview).
+
+This guide connects a Python server on port `8000` to a React frontend on port `3000`.
+
+## Create the Python endpoint
+
+Install the AG-UI integration, the OpenAI model provider used below, and an ASGI server in your Python environment:
+
+```sh
+pip install 'pydantic-ai-slim[ag-ui,openai]' uvicorn
+```
+
+Create `server.py`:
+
+```python title="server.py"
+from datetime import datetime, timezone
+
+from pydantic_ai import Agent
+from pydantic_ai.ui.ag_ui import AGUIAdapter
+from starlette.applications import Starlette
+from starlette.middleware.cors import CORSMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
+from starlette.routing import Route
+
+agent = Agent(
+    'openai:gpt-5-mini',
+    instructions='Use get_current_time when asked for the current time.',
+)
+
+
+@agent.tool_plain
+def get_current_time() -> str:
+    """Return the current time in UTC."""
+    return datetime.now(timezone.utc).isoformat()
+
+
+async def run_agent(request: Request) -> Response:
+    return await AGUIAdapter.dispatch_request(request, agent=agent)
+
+
+app = CORSMiddleware(
+    Starlette(routes=[Route('/agent', run_agent, methods=['POST'])]),
+    allow_origins=['http://localhost:3000'],
+    allow_methods=['POST'],
+    allow_headers=['Content-Type'],
+)
+```
+
+Set the model provider's key in the Python server's environment and start it:
+
+```sh
+export OPENAI_API_KEY="your-api-key"
+uvicorn server:app --reload --port 8000
+```
+
+The key stays on the Python server. If your frontend uses a different origin, update `allow_origins` to match it. For another model provider, change the agent's model and install the corresponding [Pydantic AI provider extra](https://pydantic.dev/docs/ai/overview/install/).
+
+## Connect the React frontend
+
+Start with the [assistant-ui installation](/docs/installation) to add the `Thread` component to your app, then install the runtime and protocol client:
+
+<InstallCommand npm={["@assistant-ui/react-ag-ui", "@ag-ui/client"]} />
+
+Replace your page's runtime setup with an `HttpAgent` pointing at the Python endpoint:
+
+```tsx title="app/page.tsx"
+"use client";
+
+import { useMemo } from "react";
+import { HttpAgent } from "@ag-ui/client";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+export default function Page() {
+  const agent = useMemo(
+    () => new HttpAgent({ url: "http://localhost:8000/agent" }),
+    [],
+  );
+  const runtime = useAgUiRuntime({ agent });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+Start your frontend and ask **What time is it in UTC?** The Python agent executes `get_current_time`, and the runtime receives the tool call, its result, and the streamed answer. To customize how the tool appears, register a [backend tool UI](/docs/tools/tool-ui#2-ui-only-for-existing-tools) under the same `get_current_time` name.
+
+## Add persistence and authentication
+
+The client sends its conversation history with each run. `AGUIAdapter` converts that history into Pydantic AI messages; this example keeps it in memory in the frontend. To retain conversations after a reload, configure the runtime's [history adapter](/docs/runtimes/ag-ui/runtime-options#loading-conversation-history) and, for multiple threads, its [thread-list adapter](/docs/runtimes/ag-ui/runtime-options#thread-list-experimental).
+
+Before exposing the endpoint, authenticate requests in your Python application and scope stored conversations and tool access to the authenticated user. Pass authentication headers through `HttpAgent` and allow those headers in your CORS configuration. Browser-supplied history and state are client input; see Pydantic AI's [UI adapter trust model](https://pydantic.dev/docs/ai/integrations/ui/overview/#trust-model-for-client-submitted-messages).
+
+## Using the AI SDK runtime
+
+If your frontend already uses `@assistant-ui/ai-sdk`, Pydantic AI also provides a [`VercelAIAdapter`](https://pydantic.dev/docs/ai/integrations/ui/vercel-ai/). It accepts AI SDK chat requests and returns UI message streams. Point `DefaultChatTransport` from `ai` at that endpoint and pass it to `useChatRuntime` as a [custom transport](/docs/runtimes/ai-sdk/v7#custom-transport), following Pydantic AI's protocol-version guidance.
+
+## Related
+
+<Cards>
+  <Card
+    title="AG-UI runtime options"
+    description="Configure adapters, events, and thread state."
+    href="/docs/runtimes/ag-ui/runtime-options"
+  />
+  <Card
+    title="Pydantic AI AG-UI integration"
+    description="Python adapter options, shared state, and tool handling."
+    href="https://pydantic.dev/docs/ai/integrations/ui/ag-ui/"
+  />
+</Cards>
