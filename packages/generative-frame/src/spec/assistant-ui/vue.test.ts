@@ -9,7 +9,7 @@ import {
   type App,
   type Component,
 } from "vue";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { defineCatalog } from "../catalog";
 import type { Spec } from "../types";
 import { createSpecToolkit } from "./vue";
@@ -367,6 +367,74 @@ describe("createSpecToolkit for Vue", () => {
       type: "action",
       payload: { type: "setState", toolCallId: "s", writes: [["/n", 1]] },
     });
+  });
+
+  it.each([
+    ["succeeds", async () => {}, "Copied"],
+    [
+      "is rejected",
+      async () => {
+        throw new Error("denied");
+      },
+      "Copy list",
+    ],
+  ])(
+    "confirms a copy only when the write %s",
+    async (_case, writeText, label) => {
+      Object.defineProperty(navigator, "clipboard", {
+        value: { writeText },
+        configurable: true,
+      });
+      onTestFinished(() => {
+        Reflect.deleteProperty(navigator, "clipboard");
+      });
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      onTestFinished(() => warn.mockRestore());
+      const { container } = mount(
+        setup("frontend").render,
+        toolProp({
+          args: {
+            title: "s",
+            spec: {
+              root: "b",
+              elements: {
+                b: {
+                  type: "Button",
+                  props: {
+                    label: {
+                      $cond: { $state: "/copied" },
+                      $then: "Copied",
+                      $else: "Copy list",
+                    },
+                  },
+                  on: {
+                    press: [
+                      { action: "copyText", params: { text: "2 lb lamb" } },
+                      {
+                        action: "setState",
+                        params: { path: "/copied", value: true },
+                      },
+                    ],
+                  },
+                },
+              },
+              state: {},
+            },
+          },
+        }),
+      );
+      container.querySelector("button")!.click();
+      await new Promise((resolve) => setTimeout(resolve));
+      await nextTick();
+      expect(container.querySelector("button")!.textContent).toBe(label);
+    },
+  );
+
+  it("documents copyText in its spec module", () => {
+    const guidance = (createSpecToolkit(catalog, { components }).modules ?? [])
+      .map((module) => module.guidance())
+      .join("\n\n");
+    expect(guidance).toContain("- `copyText` — params `{ text: string }`.");
   });
 
   it("executes and validates in frontend execution only", async () => {

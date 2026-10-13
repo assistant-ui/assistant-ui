@@ -199,7 +199,7 @@ The `RenderReportOptions`, `WidgetRenderReport`, `WidgetToolkitExtension`, `Tool
 | Export | Description |
 | --- | --- |
 | `defineCatalog({ components, actions? })` | A `Catalog` with `component`, `action`, `propsSchema`, `paramsSchema`, `validateProps`, `validateParams`, and `prompt`. |
-| `catalog.prompt({ mode?, customRules?, omitExample?, hostApi? })` | Model guidance; `mode` is `"jsonl"` (default) or `"inline"`, and `hostApi: { prompt?, modelContext? }` documents the built-in `sendMessage` and `updateModelContext` actions. |
+| `catalog.prompt({ mode?, customRules?, omitExample?, hostApi? })` | Model guidance; `mode` is `"jsonl"` (default) or `"inline"`, and `hostApi: { prompt?, modelContext?, clipboard? }` documents the built-in `sendMessage`, `updateModelContext`, and `copyText` actions. |
 | `createSpecStream({ mode?, initial? })` | `{ push(chunk), result(), spec }`; `mode` is `"jsonl"` (default) or `"inline"`. |
 | `parseSpecStream(source, options?)` | The same for a complete string. |
 | `applyPatch(doc, operations)` | Applies RFC 6902 operations. |

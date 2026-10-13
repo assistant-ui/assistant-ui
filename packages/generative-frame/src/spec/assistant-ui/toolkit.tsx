@@ -35,6 +35,7 @@ import {
 import type { Spec } from "../types";
 import {
   callHistory,
+  copyTextHandler,
   createSpecCalls,
   resolveSpecBase,
   resolveToolResults,
@@ -72,6 +73,8 @@ export type SpecToolkitPlatform = {
   useSendMessage(): (text: string) => void;
   /** Registers what `updateModelContext` shares as model context, read when each request starts. */
   useModelContext(source: ModelContextSource): void;
+  /** Writes to the user's clipboard, for the `copyText` action; a platform without a clipboard leaves it out. */
+  copyText?: (text: string) => Promise<void>;
 };
 
 type RenderSpecProps = {
@@ -93,6 +96,7 @@ export const specToolkitFor =
     Frame,
     useSendMessage,
     useModelContext,
+    copyText,
   }: SpecToolkitPlatform) =>
   (catalog: Catalog, options: SpecToolkitOptions): WidgetToolkitExtension => {
     const { tools, histories, execute } = createSpecCalls(catalog);
@@ -221,6 +225,7 @@ export const specToolkitFor =
             },
             updateModelContext: (params: Record<string, unknown>) =>
               share(toSharedContext(params["text"], params["data"])),
+            ...(copyText ? { copyText: copyTextHandler(copyText) } : {}),
             ...options.handlers,
           }),
           [sendMessage, share],
@@ -253,7 +258,9 @@ export const specToolkitFor =
 
     return {
       tools,
-      modules: specModules(catalog, options.specPrompt),
+      modules: specModules(catalog, options.specPrompt, {
+        clipboard: copyText !== undefined,
+      }),
       entries: (context) => ({
         render_spec: toolkitEntry(
           tools.render_spec,

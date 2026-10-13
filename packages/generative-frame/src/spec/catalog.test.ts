@@ -158,8 +158,8 @@ describe("defineCatalog", () => {
 });
 
 describe("built-in actions", () => {
-  it("reserves sendMessage and updateModelContext", () => {
-    for (const name of ["sendMessage", "updateModelContext"]) {
+  it("reserves sendMessage, updateModelContext, and copyText", () => {
+    for (const name of ["sendMessage", "updateModelContext", "copyText"]) {
       expect(() =>
         defineCatalog({
           components: {},
@@ -204,6 +204,10 @@ describe("built-in actions", () => {
     const context = catalog.prompt({ hostApi: { modelContext: true } });
     expect(context).toContain("`updateModelContext`");
     expect(context).not.toContain("`sendMessage`");
+    expect(context).not.toContain("`copyText`");
+    const clipboard = catalog.prompt({ hostApi: { clipboard: true } });
+    expect(clipboard).toContain("- `copyText` — params `{ text: string }`.");
+    expect(clipboard).not.toContain("`sendMessage`");
   });
 });
 

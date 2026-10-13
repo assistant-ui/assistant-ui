@@ -35,6 +35,7 @@ import { SpecRenderer, type SpecComponents } from "../vue/SpecRenderer";
 import { useSpecStream } from "../vue/useSpecStream";
 import {
   callHistory,
+  copyTextHandler,
   createSpecCalls,
   resolveSpecBase,
   resolveToolResults,
@@ -42,6 +43,7 @@ import {
   specModules,
   type InteractionLog,
   type SpecArgs,
+  writeClipboard,
 } from "./thread";
 
 export type SpecToolkitOptions = {
@@ -206,6 +208,7 @@ export function createSpecToolkit(
           },
           updateModelContext: (params) =>
             shared.share(toSharedContext(params["text"], params["data"])),
+          copyText: copyTextHandler(writeClipboard),
           ...options.handlers,
         };
         const unsubscribe = store.subscribe(() => saver.schedule(snapshot));
@@ -242,7 +245,7 @@ export function createSpecToolkit(
   });
   return {
     tools,
-    modules: specModules(catalog, options.specPrompt),
+    modules: specModules(catalog, options.specPrompt, { clipboard: true }),
     entries: (context) => entries(context) as Toolkit,
   };
 }

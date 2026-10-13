@@ -7,7 +7,7 @@ import {
   screen,
 } from "@testing-library/react";
 import { Activity, version, type ComponentType } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { createSpecToolkit } from "../spec/assistant-ui";
 import { resolveSpecBase } from "../spec/assistant-ui/thread";
 import { defineCatalog } from "../spec/catalog";
@@ -135,6 +135,7 @@ afterEach(() => {
   mocks.widgetProps.length = 0;
   mocks.widgets.length = 0;
   mocks.inspection.errors = [];
+  Reflect.deleteProperty(navigator, "clipboard");
 });
 
 const call = (
@@ -1462,6 +1463,100 @@ describe("sharing with the model", () => {
     expect(shared()).toBe("");
   });
 
+  it.each([
+    ["succeeds", { writeText: async () => {} }, "2 lb lamb", "Copied"],
+    [
+      "is rejected",
+      {
+        writeText: async () => {
+          throw new Error("denied");
+        },
+      },
+      "2 lb lamb",
+      "Copy list",
+    ],
+    ["has no clipboard API", undefined, "2 lb lamb", "Copy list"],
+    [
+      "has no text",
+      { writeText: async () => {} },
+      { $state: "/missing" },
+      "Copy list",
+    ],
+  ])(
+    "confirms a copy only when the write %s",
+    async (_case, clipboard, text, label) => {
+      if (clipboard) {
+        Object.defineProperty(navigator, "clipboard", {
+          value: clipboard,
+          configurable: true,
+        });
+      }
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      onTestFinished(() => warn.mockRestore());
+      const RenderSpec = entries(specToolkit())["render_spec"]!.render;
+      render(
+        <RenderSpec
+          {...partProps("s", {
+            title: "list",
+            patches: button({
+              props: {
+                label: {
+                  $cond: { $state: "/copied" },
+                  $then: "Copied",
+                  $else: "Copy list",
+                },
+              },
+              on: {
+                press: [
+                  { action: "copyText", params: { text } },
+                  {
+                    action: "setState",
+                    params: { path: "/copied", value: true },
+                  },
+                ],
+              },
+            }),
+          })}
+        />,
+      );
+      await act(async () => {
+        fireEvent.click(screen.getByText("Copy list"));
+      });
+      expect(screen.getByRole("button").textContent).toBe(label);
+    },
+  );
+
+  it("copies text from a user's event, never from a watch binding", async () => {
+    const writeText = vi.fn(async (_text: string) => {});
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+    const RenderSpec = entries(specToolkit())["render_spec"]!.render;
+    render(
+      <RenderSpec
+        {...partProps("s", {
+          title: "list",
+          patches: button({
+            on: {
+              press: [
+                { action: "copyText", params: { text: "2 lb lamb" } },
+                { action: "setState", params: { path: "/n", value: 1 } },
+              ],
+            },
+            watch: {
+              n: { action: "copyText", params: { text: "watched" } },
+            },
+          }),
+        })}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByText("Go"));
+    });
+    expect(writeText).toHaveBeenCalledExactlyOnceWith("2 lb lamb");
+  });
+
   it("documents the built-in actions in the spec module", async () => {
     const { toolkit } = createWidgetToolkit({
       spec: createSpecToolkit(catalog, { components }),
@@ -1473,6 +1568,7 @@ describe("sharing with the model", () => {
     expect(output).toContain(
       "- `updateModelContext` — params `{ text?: string; data?: unknown }`.",
     );
+    expect(output).toContain("- `copyText` — params `{ text: string }`.");
   });
 });
 

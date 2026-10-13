@@ -124,6 +124,7 @@ export function validateSpec(
             "setState",
             "sendMessage",
             "updateModelContext",
+            "copyText",
             ...Object.keys(catalog.actions),
           ].join(", ")}.`,
         });

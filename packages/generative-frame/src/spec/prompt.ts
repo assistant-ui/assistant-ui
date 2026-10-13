@@ -13,8 +13,8 @@ export type SpecPromptOptions = {
   customRules?: readonly string[];
   /** Leave out the worked example. */
   omitExample?: boolean;
-  /** Built-in actions the host handles, which the guidance then describes: `prompt` for `sendMessage`, `modelContext` for `updateModelContext`. Both default to false. */
-  hostApi?: { prompt?: boolean; modelContext?: boolean };
+  /** Built-in actions the host handles, which the guidance then describes: `prompt` for `sendMessage`, `modelContext` for `updateModelContext`, `clipboard` for `copyText`. All default to false. */
+  hostApi?: { prompt?: boolean; modelContext?: boolean; clipboard?: boolean };
 };
 
 const list = (items: readonly string[]) =>
@@ -56,6 +56,11 @@ const actionSection = (
     ...(hostApi.prompt
       ? [
           "- `sendMessage` — params `{ text: string }`. Sends `text` as the user's next message, as if they typed it. Use it behind a button for a follow-up the user asks for. Built in.",
+        ]
+      : []),
+    ...(hostApi.clipboard
+      ? [
+          '- `copyText` — params `{ text: string }`. Copies `text` to the user\'s clipboard, such as a shopping list behind a "Copy list" button; follow it with a `setState` that shows a short confirmation. Built in.',
         ]
       : []),
     ...(hostApi.modelContext

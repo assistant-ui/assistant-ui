@@ -1,4 +1,5 @@
 import { toolCalls, type MessageLike } from "../../assistant-ui/tool-calls";
+import type { ActionHandler } from "../actions";
 import type { Catalog } from "../catalog";
 import type { SpecPromptOptions } from "../prompt";
 import {
@@ -162,12 +163,14 @@ export function createSpecCalls(catalog: Catalog) {
 export const specModules = (
   catalog: Catalog,
   specPrompt: Omit<SpecPromptOptions, "mode"> | undefined,
+  host: { clipboard: boolean },
 ) => [
   specGuidanceModule(catalog, {
     ...specPrompt,
     hostApi: {
       prompt: true,
       modelContext: true,
+      clipboard: host.clipboard,
       ...specPrompt?.hostApi,
     },
     customRules: [
@@ -176,3 +179,25 @@ export const specModules = (
     ],
   }),
 ];
+
+/** Writes to the browser's clipboard, rejecting where the Clipboard API is missing. */
+export const writeClipboard = (text: string): Promise<void> =>
+  typeof navigator !== "undefined" && navigator.clipboard
+    ? navigator.clipboard.writeText(text)
+    : Promise.reject(new Error("Clipboard API is unavailable"));
+
+/** The built-in `copyText` handler. A copy that does not happen fails, so the rest of the list, such as a confirmation, does not run. */
+export const copyTextHandler =
+  (write: (text: string) => Promise<void>): ActionHandler =>
+  (params, source) => {
+    if (source.kind === "watch") {
+      throw new Error(
+        "copyText runs only from an event a component emits, never from `watch`",
+      );
+    }
+    const text = params["text"];
+    if (typeof text !== "string") {
+      throw new Error("copyText needs a string `text`");
+    }
+    return write(text);
+  };
