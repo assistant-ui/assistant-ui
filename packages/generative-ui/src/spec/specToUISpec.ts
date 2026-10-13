@@ -79,7 +79,7 @@ function readPath(
  * The resolved `value` of a read of `path`, with each bound control at or
  * under `path` read through `$field` when the action runs and its value now
  * as the fallback. A control can bind a path the state does not hold yet,
- * such as an empty form field, so its key is added.
+ * such as a field of an empty or `null` form, so its key is added.
  */
 function overlay(
   value: unknown,
@@ -101,8 +101,8 @@ function overlay(
       overlay(item, `${path}/${index}`, fields),
     );
   }
-  if (value !== undefined && !isRecord(value)) return value;
-  const keys = new Set(value ? Object.keys(value) : []);
+  if (value !== undefined && value !== null && !isRecord(value)) return value;
+  const keys = new Set(isRecord(value) ? Object.keys(value) : []);
   for (const bound of below) {
     keys.add(unescapeToken(bound.slice(path.length + 1).split("/")[0]!));
   }
@@ -110,7 +110,7 @@ function overlay(
     [...keys].map((key) => [
       key,
       overlay(
-        value && Object.hasOwn(value, key) ? value[key] : undefined,
+        isRecord(value) && Object.hasOwn(value, key) ? value[key] : undefined,
         `${path}/${escapeToken(key)}`,
         fields,
       ),

@@ -200,39 +200,48 @@ describe("specToUISpec", () => {
     });
   });
 
-  it("reads a bound control the state does not hold yet", () => {
-    const tree = specToUISpec({
-      root: "card",
-      elements: {
-        card: {
-          type: "Card",
-          props: { title: "Sign up" },
-          children: ["email", "go"],
-        },
-        email: {
-          type: "Input",
-          props: { name: "email", defaultValue: { $bindState: "/form/email" } },
-        },
-        go: {
-          type: "Button",
-          props: { label: "Go" },
-          on: {
-            press: { action: "signUp", params: { form: { $state: "/form" } } },
+  it.each([{}, { form: null }])(
+    "reads a bound control the state does not hold yet (%j)",
+    (state) => {
+      const tree = specToUISpec({
+        root: "card",
+        elements: {
+          card: {
+            type: "Card",
+            props: { title: "Sign up" },
+            children: ["email", "go"],
+          },
+          email: {
+            type: "Input",
+            props: {
+              name: "email",
+              defaultValue: { $bindState: "/form/email" },
+            },
+          },
+          go: {
+            type: "Button",
+            props: { label: "Go" },
+            on: {
+              press: {
+                action: "signUp",
+                params: { form: { $state: "/form" } },
+              },
+            },
           },
         },
-      },
-      state: {},
-    });
-    expect(tree).toMatchObject({
-      children: [
-        { $type: "Input", name: "email" },
-        {
-          $type: "Button",
-          $action: { type: "signUp", form: { email: { $field: "email" } } },
-        },
-      ],
-    });
-  });
+        state,
+      });
+      expect(tree).toMatchObject({
+        children: [
+          { $type: "Input", name: "email" },
+          {
+            $type: "Button",
+            $action: { type: "signUp", form: { email: { $field: "email" } } },
+          },
+        ],
+      });
+    },
+  );
 
   it("reads a repeated control through $field when a param reads its item", () => {
     const tree = specToUISpec({
