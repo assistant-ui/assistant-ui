@@ -350,7 +350,7 @@ export function buildWidgetGuidance(options: GuidanceOptions = {}): string {
   const modules = normalizeModules(options.modules);
   const index = `## Modules
 
-Call \`read_me\` with the modules you need before your first widget of that kind. Available: ${WIDGET_MODULES.map(
+Call \`read_me\` with the modules you need that these instructions do not already include, before your first widget of that kind. Available: ${WIDGET_MODULES.map(
     (module) => `\`${module}\` (${MODULE_SUMMARIES[module]})`,
   ).join("; ")}.`;
   return [
