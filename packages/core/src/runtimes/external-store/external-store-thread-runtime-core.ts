@@ -219,13 +219,23 @@ export class ExternalStoreThreadRuntimeCore
   // rejected, is dropped from the map without eviction.
   // Branch-changing mutations (edit, branch switch) invalidate the map,
   // because after them the incoming array omits off-branch ids for reasons
-  // unrelated to deletion. A reload invalidates only the ids after the parent
-  // it regenerates from: the host keeps the prefix up to that parent, so an
-  // id absent from it is still a deletion. Plain tail sends do not clear: a
-  // tail append cannot make a visible id absent, so id-absence stays
-  // unambiguous and a delete whose confirmation races a send keeps its
+  // unrelated to deletion. A reload keeps only the prefix up to the parent it
+  // regenerates from in the host's array: an id absent from that prefix is
+  // still a deletion, but an id after the parent is absent whether or not its
+  // delete was declined. The snapshot pass leaves such an id alone while an
+  // onDelete call for it is pending; a rejection drops it, and a resolution
+  // applies the usual rule to the host's current array. Plain tail sends do
+  // not clear: a tail append cannot make a visible id absent, so id-absence
+  // stays unambiguous and a delete whose confirmation races a send keeps its
   // eviction.
-  private _pendingDeleteEvictions = new Map<string, Set<symbol>>();
+  private _pendingDeleteEvictions = new Map<
+    string,
+    {
+      calls: Set<symbol>;
+      reloaded: boolean;
+      message: ThreadMessage;
+    }
+  >();
 
   // Placeholder id for the upcoming assistant message, reused across snapshot
   // passes while the same tail message awaits its response so the placeholder
@@ -607,9 +617,11 @@ export class ExternalStoreThreadRuntimeCore
         oldStore?.messages !== store.messages
       ) {
         const incomingIds = new Set(messages.map((m) => m.id));
-        for (const [id, calls] of this._pendingDeleteEvictions) {
+        for (const [id, pending] of this._pendingDeleteEvictions) {
+          if (pending.reloaded) continue;
           if (incomingIds.has(id)) {
-            if (calls.size === 0) this._pendingDeleteEvictions.delete(id);
+            if (pending.calls.size === 0)
+              this._pendingDeleteEvictions.delete(id);
             continue;
           }
           this._pendingDeleteEvictions.delete(id);
@@ -1000,18 +1012,46 @@ export class ExternalStoreThreadRuntimeCore
       // host's own array no longer carries the id. Registered before the
       // callback because an optimistic host publishes that snapshot while
       // the callback is still awaited.
-      const wasVisible = this.repository
+      const visibleMessage = this.repository
         .getMessages()
-        .some((m) => m.id === messageId);
+        .find((m) => m.id === messageId);
       const call = Symbol();
-      if (wasVisible) {
-        const calls = this._pendingDeleteEvictions.get(messageId) ?? new Set();
-        this._pendingDeleteEvictions.set(messageId, calls.add(call));
+      let pending = this._pendingDeleteEvictions.get(messageId);
+      if (visibleMessage) {
+        if (
+          !pending ||
+          (messageId.startsWith(FALLBACK_ID_PREFIX) &&
+            pending.message !== visibleMessage)
+        ) {
+          pending = {
+            calls: new Set<symbol>(),
+            reloaded: false,
+            message: visibleMessage,
+          };
+        }
+        pending.calls.add(call);
+        this._pendingDeleteEvictions.set(messageId, pending);
       }
+      let resolved = false;
       try {
         await this._store.onDelete(messageId);
+        resolved = true;
       } finally {
-        this._pendingDeleteEvictions.get(messageId)?.delete(call);
+        if (
+          pending &&
+          this._pendingDeleteEvictions.get(messageId) === pending &&
+          pending.calls.delete(call)
+        ) {
+          if (pending.reloaded && resolved) {
+            pending.reloaded = false;
+            if (!this._storeMessages.some((m) => m.id === messageId)) {
+              this._pendingDeleteEvictions.delete(messageId);
+              this._evictDeletedMessage(messageId, pending.message);
+            }
+          } else if (pending.reloaded && pending.calls.size === 0) {
+            this._pendingDeleteEvictions.delete(messageId);
+          }
+        }
       }
       return;
     }
@@ -1037,15 +1077,22 @@ export class ExternalStoreThreadRuntimeCore
   // branch picker can resurrect into the host store. `_messages` is refreshed
   // before notifying so `messages` and the branch graph agree at notify time,
   // mirroring the end of the snapshot pass.
-  private _evictDeletedMessage(messageId: string) {
-    // Positional fallback ids are remapped in the snapshot pass; evicting
-    // them first leaves the pre-renumber node as a sibling of the new head.
-    if (messageId.startsWith(FALLBACK_ID_PREFIX)) return;
+  private _evictDeletedMessage(
+    messageId: string,
+    expectedMessage?: ThreadMessage,
+  ) {
+    // Positional fallback ids can be reused by another message after a snapshot.
+    if (messageId.startsWith(FALLBACK_ID_PREFIX) && !expectedMessage) return;
     // A synchronous host update (e.g. a setMessages that re-entered the
     // snapshot pass) may have evicted the message already; only that case is
     // skipped, so genuine repository errors still propagate.
     try {
-      this.repository.getMessage(messageId);
+      const current = this.repository.getMessage(messageId).message;
+      if (
+        messageId.startsWith(FALLBACK_ID_PREFIX) &&
+        current !== expectedMessage
+      )
+        return;
     } catch {
       return;
     }
@@ -1095,8 +1142,10 @@ export class ExternalStoreThreadRuntimeCore
         .slice(0, visible.findIndex((m) => m.id === config.parentId) + 1)
         .map((m) => m.id),
     );
-    for (const id of this._pendingDeleteEvictions.keys()) {
-      if (!kept.has(id)) this._pendingDeleteEvictions.delete(id);
+    for (const [id, pending] of this._pendingDeleteEvictions) {
+      if (kept.has(id)) continue;
+      if (pending.calls.size > 0) pending.reloaded = true;
+      else this._pendingDeleteEvictions.delete(id);
     }
 
     const cancellationLease = this._runCancellationLeases.current();
