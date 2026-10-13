@@ -45,7 +45,8 @@ export type ActionDispatcher = (
  * Creates the function elements use to run their bound actions: params are
  * resolved against current state (and the event payload), `setState` writes
  * the store, and every other action goes to a host handler. Actions in a list
- * run in order and see state written by the ones before them.
+ * run in order, see state written by the ones before them, and stop at the
+ * first one that fails.
  */
 export function createActionDispatcher(
   options: ActionDispatcherOptions,
@@ -102,6 +103,7 @@ export function createActionDispatcher(
       } catch (error) {
         report(error, binding);
         results.push(undefined);
+        break;
       }
     }
     return results;
