@@ -409,6 +409,21 @@ describe("formula bounds and parsing", () => {
     expect(evaluateFormula("sum(${/a}) + sum(${/b})", shared)).toBeNull();
   });
 
+  it("reads a list field once per call and gives null past 32 levels", () => {
+    const rows = [{ price: 2 }, { price: 3 }];
+    expect(
+      evaluateFormula("sum(${/rows}, ${/field})", {
+        state: { rows, field: "/price" },
+      }),
+    ).toBe(5);
+    const list = Array.from({ length: 9000 }, () => ({ a: 1 }));
+    expect(
+      evaluateFormula("sum(${/list}, ${/field})", {
+        state: { list, field: "/a".repeat(25_000) },
+      }),
+    ).toBeNull();
+  });
+
   it("counts every value a text join serializes against the budget", () => {
     expect(evaluateFormula("'v: ' + ${/o}", { state: { o: { a: [1] } } })).toBe(
       'v: {"a":[1]}',

@@ -28,15 +28,16 @@ const normalize = (value: unknown): unknown =>
     ? null
     : value;
 
-const readPath = (base: unknown, path: string) => {
-  let tokens: string[];
+const pointerTokens = (path: string) => {
   try {
-    tokens = parsePointer(path && !path.startsWith("/") ? `/${path}` : path);
+    return parsePointer(path && !path.startsWith("/") ? `/${path}` : path);
   } catch {
-    return base;
+    return [];
   }
-  return getAtPointer(base, tokens);
 };
+
+const readPath = (base: unknown, path: string) =>
+  getAtPointer(base, pointerTokens(path));
 
 const readReference = (path: string, ctx: ExpressionContext) => {
   if (path === "$index") return ctx.index;
@@ -103,12 +104,14 @@ const aggregate = (
   const [list, field] = args;
   if (!Array.isArray(list) || args.length > 2) return null;
   if (args.length === 2 && typeof field !== "string") return null;
+  const tokens = typeof field === "string" ? pointerTokens(field) : undefined;
+  if (tokens && tokens.length > 32) return null;
   let total = 0;
   let count = 0;
   let extreme: number | null = null;
   for (const item of list) {
     step();
-    const value = typeof field === "string" ? readPath(item, field) : item;
+    const value = tokens ? getAtPointer(item, tokens) : item;
     if (!isNumber(value)) continue;
     total += value;
     count++;
