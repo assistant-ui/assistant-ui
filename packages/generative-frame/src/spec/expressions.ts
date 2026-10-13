@@ -207,10 +207,19 @@ function evaluateConditionValue(
     const value = evaluateConditionValue(condition["not"] as Condition, ctx);
     return value === undefined ? undefined : !value;
   }
-  if (!hasSource)
-    return isExpression(condition)
-      ? Boolean(resolveValue(condition, ctx))
-      : undefined;
+  if (!hasSource) {
+    if (!isExpression(condition)) return undefined;
+    let expression: unknown = condition;
+    while (isRecord(expression) && "$cond" in expression) {
+      const matches = evaluateConditionValue(
+        expression["$cond"] as Condition,
+        ctx,
+      );
+      if (matches === undefined) return undefined;
+      expression = expression[matches ? "$then" : "$else"];
+    }
+    return Boolean(resolveValue(expression, ctx));
+  }
 
   const value = readSource(condition, ctx);
   let result = true;

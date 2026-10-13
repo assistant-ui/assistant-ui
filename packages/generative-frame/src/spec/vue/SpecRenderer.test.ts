@@ -617,16 +617,22 @@ describe("SpecRenderer", () => {
     ).toBe("Picture: src expected string, got object");
   });
 
-  it.each([false, true])(
-    "hides an unfinished visibility condition until streamed state enables it (negated: %s)",
-    async (negated) => {
+  it.each(["plain", "not", "$cond"] as const)(
+    "hides an unfinished visibility condition until streamed state enables it (form: %s)",
+    async (form) => {
+      const negated = form !== "plain";
       const stream = createSpecStream({
         initial: spec(
           {
             main: {
               type: "Button",
               props: { label: "Continue" },
-              visible: negated ? { not: {} } : {},
+              visible:
+                form === "$cond"
+                  ? { $cond: {}, $then: false, $else: true }
+                  : negated
+                    ? { not: {} }
+                    : {},
             },
           },
           { open: negated },
@@ -637,7 +643,7 @@ describe("SpecRenderer", () => {
       stream.push(
         JSON.stringify({
           op: "add",
-          path: `/elements/main/visible${negated ? "/not" : ""}/$state`,
+          path: `/elements/main/visible${form === "plain" ? "" : `/${form}`}/$state`,
           value: "/open",
         }) + "\n",
       );
