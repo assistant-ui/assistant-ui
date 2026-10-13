@@ -1242,7 +1242,7 @@ export class LocalThreadRuntimeCore
         !this.repository.hasChildren(message.id)
       );
     } finally {
-      const wasRunning = run.isRunning;
+      const previousIsRunning = this.isRunning;
       run.isRunning = false;
       if (scopeGeneration === this._loadGeneration)
         this._notifyEventSubscribers("runEnd", {});
@@ -1250,7 +1250,7 @@ export class LocalThreadRuntimeCore
         scopeGeneration === this._loadGeneration && this._activeRun === run;
       if (active) this._activeRun = null;
       if (scopeGeneration === this._loadGeneration) this._syncQueue();
-      if (active && wasRunning) this._notifySubscribers();
+      if (previousIsRunning !== this.isRunning) this._notifySubscribers();
     }
 
     if (
@@ -1589,6 +1589,7 @@ export class LocalThreadRuntimeCore
         throw e;
       }
     } finally {
+      const previousIsRunning = this.isRunning;
       if (this.abortController === abortController) {
         this.abortController = null;
       }
@@ -1662,13 +1663,10 @@ export class LocalThreadRuntimeCore
       run.isRunning =
         shouldContinue(message, this._options.unstable_humanToolNames) &&
         !this.repository.hasChildren(message.id);
-      const stoppedRunning =
-        holdsMessage &&
-        this._roundtripsInFlight.size === 0 &&
-        !this._activeRun?.isRunning;
       // Notified after the write is queued, so a change a subscriber makes in
       // response is written after it.
-      if (settled || stoppedRunning) this._notifySubscribers();
+      if (settled || previousIsRunning !== this.isRunning)
+        this._notifySubscribers();
       if (written) await written;
     }
     return message;

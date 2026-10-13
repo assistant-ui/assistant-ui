@@ -6817,6 +6817,12 @@ describe("LocalThreadRuntimeCore runs", () => {
       await sent;
       unsubscribe();
     }
+    expect(runningUpdates).toContain(true);
+    expect(
+      runningUpdates
+        .slice(runningUpdates.indexOf(true))
+        .filter((value) => !value),
+    ).toHaveLength(1);
   });
 
   it("reports running at every notification between continued tool roundtrips", async () => {
@@ -6894,6 +6900,43 @@ describe("LocalThreadRuntimeCore runs", () => {
     expect(updates.at(-1)).toBe(false);
     expect(getThreadRuntimeCoreIsRunning(thread)).toBe(false);
   });
+
+  it.each(["reset", "import"])(
+    "notifies idle when a streaming run finishes after %s",
+    async (operation) => {
+      let release!: () => void;
+      const gate = new Promise<void>((resolve) => (release = resolve));
+      const thread = createPlainThread({
+        async *run() {
+          yield { content: [{ type: "text" as const, text: "partial" }] };
+          await gate;
+          yield { content: [{ type: "text" as const, text: "done" }] };
+        },
+      });
+      const updates: boolean[] = [];
+      thread.subscribe(() =>
+        updates.push(getThreadRuntimeCoreIsRunning(thread)),
+      );
+
+      const sent = thread.append(userMessage("hi"));
+      await vi.waitFor(() =>
+        expect(thread.messages.at(-1)).toMatchObject({
+          role: "assistant",
+          status: { type: "running" },
+          content: [{ type: "text", text: "partial" }],
+        }),
+      );
+      if (operation === "reset") thread.reset();
+      else thread.import({ messages: [] });
+      expect(updates.at(-1)).toBe(true);
+
+      release();
+      await sent;
+
+      expect(updates.at(-1)).toBe(false);
+      expect(getThreadRuntimeCoreIsRunning(thread)).toBe(false);
+    },
+  );
 
   it("reports an idle thread to runEnd listeners after a hidden answer settles", async () => {
     const { thread, regenerate, release } = await createStreamingRegenerate();
