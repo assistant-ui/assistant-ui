@@ -164,28 +164,26 @@ function evaluateConditionValue(
   if (condition === undefined) return true;
   if (typeof condition === "boolean") return condition;
   if (Array.isArray(condition)) {
-    const values = condition.map((part) =>
-      evaluateConditionValue(part as Condition, ctx),
-    );
-    return values.includes(false)
-      ? false
-      : values.includes(undefined)
-        ? undefined
-        : true;
+    let result: boolean | undefined = true;
+    for (const part of condition) {
+      const value = evaluateConditionValue(part as Condition, ctx);
+      if (value === false) return false;
+      if (value === undefined) result = undefined;
+    }
+    return result;
   }
   if (!isRecord(condition)) return Boolean(condition);
   if (Array.isArray(condition["$and"])) {
     return evaluateConditionValue(condition["$and"] as Condition[], ctx);
   }
   if (Array.isArray(condition["$or"])) {
-    const values = (condition["$or"] as Condition[]).map((part) =>
-      evaluateConditionValue(part, ctx),
-    );
-    return values.includes(true)
-      ? true
-      : values.includes(undefined)
-        ? undefined
-        : false;
+    let result: boolean | undefined = false;
+    for (const part of condition["$or"] as Condition[]) {
+      const value = evaluateConditionValue(part, ctx);
+      if (value === true) return true;
+      if (value === undefined) result = undefined;
+    }
+    return result;
   }
   const hasSource = SOURCE_KEYS.some((key) => key in condition);
   if (!hasSource && "not" in condition) {
