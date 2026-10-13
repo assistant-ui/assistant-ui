@@ -814,6 +814,7 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
     parentId: string,
     reload: (current: ThreadMessage[]) => ThreadMessage[],
     holdReload = false,
+    sendAfterReload = false,
   ) => {
     let current = [
       message("u1", "user"),
@@ -851,6 +852,16 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
     if (holdReload) await Promise.resolve();
     else await reloading;
     runtime.__internal_setAdapter(store());
+    if (sendAfterReload)
+      await runtime.append({
+        parentId: runtime.messages.at(-1)?.id ?? null,
+        sourceId: null,
+        role: "user",
+        createdAt: new Date(0),
+        content: [{ type: "text", text: "next turn" }],
+        metadata: { custom: {} },
+        runConfig: {},
+      });
     current = [...current, message("u3", "user"), message("a3", "assistant")];
     runtime.__internal_setAdapter(store());
     const deletion = runtime.deleteMessage("u3");
@@ -872,11 +883,11 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
     );
   });
 
-  it("closes the reload window when onReload settles without changing the host array", async () => {
-    await optimisticDeleteAfterReload("a2", (current) => current);
+  it("closes the reload window on the next send when the host array stays unchanged", async () => {
+    await optimisticDeleteAfterReload("a2", (current) => current, false, true);
   });
 
-  it("protects a delete outside an older reload prefix when reloads overlap", async () => {
+  it("preserves a delete marked by an older reload across overlapping runs", async () => {
     let current = [
       message("u1", "user"),
       message("a1", "assistant"),
@@ -907,6 +918,7 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
       runConfig: {},
     });
     await Promise.resolve();
+    const deletion = runtime.deleteMessage("u2");
     const newer = runtime.startRun({
       parentId: "u2",
       sourceId: "a2",
@@ -914,7 +926,6 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
     });
     await Promise.resolve();
     expect(finishReloads).toHaveLength(2);
-    const deletion = runtime.deleteMessage("u2");
     current = [current[0]!];
     isRunning = true;
     runtime.__internal_setAdapter(store());
@@ -1064,6 +1075,128 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
     expect(runtime.getMessageById("u3")).toBeUndefined();
     confirm();
     await confirmed;
+  });
+
+  it.each(["declined", "confirmed"])(
+    "settles a %s delete after an unchanged snapshot precedes reload truncation",
+    async (outcome) => {
+      let current = [
+        message("u1", "user"),
+        message("a1", "assistant"),
+        message("u2", "user"),
+        message("a2", "assistant"),
+      ];
+      let settleDelete!: () => void;
+      const store = () =>
+        ({
+          messages: current,
+          onNew: async () => {},
+          onReload: async () => {},
+          onDelete: () =>
+            new Promise<void>((resolve, reject) => {
+              settleDelete = () =>
+                outcome === "confirmed"
+                  ? resolve()
+                  : reject(new Error("deletion declined"));
+            }),
+          setMessages: () => {},
+        }) as ExternalStoreAdapter;
+      const runtime = createRuntime(store());
+
+      await runtime.startRun({
+        parentId: "u1",
+        sourceId: "a1",
+        runConfig: {},
+      });
+      current = [...current];
+      runtime.__internal_setAdapter(store());
+      const deletion = runtime.deleteMessage("u2");
+      current = [current[0]!, message("a1b", "assistant")];
+      runtime.__internal_setAdapter(store());
+
+      expect(runtime.getMessageById("u2")?.message.id).toBe("u2");
+      settleDelete();
+      if (outcome === "confirmed") await deletion;
+      else await expect(deletion).rejects.toThrow("deletion declined");
+      expect(runtime.getMessageById("u2")?.message.id).toBe(
+        outcome === "confirmed" ? undefined : "u2",
+      );
+    },
+  );
+
+  it("closes a settled reload window at the next send", async () => {
+    let current = [
+      message("u1", "user"),
+      message("a1", "assistant"),
+      message("u2", "user"),
+      message("a2", "assistant"),
+    ];
+    let confirmDelete!: () => void;
+    const store = () =>
+      ({
+        messages: current,
+        onNew: async () => {},
+        onReload: async () => {},
+        onDelete: () =>
+          new Promise<void>((resolve) => {
+            confirmDelete = resolve;
+          }),
+        setMessages: () => {},
+      }) as ExternalStoreAdapter;
+    const runtime = createRuntime(store());
+
+    await runtime.startRun({ parentId: "u1", sourceId: "a1", runConfig: {} });
+    await runtime.append({
+      parentId: "a2",
+      sourceId: null,
+      role: "user",
+      createdAt: new Date(0),
+      content: [{ type: "text", text: "u3" }],
+      metadata: { custom: {} },
+      runConfig: {},
+    });
+    const deletion = runtime.deleteMessage("u2");
+    current = current.filter((m) => m.id !== "u2");
+    runtime.__internal_setAdapter(store());
+
+    expect(runtime.getMessageById("u2")).toBeUndefined();
+    confirmDelete();
+    await deletion;
+  });
+
+  it("closes a reload window when onReload rejects", async () => {
+    let current = [
+      message("u1", "user"),
+      message("a1", "assistant"),
+      message("u2", "user"),
+      message("a2", "assistant"),
+    ];
+    let confirmDelete!: () => void;
+    const store = () =>
+      ({
+        messages: current,
+        onNew: async () => {},
+        onReload: async () => {
+          throw new Error("reload failed");
+        },
+        onDelete: () =>
+          new Promise<void>((resolve) => {
+            confirmDelete = resolve;
+          }),
+        setMessages: () => {},
+      }) as ExternalStoreAdapter;
+    const runtime = createRuntime(store());
+
+    await expect(
+      runtime.startRun({ parentId: "u1", sourceId: "a1", runConfig: {} }),
+    ).rejects.toThrow("reload failed");
+    const deletion = runtime.deleteMessage("u2");
+    current = current.filter((m) => m.id !== "u2");
+    runtime.__internal_setAdapter(store());
+
+    expect(runtime.getMessageById("u2")).toBeUndefined();
+    confirmDelete();
+    await deletion;
   });
 
   it("keeps a delete rejected after onReload returns before the host truncation arrives", async () => {

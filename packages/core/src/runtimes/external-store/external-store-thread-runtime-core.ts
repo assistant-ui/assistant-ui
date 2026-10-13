@@ -219,12 +219,13 @@ export class ExternalStoreThreadRuntimeCore
   // rejected, is dropped from the map without eviction.
   // A branch switch marks records with pending calls, because the incoming
   // array can omit off-branch ids without deleting them. A reload or edit can
-  // omit the suffix after its parent for the same reason, so deletes outside
-  // that prefix are marked until a host snapshot drops the old suffix, or the
-  // first snapshot after the callback settles keeps it. Marked records settle
-  // from onDelete instead of snapshot absence. Plain tail sends do not mark
-  // anything: a tail append cannot make a visible id absent, so id-absence
-  // stays unambiguous and a delete whose confirmation races a send keeps its
+  // omit the suffix after its parent for the same reason. Deletes outside
+  // that prefix are marked while the window is open, until a host snapshot
+  // drops the old suffix, the next runtime change, cancellation, or a rejected
+  // reload or edit closes it. Already marked records settle from onDelete
+  // instead of snapshot absence. Plain tail sends do not mark anything: a
+  // tail append cannot make a visible id absent, so id-absence stays
+  // unambiguous and a delete whose confirmation races a send keeps its
   // eviction.
   private _pendingDeleteEvictions = new Map<
     string,
@@ -237,16 +238,15 @@ export class ExternalStoreThreadRuntimeCore
   private _pendingDeleteWindows = new Set<{
     prefix: ReadonlySet<string>;
     suffix: ReadonlySet<string>;
-    settled: boolean;
   }>();
 
   private _openDeleteWindow(parentId: string | null) {
+    this._pendingDeleteWindows.clear();
     const visible = this.repository.getMessages();
     const prefixLength = visible.findIndex((m) => m.id === parentId) + 1;
     const window = {
       prefix: new Set(visible.slice(0, prefixLength).map((m) => m.id)),
       suffix: new Set(visible.slice(prefixLength).map((m) => m.id)),
-      settled: false,
     };
     this._pendingDeleteWindows.add(window);
     for (const [id, pending] of this._pendingDeleteEvictions) {
@@ -260,9 +260,8 @@ export class ExternalStoreThreadRuntimeCore
   private _closeDeleteWindows(incomingIds: ReadonlySet<string>) {
     for (const window of this._pendingDeleteWindows) {
       if (
-        window.settled ||
-        (window.suffix.size > 0 &&
-          [...window.suffix].every((id) => !incomingIds.has(id)))
+        window.suffix.size > 0 &&
+        [...window.suffix].every((id) => !incomingIds.has(id))
       )
         this._pendingDeleteWindows.delete(window);
     }
@@ -1001,6 +1000,8 @@ export class ExternalStoreThreadRuntimeCore
       return;
     }
 
+    this._pendingDeleteWindows.clear();
+
     const onBranchChange = this._store.unstable_onBranchChange;
     const previousHeadId = onBranchChange
       ? this.repository.canonicalHeadId
@@ -1039,6 +1040,7 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public async append(rawMessage: AppendMessage): Promise<void> {
+    this._pendingDeleteWindows.clear();
     let message = {
       ...rawMessage,
       parentId: this._resolveAppendParent(rawMessage.parentId),
@@ -1129,8 +1131,9 @@ export class ExternalStoreThreadRuntimeCore
       const window = this._openDeleteWindow(message.parentId);
       try {
         await this._store.onEdit(message);
-      } finally {
-        window.settled = true;
+      } catch (error) {
+        this._pendingDeleteWindows.delete(window);
+        throw error;
       }
     } else {
       await this._store.onNew(message);
@@ -1323,8 +1326,9 @@ export class ExternalStoreThreadRuntimeCore
         return;
       }
       await this._store.onReload(config.parentId, config);
-    } finally {
-      window.settled = true;
+    } catch (error) {
+      this._pendingDeleteWindows.delete(window);
+      throw error;
     }
   }
 
@@ -1336,6 +1340,7 @@ export class ExternalStoreThreadRuntimeCore
     if (this._isVoiceMessage(config.sourceId))
       throw new Error("Voice transcript messages cannot be reloaded");
 
+    this._pendingDeleteWindows.clear();
     this._runStartLeases.begin();
     this._cancelledToolTurn = null;
     await this._store.onResume(config);
@@ -1352,6 +1357,7 @@ export class ExternalStoreThreadRuntimeCore
     if (!this._store.onLoadExternalState)
       throw new Error("Runtime does not support importing external states.");
 
+    this._pendingDeleteWindows.clear();
     this._cancelRunResyncLeases.invalidate();
     this._cancelledToolTurn = null;
 
@@ -1385,6 +1391,7 @@ export class ExternalStoreThreadRuntimeCore
     if (!this._store.onCancel)
       throw new Error("Runtime does not support cancelling runs.");
 
+    this._pendingDeleteWindows.clear();
     const isRunning = this._getEffectiveIsRunning(this._store);
     this._runCancellationLeases.invalidate();
     const generation = captureThreadRuntimeGeneration(this);
@@ -1590,6 +1597,7 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public override reset(initialMessages?: readonly ThreadMessageLike[]) {
+    this._pendingDeleteWindows.clear();
     this._cancelRunResyncLeases.invalidate();
     this._cancelledToolTurn = null;
     this._submittedFeedback.clear();
@@ -1602,6 +1610,7 @@ export class ExternalStoreThreadRuntimeCore
     if (!this._store.onImport)
       throw new Error("Runtime does not support importing messages.");
 
+    this._pendingDeleteWindows.clear();
     this._cancelRunResyncLeases.invalidate();
     this._cancelledToolTurn = null;
     this._submittedFeedback.clear();
