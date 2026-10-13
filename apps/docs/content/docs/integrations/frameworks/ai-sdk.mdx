@@ -69,11 +69,13 @@ If you need streaming agent state (subgraph events, generative UI messages), loo
 ## Related
 
 <Cards>
-  <Card
-    title="OpenAI Agents SDK"
-    description="Connect a streamed Agents SDK run to the same AI SDK runtime."
-    href="/docs/integrations/frameworks/openai-agents"
-  />
+  <PlatformOnly platforms={["react"]}>
+    <Card
+      title="OpenAI Agents SDK"
+      description="Connect a streamed Agents SDK run to the same AI SDK runtime."
+      href="/docs/integrations/frameworks/openai-agents"
+    />
+  </PlatformOnly>
   <Card
     icon={<VercelIcon width={20} height={20} />}
     title="AI SDK runtime overview"
