@@ -1,11 +1,11 @@
 import {
-  useAssistantInstructions,
   useAui,
   useAuiState,
   useToolArgsStatus,
   type Toolkit,
 } from "@assistant-ui/react-native";
-import { useCallback, type ReactNode } from "react";
+import { useCallback, useEffect, type ReactNode } from "react";
+import type { ModelContextSource } from "../../assistant-ui/modelContext";
 import type {
   ToolkitDisplay,
   ToolkitExecution,
@@ -40,11 +40,19 @@ function useSendMessage() {
   return useCallback((text: string) => aui.thread.append(text), [aui]);
 }
 
-function useInstruction(instruction: string | undefined) {
-  useAssistantInstructions({
-    instruction: instruction ?? "",
-    disabled: instruction === undefined,
-  });
+function useModelContext(source: ModelContextSource) {
+  const aui = useAui();
+  useEffect(
+    () =>
+      aui.modelContext.register({
+        getModelContext: () => {
+          const system = source.read();
+          return system ? { system } : {};
+        },
+        subscribe: source.subscribe,
+      }),
+    [aui, source],
+  );
 }
 
 const build = specToolkitFor({
@@ -53,7 +61,7 @@ const build = specToolkitFor({
   SpecRenderer,
   Frame,
   useSendMessage,
-  useInstruction,
+  useModelContext,
 });
 
 /**

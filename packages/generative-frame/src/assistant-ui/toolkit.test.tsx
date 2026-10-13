@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   argsStatus: "complete" as "complete" | "streaming",
   propStatus: {} as Record<string, string>,
   instructions: [] as unknown[],
+  providers: [] as { getModelContext(): { system?: string } }[],
   widgetProps: [] as Record<string, unknown>[],
   widgets: [] as FakeWidget[],
   inspection: {
@@ -77,7 +78,17 @@ const fakeWidget = (): FakeWidget => {
 };
 
 vi.mock("@assistant-ui/react", () => ({
-  useAui: () => ({ thread: { append: mocks.append } }),
+  useAui: () => ({
+    thread: { append: mocks.append },
+    modelContext: {
+      register: (provider: { getModelContext(): { system?: string } }) => {
+        mocks.providers.push(provider);
+        return () => {
+          mocks.providers.splice(mocks.providers.indexOf(provider), 1);
+        };
+      },
+    },
+  }),
   useAuiState: (selector: (state: unknown) => unknown) =>
     selector({
       thread: { messages: mocks.messages },
@@ -120,6 +131,7 @@ afterEach(() => {
   mocks.argsStatus = "complete";
   mocks.propStatus = {};
   mocks.instructions.length = 0;
+  mocks.providers.length = 0;
   mocks.widgetProps.length = 0;
   mocks.widgets.length = 0;
   mocks.inspection.errors = [];
@@ -1190,8 +1202,14 @@ describe("frame widget state persistence", () => {
 describe("sharing with the model", () => {
   const flights =
     'The user\'s choices in the UI "flights", as they stand now: Picked WN 1185 {"selected":"WN 1185"}';
+  const shared = () =>
+    mocks.providers
+      .map((provider) => provider.getModelContext().system)
+      .filter(Boolean)
+      .join("\n\n");
+  const context = { text: "Picked WN 1185", data: { selected: "WN 1185" } };
 
-  it("passes what a widget shares to the model and restores it after a reload", () => {
+  it("passes what a widget shares to the model, saves it with every state snapshot, and restores it", () => {
     const record = vi.fn(async (_input: unknown) => {});
     const { toolkit } = createWidgetToolkit();
     const ShowWidget = entries(toolkit)["show_widget"]!.render;
@@ -1202,10 +1220,7 @@ describe("sharing with the model", () => {
         unstable_recordInteraction={record}
       />,
     );
-    expect(mocks.instructions.at(-1)).toEqual({
-      instruction: "",
-      disabled: true,
-    });
+    expect(shared()).toBe("");
     const update = mocks.widgetProps.at(-1)!["onUpdateModelContext"] as (
       params: unknown,
     ) => unknown;
@@ -1217,48 +1232,43 @@ describe("sharing with the model", () => {
       });
     });
     expect(result).toEqual({});
-    expect(mocks.instructions.at(-1)).toEqual({
-      instruction: flights,
-      disabled: false,
-    });
-    const saved = {
-      type: "action",
-      payload: {
-        type: "modelContext",
-        toolCallId: "a",
-        context: { text: "Picked WN 1185", data: { selected: "WN 1185" } },
-      },
-    };
-    expect(record).toHaveBeenCalledExactlyOnceWith(saved);
+    expect(shared()).toBe(flights);
     view.unmount();
+    const payload = {
+      type: "widgetState",
+      toolCallId: "a",
+      state: null,
+      context,
+    };
+    expect(record).toHaveBeenLastCalledWith({ type: "action", payload });
+    const later = Array.from({ length: 40 }, (_, n) => ({
+      type: "action",
+      payload: { ...payload, state: { n } },
+    }));
     render(
       <ShowWidget
         {...partProps("a", args)}
-        unstable_interactions={{ entries: [saved] }}
+        unstable_interactions={{ entries: later }}
       />,
     );
-    expect(mocks.instructions.at(-1)).toEqual({
-      instruction: flights,
-      disabled: false,
-    });
+    expect(shared()).toBe(flights);
   });
 
-  it("runs sendMessage and updateModelContext from a spec", async () => {
-    const record = vi.fn(async (_input: unknown) => {});
-    const buttons = defineCatalog({
-      components: {
-        Button: {
-          description: "A button",
-          props: {
-            type: "object",
-            properties: { label: { type: "string" } },
-            required: ["label"],
-          },
-          events: ["press"],
+  const buttons = defineCatalog({
+    components: {
+      Button: {
+        description: "A button",
+        props: {
+          type: "object",
+          properties: { label: { type: "string" } },
+          required: ["label"],
         },
+        events: ["press"],
       },
-    });
-    const { toolkit } = createWidgetToolkit({
+    },
+  });
+  const specToolkit = () =>
+    createWidgetToolkit({
       spec: createSpecToolkit(buttons, {
         components: {
           Button: ({ props, emit }: SpecComponentProps<{ label: string }>) => (
@@ -1268,42 +1278,73 @@ describe("sharing with the model", () => {
           ),
         },
       }),
-    });
-    const RenderSpec = entries(toolkit)["render_spec"]!.render;
-    const element = (id: string, label: string, action: unknown) =>
-      `{"op":"add","path":"/elements/${id}","value":{"type":"Button","props":{"label":"${label}"},"on":{"press":${JSON.stringify(action)}}}}`;
-    const patches = [
-      '{"op":"add","path":"/root","value":"pick"}',
-      element("pick", "Pick", [
-        {
-          action: "updateModelContext",
-          params: { text: "Picked WN 1185", data: { selected: "WN 1185" } },
-        },
-        { action: "sendMessage", params: { text: "Book it" } },
-      ]),
+    }).toolkit;
+  const button = (fields: Record<string, unknown>) =>
+    [
+      '{"op":"add","path":"/root","value":"b"}',
+      `{"op":"add","path":"/elements/b","value":${JSON.stringify({
+        type: "Button",
+        props: { label: "Go" },
+        ...fields,
+      })}}`,
     ].join("\n");
-    render(
+
+  it("lets sendMessage see what updateModelContext shared in the same event, and saves it", async () => {
+    const record = vi.fn(async (_input: unknown) => {});
+    let seen: string | undefined;
+    mocks.append.mockImplementationOnce(() => {
+      seen = shared();
+    });
+    const RenderSpec = entries(specToolkit())["render_spec"]!.render;
+    const view = render(
       <RenderSpec
-        {...partProps("s", { title: "flights", patches })}
+        {...partProps("s", {
+          title: "flights",
+          patches: button({
+            on: {
+              press: [
+                { action: "updateModelContext", params: context },
+                { action: "sendMessage", params: { text: "Book it" } },
+              ],
+            },
+          }),
+        })}
         unstable_recordInteraction={record}
       />,
     );
     await act(async () => {
-      fireEvent.click(screen.getByText("Pick"));
-    });
-    expect(mocks.instructions.at(-1)).toEqual({
-      instruction: flights,
-      disabled: false,
+      fireEvent.click(screen.getByText("Go"));
     });
     expect(mocks.append).toHaveBeenCalledExactlyOnceWith("Book it");
-    expect(record).toHaveBeenCalledWith({
+    expect(seen).toBe(flights);
+    view.unmount();
+    expect(record).toHaveBeenLastCalledWith({
       type: "action",
-      payload: {
-        type: "modelContext",
-        toolCallId: "s",
-        context: { text: "Picked WN 1185", data: { selected: "WN 1185" } },
-      },
+      payload: { type: "setState", toolCallId: "s", writes: [], context },
     });
+  });
+
+  it("does not send a message from a watch binding", async () => {
+    const RenderSpec = entries(specToolkit())["render_spec"]!.render;
+    render(
+      <RenderSpec
+        {...partProps("s", {
+          title: "flights",
+          patches: button({
+            on: {
+              press: { action: "setState", params: { path: "/n", value: 1 } },
+            },
+            watch: {
+              "/n": { action: "sendMessage", params: { text: "auto" } },
+            },
+          }),
+        })}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByText("Go"));
+    });
+    expect(mocks.append).not.toHaveBeenCalled();
   });
 
   it("documents the built-in actions in the spec module", async () => {

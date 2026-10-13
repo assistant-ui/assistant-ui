@@ -1,7 +1,13 @@
-import { useCallback, useInsertionEffect, useRef, useState } from "react";
+import { useInsertionEffect, useRef, useState } from "react";
 
 /** What a rendered UI tells the model about the user's choices: words, data, or both. */
 export type SharedContext = { text?: string; data?: unknown };
+
+/** The model context a mounted call contributes, read when a request starts. */
+export type ModelContextSource = {
+  read(): string | undefined;
+  subscribe(listener: () => void): () => void;
+};
 
 type InteractionLog = {
   readonly entries: readonly {
@@ -10,12 +16,7 @@ type InteractionLog = {
   }[];
 };
 
-type RecordInteraction = (input: {
-  type: "action";
-  payload: Record<string, unknown>;
-}) => Promise<void> | void;
-
-const MAX_INSTRUCTION = 4000;
+const MAX_CONTEXT = 4000;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -27,6 +28,9 @@ const stringify = (value: unknown) => {
     return "";
   }
 };
+
+const truncate = (text: string, length: number) =>
+  text.length > length ? `${text.slice(0, length - 1)}…` : text;
 
 /** A context from loose input, or undefined when it carries neither text nor data, which clears what the UI shared. */
 export function toSharedContext(
@@ -57,18 +61,28 @@ export function frameContext(params: unknown): SharedContext | undefined {
   return toSharedContext(text, params["structuredContent"]);
 }
 
-/** The newest context recorded on a call; a recorded `null` means the UI cleared it. */
+/** A context small enough to record and to put in a prompt: one whose JSON exceeds the cap keeps its text and data only as truncated text. */
+export function boundContext(context: SharedContext): SharedContext {
+  if (stringify(context).length <= MAX_CONTEXT) return context;
+  const data = context.data === undefined ? "" : stringify(context.data);
+  return {
+    text: truncate([context.text, data].filter(Boolean).join(" "), MAX_CONTEXT),
+  };
+}
+
+/** The context saved with a call's newest snapshot of the given type, which every snapshot carries so it never ages out of the call's log. */
 export function savedContext(
   log: InteractionLog | undefined,
   toolCallId: string,
+  type: "setState" | "widgetState",
 ): SharedContext | undefined {
   const entries = log?.entries ?? [];
   for (let index = entries.length - 1; index >= 0; index--) {
-    const { type, payload } = entries[index]!;
+    const { type: kind, payload } = entries[index]!;
     if (
-      type !== "action" ||
+      kind !== "action" ||
       !isRecord(payload) ||
-      payload["type"] !== "modelContext" ||
+      payload["type"] !== type ||
       payload["toolCallId"] !== toolCallId
     ) {
       continue;
@@ -81,59 +95,61 @@ export function savedContext(
   return undefined;
 }
 
-/** The system prompt line for what a UI shares, capped so one UI cannot crowd out the rest of the prompt. */
+/** The system prompt line for what a UI shares. */
 export function contextInstruction(
   title: string,
   context: SharedContext,
 ): string {
-  const parts = [`The user's choices in the UI "${title}", as they stand now:`];
-  if (context.text) parts.push(context.text);
   const data = context.data === undefined ? "" : stringify(context.data);
-  if (data) parts.push(data);
-  const text = parts.join(" ");
-  return text.length > MAX_INSTRUCTION
-    ? `${text.slice(0, MAX_INSTRUCTION - 1)}…`
-    : text;
+  return [
+    `The user's choices in the UI "${title}", as they stand now:`,
+    context.text,
+    data,
+  ]
+    .filter(Boolean)
+    .join(" ");
 }
 
 /**
- * What a mounted tool call shares with the model: restored from the call's
- * interactions, replaced by the returned function, recorded so it survives a
- * reload, and passed to `useInstruction` for every later request.
+ * What a mounted tool call shares with the model. `share` bounds a context,
+ * hands it to `onShare` so the call's snapshot saves it, and updates the
+ * source `useModelContext` registers, so a request that starts right after,
+ * such as one `sendMessage` begins, already sees it.
  */
 export function useSharedContext({
   title,
   toolCallId,
-  interactions,
-  record,
-  useInstruction,
+  initial,
+  useModelContext,
+  onShare,
 }: {
   title: string;
   toolCallId: string;
-  interactions: InteractionLog | undefined;
-  record: RecordInteraction | undefined;
-  useInstruction: (instruction: string | undefined) => void;
+  initial: SharedContext | undefined;
+  useModelContext: (source: ModelContextSource) => void;
+  onShare: (context: SharedContext | undefined) => void;
 }): (context: SharedContext | undefined) => void {
-  const [context, setContext] = useState(() =>
-    savedContext(interactions, toolCallId),
-  );
-  const recordRef = useRef(record);
+  const shared = useRef(initial && boundContext(initial));
+  const name = useRef(title || toolCallId);
+  const handler = useRef(onShare);
   useInsertionEffect(() => {
-    recordRef.current = record;
+    name.current = title || toolCallId;
+    handler.current = onShare;
   });
-  useInstruction(
-    context ? contextInstruction(title || toolCallId, context) : undefined,
-  );
-  return useCallback(
-    (next: SharedContext | undefined) => {
-      setContext(next);
-      void Promise.resolve(
-        recordRef.current?.({
-          type: "action",
-          payload: { type: "modelContext", toolCallId, context: next ?? null },
-        }),
-      ).catch(() => undefined);
+  const [listeners] = useState(() => new Set<() => void>());
+  const [source] = useState<ModelContextSource>(() => ({
+    read: () =>
+      shared.current && contextInstruction(name.current, shared.current),
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
     },
-    [toolCallId],
-  );
+  }));
+  useModelContext(source);
+  const [share] = useState(() => (context: SharedContext | undefined) => {
+    shared.current = context && boundContext(context);
+    handler.current(shared.current);
+    for (const listener of listeners) listener();
+  });
+  return share;
 }

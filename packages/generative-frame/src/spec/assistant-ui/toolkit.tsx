@@ -10,8 +10,11 @@ import {
 import { toolkitEntry } from "../../assistant-ui/entry";
 import type { WidgetToolkitExtension } from "../../assistant-ui/extension";
 import {
+  savedContext,
   toSharedContext,
   useSharedContext,
+  type ModelContextSource,
+  type SharedContext,
 } from "../../assistant-ui/modelContext";
 import { createSnapshotSaver } from "../../assistant-ui/snapshotSaver";
 import { toolCalls, type MessageLike } from "../../assistant-ui/tool-calls";
@@ -180,8 +183,8 @@ export type SpecToolkitPlatform = {
   Frame: ComponentType<{ title: string; children: ReactNode }>;
   /** Appends a user message to the thread, for the `sendMessage` action. */
   useSendMessage(): (text: string) => void;
-  /** Adds an instruction to the model context while it is defined, for what `updateModelContext` shares. */
-  useInstruction(instruction: string | undefined): void;
+  /** Registers what `updateModelContext` shares as model context, read when each request starts. */
+  useModelContext(source: ModelContextSource): void;
 };
 
 type RenderSpecProps = {
@@ -202,7 +205,7 @@ export const specToolkitFor =
     SpecRenderer,
     Frame,
     useSendMessage,
-    useInstruction,
+    useModelContext,
   }: SpecToolkitPlatform) =>
   (catalog: Catalog, options: SpecToolkitOptions): WidgetToolkitExtension => {
     const specs = new Map<string, { spec: Spec; version: number }>();
@@ -230,26 +233,6 @@ export const specToolkitFor =
         const streaming = !useArgsComplete();
         const messages = useMessages();
         const title = typeof args.title === "string" ? args.title : "";
-        const sendMessage = useSendMessage();
-        const share = useSharedContext({
-          title,
-          toolCallId,
-          interactions: unstable_interactions,
-          record: unstable_recordInteraction,
-          useInstruction,
-        });
-        const handlers = useMemo(
-          () => ({
-            sendMessage: (params: Record<string, unknown>) => {
-              const text = params["text"];
-              if (typeof text === "string" && text.trim()) sendMessage(text);
-            },
-            updateModelContext: (params: Record<string, unknown>) =>
-              share(toSharedContext(params["text"], params["data"])),
-            ...options.handlers,
-          }),
-          [sendMessage, share],
-        );
         // The base and the tool results only depend on earlier calls, so they are read once per call.
         const [base] = useState(() =>
           resolveSpecBase(messages, toolCallId, title),
@@ -308,18 +291,60 @@ export const specToolkitFor =
         useInsertionEffect(() => {
           record.current = unstable_recordInteraction;
         });
+        const [initialContext] = useState(() =>
+          savedContext(unstable_interactions, toolCallId, "setState"),
+        );
+        const context = useRef(initialContext);
+        const [snapshot] = useState(() => () => ({
+          writes: store.writes(),
+          ...(context.current ? { context: context.current } : {}),
+        }));
         const [saver] = useState(() =>
-          createSnapshotSaver(store.writes(), (writes) =>
+          createSnapshotSaver<{
+            writes: readonly SpecStateWrite[];
+            context?: SharedContext;
+          }>(snapshot(), (saved) =>
             record.current?.({
               type: "action",
-              payload: { type: "setState", toolCallId, writes },
+              payload: {
+                type: "setState",
+                toolCallId,
+                writes: saved?.writes ?? null,
+                ...(saved?.context ? { context: saved.context } : {}),
+              },
             }),
           ),
         );
+        const sendMessage = useSendMessage();
+        const share = useSharedContext({
+          title,
+          toolCallId,
+          initial: initialContext,
+          useModelContext,
+          onShare: (next) => {
+            context.current = next;
+            saver.schedule(snapshot);
+          },
+        });
+        const handlers = useMemo(
+          () => ({
+            sendMessage: (
+              params: Record<string, unknown>,
+              source: { trigger?: string },
+            ) => {
+              const text = params["text"];
+              // `watch` bindings report the watched state path as their trigger, and a message must follow a user's action.
+              if (source.trigger?.startsWith("/")) return;
+              if (typeof text === "string" && text.trim()) sendMessage(text);
+            },
+            updateModelContext: (params: Record<string, unknown>) =>
+              share(toSharedContext(params["text"], params["data"])),
+            ...options.handlers,
+          }),
+          [sendMessage, share],
+        );
         useEffect(() => {
-          const unsubscribe = store.subscribe(() =>
-            saver.schedule(() => store.writes()),
-          );
+          const unsubscribe = store.subscribe(() => saver.schedule(snapshot));
           return () => {
             unsubscribe();
             saver.flush();

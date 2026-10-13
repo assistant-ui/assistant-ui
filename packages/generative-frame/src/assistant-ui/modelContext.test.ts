@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import {
+  boundContext,
   contextInstruction,
   frameContext,
   savedContext,
@@ -32,10 +33,15 @@ describe("shared model context", () => {
     expect(frameContext({ content: [] })).toBeUndefined();
   });
 
-  it("restores the newest context recorded on the call, and a cleared one", () => {
-    const entry = (toolCallId: string, context: unknown) => ({
+  it("restores the context of the call's newest snapshot", () => {
+    const entry = (toolCallId: string, context?: unknown) => ({
       type: "action",
-      payload: { type: "modelContext", toolCallId, context },
+      payload: {
+        type: "setState",
+        toolCallId,
+        writes: [],
+        ...(context === undefined ? {} : { context }),
+      },
     });
     const log = {
       entries: [
@@ -44,19 +50,26 @@ describe("shared model context", () => {
         entry("a", { text: "second" }),
       ],
     };
-    expect(savedContext(log, "a")).toEqual({ text: "second" });
+    expect(savedContext(log, "a", "setState")).toEqual({ text: "second" });
+    expect(savedContext(log, "a", "widgetState")).toBeUndefined();
     expect(
-      savedContext({ entries: [...log.entries, entry("a", null)] }, "a"),
+      savedContext({ entries: [...log.entries, entry("a")] }, "a", "setState"),
     ).toBeUndefined();
-    expect(savedContext(undefined, "a")).toBeUndefined();
+    expect(savedContext(undefined, "a", "setState")).toBeUndefined();
   });
 
-  it("names the UI and caps the instruction", () => {
+  it("bounds a context that would not fit in a record or a prompt", () => {
+    const small = { text: "x", data: [1] };
+    expect(boundContext(small)).toBe(small);
+    const large = boundContext({ text: "y", data: "z".repeat(5000) });
+    expect(Object.keys(large)).toEqual(["text"]);
+    expect(large.text).toHaveLength(4000);
+    expect(large.text!.endsWith("…")).toBe(true);
+  });
+
+  it("names the UI in the instruction", () => {
     expect(contextInstruction("t", { text: "x", data: [1] })).toBe(
       'The user\'s choices in the UI "t", as they stand now: x [1]',
     );
-    const long = contextInstruction("t", { text: "y".repeat(5000) });
-    expect(long).toHaveLength(4000);
-    expect(long.endsWith("…")).toBe(true);
   });
 });
