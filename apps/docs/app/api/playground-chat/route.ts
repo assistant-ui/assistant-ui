@@ -1,6 +1,7 @@
 import { updateConfigSchema } from "@/lib/playground-config-schema";
 import { prepareChatMessages, streamDocsChat } from "@/lib/ai/chat-route";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkPublicAssistantRateLimit } from "@/lib/rate-limit";
+import { requirePublicAssistantSession } from "@/lib/anonymous-session";
 import {
   validateFrontendToolsInput,
   validateGeneralChatInput,
@@ -207,7 +208,13 @@ export async function POST(req: Request) {
   }
 
   try {
-    const rateLimitResponse = await checkRateLimit(req);
+    const session = requirePublicAssistantSession(req);
+    if (session instanceof Response) return session;
+
+    const rateLimitResponse = await checkPublicAssistantRateLimit(
+      req,
+      session.id,
+    );
     if (rateLimitResponse) return rateLimitResponse;
 
     const body = await req.json();
