@@ -138,14 +138,18 @@ async fn generate(request: ChatRequest, events: &Channel<ChatEvent>) -> Result<S
     let api_key = std::env::var("ANTHROPIC_API_KEY")
         .map_err(|_| "Set ANTHROPIC_API_KEY in the native process.".to_string())?;
     let model = std::env::var("ANTHROPIC_MODEL").unwrap_or_else(|_| "claude-haiku-5-5".to_string());
-    let response = reqwest::Client::new()
+    let client = reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .read_timeout(std::time::Duration::from_secs(120))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let response = client
         .post("https://api.anthropic.com/v1/messages")
         .header("x-api-key", api_key)
         .header("anthropic-version", "2023-06-01")
-        .timeout(std::time::Duration::from_secs(120))
         .json(&json!({
             "model": model,
-            "max_tokens": 1024,
+            "max_tokens": 8192,
             "system": request.system,
             "messages": request.messages,
             "stream": true
