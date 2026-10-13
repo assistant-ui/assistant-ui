@@ -236,6 +236,10 @@ const components: SpecComponents = {
 
 Frame mode needs a browser and is not available on React Native.
 
+## Resolve to a static tree
+
+`resolveSpec(spec, { state })` from `generative-frame/spec` resolves a spec into the tree the renderer draws for one state, for a target that cannot run a renderer, such as a chat platform's message format. Each element comes back with its `id`, `type`, plain `props`, the state path behind each bound prop in `bindings`, its `on` actions with their params resolved, its `children`, and its named `slots`. An element whose `visible` condition fails is left out, and `repeat` renders its children once per item, each child carrying the item's `key`. `{ "$event": "" }` reads `undefined`, `watch` does not run, missing elements and cycles are left out, and types are not checked against a catalog, so validate the spec first. `state` defaults to `spec.state`; pass a store's `getState()` to resolve what the user changed. [`specToUISpec`](/docs/tools/generative-ui-spec-migration#slack-and-teams) builds on it to send a spec to Slack and Teams.
+
 ## Expressions
 
 Any prop or action param can be an expression:
