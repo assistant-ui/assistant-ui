@@ -20,7 +20,7 @@ The answer then renders 680 px wide the way a chat app shows it: Markdown with t
 
 The page is captured in slices 1,000 px tall, since vision models shrink a taller image until its text is unreadable; an answer taller than eight slices is cut off, and the judge is told so.
 
-A fresh judge sees the request, the screenshots of the rendered answer, and any errors left, then scores clarity, usefulness, completeness, and presentation from 1 to 5. The mean of the first three is the answer's score, as in earlier runs; presentation, whether the answer is laid out for its content the way a well-designed app would show it, is reported on its own. Usefulness covers the interaction the request asks for, such as changing the guest count and seeing quantities update; three of the nine tasks need that kind of computed value. A screenshot cannot show what a control does, so a `present`, spec, or frame answer also gives the judge its source, to be read only for what its controls change.
+A fresh judge sees the request, the screenshots of the rendered answer, and any errors left, then scores clarity, usefulness, completeness, and presentation from 1 to 5. The mean of the first three is the answer's score, as in earlier runs; presentation, whether its visual hierarchy and its photos, maps, key figures, or tables serve the content the way a well-designed app would, is reported on its own. Usefulness covers the interaction the request asks for, such as changing the guest count and seeing quantities update; three of the nine tasks need that kind of computed value. A screenshot cannot show what a control does, so a `present`, spec, or frame answer also gives the judge its source, to be read only for what its controls change.
 
 ## What it does not measure yet
 
