@@ -256,6 +256,9 @@ describe("createSpecToolkit for Vue", () => {
       }),
     );
     await nextTick();
+    expect(
+      container.querySelector('[data-gf-spec-placeholder="pending"]'),
+    ).not.toBeNull();
     update(
       toolProp({
         id: "p",

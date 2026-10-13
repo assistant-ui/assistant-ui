@@ -246,6 +246,30 @@ describe("history", () => {
       text: "b",
     });
   });
+
+  it("builds on an earlier spec argument that has no elements yet", () => {
+    const history = [
+      {
+        content: [
+          call("p", "render_spec", { title: "s", spec: { root: "t" } }),
+          call("q", "render_spec", {
+            title: "s",
+            patches:
+              '{"op":"add","path":"/elements/t","value":{"type":"Text","props":{"text":"a"}}}',
+          }),
+          call("r", "render_spec", { title: "s", patches: "" }),
+        ],
+      },
+    ];
+    expect(resolveSpecBase(history, "q", "s")).toEqual({
+      root: "t",
+      state: {},
+      elements: {},
+    });
+    expect(resolveSpecBase(history, "r", "s")?.elements["t"]?.props).toEqual({
+      text: "a",
+    });
+  });
 });
 
 describe("createWidgetToolkit", () => {
