@@ -184,7 +184,7 @@ ${
 
 const expressionSection = () => `## Expressions
 
-Any prop or action param may be an expression object instead of a literal:
+Any prop or action param, or any value nested inside one, may be an expression object instead of a literal:
 
 ${list([
   '`{ "$state": "/path" }` reads state.',

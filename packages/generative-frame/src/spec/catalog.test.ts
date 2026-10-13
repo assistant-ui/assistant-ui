@@ -423,6 +423,33 @@ describe("validateSpec", () => {
     );
   });
 
+  it("reports a string that is only an expression key", () => {
+    const spec = validSpec();
+    spec.elements["m"]!.props = {
+      label: "Total",
+      value: [
+        ["Lamb", " $calc "],
+        ["Mint sauce", "$calcs"],
+      ],
+    };
+    spec.elements["b"]!.on = {
+      press: { action: "refresh", params: { range: { $template: "$state" } } },
+    };
+    const issues = validateSpec(spec, catalog).issues.filter(
+      (issue) => issue.code === "unfilled-placeholder",
+    );
+    expect(issues.map((issue) => [issue.path, issue.message])).toEqual([
+      [
+        "/elements/m/props/value/0/1",
+        '"m" shows `"$calc"` as written, since an expression is an object, not a string. Write it as `{ "$calc": … }`.',
+      ],
+      [
+        "/elements/b/on/press/params/range/$template",
+        '"b" shows `"$state"` as written, since an expression is an object, not a string. Write it as `{ "$state": … }`.',
+      ],
+    ]);
+  });
+
   it("reports formulas that cannot run in props, visibility, and action params", () => {
     const spec = validSpec();
     spec.elements["card"]!.props = {

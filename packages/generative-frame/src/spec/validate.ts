@@ -1,5 +1,6 @@
 import { formulaIssue } from "./calc";
 import type { Catalog } from "./catalog";
+import { isExpressionKey } from "./expressions";
 import { escapePointerToken } from "./pointer";
 import type { ActionBinding, Spec, SpecElement } from "./types";
 
@@ -170,6 +171,15 @@ export function validateSpec(
               elementId: id,
               path: childPath,
               message: `"${id}" shows \`${placeholder}\` as written, since only \`$template\` and \`$calc\` fill placeholders. Write the string as \`{ "$template": "…" }\`, or compute the value with \`$calc\`.`,
+            });
+          }
+          if (typeof child === "string" && isExpressionKey(child)) {
+            const name = child.trim();
+            error({
+              code: "unfilled-placeholder",
+              elementId: id,
+              path: childPath,
+              message: `"${id}" shows \`"${name}"\` as written, since an expression is an object, not a string. Write it as \`{ "${name}": … }\`.`,
             });
           }
           children.push([childPath, child]);
