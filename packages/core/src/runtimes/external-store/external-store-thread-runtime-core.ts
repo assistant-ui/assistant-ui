@@ -461,6 +461,7 @@ export class ExternalStoreThreadRuntimeCore
   private _updateStoreSnapshot(
     store: ExternalStoreAdapter<any>,
     fromHostSnapshot = true,
+    force = false,
   ) {
     const previousIsRunning = this._effectiveIsRunning;
     this.isDisabled = store.isDisabled ?? false;
@@ -536,6 +537,7 @@ export class ExternalStoreThreadRuntimeCore
     if (store.messageRepository) {
       // Handle messageRepository
       if (
+        !force &&
         oldStore &&
         !repositoryChanged &&
         oldStore.isRunning === store.isRunning &&
@@ -553,6 +555,7 @@ export class ExternalStoreThreadRuntimeCore
 
       if (
         oldStore &&
+        !force &&
         !repositoryChanged &&
         oldStore.messageRepository === store.messageRepository
       ) {
@@ -586,6 +589,7 @@ export class ExternalStoreThreadRuntimeCore
         if (oldStore.convertMessage !== store.convertMessage) {
           this._converter = new ThreadMessageConverter();
         } else if (
+          !force &&
           !repositoryChanged &&
           oldStore.isRunning === store.isRunning &&
           oldStore.messages === store.messages &&
@@ -1243,6 +1247,21 @@ export class ExternalStoreThreadRuntimeCore
     this._store?.queue?.remove(queueItemId);
   }
 
+  private _restoreMovedLeafForRun(parentId: string | null): void {
+    const movedLeaf = this._movedLeaf;
+    if (
+      movedLeaf?.id === parentId &&
+      movedLeaf.resyncLease.isCurrent() &&
+      !movedLeaf.generation.aborted &&
+      this._storeMessages.some((message) => message.id === movedLeaf.id)
+    ) {
+      this._cancelRunResyncLeases.invalidate();
+      this._movedLeaf = undefined;
+      this.composer.retractDraft(movedLeaf.draft);
+      this._updateStoreSnapshot(this._store, false, true);
+    }
+  }
+
   public async startRun(config: StartRunConfig): Promise<void> {
     if (!this._store.onReload)
       throw new Error("Runtime does not support reloading messages.");
@@ -1251,6 +1270,7 @@ export class ExternalStoreThreadRuntimeCore
     if (this._isVoiceMessage(config.sourceId))
       throw new Error("Voice transcript messages cannot be reloaded");
 
+    this._restoreMovedLeafForRun(config.parentId);
     this._runStartLeases.begin();
     if (this._cancelledToolTurn?.parentId === config.parentId)
       this._cancelledToolTurn.parentOpen = false;
@@ -1286,6 +1306,7 @@ export class ExternalStoreThreadRuntimeCore
     if (this._isVoiceMessage(config.sourceId))
       throw new Error("Voice transcript messages cannot be reloaded");
 
+    this._restoreMovedLeafForRun(config.parentId);
     this._runStartLeases.begin();
     this._cancelledToolTurn = null;
     await this._store.onResume(config);
