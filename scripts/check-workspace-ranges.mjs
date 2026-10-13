@@ -21,10 +21,12 @@ const WORKSPACE_PROTOCOL = "workspace:";
 const REQUIRED_PROTOCOL = "workspace:^";
 
 const HOST_SUPPLIED_PEERS = new Set([
+  "@assistant-ui/core",
   "@assistant-ui/react",
   "@assistant-ui/react-ink",
   "@assistant-ui/react-markdown",
   "@assistant-ui/react-native",
+  "@assistant-ui/vue",
   "assistant-cloud",
   "generative-frame",
 ]);
