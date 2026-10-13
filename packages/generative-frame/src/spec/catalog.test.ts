@@ -2,6 +2,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { createActionDispatcher } from "./actions";
 import { defineCatalog, type PropsSchema } from "./catalog";
+import { createSpecTools } from "./render-spec";
 import { createStateStore } from "./state";
 import type { Spec } from "./types";
 import { formatSpecIssues, validateSpec } from "./validate";
@@ -174,7 +175,57 @@ describe("catalog.prompt", () => {
     expect(prompt).toContain('{"op":"add","path":"/root","value":"main"}');
     expect(prompt).toContain("$bindState");
     expect(prompt).toContain("- Prefer cards.");
+    expect(prompt).toContain(
+      "- Open with a heading that names the answer and its one-line takeaway, then give each part of the answer its own section.\n- Make each module a `Card`: a summary, a checklist, a form, or one option, with running prose outside cards.\n- Keep lists in `/state` and render them with `repeat`.\n- Keep the tree shallow and give every element a job: no filler, and no decoration that adds nothing.\n- Prefer cards.",
+    );
+    expect(prompt).not.toContain("`Map`");
+    expect(prompt).not.toContain("`Image`");
+    expect(prompt).not.toContain("about 30 elements");
     expect(prompt).toContain("Output only patch lines");
+  });
+
+  it("names the composition components the catalog has", () => {
+    const names = [
+      "Header",
+      "Text",
+      "Card",
+      "Row",
+      "Fact",
+      "Badge",
+      "Map",
+      "Timeline",
+      "Steps",
+      "Table",
+      "Image",
+    ];
+    const full = defineCatalog({
+      components: Object.fromEntries(
+        names.map((name) => [name, { description: name }]),
+      ),
+    });
+    const prompt = full.prompt();
+    expect(prompt).toContain(
+      "- Open with a `Header` that names the answer and a `Text` with the one-line takeaway",
+    );
+    expect(prompt).toContain(
+      "Put the answer's key figures side by side in a `Row` of `Fact`s. Show short tags, such as a duration or a price tier, as `Badge`s.",
+    );
+    expect(prompt).toContain(
+      "- Put places with coordinates on a `Map`, lay out a schedule or itinerary as a `Timeline`, write instructions as `Steps`, and compare options attribute by attribute in a `Table`.",
+    );
+    expect(prompt).toContain(
+      "never one you write yourself: lead with two or three photos in a `Row`,",
+    );
+  });
+
+  it("carries the rules in render_spec's description, the app's last", () => {
+    const { description } = createSpecTools(catalog, {
+      customRules: ["Prefer cards."],
+    }).render_spec;
+    expect(description).toContain(
+      "Every spec follows these rules:\n- Open with a heading that names the answer",
+    );
+    expect(description.endsWith("- Prefer cards.")).toBe(true);
   });
 
   it("switches to fenced output in inline mode and is deterministic", () => {

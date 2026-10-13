@@ -18,6 +18,66 @@ export type SpecPromptOptions = {
 const list = (items: readonly string[]) =>
   items.map((item) => `- ${item}`).join("\n");
 
+const joinClauses = (clauses: readonly string[]) =>
+  clauses.length > 1
+    ? `${clauses.slice(0, -1).join(", ")}, and ${clauses.at(-1)}`
+    : (clauses[0] ?? "");
+
+/** How to compose an answer from the catalog's components, naming only the ones it has. */
+const compositionRules = (catalog: Catalog) => {
+  const has = (type: string) => catalog.component(type) !== undefined;
+  const rules = [
+    has("Header") && has("Text")
+      ? "Open with a `Header` that names the answer and a `Text` with the one-line takeaway, then give each part of the answer its own section."
+      : "Open with a heading that names the answer and its one-line takeaway, then give each part of the answer its own section.",
+  ];
+  if (has("Card")) {
+    rules.push(
+      [
+        "Make each module a `Card`: a summary, a checklist, a form, or one option, with running prose outside cards.",
+        ...(has("Row") && has("Fact")
+          ? ["Put the answer's key figures side by side in a `Row` of `Fact`s."]
+          : []),
+        ...(has("Badge")
+          ? [
+              "Show short tags, such as a duration or a price tier, as `Badge`s.",
+            ]
+          : []),
+      ].join(" "),
+    );
+  }
+  const layouts = [
+    ...(has("Map") ? ["put places with coordinates on a `Map`"] : []),
+    ...(has("Timeline")
+      ? ["lay out a schedule or itinerary as a `Timeline`"]
+      : []),
+    ...(has("Steps") ? ["write instructions as `Steps`"] : []),
+    ...(has("Table")
+      ? ["compare options attribute by attribute in a `Table`"]
+      : []),
+  ];
+  if (layouts.length) {
+    const sentence = joinClauses(layouts);
+    rules.push(`${sentence[0]!.toUpperCase()}${sentence.slice(1)}.`);
+  }
+  if (has("Image")) {
+    rules.push(
+      `Show what can be seen with \`Image\`, but only from an image URL a tool returned, never one you write yourself: lead with two or three photos${has("Row") ? " in a `Row`" : ""}, or put a small photo beside each item's text.`,
+    );
+  }
+  rules.push(
+    "Keep lists in `/state` and render them with `repeat`.",
+    "Keep the tree shallow and give every element a job: no filler, and no decoration that adds nothing.",
+  );
+  return rules;
+};
+
+/** The rules every spec follows: how to compose an answer, then the app's own. `render_spec` carries them in its description too. */
+export const specRules = (
+  catalog: Catalog,
+  customRules: readonly string[] = [],
+) => [...compositionRules(catalog), ...customRules];
+
 const componentSection = (catalog: Catalog) => {
   const entries = Object.entries(catalog.components).map(([name, def]) => {
     const lines = [`### ${name}`, def.description];
@@ -127,8 +187,7 @@ export function buildSpecPrompt(
     "Use only the listed component types, props, events, and actions.",
     "Every id in `children` or `slots` must be added as an element; every element except the root must be someone's child.",
     "Give props literal values unless they depend on state; keep data (rows, series) in props or `/state`, not in text.",
-    "Keep the tree shallow and the UI focused: one clear purpose, at most about 30 elements.",
-    ...(options.customRules ?? []),
+    ...specRules(catalog, options.customRules),
   ];
   return [
     "# Declarative UI",

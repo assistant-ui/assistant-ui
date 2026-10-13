@@ -187,6 +187,9 @@ type RenderSpecProps = {
     | undefined;
 };
 
+const TOOL_RESULTS_RULE =
+  'Results of earlier tool calls are in state under `/tools/<toolName>/<n>`, newest first: `0` is the latest call to that tool before this `render_spec` call, `1` the one before it, and so on. Show their values with `{ "$state": "/tools/<toolName>/<n>/..." }` rather than copying them, and never write `tools` in `state`. Indexes count back from each `render_spec` call, so when a patch follows another call to the same tool, update any binding that should keep showing the older result.';
+
 export const specToolkitFor =
   ({
     useMessages,
@@ -196,7 +199,11 @@ export const specToolkitFor =
   }: SpecToolkitPlatform) =>
   (catalog: Catalog, options: SpecToolkitOptions): WidgetToolkitExtension => {
     const specs = new Map<string, { spec: Spec; version: number }>();
-    const tools = createSpecTools(catalog, { specs });
+    const customRules = [
+      ...(options.specPrompt?.customRules ?? []),
+      TOOL_RESULTS_RULE,
+    ];
+    const tools = createSpecTools(catalog, { specs, customRules });
     // Each mounted call registers what its own thread held before it, so `execute` patches that base even after a reload or in another thread.
     const histories = new Map<string, SpecHistory>();
 
@@ -317,13 +324,7 @@ export const specToolkitFor =
     return {
       tools,
       modules: [
-        specGuidanceModule(catalog, {
-          ...options.specPrompt,
-          customRules: [
-            ...(options.specPrompt?.customRules ?? []),
-            'Results of earlier tool calls are in state under `/tools/<toolName>/<n>`, newest first: `0` is the latest call to that tool before this `render_spec` call, `1` the one before it, and so on. Show their values with `{ "$state": "/tools/<toolName>/<n>/..." }` rather than copying them, and never write `tools` in `state`. Indexes count back from each `render_spec` call, so when a patch follows another call to the same tool, update any binding that should keep showing the older result.',
-          ],
-        }),
+        specGuidanceModule(catalog, { ...options.specPrompt, customRules }),
       ],
       entries: (context) => ({
         render_spec: toolkitEntry(
