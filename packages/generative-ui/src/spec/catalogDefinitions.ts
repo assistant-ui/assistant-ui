@@ -129,6 +129,12 @@ const DEFAULT_SHAPES: Readonly<Record<string, SpecShape>> = {
   Caption: { slots: DEFAULT_SLOT },
 };
 
+/** The events a vocabulary component emits in spec mode, its own `$action` first. */
+export const vocabularyEvents = (type: string): readonly string[] =>
+  (Object.hasOwn(DEFAULT_SHAPES, type)
+    ? DEFAULT_SHAPES[type]?.events
+    : undefined) ?? [];
+
 // A control whose schema prop a spec binds with `$bindState` reads the controlled prop instead, so it stays mounted and reports every change through the binding context.
 export const BOUND_VALUE_PROPS = [
   ["defaultValue", "value"],

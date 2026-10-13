@@ -1,6 +1,6 @@
 # @assistant-ui/generative-ui
 
-Framework-neutral generative UI for assistant-ui. The root entry holds the React-free UI tree types and normalizer, `@assistant-ui/generative-ui/react` renders the tree with React, the `slack`, `teams`, and `a2ui` subpaths convert it for other surfaces, `@assistant-ui/generative-ui/spec` renders a library in generative-frame's spec mode (with React Native components under the `react-native` export condition), and `@assistant-ui/generative-ui/vue` does the same with Vue components.
+Framework-neutral generative UI for assistant-ui. The root entry holds the React-free UI tree types and normalizer, `@assistant-ui/generative-ui/react` renders the tree with React, the `slack`, `teams`, and `a2ui` subpaths convert it for other surfaces, `@assistant-ui/generative-ui/spec` renders a library in generative-frame's spec mode (with React Native components under the `react-native` export condition) and converts a spec into the tree for those subpaths, and `@assistant-ui/generative-ui/vue` does the same with Vue components.
 
 ## Installation
 
@@ -139,7 +139,7 @@ surface instead of inline. See the
 
 ## Slack, Teams, and A2UI
 
-The same tree is plain JSON, so it is not tied to the browser. Three React-free subpaths convert it for Slack Block Kit, Microsoft Teams Adaptive Cards, and inbound [A2UI](https://a2ui.org/) surfaces. They run in server actions, queue workers, and webhook handlers. Conversion is over the built-in vocabulary; a `$type` outside it is dropped with a warning. What each target does with a component, and how unsupported content degrades, is documented on [Generative UI on Slack](https://www.assistant-ui.com/docs/tools/generative-ui-slack), [Generative UI on Microsoft Teams](https://www.assistant-ui.com/docs/tools/generative-ui-teams), and [A2UI over AG-UI](https://www.assistant-ui.com/docs/tools/a2ui).
+The same tree is plain JSON, so it is not tied to the browser. Three React-free subpaths convert it for Slack Block Kit, Microsoft Teams Adaptive Cards, and inbound [A2UI](https://a2ui.org/) surfaces. They run in server actions, queue workers, and webhook handlers. Conversion is over the built-in vocabulary; a `$type` outside it is dropped with a warning. A spec from generative-frame's spec mode converts with `specToUISpec` from `@assistant-ui/generative-ui/spec` first. What each target does with a component, and how unsupported content degrades, is documented on [Generative UI on Slack](https://www.assistant-ui.com/docs/tools/generative-ui-slack), [Generative UI on Microsoft Teams](https://www.assistant-ui.com/docs/tools/generative-ui-teams), and [A2UI over AG-UI](https://www.assistant-ui.com/docs/tools/a2ui).
 
 ### `@assistant-ui/generative-ui/slack`
 

@@ -25,6 +25,8 @@ const { blocks, warnings } = toSlackBlocks({
 await slack.chat.postMessage({ channel: "#orders", blocks });
 ```
 
+A spec from [spec mode](/generative-frame/docs/spec-mode) converts with `specToUISpec` first, as [Moving to spec mode](/docs/tools/generative-ui-spec-migration#slack-and-teams) describes.
+
 `toSlackBlocks(node, options?)` returns `{ blocks, warnings }` and never throws: an input it cannot convert at all comes back as empty `blocks` plus one warning rather than an exception. Pass `{ surface: "modal" }` to target a modal instead of a message; the surface changes the block budget and unlocks the native `alert` block.
 
 ## Warnings
