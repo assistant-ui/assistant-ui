@@ -182,6 +182,52 @@ describe("TextInput controlled updates", () => {
     expect(onChange).toHaveBeenLastCalledWith("helxlzo");
   });
 
+  it("keeps text and cursor when a store owner echo commits before the buffer edit", async () => {
+    input.concurrent = true;
+    let value = "";
+    const listeners = new Set<() => void>();
+    const subscribe = (listener: () => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    };
+    const getSnapshot = () => value;
+    const onChange = vi.fn((text: string) => {
+      value = text;
+      for (const listener of listeners) listener();
+    });
+    const App = () => (
+      <TextInput
+        value={useSyncExternalStore(subscribe, getSnapshot)}
+        onChange={onChange}
+      />
+    );
+    let lastFrame: ReturnType<typeof render>["lastFrame"] | undefined;
+    await act(async () => {
+      lastFrame = render(<App />).lastFrame;
+    });
+    await vi.waitFor(() => expect(input.handle).toBeDefined());
+
+    await act(async () => startTransition(() => input.handle!("a", {})));
+    await vi.waitFor(() =>
+      expect(input.commits).toContainEqual({
+        value: "a",
+        text: "",
+        cursorOffset: 0,
+      }),
+    );
+    await vi.waitFor(() => expect(lastFrame?.()?.trim()).toBe("a"));
+    await act(async () => input.handle!("b", {}));
+    await vi.waitFor(() =>
+      expect(input.commits.at(-1)).toEqual({
+        value: "ab",
+        text: "ab",
+        cursorOffset: 2,
+      }),
+    );
+    expect(lastFrame?.()?.trim()).toBe("ab");
+    expect(onChange.mock.calls.map(([text]) => text)).toEqual(["a", "ab"]);
+  });
+
   it("keeps the edit cursor when an owner echo commits before the buffer edit", async () => {
     input.concurrent = true;
     let value = "zz";
@@ -221,6 +267,7 @@ describe("TextInput controlled updates", () => {
 
     await act(async () => input.handle!("b", {}));
     await vi.waitFor(() => expect(lastFrame?.()?.trim()).toBe("zabz"));
+    await vi.waitFor(() => expect(input.commits.at(-1)?.cursorOffset).toBe(3));
     expect(onChange).toHaveBeenLastCalledWith("zabz");
   });
 
