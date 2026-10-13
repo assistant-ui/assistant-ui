@@ -6074,6 +6074,7 @@ declare namespace ToolInvocationTracker {
     readonly messages: readonly ThreadMessage[];
     readonly isRunning: boolean;
     readonly isLoading?: boolean;
+    readonly discardedToolCallIds?: ReadonlySet<string>;
   };
   type Callbacks = {
     onResult: (command: AddToolResultCommand$1) => void;

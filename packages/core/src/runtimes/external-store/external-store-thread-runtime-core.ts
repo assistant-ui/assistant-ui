@@ -63,7 +63,7 @@ import {
   captureThreadRuntimeDisposal,
   captureThreadRuntimeGeneration,
 } from "../../runtime/utils/thread-runtime-lifecycle";
-import { RunLeases } from "../../utils/run-lease";
+import { RunLeases, type RunLease } from "../../utils/run-lease";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
 
@@ -250,6 +250,12 @@ export class ExternalStoreThreadRuntimeCore
   private readonly _runStartLeases = new RunLeases();
   private readonly _runCancellationLeases = new RunLeases();
   private readonly _cancelRunResyncLeases = new RunLeases();
+  private _cancelledToolTurn: {
+    messageIds: Set<string>;
+    parentId: string | null;
+    parentOpen: boolean;
+    lease: RunLease;
+  } | null = null;
   private readonly _pendingCancelResyncs = new Set<() => void>();
   private _movedLeaf:
     | {
@@ -460,6 +466,7 @@ export class ExternalStoreThreadRuntimeCore
       repositoryInstance !== this.repository;
     if (repositoryChanged) {
       this.repository = repositoryInstance;
+      this._cancelledToolTurn = null;
       this._pendingDeleteEvictions.clear();
       this._submittedFeedback.clear();
       this._movedLeaf = undefined;
@@ -697,6 +704,19 @@ export class ExternalStoreThreadRuntimeCore
     this._effectiveIsRunning = isRunning;
     if (previousIsRunning !== isRunning) {
       if (isRunning) {
+        const scope = this._cancelledToolTurn;
+        if (scope?.lease.isCurrent()) {
+          const tail = messages.at(-1);
+          if (tail?.role === "assistant" && scope.messageIds.has(tail.id)) {
+            this._cancelledToolTurn = null;
+          } else {
+            const parentId =
+              tail?.role === "assistant"
+                ? (messages.at(-2)?.id ?? null)
+                : (tail?.id ?? null);
+            if (parentId === scope.parentId) scope.parentOpen = false;
+          }
+        }
         this._notifyEventSubscribers("runStart", {});
       } else {
         this._notifyEventSubscribers("runEnd", {});
@@ -796,13 +816,39 @@ export class ExternalStoreThreadRuntimeCore
         this._applyToolStatuses(statuses);
     }
 
+    const discardedToolCallIds = this._getDiscardedToolCallIds();
     this._toolInvocations.setState({
       messages: this._messages,
       isRunning: this._getEffectiveIsRunning(this._store),
+      ...(discardedToolCallIds && { discardedToolCallIds }),
       ...(this._store.isLoading !== undefined && {
         isLoading: this._store.isLoading,
       }),
     });
+  }
+
+  private _getDiscardedToolCallIds(): ReadonlySet<string> | undefined {
+    const scope = this._cancelledToolTurn;
+    if (!scope) return undefined;
+
+    const ids = new Set<string>();
+    for (let i = 0; i < this._messages.length; i++) {
+      const message = this._messages[i]!;
+      if (message.role !== "assistant" || message.metadata.isOptimistic)
+        continue;
+      if (!scope.messageIds.has(message.id)) {
+        if (
+          !scope.parentOpen ||
+          (this._messages[i - 1]?.id ?? null) !== scope.parentId
+        )
+          continue;
+        scope.messageIds.add(message.id);
+      }
+      for (const { part } of walkToolCallTree([message])) {
+        ids.add(part.toolCallId);
+      }
+    }
+    return ids;
   }
 
   private _createToolInvocations(): RetainedToolInvocations {
@@ -1195,6 +1241,8 @@ export class ExternalStoreThreadRuntimeCore
       throw new Error("Voice transcript messages cannot be reloaded");
 
     this._runStartLeases.begin();
+    if (this._cancelledToolTurn?.parentId === config.parentId)
+      this._cancelledToolTurn.parentOpen = false;
     const visible = this.repository.getMessages();
     const kept = new Set(
       visible
@@ -1211,7 +1259,9 @@ export class ExternalStoreThreadRuntimeCore
     // Auto-abort in-flight client-side tool executions when a run reloads;
     // any results that land afterward would target a turn that no longer
     // exists. See `append` above for full rationale.
-    await this._toolInvocations?.abort({ discardPending: true });
+    await this._toolInvocations?.abort({
+      discardPending: true,
+    });
     if (!cancellationLease.isCurrent()) return;
 
     await this._store.onReload(config.parentId, config);
@@ -1226,6 +1276,7 @@ export class ExternalStoreThreadRuntimeCore
       throw new Error("Voice transcript messages cannot be reloaded");
 
     this._runStartLeases.begin();
+    this._cancelledToolTurn = null;
     await this._store.onResume(config);
   }
 
@@ -1241,6 +1292,7 @@ export class ExternalStoreThreadRuntimeCore
       throw new Error("Runtime does not support importing external states.");
 
     this._cancelRunResyncLeases.invalidate();
+    this._cancelledToolTurn = null;
 
     // Re-arm the tracker so the next adapter snapshot (containing the
     // imported state) is treated as historical — no streamCall/execute
@@ -1263,6 +1315,7 @@ export class ExternalStoreThreadRuntimeCore
    */
   public unstable_notifySessionReset(): void {
     this._cancelRunResyncLeases.invalidate();
+    this._cancelledToolTurn = null;
     this._runTrackerUpdate(() => this._toolInvocations?.reset());
     this._store.queue?.__internal_notifyCancelled?.();
   }
@@ -1275,6 +1328,22 @@ export class ExternalStoreThreadRuntimeCore
     this._runCancellationLeases.invalidate();
     const generation = captureThreadRuntimeGeneration(this);
     const resyncLease = this._cancelRunResyncLeases.current();
+
+    if (isRunning) {
+      const hostMessages = this._storeMessages.filter(
+        (message) => !message.metadata.isOptimistic,
+      );
+      const tail = hostMessages.at(-1);
+      this._cancelledToolTurn = {
+        messageIds: new Set(tail?.role === "assistant" ? [tail.id] : []),
+        parentId:
+          tail?.role === "assistant"
+            ? (hostMessages.at(-2)?.id ?? null)
+            : (tail?.id ?? null),
+        parentOpen: true,
+        lease: this._runStartLeases.current(),
+      };
+    }
 
     // Abort any in-flight client-side tool executions. Fire-and-forget —
     // the abort resolves once executions settle, but we don't gate the
@@ -1461,6 +1530,7 @@ export class ExternalStoreThreadRuntimeCore
 
   public override reset(initialMessages?: readonly ThreadMessageLike[]) {
     this._cancelRunResyncLeases.invalidate();
+    this._cancelledToolTurn = null;
     this._submittedFeedback.clear();
     const repo = new MessageRepository();
     repo.import(ExportedMessageRepository.fromArray(initialMessages ?? []));
@@ -1472,6 +1542,7 @@ export class ExternalStoreThreadRuntimeCore
       throw new Error("Runtime does not support importing messages.");
 
     this._cancelRunResyncLeases.invalidate();
+    this._cancelledToolTurn = null;
     this._submittedFeedback.clear();
     super.import(data);
     this._store.onImport(this.repository.getMessages());
