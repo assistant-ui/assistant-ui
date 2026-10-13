@@ -7,7 +7,7 @@ import {
   fromThreadMessageLike,
   type ThreadMessageLike,
 } from "../../runtime/utils/thread-message-like";
-import type { AppendMessage } from "../../types/message";
+import type { AppendMessage, ThreadMessage } from "../../types/message";
 import type { ExternalStoreAdapter } from "./external-store-adapter";
 import { ExternalStoreRuntimeCore } from "./external-store-runtime-core";
 import { ExternalStoreThreadRuntimeCore } from "./external-store-thread-runtime-core";
@@ -462,5 +462,158 @@ describe("ExternalStoreThreadRuntimeCore earlier messages", () => {
     await runtime.loadEarlier();
     expect(onLoadEarlier).not.toHaveBeenCalled();
     expect(runtime.isLoadingEarlier).toBe(false);
+  });
+});
+
+describe("ExternalStoreThreadRuntimeCore pending deletes after branch changes", () => {
+  const message = (id: string, role: "user" | "assistant") =>
+    fromThreadMessageLike({ id, role, content: id }, id, {
+      type: "complete",
+      reason: "stop",
+    });
+
+  const setup = () => {
+    let current: ThreadMessage[] = [
+      message("u1", "user"),
+      message("a1", "assistant"),
+      message("u2", "user"),
+      message("a2", "assistant"),
+    ];
+    let confirmDelete!: () => void;
+    let resolveDelete!: () => void;
+    let rejectDelete!: () => void;
+    let runtime!: ExternalStoreThreadRuntimeCore;
+    const onDelete = vi.fn(
+      (id: string) =>
+        new Promise<void>((resolve, reject) => {
+          resolveDelete = () => resolve();
+          rejectDelete = () => reject(new Error("deletion declined"));
+          confirmDelete = () => {
+            current = current.filter((item) => item.id !== id);
+            resolve();
+          };
+        }),
+    );
+    const onReload = vi.fn(async (parentId: string | null) => {
+      current = current.slice(
+        0,
+        current.findIndex((item) => item.id === parentId) + 1,
+      );
+    });
+    const onEdit = vi.fn(async () => {
+      current = [message("u1", "user"), message("a1b", "assistant")];
+      runtime.__internal_setAdapter(store());
+    });
+    const setMessages = vi.fn((messages: readonly ThreadMessage[]) => {
+      current = [...messages];
+    });
+    const store = () =>
+      ({
+        messages: current,
+        onNew: async () => {},
+        onDelete,
+        onEdit,
+        onReload,
+        setMessages,
+      }) as ExternalStoreAdapter;
+    runtime = createRuntime(store());
+
+    return {
+      runtime,
+      confirmDelete: () => confirmDelete(),
+      resolveDelete: () => resolveDelete(),
+      rejectDelete: () => rejectDelete(),
+      edit: () =>
+        runtime.append({
+          parentId: "u1",
+          sourceId: "a1",
+          role: "user",
+          createdAt: new Date(0),
+          content: [{ type: "text", text: "edit" }],
+          metadata: { custom: {} },
+          runConfig: {},
+        }),
+      finishReload: () => {
+        current = [message("u1", "user"), message("a1b", "assistant")];
+        runtime.__internal_setAdapter(store());
+      },
+      switchToOldBranch: () => {
+        runtime.switchToBranch("a1");
+        return setMessages.mock.lastCall?.[0].map((item) => item.id);
+      },
+      publish: () => runtime.__internal_setAdapter(store()),
+    };
+  };
+
+  const regenerate = (runtime: ExternalStoreThreadRuntimeCore) =>
+    runtime.startRun({ parentId: "u1", sourceId: "a1", runConfig: {} });
+
+  it("evicts a confirmed delete after reloading and switching back to its branch", async () => {
+    const { runtime, confirmDelete, finishReload, switchToOldBranch, publish } =
+      setup();
+
+    const deletion = runtime.deleteMessage("u2");
+    await regenerate(runtime);
+    finishReload();
+    expect(switchToOldBranch()).toEqual(["u1", "a1", "u2", "a2"]);
+    confirmDelete();
+    publish();
+    await deletion;
+
+    expect(runtime.getBranches("a2")).toEqual(["a2"]);
+  });
+
+  it("keeps a delete the host rejects after reloading and switching branches", async () => {
+    const { runtime, rejectDelete, finishReload, switchToOldBranch, publish } =
+      setup();
+
+    const deletion = runtime.deleteMessage("u2");
+    await regenerate(runtime);
+    finishReload();
+    expect(switchToOldBranch()).toEqual(["u1", "a1", "u2", "a2"]);
+    rejectDelete();
+    await expect(deletion).rejects.toThrow("deletion declined");
+    publish();
+
+    expect(runtime.messages.map((item) => item.id)).toEqual([
+      "u1",
+      "a1",
+      "u2",
+      "a2",
+    ]);
+  });
+
+  it("keeps the message when an ambiguous delete resolves while the host still carries it", async () => {
+    const { runtime, resolveDelete, finishReload, switchToOldBranch, publish } =
+      setup();
+
+    const deletion = runtime.deleteMessage("u2");
+    await regenerate(runtime);
+    finishReload();
+    expect(switchToOldBranch()).toEqual(["u1", "a1", "u2", "a2"]);
+    resolveDelete();
+    await deletion;
+    publish();
+
+    expect(runtime.messages.map((item) => item.id)).toEqual([
+      "u1",
+      "a1",
+      "u2",
+      "a2",
+    ]);
+  });
+
+  it("evicts a confirmed delete after an edit changes the branch", async () => {
+    const { runtime, confirmDelete, edit, publish } = setup();
+
+    const deletion = runtime.deleteMessage("u2");
+    await edit();
+    confirmDelete();
+    publish();
+    await deletion;
+
+    expect(() => runtime.switchToBranch("u2")).toThrow(
+      "MessageRepository(switchToBranch): Branch not found",
+    );
   });
 });

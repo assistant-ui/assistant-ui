@@ -212,20 +212,12 @@ export class ExternalStoreThreadRuntimeCore
   private _converter = new ThreadMessageConverter();
   private _submittedFeedback = new Map<string, SubmittedFeedbackOverlay>();
 
-  // Ids the host was asked to delete via onDelete, mapped to the onDelete
-  // calls still pending for them. The snapshot pass evicts them from the
-  // repository once the host's array no longer carries them; an id the host
-  // still carries after every onDelete call for it settled, resolved or
-  // rejected, is dropped from the map without eviction.
-  // Branch-changing mutations (edit, branch switch) invalidate the map,
-  // because after them the incoming array omits off-branch ids for reasons
-  // unrelated to deletion. A reload invalidates only the ids after the parent
-  // it regenerates from: the host keeps the prefix up to that parent, so an
-  // id absent from it is still a deletion. Plain tail sends do not clear: a
-  // tail append cannot make a visible id absent, so id-absence stays
-  // unambiguous and a delete whose confirmation races a send keeps its
-  // eviction.
-  private _pendingDeleteEvictions = new Map<string, Set<symbol>>();
+  // Reloads and branch-changing mutations can make snapshot absence ambiguous
+  // while an onDelete call is pending, so those calls settle the ambiguity.
+  private _pendingDeleteEvictions = new Map<
+    string,
+    { calls: Set<symbol>; ambiguous: boolean }
+  >();
 
   // Placeholder id for the upcoming assistant message, reused across snapshot
   // passes while the same tail message awaits its response so the placeholder
@@ -607,9 +599,11 @@ export class ExternalStoreThreadRuntimeCore
         oldStore?.messages !== store.messages
       ) {
         const incomingIds = new Set(messages.map((m) => m.id));
-        for (const [id, calls] of this._pendingDeleteEvictions) {
+        for (const [id, pending] of this._pendingDeleteEvictions) {
+          if (pending.ambiguous) continue;
           if (incomingIds.has(id)) {
-            if (calls.size === 0) this._pendingDeleteEvictions.delete(id);
+            if (pending.calls.size === 0)
+              this._pendingDeleteEvictions.delete(id);
             continue;
           }
           this._pendingDeleteEvictions.delete(id);
@@ -842,7 +836,7 @@ export class ExternalStoreThreadRuntimeCore
       : null;
 
     this.repository.switchToBranch(branchId);
-    this._pendingDeleteEvictions.clear();
+    this._invalidatePendingDeleteEvictions();
     this.updateMessages(this.repository.getMessages());
     if (onBranchChange) {
       this._notifyBranchChange(previousHeadId, onBranchChange);
@@ -956,7 +950,7 @@ export class ExternalStoreThreadRuntimeCore
     if (isEdit) {
       if (!this._store.onEdit)
         throw new Error("Runtime does not support editing messages.");
-      this._pendingDeleteEvictions.clear();
+      this._invalidatePendingDeleteEvictions();
       await this._store.onEdit(message);
     } else {
       await this._store.onNew(message);
@@ -1005,13 +999,32 @@ export class ExternalStoreThreadRuntimeCore
         .some((m) => m.id === messageId);
       const call = Symbol();
       if (wasVisible) {
-        const calls = this._pendingDeleteEvictions.get(messageId) ?? new Set();
-        this._pendingDeleteEvictions.set(messageId, calls.add(call));
+        const pending = this._pendingDeleteEvictions.get(messageId) ?? {
+          calls: new Set<symbol>(),
+          ambiguous: false,
+        };
+        pending.calls.add(call);
+        this._pendingDeleteEvictions.set(messageId, pending);
       }
+      let resolved = false;
       try {
         await this._store.onDelete(messageId);
+        resolved = true;
       } finally {
-        this._pendingDeleteEvictions.get(messageId)?.delete(call);
+        const pending = this._pendingDeleteEvictions.get(messageId);
+        pending?.calls.delete(call);
+        if (pending?.ambiguous) {
+          if (
+            resolved &&
+            !this._storeMessages.some((message) => message.id === messageId)
+          ) {
+            this._pendingDeleteEvictions.delete(messageId);
+            this._evictDeletedMessage(messageId);
+          } else if (pending.calls.size === 0) {
+            if (resolved) pending.ambiguous = false;
+            else this._pendingDeleteEvictions.delete(messageId);
+          }
+        }
       }
       return;
     }
@@ -1027,9 +1040,17 @@ export class ExternalStoreThreadRuntimeCore
     const messageIndex = messages.findIndex((m) => m.id === messageId);
     if (messageIndex === -1) throw new Error("Message not found.");
 
-    this._pendingDeleteEvictions.clear();
+    this._invalidatePendingDeleteEvictions();
     this.updateMessages(messages.filter((message) => message.id !== messageId));
     this._evictDeletedMessage(messageId);
+  }
+
+  private _invalidatePendingDeleteEvictions(kept?: ReadonlySet<string>): void {
+    for (const [id, pending] of this._pendingDeleteEvictions) {
+      if (kept?.has(id)) continue;
+      if (pending.calls.size > 0) pending.ambiguous = true;
+      else this._pendingDeleteEvictions.delete(id);
+    }
   }
 
   // The snapshot pass only relinks incoming messages; it never evicts, so
@@ -1095,9 +1116,7 @@ export class ExternalStoreThreadRuntimeCore
         .slice(0, visible.findIndex((m) => m.id === config.parentId) + 1)
         .map((m) => m.id),
     );
-    for (const id of this._pendingDeleteEvictions.keys()) {
-      if (!kept.has(id)) this._pendingDeleteEvictions.delete(id);
-    }
+    this._invalidatePendingDeleteEvictions(kept);
 
     const cancellationLease = this._runCancellationLeases.current();
     // Auto-abort in-flight client-side tool executions when a run reloads;
