@@ -25,6 +25,7 @@ Framework-agnostic; the React, Vue, and assistant-ui bindings are optional, and 
 | `generative-frame/spec/vue` | `SpecRenderer`, `useSpecStream`, `useSpecElement` for Vue |
 | `generative-frame/spec/tools` | `createSpecTools` (`render_spec`), `specGuidanceModule` |
 | `generative-frame/spec/assistant-ui` | `createSpecToolkit` |
+| `generative-frame/spec/assistant-ui/vue` | `createSpecToolkit` for `@assistant-ui/vue` |
 
 The frame entries and the spec entries never import each other, so an app that only renders HTML widgets ships no spec code, and a spec-only app ships no frame, runtime, or Safe Content Frame. Combine them by passing values in, as shown under Spec mode. `src/bundle-boundary.test.ts` enforces this.
 
@@ -187,7 +188,7 @@ To keep widget code out of the main agent's context, give it one tool that asks 
 
 ## assistant-ui
 
-`generative-frame/assistant-ui` and `generative-frame/spec/assistant-ui` need `@assistant-ui/react` (an optional peer, imported only by these entries).
+`generative-frame/assistant-ui` and `generative-frame/spec/assistant-ui` need `@assistant-ui/react` (an optional peer, imported only by these entries). `generative-frame/spec/assistant-ui/vue` builds the spec toolkit for `@assistant-ui/vue` instead and needs it and `@assistant-ui/core`.
 
 ```tsx
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";

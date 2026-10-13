@@ -94,6 +94,25 @@ function SpecInstructions() {
 
 Pass `tools` to your `AuiConfig`, and render `SpecInstructions` inside the runtime provider so the model gets the toolkit's `spec` module, the guidance `read_me` gives it on the web, including your `specPrompt` and the rule for earlier tool results. With `execution: "backend"`, the server defines `render_spec` with `createSpecTools(catalog)` and puts the catalog guidance in its system prompt instead, as in [spec mode as a tool](/generative-frame/docs/spec-mode#as-a-tool); earlier tool results reach a spec's state only in frontend execution, so that guidance leaves out their rule. What the user changes in a rendered spec is saved and restored as on the web (see [History after a reload](#history-after-a-reload)). `@assistant-ui/react-native` is an optional peer of this entry.
 
+### On Vue
+
+With `@assistant-ui/vue`, `createSpecToolkit` from `generative-frame/spec/assistant-ui/vue` renders `render_spec` calls with the [Vue renderer](/generative-frame/docs/spec-mode#render-with-vue) and your Vue components. Its entries go into `Tools({ toolkit })` from `@assistant-ui/core/react`, as other [Vue tool UIs](/docs/vue/tool-ui) do:
+
+```ts
+import { Tools } from "@assistant-ui/core/react";
+import { createSpecToolkit } from "generative-frame/spec/assistant-ui/vue";
+
+const spec = createSpecToolkit(catalog, { components });
+const tools = Tools({
+  toolkit: spec.entries({ execution: "frontend", display: "standalone" }),
+});
+const guidance = (spec.modules ?? [])
+  .map((module) => module.guidance())
+  .join("\n\n");
+```
+
+Pass `tools` to your `AuiConfig`, and register `guidance` as `system` [model context](/docs/vue/model-context) in a component under `AuiProvider`, so the model gets the `spec` module. The toolkit reads the thread as the React one does: patches apply onto earlier calls with the same title, earlier tool results are in state under `/tools` in frontend execution, what the user changes is saved on the call, and `sendMessage` and `updateModelContext` behave as described below. `@assistant-ui/vue` and `@assistant-ui/core` are optional peers of this entry.
+
 ## Frontend and backend execution
 
 By default the tools execute in the browser. Your route forwards their schemas to the model with `frontendTools` from `@assistant-ui/ai-sdk`:
