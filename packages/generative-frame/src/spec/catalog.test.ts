@@ -191,13 +191,19 @@ describe("built-in actions", () => {
   it("documents them only for a host that handles them", () => {
     expect(catalog.prompt()).not.toContain("`sendMessage`");
     expect(catalog.prompt()).not.toContain("`updateModelContext`");
-    const prompt = catalog.prompt({
+    const both = catalog.prompt({
       hostApi: { prompt: true, modelContext: true },
     });
-    expect(prompt).toContain("- `sendMessage` — params `{ text: string }`.");
-    expect(prompt).toContain(
+    expect(both).toContain("- `sendMessage` — params `{ text: string }`.");
+    expect(both).toContain(
       "- `updateModelContext` — params `{ text?: string; data?: unknown }`.",
     );
+    const prompt = catalog.prompt({ hostApi: { prompt: true } });
+    expect(prompt).toContain("`sendMessage`");
+    expect(prompt).not.toContain("`updateModelContext`");
+    const context = catalog.prompt({ hostApi: { modelContext: true } });
+    expect(context).toContain("`updateModelContext`");
+    expect(context).not.toContain("`sendMessage`");
   });
 });
 

@@ -60,7 +60,7 @@ const actionSection = (
       : []),
     ...(hostApi.modelContext
       ? [
-          "- `updateModelContext` — params `{ text?: string; data?: unknown }`. Tells you what the user chose in this UI, with every later message, replacing what it shared before; nothing is sent. Use it when a choice should shape your next answer, such as the option the user picked. Built in.",
+          "- `updateModelContext` — params `{ text?: string; data?: unknown }`. Tells you what the user chose in this UI, with every later message, replacing what it shared before, and clears it when both are missing; nothing is sent. Use it when a choice should shape your next answer, such as the option the user picked. Built in.",
         ]
       : []),
     ...Object.entries(catalog.actions).map(([name, def]) => {

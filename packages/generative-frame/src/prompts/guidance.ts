@@ -183,7 +183,7 @@ const hostApiSection = (ctx: Context) => {
   }
   if (ctx.hostApi.modelContext) {
     items.push(
-      '`genframe.updateModelContext({ content: [{ type: "text", text }] })` tells you what the user chose in the widget, such as the option they picked, with every later message, replacing what it shared before; nothing is sent. Call it when a choice should shape your next answer.',
+      '`genframe.updateModelContext({ content: [{ type: "text", text }] })` tells you what the user chose in the widget, such as the option they picked, with every later message, replacing what it shared before, and empty `content` clears it; nothing is sent. Call it when a choice should shape your next answer.',
     );
   }
   items.push(
