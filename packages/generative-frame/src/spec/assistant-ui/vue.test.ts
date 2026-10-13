@@ -276,6 +276,26 @@ describe("createSpecToolkit for Vue", () => {
     expect(later.container.textContent).toBe("b");
   });
 
+  it("tells model context subscribers when a later call replaces a spec", async () => {
+    mocks.messages = [
+      { content: [specCall("e", labelA), specCall("f", labelB)] },
+    ];
+    const { update } = mount(
+      setup("frontend").render,
+      toolProp({ id: "e", args: { ...labelA, title: "x" } }),
+    );
+    await nextTick();
+    const listener = vi.fn();
+    for (const provider of mocks.providers) {
+      (
+        provider as unknown as { subscribe: (listener: () => void) => void }
+      ).subscribe(listener);
+    }
+    update(toolProp({ id: "e", args: labelA }));
+    await nextTick();
+    expect(listener).toHaveBeenCalled();
+  });
+
   it("keeps showing a spec while a later call's title is still arriving", async () => {
     mocks.messages = [
       {

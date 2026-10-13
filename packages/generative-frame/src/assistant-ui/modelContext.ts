@@ -133,9 +133,14 @@ export function createSharedContext(
 ): {
   source: ModelContextSource;
   share: (context: SharedContext | undefined) => void;
+  /** Tells subscribers to read again, as when `muted` changes. */
+  notify: () => void;
 } {
   let shared = initial && boundContext(initial);
   const listeners = new Set<() => void>();
+  const notify = () => {
+    for (const listener of listeners) listener();
+  };
   return {
     source: {
       read: () =>
@@ -150,7 +155,8 @@ export function createSharedContext(
     share: (context) => {
       shared = context && boundContext(context);
       options.onShare(shared);
-      for (const listener of listeners) listener();
+      notify();
     },
+    notify,
   };
 }

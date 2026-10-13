@@ -207,6 +207,7 @@ export function createSpecToolkit(
             subscribe: shared.source.subscribe,
           }),
         );
+        watch(superseded, shared.notify);
         const handlers: Record<string, ActionHandler> = {
           sendMessage: (params, source) => {
             const text = params["text"];

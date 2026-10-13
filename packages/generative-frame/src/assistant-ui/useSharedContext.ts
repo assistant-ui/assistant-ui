@@ -1,4 +1,4 @@
-import { useInsertionEffect, useRef, useState } from "react";
+import { useEffect, useInsertionEffect, useRef, useState } from "react";
 import {
   createSharedContext,
   type ModelContextSource,
@@ -37,5 +37,11 @@ export function useSharedContext({
     }),
   );
   useModelContext(shared.source);
+  const notified = useRef(muted);
+  useEffect(() => {
+    if (notified.current === muted) return;
+    notified.current = muted;
+    shared.notify();
+  }, [muted, shared]);
   return shared.share;
 }

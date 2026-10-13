@@ -111,15 +111,44 @@ export function resolveSpecBase(
   return spec;
 }
 
-const escapeRegExp = (text: string) =>
-  text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const STRING_TOKEN = /"(?:[^"\\]|\\.)*"/y;
+
+const decode = (token: string): unknown => {
+  try {
+    return JSON.parse(token);
+  } catch {
+    return undefined;
+  }
+};
+
+/** The top-level `title` of streamed arguments once its string has closed, whatever escaping it was written with. */
+const streamedTitle = (argsText: string): unknown => {
+  let depth = 0;
+  let key: unknown;
+  let inValue = false;
+  for (let i = 0; i < argsText.length; i++) {
+    const char = argsText[i];
+    if (char === '"') {
+      STRING_TOKEN.lastIndex = i;
+      const token = STRING_TOKEN.exec(argsText)?.[0];
+      if (token === undefined) return undefined;
+      if (depth === 1) {
+        if (!inValue) key = decode(token);
+        else if (key === "title") return decode(token);
+        else inValue = false;
+      }
+      i += token.length - 1;
+    } else if (char === "{" || char === "[") depth++;
+    else if (char === "}" || char === "]") depth--;
+    else if (depth === 1 && char === ":") inValue = true;
+    else if (depth === 1 && char === ",") inValue = false;
+  }
+  return undefined;
+};
 
 /** Whether streamed arguments hold this whole title, not a prefix of a longer one that is still arriving. */
 const holdsTitle = (argsText: string | undefined, title: string) =>
-  argsText === undefined ||
-  new RegExp(
-    `"title"\\s*:\\s*${escapeRegExp(JSON.stringify(title))}\\s*[,}]`,
-  ).test(argsText);
+  argsText === undefined || streamedTitle(argsText) === title;
 
 /** Whether a later `render_spec` call in the same message has this call's title. That call shows the spec this one's patches lead to, so this one shows nothing rather than a second copy. */
 export function supersededInMessage(

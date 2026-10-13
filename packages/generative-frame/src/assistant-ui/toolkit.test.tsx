@@ -9,7 +9,10 @@ import {
 import { Activity, version, type ComponentType } from "react";
 import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { createSpecToolkit } from "../spec/assistant-ui";
-import { resolveSpecBase } from "../spec/assistant-ui/thread";
+import {
+  resolveSpecBase,
+  supersededInMessage,
+} from "../spec/assistant-ui/thread";
 import { defineCatalog } from "../spec/catalog";
 import type { SpecComponentProps } from "../spec/react/SpecRenderer";
 import { resolveWidgetCode, resolveWidgetOrigin } from "./history";
@@ -245,6 +248,39 @@ describe("history", () => {
     expect(resolveSpecBase(messages, "g", "s")?.elements["t"]?.props).toEqual({
       text: "b",
     });
+  });
+});
+
+describe("supersededInMessage", () => {
+  const thread = (title: string, argsText: string) => [
+    {
+      content: [
+        call("e", "render_spec", { title, patches: "" }),
+        { ...call("f", "render_spec", { title }), argsText },
+      ],
+    },
+  ];
+
+  it("reads the later call's title through any JSON escaping", () => {
+    expect(
+      supersededInMessage(
+        thread("café", '{"title":"caf\\u00e9","patches":""}'),
+        "e",
+        "café",
+      ),
+    ).toBe(true);
+    expect(
+      supersededInMessage(thread("a/b", '{"title":"a\\/b"'), "e", "a/b"),
+    ).toBe(true);
+  });
+
+  it("waits for the later call's own title, not a nested one", () => {
+    const nested =
+      '{"spec":{"root":"h","elements":{"h":{"type":"Header","props":{"title":"s"}}}},"title":"s';
+    expect(supersededInMessage(thread("s", nested), "e", "s")).toBe(false);
+    expect(supersededInMessage(thread("s", `${nested}"}`), "e", "s")).toBe(
+      true,
+    );
   });
 });
 
@@ -1023,6 +1059,29 @@ describe("render_spec validation", () => {
     const later = render(<RenderSpec {...partProps("f", fromA)} />);
     expect(earlier.container.textContent).toBe("");
     expect(later.container.textContent).toBe("b");
+  });
+
+  it("tells model context subscribers when a later call replaces a spec", () => {
+    mocks.messages = [{ content: [call("e", "render_spec", first)] }];
+    const RenderSpec = setup().render;
+    const view = render(<RenderSpec {...partProps("e", first)} />);
+    const provider = mocks.providers.at(-1) as unknown as {
+      subscribe: (listener: () => void) => () => void;
+    };
+    const listener = vi.fn();
+    provider.subscribe(listener);
+    view.rerender(<RenderSpec {...partProps("e", first)} />);
+    expect(listener).not.toHaveBeenCalled();
+    mocks.messages = [
+      {
+        content: [
+          call("e", "render_spec", first),
+          call("f", "render_spec", fromA),
+        ],
+      },
+    ];
+    view.rerender(<RenderSpec {...partProps("e", first)} />);
+    expect(listener).toHaveBeenCalledTimes(1);
   });
 
   it("keeps showing a spec while a later call's title is still arriving", () => {
