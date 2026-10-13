@@ -291,6 +291,54 @@ describe("specToUISpec", () => {
     });
   });
 
+  it("names repeated controls that share a static name by their state paths", () => {
+    const tree = specToUISpec({
+      root: "list",
+      elements: {
+        list: {
+          type: "Box",
+          repeat: { path: "/dishes", key: "id" },
+          children: ["done", "save"],
+        },
+        done: {
+          type: "Checkbox",
+          props: {
+            name: "done",
+            label: { $item: "/name" },
+            defaultChecked: { $bindItem: "done" },
+          },
+        },
+        save: {
+          type: "Button",
+          props: { label: "Save" },
+          on: {
+            press: { action: "save", params: { done: { $item: "/done" } } },
+          },
+        },
+      },
+      state: {
+        dishes: [
+          { id: "soup", name: "Soup", done: true },
+          { id: "lamb", name: "Lamb", done: false },
+        ],
+      },
+    });
+    expect(tree).toMatchObject({
+      children: [
+        { $type: "Checkbox", name: "/dishes/0/done" },
+        {
+          $type: "Button",
+          $action: { done: { $field: "/dishes/0/done", fallback: true } },
+        },
+        { $type: "Checkbox", name: "/dishes/1/done" },
+        {
+          $type: "Button",
+          $action: { done: { $field: "/dishes/1/done", fallback: false } },
+        },
+      ],
+    });
+  });
+
   it("names a control repeated per item by its state path and keys repeated nodes", () => {
     const tree = specToUISpec({
       root: "list",

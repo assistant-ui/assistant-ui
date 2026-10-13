@@ -41,16 +41,27 @@ const fieldName = (spec: Spec, element: ResolvedElement, path: string) => {
   return typeof raw?.["$bindState"] === "string" ? element.id : path;
 };
 
-function boundFields(
+function collectFields(
   spec: Spec,
   element: ResolvedElement,
-  fields = new Map<string, string>(),
+  fields: Map<string, string>,
 ) {
   const path = boundPath(element);
   if (path !== undefined && !fields.has(path)) {
     fields.set(path, fieldName(spec, element, path));
   }
-  for (const child of element.children) boundFields(spec, child, fields);
+  for (const child of element.children) collectFields(spec, child, fields);
+}
+
+// A name that several bound paths share, such as a static `name` on a control repeated per item, cannot tell them apart, so each of those controls is named by its path instead.
+function boundFields(spec: Spec, root: ResolvedElement) {
+  const fields = new Map<string, string>();
+  collectFields(spec, root, fields);
+  const uses = new Map<string, number>();
+  for (const name of fields.values()) uses.set(name, (uses.get(name) ?? 0) + 1);
+  for (const [path, name] of fields) {
+    if (uses.get(name)! > 1) fields.set(path, path);
+  }
   return fields;
 }
 
@@ -207,7 +218,8 @@ function toNode(element: ResolvedElement, conversion: Conversion): UIElement {
  * `$action`: the first action bound to the event other than `setState`, with
  * its resolved params. A control whose value is bound gets a `name` unless it
  * has one: its element id for `$bindState`, or its state path for
- * `$bindItem`, which differs per item. A param that reads a bound control's
+ * `$bindItem`, which differs per item; controls that would share a name are
+ * named by their state paths. A param that reads a bound control's
  * state, through `$state` or through `$item` inside a `repeat`, becomes a
  * `{ $field }` reference to that control with its value now as the
  * `fallback`, so the action reads what the user entered, and a param that
