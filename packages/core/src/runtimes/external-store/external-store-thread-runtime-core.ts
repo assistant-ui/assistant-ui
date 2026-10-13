@@ -247,7 +247,6 @@ export class ExternalStoreThreadRuntimeCore
   // optimistic placeholder so cancel resync only writes a real rollback.
   private _storeMessages: readonly ThreadMessage[] = [];
   private _importedMessageIds: readonly string[] | undefined;
-  private _importedHostMessages: readonly unknown[] | undefined;
 
   private readonly _runStartLeases = new RunLeases();
   private readonly _runCancellationLeases = new RunLeases();
@@ -519,11 +518,11 @@ export class ExternalStoreThreadRuntimeCore
 
     let messages: readonly ThreadMessage[];
     let preservingImportedMessages = false;
+    let importPathChanged = false;
 
     if (store.messageRepository) {
       // Handle messageRepository
       this._importedMessageIds = undefined;
-      this._importedHostMessages = undefined;
       if (
         oldStore &&
         !repositoryChanged &&
@@ -639,20 +638,15 @@ export class ExternalStoreThreadRuntimeCore
 
       messages = this._applySubmittedFeedback(messages);
       const importedMessageIds = this._importedMessageIds;
-      const importedHostMessages = this._importedHostMessages;
       preservingImportedMessages =
         importedMessageIds !== undefined &&
         shallowArrayEqual(
           importedMessageIds,
           messages.map((message) => message.id),
-        ) &&
-        (importedHostMessages === undefined ||
-          importedHostMessages === store.messages);
-      if (preservingImportedMessages) {
-        this._importedHostMessages = store.messages;
-      } else {
+        );
+      if (!preservingImportedMessages) {
+        importPathChanged = importedMessageIds !== undefined;
         this._importedMessageIds = undefined;
-        this._importedHostMessages = undefined;
       }
 
       for (let i = 0; i < messages.length; i++) {
@@ -731,6 +725,9 @@ export class ExternalStoreThreadRuntimeCore
     let optimisticId: string | null = null;
     if (hasUpcomingMessage(isRunning, messages)) {
       const parentId = messages.at(-1)?.id ?? null;
+      if (importPathChanged) {
+        this.repository.resetHead(parentId);
+      }
       if (this._optimistic?.parentId !== parentId) {
         this._optimistic = { id: generateId(), parentId };
       }
@@ -1484,23 +1481,9 @@ export class ExternalStoreThreadRuntimeCore
     this._cancelRunResyncLeases.invalidate();
     this._submittedFeedback.clear();
     this._importedMessageIds = undefined;
-    this._importedHostMessages = undefined;
     const repo = new MessageRepository();
     repo.import(ExportedMessageRepository.fromArray(initialMessages ?? []));
     this.updateMessages(repo.getMessages());
-  }
-
-  public override export(): ExportedMessageRepository {
-    const exported = super.export();
-    if (
-      (this._importedMessageIds === undefined &&
-        !this._store.messageRepository) ||
-      !hasUpcomingMessage(this._effectiveIsRunning, this._storeMessages) ||
-      this.repository.headId !== this._optimistic?.id
-    ) {
-      return exported;
-    }
-    return { ...exported, headId: this._optimistic.parentId };
   }
 
   public override import(data: ExportedMessageRepository) {
@@ -1512,7 +1495,6 @@ export class ExternalStoreThreadRuntimeCore
     super.import(data);
     const messages = this.repository.getMessages();
     this._importedMessageIds = messages.map((message) => message.id);
-    this._importedHostMessages = undefined;
     this._store.onImport(messages);
   }
 
