@@ -334,6 +334,7 @@ export async function buildWidgetInstructions(
           "## Widgets",
           "",
           ...WIDGET_TOOL_RULES,
+          `- \`read_me\` modules${readMeOffers(tools, "spec") ? " other than `spec`" : ""} guide \`show_widget\` code, so a \`render_spec\` answer never needs them.`,
           ...(readMeOffers(tools, "spec") &&
           !options.preload?.modules?.includes("spec")
             ? [
