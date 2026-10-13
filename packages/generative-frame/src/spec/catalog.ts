@@ -105,11 +105,21 @@ const UPDATE_MODEL_CONTEXT_ACTION: ActionDefinition = {
   },
 };
 
-/** Built-in actions every catalog accepts; a host handles `sendMessage` and `updateModelContext` the way it handles its own actions. */
+const COPY_TEXT_ACTION: ActionDefinition = {
+  description: "Copies `text` to the user's clipboard.",
+  params: {
+    type: "object",
+    properties: { text: { type: "string", description: "The text to copy" } },
+    required: ["text"],
+  },
+};
+
+/** Built-in actions every catalog accepts; a host handles `sendMessage`, `updateModelContext`, and `copyText` the way it handles its own actions. */
 const BUILT_IN_ACTIONS: Readonly<Record<string, ActionDefinition>> = {
   setState: SET_STATE_ACTION,
   sendMessage: SEND_MESSAGE_ACTION,
   updateModelContext: UPDATE_MODEL_CONTEXT_ACTION,
+  copyText: COPY_TEXT_ACTION,
 };
 
 const skipExpressions = { skip: isExpression };
@@ -134,7 +144,7 @@ export function defineCatalog<
 
   const component = (type: string) =>
     Object.hasOwn(components, type) ? components[type] : undefined;
-  for (const name of ["sendMessage", "updateModelContext"]) {
+  for (const name of ["sendMessage", "updateModelContext", "copyText"]) {
     if (Object.hasOwn(actions, name)) {
       throw new Error(
         `The action name "${name}" is reserved for the built-in action.`,

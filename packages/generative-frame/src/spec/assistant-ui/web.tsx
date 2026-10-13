@@ -45,6 +45,10 @@ const build = specToolkitFor({
   Frame,
   useSendMessage,
   useModelContext,
+  copyText: (text) =>
+    navigator.clipboard
+      ? navigator.clipboard.writeText(text)
+      : Promise.reject(new Error("Clipboard API is unavailable")),
 });
 
 /**

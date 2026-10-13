@@ -135,6 +135,7 @@ afterEach(() => {
   mocks.widgetProps.length = 0;
   mocks.widgets.length = 0;
   mocks.inspection.errors = [];
+  Reflect.deleteProperty(navigator, "clipboard");
 });
 
 const call = (
@@ -1419,6 +1420,37 @@ describe("sharing with the model", () => {
     expect(shared()).toBe("");
   });
 
+  it("copies text from a user's event, never from a watch binding", async () => {
+    const writeText = vi.fn(async (_text: string) => {});
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+    const RenderSpec = entries(specToolkit())["render_spec"]!.render;
+    render(
+      <RenderSpec
+        {...partProps("s", {
+          title: "list",
+          patches: button({
+            on: {
+              press: [
+                { action: "copyText", params: { text: "2 lb lamb" } },
+                { action: "setState", params: { path: "/n", value: 1 } },
+              ],
+            },
+            watch: {
+              n: { action: "copyText", params: { text: "watched" } },
+            },
+          }),
+        })}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByText("Go"));
+    });
+    expect(writeText).toHaveBeenCalledExactlyOnceWith("2 lb lamb");
+  });
+
   it("documents the built-in actions in the spec module", async () => {
     const { toolkit } = createWidgetToolkit({
       spec: createSpecToolkit(catalog, { components }),
@@ -1430,6 +1462,7 @@ describe("sharing with the model", () => {
     expect(output).toContain(
       "- `updateModelContext` — params `{ text?: string; data?: unknown }`.",
     );
+    expect(output).toContain("- `copyText` — params `{ text: string }`.");
   });
 });
 
