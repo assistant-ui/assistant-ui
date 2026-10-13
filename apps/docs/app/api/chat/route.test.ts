@@ -173,14 +173,19 @@ const message = {
   parts: [{ type: "text", text: "hello" }],
 };
 
-const send = (body: Record<string, unknown>) =>
+const send = (
+  body: Record<string, unknown>,
+  headers: Record<string, string> = {},
+) =>
   POST(
     new Request("https://www.assistant-ui.com/api/chat", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...headers },
       body: JSON.stringify(body),
     }),
   );
+
+const sameOrigin = { "sec-fetch-site": "same-origin" };
 
 describe("POST /api/chat conversation budget", () => {
   it("does not spend a slot on a request the route rejects", async () => {
@@ -305,14 +310,17 @@ describe("POST /api/chat generative UI", () => {
     const system = "x".repeat(10_000);
 
     await (
-      await send({
-        messages: [message],
-        system,
-        id: "thread_1",
-        countConversations: true,
-      })
+      await send(
+        {
+          messages: [message],
+          system,
+          id: "thread_1",
+          countConversations: true,
+        },
+        sameOrigin,
+      )
     ).text();
-    await (await send({ messages: [message], system })).text();
+    await (await send({ messages: [message], system }, sameOrigin)).text();
 
     expect(modelOptions(0).system).toBe(system);
     expect(modelOptions(1)).not.toHaveProperty("system");
@@ -327,15 +335,81 @@ describe("POST /api/chat generative UI", () => {
       parts: [{ type: "text", text: "x".repeat(20_000) }],
     };
 
-    const demo = await send({
-      messages: [long],
-      id: "thread_1",
-      countConversations: true,
-    });
-    const docs = await send({ messages: [long] });
+    const demo = await send(
+      { messages: [long], id: "thread_1", countConversations: true },
+      sameOrigin,
+    );
+    const docs = await send({ messages: [long] }, sameOrigin);
 
     expect(demo.status).toBe(200);
     expect(docs.status).toBe(400);
     expect(await docs.text()).toBe("Single message too long");
+  });
+
+  it("prunes earlier tool calls from what the landing page demo sends the model", async () => {
+    allowed();
+    streamed();
+    claimAllowed();
+    const history = [
+      message,
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          { type: "step-start" },
+          {
+            type: "tool-search_images",
+            toolCallId: "c1",
+            state: "output-available",
+            input: { queries: ["Big Sur"] },
+            output: { results: [] },
+          },
+          { type: "step-start" },
+          { type: "text", text: "Here is the plan." },
+        ],
+      },
+      { ...message, id: "m2" },
+    ];
+    const toolCallsIn = (call: number) =>
+      (
+        mocks.streamDocsChat.mock.calls[call]![3] as {
+          messages: { content: unknown }[];
+        }
+      ).messages.flatMap((entry) =>
+        Array.isArray(entry.content)
+          ? entry.content.filter(
+              (part: { type?: string }) => part.type === "tool-call",
+            )
+          : [],
+      );
+
+    await (
+      await send(
+        { messages: history, id: "thread_1", countConversations: true },
+        sameOrigin,
+      )
+    ).text();
+    await (await send({ messages: history }, sameOrigin)).text();
+
+    expect(toolCallsIn(0)).toEqual([]);
+    expect(toolCallsIn(1)).toHaveLength(1);
+  });
+
+  it("keeps the general limits for a budgeted request from another site", async () => {
+    allowed();
+    streamed();
+    claimAllowed();
+    const long = {
+      ...message,
+      parts: [{ type: "text", text: "x".repeat(20_000) }],
+    };
+
+    const response = await send(
+      { messages: [long], id: "thread_1", countConversations: true },
+      { "sec-fetch-site": "cross-site" },
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).toBe("Single message too long");
   });
 });

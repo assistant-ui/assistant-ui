@@ -22,6 +22,18 @@ export async function prepareChatMessages(
   });
 }
 
+export async function prepareDemoChatMessages(
+  messages: UIMessage[],
+  tools: ToolSet,
+) {
+  return pruneMessages({
+    messages: await convertToModelMessages(messages, { tools }),
+    toolCalls: "before-last-2-messages",
+    reasoning: "none",
+    emptyMessages: "remove",
+  });
+}
+
 export async function prepareDocChatMessages(
   messages: readonly UIMessage[],
   tools: ToolSet,

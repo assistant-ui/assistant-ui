@@ -1,4 +1,8 @@
-import { prepareChatMessages, streamDocsChat } from "@/lib/ai/chat-route";
+import {
+  prepareChatMessages,
+  prepareDemoChatMessages,
+  streamDocsChat,
+} from "@/lib/ai/chat-route";
 import {
   injectQuoteContext,
   unstable_injectInteractableContext as injectInteractableContext,
@@ -79,19 +83,20 @@ export async function POST(req: Request) {
       id: threadId,
     } = body;
 
-    // The landing page demo draws on the daily conversation budget, and its
-    // requests carry the preloaded generative UI guidance and the specs it
-    // renders, so only they get a longer system prompt and larger messages.
+    const sameOrigin = req.headers.get("sec-fetch-site") === "same-origin";
     const budgeted =
       countConversations === true &&
       typeof threadId === "string" &&
       threadId !== "";
+    // The landing page demo draws on the daily conversation budget, and its
+    // requests carry the preloaded generative UI guidance and the specs it
+    // renders, so only its own requests get a longer system prompt and larger
+    // messages, with older tool calls pruned before the model call.
+    const demo = budgeted && sameOrigin;
 
     // Basic validation: only accept short system prompts to limit abuse surface
-    const MAX_SYSTEM_LENGTH = budgeted ? 40_000 : 4000;
-    const groundInDocs =
-      searchDocsRequested === true &&
-      req.headers.get("sec-fetch-site") === "same-origin";
+    const MAX_SYSTEM_LENGTH = demo ? 40_000 : 4000;
+    const groundInDocs = searchDocsRequested === true && sameOrigin;
     const system = [
       typeof rawSystem === "string" && rawSystem.length <= MAX_SYSTEM_LENGTH
         ? rawSystem
@@ -101,7 +106,7 @@ export async function POST(req: Request) {
       .filter(Boolean)
       .join("\n\n");
 
-    const inputError = budgeted
+    const inputError = demo
       ? validateDemoChatInput(messages)
       : validateGeneralChatInput(messages);
     if (inputError) {
@@ -130,10 +135,9 @@ export async function POST(req: Request) {
         ? { ...frontendTools, search_images: searchImagesTool }
         : frontendTools;
 
-    const prunedMessages = await prepareChatMessages(
-      injectInteractableContext(injectQuoteContext(messages)),
-      chatTools,
-    );
+    const prunedMessages = await (
+      demo ? prepareDemoChatMessages : prepareChatMessages
+    )(injectInteractableContext(injectQuoteContext(messages)), chatTools);
 
     // Every docs surface shares this route, so only the one that opts in draws
     // on the budget, and only after the deterministic rejections, so a request

@@ -26,7 +26,7 @@ export const generativeUI = createWidgetToolkit({
 export function GenerativeUIInstructions() {
   useWidgetInstructions(generativeUI.tools, { preload: { modules: ["spec"] } });
   useAssistantInstructions(
-    "Build dashboards, plans, comparisons, and amounts that follow an input such as a guest count with `render_spec`, computing values with `$calc`; use `show_widget` only for games, simulations, and drawings the components cannot show. Use `present` only for the `Weather` card of a `get_weather` result. When an answer is about places, dishes, or products, call `search_images` for them before `render_spec`, so the answer can show photos.",
+    "Build dashboards, plans, comparisons, and calculators whose amounts follow an input such as a guest count with `render_spec`, computing values with `$calc`; use `show_widget` only for games, simulations, and drawings the components cannot show. Use `present` only for the `Weather` card of a `get_weather` result. When an answer is about places, dishes, or products, call `search_images` for them before `render_spec`, so the answer can show photos.",
   );
   return null;
 }

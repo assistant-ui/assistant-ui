@@ -1,6 +1,8 @@
 import { tool, zodSchema } from "ai";
 import z from "zod";
 
+const SEARCH_TIMEOUT_MS = 5_000;
+
 type WikipediaPage = {
   index: number;
   title: string;
@@ -26,12 +28,13 @@ const findImages = async (
     pithumbsize: "960",
     inprop: "url",
   }).toString();
+  const timeout = AbortSignal.timeout(SEARCH_TIMEOUT_MS);
   const response = await fetch(url, {
     headers: {
       "User-Agent":
         "assistant-ui-docs/1.0 (https://github.com/assistant-ui/assistant-ui)",
     },
-    ...(signal ? { signal } : {}),
+    signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
   });
   if (!response.ok) return [];
   const data = (await response.json()) as {

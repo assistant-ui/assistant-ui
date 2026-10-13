@@ -25,8 +25,8 @@ const DOC_CHAT_LIMITS: InputLimits = {
 };
 
 const DEMO_CHAT_LIMITS: InputLimits = {
-  maxMessages: 20,
-  maxTotalChars: 192_000, // ~48k tokens
+  maxMessages: 0, // no message count limit; pruning older tool calls bounds what reaches the model
+  maxTotalChars: 480_000, // ~120k tokens
   maxSingleMessageChars: 48_000, // ~12k tokens, a generative UI answer with its tool calls
 };
 
