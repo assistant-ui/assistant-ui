@@ -140,6 +140,43 @@ afterEach(() => {
 });
 
 describe("SpecRenderer", () => {
+  it("writes a root-bound prop back to the whole state", async () => {
+    const initial = { name: "model" };
+    const store = createStateStore(initial);
+    const view = mount({
+      state: store,
+      spec: {
+        root: "form",
+        state: initial,
+        elements: {
+          form: { type: "Form", props: { value: { $bindState: "" } } },
+        },
+      },
+      components: {
+        Form: defineComponent({
+          props: { value: Object },
+          emits: ["update:value"],
+          setup(props, { emit }) {
+            return () =>
+              h(
+                "button",
+                {
+                  type: "button",
+                  onClick: () => emit("update:value", { name: "edited" }),
+                },
+                JSON.stringify(props.value),
+              );
+          },
+        }),
+      },
+    });
+
+    expect(view.container.textContent).toBe('{"name":"model"}');
+    await click(view.container.querySelector("button")!);
+    expect(store.getState()).toEqual({ name: "edited" });
+    expect(view.container.textContent).toBe('{"name":"edited"}');
+  });
+
   it("renders expressions, default and named slots, visibility, and event setState", async () => {
     const view = mount({
       catalog,

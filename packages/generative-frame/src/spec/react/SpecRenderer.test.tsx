@@ -90,6 +90,38 @@ const spec = (elements: Spec["elements"], state: Spec["state"] = {}): Spec => ({
 });
 
 describe("SpecRenderer", () => {
+  it("writes a root-bound prop back to the whole state", () => {
+    const initial = { name: "model" };
+    const store = createStateStore(initial);
+    const view = render(
+      <SpecRenderer
+        state={store}
+        spec={{
+          root: "form",
+          state: initial,
+          elements: {
+            form: { type: "Form", props: { value: { $bindState: "" } } },
+          },
+        }}
+        components={{
+          Form: ({ props, setProp }: SpecComponentProps) => (
+            <button
+              type="button"
+              onClick={() => setProp("value", { name: "edited" })}
+            >
+              {JSON.stringify(props["value"])}
+            </button>
+          ),
+        }}
+      />,
+    );
+
+    expect(view.container.textContent).toBe('{"name":"model"}');
+    fireEvent.click(view.getByRole("button"));
+    expect(store.getState()).toEqual({ name: "edited" });
+    expect(view.container.textContent).toBe('{"name":"edited"}');
+  });
+
   it("renders the tree, resolves expressions, and runs setState on events", () => {
     const view = render(
       <SpecRenderer

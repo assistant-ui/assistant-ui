@@ -35,6 +35,20 @@ const catalog = defineCatalog({
         required: ["text"],
       },
     },
+    RootState: {
+      description: "Object state",
+      props: {
+        type: "object",
+        properties: {
+          value: {
+            type: "object",
+            properties: { name: { type: "string" } },
+            required: ["name"],
+          },
+        },
+        required: ["value"],
+      },
+    },
   },
 });
 
@@ -53,6 +67,13 @@ const setup = (execution: "frontend" | "backend") =>
         <View>
           <Text>{props.text}</Text>
           {children}
+        </View>
+      ),
+      RootState: ({
+        props,
+      }: SpecComponentProps<{ value: { name: string } }>) => (
+        <View>
+          <Text>{JSON.stringify(props.value)}</Text>
         </View>
       ),
     },
@@ -105,7 +126,7 @@ describe("createSpecToolkit for React Native", () => {
           spec: {
             root: "t",
             elements: {
-              t: { type: "Label", props: { text: { $state: "/name" } } },
+              t: { type: "RootState", props: { value: { $state: "" } } },
             },
             state: { name: "model" },
           },
@@ -119,14 +140,14 @@ describe("createSpecToolkit for React Native", () => {
               payload: {
                 type: "setState",
                 toolCallId: "s",
-                writes: [["/name", "Ada"]],
+                writes: [["", { name: "Ada" }]],
               },
             },
           ],
         }}
       />,
     );
-    expect(view.container.textContent).toBe("Ada");
+    expect(view.container.textContent).toBe('{"name":"Ada"}');
   });
 
   it("shows a streaming call with the React Native placeholder", () => {

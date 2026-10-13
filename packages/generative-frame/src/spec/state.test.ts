@@ -41,6 +41,24 @@ describe("createStateStore writes", () => {
     expect(store.getState()).toEqual({ name: "Ada", count: 1 });
   });
 
+  it("replays root replacements through seeds and saved writes", () => {
+    const edited = { name: "edited" };
+    const store = createStateStore({ name: "model" });
+    store.set("", edited);
+    expect(store.writes()).toEqual([["", edited]]);
+
+    store.seed({ name: "streamed", count: 1 });
+    expect(store.getState()).toEqual(edited);
+
+    const restored = createStateStore(
+      { name: "model" },
+      {
+        writes: store.writes(),
+      },
+    );
+    expect(restored.getState()).toEqual(edited);
+  });
+
   it("drops a restored write that no longer applies", () => {
     const store = createStateStore(
       { text: "plain" },

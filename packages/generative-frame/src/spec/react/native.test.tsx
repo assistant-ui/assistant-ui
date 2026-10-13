@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, fireEvent, render } from "@testing-library/react";
 import { Text, View } from "react-native";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { createStateStore } from "../state";
 import type { Spec } from "../types";
 import { SpecRenderer } from "../react.native";
 import type { SpecComponents } from "./SpecRenderer";
@@ -23,6 +24,36 @@ const spec = (elements: Spec["elements"]): Spec => ({
 });
 
 describe("SpecRenderer for React Native", () => {
+  it("writes a root-bound prop through the shared renderer", () => {
+    const initial = { name: "model" };
+    const store = createStateStore(initial);
+    const view = render(
+      <SpecRenderer
+        state={store}
+        components={{
+          ...components,
+          Form: ({ props, setProp }) => (
+            <Text onPress={() => setProp("value", { name: "edited" })}>
+              {JSON.stringify(props["value"])}
+            </Text>
+          ),
+        }}
+        spec={{
+          root: "form",
+          state: initial,
+          elements: {
+            form: { type: "Form", props: { value: { $bindState: "" } } },
+          },
+        }}
+      />,
+    );
+
+    expect(view.container.textContent).toBe('{"name":"model"}');
+    fireEvent.click(view.container.firstElementChild!);
+    expect(store.getState()).toEqual({ name: "edited" });
+    expect(view.container.textContent).toBe('{"name":"edited"}');
+  });
+
   it("renders a pending child with a React Native placeholder", () => {
     const view = render(
       <SpecRenderer

@@ -99,6 +99,42 @@ describe("evaluateCondition", () => {
 });
 
 describe("resolveProps", () => {
+  it("preserves root, empty-key, nested, and escaped binding paths", () => {
+    const root = {
+      "": "empty key",
+      filter: "all",
+      "a/b": "escaped",
+      user: { name: "Ada" },
+    };
+    expect(
+      resolveProps(
+        {
+          root: { $bindState: "" },
+          empty: { $bindState: "/" },
+          filter: { $bindState: "filter" },
+          escaped: { $bindState: "/a~1b" },
+          nested: { $bindState: "/user/name" },
+        },
+        { state: root },
+      ),
+    ).toEqual({
+      props: {
+        root,
+        empty: "empty key",
+        filter: "all",
+        escaped: "escaped",
+        nested: "Ada",
+      },
+      bindings: {
+        root: "",
+        empty: "/",
+        filter: "/filter",
+        escaped: "/a~1b",
+        nested: "/user/name",
+      },
+    });
+  });
+
   it("reports two-way bindings for state and repeat items", () => {
     expect(
       resolveProps(
