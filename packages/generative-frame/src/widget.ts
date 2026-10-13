@@ -471,7 +471,7 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
               ? { message: { text: {} } }
               : {}),
             ...(options.onUpdateModelContext
-              ? { updateModelContext: { text: {} } }
+              ? { updateModelContext: { text: {}, structuredContent: {} } }
               : {}),
             logging: {},
           },
