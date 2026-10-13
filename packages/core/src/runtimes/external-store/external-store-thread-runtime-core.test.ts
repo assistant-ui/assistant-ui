@@ -2,7 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import type { ModelContextProvider } from "../../model-context/types";
 import type { Unstable_RecordToolInteractionOptions } from "../../runtime/interfaces/thread-runtime-core";
 import { ExportedMessageRepository } from "../../runtime/utils/message-repository";
+import { fromThreadMessageLike } from "../../runtime/utils/thread-message-like";
 import type { ThreadMessageLike } from "../../runtime/utils/thread-message-like";
+import type { ThreadMessage } from "../../types/message";
 import type { ExternalStoreAdapter } from "./external-store-adapter";
 import { ExternalStoreThreadRuntimeCore } from "./external-store-thread-runtime-core";
 
@@ -356,5 +358,113 @@ describe("ExternalStoreThreadRuntimeCore earlier messages", () => {
     await runtime.loadEarlier();
     expect(onLoadEarlier).not.toHaveBeenCalled();
     expect(runtime.isLoadingEarlier).toBe(false);
+  });
+});
+
+describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
+  const message = (id: string, role: "user" | "assistant") =>
+    fromThreadMessageLike({ id, role, content: id }, id, {
+      type: "complete",
+      reason: "stop",
+    });
+
+  const setup = () => {
+    let current = [
+      message("u1", "user"),
+      message("a1", "assistant"),
+      message("u2", "user"),
+      message("a2", "assistant"),
+    ];
+    let isRunning = false;
+    let confirm!: () => void;
+    let decline!: () => void;
+    const onDelete = vi.fn(
+      (id: string) =>
+        new Promise<void>((resolve, reject) => {
+          confirm = () => {
+            current = current.filter((m) => m.id !== id);
+            resolve();
+          };
+          decline = () => reject(new Error("deletion declined"));
+        }),
+    );
+    const onReload = vi.fn(async (parentId: string | null) => {
+      isRunning = true;
+      current = current.slice(
+        0,
+        current.findIndex((m) => m.id === parentId) + 1,
+      );
+    });
+    const setMessages = vi.fn((messages: readonly ThreadMessage[]) => {
+      current = [...messages];
+    });
+    const store = () =>
+      ({
+        messages: current,
+        isRunning,
+        onDelete,
+        onReload,
+        setMessages,
+      }) as ExternalStoreAdapter;
+    const runtime = createRuntime(store());
+    return {
+      runtime,
+      confirmDelete: () => confirm(),
+      declineDelete: () => decline(),
+      regenerate: () =>
+        runtime.startRun({ parentId: "u1", sourceId: "a1", runConfig: {} }),
+      rerender: () => runtime.__internal_setAdapter(store()),
+      finishRun: () => {
+        current = [message("u1", "user"), message("a1b", "assistant")];
+        isRunning = false;
+        runtime.__internal_setAdapter(store());
+      },
+      switchToOldBranch: () => {
+        runtime.switchToBranch("a1");
+        return setMessages.mock.lastCall?.[0].map((m) => m.id);
+      },
+    };
+  };
+
+  it("does not restore a message deleted while an earlier reply regenerates", async () => {
+    const {
+      runtime,
+      confirmDelete,
+      regenerate,
+      rerender,
+      finishRun,
+      switchToOldBranch,
+    } = setup();
+
+    const deletion = runtime.deleteMessage("u2");
+    await regenerate();
+    rerender();
+    confirmDelete();
+    await deletion;
+    rerender();
+    finishRun();
+
+    expect(switchToOldBranch()).toEqual(["u1", "a1", "a2"]);
+  });
+
+  it("keeps a message the host declined to delete on the old branch", async () => {
+    const {
+      runtime,
+      declineDelete,
+      regenerate,
+      rerender,
+      finishRun,
+      switchToOldBranch,
+    } = setup();
+
+    const deletion = runtime.deleteMessage("u2");
+    await regenerate();
+    rerender();
+    declineDelete();
+    await expect(deletion).rejects.toThrow("deletion declined");
+    rerender();
+    finishRun();
+
+    expect(switchToOldBranch()).toEqual(["u1", "a1", "u2", "a2"]);
   });
 });
