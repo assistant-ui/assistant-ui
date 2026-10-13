@@ -1809,7 +1809,7 @@ declare namespace entry_slack_exports {
 declare function specToUISpec(spec: Spec, options?: SpecToUISpecOptions): UISpec;
 
 declare namespace entry_spec_exports {
-  export { SpecToUISpecOptions, ToSpecCatalogOptions, defaultGenerativeUILibrary$1 as defaultGenerativeUILibrary, specToUISpec, toSpecCatalog$1 as toSpecCatalog };
+  export { ToSpecCatalogOptions, defaultGenerativeUILibrary$1 as defaultGenerativeUILibrary, toSpecCatalog$1 as toSpecCatalog };
 }
 
 declare function surfaceToOperations(surface: A2uiSurfaceState, surfaceId?: string): readonly A2uiSurfaceSnapshotOperation[];
@@ -1839,8 +1839,12 @@ declare function toSpecCatalog$1(library?: GenerativeUILibrary$1, options?: ToSp
 
 declare function toTeamsAttachments(node: unknown, _options?: ToAdaptiveCardOptions): TeamsAttachmentsResult;
 
+declare namespace entry_spec_tree_exports {
+  export { SpecToUISpecOptions, specToUISpec };
+}
+
 declare namespace entry_vue_exports {
   export { GenerativeUIComponent, GenerativeUILibrary, ToSpecCatalogOptions, defaultGenerativeUILibrary, toSpecCatalog };
 }
 
-export { entry_a2ui_exports as entry_a2ui, entry_react_default_exports as entry_react_default, entry_react_react_server_exports as entry_react_react_server, entry_root_exports as entry_root, entry_slack_exports as entry_slack, entry_spec_exports as entry_spec, entry_teams_exports as entry_teams, entry_vue_exports as entry_vue };
+export { entry_a2ui_exports as entry_a2ui, entry_react_default_exports as entry_react_default, entry_react_react_server_exports as entry_react_react_server, entry_root_exports as entry_root, entry_slack_exports as entry_slack, entry_spec_exports as entry_spec, entry_spec_tree_exports as entry_spec_tree, entry_teams_exports as entry_teams, entry_vue_exports as entry_vue };
