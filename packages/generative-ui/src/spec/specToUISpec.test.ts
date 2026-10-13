@@ -71,7 +71,7 @@ describe("specToUISpec", () => {
           label: "Order",
           $action: {
             type: "order",
-            size: { $field: "size" },
+            size: { $field: "size", fallback: "M" },
             name: "Ada",
             qty: 2,
           },
@@ -99,7 +99,7 @@ describe("specToUISpec", () => {
     const button = elements.find((element) => element["type"] === "button");
     expect(button?.["action_id"]).toBe("order");
     expect(JSON.parse(String(button?.["value"]))).toEqual({
-      size: { $field: "size" },
+      size: { $field: "size", fallback: "M" },
       name: "Ada",
       qty: 2,
     });
@@ -120,11 +120,84 @@ describe("specToUISpec", () => {
         data: {
           aui: {
             type: "order",
-            payload: { size: { $field: "size" }, name: "Ada", qty: 2 },
+            payload: {
+              size: { $field: "size", fallback: "M" },
+              name: "Ada",
+              qty: 2,
+            },
           },
         },
       }),
     ]);
+  });
+
+  it("reads every bound control under a path a param reads whole", () => {
+    const tree = specToUISpec({
+      root: "card",
+      elements: {
+        card: {
+          type: "Card",
+          props: { title: "RSVP" },
+          children: ["name", "list", "send"],
+        },
+        name: {
+          type: "Input",
+          props: { name: "guest", defaultValue: { $bindState: "/form/name" } },
+        },
+        list: {
+          type: "Box",
+          repeat: { path: "/dishes", key: "id" },
+          children: ["dish"],
+        },
+        dish: {
+          type: "Checkbox",
+          props: {
+            label: { $item: "/name" },
+            defaultChecked: { $bindItem: "/done" },
+          },
+        },
+        send: {
+          type: "Button",
+          props: { label: "Send" },
+          on: {
+            press: {
+              action: "rsvp",
+              params: {
+                form: { $state: "/form" },
+                dishes: { $state: "/dishes" },
+              },
+            },
+          },
+        },
+      },
+      state: {
+        form: { name: "Ada", note: "No nuts" },
+        dishes: [{ id: "soup", name: "Soup", done: true }],
+      },
+    });
+    expect(tree).toMatchObject({
+      children: [
+        { $type: "Input", name: "guest" },
+        { $type: "Box" },
+        {
+          $type: "Button",
+          $action: {
+            type: "rsvp",
+            form: {
+              name: { $field: "guest", fallback: "Ada" },
+              note: "No nuts",
+            },
+            dishes: [
+              {
+                id: "soup",
+                name: "Soup",
+                done: { $field: "/dishes/0/done", fallback: true },
+              },
+            ],
+          },
+        },
+      ],
+    });
   });
 
   it("names a control repeated per item by its state path and keys repeated nodes", () => {
