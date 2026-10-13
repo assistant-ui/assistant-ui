@@ -747,6 +747,36 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       },
     );
 
+    it("keeps a stopped user leaf in the host when its run resumes before the resync flushes", async () => {
+      let hostMessages: readonly ThreadMessage[] = [
+        createUserMessage("u1", "cancel me"),
+      ];
+      const setMessages = vi.fn((messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      });
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: hostMessages,
+          isRunning: true,
+          onCancel: vi.fn(),
+          onResume: vi.fn(async () => {}),
+          setMessages,
+        }),
+      );
+
+      core.cancelRun();
+      expect(core.composer.text).toBe("cancel me");
+      await core.resumeRun({ parentId: "u1", sourceId: null, runConfig: {} });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(hostMessages.map((m) => m.id)).toEqual(["u1"]);
+      expect(core.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
+      expect(core.messages.at(-1)?.metadata.isOptimistic).toBe(true);
+      expect(core.composer.text).toBe("");
+      expect(setMessages).not.toHaveBeenCalled();
+    });
+
     it("does not write a stopped message back while the composer holds it", async () => {
       let finishTool!: () => void;
       const execute = vi.fn(

@@ -1236,17 +1236,10 @@ export class ExternalStoreThreadRuntimeCore
     this._store?.queue?.remove(queueItemId);
   }
 
-  public async startRun(config: StartRunConfig): Promise<void> {
-    if (!this._store.onReload)
-      throw new Error("Runtime does not support reloading messages.");
-    if (this.voice)
-      throw new Error("Cannot start a run while a voice session is connected");
-    if (this._isVoiceMessage(config.sourceId))
-      throw new Error("Voice transcript messages cannot be reloaded");
-
+  private _restoreMovedLeafForRun(parentId: string | null): void {
     const movedLeaf = this._movedLeaf;
     if (
-      movedLeaf?.id === config.parentId &&
+      movedLeaf?.id === parentId &&
       movedLeaf.resyncLease.isCurrent() &&
       !movedLeaf.generation.aborted &&
       this._storeMessages.some((message) => message.id === movedLeaf.id)
@@ -1256,7 +1249,17 @@ export class ExternalStoreThreadRuntimeCore
       this.composer.retractDraft(movedLeaf.draft);
       this._updateStoreSnapshot(this._store, false, true);
     }
+  }
 
+  public async startRun(config: StartRunConfig): Promise<void> {
+    if (!this._store.onReload)
+      throw new Error("Runtime does not support reloading messages.");
+    if (this.voice)
+      throw new Error("Cannot start a run while a voice session is connected");
+    if (this._isVoiceMessage(config.sourceId))
+      throw new Error("Voice transcript messages cannot be reloaded");
+
+    this._restoreMovedLeafForRun(config.parentId);
     this._runStartLeases.begin();
     if (this._cancelledToolTurn?.parentId === config.parentId)
       this._cancelledToolTurn.parentOpen = false;
@@ -1292,6 +1295,7 @@ export class ExternalStoreThreadRuntimeCore
     if (this._isVoiceMessage(config.sourceId))
       throw new Error("Voice transcript messages cannot be reloaded");
 
+    this._restoreMovedLeafForRun(config.parentId);
     this._runStartLeases.begin();
     this._cancelledToolTurn = null;
     await this._store.onResume(config);
