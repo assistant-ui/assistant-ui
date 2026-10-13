@@ -113,10 +113,10 @@ jobs:
           install: false
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --filter . --filter @assistant-ui/x-buildutils --ignore-scripts
+        run: pnpm install --frozen-lockfile --prod --filter @assistant-ui/x-buildutils --ignore-scripts
 
       - name: Test review policy scripts
-        run: pnpm run review-policy:test
+        run: node --run review-policy:test
 
       - name: Check review policy synchronization
         run: node scripts/sync-review-policy.mjs --check
