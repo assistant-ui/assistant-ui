@@ -17,7 +17,7 @@ A model in assistant-ui can answer in four formats: Markdown in the message, a [
 
 Spec mode and `present` render the same components. Spec mode adds state, bindings, and conditions, and it runs no model-written code ([security model](/generative-frame/docs/security#spec-mode-runs-no-model-code)). [Moving to spec mode](/docs/tools/generative-ui-spec-migration) covers when to switch and what stays with `present`.
 
-A spec's expressions read and compare state but do no arithmetic, so a value that depends on the user's input, such as the brisket to buy for a guest count, has to be written out for every state the user can pick, unless an action handler you write computes it into state. A widget computes it from any input with model-written code, which runs in a [sandboxed frame](/generative-frame/docs/security).
+A spec computes values from its state with [`$calc` formulas](/generative-frame/docs/spec-mode#formulas), such as the brisket to buy for a guest count or each share of a bill as the tip changes, and an action handler you write can compute anything else into state. Logic beyond a formula, such as a simulation or a game, belongs in a widget, which runs model-written code in a [sandboxed frame](/generative-frame/docs/security). The comparison below was measured before `$calc` existed.
 
 ## Offer more than one format
 

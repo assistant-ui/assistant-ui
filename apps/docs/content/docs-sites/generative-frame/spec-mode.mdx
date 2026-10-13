@@ -246,12 +246,28 @@ Any prop or action param can be an expression:
 | `{ "$bindState": "/path" }` | The same, and the component can write it back with `setProp`. |
 | `{ "$template": "Hi ${/name}" }` | A string with state values filled in. |
 | `{ "$cond": condition, "$then": a, "$else": b }` | `a` or `b`. |
+| `{ "$calc": "${/price} * ${/qty}" }` | A value computed by a formula; see [Formulas](#formulas). |
 | `{ "$item": "/field" }`, `{ "$bindItem": "/field" }`, `{ "$index": true }` | The current item, a two-way binding to it, and its index, inside `repeat`. |
 | `{ "$event": "" }` | The payload of the event that triggered an action. |
 
 `visible` takes a condition: a boolean, a value expression (truthy), a comparison such as `{ "$state": "/count", "gt": 0 }` with `eq`, `neq`, `gt`, `gte`, `lt`, or `lte`, `{ "not": condition }`, `{ "$and": [...] }`, `{ "$or": [...] }`, or an array (all must hold). A condition with an unknown shape is false, so a half-streamed condition hides its element.
 
 `repeat: { path, key? }` renders the element's children once per item of the state array at `path`.
+
+### Formulas
+
+A `$calc` formula reads values with the same `${…}` references as `$template` (`${/path}` for state, `${$item/field}` and `${$index}` inside `repeat`, `${$event/field}` in action params) and combines them with numbers, `'text'` or `"text"`, `true`, `false`, and `null`:
+
+| Kind | Forms |
+| --- | --- |
+| Operators, loosest first | `? :`, `\|\|`, `&&`, `==` `!=`, `<` `<=` `>` `>=`, `+` `-`, `*` `/` `%`, unary `-` `!`, and parentheses |
+| Numbers | `round(x, digits?)`, `floor(x)`, `ceil(x)`, `abs(x)`, `clamp(x, low, high)`, `min(…)`, `max(…)` |
+| Lists | `count(list)`, `sum(list, field?)`, `avg(list, field?)`, and `min` or `max` over `(list, field?)`, where `field` is a JSON Pointer inside each item such as `'/price'` |
+| Text | `number(x, digits?)`, `currency(x, code)`, `percent(fraction, digits?)`, `time(minutes)` for minutes after midnight as a clock time, `plural(n, one, other)` |
+
+`+` adds numbers and joins text when either side is text, and `==` compares deeply, like `eq`. Text functions format in `en-US`. A formula that cannot compute, such as a division by zero, a missing value, arithmetic on text, or a syntax error, gives `null` and renders as nothing; it never throws. A formula is at most 500 characters and 32 levels deep, stops after 10,000 steps, and reads only state, so its value never depends on the clock, randomness, or the network. `validateSpec` reports a formula that does not parse as `invalid-formula`, so the model can fix it in a repair round.
+
+A button that adds a guest, up to 20: `{ "action": "setState", "params": { "path": "/guests", "value": { "$calc": "min(${/guests} + 1, 20)" } } }`.
 
 ## Actions and state
 
@@ -268,7 +284,7 @@ const { ok, issues } = validateSpec(spec, catalog);
 const feedback = formatSpecIssues(issues);
 ```
 
-Each issue has a `code`, a `severity`, a `message`, and a JSON Pointer `path`. Codes include `missing-root`, `unknown-type`, `invalid-props`, `missing-child`, `children-not-allowed`, `unknown-slot`, `cycle`, `unknown-event`, `unknown-action`, `invalid-params`, `invalid-repeat`, and `unreachable`. Pass `{ partial: true }` while the spec is still streaming, so children not yet added and unreachable elements are not reported.
+Each issue has a `code`, a `severity`, a `message`, and a JSON Pointer `path`. Codes include `missing-root`, `unknown-type`, `invalid-props`, `missing-child`, `children-not-allowed`, `unknown-slot`, `cycle`, `unknown-event`, `unknown-action`, `invalid-params`, `invalid-formula`, `invalid-repeat`, and `unreachable`. Pass `{ partial: true }` while the spec is still streaming, so children not yet added and unreachable elements are not reported.
 
 ## As a tool
 
