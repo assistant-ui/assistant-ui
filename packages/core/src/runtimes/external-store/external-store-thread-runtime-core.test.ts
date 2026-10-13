@@ -368,7 +368,7 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
       reason: "stop",
     });
 
-  const setup = () => {
+  const setup = ({ reloadFails = false } = {}) => {
     let current = [
       message("u1", "user"),
       message("a1", "assistant"),
@@ -378,6 +378,7 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
     let isRunning = false;
     let confirm!: () => void;
     let decline!: () => void;
+    let ignore!: () => void;
     const onDelete = vi.fn(
       (id: string) =>
         new Promise<void>((resolve, reject) => {
@@ -386,9 +387,11 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
             resolve();
           };
           decline = () => reject(new Error("deletion declined"));
+          ignore = resolve;
         }),
     );
     const onReload = vi.fn(async (parentId: string | null) => {
+      if (reloadFails) throw new Error("reload failed");
       isRunning = true;
       current = current.slice(
         0,
@@ -411,9 +414,13 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
       runtime,
       confirmDelete: () => confirm(),
       declineDelete: () => decline(),
+      ignoreDelete: () => ignore(),
       regenerate: () =>
         runtime.startRun({ parentId: "u1", sourceId: "a1", runConfig: {} }),
-      rerender: () => runtime.__internal_setAdapter(store()),
+      rerender: () => {
+        current = [...current];
+        runtime.__internal_setAdapter(store());
+      },
       finishRun: () => {
         current = [message("u1", "user"), message("a1b", "assistant")];
         isRunning = false;
@@ -466,5 +473,33 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
     finishRun();
 
     expect(switchToOldBranch()).toEqual(["u1", "a1", "u2", "a2"]);
+  });
+
+  it("keeps a message the host still carries when the reload fails", async () => {
+    const { runtime, ignoreDelete, regenerate } = setup({
+      reloadFails: true,
+    });
+
+    const deletion = runtime.deleteMessage("u2");
+    await expect(regenerate()).rejects.toThrow("reload failed");
+    ignoreDelete();
+    await deletion;
+
+    expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1", "u2", "a2"]);
+  });
+
+  it("evicts a deletion the host publishes after the reload failed", async () => {
+    const { runtime, confirmDelete, regenerate, rerender } = setup({
+      reloadFails: true,
+    });
+
+    const deletion = runtime.deleteMessage("u2");
+    await expect(regenerate()).rejects.toThrow("reload failed");
+    confirmDelete();
+    await deletion;
+    rerender();
+
+    expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1", "a2"]);
+    expect(runtime.getBranches("a2")).toEqual(["a2"]);
   });
 });

@@ -214,13 +214,15 @@ export class ExternalStoreThreadRuntimeCore
   // unrelated to deletion. A reload keeps only the prefix up to the parent it
   // regenerates from in the host's array: an id absent from that prefix is
   // still a deletion, but an id after the parent is absent whether or not its
-  // delete was declined, so it is evicted when an onDelete call for it
-  // resolves. Plain tail sends do not clear: a tail append cannot make a
-  // visible id absent, so id-absence stays unambiguous and a delete whose
-  // confirmation races a send keeps its eviction.
+  // delete was declined. The snapshot pass leaves such an id alone while an
+  // onDelete call for it is pending; a rejection drops it, and a resolution
+  // applies the usual rule to the host's current array. Plain tail sends do
+  // not clear: a tail append cannot make a visible id absent, so id-absence
+  // stays unambiguous and a delete whose confirmation races a send keeps its
+  // eviction.
   private _pendingDeleteEvictions = new Map<
     string,
-    { calls: Set<symbol>; evictOnResolve: boolean }
+    { calls: Set<symbol>; reloaded: boolean }
   >();
 
   // Placeholder id for the upcoming assistant message, reused across snapshot
@@ -599,7 +601,7 @@ export class ExternalStoreThreadRuntimeCore
       ) {
         const incomingIds = new Set(messages.map((m) => m.id));
         for (const [id, pending] of this._pendingDeleteEvictions) {
-          if (pending.evictOnResolve) continue;
+          if (pending.reloaded) continue;
           if (incomingIds.has(id)) {
             if (pending.calls.size === 0)
               this._pendingDeleteEvictions.delete(id);
@@ -1000,7 +1002,7 @@ export class ExternalStoreThreadRuntimeCore
       if (wasVisible) {
         const pending = this._pendingDeleteEvictions.get(messageId) ?? {
           calls: new Set<symbol>(),
-          evictOnResolve: false,
+          reloaded: false,
         };
         pending.calls.add(call);
         this._pendingDeleteEvictions.set(messageId, pending);
@@ -1012,9 +1014,14 @@ export class ExternalStoreThreadRuntimeCore
       } finally {
         const pending = this._pendingDeleteEvictions.get(messageId);
         pending?.calls.delete(call);
-        if (pending?.evictOnResolve && (resolved || pending.calls.size === 0)) {
+        if (pending?.reloaded && resolved) {
+          pending.reloaded = false;
+          if (!this._storeMessages.some((m) => m.id === messageId)) {
+            this._pendingDeleteEvictions.delete(messageId);
+            this._evictDeletedMessage(messageId);
+          }
+        } else if (pending?.reloaded && pending.calls.size === 0) {
           this._pendingDeleteEvictions.delete(messageId);
-          if (resolved) this._evictDeletedMessage(messageId);
         }
       }
       return;
@@ -1101,7 +1108,7 @@ export class ExternalStoreThreadRuntimeCore
     );
     for (const [id, pending] of this._pendingDeleteEvictions) {
       if (kept.has(id)) continue;
-      if (pending.calls.size > 0) pending.evictOnResolve = true;
+      if (pending.calls.size > 0) pending.reloaded = true;
       else this._pendingDeleteEvictions.delete(id);
     }
 
