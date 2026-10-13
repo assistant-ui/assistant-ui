@@ -233,6 +233,18 @@ export class ExternalStoreThreadRuntimeCore
   private readonly _runCancellationLeases = new RunLeases();
   private readonly _cancelRunResyncLeases = new RunLeases();
   private readonly _pendingCancelResyncs = new Set<() => void>();
+  private _movedLeaf:
+    | {
+        id: string;
+        draft: {
+          text: string;
+          attachments: readonly Attachment[];
+          quote: QuoteInfo | undefined;
+        };
+        resyncLease: ReturnType<RunLeases["current"]>;
+        generation: ReturnType<typeof captureThreadRuntimeGeneration>;
+      }
+    | undefined;
 
   private _store!: ExternalStoreAdapter<any>;
 
@@ -413,6 +425,7 @@ export class ExternalStoreThreadRuntimeCore
       this.repository = repositoryInstance;
       this._pendingDeleteEvictions.clear();
       this._submittedFeedback.clear();
+      this._movedLeaf = undefined;
       // Keep the live placeholder so resetHead cannot evict an id still used
       // by clients rendering the previous snapshot.
       const head = this.repository.getMessages();
@@ -619,6 +632,27 @@ export class ExternalStoreThreadRuntimeCore
     // Common logic for both paths
     this._storeMessages = messages;
     if (messages.length > 0) this.ensureInitialized();
+
+    const movedLeaf = this._movedLeaf;
+    if (movedLeaf) {
+      if (
+        movedLeaf.generation.aborted ||
+        !movedLeaf.resyncLease.isCurrent() ||
+        this.composer.text !== movedLeaf.draft.text
+      ) {
+        this._movedLeaf = undefined;
+      } else {
+        const index = messages.findIndex((m) => m.id === movedLeaf.id);
+        if (index !== -1) {
+          if (getThreadMessageText(messages[index]!) !== movedLeaf.draft.text) {
+            this._movedLeaf = undefined;
+          } else if (index < messages.length - 1) {
+            this.composer.retractDraft(movedLeaf.draft);
+            this._movedLeaf = undefined;
+          }
+        }
+      }
+    }
 
     this._effectiveIsRunning = isRunning;
     if (previousIsRunning !== isRunning) {
@@ -1190,16 +1224,7 @@ export class ExternalStoreThreadRuntimeCore
     // one move: the composer refuses while the user is writing, and removing
     // the message then would leave it nowhere. A message the composer cannot
     // hold whole, carrying content parts it has no home for, is not moved.
-    let movedLeaf:
-      | {
-          id: string;
-          draft: {
-            text: string;
-            attachments: readonly Attachment[];
-            quote: QuoteInfo | undefined;
-          };
-        }
-      | undefined;
+    let movedLeaf: typeof this._movedLeaf;
     if (trailingUserLeaf) {
       const draft = {
         text: getThreadMessageText(trailingUserLeaf),
@@ -1208,7 +1233,13 @@ export class ExternalStoreThreadRuntimeCore
       };
       if (this.composer.restoreDraft(draft)) {
         this.repository.deleteMessage(trailingUserLeaf.id);
-        movedLeaf = { id: trailingUserLeaf.id, draft };
+        movedLeaf = {
+          id: trailingUserLeaf.id,
+          draft,
+          resyncLease,
+          generation,
+        };
+        this._movedLeaf = movedLeaf;
       }
     }
     this._publishRepositoryMessages();
@@ -1233,13 +1264,13 @@ export class ExternalStoreThreadRuntimeCore
       if (!startedSinceCancel) this.dropEmptyOptimisticHead();
       if (movedLeaf) {
         const current = this.repository.getMessages();
-        if (current.at(-1)?.id === movedLeaf.id) {
+        if (
+          this._movedLeaf === movedLeaf &&
+          current.at(-1)?.id === movedLeaf.id &&
+          this.composer.text === movedLeaf.draft.text
+        ) {
           // Unanswered tail: the removal has not reached the store yet.
           this.repository.deleteMessage(movedLeaf.id);
-        } else if (current.some((m) => m.id === movedLeaf.id)) {
-          // The store kept the turn in the thread; take the untouched draft
-          // back so the same content does not sit in both places.
-          this.composer.retractDraft(movedLeaf.draft);
         }
       }
       this._publishRepositoryMessages();

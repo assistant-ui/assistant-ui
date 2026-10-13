@@ -12,6 +12,7 @@ import type {
   ThreadAssistantMessage,
   ThreadMessage,
 } from "../types/message";
+import type { ThreadMessageLike } from "../runtime/utils/thread-message-like";
 import { createMessageQueue } from "../runtime/queue/message-queue";
 import { getThreadMessageText } from "../utils/text";
 import {
@@ -418,7 +419,11 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
     });
 
     it("re-applies the user leaf rollback when the store updates before the flush", async () => {
-      const messages = [createUserMessage("u1", "cancel me")];
+      const messages = [
+        createUserMessage("u0"),
+        createAssistantMessage("a0"),
+        createUserMessage("u1", "cancel me"),
+      ];
       const setMessages = vi.fn();
       const adapter = createBaseAdapter({
         messages,
@@ -443,12 +448,13 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
 
       await new Promise((resolve) => setTimeout(resolve, 0));
       expect(core.composer.text).toBe("cancel me");
-      expect(setMessages).toHaveBeenCalled();
+      expect(setMessages).toHaveBeenCalledOnce();
       const lastCall = setMessages.mock.lastCall?.[0] as ThreadMessage[];
-      expect(lastCall.map((m) => m.id)).not.toContain("u1");
-      expect(core.export().messages.map((m) => m.message.id)).not.toContain(
-        "u1",
-      );
+      expect(lastCall.map((m) => m.id)).toEqual(["u0", "a0"]);
+      expect(core.export().messages.map((m) => m.message.id)).toEqual([
+        "u0",
+        "a0",
+      ]);
     });
 
     it("keeps a rolled-back user leaf the store answered in the gap and takes the draft back", async () => {
@@ -1142,6 +1148,174 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
       expect(core.messages.map((m) => m.id)).toEqual(["u1", "a1", "u2", "u3"]);
       expect(core.composer.text).toBe("");
+    });
+
+    it("keeps a new positional message when it reuses the stopped leaf's id", async () => {
+      type Raw = { role: "user" | "assistant"; text: string };
+      const convertMessage = (message: Raw): ThreadMessageLike => ({
+        role: message.role,
+        content: [{ type: "text", text: message.text }],
+      });
+      let hostMessages: readonly Raw[] = [
+        { role: "user", text: "first" },
+        { role: "assistant", text: "answer" },
+        { role: "user", text: "unanswered" },
+      ];
+      const setMessages = vi.fn((messages: readonly Raw[]) => {
+        hostMessages = messages;
+      });
+      const adapter = () => ({
+        messages: hostMessages,
+        isRunning: true,
+        convertMessage,
+        setMessages,
+        onCancel: vi.fn(),
+        onNew: async () => {
+          hostMessages = [
+            ...hostMessages,
+            { role: "user" as const, text: "next" },
+          ];
+        },
+      });
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        adapter(),
+      );
+      const stoppedId = core.messages[2]!.id;
+
+      core.cancelRun();
+      await core.append({
+        role: "user",
+        content: [{ type: "text", text: "next" }],
+        attachments: [],
+        createdAt: new Date(),
+        parentId: core.messages.at(-1)?.id ?? null,
+        sourceId: null,
+        runConfig: {},
+        metadata: { custom: {} },
+      });
+      core.__internal_setAdapter(adapter());
+      expect(core.messages[2]?.id).toBe(stoppedId);
+      expect(core.composer.text).toBe("unanswered");
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(hostMessages.map((m) => m.text)).toEqual([
+        "first",
+        "answer",
+        "next",
+      ]);
+      expect(setMessages).toHaveBeenCalledOnce();
+
+      hostMessages = [...hostMessages, { role: "assistant", text: "reply" }];
+      core.__internal_setAdapter(adapter());
+      expect(core.messages.map((m) => getThreadMessageText(m))).toEqual([
+        "first",
+        "answer",
+        "next",
+        "reply",
+      ]);
+      expect(core.composer.text).toBe("unanswered");
+    });
+
+    it("keeps the first moved-leaf watch when a second cancel cannot restore the draft", async () => {
+      const messages = [
+        createUserMessage("u1"),
+        createAssistantMessage("a1"),
+        createUserMessage("u2", "unanswered"),
+      ];
+      const setMessages = vi.fn();
+      const adapter = (messages: readonly ThreadMessage[]) =>
+        createBaseAdapter({
+          messages,
+          isRunning: true,
+          onCancel: vi.fn(),
+          setMessages,
+        });
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        adapter(messages),
+      );
+
+      core.cancelRun();
+      core.cancelRun();
+      expect(core.composer.text).toBe("unanswered");
+
+      core.__internal_setAdapter(
+        adapter([...messages, createAssistantMessage("a2", "answered")]),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(core.messages.map((m) => m.id)).toEqual(["u1", "a1", "u2", "a2"]);
+      expect(core.composer.text).toBe("");
+      expect(setMessages).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { label: "runtime invalidation", invalidate: invalidateThreadRuntime },
+      {
+        label: "session reset",
+        invalidate: (core: ExternalStoreThreadRuntimeCore) =>
+          core.unstable_notifySessionReset(),
+      },
+    ])(
+      "leaves the draft after $label invalidates its watch",
+      async ({ invalidate }) => {
+        const messages = [createUserMessage("u1", "unanswered")];
+        const setMessages = vi.fn();
+        const adapter = (messages: readonly ThreadMessage[]) =>
+          createBaseAdapter({
+            messages,
+            isRunning: true,
+            onCancel: vi.fn(),
+            setMessages,
+          });
+        const core = new ExternalStoreThreadRuntimeCore(
+          contextProvider,
+          adapter(messages),
+        );
+
+        core.cancelRun();
+        invalidate(core);
+        core.__internal_setAdapter(
+          adapter([...messages, createAssistantMessage("a1", "answered")]),
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(core.composer.text).toBe("unanswered");
+        expect(setMessages).not.toHaveBeenCalled();
+      },
+    );
+
+    it("clears the moved-leaf watch when the repository changes", async () => {
+      const messages = [createUserMessage("u1", "unanswered")];
+      const setMessages = vi.fn();
+      const adapter = (
+        messages: readonly ThreadMessage[],
+        repository: MessageRepository,
+      ) =>
+        createBaseAdapter({
+          messages,
+          isRunning: true,
+          onCancel: vi.fn(),
+          setMessages,
+          unstable_messageRepositoryInstance: repository,
+        });
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        adapter(messages, new MessageRepository()),
+      );
+
+      core.cancelRun();
+      core.__internal_setAdapter(
+        adapter(
+          [...messages, createAssistantMessage("a1", "answered")],
+          new MessageRepository(),
+        ),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(core.composer.text).toBe("unanswered");
+      expect(setMessages).not.toHaveBeenCalled();
     });
   });
 

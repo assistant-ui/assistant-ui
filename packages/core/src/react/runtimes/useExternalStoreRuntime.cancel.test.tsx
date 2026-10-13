@@ -200,4 +200,142 @@ describe("useExternalStoreRuntime cancel", () => {
     expect(probe.messages.map((m) => m.id)).toEqual(["u0", "a0", "u2"]);
     expect(probe.runtime.thread.composer.getState().text).toBe("u1");
   });
+
+  it("takes back the draft when a same-tick send uses the host's captured messages", async () => {
+    const probe = {} as {
+      runtime: AssistantRuntime;
+      messages: readonly ThreadMessage[];
+    };
+    const Host = () => {
+      const [messages, setMessages] = useState<readonly ThreadMessage[]>([
+        message("u0", "user"),
+        message("a0", "assistant"),
+        message("u1", "user"),
+      ]);
+      probe.messages = messages;
+      probe.runtime = useExternalStoreRuntime<ThreadMessage>({
+        messages,
+        isRunning: true,
+        setMessages,
+        onNew: async () => {
+          setMessages([...messages, message("u2", "user")]);
+        },
+        onCancel: async () => {},
+      });
+      return null;
+    };
+    render(<Host />);
+
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", false);
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    probe.runtime.thread.cancelRun();
+    await probe.runtime.thread.append("next");
+    vi.runAllTimers();
+    vi.useRealTimers();
+
+    await waitFor(() =>
+      expect(probe.messages.map((m) => m.id)).toEqual(["u0", "a0", "u1", "u2"]),
+    );
+    expect(probe.runtime.thread.composer.getState().text).toBe("");
+  });
+
+  it("keeps watching after a rollback snapshot precedes the captured send", async () => {
+    const probe = {} as {
+      runtime: AssistantRuntime;
+      messages: readonly ThreadMessage[];
+    };
+    let startNew!: () => void;
+    const onNewStarted = new Promise<void>((resolve) => {
+      startNew = resolve;
+    });
+    let finishNew!: () => void;
+    const waitForNew = new Promise<void>((resolve) => {
+      finishNew = resolve;
+    });
+    const Host = () => {
+      const [messages, setMessages] = useState<readonly ThreadMessage[]>([
+        message("u0", "user"),
+        message("a0", "assistant"),
+        message("u1", "user"),
+      ]);
+      probe.messages = messages;
+      probe.runtime = useExternalStoreRuntime<ThreadMessage>({
+        messages,
+        isRunning: true,
+        setMessages,
+        onNew: async () => {
+          startNew();
+          await waitForNew;
+          setMessages([...messages, message("u2", "user")]);
+        },
+        onCancel: async () => {},
+      });
+      return null;
+    };
+    render(<Host />);
+
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", false);
+    probe.runtime.thread.cancelRun();
+    const sending = probe.runtime.thread.append("next");
+    await onNewStarted;
+    await waitFor(() =>
+      expect(probe.messages.map((m) => m.id)).toEqual(["u0", "a0"]),
+    );
+    expect(probe.runtime.thread.composer.getState().text).toBe("u1");
+
+    finishNew();
+    await sending;
+    await waitFor(() =>
+      expect(probe.messages.map((m) => m.id)).toEqual(["u0", "a0", "u1", "u2"]),
+    );
+    expect(probe.runtime.thread.composer.getState().text).toBe("");
+  });
+
+  it("retracts the captured draft when the host snapshot arrives before the timer", async () => {
+    const probe = {} as {
+      runtime: AssistantRuntime;
+      messages: readonly ThreadMessage[];
+    };
+    let replaceHostMessages!: (messages: readonly ThreadMessage[]) => void;
+    const setHostMessages = vi.fn((messages: readonly ThreadMessage[]) =>
+      replaceHostMessages(messages),
+    );
+    const Host = () => {
+      const [messages, setMessages] = useState<readonly ThreadMessage[]>([
+        message("u0", "user"),
+        message("a0", "assistant"),
+        message("u1", "user"),
+      ]);
+      replaceHostMessages = setMessages;
+      probe.messages = messages;
+      probe.runtime = useExternalStoreRuntime<ThreadMessage>({
+        messages,
+        isRunning: true,
+        setMessages: setHostMessages,
+        onNew: async () => {
+          setMessages([...messages, message("u2", "user")]);
+        },
+        onCancel: async () => {},
+      });
+      return null;
+    };
+    render(<Host />);
+
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    await act(async () => {
+      probe.runtime.thread.cancelRun();
+      await probe.runtime.thread.append("next");
+    });
+
+    expect(probe.messages.map((m) => m.id)).toEqual(["u0", "a0", "u1", "u2"]);
+    expect(probe.runtime.thread.composer.getState().text).toBe("");
+    expect(setHostMessages).toHaveBeenCalledOnce();
+    expect(setHostMessages.mock.lastCall?.[0].map((m) => m.id)).toEqual([
+      "u0",
+      "a0",
+    ]);
+
+    act(() => vi.runAllTimers());
+    expect(setHostMessages).toHaveBeenCalledOnce();
+  });
 });
