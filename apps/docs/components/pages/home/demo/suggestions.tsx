@@ -5,19 +5,30 @@ import type { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 const SUGGESTIONS = [
-  { label: "Weather in Tokyo", prompt: "What's the weather in Tokyo?" },
   {
     label: "Show a sales dashboard",
     prompt:
-      "Use the present tool to show a compact sales dashboard: a Card with two Facts in a Row and a bar Chart of monthly sales.",
+      "Show a sales dashboard for a coffee roaster's last quarter: revenue, orders, and average order value as key figures, monthly revenue as a chart, and the top five products in a table, with online and wholesale sales on separate tabs.",
   },
+  {
+    label: "Plan a road trip",
+    prompt:
+      "Plan a four-day road trip from San Francisco to Los Angeles along the coast. Tell me where to stay each night, how long each day's drive is, and one thing worth stopping for each day.",
+  },
+  {
+    label: "Plan a dinner party",
+    prompt:
+      "I'm hosting a Sunday lamb roast and anywhere from 4 to 10 people might come. Plan the menu and a cooking timeline, and let me change the guest count and see how much of everything to buy.",
+  },
+  {
+    label: "Play Monty Hall",
+    prompt:
+      "I don't get the Monty Hall problem. Explain why switching doors is better, and let me play some rounds myself so I can see how staying and switching compare.",
+  },
+  { label: "Weather in Tokyo", prompt: "What's the weather in Tokyo?" },
   {
     label: "Switch to dark mode",
     prompt: "Switch this page to dark mode.",
-  },
-  {
-    label: "Derive the geometric series",
-    prompt: "Derive the closed form of the geometric series, step by step.",
   },
   {
     label: "Diagram a streaming chat app",

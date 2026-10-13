@@ -24,6 +24,12 @@ const DOC_CHAT_LIMITS: InputLimits = {
   maxSingleMessageChars: 24_000, // ~6k tokens
 };
 
+const DEMO_CHAT_LIMITS: InputLimits = {
+  maxMessages: 20,
+  maxTotalChars: 192_000, // ~48k tokens
+  maxSingleMessageChars: 48_000, // ~12k tokens, a generative UI answer with its tool calls
+};
+
 const MAX_FRONTEND_TOOLS_CHARS = 96_000;
 
 function measureMessageChars(messages: unknown[]): {
@@ -81,6 +87,14 @@ export function validateGeneralChatInput(messages: unknown): Response | null {
 
 export function validateDocChatInput(messages: unknown): Response | null {
   const error = validateWithLimits(messages, DOC_CHAT_LIMITS);
+  if (error) {
+    return new Response(error, { status: 400 });
+  }
+  return null;
+}
+
+export function validateDemoChatInput(messages: unknown): Response | null {
+  const error = validateWithLimits(messages, DEMO_CHAT_LIMITS);
   if (error) {
     return new Response(error, { status: 400 });
   }
