@@ -144,6 +144,7 @@ const MESSAGE_DIRTY_EVENT_TYPES: ReadonlySet<string> = new Set([
   "tool_execution_end",
   "extension_ui_request",
   "extension_ui_resolved",
+  "error",
 ]);
 
 const MESSAGE_FRAME_COALESCED_EVENT_TYPES: ReadonlySet<string> = new Set([
@@ -677,34 +678,34 @@ export class PiThreadController implements PiThreadControllerLike {
       (entry) => entry.message === send.message,
     );
     if (index !== -1) this.optimisticUserMessages.splice(index, 1);
-    this.recomputeProjectedMessagesAndNotify();
 
     const runStateChanged = this.runStateRevision !== send.runStateRevision;
 
     if (isSendInterruption(error)) {
-      if (runStateChanged) return;
+      if (!runStateChanged) {
+        this.setState({
+          ...this.state,
+          lastError: send.previousLastError,
+          runStatus: send.previousRunStatus,
+          metadata: {
+            ...this.state.metadata,
+            status: send.previousMetadataStatus,
+          },
+        });
+      }
+    } else {
       this.setState({
         ...this.state,
-        lastError: send.previousLastError,
-        runStatus: send.previousRunStatus,
-        metadata: {
-          ...this.state.metadata,
-          status: send.previousMetadataStatus,
-        },
+        lastError: errorText(error),
+        ...(runStateChanged
+          ? {}
+          : {
+              runStatus: "failed",
+              metadata: { ...this.state.metadata, status: "failed" },
+            }),
       });
-      return;
     }
-
-    this.setState({
-      ...this.state,
-      lastError: errorText(error),
-      ...(runStateChanged
-        ? {}
-        : {
-            runStatus: "failed",
-            metadata: { ...this.state.metadata, status: "failed" },
-          }),
-    });
+    this.recomputeProjectedMessagesAndNotify();
   }
 
   private async sendPreparedMessage(
