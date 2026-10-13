@@ -719,16 +719,40 @@ const useComposerClientResource = ({
     }
   };
 
+  const retrySubmittedRemoval = useCallback(
+    (attachment: PendingAttachment) => {
+      removeAttachmentThroughAdapter(
+        attachment,
+        attachmentAdapter,
+        (message) => {
+          if (type !== "thread") {
+            console.error("Failed to remove sent attachment", message);
+            return;
+          }
+          const failed = attachmentSends.transfer(attachment, {
+            ...attachment,
+            status: { type: "incomplete", reason: "error", message },
+          });
+          attachmentSends.holdOut(failed);
+          setAttachments((prev) => [failed, ...prev]);
+        },
+      ).catch(() => {});
+    },
+    [attachmentAdapter, attachmentSends, setAttachments, type],
+  );
+
   const handleRemoveAttachment = useCallback(
     async (attachment: Attachment) => {
-      if (attachmentSends.isRemoved(attachment)) return;
+      if (attachmentSends.isRemovalPending(attachment)) return;
       attachmentAddOperations.cancel(attachment.id);
       attachmentSends.markRemoved(attachment);
       if (!isAttachmentComplete(attachment)) {
         await removeAttachmentThroughAdapter(
           attachment,
           attachmentAdapter,
-          (message) =>
+          (message) => {
+            if (attachmentSends.isOrphaned(attachment))
+              retrySubmittedRemoval(attachment);
             setAttachments((prev) =>
               prev.map((candidate) =>
                 candidate.id === attachment.id &&
@@ -739,7 +763,8 @@ const useComposerClientResource = ({
                     })
                   : candidate,
               ),
-            ),
+            );
+          },
         );
       }
       setAttachments((prev) => prev.filter((a) => a.id !== attachment.id));
@@ -748,6 +773,7 @@ const useComposerClientResource = ({
       attachmentAddOperations,
       attachmentAdapter,
       attachmentSends,
+      retrySubmittedRemoval,
       setAttachments,
     ],
   );
@@ -767,6 +793,8 @@ const useComposerClientResource = ({
           attachment,
           attachmentAdapter,
           (message) => {
+            if (attachmentSends.isOrphaned(attachment))
+              retrySubmittedRemoval(attachment);
             const fail = (candidate: PendingAttachment) =>
               attachmentSends.transfer(candidate, {
                 ...candidate,
@@ -819,6 +847,7 @@ const useComposerClientResource = ({
       attachmentSends,
       setAttachments,
       setSubmission,
+      retrySubmittedRemoval,
     ],
   );
 
@@ -858,7 +887,7 @@ const useComposerClientResource = ({
   };
 
   const draftUploadsToRemove = (draft: readonly Attachment[]) =>
-    draft.filter((attachment) => !attachmentSends.isRemoved(attachment));
+    draft.filter((attachment) => !attachmentSends.isRemovalPending(attachment));
 
   const upsertAttachment = (attachment: Attachment) => {
     const current = submissionRef.current;
@@ -1104,6 +1133,28 @@ const useComposerClientResource = ({
       returnToDraft(sent);
       return;
     }
+    if (isSubmission)
+      for (const attachment of current.attachments) {
+        if (isAttachmentComplete(attachment)) continue;
+        if (attachmentSends.isRemovalPending(attachment)) {
+          attachmentSends.markOrphaned(attachment);
+          // An edit keeps its draft, where a failed removal left an errored
+          // copy that nothing else removes once the edit ends.
+          if (
+            type === "edit" &&
+            attachmentsRef.current.some(
+              (candidate) =>
+                candidate.id === attachment.id &&
+                candidate !== attachment &&
+                candidate.status.type === "incomplete" &&
+                candidate.status.reason === "error",
+            )
+          )
+            retrySubmittedRemoval(attachment);
+        } else if (attachmentSends.isRemoved(attachment)) {
+          retrySubmittedRemoval(attachment);
+        }
+      }
     if (type === "edit") {
       attachmentAddOperations.cancelAll();
       setIsEditing(false);
@@ -1160,7 +1211,7 @@ const useComposerClientResource = ({
     const submitted = submissionRef.current ?? current;
     if (!submitted.text.trim() && finalAttachments.length === 0) {
       endSubmission();
-      returnToDraft({ ...submitted, attachments: [] });
+      returnToDraft(submitted);
       return;
     }
     dispatchMessage(submitted, finalAttachments, context, true);

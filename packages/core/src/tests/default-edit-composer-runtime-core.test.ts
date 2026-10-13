@@ -499,6 +499,87 @@ describe("DefaultEditComposerRuntimeCore sending attachments", () => {
 
   const file = () => new File(["content"], "f.txt", { type: "text/plain" });
 
+  it.each(["before", "after"] as const)(
+    "cleans up a removed edit upload when removal fails %s dispatch",
+    async (order) => {
+      const upload = Promise.withResolvers<void>();
+      const removal = Promise.withResolvers<void>();
+      const remove = vi
+        .fn<AttachmentAdapter["remove"]>()
+        .mockReturnValueOnce(removal.promise)
+        .mockResolvedValue(undefined);
+      const append = vi.fn();
+      const composer = makeEditComposer(
+        attachmentAdapter({
+          remove,
+          send: async (attachment) => {
+            await upload.promise;
+            return { ...attachment, status: { type: "complete" }, content: [] };
+          },
+        }),
+        append,
+      );
+
+      await composer.addAttachment(file());
+      const sending = composer.send();
+      const removing = expect(composer.removeAttachment("f")).rejects.toThrow(
+        "remove failed",
+      );
+      if (order === "before") {
+        removal.reject(new Error("remove failed"));
+        await removing;
+      }
+      upload.resolve();
+      await sending;
+      if (order === "after") {
+        removal.reject(new Error("remove failed"));
+        await removing;
+      }
+
+      expect(append).toHaveBeenCalledOnce();
+      expect(append.mock.calls[0]![0].attachments).toEqual([]);
+      expect(remove).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it("logs a cleanup that fails again once the edit was sent", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const upload = Promise.withResolvers<void>();
+    const removal = Promise.withResolvers<void>();
+    const failure = new Error("second failure");
+    const remove = vi
+      .fn<AttachmentAdapter["remove"]>()
+      .mockReturnValueOnce(removal.promise)
+      .mockRejectedValueOnce(failure);
+    const composer = makeEditComposer(
+      attachmentAdapter({
+        remove,
+        send: async (attachment) => {
+          await upload.promise;
+          return { ...attachment, status: { type: "complete" }, content: [] };
+        },
+      }),
+    );
+
+    await composer.addAttachment(file());
+    const sending = composer.send();
+    const removing = expect(composer.removeAttachment("f")).rejects.toThrow(
+      "first failure",
+    );
+    upload.resolve();
+    await sending;
+    removal.reject(new Error("first failure"));
+    await removing;
+
+    await vi.waitFor(() =>
+      expect(error).toHaveBeenCalledWith(
+        "[assistant-ui] Failed to remove sent attachment",
+        failure,
+      ),
+    );
+    expect(remove).toHaveBeenCalledTimes(2);
+  });
+
   it("removes a pending attachment once when the edit is reset while sending", async () => {
     const remove = vi.fn(async () => {});
     const composer = makeEditComposer(attachmentAdapter({ remove }));

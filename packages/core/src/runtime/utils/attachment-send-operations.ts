@@ -20,6 +20,9 @@ export class AttachmentSendOperations {
   // Removing it again makes that removal the pending one, so it is no longer
   // held out.
   private readonly heldOut = new WeakSet<Attachment>();
+  // A removal still pending when its message is dispatched has no submission
+  // left to report a failure to, so the composer retries it.
+  private readonly orphaned = new WeakSet<Attachment>();
 
   markRemoved(attachment: Attachment) {
     this.removed.add(attachment);
@@ -41,6 +44,14 @@ export class AttachmentSendOperations {
 
   isRemovalPending(attachment: Attachment) {
     return this.removed.has(attachment) && !this.heldOut.has(attachment);
+  }
+
+  markOrphaned(attachment: Attachment) {
+    this.orphaned.add(attachment);
+  }
+
+  isOrphaned(attachment: Attachment) {
+    return this.orphaned.has(attachment);
   }
 
   restore(attachment: Attachment) {

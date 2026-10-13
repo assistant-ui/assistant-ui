@@ -253,7 +253,8 @@ export abstract class BaseComposerRuntimeCore
 
   private _draftUploadsToRemove() {
     return this._attachments.filter(
-      (a) => !isAttachmentComplete(a) && !this._attachmentSends.isRemoved(a),
+      (a) =>
+        !isAttachmentComplete(a) && !this._attachmentSends.isRemovalPending(a),
     );
   }
 
@@ -415,12 +416,13 @@ export abstract class BaseComposerRuntimeCore
         ? []
         : [result.value],
     );
-    if (!submission.text.trim() && finalAttachments.length === 0) {
+    const submitted = this._submission ?? submission;
+    if (!submitted.text.trim() && finalAttachments.length === 0) {
       this._endSubmission();
-      this._returnToDraft({ ...submission, attachments: [] });
+      this._returnToDraft(submitted);
       return;
     }
-    this._dispatch(generation, submission, finalAttachments, context, true);
+    this._dispatch(generation, submitted, finalAttachments, context, true);
   }
 
   private _dispatch(
@@ -484,6 +486,15 @@ export abstract class BaseComposerRuntimeCore
           this._returnToDraft(sent);
         else if (wasInTransit) this._notifySubscribers();
       });
+
+    if (isSubmission)
+      for (const attachment of draft.attachments) {
+        if (isAttachmentComplete(attachment)) continue;
+        if (this._attachmentSends.isRemovalPending(attachment))
+          this._attachmentSends.markOrphaned(attachment);
+        else if (this._attachmentSends.isRemoved(attachment))
+          void this._retrySubmittedRemoval(attachment);
+      }
 
     this._notifyEventSubscribers("send", {
       chars: draft.text.length,
@@ -901,7 +912,7 @@ export abstract class BaseComposerRuntimeCore
       return;
     }
     const attachment = this._attachments[index]!;
-    if (this._attachmentSends.isRemoved(attachment)) return;
+    if (this._attachmentSends.isRemovalPending(attachment)) return;
 
     this._cancelAttachmentAdd(attachmentId);
 
@@ -925,6 +936,8 @@ export abstract class BaseComposerRuntimeCore
               })
             : candidate,
         );
+        if (this._attachmentSends.isOrphaned(attachment))
+          void this._retrySubmittedRemoval(attachment);
         this._notifySubscribers();
         throw error;
       }
@@ -1000,7 +1013,31 @@ export abstract class BaseComposerRuntimeCore
       this._attachments = this._attachments.map((attachment) =>
         attachment === submitted ? fail(submitted) : attachment,
       );
+    else if (this._attachmentSends.isOrphaned(submitted))
+      void this._retrySubmittedRemoval(submitted);
     this._notifySubscribers();
+  }
+
+  private async _retrySubmittedRemoval(submitted: PendingAttachment) {
+    try {
+      await this.getAttachmentAdapter()?.remove(submitted);
+    } catch (error) {
+      if (!this.detachesDraftOnSend) {
+        console.error("[assistant-ui] Failed to remove sent attachment", error);
+        return;
+      }
+      const failed = this._attachmentSends.transfer(submitted, {
+        ...submitted,
+        status: {
+          type: "incomplete",
+          reason: "error",
+          message: error instanceof Error ? error.message : String(error),
+        },
+      });
+      this._attachmentSends.holdOut(failed);
+      this._attachments = [failed, ...this._attachments];
+      this._notifySubscribers();
+    }
   }
 
   public get dictation(): DictationState | undefined {
