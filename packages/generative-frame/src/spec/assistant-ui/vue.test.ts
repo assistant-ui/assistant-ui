@@ -236,6 +236,11 @@ describe("createSpecToolkit for Vue", () => {
       setup("frontend").render,
       toolProp({ id: "f", args: {}, running: true }),
     );
+    update(toolProp({ id: "f", args: { title: "s" }, running: true }));
+    await nextTick();
+    update(toolProp({ id: "f", args: fromA, running: true }));
+    await nextTick();
+    expect(container.textContent).toBe("a");
     update(toolProp({ id: "f", args: fromA }));
     await nextTick();
     expect(container.textContent).toBe("b");
