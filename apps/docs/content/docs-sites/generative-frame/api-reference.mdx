@@ -247,7 +247,7 @@ The Vue renderer, with `vue` as an optional peer. `SpecRenderer` takes the same 
 
 | Export | Description |
 | --- | --- |
-| `createSpecTools(catalog, { specs? })` | `{ render_spec }`. `specs` is a `Map<string, { spec, version }>` shared with the host. See [`render_spec`](/generative-frame/docs/tools#render_spec). |
+| `createSpecTools(catalog, { specs?, customRules? })` | `{ render_spec }`. `specs` is a `Map<string, { spec, version }>` shared with the host, and `customRules` follow the built-in rules in the tool's description. See [`render_spec`](/generative-frame/docs/tools#render_spec). |
 | `specGuidanceModule(catalog, promptOptions?)` | The `spec` module for `createWidgetTools({ modules })`. `promptOptions` are `catalog.prompt` options except `mode`. |
 | `toAISDKTools(tools, { jsonSchema })`, `getToolDeclarations(tools)` | The same adapters as in `generative-frame/tools`. |
 
@@ -266,6 +266,6 @@ Pass the result of `createSpecToolkit` to `createWidgetToolkit({ spec })`.
     { name: "handlers", type: "Record<string, ActionHandler>", description: "Action handlers by name." },
     { name: "onAction", type: "(name, params, context) => unknown", description: "Called for catalog actions without a handler." },
     { name: "placeholder", type: "ComponentType<SpecPlaceholderProps>", description: "Placeholder for elements that cannot render." },
-    { name: "specPrompt", type: "Omit<SpecPromptOptions, \"mode\">", description: "Options for the `spec` module guidance (`customRules`, `omitExample`)." },
+    { name: "specPrompt", type: "Omit<SpecPromptOptions, \"mode\">", description: "Options for the `spec` module guidance (`customRules`, `omitExample`); `customRules` also go into `render_spec`'s description." },
   ]}
 />
