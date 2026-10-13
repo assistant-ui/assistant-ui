@@ -832,6 +832,7 @@ This API is experimental and may change without notice.
    ```tsx
    setMessages([...messages, newMessage]); // not messages.push(newMessage)
    ```
+   In an async handler, build the next array from your store's current messages rather than the `messages` the handler captured when it was created, for example a functional update with React state or `getState()` with zustand.
 2. **Stable handler references.** Memoize `onNew`, `onEdit`, etc. with `useCallback` to avoid recreating the runtime.
 3. **Use `useShallow`** with zustand to prevent unnecessary re-renders.
 
