@@ -172,6 +172,42 @@ describe("SpecRenderer", () => {
     );
   });
 
+  it("writes a root binding and preserves it through reseeding and restoration", () => {
+    const store = createStateStore({ name: "model" });
+    const view = render(
+      <SpecRenderer
+        state={store}
+        spec={spec({
+          main: { type: "Form", props: { value: { $bindState: "" } } },
+        })}
+        components={{
+          Form: ({ props, setProp }: SpecComponentProps) => (
+            <button
+              type="button"
+              onClick={() => setProp("value", { name: "edited" })}
+            >
+              {JSON.stringify(props["value"])}
+            </button>
+          ),
+        }}
+      />,
+    );
+    expect(view.container.textContent).toBe('{"name":"model"}');
+    fireEvent.click(view.getByRole("button"));
+    expect(store.getState()).toEqual({ name: "edited" });
+    expect(view.container.textContent).toBe('{"name":"edited"}');
+    act(() => store.seed({ name: "replacement", extra: true }));
+    expect(store.getState()).toEqual({ name: "edited" });
+    expect(view.container.textContent).toBe('{"name":"edited"}');
+    const restored = createStateStore(
+      { name: "restored" },
+      {
+        writes: JSON.parse(JSON.stringify(store.writes())),
+      },
+    );
+    expect(restored.getState()).toEqual({ name: "edited" });
+  });
+
   it("sends catalog actions to handlers and onAction", () => {
     const refresh = vi.fn();
     const onAction = vi.fn();

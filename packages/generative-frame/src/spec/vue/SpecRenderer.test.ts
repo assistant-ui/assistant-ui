@@ -219,6 +219,47 @@ describe("SpecRenderer", () => {
     expect(boxes[0]!.checked).toBe(true);
   });
 
+  it("writes a root binding and preserves it through reseeding and restoration", async () => {
+    const store = createStateStore({ name: "model" });
+    const view = mount({
+      state: store,
+      spec: spec({
+        main: { type: "Form", props: { value: { $bindState: "" } } },
+      }),
+      components: {
+        Form: defineComponent({
+          props: { value: Object },
+          emits: ["update:value"],
+          setup(props, { emit }) {
+            return () =>
+              h(
+                "button",
+                {
+                  onClick: () => emit("update:value", { name: "edited" }),
+                },
+                JSON.stringify(props.value),
+              );
+          },
+        }),
+      },
+    });
+    expect(view.container.textContent).toBe('{"name":"model"}');
+    await click(view.container.querySelector("button")!);
+    expect(store.getState()).toEqual({ name: "edited" });
+    expect(view.container.textContent).toBe('{"name":"edited"}');
+    store.seed({ name: "replacement", extra: true });
+    await nextTick();
+    expect(store.getState()).toEqual({ name: "edited" });
+    expect(view.container.textContent).toBe('{"name":"edited"}');
+    const restored = createStateStore(
+      { name: "restored" },
+      {
+        writes: JSON.parse(JSON.stringify(store.writes())),
+      },
+    );
+    expect(restored.getState()).toEqual({ name: "edited" });
+  });
+
   it("sends emitted payloads to handlers and onAction", async () => {
     const refresh = vi.fn();
     const onAction = vi.fn();
