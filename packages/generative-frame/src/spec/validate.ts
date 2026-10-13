@@ -160,14 +160,18 @@ export function validateSpec(
       for (const [key, child] of Object.entries(current)) {
         const childPath = `${at}/${escapePointerToken(key)}`;
         if (key !== "$calc" || Array.isArray(current)) {
-          // Ending the scan at the last `}` keeps it linear on a long string whose placeholders never close.
-          const placeholder =
+          const plain =
             typeof child === "string" &&
             (key !== "$template" || Array.isArray(current))
-              ? PLACEHOLDER.exec(
-                  child.slice(0, child.lastIndexOf("}") + 1),
-                )?.[0]
+              ? child
               : undefined;
+          // Ending the scan at the last `}` keeps it linear on a long string whose placeholders never close.
+          const placeholder =
+            plain === undefined
+              ? undefined
+              : PLACEHOLDER.exec(
+                  plain.slice(0, plain.lastIndexOf("}") + 1),
+                )?.[0];
           if (placeholder) {
             error({
               code: "unfilled-placeholder",
@@ -176,8 +180,8 @@ export function validateSpec(
               message: `"${id}" shows \`${placeholder}\` as written, since only \`$template\` and \`$calc\` fill placeholders. Write the string as \`{ "$template": "…" }\`, or compute the value with \`$calc\`.`,
             });
           }
-          if (typeof child === "string" && isExpressionKey(child)) {
-            const name = child.trim();
+          if (plain !== undefined && isExpressionKey(plain)) {
+            const name = plain.trim();
             error({
               code: "unfilled-placeholder",
               elementId: id,

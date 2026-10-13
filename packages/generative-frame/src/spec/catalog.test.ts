@@ -423,7 +423,7 @@ describe("validateSpec", () => {
     );
   });
 
-  it("reports a string that is only an expression key", () => {
+  it("reports a plain string that is only an expression key", () => {
     const spec = validSpec();
     spec.elements["m"]!.props = {
       label: "Total",
@@ -432,8 +432,9 @@ describe("validateSpec", () => {
         ["Mint sauce", "$calcs"],
       ],
     };
+    spec.elements["card"]!.props = { title: { $template: "$calc" } };
     spec.elements["b"]!.on = {
-      press: { action: "refresh", params: { range: { $template: "$state" } } },
+      press: { action: "refresh", params: { range: "$state" } },
     };
     const issues = validateSpec(spec, catalog).issues.filter(
       (issue) => issue.code === "unfilled-placeholder",
@@ -444,7 +445,7 @@ describe("validateSpec", () => {
         '"m" shows `"$calc"` as written, since an expression is an object, not a string. Write it as `{ "$calc": … }`.',
       ],
       [
-        "/elements/b/on/press/params/range/$template",
+        "/elements/b/on/press/params/range",
         '"b" shows `"$state"` as written, since an expression is an object, not a string. Write it as `{ "$state": … }`.',
       ],
     ]);
