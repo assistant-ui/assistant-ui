@@ -408,6 +408,7 @@ type GuidanceOptions = {
 type HostApiOptions = {
   prompt?: boolean;
   callTool?: boolean;
+  modelContext?: boolean;
 };
 
 type HostContext = {
@@ -947,6 +948,10 @@ type SpecPromptOptions = {
   mode?: SpecStreamMode;
   customRules?: readonly string[];
   omitExample?: boolean;
+  hostApi?: {
+    prompt?: boolean;
+    modelContext?: boolean;
+  };
 };
 
 declare const SpecRenderer$1: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
