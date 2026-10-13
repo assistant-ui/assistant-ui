@@ -44,36 +44,58 @@ describe("SpecRenderer for React Native", () => {
     ).toBeNull();
   });
 
-  it("hides an unfinished visibility condition until streamed state enables it", () => {
-    const stream = createSpecStream({
-      initial: {
-        root: "main",
-        state: { open: false },
-        elements: {
-          main: { type: "Label", props: { text: "Visible" }, visible: {} },
+  it.each([false, true])(
+    "hides an unfinished visibility condition until streamed state enables it (negated: %s)",
+    (negated) => {
+      const stream = createSpecStream({
+        initial: {
+          root: "main",
+          state: { open: negated },
+          elements: {
+            main: {
+              type: "Label",
+              props: { text: "Visible" },
+              visible: negated ? { not: {} } : {},
+            },
+          },
         },
-      },
-    });
-    const view = render(
-      <SpecRenderer components={components} spec={stream.spec} streaming />,
-    );
-    expect(view.container.textContent).toBe("");
-    stream.push(
-      '{"op":"add","path":"/elements/main/visible/$state","value":"/open"}\n',
-    );
-    view.rerender(
-      <SpecRenderer components={components} spec={stream.spec} streaming />,
-    );
-    expect(view.container.textContent).toBe("");
-    stream.push('{"op":"replace","path":"/state/open","value":true}\n');
-    view.rerender(
-      <SpecRenderer components={components} spec={stream.spec} streaming />,
-    );
-    expect(view.container.textContent).toBe("Visible");
-    stream.push('{"op":"replace","path":"/state/open","value":false}\n');
-    view.rerender(<SpecRenderer components={components} spec={stream.spec} />);
-    expect(view.container.textContent).toBe("");
-  });
+      });
+      const view = render(
+        <SpecRenderer components={components} spec={stream.spec} streaming />,
+      );
+      expect(view.container.textContent).toBe("");
+      stream.push(
+        JSON.stringify({
+          op: "add",
+          path: `/elements/main/visible${negated ? "/not" : ""}/$state`,
+          value: "/open",
+        }) + "\n",
+      );
+      view.rerender(
+        <SpecRenderer components={components} spec={stream.spec} streaming />,
+      );
+      expect(view.container.textContent).toBe("");
+      stream.push(
+        JSON.stringify({
+          op: "replace",
+          path: "/state/open",
+          value: !negated,
+        }) + "\n",
+      );
+      view.rerender(
+        <SpecRenderer components={components} spec={stream.spec} streaming />,
+      );
+      expect(view.container.textContent).toBe("Visible");
+      stream.push(
+        JSON.stringify({ op: "replace", path: "/state/open", value: negated }) +
+          "\n",
+      );
+      view.rerender(
+        <SpecRenderer components={components} spec={stream.spec} />,
+      );
+      expect(view.container.textContent).toBe("");
+    },
+  );
 
   it("names an unknown type and a failed element in React Native placeholders", () => {
     const onError = vi.fn();
