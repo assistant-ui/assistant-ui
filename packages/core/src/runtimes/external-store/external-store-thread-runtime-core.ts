@@ -249,6 +249,7 @@ export class ExternalStoreThreadRuntimeCore
   // routes by. Queuing only ever accepts a tail append, so a later tail is the
   // same intent.
   private _queueDispatchTransform = (message: AppendMessage) => {
+    this._settleCancelResyncs();
     const parentId = this.messages.at(-1)?.id ?? null;
     return this.enrichAppendMetadata({ ...message, parentId }, parentId);
   };
@@ -1216,10 +1217,9 @@ export class ExternalStoreThreadRuntimeCore
     // store may move in that gap; a server settling the cancelled turn lands
     // in the same tick. Read the repository at flush time and re-apply the
     // rollbacks to it, instead of stamping a snapshot captured above over the
-    // newer state. A send settles it first, so the rollback reaches the store
-    // before the message does.
+    // newer state. A send runs it early so the rollback reaches the store
+    // before the message does, and the timer still runs it last.
     const resync = () => {
-      if (!this._pendingCancelResyncs.delete(resync)) return;
       if (generation.aborted || !resyncLease.isCurrent()) return;
 
       // A placeholder under a message other than the cancelled tail, or one
@@ -1252,11 +1252,14 @@ export class ExternalStoreThreadRuntimeCore
         this.updateMessages(view);
     };
     this._pendingCancelResyncs.add(resync);
-    setTimeout(resync, 0);
+    setTimeout(() => {
+      this._pendingCancelResyncs.delete(resync);
+      resync();
+    }, 0);
   }
 
   private _settleCancelResyncs(): void {
-    for (const resync of [...this._pendingCancelResyncs]) resync();
+    for (const resync of this._pendingCancelResyncs) resync();
   }
 
   // Placeholder or pre-stream message; a partially-streamed one is kept and
