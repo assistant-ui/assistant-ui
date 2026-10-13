@@ -723,6 +723,29 @@ describe("Interactables persistence save", () => {
     });
   });
 
+  it("saves nothing for an app interactable that reuses an id edited in thread scope", async () => {
+    const save = vi.fn();
+    root = mount({
+      persistence: { save },
+      threadMessages: [createCall("shared")],
+    });
+    await flushMicrotasks();
+    const unregister = root.getValue().register(reg("shared"));
+    root.getValue().setState("shared", () => ({ v: 9 }));
+    unregister();
+
+    replaceClient(makeClient());
+    root.getValue().register(reg("shared"));
+    root.getValue().register(reg("other"));
+    root.getValue().setState("other", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(stateOf(root, "shared")).toEqual({ v: 0 });
+    expect(save.mock.lastCall?.[0]).toEqual({
+      other: { name: "note", state: { v: 1 } },
+    });
+  });
+
   it("exports only interactables that were edited, imported, or loaded", async () => {
     root = mount({
       persistence: {

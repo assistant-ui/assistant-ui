@@ -600,7 +600,6 @@ const useInteractablesResource = ({
     (id: string, updater: (prev: unknown) => unknown) => {
       if (!stateRef.current.definitions[id]) return;
       touchedIdsRef.current.add(id);
-      persistableIdsRef.current.add(id);
       setStateAndRef((prev) => {
         const existing = prev.definitions[id]!;
         return {
@@ -611,6 +610,7 @@ const useInteractablesResource = ({
         };
       });
       if (stateRef.current.definitions[id]?.scope !== "thread") {
+        persistableIdsRef.current.add(id);
         schedulePersistence(id);
         const adapter = adapterRef.current;
         if (adapter && saveAdapterRef.current !== adapter) {
