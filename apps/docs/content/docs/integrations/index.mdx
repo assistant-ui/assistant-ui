@@ -21,7 +21,7 @@ flowchart LR
     server -->|"observability tools (e.g. Langfuse, LangSmith)"| provider
 ```
 
-Integrations live on the server. **Agent frameworks** like Mastra take over the API route. **Gateways** swap the upstream provider URL. **Observability** logs or traces every call. **Auth** gates the route and scopes per-user data. **Persistence** and **attachments** are adapter recipes for storing chat data outside the default in-memory path.
+**Agent frameworks** like Mastra take over the API route. **Gateways** swap the upstream provider URL. **Observability** logs or traces every call. **Auth** gates the route and scopes per-user data. **Persistence** and **attachments** are adapter recipes for storing chat data outside the default in-memory path. **Voice** connects browser audio to a realtime model through a voice adapter.
 
 ## Frameworks
 
@@ -138,6 +138,20 @@ Store threads and messages outside AssistantCloud.
     href="/docs/integrations/persistence/custom-adapter"
   />
 </Cards>
+
+<PlatformOnly platforms={["react"]}>
+
+## Voice
+
+<Cards>
+  <Card
+    title="OpenAI Realtime"
+    description="Direct browser voice sessions with streamed transcripts, interruptions, mute controls, and typed input."
+    href="/docs/guides/openai-realtime"
+  />
+</Cards>
+
+</PlatformOnly>
 
 ## Attachments
 
