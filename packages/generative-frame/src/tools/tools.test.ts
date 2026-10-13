@@ -335,7 +335,7 @@ describe("server helpers", () => {
       "- The guidance for `spec` follows, so never load it with `read_me`.",
     );
     expect(preloaded).toContain(
-      "- `read_me` modules other than `spec` guide `show_widget` code, so a `render_spec` answer never needs them.",
+      "- The `diagram`, `chart`, `data_viz`, `interactive`, `mockup`, `elicitation`, `art` modules of `read_me` guide `show_widget` code, so a `render_spec` answer never needs them.",
     );
     expect(preloaded).toContain("# Declarative UI");
     const onDemand = await buildWidgetInstructions(withSpec());
@@ -352,7 +352,7 @@ describe("server helpers", () => {
     );
     expect(withoutModule).not.toContain("`spec` module");
     expect(withoutModule).toContain(
-      "- `read_me` modules guide `show_widget` code, so a `render_spec` answer never needs them.",
+      "- The `diagram`, `chart`, `data_viz`, `interactive`, `mockup`, `elicitation`, `art` modules of `read_me` guide `show_widget` code, so a `render_spec` answer never needs them.",
     );
   });
 });
