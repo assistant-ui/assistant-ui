@@ -111,6 +111,16 @@ export function resolveSpecBase(
   return spec;
 }
 
+const escapeRegExp = (text: string) =>
+  text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Whether streamed arguments hold this whole title, not a prefix of a longer one that is still arriving. */
+const holdsTitle = (argsText: string | undefined, title: string) =>
+  argsText === undefined ||
+  new RegExp(
+    `"title"\\s*:\\s*${escapeRegExp(JSON.stringify(title))}\\s*[,}]`,
+  ).test(argsText);
+
 /** Whether a later `render_spec` call in the same message has this call's title. That call shows the spec this one's patches lead to, so this one shows nothing rather than a second copy. */
 export function supersededInMessage(
   messages: readonly MessageLike[],
@@ -125,7 +135,8 @@ export function supersededInMessage(
       else if (
         seen &&
         call.name === "render_spec" &&
-        call.args["title"] === title
+        call.args["title"] === title &&
+        holdsTitle(call.argsText, title)
       )
         return true;
     }

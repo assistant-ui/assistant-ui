@@ -126,6 +126,8 @@ export function createSharedContext(
   initial: SharedContext | undefined,
   options: {
     name: () => string;
+    /** While true, the source reads nothing, as for a call whose UI a later call replaced. */
+    muted?: () => boolean;
     onShare: (context: SharedContext | undefined) => void;
   },
 ): {
@@ -136,7 +138,10 @@ export function createSharedContext(
   const listeners = new Set<() => void>();
   return {
     source: {
-      read: () => shared && contextInstruction(options.name(), shared),
+      read: () =>
+        shared && !options.muted?.()
+          ? contextInstruction(options.name(), shared)
+          : undefined,
       subscribe: (listener) => {
         listeners.add(listener);
         return () => listeners.delete(listener);

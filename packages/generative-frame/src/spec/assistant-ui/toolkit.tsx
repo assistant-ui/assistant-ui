@@ -220,6 +220,7 @@ export const specToolkitFor =
             context.current = next;
             saver.schedule(snapshot);
           },
+          muted: superseded,
         });
         const handlers = useMemo(
           () => ({

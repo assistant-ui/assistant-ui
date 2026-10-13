@@ -12,22 +12,27 @@ export function useSharedContext({
   initial,
   useModelContext,
   onShare,
+  muted = false,
 }: {
   title: string;
   toolCallId: string;
   initial: SharedContext | undefined;
   useModelContext: (source: ModelContextSource) => void;
   onShare: (context: SharedContext | undefined) => void;
+  muted?: boolean;
 }): (context: SharedContext | undefined) => void {
   const name = useRef(title || toolCallId);
   const handler = useRef(onShare);
+  const silent = useRef(muted);
   useInsertionEffect(() => {
     name.current = title || toolCallId;
     handler.current = onShare;
+    silent.current = muted;
   });
   const [shared] = useState(() =>
     createSharedContext(initial, {
       name: () => name.current,
+      muted: () => silent.current,
       onShare: (context) => handler.current(context),
     }),
   );

@@ -1025,6 +1025,23 @@ describe("render_spec validation", () => {
     expect(later.container.textContent).toBe("b");
   });
 
+  it("keeps showing a spec while a later call's title is still arriving", () => {
+    mocks.messages = [
+      {
+        content: [
+          call("e", "render_spec", first),
+          {
+            ...call("f", "render_spec", { title: "s" }),
+            argsText: '{"title":"s',
+          },
+        ],
+      },
+    ];
+    const RenderSpec = setup().render;
+    const view = render(<RenderSpec {...partProps("e", first)} />);
+    expect(view.container.textContent).toBe("a");
+  });
+
   it("keeps an earlier message's spec when a later message patches the same title", () => {
     mocks.messages = [
       { content: [call("e", "render_spec", first)] },
@@ -1441,6 +1458,36 @@ describe("sharing with the model", () => {
       fireEvent.click(screen.getByText("Go"));
     });
     expect(mocks.append).not.toHaveBeenCalled();
+  });
+
+  it("stops sharing a spec's choice once a later call in its message patches the same title", () => {
+    const args = { title: "flights", patches: button({}) };
+    const saved = {
+      entries: [
+        {
+          type: "action",
+          payload: { type: "setState", toolCallId: "e", writes: [], context },
+        },
+      ],
+    };
+    const RenderSpec = entries(specToolkit())["render_spec"]!.render;
+    mocks.messages = [{ content: [call("e", "render_spec", args)] }];
+    const view = render(
+      <RenderSpec {...partProps("e", args)} unstable_interactions={saved} />,
+    );
+    expect(shared()).toBe(flights);
+    mocks.messages = [
+      {
+        content: [
+          call("e", "render_spec", args),
+          call("f", "render_spec", { title: "flights", patches: "" }),
+        ],
+      },
+    ];
+    view.rerender(
+      <RenderSpec {...partProps("e", args)} unstable_interactions={saved} />,
+    );
+    expect(shared()).toBe("");
   });
 
   it("keeps saving state when a spec shares data that is not plain JSON", async () => {

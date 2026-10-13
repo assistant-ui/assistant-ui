@@ -276,6 +276,56 @@ describe("createSpecToolkit for Vue", () => {
     expect(later.container.textContent).toBe("b");
   });
 
+  it("keeps showing a spec while a later call's title is still arriving", async () => {
+    mocks.messages = [
+      {
+        content: [
+          specCall("e", labelA),
+          { ...specCall("f", { title: "s" }), argsText: '{"title":"s' },
+        ],
+      },
+    ];
+    const { container } = mount(
+      setup("frontend").render,
+      toolProp({ id: "e", args: labelA }),
+    );
+    await nextTick();
+    expect(container.textContent).toBe("a");
+  });
+
+  it("stops sharing a spec's choice once a later call in its message patches the same title", async () => {
+    const interactions = {
+      entries: [
+        {
+          type: "action",
+          payload: {
+            type: "setState",
+            toolCallId: "e",
+            writes: [],
+            context: { text: "Picked a" },
+          },
+        },
+      ],
+    };
+    const systems = () =>
+      [...mocks.providers].map((provider) => provider.getModelContext().system);
+    mocks.messages = [{ content: [specCall("e", labelA)] }];
+    mount(
+      setup("frontend").render,
+      toolProp({ id: "e", args: labelA, interactions }),
+    );
+    expect(systems()).toEqual([expect.stringContaining("Picked a")]);
+    apps.pop()!.unmount();
+    mocks.messages = [
+      { content: [specCall("e", labelA), specCall("f", labelB)] },
+    ];
+    mount(
+      setup("frontend").render,
+      toolProp({ id: "e", args: labelA, interactions }),
+    );
+    expect(systems()).toEqual([undefined]);
+  });
+
   it("keeps an earlier message's spec when a later message patches the same title", async () => {
     mocks.messages = [
       { content: [specCall("e", labelA)] },

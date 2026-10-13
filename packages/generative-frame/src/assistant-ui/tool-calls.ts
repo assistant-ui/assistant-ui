@@ -3,6 +3,7 @@ type ToolCallLike = {
   toolName?: string;
   toolCallId?: string;
   args?: unknown;
+  argsText?: unknown;
   result?: unknown;
 };
 
@@ -19,6 +20,8 @@ export function* toolCalls(messages: readonly MessageLike[]) {
           id: call.toolCallId,
           name: call.toolName,
           args: (call.args ?? {}) as Record<string, unknown>,
+          argsText:
+            typeof call.argsText === "string" ? call.argsText : undefined,
           result: call.result,
         };
       }

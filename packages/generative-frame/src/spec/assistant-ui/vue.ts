@@ -191,6 +191,7 @@ export function createSpecToolkit(
           options.handlers?.["updateModelContext"] ? undefined : initialContext,
           {
             name: () => title.value || toolCallId,
+            muted: () => superseded.value,
             onShare: (next) => {
               context = next;
               saver.schedule(snapshot);
