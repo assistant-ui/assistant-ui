@@ -9,6 +9,13 @@ import {
 } from "react";
 import { toolkitEntry } from "../../assistant-ui/entry";
 import type { WidgetToolkitExtension } from "../../assistant-ui/extension";
+import {
+  savedContext,
+  toSharedContext,
+  useSharedContext,
+  type ModelContextSource,
+  type SharedContext,
+} from "../../assistant-ui/modelContext";
 import { createSnapshotSaver } from "../../assistant-ui/snapshotSaver";
 import { toolCalls, type MessageLike } from "../../assistant-ui/tool-calls";
 import type { ActionHandler } from "../actions";
@@ -174,6 +181,10 @@ export type SpecToolkitPlatform = {
   SpecRenderer: ComponentType<SpecRendererProps>;
   /** Wraps each call's rendered spec. */
   Frame: ComponentType<{ title: string; children: ReactNode }>;
+  /** Appends a user message to the thread, for the `sendMessage` action. */
+  useSendMessage(): (text: string) => void;
+  /** Registers what `updateModelContext` shares as model context, read when each request starts. */
+  useModelContext(source: ModelContextSource): void;
 };
 
 type RenderSpecProps = {
@@ -193,6 +204,8 @@ export const specToolkitFor =
     useArgsComplete,
     SpecRenderer,
     Frame,
+    useSendMessage,
+    useModelContext,
   }: SpecToolkitPlatform) =>
   (catalog: Catalog, options: SpecToolkitOptions): WidgetToolkitExtension => {
     const specs = new Map<string, { spec: Spec; version: number }>();
@@ -278,18 +291,61 @@ export const specToolkitFor =
         useInsertionEffect(() => {
           record.current = unstable_recordInteraction;
         });
+        const [initialContext] = useState(() =>
+          savedContext(unstable_interactions, toolCallId, "setState"),
+        );
+        const context = useRef(initialContext);
+        const [snapshot] = useState(() => () => ({
+          writes: store.writes(),
+          ...(context.current ? { context: context.current } : {}),
+        }));
         const [saver] = useState(() =>
-          createSnapshotSaver(store.writes(), (writes) =>
+          createSnapshotSaver<{
+            writes: readonly SpecStateWrite[];
+            context?: SharedContext;
+          }>(snapshot(), (saved) =>
             record.current?.({
               type: "action",
-              payload: { type: "setState", toolCallId, writes },
+              payload: {
+                type: "setState",
+                toolCallId,
+                writes: saved?.writes ?? null,
+                ...(saved?.context ? { context: saved.context } : {}),
+              },
             }),
           ),
         );
+        const sendMessage = useSendMessage();
+        const share = useSharedContext({
+          title,
+          toolCallId,
+          initial: options.handlers?.["updateModelContext"]
+            ? undefined
+            : initialContext,
+          useModelContext,
+          onShare: (next) => {
+            context.current = next;
+            saver.schedule(snapshot);
+          },
+        });
+        const handlers = useMemo(
+          () => ({
+            sendMessage: (
+              params: Record<string, unknown>,
+              source: { kind?: string },
+            ) => {
+              const text = params["text"];
+              if (source.kind === "watch") return;
+              if (typeof text === "string" && text.trim()) sendMessage(text);
+            },
+            updateModelContext: (params: Record<string, unknown>) =>
+              share(toSharedContext(params["text"], params["data"])),
+            ...options.handlers,
+          }),
+          [sendMessage, share],
+        );
         useEffect(() => {
-          const unsubscribe = store.subscribe(() =>
-            saver.schedule(() => store.writes()),
-          );
+          const unsubscribe = store.subscribe(() => saver.schedule(snapshot));
           return () => {
             unsubscribe();
             saver.flush();
@@ -304,7 +360,7 @@ export const specToolkitFor =
               catalog={catalog}
               components={options.components}
               streaming={streaming}
-              {...(options.handlers ? { handlers: options.handlers } : {})}
+              handlers={handlers}
               {...(options.onAction ? { onAction: options.onAction } : {})}
               {...(options.placeholder
                 ? { placeholder: options.placeholder }
@@ -319,6 +375,11 @@ export const specToolkitFor =
       modules: [
         specGuidanceModule(catalog, {
           ...options.specPrompt,
+          hostApi: {
+            prompt: true,
+            modelContext: true,
+            ...options.specPrompt?.hostApi,
+          },
           customRules: [
             ...(options.specPrompt?.customRules ?? []),
             'Results of earlier tool calls are in state under `/tools/<toolName>/<n>`, newest first: `0` is the latest call to that tool before this `render_spec` call, `1` the one before it, and so on. Show their values with `{ "$state": "/tools/<toolName>/<n>/..." }` rather than copying them, and never write `tools` in `state`. Indexes count back from each `render_spec` call, so when a patch follows another call to the same tool, update any binding that should keep showing the older result.',
