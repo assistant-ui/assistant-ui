@@ -963,6 +963,99 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
         "u1",
       );
     });
+
+    it.each([
+      { label: "reports no run", isRunning: false },
+      { label: "omits isRunning", isRunning: undefined },
+    ])(
+      "leaves the unanswered user message of an idle thread in place when the host $label",
+      async ({ isRunning }) => {
+        const onCancel = vi.fn();
+        const setMessages = vi.fn();
+        const core = new ExternalStoreThreadRuntimeCore(
+          contextProvider,
+          createBaseAdapter({
+            messages: [
+              createUserMessage("u1"),
+              createAssistantMessage("a1"),
+              createUserMessage("u2", "unanswered"),
+            ],
+            isRunning,
+            onCancel,
+            setMessages,
+          }),
+        );
+
+        core.cancelRun();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(core.composer.text).toBe("");
+        expect(core.messages.map((m) => m.id)).toEqual(["u1", "a1", "u2"]);
+        expect(setMessages).not.toHaveBeenCalled();
+        expect(onCancel).toHaveBeenCalledOnce();
+      },
+    );
+
+    it("leaves the unanswered user message of an idle thread in place when the composer cancels", async () => {
+      const setMessages = vi.fn();
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: [createUserMessage("u1", "unanswered")],
+          isRunning: false,
+          onCancel: vi.fn(),
+          setMessages,
+        }),
+      );
+
+      core.composer.cancel();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(core.composer.text).toBe("");
+      expect(core.messages.map((m) => m.id)).toEqual(["u1"]);
+      expect(setMessages).not.toHaveBeenCalled();
+    });
+
+    it("writes the rollback before the message sent right after the stop reaches the store", async () => {
+      let hostMessages: readonly ThreadMessage[] = [
+        createUserMessage("u1"),
+        createAssistantMessage("a1"),
+        createUserMessage("u2", "unanswered"),
+      ];
+      const setMessages = vi.fn((messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      });
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: hostMessages,
+          isRunning: true,
+          onCancel: vi.fn(),
+          onNew: vi.fn(async () => {
+            hostMessages = [...hostMessages, createUserMessage("u3")];
+          }),
+          setMessages,
+        }),
+      );
+
+      core.cancelRun();
+      expect(core.composer.text).toBe("unanswered");
+      await core.append({
+        role: "user",
+        content: [{ type: "text", text: "next" }],
+        attachments: [],
+        createdAt: new Date(),
+        parentId: "a1",
+        sourceId: null,
+        runConfig: {},
+        metadata: { custom: {} },
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(hostMessages.map((m) => m.id)).toEqual(["u1", "a1", "u3"]);
+      expect(setMessages).toHaveBeenCalledOnce();
+      expect(core.composer.text).toBe("unanswered");
+    });
   });
 
   describe("optimistic assistant message", () => {

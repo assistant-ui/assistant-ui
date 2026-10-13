@@ -232,6 +232,7 @@ export class ExternalStoreThreadRuntimeCore
   private readonly _runStartLeases = new RunLeases();
   private readonly _runCancellationLeases = new RunLeases();
   private readonly _cancelRunResyncLeases = new RunLeases();
+  private readonly _pendingCancelResyncs = new Set<() => void>();
 
   private _store!: ExternalStoreAdapter<any>;
 
@@ -940,6 +941,8 @@ export class ExternalStoreThreadRuntimeCore
     }
     if (generation.aborted) return;
 
+    this._settleCancelResyncs();
+
     if (isEdit) {
       if (!this._store.onEdit)
         throw new Error("Runtime does not support editing messages.");
@@ -1150,6 +1153,7 @@ export class ExternalStoreThreadRuntimeCore
     if (!this._store.onCancel)
       throw new Error("Runtime does not support cancelling runs.");
 
+    const isRunning = this._getEffectiveIsRunning(this._store);
     this._runCancellationLeases.invalidate();
     const generation = captureThreadRuntimeGeneration(this);
     const resyncLease = this._cancelRunResyncLeases.current();
@@ -1173,6 +1177,7 @@ export class ExternalStoreThreadRuntimeCore
     const cancelledTailId = previousMessage?.id ?? null;
     const runStartLease = this._runStartLeases.current();
     const trailingUserLeaf =
+      isRunning &&
       this._store.setMessages !== undefined &&
       previousMessage?.role === "user" &&
       previousMessage.id === messages.at(-1)?.id && // ensure the previous message is a leaf node
@@ -1211,8 +1216,10 @@ export class ExternalStoreThreadRuntimeCore
     // store may move in that gap; a server settling the cancelled turn lands
     // in the same tick. Read the repository at flush time and re-apply the
     // rollbacks to it, instead of stamping a snapshot captured above over the
-    // newer state.
-    setTimeout(() => {
+    // newer state. A send settles it first, so the rollback reaches the store
+    // before the message does.
+    const resync = () => {
+      if (!this._pendingCancelResyncs.delete(resync)) return;
       if (generation.aborted || !resyncLease.isCurrent()) return;
 
       // A placeholder under a message other than the cancelled tail, or one
@@ -1243,7 +1250,13 @@ export class ExternalStoreThreadRuntimeCore
       const view = this._messages.filter((m) => m.id !== this._optimistic?.id);
       if (!shallowArrayEqual(view, this._storeMessages))
         this.updateMessages(view);
-    }, 0);
+    };
+    this._pendingCancelResyncs.add(resync);
+    setTimeout(resync, 0);
+  }
+
+  private _settleCancelResyncs(): void {
+    for (const resync of [...this._pendingCancelResyncs]) resync();
   }
 
   // Placeholder or pre-stream message; a partially-streamed one is kept and

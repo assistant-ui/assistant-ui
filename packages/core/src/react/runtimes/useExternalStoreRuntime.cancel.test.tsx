@@ -150,4 +150,54 @@ describe("useExternalStoreRuntime cancel", () => {
     );
     expect(probe.messages.map((m) => m.id)).toEqual(["u0", "a0", "u1"]);
   });
+
+  it("keeps a message sent right after a programmatic stop that takes the unanswered message back", async () => {
+    const probe = {} as {
+      runtime: AssistantRuntime;
+      messages: readonly ThreadMessage[];
+    };
+    let sent!: () => void;
+    const onNewCalled = new Promise<void>((resolve) => {
+      sent = resolve;
+    });
+    const Host = () => {
+      const [messages, setMessages] = useState<readonly ThreadMessage[]>([
+        message("u0", "user"),
+        message("a0", "assistant"),
+        message("u1", "user"),
+      ]);
+      const [isRunning, setIsRunning] = useState(true);
+      probe.messages = messages;
+      probe.runtime = useExternalStoreRuntime<ThreadMessage>({
+        messages,
+        isRunning,
+        setMessages,
+        onNew: async () => {
+          setMessages((current) => [...current, message("u2", "user")]);
+          sent();
+        },
+        onCancel: async () => {
+          setIsRunning(false);
+        },
+      });
+      return null;
+    };
+    render(<Host />);
+
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", false);
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    probe.runtime.thread.cancelRun();
+    probe.runtime.thread.append("hello");
+    await onNewCalled;
+    vi.runAllTimers();
+    vi.useRealTimers();
+
+    await waitFor(() =>
+      expect(probe.runtime.thread.getState().messages.map((m) => m.id)).toEqual(
+        ["u0", "a0", "u2"],
+      ),
+    );
+    expect(probe.messages.map((m) => m.id)).toEqual(["u0", "a0", "u2"]);
+    expect(probe.runtime.thread.composer.getState().text).toBe("u1");
+  });
 });
