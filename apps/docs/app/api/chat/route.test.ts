@@ -326,24 +326,39 @@ describe("POST /api/chat generative UI", () => {
     expect(modelOptions(1)).not.toHaveProperty("system");
   });
 
-  it("accepts an answer sized message only on the landing page demo", async () => {
+  it("bounds only what the user types on the landing page demo", async () => {
     allowed();
     streamed();
     claimAllowed();
-    const long = {
+    const answer = {
+      id: "a1",
+      role: "assistant",
+      parts: [{ type: "text", text: "x".repeat(60_000) }],
+    };
+    const pasted = {
       ...message,
       parts: [{ type: "text", text: "x".repeat(20_000) }],
     };
 
     const demo = await send(
-      { messages: [long], id: "thread_1", countConversations: true },
+      {
+        messages: [message, answer],
+        id: "thread_1",
+        countConversations: true,
+      },
       sameOrigin,
     );
-    const docs = await send({ messages: [long] }, sameOrigin);
+    const docs = await send({ messages: [message, answer] }, sameOrigin);
+    const typed = await send(
+      { messages: [pasted], id: "thread_1", countConversations: true },
+      sameOrigin,
+    );
 
     expect(demo.status).toBe(200);
     expect(docs.status).toBe(400);
     expect(await docs.text()).toBe("Single message too long");
+    expect(typed.status).toBe(400);
+    expect(await typed.text()).toBe("Single message too long");
   });
 
   it("prunes earlier tool calls from what the landing page demo sends the model", async () => {

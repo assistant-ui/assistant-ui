@@ -10,6 +10,8 @@ interface InputLimits {
   maxTotalChars: number;
   /** Maximum serialized (JSON.stringify) character count for a single message */
   maxSingleMessageChars: number;
+  /** The roles whose messages the single message limit applies to; every role when unset */
+  singleMessageRoles?: readonly string[];
 }
 
 const GENERAL_CHAT_LIMITS: InputLimits = {
@@ -27,12 +29,22 @@ const DOC_CHAT_LIMITS: InputLimits = {
 const DEMO_CHAT_LIMITS: InputLimits = {
   maxMessages: 0, // no message count limit; pruning older tool calls bounds what reaches the model
   maxTotalChars: 480_000, // ~120k tokens
-  maxSingleMessageChars: 48_000, // ~12k tokens, a generative UI answer with its tool calls
+  // An answer carries the tool calls and results of all its steps, so only the total bounds it.
+  maxSingleMessageChars: 12_000, // ~3k tokens
+  singleMessageRoles: ["user"],
 };
 
 const MAX_FRONTEND_TOOLS_CHARS = 96_000;
 
-function measureMessageChars(messages: unknown[]): {
+const roleOf = (msg: unknown) =>
+  typeof msg === "object" && msg !== null && "role" in msg
+    ? msg.role
+    : undefined;
+
+function measureMessageChars(
+  messages: unknown[],
+  roles: readonly string[] | undefined,
+): {
   totalChars: number;
   maxChars: number;
 } {
@@ -42,6 +54,8 @@ function measureMessageChars(messages: unknown[]): {
   for (const msg of messages) {
     const len = JSON.stringify(msg).length;
     totalChars += len;
+    const role = roleOf(msg);
+    if (roles && !(typeof role === "string" && roles.includes(role))) continue;
     if (len > maxChars) maxChars = len;
   }
 
@@ -64,7 +78,10 @@ function validateWithLimits(
     return `Too many messages (max ${limits.maxMessages})`;
   }
 
-  const { totalChars, maxChars } = measureMessageChars(messages);
+  const { totalChars, maxChars } = measureMessageChars(
+    messages,
+    limits.singleMessageRoles,
+  );
 
   if (totalChars > limits.maxTotalChars) {
     return "Input too long";
