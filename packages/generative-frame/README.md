@@ -188,7 +188,7 @@ To keep widget code out of the main agent's context, give it one tool that asks 
 
 ## assistant-ui
 
-`generative-frame/assistant-ui` and `generative-frame/spec/assistant-ui` need `@assistant-ui/react` (an optional peer, imported only by these entries). `generative-frame/spec/assistant-ui/vue` builds the spec toolkit for `@assistant-ui/vue` instead and needs it and `@assistant-ui/core`.
+`generative-frame/assistant-ui` and `generative-frame/spec/assistant-ui` need `@assistant-ui/react` (an optional peer, imported only by these entries); on React Native, `generative-frame/spec/assistant-ui` resolves to a build that needs `@assistant-ui/react-native` instead. `generative-frame/spec/assistant-ui/vue` builds the spec toolkit for `@assistant-ui/vue` instead and needs it and `@assistant-ui/core`.
 
 ```tsx
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
