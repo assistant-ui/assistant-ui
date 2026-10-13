@@ -104,6 +104,7 @@ const aggregate = (
   const [list, field] = args;
   if (!Array.isArray(list) || args.length > 2) return null;
   if (args.length === 2 && typeof field !== "string") return null;
+  if (typeof field === "string" && field.length > 500) return null;
   const tokens = typeof field === "string" ? pointerTokens(field) : undefined;
   if (tokens && tokens.length > 32) return null;
   let total = 0;

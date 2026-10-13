@@ -409,7 +409,7 @@ describe("formula bounds and parsing", () => {
     expect(evaluateFormula("sum(${/a}) + sum(${/b})", shared)).toBeNull();
   });
 
-  it("reads a list field once per call and gives null past 32 levels", () => {
+  it("reads a list field once per call and bounds its length and depth", () => {
     const rows = [{ price: 2 }, { price: 3 }];
     expect(
       evaluateFormula("sum(${/rows}, ${/field})", {
@@ -417,11 +417,16 @@ describe("formula bounds and parsing", () => {
       }),
     ).toBe(5);
     const list = Array.from({ length: 9000 }, () => ({ a: 1 }));
+    for (const field of ["/a".repeat(25_000), "/a".repeat(33)]) {
+      expect(
+        evaluateFormula("sum(${/list}, ${/field})", { state: { list, field } }),
+      ).toBeNull();
+    }
     expect(
       evaluateFormula("sum(${/list}, ${/field})", {
-        state: { list, field: "/a".repeat(25_000) },
+        state: { list, field: "/a" },
       }),
-    ).toBeNull();
+    ).toBe(9000);
   });
 
   it("counts every value a text join serializes against the budget", () => {
