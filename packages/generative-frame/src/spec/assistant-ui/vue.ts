@@ -211,9 +211,15 @@ export function createSpecToolkit(
         const handlers: Record<string, ActionHandler> = {
           sendMessage: (params, source) => {
             const text = params["text"];
-            if (source.kind === "watch") return;
-            if (typeof text === "string" && text.trim())
-              aui.thread.append(text);
+            if (source.kind === "watch") {
+              throw new Error(
+                "sendMessage runs only from an event a component emits, never from `watch`",
+              );
+            }
+            if (typeof text !== "string" || !text.trim()) {
+              throw new Error("sendMessage needs a non-empty string `text`");
+            }
+            aui.thread.append(text);
           },
           updateModelContext: (params) =>
             shared.share(toSharedContext(params["text"], params["data"])),
