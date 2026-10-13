@@ -1144,6 +1144,108 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
       reason: "stop",
     });
 
+  it("keeps a declined delete after a send buffers during a held reload", async () => {
+    let current = [
+      message("u1", "user"),
+      message("a1", "assistant"),
+      message("u2", "user"),
+      message("a2", "assistant"),
+    ];
+    let isRunning = false;
+    let finishReload!: () => void;
+    let declineDelete!: () => void;
+    const run = vi.fn();
+    const queue = createMessageQueue({ run });
+    queue.notifyBusy();
+    const store = () =>
+      ({
+        messages: current,
+        isRunning,
+        queue: queue.adapter,
+        onNew: async () => {},
+        onReload: () =>
+          new Promise<void>((resolve) => {
+            finishReload = resolve;
+          }),
+        onDelete: () =>
+          new Promise<void>((_, reject) => {
+            declineDelete = () => reject(new Error("deletion declined"));
+          }),
+        setMessages: () => {},
+      }) as ExternalStoreAdapter;
+    const runtime = createRuntime(store());
+
+    const reloading = runtime.startRun({
+      parentId: "u1",
+      sourceId: "a1",
+      runConfig: {},
+    });
+    await Promise.resolve();
+    await runtime.append({
+      parentId: "a2",
+      sourceId: null,
+      role: "user",
+      createdAt: new Date(0),
+      content: [{ type: "text", text: "next turn" }],
+      metadata: { custom: {} },
+      runConfig: {},
+    });
+    expect(queue.adapter.items).toHaveLength(1);
+    expect(run).not.toHaveBeenCalled();
+
+    const deletion = runtime.deleteMessage("u2");
+    current = [current[0]!];
+    isRunning = true;
+    runtime.__internal_setAdapter(store());
+    expect(runtime.getMessageById("u2")?.message.id).toBe("u2");
+    declineDelete();
+    await expect(deletion).rejects.toThrow("deletion declined");
+    finishReload();
+    await reloading;
+    expect(runtime.getMessageById("u2")?.message.id).toBe("u2");
+  });
+
+  it("evicts an optimistic delete during a tail-targeted reload", async () => {
+    let current = [message("u1", "user"), message("a1", "assistant")];
+    let isRunning = false;
+    let finishReload!: () => void;
+    let confirmDelete!: () => void;
+    const store = () =>
+      ({
+        messages: current,
+        isRunning,
+        onNew: async () => {},
+        onReload: () =>
+          new Promise<void>((resolve) => {
+            finishReload = resolve;
+          }),
+        onDelete: () =>
+          new Promise<void>((resolve) => {
+            confirmDelete = resolve;
+          }),
+      }) as ExternalStoreAdapter;
+    const runtime = createRuntime(store());
+
+    const reloading = runtime.startRun({
+      parentId: "a1",
+      sourceId: "a1",
+      runConfig: {},
+    });
+    await Promise.resolve();
+    current = [...current, message("u2", "user"), message("a2", "assistant")];
+    isRunning = true;
+    runtime.__internal_setAdapter(store());
+    const deletion = runtime.deleteMessage("u2");
+    current = current.filter((m) => m.id !== "u2");
+    runtime.__internal_setAdapter(store());
+
+    expect(runtime.getMessageById("u2")).toBeUndefined();
+    confirmDelete();
+    await deletion;
+    finishReload();
+    await reloading;
+  });
+
   const optimisticDeleteAfterReload = async (
     parentId: string,
     reload: (current: ThreadMessage[]) => ThreadMessage[],

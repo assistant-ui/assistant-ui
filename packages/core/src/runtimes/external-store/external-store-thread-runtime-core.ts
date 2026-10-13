@@ -225,11 +225,11 @@ export class ExternalStoreThreadRuntimeCore
   // array can omit off-branch ids without deleting them. A reload or edit can
   // omit the suffix after its parent for the same reason. Deletes outside
   // that prefix are marked while the window is open, until a host snapshot
-  // drops its old suffix, the next change other than a reload or edit,
-  // cancellation, or its own callback rejection closes it. Already marked
-  // records settle from onDelete instead of snapshot absence. Plain tail
-  // sends do not mark anything: a tail append cannot make a visible id
-  // absent, so id-absence stays unambiguous and a delete whose confirmation
+  // drops its old suffix, a dispatched send or another change other than a
+  // reload or edit, cancellation, or its own callback rejection closes it.
+  // Already marked records settle from onDelete instead of snapshot absence.
+  // Plain tail sends do not mark anything: a tail append cannot make a visible
+  // id absent, so id-absence stays unambiguous and a delete whose confirmation
   // races a send keeps its eviction.
   private _pendingDeleteEvictions = new Map<
     string,
@@ -251,6 +251,7 @@ export class ExternalStoreThreadRuntimeCore
       prefix: new Set(visible.slice(0, prefixLength).map((m) => m.id)),
       suffix: new Set(visible.slice(prefixLength).map((m) => m.id)),
     };
+    if (window.suffix.size === 0) return window;
     this._pendingDeleteWindows.add(window);
     for (const [id, pending] of this._pendingDeleteEvictions) {
       if (window.prefix.has(id)) continue;
@@ -262,10 +263,7 @@ export class ExternalStoreThreadRuntimeCore
 
   private _closeDeleteWindows(incomingIds: ReadonlySet<string>) {
     for (const window of this._pendingDeleteWindows) {
-      if (
-        window.suffix.size > 0 &&
-        [...window.suffix].every((id) => !incomingIds.has(id))
-      )
+      if ([...window.suffix].every((id) => !incomingIds.has(id)))
         this._pendingDeleteWindows.delete(window);
     }
   }
@@ -329,6 +327,7 @@ export class ExternalStoreThreadRuntimeCore
       : queuedMessageRuntimes.get(message);
     const runtime =
       owner && !captureThreadRuntimeDisposal(owner).aborted ? owner : this;
+    runtime._pendingDeleteWindows.clear();
     runtime._settleCancelResyncs();
     const parentId = runtime.messages.at(-1)?.id ?? null;
     return runtime.enrichAppendMetadata({ ...message, parentId }, parentId);
@@ -1084,7 +1083,6 @@ export class ExternalStoreThreadRuntimeCore
     const isEdit =
       message.sourceId != null ||
       message.parentId !== (this._getBaseMessages().at(-1)?.id ?? null);
-    if (!isEdit) this._pendingDeleteWindows.clear();
 
     // A transformed-queue send is stamped at flush; any other queue's
     // transform would gate against its own thread's messages, so those stamp
@@ -1157,6 +1155,7 @@ export class ExternalStoreThreadRuntimeCore
     }
     if (generation.aborted) return;
 
+    if (!isEdit) this._pendingDeleteWindows.clear();
     this._settleCancelResyncs();
 
     if (isEdit) {
