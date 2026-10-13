@@ -37,30 +37,35 @@ const TextInputInternal = ({
   const { text, cursorOffset, preferredColumn, dispatchAction, setText } =
     useTextBuffer(value);
   const bufferStateRef = useRef({ text, cursorOffset, preferredColumn });
-  const pendingEditRef = useRef(false);
-  bufferStateRef.current = { text, cursorOffset, preferredColumn };
+  const pendingEchoesRef = useRef<string[]>([]);
 
-  // A committed batch can settle an edit without changing the text or cursor.
   useEffect(() => {
-    const isCorrection = pendingEditRef.current;
-    pendingEditRef.current = false;
-    if (value === text) return;
+    const pendingEchoes = pendingEchoesRef.current;
+    const echoIndex = pendingEchoes.lastIndexOf(value);
+    if (echoIndex !== -1) {
+      pendingEchoes.splice(0, echoIndex + 1);
+      return;
+    }
 
+    const isCorrection = pendingEchoes.length > 0;
+    pendingEchoes.length = 0;
+    if (value === bufferStateRef.current.text) return;
     const previousCursorOffset = bufferStateRef.current.cursorOffset;
-    setText(value);
     let nextState = textBufferReducer(bufferStateRef.current, {
       type: "set-text",
       text: value,
     });
+    let restoreCursor: { type: "set-cursor"; cursorOffset: number } | undefined;
     if (isCorrection) {
-      const restoreCursor = {
+      restoreCursor = {
         type: "set-cursor",
         cursorOffset: previousCursorOffset,
-      } as const;
-      dispatchAction(restoreCursor);
+      };
       nextState = textBufferReducer(nextState, restoreCursor);
     }
     bufferStateRef.current = nextState;
+    setText(value);
+    if (restoreCursor) dispatchAction(restoreCursor);
   });
 
   const commitAction = (
@@ -70,11 +75,11 @@ const TextInputInternal = ({
     const currentState = bufferStateRef.current;
     // run the reducer eagerly so submit-after-edit sees post-action state before react commits
     const nextState = textBufferReducer(currentState, action);
-    dispatchAction(action);
     bufferStateRef.current = nextState;
+    dispatchAction(action);
 
     if (options?.syncText !== false && nextState.text !== currentState.text) {
-      pendingEditRef.current = true;
+      pendingEchoesRef.current.push(nextState.text);
       onChange(nextState.text);
     }
   };
