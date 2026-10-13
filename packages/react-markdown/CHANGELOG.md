@@ -1,5 +1,25 @@
 # @assistant-ui/react-markdown
 
+## 0.14.22
+
+### Patch Changes
+
+- [#9381](https://github.com/assistant-ui/assistant-ui/pull/9381) [`deb2e77`](https://github.com/assistant-ui/assistant-ui/commit/deb2e77488b048f26d299ffda2bf7f8d9203bbc8) - fix(react-markdown): keep multiline display math in nested blockquotes and list items, preserve math after an opener-line `>`, and keep prose after a closing `\]` or `[/math]` inside its quoted list item ([@okisdev](https://github.com/okisdev))
+
+- [#9414](https://github.com/assistant-ui/assistant-ui/pull/9414) [`1e804fc`](https://github.com/assistant-ui/assistant-ui/commit/1e804fc98f9895c855de6360bf008681e96a3d0b) - Keep multiline display math inside same-line nested list items. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9391](https://github.com/assistant-ui/assistant-ui/pull/9391) [`99c5bb2`](https://github.com/assistant-ui/assistant-ui/commit/99c5bb23bb0c4c95eaf4fffb40d5ee69aacb46e9) - fix(react-markdown): preserve repeated list and quote prefixes for display math ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9407](https://github.com/assistant-ui/assistant-ui/pull/9407) [`fb2b1dc`](https://github.com/assistant-ui/assistant-ui/commit/fb2b1dc1cf7b1dc64c774e46693eb47ff0390941) - fix(react-markdown): keep a second display opened on a closer's line inside its quoted list item ([@okisdev](https://github.com/okisdev))
+
+- [#9379](https://github.com/assistant-ui/assistant-ui/pull/9379) [`bebcdf8`](https://github.com/assistant-ui/assistant-ui/commit/bebcdf843283beb01c734572113b68b8a3ff82bb) - perf(react-markdown): keep preprocessing linear for lines with many triple-backtick or tilde runs ([@okisdev](https://github.com/okisdev))
+
+- [#9435](https://github.com/assistant-ui/assistant-ui/pull/9435) [`4a9a803`](https://github.com/assistant-ui/assistant-ui/commit/4a9a803d605516e0707a65b3bdfb08b6aac0ad09) - fix(react-markdown): keep multiline display math inside marker-only list items ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9417](https://github.com/assistant-ui/assistant-ui/pull/9417) [`c7dc306`](https://github.com/assistant-ui/assistant-ui/commit/c7dc3063f614b78d05b53588ee958f1343037dcb) - fix(react-markdown): keep a math tag display opened on a bracket closer's line inside its quoted list item ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9402](https://github.com/assistant-ui/assistant-ui/pull/9402) [`714f554`](https://github.com/assistant-ui/assistant-ui/commit/714f554c16e796edf274fd936fe96481c6d4712f) - fix(react-markdown): avoid quadratic scans on long tilde runs and display bodies ([@rupic-app](https://github.com/apps/rupic-app))
+
 ## 0.14.21
 
 ### Patch Changes

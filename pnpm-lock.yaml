@@ -4254,10 +4254,10 @@ importers:
         specifier: ^1.7.0
         version: 1.7.0(zod@4.6.5)
       '@assistant-ui/core':
-        specifier: ^0.3.27
+        specifier: ^0.3.28
         version: link:../core
       assistant-stream:
-        specifier: ^0.3.50
+        specifier: ^0.3.51
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/store':
@@ -4521,7 +4521,7 @@ importers:
   packages/core:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.50
+        specifier: ^0.3.51
         version: link:../assistant-stream
       nanoid:
         specifier: ^6.0.2
@@ -4760,7 +4760,7 @@ importers:
         specifier: ^7.0.15
         version: 7.0.15
       assistant-stream:
-        specifier: ^0.3.50
+        specifier: ^0.3.51
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/react':
@@ -4985,16 +4985,16 @@ importers:
   packages/react-a2a:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.27
+        specifier: ^0.3.28
         version: link:../core
       '@assistant-ui/generative-ui':
-        specifier: ^0.0.3
+        specifier: ^0.0.4
         version: link:../generative-ui
       '@assistant-ui/store':
-        specifier: ^0.3.19
+        specifier: ^0.3.20
         version: link:../store
       assistant-stream:
-        specifier: ^0.3.50
+        specifier: ^0.3.51
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -5031,16 +5031,16 @@ importers:
         specifier: ^0.0.59
         version: 0.0.59
       '@assistant-ui/core':
-        specifier: ^0.3.27
+        specifier: ^0.3.28
         version: link:../core
       '@assistant-ui/generative-ui':
-        specifier: ^0.0.3
+        specifier: ^0.0.4
         version: link:../generative-ui
       '@assistant-ui/store':
-        specifier: ^0.3.19
+        specifier: ^0.3.20
         version: link:../store
       assistant-stream:
-        specifier: ^0.3.50
+        specifier: ^0.3.51
         version: link:../assistant-stream
       fast-json-patch:
         specifier: ^3.1.1
@@ -5123,13 +5123,13 @@ importers:
         specifier: ^4.0.24
         version: 4.0.24
       '@assistant-ui/core':
-        specifier: ^0.3.25
+        specifier: ^0.3.28
         version: link:../core
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.49
+        specifier: ^0.3.51
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -5215,7 +5215,7 @@ importers:
   packages/react-generative-ui:
     dependencies:
       '@assistant-ui/generative-ui':
-        specifier: ^0.0.3
+        specifier: ^0.0.4
         version: link:../generative-ui
     devDependencies:
       '@assistant-ui/react':
@@ -5249,10 +5249,10 @@ importers:
   packages/react-google-adk:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.27
+        specifier: ^0.3.28
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.18
+        specifier: ^0.3.20
         version: link:../store
       '@google/adk':
         specifier: '>=0.5.0'
@@ -5261,7 +5261,7 @@ importers:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.50
+        specifier: ^0.3.51
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -5332,10 +5332,10 @@ importers:
   packages/react-ink:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.25
+        specifier: ^0.3.28
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.18
+        specifier: ^0.3.20
         version: link:../store
       '@assistant-ui/tap':
         specifier: ^0.9.22
@@ -5344,7 +5344,7 @@ importers:
         specifier: workspace:^
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.49
+        specifier: ^0.3.51
         version: link:../assistant-stream
       diff:
         specifier: ^9.0.0
@@ -5390,10 +5390,10 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.27
+        specifier: ^0.3.28
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.19
+        specifier: ^0.3.20
         version: link:../store
       markdansi:
         specifier: ^0.3.4
@@ -5476,19 +5476,19 @@ importers:
   packages/react-langgraph:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.25
+        specifier: ^0.3.28
         version: link:../core
       '@assistant-ui/react-langchain':
         specifier: ^0.0.36
         version: link:../react-langchain
       '@assistant-ui/store':
-        specifier: ^0.3.18
+        specifier: ^0.3.20
         version: link:../store
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.49
+        specifier: ^0.3.51
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -5806,7 +5806,7 @@ importers:
         specifier: workspace:^
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.19
+        specifier: ^0.3.20
         version: link:../store
       '@standard-schema/spec':
         specifier: ^1.1.0
@@ -5815,7 +5815,7 @@ importers:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.50
+        specifier: ^0.3.51
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/react':
@@ -6043,10 +6043,10 @@ importers:
   packages/svelte:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.27
+        specifier: ^0.3.28
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.19
+        specifier: ^0.3.20
         version: link:../store
       '@assistant-ui/tap':
         specifier: ^0.9.23
@@ -6379,7 +6379,7 @@ importers:
   packages/vscode:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.27
+        specifier: ^0.3.28
         version: link:../core
     devDependencies:
       '@assistant-ui/store':

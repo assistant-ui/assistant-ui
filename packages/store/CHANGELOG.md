@@ -1,5 +1,11 @@
 # @assistant-ui/store
 
+## 0.3.20
+
+### Patch Changes
+
+- [#9338](https://github.com/assistant-ui/assistant-ui/pull/9338) [`a12da09`](https://github.com/assistant-ui/assistant-ui/commit/a12da099497ce433823b7f7d7e4824ed720ee302) - fix: run layout effects through `useIsomorphicLayoutEffect` so React 18 server renders stop warning, while Ink keeps its layout phase ([@okisdev](https://github.com/okisdev))
+
 ## 0.3.19
 
 ### Patch Changes
