@@ -111,6 +111,29 @@ export function resolveSpecBase(
   return spec;
 }
 
+/** Whether a later `render_spec` call in the same message has this call's title. That call shows the spec this one's patches lead to, so this one shows nothing rather than a second copy. */
+export function supersededInMessage(
+  messages: readonly MessageLike[],
+  toolCallId: string,
+  title: string,
+): boolean {
+  if (!title) return false;
+  for (const message of messages) {
+    let seen = false;
+    for (const call of toolCalls([message])) {
+      if (call.id === toolCallId) seen = true;
+      else if (
+        seen &&
+        call.name === "render_spec" &&
+        call.args["title"] === title
+      )
+        return true;
+    }
+    if (seen) return false;
+  }
+  return false;
+}
+
 function priorSpecCalls(
   messages: readonly MessageLike[],
   toolCallId: string,

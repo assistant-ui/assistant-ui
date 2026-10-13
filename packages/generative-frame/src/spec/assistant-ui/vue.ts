@@ -41,6 +41,7 @@ import {
   resolveToolResults,
   savedWrites,
   specModules,
+  supersededInMessage,
   type InteractionLog,
   type SpecArgs,
   writeClipboard,
@@ -105,6 +106,9 @@ export function createSpecToolkit(
           | InteractionLog
           | undefined;
 
+        const superseded = computed(() =>
+          supersededInMessage(messages.value, toolCallId, title.value),
+        );
         // Earlier calls do not change, so the thread is read once per call; the base follows the title, which may still be streaming when the call mounts.
         const earlier = messages.value;
         const base = computed(() =>
@@ -221,20 +225,22 @@ export function createSpecToolkit(
         });
 
         return () =>
-          h("div", { "data-gf-spec": title.value || undefined }, [
-            h(SpecRenderer, {
-              spec: renderSpec.value,
-              state: store,
-              catalog,
-              components: options.components,
-              streaming: streaming.value,
-              handlers,
-              ...(options.onAction ? { onAction: options.onAction } : {}),
-              ...(options.placeholder
-                ? { placeholder: options.placeholder }
-                : {}),
-            }),
-          ]);
+          superseded.value
+            ? null
+            : h("div", { "data-gf-spec": title.value || undefined }, [
+                h(SpecRenderer, {
+                  spec: renderSpec.value,
+                  state: store,
+                  catalog,
+                  components: options.components,
+                  streaming: streaming.value,
+                  handlers,
+                  ...(options.onAction ? { onAction: options.onAction } : {}),
+                  ...(options.placeholder
+                    ? { placeholder: options.placeholder }
+                    : {}),
+                }),
+              ]);
       },
     });
 

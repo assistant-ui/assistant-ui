@@ -41,6 +41,7 @@ import {
   resolveToolResults,
   savedWrites,
   specModules,
+  supersededInMessage,
   type InteractionLog,
   type SpecArgs,
 } from "./thread";
@@ -116,6 +117,10 @@ export const specToolkitFor =
         const title = typeof args.title === "string" ? args.title : "";
         // Earlier calls do not change, so the thread is read once per call; the base follows the title, which may still be streaming when the call mounts.
         const [earlier] = useState(messages);
+        const superseded = useMemo(
+          () => supersededInMessage(messages, toolCallId, title),
+          [messages, toolCallId, title],
+        );
         const base = useMemo(
           () => resolveSpecBase(earlier, toolCallId, title),
           [earlier, toolCallId, title],
@@ -241,6 +246,7 @@ export const specToolkitFor =
           };
         }, [store, saver]);
 
+        if (superseded) return null;
         return (
           <Frame title={title}>
             <SpecRenderer

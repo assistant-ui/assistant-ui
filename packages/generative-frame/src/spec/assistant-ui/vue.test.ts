@@ -246,6 +246,49 @@ describe("createSpecToolkit for Vue", () => {
     expect(container.textContent).toBe("b");
   });
 
+  const labelA = {
+    title: "s",
+    patches:
+      '{"op":"add","path":"/root","value":"t"}\n{"op":"add","path":"/elements/t","value":{"type":"Label","props":{"text":"a"}}}',
+  };
+  const labelB = {
+    title: "s",
+    patches:
+      '{"op":"test","path":"/elements/t/props/text","value":"a"}\n{"op":"replace","path":"/elements/t/props/text","value":"b"}',
+  };
+  const specCall = (id: string, args: object) => ({
+    type: "tool-call",
+    toolCallId: id,
+    toolName: "render_spec",
+    args,
+    argsText: JSON.stringify(args),
+  });
+
+  it("shows a spec once when a later call in its message patches the same title", async () => {
+    mocks.messages = [
+      { content: [specCall("e", labelA), specCall("f", labelB)] },
+    ];
+    const RenderSpec = setup("frontend").render;
+    const earlier = mount(RenderSpec, toolProp({ id: "e", args: labelA }));
+    const later = mount(RenderSpec, toolProp({ id: "f", args: labelB }));
+    await nextTick();
+    expect(earlier.container.textContent).toBe("");
+    expect(later.container.textContent).toBe("b");
+  });
+
+  it("keeps an earlier message's spec when a later message patches the same title", async () => {
+    mocks.messages = [
+      { content: [specCall("e", labelA)] },
+      { content: [specCall("f", labelB)] },
+    ];
+    const { container } = mount(
+      setup("frontend").render,
+      toolProp({ id: "e", args: labelA }),
+    );
+    await nextTick();
+    expect(container.textContent).toBe("a");
+  });
+
   it("rebuilds on the same-title base when patches stream before the title", async () => {
     const first = {
       title: "s",

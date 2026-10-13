@@ -1009,6 +1009,32 @@ describe("render_spec validation", () => {
     expect(view.container.textContent).toBe("b");
   });
 
+  it("shows a spec once when a later call in its message patches the same title", () => {
+    mocks.messages = [
+      {
+        content: [
+          call("e", "render_spec", first),
+          call("f", "render_spec", fromA),
+        ],
+      },
+    ];
+    const RenderSpec = setup().render;
+    const earlier = render(<RenderSpec {...partProps("e", first)} />);
+    const later = render(<RenderSpec {...partProps("f", fromA)} />);
+    expect(earlier.container.textContent).toBe("");
+    expect(later.container.textContent).toBe("b");
+  });
+
+  it("keeps an earlier message's spec when a later message patches the same title", () => {
+    mocks.messages = [
+      { content: [call("e", "render_spec", first)] },
+      { content: [call("f", "render_spec", fromA)] },
+    ];
+    const RenderSpec = setup().render;
+    const view = render(<RenderSpec {...partProps("e", first)} />);
+    expect(view.container.textContent).toBe("a");
+  });
+
   it("resolves the base from the title the call executes with", async () => {
     mocks.messages = [
       {
