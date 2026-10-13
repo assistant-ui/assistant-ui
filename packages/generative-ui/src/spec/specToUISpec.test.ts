@@ -200,6 +200,40 @@ describe("specToUISpec", () => {
     });
   });
 
+  it("reads a bound control the state does not hold yet", () => {
+    const tree = specToUISpec({
+      root: "card",
+      elements: {
+        card: {
+          type: "Card",
+          props: { title: "Sign up" },
+          children: ["email", "go"],
+        },
+        email: {
+          type: "Input",
+          props: { name: "email", defaultValue: { $bindState: "/form/email" } },
+        },
+        go: {
+          type: "Button",
+          props: { label: "Go" },
+          on: {
+            press: { action: "signUp", params: { form: { $state: "/form" } } },
+          },
+        },
+      },
+      state: {},
+    });
+    expect(tree).toMatchObject({
+      children: [
+        { $type: "Input", name: "email" },
+        {
+          $type: "Button",
+          $action: { type: "signUp", form: { email: { $field: "email" } } },
+        },
+      ],
+    });
+  });
+
   it("names a control repeated per item by its state path and keys repeated nodes", () => {
     const tree = specToUISpec({
       root: "list",

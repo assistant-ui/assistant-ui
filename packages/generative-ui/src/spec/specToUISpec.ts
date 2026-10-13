@@ -23,6 +23,9 @@ const statePath = (path: string) =>
 const escapeToken = (key: string) =>
   key.replaceAll("~", "~0").replaceAll("/", "~1");
 
+const unescapeToken = (token: string) =>
+  token.replaceAll("~1", "/").replaceAll("~0", "~");
+
 function readState(state: unknown, path: string): unknown {
   let value = state;
   for (const token of decodeAbsolutePointer(path) ?? []) {
@@ -74,22 +77,26 @@ function liveRead(
 ): unknown {
   const name = fields.get(path);
   if (name !== undefined) return { $field: name, fallback: { $state: path } };
-  const below = [...fields.keys()].some(
-    (bound) => path === "" || bound.startsWith(`${path}/`),
+  const below = [...fields.keys()].filter((bound) =>
+    bound.startsWith(`${path}/`),
   );
-  const value = below ? readState(state, path) : undefined;
+  if (below.length === 0) return { $state: path };
+  const value = readState(state, path);
   if (Array.isArray(value)) {
     return value.map((_, index) => liveRead(`${path}/${index}`, fields, state));
   }
-  if (isRecord(value)) {
-    return Object.fromEntries(
-      Object.keys(value).map((key) => [
-        key,
-        liveRead(`${path}/${escapeToken(key)}`, fields, state),
-      ]),
-    );
+  // A control can bind a path the state does not hold yet, such as an empty form field.
+  const keys = new Set(isRecord(value) ? Object.keys(value) : []);
+  for (const bound of below) {
+    keys.add(unescapeToken(bound.slice(path.length + 1).split("/")[0]!));
   }
-  return { $state: path };
+  if (!isRecord(value) && value !== undefined) return { $state: path };
+  return Object.fromEntries(
+    [...keys].map((key) => [
+      key,
+      liveRead(`${path}/${escapeToken(key)}`, fields, state),
+    ]),
+  );
 }
 
 function fieldParams(
