@@ -1463,6 +1463,62 @@ describe("sharing with the model", () => {
     expect(shared()).toBe("");
   });
 
+  it.each([
+    ["succeeds", { writeText: async () => {} }, "Copied"],
+    [
+      "is rejected",
+      {
+        writeText: async () => {
+          throw new Error("denied");
+        },
+      },
+      "Copy list",
+    ],
+    ["has no clipboard API", undefined, "Copy list"],
+  ])(
+    "confirms a copy only when the write %s",
+    async (_case, clipboard, label) => {
+      if (clipboard) {
+        Object.defineProperty(navigator, "clipboard", {
+          value: clipboard,
+          configurable: true,
+        });
+      }
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const RenderSpec = entries(specToolkit())["render_spec"]!.render;
+      render(
+        <RenderSpec
+          {...partProps("s", {
+            title: "list",
+            patches: button({
+              props: {
+                label: {
+                  $cond: { $state: "/copied" },
+                  $then: "Copied",
+                  $else: "Copy list",
+                },
+              },
+              on: {
+                press: [
+                  { action: "copyText", params: { text: "2 lb lamb" } },
+                  {
+                    action: "setState",
+                    params: { path: "/copied", value: true },
+                  },
+                ],
+              },
+            }),
+          })}
+        />,
+      );
+      await act(async () => {
+        fireEvent.click(screen.getByText("Copy list"));
+      });
+      expect(screen.getByRole("button").textContent).toBe(label);
+      warn.mockRestore();
+    },
+  );
+
   it("copies text from a user's event, never from a watch binding", async () => {
     const writeText = vi.fn(async (_text: string) => {});
     Object.defineProperty(navigator, "clipboard", {
