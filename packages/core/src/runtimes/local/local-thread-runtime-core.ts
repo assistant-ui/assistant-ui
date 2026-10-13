@@ -412,6 +412,11 @@ export class LocalThreadRuntimeCore
   public readonly isDisabled = false;
   public readonly isSendDisabled = false;
 
+  // Idle defers to the trailing message, which carries a voice reply in progress.
+  public get isRunning(): boolean | undefined {
+    return this._activeRun !== null ? true : undefined;
+  }
+
   private _isLoading = false;
   public get isLoading() {
     return this._isLoading;
@@ -1239,6 +1244,7 @@ export class LocalThreadRuntimeCore
         scopeGeneration === this._loadGeneration && this._activeRun === run;
       if (active) this._activeRun = null;
       if (scopeGeneration === this._loadGeneration) this._syncQueue();
+      if (active) this._notifySubscribers();
     }
 
     if (

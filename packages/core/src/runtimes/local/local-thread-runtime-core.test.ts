@@ -19,6 +19,7 @@ import {
 import type { ThreadMessageLike } from "../../runtime/utils/thread-message-like";
 import type { ThreadSuggestion } from "../../runtime/interfaces/thread-runtime-core";
 import { isMessageNotSentError } from "../../types/error";
+import { getThreadRuntimeCoreIsRunning } from "../../runtime/api/thread-runtime";
 import {
   createVoiceSession,
   type RealtimeVoiceAdapter,
@@ -6576,6 +6577,39 @@ describe("LocalThreadRuntimeCore tool approval persistence", () => {
 });
 
 describe("LocalThreadRuntimeCore runs", () => {
+  const createStreamingRegenerate = async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    const signals: AbortSignal[] = [];
+    let calls = 0;
+    const thread = createThread({
+      async *run({ abortSignal }) {
+        signals.push(abortSignal);
+        if (++calls === 1) {
+          yield { content: [{ type: "text" as const, text: "first" }] };
+          return;
+        }
+        yield { content: [{ type: "text" as const, text: "partial" }] };
+        await gate;
+        if (abortSignal.aborted) return;
+        yield { content: [{ type: "text" as const, text: "finished" }] };
+      },
+    });
+    await thread.append(userMessage("question"));
+    const [question, firstAnswer] = thread.messages.map(
+      (message) => message.id,
+    );
+    const regenerate = thread.startRun({
+      parentId: question!,
+      sourceId: firstAnswer!,
+      runConfig: {},
+    });
+    await flush();
+    const hiddenAnswer = thread.messages.at(-1)!.id;
+    thread.switchToBranch(firstAnswer!);
+    return { thread, signals, regenerate, release, hiddenAnswer, firstAnswer };
+  };
+
   const createPlainThread = (
     adapter: ChatModelAdapter,
     options?: { maxSteps?: number },
@@ -6668,6 +6702,77 @@ describe("LocalThreadRuntimeCore runs", () => {
 
     expect(calls).toBe(3);
     expect(thread.messages.at(-1)?.id).toBe(firstAnswer);
+  });
+
+  it("still reports the thread running after switching away from a streaming regenerate", async () => {
+    const { thread, signals, regenerate, release, hiddenAnswer, firstAnswer } =
+      await createStreamingRegenerate();
+    const runningUpdates: boolean[] = [];
+    const unsubscribe = thread.subscribe(() =>
+      runningUpdates.push(getThreadRuntimeCoreIsRunning(thread)),
+    );
+    try {
+      expect(signals[1]?.aborted).toBe(false);
+      expect(thread.messages.at(-1)?.id).toBe(firstAnswer);
+      expect(
+        thread
+          .export()
+          .messages.find((item) => item.message.id === hiddenAnswer)?.message
+          .status?.type,
+      ).toBe("running");
+      expect(getThreadRuntimeCoreIsRunning(thread)).toBe(true);
+      expect(thread.composer.canCancel).toBe(true);
+    } finally {
+      release();
+      await regenerate;
+      unsubscribe();
+    }
+    expect(getThreadRuntimeCoreIsRunning(thread)).toBe(false);
+    expect(runningUpdates.at(-1)).toBe(false);
+  });
+
+  it("keeps Stop available for a run hidden by a branch switch", async () => {
+    const { thread, signals, regenerate, release, hiddenAnswer } =
+      await createStreamingRegenerate();
+    try {
+      expect(thread.composer.canCancel).toBe(true);
+      thread.composer.cancel();
+      expect(signals[1]?.aborted).toBe(true);
+    } finally {
+      release();
+      await regenerate;
+    }
+    expect(
+      thread.export().messages.find((item) => item.message.id === hiddenAnswer)
+        ?.message.status,
+    ).toEqual({ type: "incomplete", reason: "cancelled" });
+  });
+
+  it("reports a voice reply in progress as running while no run is active", async () => {
+    let emitTranscript!: VoiceSessionHelpers["emitTranscript"];
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [] };
+        },
+      },
+      {
+        voice: {
+          connect: (options) =>
+            createVoiceSession(options, async (helpers) => {
+              emitTranscript = helpers.emitTranscript;
+              return { disconnect: vi.fn(), mute: vi.fn(), unmute: vi.fn() };
+            }),
+        },
+      },
+    );
+
+    thread.connectVoice();
+    await flush();
+    emitTranscript({ role: "assistant", text: "Hi", isFinal: false });
+    await flush();
+
+    expect(getThreadRuntimeCoreIsRunning(thread)).toBe(true);
   });
 
   it("marks the message errored when the adapter rejects", async () => {
