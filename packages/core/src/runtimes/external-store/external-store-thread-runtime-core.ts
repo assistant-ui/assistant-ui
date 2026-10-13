@@ -452,6 +452,7 @@ export class ExternalStoreThreadRuntimeCore
   private _updateStoreSnapshot(
     store: ExternalStoreAdapter<any>,
     fromHostSnapshot = true,
+    force = false,
   ) {
     const previousIsRunning = this._effectiveIsRunning;
     this.isDisabled = store.isDisabled ?? false;
@@ -527,6 +528,7 @@ export class ExternalStoreThreadRuntimeCore
     if (store.messageRepository) {
       // Handle messageRepository
       if (
+        !force &&
         oldStore &&
         !repositoryChanged &&
         oldStore.isRunning === store.isRunning &&
@@ -544,6 +546,7 @@ export class ExternalStoreThreadRuntimeCore
 
       if (
         oldStore &&
+        !force &&
         !repositoryChanged &&
         oldStore.messageRepository === store.messageRepository
       ) {
@@ -577,6 +580,7 @@ export class ExternalStoreThreadRuntimeCore
         if (oldStore.convertMessage !== store.convertMessage) {
           this._converter = new ThreadMessageConverter();
         } else if (
+          !force &&
           !repositoryChanged &&
           oldStore.isRunning === store.isRunning &&
           oldStore.messages === store.messages &&
@@ -1239,6 +1243,19 @@ export class ExternalStoreThreadRuntimeCore
       throw new Error("Cannot start a run while a voice session is connected");
     if (this._isVoiceMessage(config.sourceId))
       throw new Error("Voice transcript messages cannot be reloaded");
+
+    const movedLeaf = this._movedLeaf;
+    if (
+      movedLeaf?.id === config.parentId &&
+      movedLeaf.resyncLease.isCurrent() &&
+      !movedLeaf.generation.aborted &&
+      this._storeMessages.some((message) => message.id === movedLeaf.id)
+    ) {
+      this._cancelRunResyncLeases.invalidate();
+      this._movedLeaf = undefined;
+      this.composer.retractDraft(movedLeaf.draft);
+      this._updateStoreSnapshot(this._store, false, true);
+    }
 
     this._runStartLeases.begin();
     if (this._cancelledToolTurn?.parentId === config.parentId)
