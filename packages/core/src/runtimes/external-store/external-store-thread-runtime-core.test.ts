@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { ModelContextProvider } from "../../model-context/types";
 import { createMessageQueue } from "../../runtime/queue/message-queue";
 import type { Unstable_RecordToolInteractionOptions } from "../../runtime/interfaces/thread-runtime-core";
-import { ExportedMessageRepository } from "../../runtime/utils/message-repository";
+import {
+  ExportedMessageRepository,
+  MessageRepository,
+} from "../../runtime/utils/message-repository";
 import {
   fromThreadMessageLike,
   type ThreadMessageLike,
@@ -605,5 +608,115 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
 
     expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1", "a2"]);
     expect(runtime.getBranches("a2")).toEqual(["a2"]);
+  });
+
+  it("evicts an id-less message deleted from the old branch", async () => {
+    type Raw = { role: "user" | "assistant"; text: string };
+    let current: Raw[] = [
+      { role: "user", text: "u1" },
+      { role: "assistant", text: "a1" },
+      { role: "user", text: "u2" },
+      { role: "assistant", text: "a2" },
+    ];
+    let isRunning = false;
+    let confirm!: () => void;
+    const onDelete = vi.fn(
+      (id: string) =>
+        new Promise<void>((resolve) => {
+          confirm = () => {
+            current = current.filter(
+              (_, index) => index !== Number(id.split("_").at(-1)),
+            );
+            resolve();
+          };
+        }),
+    );
+    const convertMessage = (raw: Raw): ThreadMessageLike => ({
+      role: raw.role,
+      content: raw.text,
+    });
+    const store = () =>
+      ({
+        messages: current,
+        isRunning,
+        convertMessage,
+        onNew: async () => {},
+        onDelete,
+        onReload: async (parentId: string | null) => {
+          isRunning = true;
+          current = current.slice(0, Number(parentId?.split("_").at(-1)) + 1);
+        },
+        setMessages: vi.fn(),
+      }) as ExternalStoreAdapter<Raw>;
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      modelContextProvider,
+      store(),
+    );
+    const ids = runtime.messages.map((m) => m.id);
+
+    const deletion = runtime.deleteMessage(ids[2]!);
+    await runtime.startRun({
+      parentId: ids[0]!,
+      sourceId: ids[1]!,
+      runConfig: {},
+    });
+    runtime.__internal_setAdapter(store());
+    confirm();
+    await deletion;
+
+    expect(runtime.getMessageById(ids[2]!)).toBeUndefined();
+    expect(runtime.getMessageById(ids[3]!)?.parentId).toBe(ids[1]);
+  });
+
+  it("does not settle a replacement repository's same-id delete from an older callback", async () => {
+    const repositories = [new MessageRepository(), new MessageRepository()];
+    const messages = [
+      message("u1", "user"),
+      message("a1", "assistant"),
+      message("u2", "user"),
+    ];
+    let resolveOld!: () => void;
+    let rejectNew!: (error: Error) => void;
+    let isRunning = false;
+    const oldDelete = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveOld = resolve;
+        }),
+    );
+    const newDelete = vi.fn(
+      () =>
+        new Promise<void>((_, reject) => {
+          rejectNew = reject;
+        }),
+    );
+    const store = (index: number) =>
+      ({
+        messages,
+        isRunning,
+        unstable_messageRepositoryInstance: repositories[index],
+        onNew: async () => {},
+        onDelete: index === 0 ? oldDelete : newDelete,
+        onReload: async () => {
+          isRunning = true;
+        },
+        setMessages: vi.fn(),
+      }) as ExternalStoreAdapter;
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      modelContextProvider,
+      store(0),
+    );
+    const oldDeletion = runtime.deleteMessage("u2");
+    runtime.__internal_setAdapter(store(1));
+    const newDeletion = runtime.deleteMessage("u2");
+    await runtime.startRun({ parentId: "u1", sourceId: "a1", runConfig: {} });
+    runtime.__internal_setAdapter({ ...store(1), messages: [messages[0]!] });
+    resolveOld();
+    await oldDeletion;
+
+    expect(runtime.getMessageById("u2")?.message.id).toBe("u2");
+    rejectNew(new Error("declined"));
+    await expect(newDeletion).rejects.toThrow("declined");
+    expect(runtime.getMessageById("u2")?.message.id).toBe("u2");
   });
 });

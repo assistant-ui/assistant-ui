@@ -230,7 +230,12 @@ export class ExternalStoreThreadRuntimeCore
   // eviction.
   private _pendingDeleteEvictions = new Map<
     string,
-    { calls: Set<symbol>; reloaded: boolean }
+    {
+      calls: Set<symbol>;
+      reloaded: boolean;
+      repository: MessageRepository;
+      message: ThreadMessage;
+    }
   >();
 
   // Placeholder id for the upcoming assistant message, reused across snapshot
@@ -1008,14 +1013,17 @@ export class ExternalStoreThreadRuntimeCore
       // host's own array no longer carries the id. Registered before the
       // callback because an optimistic host publishes that snapshot while
       // the callback is still awaited.
-      const wasVisible = this.repository
+      const visibleMessage = this.repository
         .getMessages()
-        .some((m) => m.id === messageId);
+        .find((m) => m.id === messageId);
       const call = Symbol();
-      if (wasVisible) {
-        const pending = this._pendingDeleteEvictions.get(messageId) ?? {
+      let pending = this._pendingDeleteEvictions.get(messageId);
+      if (visibleMessage) {
+        pending ??= {
           calls: new Set<symbol>(),
           reloaded: false,
+          repository: this.repository,
+          message: visibleMessage,
         };
         pending.calls.add(call);
         this._pendingDeleteEvictions.set(messageId, pending);
@@ -1025,16 +1033,21 @@ export class ExternalStoreThreadRuntimeCore
         await this._store.onDelete(messageId);
         resolved = true;
       } finally {
-        const pending = this._pendingDeleteEvictions.get(messageId);
-        pending?.calls.delete(call);
-        if (pending?.reloaded && resolved) {
-          pending.reloaded = false;
-          if (!this._storeMessages.some((m) => m.id === messageId)) {
+        if (
+          pending &&
+          this.repository === pending.repository &&
+          this._pendingDeleteEvictions.get(messageId) === pending &&
+          pending.calls.delete(call)
+        ) {
+          if (pending.reloaded && resolved) {
+            pending.reloaded = false;
+            if (!this._storeMessages.some((m) => m.id === messageId)) {
+              this._pendingDeleteEvictions.delete(messageId);
+              this._evictDeletedMessage(messageId, pending.message);
+            }
+          } else if (pending.reloaded && pending.calls.size === 0) {
             this._pendingDeleteEvictions.delete(messageId);
-            this._evictDeletedMessage(messageId);
           }
-        } else if (pending?.reloaded && pending.calls.size === 0) {
-          this._pendingDeleteEvictions.delete(messageId);
         }
       }
       return;
@@ -1061,15 +1074,22 @@ export class ExternalStoreThreadRuntimeCore
   // branch picker can resurrect into the host store. `_messages` is refreshed
   // before notifying so `messages` and the branch graph agree at notify time,
   // mirroring the end of the snapshot pass.
-  private _evictDeletedMessage(messageId: string) {
-    // Positional fallback ids are remapped in the snapshot pass; evicting
-    // them first leaves the pre-renumber node as a sibling of the new head.
-    if (messageId.startsWith(FALLBACK_ID_PREFIX)) return;
+  private _evictDeletedMessage(
+    messageId: string,
+    expectedMessage?: ThreadMessage,
+  ) {
+    // Positional fallback ids can be reused by another message after a snapshot.
+    if (messageId.startsWith(FALLBACK_ID_PREFIX) && !expectedMessage) return;
     // A synchronous host update (e.g. a setMessages that re-entered the
     // snapshot pass) may have evicted the message already; only that case is
     // skipped, so genuine repository errors still propagate.
     try {
-      this.repository.getMessage(messageId);
+      const current = this.repository.getMessage(messageId).message;
+      if (
+        messageId.startsWith(FALLBACK_ID_PREFIX) &&
+        current !== expectedMessage
+      )
+        return;
     } catch {
       return;
     }
