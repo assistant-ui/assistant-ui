@@ -169,6 +169,19 @@ describe("evaluateFormula", () => {
     expect(evaluateFormula("${/list/0}", { state: { list } })).toBeNull();
   });
 
+  it("compares only own array slots, like a pointer read", () => {
+    const sparse: number[] = [];
+    sparse[0] = 1;
+    sparse[2] = 3;
+    Object.setPrototypeOf(
+      sparse,
+      Object.assign(Object.create(Array.prototype), { 1: 2 }),
+    );
+    expect(
+      evaluateFormula("${/a} == ${/b}", { state: { a: sparse, b: [1, 2, 3] } }),
+    ).toBe(false);
+  });
+
   it.each([
     "1 / 0",
     "0 / 0",

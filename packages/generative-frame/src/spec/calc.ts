@@ -53,7 +53,9 @@ const eachChild = (
 ) => {
   if (Array.isArray(value)) {
     for (let index = 0; index < value.length; index++) {
-      if (!visit(value[index], String(index))) return false;
+      if (Object.hasOwn(value, index) && !visit(value[index], String(index))) {
+        return false;
+      }
     }
     return true;
   }
