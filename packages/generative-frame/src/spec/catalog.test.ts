@@ -433,6 +433,33 @@ describe("state store and actions", () => {
     expect(store.get("/guests")).toBe(20);
   });
 
+  it("stops a list at the first action that fails", async () => {
+    const store = createStateStore();
+    const onError = vi.fn();
+    const dispatch = createActionDispatcher({
+      store,
+      catalog,
+      handlers: {
+        refresh: async () => {
+          throw new Error("offline");
+        },
+      },
+      onError,
+    });
+    const results = await dispatch(
+      [
+        { action: "refresh" },
+        { action: "setState", params: { path: "/done", value: true } },
+      ],
+      {},
+    );
+    expect(store.get("/done")).toBeUndefined();
+    expect(results).toEqual([undefined]);
+    expect(
+      onError.mock.calls.map(([error]) => (error as Error).message),
+    ).toEqual(["offline"]);
+  });
+
   it("routes unhandled catalog actions to onAction and reports unknown ones", async () => {
     const store = createStateStore();
     const onAction = vi.fn();
