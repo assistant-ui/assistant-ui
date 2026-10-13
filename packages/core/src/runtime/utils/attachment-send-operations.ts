@@ -5,58 +5,111 @@ import {
   type CompleteAttachment,
 } from "../../types/attachment";
 
+type CleanupRecord = {
+  phase: "pending" | "failed" | "complete";
+  dispatched: boolean;
+  retried: boolean;
+  abandoned: boolean;
+  retry?: () => void;
+};
+
 export class AttachmentSendOperations {
   // Draft attachments stay pending so discarding an unsent upload still calls remove.
   private readonly entries = new WeakMap<
     Attachment,
     { result?: CompleteAttachment }
   >();
-  // Removal marks are per-object and never bulk-cleared: a removed attachment
-  // either leaves the draft or is replaced via transfer with a fresh unmarked
-  // object, so a mark cannot leak into a later send's batch.
-  private readonly removed = new WeakSet<Attachment>();
-  // An attachment whose removal failed while its message was being prepared
-  // is held out of that message only; the draft it returns to gets it back.
-  // Removing it again makes that removal the pending one, so it is no longer
-  // held out.
-  private readonly heldOut = new WeakSet<Attachment>();
-  // A removal still pending when its message is dispatched has no submission
-  // left to report a failure to, so the composer retries it.
-  private readonly orphaned = new WeakSet<Attachment>();
+  private readonly removals = new WeakMap<Attachment, CleanupRecord>();
 
-  markRemoved(attachment: Attachment) {
-    this.removed.add(attachment);
-    this.heldOut.delete(attachment);
+  beginRemoval(attachment: Attachment) {
+    const record = this.removals.get(attachment);
+    if (record?.phase === "pending") return false;
+    if (record) record.phase = "pending";
+    else
+      this.removals.set(attachment, {
+        phase: "pending",
+        dispatched: false,
+        retried: false,
+        abandoned: false,
+      });
+    return true;
   }
 
-  unmarkRemoved(attachment: Attachment) {
-    this.removed.delete(attachment);
+  abandonRemoval(attachment: Attachment) {
+    const record = this.removals.get(attachment);
+    if (record) record.abandoned = true;
+    this.removals.delete(attachment);
   }
 
   isRemoved(attachment: Attachment) {
-    return this.removed.has(attachment);
-  }
-
-  holdOut(attachment: Attachment) {
-    this.removed.add(attachment);
-    this.heldOut.add(attachment);
+    return this.removals.has(attachment);
   }
 
   isRemovalPending(attachment: Attachment) {
-    return this.removed.has(attachment) && !this.heldOut.has(attachment);
+    return this.removals.get(attachment)?.phase === "pending";
   }
 
-  markOrphaned(attachment: Attachment) {
-    this.orphaned.add(attachment);
+  async remove(
+    attachment: Attachment,
+    adapter: AttachmentAdapter | undefined,
+    onFailure?: (error: unknown, message: string) => void,
+  ) {
+    const record = this.removals.get(attachment)!;
+    try {
+      if (!isAttachmentComplete(attachment)) await adapter?.remove(attachment);
+      record.phase = "complete";
+    } catch (error) {
+      record.phase = "failed";
+      onFailure?.(
+        error,
+        error instanceof Error ? error.message : String(error),
+      );
+      this.retryDispatched(record);
+      throw error;
+    }
   }
 
-  isOrphaned(attachment: Attachment) {
-    return this.orphaned.has(attachment);
+  dispatchRemoval(attachment: Attachment, retry: () => void) {
+    const record = this.removals.get(attachment);
+    if (!record) return;
+    record.dispatched = true;
+    record.retry = retry;
+    this.retryDispatched(record);
+  }
+
+  private retryDispatched(record: CleanupRecord) {
+    if (
+      record.abandoned ||
+      !record.dispatched ||
+      record.phase !== "failed" ||
+      record.retried ||
+      !record.retry
+    )
+      return;
+    record.retried = true;
+    record.retry();
   }
 
   restore(attachment: Attachment) {
-    if (!this.heldOut.has(attachment)) return attachment;
-    return this.transfer(attachment, { ...attachment });
+    const record = this.removals.get(attachment);
+    if (!record || record.dispatched || record.phase !== "failed")
+      return attachment;
+    const restored = { ...attachment };
+    const entry = this.entries.get(attachment);
+    if (entry) this.entries.set(restored, entry);
+    return restored;
+  }
+
+  adoptFrom(source: AttachmentSendOperations, attachment: Attachment) {
+    const record = source.removals.get(attachment);
+    if (record) this.removals.set(attachment, record);
+    const entry = source.entries.get(attachment);
+    if (entry) this.entries.set(attachment, entry);
+  }
+
+  isSameRemoval(first: Attachment, second: Attachment) {
+    const record = this.removals.get(first);
+    return record !== undefined && record === this.removals.get(second);
   }
 
   async send(
@@ -77,9 +130,11 @@ export class AttachmentSendOperations {
     return result;
   }
 
-  transfer(original: Attachment, replacement: Attachment) {
+  transfer<T extends Attachment>(original: Attachment, replacement: T): T {
     const entry = this.entries.get(original);
     if (entry) this.entries.set(replacement, entry);
+    const record = this.removals.get(original);
+    if (record) this.removals.set(replacement, record);
     return replacement;
   }
 }
