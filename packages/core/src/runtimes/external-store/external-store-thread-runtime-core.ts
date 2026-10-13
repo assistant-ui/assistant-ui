@@ -217,12 +217,14 @@ export class ExternalStoreThreadRuntimeCore
   // repository once the host's array no longer carries them; an id the host
   // still carries after every onDelete call for it settled, resolved or
   // rejected, is dropped from the map without eviction.
-  // Branch-changing mutations (edit, branch switch) invalidate the map,
-  // because after them the incoming array omits off-branch ids for reasons
-  // unrelated to deletion. A reload keeps only the prefix up to the parent it
-  // regenerates from in the host's array: an id absent from that prefix is
-  // still a deletion, but an id after the parent is absent whether or not its
-  // delete was declined. The snapshot pass leaves such an id alone while an
+  // Branch-changing mutations (edit, branch switch) mark the records with a
+  // pending call as reloaded, because after them the incoming array omits
+  // off-branch ids for reasons unrelated to deletion; such a record settles
+  // from its onDelete outcome instead. A reload keeps only the prefix up to the
+  // parent it regenerates from in the host's array: an id absent from that
+  // prefix is still a deletion, but an id after the parent is absent whether or
+  // not its delete was declined, including a delete registered before the
+  // truncated array arrives. The snapshot pass leaves such an id alone while an
   // onDelete call for it is pending; a rejection drops it, and a resolution
   // applies the usual rule to the host's current array. Plain tail sends do
   // not clear: a tail append cannot make a visible id absent, so id-absence
@@ -236,6 +238,7 @@ export class ExternalStoreThreadRuntimeCore
       message: ThreadMessage;
     }
   >();
+  private _pendingReloadDeletePrefix: readonly string[] | null = null;
 
   // Placeholder id for the upcoming assistant message, reused across snapshot
   // passes while the same tail message awaits its response so the placeholder
@@ -468,6 +471,7 @@ export class ExternalStoreThreadRuntimeCore
       this.repository = repositoryInstance;
       this._cancelledToolTurn = null;
       this._pendingDeleteEvictions.clear();
+      this._pendingReloadDeletePrefix = null;
       this._submittedFeedback.clear();
       this._movedLeaf = undefined;
       // Keep the live placeholder so resetHead cannot evict an id still used
@@ -640,6 +644,16 @@ export class ExternalStoreThreadRuntimeCore
       if (deduped.length !== messages.length) messages = deduped.reverse();
 
       messages = this._applySubmittedFeedback(messages);
+
+      const prefix = this._pendingReloadDeletePrefix;
+      if (
+        prefix &&
+        oldStore?.messages !== store.messages &&
+        messages.length === prefix.length &&
+        messages.every((message, index) => message.id === prefix[index])
+      ) {
+        this._pendingReloadDeletePrefix = null;
+      }
 
       for (let i = 0; i < messages.length; i++) {
         const message = messages[i]!;
@@ -957,7 +971,10 @@ export class ExternalStoreThreadRuntimeCore
       : null;
 
     this.repository.switchToBranch(branchId);
-    this._pendingDeleteEvictions.clear();
+    for (const [id, pending] of this._pendingDeleteEvictions) {
+      if (pending.calls.size > 0) pending.reloaded = true;
+      else this._pendingDeleteEvictions.delete(id);
+    }
     this.updateMessages(this.repository.getMessages());
     if (onBranchChange) {
       this._notifyBranchChange(previousHeadId, onBranchChange);
@@ -1073,7 +1090,10 @@ export class ExternalStoreThreadRuntimeCore
     if (isEdit) {
       if (!this._store.onEdit)
         throw new Error("Runtime does not support editing messages.");
-      this._pendingDeleteEvictions.clear();
+      for (const [id, pending] of this._pendingDeleteEvictions) {
+        if (pending.calls.size > 0) pending.reloaded = true;
+        else this._pendingDeleteEvictions.delete(id);
+      }
       await this._store.onEdit(message);
     } else {
       await this._store.onNew(message);
@@ -1130,7 +1150,9 @@ export class ExternalStoreThreadRuntimeCore
         ) {
           pending = {
             calls: new Set<symbol>(),
-            reloaded: false,
+            reloaded:
+              this._pendingReloadDeletePrefix !== null &&
+              !this._pendingReloadDeletePrefix.includes(messageId),
             message: visibleMessage,
           };
         }
@@ -1244,11 +1266,11 @@ export class ExternalStoreThreadRuntimeCore
     if (this._cancelledToolTurn?.parentId === config.parentId)
       this._cancelledToolTurn.parentOpen = false;
     const visible = this.repository.getMessages();
-    const kept = new Set(
-      visible
-        .slice(0, visible.findIndex((m) => m.id === config.parentId) + 1)
-        .map((m) => m.id),
-    );
+    const prefix = visible
+      .slice(0, visible.findIndex((m) => m.id === config.parentId) + 1)
+      .map((m) => m.id);
+    this._pendingReloadDeletePrefix = prefix;
+    const kept = new Set(prefix);
     for (const [id, pending] of this._pendingDeleteEvictions) {
       if (kept.has(id)) continue;
       if (pending.calls.size > 0) pending.reloaded = true;
@@ -1259,12 +1281,21 @@ export class ExternalStoreThreadRuntimeCore
     // Auto-abort in-flight client-side tool executions when a run reloads;
     // any results that land afterward would target a turn that no longer
     // exists. See `append` above for full rationale.
-    await this._toolInvocations?.abort({
-      discardPending: true,
-    });
-    if (!cancellationLease.isCurrent()) return;
-
-    await this._store.onReload(config.parentId, config);
+    try {
+      await this._toolInvocations?.abort({
+        discardPending: true,
+      });
+      if (!cancellationLease.isCurrent()) {
+        if (this._pendingReloadDeletePrefix === prefix)
+          this._pendingReloadDeletePrefix = null;
+        return;
+      }
+      await this._store.onReload(config.parentId, config);
+    } catch (error) {
+      if (this._pendingReloadDeletePrefix === prefix)
+        this._pendingReloadDeletePrefix = null;
+      throw error;
+    }
   }
 
   public async resumeRun(config: ResumeRunConfig): Promise<void> {

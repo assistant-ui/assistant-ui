@@ -818,18 +818,18 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
       message("a2", "assistant"),
     ];
     let isRunning = false;
-    let confirm!: () => void;
-    let decline!: () => void;
-    let ignore!: () => void;
+    const confirms: Array<() => void> = [];
+    const declines: Array<() => void> = [];
+    const ignores: Array<() => void> = [];
     const onDelete = vi.fn(
       (id: string) =>
         new Promise<void>((resolve, reject) => {
-          confirm = () => {
+          confirms.push(() => {
             current = current.filter((m) => m.id !== id);
             resolve();
-          };
-          decline = () => reject(new Error("deletion declined"));
-          ignore = resolve;
+          });
+          declines.push(() => reject(new Error("deletion declined")));
+          ignores.push(resolve);
         }),
     );
     const onReload = vi.fn(async (parentId: string | null) => {
@@ -849,14 +849,17 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
         isRunning,
         onDelete,
         onReload,
+        onEdit: async () => {
+          current = [current[0]!, message("a1b", "assistant")];
+        },
         setMessages,
       }) as ExternalStoreAdapter;
     const runtime = createRuntime(store());
     return {
       runtime,
-      confirmDelete: () => confirm(),
-      declineDelete: () => decline(),
-      ignoreDelete: () => ignore(),
+      confirmDelete: (index = 0) => confirms[index]!(),
+      declineDelete: (index = 0) => declines[index]!(),
+      ignoreDelete: (index = 0) => ignores[index]!(),
       regenerate: () =>
         runtime.startRun({ parentId: "u1", sourceId: "a1", runConfig: {} }),
       rerender: () => {
@@ -872,8 +875,129 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
         runtime.switchToBranch("a1");
         return setMessages.mock.lastCall?.[0].map((m) => m.id);
       },
+      editEarlierReply: () =>
+        runtime.append({
+          parentId: "u1",
+          sourceId: "a1",
+          role: "assistant",
+          createdAt: new Date(0),
+          content: [{ type: "text", text: "revised" }],
+          metadata: { custom: {} },
+          runConfig: {},
+        }),
     };
   };
+
+  it("keeps a delete declined after the reload scan and host truncation", async () => {
+    const {
+      runtime,
+      regenerate,
+      rerender,
+      declineDelete,
+      finishRun,
+      switchToOldBranch,
+    } = setup();
+
+    await regenerate();
+    const deletion = runtime.deleteMessage("u2");
+    rerender();
+    declineDelete();
+    await expect(deletion).rejects.toThrow("deletion declined");
+    finishRun();
+
+    expect(switchToOldBranch()).toEqual(["u1", "a1", "u2", "a2"]);
+  });
+
+  it("evicts a delete confirmed after the reload scan and host truncation", async () => {
+    const {
+      runtime,
+      regenerate,
+      rerender,
+      confirmDelete,
+      finishRun,
+      switchToOldBranch,
+    } = setup();
+
+    await regenerate();
+    const deletion = runtime.deleteMessage("u2");
+    rerender();
+    expect(runtime.getBranches("u2")).toEqual(["u2"]);
+    confirmDelete();
+    await deletion;
+    finishRun();
+
+    expect(switchToOldBranch()).toEqual(["u1", "a1", "a2"]);
+    expect(runtime.getBranches("a2")).toEqual(["a2"]);
+  });
+
+  it("evicts a confirmed delete after switching branches", async () => {
+    const {
+      runtime,
+      regenerate,
+      finishRun,
+      switchToOldBranch,
+      confirmDelete,
+      rerender,
+    } = setup();
+
+    const deletion = runtime.deleteMessage("u2");
+    await regenerate();
+    finishRun();
+    expect(switchToOldBranch()).toEqual(["u1", "a1", "u2", "a2"]);
+    confirmDelete();
+    await deletion;
+    rerender();
+
+    expect(runtime.getBranches("a2")).toEqual(["a2"]);
+  });
+
+  it("keeps a rejected delete after switching branches while another call remains pending", async () => {
+    const {
+      runtime,
+      regenerate,
+      finishRun,
+      switchToOldBranch,
+      declineDelete,
+      confirmDelete,
+      rerender,
+    } = setup();
+
+    const declined = runtime.deleteMessage("u2");
+    const confirmed = runtime.deleteMessage("u2");
+    await regenerate();
+    finishRun();
+    switchToOldBranch();
+    declineDelete(0);
+    await expect(declined).rejects.toThrow("deletion declined");
+    rerender();
+    expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1", "u2", "a2"]);
+    confirmDelete(1);
+    await confirmed;
+    rerender();
+
+    expect(runtime.getBranches("a2")).toEqual(["a2"]);
+  });
+
+  it("evicts a confirmed delete after editing an earlier reply", async () => {
+    const { runtime, editEarlierReply, rerender, confirmDelete } = setup();
+
+    const deletion = runtime.deleteMessage("u2");
+    await editEarlierReply();
+    rerender();
+    expect(runtime.export().messages.map((m) => m.message.id)).toEqual([
+      "u1",
+      "a1",
+      "u2",
+      "a2",
+      "a1b",
+    ]);
+    confirmDelete();
+    await deletion;
+    rerender();
+
+    expect(runtime.getMessageById("u2")).toBeUndefined();
+    expect(runtime.getBranches("a2")).toEqual(["a2"]);
+  });
 
   it("does not restore a message deleted while an earlier reply regenerates", async () => {
     const {
