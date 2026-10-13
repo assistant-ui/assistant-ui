@@ -1065,6 +1065,13 @@ const useComposerClientResource = ({
       },
     };
     const sent: ComposerSubmission = { ...current, attachments };
+    const recovery: ComposerSubmission = {
+      ...current,
+      attachments: attachmentSends.mergePrepared(
+        current.attachments,
+        attachments,
+      ),
+    };
     // edit sends carry a sourceId contract; only thread sends queue
     const queued = queue && type === "thread";
     if (isSubmission) {
@@ -1101,7 +1108,7 @@ const useComposerClientResource = ({
       console.error("[assistant-ui] Failed to send the message", failure.error);
       if (entry)
         setInTransit((prev) => prev.filter((candidate) => candidate !== entry));
-      returnToDraft(sent);
+      returnToDraft(recovery);
       return;
     }
     if (type === "edit") {

@@ -1444,6 +1444,11 @@ describe("BaseComposerRuntimeCore.send restore-on-undispatched", () => {
 describe("BaseComposerRuntimeCore.send restore-on-undispatched edge cases", () => {
   class SyncThrowComposerCore extends BaseComposerRuntimeCore {
     public readonly error = new MessageNotSentError();
+    private adapter: AttachmentAdapter | undefined;
+    constructor(adapter?: AttachmentAdapter) {
+      super();
+      this.adapter = adapter;
+    }
     public get canCancel() {
       return false;
     }
@@ -1451,7 +1456,7 @@ describe("BaseComposerRuntimeCore.send restore-on-undispatched edge cases", () =
       return true;
     }
     protected getAttachmentAdapter() {
-      return undefined;
+      return this.adapter;
     }
     protected getDictationAdapter() {
       return undefined;
@@ -1469,6 +1474,53 @@ describe("BaseComposerRuntimeCore.send restore-on-undispatched edge cases", () =
     await expect(composer.send()).resolves.toBeUndefined();
 
     expect(composer.text).toBe("hello");
+  });
+
+  it("returns a failed removal with the draft when handleSend throws synchronously", async () => {
+    const upload = deferred();
+    const remove = vi
+      .fn<AttachmentAdapter["remove"]>()
+      .mockRejectedValueOnce(new Error("remove failed"));
+    const composer = new SyncThrowComposerCore(
+      makeAdapter({
+        remove,
+        send: async (attachment) => {
+          await upload.promise;
+          return { ...attachment, status: { type: "complete" }, content: [] };
+        },
+      }),
+    );
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    composer.setText("hello");
+    await composer.addAttachment(textFile());
+    const sending = composer.send();
+    await vi.waitFor(() =>
+      expect(composer.submission?.attachments).toHaveLength(1),
+    );
+    await expect(composer.removeAttachment("att-1")).rejects.toThrow(
+      "remove failed",
+    );
+    expect(composer.submission?.attachments).toMatchObject([
+      { id: "att-1", status: { type: "incomplete", reason: "error" } },
+    ]);
+    upload.resolve();
+    await sending;
+    await vi.waitFor(() => expect(composer.text).toBe("hello"));
+
+    expect(composer.attachments).toMatchObject([
+      {
+        id: "att-1",
+        status: {
+          type: "incomplete",
+          reason: "error",
+          message: "remove failed",
+        },
+      },
+    ]);
+    await composer.removeAttachment("att-1");
+    expect(remove).toHaveBeenCalledTimes(2);
+    expect(composer.attachments).toEqual([]);
   });
 
   it("restores only the most recent of several queued drafts", async () => {

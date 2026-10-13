@@ -43,6 +43,18 @@ export class AttachmentSendOperations {
     return this.removed.has(attachment) && !this.heldOut.has(attachment);
   }
 
+  mergePrepared(
+    attachments: readonly Attachment[],
+    prepared: readonly CompleteAttachment[],
+  ) {
+    const preparedById = new Map(
+      prepared.map((attachment) => [attachment.id, attachment]),
+    );
+    return attachments.map(
+      (attachment) => preparedById.get(attachment.id) ?? attachment,
+    );
+  }
+
   restore(attachment: Attachment) {
     if (!this.heldOut.has(attachment)) return attachment;
     return this.transfer(attachment, { ...attachment });

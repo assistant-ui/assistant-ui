@@ -442,6 +442,16 @@ export abstract class BaseComposerRuntimeCore
     };
 
     const sent: ComposerSubmission = { ...draft, attachments };
+    const submitted = isSubmission ? (this._submission ?? draft) : draft;
+    const recovery = isSubmission
+      ? {
+          ...submitted,
+          attachments: this._attachmentSends.mergePrepared(
+            submitted.attachments,
+            attachments,
+          ),
+        }
+      : draft;
     const queued = this.queue.length;
     if (isSubmission) {
       // The runtime owns the message from here, so neither a reset nor the
@@ -473,7 +483,7 @@ export abstract class BaseComposerRuntimeCore
     } catch (error) {
       console.error("[assistant-ui] Failed to send the message", error);
       this._leaveTransit(sent);
-      if (generation === this._sendGeneration) this._returnToDraft(sent);
+      if (generation === this._sendGeneration) this._returnToDraft(recovery);
       else this._notifySubscribers();
       return;
     }
@@ -481,7 +491,7 @@ export abstract class BaseComposerRuntimeCore
       void sendTask.catch((error) => {
         const wasInTransit = this._leaveTransit(sent);
         if (generation === this._sendGeneration && isMessageNotSentError(error))
-          this._returnToDraft(sent);
+          this._returnToDraft(recovery);
         else if (wasInTransit) this._notifySubscribers();
       });
 

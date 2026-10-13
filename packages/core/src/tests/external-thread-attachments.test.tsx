@@ -910,6 +910,74 @@ describe("ExternalThread attachments", () => {
     expect(composer().getState().attachments).toEqual([]);
   });
 
+  it("returns a failed removal with the draft when the host throws synchronously", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const upload = deferred();
+    const remove = vi
+      .fn<AttachmentAdapter["remove"]>()
+      .mockRejectedValueOnce(new Error("remove failed"));
+    const onNew = vi.fn<NonNullable<ExternalThreadProps["onNew"]>>(() => {
+      throw new Error("offline");
+    });
+    const aui = renderThreadWithProps({
+      attachmentAdapter: {
+        accept: "*",
+        add: async ({ file }) => ({
+          id: "att-1",
+          type: "file",
+          name: file.name,
+          contentType: file.type,
+          file,
+          status: { type: "requires-action", reason: "composer-send" },
+        }),
+        send: async (attachment) => {
+          await upload.promise;
+          return { ...attachment, status: { type: "complete" }, content: [] };
+        },
+        remove,
+      },
+      onNew,
+    });
+    const composer = () => aui().thread.composer();
+
+    await act(async () => {
+      await composer().addAttachment(
+        new File(["content"], "f.txt", { type: "text/plain" }),
+      );
+      composer().setText("hello");
+      composer().send();
+    });
+    await waitFor(() =>
+      expect(composer().getState().submission?.attachments).toHaveLength(1),
+    );
+    await act(async () => {
+      await expect(
+        composer().attachment({ id: "att-1" }).remove(),
+      ).rejects.toThrow("remove failed");
+    });
+    await act(async () => {
+      upload.resolve();
+      await upload.promise;
+    });
+    await waitFor(() => expect(composer().getState().text).toBe("hello"));
+
+    expect(onNew).toHaveBeenCalledOnce();
+    expect(onNew.mock.calls[0]![0].attachments).toEqual([]);
+    expect(composer().getState().attachments).toMatchObject([
+      {
+        id: "att-1",
+        status: {
+          type: "incomplete",
+          reason: "error",
+          message: "remove failed",
+        },
+      },
+    ]);
+    await act(() => composer().attachment({ id: "att-1" }).remove());
+    expect(remove).toHaveBeenCalledTimes(2);
+    expect(composer().getState().attachments).toEqual([]);
+  });
+
   it.each([
     ["reset", "pending", 1],
     ["reset", "failed", 2],
