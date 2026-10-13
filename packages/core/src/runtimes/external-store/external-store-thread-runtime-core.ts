@@ -1018,7 +1018,11 @@ export class ExternalStoreThreadRuntimeCore
       const call = Symbol();
       let pending = this._pendingDeleteEvictions.get(messageId);
       if (visibleMessage) {
-        if (!pending || pending.message !== visibleMessage) {
+        if (
+          !pending ||
+          (messageId.startsWith(FALLBACK_ID_PREFIX) &&
+            pending.message !== visibleMessage)
+        ) {
           pending = {
             calls: new Set<symbol>(),
             reloaded: false,

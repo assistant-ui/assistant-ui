@@ -784,4 +784,55 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
     confirm[0]!();
     await oldDeletion;
   });
+
+  it("keeps the first explicit-id delete pending after a fresh-object republish and second rejection", async () => {
+    let current = [
+      message("u1", "user"),
+      message("a1", "assistant"),
+      message("u2", "user"),
+      message("a2", "assistant"),
+    ];
+    let confirmFirst!: () => void;
+    let rejectSecond!: (error: Error) => void;
+    let calls = 0;
+    const onDelete = vi.fn(
+      () =>
+        new Promise<void>((resolve, reject) => {
+          if (calls++ === 0) {
+            confirmFirst = () => {
+              current = current.filter((m) => m.id !== "u2");
+              resolve();
+            };
+          } else {
+            rejectSecond = reject;
+          }
+        }),
+    );
+    const store = () =>
+      ({
+        messages: current,
+        onDelete,
+        setMessages: vi.fn(),
+      }) as ExternalStoreAdapter;
+    const runtime = createRuntime(store());
+
+    const firstDeletion = runtime.deleteMessage("u2");
+    current = [
+      message("u1", "user"),
+      message("a1", "assistant"),
+      message("u2", "user"),
+      message("a2", "assistant"),
+    ];
+    runtime.__internal_setAdapter(store());
+    const secondDeletion = runtime.deleteMessage("u2");
+    rejectSecond(new Error("duplicate deletion"));
+    await expect(secondDeletion).rejects.toThrow("duplicate deletion");
+    current = [...current];
+    runtime.__internal_setAdapter(store());
+    confirmFirst();
+    await firstDeletion;
+    runtime.__internal_setAdapter(store());
+
+    expect(runtime.getBranches("a2")).toEqual(["a2"]);
+  });
 });
