@@ -63,7 +63,7 @@ describe("buildWidgetGuidance", () => {
   it("reflects the CDN allowlist, network access, and eval policy", () => {
     const text = buildWidgetGuidance({ modules: ["chart"] });
     for (const origin of DEFAULT_CDN_ORIGINS) expect(text).toContain(origin);
-    expect(text).toContain("There is no network access");
+    expect(text).toContain("`fetch`, XHR, and WebSocket are blocked");
     expect(text).toContain(
       "https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js",
     );
@@ -81,6 +81,82 @@ describe("buildWidgetGuidance", () => {
     );
     expect(open).not.toContain("cdn.jsdelivr.net");
     expect(open).toContain("`eval` and `new Function` are allowed");
+  });
+
+  it("documents no hidden font allowance when external origins are empty", () => {
+    const text = buildWidgetGuidance({ cdnOrigins: [] });
+    expect(text).toContain(
+      "Shared CDN origins for external scripts, stylesheets, images, fonts, and media: none.",
+    );
+    expect(text).toContain(
+      "When no external resource origins are configured, inline everything.",
+    );
+    expect(text).toContain("Extra font stylesheets load only from: nowhere.");
+    expect(text).toContain("Extra font files load only from: nowhere.");
+    expect(text).not.toContain("fonts.googleapis.com");
+    expect(text).not.toContain("fonts.gstatic.com");
+  });
+
+  it("lists explicit font origins separately from the CDN allowance", () => {
+    const text = buildWidgetGuidance({
+      cdnOrigins: [],
+      fontStyleOrigins: ["https://fonts.googleapis.com"],
+      fontOrigins: ["https://fonts.gstatic.com"],
+    });
+    expect(text).toContain(
+      "Extra font stylesheets load only from: https://fonts.googleapis.com.",
+    );
+    expect(text).toContain(
+      "Extra font files load only from: https://fonts.gstatic.com.",
+    );
+    expect(text).toContain(
+      "These origins do not allow scripts, images, or font files.",
+    );
+    expect(text).toContain(
+      "These origins do not allow scripts, stylesheets, or images.",
+    );
+  });
+
+  it("distinguishes font exceptions and embedded resources from network requests", () => {
+    const text = buildWidgetGuidance({
+      cdnOrigins: [],
+      fontStyleOrigins: ["https://fonts.googleapis.com"],
+      fontOrigins: ["https://fonts.gstatic.com"],
+      connectOrigins: ["https://api.example.com"],
+    });
+    expect(text).toContain(
+      "Shared CDN origins for external scripts, stylesheets, images, fonts, and media: none.",
+    );
+    expect(text).toContain(
+      "The font-specific exceptions below add access only to their resource type.",
+    );
+    expect(text).toContain(
+      "Inline scripts and styles, `data:` fonts, and `data:`/`blob:` images and media are allowed.",
+    );
+    expect(text).toContain(
+      "External resource URLs must match the corresponding resource allowlist.",
+    );
+    expect(text).toContain(
+      "`fetch`, XHR, and WebSocket may reach only: https://api.example.com.",
+    );
+    expect(text).toContain(
+      "Every external resource or request uses its allowed origins; embed data when network requests are blocked.",
+    );
+    expect(text).not.toContain("load only from: nowhere (inline everything)");
+    expect(text).not.toContain("There is no network access");
+    expect(text).not.toContain("nothing depends on the network");
+  });
+
+  it("keeps network requests blocked when only font origins are configured", () => {
+    const text = buildWidgetGuidance({
+      cdnOrigins: [],
+      fontOrigins: ["https://fonts.gstatic.com"],
+    });
+    expect(text).toContain(
+      "Extra font files load only from: https://fonts.gstatic.com.",
+    );
+    expect(text).toContain("`fetch`, XHR, and WebSocket are blocked.");
+    expect(text).not.toContain("There is no network access");
   });
 
   it("adapts width and layout advice to the platform", () => {
