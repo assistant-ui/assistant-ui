@@ -238,7 +238,7 @@ export type ResolvedProps = {
 };
 
 const normalizePath = (path: string) =>
-  path.startsWith("/") ? path : `/${path}`;
+  path === "" || path.startsWith("/") ? path : `/${path}`;
 
 /**
  * Resolves an element's props. Top-level `$bindState` and `$bindItem` props

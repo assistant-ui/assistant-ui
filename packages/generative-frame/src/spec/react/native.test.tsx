@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { cleanup, render } from "@testing-library/react";
-import { Text, View } from "react-native";
+import { cleanup, fireEvent, render } from "@testing-library/react";
+import { Button, Text, View } from "react-native";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Spec } from "../types";
+import { createStateStore } from "../state";
 import { createSpecStream } from "../stream";
 import { SpecRenderer } from "../react.native";
 import type { SpecComponents } from "./SpecRenderer";
@@ -127,6 +128,30 @@ describe("SpecRenderer for React Native", () => {
     expect(failed?.textContent).toContain("kaboom");
     expect(view.container.textContent).toContain("fine");
     expect(onError).toHaveBeenCalledTimes(1);
+  });
+
+  it("writes root-bound values through a native component", () => {
+    const store = createStateStore({ name: "model" });
+    const view = render(
+      <SpecRenderer
+        state={store}
+        spec={spec({
+          main: { type: "Form", props: { value: { $bindState: "" } } },
+        })}
+        components={{
+          Form: ({ props, setProp }) => (
+            <Button
+              title={JSON.stringify(props["value"])}
+              onPress={() => setProp("value", { name: "edited" })}
+            />
+          ),
+        }}
+      />,
+    );
+    expect(view.container.textContent).toBe('{"name":"model"}');
+    fireEvent.click(view.getByRole("button"));
+    expect(store.getState()).toEqual({ name: "edited" });
+    expect(view.container.textContent).toBe('{"name":"edited"}');
   });
 
   it("uses a placeholder the app passes instead", () => {
