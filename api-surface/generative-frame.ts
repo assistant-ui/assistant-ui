@@ -779,6 +779,7 @@ type ResolvedElement = {
   children: ResolvedElement[];
   slots: Record<string, ResolvedElement[]>;
   key?: string;
+  itemPath?: string;
 };
 
 declare class SafeContentFrame {
