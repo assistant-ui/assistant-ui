@@ -6860,6 +6860,41 @@ describe("LocalThreadRuntimeCore runs", () => {
     });
   });
 
+  it("notifies idle when a continuing tool message is replaced before the next roundtrip", async () => {
+    let calls = 0;
+    const thread = createPlainThread({
+      async *run() {
+        calls++;
+        yield {
+          content: [{ ...toolCallPart("lookup"), result: "found" }],
+          status: { type: "requires-action", reason: "tool-calls" },
+        } as const;
+        await thread.unstable_recordToolInteraction({
+          messageId: thread.messages.at(-1)!.id,
+          toolCallId: "call-lookup",
+          interaction: {
+            type: "action",
+            occurredAt: 1,
+            payload: { $input: "confirm" },
+          },
+        });
+      },
+    });
+    const updates: boolean[] = [];
+    thread.subscribe(() => {
+      if (thread.messages.at(-1)?.role === "assistant")
+        updates.push(getThreadRuntimeCoreIsRunning(thread));
+    });
+
+    await thread.append(userMessage("look up"));
+
+    expect(calls).toBe(1);
+    expect(thread.messages.at(-1)?.status?.type).toBe("requires-action");
+    expect(updates).toContain(true);
+    expect(updates.at(-1)).toBe(false);
+    expect(getThreadRuntimeCoreIsRunning(thread)).toBe(false);
+  });
+
   it("reports an idle thread to runEnd listeners after a hidden answer settles", async () => {
     const { thread, regenerate, release } = await createStreamingRegenerate();
     const observed = vi.fn(() => ({

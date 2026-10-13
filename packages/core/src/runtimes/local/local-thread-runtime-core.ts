@@ -1242,6 +1242,7 @@ export class LocalThreadRuntimeCore
         !this.repository.hasChildren(message.id)
       );
     } finally {
+      const wasRunning = run.isRunning;
       run.isRunning = false;
       if (scopeGeneration === this._loadGeneration)
         this._notifyEventSubscribers("runEnd", {});
@@ -1249,6 +1250,7 @@ export class LocalThreadRuntimeCore
         scopeGeneration === this._loadGeneration && this._activeRun === run;
       if (active) this._activeRun = null;
       if (scopeGeneration === this._loadGeneration) this._syncQueue();
+      if (active && wasRunning) this._notifySubscribers();
     }
 
     if (
