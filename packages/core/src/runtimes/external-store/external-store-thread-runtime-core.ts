@@ -58,6 +58,10 @@ import {
   type ToolExecutionStatus,
 } from "../tool-invocations/ToolInvocationTracker";
 import { EMPTY_QUEUE_ITEMS } from "../../runtime/queue/queue-item";
+import {
+  __internal_bindNextDispatchTransform,
+  __internal_getDispatchTransform,
+} from "../../runtime/queue/message-queue";
 import type { QuoteInfo } from "../../types/quote";
 import {
   captureThreadRuntimeDisposal,
@@ -276,6 +280,7 @@ export class ExternalStoreThreadRuntimeCore
   // last handed to setMessages, whichever was written last. Excludes the
   // optimistic placeholder so cancel resync only writes a real rollback.
   private _storeMessages: readonly ThreadMessage[] = [];
+  private _importedMessageIds: readonly string[] | undefined;
 
   private readonly _runStartLeases = new RunLeases();
   private readonly _runCancellationLeases = new RunLeases();
@@ -310,14 +315,19 @@ export class ExternalStoreThreadRuntimeCore
     this._getInitializePromise = getPromise;
   }
 
-  // Re-point at the tail, as LocalThreadRuntimeCore's driver does, so the
-  // prefix gated against is the one the message lands on whatever the host
-  // routes by. Queuing only ever accepts a tail append, so a later tail is the
-  // same intent. Runtimes sharing the queue replace one another's transform, so
-  // a message re-points at its queuing runtime's tail until a thread switch
-  // disposes that runtime.
-  private _queueDispatchTransform = (message: AppendMessage) => {
-    const owner = queuedMessageRuntimes.get(message);
+  private _queueDispatchTransform = (message: AppendMessage): AppendMessage => {
+    const currentTransform =
+      this._transformedQueue &&
+      __internal_getDispatchTransform(this._transformedQueue);
+    if (
+      currentTransform &&
+      captureThreadRuntimeDisposal(this).aborted &&
+      currentTransform !== this._queueDispatchTransform
+    )
+      return currentTransform(message);
+    const owner = currentTransform
+      ? undefined
+      : queuedMessageRuntimes.get(message);
     const runtime =
       owner && !captureThreadRuntimeDisposal(owner).aborted ? owner : this;
     runtime._settleCancelResyncs();
@@ -482,6 +492,7 @@ export class ExternalStoreThreadRuntimeCore
   private _updateStoreSnapshot(
     store: ExternalStoreAdapter<any>,
     fromHostSnapshot = true,
+    force = false,
   ) {
     const previousIsRunning = this._effectiveIsRunning;
     this.isDisabled = store.isDisabled ?? false;
@@ -554,10 +565,14 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     let messages: readonly ThreadMessage[];
+    let preservingImportedMessages = false;
+    let importPathChanged = false;
 
     if (store.messageRepository) {
       // Handle messageRepository
+      this._importedMessageIds = undefined;
       if (
+        !force &&
         oldStore &&
         !repositoryChanged &&
         oldStore.isRunning === store.isRunning &&
@@ -585,6 +600,7 @@ export class ExternalStoreThreadRuntimeCore
 
       if (
         oldStore &&
+        !force &&
         !repositoryChanged &&
         oldStore.messageRepository === store.messageRepository
       ) {
@@ -618,6 +634,7 @@ export class ExternalStoreThreadRuntimeCore
         if (oldStore.convertMessage !== store.convertMessage) {
           this._converter = new ThreadMessageConverter();
         } else if (
+          !force &&
           !repositoryChanged &&
           oldStore.isRunning === store.isRunning &&
           oldStore.messages === store.messages &&
@@ -685,6 +702,17 @@ export class ExternalStoreThreadRuntimeCore
       if (deduped.length !== messages.length) messages = deduped.reverse();
 
       messages = this._applySubmittedFeedback(messages);
+      const importedMessageIds = this._importedMessageIds;
+      preservingImportedMessages =
+        importedMessageIds !== undefined &&
+        shallowArrayEqual(
+          importedMessageIds,
+          messages.map((message) => message.id),
+        );
+      if (!preservingImportedMessages) {
+        importPathChanged = importedMessageIds !== undefined;
+        this._importedMessageIds = undefined;
+      }
 
       for (let i = 0; i < messages.length; i++) {
         const message = messages[i]!;
@@ -779,6 +807,9 @@ export class ExternalStoreThreadRuntimeCore
     let optimisticId: string | null = null;
     if (hasUpcomingMessage(isRunning, messages)) {
       const parentId = messages.at(-1)?.id ?? null;
+      if (importPathChanged) {
+        this.repository.resetHead(parentId);
+      }
       if (this._optimistic?.parentId !== parentId) {
         this._optimistic = { id: generateId(), parentId };
       }
@@ -795,7 +826,7 @@ export class ExternalStoreThreadRuntimeCore
 
     if (optimisticId === null) this._optimistic = null;
     const visibleHeadId = optimisticId ?? messages.at(-1)?.id ?? null;
-    if (store.messageRepository) {
+    if (store.messageRepository || preservingImportedMessages) {
       this.repository.import({ headId: visibleHeadId, messages: [] });
     } else {
       this.repository.resetHead(visibleHeadId);
@@ -1089,8 +1120,10 @@ export class ExternalStoreThreadRuntimeCore
 
     if (queue) {
       if (queue === this._transformedQueue) {
-        queuedMessageRuntimes.set(message, this);
+        if (!__internal_getDispatchTransform(queue))
+          queuedMessageRuntimes.set(message, this);
         queue.__internal_setDispatchTransform?.(this._queueDispatchTransform);
+        __internal_bindNextDispatchTransform(queue);
       }
       // Buffering does not start a run, so the tool-abort below must wait
       // until the queue flushes. By then the prior run (and its tools) has
@@ -1300,6 +1333,21 @@ export class ExternalStoreThreadRuntimeCore
     this._store?.queue?.remove(queueItemId);
   }
 
+  private _restoreMovedLeafForRun(parentId: string | null): void {
+    const movedLeaf = this._movedLeaf;
+    if (
+      movedLeaf?.id === parentId &&
+      movedLeaf.resyncLease.isCurrent() &&
+      !movedLeaf.generation.aborted &&
+      this._storeMessages.some((message) => message.id === movedLeaf.id)
+    ) {
+      this._cancelRunResyncLeases.invalidate();
+      this._movedLeaf = undefined;
+      this.composer.retractDraft(movedLeaf.draft);
+      this._updateStoreSnapshot(this._store, false, true);
+    }
+  }
+
   public async startRun(config: StartRunConfig): Promise<void> {
     if (!this._store.onReload)
       throw new Error("Runtime does not support reloading messages.");
@@ -1308,6 +1356,7 @@ export class ExternalStoreThreadRuntimeCore
     if (this._isVoiceMessage(config.sourceId))
       throw new Error("Voice transcript messages cannot be reloaded");
 
+    this._restoreMovedLeafForRun(config.parentId);
     this._runStartLeases.begin();
     if (this._cancelledToolTurn?.parentId === config.parentId)
       this._cancelledToolTurn.parentOpen = false;
@@ -1341,6 +1390,7 @@ export class ExternalStoreThreadRuntimeCore
       throw new Error("Voice transcript messages cannot be reloaded");
 
     this._pendingDeleteWindows.clear();
+    this._restoreMovedLeafForRun(config.parentId);
     this._runStartLeases.begin();
     this._cancelledToolTurn = null;
     await this._store.onResume(config);
@@ -1601,6 +1651,7 @@ export class ExternalStoreThreadRuntimeCore
     this._cancelRunResyncLeases.invalidate();
     this._cancelledToolTurn = null;
     this._submittedFeedback.clear();
+    this._importedMessageIds = undefined;
     const repo = new MessageRepository();
     repo.import(ExportedMessageRepository.fromArray(initialMessages ?? []));
     this.updateMessages(repo.getMessages());
@@ -1615,7 +1666,9 @@ export class ExternalStoreThreadRuntimeCore
     this._cancelledToolTurn = null;
     this._submittedFeedback.clear();
     super.import(data);
-    this._store.onImport(this.repository.getMessages());
+    const messages = this.repository.getMessages();
+    this._importedMessageIds = messages.map((message) => message.id);
+    this._store.onImport(messages);
   }
 
   private updateMessages = (messages: readonly ThreadMessage[]) => {

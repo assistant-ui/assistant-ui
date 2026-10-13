@@ -157,6 +157,56 @@ describe("defineCatalog", () => {
   });
 });
 
+describe("built-in actions", () => {
+  it("reserves sendMessage and updateModelContext", () => {
+    for (const name of ["sendMessage", "updateModelContext"]) {
+      expect(() =>
+        defineCatalog({
+          components: {},
+          actions: { [name]: { description: "Host action." } },
+        }),
+      ).toThrow(
+        `The action name "${name}" is reserved for the built-in action.`,
+      );
+    }
+  });
+
+  it("validates their params like any action", () => {
+    const spec = validSpec();
+    spec.elements["b"]!.on = {
+      press: [
+        { action: "sendMessage", params: { text: "Book it" } },
+        { action: "updateModelContext", params: { data: { id: 1 } } },
+        { action: "sendMessage", params: {} },
+      ],
+    };
+    expect(
+      validateSpec(spec, catalog).issues.map((issue) => [
+        issue.code,
+        issue.path,
+      ]),
+    ).toEqual([["invalid-params", "/elements/b/on/press/2/params/text"]]);
+  });
+
+  it("documents them only for a host that handles them", () => {
+    expect(catalog.prompt()).not.toContain("`sendMessage`");
+    expect(catalog.prompt()).not.toContain("`updateModelContext`");
+    const both = catalog.prompt({
+      hostApi: { prompt: true, modelContext: true },
+    });
+    expect(both).toContain("- `sendMessage` — params `{ text: string }`.");
+    expect(both).toContain(
+      "- `updateModelContext` — params `{ text?: string; data?: unknown }`.",
+    );
+    const prompt = catalog.prompt({ hostApi: { prompt: true } });
+    expect(prompt).toContain("`sendMessage`");
+    expect(prompt).not.toContain("`updateModelContext`");
+    const context = catalog.prompt({ hostApi: { modelContext: true } });
+    expect(context).toContain("`updateModelContext`");
+    expect(context).not.toContain("`sendMessage`");
+  });
+});
+
 describe("catalog.prompt", () => {
   it("documents components, slots, events, actions, the protocol, and expressions", () => {
     const prompt = catalog.prompt({ customRules: ["Prefer cards."] });

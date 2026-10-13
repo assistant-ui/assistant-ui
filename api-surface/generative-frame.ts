@@ -31,6 +31,7 @@ type ActionHandler = (params: Record<string, unknown>, context: ActionSource & {
 type ActionSource = {
   elementId?: string;
   trigger?: string;
+  kind?: "event" | "watch";
 };
 
 type AncestorsOf<K extends ClientNames, Seen extends ClientNames = never> = K extends Seen ? never : ParentOf<K> extends never ? never : ParentOf<K> | AncestorsOf<ParentOf<K>, Seen | K>;
@@ -408,6 +409,7 @@ type GuidanceOptions = {
 type HostApiOptions = {
   prompt?: boolean;
   callTool?: boolean;
+  modelContext?: boolean;
 };
 
 type HostContext = {
@@ -947,6 +949,10 @@ type SpecPromptOptions = {
   mode?: SpecStreamMode;
   customRules?: readonly string[];
   omitExample?: boolean;
+  hostApi?: {
+    prompt?: boolean;
+    modelContext?: boolean;
+  };
 };
 
 declare const SpecRenderer$1: import("vue").DefineComponent<import("vue").ExtractPropTypes<{

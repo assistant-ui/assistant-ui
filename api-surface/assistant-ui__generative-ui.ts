@@ -1011,6 +1011,10 @@ type SpecPromptOptions = {
   mode?: SpecStreamMode;
   customRules?: readonly string[];
   omitExample?: boolean;
+  hostApi?: {
+    prompt?: boolean;
+    modelContext?: boolean;
+  };
 };
 
 type SpecStateStore = {

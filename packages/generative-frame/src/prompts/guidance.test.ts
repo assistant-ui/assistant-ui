@@ -173,12 +173,16 @@ describe("buildWidgetGuidance", () => {
     const base = buildWidgetGuidance();
     expect(base).toContain("`sendPrompt(text)`");
     expect(base).not.toContain("genframe.callTool");
+    expect(base).not.toContain("genframe.updateModelContext");
 
     const full = buildWidgetGuidance({
-      hostApi: { prompt: false, callTool: true },
+      hostApi: { prompt: false, callTool: true, modelContext: true },
     });
     expect(full).not.toContain("`sendPrompt(text)` sends");
     expect(full).toContain("genframe.callTool");
+    expect(full).toContain(
+      '`genframe.updateModelContext({ content: [{ type: "text", text }], structuredContent })` tells you what the user chose',
+    );
   });
 });
 

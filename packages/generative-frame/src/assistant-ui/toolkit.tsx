@@ -36,6 +36,13 @@ import type { AnyTool, ToolDefinition } from "../tools/define";
 import { toolkitEntry } from "./entry";
 import type { ToolkitDisplay, WidgetToolkitExtension } from "./extension";
 import { resolveWidgetCode, resolveWidgetOrigin } from "./history";
+import {
+  frameContext,
+  savedContext,
+  useSharedContext,
+  type ModelContextSource,
+  type SharedContext,
+} from "./modelContext";
 import { createSnapshotSaver } from "./snapshotSaver";
 
 /**
@@ -232,6 +239,21 @@ function savedWidgetState(
   return null;
 }
 
+function useWidgetModelContext(source: ModelContextSource) {
+  const aui = useAui();
+  useEffect(
+    () =>
+      aui.modelContext.register({
+        getModelContext: () => {
+          const system = source.read();
+          return system ? { system } : {};
+        },
+        subscribe: source.subscribe,
+      }),
+    [aui, source],
+  );
+}
+
 /**
  * Renders `show_widget`, `edit_widget`, and `render_spec` tool calls in an
  * assistant-ui thread: widget code streams into a frame from the partial
@@ -245,6 +267,10 @@ export function createWidgetToolkit(
   const registry = options.registry ?? createWidgetRegistry();
   const tools: WidgetTools & Record<string, AnyTool> = createWidgetTools({
     ...options,
+    guidance: {
+      ...options.guidance,
+      hostApi: { modelContext: true, ...options.guidance?.hostApi },
+    },
     preview:
       options.preview ??
       ((code, previewOptions) =>
@@ -291,6 +317,7 @@ export function createWidgetToolkit(
   function ToolWidget({
     code,
     streaming,
+    title,
     toolCallId,
     storageId,
     unstable_interactions,
@@ -298,6 +325,7 @@ export function createWidgetToolkit(
   }: {
     code: string;
     streaming: boolean;
+    title: string;
     toolCallId: string;
     storageId: string | undefined;
     unstable_interactions: ToolCallMessagePartProps<ShowArgs>["unstable_interactions"];
@@ -311,22 +339,55 @@ export function createWidgetToolkit(
     useInsertionEffect(() => {
       record.current = unstable_recordInteraction;
     });
+    const [initialContext] = useState(() =>
+      savedContext(unstable_interactions, toolCallId, "widgetState"),
+    );
+    const latest = useRef({ state: initialState, context: initialContext });
+    // An empty snapshot stays `null`, which tells the saver nothing was saved yet, so a failed first save leaves no marker.
+    const [snapshot] = useState(() => () => {
+      const { state, context } = latest.current;
+      return context ? { state, context } : state === null ? null : { state };
+    });
     const [saver] = useState(() =>
-      createSnapshotSaver(initialState, (snapshot) =>
-        record.current?.({
-          type: "action",
-          payload: { type: "widgetState", toolCallId, state: snapshot },
-        }),
+      createSnapshotSaver<{ state: unknown; context?: SharedContext } | null>(
+        snapshot(),
+        (saved) =>
+          record.current?.({
+            type: "action",
+            payload: {
+              type: "widgetState",
+              toolCallId,
+              state: saved ? saved.state : null,
+              ...(saved?.context ? { context: saved.context } : {}),
+            },
+          }),
       ),
     );
     useEffect(() => () => saver.flush(), [saver]);
+    const share = useSharedContext({
+      title,
+      toolCallId,
+      initial: widgetProps.onUpdateModelContext ? undefined : initialContext,
+      useModelContext: useWidgetModelContext,
+      onShare: (context) => {
+        latest.current.context = context;
+        saver.schedule(snapshot);
+      },
+    });
     const widgetOptions = {
       ...widgetProps,
       initialState,
       onWidgetState: (state: unknown) => {
-        saver.schedule(() => state);
+        latest.current.state = state;
+        saver.schedule(snapshot);
         widgetProps.onWidgetState?.(state);
       },
+      onUpdateModelContext:
+        widgetProps.onUpdateModelContext ??
+        ((params: unknown) => {
+          share(frameContext(params));
+          return {};
+        }),
     };
     const { ref, widget } = useWidget(
       storageId !== undefined && !widgetProps.frame && !widgetProps.opaqueOrigin
@@ -403,6 +464,7 @@ export function createWidgetToolkit(
         <ToolWidget
           code={code}
           streaming={streaming}
+          title={title}
           toolCallId={toolCallId}
           storageId={storageId}
           unstable_interactions={unstable_interactions}
@@ -457,6 +519,7 @@ export function createWidgetToolkit(
         <ToolWidget
           code={code}
           streaming={false}
+          title={title}
           toolCallId={toolCallId}
           storageId={storageId}
           unstable_interactions={unstable_interactions}

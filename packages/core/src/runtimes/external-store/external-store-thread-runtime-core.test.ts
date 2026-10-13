@@ -49,6 +49,22 @@ describe("ExternalStoreThreadRuntimeCore message repository", () => {
       ],
       { headId },
     );
+  const repositoryWithDescendants = (headId: string) =>
+    ExportedMessageRepository.fromBranchableArray(
+      [
+        { parentId: null, message: { id: "u1", role: "user", content: "u1" } },
+        {
+          parentId: "u1",
+          message: { id: "a1", role: "assistant", content: "a1" },
+        },
+        { parentId: "a1", message: { id: "u2", role: "user", content: "u2" } },
+        {
+          parentId: "u2",
+          message: { id: "a2", role: "assistant", content: "a2" },
+        },
+      ],
+      { headId },
+    );
   const visibleIds = (runtime: ExternalStoreThreadRuntimeCore) =>
     runtime.messages.map((message) => message.id);
   const exportedIds = (runtime: ExternalStoreThreadRuntimeCore) =>
@@ -73,6 +89,205 @@ describe("ExternalStoreThreadRuntimeCore message repository", () => {
     runtime.__internal_setAdapter(store);
     expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2"]);
     expect(visibleIds(runtime)).toEqual(["u1", "a1"]);
+  });
+
+  it("keeps imported descendants until the host changes its visible path", () => {
+    let hostMessages: readonly ThreadMessage[] = [];
+    const store = {
+      messages: hostMessages,
+      onNew: async () => {},
+      onImport: (messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      },
+    };
+    const runtime = createRuntime(store);
+    runtime.import(repositoryWithDescendants("a1"));
+
+    runtime.__internal_setAdapter({ ...store, messages: hostMessages });
+    expect(visibleIds(runtime)).toEqual(["u1", "a1"]);
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+
+    runtime.__internal_setAdapter({
+      ...store,
+      messages: hostMessages,
+      isRunning: true,
+    });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+
+    runtime.__internal_setAdapter({
+      ...store,
+      messages: hostMessages.slice(0, 1),
+      isRunning: false,
+    });
+    expect(exportedIds(runtime)).toEqual(["u1"]);
+  });
+
+  it("keeps imported descendants when the host republishes the same path", () => {
+    let hostMessages: readonly ThreadMessage[] = [];
+    const store = {
+      messages: hostMessages,
+      onNew: async () => {},
+      onImport: (messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      },
+    };
+    const runtime = createRuntime(store);
+    runtime.import(repositoryWithDescendants("a1"));
+    runtime.__internal_setAdapter({ ...store, messages: hostMessages });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+
+    runtime.__internal_setAdapter({ ...store, messages: [...hostMessages] });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+  });
+
+  it("keeps imported descendants when the host edits the same visible path", () => {
+    let hostMessages: readonly ThreadMessage[] = [];
+    const store = {
+      messages: hostMessages,
+      onNew: async () => {},
+      onImport: (messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      },
+    };
+    const runtime = createRuntime(store);
+    runtime.import(repositoryWithDescendants("a1"));
+    runtime.__internal_setAdapter({ ...store, messages: hostMessages });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+
+    const editedMessages = hostMessages.map((message) =>
+      message.id === "a1"
+        ? { ...message, content: [{ type: "text" as const, text: "edited" }] }
+        : message,
+    );
+    runtime.__internal_setAdapter({ ...store, messages: editedMessages });
+    expect(visibleIds(runtime)).toEqual(["u1", "a1"]);
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+  });
+
+  it("keeps descendants when a matching pre-import path precedes the host echo", () => {
+    const imported = repositoryWithDescendants("a1");
+    const priorMessages = imported.messages
+      .slice(0, 2)
+      .map(({ message }) => message);
+    let hostMessages: readonly ThreadMessage[] = [];
+    const store = {
+      messages: priorMessages,
+      onNew: async () => {},
+      onImport: (messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      },
+    };
+    const runtime = createRuntime(store);
+    runtime.import(imported);
+
+    runtime.__internal_setAdapter({ ...store, isRunning: true });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+
+    runtime.__internal_setAdapter({
+      ...store,
+      messages: hostMessages,
+      isRunning: true,
+    });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+  });
+
+  it("ends import preservation after the visible id path changes", () => {
+    const imported = repositoryWithDescendants("a1");
+    let hostMessages: readonly ThreadMessage[] = [];
+    const store = {
+      messages: hostMessages,
+      onNew: async () => {},
+      onImport: (messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      },
+    };
+    const runtime = createRuntime(store);
+    runtime.import(imported);
+    runtime.__internal_setAdapter({ ...store, messages: hostMessages });
+
+    runtime.__internal_setAdapter({
+      ...store,
+      messages: [...hostMessages, imported.messages[2]!.message],
+    });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2"]);
+
+    runtime.__internal_setAdapter({ ...store, messages: [...hostMessages] });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1"]);
+  });
+
+  it("prunes a host-dropped tail after the import echo", () => {
+    let hostMessages: readonly ThreadMessage[] = [];
+    const store = {
+      messages: hostMessages,
+      onNew: async () => {},
+      onImport: (messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      },
+    };
+    const runtime = createRuntime(store);
+    runtime.import(repositoryWithDescendants("u2"));
+    runtime.__internal_setAdapter({ ...store, messages: hostMessages });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+
+    runtime.__internal_setAdapter({
+      ...store,
+      messages: hostMessages.slice(0, -1),
+    });
+    expect(visibleIds(runtime)).toEqual(["u1", "a1"]);
+    expect(exportedIds(runtime)).toEqual(["u1", "a1"]);
+  });
+
+  it("prunes below the host tail when its path changes during a run", () => {
+    let hostMessages: readonly ThreadMessage[] = [];
+    const store = {
+      messages: hostMessages,
+      onNew: async () => {},
+      onImport: (messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      },
+    };
+    const runtime = createRuntime(store);
+    runtime.import(repositoryWithDescendants("u2"));
+    runtime.__internal_setAdapter({ ...store, messages: hostMessages });
+
+    runtime.__internal_setAdapter({
+      ...store,
+      messages: hostMessages.slice(0, 1),
+      isRunning: true,
+    });
+    expect(visibleIds(runtime).slice(0, -1)).toEqual(["u1"]);
+    expect(runtime.messages.at(-1)?.metadata.isOptimistic).toBe(true);
+    expect(exportedIds(runtime)).toEqual(["u1"]);
+  });
+
+  it("keeps descendants through a running same-path republish", () => {
+    let hostMessages: readonly ThreadMessage[] = [];
+    const store = {
+      messages: hostMessages,
+      onNew: async () => {},
+      onImport: (messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      },
+    };
+    const runtime = createRuntime(store);
+    runtime.import(repositoryWithDescendants("u2"));
+    runtime.__internal_setAdapter({ ...store, messages: hostMessages });
+    runtime.__internal_setAdapter({
+      ...store,
+      messages: [...hostMessages],
+      isRunning: true,
+    });
+
+    expect(visibleIds(runtime).slice(0, -1)).toEqual(["u1", "a1", "u2"]);
+    expect(runtime.messages.at(-1)?.metadata.isOptimistic).toBe(true);
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+
+    runtime.__internal_setAdapter({
+      ...store,
+      messages: [...hostMessages],
+      isRunning: false,
+    });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
   });
 
   it.each(["u2", "a1"])(
@@ -282,6 +497,124 @@ describe("ExternalStoreThreadRuntimeCore shared message queue", () => {
     },
   );
 
+  it("keeps the queuing runtime when the host edits a shared queue item", async () => {
+    const run = vi.fn();
+    const queue = createMessageQueue({ run });
+    queue.notifyBusy();
+    const storeA: ExternalStoreAdapter = {
+      messages: [tail("a1")],
+      onNew: async () => {},
+      queue: queue.adapter,
+    };
+    const runtimeA = new ExternalStoreThreadRuntimeCore(
+      {
+        getModelContext: () => ({
+          unstable_composerMetadata: { owner: "a" },
+        }),
+      },
+      storeA,
+    );
+    const runtimeB = new ExternalStoreThreadRuntimeCore(
+      {
+        getModelContext: () => ({
+          unstable_composerMetadata: { owner: "b" },
+        }),
+      },
+      {
+        messages: [tail("b1")],
+        onNew: async () => {},
+        queue: queue.adapter,
+      },
+    );
+    await runtimeA.append(message("a1"));
+    await runtimeB.append(message("b1"));
+    runtimeA.__internal_setAdapter({
+      ...storeA,
+      messages: [tail("a1"), tail("a2")],
+    });
+
+    queue.adapter.edit(queue.adapter.items[0]!.id, message("edited"));
+    queue.notifyIdle();
+
+    expect(run).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        parentId: "a2",
+        metadata: { custom: { owner: "a" } },
+      }),
+      { steer: false },
+    );
+    queue.notifyIdle();
+    expect(run).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        parentId: "b1",
+        metadata: { custom: { owner: "b" } },
+      }),
+      { steer: false },
+    );
+  });
+
+  it("keeps the queuing runtime with a host-owned dispatch transform", async () => {
+    const queued: AppendMessage[] = [];
+    let transform = (message: AppendMessage) => message;
+    const hostQueue = {
+      items: [],
+      steerItems: [],
+      enqueue: (message: AppendMessage) => queued.push(message),
+      steer: (message: AppendMessage) => queued.push(message),
+      move: vi.fn(),
+      edit: vi.fn(),
+      remove: vi.fn(),
+      __internal_setDispatchTransform: (
+        next: (message: AppendMessage) => AppendMessage,
+      ) => {
+        transform = next;
+      },
+    };
+    const storeA: ExternalStoreAdapter = {
+      messages: [tail("a1")],
+      onNew: async () => {},
+      queue: hostQueue,
+    };
+    const runtimeA = new ExternalStoreThreadRuntimeCore(
+      {
+        getModelContext: () => ({
+          unstable_composerMetadata: { owner: "a" },
+        }),
+      },
+      storeA,
+    );
+    const runtimeB = new ExternalStoreThreadRuntimeCore(
+      {
+        getModelContext: () => ({
+          unstable_composerMetadata: { owner: "b" },
+        }),
+      },
+      {
+        messages: [tail("b1")],
+        onNew: async () => {},
+        queue: hostQueue,
+      },
+    );
+    await runtimeA.append(message("a1"));
+    await runtimeB.append(message("b1"));
+    runtimeA.__internal_setAdapter({
+      ...storeA,
+      messages: [tail("a1"), tail("a2")],
+    });
+
+    expect(queued).toHaveLength(2);
+    expect(transform(queued[0]!)).toMatchObject({
+      parentId: "a2",
+      metadata: { custom: { owner: "a" } },
+    });
+    expect(transform(queued[1]!)).toMatchObject({
+      parentId: "b1",
+      metadata: { custom: { owner: "b" } },
+    });
+  });
+
   it("settles the queued runtime's cancel rollback before a shared queue dispatch", async () => {
     const user = (id: string, text: string) =>
       fromThreadMessageLike({ id, role: "user", content: text }, id, {
@@ -348,6 +681,7 @@ describe("ExternalStoreThreadRuntimeCore shared message queue", () => {
     };
     const runtime = new ExternalStoreRuntimeCore(store);
     await runtime.threads.getMainThreadRuntimeCore().append(message("a1"));
+    queue.adapter.edit(queue.adapter.items[0]!.id, message("edited"));
     runtime.setAdapter({
       ...store,
       messages: [tail("b1")],

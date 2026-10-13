@@ -1,9 +1,11 @@
 import {
+  useAui,
   useAuiState,
   useToolArgsStatus,
   type Toolkit,
 } from "@assistant-ui/react-native";
-import type { ReactNode } from "react";
+import { useCallback, useEffect, type ReactNode } from "react";
+import type { ModelContextSource } from "../../assistant-ui/modelContext";
 import type {
   ToolkitDisplay,
   ToolkitExecution,
@@ -33,11 +35,33 @@ export type NativeSpecToolkit = Omit<WidgetToolkitExtension, "entries"> & {
   }): Toolkit;
 };
 
+function useSendMessage() {
+  const aui = useAui();
+  return useCallback((text: string) => aui.thread.append(text), [aui]);
+}
+
+function useModelContext(source: ModelContextSource) {
+  const aui = useAui();
+  useEffect(
+    () =>
+      aui.modelContext.register({
+        getModelContext: () => {
+          const system = source.read();
+          return system ? { system } : {};
+        },
+        subscribe: source.subscribe,
+      }),
+    [aui, source],
+  );
+}
+
 const build = specToolkitFor({
   useMessages,
   useArgsComplete,
   SpecRenderer,
   Frame,
+  useSendMessage,
+  useModelContext,
 });
 
 /**
