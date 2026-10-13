@@ -104,6 +104,60 @@ describe("ExternalStoreThreadRuntimeCore shared message queue", () => {
     },
   );
 
+  it("settles the queued runtime's cancel rollback before a shared queue dispatch", async () => {
+    const user = (id: string, text: string) =>
+      fromThreadMessageLike({ id, role: "user", content: text }, id, {
+        type: "complete",
+        reason: "stop",
+      });
+    const writes: string[] = [];
+    let hostA = [tail("a0"), user("a1", "unanswered")];
+    const setMessagesA = vi.fn((messages: readonly ThreadMessage[]) => {
+      writes.push("rollback");
+      hostA = [...messages];
+    });
+    const run = vi.fn((queued: AppendMessage) => {
+      writes.push("send");
+      expect(queued.parentId).toBe("a0");
+      hostA = [...hostA, user("a2", "next")];
+    });
+    const queue = createMessageQueue({ run });
+    queue.notifyBusy();
+    const runtimeA = createRuntime({
+      messages: hostA,
+      isRunning: true,
+      onCancel: vi.fn(),
+      setMessages: setMessagesA,
+      queue: queue.adapter,
+    });
+
+    vi.useFakeTimers({ toFake: ["setTimeout"] });
+    try {
+      runtimeA.cancelRun();
+      await runtimeA.append(message("a0"));
+
+      const setMessagesB = vi.fn();
+      const runtimeB = createRuntime({
+        messages: [tail("b0")],
+        setMessages: setMessagesB,
+        queue: queue.adapter,
+      });
+      expect(run).not.toHaveBeenCalled();
+
+      queue.notifyIdle();
+      expect(writes).toEqual(["rollback", "send"]);
+      vi.runAllTimers();
+
+      expect(hostA.map(({ id }) => id)).toEqual(["a0", "a2"]);
+      expect(runtimeA.composer.text).toBe("unanswered");
+      expect(setMessagesA).toHaveBeenCalledOnce();
+      expect(runtimeB.messages.map(({ id }) => id)).toEqual(["b0"]);
+      expect(setMessagesB).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("flushes pending items through the replacement core after a thread switch", async () => {
     const run = vi.fn();
     const queue = createMessageQueue({ run });
