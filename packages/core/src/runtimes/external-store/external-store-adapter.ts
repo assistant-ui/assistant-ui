@@ -143,6 +143,11 @@ type ExternalStoreAdapterBase<T> = {
    * branches isolated in its own instance. Omit it to keep the runtime's own
    * repository.
    *
+   * When `unstable_enableToolInvocations` is true, frontend tool executions
+   * belong to the instance as well: a runtime mounted with an instance whose
+   * tools are still executing takes them over, so it reports them as running,
+   * stops them on cancel, and resumes their human input requests.
+   *
    * @deprecated Experimental since 2026-08-28. Not scheduled for removal; the API may change in any release.
    */
   unstable_messageRepositoryInstance?: MessageRepository | undefined;

@@ -37,7 +37,7 @@ describe("rewriteLatexBracketDelimiters", () => {
     );
     expect(
       rewriteLatexBracketDelimiters("> 1. \\[\n> a\n> \\]\r\n> Text"),
-    ).toBe("> 1. \n>    $$\n>    a\n>    $$\r\n>    Text");
+    ).toBe("> 1. $$\n>    a\n>    $$\r\n>    Text");
   });
 
   it("gives the fence markers their own lines mid-paragraph", () => {
@@ -64,12 +64,12 @@ describe("rewriteLatexBracketDelimiters", () => {
   it("keeps quoted list display math and its following prose inside the item", () => {
     expect(
       normalizeMathDelimiters("> 1. \\[\n> a = 1\n>   b = 2\n> \\]\n> Text"),
-    ).toBe("> 1. \n>    $$\n>    a = 1\n>      b = 2\n>    $$\n>    Text");
+    ).toBe("> 1. $$\n>    a = 1\n>      b = 2\n>    $$\n>    Text");
     expect(normalizeMathDelimiters(">1. $$\n>x = 1\n>$$\n>Text")).toBe(
       ">1. $$\n>    x = 1\n>    $$\n>    Text",
     );
     expect(normalizeMathDelimiters(">1. \\[\n>x = 1\n>\\]\n>Text")).toBe(
-      ">1. \n>    $$\n>    x = 1\n>    $$\n>    Text",
+      ">1. $$\n>    x = 1\n>    $$\n>    Text",
     );
   });
 
@@ -87,19 +87,17 @@ describe("rewriteLatexBracketDelimiters", () => {
       rewriteLatexBracketDelimiters(
         "> 1. \\[\n> a\n> \\]\n> then \\[\n> b\n> \\]",
       ),
-    ).toBe(
-      "> 1. \n>    $$\n>    a\n>    $$\n>    then \n>    $$\n>    b\n>    $$",
-    );
+    ).toBe("> 1. $$\n>    a\n>    $$\n>    then \n>    $$\n>    b\n>    $$");
   });
 
   it.each([
     [
       "> 1. \\[\n> a\n> \\]\n> \\[\n> b\n> \\]\n> Text",
-      "> 1. \n>    $$\n>    a\n>    $$\n>    $$\n>    b\n>    $$\n>    Text",
+      "> 1. $$\n>    a\n>    $$\n>    $$\n>    b\n>    $$\n>    Text",
     ],
     [
       "> 1. \\[\n> a\n> \\]\n> \\[\n> b\n> \\]\n> \\[\n> c\n> \\]\n> Text",
-      "> 1. \n>    $$\n>    a\n>    $$\n>    $$\n>    b\n>    $$\n>    $$\n>    c\n>    $$\n>    Text",
+      "> 1. $$\n>    a\n>    $$\n>    $$\n>    b\n>    $$\n>    $$\n>    c\n>    $$\n>    Text",
     ],
   ])(
     "keeps chained displays and following text in a quoted list item",
@@ -114,7 +112,7 @@ describe("rewriteLatexBracketDelimiters", () => {
         "> 1. \\[\n> a1\n> a2\n> \\]\n> \\[\n> b1\n> b2\n> \\]\n> Text",
       ),
     ).toBe(
-      "> 1. \n>    $$\n>    a1\n>    a2\n>    $$\n>    $$\n>    b1\n>    b2\n>    $$\n>    Text",
+      "> 1. $$\n>    a1\n>    a2\n>    $$\n>    $$\n>    b1\n>    b2\n>    $$\n>    Text",
     );
   });
 
@@ -123,12 +121,12 @@ describe("rewriteLatexBracketDelimiters", () => {
       rewriteLatexBracketDelimiters(
         "> 1. \\[\n> a\n> \\]\n> where \\[x\\] holds",
       ),
-    ).toBe("> 1. \n>    $$\n>    a\n>    $$\n>    where $$x$$ holds");
+    ).toBe("> 1. $$\n>    a\n>    $$\n>    where $$x$$ holds");
   });
 
   it("keeps prose after a bracket closer in the quoted list item", () => {
     expect(normalizeMathDelimiters("> 1. \\[\n> a\n> \\] then\n> more")).toBe(
-      "> 1. \n>    $$\n>    a\n>    $$\n>     then\n> more",
+      "> 1. $$\n>    a\n>    $$\n>     then\n> more",
     );
     expect(rewriteLatexBracketDelimiters("> \\[\n> a\n> \\] then")).toBe(
       "> \n> $$\n> a\n> $$\n>  then",
@@ -138,25 +136,107 @@ describe("rewriteLatexBracketDelimiters", () => {
   it("keeps prose after a math tag closer in the quoted list item", () => {
     expect(
       normalizeMathDelimiters("> 1. [/math]\n> a\n> [/math] then\n> more"),
-    ).toBe("> 1. \n>    $$\n>    a\n>    $$\n>     then\n> more");
+    ).toBe("> 1. $$\n>    a\n>    $$\n>     then\n> more");
+  });
+
+  describe.each([
+    ["\\[", "\\]"],
+    ["\\\\[", "\\\\]"],
+    ["[/math]", "[/math]"],
+  ])("%s displays sharing a closer line", (open, close) => {
+    it.each([
+      ["quoted list", "> 1. ", "> ", ">    ", true],
+      ["plain quote", "> ", "> ", "> ", false],
+      ["plain list", "- item ", "  ", "  ", false],
+      ["nested quoted list", "> - > ", ">   > ", ">   > ", true],
+    ])(
+      "keeps the second display in the %s",
+      (_, start, body, continuation, openerOnMarker) => {
+        const opener = openerOnMarker
+          ? `${start}$$`
+          : `${start}\n${continuation}$$`;
+        expect(
+          normalizeMathDelimiters(
+            `${start}${open}\n${body}a1\n${body}a2\n${body}${close} x ${open}\n${body}b1\n${body}b2\n${body}${close} then`,
+          ),
+        ).toBe(
+          `${opener}\n${continuation}a1\n${continuation}a2\n${continuation}$$\n${continuation} x \n${continuation}$$\n${continuation}b1\n${continuation}b2\n${continuation}$$\n${continuation} then`,
+        );
+      },
+    );
+  });
+
+  it.each([
+    [
+      "a single-line display before a third multiline display",
+      "> item \\[\n> a1\n> a2 \\] , \\[ bx \\]\\[\n> c1\n> \\] then",
+      "> item \n> $$\n> a1\n> a2 \n> $$\n>  , $$bx$$\n> $$\n> c1\n> $$\n>  then",
+    ],
+    [
+      "a single-line display before a third multiline display in a list item",
+      "> 1. \\[\n> a1\n> a2 \\] , \\[ bx \\]\\[\n> c1\n> \\] then",
+      "> 1. $$\n>    a1\n>    a2 \n>    $$\n>     , $$bx$$\n>    $$\n>    c1\n>    $$\n>     then",
+    ],
+    [
+      "a single-line math tag before a third multiline display in a list item",
+      "> 1. [/math]\n> a1\n> a2 [/math] , [/math]bx[/math][/math]\n> c1\n> [/math] then",
+      "> 1. $$\n>    a1\n>    a2 \n>    $$\n>     , $$bx$$\n>    $$\n>    c1\n>    $$\n>     then",
+    ],
+    [
+      "whitespace between the second closer and third opener",
+      "> item \\[\n> a1\n> a2 \\]   \\[ bx \\] \t \\[\n> c1\n> \\] then",
+      "> item \n> $$\n> a1\n> a2 \n> $$\n>    $$bx$$ \t \n> $$\n> c1\n> $$\n>  then",
+    ],
+    [
+      "the line after a closer-line display",
+      "> 1. \\[\n> a\n> \\] x \\[\n> b\n> \\] then\n> more",
+      "> 1. $$\n>    a\n>    $$\n>     x \n>    $$\n>    b\n>    $$\n>     then\n> more",
+    ],
+    [
+      "the line after a second display in a list item",
+      "> 1. \\[\n> a\n> \\] x \\[\n> b\n> \\]\n> more",
+      "> 1. $$\n>    a\n>    $$\n>     x \n>    $$\n>    b\n>    $$\n>    more",
+    ],
+    [
+      "the line after a second display in a plain quote",
+      "> \\[\n> a\n> \\] x \\[\n> b\n> \\]\n> more",
+      "> \n> $$\n> a\n> $$\n>  x \n> $$\n> b\n> $$\n> more",
+    ],
+    [
+      "CRLF lines",
+      "> 1. \\[\r\n> a\r\n> \\] x \\[\r\n> b\r\n> \\] then",
+      "> 1. $$\n>    a\r\n>    $$\n>     x \n>    $$\n>    b\r\n>    $$\n>     then",
+    ],
+    [
+      "a code span between bracket displays",
+      "> 1. \\[\n> a\n> \\] `x` \\[\n> b\n> \\]",
+      "> 1. $$\n>    a\n>    $$\n>     `x` \n>    $$\n>    b\n>    $$",
+    ],
+    [
+      "a code span between math tags",
+      "> 1. [/math]\n> a\n> [/math] `x` [/math]\n> b\n> [/math]",
+      "> 1. $$\n>    a\n>    $$\n>     `x` \n>    $$\n>    b\n>    $$",
+    ],
+  ])("preserves %s", (_, input, expected) => {
+    expect(normalizeMathDelimiters(input)).toBe(expected);
   });
 
   it("keeps display math and following prose in an ordered list then quote", () => {
     expect(
       normalizeMathDelimiters("1. > \\[\n   > a\n   > \\] then\n   > more"),
-    ).toBe("1. > \n   > $$\n   > a\n   > $$\n   >  then\n   > more");
+    ).toBe("1. > $$\n   > a\n   > $$\n   >  then\n   > more");
   });
 
   it("keeps display math and following prose at quote depth two", () => {
     expect(
       normalizeMathDelimiters("> - > \\[\n>   > a\n>   > \\] then\n>   > more"),
-    ).toBe("> - > \n>   > $$\n>   > a\n>   > $$\n>   >  then\n>   > more");
+    ).toBe("> - > $$\n>   > a\n>   > $$\n>   >  then\n>   > more");
   });
 
   it("rewrites a multiline bracket display whose TeX body contains backticks", () => {
     expect(
       normalizeMathDelimiters("1. \\[\n\\text{`x`} = 1\nE = mc^2\n\\]\nText"),
-    ).toBe("1. \n   $$\n   \\text{`x`} = 1\n   E = mc^2\n   $$\nText");
+    ).toBe("1. $$\n   \\text{`x`} = 1\n   E = mc^2\n   $$\nText");
     expect(rewriteLatexBracketDelimiters("\\[a `b` c\\]")).toBe(
       "\\[a `b` c\\]",
     );
@@ -205,6 +285,44 @@ describe("rewriteLatexBracketDelimiters", () => {
     expect(
       rewriteLatexBracketDelimiters(">  - item \\[\na\nb\n\\]\n>  - next"),
     ).toBe(">  - item \n>    $$\n>    a\n>    b\n>    $$\n>  - next");
+  });
+
+  it("keeps math after an ordered-list marker and touching quote in both containers", () => {
+    expect(normalizeMathDelimiters(">1) > \\[ > x\n>    > >\n>    > \\]")).toBe(
+      ">1) > $$\n>    >  > x\n>    > >\n>    > $$",
+    );
+  });
+
+  it("keeps math after a bullet marker and touching quote in both containers", () => {
+    expect(normalizeMathDelimiters(">* > \\[x\n>   > x\n>   > \\]")).toBe(
+      ">* > $$\n>   > x\n>   > x\n>   > $$",
+    );
+  });
+
+  it("keeps math after nested list markers inside the inner quote", () => {
+    expect(normalizeMathDelimiters("- - > \\[x\n    > a\n    > \\]")).toBe(
+      "- - > $$\n    > x\n    > a\n    > $$",
+    );
+  });
+
+  it.each([
+    [
+      "a bullet then an ordered marker, each touching a quote",
+      ">- >1) \\[x\n>   >    a\n>   >    \\]",
+      ">- >1) $$\n>   >    x\n>   >    a\n>   >    $$",
+    ],
+    [
+      "two ordered markers, each touching a quote",
+      ">1) >2) \\[x\n>    >    a\n>    >    \\]",
+      ">1) >2) \n>    >    $$\n>    >    x\n>    >    a\n>    >    $$",
+    ],
+    [
+      "nested list markers in a quote with a [/math] display",
+      "> - 1. [/math]x\n>      a\n>      [/math]",
+      "> - 1. $$\n>      x\n>      a\n>      $$",
+    ],
+  ])("keeps math after %s", (_, input, expected) => {
+    expect(normalizeMathDelimiters(input)).toBe(expected);
   });
 
   it("reads the block prefix past a code span on the same line", () => {
@@ -262,7 +380,7 @@ describe("rewriteLatexBracketDelimiters", () => {
 
   it("keeps display math in a blockquote nested inside a list item", () => {
     expect(normalizeMathDelimiters("- > \\[x\n  > x\n  > \\]")).toBe(
-      "- > \n  > $$\n  > x\n  > x\n  > $$",
+      "- > $$\n  > x\n  > x\n  > $$",
     );
   });
 
@@ -271,7 +389,7 @@ describe("rewriteLatexBracketDelimiters", () => {
       "> 1. $$w3$$",
     );
     expect(rewriteLatexBracketDelimiters("> 1. \\[\n> \n> w3 \n> \\]")).toBe(
-      "> 1. \n>    $$\n>    w3 \n>    $$",
+      "> 1. $$\n>    w3 \n>    $$",
     );
   });
 
@@ -598,6 +716,12 @@ describe("rewriteLatexBracketDelimiters", () => {
 });
 
 describe("rewriteCustomMathTags", () => {
+  it("does not inherit a bracket display prefix", () => {
+    expect(
+      rewriteCustomMathTags("> 1. \\[\n> a\n> \\] x [/math]\n> b\n> [/math]"),
+    ).toBe("> 1. \\[\n> a\n> \\] x \n> $$\n> b\n> $$");
+  });
+
   it("rewrites [/math] to display dollars and [/inline] to inline dollars", () => {
     expect(
       rewriteCustomMathTags("[/math]a+b[/math] and [/inline]c[/inline]"),
@@ -629,6 +753,32 @@ describe("rewriteCustomMathTags", () => {
       ),
     ).toBe("$$\n\\begin{aligned}\na&=b\n\\end{aligned}\n$$\nDone.");
   });
+
+  it.each([
+    ["brackets", rewriteLatexBracketDelimiters, "\\[", "\\]"],
+    ["tags", rewriteCustomMathTags, "[/math]", "[/math]"],
+  ] as const)(
+    "trims leading blank display lines without shifting the body in %s",
+    (_, preprocess, open, close) => {
+      const input = `${open}${"\n".repeat(256)}x\ny${close}`;
+      const shift = Array.prototype.shift;
+      let shiftedEntries = 0;
+      const spy = vi
+        .spyOn(Array.prototype, "shift")
+        .mockImplementation(function (this: unknown[]) {
+          if (this.length > 100 && this[0] === "") {
+            shiftedEntries += this.length - 1;
+          }
+          return Reflect.apply(shift, this, []);
+        });
+      try {
+        expect(preprocess(input)).toBe("$$\nx\ny\n$$");
+      } finally {
+        spy.mockRestore();
+      }
+      expect(shiftedEntries).toBeLessThanOrEqual(256);
+    },
+  );
 
   it("gives the fence markers their own lines mid-paragraph", () => {
     expect(rewriteCustomMathTags("Thus [/math]a\nb[/math] therefore.")).toBe(
@@ -676,9 +826,182 @@ describe("rewriteCustomMathTags", () => {
 });
 
 describe("normalizeMathDelimiters", () => {
+  it("does not hand off a bracket body with only blank quoted lines", () => {
+    expect(
+      normalizeMathDelimiters("> 1. \\[\n>\n> \\] x [/math]\n> b\n> [/math]"),
+    ).toBe("> 1. \\[\n>\n> \\] x \n> $$\n> b\n> $$");
+  });
+
+  it("keeps a blank-line bracket display from handing off its list prefix", () => {
+    expect(
+      normalizeMathDelimiters(
+        "> 1. \\[\n> a\n>\n> b\n> \\] x [/math]\n> c\n> [/math]",
+      ),
+    ).toBe("> 1. $$\n>    a\n>   \n>    b\n>    $$\n>     x \n> $$\n> c\n> $$");
+  });
+
+  it("normalizes inline math after a blank-line bracket and tag display", () => {
+    const result = normalizeMathDelimiters(
+      "> 1. \\[\n> a\n>\n> b\n> \\] x [/math]\n> c\n> [/math] then \\(y\\)",
+    );
+    expect(result).toContain("then $y$");
+  });
+
+  it.each([
+    [
+      "a code span in the bracket body",
+      "> 1. \\[\n> a `x` b\n> \\] x [/math]\n> c\n> [/math]",
+      "> 1. $$\n>    a `x` b\n>    $$\n>     x \n>    $$\n>    c\n>    $$",
+    ],
+    [
+      "a code span between the bracket closer and math tag",
+      "> 1. \\[\n> a\n> \\] `x` [/math]\n> c\n> [/math]",
+      "> 1. $$\n>    a\n>    $$\n>     `x` \n>    $$\n>    c\n>    $$",
+    ],
+  ])("hands off across %s", (_, input, expected) => {
+    expect(normalizeMathDelimiters(input)).toBe(expected);
+  });
+
+  it.each([
+    [
+      "bracket display followed by a math tag",
+      "> 1. \\[\n> a\n> \\] x [/math]\n> b\n> [/math] then",
+      "> 1. $$\n>    a\n>    $$\n>     x \n>    $$\n>    b\n>    $$\n>     then",
+    ],
+    [
+      "math tag followed by a bracket display",
+      "> 1. [/math]\n> a\n> [/math] x \\[\n> b\n> \\] then",
+      "> 1. $$\n>    a\n>    $$\n>     x \n>     $$\n>     b\n>     $$\n>      then",
+    ],
+    [
+      "double-backslash bracket display followed by a math tag",
+      "> 1. \\\\[\n> a\n> \\\\] x [/math]\n> b\n> [/math] then",
+      "> 1. $$\n>    a\n>    $$\n>     x \n>    $$\n>    b\n>    $$\n>     then",
+    ],
+  ])("hands off a quoted list prefix across a %s", (_, input, expected) => {
+    expect(normalizeMathDelimiters(input)).toBe(expected);
+  });
+
+  it("keeps three chained displays inside a quoted list item", () => {
+    expect(
+      normalizeMathDelimiters(
+        "> 1. [/math]\n> a\n> [/math] x \\[\n> b\n> \\] y [/math]\n> c\n> [/math] then",
+      ),
+    ).toBe(
+      "> 1. $$\n>    a\n>    $$\n>     x \n>     $$\n>     b\n>     $$\n>      y \n>    $$\n>    c\n>    $$\n>     then",
+    );
+  });
+
+  it("carries an inherited prefix through a bracket closer and tag opener", () => {
+    expect(
+      normalizeMathDelimiters(
+        "> 12. [/math]\n> a\n> [/math] plus \\[\n> b\n> \\] after [/math]\n> c\n> [/math] end",
+      ),
+    ).toBe(
+      "> 12. \n>     $$\n>     a\n>     $$\n>      plus \n>      $$\n>      b\n>      $$\n>       after \n>     $$\n>     c\n>     $$\n>      end",
+    );
+  });
+
   it("normalizes both bracket delimiters and custom tags", () => {
     expect(normalizeMathDelimiters("\\(x\\) [/math]y[/math]")).toBe(
       "$x$ $$y$$",
+    );
+  });
+
+  it.each([
+    ["- - - \\[x\na\n\\]", "- - - $$\n      x\n      a\n      $$"],
+    [
+      "* * *   * \\[x\na\n\\]",
+      "* * *   * $$\n          x\n          a\n          $$",
+    ],
+    ["- - - [/math]x\na[/math]", "- - - $$\n      x\n      a\n      $$"],
+    [
+      "* * *   * [/math]x\na[/math]",
+      "* * *   * $$\n          x\n          a\n          $$",
+    ],
+  ])(
+    "keeps a multiline display in every same-line list item for %j",
+    (input, expected) => {
+      expect(normalizeMathDelimiters(input)).toBe(expected);
+    },
+  );
+
+  it.each([
+    ["- * * * ", "        "],
+    ["+ - - - ", "        "],
+    ["1. - - - ", "         "],
+    ["* - - - - ", "          "],
+    ["> + - - - ", ">         "],
+  ])("keeps a display after a thematic-break suffix in %j", (head, prefix) => {
+    for (const [open, close] of [
+      ["\\[", "\\]"],
+      ["[/math]", "[/math]"],
+    ]) {
+      expect
+        .soft(normalizeMathDelimiters(`${head}${open}x\na\n${close}`))
+        .toBe(`${head}$$\n${prefix}x\n${prefix}a\n${prefix}$$`);
+    }
+  });
+
+  it.each([
+    ["- - ", "    "],
+    ["+ + + ", "      "],
+  ])(
+    "keeps a display on a list-marker head without a thematic break in %j",
+    (head, prefix) => {
+      expect(normalizeMathDelimiters(`${head}\\[x\na\n\\]`)).toBe(
+        `${head}$$\n${prefix}x\n${prefix}a\n${prefix}$$`,
+      );
+    },
+  );
+
+  it.each([
+    ["dash", "-", "  "],
+    ["star", "*", "  "],
+    ["plus", "+", "  "],
+    ["ordered", "1.", "   "],
+  ] as const)(
+    "keeps multiline display math in an empty %s item after a paragraph",
+    (_name, marker, prefix) => {
+      expect(normalizeMathDelimiters(`Steps:\n${marker} \\[\nx\ny\n\\]`)).toBe(
+        `Steps:\n${marker} $$\n${prefix}x\n${prefix}y\n${prefix}$$`,
+      );
+    },
+  );
+
+  it("keeps a one-equation display inline after an empty list marker", () => {
+    expect(normalizeMathDelimiters("Steps:\n- \\[\nx\n\\]")).toBe(
+      "Steps:\n- $$x$$",
+    );
+  });
+
+  it("keeps a nested list-and-quote display opener on its marker line", () => {
+    expect(normalizeMathDelimiters("- > - - - \\[x\na\n\\]")).toBe(
+      "- > - - - $$\n  >       x\n  >       a\n  >       $$",
+    );
+  });
+
+  it.each([
+    [
+      "an ordered marker other than 1",
+      "Steps:\n2. \\[\nx\ny\n\\]",
+      "Steps:\n2. \n   $$\n   x\n   y\n   $$",
+    ],
+    [
+      "a nested ordered marker other than 1",
+      "Steps:\n- 2. \\[\nx\ny\n\\]",
+      "Steps:\n- 2. \n     $$\n     x\n     y\n     $$",
+    ],
+  ])(
+    "moves the opener off a head with %s, which cannot interrupt a paragraph",
+    (_name, input, expected) => {
+      expect(normalizeMathDelimiters(input)).toBe(expected);
+    },
+  );
+
+  it("keeps a later list fence separate from a display after three markers", () => {
+    expect(normalizeMathDelimiters("- - - \\[x\na\n\\]\n\n- $$\na+b\n$$")).toBe(
+      "- - - $$\n      x\n      a\n      $$\n\n- $$\n  a+b\n  $$",
     );
   });
 
@@ -691,6 +1014,17 @@ describe("normalizeMathDelimiters", () => {
   it("keeps many inline code spans in one paragraph unchanged", () => {
     const input = "a `\\(x\\)` ".repeat(1000);
     expect(normalizeMathDelimiters(input)).toBe(input);
+  });
+
+  it("keeps code-heavy output identical with and without bracket scanning", () => {
+    const withoutScan = "a `b` ".repeat(5_000) + "\\[x\\]";
+    const withScan = withoutScan.replace("`b`", "`[/math]`");
+    expect(normalizeMathDelimiters(withoutScan)).toBe(
+      "a `b` ".repeat(5_000) + "$$x$$",
+    );
+    expect(normalizeMathDelimiters(withScan).replace("`[/math]`", "`b`")).toBe(
+      normalizeMathDelimiters(withoutScan),
+    );
   });
 
   it.each([
@@ -752,6 +1086,16 @@ describe("normalizeMathDelimiters", () => {
   );
 
   it.each([
+    ["\\[", "\\]"],
+    ["[/math]", "[/math]"],
+  ])("handles a long whitespace display head for %s", (open, close) => {
+    const head = " ".repeat(131072);
+    expect(
+      normalizeMathDelimiters(`para\n${head}${open}x\ny\n${close}`),
+    ).toContain("$$");
+  });
+
+  it.each([
     ["\t", "$5\n\n$7"],
     ["- ", "$5\n\n$7"],
     ["* ", "$5\n\n$7"],
@@ -770,6 +1114,38 @@ describe("normalizeMathDelimiters", () => {
       "x ```js\n\\$5\n\n\\$7\n```",
     );
   });
+
+  it.each([
+    ["currency", escapeCurrencyDollars],
+    ["math", normalizeMathDelimiters],
+  ] as const)(
+    "keeps rejected tilde prefix checks constant in %s",
+    (_, preprocess) => {
+      const prefixCharSource = /[ \t>*+\-0-9.)]/.source;
+      const checksFor = (length: number) => {
+        const input = `x ${"~".repeat(length)}`;
+        const test = RegExp.prototype.test;
+        let checks = 0;
+        const spy = vi
+          .spyOn(RegExp.prototype, "test")
+          .mockImplementation(function (this: RegExp, candidate) {
+            if (this.source === prefixCharSource) checks += 1;
+            return Reflect.apply(test, this, [candidate]);
+          });
+        try {
+          expect(preprocess(input)).toBe(input);
+        } finally {
+          spy.mockRestore();
+        }
+        return checks;
+      };
+
+      const first = checksFor(256);
+      const second = checksFor(512);
+      expect(first).toBeGreaterThan(0);
+      expect(second).toBe(first);
+    },
+  );
 
   it("nests a $$ fence opened on a list item's marker line", () => {
     expect(

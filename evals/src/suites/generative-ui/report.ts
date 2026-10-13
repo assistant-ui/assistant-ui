@@ -1,5 +1,5 @@
 import type { CaseResult, TrialResult } from "../../types.ts";
-import type { Candidate, Judged, Scores, Task } from "./types.ts";
+import type { Candidate, Format, Judged, Scores, Task } from "./types.ts";
 
 export const overall = (scores: Scores) =>
   (scores.clarity + scores.usefulness + scores.completeness) / 3;
@@ -31,7 +31,7 @@ const formatCount = (value: number | undefined) =>
 const formatSeconds = (value: number | undefined) =>
   value === undefined ? "N/A" : `${(value / 1000).toFixed(1)} s`;
 
-/** Per model: each format's averages, then each task's overall score by format. */
+/** Per model: each format's averages, each task's overall score by format, and which format `auto` chose on each task. */
 export function renderReport(
   results: CaseResult<Task, Candidate, Judged>[],
 ): string {
@@ -52,13 +52,14 @@ export function renderReport(
       "",
       `## ${model}`,
       "",
-      "| format | valid | repairs | clarity | usefulness | completeness | computed tasks | other tasks | input tokens | output tokens | first output | total |",
-      "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+      "| format | valid | render errors | repairs | clarity | usefulness | completeness | computed tasks | other tasks | input tokens | output tokens | first output | total |",
+      "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     );
     for (const candidate of formats) {
       const trials = trialsOf(candidate);
       const cells = [
         formatShare(mean(trials, (j) => (j.errors.length ? 0 : 1))),
+        formatShare(mean(trials, (j) => (j.runtimeErrors.length ? 1 : 0))),
         formatScore(mean(trials, (j) => j.repairRounds)),
         formatScore(mean(trials, (j) => j.scores.clarity)),
         formatScore(mean(trials, (j) => j.scores.usefulness)),
@@ -85,22 +86,43 @@ export function renderReport(
       );
       lines.push(`| ${r.case.id} | ${cells.join(" | ")} |`);
     }
+    const auto = formats.find((c) => c.format === "auto");
+    if (auto) {
+      const choices: Format[] = ["text", "spec", "frame"];
+      const chosen = (tasks: typeof results) => {
+        const answers = trialsOf(auto, tasks).flatMap((t) =>
+          t.error ? [] : [t.outcome.attempted ?? t.outcome.answeredIn],
+        );
+        return choices.map((format) =>
+          String(answers.filter((choice) => choice === format).length),
+        );
+      };
+      lines.push(
+        "",
+        `| task | ${choices.map((format) => `auto chose ${format}`).join(" | ")} |`,
+        `| --- | ${choices.map(() => "---:").join(" | ")} |`,
+        ...results.map((r) => `| ${r.case.id} | ${chosen([r]).join(" | ")} |`),
+        `| all tasks | ${chosen(results).join(" | ")} |`,
+      );
+    }
   }
 
-  const failures = results.flatMap((r) =>
-    r.variants.flatMap((v) => {
-      const errors = new Set(
-        v.trials.flatMap((t) => (t.error ? [] : t.outcome.errors)),
-      );
-      return errors.size
-        ? [
-            `- \`${v.candidate.label}\` on \`${r.case.id}\`: ${[...errors].join("; ")}`,
-          ]
-        : [];
-    }),
-  );
-  if (failures.length) {
-    lines.push("", "## Validation errors left after repairs", "", ...failures);
-  }
+  const listErrors = (heading: string, pick: (judged: Judged) => string[]) => {
+    const entries = results.flatMap((r) =>
+      r.variants.flatMap((v) => {
+        const errors = new Set(
+          v.trials.flatMap((t) => (t.error ? [] : pick(t.outcome))),
+        );
+        return errors.size
+          ? [
+              `- \`${v.candidate.label}\` on \`${r.case.id}\`: ${[...errors].join("; ")}`,
+            ]
+          : [];
+      }),
+    );
+    if (entries.length) lines.push("", `## ${heading}`, "", ...entries);
+  };
+  listErrors("Validation errors left after repairs", (j) => j.errors);
+  listErrors("Errors while rendering", (j) => j.runtimeErrors);
   return lines.join("\n");
 }

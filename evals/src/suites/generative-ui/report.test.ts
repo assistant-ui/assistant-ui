@@ -10,12 +10,16 @@ const judged = (
 ): TrialResult<Judged> => ({
   outcome: {
     artifact: "answer",
+    prose: { before: "", after: "" },
+    answeredIn: "text",
     errors: [],
     repairRounds: 0,
     inputTokens: 100,
     outputTokens: 50,
     firstOutputMs: 1000,
     totalMs: 2000,
+    runtimeErrors: [],
+    screenshots: [],
     scores: { clarity, usefulness, completeness },
     reason: "",
     ...overrides,
@@ -56,7 +60,7 @@ test("mean skips errored trials and missing values", () => {
   );
 });
 
-test("lists every distinct error a candidate left on a task", () => {
+test("lists every distinct error a candidate left on a task, then every error raised while rendering", () => {
   const report = renderReport([
     {
       case: task("t1", true),
@@ -64,14 +68,71 @@ test("lists every distinct error a candidate left on a task", () => {
         {
           candidate: candidate("spec"),
           trials: [
-            judged([1, 1, 1], { errors: ["a", "b"] }),
-            judged([1, 1, 1], { errors: ["b", "c"] }),
+            judged([1, 1, 1], { errors: ["a", "b"], runtimeErrors: ["x"] }),
+            judged([1, 1, 1], { errors: ["b", "c"], runtimeErrors: ["x"] }),
           ],
         },
       ],
     },
   ]);
-  assert.ok(report.endsWith("- `spec:m` on `t1`: a; b; c"), report);
+  assert.ok(
+    report.endsWith(
+      [
+        "## Validation errors left after repairs",
+        "",
+        "- `spec:m` on `t1`: a; b; c",
+        "",
+        "## Errors while rendering",
+        "",
+        "- `spec:m` on `t1`: x",
+      ].join("\n"),
+    ),
+    report,
+  );
+});
+
+test("counts which format auto chose on each task", () => {
+  const auto = candidate("auto");
+  const report = renderReport([
+    {
+      case: task("t1", true),
+      variants: [
+        {
+          candidate: auto,
+          trials: [
+            judged([4, 4, 4], { answeredIn: "frame" }),
+            judged([3, 3, 3], { answeredIn: "spec" }),
+            errored,
+          ],
+        },
+      ],
+    },
+    {
+      case: task("t2", false),
+      variants: [
+        {
+          candidate: auto,
+          trials: [
+            judged([5, 5, 5]),
+            judged([4, 4, 4], { answeredIn: "spec" }),
+            judged([1, 1, 1], { answeredIn: "text", attempted: "spec" }),
+          ],
+        },
+      ],
+    },
+  ]);
+  assert.ok(
+    report.includes(
+      [
+        "| task | auto chose text | auto chose spec | auto chose frame |",
+        "| --- | ---: | ---: | ---: |",
+        "| t1 | 0 | 1 | 1 |",
+        "| t2 | 1 | 2 | 0 |",
+        "| all tasks | 1 | 3 | 1 |",
+      ].join("\n"),
+    ),
+    report,
+  );
 });
 
 test("renders each format's averages and each task's score per model", () => {
@@ -87,6 +148,7 @@ test("renders each format's averages and each task's score per model", () => {
           trials: [
             judged([2, 1, 3], {
               errors: ["bad"],
+              runtimeErrors: ["script: boom"],
               repairRounds: 2,
               inputTokens: 300,
               outputTokens: 150,
@@ -123,10 +185,10 @@ test("renders each format's averages and each task's score per model", () => {
       "",
       "## m",
       "",
-      "| format | valid | repairs | clarity | usefulness | completeness | computed tasks | other tasks | input tokens | output tokens | first output | total |",
-      "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
-      "| text | 100% | 0.0 | 4.5 | 4.5 | 4.5 | 4.0 | 5.0 | 100 | 50 | 1.0 s | 2.0 s |",
-      "| spec | 50% | 1.0 | 2.5 | 2.5 | 4.0 | 2.0 | 4.0 | 250 | 125 | 1.0 s | 3.5 s |",
+      "| format | valid | render errors | repairs | clarity | usefulness | completeness | computed tasks | other tasks | input tokens | output tokens | first output | total |",
+      "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+      "| text | 100% | 0% | 0.0 | 4.5 | 4.5 | 4.5 | 4.0 | 5.0 | 100 | 50 | 1.0 s | 2.0 s |",
+      "| spec | 50% | 50% | 1.0 | 2.5 | 2.5 | 4.0 | 2.0 | 4.0 | 250 | 125 | 1.0 s | 3.5 s |",
       "",
       "| task | text | spec |",
       "| --- | ---: | ---: |",
@@ -136,6 +198,10 @@ test("renders each format's averages and each task's score per model", () => {
       "## Validation errors left after repairs",
       "",
       "- `spec:m` on `t1`: bad",
+      "",
+      "## Errors while rendering",
+      "",
+      "- `spec:m` on `t1`: script: boom",
     ].join("\n"),
   );
 });

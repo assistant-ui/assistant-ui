@@ -1,6 +1,8 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { checkTree, startFormat } from "./formats.ts";
+import { checkTree, kitLibrary, startFormat } from "./formats.ts";
 
 test("a tree of known components with valid props renders", () => {
   assert.deepEqual(
@@ -49,4 +51,37 @@ test("each format exposes only the tools it answers with", async () => {
     "show_widget",
     "edit_widget",
   ]);
+  assert.deepEqual(await tools("auto"), [
+    "render_spec",
+    "read_me",
+    "show_widget",
+    "edit_widget",
+  ]);
+});
+
+test("auto gets the rules for choosing a format and the spec catalog", async () => {
+  const auto = await startFormat("auto");
+  const spec = await startFormat("spec");
+  assert.ok(auto.system.includes("## Choosing how to answer"));
+  assert.ok(auto.system.includes("Call `read_me` once"));
+  assert.ok(
+    auto.system.endsWith(
+      spec.system.slice(spec.system.indexOf("# Declarative UI")),
+    ),
+  );
+  assert.equal(auto.prose, true);
+  assert.equal(spec.prose, false);
+});
+
+test("the vocabulary tells the model what the kit's element renders", () => {
+  const element = readFileSync(
+    fileURLToPath(
+      new URL(
+        "../../../../packages/ui/src/components/react/assistant-ui/elements/generative-ui.tsx",
+        import.meta.url,
+      ),
+    ),
+    "utf8",
+  );
+  assert.ok(element.includes(JSON.stringify(kitLibrary.Markdown!.description)));
 });

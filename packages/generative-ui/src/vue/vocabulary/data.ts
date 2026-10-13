@@ -29,6 +29,8 @@ import {
   type ChartVariant,
 } from "../../vocabulary/chartData";
 import { textChildren } from "./textChildren";
+import { linkHost, linkHref } from "../../vocabulary/structureValues";
+import { toTextContent } from "../../vocabulary/toTextContent";
 
 function pointTargets(
   series: NormalizedChartSeries,
@@ -474,6 +476,45 @@ export const dataVocabulary = {
                     ),
                   ),
                 )
+              : null,
+          ]);
+        };
+      },
+    }),
+  },
+  Citation: {
+    ...dataDefinitions.Citation,
+    component: defineComponent({
+      name: "GenerativeUICitation",
+      props: ["title", "url", "source", "snippet"],
+      setup(props) {
+        return () => {
+          const href = linkHref(props.url);
+          const site =
+            toTextContent(props.source) ?? (href ? linkHost(href) : null);
+          const quote = toTextContent(props.snippet);
+          return h("div", { "data-aui": "citation" }, [
+            site != null
+              ? h("div", { "data-aui": "citation-source" }, String(site))
+              : null,
+            href
+              ? h(
+                  "a",
+                  {
+                    "data-aui": "citation-title",
+                    href,
+                    target: "_blank",
+                    rel: "noopener noreferrer",
+                  },
+                  textChildren(props.title),
+                )
+              : h(
+                  "div",
+                  { "data-aui": "citation-title" },
+                  textChildren(props.title),
+                ),
+            quote != null
+              ? h("div", { "data-aui": "citation-snippet" }, String(quote))
               : null,
           ]);
         };

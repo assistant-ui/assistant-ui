@@ -10,13 +10,14 @@ export const auiHairlineBorder =
   "color-mix(in oklab, var(--border) 60%, transparent)";
 
 /**
- * A card earns its frame from its content rather than by existing: the renderer
- * stamps `data-aui-surface` when a tinted background or a footer makes it one,
- * and a carousel slot is a surface by position. Plain sections stay weightless
- * so a composition of several reads as one message rather than a stack of
- * slabs. The flag is an attribute rather than `:has()` because the repository's
- * browserslist still includes Firefox 111, where an unsupported selector would
- * discard the whole rule.
+ * A card is a module the reader scans or acts on, so it renders as a field
+ * panel: a fill without a border, which sets the module apart without boxing
+ * the answer around it. A card inside another card stays plain, so a module
+ * never nests a second panel. A card becomes a framed surface when the
+ * renderer stamps `data-aui-surface` for a tinted background or a footer, and a
+ * carousel slot is one by position. The flag is an attribute rather than
+ * `:has()` because the repository's browserslist still includes Firefox 111,
+ * where an unsupported selector would discard the whole rule.
  */
 export const auiCardSurfaceSelectors = [
   '[data-aui="card"][data-aui-surface]',
@@ -27,6 +28,8 @@ const cardSurface = (scope?: string) =>
   auiCardSurfaceSelectors.map((s) => (scope ? `${scope} ${s}` : s)).join(", ");
 const toneText = (token: string) =>
   `color-mix(in oklab, var(${token}) 60%, var(--foreground))`;
+const inkFill = (pct: number) =>
+  `color-mix(in oklab, var(--foreground) ${pct}%, transparent)`;
 
 // Density knobs, host-overridable via CSS custom properties: --aui-control-height, --aui-control-font-size, --aui-button-padding-x, --aui-field-padding-x.
 export const generativeUiVocabularyCss: CssRuleset = {
@@ -97,9 +100,7 @@ export const generativeUiVocabularyCss: CssRuleset = {
   '[data-aui="fact"]': { margin: "0" },
   '[data-aui="fact-label"]': {
     margin: "0",
-    "font-size": "0.6875rem",
-    "text-transform": "uppercase",
-    "letter-spacing": "0.05em",
+    "font-size": "0.75rem",
     color: "color-mix(in oklab, currentColor 62%, transparent)",
   },
   '[data-aui="fact-value"]': {
@@ -107,6 +108,19 @@ export const generativeUiVocabularyCss: CssRuleset = {
     "font-size": "0.875rem",
     "font-variant-numeric": "tabular-nums",
   },
+  // Facts side by side are the answer's headline figures, so their values
+  // carry the size and weight a reader scans for; inside a card they are the
+  // card's details and stay below its title.
+  '[data-aui="row"] > [data-aui="fact"] > [data-aui="fact-value"]': {
+    "font-size": "1.25rem",
+    "font-weight": "600",
+    "line-height": "1.3",
+  },
+  '[data-aui="card"] [data-aui="row"] > [data-aui="fact"] > [data-aui="fact-value"]':
+    {
+      "font-size": "0.9375rem",
+      "font-weight": "500",
+    },
   '[data-aui="fact-delta"]': {
     display: "inline-flex",
     "align-items": "center",
@@ -368,6 +382,30 @@ export const generativeUiVocabularyCss: CssRuleset = {
     "flex-direction": "column",
     gap: "0.25rem",
   },
+  '[data-aui="checkboxgroup-progress"]': {
+    display: "flex",
+    "align-items": "center",
+    gap: "0.625rem",
+    "margin-bottom": "0.25rem",
+    "font-size": "0.75rem",
+    "font-variant-numeric": "tabular-nums",
+    color: "color-mix(in oklab, currentColor 62%, transparent)",
+  },
+  '[data-aui="checkboxgroup-progress-track"]': {
+    flex: "1",
+    height: "0.375rem",
+    "border-radius": "9999px",
+    "background-color":
+      "color-mix(in oklab, var(--foreground) 10%, transparent)",
+    overflow: "hidden",
+  },
+  '[data-aui="checkboxgroup-progress-fill"]': {
+    display: "block",
+    height: "100%",
+    "border-radius": "inherit",
+    "background-color": "var(--primary)",
+    transition: "width 0.2s ease",
+  },
   'fieldset[data-aui="answered"]': {
     border: "0",
     margin: "0",
@@ -380,8 +418,9 @@ export const generativeUiVocabularyCss: CssRuleset = {
       opacity: "0.55",
     },
 
-  // The surface spaces itself: several `present` calls land as adjacent blocks
-  // in a host container this stylesheet does not own. In a block context these
+  // The surface spaces itself: several `present` calls, or a `render_spec` or
+  // `show_widget` frame next to the reply's text, land as adjacent blocks in a
+  // host container this stylesheet does not own. In a block context these
   // margins collapse into one gap between neighbours; a flex or grid host adds
   // them to its own spacing instead.
   '[data-aui="root"]': {
@@ -390,6 +429,7 @@ export const generativeUiVocabularyCss: CssRuleset = {
     gap: "0.875rem",
     "margin-block": "0.875rem",
   },
+  "[data-gf-spec], [data-gf-widget]": { "margin-block": "0.875rem" },
   // A call whose nodes have not arrived yet renders no children, and an empty
   // surface would otherwise hold its margins open for the length of the stream.
   '[data-aui="root"]:empty': { display: "none" },
@@ -402,7 +442,14 @@ export const generativeUiVocabularyCss: CssRuleset = {
     display: "flex",
     "flex-direction": "column",
     gap: "0.875rem",
-    padding: "var(--aui-card-padding, 0)",
+    padding: "var(--aui-card-padding, 1rem 1.125rem)",
+    "border-radius": "var(--radius)",
+    "background-color": `var(--aui-panel, ${inkFill(4)})`,
+  },
+  '[data-aui="card"] [data-aui="card"]': {
+    "--aui-card-padding": "0",
+    "border-radius": "0",
+    "background-color": "transparent",
   },
   [cardSurface()]: {
     "--aui-card-padding": "1.25rem",
@@ -762,6 +809,7 @@ export const generativeUiVocabularyCss: CssRuleset = {
     '[data-aui="button"][data-aui-state="pending"]': {
       transition: "none",
     },
+    '[data-aui="checkboxgroup-progress-fill"]': { transition: "none" },
   },
 
   '[data-aui="listview"]': {
@@ -786,6 +834,169 @@ export const generativeUiVocabularyCss: CssRuleset = {
     "border-radius": "inherit",
   },
 
+  '[data-aui="tabs"]': {
+    display: "flex",
+    "flex-direction": "column",
+    gap: "0.75rem",
+    "min-width": "0",
+  },
+  '[data-aui="tabs-list"]': {
+    display: "flex",
+    gap: "0.25rem",
+    "overflow-x": "auto",
+    "border-bottom": `1px solid ${auiHairlineBorder}`,
+  },
+  '[data-aui="tabs-tab"]': {
+    appearance: "none",
+    border: "0",
+    "border-bottom": "2px solid transparent",
+    "margin-bottom": "-1px",
+    padding: "0.5rem 0.75rem",
+    background: "transparent",
+    color: "color-mix(in oklab, currentColor 62%, transparent)",
+    font: "inherit",
+    "font-size": "0.875rem",
+    "font-weight": "500",
+    "white-space": "nowrap",
+    cursor: "pointer",
+  },
+  '[data-aui="tabs-tab"]:hover': { color: "inherit" },
+  '[data-aui="tabs-tab"][aria-selected="true"]': {
+    color: "inherit",
+    "border-bottom-color": "currentColor",
+  },
+  '[data-aui="tabs-tab"]:focus-visible, [data-aui="tabs-panel"]:focus-visible':
+    {
+      outline: "2px solid var(--ring)",
+      "outline-offset": "2px",
+      "border-radius": "calc(var(--radius) - 4px)",
+    },
+
+  '[data-aui="steps"], [data-aui="timeline"]': {
+    display: "flex",
+    "flex-direction": "column",
+    gap: "1rem",
+    margin: "0",
+    padding: "0",
+    "list-style": "none",
+  },
+  '[data-aui="steps"]': { "counter-reset": "aui-step" },
+  '[data-aui="steps-item"]': {
+    position: "relative",
+    "min-height": "1.5rem",
+    "padding-inline-start": "2.25rem",
+    "counter-increment": "aui-step",
+  },
+  '[data-aui="steps-item"]::before': {
+    content: "counter(aui-step)",
+    position: "absolute",
+    top: "0",
+    "inset-inline-start": "0",
+    display: "flex",
+    "align-items": "center",
+    "justify-content": "center",
+    width: "1.5rem",
+    height: "1.5rem",
+    "border-radius": "9999px",
+    "background-color": "var(--muted)",
+    color: "var(--foreground)",
+    "font-size": "0.75rem",
+    "font-weight": "600",
+    "font-variant-numeric": "tabular-nums",
+  },
+  '[data-aui="timeline-item"]': {
+    position: "relative",
+    "padding-inline-start": "1.5rem",
+  },
+  '[data-aui="timeline-item"]::before': {
+    content: '""',
+    position: "absolute",
+    top: "0.4375rem",
+    "inset-inline-start": "0.25rem",
+    width: "0.5rem",
+    height: "0.5rem",
+    "border-radius": "9999px",
+    "background-color": "currentColor",
+  },
+  '[data-aui="steps-item"]:not(:last-child)::after, [data-aui="timeline-item"]:not(:last-child)::after':
+    {
+      content: '""',
+      position: "absolute",
+      bottom: "-0.875rem",
+      width: "1px",
+      "background-color": auiHairlineBorder,
+    },
+  '[data-aui="steps-item"]:not(:last-child)::after': {
+    top: "1.875rem",
+    "inset-inline-start": "0.75rem",
+  },
+  '[data-aui="timeline-item"]:not(:last-child)::after': {
+    top: "1.125rem",
+    "inset-inline-start": "0.5rem",
+  },
+  '[data-aui="steps-title"], [data-aui="timeline-title"]': {
+    "font-weight": "600",
+    "line-height": "1.5",
+  },
+  '[data-aui="steps-detail"], [data-aui="timeline-detail"]': {
+    "margin-top": "0.125rem",
+    "font-size": "0.875rem",
+    "line-height": "1.5",
+    color: "color-mix(in oklab, currentColor 70%, transparent)",
+  },
+  '[data-aui="timeline-time"]': {
+    "font-size": "0.75rem",
+    "font-weight": "500",
+    "line-height": "1.4",
+    "font-variant-numeric": "tabular-nums",
+    color: "color-mix(in oklab, currentColor 62%, transparent)",
+  },
+
+  '[data-aui="citation"]': {
+    position: "relative",
+    display: "flex",
+    "flex-direction": "column",
+    gap: "0.125rem",
+    padding: "0.625rem 0.75rem",
+    border: `1px solid ${auiHairlineBorder}`,
+    "border-radius": "calc(var(--radius) - 2px)",
+  },
+  '[data-aui="citation-source"]': {
+    "font-size": "0.75rem",
+    "line-height": "1.4",
+    color: "color-mix(in oklab, currentColor 62%, transparent)",
+  },
+  '[data-aui="citation-title"]': {
+    color: "inherit",
+    "font-weight": "500",
+    "line-height": "1.4",
+    "text-decoration": "none",
+  },
+  'a[data-aui="citation-title"]::after': {
+    content: '""',
+    position: "absolute",
+    inset: "0",
+    "border-radius": "calc(var(--radius) - 2px)",
+  },
+  'a[data-aui="citation-title"]:hover': {
+    "text-decoration": "underline",
+    "text-underline-offset": "2px",
+  },
+  'a[data-aui="citation-title"]:focus-visible': { outline: "none" },
+  'a[data-aui="citation-title"]:focus-visible::after': {
+    outline: "2px solid var(--ring)",
+    "outline-offset": "2px",
+  },
+  '[data-aui="citation-snippet"]': {
+    display: "-webkit-box",
+    overflow: "hidden",
+    "-webkit-box-orient": "vertical",
+    "-webkit-line-clamp": "3",
+    "font-size": "0.8125rem",
+    "line-height": "1.45",
+    color: "color-mix(in oklab, currentColor 70%, transparent)",
+  },
+
   '[data-aui="divider"]': {
     border: "none",
     "border-top": `1px solid ${auiHairlineBorder}`,
@@ -793,6 +1004,48 @@ export const generativeUiVocabularyCss: CssRuleset = {
   },
   '[data-aui="divider"][data-aui-flush]': { margin: "0" },
   '[data-aui="card"] > [data-aui="divider"]': { margin: "0" },
+
+  '[data-aui="diagram"]': {
+    display: "flex",
+    "flex-direction": "column",
+    gap: "0.375rem",
+    margin: "0",
+  },
+  '[data-aui="diagram-code"]': {
+    margin: "0",
+    padding: "0.75rem 0.875rem",
+    "overflow-x": "auto",
+    "border-radius": "calc(var(--radius) - 2px)",
+    "background-color": "color-mix(in oklab, var(--muted) 60%, transparent)",
+    "font-family":
+      'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+    "font-size": "0.8125rem",
+    "line-height": "1.5",
+  },
+  '[data-aui="diagram-title"]': {
+    "font-size": "0.75rem",
+    "line-height": "1.4",
+    color: "color-mix(in oklab, currentColor 62%, transparent)",
+  },
+  'ol[data-aui="map"]': {
+    display: "flex",
+    "flex-direction": "column",
+    gap: "0.5rem",
+    margin: "0",
+    padding: "0",
+    "list-style": "none",
+  },
+  '[data-aui="map-place-label"]': {
+    color: "inherit",
+    "font-weight": "500",
+    "text-decoration": "underline",
+    "text-underline-offset": "2px",
+  },
+  '[data-aui="map-place-detail"]': {
+    "font-size": "0.8125rem",
+    "line-height": "1.5",
+    color: "color-mix(in oklab, currentColor 70%, transparent)",
+  },
 
   '[data-aui="image"]': {
     "max-width": "100%",
@@ -821,6 +1074,25 @@ export const generativeUiVocabularyCss: CssRuleset = {
     width: "3.25rem",
     height: "3.25rem",
   },
+  // In a row, images split the width into an evenly cropped gallery, keeping
+  // at least a fifth of it beside text, and a small one is a square thumbnail.
+  '[data-aui="row"] > [data-aui="image"]:not([data-aui-size="sm"], [data-aui-sized], [data-aui-round])':
+    {
+      flex: "1 1 0",
+      "min-width": "max(5rem, 22%)",
+      "aspect-ratio": "4 / 3",
+      "object-fit": "cover",
+    },
+  // Four or more images give up that minimum, so a long gallery still fits.
+  '[data-aui="row"] > [data-aui="image"]:first-child:nth-last-child(n+4):not([data-aui-size="sm"], [data-aui-sized], [data-aui-round]), [data-aui="row"] > [data-aui="image"]:first-child:nth-last-child(n+4) ~ [data-aui="image"]:not([data-aui-size="sm"], [data-aui-sized], [data-aui-round])':
+    { "min-width": "0" },
+  '[data-aui="row"] > [data-aui="image"][data-aui-size="sm"]:not([data-aui-round])':
+    {
+      flex: "none",
+      width: "4.5rem",
+      "aspect-ratio": "1 / 1",
+      "object-fit": "cover",
+    },
 
   '[data-aui="markdown"]': { "font-size": "0.875rem", "line-height": "1.6" },
   '[data-aui="markdown"] p': { margin: "0 0 0.5rem 0" },
@@ -939,22 +1211,22 @@ export const generativeUiVocabularyCss: CssRuleset = {
   },
 };
 
-/** Light/dark values for the vocabulary's own theme tokens (`--aui-success`, `--aui-warning`), layered on top of the host's shadcn theme. */
+/** Light/dark values for the vocabulary's own theme tokens (`--aui-success`, `--aui-warning`, `--aui-panel`), layered on top of the host's shadcn theme. */
 export const generativeUiThemeVars = {
   light: {
     "--aui-success": "oklch(0.6 0.15 149)",
     "--aui-warning": "oklch(0.68 0.16 70)",
+    "--aui-panel": inkFill(4),
   },
   dark: {
     "--aui-success": "oklch(0.72 0.17 149)",
     "--aui-warning": "oklch(0.8 0.17 75)",
+    "--aui-panel": inkFill(6),
   },
 } as const;
 
 const T = '[data-aui-theme="elements"]';
 const TD = `.dark ${T}`;
-const inkFill = (pct: number) =>
-  `color-mix(in oklab, var(--foreground) ${pct}%, transparent)`;
 const elementsHairline = inkFill(6);
 const elementsMonoStack =
   'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
@@ -973,6 +1245,7 @@ export const generativeUiElementsThemeVars = {
  * The elements theme for the vocabulary: the borderless paper/field/ink language from the elements family, applied to any subtree carrying `data-aui-theme="elements"`. Layered after {@link generativeUiVocabularyCss}; the base rules keep layout and typography, this layer replaces surfaces, borders, radii, and color.
  */
 export const generativeUiElementsThemeCss: CssRuleset = {
+  [`${T} [data-aui="card"]`]: { "border-radius": "14px" },
   [cardSurface(T)]: {
     border: `1px solid ${auiHairlineBorder}`,
     "border-radius": "20px",
@@ -1093,6 +1366,30 @@ export const generativeUiElementsThemeCss: CssRuleset = {
   },
   [`${T} [data-aui="listview-item-trigger"]:hover`]: {
     "background-color": inkFill(4),
+  },
+
+  [`${T} [data-aui="tabs-list"]`]: {
+    "border-bottom-color": elementsHairline,
+  },
+  [`${T} [data-aui="steps-item"]::before`]: {
+    "background-color": inkFill(6),
+  },
+  [`${T} [data-aui="steps-item"]:not(:last-child)::after, ${T} [data-aui="timeline-item"]:not(:last-child)::after`]:
+    {
+      "background-color": elementsHairline,
+    },
+  [`${T} [data-aui="citation"]`]: {
+    "border-color": elementsHairline,
+    "border-radius": "14px",
+  },
+  [`${T} a[data-aui="citation-title"]::after`]: {
+    "border-radius": "14px",
+  },
+  [`${T} [data-aui="checkboxgroup-progress-track"]`]: {
+    "background-color": inkFill(6),
+  },
+  [`${T} [data-aui="checkboxgroup-progress-fill"]`]: {
+    "background-color": "var(--foreground)",
   },
 
   [`${T} [data-aui="table-col"]`]: {

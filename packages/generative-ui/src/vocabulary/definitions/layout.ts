@@ -9,7 +9,9 @@ const cardActionSchema = z.looseObject({
 });
 
 const cardFooterButtonSchema = z.object({
-  label: z.string().describe("Footer button label."),
+  label: z
+    .union([z.string(), z.number()])
+    .describe("Footer button label text or number."),
   _action: cardActionSchema
     .optional()
     .describe("Action fired when the button is activated."),
@@ -18,9 +20,12 @@ const cardFooterButtonSchema = z.object({
 export const layoutDefinitions = {
   Card: {
     description:
-      "A titled section of related content, the default way to break a response into parts. It renders as plain content, so several in a row read as one answer rather than a stack of boxes; it takes on a framed surface only when `background` is set, when `confirm`/`cancel` add a footer, or when it is a slot in a `Carousel`. Set `asForm` to collect named child control values on submit.",
+      "A module the reader scans or acts on, such as a summary, a checklist, a form, or one option in a comparison. It renders as a panel, so keep plain sections (a `Header` with `Text` or `Markdown`) outside cards, and do not wrap the whole answer in one card or nest cards. It takes on a framed surface when `background` is set, when `confirm`/`cancel` add a footer, or when it is a slot in a `Carousel`. Set `asForm` to collect named child control values on submit.",
     properties: z.object({
-      title: z.string().optional().describe("Optional card title."),
+      title: z
+        .union([z.string(), z.number()])
+        .optional()
+        .describe("Optional card title text or number."),
       padding: z
         .number()
         .min(0)
@@ -113,6 +118,21 @@ export const layoutDefinitions = {
         .string()
         .optional()
         .describe("Background color or gradient (any CSS background value)."),
+    }),
+  },
+  Tabs: {
+    description:
+      "Panels the user switches between with tabs, one visible at a time. Use it for parallel content the user looks at one part at a time, such as options, plans, or days. Each child is one panel, usually a Col, labeled by the matching entry in `tabs`.",
+    properties: z.object({
+      tabs: z
+        .array(z.union([z.string(), z.number()]))
+        .describe(
+          "Tab labels as text or numbers, one per child panel, in order.",
+        ),
+      label: z
+        .union([z.string(), z.number()])
+        .optional()
+        .describe("Accessible name as text or a number for the row of tabs."),
     }),
   },
 } satisfies Record<string, VocabularyDefinition>;

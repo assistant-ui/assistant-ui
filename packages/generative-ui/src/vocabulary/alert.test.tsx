@@ -133,6 +133,13 @@ describe("alertVocabulary", () => {
     ).toBe('<div data-aui="alert" data-aui-tone="info" role="alert"></div>');
   });
 
+  it.each([
+    ["title", '<header data-aui="alert-title">0</header>'],
+    ["description", '<p data-aui="alert-desc">0</p>'],
+  ] as const)("renders a zero Alert %s", (prop, expected) => {
+    expect(render({ $type: "Alert", [prop]: 0 })).toContain(expected);
+  });
+
   it("Carousel wraps each child Card in a slide, capped at 10", () => {
     const children = Array.from({ length: 12 }, (_, i) => ({
       $type: "Card",

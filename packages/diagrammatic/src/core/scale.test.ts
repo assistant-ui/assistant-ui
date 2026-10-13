@@ -27,6 +27,14 @@ describe("niceStep", () => {
 });
 
 describe("niceTicks", () => {
+  const boundedFormat = () => {
+    let calls = 0;
+    return (value: number) => {
+      if (++calls > 10) throw new Error("Tick generation did not terminate");
+      return String(value);
+    };
+  };
+
   it("rounds a domain onto the ladder", () => {
     expect(niceTicks(0, 1000, 4).map((tick) => tick.at)).toEqual([
       0, 200, 400, 600, 800, 1000,
@@ -48,6 +56,54 @@ describe("niceTicks", () => {
 
   it("collapses a flat domain to one tick", () => {
     expect(niceTicks(5, 5)).toEqual([{ at: 5, label: "5" }]);
+  });
+
+  it.each([
+    [1e16, 1e16 + 2],
+    [-1e16, -1e16 + 2],
+  ])("stops when the step cannot advance inside [%s, %s]", (lo, hi) => {
+    expect(niceTicks(lo, hi, 4, boundedFormat())).toEqual([
+      { at: lo, label: String(lo) },
+    ]);
+  });
+
+  it("stops when the step loses precision after advancing", () => {
+    const boundary = 2 ** 52;
+    expect(
+      niceTicks(boundary - 1, boundary + 1, 4, boundedFormat()).map(
+        (tick) => tick.at,
+      ),
+    ).toEqual([boundary - 1, boundary - 0.5, boundary]);
+  });
+
+  it("stops after a half-resolution step rounds up to an even value", () => {
+    expect(
+      niceTicks(1e16 + 2, 1e16 + 6, 4, boundedFormat()).map((tick) => tick.at),
+    ).toEqual([1e16 + 2, 1e16 + 4]);
+  });
+
+  it("keeps large ticks when the step remains representable", () => {
+    expect(
+      niceTicks(1e16, 1e16 + 8, 4, boundedFormat()).map((tick) => tick.at),
+    ).toEqual([1e16, 1e16 + 2, 1e16 + 4, 1e16 + 6, 1e16 + 8]);
+  });
+
+  it("stops before emitting an infinite tick when the tolerance overflows", () => {
+    expect(
+      niceTicks(1e308, Number.MAX_VALUE, 4, boundedFormat()).map(
+        (tick) => tick.at,
+      ),
+    ).toEqual([1e308, 1.2e308, 1.3999999999999999e308, 1.5999999999999998e308]);
+  });
+
+  it("preserves fractional ticks and the endpoint tolerance", () => {
+    expect(niceTicks(0, 0.6, 3).map((tick) => tick.at)).toEqual([
+      0, 0.2, 0.4, 0.6000000000000001,
+    ]);
+  });
+
+  it("normalizes floating-point residue around zero", () => {
+    expect(niceTicks(-0.4, 0.4, 8, String)[4]).toEqual({ at: 0, label: "0" });
   });
 });
 

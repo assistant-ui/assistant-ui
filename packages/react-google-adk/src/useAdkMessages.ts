@@ -21,6 +21,11 @@ import {
   normalizeAdkEvent,
 } from "./AdkEventAccumulator";
 import { AdkThreadController } from "./AdkThreadController";
+import {
+  getToolResultOwnerKey,
+  normalizeSendConfig,
+  type AdkThreadState,
+} from "./adkThreadState";
 import { contentToParts } from "./contentToParts";
 import { toAdkFunctionResponse } from "./toAdkFunctionResponse";
 import type {
@@ -45,32 +50,25 @@ export type UseAdkMessagesOptions = {
 
 type AdkRuntimeCallbackName = "onError" | "onCustomEvent" | "onAgentTransfer";
 
+type UseAdkMessagesInternalOptions = UseAdkMessagesOptions & {
+  onFirstEvent?:
+    | ((rollbackState: AdkThreadState | undefined) => void)
+    | undefined;
+};
+
 type QueuedAdkSend = {
   messages: AdkMessage[];
   config: Record<PropertyKey, unknown>;
   batchId: number;
+  toolResultOwnerKey: string | undefined;
   ids: string[];
   run: (messageBatches: AdkMessage[][]) => Promise<void>;
+  rollbackState: AdkThreadState | undefined;
   resolve: () => void;
   reject: (error: unknown) => void;
 };
 
 type RunExecutor = (run: () => Promise<void>) => Promise<void>;
-
-const normalizeSendConfig = (config: AdkSendMessageConfig) =>
-  Object.fromEntries(
-    Reflect.ownKeys(config).map((key) => {
-      const value = Reflect.get(config, key);
-      return [
-        key,
-        value &&
-        typeof value === "object" &&
-        Reflect.ownKeys(value).length === 0
-          ? undefined
-          : value,
-      ];
-    }),
-  );
 
 const sameSendConfig = (
   left: Record<PropertyKey, unknown>,
@@ -91,7 +89,8 @@ const invokeAdkRuntimeCallback = <TArgs extends readonly unknown[]>(
 const useAdkMessagesInternal = ({
   stream,
   eventHandlers,
-}: UseAdkMessagesOptions) => {
+  onFirstEvent,
+}: UseAdkMessagesInternalOptions) => {
   const [controller] = useState(() => new AdkThreadController());
   const {
     messages,
@@ -165,15 +164,21 @@ const useAdkMessagesInternal = ({
     while (pendingSendsRef.current.length > 0 && !abortControllerRef.current) {
       const first = pendingSendsRef.current[0]!;
       const sends: QueuedAdkSend[] = [];
+      let toolResultOwnerKey = first.toolResultOwnerKey;
       while (pendingSendsRef.current.length > 0) {
         const next = pendingSendsRef.current[0]!;
         if (
           next.batchId !== first.batchId ||
-          !sameSendConfig(first.config, next.config)
+          (toolResultOwnerKey !== undefined &&
+            next.toolResultOwnerKey !== undefined &&
+            next.toolResultOwnerKey !== toolResultOwnerKey) ||
+          !sameSendConfig(first.config, next.config) ||
+          (sends.length > 0 && (first.rollbackState || next.rollbackState))
         ) {
           break;
         }
         sends.push(pendingSendsRef.current.shift()!);
+        toolResultOwnerKey ??= next.toolResultOwnerKey;
       }
       try {
         await sends.at(-1)!.run(sends.map((send) => send.messages));
@@ -195,6 +200,7 @@ const useAdkMessagesInternal = ({
       newMessages: AdkMessage[],
       config: AdkSendMessageConfig,
       executeWithRun?: RunExecutor,
+      rollbackState?: AdkThreadState,
     ) => {
       const newMessagesWithId = newMessages.map((m) =>
         m.id ? m : { ...m, id: generateId() },
@@ -280,7 +286,10 @@ const useAdkMessagesInternal = ({
             ) {
               break;
             }
-            receivedEvent = true;
+            if (!receivedEvent) {
+              receivedEvent = true;
+              onFirstEvent?.(rollbackState);
+            }
             const event = normalizeAdkEvent(rawEvent);
             const updatedMessages = accumulator.processEvent(event);
             // Each event part can append at most one message, and a function call
@@ -358,11 +367,18 @@ const useAdkMessagesInternal = ({
             !(error instanceof Error && error.name === "AbortError")
           ) {
             if (!receivedEvent) {
-              controller.dispatch({
-                type: "run.preEventFailed",
-                ownIds,
-                ...previousRunState,
-              });
+              if (rollbackState)
+                controller.dispatch({
+                  type: "run.rollback",
+                  state: rollbackState,
+                  ownIds: [...ownIds, ...queuedIds],
+                });
+              else
+                controller.dispatch({
+                  type: "run.preEventFailed",
+                  ownIds,
+                  ...previousRunState,
+                });
             }
             throw error;
           }
@@ -402,6 +418,13 @@ const useAdkMessagesInternal = ({
       };
 
       const currentState = controller.getState();
+      const toolMessage = newMessagesWithId.find(
+        (message) => message.type === "tool",
+      );
+      const toolResultOwnerKey =
+        toolMessage?.type === "tool"
+          ? getToolResultOwnerKey(currentState, toolMessage.tool_call_id)
+          : undefined;
       const sentIds = new Set(newMessagesWithId.map((message) => message.id));
       const queuedSeed = currentState.messages.filter(
         (message) => !sentIds.has(message.id),
@@ -431,7 +454,9 @@ const useAdkMessagesInternal = ({
           messages: newMessagesWithId,
           config: normalizeSendConfig(config),
           batchId: sendBatchIdRef.current,
+          toolResultOwnerKey,
           ids: queuedIds,
+          rollbackState,
           run: (messageBatches: AdkMessage[][]) =>
             executeWithRun
               ? executeWithRun(() => run(messageBatches))
@@ -451,6 +476,7 @@ const useAdkMessagesInternal = ({
       onError,
       onCustomEvent,
       onAgentTransfer,
+      onFirstEvent,
     ],
   );
 

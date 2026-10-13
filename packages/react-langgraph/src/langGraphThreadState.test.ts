@@ -406,4 +406,100 @@ describe("reduceLangGraphThreadState", () => {
     expect(load.currentRunId).toBe("1");
     expect(load.nextRunId).toBe(1);
   });
+
+  it("restores replaced run bookkeeping after a pre-event failure without reviving a cancelled run", () => {
+    let previous = reduceLangGraphThreadState(createLangGraphThreadState(), {
+      type: "run.started",
+      messages: [],
+    });
+    previous = reduceLangGraphThreadState(previous, {
+      type: "messages.remember",
+      messages: [ai("old-message", ["old-tool"])],
+      runConfig: "old-config",
+    });
+    previous = reduceLangGraphThreadState(previous, {
+      type: "results.buffer",
+      message: tool("old-tool"),
+    });
+    previous = reduceLangGraphThreadState(previous, {
+      type: "resume.enqueue",
+      groupKey: "run:1",
+      batch: [tool("old-resume")],
+    });
+    previous = reduceLangGraphThreadState(previous, {
+      type: "interrupt.set",
+      runConfig: "old-resume-config",
+    });
+
+    let failed = reduceLangGraphThreadState(previous, {
+      type: "results.clear",
+    });
+    failed = reduceLangGraphThreadState(failed, { type: "run.cancelled" });
+    failed = reduceLangGraphThreadState(failed, {
+      type: "interrupt.set",
+      runConfig: undefined,
+    });
+    failed = reduceLangGraphThreadState(failed, {
+      type: "run.started",
+      messages: [],
+    });
+    failed = reduceLangGraphThreadState(failed, {
+      type: "run.finished",
+      runId: failed.currentRunId!,
+    });
+    failed = reduceLangGraphThreadState(failed, {
+      type: "run.preEventFailed",
+      previous,
+    });
+
+    expect(failed.runConfigByMessageId.get("old-message")).toBe("old-config");
+    expect(failed.runConfigByToolCallId.get("old-tool")).toBe("old-config");
+    expect(failed.toolResultBuffer.has("old-tool")).toBe(true);
+    expect(failed.interruptRunConfig).toBe("old-resume-config");
+    expect(failed.activeRunIds.size).toBe(0);
+    expect(failed.currentRunId).toBe("2");
+  });
+
+  it("sends a late tool result after the failed operation drops its queued resume", () => {
+    let previous = reduceLangGraphThreadState(createLangGraphThreadState(), {
+      type: "run.started",
+      messages: [],
+    });
+    previous = reduceLangGraphThreadState(previous, {
+      type: "messages.remember",
+      messages: [ai("answer", ["late-tool"])],
+      runConfig: "original",
+    });
+    previous = reduceLangGraphThreadState(previous, {
+      type: "resume.enqueue",
+      groupKey: "run:1",
+      batch: [tool("earlier-tool")],
+    });
+    previous = reduceLangGraphThreadState(previous, {
+      type: "run.error",
+      delta: 1,
+    });
+    previous = reduceLangGraphThreadState(previous, {
+      type: "results.received",
+      pendingCalls: [{ id: "other-tool" }],
+      message: tool("other-tool"),
+    });
+    const failedRun = reduceLangGraphThreadState(
+      reduceLangGraphThreadState(
+        reduceLangGraphThreadState(previous, { type: "run.cancelled" }),
+        { type: "run.started", messages: [] },
+      ),
+      { type: "run.preEventFailed", previous },
+    );
+    const received = reduceLangGraphThreadState(failedRun, {
+      type: "results.received",
+      pendingCalls: [{ id: "late-tool" }],
+      message: tool("late-tool"),
+    });
+
+    expect(failedRun.pendingResume.size).toBe(0);
+    expect(failedRun.runErrorBalance).toBe(0);
+    expect(failedRun.readyBatch).toBeNull();
+    expect(received.readyBatch).toEqual([tool("late-tool")]);
+  });
 });

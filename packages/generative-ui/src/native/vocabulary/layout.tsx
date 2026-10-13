@@ -1,18 +1,23 @@
-import type { ReactNode } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Children, useId, useState, type ReactNode } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Align, Justify } from "../../ir";
 import type { GenerativeUILibrary } from "../../types";
 import { layoutDefinitions } from "../../vocabulary/definitions/layout";
 import { fire } from "../../vocabulary/dispatch";
 import { footerAction } from "../../vocabulary/layoutValues";
+import { tabLabels } from "../../vocabulary/structureValues";
 import { toTextContent } from "../../vocabulary/toTextContent";
 import { FieldScopeProvider, useFieldScopeOwner } from "../fieldScope";
+import { useListViewItemText } from "../rowLabel";
 import {
   dimension,
   fade,
   InkProvider,
+  InsideCardProvider,
   nativeColor,
+  RowContent,
   useCardSurface,
+  useInsideCard,
   RADIUS,
   space,
   toneTextColor,
@@ -38,6 +43,7 @@ const JUSTIFY = {
 
 const styles = StyleSheet.create({
   card: { flexDirection: "column", gap: 14 },
+  panel: { borderRadius: RADIUS.surface, padding: 16 },
   surface: { borderWidth: 1, borderRadius: RADIUS.surface, padding: 20 },
   title: { fontSize: 15, fontWeight: "600" },
   footer: {
@@ -58,6 +64,10 @@ const styles = StyleSheet.create({
   },
   badgeText: { fontSize: 12, fontWeight: "500", lineHeight: 17 },
   spacer: { flexGrow: 1 },
+  tabs: { gap: 12 },
+  tabRow: { flexDirection: "row", borderBottomWidth: 1 },
+  tab: { paddingVertical: 10, paddingHorizontal: 14, borderBottomWidth: 2 },
+  tabText: { fontSize: 14, fontWeight: "500" },
 });
 
 type CardProps = {
@@ -91,6 +101,7 @@ function Card({
     fire(submitAction, $dispatch, values),
   );
   const slide = useCardSurface();
+  const nested = useInsideCard();
   const surface =
     slide ||
     tint !== undefined ||
@@ -98,10 +109,12 @@ function Card({
     cancel !== undefined;
   const cardInk = tint !== undefined ? "#ffffff" : ink;
   const cardTitle = toTextContent(title);
+  const titleConsumed = useListViewItemText(cardTitle?.toString());
   const content = (
     <View
       style={[
         styles.card,
+        !surface && !nested && [styles.panel, { backgroundColor: theme.panel }],
         surface && [
           styles.surface,
           { backgroundColor: tint ?? theme.card, borderColor: theme.hairline },
@@ -112,17 +125,18 @@ function Card({
       {cardTitle ? (
         <Text
           accessibilityRole="header"
+          aria-hidden={titleConsumed}
           style={[styles.title, { color: cardInk }]}
         >
           {cardTitle}
         </Text>
       ) : null}
-      {children}
+      <InsideCardProvider value>{children}</InsideCardProvider>
       {confirm || cancel ? (
         <View style={[styles.footer, { borderTopColor: theme.hairline }]}>
           {confirm ? (
             <ActionButton
-              label={String(toTextContent(confirm.label) ?? "")}
+              label={toTextContent(confirm.label) ?? ""}
               tone="primary"
               onPress={() =>
                 asForm ? scope.submit() : fire(footerAction(confirm), $dispatch)
@@ -131,7 +145,7 @@ function Card({
           ) : null}
           {cancel ? (
             <ActionButton
-              label={String(toTextContent(cancel.label) ?? "")}
+              label={toTextContent(cancel.label) ?? ""}
               tone="ghost"
               onPress={() => fire(footerAction(cancel), $dispatch)}
             />
@@ -176,7 +190,7 @@ function Stack({
         ...(justify ? { justifyContent: JUSTIFY[justify] } : {}),
       }}
     >
-      {children}
+      {direction === "row" ? <RowContent>{children}</RowContent> : children}
     </View>
   );
 }
@@ -193,6 +207,8 @@ function Badge({
 }) {
   const theme = useNativeTheme();
   const ink = useInk();
+  const badgeValue = toTextContent(value);
+  const consumed = useListViewItemText(badgeValue?.toString());
   const tone =
     variant === "info"
       ? theme.primary
@@ -215,8 +231,11 @@ function Badge({
           { backgroundColor: tone ? fade(tone, 0.15) : theme.secondary },
         ]}
       >
-        <Text style={[styles.badgeText, { color: labelColor }]}>
-          {toTextContent(value)}
+        <Text
+          aria-hidden={consumed}
+          style={[styles.badgeText, { color: labelColor }]}
+        >
+          {badgeValue}
         </Text>
         {children}
       </View>
@@ -255,6 +274,76 @@ function Box({
       }}
     >
       {children}
+    </View>
+  );
+}
+
+function Tabs({
+  tabs,
+  label,
+  children,
+}: {
+  tabs: (string | number)[];
+  label?: string | number;
+  children?: ReactNode;
+}) {
+  const theme = useNativeTheme();
+  const ink = useInk();
+  const panels = Children.toArray(children);
+  const labels = tabLabels(tabs, panels.length);
+  const [selected, setSelected] = useState(0);
+  const id = useId();
+  const tabListLabel = toTextContent(label);
+  if (labels.length === 0) return null;
+  const current = Math.min(selected, labels.length - 1);
+  return (
+    <View style={styles.tabs}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+        <View
+          role="tablist"
+          {...(tabListLabel !== null
+            ? { accessibilityLabel: tabListLabel }
+            : {})}
+          style={[styles.tabRow, { borderBottomColor: theme.hairline }]}
+        >
+          {labels.map((label, index) => (
+            <Pressable
+              key={index}
+              nativeID={`${id}-tab-${index}`}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: index === current }}
+              aria-selected={index === current}
+              onPress={() => setSelected(index)}
+              style={[
+                styles.tab,
+                {
+                  borderBottomColor:
+                    index === current ? theme.primary : "transparent",
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.tabText,
+                  { color: index === current ? ink : fade(ink, 0.62) },
+                ]}
+              >
+                {label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </ScrollView>
+      {labels.map((_, index) => (
+        <View
+          key={index}
+          role="tabpanel"
+          aria-labelledby={`${id}-tab-${index}`}
+          style={index === current ? undefined : { display: "none" }}
+        >
+          {panels[index]}
+        </View>
+      ))}
     </View>
   );
 }
@@ -308,6 +397,14 @@ export const layoutVocabulary = {
       >
         {children}
       </Box>
+    ),
+  },
+  Tabs: {
+    ...layoutDefinitions.Tabs,
+    render: ({ tabs, label, children }) => (
+      <Tabs tabs={tabs} {...(label !== undefined ? { label } : {})}>
+        {children}
+      </Tabs>
     ),
   },
 } satisfies GenerativeUILibrary;

@@ -15,6 +15,43 @@ const render = (node: unknown) =>
 ).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("dataVocabulary", () => {
+  it("renders numeric Citation text including a linked title", () => {
+    const html = render({
+      $type: "Citation",
+      title: 0,
+      url: "https://example.com",
+      source: 12,
+      snippet: 34,
+    });
+    expect(html).toContain('data-aui="citation-source">12</div>');
+    expect(html).toContain('rel="noopener noreferrer">0</a>');
+    expect(html).toContain('data-aui="citation-snippet">34</div>');
+  });
+
+  it("Citation links its title to an http source and names the site", () => {
+    const html = render({
+      $type: "Citation",
+      title: "Fixing a flat",
+      url: "https://www.parktool.com/en-us/blog/repair-help/tire-and-tube-repair",
+      snippet: "Find the leak before you patch.",
+    });
+    expect(html).toBe(
+      '<div data-aui="citation"><div data-aui="citation-source">parktool.com</div><a data-aui="citation-title" href="https://www.parktool.com/en-us/blog/repair-help/tire-and-tube-repair" target="_blank" rel="noopener noreferrer">Fixing a flat</a><div data-aui="citation-snippet">Find the leak before you patch.</div></div>',
+    );
+  });
+
+  it("Citation shows a link that is not http or https as plain text", () => {
+    const html = render({
+      $type: "Citation",
+      title: "Open me",
+      url: "javascript:alert(1)",
+      source: "Somewhere",
+    });
+    expect(html).toBe(
+      '<div data-aui="citation"><div data-aui="citation-source">Somewhere</div><div data-aui="citation-title">Open me</div></div>',
+    );
+  });
+
   it("Table renders columns and rows", () => {
     const html = render({
       $type: "Table",

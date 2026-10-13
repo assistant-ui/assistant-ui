@@ -15,6 +15,43 @@ afterEach(cleanupSpecs);
 const one = (type: string, props: Record<string, unknown>): Spec =>
   spec({ main: { type, props } });
 
+describe("Citation in Vue", () => {
+  it("renders numeric Citation text like React", () => {
+    const input = one("Citation", {
+      title: 0,
+      url: "https://example.com",
+      source: 12,
+      snippet: 34,
+    });
+    const vue = renderVueSpec(input);
+    expect(vue.markup()).toBe(renderReactSpec(input).markup());
+    expect(
+      vue.container.querySelector('[data-aui="citation-title"]')?.textContent,
+    ).toBe("0");
+    expect(
+      vue.container.querySelector('[data-aui="citation-source"]')?.textContent,
+    ).toBe("12");
+    expect(
+      vue.container.querySelector('[data-aui="citation-snippet"]')?.textContent,
+    ).toBe("34");
+  });
+
+  it.each([
+    { title: "Guide", url: "https://www.example.com/path", snippet: "Excerpt" },
+    { title: "Report", url: "http://example.com", source: "Publisher" },
+    { title: "Local", url: "javascript:alert(1)", snippet: "No link" },
+    { title: "Untitled source" },
+  ])("renders citation like React for $title", (props) => {
+    const input = one("Citation", props);
+    const react = renderReactSpec(input);
+    const vue = renderVueSpec(input);
+    expect(vue.markup()).toBe(react.markup());
+    expect(
+      vue.container.querySelector('[data-aui="citation-title"]')?.tagName,
+    ).toBe(props.url?.startsWith("http") ? "A" : "DIV");
+  });
+});
+
 const points = [
   { label: "Mon", value: 10 },
   { label: "Tue", value: 20 },

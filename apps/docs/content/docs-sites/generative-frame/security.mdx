@@ -63,9 +63,9 @@ Every frame enforces a CSP `<meta>` tag that widget code cannot lift. By default
 | --- | --- |
 | `default-src` | `'none'` |
 | `script-src` | inline scripts, and the CDN origins |
-| `style-src` | inline styles, the CDN origins, and `https://fonts.googleapis.com` |
+| `style-src` | inline styles and the CDN origins |
 | `img-src` | `data:`, `blob:`, and the CDN origins |
-| `font-src` | `data:`, the CDN origins, and `https://fonts.gstatic.com` |
+| `font-src` | `data:` and the CDN origins |
 | `media-src` | `data:`, `blob:`, and the CDN origins |
 | `connect-src` | `'none'`: no `fetch`, XHR, or WebSocket |
 | `frame-src` | `'none'` |
@@ -92,10 +92,28 @@ createWidget({
 | Option | Effect |
 | --- | --- |
 | `cdnOrigins` | Replaces the CDN list for scripts, styles, images, fonts, and media. |
+| `fontStyleOrigins` | Extra font stylesheet origins, added only to `style-src`. Empty by default. |
+| `fontOrigins` | Extra font file origins, added only to `font-src`. Empty by default. |
 | `connectOrigins` | Origins `fetch`, XHR, and WebSocket may reach. `wss://` origins are accepted here. |
 | `imageOrigins` | Extra image origins, such as an image proxy. |
 | `frameOrigins` | Origins that nested frames may load. |
 | `allowEval` | Adds `'unsafe-eval'`, which some charting libraries need. |
+
+`csp: { cdnOrigins: [] }` blocks external scripts, stylesheets, font files, images, and media unless you explicitly add resource origins. Inline styles and scripts, `data:` fonts, and `data:`/`blob:` images and media still work.
+
+Google Fonts requires an explicit opt-in for both its stylesheets and font files:
+
+```ts
+const csp = {
+  cdnOrigins: [],
+  fontStyleOrigins: ["https://fonts.googleapis.com"],
+  fontOrigins: ["https://fonts.gstatic.com"],
+};
+createWidget({ container, csp });
+buildWidgetGuidance(csp);
+```
+
+The font stylesheet allowance cannot load scripts, images, or font files, and the font file allowance cannot load scripts, stylesheets, or images. For opaque-origin frames, the parent page's CSP is also enforced: adding these origins to the widget policy cannot relax the parent's restrictions.
 
 Sources that are not plain `http(s)` origins (with a `*.` wildcard allowed) or the keywords `'self'`, `'none'`, `data:`, `blob:`, and `https:` are dropped. You can also pass a complete policy string, which is used as is. Keep [the guidance](/generative-frame/docs/tools#guidance) in sync, so the model does not reach for something the policy blocks.
 

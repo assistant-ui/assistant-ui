@@ -30,6 +30,18 @@ const getFooterButtons = (out: ReactElement) => {
 };
 
 describe("layoutVocabulary", () => {
+  it("uses numeric Tabs text for the tab and tab list name", () => {
+    const html = render({ $type: "Tabs", tabs: [0], label: 42 });
+    expect(html).toContain('role="tablist" aria-label="42"');
+    expect(html).toContain('data-aui="tabs-tab">0</button>');
+  });
+
+  it("renders a zero Card title", () => {
+    expect(render({ $type: "Card", title: 0 })).toContain(
+      '<header data-aui="card-title">0</header>',
+    );
+  });
+
   it("Card renders a section with optional title and padding/background hooks", () => {
     expect(
       render({

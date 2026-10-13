@@ -63,6 +63,12 @@ type TeamsConversionWarning = {
 | `Carousel` | Multiple attachments through `toTeamsAttachments` | See [Carousels](#carousels); a non-card child that would have rendered is dropped with a warning |
 | `ListView` | One `Container` per item, separated after the first | A non-item child that would have rendered is dropped with a warning, and never reserves an input id |
 | `ListViewItem` | `Container`, with a select action when it carries an action | |
+| `Tabs` | A bolder `TextBlock` with each label, followed by that panel | Adaptive Cards has no tabs, so every panel shows in order |
+| `Steps` | A bolder `TextBlock` per step, numbered, with a subtle detail `TextBlock` under it | An entry without a title is dropped with a warning |
+| `Timeline` | One `Container` per item with a small subtle time, a bolder title, and the detail | An entry without a title is dropped with a warning |
+| `Citation` | `Container` with the source or the link's domain, the title, and a subtle snippet | An `http` or `https` `url` makes the title a markdown link; a link written inside the snippet or source stays plain text |
+| `Diagram` | A `Container` with one monospace `TextBlock` per line of the Mermaid source, then a small subtle title | Teams cannot draw the diagram; a TextBlock breaks lines only in lists, so each line gets its own; a source over 3,000 characters or 200 lines is clamped with a warning |
+| `Map` | One `Container` per place with the label linked to OpenStreetMap and the detail | Teams cannot draw a map, so `route` is dropped silently; a place without valid coordinates is dropped with a warning |
 | `Button` | `Action.Submit` inside an `ActionSet` | Consecutive buttons merge into one set; `buttonStyle` is dropped, since Teams [ignores action styling](https://learn.microsoft.com/en-us/microsoftteams/platform/task-modules-and-cards/cards/cards-reference) |
 | `Select` | `Input.ChoiceSet`, compact | An option without a string value is dropped with a warning |
 | `RadioGroup` | `Input.ChoiceSet`, expanded | An option without a string value is dropped with a warning; descriptions append to the choice title |
@@ -83,7 +89,7 @@ type TeamsConversionWarning = {
 
 Teams has no undo surface, so a Button with `undoable` fires immediately.
 
-Presentation props the converter does not map are dropped silently, without a warning, because the node itself still renders. That covers `Box`'s `width`, `height`, `radius`, and `background`; `Card`'s `padding` and `background`; `gap` on `Row`, `Col`, and `Form`, `align` on `Row` and `Col`, and `justify` on `Row`; `Badge`'s `variant`; `Carousel`'s `label`; `Divider`'s `flush`; and `Button`'s `block`. `Button`'s `submit` is dropped for a different reason: every input on an Adaptive Card submits together, so a submit button and a click button both convert to the same `Action.Submit`.
+Presentation props the converter does not map are dropped silently, without a warning, because the node itself still renders. That covers `Box`'s `width`, `height`, `radius`, and `background`; `Card`'s `padding` and `background`; `gap` on `Row`, `Col`, and `Form`, `align` on `Row` and `Col`, and `justify` on `Row`; `Badge`'s `variant`; `Carousel`'s `label`; `CheckboxGroup`'s `progress`; `Divider`'s `flush`; and `Button`'s `block`. `Button`'s `submit` is dropped for a different reason: every input on an Adaptive Card submits together, so a submit button and a click button both convert to the same `Action.Submit`.
 
 On a `Card` marked `asForm`, the confirm action carries the `confirm` footer's `$action`, or the Card's own `$action` when the footer has none. A form card with its own `$action` and no `confirm` footer gets a "Submit" action where the confirm action would go, ahead of any cancel action.
 

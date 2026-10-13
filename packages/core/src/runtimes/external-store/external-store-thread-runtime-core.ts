@@ -54,6 +54,7 @@ import { walkToolCallTree } from "../../runtime/utils/tool-call-tree";
 import {
   NO_TOOL_EXECUTIONS,
   ToolInvocationTracker,
+  type AddToolResultCommand,
   type ToolExecutionStatus,
 } from "../tool-invocations/ToolInvocationTracker";
 import { EMPTY_QUEUE_ITEMS } from "../../runtime/queue/queue-item";
@@ -62,6 +63,35 @@ import { captureThreadRuntimeGeneration } from "../../runtime/utils/thread-runti
 import { RunLeases } from "../../utils/run-lease";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
+
+type SubmittedFeedback = NonNullable<
+  ThreadAssistantMessage["metadata"]["submittedFeedback"]
+>;
+
+type SubmittedFeedbackOverlay = {
+  feedback: SubmittedFeedback;
+  external: SubmittedFeedback | undefined;
+  source: ThreadAssistantMessage;
+  message: ThreadAssistantMessage;
+};
+
+const sameSubmittedFeedback = (
+  left: SubmittedFeedback | undefined,
+  right: SubmittedFeedback | undefined,
+) => left?.type === right?.type && left?.comment === right?.comment;
+
+type RetainedToolInvocations = {
+  host: ExternalStoreThreadRuntimeCore;
+  readonly tracker: ToolInvocationTracker;
+};
+
+// Tool executions belong to the conversation, not to one runtime: a host that
+// remounts its runtime with the same repository instance hands them to the new
+// runtime, which then delivers their results and stops them.
+const retainedToolInvocations = new WeakMap<
+  MessageRepository,
+  RetainedToolInvocations
+>();
 
 const observeAdapterCallback = (
   name: "onAddToolResult" | "onCancel",
@@ -153,15 +183,6 @@ export class ExternalStoreThreadRuntimeCore
     return this._messages;
   }
 
-  protected override _onMessageMetadataChanged(
-    _previousMessage: ThreadAssistantMessage,
-    message: ThreadAssistantMessage,
-  ): void {
-    for (const externalMessage of getExternalStoreMessages<object>(message)) {
-      this._converter.setCachedMessage(externalMessage, message);
-    }
-  }
-
   public override get state() {
     return this._store.state ?? super.state;
   }
@@ -181,6 +202,7 @@ export class ExternalStoreThreadRuntimeCore
   public extras: unknown = undefined;
 
   private _converter = new ThreadMessageConverter();
+  private _submittedFeedback = new Map<string, SubmittedFeedbackOverlay>();
 
   // Ids the host was asked to delete via onDelete, mapped to the onDelete
   // calls still pending for them. The snapshot pass evicts them from the
@@ -202,9 +224,9 @@ export class ExternalStoreThreadRuntimeCore
   // keeps one identity per response.
   private _optimistic: { id: string; parentId: string | null } | null = null;
 
-  // What the host holds or has moved past, as far as this runtime knows: the
-  // branch the last snapshot pass derived, before the placeholder, or the array
-  // last handed to setMessages, whichever was written last.
+  // The last host branch with locally submitted feedback applied, or the array
+  // last handed to setMessages, whichever was written last. Excludes the
+  // optimistic placeholder so cancel resync only writes a real rollback.
   private _storeMessages: readonly ThreadMessage[] = [];
 
   private readonly _runStartLeases = new RunLeases();
@@ -241,6 +263,73 @@ export class ExternalStoreThreadRuntimeCore
   private _effectiveIsRunning = false;
   private _inTrackerUpdate = false;
   private _pendingRunningRefresh = false;
+
+  protected override _onMessageMetadataChanged(
+    previousMessage: ThreadAssistantMessage,
+    message: ThreadAssistantMessage,
+  ): void {
+    this._storeMessages = this._storeMessages.map((storedMessage) =>
+      storedMessage.id === message.id ? message : storedMessage,
+    );
+    if (message.id.startsWith(FALLBACK_ID_PREFIX)) return;
+    const previousOverlay = this._submittedFeedback.get(message.id);
+    const external =
+      previousOverlay &&
+      sameSubmittedFeedback(
+        previousMessage.metadata.submittedFeedback,
+        previousOverlay.feedback,
+      )
+        ? previousOverlay.external
+        : previousMessage.metadata.submittedFeedback;
+    const feedback = message.metadata.submittedFeedback;
+    if (!feedback) return;
+    this._submittedFeedback.set(message.id, {
+      feedback,
+      external,
+      source:
+        previousOverlay?.message === previousMessage
+          ? previousOverlay.source
+          : previousMessage,
+      message,
+    });
+  }
+
+  private _applySubmittedFeedback(
+    messages: readonly ThreadMessage[],
+  ): readonly ThreadMessage[] {
+    if (this._submittedFeedback.size === 0) return messages;
+    const incomingIds = new Set(messages.map((message) => message.id));
+    for (const id of this._submittedFeedback.keys()) {
+      if (!incomingIds.has(id)) this._submittedFeedback.delete(id);
+    }
+
+    return messages.map((message) => {
+      const overlay = this._submittedFeedback.get(message.id);
+      if (!overlay) return message;
+      if (
+        message.role !== "assistant" ||
+        !sameSubmittedFeedback(
+          message.metadata.submittedFeedback,
+          overlay.external,
+        )
+      ) {
+        this._submittedFeedback.delete(message.id);
+        return message;
+      }
+
+      if (overlay.source === message) return overlay.message;
+      const updatedMessage = {
+        ...message,
+        metadata: {
+          ...message.metadata,
+          submittedFeedback: overlay.feedback,
+        },
+      };
+      overlay.source = message;
+      overlay.message = updatedMessage;
+      return updatedMessage;
+    });
+  }
 
   /**
    * Tracker mutations initiated by this class (setState, reset) can publish
@@ -321,6 +410,7 @@ export class ExternalStoreThreadRuntimeCore
     if (repositoryChanged) {
       this.repository = repositoryInstance;
       this._pendingDeleteEvictions.clear();
+      this._submittedFeedback.clear();
       // Keep the live placeholder so resetHead cannot evict an id still used
       // by clients rendering the previous snapshot.
       const head = this.repository.getMessages();
@@ -401,12 +491,18 @@ export class ExternalStoreThreadRuntimeCore
         messages = this.repository.getMessages();
       } else {
         const incomingIds = new Set(incoming.map(({ message }) => message.id));
-        for (const { message, parentId } of incoming) {
-          this.repository.addOrUpdateMessage(parentId, message);
+        const reconciledMessages = this._applySubmittedFeedback(
+          incoming.map(({ message }) => message),
+        );
+        for (let i = 0; i < incoming.length; i++) {
+          this.repository.addOrUpdateMessage(
+            incoming[i]!.parentId,
+            reconciledMessages[i]!,
+          );
         }
         for (const { message } of this.repository.export().messages) {
           if (!incomingIds.has(message.id)) {
-            this._deleteRepositoryMessage(message.id);
+            this.repository.deleteMessage(message.id);
           }
         }
         this._pendingDeleteEvictions.clear();
@@ -483,6 +579,8 @@ export class ExternalStoreThreadRuntimeCore
       }
       if (deduped.length !== messages.length) messages = deduped.reverse();
 
+      messages = this._applySubmittedFeedback(messages);
+
       for (let i = 0; i < messages.length; i++) {
         const message = messages[i]!;
         const parent = messages[i - 1];
@@ -507,7 +605,7 @@ export class ExternalStoreThreadRuntimeCore
           } catch {
             continue;
           }
-          this._deleteRepositoryMessage(id);
+          this.repository.deleteMessage(id);
         }
       }
     } else {
@@ -601,61 +699,19 @@ export class ExternalStoreThreadRuntimeCore
       return;
     }
 
-    if (!this._toolInvocations) {
-      this._toolInvocations = new ToolInvocationTracker(
-        () => this.getModelContext().tools,
-        {
-          onResult: (command) => {
-            try {
-              const messageId = this._findMessageIdForToolCall(
-                command.toolCallId,
-              );
-              if (messageId === undefined) {
-                // The tool call no longer exists in the snapshot (e.g.
-                // rolled back). Drop the result.
-                return;
-              }
-              observeAdapterCallback(
-                "onAddToolResult",
-                this._store.onAddToolResult?.({
-                  messageId,
-                  toolCallId: command.toolCallId,
-                  toolName: command.toolName,
-                  result: command.result,
-                  isError: command.isError,
-                  ...(command.artifact !== undefined && {
-                    artifact: command.artifact,
-                  }),
-                  ...(command.modelContent !== undefined && {
-                    modelContent: command.modelContent,
-                  }),
-                }),
-              );
-            } catch (err) {
-              console.error(
-                "[ExternalStoreThreadRuntimeCore] onAddToolResult dispatch failed",
-                err,
-              );
-            }
-          },
-          onStatusesChange: (statuses) => {
-            const hadExecutingTools = this._hasExecutingTools(this._store);
-            this._toolStatuses = statuses;
-            try {
-              this._store.setToolStatuses?.(Object.fromEntries(statuses));
-            } finally {
-              if (hadExecutingTools !== this._hasExecutingTools(this._store)) {
-                if (this._inTrackerUpdate) {
-                  this._pendingRunningRefresh = true;
-                } else {
-                  this._updateStoreSnapshot(this._store);
-                }
-              }
-            }
-          },
-        },
-        (toolCall) => this._store.unstable_isClientToolCall?.(toolCall),
-      );
+    let retained = retainedToolInvocations.get(this.repository);
+    if (!retained) {
+      retained = this._createToolInvocations();
+      retainedToolInvocations.set(this.repository, retained);
+    }
+    this._toolInvocations = retained.tracker;
+    if (retained.host !== this) {
+      if (retained.host._toolInvocations === retained.tracker)
+        retained.host._toolInvocations = null;
+      retained.host = this;
+      const statuses = retained.tracker.getStatuses();
+      if (statuses.size > 0 || this._toolStatuses.size > 0)
+        this._applyToolStatuses(statuses);
     }
 
     this._toolInvocations.setState({
@@ -665,6 +721,73 @@ export class ExternalStoreThreadRuntimeCore
         isLoading: this._store.isLoading,
       }),
     });
+  }
+
+  private _createToolInvocations(): RetainedToolInvocations {
+    const retained: RetainedToolInvocations = {
+      host: this,
+      tracker: new ToolInvocationTracker(
+        () => retained.host.getModelContext().tools,
+        {
+          onResult: (command) => retained.host._dispatchToolResult(command),
+          onStatusesChange: (statuses) =>
+            retained.host._applyToolStatuses(statuses),
+        },
+        (toolCall) =>
+          retained.host._store.unstable_isClientToolCall?.(toolCall),
+      ),
+    };
+    return retained;
+  }
+
+  private _dispatchToolResult(command: AddToolResultCommand): void {
+    try {
+      const messageId = this._findMessageIdForToolCall(command.toolCallId);
+      if (messageId === undefined) {
+        // The tool call no longer exists in the snapshot (e.g. rolled back).
+        // Drop the result.
+        return;
+      }
+      observeAdapterCallback(
+        "onAddToolResult",
+        this._store.onAddToolResult?.({
+          messageId,
+          toolCallId: command.toolCallId,
+          toolName: command.toolName,
+          result: command.result,
+          isError: command.isError,
+          ...(command.artifact !== undefined && {
+            artifact: command.artifact,
+          }),
+          ...(command.modelContent !== undefined && {
+            modelContent: command.modelContent,
+          }),
+        }),
+      );
+    } catch (err) {
+      console.error(
+        "[ExternalStoreThreadRuntimeCore] onAddToolResult dispatch failed",
+        err,
+      );
+    }
+  }
+
+  private _applyToolStatuses(
+    statuses: ReadonlyMap<string, ToolExecutionStatus>,
+  ): void {
+    const hadExecutingTools = this._hasExecutingTools(this._store);
+    this._toolStatuses = statuses;
+    try {
+      this._store.setToolStatuses?.(Object.fromEntries(statuses));
+    } finally {
+      if (hadExecutingTools !== this._hasExecutingTools(this._store)) {
+        if (this._inTrackerUpdate) {
+          this._pendingRunningRefresh = true;
+        } else {
+          this._updateStoreSnapshot(this._store);
+        }
+      }
+    }
   }
 
   /**
@@ -689,14 +812,6 @@ export class ExternalStoreThreadRuntimeCore
       this._messagesForToolCallIndex = this._messages;
     }
     return this._toolCallToMessageId.get(toolCallId);
-  }
-
-  private _deleteRepositoryMessage(messageId: string): void {
-    const { message } = this.repository.getMessage(messageId);
-    for (const externalMessage of getExternalStoreMessages<object>(message)) {
-      this._converter.deleteCachedMessage(externalMessage);
-    }
-    this.repository.deleteMessage(messageId);
   }
 
   public override switchToBranch(branchId: string): void {
@@ -922,7 +1037,7 @@ export class ExternalStoreThreadRuntimeCore
       return;
     }
 
-    this._deleteRepositoryMessage(messageId);
+    this.repository.deleteMessage(messageId);
     this._publishRepositoryMessages();
   }
 
@@ -1086,7 +1201,7 @@ export class ExternalStoreThreadRuntimeCore
         quote: trailingUserLeaf.metadata.custom.quote as QuoteInfo | undefined,
       };
       if (this.composer.restoreDraft(draft)) {
-        this._deleteRepositoryMessage(trailingUserLeaf.id);
+        this.repository.deleteMessage(trailingUserLeaf.id);
         movedLeaf = { id: trailingUserLeaf.id, draft };
       }
     }
@@ -1113,7 +1228,7 @@ export class ExternalStoreThreadRuntimeCore
         const current = this.repository.getMessages();
         if (current.at(-1)?.id === movedLeaf.id) {
           // Unanswered tail: the removal has not reached the store yet.
-          this._deleteRepositoryMessage(movedLeaf.id);
+          this.repository.deleteMessage(movedLeaf.id);
         } else if (current.some((m) => m.id === movedLeaf.id)) {
           // The store kept the turn in the thread; take the untouched draft
           // back so the same content does not sit in both places.
@@ -1136,7 +1251,7 @@ export class ExternalStoreThreadRuntimeCore
   private dropEmptyOptimisticHead(): void {
     const head = this.repository.getMessages().at(-1);
     if (head && head.metadata.isOptimistic && head.content.length === 0) {
-      this._deleteRepositoryMessage(head.id);
+      this.repository.deleteMessage(head.id);
     }
   }
 
@@ -1216,6 +1331,7 @@ export class ExternalStoreThreadRuntimeCore
 
   public override reset(initialMessages?: readonly ThreadMessageLike[]) {
     this._cancelRunResyncLeases.invalidate();
+    this._submittedFeedback.clear();
     const repo = new MessageRepository();
     repo.import(ExportedMessageRepository.fromArray(initialMessages ?? []));
     this.updateMessages(repo.getMessages());
@@ -1226,6 +1342,7 @@ export class ExternalStoreThreadRuntimeCore
       throw new Error("Runtime does not support importing messages.");
 
     this._cancelRunResyncLeases.invalidate();
+    this._submittedFeedback.clear();
     super.import(data);
     this._store.onImport(this.repository.getMessages());
   }

@@ -58,6 +58,12 @@ type SlackConversionWarning = {
 | `Alert` | Native `alert` block on a modal; a `context` plus `section` pair on a message | Slack supports `alert` [only in modals](https://docs.slack.dev/reference/block-kit/blocks/alert-block) |
 | `ListView` | One `section` per item, with `divider` blocks between them | Item children collapse into concatenated text; a non-item child that would have rendered is dropped with a warning |
 | `ListViewItem` | `section`, plus an "Open" button accessory when it carries an action | |
+| `Tabs` | A `section` with each bold label, followed by that panel's blocks | Slack has no tabs, so every panel shows in order |
+| `Steps` | One `section` per step, with the bold numbered title and the detail under it | An entry without a title is dropped with a warning |
+| `Timeline` | One `section` per item, with the bold time, then the title and the detail | An entry without a title is dropped with a warning |
+| `Citation` | A `section` with the title, linked to its `url`, and the snippet under it, then a `context` block with the source or the link's domain | Only an `http` or `https` `url` becomes a link |
+| `Diagram` | A `section` with the Mermaid source in a code block, then a `context` block with the title | Slack cannot draw the diagram; a source over the section limit is clamped with a warning |
+| `Map` | One `section` per place, with the label linked to OpenStreetMap and the detail under it | Slack cannot draw a map, so `route` is dropped silently; a place without valid coordinates is dropped with a warning |
 | `Button` | `button` element inside an `actions` block | `primary` and `danger` styles survive; other styles are dropped |
 | `Select` | `static_select` element | An option without a string label and value is dropped with a warning |
 | `RadioGroup` | `radio_buttons` element | An option without a string label and value is dropped with a warning |
@@ -78,7 +84,7 @@ Slack has no undo surface, so a Button with `undoable` fires immediately.
 
 An unknown component and a bare string child are both handled: the unknown one is dropped with a warning, and the string becomes a `section`.
 
-Presentation props the converter does not map are dropped silently, without a warning, because the node itself still renders. That covers `Box`'s `width`, `height`, `radius`, and `background`; `Card`'s `padding` and `background`; `gap` on `Row`, `Col`, and `Form`, `align` on `Row` and `Col`, and `justify` on `Row`; `Badge`'s `variant`; `Carousel`'s `label`; and `Button`'s `block`. Slack has no client-side form model to submit into, so `Button`'s `submit` is dropped: a submit button and a click button both convert to the same `button` element carrying the node's `$action`. A `Card` marked `asForm` also cannot collect its child values into a browser-style form payload, but it keeps child `Input` actions passive so those inputs do not dispatch separately.
+Presentation props the converter does not map are dropped silently, without a warning, because the node itself still renders. That covers `Box`'s `width`, `height`, `radius`, and `background`; `Card`'s `padding` and `background`; `gap` on `Row`, `Col`, and `Form`, `align` on `Row` and `Col`, and `justify` on `Row`; `Badge`'s `variant`; `Carousel`'s `label`; `CheckboxGroup`'s `progress`; and `Button`'s `block`. Slack has no client-side form model to submit into, so `Button`'s `submit` is dropped: a submit button and a click button both convert to the same `button` element carrying the node's `$action`. A `Card` marked `asForm` also cannot collect its child values into a browser-style form payload, but it keeps child `Input` actions passive so those inputs do not dispatch separately.
 
 ### Date and time pickers
 
@@ -102,7 +108,7 @@ Inside a `Carousel` that fallback is unavailable, so an over-full card is reshap
 
 ## Limits
 
-The converter clamps to Slack's published budgets rather than letting the API reject the payload. The ones you are most likely to hit:
+The converter clamps to Slack's published budgets rather than letting the API reject the payload. Caps on `mrkdwn` fields count the escaped text, where `&`, `<`, and `>` take five, four, and four characters (`&amp;`, `&lt;`, `&gt;`). The budgets you are most likely to hit:
 
 | Budget | Value | Behavior when exceeded |
 |---|---|---|

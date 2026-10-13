@@ -137,6 +137,8 @@ The `ToolDefinition`, `AnyTool`, `GuidanceModule`, and `JsonSchema` types are ex
 buildWidgetGuidance(options?: GuidanceOptions): string
 ```
 
+These options change model guidance, not the frame's enforced policy. Configure matching origins in `createWidget({ csp })`; `buildWidgetGuidance` does not grant resource or network access.
+
 <ParametersTable
   type="GuidanceOptions"
   parameters={[
@@ -144,6 +146,8 @@ buildWidgetGuidance(options?: GuidanceOptions): string
     { name: "platform", type: "\"desktop\" | \"mobile\"", default: "\"desktop\"", description: "The user's client." },
     { name: "tokens", type: "ThemeTokens", description: "The tokens the host sends; their names become the token reference." },
     { name: "cdnOrigins", type: "string[]", default: "DEFAULT_CDN_ORIGINS", description: "Where the model may load libraries from." },
+    { name: "fontStyleOrigins", type: "string[]", default: "[]", description: "Extra font stylesheet origins to describe to the model; also configure fontStyleOrigins in createWidget csp." },
+    { name: "fontOrigins", type: "string[]", default: "[]", description: "Extra font file origins to describe to the model; also configure fontOrigins in createWidget csp." },
     { name: "connectOrigins", type: "string[]", default: "[]", description: "Where widget code may send requests." },
     { name: "allowEval", type: "boolean", default: "false", description: "Whether `eval` is available." },
     { name: "width", type: "number", default: "680 on desktop, 360 on mobile", description: "Frame width in CSS pixels." },

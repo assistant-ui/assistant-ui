@@ -130,6 +130,10 @@ export function GenerativeFrameDemo() {
               tokens={tokens}
               product="assistant-ui-docs"
               css={FONT_CSS}
+              csp={{
+                fontStyleOrigins: ["https://fonts.googleapis.com"],
+                fontOrigins: ["https://fonts.gstatic.com"],
+              }}
               maxHeight={640}
               onResize={(size) => setHeight(size.height)}
               onPrompt={(text) => setPrompt(text)}
