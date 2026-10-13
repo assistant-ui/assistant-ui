@@ -44,6 +44,7 @@ export interface Scores {
   clarity: number;
   usefulness: number;
   completeness: number;
+  presentation: number;
 }
 
 /** The answer as a chat app shows it, before any interaction. */

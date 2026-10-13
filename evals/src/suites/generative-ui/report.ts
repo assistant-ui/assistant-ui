@@ -31,7 +31,7 @@ const formatCount = (value: number | undefined) =>
 const formatSeconds = (value: number | undefined) =>
   value === undefined ? "N/A" : `${(value / 1000).toFixed(1)} s`;
 
-/** Per model: each format's averages, each task's overall score by format, and which format `auto` chose on each task. */
+/** Per model: each format's averages, each task's overall score and presentation by format, and which format `auto` chose on each task. */
 export function renderReport(
   results: CaseResult<Task, Candidate, Judged>[],
 ): string {
@@ -52,8 +52,8 @@ export function renderReport(
       "",
       `## ${model}`,
       "",
-      "| format | valid | render errors | repairs | clarity | usefulness | completeness | computed tasks | other tasks | input tokens | output tokens | first output | total |",
-      "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+      "| format | valid | render errors | repairs | clarity | usefulness | completeness | presentation | computed tasks | other tasks | input tokens | output tokens | first output | total |",
+      "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     );
     for (const candidate of formats) {
       const trials = trialsOf(candidate);
@@ -64,6 +64,7 @@ export function renderReport(
         formatScore(mean(trials, (j) => j.scores.clarity)),
         formatScore(mean(trials, (j) => j.scores.usefulness)),
         formatScore(mean(trials, (j) => j.scores.completeness)),
+        formatScore(mean(trials, (j) => j.scores.presentation)),
         formatScore(
           mean(trialsOf(candidate, computed), (j) => overall(j.scores)),
         ),
@@ -83,6 +84,19 @@ export function renderReport(
     for (const r of results) {
       const cells = formats.map((candidate) =>
         formatScore(mean(trialsOf(candidate, [r]), (j) => overall(j.scores))),
+      );
+      lines.push(`| ${r.case.id} | ${cells.join(" | ")} |`);
+    }
+    lines.push(
+      "",
+      `| task, presentation | ${formats.map((c) => c.format).join(" | ")} |`,
+      `| --- | ${formats.map(() => "---:").join(" | ")} |`,
+    );
+    for (const r of results) {
+      const cells = formats.map((candidate) =>
+        formatScore(
+          mean(trialsOf(candidate, [r]), (j) => j.scores.presentation),
+        ),
       );
       lines.push(`| ${r.case.id} | ${cells.join(" | ")} |`);
     }
