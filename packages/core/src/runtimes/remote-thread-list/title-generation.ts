@@ -249,6 +249,19 @@ export async function runThreadTitleGeneration(
   let persistedTitle: string | undefined;
   let persistedOrder = generation.order;
 
+  const writeBack = async (title: string, canRestore: () => boolean) => {
+    const serverTitle = persistedTitle;
+    try {
+      await rename(title);
+    } catch (error) {
+      if (serverTitle !== undefined && canRestore()) {
+        await applyTitle(serverTitle).catch(() => undefined);
+      }
+      throw error;
+    }
+    persistedTitle = title;
+  };
+
   const settleClaim = async (claim: ThreadTitleClaim) => {
     const renamed = await claim.settled;
     if (generation.claim !== claim) return undefined;
@@ -290,9 +303,11 @@ export async function runThreadTitleGeneration(
       ) {
         const renamed = await settleClaim(claim);
         if (renamed === true) {
-          persistedTitle = claim.title;
+          await writeBack(
+            claim.title,
+            () => generation.claim === claim && isCurrentClaim(state, claim),
+          );
           persistedOrder = claim.order;
-          await rename(claim.title);
         }
         continue;
       }
@@ -300,10 +315,14 @@ export async function runThreadTitleGeneration(
       if (winner === null || winner.order <= persistedOrder) return;
       const title = await winner.persisted;
       if (state.latestExplicit !== winner) continue;
-      persistedOrder = winner.order;
       if (title === undefined || title === persistedTitle) return;
-      persistedTitle = title;
-      await rename(title);
+      await writeBack(
+        title,
+        () =>
+          state.latestExplicit === winner &&
+          (generation.claim?.order ?? 0) <= winner.order,
+      );
+      persistedOrder = winner.order;
     }
   };
 
@@ -358,8 +377,11 @@ export async function runThreadTitleGeneration(
         return;
       }
       if (!isCurrentClaim(state, claim)) return;
-      await rename(claim.title);
-      persistedTitle = claim.title;
+      await writeBack(
+        claim.title,
+        () =>
+          generation.claim === claim && isCurrentGeneration(state, generation),
+      );
       persistedOrder = claim.order;
       if (generation.claim !== claim) continue;
       if (!isCurrentGeneration(state, generation)) return;
