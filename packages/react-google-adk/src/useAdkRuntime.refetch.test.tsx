@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 
-import { act, render, renderHook, waitFor } from "@testing-library/react";
+import {
+  act,
+  render,
+  renderHook,
+  waitFor as waitForDefault,
+} from "@testing-library/react";
 import { StrictMode, type FC, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
@@ -13,6 +18,9 @@ import { useAdkRuntime } from "./useAdkRuntime";
 import { useAdkLongRunningToolIds, useAdkSend } from "./hooks";
 import type { AdkEvent, AdkMessage, AdkThreadSnapshot } from "./types";
 import { settleOutsideAct } from "./tests/settleOutsideAct";
+
+const waitFor: typeof waitForDefault = (callback, options) =>
+  waitForDefault(callback, { interval: 10, ...options });
 
 const deferred = <T,>() => {
   let resolve!: (value: T) => void;
