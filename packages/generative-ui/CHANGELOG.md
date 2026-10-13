@@ -1,5 +1,30 @@
 # @assistant-ui/generative-ui
 
+## 0.0.4
+
+### Patch Changes
+
+- [#9441](https://github.com/assistant-ui/assistant-ui/pull/9441) [`d0c7f28`](https://github.com/assistant-ui/assistant-ui/commit/d0c7f28127dc602fc84bd55fea566fd971d7c327) - feat: render a card as a panel on react native, keep a pixel-sized image at its size in a row, and tell the model a card is a module, with key figures in a row and image urls taken from tool results ([@okisdev](https://github.com/okisdev))
+
+- [#9385](https://github.com/assistant-ui/assistant-ui/pull/9385) [`c08f1fc`](https://github.com/assistant-ui/assistant-ui/commit/c08f1fc107a111309c38aa9b1008e649fcc94f4a) - feat: add `Diagram` and `Map` to the vocabulary, which render their Mermaid source and a list of linked places until a host draws them ([@okisdev](https://github.com/okisdev))
+
+- [#9374](https://github.com/assistant-ui/assistant-ui/pull/9374) [`463644d`](https://github.com/assistant-ui/assistant-ui/commit/463644df51915717842c32c3f671d4921eca9566) - feat: add `Tabs`, `Steps`, `Timeline`, and `Citation` to the vocabulary, and a `progress` checklist mode to `CheckboxGroup` ([@okisdev](https://github.com/okisdev))
+
+- [#9349](https://github.com/assistant-ui/assistant-ui/pull/9349) [`7945f55`](https://github.com/assistant-ui/assistant-ui/commit/7945f5580cc549cfdd667e8944b9ff4ab41c1948) - fix(generative-ui): remount a node renderer when its type changes ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9378](https://github.com/assistant-ui/assistant-ui/pull/9378) [`890b9c8`](https://github.com/assistant-ui/assistant-ui/commit/890b9c88e44040b84cb1f48641cff1111cdcd46b) - fix(generative-ui): keep nested controls in pressable native list rows reachable with VoiceOver and TalkBack ([@okisdev](https://github.com/okisdev))
+
+- [#9341](https://github.com/assistant-ui/assistant-ui/pull/9341) [`3227ffc`](https://github.com/assistant-ui/assistant-ui/commit/3227ffcdd901c5a06ee4c8f437f32642f49e87c7) - Improve native Fact and Badge text contrast across themes. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9405](https://github.com/assistant-ui/assistant-ui/pull/9405) [`1abdaaa`](https://github.com/assistant-ui/assistant-ui/commit/1abdaaaa9f57f0ff8dba51ab7153b70d3a206339) - fix: accept numeric text in tabs, steps, timeline, and citations, and leave an empty citation source out of slack messages ([@okisdev](https://github.com/okisdev))
+
+- [#9380](https://github.com/assistant-ui/assistant-ui/pull/9380) [`1f4e878`](https://github.com/assistant-ui/assistant-ui/commit/1f4e8785df34d231bdb8bb13a689165adc2c9727) - fix(generative-ui): escape model text before it reaches slack mrkdwn, so `<!channel>`, `<@user>` and `<url|label>` in model output render as plain text; caps count the escaped length and `fromSlackBlocks` decodes the entities ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9354](https://github.com/assistant-ui/assistant-ui/pull/9354) [`8fd311d`](https://github.com/assistant-ui/assistant-ui/commit/8fd311d3b1e73d95add5d8a75ce0496470cadc2f) - fix(generative-ui): allow numeric text props in generative UI and convert them to text in Slack and Teams output. A numeric 0 now renders in Alert, Card, and Select text, native Checkbox and Switch labels are announced, and the Teams converter now ignores built-in property names such as `constructor` in `Text.size` and `Alert.tone`. ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`5113baa`](https://github.com/assistant-ui/assistant-ui/commit/5113baa64eb50e2b7be167323161bb173a19c610), [`05462a5`](https://github.com/assistant-ui/assistant-ui/commit/05462a5b9d10955f4520619f192e2378a81bfcb5), [`c5c4fdd`](https://github.com/assistant-ui/assistant-ui/commit/c5c4fddfb57aafc7ad3043d11fe1bb3cd773656b), [`7bff761`](https://github.com/assistant-ui/assistant-ui/commit/7bff761a8d2837f05ce41ca54ef8c471af03be6c), [`d30dae6`](https://github.com/assistant-ui/assistant-ui/commit/d30dae602477a50ace87710e27b06c3faf2a6e59), [`986d7cf`](https://github.com/assistant-ui/assistant-ui/commit/986d7cffa2e9cde3c262e5798de62e4b6618479c), [`1de1657`](https://github.com/assistant-ui/assistant-ui/commit/1de16572935587752628401d7928ba7bf9932010)]:
+  - generative-frame@0.0.5
+  - assistant-stream@0.3.51
+
 ## 0.0.3
 
 ### Patch Changes
