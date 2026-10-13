@@ -4705,12 +4705,18 @@ importers:
         specifier: workspace:^
         version: link:../safe-content-frame
     devDependencies:
+      '@assistant-ui/core':
+        specifier: workspace:*
+        version: link:../core
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../react
       '@assistant-ui/react-native':
         specifier: workspace:*
         version: link:../react-native
+      '@assistant-ui/vue':
+        specifier: workspace:*
+        version: link:../vue
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils

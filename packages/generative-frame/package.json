@@ -63,6 +63,10 @@
       "types": "./dist/spec/assistant-ui.d.ts",
       "default": "./dist/spec/assistant-ui.js"
     },
+    "./spec/assistant-ui/vue": {
+      "types": "./dist/spec/assistant-ui/vue.d.ts",
+      "default": "./dist/spec/assistant-ui/vue.js"
+    },
     "./assistant-ui": {
       "types": "./dist/assistant-ui.d.ts",
       "default": "./dist/assistant-ui.js"
@@ -92,18 +96,26 @@
     "safe-content-frame": "workspace:^"
   },
   "peerDependencies": {
+    "@assistant-ui/core": "^0.3.26",
     "@assistant-ui/react": "^0.15.0",
     "@assistant-ui/react-native": "^0.1.47",
+    "@assistant-ui/vue": "^0.0.3",
     "@types/react": "*",
     "react": "^18 || ^19",
     "react-native": "*",
     "vue": "^3.5.0"
   },
   "peerDependenciesMeta": {
+    "@assistant-ui/core": {
+      "optional": true
+    },
     "@assistant-ui/react": {
       "optional": true
     },
     "@assistant-ui/react-native": {
+      "optional": true
+    },
+    "@assistant-ui/vue": {
       "optional": true
     },
     "@types/react": {
@@ -120,8 +132,10 @@
     }
   },
   "devDependencies": {
+    "@assistant-ui/core": "workspace:*",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-native": "workspace:*",
+    "@assistant-ui/vue": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@assistant-ui/x-react18": "workspace:*",
     "@testing-library/react": "^16.3.3",

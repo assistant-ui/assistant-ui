@@ -63,6 +63,26 @@ describe("bundle boundaries", { timeout: 60_000 }, () => {
     ).toEqual([]);
   });
 
+  it("keeps React, the React toolkit, and frame code out of a Vue assistant-ui spec app", async () => {
+    const bundle: Bundle = await bundleFixture("spec-assistant-ui-vue.ts");
+    report("spec assistant-ui vue", bundle);
+    expect(bundle.modules).toContain(`${PKG}spec/assistant-ui/vue.ts`);
+    expect(
+      offending(bundle, [
+        new RegExp(`^${PKG}spec/react/`),
+        new RegExp(`^${PKG}spec/assistant-ui/(toolkit|web|native)\\.tsx$`),
+        new RegExp(`^${PKG}assistant-ui/(toolkit|useSharedContext)\\.tsx?$`),
+        ...FRAME,
+      ]),
+    ).toEqual([]);
+    expect(
+      bundle.imports.filter((id) =>
+        /^(?:react|react-dom|@assistant-ui\/react)(?:\/|$)/.test(id),
+      ),
+    ).toEqual([]);
+    expect(bundle.imports).toContain("@assistant-ui/vue");
+  });
+
   it("resolves the React Native spec entries without web or frame code", async () => {
     const bundle: Bundle = await bundleFixture("spec-native.ts", {
       condition: "react-native",
