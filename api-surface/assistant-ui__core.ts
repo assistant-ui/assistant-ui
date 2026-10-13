@@ -6063,7 +6063,6 @@ declare class ToolInvocationTracker {
   reset(): void;
   abort(options?: {
     discardPending?: boolean;
-    startNewTurn?: boolean;
   }): Promise<void>;
   resume(toolCallId: string, payload: unknown): boolean;
   getStatuses(): ReadonlyMap<string, ToolExecutionStatus>;
@@ -6075,6 +6074,7 @@ declare namespace ToolInvocationTracker {
     readonly messages: readonly ThreadMessage[];
     readonly isRunning: boolean;
     readonly isLoading?: boolean;
+    readonly discardedToolCallIds?: ReadonlySet<string>;
   };
   type Callbacks = {
     onResult: (command: AddToolResultCommand$1) => void;
