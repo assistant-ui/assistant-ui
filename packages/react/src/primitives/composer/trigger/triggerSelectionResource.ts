@@ -67,6 +67,7 @@ const useTriggerSelectionResource = ({
     if (!trigger || !behavior) return;
 
     if (selectItemOverrideRef.current?.(item)) {
+      if (behavior.kind === "directive") behavior.onInserted?.(item);
       onSelected();
       return;
     }

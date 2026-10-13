@@ -82,6 +82,22 @@ describe("TriggerSelectionResource", () => {
     expect(onSelected).toHaveBeenCalledOnce();
   });
 
+  it("reports an inserted directive when a select override handles the insertion", () => {
+    const onInserted = vi.fn();
+    const { root, setText, onSelected } = render({
+      behavior: { kind: "directive", formatter, onInserted },
+      text: "@file tail",
+      trigger: { offset: 0, query: "file", endOffset: 5 },
+    });
+    root.getValue().registerSelectItemOverride(() => true);
+
+    root.getValue().selectItem(item);
+
+    expect(onInserted).toHaveBeenCalledExactlyOnceWith(item);
+    expect(setText).not.toHaveBeenCalled();
+    expect(onSelected).toHaveBeenCalledOnce();
+  });
+
   it("resynchronizes the cursor after removing an action", () => {
     const { root, setText, setCursorPosition } = render({
       behavior: {
