@@ -629,6 +629,8 @@ For dynamic setups (an adapter that depends on auth), call `aui.unstable_interac
 
 `save` receives the complete app-scoped snapshot for the current persistence scope: mounted interactables, entries that were loaded but never mounted, and entries whose component has since unmounted. Thread-scoped entries are always excluded. This is a superset of `exportState()`, which returns only currently mounted interactables.
 
+Both leave out an interactable that is still on its `initialState`; it joins the snapshot once it is edited, imported, or loaded. A changed `initialState` therefore reaches users who never edited that interactable. A default that an earlier snapshot already stored stays in storage, because a stored default cannot be told apart from an edit.
+
 ### Sync Status
 
 When a persistence adapter is set, interactable hooks expose sync metadata:
