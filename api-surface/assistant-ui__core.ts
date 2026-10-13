@@ -6062,6 +6062,7 @@ declare class ToolInvocationTracker {
   reset(): void;
   abort(options?: {
     discardPending?: boolean;
+    startNewTurn?: boolean;
   }): Promise<void>;
   resume(toolCallId: string, payload: unknown): boolean;
   getStatuses(): ReadonlyMap<string, ToolExecutionStatus>;

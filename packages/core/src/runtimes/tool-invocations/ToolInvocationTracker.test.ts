@@ -928,6 +928,106 @@ describe("ToolInvocationTracker", () => {
     expect(onResult).not.toHaveBeenCalled();
   });
 
+  describe("a call first seen after its turn was discarded", () => {
+    const setup = (isClientToolCall?: () => boolean) => {
+      const execute = vi.fn(async () => ({ deleted: true }));
+      const streamCall = vi.fn();
+      const onResult = vi.fn();
+      const tracker = new ToolInvocationTracker(
+        () => ({
+          deleteFile: {
+            parameters: { type: "object", properties: {} },
+            execute,
+            streamCall,
+          } satisfies Tool,
+        }),
+        { onResult, onStatusesChange: () => {} },
+        isClientToolCall,
+      );
+      return { tracker, execute, streamCall, onResult };
+    };
+    const deleteFile = (toolCallId = "tool-1") =>
+      createAssistantMessage(
+        '{"path":"/tmp/a"}',
+        { path: "/tmp/a" },
+        { toolCallId, toolName: "deleteFile" },
+      );
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    it("does not run when the settled snapshot is the first to carry it", async () => {
+      const { tracker, execute, streamCall, onResult } = setup();
+      tracker.setState(createState([], true));
+
+      await tracker.abort({ discardPending: true });
+      tracker.setState(createState([deleteFile()], false));
+      await flush();
+
+      expect(execute).not.toHaveBeenCalled();
+      expect(streamCall).not.toHaveBeenCalled();
+      expect(onResult).not.toHaveBeenCalled();
+    });
+
+    it("does not run when it arrives after an empty settled snapshot", async () => {
+      const { tracker, execute, streamCall, onResult } = setup();
+      tracker.setState(createState([], true));
+
+      await tracker.abort({ discardPending: true });
+      tracker.setState(createState([], false));
+      tracker.setState(createState([deleteFile()], false));
+      await flush();
+
+      expect(execute).not.toHaveBeenCalled();
+      expect(streamCall).not.toHaveBeenCalled();
+      expect(onResult).not.toHaveBeenCalled();
+    });
+
+    it("does not run when a client-owned call streams in before the run settles", async () => {
+      const { tracker, execute, streamCall } = setup(() => true);
+      tracker.setState(createState([], true));
+
+      await tracker.abort({ discardPending: true });
+      tracker.setState(createState([deleteFile()], true));
+      await flush();
+
+      expect(execute).not.toHaveBeenCalled();
+      expect(streamCall).not.toHaveBeenCalled();
+    });
+
+    it("runs a call of the next run once the discarded run has settled", async () => {
+      const { tracker, execute } = setup();
+      tracker.setState(createState([], true));
+
+      await tracker.abort({ discardPending: true });
+      tracker.setState(createState([], false));
+      tracker.setState(createState([], true));
+      tracker.setState(createState([deleteFile("tool-2")], false));
+
+      await waitFor(() => expect(execute).toHaveBeenCalledOnce());
+    });
+
+    it("runs a call of the turn that replaces the discarded run", async () => {
+      const { tracker, execute } = setup(() => true);
+      tracker.setState(createState([], true));
+
+      await tracker.abort({ discardPending: true, startNewTurn: true });
+      tracker.setState(createState([deleteFile("tool-2")], true));
+
+      await waitFor(() => expect(execute).toHaveBeenCalledOnce());
+    });
+
+    it("runs once reset opens a new execution boundary", async () => {
+      const { tracker, execute } = setup();
+      tracker.setState(createState([], true));
+
+      await tracker.abort({ discardPending: true });
+      tracker.reset();
+      tracker.setState(createState([], false));
+      tracker.setState(createState([deleteFile("tool-2")], false));
+
+      await waitFor(() => expect(execute).toHaveBeenCalledOnce());
+    });
+  });
+
   it("still executes a waiting tool when an abort only interrupts the turn", async () => {
     const execute = vi.fn(async () => ({ deleted: true }));
     const getTools = () => ({

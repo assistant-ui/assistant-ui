@@ -1384,6 +1384,129 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(onAddToolResult).not.toHaveBeenCalled();
     });
 
+    it("does not run a client tool first published after cancellation", async () => {
+      const execute = vi.fn(async () => ({ forecast: "sunny" }));
+      const onAddToolResult = vi.fn();
+      const adapter = (
+        isRunning: boolean,
+        messages: readonly ThreadMessage[],
+      ) =>
+        createBaseAdapter({
+          unstable_enableToolInvocations: true,
+          isRunning,
+          onCancel: vi.fn(async () => {}),
+          onAddToolResult,
+          messages,
+        });
+      const core = new ExternalStoreThreadRuntimeCore(
+        {
+          getModelContext: () => ({
+            tools: {
+              weatherSearch: {
+                parameters: { type: "object", properties: {} },
+                execute,
+              },
+            },
+          }),
+        },
+        adapter(true, [createUserMessage("u1")]),
+      );
+
+      core.cancelRun();
+      core.__internal_setAdapter(
+        adapter(false, [
+          createUserMessage("u1"),
+          {
+            ...createAssistantMessage("a1"),
+            status: { type: "requires-action", reason: "tool-calls" },
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "tc1",
+                toolName: "weatherSearch",
+                args: { city: "London" },
+                argsText: '{"city":"London"}',
+              },
+            ],
+          },
+        ]),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(execute).not.toHaveBeenCalled();
+      expect(onAddToolResult).not.toHaveBeenCalled();
+    });
+
+    it.each(["append", "startRun"] as const)(
+      "runs the client tool of a turn started by %s while the replaced run is still active",
+      async (start) => {
+        const execute = vi.fn(async () => ({ forecast: "sunny" }));
+        const adapter = (messages: readonly ThreadMessage[]) =>
+          createBaseAdapter({
+            unstable_enableToolInvocations: true,
+            unstable_isClientToolCall: () => true,
+            isRunning: true,
+            onReload: vi.fn(async () => {}),
+            onAddToolResult: vi.fn(),
+            messages,
+          });
+        const prior = [createUserMessage("u1"), createAssistantMessage("a1")];
+        const core = new ExternalStoreThreadRuntimeCore(
+          {
+            getModelContext: () => ({
+              tools: {
+                weatherSearch: {
+                  parameters: { type: "object", properties: {} },
+                  execute,
+                },
+              },
+            }),
+          },
+          adapter(prior),
+        );
+
+        if (start === "append") {
+          await core.append({
+            role: "user",
+            content: [{ type: "text", text: "next" }],
+            attachments: [],
+            createdAt: new Date(),
+            parentId: "a1",
+            sourceId: null,
+            runConfig: {},
+            metadata: { custom: {} },
+          });
+        } else {
+          await core.startRun({
+            parentId: "u1",
+            sourceId: "a1",
+            runConfig: {},
+          });
+        }
+        core.__internal_setAdapter(
+          adapter([
+            ...prior,
+            createUserMessage("u2"),
+            {
+              ...createAssistantMessage("a2"),
+              status: { type: "requires-action", reason: "tool-calls" },
+              content: [
+                {
+                  type: "tool-call",
+                  toolCallId: "tc2",
+                  toolName: "weatherSearch",
+                  args: { city: "Paris" },
+                  argsText: '{"city":"Paris"}',
+                },
+              ],
+            },
+          ]),
+        );
+
+        await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+      },
+    );
+
     it("mirrors the adapter running value when tool invocations are disabled", () => {
       const core = new ExternalStoreThreadRuntimeCore(
         contextProvider,

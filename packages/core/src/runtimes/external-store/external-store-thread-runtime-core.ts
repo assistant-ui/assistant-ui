@@ -934,6 +934,7 @@ export class ExternalStoreThreadRuntimeCore
     if (message.startRun ?? message.role === "user") {
       const toolsSettled = this._toolInvocations?.abort({
         discardPending: true,
+        startNewTurn: true,
       });
       if (toolsSettled && toolsSettled !== NO_TOOL_EXECUTIONS)
         await toolsSettled;
@@ -1090,7 +1091,10 @@ export class ExternalStoreThreadRuntimeCore
     // Auto-abort in-flight client-side tool executions when a run reloads;
     // any results that land afterward would target a turn that no longer
     // exists. See `append` above for full rationale.
-    await this._toolInvocations?.abort({ discardPending: true });
+    await this._toolInvocations?.abort({
+      discardPending: true,
+      startNewTurn: true,
+    });
     if (!cancellationLease.isCurrent()) return;
 
     await this._store.onReload(config.parentId, config);

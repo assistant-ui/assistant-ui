@@ -51,6 +51,7 @@ type ToolCallEntry = {
   hasResult: boolean;
   executionId?: symbol;
   skipExecute?: boolean;
+  discarded?: boolean;
   executeStarted?: boolean;
 } & (
   | {
@@ -156,6 +157,7 @@ export class ToolInvocationTracker {
   private _ac: AbortController = new AbortController();
   private _retiredAc: AbortController | undefined;
   private _pendingRestore = true;
+  private _discardPhase: "none" | "active" | "settled" = "none";
 
   /** Cached last snapshot, used to skip processing on identical re-renders. */
   private _lastSnapshot: ToolInvocationTracker.Snapshot | null = null;
@@ -321,11 +323,15 @@ export class ToolInvocationTracker {
       const previousIsRunning = this._isRunning;
       this._isRunning = snapshot.isRunning;
       try {
+        if (this._discardPhase === "settled" && snapshot.isRunning)
+          this._discardPhase = "none";
         this._processMessages(snapshot.messages);
       } catch (err) {
         this._isRunning = previousIsRunning;
         throw err;
       }
+      if (this._discardPhase === "active" && !snapshot.isRunning)
+        this._discardPhase = "settled";
       this._lastSnapshot = snapshot;
       this._pendingRestore = false;
     } catch (err) {
@@ -346,6 +352,7 @@ export class ToolInvocationTracker {
       this._pendingRestore = true;
       this._entries.clear();
       this._discardedToolCallIds.clear();
+      this._discardPhase = "none";
       this._lastSnapshot = null;
       void this.abort();
       // Statuses are cleared synchronously: discarded executions may never
@@ -371,8 +378,16 @@ export class ToolInvocationTracker {
    * signal cannot reach those: they are waiting on the run to settle (A.10),
    * or their args closed in the same tick and `execute` runs after this
    * installs a fresh controller.
+   *
+   * While the discarded run is still active, `discardPending` also discards
+   * the calls that first appear in its remaining and settled snapshots, until
+   * a later snapshot reports a new run. A caller that starts the next turn
+   * itself passes `startNewTurn`, which leaves that turn's calls executable.
    */
-  public abort(options?: { discardPending?: boolean }): Promise<void> {
+  public abort(options?: {
+    discardPending?: boolean;
+    startNewTurn?: boolean;
+  }): Promise<void> {
     try {
       this._humanInput.forEach(({ executionId, reject }, toolCallId) => {
         try {
@@ -386,11 +401,14 @@ export class ToolInvocationTracker {
       this._humanInput.clear();
 
       if (options?.discardPending) {
+        if (options.startNewTurn) this._discardPhase = "none";
+        else if (this._isRunning) this._discardPhase = "active";
         for (const [toolCallId, entry] of this._entries) {
           if (!entry.controller) continue;
           if (entry.hasResult || entry.executeStarted) continue;
           this._discardedToolCallIds.add(toolCallId);
           entry.skipExecute = true;
+          entry.discarded = true;
         }
       }
 
@@ -491,7 +509,7 @@ export class ToolInvocationTracker {
                 context.toolCallId,
                 executionId,
               );
-              if (!entry) return;
+              if (!entry || entry.discarded) return;
               return streamCall(reader, context);
             },
           }),
@@ -720,6 +738,7 @@ export class ToolInvocationTracker {
       argsText: "",
       hasResult: false,
       skipExecute,
+      discarded: this._discardedToolCallIds.has(toolCallId),
       argsComplete: false,
       clientOwned,
     };
@@ -906,6 +925,8 @@ export class ToolInvocationTracker {
       }
 
       if (!entry) {
+        if (this._discardPhase !== "none" && !hasFinalResult(content))
+          this._discardedToolCallIds.add(content.toolCallId);
         const ownership = this._isClientToolCall?.(content);
         const providerOwned =
           content.result === undefined && ownership === false;

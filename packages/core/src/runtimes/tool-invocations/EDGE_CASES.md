@@ -164,8 +164,9 @@ gated, so a gate on such a call is still late and A.8 governs it
 ### A.11. The turn is discarded before a call's `execute` starts
 `abort({ discardPending: true })` records every active entry that holds
 no result and whose `execute` has not started in `_discardedToolCallIds`,
-and marks it `skipExecute`. A call whose `execute` already started keeps
-its result.
+and marks it `skipExecute`, which also keeps a `streamCall` that has not
+started from firing. A call whose `execute` already started keeps its
+result.
 
 The abort signal alone does not cover these. A call waiting on the run to
 settle (A.10) has not reached the executor, so there is nothing to signal,
@@ -176,10 +177,19 @@ closed in the tick the turn was discarded (the settled snapshot and the
 user's next action landing together): the executor calls `execute` only
 after `abort()` has installed the fresh controller.
 
-The record covers only calls the tracker has already observed. A call
-first seen in a snapshot that arrives after the discard, such as a store
-that publishes the assistant message only when its run resolves and still
-publishes it after `cancelRun`, gets a fresh entry and runs.
+A call the tracker has not observed yet is covered by a discard phase. When
+the discarded run was still running, `abort()` opens it for that run's
+remaining snapshots and the settled ones after it. A call first seen in the
+phase joins `_discardedToolCallIds` and starts with both `streamCall` and
+`execute` suppressed, so a store that publishes the assistant message only
+when its run resolves, and still does after `cancelRun`, cannot start it.
+
+The phase ends when a snapshot reports a run after the settled one, when
+the abort comes from a caller that starts the next turn itself (`append` and
+`startRun` pass `startNewTurn`), or on `reset()`. An abort that finds no
+run active opens no phase. A call of a turn that is replaced while its run
+is still active is not covered, because the tracker cannot tell it from the
+new turn's.
 
 `discardPending` is the caller's claim that the turn is over, not that it
 is being interrupted, so only the three callers that end it pass it: a new
