@@ -617,6 +617,135 @@ describe("Interactables registration", () => {
 });
 
 describe("Interactables persistence save", () => {
+  it("uses a changed initialState after an untouched interactable stayed mounted during a save", async () => {
+    const save = vi.fn();
+    root = mount({ persistence: { save } });
+    await flushMicrotasks();
+    root.getValue().register(reg("prefs"));
+    root.getValue().register(reg("other"));
+    root.getValue().setState("other", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(save.mock.lastCall?.[0]).toEqual({
+      other: { name: "note", state: { v: 1 } },
+    });
+
+    root.unmount();
+    root = mount({
+      persistence: { save: vi.fn(), load: async () => save.mock.lastCall![0] },
+    });
+    await flushMicrotasks();
+    root.getValue().register(reg("prefs", { initialState: { v: 2 } }));
+    expect(stateOf(root, "prefs")).toEqual({ v: 2 });
+  });
+
+  it("uses a changed initialState after an untouched interactable unmounted before a save", async () => {
+    const save = vi.fn();
+    root = mount({ persistence: { save } });
+    await flushMicrotasks();
+    const unregister = root.getValue().register(reg("prefs"));
+    unregister();
+    root.getValue().register(reg("other"));
+    root.getValue().setState("other", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(save.mock.lastCall?.[0]).toEqual({
+      other: { name: "note", state: { v: 1 } },
+    });
+
+    root.unmount();
+    root = mount({
+      persistence: { save: vi.fn(), load: async () => save.mock.lastCall![0] },
+    });
+    await flushMicrotasks();
+    root.getValue().register(reg("prefs", { initialState: { v: 2 } }));
+    expect(stateOf(root, "prefs")).toEqual({ v: 2 });
+  });
+
+  it("keeps an imported value across a mount cycle and another save", async () => {
+    const save = vi.fn();
+    root = mount({ persistence: { save } });
+    await flushMicrotasks();
+    root.getValue().importState({ prefs: { name: "note", state: { v: 5 } } });
+    const unregister = root.getValue().register(reg("prefs"));
+    expect(stateOf(root, "prefs")).toEqual({ v: 5 });
+    unregister();
+    root.getValue().register(reg("prefs"));
+    expect(stateOf(root, "prefs")).toEqual({ v: 5 });
+    root.getValue().register(reg("other"));
+    root.getValue().setState("other", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    expect(save.mock.lastCall?.[0]).toEqual({
+      prefs: { name: "note", state: { v: 5 } },
+      other: { name: "note", state: { v: 1 } },
+    });
+  });
+
+  it("keeps a loaded value that was never edited in the next save", async () => {
+    const save = vi.fn();
+    root = mount({
+      persistence: {
+        save,
+        load: async () => ({ prefs: { name: "note", state: { v: 3 } } }),
+      },
+    });
+    await flushMicrotasks();
+    root.getValue().register(reg("prefs"));
+    root.getValue().register(reg("other"));
+    root.getValue().setState("other", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(save.mock.lastCall?.[0]).toEqual({
+      prefs: { name: "note", state: { v: 3 } },
+      other: { name: "note", state: { v: 1 } },
+    });
+  });
+
+  it("saves nothing for a default restored by an adapter switch", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    root = mount();
+    root.getValue().setPersistenceAdapter({ save: vi.fn() });
+    await flushMicrotasks();
+    root.getValue().register(reg("prefs"));
+    root.getValue().register(reg("other"));
+    root.getValue().setState("prefs", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    const next = { save: vi.fn() };
+    root.getValue().setPersistenceAdapter(next);
+    await flushMicrotasks();
+    expect(stateOf(root, "prefs")).toEqual({ v: 0 });
+    root.getValue().setState("other", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(next.save.mock.lastCall?.[0]).toEqual({
+      other: { name: "note", state: { v: 1 } },
+    });
+  });
+
+  it("exports only interactables that were edited, imported, or loaded", async () => {
+    root = mount({
+      persistence: {
+        save: vi.fn(),
+        load: async () => ({ loaded: { name: "note", state: { v: 3 } } }),
+      },
+    });
+    await flushMicrotasks();
+    for (const id of ["untouched", "edited", "imported", "loaded"]) {
+      root.getValue().register(reg(id));
+    }
+    root.getValue().setState("edited", () => ({ v: 1 }));
+    root
+      .getValue()
+      .importState({ imported: { name: "note", state: { v: 2 } } });
+
+    expect(root.getValue().exportState()).toEqual({
+      edited: { name: "note", state: { v: 1 } },
+      imported: { name: "note", state: { v: 2 } },
+      loaded: { name: "note", state: { v: 3 } },
+    });
+  });
+
   it("debounces saves and excludes tool-created items from the payload", async () => {
     const save = vi.fn();
     root = mount({
