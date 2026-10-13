@@ -267,6 +267,46 @@ const createApprovalThread = (firstResult: ChatModelRunResult) => {
 };
 
 describe("LocalThreadRuntimeCore events", () => {
+  it.each(["end", "throw"] as const)(
+    "keeps text sending available after synchronous voice setup %s",
+    async (mode) => {
+      const run = vi.fn(async () => ({
+        content: [{ type: "text" as const, text: "reply" }],
+      }));
+      const thread = createThread(
+        { run },
+        {
+          voice: {
+            connect: (options) =>
+              createVoiceSession(options, (helpers) => {
+                const error = new Error("voice credentials missing");
+                if (mode === "throw") throw error;
+                helpers.end("error", error);
+                return Promise.resolve({
+                  disconnect: vi.fn(),
+                  mute: vi.fn(),
+                  unmute: vi.fn(),
+                });
+              }),
+          },
+        },
+      );
+
+      try {
+        thread.connectVoice();
+        await flush();
+        thread.composer.setText("send this as normal text");
+
+        expect(thread.composer.canSend).toBe(true);
+        expect(thread.voice).toBeUndefined();
+        await thread.composer.send();
+        await vi.waitFor(() => expect(run).toHaveBeenCalledOnce());
+      } finally {
+        thread.disconnectVoice();
+      }
+    },
+  );
+
   it("disconnects an active voice session when its adapter is removed", async () => {
     const disconnect = vi.fn();
     const chatModel: ChatModelAdapter = {
