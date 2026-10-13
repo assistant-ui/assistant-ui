@@ -1,3 +1,4 @@
+import { formulaIssue } from "./calc";
 import type { Catalog } from "./catalog";
 import { escapePointerToken } from "./pointer";
 import type { ActionBinding, Spec, SpecElement } from "./types";
@@ -15,6 +16,7 @@ export type SpecIssueCode =
   | "unknown-event"
   | "unknown-action"
   | "invalid-params"
+  | "invalid-formula"
   | "invalid-repeat"
   | "unreachable"
   | "invalid-patch";
@@ -140,6 +142,34 @@ export function validateSpec(
     });
   };
 
+  const checkFormulas = (
+    id: string,
+    path: string,
+    value: unknown,
+    depth: number,
+  ) => {
+    if (typeof value !== "object" || value === null || depth > 64) return;
+    for (const [key, child] of Object.entries(value)) {
+      const at = `${path}/${escapePointerToken(key)}`;
+      if (key === "$calc" && !Array.isArray(value)) {
+        const issue =
+          typeof child === "string"
+            ? formulaIssue(child)
+            : "`$calc` needs a formula string";
+        if (issue) {
+          error({
+            code: "invalid-formula",
+            elementId: id,
+            path: at,
+            message: `Formula in "${id}": ${issue}.`,
+          });
+        }
+      } else {
+        checkFormulas(id, at, child, depth + 1);
+      }
+    }
+  };
+
   for (const [id, element] of Object.entries(elements)) {
     const path = elementPath(id);
     if (
@@ -241,6 +271,9 @@ export function validateSpec(
         `${path}/watch/${escapePointerToken(watched)}`,
         bindingsOf(bindings),
       );
+    }
+    for (const key of ["props", "visible", "on", "watch"] as const) {
+      checkFormulas(id, `${path}/${key}`, element[key], 0);
     }
     if (
       element.repeat !== undefined &&

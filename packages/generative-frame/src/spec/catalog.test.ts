@@ -173,6 +173,10 @@ describe("catalog.prompt", () => {
     expect(prompt).toContain("- `setState`");
     expect(prompt).toContain('{"op":"add","path":"/root","value":"main"}');
     expect(prompt).toContain("$bindState");
+    expect(prompt).toContain(
+      '`{ "$calc": "round(${/guests} * 0.5, 1) + \' lb\'" }`',
+    );
+    expect(prompt).toContain('"value":{"$calc":"${/count} + 1"}');
     expect(prompt).toContain("- Prefer cards.");
     expect(prompt).toContain("Output only patch lines");
   });
@@ -226,6 +230,42 @@ describe("validateSpec", () => {
     expect(text).toContain(
       'Warnings:\n- /elements/x: "x" is not reachable from the root.',
     );
+  });
+
+  it("reports formulas that cannot run in props, visibility, and action params", () => {
+    const spec = validSpec();
+    spec.elements["card"]!.props = {
+      title: { $calc: "'Total: ' + number(${/total}, 2)" },
+    };
+    spec.elements["m"]!.props = {
+      label: "Total",
+      value: { $calc: "sum(${/rows}, '/price'" },
+    };
+    spec.elements["m"]!.visible = { $calc: "sqrt(${/total}) > 1" };
+    spec.elements["b"]!.on = {
+      press: [{ action: "refresh", params: { range: { $calc: 7 } } }],
+    };
+    const { ok, issues } = validateSpec(spec, catalog);
+    expect(ok).toBe(false);
+    expect(
+      issues.map((issue) => [issue.code, issue.path, issue.message]),
+    ).toEqual([
+      [
+        "invalid-formula",
+        "/elements/m/props/value/$calc",
+        'Formula in "m": Expected ")".',
+      ],
+      [
+        "invalid-formula",
+        "/elements/m/visible/$calc",
+        'Formula in "m": Unknown function "sqrt"; known: round, floor, ceil, abs, clamp, min, max, count, sum, avg, number, currency, percent, time, plural.',
+      ],
+      [
+        "invalid-formula",
+        "/elements/b/on/press/0/params/range/$calc",
+        'Formula in "b": `$calc` needs a formula string.',
+      ],
+    ]);
   });
 
   it("finds cycles, including self references", () => {

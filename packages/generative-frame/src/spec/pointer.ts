@@ -30,7 +30,9 @@ export function getAtPointer(
   let current = doc;
   for (const token of tokens) {
     if (Array.isArray(current)) {
-      if (!ARRAY_INDEX.test(token)) return undefined;
+      if (!ARRAY_INDEX.test(token) || !Object.hasOwn(current, token)) {
+        return undefined;
+      }
       current = current[Number(token)];
     } else if (isContainer(current)) {
       if (!Object.hasOwn(current, token)) return undefined;

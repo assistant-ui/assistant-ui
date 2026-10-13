@@ -60,6 +60,26 @@ describe("resolveValue", () => {
     );
   });
 
+  it("resolves formulas inside conditional branches", () => {
+    for (const condition of [true, false]) {
+      expect(
+        resolveValue(
+          {
+            $cond: condition,
+            $then: { $calc: "${/count} * 2" },
+            $else: { $calc: "${/count} + 1" },
+          },
+          { state },
+        ),
+      ).toBe(condition ? 6 : 4);
+    }
+  });
+
+  it("returns null for non-string formulas", () => {
+    expect(resolveValue({ $calc: 1 }, { state })).toBeNull();
+    expect(resolveValue({ $calc: null }, { state })).toBeNull();
+  });
+
   it("leaves unclosed placeholders as text", () => {
     expect(renderTemplate("a ${/user/name} ${b", { state })).toBe("a Ada ${b");
     expect(renderTemplate("${{".repeat(5000), { state })).toBe(
@@ -70,6 +90,7 @@ describe("resolveValue", () => {
   it("detects expressions", () => {
     expect(isExpression({ $state: "/a" })).toBe(true);
     expect(isExpression({ $template: "" })).toBe(true);
+    expect(isExpression({ $calc: "1" })).toBe(true);
     expect(isExpression({ state: "/a" })).toBe(false);
     expect(isExpression(["$state"])).toBe(false);
   });
@@ -93,12 +114,24 @@ describe("evaluateCondition", () => {
     [{ $or: [{ $state: "/open" }, { $state: "/count", eq: 3 }] }, true],
     [{ $and: [true, { $state: "/tags/1", eq: "y" }] }, true],
     [{ $state: "/tags", eq: ["x", "y"] }, true],
+    [{ $calc: "${/count} > 2" }, true],
+    [{ $calc: "${/count} < 2" }, false],
+    [{ $state: "/count", gt: { $calc: "1 + 1" } }, true],
   ])("%j → %s", (condition, expected) => {
     expect(evaluateCondition(condition as never, ctx)).toBe(expected);
   });
 });
 
 describe("resolveProps", () => {
+  it("resolves formulas as prop values", () => {
+    expect(
+      resolveProps({ total: { $calc: "${/count} * 2" } }, { state }),
+    ).toEqual({
+      props: { total: 6 },
+      bindings: {},
+    });
+  });
+
   it("reports two-way bindings for state and repeat items", () => {
     expect(
       resolveProps(
