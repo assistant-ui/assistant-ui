@@ -112,6 +112,61 @@ describe("ExternalStoreThreadRuntimeCore message repository", () => {
     },
   );
 
+  it.each([false, true])(
+    "keeps a host message with the placeholder id when the repository object is reused: %s",
+    (reuseRepository) => {
+      const store = {
+        messageRepository: repositoryWithHead("u2"),
+        onNew: async () => {},
+        isRunning: true,
+      };
+      const runtime = createRuntime(store);
+      const placeholderId = runtime.messages.at(-1)!.id;
+      expect(runtime.messages.at(-1)?.metadata.isOptimistic).toBe(true);
+
+      const incoming = ExportedMessageRepository.fromBranchableArray(
+        [
+          {
+            parentId: null,
+            message: { id: "u1", role: "user", content: "u1" },
+          },
+          {
+            parentId: "u1",
+            message: { id: "a1", role: "assistant", content: "a1" },
+          },
+          {
+            parentId: "a1",
+            message: { id: "u2", role: "user", content: "u2" },
+          },
+          {
+            parentId: "u2",
+            message: {
+              id: placeholderId,
+              role: "assistant",
+              content: "host answer",
+            },
+          },
+        ],
+        { headId: placeholderId },
+      );
+      if (reuseRepository) {
+        store.messageRepository.messages = incoming.messages;
+        store.messageRepository.headId = placeholderId;
+      }
+
+      expect(() =>
+        runtime.__internal_setAdapter({
+          ...store,
+          isRunning: false,
+          messageRepository: reuseRepository
+            ? store.messageRepository
+            : incoming,
+        }),
+      ).not.toThrow();
+      expect(visibleIds(runtime)).toEqual(["u1", "a1", "u2", placeholderId]);
+    },
+  );
+
   it("shows a running sibling while retaining the previous answer", () => {
     const messages = [
       {

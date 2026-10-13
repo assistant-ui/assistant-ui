@@ -540,7 +540,13 @@ export class ExternalStoreThreadRuntimeCore
       const incoming = store.messageRepository.messages;
       const headId =
         store.messageRepository.headId ?? incoming.at(-1)?.message.id ?? null;
-      this._evictPlaceholder();
+      const optimisticId = this._optimistic?.id;
+      if (
+        optimisticId &&
+        !incoming.some(({ message }) => message.id === optimisticId)
+      ) {
+        this._evictPlaceholder();
+      }
 
       if (
         oldStore &&
