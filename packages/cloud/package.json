@@ -45,7 +45,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "assistant-stream": "^0.3.49"
+    "assistant-stream": "^0.3.50"
   },
   "peerDependencies": {
     "@opentelemetry/api": "^1.9.0",
@@ -72,8 +72,8 @@
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/exporter-trace-otlp-http": "^0.223.0",
     "@opentelemetry/sdk-trace-base": "^2.12.0",
-    "@types/node": "^26.6.4",
-    "ai": "^7.0.130",
+    "@types/node": "^26.6.5",
+    "ai": "^7.0.137",
     "ai-v6": "npm:ai@^6.0.277",
     "jsdom": "^30.1.2",
     "vitest": "^5.0.3"

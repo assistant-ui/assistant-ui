@@ -37,10 +37,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ai-sdk/provider": "^4.0.24",
-    "@assistant-ui/core": "^0.3.25",
+    "@ai-sdk/provider": "^4.0.26",
+    "@assistant-ui/core": "^0.3.27",
     "assistant-cloud": "*",
-    "assistant-stream": "^0.3.49"
+    "assistant-stream": "^0.3.50"
   },
   "peerDependencies": {
     "@types/react": "*",

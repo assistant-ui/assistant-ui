@@ -38,11 +38,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.25",
+    "@assistant-ui/core": "^0.3.27",
     "@assistant-ui/react-langchain": "^0.0.36",
-    "@assistant-ui/store": "^0.3.18",
+    "@assistant-ui/store": "^0.3.19",
     "assistant-cloud": "*",
-    "assistant-stream": "^0.3.49"
+    "assistant-stream": "^0.3.50"
   },
   "peerDependencies": {
     "@langchain/langgraph-sdk": "^1.9.20",
@@ -60,10 +60,10 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@assistant-ui/x-react18": "workspace:*",
-    "@langchain/langgraph-sdk": "^1.12.2",
+    "@langchain/langgraph-sdk": "^1.12.3",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
-    "@types/node": "^26.6.4",
+    "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "jsdom": "^30.1.2",
     "react": "^19.3.0",
