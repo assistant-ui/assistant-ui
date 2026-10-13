@@ -63,8 +63,14 @@ describe("shared model context", () => {
     expect(boundContext(small)).toEqual(small);
     const large = boundContext({ text: "y", data: "z".repeat(5000) })!;
     expect(Object.keys(large)).toEqual(["text"]);
-    expect(large.text).toHaveLength(4000);
     expect(large.text!.endsWith("…")).toBe(true);
+    const section = (context: { text?: string; data?: unknown }) =>
+      contextInstruction("t", context).split("<ui_choices>")[1]!.slice(0, -13);
+    expect(section(large).length).toBeLessThanOrEqual(4000);
+    expect(section(large).length).toBeGreaterThan(3990);
+    const angles = boundContext({ text: "<".repeat(3980) })!;
+    expect(section(angles).length).toBeLessThanOrEqual(4000);
+    expect(section(angles)).toMatch(/^\{"text":"(\\u003c)+…"\}$/);
   });
 
   it("turns a context into plain JSON, so it cannot make a snapshot unrecordable", () => {
