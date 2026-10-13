@@ -135,6 +135,7 @@ afterEach(() => {
   mocks.widgetProps.length = 0;
   mocks.widgets.length = 0;
   mocks.inspection.errors = [];
+  vi.restoreAllMocks();
 });
 
 const call = (
@@ -1400,6 +1401,88 @@ describe("sharing with the model", () => {
       fireEvent.click(screen.getByText("Go"));
     });
     expect(mocks.append).not.toHaveBeenCalled();
+  });
+
+  it("fails a watch-triggered send before later actions run", async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const record = vi.fn(async (_input: unknown) => {});
+    const RenderSpec = entries(specToolkit())["render_spec"]!.render;
+    render(
+      <RenderSpec
+        {...partProps("s", {
+          title: "flights",
+          patches: button({
+            on: {
+              press: { action: "setState", params: { path: "/n", value: 1 } },
+            },
+            watch: {
+              n: [
+                { action: "sendMessage", params: { text: "watched" } },
+                {
+                  action: "setState",
+                  params: { path: "/sent", value: true },
+                },
+              ],
+            },
+          }),
+        })}
+        unstable_recordInteraction={record}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByText("Go"));
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(mocks.append).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledExactlyOnceWith(
+      "[generative-frame]",
+      expect.stringContaining("sendMessage runs only from an event"),
+    );
+    expect(record).toHaveBeenLastCalledWith({
+      type: "action",
+      payload: {
+        type: "setState",
+        toolCallId: "s",
+        writes: [["/n", 1]],
+      },
+    });
+  });
+
+  it("fails an empty send before later actions run", async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const record = vi.fn(async (_input: unknown) => {});
+    const RenderSpec = entries(specToolkit())["render_spec"]!.render;
+    render(
+      <RenderSpec
+        {...partProps("s", {
+          title: "flights",
+          patches: button({
+            on: {
+              press: [
+                { action: "sendMessage", params: { text: "" } },
+                {
+                  action: "setState",
+                  params: { path: "/sent", value: true },
+                },
+              ],
+            },
+          }),
+        })}
+        unstable_recordInteraction={record}
+      />,
+    );
+    await act(async () => {
+      fireEvent.click(screen.getByText("Go"));
+      await vi.advanceTimersByTimeAsync(500);
+    });
+    expect(mocks.append).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledExactlyOnceWith(
+      "[generative-frame]",
+      expect.stringContaining("sendMessage needs a non-empty string"),
+    );
+    expect(record).not.toHaveBeenCalled();
   });
 
   it("keeps saving state when a spec shares data that is not plain JSON", async () => {

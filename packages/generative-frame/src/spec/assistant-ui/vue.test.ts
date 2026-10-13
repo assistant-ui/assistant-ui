@@ -44,6 +44,7 @@ afterEach(() => {
   mocks.messages = [];
   mocks.providers.clear();
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 const catalog = defineCatalog({
@@ -329,6 +330,110 @@ describe("createSpecToolkit for Vue", () => {
     await nextTick();
     expect(mocks.append).toHaveBeenCalledExactlyOnceWith("Tell me more");
     expect(system).toContain('<ui_choices>{"text":"A"}</ui_choices>');
+  });
+
+  it("fails a watch-triggered send before later actions run", async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const record = vi.fn(async (_input: unknown) => {});
+    const { container } = mount(
+      setup("frontend").render,
+      toolProp(
+        {
+          args: {
+            title: "s",
+            spec: {
+              root: "b",
+              elements: {
+                b: {
+                  type: "Button",
+                  props: { label: "Go" },
+                  on: {
+                    press: {
+                      action: "setState",
+                      params: { path: "/n", value: 1 },
+                    },
+                  },
+                  watch: {
+                    "/n": [
+                      {
+                        action: "sendMessage",
+                        params: { text: "watched" },
+                      },
+                      {
+                        action: "setState",
+                        params: { path: "/sent", value: true },
+                      },
+                    ],
+                  },
+                },
+              },
+              state: {},
+            },
+          },
+        },
+        record,
+      ),
+    );
+    container.querySelector("button")!.click();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(mocks.append).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledExactlyOnceWith(
+      "[generative-frame]",
+      expect.stringContaining("sendMessage runs only from an event"),
+    );
+    expect(record).toHaveBeenLastCalledWith({
+      type: "action",
+      payload: {
+        type: "setState",
+        toolCallId: "s",
+        writes: [["/n", 1]],
+      },
+    });
+  });
+
+  it("fails an empty send before later actions run", async () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const record = vi.fn(async (_input: unknown) => {});
+    const { container } = mount(
+      setup("frontend").render,
+      toolProp(
+        {
+          args: {
+            title: "s",
+            spec: {
+              root: "b",
+              elements: {
+                b: {
+                  type: "Button",
+                  props: { label: "Go" },
+                  on: {
+                    press: [
+                      { action: "sendMessage", params: { text: "" } },
+                      {
+                        action: "setState",
+                        params: { path: "/sent", value: true },
+                      },
+                    ],
+                  },
+                },
+              },
+              state: {},
+            },
+          },
+        },
+        record,
+      ),
+    );
+    container.querySelector("button")!.click();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(mocks.append).not.toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledExactlyOnceWith(
+      "[generative-frame]",
+      expect.stringContaining("sendMessage needs a non-empty string"),
+    );
+    expect(record).not.toHaveBeenCalled();
   });
 
   it("saves the user's changes on the call", async () => {

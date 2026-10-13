@@ -216,8 +216,15 @@ export const specToolkitFor =
               source: { kind?: string },
             ) => {
               const text = params["text"];
-              if (source.kind === "watch") return;
-              if (typeof text === "string" && text.trim()) sendMessage(text);
+              if (source.kind === "watch") {
+                throw new Error(
+                  "sendMessage runs only from an event a component emits, never from `watch`",
+                );
+              }
+              if (typeof text !== "string" || !text.trim()) {
+                throw new Error("sendMessage needs a non-empty string `text`");
+              }
+              sendMessage(text);
             },
             updateModelContext: (params: Record<string, unknown>) =>
               share(toSharedContext(params["text"], params["data"])),
