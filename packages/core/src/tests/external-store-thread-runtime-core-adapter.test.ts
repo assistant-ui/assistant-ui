@@ -2347,6 +2347,19 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(streamCall).not.toHaveBeenCalled();
     });
 
+    it("keeps the cancelled scope through a second cancel after settle", async () => {
+      const u1 = createUserMessage("u1");
+      const { core, execute, streamCall, publish } = setup([u1]);
+      core.cancelRun();
+      publish([u1], false);
+      core.cancelRun();
+      publish([u1, toolMessage("a1", "old-call")], false);
+      await settle();
+
+      expect(execute).not.toHaveBeenCalled();
+      expect(streamCall).not.toHaveBeenCalled();
+    });
+
     it("suppresses a cancelled call first seen with a final result", async () => {
       const u1 = createUserMessage("u1");
       const { core, execute, streamCall, publish } = setup([u1]);

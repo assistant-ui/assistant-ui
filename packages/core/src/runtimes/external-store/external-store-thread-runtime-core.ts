@@ -1329,21 +1329,21 @@ export class ExternalStoreThreadRuntimeCore
     const generation = captureThreadRuntimeGeneration(this);
     const resyncLease = this._cancelRunResyncLeases.current();
 
-    const hostMessages = this._storeMessages.filter(
-      (message) => !message.metadata.isOptimistic,
-    );
-    const tail = hostMessages.at(-1);
-    this._cancelledToolTurn = this._getEffectiveIsRunning(this._store)
-      ? {
-          messageIds: new Set(tail?.role === "assistant" ? [tail.id] : []),
-          parentId:
-            tail?.role === "assistant"
-              ? (hostMessages.at(-2)?.id ?? null)
-              : (tail?.id ?? null),
-          parentOpen: true,
-          lease: this._runStartLeases.current(),
-        }
-      : null;
+    if (isRunning) {
+      const hostMessages = this._storeMessages.filter(
+        (message) => !message.metadata.isOptimistic,
+      );
+      const tail = hostMessages.at(-1);
+      this._cancelledToolTurn = {
+        messageIds: new Set(tail?.role === "assistant" ? [tail.id] : []),
+        parentId:
+          tail?.role === "assistant"
+            ? (hostMessages.at(-2)?.id ?? null)
+            : (tail?.id ?? null),
+        parentOpen: true,
+        lease: this._runStartLeases.current(),
+      };
+    }
 
     // Abort any in-flight client-side tool executions. Fire-and-forget —
     // the abort resolves once executions settle, but we don't gate the
