@@ -182,7 +182,7 @@ export const specModules = (
 
 /** Writes to the browser's clipboard, rejecting where the Clipboard API is missing. */
 export const writeClipboard = (text: string): Promise<void> =>
-  navigator.clipboard
+  typeof navigator !== "undefined" && navigator.clipboard
     ? navigator.clipboard.writeText(text)
     : Promise.reject(new Error("Clipboard API is unavailable"));
 
