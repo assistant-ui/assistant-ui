@@ -181,7 +181,7 @@ describe("buildWidgetGuidance", () => {
     expect(full).not.toContain("`sendPrompt(text)` sends");
     expect(full).toContain("genframe.callTool");
     expect(full).toContain(
-      '`genframe.updateModelContext({ content: [{ type: "text", text }] })` tells you what the user chose',
+      '`genframe.updateModelContext({ content: [{ type: "text", text }], structuredContent })` tells you what the user chose',
     );
   });
 });
