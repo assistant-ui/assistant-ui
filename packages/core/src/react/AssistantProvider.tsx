@@ -12,6 +12,7 @@ import {
 import type { AssistantRuntime } from "../runtime/api/assistant-runtime";
 import type { AssistantRuntimeCore } from "../runtime/interfaces/assistant-runtime-core";
 import { RuntimeAdapter } from "./RuntimeAdapter";
+import type { RemoteThreadListRuntimeThreads } from "./runtimes/remote-thread-list-client/RemoteThreadListRuntimeThreads";
 
 export const getRenderComponent = (runtime: AssistantRuntime) => {
   return (runtime as { _core?: AssistantRuntimeCore })._core
@@ -39,7 +40,19 @@ const AssistantProviderInner: FC<
   // changes (e.g. unstable_enableMessageQueue) from reaching the runtime.
   "use no memo";
   const RenderComponent = getRenderComponent(runtime);
-  const merged = AuiConfig({ ...config, threads: RuntimeAdapter(runtime) });
+  const threadsElement = (
+    runtime as {
+      _core?: {
+        __internal_threadsElement?: ReturnType<
+          typeof RemoteThreadListRuntimeThreads
+        >;
+      };
+    }
+  )._core?.__internal_threadsElement;
+  const merged = AuiConfig({
+    ...config,
+    threads: threadsElement ?? RuntimeAdapter(runtime),
+  });
   return (
     <AuiProvider extends={aui} config={merged}>
       {RenderComponent && <RenderComponent />}

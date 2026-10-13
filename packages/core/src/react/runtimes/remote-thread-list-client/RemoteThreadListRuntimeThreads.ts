@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { resource, useResource, withKey } from "@assistant-ui/tap";
 import {
   attachTransformScopes,
@@ -13,6 +13,7 @@ import type { RemoteThreadListOptions } from "../../../runtimes/remote-thread-li
 import { WritableSubscribable } from "../../../subscribable/subscribable";
 import { useSubscribable } from "../../../store/runtime-clients/useSubscribable";
 import { RemoteThreadListRuntimeThread } from "./RemoteThreadListRuntimeThread";
+import type { ClientThreadListRuntimeCore } from "./ClientThreadListRuntimeCore";
 
 const useRemoteThreadListRuntimeThreads = ({
   optionsStore,
@@ -20,16 +21,29 @@ const useRemoteThreadListRuntimeThreads = ({
   assistantRuntime,
   modelContext,
   initialThreadIdSeed,
+  clientCore,
 }: {
   optionsStore: WritableSubscribable<RemoteThreadListOptions>;
   generationStore: WritableSubscribable<number>;
   assistantRuntime: AssistantRuntime;
   modelContext: ModelContextProvider;
   initialThreadIdSeed?: string | undefined;
+  clientCore?: ClientThreadListRuntimeCore | undefined;
 }) => {
   const options = useSubscribable(optionsStore);
   const generation = useSubscribable(generationStore);
+  const thread = useMemo(
+    () => (id: string) =>
+      withKey(
+        `${id}:${generation}`,
+        RemoteThreadListRuntimeThread({ optionsStore, modelContext }),
+      ),
+    [generation, modelContext, optionsStore],
+  );
   const clientRef = useAssistantClientRef();
+  useEffect(() => {
+    clientCore?.__internal_bindClient(clientRef.current!);
+  }, [clientCore, clientRef]);
   useAssistantScopeEffect(
     "modelContext",
     () =>
@@ -40,6 +54,15 @@ const useRemoteThreadListRuntimeThreads = ({
   );
 
   const previousAdapter = useRef(options.adapter);
+  const initialThreadId = useRef(options.initialThreadId);
+  useEffect(() => {
+    if (options.threadId !== undefined || initialThreadId.current === undefined)
+      return;
+    void clientRef
+      .current!.threads.__internal_getRawActions?.()
+      .switchToThread(initialThreadId.current)
+      .catch(() => {});
+  }, [clientRef]);
   useEffect(() => {
     const previous = previousAdapter.current;
     previousAdapter.current = options.adapter;
@@ -53,20 +76,22 @@ const useRemoteThreadListRuntimeThreads = ({
     };
   }, [clientRef, options.adapter]);
 
-  return useResource(
+  const threads = useResource(
     RemoteThreadList({
       adapter: options.adapter,
-      thread: (id) =>
-        withKey(
-          `${id}:${generation}`,
-          RemoteThreadListRuntimeThread({ optionsStore, modelContext }),
-        ),
+      thread,
       threadId: options.threadId,
       onThreadIdChange: options.onThreadIdChange,
       backgroundThreads: true,
       __internal_initialThreadIdSeed: initialThreadIdSeed,
     }),
   );
+  return {
+    ...threads,
+    reloadMainThread: () =>
+      clientCore?.reloadMainThread() ?? threads.reloadMainThread(),
+    __internal_getAssistantRuntime: () => assistantRuntime,
+  };
 };
 
 export const RemoteThreadListRuntimeThreads = resource(

@@ -86,6 +86,7 @@ const ProviderRenderDetector: FC<{
   return null;
 };
 
+/** @deprecated Since 2026-10-13, `useRemoteThreadListRuntime` runs on the `RemoteThreadList` store client. This class is frozen and kept for direct imports. */
 export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   private runtimeHook: RemoteThreadListHook;
   private readonly adapterStore = new WritableSubscribable<AdapterSnapshot>({

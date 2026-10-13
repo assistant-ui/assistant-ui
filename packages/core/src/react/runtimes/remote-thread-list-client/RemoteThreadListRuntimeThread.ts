@@ -69,6 +69,16 @@ const useRemoteThreadListRuntimeThread = ({
     bornNewRef.current = false;
     const initPromise = item.initialize();
     initPromiseRef.current = initPromise;
+    void initPromise.then(
+      ({ remoteId }) => {
+        const setGetThreadId = (threadCore as Record<string, unknown>)
+          .__internal_setGetThreadId;
+        if (typeof setGetThreadId === "function") {
+          setGetThreadId.call(threadCore, () => remoteId);
+        }
+      },
+      () => {},
+    );
     void initPromise.catch(() => {
       if (initPromiseRef.current === initPromise) {
         initPromiseRef.current = undefined;
