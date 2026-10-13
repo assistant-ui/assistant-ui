@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
@@ -8,6 +9,7 @@ import {
 } from "react";
 import { resource, withKey, type ResourceElement } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
+import { useIsServerRender } from "@assistant-ui/store/internal";
 import {
   attachTransformScopes,
   Derived,
@@ -98,6 +100,8 @@ export type RemoteThreadListProps = {
    * unmounts it. The mode is fixed at mount.
    */
   backgroundThreads?: boolean | undefined;
+  /** Internal seed for the first draft thread id. */
+  __internal_initialThreadIdSeed?: string | undefined;
 };
 
 const threadNotFoundError = (threadIdOrRemoteId: string, action: string) =>
@@ -492,6 +496,11 @@ const useRemoteThreadListView = ({
     const index = bodyIndexOf(id);
     return index === -1 ? undefined : bodies.state[index];
   };
+  const bodyMethodsOf = (id: string) => {
+    if (!backgroundThreads && id !== mainThreadId) return undefined;
+    const index = bodyIndexOf(id);
+    return index === -1 ? undefined : bodies.get({ index });
+  };
   const mainIndex = bodyIndexOf(mainThreadId);
   const mainThreadClient = {
     state: bodies.state[mainIndex]!,
@@ -516,7 +525,7 @@ const useRemoteThreadListView = ({
       ),
     ),
   );
-  return { mainThreadClient, itemOrder, threadListItems };
+  return { mainThreadClient, itemOrder, threadListItems, bodyMethodsOf };
 };
 
 const useRemoteThreadList = (
@@ -531,9 +540,15 @@ const useRemoteThreadList = (
     onSwitchToNewThread,
     onDelete,
   } = props;
+  const serverThreadIdSeed = useId();
+  const isServerRender = useIsServerRender();
 
   const [{ store, initialMainId, session }] = useState(() => {
-    const seeded = seedNewThread(EMPTY_LIST);
+    const seeded = seedNewThread(
+      EMPTY_LIST,
+      props.__internal_initialThreadIdSeed ??
+        (isServerRender ? serverThreadIdSeed : undefined),
+    );
     return {
       store: new OptimisticState(seeded.state),
       initialMainId: seeded.id,
@@ -1339,7 +1354,7 @@ const useRemoteThreadList = (
     [ensureNotMain, session, store],
   );
 
-  const { mainThreadClient, itemOrder, threadListItems } =
+  const { mainThreadClient, itemOrder, threadListItems, bodyMethodsOf } =
     useRemoteThreadListView({
       listState,
       mainThreadId,
@@ -1452,6 +1467,15 @@ const useRemoteThreadList = (
     ],
   );
 
+  const reloadMainThread = () => {
+    if (getThreadData(store.value, mainThreadId)?.status === "new") {
+      return RESOLVED_PROMISE;
+    }
+    return (
+      mainThreadClient.methods.unstable_refetchThread?.() ?? RESOLVED_PROMISE
+    );
+  };
+
   return {
     getState: () => state,
     switchToThread: (id, options) => {
@@ -1462,14 +1486,7 @@ const useRemoteThreadList = (
     },
     getLoadThreadsPromise: () => afterStateCommit(getLoadThreadsPromise()),
     reload: () => afterStateCommit(reload()),
-    reloadMainThread: () => {
-      if (getThreadData(store.value, mainThreadId)?.status === "new") {
-        return RESOLVED_PROMISE;
-      }
-      return (
-        mainThreadClient.methods.unstable_refetchThread?.() ?? RESOLVED_PROMISE
-      );
-    },
+    reloadMainThread,
     loadMore: () => afterStateCommit(loadMore()),
     item: (selector) => {
       if (selector === "main") {
@@ -1497,6 +1514,22 @@ const useRemoteThreadList = (
       return threadListItems.get({ index });
     },
     thread: () => mainThreadClient.methods,
+    __internal_getRawActions: () => ({
+      switchToThread,
+      switchToNewThread,
+      rename,
+      archive,
+      unarchive,
+      delete: deleteThread,
+      detach,
+      generateTitle,
+      initialize,
+      reload,
+      reloadMainThread,
+      getLoadThreadsPromise,
+      loadMore,
+    }),
+    __internal_getThreadBody: bodyMethodsOf,
   };
 };
 
