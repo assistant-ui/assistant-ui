@@ -31,6 +31,7 @@ type ActionHandler = (params: Record<string, unknown>, context: ActionSource & {
 type ActionSource = {
   elementId?: string;
   trigger?: string;
+  kind?: "event" | "watch";
 };
 
 type AncestorsOf<K extends ClientNames, Seen extends ClientNames = never> = K extends Seen ? never : ParentOf<K> extends never ? never : ParentOf<K> | AncestorsOf<ParentOf<K>, Seen | K>;
