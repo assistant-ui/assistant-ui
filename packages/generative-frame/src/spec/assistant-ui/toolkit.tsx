@@ -107,16 +107,18 @@ export const specToolkitFor =
         const streaming = !useArgsComplete();
         const messages = useMessages();
         const title = typeof args.title === "string" ? args.title : "";
-        // The base and the tool results only depend on earlier calls, so they are read once per call.
-        const [base] = useState(() =>
-          resolveSpecBase(messages, toolCallId, title),
+        // Earlier calls do not change, so the thread is read once per call; the base follows the title, which may still be streaming when the call mounts.
+        const [earlier] = useState(messages);
+        const base = useMemo(
+          () => resolveSpecBase(earlier, toolCallId, title),
+          [earlier, toolCallId, title],
         );
         const [toolResults] = useState(() =>
           mountsToolResults
-            ? resolveToolResults(messages, toolCallId)
+            ? resolveToolResults(earlier, toolCallId)
             : undefined,
         );
-        const [history] = useState(() => callHistory(messages, toolCallId));
+        const [history] = useState(() => callHistory(earlier, toolCallId));
         useInsertionEffect(() => {
           histories.set(toolCallId, history);
           return () => {
@@ -129,6 +131,14 @@ export const specToolkitFor =
           complete: !streaming,
           ...(base ? { initial: base } : {}),
         });
+        // A stream reads its base when it starts, so it starts over when the title brings a new one.
+        const resetStream = streamed.reset;
+        const streamBase = useRef(base);
+        useEffect(() => {
+          if (streamBase.current === base) return;
+          streamBase.current = base;
+          resetStream();
+        }, [base, resetStream]);
         const inputSpec = args.spec;
         const spec = useMemo(
           () =>

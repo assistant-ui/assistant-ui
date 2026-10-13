@@ -4,6 +4,7 @@ import type {
   ComponentDefinition,
   PropsSchema,
 } from "generative-frame/spec";
+import { vocabularyEvents } from "./wiring";
 
 /** Options for {@link toSpecCatalog}. */
 export type ToSpecCatalogOptions = {
@@ -13,7 +14,6 @@ export type ToSpecCatalogOptions = {
 
 type SpecShape = {
   slots?: readonly string[];
-  // The first event is the one the component's own `$action` emits; a later event fires only through the object prop named after it.
   events?: readonly string[];
   description?: string;
   props?: (properties: z.ZodObject) => PropsSchema;
@@ -41,57 +41,47 @@ const DEFAULT_SHAPES: Readonly<Record<string, SpecShape>> = {
   Fact: { slots: DEFAULT_SLOT },
   Form: {
     slots: DEFAULT_SLOT,
-    events: ["submit"],
     description:
       "Wraps named child controls (Select, Input, Checkbox, RadioGroup, CheckboxGroup, or DatePicker with a `name`). Emits `submit` with every named control's value, keyed by `name`.",
   },
   Icon: {},
   Button: {
     slots: DEFAULT_SLOT,
-    events: ["press"],
     description:
       "A clickable button. Emits `press` on click. Set `submit` to submit an ancestor Form or Card instead.",
   },
   Select: {
     slots: DEFAULT_SLOT,
-    events: ["change"],
     description: "A dropdown selector. Emits `change` with the selected value.",
   },
   Input: {
-    events: ["submit"],
     description:
       "A text input. Outside a Form it emits `submit` with its text on Enter (Ctrl or Cmd+Enter when `multiline`); inside a Form its value arrives with the Form's `submit`.",
   },
   DatePicker: {
-    events: ["change"],
     description:
       "A date, datetime, or time input. Emits `change` once per committed value: a pick from the picker, or a typed value on blur or Enter.",
   },
   Checkbox: {
-    events: ["change"],
     description:
       "A checkbox with a label. Emits `change` with whether it is checked.",
   },
   Slider: {
-    events: ["change"],
     description:
       "A numeric range control. Emits `change` with the value once an adjustment finishes.",
   },
   RadioGroup: {
     slots: DEFAULT_SLOT,
-    events: ["change"],
     description:
       "A group of mutually exclusive radio options. Emits `change` with the selected value.",
   },
   CheckboxGroup: {
     slots: DEFAULT_SLOT,
-    events: ["change"],
     description:
       "A group of checkbox options where any number can be checked. Set `progress` for a checklist the user works through. Emits `change` with the checked values.",
   },
   Card: {
     slots: DEFAULT_SLOT,
-    events: ["confirm", "cancel"],
     props: (properties) =>
       properties.extend({
         asForm: z
@@ -113,7 +103,6 @@ const DEFAULT_SHAPES: Readonly<Record<string, SpecShape>> = {
   ListView: { slots: DEFAULT_SLOT },
   ListViewItem: {
     slots: DEFAULT_SLOT,
-    events: ["press"],
     description:
       "A row inside a ListView. Emits `press` when the row is clicked or activated with Enter or Space.",
   },
@@ -129,13 +118,6 @@ const DEFAULT_SHAPES: Readonly<Record<string, SpecShape>> = {
   Caption: { slots: DEFAULT_SLOT },
 };
 
-// A control whose schema prop a spec binds with `$bindState` reads the controlled prop instead, so it stays mounted and reports every change through the binding context.
-export const BOUND_VALUE_PROPS = [
-  ["defaultValue", "value"],
-  ["value", "value"],
-  ["defaultChecked", "checked"],
-] as const;
-
 type CatalogEntry = {
   description: string;
   properties: z.ZodType;
@@ -148,7 +130,8 @@ export function buildCatalogDefinition(
   entry: CatalogEntry,
   isDefault: boolean,
 ): { definition: ComponentDefinition; events: readonly string[] } {
-  const builtIn = isDefault ? DEFAULT_SHAPES[name] : undefined;
+  const shape0 = isDefault ? DEFAULT_SHAPES[name] : undefined;
+  const builtIn = shape0 && { ...shape0, events: vocabularyEvents(name) };
   const declared = entry.events !== undefined || entry.slots !== undefined;
   const shape: SpecShape | undefined = declared
     ? {

@@ -200,9 +200,10 @@ type ExternalStoreAdapterBase<T> = {
    * `messages` update that still carries it after every call for it has
    * settled as a declined delete. A host that accepts the delete therefore
    * publishes the removal before the returned promise settles. While a
-   * reload regenerates an earlier reply, `messages` omits the messages after
-   * it whether or not the delete was declined, so the runtime waits for the
-   * promise instead: a rejection keeps the message and a resolution drops it.
+   * branch switch, `messages` can omit ids on another branch. A reload or
+   * edit can omit messages after an earlier reply. For deletes pending across
+   * those changes, the runtime waits for the promise: a rejection keeps the
+   * message and a resolution drops it.
    */
   onDelete?: ((messageId: string) => Promise<void> | void) | undefined;
   onReload?: // TODO: remove parentId in 0.12.0

@@ -951,6 +951,49 @@ describe("render_spec validation", () => {
     );
   });
 
+  it("renders on the same-title base when the call mounts before its title arrives", async () => {
+    mocks.messages = [
+      {
+        content: [
+          call("e", "render_spec", first),
+          call("f", "render_spec", fromA),
+        ],
+      },
+    ];
+    mocks.argsStatus = "streaming";
+    const RenderSpec = setup().render;
+    const view = render(<RenderSpec {...partProps("f", {})} />);
+    view.rerender(<RenderSpec {...partProps("f", { title: "s" })} />);
+    view.rerender(<RenderSpec {...partProps("f", fromA)} />);
+    expect(view.container.textContent).toBe("a");
+    mocks.argsStatus = "complete";
+    view.rerender(<RenderSpec {...partProps("f", fromA)} />);
+    expect(view.container.textContent).toBe("b");
+  });
+
+  it("rebuilds on the same-title base when patches stream before the title", () => {
+    mocks.messages = [
+      {
+        content: [
+          call("e", "render_spec", first),
+          call("f", "render_spec", fromA),
+        ],
+      },
+    ];
+    mocks.argsStatus = "streaming";
+    const RenderSpec = setup().render;
+    const view = render(
+      <RenderSpec {...partProps("f", { patches: fromA.patches })} />,
+    );
+    view.rerender(<RenderSpec {...partProps("f", fromA)} />);
+    view.rerender(
+      <RenderSpec
+        {...partProps("f", { ...fromA, patches: `${fromA.patches}\n` })}
+      />,
+    );
+    expect(view.container.textContent).toBe("b");
+  });
+
   it("resolves the base from the title the call executes with", async () => {
     mocks.messages = [
       {

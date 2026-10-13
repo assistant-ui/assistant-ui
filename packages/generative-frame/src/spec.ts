@@ -41,6 +41,12 @@ export {
   type StateListener,
   type StateStoreOptions,
 } from "./spec/state";
+export {
+  resolveSpec,
+  type ResolveSpecOptions,
+  type ResolvedAction,
+  type ResolvedElement,
+} from "./spec/resolve";
 export type { ActionHandler, ActionSource } from "./spec/actions";
 export type {
   JsonSchema,
