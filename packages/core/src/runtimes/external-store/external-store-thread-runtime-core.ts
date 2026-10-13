@@ -233,7 +233,6 @@ export class ExternalStoreThreadRuntimeCore
     {
       calls: Set<symbol>;
       reloaded: boolean;
-      repository: MessageRepository;
       message: ThreadMessage;
     }
   >();
@@ -1019,12 +1018,13 @@ export class ExternalStoreThreadRuntimeCore
       const call = Symbol();
       let pending = this._pendingDeleteEvictions.get(messageId);
       if (visibleMessage) {
-        pending ??= {
-          calls: new Set<symbol>(),
-          reloaded: false,
-          repository: this.repository,
-          message: visibleMessage,
-        };
+        if (!pending || pending.message !== visibleMessage) {
+          pending = {
+            calls: new Set<symbol>(),
+            reloaded: false,
+            message: visibleMessage,
+          };
+        }
         pending.calls.add(call);
         this._pendingDeleteEvictions.set(messageId, pending);
       }
@@ -1035,7 +1035,6 @@ export class ExternalStoreThreadRuntimeCore
       } finally {
         if (
           pending &&
-          this.repository === pending.repository &&
           this._pendingDeleteEvictions.get(messageId) === pending &&
           pending.calls.delete(call)
         ) {

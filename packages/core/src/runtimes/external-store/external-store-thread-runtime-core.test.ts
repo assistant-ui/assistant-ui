@@ -707,6 +707,7 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
       store(0),
     );
     const oldDeletion = runtime.deleteMessage("u2");
+    await runtime.startRun({ parentId: "u1", sourceId: "a1", runConfig: {} });
     runtime.__internal_setAdapter(store(1));
     const newDeletion = runtime.deleteMessage("u2");
     await runtime.startRun({ parentId: "u1", sourceId: "a1", runConfig: {} });
@@ -718,5 +719,69 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
     rejectNew(new Error("declined"));
     await expect(newDeletion).rejects.toThrow("declined");
     expect(runtime.getMessageById("u2")?.message.id).toBe("u2");
+  });
+
+  it("evicts a second confirmed delete after a fallback id is reused", async () => {
+    type Raw = { role: "user" | "assistant"; text: string };
+    let current: Raw[] = [
+      { role: "user", text: "u1" },
+      { role: "assistant", text: "a1" },
+      { role: "user", text: "old u2" },
+      { role: "assistant", text: "old a2" },
+    ];
+    let isRunning = false;
+    const confirm: Array<() => void> = [];
+    const onDelete = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          confirm.push(resolve);
+        }),
+    );
+    const convertMessage = (raw: Raw): ThreadMessageLike => ({
+      role: raw.role,
+      content: raw.text,
+    });
+    const store = () =>
+      ({
+        messages: current,
+        isRunning,
+        convertMessage,
+        onNew: async () => {},
+        onDelete,
+        onReload: async () => {
+          isRunning = true;
+          current = current.slice(0, 1);
+        },
+        setMessages: vi.fn(),
+      }) as ExternalStoreAdapter<Raw>;
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      modelContextProvider,
+      store(),
+    );
+    const ids = runtime.messages.map((m) => m.id);
+
+    const oldDeletion = runtime.deleteMessage(ids[2]!);
+    current = [
+      current[0]!,
+      current[1]!,
+      { role: "user", text: "new u2" },
+      { role: "assistant", text: "new a2" },
+    ];
+    runtime.__internal_setAdapter(store());
+    const newDeletion = runtime.deleteMessage(ids[2]!);
+    await runtime.startRun({
+      parentId: ids[0]!,
+      sourceId: ids[1]!,
+      runConfig: {},
+    });
+    runtime.__internal_setAdapter(store());
+    confirm[1]!();
+    await newDeletion;
+
+    expect(runtime.getMessageById(ids[2]!)).toBeUndefined();
+    expect(runtime.getMessageById(ids[3]!)?.parentId).toBe(ids[1]);
+
+    confirm[0]!();
+    await oldDeletion;
   });
 });
