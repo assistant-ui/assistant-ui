@@ -1,5 +1,5 @@
-import { createRef, useImperativeHandle, useState } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, createRef, useImperativeHandle, useState } from "react";
+import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render } from "ink-testing-library";
 import { TextInput } from "./TextInput";
 
@@ -20,15 +20,14 @@ vi.mock("ink", async (importOriginal) => ({
   },
 }));
 
-const settle = async () => {
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  await new Promise((resolve) => setTimeout(resolve, 0));
-};
+vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
 
 afterEach(() => {
   cleanup();
   input.handle = undefined;
 });
+
+afterAll(() => vi.unstubAllGlobals());
 
 describe("TextInput controlled updates", () => {
   it.each([
@@ -81,23 +80,30 @@ describe("TextInput controlled updates", () => {
           />
         );
       };
-      const { lastFrame } = render(<App />);
-      await settle();
+      let lastFrame: ReturnType<typeof render>["lastFrame"] | undefined;
+      await act(async () => {
+        lastFrame = render(<App />).lastFrame;
+      });
+      await vi.waitFor(() => expect(input.handle).toBeDefined());
 
-      for (const edit of edits) {
-        input.handle!(edit ?? "", edit === null ? { backspace: true } : {});
-      }
-      await settle();
-      await vi.waitFor(() => expect(lastFrame()?.trim()).toBe(accepted));
+      await act(async () => {
+        for (const edit of edits) {
+          input.handle!(edit ?? "", edit === null ? { backspace: true } : {});
+        }
+      });
+      await vi.waitFor(() => expect(lastFrame?.()?.trim()).toBe(accepted));
       const editCount = onChange.mock.calls.length;
 
-      control.current!.setValue(replacement);
-      await vi.waitFor(() => expect(lastFrame()?.trim()).toBe(replacement));
+      await act(async () => control.current!.setValue(replacement));
+      await vi.waitFor(() => expect(lastFrame?.()?.trim()).toBe(replacement));
       expect(onChange).toHaveBeenCalledTimes(editCount);
-      input.handle!("", { return: true });
+      await act(async () => input.handle!("", { return: true }));
       expect(onSubmit).toHaveBeenLastCalledWith(replacement);
 
-      input.handle!("z", {});
+      await act(async () => input.handle!("z", {}));
+      await vi.waitFor(() =>
+        expect(lastFrame?.()?.trim()).toBe(`${replacement}z`),
+      );
       expect(onChange).toHaveBeenLastCalledWith(`${replacement}z`);
     },
   );
@@ -119,17 +125,23 @@ describe("TextInput controlled updates", () => {
         />
       );
     };
-    const { lastFrame } = render(<App />);
-    await settle();
-    input.handle!("", { leftArrow: true });
-    input.handle!("", { leftArrow: true });
-    input.handle!("a", {});
-    input.handle!("b", {});
-    await vi.waitFor(() => expect(lastFrame()?.trim()).toBe("helalo"));
+    let lastFrame: ReturnType<typeof render>["lastFrame"] | undefined;
+    await act(async () => {
+      lastFrame = render(<App />).lastFrame;
+    });
+    await vi.waitFor(() => expect(input.handle).toBeDefined());
+    await act(async () => {
+      input.handle!("", { leftArrow: true });
+      input.handle!("", { leftArrow: true });
+      input.handle!("a", {});
+      input.handle!("b", {});
+    });
+    await vi.waitFor(() => expect(lastFrame?.()?.trim()).toBe("helalo"));
 
-    input.handle!("", { return: true });
+    await act(async () => input.handle!("", { return: true }));
     expect(onSubmit).toHaveBeenLastCalledWith("helalo");
-    input.handle!("z", {});
+    await act(async () => input.handle!("z", {}));
+    await vi.waitFor(() => expect(lastFrame?.()?.trim()).toBe("helalzo"));
     expect(onChange).toHaveBeenLastCalledWith("helalzo");
   });
 });
