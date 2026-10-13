@@ -325,8 +325,10 @@ const onEdit = async (message: AppendMessage) => {
 
   setIsRunning(true);
   const response = await api.chat(message);
-  newMessages.push({ role: "assistant", content: response.content, id: generateId() });
-  setMessages(newMessages);
+  setMessages((prev) => [
+    ...prev,
+    { role: "assistant", content: response.content, id: generateId() },
+  ]);
   setIsRunning(false);
 };
 ```
@@ -828,7 +830,7 @@ This API is experimental and may change without notice.
 
 1. **Immutable updates.** Always create new arrays:
    ```tsx
-   setMessages([...messages, newMessage]); // not messages.push(newMessage)
+   setMessages((prev) => [...prev, newMessage]); // not messages.push(newMessage)
    ```
 2. **Stable handler references.** Memoize `onNew`, `onEdit`, etc. with `useCallback` to avoid recreating the runtime.
 3. **Use `useShallow`** with zustand to prevent unnecessary re-renders.
