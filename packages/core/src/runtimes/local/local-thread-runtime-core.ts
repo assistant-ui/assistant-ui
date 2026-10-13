@@ -706,11 +706,10 @@ export class LocalThreadRuntimeCore
       if (!resumeHistory || resumeHistory.scopeId !== scopeId) return;
       const resume = resumeHistory.resume?.bind(resumeHistory);
       if (repo.unstable_resume && resume) {
-        const resumeParentId = repository.headId ?? this.repository.headId;
         this.startRun(
           {
-            parentId: resumeParentId,
-            sourceId: resumeParentId,
+            parentId: this.repository.headId,
+            sourceId: this.repository.headId,
             runConfig: this._lastRunConfig,
           },
           resume,

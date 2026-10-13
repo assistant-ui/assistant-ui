@@ -65,7 +65,7 @@ describe("ExternalStoreThreadRuntimeCore message repository", () => {
 
     runtime.__internal_setAdapter({ ...store, isRunning: true });
     expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2"]);
-    expect(visibleIds(runtime).slice(0, 2)).toEqual(["u1", "a1"]);
+    expect(visibleIds(runtime)).toEqual(["u1", "a1"]);
 
     runtime.__internal_setAdapter(store);
     expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2"]);

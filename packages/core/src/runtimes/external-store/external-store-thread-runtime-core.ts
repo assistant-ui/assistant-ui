@@ -511,8 +511,7 @@ export class ExternalStoreThreadRuntimeCore
         !repositoryChanged &&
         oldStore.messageRepository === store.messageRepository
       ) {
-        if (headId === null) this.repository.clear();
-        else this.repository.import({ headId, messages: [] });
+        this.repository.import({ headId, messages: [] });
         messages = this.repository.getMessages();
       } else {
         const incomingIds = new Set(incoming.map(({ message }) => message.id));
@@ -531,8 +530,7 @@ export class ExternalStoreThreadRuntimeCore
           }
         }
         this._pendingDeleteEvictions.clear();
-        if (headId === null) this.repository.clear();
-        else this.repository.import({ headId, messages: [] });
+        this.repository.import({ headId, messages: [] });
         messages = this.repository.getMessages();
       }
     } else if (store.messages) {
