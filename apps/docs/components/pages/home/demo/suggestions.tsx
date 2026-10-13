@@ -13,12 +13,12 @@ const SUGGESTIONS = [
   {
     label: "Plan a road trip",
     prompt:
-      "Plan a four-day road trip from San Francisco to Los Angeles along the coast. Tell me where to stay each night, how long each day's drive is, and one thing worth stopping for each day.",
+      "Plan a four-day road trip from San Francisco to Los Angeles along the coast. Tell me where to stay each night, how long each day's drive is, and one thing worth stopping for each day, with a photo of each stop.",
   },
   {
     label: "Plan a dinner party",
     prompt:
-      "I'm hosting a Sunday lamb roast and anywhere from 4 to 10 people might come. Plan the menu and a cooking timeline, and let me change the guest count and see how much of everything to buy.",
+      "I'm hosting a Sunday lamb roast and anywhere from 4 to 10 people might come. Plan the menu with a photo of each dish and a cooking timeline, and let me change the guest count and see how much of everything to buy.",
   },
   {
     label: "Play Monty Hall",
