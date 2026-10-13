@@ -437,6 +437,18 @@ describe("createSpecToolkit for Vue", () => {
     expect(guidance).toContain("- `copyText` — params `{ text: string }`.");
   });
 
+  it("puts the app's rules and where tool results are in render_spec's description", () => {
+    const entries: Record<string, unknown> = createSpecToolkit(catalog, {
+      components,
+      specPrompt: { customRules: ["Keep labels short."] },
+    }).entries({ execution: "frontend", display: "standalone" });
+    const { description } = entries["render_spec"] as { description: string };
+    expect(description).toContain("- Keep labels short.");
+    expect(description).toContain(
+      "- Results of earlier tool calls are in state under `/tools/<toolName>/<n>`",
+    );
+  });
+
   it("executes and validates in frontend execution only", async () => {
     const frontend = setup("frontend");
     expect(frontend.type).toBe("frontend");

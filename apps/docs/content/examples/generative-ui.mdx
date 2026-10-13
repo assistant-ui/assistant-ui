@@ -10,7 +10,7 @@ The main route of `examples/with-generative-ui` answers each question in the for
 - **Components from the kit**: `toSpecCatalog(styledGenerativeUILibrary)` turns the vocabulary, with the registry item's Markdown, Diagram, and Map renderers, into the catalog spec mode renders, styled by the same stylesheet `shadcn add generative-ui` installs
 - **Tool results in the UI**: `search_flights` returns sample flights, and the spec binds each price to the result under `/tools/search_flights/0` instead of copying it
 - **Photos**: `search_images` looks up photos on Wikipedia, and the spec binds each `Image` to its result
-- **Composition rules**: `specPrompt.customRules` tells the model how this app composes an answer: the takeaway first, photos for what can be seen, a map for places, and a card for each module
+- **Composition rules**: the spec guidance's own rules put the takeaway first, a card around each module, places on a map, and a schedule on a timeline, and `specPrompt.customRules` adds this app's rule for photos from `search_images`, credited to Wikipedia
 - **Model picker**: the route answers through the Vercel AI Gateway with Claude Opus 5.5 (the default), GPT-6 astra, or Gemini 3.1 Pro
 - **Threads and state**: threads persist in local storage, and a choice made in a spec survives a reload
 - **Tool call panel**: on wide screens, "Show tool calls" lists the patches, widget code, and tool results behind the latest answer
@@ -31,7 +31,7 @@ See the [Generative UI guide](/docs/tools/generative-ui) for the full setup, and
 
 ### Specs and widgets from one toolkit
 
-`createWidgetToolkit` provides `show_widget`, `edit_widget`, and `read_me`; passing `spec` adds `render_spec` with the kit's catalog. The composition rules are appended to the spec guidance:
+`createWidgetToolkit` provides `show_widget`, `edit_widget`, and `read_me`; passing `spec` adds `render_spec` with the kit's catalog. The app's photo rule is appended to the spec guidance and to `render_spec`'s description:
 
 ```ts title="app/generative-ui-toolkit.ts"
 const { catalog, components } = toSpecCatalog(styledGenerativeUILibrary);
@@ -40,12 +40,12 @@ export const widgets = createWidgetToolkit({
   widget: { maxHeight: 720 },
   spec: createSpecToolkit(catalog, {
     components,
-    specPrompt: { customRules: compositionRules },
+    specPrompt: { customRules: photoRules },
   }),
 });
 ```
 
-The page registers the toolkit and adds the format rules with the spec guidance preloaded, so every model reads the composition rules and can call `render_spec` without a `read_me` round trip. It also adds one instruction of its own that asks for photos:
+The page registers the toolkit and adds the format rules with the spec guidance preloaded, so a model can call `render_spec` without a `read_me` round trip. It also adds one instruction of its own that asks for photos:
 
 ```tsx title="app/page.tsx"
 const config = AuiConfig({

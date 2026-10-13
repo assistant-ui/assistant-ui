@@ -99,7 +99,10 @@ export const specToolkitFor =
     copyText,
   }: SpecToolkitPlatform) =>
   (catalog: Catalog, options: SpecToolkitOptions): WidgetToolkitExtension => {
-    const { tools, histories, execute } = createSpecCalls(catalog);
+    const { tools, histories, execute } = createSpecCalls(
+      catalog,
+      options.specPrompt,
+    );
 
     const renderSpecUI = (mountsToolResults: boolean) =>
       function RenderSpecUI({

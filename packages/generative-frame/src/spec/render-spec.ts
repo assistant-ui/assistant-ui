@@ -1,6 +1,6 @@
 import type { GuidanceModule, ToolDefinition } from "../tools/define";
 import type { Catalog } from "./catalog";
-import type { SpecPromptOptions } from "./prompt";
+import { specRules, type SpecPromptOptions } from "./prompt";
 import { parseSpecStream } from "./stream";
 import { emptySpec, type Spec } from "./types";
 import { formatSpecIssues, validateSpec, type SpecIssue } from "./validate";
@@ -30,6 +30,8 @@ export type SpecTools = { render_spec: RenderSpecTool };
 export type CreateSpecToolsOptions = {
   /** Latest spec per title, shared with the host so it can render them. */
   specs?: Map<string, { spec: Spec; version: number }>;
+  /** The app's rules for a spec, added to the tool's description after the built-in ones so they hold even when the model never loads the spec guidance. */
+  customRules?: readonly string[];
 };
 
 const TITLE_SCHEMA = {
@@ -51,8 +53,12 @@ export function createSpecTools(
     options.specs ?? new Map<string, { spec: Spec; version: number }>();
   const render_spec: RenderSpecTool = {
     name: "render_spec",
-    description:
+    description: [
       "Shows declarative UI built from the host's components, streaming it as you write. Follow the spec guidance you were given (the `spec` module of read_me, or the system prompt). Pass `patches` (JSONL patch operations, one per line) or a complete `spec`. Patches on a title you already rendered apply to that spec, so fix or update it with small patches. The result lists validation issues to fix.",
+      "",
+      "Every spec follows these rules:",
+      ...specRules(catalog, options.customRules).map((rule) => `- ${rule}`),
+    ].join("\n"),
     inputSchema: {
       type: "object",
       properties: {

@@ -225,6 +225,7 @@ type CreateSpecToolsOptions = {
     spec: Spec;
     version: number;
   }>;
+  customRules?: readonly string[];
 };
 
 type CreateWidgetOptions = WidgetHandlers & {

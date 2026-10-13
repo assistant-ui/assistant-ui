@@ -862,6 +862,20 @@ describe("createWidgetToolkit", () => {
       (output as string).indexOf("Results of earlier tool calls"),
     );
   });
+
+  it("puts the same rules in render_spec's description", () => {
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, {
+        components,
+        specPrompt: { customRules: ["Keep labels short."] },
+      }),
+    });
+    const description = entries(toolkit)["render_spec"]!.description ?? "";
+    expect(description).toContain("- Keep labels short.");
+    expect(description).toContain(
+      "- Results of earlier tool calls are in state under `/tools/<toolName>/<n>`",
+    );
+  });
 });
 
 describe("render_spec validation", () => {

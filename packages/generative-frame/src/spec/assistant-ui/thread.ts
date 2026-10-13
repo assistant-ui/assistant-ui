@@ -137,15 +137,29 @@ export const callHistory =
     version: priorSpecCalls(messages, toolCallId, title),
   });
 
+/** The app's rules and where earlier tool results are, which `render_spec`'s description and the `spec` module both carry. */
+const toolkitRules = (
+  specPrompt: Omit<SpecPromptOptions, "mode"> | undefined,
+) => [
+  ...(specPrompt?.customRules ?? []),
+  'Results of earlier tool calls are in state under `/tools/<toolName>/<n>`, newest first: `0` is the latest call to that tool before this `render_spec` call, `1` the one before it, and so on. Show their values with `{ "$state": "/tools/<toolName>/<n>/..." }` rather than copying them, and never write `tools` in `state`. Indexes count back from each `render_spec` call, so when a patch follows another call to the same tool, update any binding that should keep showing the older result.',
+];
+
 /**
  * The `render_spec` tool a toolkit shares across its calls. Each mounted call
  * registers its {@link callHistory} in `histories` under its tool call id, so
  * `execute` patches the base that call's own thread held, even after a reload
  * or in another thread.
  */
-export function createSpecCalls(catalog: Catalog) {
+export function createSpecCalls(
+  catalog: Catalog,
+  specPrompt: Omit<SpecPromptOptions, "mode"> | undefined,
+) {
   const specs = new Map<string, { spec: Spec; version: number }>();
-  const tools = createSpecTools(catalog, { specs });
+  const tools = createSpecTools(catalog, {
+    specs,
+    customRules: toolkitRules(specPrompt),
+  });
   const histories = new Map<string, SpecHistory>();
   const execute = (input: RenderSpecInput, call: { toolCallId: string }) => {
     const history = histories.get(call.toolCallId);
@@ -173,10 +187,7 @@ export const specModules = (
       clipboard: host.clipboard,
       ...specPrompt?.hostApi,
     },
-    customRules: [
-      ...(specPrompt?.customRules ?? []),
-      'Results of earlier tool calls are in state under `/tools/<toolName>/<n>`, newest first: `0` is the latest call to that tool before this `render_spec` call, `1` the one before it, and so on. Show their values with `{ "$state": "/tools/<toolName>/<n>/..." }` rather than copying them, and never write `tools` in `state`. Indexes count back from each `render_spec` call, so when a patch follows another call to the same tool, update any binding that should keep showing the older result.',
-    ],
+    customRules: toolkitRules(specPrompt),
   }),
 ];
 

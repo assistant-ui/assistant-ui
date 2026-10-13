@@ -79,7 +79,10 @@ export function createSpecToolkit(
   catalog: Catalog,
   options: SpecToolkitOptions,
 ): VueSpecToolkit {
-  const { tools, histories, execute } = createSpecCalls(catalog);
+  const { tools, histories, execute } = createSpecCalls(
+    catalog,
+    options.specPrompt,
+  );
 
   const renderSpec = (mountsToolResults: boolean) =>
     defineComponent({
