@@ -255,12 +255,19 @@ export const specToolkitFor =
               histories.delete(toolCallId);
           };
         }, [toolCallId, history]);
-        // A stream reads its base when it starts, so it starts with the patches, which come after the title.
         const streamed = useSpecStream({
-          ...(typeof args.patches === "string" ? { source: args.patches } : {}),
+          source: typeof args.patches === "string" ? args.patches : "",
           complete: !streaming,
           ...(base ? { initial: base } : {}),
         });
+        // A stream reads its base when it starts, so it starts over when the title brings a new one.
+        const resetStream = streamed.reset;
+        const streamBase = useRef(base);
+        useEffect(() => {
+          if (streamBase.current === base) return;
+          streamBase.current = base;
+          resetStream();
+        }, [base, resetStream]);
         const inputSpec = args.spec;
         const spec = useMemo(
           () =>
