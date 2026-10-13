@@ -1014,6 +1014,7 @@ type SpecPromptOptions = {
   hostApi?: {
     prompt?: boolean;
     modelContext?: boolean;
+    clipboard?: boolean;
   };
 };
 
