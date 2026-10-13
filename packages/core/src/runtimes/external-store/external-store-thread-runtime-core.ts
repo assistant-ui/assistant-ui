@@ -549,7 +549,10 @@ export class ExternalStoreThreadRuntimeCore
       }
 
       const incoming = store.messageRepository.messages;
-      if (oldStore?.messageRepository !== store.messageRepository)
+      if (
+        this._pendingReloadDeleteWindows.size > 0 &&
+        oldStore?.messageRepository !== store.messageRepository
+      )
         this._closeReloadDeleteWindows(
           new Set(incoming.map(({ message }) => message.id)),
         );
@@ -664,7 +667,11 @@ export class ExternalStoreThreadRuntimeCore
 
       // A pass over the host's previous array, such as a client tool's
       // running refresh, can predate the host's answer to onDelete.
-      if (oldStore?.messages !== store.messages) {
+      if (
+        (this._pendingDeleteEvictions.size > 0 ||
+          this._pendingReloadDeleteWindows.size > 0) &&
+        oldStore?.messages !== store.messages
+      ) {
         const incomingIds = new Set(messages.map((m) => m.id));
         this._closeReloadDeleteWindows(incomingIds);
         for (const [id, pending] of this._pendingDeleteEvictions) {
