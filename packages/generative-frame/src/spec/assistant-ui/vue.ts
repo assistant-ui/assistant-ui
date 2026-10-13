@@ -67,15 +67,6 @@ export type VueSpecToolkit = Omit<WidgetToolkitExtension, "entries"> & {
   }): Toolkit;
 };
 
-const completeJson = (text: string) => {
-  try {
-    JSON.parse(text);
-    return true;
-  } catch {
-    return false;
-  }
-};
-
 /**
  * Spec mode for `@assistant-ui/vue`: `render_spec`, which streams patches into
  * the Vue `SpecRenderer` with your components. Pass `entries({ execution,
@@ -103,20 +94,21 @@ export function createSpecToolkit(
         const title = computed(() =>
           typeof args.value.title === "string" ? args.value.title : "",
         );
-        const streaming = computed(
-          () =>
-            part().status.type === "running" && !completeJson(part().argsText),
-        );
+        // Vue has no partial-JSON status for tool arguments, so the call streams until it stops running.
+        const streaming = computed(() => part().status.type === "running");
         const interactions = part().unstable_interactions as
           | InteractionLog
           | undefined;
 
-        // The base and the tool results only depend on earlier calls, so they are read once per call.
-        const base = resolveSpecBase(messages.value, toolCallId, title.value);
+        // Earlier calls do not change, so the thread is read once per call; the base follows the title, which may still be streaming when the call mounts.
+        const earlier = messages.value;
+        const base = computed(() =>
+          resolveSpecBase(earlier, toolCallId, title.value),
+        );
         const toolResults = mountsToolResults
-          ? resolveToolResults(messages.value, toolCallId)
+          ? resolveToolResults(earlier, toolCallId)
           : undefined;
-        const history = callHistory(messages.value, toolCallId);
+        const history = callHistory(earlier, toolCallId);
         histories.set(toolCallId, history);
         onScopeDispose(() => {
           if (histories.get(toolCallId) === history)

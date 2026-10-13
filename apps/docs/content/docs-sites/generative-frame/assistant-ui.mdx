@@ -111,7 +111,7 @@ const guidance = (spec.modules ?? [])
   .join("\n\n");
 ```
 
-Pass `tools` to your `AuiConfig`, and register `guidance` as `system` [model context](/docs/vue/model-context) in a component under `AuiProvider`, so the model gets the `spec` module. The toolkit reads the thread as the React one does: patches apply onto earlier calls with the same title, earlier tool results are in state under `/tools` in frontend execution, what the user changes is saved on the call, and `sendMessage` and `updateModelContext` behave as described below. `@assistant-ui/vue` and `@assistant-ui/core` are optional peers of this entry.
+Pass `tools` to your `AuiConfig`, and register `guidance` as `system` [model context](/docs/vue/model-context) in a component under `AuiProvider`, so the model gets the `spec` module. With `execution: "backend"`, the server defines `render_spec` and its guidance instead, as on React Native. The toolkit reads the thread as the React one does: patches apply onto earlier calls with the same title, earlier tool results are in state under `/tools` in frontend execution, what the user changes is saved on the call, and `sendMessage` and `updateModelContext` behave as described below. `@assistant-ui/vue` and `@assistant-ui/core` are optional peers of this entry.
 
 ## Frontend and backend execution
 

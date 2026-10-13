@@ -99,22 +99,22 @@ const setup = (execution: "frontend" | "backend") => {
 };
 
 type Part = {
+  id?: string;
   args: Record<string, unknown>;
-  argsText?: string;
   running?: boolean;
   interactions?: unknown;
 };
 
 const toolProp = (
-  { args, argsText, running, interactions }: Part,
+  { id = "s", args, running, interactions }: Part,
   record?: (input: unknown) => Promise<void>,
 ) => ({
   part: {
     type: "tool-call",
     toolName: "render_spec",
-    toolCallId: "s",
+    toolCallId: id,
     args,
-    argsText: argsText ?? JSON.stringify(args),
+    argsText: JSON.stringify(args),
     status: { type: running ? "running" : "complete" },
     ...(interactions ? { unstable_interactions: interactions } : {}),
   },
@@ -186,11 +186,7 @@ describe("createSpecToolkit for Vue", () => {
       '{"op":"add","path":"/root","value":"t"}\n{"op":"add","path":"/elements/t","value":{"type":"Label","props":{"text":"Hi"},"children":["c"]}}\n';
     const { container, update } = mount(
       setup("backend").render,
-      toolProp({
-        args: { title: "s", patches },
-        argsText: `{"title":"s","patches":${JSON.stringify(patches).slice(0, -1)}`,
-        running: true,
-      }),
+      toolProp({ args: { title: "s", patches }, running: true }),
     );
     expect(
       container.querySelector('[data-gf-spec-placeholder="pending"]'),
@@ -203,6 +199,46 @@ describe("createSpecToolkit for Vue", () => {
     expect(
       container.querySelector('[data-gf-spec-placeholder="missing"]'),
     ).not.toBeNull();
+  });
+
+  it("patches the earlier spec with the same title when the call mounts before its title arrives", async () => {
+    const first = {
+      title: "s",
+      patches:
+        '{"op":"add","path":"/root","value":"t"}\n{"op":"add","path":"/elements/t","value":{"type":"Label","props":{"text":"a"}}}',
+    };
+    const fromA = {
+      title: "s",
+      patches:
+        '{"op":"test","path":"/elements/t/props/text","value":"a"}\n{"op":"replace","path":"/elements/t/props/text","value":"b"}',
+    };
+    mocks.messages = [
+      {
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "e",
+            toolName: "render_spec",
+            args: first,
+            argsText: JSON.stringify(first),
+          },
+          {
+            type: "tool-call",
+            toolCallId: "f",
+            toolName: "render_spec",
+            args: fromA,
+            argsText: JSON.stringify(fromA),
+          },
+        ],
+      },
+    ];
+    const { container, update } = mount(
+      setup("frontend").render,
+      toolProp({ id: "f", args: {}, running: true }),
+    );
+    update(toolProp({ id: "f", args: fromA }));
+    await nextTick();
+    expect(container.textContent).toBe("b");
   });
 
   it("shares the user's choice before sendMessage starts a request, and never sends from watch", async () => {
@@ -218,8 +254,13 @@ describe("createSpecToolkit for Vue", () => {
         args: {
           title: "s",
           spec: {
-            root: "b",
+            root: "t",
             elements: {
+              t: {
+                type: "Label",
+                props: { text: { $template: "n=${/n}" } },
+                children: ["b"],
+              },
               b: {
                 type: "Button",
                 props: { label: "Pick A" },
@@ -241,6 +282,7 @@ describe("createSpecToolkit for Vue", () => {
       }),
     );
     container.querySelector("button")!.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("n=1"));
     await nextTick();
     expect(mocks.append).toHaveBeenCalledExactlyOnceWith("Tell me more");
     expect(system).toContain('<ui_choices>{"text":"A"}</ui_choices>');
