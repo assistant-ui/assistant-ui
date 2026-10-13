@@ -99,6 +99,20 @@ describe("resolveValue", () => {
 describe("evaluateCondition", () => {
   const ctx = { state };
   it.each([
+    [[false, { $state: "/unused" }], false],
+    [{ $and: [false, { $state: "/unused" }] }, false],
+    [{ $or: [true, { $state: "/unused" }] }, true],
+    [{ $and: [{}, false, { $state: "/unused" }] }, false],
+    [{ $or: [{}, true, { $state: "/unused" }] }, true],
+  ])("stops reading after a decisive branch in %j", (condition, expected) => {
+    const state = {
+      get unused() {
+        throw new Error("A decisive branch must skip this read");
+      },
+    };
+    expect(evaluateCondition(condition as never, { state })).toBe(expected);
+  });
+  it.each([
     [undefined, true],
     [true, true],
     [{}, false],
