@@ -971,6 +971,29 @@ describe("render_spec validation", () => {
     expect(view.container.textContent).toBe("b");
   });
 
+  it("rebuilds on the same-title base when patches stream before the title", () => {
+    mocks.messages = [
+      {
+        content: [
+          call("e", "render_spec", first),
+          call("f", "render_spec", fromA),
+        ],
+      },
+    ];
+    mocks.argsStatus = "streaming";
+    const RenderSpec = setup().render;
+    const view = render(
+      <RenderSpec {...partProps("f", { patches: fromA.patches })} />,
+    );
+    view.rerender(<RenderSpec {...partProps("f", fromA)} />);
+    view.rerender(
+      <RenderSpec
+        {...partProps("f", { ...fromA, patches: `${fromA.patches}\n` })}
+      />,
+    );
+    expect(view.container.textContent).toBe("b");
+  });
+
   it("resolves the base from the title the call executes with", async () => {
     mocks.messages = [
       {
