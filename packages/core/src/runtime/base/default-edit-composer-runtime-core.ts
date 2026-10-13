@@ -126,10 +126,10 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     return this._sourceId;
   }
 
-  public handleSend(
+  public async handleSend(
     message: Omit<AppendMessage, "parentId" | "sourceId">,
     options?: SendOptions,
-  ): Promise<void> {
+  ) {
     const content =
       this._nonTextPassthrough.length > 0
         ? ([
@@ -146,7 +146,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     });
 
     this.handleCancel();
-    return Promise.resolve(appendTask);
+    return appendTask;
   }
 
   public handleCancel() {

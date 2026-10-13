@@ -967,24 +967,23 @@ const useComposerClientResource = ({
   const returnToDraft = (content: ComposerSubmission) => {
     if (type !== "thread") {
       const returned = new Map(
-        content.attachments
-          .filter((attachment) => !attachmentSends.isRemoved(attachment))
-          .map((attachment) => [attachment.id, attachment]),
+        content.attachments.flatMap((attachment) => {
+          const restored = attachmentSends.restoreUnsent(attachment);
+          return restored ? [[attachment.id, restored] as const] : [];
+        }),
       );
       setAttachments((prev) =>
-        prev.map((attachment) =>
-          attachmentSends.isRemoved(attachment)
-            ? attachmentSends.restore(attachment)
-            : attachmentSends.restore(
-                returned.get(attachment.id) ?? attachment,
-              ),
-        ),
+        prev.flatMap((attachment) => {
+          const restored = attachmentSends.restoreUnsent(attachment);
+          return restored ? [returned.get(attachment.id) ?? restored] : [];
+        }),
       );
       return;
     }
-    const returned = content.attachments.map((attachment) =>
-      attachmentSends.restore(attachment),
-    );
+    const returned = content.attachments.flatMap((attachment) => {
+      const restored = attachmentSends.restoreUnsent(attachment);
+      return restored ? [restored] : [];
+    });
     setAttachments((prev) => [...returned, ...prev]);
     setText((prev) => [content.text, prev].filter(Boolean).join("\n"));
     setQuote((prev) => prev ?? content.quote);
@@ -1077,12 +1076,14 @@ const useComposerClientResource = ({
     };
     const sent: ComposerSubmission = { ...current, attachments };
     const completed = new Map(
-      attachments.map((attachment) => [attachment.id, attachment]),
+      current.attachments
+        .filter((attachment) => !attachmentSends.isRemoved(attachment))
+        .map((attachment, index) => [attachment, attachments[index]] as const),
     );
     const returned: ComposerSubmission = {
       ...current,
       attachments: current.attachments.map(
-        (attachment) => completed.get(attachment.id) ?? attachment,
+        (attachment) => completed.get(attachment) ?? attachment,
       ),
     };
     // edit sends carry a sourceId contract; only thread sends queue
@@ -1095,7 +1096,10 @@ const useComposerClientResource = ({
     // delivered ones now, so clearing that draft must not remove their uploads.
     if (isSubmission && type !== "thread") {
       const delivered = new Map(
-        attachments.map((attachment) => [attachment.id, attachment]),
+        current.attachments.map((attachment, index) => [
+          attachment.id,
+          returned.attachments[index]!,
+        ]),
       );
       setAttachments((prev) =>
         prev.map((attachment) => delivered.get(attachment.id) ?? attachment),

@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix: return failed attachment removals to the draft when sending throws.
+fix: restore unsent drafts using the latest attachment cleanup state.

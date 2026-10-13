@@ -163,19 +163,17 @@ export class DefaultThreadComposerRuntimeCore
     });
   }
 
-  public handleSend(
+  public async handleSend(
     message: Omit<AppendMessage, "parentId" | "sourceId">,
     options?: SendOptions,
-  ): Promise<void> {
-    return Promise.resolve(
-      this.runtime.append({
-        ...(message as AppendMessage),
-        parentId: this.runtime.messages.at(-1)?.id ?? null,
-        sourceId: null,
-        startRun: options?.startRun,
-        steer: options?.steer,
-      }),
-    );
+  ) {
+    return this.runtime.append({
+      ...(message as AppendMessage),
+      parentId: this.runtime.messages.at(-1)?.id ?? null,
+      sourceId: null,
+      startRun: options?.startRun,
+      steer: options?.steer,
+    });
   }
 
   public async handleCancel() {

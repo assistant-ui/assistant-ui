@@ -500,16 +500,13 @@ describe("DefaultEditComposerRuntimeCore sending attachments", () => {
 
   const file = () => new File(["content"], "f.txt", { type: "text/plain" });
 
-  it("returns a failed removal to the next edit send when the host throws", async () => {
+  it("returns a failed removal to the next edit send when dispatch throws synchronously", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const upload = Promise.withResolvers<void>();
     const remove = vi
       .fn<AttachmentAdapter["remove"]>()
       .mockRejectedValueOnce(new Error("remove failed"))
       .mockResolvedValue(undefined);
-    const append = vi.fn((_message: AppendMessage) => {
-      throw new Error("send failed");
-    });
     const composer = makeEditComposer(
       attachmentAdapter({
         remove,
@@ -518,8 +515,10 @@ describe("DefaultEditComposerRuntimeCore sending attachments", () => {
           return { ...attachment, status: { type: "complete" }, content: [] };
         },
       }),
-      append,
     );
+    const send = vi.spyOn(composer, "handleSend").mockImplementation(() => {
+      throw new Error("send failed");
+    });
     await composer.addAttachment(file());
     const sending = composer.send();
     await expect(composer.removeAttachment("f")).rejects.toThrow(
@@ -527,14 +526,14 @@ describe("DefaultEditComposerRuntimeCore sending attachments", () => {
     );
     upload.resolve();
     await sending;
-    expect(append).toHaveBeenCalledOnce();
+    expect(send).toHaveBeenCalledOnce();
     expect(composer.attachments).toMatchObject([
       { id: "f", status: { type: "incomplete", message: "remove failed" } },
     ]);
     await composer.send();
-    expect(append).toHaveBeenCalledTimes(2);
+    expect(send).toHaveBeenCalledTimes(2);
     expect(
-      append.mock.calls[1]![0].attachments?.map((attachment) => attachment.id),
+      send.mock.calls[1]![0].attachments?.map((attachment) => attachment.id),
     ).toEqual(["f"]);
     expect(remove).toHaveBeenCalledTimes(1);
   });
