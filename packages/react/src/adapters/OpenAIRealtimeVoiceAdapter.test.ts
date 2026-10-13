@@ -186,6 +186,109 @@ describe("OpenAIRealtimeVoiceAdapter", () => {
     expect(onMode).toHaveBeenLastCalledWith("listening");
   });
 
+  it("holds replies until preceding spoken turns are transcribed in conversation order", async () => {
+    const { session, channel } = await connected();
+    const onTranscript = vi.fn();
+    session.onTranscript(onTranscript);
+    for (const id of ["first", "second"]) {
+      channel.emit({ type: "input_audio_buffer.committed", item_id: id });
+      channel.emit({
+        type: "response.output_audio_transcript.done",
+        item_id: `${id}-reply`,
+        transcript: `Reply to ${id}`,
+      });
+    }
+    channel.emit({
+      type: "conversation.item.input_audio_transcription.completed",
+      item_id: "second",
+      transcript: "Second question",
+    });
+    expect(onTranscript).not.toHaveBeenCalled();
+    channel.emit({
+      type: "conversation.item.input_audio_transcription.completed",
+      item_id: "first",
+      transcript: "First question",
+    });
+    expect(onTranscript.mock.calls.map(([item]) => item)).toEqual([
+      { role: "user", text: "First question", isFinal: true },
+      { role: "assistant", text: "Reply to first", isFinal: true },
+      { role: "user", text: "Second question", isFinal: true },
+      { role: "assistant", text: "Reply to second", isFinal: true },
+    ]);
+  });
+
+  it("keeps a streaming reply together when the user transcript arrives after its first delta", async () => {
+    const { session, channel } = await connected();
+    const onTranscript = vi.fn();
+    session.onTranscript(onTranscript);
+    channel.emit({ type: "input_audio_buffer.committed", item_id: "user" });
+    channel.emit({
+      type: "response.output_audio_transcript.delta",
+      item_id: "reply",
+      delta: "Good ",
+    });
+    expect(onTranscript).not.toHaveBeenCalled();
+    channel.emit({
+      type: "conversation.item.input_audio_transcription.completed",
+      item_id: "user",
+      transcript: "Hello",
+    });
+    channel.emit({
+      type: "response.output_audio_transcript.delta",
+      item_id: "reply",
+      delta: "morning",
+    });
+    channel.emit({
+      type: "response.output_audio_transcript.done",
+      item_id: "reply",
+      transcript: "Good morning",
+    });
+    expect(onTranscript.mock.calls.map(([item]) => item)).toEqual([
+      { role: "user", text: "Hello", isFinal: true },
+      { role: "assistant", text: "Good ", isFinal: false },
+      { role: "assistant", text: "Good morning", isFinal: false },
+      { role: "assistant", text: "Good morning", isFinal: true },
+    ]);
+  });
+
+  it("releases replies after transcription failure and keeps the call usable", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const { session, channel } = await connected();
+      const onTranscript = vi.fn();
+      session.onTranscript(onTranscript);
+      channel.emit({ type: "input_audio_buffer.committed", item_id: "user" });
+      channel.emit({
+        type: "response.output_audio_transcript.done",
+        item_id: "reply",
+        transcript: "Please repeat that",
+      });
+      channel.emit({
+        type: "conversation.item.input_audio_transcription.failed",
+        item_id: "user",
+        error: { message: "Could not transcribe" },
+      });
+      channel.emit({ type: "response.done", response: { status: "failed" } });
+      channel.emit({
+        type: "error",
+        error: {
+          code: "conversation_already_has_active_response",
+          message: "Already responding",
+        },
+      });
+      expect(session.status.type).toBe("running");
+      expect(onTranscript).toHaveBeenCalledWith({
+        role: "assistant",
+        text: "Please repeat that",
+        isFinal: true,
+      });
+      expect(track.stop).not.toHaveBeenCalled();
+      expect(warn).toHaveBeenCalled();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it("acknowledges typed messages before returning, without echoing their transcript", async () => {
     const { session, channel } = await connected();
     const onTranscript = vi.fn();
@@ -357,17 +460,17 @@ describe("OpenAIRealtimeVoiceAdapter", () => {
     },
   );
 
-  it("ends on provider errors and rejects pending messages", async () => {
+  it("rejects the affected message on a provider error without ending the call", async () => {
     const { session, channel } = await connected();
     const rejected = expect(session.sendText!("Hello")).rejects.toThrow();
-    channel.emit({ type: "error", error: { message: "Session expired" } });
-    await rejected;
-    expect(session.status).toEqual({
-      type: "ended",
-      reason: "error",
-      error: new Error("Session expired"),
+    const id = channel.events().at(-1).event_id;
+    channel.emit({
+      type: "error",
+      error: { event_id: id, message: "Invalid item" },
     });
-    expect(track.stop).toHaveBeenCalledOnce();
+    await rejected;
+    expect(session.status.type).toBe("running");
+    expect(track.stop).not.toHaveBeenCalled();
   });
 
   it("ignores malformed and unrelated events", async () => {

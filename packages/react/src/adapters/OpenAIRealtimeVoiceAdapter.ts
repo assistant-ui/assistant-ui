@@ -59,6 +59,35 @@ export class OpenAIRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
       let transcriptItem: string | undefined;
       let volumeTimer: ReturnType<typeof setInterval> | undefined;
       let connectionTimer: ReturnType<typeof setTimeout> | undefined;
+      type Transcript = {
+        ready: boolean;
+        value: RealtimeVoiceAdapter.TranscriptItem | undefined;
+      };
+      const transcriptQueue: Transcript[] = [];
+      const pendingTranscripts = new Map<string, Transcript>();
+      const flushTranscripts = () => {
+        while (transcriptQueue[0]?.ready) {
+          const { value } = transcriptQueue.shift()!;
+          if (value) session.emitTranscript(value);
+        }
+      };
+      const emitTranscript = (value: RealtimeVoiceAdapter.TranscriptItem) => {
+        transcriptQueue.push({ ready: true, value });
+        flushTranscripts();
+      };
+      const finishUserTranscript = (
+        id: unknown,
+        value?: RealtimeVoiceAdapter.TranscriptItem,
+      ) => {
+        const item =
+          typeof id === "string" ? pendingTranscripts.get(id) : undefined;
+        if (item) {
+          item.ready = true;
+          item.value = value;
+          pendingTranscripts.delete(id as string);
+          flushTranscripts();
+        } else if (value) emitTranscript(value);
+      };
       const pending = new Map<
         string,
         {
@@ -83,6 +112,8 @@ export class OpenAIRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
           );
         }
         pending.clear();
+        pendingTranscripts.clear();
+        transcriptQueue.length = 0;
         channel.onopen =
           channel.onmessage =
           channel.onclose =
@@ -123,9 +154,19 @@ export class OpenAIRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
         }
         if (!event) return;
         switch (event.type) {
+          case "input_audio_buffer.committed":
+            if (
+              typeof event.item_id === "string" &&
+              !pendingTranscripts.has(event.item_id)
+            ) {
+              const item = { ready: false, value: undefined };
+              pendingTranscripts.set(event.item_id, item);
+              transcriptQueue.push(item);
+            }
+            break;
           case "conversation.item.input_audio_transcription.completed":
             if (typeof event.transcript === "string") {
-              session.emitTranscript({
+              finishUserTranscript(event.item_id, {
                 role: "user",
                 text: event.transcript,
                 isFinal: true,
@@ -148,7 +189,7 @@ export class OpenAIRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
               if (typeof event.delta !== "string") break;
               transcript += event.delta;
             }
-            session.emitTranscript({
+            emitTranscript({
               role: "assistant",
               text: transcript,
               isFinal: final,
@@ -162,7 +203,10 @@ export class OpenAIRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
             generating = false;
             const response = asRecord(event.response);
             if (response?.status === "failed") {
-              end("error", new Error("OpenAI Realtime response failed."));
+              console.warn(
+                "OpenAI Realtime response failed.",
+                response.status_details,
+              );
             }
             break;
           }
@@ -185,17 +229,26 @@ export class OpenAIRealtimeVoiceAdapter implements RealtimeVoiceAdapter {
             break;
           }
           case "conversation.item.input_audio_transcription.failed":
+            finishUserTranscript(event.item_id);
+            console.warn("OpenAI Realtime transcription failed.", event.error);
+            break;
           case "error": {
             const error = asRecord(event.error);
             if (error?.code === "response_cancel_not_active") break;
-            end(
-              "error",
-              new Error(
-                typeof error?.message === "string"
-                  ? error.message
-                  : "OpenAI Realtime session failed.",
-              ),
-            );
+            const requestId =
+              typeof error?.event_id === "string" ? error.event_id : "";
+            const message = pending.get(requestId);
+            if (message) {
+              clearTimeout(message.timer);
+              pending.delete(requestId);
+              message.reject(
+                new Error(
+                  typeof error?.message === "string"
+                    ? error.message
+                    : "OpenAI Realtime rejected the message.",
+                ),
+              );
+            } else console.warn("OpenAI Realtime error.", event.error);
             break;
           }
         }

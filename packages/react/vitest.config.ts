@@ -8,7 +8,7 @@ export default defineConfig({
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/tests/**", "src/unstable/webmcp/__tests__/**"],
       thresholds: {
-        lines: 84,
+        lines: 85,
         functions: 76,
         branches: 74,
         statements: 82,
