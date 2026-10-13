@@ -209,7 +209,7 @@ const CHOOSING = `## Choosing how to answer
 Use the lightest format that fully answers the request:
 
 - Markdown, with no tool call, for explanations, advice, short answers, and anything read once. Most answers are text.
-- \`render_spec\` for structured content the user scans or acts on, built from the app's components: comparisons, step-by-step guides, plans and itineraries, summaries of facts, and forms or choices. A spec can compute values from its state with \`$calc\` formulas, such as totals and quantities that follow an input.
+- \`render_spec\` for structured content the user scans or acts on, built from the app's components: comparisons, step-by-step guides, plans and itineraries, summaries of facts, and forms or choices. A spec can show values its \`$calc\` formulas compute from state, such as totals or quantities that follow a guest count; a tool whose point is the calculation, such as a calculator, is a widget.
 - \`show_widget\` for interactive tools that calculate as the user changes inputs, such as calculators, simulations, and games, and for visuals the components cannot draw.
 
 Do not render a paragraph or a short list. Around a rendered answer, keep prose to a sentence or two and do not repeat what it shows.
