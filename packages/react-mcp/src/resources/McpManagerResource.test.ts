@@ -1,4 +1,9 @@
-import { createTapRoot, resource, useResource } from "@assistant-ui/tap";
+import {
+  createTapRoot,
+  flushTapSync,
+  resource,
+  useResource,
+} from "@assistant-ui/tap";
 import { describe, expect, it, vi } from "vitest";
 import { useState } from "react";
 import { defineConnector } from "../connector";
@@ -1017,8 +1022,7 @@ describe("McpManagerResource storage switching", () => {
             ).toBeGreaterThan(previousLoads),
           );
           initialRead = false;
-          setStorage("a");
-          await new Promise((resolve) => setTimeout(resolve, 0));
+          flushTapSync(() => setStorage("a"));
           if (visit < revisits - 1) {
             expectedIds.push(
               await root.getValue().addCustomServer({
