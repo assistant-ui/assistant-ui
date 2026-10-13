@@ -94,6 +94,8 @@ describe("LocalThreadRuntimeCore import with a non-leaf head", () => {
       "u2",
       "a2",
     ]);
+    expect(thread.messages.map((message) => message.id)).toEqual(["u1", "a1"]);
+    expect(thread.export().headId).toBe("a1");
   });
 
   it("keeps every message loaded from a history adapter", async () => {
@@ -119,6 +121,8 @@ describe("LocalThreadRuntimeCore import with a non-leaf head", () => {
       "u2",
       "a2",
     ]);
+    expect(thread.messages.map((message) => message.id)).toEqual(["u1", "a1"]);
+    expect(thread.export().headId).toBe("a1");
   });
 
   it("replaces seeded descendants missing from loaded history", async () => {

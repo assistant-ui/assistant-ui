@@ -405,14 +405,14 @@ export class ExternalStoreThreadRuntimeCore
     this._updateStoreSnapshot(store);
   }
 
-  // Remove optimistic messages the host dropped before switching its head,
-  // which would otherwise select a stale leaf.
-  private _evictUncarriedOptimistic(carriedIds: ReadonlySet<string>) {
-    for (const message of this.repository.getMessages()) {
-      if (message.metadata.isOptimistic && !carriedIds.has(message.id)) {
-        this.repository.deleteMessage(message.id);
-      }
+  private _evictPlaceholder() {
+    if (!this._optimistic) return;
+    try {
+      this.repository.getMessage(this._optimistic.id);
+    } catch {
+      return;
     }
+    this.repository.deleteMessage(this._optimistic.id);
   }
 
   private _updateStoreSnapshot(
@@ -502,10 +502,9 @@ export class ExternalStoreThreadRuntimeCore
       }
 
       const incoming = store.messageRepository.messages;
-      const incomingIds = new Set(incoming.map(({ message }) => message.id));
       const headId =
         store.messageRepository.headId ?? incoming.at(-1)?.message.id ?? null;
-      this._evictUncarriedOptimistic(incomingIds);
+      this._evictPlaceholder();
 
       if (
         oldStore &&
@@ -513,9 +512,10 @@ export class ExternalStoreThreadRuntimeCore
         oldStore.messageRepository === store.messageRepository
       ) {
         if (headId === null) this.repository.clear();
-        else this.repository.switchToBranch(headId);
+        else this.repository.import({ headId, messages: [] });
         messages = this.repository.getMessages();
       } else {
+        const incomingIds = new Set(incoming.map(({ message }) => message.id));
         const reconciledMessages = this._applySubmittedFeedback(
           incoming.map(({ message }) => message),
         );
@@ -532,7 +532,7 @@ export class ExternalStoreThreadRuntimeCore
         }
         this._pendingDeleteEvictions.clear();
         if (headId === null) this.repository.clear();
-        else this.repository.switchToBranch(headId);
+        else this.repository.import({ headId, messages: [] });
         messages = this.repository.getMessages();
       }
     } else if (store.messages) {
@@ -654,8 +654,9 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     // Append an optimistic placeholder while running but before a trailing
-    // assistant message exists. resetHead evicts off-branch optimistic messages
-    // (prior placeholders, mid-run id-swap siblings); export() never persists them.
+    // assistant message exists. Setting the head evicts off-branch optimistic
+    // messages (prior placeholders, mid-run id-swap siblings); export() never
+    // persists them.
     let optimisticId: string | null = null;
     if (hasUpcomingMessage(isRunning, messages)) {
       const parentId = messages.at(-1)?.id ?? null;
@@ -674,7 +675,12 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     if (optimisticId === null) this._optimistic = null;
-    this.repository.resetHead(optimisticId ?? messages.at(-1)?.id ?? null);
+    const visibleHeadId = optimisticId ?? messages.at(-1)?.id ?? null;
+    if (store.messageRepository) {
+      this.repository.import({ headId: visibleHeadId, messages: [] });
+    } else {
+      this.repository.resetHead(visibleHeadId);
+    }
 
     const messagesSnapshot = this.repository.getMessages();
     if (

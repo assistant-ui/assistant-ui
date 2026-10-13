@@ -37,6 +37,8 @@ describe("createMessageRepositorySession", () => {
       "u2",
       "a2",
     ]);
+    expect(session.getMessages().map((item) => item.id)).toEqual(["u1", "a1"]);
+    expect(session.export().headId).toBe("a1");
   });
 
   it("memoizes exports and invalidates them after every mutator", () => {

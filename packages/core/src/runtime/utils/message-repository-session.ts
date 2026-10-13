@@ -132,7 +132,8 @@ export const createMessageRepositorySession = (
       }
       resetHead(previousId);
     } else if (headId !== null) {
-      switchToBranch(headId);
+      repository.import({ headId, messages: [] });
+      exportedRepository = undefined;
     }
   };
 

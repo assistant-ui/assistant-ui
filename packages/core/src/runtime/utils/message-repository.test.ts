@@ -218,8 +218,8 @@ describe("MessageRepository rejected operations", () => {
 
 describe("MessageRepository import order", () => {
   it.each([
-    ["a1", ["u1", "a1", "u2", "a2"]],
-    ["u1", ["u1", "a1", "u2", "a2"]],
+    ["a1", ["u1", "a1"]],
+    ["u1", ["u1"]],
   ])("keeps descendants when importing with head %s", (headId, visible) => {
     const repository = new MessageRepository();
     repository.import(
@@ -236,9 +236,38 @@ describe("MessageRepository import order", () => {
     );
 
     expect(repository.getMessages().map((item) => item.id)).toEqual(visible);
+    expect(repository.headId).toBe(headId);
+    expect(repository.export().headId).toBe(headId);
     expect(repository.export().messages.map((item) => item.message.id)).toEqual(
       ["u1", "a1", "u2", "a2", "a1b"],
     );
+  });
+
+  it("appends a sibling from an imported head with children", () => {
+    const repository = new MessageRepository();
+    repository.import(
+      ExportedMessageRepository.fromBranchableArray(
+        [
+          { parentId: null, message: message("u2") },
+          { parentId: "u2", message: assistantMessage("a2") },
+        ],
+        { headId: "u2" },
+      ),
+    );
+
+    repository.addOrUpdateMessage("u2", assistantMessage("a2b"));
+
+    expect(repository.headId).toBe("a2b");
+    expect(repository.getMessages().map((item) => item.id)).toEqual([
+      "u2",
+      "a2b",
+    ]);
+    expect(repository.getBranches("a2b")).toEqual(["a2", "a2b"]);
+    expect(repository.export().messages.map((item) => item.message.id)).toEqual(
+      ["u2", "a2", "a2b"],
+    );
+    repository.switchToBranch("u2");
+    expect(repository.headId).toBe("a2b");
   });
 
   it("imports a message listed before its parent", () => {

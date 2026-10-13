@@ -371,6 +371,7 @@ export class MessageRepository {
 
     if (this.head === prev) {
       this.head = newItem;
+      this.selectPathTo(newItem);
     }
 
     this._messages.dirty();
@@ -506,7 +507,7 @@ export class MessageRepository {
     this._messages.dirty();
   }
 
-  resetHead(messageId: string | null) {
+  private setHead(messageId: string | null, pruneChildren: boolean) {
     if (messageId === null) {
       this.clear();
       return;
@@ -515,12 +516,12 @@ export class MessageRepository {
     const message = this.messages.get(messageId);
     if (!message)
       throw new Error(
-        "MessageRepository(resetHead): Branch not found. This is likely an internal bug in assistant-ui.",
+        `MessageRepository(${pruneChildren ? "resetHead" : "import"}): Branch not found. This is likely an internal bug in assistant-ui.`,
       );
 
     const previousHead = this.head;
 
-    if (message.children.length > 0) {
+    if (pruneChildren && message.children.length > 0) {
       const pending = [...message.children];
       while (pending.length > 0) {
         const childId = pending.pop()!;
@@ -543,6 +544,10 @@ export class MessageRepository {
     this.evictOffBranchOptimisticMessages(previousHead, this.head);
 
     this._messages.dirty();
+  }
+
+  resetHead(messageId: string | null) {
+    this.setHead(messageId, true);
   }
 
   clear(): void {
@@ -636,7 +641,6 @@ export class MessageRepository {
     }
 
     const importedHeadId = headId ?? ordered.at(-1)?.message.id ?? null;
-    if (importedHeadId === null) this.clear();
-    else this.switchToBranch(importedHeadId);
+    this.setHead(importedHeadId, false);
   }
 }
