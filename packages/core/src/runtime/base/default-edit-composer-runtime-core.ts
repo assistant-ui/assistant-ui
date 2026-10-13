@@ -23,6 +23,12 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     return false;
   }
 
+  protected override get cleanupOwner(): BaseComposerRuntimeCore {
+    return this.runtime.composer instanceof BaseComposerRuntimeCore
+      ? this.runtime.composer
+      : this;
+  }
+
   public get canSend() {
     return (
       !this.runtime.isDisabled &&

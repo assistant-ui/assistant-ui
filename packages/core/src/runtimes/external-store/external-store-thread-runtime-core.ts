@@ -67,9 +67,14 @@ import {
   captureThreadRuntimeDisposal,
   captureThreadRuntimeGeneration,
 } from "../../runtime/utils/thread-runtime-lifecycle";
-import { RunLeases } from "../../utils/run-lease";
+import { RunLeases, type RunLease } from "../../utils/run-lease";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
+
+const queuedMessageRuntimes = new WeakMap<
+  AppendMessage,
+  ExternalStoreThreadRuntimeCore
+>();
 
 type SubmittedFeedback = NonNullable<
   ThreadAssistantMessage["metadata"]["submittedFeedback"]
@@ -218,13 +223,23 @@ export class ExternalStoreThreadRuntimeCore
   // rejected, is dropped from the map without eviction.
   // Branch-changing mutations (edit, branch switch) invalidate the map,
   // because after them the incoming array omits off-branch ids for reasons
-  // unrelated to deletion. A reload invalidates only the ids after the parent
-  // it regenerates from: the host keeps the prefix up to that parent, so an
-  // id absent from it is still a deletion. Plain tail sends do not clear: a
-  // tail append cannot make a visible id absent, so id-absence stays
-  // unambiguous and a delete whose confirmation races a send keeps its
+  // unrelated to deletion. A reload keeps only the prefix up to the parent it
+  // regenerates from in the host's array: an id absent from that prefix is
+  // still a deletion, but an id after the parent is absent whether or not its
+  // delete was declined. The snapshot pass leaves such an id alone while an
+  // onDelete call for it is pending; a rejection drops it, and a resolution
+  // applies the usual rule to the host's current array. Plain tail sends do
+  // not clear: a tail append cannot make a visible id absent, so id-absence
+  // stays unambiguous and a delete whose confirmation races a send keeps its
   // eviction.
-  private _pendingDeleteEvictions = new Map<string, Set<symbol>>();
+  private _pendingDeleteEvictions = new Map<
+    string,
+    {
+      calls: Set<symbol>;
+      reloaded: boolean;
+      message: ThreadMessage;
+    }
+  >();
 
   // Placeholder id for the upcoming assistant message, reused across snapshot
   // passes while the same tail message awaits its response so the placeholder
@@ -239,6 +254,25 @@ export class ExternalStoreThreadRuntimeCore
   private readonly _runStartLeases = new RunLeases();
   private readonly _runCancellationLeases = new RunLeases();
   private readonly _cancelRunResyncLeases = new RunLeases();
+  private _cancelledToolTurn: {
+    messageIds: Set<string>;
+    parentId: string | null;
+    parentOpen: boolean;
+    lease: RunLease;
+  } | null = null;
+  private readonly _pendingCancelResyncs = new Set<() => void>();
+  private _movedLeaf:
+    | {
+        id: string;
+        draft: {
+          text: string;
+          attachments: readonly Attachment[];
+          quote: QuoteInfo | undefined;
+        };
+        resyncLease: ReturnType<RunLeases["current"]>;
+        generation: ReturnType<typeof captureThreadRuntimeGeneration>;
+      }
+    | undefined;
 
   private _store!: ExternalStoreAdapter<any>;
 
@@ -250,19 +284,24 @@ export class ExternalStoreThreadRuntimeCore
     this._getInitializePromise = getPromise;
   }
 
-  private _queueDispatchTransform = (message: AppendMessage) => {
-    if (captureThreadRuntimeDisposal(this).aborted && this._transformedQueue) {
-      const fallbackTransform = __internal_getDispatchTransform(
-        this._transformedQueue,
-      );
-      if (
-        fallbackTransform &&
-        fallbackTransform !== this._queueDispatchTransform
-      )
-        return fallbackTransform(message);
-    }
-    const parentId = this.messages.at(-1)?.id ?? null;
-    return this.enrichAppendMetadata({ ...message, parentId }, parentId);
+  private _queueDispatchTransform = (message: AppendMessage): AppendMessage => {
+    const currentTransform =
+      this._transformedQueue &&
+      __internal_getDispatchTransform(this._transformedQueue);
+    if (
+      currentTransform &&
+      captureThreadRuntimeDisposal(this).aborted &&
+      currentTransform !== this._queueDispatchTransform
+    )
+      return currentTransform(message);
+    const owner = currentTransform
+      ? undefined
+      : queuedMessageRuntimes.get(message);
+    const runtime =
+      owner && !captureThreadRuntimeDisposal(owner).aborted ? owner : this;
+    runtime._settleCancelResyncs();
+    const parentId = runtime.messages.at(-1)?.id ?? null;
+    return runtime.enrichAppendMetadata({ ...message, parentId }, parentId);
   };
 
   private _transformedQueue: ExternalThreadQueueAdapter | undefined;
@@ -311,9 +350,13 @@ export class ExternalStoreThreadRuntimeCore
     messages: readonly ThreadMessage[],
   ): readonly ThreadMessage[] {
     if (this._submittedFeedback.size === 0) return messages;
-    const incomingIds = new Set(messages.map((message) => message.id));
+    // An array host omits off-branch messages that the repository still keeps, so the overlay keeps an entry for as long as the repository holds its message.
     for (const id of this._submittedFeedback.keys()) {
-      if (!incomingIds.has(id)) this._submittedFeedback.delete(id);
+      try {
+        this.repository.getMessage(id);
+      } catch {
+        this._submittedFeedback.delete(id);
+      }
     }
 
     return messages.map((message) => {
@@ -405,6 +448,16 @@ export class ExternalStoreThreadRuntimeCore
     this._updateStoreSnapshot(store);
   }
 
+  private _evictPlaceholder() {
+    if (!this._optimistic) return;
+    try {
+      this.repository.getMessage(this._optimistic.id);
+    } catch {
+      return;
+    }
+    this.repository.deleteMessage(this._optimistic.id);
+  }
+
   private _updateStoreSnapshot(
     store: ExternalStoreAdapter<any>,
     fromHostSnapshot = true,
@@ -422,8 +475,10 @@ export class ExternalStoreThreadRuntimeCore
       repositoryInstance !== this.repository;
     if (repositoryChanged) {
       this.repository = repositoryInstance;
+      this._cancelledToolTurn = null;
       this._pendingDeleteEvictions.clear();
       this._submittedFeedback.clear();
+      this._movedLeaf = undefined;
       // Keep the live placeholder so resetHead cannot evict an id still used
       // by clients rendering the previous snapshot.
       const head = this.repository.getMessages();
@@ -494,13 +549,14 @@ export class ExternalStoreThreadRuntimeCore
       const incoming = store.messageRepository.messages;
       const headId =
         store.messageRepository.headId ?? incoming.at(-1)?.message.id ?? null;
+      this._evictPlaceholder();
 
       if (
         oldStore &&
         !repositoryChanged &&
         oldStore.messageRepository === store.messageRepository
       ) {
-        this.repository.resetHead(headId);
+        this.repository.import({ headId, messages: [] });
         messages = this.repository.getMessages();
       } else {
         const incomingIds = new Set(incoming.map(({ message }) => message.id));
@@ -519,7 +575,7 @@ export class ExternalStoreThreadRuntimeCore
           }
         }
         this._pendingDeleteEvictions.clear();
-        this.repository.resetHead(headId);
+        this.repository.import({ headId, messages: [] });
         messages = this.repository.getMessages();
       }
     } else if (store.messages) {
@@ -607,9 +663,11 @@ export class ExternalStoreThreadRuntimeCore
         oldStore?.messages !== store.messages
       ) {
         const incomingIds = new Set(messages.map((m) => m.id));
-        for (const [id, calls] of this._pendingDeleteEvictions) {
+        for (const [id, pending] of this._pendingDeleteEvictions) {
+          if (pending.reloaded) continue;
           if (incomingIds.has(id)) {
-            if (calls.size === 0) this._pendingDeleteEvictions.delete(id);
+            if (pending.calls.size === 0)
+              this._pendingDeleteEvictions.delete(id);
             continue;
           }
           this._pendingDeleteEvictions.delete(id);
@@ -631,9 +689,43 @@ export class ExternalStoreThreadRuntimeCore
     this._storeMessages = messages;
     if (messages.length > 0) this.ensureInitialized();
 
+    const movedLeaf = this._movedLeaf;
+    if (movedLeaf) {
+      if (
+        movedLeaf.generation.aborted ||
+        !movedLeaf.resyncLease.isCurrent() ||
+        this.composer.text !== movedLeaf.draft.text
+      ) {
+        this._movedLeaf = undefined;
+      } else {
+        const index = messages.findIndex((m) => m.id === movedLeaf.id);
+        if (index !== -1) {
+          if (getThreadMessageText(messages[index]!) !== movedLeaf.draft.text) {
+            this._movedLeaf = undefined;
+          } else if (index < messages.length - 1) {
+            this.composer.retractDraft(movedLeaf.draft);
+            this._movedLeaf = undefined;
+          }
+        }
+      }
+    }
+
     this._effectiveIsRunning = isRunning;
     if (previousIsRunning !== isRunning) {
       if (isRunning) {
+        const scope = this._cancelledToolTurn;
+        if (scope?.lease.isCurrent()) {
+          const tail = messages.at(-1);
+          if (tail?.role === "assistant" && scope.messageIds.has(tail.id)) {
+            this._cancelledToolTurn = null;
+          } else {
+            const parentId =
+              tail?.role === "assistant"
+                ? (messages.at(-2)?.id ?? null)
+                : (tail?.id ?? null);
+            if (parentId === scope.parentId) scope.parentOpen = false;
+          }
+        }
         this._notifyEventSubscribers("runStart", {});
       } else {
         this._notifyEventSubscribers("runEnd", {});
@@ -641,8 +733,9 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     // Append an optimistic placeholder while running but before a trailing
-    // assistant message exists. resetHead evicts off-branch optimistic messages
-    // (prior placeholders, mid-run id-swap siblings); export() never persists them.
+    // assistant message exists. Setting the head evicts off-branch optimistic
+    // messages (prior placeholders, mid-run id-swap siblings); export() never
+    // persists them.
     let optimisticId: string | null = null;
     if (hasUpcomingMessage(isRunning, messages)) {
       const parentId = messages.at(-1)?.id ?? null;
@@ -661,7 +754,12 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     if (optimisticId === null) this._optimistic = null;
-    this.repository.resetHead(optimisticId ?? messages.at(-1)?.id ?? null);
+    const visibleHeadId = optimisticId ?? messages.at(-1)?.id ?? null;
+    if (store.messageRepository) {
+      this.repository.import({ headId: visibleHeadId, messages: [] });
+    } else {
+      this.repository.resetHead(visibleHeadId);
+    }
 
     const messagesSnapshot = this.repository.getMessages();
     if (
@@ -727,13 +825,39 @@ export class ExternalStoreThreadRuntimeCore
         this._applyToolStatuses(statuses);
     }
 
+    const discardedToolCallIds = this._getDiscardedToolCallIds();
     this._toolInvocations.setState({
       messages: this._messages,
       isRunning: this._getEffectiveIsRunning(this._store),
+      ...(discardedToolCallIds && { discardedToolCallIds }),
       ...(this._store.isLoading !== undefined && {
         isLoading: this._store.isLoading,
       }),
     });
+  }
+
+  private _getDiscardedToolCallIds(): ReadonlySet<string> | undefined {
+    const scope = this._cancelledToolTurn;
+    if (!scope) return undefined;
+
+    const ids = new Set<string>();
+    for (let i = 0; i < this._messages.length; i++) {
+      const message = this._messages[i]!;
+      if (message.role !== "assistant" || message.metadata.isOptimistic)
+        continue;
+      if (!scope.messageIds.has(message.id)) {
+        if (
+          !scope.parentOpen ||
+          (this._messages[i - 1]?.id ?? null) !== scope.parentId
+        )
+          continue;
+        scope.messageIds.add(message.id);
+      }
+      for (const { part } of walkToolCallTree([message])) {
+        ids.add(part.toolCallId);
+      }
+    }
+    return ids;
   }
 
   private _createToolInvocations(): RetainedToolInvocations {
@@ -919,6 +1043,8 @@ export class ExternalStoreThreadRuntimeCore
 
     if (queue) {
       if (queue === this._transformedQueue) {
+        if (!__internal_getDispatchTransform(queue))
+          queuedMessageRuntimes.set(message, this);
         queue.__internal_setDispatchTransform?.(this._queueDispatchTransform);
         __internal_bindNextDispatchTransform(queue);
       }
@@ -952,6 +1078,8 @@ export class ExternalStoreThreadRuntimeCore
         await toolsSettled;
     }
     if (generation.aborted) return;
+
+    this._settleCancelResyncs();
 
     if (isEdit) {
       if (!this._store.onEdit)
@@ -1000,18 +1128,46 @@ export class ExternalStoreThreadRuntimeCore
       // host's own array no longer carries the id. Registered before the
       // callback because an optimistic host publishes that snapshot while
       // the callback is still awaited.
-      const wasVisible = this.repository
+      const visibleMessage = this.repository
         .getMessages()
-        .some((m) => m.id === messageId);
+        .find((m) => m.id === messageId);
       const call = Symbol();
-      if (wasVisible) {
-        const calls = this._pendingDeleteEvictions.get(messageId) ?? new Set();
-        this._pendingDeleteEvictions.set(messageId, calls.add(call));
+      let pending = this._pendingDeleteEvictions.get(messageId);
+      if (visibleMessage) {
+        if (
+          !pending ||
+          (messageId.startsWith(FALLBACK_ID_PREFIX) &&
+            pending.message !== visibleMessage)
+        ) {
+          pending = {
+            calls: new Set<symbol>(),
+            reloaded: false,
+            message: visibleMessage,
+          };
+        }
+        pending.calls.add(call);
+        this._pendingDeleteEvictions.set(messageId, pending);
       }
+      let resolved = false;
       try {
         await this._store.onDelete(messageId);
+        resolved = true;
       } finally {
-        this._pendingDeleteEvictions.get(messageId)?.delete(call);
+        if (
+          pending &&
+          this._pendingDeleteEvictions.get(messageId) === pending &&
+          pending.calls.delete(call)
+        ) {
+          if (pending.reloaded && resolved) {
+            pending.reloaded = false;
+            if (!this._storeMessages.some((m) => m.id === messageId)) {
+              this._pendingDeleteEvictions.delete(messageId);
+              this._evictDeletedMessage(messageId, pending.message);
+            }
+          } else if (pending.reloaded && pending.calls.size === 0) {
+            this._pendingDeleteEvictions.delete(messageId);
+          }
+        }
       }
       return;
     }
@@ -1037,15 +1193,22 @@ export class ExternalStoreThreadRuntimeCore
   // branch picker can resurrect into the host store. `_messages` is refreshed
   // before notifying so `messages` and the branch graph agree at notify time,
   // mirroring the end of the snapshot pass.
-  private _evictDeletedMessage(messageId: string) {
-    // Positional fallback ids are remapped in the snapshot pass; evicting
-    // them first leaves the pre-renumber node as a sibling of the new head.
-    if (messageId.startsWith(FALLBACK_ID_PREFIX)) return;
+  private _evictDeletedMessage(
+    messageId: string,
+    expectedMessage?: ThreadMessage,
+  ) {
+    // Positional fallback ids can be reused by another message after a snapshot.
+    if (messageId.startsWith(FALLBACK_ID_PREFIX) && !expectedMessage) return;
     // A synchronous host update (e.g. a setMessages that re-entered the
     // snapshot pass) may have evicted the message already; only that case is
     // skipped, so genuine repository errors still propagate.
     try {
-      this.repository.getMessage(messageId);
+      const current = this.repository.getMessage(messageId).message;
+      if (
+        messageId.startsWith(FALLBACK_ID_PREFIX) &&
+        current !== expectedMessage
+      )
+        return;
     } catch {
       return;
     }
@@ -1089,21 +1252,27 @@ export class ExternalStoreThreadRuntimeCore
       throw new Error("Voice transcript messages cannot be reloaded");
 
     this._runStartLeases.begin();
+    if (this._cancelledToolTurn?.parentId === config.parentId)
+      this._cancelledToolTurn.parentOpen = false;
     const visible = this.repository.getMessages();
     const kept = new Set(
       visible
         .slice(0, visible.findIndex((m) => m.id === config.parentId) + 1)
         .map((m) => m.id),
     );
-    for (const id of this._pendingDeleteEvictions.keys()) {
-      if (!kept.has(id)) this._pendingDeleteEvictions.delete(id);
+    for (const [id, pending] of this._pendingDeleteEvictions) {
+      if (kept.has(id)) continue;
+      if (pending.calls.size > 0) pending.reloaded = true;
+      else this._pendingDeleteEvictions.delete(id);
     }
 
     const cancellationLease = this._runCancellationLeases.current();
     // Auto-abort in-flight client-side tool executions when a run reloads;
     // any results that land afterward would target a turn that no longer
     // exists. See `append` above for full rationale.
-    await this._toolInvocations?.abort({ discardPending: true });
+    await this._toolInvocations?.abort({
+      discardPending: true,
+    });
     if (!cancellationLease.isCurrent()) return;
 
     await this._store.onReload(config.parentId, config);
@@ -1118,6 +1287,7 @@ export class ExternalStoreThreadRuntimeCore
       throw new Error("Voice transcript messages cannot be reloaded");
 
     this._runStartLeases.begin();
+    this._cancelledToolTurn = null;
     await this._store.onResume(config);
   }
 
@@ -1133,6 +1303,7 @@ export class ExternalStoreThreadRuntimeCore
       throw new Error("Runtime does not support importing external states.");
 
     this._cancelRunResyncLeases.invalidate();
+    this._cancelledToolTurn = null;
 
     // Re-arm the tracker so the next adapter snapshot (containing the
     // imported state) is treated as historical — no streamCall/execute
@@ -1155,6 +1326,7 @@ export class ExternalStoreThreadRuntimeCore
    */
   public unstable_notifySessionReset(): void {
     this._cancelRunResyncLeases.invalidate();
+    this._cancelledToolTurn = null;
     this._runTrackerUpdate(() => this._toolInvocations?.reset());
     this._store.queue?.__internal_notifyCancelled?.();
   }
@@ -1163,9 +1335,26 @@ export class ExternalStoreThreadRuntimeCore
     if (!this._store.onCancel)
       throw new Error("Runtime does not support cancelling runs.");
 
+    const isRunning = this._getEffectiveIsRunning(this._store);
     this._runCancellationLeases.invalidate();
     const generation = captureThreadRuntimeGeneration(this);
     const resyncLease = this._cancelRunResyncLeases.current();
+
+    if (isRunning) {
+      const hostMessages = this._storeMessages.filter(
+        (message) => !message.metadata.isOptimistic,
+      );
+      const tail = hostMessages.at(-1);
+      this._cancelledToolTurn = {
+        messageIds: new Set(tail?.role === "assistant" ? [tail.id] : []),
+        parentId:
+          tail?.role === "assistant"
+            ? (hostMessages.at(-2)?.id ?? null)
+            : (tail?.id ?? null),
+        parentOpen: true,
+        lease: this._runStartLeases.current(),
+      };
+    }
 
     // Abort any in-flight client-side tool executions. Fire-and-forget —
     // the abort resolves once executions settle, but we don't gate the
@@ -1186,6 +1375,7 @@ export class ExternalStoreThreadRuntimeCore
     const cancelledTailId = previousMessage?.id ?? null;
     const runStartLease = this._runStartLeases.current();
     const trailingUserLeaf =
+      isRunning &&
       this._store.setMessages !== undefined &&
       previousMessage?.role === "user" &&
       previousMessage.id === messages.at(-1)?.id && // ensure the previous message is a leaf node
@@ -1197,16 +1387,7 @@ export class ExternalStoreThreadRuntimeCore
     // one move: the composer refuses while the user is writing, and removing
     // the message then would leave it nowhere. A message the composer cannot
     // hold whole, carrying content parts it has no home for, is not moved.
-    let movedLeaf:
-      | {
-          id: string;
-          draft: {
-            text: string;
-            attachments: readonly Attachment[];
-            quote: QuoteInfo | undefined;
-          };
-        }
-      | undefined;
+    let movedLeaf: typeof this._movedLeaf;
     if (trailingUserLeaf) {
       const draft = {
         text: getThreadMessageText(trailingUserLeaf),
@@ -1215,7 +1396,13 @@ export class ExternalStoreThreadRuntimeCore
       };
       if (this.composer.restoreDraft(draft)) {
         this.repository.deleteMessage(trailingUserLeaf.id);
-        movedLeaf = { id: trailingUserLeaf.id, draft };
+        movedLeaf = {
+          id: trailingUserLeaf.id,
+          draft,
+          resyncLease,
+          generation,
+        };
+        this._movedLeaf = movedLeaf;
       }
     }
     this._publishRepositoryMessages();
@@ -1224,8 +1411,9 @@ export class ExternalStoreThreadRuntimeCore
     // store may move in that gap; a server settling the cancelled turn lands
     // in the same tick. Read the repository at flush time and re-apply the
     // rollbacks to it, instead of stamping a snapshot captured above over the
-    // newer state.
-    setTimeout(() => {
+    // newer state. A send runs it early so the rollback reaches the store
+    // before the message does, and the timer still runs it last.
+    const resync = () => {
       if (generation.aborted || !resyncLease.isCurrent()) return;
 
       // A placeholder under a message other than the cancelled tail, or one
@@ -1239,13 +1427,13 @@ export class ExternalStoreThreadRuntimeCore
       if (!startedSinceCancel) this.dropEmptyOptimisticHead();
       if (movedLeaf) {
         const current = this.repository.getMessages();
-        if (current.at(-1)?.id === movedLeaf.id) {
+        if (
+          this._movedLeaf === movedLeaf &&
+          current.at(-1)?.id === movedLeaf.id &&
+          this.composer.text === movedLeaf.draft.text
+        ) {
           // Unanswered tail: the removal has not reached the store yet.
           this.repository.deleteMessage(movedLeaf.id);
-        } else if (current.some((m) => m.id === movedLeaf.id)) {
-          // The store kept the turn in the thread; take the untouched draft
-          // back so the same content does not sit in both places.
-          this.composer.retractDraft(movedLeaf.draft);
         }
       }
       this._publishRepositoryMessages();
@@ -1256,7 +1444,16 @@ export class ExternalStoreThreadRuntimeCore
       const view = this._messages.filter((m) => m.id !== this._optimistic?.id);
       if (!shallowArrayEqual(view, this._storeMessages))
         this.updateMessages(view);
+    };
+    this._pendingCancelResyncs.add(resync);
+    setTimeout(() => {
+      this._pendingCancelResyncs.delete(resync);
+      resync();
     }, 0);
+  }
+
+  private _settleCancelResyncs(): void {
+    for (const resync of this._pendingCancelResyncs) resync();
   }
 
   // Placeholder or pre-stream message; a partially-streamed one is kept and
@@ -1344,6 +1541,7 @@ export class ExternalStoreThreadRuntimeCore
 
   public override reset(initialMessages?: readonly ThreadMessageLike[]) {
     this._cancelRunResyncLeases.invalidate();
+    this._cancelledToolTurn = null;
     this._submittedFeedback.clear();
     const repo = new MessageRepository();
     repo.import(ExportedMessageRepository.fromArray(initialMessages ?? []));
@@ -1355,6 +1553,7 @@ export class ExternalStoreThreadRuntimeCore
       throw new Error("Runtime does not support importing messages.");
 
     this._cancelRunResyncLeases.invalidate();
+    this._cancelledToolTurn = null;
     this._submittedFeedback.clear();
     super.import(data);
     this._store.onImport(this.repository.getMessages());

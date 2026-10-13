@@ -11,13 +11,13 @@ A model in assistant-ui can answer in four formats: Markdown in the message, a [
 | The answer | Format | Renders on |
 | --- | --- | --- |
 | Is read once, such as an explanation, advice, or a short answer | Markdown | Anywhere the message renders |
-| Is scanned or acted on, such as a comparison, a step-by-step guide, a plan, a summary of facts, or a form | Spec mode, through `render_spec` | React, Vue, React Native |
+| Is scanned or acted on, such as a comparison, a step-by-step guide, a plan whose figures follow an input, a summary of facts, or a form | Spec mode, through `render_spec` | React, Vue, React Native |
 | Goes to Slack or Teams, arrives as an A2UI surface, or waits for the user's input with `promptUser()` | The `present` tool | React, and the Slack, Teams, and JSX converters |
-| Calculates as the user changes inputs, such as a calculator, a simulation, or a game, or draws something your components cannot | A widget, through `show_widget` | Browsers |
+| Is a tool whose point is the calculation, such as a calculator, a simulation, or a game, or draws something your components cannot | A widget, through `show_widget` | Browsers |
 
 Spec mode and `present` render the same components. Spec mode adds state, bindings, and conditions, and it runs no model-written code ([security model](/generative-frame/docs/security#spec-mode-runs-no-model-code)). [Moving to spec mode](/docs/tools/generative-ui-spec-migration) covers when to switch and what stays with `present`.
 
-A spec's expressions read and compare state but do no arithmetic, so a value that depends on the user's input, such as the brisket to buy for a guest count, has to be written out for every state the user can pick, unless an action handler you write computes it into state. A widget computes it from any input with model-written code, which runs in a [sandboxed frame](/generative-frame/docs/security).
+A spec can show values that [`$calc` formulas](/generative-frame/docs/spec-mode#formulas) compute from its state, such as the brisket to buy for a guest count in a party plan, and an action handler you write can compute anything else into state. A tool whose point is the calculation, such as a calculator, a simulation, or a game, is still a widget, which runs model-written code in a [sandboxed frame](/generative-frame/docs/security). The comparison below was measured before `$calc` existed.
 
 ## Offer more than one format
 

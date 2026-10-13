@@ -52,7 +52,7 @@ jobs:
           sudo apt-get install -y -qq --no-install-recommends xvfb libgtk-3-0t64 libnss3 libasound2t64 libgbm1
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --filter . --filter='with-vscode...' --filter='@assistant-ui/react-devtools...'
 
       - name: Build workspace packages
         env:

@@ -173,6 +173,10 @@ describe("catalog.prompt", () => {
     expect(prompt).toContain("- `setState`");
     expect(prompt).toContain('{"op":"add","path":"/root","value":"main"}');
     expect(prompt).toContain("$bindState");
+    expect(prompt).toContain(
+      '`{ "$calc": "round(${/guests} * 0.5, 1) + \' lb\'" }`',
+    );
+    expect(prompt).toContain('"value":{"$calc":"${/count} + 1"}');
     expect(prompt).toContain("- Prefer cards.");
     expect(prompt).toContain("Output only patch lines");
   });
@@ -226,6 +230,57 @@ describe("validateSpec", () => {
     expect(text).toContain(
       'Warnings:\n- /elements/x: "x" is not reachable from the root.',
     );
+  });
+
+  it("reports formulas that cannot run in props, visibility, and action params", () => {
+    const spec = validSpec();
+    spec.elements["card"]!.props = {
+      title: { $calc: "'Total: ' + number(${/total}, 2)" },
+    };
+    spec.elements["m"]!.props = {
+      label: "Total",
+      value: { $calc: "sum(${/rows}, '/price'" },
+    };
+    spec.elements["m"]!.visible = { $calc: "sqrt(${/total}) > 1" };
+    spec.elements["b"]!.on = {
+      press: [{ action: "refresh", params: { range: { $calc: 7 } } }],
+    };
+    const { ok, issues } = validateSpec(spec, catalog);
+    expect(ok).toBe(false);
+    expect(
+      issues.map((issue) => [issue.code, issue.path, issue.message]),
+    ).toEqual([
+      [
+        "invalid-formula",
+        "/elements/m/props/value/$calc",
+        'Formula in "m": Expected ")".',
+      ],
+      [
+        "invalid-formula",
+        "/elements/m/visible/$calc",
+        'Formula in "m": Unknown function "sqrt"; known: round, floor, ceil, abs, clamp, min, max, count, sum, avg, number, currency, percent, time, plural.',
+      ],
+      [
+        "invalid-formula",
+        "/elements/b/on/press/0/params/range/$calc",
+        'Formula in "b": `$calc` needs a formula string.',
+      ],
+    ]);
+  });
+
+  it("finds formulas at any depth and stops at repeated objects", () => {
+    const spec = validSpec();
+    let deep: Record<string, unknown> = { $calc: "1 +" };
+    for (let i = 0; i < 100; i++) deep = { inner: deep };
+    const looped: Record<string, unknown> = {};
+    looped["self"] = looped;
+    spec.elements["m"]!.props = { label: "Total", value: 1, deep, looped };
+    const paths = validateSpec(spec, catalog)
+      .issues.filter((issue) => issue.code === "invalid-formula")
+      .map((issue) => issue.path);
+    expect(paths).toEqual([
+      `/elements/m/props/deep${"/inner".repeat(100)}/$calc`,
+    ]);
   });
 
   it("finds cycles, including self references", () => {
@@ -308,6 +363,24 @@ describe("state store and actions", () => {
     );
     expect(results).toEqual([undefined, "refreshed"]);
     expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("computes setState values with formulas, so a button can step a count", async () => {
+    const store = createStateStore({ guests: 19 });
+    const dispatch = createActionDispatcher({ store, catalog });
+    const step = [
+      {
+        action: "setState",
+        params: {
+          path: "/guests",
+          value: { $calc: "min(${/guests} + 1, 20)" },
+        },
+      },
+    ];
+    await dispatch(step, { elementId: "b", trigger: "press" });
+    expect(store.get("/guests")).toBe(20);
+    await dispatch(step, { elementId: "b", trigger: "press" });
+    expect(store.get("/guests")).toBe(20);
   });
 
   it("routes unhandled catalog actions to onAction and reports unknown ones", async () => {
