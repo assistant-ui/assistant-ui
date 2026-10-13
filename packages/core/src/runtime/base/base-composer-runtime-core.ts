@@ -260,7 +260,9 @@ export abstract class BaseComposerRuntimeCore
 
   private _draftUploadsToRemove() {
     return this._attachments.filter(
-      (a) => !isAttachmentComplete(a) && !this._attachmentSends.isRemoved(a),
+      (a) =>
+        !isAttachmentComplete(a) &&
+        this._attachmentSends.shouldRemoveOnClear(a),
     );
   }
 
@@ -925,14 +927,14 @@ export abstract class BaseComposerRuntimeCore
         (candidate) => candidate.id === attachmentId,
       );
     if (!attachment) throw new Error("Attachment not found");
+    const adapter = this.getAttachmentAdapter();
+    if (!isAttachmentComplete(attachment) && !adapter)
+      throw new Error("Attachments are not supported");
     if (!this._attachmentSends.beginRemoval(attachment)) return;
 
     this._cancelAttachmentAdd(attachmentId);
     this._notifySubscribers();
 
-    const adapter = this.getAttachmentAdapter();
-    if (!isAttachmentComplete(attachment) && !adapter)
-      throw new Error("Attachments are not supported");
     await this._attachmentSends.remove(
       attachment,
       adapter,

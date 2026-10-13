@@ -175,6 +175,49 @@ describe("ExternalThread attachments", () => {
     expect(onNew.mock.calls[1]![0].attachments).toEqual([]);
   });
 
+  it.each([
+    ["thread", "reset"],
+    ["thread", "clearAttachments"],
+    ["edit", "reset"],
+    ["edit", "clearAttachments"],
+  ] as const)(
+    "retries an adopted %s cleanup on the live composer's %s",
+    async (type, action) => {
+      const { aui, composer, successfulUpload, remove, onNew } =
+        setupPartialSend(type);
+      remove
+        .mockRejectedValueOnce(new Error("first failure"))
+        .mockRejectedValueOnce(new Error("second failure"))
+        .mockResolvedValue(undefined);
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      if (type === "edit") act(() => composer().beginEdit());
+      await act(() => composer().addAttachment(new File(["a"], "a")));
+      await act(async () => {
+        composer().setText("first");
+        composer().send();
+      });
+      await act(async () => {
+        await expect(
+          composer().attachment({ id: "a" }).remove(),
+        ).rejects.toThrow("first failure");
+      });
+      await act(async () => successfulUpload.resolve());
+      await waitFor(() => expect(onNew).toHaveBeenCalledOnce());
+      const owner = aui().thread.composer();
+      await waitFor(() =>
+        expect(owner.getState().attachments).toMatchObject([
+          { id: "a", status: { message: "second failure" } },
+        ]),
+      );
+      expect(remove).toHaveBeenCalledTimes(2);
+
+      await act(() => owner[action]());
+
+      expect(remove).toHaveBeenCalledTimes(3);
+      expect(owner.getState().attachments).toEqual([]);
+    },
+  );
+
   it("does not enable send for only a failed cleanup", async () => {
     const { composer, successfulUpload, remove } = setupPartialSend();
     remove

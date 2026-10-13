@@ -552,6 +552,63 @@ describe("DefaultEditComposerRuntimeCore sending attachments", () => {
     expect(remove).toHaveBeenCalledTimes(3);
   });
 
+  it.each(["reset", "clearAttachments"] as const)(
+    "retries an adopted edit cleanup on the live composer's %s",
+    async (action) => {
+      const upload = Promise.withResolvers<void>();
+      const remove = vi
+        .fn<AttachmentAdapter["remove"]>()
+        .mockRejectedValueOnce(new Error("first failure"))
+        .mockRejectedValueOnce(new Error("second failure"))
+        .mockResolvedValue(undefined);
+      const adapter = attachmentAdapter({
+        remove,
+        send: async (attachment) => {
+          await upload.promise;
+          return { ...attachment, status: { type: "complete" }, content: [] };
+        },
+      });
+      const { runtime } = makeRuntime();
+      const mutable = runtime as unknown as {
+        adapters: { attachments: AttachmentAdapter };
+        composer: DefaultThreadComposerRuntimeCore;
+      };
+      mutable.adapters = { attachments: adapter };
+      const liveRuntime = runtime as unknown as ThreadRuntimeCore & {
+        adapters: { attachments: AttachmentAdapter };
+      };
+      mutable.composer = new DefaultThreadComposerRuntimeCore(liveRuntime);
+      const composer = new DefaultEditComposerRuntimeCore(
+        liveRuntime,
+        () => {},
+        {
+          parentId: null,
+          message: makeUserMessage(),
+        },
+      );
+      vi.spyOn(console, "error").mockImplementation(() => {});
+
+      await composer.addAttachment(file());
+      const sending = composer.send();
+      await expect(composer.removeAttachment("f")).rejects.toThrow(
+        "first failure",
+      );
+      upload.resolve();
+      await sending;
+      await vi.waitFor(() =>
+        expect(mutable.composer.attachments).toMatchObject([
+          { id: "f", status: { message: "second failure" } },
+        ]),
+      );
+      expect(remove).toHaveBeenCalledTimes(2);
+
+      await mutable.composer[action]();
+
+      expect(remove).toHaveBeenCalledTimes(3);
+      expect(mutable.composer.attachments).toEqual([]);
+    },
+  );
+
   it.each(["before", "after"] as const)(
     "cleans up a removed edit upload when removal fails %s dispatch",
     async (order) => {

@@ -755,8 +755,9 @@ const useComposerClientResource = ({
     async (attachment: Attachment) => {
       if (!attachmentSends.beginRemoval(attachment)) return;
       attachmentAddOperations.cancel(attachment.id);
-      if (attachmentsRef.current.some((a) => a === attachment))
-        setAttachments((prev) => [...prev]);
+      setAttachments((prev) =>
+        prev.some((candidate) => candidate === attachment) ? [...prev] : prev,
+      );
       await attachmentSends.remove(
         attachment,
         attachmentAdapter,
@@ -766,8 +767,10 @@ const useComposerClientResource = ({
               ...candidate,
               status: { type: "incomplete", reason: "error", message },
             });
-          setSubmission((prev) =>
-            prev
+          let hasSubmission = false;
+          setSubmission((prev) => {
+            hasSubmission = prev !== undefined;
+            return prev
               ? {
                   ...prev,
                   attachments: prev.attachments.map((candidate) =>
@@ -777,8 +780,8 @@ const useComposerClientResource = ({
                       : candidate,
                   ),
                 }
-              : prev,
-          );
+              : prev;
+          });
           setAttachments((prev) =>
             prev.map((candidate) =>
               !isAttachmentComplete(candidate) &&
@@ -787,7 +790,7 @@ const useComposerClientResource = ({
                 : candidate,
             ),
           );
-          if (!submissionRef.current)
+          if (!hasSubmission)
             setAttachments((prev) =>
               prev.map((candidate) =>
                 attachmentSends.isSameRemoval(candidate, attachment)
@@ -818,10 +821,8 @@ const useComposerClientResource = ({
       attachmentAddOperations,
       attachmentAdapter,
       attachmentSends,
-      attachmentsRef,
       setAttachments,
       setSubmission,
-      submissionRef,
     ],
   );
 
@@ -864,7 +865,9 @@ const useComposerClientResource = ({
   };
 
   const draftUploadsToRemove = (draft: readonly Attachment[]) =>
-    draft.filter((attachment) => !attachmentSends.isRemoved(attachment));
+    draft.filter((attachment) =>
+      attachmentSends.shouldRemoveOnClear(attachment),
+    );
 
   const upsertAttachment = (attachment: Attachment) => {
     const current = submissionRef.current;

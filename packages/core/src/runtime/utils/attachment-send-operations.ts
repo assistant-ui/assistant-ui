@@ -45,6 +45,14 @@ export class AttachmentSendOperations {
     return this.removals.has(attachment);
   }
 
+  shouldRemoveOnClear(attachment: Attachment) {
+    const record = this.removals.get(attachment);
+    return (
+      !record ||
+      (record.dispatched && record.retried && record.phase === "failed")
+    );
+  }
+
   isRemovalPending(attachment: Attachment) {
     return this.removals.get(attachment)?.phase === "pending";
   }
@@ -56,7 +64,10 @@ export class AttachmentSendOperations {
   ) {
     const record = this.removals.get(attachment)!;
     try {
-      if (!isAttachmentComplete(attachment)) await adapter?.remove(attachment);
+      if (!isAttachmentComplete(attachment)) {
+        if (!adapter) throw new Error("Attachments are not supported");
+        await adapter.remove(attachment);
+      }
       record.phase = "complete";
     } catch (error) {
       record.phase = "failed";
