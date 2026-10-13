@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix(core): restore an automatic title when a newer explicit title generation persists no title
+fix(core): restore title ordering when an explicit generation retracts or automatic generations overlap

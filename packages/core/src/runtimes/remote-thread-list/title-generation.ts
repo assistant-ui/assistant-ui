@@ -24,7 +24,7 @@ export type ThreadTitleState = {
   pendingClaim: ThreadTitleClaim | null;
   inFlightClaims: Set<ThreadTitleClaim>;
   manualClaim: ThreadTitleClaim | null;
-  latestExplicit: ThreadTitleGeneration | null;
+  latestGeneration: ThreadTitleGeneration | null;
   nextOrder: number;
 };
 
@@ -52,7 +52,7 @@ function getThreadTitleState(
       pendingClaim: null,
       inFlightClaims: new Set(),
       manualClaim: null,
-      latestExplicit: null,
+      latestGeneration: null,
       nextOrder: 0,
     };
     states.set(threadId, state);
@@ -83,15 +83,25 @@ function isCurrentGeneration(
 ): boolean {
   return (
     !generation.superseded &&
-    (state.latestExplicit?.order ?? 0) <= generation.order
+    (state.latestGeneration?.order ?? 0) <= generation.order
   );
+}
+
+function latestExplicitGeneration(
+  state: ThreadTitleState,
+): ThreadTitleGeneration | null {
+  let generation = state.latestGeneration;
+  while (generation !== null && generation.automatic) {
+    generation = generation.outranked;
+  }
+  return generation;
 }
 
 function isCurrentClaim(
   state: ThreadTitleState,
   claim: ThreadTitleClaim,
 ): boolean {
-  return (state.latestExplicit?.order ?? 0) < claim.order;
+  return (latestExplicitGeneration(state)?.order ?? 0) < claim.order;
 }
 
 export function startThreadTitleRename(
@@ -176,8 +186,8 @@ function retractGeneration(
   state: ThreadTitleState,
   generation: ThreadTitleGeneration,
 ): void {
-  if (state.latestExplicit === generation) {
-    state.latestExplicit = generation.outranked;
+  if (state.latestGeneration === generation) {
+    state.latestGeneration = generation.outranked;
   }
   const hidden = [
     ...(generation.hiddenManual === null ? [] : [generation.hiddenManual]),
@@ -189,10 +199,22 @@ function retractGeneration(
         : newest,
     null,
   );
+  for (
+    let active = state.latestGeneration;
+    active !== null;
+    active = active.outranked
+  ) {
+    if (active.outranked === generation) {
+      active.outranked = generation.outranked;
+    }
+  }
   for (const active of state.generations) {
-    if (active.outranked !== generation) continue;
-    active.outranked = generation.outranked;
-    if (hidden !== null && (active.hiddenManual?.order ?? 0) < hidden.order) {
+    if (
+      hidden !== null &&
+      !active.automatic &&
+      active.order > generation.order &&
+      (active.hiddenManual?.order ?? 0) < hidden.order
+    ) {
       active.hiddenManual = hidden;
     }
   }
@@ -245,7 +267,7 @@ function startThreadTitleGeneration(
     claims:
       automatic && state.pendingClaim !== null ? [state.pendingClaim] : [],
     beforeGenerationClaims: automatic ? [] : [...state.inFlightClaims],
-    outranked: state.latestExplicit,
+    outranked: state.latestGeneration,
     hiddenManual: automatic ? null : state.manualClaim,
     superseded: false,
     persisted,
@@ -254,8 +276,8 @@ function startThreadTitleGeneration(
   if (!automatic) {
     state.pendingClaim = null;
     state.manualClaim = null;
-    state.latestExplicit = generation;
   }
+  state.latestGeneration = generation;
   state.generations.add(generation);
   return generation;
 }
@@ -292,10 +314,10 @@ export async function runThreadTitleGeneration(
           await Promise.all(explicit.map((generation) => generation.persisted));
           continue;
         }
-        const latestExplicit = state.latestExplicit;
+        const latestExplicit = latestExplicitGeneration(state);
         const title = await latestExplicit?.persisted;
         if (states.get(threadId) !== state) return;
-        if (state.latestExplicit !== latestExplicit) continue;
+        if (latestExplicitGeneration(state) !== latestExplicit) continue;
         if (title !== undefined) return;
         break;
       }
@@ -361,10 +383,10 @@ export async function runThreadTitleGeneration(
 
   const awaitOutrankingGeneration = async () => {
     while (!generation.superseded) {
-      const winner = state.latestExplicit;
+      const winner = state.latestGeneration;
       if (winner === null || winner.order <= generation.order) return;
       await winner.persisted;
-      if (state.latestExplicit === winner) return;
+      if (state.latestGeneration === winner) return;
     }
   };
 
@@ -390,10 +412,15 @@ export async function runThreadTitleGeneration(
         }
         continue;
       }
-      const winner = state.latestExplicit;
-      if (winner === null || winner.order <= persistedOrder) return;
+      const winner = state.latestGeneration;
+      if (
+        winner === null ||
+        winner === generation ||
+        winner.order <= persistedOrder
+      )
+        return;
       const title = await winner.persisted;
-      if (state.latestExplicit !== winner) continue;
+      if (state.latestGeneration !== winner) continue;
       persistedOrder = winner.order;
       if (title === undefined || title === persistedTitle) return;
       persistedTitle = title;

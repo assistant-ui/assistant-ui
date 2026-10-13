@@ -118,6 +118,82 @@ describe("title generation retraction", () => {
     expect(h.server.title).toBe("Explicit");
   });
 
+  it.each([
+    {
+      schedule: "S3 older writes first",
+      secondTitle: "Second",
+      firstLast: false,
+    },
+    {
+      schedule: "S3 older writes last",
+      secondTitle: "Second",
+      firstLast: true,
+    },
+    {
+      schedule: "S4 newer streams no text",
+      secondTitle: undefined,
+      firstLast: false,
+    },
+  ])(
+    "$schedule restores the newest persisted automatic title",
+    async ({ secondTitle, firstLast }) => {
+      const h = setup();
+      const firstGate = deferred();
+      const secondGate = deferred();
+      const explicitGate = deferred();
+      const firstRename = vi.fn(async (title: string) => h.rename(title));
+      const secondRename = vi.fn(async (title: string) => h.rename(title));
+      const first = runThreadTitleGeneration({
+        states: h.states,
+        threadId: "t1",
+        automatic: true,
+        generate: async (onTitle) => {
+          await firstGate.promise;
+          h.server.title = "First";
+          await onTitle("First");
+        },
+        rename: firstRename,
+        applyTitle: h.applyTitle,
+      });
+      const second = runThreadTitleGeneration({
+        states: h.states,
+        threadId: "t1",
+        automatic: true,
+        generate: async (onTitle) => {
+          await secondGate.promise;
+          if (secondTitle !== undefined) h.server.title = secondTitle;
+          await onTitle(secondTitle);
+        },
+        rename: secondRename,
+        applyTitle: h.applyTitle,
+      });
+      const explicit = h.start(false, undefined, explicitGate);
+      if (firstLast) {
+        secondGate.resolve();
+        await flushMicrotasks();
+        firstGate.resolve();
+      } else {
+        firstGate.resolve();
+        await flushMicrotasks();
+        secondGate.resolve();
+      }
+      await flushMicrotasks();
+      expect(h.applied).toEqual([]);
+      explicitGate.resolve();
+      await Promise.all([first, second, explicit]);
+
+      const expected = secondTitle ?? "First";
+      expect(h.applied).toEqual([expected]);
+      expect(h.server.title).toBe(expected);
+      if (secondTitle === undefined) {
+        expect(firstRename).not.toHaveBeenCalled();
+      } else {
+        expect(firstRename).toHaveBeenCalledExactlyOnceWith(secondTitle);
+      }
+      expect(secondRename).not.toHaveBeenCalled();
+    },
+  );
+
   it("S5 restores a retained rename after a pending rename fails", async () => {
     const h = setup();
     const manual = startThreadTitleRename(h.states, "t1", "Manual");
@@ -357,5 +433,125 @@ describe("title generation retraction", () => {
     expect(h.states.size).toBe(0);
     expect(h.rename).not.toHaveBeenCalled();
     expect(h.applyTitle).not.toHaveBeenCalled();
+  });
+
+  it("S12 keeps list and server titles equal across seeded schedules", async () => {
+    const seeds = [
+      1, 7, 13, 29, 43, 61, 79, 97, 127, 149, 173, 199, 223, 251, 283, 317, 349,
+      383, 421, 457, 499, 541, 587, 631,
+    ];
+    let schedules = 0;
+
+    for (const seed of seeds) {
+      for (const mode of [0, 1, 2, 3]) {
+        schedules += 1;
+        let randomState = (seed ^ Math.imul(mode + 1, 0x9e3779b9)) >>> 0;
+        const random = (limit: number) => {
+          randomState ^= randomState << 13;
+          randomState ^= randomState >>> 17;
+          randomState ^= randomState << 5;
+          return (randomState >>> 0) % limit;
+        };
+        const states = new Map<string, ThreadTitleState>();
+        const server = { title: "Initial" as string | undefined };
+        let listTitle: string | undefined = "Initial";
+        const renames: string[] = [];
+        const allowedTitles = new Set<string>();
+        const generationCount = mode === 3 ? 1 + random(3) : 3;
+        const renameCount = random(3);
+        const automatic = Array.from(
+          { length: generationCount },
+          (_, index) =>
+            mode === 0 ||
+            (mode === 1 && index < 2) ||
+            (mode === 2 && index !== 1) ||
+            (mode === 3 && random(2) === 0),
+        );
+        const titles = automatic.map((_, index) =>
+          index === 0 || random(4) !== 0
+            ? `G${seed}-${mode}-${index}`
+            : undefined,
+        );
+        const gates = Array.from({ length: generationCount }, deferred);
+        const runs: Promise<void>[] = [];
+        const openGenerations: number[] = [];
+        const openClaims: ReturnType<typeof startThreadTitleRename>[] = [];
+        let nextGeneration = 0;
+        let nextRename = 0;
+
+        while (
+          nextGeneration < generationCount ||
+          nextRename < renameCount ||
+          openGenerations.length > 0 ||
+          openClaims.length > 0
+        ) {
+          const actions = [
+            ...(nextGeneration < generationCount ? ["start generation"] : []),
+            ...(nextRename < renameCount ? ["start rename"] : []),
+            ...(openGenerations.length > 0 ? ["finish generation"] : []),
+            ...(openClaims.length > 0 ? ["finish rename"] : []),
+          ];
+          const action = actions[random(actions.length)];
+          if (action === "start generation") {
+            const index = nextGeneration++;
+            openGenerations.push(index);
+            runs.push(
+              runThreadTitleGeneration({
+                states,
+                threadId: "t1",
+                automatic: automatic[index]!,
+                generate: async (onTitle) => {
+                  await gates[index]!.promise;
+                  const title = titles[index];
+                  if (title !== undefined) {
+                    server.title = title;
+                    allowedTitles.add(title);
+                  }
+                  await onTitle(title);
+                },
+                rename: async (title) => {
+                  renames.push(title);
+                  server.title = title;
+                },
+                applyTitle: async (title) => {
+                  listTitle = title;
+                },
+              }),
+            );
+          } else if (action === "start rename") {
+            const index = nextRename++;
+            openClaims.push(
+              startThreadTitleRename(states, "t1", `M${seed}-${mode}-${index}`),
+            );
+          } else if (action === "finish generation") {
+            const index = openGenerations.splice(
+              random(openGenerations.length),
+              1,
+            )[0]!;
+            gates[index]!.resolve();
+          } else {
+            const [claim] = openClaims.splice(random(openClaims.length), 1);
+            const renamed = random(3) !== 0;
+            if (renamed) {
+              server.title = claim!.title;
+              listTitle = claim!.title;
+              allowedTitles.add(claim!.title);
+            }
+            finishThreadTitleRename(states, "t1", claim!, renamed);
+          }
+          await flushMicrotasks();
+        }
+        await Promise.all(runs);
+
+        expect(listTitle, `seed ${seed}, mode ${mode}`).toBe(server.title);
+        for (const title of renames) {
+          expect(
+            allowedTitles.has(title),
+            `seed ${seed}, mode ${mode}: ${title}`,
+          ).toBe(true);
+        }
+      }
+    }
+    expect(schedules).toBe(96);
   });
 });
