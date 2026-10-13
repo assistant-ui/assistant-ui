@@ -976,6 +976,12 @@ type SourceMessagePart = {
 
 type SourceProviderMetadata = PartProviderMetadata;
 
+type Spec = {
+  root: string;
+  elements: Record<string, SpecElement>;
+  state?: Record<string, unknown>;
+};
+
 type SpecComponentProps<P extends Record<string, unknown> = Record<string, unknown>> = {
   id: string;
   element: SpecElement;
@@ -1014,6 +1020,7 @@ type SpecPromptOptions = {
   hostApi?: {
     prompt?: boolean;
     modelContext?: boolean;
+    clipboard?: boolean;
   };
 };
 
@@ -1026,6 +1033,10 @@ type SpecStateStore = {
 };
 
 type SpecStreamMode = "inline" | "jsonl";
+
+type SpecToUISpecOptions = {
+  state?: unknown;
+};
 
 interface SpeechRecognitionConstructor {
   new (): SpeechRecognitionInstance;
@@ -1796,6 +1807,8 @@ declare namespace entry_slack_exports {
   export { FromSlackBlocksResult, SlackActionElement, SlackActionsBlock, SlackAlertBlock, SlackAlertLevel, SlackBlock, SlackBlocksResult, SlackButtonElement, SlackCardBlock, SlackCarouselBlock, SlackCheckboxesElement, SlackContextBlock, SlackConversionWarning, SlackDataTableBlock, SlackDataTableCell, SlackDataTableRawNumberCell, SlackDataTableRawTextCell, SlackDatePickerElement, SlackDateTimePickerElement, SlackDividerBlock, SlackHeaderBlock, SlackImageBlock, SlackInputBlock, SlackMarkdownBlock, SlackMrkdwnText, SlackOption, SlackPlainText, SlackPlainTextInputElement, SlackRadioButtonsElement, SlackSectionBlock, SlackStaticSelectElement, SlackTextObject, SlackTimePickerElement, ToSlackBlocksOptions, decodeBlockAction, fromSlackBlocks, toSlackBlocks };
 }
 
+declare function specToUISpec(spec: Spec, options?: SpecToUISpecOptions): UISpec;
+
 declare namespace entry_spec_exports {
   export { ToSpecCatalogOptions, defaultGenerativeUILibrary$1 as defaultGenerativeUILibrary, toSpecCatalog$1 as toSpecCatalog };
 }
@@ -1827,8 +1840,12 @@ declare function toSpecCatalog$1(library?: GenerativeUILibrary$1, options?: ToSp
 
 declare function toTeamsAttachments(node: unknown, _options?: ToAdaptiveCardOptions): TeamsAttachmentsResult;
 
+declare namespace entry_spec_tree_exports {
+  export { SpecToUISpecOptions, specToUISpec };
+}
+
 declare namespace entry_vue_exports {
   export { GenerativeUIComponent, GenerativeUILibrary, ToSpecCatalogOptions, defaultGenerativeUILibrary, toSpecCatalog };
 }
 
-export { entry_a2ui_exports as entry_a2ui, entry_react_default_exports as entry_react_default, entry_react_react_server_exports as entry_react_react_server, entry_root_exports as entry_root, entry_slack_exports as entry_slack, entry_spec_exports as entry_spec, entry_teams_exports as entry_teams, entry_vue_exports as entry_vue };
+export { entry_a2ui_exports as entry_a2ui, entry_react_default_exports as entry_react_default, entry_react_react_server_exports as entry_react_react_server, entry_root_exports as entry_root, entry_slack_exports as entry_slack, entry_spec_exports as entry_spec, entry_spec_tree_exports as entry_spec_tree, entry_teams_exports as entry_teams, entry_vue_exports as entry_vue };

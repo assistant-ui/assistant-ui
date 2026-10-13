@@ -39,11 +39,11 @@ import { resolveWidgetCode, resolveWidgetOrigin } from "./history";
 import {
   frameContext,
   savedContext,
-  useSharedContext,
   type ModelContextSource,
   type SharedContext,
 } from "./modelContext";
 import { createSnapshotSaver } from "./snapshotSaver";
+import { useSharedContext } from "./useSharedContext";
 
 /**
  * Where theme tokens come from in an assistant-ui app: shadcn/ui variables

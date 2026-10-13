@@ -1,5 +1,17 @@
 # @assistant-ui/react-pi
 
+## 0.0.30
+
+### Patch Changes
+
+- [#9339](https://github.com/assistant-ui/assistant-ui/pull/9339) [`6eea090`](https://github.com/assistant-ui/assistant-ui/commit/6eea0902ac5cb595d0fe464b1ecd5ba94ebfcded) - fix: ignore the first SSE field when a stream starts with two byte order marks, as required by the event stream spec ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9437](https://github.com/assistant-ui/assistant-ui/pull/9437) [`c921934`](https://github.com/assistant-ui/assistant-ui/commit/c921934671c1a2b73e2a8df9608212bc7ec93edc) - fix(react-pi): stop a run the server promotes from the queue while Stop clears it ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`1f77925`](https://github.com/assistant-ui/assistant-ui/commit/1f779252a3316df218c089e413d94548a23500bb), [`a12da09`](https://github.com/assistant-ui/assistant-ui/commit/a12da099497ce433823b7f7d7e4824ed720ee302), [`dbfdd0a`](https://github.com/assistant-ui/assistant-ui/commit/dbfdd0a8a38098a179770e00932e68a7d6f0781e), [`140988a`](https://github.com/assistant-ui/assistant-ui/commit/140988ac67450c07a9ede61978d329b6205694b5), [`f2963d3`](https://github.com/assistant-ui/assistant-ui/commit/f2963d3c121a6b2d52646b490930671eb606cb05), [`7745f91`](https://github.com/assistant-ui/assistant-ui/commit/7745f91bbd9e902d6a05431e064a66230ac51f0f), [`2bf54c5`](https://github.com/assistant-ui/assistant-ui/commit/2bf54c5a0b3c0c72eb391aa4eb9fcb90e219d1a8), [`1fb6eb0`](https://github.com/assistant-ui/assistant-ui/commit/1fb6eb0a3651066919d29c67498928d3482a6604), [`8cb0b97`](https://github.com/assistant-ui/assistant-ui/commit/8cb0b97c36b596bacab615e373dc1c4a25aed0ea), [`6c7c7b2`](https://github.com/assistant-ui/assistant-ui/commit/6c7c7b203f63e22c36c20f62cdb0cc49e800191c), [`de2f5a9`](https://github.com/assistant-ui/assistant-ui/commit/de2f5a9a2753c8174e4f5aa9723bf397fa7d22e5), [`c31385e`](https://github.com/assistant-ui/assistant-ui/commit/c31385ee05068eaa539d10e3f7e5d4b8b5c396ef), [`d02fac2`](https://github.com/assistant-ui/assistant-ui/commit/d02fac23b0c846a35f867739b1a95fb4134c6eed), [`05462a5`](https://github.com/assistant-ui/assistant-ui/commit/05462a5b9d10955f4520619f192e2378a81bfcb5), [`2627294`](https://github.com/assistant-ui/assistant-ui/commit/26272942320a4d99c070010ba8eaa46c75d3e99f), [`fdbf0a2`](https://github.com/assistant-ui/assistant-ui/commit/fdbf0a2cdaa11dcfd330db525366f2f44330060e), [`7bff761`](https://github.com/assistant-ui/assistant-ui/commit/7bff761a8d2837f05ce41ca54ef8c471af03be6c), [`7139acd`](https://github.com/assistant-ui/assistant-ui/commit/7139acd83b9c4f6b1a05b2e845bdc24e09b8cbb4), [`2091bcf`](https://github.com/assistant-ui/assistant-ui/commit/2091bcf2222a5ea4aff9edb40ef329aaae7180b6), [`7f3d804`](https://github.com/assistant-ui/assistant-ui/commit/7f3d804db84f09c7f8309ef012d8aeaa59fb3505)]:
+  - @assistant-ui/core@0.3.28
+  - @assistant-ui/store@0.3.20
+  - assistant-stream@0.3.51
+
 ## 0.0.29
 
 ### Patch Changes

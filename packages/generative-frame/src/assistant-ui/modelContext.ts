@@ -1,5 +1,3 @@
-import { useInsertionEffect, useRef, useState } from "react";
-
 /** What a rendered UI tells the model about the user's choices: words, data, or both. */
 export type SharedContext = { text?: string; data?: unknown };
 
@@ -119,45 +117,35 @@ export function contextInstruction(
 }
 
 /**
- * What a mounted tool call shares with the model. `share` bounds a context,
- * hands it to `onShare` so the call's snapshot saves it, and updates the
- * source `useModelContext` registers, so a request that starts right after,
- * such as one `sendMessage` begins, already sees it.
+ * What a mounted tool call shares with the model: `source` is the model
+ * context it registers, and `share` bounds a context, hands it to `onShare`
+ * so the call's snapshot saves it, and notifies the source, so a request that
+ * starts right after, such as one `sendMessage` begins, already sees it.
  */
-export function useSharedContext({
-  title,
-  toolCallId,
-  initial,
-  useModelContext,
-  onShare,
-}: {
-  title: string;
-  toolCallId: string;
-  initial: SharedContext | undefined;
-  useModelContext: (source: ModelContextSource) => void;
-  onShare: (context: SharedContext | undefined) => void;
-}): (context: SharedContext | undefined) => void {
-  const shared = useRef(initial && boundContext(initial));
-  const name = useRef(title || toolCallId);
-  const handler = useRef(onShare);
-  useInsertionEffect(() => {
-    name.current = title || toolCallId;
-    handler.current = onShare;
-  });
-  const [listeners] = useState(() => new Set<() => void>());
-  const [source] = useState<ModelContextSource>(() => ({
-    read: () =>
-      shared.current && contextInstruction(name.current, shared.current),
-    subscribe: (listener) => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
+export function createSharedContext(
+  initial: SharedContext | undefined,
+  options: {
+    name: () => string;
+    onShare: (context: SharedContext | undefined) => void;
+  },
+): {
+  source: ModelContextSource;
+  share: (context: SharedContext | undefined) => void;
+} {
+  let shared = initial && boundContext(initial);
+  const listeners = new Set<() => void>();
+  return {
+    source: {
+      read: () => shared && contextInstruction(options.name(), shared),
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
     },
-  }));
-  useModelContext(source);
-  const [share] = useState(() => (context: SharedContext | undefined) => {
-    shared.current = context && boundContext(context);
-    handler.current(shared.current);
-    for (const listener of listeners) listener();
-  });
-  return share;
+    share: (context) => {
+      shared = context && boundContext(context);
+      options.onShare(shared);
+      for (const listener of listeners) listener();
+    },
+  };
 }

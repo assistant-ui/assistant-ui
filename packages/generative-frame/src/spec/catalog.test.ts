@@ -159,8 +159,8 @@ describe("defineCatalog", () => {
 });
 
 describe("built-in actions", () => {
-  it("reserves sendMessage and updateModelContext", () => {
-    for (const name of ["sendMessage", "updateModelContext"]) {
+  it("reserves sendMessage, updateModelContext, and copyText", () => {
+    for (const name of ["sendMessage", "updateModelContext", "copyText"]) {
       expect(() =>
         defineCatalog({
           components: {},
@@ -205,6 +205,10 @@ describe("built-in actions", () => {
     const context = catalog.prompt({ hostApi: { modelContext: true } });
     expect(context).toContain("`updateModelContext`");
     expect(context).not.toContain("`sendMessage`");
+    expect(context).not.toContain("`copyText`");
+    const clipboard = catalog.prompt({ hostApi: { clipboard: true } });
+    expect(clipboard).toContain("- `copyText` — params `{ text: string }`.");
+    expect(clipboard).not.toContain("`sendMessage`");
   });
 });
 
@@ -486,6 +490,33 @@ describe("state store and actions", () => {
     expect(store.get("/guests")).toBe(20);
     await dispatch(step, { elementId: "b", trigger: "press" });
     expect(store.get("/guests")).toBe(20);
+  });
+
+  it("stops a list at the first action that fails", async () => {
+    const store = createStateStore();
+    const onError = vi.fn();
+    const dispatch = createActionDispatcher({
+      store,
+      catalog,
+      handlers: {
+        refresh: async () => {
+          throw new Error("offline");
+        },
+      },
+      onError,
+    });
+    const results = await dispatch(
+      [
+        { action: "refresh" },
+        { action: "setState", params: { path: "/done", value: true } },
+      ],
+      {},
+    );
+    expect(store.get("/done")).toBeUndefined();
+    expect(results).toEqual([undefined]);
+    expect(
+      onError.mock.calls.map(([error]) => (error as Error).message),
+    ).toEqual(["offline"]);
   });
 
   it("routes unhandled catalog actions to onAction and reports unknown ones", async () => {

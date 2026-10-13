@@ -6,7 +6,10 @@ import type { Tools } from "@assistant-ui/react-native";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineCatalog } from "../catalog";
 import type { SpecComponentProps } from "../react/SpecRenderer";
-import { createSpecToolkit } from "../assistant-ui.native";
+import {
+  createSpecToolkit,
+  type SpecToolkitOptions,
+} from "../assistant-ui.native";
 
 const mocks = vi.hoisted(() => ({
   messages: [] as unknown[],
@@ -69,6 +72,21 @@ describe("createSpecToolkit for React Native", () => {
       { components: {} },
     ).entries({ execution: "frontend", display: "standalone" });
     expect(Object.keys(toolkit ?? {})).toEqual(["render_spec"]);
+  });
+
+  it("documents copyText only when the app handles it", () => {
+    const guidance = (options: Omit<SpecToolkitOptions, "components">) =>
+      (createSpecToolkit(catalog, { components: {}, ...options }).modules ?? [])
+        .map((module) => module.guidance())
+        .join("\n\n");
+    expect(guidance({})).toContain("`sendMessage`");
+    expect(guidance({})).not.toContain("`copyText`");
+    expect(
+      guidance({
+        handlers: { copyText: () => {} },
+        specPrompt: { hostApi: { clipboard: true } },
+      }),
+    ).toContain("- `copyText` — params `{ text: string }`.");
   });
 
   const spec = {

@@ -12,12 +12,12 @@ import type { WidgetToolkitExtension } from "../../assistant-ui/extension";
 import {
   savedContext,
   toSharedContext,
-  useSharedContext,
   type ModelContextSource,
   type SharedContext,
 } from "../../assistant-ui/modelContext";
 import { createSnapshotSaver } from "../../assistant-ui/snapshotSaver";
-import { toolCalls, type MessageLike } from "../../assistant-ui/tool-calls";
+import type { MessageLike } from "../../assistant-ui/tool-calls";
+import { useSharedContext } from "../../assistant-ui/useSharedContext";
 import type { ActionHandler } from "../actions";
 import type { Catalog } from "../catalog";
 import type { SpecPromptOptions } from "../prompt";
@@ -28,17 +28,22 @@ import type {
 } from "../react/SpecRenderer";
 import { useSpecStream } from "../react/useSpecStream";
 import {
-  createSpecTools,
-  specGuidanceModule,
-  type RenderSpecInput,
-} from "../render-spec";
-import {
   createStateStore,
   type SpecStateStore,
   type SpecStateWrite,
 } from "../state";
-import { parseSpecStream } from "../stream";
 import type { Spec } from "../types";
+import {
+  callHistory,
+  copyTextHandler,
+  createSpecCalls,
+  resolveSpecBase,
+  resolveToolResults,
+  savedWrites,
+  specModules,
+  type InteractionLog,
+  type SpecArgs,
+} from "./thread";
 
 export type SpecToolkitOptions = {
   /** Implementations for the catalog's components. */
@@ -55,123 +60,6 @@ export type SpecToolkitOptions = {
   specPrompt?: Omit<SpecPromptOptions, "mode">;
 };
 
-type SpecArgs = Partial<RenderSpecInput>;
-
-/** The interactions a host records on a tool call, as its `unstable_interactions` prop holds them. */
-type InteractionLog = {
-  readonly entries: readonly (
-    | {
-        readonly type: "action";
-        readonly payload: Readonly<Record<string, unknown>>;
-      }
-    | { readonly type: "human-response"; readonly payload: unknown }
-  )[];
-};
-
-/**
- * The state writes saved on a `render_spec` call: the newest `setState` interaction recorded for that call. An entry whose `writes` is not a list marks a save that failed, so the call starts from the model's state rather than from an older snapshot.
- */
-function savedWrites(
-  log: InteractionLog | undefined,
-  toolCallId: string,
-): SpecStateWrite[] {
-  const entries = log?.entries ?? [];
-  for (let index = entries.length - 1; index >= 0; index--) {
-    const entry = entries[index]!;
-    if (
-      entry.type !== "action" ||
-      entry.payload["type"] !== "setState" ||
-      entry.payload["toolCallId"] !== toolCallId
-    )
-      continue;
-    const writes = entry.payload["writes"];
-    if (!Array.isArray(writes)) return [];
-    return writes.filter(
-      (write): write is SpecStateWrite =>
-        Array.isArray(write) &&
-        write.length === 2 &&
-        typeof write[0] === "string",
-    );
-  }
-  return [];
-}
-
-const WIDGET_TOOLS = new Set([
-  "read_me",
-  "show_widget",
-  "edit_widget",
-  "preview_widget",
-  "render_spec",
-]);
-
-/** Results of the tool calls before this one, by tool name and newest first, leaving out the widget toolkit's own tools. Tool names are keys every model can see, unlike call ids, which some formats never show, and counting back from this call keeps an index stable when a host prunes older history. */
-function resolveToolResults(
-  messages: readonly MessageLike[],
-  toolCallId: string,
-): Record<string, unknown[]> {
-  const results: Record<string, unknown[]> = Object.create(null);
-  for (const call of toolCalls(messages)) {
-    if (call.id === toolCallId) break;
-    if (WIDGET_TOOLS.has(call.name)) continue;
-    (results[call.name] ??= []).unshift(decodeResult(call.result));
-  }
-  return results;
-}
-
-/** A string result that holds a JSON object or array is decoded, since the model read that string as the structure. */
-function decodeResult(result: unknown): unknown {
-  if (typeof result !== "string") return result;
-  try {
-    const value: unknown = JSON.parse(result);
-    return typeof value === "object" && value !== null ? value : result;
-  } catch {
-    return result;
-  }
-}
-
-/**
- * The spec a `render_spec` call's patches apply onto: the result of the
- * earlier `render_spec` calls with the same title in the thread.
- */
-export function resolveSpecBase(
-  messages: readonly MessageLike[],
-  toolCallId: string,
-  title: string,
-): Spec | undefined {
-  let spec: Spec | undefined;
-  for (const call of toolCalls(messages)) {
-    if (call.id === toolCallId) return spec;
-    if (call.name !== "render_spec" || call.args["title"] !== title) continue;
-    if (call.args["spec"] && typeof call.args["spec"] === "object") {
-      spec = { state: {}, ...(call.args["spec"] as Spec) };
-    } else if (typeof call.args["patches"] === "string") {
-      spec = parseSpecStream(
-        call.args["patches"],
-        spec ? { initial: spec } : {},
-      ).spec;
-    }
-  }
-  return spec;
-}
-
-function priorSpecCalls(
-  messages: readonly MessageLike[],
-  toolCallId: string,
-  title: string,
-): number {
-  let count = 0;
-  for (const call of toolCalls(messages)) {
-    if (call.id === toolCallId) break;
-    if (call.name === "render_spec" && call.args["title"] === title) count++;
-  }
-  return count;
-}
-
-type SpecHistory = (title: string) => {
-  spec: Spec | undefined;
-  version: number;
-};
-
 /** What `createSpecToolkit` takes from the platform it runs on. */
 export type SpecToolkitPlatform = {
   /** The thread's messages, read with the host's `useAuiState`. */
@@ -185,6 +73,8 @@ export type SpecToolkitPlatform = {
   useSendMessage(): (text: string) => void;
   /** Registers what `updateModelContext` shares as model context, read when each request starts. */
   useModelContext(source: ModelContextSource): void;
+  /** Writes to the user's clipboard, for the `copyText` action; a platform without a clipboard leaves it out. */
+  copyText?: (text: string) => Promise<void>;
 };
 
 type RenderSpecProps = {
@@ -198,9 +88,6 @@ type RenderSpecProps = {
     | undefined;
 };
 
-const TOOL_RESULTS_RULE =
-  'Results of earlier tool calls are in state under `/tools/<toolName>/<n>`, newest first: `0` is the latest call to that tool before this `render_spec` call, `1` the one before it, and so on. Show their values with `{ "$state": "/tools/<toolName>/<n>/..." }` rather than copying them, and never write `tools` in `state`. Indexes count back from each `render_spec` call, so when a patch follows another call to the same tool, update any binding that should keep showing the older result.';
-
 export const specToolkitFor =
   ({
     useMessages,
@@ -209,26 +96,13 @@ export const specToolkitFor =
     Frame,
     useSendMessage,
     useModelContext,
+    copyText,
   }: SpecToolkitPlatform) =>
   (catalog: Catalog, options: SpecToolkitOptions): WidgetToolkitExtension => {
-    const specs = new Map<string, { spec: Spec; version: number }>();
-    const customRules = [
-      ...(options.specPrompt?.customRules ?? []),
-      TOOL_RESULTS_RULE,
-    ];
-    const tools = createSpecTools(catalog, { specs, customRules });
-    // Each mounted call registers what its own thread held before it, so `execute` patches that base even after a reload or in another thread.
-    const histories = new Map<string, SpecHistory>();
-
-    const execute = (input: RenderSpecInput, call: { toolCallId: string }) => {
-      const history = histories.get(call.toolCallId);
-      if (history) {
-        const { spec, version } = history(input.title);
-        if (spec) specs.set(input.title, { spec, version });
-        else specs.delete(input.title);
-      }
-      return tools.render_spec.execute(input);
-    };
+    const { tools, histories, execute } = createSpecCalls(
+      catalog,
+      options.specPrompt,
+    );
 
     const renderSpecUI = (mountsToolResults: boolean) =>
       function RenderSpecUI({
@@ -240,19 +114,18 @@ export const specToolkitFor =
         const streaming = !useArgsComplete();
         const messages = useMessages();
         const title = typeof args.title === "string" ? args.title : "";
-        // The base and the tool results only depend on earlier calls, so they are read once per call.
-        const [base] = useState(() =>
-          resolveSpecBase(messages, toolCallId, title),
+        // Earlier calls do not change, so the thread is read once per call; the base follows the title, which may still be streaming when the call mounts.
+        const [earlier] = useState(messages);
+        const base = useMemo(
+          () => resolveSpecBase(earlier, toolCallId, title),
+          [earlier, toolCallId, title],
         );
         const [toolResults] = useState(() =>
           mountsToolResults
-            ? resolveToolResults(messages, toolCallId)
+            ? resolveToolResults(earlier, toolCallId)
             : undefined,
         );
-        const [history] = useState<SpecHistory>(() => (callTitle: string) => ({
-          spec: resolveSpecBase(messages, toolCallId, callTitle),
-          version: priorSpecCalls(messages, toolCallId, callTitle),
-        }));
+        const [history] = useState(() => callHistory(earlier, toolCallId));
         useInsertionEffect(() => {
           histories.set(toolCallId, history);
           return () => {
@@ -265,6 +138,14 @@ export const specToolkitFor =
           complete: !streaming,
           ...(base ? { initial: base } : {}),
         });
+        // A stream reads its base when it starts, so it starts over when the title brings a new one.
+        const resetStream = streamed.reset;
+        const streamBase = useRef(base);
+        useEffect(() => {
+          if (streamBase.current === base) return;
+          streamBase.current = base;
+          resetStream();
+        }, [base, resetStream]);
         const inputSpec = args.spec;
         const spec = useMemo(
           () =>
@@ -347,6 +228,7 @@ export const specToolkitFor =
             },
             updateModelContext: (params: Record<string, unknown>) =>
               share(toSharedContext(params["text"], params["data"])),
+            ...(copyText ? { copyText: copyTextHandler(copyText) } : {}),
             ...options.handlers,
           }),
           [sendMessage, share],
@@ -379,17 +261,9 @@ export const specToolkitFor =
 
     return {
       tools,
-      modules: [
-        specGuidanceModule(catalog, {
-          ...options.specPrompt,
-          customRules,
-          hostApi: {
-            prompt: true,
-            modelContext: true,
-            ...options.specPrompt?.hostApi,
-          },
-        }),
-      ],
+      modules: specModules(catalog, options.specPrompt, {
+        clipboard: copyText !== undefined,
+      }),
       entries: (context) => ({
         render_spec: toolkitEntry(
           tools.render_spec,

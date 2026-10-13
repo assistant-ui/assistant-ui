@@ -199,11 +199,12 @@ The `RenderReportOptions`, `WidgetRenderReport`, `WidgetToolkitExtension`, `Tool
 | Export | Description |
 | --- | --- |
 | `defineCatalog({ components, actions? })` | A `Catalog` with `component`, `action`, `propsSchema`, `paramsSchema`, `validateProps`, `validateParams`, and `prompt`. |
-| `catalog.prompt({ mode?, customRules?, omitExample?, hostApi? })` | Model guidance; `mode` is `"jsonl"` (default) or `"inline"`, and `hostApi: { prompt?, modelContext? }` documents the built-in `sendMessage` and `updateModelContext` actions. |
+| `catalog.prompt({ mode?, customRules?, omitExample?, hostApi? })` | Model guidance; `mode` is `"jsonl"` (default) or `"inline"`, and `hostApi: { prompt?, modelContext?, clipboard? }` documents the built-in `sendMessage`, `updateModelContext`, and `copyText` actions. |
 | `createSpecStream({ mode?, initial? })` | `{ push(chunk), result(), spec }`; `mode` is `"jsonl"` (default) or `"inline"`. |
 | `parseSpecStream(source, options?)` | The same for a complete string. |
 | `applyPatch(doc, operations)` | Applies RFC 6902 operations. |
 | `validateSpec(spec, catalog, { partial? })` | `{ ok, issues }`. |
+| `resolveSpec(spec, { state? })` | The element tree the renderer draws for one state, each `ResolvedElement` with `id`, `type`, `props`, `bindings`, `on`, `children`, `slots`, and, inside a `repeat`, its `itemPath`, with the item's `key` on a direct child of the `repeat`; `null` when the root does not resolve. |
 | `formatSpecIssues(issues)` | Issues as model-readable text. |
 | `createStateStore(initial?, { writes? }?)` | `{ getState, get, set, writes, seed, subscribe }`. `writes()` lists the writes `seed` re-applies as `[path, value]` pairs, oldest first, a replacing write dropping earlier ones at and below its path that no insert at an index on that path has since moved; `writes` applies saved ones over `initial`. |
 | `emptySpec()` | An empty spec. |
@@ -269,3 +270,11 @@ Pass the result of `createSpecToolkit` to `createWidgetToolkit({ spec })`.
     { name: "specPrompt", type: "Omit<SpecPromptOptions, \"mode\">", description: "Options for the `spec` module guidance (`customRules`, `omitExample`); `customRules` also go into `render_spec`'s description." },
   ]}
 />
+
+## `generative-frame/spec/assistant-ui/vue`
+
+```ts
+createSpecToolkit(catalog: Catalog, options: SpecToolkitOptions): VueSpecToolkit
+```
+
+The same options with Vue implementations: `components` from `generative-frame/spec/vue`'s `SpecComponents`, and `placeholder` as a Vue `Component`. `entries({ execution, display })` returns a `Toolkit` for `Tools({ toolkit })` from `@assistant-ui/core/react`, and `modules` holds the `spec` module guidance.
