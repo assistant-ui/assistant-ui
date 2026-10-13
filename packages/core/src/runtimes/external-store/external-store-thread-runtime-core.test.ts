@@ -49,6 +49,22 @@ describe("ExternalStoreThreadRuntimeCore message repository", () => {
       ],
       { headId },
     );
+  const repositoryWithDescendants = (headId: string) =>
+    ExportedMessageRepository.fromBranchableArray(
+      [
+        { parentId: null, message: { id: "u1", role: "user", content: "u1" } },
+        {
+          parentId: "u1",
+          message: { id: "a1", role: "assistant", content: "a1" },
+        },
+        { parentId: "a1", message: { id: "u2", role: "user", content: "u2" } },
+        {
+          parentId: "u2",
+          message: { id: "a2", role: "assistant", content: "a2" },
+        },
+      ],
+      { headId },
+    );
   const visibleIds = (runtime: ExternalStoreThreadRuntimeCore) =>
     runtime.messages.map((message) => message.id);
   const exportedIds = (runtime: ExternalStoreThreadRuntimeCore) =>
@@ -73,6 +89,55 @@ describe("ExternalStoreThreadRuntimeCore message repository", () => {
     runtime.__internal_setAdapter(store);
     expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2"]);
     expect(visibleIds(runtime)).toEqual(["u1", "a1"]);
+  });
+
+  it("keeps imported descendants until the host changes its visible path", () => {
+    let hostMessages: readonly ThreadMessage[] = [];
+    const store = {
+      messages: hostMessages,
+      onNew: async () => {},
+      onImport: (messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      },
+    };
+    const runtime = createRuntime(store);
+    runtime.import(repositoryWithDescendants("a1"));
+
+    runtime.__internal_setAdapter({ ...store, messages: hostMessages });
+    expect(visibleIds(runtime)).toEqual(["u1", "a1"]);
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+
+    runtime.__internal_setAdapter({
+      ...store,
+      messages: hostMessages,
+      isRunning: true,
+    });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+
+    runtime.__internal_setAdapter({
+      ...store,
+      messages: hostMessages.slice(0, 1),
+      isRunning: false,
+    });
+    expect(exportedIds(runtime)).toEqual(["u1"]);
+  });
+
+  it("prunes imported descendants when the host republishes the same path", () => {
+    let hostMessages: readonly ThreadMessage[] = [];
+    const store = {
+      messages: hostMessages,
+      onNew: async () => {},
+      onImport: (messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      },
+    };
+    const runtime = createRuntime(store);
+    runtime.import(repositoryWithDescendants("a1"));
+    runtime.__internal_setAdapter({ ...store, messages: hostMessages });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1", "u2", "a2"]);
+
+    runtime.__internal_setAdapter({ ...store, messages: [...hostMessages] });
+    expect(exportedIds(runtime)).toEqual(["u1", "a1"]);
   });
 
   it.each(["u2", "a1"])(
