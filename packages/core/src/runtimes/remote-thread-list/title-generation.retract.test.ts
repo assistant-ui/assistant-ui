@@ -53,7 +53,7 @@ const setup = () => {
 
 describe("title generation retraction", () => {
   it.each(["rejects", "streams no text"])(
-    "S1 restores a superseded automatic title when explicit generation %s",
+    "restores a superseded automatic title when explicit generation %s",
     async (ending) => {
       const h = setup();
       const aGate = deferred();
@@ -89,7 +89,7 @@ describe("title generation retraction", () => {
     },
   );
 
-  it("S2 keeps an explicit title that persisted before rejection", async () => {
+  it("keeps an explicit title that persisted before rejection", async () => {
     const h = setup();
     const aGate = deferred();
     const eGate = deferred();
@@ -121,17 +121,17 @@ describe("title generation retraction", () => {
 
   it.each([
     {
-      schedule: "S3 older writes first",
+      schedule: "Older writer finishes first",
       secondTitle: "Second",
       firstLast: false,
     },
     {
-      schedule: "S3 older writes last",
+      schedule: "Older writer finishes last",
       secondTitle: "Second",
       firstLast: true,
     },
     {
-      schedule: "S4 newer streams no text",
+      schedule: "Newer writer streams no text",
       secondTitle: undefined,
       firstLast: false,
     },
@@ -197,7 +197,7 @@ describe("title generation retraction", () => {
     },
   );
 
-  it("S5 restores a retained rename after a pending rename fails", async () => {
+  it("restores a retained rename after a pending rename fails", async () => {
     const h = setup();
     const manual = startThreadTitleRename(h.states, "t1", "Manual");
     h.server.title = "Manual";
@@ -250,7 +250,7 @@ describe("title generation retraction", () => {
     expect(next).toHaveBeenCalledOnce();
   });
 
-  it("S6 reasserts a manual rename completed during the automatic stream", async () => {
+  it("reasserts a manual rename completed during the automatic stream", async () => {
     const h = setup();
     const aGate = deferred();
     const eGate = deferred();
@@ -285,7 +285,7 @@ describe("title generation retraction", () => {
   });
 
   it.each([true, false])(
-    "S7 handles a rename issued during explicit generation (renamed: %s)",
+    "handles a rename issued during explicit generation (renamed: %s)",
     async (renamed) => {
       const h = setup();
       const aGate = deferred();
@@ -337,7 +337,7 @@ describe("title generation retraction", () => {
     },
   );
 
-  it("S8 rolls back to an older completed explicit generation", async () => {
+  it("rolls back to an older completed explicit generation", async () => {
     const h = setup();
     const done = deferred();
     done.resolve();
@@ -357,7 +357,7 @@ describe("title generation retraction", () => {
     expect(h.server.title).toBe("Automatic");
   });
 
-  it("S9 waits for both nested explicit outcomes before restoring the automatic title", async () => {
+  it("waits for both nested explicit outcomes before restoring the automatic title", async () => {
     const h = setup();
     const aGate = deferred();
     const e1Gate = deferred();
@@ -377,7 +377,7 @@ describe("title generation retraction", () => {
     expect(h.server.title).toBe("Automatic");
   });
 
-  it("S9 still waits on the older explicit when only the newer one retracts", async () => {
+  it("still waits on the older explicit when only the newer one retracts", async () => {
     const h = setup();
     const aGate = deferred();
     const e1Gate = deferred();
@@ -397,7 +397,7 @@ describe("title generation retraction", () => {
     expect(h.server.title).toBe("First explicit");
   });
 
-  it("S10 starts a waiting automatic once after explicit retraction", async () => {
+  it("starts a waiting automatic once after explicit retraction", async () => {
     const h = setup();
     const eGate = deferred();
     const explicit = h.start(false, undefined, eGate);
@@ -462,7 +462,38 @@ describe("title generation retraction", () => {
     expect(h.server.title).toBe("Waiting automatic");
   });
 
-  it("S11 does not affect a cleared thread", async () => {
+  it("keeps a newer explicit title when an older explicit run retracts", async () => {
+    const h = setup();
+    const firstExplicitGate = deferred();
+    const secondExplicitGate = deferred();
+    const firstExplicit = h.start(false, undefined, firstExplicitGate);
+    const generate = vi.fn(
+      async (onTitle: (title: string | undefined) => Promise<void>) => {
+        h.server.title = "Automatic";
+        await onTitle("Automatic");
+      },
+    );
+    const automatic = runThreadTitleGeneration({
+      states: h.states,
+      threadId: "t1",
+      automatic: true,
+      generate,
+      rename: h.rename,
+      applyTitle: h.applyTitle,
+    });
+    const secondExplicit = h.start(false, "E2 title", secondExplicitGate);
+    secondExplicitGate.resolve();
+    await secondExplicit;
+    expect(generate).not.toHaveBeenCalled();
+    firstExplicitGate.resolve();
+    await Promise.all([firstExplicit, automatic]);
+
+    expect(generate).not.toHaveBeenCalled();
+    expect(h.applied.at(-1)).toBe("E2 title");
+    expect(h.server.title).toBe("E2 title");
+  });
+
+  it("does not affect a cleared thread", async () => {
     const h = setup();
     const eGate = deferred();
     const explicit = h.start(false, undefined, eGate);
@@ -475,7 +506,7 @@ describe("title generation retraction", () => {
     expect(h.applyTitle).not.toHaveBeenCalled();
   });
 
-  it("S12 keeps list and server titles equal across seeded schedules", async () => {
+  it("keeps the newest ordered title across seeded schedules", async () => {
     const seeds = [
       1, 7, 13, 29, 43, 61, 79, 97, 127, 149, 173, 199, 223, 251, 283, 317, 349,
       383, 421, 457, 499, 541, 587, 631,
@@ -497,6 +528,20 @@ describe("title generation retraction", () => {
         let listTitle: string | undefined = "Initial";
         const renames: string[] = [];
         const allowedTitles = new Set<string>();
+        const persistedGenerations: {
+          order: number;
+          title: string;
+          persistedAt: number;
+        }[] = [];
+        const completedRenames: {
+          order: number;
+          title: string;
+          overlapped: boolean;
+          settledAt: number;
+        }[] = [];
+        const trace: string[] = [];
+        let nextOrder = 0;
+        let eventSeq = 0;
         const generationCount = mode === 3 ? 1 + random(3) : 3;
         const renameCount = random(3);
         const automatic = Array.from(
@@ -515,7 +560,11 @@ describe("title generation retraction", () => {
         const gates = Array.from({ length: generationCount }, deferred);
         const runs: Promise<void>[] = [];
         const openGenerations: number[] = [];
-        const openClaims: ReturnType<typeof startThreadTitleRename>[] = [];
+        const openClaims: {
+          claim: ReturnType<typeof startThreadTitleRename>;
+          order: number;
+          overlapped: boolean;
+        }[] = [];
         let nextGeneration = 0;
         let nextRename = 0;
 
@@ -525,6 +574,7 @@ describe("title generation retraction", () => {
           openGenerations.length > 0 ||
           openClaims.length > 0
         ) {
+          eventSeq += 1;
           const actions = [
             ...(nextGeneration < generationCount ? ["start generation"] : []),
             ...(nextRename < renameCount ? ["start rename"] : []),
@@ -534,6 +584,10 @@ describe("title generation retraction", () => {
           const action = actions[random(actions.length)];
           if (action === "start generation") {
             const index = nextGeneration++;
+            const order = ++nextOrder;
+            trace.push(
+              `start ${automatic[index] ? "A" : "E"}${index}@${order}`,
+            );
             openGenerations.push(index);
             runs.push(
               runThreadTitleGeneration({
@@ -544,8 +598,14 @@ describe("title generation retraction", () => {
                   await gates[index]!.promise;
                   const title = titles[index];
                   if (title !== undefined) {
+                    trace.push(`write ${title}@${order}`);
                     server.title = title;
                     allowedTitles.add(title);
+                    persistedGenerations.push({
+                      order,
+                      title,
+                      persistedAt: ++eventSeq,
+                    });
                   }
                   if (title !== undefined) await onTitle(title);
                 },
@@ -560,29 +620,78 @@ describe("title generation retraction", () => {
             );
           } else if (action === "start rename") {
             const index = nextRename++;
-            openClaims.push(
-              startThreadTitleRename(states, "t1", `M${seed}-${mode}-${index}`),
+            const overlapped = openClaims.length > 0;
+            for (const open of openClaims) open.overlapped = true;
+            const claim = startThreadTitleRename(
+              states,
+              "t1",
+              `M${seed}-${mode}-${index}`,
             );
+            const order = ++nextOrder;
+            trace.push(`start M${index}@${order}`);
+            openClaims.push({
+              claim,
+              order,
+              overlapped,
+            });
           } else if (action === "finish generation") {
             const index = openGenerations.splice(
               random(openGenerations.length),
               1,
             )[0]!;
+            trace.push(`release G${index}`);
             gates[index]!.resolve();
           } else {
-            const [claim] = openClaims.splice(random(openClaims.length), 1);
+            const [entry] = openClaims.splice(random(openClaims.length), 1);
+            const { claim, order, overlapped } = entry!;
             const renamed = random(3) !== 0;
+            trace.push(`finish ${claim.title} ${renamed}`);
             if (renamed) {
-              server.title = claim!.title;
-              listTitle = claim!.title;
-              allowedTitles.add(claim!.title);
+              server.title = claim.title;
+              listTitle = claim.title;
+              allowedTitles.add(claim.title);
+              completedRenames.push({
+                order,
+                title: claim.title,
+                overlapped,
+                settledAt: eventSeq,
+              });
             }
-            finishThreadTitleRename(states, "t1", claim!, renamed);
+            finishThreadTitleRename(states, "t1", claim, renamed);
           }
           await flushMicrotasks();
         }
         await Promise.all(runs);
 
+        const latestGeneration = persistedGenerations.reduce(
+          (winner, candidate) =>
+            candidate.order > winner.order ? candidate : winner,
+          { order: 0, title: "Initial", persistedAt: 0 },
+        );
+        const latestRename = completedRenames.reduce<
+          (typeof completedRenames)[number] | null
+        >((winner, candidate) => {
+          if (winner === null) return candidate;
+          const later =
+            winner.overlapped && candidate.overlapped
+              ? candidate.settledAt > winner.settledAt
+              : candidate.order > winner.order;
+          return later ? candidate : winner;
+        }, null);
+        const expected =
+          latestRename !== null &&
+          (latestRename.order > latestGeneration.order ||
+            (latestRename.overlapped &&
+              latestRename.settledAt > latestGeneration.persistedAt))
+            ? latestRename.title
+            : latestGeneration.title;
+        expect(
+          listTitle,
+          `seed ${seed}, mode ${mode}: list; ${trace.join(" -> ")}`,
+        ).toBe(expected);
+        expect(server.title, `seed ${seed}, mode ${mode}: server`).toBe(
+          expected,
+        );
         expect(listTitle, `seed ${seed}, mode ${mode}`).toBe(server.title);
         for (const title of renames) {
           expect(

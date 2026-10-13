@@ -843,18 +843,22 @@ describe("runThreadTitleGeneration", () => {
     const generate = vi.fn(async (onTitle: (t: string) => Promise<void>) => {
       await onTitle("Automatic");
     });
+    const rename = vi.fn(noop);
+    const applyTitle = vi.fn(noop);
     const automatic = runThreadTitleGeneration({
       states,
       threadId: "t1",
       automatic: true,
       generate,
-      rename: noop,
-      applyTitle: noop,
+      rename,
+      applyTitle,
     });
     finishThreadTitleRename(states, "t1", outranked, true);
     await Promise.all([explicit, automatic]);
 
     expect(generate).not.toHaveBeenCalled();
+    expect(rename).not.toHaveBeenCalled();
+    expect(applyTitle).not.toHaveBeenCalled();
   });
 
   it("waits for an earlier rename still in flight when the rename it waited on fails", async () => {

@@ -302,17 +302,51 @@ export async function runThreadTitleGeneration(
     ? [...state.generations].filter((generation) => !generation.automatic)
     : [];
   const waitingForExplicit = explicitAtStart.length > 0;
+  const waitStartOrder = state.nextOrder;
   if (waitingForExplicit) {
     waitingAutomatics.set(state, (waitingAutomatics.get(state) ?? 0) + 1);
   }
   let generation: ThreadTitleGeneration | null;
   try {
     if (waitingForExplicit) {
-      const titles = await Promise.all(
-        explicitAtStart.map((generation) => generation.persisted),
-      );
-      if (states.get(threadId) !== state) return;
-      if (titles.some((title) => title !== undefined)) return;
+      const waited = new Set(explicitAtStart);
+      const collectExplicit = () => {
+        let added = false;
+        for (const candidate of state.generations) {
+          if (candidate.automatic || waited.has(candidate)) continue;
+          waited.add(candidate);
+          added = true;
+        }
+        for (
+          let candidate = state.latestGeneration;
+          candidate !== null;
+          candidate = candidate.outranked
+        ) {
+          if (
+            candidate.automatic ||
+            candidate.order <= waitStartOrder ||
+            waited.has(candidate)
+          )
+            continue;
+          waited.add(candidate);
+          added = true;
+        }
+        return added;
+      };
+      while (true) {
+        collectExplicit();
+        const titles = await Promise.all(
+          [...waited].map((candidate) => candidate.persisted),
+        );
+        if (states.get(threadId) !== state) return;
+        if (
+          collectExplicit() ||
+          [...state.generations].some((candidate) => !candidate.automatic)
+        )
+          continue;
+        if (titles.some((title) => title !== undefined)) return;
+        break;
+      }
     }
     generation = startThreadTitleGeneration(states, threadId, automatic);
   } finally {
