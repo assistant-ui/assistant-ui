@@ -221,15 +221,12 @@ export class ExternalStoreThreadRuntimeCore
   // pending call as reloaded, because after them the incoming array omits
   // off-branch ids for reasons unrelated to deletion; such a record settles
   // from its onDelete outcome instead. A reload keeps only the prefix up to the
-  // parent it regenerates from in the host's array: an id absent from that
-  // prefix is still a deletion, but an id after the parent is absent whether or
-  // not its delete was declined, including a delete registered before the
-  // truncated array arrives. The snapshot pass leaves such an id alone while an
-  // onDelete call for it is pending; a rejection drops it, and a resolution
-  // applies the usual rule to the host's current array. Plain tail sends do
-  // not clear: a tail append cannot make a visible id absent, so id-absence
-  // stays unambiguous and a delete whose confirmation races a send keeps its
-  // eviction.
+  // parent it regenerates from in the host's array, so while its window is open
+  // (until the host drops the old suffix or onReload settles) an id after that
+  // parent is absent whether or not its delete was declined and is marked the
+  // same way. Plain tail sends do not mark anything: a tail append cannot make
+  // a visible id absent, so id-absence stays unambiguous and a delete whose
+  // confirmation races a send keeps its eviction.
   private _pendingDeleteEvictions = new Map<
     string,
     {
@@ -238,7 +235,17 @@ export class ExternalStoreThreadRuntimeCore
       message: ThreadMessage;
     }
   >();
-  private _pendingReloadDeletePrefix: readonly string[] | null = null;
+  private _pendingReloadDeleteWindows = new Set<{
+    prefix: ReadonlySet<string>;
+    suffix: ReadonlySet<string>;
+  }>();
+
+  private _closeReloadDeleteWindows(incomingIds: ReadonlySet<string>) {
+    for (const window of this._pendingReloadDeleteWindows) {
+      if ([...window.suffix].every((id) => !incomingIds.has(id)))
+        this._pendingReloadDeleteWindows.delete(window);
+    }
+  }
 
   // Placeholder id for the upcoming assistant message, reused across snapshot
   // passes while the same tail message awaits its response so the placeholder
@@ -471,7 +478,7 @@ export class ExternalStoreThreadRuntimeCore
       this.repository = repositoryInstance;
       this._cancelledToolTurn = null;
       this._pendingDeleteEvictions.clear();
-      this._pendingReloadDeletePrefix = null;
+      this._pendingReloadDeleteWindows.clear();
       this._submittedFeedback.clear();
       this._movedLeaf = undefined;
       // Keep the live placeholder so resetHead cannot evict an id still used
@@ -542,6 +549,10 @@ export class ExternalStoreThreadRuntimeCore
       }
 
       const incoming = store.messageRepository.messages;
+      if (oldStore?.messageRepository !== store.messageRepository)
+        this._closeReloadDeleteWindows(
+          new Set(incoming.map(({ message }) => message.id)),
+        );
       const headId =
         store.messageRepository.headId ?? incoming.at(-1)?.message.id ?? null;
       this._evictPlaceholder();
@@ -645,16 +656,6 @@ export class ExternalStoreThreadRuntimeCore
 
       messages = this._applySubmittedFeedback(messages);
 
-      const prefix = this._pendingReloadDeletePrefix;
-      if (
-        prefix &&
-        oldStore?.messages !== store.messages &&
-        messages.length === prefix.length &&
-        messages.every((message, index) => message.id === prefix[index])
-      ) {
-        this._pendingReloadDeletePrefix = null;
-      }
-
       for (let i = 0; i < messages.length; i++) {
         const message = messages[i]!;
         const parent = messages[i - 1];
@@ -663,11 +664,9 @@ export class ExternalStoreThreadRuntimeCore
 
       // A pass over the host's previous array, such as a client tool's
       // running refresh, can predate the host's answer to onDelete.
-      if (
-        this._pendingDeleteEvictions.size > 0 &&
-        oldStore?.messages !== store.messages
-      ) {
+      if (oldStore?.messages !== store.messages) {
         const incomingIds = new Set(messages.map((m) => m.id));
+        this._closeReloadDeleteWindows(incomingIds);
         for (const [id, pending] of this._pendingDeleteEvictions) {
           if (pending.reloaded) continue;
           if (incomingIds.has(id)) {
@@ -1143,6 +1142,13 @@ export class ExternalStoreThreadRuntimeCore
       const call = Symbol();
       let pending = this._pendingDeleteEvictions.get(messageId);
       if (visibleMessage) {
+        let reloaded = false;
+        for (const window of this._pendingReloadDeleteWindows) {
+          if (!window.prefix.has(messageId)) {
+            reloaded = true;
+            break;
+          }
+        }
         if (
           !pending ||
           (messageId.startsWith(FALLBACK_ID_PREFIX) &&
@@ -1150,12 +1156,11 @@ export class ExternalStoreThreadRuntimeCore
         ) {
           pending = {
             calls: new Set<symbol>(),
-            reloaded:
-              this._pendingReloadDeletePrefix !== null &&
-              !this._pendingReloadDeletePrefix.includes(messageId),
+            reloaded,
             message: visibleMessage,
           };
         }
+        if (reloaded) pending.reloaded = true;
         pending.calls.add(call);
         this._pendingDeleteEvictions.set(messageId, pending);
       }
@@ -1269,10 +1274,13 @@ export class ExternalStoreThreadRuntimeCore
     const prefix = visible
       .slice(0, visible.findIndex((m) => m.id === config.parentId) + 1)
       .map((m) => m.id);
-    this._pendingReloadDeletePrefix = prefix;
-    const kept = new Set(prefix);
+    const window = {
+      prefix: new Set(prefix),
+      suffix: new Set(visible.slice(prefix.length).map((m) => m.id)),
+    };
+    this._pendingReloadDeleteWindows.add(window);
     for (const [id, pending] of this._pendingDeleteEvictions) {
-      if (kept.has(id)) continue;
+      if (window.prefix.has(id)) continue;
       if (pending.calls.size > 0) pending.reloaded = true;
       else this._pendingDeleteEvictions.delete(id);
     }
@@ -1285,16 +1293,10 @@ export class ExternalStoreThreadRuntimeCore
       await this._toolInvocations?.abort({
         discardPending: true,
       });
-      if (!cancellationLease.isCurrent()) {
-        if (this._pendingReloadDeletePrefix === prefix)
-          this._pendingReloadDeletePrefix = null;
-        return;
-      }
+      if (!cancellationLease.isCurrent()) return;
       await this._store.onReload(config.parentId, config);
-    } catch (error) {
-      if (this._pendingReloadDeletePrefix === prefix)
-        this._pendingReloadDeletePrefix = null;
-      throw error;
+    } finally {
+      this._pendingReloadDeleteWindows.delete(window);
     }
   }
 

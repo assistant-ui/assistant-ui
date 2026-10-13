@@ -810,7 +810,123 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
       reason: "stop",
     });
 
-  const setup = ({ reloadFails = false } = {}) => {
+  const optimisticDeleteAfterReload = async (
+    parentId: string,
+    reload: (current: ThreadMessage[]) => ThreadMessage[],
+    holdReload = false,
+  ) => {
+    let current = [
+      message("u1", "user"),
+      message("a1", "assistant"),
+      message("u2", "user"),
+      message("a2", "assistant"),
+    ];
+    let resolveDelete!: () => void;
+    let finishReload!: () => void;
+    const store = () =>
+      ({
+        messages: current,
+        onNew: async () => {},
+        onReload: async () => {
+          current = reload(current);
+          if (holdReload)
+            await new Promise<void>((resolve) => {
+              finishReload = resolve;
+            });
+        },
+        onDelete: () =>
+          new Promise<void>((resolve) => {
+            current = current.filter((m) => m.id !== "u3");
+            resolveDelete = resolve;
+          }),
+        setMessages: () => {},
+      }) as ExternalStoreAdapter;
+    const runtime = createRuntime(store());
+
+    const reloading = runtime.startRun({
+      parentId,
+      sourceId: "a1",
+      runConfig: {},
+    });
+    if (holdReload) await Promise.resolve();
+    else await reloading;
+    runtime.__internal_setAdapter(store());
+    current = [...current, message("u3", "user"), message("a3", "assistant")];
+    runtime.__internal_setAdapter(store());
+    const deletion = runtime.deleteMessage("u3");
+    runtime.__internal_setAdapter(store());
+
+    expect(runtime.getBranches("a3")).toEqual(["a3"]);
+    resolveDelete();
+    await deletion;
+    if (holdReload) finishReload();
+    await reloading;
+  };
+
+  it("closes the reload window when a new reply arrives with the truncation", async () => {
+    await optimisticDeleteAfterReload(
+      "u1",
+      (current) => [current[0]!, message("a1b", "assistant")],
+      true,
+    );
+  });
+
+  it("closes the reload window when onReload settles without changing the host array", async () => {
+    await optimisticDeleteAfterReload("a2", (current) => current);
+  });
+
+  it("protects a delete outside an older reload prefix when reloads overlap", async () => {
+    let current = [
+      message("u1", "user"),
+      message("a1", "assistant"),
+      message("u2", "user"),
+      message("a2", "assistant"),
+    ];
+    let isRunning = false;
+    let decline!: () => void;
+    const finishReloads: Array<() => void> = [];
+    const store = () =>
+      ({
+        messages: current,
+        isRunning,
+        onNew: async () => {},
+        onReload: () =>
+          new Promise<void>((resolve) => finishReloads.push(resolve)),
+        onDelete: () =>
+          new Promise<void>((_, reject) => {
+            decline = () => reject(new Error("deletion declined"));
+          }),
+        setMessages: () => {},
+      }) as ExternalStoreAdapter;
+    const runtime = createRuntime(store());
+
+    const older = runtime.startRun({
+      parentId: "u1",
+      sourceId: "a1",
+      runConfig: {},
+    });
+    await Promise.resolve();
+    const newer = runtime.startRun({
+      parentId: "u2",
+      sourceId: "a2",
+      runConfig: {},
+    });
+    await Promise.resolve();
+    expect(finishReloads).toHaveLength(2);
+    const deletion = runtime.deleteMessage("u2");
+    current = [current[0]!];
+    isRunning = true;
+    runtime.__internal_setAdapter(store());
+
+    expect(runtime.getBranches("u2")).toEqual(["u2"]);
+    decline();
+    await expect(deletion).rejects.toThrow("deletion declined");
+    finishReloads.forEach((finish) => finish());
+    await Promise.all([older, newer]);
+    expect(runtime.getBranches("u2")).toEqual(["u2"]);
+  });
+
+  const setup = ({ reloadFails = false, holdReload = false } = {}) => {
     let current = [
       message("u1", "user"),
       message("a1", "assistant"),
@@ -821,6 +937,7 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
     const confirms: Array<() => void> = [];
     const declines: Array<() => void> = [];
     const ignores: Array<() => void> = [];
+    let finishReload!: () => void;
     const onDelete = vi.fn(
       (id: string) =>
         new Promise<void>((resolve, reject) => {
@@ -839,6 +956,10 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
         0,
         current.findIndex((m) => m.id === parentId) + 1,
       );
+      if (holdReload)
+        await new Promise<void>((resolve) => {
+          finishReload = resolve;
+        });
     });
     const setMessages = vi.fn((messages: readonly ThreadMessage[]) => {
       current = [...messages];
@@ -862,6 +983,7 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
       ignoreDelete: (index = 0) => ignores[index]!(),
       regenerate: () =>
         runtime.startRun({ parentId: "u1", sourceId: "a1", runConfig: {} }),
+      finishReload: () => finishReload(),
       rerender: () => {
         current = [...current];
         runtime.__internal_setAdapter(store());
@@ -896,11 +1018,15 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
       declineDelete,
       finishRun,
       switchToOldBranch,
-    } = setup();
+      finishReload,
+    } = setup({ holdReload: true });
 
-    await regenerate();
+    const reload = regenerate();
+    await Promise.resolve();
     const deletion = runtime.deleteMessage("u2");
     rerender();
+    finishReload();
+    await reload;
     declineDelete();
     await expect(deletion).rejects.toThrow("deletion declined");
     finishRun();
@@ -916,11 +1042,15 @@ describe("ExternalStoreThreadRuntimeCore deletion during reload", () => {
       confirmDelete,
       finishRun,
       switchToOldBranch,
-    } = setup();
+      finishReload,
+    } = setup({ holdReload: true });
 
-    await regenerate();
+    const reload = regenerate();
+    await Promise.resolve();
     const deletion = runtime.deleteMessage("u2");
     rerender();
+    finishReload();
+    await reload;
     expect(runtime.getBranches("u2")).toEqual(["u2"]);
     confirmDelete();
     await deletion;
