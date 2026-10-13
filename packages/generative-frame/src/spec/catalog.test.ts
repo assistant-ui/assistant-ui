@@ -230,7 +230,7 @@ describe("catalog.prompt", () => {
     expect(prompt).toContain('"value":{"$calc":"${/count} + 1"}');
     expect(prompt).toContain("- Prefer cards.");
     expect(prompt).toContain(
-      "- Open with a heading that names the answer and its one-line takeaway, then give each part of the answer its own section.\n- Make each module a `Card`: a summary, a checklist, a form, or one option, with running prose outside cards.\n- Keep lists in `/state` and render them with `repeat`.\n- Keep the tree shallow and give every element a job: no filler, and no decoration that adds nothing.\n- Prefer cards.",
+      "- Open with a heading that names the answer and its one-line takeaway, then give each part of the answer its own section.\n- Make each module a `Card`: a summary, a checklist, a form, or one option, with running prose outside cards.\n- For a number the user adjusts, such as guests or servings, put it between a `-` and a `+` `Button`, each stepping it with a `setState` whose `$calc` value stays in a sensible range, and compute every amount that depends on it with `$calc`.\n- Keep lists in `/state` and render them with `repeat`.\n- Keep the tree shallow and give every element a job: no filler, and no decoration that adds nothing.\n- Prefer cards.",
     );
     expect(prompt).not.toContain("`Map`");
     expect(prompt).not.toContain("`Image`");
@@ -251,6 +251,7 @@ describe("catalog.prompt", () => {
       "Steps",
       "Table",
       "Image",
+      "Button",
     ];
     const full = defineCatalog({
       components: Object.fromEntries(
@@ -268,7 +269,10 @@ describe("catalog.prompt", () => {
       "- Put places with coordinates on a `Map`, lay out a schedule or itinerary as a `Timeline`, write instructions as `Steps`, and compare options attribute by attribute in a `Table`.",
     );
     expect(prompt).toContain(
-      "never one you write yourself: lead with two or three photos in a `Row`,",
+      "never one you write yourself: lead with two or three photos in a `Row`, open each option's `Card` with its photo, or put a small photo beside each item's text.",
+    );
+    expect(prompt).toContain(
+      "put it between a `-` and a `+` `Button` in a `Row`, each stepping it",
     );
   });
 

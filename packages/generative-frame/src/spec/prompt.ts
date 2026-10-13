@@ -64,7 +64,12 @@ const compositionRules = (catalog: Catalog) => {
   }
   if (has("Image")) {
     rules.push(
-      `Show what can be seen with \`Image\`, but only from an image URL a tool returned, never one you write yourself: lead with two or three photos${has("Row") ? " in a `Row`" : ""}, or put a small photo beside each item's text.`,
+      `Show what can be seen with \`Image\`, but only from an image URL a tool returned, never one you write yourself: lead with two or three photos${has("Row") ? " in a `Row`" : ""},${has("Card") ? " open each option's `Card` with its photo," : ""} or put a small photo beside each item's text.`,
+    );
+  }
+  if (has("Button")) {
+    rules.push(
+      `For a number the user adjusts, such as guests or servings, put it between a \`-\` and a \`+\` \`Button\`${has("Row") ? " in a `Row`" : ""}, each stepping it with a \`setState\` whose \`$calc\` value stays in a sensible range, and compute every amount that depends on it with \`$calc\`.`,
     );
   }
   rules.push(
