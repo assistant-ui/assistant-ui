@@ -1009,6 +1009,26 @@ describe("render_spec validation", () => {
     expect(view.container.textContent).toBe("b");
   });
 
+  it("renders a spec argument that streams in before its elements", () => {
+    mocks.argsStatus = "streaming";
+    const RenderSpec = setup().render;
+    const view = render(
+      <RenderSpec {...partProps("p", { title: "s", spec: { root: "t" } })} />,
+    );
+    view.rerender(
+      <RenderSpec
+        {...partProps("p", {
+          title: "s",
+          spec: {
+            root: "t",
+            elements: { t: { type: "Text", props: { text: "a" } } },
+          },
+        })}
+      />,
+    );
+    expect(view.container.textContent).toBe("a");
+  });
+
   it("resolves the base from the title the call executes with", async () => {
     mocks.messages = [
       {
