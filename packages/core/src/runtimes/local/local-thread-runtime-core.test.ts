@@ -6775,6 +6775,68 @@ describe("LocalThreadRuntimeCore runs", () => {
     expect(getThreadRuntimeCoreIsRunning(thread)).toBe(true);
   });
 
+  it("stops reporting the thread running when the answer completes, before its history write settles", async () => {
+    let commit!: () => void;
+    const write = new Promise<void>((resolve) => (commit = resolve));
+    const thread = createThread(
+      {
+        async run() {
+          return { content: [{ type: "text", text: "answer" }] };
+        },
+      },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          append: (item) =>
+            item.message.role === "assistant" ? write : Promise.resolve(),
+        },
+      },
+    );
+    await thread.__internal_load();
+    const runningUpdates: boolean[] = [];
+    const unsubscribe = thread.subscribe(() =>
+      runningUpdates.push(getThreadRuntimeCoreIsRunning(thread)),
+    );
+
+    const sent = thread.append(userMessage("hi"));
+    await vi.waitFor(() =>
+      expect(thread.messages.at(-1)).toMatchObject({
+        role: "assistant",
+        status: { type: "complete" },
+      }),
+    );
+
+    try {
+      expect(getThreadRuntimeCoreIsRunning(thread)).toBe(false);
+      expect(thread.composer.canCancel).toBe(false);
+      expect(runningUpdates.at(-1)).toBe(false);
+    } finally {
+      commit();
+      await sent;
+      unsubscribe();
+    }
+  });
+
+  it("reports an idle thread to runEnd listeners after a hidden answer settles", async () => {
+    const { thread, regenerate, release } = await createStreamingRegenerate();
+    const observed = vi.fn(() => ({
+      running: getThreadRuntimeCoreIsRunning(thread),
+      canCancel: thread.composer.canCancel,
+    }));
+    thread.unstable_on("runEnd", observed);
+
+    release();
+    await regenerate;
+
+    expect(observed).toHaveBeenCalledExactlyOnceWith({});
+    expect(observed.mock.results[0]?.value).toEqual({
+      running: false,
+      canCancel: false,
+    });
+  });
+
   it("marks the message errored when the adapter rejects", async () => {
     const thread = createPlainThread({
       async run() {

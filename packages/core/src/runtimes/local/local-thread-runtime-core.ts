@@ -414,7 +414,7 @@ export class LocalThreadRuntimeCore
 
   // Idle defers to the trailing message, which carries a voice reply in progress.
   public get isRunning(): boolean | undefined {
-    return this._activeRun !== null ? true : undefined;
+    return this._roundtripsInFlight.size > 0 ? true : undefined;
   }
 
   private _isLoading = false;
@@ -1244,7 +1244,6 @@ export class LocalThreadRuntimeCore
         scopeGeneration === this._loadGeneration && this._activeRun === run;
       if (active) this._activeRun = null;
       if (scopeGeneration === this._loadGeneration) this._syncQueue();
-      if (active) this._notifySubscribers();
     }
 
     if (
@@ -1592,6 +1591,8 @@ export class LocalThreadRuntimeCore
         this._roundtripsInFlight.get(message.id)?.controller ===
         abortController;
       if (holdsMessage) this._roundtripsInFlight.delete(message.id);
+      const stoppedRunning =
+        holdsMessage && this._roundtripsInFlight.size === 0;
 
       const history = this._options.adapters.history;
       const ownsCurrentMessage = syncOwnedMessage();
@@ -1655,7 +1656,7 @@ export class LocalThreadRuntimeCore
       }
       // Notified after the write is queued, so a change a subscriber makes in
       // response is written after it.
-      if (settled) this._notifySubscribers();
+      if (settled || stoppedRunning) this._notifySubscribers();
       if (written) await written;
     }
     return message;
