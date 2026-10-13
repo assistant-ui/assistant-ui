@@ -637,6 +637,109 @@ describe("ExternalStoreThreadRuntimeCore submitted feedback", () => {
   });
 });
 
+describe("ExternalStoreThreadRuntimeCore submitted feedback across branches", () => {
+  const sibling: FeedbackSource = {
+    id: "a2",
+    role: "assistant",
+    text: "again",
+  };
+
+  const createBranchingHost = (initial: readonly FeedbackSource[]) => {
+    let messages = initial;
+    const createStore = () =>
+      ({
+        ...createFeedbackStore(messages),
+        setMessages: (next: readonly FeedbackSource[]) => {
+          messages = next;
+        },
+      }) as ExternalStoreAdapter<any>;
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      modelContextProvider,
+      createStore(),
+    );
+    const publish = (next?: readonly FeedbackSource[]) => {
+      if (next) messages = next;
+      runtime.__internal_setAdapter(createStore());
+    };
+    return { runtime, publish };
+  };
+
+  it("keeps feedback for a message that leaves the branch and returns", () => {
+    const { runtime, publish } = createBranchingHost([
+      feedbackUser,
+      feedbackAssistant,
+    ]);
+    publish([feedbackUser, sibling]);
+    runtime.switchToBranch("a1");
+    publish();
+    runtime.submitFeedback({ messageId: "a1", type: "positive" });
+
+    runtime.switchToBranch("a2");
+    publish();
+    runtime.switchToBranch("a1");
+    publish();
+
+    expect(
+      runtime.getMessageById("a1")?.message.metadata.submittedFeedback,
+    ).toEqual({ type: "positive" });
+  });
+
+  it("keeps feedback for a reply below a branch the host replaced", () => {
+    const { runtime, publish } = createBranchingHost([
+      feedbackUser,
+      feedbackAssistant,
+      { id: "u2", role: "user", text: "more" },
+      { id: "a3", role: "assistant", text: "deeper" },
+    ]);
+    runtime.submitFeedback({ messageId: "a3", type: "negative" });
+
+    publish([feedbackUser, sibling]);
+    runtime.switchToBranch("a1");
+    publish();
+
+    expect(
+      runtime.getMessageById("a3")?.message.metadata.submittedFeedback,
+    ).toEqual({ type: "negative" });
+  });
+
+  it.each(["onDelete", "setMessages"] as const)(
+    "does not restore feedback when a message deleted through %s is re-added",
+    async (route) => {
+      let messages: readonly FeedbackSource[] = [
+        feedbackUser,
+        feedbackAssistant,
+      ];
+      let runtime!: ExternalStoreThreadRuntimeCore;
+      const createStore = () =>
+        ({
+          ...createFeedbackStore(messages),
+          setMessages: (next: readonly FeedbackSource[]) => {
+            messages = next;
+          },
+          ...(route === "onDelete" && {
+            onDelete: async (id: string) => {
+              messages = messages.filter((message) => message.id !== id);
+              runtime.__internal_setAdapter(createStore());
+            },
+          }),
+        }) as ExternalStoreAdapter<any>;
+      runtime = new ExternalStoreThreadRuntimeCore(
+        modelContextProvider,
+        createStore(),
+      );
+
+      runtime.submitFeedback({ messageId: "a1", type: "positive" });
+      await runtime.deleteMessage("a1");
+      messages = [feedbackUser, feedbackAssistant];
+      runtime.__internal_setAdapter(createStore());
+
+      expect(
+        runtime.getMessageById("a1")?.message.metadata.submittedFeedback,
+      ).toBeUndefined();
+    },
+  );
+});
+
 describe("ExternalStoreThreadRuntimeCore earlier messages", () => {
   it("reports earlier messages only when the adapter can load them", () => {
     expect(createRuntime({ hasEarlier: true }).hasEarlier).toBe(false);

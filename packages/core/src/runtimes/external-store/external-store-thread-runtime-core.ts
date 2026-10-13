@@ -335,9 +335,13 @@ export class ExternalStoreThreadRuntimeCore
     messages: readonly ThreadMessage[],
   ): readonly ThreadMessage[] {
     if (this._submittedFeedback.size === 0) return messages;
-    const incomingIds = new Set(messages.map((message) => message.id));
+    // An array host omits off-branch messages that the repository still keeps, so the overlay keeps an entry for as long as the repository holds its message.
     for (const id of this._submittedFeedback.keys()) {
-      if (!incomingIds.has(id)) this._submittedFeedback.delete(id);
+      try {
+        this.repository.getMessage(id);
+      } catch {
+        this._submittedFeedback.delete(id);
+      }
     }
 
     return messages.map((message) => {
