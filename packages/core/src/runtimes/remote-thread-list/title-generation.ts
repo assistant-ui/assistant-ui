@@ -26,6 +26,8 @@ export type ThreadTitleState = {
   nextOrder: number;
 };
 
+const waitingAutomatics = new WeakMap<ThreadTitleState, number>();
+
 export type ThreadTitleGenerationRun = {
   states: Map<string, ThreadTitleState>;
   threadId: string;
@@ -63,6 +65,7 @@ function pruneThreadTitleState(
 ): void {
   if (
     state.generations.size === 0 &&
+    !waitingAutomatics.has(state) &&
     state.pendingClaim === null &&
     state.inFlightClaims.size === 0 &&
     state.manualClaim === null &&
@@ -180,11 +183,6 @@ function startThreadTitleGeneration(
   automatic: boolean,
 ): ThreadTitleGeneration | null {
   const state = getThreadTitleState(states, threadId);
-  if (automatic) {
-    for (const generation of state.generations) {
-      if (!generation.automatic) return null;
-    }
-  }
   if (
     automatic &&
     state.pendingClaim === null &&
@@ -235,7 +233,40 @@ export async function runThreadTitleGeneration(
 ): Promise<void> {
   const { states, threadId, automatic } = run;
   const state = getThreadTitleState(states, threadId);
-  const generation = startThreadTitleGeneration(states, threadId, automatic);
+  const waitingForExplicit =
+    automatic &&
+    [...state.generations].some((generation) => !generation.automatic);
+  if (waitingForExplicit) {
+    waitingAutomatics.set(state, (waitingAutomatics.get(state) ?? 0) + 1);
+  }
+  let generation: ThreadTitleGeneration | null;
+  try {
+    if (waitingForExplicit) {
+      while (true) {
+        const explicit = [...state.generations].filter(
+          (generation) => !generation.automatic,
+        );
+        if (explicit.length > 0) {
+          await Promise.all(explicit.map((generation) => generation.persisted));
+          continue;
+        }
+        const latestExplicit = state.latestExplicit;
+        const title = await latestExplicit?.persisted;
+        if (states.get(threadId) !== state) return;
+        if (state.latestExplicit !== latestExplicit) continue;
+        if (title !== undefined) return;
+        break;
+      }
+    }
+    generation = startThreadTitleGeneration(states, threadId, automatic);
+  } finally {
+    if (waitingForExplicit) {
+      const remaining = waitingAutomatics.get(state)! - 1;
+      if (remaining === 0) waitingAutomatics.delete(state);
+      else waitingAutomatics.set(state, remaining);
+      pruneThreadTitleState(states, threadId, state);
+    }
+  }
   if (generation === null) return;
 
   // `clearThreadTitleState` ends the runs on the cleared state, so a thread

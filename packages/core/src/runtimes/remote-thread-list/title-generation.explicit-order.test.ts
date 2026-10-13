@@ -117,4 +117,90 @@ describe("runThreadTitleGeneration explicit order", () => {
     expect(listTitle).toBe("Automatic title");
     expect(server.title).toBe("Automatic title");
   });
+
+  it("generates an automatic title after the in-flight explicit generation rejects", async () => {
+    const states = new Map<string, ThreadTitleState>();
+    const server = createServer();
+    const explicitOpen = deferred();
+    let listTitle: string | undefined;
+
+    const explicit = runThreadTitleGeneration({
+      states,
+      threadId: "t1",
+      automatic: false,
+      generate: async () => {
+        await explicitOpen.promise;
+        throw new Error("Explicit generation failed");
+      },
+      rename: server.rename,
+      applyTitle: async (title) => {
+        listTitle = title;
+      },
+    });
+    const automaticGenerate = vi.fn((onTitle) =>
+      server.generate("Automatic title", Promise.resolve(), onTitle),
+    );
+    const automatic = runThreadTitleGeneration({
+      states,
+      threadId: "t1",
+      automatic: true,
+      generate: automaticGenerate,
+      rename: server.rename,
+      applyTitle: async (title) => {
+        listTitle = title;
+      },
+    });
+
+    expect(automaticGenerate).not.toHaveBeenCalled();
+    explicitOpen.resolve();
+    await expect(explicit).rejects.toThrow("Explicit generation failed");
+    await automatic;
+
+    expect(automaticGenerate).toHaveBeenCalledOnce();
+    expect(listTitle).toBe("Automatic title");
+    expect(server.title).toBe("Automatic title");
+  });
+
+  it("generates an automatic title after the in-flight explicit generation streams no title", async () => {
+    const states = new Map<string, ThreadTitleState>();
+    const server = createServer();
+    const explicitOpen = deferred();
+    let listTitle: string | undefined;
+
+    const explicit = runThreadTitleGeneration({
+      states,
+      threadId: "t1",
+      automatic: false,
+      generate: async (onTitle) => {
+        await explicitOpen.promise;
+        await onTitle(undefined);
+      },
+      rename: server.rename,
+      applyTitle: async (title) => {
+        listTitle = title;
+      },
+    });
+    const automaticGenerate = vi.fn((onTitle) =>
+      server.generate("Automatic title", Promise.resolve(), onTitle),
+    );
+    const automatic = runThreadTitleGeneration({
+      states,
+      threadId: "t1",
+      automatic: true,
+      generate: automaticGenerate,
+      rename: server.rename,
+      applyTitle: async (title) => {
+        listTitle = title;
+      },
+    });
+
+    expect(automaticGenerate).not.toHaveBeenCalled();
+    explicitOpen.resolve();
+    await explicit;
+    await automatic;
+
+    expect(automaticGenerate).toHaveBeenCalledOnce();
+    expect(listTitle).toBe("Automatic title");
+    expect(server.title).toBe("Automatic title");
+  });
 });
