@@ -53,7 +53,7 @@ function collectFields(
   for (const child of element.children) collectFields(spec, child, fields);
 }
 
-// A name that several bound paths share, such as a static `name` on a control repeated per item, cannot tell them apart, so each of those controls is named by its path instead.
+// A name that several bound paths share, such as a static `name` on a control repeated per item, cannot tell them apart, so each of those controls is named by its path instead, numbered if that still collides.
 function boundFields(spec: Spec, root: ResolvedElement) {
   const fields = new Map<string, string>();
   collectFields(spec, root, fields);
@@ -61,6 +61,13 @@ function boundFields(spec: Spec, root: ResolvedElement) {
   for (const name of fields.values()) uses.set(name, (uses.get(name) ?? 0) + 1);
   for (const [path, name] of fields) {
     if (uses.get(name)! > 1) fields.set(path, path);
+  }
+  const taken = new Set<string>();
+  for (const [path, name] of fields) {
+    let unique = name;
+    for (let n = 2; taken.has(unique); n++) unique = `${name}#${n}`;
+    taken.add(unique);
+    fields.set(path, unique);
   }
   return fields;
 }

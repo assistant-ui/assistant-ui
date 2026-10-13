@@ -339,6 +339,46 @@ describe("specToUISpec", () => {
     });
   });
 
+  it("keeps every field name unique when a path matches another control's name", () => {
+    const tree = specToUISpec({
+      root: "card",
+      elements: {
+        card: {
+          type: "Card",
+          props: { title: "Dishes" },
+          children: ["other", "list"],
+        },
+        other: {
+          type: "Input",
+          props: {
+            name: "/dishes/0/done",
+            defaultValue: { $bindState: "/note" },
+          },
+        },
+        list: { type: "Box", repeat: { path: "/dishes" }, children: ["done"] },
+        done: {
+          type: "Checkbox",
+          props: {
+            name: "done",
+            label: "Done",
+            defaultChecked: { $bindItem: "done" },
+          },
+        },
+      },
+      state: { note: "", dishes: [{ done: true }, { done: false }] },
+    });
+    const names: string[] = [];
+    const visit = (node: unknown) => {
+      if (typeof node !== "object" || node === null) return;
+      const element = node as { name?: unknown; children?: unknown };
+      if (typeof element.name === "string") names.push(element.name);
+      if (Array.isArray(element.children)) element.children.forEach(visit);
+    };
+    visit(tree);
+    expect(names).toHaveLength(3);
+    expect(new Set(names).size).toBe(3);
+  });
+
   it("names a control repeated per item by its state path and keys repeated nodes", () => {
     const tree = specToUISpec({
       root: "list",
