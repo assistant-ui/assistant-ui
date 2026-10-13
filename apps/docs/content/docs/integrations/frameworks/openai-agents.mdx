@@ -8,7 +8,7 @@ The [OpenAI Agents SDK](https://developers.openai.com/api/docs/guides/agents/sdk
 
 ## Connect the agent to your chat UI
 
-Use `@openai/agents` on the server and `@assistant-ui/ai-sdk` in the React frontend. OpenAI's `@openai/agents-extensions/ai-sdk-ui` entry point converts a streamed agent run into the UI message stream consumed by the frontend.
+Use `@openai/agents` and `@openai/agents-extensions` on the server, and `@assistant-ui/ai-sdk` in the React frontend. OpenAI's `@openai/agents-extensions/ai-sdk-ui` entry point converts a streamed agent run into the UI message stream consumed by the frontend.
 
 1. Follow the [AI SDK v7 setup](/docs/runtimes/ai-sdk/v7) to install assistant-ui and render your thread with `useChatRuntime`.
 2. In your chat route, convert incoming UI messages into Agents SDK input and start the agent with `run(agent, input, { stream: true })`.
