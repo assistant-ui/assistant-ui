@@ -328,7 +328,9 @@ export function readThemeTokens(
     const fontElement =
       element === doc.documentElement && doc.body ? doc.body : element;
     const family = doc.defaultView?.getComputedStyle(fontElement).fontFamily;
-    if (family) variables["--font-sans"] = family;
+    // The page's web fonts do not load inside the frame, so the default stack follows them.
+    if (family)
+      variables["--font-sans"] = `${family}, ${SHARED["--font-sans"]}`;
   }
 
   return { colorScheme, variables };

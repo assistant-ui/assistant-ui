@@ -80,6 +80,14 @@ describe("readThemeTokens", () => {
     expect(tokens.variables["--color-success"]).toBe("#00aa00");
   });
 
+  it("follows the page's font with the default stack, since its web fonts stay outside the frame", () => {
+    const el = element({});
+    el.style.fontFamily = '"Public Sans", "Public Sans Fallback"';
+    const font = readThemeTokens(el).variables["--font-sans"];
+    expect(font).toMatch(/^"Public Sans", "Public Sans Fallback", /);
+    expect(font).toMatch(/, sans-serif$/);
+  });
+
   it("fills every canonical token from the defaults of the detected scheme", () => {
     const tokens = readThemeTokens(element({}, "dark"));
     expect(tokens.colorScheme).toBe("dark");
