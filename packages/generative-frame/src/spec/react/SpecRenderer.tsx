@@ -95,7 +95,7 @@ export type SpecRendererProps = {
     context: ActionSource & { state: SpecStateStore },
   ) => unknown;
   onError?: (error: Error, context: { elementId?: string }) => void;
-  /** The spec is still streaming: missing elements take no space, and one pending placeholder follows the spec. */
+  /** The spec is still streaming: missing elements take no space, an element with invalid props keeps its last valid render, and one pending placeholder follows the spec. */
   streaming?: boolean;
   placeholder?: ComponentType<SpecPlaceholderProps>;
 };
@@ -226,6 +226,7 @@ function ElementView({
   ancestors: readonly string[];
 }) {
   const ctx = useContext(SpecContext)!;
+  const settled = useRef<SpecElement | undefined>(undefined);
   const Placeholder = ctx.placeholder;
   const element = Object.hasOwn(ctx.spec.elements, id)
     ? ctx.spec.elements[id]
@@ -257,6 +258,7 @@ function ElementView({
     ? ctx.components[element.type]
     : undefined;
   if (!Impl || (ctx.catalog && !ctx.catalog.component(element.type))) {
+    if (ctx.streaming) return null;
     return (
       <Placeholder
         id={id}
@@ -265,27 +267,33 @@ function ElementView({
       />
     );
   }
+  // A value cut short by the stream, such as half an enum, fails until the rest arrives, so the last valid element stands in.
   const invalid = ctx.invalid(element);
-  if (invalid) {
+  if (!invalid) settled.current = element;
+  else if (!ctx.streaming) {
     return <Placeholder id={id} reason="invalid-props" message={invalid} />;
   }
+  const shown = invalid ? settled.current : element;
+  if (shown?.type !== element.type) return null;
 
   return (
     <ElementBoundary
       id={id}
-      element={element}
+      element={shown}
       onError={(error) => ctx.onError?.(error, { elementId: id })}
-      fallback={(error) => (
-        <Placeholder
-          id={id}
-          reason="error"
-          message={`${element.type} failed: ${error.message}`}
-        />
-      )}
+      fallback={(error) =>
+        ctx.streaming ? null : (
+          <Placeholder
+            id={id}
+            reason="error"
+            message={`${shown.type} failed: ${error.message}`}
+          />
+        )
+      }
     >
       <ResolvedElement
         id={id}
-        element={element}
+        element={shown}
         Impl={Impl}
         scope={scope}
         ancestors={[...ancestors, id]}
@@ -308,10 +316,11 @@ function ResolvedElement({
   ancestors: readonly string[];
 }) {
   const ctx = useContext(SpecContext)!;
-  const { props, bindings } = resolveProps(element.props, {
+  const resolved = resolveProps(element.props, {
     ...scope,
     state: ctx.state,
   });
+  const settled = useRef<typeof resolved | undefined>(undefined);
 
   const latest = useRef({ element, scope, ctx });
   latest.current = { element, scope, ctx };
@@ -404,10 +413,10 @@ function ResolvedElement({
 
   const rejected = rejectedPropType(
     ctx.catalog?.propsSchema(element.type),
-    props,
+    resolved.props,
   );
-  if (rejected) {
-    if (ctx.streaming) return null;
+  if (!rejected) settled.current = resolved;
+  else if (!ctx.streaming) {
     const Placeholder = ctx.placeholder;
     return (
       <Placeholder
@@ -417,6 +426,9 @@ function ResolvedElement({
       />
     );
   }
+  const shown = rejected ? settled.current : resolved;
+  if (!shown) return null;
+  const { props, bindings } = shown;
 
   return (
     <Impl
@@ -437,9 +449,11 @@ function ResolvedElement({
 
 /**
  * Renders a spec with trusted host components. It renders whatever has
- * streamed so far, followed by one pending placeholder while it streams, and
- * unknown types, invalid props, cycles, and components that throw render a
- * small placeholder instead of breaking the tree.
+ * streamed so far, followed by one pending placeholder while it streams.
+ * Unknown types, invalid props, cycles, and components that throw render a
+ * small placeholder instead of breaking the tree; while the spec streams, all
+ * but cycles wait instead, and an element with invalid props keeps its last
+ * valid render.
  */
 export function SpecRenderer({
   spec,

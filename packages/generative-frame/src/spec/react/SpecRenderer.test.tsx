@@ -279,13 +279,21 @@ describe("SpecRenderer", () => {
         { main: { type: "Photo", props: { src: { $state: path } } } },
         { tools },
       );
+    const failing = photo("/tools");
     const view = render(
       <SpecRenderer
         catalog={catalog}
         components={components}
-        spec={photo("/tools")}
+        spec={failing}
         streaming
       />,
+    );
+    expect(
+      view.container.querySelector('[data-gf-spec-placeholder="error"]'),
+    ).toBeNull();
+
+    view.rerender(
+      <SpecRenderer catalog={catalog} components={components} spec={failing} />,
     );
     expect(view.container.textContent).toContain("Photo failed");
 
@@ -299,6 +307,148 @@ describe("SpecRenderer", () => {
     expect(view.container.querySelector("img")?.getAttribute("src")).toBe(
       "https://example.com/bridge.jpg",
     );
+  });
+
+  it("keeps an element's last valid render while the spec streams", () => {
+    const mounted = vi.fn();
+    const Text = ({ props }: SpecComponentProps<{ text: string }>) => {
+      useEffect(() => mounted(), []);
+      return <p>{props.text}</p>;
+    };
+    const probe = { ...components, Text };
+    const text = (value: unknown) =>
+      spec({ main: { type: "Text", props: { text: value } } });
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={probe}
+        spec={text("Hi")}
+        streaming
+      />,
+    );
+    view.rerender(
+      <SpecRenderer
+        catalog={catalog}
+        components={probe}
+        spec={text(5)}
+        streaming
+      />,
+    );
+    expect(view.container.querySelector("p")?.textContent).toBe("Hi");
+    expect(
+      view.container.querySelector(
+        '[data-gf-spec-placeholder="invalid-props"]',
+      ),
+    ).toBeNull();
+
+    view.rerender(
+      <SpecRenderer
+        catalog={catalog}
+        components={probe}
+        spec={text("Hello")}
+        streaming
+      />,
+    );
+    expect(view.container.querySelector("p")?.textContent).toBe("Hello");
+    expect(mounted).toHaveBeenCalledTimes(1);
+
+    view.rerender(
+      <SpecRenderer catalog={catalog} components={probe} spec={text(5)} />,
+    );
+    expect(view.container.querySelector("p")).toBeNull();
+    expect(
+      view.container.querySelector(
+        '[data-gf-spec-placeholder="invalid-props"]',
+      ),
+    ).not.toBeNull();
+  });
+
+  it("does not stand an element of another type in for one that is still invalid", () => {
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={spec({ main: { type: "Text", props: { text: "Hi" } } })}
+        streaming
+      />,
+    );
+    view.rerender(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={spec({ main: { type: "Picture", props: { src: 5 } } })}
+        streaming
+      />,
+    );
+    expect(view.container.querySelector("p")).toBeNull();
+    expect(view.container.querySelector("img")).toBeNull();
+  });
+
+  it("keeps an element's last accepted props while a bound value streams", () => {
+    const tools = Object.assign(Object.create(null), {
+      photos: ["https://example.com/bridge.jpg"],
+    });
+    const picture = (src: unknown) =>
+      spec({ main: { type: "Picture", props: { src } } }, { tools });
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={picture("https://example.com/first.jpg")}
+        streaming
+      />,
+    );
+    view.rerender(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={picture({ $state: "/tools" })}
+        streaming
+      />,
+    );
+    expect(view.container.querySelector("img")?.getAttribute("src")).toBe(
+      "https://example.com/first.jpg",
+    );
+
+    view.rerender(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={picture({ $state: "/tools" })}
+      />,
+    );
+    expect(view.container.querySelector("img")).toBeNull();
+    expect(
+      view.container.querySelector(
+        '[data-gf-spec-placeholder="invalid-props"]',
+      ),
+    ).not.toBeNull();
+  });
+
+  it("shows an element's problem only once the spec stops streaming", () => {
+    const broken = spec({
+      main: { type: "Stack", children: ["a", "b"] },
+      a: { type: "Text", props: { text: 5 } },
+      b: { type: "Nope" },
+    });
+    const reasons = () =>
+      [...view.container.querySelectorAll("[data-gf-spec-placeholder]")].map(
+        (node) => node.getAttribute("data-gf-spec-placeholder"),
+      );
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={broken}
+        streaming
+      />,
+    );
+    expect(reasons()).toEqual(["pending"]);
+
+    view.rerender(
+      <SpecRenderer catalog={catalog} components={components} spec={broken} />,
+    );
+    expect(reasons()).toEqual(["invalid-props", "unknown-type"]);
   });
 
   it("waits for a primitive prop to resolve while streaming", () => {
