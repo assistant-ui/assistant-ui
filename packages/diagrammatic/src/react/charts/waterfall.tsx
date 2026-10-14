@@ -60,7 +60,7 @@ export const Waterfall = forwardRef<SVGSVGElement, WaterfallProps>(
       labels: true,
       ticks: yTickList ?? false,
       bottomValueLabel: resolved.some(
-        (entry) => !entry.total && entry.value < 0,
+        (entry) => !entry.total && entry.value < 0 && entry.to < 0,
       ),
     });
     const { left, right, top, bottom, axisY, T } = F;
@@ -110,6 +110,7 @@ export const Waterfall = forwardRef<SVGSVGElement, WaterfallProps>(
           const displayH = Math.max(h, 1.5);
           const barY = min < 0 ? Math.min(barTop, bottom - displayH) : barTop;
           const next = resolved[i + 1];
+          const labelBelow = entry.value < 0 && entry.to < 0;
           return (
             <g key={entry.label} data-part="mark" data-i={i}>
               <rect
@@ -123,9 +124,9 @@ export const Waterfall = forwardRef<SVGSVGElement, WaterfallProps>(
               {!entry.total && (
                 <text
                   x={round(x + columnW / 2)}
-                  y={round(entry.value < 0 ? Y(entry.to) + 5 : barTop - 3)}
+                  y={round(labelBelow ? Y(entry.to) + 5 : barTop - 3)}
                   textAnchor="middle"
-                  dominantBaseline={entry.value < 0 ? "hanging" : undefined}
+                  dominantBaseline={labelBelow ? "hanging" : undefined}
                   {...T.axis.attrs}
                 >
                   {entry.value > 0

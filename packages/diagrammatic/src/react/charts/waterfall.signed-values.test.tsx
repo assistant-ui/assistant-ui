@@ -155,6 +155,28 @@ describe("Waterfall signed values", () => {
     );
   });
 
+  it("keeps a drop that stays above zero labelled above its bar", () => {
+    const html = renderToStaticMarkup(
+      <Waterfall
+        steps={[
+          { label: "start", value: 100, total: true },
+          { label: "costs", value: -40 },
+          { label: "net", value: 60, total: true },
+        ]}
+      />,
+    );
+    const bottom = attribute(tags(html, "svg")[0]!, "height") - 25;
+    const baseline = tags(html, "line").find(
+      (tag) => rawAttribute(tag, "data-part") === "grid",
+    )!;
+    expect(attribute(baseline, "y1")).toBe(bottom);
+    const drop = tags(html, "rect")[1]!;
+    const label = /<text\b[^>]*>-40<\/text>/.exec(html)?.[0];
+    expect(label).toBeTypeOf("string");
+    expect(attribute(label!, "y")).toBeCloseTo(attribute(drop, "y") - 3, 1);
+    expect(rawAttribute(label!, "dominant-baseline")).toBeUndefined();
+  });
+
   it("keeps the plot bottom when a negative total has no value label", () => {
     const html = renderToStaticMarkup(
       <Waterfall steps={[{ label: "loss", value: -5, total: true }]} />,
