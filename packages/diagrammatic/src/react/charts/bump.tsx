@@ -43,7 +43,7 @@ export const Bump = forwardRef<SVGSVGElement, BumpProps>(
       right: Math.max(PAD + 10, W - PAD - Math.ceil(nameW) - 6),
     });
     const { left, right, top, bottom, axisY } = F;
-    const stageCount = series[0]?.ranks.length ?? 0;
+    const stageCount = Math.max(0, ...series.map((s) => s.ranks.length));
     const xs = Array.from(
       { length: stageCount },
       (_, i) => left + (i * (right - left)) / Math.max(1, stageCount - 1),
