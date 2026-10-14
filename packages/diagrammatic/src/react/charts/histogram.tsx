@@ -154,18 +154,6 @@ export const Histogram = forwardRef<SVGSVGElement, HistogramProps>(
           bottom={bottom}
           type={T.axis}
         />
-        {shown.map((_, i) => (
-          <rect
-            key={`hit-${i}`}
-            x={round(left + i * binWidth)}
-            y={top}
-            width={round(binWidth)}
-            height={bottom - top}
-            fill="transparent"
-            data-part="mark"
-            data-i={i}
-          />
-        ))}
         {curve ? (
           <>
             <path
@@ -230,6 +218,18 @@ export const Histogram = forwardRef<SVGSVGElement, HistogramProps>(
             )}
           </g>
         )}
+        {shown.map((_, i) => (
+          <rect
+            key={`hit-${i}`}
+            x={round(left + i * binWidth)}
+            y={top}
+            width={round(binWidth)}
+            height={bottom - top}
+            fill="transparent"
+            data-part="mark"
+            data-i={i}
+          />
+        ))}
         {labels && (
           <AxisLabels
             labels={labels}

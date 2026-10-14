@@ -699,12 +699,14 @@ export function ColumnHits({
   x1,
   top,
   bottom,
+  series,
 }: {
   count: number;
   x0: number;
   x1: number;
   top: number;
   bottom: number;
+  series?: string;
 }) {
   if (count < 1) return null;
   const step = count === 1 ? x1 - x0 : (x1 - x0) / (count - 1);
@@ -723,6 +725,7 @@ export function ColumnHits({
             fill="transparent"
             data-part="mark"
             data-i={i}
+            data-series={series}
           />
         );
       })}
