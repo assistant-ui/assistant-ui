@@ -454,7 +454,7 @@ aui.thread.append({ role: "user", content: "Hello" });
 **Selector optimization:**
 
 ```tsx
-// ❌ Expensive computation in selector (runs on every store update)
+// ❌ Expensive computation in selector (runs on every update of the thread)
 const result = useAuiState(
   (s) => s.thread.messages.filter((m) => m.role === "user").length,
 );
@@ -538,7 +538,7 @@ The rule of thumb:
 | `threads.selectionChanged`    | The main thread selection changed. Payload carries `threadId` (newly selected) and `previousThreadId`. Does not fire for the initially selected thread on mount. |
 | `thread.runStart` / `runEnd`  | A run started / ended on the thread (also visible as `isRunning` flipping)   |
 | `thread.cancelRun`            | The user stopped the run in progress on the thread                           |
-| `thread.initialize`           | The thread transitioned from new to initialized, before the first message is added |
+| `thread.initialize`           | The thread transitioned from new to initialized, before its first message is sent or its first run starts; the `initialMessages` a local runtime starts with do not initialize it |
 | `thread.modelContextUpdate`   | The model context provider notified a change. The model context lives in a provider, not in thread state, so this event has no state-derivable equivalent. |
 | `composer.send`               | The user sent the composer contents; `messageId` is set for edit-composer sends |
 | `composer.attachmentAdd`      | An attachment was added to the composer                                      |

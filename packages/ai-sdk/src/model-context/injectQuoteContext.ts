@@ -27,6 +27,7 @@ const getQuoteText = (metadata: unknown): string | undefined => {
  * export async function POST(req: Request) {
  *   const { messages } = await req.json();
  *   const result = streamText({
+ *     abortSignal: req.signal,
  *     model: myModel,
  *     messages: await convertToModelMessages(injectQuoteContext(messages)),
  *   });

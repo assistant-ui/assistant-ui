@@ -28,14 +28,29 @@ describe("readDemoUsage", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it("re-reads rather than reusing a read that predates the question", async () => {
-    const fetchMock = vi.fn(async () => Response.json(payload));
-    const { readDemoUsage } = await load(fetchMock as unknown as typeof fetch);
+  it("re-reads after pending and completed requests", async () => {
+    let resolvePending!: (response: Response) => void;
+    const pending = new Promise<Response>((resolve) => {
+      resolvePending = resolve;
+    });
+    const refreshed = { ...payload, used: 3, remaining: 0 };
+    const fetchMock = vi
+      .fn(async () => Response.json(refreshed))
+      .mockReturnValueOnce(pending);
+    const { readDemoUsage, refreshDemoUsage } = await load(
+      fetchMock as unknown as typeof fetch,
+    );
 
-    await readDemoUsage();
-    await readDemoUsage();
+    refreshDemoUsage();
+    const answer = readDemoUsage();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
 
+    resolvePending(Response.json(payload));
+    expect(await answer).toEqual(refreshed);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+
+    expect(await readDemoUsage()).toEqual(refreshed);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
   // The composer settles open on an unreadable budget so the gate does not

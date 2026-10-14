@@ -30,6 +30,7 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   return {
     ...actual,
     useAui: () => ({
+      optional: {},
       composer: {
         getState: () => ({ attachmentAccept: "*" }),
       },

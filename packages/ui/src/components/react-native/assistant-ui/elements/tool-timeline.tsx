@@ -7,6 +7,7 @@ import { take } from "../utils/range";
 import { mono, monoStyle, ShimmerLabel, textButtonHitSlop } from "./surfaces";
 
 export interface TimelineStep {
+  id?: string;
   verb: string;
   chip: string;
   icon: LucideIcon;
@@ -75,7 +76,7 @@ export const ToolTimeline: FC<ToolTimelineProps> = ({
 
             return (
               <View
-                key={`${index}-${step.chip}`}
+                key={step.id ? `id:${step.id}` : index}
                 className="flex-row items-center gap-2"
               >
                 <Icon as={step.icon} className="text-foreground/35 size-3.5" />

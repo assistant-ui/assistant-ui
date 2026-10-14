@@ -7,11 +7,12 @@ export default defineConfig({
     include: ["test/**/*.test.ts", "src/**/*.test.ts"],
     coverage: {
       thresholds: {
-        lines: 79,
-        functions: 83,
-        branches: 70,
-        statements: 77,
-        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+        lines: 78,
+        functions: 82,
+        branches: 69,
+        statements: 76,
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
       },
       provider: "v8",
       reporter: ["text", "json", "html"],

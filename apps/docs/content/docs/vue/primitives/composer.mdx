@@ -131,6 +131,7 @@ const aui = useAui();
 const canSend = useAuiState((s) => s.composer.canSend && !s.thread.isRunning);
 
 const onKeydown = (event: KeyboardEvent) => {
+  if (event.isComposing || event.keyCode === 229) return;
   if (event.key !== "Enter" || !(event.metaKey || event.ctrlKey)) return;
   event.preventDefault();
   if (canSend.value) aui.composer.send();

@@ -1,3 +1,4 @@
+// @vitest-environment node
 import remend from "remend";
 import { parseMarkdownIntoBlocks } from "streamdown";
 import { describe, expect, it, vi } from "vitest";

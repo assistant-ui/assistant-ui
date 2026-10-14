@@ -14,6 +14,41 @@ import { MessageContent } from "./MessageContent";
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
 describe("MessageContent with a runtime", () => {
+  it("renders a default image after a text part", async () => {
+    const image = "data:image/png;base64,iVBORw0KGgo=";
+    const App = () => {
+      const runtime = useExternalStoreRuntime({
+        messages: [
+          {
+            role: "assistant",
+            content: [
+              { type: "text", text: "lead" },
+              { type: "image", image },
+            ],
+          },
+        ] satisfies ThreadMessageLike[],
+        convertMessage: (value) => value,
+        onNew: async () => {},
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <MessageByIndexProvider index={0}>
+            <MessageContent />
+          </MessageByIndexProvider>
+        </AssistantRuntimeProvider>
+      );
+    };
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    try {
+      await act(async () => root.render(<App />));
+      expect(container.textContent).toContain("lead");
+      expect(container.querySelector("img")?.getAttribute("src")).toBe(image);
+    } finally {
+      await act(async () => root.unmount());
+    }
+  });
+
   it.each(["tool-call", "data"] as const)(
     "renders derived status for registered %s UIs",
     async (type) => {

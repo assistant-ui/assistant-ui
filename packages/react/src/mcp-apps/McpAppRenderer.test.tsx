@@ -11,6 +11,7 @@ import type {
   McpAppBridgeHandlers,
   McpAppFrameProps,
   McpAppHostContext,
+  McpAppInitializeParams,
   McpAppsHost,
   McpAppsRemoteHostOptions,
 } from "./types";
@@ -229,8 +230,12 @@ describe("McpAppRenderer", () => {
     await waitFor(() => expect(framePropsCalls().length).toBeGreaterThan(0));
     const handlers = framePropsCalls().at(-1)?.handlers;
     expect(handlers?.requestDisplayMode).toBeDefined();
-    handlers?.onInitialized?.();
+    const params: McpAppInitializeParams = {
+      appCapabilities: { availableDisplayModes: ["inline", "fullscreen"] },
+    };
+    handlers?.onInitialized?.(params);
     expect(onInitialized).toHaveBeenCalledOnce();
+    expect(onInitialized).toHaveBeenCalledWith(params);
   });
 
   it("leaves mounted parts alone when renderer options are unchanged", async () => {
@@ -720,6 +725,71 @@ describe("McpAppRenderer", () => {
     expect(appendMock).toHaveBeenCalledTimes(2);
   });
 
+  it("extracts sparse message content without traversing holes", async () => {
+    render(<Harness host={loadingHost()} />);
+    await waitFor(() => expect(framePropsMock).toHaveBeenCalled());
+    const handlers = framePropsMock.mock.lastCall?.[0]
+      .handlers as McpAppBridgeHandlers;
+    const content: unknown[] = new Array(50_000_000);
+    content[0] = { type: "text", text: "sparse prompt" };
+
+    const lastIndex = String(content.length - 1);
+    const arrayPrototypeLength = Array.prototype.length;
+    const visitedHole = vi.fn();
+    Object.defineProperty(Array.prototype, lastIndex, {
+      configurable: true,
+      get() {
+        visitedHole();
+        return undefined;
+      },
+    });
+
+    try {
+      const clonedContent = structuredClone(content);
+      expect(
+        handlers.sendMessage?.({ role: "user", content: clonedContent }),
+      ).toEqual({ ok: true });
+    } finally {
+      delete (Array.prototype as unknown[])[Number(lastIndex)];
+      Array.prototype.length = arrayPrototypeLength;
+    }
+
+    expect(visitedHole).not.toHaveBeenCalled();
+    expect(appendMock).toHaveBeenCalledWith({
+      content: [{ type: "text", text: "sparse prompt" }],
+    });
+  });
+
+  it("ignores non-index message content properties after structured clone", async () => {
+    render(<Harness host={loadingHost()} />);
+    await waitFor(() => expect(framePropsMock).toHaveBeenCalled());
+    const handlers = framePropsMock.mock.lastCall?.[0]
+      .handlers as McpAppBridgeHandlers;
+
+    for (const property of ["filter", "constructor"] as const) {
+      const content: unknown[] = [{ type: "text", text: "message text" }];
+      Object.defineProperty(content, property, {
+        configurable: true,
+        enumerable: true,
+        value: { type: "text", text: "not an array element" },
+      });
+      const clonedContent = structuredClone(content);
+
+      expect(Object.hasOwn(clonedContent, property)).toBe(true);
+      expect(
+        handlers.sendMessage?.({ role: "user", content: clonedContent }),
+      ).toEqual({ ok: true });
+    }
+
+    expect(appendMock).toHaveBeenCalledTimes(2);
+    expect(appendMock).toHaveBeenNthCalledWith(1, {
+      content: [{ type: "text", text: "message text" }],
+    });
+    expect(appendMock).toHaveBeenNthCalledWith(2, {
+      content: [{ type: "text", text: "message text" }],
+    });
+  });
+
   it("uses caller UI handlers and keeps data-plane handlers on the host", async () => {
     const host: McpAppsHost = {
       loadResource: vi.fn(async ({ uri }) => ({
@@ -759,7 +829,7 @@ describe("McpAppRenderer", () => {
     await handlers.updateModelContext?.({ text: "context" });
     await handlers.openLink?.({ url: "https://example.com" });
     await handlers.sendMessage?.({ text: "hello" });
-    handlers.onInitialized?.();
+    handlers.onInitialized?.({});
     await handlers.callTool?.({ name: "search" });
     await handlers.readResource?.({ uri: "ui://resource" });
     await handlers.listResources?.();

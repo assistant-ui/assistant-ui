@@ -8,6 +8,37 @@ import {
 
 describe("parseDataUrl", () => {
   it.each([
+    ["aGk%3D", "aGk="],
+    ["%2B%2F8%3D", "+/8="],
+    ["%2b%2f8%3d", "+/8="],
+  ])("extracts percent-encoded base64 bytes from %s", (payload, expected) => {
+    expect(
+      parseDataUrl(`data:application/octet-stream;base64,${payload}`),
+    ).toEqual({
+      mimeType: "application/octet-stream",
+      data: expected,
+    });
+  });
+
+  it("matches the platform's decoded data URL bytes", async () => {
+    const value = "data:text/plain;base64,aGk%3D";
+    const response = await fetch(value);
+    const bytes = Buffer.from(await response.arrayBuffer());
+
+    expect(parseDataUrl(value)?.data).toBe(bytes.toString("base64"));
+  });
+
+  it("percent-decodes once without interpreting a bare plus as a space", () => {
+    expect(parseDataUrl("data:;base64,%253D")?.data).toBe("%3D");
+    expect(parseDataUrl("data:;base64,+/8=")?.data).toBe("+/8=");
+  });
+
+  it("keeps extraction non-throwing for malformed escapes and non-UTF8 bytes", () => {
+    expect(parseDataUrl("data:;base64,aGk%ZZ")?.data).toBe("aGk%ZZ");
+    expect(parseDataUrl("data:;base64,%FF")?.data).toBe("\xff");
+  });
+
+  it.each([
     "data:;base64,aGk=",
     "data:;charset=utf-8;base64,aGk=",
     "DATA:;BASE64,aGk=",
@@ -143,6 +174,29 @@ describe("httpUrlPattern", () => {
 });
 
 describe("resolveFilePartSource", () => {
+  it("unwraps percent-encoded base64 without decoding opaque data", () => {
+    expect(
+      resolveFilePartSource({
+        data: "data:application/pdf;base64,aGk%3D",
+        mimeType: "application/pdf",
+      }),
+    ).toEqual({
+      kind: "data",
+      data: "aGk=",
+      mimeType: "application/pdf",
+    });
+    expect(
+      resolveFilePartSource({
+        data: "aGk%3D",
+        mimeType: "application/pdf",
+      }),
+    ).toEqual({
+      kind: "data",
+      data: "aGk%3D",
+      mimeType: "application/pdf",
+    });
+  });
+
   it.each(["application/octet-stream", "image/png", "audio/wav", "text/plain"])(
     "extracts bytes while retaining the declared %s type when the URL omits it",
     (mimeType) => {

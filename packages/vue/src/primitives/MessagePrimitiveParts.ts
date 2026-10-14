@@ -41,6 +41,7 @@ export type ToolUIProps = {
   addResult: PartMethods["addToolResult"];
   resume: PartMethods["resumeToolCall"];
   respondToApproval: PartMethods["respondToToolApproval"];
+  /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
   unstable_recordInteraction?: PartMethods["unstable_recordInteraction"];
 };
 

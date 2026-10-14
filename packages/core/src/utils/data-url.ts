@@ -20,7 +20,9 @@ export function parseDataUrl(
   if (!match) return null;
   return {
     mimeType: match[1] ? match[1].toLowerCase() : fallbackMimeType,
-    data: match[2]!,
+    data: match[2]!.replace(/%([\da-f]{2})/gi, (_match, hex: string) =>
+      String.fromCharCode(Number.parseInt(hex, 16)),
+    ),
   };
 }
 

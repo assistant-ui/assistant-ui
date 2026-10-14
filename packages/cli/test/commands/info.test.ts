@@ -185,6 +185,7 @@ describe("info command", () => {
 
     try {
       fs.mkdirSync(app, { recursive: true });
+      fs.writeFileSync(path.join(app, "pnpm-lock.yaml"), "");
       fs.writeFileSync(
         path.join(root, "package.json"),
         JSON.stringify({ private: true, workspaces: ["packages/*"] }),
@@ -224,6 +225,7 @@ describe("info command", () => {
     ) as { version: string };
 
     try {
+      fs.writeFileSync(path.join(root, "pnpm-lock.yaml"), "");
       fs.writeFileSync(
         path.join(root, "package.json"),
         JSON.stringify({

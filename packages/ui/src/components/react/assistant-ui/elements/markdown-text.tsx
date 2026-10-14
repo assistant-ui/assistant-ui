@@ -6,7 +6,7 @@ import {
   type CodeHeaderProps,
   MarkdownTextPrimitive,
   type MarkdownTextPrimitiveProps,
-  unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
+  memoizeMarkdownComponents,
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";

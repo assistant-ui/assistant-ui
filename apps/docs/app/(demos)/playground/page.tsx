@@ -174,7 +174,7 @@ function BuilderPlayground() {
                 </button>
               );
             })}
-            <span className="text-foreground/30 ml-1.5 font-mono text-[11px] tabular-nums">
+            <span className="text-foreground/30 ml-1.5 text-xs tabular-nums">
               {viewportWidth === "100%" ? "100%" : `${viewportWidth}px`}
             </span>
           </div>

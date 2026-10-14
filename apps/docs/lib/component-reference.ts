@@ -1,4 +1,4 @@
-import type { UISpec } from "@assistant-ui/react-generative-ui";
+import type { UISpec } from "@assistant-ui/generative-ui";
 
 export type ComponentCategory = {
   label: string;
@@ -8,7 +8,16 @@ export type ComponentCategory = {
 export const COMPONENT_CATEGORIES: readonly ComponentCategory[] = [
   {
     label: "Layout",
-    components: ["Card", "Row", "Col", "Box", "Spacer", "Divider", "Carousel"],
+    components: [
+      "Card",
+      "Row",
+      "Col",
+      "Box",
+      "Spacer",
+      "Divider",
+      "Carousel",
+      "Tabs",
+    ],
   },
   {
     label: "Typography",
@@ -16,11 +25,11 @@ export const COMPONENT_CATEGORIES: readonly ComponentCategory[] = [
   },
   {
     label: "Data",
-    components: ["Fact", "Table", "Chart", "Badge"],
+    components: ["Fact", "Table", "Chart", "Badge", "Citation"],
   },
   {
     label: "Media",
-    components: ["Image", "Icon"],
+    components: ["Image", "Icon", "Diagram", "Map"],
   },
   {
     label: "Controls",
@@ -38,7 +47,7 @@ export const COMPONENT_CATEGORIES: readonly ComponentCategory[] = [
   },
   {
     label: "Lists",
-    components: ["ListView", "ListViewItem"],
+    components: ["ListView", "ListViewItem", "Steps", "Timeline"],
   },
   {
     label: "Feedback",
@@ -367,6 +376,93 @@ export const COMPONENT_EXAMPLES: Record<string, UISpec> = {
       { label: "Bar", value: "bar" },
     ],
     $action: { type: "set_seating" },
+  },
+  Tabs: {
+    $type: "Tabs",
+    tabs: ["Starter", "Pro", "Team"],
+    children: [
+      {
+        $type: "Col",
+        gap: 1,
+        children: [
+          { $type: "Fact", label: "Price", value: "$0" },
+          { $type: "Caption", value: "One project, community support." },
+        ],
+      },
+      {
+        $type: "Col",
+        gap: 1,
+        children: [
+          { $type: "Fact", label: "Price", value: "$20 / month" },
+          { $type: "Caption", value: "Unlimited projects, email support." },
+        ],
+      },
+      {
+        $type: "Col",
+        gap: 1,
+        children: [
+          { $type: "Fact", label: "Price", value: "$15 / seat / month" },
+          { $type: "Caption", value: "Shared workspaces and SSO." },
+        ],
+      },
+    ],
+  },
+  Steps: {
+    $type: "Steps",
+    steps: [
+      {
+        title: "Take the wheel off",
+        detail:
+          "Shift to the smallest cog, open the brake, and pull the wheel down.",
+      },
+      {
+        title: "Find the leak",
+        detail:
+          "Pump a little air in and listen, or hold the tube under water.",
+      },
+      {
+        title: "Patch the tube",
+        detail:
+          "Roughen the area, spread the glue, and wait until it turns matte.",
+      },
+    ],
+  },
+  Timeline: {
+    $type: "Timeline",
+    items: [
+      {
+        time: "Day 1",
+        title: "San Francisco to Monterey",
+        detail: "2 h drive, with a stop at the Santa Cruz boardwalk.",
+      },
+      {
+        time: "Day 2",
+        title: "Monterey to Big Sur",
+        detail: "1 h drive. Catch Bixby Creek Bridge at sunset.",
+      },
+      { time: "Day 3", title: "Big Sur to San Luis Obispo" },
+    ],
+  },
+  Diagram: {
+    $type: "Diagram",
+    title: "Order flow",
+    code: "flowchart LR\n  A[Cart] --> B[Checkout]\n  B --> C{Paid?}\n  C -->|Yes| D[Ship]\n  C -->|No| B",
+  },
+  Map: {
+    $type: "Map",
+    route: true,
+    places: [
+      { label: "San Francisco", lat: 37.7749, lng: -122.4194, detail: "Start" },
+      { label: "Monterey", lat: 36.6002, lng: -121.8947, detail: "Night 1" },
+      { label: "Big Sur", lat: 36.2704, lng: -121.8081, detail: "Night 2" },
+    ],
+  },
+  Citation: {
+    $type: "Citation",
+    title: "Tire and tube repair",
+    url: "https://www.parktool.com/en-us/blog/repair-help/tire-and-tube-repair",
+    snippet:
+      "Find what caused the flat before you patch, or the new tube goes flat too.",
   },
   CheckboxGroup: {
     $type: "CheckboxGroup",

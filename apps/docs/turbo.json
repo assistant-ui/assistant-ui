@@ -38,6 +38,7 @@
       "inputs": [
         "scripts/generate-type-docs.mts",
         "scripts/generated-docs/**",
+        "$TURBO_ROOT$/scripts/lib/experimental-annotations.mjs",
         "content/types-to-generate/**",
         "tsconfig.json"
       ],

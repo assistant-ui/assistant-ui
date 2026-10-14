@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>generative-frame storage demo</title>
+    <link rel="stylesheet" href="./demo.css" />
+  </head>
+  <body>
+    <main>
+      <h1>Per-id storage</h1>
+      <p class="lead">Widgets with the same id share an origin, so their localStorage survives a remount. A different id sees nothing, and clearWidgetStorage wipes it.</p>
+      <div class="controls"><button id="run" type="button">Run</button></div>
+      <div class="bubble" id="widget"></div>
+      <pre id="result" class="prose"></pre>
+    </main>
+    <script type="module" src="./storage.ts"></script>
+  </body>
+</html>

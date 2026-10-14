@@ -6,6 +6,7 @@ import { useState } from "react";
 import { createPortal } from "react-dom";
 import { DocsRuntimeProvider } from "@/runtimes/docs";
 import { useFullscreenOverlay } from "./fullscreen";
+import { GenerativeUIInstructions, generativeUI } from "./generative-ui";
 import { DemoShell, type DemoView } from "./shell";
 
 export function HomeDemo(): ReactNode {
@@ -29,7 +30,13 @@ export function HomeDemo(): ReactNode {
   return (
     <section aria-label="Thread" className="flex flex-col gap-3">
       <div className="border-foreground/10 rounded-document h-[min(52rem,88svh)] overflow-hidden border">
-        <DocsRuntimeProvider devtools={false} followUps countConversations>
+        <DocsRuntimeProvider
+          devtools={false}
+          followUps
+          countConversations
+          toolkit={generativeUI.toolkit}
+        >
+          <GenerativeUIInstructions />
           {expanded
             ? createPortal(
                 <div

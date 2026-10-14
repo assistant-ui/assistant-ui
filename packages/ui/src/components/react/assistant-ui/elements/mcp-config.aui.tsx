@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  isValidElement,
-  type FC,
-  type ReactNode,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-} from "react";
+import { isValidElement, type FC, type ReactNode, useId } from "react";
 import { useAuiState } from "@assistant-ui/store";
 import {
   McpAddFormPrimitive,
@@ -39,29 +31,16 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import {
+  STATUS_LABEL,
+  useCustomServersSection,
+  useServerActionFocus,
+  useServerAnnouncement,
+} from "../utils/mcp-config-state";
 import { cn } from "@/lib/utils";
 
 const inputClassName =
   "border-input selection:bg-primary selection:text-primary-foreground file:text-foreground placeholder:text-muted-foreground dark:bg-input/30 h-9 w-full min-w-0 rounded-md border bg-transparent px-3 py-1 text-base transition-colors outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-1 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40";
-const FOCUSABLE_SELECTOR = "button:not([disabled]), a[href]";
-
-const firstFocusable = (element: Element | null | undefined) =>
-  element?.matches(FOCUSABLE_SELECTOR)
-    ? (element as HTMLElement)
-    : element?.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
-
-const indexOfServer = (list: Element, element: Element) =>
-  [...list.children].findIndex((card) => card.contains(element));
-
-const isFocusLost = () => {
-  const active = document.activeElement;
-  return (
-    !active ||
-    active === document.body ||
-    active.getAttribute("role") === "dialog"
-  );
-};
-
 export namespace McpConfigDialog {
   export type Props = {
     /** Trigger element. Defaults to a ghost button with a plug icon. */
@@ -138,43 +117,8 @@ const ConnectorsSection: FC = () => {
 };
 
 const CustomServersSection: FC = () => {
-  const serverIds = useAuiState((s) =>
-    s.mcp.customServers.map((server) => server.id).join("\x1f"),
-  );
-  const [showForm, setShowForm] = useState(false);
-  const listRef = useRef<HTMLDivElement>(null);
-  const focusedServerRef = useRef<{ element: Element; index: number } | null>(
-    null,
-  );
-  const addTriggerRef = useRef<HTMLButtonElement>(null);
-  const restoreFocusRef = useRef(false);
-
-  useEffect(() => {
-    if (showForm || !restoreFocusRef.current) return;
-    restoreFocusRef.current = false;
-    addTriggerRef.current?.focus();
-  }, [showForm]);
-
-  useEffect(() => {
-    const list = listRef.current;
-    const focused = focusedServerRef.current;
-    if (!list || !focused) return;
-    if (focused.element.isConnected) {
-      focused.index = indexOfServer(list, focused.element);
-      return;
-    }
-    focusedServerRef.current = null;
-    if (!isFocusLost()) return;
-    (
-      firstFocusable(list.children[focused.index]) ??
-      firstFocusable(list.nextElementSibling)
-    )?.focus();
-  }, [serverIds]);
-
-  const handleClose = () => {
-    restoreFocusRef.current = true;
-    setShowForm(false);
-  };
+  const { showForm, listRef, addTriggerRef, onListFocus, openForm, closeForm } =
+    useCustomServersSection();
 
   return (
     <section className="aui-mcp-custom-servers flex flex-col gap-2">
@@ -182,12 +126,7 @@ const CustomServersSection: FC = () => {
       <div
         ref={listRef}
         className="flex flex-col gap-2"
-        onFocus={(e) => {
-          focusedServerRef.current = {
-            element: e.target,
-            index: indexOfServer(e.currentTarget, e.target),
-          };
-        }}
+        onFocus={(e) => onListFocus(e.currentTarget, e.target)}
       >
         <McpManagerPrimitive.CustomServers>
           {() => <ServerCard />}
@@ -200,13 +139,13 @@ const CustomServersSection: FC = () => {
             buttonVariants({ variant: "outline" }),
             "aui-mcp-add-trigger h-9 justify-start gap-2 rounded-lg px-3 text-sm",
           )}
-          onClick={() => setShowForm(true)}
+          onClick={openForm}
         >
           <PlusIcon className="size-4" />
           Add server
         </McpManagerPrimitive.AddCustomTrigger>
       )}
-      {showForm && <AddServerForm onClose={handleClose} />}
+      {showForm && <AddServerForm onClose={closeForm} />}
     </section>
   );
 };
@@ -278,15 +217,6 @@ const STATUS_VARIANT: Record<
   disconnected: "secondary",
 };
 
-const STATUS_LABEL: Record<MCPConnectionState, string> = {
-  connected: "Connected",
-  connecting: "Connecting…",
-  authRequired: "Auth required",
-  authPending: "Authorizing…",
-  error: "Error",
-  disconnected: "Disconnected",
-};
-
 const StatusLine: FC = () => {
   const status = useAuiState((s) => s.mcpServer.connectionState);
   const variant = STATUS_VARIANT[status];
@@ -304,25 +234,7 @@ const StatusLine: FC = () => {
 };
 
 const ServerAnnouncement: FC = () => {
-  const status = useAuiState((s) => s.mcpServer.connectionState);
-  const message = useAuiState((s) => s.mcpServer.lastError?.message ?? null);
-  const [seen, setSeen] = useState({ status, message });
-  const [announcement, setAnnouncement] = useState("");
-
-  if (seen.status !== status || seen.message !== message) {
-    setSeen({ status, message });
-    if (message && message !== seen.message) {
-      setAnnouncement(`${STATUS_LABEL.error}: ${message}`);
-    } else if (status !== seen.status) {
-      setAnnouncement(STATUS_LABEL[status]);
-    }
-  }
-
-  useEffect(() => {
-    if (!announcement) return;
-    const timeout = setTimeout(() => setAnnouncement(""), 1000);
-    return () => clearTimeout(timeout);
-  }, [announcement]);
+  const announcement = useServerAnnouncement();
 
   return (
     <div role="status" className="sr-only">
@@ -343,23 +255,12 @@ const ServerError: FC = () => {
 };
 
 const ServerActions: FC = () => {
-  const state = useAuiState((s) => s.mcpServer.connectionState);
-  const actionRef = useRef<HTMLButtonElement>(null);
-  const focusedRef = useRef<Element | null>(null);
-
-  useEffect(() => {
-    const focused = focusedRef.current;
-    if (!focused || focused.isConnected) return;
-    focusedRef.current = null;
-    if (isFocusLost()) actionRef.current?.focus();
-  }, [state]);
+  const { actionRef, onActionFocus } = useServerActionFocus();
 
   return (
     <div
       className="flex flex-wrap gap-2"
-      onFocus={(e) => {
-        focusedRef.current = e.target;
-      }}
+      onFocus={(e) => onActionFocus(e.target)}
     >
       <McpServerPrimitive.ConnectButton
         ref={actionRef}

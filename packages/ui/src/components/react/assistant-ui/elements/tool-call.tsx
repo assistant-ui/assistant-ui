@@ -1,12 +1,12 @@
 "use client";
 
 import { CheckIcon, ChevronRightIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
-  Collapsible,
+  CollapsibleRoot as Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { cn } from "@/lib/utils";
+} from "./collapsible-root";
 import {
   collapsePanel,
   field,

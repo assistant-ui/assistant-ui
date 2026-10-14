@@ -5,7 +5,7 @@ import "@assistant-ui/react-markdown/styles/dot.css";
 import {
   MarkdownTextPrimitive,
   type SyntaxHighlighterProps,
-  unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
+  memoizeMarkdownComponents,
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";

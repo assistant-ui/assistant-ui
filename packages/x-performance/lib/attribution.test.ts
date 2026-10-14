@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { afterEach, describe, expect, it } from "vitest";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -160,6 +161,7 @@ describe("against the real workspace", () => {
         "bench/external-message-conversion.bench.ts",
         "bench/from-thread-message-like.bench.ts",
         "bench/interactable-array-patches.bench.ts",
+        "bench/markdown-preprocess.bench.ts",
         "bench/markdown-streaming.bench.tsx",
         "bench/react-langgraph.bench.ts",
         "bench/react-pi-message-projection.bench.ts",

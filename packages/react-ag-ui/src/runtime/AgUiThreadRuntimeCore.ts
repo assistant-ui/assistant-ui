@@ -115,7 +115,6 @@ type CoreOptions = {
   onError?: (error: Error) => void;
   onCancel?: () => void;
   history?: ThreadHistoryAdapter;
-  notifyUpdate: () => void;
   isThreadSwitching?: () => boolean;
 };
 
@@ -160,7 +159,15 @@ export class AgUiThreadRuntimeCore {
   private autoCancelPendingToolCalls: boolean | undefined;
   private onError: ((error: Error) => void) | undefined;
   private onCancel: (() => void) | undefined;
-  private readonly notifyUpdate: () => void;
+  private readonly listeners = new Set<() => void>();
+  private snapshot:
+    | {
+        isLoading: boolean;
+        isRunning: boolean;
+        messageRepository: ExportedMessageRepository;
+        state: ReadonlyJSONValue | undefined;
+      }
+    | undefined;
   private readonly isThreadSwitching: (() => boolean) | undefined;
   private readonly reportedErrors = new WeakSet<object>();
 
@@ -212,11 +219,28 @@ export class AgUiThreadRuntimeCore {
     this.onError = options.onError;
     this.onCancel = options.onCancel;
     this.history = options.history;
-    this.notifyUpdate = options.notifyUpdate;
     this.isThreadSwitching = options.isThreadSwitching;
   }
 
-  updateOptions(options: Omit<CoreOptions, "notifyUpdate">) {
+  subscribe = (listener: () => void): (() => void) => {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  };
+
+  getSnapshot = () =>
+    (this.snapshot ??= {
+      isLoading: this._isLoading,
+      isRunning: this.isRunningFlag,
+      messageRepository: this.session.export(),
+      state: this.stateSnapshot,
+    });
+
+  private publishUpdate(): void {
+    this.snapshot = undefined;
+    for (const listener of this.listeners) listener();
+  }
+
+  updateOptions(options: CoreOptions) {
     this.agent = options.agent;
     this.logger = options.logger;
     this.showThinking = options.showThinking;
@@ -283,7 +307,7 @@ export class AgUiThreadRuntimeCore {
       for (const { message } of repo.messages) {
         this.persistedHistoryIds.add(message.id);
       }
-      this.notifyUpdate();
+      this.publishUpdate();
 
       if (repo.state !== undefined) {
         this.loadExternalState(repo.state);
@@ -321,10 +345,10 @@ export class AgUiThreadRuntimeCore {
       })
       .finally(() => {
         this._isLoading = false;
-        this.notifyUpdate();
+        this.publishUpdate();
       });
 
-    this.notifyUpdate();
+    this.publishUpdate();
     return this._loadPromise;
   }
 
@@ -394,7 +418,7 @@ export class AgUiThreadRuntimeCore {
     const parentId = this.session.headId;
     this.session.addOrUpdateMessage(parentId, message);
     this.session.switchToBranch(message.id);
-    this.notifyUpdate();
+    this.publishUpdate();
     this.recordHistoryEntry(parentId, message);
   }
 
@@ -416,7 +440,7 @@ export class AgUiThreadRuntimeCore {
           : this.session.headId;
     this.session.addOrUpdateMessage(parentId, threadMessage);
     this.session.switchToBranch(threadMessage.id);
-    this.notifyUpdate();
+    this.publishUpdate();
     this.recordHistoryEntry(parentId, threadMessage);
     return threadMessage.id;
   }
@@ -722,7 +746,7 @@ export class AgUiThreadRuntimeCore {
         `[agui] respondToToolApproval: approval "${options.approvalId}" is already decided`,
       );
     }
-    this.notifyUpdate();
+    this.publishUpdate();
 
     const assistant = this.session.tryGetMessage(pending.messageId)?.message as
       | ThreadAssistantMessage
@@ -898,7 +922,7 @@ export class AgUiThreadRuntimeCore {
       };
     });
     if (touched) {
-      this.notifyUpdate();
+      this.publishUpdate();
     }
   }
 
@@ -933,7 +957,7 @@ export class AgUiThreadRuntimeCore {
       });
       return { ...assistant, content };
     });
-    if (updated) this.notifyUpdate();
+    if (updated) this.publishUpdate();
   }
 
   addToolResult(options: AddToolResultOptions): void {
@@ -971,7 +995,7 @@ export class AgUiThreadRuntimeCore {
     });
 
     if (!updated) return;
-    this.notifyUpdate();
+    this.publishUpdate();
     this.maybeResumeAfterToolResults(sessionMessageId);
   }
 
@@ -1021,7 +1045,7 @@ export class AgUiThreadRuntimeCore {
       );
     }
 
-    this.notifyUpdate();
+    this.publishUpdate();
 
     const message = this.session.tryGetMessage(sessionMessageId)?.message;
     const history = this.history;
@@ -1110,7 +1134,7 @@ export class AgUiThreadRuntimeCore {
         : current,
     );
     if (!updated) return false;
-    this.notifyUpdate();
+    this.publishUpdate();
     this.persistAssistantHistory(messageId);
     return true;
   }
@@ -1190,12 +1214,12 @@ export class AgUiThreadRuntimeCore {
     ) {
       this.pendingResume = null;
     }
-    this.notifyUpdate();
+    this.publishUpdate();
   }
 
   loadExternalState(state: ReadonlyJSONValue): void {
     this.stateSnapshot = state;
-    this.notifyUpdate();
+    this.publishUpdate();
   }
 
   setState(
@@ -1205,12 +1229,12 @@ export class AgUiThreadRuntimeCore {
   ): void {
     this.stateSnapshot =
       typeof next === "function" ? next(this.stateSnapshot) : next;
-    this.notifyUpdate();
+    this.publishUpdate();
   }
 
   resetState(): void {
     this.stateSnapshot = undefined;
-    this.notifyUpdate();
+    this.publishUpdate();
   }
 
   resetThreadState(): void {
@@ -1235,7 +1259,7 @@ export class AgUiThreadRuntimeCore {
         controller.abort();
       }
     } else {
-      this.notifyUpdate();
+      this.publishUpdate();
     }
   }
 
@@ -1637,7 +1661,7 @@ export class AgUiThreadRuntimeCore {
 
   private setRunning(running: boolean) {
     this.isRunningFlag = running;
-    this.notifyUpdate();
+    this.publishUpdate();
   }
 
   private finishRun(controller: AbortController | null) {
@@ -1668,7 +1692,7 @@ export class AgUiThreadRuntimeCore {
     };
     this.session.addOrUpdateMessage(parentId ?? this.session.headId, assistant);
     this.session.switchToBranch(id);
-    this.notifyUpdate();
+    this.publishUpdate();
     return id;
   }
 
@@ -1734,7 +1758,7 @@ export class AgUiThreadRuntimeCore {
       }
     }
 
-    this.notifyUpdate();
+    this.publishUpdate();
     return !collidesWithExisting;
   }
 
@@ -1774,7 +1798,7 @@ export class AgUiThreadRuntimeCore {
       this.reassignAssistantId(messageId, stableId);
       resolvedMessageId = stableId;
     } else {
-      this.notifyUpdate();
+      this.publishUpdate();
     }
     if (this.isPersistableStatus(latestStatus)) {
       this.persistAssistantHistory(resolvedMessageId);
@@ -2100,7 +2124,7 @@ export class AgUiThreadRuntimeCore {
         };
       });
     }
-    this.notifyUpdate();
+    this.publishUpdate();
   }
 
   private applyCrossRunToolResult(
@@ -2171,7 +2195,7 @@ export class AgUiThreadRuntimeCore {
     });
 
     if (!updated) return;
-    this.notifyUpdate();
+    this.publishUpdate();
     // Not maybeResumeAfterToolResults: the delivering run is already in
     // flight, and a resume from the owner would reset the head past it.
     this.maybeCompleteAfterToolResults(messageId);
@@ -2234,7 +2258,7 @@ export class AgUiThreadRuntimeCore {
     });
 
     if (!updated) return;
-    this.notifyUpdate();
+    this.publishUpdate();
     this.maybeCompleteAfterToolResults(messageId);
   }
 

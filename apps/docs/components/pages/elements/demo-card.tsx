@@ -71,7 +71,7 @@ export function DemoCard({
         className="group/caption mt-3.5 flex items-baseline gap-2.5"
       >
         {index === undefined ? null : (
-          <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
+          <span className="text-muted-foreground text-xs tabular-nums">
             {String(index).padStart(2, "0")}
           </span>
         )}
@@ -79,9 +79,7 @@ export function DemoCard({
           {title}
         </h3>
         {connection ? (
-          <span className="text-muted-foreground font-mono text-[11px]">
-            {connection}
-          </span>
+          <span className="text-muted-foreground text-xs">{connection}</span>
         ) : null}
         <span
           aria-hidden

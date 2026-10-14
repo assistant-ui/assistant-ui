@@ -13,17 +13,19 @@ export async function POST(req: Request) {
 
   const model = openai("gpt-6-luna");
 
+  const aiSDKTools = frontendTools(tools);
   const prunedMessages = pruneMessages({
-    messages: await convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     reasoning: "none",
   });
 
   const result = streamText({
+    abortSignal: req.signal,
     model,
     messages: prunedMessages,
     maxOutputTokens: 15000,
     stopWhen: stepCountIs(10),
-    tools: frontendTools(tools),
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse();

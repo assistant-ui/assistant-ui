@@ -208,10 +208,10 @@ type ToolBase<
   TResult = unknown,
 > = {
   /**
-   * @deprecated Experimental, API may change.
-   *
    * Async failures are logged. Callback completion does not delay the assistant stream.
    * Synchronous exceptions terminate the assistant stream.
+   *
+   * @deprecated Experimental since 2025-02-26. Not scheduled for removal; the API may change in any release.
    */
   streamCall?: ToolStreamCallFunction<TArgs, TResult>;
 
@@ -231,6 +231,8 @@ type ToolBase<
    * transports omit matching fields and only upload overrides.
    *
    * This is only meaningful for frontend and human tools.
+   *
+   * @deprecated Experimental since 2026-06-02. Not scheduled for removal; the API may change in any release.
    */
   unstable_backendDefault?: {
     parameters?: boolean;
@@ -256,6 +258,7 @@ type BackendTool<
   disabled?: undefined;
   execute?: undefined;
   toModelOutput?: undefined;
+  /** @deprecated Experimental since 2025-02-07. Not scheduled for removal; the API may change in any release. */
   experimental_onSchemaValidationError?: undefined;
   providerOptions?: undefined;
 };
@@ -283,7 +286,11 @@ type BackendToolDeclaration<
   execute?: ToolExecuteFunction<TArgs, TResult>;
   /** Converts the execution result into model-visible output. */
   toModelOutput?: ToolModelOutputFunction<TArgs, TResult>;
-  /** Handles invalid tool arguments when schema validation fails. */
+  /**
+   * Handles invalid tool arguments when schema validation fails.
+   *
+   * @deprecated Experimental since 2025-02-07. Not scheduled for removal; the API may change in any release.
+   */
   experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
   providerOptions?: ProviderOptions;
 };
@@ -305,7 +312,11 @@ type FrontendTool<
   execute?: ToolExecuteFunction<TArgs, TResult>;
   /** Converts the execution result into model-visible output. */
   toModelOutput?: ToolModelOutputFunction<TArgs, TResult>;
-  /** Handles invalid tool arguments when schema validation fails. */
+  /**
+   * Handles invalid tool arguments when schema validation fails.
+   *
+   * @deprecated Experimental since 2025-02-07. Not scheduled for removal; the API may change in any release.
+   */
   experimental_onSchemaValidationError?: OnSchemaValidationErrorFunction<TResult>;
   providerOptions?: ProviderOptions;
 };
@@ -327,6 +338,7 @@ type HumanTool<
   display?: "standalone";
   execute?: undefined;
   toModelOutput?: undefined;
+  /** @deprecated Experimental since 2025-02-07. Not scheduled for removal; the API may change in any release. */
   experimental_onSchemaValidationError?: undefined;
   providerOptions?: ProviderOptions;
 };
@@ -353,6 +365,7 @@ type ProviderTool<
   disabled?: boolean;
   execute?: undefined;
   toModelOutput?: undefined;
+  /** @deprecated Experimental since 2025-02-07. Not scheduled for removal; the API may change in any release. */
   experimental_onSchemaValidationError?: undefined;
   providerOptions?: ProviderOptions;
 };
@@ -388,6 +401,7 @@ type McpTool = ToolBase<Record<string, unknown>, unknown> & {
   disabled?: boolean;
   execute?: undefined;
   toModelOutput?: undefined;
+  /** @deprecated Experimental since 2025-02-07. Not scheduled for removal; the API may change in any release. */
   experimental_onSchemaValidationError?: undefined;
   providerOptions?: undefined;
 };

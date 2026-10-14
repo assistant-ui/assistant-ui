@@ -1,4 +1,8 @@
-import { getDistinctId } from "@/lib/posthog-server";
+import {
+  prepareChatMessages,
+  prepareDemoChatMessages,
+  streamDocsChat,
+} from "@/lib/ai/chat-route";
 import {
   injectQuoteContext,
   unstable_injectInteractableContext as injectInteractableContext,
@@ -12,21 +16,19 @@ import {
 import { claimConversation, resolveDemoIdentity } from "@/lib/demo-usage";
 import { PUBLIC_ASSISTANT_CONVERSATION_LIMIT_MESSAGE } from "@/lib/public-assistant-errors";
 import {
+  validateDemoChatInput,
   validateFrontendToolsInput,
   validateGeneralChatInput,
 } from "@/lib/validate-input";
 import { resolveChatModel } from "@/lib/ai/provider";
 import { createSearchDocsTool } from "@/lib/ai/search-docs";
-import { posthogTelemetry } from "@/lib/ai/telemetry";
+import { searchImagesTool } from "@/lib/ai/search-images";
 import { AISDKToolkit } from "@assistant-ui/ai-sdk";
 import docsToolkit from "@/lib/docs-toolkit";
 import {
-  convertToModelMessages,
   createUIMessageStream,
   createUIMessageStreamResponse,
-  pruneMessages,
   stepCountIs,
-  streamText,
 } from "ai";
 
 export const maxDuration = 300;
@@ -81,11 +83,20 @@ export async function POST(req: Request) {
       id: threadId,
     } = body;
 
+    const sameOrigin = req.headers.get("sec-fetch-site") === "same-origin";
+    const budgeted =
+      countConversations === true &&
+      typeof threadId === "string" &&
+      threadId !== "";
+    // The landing page demo draws on the daily conversation budget, and its
+    // requests carry the preloaded generative UI guidance and the specs it
+    // renders, so only its own requests get a longer system prompt and larger
+    // messages, with older tool calls pruned before the model call.
+    const demo = budgeted && sameOrigin;
+
     // Basic validation: only accept short system prompts to limit abuse surface
-    const MAX_SYSTEM_LENGTH = 4000;
-    const groundInDocs =
-      searchDocsRequested === true &&
-      req.headers.get("sec-fetch-site") === "same-origin";
+    const MAX_SYSTEM_LENGTH = demo ? 40_000 : 4000;
+    const groundInDocs = searchDocsRequested === true && sameOrigin;
     const system = [
       typeof rawSystem === "string" && rawSystem.length <= MAX_SYSTEM_LENGTH
         ? rawSystem
@@ -95,7 +106,9 @@ export async function POST(req: Request) {
       .filter(Boolean)
       .join("\n\n");
 
-    const inputError = validateGeneralChatInput(messages);
+    const inputError = demo
+      ? validateDemoChatInput(messages)
+      : validateGeneralChatInput(messages);
     if (inputError) {
       return withCors(req, inputError);
     }
@@ -103,8 +116,7 @@ export async function POST(req: Request) {
     const toolsError = validateFrontendToolsInput(tools);
     if (toolsError) return withCors(req, toolsError);
 
-    const { model, providerOptions, reasoning } = resolveChatModel(config);
-    const distinctId = getDistinctId(req);
+    const modelConfig = resolveChatModel(config);
     const origin = new URL(req.url).origin;
 
     const frontendTools = await aiToolkit.tools({ frontend: tools });
@@ -117,22 +129,21 @@ export async function POST(req: Request) {
       );
     }
 
-    const prunedMessages = pruneMessages({
-      messages: await convertToModelMessages(
-        injectInteractableContext(injectQuoteContext(messages)),
-      ),
-      reasoning: "none",
-    });
+    // Only a surface that renders specs can show photos, so only it gets image search.
+    const chatTools =
+      "render_spec" in frontendTools
+        ? { ...frontendTools, search_images: searchImagesTool }
+        : frontendTools;
+
+    const prunedMessages = await (
+      demo ? prepareDemoChatMessages : prepareChatMessages
+    )(injectInteractableContext(injectQuoteContext(messages)), chatTools);
 
     // Every docs surface shares this route, so only the one that opts in draws
     // on the budget, and only after the deterministic rejections, so a request
     // that was never going to run cannot spend a slot. The transport sends the
     // thread id, so the day counts conversations rather than turns.
-    if (
-      countConversations === true &&
-      typeof threadId === "string" &&
-      threadId
-    ) {
+    if (budgeted) {
       const identity = await resolveDemoIdentity(session.id);
       const { allowed, usage } = await claimConversation(identity, threadId);
       if (!allowed) {
@@ -152,46 +163,32 @@ export async function POST(req: Request) {
 
     const stream = createUIMessageStream({
       execute: async ({ writer }) => {
-        const result = streamText({
-          model,
-          ...(providerOptions ? { providerOptions } : {}),
-          ...(system ? { system } : {}),
-          messages: prunedMessages,
-          maxOutputTokens: reasoning ? 16384 : 4096,
-          stopWhen: stepCountIs(10),
-          tools: groundInDocs
-            ? {
-                ...frontendTools,
-                search_docs: createSearchDocsTool({ writer, origin }),
-              }
-            : frontendTools,
-          ...posthogTelemetry({
-            distinctId,
+        const { result, messageMetadata } = streamDocsChat(
+          req,
+          modelConfig,
+          {
             spanName: "general_chat",
             source: "general_chat",
-          }),
-          onError: ({ error }) => {
-            console.error(error);
           },
-        });
+          {
+            ...(system ? { system } : {}),
+            messages: prunedMessages,
+            maxOutputTokens: modelConfig.reasoning ? 16384 : 4096,
+            stopWhen: stepCountIs(10),
+            tools: groundInDocs
+              ? {
+                  ...chatTools,
+                  search_docs: createSearchDocsTool({ writer, origin }),
+                }
+              : chatTools,
+          },
+        );
 
         writer.merge(
           result.toUIMessageStream({
+            originalMessages: messages,
             sendReasoning: true,
-            // Sends traceId, usage, and modelId for assistant-cloud telemetry reports.
-            messageMetadata: withAssistantCloudTraceMetadata(({ part }) => {
-              if (part.type === "finish-step") {
-                return {
-                  modelId: part.response.modelId,
-                };
-              }
-              if (part.type === "finish") {
-                return {
-                  usage: part.totalUsage,
-                };
-              }
-              return undefined;
-            }),
+            messageMetadata: withAssistantCloudTraceMetadata(messageMetadata),
           }),
         );
       },

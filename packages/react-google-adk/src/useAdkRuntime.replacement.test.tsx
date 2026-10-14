@@ -9,7 +9,7 @@ import type {
   RemoteThreadListAdapter,
 } from "@assistant-ui/core";
 import { useAdkRuntime } from "./useAdkRuntime";
-import type { AdkEvent, AdkThreadSnapshot } from "./types";
+import type { AdkEvent, AdkMessage, AdkThreadSnapshot } from "./types";
 import { settleOutsideAct } from "./tests/settleOutsideAct";
 
 const makeThreadListAdapter = (): RemoteThreadListAdapter => ({
@@ -172,6 +172,92 @@ describe("useAdkRuntime replacement runs", () => {
     );
     return capture.runtime!;
   };
+
+  it("starts one run with both staged messages", async () => {
+    const stream = vi.fn(async function* (
+      _messages: AdkMessage[],
+    ): AsyncGenerator<AdkEvent> {});
+    const runtime = await mountWithCheckpoint(stream, async () => null);
+
+    await act(async () => {
+      runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "first" }],
+        startRun: false,
+      });
+    });
+    await act(async () => {
+      runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "second" }],
+        startRun: false,
+      });
+    });
+    const parentId = runtime.thread.getState().messages[1]!.id;
+
+    await act(async () => {
+      await runtime.thread.startRun({ parentId });
+    });
+
+    expect(stream).toHaveBeenCalledTimes(1);
+    expect(stream.mock.calls[0]![0]).toMatchObject([
+      { type: "human", content: "first" },
+      { type: "human", content: "second" },
+    ]);
+  });
+
+  it("removes a user turn when its request fails before the first event", async () => {
+    const failure = new Error("ADK request failed: 409 Conflict");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      const stream = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
+        throw failure;
+      });
+      const previousMessages: AdkMessage[] = [
+        { id: "u0", type: "human", content: "first" },
+        { id: "a0", type: "ai", content: "first answer" },
+        { id: "u1", type: "human", content: "second" },
+        { id: "a1", type: "ai", content: "second answer" },
+      ];
+      const runtime = await mountWithCheckpoint(
+        stream,
+        async () => null,
+        false,
+        async () => ({ messages: previousMessages }),
+      );
+      await waitFor(() =>
+        expect(runtime.thread.getState().messages.map(({ id }) => id)).toEqual([
+          "u0",
+          "a0",
+          "u1",
+          "a1",
+        ]),
+      );
+
+      await act(async () => {
+        await runtime.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "hello" }],
+        });
+      });
+
+      expect(stream).toHaveBeenCalledOnce();
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] Message append failed",
+        failure,
+      );
+      expect(runtime.thread.getState().messages.map(({ id }) => id)).toEqual([
+        "u0",
+        "a0",
+        "u1",
+        "a1",
+      ]);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
 
   it("starts an edit made while a run streams from the truncated thread", async () => {
     const releaseStale = deferred();
@@ -427,7 +513,7 @@ describe("useAdkRuntime replacement runs", () => {
       runtime.thread
         .getState()
         .messages.map((m) => (m.content[0] as { text: string }).text),
-    ).toEqual(["edited question"]);
+    ).toEqual(["question", "answer"]);
   });
 
   const reloadAndStop = async () => {
@@ -581,7 +667,7 @@ describe("useAdkRuntime replacement runs", () => {
     expect(messages).not.toContain("answer 0");
   });
 
-  it("keeps an edit made while a reload looks up its checkpoint", async () => {
+  it("restores the turn a pending reload truncated when Stop interrupts an edit made during its lookup", async () => {
     const lookups = [deferred(), deferred()];
     const waiting = [...lookups];
     const stream = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
@@ -632,7 +718,7 @@ describe("useAdkRuntime replacement runs", () => {
     });
 
     expect(stream).toHaveBeenCalledTimes(1);
-    expect(texts(runtime)).toEqual(["edited question"]);
+    expect(texts(runtime)).toEqual(["question", "answer 0"]);
   });
 
   it("keeps a history load that lands while a reload looks up its checkpoint when Stop follows", async () => {

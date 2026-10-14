@@ -412,6 +412,21 @@ export default defineToolkit({ present: ui.present() });`;
     );
   });
 
+  it("allows a JSONGenerativeUI imported from @assistant-ui/generative-ui/react", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import { JSONGenerativeUI } from "@assistant-ui/generative-ui/react";
+const ui = new JSONGenerativeUI({ library: {} });
+export default defineToolkit({ present: ui.present() });`;
+
+    expect(compileGenerative(src, { target: "server" }).code).toContain(
+      "ui.present()",
+    );
+    expect(compileGenerative(src, { target: "client" }).code).toContain(
+      "ui.present()",
+    );
+  });
+
   it("rejects an unknown method on a JSONGenerativeUI instance", () => {
     const src = `"use generative";
 import { defineToolkit } from "@assistant-ui/react";

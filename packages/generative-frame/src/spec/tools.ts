@@ -1,0 +1,17 @@
+export {
+  createSpecTools,
+  SPEC_TOOL_RESULTS_RULE,
+  specGuidanceModule,
+  type CreateSpecToolsOptions,
+  type RenderSpecInput,
+  type RenderSpecResult,
+  type RenderSpecTool,
+  type SpecTools,
+} from "./render-spec";
+export {
+  getToolDeclarations,
+  toAISDKTools,
+  type GuidanceModule,
+  type JsonSchema,
+  type ToolDefinition,
+} from "../tools/define";

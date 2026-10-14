@@ -2,6 +2,7 @@ import Link from "next/link";
 
 const links = [
   { href: "/", label: "Generative UI" },
+  { href: "/present", label: "present tool" },
   { href: "/tool-ui", label: "Tool UI" },
   { href: "/primitive", label: "Static primitive (legacy)" },
   { href: "/gui-chat", label: "GUI chat (legacy)" },

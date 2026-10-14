@@ -38,18 +38,18 @@ export type ExternalStoreThreadData<TState extends "regular" | "archived"> = {
 
 export type ExternalStoreThreadListAdapter = {
   /**
-   * @deprecated This API is still under active development and might change without notice.
+   * @deprecated Experimental since 2024-06-26. Not scheduled for removal; the API may change in any release.
    */
   threadId?: string | undefined;
   isLoading?: boolean | undefined;
   threads?: readonly ExternalStoreThreadData<"regular">[] | undefined;
   archivedThreads?: readonly ExternalStoreThreadData<"archived">[] | undefined;
   /**
-   * @deprecated This API is still under active development and might change without notice.
+   * @deprecated Experimental since 2024-09-18. Not scheduled for removal; the API may change in any release.
    */
   onSwitchToNewThread?: (() => Promise<void> | void) | undefined;
   /**
-   * @deprecated This API is still under active development and might change without notice.
+   * @deprecated Experimental since 2024-09-18. Not scheduled for removal; the API may change in any release.
    */
   onSwitchToThread?: ((threadId: string) => Promise<void> | void) | undefined;
   onRename?: (
@@ -73,7 +73,7 @@ export type ExternalStoreMessageConverter<T> = (
 ) => ThreadMessageLike;
 
 /**
- * @deprecated This API is still under active development and might change without notice.
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
  */
 export type ExternalStoreBranchChange = {
   headId: string | null;
@@ -88,11 +88,14 @@ type ExternalStoreAdapterBase<T> = {
   /**
    * The runtime writes its messages to the thread list's history adapter
    * itself, so `useExternalStoreRuntime` does not copy them.
+   *
+   * @deprecated Experimental since 2026-09-24. Not scheduled for removal; the API may change in any release.
    */
   unstable_persistsHistory?: boolean | undefined;
   /**
-   * Whether the entire thread is disabled. When `true`, the composer's input
-   * is also disabled (the user cannot type, attach files, or submit). For a
+   * Whether the entire thread is disabled. When `true`, the composer input
+   * cannot be typed into, attachments cannot be added, sends (including direct
+   * `composer.send()` calls) are blocked, and messages cannot be edited. For a
    * narrower gate that keeps the input usable but blocks only sending, use
    * `isSendDisabled`.
    */
@@ -139,6 +142,13 @@ type ExternalStoreAdapterBase<T> = {
    * conversations through one runtime keep each conversation's history and
    * branches isolated in its own instance. Omit it to keep the runtime's own
    * repository.
+   *
+   * When `unstable_enableToolInvocations` is true, frontend tool executions
+   * belong to the instance as well: a runtime mounted with an instance whose
+   * tools are still executing takes them over, so it reports them as running,
+   * stops them on cancel, and resumes their human input requests.
+   *
+   * @deprecated Experimental since 2026-08-28. Not scheduled for removal; the API may change in any release.
    */
   unstable_messageRepositoryInstance?: MessageRepository | undefined;
   suggestions?: readonly ThreadSuggestion[] | undefined;
@@ -172,7 +182,7 @@ type ExternalStoreAdapterBase<T> = {
    * requires `setMessages`, and this callback does not on its own enable branch
    * switching.
    *
-   * @deprecated This API is still under active development and might change without notice.
+   * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
    */
   unstable_onBranchChange?:
     | ((event: ExternalStoreBranchChange) => void)
@@ -189,7 +199,11 @@ type ExternalStoreAdapterBase<T> = {
    * from its branches when `messages` stops carrying the id, and reads a
    * `messages` update that still carries it after every call for it has
    * settled as a declined delete. A host that accepts the delete therefore
-   * publishes the removal before the returned promise settles.
+   * publishes the removal before the returned promise settles. While a
+   * branch switch, `messages` can omit ids on another branch. A reload or
+   * edit can omit messages after an earlier reply. For deletes pending across
+   * those changes, the runtime waits for the promise: a rejection keeps the
+   * message and a resolution drops it.
    */
   onDelete?: ((messageId: string) => Promise<void> | void) | undefined;
   onReload?: // TODO: remove parentId in 0.12.0
@@ -219,6 +233,8 @@ type ExternalStoreAdapterBase<T> = {
    * Stores a user interaction on a tool call part of a message this store
    * owns and exposes it on that part's `unstable_interactions`. Without it,
    * recording an interaction rejects and nothing is kept.
+   *
+   * @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release.
    */
   unstable_onRecordToolInteraction?:
     | ((options: Unstable_RecordToolInteractionOptions) => Promise<void> | void)
@@ -232,11 +248,12 @@ type ExternalStoreAdapterBase<T> = {
         voice?: RealtimeVoiceAdapter | undefined;
         feedback?: FeedbackAdapter | undefined;
         /**
-         * @deprecated This API is still under active development and might change without notice.
+         * @deprecated Experimental since 2024-10-18. Not scheduled for removal; the API may change in any release.
          */
         threadList?: ExternalStoreThreadListAdapter | undefined;
       }
     | undefined;
+  /** @deprecated Experimental since 2024-09-01. Not scheduled for removal; the API may change in any release. */
   unstable_capabilities?:
     | {
         copy?: boolean | undefined;
@@ -260,6 +277,8 @@ type ExternalStoreAdapterBase<T> = {
    * or from `streamCall` resolving) flow back through
    * `adapter.onAddToolResult` like any other tool result, with
    * `modelContent` populated when present.
+   *
+   * @deprecated Experimental since 2026-05-26. Not scheduled for removal; the API may change in any release.
    */
   unstable_enableToolInvocations?: boolean | undefined;
   /**
@@ -278,6 +297,8 @@ type ExternalStoreAdapterBase<T> = {
    * provider's run is still open. Without it, ownership is unknown until the
    * run ends, so a registered tool executes only once the run's outcome is
    * known and cannot fire on a call the provider was about to answer or gate.
+   *
+   * @deprecated Experimental since 2026-09-01. Not scheduled for removal; the API may change in any release.
    */
   unstable_isClientToolCall?:
     | ((toolCall: ToolCallMessagePart) => boolean)

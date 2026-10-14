@@ -51,7 +51,7 @@ export default function TractionPage() {
           Stars, downloads, and shipping cadence, pulled straight from GitHub
           and npm.
         </p>
-        <p className="text-muted-foreground mt-6 flex items-center gap-2 font-mono text-[11px] tracking-wide">
+        <p className="text-muted-foreground mt-6 flex items-center gap-2 text-xs">
           <LiveDot />
           live · refreshes through the day
         </p>
@@ -282,7 +282,7 @@ async function People() {
       </div>
       {botCoAuthors.length > 0 ? (
         <div className="mt-8 flex flex-col gap-3">
-          <p className="text-muted-foreground/70 font-mono text-[11px] tracking-wide">
+          <p className="text-muted-foreground/70 text-xs">
             also co-authored by
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -342,7 +342,7 @@ function StatsFallback() {
           <div key={label} className="flex flex-col">
             <Skeleton className="h-9 w-20 motion-reduce:animate-none md:h-10" />
             <div className="mt-2 text-sm">{label}</div>
-            <div className="text-muted-foreground/70 mt-1 font-mono text-[11px] tracking-wide">
+            <div className="text-muted-foreground/70 mt-1 text-xs">
               {caption}
             </div>
           </div>
@@ -390,9 +390,7 @@ function Stat({
         {value}
       </div>
       <div className="mt-2 text-sm">{label}</div>
-      <div className="text-muted-foreground/70 mt-1 font-mono text-[11px] tracking-wide">
-        {caption}
-      </div>
+      <div className="text-muted-foreground/70 mt-1 text-xs">{caption}</div>
     </div>
   );
 }
@@ -409,7 +407,7 @@ function Plate({
   return (
     <figure className="flex flex-col gap-3">
       <div className="border-foreground/10 border p-4 md:p-5">{children}</div>
-      <figcaption className="text-muted-foreground/70 font-mono text-[11px] tracking-wide">
+      <figcaption className="text-muted-foreground/70 text-xs">
         fig. {fig} · {caption}
       </figcaption>
     </figure>

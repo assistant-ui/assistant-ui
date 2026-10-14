@@ -1,6 +1,6 @@
 "use client";
 
-import { useLayoutEffect } from "react";
+import { useIsomorphicLayoutEffect } from "../../../utils/useIsomorphicLayoutEffect";
 import { useThreadViewportStore } from "../../../context/react/ThreadViewportContext";
 import { mountTopAnchorReserve } from "./mountTopAnchorReserve";
 
@@ -12,7 +12,7 @@ import { mountTopAnchorReserve } from "./mountTopAnchorReserve";
 export const useTopAnchorReserve = (enabled: boolean) => {
   const threadViewportStore = useThreadViewportStore();
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!enabled) return;
     return mountTopAnchorReserve(threadViewportStore);
   }, [enabled, threadViewportStore]);

@@ -41,9 +41,12 @@ const streamOf = (parts: Uint8Array[]) =>
   });
 
 const waitFor = async (predicate: () => boolean) => {
-  await vi.waitFor(() => {
-    if (!predicate()) throw new Error("condition not met");
-  });
+  await vi.waitFor(
+    () => {
+      if (!predicate()) throw new Error("condition not met");
+    },
+    { interval: 10 },
+  );
 };
 
 describe("vscodeFetch over serveWebviewRoutes", () => {

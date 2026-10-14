@@ -14,18 +14,21 @@ type RendererInternals = {
   ) => void;
 };
 
-let renderer: RendererInternals | undefined;
-const fiberRoots = new Set<unknown>();
-vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-vi.stubGlobal("__REACT_DEVTOOLS_GLOBAL_HOOK__", {
-  supportsFiber: true,
-  inject: (internals: RendererInternals) => {
-    renderer = internals;
-    return 1;
-  },
-  onScheduleFiberRoot: () => {},
-  onCommitFiberRoot: (_id: number, root: unknown) => fiberRoots.add(root),
-  onCommitFiberUnmount: () => {},
+const { rendererState, fiberRoots } = vi.hoisted(() => {
+  const rendererState = { current: undefined as RendererInternals | undefined };
+  const fiberRoots = new Set<unknown>();
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+  vi.stubGlobal("__REACT_DEVTOOLS_GLOBAL_HOOK__", {
+    supportsFiber: true,
+    inject: (internals: RendererInternals) => {
+      rendererState.current = internals;
+      return 1;
+    },
+    onScheduleFiberRoot: () => {},
+    onCommitFiberRoot: (_id: number, root: unknown) => fiberRoots.add(root),
+    onCommitFiberUnmount: () => {},
+  });
+  return { rendererState, fiberRoots };
 });
 const { createRoot } = await import("react-dom/client");
 const roots = new Set<Root>();
@@ -103,34 +106,17 @@ import { usePiRuntime } from "./usePiRuntime";
 
 const onReact18 = version.startsWith("18.");
 
-// Fails on React 18: TypeError: useEffectEvent is not a function (usePiRuntime imports useEffectEvent from react, which React 18 does not export). Shipped React 18 incompatibility, so on React 18 these tests assert that error, and fail once it's fixed.
-const itBrokenOnReact18 = (
-  name: string,
-  fn: () => void | Promise<void>,
-  timeout?: number,
-) =>
-  onReact18
-    ? it(
-        name,
-        () =>
-          expect(Promise.resolve().then(fn)).rejects.toThrow(
-            /useEffectEvent\)? is not a function/,
-          ),
-        timeout,
-      )
-    : it(name, fn, timeout);
-
 mocks.state = { ...createPiThreadState("t1"), runStatus: "running" };
 mocks.repository = ExportedMessageRepository.fromArray([]);
 
 const refresh = async (Before: unknown, After: unknown) => {
   const family: Family = { current: After };
-  renderer!.setRefreshHandler((type) =>
+  rendererState.current!.setRefreshHandler((type) =>
     type === Before || type === After ? family : undefined,
   );
   await act(async () => {
     for (const root of fiberRoots) {
-      renderer!.scheduleRefresh(root, {
+      rendererState.current!.scheduleRefresh(root, {
         staleFamilies: new Set(),
         updatedFamilies: new Set([family]),
       });
@@ -154,118 +140,108 @@ const listThreadsB = vi.fn().mockResolvedValue([]);
 const clientA = { listThreads: listThreadsA } as unknown as PiClient;
 const clientB = { listThreads: listThreadsB } as unknown as PiClient;
 
-itBrokenOnReact18(
-  "keeps the registry, thread list, and live controller connection through Fast Refresh",
-  async () => {
-    const Before = () => {
-      usePiRuntime({
-        client: clientA,
-        workspacePath: "/one",
-        includeArchived: true,
-      });
-      return null;
-    };
-    const After = () => {
-      usePiRuntime({
-        client: clientA,
-        workspacePath: "/one",
-        includeArchived: true,
-      });
-      return null;
-    };
-    const view = render(<Before />);
-    const controller = mocks.controllers[0]!;
-    const adapter = mocks.adapters[0];
-    expect(controller.connect).toHaveBeenCalledOnce();
-    expect(controller.load).toHaveBeenCalledOnce();
-
-    await refresh(Before, After);
-
-    expect(mocks.controllers).toHaveLength(1);
-    expect(mocks.adapters.at(-1)).toBe(adapter);
-    expect(mocks.reloads).toBe(1);
-    expect(controller.connect).toHaveBeenCalledOnce();
-    expect(controller.load).toHaveBeenCalledOnce();
-    expect(controller.disconnect).not.toHaveBeenCalled();
-    expect(controller.dispose).not.toHaveBeenCalled();
-
-    view.unmount();
-    await act(async () => {});
-    expect(controller.disconnect).toHaveBeenCalledOnce();
-    expect(controller.dispose).toHaveBeenCalledOnce();
-  },
-);
-
-itBrokenOnReact18(
-  "replaces only the thread list when its scope changes and replaces the registry for a new client",
-  async () => {
-    const App = ({
-      client,
-      workspacePath,
-      includeArchived,
-    }: {
-      client: PiClient;
-      workspacePath: string;
-      includeArchived: boolean;
-    }) => {
-      usePiRuntime({ client, workspacePath, includeArchived });
-      return null;
-    };
-    const view = render(
-      <App client={clientA} workspacePath="/one" includeArchived={false} />,
-    );
-    const controller = mocks.controllers[0]!;
-    const firstAdapter = mocks.adapters.at(-1);
-    const list = () =>
-      (mocks.adapters.at(-1) as { list: () => Promise<unknown> }).list();
-
-    await list();
-    expect(listThreadsA).toHaveBeenLastCalledWith({
+it("keeps the registry, thread list, and live controller connection through Fast Refresh", async () => {
+  const Before = () => {
+    usePiRuntime({
+      client: clientA,
       workspacePath: "/one",
-      includeArchived: false,
-    });
-
-    view.rerender(
-      <App client={clientA} workspacePath="/two" includeArchived={false} />,
-    );
-    await act(async () => {});
-    expect(mocks.adapters.at(-1)).not.toBe(firstAdapter);
-    expect(mocks.controllers).toHaveLength(1);
-    expect(controller.dispose).not.toHaveBeenCalled();
-    await list();
-    expect(listThreadsA).toHaveBeenLastCalledWith({
-      workspacePath: "/two",
-      includeArchived: false,
-    });
-
-    const secondAdapter = mocks.adapters.at(-1);
-    view.rerender(
-      <App client={clientA} workspacePath="/two" includeArchived />,
-    );
-    await act(async () => {});
-    expect(mocks.adapters.at(-1)).not.toBe(secondAdapter);
-    expect(mocks.controllers).toHaveLength(1);
-    await list();
-    expect(listThreadsA).toHaveBeenLastCalledWith({
-      workspacePath: "/two",
       includeArchived: true,
     });
-
-    view.rerender(
-      <App client={clientB} workspacePath="/two" includeArchived />,
-    );
-    await act(async () => {});
-    expect(mocks.controllers[1]!.client).toBe(clientB);
-    expect(mocks.controllers[1]!.load).toHaveBeenCalledOnce();
-    expect(controller.dispose).toHaveBeenCalledOnce();
-    expect(controller.disconnect).toHaveBeenCalledOnce();
-    await list();
-    expect(listThreadsB).toHaveBeenLastCalledWith({
-      workspacePath: "/two",
+    return null;
+  };
+  const After = () => {
+    usePiRuntime({
+      client: clientA,
+      workspacePath: "/one",
       includeArchived: true,
     });
-  },
-);
+    return null;
+  };
+  const view = render(<Before />);
+  const controller = mocks.controllers[0]!;
+  const adapter = mocks.adapters[0];
+  expect(controller.connect).toHaveBeenCalledOnce();
+  expect(controller.load).toHaveBeenCalledOnce();
+
+  await refresh(Before, After);
+
+  expect(mocks.controllers).toHaveLength(1);
+  expect(mocks.adapters.at(-1)).toBe(adapter);
+  expect(mocks.reloads).toBe(1);
+  expect(controller.connect).toHaveBeenCalledOnce();
+  expect(controller.load).toHaveBeenCalledOnce();
+  expect(controller.disconnect).not.toHaveBeenCalled();
+  expect(controller.dispose).not.toHaveBeenCalled();
+
+  view.unmount();
+  await act(async () => {});
+  expect(controller.disconnect).toHaveBeenCalledOnce();
+  expect(controller.dispose).toHaveBeenCalledOnce();
+});
+
+it("replaces only the thread list when its scope changes and replaces the registry for a new client", async () => {
+  const App = ({
+    client,
+    workspacePath,
+    includeArchived,
+  }: {
+    client: PiClient;
+    workspacePath: string;
+    includeArchived: boolean;
+  }) => {
+    usePiRuntime({ client, workspacePath, includeArchived });
+    return null;
+  };
+  const view = render(
+    <App client={clientA} workspacePath="/one" includeArchived={false} />,
+  );
+  const controller = mocks.controllers[0]!;
+  const firstAdapter = mocks.adapters.at(-1);
+  const list = () =>
+    (mocks.adapters.at(-1) as { list: () => Promise<unknown> }).list();
+
+  await list();
+  expect(listThreadsA).toHaveBeenLastCalledWith({
+    workspacePath: "/one",
+    includeArchived: false,
+  });
+
+  view.rerender(
+    <App client={clientA} workspacePath="/two" includeArchived={false} />,
+  );
+  await act(async () => {});
+  expect(mocks.adapters.at(-1)).not.toBe(firstAdapter);
+  expect(mocks.controllers).toHaveLength(1);
+  expect(controller.dispose).not.toHaveBeenCalled();
+  await list();
+  expect(listThreadsA).toHaveBeenLastCalledWith({
+    workspacePath: "/two",
+    includeArchived: false,
+  });
+
+  const secondAdapter = mocks.adapters.at(-1);
+  view.rerender(<App client={clientA} workspacePath="/two" includeArchived />);
+  await act(async () => {});
+  expect(mocks.adapters.at(-1)).not.toBe(secondAdapter);
+  expect(mocks.controllers).toHaveLength(1);
+  await list();
+  expect(listThreadsA).toHaveBeenLastCalledWith({
+    workspacePath: "/two",
+    includeArchived: true,
+  });
+
+  view.rerender(<App client={clientB} workspacePath="/two" includeArchived />);
+  await act(async () => {});
+  expect(mocks.controllers[1]!.client).toBe(clientB);
+  expect(mocks.controllers[1]!.load).toHaveBeenCalledOnce();
+  expect(controller.dispose).toHaveBeenCalledOnce();
+  expect(controller.disconnect).toHaveBeenCalledOnce();
+  await list();
+  expect(listThreadsB).toHaveBeenLastCalledWith({
+    workspacePath: "/two",
+    includeArchived: true,
+  });
+});
 
 // Activity is React 19 only.
 it.skipIf(onReact18)(

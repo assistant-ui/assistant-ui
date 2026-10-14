@@ -40,6 +40,9 @@ export function requiredLabels(policy) {
   ];
 }
 
+const anchoredPatterns = (area) =>
+  [...area.paths, ...area.contractDocs].map((pattern) => `/${pattern}`);
+
 export function renderCodeowners(policy) {
   const org = policy.repository.split("/")[0];
   const lines = [
@@ -47,9 +50,9 @@ export function renderCodeowners(policy) {
   ];
   for (const area of policy.areas) {
     lines.push("", `# ${area.name}`);
-    for (const pattern of [...area.paths, ...area.contractDocs]) {
+    for (const pattern of anchoredPatterns(area)) {
       lines.push(
-        `/${pattern.replace(/\/\*\*$/, "/")} @${org}/${area.ownerTeam}`,
+        `${pattern.replace(/\/\*\*$/, "/")} @${org}/${area.ownerTeam}`,
       );
     }
   }
@@ -77,13 +80,12 @@ export function buildRulesets(policy, liveRulesets, teamIds) {
     id: requiredTeamId(teamIds, policy.teams.maintainers),
     type: "Team",
   };
-  const patterns = (area) => [...area.paths, ...area.contractDocs];
   const contractFloor = [
     ...new Set(policy.areas.map((area) => area.ownerTeam)),
   ].map((slug) => ({
     file_patterns: policy.areas
       .filter((area) => area.ownerTeam === slug)
-      .flatMap(patterns),
+      .flatMap(anchoredPatterns),
     minimum_approvals: 1,
     reviewer: { id: requiredTeamId(teamIds, slug), type: "Team" },
   }));
