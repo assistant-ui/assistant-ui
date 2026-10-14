@@ -3,7 +3,7 @@ import { surfaceToOperations } from "./a2ui/snapshot";
 import { applyA2uiOperations } from "./a2ui/reducer";
 /** @vitest-environment jsdom */
 import { describe, it, expect, vi } from "vitest";
-import { act, type ReactNode } from "react";
+import { act, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { z } from "zod";
@@ -158,6 +158,65 @@ describe("JSONGenerativeUI — client build", () => {
 
     expect(html).not.toContain('data-aui="answered"');
     expect(html).toContain('value="model default"');
+  });
+
+  it("keeps a streamed child's state when its _key arrives after its _type", async () => {
+    const ui = new ClientGenUI({
+      library: {
+        Stack: {
+          description: "A stack.",
+          properties: z.object({}),
+          streamProperties: true,
+          render: ({ children }) => <div>{children}</div>,
+        },
+        Counter: {
+          description: "A counter.",
+          properties: z.object({}),
+          streamProperties: true,
+          render: function CounterRender() {
+            const [count, setCount] = useState(0);
+            return (
+              <button onClick={() => setCount((current) => current + 1)}>
+                {count}
+              </button>
+            );
+          },
+        },
+      },
+    });
+    const Render = ui.present().render as (
+      props: Record<string, unknown>,
+    ) => ReactNode;
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    const stream = (json: string) =>
+      act(async () => {
+        root.render(
+          <Render
+            args={parsePartialJsonObject(json)}
+            status={{ type: "running" }}
+            toolCallId="call"
+          />,
+        );
+      });
+    try {
+      await stream('{"_type":"Stack","children":[{"_type":"Counter"');
+      await act(async () => container.querySelector("button")!.click());
+      await stream(
+        '{"_type":"Stack","children":[{"_type":"Counter","_key":"a"',
+      );
+      expect(container.querySelector("button")?.textContent).toBe("1");
+      await stream(
+        '{"_type":"Stack","children":[{"_type":"Counter","_key":"a"},{"_type":"Counter","_key":"b"}]}',
+      );
+      expect(
+        [...container.querySelectorAll("button")].map(
+          (button) => button.textContent,
+        ),
+      ).toEqual(["1", "0"]);
+    } finally {
+      act(() => root.unmount());
+    }
   });
 
   it("locks only the prompt tool when its render is mounted as a component", async () => {
