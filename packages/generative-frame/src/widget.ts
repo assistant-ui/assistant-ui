@@ -899,6 +899,7 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
         }
       }
       session.dispose();
+      if (disposed) throw new Error("Widget disposed");
       throw superseded ? new Error("Widget replacement superseded") : error;
     }
     pendingSession = undefined;
@@ -949,7 +950,9 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
       return result;
     },
     async replace(next) {
-      const scriptsRan = ended && SCRIPT_TAG.test(code);
+      // While a remount is pending, the frame on screen is still the one whose scripts ran.
+      const scriptsRan =
+        pendingSession !== undefined || (ended && SCRIPT_TAG.test(code));
       code = next;
       ended = true;
       const result = scriptsRan

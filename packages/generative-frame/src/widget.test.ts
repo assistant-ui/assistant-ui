@@ -421,6 +421,77 @@ describe("createWidget", () => {
     expect(onPrompt).not.toHaveBeenCalled();
   });
 
+  it("remounts a scriptless replacement while an earlier remount is pending", async () => {
+    const onPrompt = vi.fn();
+    const { container, fake, widget } = setup({ onPrompt });
+    const result = {
+      size: { width: 1, height: 1 },
+      blank: false,
+      errorCount: 0,
+    };
+    await fake.connect(0, { onRequest: () => result });
+    await widget.ready;
+    widget.write("<script>run()</script>");
+    await widget.end();
+
+    let replacing = false;
+    const first = widget.replace("<p>first</p>");
+    const stale = await fake.connect(1, {
+      onRequest: () => {
+        replacing = true;
+        return new Promise(() => {});
+      },
+    });
+    await vi.waitFor(() => expect(replacing).toBe(true));
+    const second = widget.replace("<p>second</p>");
+    await expect(first).rejects.toThrow("Widget replacement superseded");
+    void stale.request(METHODS.message, {
+      role: "user",
+      content: [{ type: "text", text: "stale" }],
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onPrompt).not.toHaveBeenCalled();
+
+    const replaced: unknown[] = [];
+    await fake.connect(2, {
+      onRequest: (method, params) => {
+        if (method === METHODS.replace) replaced.push(params);
+        return result;
+      },
+    });
+    await second;
+    expect(replaced).toEqual([{ code: "<p>second</p>" }]);
+    expect(container.querySelectorAll("[data-generative-frame]")).toHaveLength(
+      1,
+    );
+    widget.dispose();
+  });
+
+  it("rejects a replacement disposed during its replace request as disposed", async () => {
+    const { fake, widget } = setup();
+    const result = {
+      size: { width: 1, height: 1 },
+      blank: false,
+      errorCount: 0,
+    };
+    await fake.connect(0, { onRequest: () => result });
+    await widget.ready;
+    widget.write("<script>run()</script>");
+    await widget.end();
+
+    let replacing = false;
+    const replacement = widget.replace("<script>next()</script>");
+    await fake.connect(1, {
+      onRequest: () => {
+        replacing = true;
+        return new Promise(() => {});
+      },
+    });
+    await vi.waitFor(() => expect(replacing).toBe(true));
+    widget.dispose();
+    await expect(replacement).rejects.toThrow("Widget disposed");
+  });
+
   it("drops widget state that cannot be JSON stringified", async () => {
     const onWidgetState = vi.fn();
     const { fake, widget } = setup({ onWidgetState });
