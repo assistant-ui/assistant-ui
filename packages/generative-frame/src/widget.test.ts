@@ -304,7 +304,7 @@ describe("createWidget", () => {
     widget.dispose();
   });
 
-  it("ignores a delivered notification from a superseded pending session", async () => {
+  it("ignores a notification from a superseded pending session", async () => {
     const onWidgetState = vi.fn();
     const { fake, widget } = setup({ onWidgetState });
     const result = {
@@ -328,6 +328,9 @@ describe("createWidget", () => {
     await vi.waitFor(() => expect(finishFirst).toBeDefined());
     let finishSecond!: (value: unknown) => void;
     const secondReplacement = widget.replace("<script>second()</script>");
+    await expect(firstReplacement).rejects.toThrow(
+      "Widget replacement superseded",
+    );
     const latest = await fake.connect(2, {
       onRequest: () =>
         new Promise((resolve) => {
@@ -336,16 +339,86 @@ describe("createWidget", () => {
     });
     await vi.waitFor(() => expect(finishSecond).toBeDefined());
     superseded.notify(METHODS.widgetState, { state: { count: 9 } });
-    await superseded.request(METHODS.initialize, {});
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(onWidgetState).not.toHaveBeenCalled();
     latest.notify(METHODS.widgetState, { state: { count: 2 } });
     await latest.request(METHODS.initialize, {});
     finishSecond(result);
     await secondReplacement;
     expect(onWidgetState).toHaveBeenCalledExactlyOnceWith({ count: 2 });
-    finishFirst(result);
-    await Promise.allSettled([firstReplacement]);
     widget.dispose();
+  });
+
+  it("retires a superseded replacement as soon as a newer one starts", async () => {
+    const onPrompt = vi.fn();
+    const { container, fake, widget } = setup({ onPrompt });
+    const result = {
+      size: { width: 1, height: 1 },
+      blank: false,
+      errorCount: 0,
+    };
+    await fake.connect(0, { onRequest: () => result });
+    await widget.ready;
+    widget.write("<script>run()</script>");
+    await widget.end();
+
+    let replacing = false;
+    const firstReplacement = widget.replace("<script>first()</script>");
+    const superseded = await fake.connect(1, {
+      onRequest: () => {
+        replacing = true;
+        return new Promise(() => {});
+      },
+    });
+    await vi.waitFor(() => expect(replacing).toBe(true));
+    const secondReplacement = widget.replace("<script>second()</script>");
+    await expect(firstReplacement).rejects.toThrow(
+      "Widget replacement superseded",
+    );
+    expect(container.querySelectorAll("[data-generative-frame]")).toHaveLength(
+      2,
+    );
+    void superseded.request(METHODS.message, {
+      role: "user",
+      content: [{ type: "text", text: "stale" }],
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onPrompt).not.toHaveBeenCalled();
+
+    await fake.connect(2, { onRequest: () => result });
+    await secondReplacement;
+    expect(container.querySelectorAll("[data-generative-frame]")).toHaveLength(
+      1,
+    );
+    widget.dispose();
+  });
+
+  it("disposes a replacement that is still booting with the widget", async () => {
+    const onPrompt = vi.fn();
+    const { container, fake, widget } = setup({ onPrompt });
+    const result = {
+      size: { width: 1, height: 1 },
+      blank: false,
+      errorCount: 0,
+    };
+    await fake.connect(0, { onRequest: () => result });
+    await widget.ready;
+    widget.write("<script>run()</script>");
+    await widget.end();
+
+    const replacement = widget.replace("<script>next()</script>");
+    const booting = await fake.connect(1, {
+      onRequest: () => new Promise(() => {}),
+    });
+    widget.dispose();
+    await expect(replacement).rejects.toThrow("Widget disposed");
+    expect(container.querySelector("[data-generative-frame]")).toBeNull();
+    void booting.request(METHODS.message, {
+      role: "user",
+      content: [{ type: "text", text: "after dispose" }],
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(onPrompt).not.toHaveBeenCalled();
   });
 
   it("drops widget state that cannot be JSON stringified", async () => {
