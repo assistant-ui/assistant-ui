@@ -13,7 +13,7 @@
     "@assistant-ui/react-devtools": "workspace:*",
     "clsx": "^2.1.1",
     "geist": "^1.7.2",
-    "next": "^16.2.9",
+    "next": "^16.4.1",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"
   },
