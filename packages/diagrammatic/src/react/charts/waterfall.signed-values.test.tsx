@@ -118,4 +118,39 @@ describe("Waterfall signed values", () => {
       }
     }
   });
+
+  it("keeps the lowest negative step label above the category label", () => {
+    const html = renderToStaticMarkup(
+      <Waterfall
+        steps={[
+          { label: "start", value: 10, total: true },
+          { label: "drop", value: -15 },
+        ]}
+      />,
+    );
+    const fontSize = attribute(tags(html, "svg")[0]!, "font-size");
+    const mark = tags(html, "g").find(
+      (tag) => rawAttribute(tag, "data-i") === "1",
+    )!;
+    const start = html.indexOf(mark);
+    const labels = tags(html.slice(start, html.indexOf("</g>", start)), "text");
+    const value = labels[0]!;
+    const category = labels[1]!;
+    const valueHeight =
+      Number.parseFloat(rawAttribute(value, "font-size") ?? "1em") * fontSize;
+    expect(attribute(value, "y") + valueHeight).toBeLessThanOrEqual(
+      attribute(category, "y") - fontSize,
+    );
+  });
+
+  it("keeps the plot bottom when a negative total has no value label", () => {
+    const html = renderToStaticMarkup(
+      <Waterfall steps={[{ label: "loss", value: -5, total: true }]} />,
+    );
+    const svg = tags(html, "svg")[0]!;
+    const bar = tags(html, "rect")[0]!;
+    expect(attribute(bar, "y") + attribute(bar, "height")).toBe(
+      attribute(svg, "height") - 25,
+    );
+  });
 });

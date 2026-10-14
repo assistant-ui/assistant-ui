@@ -59,6 +59,9 @@ export const Waterfall = forwardRef<SVGSVGElement, WaterfallProps>(
     const F = frame({ width, height, aspect, fontSize }, 5 / 3, {
       labels: true,
       ticks: yTickList ?? false,
+      bottomValueLabel: resolved.some(
+        (entry) => !entry.total && entry.value < 0 && entry.to === min,
+      ),
     });
     const { left, right, top, bottom, axisY, T } = F;
     const Y = linear(min, max, bottom, top);

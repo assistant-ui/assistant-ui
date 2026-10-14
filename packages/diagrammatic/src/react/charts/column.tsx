@@ -64,16 +64,30 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
         ? positiveExtent(yValues)
         : [Math.min(0, ...yValues), Math.max(...yValues, 1)];
     const yTickList = resolveTicks(yTicks, yLo, yHi, yScale, format);
+    const highest = Math.max(...items.map((r) => r.value));
+    const isAccent = (row: Item, i: number) =>
+      highlight === "last"
+        ? i === items.length - 1
+        : highlight === "max"
+          ? row.value === highest
+          : row.label === highlight;
     const F = frame({ width, height, aspect, fontSize }, 5 / 3, {
       labels: true,
       ticks: wantsTicks(yTicks) ? (yTickList ?? true) : false,
+      bottomValueLabel:
+        yScale !== "log" &&
+        items.some(
+          (row, i) =>
+            row.value < 0 &&
+            row.value === yLo &&
+            (values || (!categorical && isAccent(row, i))),
+        ),
     });
     const { left, right, top, bottom, axisY, T } = F;
     const Y = project(yScale, yLo, yHi, bottom, top);
     const zeroY = yScale === "log" ? bottom : Y(0);
     const step = (right - left) / Math.max(1, items.length);
     const X = (i: number) => left + (i + 0.5) * step;
-    const highest = Math.max(...items.map((r) => r.value));
     const columnW = Math.min(MAX_COLUMN, step * 0.62);
     return (
       <ChartSvg
@@ -136,12 +150,7 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
           const x = X(i) - columnW / 2;
           const valueY = Y(row.value);
           const h = Math.abs(zeroY - valueY);
-          const accent =
-            highlight === "last"
-              ? i === items.length - 1
-              : highlight === "max"
-                ? row.value === highest
-                : row.label === highlight;
+          const accent = isAccent(row, i);
           return (
             <g key={`${row.label}-${i}`} data-part="mark" data-i={i}>
               <rect

@@ -119,4 +119,42 @@ describe("Column signed values", () => {
       }
     }
   });
+
+  it("keeps the lowest negative value label above the category label", () => {
+    const html = renderToStaticMarkup(
+      <Column
+        values
+        items={[
+          { label: "gain", value: 10 },
+          { label: "loss", value: -5 },
+        ]}
+      />,
+    );
+    const fontSize = attribute(tags(html, "svg")[0]!, "font-size");
+    const mark = tags(html, "g").find(
+      (tag) => rawAttribute(tag, "data-i") === "1",
+    )!;
+    const start = html.indexOf(mark);
+    const labels = tags(html.slice(start, html.indexOf("</g>", start)), "text");
+    const value = labels[0]!;
+    const category = labels[1]!;
+    const valueHeight =
+      Number.parseFloat(rawAttribute(value, "font-size") ?? "1em") * fontSize;
+    expect(attribute(value, "y") + valueHeight).toBeLessThanOrEqual(
+      attribute(category, "y") - fontSize,
+    );
+  });
+
+  it("keeps the plot bottom when a negative column has no value label", () => {
+    const html = renderToStaticMarkup(
+      <Column categorical items={[{ label: "loss", value: -5 }]} />,
+    );
+    const svg = tags(html, "svg")[0]!;
+    const hit = tags(html, "rect").find(
+      (tag) => rawAttribute(tag, "fill") === "transparent",
+    )!;
+    expect(attribute(hit, "y") + attribute(hit, "height")).toBe(
+      attribute(svg, "height") - 25,
+    );
+  });
 });
