@@ -187,6 +187,15 @@ export class VoiceSessionController {
         this.host.onDisconnected();
       throw error;
     }
+    if (session.status.type === "ended") {
+      try {
+        session.disconnect();
+      } finally {
+        if (replacing && this._voiceSession === undefined)
+          this.host.onDisconnected();
+      }
+      return;
+    }
     this._voiceSession = session;
     const unsubs: Array<() => void> = [];
     this._voiceUnsubs = unsubs;
