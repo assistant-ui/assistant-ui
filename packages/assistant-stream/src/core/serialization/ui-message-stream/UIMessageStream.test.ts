@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import { UIMessageStreamDecoder } from "./UIMessageStream";
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
 import { NO_RESULT } from "../../tool/ToolResponse";
+import { AssistantMessageAccumulator } from "../../accumulators/assistant-message-accumulator";
+import { toolResultStream } from "../../tool/toolResultStream";
 
 // Helper function to collect all chunks from a stream
 async function collectChunks<T>(stream: ReadableStream<T>): Promise<T[]> {
@@ -1477,4 +1479,104 @@ describe("UIMessageStreamDecoder", () => {
       expect(textStart).toBeDefined();
     });
   });
+});
+
+describe("UIMessageStreamDecoder server abort", () => {
+  it.each([
+    {
+      terminal: [{ type: "abort" }],
+      status: { type: "incomplete", reason: "other" },
+    },
+    {
+      terminal: [
+        { type: "abort", reason: "Server stopped run" },
+        { type: "finish", finishReason: "stop" },
+      ],
+      status: { type: "incomplete", reason: "other" },
+    },
+    {
+      terminal: [{ type: "finish", finishReason: "stop" }],
+      status: { type: "complete", reason: "stop" },
+    },
+  ])(
+    "preserves partial text with $terminal and reports $status",
+    async ({ terminal, status }) => {
+      const messages = await collectChunks(
+        createUIMessageStream([
+          ...[
+            { type: "start", messageId: "answer" },
+            { type: "text-start", id: "text" },
+            { type: "text-delta", id: "text", delta: "An unfinished answer" },
+            ...terminal,
+          ].map((frame) => JSON.stringify(frame)),
+          "[DONE]",
+        ])
+          .pipeThrough(new UIMessageStreamDecoder())
+          .pipeThrough(new AssistantMessageAccumulator()),
+      );
+      expect(messages.at(-1)?.content).toEqual([
+        expect.objectContaining({ type: "text", text: "An unfinished answer" }),
+      ]);
+      expect(messages.at(-1)?.status).toEqual(status);
+    },
+  );
+
+  it.each([false, true])(
+    "does not execute buffered tool input after abort (late frames: %s)",
+    async (lateFrames) => {
+      const execute = vi.fn(async () => "frontend result");
+      const onData = vi.fn();
+      const chunks = await collectChunks(
+        createUIMessageStream([
+          ...[
+            {
+              type: "tool-input-start",
+              toolCallId: "call",
+              toolName: "lookup",
+            },
+            {
+              type: "tool-input-delta",
+              toolCallId: "call",
+              inputTextDelta: "{}",
+            },
+            { type: "abort" },
+            ...(lateFrames
+              ? [
+                  {
+                    type: "tool-input-available",
+                    toolCallId: "call",
+                    toolName: "lookup",
+                    input: {},
+                  },
+                  { type: "data-late", data: "ignored" },
+                ]
+              : []),
+          ].map((frame) => JSON.stringify(frame)),
+          "[DONE]",
+        ])
+          .pipeThrough(new UIMessageStreamDecoder({ onData }))
+          .pipeThrough(
+            toolResultStream(
+              {
+                lookup: {
+                  parameters: { type: "object", properties: {} },
+                  execute,
+                },
+              },
+              new AbortController().signal,
+              async () => undefined,
+            ),
+          ),
+      );
+      expect(execute).not.toHaveBeenCalled();
+      expect(onData).not.toHaveBeenCalled();
+      expect(chunks).toContainEqual({
+        type: "message-finish",
+        path: [],
+        finishReason: "other",
+        usage: { inputTokens: 0, outputTokens: 0 },
+      });
+      expect(chunks.some((chunk) => chunk.type === "part-start")).toBe(false);
+    },
+  );
 });

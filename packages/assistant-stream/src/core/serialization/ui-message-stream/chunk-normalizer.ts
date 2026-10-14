@@ -24,6 +24,7 @@ export const createChunkNormalizer = (): {
     }[];
   };
   const pendingTools = new Map<string, PendingTool>();
+  let aborted = false;
   const emitPendingTool = (
     out: TransformStreamDefaultController<UIMessageStreamChunk>,
     tool: PendingTool,
@@ -55,6 +56,17 @@ export const createChunkNormalizer = (): {
 
   return {
     normalize(chunk, controller) {
+      if (aborted) return;
+      if (chunk.type === "abort") {
+        aborted = true;
+        pendingTools.clear();
+        controller.enqueue({
+          type: "finish",
+          finishReason: "other",
+          usage: { inputTokens: 0, outputTokens: 0 },
+        });
+        return;
+      }
       if (chunk.type === "text-delta" && chunk.textDelta === undefined) {
         const { delta, ...rest } = chunk;
         controller.enqueue({
