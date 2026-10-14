@@ -39,7 +39,8 @@ describe("DifferenceArea mismatched lengths", () => {
     const sharedXs = actualXs.slice(0, 3);
     const bandXs = [...sharedXs, ...[...sharedXs].reverse()];
 
-    expect(paths.slice(0, 2).map(pathXs)).toEqual([bandXs, bandXs]);
+    expect(paths[0]).toBe("");
+    expect(pathXs(paths[1]!)).toEqual(bandXs);
     expect(referenceXs).toEqual(sharedXs);
     expect(referenceXs.at(-1)).toBe(actualXs[2]);
     expect(referenceXs.at(-1)).toBeLessThan(actualXs.at(-1)!);
@@ -54,7 +55,8 @@ describe("DifferenceArea mismatched lengths", () => {
     const sharedXs = referenceXs.slice(0, 3);
     const bandXs = [...sharedXs, ...[...sharedXs].reverse()];
 
-    expect(paths.slice(0, 2).map(pathXs)).toEqual([bandXs, bandXs]);
+    expect(paths[0]).toBe("");
+    expect(pathXs(paths[1]!)).toEqual(bandXs);
     expect(actualXs).toEqual(sharedXs);
     expect(actualXs.at(-1)).toBe(referenceXs[2]);
     expect(actualXs.at(-1)).toBeLessThan(referenceXs.at(-1)!);

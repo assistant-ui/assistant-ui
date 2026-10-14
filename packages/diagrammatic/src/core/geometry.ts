@@ -85,6 +85,32 @@ export function scalePoints(
   }));
 }
 
+export type CubicSegment = {
+  start: Pt;
+  control1: Pt;
+  control2: Pt;
+  end: Pt;
+};
+
+export function lineCubicSegment(points: Pt[], i: number): CubicSegment {
+  const p0 = points[Math.max(0, i - 1)]!;
+  const p1 = points[i]!;
+  const p2 = points[i + 1]!;
+  const p3 = points[Math.min(points.length - 1, i + 2)]!;
+  return {
+    start: p1,
+    control1: {
+      x: p1.x + (p2.x - p0.x) / 6,
+      y: p1.y + (p2.y - p0.y) / 6,
+    },
+    control2: {
+      x: p2.x - (p3.x - p1.x) / 6,
+      y: p2.y - (p3.y - p1.y) / 6,
+    },
+    end: p2,
+  };
+}
+
 export function linePath(points: Pt[], smooth = true): string {
   if (points.length === 0) return "";
   if (!smooth || points.length < 3) {
@@ -94,15 +120,8 @@ export function linePath(points: Pt[], smooth = true): string {
   }
   let d = `M${round(points[0]!.x)} ${round(points[0]!.y)}`;
   for (let i = 0; i < points.length - 1; i += 1) {
-    const p0 = points[Math.max(0, i - 1)]!;
-    const p1 = points[i]!;
-    const p2 = points[i + 1]!;
-    const p3 = points[Math.min(points.length - 1, i + 2)]!;
-    const c1x = p1.x + (p2.x - p0.x) / 6;
-    const c1y = p1.y + (p2.y - p0.y) / 6;
-    const c2x = p2.x - (p3.x - p1.x) / 6;
-    const c2y = p2.y - (p3.y - p1.y) / 6;
-    d += ` C${round(c1x)} ${round(c1y)} ${round(c2x)} ${round(c2y)} ${round(p2.x)} ${round(p2.y)}`;
+    const { control1, control2, end } = lineCubicSegment(points, i);
+    d += ` C${round(control1.x)} ${round(control1.y)} ${round(control2.x)} ${round(control2.y)} ${round(end.x)} ${round(end.y)}`;
   }
   return d;
 }

@@ -2,8 +2,15 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import { formatCompact } from "../../core/types";
 import { type TickSpec, resolveTicks, upperBound } from "../../core/scale";
-import type { Guide, Series } from "../../core/types";
-import { bandPath, linePath, linear, round, stroke } from "../../core/geometry";
+import type { Guide, Pt, Series } from "../../core/types";
+import {
+  type CubicSegment,
+  lineCubicSegment,
+  linePath,
+  linear,
+  round,
+  stroke,
+} from "../../core/geometry";
 import { textWidth } from "../../core/text";
 import { GRID, NEG, POS, ink } from "../../core/theme";
 import {
@@ -25,6 +32,209 @@ export type DifferenceAreaProps = BaseProps & {
   regions?: { from: number; to: number; label?: string }[];
 };
 
+const mix = (a: Pt, b: Pt, t: number): Pt => ({
+  x: a.x + (b.x - a.x) * t,
+  y: a.y + (b.y - a.y) * t,
+});
+
+function splitCubic(c: CubicSegment, t: number): [CubicSegment, CubicSegment] {
+  const a = mix(c.start, c.control1, t);
+  const b = mix(c.control1, c.control2, t);
+  const d = mix(c.control2, c.end, t);
+  const e = mix(a, b, t);
+  const f = mix(b, d, t);
+  const middle = mix(e, f, t);
+  return [
+    { start: c.start, control1: a, control2: e, end: middle },
+    { start: middle, control1: f, control2: d, end: c.end },
+  ];
+}
+
+function cubicSection(c: CubicSegment, from: number, to: number): CubicSegment {
+  const first = to === 1 ? c : splitCubic(c, to)[0];
+  return from === 0 ? first : splitCubic(first, from / to)[1];
+}
+
+function cubicCrossings(
+  actual: CubicSegment,
+  reference: CubicSegment,
+): number[] {
+  const values = [
+    actual.start.y - reference.start.y,
+    actual.control1.y - reference.control1.y,
+    actual.control2.y - reference.control2.y,
+    actual.end.y - reference.end.y,
+  ];
+  const [v0, v1, v2, v3] = values as [number, number, number, number];
+  const a = -v0 + 3 * v1 - 3 * v2 + v3;
+  const b = 3 * v0 - 6 * v1 + 3 * v2;
+  const c = -3 * v0 + 3 * v1;
+  const valueAt = (t: number) => ((a * t + b) * t + c) * t + v0;
+  const stops = [0, 1];
+  if (Math.abs(a) < 1e-12) {
+    if (Math.abs(b) >= 1e-12) stops.push(-c / (2 * b));
+  } else {
+    const discriminant = b * b - 3 * a * c;
+    if (discriminant > 0) {
+      const root = Math.sqrt(discriminant);
+      stops.push((-b - root) / (3 * a), (-b + root) / (3 * a));
+    }
+  }
+  const ordered = stops.filter((t) => t >= 0 && t <= 1).sort((x, y) => x - y);
+  const roots: number[] = [];
+  for (let i = 0; i + 1 < ordered.length; i += 1) {
+    let lo = ordered[i]!;
+    let hi = ordered[i + 1]!;
+    const loValue = valueAt(lo);
+    if (loValue * valueAt(hi) >= 0) continue;
+    for (let step = 0; step < 50; step += 1) {
+      const mid = (lo + hi) / 2;
+      if (loValue * valueAt(mid) > 0) lo = mid;
+      else hi = mid;
+    }
+    const root = (lo + hi) / 2;
+    if (root > 0 && root < 1) roots.push(root);
+  }
+  return roots;
+}
+
+function cubicParameterAtX(c: CubicSegment, x: number): number {
+  let lo = 0;
+  let hi = 1;
+  for (let step = 0; step < 50; step += 1) {
+    const mid = (lo + hi) / 2;
+    if (splitCubic(c, mid)[0].end.x < x) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+type CubicCut = { actual: number; reference: number };
+
+function sharesXParameterization(
+  actual: CubicSegment,
+  reference: CubicSegment,
+): boolean {
+  return (
+    actual.control1.x === reference.control1.x &&
+    actual.control2.x === reference.control2.x
+  );
+}
+
+function alignedCrossings(
+  actual: CubicSegment,
+  reference: CubicSegment,
+): CubicCut[] {
+  if (sharesXParameterization(actual, reference)) {
+    return cubicCrossings(actual, reference).map((t) => ({
+      actual: t,
+      reference: t,
+    }));
+  }
+  const at = (t: number) => {
+    const point = splitCubic(actual, t)[0].end;
+    const referenceT = cubicParameterAtX(reference, point.x);
+    return {
+      t,
+      referenceT,
+      difference: point.y - splitCubic(reference, referenceT)[0].end.y,
+    };
+  };
+  const roots: CubicCut[] = [];
+  let previous = at(0);
+  for (let step = 1; step <= 64; step += 1) {
+    const next = at(step / 64);
+    if (previous.difference * next.difference < 0) {
+      let lo = previous.t;
+      let hi = next.t;
+      for (let iteration = 0; iteration < 50; iteration += 1) {
+        const mid = (lo + hi) / 2;
+        if (previous.difference * at(mid).difference > 0) lo = mid;
+        else hi = mid;
+      }
+      const root = at((lo + hi) / 2);
+      roots.push({ actual: root.t, reference: root.referenceT });
+    }
+    if (previous.difference === 0 || next.difference !== 0) {
+      previous = next;
+    }
+  }
+  return roots;
+}
+
+type BandRun = { actual: CubicSegment[]; reference: CubicSegment[] };
+
+function bandRunPath(run: BandRun, actualAbove: boolean): string {
+  const upper = actualAbove ? run.actual : run.reference;
+  const lower = actualAbove ? run.reference : run.actual;
+  const start = upper[0]!.start;
+  let path = `M${round(start.x)} ${round(start.y)}`;
+  for (const segment of upper) {
+    path += ` C${round(segment.control1.x)} ${round(segment.control1.y)} ${round(segment.control2.x)} ${round(segment.control2.y)} ${round(segment.end.x)} ${round(segment.end.y)}`;
+  }
+  const last = lower[lower.length - 1]!.end;
+  path += ` L${round(last.x)} ${round(last.y)}`;
+  for (let i = lower.length - 1; i >= 0; i -= 1) {
+    const segment = lower[i]!;
+    path += ` C${round(segment.control2.x)} ${round(segment.control2.y)} ${round(segment.control1.x)} ${round(segment.control1.y)} ${round(segment.start.x)} ${round(segment.start.y)}`;
+  }
+  return `${path} Z`;
+}
+
+function splitDifferenceBands(
+  actual: Pt[],
+  reference: Pt[],
+  sharedCount: number,
+): [string, string] {
+  const positive: BandRun[] = [];
+  const negative: BandRun[] = [];
+  let previousSign = 0;
+  for (let i = 0; i + 1 < sharedCount; i += 1) {
+    const actualCurve = lineCubicSegment(actual, i);
+    const referenceCurve = lineCubicSegment(reference, i);
+    const cuts: CubicCut[] = [
+      { actual: 0, reference: 0 },
+      ...alignedCrossings(actualCurve, referenceCurve),
+      { actual: 1, reference: 1 },
+    ];
+    for (let j = 0; j + 1 < cuts.length; j += 1) {
+      const from = cuts[j]!;
+      const to = cuts[j + 1]!;
+      const actualPart = cubicSection(actualCurve, from.actual, to.actual);
+      const referencePart = cubicSection(
+        referenceCurve,
+        from.reference,
+        to.reference,
+      );
+      const actualMidpoint = splitCubic(actualPart, 0.5)[0].end;
+      const referenceMidpoint = sharesXParameterization(
+        actualCurve,
+        referenceCurve,
+      )
+        ? splitCubic(referencePart, 0.5)[0].end
+        : splitCubic(
+            referenceCurve,
+            cubicParameterAtX(referenceCurve, actualMidpoint.x),
+          )[0].end;
+      const midpoint = actualMidpoint.y - referenceMidpoint.y;
+      const sign = Math.sign(midpoint);
+      if (sign === 0) {
+        previousSign = 0;
+        continue;
+      }
+      const runs = sign < 0 ? positive : negative;
+      if (sign !== previousSign) runs.push({ actual: [], reference: [] });
+      runs[runs.length - 1]!.actual.push(actualPart);
+      runs[runs.length - 1]!.reference.push(referencePart);
+      previousSign = sign;
+    }
+  }
+  return [
+    positive.map((run) => bandRunPath(run, true)).join(" "),
+    negative.map((run) => bandRunPath(run, false)).join(" "),
+  ];
+}
+
 export const DifferenceArea = forwardRef<SVGSVGElement, DifferenceAreaProps>(
   (
     {
@@ -35,6 +245,7 @@ export const DifferenceArea = forwardRef<SVGSVGElement, DifferenceAreaProps>(
       regions,
       format = formatCompact,
       labels,
+      legend,
       title,
       width,
       height,
@@ -47,8 +258,9 @@ export const DifferenceArea = forwardRef<SVGSVGElement, DifferenceAreaProps>(
   ) => {
     const max = upperBound([...actual.data, ...reference.data], yTicks, guides);
     const yTickList = resolveTicks(yTicks, 0, max, "linear", format);
+    const showLegend = legend !== false;
     const F = frame({ width, height, aspect, fontSize }, 5 / 3, {
-      legend: true,
+      legend: showLegend,
       labels: Boolean(labels),
       ticks: yTickList ?? false,
     });
@@ -66,16 +278,11 @@ export const DifferenceArea = forwardRef<SVGSVGElement, DifferenceAreaProps>(
     const a = along(actual.data);
     const b = along(reference.data);
     const sharedCount = Math.min(a.length, b.length);
-    const sharedActual = a.slice(0, sharedCount);
-    const sharedReference = b.slice(0, sharedCount);
-    const above = sharedActual.map((p, i) => ({
-      x: p.x,
-      y: Math.min(p.y, sharedReference[i]!.y),
-    }));
-    const below = sharedActual.map((p, i) => ({
-      x: p.x,
-      y: Math.max(p.y, sharedReference[i]!.y),
-    }));
+    const [positivePath, negativePath] = splitDifferenceBands(
+      a,
+      b,
+      sharedCount,
+    );
     const actualEnd = a[a.length - 1];
     const referenceEnd = b[b.length - 1];
     const actualLabel = format(actual.data[actual.data.length - 1] ?? 0);
@@ -151,18 +358,8 @@ export const DifferenceArea = forwardRef<SVGSVGElement, DifferenceAreaProps>(
           top={top}
           bottom={bottom}
         />
-        <path
-          d={bandPath(above, sharedReference)}
-          fill={POS}
-          opacity="0.22"
-          data-part="mark"
-        />
-        <path
-          d={bandPath(sharedReference, below)}
-          fill={NEG}
-          opacity="0.22"
-          data-part="mark"
-        />
+        <path d={positivePath} fill={POS} opacity="0.22" data-part="mark" />
+        <path d={negativePath} fill={NEG} opacity="0.22" data-part="mark" />
         <path
           d={linePath(b)}
           fill="none"
@@ -202,11 +399,13 @@ export const DifferenceArea = forwardRef<SVGSVGElement, DifferenceAreaProps>(
             {referenceLabel}
           </text>
         )}
-        <SvgLegend
-          frame={F}
-          names={[actual.name, reference.name, "ahead", "behind"]}
-          colors={[ink(0.75), ink(0.4), POS, NEG]}
-        />
+        {showLegend && (
+          <SvgLegend
+            frame={F}
+            names={[actual.name, reference.name, "ahead", "behind"]}
+            colors={[ink(0.75), ink(0.4), POS, NEG]}
+          />
+        )}
         {labels && (
           <AxisLabels
             labels={labels}
