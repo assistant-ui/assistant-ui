@@ -1,13 +1,56 @@
 // @vitest-environment jsdom
-import { cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
+import { useState } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Line } from "../react/charts/line";
 import { Root } from "./root";
+import { Tooltip } from "./tooltip";
 
 afterEach(cleanup);
 
 describe("Interactive.Root highlight after rerender", () => {
-  it("stamps new matching and nonmatching marks when the highlight stays the same", () => {
+  it("stamps marks added by a child without rerendering Root", async () => {
+    function LiveLine() {
+      const [expanded, setExpanded] = useState(false);
+      return (
+        <>
+          <button onClick={() => setExpanded(true)}>Add series</button>
+          <Line
+            series={
+              expanded
+                ? [
+                    { name: "north", data: [1, 2, 3] },
+                    { name: "south", data: [2, 1] },
+                  ]
+                : [{ name: "north", data: [1, 2] }]
+            }
+          />
+        </>
+      );
+    }
+
+    const { container, getByRole } = render(
+      <Root highlight={{ series: "north" }}>
+        <LiveLine />
+      </Root>,
+    );
+    fireEvent.click(getByRole("button", { name: "Add series" }));
+
+    const newPoint = container.querySelector(
+      'circle[data-part="mark"][data-series="north"][data-i="2"]',
+    );
+    const newSeries = container.querySelector(
+      'path[data-part="mark"][data-series="south"]',
+    );
+    expect(newPoint).not.toBeNull();
+    expect(newSeries).not.toBeNull();
+    await waitFor(() => {
+      expect(newPoint!.hasAttribute("data-dg-active")).toBe(true);
+      expect(newSeries!.hasAttribute("data-dg-muted")).toBe(true);
+    });
+  });
+
+  it("stamps new matching and nonmatching marks when the highlight stays the same", async () => {
     const { container, rerender } = render(
       <Root highlight={{ series: "north" }}>
         <Line
@@ -39,13 +82,15 @@ describe("Interactive.Root highlight after rerender", () => {
     );
     expect(newPoint).not.toBeNull();
     expect(newSeries).not.toBeNull();
-    expect(newPoint!.hasAttribute("data-dg-active")).toBe(true);
-    expect(newPoint!.hasAttribute("data-dg-muted")).toBe(false);
-    expect(newSeries!.hasAttribute("data-dg-muted")).toBe(true);
-    expect(newSeries!.hasAttribute("data-dg-active")).toBe(false);
+    await waitFor(() => {
+      expect(newPoint!.hasAttribute("data-dg-active")).toBe(true);
+      expect(newPoint!.hasAttribute("data-dg-muted")).toBe(false);
+      expect(newSeries!.hasAttribute("data-dg-muted")).toBe(true);
+      expect(newSeries!.hasAttribute("data-dg-active")).toBe(false);
+    });
   });
 
-  it("replaces stale stamps when a reused mark changes series", () => {
+  it("replaces stale stamps when a reused mark changes series", async () => {
     const { container, rerender } = render(
       <Root highlight={{ series: "north" }}>
         <Line
@@ -72,10 +117,51 @@ describe("Interactive.Root highlight after rerender", () => {
     );
 
     expect(paths[0]!.getAttribute("data-series")).toBe("south");
-    expect(paths[0]!.hasAttribute("data-dg-active")).toBe(false);
-    expect(paths[0]!.hasAttribute("data-dg-muted")).toBe(true);
     expect(paths[1]!.getAttribute("data-series")).toBe("north");
-    expect(paths[1]!.hasAttribute("data-dg-muted")).toBe(false);
-    expect(paths[1]!.hasAttribute("data-dg-active")).toBe(true);
+    await waitFor(() => {
+      expect(paths[0]!.hasAttribute("data-dg-active")).toBe(false);
+      expect(paths[0]!.hasAttribute("data-dg-muted")).toBe(true);
+      expect(paths[1]!.hasAttribute("data-dg-muted")).toBe(false);
+      expect(paths[1]!.hasAttribute("data-dg-active")).toBe(true);
+    });
+  });
+
+  it("restamps a mark when its identifying attribute changes", async () => {
+    const { container } = render(
+      <Root highlight={{ series: "north" }}>
+        <Line series={[{ name: "north", data: [1, 2] }]} />
+      </Root>,
+    );
+    const path = container.querySelector('path[data-part="mark"]')!;
+    expect(path.hasAttribute("data-dg-active")).toBe(true);
+
+    path.setAttribute("data-series", "south");
+
+    await waitFor(() => {
+      expect(path.hasAttribute("data-dg-active")).toBe(false);
+      expect(path.hasAttribute("data-dg-muted")).toBe(true);
+    });
+  });
+
+  it("does not rescan marks when tooltip pointer moves change its content", async () => {
+    const { container } = render(
+      <Root highlight={{ series: "north" }}>
+        <Line series={[{ name: "north", data: [1, 2] }]} />
+        <Tooltip>{({ datum }) => <span>{datum.index}</span>}</Tooltip>
+      </Root>,
+    );
+    const root = container.firstElementChild as HTMLDivElement;
+    const marks = root.querySelectorAll('circle[data-part="mark"][data-i]');
+    const scan = vi.spyOn(root, "querySelectorAll");
+
+    try {
+      fireEvent.pointerMove(marks[0]!, { clientX: 5, clientY: 5 });
+      fireEvent.pointerMove(marks[1]!, { clientX: 10, clientY: 10 });
+      expect(root.querySelector('[role="tooltip"]')?.textContent).toBe("1");
+      await Promise.resolve();
+      expect(scan).not.toHaveBeenCalled();
+    } finally {
+      scan.mockRestore();
+    }
   });
 });
