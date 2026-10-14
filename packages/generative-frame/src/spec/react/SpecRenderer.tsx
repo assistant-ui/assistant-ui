@@ -4,6 +4,7 @@ import {
   Fragment,
   useContext,
   useEffect,
+  useInsertionEffect,
   useMemo,
   useRef,
   useState,
@@ -199,6 +200,14 @@ class ElementBoundary extends Component<
   }
 }
 
+function useLastCommitted<T>(value: T | undefined) {
+  const last = useRef<T | undefined>(undefined);
+  useInsertionEffect(() => {
+    if (value !== undefined) last.current = value;
+  });
+  return last.current;
+}
+
 function renderChildren(
   ids: readonly unknown[],
   scope: Scope,
@@ -226,11 +235,17 @@ function ElementView({
   ancestors: readonly string[];
 }) {
   const ctx = useContext(SpecContext)!;
-  const settled = useRef<SpecElement | undefined>(undefined);
   const Placeholder = ctx.placeholder;
   const element = Object.hasOwn(ctx.spec.elements, id)
     ? ctx.spec.elements[id]
     : undefined;
+  const usable =
+    element && typeof element === "object" && typeof element.type === "string"
+      ? element
+      : undefined;
+  // A value cut short by the stream, such as half an enum, fails until the rest arrives, so the last valid element stands in.
+  const invalid = usable && ctx.invalid(usable);
+  const settled = useLastCommitted(invalid ? undefined : usable);
 
   if (ancestors.includes(id)) {
     return (
@@ -267,13 +282,10 @@ function ElementView({
       />
     );
   }
-  // A value cut short by the stream, such as half an enum, fails until the rest arrives, so the last valid element stands in.
-  const invalid = ctx.invalid(element);
-  if (!invalid) settled.current = element;
-  else if (!ctx.streaming) {
+  if (invalid && !ctx.streaming) {
     return <Placeholder id={id} reason="invalid-props" message={invalid} />;
   }
-  const shown = invalid ? settled.current : element;
+  const shown = invalid ? settled : element;
   if (shown?.type !== element.type) return null;
 
   return (
@@ -292,6 +304,7 @@ function ElementView({
       }
     >
       <ResolvedElement
+        key={shown.type}
         id={id}
         element={shown}
         Impl={Impl}
@@ -320,7 +333,11 @@ function ResolvedElement({
     ...scope,
     state: ctx.state,
   });
-  const settled = useRef<typeof resolved | undefined>(undefined);
+  const rejected = rejectedPropType(
+    ctx.catalog?.propsSchema(element.type),
+    resolved.props,
+  );
+  const settled = useLastCommitted(rejected ? undefined : resolved);
 
   const latest = useRef({ element, scope, ctx });
   latest.current = { element, scope, ctx };
@@ -411,12 +428,7 @@ function ResolvedElement({
     if (Array.isArray(ids)) slots[slot] = renderChildren(ids, scope, ancestors);
   }
 
-  const rejected = rejectedPropType(
-    ctx.catalog?.propsSchema(element.type),
-    resolved.props,
-  );
-  if (!rejected) settled.current = resolved;
-  else if (!ctx.streaming) {
+  if (rejected && !ctx.streaming) {
     const Placeholder = ctx.placeholder;
     return (
       <Placeholder
@@ -426,7 +438,7 @@ function ResolvedElement({
       />
     );
   }
-  const shown = rejected ? settled.current : resolved;
+  const shown = rejected ? settled : resolved;
   if (!shown) return null;
   const { props, bindings } = shown;
 

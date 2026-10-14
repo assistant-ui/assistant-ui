@@ -384,6 +384,36 @@ describe("SpecRenderer", () => {
     expect(view.container.querySelector("img")).toBeNull();
   });
 
+  it("does not carry accepted props over to an element's new type", () => {
+    const tools = Object.assign(Object.create(null), {
+      photos: ["https://example.com/bridge.jpg"],
+    });
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={spec(
+          { main: { type: "Text", props: { text: "Hi" } } },
+          { tools },
+        )}
+        streaming
+      />,
+    );
+    view.rerender(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={spec(
+          { main: { type: "Picture", props: { src: { $state: "/tools" } } } },
+          { tools },
+        )}
+        streaming
+      />,
+    );
+    expect(view.container.querySelector("p")).toBeNull();
+    expect(view.container.querySelector("img")).toBeNull();
+  });
+
   it("keeps an element's last accepted props while a bound value streams", () => {
     const tools = Object.assign(Object.create(null), {
       photos: ["https://example.com/bridge.jpg"],

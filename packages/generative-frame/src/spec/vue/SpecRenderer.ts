@@ -278,6 +278,7 @@ const ElementView = defineComponent({
         {
           default: () =>
             h(ResolvedElement, {
+              key: shown.type,
               id,
               element: shown,
               impl,
