@@ -1,4 +1,4 @@
-import { act, createRef } from "react";
+import { act, createRef, version } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FlatList, FlatListProps } from "react-native";
@@ -334,6 +334,53 @@ describe("ThreadMessages", () => {
     expect(container.querySelector('[data-testid="c-message"]')).toBeNull();
   });
 
+  it.skipIf(version.startsWith("18."))(
+    "runs callback ref cleanup when the list unmounts",
+    async () => {
+      const cleanup = vi.fn();
+      const ref = vi.fn((node: FlatList<ThreadMessage> | null) =>
+        node ? cleanup : undefined,
+      );
+      await mountFlatList({ children: () => null, ref });
+      expect(ref).toHaveBeenCalledOnce();
+      await act(async () => root.render(null));
+      expect(cleanup).toHaveBeenCalledOnce();
+      expect(ref).toHaveBeenCalledOnce();
+    },
+  );
+
+  it.skipIf(version.startsWith("18."))(
+    "cleans up the previous callback ref before attaching its replacement",
+    async () => {
+      const cleanup = vi.fn();
+      const nextCleanup = vi.fn();
+      const ref = vi.fn((node: FlatList<ThreadMessage> | null) =>
+        node ? cleanup : undefined,
+      );
+      const nextRef = vi.fn((node: FlatList<ThreadMessage> | null) => {
+        expect(cleanup).toHaveBeenCalledOnce();
+        return node ? nextCleanup : undefined;
+      });
+      await mountFlatList({ children: () => null, ref });
+      await mountFlatList({ children: () => null, ref: nextRef });
+      expect(ref).toHaveBeenCalledOnce();
+      expect(nextRef).toHaveBeenCalledOnce();
+      await act(async () => root.render(null));
+      expect(nextCleanup).toHaveBeenCalledOnce();
+      expect(nextRef).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("detaches legacy callback refs with null", async () => {
+    const ref = vi.fn((_node: FlatList<ThreadMessage> | null) => {});
+    await mountFlatList({ children: () => null, ref });
+    expect(ref).toHaveBeenCalledOnce();
+    expect(ref.mock.calls[0]![0]).not.toBeNull();
+    await act(async () => root.render(null));
+    expect(ref).toHaveBeenCalledTimes(2);
+    expect(ref).toHaveBeenLastCalledWith(null);
+  });
+
   it("forwards refs to the underlying FlatList", async () => {
     h.state.thread.messages = [{ id: "1", role: "user" }];
     const ref = createRef<FlatList<ThreadMessage>>();
@@ -350,6 +397,8 @@ describe("ThreadMessages", () => {
     });
 
     expect(ref.current).not.toBeNull();
+    await act(async () => root.render(null));
+    expect(ref.current).toBeNull();
   });
 
   it("anchors the visible message while content is inserted above it", async () => {
