@@ -38,42 +38,9 @@ export const SymbolMap = forwardRef<SVGSVGElement, SymbolMapProps>(
     const F = frame({ width, height, aspect, fontSize }, 5 / 3, {
       labels: true,
     });
-    const { left, right, top, bottom, axisY, T } = F;
+    const { left, right, axisY, T } = F;
     const max = Math.max(...marks.map((m) => m.value), 1);
-    const initialLayout = tileLayout(tiles, F);
-    let maxRadius = 0;
-    let needsPadding = false;
-    for (const mark of marks) {
-      const tile = tileAt(tiles, mark.col, mark.row);
-      if (!tile) continue;
-      const { x, y } = tileCenter(tile);
-      const radius = 4 + Math.sqrt(mark.value / max) * 12;
-      if (!Number.isFinite(radius)) continue;
-      maxRadius = Math.max(maxRadius, radius);
-      const cx = x * initialLayout.u + initialLayout.tx;
-      const cy = y * initialLayout.u + initialLayout.ty;
-      if (
-        cx - radius < left ||
-        cx + radius > right ||
-        cy - radius < top ||
-        cy + radius > bottom
-      ) {
-        needsPadding = true;
-      }
-    }
-    const padding = Math.min(
-      maxRadius,
-      (right - left) * 0.49,
-      (bottom - top) * 0.49,
-    );
-    const { u, tx, ty } = needsPadding
-      ? tileLayout(tiles, {
-          left: left + padding,
-          right: right - padding,
-          top: top + padding,
-          bottom: bottom - padding,
-        })
-      : initialLayout;
+    const { u, tx, ty } = tileLayout(tiles, F);
     const X = (x: number) => round(x * u + tx);
     const Y = (y: number) => round(y * u + ty);
     const shownLegend = truncate(legendLabel, T.axis.px, right - left);

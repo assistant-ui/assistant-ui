@@ -120,40 +120,11 @@ describe("tile hosts with custom tiles", () => {
     expectPointInside(html, Number(symbol![1]), Number(symbol![2]));
   });
 
-  it("SymbolMap keeps a positive scale when the plot is smaller than a symbol", () => {
+  it("SymbolMap keeps main's narrow full-view scale with a top-row mark", () => {
     const html = renderToStaticMarkup(
       <SymbolMap width={120} marks={[{ col: 4, row: 0, value: 1 }]} />,
     );
-    expect(layout(html).scale).toBeGreaterThan(0);
-  });
-
-  it("SymbolMap keeps the full circle inside a plot-sized viewBox at an edge tile", () => {
-    const F = frame({}, 5 / 3, { labels: true });
-    const html = renderToStaticMarkup(
-      <SymbolMap
-        marks={[{ col: 1, row: 1, value: 1 }]}
-        tiles={tiles}
-        view={{
-          x: F.left / F.width,
-          y: F.top / F.height,
-          w: (F.right - F.left) / F.width,
-          h: (F.bottom - F.top) / F.height,
-        }}
-      />,
-    );
-    const symbol =
-      /<g data-part="mark"[^>]*><circle cx="([-\d.]+)" cy="([-\d.]+)" r="([-\d.]+)"/.exec(
-        html,
-      );
-    expect(symbol).not.toBeNull();
-    const { vx, vy, vw, vh } = layout(html);
-    const cx = Number(symbol![1]);
-    const cy = Number(symbol![2]);
-    const radius = Number(symbol![3]);
-    expect(cx - radius).toBeGreaterThanOrEqual(vx);
-    expect(cx + radius).toBeLessThanOrEqual(vx + vw);
-    expect(cy - radius).toBeGreaterThanOrEqual(vy);
-    expect(cy + radius).toBeLessThanOrEqual(vy + vh);
+    expect(layout(html).scale).toBe(0.2075);
   });
 });
 
