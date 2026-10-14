@@ -220,23 +220,41 @@ function collectShown(
   }
 }
 
-/** The elements a spec can render: reachable from the root through children and slots, leaving out one hidden with `visible: false` along with what it holds. */
-function renderedElements(spec: Spec): [string, SpecElement][] {
+/** The elements a spec can render, each with the paths a `visible` condition on it or an ancestor guards: reachable from the root through children and slots, leaving out one hidden with `visible: false` along with what it holds, and the repeated children of a `/tools` path the results hold no array at. */
+function renderedElements(
+  spec: Spec,
+  state: unknown,
+): [string, SpecElement, ReadonlySet<string>][] {
   const elements = spec.elements ?? {};
-  const rendered: [string, SpecElement][] = [];
+  const rendered: [string, SpecElement, ReadonlySet<string>][] = [];
   const seen = new Set<string>();
-  const pending = typeof spec.root === "string" ? [spec.root] : [];
+  const pending: [string, ReadonlySet<string>][] =
+    typeof spec.root === "string" ? [[spec.root, new Set()]] : [];
   while (pending.length > 0) {
-    const id = pending.pop()!;
+    const [id, inherited] = pending.pop()!;
     if (seen.has(id) || !Object.hasOwn(elements, id)) continue;
     seen.add(id);
     const element = elements[id];
     if (typeof element !== "object" || element === null) continue;
     if (element.visible === false) continue;
-    rendered.push([id, element]);
-    for (const slot of ["default", ...Object.keys(element.slots ?? {})])
+    const guarded = new Set([
+      ...inherited,
+      ...conditionGuards(element.visible).map(safePointer),
+    ]);
+    rendered.push([id, element, guarded]);
+    const repeat =
+      typeof element.repeat?.path === "string"
+        ? safePointer(element.repeat.path)
+        : undefined;
+    const repeatsNothing =
+      repeat !== undefined &&
+      readsTools(repeat) &&
+      !Array.isArray(getAtPointer(state, repeat));
+    for (const slot of ["default", ...Object.keys(element.slots ?? {})]) {
+      if (slot === "default" && repeatsNothing) continue;
       for (const child of childIdsOf(element, slot))
-        if (typeof child === "string") pending.push(child);
+        if (typeof child === "string") pending.push([child, guarded]);
+    }
   }
   return rendered;
 }
@@ -248,8 +266,7 @@ function missingToolResults(
 ): SpecIssue[] {
   const issues: SpecIssue[] = [];
   const state = { tools: toolResults };
-  for (const [id, element] of renderedElements(spec)) {
-    const guarded = new Set(conditionGuards(element.visible).map(safePointer));
+  for (const [id, element, guarded] of renderedElements(spec, state)) {
     const shown: string[] = [];
     collectShown([element.props, element.on, element.watch], guarded, shown);
     if (typeof element.repeat?.path === "string") {

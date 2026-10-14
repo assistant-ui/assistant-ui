@@ -1148,6 +1148,59 @@ describe("createWidgetToolkit", () => {
     ).toEqual([]);
   });
 
+  it("leaves out a child its parent's visible condition guards and the children of a repeat over a missing result", async () => {
+    const spec = {
+      root: "page",
+      elements: {
+        page: {
+          type: "Text",
+          props: { text: "Page" },
+          children: ["card", "list"],
+        },
+        card: {
+          type: "Text",
+          props: { text: "Deal" },
+          visible: { $state: "/tools/get_price/0/discount" },
+          children: ["saving"],
+        },
+        saving: {
+          type: "Text",
+          props: { text: { $template: "Save ${/tools/get_price/0/discount}" } },
+        },
+        list: {
+          type: "Text",
+          props: { text: "Items" },
+          repeat: { path: "/tools/get_price/0/items" },
+          children: ["item"],
+        },
+        item: {
+          type: "Text",
+          props: { text: { $state: "/tools/get_price/0/unit" } },
+        },
+      },
+      state: {},
+    };
+    mocks.messages = [
+      { content: [call("price", "get_price", {}, { price: "$42" })] },
+      { content: [call("s", "render_spec", { title: "s", spec })] },
+    ];
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, { components }),
+    });
+    const entry = entries(toolkit)["render_spec"]!;
+    const RenderSpec = entry.render;
+    render(<RenderSpec {...partProps("s", { title: "s", spec })} />);
+    const result = (await entry.execute!(
+      { title: "s", spec },
+      { toolCallId: "s" },
+    )) as { issues: { code: string; message: string }[] };
+    expect(
+      result.issues
+        .filter((issue) => issue.code === "missing-tool-result")
+        .map((issue) => /shows `([^`]*)`/.exec(issue.message)?.[1]),
+    ).toEqual(["/tools/get_price/0/items"]);
+  });
+
   it("checks each of two overlapping calls with one title against its own spec", async () => {
     const reading = (path: string) => ({
       root: "t",
