@@ -22,6 +22,7 @@ vi.mock("@/lib/posthog-server", async (importOriginal) => ({
 
 import {
   prepareChatMessages,
+  prepareDemoChatMessages,
   prepareDocChatMessages,
   streamDocsChat,
 } from "./chat-route";
@@ -42,6 +43,22 @@ describe("chat route plumbing", () => {
     expect(mocks.pruneMessages).toHaveBeenCalledWith({
       messages,
       reasoning: "none",
+    });
+  });
+
+  it("prunes tool calls before the last two messages for the landing page demo", async () => {
+    const tools = {};
+
+    await prepareDemoChatMessages(messages, tools);
+
+    expect(mocks.convertToModelMessages).toHaveBeenCalledWith(messages, {
+      tools,
+    });
+    expect(mocks.pruneMessages).toHaveBeenCalledWith({
+      messages,
+      toolCalls: "before-last-2-messages",
+      reasoning: "none",
+      emptyMessages: "remove",
     });
   });
 
