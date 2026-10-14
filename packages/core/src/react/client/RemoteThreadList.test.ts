@@ -3196,6 +3196,99 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("keeps a pending new-thread switch when the settled id is echoed synchronously", async () => {
+    const initialize = deferred<{ remoteId: string; externalId: undefined }>();
+    const adapter = makeAdapter({
+      initialize: vi.fn(() => initialize.promise),
+    });
+    const listeners = new Set<() => void>();
+    const switchSequence: string[] = [];
+    let threadId: string | undefined;
+    let echoing = false;
+    let readR1DuringEcho = false;
+    const onThreadIdChange = vi.fn((id: string | undefined) => {
+      switchSequence.push(`echo:${id ?? "new"}`);
+      threadId = id;
+      echoing = true;
+      for (const listener of listeners) listener();
+      echoing = false;
+    });
+    const source: AssistantConfigSource = {
+      getConfig: () => {
+        if (echoing && threadId === "r1") readR1DuringEcho = true;
+        return AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            thread: (id) => StubThread({ threadId: id }) as never,
+            threadId,
+            onThreadIdChange,
+            onSwitchToThread: (id) => switchSequence.push(`selected:${id}`),
+            onSwitchToNewThread: () => switchSequence.push("selected:new"),
+          }),
+        });
+      },
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    };
+    const handle = createAssistantClient(source);
+    handle.subscribe(() => {});
+    const threads = handle.getClient().threads;
+    await threads.getLoadThreadsPromise();
+    const initializingId = threads.getState().mainThreadId;
+    const initialization = threads.item("main").initialize();
+    await waitFor(() => {
+      expect(threads.item("main").getState().status).toBe("regular");
+    });
+
+    switchSequence.push("requested:new");
+    flushTapSync(() => threads.switchToNewThread());
+    expect(onThreadIdChange).not.toHaveBeenCalled();
+
+    initialize.resolve({ remoteId: "r1", externalId: undefined });
+    await initialization;
+    await waitFor(() => {
+      expect(onThreadIdChange).toHaveBeenCalledWith("r1");
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await waitFor(() => {
+      const currentThreads = handle.getClient().threads;
+      const main = currentThreads.item("main").getState();
+      expect(
+        {
+          mainIdIsNew: main.id !== initializingId,
+          status: main.status,
+          remoteId: main.remoteId,
+          r1InList: currentThreads
+            .getState()
+            .threadIds.includes(initializingId),
+          r1RemoteId: currentThreads.item({ id: "r1" }).getState().remoteId,
+          readR1DuringEcho,
+          echoBeforeNew:
+            switchSequence.indexOf("echo:r1") <
+            switchSequence.indexOf("selected:new"),
+          switchSequence,
+        },
+        `Switch sequence: ${switchSequence.join(" -> ")}`,
+      ).toEqual({
+        mainIdIsNew: true,
+        status: "new",
+        remoteId: undefined,
+        r1InList: true,
+        r1RemoteId: "r1",
+        readR1DuringEcho: true,
+        echoBeforeNew: true,
+        switchSequence: expect.arrayContaining([
+          "requested:new",
+          "echo:r1",
+          "selected:new",
+        ]),
+      });
+    });
+    handle.destroy();
+  });
+
   it("keeps an echoed switch to an initializing thread selected until its id settles", async () => {
     const initialize = deferred<{ remoteId: string; externalId: undefined }>();
     const adapter = makeAdapter({
