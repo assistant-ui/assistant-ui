@@ -309,6 +309,154 @@ describe("supersededInMessage", () => {
 });
 
 describe("createWidgetToolkit", () => {
+  it("renders only the last same-title show or edit call in a message", () => {
+    mocks.messages = [
+      {
+        content: [
+          call("a", "show_widget", { title: "w", widget_code: "<p>one</p>" }),
+          call("b", "edit_widget", {
+            title: "w",
+            edits: [{ old_string: "one", new_string: "two" }],
+          }),
+        ],
+      },
+    ];
+    mocks.propStatus = { widget_code: "complete" };
+    const { toolkit } = createWidgetToolkit({ renderReport: false });
+    const tools = entries(toolkit);
+    const ShowWidget = tools["show_widget"]!.render;
+    const EditWidget = tools["edit_widget"]!.render;
+
+    const earlier = render(
+      <ShowWidget
+        {...partProps("a", { title: "w", widget_code: "<p>one</p>" })}
+      />,
+    );
+    const later = render(<EditWidget {...partProps("b", { title: "w" })} />);
+
+    expect(earlier.container.querySelectorAll("[data-gf-widget]")).toHaveLength(
+      0,
+    );
+    expect(later.container.querySelectorAll("[data-gf-widget]")).toHaveLength(
+      1,
+    );
+    expect(mocks.widgets).toHaveLength(1);
+    expect(mocks.widgets[0]!.code).toBe("<p>two</p>");
+  });
+
+  it("keeps an earlier message's widget when a later message edits its title", () => {
+    mocks.messages = [
+      {
+        content: [
+          call("a", "show_widget", { title: "w", widget_code: "<p>one</p>" }),
+        ],
+      },
+      {
+        content: [
+          call("b", "edit_widget", {
+            title: "w",
+            edits: [{ old_string: "one", new_string: "two" }],
+          }),
+        ],
+      },
+    ];
+    mocks.propStatus = { widget_code: "complete" };
+    const tools = entries(createWidgetToolkit({ renderReport: false }).toolkit);
+    const ShowWidget = tools["show_widget"]!.render;
+    const EditWidget = tools["edit_widget"]!.render;
+    const earlier = render(
+      <ShowWidget
+        {...partProps("a", { title: "w", widget_code: "<p>one</p>" })}
+      />,
+    );
+    const later = render(<EditWidget {...partProps("b", { title: "w" })} />);
+
+    expect(earlier.container.querySelectorAll("[data-gf-widget]")).toHaveLength(
+      1,
+    );
+    expect(later.container.querySelectorAll("[data-gf-widget]")).toHaveLength(
+      1,
+    );
+    expect(mocks.widgets).toHaveLength(2);
+  });
+
+  it("waits until a later same-title call's streamed title is complete", () => {
+    const laterCall = {
+      ...call("b", "edit_widget", { title: "w" }),
+      argsText: '{"title":"w',
+    };
+    mocks.messages = [
+      {
+        content: [
+          call("a", "show_widget", { title: "w", widget_code: "<p>one</p>" }),
+          laterCall,
+        ],
+      },
+    ];
+    const ShowWidget = entries(
+      createWidgetToolkit({ renderReport: false }).toolkit,
+    )["show_widget"]!.render;
+    const view = render(
+      <ShowWidget
+        {...partProps("a", { title: "w", widget_code: "<p>one</p>" })}
+      />,
+    );
+    expect(view.container.querySelectorAll("[data-gf-widget]")).toHaveLength(1);
+
+    mocks.messages = [
+      {
+        content: [
+          call("a", "show_widget", { title: "w", widget_code: "<p>one</p>" }),
+          {
+            ...laterCall,
+            argsText: '{"title":"w"}',
+          },
+        ],
+      },
+    ];
+    view.rerender(
+      <ShowWidget
+        {...partProps("a", { title: "w", widget_code: "<p>one</p>" })}
+      />,
+    );
+    expect(view.container.querySelectorAll("[data-gf-widget]")).toHaveLength(0);
+  });
+
+  it("returns immediately for a superseded widget's render report", async () => {
+    mocks.messages = [
+      {
+        content: [
+          call("a", "show_widget", { title: "w", widget_code: "<p>one</p>" }),
+          call("b", "edit_widget", {
+            title: "w",
+            edits: [{ old_string: "one", new_string: "two" }],
+          }),
+        ],
+      },
+    ];
+    const tools = entries(
+      createWidgetToolkit({ renderReport: { timeoutMs: 1 } }).toolkit,
+    );
+    const pending = tools["show_widget"]!.execute!(
+      { title: "w", widget_code: "<p>one</p>" },
+      { toolCallId: "a" },
+    );
+    const ShowWidget = tools["show_widget"]!.render;
+    render(
+      <ShowWidget
+        {...partProps("a", { title: "w", widget_code: "<p>one</p>" })}
+      />,
+    );
+
+    await expect(pending).resolves.toMatchObject({
+      render: {
+        status: "timeout",
+        feedback:
+          "This widget was superseded by a later call with the same title in this message and was not rendered.",
+      },
+    });
+  });
+
   it("declares frontend tools that execute in the browser", async () => {
     const { toolkit, registry } = createWidgetToolkit({ renderReport: false });
     const tools = entries(toolkit);
@@ -534,6 +682,10 @@ describe("createWidgetToolkit", () => {
       {
         content: [
           call("a", "show_widget", { title: "w", widget_code: "<p>one</p>" }),
+        ],
+      },
+      {
+        content: [
           call("b", "edit_widget", {
             title: "w",
             edits: [{ old_string: "one", new_string: "two" }],
