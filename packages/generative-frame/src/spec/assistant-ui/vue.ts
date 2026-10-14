@@ -152,14 +152,13 @@ export function createSpecToolkit(
             : spec.value,
         );
 
-        const store = createStateStore(renderSpec.value.state ?? {}, {
+        const emptyState: Record<string, unknown> = {};
+        const store = createStateStore(renderSpec.value.state ?? emptyState, {
           writes: savedWrites(interactions, toolCallId),
         });
         watch(
           () => renderSpec.value.state,
-          (state) => {
-            if (state) store.seed(state);
-          },
+          (state) => store.seed(state ?? emptyState),
           { immediate: true },
         );
 
