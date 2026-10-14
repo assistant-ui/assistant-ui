@@ -391,6 +391,13 @@ describe("validateSpec", () => {
     );
   });
 
+  it("accepts an empty child list on a component without that slot", () => {
+    const spec = validSpec();
+    spec.elements["m"]!.children = [];
+    spec.elements["card"]!.slots = { footer: ["b"], header: [] };
+    expect(validateSpec(spec, catalog)).toEqual({ ok: true, issues: [] });
+  });
+
   it("reports formulas that cannot run in props, visibility, and action params", () => {
     const spec = validSpec();
     spec.elements["card"]!.props = {
