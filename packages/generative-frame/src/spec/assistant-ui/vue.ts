@@ -117,7 +117,7 @@ export function createSpecToolkit(
         const toolResults = mountsToolResults
           ? resolveToolResults(earlier, toolCallId)
           : undefined;
-        const history = callHistory(earlier, toolCallId);
+        const history = callHistory(earlier, toolCallId, toolResults);
         histories.set(toolCallId, history);
         onScopeDispose(() => {
           if (histories.get(toolCallId) === history)

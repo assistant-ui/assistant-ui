@@ -5,6 +5,7 @@ import {
 } from "../../assistant-ui/tool-calls";
 import type { ActionHandler } from "../actions";
 import type { Catalog } from "../catalog";
+import { escapePointerToken, getAtPointer } from "../pointer";
 import type { SpecPromptOptions } from "../prompt";
 import {
   createSpecTools,
@@ -14,6 +15,7 @@ import {
 import type { SpecStateWrite } from "../state";
 import { parseSpecStream } from "../stream";
 import type { Spec } from "../types";
+import { formatSpecIssues, type SpecIssue } from "../validate";
 
 /** The arguments of a `render_spec` call, which stream in. */
 export type SpecArgs = Partial<RenderSpecInput>;
@@ -155,18 +157,69 @@ function priorSpecCalls(
   return count;
 }
 
-type SpecHistory = (title: string) => {
-  spec: Spec | undefined;
-  version: number;
+type SpecHistory = {
+  base(title: string): { spec: Spec | undefined; version: number };
+  toolResults: Record<string, unknown[]> | undefined;
 };
 
-/** What a mounted call registers for `execute`: the spec each title held before it in its own thread, and how many calls built it. */
-export const callHistory =
-  (messages: readonly MessageLike[], toolCallId: string): SpecHistory =>
-  (title) => ({
+/** What a mounted call registers for `execute`: the spec each title held before it in its own thread, how many calls built it, and the earlier results it mounts under `/tools`. */
+export const callHistory = (
+  messages: readonly MessageLike[],
+  toolCallId: string,
+  toolResults: Record<string, unknown[]> | undefined,
+): SpecHistory => ({
+  base: (title) => ({
     spec: resolveSpecBase(messages, toolCallId, title),
     version: priorSpecCalls(messages, toolCallId, title),
-  });
+  }),
+  toolResults,
+});
+
+const TOOLS_REFERENCE = /\$\{\s*(\/tools(?:\/[^}\s]*)?)\s*\}/g;
+
+const readsTools = (pointer: string) =>
+  pointer === "/tools" || pointer.startsWith("/tools/");
+
+/** Each place a spec reads state under `/tools` the mounted results do not have, since the value renders blank and the model read a result the thread does not store as it is. */
+function missingToolResults(
+  spec: Spec,
+  toolResults: Record<string, unknown[]>,
+): SpecIssue[] {
+  const issues: SpecIssue[] = [];
+  const state = { tools: toolResults };
+  for (const [id, element] of Object.entries(spec.elements ?? {})) {
+    const reported = new Set<string>();
+    const check = (pointer: string) => {
+      if (!readsTools(pointer) || reported.has(pointer)) return;
+      if (getAtPointer(state, pointer) !== undefined) return;
+      reported.add(pointer);
+      issues.push({
+        code: "missing-tool-result",
+        severity: "error",
+        elementId: id,
+        path: `/elements/${escapePointerToken(id)}`,
+        message: `"${id}" reads \`${pointer}\`, which the earlier tool results do not have, so it renders blank. Write the value you read into the spec instead.`,
+      });
+    };
+    const pending: unknown[] = [element];
+    while (pending.length > 0) {
+      const value = pending.pop();
+      if (typeof value !== "object" || value === null) continue;
+      for (const [key, child] of Object.entries(value)) {
+        if (typeof child === "string") {
+          if (key === "$state" || key === "$bindState") check(child);
+          else if (key === "$template" || key === "$calc")
+            for (const [, pointer] of child.matchAll(TOOLS_REFERENCE))
+              check(pointer!);
+          continue;
+        }
+        pending.push(child);
+      }
+    }
+    if (typeof element?.repeat?.path === "string") check(element.repeat.path);
+  }
+  return issues;
+}
 
 /** The app's rules and where earlier tool results are, which `render_spec`'s description and the `spec` module both carry. */
 const toolkitRules = (
@@ -192,14 +245,30 @@ export function createSpecCalls(
     customRules: toolkitRules(specPrompt),
   });
   const histories = new Map<string, SpecHistory>();
-  const execute = (input: RenderSpecInput, call: { toolCallId: string }) => {
+  const execute = async (
+    input: RenderSpecInput,
+    call: { toolCallId: string },
+  ) => {
     const history = histories.get(call.toolCallId);
     if (history) {
-      const { spec, version } = history(input.title);
+      const { spec, version } = history.base(input.title);
       if (spec) specs.set(input.title, { spec, version });
       else specs.delete(input.title);
     }
-    return tools.render_spec.execute(input);
+    const result = await tools.render_spec.execute(input);
+    const spec = specs.get(input.title)?.spec;
+    // The results are mounted only while the spec writes no `tools` of its own.
+    if (!history?.toolResults || !spec || spec.state?.["tools"] !== undefined)
+      return result;
+    const missing = missingToolResults(spec, history.toolResults);
+    if (missing.length === 0) return result;
+    const issues = [...result.issues, ...missing];
+    return {
+      ...result,
+      ok: false,
+      issues,
+      feedback: formatSpecIssues(issues),
+    };
   };
   return { tools, histories, execute };
 }

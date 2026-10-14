@@ -916,6 +916,55 @@ describe("createWidgetToolkit", () => {
     expect(renderedState).toBe(firstState);
   });
 
+  it("reports a /tools read the stored results do not have, so the model copies the value", async () => {
+    const spec = {
+      root: "t",
+      elements: {
+        t: {
+          type: "Text",
+          props: {
+            text: {
+              $template:
+                "${/tools/get_price/0/price} (${/tools/get_price/0/total})",
+            },
+          },
+          visible: { $state: "/tools/get_price/0/price" },
+        },
+      },
+      state: {},
+    };
+    mocks.messages = [
+      { content: [call("price", "get_price", {}, { price: "$42" })] },
+      { content: [call("s", "render_spec", { title: "s", spec })] },
+    ];
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, { components }),
+    });
+    const entry = entries(toolkit)["render_spec"]!;
+    const RenderSpec = entry.render;
+    render(<RenderSpec {...partProps("s", { title: "s", spec })} />);
+    const result = (await entry.execute!(
+      { title: "s", spec },
+      { toolCallId: "s" },
+    )) as { ok: boolean; issues: unknown[]; feedback: string };
+    expect(result).toMatchObject({
+      ok: false,
+      issues: [
+        {
+          code: "missing-tool-result",
+          elementId: "t",
+          path: "/elements/t",
+        },
+      ],
+    });
+    expect(result.feedback).toContain("/tools/get_price/0/total");
+
+    const owned = { ...spec, state: { tools: { get_price: [{}] } } };
+    expect(
+      await entry.execute!({ title: "s", spec: owned }, { toolCallId: "s" }),
+    ).toMatchObject({ ok: true, issues: [] });
+  });
+
   it("mounts a JSON string result as the structure the model read", () => {
     const spec = {
       root: "t",
