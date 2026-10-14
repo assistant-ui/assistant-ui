@@ -104,7 +104,7 @@ export const Histogram = forwardRef<SVGSVGElement, HistogramProps>(
       : null;
     const curve = smooth
       ? shown.map((v, i) => ({
-          x: left + (shown.length > 1 ? (i / (shown.length - 1)) * span : 0),
+          x: left + ((i + 0.5) / Math.max(1, shown.length)) * span,
           y: Y(v),
         }))
       : null;
