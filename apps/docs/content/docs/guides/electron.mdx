@@ -133,7 +133,7 @@ pnpm add ai @ai-sdk/openai
 
 This is the [AI SDK route](/docs/runtimes/ai-sdk/v7) with two changes:
 
-- The body is untrusted input to a privileged process, so the route caps its size and checks it with `validateUIMessages` before anything reaches the model. Electron reads the whole upload into the main process before calling the handler, so the cap limits what the route processes and sends on, not that first copy. Raise the cap if your app accepts larger attachments, and pass `tools` and any data part schemas to `validateUIMessages` so it checks those parts too.
+- The body is untrusted input to a privileged process, so the route caps it at 20 MB before decoding and checks it with `validateUIMessages` before anything reaches the model. Electron buffers this JSON upload in the main process before calling the handler, so the cap limits what the route decodes, processes, and sends on, not that first copy. Raise the cap if your app accepts larger attachments, and pass `tools` and any data part schemas to `validateUIMessages` so it checks those parts too.
 - Electron builds the handler's `Request` without an abort signal, so `abortSignal: req.signal` would never fire and the model request would keep running after the user presses Stop. Instead, the route aborts when the renderer cancels the response body, which happens on Stop, on reload, and when the window closes.
 
 ```ts title="main/api/chat.ts"
@@ -148,15 +148,17 @@ import {
 } from "ai";
 
 // Attachments arrive inline as data URLs, so leave room for them.
-const MAX_BODY_LENGTH = 20_000_000;
+const MAX_BODY_BYTES = 20_000_000;
 
 // Electron has already buffered the upload; this avoids a second full-size copy.
 async function readBody(req: Request) {
   const decoder = new TextDecoder();
+  let bytesRead = 0;
   let body = "";
   for await (const chunk of req.body ?? []) {
+    bytesRead += chunk.byteLength;
+    if (bytesRead > MAX_BODY_BYTES) return null;
     body += decoder.decode(chunk, { stream: true });
-    if (body.length > MAX_BODY_LENGTH) return null;
   }
   return body + decoder.decode();
 }
@@ -238,7 +240,10 @@ const devServerUrl = process.env.VITE_DEV_SERVER_URL;
 
 function serveRenderer(url: URL) {
   if (devServerUrl) {
-    return net.fetch(new URL(url.pathname + url.search, devServerUrl).toString());
+    const target = new URL(devServerUrl);
+    target.pathname = url.pathname;
+    target.search = url.search;
+    return net.fetch(target.toString());
   }
   // ...serve built files as above
 }
