@@ -58,6 +58,13 @@ npx assistant-ui@latest create my-app -e with-ag-ui
 ## Next
 
 <Cards>
+  <PlatformOnly platforms={["react"]}>
+    <Card
+      title="Pydantic AI"
+      description="Connect a Python agent with a streaming endpoint and React frontend."
+      href="/docs/integrations/frameworks/pydantic-ai"
+    />
+  </PlatformOnly>
   <Card
     title="Quickstart"
     description="Minimal HttpAgent + useAgUiRuntime setup."
