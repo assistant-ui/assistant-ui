@@ -26,6 +26,12 @@ describe("niceTicks floating-point edges", () => {
     ]);
   });
 
+  it("keeps a fractional upper endpoint at a large index", () => {
+    expect(niceTicks(9999999.7, 10000000.1, 4).map((tick) => tick.at)).toEqual([
+      9999999.7, 9999999.8, 9999999.9, 10000000, 10000000.1,
+    ]);
+  });
+
   it("keeps a seeded sweep on the ladder and within its domain", () => {
     let seed = 0xdecafbad;
     const random = () => {

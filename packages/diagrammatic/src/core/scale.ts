@@ -90,7 +90,7 @@ export function niceTicks(
   if (!(step > 0) || !Number.isFinite(step)) return [];
   const inverse = step < 1 ? Math.round(1 / step) : 1;
   const first = Math.round(step < 1 ? lo * inverse : lo / step);
-  const last = Math.floor(hi / step + 1e-9);
+  const last = Math.round(step < 1 ? hi * inverse : hi / step);
   if (
     !Number.isFinite(first) ||
     !Number.isFinite(last) ||
