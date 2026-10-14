@@ -104,7 +104,10 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
     );
     const valueSize = typeSize(
       T,
-      Math.max(0.5, Math.min(r / (needle ? 71 : 57), 3.2)),
+      Math.min(
+        Math.max(1.4, Math.min(r / (needle ? 71 : 57), 3.2)),
+        r / T.base,
+      ),
     );
     const endSize = typeSize(T, Math.max(0.9, Math.min(r / 172, 1.2)));
     const showEndLabels = endCaptionSpace >= endSize.px + 4;
@@ -114,6 +117,9 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
     const endFit = Math.max(0, 2 * (cx - r - PAD));
     const labelFit = Math.max(0, Math.min(r * 1.6, 2 * (cx - PAD)));
     const dialLabel = label ? truncate(label, plateSize.px, labelFit) : "";
+    const valueY = cy - r * (needle ? 0.218 : 0.115);
+    const dialLabelY = cy + r * (needle ? -0.077 : 0.051);
+    const showDialLabel = dialLabelY - plateSize.px >= valueY;
     return (
       <ChartSvg
         ref={ref}
@@ -232,7 +238,7 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
         )}
         <text
           x={cx}
-          y={cy - r * (needle ? 0.218 : 0.115)}
+          y={valueY}
           textAnchor="middle"
           {...T.value.attrs}
           fontSize={valueSize.fontSize}
@@ -240,10 +246,10 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
         >
           {display ?? `${Math.round(share * 100)}%`}
         </text>
-        {dialLabel && (
+        {showDialLabel && dialLabel && (
           <text
             x={cx}
-            y={cy + r * (needle ? -0.077 : 0.051)}
+            y={dialLabelY}
             textAnchor="middle"
             data-part="axis"
             {...T.label.attrs}
