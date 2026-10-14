@@ -32,10 +32,13 @@ export const Slope = forwardRef<SVGSVGElement, SlopeProps>(
       0,
       ...items.map((item) => textWidth(item.label, type.axis.px)),
     );
-    const F = frame({ width, height, aspect, fontSize }, 5 / 3, {
+    const base = frame({ width, height, aspect, fontSize }, 5 / 3, {
       labels: Boolean(labels),
-      right: W - PAD - Math.ceil(widest) - 6,
     });
+    const F = {
+      ...base,
+      right: Math.max(base.left + 10, W - PAD - Math.ceil(widest) - 6),
+    };
     const { left, right, top, bottom, axisY, T } = F;
     const [lo, hi] = extent(items.flatMap((r) => [r.from, r.to]));
     const Y = linear(lo, hi, bottom, top);
