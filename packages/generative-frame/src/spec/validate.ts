@@ -312,8 +312,19 @@ export function validateSpec(
         bindingsOf(bindings),
       );
     }
-    for (const key of ["props", "visible", "on", "watch"] as const) {
-      checkExpressions(id, `${path}/${key}`, element[key]);
+    checkExpressions(id, `${path}/props`, element.props);
+    checkExpressions(id, `${path}/visible`, element.visible);
+    for (const key of ["on", "watch"] as const) {
+      for (const [name, bindings] of Object.entries(element[key] ?? {})) {
+        const at = `${path}/${key}/${escapePointerToken(name)}`;
+        if (Array.isArray(bindings)) {
+          bindings.forEach((binding, index) =>
+            checkExpressions(id, `${at}/${index}/params`, binding?.params),
+          );
+        } else {
+          checkExpressions(id, `${at}/params`, bindings?.params);
+        }
+      }
     }
     if (
       element.repeat !== undefined &&

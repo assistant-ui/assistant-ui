@@ -439,6 +439,7 @@ describe("validateSpec", () => {
     spec.elements["b"]!.on = {
       press: { action: "refresh", params: { range: "$state" } },
     };
+    spec.elements["b"]!.watch = { "/range": [{ action: "$calc" }] };
     const issues = validateSpec(spec, catalog).issues.filter(
       (issue) => issue.code === "unfilled-placeholder",
     );
