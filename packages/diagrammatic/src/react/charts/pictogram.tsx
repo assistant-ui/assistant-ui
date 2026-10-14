@@ -12,6 +12,14 @@ export type PictogramProps = BaseProps & {
   unitLabel?: string;
 };
 
+export const pictogramCellCount = (
+  value: number,
+  unit: number,
+): number | null => {
+  const count = Math.ceil(value / unit);
+  return Number.isFinite(count) ? count : null;
+};
+
 export const Pictogram = forwardRef<SVGSVGElement, PictogramProps>(
   (
     {
@@ -30,7 +38,8 @@ export const Pictogram = forwardRef<SVGSVGElement, PictogramProps>(
   ) => {
     const T = typeScale(fontSize);
     const W = resolveWidth(width);
-    const cells = Math.max(...items.map((r) => Math.ceil(r.value / unit)), 1);
+    const itemCells = items.map((row) => pictogramCellCount(row.value, unit));
+    const cells = Math.max(...itemCells.map((count) => count ?? 0), 1);
     const labelW = Math.max(
       0,
       ...items.map((row) => textWidth(row.label, T.label.px)),
@@ -47,28 +56,16 @@ export const Pictogram = forwardRef<SVGSVGElement, PictogramProps>(
       Math.min(20, rowH - 8, (right - left) / cells - gap),
     );
     const plotW = right - left;
-    const columnsAt = (scale: number) =>
-      Math.max(
-        1,
-        Math.min(
-          cells,
-          Math.floor((plotW + gap * scale) / ((size + gap) * scale)),
-        ),
-      );
-    const fits = (scale: number) => {
-      const columns = columnsAt(scale);
-      const rows = Math.ceil(cells / columns);
-      return (
-        (columns * size + (columns - 1) * gap) * scale <= plotW &&
-        (rows * size + (rows - 1) * gap) * scale <= rowH
-      );
-    };
-    let columns = columnsAt(1);
-    const designSize = Math.min(20, rowH - 8);
-    if (cells * designSize + (cells - 1) * gap > plotW || !fits(1)) {
+    let columns = cells;
+    const designSize = Math.min(20, Math.max(2, rowH - 8));
+    if (cells * designSize + (cells - 1) * gap > plotW || size > rowH) {
       const ratio = gap / 20;
       let bestSize = 0;
-      for (let candidate = 1; candidate <= cells; candidate += 1) {
+      for (
+        let candidate = 1;
+        candidate <= Math.min(cells, plotW);
+        candidate += 1
+      ) {
         const candidateRows = Math.ceil(cells / candidate);
         const candidateSize = Math.min(
           designSize,
@@ -109,11 +106,44 @@ export const Pictogram = forwardRef<SVGSVGElement, PictogramProps>(
               >
                 {truncate(row.label, frameType.label.px, left - PAD - 6)}
               </text>
-              {Array.from({ length: cells }, (_, c) => {
-                const x = left + (c % columns) * pitch;
-                const cellY = y + Math.floor(c / columns) * pitch;
-                const fill = filled - c;
-                if (fill >= 1) {
+              {Array.from(
+                { length: itemCells[r] === null ? 0 : cells },
+                (_, c) => {
+                  const x = left + (c % columns) * pitch;
+                  const cellY = y + Math.floor(c / columns) * pitch;
+                  const fill = filled - c;
+                  if (fill >= 1) {
+                    return (
+                      <rect
+                        key={c}
+                        x={round(x)}
+                        y={round(cellY)}
+                        width={round(size)}
+                        height={round(size)}
+                        rx={round(size * 0.29)}
+                        fill={r === 0 ? ACCENT : ink(0.55)}
+                      />
+                    );
+                  }
+                  if (fill > 0.05) {
+                    const rr = round(size * 0.29);
+                    return (
+                      <g key={c}>
+                        <rect
+                          x={round(x)}
+                          y={round(cellY)}
+                          width={round(size)}
+                          height={round(size)}
+                          rx={rr}
+                          fill={ink(0.1)}
+                        />
+                        <path
+                          d={`M${round(x)} ${round(cellY + rr)} A${rr} ${rr} 0 0 1 ${round(x + rr)} ${round(cellY)} H${round(x + size * fill)} V${round(cellY + size)} H${round(x + rr)} A${rr} ${rr} 0 0 1 ${round(x)} ${round(cellY + size - rr)} Z`}
+                          fill={r === 0 ? ACCENT : ink(0.55)}
+                        />
+                      </g>
+                    );
+                  }
                   return (
                     <rect
                       key={c}
@@ -122,41 +152,11 @@ export const Pictogram = forwardRef<SVGSVGElement, PictogramProps>(
                       width={round(size)}
                       height={round(size)}
                       rx={round(size * 0.29)}
-                      fill={r === 0 ? ACCENT : ink(0.55)}
+                      fill={ink(0.1)}
                     />
                   );
-                }
-                if (fill > 0.05) {
-                  const rr = round(size * 0.29);
-                  return (
-                    <g key={c}>
-                      <rect
-                        x={round(x)}
-                        y={round(cellY)}
-                        width={round(size)}
-                        height={round(size)}
-                        rx={rr}
-                        fill={ink(0.1)}
-                      />
-                      <path
-                        d={`M${round(x)} ${round(cellY + rr)} A${rr} ${rr} 0 0 1 ${round(x + rr)} ${round(cellY)} H${round(x + size * fill)} V${round(cellY + size)} H${round(x + rr)} A${rr} ${rr} 0 0 1 ${round(x)} ${round(cellY + size - rr)} Z`}
-                        fill={r === 0 ? ACCENT : ink(0.55)}
-                      />
-                    </g>
-                  );
-                }
-                return (
-                  <rect
-                    key={c}
-                    x={round(x)}
-                    y={round(cellY)}
-                    width={round(size)}
-                    height={round(size)}
-                    rx={round(size * 0.29)}
-                    fill={ink(0.1)}
-                  />
-                );
-              })}
+                },
+              )}
             </g>
           );
         })}

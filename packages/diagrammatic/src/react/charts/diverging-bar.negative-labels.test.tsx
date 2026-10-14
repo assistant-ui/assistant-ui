@@ -14,6 +14,23 @@ describe("DivergingBar negative labels", () => {
     expect(barWidth).toBeGreaterThanOrEqual(6);
   });
 
+  it("keeps a negative value label clear of its row label at width 90", () => {
+    const html = renderToStaticMarkup(
+      <DivergingBar width={90} items={[{ label: "Sales", value: -100 }]} />,
+    );
+    const texts = [...html.matchAll(/<text\b([^>]*)>([^<]*)<\/text>/g)];
+    const row = texts.find(([, , content]) => content?.includes("Sa"));
+    const value = texts.find(([, , content]) => content?.includes("-"));
+    expect(row).toBeDefined();
+    if (value) {
+      const rowRight = Number(/\bx="([^"]+)"/.exec(row?.[1] ?? "")?.[1]);
+      const valueRight = Number(/\bx="([^"]+)"/.exec(value[1] ?? "")?.[1]);
+      expect(
+        valueRight - textWidth(value[2] ?? "", typeScale().axis.px),
+      ).toBeGreaterThanOrEqual(rowRight);
+    }
+  });
+
   it("keeps the negative value text clear of its row label", () => {
     const html = renderToStaticMarkup(
       <DivergingBar width={320} items={[{ label: "Sales", value: -100 }]} />,
