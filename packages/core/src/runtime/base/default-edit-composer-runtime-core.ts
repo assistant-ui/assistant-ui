@@ -43,6 +43,11 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     return super.addAttachment(fileOrAttachment);
   }
 
+  public override startDictation(): void {
+    if (this.runtime.isDisabled) return;
+    super.startDictation();
+  }
+
   protected getAttachmentAdapter() {
     return this.runtime.adapters?.attachments;
   }

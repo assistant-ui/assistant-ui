@@ -44,6 +44,11 @@ export class DefaultThreadComposerRuntimeCore
     return super.addAttachment(fileOrAttachment);
   }
 
+  public override startDictation(): void {
+    if (this.runtime.isDisabled) return;
+    super.startDictation();
+  }
+
   public override cancel() {
     if (!this.isSubmitting) {
       super.cancel();
