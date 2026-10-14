@@ -63,7 +63,7 @@ export const Heatmap = forwardRef<SVGSVGElement, HeatmapProps>(
         >
           {matrix.rows.map((row, r) => (
             <text
-              key={row}
+              key={`${row}-${r}`}
               x={round(left - 6)}
               y={round(rowMid(r, cellH, top))}
               textAnchor="end"
@@ -181,7 +181,7 @@ export const Heatmap = forwardRef<SVGSVGElement, HeatmapProps>(
       >
         {matrix.rows.map((row, r) => (
           <text
-            key={row}
+            key={`${row}-${r}`}
             x={round(left - 6)}
             y={round(rowMid(r, cellH, top))}
             textAnchor="end"
