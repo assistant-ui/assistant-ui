@@ -308,6 +308,17 @@ export function densityEllipse(points: Pt[]): {
   };
 }
 
+export function networkHub(graph: Graph): Graph["nodes"][number] | undefined {
+  const degree = new Map<string, number>();
+  for (const link of graph.links) {
+    degree.set(link.source, (degree.get(link.source) ?? 0) + 1);
+    degree.set(link.target, (degree.get(link.target) ?? 0) + 1);
+  }
+  return [...graph.nodes].sort(
+    (a, b) => (degree.get(b.id) ?? 0) - (degree.get(a.id) ?? 0),
+  )[0];
+}
+
 /** Deterministic radial layout: highest-degree node centered, BFS rings out. */
 export function radialNetwork(
   graph: Graph,
@@ -315,15 +326,7 @@ export function radialNetwork(
   cy: number,
   ringGap: number,
 ): Map<string, Pt> {
-  const degree = new Map<string, number>();
-  for (const node of graph.nodes) degree.set(node.id, 0);
-  for (const link of graph.links) {
-    degree.set(link.source, (degree.get(link.source) ?? 0) + 1);
-    degree.set(link.target, (degree.get(link.target) ?? 0) + 1);
-  }
-  const hub = [...graph.nodes].sort(
-    (a, b) => (degree.get(b.id) ?? 0) - (degree.get(a.id) ?? 0),
-  )[0];
+  const hub = networkHub(graph);
   const positions = new Map<string, Pt>();
   if (!hub) return positions;
   positions.set(hub.id, { x: cx, y: cy });
