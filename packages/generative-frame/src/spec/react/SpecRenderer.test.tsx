@@ -1010,4 +1010,26 @@ describe("useSpecStream", () => {
     act(() => result.current.reset());
     expect(result.current.spec.root).toBe("");
   });
+
+  it("restarts a followed source from the new initial when reset", () => {
+    const before: Spec = {
+      root: "t",
+      elements: { t: { type: "Text", props: { text: "before" } } },
+    };
+    const source =
+      '{"op":"replace","path":"/elements/t/props/text","value":"after"}\n';
+    const hook = renderHook(
+      ({ initial }: { initial?: Spec }) =>
+        useSpecStream({ source, ...(initial ? { initial } : {}) }),
+      { initialProps: {} },
+    );
+    expect(hook.result.current.spec.elements["t"]?.type).toBeUndefined();
+
+    hook.rerender({ initial: before });
+    act(() => hook.result.current.reset());
+    expect(hook.result.current.spec.elements["t"]).toEqual({
+      type: "Text",
+      props: { text: "after" },
+    });
+  });
 });

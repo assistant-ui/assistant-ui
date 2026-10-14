@@ -274,6 +274,49 @@ describe("createSpecToolkit for Vue", () => {
     argsText: JSON.stringify(args),
   });
 
+  it("applies patches onto the earlier spec when the title arrives after them", async () => {
+    const first = {
+      title: "s",
+      patches:
+        '{"op":"add","path":"/root","value":"t"}\n{"op":"add","path":"/elements/t","value":{"type":"Label","props":{"text":"a"}}}',
+    };
+    const later = {
+      title: "s",
+      patches: '{"op":"replace","path":"/elements/t/props/text","value":"b"}\n',
+    };
+    mocks.messages = [
+      {
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "e",
+            toolName: "render_spec",
+            args: first,
+            argsText: JSON.stringify(first),
+          },
+          {
+            type: "tool-call",
+            toolCallId: "f",
+            toolName: "render_spec",
+            args: later,
+            argsText: JSON.stringify(later),
+          },
+        ],
+      },
+    ];
+    const { container, update } = mount(
+      setup("frontend").render,
+      toolProp({ id: "f", args: {}, running: true }),
+    );
+    update(
+      toolProp({ id: "f", args: { patches: later.patches }, running: true }),
+    );
+    await nextTick();
+    update(toolProp({ id: "f", args: later, running: true }));
+    await nextTick();
+    expect(container.textContent).toBe("b");
+  });
+
   it("shows a spec once when a later call in its message patches the same title", async () => {
     mocks.messages = [
       { content: [specCall("e", labelA), specCall("f", labelB)] },
