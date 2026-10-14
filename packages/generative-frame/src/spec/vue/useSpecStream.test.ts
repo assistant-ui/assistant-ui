@@ -114,10 +114,30 @@ describe("useSpecStream", () => {
     expect(result.spec.value.elements.main).toBeDefined();
     source.value = `${lines[0]}\n`;
     result.reset();
-    expect(result.spec.value).toBe(followed);
+    expect(result.spec.value).toEqual(followed);
     source.value = undefined;
     expect(result.spec.value).toBe(initial);
     expect(result.text.value).toBe("");
+  });
+
+  it("restarts a followed source from the current initial on reset", () => {
+    const initial = ref<Spec>();
+    const result = mountDirect({
+      source:
+        '{"op":"replace","path":"/elements/t/props/text","value":"after"}\n',
+      initial,
+    });
+    expect(result.spec.value.elements["t"]?.type).toBeUndefined();
+
+    initial.value = {
+      root: "t",
+      elements: { t: { type: "Text", props: { text: "before" } } },
+    };
+    result.reset();
+    expect(result.spec.value.elements["t"]).toEqual({
+      type: "Text",
+      props: { text: "after" },
+    });
   });
 
   it("restarts on mode changes and reads ref initial only when parsing starts", () => {

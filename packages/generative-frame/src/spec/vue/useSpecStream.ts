@@ -60,72 +60,78 @@ export function useSpecStream(
   let follower: Follower | undefined;
   let imperative: SpecStream | undefined;
 
+  const follow = (
+    source: string | undefined,
+    complete: boolean | undefined,
+    mode: SpecStreamMode,
+  ) => {
+    if (source === undefined) {
+      followed.value = undefined;
+      return;
+    }
+    if (complete) {
+      const initial = toValue(options.initial);
+      let result;
+      if (
+        follower &&
+        follower.mode === mode &&
+        follower.initial === initial &&
+        source.startsWith(follower.consumed)
+      ) {
+        follower.stream.push(source.slice(follower.consumed.length));
+        result = follower.stream.result();
+      } else {
+        result = parseSpecStream(source, {
+          mode,
+          ...(initial ? { initial } : {}),
+        });
+      }
+      follower = undefined;
+      followed.value = {
+        spec: result.spec,
+        text: result.text,
+        errors: result.errors,
+      };
+      return;
+    }
+    if (
+      !follower ||
+      follower.mode !== mode ||
+      !source.startsWith(follower.consumed)
+    ) {
+      const initial = toValue(options.initial);
+      follower = {
+        stream: createSpecStream({ mode, ...(initial ? { initial } : {}) }),
+        consumed: "",
+        mode,
+        initial,
+        text: "",
+        errors: [],
+      };
+    }
+    if (source.length > follower.consumed.length) {
+      const update = follower.stream.push(
+        source.slice(follower.consumed.length),
+      );
+      follower.consumed = source;
+      if (update.text) follower.text += update.text;
+      if (update.errors.length)
+        follower.errors = [...follower.errors, ...update.errors];
+    }
+    followed.value = {
+      spec: follower.stream.spec,
+      text: follower.text,
+      errors: follower.errors,
+    };
+  };
+
   watch(
     [
       () => toValue(options.source),
       () => toValue(options.complete),
       () => toValue(options.mode) ?? "jsonl",
     ],
-    ([source, complete, mode]) => {
-      if (source === undefined) {
-        followed.value = undefined;
-        return;
-      }
-      if (complete) {
-        const initial = toValue(options.initial);
-        let result;
-        if (
-          follower &&
-          follower.mode === mode &&
-          follower.initial === initial &&
-          source.startsWith(follower.consumed)
-        ) {
-          follower.stream.push(source.slice(follower.consumed.length));
-          result = follower.stream.result();
-        } else {
-          result = parseSpecStream(source, {
-            mode,
-            ...(initial ? { initial } : {}),
-          });
-        }
-        follower = undefined;
-        followed.value = {
-          spec: result.spec,
-          text: result.text,
-          errors: result.errors,
-        };
-        return;
-      }
-      if (
-        !follower ||
-        follower.mode !== mode ||
-        !source.startsWith(follower.consumed)
-      ) {
-        const initial = toValue(options.initial);
-        follower = {
-          stream: createSpecStream({ mode, ...(initial ? { initial } : {}) }),
-          consumed: "",
-          mode,
-          initial,
-          text: "",
-          errors: [],
-        };
-      }
-      if (source.length > follower.consumed.length) {
-        const update = follower.stream.push(
-          source.slice(follower.consumed.length),
-        );
-        follower.consumed = source;
-        if (update.text) follower.text += update.text;
-        if (update.errors.length)
-          follower.errors = [...follower.errors, ...update.errors];
-      }
-      followed.value = {
-        spec: follower.stream.spec,
-        text: follower.text,
-        errors: follower.errors,
-      };
-    },
+    ([source, complete, mode]) => follow(source, complete, mode),
     { immediate: true, flush: "sync" },
   );
 
@@ -164,6 +170,11 @@ export function useSpecStream(
         text: "",
         errors: [],
       };
+      follow(
+        toValue(options.source),
+        toValue(options.complete),
+        toValue(options.mode) ?? "jsonl",
+      );
     },
   };
 }
