@@ -21,7 +21,7 @@ const migrateEventNamesToCamelCase = createTransformer(
         const oldEventName = node.value;
 
         // Check if this event name needs to be migrated
-        if (eventNameMap[oldEventName]) {
+        if (Object.hasOwn(eventNameMap, oldEventName)) {
           const newEventName = eventNameMap[oldEventName];
           node.value = newEventName;
           markAsChanged();
@@ -38,7 +38,7 @@ const migrateEventNamesToCamelCase = createTransformer(
         if (quasi.value && typeof quasi.value.raw === "string") {
           const oldEventName = quasi.value.raw;
 
-          if (eventNameMap[oldEventName]) {
+          if (Object.hasOwn(eventNameMap, oldEventName)) {
             const newEventName = eventNameMap[oldEventName];
             quasi.value.raw = newEventName;
             quasi.value.cooked = newEventName;

@@ -30,6 +30,13 @@ function expectNoChange(input: string) {
   expect(output).toBeNull();
 }
 
+const prototypePropertyNames = [
+  "constructor",
+  "toString",
+  "__proto__",
+  "hasOwnProperty",
+] as const;
+
 describe("event-names-to-camelcase codemod", () => {
   it("should migrate thread.run-start to thread.runStart", () => {
     expectTransform(
@@ -124,4 +131,38 @@ function MyComponent() {
       "const event = `thread.runStart`;",
     );
   });
+
+  it.each(prototypePropertyNames)(
+    "should preserve the string literal %s",
+    (name) => {
+      expectNoChange(`const key = "${name}";`);
+    },
+  );
+
+  it.each(prototypePropertyNames)(
+    "should preserve the template literal %s",
+    (name) => {
+      expectNoChange(`const key = \`${name}\`;`);
+    },
+  );
+
+  it.each(prototypePropertyNames)(
+    "should preserve the string literal %s when migrating an event",
+    (name) => {
+      expectTransform(
+        `const key = "${name}";\nuseAuiEvent("thread.run-start", () => {});`,
+        `const key = "${name}";\nuseAuiEvent("thread.runStart", () => {});`,
+      );
+    },
+  );
+
+  it.each(prototypePropertyNames)(
+    "should preserve the template literal %s when migrating an event",
+    (name) => {
+      expectTransform(
+        `const key = \`${name}\`;\nuseAuiEvent("thread.run-start", () => {});`,
+        `const key = \`${name}\`;\nuseAuiEvent("thread.runStart", () => {});`,
+      );
+    },
+  );
 });
