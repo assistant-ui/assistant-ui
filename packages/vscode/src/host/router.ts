@@ -210,7 +210,11 @@ export function serveRoutes(
   const subscription = webview.onDidReceiveMessage((message: unknown) => {
     if (!isWebviewToHostMessage(message)) return;
     if (message.kind === "fetch:request") void handle(message);
-    else if (message.kind === "fetch:abort") {
+    else if (message.kind === "fetch:reset") {
+      const controllers = [...inflight.values()];
+      inflight.clear();
+      for (const controller of controllers) controller.abort();
+    } else if (message.kind === "fetch:abort") {
       const controller = inflight.get(message.id);
       if (controller) {
         inflight.delete(message.id);

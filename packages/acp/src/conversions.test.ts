@@ -813,6 +813,26 @@ describe("streamed session updates", () => {
     ]);
   });
 
+  it("converts image resource links to image parts", () => {
+    expect(
+      chunk([], {
+        sessionUpdate: "agent_message_chunk",
+        content: {
+          type: "resource_link",
+          uri: "https://example.com/photo",
+          name: "photo.jpg",
+          mimeType: "image/jpeg",
+        },
+      }),
+    ).toEqual([
+      {
+        type: "image",
+        image: "https://example.com/photo",
+        filename: "photo.jpg",
+      },
+    ]);
+  });
+
   it("ignores blocks it cannot represent", () => {
     expect(appendContentBlock([], null as never, "text")).toBeUndefined();
     expect(

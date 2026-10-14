@@ -54,7 +54,7 @@ Maintainers add the `preview` label to a ready pull request to publish installab
 
 ### Review policy
 
-Every pull request gets a tier from T0 to T3, and the `review-tier` check reports the tier, the reasons for it, and what the merge still needs. `.github/review-policy.json` holds the areas, their owner teams and the thresholds; `.github/CODEOWNERS` and the branch rulesets are generated from it by `scripts/sync-review-policy.mjs`.
+Every pull request gets a tier from T0 to T3, and the `review-tier` check reports the tier, the reasons for it, and what the merge still needs. The check stays in progress while the pull request waits on approvals, the waiting window, or a decision, and fails only when the pull request itself needs a change. `.github/review-policy.json` holds the areas, their owner teams and the thresholds; `.github/CODEOWNERS` and the branch rulesets are generated from it by `scripts/sync-review-policy.mjs`.
 
 | Tier | Triggered by | Needs before merge |
 | --- | --- | --- |
@@ -64,14 +64,14 @@ Every pull request gets a tier from T0 to T3, and the `review-tier` check report
 | T3 | A `behavior-change` label, a removed or renamed export or entry point, a new package or subpath, a new runtime, peer or optional dependency or an upstream major, a `refactor` that spans two or more packages, workflow permissions, secrets or privileged triggers, release workflows, or this policy (`.github/review-policy.json` and the scripts and workflows that enforce it) | T2's approval (a maintainer's when no contract area is affected), a linked issue labeled `decision: accepted` by an owner of the affected area (by a maintainer when no contract area is affected), and 72 hours open after ready for review |
 
 - Approvals count only on the current head, so every push, autofix commits included, needs fresh approvals. They never count from the author or from anyone who authored or committed a commit in the pull request; committing a review suggestion or updating the branch from the web makes you one.
-- Every review thread is resolved before merge, every check passes (the rulesets require `autofix`, `Build Changed Packages`, `Typecheck Changed Packages` and `Review Policy Scripts`), and the `review-tier` comment lists nothing still needed (until the check enforces, maintainers apply the table by hand and read the comment as advice).
+- Every review thread is resolved before merge, every check passes (the rulesets require `autofix`, `Build Changed Packages`, `Typecheck Changed Packages`, `Review Policy Scripts`, `Test Coverage` and `review-tier`), and the `review-tier` comment lists nothing still needed.
 - The `review-tier` comment also lists advice under "Worth a look", such as another pull request that is open or already merged for the same issue, a `feat` with no linked issue, or a description with no Verification or AI use text. Advice never blocks a merge.
 - Size never lowers a tier. A T2 or T3 pull request that changes more than 400 lines outside tests, generated files and the T0 paths lands as a stack of smaller pull requests.
 - The title type is a claim reviewers hold the pull request to: `fix` carries a regression test, `feat` links an issue where a maintainer confirmed the direction, and `perf` attaches x-performance numbers. The check verifies `refactor`: it fails a refactor that changes `api-surface/`, an `exports` map or an existing test assertion.
 - An owner of the affected area may add `review-tier/override: size`, `review-tier/override: type` or `review-tier/override: window`, with a comment giving the reason. An override waives that one signal until the label is removed and never lowers the approvals a tier needs.
 - Only organization owners can bypass the rulesets, and only for their own pull requests. The weekly review health issue lists every bypass and override.
 - Any maintainer may open a revert, without discussion, of a pull request merged within 7 days that broke `main`, skipped this policy, or drew an owner's objection. The revert is reviewed at its own tier.
-- Once `mergeQueue.enabled` is set in the policy, pull requests merge through the merge queue with auto-merge, which tests the merged result before it lands.
+- Pull requests merge through the merge queue with auto-merge, which tests the merged result before it lands.
 - Maintainers aim to give outside pull requests a first response within 2 business days.
 
 #### AI-assisted contributions
@@ -79,7 +79,7 @@ Every pull request gets a tier from T0 to T3, and the `review-tier` check report
 - State in the pull request which tools wrote or changed code and how you verified the result. You must be able to explain every line; a pull request its author cannot explain is closed without review.
 - Bots open draft pull requests only. A maintainer who adopts a bot draft becomes its accountable author.
 - Contributors without write access can have 3 open non-draft pull requests at a time, and contributors with write access who are not maintainers 5. While an author is over the cap, the check fails their pull requests, and it checks them again when one is closed or converted to a draft.
-- Rebase only to resolve a conflict; once enabled, the merge queue tests every pull request against the latest `main`.
+- Rebase only to resolve a conflict; the merge queue tests every pull request against the latest `main`.
 
 ### Adding a changeset
 

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  forwardRef,
   memo,
   useCallback,
   useImperativeHandle,
@@ -29,12 +30,12 @@ import {
   type ToolCallMessagePartStatus,
   type ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
+import { cn } from "@/lib/utils";
 import {
-  Collapsible,
+  CollapsibleRoot as Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { cn } from "@/lib/utils";
+} from "./collapsible-root";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -449,7 +450,7 @@ function ToolFallbackApprovalReceipt({
 }: React.ComponentPropsWithoutRef<"div"> & {
   approval: NonNullable<ToolCallMessagePart["approval"]>;
   focusReceiptRef: React.MutableRefObject<string | null | undefined>;
-  receiptRef: React.RefObject<HTMLDivElement | null>;
+  receiptRef: React.MutableRefObject<HTMLDivElement | null>;
 }) {
   useLayoutEffect(() => {
     const shouldFocus = focusReceiptRef.current === approval.id;
@@ -694,7 +695,7 @@ const offersInterruptAction = (
   approval != null ||
   interrupt != null;
 
-type ToolFallbackApprovalProps = React.ComponentProps<"div"> &
+type ToolFallbackApprovalProps = React.ComponentPropsWithoutRef<"div"> &
   Partial<
     Pick<
       ToolCallMessagePartProps,
@@ -705,20 +706,24 @@ type ToolFallbackApprovalProps = React.ComponentProps<"div"> &
     approval?: ToolCallMessagePart["approval"];
   };
 
-function ToolFallbackApproval(props: ToolFallbackApprovalProps) {
+const ToolFallbackApproval = forwardRef<
+  HTMLDivElement,
+  ToolFallbackApprovalProps
+>(function ToolFallbackApproval(props, ref) {
   const carryFocusRef = useRef(false);
   return (
     <ToolFallbackApprovalImpl
       key={props.approval?.id}
       carryFocusRef={carryFocusRef}
+      forwardedRef={ref}
       {...props}
     />
   );
-}
+});
 
 function ToolFallbackApprovalImpl({
   className,
-  ref,
+  forwardedRef,
   carryFocusRef,
   addResult,
   resume,
@@ -727,7 +732,10 @@ function ToolFallbackApprovalImpl({
   respondToApproval,
   status,
   ...props
-}: ToolFallbackApprovalProps & { carryFocusRef: React.RefObject<boolean> }) {
+}: Omit<ToolFallbackApprovalProps, "ref"> & {
+  forwardedRef: React.ForwardedRef<HTMLDivElement>;
+  carryFocusRef: React.MutableRefObject<boolean>;
+}) {
   const [submitted, setSubmitted] = useState(false);
   const voiceActive = useAuiState((s) => s.thread.voice !== undefined);
   const canAnswer = useAuiState((s) => s.thread.capabilities.answerToolCall);
@@ -754,7 +762,7 @@ function ToolFallbackApprovalImpl({
     }
   }
   const pendingGroupRef = useRef<HTMLDivElement | null>(null);
-  const receiptRef = useRef<HTMLDivElement>(null);
+  const receiptRef = useRef<HTMLDivElement | null>(null);
   const focusReceiptRef = useRef<string | null | undefined>(null);
   useLayoutEffect(() => {
     if (carryFocusRef.current) {
@@ -768,7 +776,7 @@ function ToolFallbackApprovalImpl({
     };
   }, [carryFocusRef]);
   useImperativeHandle<HTMLDivElement | null, HTMLDivElement | null>(
-    ref,
+    forwardedRef,
     () => pendingGroupRef.current ?? receiptRef.current,
   );
   const setPendingGroup = useCallback(
@@ -987,11 +995,13 @@ function ToolFallbackApprovalImpl({
     return (
       <div
         data-slot="tool-fallback-approval"
+        tabIndex={-1}
         className={cn(
           "aui-tool-fallback-approval flex flex-col gap-3 pt-1",
           className,
         )}
         {...props}
+        ref={setPendingGroup}
       >
         {promptText}
         <ToolFallbackApprovalQuestions

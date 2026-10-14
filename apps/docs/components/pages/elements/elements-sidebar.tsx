@@ -35,7 +35,7 @@ export function ElementsSidebar() {
           className="text-muted-foreground hover:text-foreground flex items-baseline justify-between px-2 text-[13px] transition-colors"
         >
           Elements
-          <span className="font-mono text-[11px] tabular-nums">
+          <span className="text-xs tabular-nums">
             {normalized ? `${matchCount} / ${ELEMENT_COUNT}` : ELEMENT_COUNT}
           </span>
         </Link>
@@ -52,7 +52,7 @@ export function ElementsSidebar() {
           className="mx-0.5 mt-3"
         />
         {normalized && sections.length === 0 && (
-          <p className="text-muted-foreground mt-4 px-2 font-mono text-[11px]">
+          <p className="text-muted-foreground mt-4 px-2 text-xs">
             Nothing matches.
           </p>
         )}

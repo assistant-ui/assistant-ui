@@ -238,7 +238,11 @@ export function ModelInputCard({
                   if (test.status !== "idle") setTest({ status: "idle" });
                 }}
                 onKeyDown={(event) => {
-                  if (event.key !== "Enter" || event.nativeEvent.isComposing)
+                  if (
+                    event.key !== "Enter" ||
+                    event.nativeEvent.isComposing ||
+                    event.keyCode === 229
+                  )
                     return;
                   event.preventDefault();
                   if (test.status === "ok") setStep("model");

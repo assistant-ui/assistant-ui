@@ -3,6 +3,7 @@ import {
   readCloudRecord,
   readCloudString,
 } from "./cloudResponse";
+import { normalizeBaseUrl } from "./baseUrl";
 
 const AUTH_TOKEN_REQUEST_TIMEOUT_MS = 30_000;
 
@@ -278,11 +279,6 @@ const readRefreshToken = (baseUrl: string): RefreshToken | undefined => {
   } catch {
     return undefined;
   }
-};
-
-export const normalizeBaseUrl = (baseUrl: string): string => {
-  if (!baseUrl || !baseUrl.endsWith("/")) return baseUrl;
-  return baseUrl.slice(0, -1);
 };
 
 /** The refresh token of the anonymous identity this browser holds for `baseUrl`, or null when it has none. */

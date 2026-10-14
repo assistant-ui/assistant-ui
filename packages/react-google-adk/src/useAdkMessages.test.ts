@@ -1,17 +1,18 @@
 /** @vitest-environment jsdom */
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({
-  initialize: vi.fn(async () => ({
+const mocks = vi.hoisted(() => {
+  const initialize = vi.fn(async () => ({
     remoteId: "thread-1",
     externalId: undefined,
-  })),
-}));
+  }));
+  return { initialize, aui: { threadListItem: { initialize } } };
+});
 
 vi.mock("@assistant-ui/store", async (importOriginal) => ({
   ...(await importOriginal()),
-  useAui: () => ({ threadListItem: { initialize: mocks.initialize } }),
+  useAui: () => mocks.aui,
 }));
 
 import {
@@ -214,9 +215,8 @@ describe("ADK runtime callbacks", () => {
 });
 
 describe("ADK stream lifecycle", () => {
-  it("reports streamed tool calls with the run config that produced them", async () => {
+  it("attributes streamed tool calls to the run config that produced them", async () => {
     const runConfig = { custom: { model: "model-a" } };
-    const onMessages = vi.fn();
     const stream: AdkStreamCallback = async function* () {
       yield {
         id: "event-1",
@@ -230,9 +230,7 @@ describe("ADK stream lifecycle", () => {
         },
       };
     };
-    const { result } = renderHook(() =>
-      useAdkMessagesInternal({ stream, onMessages }),
-    );
+    const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
 
     await act(async () => {
       await result.current.sendMessage(
@@ -241,18 +239,86 @@ describe("ADK stream lifecycle", () => {
       );
     });
 
-    expect(onMessages).toHaveBeenLastCalledWith(
-      expect.arrayContaining([
-        expect.objectContaining({
-          type: "ai",
-          tool_calls: [
-            expect.objectContaining({ id: "tool-1" }),
-            expect.objectContaining({ id: "tool-2" }),
-          ],
-        }),
-      ]),
-      runConfig,
+    expect(result.current.messages).toContainEqual(
+      expect.objectContaining({
+        type: "ai",
+        tool_calls: [
+          expect.objectContaining({ id: "tool-1" }),
+          expect.objectContaining({ id: "tool-2" }),
+        ],
+      }),
     );
+    const { runConfigByToolCallId } = result.current.controller.getState();
+    expect(runConfigByToolCallId.get("tool-1")).toBe(runConfig);
+    expect(runConfigByToolCallId.get("tool-2")).toBe(runConfig);
+  });
+
+  it("marks a run failed only when one of its events carries an error or an error finish reason", async () => {
+    let call = 0;
+    const stream: AdkStreamCallback = async function* () {
+      call++;
+      if (call === 1) {
+        yield {
+          id: "event-error",
+          author: "agent",
+          errorCode: "MODEL_ERROR",
+          errorMessage: "boom",
+        };
+        return;
+      }
+      if (call === 4) {
+        yield {
+          id: "event-snake",
+          author: "agent",
+          finish_reason: "UNEXPECTED_TOOL_CALL",
+        } as AdkEvent;
+        return;
+      }
+      if (call === 3) {
+        yield {
+          id: "event-malformed",
+          author: "agent",
+          finishReason: "MALFORMED_FUNCTION_CALL",
+          content: { role: "model", parts: [{ text: "oops" }] },
+        };
+        return;
+      }
+      yield {
+        id: "event-retry",
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [
+            { text: "retrying" },
+            { functionCall: { id: "tool-1", name: "lookup", args: {} } },
+            { functionCall: { id: "tool-2", name: "lookup", args: {} } },
+          ],
+        },
+      };
+    };
+    const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
+    const { controller } = result.current;
+    const run = async (runId: string, content: string) => {
+      act(() => {
+        controller.dispatch({ type: "run.active" });
+      });
+      await act(async () => {
+        await result.current.sendMessage(
+          [{ id: `user-${runId}`, type: "human", content }],
+          {},
+        );
+      });
+      act(() => {
+        controller.dispatch({ type: "run.finished", runId });
+      });
+    };
+
+    await run("1", "go");
+    await run("2", "retry");
+    await run("3", "again");
+    await run("4", "once more");
+
+    expect([...controller.getState().failedRunIds]).toEqual(["1", "3", "4"]);
   });
 
   it("settles a superseded send while its stream is still opening", async () => {
@@ -842,6 +908,870 @@ describe("optimistic multi-message sends", () => {
   });
 });
 
+describe("ADK request coalescing", () => {
+  const response = (reply?: string) =>
+    new Response(
+      reply
+        ? `data: ${JSON.stringify({ id: `reply-${reply}`, author: "agent", content: { role: "model", parts: [{ text: reply }] } })}\n\n`
+        : "",
+      { headers: { "Content-Type": "text/event-stream" } },
+    );
+
+  it("keeps the public send callback stable across renders", () => {
+    const stream: AdkStreamCallback = async function* () {};
+    const { result, rerender } = renderHook(() => useAdkMessages({ stream }));
+    const send = result.current.sendMessage;
+    rerender();
+    expect(result.current.sendMessage).toBe(send);
+  });
+
+  it("flags a projected tool reply and removes it when its queued group is cancelled", async () => {
+    const requests: string[] = [];
+    const stream: AdkStreamCallback = async function* (
+      messages,
+      { abortSignal },
+    ) {
+      requests.push(messages[0]!.id);
+      await new Promise<void>((resolve) => {
+        abortSignal.addEventListener("abort", () => resolve(), { once: true });
+      });
+    };
+    const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
+    act(() =>
+      result.current.applySnapshot({
+        messages: [
+          {
+            id: "call",
+            type: "ai",
+            content: "",
+            tool_calls: [{ id: "c1", name: "lookup", args: {} }],
+          },
+        ],
+        longRunningToolIds: ["c1"],
+      }),
+    );
+    let first!: Promise<void>;
+    let queued!: Promise<void>;
+    act(() => {
+      first = result.current.sendMessage(
+        [{ id: "first", type: "human", content: "first" }],
+        { runConfig: { model: "a" } },
+      );
+      queued = result.current.sendMessage(
+        [
+          {
+            id: "answer",
+            type: "tool",
+            name: "lookup",
+            tool_call_id: "c1",
+            content: "done",
+          },
+        ],
+        { runConfig: { model: "b" } },
+      );
+    });
+    await vi.waitFor(() => expect(requests).toEqual(["first"]));
+    const queuedTool = result.current.messages.find(
+      (message) => message.type === "tool",
+    );
+    expect(queuedTool).toBeDefined();
+    expect(
+      result.current.controller.getState().queuedMessageIds.has(queuedTool!.id),
+    ).toBe(true);
+    act(() => result.current.cancel());
+    await act(async () => {
+      await Promise.all([first, queued]);
+    });
+    expect(
+      result.current.messages.some((message) => message.type === "tool"),
+    ).toBe(false);
+    expect(requests).toEqual(["first"]);
+  });
+
+  it("keeps a later queued group visible while the earlier group streams", async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const calls: string[] = [];
+    const stream: AdkStreamCallback = async function* (messages) {
+      calls.push(messages[0]!.id);
+      if (messages[0]!.id === "first") {
+        yield {
+          id: "reply",
+          author: "agent",
+          content: { role: "model", parts: [{ text: "streaming" }] },
+        };
+        await gate;
+      }
+    };
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    let first!: Promise<void>;
+    let queued!: Promise<void>;
+    act(() => {
+      first = result.current.sendMessage(
+        [{ id: "first", type: "human", content: "first" }],
+        { runConfig: { model: "a" } },
+      );
+      queued = result.current.sendMessage(
+        [{ id: "queued", type: "human", content: "queued" }],
+        { runConfig: { model: "b" } },
+      );
+    });
+    await vi.waitFor(() =>
+      expect(
+        result.current.messages.some(
+          (message) =>
+            message.type === "ai" &&
+            JSON.stringify(message.content).includes("streaming"),
+        ),
+      ).toBe(true),
+    );
+    expect(result.current.messages.map((message) => message.id)).toEqual([
+      "first",
+      expect.stringContaining("reply"),
+      "queued",
+    ]);
+    expect(calls).toEqual(["first"]);
+    release();
+    await act(async () => {
+      await Promise.all([first, queued]);
+    });
+    expect(calls).toEqual(["first", "queued"]);
+  });
+
+  it("removes a queued tool projection when its run fails", async () => {
+    const failure = new Error("failed");
+    const stream: AdkStreamCallback = async function* () {};
+    const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
+    act(() =>
+      result.current.applySnapshot({
+        messages: [
+          {
+            id: "call",
+            type: "ai",
+            content: "",
+            tool_calls: [{ id: "c1", name: "lookup", args: {} }],
+          },
+        ],
+        longRunningToolIds: ["c1"],
+      }),
+    );
+    let send!: Promise<void>;
+    act(() => {
+      send = result.current.sendMessageWithExecutor(
+        [
+          {
+            id: "answer",
+            type: "tool",
+            name: "lookup",
+            tool_call_id: "c1",
+            content: "done",
+          },
+        ],
+        {},
+        async () => {
+          throw failure;
+        },
+      );
+    });
+    await act(async () => {
+      await expect(send).rejects.toBe(failure);
+    });
+    expect(
+      result.current.messages.some((message) => message.type === "tool"),
+    ).toBe(false);
+  });
+
+  it("sends two messages appended in the same tick in one request", async () => {
+    const requests: { newMessage: { parts: { text: string }[] } }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: URL, init: RequestInit) => {
+        requests.push(JSON.parse(init.body as string));
+        return response();
+      }),
+    );
+    const stream = createAdkStream({
+      api: "http://localhost:8000",
+      appName: "app",
+      userId: "user",
+    });
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+    act(() => {
+      first = result.current.sendMessage(
+        [{ id: "first", type: "human", content: "first" }],
+        {},
+      );
+      second = result.current.sendMessage(
+        [{ id: "second", type: "human", content: "second" }],
+        {},
+      );
+    });
+    await act(async () => {
+      await Promise.all([first, second]);
+    });
+
+    expect(requests).toHaveLength(1);
+    expect(requests[0]!.newMessage.parts).toEqual([
+      { text: "first" },
+      { text: "second" },
+    ]);
+    expect(result.current.messages.map((message) => message.id)).toEqual([
+      "first",
+      "second",
+    ]);
+  });
+
+  it.each([
+    { owners: ["one", "two"], requests: [["c1"], ["c2"]] },
+    { owners: ["one", "one"], requests: [["c1", "c2"]] },
+  ])(
+    "keeps same-tick tool sends within their owner ($owners)",
+    async ({ owners, requests }) => {
+      const calls: string[][] = [];
+      const stream: AdkStreamCallback = async function* (messages) {
+        calls.push(
+          messages.flatMap((message) =>
+            message.type === "tool" ? [message.tool_call_id] : [],
+          ),
+        );
+      };
+      const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
+      act(() => {
+        result.current.applySnapshot({
+          messages: [...new Set(owners)].map((owner) => ({
+            id: owner,
+            type: "ai",
+            content: "",
+            tool_calls: owners.flatMap((value, index) =>
+              value === owner
+                ? [{ id: `c${index + 1}`, name: "lookup", args: {} }]
+                : [],
+            ),
+          })),
+          longRunningToolIds: ["c1", "c2"],
+        });
+      });
+      let first!: Promise<void>;
+      let second!: Promise<void>;
+      act(() => {
+        first = result.current.sendMessageWithExecutor(
+          [
+            {
+              id: "answer-1",
+              type: "tool",
+              name: "lookup",
+              tool_call_id: "c1",
+              content: "one",
+            },
+          ],
+          {},
+        );
+        second = result.current.sendMessageWithExecutor(
+          [
+            {
+              id: "answer-2",
+              type: "tool",
+              name: "lookup",
+              tool_call_id: "c2",
+              content: "two",
+            },
+          ],
+          {},
+        );
+      });
+      await act(async () => {
+        await Promise.all([first, second]);
+      });
+
+      expect(calls).toEqual(requests);
+    },
+  );
+
+  it("keeps a send with failure restoration separate from a later send", async () => {
+    const calls: string[][] = [];
+    const stream: AdkStreamCallback = async function* (messages) {
+      calls.push(messages.map((message) => message.id));
+      if (calls.length === 1) throw new Error("request failed");
+    };
+    const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
+    const snapshot = result.current.controller.getState();
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+    act(() => {
+      first = result.current.sendMessageWithExecutor(
+        [{ id: "first", type: "human", content: "first" }],
+        {},
+        undefined,
+        snapshot,
+      );
+      second = result.current.sendMessage(
+        [{ id: "second", type: "human", content: "second" }],
+        {},
+      );
+    });
+    let results!: PromiseSettledResult<void>[];
+    await act(async () => {
+      results = await Promise.allSettled([first, second]);
+    });
+
+    expect(results.map((entry) => entry.status)).toEqual([
+      "rejected",
+      "fulfilled",
+    ]);
+    expect(calls).toEqual([["first"], ["second"]]);
+    expect(result.current.messages.map((message) => message.id)).toEqual([
+      "second",
+    ]);
+    expect([...result.current.controller.getState().queuedMessageIds]).toEqual(
+      [],
+    );
+  });
+
+  it("keeps a message staged while a pre-event send is running", async () => {
+    let fail!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      fail = resolve;
+    });
+    const stream = vi.fn(async function* () {
+      await pending;
+      throw new Error("request failed");
+    });
+    const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
+    const snapshot = result.current.controller.getState();
+    let send!: Promise<void>;
+    act(() => {
+      send = result.current.sendMessageWithExecutor(
+        [{ id: "first", type: "human", content: "first" }],
+        {},
+        undefined,
+        snapshot,
+      );
+    });
+    await waitFor(() => expect(stream).toHaveBeenCalledOnce());
+    act(() => {
+      const staged = {
+        id: "staged",
+        type: "human" as const,
+        content: "staged",
+      };
+      result.current.controller.dispatch({
+        type: "staged.stage",
+        entry: { message: staged, runConfig: undefined },
+      });
+      result.current.controller.dispatch({
+        type: "messages.set",
+        messages: [...result.current.controller.getState().messages, staged],
+      });
+    });
+    await act(async () => {
+      fail();
+      await expect(send).rejects.toThrow("request failed");
+    });
+    expect(result.current.messages.map((item) => item.id)).toEqual(["staged"]);
+    expect(
+      result.current.controller.getState().stagedEntries.has("staged"),
+    ).toBe(true);
+  });
+
+  it("sends same-tick messages with different state deltas separately", async () => {
+    const calls: { message: string; stateDelta: unknown }[] = [];
+    const stream: AdkStreamCallback = async function* (messages, config) {
+      calls.push({
+        message: messages[0]!.id,
+        stateDelta: config.stateDelta,
+      });
+    };
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+    act(() => {
+      first = result.current.sendMessage(
+        [{ id: "first", type: "human", content: "first" }],
+        { stateDelta: { a: 1 } },
+      );
+      second = result.current.sendMessage(
+        [{ id: "second", type: "human", content: "second" }],
+        { stateDelta: { b: 2 } },
+      );
+    });
+    await act(async () => {
+      await Promise.all([first, second]);
+    });
+
+    expect(calls).toEqual([
+      { message: "first", stateDelta: { a: 1 } },
+      { message: "second", stateDelta: { b: 2 } },
+    ]);
+  });
+
+  it("sends same-tick messages with different checkpoints separately", async () => {
+    const calls: { message: string; checkpointId: string | undefined }[] = [];
+    const stream: AdkStreamCallback = async function* (messages, config) {
+      calls.push({
+        message: messages[0]!.id,
+        checkpointId: config.checkpointId,
+      });
+    };
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+    act(() => {
+      first = result.current.sendMessage(
+        [{ id: "first", type: "human", content: "first" }],
+        { checkpointId: "checkpoint-a" },
+      );
+      second = result.current.sendMessage(
+        [{ id: "second", type: "human", content: "second" }],
+        { checkpointId: "checkpoint-b" },
+      );
+    });
+    await act(async () => {
+      await Promise.all([first, second]);
+    });
+
+    expect(calls).toEqual([
+      { message: "first", checkpointId: "checkpoint-a" },
+      { message: "second", checkpointId: "checkpoint-b" },
+    ]);
+  });
+
+  it.each([
+    ["empty configs", {}, {}, [["first", "second"]]],
+    [
+      "empty state deltas",
+      { stateDelta: {} },
+      { stateDelta: {} },
+      [["first", "second"]],
+    ],
+    [
+      "missing and empty state deltas",
+      {},
+      { stateDelta: {} },
+      [["first", "second"]],
+    ],
+    [
+      "a checkpoint only on the second",
+      {},
+      { checkpointId: "checkpoint" },
+      [["first"], ["second"]],
+    ],
+    [
+      "a checkpoint only on the first",
+      { checkpointId: "checkpoint" },
+      {},
+      [["first"], ["second"]],
+    ],
+    [
+      "a state delta only on the second",
+      {},
+      { stateDelta: { a: 1 } },
+      [["first"], ["second"]],
+    ],
+    [
+      "a state delta only on the first",
+      { stateDelta: { a: 1 } },
+      {},
+      [["first"], ["second"]],
+    ],
+  ])(
+    "groups same-tick messages with %s",
+    async (_label, firstConfig, secondConfig, expected) => {
+      const calls: string[][] = [];
+      const stream: AdkStreamCallback = async function* (messages) {
+        calls.push(messages.map((message) => message.id));
+      };
+      const { result } = renderHook(() => useAdkMessages({ stream }));
+      let first!: Promise<void>;
+      let second!: Promise<void>;
+      act(() => {
+        first = result.current.sendMessage(
+          [{ id: "first", type: "human", content: "first" }],
+          firstConfig,
+        );
+        second = result.current.sendMessage(
+          [{ id: "second", type: "human", content: "second" }],
+          secondConfig,
+        );
+      });
+      await act(async () => {
+        await Promise.all([first, second]);
+      });
+
+      expect(calls).toEqual(expected);
+    },
+  );
+
+  it("rejects every caller and restores state after a pre-event run error", async () => {
+    const failure = new Error("stream failed");
+    const stream = vi.fn(async function* () {
+      throw failure;
+    });
+    const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
+    const previousMessages: AdkMessage[] = [
+      { id: "prior-user", type: "human", content: "first" },
+      { id: "prior-assistant", type: "ai", content: "answer" },
+    ];
+    const previousToolConfirmations = [
+      {
+        toolCallId: "pending-confirmation",
+        toolName: "approve",
+        args: {},
+        hint: "approval required",
+        confirmed: false,
+      },
+    ];
+    const previousAuthRequests = [
+      { toolCallId: "pending-auth", authConfig: { type: "oauth2" } },
+    ];
+    act(() => {
+      result.current.controller.dispatch({
+        type: "run.started",
+        messages: previousMessages,
+        queuedMessageIds: [],
+        longRunningToolIds: ["pending-tool"],
+        toolConfirmations: previousToolConfirmations,
+        authRequests: previousAuthRequests,
+      });
+    });
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+    act(() => {
+      first = result.current.sendMessage(
+        [{ id: "first", type: "human", content: "first" }],
+        {},
+      );
+      second = result.current.sendMessage(
+        [{ id: "second", type: "human", content: "second" }],
+        {},
+      );
+    });
+    let outcomes!: PromiseSettledResult<void>[];
+    await act(async () => {
+      outcomes = await Promise.allSettled([first, second]);
+    });
+
+    expect(stream).toHaveBeenCalledOnce();
+    expect(outcomes).toEqual([
+      { status: "rejected", reason: failure },
+      { status: "rejected", reason: failure },
+    ]);
+    expect(result.current.messages).toEqual(previousMessages);
+    expect(result.current.longRunningToolIds).toEqual(["pending-tool"]);
+    expect(result.current.toolConfirmations).toEqual(previousToolConfirmations);
+    expect(result.current.authRequests).toEqual(previousAuthRequests);
+  });
+
+  it("keeps a message staged while a run waits for its first event", async () => {
+    const failure = new Error("request failed");
+    let fail!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      fail = resolve;
+    });
+    const stream = vi.fn(async function* () {
+      await gate;
+      throw failure;
+    });
+    const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
+    let send!: Promise<void>;
+    act(() => {
+      send = result.current.sendMessage(
+        [{ id: "running", type: "human", content: "running" }],
+        {},
+      );
+    });
+    await vi.waitFor(() => expect(stream).toHaveBeenCalledOnce());
+    const staged = { id: "staged", type: "human", content: "later" } as const;
+    act(() => {
+      result.current.controller.dispatch({
+        type: "staged.stage",
+        entry: { message: staged, runConfig: undefined },
+      });
+      result.current.setMessages([...result.current.messages, staged]);
+    });
+    await act(async () => {
+      fail();
+      await expect(send).rejects.toBe(failure);
+    });
+
+    expect(result.current.messages).toEqual([staged]);
+    expect(
+      result.current.controller.getState().stagedEntries.has(staged.id),
+    ).toBe(true);
+  });
+
+  it("keeps the optimistic message when a run aborts before its first event", async () => {
+    let ready!: () => void;
+    const started = new Promise<void>((resolve) => {
+      ready = resolve;
+    });
+    const stream = vi.fn(async function* (
+      _messages: AdkMessage[],
+      { abortSignal }: { abortSignal: AbortSignal },
+    ) {
+      await new Promise<void>((resolve) => {
+        abortSignal.addEventListener("abort", () => resolve(), { once: true });
+        ready();
+      });
+    });
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    const message: AdkMessage = {
+      id: "running",
+      type: "human",
+      content: "keep me",
+    };
+    let send!: Promise<void>;
+    act(() => {
+      send = result.current.sendMessage([message], {});
+    });
+    await started;
+    expect(stream).toHaveBeenCalledOnce();
+    act(() => result.current.cancel());
+    await act(async () => {
+      await send;
+    });
+
+    expect(result.current.messages).toEqual([message]);
+  });
+
+  it("restores long-running tool ids when a tool-only run fails before an event", async () => {
+    const failure = new Error("request failed");
+    const stream: AdkStreamCallback = async function* () {
+      throw failure;
+    };
+    const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
+    const call: AdkMessage = {
+      id: "call",
+      type: "ai",
+      content: "",
+      tool_calls: [{ id: "tool-1", name: "lookup", args: {} }],
+    };
+    act(() => {
+      result.current.applySnapshot({
+        messages: [call],
+        longRunningToolIds: ["tool-1"],
+      });
+    });
+    let send!: Promise<void>;
+    await act(async () => {
+      send = result.current.sendMessage(
+        [
+          {
+            id: "answer",
+            type: "tool",
+            name: "lookup",
+            tool_call_id: "tool-1",
+            content: "done",
+          },
+        ],
+        {},
+      );
+      await expect(send).rejects.toBe(failure);
+    });
+
+    expect(result.current.messages).toEqual([call]);
+    expect(result.current.longRunningToolIds).toEqual(["tool-1"]);
+  });
+
+  it("keeps the optimistic state when a stream fails after its first event", async () => {
+    const failure = new Error("stream failed after an event");
+    const stream: AdkStreamCallback = async function* () {
+      yield {
+        id: "partial-answer",
+        author: "agent",
+        content: { role: "model", parts: [{ text: "partial" }] },
+      };
+      throw failure;
+    };
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    const previousMessages: AdkMessage[] = [
+      { id: "prior-user", type: "human", content: "first" },
+      { id: "prior-assistant", type: "ai", content: "answer" },
+    ];
+    act(() => result.current.setMessages(previousMessages));
+
+    let outcome!: PromiseSettledResult<void>;
+    await act(async () => {
+      outcome = await Promise.allSettled([
+        result.current.sendMessage(
+          [{ id: "submitted", type: "human", content: "hello" }],
+          {},
+        ),
+      ]).then(([entry]) => entry!);
+    });
+
+    expect(outcome).toEqual({ status: "rejected", reason: failure });
+    expect(result.current.messages).toHaveLength(4);
+    expect(result.current.messages).toContainEqual({
+      id: "submitted",
+      type: "human",
+      content: "hello",
+    });
+    expect(result.current.messages).toContainEqual(
+      expect.objectContaining({
+        type: "ai",
+        content: expect.arrayContaining([{ type: "text", text: "partial" }]),
+      }),
+    );
+  });
+
+  it("does not start a queued request after cancellation", async () => {
+    const stream = vi.fn(async function* () {});
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    let send!: Promise<void>;
+    act(() => {
+      send = result.current.sendMessage(
+        [{ id: "first", type: "human", content: "first" }],
+        {},
+      );
+      result.current.cancel();
+    });
+    await act(async () => {
+      await send;
+    });
+    expect(stream).not.toHaveBeenCalled();
+    expect(result.current.messages).toEqual([]);
+  });
+
+  it("still aborts a run whose request already left when a new message is sent", async () => {
+    const signals: AbortSignal[] = [];
+    let calls = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url: URL, init: RequestInit) => {
+        signals.push(init.signal!);
+        return ++calls === 1
+          ? new Promise<Response>(() => {})
+          : Promise.resolve(response());
+      }),
+    );
+    const stream = createAdkStream({
+      api: "http://localhost:8000",
+      appName: "app",
+      userId: "user",
+    });
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    let first!: Promise<void>;
+    act(() => {
+      first = result.current.sendMessage(
+        [{ id: "first", type: "human", content: "first" }],
+        {},
+      );
+    });
+    await vi.waitFor(() => expect(signals).toHaveLength(1));
+    let second!: Promise<void>;
+    act(() => {
+      second = result.current.sendMessage(
+        [{ id: "second", type: "human", content: "second" }],
+        {},
+      );
+    });
+    await act(async () => {
+      await Promise.all([first, second]);
+    });
+    expect(signals[0]!.aborted).toBe(true);
+    expect(signals).toHaveLength(2);
+  });
+
+  it("sends same-tick messages with different run configs in order, both reaching the server", async () => {
+    const requests: { runConfig: unknown; message: string }[] = [];
+    let releaseFirst!: () => void;
+    const firstResponse = new Promise<Response>((resolve) => {
+      releaseFirst = () => resolve(response("first reply"));
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_url: URL, init: RequestInit) => {
+        requests.push(JSON.parse(init.body as string));
+        return requests.length === 1 ? firstResponse : response("second reply");
+      }),
+    );
+    const stream = createAdkStream({ api: "http://localhost:8000/proxy" });
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    const firstConfig = { model: "a" };
+    const secondConfig = { model: "a" };
+    let first!: Promise<void>;
+    let second!: Promise<void>;
+    act(() => {
+      first = result.current.sendMessage(
+        [{ id: "first", type: "human", content: "first" }],
+        { runConfig: firstConfig },
+      );
+      second = result.current.sendMessage(
+        [{ id: "second", type: "human", content: "second" }],
+        { runConfig: secondConfig },
+      );
+    });
+    await vi.waitFor(() => expect(requests).toHaveLength(1));
+    expect(requests[0]).toEqual({
+      sessionId: "thread-1",
+      runConfig: firstConfig,
+      message: "first",
+    });
+    releaseFirst();
+    await act(async () => {
+      await Promise.all([first, second]);
+    });
+    expect(requests).toEqual([
+      { sessionId: "thread-1", runConfig: firstConfig, message: "first" },
+      { sessionId: "thread-1", runConfig: secondConfig, message: "second" },
+    ]);
+    expect(result.current.messages.map((message) => message.content)).toEqual([
+      "first",
+      [{ type: "text", text: "first reply" }],
+      "second",
+      [{ type: "text", text: "second reply" }],
+    ]);
+  });
+
+  it("retains and exposes queued groups when a later-tick send arrives", async () => {
+    const requests: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url: URL, init: RequestInit) => {
+        const body = JSON.parse(init.body as string) as { message: string };
+        requests.push(body.message);
+        return body.message === "first"
+          ? new Promise<Response>(() => {})
+          : Promise.resolve(response());
+      }),
+    );
+    const stream = createAdkStream({ api: "http://localhost:8000/proxy" });
+    const { result } = renderHook(() => useAdkMessages({ stream }));
+    let first!: Promise<void>;
+    let queued!: Promise<void>;
+    act(() => {
+      first = result.current.sendMessage(
+        [{ id: "first", type: "human", content: "first" }],
+        { runConfig: { model: "a" } },
+      );
+      queued = result.current.sendMessage(
+        [{ id: "queued", type: "human", content: "queued" }],
+        { runConfig: { model: "b" } },
+      );
+    });
+    await vi.waitFor(() => expect(requests).toEqual(["first"]));
+    expect(result.current.messages.map((message) => message.id)).toContain(
+      "queued",
+    );
+
+    let latest!: Promise<void>;
+    act(() => {
+      latest = result.current.sendMessage(
+        [{ id: "latest", type: "human", content: "latest" }],
+        {},
+      );
+    });
+    await act(async () => {
+      await Promise.all([first, queued, latest]);
+    });
+    expect(requests).toEqual(["first", "queued", "latest"]);
+  });
+});
+
 describe("messageToEvent (contentToParts)", () => {
   it("skips a null tool_calls entry", () => {
     const event = messageToEvent({
@@ -891,7 +1821,13 @@ describe("messageToEvent (contentToParts)", () => {
     };
     const event = messageToEvent(msg);
     expect(event.content?.parts).toEqual([
-      { inlineData: { mimeType: "application/pdf", data: "JVBERi0xLjQK" } },
+      {
+        inlineData: {
+          mimeType: "application/pdf",
+          data: "JVBERi0xLjQK",
+          displayName: "report.pdf",
+        },
+      },
     ]);
   });
 

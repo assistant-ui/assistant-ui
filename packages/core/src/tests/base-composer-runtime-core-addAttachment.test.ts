@@ -24,13 +24,15 @@ const makeAdapter = (
   ...overrides,
 });
 
-const makeComposer = (adapter?: AttachmentAdapter) => {
+const makeComposer = (adapter?: AttachmentAdapter, isDisabled = false) => {
   const runtime = {
     append: vi.fn(),
     cancelRun: vi.fn(),
     subscribe: vi.fn(() => () => {}),
     capabilities: { cancel: false },
     messages: [],
+    isDisabled,
+    isSendDisabled: false,
     adapters: adapter ? { attachments: adapter } : undefined,
   } as unknown as Omit<ThreadRuntimeCore, "composer"> & {
     adapters?: { attachments?: AttachmentAdapter };
@@ -142,6 +144,49 @@ describe("BaseComposerRuntimeCore.addAttachment error events", () => {
 
     expect(onAdd).toHaveBeenCalledTimes(1);
     expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("ignores other ids while accepting later states of the first attachment", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const composer = makeComposer(
+      makeAdapter({
+        async *add({ file }) {
+          const a = makeUploadingAttachment(file, "A");
+          yield a;
+          yield { ...a, id: "B" };
+          yield { ...a, id: "C" };
+          yield {
+            ...a,
+            status: { type: "requires-action", reason: "composer-send" },
+          } satisfies PendingAttachment;
+        },
+      }),
+    );
+
+    await composer.addAttachment(
+      new File(["x"], "f.png", { type: "image/png" }),
+    );
+
+    expect(composer.attachments).toMatchObject([
+      { id: "A", status: { type: "requires-action" } },
+    ]);
+    expect(warn).toHaveBeenCalledOnce();
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("[assistant-ui] AttachmentAdapter.add()"),
+    );
+    warn.mockRestore();
+  });
+
+  it("does not start an attachment add while the thread is disabled", async () => {
+    const add = vi.fn(makeAdapter().add);
+    const composer = makeComposer(makeAdapter({ add }), true);
+
+    await composer.addAttachment(
+      new File(["x"], "f.png", { type: "image/png" }),
+    );
+
+    expect(add).not.toHaveBeenCalled();
+    expect(composer.attachments).toHaveLength(0);
   });
 
   it("does not restore an attachment removed while add is still running", async () => {

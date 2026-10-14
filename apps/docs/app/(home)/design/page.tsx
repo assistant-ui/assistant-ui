@@ -199,7 +199,7 @@ export default function DesignPage() {
         <Register
           index={3}
           label="Voice"
-          claim="Three faces, assigned by meaning rather than by size. Mono has exactly one job: the thing you type or install. It is never prose and never emphasis."
+          claim="One sans face for headings, prose, labels, and statistics. Mono is reserved for code, commands, and identifiers."
         >
           <div className="mt-8 flex flex-col">
             <div className="border-foreground/10 flex flex-col gap-2 border-t py-6 md:flex-row md:items-baseline md:gap-10">
@@ -209,8 +209,8 @@ export default function DesignPage() {
                   Every state an assistant can be in.
                 </p>
                 <p className="text-muted-foreground mt-2 text-[13px] leading-relaxed">
-                  The page&rsquo;s own voice: h1, h2, h3, and the large figures
-                  a page is built around.
+                  Public Sans for h1, h2, h3, and the large figures a page is
+                  built around. Size and weight establish the hierarchy.
                 </p>
               </div>
             </div>
@@ -223,7 +223,8 @@ export default function DesignPage() {
                 </p>
                 <p className="text-muted-foreground mt-2 text-[13px] leading-relaxed">
                   Public Sans, through{" "}
-                  <code className="font-mono">--font-sans</code>.
+                  <code className="font-mono">--font-sans</code>. Labels and
+                  captions use sentence case and normal letter spacing.
                 </p>
               </div>
             </div>
@@ -271,9 +272,7 @@ export default function DesignPage() {
                     className="border-foreground/10 flex items-center justify-between border-b py-2 text-[13px] last:border-b-0"
                   >
                     <span>{row}</span>
-                    <span className="text-muted-foreground font-mono text-[11px]">
-                      06
-                    </span>
+                    <span className="text-muted-foreground text-xs">06</span>
                   </div>
                 ))}
               </div>
@@ -289,9 +288,7 @@ export default function DesignPage() {
                     className="hover:bg-foreground/[0.025] -mx-2 flex items-center justify-between px-2 py-2 text-[13px] transition-colors"
                   >
                     <span>{row}</span>
-                    <span className="text-muted-foreground font-mono text-[11px]">
-                      06
-                    </span>
+                    <span className="text-muted-foreground text-xs">06</span>
                   </div>
                 ))}
               </div>
@@ -353,7 +350,7 @@ export default function DesignPage() {
               {DESIGN_COMPONENTS.length} primitives drawn to these registers,
               each with a live specimen, its API, and its source.
             </p>
-            <span className="text-muted-foreground group-hover:text-foreground mt-3 font-mono text-[11px] transition-colors">
+            <span className="text-muted-foreground group-hover:text-foreground mt-3 font-mono text-xs transition-colors">
               /design/components →
             </span>
           </Link>
@@ -364,7 +361,7 @@ export default function DesignPage() {
               registers above, the closed token and component API, and the
               failure modes that have already cost a rebuild.
             </p>
-            <span className="text-muted-foreground group-hover:text-foreground mt-3 font-mono text-[11px] transition-colors">
+            <span className="text-muted-foreground group-hover:text-foreground mt-3 font-mono text-xs transition-colors">
               /design.md ↗
             </span>
           </a>

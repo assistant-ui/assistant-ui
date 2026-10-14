@@ -783,7 +783,7 @@ describe("runThreadTitleGeneration", () => {
     expect(generate).toHaveBeenCalledTimes(1);
   });
 
-  it("applies an automatic title when a failed rename leaves only a rename an explicit generation outranked", async () => {
+  it("yields an automatic run to a rename that a retracted explicit generation had outranked", async () => {
     const states = new Map<string, ThreadTitleState>();
     const applied: (string | undefined)[] = [];
     const streamOpen = deferred<void>();
@@ -822,11 +822,11 @@ describe("runThreadTitleGeneration", () => {
     finishThreadTitleRename(states, "t1", outranked, true);
     await Promise.all([explicit, automatic]);
 
-    expect(server).toBe("Generated");
-    expect(applied).toEqual(["Generated"]);
+    expect(server).toBeUndefined();
+    expect(applied).toEqual([]);
   });
 
-  it("does not hand the pending claim to a rename an explicit generation outranked", async () => {
+  it("hands the pending claim back to a rename once the explicit generation that outranked it retracts", async () => {
     const states = new Map<string, ThreadTitleState>();
     const outranked = startThreadTitleRename(states, "t1", "Outranked");
     const explicit = runThreadTitleGeneration({
@@ -843,18 +843,22 @@ describe("runThreadTitleGeneration", () => {
     const generate = vi.fn(async (onTitle: (t: string) => Promise<void>) => {
       await onTitle("Automatic");
     });
+    const rename = vi.fn(noop);
+    const applyTitle = vi.fn(noop);
     const automatic = runThreadTitleGeneration({
       states,
       threadId: "t1",
       automatic: true,
       generate,
-      rename: noop,
-      applyTitle: noop,
+      rename,
+      applyTitle,
     });
     finishThreadTitleRename(states, "t1", outranked, true);
     await Promise.all([explicit, automatic]);
 
-    expect(generate).toHaveBeenCalledTimes(1);
+    expect(generate).not.toHaveBeenCalled();
+    expect(rename).not.toHaveBeenCalled();
+    expect(applyTitle).not.toHaveBeenCalled();
   });
 
   it("waits for an earlier rename still in flight when the rename it waited on fails", async () => {

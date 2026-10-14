@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render } from "ink-testing-library";
 import { Text } from "ink";
+import { act } from "react";
 
 const mocks = vi.hoisted(() => ({
   state: {
@@ -51,18 +52,28 @@ vi.mock("@assistant-ui/react-ink", async (importOriginal) => ({
 
 import { ThreadShell } from "./thread-shell";
 
-const settle = () => new Promise((resolve) => setTimeout(resolve, 40));
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
+
+// Ink buffers a lone Escape on a timer until it can rule out a sequence.
+const settle = () => act(() => vi.runOnlyPendingTimersAsync());
 const create = async () => {
-  const result = render(
-    <ThreadShell>
-      {({ isComposing }) => (
-        <Text>{isComposing ? "Composer active" : "Composer paused"}</Text>
-      )}
-    </ThreadShell>,
-  );
-  await settle();
+  let result!: ReturnType<typeof render>;
+  await act(async () => {
+    result = render(
+      <ThreadShell>
+        {({ isComposing }) => (
+          <Text>{isComposing ? "Composer active" : "Composer paused"}</Text>
+        )}
+      </ThreadShell>,
+    );
+  });
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   const press = async (key: string) => {
-    result.stdin.write(key);
+    await act(async () => {
+      result.stdin.write(key);
+    });
     await settle();
   };
   return { ...result, press };
@@ -78,7 +89,10 @@ beforeEach(() => {
   });
   mocks.rename.mockReset();
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 describe("terminal thread controls", () => {
   it.each([null, "/", "?"])(
@@ -132,7 +146,9 @@ describe("terminal thread controls", () => {
     const { stdout, press, lastFrame } = await create();
     expect(lastFrame()).toContain("First thread");
     const columns = vi.spyOn(stdout, "columns", "get").mockReturnValue(42);
-    stdout.emit("resize");
+    await act(async () => {
+      stdout.emit("resize");
+    });
     await settle();
     expect(lastFrame()).not.toContain("First thread");
     expect(lastFrame()).toContain("Composer active");
@@ -159,14 +175,18 @@ describe("terminal thread controls", () => {
     try {
       const { stdout, lastFrame, press } = await create();
       Object.assign(stdout, { rows: 40 });
-      stdout.emit("resize");
+      await act(async () => {
+        stdout.emit("resize");
+      });
       await press("\x07");
       await press("\x1b[B");
       await press("\x1b[B");
       expect(lastFrame()).toContain("Thread 15");
 
       Object.assign(stdout, { rows: 18 });
-      stdout.emit("resize");
+      await act(async () => {
+        stdout.emit("resize");
+      });
       await vi.waitFor(() => {
         expect(lastFrame()).not.toContain("Thread 15");
         expect(lastFrame()).toContain("Thread 02");
@@ -174,7 +194,9 @@ describe("terminal thread controls", () => {
       });
 
       Object.assign(stdout, { rows: 40 });
-      stdout.emit("resize");
+      await act(async () => {
+        stdout.emit("resize");
+      });
       await vi.waitFor(() => expect(lastFrame()).toContain("Thread 15"));
       await press("\r");
       expect(mocks.switchToThread).toHaveBeenCalledWith("t2", {

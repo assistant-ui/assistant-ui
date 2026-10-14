@@ -6,6 +6,9 @@ import type {
   PiThreadSnapshot,
 } from "../types";
 
+const waitFor = (assertion: () => void) =>
+  vi.waitFor(assertion, { interval: 10 });
+
 type Call = { url: string; method: string; body: unknown };
 
 /** A fake `fetch` that records calls and returns whatever `responder` yields. */
@@ -597,13 +600,14 @@ describe("createPiHttpClient", () => {
       otherEvents.push(event),
     );
 
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(events).toEqual([
         expect.objectContaining({
           type: "error",
           threadId: "t1",
           seq: 0,
           error: expect.stringContaining("SSE line exceeds maxLineLength"),
+          terminal: true,
         }),
       ]),
     );
@@ -635,13 +639,13 @@ describe("createPiHttpClient", () => {
     const unsubscribeFirst = client.subscribe("t1", (event) =>
       firstEvents.push(event),
     );
-    await vi.waitFor(() => expect(firstEvents[0]?.type).toBe("error"));
+    await waitFor(() => expect(firstEvents[0]?.type).toBe("error"));
 
     const laterEvents: PiAnyClientEvent[] = [];
     const unsubscribeLater = client.subscribe("t1", (event) =>
       laterEvents.push(event),
     );
-    await vi.waitFor(() => expect(laterEvents).toEqual([snapshotAt(1)]));
+    await waitFor(() => expect(laterEvents).toEqual([snapshotAt(1)]));
     expect(fetchImpl).toHaveBeenCalledTimes(2);
 
     unsubscribeFirst();
@@ -673,11 +677,11 @@ describe("createPiHttpClient", () => {
     });
 
     const unsubscribeFirst = client.subscribe("t1", () => {});
-    await vi.waitFor(() => expect(reconnectDelay).toHaveBeenCalledOnce());
+    await waitFor(() => expect(reconnectDelay).toHaveBeenCalledOnce());
     unsubscribeFirst();
 
     const unsubscribeSecond = client.subscribe("t1", () => {});
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
 
     unsubscribeSecond();
     finishBackoff();
@@ -713,7 +717,7 @@ describe("createPiHttpClient", () => {
     unsubscribeFirst();
     failRequest(new Error("offline"));
 
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
     expect(reconnectDelay).not.toHaveBeenCalled();
     unsubscribeSecond?.();
   });
@@ -745,11 +749,11 @@ describe("createPiHttpClient", () => {
     });
 
     const unsubscribeFirst = client.subscribe("t1", () => {});
-    await vi.waitFor(() => expect(reconnectDelay).toHaveBeenCalledOnce());
+    await waitFor(() => expect(reconnectDelay).toHaveBeenCalledOnce());
     unsubscribeFirst();
 
     const unsubscribeSecond = client.subscribe("t1", () => {});
-    await vi.waitFor(() => expect(reconnectDelay).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(reconnectDelay).toHaveBeenCalledTimes(2));
     unsubscribeSecond();
 
     const unsubscribeThird = client.subscribe("t1", () => {});
@@ -758,7 +762,7 @@ describe("createPiHttpClient", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
 
     finishBackoffs[1]!();
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(3));
     unsubscribeThird();
     finishBackoffs[0]!();
   });
@@ -782,16 +786,16 @@ describe("createPiHttpClient", () => {
     });
 
     const unsubscribeFirst = client.subscribe("t1", () => {});
-    await vi.waitFor(() => expect(reconnectDelay).toHaveBeenCalledOnce());
+    await waitFor(() => expect(reconnectDelay).toHaveBeenCalledOnce());
     unsubscribeFirst();
 
     const unsubscribeSecond = client.subscribe("t1", () => {});
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
-    await vi.waitFor(() => expect(reconnectDelay).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(reconnectDelay).toHaveBeenCalledTimes(2));
     unsubscribeSecond();
 
     const unsubscribeThird = client.subscribe("t1", () => {});
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(3));
     unsubscribeThird();
   });
 
@@ -841,10 +845,10 @@ describe("createPiHttpClient", () => {
       firstEvents.push(event);
     });
 
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
     const initialSnapshot = snapshotAt(1);
     send(0, initialSnapshot);
-    await vi.waitFor(() => expect(firstEvents).toEqual([initialSnapshot]));
+    await waitFor(() => expect(firstEvents).toEqual([initialSnapshot]));
 
     const replayTasks: (() => void)[] = [];
     const queueMicrotaskSpy = vi
@@ -864,13 +868,13 @@ describe("createPiHttpClient", () => {
       seq: 2,
     } satisfies PiAnyClientEvent;
     send(0, agentStart);
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(firstEvents).toEqual([initialSnapshot, agentStart]),
     );
     expect(lateEvents).toEqual([]);
 
     replayTasks[0]!();
-    await vi.waitFor(() => expect(lateEvents).toEqual(firstEvents));
+    await waitFor(() => expect(lateEvents).toEqual(firstEvents));
     expect(fetchImpl).toHaveBeenCalledTimes(1);
 
     unsubscribeFirst();
@@ -883,16 +887,16 @@ describe("createPiHttpClient", () => {
     const unsubscribeFirst = client.subscribe("t1", (event) => {
       firstEvents.push(event);
     });
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
     send(0, snapshotAt(1));
     send(0, { type: "agent_start", threadId: "t1", seq: 2 });
-    await vi.waitFor(() => expect(firstEvents).toHaveLength(2));
+    await waitFor(() => expect(firstEvents).toHaveLength(2));
 
     const lateEvents: PiAnyClientEvent[] = [];
     const unsubscribeLate = client.subscribe("t1", (event) => {
       lateEvents.push(event);
     });
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
 
     const outOfBandError = {
       type: "error",
@@ -914,13 +918,11 @@ describe("createPiHttpClient", () => {
     send(0, outOfBandError);
     send(0, staleError);
     send(0, agentEnd);
-    await vi.waitFor(() =>
-      expect(firstEvents.length).toBeGreaterThanOrEqual(5),
-    );
+    await waitFor(() => expect(firstEvents.length).toBeGreaterThanOrEqual(5));
     const refreshed = snapshotAt(2, "running");
     send(1, refreshed);
 
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(lateEvents).toEqual([refreshed, outOfBandError, agentEnd]),
     );
 
@@ -934,10 +936,10 @@ describe("createPiHttpClient", () => {
     const unsubscribeFirst = client.subscribe("t1", (event) => {
       firstEvents.push(event);
     });
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
     send(0, snapshotAt(1));
     send(0, { type: "agent_start", threadId: "t1", seq: 2 });
-    await vi.waitFor(() => expect(firstEvents).toHaveLength(2));
+    await waitFor(() => expect(firstEvents).toHaveLength(2));
     const secondEvents: PiAnyClientEvent[] = [];
     const thirdEvents: PiAnyClientEvent[] = [];
     const unsubscribeSecond = client.subscribe("t1", (event) => {
@@ -946,12 +948,12 @@ describe("createPiHttpClient", () => {
     const unsubscribeThird = client.subscribe("t1", (event) => {
       thirdEvents.push(event);
     });
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
 
     const refreshed = snapshotAt(2);
     send(1, refreshed);
-    await vi.waitFor(() => expect(secondEvents).toEqual([refreshed]));
-    await vi.waitFor(() => expect(thirdEvents).toEqual([refreshed]));
+    await waitFor(() => expect(secondEvents).toEqual([refreshed]));
+    await waitFor(() => expect(thirdEvents).toEqual([refreshed]));
     expect(fetchImpl).toHaveBeenCalledTimes(2);
 
     unsubscribeFirst();
@@ -965,16 +967,16 @@ describe("createPiHttpClient", () => {
     const unsubscribeFirst = client.subscribe("t1", (event) => {
       firstEvents.push(event);
     });
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
     send(0, snapshotAt(1));
     send(0, { type: "agent_start", threadId: "t1", seq: 2 });
-    await vi.waitFor(() => expect(firstEvents).toHaveLength(2));
+    await waitFor(() => expect(firstEvents).toHaveLength(2));
 
     const sixthEvents: PiAnyClientEvent[] = [];
     const unsubscribeSixth = client.subscribe("t1", (event) => {
       sixthEvents.push(event);
     });
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
 
     const eventDuringSharedLoad = {
       type: "agent_end",
@@ -982,7 +984,7 @@ describe("createPiHttpClient", () => {
       seq: 3,
     } satisfies PiAnyClientEvent;
     send(0, eventDuringSharedLoad);
-    await vi.waitFor(() => expect(firstEvents).toHaveLength(3));
+    await waitFor(() => expect(firstEvents).toHaveLength(3));
 
     const seventhEvents: PiAnyClientEvent[] = [];
     const unsubscribeSeventh = client.subscribe("t1", (event) => {
@@ -992,18 +994,18 @@ describe("createPiHttpClient", () => {
 
     const snapshotBeforeSeventhJoin = snapshotAt(2, "running");
     send(1, snapshotBeforeSeventhJoin);
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(sixthEvents).toEqual([
         snapshotBeforeSeventhJoin,
         eventDuringSharedLoad,
       ]),
     );
     expect(seventhEvents).toEqual([]);
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(3));
 
     const snapshotForSeventh = snapshotAt(3, "idle");
     send(2, snapshotForSeventh);
-    await vi.waitFor(() => expect(seventhEvents).toEqual([snapshotForSeventh]));
+    await waitFor(() => expect(seventhEvents).toEqual([snapshotForSeventh]));
 
     unsubscribeFirst();
     unsubscribeSixth();
@@ -1016,26 +1018,24 @@ describe("createPiHttpClient", () => {
     const unsubscribeFirst = client.subscribe("t1", (event) => {
       firstEvents.push(event);
     });
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
     send(0, snapshotAt(1));
     send(0, { type: "agent_start", threadId: "t1", seq: 2 });
-    await vi.waitFor(() => expect(firstEvents).toHaveLength(2));
+    await waitFor(() => expect(firstEvents).toHaveLength(2));
 
     const eighthEvents: PiAnyClientEvent[] = [];
     const unsubscribeEighth = client.subscribe("t1", (event) => {
       eighthEvents.push(event);
     });
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
 
     const newerMainSnapshot = snapshotAt(4, "idle");
     send(0, newerMainSnapshot);
-    await vi.waitFor(() =>
-      expect(firstEvents.at(-1)).toEqual(newerMainSnapshot),
-    );
+    await waitFor(() => expect(firstEvents.at(-1)).toEqual(newerMainSnapshot));
 
     const olderHelperSnapshot = snapshotAt(3, "running");
     send(1, olderHelperSnapshot);
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(eighthEvents).toEqual([olderHelperSnapshot, newerMainSnapshot]),
     );
 
@@ -1043,7 +1043,7 @@ describe("createPiHttpClient", () => {
     const unsubscribeNinth = client.subscribe("t1", (event) => {
       ninthEvents.push(event);
     });
-    await vi.waitFor(() => expect(ninthEvents).toEqual([newerMainSnapshot]));
+    await waitFor(() => expect(ninthEvents).toEqual([newerMainSnapshot]));
     expect(fetchImpl).toHaveBeenCalledTimes(2);
 
     unsubscribeFirst();
@@ -1057,24 +1057,24 @@ describe("createPiHttpClient", () => {
     const unsubscribeFirst = client.subscribe("t1", (event) => {
       firstEvents.push(event);
     });
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
     send(0, snapshotAt(1));
     send(0, { type: "agent_start", threadId: "t1", seq: 2 });
-    await vi.waitFor(() => expect(firstEvents).toHaveLength(2));
+    await waitFor(() => expect(firstEvents).toHaveLength(2));
 
     const lateEvents: PiAnyClientEvent[] = [];
     const unsubscribeLate = client.subscribe("t1", (event) => {
       lateEvents.push(event);
     });
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
 
     const newerHelperSnapshot = snapshotAt(4, "idle");
     send(1, newerHelperSnapshot);
-    await vi.waitFor(() => expect(lateEvents).toEqual([newerHelperSnapshot]));
+    await waitFor(() => expect(lateEvents).toEqual([newerHelperSnapshot]));
 
     const delayedMainSnapshot = snapshotAt(3, "running");
     send(0, delayedMainSnapshot);
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(firstEvents).toEqual([
         snapshotAt(1),
         { type: "agent_start", threadId: "t1", seq: 2 },
@@ -1087,7 +1087,7 @@ describe("createPiHttpClient", () => {
     const unsubscribeCached = client.subscribe("t1", (event) => {
       cachedEvents.push(event);
     });
-    await vi.waitFor(() => expect(cachedEvents).toEqual([newerHelperSnapshot]));
+    await waitFor(() => expect(cachedEvents).toEqual([newerHelperSnapshot]));
     expect(fetchImpl).toHaveBeenCalledTimes(2);
 
     unsubscribeFirst();
@@ -1101,28 +1101,26 @@ describe("createPiHttpClient", () => {
     const unsubscribeFirst = client.subscribe("t1", (event) => {
       firstEvents.push(event);
     });
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
     send(0, snapshotAt(1));
     send(0, { type: "agent_start", threadId: "t1", seq: 2 });
-    await vi.waitFor(() => expect(firstEvents).toHaveLength(2));
+    await waitFor(() => expect(firstEvents).toHaveLength(2));
 
     const lateEvents: PiAnyClientEvent[] = [];
     const unsubscribeLate = client.subscribe("t1", (event) => {
       lateEvents.push(event);
     });
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
     const preReconnectSnapshot = snapshotAt(50);
     send(1, preReconnectSnapshot);
-    await vi.waitFor(() => expect(lateEvents).toEqual([preReconnectSnapshot]));
+    await waitFor(() => expect(lateEvents).toEqual([preReconnectSnapshot]));
 
     close(0);
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(3));
     const reconnectSnapshot = snapshotAt(1, "running");
     send(2, reconnectSnapshot);
-    await vi.waitFor(() =>
-      expect(firstEvents.at(-1)).toEqual(reconnectSnapshot),
-    );
-    await vi.waitFor(() =>
+    await waitFor(() => expect(firstEvents.at(-1)).toEqual(reconnectSnapshot));
+    await waitFor(() =>
       expect(lateEvents).toEqual([preReconnectSnapshot, reconnectSnapshot]),
     );
 
@@ -1130,7 +1128,7 @@ describe("createPiHttpClient", () => {
     const unsubscribeCached = client.subscribe("t1", (event) => {
       cachedEvents.push(event);
     });
-    await vi.waitFor(() => expect(cachedEvents).toEqual([reconnectSnapshot]));
+    await waitFor(() => expect(cachedEvents).toEqual([reconnectSnapshot]));
     expect(fetchImpl).toHaveBeenCalledTimes(3);
 
     unsubscribeFirst();
@@ -1144,19 +1142,19 @@ describe("createPiHttpClient", () => {
     const unsubscribeFirst = client.subscribe("t1", (event) => {
       firstEvents.push(event);
     });
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
     send(0, snapshotAt(1));
     send(0, { type: "agent_start", threadId: "t1", seq: 2 });
-    await vi.waitFor(() => expect(firstEvents).toHaveLength(2));
+    await waitFor(() => expect(firstEvents).toHaveLength(2));
 
     const lateEvents: PiAnyClientEvent[] = [];
     const unsubscribeLate = client.subscribe("t1", (event) => {
       lateEvents.push(event);
     });
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
 
     close(0);
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(3));
     const openFailure = {
       type: "error",
       threadId: "t1",
@@ -1165,7 +1163,7 @@ describe("createPiHttpClient", () => {
     } satisfies PiAnyClientEvent;
     send(2, openFailure);
 
-    await vi.waitFor(() => expect(lateEvents).toEqual([openFailure]));
+    await waitFor(() => expect(lateEvents).toEqual([openFailure]));
     expect(firstEvents.at(-1)).toEqual(openFailure);
     expect(fetchImpl).toHaveBeenCalledTimes(3);
 
@@ -1213,35 +1211,35 @@ describe("createPiHttpClient", () => {
     const unsubscribeFirst = client.subscribe("t1", (event) => {
       firstEvents.push(event);
     });
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
     send(streamControllers[0]!, snapshotAt(50));
     send(streamControllers[0]!, {
       type: "agent_start",
       threadId: "t1",
       seq: 51,
     });
-    await vi.waitFor(() => expect(firstEvents).toHaveLength(2));
+    await waitFor(() => expect(firstEvents).toHaveLength(2));
 
     const lateEvents: PiAnyClientEvent[] = [];
     const unsubscribeLate = client.subscribe("t1", (event) => {
       lateEvents.push(event);
     });
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
 
     const resetSnapshot = snapshotAt(1);
     send(streamControllers[0]!, resetSnapshot);
     send(streamControllers[1]!, resetSnapshot);
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(3));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(3));
     send(streamControllers[2]!, resetSnapshot);
 
-    await vi.waitFor(() => expect(lateEvents).toEqual([resetSnapshot]));
+    await waitFor(() => expect(lateEvents).toEqual([resetSnapshot]));
     expect(fetchImpl).toHaveBeenCalledTimes(3);
 
     const nextEvents: PiAnyClientEvent[] = [];
     const unsubscribeNext = client.subscribe("t1", (event) => {
       nextEvents.push(event);
     });
-    await vi.waitFor(() => expect(nextEvents).toEqual([resetSnapshot]));
+    await waitFor(() => expect(nextEvents).toEqual([resetSnapshot]));
     expect(fetchImpl).toHaveBeenCalledTimes(3);
 
     unsubscribeFirst();
@@ -1274,7 +1272,7 @@ describe("createPiHttpClient", () => {
     const unsubscribeFirst = client.subscribe("t1", (event) => {
       firstEvents.push(event);
     });
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
     const send = (
       controller: ReadableStreamDefaultController<Uint8Array>,
       event: PiAnyClientEvent,
@@ -1294,13 +1292,13 @@ describe("createPiHttpClient", () => {
       threadId: "t1",
       seq: 2,
     });
-    await vi.waitFor(() => expect(firstEvents).toHaveLength(2));
+    await waitFor(() => expect(firstEvents).toHaveLength(2));
 
     const lateEvents: PiAnyClientEvent[] = [];
     const unsubscribeLate = client.subscribe("t1", (event) => {
       lateEvents.push(event);
     });
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
 
     const liveEvent = {
       type: "agent_end",
@@ -1315,9 +1313,7 @@ describe("createPiHttpClient", () => {
     } satisfies PiAnyClientEvent;
     send(streamControllers[0]!, liveEvent);
     send(streamControllers[1]!, snapshotError);
-    await vi.waitFor(() =>
-      expect(lateEvents).toEqual([snapshotError, liveEvent]),
-    );
+    await waitFor(() => expect(lateEvents).toEqual([snapshotError, liveEvent]));
 
     const nextLiveEvent = {
       type: "agent_start",
@@ -1325,7 +1321,7 @@ describe("createPiHttpClient", () => {
       seq: 4,
     } satisfies PiAnyClientEvent;
     send(streamControllers[0]!, nextLiveEvent);
-    await vi.waitFor(() =>
+    await waitFor(() =>
       expect(lateEvents).toEqual([snapshotError, liveEvent, nextLiveEvent]),
     );
 
@@ -1348,7 +1344,7 @@ describe("createPiHttpClient", () => {
       seq: 5,
     } satisfies PiAnyClientEvent;
     send(streamControllers[0]!, postTimeoutEvent);
-    await vi.waitFor(() => expect(timeoutEvents).toEqual([postTimeoutEvent]));
+    await waitFor(() => expect(timeoutEvents).toEqual([postTimeoutEvent]));
 
     unsubscribeFirst();
     unsubscribeLate();
@@ -1401,13 +1397,13 @@ describe("createPiHttpClient", () => {
       unsubscribers.push(clientA.subscribe("t1", () => {}));
       unsubscribers.push(clientA.subscribe("t1", () => {}));
 
-      await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
 
       browserIdentity = "user-b";
       const clientB = createPiHttpClient({ streamCloseDelayMs: 0 });
       unsubscribers.push(clientB.subscribe("t1", () => {}));
 
-      await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
       expect(openedAs).toEqual(["user-a", "user-b"]);
     } finally {
       for (const unsubscribe of unsubscribers) unsubscribe();

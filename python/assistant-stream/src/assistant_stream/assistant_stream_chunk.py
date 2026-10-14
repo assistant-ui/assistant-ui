@@ -54,6 +54,7 @@ class ToolResultChunk:
     is_error: bool = False
     is_preliminary: bool = False
     type: str = "tool-result"
+    messages: Any | None = None
 
 
 @dataclass
@@ -66,6 +67,8 @@ class DataChunk:
 class ErrorChunk:
     error: str
     type: str = "error"
+    code: str | None = None
+    severity: Literal["critical", "warning", "info"] | None = None
 
 
 # Define ObjectStream operation types as TypedDict

@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { computeGrid } from "../utils/grid";
 import { dateToKey } from "../utils/date-utils";

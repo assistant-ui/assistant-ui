@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it, vi } from "vitest";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import type { AssistantCloud } from "assistant-cloud";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig, createAssistantClient } from "@assistant-ui/store/client";
@@ -10,6 +11,9 @@ import {
   createCancellableTransport,
   createControlledTransport,
 } from "./__tests__/controlled-transport";
+
+const waitFor = (assertion: () => void) =>
+  vi.waitFor(assertion, { interval: 10 });
 
 const textReply = (text: string) =>
   [
@@ -81,6 +85,116 @@ const makeCloud = (id: string) =>
   }) as unknown as AssistantCloud;
 
 describe("AISDKThreads", () => {
+  const startTool = async (
+    execute: (
+      args: unknown,
+      context: {
+        abortSignal: AbortSignal;
+        human: (payload: unknown) => Promise<unknown>;
+      },
+    ) => Promise<unknown>,
+  ) => {
+    const { transport, emit, close } = createControlledTransport();
+    const sendMessages = vi.spyOn(transport, "sendMessages");
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: AISDKThreads({
+          transport,
+          sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+        }),
+      }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+    flushTapSync(() =>
+      aui.modelContext.register({
+        getModelContext: () => ({
+          tools: {
+            lookup: {
+              parameters: { type: "object", properties: {} },
+              execute,
+            },
+          },
+        }),
+      }),
+    );
+    flushTapSync(() => aui.composer.setText("look up"));
+    flushTapSync(() => aui.composer.send());
+    await waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(1));
+    emit(
+      { type: "start", messageId: "assistant-1" },
+      {
+        type: "tool-input-available",
+        toolCallId: "call-1",
+        toolName: "lookup",
+        input: {},
+      },
+      { type: "finish" },
+    );
+    close();
+    return { handle, aui, sendMessages };
+  };
+
+  it.each([
+    ["pending", (_signal: AbortSignal) => new Promise<string>(() => {})],
+    [
+      "rejecting with AbortError",
+      (signal: AbortSignal) =>
+        new Promise<string>((_resolve, reject) => {
+          signal.addEventListener(
+            "abort",
+            () => reject(new DOMException("aborted", "AbortError")),
+            { once: true },
+          );
+        }),
+    ],
+  ])(
+    "keeps a stopped frontend tool result from starting another request when $0",
+    async (_settlement, createExecution) => {
+      let signal: AbortSignal | undefined;
+      const execute = vi.fn(
+        (_args: unknown, context: { abortSignal: AbortSignal }) => {
+          signal = context.abortSignal;
+          return createExecution(signal);
+        },
+      );
+      const { handle, aui, sendMessages } = await startTool(execute);
+      try {
+        await waitFor(() => expect(execute).toHaveBeenCalledOnce());
+        await waitFor(() => expect(aui.thread.getState().isRunning).toBe(true));
+
+        flushTapSync(() => aui.thread.cancelRun());
+
+        await waitFor(() => expect(signal?.aborted).toBe(true));
+        await waitFor(() => {
+          const toolCall = aui.thread
+            .getState()
+            .messages.filter((message) => message.role === "assistant")
+            .flatMap((message) => message.content)
+            .find(
+              (part) =>
+                part.type === "tool-call" && part.toolCallId === "call-1",
+            );
+          expect(toolCall?.type === "tool-call" && toolCall.isError).toBe(true);
+        });
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        expect(sendMessages).toHaveBeenCalledTimes(1);
+      } finally {
+        handle.destroy();
+      }
+    },
+  );
+
+  it("still auto-sends after a successful frontend tool result", async () => {
+    const execute = vi.fn(async () => "done");
+    const { handle, sendMessages } = await startTool(execute);
+    try {
+      await waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(2));
+    } finally {
+      handle.destroy();
+    }
+  });
+
   it.each(
     (["client", "scope", "both", "rapid"] as const).flatMap((change) =>
       (["uncontrolled", "changed", "unchanged"] as const).map((selection) => ({
@@ -108,7 +222,7 @@ describe("AISDKThreads", () => {
       }));
       try {
         await handle.getClient().threads.getLoadThreadsPromise();
-        await vi.waitFor(() =>
+        await waitFor(() =>
           expect(handle.getClient().threads.getState().threadIds).toContain(
             "a-thread",
           ),
@@ -118,17 +232,17 @@ describe("AISDKThreads", () => {
             handle.getClient().threads.switchToThread("a-thread"),
           );
         }
-        await vi.waitFor(() =>
+        await waitFor(() =>
           expect(handle.getClient().threads.getState().mainThreadId).toBe(
             "a-thread",
           ),
         );
-        await vi.waitFor(() =>
+        await waitFor(() =>
           expect(handle.getClient().thread.getState().isLoading).toBe(false),
         );
         flushTapSync(() => handle.getClient().composer.setText("A only"));
         flushTapSync(() => handle.getClient().composer.send());
-        await vi.waitFor(() =>
+        await waitFor(() =>
           expect(handle.getClient().thread.getState().isRunning).toBe(true),
         );
         stream.emit(
@@ -136,9 +250,7 @@ describe("AISDKThreads", () => {
           { type: "text-start", id: "partial" },
           { type: "text-delta", id: "partial", delta: "A response" },
         );
-        await vi.waitFor(() =>
-          expect(threadText(handle)).toContain("A response"),
-        );
+        await waitFor(() => expect(threadText(handle)).toContain("A response"));
         const callsBeforeScopeChange = vi.mocked(cloudA.threads.list).mock.calls
           .length;
         rerender();
@@ -166,7 +278,7 @@ describe("AISDKThreads", () => {
         if (selection === "changed") threadId = "b-thread";
         rerender();
         rerender();
-        await vi.waitFor(() =>
+        await waitFor(() =>
           expect(handle.getClient().threads.getState().threadIds).toContain(
             "b-thread",
           ),
@@ -174,7 +286,7 @@ describe("AISDKThreads", () => {
         expect(handle.getClient().threads.getState().threadIds).not.toContain(
           "a-thread",
         );
-        await vi.waitFor(() => expect(stream.getCancelCount()).toBe(1));
+        await waitFor(() => expect(stream.getCancelCount()).toBe(1));
         expect(cloudB.threads.messages.create).not.toHaveBeenCalled();
         expect(cloudA.threads.messages.create).toHaveBeenCalledTimes(
           writesBeforeScopeChange,
@@ -186,7 +298,7 @@ describe("AISDKThreads", () => {
           );
         }
         if (selection === "changed") {
-          await vi.waitFor(() =>
+          await waitFor(() =>
             expect(handle.getClient().threads.getState().mainThreadId).toBe(
               "b-thread",
             ),
@@ -216,7 +328,7 @@ describe("AISDKThreads", () => {
     try {
       cloud = makeCloud("a-thread");
       rerender();
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(handle.getClient().threads.getState().threadIds).toContain(
           "a-thread",
         ),
@@ -226,7 +338,7 @@ describe("AISDKThreads", () => {
       rerender();
       cloud = makeCloud("b-thread");
       rerender();
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(handle.getClient().threads.getState().threadIds).toContain(
           "b-thread",
         ),
@@ -251,7 +363,7 @@ describe("AISDKThreads", () => {
       flushTapSync(() => aui.composer.setText("hello"));
       flushTapSync(() => aui.composer.send());
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(sent).toHaveBeenCalledWith(
           expect.objectContaining({
             threadId: aui.threads.getState().mainThreadId,
@@ -275,14 +387,14 @@ describe("AISDKThreads", () => {
 
     flushTapSync(() => aui.composer.setText("first question"));
     flushTapSync(() => aui.composer.send());
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(
         handle.getClient().thread.getState().messages.length,
       ).toBeGreaterThan(0);
     });
     emit(...textReply("first answer"));
     close();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(threadText(handle as never)).toEqual([
         "first question",
         "first answer",
@@ -316,7 +428,7 @@ describe("AISDKThreads", () => {
 
     flushTapSync(() => aui.composer.setText("stream me"));
     flushTapSync(() => aui.composer.send());
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(
         handle.getClient().thread.getState().messages.length,
       ).toBeGreaterThan(0);
@@ -338,7 +450,7 @@ describe("AISDKThreads", () => {
     close();
 
     flushTapSync(() => handle.getClient().threads.switchToThread("main"));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(threadText(handle as never)).toEqual([
         "stream me",
         "partial and finished",
@@ -347,6 +459,158 @@ describe("AISDKThreads", () => {
     });
 
     handle.destroy();
+  });
+
+  describe("a frontend tool running across a thread switch", () => {
+    const switchAwayAndBack = (
+      handle: ReturnType<typeof createAssistantClient>,
+    ) => {
+      flushTapSync(() => handle.getClient().threads.switchToNewThread());
+      flushTapSync(() => handle.getClient().threads.switchToThread("main"));
+    };
+
+    it("executes a tool call streamed while switched away once after switching back", async () => {
+      const execute = vi.fn(() => new Promise<string>(() => {}));
+      const { transport, emit, close } = createControlledTransport();
+      const sendMessages = vi.spyOn(transport, "sendMessages");
+      const onToolCall = vi.fn();
+      const handle = createAssistantClient(
+        AuiConfig({ threads: AISDKThreads({ transport, onToolCall }) }),
+      );
+      handle.subscribe(() => {});
+      try {
+        flushTapSync(() =>
+          handle.getClient().modelContext.register({
+            getModelContext: () => ({
+              tools: {
+                lookup: {
+                  parameters: { type: "object", properties: {} },
+                  execute,
+                },
+              },
+            }),
+          }),
+        );
+        flushTapSync(() => handle.getClient().composer.setText("look up"));
+        flushTapSync(() => handle.getClient().composer.send());
+        await waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(1));
+
+        emit({ type: "start", messageId: "assistant-1" });
+        await waitFor(() =>
+          expect(
+            handle
+              .getClient()
+              .thread.getState()
+              .messages.some((message) => message.role === "assistant"),
+          ).toBe(true),
+        );
+        flushTapSync(() => handle.getClient().threads.switchToNewThread());
+        emit(
+          {
+            type: "tool-input-available",
+            toolCallId: "call-after-switch",
+            toolName: "lookup",
+            input: {},
+          },
+          { type: "finish" },
+        );
+        await waitFor(() => expect(onToolCall).toHaveBeenCalledOnce());
+        expect(execute).not.toHaveBeenCalled();
+
+        flushTapSync(() => handle.getClient().threads.switchToThread("main"));
+        close();
+        await waitFor(() => expect(execute).toHaveBeenCalledOnce());
+        expect(handle.getClient().thread.getState().isRunning).toBe(true);
+      } finally {
+        handle.destroy();
+      }
+    });
+
+    it("keeps the thread running after switching back, and Stop aborts it", async () => {
+      let signal: AbortSignal | undefined;
+      const execute = vi.fn(
+        (_args: unknown, { abortSignal }: { abortSignal: AbortSignal }) =>
+          new Promise<string>(() => {
+            signal = abortSignal;
+          }),
+      );
+      const { handle } = await startTool(execute);
+      try {
+        await waitFor(() => expect(execute).toHaveBeenCalledOnce());
+
+        switchAwayAndBack(handle);
+        expect(handle.getClient().thread.getState().isRunning).toBe(true);
+        flushTapSync(() => handle.getClient().thread.cancelRun());
+        expect(signal?.aborted).toBe(true);
+      } finally {
+        handle.destroy();
+      }
+    });
+
+    it("still continues the turn with its result when nobody stops it", async () => {
+      let finishTool!: (value: string) => void;
+      const execute = vi.fn(
+        () =>
+          new Promise<string>((resolve) => {
+            finishTool = resolve;
+          }),
+      );
+      const { handle, sendMessages } = await startTool(execute);
+      try {
+        await waitFor(() => expect(execute).toHaveBeenCalledOnce());
+
+        switchAwayAndBack(handle);
+        finishTool("done");
+        await waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(2));
+      } finally {
+        handle.destroy();
+      }
+    });
+
+    it("continues the turn when it settles while the thread is in the background", async () => {
+      let finishTool!: (value: string) => void;
+      const execute = vi.fn(
+        () =>
+          new Promise<string>((resolve) => {
+            finishTool = resolve;
+          }),
+      );
+      const { handle, sendMessages } = await startTool(execute);
+      try {
+        await waitFor(() => expect(execute).toHaveBeenCalledOnce());
+
+        flushTapSync(() => handle.getClient().threads.switchToNewThread());
+        finishTool("done");
+        await waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(2));
+      } finally {
+        handle.destroy();
+      }
+    });
+
+    it("stays resumable when it waits on human input", async () => {
+      const execute = vi.fn(
+        async (
+          _args: unknown,
+          { human }: { human: (p: unknown) => unknown },
+        ) => ({ answer: await human({ question: "proceed?" }) }),
+      );
+      const { handle, sendMessages } = await startTool(execute);
+      try {
+        await waitFor(() => expect(execute).toHaveBeenCalledOnce());
+
+        switchAwayAndBack(handle);
+        expect(() =>
+          handle
+            .getClient()
+            .thread.message({ index: 1 })
+            .part({ toolCallId: "call-1" })
+            .resumeToolCall("yes"),
+        ).not.toThrow();
+        await waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(2));
+      } finally {
+        handle.destroy();
+      }
+    });
   });
 
   it("stops all in-flight chats when its client is destroyed", async () => {
@@ -368,14 +632,14 @@ describe("AISDKThreads", () => {
     try {
       flushTapSync(() => aui.composer.setText("first"));
       flushTapSync(() => aui.composer.send());
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(aui.thread.getState().isRunning).toBe(true);
       });
 
       flushTapSync(() => aui.threads.switchToNewThread());
       flushTapSync(() => handle.getClient().composer.setText("second"));
       flushTapSync(() => handle.getClient().composer.send());
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(chats).toHaveLength(2);
         expect(handle.getClient().thread.getState().isRunning).toBe(true);
       });
@@ -383,7 +647,7 @@ describe("AISDKThreads", () => {
       handle.destroy();
     }
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(chats.map((chat) => chat.getCancelCount())).toEqual([1, 1]);
     });
   });
@@ -430,11 +694,11 @@ describe("AISDKThreads", () => {
       );
       flushTapSync(() => aui.composer.setText("hello"));
       flushTapSync(() => aui.composer.send());
-      await vi.waitFor(() => expect(fetchStub).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(fetchStub).toHaveBeenCalledTimes(1));
       expect(bodies[0]).toMatchObject({ system: "wired system prompt" });
 
       flushTapSync(() => aui.threads.switchToNewThread());
-      await vi.waitFor(() => expect(transports.length).toBe(2));
+      await waitFor(() => expect(transports.length).toBe(2));
       expect(transports[0]).not.toBe(transports[1]);
 
       handle.destroy();
@@ -476,7 +740,7 @@ describe("AISDKThreads", () => {
       );
       flushTapSync(() => aui.composer.setText("hello"));
       flushTapSync(() => aui.composer.send());
-      await vi.waitFor(() => expect(fetchStub).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(fetchStub).toHaveBeenCalledTimes(1));
       expect(bodies[0]).toMatchObject({ system: "default path system" });
 
       handle.destroy();
@@ -503,7 +767,7 @@ describe("AISDKThreads", () => {
 
     flushTapSync(() => aui.composer.setText("hi"));
     flushTapSync(() => aui.composer.send());
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(
         handle.getClient().thread.getState().messages.length,
       ).toBeGreaterThan(0);
@@ -520,10 +784,10 @@ describe("AISDKThreads", () => {
       { type: "finish" },
     );
     close();
-    await vi.waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(2));
     emit({ type: "start" }, { type: "error", errorText: "boom" });
     close();
-    await vi.waitFor(() => expect(latest.onFinish).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(latest.onFinish).toHaveBeenCalledTimes(2));
 
     expect(latest.onToolCall).toHaveBeenCalledExactlyOnceWith({
       toolCall: expect.objectContaining({ toolCallId: "call-1" }),
@@ -555,7 +819,7 @@ describe("AISDKThreads", () => {
 
     flushTapSync(() => aui.composer.setText("stream me"));
     flushTapSync(() => aui.composer.send());
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(
         handle.getClient().thread.getState().messages.length,
       ).toBeGreaterThan(0);
@@ -572,7 +836,7 @@ describe("AISDKThreads", () => {
 
     emit({ type: "text-end", id: "t1" }, { type: "finish" });
     close();
-    await vi.waitFor(() => expect(onFinishB).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onFinishB).toHaveBeenCalledTimes(1));
     expect(onFinishA).not.toHaveBeenCalled();
 
     handle.destroy();
@@ -615,10 +879,10 @@ describe("AISDKThreads", () => {
     }));
     try {
       await handle.getClient().threads.getLoadThreadsPromise();
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
       });
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(handle.getClient().thread.getState().isLoading).toBe(false);
       });
 
@@ -627,12 +891,12 @@ describe("AISDKThreads", () => {
 
       flushTapSync(() => handle.getClient().composer.setText("hi"));
       flushTapSync(() => handle.getClient().composer.send());
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(handle.getClient().thread.getState().isRunning).toBe(true);
       });
       emit(...textReply("done"));
       close();
-      await vi.waitFor(() => expect(onFinishB).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(onFinishB).toHaveBeenCalledTimes(1));
       expect(onFinishA).not.toHaveBeenCalled();
     } finally {
       handle.destroy();
@@ -667,14 +931,14 @@ describe("AISDKThreads", () => {
 
       flushTapSync(() => aui.composer.setText("hello"));
       flushTapSync(() => aui.composer.send());
-      await vi.waitFor(() => expect(fetchStub).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(fetchStub).toHaveBeenCalledTimes(1));
       expect(bodies[0]).toMatchObject({ id: "main" });
 
       flushTapSync(() => aui.threads.switchToNewThread());
       const newThreadId = handle.getClient().threads.getState().mainThreadId;
       flushTapSync(() => handle.getClient().composer.setText("hi again"));
       flushTapSync(() => handle.getClient().composer.send());
-      await vi.waitFor(() => expect(fetchStub).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(fetchStub).toHaveBeenCalledTimes(2));
       expect(bodies[1]).toMatchObject({ id: newThreadId });
 
       handle.destroy();
@@ -717,7 +981,7 @@ describe("AISDKThreads", () => {
     const aui = handle.getClient();
     try {
       await aui.threads.getLoadThreadsPromise();
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(aui.threads.getState().threadIds).toEqual([
           "cloud-1",
           "cloud-2",
@@ -725,12 +989,12 @@ describe("AISDKThreads", () => {
       });
 
       flushTapSync(() => aui.threads.switchToThread("cloud-1"));
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(aui.threads.getState().mainThreadId).toBe("cloud-1");
       });
 
       flushTapSync(() => aui.threads.switchToThread("cloud-2"));
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(aui.threads.getState().mainThreadId).toBe("cloud-2");
       });
 
@@ -740,7 +1004,7 @@ describe("AISDKThreads", () => {
       expect(create).toHaveBeenCalledWith(
         expect.objectContaining({ external_id: undefined }),
       );
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(
           handle.getClient().threads.item({ id: newThreadId }).getState()
             .remoteId,
@@ -798,16 +1062,16 @@ describe("AISDKThreads", () => {
     const aui = handle.getClient();
     try {
       await aui.threads.getLoadThreadsPromise();
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
       });
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(handle.getClient().thread.getState().isLoading).toBe(false);
       });
 
       flushTapSync(() => handle.getClient().composer.setText("hello"));
       flushTapSync(() => handle.getClient().composer.send());
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(handle.getClient().thread.getState().isRunning).toBe(true);
       });
 
@@ -823,10 +1087,10 @@ describe("AISDKThreads", () => {
       emit(...textReply("answer"));
       close();
       await switched;
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(handle.getClient().threads.getState().mainThreadId).toBe("t2");
       });
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(create).toHaveBeenCalled();
       });
       const threadIds = create.mock.calls.map((call) => call[0]);
@@ -877,13 +1141,13 @@ describe("AISDKThreads", () => {
     handle.subscribe(() => {});
     try {
       await handle.getClient().threads.getLoadThreadsPromise();
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(handle.getClient().thread.getState().isLoading).toBe(false);
       });
 
       flushTapSync(() => handle.getClient().composer.setText("hello"));
       flushTapSync(() => handle.getClient().composer.send());
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(handle.getClient().thread.getState().isRunning).toBe(true);
       });
 
@@ -899,10 +1163,10 @@ describe("AISDKThreads", () => {
       emit(...textReply("answer"));
       close();
       await switched;
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
       });
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(createMessage).toHaveBeenCalled();
       });
       const threadIds = createMessage.mock.calls.map((call) => call[0]);
@@ -925,12 +1189,12 @@ describe("AISDKThreads branch isolation", () => {
     const aui = handle.getClient();
     flushTapSync(() => aui.composer.setText(question));
     flushTapSync(() => aui.composer.send());
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.thread.getState().messages.length).toBeGreaterThan(0);
     });
     emit(...(textReply(answer) as never[]));
     close();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().thread.getState().isRunning).toBe(false);
     });
   };
@@ -961,7 +1225,7 @@ describe("AISDKThreads branch isolation", () => {
     );
 
     flushTapSync(() => aui.threads.switchToThread("main"));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(threadText(handle as never)).toEqual([
         "thread a question",
         "thread a answer",
@@ -990,12 +1254,12 @@ describe("AISDKThreads branch isolation", () => {
     );
 
     flushTapSync(() => aui.thread.message({ index: 1 }).reload());
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().thread.getState().isRunning).toBe(true);
     });
     emit(...(textReply("second answer") as never[]));
     close();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().thread.getState().isRunning).toBe(false);
       expect(aui.thread.message({ index: 1 }).getState().branchCount).toBe(2);
     });
@@ -1004,7 +1268,7 @@ describe("AISDKThreads branch isolation", () => {
     expect(handle.getClient().thread.getState().messages).toHaveLength(0);
 
     flushTapSync(() => handle.getClient().threads.switchToThread("main"));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(threadText(handle as never)).toEqual([
         "branchy question",
         "second answer",

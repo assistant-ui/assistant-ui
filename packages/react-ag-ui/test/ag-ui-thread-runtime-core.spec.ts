@@ -139,7 +139,6 @@ const createCore = (
     ...(hooks.onError ? { onError: hooks.onError } : {}),
     ...(hooks.onCancel ? { onCancel: hooks.onCancel } : {}),
     ...(hooks.history ? { history: hooks.history } : {}),
-    notifyUpdate: () => {},
   });
 
 // On teardown @ag-ui/client rethrows an errored body's reader.cancel()
@@ -8468,7 +8467,6 @@ describe("AGUIThreadRuntimeCore", () => {
         agent: { runAgent } as unknown as HttpAgent,
         logger: noopLogger,
         showThinking: false,
-        notifyUpdate: () => {},
       });
 
       await core.append(createAppendMessage());

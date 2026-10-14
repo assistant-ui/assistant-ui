@@ -1,7 +1,7 @@
 "use client";
 
 import { useComposedRefs } from "radix-ui/internal";
-import { useCallback, useLayoutEffect, useRef, type RefCallback } from "react";
+import { useCallback, useRef, type RefCallback } from "react";
 import { useAui, useAuiEvent, useAuiState } from "@assistant-ui/store";
 import {
   isUserScrollUp,
@@ -13,6 +13,7 @@ import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { writableStore } from "../../context/ReadonlyStore";
 import { useThreadViewportStore } from "../../context/react/ThreadViewportContext";
+import { useIsomorphicLayoutEffect } from "../../utils/useIsomorphicLayoutEffect";
 
 const SCROLL_KEYS = new Set([
   " ",
@@ -198,7 +199,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   const scrolledSincePauseRef = useRef(false);
   const previousAutoScrollRef = useRef(autoScroll);
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const previousAutoScroll = previousAutoScrollRef.current;
     previousAutoScrollRef.current = autoScroll;
     if (previousAutoScroll || !autoScroll) return;
@@ -238,7 +239,10 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     [cancelScheduledFrame, scrollToBottom],
   );
 
-  useLayoutEffect(() => () => cancelScheduledFrame(), [cancelScheduledFrame]);
+  useIsomorphicLayoutEffect(
+    () => () => cancelScheduledFrame(),
+    [cancelScheduledFrame],
+  );
 
   const hasActiveTopAnchor = useCallback(() => {
     const state = threadViewportStore.getState();
@@ -308,7 +312,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     firstMessageRef.current = measureFirstMessage(div);
   };
   const onScrollRef = useRef(onScroll);
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     onScrollRef.current = onScroll;
   });
   const handleScroll = useCallback(() => onScrollRef.current(), []);
@@ -327,39 +331,36 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     lastObservedScrollHeight.current = scrollHeight;
     lastObservedClientHeight.current = clientHeight;
 
-    const scrollBehavior = scrollingToBottomBehaviorRef.current;
-    if (scrollBehavior && hasActiveTopAnchor()) {
-      // Let the top-anchor reserve own scrolling while a run starts to avoid a bottom-scroll race.
-      scrollingToBottomBehaviorRef.current = null;
-    } else if (scrollBehavior) {
-      scrollToBottom(scrollBehavior);
-    } else if (
-      autoScroll &&
-      !(isRunning && hasActiveTopAnchor()) &&
-      followBottomRef.current &&
-      !followPausedRef.current
-    ) {
-      scrollToBottom("instant");
-    } else if (
-      prependAnchorRef.current &&
-      !keepMessageAt(div, prependAnchorRef.current, heldScrollTopRef)
-    ) {
-      prependAnchorRef.current = null;
+    // A scheduled frame owns the pending behavior; resize callbacks must not apply it early.
+    if (scheduledFrameRef.current === null) {
+      const scrollBehavior = scrollingToBottomBehaviorRef.current;
+      if (scrollBehavior && hasActiveTopAnchor()) {
+        // Let the top-anchor reserve own scrolling while a run starts to avoid a bottom-scroll race.
+        scrollingToBottomBehaviorRef.current = null;
+      } else if (scrollBehavior) {
+        scrollToBottom(scrollBehavior);
+      } else if (
+        autoScroll &&
+        !(isRunning && hasActiveTopAnchor()) &&
+        followBottomRef.current &&
+        !followPausedRef.current
+      ) {
+        scrollToBottom("instant");
+      } else if (
+        prependAnchorRef.current &&
+        !keepMessageAt(div, prependAnchorRef.current, heldScrollTopRef)
+      ) {
+        prependAnchorRef.current = null;
+      }
     }
 
     handleScroll();
   };
   const onResizeRef = useRef(onResize);
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     onResizeRef.current = onResize;
   });
   const resizeRef = useOnResizeContent(() => onResizeRef.current());
-  // Re-observing each render moves this commit's resize handling from the
-  // mutation microtask to the fresh observer's first notification, after a
-  // scheduled scroll frame runs; initialize and run-start scrolling rely on it.
-  useLayoutEffect(() => {
-    if (divRef.current) resizeRef(divRef.current);
-  });
 
   const scrollRef = useManagedRef<HTMLElement>(
     useCallback(
@@ -479,7 +480,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   // streaming reply) is not mistaken for the page; where the browser already
   // anchored the scroll, this is a no-op.
   const previousRef = useRef({ threadId, firstMessageId });
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const previous = previousRef.current;
     previousRef.current = { threadId, firstMessageId };
     if (previous.threadId !== threadId) {
@@ -522,7 +523,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     lastScrollHeight.current = div.scrollHeight;
   }, [aui, autoScroll, firstMessageId, threadId]);
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (!scrollToBottomOnInitialize) return;
     if (!hasMessages) {
       initializeScrollRequestedRef.current = false;

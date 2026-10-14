@@ -25,6 +25,8 @@ OPENAI_API_KEY=sk-...
 npm run dev
 ```
 
+The dev and production build commands use Webpack because Turbopack cannot resolve FFmpeg's configurable worker URL. The Next.js config optimizes `@assistant-ui/ai-sdk` imports so the server route loads `frontendTools` without its client hooks.
+
 ## Features
 
 - FFmpeg WebAssembly integration

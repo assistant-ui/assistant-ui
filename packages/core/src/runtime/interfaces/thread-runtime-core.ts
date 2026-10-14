@@ -32,6 +32,7 @@ export type RuntimeCapabilities = {
   readonly refetchThread: boolean;
   readonly delete: boolean;
   readonly cancel: boolean;
+  /** @deprecated Experimental since 2024-09-01. Not scheduled for removal; the API may change in any release. */
   readonly unstable_copy: boolean;
   readonly speech: boolean;
   readonly dictation: boolean;
@@ -64,6 +65,7 @@ export type ResumeToolCallOptions = {
   payload: unknown;
 };
 
+/** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
 export type Unstable_RecordToolInteractionOptions = {
   messageId: string;
   toolCallId: string;
@@ -198,6 +200,7 @@ export type ThreadRuntimeCore = Readonly<{
   startRun: (config: StartRunConfig) => void;
   resumeRun: (config: ResumeRunConfig) => void;
   cancelRun: () => void;
+  /** @deprecated Experimental since 2026-08-14. Not scheduled for removal; the API may change in any release. */
   unstable_notifySessionReset: () => void;
 
   addToolResult: (options: AddToolResultOptions) => void;
@@ -220,6 +223,8 @@ export type ThreadRuntimeCore = Readonly<{
   /**
    * Appends a validated interaction to a tool call part and persists it where
    * the runtime persists messages. Rejects when the runtime cannot record it.
+   *
+   * @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release.
    */
   unstable_recordToolInteraction?: (
     options: Unstable_RecordToolInteractionOptions,
@@ -309,13 +314,16 @@ export type ThreadRuntimeCore = Readonly<{
    * the composer. An implementation is therefore responsible for whatever
    * coordination a concurrent run needs. Runtimes without remote state leave
    * it undefined.
+   *
+   * @deprecated Experimental since 2026-08-02. Not scheduled for removal; the API may change in any release.
    */
   unstable_refetchThread?: (() => Promise<void>) | undefined;
 
   /**
-   * @deprecated This API is still under active development and might change without notice.
    * For state-derivable transitions, prefer `subscribe` + `getState`. This channel is the
    * escape hatch for transient occurrences not represented in state.
+   *
+   * @deprecated Experimental since 2024-10-12. Not scheduled for removal; the API may change in any release.
    */
   unstable_on<E extends ThreadRuntimeEventType>(
     event: E,

@@ -12,11 +12,14 @@ import { hasOption, optionValues } from "./lib/script-options.mjs";
 
 const marker = "<!-- review-tier -->";
 const rawAccept = "application/vnd.github.raw";
+const transientStatuses = new Set([0, 502, 503, 504]);
+export const dailySweepCron = "0 4 * * *";
 
 export function createGitHubClient({
   token,
   fetch = globalThis.fetch,
   apiRoot = "https://api.github.com",
+  wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 }) {
   async function rest(
     method,
@@ -24,6 +27,19 @@ export function createGitHubClient({
     body,
     accept = "application/vnd.github+json",
   ) {
+    const retries = method === "GET" || resource === "/graphql" ? 2 : 0;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        return await request(method, resource, body, accept);
+      } catch (error) {
+        if (attempt === retries || !transientStatuses.has(error.status))
+          throw error;
+        await wait(1000 * 2 ** attempt);
+      }
+    }
+  }
+
+  async function request(method, resource, body, accept) {
     const url = /^https?:\/\//.test(resource)
       ? resource
       : `${apiRoot.replace(/\/$/, "")}/${resource.replace(/^\//, "")}`;
@@ -45,7 +61,10 @@ export function createGitHubClient({
           `GitHub request failed (${status} ${response.statusText}): ${method} ${url}`,
         );
       }
-      const text = await response.text();
+      const text = await response.text().catch((error) => {
+        status = 0;
+        throw error;
+      });
       return {
         status,
         data:
@@ -539,9 +558,11 @@ const isWaiting = (code) =>
   code === "decision" ||
   code === "window" ||
   code.startsWith("owner:");
+const areaName = (id, policy) =>
+  policy.areas.find((area) => area.id === id)?.name ?? id;
 const requirementLabel = (code, policy) =>
   code.startsWith("owner:")
-    ? `Owner: ${policy.areas.find((area) => `owner:${area.id}` === code)?.name ?? code.slice(6)}`
+    ? `Owner: ${areaName(code.slice(6), policy)}`
     : (requirementLabels[code] ?? code);
 const signalLabel = (code) => signalLabels[code] ?? code;
 
@@ -557,17 +578,24 @@ const failureDetails = {
   "manifest-invalid": (detail) => `${code(detail)} is not valid JSON`,
 };
 
+function windowEnd(tier, context, policy) {
+  const readyAt = Date.parse(context?.readyForReviewAt);
+  if (Number.isNaN(readyAt)) return null;
+  return new Date(readyAt + policy.windowHours[tier] * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 16)
+    .replace("T", " ");
+}
+
 function requirementDetail(item, tier, context, policy, waivers) {
   const failure = failureDetails[item.code];
-  const readyAt = Date.parse(context?.readyForReviewAt);
   let detail = failure ? failure(item.detail, policy) : cell(item.detail);
-  if (item.code === "window" && !Number.isNaN(readyAt)) {
-    const hours = policy.windowHours[tier];
-    const until = new Date(readyAt + hours * 60 * 60 * 1000)
-      .toISOString()
-      .slice(0, 16)
-      .replace("T", " ");
-    detail = `${hours} hours after ready for review, until ${until} UTC`;
+  if (item.code === "window") {
+    const until = windowEnd(tier, context, policy);
+    if (until !== null) {
+      const hours = policy.windowHours[tier];
+      detail = `${hours} hours after ready for review, until ${until} UTC`;
+    }
   }
   const waiver = waivers.get(item.code);
   return waiver
@@ -575,10 +603,41 @@ function requirementDetail(item, tier, context, policy, waivers) {
     : detail;
 }
 
-export function renderComment(
-  { tierResult, requirementResult, advice, context },
-  policy,
-) {
+export function statusLine({ tierResult, requirementResult, context }, policy) {
+  const { tier } = tierResult;
+  const { unmet } = requirementResult;
+  if (unmet.length === 0) return `T${tier} · review requirements met`;
+
+  const changes = [
+    ...new Set(
+      unmet
+        .filter(({ code }) => !isWaiting(code))
+        .map(({ code }) => requirementLabel(code, policy))
+        .map((label) => label[0].toLowerCase() + label.slice(1)),
+    ),
+  ];
+  if (changes.length) return `T${tier} · needs a change: ${changes.join(", ")}`;
+
+  const waiting = unmet.map(({ code, maintainer }) => {
+    if (code === "approvals")
+      return maintainer ? "1 maintainer approval" : "1 approval";
+    if (code.startsWith("owner:"))
+      return `${areaName(code.slice(6), policy)} owner approval`;
+    if (code === "decision") return "an accepted decision";
+    const until = windowEnd(tier, context, policy);
+    return until === null
+      ? `the ${policy.windowHours[tier]}-hour window`
+      : `the window until ${until} UTC`;
+  });
+  const list =
+    waiting.length === 1
+      ? waiting[0]
+      : `${waiting.slice(0, -1).join(", ")} and ${waiting.at(-1)}`;
+  return `T${tier} · waiting on ${list}`;
+}
+
+export function renderComment(evaluation, policy) {
+  const { tierResult, requirementResult, advice, context } = evaluation;
   const { tier } = tierResult;
   const reasons = tierResult.reasons.toSorted((a, b) => b.tier - a.tier);
   const { unmet, waived, approvals } = requirementResult;
@@ -586,7 +645,7 @@ export function renderComment(
   const [top] = reasons;
   const out = [
     marker,
-    `### review-tier: T${tier} · ${unmet.length ? `${unmet.length} still needed` : "ready to merge"}`,
+    `### review-tier: ${statusLine(evaluation, policy)}`,
     "",
     policy.reviewTierCheck.mode === "enforce"
       ? `_Required to merge. Rules in ${rules}._`
@@ -689,6 +748,7 @@ export async function publish(
     evaluation,
     startedAt = new Date().toISOString(),
     labelsAndComment = true,
+    mergeGroup = false,
   },
 ) {
   const repo = `/repos/${policy.repository}`;
@@ -696,17 +756,24 @@ export async function publish(
   const { tier } = evaluation.tierResult;
   const ready = evaluation.conclusion === "success";
   const targetSha = checkSha ?? headSha;
+  const inProgress =
+    policy.reviewTierCheck.mode === "enforce" &&
+    evaluation.conclusion === "action_required" &&
+    !mergeGroup;
   const check = {
     name: policy.reviewTierCheck.name,
-    head_sha: targetSha,
-    started_at: startedAt,
-    status: "completed",
-    conclusion:
-      policy.reviewTierCheck.mode === "shadow" && !ready
-        ? "neutral"
-        : evaluation.conclusion,
+    external_id: startedAt,
+    status: inProgress ? "in_progress" : "completed",
+    ...(inProgress
+      ? {}
+      : {
+          conclusion:
+            policy.reviewTierCheck.mode === "shadow" && !ready
+              ? "neutral"
+              : evaluation.conclusion,
+        }),
     output: {
-      title: `T${tier} · ${ready ? "ready to merge" : `${evaluation.requirementResult.unmet.length} still needed`}`,
+      title: statusLine(evaluation, policy),
       summary: body.slice(marker.length + 1),
     },
   };
@@ -719,16 +786,45 @@ export async function publish(
       policy.reviewTierCheck.integrationId === null ||
       run.app?.id === policy.reviewTierCheck.integrationId,
   );
-  if (Date.parse(latest?.started_at) > Date.parse(startedAt)) return;
   if (
-    latest?.conclusion !== check.conclusion ||
+    Date.parse(latest?.external_id || latest?.started_at) >
+    Date.parse(startedAt)
+  )
+    return;
+  const open = latest?.status === "in_progress";
+  const refresh =
+    inProgress &&
+    open &&
+    Date.parse(startedAt) - Date.parse(latest.started_at) >
+      7 * 24 * 60 * 60 * 1000;
+  if (
+    refresh ||
+    latest?.status !== check.status ||
+    (latest?.conclusion ?? null) !== (check.conclusion ?? null) ||
     latest.output?.title !== check.output.title ||
     latest.output?.summary !== check.output.summary
   ) {
-    await client.rest("POST", `${repo}/check-runs`, {
+    const run = {
       ...check,
-      completed_at: new Date().toISOString(),
-    });
+      ...(inProgress ? {} : { completed_at: new Date().toISOString() }),
+    };
+    // Updating an open run in place keeps one incomplete run per head; a run open for 7 days is closed as action_required, never passing, and replaced before GitHub marks it stale at 14.
+    if (open && !refresh) {
+      await client.rest("PATCH", `${repo}/check-runs/${latest.id}`, run);
+    } else {
+      if (refresh) {
+        await client.rest("PATCH", `${repo}/check-runs/${latest.id}`, {
+          status: "completed",
+          conclusion: "action_required",
+          completed_at: new Date().toISOString(),
+        });
+      }
+      await client.rest("POST", `${repo}/check-runs`, {
+        ...run,
+        head_sha: targetSha,
+        started_at: startedAt,
+      });
+    }
   }
   if (!labelsAndComment) return;
   const label = tierLabel(policy, tier);
@@ -865,7 +961,8 @@ export async function main({
         listOpen = true;
         break;
       case "schedule":
-        labels = [tierLabel(policy, 2), tierLabel(policy, 3)];
+        if (event.schedule !== dailySweepCron)
+          labels = [tierLabel(policy, 2), tierLabel(policy, 3)];
         listOpen = true;
         break;
       default:
@@ -960,6 +1057,7 @@ export async function main({
           evaluation,
           startedAt: gathered.startedAt,
           labelsAndComment: !mergeGroup,
+          mergeGroup,
         });
         break;
       }

@@ -27,15 +27,18 @@ const makeConfig = (
 });
 
 /** Encode SSE text into a ReadableStream of Uint8Array chunks. */
-const sseBody = (text: string): ReadableStream<Uint8Array> => {
+const sseBodyChunks = (chunks: string[]): ReadableStream<Uint8Array> => {
   const encoder = new TextEncoder();
   return new ReadableStream({
     start(controller) {
-      controller.enqueue(encoder.encode(text));
+      for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
       controller.close();
     },
   });
 };
+
+const sseBody = (text: string): ReadableStream<Uint8Array> =>
+  sseBodyChunks([text]);
 
 const sseResponse = (
   body: BodyInit | null,
@@ -278,7 +281,12 @@ describe("createAdkStream - proxy mode", () => {
         type: "human",
         content: [
           { type: "text", text: "Look" },
-          { type: "image", mimeType: "image/png", data: "abc" },
+          {
+            type: "image",
+            mimeType: "image/png",
+            data: "abc",
+            filename: "photo.png",
+          },
         ],
       },
     ];
@@ -291,7 +299,11 @@ describe("createAdkStream - proxy mode", () => {
     expect(body.parts).toHaveLength(2);
     expect(body.parts[0]).toEqual({ text: "Look" });
     expect(body.parts[1]).toEqual({
-      inlineData: { mimeType: "image/png", data: "abc" },
+      inlineData: {
+        mimeType: "image/png",
+        data: "abc",
+        displayName: "photo.png",
+      },
     });
   });
 
@@ -322,7 +334,11 @@ describe("createAdkStream - proxy mode", () => {
     const body = JSON.parse(mockFetch.mock.calls[0]![1]?.body as string);
     expect(body.parts).toHaveLength(2);
     expect(body.parts[1]).toEqual({
-      inlineData: { mimeType: "application/pdf", data: "JVBERi0xLjQK" },
+      inlineData: {
+        mimeType: "application/pdf",
+        data: "JVBERi0xLjQK",
+        displayName: "report.pdf",
+      },
     });
   });
 
@@ -601,6 +617,41 @@ describe("createAdkStream - direct mode", () => {
 // ── SSE parsing ──
 
 describe("createAdkStream - SSE parsing", () => {
+  it.each([
+    ["one initial BOM", ["\uFEFF"], ["e1", "e2"]],
+    ["two initial BOMs", ["\uFEFF\uFEFF"], ["e2"]],
+    ["two initial BOMs in separate chunks", ["\uFEFF", "\uFEFF"], ["e2"]],
+  ] as const)(
+    "strips only one initial BOM: %s",
+    async (_, prefixes, expected) => {
+      const first: AdkEvent = {
+        id: "e1",
+        content: { parts: [{ text: "first" }] },
+      };
+      const second: AdkEvent = {
+        id: "e2",
+        content: { parts: [{ text: "second" }] },
+      };
+      const text =
+        `data: ${JSON.stringify(first)}\n\n` +
+        `data: ${JSON.stringify(second)}\n\n`;
+      const chunks = prefixes.map((prefix, index) =>
+        index === prefixes.length - 1 ? `${prefix}${text}` : prefix,
+      );
+      mockFetch.mockResolvedValueOnce(sseResponse(sseBodyChunks(chunks)));
+
+      const stream = createAdkStream({ api: "/api/adk" });
+      const events = await stream(
+        [{ id: "m1", type: "human", content: "Hi" }],
+        makeConfig(),
+      );
+      const collected: AdkEvent[] = [];
+      for await (const event of events) collected.push(event);
+
+      expect(collected.map((event) => event.id)).toEqual(expected);
+    },
+  );
+
   it("parses data lines into AdkEvent objects", async () => {
     const events: AdkEvent[] = [
       { id: "e1", content: { parts: [{ text: "hello" }] } },
@@ -1335,6 +1386,41 @@ describe("createAdkStream - content conversion", () => {
       {
         id: "m1",
         type: "human",
+        content: [
+          {
+            type: "image_url",
+            url: "https://example.com/img.png",
+            filename: "photo.png",
+          },
+        ],
+      },
+    ];
+    const gen = await stream(messages, makeConfig());
+    for await (const _ of gen) {
+      /* noop */
+    }
+
+    const body = JSON.parse(mockFetch.mock.calls[0]![1]?.body as string);
+    expect(body.newMessage.parts[0]).toEqual({
+      fileData: {
+        fileUri: "https://example.com/img.png",
+        displayName: "photo.png",
+      },
+    });
+  });
+
+  it("converts an unnamed image_url part without a displayName in direct mode", async () => {
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
+
+    const stream = createAdkStream({
+      api: "http://localhost:8000",
+      appName: "app",
+      userId: "u",
+    });
+    const messages: AdkMessage[] = [
+      {
+        id: "m1",
+        type: "human",
         content: [{ type: "image_url", url: "https://example.com/img.png" }],
       },
     ];
@@ -1378,7 +1464,11 @@ describe("createAdkStream - content conversion", () => {
 
     const body = JSON.parse(mockFetch.mock.calls[0]![1]?.body as string);
     expect(body.newMessage.parts[0]).toEqual({
-      inlineData: { mimeType: "application/pdf", data: "JVBERi0xLjQK" },
+      inlineData: {
+        mimeType: "application/pdf",
+        data: "JVBERi0xLjQK",
+        displayName: "report.pdf",
+      },
     });
   });
 
@@ -1399,6 +1489,7 @@ describe("createAdkStream - content conversion", () => {
             type: "file_url",
             url: "gs://bucket/report.pdf",
             mimeType: "application/pdf",
+            filename: "report.pdf",
           },
         ],
       },
@@ -1413,6 +1504,7 @@ describe("createAdkStream - content conversion", () => {
       fileData: {
         fileUri: "gs://bucket/report.pdf",
         mimeType: "application/pdf",
+        displayName: "report.pdf",
       },
     });
   });

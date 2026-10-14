@@ -31,7 +31,8 @@ const { conversionSpy, mockUseChannel, mockUseStream, streamController } =
     streamController: Symbol("STREAM_CONTROLLER"),
   }));
 
-vi.mock("@langchain/react", () => ({
+vi.mock("@langchain/react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@langchain/react")>()),
   STREAM_CONTROLLER: streamController,
   useChannel: mockUseChannel,
   useStream: mockUseStream,
@@ -977,6 +978,231 @@ describe("useStreamRuntime staged messages", () => {
         "second staged",
       ]);
     });
+  });
+});
+
+describe("useStreamRuntime fork ownership", () => {
+  type ForkHistory = {
+    values: { messages: LangChainBaseMessage[] };
+    checkpoint: { checkpoint_id: string };
+  }[];
+
+  const renderFork = async (stream: MockStream) => {
+    mockUseStream.mockReturnValue(stream);
+    const runtime = renderHook(() =>
+      useStreamRuntime({
+        apiUrl: "/api",
+        unstable_threadListAdapter: makeThreadListAdapter(),
+      } as never),
+    );
+    const view = render(
+      <AssistantRuntimeProvider runtime={runtime.result.current}>
+        {null}
+      </AssistantRuntimeProvider>,
+    );
+    await settleOutsideAct(() =>
+      runtime.result.current.threads.switchToThread("thread-a"),
+    );
+    return { runtime, view };
+  };
+
+  it("stops the streaming reply before an edit looks up its checkpoint and submits once", async () => {
+    const events: string[] = [];
+    const lookup = deferred<ForkHistory>();
+    const stream = createMockStream([
+      message("u1", "human", "original"),
+      message("a1", "ai", "partial reply"),
+    ]);
+    stream.isLoading = true;
+    stream.stop.mockImplementation(() => events.push("stop"));
+    stream.client = {
+      threads: {
+        getHistory: vi.fn(() => {
+          events.push("lookup");
+          return lookup.promise;
+        }),
+      },
+    };
+    stream.submit.mockImplementation(async () => {
+      events.push("submit");
+    });
+    const { runtime, view } = await renderFork(stream);
+
+    await act(async () => {
+      runtime.result.current.thread.append({
+        role: "user",
+        parentId: null,
+        sourceId: "u1",
+        content: [{ type: "text", text: "edited" }],
+      });
+      await Promise.resolve();
+    });
+    expect(events).toEqual(["stop", "lookup"]);
+    expect(stream.submit).not.toHaveBeenCalled();
+
+    await act(async () => {
+      lookup.resolve([
+        { values: { messages: [] }, checkpoint: { checkpoint_id: "cp-1" } },
+      ]);
+      await Promise.resolve();
+    });
+    expect(events).toEqual(["stop", "lookup", "submit"]);
+    expect(stream.submit).toHaveBeenCalledExactlyOnceWith(
+      { messages: [{ type: "human", content: "edited" }] },
+      { forkFrom: "cp-1" },
+    );
+    view.unmount();
+    runtime.unmount();
+  });
+
+  it("drops the first edit when a second edit supersedes its checkpoint lookup", async () => {
+    const firstLookup = deferred<ForkHistory>();
+    const secondLookup = deferred<ForkHistory>();
+    const stream = createMockStream([
+      message("u1", "human", "original"),
+      message("a1", "ai", "partial reply"),
+    ]);
+    stream.isLoading = true;
+    const getHistory = vi
+      .fn()
+      .mockImplementationOnce(() => firstLookup.promise)
+      .mockImplementationOnce(() => secondLookup.promise);
+    stream.client = { threads: { getHistory } };
+    const { runtime, view } = await renderFork(stream);
+
+    await act(async () => {
+      runtime.result.current.thread.append({
+        role: "user",
+        parentId: null,
+        sourceId: "u1",
+        content: [{ type: "text", text: "first edit" }],
+      });
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(getHistory).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      runtime.result.current.thread.append({
+        role: "user",
+        parentId: null,
+        sourceId: "u1",
+        content: [{ type: "text", text: "second edit" }],
+      });
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(getHistory).toHaveBeenCalledTimes(2));
+
+    await act(async () => {
+      firstLookup.resolve([
+        { values: { messages: [] }, checkpoint: { checkpoint_id: "cp-1" } },
+      ]);
+      await Promise.resolve();
+    });
+    expect(stream.submit).not.toHaveBeenCalled();
+
+    await act(async () => {
+      secondLookup.resolve([
+        { values: { messages: [] }, checkpoint: { checkpoint_id: "cp-2" } },
+      ]);
+      await Promise.resolve();
+    });
+    expect(stream.submit).toHaveBeenCalledExactlyOnceWith(
+      { messages: [{ type: "human", content: "second edit" }] },
+      { forkFrom: "cp-2" },
+    );
+    view.unmount();
+    runtime.unmount();
+  });
+
+  it("stops the streaming reply before reload looks up its checkpoint", async () => {
+    const events: string[] = [];
+    const lookup = deferred<ForkHistory>();
+    const stream = createMockStream([
+      message("u1", "human", "question"),
+      message("a1", "ai", "partial reply"),
+    ]);
+    stream.isLoading = true;
+    stream.stop.mockImplementation(() => events.push("stop"));
+    stream.client = {
+      threads: {
+        getHistory: vi.fn(() => {
+          events.push("lookup");
+          return lookup.promise;
+        }),
+      },
+    };
+    stream.submit.mockImplementation(async () => {
+      events.push("submit");
+    });
+    const { runtime, view } = await renderFork(stream);
+
+    await act(async () => {
+      runtime.result.current.thread.getMessageById("a1").reload();
+      await Promise.resolve();
+    });
+    expect(events).toEqual(["stop", "lookup"]);
+    expect(stream.submit).not.toHaveBeenCalled();
+
+    await act(async () => {
+      lookup.resolve([
+        {
+          values: { messages: [message("u1", "human", "question")] },
+          checkpoint: { checkpoint_id: "cp-1" },
+        },
+      ]);
+      await Promise.resolve();
+    });
+    expect(events).toEqual(["stop", "lookup", "submit"]);
+    expect(stream.submit).toHaveBeenCalledExactlyOnceWith(null, {
+      forkFrom: "cp-1",
+    });
+    view.unmount();
+    runtime.unmount();
+  });
+
+  it("drops an edit lookup after Stop", async () => {
+    const lookup = deferred<ForkHistory>();
+    const stream = createMockStream([
+      message("u1", "human", "original"),
+      message("a1", "ai", "partial reply"),
+    ]);
+    stream.stop.mockImplementation(() => {
+      stream.isLoading = false;
+    });
+    const getHistory = vi.fn(() => lookup.promise);
+    stream.client = { threads: { getHistory } };
+    const { runtime, view } = await renderFork(stream);
+
+    await act(async () => {
+      runtime.result.current.thread.append({
+        role: "user",
+        parentId: null,
+        sourceId: "u1",
+        content: [{ type: "text", text: "edited" }],
+      });
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(getHistory).toHaveBeenCalledOnce());
+    runtime.rerender();
+    expect(runtime.result.current.thread.getState().isRunning).toBe(true);
+    await act(async () => {
+      await runtime.result.current.thread.cancelRun();
+    });
+
+    await act(async () => {
+      lookup.resolve([
+        { values: { messages: [] }, checkpoint: { checkpoint_id: "cp-1" } },
+      ]);
+      await Promise.resolve();
+    });
+    expect(stream.submit).not.toHaveBeenCalled();
+    expect(runtime.result.current.thread.getState().isRunning).toBe(false);
+    expect(
+      runtime.result.current.thread
+        .getState()
+        .messages.find((m) => m.id === "a1")?.metadata,
+    ).not.toHaveProperty("timing");
+    view.unmount();
+    runtime.unmount();
   });
 });
 

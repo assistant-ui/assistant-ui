@@ -382,6 +382,8 @@ describe("InMemoryResumableStreamStore", () => {
       await store.append("a", bytes("hi"));
       now += 200;
       vi.advanceTimersByTime(50);
+      // Resetting the clock prevents status() from performing the eviction.
+      now = 1_000;
       expect(await store.status("a")).toBe("missing");
       store.dispose();
     } finally {

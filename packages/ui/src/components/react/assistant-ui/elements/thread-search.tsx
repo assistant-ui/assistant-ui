@@ -83,7 +83,8 @@ export function ThreadSearch({
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.nativeEvent.isComposing) return;
+    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229)
+      return;
     if (event.key === "ArrowDown") {
       if (move(1)) event.preventDefault();
     } else if (event.key === "ArrowUp") {

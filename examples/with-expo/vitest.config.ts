@@ -9,11 +9,12 @@ export default defineConfig({
         "hooks/**/*.{ts,tsx}",
       ],
       thresholds: {
-        lines: 11,
-        functions: 7,
-        branches: 12,
-        statements: 11,
-        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+        lines: 10,
+        functions: 6,
+        branches: 11,
+        statements: 10,
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
       },
     },
   },

@@ -712,21 +712,42 @@ describe("McpServerResource connectionTimeout", () => {
 describe("McpServerResource connection lifecycle", () => {
   beforeEach(resetMocks);
 
-  it("publishes authorization URLs from the current connection", async () => {
+  it.each([
+    "https://auth.example.com/current",
+    "http://localhost:3000/current",
+  ])(
+    "publishes authorization URLs from the current connection at %s",
+    async (url) => {
+      const root = mount({ auth: { type: "oauth" } });
+
+      try {
+        await root.getValue().connect();
+        await getOAuthProvider(0).redirectToAuthorization(new URL(url));
+        await waitForResourceUpdate(
+          () => root.getValue().getState().authorizationUrl !== null,
+        );
+
+        expect(root.getValue().getState().authorizationUrl).toBe(url);
+      } finally {
+        root.unmount();
+      }
+    },
+  );
+
+  it("rejects remote HTTP OAuth authorization URLs from the current connection", async () => {
     const root = mount({ auth: { type: "oauth" } });
 
     try {
       await root.getValue().connect();
-      await getOAuthProvider(0).redirectToAuthorization(
-        new URL("https://auth.example.com/current"),
-      );
-      await waitForResourceUpdate(
-        () => root.getValue().getState().authorizationUrl !== null,
-      );
 
-      expect(root.getValue().getState().authorizationUrl).toBe(
-        "https://auth.example.com/current",
+      await expect(
+        getOAuthProvider(0).redirectToAuthorization(
+          new URL("http://auth.example.com/authorize"),
+        ),
+      ).rejects.toThrow(
+        "MCP OAuth authorization URL must use HTTPS or loopback HTTP.",
       );
+      expect(root.getValue().getState().authorizationUrl).toBeNull();
     } finally {
       root.unmount();
     }

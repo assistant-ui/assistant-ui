@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "tsx ./scripts/build-registry.ts",
-    "test": "node --test scripts/build-registry.test.mjs",
+    "test": "node --test scripts/build-registry.test.mjs && vitest run",
     "test:coverage": "pnpm run test",
     "typecheck": "tsc --noEmit"
   },
@@ -28,6 +28,7 @@
     "@types/react-syntax-highlighter": "^15.5.13",
     "@vue/compiler-sfc": "^3.5.43",
     "ai": "^7.0.130",
+    "assistant-stream": "workspace:*",
     "assistant-ui": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "lucide-react": "^1.52.0",
@@ -43,6 +44,7 @@
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-7": "npm:typescript@^7.0.2",
     "vercel": "^62.0.0",
+    "vitest": "^5.0.3",
     "zod": "^4.6.5",
     "zustand": "^5.0.15"
   }

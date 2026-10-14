@@ -37,7 +37,7 @@ export const sendOSCNotification = (
 
   switch (variant) {
     case "osc99":
-      writeToStdout(`\x1b]99;i=1:d=0;${message}\x1b\\`);
+      writeToStdout(`\x1b]99;;${message}\x1b\\`);
       return;
     case "osc777":
       writeToStdout(

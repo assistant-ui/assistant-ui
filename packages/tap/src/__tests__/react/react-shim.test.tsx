@@ -25,7 +25,6 @@ import { use as tapUse } from "../../react-hooks/use";
 import { c as _c } from "../../react-shim/compiler-runtime";
 
 const SENTINEL = Symbol.for("react.memo_cache_sentinel");
-const onReact18 = React.version.startsWith("18.");
 
 describe("@assistant-ui/tap/react-shim", () => {
   afterEach(() => {
@@ -73,19 +72,21 @@ describe("@assistant-ui/tap/react-shim", () => {
       expect(renderTest(providerFirstDefaultFiber)).toBe("default");
     });
 
-    // Fails on React 18: the shim forwards non-context use() to React.use, which React 18 lacks, and has no fallback. Shipped React 18 incompatibility.
-    it.skipIf(onReact18)("forwards non-context use values to React.use", () => {
-      const promise = Promise.resolve("react");
-      const useSpy = vi
-        .spyOn(React, "use")
-        .mockImplementation(() => "react-use");
-      const testFiber = createTestResource(() => use(promise));
+    it.skipIf(typeof React.use !== "function")(
+      "forwards non-context use values to React.use",
+      () => {
+        const promise = Promise.resolve("react");
+        const useSpy = vi
+          .spyOn(React, "use")
+          .mockImplementation(() => "react-use");
+        const testFiber = createTestResource(() => use(promise));
 
-      expect(renderTest(testFiber)).toBe("react-use");
-      expect(useSpy).toHaveBeenCalledWith(promise);
+        expect(renderTest(testFiber)).toBe("react-use");
+        expect(useSpy).toHaveBeenCalledWith(promise);
 
-      useSpy.mockRestore();
-    });
+        useSpy.mockRestore();
+      },
+    );
 
     it("suspends on promises in tap's direct use hook", () => {
       const promise = Promise.resolve();
@@ -199,6 +200,22 @@ describe("@assistant-ui/tap/react-shim", () => {
   });
 
   describe("inside a React component", () => {
+    it("uses React context through use()", () => {
+      const TestContext = createContext("default");
+
+      function Child() {
+        return <div data-testid="out">{use(TestContext)}</div>;
+      }
+
+      render(
+        <TestContext.Provider value="react">
+          <Child />
+        </TestContext.Provider>,
+      );
+
+      expect(screen.getByTestId("out").textContent).toBe("react");
+    });
+
     it("uses shim-created contexts as regular React contexts", () => {
       const TestContext = createContext("default");
 

@@ -440,6 +440,7 @@ describe("RemoteThreadListThreadListRuntimeCore.reload", () => {
     });
     await core.switchToThread("t2");
     await core.switchToThread("t1");
+    const item = new ThreadListRuntimeImpl(core).getItemById("t2");
 
     await core.reload();
 
@@ -447,6 +448,10 @@ describe("RemoteThreadListThreadListRuntimeCore.reload", () => {
     expect(core.getThreadRuntimeCore("t2")).toBe(runtime);
     expect(core.unstable_isThreadRunning("t2")).toBe(true);
     expect(core.getItemById("t2")?.id).toBe("t2");
+    await expect(item.initialize()).resolves.toEqual({
+      remoteId: "t2",
+      externalId: undefined,
+    });
     await expect(core.archive("t2")).rejects.toThrow(
       'Thread "t2" not found while archiving it.',
     );

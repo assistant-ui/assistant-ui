@@ -12,6 +12,15 @@ export interface SafeContentFrameOptions {
   enableBrowserCaching?: boolean;
   sandbox?: SandboxOption[];
   salt?: string;
+  /**
+   * Serves the shim from `https://<hash>-h184756.<domain>/<product>/shim.html`
+   * instead of `scf.auiusercontent.com`. Frames are isolated from your app and
+   * from each other only when `<domain>` is a public suffix on the Public
+   * Suffix List; otherwise every frame shares a site, and with it cookies and
+   * a browser process, with the others and with any app under the same
+   * registrable domain.
+   */
+  unsafeShimDomain?: string;
 }
 
 export interface SafeContentFrameRenderOptions {
@@ -74,8 +83,13 @@ export function isShimLoadError(error: unknown): error is ShimLoadError {
   );
 }
 
-const SCF_HOST = "scf.auiusercontent.com";
+const DEFAULT_SHIM_DOMAIN = "scf.auiusercontent.com";
 const PRODUCT_HASH = "h184756";
+const SHIM_DOMAIN =
+  /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+/** DNS caps a hostname at 253 characters, and the shim label takes the rest. */
+const MAX_SHIM_DOMAIN_LENGTH =
+  253 - `${"0".repeat(50)}-${PRODUCT_HASH}.`.length;
 
 async function sha256(data: ArrayBuffer): Promise<ArrayBuffer> {
   return crypto.subtle.digest("SHA-256", data);
@@ -137,6 +151,15 @@ export class SafeContentFrame {
   private options: SafeContentFrameOptions;
 
   constructor(product: string, options: SafeContentFrameOptions = {}) {
+    if (
+      options.unsafeShimDomain !== undefined &&
+      (!SHIM_DOMAIN.test(options.unsafeShimDomain) ||
+        options.unsafeShimDomain.length > MAX_SHIM_DOMAIN_LENGTH)
+    ) {
+      throw new TypeError(
+        `unsafeShimDomain must be a bare hostname such as "usercontent.example", got ${JSON.stringify(options.unsafeShimDomain)}`,
+      );
+    }
     this.product = product;
     this.options = options;
   }
@@ -191,7 +214,7 @@ export class SafeContentFrame {
     signal?.throwIfAborted();
     const hash = await computeOriginHash(this.product, salt, origin);
     signal?.throwIfAborted();
-    const shimUrl = `https://${hash}-${PRODUCT_HASH}.${SCF_HOST}/${this.product}/shim.html?origin=${encodeURIComponent(origin)}${this.options.enableBrowserCaching ? "&cache=1" : ""}`;
+    const shimUrl = `https://${hash}-${PRODUCT_HASH}.${this.options.unsafeShimDomain ?? DEFAULT_SHIM_DOMAIN}/${this.product}/shim.html?origin=${encodeURIComponent(origin)}${this.options.enableBrowserCaching ? "&cache=1" : ""}`;
     const iframeOrigin = new URL(shimUrl).origin;
 
     const iframe = document.createElement("iframe");

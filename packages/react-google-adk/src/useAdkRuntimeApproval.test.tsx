@@ -1,6 +1,7 @@
 /** @vitest-environment jsdom */
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { useEffect } from "react";
 import type {
   AddToolResultOptions,
   AppendMessage,
@@ -13,6 +14,7 @@ import type {
   AdkSendMessageConfig,
   AdkThreadSnapshot,
 } from "./types";
+import { AdkThreadController } from "./AdkThreadController";
 
 const mocks = vi.hoisted(() => {
   const threadListItem = {
@@ -36,6 +38,8 @@ const mocks = vi.hoisted(() => {
   };
 });
 
+let mockController = new AdkThreadController();
+
 vi.mock("@assistant-ui/core/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/core/react")>()),
   useCloudThreadListAdapter: () => ({}),
@@ -58,20 +62,31 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
 }));
 
 vi.mock("./useAdkMessages", async (importOriginal) => {
-  const useMockAdkMessages = (options: {
-    onMessages?: (messages: AdkMessage[], runConfig: unknown) => void;
-  }) => {
-    options.onMessages?.(mocks.messages, mocks.messageRunConfig);
+  const useMockAdkMessages = () => {
+    const { messages, messageRunConfig } = mocks;
+    useEffect(() => {
+      mockController.dispatch({ type: "messages.set", messages });
+      mockController.dispatch({
+        type: "messages.remember",
+        messages,
+        runConfig: messageRunConfig,
+      });
+    }, [messages, messageRunConfig]);
     const sendMessage = async (
       messages: AdkMessage[],
       config: AdkSendMessageConfig,
     ) => {
       await mocks.sendMessage(messages, config);
       if (mocks.streamedMessages) {
-        options.onMessages?.(mocks.streamedMessages, config.runConfig);
+        mockController.dispatch({
+          type: "messages.remember",
+          messages: mocks.streamedMessages,
+          runConfig: config.runConfig,
+        });
       }
     };
     return {
+      controller: mockController,
       messages: mocks.messages,
       stateDelta: {},
       agentInfo: {},
@@ -84,6 +99,7 @@ vi.mock("./useAdkMessages", async (importOriginal) => {
       escalated: false,
       messageMetadata: new Map(),
       sendMessage,
+      sendMessageWithExecutor: sendMessage,
       cancel: vi.fn(),
       setMessages: vi.fn(),
       replaceMessages: vi.fn(),
@@ -164,6 +180,7 @@ const approvalPart = () =>
     );
 
 afterEach(() => {
+  mockController = new AdkThreadController();
   mocks.adapters.length = 0;
   mocks.sendMessage.mockClear();
   mocks.messages = [];

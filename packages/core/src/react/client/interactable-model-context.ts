@@ -149,6 +149,7 @@ export function buildInteractableModelContext(
 ):
   | {
       tools: Record<string, Tool<any, any>>;
+      /** @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release. */
       unstable_composerMetadata?: Record<string, unknown>;
     }
   | undefined {

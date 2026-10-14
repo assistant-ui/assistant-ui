@@ -1,0 +1,7 @@
+{
+  "extends": "@assistant-ui/x-buildutils/ts/base-node",
+  "compilerOptions": {
+    "lib": ["dom", "dom.iterable", "ES2024"]
+  },
+  "include": ["src"]
+}

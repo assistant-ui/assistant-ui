@@ -4,6 +4,7 @@ import json
 import pytest
 
 from assistant_stream.assistant_stream_chunk import TextDeltaChunk
+from assistant_stream.serialization import heartbeat as heartbeat_module
 from assistant_stream.serialization.assistant_stream_response import (
     AssistantStreamResponse,
 )
@@ -25,6 +26,11 @@ from assistant_stream.serialization.heartbeat import (
 )
 from assistant_stream.serialization.openai_stream import OpenAIStreamResponse
 from assistant_stream.serialization.stream_encoder import StreamEncoder
+
+
+@pytest.fixture
+def short_default_heartbeat(monkeypatch):
+    monkeypatch.setattr(heartbeat_module, "DEFAULT_HEARTBEAT_INTERVAL", 0.02)
 
 
 def test_resolve_heartbeat_interval():
@@ -64,7 +70,7 @@ async def test_heartbeat_emitted_when_idle():
 
 
 @pytest.mark.anyio
-async def test_heartbeat_false_disables():
+async def test_heartbeat_false_disables(short_default_heartbeat):
     async def stream():
         yield TextDeltaChunk(text_delta="hello")
         await asyncio.sleep(0.15)
@@ -80,7 +86,7 @@ async def test_heartbeat_false_disables():
 
 
 @pytest.mark.anyio
-async def test_subclass_forwards_heartbeat_kwarg():
+async def test_subclass_forwards_heartbeat_kwarg(short_default_heartbeat):
     async def stream():
         yield TextDeltaChunk(text_delta="hello")
         await asyncio.sleep(0.15)
@@ -112,7 +118,7 @@ async def test_data_stream_emits_blank_line_keepalives_when_idle():
 
 
 @pytest.mark.anyio
-async def test_data_stream_response_defaults_to_no_keepalives():
+async def test_data_stream_response_defaults_to_no_keepalives(short_default_heartbeat):
     async def stream():
         yield TextDeltaChunk(text_delta="hello")
         await asyncio.sleep(0.15)
@@ -220,16 +226,21 @@ async def test_add_sse_heartbeat_compat_wrapper():
 @pytest.mark.anyio
 async def test_real_chunk_resets_heartbeat_timer():
     async def stream():
-        for i in range(3):
+        for i in range(6):
             await asyncio.sleep(0.05)
             yield TextDeltaChunk(text_delta=str(i))
 
     response = AssistantStreamResponse(
-        stream(), AssistantTransportEncoder(), heartbeat=0.5
+        stream(), AssistantTransportEncoder(), heartbeat=0.2
     )
     lines = [line async for line in response.body_iterator]
 
     assert SSE_HEARTBEAT_LINE not in lines
+    payloads = [json.loads(line[6:-2]) for line in lines[:-1]]
+    assert [p["textDelta"] for p in payloads if p["type"] == "text-delta"] == [
+        str(i) for i in range(6)
+    ]
+    assert lines[-1] == "data: [DONE]\n\n"
 
 
 @pytest.mark.anyio

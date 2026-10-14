@@ -20,13 +20,11 @@ export class LocalRuntimeCore extends BaseAssistantRuntimeCore {
     this._options = options;
 
     this.threads = new LocalThreadListRuntimeCore(() => {
-      return new LocalThreadRuntimeCore(this._contextProvider, this._options);
+      return new LocalThreadRuntimeCore(
+        this._contextProvider,
+        this._options,
+        initialMessages && ExportedMessageRepository.fromArray(initialMessages),
+      );
     });
-
-    if (initialMessages) {
-      this.threads
-        .getMainThreadRuntimeCore()
-        .import(ExportedMessageRepository.fromArray(initialMessages));
-    }
   }
 }

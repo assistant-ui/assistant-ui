@@ -175,7 +175,7 @@ npx shadcn@latest add "@assistant-ui/elements-tool-group"
 
 <RuntimeMode>
 
-Wire it by mapping a message's `tool-call` parts into `GroupedTool` records. `s.message.parts` is the store's own array, so selecting it directly is cheap; deriving `tools` still needs `useMemo`, since mapping to a fresh array inside the selector would re-render the group on every store update.
+Wire it by mapping a message's `tool-call` parts into `GroupedTool` records. `s.message.parts` is the store's own array, so selecting it directly is cheap; deriving `tools` still needs `useMemo`, since mapping to a fresh array inside the selector would re-render the group on every update of the message.
 
 ```tsx title="components/assistant-ui/elements/tool-group-live.tsx"
 "use client";

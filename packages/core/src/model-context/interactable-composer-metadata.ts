@@ -1,10 +1,7 @@
 import { isJSONValueEqual } from "../utils/json/is-json-equal";
 import { isJSONValue, isRecord } from "../utils/json/is-json";
 
-/**
- * Unstable / Experimental — the interactables API is still evolving and may change in any release.
- * @deprecated Unstable / Experimental (not actually removed).
- */
+/** @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release. */
 export type Unstable_InteractableSnapshotEntry = {
   id: string;
   name: string;
@@ -35,7 +32,7 @@ type SnapshotCarrierMessage = {
  * state to the model (see `unstable_injectInteractableContext` in
  * `@assistant-ui/ai-sdk` for the AI SDK implementation).
  *
- * @deprecated Unstable / Experimental (not actually removed).
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
  */
 export function unstable_getInteractableSnapshots(message: {
   metadata?: unknown;
@@ -53,7 +50,7 @@ export function unstable_getInteractableSnapshots(message: {
 /**
  * Canonical model-facing wording for one snapshot entry.
  *
- * @deprecated Unstable / Experimental (not actually removed).
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
  */
 export function unstable_formatInteractableSnapshot(
   entry: Unstable_InteractableSnapshotEntry,
@@ -276,10 +273,7 @@ const createAddedItemIdFactory = (result: unknown) => {
   return (field: string) => idsByField.get(field)?.shift();
 };
 
-/**
- * Unstable / Experimental — the interactables API is still evolving and may change in any release.
- * @deprecated Unstable / Experimental (not actually removed).
- */
+/** @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release. */
 export type Unstable_InteractableVersion = {
   /** The full state as of this version. */
   state: unknown;
@@ -309,7 +303,7 @@ const versionsCache = new WeakMap<
  * The last entry is the state the model knows. Partial snapshots and update
  * calls with no baseline to merge into are skipped.
  *
- * @deprecated Unstable / Experimental (not actually removed).
+ * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
  */
 export function unstable_getInteractableVersions(
   messages: readonly SnapshotCarrierMessage[],

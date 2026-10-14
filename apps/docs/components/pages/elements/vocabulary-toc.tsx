@@ -55,7 +55,7 @@ export function VocabularyToc({
       <div className="bg-background sticky top-12 -mt-20 max-h-[calc(100dvh-3rem)] w-52 overflow-y-auto overscroll-contain pt-20 pb-8">
         <p className="text-muted-foreground flex items-baseline justify-between px-2 text-[13px]">
           Vocabulary
-          <span className="font-mono text-[11px] tabular-nums">{total}</span>
+          <span className="text-xs tabular-nums">{total}</span>
         </p>
         <nav
           aria-label="Component categories"

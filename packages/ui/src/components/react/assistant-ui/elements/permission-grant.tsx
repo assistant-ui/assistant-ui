@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 import { KeyRoundIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, inkButton, mono, paper } from "./surfaces";
+import { useReceiptFocus } from "./receipt-focus";
 
 export type GrantScope = "session" | "always" | "denied";
 
@@ -25,6 +26,7 @@ export function PermissionGrant({
   scope: GrantScope | "pending";
   onGrant?: (scope: GrantScope) => void;
 }) {
+  const { receiptRef, focusHandlers } = useReceiptFocus(props);
   return (
     <div
       data-slot="permission-grant"
@@ -35,6 +37,7 @@ export function PermissionGrant({
       )}
 
       {...props}
+      {...focusHandlers}
     >
       <div className="flex items-center gap-2.5">
         <span className="bg-foreground/[0.05] text-muted-foreground flex size-7 shrink-0 items-center justify-center rounded-lg">
@@ -110,6 +113,8 @@ export function PermissionGrant({
         ) : (
           <span
             key={scope}
+            ref={receiptRef}
+            tabIndex={-1}
             className={cn(
               field,
               mono,

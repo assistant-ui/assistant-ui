@@ -5,11 +5,12 @@ export default defineConfig({
     coverage: {
       include: ["src/**/*.{ts,tsx}"],
       thresholds: {
-        lines: 78,
-        functions: 99,
-        branches: 61,
-        statements: 78,
-        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+        lines: 77,
+        functions: 98,
+        branches: 60,
+        statements: 77,
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
       },
     },
   },

@@ -69,11 +69,18 @@ describe("parseAdkRequest", () => {
       },
       { executableCode: { code: "print('hello')", language: "python" } },
       { codeExecutionResult: { output: "hello", outcome: "ok" } },
-      { inlineData: { mimeType: "image/png", data: "abc" } },
+      {
+        inlineData: {
+          mimeType: "image/png",
+          data: "abc",
+          displayName: "image.png",
+        },
+      },
       {
         fileData: {
           fileUri: "https://example.com/file",
           mimeType: "text/plain",
+          displayName: "file.txt",
         },
       },
     ];
@@ -81,6 +88,8 @@ describe("parseAdkRequest", () => {
     await expect(
       parseAdkRequest(makeRequest({ parts })),
     ).resolves.toMatchObject({ parts });
+    const parsed = await parseAdkRequest(makeRequest({ parts }));
+    expect(toAdkContent(parsed).parts).toEqual(parts);
   });
 
   it("parses a tool-result request", async () => {
@@ -149,6 +158,14 @@ describe("parseAdkRequest", () => {
     [
       { parts: [{ inlineData: { mimeType: "image/png", data: 42 } }] },
       'field "parts[0].inlineData.data"',
+    ],
+    [
+      { parts: [{ inlineData: { displayName: 42 } }] },
+      'field "parts[0].inlineData.displayName"',
+    ],
+    [
+      { parts: [{ fileData: { displayName: 42 } }] },
+      'field "parts[0].fileData.displayName"',
     ],
     [
       { parts: [{ functionCall: { name: "search", args: [] } }] },

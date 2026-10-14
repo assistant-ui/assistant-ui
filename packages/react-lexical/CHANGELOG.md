@@ -1,5 +1,13 @@
 # @assistant-ui/react-lexical
 
+## 0.2.17
+
+### Patch Changes
+
+- [#8336](https://github.com/assistant-ui/assistant-ui/pull/8336) [`1616a61`](https://github.com/assistant-ui/assistant-ui/commit/1616a61ec371bfff9a07fcfee0337edc9d710e85) - Prevent Safari's IME confirmation Enter from sending messages in Lexical and Vue composers. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#8898](https://github.com/assistant-ui/assistant-ui/pull/8898) [`9354adc`](https://github.com/assistant-ui/assistant-ui/commit/9354adc9555c51aa199074c8793f8e7c6a44a246) - reuse the parsed composer text across the Lexical SyncPlugin's checks instead of reparsing it for each one ([@okisdev](https://github.com/okisdev))
+
 ## 0.2.16
 
 ### Patch Changes

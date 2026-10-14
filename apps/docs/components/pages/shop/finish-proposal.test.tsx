@@ -140,7 +140,7 @@ describe("FinishProposal", () => {
     expect(screen.queryByText("Assistant Cloud")).toBeNull();
     fireEvent.click(
       screen.getByRole("button", {
-        name: "See what was added in this session.",
+        name: "See the selected products.",
       }),
     );
     expect(screen.getByText("assistant-ui")).toBeDefined();
@@ -157,7 +157,7 @@ describe("FinishProposal", () => {
       ],
     });
     expect(
-      screen.queryByRole("button", { name: /See what was added/ }),
+      screen.queryByRole("button", { name: /See the selected products/ }),
     ).toBeNull();
   });
 });

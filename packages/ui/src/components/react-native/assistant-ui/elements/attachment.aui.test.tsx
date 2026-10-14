@@ -7,6 +7,7 @@ import { iconButtonHitSlop } from "./icon-button";
 const h = vi.hoisted(() => {
   const state: any = {
     composer: { attachments: [], isEditing: true },
+    thread: { isDisabled: false },
     attachment: undefined,
   };
   state.optional = { thread: state.thread };
@@ -178,6 +179,7 @@ describe("attachments", () => {
   beforeEach(() => {
     h.state.composer.attachments = [];
     h.state.composer.isEditing = true;
+    h.state.thread.isDisabled = false;
     h.addAttachment.mockReset();
     h.removeAttachment.mockReset();
     h.launchImageLibraryAsync.mockReset();
@@ -386,6 +388,21 @@ describe("attachments", () => {
 
   it("keeps the picker closed while the composer cannot accept attachments", async () => {
     h.state.composer.isEditing = false;
+
+    await render();
+
+    const button = labeled("Add image");
+    expect(button.getAttribute("aria-disabled")).toBe("true");
+    await act(async () => {
+      click(button);
+      await flush();
+    });
+
+    expect(h.launchImageLibraryAsync).not.toHaveBeenCalled();
+  });
+
+  it("keeps the picker closed while the thread is disabled", async () => {
+    h.state.thread.isDisabled = true;
 
     await render();
 
