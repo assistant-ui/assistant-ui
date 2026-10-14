@@ -159,8 +159,13 @@ describe("defineCatalog", () => {
 });
 
 describe("built-in actions", () => {
-  it("reserves sendMessage, updateModelContext, and copyText", () => {
-    for (const name of ["sendMessage", "updateModelContext", "copyText"]) {
+  it("reserves every built-in action name", () => {
+    for (const name of [
+      "setState",
+      "sendMessage",
+      "updateModelContext",
+      "copyText",
+    ]) {
       expect(() =>
         defineCatalog({
           components: {},
