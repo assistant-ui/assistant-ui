@@ -30,6 +30,7 @@ const verdict = JSON.stringify({
   clarity: 4,
   usefulness: 3,
   completeness: 5,
+  presentation: 2,
   reason: "Clear, but the tip does not update the shares.",
 });
 
@@ -37,7 +38,7 @@ test("the judge's structured reply becomes scores and a reason", async () => {
   assert.deepEqual(
     await judgeAnswer(generatingModel(verdict), task, "spec", answer, rendered),
     {
-      scores: { clarity: 4, usefulness: 3, completeness: 5 },
+      scores: { clarity: 4, usefulness: 3, completeness: 5, presentation: 2 },
       reason: "Clear, but the tip does not update the shares.",
     },
   );
@@ -51,6 +52,7 @@ test("a verdict outside the 1 to 5 scale fails the trial", async () => {
           clarity: 5,
           usefulness: 9,
           completeness: 3,
+          presentation: 4,
           reason: "Great.",
         }),
       ),

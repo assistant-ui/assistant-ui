@@ -47,6 +47,14 @@ const catalog = defineCatalog({
       },
     },
     Boom: { description: "Throws" },
+    Photo: {
+      description: "Image",
+      props: { type: "object", properties: { src: {} } },
+    },
+    Picture: {
+      description: "Image",
+      props: { type: "object", properties: { src: { type: "string" } } },
+    },
   },
   actions: { refresh: { description: "Reload" } },
 });
@@ -103,6 +111,23 @@ const components: SpecComponents = {
       return () => {
         throw new Error("kaboom");
       };
+    },
+  }),
+  Photo: defineComponent({
+    props: ["src"],
+    setup(props) {
+      return () => {
+        if (typeof props["src"] !== "string") {
+          throw new Error("src is not text");
+        }
+        return h("img", { alt: "", src: props["src"] });
+      };
+    },
+  }),
+  Picture: defineComponent({
+    props: ["src"],
+    setup(props) {
+      return () => h("img", { alt: "", src: props["src"] });
     },
   }),
 };
@@ -250,6 +275,80 @@ describe("SpecRenderer", () => {
       { from: 1 },
       expect.objectContaining({ elementId: "a" }),
     );
+  });
+
+  it("renders an element again once it changes after its component threw", async () => {
+    const tools = Object.assign(Object.create(null), {
+      photos: ["https://example.com/bridge.jpg"],
+    });
+    const photo = (path: string) =>
+      spec(
+        { main: { type: "Photo", props: { src: { $state: path } } } },
+        { tools },
+      );
+    const view = mount({
+      catalog,
+      components,
+      spec: photo("/tools"),
+      streaming: true,
+    });
+    await nextTick();
+    expect(view.container.textContent).toContain("Photo failed");
+
+    await view.update({ catalog, components, spec: photo("/tools/photos/0") });
+    expect(view.container.querySelector("img")?.getAttribute("src")).toBe(
+      "https://example.com/bridge.jpg",
+    );
+  });
+
+  it("waits for a primitive prop to resolve while streaming", async () => {
+    const tools = Object.assign(Object.create(null), {
+      photos: ["https://example.com/bridge.jpg"],
+    });
+    const picture = (path: string) =>
+      spec(
+        { main: { type: "Picture", props: { src: { $state: path } } } },
+        { tools },
+      );
+    const view = mount({
+      catalog,
+      components,
+      spec: picture("/tools"),
+      streaming: true,
+    });
+    expect(
+      view.container.querySelector('[data-gf-spec-placeholder="pending"]'),
+    ).not.toBeNull();
+    expect(
+      view.container.querySelector('[data-gf-spec-placeholder="error"]'),
+    ).toBeNull();
+
+    await view.update({
+      catalog,
+      components,
+      spec: picture("/tools/photos/0"),
+    });
+    expect(view.container.querySelector("img")?.getAttribute("src")).toBe(
+      "https://example.com/bridge.jpg",
+    );
+  });
+
+  it("shows invalid props when a primitive prop resolves to an object", () => {
+    const tools = Object.assign(Object.create(null), {
+      photos: ["https://example.com/bridge.jpg"],
+    });
+    const view = mount({
+      catalog,
+      components,
+      spec: spec(
+        { main: { type: "Picture", props: { src: { $state: "/tools" } } } },
+        { tools },
+      ),
+    });
+    expect(
+      view.container.querySelector('[data-gf-spec-placeholder="invalid-props"]')
+        ?.textContent,
+    ).toBe("Picture: src expected string, got object");
   });
 
   it("renders placeholders and captures each element error", async () => {
@@ -637,7 +736,7 @@ describe("SpecRenderer", () => {
     );
   });
 
-  it("keeps a caught error until the element remounts", async () => {
+  it("keeps a caught error until the element changes", async () => {
     const onError = vi.fn();
     const hosts = {
       MaybeBoom: defineComponent({
@@ -661,16 +760,10 @@ describe("SpecRenderer", () => {
     expect(
       view.container.querySelector('[data-gf-spec-placeholder="error"]'),
     ).not.toBeNull();
-    await view.update({ components: hosts, onError, spec: recovered });
+    await view.update({ components: hosts, onError, spec: { ...failing } });
     expect(
       view.container.querySelector('[data-gf-spec-placeholder="error"]'),
     ).not.toBeNull();
-    expect(view.container.textContent).not.toContain("recovered");
-    await view.update({
-      components: hosts,
-      onError,
-      spec: { ...recovered, root: "" },
-    });
     await view.update({ components: hosts, onError, spec: recovered });
     expect(view.container.textContent).toBe("recovered");
   });

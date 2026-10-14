@@ -2417,6 +2417,9 @@ importers:
       '@assistant-ui/ai-sdk':
         specifier: workspace:*
         version: link:../../packages/ai-sdk
+      '@assistant-ui/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@assistant-ui/generative-ui':
         specifier: workspace:*
         version: link:../../packages/generative-ui
@@ -2435,6 +2438,9 @@ importers:
       cn:
         specifier: ^0.4.0
         version: 0.4.0
+      generative-frame:
+        specifier: workspace:*
+        version: link:../../packages/generative-frame
       lucide-react:
         specifier: ^1.52.0
         version: 1.52.0(@types/react@19.3.0)(react@19.3.0)
@@ -3879,8 +3885,8 @@ importers:
         specifier: ^1.52.0
         version: 1.52.0(@types/react@19.3.0)(react@19.3.0)
       nitro:
-        specifier: ^3.0.260311-beta
-        version: 3.0.260311-beta(dotenv@18.0.6)(giget@3.3.1)(jiti@2.7.0)(rollup@4.64.1)(vite@8.3.3(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(wrangler@4.148.0(@types/node@26.6.4))
+        specifier: ^3.0.260429-beta
+        version: 3.0.260429-beta(dotenv@18.0.6)(giget@3.3.1)(jiti@2.7.0)(rollup@4.64.1)(vite@8.3.3(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(wrangler@4.148.0(@types/node@26.6.4))
       openai:
         specifier: ^7.30.0
         version: 7.30.0(@aws-sdk/credential-provider-node@3.972.84)(@smithy/signature-v4@5.7.4)(undici@8.11.2)(ws@8.22.0)(zod@4.6.5)
@@ -4248,10 +4254,10 @@ importers:
         specifier: ^1.7.0
         version: 1.7.0(zod@4.6.5)
       '@assistant-ui/core':
-        specifier: ^0.3.27
+        specifier: ^0.3.28
         version: link:../core
       assistant-stream:
-        specifier: ^0.3.50
+        specifier: ^0.3.51
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/store':
@@ -4515,7 +4521,7 @@ importers:
   packages/core:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.50
+        specifier: ^0.3.51
         version: link:../assistant-stream
       nanoid:
         specifier: ^6.0.2
@@ -4699,12 +4705,18 @@ importers:
         specifier: workspace:^
         version: link:../safe-content-frame
     devDependencies:
+      '@assistant-ui/core':
+        specifier: workspace:*
+        version: link:../core
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../react
       '@assistant-ui/react-native':
         specifier: workspace:*
         version: link:../react-native
+      '@assistant-ui/vue':
+        specifier: workspace:*
+        version: link:../vue
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
@@ -4754,7 +4766,7 @@ importers:
         specifier: ^7.0.15
         version: 7.0.15
       assistant-stream:
-        specifier: ^0.3.50
+        specifier: ^0.3.51
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/react':
@@ -4979,16 +4991,16 @@ importers:
   packages/react-a2a:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.27
+        specifier: ^0.3.28
         version: link:../core
       '@assistant-ui/generative-ui':
-        specifier: ^0.0.3
+        specifier: ^0.0.4
         version: link:../generative-ui
       '@assistant-ui/store':
-        specifier: ^0.3.19
+        specifier: ^0.3.20
         version: link:../store
       assistant-stream:
-        specifier: ^0.3.50
+        specifier: ^0.3.51
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -5025,16 +5037,16 @@ importers:
         specifier: ^0.0.59
         version: 0.0.59
       '@assistant-ui/core':
-        specifier: ^0.3.27
+        specifier: ^0.3.28
         version: link:../core
       '@assistant-ui/generative-ui':
-        specifier: ^0.0.3
+        specifier: ^0.0.4
         version: link:../generative-ui
       '@assistant-ui/store':
-        specifier: ^0.3.19
+        specifier: ^0.3.20
         version: link:../store
       assistant-stream:
-        specifier: ^0.3.50
+        specifier: ^0.3.51
         version: link:../assistant-stream
       fast-json-patch:
         specifier: ^3.1.1
@@ -5117,13 +5129,13 @@ importers:
         specifier: ^4.0.24
         version: 4.0.24
       '@assistant-ui/core':
-        specifier: ^0.3.25
+        specifier: ^0.3.28
         version: link:../core
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.49
+        specifier: ^0.3.51
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -5209,7 +5221,7 @@ importers:
   packages/react-generative-ui:
     dependencies:
       '@assistant-ui/generative-ui':
-        specifier: ^0.0.3
+        specifier: ^0.0.4
         version: link:../generative-ui
     devDependencies:
       '@assistant-ui/react':
@@ -5243,10 +5255,10 @@ importers:
   packages/react-google-adk:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.27
+        specifier: ^0.3.28
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.18
+        specifier: ^0.3.20
         version: link:../store
       '@google/adk':
         specifier: '>=0.5.0'
@@ -5255,7 +5267,7 @@ importers:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.50
+        specifier: ^0.3.51
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -5326,10 +5338,10 @@ importers:
   packages/react-ink:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.25
+        specifier: ^0.3.28
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.18
+        specifier: ^0.3.20
         version: link:../store
       '@assistant-ui/tap':
         specifier: ^0.9.22
@@ -5338,7 +5350,7 @@ importers:
         specifier: workspace:^
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.49
+        specifier: ^0.3.51
         version: link:../assistant-stream
       diff:
         specifier: ^9.0.0
@@ -5384,10 +5396,10 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.27
+        specifier: ^0.3.28
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.19
+        specifier: ^0.3.20
         version: link:../store
       markdansi:
         specifier: ^0.3.4
@@ -5470,19 +5482,19 @@ importers:
   packages/react-langgraph:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.25
+        specifier: ^0.3.28
         version: link:../core
       '@assistant-ui/react-langchain':
         specifier: ^0.0.36
         version: link:../react-langchain
       '@assistant-ui/store':
-        specifier: ^0.3.18
+        specifier: ^0.3.20
         version: link:../store
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.49
+        specifier: ^0.3.51
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -5800,7 +5812,7 @@ importers:
         specifier: workspace:^
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.19
+        specifier: ^0.3.20
         version: link:../store
       '@standard-schema/spec':
         specifier: ^1.1.0
@@ -5809,7 +5821,7 @@ importers:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.50
+        specifier: ^0.3.51
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/react':
@@ -6037,10 +6049,10 @@ importers:
   packages/svelte:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.27
+        specifier: ^0.3.28
         version: link:../core
       '@assistant-ui/store':
-        specifier: ^0.3.19
+        specifier: ^0.3.20
         version: link:../store
       '@assistant-ui/tap':
         specifier: ^0.9.23
@@ -6373,7 +6385,7 @@ importers:
   packages/vscode:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.27
+        specifier: ^0.3.28
         version: link:../core
     devDependencies:
       '@assistant-ui/store':
@@ -19386,19 +19398,22 @@ packages:
   nf3@0.3.24:
     resolution: {integrity: sha512-HxLK4bo+5jNsEETZp4w3tJblHOA9MCBY14IN9nZJJV8JDxt9yNIYxuBuLMjTAR5GFa3HL61+8VQDUrXv3/C8fw==}
 
-  nitro@3.0.260311-beta:
-    resolution: {integrity: sha512-0o0fJ9LUh4WKUqJNX012jyieUOtMCnadkNDWr0mHzdraoHpJP/1CGNefjRyZyMXSpoJfwoWdNEZu2iGf35TUvQ==}
+  nitro@3.0.260429-beta:
+    resolution: {integrity: sha512-KweLVCUN5X9v9g+4yxAyRcz3FcOlnjmt9FyrAIWDxJETJmNT7I0JV0clgsONjo2nI0U5gwedXYA3RaNtF5XWzg==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
+      '@vercel/queue': ^0.1.6
       dotenv: '*'
       giget: '*'
       jiti: ^2.6.1
-      rollup: ^4.59.0
-      vite: ^7 || ^8 || >=8.0.0-0
+      rollup: ^4.60.2
+      vite: ^7 || ^8
       xml2js: ^0.6.2
-      zephyr-agent: ^0.1.15
+      zephyr-agent: ^0.2.0
     peerDependenciesMeta:
+      '@vercel/queue':
+        optional: true
       dotenv:
         optional: true
       giget:
@@ -37901,7 +37916,7 @@ snapshots:
 
   nf3@0.3.24: {}
 
-  nitro@3.0.260311-beta(dotenv@18.0.6)(giget@3.3.1)(jiti@2.7.0)(rollup@4.64.1)(vite@8.3.3(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(wrangler@4.148.0(@types/node@26.6.4)):
+  nitro@3.0.260429-beta(dotenv@18.0.6)(giget@3.3.1)(jiti@2.7.0)(rollup@4.64.1)(vite@8.3.3(@types/node@26.6.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))(wrangler@4.148.0(@types/node@26.6.4)):
     dependencies:
       consola: 3.4.2
       crossws: 0.4.15(srvx@0.11.22)
@@ -37927,7 +37942,6 @@ snapshots:
       - '@electric-sql/pglite'
       - '@libsql/client'
       - '@netlify/runtime'
-      - '@vercel/queue'
       - better-sqlite3
       - drizzle-orm
       - miniflare

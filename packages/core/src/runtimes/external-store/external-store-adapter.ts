@@ -143,6 +143,11 @@ type ExternalStoreAdapterBase<T> = {
    * branches isolated in its own instance. Omit it to keep the runtime's own
    * repository.
    *
+   * When `unstable_enableToolInvocations` is true, frontend tool executions
+   * belong to the instance as well: a runtime mounted with an instance whose
+   * tools are still executing takes them over, so it reports them as running,
+   * stops them on cancel, and resumes their human input requests.
+   *
    * @deprecated Experimental since 2026-08-28. Not scheduled for removal; the API may change in any release.
    */
   unstable_messageRepositoryInstance?: MessageRepository | undefined;
@@ -194,7 +199,11 @@ type ExternalStoreAdapterBase<T> = {
    * from its branches when `messages` stops carrying the id, and reads a
    * `messages` update that still carries it after every call for it has
    * settled as a declined delete. A host that accepts the delete therefore
-   * publishes the removal before the returned promise settles.
+   * publishes the removal before the returned promise settles. While a
+   * branch switch, `messages` can omit ids on another branch. A reload or
+   * edit can omit messages after an earlier reply. For deletes pending across
+   * those changes, the runtime waits for the promise: a rejection keeps the
+   * message and a resolution drops it.
    */
   onDelete?: ((messageId: string) => Promise<void> | void) | undefined;
   onReload?: // TODO: remove parentId in 0.12.0

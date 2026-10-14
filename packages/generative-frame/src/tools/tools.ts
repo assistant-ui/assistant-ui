@@ -101,7 +101,7 @@ export function createWidgetTools<
     read_me: {
       name: "read_me",
       description:
-        "Returns the rules for writing widgets plus guidance for the requested modules. Call it silently before your first widget, and again when you need a module you have not loaded. Do not mention this call to the user.",
+        "Returns the rules for writing widgets plus guidance for the requested modules. Call it silently before your first `show_widget` call, and again when you need a module whose guidance you do not have yet. Do not mention this call to the user.",
       inputSchema: {
         type: "object",
         properties: {
@@ -302,7 +302,7 @@ const readMeOffers = (tools: WidgetTools, module: string) =>
   ).includes(module);
 
 const WIDGET_TOOL_RULES = [
-  "- Call `read_me` once, silently, before your first widget, with the modules you need.",
+  "- Call `read_me` once, silently, before your first `show_widget` call, with the modules you need.",
   "- Change an existing widget with `edit_widget` (exact string replacements) instead of re-sending it.",
 ];
 
@@ -324,7 +324,7 @@ export async function buildWidgetInstructions(
           "Use the lightest format that fully answers the request:",
           "",
           "- Markdown, with no tool call, for explanations, advice, short answers, and anything read once. Most answers are text.",
-          "- `render_spec` for structured content the user scans or acts on, built from the app's components: comparisons, step-by-step guides, plans and itineraries, summaries of facts, and forms or choices. A spec can switch between states you write out, but it cannot calculate unless one of the app's actions does.",
+          "- `render_spec` for structured content the user scans or acts on, built from the app's components: comparisons, step-by-step guides, plans and itineraries, summaries of facts, and forms or choices. A spec can show values its `$calc` formulas compute from state, such as totals or quantities that follow a guest count; a tool whose point is the calculation, such as a calculator, is a widget.",
           "- `show_widget` for interactive tools that calculate as the user changes inputs, such as calculators, simulations, and games, and for visuals the components cannot draw.",
           "",
           "Do not render a paragraph or a short list. Around a rendered answer, keep prose to a sentence or two and do not repeat what it shows.",
@@ -334,6 +334,7 @@ export async function buildWidgetInstructions(
           "## Widgets",
           "",
           ...WIDGET_TOOL_RULES,
+          `- The ${WIDGET_MODULES.map((module) => `\`${module}\``).join(", ")} modules of \`read_me\` guide \`show_widget\` code, so a \`render_spec\` answer never needs them.`,
           ...(readMeOffers(tools, "spec") &&
           !options.preload?.modules?.includes("spec")
             ? [
@@ -347,6 +348,12 @@ export async function buildWidgetInstructions(
           "When a visual would explain better than text (charts, diagrams, comparisons, small interactive tools, forms), show it with `show_widget` instead of describing it. Keep surrounding prose short and do not repeat what the widget shows.",
           ...WIDGET_TOOL_RULES,
         ];
+  const preloaded = options.preload?.modules ?? [];
+  if (preloaded.length) {
+    lines.push(
+      `- The guidance for ${preloaded.map((module) => `\`${module}\``).join(", ")} follows, so never load it with \`read_me\`.`,
+    );
+  }
   if (options.preload) {
     lines.push("", await tools.read_me.execute(options.preload));
   }

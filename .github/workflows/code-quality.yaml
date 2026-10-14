@@ -113,10 +113,10 @@ jobs:
           install: false
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile --filter . --filter @assistant-ui/x-buildutils --ignore-scripts
+        run: pnpm install --frozen-lockfile --prod --filter @assistant-ui/x-buildutils --ignore-scripts
 
       - name: Test review policy scripts
-        run: pnpm run review-policy:test
+        run: node --run review-policy:test
 
       - name: Check review policy synchronization
         run: node scripts/sync-review-policy.mjs --check
@@ -252,8 +252,8 @@ jobs:
         if: steps.package_build_inputs.outputs.run == 'true'
         env:
           BASE: ${{ steps.package_build_inputs.outputs.base }}
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+          TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
+          TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
         run: pnpm api-surface -- --base="$BASE" --build-only
 
       - name: Check API surface
@@ -328,8 +328,8 @@ jobs:
         if: (github.event_name == 'pull_request' || github.event_name == 'merge_group') && steps.package_build_inputs.outputs.run == 'true'
         env:
           BASE: ${{ steps.package_build_inputs.outputs.base }}
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+          TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
+          TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
         run: |
           set -euo pipefail
           node packages/x-performance/bin/aui-perf.mjs size --ref "$BASE" --report "$RUNNER_TEMP/size.md"
@@ -355,7 +355,7 @@ jobs:
 
   build-apps:
     name: Build Changed Apps
-    # Waits for the package build so turbo replays it from the remote cache; still runs if it fails.
+    # Waits for the package build so trusted runs can replay it from the remote cache; still runs if it fails.
     needs: build
     if: ${{ !cancelled() }}
     runs-on: blacksmith-8vcpu-ubuntu-2404
@@ -420,8 +420,8 @@ jobs:
         if: steps.app_build_inputs.outputs.run == 'true'
         env:
           BASE: ${{ steps.app_build_inputs.outputs.base }}
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+          TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
+          TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
         run: |
           pnpm turbo build --filter="...[$BASE]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs" --filter="!./examples/*"
           pnpm turbo build --filter="{./examples/*}[$BASE]"
@@ -429,8 +429,8 @@ jobs:
       - name: Verify standalone example bundle contracts
         if: steps.app_build_inputs.outputs.run == 'true'
         env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+          TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
+          TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
         run: pnpm test:bundles
 
   api-reference-drift:
@@ -498,7 +498,7 @@ jobs:
 
   typecheck:
     name: Typecheck Changed Packages
-    # Waits for the package build so turbo replays it from the remote cache; still runs if it fails.
+    # Waits for the package build so trusted runs can replay it from the remote cache; still runs if it fails.
     needs: build
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
@@ -560,6 +560,6 @@ jobs:
       - name: Typecheck
         if: steps.tasks.outputs.run == 'true'
         env:
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
+          TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
+          TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
         run: bash scripts/typecheck.sh --continue --filter="...[$CI_BASE]"

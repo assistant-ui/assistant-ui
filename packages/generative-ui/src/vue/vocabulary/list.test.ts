@@ -172,6 +172,7 @@ describe("list vocabulary in Vue", () => {
       await act(async () => perform(react.container));
       perform(vue.container);
       await nextTick();
+      expect(vueHandler).toHaveBeenCalledOnce();
       expect(vueHandler.mock.calls.map(([params]) => params)).toEqual(
         reactHandler.mock.calls.map(([params]) => params),
       );

@@ -14,10 +14,11 @@ import { MODEL_KEYS } from "../constants";
 import { isDefaultGenerativeUIComponent } from "../defaultGenerativeUIComponents";
 import type { GenerativeUIDispatch, GenerativeUILibrary } from "../types";
 import {
-  BOUND_VALUE_PROPS,
   buildCatalogDefinition,
   type ToSpecCatalogOptions,
 } from "./catalogDefinitions";
+import { ElementLevel } from "./elementDepth";
+import { BOUND_VALUE_PROPS } from "./wiring";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -86,20 +87,22 @@ function toSpecComponent(
       wired[controlled] = props[prop];
     }
     const rendered = (
-      <VocabularyElement
-        render={render}
-        props={{
-          ...wired,
-          ...(hasChildren(element) ? { children } : {}),
-          ...(Object.keys(slots).length > 0 ? { $slots: slots } : {}),
-          ...($bindings ? { $bindings } : {}),
-          $status: "done",
-          $dispatch,
-          ...(events[0] !== undefined && live.includes(events[0])
-            ? { $action: { type: events[0] } }
-            : {}),
-        }}
-      />
+      <ElementLevel>
+        <VocabularyElement
+          render={render}
+          props={{
+            ...wired,
+            ...(hasChildren(element) ? { children } : {}),
+            ...(Object.keys(slots).length > 0 ? { $slots: slots } : {}),
+            ...($bindings ? { $bindings } : {}),
+            $status: "done",
+            $dispatch,
+            ...(events[0] !== undefined && live.includes(events[0])
+              ? { $action: { type: events[0] } }
+              : {}),
+          }}
+        />
+      </ElementLevel>
     );
     if (!bound || !A2uiBindingContext) return rendered;
     const [prop] = bound;

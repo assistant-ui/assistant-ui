@@ -1,4 +1,6 @@
+import { formulaIssue } from "./calc";
 import type { Catalog } from "./catalog";
+import { isExpressionKey } from "./expressions";
 import { escapePointerToken } from "./pointer";
 import type { ActionBinding, Spec, SpecElement } from "./types";
 
@@ -15,6 +17,8 @@ export type SpecIssueCode =
   | "unknown-event"
   | "unknown-action"
   | "invalid-params"
+  | "invalid-formula"
+  | "unfilled-placeholder"
   | "invalid-repeat"
   | "unreachable"
   | "invalid-patch";
@@ -39,6 +43,8 @@ export type ValidateSpecOptions = {
 };
 
 const elementPath = (id: string) => `/elements/${escapePointerToken(id)}`;
+
+const PLACEHOLDER = /\$\{\s*(?:\/|\$item\b|\$index\b)[^}]*\}/;
 
 const bindingsOf = (
   value: ActionBinding | ActionBinding[] | undefined,
@@ -118,11 +124,13 @@ export function validateSpec(
           code: "unknown-action",
           elementId: id,
           path: `${at}/action`,
-          message: `Unknown action "${binding.action}". Known: setState${Object.keys(
-            catalog.actions,
-          )
-            .map((a) => `, ${a}`)
-            .join("")}.`,
+          message: `Unknown action "${binding.action}". Known: ${[
+            "setState",
+            "sendMessage",
+            "updateModelContext",
+            "copyText",
+            ...Object.keys(catalog.actions),
+          ].join(", ")}.`,
         });
         return;
       }
@@ -138,6 +146,67 @@ export function validateSpec(
         });
       }
     });
+  };
+
+  const checkExpressions = (id: string, path: string, value: unknown) => {
+    const seen = new Set<object>();
+    const pending: [string, unknown][] = [[path, value]];
+    for (let next = pending.pop(); next; next = pending.pop()) {
+      const [at, current] = next;
+      if (typeof current !== "object" || current === null) continue;
+      if (seen.has(current)) continue;
+      seen.add(current);
+      const children: [string, unknown][] = [];
+      for (const [key, child] of Object.entries(current)) {
+        const childPath = `${at}/${escapePointerToken(key)}`;
+        if (key !== "$calc" || Array.isArray(current)) {
+          const plain =
+            typeof child === "string" &&
+            (key !== "$template" || Array.isArray(current))
+              ? child
+              : undefined;
+          // Ending the scan at the last `}` keeps it linear on a long string whose placeholders never close.
+          const placeholder =
+            plain === undefined
+              ? undefined
+              : PLACEHOLDER.exec(
+                  plain.slice(0, plain.lastIndexOf("}") + 1),
+                )?.[0];
+          if (placeholder) {
+            error({
+              code: "unfilled-placeholder",
+              elementId: id,
+              path: childPath,
+              message: `"${id}" shows \`${placeholder}\` as written, since only \`$template\` and \`$calc\` fill placeholders. Write the string as \`{ "$template": "…" }\`, or compute the value with \`$calc\`.`,
+            });
+          }
+          if (plain !== undefined && isExpressionKey(plain)) {
+            const name = plain.trim();
+            error({
+              code: "unfilled-placeholder",
+              elementId: id,
+              path: childPath,
+              message: `"${id}" shows \`"${name}"\` as written, since an expression is an object, not a string. Write it as \`{ "${name}": … }\`.`,
+            });
+          }
+          children.push([childPath, child]);
+          continue;
+        }
+        const issue =
+          typeof child === "string"
+            ? formulaIssue(child)
+            : "`$calc` needs a formula string";
+        if (issue) {
+          error({
+            code: "invalid-formula",
+            elementId: id,
+            path: childPath,
+            message: `Formula in "${id}": ${issue}.`,
+          });
+        }
+      }
+      for (let i = children.length - 1; i >= 0; i--) pending.push(children[i]!);
+    }
   };
 
   for (const [id, element] of Object.entries(elements)) {
@@ -174,6 +243,7 @@ export function validateSpec(
       }
       const slots = definition.slots ?? [];
       for (const list of childLists(id, element)) {
+        if (Array.isArray(list.ids) && list.ids.length === 0) continue;
         if (!slots.includes(list.slot)) {
           error({
             code:
@@ -241,6 +311,20 @@ export function validateSpec(
         `${path}/watch/${escapePointerToken(watched)}`,
         bindingsOf(bindings),
       );
+    }
+    checkExpressions(id, `${path}/props`, element.props);
+    checkExpressions(id, `${path}/visible`, element.visible);
+    for (const key of ["on", "watch"] as const) {
+      for (const [name, bindings] of Object.entries(element[key] ?? {})) {
+        const at = `${path}/${key}/${escapePointerToken(name)}`;
+        if (Array.isArray(bindings)) {
+          bindings.forEach((binding, index) =>
+            checkExpressions(id, `${at}/${index}/params`, binding?.params),
+          );
+        } else {
+          checkExpressions(id, `${at}/params`, bindings?.params);
+        }
+      }
     }
     if (
       element.repeat !== undefined &&

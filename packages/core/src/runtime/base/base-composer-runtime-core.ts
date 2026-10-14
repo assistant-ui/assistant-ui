@@ -82,7 +82,13 @@ export abstract class BaseComposerRuntimeCore
   public abstract get canSend(): boolean;
 
   public get isEmpty() {
-    return !this.text.trim() && !this.attachments.length;
+    return !this.text.trim() && !this.sendableAttachments.length;
+  }
+
+  protected get sendableAttachments() {
+    return this.attachments.filter(
+      (attachment) => !this._attachmentSends.isRemoved(attachment),
+    );
   }
 
   private _text = "";
@@ -163,6 +169,7 @@ export abstract class BaseComposerRuntimeCore
   private _inTransit: readonly InTransit[] = [];
   private _inTransitSubmissions: readonly ComposerSubmission[] = [];
   private _sendGeneration = 0;
+  private _draftEpoch = 0;
   private _attachmentAddOperations = new AttachmentAddOperations();
   private _attachmentSends = new AttachmentSendOperations();
 
@@ -253,19 +260,26 @@ export abstract class BaseComposerRuntimeCore
 
   private _draftUploadsToRemove() {
     return this._attachments.filter(
-      (a) => !isAttachmentComplete(a) && !this._attachmentSends.isRemoved(a),
+      (a) =>
+        !isAttachmentComplete(a) &&
+        this._attachmentSends.shouldRemoveOnClear(a),
     );
   }
 
   private async _onClearAttachments(pending: readonly Attachment[]) {
     const adapter = this.getAttachmentAdapter();
-    if (adapter) {
-      await Promise.all(pending.map(async (a) => adapter.remove(a)));
-    }
+    if (!adapter) return;
+    await Promise.all(
+      pending.map((attachment) => {
+        this._attachmentSends.beginRemoval(attachment);
+        return this._attachmentSends.remove(attachment, adapter);
+      }),
+    );
   }
 
   public async reset() {
     this._cancelAllAttachmentAdds();
+    this._draftEpoch++;
 
     // A send whose adapter never settles must not brick the composer; reset is
     // the escape hatch that releases the in-flight lock. Bumping the generation
@@ -295,6 +309,7 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public async clearAttachments() {
+    this._draftEpoch++;
     // A send that detached the draft holds the submission's attachments, so
     // their uploads keep going for it.
     this._attachmentAddOperations.cancelAll(
@@ -308,7 +323,7 @@ export abstract class BaseComposerRuntimeCore
     const pending = this._draftUploadsToRemove();
     if (this.isSubmitting) {
       for (const attachment of this._attachments)
-        this._attachmentSends.markRemoved(attachment);
+        this._attachmentSends.beginRemoval(attachment);
     }
     const task = this._onClearAttachments(pending);
     this.setAttachments([]);
@@ -323,11 +338,7 @@ export abstract class BaseComposerRuntimeCore
 
     // An attachment whose removal is still awaiting the adapter is excluded
     // up front, or a send started mid-removal would upload and dispatch it.
-    const attachments = this.attachments.filter(
-      (attachment) => !this._attachmentSends.isRemoved(attachment),
-    );
-    // canSend counted an attachment whose removal is still in flight, so the
-    // draft can be empty by the time the filter above has run.
+    const attachments = this.sendableAttachments;
     if (!this.text.trim() && attachments.length === 0) return;
 
     const draft: ComposerSubmission = {
@@ -415,12 +426,13 @@ export abstract class BaseComposerRuntimeCore
         ? []
         : [result.value],
     );
-    if (!submission.text.trim() && finalAttachments.length === 0) {
+    const submitted = this._submission ?? submission;
+    if (!submitted.text.trim() && finalAttachments.length === 0) {
       this._endSubmission();
-      this._returnToDraft({ ...submission, attachments: [] });
+      this._returnToDraft(submitted);
       return;
     }
-    this._dispatch(generation, submission, finalAttachments, context, true);
+    this._dispatch(generation, submitted, finalAttachments, context, true);
   }
 
   private _dispatch(
@@ -467,6 +479,8 @@ export abstract class BaseComposerRuntimeCore
         ]);
     }
 
+    const cleanupOwner = this.cleanupOwner;
+    const cleanupEpoch = cleanupOwner._draftEpoch;
     let sendTask: void | Promise<void>;
     try {
       sendTask = this.handleSend(message, context.options);
@@ -484,6 +498,19 @@ export abstract class BaseComposerRuntimeCore
           this._returnToDraft(sent);
         else if (wasInTransit) this._notifySubscribers();
       });
+
+    if (isSubmission)
+      for (const attachment of draft.attachments)
+        if (!isAttachmentComplete(attachment))
+          this._attachmentSends.dispatchRemoval(
+            attachment,
+            () =>
+              void this._retrySubmittedRemoval(
+                attachment as PendingAttachment,
+                cleanupOwner,
+                cleanupEpoch,
+              ),
+          );
 
     this._notifyEventSubscribers("send", {
       chars: draft.text.length,
@@ -510,9 +537,6 @@ export abstract class BaseComposerRuntimeCore
       if (result.status === "rejected")
         failures.set(sent[index]!.id, result.reason);
     });
-    // Each attachment that could not be prepared carries its own reason, so
-    // the draft it returns to shows which file needs another try. One removed
-    // meanwhile keeps its removal mark, so that removal still settles it.
     const attachments = submission.attachments.map((attachment) => {
       if (
         !failures.has(attachment.id) ||
@@ -587,8 +611,10 @@ export abstract class BaseComposerRuntimeCore
       );
       this._attachments = this._attachments.map((attachment) =>
         this._attachmentSends.isRemoved(attachment)
-          ? attachment
-          : (returned.get(attachment.id) ?? attachment),
+          ? this._attachmentSends.restore(attachment)
+          : this._attachmentSends.restore(
+              returned.get(attachment.id) ?? attachment,
+            ),
       );
     }
     this._notifySubscribers();
@@ -895,112 +921,115 @@ export abstract class BaseComposerRuntimeCore
   }
 
   async removeAttachment(attachmentId: string) {
-    const index = this._attachments.findIndex((a) => a.id === attachmentId);
-    if (index === -1) {
-      await this._removeSubmittedAttachment(attachmentId);
-      return;
-    }
-    const attachment = this._attachments[index]!;
-    if (this._attachmentSends.isRemoved(attachment)) return;
+    const attachment =
+      this._attachments.find((candidate) => candidate.id === attachmentId) ??
+      this._submission?.attachments.find(
+        (candidate) => candidate.id === attachmentId,
+      );
+    if (!attachment) throw new Error("Attachment not found");
+    const adapter = this.getAttachmentAdapter();
+    if (!isAttachmentComplete(attachment) && !adapter)
+      throw new Error("Attachments are not supported");
+    if (!this._attachmentSends.beginRemoval(attachment)) return;
 
     this._cancelAttachmentAdd(attachmentId);
-
-    // The mark must precede any await: an in-flight send drops the attachment
-    // from its outgoing message, and a send that starts while the adapter
-    // removal is still pending excludes it from the batch entirely.
-    this._attachmentSends.markRemoved(attachment);
-
-    if (!isAttachmentComplete(attachment)) {
-      const adapter = this.getAttachmentAdapter();
-      if (!adapter) throw new Error("Attachments are not supported");
-      try {
-        await adapter.remove(attachment);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        this._attachments = this._attachments.map((candidate) =>
-          candidate.id === attachmentId && !isAttachmentComplete(candidate)
-            ? this._attachmentSends.transfer(candidate, {
-                ...candidate,
-                status: { type: "incomplete", reason: "error", message },
-              })
-            : candidate,
-        );
-        this._notifySubscribers();
-        throw error;
-      }
-    }
-    this._attachments = this._attachments.filter((a) => a.id !== attachmentId);
     this._notifySubscribers();
-  }
 
-  /**
-   * A submission is not delivered yet, so an attachment can still be taken out
-   * of it, which the draft no longer holds once the send detached it.
-   */
-  private async _removeSubmittedAttachment(attachmentId: string) {
-    const submitted = this._submission?.attachments.find(
-      (a) => a.id === attachmentId,
+    await this._attachmentSends.remove(
+      attachment,
+      adapter,
+      (_error, message) => {
+        const fail = (candidate: PendingAttachment) =>
+          this._attachmentSends.transfer(candidate, {
+            ...candidate,
+            status: { type: "incomplete", reason: "error", message },
+          });
+        const submission = this._submission;
+        if (submission)
+          this._submission = {
+            ...submission,
+            attachments: submission.attachments.map((candidate) =>
+              !isAttachmentComplete(candidate) &&
+              this._attachmentSends.isSameRemoval(candidate, attachment)
+                ? fail(candidate)
+                : candidate,
+            ),
+          };
+        if (
+          this._attachments.some((candidate) =>
+            this._attachmentSends.isSameRemoval(candidate, attachment),
+          )
+        ) {
+          this._attachments = this._attachments.map((candidate) =>
+            !isAttachmentComplete(candidate) &&
+            this._attachmentSends.isSameRemoval(candidate, attachment)
+              ? fail(candidate)
+              : candidate,
+          );
+          if (!this._submission)
+            this._attachments = this._attachments.map((candidate) =>
+              this._attachmentSends.isSameRemoval(candidate, attachment)
+                ? this._attachmentSends.restore(candidate)
+                : candidate,
+            );
+        }
+        this._notifySubscribers();
+      },
     );
-    if (!submitted) throw new Error("Attachment not found");
-    if (this._attachmentSends.isRemovalPending(submitted)) return;
-
-    this._cancelAttachmentAdd(attachmentId);
-    this._attachmentSends.markRemoved(submitted);
-    if (!isAttachmentComplete(submitted)) {
-      const adapter = this.getAttachmentAdapter();
-      if (!adapter) throw new Error("Attachments are not supported");
-      try {
-        await adapter.remove(submitted);
-      } catch (error) {
-        this._failSubmittedRemoval(submitted, error);
-        throw error;
-      }
-    }
     const submission = this._submission;
     if (submission)
       this._submission = {
         ...submission,
         attachments: submission.attachments.filter(
-          (a) => a.id !== attachmentId,
+          (candidate) =>
+            !this._attachmentSends.isSameRemoval(candidate, attachment),
         ),
       };
-    if (this._attachments.includes(submitted))
-      this._attachments = this._attachments.filter((a) => a !== submitted);
+    if (
+      this._attachments.some((candidate) =>
+        this._attachmentSends.isSameRemoval(candidate, attachment),
+      )
+    )
+      this._attachments = this._attachments.filter(
+        (candidate) =>
+          !this._attachmentSends.isSameRemoval(candidate, attachment),
+      );
     this._notifySubscribers();
   }
 
-  /**
-   * An attachment whose removal failed stays out of the message it was taken
-   * from and shows why, so the removal can be tried again. Once that message
-   * is back in the draft, it is a draft attachment again.
-   */
-  private _failSubmittedRemoval(submitted: PendingAttachment, error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    const fail = (attachment: PendingAttachment) =>
-      this._attachmentSends.transfer(attachment, {
-        ...attachment,
-        status: { type: "incomplete", reason: "error", message },
-      });
-    const submission = this._submission;
-    if (submission)
-      this._submission = {
-        ...submission,
-        attachments: submission.attachments.map((attachment) => {
-          if (
-            attachment.id !== submitted.id ||
-            isAttachmentComplete(attachment)
-          )
-            return attachment;
-          const failed = fail(attachment);
-          this._attachmentSends.holdOut(failed);
-          return failed;
-        }),
-      };
-    if (this._attachments.includes(submitted))
-      this._attachments = this._attachments.map((attachment) =>
-        attachment === submitted ? fail(submitted) : attachment,
-      );
+  protected get cleanupOwner(): BaseComposerRuntimeCore {
+    return this;
+  }
+
+  private _adoptCleanupFailure(
+    source: AttachmentSendOperations,
+    failed: PendingAttachment,
+    epoch: number,
+  ) {
+    if (this._draftEpoch !== epoch) return;
+    if (this._attachments.some((attachment) => attachment.id === failed.id))
+      return;
+    this._attachmentSends.adoptFrom(source, failed);
+    this._attachments = [failed, ...this._attachments];
     this._notifySubscribers();
+  }
+
+  private async _retrySubmittedRemoval(
+    submitted: PendingAttachment,
+    owner: BaseComposerRuntimeCore,
+    epoch: number,
+  ) {
+    this._attachmentSends.beginRemoval(submitted);
+    await this._attachmentSends
+      .remove(submitted, this.getAttachmentAdapter(), (error, message) => {
+        console.error("[assistant-ui] Failed to remove sent attachment", error);
+        const failed = this._attachmentSends.transfer(submitted, {
+          ...submitted,
+          status: { type: "incomplete", reason: "error", message },
+        });
+        owner._adoptCleanupFailure(this._attachmentSends, failed, epoch);
+      })
+      .catch(() => {});
   }
 
   public get dictation(): DictationState | undefined {

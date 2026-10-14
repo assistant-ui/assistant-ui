@@ -50,6 +50,36 @@ type DispatchItem = {
   id: string;
   item: QueueItemState;
   message: AppendMessage;
+  transform: DispatchTransform | undefined;
+};
+
+type DispatchTransform = (message: AppendMessage) => AppendMessage;
+
+type DispatchTransformControls = {
+  bindNext: () => void;
+  getCurrent: () => DispatchTransform;
+};
+
+const dispatchTransformControls = new WeakMap<
+  NonNullable<ExternalThreadQueueAdapter["__internal_setDispatchTransform"]>,
+  DispatchTransformControls
+>();
+
+export const __internal_bindNextDispatchTransform = (
+  adapter: ExternalThreadQueueAdapter,
+) => {
+  const setDispatchTransform = adapter.__internal_setDispatchTransform;
+  if (setDispatchTransform)
+    dispatchTransformControls.get(setDispatchTransform)?.bindNext();
+};
+
+export const __internal_getDispatchTransform = (
+  adapter: ExternalThreadQueueAdapter,
+) => {
+  const setDispatchTransform = adapter.__internal_setDispatchTransform;
+  return setDispatchTransform
+    ? dispatchTransformControls.get(setDispatchTransform)?.getCurrent()
+    : undefined;
 };
 
 const getQueueItemParts = (
@@ -87,13 +117,15 @@ export const createMessageQueue = (
     steer: EMPTY_QUEUE_ITEMS,
   };
   const messages = new Map<string, AppendMessage>();
+  const dispatchTransforms = new Map<string, DispatchTransform>();
   const subscribers = new Set<() => void>();
 
   let running = false;
   let dispatchPending = false;
   let paused = false;
   let held = false;
-  let dispatchTransform: (message: AppendMessage) => AppendMessage = (m) => m;
+  let dispatchTransform: DispatchTransform = (message) => message;
+  let nextDispatchTransform: DispatchTransform | undefined;
   type DispatchToken = {
     started: boolean;
     busyEdge: number;
@@ -160,6 +192,8 @@ export const createMessageQueue = (
   const restore = (lane: Lane, dispatch: DispatchItem, index = 0) => {
     paused = true;
     messages.set(dispatch.id, dispatch.message);
+    if (dispatch.transform)
+      dispatchTransforms.set(dispatch.id, dispatch.transform);
     setLanes({
       ...lanes,
       [lane]: [
@@ -183,9 +217,11 @@ export const createMessageQueue = (
     if (!head) return;
     const message = messages.get(head.id);
     if (!message) return;
+    const transform = dispatchTransforms.get(head.id);
+    dispatchTransforms.delete(head.id);
     running = true;
     messages.delete(head.id);
-    const dispatch = { id: head.id, item: head, message };
+    const dispatch = { id: head.id, item: head, message, transform };
     const dispatchId: DispatchToken = { started: false, busyEdge: busyEdges };
     activeDispatch = dispatchId;
     const busyEdgesBeforeRun = busyEdges;
@@ -203,7 +239,10 @@ export const createMessageQueue = (
     };
     try {
       observeRun(
-        driver.run(dispatchTransform(message), { steer: false }),
+        driver.run(
+          transform ? transform(message) : dispatchTransform(message),
+          { steer: false },
+        ),
         restoreFailure,
       );
     } catch (error) {
@@ -254,7 +293,12 @@ export const createMessageQueue = (
     };
     try {
       observeRun(
-        driver.run(dispatchTransform(dispatch.message), { steer: true }),
+        driver.run(
+          dispatch.transform
+            ? dispatch.transform(dispatch.message)
+            : dispatchTransform(dispatch.message),
+          { steer: true },
+        ),
         restoreFailure,
       );
     } catch (error) {
@@ -266,6 +310,9 @@ export const createMessageQueue = (
   const push = (lane: Lane, message: AppendMessage) => {
     paused = false;
     const id = generateId();
+    const transform = nextDispatchTransform;
+    nextDispatchTransform = undefined;
+    if (transform) dispatchTransforms.set(id, transform);
     messages.set(id, message);
     setLanes({ ...lanes, [lane]: [...lanes[lane], toItem(id, message)] });
     advance();
@@ -278,7 +325,9 @@ export const createMessageQueue = (
   const steer = (message: AppendMessage) => {
     if (running && !dispatchPending && driver.cancel) {
       const id = generateId();
-      interrupt({ id, item: toItem(id, message), message });
+      const transform = nextDispatchTransform;
+      nextDispatchTransform = undefined;
+      interrupt({ id, item: toItem(id, message), message, transform });
       return;
     }
     push("steer", message);
@@ -339,12 +388,18 @@ export const createMessageQueue = (
       driver.cancel
     ) {
       const message = messages.get(queueItemId)!;
+      const transform = dispatchTransforms.get(queueItemId);
+      dispatchTransforms.delete(queueItemId);
       messages.delete(queueItemId);
       setLanes({
         queue: lanes.queue.filter((i) => i.id !== queueItemId),
         steer: lanes.steer,
       });
-      interrupt({ id: queueItemId, item, message }, fromLane, fromIndex);
+      interrupt(
+        { id: queueItemId, item, message, transform },
+        fromLane,
+        fromIndex,
+      );
       return;
     }
 
@@ -370,6 +425,7 @@ export const createMessageQueue = (
 
   const remove = (queueItemId: string) => {
     if (!messages.delete(queueItemId)) return;
+    dispatchTransforms.delete(queueItemId);
     setLanes({
       queue: lanes.queue.filter((item) => item.id !== queueItemId),
       steer: lanes.steer.filter((item) => item.id !== queueItemId),
@@ -384,6 +440,10 @@ export const createMessageQueue = (
     }
   };
 
+  const setDispatchTransform = (transform: DispatchTransform) => {
+    dispatchTransform = transform;
+  };
+
   const adapter: ExternalThreadQueueAdapter = {
     items: lanes.queue,
     steerItems: lanes.steer,
@@ -392,11 +452,16 @@ export const createMessageQueue = (
     move,
     edit,
     remove,
-    __internal_setDispatchTransform: (transform) => {
-      dispatchTransform = transform;
-    },
+    __internal_setDispatchTransform: setDispatchTransform,
     __internal_notifyCancelled: notifyCancelled,
   };
+
+  dispatchTransformControls.set(setDispatchTransform, {
+    bindNext: () => {
+      nextDispatchTransform = dispatchTransform;
+    },
+    getCurrent: () => dispatchTransform,
+  });
 
   const notifyIdle = () => {
     if (suppressIdle.length > 0) {
@@ -439,6 +504,8 @@ export const createMessageQueue = (
     clear: () => {
       generation++;
       messages.clear();
+      dispatchTransforms.clear();
+      nextDispatchTransform = undefined;
       setLanes({ queue: EMPTY_QUEUE_ITEMS, steer: EMPTY_QUEUE_ITEMS });
     },
     subscribe: (callback) => {

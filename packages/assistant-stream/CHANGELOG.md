@@ -1,5 +1,13 @@
 # assistant-stream
 
+## 0.3.51
+
+### Patch Changes
+
+- [#9493](https://github.com/assistant-ui/assistant-ui/pull/9493) [`05462a5`](https://github.com/assistant-ui/assistant-ui/commit/05462a5b9d10955f4520619f192e2378a81bfcb5) - fix: publish resumable producer errors without waiting for source cancellation. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9283](https://github.com/assistant-ui/assistant-ui/pull/9283) [`7bff761`](https://github.com/assistant-ui/assistant-ui/commit/7bff761a8d2837f05ce41ca54ef8c471af03be6c) - consume only one leading UTF-8 BOM when decoding SSE streams, so a second BOM does not turn an unknown field into event data. ([@Mucheen](https://github.com/Mucheen))
+
 ## 0.3.50
 
 ### Patch Changes

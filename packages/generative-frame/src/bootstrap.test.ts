@@ -26,9 +26,88 @@ describe("buildCsp", () => {
     expect(d["img-src"]).toEqual(
       expect.arrayContaining(["data:", "blob:", ...DEFAULT_CDN_ORIGINS]),
     );
-    expect(d["font-src"]).toContain("https://fonts.gstatic.com");
-    expect(d["style-src"]).toContain("https://fonts.googleapis.com");
+    expect(d["font-src"]).toEqual(["data:", ...DEFAULT_CDN_ORIGINS]);
+    expect(d["style-src"]).toEqual(["'unsafe-inline'", ...DEFAULT_CDN_ORIGINS]);
     expect(d["script-src"]).not.toContain("'unsafe-eval'");
+  });
+
+  it("blocks external styles and fonts when the CDN allowlist is empty", () => {
+    const d = directives(buildCsp({ cdnOrigins: [] }));
+    expect(d["script-src"]).toEqual(["'unsafe-inline'"]);
+    expect(d["style-src"]).toEqual(["'unsafe-inline'"]);
+    expect(d["font-src"]).toEqual(["data:"]);
+    expect(d["img-src"]).toEqual(["data:", "blob:"]);
+    expect(d["media-src"]).toEqual(["data:", "blob:"]);
+    expect(d["connect-src"]).toEqual(["'none'"]);
+    expect(d["frame-src"]).toEqual(["'none'"]);
+  });
+
+  it("adds font origins only to their resource directives", () => {
+    const d = directives(
+      buildCsp({
+        cdnOrigins: [],
+        fontStyleOrigins: ["https://fonts.googleapis.com"],
+        fontOrigins: ["https://fonts.gstatic.com"],
+      }),
+    );
+    expect(d["style-src"]).toEqual([
+      "'unsafe-inline'",
+      "https://fonts.googleapis.com",
+    ]);
+    expect(d["font-src"]).toEqual(["data:", "https://fonts.gstatic.com"]);
+    for (const name of [
+      "script-src",
+      "img-src",
+      "media-src",
+      "connect-src",
+      "frame-src",
+    ]) {
+      expect(d[name]).not.toContain("https://fonts.googleapis.com");
+      expect(d[name]).not.toContain("https://fonts.gstatic.com");
+    }
+  });
+
+  it("keeps stylesheet and font opt-ins independent", () => {
+    expect(
+      directives(
+        buildCsp({
+          cdnOrigins: [],
+          fontStyleOrigins: ["https://fonts.googleapis.com"],
+        }),
+      )["font-src"],
+    ).toEqual(["data:"]);
+    expect(
+      directives(
+        buildCsp({
+          cdnOrigins: [],
+          fontOrigins: ["https://fonts.gstatic.com"],
+        }),
+      )["style-src"],
+    ).toEqual(["'unsafe-inline'"]);
+  });
+
+  it("filters and deduplicates font origins like other resource origins", () => {
+    const values = [
+      "https://fonts.example.com",
+      "https://fonts.example.com",
+      "https://evil.com; script-src *",
+      "javascript:alert(1)",
+      "wss://fonts.example.com",
+      "https://user:pass@fonts.example.com",
+      "https://fonts.example.com?x=1",
+    ];
+    const d = directives(
+      buildCsp({
+        cdnOrigins: [],
+        fontStyleOrigins: values,
+        fontOrigins: values,
+      }),
+    );
+    expect(d["style-src"]).toEqual([
+      "'unsafe-inline'",
+      "https://fonts.example.com",
+    ]);
+    expect(d["font-src"]).toEqual(["data:", "https://fonts.example.com"]);
   });
 
   it("applies configured origins and drops unsafe source expressions", () => {
@@ -148,6 +227,24 @@ describe("buildBootstrapHtml", () => {
     expect(out).toContain("--ok:red;");
     expect(out).not.toContain("display:none");
     expect(out).not.toContain("bad name");
+  });
+
+  it("embeds the empty external allowlist before inline bootstrap resources", () => {
+    const out = buildBootstrapHtml({
+      hostOrigin: "https://app.test",
+      runtime: "",
+      csp: { cdnOrigins: [] },
+    });
+    const parsed = new DOMParser().parseFromString(out, "text/html");
+    const policy = parsed
+      .querySelector('meta[http-equiv="Content-Security-Policy"]')!
+      .getAttribute("content")!;
+    expect(policy).toBe(buildCsp({ cdnOrigins: [] }));
+    expect(directives(policy)["style-src"]).toEqual(["'unsafe-inline'"]);
+    expect(directives(policy)["font-src"]).toEqual(["data:"]);
+    expect(out.indexOf('http-equiv="Content-Security-Policy"')).toBeLessThan(
+      out.indexOf("<style"),
+    );
   });
 
   it("accepts a CSP string verbatim", () => {

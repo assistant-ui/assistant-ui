@@ -8,12 +8,22 @@ import {
   formatFactDelta,
 } from "../../vocabulary/formatValue";
 import { toTextContent } from "../../vocabulary/toTextContent";
-import { fade, RADIUS, toneTextColor, useInk, useNativeTheme } from "../theme";
+import {
+  fade,
+  RADIUS,
+  toneTextColor,
+  useInk,
+  useInsideCard,
+  useNativeTheme,
+  useRowChild,
+} from "../theme";
 import { useListViewItemText } from "../rowLabel";
 
 const styles = StyleSheet.create({
-  label: { fontSize: 11, textTransform: "uppercase", letterSpacing: 0.55 },
+  label: { fontSize: 12 },
   value: { fontSize: 14 },
+  headline: { fontSize: 20, fontWeight: "600", lineHeight: 26 },
+  cardDetail: { fontSize: 15, fontWeight: "500" },
   valueRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap" },
   chip: {
     marginLeft: 6,
@@ -41,6 +51,8 @@ function Fact({
 }) {
   const theme = useNativeTheme();
   const ink = useInk();
+  const rowChild = useRowChild();
+  const insideCard = useInsideCard();
   const direction = factTrend(delta, trend);
   const tone = factTone(direction, upIsGood);
   const color =
@@ -68,7 +80,11 @@ function Fact({
       <View style={styles.valueRow}>
         <Text
           aria-hidden={valueConsumed}
-          style={[styles.value, { color: ink }]}
+          style={[
+            styles.value,
+            rowChild && (insideCard ? styles.cardDetail : styles.headline),
+            { color: ink },
+          ]}
         >
           {factValue}
         </Text>

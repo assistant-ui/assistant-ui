@@ -70,35 +70,38 @@ function coverageFixture(t) {
   };
 }
 
-for (const event of ["pull_request", "merge_group"]) {
-  test(`coverage skips root Markdown changes for ${event}`, (t) => {
-    const fixture = coverageFixture(t);
-    fixture.commit("README.md");
-    assert.equal(fixture.run(event), "run=false");
-  });
-  for (const file of [
-    "packages/core/src/index.ts",
-    "apps/docs/app/page.tsx",
-    "examples/minimal/app/page.tsx",
-    "templates/default/app/api/chat/route.ts",
-    "evals/src/runner.ts",
-    "scripts/coverage-summary.mjs",
-    "scripts/coverage-summary.test.mjs",
-    "scripts/test-coverage-contract.test.mjs",
-    "scripts/lib/workspace.mjs",
-    "turbo.json",
-    "package.json",
-    "pnpm-lock.yaml",
-    "pnpm-workspace.yaml",
-    ".github/workflows/test-coverage.yaml",
-    ".github/workflows/code-quality.yaml",
-  ]) {
-    test(`coverage runs for ${file} in ${event}`, (t) => {
-      const fixture = coverageFixture(t);
-      fixture.commit(file);
-      assert.equal(fixture.run(event), "run=true");
-    });
+test("coverage skips root Markdown changes for PRs and merge groups", (t) => {
+  const fixture = coverageFixture(t);
+  fixture.commit("README.md");
+  for (const event of ["pull_request", "merge_group"]) {
+    assert.equal(fixture.run(event), "run=false", event);
   }
+});
+
+for (const file of [
+  "packages/core/src/index.ts",
+  "apps/docs/app/page.tsx",
+  "examples/minimal/app/page.tsx",
+  "templates/default/app/api/chat/route.ts",
+  "evals/src/runner.ts",
+  "scripts/coverage-summary.mjs",
+  "scripts/coverage-summary.test.mjs",
+  "scripts/test-coverage-contract.test.mjs",
+  "scripts/lib/workspace.mjs",
+  "turbo.json",
+  "package.json",
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
+  ".github/workflows/test-coverage.yaml",
+  ".github/workflows/code-quality.yaml",
+]) {
+  test(`coverage runs for ${file} in PRs and merge groups`, (t) => {
+    const fixture = coverageFixture(t);
+    fixture.commit(file);
+    for (const event of ["pull_request", "merge_group"]) {
+      assert.equal(fixture.run(event), "run=true", event);
+    }
+  });
 }
 
 test("coverage uses the full merge group range and the PR first parent", (t) => {

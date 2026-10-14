@@ -726,11 +726,51 @@ export function validateStyleScopedDependencies(
 const CSS_SELECTOR_COMPONENT_RE = /\[data-aui="([a-z-]+)"\]/;
 const CSS_SELECTOR_ATTRIBUTE_VALUE_RE = /\[data-aui-([a-z]+)="([^"]*)"\]/g;
 
+/** Splits `selector` at every top-level character `isBreak` accepts, leaving brackets and parentheses whole. */
+function splitTopLevel(selector: string, isBreak: (char: string) => boolean) {
+  const parts: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let index = 0; index < selector.length; index++) {
+    const char = selector[index]!;
+    if (char === "[" || char === "(") depth++;
+    else if (char === "]" || char === ")") depth--;
+    else if (depth === 0 && isBreak(char)) {
+      parts.push(selector.slice(start, index));
+      start = index + 1;
+    }
+  }
+  parts.push(selector.slice(start));
+  return parts.map((part) => part.trim()).filter(Boolean);
+}
+
+/** Expands each `:is(...)` and `:where(...)` into one selector per argument, so every alternative is read on its own. */
+function expandSelectorLists(selector: string): string[] {
+  const match = /:(?:is|where)\(/.exec(selector);
+  if (!match) return [selector];
+  const open = match.index + match[0].length - 1;
+  let close = open;
+  for (let depth = 0; close < selector.length; close++) {
+    if (selector[close] === "(") depth++;
+    else if (selector[close] === ")" && --depth === 0) break;
+  }
+  const head = selector.slice(0, match.index);
+  const tail = selector.slice(close + 1);
+  return splitTopLevel(
+    selector.slice(open + 1, close),
+    (char) => char === ",",
+  ).flatMap((argument) => expandSelectorLists(head + argument + tail));
+}
+
 /**
  * Walks a generative-ui CSS ruleset and collects every `[data-aui-<attr>="<value>"]`
- * value-selector, keyed by `<component>:<attribute>` (the component read from the
- * same comma-separated selector branch). Presence-only boolean selectors like
- * `[data-aui-flush]` carry no `="value"` and are not matched, by design.
+ * value-selector, keyed by `<component>:<attribute>`. The component is read from
+ * the same compound selector, so `[data-aui="row"] > [data-aui="image"][data-aui-size="sm"]`
+ * counts as `image:size`, or from the nearest compound before it when that one
+ * names none, so `[data-aui="table"] td[data-aui-align="end"]` counts as
+ * `table:align`; an `:is(...)` or `:where(...)` list counts once per argument.
+ * Presence-only boolean selectors like `[data-aui-flush]` carry no `="value"`
+ * and are not matched, by design.
  */
 export function collectAttributeSelectorValues(
   css: Record<string, unknown>,
@@ -738,15 +778,24 @@ export function collectAttributeSelectorValues(
   const values = new Map<string, Set<string>>();
 
   const visitSelectorKey = (selectorKey: string) => {
-    for (const rawBranch of selectorKey.split(",")) {
-      const branch = rawBranch.trim();
-      const component = CSS_SELECTOR_COMPONENT_RE.exec(branch)?.[1];
-      if (!component) continue;
-      for (const match of branch.matchAll(CSS_SELECTOR_ATTRIBUTE_VALUE_RE)) {
-        const key = `${component}:${match[1]}`;
-        const set = values.get(key) ?? new Set<string>();
-        set.add(match[2]!);
-        values.set(key, set);
+    for (const branch of splitTopLevel(
+      selectorKey,
+      (char) => char === ",",
+    ).flatMap(expandSelectorLists)) {
+      let component: string | undefined;
+      for (const compound of splitTopLevel(branch, (char) =>
+        /[\s>+~]/.test(char),
+      )) {
+        component = CSS_SELECTOR_COMPONENT_RE.exec(compound)?.[1] ?? component;
+        if (!component) continue;
+        for (const match of compound.matchAll(
+          CSS_SELECTOR_ATTRIBUTE_VALUE_RE,
+        )) {
+          const key = `${component}:${match[1]}`;
+          const set = values.get(key) ?? new Set<string>();
+          set.add(match[2]!);
+          values.set(key, set);
+        }
       }
     }
   };

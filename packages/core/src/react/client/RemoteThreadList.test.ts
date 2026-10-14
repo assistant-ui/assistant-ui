@@ -30,6 +30,9 @@ import {
 import { RemoteThreadList } from "./RemoteThreadList";
 import { createLocalStorageAdapter } from "../adapters/LocalStorageThreadListAdapter";
 
+const waitFor = (assertion: () => void) =>
+  vi.waitFor(assertion, { interval: 10 });
+
 const stubComposer = { getState: () => ({}) };
 const stubSuggestions = { getState: () => ({ suggestions: [] }) };
 
@@ -167,7 +170,7 @@ const mountDeletableThread = async () => {
   const store = stores.mock.contexts[0] as OptimisticState<RemoteThreadState>;
   stores.mockRestore();
   flushTapSync(() => aui.threads.switchToThread("t1"));
-  await vi.waitFor(() => {
+  await waitFor(() => {
     expect(aui.threads.getState().mainThreadId).toBe("t1");
   });
   const isDeletionCommitted = () =>
@@ -213,17 +216,17 @@ const mountArchivedInitializingThread = async () => {
   await aui.threads.getLoadThreadsPromise();
   const targetId = aui.threads.getState().mainThreadId;
   const initialization = aui.threads.item("main").initialize();
-  await vi.waitFor(() => {
+  await waitFor(() => {
     expect(handle.getClient().threads.item("main").getState().status).toBe(
       "regular",
     );
   });
   flushTapSync(() => aui.threads.switchToThread("fallback"));
-  await vi.waitFor(() => {
+  await waitFor(() => {
     expect(handle.getClient().threads.getState().mainThreadId).toBe("fallback");
   });
   flushTapSync(() => aui.threads.item({ id: targetId }).archive());
-  await vi.waitFor(() => {
+  await waitFor(() => {
     expect(handle.getClient().threads.getState().archivedThreadIds).toContain(
       targetId,
     );
@@ -275,7 +278,7 @@ describe("RemoteThreadList", () => {
       expect(itemAway).not.toHaveBeenCalled();
 
       flushTapSync(() => aui.threads.switchToThread("A"));
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(aui.threads.getState().mainThreadId).toBe("A"),
       );
       starTo.mockClear();
@@ -283,7 +286,7 @@ describe("RemoteThreadList", () => {
       itemTo.mockClear();
       itemAway.mockClear();
       flushTapSync(() => aui.threads.switchToThread("B"));
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(aui.threads.getState().mainThreadId).toBe("B"),
       );
       expect(starAway).toHaveBeenCalledExactlyOnceWith({ threadId: "A" });
@@ -295,7 +298,7 @@ describe("RemoteThreadList", () => {
       starAway.mockClear();
       itemTo.mockClear();
       flushTapSync(() => aui.threads.switchToNewThread());
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(aui.threads.getState().mainThreadId).not.toBe("B"),
       );
       const newId = aui.threads.getState().mainThreadId;
@@ -308,7 +311,7 @@ describe("RemoteThreadList", () => {
       starAway.mockClear();
       itemTo.mockClear();
       flushTapSync(() => aui.threads.switchToThread("fetched"));
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(aui.threads.getState().mainThreadId).toBe("fetched"),
       );
       expect(adapter.fetch).toHaveBeenCalledWith("fetched");
@@ -407,7 +410,7 @@ describe("RemoteThreadList", () => {
     aui.on({ scope: "*", event: "composer.send" }, global);
 
     flushTapSync(() => aui.threads.switchToThread("t1"));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().mainThreadId).toBe("t1");
     });
     emitters.get("t1")!();
@@ -459,14 +462,14 @@ describe("RemoteThreadList", () => {
     const { handle } = mountList(adapter);
     const aui = handle.getClient();
     await aui.threads.getLoadThreadsPromise();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().archivedThreadIds).toEqual(["t1"]);
     });
 
     flushTapSync(() =>
       aui.threads.item({ id: "t1" }).switchTo({ unarchive: false }),
     );
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().mainThreadId).toBe("t1");
     });
 
@@ -474,7 +477,7 @@ describe("RemoteThreadList", () => {
       error,
     );
     expect(aui.threads.item({ id: "t1" }).getState().status).toBe("archived");
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().mainThreadId).not.toBe("t1");
     });
     handle.destroy();
@@ -493,13 +496,13 @@ describe("RemoteThreadList", () => {
     const { handle } = mountList(adapter);
     const aui = handle.getClient();
     await aui.threads.getLoadThreadsPromise();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().archivedThreadIds).toEqual(["t1"]);
     });
     flushTapSync(() =>
       aui.threads.item({ id: "t1" }).switchTo({ unarchive: false }),
     );
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().mainThreadId).toBe("t1");
     });
 
@@ -523,13 +526,13 @@ describe("RemoteThreadList", () => {
     const loading = aui.threads.getLoadThreadsPromise();
     const localId = aui.threads.getState().mainThreadId;
     const initialization = aui.threads.item("main").initialize();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.item("main").getState().status).toBe("regular");
     });
 
     list.resolve({ threads: [{ status: "regular", remoteId: "remote-1" }] });
     await loading;
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().threadIds).toContain("remote-1");
     });
 
@@ -539,7 +542,7 @@ describe("RemoteThreadList", () => {
     await deletion;
 
     expect(adapter.delete).toHaveBeenCalledWith("remote-1");
-    await vi.waitFor(() => {
+    await waitFor(() => {
       const state = aui.threads.getState();
       expect(state.mainThreadId).not.toBe(localId);
       expect(state.mainThreadId).toBe(state.newThreadId);
@@ -559,13 +562,13 @@ describe("RemoteThreadList", () => {
     const loading = aui.threads.getLoadThreadsPromise();
     const localId = aui.threads.getState().mainThreadId;
     const initialization = aui.threads.item("main").initialize();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.item("main").getState().status).toBe("regular");
     });
 
     list.resolve({ threads: [{ status: "regular", remoteId: "remote-1" }] });
     await loading;
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().threadIds).toContain("remote-1");
     });
     await aui.threads.item({ id: "remote-1" }).archive();
@@ -574,7 +577,7 @@ describe("RemoteThreadList", () => {
     await initialization;
 
     expect(adapter.archive).toHaveBeenCalledWith("remote-1");
-    await vi.waitFor(() => {
+    await waitFor(() => {
       const state = aui.threads.getState();
       expect(state.mainThreadId).not.toBe(localId);
       expect(state.mainThreadId).toBe(state.newThreadId);
@@ -595,13 +598,13 @@ describe("RemoteThreadList", () => {
     const loading = aui.threads.getLoadThreadsPromise();
     const localId = aui.threads.getState().mainThreadId;
     const initialization = aui.threads.item("main").initialize();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.item("main").getState().status).toBe("regular");
     });
 
     list.resolve({ threads: [{ status: "regular", remoteId: "remote-1" }] });
     await loading;
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().threadIds).toContain("remote-1");
     });
     await aui.threads.item({ id: "remote-1" }).delete();
@@ -610,7 +613,7 @@ describe("RemoteThreadList", () => {
     await initialization;
 
     expect(adapter.delete).toHaveBeenCalledWith("remote-1");
-    await vi.waitFor(() => {
+    await waitFor(() => {
       const state = aui.threads.getState();
       expect(state.mainThreadId).not.toBe(localId);
       expect(state.mainThreadId).toBe(state.newThreadId);
@@ -633,7 +636,7 @@ describe("RemoteThreadList", () => {
     const aui = handle.getClient();
     const loading = aui.threads.getLoadThreadsPromise();
     const initialization = aui.threads.item("main").initialize();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.item("main").getState().status).toBe("regular");
     });
     // a deep link to a thread the list doesn't have yet: its fetch hangs
@@ -641,7 +644,7 @@ describe("RemoteThreadList", () => {
 
     list.resolve({ threads: [{ status: "regular", remoteId: "remote-1" }] });
     await loading;
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().threadIds).toContain("remote-1");
     });
 
@@ -649,7 +652,7 @@ describe("RemoteThreadList", () => {
     initialize.resolve({ remoteId: "remote-1", externalId: undefined });
     await initialization;
     await deletion;
-    await vi.waitFor(() => {
+    await waitFor(() => {
       const state = aui.threads.getState();
       expect(state.mainThreadId).toBe(state.newThreadId);
     });
@@ -657,7 +660,7 @@ describe("RemoteThreadList", () => {
     // while remote-9 is still loading, the main thread must resolve
     expect(() => aui.threads.item("main").getState()).not.toThrow();
     fetch.resolve({ status: "regular", remoteId: "remote-9" });
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().mainThreadId).toBe("remote-9");
     });
     handle.destroy();
@@ -678,7 +681,7 @@ describe("RemoteThreadList", () => {
     const { handle } = mountList(adapter);
     const aui = handle.getClient();
     await aui.threads.getLoadThreadsPromise();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().archivedThreadIds).toContain("t1");
     });
     await aui.threads.item("main").initialize();
@@ -686,14 +689,14 @@ describe("RemoteThreadList", () => {
     flushTapSync(() =>
       aui.threads.item({ id: "t1" }).switchTo({ unarchive: false }),
     );
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().mainThreadId).toBe("t1");
     });
 
     await expect(aui.threads.item({ id: "t1" }).unarchive()).rejects.toBe(
       error,
     );
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().mainThreadId).not.toBe("t1");
     });
     expect(aui.threads.item({ id: "t1" }).getState().status).toBe("archived");
@@ -714,7 +717,7 @@ describe("RemoteThreadList", () => {
     const loadPromise = aui.threads.getLoadThreadsPromise();
     const initializedId = aui.threads.getState().mainThreadId;
     await aui.threads.item("main").initialize();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().threadIds).toContain(initializedId);
     });
 
@@ -724,7 +727,7 @@ describe("RemoteThreadList", () => {
     await loadPromise;
 
     flushTapSync(() => aui.threads.switchToNewThread());
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().mainThreadId).not.toBe(initializedId);
     });
 
@@ -744,7 +747,7 @@ describe("RemoteThreadList", () => {
     await aui.threads.getLoadThreadsPromise();
 
     flushTapSync(() => aui.threads.switchToThread("t1"));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
     });
 
@@ -765,7 +768,7 @@ describe("RemoteThreadList", () => {
     const result = await aui.threads.item("main").initialize();
     expect(adapter.initialize).toHaveBeenCalledWith(localId);
     expect(result.remoteId).toBe(`remote-${localId}`);
-    await vi.waitFor(() => {
+    await waitFor(() => {
       const state = handle.getClient().threads.getState();
       expect(state.threadIds).toContain(localId);
       expect(state.newThreadId).toBeNull();
@@ -783,7 +786,7 @@ describe("RemoteThreadList", () => {
     await aui.threads.getLoadThreadsPromise();
 
     flushTapSync(() => aui.threads.switchToThread("missing"));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(adapter.fetch).toHaveBeenCalledWith("missing");
       expect(handle.getClient().threads.getState().mainThreadId).toBe(
         "missing",
@@ -806,22 +809,22 @@ describe("RemoteThreadList", () => {
     const { handle } = mountList(adapter);
     const aui = handle.getClient();
     await aui.threads.getLoadThreadsPromise();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().threadIds).toEqual(["t1"]);
     });
 
     const archiving = aui.threads.item({ id: "t1" }).archive();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().archivedThreadIds).toEqual(["t1"]);
     });
     flushTapSync(() => aui.threads.switchToThread("t2"));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().mainThreadId).toBe("t2");
     });
 
     archive.reject(new Error("archive failed"));
     await expect(archiving).rejects.toThrow("archive failed");
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().threadIds).toEqual(["t1", "t2"]);
       expect(aui.threads.getState().archivedThreadIds).toEqual([]);
     });
@@ -842,7 +845,7 @@ describe("RemoteThreadList", () => {
     expect(listener).toHaveBeenCalledTimes(0);
 
     fetch.resolve({ status: "regular", remoteId: "t2", title: "T2" });
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().mainThreadId).toBe("t2");
     });
     expect(listener).toHaveBeenCalledTimes(1);
@@ -861,7 +864,7 @@ describe("RemoteThreadList", () => {
     await aui.threads.getLoadThreadsPromise();
     const localId = aui.threads.getState().mainThreadId;
     const initialization = aui.threads.item("main").initialize();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.item("main").getState().status).toBe("regular");
     });
     flushTapSync(() => aui.threads.switchToThread("remote-1"));
@@ -874,7 +877,7 @@ describe("RemoteThreadList", () => {
       title: "Fetched",
     });
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.item({ id: "remote-1" }).getState().title).toBe(
         "Fetched",
       );
@@ -894,14 +897,14 @@ describe("RemoteThreadList", () => {
     const { handle } = mountList(adapter);
     const aui = handle.getClient();
     await aui.threads.getLoadThreadsPromise();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().threads.getState().threadIds).toEqual(["t1"]);
     });
 
     flushTapSync(() =>
       handle.getClient().threads.item({ id: "t1" }).rename("Renamed"),
     );
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(adapter.rename).toHaveBeenCalledWith("t1", "Renamed");
       expect(
         handle.getClient().threads.item({ id: "t1" }).getState().title,
@@ -910,7 +913,7 @@ describe("RemoteThreadList", () => {
 
     const draftId = handle.getClient().threads.getState().mainThreadId;
     flushTapSync(() => handle.getClient().threads.item({ id: "t1" }).delete());
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(adapter.delete).toHaveBeenCalledWith("t1");
       expect(handle.getClient().threads.getState().threadIds).not.toContain(
         "t1",
@@ -951,11 +954,11 @@ describe("RemoteThreadList", () => {
     const item = aui.threads.item({ id: "t2" });
 
     flushTapSync(() => aui.threads.switchToThread("t2"));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().mainThreadId).toBe("t2");
     });
     flushTapSync(() => aui.threads.switchToThread("t1"));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().mainThreadId).toBe("t1");
     });
 
@@ -986,7 +989,7 @@ describe("RemoteThreadList", () => {
     expect(adapter.delete).not.toHaveBeenCalled();
 
     flushTapSync(() => aui.threads.switchToThread("t2"));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().mainThreadId).toBe("t2");
     });
     expect(aui.threads.getState().threadIds).toEqual(["t1"]);
@@ -1035,25 +1038,25 @@ describe("RemoteThreadList", () => {
     const { handle } = mountList(adapter);
     const aui = handle.getClient();
     await aui.threads.getLoadThreadsPromise();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().threadIds).toEqual(["t1", "t2"]);
     });
 
     await aui.threads.item({ id: "t1" }).rename("Manual title");
     await aui.threads.item({ id: "t2" }).rename("Kept manual title");
     await aui.threads.item({ id: "t1" }).delete();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().threadIds).toEqual(["t2"]);
     });
 
     // The server still lists t1, so a reload rebirths the slot under the same
     // remote id; a leaked manual-rename entry would suppress its auto-title.
     await aui.threads.reload();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().threadIds).toEqual(["t1", "t2"]);
     });
     flushTapSync(() => aui.threads.switchToThread("t1"));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().mainThreadId).toBe("t1");
     });
 
@@ -1063,7 +1066,7 @@ describe("RemoteThreadList", () => {
     // t2 is the control: a reload that cleared every title state would
     // generate here as well.
     flushTapSync(() => aui.threads.switchToThread("t2"));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().mainThreadId).toBe("t2");
     });
     await aui.threads.item({ id: "t2" }).generateTitle({ automatic: true });
@@ -1117,7 +1120,7 @@ describe("RemoteThreadList", () => {
       reloadTask = aui.threads.reload();
     };
     await aui.threads.getLoadThreadsPromise();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().threadIds).toEqual(["t1", "t2"]);
     });
 
@@ -1126,17 +1129,17 @@ describe("RemoteThreadList", () => {
 
     try {
       flushTapSync(() => aui.threads.item({ id: "t1" }).delete());
-      await vi.waitFor(() => expect(adapter.delete).toHaveBeenCalledOnce());
+      await waitFor(() => expect(adapter.delete).toHaveBeenCalledOnce());
       deletionReleased = true;
       deletion.resolve();
 
-      await vi.waitFor(() => expect(reloadStarted).toBe(true));
+      await waitFor(() => expect(reloadStarted).toBe(true));
       await reloadTask;
       expect(aui.threads.getState().threadIds).toEqual(["t2"]);
       await aui.threads.reload();
       expect(aui.threads.getState().threadIds).toEqual(["t1", "t2"]);
       flushTapSync(() => aui.threads.switchToThread("t1"));
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(aui.threads.getState().mainThreadId).toBe("t1");
       });
       await aui.threads.item({ id: "t1" }).generateTitle({ automatic: true });
@@ -1156,11 +1159,11 @@ describe("RemoteThreadList", () => {
     const { handle } = mountList(adapter);
     const aui = handle.getClient();
     await aui.threads.getLoadThreadsPromise();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().threadIds).toEqual(["t1"]);
     });
     flushTapSync(() => aui.threads.switchToThread("t1"));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().mainThreadId).toBe("t1");
     });
 
@@ -1185,22 +1188,22 @@ describe("RemoteThreadList", () => {
     const { handle } = mountList(adapter);
     const aui = handle.getClient();
     await aui.threads.getLoadThreadsPromise();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().threadIds).toEqual(["t1"]);
     });
     flushTapSync(() => aui.threads.switchToThread("t1"));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().mainThreadId).toBe("t1");
     });
 
     const generation = aui.threads
       .item({ id: "t1" })
       .generateTitle({ automatic: true });
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(adapter.generateTitle).toHaveBeenCalledOnce();
     });
     await aui.threads.item({ id: "t1" }).rename("Manual title");
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.item({ id: "t1" }).getState().title).toBe(
         "Manual title",
       );
@@ -1246,18 +1249,18 @@ describe("RemoteThreadList", () => {
     const { handle } = mountList(adapter);
     const aui = handle.getClient();
     await aui.threads.getLoadThreadsPromise();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().threadIds).toEqual(["t1"]);
     });
     flushTapSync(() => aui.threads.switchToThread("t1"));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().mainThreadId).toBe("t1");
     });
 
     const generation = aui.threads
       .item({ id: "t1" })
       .generateTitle({ automatic: true });
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(adapter.generateTitle).toHaveBeenCalledOnce();
     });
     generatedTitle.resolve(
@@ -1279,7 +1282,7 @@ describe("RemoteThreadList", () => {
     );
     await aui.threads.item({ id: "t1" }).rename("Manual title");
     await aui.threads.item({ id: "t1" }).delete();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().threadIds).toEqual([]);
     });
 
@@ -1302,18 +1305,18 @@ describe("RemoteThreadList", () => {
     const { handle } = mountList(adapter);
     const aui = handle.getClient();
     await aui.threads.getLoadThreadsPromise();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().threadIds).toEqual(["t1"]);
     });
     flushTapSync(() => aui.threads.switchToThread("t1"));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().mainThreadId).toBe("t1");
     });
 
     const generation = aui.threads
       .item({ id: "t1" })
       .generateTitle({ automatic: true });
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(adapter.generateTitle).toHaveBeenCalledOnce();
     });
     generatedTitle.resolve(
@@ -1335,11 +1338,11 @@ describe("RemoteThreadList", () => {
     );
     await aui.threads.item({ id: "t1" }).rename("Manual title");
     await aui.threads.item({ id: "t1" }).delete();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().threadIds).toEqual([]);
     });
     await aui.threads.reload();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().threadIds).toEqual(["t1"]);
     });
 
@@ -1439,18 +1442,18 @@ describe("RemoteThreadList", () => {
     const { handle } = mountList(adapter);
     const aui = handle.getClient();
     await aui.threads.getLoadThreadsPromise();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().threadIds).toEqual(["t1"]);
     });
     flushTapSync(() => aui.threads.switchToThread("t1"));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().mainThreadId).toBe("t1");
     });
 
     const renaming = aui.threads.item({ id: "t1" }).rename("Manual title");
     const generation = aui.threads.item({ id: "t1" }).generateTitle();
     await aui.threads.item({ id: "t1" }).delete();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().threadIds).toEqual([]);
     });
     renamed.resolve();
@@ -1502,17 +1505,17 @@ describe("RemoteThreadList", () => {
     const aui = handle.getClient();
     await aui.threads.getLoadThreadsPromise();
     flushTapSync(() => aui.threads.switchToThread("t1"));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().mainThreadId).toBe("t1");
     });
 
     const reloadPromise = aui.threads.reload();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(adapter.list).toHaveBeenCalledTimes(2);
     });
     await aui.threads.item({ id: "t1" }).rename("Renamed");
     await aui.threads.item({ id: "t1" }).generateTitle();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.item({ id: "t1" }).getState().title).toBe("Generated");
     });
 
@@ -1520,7 +1523,7 @@ describe("RemoteThreadList", () => {
       threads: [{ status: "regular", remoteId: "t1", title: "One" }],
     });
     await reloadPromise;
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.item({ id: "t1" }).getState().title).toBe("Generated");
     });
     handle.destroy();
@@ -1543,7 +1546,7 @@ describe("RemoteThreadList", () => {
     void threads.getLoadThreadsPromise();
     await threads.reload();
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       const state = handle.getClient().threads.getState();
       expect(state.threadIds).toEqual(["fresh"]);
       expect(state.isLoading).toBe(false);
@@ -1575,7 +1578,7 @@ describe("RemoteThreadList", () => {
     void threads.loadMore();
     await threads.reload();
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       const state = handle.getClient().threads.getState();
       expect(state.threadIds).toEqual(["fresh"]);
       expect(state.isLoadingMore).toBe(false);
@@ -1591,7 +1594,7 @@ describe("RemoteThreadList", () => {
     });
     const { handle, onThreadIdChange } = mountList(adapter, "t1");
     await handle.getClient().threads.getLoadThreadsPromise();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
     });
     expect(onThreadIdChange).not.toHaveBeenCalled();
@@ -1609,13 +1612,13 @@ describe("RemoteThreadList", () => {
       }),
     });
     const { handle } = mountList(adapter, "t1");
-    await vi.waitFor(() => expect(adapter.fetch).toHaveBeenCalledWith("t1"));
+    await waitFor(() => expect(adapter.fetch).toHaveBeenCalledWith("t1"));
 
     list.resolve({
       threads: [{ status: "regular", remoteId: "t1", title: "One" }],
     });
     await handle.getClient().threads.getLoadThreadsPromise();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
     });
     handle.destroy();
@@ -1643,13 +1646,13 @@ describe("RemoteThreadList", () => {
     });
     const { handle } = mountList(adapter, "t1");
     const threads = handle.getClient().threads;
-    await vi.waitFor(() => expect(adapter.fetch).toHaveBeenCalledWith("t1"));
-    await vi.waitFor(() => {
+    await waitFor(() => expect(adapter.fetch).toHaveBeenCalledWith("t1"));
+    await waitFor(() => {
       expect(threads.getState().threadIds).toEqual(["t0"]);
     });
 
     await threads.loadMore();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(threads.getState().mainThreadId).toBe("t1");
     });
     handle.destroy();
@@ -1685,7 +1688,7 @@ describe("RemoteThreadList", () => {
       externalId: undefined,
       title: "thread-c",
     });
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().threads.getState().mainThreadId).toBe(
         "thread-c",
       );
@@ -1696,7 +1699,7 @@ describe("RemoteThreadList", () => {
       externalId: undefined,
       title: "thread-b",
     });
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(adapter.fetch).toHaveBeenCalledWith("thread-b");
     });
     expect(handle.getClient().threads.getState().mainThreadId).toBe("thread-c");
@@ -1723,7 +1726,7 @@ describe("RemoteThreadList", () => {
       ],
     }));
     await handle.getClient().threads.reload();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().threads.getState().threadIds).toEqual([
         "other",
         localId,
@@ -1759,12 +1762,12 @@ describe("RemoteThreadList", () => {
       threads: [{ status: "regular" as const, remoteId, title: "Mine" }],
     }));
     await aui.threads.reload();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().threadIds).toEqual([localId]);
     });
 
     await aui.threads.item({ id: remoteId }).delete();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().threadIds).toEqual([]);
     });
     expect(() => aui.threads.item({ id: localId }).getState()).toThrow();
@@ -1794,7 +1797,7 @@ describe("RemoteThreadList", () => {
     list.resolve({ threads: [{ status: "regular", remoteId: "remote-1" }] });
     await loading;
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().isLoading).toBe(false);
     });
     expect(aui.threads.getState().threadIds).toEqual([]);
@@ -1821,7 +1824,7 @@ describe("RemoteThreadList", () => {
     );
     const aui = handle.getClient();
     await aui.threads.getLoadThreadsPromise();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().threadIds).toContain("t1");
     });
 
@@ -1864,7 +1867,7 @@ describe("RemoteThreadList", () => {
     try {
       const aui = handle.getClient();
       await aui.threads.getLoadThreadsPromise();
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(aui.threads.getState().threadIds).toContain("t1");
       });
 
@@ -1878,7 +1881,7 @@ describe("RemoteThreadList", () => {
         cleanupError,
       );
       expect((await adapter.list()).threads).toEqual([]);
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(aui.threads.getState().threadIds).not.toContain("t1");
         expect(onDelete).toHaveBeenCalledWith("t1");
       });
@@ -1923,12 +1926,12 @@ describe("RemoteThreadList", () => {
     const handle = createAssistantClient(source);
     handle.subscribe(() => {});
     await handle.getClient().threads.getLoadThreadsPromise();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().threads.getState().threadIds).toContain("t1");
     });
 
     const deletion = handle.getClient().threads.item({ id: "t1" }).delete();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(adapterA.delete).toHaveBeenCalledWith("t1");
     });
 
@@ -1990,13 +1993,13 @@ describe("RemoteThreadList", () => {
   it("collapses a slot the list minted while initialize was in flight", async () => {
     const { handle, aui, localId } = await mountRacedInitialize("regular");
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().threadIds).toEqual([localId]);
     });
     expect(aui.threads.item({ id: "remote-1" }).getState().id).toBe(localId);
 
     await aui.threads.item({ id: "remote-1" }).delete();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.getState().threadIds).toEqual([]);
     });
     expect(() => aui.threads.item({ id: localId }).getState()).toThrow();
@@ -2006,7 +2009,7 @@ describe("RemoteThreadList", () => {
   it("does not leave the collapsed slot in both lists when the race reported it archived", async () => {
     const { handle, aui, localId } = await mountRacedInitialize("archived");
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(aui.threads.item({ id: "remote-1" }).getState().id).toBe(localId);
     });
     expect(aui.threads.getState().threadIds).toEqual([localId]);
@@ -2041,7 +2044,7 @@ describe("RemoteThreadList", () => {
       ],
     }));
     await handle.getClient().threads.reload();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().threads.item("main").getState().remoteId).toBe(
         `remote-${localId}`,
       );
@@ -2066,7 +2069,7 @@ describe("RemoteThreadList", () => {
       threads: [{ status: "regular" as const, remoteId, title: "Mine" }],
     }));
     await handle.getClient().threads.reload();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(
         handle.getClient().threads.item({ id: remoteId }).getState().remoteId,
       ).toBe(remoteId);
@@ -2074,7 +2077,7 @@ describe("RemoteThreadList", () => {
     flushTapSync(() =>
       handle.getClient().threads.item({ id: remoteId }).delete(),
     );
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().threads.getState().mainThreadId).not.toBe(
         localId,
       );
@@ -2114,13 +2117,13 @@ describe("RemoteThreadList", () => {
     const handle = createAssistantClient(source);
     handle.subscribe(() => {});
     await handle.getClient().threads.getLoadThreadsPromise();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().threads.getState().threadIds).toEqual(["t1"]);
     });
     expect(methods.list).toHaveBeenCalledTimes(1);
     adapter = { ...methods };
     for (const listener of listeners) listener();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().threads.getState().threadIds).toEqual(["t1"]);
     });
     expect(methods.list).toHaveBeenCalledTimes(1);
@@ -2163,7 +2166,7 @@ describe("RemoteThreadList", () => {
     handle.subscribe(() => {});
     await handle.getClient().threads.getLoadThreadsPromise();
     flushTapSync(() => handle.getClient().threads.switchToThread("thread-a"));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().threads.item("main").getState().remoteId).toBe(
         "thread-a",
       );
@@ -2223,7 +2226,7 @@ describe("RemoteThreadList", () => {
       handle.subscribe(() => {});
       try {
         await handle.getClient().threads.getLoadThreadsPromise();
-        await vi.waitFor(() =>
+        await waitFor(() =>
           expect(handle.getClient().threads.getState().mainThreadId).toBe(
             "thread-a",
           ),
@@ -2246,7 +2249,7 @@ describe("RemoteThreadList", () => {
           threads: listed ? [{ status: "regular", remoteId: "thread-b" }] : [],
         });
         await reload;
-        await vi.waitFor(() =>
+        await waitFor(() =>
           expect(handle.getClient().threads.getState().isLoading).toBe(false),
         );
         const expectedId =
@@ -2255,7 +2258,7 @@ describe("RemoteThreadList", () => {
             : manualSwitch === "during reload"
               ? "manual"
               : draftId;
-        await vi.waitFor(() =>
+        await waitFor(() =>
           expect(handle.getClient().threads.getState().mainThreadId).toBe(
             expectedId,
           ),
@@ -2273,7 +2276,7 @@ describe("RemoteThreadList", () => {
           await microtasks(20);
           expect(fetch).toHaveBeenCalledTimes(previousCalls + 1);
           fetched.resolve({ status: "regular", remoteId: "not-listed" });
-          await vi.waitFor(() =>
+          await waitFor(() =>
             expect(handle.getClient().threads.getState().mainThreadId).toBe(
               "not-listed",
             ),
@@ -2316,7 +2319,7 @@ describe("RemoteThreadList", () => {
       .mockImplementation(() => {});
     try {
       await handle.getClient().threads.getLoadThreadsPromise();
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(handle.getClient().threads.getState().mainThreadId).toBe(
           "old-selected",
         ),
@@ -2339,7 +2342,7 @@ describe("RemoteThreadList", () => {
       expect(handle.getClient().threads.getState().loadError).toBe(error);
       expect(fetch).toHaveBeenCalledTimes(fetchesBeforeReload);
       await handle.getClient().threads.reload();
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(handle.getClient().threads.getState().mainThreadId).toBe(
           "selected",
         ),
@@ -2393,7 +2396,7 @@ describe("RemoteThreadList", () => {
     handle.subscribe(() => {});
     await handle.getClient().threads.getLoadThreadsPromise();
     flushTapSync(() => handle.getClient().threads.switchToThread("thread-a"));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().threads.item("main").getState().remoteId).toBe(
         "thread-a",
       );
@@ -2417,7 +2420,7 @@ describe("RemoteThreadList", () => {
         .threads.getState().mainThreadId;
       expect(handle.getClient().threads.getState().loadError).toBe(error);
       await handle.getClient().threads.reload();
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(handle.getClient().threads.getState().threadIds).toEqual([
           "thread-b",
         ]);
@@ -2450,16 +2453,16 @@ describe("RemoteThreadList", () => {
     const { handle } = mountList(makeAdapter({ list }));
 
     try {
-      await vi.waitFor(() => expect(list).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
       firstLoad.reject(error);
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(handle.getClient().threads.getState().loadError).toBe(error),
       );
 
       window.dispatchEvent(new Event("online"));
 
-      await vi.waitFor(() => expect(list).toHaveBeenCalledTimes(2));
-      await vi.waitFor(() =>
+      await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+      await waitFor(() =>
         expect(handle.getClient().threads.getState().loadError).toBeUndefined(),
       );
       expect(list).toHaveBeenCalledTimes(2);
@@ -2488,9 +2491,9 @@ describe("RemoteThreadList", () => {
     const { handle } = mountList(makeAdapter({ list }));
 
     try {
-      await vi.waitFor(() => expect(list).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
       firstLoad.reject(error);
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(handle.getClient().threads.getState().loadError).toBe(error),
       );
 
@@ -2501,8 +2504,8 @@ describe("RemoteThreadList", () => {
       document.visibilityState = "visible";
       document.dispatchEvent(new Event("visibilitychange"));
 
-      await vi.waitFor(() => expect(list).toHaveBeenCalledTimes(2));
-      await vi.waitFor(() =>
+      await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+      await waitFor(() =>
         expect(handle.getClient().threads.getState().loadError).toBeUndefined(),
       );
       expect(list).toHaveBeenCalledTimes(2);
@@ -2689,7 +2692,7 @@ describe("RemoteThreadList", () => {
       unstable_useAdapters: useHistoryAdapters(secondHistory),
     });
     for (const listener of listeners) listener();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(capture.adapters?.history).toBe(secondHistory);
     });
     handle.destroy();
@@ -2731,7 +2734,7 @@ describe("RemoteThreadList", () => {
     const afterLoad = mounts;
     expect(afterLoad).toBeGreaterThan(0);
     flushTapSync(() => aui.threads.switchToThread("t1"));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
     });
     expect(mounts).toBe(afterLoad);
@@ -2763,7 +2766,7 @@ describe("RemoteThreadList", () => {
       const aui = handle.getClient();
       await aui.threads.getLoadThreadsPromise();
       flushTapSync(() => aui.threads.switchToThread("t1"));
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
       });
       handle.destroy();
@@ -2801,7 +2804,7 @@ describe("RemoteThreadList", () => {
       const aui = handle.getClient();
       await aui.threads.getLoadThreadsPromise();
       flushTapSync(() => aui.threads.switchToThread("t1"));
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
       });
       handle.destroy();
@@ -2842,15 +2845,15 @@ describe("RemoteThreadList", () => {
     handle.subscribe(() => {});
     const aui = handle.getClient();
     await aui.threads.getLoadThreadsPromise();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(load).toHaveBeenCalled();
     });
     const afterFirst = load.mock.calls.length;
     flushTapSync(() => aui.threads.switchToThread("t2"));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().threads.getState().mainThreadId).toBe("t2");
     });
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(load.mock.calls.length).toBeGreaterThan(afterFirst);
     });
     handle.destroy();
@@ -2889,11 +2892,11 @@ describe("RemoteThreadList", () => {
     const handle = createAssistantClient(source);
     handle.subscribe(() => {});
     await handle.getClient().threads.getLoadThreadsPromise();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
     });
     flushTapSync(() => handle.getClient().threads.switchToNewThread());
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().threads.getState().mainThreadId).not.toBe("t1");
     });
     expect(onSwitchToNewThread).toHaveBeenCalledTimes(1);
@@ -2939,12 +2942,12 @@ describe("RemoteThreadList", () => {
     handle.subscribe(() => {});
     await handle.getClient().threads.getLoadThreadsPromise();
     flushTapSync(() => handle.getClient().threads.switchToThread("t1"));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
     });
     onThreadIdChange = vi.fn();
     for (const listener of listeners) listener();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
     });
     expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
@@ -2967,7 +2970,7 @@ describe("RemoteThreadList", () => {
     const aui = handle.getClient();
     await aui.threads.getLoadThreadsPromise();
     flushTapSync(() => aui.threads.switchToThread("t1"));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
     });
     onSwitchToThread.mockClear();
@@ -2985,14 +2988,14 @@ describe("RemoteThreadList", () => {
     const { handle } = mountList(adapter);
     const aui = handle.getClient();
     await aui.threads.getLoadThreadsPromise();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().threads.getState().threadIds).toEqual(["t1"]);
     });
     flushTapSync(() => {
       handle.getClient().threads.switchToThread("t1");
       handle.getClient().threads.item({ id: "t1" }).delete();
     });
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().threads.getState().threadIds).not.toContain(
         "t1",
       );
@@ -3010,7 +3013,7 @@ describe("RemoteThreadList", () => {
     const aui = handle.getClient();
     flushTapSync(() => aui.threads.switchToThread(targetId));
     flushTapSync(() => aui.threads.item({ id: targetId }).delete());
-    await vi.waitFor(() => {
+    await waitFor(() => {
       const state = handle.getClient().threads.getState();
       expect(state.threadIds).not.toContain(targetId);
       expect(state.archivedThreadIds).not.toContain(targetId);
@@ -3038,7 +3041,7 @@ describe("RemoteThreadList", () => {
 
     flushTapSync(() => aui.threads.switchToThread(targetId));
     flushTapSync(() => aui.threads.item({ id: targetId }).unarchive());
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(
         handle.getClient().threads.item({ id: targetId }).getState().status,
       ).toBe("regular");
@@ -3049,7 +3052,7 @@ describe("RemoteThreadList", () => {
       externalId: undefined,
     });
     await initialization;
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().threads.getState().mainThreadId).toBe(targetId);
     });
 
@@ -3080,11 +3083,11 @@ describe("RemoteThreadList", () => {
     const initialMainThreadId = aui.threads.getState().mainThreadId;
 
     flushTapSync(() => aui.threads.switchToThread("t1"));
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(adapter.unarchive).toHaveBeenCalledWith("t1");
     });
     flushTapSync(() => aui.threads.item({ id: "t1" }).delete());
-    await vi.waitFor(() => {
+    await waitFor(() => {
       const state = handle.getClient().threads.getState();
       expect(state.threadIds).not.toContain("t1");
       expect(state.archivedThreadIds).not.toContain("t1");
@@ -3116,7 +3119,7 @@ describe("RemoteThreadList", () => {
     await aui.threads.getLoadThreadsPromise();
     const localId = aui.threads.getState().mainThreadId;
     const pending = aui.threads.item("main").initialize();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().threads.item("main").getState().status).toBe(
         "regular",
       );
@@ -3128,7 +3131,7 @@ describe("RemoteThreadList", () => {
       remoteId: `remote-${localId}`,
       externalId: undefined,
     });
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(handle.getClient().threads.getState().mainThreadId).not.toBe(
         localId,
       );
@@ -3147,7 +3150,7 @@ describe("RemoteThreadList", () => {
     await aui.threads.getLoadThreadsPromise();
     const localId = aui.threads.getState().mainThreadId;
     await aui.threads.item("main").initialize();
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(onThreadIdChange).toHaveBeenCalledWith(`remote-${localId}`);
     });
     handle.destroy();
@@ -3178,7 +3181,7 @@ describe("RemoteThreadList", () => {
 
       flushTapSync(() => threads.switchToThread("t1"));
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
         expect(onThreadIdChange).toHaveBeenCalledExactlyOnceWith("t1");
         expect(errorSpy).toHaveBeenCalledWith(

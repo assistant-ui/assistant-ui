@@ -158,6 +158,29 @@ describe("createWidget", () => {
     widget.dispose();
   });
 
+  it("advertises text and structured model context only to a host that accepts it", async () => {
+    const result = {
+      size: { width: 1, height: 1 },
+      blank: false,
+      errorCount: 0,
+    };
+    const capabilities = async (options: Partial<CreateWidgetOptions>) => {
+      const { fake, widget } = setup(options);
+      const peer = await fake.connect(0, { onRequest: () => result });
+      const init = (await peer.request(METHODS.initialize, {})) as {
+        hostCapabilities: Record<string, unknown>;
+      };
+      widget.dispose();
+      return init.hostCapabilities;
+    };
+    expect(
+      (await capabilities({ onUpdateModelContext: () => ({}) }))[
+        "updateModelContext"
+      ],
+    ).toEqual({ text: {}, structuredContent: {} });
+    expect(await capabilities({})).not.toHaveProperty("updateModelContext");
+  });
+
   it("keeps state set while a replacement loads and seeds the next remount", async () => {
     const onWidgetState = vi.fn();
     const { fake, widget } = setup({ onWidgetState });

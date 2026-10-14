@@ -31,6 +31,7 @@ type ActionHandler = (params: Record<string, unknown>, context: ActionSource & {
 type ActionSource = {
   elementId?: string;
   trigger?: string;
+  kind?: "event" | "watch";
 };
 
 type AncestorsOf<K extends ClientNames, Seen extends ClientNames = never> = K extends Seen ? never : ParentOf<K> extends never ? never : ParentOf<K> | AncestorsOf<ParentOf<K>, Seen | K>;
@@ -224,6 +225,7 @@ type CreateSpecToolsOptions = {
     spec: Spec;
     version: number;
   }>;
+  customRules?: readonly string[];
 };
 
 type CreateWidgetOptions = WidgetHandlers & {
@@ -257,6 +259,8 @@ type CreateWidgetToolsOptions = {
 
 type CspOptions = {
   cdnOrigins?: readonly string[];
+  fontStyleOrigins?: readonly string[];
+  fontOrigins?: readonly string[];
   connectOrigins?: readonly string[];
   imageOrigins?: readonly string[];
   frameOrigins?: readonly string[];
@@ -395,6 +399,8 @@ type GuidanceOptions = {
   platform?: Platform;
   tokens?: ThemeTokens;
   cdnOrigins?: readonly string[];
+  fontStyleOrigins?: readonly string[];
+  fontOrigins?: readonly string[];
   connectOrigins?: readonly string[];
   allowEval?: boolean;
   width?: number;
@@ -404,6 +410,7 @@ type GuidanceOptions = {
 type HostApiOptions = {
   prompt?: boolean;
   callTool?: boolean;
+  modelContext?: boolean;
 };
 
 type HostContext = {
@@ -755,6 +762,27 @@ type ReservedAccessorProps = "name" | "query" | "source";
 
 type ReservedScopeNames = "on" | "optional" | "subscribe";
 
+type ResolveSpecOptions = {
+  state?: unknown;
+};
+
+type ResolvedAction = {
+  action: string;
+  params: Record<string, unknown>;
+};
+
+type ResolvedElement = {
+  id: string;
+  type: string;
+  props: Record<string, unknown>;
+  bindings: Record<string, string>;
+  on: Record<string, ResolvedAction[]>;
+  children: ResolvedElement[];
+  slots: Record<string, ResolvedElement[]>;
+  key?: string;
+  itemPath?: string;
+};
+
 declare class SafeContentFrame {
   #private;
   constructor(product: string, options?: SafeContentFrameOptions);
@@ -859,9 +887,9 @@ type SpecComponentProps<P extends Record<string, unknown> = Record<string, unkno
   streaming: boolean;
 };
 
-type SpecComponents = Record<string, Component$1>;
+type SpecComponents = Record<string, ComponentType<SpecComponentProps<any>>>;
 
-type SpecComponents$1 = Record<string, ComponentType<SpecComponentProps<any>>>;
+type SpecComponents$1 = Record<string, Component$1>;
 
 type SpecElement = {
   type: string;
@@ -893,15 +921,17 @@ type SpecIssue = {
   elementId?: string;
 };
 
-type SpecIssueCode = "children-not-allowed" | "cycle" | "invalid-element" | "invalid-params" | "invalid-patch" | "invalid-props" | "invalid-repeat" | "missing-child" | "missing-root" | "unknown-action" | "unknown-event" | "unknown-root" | "unknown-slot" | "unknown-type" | "unreachable";
+type SpecIssueCode = "children-not-allowed" | "cycle" | "invalid-element" | "invalid-formula" | "invalid-params" | "invalid-patch" | "invalid-props" | "invalid-repeat" | "missing-child" | "missing-root" | "unfilled-placeholder" | "unknown-action" | "unknown-event" | "unknown-root" | "unknown-slot" | "unknown-type" | "unreachable";
 
-declare const SpecPlaceholder: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
+declare function SpecPlaceholder(_param0: SpecPlaceholderProps): import("react").JSX.Element;
+
+declare const SpecPlaceholder$1: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
   id: {
     type: StringConstructor;
     required: true;
   };
   reason: {
-    type: PropType<SpecPlaceholderProps["reason"]>;
+    type: PropType<SpecPlaceholderProps$1["reason"]>;
     required: true;
   };
   message: {
@@ -916,7 +946,7 @@ declare const SpecPlaceholder: import("vue").DefineComponent<import("vue").Extra
     required: true;
   };
   reason: {
-    type: PropType<SpecPlaceholderProps["reason"]>;
+    type: PropType<SpecPlaceholderProps$1["reason"]>;
     required: true;
   };
   message: {
@@ -924,8 +954,6 @@ declare const SpecPlaceholder: import("vue").DefineComponent<import("vue").Extra
     required: true;
   };
 }>> & Readonly<{}>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
-
-declare function SpecPlaceholder$1(_param0: SpecPlaceholderProps$1): import("react").JSX.Element;
 
 type SpecPlaceholderProps = {
   id: string;
@@ -943,22 +971,29 @@ type SpecPromptOptions = {
   mode?: SpecStreamMode;
   customRules?: readonly string[];
   omitExample?: boolean;
+  hostApi?: {
+    prompt?: boolean;
+    modelContext?: boolean;
+    clipboard?: boolean;
+  };
 };
 
-declare const SpecRenderer$1: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
+declare function SpecRenderer$1(_param1: SpecRendererProps): import("react").JSX.Element | null;
+
+declare const SpecRenderer$2: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
   spec: {
     type: PropType<Spec>;
     required: true;
   };
   components: {
-    type: PropType<SpecComponents>;
+    type: PropType<SpecComponents$1>;
     required: true;
   };
   catalog: PropType<Catalog>;
   state: PropType<SpecStateStore>;
   handlers: PropType<Record<string, ActionHandler>>;
-  onAction: PropType<SpecRendererProps["onAction"]>;
-  onError: PropType<SpecRendererProps["onError"]>;
+  onAction: PropType<SpecRendererProps$1["onAction"]>;
+  onError: PropType<SpecRendererProps$1["onError"]>;
   streaming: {
     type: BooleanConstructor;
     default: boolean;
@@ -971,7 +1006,7 @@ declare const SpecRenderer$1: import("vue").DefineComponent<import("vue").Extrac
         required: true;
       };
       reason: {
-        type: PropType<SpecPlaceholderProps["reason"]>;
+        type: PropType<SpecPlaceholderProps$1["reason"]>;
         required: true;
       };
       message: {
@@ -986,7 +1021,7 @@ declare const SpecRenderer$1: import("vue").DefineComponent<import("vue").Extrac
         required: true;
       };
       reason: {
-        type: PropType<SpecPlaceholderProps["reason"]>;
+        type: PropType<SpecPlaceholderProps$1["reason"]>;
         required: true;
       };
       message: {
@@ -1003,14 +1038,14 @@ declare const SpecRenderer$1: import("vue").DefineComponent<import("vue").Extrac
     required: true;
   };
   components: {
-    type: PropType<SpecComponents>;
+    type: PropType<SpecComponents$1>;
     required: true;
   };
   catalog: PropType<Catalog>;
   state: PropType<SpecStateStore>;
   handlers: PropType<Record<string, ActionHandler>>;
-  onAction: PropType<SpecRendererProps["onAction"]>;
-  onError: PropType<SpecRendererProps["onError"]>;
+  onAction: PropType<SpecRendererProps$1["onAction"]>;
+  onError: PropType<SpecRendererProps$1["onError"]>;
   streaming: {
     type: BooleanConstructor;
     default: boolean;
@@ -1023,7 +1058,7 @@ declare const SpecRenderer$1: import("vue").DefineComponent<import("vue").Extrac
         required: true;
       };
       reason: {
-        type: PropType<SpecPlaceholderProps["reason"]>;
+        type: PropType<SpecPlaceholderProps$1["reason"]>;
         required: true;
       };
       message: {
@@ -1038,7 +1073,7 @@ declare const SpecRenderer$1: import("vue").DefineComponent<import("vue").Extrac
         required: true;
       };
       reason: {
-        type: PropType<SpecPlaceholderProps["reason"]>;
+        type: PropType<SpecPlaceholderProps$1["reason"]>;
         required: true;
       };
       message: {
@@ -1051,8 +1086,6 @@ declare const SpecRenderer$1: import("vue").DefineComponent<import("vue").Extrac
   streaming: boolean;
   placeholder: Component$1;
 }, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
-
-declare function SpecRenderer$2(_param1: SpecRendererProps$1): import("react").JSX.Element | null;
 
 type SpecRendererProps = {
   spec: Spec;
@@ -1067,7 +1100,7 @@ type SpecRendererProps = {
     elementId?: string;
   }) => void;
   streaming?: boolean;
-  placeholder?: Component$1;
+  placeholder?: ComponentType<SpecPlaceholderProps>;
 };
 
 type SpecRendererProps$1 = {
@@ -1083,7 +1116,7 @@ type SpecRendererProps$1 = {
     elementId?: string;
   }) => void;
   streaming?: boolean;
-  placeholder?: ComponentType<SpecPlaceholderProps$1>;
+  placeholder?: Component$1;
 };
 
 type SpecStateStore = {
@@ -1128,6 +1161,18 @@ type SpecStreamUpdate = {
 };
 
 type SpecToolkitOptions = {
+  components: SpecComponents;
+  handlers?: Record<string, ActionHandler>;
+  onAction?: (name: string, params: Record<string, unknown>, context: {
+    elementId?: string;
+    trigger?: string;
+    state: SpecStateStore;
+  }) => unknown;
+  placeholder?: ComponentType<SpecPlaceholderProps>;
+  specPrompt?: Omit<SpecPromptOptions, "mode">;
+};
+
+type SpecToolkitOptions$1 = {
   components: SpecComponents$1;
   handlers?: Record<string, ActionHandler>;
   onAction?: (name: string, params: Record<string, unknown>, context: {
@@ -1135,7 +1180,7 @@ type SpecToolkitOptions = {
     trigger?: string;
     state: SpecStateStore;
   }) => unknown;
-  placeholder?: ComponentType<SpecPlaceholderProps$1>;
+  placeholder?: Component$1;
   specPrompt?: Omit<SpecPromptOptions, "mode">;
 };
 
@@ -1639,6 +1684,13 @@ type ValidateSpecOptions = {
   partial?: boolean;
 };
 
+type VueSpecToolkit = Omit<WidgetToolkitExtension, "entries"> & {
+  entries(context: {
+    execution: ToolkitExecution;
+    display: ToolkitDisplay;
+  }): Toolkit;
+};
+
 declare const WIDGET_MODULES: readonly [
   "diagram",
   "chart",
@@ -1858,6 +1910,8 @@ declare function createSpecStream(options?: CreateSpecStreamOptions): SpecStream
 
 declare function createSpecToolkit(catalog: Catalog, options: SpecToolkitOptions): WidgetToolkitExtension;
 
+declare function createSpecToolkit$1(catalog: Catalog, options: SpecToolkitOptions$1): VueSpecToolkit;
+
 declare function createSpecTools(catalog: Catalog, options?: CreateSpecToolsOptions): SpecTools;
 
 declare function createStateStore(initial?: Record<string, unknown>, options?: StateStoreOptions): SpecStateStore & {
@@ -1922,7 +1976,7 @@ declare namespace entry_react_exports {
 }
 
 declare namespace entry_spec_react_exports {
-  export { SpecComponentProps, SpecComponents$1 as SpecComponents, SpecPlaceholder$1 as SpecPlaceholder, SpecPlaceholderProps$1 as SpecPlaceholderProps, SpecRenderer$2 as SpecRenderer, SpecRendererProps$1 as SpecRendererProps, UseSpecStreamOptions$1 as UseSpecStreamOptions, UseSpecStreamResult$1 as UseSpecStreamResult, useSpecStream$1 as useSpecStream };
+  export { SpecComponentProps, SpecComponents, SpecPlaceholder, SpecPlaceholderProps, SpecRenderer$1 as SpecRenderer, SpecRendererProps, UseSpecStreamOptions$1 as UseSpecStreamOptions, UseSpecStreamResult$1 as UseSpecStreamResult, useSpecStream$1 as useSpecStream };
 }
 
 declare function readThemeTokens(element?: Element, sources?: ThemeTokenSources): ThemeTokens;
@@ -1933,10 +1987,12 @@ declare namespace entry_repair_exports {
   export { GenerateContext, GenerateResult, RenderReport, RepairFeedback, RepairLoopOptions, RepairLoopResult, RepairRound, buildRepairFeedback, repairLoop };
 }
 
+declare function resolveSpec(spec: Spec, options?: ResolveSpecOptions): ResolvedElement | null;
+
 declare function specGuidanceModule(catalog: Catalog, options?: Omit<SpecPromptOptions, "mode">): GuidanceModule;
 
 declare namespace entry_spec_exports {
-  export { ActionBinding, ActionDefinition, ActionHandler, ActionSource, Catalog, CatalogDefinition, ComponentDefinition, Condition, CreateSpecStreamOptions, JsonSchema, JsonSchemaType, PatchOperation, PropsSchema, Spec, SpecElement, SpecIssue, SpecIssueCode, SpecPromptOptions, SpecStateStore, SpecStateWrite, SpecStream, SpecStreamError, SpecStreamMode, SpecStreamResult, SpecStreamUpdate, SpecValidation, StandardSchemaLike, StateListener, StateStoreOptions, ValidateSpecOptions, applyPatch, createSpecStream, createStateStore, defineCatalog, emptySpec, formatSpecIssues, parseSpecStream, validateSpec };
+  export { ActionBinding, ActionDefinition, ActionHandler, ActionSource, Catalog, CatalogDefinition, ComponentDefinition, Condition, CreateSpecStreamOptions, JsonSchema, JsonSchemaType, PatchOperation, PropsSchema, ResolveSpecOptions, ResolvedAction, ResolvedElement, Spec, SpecElement, SpecIssue, SpecIssueCode, SpecPromptOptions, SpecStateStore, SpecStateWrite, SpecStream, SpecStreamError, SpecStreamMode, SpecStreamResult, SpecStreamUpdate, SpecValidation, StandardSchemaLike, StateListener, StateStoreOptions, ValidateSpecOptions, applyPatch, createSpecStream, createStateStore, defineCatalog, emptySpec, formatSpecIssues, parseSpecStream, resolveSpec, validateSpec };
 }
 
 declare function toAISDKTools<T extends Record<string, AnyTool>, Schema>(tools: T, sdk: {
@@ -1973,10 +2029,14 @@ declare function useWidgetInstructions(tools: WidgetTools & Record<string, AnyTo
 
 declare function validateSpec(spec: Spec, catalog: Catalog, options?: ValidateSpecOptions): SpecValidation;
 
+declare namespace entry_spec_assistant_ui_vue_exports {
+  export { SpecToolkitOptions$1 as SpecToolkitOptions, VueSpecToolkit, createSpecToolkit$1 as createSpecToolkit };
+}
+
 declare namespace entry_spec_vue_exports {
-  export { SpecComponents, SpecElementContext, SpecPlaceholder, SpecPlaceholderProps, SpecRenderer$1 as SpecRenderer, SpecRendererProps, UseSpecStreamOptions, UseSpecStreamResult, useSpecElement, useSpecStream };
+  export { SpecComponents$1 as SpecComponents, SpecElementContext, SpecPlaceholder$1 as SpecPlaceholder, SpecPlaceholderProps$1 as SpecPlaceholderProps, SpecRenderer$2 as SpecRenderer, SpecRendererProps$1 as SpecRendererProps, UseSpecStreamOptions, UseSpecStreamResult, useSpecElement, useSpecStream };
 }
 
 declare const widgetStorageSalt: (id: string) => string;
 
-export { entry_assistant_ui_exports as entry_assistant_ui, entry_prompts_exports as entry_prompts, entry_react_exports as entry_react, entry_repair_exports as entry_repair, entry_root_exports as entry_root, entry_spec_exports as entry_spec, entry_spec_assistant_ui_exports as entry_spec_assistant_ui, entry_spec_react_exports as entry_spec_react, entry_spec_tools_exports as entry_spec_tools, entry_spec_vue_exports as entry_spec_vue, entry_tools_exports as entry_tools };
+export { entry_assistant_ui_exports as entry_assistant_ui, entry_prompts_exports as entry_prompts, entry_react_exports as entry_react, entry_repair_exports as entry_repair, entry_root_exports as entry_root, entry_spec_exports as entry_spec, entry_spec_assistant_ui_exports as entry_spec_assistant_ui, entry_spec_assistant_ui_vue_exports as entry_spec_assistant_ui_vue, entry_spec_react_exports as entry_spec_react, entry_spec_tools_exports as entry_spec_tools, entry_spec_vue_exports as entry_spec_vue, entry_tools_exports as entry_tools };

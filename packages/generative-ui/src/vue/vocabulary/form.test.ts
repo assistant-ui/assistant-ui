@@ -81,6 +81,7 @@ describe("form vocabulary in Vue", () => {
       .querySelector("form")!
       .dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
     await nextTick();
+    expect(vueHandler).toHaveBeenCalledOnce();
     expect(vueHandler.mock.calls.map(([params]) => params)).toEqual(
       reactHandler.mock.calls.map(([params]) => params),
     );

@@ -46,6 +46,14 @@ const catalog = defineCatalog({
       },
     },
     Boom: { description: "Throws" },
+    Photo: {
+      description: "Image",
+      props: { type: "object", properties: { src: {} } },
+    },
+    Picture: {
+      description: "Image",
+      props: { type: "object", properties: { src: { type: "string" } } },
+    },
   },
   actions: { refresh: { description: "Reload" } },
 });
@@ -81,6 +89,12 @@ const components: SpecComponents = {
   Boom: () => {
     throw new Error("kaboom");
   },
+  Photo: ({ props }: SpecComponentProps<{ src?: string }>) => (
+    <img alt="" src={props.src} />
+  ),
+  Picture: ({ props }: SpecComponentProps<{ src?: string }>) => (
+    <img alt="" src={props.src} />
+  ),
 };
 
 const spec = (elements: Spec["elements"], state: Spec["state"] = {}): Spec => ({
@@ -252,6 +266,94 @@ describe("SpecRenderer", () => {
       expect.objectContaining({ message: "kaboom" }),
       { elementId: "boom" },
     );
+  });
+
+  it("renders an element again once it changes after its component threw", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const tools = Object.assign(Object.create(null), {
+      photos: ["https://example.com/bridge.jpg"],
+    });
+    const photo = (path: string) =>
+      spec(
+        { main: { type: "Photo", props: { src: { $state: path } } } },
+        { tools },
+      );
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={photo("/tools")}
+        streaming
+      />,
+    );
+    expect(view.container.textContent).toContain("Photo failed");
+
+    view.rerender(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={photo("/tools/photos/0")}
+      />,
+    );
+    expect(view.container.querySelector("img")?.getAttribute("src")).toBe(
+      "https://example.com/bridge.jpg",
+    );
+  });
+
+  it("waits for a primitive prop to resolve while streaming", () => {
+    const tools = Object.assign(Object.create(null), {
+      photos: ["https://example.com/bridge.jpg"],
+    });
+    const picture = (path: string) =>
+      spec(
+        { main: { type: "Picture", props: { src: { $state: path } } } },
+        { tools },
+      );
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={picture("/tools")}
+        streaming
+      />,
+    );
+    expect(
+      view.container.querySelector('[data-gf-spec-placeholder="pending"]'),
+    ).not.toBeNull();
+    expect(
+      view.container.querySelector('[data-gf-spec-placeholder="error"]'),
+    ).toBeNull();
+
+    view.rerender(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={picture("/tools/photos/0")}
+      />,
+    );
+    expect(view.container.querySelector("img")?.getAttribute("src")).toBe(
+      "https://example.com/bridge.jpg",
+    );
+  });
+
+  it("shows invalid props when a primitive prop resolves to an object", () => {
+    const tools = Object.assign(Object.create(null), {
+      photos: ["https://example.com/bridge.jpg"],
+    });
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={spec(
+          { main: { type: "Picture", props: { src: { $state: "/tools" } } } },
+          { tools },
+        )}
+      />,
+    );
+    expect(
+      view.container.querySelector('[data-gf-spec-placeholder="invalid-props"]')
+        ?.textContent,
+    ).toBe("Picture: src expected string, got object");
   });
 
   it("shows pending children while streaming and keeps user state when spec state streams in", () => {

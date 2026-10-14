@@ -1,0 +1,51 @@
+---
+title: Generative UI
+description: Let the model answer with a spec of cards, tables, and form controls that renders in the thread with Vue components.
+---
+
+In [spec mode](/generative-frame/docs/spec-mode), the model writes a spec of components and state with the `render_spec` tool, and the thread renders it with trusted Vue components while it streams. `createSpecToolkit` from `generative-frame/spec/assistant-ui/vue` connects it to an `@assistant-ui/vue` thread, and `toSpecCatalog` from `@assistant-ui/generative-ui/vue` supplies a ready-made vocabulary of cards, tables, charts, and form controls.
+
+## Register the tool
+
+Build the catalog and components, create the toolkit, and pass its entries to `Tools`:
+
+```ts title="app/lib/spec.ts"
+import { Tools } from "@assistant-ui/core/react";
+import { toSpecCatalog } from "@assistant-ui/generative-ui/vue";
+import { createSpecToolkit } from "generative-frame/spec/assistant-ui/vue";
+
+const { catalog, components } = toSpecCatalog();
+
+export const spec = createSpecToolkit(catalog, { components });
+export const tools = Tools({
+  toolkit: spec.entries({ execution: "frontend", display: "standalone" }),
+});
+export const guidance = (spec.modules ?? [])
+  .map((module) => module.guidance())
+  .join("\n\n");
+```
+
+Pass `tools` to `AuiConfig`, and register `guidance` as `system` [model context](/docs/vue/model-context) in a component under `AuiProvider`, so the model knows the catalog, the spec format, and where earlier tool results are:
+
+```vue title="app/components/SpecInstructions.vue"
+<script setup lang="ts">
+import { onScopeDispose } from "vue";
+import { useAui } from "@assistant-ui/vue";
+import { guidance } from "~/lib/spec";
+
+const aui = useAui();
+onScopeDispose(
+  aui.modelContext.register({ getModelContext: () => ({ system: guidance }) }),
+);
+</script>
+
+<template>
+  <slot />
+</template>
+```
+
+With `execution: "frontend"`, the tool validates each spec in the browser and returns the issues for the model to fix, and earlier tool results are in the spec's state. With `"backend"`, define `render_spec` on the server with `createSpecTools(catalog)` and put the catalog guidance, `catalog.prompt()`, in its system prompt instead of `guidance`: earlier tool results reach a spec's state only in frontend execution, so the rule `guidance` adds for them does not apply.
+
+## What the toolkit handles
+
+A later `render_spec` call with the same title patches the spec the earlier one produced. What the user changes is saved on the call and comes back after a reload with any runtime that keeps tool interactions; saving is best effort, since the state has to be plain JSON within the runtime's limit for one interaction. A spec can send a message with `sendMessage` from an event a component emits, never from `watch`, and share what the user picked with the model through `updateModelContext`. [assistant-ui on Vue](/generative-frame/docs/assistant-ui#on-vue) covers the toolkit's options, and [Generative UI with Vue](/docs/tools/generative-ui#with-vue) covers the vocabulary and your own components.

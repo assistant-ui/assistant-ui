@@ -72,7 +72,7 @@ const tools = createWidgetTools({
 
 ## `read_me`
 
-Returns the rules for writing widgets plus guidance for the requested modules. The description tells the model to call it silently before its first widget.
+Returns the rules for writing widgets plus guidance for the requested modules. The description tells the model to call it silently before its first `show_widget` call.
 
 | Input | Type | Notes |
 | --- | --- | --- |
@@ -120,7 +120,7 @@ The result is a `PreviewResult`: `{ ok, kind, width, height, blank, errors, cons
 
 ## `render_spec`
 
-`createSpecTools(catalog, { specs? })` from `generative-frame/spec/tools` returns `{ render_spec }`. It validates and records a spec built from your components. Pass `specs`, a `Map<string, { spec, version }>`, to share the latest spec per title with the host. The description tells the model to follow the spec guidance it was given, either the `spec` module of `read_me` or the system prompt.
+`createSpecTools(catalog, { specs?, customRules? })` from `generative-frame/spec/tools` returns `{ render_spec }`. It validates and records a spec built from your components. Pass `specs`, a `Map<string, { spec, version }>`, to share the latest spec per title with the host. The description tells the model to follow the spec guidance in the system prompt, and to load the `spec` module with `read_me` only when the system prompt has none, and carries the rules for composing an answer followed by your `customRules`, so they hold even when the model never loads that guidance.
 
 | Input | Type | Notes |
 | --- | --- | --- |
@@ -160,7 +160,7 @@ import { buildWidgetInstructions } from "generative-frame/tools";
 const system = `${basePrompt}\n\n${await buildWidgetInstructions(tools)}`;
 ```
 
-`buildWidgetInstructions(tools, { preload })` returns a short section that tells the model when to show a widget, to call `read_me` first, and to change widgets with `edit_widget`. When `render_spec` is among the tools, the section instead tells the model to answer in Markdown when the answer is read once, with `render_spec` for structured content the user scans or acts on, and with `show_widget` for tools that calculate and visuals the components cannot draw, as [Choosing an answer format](/docs/tools/generative-ui-formats) describes. With `preload: { modules, platform }`, it appends the `read_me` output for those modules.
+`buildWidgetInstructions(tools, { preload })` returns a short section that tells the model when to show a widget, to call `read_me` before its first `show_widget` call, and to change widgets with `edit_widget`. When `render_spec` is among the tools, the section instead tells the model to answer in Markdown when the answer is read once, with `render_spec` for structured content the user scans or acts on, and with `show_widget` for tools that calculate and visuals the components cannot draw, as [Choosing an answer format](/docs/tools/generative-ui-formats) describes, and says that a `render_spec` answer needs none of the built-in widget modules. With `preload: { modules, platform }`, it appends the `read_me` output for those modules and tells the model not to load them again.
 
 ## Guidance
 
@@ -190,7 +190,7 @@ It contains the base rules (fragment format, streaming order, theme tokens, allo
 | `elicitation` | a form that collects several answers from the user at once |
 | `art` | illustrations, generative art, decorative or explanatory drawings |
 
-Keep the guidance consistent with the frame: if you pass `csp: { cdnOrigins, connectOrigins, allowEval }` to `createWidget`, pass the same values to `buildWidgetGuidance`, and set `hostApi.callTool` only when the host handles `onCallTool`. `buildModuleGuidance(module, options)` returns one module on its own.
+Guidance describes the policy to the model; it does not configure the frame CSP. Keep the guidance consistent with the frame: if you pass `csp: { cdnOrigins, fontStyleOrigins, fontOrigins, connectOrigins, allowEval }` to `createWidget`, pass the same values to `buildWidgetGuidance`, set `hostApi.callTool` only when the host handles `onCallTool`, and set `hostApi.modelContext` only when it handles `onUpdateModelContext`. `buildModuleGuidance(module, options)` returns one module on its own.
 
 ## The registry
 

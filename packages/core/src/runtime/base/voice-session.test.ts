@@ -80,6 +80,7 @@ const createHarness = () => {
   };
   const controller = new VoiceSessionController(host);
   return {
+    adapter,
     controller,
     sessions,
     notify,
@@ -90,6 +91,53 @@ const createHarness = () => {
 };
 
 describe("VoiceSessionController", () => {
+  it.each([false, true])(
+    "releases a replaced session when its replacement already ended (cleanup throws: %s)",
+    (throws) => {
+      const { adapter, controller, sessions, onConnected, onDisconnected } =
+        createHarness();
+      controller.connectVoice();
+      const error = new Error("cleanup failed");
+      const disconnect = vi.fn(() => {
+        if (throws) throw error;
+      });
+      vi.spyOn(adapter, "connect").mockReturnValueOnce({
+        ...sessions[0]!.session,
+        status: { type: "ended", reason: "error" },
+        disconnect,
+      });
+
+      if (throws) expect(() => controller.connectVoice()).toThrow(error);
+      else controller.connectVoice();
+
+      expect(controller.voice).toBeUndefined();
+      expect(disconnect).toHaveBeenCalledOnce();
+      expect(onConnected).toHaveBeenCalledOnce();
+      expect(onDisconnected).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("keeps a session connected during cleanup of an already ended replacement", () => {
+    const { adapter, controller, sessions, onConnected, onDisconnected } =
+      createHarness();
+    controller.connectVoice();
+    const disconnect = vi.fn(() => controller.connectVoice());
+    vi.spyOn(adapter, "connect").mockReturnValueOnce({
+      ...sessions[0]!.session,
+      status: { type: "ended", reason: "error" },
+      disconnect,
+    });
+
+    controller.connectVoice();
+
+    expect(disconnect).toHaveBeenCalledOnce();
+    expect(controller.voice?.status.type).toBe("running");
+    expect(onConnected).toHaveBeenCalledTimes(2);
+    expect(onDisconnected).not.toHaveBeenCalled();
+    controller.disconnectVoice();
+    expect(sessions[1]!.session.disconnect).toHaveBeenCalledOnce();
+  });
+
   it("connects and replaces a session while ignoring its stale events", () => {
     const { controller, sessions, onConnected, onDisconnected } =
       createHarness();

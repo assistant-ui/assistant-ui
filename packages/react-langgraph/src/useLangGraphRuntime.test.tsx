@@ -1,5 +1,10 @@
-import { describe, it, expect, vi } from "vitest";
-import { act, render, renderHook, waitFor } from "@testing-library/react";
+import { describe, it, expect, onTestFinished, vi } from "vitest";
+import {
+  act,
+  render,
+  renderHook,
+  waitFor as waitForDefault,
+} from "@testing-library/react";
 import type {
   AssistantRuntime,
   AttachmentAdapter,
@@ -22,6 +27,9 @@ import type {
   LangGraphStreamCallback,
 } from "./useLangGraphMessages";
 import { useMemo, type ReactNode } from "react";
+
+const waitFor: typeof waitForDefault = (callback, options) =>
+  waitForDefault(callback, { interval: 10, ...options });
 
 type LoadResult = {
   messages: LangChainMessage[];
@@ -3709,11 +3717,13 @@ describe("useLangGraphRuntime", () => {
     const renderWithCheckpoint = async (
       stream: LangGraphStreamCallback<LangChainMessage>,
       getCheckpointId: () => Promise<string | null>,
+      load?: () => Promise<LoadResult>,
     ) => {
       const { result } = renderHook(() =>
         useLangGraphRuntime({
           stream,
           getCheckpointId,
+          ...(load && { load }),
           unstable_threadListAdapter: makeThreadListAdapter(),
         }),
       );
@@ -4028,6 +4038,319 @@ describe("useLangGraphRuntime", () => {
       consoleError.mockRestore();
     });
 
+    it("uses the refetched thread for an edit started after a reload lookup", async () => {
+      const checkpoint = deferred<string | null>();
+      let checkpointCalls = 0;
+      const getCheckpointId = vi.fn(() =>
+        ++checkpointCalls === 1
+          ? checkpoint.promise
+          : Promise.resolve(`cp-${checkpointCalls}`),
+      );
+      const stream = vi.fn(() => {
+        const call = stream.mock.calls.length;
+        return (async function* () {
+          if (call === 2) throw new Error("edit refused");
+          yield {
+            event: "messages/complete",
+            data: [{ type: "ai", id: "answer", content: "answer" }],
+          };
+        })();
+      });
+      let serverMessages: LangChainMessage[] = [];
+      const load = vi.fn(async () => ({ messages: serverMessages }));
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      onTestFinished(() => consoleError.mockRestore());
+      const result = await renderWithCheckpoint(
+        stream as unknown as LangGraphStreamCallback<LangChainMessage>,
+        getCheckpointId,
+        load,
+      );
+      await act(async () => {
+        result.current.thread.append("question");
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      const question = result.current.thread.getState().messages[0]!;
+      act(() => {
+        void result.current.thread.getMessageById("answer").reload();
+      });
+      await waitFor(() => expect(getCheckpointId).toHaveBeenCalledTimes(1));
+
+      serverMessages = [
+        { type: "human", id: question.id, content: "question" },
+        { type: "ai", id: "answer", content: "answer from server" },
+      ];
+      await settleOutsideAct(() => result.current.threads.reloadMainThread());
+      expect(load).toHaveBeenCalledTimes(2);
+      expect(textsOf(result.current)).toEqual([
+        "question",
+        "answer from server",
+      ]);
+
+      act(() => {
+        result.current.thread.append({
+          role: "user",
+          parentId: null,
+          sourceId: question.id,
+          content: [{ type: "text", text: "edited" }],
+        });
+      });
+      await waitFor(() => expect(stream).toHaveBeenCalledTimes(2));
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+
+      expect(textsOf(result.current)).toEqual([
+        "question",
+        "answer from server",
+      ]);
+      expect(consoleError).toHaveBeenCalled();
+    });
+
+    it("keeps refetched content when an inherited edit fails after the refetch", async () => {
+      const checkpoint = deferred<string | null>();
+      const gate = deferred<void>();
+      let checkpointCalls = 0;
+      const getCheckpointId = vi.fn(() =>
+        ++checkpointCalls === 1
+          ? checkpoint.promise
+          : Promise.resolve(`cp-${checkpointCalls}`),
+      );
+      const stream = vi.fn(() => {
+        const call = stream.mock.calls.length;
+        return (async function* () {
+          if (call === 2) {
+            await gate.promise;
+            throw new Error("edit refused");
+          }
+          yield {
+            event: "messages/complete",
+            data: [{ type: "ai", id: "answer", content: "answer" }],
+          };
+        })();
+      });
+      let serverMessages: LangChainMessage[] = [];
+      const load = vi.fn(async () => ({ messages: serverMessages }));
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      onTestFinished(() => consoleError.mockRestore());
+      const result = await renderWithCheckpoint(
+        stream as unknown as LangGraphStreamCallback<LangChainMessage>,
+        getCheckpointId,
+        load,
+      );
+      await act(async () => {
+        result.current.thread.append("question");
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      const question = result.current.thread.getState().messages[0]!;
+      act(() => {
+        void result.current.thread.getMessageById("answer").reload();
+      });
+      await waitFor(() => expect(getCheckpointId).toHaveBeenCalledTimes(1));
+      act(() => {
+        result.current.thread.append({
+          role: "user",
+          parentId: null,
+          sourceId: question.id,
+          content: [{ type: "text", text: "edited" }],
+        });
+      });
+      await waitFor(() => expect(stream).toHaveBeenCalledTimes(2));
+
+      serverMessages = [
+        { type: "human", id: question.id, content: "question" },
+        { type: "human", id: "server-note", content: "server note" },
+        { type: "ai", id: "answer", content: "answer from server" },
+      ];
+      await settleOutsideAct(() => result.current.threads.reloadMainThread());
+      expect(load).toHaveBeenCalledTimes(2);
+      expect(textsOf(result.current).slice(0, 3)).toEqual([
+        "question",
+        "server note",
+        "answer from server",
+      ]);
+
+      await act(async () => gate.resolve());
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+
+      expect(textsOf(result.current)).toEqual([
+        "question",
+        "server note",
+        "answer from server",
+      ]);
+      expect(consoleError).toHaveBeenCalled();
+    });
+
+    it("restores the original turn when an edit chained to a reload fails before its first event", async () => {
+      const checkpoint = deferred<string | null>();
+      const failure = new Error("chained edit refused");
+      const stream = vi.fn(() => {
+        const call = stream.mock.calls.length;
+        return (async function* () {
+          if (call === 2) throw failure;
+          yield {
+            event: "messages/complete",
+            data: [{ type: "ai", id: "answer", content: "answer" }],
+          };
+        })();
+      });
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      onTestFinished(() => consoleError.mockRestore());
+      const result = await renderWithCheckpoint(
+        stream as unknown as LangGraphStreamCallback<LangChainMessage>,
+        () => checkpoint.promise,
+      );
+      await act(async () => {
+        result.current.thread.append("question");
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      const [question, answer] = result.current.thread.getState().messages;
+
+      act(() => {
+        void result.current.thread.getMessageById(answer!.id).reload();
+      });
+      await waitFor(() =>
+        expect(textsOf(result.current)).not.toContain("answer"),
+      );
+      act(() => {
+        result.current.thread.append({
+          role: "user",
+          parentId: null,
+          sourceId: question!.id,
+          content: [{ type: "text", text: "edited question" }],
+        });
+      });
+      await act(async () => checkpoint.resolve("cp-1"));
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+
+      expect(stream).toHaveBeenCalledTimes(2);
+      expect(textsOf(result.current)).toEqual(["question", "answer"]);
+      expect(consoleError).toHaveBeenCalled();
+    });
+
+    it("restores the original turn when an edit follows a reload's checkpoint lookup", async () => {
+      const gate = deferred<void>();
+      const failure = new Error("chained edit refused");
+      const stream = vi.fn(() => {
+        const call = stream.mock.calls.length;
+        return (async function* () {
+          if (call === 2) await gate.promise;
+          if (call === 3) throw failure;
+          yield {
+            event: "messages/complete",
+            data: [{ type: "ai", id: "answer", content: "answer" }],
+          };
+        })();
+      });
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      onTestFinished(() => consoleError.mockRestore());
+      const result = await renderWithCheckpoint(
+        stream as unknown as LangGraphStreamCallback<LangChainMessage>,
+        async () => "cp-1",
+      );
+      await act(async () => {
+        result.current.thread.append("question");
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      const [question, answer] = result.current.thread.getState().messages;
+
+      act(() => {
+        void result.current.thread.getMessageById(answer!.id).reload();
+      });
+      await waitFor(() => expect(stream).toHaveBeenCalledTimes(2));
+      act(() => {
+        result.current.thread.append({
+          role: "user",
+          parentId: null,
+          sourceId: question!.id,
+          content: [{ type: "text", text: "edited question" }],
+        });
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      await act(async () => gate.resolve());
+
+      expect(stream).toHaveBeenCalledTimes(3);
+      expect(textsOf(result.current)).toEqual(["question", "answer"]);
+      expect(consoleError).toHaveBeenCalled();
+    });
+
+    it("places a message added during a failing edit after the restored turn", async () => {
+      const gate = deferred<void>();
+      const failure = new Error("edit refused");
+      const stream = vi.fn(() => {
+        const call = stream.mock.calls.length;
+        return (async function* () {
+          if (call === 2) {
+            await gate.promise;
+            throw failure;
+          }
+          yield {
+            event: "messages/complete",
+            data: [{ type: "ai", id: "answer", content: "answer" }],
+          };
+        })();
+      });
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      onTestFinished(() => consoleError.mockRestore());
+      const result = await renderWithCheckpoint(
+        stream as unknown as LangGraphStreamCallback<LangChainMessage>,
+        async () => "cp-1",
+      );
+      await act(async () => {
+        result.current.thread.append("question");
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      const question = result.current.thread.getState().messages[0]!;
+      act(() => {
+        result.current.thread.append({
+          role: "user",
+          parentId: null,
+          sourceId: question.id,
+          content: [{ type: "text", text: "edited question" }],
+        });
+      });
+      await waitFor(() => expect(stream).toHaveBeenCalledTimes(2));
+      await act(async () => {
+        result.current.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "later" }],
+          startRun: false,
+        });
+      });
+      await act(async () => gate.resolve());
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+
+      expect(textsOf(result.current)).toEqual(["question", "answer", "later"]);
+      expect(consoleError).toHaveBeenCalled();
+    });
+
     it("restores the original turn when checkpoint lookup rejects", async () => {
       const failure = new Error("checkpoint lookup failed");
       const stream = vi.fn(async function* () {
@@ -4128,6 +4451,72 @@ describe("useLangGraphRuntime", () => {
         state: { retry_state: "preserved" },
       });
       consoleError.mockRestore();
+    });
+
+    it("restores interrupt run config and pending graph state after a plain send fails before its first event", async () => {
+      const failure = new Error("plain send refused");
+      const stream = vi.fn((_messages: unknown, _config: unknown) => {
+        const call = stream.mock.calls.length;
+        return (async function* () {
+          if (call === 2) throw failure;
+          if (call === 1) {
+            yield {
+              event: "updates",
+              data: { __interrupt__: [{ value: "approval-needed" }] },
+            };
+          }
+        })();
+      });
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      onTestFinished(() => consoleError.mockRestore());
+      const { result } = renderHook(() =>
+        useLangGraphRuntime({
+          stream:
+            stream as unknown as LangGraphStreamCallback<LangChainMessage>,
+        }),
+      );
+      const wrapper = wrapperFactory(result.current);
+      const { result: controls } = renderHook(
+        () => ({
+          send: useLangGraphSend(),
+          command: useLangGraphSendCommand(),
+        }),
+        { wrapper },
+      );
+      await act(async () => {
+        controls.current.send([{ type: "human", content: "question" }], {
+          runConfig: { configurable: { model_name: "configured-model" } },
+        });
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      act(() => {
+        (
+          result.current.thread.getState().extras as {
+            setState: (next: Record<string, unknown>) => void;
+          }
+        ).setState({ retry_state: "preserved" });
+      });
+      await act(async () => {
+        result.current.thread.append("failed question");
+      });
+      await waitFor(() =>
+        expect(result.current.thread.getState().isRunning).toBe(false),
+      );
+      await act(async () => {
+        controls.current.command({ resume: "approved" });
+      });
+      await waitFor(() => expect(stream).toHaveBeenCalledTimes(3));
+
+      expect(stream.mock.calls[2]![1]).toMatchObject({
+        command: { resume: "approved" },
+        runConfig: { configurable: { model_name: "configured-model" } },
+        state: { retry_state: "preserved" },
+      });
+      expect(consoleError).toHaveBeenCalled();
     });
 
     it("restores an interrupt when a reload fails before React commits its clear", async () => {

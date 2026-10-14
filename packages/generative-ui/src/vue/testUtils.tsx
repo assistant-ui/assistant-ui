@@ -8,8 +8,12 @@ import { SpecRenderer as VueSpecRenderer } from "generative-frame/spec/vue";
 import { toSpecCatalog as toReactSpecCatalog } from "../spec/toSpecCatalog";
 import { toSpecCatalog } from "./toSpecCatalog";
 
-const react = toReactSpecCatalog();
-const vue = toSpecCatalog();
+const actions = {
+  open: { description: "Opens the pressed item." },
+  save: { description: "Saves the submitted form." },
+};
+const react = toReactSpecCatalog(undefined, { actions });
+const vue = toSpecCatalog(undefined, { actions });
 const unmounts: (() => void)[] = [];
 
 (

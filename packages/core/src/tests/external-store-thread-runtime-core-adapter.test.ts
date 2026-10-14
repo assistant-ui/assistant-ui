@@ -12,6 +12,7 @@ import type {
   ThreadAssistantMessage,
   ThreadMessage,
 } from "../types/message";
+import type { ThreadMessageLike } from "../runtime/utils/thread-message-like";
 import { createMessageQueue } from "../runtime/queue/message-queue";
 import { getThreadMessageText } from "../utils/text";
 import {
@@ -418,7 +419,11 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
     });
 
     it("re-applies the user leaf rollback when the store updates before the flush", async () => {
-      const messages = [createUserMessage("u1", "cancel me")];
+      const messages = [
+        createUserMessage("u0"),
+        createAssistantMessage("a0"),
+        createUserMessage("u1", "cancel me"),
+      ];
       const setMessages = vi.fn();
       const adapter = createBaseAdapter({
         messages,
@@ -443,12 +448,13 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
 
       await new Promise((resolve) => setTimeout(resolve, 0));
       expect(core.composer.text).toBe("cancel me");
-      expect(setMessages).toHaveBeenCalled();
+      expect(setMessages).toHaveBeenCalledOnce();
       const lastCall = setMessages.mock.lastCall?.[0] as ThreadMessage[];
-      expect(lastCall.map((m) => m.id)).not.toContain("u1");
-      expect(core.export().messages.map((m) => m.message.id)).not.toContain(
-        "u1",
-      );
+      expect(lastCall.map((m) => m.id)).toEqual(["u0", "a0"]);
+      expect(core.export().messages.map((m) => m.message.id)).toEqual([
+        "u0",
+        "a0",
+      ]);
     });
 
     it("keeps a rolled-back user leaf the store answered in the gap and takes the draft back", async () => {
@@ -701,6 +707,74 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
       expect(core.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
       expect(core.messages.at(-1)?.metadata.isOptimistic).toBe(true);
+    });
+
+    it.each(["messages", "messageRepository"] as const)(
+      "keeps a stopped user leaf from %s in the host when its run restarts before the resync flushes",
+      async (source) => {
+        let hostMessages: readonly ThreadMessage[] = [
+          createUserMessage("u1", "cancel me"),
+        ];
+        const setMessages = vi.fn((messages: readonly ThreadMessage[]) => {
+          hostMessages = messages;
+        });
+        const core = new ExternalStoreThreadRuntimeCore(
+          contextProvider,
+          createBaseAdapter({
+            ...(source === "messages"
+              ? { messages: hostMessages }
+              : {
+                  messageRepository:
+                    ExportedMessageRepository.fromArray(hostMessages),
+                }),
+            isRunning: true,
+            onCancel: vi.fn(),
+            onReload: vi.fn(async () => {}),
+            setMessages,
+          }),
+        );
+
+        core.cancelRun();
+        expect(core.composer.text).toBe("cancel me");
+        await core.startRun({ parentId: "u1", sourceId: null, runConfig: {} });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(hostMessages.map((m) => m.id)).toEqual(["u1"]);
+        expect(core.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
+        expect(core.messages.at(-1)?.metadata.isOptimistic).toBe(true);
+        expect(core.composer.text).toBe("");
+        expect(setMessages).not.toHaveBeenCalled();
+      },
+    );
+
+    it("keeps a stopped user leaf in the host when its run resumes before the resync flushes", async () => {
+      let hostMessages: readonly ThreadMessage[] = [
+        createUserMessage("u1", "cancel me"),
+      ];
+      const setMessages = vi.fn((messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      });
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: hostMessages,
+          isRunning: true,
+          onCancel: vi.fn(),
+          onResume: vi.fn(async () => {}),
+          setMessages,
+        }),
+      );
+
+      core.cancelRun();
+      expect(core.composer.text).toBe("cancel me");
+      await core.resumeRun({ parentId: "u1", sourceId: null, runConfig: {} });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(hostMessages.map((m) => m.id)).toEqual(["u1"]);
+      expect(core.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
+      expect(core.messages.at(-1)?.metadata.isOptimistic).toBe(true);
+      expect(core.composer.text).toBe("");
+      expect(setMessages).not.toHaveBeenCalled();
     });
 
     it("does not write a stopped message back while the composer holds it", async () => {
@@ -962,6 +1036,354 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(core.export().messages.map((m) => m.message.id)).not.toContain(
         "u1",
       );
+    });
+
+    it.each([
+      { label: "reports no run", isRunning: false },
+      { label: "omits isRunning", isRunning: undefined },
+    ])(
+      "leaves the unanswered user message of an idle thread in place when the host $label",
+      async ({ isRunning }) => {
+        const onCancel = vi.fn();
+        const setMessages = vi.fn();
+        const core = new ExternalStoreThreadRuntimeCore(
+          contextProvider,
+          createBaseAdapter({
+            messages: [
+              createUserMessage("u1"),
+              createAssistantMessage("a1"),
+              createUserMessage("u2", "unanswered"),
+            ],
+            isRunning,
+            onCancel,
+            setMessages,
+          }),
+        );
+
+        core.cancelRun();
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(core.composer.text).toBe("");
+        expect(core.messages.map((m) => m.id)).toEqual(["u1", "a1", "u2"]);
+        expect(setMessages).not.toHaveBeenCalled();
+        expect(onCancel).toHaveBeenCalledOnce();
+      },
+    );
+
+    it("leaves the unanswered user message of an idle thread in place when the composer cancels", async () => {
+      const setMessages = vi.fn();
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: [createUserMessage("u1", "unanswered")],
+          isRunning: false,
+          onCancel: vi.fn(),
+          setMessages,
+        }),
+      );
+
+      core.composer.cancel();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(core.composer.text).toBe("");
+      expect(core.messages.map((m) => m.id)).toEqual(["u1"]);
+      expect(setMessages).not.toHaveBeenCalled();
+    });
+
+    it("writes the rollback before the message sent right after the stop reaches the store", async () => {
+      let hostMessages: readonly ThreadMessage[] = [
+        createUserMessage("u1"),
+        createAssistantMessage("a1"),
+        createUserMessage("u2", "unanswered"),
+      ];
+      const setMessages = vi.fn((messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      });
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: hostMessages,
+          isRunning: true,
+          onCancel: vi.fn(),
+          onNew: vi.fn(async () => {
+            hostMessages = [...hostMessages, createUserMessage("u3")];
+          }),
+          setMessages,
+        }),
+      );
+
+      core.cancelRun();
+      expect(core.composer.text).toBe("unanswered");
+      await core.append({
+        role: "user",
+        content: [{ type: "text", text: "next" }],
+        attachments: [],
+        createdAt: new Date(),
+        parentId: "a1",
+        sourceId: null,
+        runConfig: {},
+        metadata: { custom: {} },
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(hostMessages.map((m) => m.id)).toEqual(["u1", "a1", "u3"]);
+      expect(setMessages).toHaveBeenCalledOnce();
+      expect(core.composer.text).toBe("unanswered");
+    });
+
+    it("writes the rollback before a steered message reaches the store", async () => {
+      let hostMessages: readonly ThreadMessage[] = [
+        createUserMessage("u1"),
+        createAssistantMessage("a1"),
+        createUserMessage("u2", "unanswered"),
+      ];
+      const setMessages = vi.fn((messages: readonly ThreadMessage[]) => {
+        hostMessages = messages;
+      });
+      const queue = createMessageQueue({
+        run: () => {
+          hostMessages = [...hostMessages, createUserMessage("u3")];
+        },
+        cancel: () => core.cancelRun(),
+      });
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: hostMessages,
+          isRunning: true,
+          onCancel: vi.fn(),
+          queue: queue.adapter,
+          setMessages,
+        }),
+      );
+      queue.notifyBusy();
+
+      await core.append({
+        role: "user",
+        content: [{ type: "text", text: "next" }],
+        attachments: [],
+        createdAt: new Date(),
+        parentId: core.messages.at(-1)?.id ?? null,
+        sourceId: null,
+        runConfig: {},
+        metadata: { custom: {} },
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(hostMessages.map((m) => m.id)).toEqual(["u1", "a1", "u3"]);
+      expect(setMessages).toHaveBeenCalledOnce();
+      expect(core.composer.text).toBe("unanswered");
+    });
+
+    it("takes the draft back when the store keeps the stopped message after a send ran the rollback early", async () => {
+      const staleMessages: readonly ThreadMessage[] = [
+        createUserMessage("u1"),
+        createAssistantMessage("a1"),
+        createUserMessage("u2", "unanswered"),
+      ];
+      let hostMessages = staleMessages;
+      const adapter = (isRunning: boolean) =>
+        createBaseAdapter({
+          messages: hostMessages,
+          isRunning,
+          onCancel: vi.fn(),
+          onNew: vi.fn(async () => {
+            hostMessages = [...staleMessages, createUserMessage("u3")];
+          }),
+          setMessages: (messages) => {
+            hostMessages = messages;
+          },
+        });
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        adapter(true),
+      );
+
+      core.cancelRun();
+      expect(core.composer.text).toBe("unanswered");
+      await core.append({
+        role: "user",
+        content: [{ type: "text", text: "next" }],
+        attachments: [],
+        createdAt: new Date(),
+        parentId: "a1",
+        sourceId: null,
+        runConfig: {},
+        metadata: { custom: {} },
+      });
+      core.__internal_setAdapter(adapter(false));
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(core.messages.map((m) => m.id)).toEqual(["u1", "a1", "u2", "u3"]);
+      expect(core.composer.text).toBe("");
+    });
+
+    it("keeps a new positional message when it reuses the stopped leaf's id", async () => {
+      type Raw = { role: "user" | "assistant"; text: string };
+      const convertMessage = (message: Raw): ThreadMessageLike => ({
+        role: message.role,
+        content: [{ type: "text", text: message.text }],
+      });
+      let hostMessages: readonly Raw[] = [
+        { role: "user", text: "first" },
+        { role: "assistant", text: "answer" },
+        { role: "user", text: "unanswered" },
+      ];
+      const setMessages = vi.fn((messages: readonly Raw[]) => {
+        hostMessages = messages;
+      });
+      const adapter = () => ({
+        messages: hostMessages,
+        isRunning: true,
+        convertMessage,
+        setMessages,
+        onCancel: vi.fn(),
+        onNew: async () => {
+          hostMessages = [
+            ...hostMessages,
+            { role: "user" as const, text: "next" },
+          ];
+        },
+      });
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        adapter(),
+      );
+      const stoppedId = core.messages[2]!.id;
+
+      core.cancelRun();
+      await core.append({
+        role: "user",
+        content: [{ type: "text", text: "next" }],
+        attachments: [],
+        createdAt: new Date(),
+        parentId: core.messages.at(-1)?.id ?? null,
+        sourceId: null,
+        runConfig: {},
+        metadata: { custom: {} },
+      });
+      core.__internal_setAdapter(adapter());
+      expect(core.messages[2]?.id).toBe(stoppedId);
+      expect(core.composer.text).toBe("unanswered");
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(hostMessages.map((m) => m.text)).toEqual([
+        "first",
+        "answer",
+        "next",
+      ]);
+      expect(setMessages).toHaveBeenCalledOnce();
+
+      hostMessages = [...hostMessages, { role: "assistant", text: "reply" }];
+      core.__internal_setAdapter(adapter());
+      expect(core.messages.map((m) => getThreadMessageText(m))).toEqual([
+        "first",
+        "answer",
+        "next",
+        "reply",
+      ]);
+      expect(core.composer.text).toBe("unanswered");
+    });
+
+    it("keeps the first moved-leaf watch when a second cancel cannot restore the draft", async () => {
+      const messages = [
+        createUserMessage("u1"),
+        createAssistantMessage("a1"),
+        createUserMessage("u2", "unanswered"),
+      ];
+      const setMessages = vi.fn();
+      const adapter = (messages: readonly ThreadMessage[]) =>
+        createBaseAdapter({
+          messages,
+          isRunning: true,
+          onCancel: vi.fn(),
+          setMessages,
+        });
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        adapter(messages),
+      );
+
+      core.cancelRun();
+      core.cancelRun();
+      expect(core.composer.text).toBe("unanswered");
+
+      core.__internal_setAdapter(
+        adapter([...messages, createAssistantMessage("a2", "answered")]),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(core.messages.map((m) => m.id)).toEqual(["u1", "a1", "u2", "a2"]);
+      expect(core.composer.text).toBe("");
+      expect(setMessages).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      { label: "runtime invalidation", invalidate: invalidateThreadRuntime },
+      {
+        label: "session reset",
+        invalidate: (core: ExternalStoreThreadRuntimeCore) =>
+          core.unstable_notifySessionReset(),
+      },
+    ])(
+      "leaves the draft after $label invalidates its watch",
+      async ({ invalidate }) => {
+        const messages = [createUserMessage("u1", "unanswered")];
+        const setMessages = vi.fn();
+        const adapter = (messages: readonly ThreadMessage[]) =>
+          createBaseAdapter({
+            messages,
+            isRunning: true,
+            onCancel: vi.fn(),
+            setMessages,
+          });
+        const core = new ExternalStoreThreadRuntimeCore(
+          contextProvider,
+          adapter(messages),
+        );
+
+        core.cancelRun();
+        invalidate(core);
+        core.__internal_setAdapter(
+          adapter([...messages, createAssistantMessage("a1", "answered")]),
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(core.composer.text).toBe("unanswered");
+        expect(setMessages).not.toHaveBeenCalled();
+      },
+    );
+
+    it("clears the moved-leaf watch when the repository changes", async () => {
+      const messages = [createUserMessage("u1", "unanswered")];
+      const setMessages = vi.fn();
+      const adapter = (
+        messages: readonly ThreadMessage[],
+        repository: MessageRepository,
+      ) =>
+        createBaseAdapter({
+          messages,
+          isRunning: true,
+          onCancel: vi.fn(),
+          setMessages,
+          unstable_messageRepositoryInstance: repository,
+        });
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        adapter(messages, new MessageRepository()),
+      );
+
+      core.cancelRun();
+      core.__internal_setAdapter(
+        adapter(
+          [...messages, createAssistantMessage("a1", "answered")],
+          new MessageRepository(),
+        ),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(core.composer.text).toBe("unanswered");
+      expect(setMessages).not.toHaveBeenCalled();
     });
   });
 
@@ -1384,6 +1806,194 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(onAddToolResult).not.toHaveBeenCalled();
     });
 
+    it("does not run a client tool first published after cancellation", async () => {
+      const execute = vi.fn(async () => ({ forecast: "sunny" }));
+      const onAddToolResult = vi.fn();
+      const adapter = (
+        isRunning: boolean,
+        messages: readonly ThreadMessage[],
+      ) =>
+        createBaseAdapter({
+          unstable_enableToolInvocations: true,
+          isRunning,
+          onCancel: vi.fn(async () => {}),
+          onAddToolResult,
+          messages,
+        });
+      const core = new ExternalStoreThreadRuntimeCore(
+        {
+          getModelContext: () => ({
+            tools: {
+              weatherSearch: {
+                parameters: { type: "object", properties: {} },
+                execute,
+              },
+            },
+          }),
+        },
+        adapter(true, [createUserMessage("u1")]),
+      );
+
+      core.cancelRun();
+      core.__internal_setAdapter(
+        adapter(false, [
+          createUserMessage("u1"),
+          {
+            ...createAssistantMessage("a1"),
+            status: { type: "requires-action", reason: "tool-calls" },
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "tc1",
+                toolName: "weatherSearch",
+                args: { city: "London" },
+                argsText: '{"city":"London"}',
+              },
+            ],
+          },
+        ]),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      expect(execute).not.toHaveBeenCalled();
+      expect(onAddToolResult).not.toHaveBeenCalled();
+    });
+
+    it("runs a steered turn's tool after cancellation", async () => {
+      const execute = vi.fn(async () => ({ forecast: "sunny" }));
+      const run = vi.fn();
+      const queue = createMessageQueue({ run, cancel: vi.fn() });
+      const adapter = (messages: readonly ThreadMessage[]) =>
+        createBaseAdapter({
+          unstable_enableToolInvocations: true,
+          unstable_isClientToolCall: () => true,
+          isRunning: true,
+          onCancel: vi.fn(),
+          queue: queue.adapter,
+          messages,
+        });
+      const core = new ExternalStoreThreadRuntimeCore(
+        {
+          getModelContext: () => ({
+            tools: {
+              weatherSearch: {
+                parameters: { type: "object", properties: {} },
+                execute,
+              },
+            },
+          }),
+        },
+        adapter([createUserMessage("u1")]),
+      );
+      queue.notifyBusy();
+
+      core.cancelRun();
+      await core.append({
+        role: "user",
+        content: [{ type: "text", text: "next" }],
+        attachments: [],
+        createdAt: new Date(),
+        parentId: "u1",
+        sourceId: null,
+        runConfig: {},
+        metadata: { custom: {} },
+        steer: true,
+      });
+      expect(run).toHaveBeenCalledOnce();
+
+      core.__internal_setAdapter(
+        adapter([
+          createUserMessage("u1"),
+          createUserMessage("u2"),
+          {
+            ...createAssistantMessage("a2"),
+            status: { type: "requires-action", reason: "tool-calls" },
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "new-call",
+                toolName: "weatherSearch",
+                args: { city: "Paris" },
+                argsText: '{"city":"Paris"}',
+              },
+            ],
+          },
+        ]),
+      );
+
+      await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+    });
+
+    it.each(["append", "startRun"] as const)(
+      "runs the client tool of a turn started by %s while the replaced run is still active",
+      async (start) => {
+        const execute = vi.fn(async () => ({ forecast: "sunny" }));
+        const adapter = (messages: readonly ThreadMessage[]) =>
+          createBaseAdapter({
+            unstable_enableToolInvocations: true,
+            unstable_isClientToolCall: () => true,
+            isRunning: true,
+            onReload: vi.fn(async () => {}),
+            onAddToolResult: vi.fn(),
+            messages,
+          });
+        const prior = [createUserMessage("u1"), createAssistantMessage("a1")];
+        const core = new ExternalStoreThreadRuntimeCore(
+          {
+            getModelContext: () => ({
+              tools: {
+                weatherSearch: {
+                  parameters: { type: "object", properties: {} },
+                  execute,
+                },
+              },
+            }),
+          },
+          adapter(prior),
+        );
+
+        if (start === "append") {
+          await core.append({
+            role: "user",
+            content: [{ type: "text", text: "next" }],
+            attachments: [],
+            createdAt: new Date(),
+            parentId: "a1",
+            sourceId: null,
+            runConfig: {},
+            metadata: { custom: {} },
+          });
+        } else {
+          await core.startRun({
+            parentId: "u1",
+            sourceId: "a1",
+            runConfig: {},
+          });
+        }
+        core.__internal_setAdapter(
+          adapter([
+            ...prior,
+            createUserMessage("u2"),
+            {
+              ...createAssistantMessage("a2"),
+              status: { type: "requires-action", reason: "tool-calls" },
+              content: [
+                {
+                  type: "tool-call",
+                  toolCallId: "tc2",
+                  toolName: "weatherSearch",
+                  args: { city: "Paris" },
+                  argsText: '{"city":"Paris"}',
+                },
+              ],
+            },
+          ]),
+        );
+
+        await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+      },
+    );
+
     it("mirrors the adapter running value when tool invocations are disabled", () => {
       const core = new ExternalStoreThreadRuntimeCore(
         contextProvider,
@@ -1695,6 +2305,283 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
 
       expect(callbackCalls).toBe(1);
       expect(rejections).toEqual([]);
+    });
+  });
+
+  describe("cancelled turn tool attribution", () => {
+    const toolMessage = (
+      id: string,
+      toolCallId: string,
+      options: {
+        result?: { forecast: string };
+        messages?: readonly ThreadMessage[];
+      } = {},
+    ): ThreadAssistantMessage => ({
+      ...createAssistantMessage(id),
+      status: { type: "requires-action", reason: "tool-calls" },
+      content: [
+        {
+          type: "tool-call",
+          toolCallId,
+          toolName: "weatherSearch",
+          args: { city: "London" },
+          argsText: '{"city":"London"}',
+          ...(options.result && { result: options.result }),
+          ...(options.messages && { messages: options.messages }),
+        },
+      ],
+    });
+    const userMessage = (parentId: string): AppendMessage => ({
+      role: "user",
+      content: [{ type: "text", text: "next" }],
+      attachments: [],
+      createdAt: new Date(),
+      parentId,
+      sourceId: null,
+      runConfig: {},
+      metadata: { custom: {} },
+    });
+    const setup = (
+      messages: readonly ThreadMessage[],
+      isRunning = true,
+      overrides: Partial<ExternalStoreAdapter<ThreadMessage>> = {},
+    ) => {
+      const execute = vi.fn(async () => ({ forecast: "sunny" }));
+      const streamCall = vi.fn();
+      const onAddToolResult = vi.fn();
+      const adapter = (
+        nextMessages: readonly ThreadMessage[],
+        nextIsRunning: boolean,
+        nextOverrides: Partial<ExternalStoreAdapter<ThreadMessage>> = {},
+      ) =>
+        createBaseAdapter({
+          unstable_enableToolInvocations: true,
+          unstable_isClientToolCall: () => true,
+          isRunning: nextIsRunning,
+          onCancel: vi.fn(),
+          onReload: vi.fn(),
+          onResume: vi.fn(),
+          onAddToolResult,
+          messages: nextMessages,
+          ...overrides,
+          ...nextOverrides,
+        });
+      const core = new ExternalStoreThreadRuntimeCore(
+        {
+          getModelContext: () => ({
+            tools: {
+              weatherSearch: {
+                parameters: { type: "object", properties: {} },
+                execute,
+                streamCall,
+              },
+            },
+          }),
+        },
+        adapter(messages, isRunning),
+      );
+      const publish = (
+        nextMessages: readonly ThreadMessage[],
+        nextIsRunning: boolean,
+        nextOverrides: Partial<ExternalStoreAdapter<ThreadMessage>> = {},
+      ) =>
+        core.__internal_setAdapter(
+          adapter(nextMessages, nextIsRunning, nextOverrides),
+        );
+      return { core, execute, streamCall, onAddToolResult, publish };
+    };
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 10));
+
+    it.each([
+      "unnamed at settle",
+      "named before its call",
+      "id swap",
+      "after empty settle",
+    ])("suppresses a cancelled call %s", async (caseName) => {
+      const u1 = createUserMessage("u1");
+      const initial =
+        caseName === "named before its call"
+          ? [u1, createAssistantMessage("a1")]
+          : caseName === "id swap"
+            ? [u1, createAssistantMessage("a-draft")]
+            : [u1];
+      const { core, execute, streamCall, publish } = setup(initial);
+      core.cancelRun();
+      if (caseName === "after empty settle") publish([u1], false);
+      publish([u1, toolMessage("a1", "old-call")], false);
+      await settle();
+
+      expect(execute).not.toHaveBeenCalled();
+      expect(streamCall).not.toHaveBeenCalled();
+    });
+
+    it("keeps the cancelled scope through a second cancel after settle", async () => {
+      const u1 = createUserMessage("u1");
+      const { core, execute, streamCall, publish } = setup([u1]);
+      core.cancelRun();
+      publish([u1], false);
+      core.cancelRun();
+      publish([u1, toolMessage("a1", "old-call")], false);
+      await settle();
+
+      expect(execute).not.toHaveBeenCalled();
+      expect(streamCall).not.toHaveBeenCalled();
+    });
+
+    it("suppresses a cancelled call first seen with a final result", async () => {
+      const u1 = createUserMessage("u1");
+      const { core, execute, streamCall, publish } = setup([u1]);
+      core.cancelRun();
+      publish(
+        [u1, toolMessage("a1", "old-call", { result: { forecast: "old" } })],
+        false,
+      );
+      await settle();
+
+      expect(execute).not.toHaveBeenCalled();
+      expect(streamCall).not.toHaveBeenCalled();
+    });
+
+    it.each(["before", "during"])(
+      "runs the replacement after a cancelled call lands %s its direct append run",
+      async (arrival) => {
+        const u1 = createUserMessage("u1");
+        const u2 = createUserMessage("u2");
+        const oldCall = toolMessage("a1", "old-call");
+        const { core, execute, streamCall, publish } = setup([u1]);
+        core.cancelRun();
+        await core.append(userMessage("u1"));
+        if (arrival === "before") {
+          publish([u1, oldCall, u2], false);
+          publish([u1, oldCall, u2, toolMessage("a2", "new-call")], true);
+        } else {
+          publish([u1, u2], true);
+          publish([u1, oldCall, u2, toolMessage("a2", "new-call")], true);
+        }
+
+        await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+        expect(execute).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({ toolCallId: "new-call" }),
+        );
+        expect(streamCall).toHaveBeenCalledOnce();
+        expect(streamCall).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({ toolCallId: "new-call" }),
+        );
+      },
+    );
+
+    it("runs a queued replacement after the cancelled run settles", async () => {
+      const run = vi.fn();
+      const queue = createMessageQueue({ run, cancel: vi.fn() });
+      const u1 = createUserMessage("u1");
+      const { core, execute, publish } = setup([u1], true, {
+        queue: queue.adapter,
+      });
+      queue.notifyBusy();
+      core.cancelRun();
+      publish([u1], false);
+      queue.notifyIdle();
+      await core.append(userMessage("u1"));
+      expect(run).toHaveBeenCalledOnce();
+      publish(
+        [u1, createUserMessage("u2"), toolMessage("a2", "new-call")],
+        true,
+      );
+
+      await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+    });
+
+    it("runs a regenerated call after cancellation of a visible assistant", async () => {
+      const u1 = createUserMessage("u1");
+      const { core, execute, publish } = setup([
+        u1,
+        createAssistantMessage("a1"),
+      ]);
+      core.cancelRun();
+      await core.startRun({ parentId: "u1", sourceId: "a1", runConfig: {} });
+      publish([u1, toolMessage("a2", "new-call")], true);
+
+      await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+    });
+
+    it("runs a host-started call under the cancelled parent after settle", async () => {
+      const u1 = createUserMessage("u1");
+      const { core, execute, publish } = setup([u1]);
+      core.cancelRun();
+      publish([u1], false);
+      publish([u1, toolMessage("a2", "new-call")], true);
+
+      await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+    });
+
+    it("runs a resumed call after cancellation", async () => {
+      const u1 = createUserMessage("u1");
+      const { core, execute, publish } = setup([u1]);
+      core.cancelRun();
+      await core.resumeRun({ parentId: "u1", sourceId: null, runConfig: {} });
+      publish([u1, toolMessage("a2", "new-call")], true);
+
+      await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+    });
+
+    it("runs a tool result continuation of the cancelled assistant", async () => {
+      const u1 = createUserMessage("u1");
+      const a1 = createAssistantMessage("a1");
+      const { core, execute, publish } = setup([u1, a1]);
+      core.cancelRun();
+      publish([u1, a1], false);
+      core.addToolResult({
+        messageId: "a1",
+        toolCallId: "answered-call",
+        toolName: "weatherSearch",
+        result: { forecast: "old" },
+        isError: false,
+      });
+      publish([u1, toolMessage("a1", "new-call")], true);
+
+      await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+    });
+
+    it("suppresses a nested call in the cancelled message", async () => {
+      const u1 = createUserMessage("u1");
+      const { core, execute, streamCall, publish } = setup([u1]);
+      core.cancelRun();
+      publish(
+        [
+          u1,
+          toolMessage("a1", "parent-call", {
+            messages: [toolMessage("nested", "child-call")],
+          }),
+        ],
+        false,
+      );
+      await settle();
+
+      expect(execute).not.toHaveBeenCalled();
+      expect(streamCall).not.toHaveBeenCalled();
+    });
+
+    it("does not scope a cancellation while idle", async () => {
+      const u1 = createUserMessage("u1");
+      const { core, execute, publish } = setup([u1], false);
+      core.cancelRun();
+      publish([u1, toolMessage("a1", "new-call")], false);
+
+      await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+    });
+
+    it("clears the cancelled scope when the repository changes", async () => {
+      const u1 = createUserMessage("u1");
+      const { core, execute, publish } = setup([u1]);
+      core.cancelRun();
+      const repository = new MessageRepository();
+      const replacement = { unstable_messageRepositoryInstance: repository };
+      publish([u1], false, replacement);
+      publish([u1, toolMessage("a2", "new-call")], false, replacement);
+
+      await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
     });
   });
 

@@ -1,11 +1,13 @@
-import { createContext, useContext } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { processColor, useColorScheme } from "react-native";
 import type { Color, TextSize, Weight } from "../ir";
+import { useElementDepth } from "../spec/elementDepth";
 
 export type NativeTheme = {
   background: string;
   foreground: string;
   card: string;
+  panel: string;
   primary: string;
   primaryForeground: string;
   secondary: string;
@@ -83,6 +85,7 @@ const light: NativeTheme = {
   background: "#ffffff",
   foreground: "#0a0a0a",
   card: "#ffffff",
+  panel: fade("#0a0a0a", 0.04),
   primary: "#171717",
   primaryForeground: "#fafafa",
   secondary: "#f5f5f5",
@@ -101,6 +104,7 @@ const dark: NativeTheme = {
   background: "#0a0a0a",
   foreground: "#fafafa",
   card: "#171717",
+  panel: fade("#fafafa", 0.06),
   primary: "#e5e5e5",
   primaryForeground: "#171717",
   secondary: "#262626",
@@ -137,6 +141,32 @@ const CardSurfaceContext = createContext(false);
 export const CardSurfaceProvider = CardSurfaceContext.Provider;
 
 export const useCardSurface = () => useContext(CardSurfaceContext);
+
+const InsideCardContext = createContext(false);
+
+/** Marks the content of a Card, so a Card inside it renders plain instead of as a second panel. */
+export const InsideCardProvider = InsideCardContext.Provider;
+
+export const useInsideCard = () => useContext(InsideCardContext);
+
+const RowDepthContext = createContext<number | undefined>(undefined);
+
+/** Marks the content of a Row, where a Fact directly inside reads as a headline figure and an Image as a gallery tile. */
+export function RowContent({ children }: { children?: ReactNode }) {
+  const depth = useElementDepth();
+  return (
+    <RowDepthContext.Provider value={depth}>
+      {children}
+    </RowDepthContext.Provider>
+  );
+}
+
+/** Whether the caller's element sits directly in a Row rather than deeper inside one of its children. */
+export const useRowChild = () => {
+  const row = useContext(RowDepthContext);
+  const depth = useElementDepth();
+  return row !== undefined && depth === row + 1;
+};
 
 /** A color React Native can paint, or `undefined` for anything else, such as a CSS gradient. */
 export const nativeColor = (value: unknown) =>

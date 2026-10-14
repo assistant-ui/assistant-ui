@@ -21,12 +21,13 @@ import {
 import type { Catalog } from "../catalog";
 import {
   evaluateCondition,
-  itemPointer,
   resolveProps,
   type ExpressionContext,
 } from "../expressions";
 import { getAtPointer } from "../pointer";
+import { rejectedPropType } from "../resolved";
 import { createStateStore, type SpecStateStore } from "../state";
+import { childIdsOf, repeatItems, safePointer } from "../tree";
 import type { Spec, SpecElement } from "../types";
 
 /** What a component implementation receives for one element. */
@@ -147,18 +148,35 @@ export function SpecPlaceholder({ id, reason, message }: SpecPlaceholderProps) {
   );
 }
 
+type ElementBoundaryProps = {
+  id: string;
+  element: SpecElement;
+  children: ReactNode;
+  onError: (error: Error) => void;
+  fallback: (error: Error) => ReactNode;
+};
+
+type ElementBoundaryState = { error: Error | null; element: SpecElement };
+
 class ElementBoundary extends Component<
-  {
-    id: string;
-    children: ReactNode;
-    onError: (error: Error) => void;
-    fallback: (error: Error) => ReactNode;
-  },
-  { error: Error | null }
+  ElementBoundaryProps,
+  ElementBoundaryState
 > {
-  override state: { error: Error | null } = { error: null };
+  override state: ElementBoundaryState = {
+    error: null,
+    element: this.props.element,
+  };
   static getDerivedStateFromError(error: Error) {
     return { error };
+  }
+  // A streaming element can pass through values its component rejects, such as a state path cut short, so a changed element renders again.
+  static getDerivedStateFromProps(
+    props: ElementBoundaryProps,
+    state: ElementBoundaryState,
+  ): Partial<ElementBoundaryState> | null {
+    return props.element === state.element
+      ? null
+      : { error: null, element: props.element };
   }
   override componentDidCatch(error: Error, _info: ErrorInfo) {
     this.props.onError(error);
@@ -169,9 +187,6 @@ class ElementBoundary extends Component<
       : this.props.children;
   }
 }
-
-const childIdsOf = (element: SpecElement, slot: string) =>
-  (slot === "default" ? element.children : element.slots?.[slot]) ?? [];
 
 function renderChildren(
   ids: readonly unknown[],
@@ -248,6 +263,7 @@ function ElementView({
   return (
     <ElementBoundary
       id={id}
+      element={element}
       onError={(error) => ctx.onError?.(error, { elementId: id })}
       fallback={(error) => (
         <Placeholder
@@ -311,6 +327,7 @@ function ResolvedElement({
           ...currentScope,
           elementId: id,
           trigger: path,
+          kind: "watch",
         });
       }
     }
@@ -332,6 +349,7 @@ function ResolvedElement({
           ...currentScope,
           elementId: id,
           trigger: event,
+          kind: "event",
           payload,
         });
       },
@@ -353,25 +371,17 @@ function ResolvedElement({
 
   let children: ReactNode;
   if (element.repeat && typeof element.repeat.path === "string") {
-    const repeatPath = element.repeat.path;
-    const items = getAtPointer(ctx.state, safePointer(repeatPath));
-    const keyField = element.repeat.key;
-    children = Array.isArray(items)
-      ? items.map((item, index) => {
-          const key =
-            keyField && item && typeof item === "object"
-              ? String((item as Record<string, unknown>)[keyField] ?? index)
-              : String(index);
-          return (
-            <Fragment key={key}>
-              {renderChildren(
-                childIdsOf(element, "default"),
-                { item, index, itemPath: itemPointer(repeatPath, index) },
-                ancestors,
-              )}
-            </Fragment>
-          );
-        })
+    const items = repeatItems(element.repeat, ctx.state);
+    children = items
+      ? items.map((item) => (
+          <Fragment key={item.key}>
+            {renderChildren(
+              childIdsOf(element, "default"),
+              item.scope,
+              ancestors,
+            )}
+          </Fragment>
+        ))
       : null;
   } else {
     children = renderChildren(childIdsOf(element, "default"), scope, ancestors);
@@ -380,6 +390,23 @@ function ResolvedElement({
   const slots: Record<string, ReactNode> = {};
   for (const [slot, ids] of Object.entries(element.slots ?? {})) {
     if (Array.isArray(ids)) slots[slot] = renderChildren(ids, scope, ancestors);
+  }
+
+  const rejected = rejectedPropType(
+    ctx.catalog?.propsSchema(element.type),
+    props,
+  );
+  if (rejected) {
+    const Placeholder = ctx.placeholder;
+    return ctx.streaming ? (
+      <Placeholder id={id} reason="pending" message={`"${id}" is streaming`} />
+    ) : (
+      <Placeholder
+        id={id}
+        reason="invalid-props"
+        message={`${element.type}: ${rejected}`}
+      />
+    );
   }
 
   return (
@@ -398,9 +425,6 @@ function ResolvedElement({
     </Impl>
   );
 }
-
-const safePointer = (path: string) =>
-  path.startsWith("/") || path === "" ? path : `/${path}`;
 
 /**
  * Renders a spec with trusted host components. It renders whatever has

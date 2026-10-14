@@ -1,6 +1,11 @@
 // @vitest-environment jsdom
 
-import { act, render, renderHook, waitFor } from "@testing-library/react";
+import {
+  act,
+  render,
+  renderHook,
+  waitFor as waitForAssertion,
+} from "@testing-library/react";
 import {
   startTransition,
   Suspense,
@@ -22,6 +27,9 @@ import type { MessageStreamEvent } from "eve/client";
 import type { EveMessageData } from "eve/react";
 import { useEveAgentRuntime } from "./useEveAgentRuntime";
 import { eveExtras } from "./eveExtras";
+
+const waitFor = (assertion: () => void) =>
+  waitForAssertion(assertion, { interval: 10 });
 
 const stuckStreamingData: EveMessageData = {
   messages: [

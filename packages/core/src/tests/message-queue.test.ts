@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import {
+  __internal_bindNextDispatchTransform,
   createMessageQueue,
   type MessageQueueDriver,
 } from "../runtime/queue/message-queue";
@@ -733,6 +734,42 @@ describe("createMessageQueue", () => {
     adapter.edit(id, msg("a2"));
     expect(prompts(adapter.items)).toEqual(["a2", "b"]);
     expect(adapter.items[0]!.id).toBe(id);
+  });
+
+  it("keeps a bound transform when an edited item moves between lanes", () => {
+    const run = vi.fn();
+    const { adapter, notifyBusy, notifyIdle } = createMessageQueue({ run });
+    notifyBusy();
+
+    adapter.__internal_setDispatchTransform?.((message) => ({
+      ...message,
+      parentId: "a",
+    }));
+    __internal_bindNextDispatchTransform(adapter);
+    adapter.enqueue(msg("a"));
+    adapter.__internal_setDispatchTransform?.((message) => ({
+      ...message,
+      parentId: "b",
+    }));
+    __internal_bindNextDispatchTransform(adapter);
+    adapter.enqueue(msg("b"));
+
+    const id = adapter.items[0]!.id;
+    adapter.edit(id, msg("edited"));
+    adapter.move(id, { lane: "steer", insertAfter: null });
+
+    notifyIdle();
+    expect(run).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ parentId: "a" }),
+      { steer: false },
+    );
+    notifyIdle();
+    expect(run).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ parentId: "b" }),
+      { steer: false },
+    );
   });
 
   it("edit throws on an unknown queue item", () => {

@@ -913,6 +913,7 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   abstract get canCancel(): boolean;
   abstract get canSend(): boolean;
   get isEmpty(): boolean;
+  protected get sendableAttachments(): Attachment[];
   get text(): string;
   get role(): "assistant" | "system" | "user";
   get runConfig(): RunConfig;
@@ -950,6 +951,7 @@ declare abstract class BaseComposerRuntimeCore extends BaseSubscribable implemen
   protected abstract handleCancel(): void;
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
   removeAttachment(attachmentId: string): Promise<void>;
+  protected get cleanupOwner(): BaseComposerRuntimeCore;
   get dictation(): DictationState | undefined;
   startDictation(): void;
   stopDictation(): void;
@@ -1697,6 +1699,7 @@ declare class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
   #private;
   get canCancel(): boolean;
   protected get detachesDraftOnSend(): boolean;
+  protected get cleanupOwner(): BaseComposerRuntimeCore;
   get canSend(): boolean;
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
   protected getAttachmentAdapter(): AttachmentAdapter | undefined;
@@ -2649,6 +2652,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   };
   readonly isDisabled = false;
   readonly isSendDisabled = false;
+  get isRunning(): boolean | undefined;
   get isLoading(): boolean;
   get suggestions(): readonly ThreadSuggestion[];
   get adapters(): {
@@ -6073,6 +6077,7 @@ declare namespace ToolInvocationTracker {
     readonly messages: readonly ThreadMessage[];
     readonly isRunning: boolean;
     readonly isLoading?: boolean;
+    readonly discardedToolCallIds?: ReadonlySet<string>;
   };
   type Callbacks = {
     onResult: (command: AddToolResultCommand$1) => void;

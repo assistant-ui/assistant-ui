@@ -421,7 +421,7 @@ const { catalog, components } = toSpecCatalog({
 });
 ```
 
-A Vue entry carries a `component` instead of a `render` function. The component follows the [Vue component contract](/generative-frame/docs/spec-mode#render-with-vue): it declares its props and the events it emits, receives children and named slots as Vue slots, and writes a bound prop by emitting `update:<prop>`.
+A Vue entry carries a `component` instead of a `render` function. The component follows the [Vue component contract](/generative-frame/docs/spec-mode#render-with-vue): it declares its props and the events it emits, receives children and named slots as Vue slots, and writes a bound prop by emitting `update:<prop>`. To render `render_spec` calls in an `@assistant-ui/vue` thread, pass the catalog and components to `createSpecToolkit` from `generative-frame/spec/assistant-ui/vue` ([assistant-ui on Vue](/generative-frame/docs/assistant-ui#on-vue)).
 
 ### With React Native
 
@@ -469,7 +469,7 @@ The default vocabulary draws neither, so it adds no dependency: `Diagram` shows 
 
 The vocabulary renders semantic HTML tagged with `data-aui` and `data-aui-*` attributes and ships no styles of its own, so it cannot conflict with your CSS. The `generative-ui` registry item above installs the shipped stylesheet, which is written entirely against your existing theme variables: change `--radius` or `--primary` in your own CSS and the rendered widgets follow.
 
-A `Card` renders as a plain section by default, so several in a row read as one answer rather than a stack of boxes. It takes on a framed surface only where one is warranted: when the model sets a `background`, when `confirm` or `cancel` add a footer whose buttons need a delimited target, or when it is a carousel slot.
+A `Card` is a module the reader scans or acts on, such as a summary, a checklist, a form, or one option in a comparison, so it renders as a panel: a fill from the vocabulary's `--aui-panel` token, with no border. A card inside another card stays plain, so a module never nests a second panel. A card takes on a framed surface where one is warranted: when the model sets a `background`, when `confirm` or `cancel` add a footer whose buttons need a delimited target, or when it is a carousel slot.
 
 To restyle a single component, target its attribute:
 

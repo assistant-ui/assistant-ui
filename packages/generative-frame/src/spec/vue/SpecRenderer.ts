@@ -22,12 +22,13 @@ import {
 import type { Catalog } from "../catalog";
 import {
   evaluateCondition,
-  itemPointer,
   resolveProps,
   type ExpressionContext,
 } from "../expressions";
 import { getAtPointer } from "../pointer";
+import { rejectedPropType } from "../resolved";
 import { createStateStore, type SpecStateStore } from "../state";
+import { childIdsOf, repeatItems, safePointer } from "../tree";
 import type { Spec, SpecElement } from "../types";
 
 export type SpecComponents = Record<string, Component>;
@@ -130,10 +131,6 @@ type RenderContext = {
   readonly onError: SpecRendererProps["onError"];
 };
 const renderContextKey = Symbol("SpecRenderer");
-const safePointer = (path: string) =>
-  path.startsWith("/") || path === "" ? path : `/${path}`;
-const childIdsOf = (element: SpecElement, slot: string) =>
-  (slot === "default" ? element.children : element.slots?.[slot]) ?? [];
 
 function children(
   ids: readonly unknown[],
@@ -179,6 +176,13 @@ const ElementBoundary = defineComponent({
   setup(props, { slots }) {
     const ctx = inject<RenderContext>(renderContextKey)!;
     const error = shallowRef<Error | null>(null);
+    // A streaming element can pass through values its component rejects, such as a state path cut short, so a changed element renders again.
+    watch(
+      () => props.element,
+      () => {
+        error.value = null;
+      },
+    );
     onErrorCaptured((caught) => {
       const normalized =
         caught instanceof Error ? caught : new Error(String(caught));
@@ -305,6 +309,7 @@ const ResolvedElement = defineComponent({
               ...props.scope,
               elementId: props.id,
               trigger: path,
+              kind: "watch",
             });
         }
       },
@@ -312,6 +317,19 @@ const ResolvedElement = defineComponent({
     );
     return () => {
       const { props: values, bindings } = resolved();
+      const rejected = rejectedPropType(
+        ctx.catalog?.propsSchema(props.element.type),
+        values,
+      );
+      if (rejected) {
+        return h(ctx.placeholder, {
+          id: props.id,
+          reason: ctx.streaming ? "pending" : "invalid-props",
+          message: ctx.streaming
+            ? `"${props.id}" is streaming`
+            : `${props.element.type}: ${rejected}`,
+        });
+      }
       const impl = props.impl as DeclaredOptions;
       const propNames = declaredNames(impl, "props");
       const emitNames = declaredNames(impl, "emits");
@@ -330,6 +348,7 @@ const ResolvedElement = defineComponent({
             ...props.scope,
             elementId: props.id,
             trigger: event,
+            kind: "event",
             payload,
           });
         };
@@ -347,26 +366,17 @@ const ResolvedElement = defineComponent({
       slots.default = () => {
         const repeat = props.element.repeat;
         if (repeat && typeof repeat.path === "string") {
-          const items = getAtPointer(ctx.state, safePointer(repeat.path));
-          return Array.isArray(items)
-            ? items.map((item, index) => {
-                const key =
-                  repeat.key && item && typeof item === "object"
-                    ? String(
-                        (item as Record<string, unknown>)[repeat.key] ?? index,
-                      )
-                    : String(index);
-                return h(
-                  Fragment,
-                  { key },
-                  children(
-                    childIdsOf(props.element, "default"),
-                    { item, index, itemPath: itemPointer(repeat.path, index) },
-                    props.ancestors,
-                  ),
-                );
-              })
-            : [];
+          return (repeatItems(repeat, ctx.state) ?? []).map((item) =>
+            h(
+              Fragment,
+              { key: item.key },
+              children(
+                childIdsOf(props.element, "default"),
+                item.scope,
+                props.ancestors,
+              ),
+            ),
+          );
         }
         return children(
           childIdsOf(props.element, "default"),

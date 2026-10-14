@@ -1,4 +1,5 @@
 import { deepEqual } from "../json-schema";
+import { evaluateFormula } from "./calc";
 import { getAtPointer, joinPointer, parsePointer } from "./pointer";
 import type { Condition } from "./types";
 
@@ -22,17 +23,26 @@ const SOURCE_KEYS = [
   "$index",
   "$event",
 ] as const;
-const EXPRESSION_KEYS = new Set<string>([...SOURCE_KEYS, "$cond", "$template"]);
+const EXPRESSION_KEYS = new Set<string>([
+  ...SOURCE_KEYS,
+  "$cond",
+  "$calc",
+  "$template",
+]);
 const COMPARATORS = ["eq", "neq", "gt", "gte", "lt", "lte"] as const;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
 
-/** True for `{ $state }`, `{ $bindState }`, `{ $item }`, `{ $bindItem }`, `{ $index }`, `{ $event }`, `{ $cond }`, and `{ $template }`. */
+/** True for `{ $state }`, `{ $bindState }`, `{ $item }`, `{ $bindItem }`, `{ $index }`, `{ $event }`, `{ $cond }`, `{ $calc }`, and `{ $template }`. */
 export const isExpression = (
   value: unknown,
 ): value is Record<string, unknown> =>
   isRecord(value) && Object.keys(value).some((key) => EXPRESSION_KEYS.has(key));
+
+/** True for a string that is only an expression key, such as `"$calc"`. */
+export const isExpressionKey = (value: string) =>
+  EXPRESSION_KEYS.has(value.trim());
 
 const readPath = (base: unknown, path: unknown) =>
   typeof path === "string" && path !== ""
@@ -107,6 +117,11 @@ export function resolveValue(value: unknown, ctx: ExpressionContext): unknown {
     return evaluateCondition(value["$cond"] as Condition, ctx)
       ? resolveValue(value["$then"], ctx)
       : resolveValue(value["$else"], ctx);
+  }
+  if ("$calc" in value) {
+    return typeof value["$calc"] === "string"
+      ? evaluateFormula(value["$calc"], ctx)
+      : null;
   }
   if ("$template" in value) {
     return typeof value["$template"] === "string"

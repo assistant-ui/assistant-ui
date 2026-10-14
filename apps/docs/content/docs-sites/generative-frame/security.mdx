@@ -63,9 +63,9 @@ Every frame enforces a CSP `<meta>` tag that widget code cannot lift. By default
 | --- | --- |
 | `default-src` | `'none'` |
 | `script-src` | inline scripts, and the CDN origins |
-| `style-src` | inline styles, the CDN origins, and `https://fonts.googleapis.com` |
+| `style-src` | inline styles and the CDN origins |
 | `img-src` | `data:`, `blob:`, and the CDN origins |
-| `font-src` | `data:`, the CDN origins, and `https://fonts.gstatic.com` |
+| `font-src` | `data:` and the CDN origins |
 | `media-src` | `data:`, `blob:`, and the CDN origins |
 | `connect-src` | `'none'`: no `fetch`, XHR, or WebSocket |
 | `frame-src` | `'none'` |
@@ -92,10 +92,28 @@ createWidget({
 | Option | Effect |
 | --- | --- |
 | `cdnOrigins` | Replaces the CDN list for scripts, styles, images, fonts, and media. |
+| `fontStyleOrigins` | Extra font stylesheet origins, added only to `style-src`. Empty by default. |
+| `fontOrigins` | Extra font file origins, added only to `font-src`. Empty by default. |
 | `connectOrigins` | Origins `fetch`, XHR, and WebSocket may reach. `wss://` origins are accepted here. |
 | `imageOrigins` | Extra image origins, such as an image proxy. |
 | `frameOrigins` | Origins that nested frames may load. |
 | `allowEval` | Adds `'unsafe-eval'`, which some charting libraries need. |
+
+`csp: { cdnOrigins: [] }` blocks external scripts, stylesheets, font files, images, and media unless you explicitly add resource origins. Inline styles and scripts, `data:` fonts, and `data:`/`blob:` images and media still work.
+
+Google Fonts requires an explicit opt-in for both its stylesheets and font files:
+
+```ts
+const csp = {
+  cdnOrigins: [],
+  fontStyleOrigins: ["https://fonts.googleapis.com"],
+  fontOrigins: ["https://fonts.gstatic.com"],
+};
+createWidget({ container, csp });
+buildWidgetGuidance(csp);
+```
+
+The font stylesheet allowance cannot load scripts, images, or font files, and the font file allowance cannot load scripts, stylesheets, or images. For opaque-origin frames, the parent page's CSP is also enforced: adding these origins to the widget policy cannot relax the parent's restrictions.
 
 Sources that are not plain `http(s)` origins (with a `*.` wildcard allowed) or the keywords `'self'`, `'none'`, `data:`, `blob:`, and `https:` are dropped. You can also pass a complete policy string, which is used as is. Keep [the guidance](/generative-frame/docs/tools#guidance) in sync, so the model does not reach for something the policy blocks.
 
@@ -110,7 +128,7 @@ The frame isolates the widget from your page. What a widget can do through the b
 - **`onPrompt` / `onMessage`.** A widget can call `sendPrompt(text)` at any time, with or without a click, and the text is sent as the user's message. Without either handler, the call fails. Confirm in the handler if a message should not be sent without the user seeing it.
 - **`onOpenLink`.** Link clicks, `window.open`, and `openLink(url)` all go through it. Only `http:` and `https:` URLs reach the handler. Without a handler, the URL opens in a new tab with `noopener,noreferrer` and no confirmation. A URL can carry data in its query, so a host that wants a confirmation step passes its own handler.
 - **`onCallTool`.** Off unless you pass it. The widget chooses the tool name and arguments, so allowlist names and validate arguments in the handler.
-- **`onUpdateModelContext`.** Off unless you pass it. Its content is model-generated and goes back to a model, so treat it as untrusted input.
+- **`onUpdateModelContext`.** Off unless you pass it, except in the assistant-ui toolkit, which adds what a widget shares to the system prompt of later requests as a section that marks the value as data, JSON-encoded with `<` escaped, and holds at most 4,000 characters of it. The content comes from model-written code and can carry text from tool results, so treat it as untrusted input; passing your own `widget.onUpdateModelContext` takes this over, after which the toolkit shares nothing and your handler decides what, if anything, reaches the model.
 - **`onRequestDisplayMode` and `onWidgetState`.** Without a handler, display-mode requests return the current mode and widget state is dropped.
 - **`onInitialized`.** Receives what an MCP Apps widget declares in `ui/initialize`, such as its `appInfo` and the display modes it supports. Widget code writes all of it, so use it to narrow what you grant, never to identify or trust the widget.
 - **Tool data.** Whatever you forward with `notifyToolInput` and `notifyToolResult` is readable by widget code.

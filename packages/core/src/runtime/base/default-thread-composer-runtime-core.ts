@@ -33,7 +33,9 @@ export class DefaultThreadComposerRuntimeCore
     const voice = this.runtime.voice;
     if (!voice) return true;
     return (
-      voice.canSendText && this.role === "user" && this.attachments.length === 0
+      voice.canSendText &&
+      this.role === "user" &&
+      this.sendableAttachments.length === 0
     );
   }
 

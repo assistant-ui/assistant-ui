@@ -110,7 +110,7 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     title: "Generative UI",
     image: "/screenshot/examples/generative-ui.png",
     description:
-      "The model composes cards, facts, and charts at runtime through the present tool.",
+      "The model answers each question in Markdown, with the app's components, or with a sandboxed widget.",
     link: "/examples/generative-ui",
     githubLink:
       "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-generative-ui",

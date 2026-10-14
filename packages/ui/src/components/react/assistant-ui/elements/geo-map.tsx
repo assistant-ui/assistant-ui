@@ -292,6 +292,7 @@ export function GeoMap({
                   ) : null}
                 </span>
                 <span
+                  data-slot="geo-map-coordinates"
                   className={cn(
                     mono,
                     "text-muted-foreground shrink-0 pt-0.5 tabular-nums",

@@ -275,6 +275,106 @@ describe("RemoteThreadList adapter changes", () => {
     expect(stopped).not.toContain(draftId);
   });
 
+  it("keeps an open thread created in the page when the replacement adapter lists it", async () => {
+    const core = createCore(
+      makeAdapter({
+        initialize: vi.fn(async () => ({
+          remoteId: "s-1",
+          externalId: "s-1",
+        })),
+      }),
+    );
+    await core.getLoadThreadsPromise();
+    const localId = core.mainThreadId;
+    await core.initialize(localId);
+
+    const stopped: string[] = [];
+    const hookManager = (
+      core as unknown as {
+        _hookManager: { stopThreadRuntime: (id: string) => void };
+      }
+    )._hookManager;
+    const originalStop = hookManager.stopThreadRuntime.bind(hookManager);
+    hookManager.stopThreadRuntime = (id: string) => {
+      stopped.push(id);
+      originalStop(id);
+    };
+
+    core.__internal_setOptions({
+      adapter: makeAdapter({
+        list: vi.fn(async () => ({
+          threads: [{ ...thread("s-1"), externalId: "s-1-on-b" }],
+        })),
+      }),
+      runtimeHook: () => ({}) as never,
+    });
+    await core.getLoadThreadsPromise();
+
+    expect(core.mainThreadId).toBe(localId);
+    expect(core.threadIds).toEqual([localId]);
+    expect(core.getItemById(localId)?.remoteId).toBe("s-1");
+    expect(core.getItemById("s-1")?.id).toBe(localId);
+    expect(stopped).not.toContain(localId);
+    await expect(core.initialize(localId)).resolves.toEqual({
+      remoteId: "s-1",
+      externalId: "s-1-on-b",
+    });
+  });
+
+  it("keeps a background thread created in the page when the replacement adapter lists it", async () => {
+    const core = createCore(
+      makeAdapter({
+        initialize: vi.fn(async () => ({
+          remoteId: "s-1",
+          externalId: "s-1",
+        })),
+      }),
+    );
+    await core.getLoadThreadsPromise();
+    const localId = core.mainThreadId;
+    await core.initialize(localId);
+    await core.switchToNewThread();
+    const draftId = core.mainThreadId;
+    expect(draftId).not.toBe(localId);
+
+    core.__internal_setOptions({
+      adapter: makeAdapter({
+        list: vi.fn(async () => ({ threads: [thread("s-1")] })),
+      }),
+      runtimeHook: () => ({}) as never,
+    });
+    await core.getLoadThreadsPromise();
+
+    expect(core.mainThreadId).toBe(draftId);
+    expect(core.threadIds).toEqual([localId]);
+    expect(core.getItemById(localId)?.remoteId).toBe("s-1");
+    expect(core.getItemById("s-1")?.id).toBe(localId);
+  });
+
+  it("drops a thread created in the page when the replacement adapter omits it", async () => {
+    const core = createCore(
+      makeAdapter({
+        initialize: vi.fn(async () => ({
+          remoteId: "s-1",
+          externalId: "s-1",
+        })),
+      }),
+    );
+    await core.getLoadThreadsPromise();
+    const localId = core.mainThreadId;
+    await core.initialize(localId);
+
+    core.__internal_setOptions({
+      adapter: makeAdapter(),
+      runtimeHook: () => ({}) as never,
+    });
+    await core.getLoadThreadsPromise();
+
+    expect(core.getItemById(localId)).toBeUndefined();
+    expect(core.getItemById("s-1")).toBeUndefined();
+    expect(core.getItemById(core.mainThreadId)?.status).toBe("new");
+  });
+
   it("stops runtimes for threads missing from the replacement list", async () => {
     const adapterA = makeAdapter({
       list: async () => ({ threads: [thread("thread-a")] }),

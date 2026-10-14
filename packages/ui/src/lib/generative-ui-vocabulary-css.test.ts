@@ -177,7 +177,7 @@ describe("card surface", () => {
     expect(surface!["padding"]).toBeUndefined();
     expect(surface!["--aui-card-padding"]).toBe("1.25rem");
     expect(rules['[data-aui="card"]']!["padding"]).toBe(
-      "var(--aui-card-padding, 0)",
+      "var(--aui-card-padding, 1rem 1.125rem)",
     );
   });
 
@@ -186,6 +186,80 @@ describe("card surface", () => {
     expect(keys.indexOf('[data-aui-padding="2"]')).toBeGreaterThan(
       keys.indexOf(auiCardSurfaceSelectors.join(", ")),
     );
+  });
+
+  it("renders a plain card as a borderless panel filled from the theme", () => {
+    const card = rules['[data-aui="card"]']!;
+    expect(card["background-color"]).toBe(
+      "var(--aui-panel, color-mix(in oklab, var(--foreground) 4%, transparent))",
+    );
+    expect(card["border"]).toBeUndefined();
+    expect(generativeUiThemeVars.light["--aui-panel"]).toBe(
+      "color-mix(in oklab, var(--foreground) 4%, transparent)",
+    );
+    expect(generativeUiThemeVars.dark["--aui-panel"]).toBe(
+      "color-mix(in oklab, var(--foreground) 6%, transparent)",
+    );
+  });
+
+  it("keeps a card inside a card plain, before the surface rule so a nested surface keeps its frame", () => {
+    const nested = '[data-aui="card"] [data-aui="card"]';
+    expect(rules[nested]).toEqual({
+      "--aui-card-padding": "0",
+      "border-radius": "0",
+      "background-color": "transparent",
+    });
+    const keys = Object.keys(generativeUiVocabularyCss);
+    expect(keys.indexOf(nested)).toBeLessThan(
+      keys.indexOf(auiCardSurfaceSelectors.join(", ")),
+    );
+  });
+});
+
+describe("answer layout", () => {
+  it("spaces a render_spec or show_widget frame from the reply's text the way a present root is spaced", () => {
+    expect(rules["[data-gf-spec], [data-gf-widget]"]!["margin-block"]).toBe(
+      rules['[data-aui="root"]']!["margin-block"],
+    );
+  });
+
+  it("labels a fact in sentence case at the 12px floor", () => {
+    const label = rules['[data-aui="fact-label"]']!;
+    expect(label["text-transform"]).toBeUndefined();
+    expect(label["letter-spacing"]).toBeUndefined();
+    expect(label["font-size"]).toBe("0.75rem");
+  });
+
+  it("keeps facts in a card's row lighter than the card title", () => {
+    const value =
+      rules[
+        '[data-aui="card"] [data-aui="row"] > [data-aui="fact"] > [data-aui="fact-value"]'
+      ]!;
+    const title = rules['[data-aui="card-title"]']!;
+    expect(value["font-size"]).toBe(title["font-size"]);
+    expect(Number(value["font-weight"])).toBeLessThan(
+      Number(title["font-weight"]),
+    );
+  });
+
+  it("lets row images shrink to fit while keeping a fifth of the row beside text", () => {
+    const gallery =
+      rules[
+        '[data-aui="row"] > [data-aui="image"]:not([data-aui-size="sm"], [data-aui-sized], [data-aui-round])'
+      ]!;
+    expect(gallery["flex"]).toBe("1 1 0");
+    expect(gallery["min-width"]).toBe("max(5rem, 22%)");
+    const longGallery = Object.entries(rules).find(([selector]) =>
+      selector.includes(
+        ':first-child:nth-last-child(n+4) ~ [data-aui="image"]',
+      ),
+    )?.[1];
+    expect(longGallery?.["min-width"]).toBe("0");
+    expect(
+      rules[
+        '[data-aui="row"] > [data-aui="image"][data-aui-size="sm"]:not([data-aui-round])'
+      ]!["flex"],
+    ).toBe("none");
   });
 });
 

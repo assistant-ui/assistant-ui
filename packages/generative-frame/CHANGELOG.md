@@ -1,5 +1,19 @@
 # generative-frame
 
+## 0.0.5
+
+### Patch Changes
+
+- [#9427](https://github.com/assistant-ui/assistant-ui/pull/9427) [`5113baa`](https://github.com/assistant-ui/assistant-ui/commit/5113baa64eb50e2b7be167323161bb173a19c610) - feat: with `render_spec` among the tools, `buildWidgetInstructions` and `useWidgetInstructions` tell the model when to answer in markdown, with a spec, or with a widget ([@okisdev](https://github.com/okisdev))
+
+- [#9524](https://github.com/assistant-ui/assistant-ui/pull/9524) [`c5c4fdd`](https://github.com/assistant-ui/assistant-ui/commit/c5c4fddfb57aafc7ad3043d11fe1bb3cd773656b) - feat: a rendered UI can tell the model what the user chose. Specs gain the built-in actions `sendMessage` and `updateModelContext` (validated in every catalog, documented when `catalog.prompt({ hostApi })` says the host handles them, and reserved in `defineCatalog`), widget guidance documents `genframe.updateModelContext` behind `hostApi.modelContext`, and the assistant-ui toolkits handle both: what a UI shares goes into the system prompt of later requests, marked as data and capped at 4,000 characters, and is saved with the call's state so it survives a reload. `sendMessage` runs only from a user's event, never from `watch`, which action handlers can now tell apart through `kind` on their second argument. ([@okisdev](https://github.com/okisdev))
+
+- [#9501](https://github.com/assistant-ui/assistant-ui/pull/9501) [`d30dae6`](https://github.com/assistant-ui/assistant-ui/commit/d30dae602477a50ace87710e27b06c3faf2a6e59) - feat: add `$calc` formulas to spec expressions, so a spec can compute totals, quantities that follow an input, and formatted values from its state. Formulas are parsed by a bounded interpreter (no `eval`), give `null` instead of throwing, and `validateSpec` reports one that does not parse as `invalid-formula`. The spec guidance and the format rules now describe them, and a pointer into an array reads only the array's own items. ([@okisdev](https://github.com/okisdev))
+
+- [#9455](https://github.com/assistant-ui/assistant-ui/pull/9455) [`986d7cf`](https://github.com/assistant-ui/assistant-ui/commit/986d7cffa2e9cde3c262e5798de62e4b6618479c) - Require explicit `fontStyleOrigins` and `fontOrigins` options for external font providers such as Google Fonts. An empty CDN allowlist now blocks external stylesheets and font files unless their resource origins are configured. ([@Yonom](https://github.com/Yonom))
+
+- [#9318](https://github.com/assistant-ui/assistant-ui/pull/9318) [`1de1657`](https://github.com/assistant-ui/assistant-ui/commit/1de16572935587752628401d7928ba7bf9932010) - feat: keep a widget's `genframe.setState` value across reloads in the assistant-ui toolkit, and seed a frame's state with `initialState` ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.4
 
 ### Patch Changes
