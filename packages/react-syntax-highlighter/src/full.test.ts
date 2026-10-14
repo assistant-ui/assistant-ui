@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import * as full from "./full";
 import * as fullImpl from "./react-syntax-highlighter-full";
