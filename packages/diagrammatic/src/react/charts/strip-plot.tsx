@@ -92,7 +92,7 @@ export const StripPlot = forwardRef<SVGSVGElement, StripPlotProps>(
                   fill={ink(0.4)}
                 />
               ))}
-              {showMean && (
+              {showMean && row.values.length > 0 && (
                 <line
                   x1={X(mean)}
                   y1={y - MEAN_HALF}
