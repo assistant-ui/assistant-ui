@@ -35,7 +35,9 @@ export function upperBound(
   let max = floor;
   for (const value of values) max = Math.max(max, value);
   for (const value of tickValues(ticks)) max = Math.max(max, value);
-  for (const guide of guides ?? []) max = Math.max(max, guide.at);
+  for (const guide of guides ?? []) {
+    if ((guide.axis ?? "y") === "y") max = Math.max(max, guide.at);
+  }
   return max;
 }
 
@@ -48,7 +50,9 @@ export function boundsOf(
   return extent([
     ...values,
     ...tickValues(ticks),
-    ...(guides?.map((guide) => guide.at) ?? []),
+    ...(guides
+      ?.filter((guide) => (guide.axis ?? "y") === "y")
+      .map((guide) => guide.at) ?? []),
   ]);
 }
 
