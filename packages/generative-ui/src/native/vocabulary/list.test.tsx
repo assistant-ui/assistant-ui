@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
-import { act, type ComponentProps } from "react";
+import { act, type ComponentProps, type ReactNode } from "react";
 import { renderToString } from "react-dom/server";
+import { View } from "react-native";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 import {
   byRole,
   cleanupSpecs,
@@ -16,6 +18,7 @@ import {
   RowLabelProvider,
   useListViewItemText,
 } from "../rowLabel";
+import { defaultGenerativeUILibrary } from "./index";
 import { listVocabulary } from "./list";
 
 const pressables = vi.hoisted(() => ({
@@ -578,6 +581,67 @@ describe("list vocabulary on React Native", () => {
         "Order 42, Shipped, $12, Order 43, Packed, $30",
       ),
     ).toBeTruthy();
+  });
+
+  it("orders a custom component's own text, children, and slot as it renders them", async () => {
+    const library = {
+      ...defaultGenerativeUILibrary,
+      Panel: {
+        description: "A panel.",
+        properties: z.object({ note: z.string() }),
+        slots: ["default", "header"],
+        render: ({
+          note,
+          children,
+          $slots,
+        }: {
+          note: string;
+          children?: ReactNode;
+          $slots?: Record<string, ReactNode>;
+        }) => (
+          <View>
+            {$slots?.["header"]}
+            {children}
+            {defaultGenerativeUILibrary["Caption"]!.render({ value: note })}
+          </View>
+        ),
+      },
+    };
+    const rendered = renderNativeSpec(
+      spec(
+        {
+          main: { type: "ListView", children: ["row"] },
+          row: {
+            type: "ListViewItem",
+            children: ["panel"],
+            on: { press: { action: "open" } },
+          },
+          panel: {
+            type: "Panel",
+            props: { note: "Fragile" },
+            children: ["body"],
+            slots: { header: ["title"] },
+          },
+          title: {
+            type: "Text",
+            props: { value: "Order 42" },
+            visible: { $state: "/shown" },
+          },
+          body: { type: "Caption", props: { value: "Shipped" } },
+        },
+        { shown: true },
+      ),
+      { open: vi.fn() },
+      { open: { description: "Open" } },
+      library,
+    );
+    const named = (name: string) =>
+      expect(byRole(rendered.container, "button", name)).toBeTruthy();
+    named("Order 42, Shipped, Fragile");
+    await act(async () => rendered.state.set("/shown", false));
+    named("Shipped, Fragile");
+    await act(async () => rendered.state.set("/shown", true));
+    named("Order 42, Shipped, Fragile");
   });
 
   it.each([

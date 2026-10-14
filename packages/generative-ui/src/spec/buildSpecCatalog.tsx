@@ -57,12 +57,7 @@ function toSpecComponent(
   }: SpecComponentProps) {
     const position = useSpecPosition();
     const place = (nodes: ReactNode, branch: number) =>
-      positions
-        ? positionChildren(
-            nodes,
-            position === undefined ? `${branch}` : `${position}.${branch}`,
-          )
-        : nodes;
+      positions ? positionChildren(nodes, `${position}/${branch}`) : nodes;
     // A component only acts interactive (a ListViewItem becomes a clickable row) when the element binds the event.
     const live = events.filter((event) =>
       Object.hasOwn(element.on ?? {}, event),

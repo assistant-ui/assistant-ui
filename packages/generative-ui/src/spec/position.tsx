@@ -1,31 +1,33 @@
-import {
-  Children,
-  cloneElement,
-  createContext,
-  Fragment,
-  isValidElement,
-  useContext,
-  type ReactNode,
-} from "react";
+import * as React from "react";
 
-const SpecPosition = createContext<string | undefined>(undefined);
+let positionContext: React.Context<string> | undefined;
 
-/** The rendering element's place in the spec tree as dot-separated indices; undefined for the root element and outside spec mode. */
-export const useSpecPosition = () => useContext(SpecPosition);
+// Spec catalogs are also imported under React's server condition, which has no createContext.
+const getPositionContext = () => (positionContext ??= React.createContext(""));
 
-/** Gives each element in a component's rendered children, and in each repeated item, its place under `base`. */
-export function positionChildren(children: ReactNode, base: string): ReactNode {
-  return Children.map(children, (child, index) => {
-    if (!isValidElement<{ children?: ReactNode }>(child)) return child;
-    const position = `${base}.${index}`;
-    return child.type === Fragment ? (
-      cloneElement(
+/** The rendering element's place in the spec tree: a `/branch.index` step per level, empty for the root element and outside spec mode. */
+export const useSpecPosition = () => React.useContext(getPositionContext());
+
+/** Gives each element in one branch of a component's rendered children, including each repeated item's elements, its place in that branch. */
+export function positionChildren(
+  children: React.ReactNode,
+  branch: string,
+): React.ReactNode {
+  const PositionContext = getPositionContext();
+  return React.Children.map(children, (child, index) => {
+    if (!React.isValidElement<{ children?: React.ReactNode }>(child))
+      return child;
+    const position = `${branch}.${index}`;
+    return child.type === React.Fragment ? (
+      React.cloneElement(
         child,
         undefined,
         positionChildren(child.props.children, position),
       )
     ) : (
-      <SpecPosition.Provider value={position}>{child}</SpecPosition.Provider>
+      <PositionContext.Provider value={position}>
+        {child}
+      </PositionContext.Provider>
     );
   });
 }

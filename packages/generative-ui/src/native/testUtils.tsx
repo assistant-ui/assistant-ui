@@ -7,6 +7,7 @@ import {
 } from "generative-frame/spec";
 import { SpecRenderer } from "generative-frame/spec/react";
 import { toSpecCatalog as toWebSpecCatalog } from "../spec/toSpecCatalog";
+import type { GenerativeUILibrary } from "../types";
 import { toSpecCatalog } from "./toSpecCatalog";
 
 (
@@ -29,8 +30,9 @@ function renderSpec(
   input: Spec,
   handlers: Handlers,
   actions: Actions | undefined,
+  library?: GenerativeUILibrary,
 ): RenderedSpec {
-  const { catalog, components } = build(undefined, actions ? { actions } : {});
+  const { catalog, components } = build(library, actions ? { actions } : {});
   const container = document.createElement("div");
   document.body.append(container);
   const state = createStateStore(input.state ?? {});
@@ -48,12 +50,13 @@ function renderSpec(
   };
 }
 
-/** Renders a spec with the React Native vocabulary, through react-native-web. */
+/** Renders a spec with the React Native vocabulary, or a library built on it, through react-native-web. */
 export const renderNativeSpec = (
   input: Spec,
   handlers: Handlers = {},
   actions?: Actions,
-) => renderSpec(toSpecCatalog, input, handlers, actions);
+  library?: GenerativeUILibrary,
+) => renderSpec(toSpecCatalog, input, handlers, actions, library);
 
 /** Renders the same spec with the web vocabulary, to compare what each dispatches. */
 export const renderWebSpec = (
