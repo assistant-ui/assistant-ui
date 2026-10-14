@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Area } from "../react/charts/area";
 import { Zoom, type Transform } from "./zoom";
@@ -7,6 +13,7 @@ import { Zoom, type Transform } from "./zoom";
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 const DATA = [12, 18, 15];
@@ -54,6 +61,46 @@ function stubBoxes(svg: {
       return box as DOMRect;
     },
   );
+}
+
+function stubChangingBoxes() {
+  const sizes = new Map([
+    ["first", { width: 400, height: 200 }],
+    ["second", { width: 800, height: 400 }],
+  ]);
+  vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+    function (this: Element) {
+      const size = sizes.get(this.getAttribute("data-figure") ?? "") ?? {
+        width: 1000,
+        height: 500,
+      };
+      return { left: 0, top: 0, ...size } as DOMRect;
+    },
+  );
+  const observed = new Set<Element>();
+  let notify: ResizeObserverCallback = () => {};
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      constructor(callback: ResizeObserverCallback) {
+        notify = callback;
+      }
+      observe(element: Element) {
+        observed.add(element);
+      }
+      unobserve(element: Element) {
+        observed.delete(element);
+      }
+      disconnect() {
+        observed.clear();
+      }
+    },
+  );
+  return {
+    sizes,
+    observed,
+    resize: () => act(() => notify([], {} as ResizeObserver)),
+  };
 }
 
 describe("Zoom pointer handlers", () => {
@@ -113,6 +160,63 @@ describe("Zoom pointer handlers", () => {
 });
 
 describe("Zoom SVG box", () => {
+  it("rebinds measurement when the SVG is replaced in the same Zoom instance", async () => {
+    const { sizes, observed, resize } = stubChangingBoxes();
+    const seen: { x: number; y: number }[] = [];
+    const chart = (kind: "first" | "second") => (
+      <Zoom defaultTransform={{ k: 2, x: -200, y: -100 }}>
+        {(view) => {
+          seen.push(view);
+          return <svg key={kind} data-figure={kind} />;
+        }}
+      </Zoom>
+    );
+    const { container, rerender } = render(chart("first"));
+    const host = container.querySelector("[data-dg-zoom]")!;
+    const first = container.querySelector("svg")!;
+    expect(seen.at(-1)).toMatchObject({ x: 0.25, y: 0.25 });
+
+    rerender(chart("second"));
+    const second = container.querySelector("svg")!;
+    await waitFor(
+      () => expect(seen.at(-1)).toMatchObject({ x: 0.125, y: 0.125 }),
+      { timeout: 250 },
+    );
+    expect(observed.has(host)).toBe(true);
+    expect(observed.has(first)).toBe(false);
+    expect(observed.has(second)).toBe(true);
+
+    sizes.set("second", { width: 500, height: 250 });
+    resize();
+    expect(seen.at(-1)).toMatchObject({ x: 0.2, y: 0.2 });
+  });
+
+  it("switches between the wrapper and an SVG that mounts late", async () => {
+    stubChangingBoxes();
+    const seen: { x: number; y: number }[] = [];
+    const chart = (show: boolean) => (
+      <Zoom defaultTransform={{ k: 2, x: -200, y: -100 }}>
+        {(view) => {
+          seen.push(view);
+          return show ? <svg data-figure="first" /> : <span>Loading</span>;
+        }}
+      </Zoom>
+    );
+    const { rerender } = render(chart(false));
+    expect(seen.at(-1)).toMatchObject({ x: 0.1, y: 0.1 });
+
+    rerender(chart(true));
+    await waitFor(
+      () => expect(seen.at(-1)).toMatchObject({ x: 0.25, y: 0.25 }),
+      { timeout: 250 },
+    );
+
+    rerender(chart(false));
+    await waitFor(() => expect(seen.at(-1)).toMatchObject({ x: 0.1, y: 0.1 }), {
+      timeout: 250,
+    });
+  });
+
   it("maps the view through the SVG dimensions and preserves equal-box mapping", () => {
     const svg = { left: 100, top: 100, width: 400, height: 200 };
     stubBoxes(svg);

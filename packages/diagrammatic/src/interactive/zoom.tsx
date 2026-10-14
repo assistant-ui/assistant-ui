@@ -137,21 +137,39 @@ export const Zoom = forwardRef<HTMLDivElement, ZoomProps>(
     );
 
     useEffect(() => {
-      const figure = getFigure();
-      if (!figure || !windowed) return;
+      const node = container.current;
+      if (!node || !windowed) return;
+      let figure: Element | null = null;
+      let resizeObserver: ResizeObserver | null = null;
       const read = () => {
-        const rect = figure.getBoundingClientRect();
+        const next = getFigure();
+        if (next !== figure) {
+          if (figure && figure !== node) resizeObserver?.unobserve(figure);
+          if (next && next !== node) resizeObserver?.observe(next);
+          figure = next;
+        }
+        const rect = next?.getBoundingClientRect();
+        if (!rect) return;
         setBox((current) =>
           current.w === rect.width && current.h === rect.height
             ? current
             : { w: rect.width, h: rect.height },
         );
       };
+      if (typeof ResizeObserver !== "undefined") {
+        resizeObserver = new ResizeObserver(read);
+        resizeObserver.observe(node);
+      }
+      const mutationObserver =
+        typeof MutationObserver === "undefined"
+          ? null
+          : new MutationObserver(read);
+      mutationObserver?.observe(node, { childList: true, subtree: true });
       read();
-      if (typeof ResizeObserver === "undefined") return;
-      const observer = new ResizeObserver(read);
-      observer.observe(figure);
-      return () => observer.disconnect();
+      return () => {
+        mutationObserver?.disconnect();
+        resizeObserver?.disconnect();
+      };
     }, [getFigure, windowed]);
 
     useEffect(() => {
