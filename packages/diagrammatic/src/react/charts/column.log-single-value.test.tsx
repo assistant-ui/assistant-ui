@@ -1,10 +1,13 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { frame } from "../svg";
 import { Column } from "./column";
 
 describe("Column single log value", () => {
+  const F = frame({}, 5 / 3, { labels: true, ticks: false });
+
   it.each([1, 3])(
-    "draws visible columns for %s identical value(s)",
+    "draws columns to the plot middle for %s identical value(s)",
     (count) => {
       const html = renderToStaticMarkup(
         <Column
@@ -24,7 +27,7 @@ describe("Column single log value", () => {
       for (const mark of marks) {
         const height = Number(mark[1]);
         expect(Number.isFinite(height)).toBe(true);
-        expect(height).toBeGreaterThan(0);
+        expect(height).toBeCloseTo((F.bottom - F.top) / 2, 1);
       }
     },
   );

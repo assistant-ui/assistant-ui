@@ -59,11 +59,10 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
       ...(guides?.filter((g) => (g.axis ?? "y") === "y").map((g) => g.at) ??
         []),
     ];
-    const [lo, yHi] =
+    const [yLo, yHi] =
       yScale === "log"
         ? positiveExtent(yValues)
         : [Math.min(0, ...yValues), Math.max(...yValues, 1)];
-    const yLo = yScale === "log" && lo === yHi ? lo / 10 : lo;
     const yTickList = resolveTicks(yTicks, yLo, yHi, yScale, format);
     const highest = Math.max(...items.map((r) => r.value));
     const isAccent = (row: Item, i: number) =>

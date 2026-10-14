@@ -61,8 +61,11 @@ export function expandDegenerateDomain([lo, hi]: [number, number]): [
   number,
 ] {
   if (lo !== hi) return [lo, hi];
-  const pad = Math.abs(lo || 1) * 0.05;
-  return [lo - pad, hi + pad];
+  const pad = Math.max(Math.abs(lo || 1) * 0.05, Number.EPSILON);
+  return [
+    Math.max(-Number.MAX_VALUE, lo - pad),
+    Math.min(Number.MAX_VALUE, hi + pad),
+  ];
 }
 
 /**

@@ -28,4 +28,37 @@ describe("Scatter constant values", () => {
       axis === "x" ? (F.left + F.right) / 2 : (F.top + F.bottom) / 2;
     expect(actual).toBeCloseTo(center, 2);
   });
+
+  it.each(["x", "y"] as const)(
+    "centers a constant positive %s dimension on a log scale",
+    (axis) => {
+      const points =
+        axis === "x"
+          ? [
+              { x: 12, y: 3 },
+              { x: 12, y: 9 },
+            ]
+          : [
+              { x: 3, y: 12 },
+              { x: 9, y: 12 },
+            ];
+      const html = renderToStaticMarkup(
+        <Scatter
+          points={points}
+          {...(axis === "x"
+            ? { xScale: "log" as const }
+            : { yScale: "log" as const })}
+        />,
+      );
+      const mark = /<circle[^>]*data-part="mark"[^>]*>/.exec(html);
+      expect(mark).not.toBeNull();
+      const coordinate = axis === "x" ? "cx" : "cy";
+      const match = new RegExp(`${coordinate}="([^"]+)"`).exec(mark![0]);
+      expect(match).not.toBeNull();
+      const F = frame({}, 5 / 3, { labels: true, ticks: false });
+      const center =
+        axis === "x" ? (F.left + F.right) / 2 : (F.top + F.bottom) / 2;
+      expect(Number(match![1])).toBeCloseTo(center, 2);
+    },
+  );
 });
