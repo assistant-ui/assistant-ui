@@ -101,9 +101,11 @@ describe("layoutVocabulary", () => {
         $type: "Col",
         gap: 2,
         align: "center",
-        children: { $type: "Text", value: "x" } as never,
+        children: "column content",
       }),
-    ).toContain('data-aui="col"');
+    ).toBe(
+      '<div data-aui="col" data-aui-gap="2" data-aui-align="center">column content</div>',
+    );
   });
 
   it("Row renders a div with gap/align/justify hooks", () => {
