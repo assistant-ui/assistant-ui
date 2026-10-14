@@ -19,6 +19,32 @@ const countsFor = (values: number[]) => {
 };
 
 describe("Waffle rounding", () => {
+  it("shows zero percent for negative values in the default legend", () => {
+    const items = [
+      { label: "negative", value: -5 },
+      { label: "positive", value: 5 },
+    ];
+    const html = renderToStaticMarkup(<Waffle items={items} />);
+    expect(html).toContain(">negative 0%</text>");
+    expect(html).toContain(">positive 100%</text>");
+
+    const inputs: number[] = [];
+    renderToStaticMarkup(
+      <Waffle
+        items={items}
+        format={(value) => {
+          inputs.push(value);
+          return String(value);
+        }}
+      />,
+    );
+    expect(inputs).toEqual([-5, 5]);
+  });
+
+  it("splits 100 cells evenly between two maximum finite values", () => {
+    expect(countsFor([Number.MAX_VALUE, Number.MAX_VALUE])).toEqual([50, 50]);
+  });
+
   it("assigns overrounding by largest remainder without truncating the last share", () => {
     expect(countsFor([0.2, 33.5, 33.5, 32.8])).toEqual([0, 34, 33, 33]);
   });

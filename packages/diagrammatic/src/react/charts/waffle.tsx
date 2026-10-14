@@ -28,8 +28,10 @@ export const Waffle = forwardRef<SVGSVGElement, WaffleProps>(
     });
     const { left, right, top, bottom } = F;
     const values = items.map((r) => Math.max(0, r.value));
-    const total = values.reduce((sum, value) => sum + value, 0) || 1;
-    const exact = values.map((value) => (value / total) * 100);
+    const max = values.reduce((largest, value) => Math.max(largest, value), 0);
+    const scaled = max > 0 ? values.map((value) => value / max) : values;
+    const total = scaled.reduce((sum, value) => sum + value, 0) || 1;
+    const exact = scaled.map((value) => (value / total) * 100);
     const shares = exact.map(Math.round);
     const drift = 100 - shares.reduce((a, b) => a + b, 0);
     if (drift !== 0 && shares.length > 0) {
@@ -59,7 +61,6 @@ export const Waffle = forwardRef<SVGSVGElement, WaffleProps>(
     const gridHeight = cell * 10 + gap * 9;
     const gridLeft = left + (right - left - gridWidth) / 2;
     const gridTop = top + (bottom - top - gridHeight) / 2;
-    const fmt = format ?? ((v: number) => `${Math.round((v / total) * 100)}%`);
     return (
       <ChartSvg
         ref={ref}
@@ -84,7 +85,10 @@ export const Waffle = forwardRef<SVGSVGElement, WaffleProps>(
         {showLegend && (
           <SvgLegend
             frame={F}
-            names={items.map((item) => `${item.label} ${fmt(item.value)}`)}
+            names={items.map(
+              (item, i) =>
+                `${item.label} ${format ? format(item.value) : `${Math.round(exact[i]!)}%`}`,
+            )}
             colors={items.map((_, i) => cat(i))}
           />
         )}
