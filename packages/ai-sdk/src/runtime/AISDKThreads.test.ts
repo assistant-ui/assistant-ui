@@ -462,56 +462,6 @@ describe("AISDKThreads", () => {
   });
 
   describe("a frontend tool running across a thread switch", () => {
-    const startTool = async (
-      execute: (
-        args: unknown,
-        context: {
-          abortSignal: AbortSignal;
-          human: (payload: unknown) => Promise<unknown>;
-        },
-      ) => Promise<unknown>,
-    ) => {
-      const { transport, emit, close } = createControlledTransport();
-      const sendMessages = vi.spyOn(transport, "sendMessages");
-      const handle = createAssistantClient(
-        AuiConfig({
-          threads: AISDKThreads({
-            transport,
-            sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-          }),
-        }),
-      );
-      handle.subscribe(() => {});
-      const aui = handle.getClient();
-      flushTapSync(() =>
-        aui.modelContext.register({
-          getModelContext: () => ({
-            tools: {
-              lookup: {
-                parameters: { type: "object", properties: {} },
-                execute,
-              },
-            },
-          }),
-        }),
-      );
-      flushTapSync(() => aui.composer.setText("look up"));
-      flushTapSync(() => aui.composer.send());
-      await waitFor(() => expect(sendMessages).toHaveBeenCalledTimes(1));
-      emit(
-        { type: "start", messageId: "assistant-1" },
-        {
-          type: "tool-input-available",
-          toolCallId: "call-1",
-          toolName: "lookup",
-          input: {},
-        },
-        { type: "finish" },
-      );
-      close();
-      return { handle, sendMessages };
-    };
-
     const switchAwayAndBack = (
       handle: ReturnType<typeof createAssistantClient>,
     ) => {

@@ -1276,6 +1276,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
             isToolUIPart(part) &&
             part.toolCallId === toolCallId,
         ) as { state?: string; preliminary?: boolean } | undefined;
+        // An earlier message's or a cancelled call's settled output may already have reached the model, as the error a cancelling send writes does.
         if (
           targetPart?.state === "output-error" ||
           targetPart?.state === "output-denied" ||
