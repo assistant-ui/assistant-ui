@@ -60,7 +60,7 @@ export const Waterfall = forwardRef<SVGSVGElement, WaterfallProps>(
       labels: true,
       ticks: yTickList ?? false,
       bottomValueLabel: resolved.some(
-        (entry) => !entry.total && entry.value < 0 && entry.to === min,
+        (entry) => !entry.total && entry.value < 0,
       ),
     });
     const { left, right, top, bottom, axisY, T } = F;

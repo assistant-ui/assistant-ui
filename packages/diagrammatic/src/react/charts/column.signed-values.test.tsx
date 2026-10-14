@@ -120,13 +120,25 @@ describe("Column signed values", () => {
     }
   });
 
-  it("keeps the lowest negative value label above the category label", () => {
+  it.each([
+    {
+      name: "keeps the lowest negative value label above the category label",
+      loss: -5,
+      yTicks: undefined,
+    },
+    {
+      name: "keeps a negative value label above the category label with a lower tick",
+      loss: -9.8,
+      yTicks: [{ at: -10, label: "-10" }],
+    },
+  ])("$name", ({ loss, yTicks }) => {
     const html = renderToStaticMarkup(
       <Column
         values
+        {...(yTicks ? { yTicks } : {})}
         items={[
           { label: "gain", value: 10 },
-          { label: "loss", value: -5 },
+          { label: "loss", value: loss },
         ]}
       />,
     );

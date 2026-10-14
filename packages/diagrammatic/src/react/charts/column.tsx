@@ -78,9 +78,7 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
         yScale !== "log" &&
         items.some(
           (row, i) =>
-            row.value < 0 &&
-            row.value === yLo &&
-            (values || (!categorical && isAccent(row, i))),
+            row.value < 0 && (values || (!categorical && isAccent(row, i))),
         ),
     });
     const { left, right, top, bottom, axisY, T } = F;

@@ -119,12 +119,24 @@ describe("Waterfall signed values", () => {
     }
   });
 
-  it("keeps the lowest negative step label above the category label", () => {
+  it.each([
+    {
+      name: "keeps the lowest negative step label above the category label",
+      drop: -15,
+      yTicks: undefined,
+    },
+    {
+      name: "keeps a negative step label above the category label with a lower tick",
+      drop: -19.8,
+      yTicks: [{ at: -10, label: "-10" }],
+    },
+  ])("$name", ({ drop, yTicks }) => {
     const html = renderToStaticMarkup(
       <Waterfall
+        {...(yTicks ? { yTicks } : {})}
         steps={[
           { label: "start", value: 10, total: true },
-          { label: "drop", value: -15 },
+          { label: "drop", value: drop },
         ]}
       />,
     );
