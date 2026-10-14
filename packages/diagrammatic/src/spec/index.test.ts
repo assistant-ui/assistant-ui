@@ -47,6 +47,15 @@ describe("validateSpec", () => {
     );
   });
 
+  it.each(["constructor", "__proto__"])(
+    "rejects inherited chart type %s with the path",
+    (type) => {
+      expect(() => validateSpec({ type })).toThrow(
+        /Unknown chart type at "type":/,
+      );
+    },
+  );
+
   it("rejects unknown spec versions", () => {
     expect(() => validateSpec({ v: "dg/2", type: "line" })).toThrow(
       /Unknown spec version/,
@@ -91,5 +100,33 @@ describe("Chart", () => {
     );
     expect(html).toContain("unknown chart type: hologram");
     expect(html).toContain('role="img"');
+  });
+
+  it("renders an inert placeholder for inherited chart types", () => {
+    const html = renderToStaticMarkup(
+      createElement(Chart, {
+        spec: { type: "__proto__" } as unknown as ChartSpec,
+      }),
+    );
+    expect(html).toContain("unknown chart type: __proto__");
+    expect(html).toContain('role="img"');
+  });
+
+  it("uses the compact formatter for inherited unit names", () => {
+    const inheritedUnitHtml = renderToStaticMarkup(
+      createElement(Chart, {
+        spec: {
+          type: "line",
+          data: [1000, 2000],
+          unit: "__proto__",
+        } as unknown as ChartSpec,
+      }),
+    );
+    const compactUnitHtml = renderToStaticMarkup(
+      createElement(Chart, {
+        spec: { type: "line", data: [1000, 2000], unit: "compact" },
+      }),
+    );
+    expect(inheritedUnitHtml).toBe(compactUnitHtml);
   });
 });

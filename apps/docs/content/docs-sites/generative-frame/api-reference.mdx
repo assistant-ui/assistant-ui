@@ -57,7 +57,7 @@ const widget: WidgetHandle = createWidget(options);
 | `iframe: HTMLIFrameElement \| undefined` | The current iframe. |
 | `write(chunk)` | Appends streamed code. Throws after `end()`. |
 | `end(): Promise<EndResult>` | Marks the code complete, runs held scripts, and resolves with `{ size, blank, errorCount }`. |
-| `replace(code): Promise<EndResult>` | Renders new complete code, morphing in place, or remounting when scripts already ran. |
+| `replace(code): Promise<EndResult>` | Renders new complete code, morphing in place, or remounting when scripts already ran. A newer call removes a remount still in progress, whose promise rejects. |
 | `setTheme(tokens)` | Sends new theme tokens. |
 | `setContext(context)` | Merges MCP Apps host context fields and notifies the widget. |
 | `notifyToolInput(args, { partial? })` | Forwards tool input to MCP Apps widgets. |
@@ -65,7 +65,7 @@ const widget: WidgetHandle = createWidget(options);
 | `screenshot({ scale?, background? }): Promise<Screenshot>` | Captures the widget as `{ dataUrl, width, height }`. |
 | `inspect(): Promise<WidgetInspection>` | `{ kind, ended, size, blank, errors, console, code }`. |
 | `on(event, listener): () => void` | Subscribes to `ready`, `resize`, `error`, `log`, or `end`. |
-| `dispose()` | Removes the frame. |
+| `dispose()` | Removes the frame, and a replacement frame still rendering. |
 
 ### Storage
 
@@ -251,6 +251,7 @@ The Vue renderer, with `vue` as an optional peer. `SpecRenderer` takes the same 
 | --- | --- |
 | `createSpecTools(catalog, { specs?, customRules? })` | `{ render_spec }`. `specs` is a `Map<string, { spec, version }>` shared with the host, and `customRules` follow the built-in rules in the tool's description. See [`render_spec`](/generative-frame/docs/tools#render_spec). |
 | `specGuidanceModule(catalog, promptOptions?)` | The `spec` module for `createWidgetTools({ modules })`. `promptOptions` are `catalog.prompt` options except `mode`. |
+| `SPEC_TOOL_RESULTS_RULE` | The rule that tells the model where the assistant-ui spec toolkit mounts earlier tool results. Add it to a backend `render_spec`'s `customRules` and spec guidance alongside the toolkit's `toolResults: true`. |
 | `toAISDKTools(tools, { jsonSchema })`, `getToolDeclarations(tools)` | The same adapters as in `generative-frame/tools`. |
 
 ## `generative-frame/spec/assistant-ui`
@@ -269,6 +270,7 @@ Pass the result of `createSpecToolkit` to `createWidgetToolkit({ spec })`.
     { name: "onAction", type: "(name, params, context) => unknown", description: "Called for catalog actions without a handler." },
     { name: "placeholder", type: "ComponentType<SpecPlaceholderProps>", description: "Placeholder for elements that cannot render." },
     { name: "specPrompt", type: "Omit<SpecPromptOptions, \"mode\">", description: "Options for the `spec` module guidance (`customRules`, `omitExample`); `customRules` also go into `render_spec`'s description." },
+    { name: "toolResults", type: "boolean", description: "Mounts earlier tool results under `/tools` in backend execution too, as frontend execution always does. Pair it with `SPEC_TOOL_RESULTS_RULE` in the server's `render_spec` and spec guidance, which tells the model the results are there." },
   ]}
 />
 

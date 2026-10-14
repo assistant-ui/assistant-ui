@@ -784,6 +784,8 @@ type ResolvedElement = {
   itemPath?: string;
 };
 
+declare const SPEC_TOOL_RESULTS_RULE = "Results of earlier tool calls are in state under `/tools/<toolName>/<n>`, newest first: `0` is the latest call to that tool before this `render_spec` call, `1` the one before it, and so on. Show their values with `{ \"$state\": \"/tools/<toolName>/<n>/...\" }` rather than copying them, and never write `tools` in `state`. Indexes count back from each `render_spec` call, so when a patch follows another call to the same tool, update any binding that should keep showing the older result.";
+
 declare class SafeContentFrame {
   #private;
   constructor(product: string, options?: SafeContentFrameOptions);
@@ -1173,6 +1175,7 @@ type SpecToolkitOptions = {
   }) => unknown;
   placeholder?: ComponentType<SpecPlaceholderProps>;
   specPrompt?: Omit<SpecPromptOptions, "mode">;
+  toolResults?: boolean;
 };
 
 type SpecToolkitOptions$1 = {
@@ -1185,6 +1188,7 @@ type SpecToolkitOptions$1 = {
   }) => unknown;
   placeholder?: Component$1;
   specPrompt?: Omit<SpecPromptOptions, "mode">;
+  toolResults?: boolean;
 };
 
 type SpecTools = {
@@ -2010,7 +2014,7 @@ declare function toAISDKTools<T extends Record<string, AnyTool>, Schema>(tools: 
 };
 
 declare namespace entry_spec_tools_exports {
-  export { CreateSpecToolsOptions, GuidanceModule, JsonSchema, RenderSpecInput, RenderSpecResult, RenderSpecTool, SpecTools, ToolDefinition, createSpecTools, getToolDeclarations, specGuidanceModule, toAISDKTools };
+  export { CreateSpecToolsOptions, GuidanceModule, JsonSchema, RenderSpecInput, RenderSpecResult, RenderSpecTool, SPEC_TOOL_RESULTS_RULE, SpecTools, ToolDefinition, createSpecTools, getToolDeclarations, specGuidanceModule, toAISDKTools };
 }
 
 declare namespace entry_tools_exports {

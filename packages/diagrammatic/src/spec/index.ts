@@ -350,7 +350,7 @@ export function validateSpec(input: unknown): ChartSpec {
     throw new Error(`Unknown spec version at "v": ${String(spec["v"])}.`);
   }
   const type = spec["type"];
-  if (typeof type !== "string" || !(type in REGISTRY)) {
+  if (typeof type !== "string" || !Object.hasOwn(REGISTRY, type)) {
     throw new Error(`Unknown chart type at "type": ${String(type)}.`);
   }
   const descriptor = REGISTRY[type]!;
@@ -395,7 +395,8 @@ export type ChartProps = {
  * run {@link validateSpec} first when you want the error.
  */
 export function Chart({ spec, className }: ChartProps): ReactElement {
-  const descriptor = REGISTRY[(spec as { type?: string }).type ?? ""];
+  const type = (spec as { type?: string }).type ?? "";
+  const descriptor = Object.hasOwn(REGISTRY, type) ? REGISTRY[type] : undefined;
   if (!descriptor) {
     return createElement(
       "svg",
@@ -430,7 +431,11 @@ export function Chart({ spec, className }: ChartProps): ReactElement {
   const { type: _type, v: _v, unit, ...rest } = spec as Record<string, unknown>;
   const props: Record<string, unknown> = { ...rest };
   if (unit !== undefined) {
-    props["format"] = UNIT_FORMAT[unit as Unit] ?? formatCompact;
+    const format =
+      typeof unit === "string" && Object.hasOwn(UNIT_FORMAT, unit)
+        ? UNIT_FORMAT[unit as Unit]
+        : undefined;
+    props["format"] = format ?? formatCompact;
   }
   if (className !== undefined) props["className"] = className;
   return createElement(descriptor.Component, props);
