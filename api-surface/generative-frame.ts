@@ -411,6 +411,7 @@ type HostApiOptions = {
   prompt?: boolean;
   callTool?: boolean;
   modelContext?: boolean;
+  clipboard?: boolean;
 };
 
 type HostContext = {
@@ -1759,6 +1760,7 @@ type WidgetHandlers = {
     mode: DisplayMode;
   }) => unknown;
   onUpdateModelContext?: (params: unknown) => unknown;
+  onCopyText?: (text: string) => unknown;
   onWidgetState?: (state: unknown) => void;
   onResize?: (size: WidgetSize) => void;
   onError?: (error: WidgetError) => void;

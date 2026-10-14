@@ -50,6 +50,8 @@ export type WidgetHandlers = {
   onInitialized?: (params: McpAppInitializeParams) => void;
   onRequestDisplayMode?: (request: { mode: DisplayMode }) => unknown;
   onUpdateModelContext?: (params: unknown) => unknown;
+  /** A widget called `genframe.copyText(text)` while the user was interacting with it. Defaults to writing `text` to the page's clipboard. */
+  onCopyText?: (text: string) => unknown;
   onWidgetState?: (state: unknown) => void;
   onResize?: (size: WidgetSize) => void;
   onError?: (error: WidgetError) => void;
@@ -408,6 +410,11 @@ const defaultOpenLink = (url: string) => {
   window.open(url, "_blank", "noopener,noreferrer");
 };
 
+const defaultCopyText = async (text: string) => {
+  if (!navigator.clipboard) throw new Error("This page has no clipboard");
+  await navigator.clipboard.writeText(text);
+};
+
 type Session = {
   slot: HTMLElement;
   ready: Promise<void>;
@@ -562,6 +569,23 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
         if (!options.onRequestDisplayMode)
           return { mode: context.displayMode ?? "inline" };
         return (await options.onRequestDisplayMode({ mode })) ?? { mode };
+      }
+      case METHODS.copyText: {
+        if (typeof p["text"] !== "string") {
+          throw new RpcError(
+            RPC_ERROR.invalidParams,
+            "genframe/copy-text requires a string 'text'",
+          );
+        }
+        // A click in the frame activates the page too, so this keeps a widget from writing the clipboard on its own.
+        if (navigator.userActivation && !navigator.userActivation.isActive) {
+          throw new RpcError(
+            RPC_ERROR.invalidRequest,
+            "genframe/copy-text needs a user action in the widget",
+          );
+        }
+        await (options.onCopyText ?? defaultCopyText)(p["text"]);
+        return {};
       }
       case METHODS.updateModelContext:
         if (!options.onUpdateModelContext) {

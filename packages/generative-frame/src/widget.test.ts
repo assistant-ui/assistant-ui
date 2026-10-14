@@ -1,5 +1,5 @@
 import type { RenderedFrame, SafeContentFrame } from "safe-content-frame";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import {
   INIT_MESSAGE,
   METHODS,
@@ -345,6 +345,46 @@ describe("createWidget", () => {
     expect(onWidgetState).toHaveBeenCalledExactlyOnceWith({ count: 2 });
     finishFirst(result);
     await Promise.allSettled([firstReplacement]);
+    widget.dispose();
+  });
+
+  it("passes the text a widget copies to onCopyText", async () => {
+    const onCopyText = vi.fn();
+    const { fake, widget } = setup({ onCopyText });
+    const frame = await fake.connect(0);
+    await widget.ready;
+    await frame.request(METHODS.copyText, { text: "Shopping list" });
+    expect(onCopyText).toHaveBeenCalledExactlyOnceWith("Shopping list");
+    await expect(frame.request(METHODS.copyText, { text: 1 })).rejects.toThrow(
+      "requires a string 'text'",
+    );
+    widget.dispose();
+  });
+
+  it("writes copied text to the page's clipboard only during a user action", async () => {
+    const writeText = vi.fn(async () => {});
+    const activation = { isActive: true };
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    Object.defineProperty(navigator, "userActivation", {
+      configurable: true,
+      value: activation,
+    });
+    onTestFinished(() => {
+      Reflect.deleteProperty(navigator, "clipboard");
+      Reflect.deleteProperty(navigator, "userActivation");
+    });
+    const { fake, widget } = setup();
+    const frame = await fake.connect(0);
+    await widget.ready;
+    await frame.request(METHODS.copyText, { text: "a" });
+    activation.isActive = false;
+    await expect(
+      frame.request(METHODS.copyText, { text: "b" }),
+    ).rejects.toThrow("needs a user action");
+    expect(writeText).toHaveBeenCalledExactlyOnceWith("a");
     widget.dispose();
   });
 
