@@ -1067,6 +1067,14 @@ describe("createWidgetToolkit", () => {
       },
       warned: ["/tools/get_price/0/total"],
     },
+    {
+      form: "a value its visible condition compares with eq and neq",
+      element: {
+        props: { text: { $state: "/tools/get_price/0/plan" } },
+        visible: { $state: "/tools/get_price/0/plan", neq: "", eq: "pro" },
+      },
+      warned: [],
+    },
   ])(
     "warns when $form reads a /tools path the stored results do not have",
     async ({ element, warned }) => {
@@ -1104,6 +1112,41 @@ describe("createWidgetToolkit", () => {
       ).toEqual(warned);
     },
   );
+
+  it("leaves out elements that never render: hidden with visible false or unreachable from the root", async () => {
+    const spec = {
+      root: "hidden",
+      elements: {
+        hidden: {
+          type: "Text",
+          visible: false,
+          props: { text: { $state: "/tools/get_price/0/total" } },
+        },
+        orphan: {
+          type: "Text",
+          props: { text: { $state: "/tools/get_price/0/unit" } },
+        },
+      },
+      state: {},
+    };
+    mocks.messages = [
+      { content: [call("price", "get_price", {}, { price: "$42" })] },
+      { content: [call("s", "render_spec", { title: "s", spec })] },
+    ];
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, { components }),
+    });
+    const entry = entries(toolkit)["render_spec"]!;
+    const RenderSpec = entry.render;
+    render(<RenderSpec {...partProps("s", { title: "s", spec })} />);
+    const result = (await entry.execute!(
+      { title: "s", spec },
+      { toolCallId: "s" },
+    )) as { issues: { code: string }[] };
+    expect(
+      result.issues.filter((issue) => issue.code === "missing-tool-result"),
+    ).toEqual([]);
+  });
 
   it("checks each of two overlapping calls with one title against its own spec", async () => {
     const reading = (path: string) => ({

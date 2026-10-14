@@ -174,15 +174,17 @@ const compare = (
   }
 };
 
-/** The state paths a condition only holds true while they have a value: a `$state` it tests for truthiness or compares with anything but `neq`, in every part of `$and` or a list. */
+/** The state paths a condition only holds true while they have a value: a `$state` it tests for truthiness or with any comparator but `neq` alone, in every part of `$and` or a list. */
 export function conditionGuards(condition: unknown): string[] {
   if (Array.isArray(condition)) return condition.flatMap(conditionGuards);
   if (!isRecord(condition)) return [];
   if (Array.isArray(condition["$and"]))
     return conditionGuards(condition["$and"]);
-  return typeof condition["$state"] === "string" &&
-    condition["not"] !== true &&
-    !("neq" in condition)
+  if (typeof condition["$state"] !== "string" || condition["not"] === true)
+    return [];
+  const comparators = COMPARATORS.filter((operator) => operator in condition);
+  return comparators.length === 0 ||
+    comparators.some((operator) => operator !== "neq")
     ? [condition["$state"]]
     : [];
 }

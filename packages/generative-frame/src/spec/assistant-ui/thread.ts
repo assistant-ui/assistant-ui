@@ -17,8 +17,8 @@ import {
 } from "../render-spec";
 import type { SpecStateWrite } from "../state";
 import { parseSpecStream } from "../stream";
-import { safePointer } from "../tree";
-import type { Spec } from "../types";
+import { childIdsOf, safePointer } from "../tree";
+import type { Spec, SpecElement } from "../types";
 import { formatSpecIssues, type SpecIssue } from "../validate";
 
 /** The arguments of a `render_spec` call, which stream in. */
@@ -220,6 +220,27 @@ function collectShown(
   }
 }
 
+/** The elements a spec can render: reachable from the root through children and slots, leaving out one hidden with `visible: false` along with what it holds. */
+function renderedElements(spec: Spec): [string, SpecElement][] {
+  const elements = spec.elements ?? {};
+  const rendered: [string, SpecElement][] = [];
+  const seen = new Set<string>();
+  const pending = typeof spec.root === "string" ? [spec.root] : [];
+  while (pending.length > 0) {
+    const id = pending.pop()!;
+    if (seen.has(id) || !Object.hasOwn(elements, id)) continue;
+    seen.add(id);
+    const element = elements[id];
+    if (typeof element !== "object" || element === null) continue;
+    if (element.visible === false) continue;
+    rendered.push([id, element]);
+    for (const slot of ["default", ...Object.keys(element.slots ?? {})])
+      for (const child of childIdsOf(element, slot))
+        if (typeof child === "string") pending.push(child);
+  }
+  return rendered;
+}
+
 /** Each place a spec shows state under `/tools` that the mounted results do not have, as a warning, since the model may have read the value from output the thread does not store or may mean a field that is absent. A read that only renders while its path has a value, under a `visible` condition or `$cond` test on it, is left out. */
 function missingToolResults(
   spec: Spec,
@@ -227,11 +248,11 @@ function missingToolResults(
 ): SpecIssue[] {
   const issues: SpecIssue[] = [];
   const state = { tools: toolResults };
-  for (const [id, element] of Object.entries(spec.elements ?? {})) {
-    const guarded = new Set(conditionGuards(element?.visible).map(safePointer));
+  for (const [id, element] of renderedElements(spec)) {
+    const guarded = new Set(conditionGuards(element.visible).map(safePointer));
     const shown: string[] = [];
-    collectShown([element?.props, element?.on, element?.watch], guarded, shown);
-    if (typeof element?.repeat?.path === "string") {
+    collectShown([element.props, element.on, element.watch], guarded, shown);
+    if (typeof element.repeat?.path === "string") {
       const pointer = safePointer(element.repeat.path);
       if (!guarded.has(pointer)) shown.push(pointer);
     }
