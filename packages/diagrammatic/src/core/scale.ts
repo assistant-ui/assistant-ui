@@ -87,14 +87,32 @@ export function niceTicks(
   const span = hi - lo;
   if (span <= 0) return [{ at: hi, label: format(hi) }];
   const step = niceStep(span / Math.max(1, count));
-  const first = Math.ceil(lo / step) * step;
+  if (!(step > 0) || !Number.isFinite(step)) return [];
+  const first = Math.ceil(lo / step);
+  const last = Math.floor(hi / step + 1e-9);
+  const inverse = step < 1 ? Math.round(1 / step) : 1;
+  if (
+    !Number.isFinite(first) ||
+    !Number.isFinite(last) ||
+    !Number.isFinite(inverse)
+  )
+    return [];
+  const tolerance = step * 1e-9;
   const ticks: Tick[] = [];
-  for (let at = first; Number.isFinite(at) && at <= hi + step * 1e-9;) {
+  for (let index = first; index <= last;) {
+    const at = step < 1 ? index / inverse : index * step;
+    if (!Number.isFinite(at) || at > hi + tolerance) break;
+    if (at < lo - tolerance) {
+      const next = index + 1;
+      if (next <= index) break;
+      index = next;
+      continue;
+    }
     const value = Math.abs(at) < step * 1e-9 ? 0 : at;
     ticks.push({ at: value, label: format(value) });
-    const next = at + step;
-    if (next <= at) break;
-    at = next;
+    const next = index + 1;
+    if (next <= index || (step < 1 ? next / inverse : next * step) <= at) break;
+    index = next;
   }
   return ticks;
 }
