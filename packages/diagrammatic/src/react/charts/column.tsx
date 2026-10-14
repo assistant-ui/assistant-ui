@@ -155,8 +155,9 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
               {(values || (!categorical && accent)) && (
                 <text
                   x={round(X(i))}
-                  y={round(valueY - 5)}
+                  y={round(row.value < 0 ? valueY + 5 : valueY - 5)}
                   textAnchor="middle"
+                  dominantBaseline={row.value < 0 ? "hanging" : undefined}
                   {...T.value.attrs}
                 >
                   {format(row.value)}

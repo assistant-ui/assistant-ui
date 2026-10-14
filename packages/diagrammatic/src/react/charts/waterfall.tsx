@@ -120,8 +120,9 @@ export const Waterfall = forwardRef<SVGSVGElement, WaterfallProps>(
               {!entry.total && (
                 <text
                   x={round(x + columnW / 2)}
-                  y={round(barTop - 3)}
+                  y={round(entry.value < 0 ? Y(entry.to) + 5 : barTop - 3)}
                   textAnchor="middle"
+                  dominantBaseline={entry.value < 0 ? "hanging" : undefined}
                   {...T.axis.attrs}
                 >
                   {entry.value > 0

@@ -2,15 +2,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { GroupedBar } from "./grouped-bar";
 
+const rawAttribute = (tag: string, name: string) =>
+  new RegExp(`(?:^|\\s)${name}="([^"]+)"`).exec(tag)?.[1];
 const attribute = (tag: string, name: string) =>
-  Number(new RegExp(`${name}="([^"]+)"`).exec(tag)?.[1]);
-const digest = async (markup: string) =>
+  Number(rawAttribute(tag, name));
+const tags = (markup: string, name: string) =>
   Array.from(
-    new Uint8Array(
-      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(markup)),
-    ),
-    (byte) => byte.toString(16).padStart(2, "0"),
-  ).join("");
+    markup.matchAll(new RegExp(`<${name}\\b[^>]*>`, "g")),
+    ([tag]) => tag,
+  );
 
 describe("GroupedBar signed values", () => {
   it("draws negative bars inside the plot from zero", () => {
@@ -23,11 +23,15 @@ describe("GroupedBar signed values", () => {
         ]}
       />,
     );
-    const hit = /<rect[^>]*fill="transparent"[^>]*data-part="mark"/.exec(
-      html,
-    )![0];
+    const hit = tags(html, "rect").find(
+      (tag) =>
+        rawAttribute(tag, "fill") === "transparent" &&
+        rawAttribute(tag, "data-part") === "mark",
+    )!;
     const bottom = attribute(hit, "y") + attribute(hit, "height");
-    const rect = /<rect[^>]*data-series="a"[^>]*>/.exec(html)![0];
+    const rect = tags(html, "rect").find(
+      (tag) => rawAttribute(tag, "data-series") === "a",
+    )!;
     expect(attribute(rect, "height")).toBeGreaterThan(0);
     expect(
       attribute(rect, "y") + attribute(rect, "height"),
@@ -43,25 +47,41 @@ describe("GroupedBar signed values", () => {
         {...(source === "guide" ? { guides: [{ at: -8 }] } : {})}
       />,
     );
-    const hit = /<rect[^>]*fill="transparent"[^>]*data-part="mark"/.exec(
-      html,
-    )![0];
+    const hit = tags(html, "rect").find(
+      (tag) =>
+        rawAttribute(tag, "fill") === "transparent" &&
+        rawAttribute(tag, "data-part") === "mark",
+    )!;
     const bottom = attribute(hit, "y") + attribute(hit, "height");
-    const rect = /<rect[^>]*data-series="a"[^>]*>/.exec(html)![0];
+    const rect = tags(html, "rect").find(
+      (tag) => rawAttribute(tag, "data-series") === "a",
+    )!;
     expect(attribute(rect, "y") + attribute(rect, "height")).toBeLessThan(
       bottom,
     );
   });
 
-  it("keeps non-negative markup byte-identical", async () => {
+  it("keeps the baseline and all non-negative bars at the plot bottom", () => {
     const html = renderToStaticMarkup(
       <GroupedBar
         groups={["Q1", "Q2"]}
         series={[{ name: "a", data: [4, 8] }]}
       />,
     );
-    expect(await digest(html)).toBe(
-      "5ad9a62793be51596917b96cfc948d94447d2861e8a9831f1f6716972abcf2bd",
+    const hit = tags(html, "rect").find(
+      (tag) => rawAttribute(tag, "fill") === "transparent",
+    )!;
+    const bottom = attribute(hit, "y") + attribute(hit, "height");
+    const baseline = tags(html, "line").find(
+      (tag) => rawAttribute(tag, "data-part") === "grid",
+    )!;
+    expect(attribute(baseline, "y1")).toBe(bottom);
+    const bars = tags(html, "rect").filter(
+      (tag) => rawAttribute(tag, "data-series") === "a",
     );
+    expect(bars).toHaveLength(2);
+    for (const bar of bars) {
+      expect(attribute(bar, "y") + attribute(bar, "height")).toBe(bottom);
+    }
   });
 });

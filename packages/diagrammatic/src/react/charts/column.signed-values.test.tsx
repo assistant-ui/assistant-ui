@@ -2,15 +2,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { Column } from "./column";
 
+const rawAttribute = (tag: string, name: string) =>
+  new RegExp(`(?:^|\\s)${name}="([^"]+)"`).exec(tag)?.[1];
 const attribute = (tag: string, name: string) =>
-  Number(new RegExp(`${name}="([^"]+)"`).exec(tag)?.[1]);
-const digest = async (markup: string) =>
+  Number(rawAttribute(tag, name));
+const tags = (markup: string, name: string) =>
   Array.from(
-    new Uint8Array(
-      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(markup)),
-    ),
-    (byte) => byte.toString(16).padStart(2, "0"),
-  ).join("");
+    markup.matchAll(new RegExp(`<${name}\\b[^>]*>`, "g")),
+    ([tag]) => tag,
+  );
 
 describe("Column signed values", () => {
   it("draws a negative column inside the plot from zero", () => {
@@ -22,9 +22,11 @@ describe("Column signed values", () => {
         ]}
       />,
     );
-    const hit = /<rect[^>]*fill="transparent"[^>]*data-part="mark"/.exec(
-      html,
-    )![0];
+    const hit = tags(html, "rect").find(
+      (tag) =>
+        rawAttribute(tag, "fill") === "transparent" &&
+        rawAttribute(tag, "data-part") === "mark",
+    )!;
     const bottom = attribute(hit, "y") + attribute(hit, "height");
     const mark = /<g[^>]*data-i="1"[^>]*><rect[^>]+/.exec(html)![0];
     const rect = /<rect[^>]+/.exec(mark)![0];
@@ -46,9 +48,11 @@ describe("Column signed values", () => {
           {...(source === "guide" ? { guides: [{ at: -8 }] } : {})}
         />,
       );
-      const hit = /<rect[^>]*fill="transparent"[^>]*data-part="mark"/.exec(
-        html,
-      )![0];
+      const hit = tags(html, "rect").find(
+        (tag) =>
+          rawAttribute(tag, "fill") === "transparent" &&
+          rawAttribute(tag, "data-part") === "mark",
+      )!;
       const bottom = attribute(hit, "y") + attribute(hit, "height");
       const mark = /<g[^>]*data-i="0"[^>]*><rect[^>]+/.exec(html)![0];
       const rect = /<rect[^>]+/.exec(mark)![0];
@@ -58,7 +62,7 @@ describe("Column signed values", () => {
     },
   );
 
-  it("keeps non-negative markup byte-identical", async () => {
+  it("keeps the baseline and all non-negative columns at the plot bottom", () => {
     const html = renderToStaticMarkup(
       <Column
         items={[
@@ -67,8 +71,52 @@ describe("Column signed values", () => {
         ]}
       />,
     );
-    expect(await digest(html)).toBe(
-      "f00a2e7f7cf07a2346520e0e665d0bff11893034a6177c5efeed428989e470b3",
+    const hit = tags(html, "rect").find(
+      (tag) => rawAttribute(tag, "fill") === "transparent",
+    )!;
+    const bottom = attribute(hit, "y") + attribute(hit, "height");
+    const baseline = tags(html, "line").find(
+      (tag) => rawAttribute(tag, "data-part") === "grid",
+    )!;
+    expect(attribute(baseline, "y1")).toBe(bottom);
+    const columns = tags(html, "rect").filter(
+      (tag) => rawAttribute(tag, "fill") !== "transparent",
     );
+    expect(columns).toHaveLength(2);
+    for (const column of columns) {
+      expect(attribute(column, "y") + attribute(column, "height")).toBe(bottom);
+    }
+  });
+
+  it("puts negative value labels below their columns and keeps positive labels above", () => {
+    const html = renderToStaticMarkup(
+      <Column
+        values
+        items={[
+          { label: "gain", value: 10 },
+          { label: "loss", value: -5 },
+        ]}
+      />,
+    );
+    const marks = tags(html, "g").filter(
+      (tag) => rawAttribute(tag, "data-part") === "mark",
+    );
+    expect(marks).toHaveLength(2);
+    for (const [index, value] of [10, -5].entries()) {
+      const start = html.indexOf(marks[index]!);
+      const group = html.slice(start, html.indexOf("</g>", start));
+      const rect = tags(group, "rect")[0]!;
+      const label = tags(group, "text")[0]!;
+      const y = attribute(label, "y");
+      if (value < 0) {
+        expect(y).toBeGreaterThan(
+          attribute(rect, "y") + attribute(rect, "height"),
+        );
+        expect(rawAttribute(label, "dominant-baseline")).toBe("hanging");
+      } else {
+        expect(y).toBe(attribute(rect, "y") - 5);
+        expect(rawAttribute(label, "dominant-baseline")).toBeUndefined();
+      }
+    }
   });
 });

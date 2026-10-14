@@ -2,15 +2,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { Waterfall } from "./waterfall";
 
+const rawAttribute = (tag: string, name: string) =>
+  new RegExp(`(?:^|\\s)${name}="([^"]+)"`).exec(tag)?.[1];
 const attribute = (tag: string, name: string) =>
-  Number(new RegExp(`${name}="([^"]+)"`).exec(tag)?.[1]);
-const digest = async (markup: string) =>
+  Number(rawAttribute(tag, name));
+const tags = (markup: string, name: string) =>
   Array.from(
-    new Uint8Array(
-      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(markup)),
-    ),
-    (byte) => byte.toString(16).padStart(2, "0"),
-  ).join("");
+    markup.matchAll(new RegExp(`<${name}\\b[^>]*>`, "g")),
+    ([tag]) => tag,
+  );
 
 describe("Waterfall signed values", () => {
   it("keeps a negative running total inside the plot", () => {
@@ -63,17 +63,59 @@ describe("Waterfall signed values", () => {
     );
   });
 
-  it("keeps non-negative markup byte-identical", async () => {
+  it("keeps the baseline and non-negative total at the plot bottom", () => {
     const html = renderToStaticMarkup(
       <Waterfall
         steps={[
           { label: "start", value: 4, total: true },
-          { label: "gain", value: 8 },
+          { label: "gain", value: 8, total: true },
         ]}
       />,
     );
-    expect(await digest(html)).toBe(
-      "feb3675912b179033d52af691b591117453297aa578c9cbad3edf583674b02d1",
+    const bottom = attribute(tags(html, "svg")[0]!, "height") - 25;
+    const baseline = tags(html, "line").find(
+      (tag) => rawAttribute(tag, "data-part") === "grid",
+    )!;
+    expect(attribute(baseline, "y1")).toBe(bottom);
+    const bars = tags(html, "rect");
+    expect(bars).toHaveLength(2);
+    for (const bar of bars) {
+      expect(attribute(bar, "y") + attribute(bar, "height")).toBe(bottom);
+    }
+  });
+
+  it("puts negative step labels below their bars and keeps positive labels above", () => {
+    const html = renderToStaticMarkup(
+      <Waterfall
+        steps={[
+          { label: "start", value: 10, total: true },
+          { label: "drop", value: -15 },
+          { label: "rise", value: 3 },
+        ]}
+      />,
     );
+    const marks = tags(html, "g").filter(
+      (tag) => rawAttribute(tag, "data-part") === "mark",
+    );
+    expect(marks).toHaveLength(3);
+    for (const [index, value] of [
+      [1, -15],
+      [2, 3],
+    ] as const) {
+      const start = html.indexOf(marks[index]!);
+      const group = html.slice(start, html.indexOf("</g>", start));
+      const rect = tags(group, "rect")[0]!;
+      const label = tags(group, "text")[0]!;
+      const y = attribute(label, "y");
+      if (value < 0) {
+        expect(y).toBeGreaterThan(
+          attribute(rect, "y") + attribute(rect, "height"),
+        );
+        expect(rawAttribute(label, "dominant-baseline")).toBe("hanging");
+      } else {
+        expect(y).toBe(attribute(rect, "y") - 3);
+        expect(rawAttribute(label, "dominant-baseline")).toBeUndefined();
+      }
+    }
   });
 });

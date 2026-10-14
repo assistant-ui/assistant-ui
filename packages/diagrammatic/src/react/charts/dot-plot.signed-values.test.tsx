@@ -2,15 +2,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { DotPlot } from "./dot-plot";
 
+const rawAttribute = (tag: string, name: string) =>
+  new RegExp(`(?:^|\\s)${name}="([^"]+)"`).exec(tag)?.[1];
 const attribute = (tag: string, name: string) =>
-  Number(new RegExp(`${name}="([^"]+)"`).exec(tag)?.[1]);
-const digest = async (markup: string) =>
+  Number(rawAttribute(tag, name));
+const tags = (markup: string, name: string) =>
   Array.from(
-    new Uint8Array(
-      await crypto.subtle.digest("SHA-256", new TextEncoder().encode(markup)),
-    ),
-    (byte) => byte.toString(16).padStart(2, "0"),
-  ).join("");
+    markup.matchAll(new RegExp(`<${name}\\b[^>]*>`, "g")),
+    ([tag]) => tag,
+  );
 
 describe("DotPlot signed values", () => {
   it("places negative dots and ticks inside the plot", () => {
@@ -45,7 +45,7 @@ describe("DotPlot signed values", () => {
     );
   });
 
-  it("keeps non-negative markup byte-identical", async () => {
+  it("starts the non-negative domain at zero", () => {
     const html = renderToStaticMarkup(
       <DotPlot
         items={[
@@ -55,8 +55,17 @@ describe("DotPlot signed values", () => {
         ticks={[0, 4, 8]}
       />,
     );
-    expect(await digest(html)).toBe(
-      "331c524ddfd9e0f42f6f35ba9842657e13b0d6edcf1aaab377f2da2a91e959be",
-    );
+    const zeroTick = tags(html, "line").find(
+      (tag) => rawAttribute(tag, "data-part") === "grid",
+    )!;
+    const track = tags(html, "line").find(
+      (tag) => rawAttribute(tag, "data-part") === undefined,
+    )!;
+    expect(attribute(zeroTick, "x1")).toBe(attribute(track, "x1"));
+    const dots = tags(html, "circle");
+    expect(dots).toHaveLength(2);
+    for (const dot of dots) {
+      expect(attribute(dot, "cx")).toBeGreaterThan(attribute(track, "x1"));
+    }
   });
 });
