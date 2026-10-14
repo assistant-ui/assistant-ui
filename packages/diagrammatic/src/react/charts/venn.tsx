@@ -31,14 +31,18 @@ export const Venn = forwardRef<SVGSVGElement, VennProps>(
     const { left, right, top, bottom, T } = F;
     const cx = (left + right) / 2;
     const cy = (top + bottom) / 2;
+    const centerOffset = 0.58;
     const r = Math.max(
       0,
-      Math.min(right - left, bottom - top) / 2 - (T.value.px + 12),
+      Math.min(
+        Math.min(right - left, bottom - top) / 2 - (T.value.px + 12),
+        (right - left) / (2 * (1 + centerOffset)),
+      ),
     );
-    const aX = cx - r * 0.58;
-    const bX = cx + r * 0.58;
+    const aX = cx - r * centerOffset;
+    const bX = cx + r * centerOffset;
     const labelRoom = (x: number) =>
-      Math.max(0, Math.min(x - left, right - x) * 2 - 8);
+      Math.max(0, Math.min((x - left) * 2, (right - x) * 2, cx - aX) - 8);
     const labelY = cy - 4;
     const valueY = cy + T.value.px + 3;
     return (
@@ -113,7 +117,7 @@ export const Venn = forwardRef<SVGSVGElement, VennProps>(
           textAnchor="middle"
           {...T.axis.attrs}
         >
-          both
+          {truncate("both", T.axis.px, labelRoom(cx))}
         </text>
         <text
           x={round(cx)}
