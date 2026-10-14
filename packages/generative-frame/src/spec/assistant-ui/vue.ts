@@ -60,6 +60,8 @@ export type SpecToolkitOptions = {
   placeholder?: Component;
   /** Options for the catalog guidance in the `spec` module. */
   specPrompt?: Omit<SpecPromptOptions, "mode">;
+  /** Mounts the results of earlier tool calls under `/tools` in backend execution too, as frontend execution always does. Set it when the server's `render_spec` and spec guidance carry `SPEC_TOOL_RESULTS_RULE` from `generative-frame/spec/tools`, since mounting without that rule would replace a `state.tools` the model wrote. */
+  toolResults?: boolean;
 };
 
 /** The Vue spec toolkit, whose entries go into `Tools({ toolkit })` from `@assistant-ui/core/react`. */
@@ -261,7 +263,9 @@ export function createSpecToolkit(
   const entries: WidgetToolkitExtension["entries"] = (context) => ({
     render_spec: toolkitEntry(
       tools.render_spec,
-      renderSpec(context.execution === "frontend") as never,
+      renderSpec(
+        context.execution === "frontend" || options.toolResults === true,
+      ) as never,
       context,
       execute,
     ),

@@ -14,6 +14,7 @@ import {
   supersededInMessage,
 } from "../spec/assistant-ui/thread";
 import { defineCatalog } from "../spec/catalog";
+import { SPEC_TOOL_RESULTS_RULE } from "../spec/tools";
 import type { SpecComponentProps } from "../spec/react/SpecRenderer";
 import { resolveWidgetCode, resolveWidgetOrigin } from "./history";
 import { createWidgetToolkit, useWidgetInstructions } from "./toolkit";
@@ -1017,6 +1018,39 @@ describe("createWidgetToolkit", () => {
     expect(view.container.textContent).toBe("hammer");
   });
 
+  it("mounts earlier tool results in backend execution when the server carries their rule", () => {
+    const spec = {
+      root: "t",
+      elements: {
+        t: {
+          type: "Text",
+          props: { text: { $state: "/tools/get_price/0/price" } },
+        },
+      },
+      state: {},
+    };
+    mocks.messages = [
+      { content: [call("price", "get_price", {}, { price: "$42" })] },
+      { content: [call("s", "render_spec", { title: "s", spec })] },
+    ];
+    const { toolkit } = createWidgetToolkit({
+      execution: "backend",
+      spec: createSpecToolkit(catalog, {
+        components: {
+          Text: ({ props }: SpecComponentProps<{ text: string }>) => (
+            <p>{props.text}</p>
+          ),
+        },
+        toolResults: true,
+      }),
+    });
+    const RenderSpec = entries(toolkit)["render_spec"]!.render;
+    const view = render(
+      <RenderSpec {...partProps("s", { title: "s", spec })} />,
+    );
+    expect(view.container.textContent).toBe("$42");
+  });
+
   it("keeps index 0 on the latest call to a tool when older calls precede it", () => {
     const spec = {
       root: "t",
@@ -1145,9 +1179,7 @@ describe("createWidgetToolkit", () => {
     const output = await entries(toolkit)["read_me"]!.execute!({
       modules: ["spec"],
     });
-    expect(output).toContain(
-      'Results of earlier tool calls are in state under `/tools/<toolName>/<n>`, newest first: `0` is the latest call to that tool before this `render_spec` call, `1` the one before it, and so on. Show their values with `{ "$state": "/tools/<toolName>/<n>/..." }` rather than copying them, and never write `tools` in `state`. Indexes count back from each `render_spec` call, so when a patch follows another call to the same tool, update any binding that should keep showing the older result.',
-    );
+    expect(output).toContain(SPEC_TOOL_RESULTS_RULE);
     expect((output as string).indexOf("Keep labels short.")).toBeLessThan(
       (output as string).indexOf("Results of earlier tool calls"),
     );
@@ -1162,9 +1194,7 @@ describe("createWidgetToolkit", () => {
     });
     const description = entries(toolkit)["render_spec"]!.description ?? "";
     expect(description).toContain("- Keep labels short.");
-    expect(description).toContain(
-      "- Results of earlier tool calls are in state under `/tools/<toolName>/<n>`",
-    );
+    expect(description).toContain(`- ${SPEC_TOOL_RESULTS_RULE}`);
   });
 });
 

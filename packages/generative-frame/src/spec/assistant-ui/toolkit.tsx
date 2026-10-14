@@ -59,6 +59,8 @@ export type SpecToolkitOptions = {
   placeholder?: ComponentType<SpecPlaceholderProps>;
   /** Options for the catalog guidance in `read_me`'s `spec` module. */
   specPrompt?: Omit<SpecPromptOptions, "mode">;
+  /** Mounts the results of earlier tool calls under `/tools` in backend execution too, as frontend execution always does. Set it when the server's `render_spec` and spec guidance carry `SPEC_TOOL_RESULTS_RULE` from `generative-frame/spec/tools`, since mounting without that rule would replace a `state.tools` the model wrote. */
+  toolResults?: boolean;
 };
 
 /** What `createSpecToolkit` takes from the platform it runs on. */
@@ -286,7 +288,9 @@ export const specToolkitFor =
       entries: (context) => ({
         render_spec: toolkitEntry(
           tools.render_spec,
-          renderSpecUI(context.execution === "frontend") as never,
+          renderSpecUI(
+            context.execution === "frontend" || options.toolResults === true,
+          ) as never,
           context,
           execute,
         ),

@@ -34,6 +34,15 @@ export type CreateSpecToolsOptions = {
   customRules?: readonly string[];
 };
 
+/**
+ * The rule that tells a model where the assistant-ui spec toolkit mounts the
+ * results of earlier tool calls. In backend execution, add it to the server's
+ * `customRules` for both `createSpecTools` and `specGuidanceModule`, and pass
+ * `toolResults: true` to `createSpecToolkit`.
+ */
+export const SPEC_TOOL_RESULTS_RULE =
+  'Results of earlier tool calls are in state under `/tools/<toolName>/<n>`, newest first: `0` is the latest call to that tool before this `render_spec` call, `1` the one before it, and so on. Show their values with `{ "$state": "/tools/<toolName>/<n>/..." }` rather than copying them, and never write `tools` in `state`. Indexes count back from each `render_spec` call, so when a patch follows another call to the same tool, update any binding that should keep showing the older result.';
+
 const TITLE_SCHEMA = {
   type: "string",
   description:
