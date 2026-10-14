@@ -119,7 +119,7 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
     const dialLabel = label ? truncate(label, plateSize.px, labelFit) : "";
     const valueY = cy - r * (needle ? 0.218 : 0.115);
     const dialLabelY = cy + r * (needle ? -0.077 : 0.051);
-    const showDialLabel = dialLabelY - plateSize.px >= valueY;
+    const showDialLabel = dialLabelY - plateSize.px * 0.75 >= valueY;
     return (
       <ChartSvg
         ref={ref}

@@ -42,30 +42,24 @@ describe("Gauge at small widths", () => {
       expect(startX + 2 * radius + halfStroke).toBeLessThanOrEqual(width);
       expect(arcY - radius - halfStroke).toBeGreaterThanOrEqual(0);
       expect(arcY + halfStroke).toBeLessThanOrEqual(height);
-      if (width === 100) {
-        const value =
-          /<text[^>]*y="([\d.]+)"[^>]*font-size="([\d.]+)em"[^>]*>68%<\/text>/.exec(
-            html,
-          );
-        const dialLabel = /<text[^>]*>rpm<\/text>/.exec(html)?.[0];
-        expect(value).not.toBeNull();
-        if (dialLabel) {
-          const labelY = Number(/y="([\d.]+)"/.exec(dialLabel)?.[1]);
-          const labelSize = Number(
-            /font-size="([\d.]+)em"/.exec(dialLabel)?.[1],
-          );
-          const baseSize = Number(
-            /<svg[^>]*font-size="([\d.]+)"/.exec(html)?.[1],
-          );
-          expect(labelY - labelSize * baseSize).toBeGreaterThanOrEqual(
-            Number(value![1]),
-          );
-        }
-      } else {
-        expect(html).not.toContain(">rpm</text>");
-      }
+      expect(html).not.toContain(">rpm</text>");
     },
   );
+
+  it("keeps the 200px dial label clear of the value", () => {
+    const html = renderToStaticMarkup(
+      <Gauge value={0.68} width={200} label="rpm" />,
+    );
+    const valueY = Number(
+      /<text[^>]*y="([\d.]+)"[^>]*>68%<\/text>/.exec(html)?.[1],
+    );
+    const dialLabel = /<text[^>]*>rpm<\/text>/.exec(html)?.[0];
+    expect(dialLabel).toBeDefined();
+    const labelY = Number(/y="([\d.]+)"/.exec(dialLabel!)?.[1]);
+    const labelSize = Number(/font-size="([\d.]+)em"/.exec(dialLabel!)?.[1]);
+    const baseSize = Number(/<svg[^>]*font-size="([\d.]+)"/.exec(html)?.[1]);
+    expect(labelY - valueY).toBeGreaterThanOrEqual(labelSize * baseSize * 0.75);
+  });
 
   it.each([false, true])(
     "keeps the 200px value text at main's size (needle=%s)",
