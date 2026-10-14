@@ -49,12 +49,14 @@ const LOOKS_LIKE_PATCH = /^\s*\{\s*"op"\s*:/;
 /** A partial line that can no longer turn into a patch or a fence. */
 const PROSE_START = /^\s*[^\s{`~]/;
 
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
 const isSpecShape = (value: unknown): value is Spec =>
-  typeof value === "object" &&
-  value !== null &&
-  !Array.isArray(value) &&
-  typeof (value as Spec).root === "string" &&
-  typeof (value as Spec).elements === "object";
+  isRecord(value) &&
+  typeof value["root"] === "string" &&
+  isRecord(value["elements"]) &&
+  (value["state"] === undefined || isRecord(value["state"]));
 
 /**
  * Turns a stream of JSONL patch lines (optionally interleaved with prose)
@@ -149,7 +151,15 @@ export function createSpecStream(
         continue;
       }
       try {
-        spec = applyPatchOperation(spec, checked.op, { createMissing: true });
+        const next = applyPatchOperation(spec, checked.op, {
+          createMissing: true,
+        });
+        if (!isSpecShape(next)) {
+          throw new Error(
+            "A spec needs a string root, an elements object, and optional state object",
+          );
+        }
+        spec = next;
         update.patches.push(checked.op);
         allPatches.push(checked.op);
       } catch (error) {
