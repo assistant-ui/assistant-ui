@@ -260,6 +260,56 @@ describe("layout vocabulary on React Native", () => {
     expect(badge.style.color).toBe(toneTextColor("#d58300", "#ffffff"));
   });
 
+  it.each(["light", "dark"] as const)(
+    "keeps tone Badge and Fact delta text above 4.5:1 on a #1e3a8a Card in the %s theme",
+    (mode) => {
+      scheme.current = mode;
+      const { container } = renderNativeSpec(
+        spec({
+          main: {
+            type: "Card",
+            props: { background: "#1e3a8a" },
+            children: ["up", "down", "success", "warning", "danger"],
+          },
+          up: {
+            type: "Fact",
+            props: { label: "Revenue", value: "$12k", delta: "+8%" },
+          },
+          down: {
+            type: "Fact",
+            props: { label: "Churn", value: "3%", delta: "-8%" },
+          },
+          success: {
+            type: "Badge",
+            props: { value: "Done", variant: "success" },
+          },
+          warning: {
+            type: "Badge",
+            props: { value: "Caution", variant: "warning" },
+          },
+          danger: {
+            type: "Badge",
+            props: { value: "Failed", variant: "danger" },
+          },
+        }),
+      );
+      const text = [...container.querySelectorAll<HTMLElement>("div")];
+      for (const value of ["↑ 8%", "↓ 8%", "Done", "Caution", "Failed"]) {
+        const chip = text.find(
+          (element) =>
+            element.textContent === value && element.children.length === 0,
+        )!;
+        expect(
+          contrastRatio(
+            chip.style.color,
+            chip.parentElement!.style.backgroundColor,
+            "rgb(30, 58, 138)",
+          ),
+        ).toBeGreaterThanOrEqual(4.5);
+      }
+    },
+  );
+
   it.each([
     {
       mode: "light",
