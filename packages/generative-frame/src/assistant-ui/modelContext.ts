@@ -126,17 +126,27 @@ export function createSharedContext(
   initial: SharedContext | undefined,
   options: {
     name: () => string;
+    /** While true, the source reads nothing, as for a call whose UI a later call replaced. */
+    muted?: () => boolean;
     onShare: (context: SharedContext | undefined) => void;
   },
 ): {
   source: ModelContextSource;
   share: (context: SharedContext | undefined) => void;
+  /** Tells subscribers to read again, as when `muted` changes. */
+  notify: () => void;
 } {
   let shared = initial && boundContext(initial);
   const listeners = new Set<() => void>();
+  const notify = () => {
+    for (const listener of listeners) listener();
+  };
   return {
     source: {
-      read: () => shared && contextInstruction(options.name(), shared),
+      read: () =>
+        shared && !options.muted?.()
+          ? contextInstruction(options.name(), shared)
+          : undefined,
       subscribe: (listener) => {
         listeners.add(listener);
         return () => listeners.delete(listener);
@@ -145,7 +155,8 @@ export function createSharedContext(
     share: (context) => {
       shared = context && boundContext(context);
       options.onShare(shared);
-      for (const listener of listeners) listener();
+      notify();
     },
+    notify,
   };
 }
