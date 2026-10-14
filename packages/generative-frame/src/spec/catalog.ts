@@ -144,7 +144,7 @@ export function defineCatalog<
 
   const component = (type: string) =>
     Object.hasOwn(components, type) ? components[type] : undefined;
-  for (const name of ["sendMessage", "updateModelContext", "copyText"]) {
+  for (const name of Object.keys(BUILT_IN_ACTIONS)) {
     if (Object.hasOwn(actions, name)) {
       throw new Error(
         `The action name "${name}" is reserved for the built-in action.`,
