@@ -27,10 +27,25 @@ export const Waffle = forwardRef<SVGSVGElement, WaffleProps>(
       legend: showLegend,
     });
     const { left, right, top, bottom } = F;
-    const total = items.reduce((sum, r) => sum + r.value, 0) || 1;
-    const shares = items.map((r) => Math.round((r.value / total) * 100));
+    const values = items.map((r) => Math.max(0, r.value));
+    const total = values.reduce((sum, value) => sum + value, 0) || 1;
+    const exact = values.map((value) => (value / total) * 100);
+    const shares = exact.map(Math.round);
     const drift = 100 - shares.reduce((a, b) => a + b, 0);
-    if (shares.length > 0) shares[0]! += drift;
+    if (drift !== 0 && shares.length > 0) {
+      if (values.every((value) => value === 0)) {
+        shares[0] = 100;
+      } else {
+        const order = exact
+          .map((share, i) => ({ i, fraction: share - Math.floor(share) }))
+          .sort((a, b) => b.fraction - a.fraction || a.i - b.i);
+        exact.forEach((share, i) => {
+          shares[i] = Math.floor(share);
+        });
+        const remaining = 100 - shares.reduce((a, b) => a + b, 0);
+        for (const { i } of order.slice(0, remaining)) shares[i]! += 1;
+      }
+    }
     const cells: number[] = [];
     shares.forEach((count, series) => {
       for (let i = 0; i < count; i += 1) cells.push(series);

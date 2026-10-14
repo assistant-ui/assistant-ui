@@ -49,7 +49,8 @@ export const SplitBar = forwardRef<SVGSVGElement, SplitBarProps>(
           const trail = i === parts.length - 1 ? 0 : GAP;
           const x = cursor + lead;
           cursor += widths[i]!;
-          const width = Math.max(widths[i]! - lead - trail, 0.6);
+          const width =
+            widths[i]! > 0 ? Math.max(widths[i]! - lead - trail, 0.6) : 0;
           return (
             <rect
               key={`${part.label}-${i}`}
