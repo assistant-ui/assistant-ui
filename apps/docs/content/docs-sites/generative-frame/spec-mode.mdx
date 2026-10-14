@@ -242,13 +242,13 @@ Frame mode needs a browser and is not available on React Native.
 
 ## Expressions
 
-Any prop or action param can be an expression:
+Any prop or action param, or any value nested inside one, such as a table cell, can be an expression:
 
 | Expression | Value |
 | --- | --- |
 | `{ "$state": "/path" }` | The state value at a JSON Pointer. |
 | `{ "$bindState": "/path" }` | The same, and the component can write it back with `setProp`. |
-| `{ "$template": "Hi ${/name}" }` | A string with state values filled in. |
+| `{ "$template": "Hi ${/name}" }` | A string with state values filled in. A placeholder in a plain string shows as written. |
 | `{ "$cond": condition, "$then": a, "$else": b }` | `a` or `b`. |
 | `{ "$calc": "${/price} * ${/qty}" }` | A value computed by a formula; see [Formulas](#formulas). |
 | `{ "$item": "/field" }`, `{ "$bindItem": "/field" }`, `{ "$index": true }` | The current item, a two-way binding to it, and its index, inside `repeat`. |
@@ -288,7 +288,7 @@ const { ok, issues } = validateSpec(spec, catalog);
 const feedback = formatSpecIssues(issues);
 ```
 
-Each issue has a `code`, a `severity`, a `message`, and a JSON Pointer `path`. Codes include `missing-root`, `unknown-type`, `invalid-props`, `missing-child`, `children-not-allowed`, `unknown-slot`, `cycle`, `unknown-event`, `unknown-action`, `invalid-params`, `invalid-formula`, `invalid-repeat`, and `unreachable`. Pass `{ partial: true }` while the spec is still streaming, so children not yet added and unreachable elements are not reported.
+Each issue has a `code`, a `severity`, a `message`, and a JSON Pointer `path`. Codes include `missing-root`, `unknown-type`, `invalid-props`, `missing-child`, `children-not-allowed`, `unknown-slot`, `cycle`, `unknown-event`, `unknown-action`, `invalid-params`, `invalid-formula`, `unfilled-placeholder` (a plain string with a `${/path}`, `${$item…}`, or `${$index}` placeholder, which only `$template` and `$calc` fill, or one that is only an expression key, such as `"$calc"`), `invalid-repeat`, and `unreachable`. Pass `{ partial: true }` while the spec is still streaming, so children not yet added and unreachable elements are not reported.
 
 ## As a tool
 

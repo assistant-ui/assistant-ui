@@ -184,12 +184,12 @@ ${
 
 const expressionSection = () => `## Expressions
 
-Any prop or action param may be an expression object instead of a literal:
+Any prop or action param, or any value nested inside one, may be an expression object instead of a literal:
 
 ${list([
   '`{ "$state": "/path" }` reads state.',
   '`{ "$bindState": "/path" }` reads state and lets the component write it back (inputs, toggles, selects).',
-  '`{ "$template": "Hello ${/user/name}" }` fills `${…}` placeholders with state values.',
+  '`{ "$template": "Hello ${/user/name}" }` fills `${…}` placeholders with state values; outside `$template` and `$calc`, a placeholder shows as written.',
   '`{ "$cond": condition, "$then": a, "$else": b }` picks a value.',
   "`{ \"$calc\": \"round(${/guests} * 0.5, 1) + ' lb'\" }` computes a value with a formula over `${…}` references, numbers, and `'text'`: `+ - * / %`, `== != < <= > >=`, `a ? b : c`, and `&& || !`, which give `true` or `false` (write a default as `${/name} ? ${/name} : 'Guest'`). Functions: `round(x, digits)`, `floor`, `ceil`, `abs`, `clamp(x, low, high)`, `min` and `max` (of numbers, or of a list), `count(list)`, `sum(list)` and `avg(list)` (or of a field, `sum(list, '/price')`), and, formatting in en-US, `number(x, digits)`, `currency(x, 'USD')`, `percent(fraction)`, `time(minutesAfterMidnight)`, and `plural(n, 'item', 'items')`. `+` joins text when either side is text. A formula that cannot compute gives `null`.",
   'Inside `repeat`: `{ "$item": "/field" }`, `{ "$bindItem": "/field" }`, `{ "$index": true }`, and `${$item/field}` in templates.',

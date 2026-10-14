@@ -40,6 +40,10 @@ export const isExpression = (
 ): value is Record<string, unknown> =>
   isRecord(value) && Object.keys(value).some((key) => EXPRESSION_KEYS.has(key));
 
+/** True for a string that is only an expression key, such as `"$calc"`. */
+export const isExpressionKey = (value: string) =>
+  EXPRESSION_KEYS.has(value.trim());
+
 const readPath = (base: unknown, path: unknown) =>
   typeof path === "string" && path !== ""
     ? getAtPointer(base, safeTokens(path))

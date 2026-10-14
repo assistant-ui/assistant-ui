@@ -229,6 +229,9 @@ describe("catalog.prompt", () => {
     expect(prompt).toContain('{"op":"add","path":"/root","value":"main"}');
     expect(prompt).toContain("$bindState");
     expect(prompt).toContain(
+      "fills `${…}` placeholders with state values; outside `$template` and `$calc`, a placeholder shows as written.",
+    );
+    expect(prompt).toContain(
       '`{ "$calc": "round(${/guests} * 0.5, 1) + \' lb\'" }`',
     );
     expect(prompt).toContain('"value":{"$calc":"${/count} + 1"}');
@@ -389,6 +392,67 @@ describe("validateSpec", () => {
     expect(text).toContain(
       'Warnings:\n- /elements/x: "x" is not reachable from the root.',
     );
+  });
+
+  it("reports placeholders a plain string shows as written", () => {
+    const spec = validSpec();
+    spec.elements["card"]!.props = { title: "Serves ${/guests}" };
+    spec.elements["m"]!.props = {
+      label: { $template: "Total for ${/guests}" },
+      value: { $calc: "${/total} * 2" },
+    };
+    spec.elements["b"]!.on = {
+      press: { action: "refresh", params: { range: "${$item/range}" } },
+    };
+    spec.elements["b"]!.watch = {
+      "/range": { action: "refresh", params: { range: "Row ${$index}" } },
+    };
+    spec.elements["main"]!.visible = {
+      $cond: { $state: "/total" },
+      $then: true,
+      $else: "${ /total }",
+    };
+    const issues = validateSpec(spec, catalog).issues.filter(
+      (issue) => issue.code === "unfilled-placeholder",
+    );
+    expect(issues.map((issue) => issue.path)).toEqual([
+      "/elements/main/visible/$else",
+      "/elements/card/props/title",
+      "/elements/b/on/press/params/range",
+      "/elements/b/watch/~1range/params/range",
+    ]);
+    expect(issues.find((issue) => issue.elementId === "card")!.message).toBe(
+      '"card" shows `${/guests}` as written, since only `$template` and `$calc` fill placeholders. Write the string as `{ "$template": "…" }`, or compute the value with `$calc`.',
+    );
+  });
+
+  it("reports a plain string that is only an expression key", () => {
+    const spec = validSpec();
+    spec.elements["m"]!.props = {
+      label: "Total",
+      value: [
+        ["Lamb", " $calc "],
+        ["Mint sauce", "$calcs"],
+      ],
+    };
+    spec.elements["card"]!.props = { title: { $template: "$calc" } };
+    spec.elements["b"]!.on = {
+      press: { action: "refresh", params: { range: "$state" } },
+    };
+    spec.elements["b"]!.watch = { "/range": [{ action: "$calc" }] };
+    const issues = validateSpec(spec, catalog).issues.filter(
+      (issue) => issue.code === "unfilled-placeholder",
+    );
+    expect(issues.map((issue) => [issue.path, issue.message])).toEqual([
+      [
+        "/elements/m/props/value/0/1",
+        '"m" shows `"$calc"` as written, since an expression is an object, not a string. Write it as `{ "$calc": … }`.',
+      ],
+      [
+        "/elements/b/on/press/params/range",
+        '"b" shows `"$state"` as written, since an expression is an object, not a string. Write it as `{ "$state": … }`.',
+      ],
+    ]);
   });
 
   it("accepts an empty child list on a component without that slot", () => {
