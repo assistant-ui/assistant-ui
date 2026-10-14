@@ -12,6 +12,7 @@ import {
   main,
   publish,
   renderComment,
+  statusLine,
 } from "./review-tier.mjs";
 
 const policy = loadReviewPolicy(path.resolve(import.meta.dirname, ".."));
@@ -1321,7 +1322,7 @@ test("the comment starts with its marker and strongest reason and bounds the rea
   assert.equal(comment.split("\n")[0], marker);
   assert.match(
     comment.split("\n")[1],
-    /^### review-tier: T3 · \d+ still needed$/,
+    /^### review-tier: T3 · waiting on Reactivity core owner approval, an accepted decision and the window until 2026-10-11 08:00 UTC$/,
   );
   assert.ok(
     comment.includes("- **T3, decision tier:** behavior-change label"),
@@ -1340,6 +1341,7 @@ test("the comment starts with its marker and strongest reason and bounds the rea
   assert.ok(comment.includes("⏳ Waits on reviewers or time"));
   for (const expected of [
     "| ⏳ Owner: Reactivity core |",
+    "needs an approval from an owner of Reactivity core on the current head",
     "| ⏳ Decision |",
     "| ⏳ Waiting window |",
     "- **Waived:** Size, by okisdev with `review-tier/override: size`",
@@ -1351,14 +1353,108 @@ test("the comment starts with its marker and strongest reason and bounds the rea
   }
 });
 
+for (const { tier, codes, readyForReviewAt, expected } of [
+  {
+    tier: 1,
+    codes: ["approvals"],
+    expected: "T1 · waiting on 1 approval",
+  },
+  {
+    tier: 2,
+    codes: ["owner:public-api", "window"],
+    readyForReviewAt: "2026-10-14T13:00:00Z",
+    expected:
+      "T2 · waiting on Public API owner approval and the window until 2026-10-15 13:00 UTC",
+  },
+  {
+    tier: 3,
+    codes: ["owner:reactivity", "decision", "window"],
+    readyForReviewAt: "2026-10-08T10:00:00Z",
+    expected:
+      "T3 · waiting on Reactivity core owner approval, an accepted decision and the window until 2026-10-11 10:00 UTC",
+  },
+  {
+    tier: 1,
+    codes: ["unknown-type"],
+    expected: "T1 · needs a change: title type",
+  },
+  {
+    tier: 2,
+    codes: [
+      "size-cap",
+      "refactor-changes-api",
+      "refactor-changes-exports",
+      "approvals",
+    ],
+    expected: "T2 · needs a change: size, refactor claim",
+  },
+  {
+    tier: 0,
+    codes: [],
+    expected: "T0 · review requirements met",
+  },
+]) {
+  test(`statusLine says ${expected}`, () => {
+    assert.equal(
+      statusLine(
+        {
+          tierResult: { tier },
+          requirementResult: { unmet: codes.map((code) => ({ code })) },
+          context: { readyForReviewAt },
+        },
+        policy,
+      ),
+      expected,
+    );
+  });
+}
+
+test("statusLine names the window duration when its start is missing or invalid", () => {
+  for (const readyForReviewAt of [undefined, "invalid"]) {
+    assert.equal(
+      statusLine(
+        {
+          tierResult: { tier: 2 },
+          requirementResult: { unmet: [{ code: "window" }] },
+          context: { readyForReviewAt },
+        },
+        policy,
+      ),
+      "T2 · waiting on the 24-hour window",
+    );
+  }
+});
+
+test("statusLine uses an unknown owner area id", () => {
+  assert.equal(
+    statusLine(
+      {
+        tierResult: { tier: 2 },
+        requirementResult: { unmet: [{ code: "owner:unknown" }] },
+        context: {},
+      },
+      policy,
+    ),
+    "T2 · waiting on unknown owner approval",
+  );
+});
+
 test("shadow mode changes pending and failure to neutral while success remains success", async () => {
   for (const [recording, conclusion, title] of [
-    [fakeClient(), "neutral", /^T3 · \d+ still needed$/],
-    [fakeClient({ openCount: 6 }), "neutral", /^T3 · \d+ still needed$/],
+    [
+      fakeClient(),
+      "neutral",
+      /^T3 · waiting on Reactivity core owner approval, an accepted decision and the window until 2026-10-11 08:00 UTC$/,
+    ],
+    [
+      fakeClient({ openCount: 6 }),
+      "neutral",
+      /^T3 · needs a change: open pull requests$/,
+    ],
     [
       fakeClient({ pr: docsPullRequest(), files: [file("README.md")] }),
       "success",
-      /^T0 · ready to merge$/,
+      /^T0 · review requirements met$/,
     ],
   ]) {
     const evaluation = await evaluationFor(recording);

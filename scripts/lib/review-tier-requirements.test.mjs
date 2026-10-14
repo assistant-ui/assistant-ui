@@ -158,6 +158,10 @@ for (const tier of [2, 3]) {
     const missingOwner = evaluateRequirements(request, policy);
     assert.equal(missingOwner.status, "pending");
     assert.deepEqual(codes(missingOwner), ["owner:protocol"]);
+    assert.equal(
+      missingOwner.unmet[0].detail,
+      "needs an approval from an owner of Wire protocol on the current head",
+    );
     request.reviews = [review("alice"), review("bob")];
     assert.equal(evaluateRequirements(request, policy).status, "success");
     request.reviews = [review("admin")];
@@ -355,6 +359,10 @@ test("an unknown area cannot silently bypass owner or decision requirements", ()
     policy,
   );
   assert.deepEqual(codes(result), ["decision", "owner:unknown"]);
+  assert.equal(
+    result.unmet.find(({ code }) => code === "owner:unknown").detail,
+    "needs an approval from an owner of unknown on the current head",
+  );
 });
 
 for (const state of ["CHANGES_REQUESTED", "DISMISSED"]) {

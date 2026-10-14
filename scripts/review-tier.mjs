@@ -542,9 +542,11 @@ const isWaiting = (code) =>
   code === "decision" ||
   code === "window" ||
   code.startsWith("owner:");
+const areaName = (id, policy) =>
+  policy.areas.find((area) => area.id === id)?.name ?? id;
 const requirementLabel = (code, policy) =>
   code.startsWith("owner:")
-    ? `Owner: ${policy.areas.find((area) => `owner:${area.id}` === code)?.name ?? code.slice(6)}`
+    ? `Owner: ${areaName(code.slice(6), policy)}`
     : (requirementLabels[code] ?? code);
 const signalLabel = (code) => signalLabels[code] ?? code;
 
@@ -560,17 +562,24 @@ const failureDetails = {
   "manifest-invalid": (detail) => `${code(detail)} is not valid JSON`,
 };
 
+function windowEnd(tier, context, policy) {
+  const readyAt = Date.parse(context?.readyForReviewAt);
+  if (Number.isNaN(readyAt)) return null;
+  return new Date(readyAt + policy.windowHours[tier] * 60 * 60 * 1000)
+    .toISOString()
+    .slice(0, 16)
+    .replace("T", " ");
+}
+
 function requirementDetail(item, tier, context, policy, waivers) {
   const failure = failureDetails[item.code];
-  const readyAt = Date.parse(context?.readyForReviewAt);
   let detail = failure ? failure(item.detail, policy) : cell(item.detail);
-  if (item.code === "window" && !Number.isNaN(readyAt)) {
-    const hours = policy.windowHours[tier];
-    const until = new Date(readyAt + hours * 60 * 60 * 1000)
-      .toISOString()
-      .slice(0, 16)
-      .replace("T", " ");
-    detail = `${hours} hours after ready for review, until ${until} UTC`;
+  if (item.code === "window") {
+    const until = windowEnd(tier, context, policy);
+    if (until !== null) {
+      const hours = policy.windowHours[tier];
+      detail = `${hours} hours after ready for review, until ${until} UTC`;
+    }
   }
   const waiver = waivers.get(item.code);
   return waiver
@@ -578,10 +587,40 @@ function requirementDetail(item, tier, context, policy, waivers) {
     : detail;
 }
 
-export function renderComment(
-  { tierResult, requirementResult, context },
-  policy,
-) {
+export function statusLine({ tierResult, requirementResult, context }, policy) {
+  const { tier } = tierResult;
+  const { unmet } = requirementResult;
+  if (unmet.length === 0) return `T${tier} · review requirements met`;
+
+  const changes = [
+    ...new Set(
+      unmet
+        .filter(({ code }) => !isWaiting(code))
+        .map(({ code }) => requirementLabel(code, policy))
+        .map((label) => label[0].toLowerCase() + label.slice(1)),
+    ),
+  ];
+  if (changes.length) return `T${tier} · needs a change: ${changes.join(", ")}`;
+
+  const waiting = unmet.map(({ code }) => {
+    if (code === "approvals") return "1 approval";
+    if (code.startsWith("owner:"))
+      return `${areaName(code.slice(6), policy)} owner approval`;
+    if (code === "decision") return "an accepted decision";
+    const until = windowEnd(tier, context, policy);
+    return until === null
+      ? `the ${policy.windowHours[tier]}-hour window`
+      : `the window until ${until} UTC`;
+  });
+  const list =
+    waiting.length === 1
+      ? waiting[0]
+      : `${waiting.slice(0, -1).join(", ")} and ${waiting.at(-1)}`;
+  return `T${tier} · waiting on ${list}`;
+}
+
+export function renderComment(evaluation, policy) {
+  const { tierResult, requirementResult, context } = evaluation;
   const { tier } = tierResult;
   const reasons = tierResult.reasons.toSorted((a, b) => b.tier - a.tier);
   const { unmet, waived, approvals } = requirementResult;
@@ -589,7 +628,7 @@ export function renderComment(
   const [top] = reasons;
   const out = [
     marker,
-    `### review-tier: T${tier} · ${unmet.length ? `${unmet.length} still needed` : "ready to merge"}`,
+    `### review-tier: ${statusLine(evaluation, policy)}`,
     "",
     policy.reviewTierCheck.mode === "enforce"
       ? `_Required to merge. Rules in ${rules}._`
@@ -709,7 +748,7 @@ export async function publish(
               : evaluation.conclusion,
         }),
     output: {
-      title: `T${tier} · ${ready ? "ready to merge" : `${evaluation.requirementResult.unmet.length} still needed`}`,
+      title: statusLine(evaluation, policy),
       summary: body.slice(marker.length + 1),
     },
   };

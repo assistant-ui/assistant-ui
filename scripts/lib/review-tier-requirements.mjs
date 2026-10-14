@@ -89,9 +89,10 @@ export function evaluateRequirements(input, policy) {
     }
     for (const { id, members } of owners) {
       if (!approvals.counted.some((login) => members.has(login))) {
+        const name = policy.areas.find((area) => area.id === id)?.name ?? id;
         unmet.push({
           code: `owner:${id}`,
-          detail: `needs an approval from an owner of ${id} on the current head`,
+          detail: `needs an approval from an owner of ${name} on the current head`,
         });
       }
     }
