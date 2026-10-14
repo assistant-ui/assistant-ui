@@ -1490,9 +1490,13 @@ describe("UIMessageStreamDecoder server abort", () => {
     {
       terminal: [
         { type: "abort", reason: "Server stopped run" },
+        { type: "text-start", id: "fallback" },
+        { type: "text-delta", id: "fallback", delta: ". Recovered answer" },
+        { type: "text-end", id: "fallback" },
         { type: "finish", finishReason: "stop" },
       ],
-      status: { type: "incomplete", reason: "other" },
+      status: { type: "complete", reason: "stop" },
+      text: "An unfinished answer. Recovered answer",
     },
     {
       terminal: [{ type: "finish", finishReason: "stop" }],
@@ -1500,7 +1504,7 @@ describe("UIMessageStreamDecoder server abort", () => {
     },
   ])(
     "preserves partial text with $terminal and reports $status",
-    async ({ terminal, status }) => {
+    async ({ terminal, status, text = "An unfinished answer" }) => {
       const messages = await collectChunks(
         createUIMessageStream([
           ...[
@@ -1515,15 +1519,15 @@ describe("UIMessageStreamDecoder server abort", () => {
           .pipeThrough(new AssistantMessageAccumulator()),
       );
       expect(messages.at(-1)?.content).toEqual([
-        expect.objectContaining({ type: "text", text: "An unfinished answer" }),
+        expect.objectContaining({ type: "text", text }),
       ]);
       expect(messages.at(-1)?.status).toEqual(status);
     },
   );
 
   it.each([false, true])(
-    "does not execute buffered tool input after abort (late frames: %s)",
-    async (lateFrames) => {
+    "discards aborted tool input and allows an explicit retry (retry: %s)",
+    async (retry) => {
       const execute = vi.fn(async () => "frontend result");
       const onData = vi.fn();
       const chunks = await collectChunks(
@@ -1540,15 +1544,15 @@ describe("UIMessageStreamDecoder server abort", () => {
               inputTextDelta: "{}",
             },
             { type: "abort" },
-            ...(lateFrames
+            ...(retry
               ? [
                   {
                     type: "tool-input-available",
                     toolCallId: "call",
                     toolName: "lookup",
-                    input: {},
+                    input: { retry: true },
                   },
-                  { type: "data-late", data: "ignored" },
+                  { type: "data-retry", data: "recovered" },
                 ]
               : []),
           ].map((frame) => JSON.stringify(frame)),
@@ -1568,15 +1572,27 @@ describe("UIMessageStreamDecoder server abort", () => {
             ),
           ),
       );
-      expect(execute).not.toHaveBeenCalled();
-      expect(onData).not.toHaveBeenCalled();
+      if (retry) {
+        expect(execute).toHaveBeenCalledExactlyOnceWith(
+          { retry: true },
+          expect.anything(),
+        );
+        expect(onData).toHaveBeenCalledExactlyOnceWith({
+          type: "data-retry",
+          name: "retry",
+          data: "recovered",
+        });
+      } else {
+        expect(execute).not.toHaveBeenCalled();
+        expect(onData).not.toHaveBeenCalled();
+      }
       expect(chunks).toContainEqual({
         type: "message-finish",
         path: [],
         finishReason: "other",
         usage: { inputTokens: 0, outputTokens: 0 },
       });
-      expect(chunks.some((chunk) => chunk.type === "part-start")).toBe(false);
+      expect(chunks.some((chunk) => chunk.type === "part-start")).toBe(retry);
     },
   );
 });
