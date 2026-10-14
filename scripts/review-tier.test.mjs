@@ -153,6 +153,7 @@ function fakeClient({
   const currentComments = new Map([[12, structuredClone(comments)]]);
   let nextCommentId = Math.max(90, ...comments.map(({ id }) => id ?? 0)) + 1;
   let currentCheckRuns = structuredClone(checkRuns);
+  let nextCheckRunId = 1;
   let gatherRead = 0;
   let stateRead = 0;
   const historyPage = (history, after) => {
@@ -326,8 +327,20 @@ function fakeClient({
       }
       writes.push({ method, resource, body });
       if (resource === `${repo}/check-runs` && method === "POST") {
-        currentCheckRuns.unshift({ ...structuredClone(body), app: { id: 42 } });
-        return { status: 201, data: { id: 1 } };
+        const id = nextCheckRunId++;
+        currentCheckRuns.unshift({
+          ...structuredClone(body),
+          id,
+          app: { id: 42 },
+        });
+        return { status: 201, data: { id } };
+      }
+      if (method === "PATCH" && resource.startsWith(`${repo}/check-runs/`)) {
+        const id = Number(resource.slice(`${repo}/check-runs/`.length));
+        const run = currentCheckRuns.find((candidate) => candidate.id === id);
+        assert.ok(run, `Unrecorded check run ${id}`);
+        Object.assign(run, structuredClone(body));
+        return { status: 200, data: structuredClone(run) };
       }
       if (method === "POST" && resource.endsWith("/labels")) {
         const number = Number(resource.split("/issues/")[1].split("/")[0]);
@@ -1470,18 +1483,19 @@ test("identical checks from the pinned app still sync each pull request", async 
     reviewTierCheck: { ...enforcePolicy.reviewTierCheck, integrationId: 42 },
   };
   for (const [checkRuns, expectedWrites] of [
-    [[{ ...intended, app: { id: 42 } }], 0],
+    [[{ ...intended, id: 7, app: { id: 42 } }], 0],
     [
       [
         {
           ...intended,
+          id: 7,
           output: { ...intended.output, summary: "Old summary" },
           app: { id: 42 },
         },
       ],
       1,
     ],
-    [[{ ...intended, app: { id: 99 } }], 1],
+    [[{ ...intended, id: 7, app: { id: 99 } }], 1],
   ]) {
     const recording = fakeClient({
       checkRuns,
@@ -1515,7 +1529,7 @@ test("identical checks from the pinned app still sync each pull request", async 
     );
   }
   const recording = fakeClient({
-    checkRuns: [{ ...intended, app: { id: 42 } }],
+    checkRuns: [{ ...intended, id: 7, app: { id: 42 } }],
     labels: [{ name: "tier/3" }],
     comments: [
       {
@@ -1731,11 +1745,52 @@ test("a passing evaluation completes an in-progress run", async () => {
     ...options,
     evaluation: passing,
   });
-  assert.equal(recording.writes.length, 2);
+  assert.deepEqual(
+    recording.writes.map(({ method, resource }) => [method, resource]),
+    [
+      ["POST", `${repo}/check-runs`],
+      ["PATCH", `${repo}/check-runs/1`],
+    ],
+  );
   assert.equal(recording.writes[0].body.status, "in_progress");
   assert.equal(recording.writes[1].body.status, "completed");
   assert.equal(recording.writes[1].body.conclusion, "success");
   assert.ok(Object.hasOwn(recording.writes[1].body, "completed_at"));
+});
+
+test("a changed waiting evaluation updates the in-progress run in place", async () => {
+  const recording = fakeClient();
+  const waiting = await evaluationFor();
+  const fewer = structuredClone(waiting);
+  fewer.requirementResult.unmet = fewer.requirementResult.unmet.slice(1);
+  const options = { number: 12, headSha: "head", labelsAndComment: false };
+  await publish(recording.client, enforcePolicy, {
+    ...options,
+    evaluation: waiting,
+    startedAt: "2026-10-08T11:00:00Z",
+  });
+  await publish(recording.client, enforcePolicy, {
+    ...options,
+    evaluation: fewer,
+    startedAt: now.toISOString(),
+  });
+  assert.deepEqual(
+    recording.writes.map(({ method, resource }) => [method, resource]),
+    [
+      ["POST", `${repo}/check-runs`],
+      ["PATCH", `${repo}/check-runs/1`],
+    ],
+  );
+  assert.equal(recording.writes[1].body.status, "in_progress");
+  assert.equal(recording.writes[1].body.started_at, now.toISOString());
+  assert.equal(Object.hasOwn(recording.writes[1].body, "conclusion"), false);
+  assert.equal(Object.hasOwn(recording.writes[1].body, "head_sha"), false);
+  await publish(recording.client, enforcePolicy, {
+    ...options,
+    evaluation: waiting,
+    startedAt: "2026-10-08T11:30:00Z",
+  });
+  assert.equal(recording.writes.length, 2);
 });
 
 test("a matching in-progress run older than seven days is reposted", async () => {
@@ -1755,8 +1810,15 @@ test("a matching in-progress run older than seven days is reposted", async () =>
     ...options,
     startedAt: now.toISOString(),
   });
-  assert.equal(recording.writes.length, 2);
+  assert.deepEqual(
+    recording.writes.map(({ method, resource }) => [method, resource]),
+    [
+      ["POST", `${repo}/check-runs`],
+      ["POST", `${repo}/check-runs`],
+    ],
+  );
   assert.equal(recording.writes[1].body.status, "in_progress");
+  assert.equal(recording.writes[1].body.head_sha, "head");
   assert.equal(recording.writes[1].body.started_at, now.toISOString());
   assert.equal(Object.hasOwn(recording.writes[1].body, "completed_at"), false);
 });
