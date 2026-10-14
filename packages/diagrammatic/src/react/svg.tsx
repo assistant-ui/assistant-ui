@@ -171,6 +171,7 @@ export type FrameOptions = {
   legend?: boolean | undefined;
   /** Category labels or tick labels printed along the bottom edge. */
   labels?: boolean | undefined;
+  bottomValueLabel?: boolean | undefined;
   /** Value-axis ticks printed down the left edge. The labels size the gutter; `true` reserves a default one. */
   ticks?: readonly Tick[] | boolean | undefined;
   left?: number | undefined;
@@ -236,7 +237,11 @@ export function frame(
     opts.top ??
     (opts.legend ? legendY + T.value.px + 10 : PAD + T.value.px + 2);
   const axisY = height - PAD;
-  const bottom = opts.bottom ?? (opts.labels ? axisY - axis - 6 : height - PAD);
+  const bottom =
+    opts.bottom ??
+    (opts.labels
+      ? axisY - axis - 6 - (opts.bottomValueLabel ? T.value.px + 5 : 0)
+      : height - PAD);
   return { width, height, left, right, top, bottom, axisY, legendY, T };
 }
 
