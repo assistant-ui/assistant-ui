@@ -213,16 +213,20 @@ function renderChildren(
   scope: Scope,
   ancestors: readonly string[],
 ) {
-  return ids.map((childId, index) =>
-    typeof childId === "string" ? (
+  const occurrences = new Map<string, number>();
+  return ids.map((childId) => {
+    if (typeof childId !== "string") return null;
+    const occurrence = occurrences.get(childId) ?? 0;
+    occurrences.set(childId, occurrence + 1);
+    return (
       <ElementView
-        key={`${childId}:${index}`}
+        key={`${childId}:${occurrence}`}
         id={childId}
         scope={scope}
         ancestors={ancestors}
       />
-    ) : null,
-  );
+    );
+  });
 }
 
 function ElementView({
