@@ -134,15 +134,24 @@ export const Root = forwardRef<HTMLDivElement, RootProps>(
         if (datum.element !== lastMark.current) {
           lastMark.current = datum.element;
           onMarkHover?.(datum);
+          const chart = datum.element.closest("svg") ?? event.currentTarget;
+          const paintedIndex =
+            datum.index !== undefined &&
+            (chart.querySelector(
+              `[data-part="mark"][data-i="${datum.index}"]:not([data-dg-hit-target])`,
+            ) ||
+              datum.element.matches("circle[data-dg-hit-target]"))
+              ? datum.index
+              : undefined;
           setHoverHighlight(
             highlightOnHover === "series"
               ? datum.series
                 ? { series: datum.series }
-                : datum.index !== undefined
-                  ? { index: datum.index }
+                : paintedIndex !== undefined
+                  ? { index: paintedIndex }
                   : null
-              : datum.index !== undefined
-                ? { index: datum.index }
+              : paintedIndex !== undefined
+                ? { index: paintedIndex }
                 : datum.series
                   ? { series: datum.series }
                   : null,

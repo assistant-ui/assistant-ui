@@ -122,6 +122,7 @@ export const Network = forwardRef<SVGSVGElement, NetworkProps>(
                 cy={round(mark.y)}
                 r={Math.max(10, round(mark.r + 4))}
                 fill="transparent"
+                data-dg-hit-target=""
               />
               <circle
                 cx={round(mark.x)}

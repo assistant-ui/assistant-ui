@@ -92,6 +92,7 @@ export const Bump = forwardRef<SVGSVGElement, BumpProps>(
                   cy={round(p.y)}
                   r={hit}
                   fill="transparent"
+                  data-dg-hit-target=""
                   data-part="mark"
                   data-series={s.name}
                   data-i={i}

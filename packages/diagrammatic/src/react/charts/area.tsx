@@ -208,6 +208,7 @@ export const Area = forwardRef<SVGSVGElement, AreaProps>(
               cy={round(p.y)}
               r={hit}
               fill="transparent"
+              data-dg-hit-target=""
               data-part="mark"
               data-i={i}
               data-series={all[k]!.name || undefined}

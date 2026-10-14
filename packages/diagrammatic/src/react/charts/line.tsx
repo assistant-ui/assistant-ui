@@ -277,6 +277,7 @@ export const Line = forwardRef<SVGSVGElement, LineProps>(
               cy={round(p.y)}
               r={hit}
               fill="transparent"
+              data-dg-hit-target=""
               data-part="mark"
               data-i={i}
               data-series={all[k]!.name || undefined}

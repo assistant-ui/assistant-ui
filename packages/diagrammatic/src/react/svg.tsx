@@ -723,6 +723,7 @@ export function ColumnHits({
             width={round(right - left)}
             height={round(bottom - top)}
             fill="transparent"
+            data-dg-hit-target=""
             data-part="mark"
             data-i={i}
             data-series={series}

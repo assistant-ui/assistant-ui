@@ -226,6 +226,7 @@ export const Histogram = forwardRef<SVGSVGElement, HistogramProps>(
             width={round(binWidth)}
             height={bottom - top}
             fill="transparent"
+            data-dg-hit-target=""
             data-part="mark"
             data-i={i}
           />

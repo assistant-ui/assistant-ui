@@ -9,7 +9,7 @@ afterEach(cleanup);
 it("reports the sample and row over a horizon fill", () => {
   const hovers: ReturnType<typeof getMarkDatum>[] = [];
   const { container } = render(
-    <Root onMarkHover={(datum) => hovers.push(datum)}>
+    <Root highlightOnHover onMarkHover={(datum) => hovers.push(datum)}>
       <Horizon
         series={[
           { name: "north", data: [2, 4, 6, 8, 5] },
@@ -38,4 +38,19 @@ it("reports the sample and row over a horizon fill", () => {
   expect(hovers.at(-1)?.index).toBe(3);
   expect(hovers.at(-1)?.series).toBe("north");
   expect(getMarkDatum(target)?.index).toBe(3);
+  const north = container.querySelectorAll(
+    'path[data-series="north"][data-part="mark"]',
+  );
+  const south = container.querySelectorAll(
+    'path[data-series="south"][data-part="mark"]',
+  );
+  expect(north.length).toBeGreaterThan(0);
+  expect(south.length).toBeGreaterThan(0);
+  for (const path of north) {
+    expect(path.hasAttribute("data-dg-active")).toBe(true);
+    expect(path.hasAttribute("data-dg-muted")).toBe(false);
+  }
+  for (const path of south) {
+    expect(path.hasAttribute("data-dg-muted")).toBe(true);
+  }
 });

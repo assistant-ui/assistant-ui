@@ -12,7 +12,7 @@ it.each([
 ])("reports the bin over a histogram %s", (_name, options) => {
   const hovers: ReturnType<typeof getMarkDatum>[] = [];
   const { container } = render(
-    <Root onMarkHover={(datum) => hovers.push(datum)}>
+    <Root highlightOnHover onMarkHover={(datum) => hovers.push(datum)}>
       <Histogram bins={[2, 4, 6, 8, 5]} {...options} />
     </Root>,
   );
@@ -43,4 +43,11 @@ it.each([
   fireEvent.pointerMove(target, { clientX: x, clientY: y });
   expect(hovers.at(-1)?.index).toBe(3);
   expect(getMarkDatum(target)?.index).toBe(3);
+  if ("smooth" in options) {
+    const paths = container.querySelectorAll('path[data-part="mark"]');
+    expect(paths).toHaveLength(2);
+    for (const path of paths) {
+      expect(path.hasAttribute("data-dg-muted")).toBe(false);
+    }
+  }
 });
