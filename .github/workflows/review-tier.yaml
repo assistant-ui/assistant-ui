@@ -37,11 +37,18 @@ permissions:
 jobs:
   evaluate:
     name: Evaluate review tier
+    # Each run cancels the one in progress, which the pull request shows as a failed check, so label and edit events start one only for what the evaluator reads, a tier label a person changes, or a person's edit.
     if: >-
       vars.REVIEW_POLICY_APP_ID != '' &&
-      !(github.event_name == 'pull_request_target' &&
-        github.event.action == 'labeled' &&
-        startsWith(github.event.label.name, 'tier/')) &&
+      (github.event_name != 'pull_request_target' ||
+        (((github.event.action != 'labeled' && github.event.action != 'unlabeled') ||
+            github.event.label.name == 'behavior-change' ||
+            startsWith(github.event.label.name, 'review-tier/override: ') ||
+            (startsWith(github.event.label.name, 'tier/') && github.event.sender.type != 'Bot')) &&
+          (github.event.action != 'edited' ||
+            github.event.changes.title || github.event.changes.base ||
+            github.event.sender.type != 'Bot' ||
+            contains(github.event.pull_request.labels.*.name, 'tier/3')))) &&
       (github.event_name != 'issues' || github.event.label.name == 'decision: accepted')
     concurrency:
       group: ${{ github.workflow }}-${{ github.event.pull_request.number || (github.event.workflow_run.pull_requests[0].number && format('relay-{0}', github.event.workflow_run.pull_requests[0].number)) || github.event.merge_group.head_sha || github.run_id }}
