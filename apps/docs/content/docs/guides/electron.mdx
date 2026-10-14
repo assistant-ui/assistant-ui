@@ -131,7 +131,10 @@ Install the provider packages in the main-process bundle:
 pnpm add ai @ai-sdk/openai
 ```
 
-This is the [AI SDK route](/docs/runtimes/ai-sdk/v7) with one change. Electron builds the handler's `Request` without an abort signal, so `abortSignal: req.signal` would never fire and the model request would keep running after the user presses Stop. Instead, abort when the renderer cancels the response body, which happens on Stop, on reload, and when the window closes.
+This is the [AI SDK route](/docs/runtimes/ai-sdk/v7) with two changes:
+
+- The body is untrusted input to a privileged process, so the route caps its size and checks it with `validateUIMessages` before anything reaches the model. Raise the cap if your app accepts larger attachments, and pass `tools` and any data part schemas to `validateUIMessages` so it checks those parts too.
+- Electron builds the handler's `Request` without an abort signal, so `abortSignal: req.signal` would never fire and the model request would keep running after the user presses Stop. Instead, the route aborts when the renderer cancels the response body, which happens on Stop, on reload, and when the window closes.
 
 ```ts title="main/api/chat.ts"
 import { openai } from "@ai-sdk/openai";
@@ -140,11 +143,25 @@ import {
   createUIMessageStreamResponse,
   streamText,
   toUIMessageStream,
+  validateUIMessages,
   type UIMessage,
 } from "ai";
 
+// Attachments arrive inline as data URLs, so leave room for them.
+const MAX_BODY_LENGTH = 20_000_000;
+
 export async function POST(req: Request) {
-  const { messages }: { messages: UIMessage[] } = await req.json();
+  const body = await req.text();
+  if (body.length > MAX_BODY_LENGTH) {
+    return new Response("Request too large", { status: 413 });
+  }
+
+  let messages: UIMessage[];
+  try {
+    messages = await validateUIMessages({ messages: JSON.parse(body).messages });
+  } catch {
+    return new Response("Invalid request", { status: 400 });
+  }
 
   // protocol.handle never aborts req.signal, so abort when the renderer
   // cancels the response body instead (Stop, reload, or window close).
