@@ -33,72 +33,34 @@ const migrateAssistantUI = createTransformer(({ j, root, markAsChanged }) => {
     "@assistant-ui/react",
     "@assistant-ui/react-markdown",
   ];
-  const movedSpecifiers: any[] = [];
-  let lastMigratedImportPath: any = null;
 
   root
     .find(j.ImportDeclaration)
-    .filter((path: any) => sourcesToMigrate.includes(path.value.source.value))
-    .forEach((path: any) => {
-      let hadMigratedSpecifiers = false;
-      const remainingSpecifiers: any[] = [];
-      path.value.specifiers.forEach((specifier: any) => {
-        if (
+    .filter((path) =>
+      sourcesToMigrate.includes(path.node.source.value as string),
+    )
+    .forEach((path) => {
+      const specifiers = path.node.specifiers ?? [];
+      const moved = specifiers.filter(
+        (specifier) =>
           j.ImportSpecifier.check(specifier) &&
-          reactUIExports.includes(specifier.imported.name as string)
-        ) {
-          movedSpecifiers.push(specifier);
-          hadMigratedSpecifiers = true;
-        } else {
-          remainingSpecifiers.push(specifier);
-        }
-      });
-      if (hadMigratedSpecifiers) {
-        lastMigratedImportPath = path;
-      }
-      if (remainingSpecifiers.length === 0) {
-        j(path).remove();
-        markAsChanged();
-      } else if (remainingSpecifiers.length !== path.value.specifiers.length) {
-        path.value.specifiers = remainingSpecifiers;
-        markAsChanged();
-      }
-    });
-
-  if (movedSpecifiers.length > 0) {
-    const existingReactUIImport = root.find(j.ImportDeclaration, {
-      source: { value: "@assistant-ui/react-ui" },
-    });
-    if (existingReactUIImport.size() > 0) {
-      existingReactUIImport.forEach((path: any) => {
-        movedSpecifiers.forEach((specifier: any) => {
-          if (
-            !path.value.specifiers.some(
-              (s: any) => s.imported.name === specifier.imported.name,
-            )
-          ) {
-            path.value.specifiers.push(specifier);
-          }
-        });
-      });
-    } else {
-      const newImport = j.importDeclaration(
-        movedSpecifiers,
-        j.literal("@assistant-ui/react-ui"),
+          reactUIExports.includes(specifier.imported.name as string),
       );
-      if (lastMigratedImportPath) {
-        j(lastMigratedImportPath).insertAfter(newImport);
+      if (moved.length === 0) return;
+
+      const destination = j.literal("@assistant-ui/react-ui");
+      if (moved.length === specifiers.length) {
+        path.node.source = destination;
       } else {
-        const firstImport = root.find(j.ImportDeclaration).at(0);
-        if (firstImport.size() > 0) {
-          firstImport.insertBefore(newImport);
-        } else {
-          root.get().node.program.body.unshift(newImport);
-        }
+        path.node.specifiers = specifiers.filter(
+          (specifier) => !moved.includes(specifier),
+        );
+        const declaration = j.importDeclaration(moved, destination);
+        declaration.importKind = path.node.importKind ?? "value";
+        j(path).insertAfter(declaration);
       }
-    }
-    markAsChanged();
-  }
+      markAsChanged();
+    });
 
   const cssReplacements: Record<string, string> = {
     "@assistant-ui/react/styles/index.css":
