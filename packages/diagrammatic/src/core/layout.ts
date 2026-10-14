@@ -65,9 +65,9 @@ export type Rect = { x: number; y: number; w: number; h: number };
 
 /** Squarified treemap over one list of values inside a rectangle. */
 export function squarify(values: number[], rect: Rect, gap = 2): Rect[] {
-  const total = values.reduce((sum, v) => sum + v, 0) || 1;
+  const total = values.reduce((sum, v) => sum + (v > 0 ? v : 0), 0) || 1;
   const area = rect.w * rect.h;
-  const scaled = values.map((v) => (v / total) * area);
+  const scaled = values.map((v) => (v > 0 ? (v / total) * area : 0));
   const out: Rect[] = Array.from({ length: values.length }, () => ({
     x: 0,
     y: 0,
@@ -127,6 +127,7 @@ export function squarify(values: number[], rect: Rect, gap = 2): Rect[] {
 
   for (let i = 0; i < scaled.length; i += 1) {
     const a = scaled[i]!;
+    if (!(a > 0)) continue;
     const side = Math.min(free.w, free.h);
     if (row.length === 0 || worst([...row, a], side) <= worst(row, side)) {
       row.push(a);
@@ -139,12 +140,16 @@ export function squarify(values: number[], rect: Rect, gap = 2): Rect[] {
   }
   if (row.length > 0) layoutRow(row, rowIndex);
 
-  return out.map((r) => ({
-    x: r.x + gap / 2,
-    y: r.y + gap / 2,
-    w: Math.max(r.w - gap, 0.5),
-    h: Math.max(r.h - gap, 0.5),
-  }));
+  return out.map((r, i) =>
+    values[i]! > 0
+      ? {
+          x: r.x + gap / 2,
+          y: r.y + gap / 2,
+          w: Math.max(r.w - gap, 0.5),
+          h: Math.max(r.h - gap, 0.5),
+        }
+      : r,
+  );
 }
 
 export type Circle = { x: number; y: number; r: number };
