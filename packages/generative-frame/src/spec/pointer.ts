@@ -63,6 +63,19 @@ export function writeAtPointer(
   mode: WriteMode,
   value?: unknown,
   options: WriteOptions = {},
+  arrayParents: readonly string[] = [],
+): unknown {
+  return writeAtPointerAt(doc, tokens, mode, value, options, arrayParents, []);
+}
+
+function writeAtPointerAt(
+  doc: unknown,
+  tokens: readonly string[],
+  mode: WriteMode,
+  value: unknown,
+  options: WriteOptions,
+  arrayParents: readonly string[],
+  prefix: readonly string[],
 ): unknown {
   if (tokens.length === 0) {
     if (mode === "remove") throw new Error("Cannot remove the whole document");
@@ -102,13 +115,30 @@ export function writeAtPointer(
     }
     if (index >= copy.length)
       throw new Error(`Index ${index} is out of bounds`);
-    copy[index] = writeAtPointer(copy[index], rest, mode, value, options);
+    copy[index] = writeAtPointerAt(
+      copy[index],
+      rest,
+      mode,
+      value,
+      options,
+      arrayParents,
+      [...prefix, token],
+    );
     return copy;
   }
 
   if (!isContainer(doc)) {
     if (options.createMissing && doc === undefined && mode !== "remove") {
-      return writeAtPointer({}, tokens, mode, value, options);
+      // An array the write went through is recreated as one, so `-` and its indices do not become object keys; an index it does not have still fails, so no item appears that the user never wrote.
+      return writeAtPointerAt(
+        arrayParents.includes(joinPointer(prefix)) ? [] : {},
+        tokens,
+        mode,
+        value,
+        options,
+        arrayParents,
+        prefix,
+      );
     }
     throw new Error(`Path segment "${token}" does not exist`);
   }
@@ -127,6 +157,14 @@ export function writeAtPointer(
   if (!Object.hasOwn(copy, token) && !options.createMissing) {
     throw new Error(`Path segment "${token}" does not exist`);
   }
-  copy[token] = writeAtPointer(copy[token], rest, mode, value, options);
+  copy[token] = writeAtPointerAt(
+    copy[token],
+    rest,
+    mode,
+    value,
+    options,
+    arrayParents,
+    [...prefix, token],
+  );
   return copy;
 }
