@@ -170,12 +170,6 @@ const isLegacyNode = (
 const MAX_DEPTH = 64;
 
 /**
- * Steps a streaming partial path down into `key`. `partialPath` is the remaining
- * segment of the parse meta's partial path relative to `node` (`undefined` once
- * the walk leaves the partial frontier, i.e. everything below is complete).
- */
-
-/**
  * Normalizes a generative-ui input to {@link NormalizedUINode}. The flat
  * `$type` shape (in either reserved-key spelling) and the legacy `component`
  * shape all map to the same canonical element, with reserved keys (`$type`,
