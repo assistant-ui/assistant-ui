@@ -243,6 +243,7 @@ export function validateSpec(
       }
       const slots = definition.slots ?? [];
       for (const list of childLists(id, element)) {
+        if (Array.isArray(list.ids) && list.ids.length === 0) continue;
         if (!slots.includes(list.slot)) {
           error({
             code:
