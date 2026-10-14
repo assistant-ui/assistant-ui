@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
-import { act, type ComponentProps } from "react";
+import { act, type ComponentProps, type ReactNode } from "react";
 import { renderToString } from "react-dom/server";
+import { View } from "react-native";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { z } from "zod";
 import {
   byRole,
   cleanupSpecs,
@@ -16,6 +18,7 @@ import {
   RowLabelProvider,
   useListViewItemText,
 } from "../rowLabel";
+import { defaultGenerativeUILibrary } from "./index";
 import { listVocabulary } from "./list";
 
 const pressables = vi.hoisted(() => ({
@@ -498,6 +501,198 @@ describe("list vocabulary on React Native", () => {
       byRole(rendered.container, "button", "Order 42, Shipped"),
     ).toBeTruthy();
   });
+
+  it("keeps a sibling that shows later in its place in the row name", async () => {
+    const rendered = renderNativeSpec(
+      spec(
+        {
+          main: { type: "ListView", children: ["row"] },
+          row: {
+            type: "ListViewItem",
+            children: ["name", "status", "note"],
+            on: { press: { action: "open" } },
+          },
+          name: { type: "Text", props: { value: "Order 42" } },
+          status: {
+            type: "Caption",
+            props: { value: "Shipped" },
+            visible: { $state: "/shipped" },
+          },
+          note: { type: "Caption", props: { value: "Fragile" } },
+        },
+        { shipped: false },
+      ),
+      { open: vi.fn() },
+      { open: { description: "Open" } },
+    );
+    const named = (name: string) =>
+      expect(byRole(rendered.container, "button", name)).toBeTruthy();
+    named("Order 42, Fragile");
+    await act(async () => rendered.state.set("/shipped", true));
+    named("Order 42, Shipped, Fragile");
+    await act(async () => rendered.state.set("/shipped", false));
+    named("Order 42, Fragile");
+    await act(async () => rendered.state.set("/shipped", true));
+    named("Order 42, Shipped, Fragile");
+  });
+
+  it("keeps text in a repeated item in its place when it shows again", async () => {
+    const rendered = renderNativeSpec(
+      spec(
+        {
+          main: { type: "ListView", children: ["row"] },
+          row: {
+            type: "ListViewItem",
+            repeat: { path: "/orders" },
+            children: ["name", "status", "total"],
+            on: { press: { action: "open" } },
+          },
+          name: { type: "Text", props: { value: { $item: "/name" } } },
+          status: {
+            type: "Caption",
+            props: { value: { $item: "/status" } },
+            visible: { $item: "/shown" },
+          },
+          total: { type: "Caption", props: { value: { $item: "/total" } } },
+        },
+        {
+          orders: [
+            { name: "Order 42", status: "Shipped", total: "$12", shown: true },
+            { name: "Order 43", status: "Packed", total: "$30", shown: true },
+          ],
+        },
+      ),
+      { open: vi.fn() },
+      { open: { description: "Open" } },
+    );
+    await act(async () => rendered.state.set("/orders/0/shown", false));
+    expect(
+      byRole(
+        rendered.container,
+        "button",
+        "Order 42, $12, Order 43, Packed, $30",
+      ),
+    ).toBeTruthy();
+    await act(async () => rendered.state.set("/orders/0/shown", true));
+    expect(
+      byRole(
+        rendered.container,
+        "button",
+        "Order 42, Shipped, $12, Order 43, Packed, $30",
+      ),
+    ).toBeTruthy();
+  });
+
+  it("orders a custom component's own text, children, and slot as it renders them", async () => {
+    const library = {
+      ...defaultGenerativeUILibrary,
+      Panel: {
+        description: "A panel.",
+        properties: z.object({ note: z.string() }),
+        slots: ["default", "header"],
+        render: ({
+          note,
+          children,
+          $slots,
+        }: {
+          note: string;
+          children?: ReactNode;
+          $slots?: Record<string, ReactNode>;
+        }) => (
+          <View>
+            {$slots?.["header"]}
+            {children}
+            {defaultGenerativeUILibrary["Caption"]!.render({ value: note })}
+          </View>
+        ),
+      },
+    };
+    const rendered = renderNativeSpec(
+      spec(
+        {
+          main: { type: "ListView", children: ["row"] },
+          row: {
+            type: "ListViewItem",
+            children: ["panel"],
+            on: { press: { action: "open" } },
+          },
+          panel: {
+            type: "Panel",
+            props: { note: "Fragile" },
+            children: ["body"],
+            slots: { header: ["title"] },
+          },
+          title: {
+            type: "Text",
+            props: { value: "Order 42" },
+            visible: { $state: "/shown" },
+          },
+          body: { type: "Caption", props: { value: "Shipped" } },
+        },
+        { shown: true },
+      ),
+      { open: vi.fn() },
+      { open: { description: "Open" } },
+      library,
+    );
+    const named = (name: string) =>
+      expect(byRole(rendered.container, "button", name)).toBeTruthy();
+    named("Order 42, Shipped, Fragile");
+    await act(async () => rendered.state.set("/shown", false));
+    named("Shipped, Fragile");
+    await act(async () => rendered.state.set("/shown", true));
+    named("Order 42, Shipped, Fragile");
+  });
+
+  it.each([
+    {
+      type: "Timeline",
+      prop: "items",
+      entries: (first: boolean) => [
+        { ...(first ? { time: "09:00" } : {}), title: "Depart" },
+        { time: "10:00", title: "Arrive" },
+      ],
+      names: ["Depart, 10:00, Arrive", "09:00, Depart, 10:00, Arrive"],
+    },
+    {
+      type: "Map",
+      prop: "places",
+      entries: (first: boolean) => [
+        {
+          label: "Pier",
+          lat: 36.6,
+          lng: -121.9,
+          ...(first ? { detail: "Gate A" } : {}),
+        },
+        { label: "Lab", lat: 36.62, lng: -121.9, detail: "Gate B" },
+      ],
+      names: ["Gate B", "Gate A, Gate B"],
+    },
+  ])(
+    "keeps a $type entry's text in its place when it clears and returns",
+    async ({ type, prop, entries, names }) => {
+      const rendered = renderNativeSpec(
+        spec(
+          {
+            main: { type: "ListView", children: ["row"] },
+            row: {
+              type: "ListViewItem",
+              children: ["entries"],
+              on: { press: { action: "open" } },
+            },
+            entries: { type, props: { [prop]: { $state: "/entries" } } },
+          },
+          { entries: entries(true) },
+        ),
+        { open: vi.fn() },
+        { open: { description: "Open" } },
+      );
+      await act(async () => rendered.state.set("/entries", entries(false)));
+      expect(byRole(rendered.container, "button", names[0])).toBeTruthy();
+      await act(async () => rendered.state.set("/entries", entries(true)));
+      expect(byRole(rendered.container, "button", names[1])).toBeTruthy();
+    },
+  );
 
   it("names a row made of Markdown or an Image", () => {
     const { container } = renderNativeSpec(
