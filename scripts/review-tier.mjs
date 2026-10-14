@@ -698,7 +698,7 @@ export async function publish(
     !mergeGroup;
   const check = {
     name: policy.reviewTierCheck.name,
-    started_at: startedAt,
+    external_id: startedAt,
     status: inProgress ? "in_progress" : "completed",
     ...(inProgress
       ? {}
@@ -722,7 +722,11 @@ export async function publish(
       policy.reviewTierCheck.integrationId === null ||
       run.app?.id === policy.reviewTierCheck.integrationId,
   );
-  if (Date.parse(latest?.started_at) > Date.parse(startedAt)) return;
+  if (
+    Date.parse(latest?.external_id || latest?.started_at) >
+    Date.parse(startedAt)
+  )
+    return;
   const open = latest?.status === "in_progress";
   const refresh =
     inProgress &&
@@ -740,13 +744,21 @@ export async function publish(
       ...check,
       ...(inProgress ? {} : { completed_at: new Date().toISOString() }),
     };
-    // An open run is updated in place so no superseded run stays incomplete, except one older than 7 days, which is replaced before GitHub marks it stale at 14.
+    // Updating an open run in place keeps one incomplete run per head; a run open for 7 days is closed as action_required, never passing, and replaced before GitHub marks it stale at 14.
     if (open && !refresh) {
       await client.rest("PATCH", `${repo}/check-runs/${latest.id}`, run);
     } else {
+      if (refresh) {
+        await client.rest("PATCH", `${repo}/check-runs/${latest.id}`, {
+          status: "completed",
+          conclusion: "action_required",
+          completed_at: new Date().toISOString(),
+        });
+      }
       await client.rest("POST", `${repo}/check-runs`, {
         ...run,
         head_sha: targetSha,
+        started_at: startedAt,
       });
     }
   }

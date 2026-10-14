@@ -1782,7 +1782,8 @@ test("a changed waiting evaluation updates the in-progress run in place", async 
     ],
   );
   assert.equal(recording.writes[1].body.status, "in_progress");
-  assert.equal(recording.writes[1].body.started_at, now.toISOString());
+  assert.equal(recording.writes[1].body.external_id, now.toISOString());
+  assert.equal(Object.hasOwn(recording.writes[1].body, "started_at"), false);
   assert.equal(Object.hasOwn(recording.writes[1].body, "conclusion"), false);
   assert.equal(Object.hasOwn(recording.writes[1].body, "head_sha"), false);
   await publish(recording.client, enforcePolicy, {
@@ -1814,13 +1815,50 @@ test("a matching in-progress run older than seven days is reposted", async () =>
     recording.writes.map(({ method, resource }) => [method, resource]),
     [
       ["POST", `${repo}/check-runs`],
+      ["PATCH", `${repo}/check-runs/1`],
       ["POST", `${repo}/check-runs`],
     ],
   );
-  assert.equal(recording.writes[1].body.status, "in_progress");
-  assert.equal(recording.writes[1].body.head_sha, "head");
-  assert.equal(recording.writes[1].body.started_at, now.toISOString());
-  assert.equal(Object.hasOwn(recording.writes[1].body, "completed_at"), false);
+  assert.equal(recording.writes[1].body.status, "completed");
+  assert.equal(recording.writes[1].body.conclusion, "action_required");
+  assert.equal(recording.writes[2].body.status, "in_progress");
+  assert.equal(recording.writes[2].body.head_sha, "head");
+  assert.equal(recording.writes[2].body.started_at, now.toISOString());
+  assert.equal(Object.hasOwn(recording.writes[2].body, "completed_at"), false);
+});
+
+test("the seven-day refresh counts from the run's start, which in-place updates keep", async () => {
+  const recording = fakeClient();
+  const waiting = await evaluationFor();
+  const fewer = structuredClone(waiting);
+  fewer.requirementResult.unmet = fewer.requirementResult.unmet.slice(1);
+  const options = { number: 12, headSha: "head", labelsAndComment: false };
+  await publish(recording.client, enforcePolicy, {
+    ...options,
+    evaluation: waiting,
+    startedAt: "2026-09-30T12:00:00Z",
+  });
+  await publish(recording.client, enforcePolicy, {
+    ...options,
+    evaluation: fewer,
+    startedAt: "2026-10-06T12:00:00Z",
+  });
+  await publish(recording.client, enforcePolicy, {
+    ...options,
+    evaluation: fewer,
+    startedAt: now.toISOString(),
+  });
+  assert.deepEqual(
+    recording.writes.map(({ method, resource }) => [method, resource]),
+    [
+      ["POST", `${repo}/check-runs`],
+      ["PATCH", `${repo}/check-runs/1`],
+      ["PATCH", `${repo}/check-runs/1`],
+      ["POST", `${repo}/check-runs`],
+    ],
+  );
+  assert.equal(recording.writes[2].body.conclusion, "action_required");
+  assert.equal(recording.writes[3].body.started_at, now.toISOString());
 });
 
 test("a merge group waiting on reviewers posts a completed action_required run", async () => {
