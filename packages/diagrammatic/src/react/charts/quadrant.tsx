@@ -1,5 +1,5 @@
 import type { BaseProps } from "../svg";
-import { forwardRef } from "react";
+import { Fragment, forwardRef } from "react";
 import { extent, project, round, stroke } from "../../core/geometry";
 import { truncate } from "../../core/text";
 import { ACCENT, GRID, ink } from "../../core/theme";
@@ -127,16 +127,38 @@ export const Quadrant = forwardRef<SVGSVGElement, QuadrantProps>(
         )}
         {points.map((point, i) => {
           const focus = point.x < xMid && point.y > yMid;
+          const x = round(X(point.x));
+          const y = round(Y(point.y));
+          const labelLeft = x - left > right - x;
+          const labelX = x + (labelLeft ? -6 : 6);
+          const label = point.label
+            ? truncate(
+                point.label,
+                T.axis.px,
+                Math.max(0, labelLeft ? labelX - left : right - labelX),
+              )
+            : "";
           return (
-            <circle
-              key={i}
-              cx={round(X(point.x))}
-              cy={round(Y(point.y))}
-              r={3}
-              fill={focus ? ACCENT : ink(0.4)}
-              data-part="mark"
-              data-i={i}
-            />
+            <Fragment key={i}>
+              <circle
+                cx={x}
+                cy={y}
+                r={3}
+                fill={focus ? ACCENT : ink(0.4)}
+                data-part="mark"
+                data-i={i}
+              />
+              {label && (
+                <text
+                  x={labelX}
+                  y={Math.min(bottom, Math.max(top + T.axis.px, y + 4))}
+                  textAnchor={labelLeft ? "end" : "start"}
+                  {...T.axis.attrs}
+                >
+                  {label}
+                </text>
+              )}
+            </Fragment>
           );
         })}
         <text x={right} y={axisY} textAnchor="end" {...T.axis.attrs}>
