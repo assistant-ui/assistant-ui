@@ -202,12 +202,14 @@ describe("JSONGenerativeUI — client build", () => {
     try {
       await stream('{"_type":"Stack","children":[{"_type":"Counter"');
       await act(async () => container.querySelector("button")!.click());
+      for (const key of ['"', '"em', '"email', '"email"']) {
+        await stream(
+          `{"_type":"Stack","children":[{"_type":"Counter","_key":${key}`,
+        );
+        expect(container.querySelector("button")?.textContent).toBe("1");
+      }
       await stream(
-        '{"_type":"Stack","children":[{"_type":"Counter","_key":"a"',
-      );
-      expect(container.querySelector("button")?.textContent).toBe("1");
-      await stream(
-        '{"_type":"Stack","children":[{"_type":"Counter","_key":"a"},{"_type":"Counter","_key":"b"}]}',
+        '{"_type":"Stack","children":[{"_type":"Counter","_key":"email"},{"_type":"Counter","_key":"b"}]}',
       );
       expect(
         [...container.querySelectorAll("button")].map(

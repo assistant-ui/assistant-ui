@@ -218,6 +218,10 @@ export function normalizeUINode(
   const type = node[typeKey];
   if (typeof type === "string") {
     if (partialPath?.length === 1 && partialPath[0] === typeKey) return null;
+    // A key still streaming in is a prefix of the final one, so the node stays keyless until it completes.
+    const keyName = node["$key"] != null ? "$key" : MODEL_KEYS.key;
+    const keyStreaming =
+      partialPath?.length === 1 && partialPath[0] === keyName;
     const { children, ...rest } = node;
     // Reserved keys never reach the prop bag the component sees (see the
     // module header), including strays such as `$status`, so they cannot leak
@@ -226,7 +230,9 @@ export function normalizeUINode(
       type,
       props: stripReservedProps(rest),
       children: normalizeChildren(children, partialPath, depth),
-      key: readReserved(node, "key") as string | number | undefined,
+      key: keyStreaming
+        ? undefined
+        : (readReserved(node, "key") as string | number | undefined),
       action: readReserved(node, "action") as Action | undefined,
     };
   }
