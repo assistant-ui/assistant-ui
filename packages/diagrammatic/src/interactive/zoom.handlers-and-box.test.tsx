@@ -22,6 +22,9 @@ function renderDrag(handlers: {
   onPointerMove?: React.ComponentProps<typeof Zoom>["onPointerMove"];
   onPointerUp?: React.ComponentProps<typeof Zoom>["onPointerUp"];
   onPointerCancel?: React.ComponentProps<typeof Zoom>["onPointerCancel"];
+  onLostPointerCapture?: React.ComponentProps<
+    typeof Zoom
+  >["onLostPointerCapture"];
 }) {
   const onChange = vi.fn<(transform: Transform) => void>();
   const { container } = render(
@@ -138,6 +141,21 @@ describe("Zoom pointer handlers", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it("stops panning after capture is lost following a prevented pointer up", () => {
+    const onLostPointerCapture = vi.fn(
+      (event: React.PointerEvent<HTMLDivElement>) => event.preventDefault(),
+    );
+    const { host, onChange } = renderDrag({
+      onPointerUp: (event) => event.preventDefault(),
+      onLostPointerCapture,
+    });
+    fireEvent.pointerUp(host, { pointerId: 7, clientX: 110 });
+    fireEvent.lostPointerCapture(host, { pointerId: 7 });
+    expect(onLostPointerCapture).toHaveBeenCalledTimes(1);
+    fireEvent.pointerMove(host, { pointerId: 7, clientX: 120, clientY: 50 });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it("calls onPointerCancel and ends the drag unless the consumer prevents it", () => {
     const onPointerCancel = vi.fn(
       (event: React.PointerEvent<HTMLDivElement>) => {
@@ -160,6 +178,34 @@ describe("Zoom pointer handlers", () => {
 });
 
 describe("Zoom SVG box", () => {
+  it("measures the chart after an icon SVG", () => {
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+      function (this: Element) {
+        const box = this.matches("svg[data-dg]")
+          ? { width: 400, height: 200 }
+          : this.tagName.toLowerCase() === "svg"
+            ? { width: 24, height: 24 }
+            : { width: 1000, height: 500 };
+        return { left: 0, top: 0, ...box } as DOMRect;
+      },
+    );
+    const seen: { x: number; y: number }[] = [];
+    render(
+      <Zoom defaultTransform={{ k: 2, x: -200, y: -100 }}>
+        {(view) => {
+          seen.push(view);
+          return (
+            <>
+              <svg aria-label="Icon" />
+              <Area data={DATA} view={view} />
+            </>
+          );
+        }}
+      </Zoom>,
+    );
+    expect(seen.at(-1)).toMatchObject({ x: 0.25, y: 0.25 });
+  });
+
   it("rebinds measurement when the SVG is replaced in the same Zoom instance", async () => {
     const { sizes, observed, resize } = stubChangingBoxes();
     const seen: { x: number; y: number }[] = [];
@@ -167,7 +213,7 @@ describe("Zoom SVG box", () => {
       <Zoom defaultTransform={{ k: 2, x: -200, y: -100 }}>
         {(view) => {
           seen.push(view);
-          return <svg key={kind} data-figure={kind} />;
+          return <svg key={kind} data-dg="" data-figure={kind} />;
         }}
       </Zoom>
     );
@@ -198,7 +244,11 @@ describe("Zoom SVG box", () => {
       <Zoom defaultTransform={{ k: 2, x: -200, y: -100 }}>
         {(view) => {
           seen.push(view);
-          return show ? <svg data-figure="first" /> : <span>Loading</span>;
+          return show ? (
+            <svg data-dg="" data-figure="first" />
+          ) : (
+            <span>Loading</span>
+          );
         }}
       </Zoom>
     );

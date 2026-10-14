@@ -95,6 +95,7 @@ export const Zoom = forwardRef<HTMLDivElement, ZoomProps>(
       onPointerMove,
       onPointerUp,
       onPointerCancel,
+      onLostPointerCapture,
       onDoubleClick,
       onKeyDown,
       ...props
@@ -112,7 +113,7 @@ export const Zoom = forwardRef<HTMLDivElement, ZoomProps>(
 
     const getFigure = useCallback(() => {
       const node = container.current;
-      return windowed ? (node?.querySelector("svg") ?? node) : node;
+      return windowed ? (node?.querySelector("svg[data-dg]") ?? node) : node;
     }, [windowed]);
 
     const setRefs = useCallback(
@@ -286,6 +287,10 @@ export const Zoom = forwardRef<HTMLDivElement, ZoomProps>(
         onPointerCancel={(event) => {
           onPointerCancel?.(event);
           endDrag(event);
+        }}
+        onLostPointerCapture={(event) => {
+          onLostPointerCapture?.(event);
+          if (drag.current?.id === event.pointerId) drag.current = null;
         }}
         onDoubleClick={(event) => {
           onDoubleClick?.(event);
