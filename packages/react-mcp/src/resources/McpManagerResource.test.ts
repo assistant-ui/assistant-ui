@@ -1,4 +1,9 @@
-import { createTapRoot, resource, useResource } from "@assistant-ui/tap";
+import {
+  createTapRoot,
+  flushTapSync,
+  resource,
+  useResource,
+} from "@assistant-ui/tap";
 import { describe, expect, it, vi } from "vitest";
 import { useState } from "react";
 import { defineConnector } from "../connector";
@@ -954,6 +959,115 @@ describe("McpManagerResource storage switching", () => {
       root.unmount();
     }
   });
+
+  it.each([1, 2])(
+    "preserves additions when revisiting a scope during hydration (%i revisits)",
+    async (revisits) => {
+      let resolveFirstLoad!: (records: MCPCustomServerRecord[]) => void;
+      const firstLoad = new Promise<MCPCustomServerRecord[]>((resolve) => {
+        resolveFirstLoad = resolve;
+      });
+      let persisted: MCPCustomServerRecord[] = [];
+      let initialRead = true;
+      const storageA = {
+        scopeId: "account:a",
+        loadCustomServers: vi.fn(() =>
+          initialRead ? firstLoad : Promise.resolve([...persisted]),
+        ),
+        saveCustomServers: vi.fn(async (records: MCPCustomServerRecord[]) => {
+          persisted = records;
+        }),
+        loadAuthState: vi.fn(async () => null),
+        saveAuthState: vi.fn(async () => {}),
+        clearAuthState: vi.fn(async () => {}),
+      };
+      const storageB = {
+        ...storageA,
+        scopeId: "account:b",
+        loadCustomServers: vi.fn(async () => []),
+        saveCustomServers: vi.fn(async () => {}),
+      };
+      let setStorage = (_key: "a" | "b") => {};
+      const DynamicManager = resource(function useDynamicManager() {
+        const [key, setKey] = useState<"a" | "b">("a");
+        setStorage = setKey;
+        return useResource(
+          McpManagerResource({
+            storage: McpCustomStorage(key === "a" ? storageA : storageB),
+            autoConnect: false,
+          }),
+        );
+      });
+      const root = createTapRoot(function Root() {
+        return useResource(DynamicManager());
+      });
+
+      try {
+        await waitFor(() =>
+          expect(storageA.loadCustomServers).toHaveBeenCalled(),
+        );
+        expect(root.getValue().getState().isHydrated).toBe(false);
+        const firstId = await root.getValue().addCustomServer({
+          name: "First",
+          url: "https://example.com/first/mcp",
+          auth: { type: "none" },
+        });
+        const expectedIds = [firstId];
+        for (let visit = 0; visit < revisits; visit++) {
+          const previousLoads = storageB.loadCustomServers.mock.calls.length;
+          setStorage("b");
+          await waitFor(() =>
+            expect(
+              storageB.loadCustomServers.mock.calls.length,
+            ).toBeGreaterThan(previousLoads),
+          );
+          initialRead = false;
+          flushTapSync(() => setStorage("a"));
+          if (visit < revisits - 1) {
+            expectedIds.push(
+              await root.getValue().addCustomServer({
+                name: "Queued",
+                url: "https://example.com/queued/mcp",
+                auth: { type: "none" },
+              }),
+            );
+          }
+        }
+        resolveFirstLoad([]);
+        await waitFor(() =>
+          expect(persisted.map((server) => server.id)).toContain(firstId),
+        );
+        await waitFor(() =>
+          expect(root.getValue().getState().isHydrated).toBe(true),
+        );
+
+        const secondId = await root.getValue().addCustomServer({
+          name: "Second",
+          url: "https://example.com/second/mcp",
+          auth: { type: "none" },
+        });
+        expectedIds.push(secondId);
+        await waitFor(() =>
+          expect(storageA.saveCustomServers).toHaveBeenCalledTimes(
+            expectedIds.length,
+          ),
+        );
+        expect(persisted.map((server) => server.id)).toEqual(expectedIds);
+        await waitFor(() =>
+          expect(
+            root
+              .getValue()
+              .getState()
+              .customServers.map((server) => server.id),
+          ).toEqual(expectedIds),
+        );
+        expect(storageB.saveCustomServers).not.toHaveBeenCalled();
+      } finally {
+        resolveFirstLoad([]);
+        root.unmount();
+      }
+    },
+  );
 
   it("ignores hydration that resolves after changing scopes", async () => {
     let resolveStorageA: ((records: (typeof docsServer)[]) => void) | undefined;

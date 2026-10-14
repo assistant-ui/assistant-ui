@@ -119,15 +119,20 @@ const useMcpCustomServersResource = ({
       const pendingPersistence = persistenceQueues.get(scopeKey);
       if (!pendingPersistence) break;
       await pendingPersistence;
-      if (signal.cancelled) return;
+      if (signal.cancelled && !hasPendingMutationRef.current) return;
       if (persistenceQueues.get(scopeKey) === pendingPersistence) break;
     }
 
+    const releasePersistence = holdCustomServerPersistence(
+      persistenceQueues,
+      scopeKey,
+    );
     let records: Awaited<ReturnType<typeof storage.loadCustomServers>>;
     try {
       const loadedRecords = await storage.loadCustomServers();
       records = deduplicateCustomServers(loadedRecords);
     } catch (error) {
+      releasePersistence();
       if (!signal.cancelled) {
         reportCustomStorageFailure("load", error);
         hydrationStateRef.current = "failed";
@@ -166,6 +171,7 @@ const useMcpCustomServersResource = ({
         mergedRecords,
       );
     }
+    releasePersistence();
     if (signal.cancelled) return;
     setCustomServers(mergedRecords);
     setIsHydrated(true);
