@@ -86,7 +86,12 @@ const RowLabelContext = createContext<ReturnType<
 /** Shares a bound row's label store with its text descendants. */
 export const RowLabelProvider = RowLabelContext.Provider;
 
-/** Registers text with the enclosing row and reports whether it was consumed. */
+/**
+ * Adds text a component draws to the name of the pressable `ListViewItem` row
+ * around it, in tree order, as the built-in components do. Returns `true` when
+ * a row took the text, so the component hides it from assistive technology
+ * with `aria-hidden` instead of having it read twice.
+ */
 export function useListViewItemText(text: string | undefined): boolean {
   const store = useContext(RowLabelContext);
   const position = useSpecPosition();

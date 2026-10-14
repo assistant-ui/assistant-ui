@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, type ComponentProps, type ReactNode } from "react";
 import { renderToString } from "react-dom/server";
-import { View } from "react-native";
+import { Text, View } from "react-native";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import {
@@ -13,11 +13,8 @@ import {
   renderWebSpec,
   spec,
 } from "../testUtils";
-import {
-  createRowLabelStore,
-  RowLabelProvider,
-  useListViewItemText,
-} from "../rowLabel";
+import { useListViewItemText } from "../../spec.native";
+import { createRowLabelStore, RowLabelProvider } from "../rowLabel";
 import { defaultGenerativeUILibrary } from "./index";
 import { listVocabulary } from "./list";
 
@@ -693,6 +690,82 @@ describe("list vocabulary on React Native", () => {
       expect(byRole(rendered.container, "button", names[1])).toBeTruthy();
     },
   );
+
+  it.each([
+    {
+      rows: [
+        ["Widget", 2],
+        ["Gadget", 1],
+      ],
+      name: "Item: Widget, Qty: 2, Item: Gadget, Qty: 1",
+    },
+    { rows: [], name: "Item, Qty" },
+  ])("names a row made only of a Table: $name", ({ rows, name }) => {
+    const table = {
+      type: "Table",
+      props: { columns: [{ label: "Item" }, { label: "Qty" }], rows },
+    };
+    const { container } = renderNativeSpec(
+      spec({
+        main: { type: "ListView", children: ["row"] },
+        row: {
+          type: "ListViewItem",
+          children: ["table"],
+          on: { press: { action: "open" } },
+        },
+        table,
+      }),
+      { open: vi.fn() },
+      { open: { description: "Open" } },
+    );
+    expect(byRole(container, "button", name)).toBeTruthy();
+    expect(
+      [...container.querySelectorAll('[data-testid="table-cell"]')].map(
+        (cell) => cell.getAttribute("aria-hidden"),
+      ),
+    ).toEqual(rows.flat().map(() => "true"));
+    const standalone = renderNativeSpec(spec({ main: table }));
+    expect(
+      standalone.container.querySelector('[aria-hidden="true"]'),
+    ).toBeNull();
+  });
+
+  it("names a row from text a custom component adds", () => {
+    function Rating({ value }: { value: number }) {
+      const label = `${value} out of 5 stars`;
+      const named = useListViewItemText(label);
+      return (
+        <Text aria-hidden={named} accessibilityLabel={label}>
+          {"★".repeat(value)}
+        </Text>
+      );
+    }
+    const { container } = renderNativeSpec(
+      spec({
+        main: { type: "ListView", children: ["row"] },
+        row: {
+          type: "ListViewItem",
+          children: ["name", "rating"],
+          on: { press: { action: "open" } },
+        },
+        name: { type: "Text", props: { value: "Widget" } },
+        rating: { type: "Rating", props: { value: 4 } },
+      }),
+      { open: vi.fn() },
+      { open: { description: "Open" } },
+      {
+        ...defaultGenerativeUILibrary,
+        Rating: {
+          description: "A rating from 1 to 5 stars.",
+          properties: z.object({ value: z.number() }),
+          render: ({ value }: { value: number }) => <Rating value={value} />,
+        },
+      },
+    );
+    expect(
+      byRole(container, "button", "Widget, 4 out of 5 stars"),
+    ).toBeTruthy();
+  });
 
   it("names a row made of Markdown or an Image", () => {
     const { container } = renderNativeSpec(
