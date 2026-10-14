@@ -96,7 +96,7 @@ export const Root = forwardRef<HTMLDivElement, RootProps>(
         container.current,
         JSON.parse(highlightKey) as MarkQuery | MarkQuery[] | null,
       );
-    }, [highlightKey]);
+    });
 
     const dispatch = useMemo(
       () => ({
