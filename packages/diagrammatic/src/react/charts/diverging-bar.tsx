@@ -47,16 +47,36 @@ export const DivergingBar = forwardRef<SVGSVGElement, DivergingBarProps>(
         ),
       ),
     );
+    const max = Math.max(...rows.map((r) => Math.abs(r.value)), 1);
+    const labelEdge = Math.min(
+      Math.round(W * LABEL_SHARE),
+      Math.ceil(PAD + Math.max(labelW, valueW) + 6),
+    );
+    const rightEdge = W - PAD - Math.ceil(valueW) - 6;
+    const originalCenter = (labelEdge + rightEdge) / 2;
+    const originalHalf = Math.max(0, (rightEdge - labelEdge) / 2 - 2);
+    const negativeValueW = Math.max(
+      0,
+      ...rows
+        .filter((row) => row.value < 0)
+        .map((row) => textWidth(format(row.value), measured.axis.px)),
+    );
+    const reachesGutter = rows.some(
+      (row) =>
+        row.value < 0 &&
+        originalCenter -
+          1 -
+          (Math.abs(row.value) / max) * originalHalf -
+          6 -
+          textWidth(format(row.value), measured.axis.px) <
+          labelEdge - 6,
+    );
     const F = frame({ width, height, aspect, fontSize }, 5 / 3, {
       labels: true,
-      left: Math.min(
-        Math.round(W * LABEL_SHARE),
-        Math.ceil(PAD + Math.max(labelW, valueW) + 6),
-      ),
-      right: W - PAD - Math.ceil(valueW) - 6,
+      left: labelEdge + (reachesGutter ? negativeValueW + 6 : 0),
+      right: rightEdge,
     });
     const { left, right, top, bottom, axisY, T } = F;
-    const max = Math.max(...rows.map((r) => Math.abs(r.value)), 1);
     const center = (left + right) / 2;
     const gap = 2;
     const half = Math.max(0, (right - left) / 2 - gap);
@@ -92,13 +112,13 @@ export const DivergingBar = forwardRef<SVGSVGElement, DivergingBarProps>(
           return (
             <g key={row.label} data-part="mark" data-i={i}>
               <text
-                x={round(left - 6)}
+                x={round(labelEdge - 6)}
                 y={round(mid)}
                 textAnchor="end"
                 dominantBaseline="central"
                 {...T.label.attrs}
               >
-                {truncate(row.label, T.label.px, left - PAD - 6)}
+                {truncate(row.label, T.label.px, labelEdge - PAD - 6)}
               </text>
               <rect
                 x={round(x)}

@@ -65,16 +65,22 @@ export const Pictogram = forwardRef<SVGSVGElement, PictogramProps>(
     };
     let columns = columnsAt(1);
     if (!fits(1)) {
-      let low = 0;
-      let high = 1;
-      for (let i = 0; i < 32; i += 1) {
-        const mid = (low + high) / 2;
-        if (fits(mid)) low = mid;
-        else high = mid;
+      const ratio = gap / size;
+      let bestSize = 0;
+      for (let candidate = 1; candidate <= cells; candidate += 1) {
+        const candidateRows = Math.ceil(cells / candidate);
+        const candidateSize = Math.min(
+          size,
+          plotW / (candidate + (candidate - 1) * ratio),
+          rowH / (candidateRows + (candidateRows - 1) * ratio),
+        );
+        if (candidateSize > bestSize) {
+          bestSize = candidateSize;
+          columns = candidate;
+        }
       }
-      size *= low * 0.9999;
-      gap *= low * 0.9999;
-      columns = columnsAt(1);
+      gap *= bestSize / size;
+      size = bestSize;
     }
     const pitch = size + gap;
     const rows = Math.ceil(cells / columns);

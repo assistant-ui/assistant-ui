@@ -64,6 +64,11 @@ export const StripPlot = forwardRef<SVGSVGElement, StripPlotProps>(
           const y = rowMid(i, rowH, top);
           const mean =
             row.values.reduce((a, b) => a + b, 0) / (row.values.length || 1);
+          const counts = new Map<number, number>();
+          const seen = new Map<number, number>();
+          for (const value of row.values) {
+            counts.set(value, (counts.get(value) ?? 0) + 1);
+          }
           return (
             <g key={row.label} data-part="mark" data-i={i}>
               <text
@@ -83,15 +88,22 @@ export const StripPlot = forwardRef<SVGSVGElement, StripPlotProps>(
                 stroke={GRID}
                 {...stroke.hair}
               />
-              {row.values.map((v, k) => (
-                <circle
-                  key={k}
-                  cx={X(v) + ((k % 3) - 1) * JITTER_X}
-                  cy={y + ((k % 3) - 1) * JITTER_Y}
-                  r={DOT_RADIUS}
-                  fill={ink(0.4)}
-                />
-              ))}
+              {row.values.map((v, k) => {
+                const count = counts.get(v) ?? 1;
+                const occurrence = seen.get(v) ?? 0;
+                seen.set(v, occurrence + 1);
+                const offset =
+                  count > 1 ? (2 * occurrence) / (count - 1) - 1 : (k % 3) - 1;
+                return (
+                  <circle
+                    key={k}
+                    cx={X(v) + offset * JITTER_X}
+                    cy={y + offset * JITTER_Y}
+                    r={DOT_RADIUS}
+                    fill={ink(0.4)}
+                  />
+                );
+              })}
               {showMean && row.values.length > 0 && (
                 <line
                   x1={X(mean)}
