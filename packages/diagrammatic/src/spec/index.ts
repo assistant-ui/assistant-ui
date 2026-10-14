@@ -99,7 +99,7 @@ type Strip<P> = Omit<
       "width" | "height" | "fontSize"
     >
 > & { title?: string };
-type S<T extends string, P> = Common & { type: T } & Strip<P>;
+type S<T extends string, P> = Omit<Common, keyof P> & { type: T } & Strip<P>;
 
 export type ChartSpec =
   | S<"line", LineProps>

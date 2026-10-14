@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { Chart, validateSpec } from "./index";
+import { Chart, validateSpec, type ChartSpec } from "./index";
 
 describe("Chart unit dispatch", () => {
-  it("renders cells from a validated pictogram's numeric unit", () => {
-    const spec = validateSpec({
+  it("renders cells from a typed pictogram's numeric unit", () => {
+    const spec: ChartSpec = {
       type: "pictogram",
       items: [
         { label: "A", value: 20 },
         { label: "B", value: 10 },
       ],
       unit: 10,
-    });
+    };
     const html = renderToStaticMarkup(createElement(Chart, { spec }));
 
     expect(html.match(/<rect\b/g) ?? []).toHaveLength(4);
