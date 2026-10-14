@@ -328,11 +328,21 @@ describe("server helpers", () => {
       "its output rules apply to those patches, not to your answer.",
     );
     expect(preloaded).not.toContain("`spec` module");
+    expect(preloaded).toContain(
+      "- Call `read_me` once, silently, before your first `show_widget` call, with the modules you need.",
+    );
+    expect(preloaded).toContain(
+      "- The guidance for `spec` follows, so never load it with `read_me`.",
+    );
+    expect(preloaded).toContain(
+      "- The `diagram`, `chart`, `data_viz`, `interactive`, `mockup`, `elicitation`, `art` modules of `read_me` guide `show_widget` code, so a `render_spec` answer never needs them.",
+    );
     expect(preloaded).toContain("# Declarative UI");
     const onDemand = await buildWidgetInstructions(withSpec());
     expect(onDemand).toContain(
       "Load the `spec` module with `read_me` before your first `render_spec` call.",
     );
+    expect(onDemand).not.toContain("follows, so never load it");
     const withoutModule = await buildWidgetInstructions(
       createWidgetTools({ extraTools: createSpecTools(catalog) }),
     );
@@ -341,5 +351,8 @@ describe("server helpers", () => {
       "- `render_spec` for structured content the user scans or acts on, built from the app's components:",
     );
     expect(withoutModule).not.toContain("`spec` module");
+    expect(withoutModule).toContain(
+      "- The `diagram`, `chart`, `data_viz`, `interactive`, `mockup`, `elicitation`, `art` modules of `read_me` guide `show_widget` code, so a `render_spec` answer never needs them.",
+    );
   });
 });
