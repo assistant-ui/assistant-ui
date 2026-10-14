@@ -11,6 +11,7 @@ import { escapePointerToken, getAtPointer } from "../pointer";
 import type { SpecPromptOptions } from "../prompt";
 import {
   createSpecTools,
+  SPEC_TOOL_RESULTS_RULE,
   specGuidanceModule,
   type RenderSpecInput,
 } from "../render-spec";
@@ -244,10 +245,7 @@ function missingToolResults(
 /** The app's rules and where earlier tool results are, which `render_spec`'s description and the `spec` module both carry. */
 const toolkitRules = (
   specPrompt: Omit<SpecPromptOptions, "mode"> | undefined,
-) => [
-  ...(specPrompt?.customRules ?? []),
-  'Results of earlier tool calls are in state under `/tools/<toolName>/<n>`, newest first: `0` is the latest call to that tool before this `render_spec` call, `1` the one before it, and so on. Show their values with `{ "$state": "/tools/<toolName>/<n>/..." }` rather than copying them, and never write `tools` in `state`. Indexes count back from each `render_spec` call, so when a patch follows another call to the same tool, update any binding that should keep showing the older result.',
-];
+) => [...(specPrompt?.customRules ?? []), SPEC_TOOL_RESULTS_RULE];
 
 /**
  * The `render_spec` tool a toolkit shares across its calls. Each mounted call
