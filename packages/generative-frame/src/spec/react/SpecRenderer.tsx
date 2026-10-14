@@ -467,13 +467,14 @@ export function SpecRenderer({
   streaming = false,
   placeholder = SpecPlaceholder,
 }: SpecRendererProps) {
-  const [ownStore] = useState(() => createStateStore(spec.state ?? {}));
+  const [emptyState] = useState<Record<string, unknown>>(() => ({}));
+  const [ownStore] = useState(() => createStateStore(spec.state ?? emptyState));
   const store = state ?? ownStore;
 
   const specState = spec.state;
   useEffect(() => {
-    if (!state && specState) ownStore.seed(specState);
-  }, [state, ownStore, specState]);
+    if (!state) ownStore.seed(specState ?? emptyState);
+  }, [state, ownStore, specState, emptyState]);
 
   const snapshot = useSyncExternalStore(
     store.subscribe,

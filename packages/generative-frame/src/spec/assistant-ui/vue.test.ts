@@ -275,6 +275,60 @@ describe("createSpecToolkit for Vue", () => {
     argsText: JSON.stringify(args),
   });
 
+  it.each(["frontend", "backend"] as const)(
+    "clears removed streamed model state in %s execution while keeping saved writes",
+    async (execution) => {
+      const patches =
+        JSON.stringify({
+          op: "add",
+          path: "",
+          value: {
+            root: "t",
+            state: { name: "model" },
+            elements: {
+              t: {
+                type: "Label",
+                props: { text: { $template: "${/name}/${/saved}" } },
+              },
+            },
+          },
+        }) + "\n";
+      const interactions = {
+        entries: [
+          {
+            type: "action",
+            payload: {
+              type: "setState",
+              toolCallId: "s",
+              writes: [["/saved", "user"]],
+            },
+          },
+        ],
+      };
+      const { container, update } = mount(
+        setup(execution).render,
+        toolProp({
+          args: { title: "s", patches },
+          running: true,
+          interactions,
+        }),
+      );
+      expect(container.textContent).toBe("model/user");
+      update(
+        toolProp({
+          args: {
+            title: "s",
+            patches: patches + '{"op":"remove","path":"/state"}\n',
+          },
+          running: true,
+          interactions,
+        }),
+      );
+      await nextTick();
+      expect(container.textContent).toBe("/user");
+    },
+  );
+
   it("applies patches onto the earlier spec when the title arrives after them", async () => {
     const first = {
       title: "s",

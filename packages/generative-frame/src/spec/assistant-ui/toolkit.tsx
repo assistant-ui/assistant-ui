@@ -176,14 +176,15 @@ export const specToolkitFor =
           () => (renderState ? { ...spec, state: renderState } : spec),
           [spec, renderState],
         );
+        const [emptyState] = useState<Record<string, unknown>>(() => ({}));
         const [store] = useState(() =>
-          createStateStore(renderSpec.state ?? {}, {
+          createStateStore(renderSpec.state ?? emptyState, {
             writes: savedWrites(unstable_interactions, toolCallId),
           }),
         );
         useEffect(() => {
-          if (renderSpec.state) store.seed(renderSpec.state);
-        }, [store, renderSpec.state]);
+          store.seed(renderSpec.state ?? emptyState);
+        }, [store, renderSpec.state, emptyState]);
         const record = useRef(unstable_recordInteraction);
         useInsertionEffect(() => {
           record.current = unstable_recordInteraction;

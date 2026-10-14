@@ -9,7 +9,7 @@ import {
 import { useEffect } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineCatalog } from "../catalog";
-import { createStateStore } from "../state";
+import { createStateStore, type SpecStateStore } from "../state";
 import { createSpecStream } from "../stream";
 import type { Spec } from "../types";
 import {
@@ -1104,4 +1104,101 @@ describe("useSpecStream", () => {
       props: { text: "after" },
     });
   });
+});
+
+describe("SpecRenderer model state", () => {
+  it.each([false, true])(
+    "clears a removed model base while preserving user writes (external: %s)",
+    (external) => {
+      const initial = spec(
+        {
+          main: { type: "Stack", children: ["label", "toggle"] },
+          label: { type: "Text", props: { text: { $state: "/label" } } },
+          toggle: { type: "Toggle", props: { checked: { $bindState: "/on" } } },
+        },
+        { label: "model", on: false },
+      );
+      const state = external
+        ? createStateStore({ label: "external", on: false })
+        : undefined;
+      const optionalState = state ? { state } : {};
+      const next: Spec = { root: initial.root, elements: initial.elements };
+      const view = render(
+        <SpecRenderer
+          components={components}
+          spec={initial}
+          {...optionalState}
+        />,
+      );
+      fireEvent.click(view.container.querySelector("input")!);
+      expect(view.container.textContent).toBe(external ? "external" : "model");
+      view.rerender(
+        <SpecRenderer components={components} spec={next} {...optionalState} />,
+      );
+      expect(view.container.textContent).toBe(external ? "external" : "");
+      expect(view.container.querySelector("input")!.checked).toBe(true);
+      view.rerender(
+        <SpecRenderer
+          components={components}
+          spec={{ ...next }}
+          {...optionalState}
+        />,
+      );
+      expect(view.container.textContent).toBe(external ? "external" : "");
+      expect(view.container.querySelector("input")!.checked).toBe(true);
+    },
+  );
+});
+
+it("does not dispatch a root watch when mounting a spec without state", () => {
+  const refresh = vi.fn();
+  const view = render(
+    <SpecRenderer
+      components={components}
+      handlers={{ refresh }}
+      spec={{
+        root: "main",
+        elements: {
+          main: {
+            type: "Button",
+            props: { label: "change" },
+            watch: { "": { action: "refresh" } },
+            on: {
+              press: {
+                action: "setState",
+                params: { path: "/count", value: 1 },
+              },
+            },
+          },
+        },
+      }}
+    />,
+  );
+  expect(refresh).not.toHaveBeenCalled();
+  fireEvent.click(view.getByRole("button"));
+  expect(refresh).toHaveBeenCalledTimes(1);
+});
+
+it("isolates the empty model base between renderer instances", () => {
+  const stores: SpecStateStore[] = [];
+  const capture = ({ state }: SpecComponentProps) => {
+    stores.push(state);
+    return null;
+  };
+  const input: Spec = {
+    root: "capture",
+    elements: { capture: { type: "Capture" } },
+  };
+  const mount = () =>
+    render(<SpecRenderer spec={input} components={{ Capture: capture }} />);
+  const first = mount();
+  const firstState = stores.at(-1)!.getState();
+  first.unmount();
+  mount();
+  const secondState = stores.at(-1)!.getState();
+  expect(secondState).not.toBe(firstState);
+  firstState["name"] = "first renderer";
+  expect(secondState).toEqual({});
+  mount();
+  expect(stores.at(-1)!.getState()).toEqual({});
 });
