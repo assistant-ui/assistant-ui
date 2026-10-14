@@ -26,6 +26,7 @@ import {
   type ExpressionContext,
 } from "../expressions";
 import { getAtPointer } from "../pointer";
+import { rejectedPropType } from "../resolved";
 import { createStateStore, type SpecStateStore } from "../state";
 import { childIdsOf, repeatItems, safePointer } from "../tree";
 import type { Spec, SpecElement } from "../types";
@@ -316,6 +317,19 @@ const ResolvedElement = defineComponent({
     );
     return () => {
       const { props: values, bindings } = resolved();
+      const rejected = rejectedPropType(
+        ctx.catalog?.propsSchema(props.element.type),
+        values,
+      );
+      if (rejected) {
+        return h(ctx.placeholder, {
+          id: props.id,
+          reason: ctx.streaming ? "pending" : "invalid-props",
+          message: ctx.streaming
+            ? `"${props.id}" is streaming`
+            : `${props.element.type}: ${rejected}`,
+        });
+      }
       const impl = props.impl as DeclaredOptions;
       const propNames = declaredNames(impl, "props");
       const emitNames = declaredNames(impl, "emits");
