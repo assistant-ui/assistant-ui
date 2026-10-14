@@ -8,6 +8,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Area } from "../react/charts/area";
+import { Sparkline } from "../react/charts/sparkline";
 import { Zoom, type Transform } from "./zoom";
 
 afterEach(() => {
@@ -178,6 +179,35 @@ describe("Zoom pointer handlers", () => {
 });
 
 describe("Zoom SVG box", () => {
+  it("measures the chart after a sparkline", () => {
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
+      function (this: Element) {
+        const box =
+          this.getAttribute("data-figure") === "sparkline"
+            ? { width: 60, height: 20 }
+            : this.getAttribute("data-figure") === "chart"
+              ? { width: 400, height: 200 }
+              : { width: 1000, height: 500 };
+        return { left: 0, top: 0, ...box } as DOMRect;
+      },
+    );
+    const seen: { x: number; y: number }[] = [];
+    render(
+      <Zoom defaultTransform={{ k: 2, x: -200, y: -100 }}>
+        {(view) => {
+          seen.push(view);
+          return (
+            <>
+              <Sparkline data={DATA} data-figure="sparkline" />
+              <Area data={DATA} data-figure="chart" view={view} />
+            </>
+          );
+        }}
+      </Zoom>,
+    );
+    expect(seen.at(-1)).toMatchObject({ x: 0.25, y: 0.25 });
+  });
+
   it("measures the chart after an icon SVG", () => {
     vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(
       function (this: Element) {
@@ -213,7 +243,7 @@ describe("Zoom SVG box", () => {
       <Zoom defaultTransform={{ k: 2, x: -200, y: -100 }}>
         {(view) => {
           seen.push(view);
-          return <svg key={kind} data-dg="" data-figure={kind} />;
+          return <svg key={kind} data-dg="" data-figure={kind} fontSize={12} />;
         }}
       </Zoom>
     );
@@ -245,7 +275,7 @@ describe("Zoom SVG box", () => {
         {(view) => {
           seen.push(view);
           return show ? (
-            <svg data-dg="" data-figure="first" />
+            <svg data-dg="" data-figure="first" fontSize={12} />
           ) : (
             <span>Loading</span>
           );

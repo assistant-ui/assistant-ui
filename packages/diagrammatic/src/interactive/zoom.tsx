@@ -113,7 +113,10 @@ export const Zoom = forwardRef<HTMLDivElement, ZoomProps>(
 
     const getFigure = useCallback(() => {
       const node = container.current;
-      return windowed ? (node?.querySelector("svg[data-dg]") ?? node) : node;
+      // ChartSvg sets font-size and MicroSvg does not, so this skips sparklines rendered beside the chart.
+      return windowed
+        ? (node?.querySelector("svg[data-dg][font-size]") ?? node)
+        : node;
     }, [windowed]);
 
     const setRefs = useCallback(
