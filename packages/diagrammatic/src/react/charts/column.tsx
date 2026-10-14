@@ -125,6 +125,7 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
             width={round(step)}
             height={round(bottom - top)}
             fill="transparent"
+            data-dg-hit-target=""
             data-part="mark"
             data-i={i}
           />

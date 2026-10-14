@@ -112,6 +112,7 @@ export const StackedBar = forwardRef<SVGSVGElement, StackedBarProps>(
             width={round(step)}
             height={plotBottom - top}
             fill="transparent"
+            data-dg-hit-target=""
             data-part="mark"
             data-i={g}
           />

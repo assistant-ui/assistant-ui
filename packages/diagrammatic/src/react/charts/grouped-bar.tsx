@@ -116,6 +116,7 @@ export const GroupedBar = forwardRef<SVGSVGElement, GroupedBarProps>(
             width={round(groupStep)}
             height={bottom - top}
             fill="transparent"
+            data-dg-hit-target=""
             data-part="mark"
             data-i={g}
           />
