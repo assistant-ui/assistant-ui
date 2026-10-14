@@ -100,6 +100,9 @@ export class RemoteThreadListThreadListRuntimeCore
   private _staleThreadsAdapter: RemoteThreadListAdapter | undefined;
   private _switchGeneration = 0;
   private _switchTask: Promise<void> | undefined;
+  private _switchError:
+    | { readonly threadId: string; readonly error: unknown }
+    | undefined;
   private readonly _titleStates = new Map<string, ThreadTitleState>();
   private readonly _automaticTitles = new Map<string, Unsubscribe>();
   private _disposed = false;
@@ -667,6 +670,16 @@ export class RemoteThreadListThreadListRuntimeCore
     return this._state.value.loadError;
   }
 
+  public get switchError() {
+    return this._switchError;
+  }
+
+  private _setSwitchError(switchError: typeof this._switchError) {
+    if (this._switchError === switchError) return;
+    this._switchError = switchError;
+    this._notifySubscribers();
+  }
+
   public get isLoadingMore() {
     return this._state.value.isLoadingMore;
   }
@@ -783,12 +796,21 @@ export class RemoteThreadListThreadListRuntimeCore
     emitThreadIdChange: boolean,
   ): Promise<void> {
     const generation = ++this._switchGeneration;
+    this._setSwitchError(undefined);
     const task = this._switchToThread(
       threadIdOrRemoteId,
       options,
       generation,
       emitThreadIdChange,
-    );
+    ).catch((error: unknown) => {
+      if (
+        generation === this._switchGeneration &&
+        !isSilentRuntimeAction(error)
+      ) {
+        this._setSwitchError({ threadId: threadIdOrRemoteId, error });
+      }
+      throw error;
+    });
     this._switchTask = task;
     return task;
   }
@@ -888,11 +910,19 @@ export class RemoteThreadListThreadListRuntimeCore
     return task;
   }
 
+  public __internal_retryControlledThread() {
+    const threadId = this._options.threadId;
+    if (threadId === undefined || this._switchError?.threadId !== threadId)
+      return;
+    this._switchToThreadFromProp(threadId).catch(() => {});
+  }
+
   private _startSwitchToNewThread(
     emitThreadIdChange: boolean,
     initialThreadIdSeed?: string,
   ): Promise<void> {
     const generation = ++this._switchGeneration;
+    this._setSwitchError(undefined);
     const task = this._switchToNewThread(
       generation,
       emitThreadIdChange,
