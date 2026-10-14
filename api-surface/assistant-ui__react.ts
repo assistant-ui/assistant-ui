@@ -4849,6 +4849,10 @@ type ThreadListRuntime = {
 type ThreadListRuntimeCore = {
   readonly isLoading: boolean;
   readonly loadError?: unknown;
+  readonly switchError?: {
+    readonly threadId: string;
+    readonly error: unknown;
+  } | undefined;
   readonly isLoadingMore?: boolean;
   readonly hasMore?: boolean;
   mainThreadId: string;
@@ -4922,6 +4926,10 @@ type ThreadListState = {
   readonly archivedThreadIds: readonly string[];
   readonly isLoading: boolean;
   readonly loadError: unknown;
+  readonly switchError: {
+    readonly threadId: string;
+    readonly error: unknown;
+  } | undefined;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
   readonly threadItems: Readonly<Record<string, Omit<ThreadListItemRuntimeState, "isMain" | "isRunning" | "threadId">>>;
@@ -5609,6 +5617,10 @@ type ThreadsState = {
   readonly newThreadId: string | null;
   readonly isLoading: boolean;
   readonly loadError: unknown;
+  readonly switchError: {
+    readonly threadId: string;
+    readonly error: unknown;
+  } | undefined;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
   readonly threadIds: readonly string[];
