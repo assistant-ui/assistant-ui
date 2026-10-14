@@ -432,6 +432,52 @@ describe("SpecRenderer", () => {
     ).not.toBeNull();
   });
 
+  it("writes a held element's binding to the path it shows", async () => {
+    const store = createStateStore({ form: { agree: false } });
+    const Toggle = defineComponent({
+      props: { checked: Boolean },
+      emits: ["update:checked"],
+      setup(props, { emit }) {
+        const element = useSpecElement();
+        return () =>
+          h("label", [
+            h("input", {
+              type: "checkbox",
+              checked: props.checked,
+              onChange: (event: Event) =>
+                emit(
+                  "update:checked",
+                  (event.target as HTMLInputElement).checked,
+                ),
+            }),
+            h("span", element.bindings["checked"]),
+          ]);
+      },
+    });
+    const probe = { ...components, Toggle };
+    const toggle = (path: string) =>
+      spec({
+        main: { type: "Toggle", props: { checked: { $bindState: path } } },
+      });
+    const view = mount({
+      catalog,
+      components: probe,
+      state: store,
+      spec: toggle("/f"),
+      streaming: true,
+    });
+    await view.update({
+      catalog,
+      components: probe,
+      state: store,
+      spec: toggle("/form"),
+      streaming: true,
+    });
+    expect(view.container.querySelector("span")?.textContent).toBe("/f");
+    await click(view.container.querySelector("input")!);
+    expect(store.getState()).toEqual({ form: { agree: false }, f: true });
+  });
+
   it("shows an element's problem only once the spec stops streaming", async () => {
     const broken = spec({
       main: { type: "Stack", children: ["a", "b"] },

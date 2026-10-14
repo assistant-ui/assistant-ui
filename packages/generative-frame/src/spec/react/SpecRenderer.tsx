@@ -338,9 +338,12 @@ function ResolvedElement({
     resolved.props,
   );
   const settled = useLastCommitted(rejected ? undefined : resolved);
+  const shown = rejected ? settled : resolved;
 
-  const latest = useRef({ element, scope, ctx });
-  latest.current = { element, scope, ctx };
+  const latest = useRef({ element, scope, ctx, bindings: shown?.bindings });
+  useInsertionEffect(() => {
+    latest.current = { element, scope, ctx, bindings: shown?.bindings };
+  });
 
   const watched = element.watch ? Object.keys(element.watch) : [];
   const watchedValues = watched.map((path) =>
@@ -390,15 +393,8 @@ function ResolvedElement({
         });
       },
       setProp(name: string, value: unknown) {
-        const {
-          element: current,
-          scope: currentScope,
-          ctx: currentCtx,
-        } = latest.current;
-        const path = resolveProps(current.props, {
-          ...currentScope,
-          state: currentCtx.state,
-        }).bindings[name];
+        const { bindings, ctx: currentCtx } = latest.current;
+        const path = bindings?.[name];
         if (path) currentCtx.store.set(path, value);
       },
     }),
@@ -438,7 +434,6 @@ function ResolvedElement({
       />
     );
   }
-  const shown = rejected ? settled : resolved;
   if (!shown) return null;
   const { props, bindings } = shown;
 

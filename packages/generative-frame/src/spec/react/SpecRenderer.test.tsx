@@ -455,6 +455,34 @@ describe("SpecRenderer", () => {
     ).not.toBeNull();
   });
 
+  it("writes a held element's binding to the path it shows", () => {
+    const store = createStateStore({ form: { agree: false } });
+    const toggle = (path: string) =>
+      spec({
+        main: { type: "Toggle", props: { checked: { $bindState: path } } },
+      });
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        state={store}
+        spec={toggle("/f")}
+        streaming
+      />,
+    );
+    view.rerender(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        state={store}
+        spec={toggle("/form")}
+        streaming
+      />,
+    );
+    fireEvent.click(view.getByRole("checkbox"));
+    expect(store.getState()).toEqual({ form: { agree: false }, f: true });
+  });
+
   it("shows an element's problem only once the spec stops streaming", () => {
     const broken = spec({
       main: { type: "Stack", children: ["a", "b"] },

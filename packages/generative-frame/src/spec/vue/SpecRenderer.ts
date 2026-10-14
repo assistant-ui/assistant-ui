@@ -316,7 +316,13 @@ const ResolvedElement = defineComponent({
         return props.element;
       },
       get bindings() {
-        return resolved().bindings;
+        const current = resolved();
+        return rejectedPropType(
+          ctx.catalog?.propsSchema(props.element.type),
+          current.props,
+        )
+          ? (settled?.bindings ?? {})
+          : current.bindings;
       },
       get state() {
         return ctx.store;
