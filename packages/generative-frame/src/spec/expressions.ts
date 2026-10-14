@@ -87,8 +87,7 @@ export function renderTemplate(
   template: string,
   ctx: ExpressionContext,
 ): string {
-  const fill = (raw: string) => {
-    const ref = raw.trim();
+  const fill = (ref: string) => {
     if (ref === "$index") return formatTemplateValue(ctx.index);
     if (ref === "$item") return formatTemplateValue(ctx.item);
     if (ref.startsWith("$item/")) {
@@ -98,16 +97,30 @@ export function renderTemplate(
   };
   let out = "";
   let from = 0;
-  for (;;) {
-    const start = template.indexOf("${", from);
-    if (start === -1) break;
-    const end = template.indexOf("}", start + 2);
-    if (end === -1) break;
-    out += template.slice(from, start) + fill(template.slice(start + 2, end));
+  for (const { start, end, ref } of placeholders(template)) {
+    out += template.slice(from, start) + fill(ref);
     from = end + 1;
   }
   return out + template.slice(from);
 }
+
+function* placeholders(template: string) {
+  let from = 0;
+  for (;;) {
+    const start = template.indexOf("${", from);
+    if (start === -1) return;
+    const end = template.indexOf("}", start + 2);
+    if (end === -1) return;
+    yield { start, end, ref: template.slice(start + 2, end).trim() };
+    from = end + 1;
+  }
+}
+
+/** The state paths a `$template` string's placeholders read. */
+export const templateStatePaths = (template: string): string[] =>
+  [...placeholders(template)]
+    .map(({ ref }) => ref)
+    .filter((ref) => !ref.startsWith("$"));
 
 /** Resolves expressions anywhere inside a value; plain values pass through. */
 export function resolveValue(value: unknown, ctx: ExpressionContext): unknown {
@@ -160,6 +173,21 @@ const compare = (
     }
   }
 };
+
+/** The state paths a condition only holds true while they have a value: a `$state` it tests for truthiness or with any comparator but `neq` alone, in every part of `$and` or a list. */
+export function conditionGuards(condition: unknown): string[] {
+  if (Array.isArray(condition)) return condition.flatMap(conditionGuards);
+  if (!isRecord(condition)) return [];
+  if (Array.isArray(condition["$and"]))
+    return conditionGuards(condition["$and"]);
+  if (typeof condition["$state"] !== "string" || condition["not"] === true)
+    return [];
+  const comparators = COMPARATORS.filter((operator) => operator in condition);
+  return comparators.length === 0 ||
+    comparators.some((operator) => operator !== "neq")
+    ? [condition["$state"]]
+    : [];
+}
 
 /**
  * Evaluates a visibility condition. Unknown shapes are false, so a

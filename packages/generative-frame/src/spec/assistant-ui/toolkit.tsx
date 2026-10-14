@@ -136,7 +136,9 @@ export const specToolkitFor =
             ? resolveToolResults(earlier, toolCallId)
             : undefined,
         );
-        const [history] = useState(() => callHistory(earlier, toolCallId));
+        const [history] = useState(() =>
+          callHistory(earlier, toolCallId, toolResults),
+        );
         useInsertionEffect(() => {
           histories.set(toolCallId, history);
           return () => {
