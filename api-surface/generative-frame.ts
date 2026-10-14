@@ -921,7 +921,7 @@ type SpecIssue = {
   elementId?: string;
 };
 
-type SpecIssueCode = "children-not-allowed" | "cycle" | "invalid-element" | "invalid-formula" | "invalid-params" | "invalid-patch" | "invalid-props" | "invalid-repeat" | "missing-child" | "missing-root" | "unfilled-placeholder" | "unknown-action" | "unknown-event" | "unknown-root" | "unknown-slot" | "unknown-type" | "unreachable";
+type SpecIssueCode = "children-not-allowed" | "cycle" | "invalid-element" | "invalid-formula" | "invalid-params" | "invalid-patch" | "invalid-props" | "invalid-repeat" | "invalid-state" | "missing-child" | "missing-root" | "unfilled-placeholder" | "unknown-action" | "unknown-event" | "unknown-root" | "unknown-slot" | "unknown-type" | "unreachable";
 
 declare function SpecPlaceholder(_param0: SpecPlaceholderProps): import("react").JSX.Element;
 

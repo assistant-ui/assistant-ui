@@ -48,3 +48,22 @@ it("reports a null root on the first call without throwing", async () => {
     }),
   ).resolves.toMatchObject({ ok: false, elementCount: 0 });
 });
+
+it("returns repair feedback for a complete spec whose state is not an object", async () => {
+  const { render_spec } = createSpecTools(
+    defineCatalog({ components: { Text: { description: "Text" } } }),
+  );
+  const result = await render_spec.execute({
+    title: "panel",
+    spec: {
+      root: "text",
+      elements: { text: { type: "Text" } },
+      state: "nope" as unknown as Record<string, unknown>,
+    },
+  });
+  expect(result).toMatchObject({
+    ok: false,
+    issues: [{ code: "invalid-state", path: "/state" }],
+  });
+  expect(result.feedback).toContain("/state");
+});

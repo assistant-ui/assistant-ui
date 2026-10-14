@@ -290,7 +290,7 @@ const { ok, issues } = validateSpec(spec, catalog);
 const feedback = formatSpecIssues(issues);
 ```
 
-Each issue has a `code`, a `severity`, a `message`, and a JSON Pointer `path`. Codes include `missing-root`, `unknown-type`, `invalid-props`, `missing-child`, `children-not-allowed`, `unknown-slot`, `cycle`, `unknown-event`, `unknown-action`, `invalid-params`, `invalid-formula`, `unfilled-placeholder` (a plain string with a `${/path}`, `${$item…}`, or `${$index}` placeholder, which only `$template` and `$calc` fill, or one that is only an expression key, such as `"$calc"`), `invalid-repeat`, and `unreachable`. Pass `{ partial: true }` while the spec is still streaming, so children not yet added and unreachable elements are not reported.
+Each issue has a `code`, a `severity`, a `message`, and a JSON Pointer `path`. Codes include `missing-root`, `unknown-type`, `invalid-props`, `missing-child`, `children-not-allowed`, `unknown-slot`, `cycle`, `unknown-event`, `unknown-action`, `invalid-params`, `invalid-formula`, `unfilled-placeholder` (a plain string with a `${/path}`, `${$item…}`, or `${$index}` placeholder, which only `$template` and `$calc` fill, or one that is only an expression key, such as `"$calc"`), `invalid-repeat`, `invalid-state` (a `state` that is not an object), and `unreachable`. Pass `{ partial: true }` while the spec is still streaming, so children not yet added and unreachable elements are not reported.
 
 ## As a tool
 
