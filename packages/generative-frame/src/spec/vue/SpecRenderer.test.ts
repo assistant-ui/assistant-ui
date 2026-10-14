@@ -4,6 +4,7 @@ import {
   defineComponent,
   h,
   nextTick,
+  onMounted,
   shallowRef,
   type App,
   type Component,
@@ -317,11 +318,11 @@ describe("SpecRenderer", () => {
       streaming: true,
     });
     expect(
-      view.container.querySelector('[data-gf-spec-placeholder="pending"]'),
-    ).not.toBeNull();
-    expect(
-      view.container.querySelector('[data-gf-spec-placeholder="error"]'),
-    ).toBeNull();
+      [...view.container.querySelectorAll("[data-gf-spec-placeholder]")].map(
+        (node) => node.getAttribute("data-gf-spec-placeholder"),
+      ),
+    ).toEqual(["pending"]);
+    expect(view.container.querySelector("img")).toBeNull();
 
     await view.update({
       catalog,
@@ -414,6 +415,79 @@ describe("SpecRenderer", () => {
     expect(
       (view.container.querySelector("input") as HTMLInputElement).checked,
     ).toBe(true);
+  });
+
+  it("shows one pending placeholder after the spec while it streams", async () => {
+    const streamed = (elements: Spec["elements"]) =>
+      spec({
+        main: {
+          type: "Stack",
+          children: ["a", "b", "c"],
+          slots: { footer: ["f"] },
+        },
+        a: { type: "Text", props: { text: "A" } },
+        ...elements,
+      });
+    const complete = streamed({
+      b: { type: "Text", props: { text: "B" } },
+      c: { type: "Text", props: { text: "C" } },
+      f: { type: "Text", props: { text: "F" } },
+    });
+    const view = mount({
+      catalog,
+      components,
+      spec: streamed({}),
+      streaming: true,
+    });
+    const pending = () =>
+      view.container.querySelectorAll('[data-gf-spec-placeholder="pending"]');
+    expect(pending()).toHaveLength(1);
+    expect(pending()[0]?.previousElementSibling?.tagName).toBe("SECTION");
+    expect(view.container.querySelector("section")?.textContent).toBe("A");
+
+    await view.update({ catalog, components, spec: complete, streaming: true });
+    expect(pending()).toHaveLength(1);
+
+    await view.update({ catalog, components, spec: streamed({}) });
+    expect(pending()).toHaveLength(0);
+    expect(
+      view.container.querySelectorAll('[data-gf-spec-placeholder="missing"]'),
+    ).toHaveLength(3);
+  });
+
+  it("keeps elements mounted when the spec stops streaming", async () => {
+    const mounted = vi.fn();
+    const Text = defineComponent({
+      props: { text: String },
+      setup(props) {
+        onMounted(mounted);
+        return () => h("p", props.text);
+      },
+    });
+    const probe = { ...components, Text };
+    const done = spec({ main: { type: "Text", props: { text: "Hi" } } });
+    const view = mount({
+      catalog,
+      components: probe,
+      spec: done,
+      streaming: true,
+    });
+    await view.update({ catalog, components: probe, spec: done });
+    expect(view.container.textContent).toBe("Hi");
+    expect(mounted).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a pending placeholder until the root arrives", async () => {
+    const empty: Spec = { root: "", elements: {} };
+    const view = mount({ catalog, components, spec: empty, streaming: true });
+    expect(
+      view.container.querySelectorAll('[data-gf-spec-placeholder="pending"]'),
+    ).toHaveLength(1);
+
+    await view.update({ catalog, components, spec: empty });
+    expect(
+      view.container.querySelector("[data-gf-spec-placeholder]"),
+    ).toBeNull();
   });
 
   it("runs watch actions after watched state changes", async () => {

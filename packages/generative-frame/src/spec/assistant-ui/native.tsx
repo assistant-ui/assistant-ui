@@ -23,7 +23,13 @@ function useArgsComplete() {
   return useToolArgsStatus().argsStatus === "complete";
 }
 
-function Frame({ children }: { title: string; children: ReactNode }) {
+function Frame({
+  children,
+}: {
+  title: string;
+  streaming: boolean;
+  children: ReactNode;
+}) {
   return children;
 }
 

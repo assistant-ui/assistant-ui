@@ -4,7 +4,9 @@ import {
   Fragment,
   h,
   inject,
+  onBeforeUnmount,
   onErrorCaptured,
+  onMounted,
   provide,
   shallowRef,
   toHandlerKey,
@@ -25,6 +27,11 @@ import {
   resolveProps,
   type ExpressionContext,
 } from "../expressions";
+import {
+  animatePendingDots,
+  PENDING_DOT_STYLE,
+  PENDING_STYLE,
+} from "../pending";
 import { getAtPointer } from "../pointer";
 import { rejectedPropType } from "../resolved";
 import { createStateStore, type SpecStateStore } from "../state";
@@ -86,17 +93,7 @@ export const SpecPlaceholder = defineComponent({
   setup(props) {
     return () =>
       props.reason === "pending"
-        ? h("div", {
-            "data-gf-spec-placeholder": "pending",
-            "aria-hidden": "true",
-            style: {
-              height: "16px",
-              margin: "4px 0",
-              borderRadius: "4px",
-              background: "currentColor",
-              opacity: 0.08,
-            },
-          })
+        ? h(PendingDots)
         : h(
             "div",
             {
@@ -167,6 +164,31 @@ function declaredNames(
 
 const handlerKey = (event: string) => toHandlerKey(camelize(event));
 
+const PendingDots = defineComponent({
+  name: "SpecPendingDots",
+  setup() {
+    const host = shallowRef<HTMLElement | null>(null);
+    let stop = () => {};
+    onMounted(() => {
+      if (host.value) stop = animatePendingDots(host.value);
+    });
+    onBeforeUnmount(() => stop());
+    return () =>
+      h(
+        "span",
+        {
+          ref: host,
+          "data-gf-spec-placeholder": "pending",
+          "aria-hidden": "true",
+          style: PENDING_STYLE,
+        },
+        [0, 1, 2].map((index) =>
+          h("span", { key: index, style: PENDING_DOT_STYLE }),
+        ),
+      );
+  },
+});
+
 const ElementBoundary = defineComponent({
   name: "SpecElementBoundary",
   props: {
@@ -230,7 +252,7 @@ const ElementView = defineComponent({
         typeof element.type !== "string"
       )
         return ctx.streaming
-          ? placeholder("pending", `"${id}" is streaming`)
+          ? null
           : placeholder("missing", `Missing element "${id}"`);
       if (!evaluateCondition(element.visible, { ...scope, state: ctx.state }))
         return null;
@@ -322,12 +344,11 @@ const ResolvedElement = defineComponent({
         values,
       );
       if (rejected) {
+        if (ctx.streaming) return null;
         return h(ctx.placeholder, {
           id: props.id,
-          reason: ctx.streaming ? "pending" : "invalid-props",
-          message: ctx.streaming
-            ? `"${props.id}" is streaming`
-            : `${props.element.type}: ${rejected}`,
+          reason: "invalid-props",
+          message: `${props.element.type}: ${rejected}`,
         });
       }
       const impl = props.impl as DeclaredOptions;
@@ -515,9 +536,17 @@ export const SpecRenderer = defineComponent({
       },
     };
     provide(renderContextKey, ctx);
-    return () =>
+    return () => [
       props.spec.root
         ? h(ElementView, { id: props.spec.root, scope: {}, ancestors: [] })
-        : null;
+        : null,
+      props.streaming
+        ? h(props.placeholder, {
+            id: "",
+            reason: "pending",
+            message: "The spec is streaming",
+          })
+        : null,
+    ];
   },
 });

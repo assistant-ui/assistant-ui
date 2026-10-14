@@ -191,11 +191,21 @@ describe("createSpecToolkit for Vue", () => {
     expect(
       container.querySelector('[data-gf-spec-placeholder="pending"]'),
     ).not.toBeNull();
+    expect(
+      container
+        .querySelector('[data-gf-spec="s"]')
+        ?.hasAttribute("data-gf-streaming"),
+    ).toBe(true);
     update(toolProp({ args: { title: "s", patches } }));
     await nextTick();
     expect(
       container.querySelector('[data-gf-spec-placeholder="pending"]'),
     ).toBeNull();
+    expect(
+      container
+        .querySelector('[data-gf-spec="s"]')
+        ?.hasAttribute("data-gf-streaming"),
+    ).toBe(false);
     expect(
       container.querySelector('[data-gf-spec-placeholder="missing"]'),
     ).not.toBeNull();

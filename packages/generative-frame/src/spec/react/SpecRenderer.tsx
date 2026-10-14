@@ -24,6 +24,11 @@ import {
   resolveProps,
   type ExpressionContext,
 } from "../expressions";
+import {
+  animatePendingDots,
+  PENDING_DOT_STYLE,
+  PENDING_STYLE,
+} from "../pending";
 import { getAtPointer } from "../pointer";
 import { rejectedPropType } from "../resolved";
 import { createStateStore, type SpecStateStore } from "../state";
@@ -90,7 +95,7 @@ export type SpecRendererProps = {
     context: ActionSource & { state: SpecStateStore },
   ) => unknown;
   onError?: (error: Error, context: { elementId?: string }) => void;
-  /** The spec is still streaming: missing children render as pending. */
+  /** The spec is still streaming: missing elements take no space, and one pending placeholder follows the spec. */
   streaming?: boolean;
   placeholder?: ComponentType<SpecPlaceholderProps>;
 };
@@ -112,23 +117,29 @@ const SpecContext = createContext<RenderContext | null>(null);
 
 type Scope = Pick<ExpressionContext, "item" | "index" | "itemPath">;
 
+function PendingDots() {
+  const host = useRef<HTMLSpanElement>(null);
+  useEffect(
+    () => (host.current ? animatePendingDots(host.current) : undefined),
+    [],
+  );
+  return (
+    <span
+      ref={host}
+      data-gf-spec-placeholder="pending"
+      aria-hidden="true"
+      style={PENDING_STYLE}
+    >
+      <span style={PENDING_DOT_STYLE} />
+      <span style={PENDING_DOT_STYLE} />
+      <span style={PENDING_DOT_STYLE} />
+    </span>
+  );
+}
+
 /** A small, unobtrusive stand-in for elements that cannot render. */
 export function SpecPlaceholder({ id, reason, message }: SpecPlaceholderProps) {
-  if (reason === "pending") {
-    return (
-      <div
-        data-gf-spec-placeholder="pending"
-        aria-hidden="true"
-        style={{
-          height: 16,
-          margin: "4px 0",
-          borderRadius: 4,
-          background: "currentColor",
-          opacity: 0.08,
-        }}
-      />
-    );
-  }
+  if (reason === "pending") return <PendingDots />;
   return (
     <div
       data-gf-spec-placeholder={reason}
@@ -230,9 +241,8 @@ function ElementView({
     typeof element !== "object" ||
     typeof element.type !== "string"
   ) {
-    return ctx.streaming ? (
-      <Placeholder id={id} reason="pending" message={`"${id}" is streaming`} />
-    ) : (
+    if (ctx.streaming) return null;
+    return (
       <Placeholder
         id={id}
         reason="missing"
@@ -397,10 +407,9 @@ function ResolvedElement({
     props,
   );
   if (rejected) {
+    if (ctx.streaming) return null;
     const Placeholder = ctx.placeholder;
-    return ctx.streaming ? (
-      <Placeholder id={id} reason="pending" message={`"${id}" is streaming`} />
-    ) : (
+    return (
       <Placeholder
         id={id}
         reason="invalid-props"
@@ -428,7 +437,7 @@ function ResolvedElement({
 
 /**
  * Renders a spec with trusted host components. It renders whatever has
- * streamed so far: children that have not arrived show as pending, and
+ * streamed so far, followed by one pending placeholder while it streams, and
  * unknown types, invalid props, cycles, and components that throw render a
  * small placeholder instead of breaking the tree.
  */
@@ -515,10 +524,15 @@ export function SpecRenderer({
     onError,
   };
 
-  if (!spec.root) return null;
+  const Placeholder = placeholder;
   return (
     <SpecContext.Provider value={ctx}>
-      <ElementView id={spec.root} scope={{}} ancestors={[]} />
+      {spec.root ? (
+        <ElementView id={spec.root} scope={{}} ancestors={[]} />
+      ) : null}
+      {streaming ? (
+        <Placeholder id="" reason="pending" message="The spec is streaming" />
+      ) : null}
     </SpecContext.Provider>
   );
 }

@@ -229,20 +229,27 @@ export function createSpecToolkit(
         return () =>
           superseded.value
             ? null
-            : h("div", { "data-gf-spec": title.value || undefined }, [
-                h(SpecRenderer, {
-                  spec: renderSpec.value,
-                  state: store,
-                  catalog,
-                  components: options.components,
-                  streaming: streaming.value,
-                  handlers,
-                  ...(options.onAction ? { onAction: options.onAction } : {}),
-                  ...(options.placeholder
-                    ? { placeholder: options.placeholder }
-                    : {}),
-                }),
-              ]);
+            : h(
+                "div",
+                {
+                  "data-gf-spec": title.value || undefined,
+                  "data-gf-streaming": streaming.value || undefined,
+                },
+                [
+                  h(SpecRenderer, {
+                    spec: renderSpec.value,
+                    state: store,
+                    catalog,
+                    components: options.components,
+                    streaming: streaming.value,
+                    handlers,
+                    ...(options.onAction ? { onAction: options.onAction } : {}),
+                    ...(options.placeholder
+                      ? { placeholder: options.placeholder }
+                      : {}),
+                  }),
+                ],
+              );
       },
     });
 
