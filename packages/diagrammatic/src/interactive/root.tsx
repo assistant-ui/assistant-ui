@@ -140,7 +140,7 @@ export const Root = forwardRef<HTMLDivElement, RootProps>(
             (chart.querySelector(
               `[data-part="mark"][data-i="${datum.index}"]:not([data-dg-hit-target])`,
             ) ||
-              datum.element.matches("circle[data-dg-hit-target]"))
+              datum.element.getAttribute("data-dg-hit-target") === "point")
               ? datum.index
               : undefined;
           setHoverHighlight(

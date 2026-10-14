@@ -92,13 +92,7 @@ export const ArcDiagram = forwardRef<SVGSVGElement, ArcDiagramProps>(
           const label = truncate(node.label ?? node.id, T.axis.px, slot - 6);
           return (
             <g key={node.id} data-part="mark" data-series={node.id}>
-              <circle
-                cx={round(x)}
-                cy={baseline}
-                r={10}
-                fill="transparent"
-                data-dg-hit-target=""
-              />
+              <circle cx={round(x)} cy={baseline} r={10} fill="transparent" />
               <circle
                 cx={round(x)}
                 cy={baseline}
