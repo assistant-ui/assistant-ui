@@ -99,7 +99,7 @@ type Strip<P> = Omit<
       "width" | "height" | "fontSize"
     >
 > & { title?: string };
-type S<T extends string, P> = Common & { type: T } & Strip<P>;
+type S<T extends string, P> = Omit<Common, keyof P> & { type: T } & Strip<P>;
 
 export type ChartSpec =
   | S<"line", LineProps>
@@ -430,7 +430,14 @@ export function Chart({ spec, className }: ChartProps): ReactElement {
   }
   const { type: _type, v: _v, unit, ...rest } = spec as Record<string, unknown>;
   const props: Record<string, unknown> = { ...rest };
-  if (unit !== undefined) {
+  if (
+    typeof unit === "number" &&
+    descriptor.required.some(
+      ([key, kind]) => key === "unit" && kind === "number",
+    )
+  ) {
+    props["unit"] = unit;
+  } else if (unit !== undefined) {
     const format =
       typeof unit === "string" && Object.hasOwn(UNIT_FORMAT, unit)
         ? UNIT_FORMAT[unit as Unit]
