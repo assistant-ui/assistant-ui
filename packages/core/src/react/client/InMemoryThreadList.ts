@@ -305,6 +305,7 @@ const useInMemoryThreadList = (
       newThreadId: null,
       isLoading: false,
       loadError: undefined,
+      switchError: undefined,
       isLoadingMore: false,
       hasMore: false,
       threadIds: regularThreads.map((t) => t.id),

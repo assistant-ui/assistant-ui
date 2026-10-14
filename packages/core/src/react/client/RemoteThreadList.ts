@@ -63,6 +63,7 @@ import {
   type ThreadTitleState,
 } from "../../runtimes/remote-thread-list/title-generation";
 import { invokeUserCallback } from "../../utils/invoke-user-callback";
+import { isSilentRuntimeAction } from "../../utils/silent-runtime-action";
 
 const RESOLVED_PROMISE = Promise.resolve();
 
@@ -578,6 +579,9 @@ const useRemoteThreadList = (
   ]);
   const [backgroundThreads] = useState(props.backgroundThreads === true);
   const [settledLoads, setSettledLoads] = useState(0);
+  const [switchError, setSwitchError] = useState<
+    { threadId: string; error: unknown } | undefined
+  >();
   const assignMainThreadId = useCallback(
     (id: string) => {
       session.mainThreadId = id;
@@ -693,26 +697,6 @@ const useRemoteThreadList = (
   ]);
 
   useEffect(() => {
-    if (typeof window === "undefined" || typeof document === "undefined") {
-      return;
-    }
-
-    const retryAfterError = () => {
-      if (store.value.loadError !== undefined) void getLoadThreadsPromise();
-    };
-    const retryAfterVisible = () => {
-      if (document.visibilityState === "visible") retryAfterError();
-    };
-
-    window.addEventListener("online", retryAfterError);
-    document.addEventListener("visibilitychange", retryAfterVisible);
-    return () => {
-      window.removeEventListener("online", retryAfterError);
-      document.removeEventListener("visibilitychange", retryAfterVisible);
-    };
-  }, [getLoadThreadsPromise, store]);
-
-  useEffect(() => {
     void getLoadThreadsPromise();
   }, [getLoadThreadsPromise]);
 
@@ -761,24 +745,31 @@ const useRemoteThreadList = (
   }, [session, store]);
 
   const startSwitch = useCallback(
-    (run: (generation: number) => Promise<void>) => {
+    (run: (generation: number) => Promise<void>, threadId?: string) => {
       const generation = ++session.switchGeneration;
       session.controlledReloadPending = false;
-      let settle!: (error?: unknown) => void;
+      setSwitchError(undefined);
+      let resolveTask!: () => void;
+      let rejectTask!: (error: unknown) => void;
       const task = new Promise<void>((resolve, reject) => {
-        settle = (error) => {
-          if (error === undefined) resolve();
-          else reject(error);
-        };
+        resolveTask = resolve;
+        rejectTask = reject;
       });
       session.switchTask = task;
-      void run(generation).then(
-        () => settle(),
-        (error: unknown) => settle(error),
-      );
+      void run(generation).then(resolveTask, (error: unknown) => {
+        if (
+          threadId !== undefined &&
+          generation === session.switchGeneration &&
+          !isSilentRuntimeAction(error) &&
+          !isSameThread(store.value, threadId, session.mainThreadId)
+        ) {
+          setSwitchError({ threadId, error });
+        }
+        rejectTask(error);
+      });
       return task;
     },
-    [session],
+    [session, store],
   );
 
   const switchToThread = useCallback(
@@ -831,7 +822,7 @@ const useRemoteThreadList = (
         assignMainThreadId(current.id);
         notifyRemoteId(current.remoteId, emitThreadIdChange);
         session.onSwitchToThread?.(current.id);
-      }),
+      }, threadIdOrRemoteId),
     [assignMainThreadId, notifyRemoteId, session, startSwitch, store],
   );
 
@@ -866,6 +857,41 @@ const useRemoteThreadList = (
       }),
     [assignMainThreadId, notifyRemoteId, session, startSwitch, store],
   );
+
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") {
+      return;
+    }
+
+    const retryAfterError = () => {
+      if (store.value.loadError !== undefined) void getLoadThreadsPromise();
+      if (switchError !== undefined && switchError.threadId === threadId) {
+        handleThreadListAction("switch", () => {
+          const task = switchToThread(threadId, undefined, false);
+          session.controlledSwitchGeneration = session.switchGeneration;
+          session.controlledSwitchAdapter = session.adapter;
+          return task;
+        });
+      }
+    };
+    const retryAfterVisible = () => {
+      if (document.visibilityState === "visible") retryAfterError();
+    };
+
+    window.addEventListener("online", retryAfterError);
+    document.addEventListener("visibilitychange", retryAfterVisible);
+    return () => {
+      window.removeEventListener("online", retryAfterError);
+      document.removeEventListener("visibilitychange", retryAfterVisible);
+    };
+  }, [
+    getLoadThreadsPromise,
+    session,
+    store,
+    switchError,
+    switchToThread,
+    threadId,
+  ]);
 
   // A switch can land on the thread before the caller resumes, so callers
   // that act on the thread afterwards repeat this until it is still not main
@@ -1431,6 +1457,7 @@ const useRemoteThreadList = (
       newThreadId: listState.newThreadId ?? null,
       isLoading: listState.isLoading,
       loadError: listState.loadError,
+      switchError,
       isLoadingMore: listState.isLoadingMore,
       hasMore: listState.cursor !== undefined,
       threadIds: listState.threadIds,
@@ -1448,6 +1475,7 @@ const useRemoteThreadList = (
       listState.threadIds,
       mainThreadClient.state,
       mainThreadId,
+      switchError,
       threadListItems.state,
     ],
   );

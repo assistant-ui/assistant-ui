@@ -83,6 +83,7 @@ const useRemoteThreadListRuntimeImpl = (
       if (runtime.threads.loadError !== undefined) {
         void runtime.threads.reload();
       }
+      runtime.threads.__internal_retryControlledThread();
     };
     const reloadAfterVisible = () => {
       if (document.visibilityState === "visible") reloadAfterError();

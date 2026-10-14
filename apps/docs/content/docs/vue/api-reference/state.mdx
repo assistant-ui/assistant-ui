@@ -19,6 +19,7 @@ Each State table describes the object selected from `s.scope`; each Methods tabl
 | `newThreadId` | `string \| null` | ID of the new thread, when one is selected. |
 | `isLoading` | `boolean` | Whether the thread list is loading. |
 | `loadError` | `unknown` | Error from loading the list, when present. |
+| `switchError` | `{ threadId: string; error: unknown } \| undefined` | Most recent failed thread switch, with the requested ID and its error, until another switch starts or that thread opens. |
 | `isLoadingMore` | `boolean` | Whether another page is loading. |
 | `hasMore` | `boolean` | Whether another page is available. |
 | `threadIds` | `readonly string[]` | IDs of unarchived list items. |
