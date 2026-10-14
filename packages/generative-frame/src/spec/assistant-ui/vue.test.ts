@@ -246,6 +246,119 @@ describe("createSpecToolkit for Vue", () => {
     expect(container.textContent).toBe("b");
   });
 
+  const labelA = {
+    title: "s",
+    patches:
+      '{"op":"add","path":"/root","value":"t"}\n{"op":"add","path":"/elements/t","value":{"type":"Label","props":{"text":"a"}}}',
+  };
+  const labelB = {
+    title: "s",
+    patches:
+      '{"op":"test","path":"/elements/t/props/text","value":"a"}\n{"op":"replace","path":"/elements/t/props/text","value":"b"}',
+  };
+  const specCall = (id: string, args: object) => ({
+    type: "tool-call",
+    toolCallId: id,
+    toolName: "render_spec",
+    args,
+    argsText: JSON.stringify(args),
+  });
+
+  it("shows a spec once when a later call in its message patches the same title", async () => {
+    mocks.messages = [
+      { content: [specCall("e", labelA), specCall("f", labelB)] },
+    ];
+    const RenderSpec = setup("frontend").render;
+    const earlier = mount(RenderSpec, toolProp({ id: "e", args: labelA }));
+    const later = mount(RenderSpec, toolProp({ id: "f", args: labelB }));
+    await nextTick();
+    expect(earlier.container.textContent).toBe("");
+    expect(later.container.textContent).toBe("b");
+  });
+
+  it("tells model context subscribers when a later call replaces a spec", async () => {
+    mocks.messages = [
+      { content: [specCall("e", labelA), specCall("f", labelB)] },
+    ];
+    const { update } = mount(
+      setup("frontend").render,
+      toolProp({ id: "e", args: { ...labelA, title: "x" } }),
+    );
+    await nextTick();
+    const listener = vi.fn();
+    for (const provider of mocks.providers) {
+      (
+        provider as unknown as { subscribe: (listener: () => void) => void }
+      ).subscribe(listener);
+    }
+    update(toolProp({ id: "e", args: labelA }));
+    await nextTick();
+    expect(listener).toHaveBeenCalled();
+  });
+
+  it("keeps showing a spec while a later call's title is still arriving", async () => {
+    mocks.messages = [
+      {
+        content: [
+          specCall("e", labelA),
+          { ...specCall("f", { title: "s" }), argsText: '{"title":"s' },
+        ],
+      },
+    ];
+    const { container } = mount(
+      setup("frontend").render,
+      toolProp({ id: "e", args: labelA }),
+    );
+    await nextTick();
+    expect(container.textContent).toBe("a");
+  });
+
+  it("stops sharing a spec's choice once a later call in its message patches the same title", async () => {
+    const interactions = {
+      entries: [
+        {
+          type: "action",
+          payload: {
+            type: "setState",
+            toolCallId: "e",
+            writes: [],
+            context: { text: "Picked a" },
+          },
+        },
+      ],
+    };
+    const systems = () =>
+      [...mocks.providers].map((provider) => provider.getModelContext().system);
+    mocks.messages = [{ content: [specCall("e", labelA)] }];
+    mount(
+      setup("frontend").render,
+      toolProp({ id: "e", args: labelA, interactions }),
+    );
+    expect(systems()).toEqual([expect.stringContaining("Picked a")]);
+    apps.pop()!.unmount();
+    mocks.messages = [
+      { content: [specCall("e", labelA), specCall("f", labelB)] },
+    ];
+    mount(
+      setup("frontend").render,
+      toolProp({ id: "e", args: labelA, interactions }),
+    );
+    expect(systems()).toEqual([undefined]);
+  });
+
+  it("keeps an earlier message's spec when a later message patches the same title", async () => {
+    mocks.messages = [
+      { content: [specCall("e", labelA)] },
+      { content: [specCall("f", labelB)] },
+    ];
+    const { container } = mount(
+      setup("frontend").render,
+      toolProp({ id: "e", args: labelA }),
+    );
+    await nextTick();
+    expect(container.textContent).toBe("a");
+  });
+
   it("renders a spec argument that streams in before its elements", async () => {
     const { container, update } = mount(
       setup("frontend").render,

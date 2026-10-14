@@ -54,7 +54,7 @@ export function createSpecTools(
   const render_spec: RenderSpecTool = {
     name: "render_spec",
     description: [
-      "Shows declarative UI built from the host's components, streaming it as you write. Follow the spec guidance you were given (the `spec` module of read_me, or the system prompt). Pass `patches` (JSONL patch operations, one per line) or a complete `spec`. Patches on a title you already rendered apply to that spec, so fix or update it with small patches. The result lists validation issues to fix.",
+      "Shows declarative UI built from the host's components, streaming it as you write. Follow the spec guidance in the system prompt; only when it has none, load the `spec` module with read_me, if read_me offers one. Pass `patches` (JSONL patch operations, one per line) or a complete `spec`. Patches on a title you already rendered apply to that spec, so fix or update it with small patches. The result lists validation issues to fix.",
       "",
       "Every spec follows these rules:",
       ...specRules(catalog, options.customRules).map((rule) => `- ${rule}`),

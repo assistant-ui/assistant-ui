@@ -74,7 +74,7 @@ By default each token is read from its canonical name first and then from the ma
 | `--color-danger` | `--color-danger`, `--destructive` |
 | `--radius-md` | `--radius-md`, `--radius` |
 
-The other tokens are read from their canonical names only. Older shadcn themes that store bare HSL channels (`222 47% 11%`) are wrapped in `hsl()`. When the page defines `--radius` but not `--radius-sm` or `--radius-lg`, those are derived from it, and `--font-sans` falls back to the body's computed font family.
+The other tokens are read from their canonical names only. Older shadcn themes that store bare HSL channels (`222 47% 11%`) are wrapped in `hsl()`. When the page defines `--radius` but not `--radius-sm` or `--radius-lg`, those are derived from it, and `--font-sans` falls back to the body's computed font family. Either way a system sans-serif stack follows the page's sans font, and a system monospace stack follows a `--font-mono` the page defines, since its web fonts do not load inside the frame.
 
 Override the lookup per token with `ThemeTokenSources`:
 

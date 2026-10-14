@@ -332,6 +332,9 @@ describe("catalog.prompt", () => {
       customRules: ["Prefer cards."],
     }).render_spec;
     expect(description).toContain(
+      "Follow the spec guidance in the system prompt; only when it has none, load the `spec` module with read_me, if read_me offers one.",
+    );
+    expect(description).toContain(
       "Every spec follows these rules:\n- Open with a heading that names the answer",
     );
     expect(description.endsWith("- Prefer cards.")).toBe(true);
@@ -386,6 +389,13 @@ describe("validateSpec", () => {
     expect(text).toContain(
       'Warnings:\n- /elements/x: "x" is not reachable from the root.',
     );
+  });
+
+  it("accepts an empty child list on a component without that slot", () => {
+    const spec = validSpec();
+    spec.elements["m"]!.children = [];
+    spec.elements["card"]!.slots = { footer: ["b"], header: [] };
+    expect(validateSpec(spec, catalog)).toEqual({ ok: true, issues: [] });
   });
 
   it("reports formulas that cannot run in props, visibility, and action params", () => {
