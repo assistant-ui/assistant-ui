@@ -309,7 +309,7 @@ export function densityEllipse(points: Pt[]): {
     cy,
     rx: Math.sqrt(Math.max(l1, 1e-6)),
     ry: Math.sqrt(Math.max(l2, 1e-6)),
-    angle: 90 - angle,
+    angle,
   };
 }
 
