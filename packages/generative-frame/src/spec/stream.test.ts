@@ -86,6 +86,34 @@ describe("createSpecStream", () => {
   });
 
   describe("inline mode", () => {
+    it.each([
+      "hello\r\nworld",
+      "hello\r\n\r\nworld\r\n",
+      "hello\r",
+      "hello\rworld",
+      "hello\r\r\nworld",
+      `hello\r\n\`\`\`spec\r\n${LINES[0]}\r\n\`\`\`\r\nworld`,
+    ])("preserves inline output at every split in %j", (source) => {
+      const expected = parseSpecStream(source, { mode: "inline" });
+      for (let split = 0; split <= source.length; split++) {
+        const stream = createSpecStream({ mode: "inline" });
+        stream.push(source.slice(0, split));
+        stream.push(source.slice(split));
+        expect(stream.result()).toEqual(expected);
+      }
+      const stream = createSpecStream({ mode: "inline" });
+      for (const character of source) stream.push(character);
+      expect(stream.result()).toEqual(expected);
+    });
+
+    it("holds a trailing carriage return until the next character arrives", () => {
+      const stream = createSpecStream({ mode: "inline" });
+      expect(stream.push("hello\r").text).toBe("hello");
+      expect(stream.push("").text).toBe("");
+      expect(stream.push("\nworld").text).toBe("\nworld");
+      expect(stream.result().text).toBe("hello\nworld");
+    });
+
     it("separates prose, fenced patches, and bare patch lines", () => {
       const source = [
         "Here is the dashboard:",
