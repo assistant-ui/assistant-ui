@@ -54,14 +54,13 @@ export const DifferenceArea = forwardRef<SVGSVGElement, DifferenceAreaProps>(
     });
     const { left, right, top, bottom, axisY, T } = F;
     const Y = linear(0, max, bottom, top);
-    const count = Math.max(1, actual.data.length - 1);
+    const length = Math.max(actual.data.length, reference.data.length);
+    const count = Math.max(1, length - 1);
     const X = (i: number) =>
       left + (Math.max(0, Math.min(count, i)) / count) * (right - left);
     const along = (values: number[]) =>
       values.map((value, i) => ({
-        x:
-          left +
-          (values.length > 1 ? (i / (values.length - 1)) * (right - left) : 0),
+        x: X(i),
         y: Y(value),
       }));
     const a = along(actual.data);
@@ -146,7 +145,7 @@ export const DifferenceArea = forwardRef<SVGSVGElement, DifferenceAreaProps>(
           {...stroke.hair}
         />
         <ColumnHits
-          count={actual.data.length}
+          count={length}
           x0={left}
           x1={right}
           top={top}

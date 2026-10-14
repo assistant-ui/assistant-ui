@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { DifferenceArea } from "./difference-area";
 
-const markPaths = (actual: number[], reference: number[]) => {
+const chartMarks = (actual: number[], reference: number[]) => {
   let html = "";
   expect(() => {
     html = renderToStaticMarkup(
@@ -12,23 +12,52 @@ const markPaths = (actual: number[], reference: number[]) => {
       />,
     );
   }).not.toThrow();
-  return [...html.matchAll(/<path\b[^>]*data-part="mark"[^>]*>/g)].map(
-    ([tag]) => /\bd="([^"]*)"/.exec(tag)?.[1] ?? "",
-  );
+  return {
+    paths: [...html.matchAll(/<path\b[^>]*data-part="mark"[^>]*>/g)].map(
+      ([tag]) => /\bd="([^"]*)"/.exec(tag)?.[1] ?? "",
+    ),
+    hitIndices: [...html.matchAll(/<rect\b[^>]*data-i="(\d+)"/g)].map(
+      ([, index]) => Number(index),
+    ),
+  };
 };
 
-const cubicSegments = (path: string) => (path.match(/C/g) ?? []).length;
+const pathXs = (path: string) =>
+  [...path.matchAll(/([MLC])([^MLCZ]*)/g)].map(([, , coordinates]) => {
+    const values = [...coordinates!.matchAll(/-?\d+(?:\.\d+)?/g)].map(
+      ([value]) => Number(value),
+    );
+    return values.at(-2)!;
+  });
 
 describe("DifferenceArea mismatched lengths", () => {
   it("keeps the full actual line when reference ends early", () => {
-    const paths = markPaths([10, 20, 30, 40], [15, 25, 35]);
+    const { paths, hitIndices } = chartMarks([10, 20, 30, 40], [15, 25, 35]);
     expect(paths).toHaveLength(4);
-    expect(paths.map(cubicSegments)).toEqual([4, 4, 2, 3]);
+    const actualXs = pathXs(paths[3]!);
+    const referenceXs = pathXs(paths[2]!);
+    const sharedXs = actualXs.slice(0, 3);
+    const bandXs = [...sharedXs, ...[...sharedXs].reverse()];
+
+    expect(paths.slice(0, 2).map(pathXs)).toEqual([bandXs, bandXs]);
+    expect(referenceXs).toEqual(sharedXs);
+    expect(referenceXs.at(-1)).toBe(actualXs[2]);
+    expect(referenceXs.at(-1)).toBeLessThan(actualXs.at(-1)!);
+    expect(hitIndices).toEqual([0, 1, 2, 3]);
   });
 
   it("keeps the full reference line when actual ends early", () => {
-    const paths = markPaths([10, 20, 30], [15, 25, 35, 45]);
+    const { paths, hitIndices } = chartMarks([10, 20, 30], [15, 25, 35, 45]);
     expect(paths).toHaveLength(4);
-    expect(paths.map(cubicSegments)).toEqual([4, 4, 3, 2]);
+    const actualXs = pathXs(paths[3]!);
+    const referenceXs = pathXs(paths[2]!);
+    const sharedXs = referenceXs.slice(0, 3);
+    const bandXs = [...sharedXs, ...[...sharedXs].reverse()];
+
+    expect(paths.slice(0, 2).map(pathXs)).toEqual([bandXs, bandXs]);
+    expect(actualXs).toEqual(sharedXs);
+    expect(actualXs.at(-1)).toBe(referenceXs[2]);
+    expect(actualXs.at(-1)).toBeLessThan(referenceXs.at(-1)!);
+    expect(hitIndices).toEqual([0, 1, 2, 3]);
   });
 });
