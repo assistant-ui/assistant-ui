@@ -27,7 +27,7 @@ function layout(html: string) {
   const scale = Number(transform![3]);
   const X = (x: number) => tx + x * scale;
   const Y = (y: number) => ty + y * scale;
-  return { vx, vy, vw, vh, X, Y };
+  return { vx, vy, vw, vh, scale, X, Y };
 }
 
 function expectTilesInside(html: string) {
@@ -118,6 +118,13 @@ describe("tile hosts with custom tiles", () => {
       );
     expect(symbol).not.toBeNull();
     expectPointInside(html, Number(symbol![1]), Number(symbol![2]));
+  });
+
+  it("SymbolMap keeps a positive scale when the plot is smaller than a symbol", () => {
+    const html = renderToStaticMarkup(
+      <SymbolMap width={120} marks={[{ col: 4, row: 0, value: 1 }]} />,
+    );
+    expect(layout(html).scale).toBeGreaterThan(0);
   });
 
   it("SymbolMap keeps the full circle inside a plot-sized viewBox at an edge tile", () => {

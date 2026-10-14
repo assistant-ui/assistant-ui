@@ -61,12 +61,17 @@ export const SymbolMap = forwardRef<SVGSVGElement, SymbolMapProps>(
         needsPadding = true;
       }
     }
+    const padding = Math.min(
+      maxRadius,
+      (right - left) * 0.49,
+      (bottom - top) * 0.49,
+    );
     const { u, tx, ty } = needsPadding
       ? tileLayout(tiles, {
-          left: left + maxRadius,
-          right: right - maxRadius,
-          top: top + maxRadius,
-          bottom: bottom - maxRadius,
+          left: left + padding,
+          right: right - padding,
+          top: top + padding,
+          bottom: bottom - padding,
         })
       : initialLayout;
     const X = (x: number) => round(x * u + tx);
