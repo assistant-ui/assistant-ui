@@ -104,6 +104,41 @@ describe("LexicalComposerInput thread switches", () => {
     return runtime.threads.getState().mainThreadId;
   };
 
+  const typeInEditor = async (text: string) => {
+    await act(async () => {
+      editor.update(
+        () => {
+          $getRoot()
+            .clear()
+            .append($createParagraphNode().append($createTextNode(text)));
+          $getRoot().selectEnd();
+        },
+        { discrete: true, tag: [HISTORY_PUSH_TAG, SKIP_DOM_SELECTION_TAG] },
+      );
+    });
+  };
+
+  it("keeps the new thread's own undo history across a later runtime notification", async () => {
+    await typeInEditor("thread A private draft");
+    const firstThread = runtime.threads.getState().mainThreadId;
+
+    const secondThread = await switchToNewThread();
+    expect(secondThread).not.toBe(firstThread);
+
+    await typeInEditor("thread B first");
+    await typeInEditor("thread B second");
+    await setComposerText("thread B external");
+    expect(readEditorText()).toBe("thread B external");
+
+    for (const expected of ["thread B second", "thread B first", ""]) {
+      await act(async () => {
+        editor.dispatchCommand(UNDO_COMMAND, undefined);
+      });
+      expect(readEditorText()).toBe(expected);
+    }
+    expect(runtime.thread.composer.getState().text).toBe("");
+  });
+
   it("clears undo and redo history when switching to an empty draft", async () => {
     await setComposerText("thread A draft");
     await act(async () => {
