@@ -98,6 +98,8 @@ export const Root = forwardRef<HTMLDivElement, RootProps>(
         | MarkQuery[]
         | null;
       const stamp = () => applyHighlight(node, highlight);
+      stamp();
+      if (highlight === null) return;
       const markSelector = '[data-part="mark"], [data-part="region"]';
       const observer = new MutationObserver((mutations) => {
         if (
@@ -115,7 +117,6 @@ export const Root = forwardRef<HTMLDivElement, RootProps>(
           stamp();
         }
       });
-      stamp();
       observer.observe(node, {
         childList: true,
         subtree: true,
