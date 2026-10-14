@@ -25,6 +25,7 @@ import {
   type ExpressionContext,
 } from "../expressions";
 import { getAtPointer } from "../pointer";
+import { rejectedPropType } from "../resolved";
 import { createStateStore, type SpecStateStore } from "../state";
 import { childIdsOf, repeatItems, safePointer } from "../tree";
 import type { Spec, SpecElement } from "../types";
@@ -389,6 +390,23 @@ function ResolvedElement({
   const slots: Record<string, ReactNode> = {};
   for (const [slot, ids] of Object.entries(element.slots ?? {})) {
     if (Array.isArray(ids)) slots[slot] = renderChildren(ids, scope, ancestors);
+  }
+
+  const rejected = rejectedPropType(
+    ctx.catalog?.propsSchema(element.type),
+    props,
+  );
+  if (rejected) {
+    const Placeholder = ctx.placeholder;
+    return ctx.streaming ? (
+      <Placeholder id={id} reason="pending" message={`"${id}" is streaming`} />
+    ) : (
+      <Placeholder
+        id={id}
+        reason="invalid-props"
+        message={`${element.type}: ${rejected}`}
+      />
+    );
   }
 
   return (
