@@ -173,7 +173,7 @@ const MAX_DEPTH = 64;
  * segment of the parse meta's partial path relative to `node` (`undefined` once
  * the walk leaves the partial frontier, i.e. everything below is complete).
  */
-function descend(
+export function descend(
   partialPath: readonly string[] | undefined,
   key: string,
 ): readonly string[] | undefined {

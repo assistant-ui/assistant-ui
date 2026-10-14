@@ -4,6 +4,7 @@ import { Fragment, type ReactNode } from "react";
 import { z } from "zod";
 import { hasFieldReference, resolveFieldReferences } from "./fieldReferences";
 import {
+  descend,
   normalizeUINode,
   type Action,
   type NormalizedUIElement,
@@ -36,13 +37,19 @@ export function renderGenerativeUI(
   return renderGenerativeUITree(node, library, context, undefined);
 }
 
-type ChildKey = { kind: string; model: string | undefined; key: string };
+type ChildKey = {
+  kind: string;
+  model: string | undefined;
+  key: string;
+  /** Whether the child was still streaming in, the only time its `$key` can still arrive. */
+  streaming: boolean;
+};
 
 /** The React keys a renderer that stays mounted carries from one render to the next. */
 export type ChildKeyMemory = {
   /** Each list's child keys from the last committed render, by list path. */
   readonly committed: ReadonlyMap<string, readonly ChildKey[]>;
-  /** The React key each model-keyed child holds, by list path and `$key`. */
+  /** The React key each model-keyed child holds, by list path and `$key` as a JSON pair. */
   readonly keyed: Map<string, string>;
   /** Each list's child keys from this render, committed once it commits. */
   readonly rendered: Map<string, ChildKey[]>;
@@ -66,6 +73,7 @@ export function renderGenerativeUITree(
     withFieldFallbacks(context),
     keys,
     "",
+    partialPath,
   );
   return rendered !== null && typeof rendered === "object" ? (
     <RadioGroupScope>{rendered}</RadioGroupScope>
@@ -97,12 +105,13 @@ function renderNode(
   context: GenerativeUIRenderContext,
   keys: ChildKeyMemory | undefined,
   path: string,
+  partialPath: readonly string[] | undefined,
 ): ReactNode {
   if (node == null || typeof node === "boolean") return null;
   if (typeof node === "string" || typeof node === "number") return node;
   if (Array.isArray(node)) {
     const childKeys = keys
-      ? rememberedKeys(node, keys, path)
+      ? rememberedKeys(node, keys, path, partialPath)
       : node.map(nodeKey);
     return node.map((child, index) => (
       <Fragment key={childKeys[index]}>
@@ -111,26 +120,33 @@ function renderNode(
           library,
           context,
           keys,
-          `${path}/${childKeys[index]}`,
+          `${path}/${pathSegment(childKeys[index]!)}`,
+          descend(partialPath, String(index)),
         )}
       </Fragment>
     ));
   }
   return isElement(node)
-    ? renderElement(node, library, context, keys, path)
+    ? renderElement(node, library, context, keys, path, partialPath)
     : null;
 }
 
-// A keyed child keeps the key it first rendered with: its positional key when its `$key` streamed in after its `$type`. Keyed children claim their keys first, so a keyless sibling at that position takes another.
+// A `$key` may hold `/`, so a list path escapes it the way a JSON Pointer token does.
+const pathSegment = (key: string) =>
+  key.replaceAll("~", "~0").replaceAll("/", "~1");
+
+// A keyed child keeps the key it first rendered with: the positional key of the keyless child it was while it streamed in, when its `$key` came after its `$type`. Keyed children claim their keys first, so a keyless sibling at that position takes another.
 function rememberedKeys(
   nodes: readonly NormalizedUINode[],
   keys: ChildKeyMemory,
   path: string,
+  partialPath: readonly string[] | undefined,
 ): string[] {
   const previous = keys.committed.get(path) ?? [];
-  const children = nodes.map((node) => ({
+  const children = nodes.map((node, index) => ({
     kind: nodeKind(node),
     model: modelKey(node),
+    streaming: partialPath?.[0] === String(index),
   }));
   const taken = new Set<string>();
   const claim = (key: string) => {
@@ -140,12 +156,12 @@ function rememberedKeys(
   };
   const assigned = children.map(({ kind, model }, index) => {
     if (model === undefined) return undefined;
-    const id = `${path}\n${model}`;
+    const id = JSON.stringify([path, model]);
     const remembered = keys.keyed.get(id);
     const before = previous[index];
     const key = claim(
       remembered ??
-        (before?.model === undefined && before?.kind === kind
+        (before?.streaming && before.model === undefined && before.kind === kind
           ? before.key
           : `model:${model}`),
     );
@@ -168,6 +184,7 @@ function renderElement(
   context: GenerativeUIRenderContext,
   keys: ChildKeyMemory | undefined,
   path: string,
+  partialPath: readonly string[] | undefined,
 ): ReactNode {
   const entry = Object.hasOwn(library, element.type)
     ? library[element.type]
@@ -203,6 +220,7 @@ function renderElement(
       context,
       keys,
       path,
+      descend(partialPath, "children"),
     );
   }
 

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { parsePartialJsonObject } from "assistant-stream/utils";
 import { act, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it } from "vitest";
@@ -30,14 +31,14 @@ const library = {
   },
 } satisfies GenerativeUILibrary;
 
-it("keeps a keyed child's state when a keyless sibling takes the place it first rendered in", async () => {
+const mount = () => {
   const container = document.createElement("div");
   const root = createRoot(container);
-  const show = (children: Record<string, unknown>[]) =>
+  const show = (node: unknown) =>
     act(async () => {
       root.render(
         <GenerativeUITree
-          node={{ $type: "Stack", children }}
+          node={node}
           library={library}
           context={{ status: "done" }}
         />,
@@ -47,20 +48,50 @@ it("keeps a keyed child's state when a keyless sibling takes the place it first 
     [...container.querySelectorAll("button")].map(
       (button) => button.textContent,
     );
+  const click = () =>
+    act(async () => container.querySelector("button")!.click());
+  return { show, counts, click, unmount: () => act(() => root.unmount()) };
+};
+
+const stack = (children: Record<string, unknown>[]) => ({
+  $type: "Stack",
+  children,
+});
+
+it("keeps a keyed child's state when a keyless sibling takes the place it first rendered in", async () => {
+  const { show, counts, click, unmount } = mount();
   try {
-    await show([{ $type: "Counter" }]);
-    await act(async () => container.querySelector("button")!.click());
-    await show([{ $type: "Counter", $key: "a" }]);
+    await show(
+      parsePartialJsonObject('{"$type":"Stack","children":[{"$type":"Counter"'),
+    );
+    await click();
+    await show(stack([{ $type: "Counter", $key: "a" }]));
     expect(counts()).toEqual(["1"]);
-    await show([{ $type: "Counter" }, { $type: "Counter", $key: "a" }]);
+    await show(stack([{ $type: "Counter" }, { $type: "Counter", $key: "a" }]));
     expect(counts()).toEqual(["0", "1"]);
-    await show([
-      { $type: "Counter" },
-      { $type: "Counter", $key: "a" },
-      { $type: "Counter", $key: "a" },
-    ]);
+    await show(
+      stack([
+        { $type: "Counter" },
+        { $type: "Counter", $key: "a" },
+        { $type: "Counter", $key: "a" },
+      ]),
+    );
     expect(counts()).toEqual(["0", "1", "0"]);
   } finally {
-    act(() => root.unmount());
+    await unmount();
+  }
+});
+
+it("gives a keyed child inserted where a finished keyless child was its own state", async () => {
+  const { show, counts, click, unmount } = mount();
+  try {
+    await show(stack([{ $type: "Counter" }]));
+    await click();
+    await show(
+      stack([{ $type: "Counter", $key: "new" }, { $type: "Counter" }]),
+    );
+    expect(counts()).toEqual(["0", "0"]);
+  } finally {
+    await unmount();
   }
 });
