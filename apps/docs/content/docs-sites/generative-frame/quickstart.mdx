@@ -45,7 +45,7 @@ const widget = createWidget({ container, code: savedWidgetCode });
 await widget.replace(nextCode);
 ```
 
-`replace` morphs in place while no script has run. Once scripts have run, it renders the new code in a fresh frame and swaps it in when that frame has ended. A newer `replace` removes a fresh frame that is still rendering, so only the latest code shows and nothing from the older frame reaches your handlers, and the earlier call's promise rejects.
+`replace` morphs in place while no script has run. Once scripts have run, it renders the new code in a fresh frame and swaps it in when that frame has ended. A newer `replace` removes a fresh frame that is still rendering, so only the latest code shows and the older frame sends your handlers nothing after that, and the earlier call's promise rejects.
 
 ## Handle what the widget asks for
 
