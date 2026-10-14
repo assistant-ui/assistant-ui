@@ -318,11 +318,9 @@ describe("SpecRenderer", () => {
       />,
     );
     expect(
-      view.container.querySelector('[data-gf-spec-placeholder="pending"]'),
-    ).not.toBeNull();
-    expect(
-      view.container.querySelector('[data-gf-spec-placeholder="error"]'),
+      view.container.querySelector("[data-gf-spec-placeholder]"),
     ).toBeNull();
+    expect(view.container.querySelector("img")).toBeNull();
 
     view.rerender(
       <SpecRenderer
@@ -391,6 +389,76 @@ describe("SpecRenderer", () => {
     );
     expect(view.container.textContent).toBe("Streamed");
     expect((view.getByRole("checkbox") as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("shows one pending placeholder, where the spec grows next, while streaming", () => {
+    const streamed = (elements: Spec["elements"]) =>
+      spec({
+        main: {
+          type: "Stack",
+          children: ["a", "b", "c"],
+          slots: { footer: ["f"] },
+        },
+        a: { type: "Text", props: { text: "A" } },
+        ...elements,
+      });
+    const pending = () =>
+      view.container.querySelectorAll('[data-gf-spec-placeholder="pending"]');
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={streamed({})}
+        streaming
+      />,
+    );
+    expect(pending()).toHaveLength(1);
+    expect(pending()[0]?.previousElementSibling?.textContent).toBe("A");
+
+    view.rerender(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={streamed({ b: { type: "Text", props: { text: "B" } } })}
+        streaming
+      />,
+    );
+    expect(pending()).toHaveLength(1);
+    expect(pending()[0]?.previousElementSibling?.textContent).toBe("B");
+
+    view.rerender(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={streamed({})}
+      />,
+    );
+    expect(pending()).toHaveLength(0);
+    expect(
+      view.container.querySelectorAll('[data-gf-spec-placeholder="missing"]'),
+    ).toHaveLength(3);
+  });
+
+  it("shows a pending placeholder until the root arrives", () => {
+    const empty: Spec = { root: "", elements: {} };
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={empty}
+        streaming
+      />,
+    );
+    expect(
+      view.container.querySelectorAll('[data-gf-spec-placeholder="pending"]'),
+    ).toHaveLength(1);
+
+    view.rerender(
+      <SpecRenderer catalog={catalog} components={components} spec={empty} />,
+    );
+    expect(
+      view.container.querySelector("[data-gf-spec-placeholder]"),
+    ).toBeNull();
   });
 
   it("runs watch actions when a watched value changes", () => {

@@ -15,8 +15,23 @@ function useArgsComplete() {
   return useToolArgsStatus().argsStatus === "complete";
 }
 
-function Frame({ title, children }: { title: string; children: ReactNode }) {
-  return <div data-gf-spec={title || undefined}>{children}</div>;
+function Frame({
+  title,
+  streaming,
+  children,
+}: {
+  title: string;
+  streaming: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <div
+      data-gf-spec={title || undefined}
+      data-gf-streaming={streaming || undefined}
+    >
+      {children}
+    </div>
+  );
 }
 
 function useSendMessage() {

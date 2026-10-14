@@ -24,10 +24,15 @@ import {
   resolveProps,
   type ExpressionContext,
 } from "../expressions";
+import {
+  animatePendingDots,
+  PENDING_DOT_STYLE,
+  PENDING_STYLE,
+} from "../pending";
 import { getAtPointer } from "../pointer";
 import { rejectedPropType } from "../resolved";
 import { createStateStore, type SpecStateStore } from "../state";
-import { childIdsOf, repeatItems, safePointer } from "../tree";
+import { childIdsOf, firstMissingId, repeatItems, safePointer } from "../tree";
 import type { Spec, SpecElement } from "../types";
 
 /** What a component implementation receives for one element. */
@@ -103,6 +108,8 @@ type RenderContext = {
   state: Record<string, unknown>;
   dispatch: ActionDispatcher;
   streaming: boolean;
+  /** The missing element that shows the pending placeholder while the spec streams. */
+  frontier: string | undefined;
   placeholder: ComponentType<SpecPlaceholderProps>;
   invalid: (element: SpecElement) => string | undefined;
   onError: SpecRendererProps["onError"];
@@ -112,23 +119,29 @@ const SpecContext = createContext<RenderContext | null>(null);
 
 type Scope = Pick<ExpressionContext, "item" | "index" | "itemPath">;
 
+function PendingDots() {
+  const host = useRef<HTMLSpanElement>(null);
+  useEffect(
+    () => (host.current ? animatePendingDots(host.current) : undefined),
+    [],
+  );
+  return (
+    <span
+      ref={host}
+      data-gf-spec-placeholder="pending"
+      aria-hidden="true"
+      style={PENDING_STYLE}
+    >
+      <span style={PENDING_DOT_STYLE} />
+      <span style={PENDING_DOT_STYLE} />
+      <span style={PENDING_DOT_STYLE} />
+    </span>
+  );
+}
+
 /** A small, unobtrusive stand-in for elements that cannot render. */
 export function SpecPlaceholder({ id, reason, message }: SpecPlaceholderProps) {
-  if (reason === "pending") {
-    return (
-      <div
-        data-gf-spec-placeholder="pending"
-        aria-hidden="true"
-        style={{
-          height: 16,
-          margin: "4px 0",
-          borderRadius: 4,
-          background: "currentColor",
-          opacity: 0.08,
-        }}
-      />
-    );
-  }
+  if (reason === "pending") return <PendingDots />;
   return (
     <div
       data-gf-spec-placeholder={reason}
@@ -230,9 +243,16 @@ function ElementView({
     typeof element !== "object" ||
     typeof element.type !== "string"
   ) {
-    return ctx.streaming ? (
-      <Placeholder id={id} reason="pending" message={`"${id}" is streaming`} />
-    ) : (
+    if (ctx.streaming) {
+      return id === ctx.frontier ? (
+        <Placeholder
+          id={id}
+          reason="pending"
+          message={`"${id}" is streaming`}
+        />
+      ) : null;
+    }
+    return (
       <Placeholder
         id={id}
         reason="missing"
@@ -397,10 +417,9 @@ function ResolvedElement({
     props,
   );
   if (rejected) {
+    if (ctx.streaming) return null;
     const Placeholder = ctx.placeholder;
-    return ctx.streaming ? (
-      <Placeholder id={id} reason="pending" message={`"${id}" is streaming`} />
-    ) : (
+    return (
       <Placeholder
         id={id}
         reason="invalid-props"
@@ -510,12 +529,18 @@ export function SpecRenderer({
     state: snapshot,
     dispatch,
     streaming,
+    frontier: streaming ? firstMissingId(spec) : undefined,
     placeholder,
     invalid,
     onError,
   };
 
-  if (!spec.root) return null;
+  if (!spec.root) {
+    const Placeholder = placeholder;
+    return streaming ? (
+      <Placeholder id="" reason="pending" message="The spec is streaming" />
+    ) : null;
+  }
   return (
     <SpecContext.Provider value={ctx}>
       <ElementView id={spec.root} scope={{}} ancestors={[]} />
