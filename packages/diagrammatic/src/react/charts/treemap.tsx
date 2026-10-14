@@ -42,6 +42,7 @@ export const Treemap = forwardRef<SVGSVGElement, TreemapProps>(
         className={className}
       >
         {children.map((child, i) => {
+          if (!(nodeValue(child) > 0)) return null;
           const rect = outer[i]!;
           const grandchildren = depth >= 2 ? (child.children ?? []) : [];
           const innerRects =
@@ -59,6 +60,7 @@ export const Treemap = forwardRef<SVGSVGElement, TreemapProps>(
           return (
             <g key={child.label}>
               {tiles.map(({ node, rect: tile, opacity }, k) => {
+                if (!(nodeValue(node) > 0)) return null;
                 const pad = 5;
                 const labelFits =
                   tile.w > pad * 2 + T.onSeries.px * 2 &&
