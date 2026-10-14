@@ -42,6 +42,7 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   return {
     ...actual,
     useAui: () => mocks.aui,
+    useAuiState: () => mocks.aui.threads.getState().mainThreadId,
   };
 });
 
@@ -55,6 +56,7 @@ const createAui = (text: string) => {
   };
 
   return {
+    threads: { getState: () => ({ mainThreadId: "test-thread" }) },
     composer: {
       __internal_getRuntime: () => runtime,
       setText: vi.fn((next: string) => {
@@ -166,6 +168,112 @@ describe("SyncPlugin", () => {
     });
 
     expect(readEditorText(editor)).toBe("");
+  });
+
+  it("does not restore the previous composer when switching to a populated draft", async () => {
+    const extension = defineExtension({
+      name: "sync-populated-history",
+      namespace: "sync-populated-history",
+      dependencies: [HistoryExtension],
+    });
+    const capture = (capturedEditor: LexicalEditor) => {
+      editor = capturedEditor;
+    };
+    const render = () =>
+      root.render(
+        <LexicalExtensionComposer extension={extension} contentEditable={null}>
+          <SyncPlugin />
+          <EditorProbe capture={capture} />
+        </LexicalExtensionComposer>,
+      );
+
+    mocks.aui = createAui("thread A draft");
+    await act(async () => {
+      render();
+    });
+    await act(async () => {
+      editor.update(
+        () => {
+          $getRoot()
+            .clear()
+            .append(
+              $createParagraphNode().append(
+                $createTextNode("thread A private draft"),
+              ),
+            );
+          $getRoot().selectEnd();
+        },
+        { discrete: true, tag: [HISTORY_PUSH_TAG, SKIP_DOM_SELECTION_TAG] },
+      );
+    });
+
+    const nextAui = createAui("thread B populated draft");
+    mocks.aui = nextAui;
+    await act(async () => {
+      render();
+    });
+    expect(readEditorText(editor)).toBe("thread B populated draft");
+
+    await act(async () => {
+      editor.dispatchCommand(UNDO_COMMAND, undefined);
+    });
+
+    expect(readEditorText(editor)).toBe("thread B populated draft");
+    expect(nextAui.composer.__internal_getRuntime!().getState().text).toBe(
+      "thread B populated draft",
+    );
+  });
+
+  it("resets history when switched composers have equal text", async () => {
+    const extension = defineExtension({
+      name: "sync-equal-history",
+      namespace: "sync-equal-history",
+      dependencies: [HistoryExtension],
+    });
+    const capture = (capturedEditor: LexicalEditor) => {
+      editor = capturedEditor;
+    };
+    const render = () =>
+      root.render(
+        <LexicalExtensionComposer extension={extension} contentEditable={null}>
+          <SyncPlugin />
+          <EditorProbe capture={capture} />
+        </LexicalExtensionComposer>,
+      );
+
+    mocks.aui = createAui("thread A private draft");
+    await act(async () => {
+      render();
+    });
+    await act(async () => {
+      editor.update(
+        () => {
+          $getRoot()
+            .clear()
+            .append(
+              $createParagraphNode().append($createTextNode("shared draft")),
+            );
+          $getRoot().selectEnd();
+        },
+        { discrete: true, tag: [HISTORY_PUSH_TAG, SKIP_DOM_SELECTION_TAG] },
+      );
+    });
+    expect(readEditorText(editor)).toBe("shared draft");
+
+    const nextAui = createAui("shared draft");
+    mocks.aui = nextAui;
+    await act(async () => {
+      render();
+    });
+
+    await act(async () => {
+      editor.dispatchCommand(UNDO_COMMAND, undefined);
+    });
+
+    expect(readEditorText(editor)).toBe("shared draft");
+    expect(nextAui.composer.__internal_getRuntime!().getState().text).toBe(
+      "shared draft",
+    );
   });
 
   it("adds no text-node reads for selection-only updates in a 1,000-paragraph draft", async () => {
