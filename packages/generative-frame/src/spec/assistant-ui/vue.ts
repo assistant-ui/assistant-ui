@@ -30,7 +30,6 @@ import {
   type SpecStateStore,
   type SpecStateWrite,
 } from "../state";
-import type { Spec } from "../types";
 import { SpecRenderer, type SpecComponents } from "../vue/SpecRenderer";
 import { useSpecStream } from "../vue/useSpecStream";
 import {
@@ -40,6 +39,7 @@ import {
   resolveSpecBase,
   resolveToolResults,
   savedWrites,
+  specFromArgs,
   specModules,
   supersededInMessage,
   type InteractionLog,
@@ -137,7 +137,7 @@ export function createSpecToolkit(
           return input &&
             typeof input === "object" &&
             typeof input.root === "string"
-            ? ({ state: {}, ...input } as Spec)
+            ? specFromArgs(input)
             : streamed.spec.value;
         });
         const specState = computed(() => spec.value.state);

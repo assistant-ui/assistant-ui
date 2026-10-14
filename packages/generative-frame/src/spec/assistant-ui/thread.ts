@@ -86,6 +86,14 @@ function decodeResult(result: unknown): unknown {
   }
 }
 
+/** A `spec` argument as the renderers read it, with `elements` an object even while the argument is still streaming in. */
+export const specFromArgs = (spec: object): Spec => {
+  const value = { state: {}, ...spec } as Spec;
+  return typeof value.elements === "object" && value.elements !== null
+    ? value
+    : { ...value, elements: {} };
+};
+
 /**
  * The spec a `render_spec` call's patches apply onto: the result of the
  * earlier `render_spec` calls with the same title in the thread.
@@ -100,7 +108,7 @@ export function resolveSpecBase(
     if (call.id === toolCallId) return spec;
     if (call.name !== "render_spec" || call.args["title"] !== title) continue;
     if (call.args["spec"] && typeof call.args["spec"] === "object") {
-      spec = { state: {}, ...(call.args["spec"] as Spec) };
+      spec = specFromArgs(call.args["spec"]);
     } else if (typeof call.args["patches"] === "string") {
       spec = parseSpecStream(
         call.args["patches"],

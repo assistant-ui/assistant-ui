@@ -32,7 +32,6 @@ import {
   type SpecStateStore,
   type SpecStateWrite,
 } from "../state";
-import type { Spec } from "../types";
 import {
   callHistory,
   copyTextHandler,
@@ -40,6 +39,7 @@ import {
   resolveSpecBase,
   resolveToolResults,
   savedWrites,
+  specFromArgs,
   specModules,
   supersededInMessage,
   type InteractionLog,
@@ -157,7 +157,7 @@ export const specToolkitFor =
             inputSpec &&
             typeof inputSpec === "object" &&
             typeof inputSpec.root === "string"
-              ? ({ state: {}, ...inputSpec } as Spec)
+              ? specFromArgs(inputSpec)
               : streamed.spec,
           [inputSpec, streamed.spec],
         );

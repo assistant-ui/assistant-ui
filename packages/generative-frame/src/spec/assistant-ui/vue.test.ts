@@ -359,6 +359,35 @@ describe("createSpecToolkit for Vue", () => {
     expect(container.textContent).toBe("a");
   });
 
+  it("renders a spec argument that streams in before its elements", async () => {
+    const { container, update } = mount(
+      setup("frontend").render,
+      toolProp({
+        id: "p",
+        args: { title: "s", spec: { root: "t" } },
+        running: true,
+      }),
+    );
+    await nextTick();
+    expect(
+      container.querySelector('[data-gf-spec-placeholder="pending"]'),
+    ).not.toBeNull();
+    update(
+      toolProp({
+        id: "p",
+        args: {
+          title: "s",
+          spec: {
+            root: "t",
+            elements: { t: { type: "Label", props: { text: "a" } } },
+          },
+        },
+      }),
+    );
+    await nextTick();
+    expect(container.textContent).toBe("a");
+  });
+
   it("rebuilds on the same-title base when patches stream before the title", async () => {
     const first = {
       title: "s",
