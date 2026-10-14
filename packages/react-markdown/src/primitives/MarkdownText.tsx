@@ -26,6 +26,7 @@ import type {
   SyntaxHighlighterProps,
   CodeHeaderProps,
   CodeComponent as MarkdownCodeComponentType,
+  PreComponent as MarkdownPreComponentType,
 } from "../overrides/types";
 import type { ComponentsByLanguage } from "../code-fence";
 import { PreOverride } from "../overrides/PreOverride";
@@ -35,7 +36,6 @@ import {
   DefaultCodeBlockContent,
   DefaultCodeHeader,
 } from "../overrides/defaultComponents";
-import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import {
   CodeOverride,
   type CodeOverrideProps,
@@ -61,6 +61,13 @@ const MarkdownCodeOverride: FC<
 > = (props) => {
   const codeOverrides = useContext(CodeOverrideContext)!;
   return <CodeOverride {...codeOverrides} {...props} />;
+};
+
+const MarkdownPreOverride: FC<
+  ComponentPropsWithoutRef<MarkdownPreComponentType>
+> = (props) => {
+  const { components } = useContext(CodeOverrideContext)!;
+  return <PreOverride {...props} fallbackPre={components.Pre} />;
 };
 
 // react-markdown builds a fresh processor and parses the whole accumulated text
@@ -247,10 +254,6 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
     3,
   );
 
-  const PreComponentWithFallback = useCallbackRef((props) => (
-    <PreOverride fallbackPre={pre} {...props} />
-  ));
-
   // An inline `components={{ h1: MyH1 }}` is a fresh object on every render, so
   // the merged map is stabilized here; without it the renderer sees a new prop
   // identity every render and its memo never bails out.
@@ -260,10 +263,10 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
         userComponents ?? {};
       return {
         ...componentsRest,
-        pre: PreComponentWithFallback,
+        pre: MarkdownPreOverride,
         code: MarkdownCodeOverride,
       };
-    }, [PreComponentWithFallback, userComponents]),
+    }, [userComponents]),
   );
 
   const Renderer = defer ? DeferredMarkdownRenderer : MarkdownRenderer;
