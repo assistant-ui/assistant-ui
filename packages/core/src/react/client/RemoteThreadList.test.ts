@@ -2435,6 +2435,91 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("does not retry a failed list load when the controlled threadId changes", async () => {
+    const error = new Error("offline");
+    const list = vi
+      .fn()
+      .mockRejectedValueOnce(error)
+      .mockResolvedValue({ threads: [] });
+    const fetch = vi.fn(async (id: string) => ({
+      status: "regular" as const,
+      remoteId: id,
+      externalId: undefined,
+      title: id,
+    }));
+    const adapter = makeAdapter({ list, fetch });
+    const listeners = new Set<() => void>();
+    const onThreadIdChange = vi.fn();
+    let threadId: string | undefined;
+    const handle = createAssistantClient({
+      getConfig: () =>
+        AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            threadId,
+            onThreadIdChange,
+            thread: (id) => StubThread({ threadId: id }) as never,
+          }),
+        }),
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    });
+    handle.subscribe(() => {});
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(handle.getClient().threads.getState().loadError).toBe(error),
+      );
+
+      threadId = "t1";
+      flushTapSync(() => listeners.forEach((listener) => listener()));
+
+      await waitFor(() => {
+        expect(fetch).toHaveBeenCalledExactlyOnceWith("t1");
+        expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
+      });
+      expect(list).toHaveBeenCalledTimes(1);
+    } finally {
+      consoleError.mockRestore();
+      handle.destroy();
+    }
+  });
+
+  it("retries a failed initial list load when reloaded", async () => {
+    const error = new Error("offline");
+    const list = vi
+      .fn()
+      .mockRejectedValueOnce(error)
+      .mockResolvedValue({ threads: [] });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const { handle } = mountList(makeAdapter({ list }));
+
+    try {
+      await waitFor(() => expect(list).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(handle.getClient().threads.getState().loadError).toBe(error),
+      );
+
+      await handle.getClient().threads.reload();
+
+      await waitFor(() => expect(list).toHaveBeenCalledTimes(2));
+      await waitFor(() =>
+        expect(handle.getClient().threads.getState().loadError).toBeUndefined(),
+      );
+      expect(list).toHaveBeenCalledTimes(2);
+    } finally {
+      handle.destroy();
+      consoleError.mockRestore();
+    }
+  });
+
   it("reloads once when the browser comes online after a failed load", async () => {
     vi.stubGlobal("window", new EventTarget());
     vi.stubGlobal(
