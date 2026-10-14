@@ -33,6 +33,11 @@ import {
   type WidgetTools,
 } from "../tools/tools";
 import type { AnyTool, ToolDefinition } from "../tools/define";
+import {
+  hasLaterToolCallInMessage,
+  type MessageLike,
+  type ToolCall,
+} from "./tool-calls";
 import { toolkitEntry } from "./entry";
 import type { ToolkitDisplay, WidgetToolkitExtension } from "./extension";
 import { resolveWidgetCode, resolveWidgetOrigin } from "./history";
@@ -149,6 +154,14 @@ type ShowArgs = Partial<ShowWidgetInput>;
 type EditArgs = Partial<EditWidgetInput>;
 
 const REPORT_BACKLOG = 50;
+/** A later show takes over once it has code to show; a later edit only once its arguments are settled and its edits apply, so the widget stays while a show has no code or an edit streams or fails. */
+const takesOverWidget = (messages: readonly MessageLike[], call: ToolCall) =>
+  (call.name === "show_widget" &&
+    typeof call.args["widget_code"] === "string" &&
+    call.args["widget_code"].trim() !== "") ||
+  (call.name === "edit_widget" &&
+    call.settled &&
+    resolveWidgetCode(messages, call.id) !== undefined);
 
 /** Hands render reports from the thread's widgets to the tool calls waiting for them. */
 function createRenderReports() {
@@ -436,6 +449,29 @@ export function createWidgetToolkit(
     return <div ref={ref} />;
   }
 
+  function useWidgetCallSuperseded(
+    messages: readonly MessageLike[],
+    toolCallId: string,
+    title: string,
+  ) {
+    const superseded = useMemo(
+      () =>
+        hasLaterToolCallInMessage(messages, toolCallId, title, (call) =>
+          takesOverWidget(messages, call),
+        ),
+      [messages, toolCallId, title],
+    );
+    useEffect(() => {
+      if (!superseded || !reportOptions) return;
+      reports.report(toolCallId, {
+        status: "timeout",
+        feedback:
+          "This widget was superseded by a later call with the same title in this message and was not rendered.",
+      });
+    }, [superseded, toolCallId]);
+    return superseded;
+  }
+
   function ShowWidgetUI({
     args,
     toolCallId,
@@ -443,16 +479,18 @@ export function createWidgetToolkit(
     unstable_recordInteraction,
   }: ToolCallMessagePartProps<ShowArgs>) {
     const { propStatus } = useToolArgsStatus<ShowWidgetInput>();
+    const messages = useAuiState((s) => s.thread.messages);
     const streaming = propStatus.widget_code !== "complete";
     const code = typeof args.widget_code === "string" ? args.widget_code : "";
     const title = typeof args.title === "string" ? args.title : "";
     const storageId = useStorageId(toolCallId);
+    const superseded = useWidgetCallSuperseded(messages, toolCallId, title);
 
     useEffect(() => {
       if (streaming || !title || !code) return;
       if (registry.get(title)?.code !== code) registry.set(title, code);
     }, [streaming, title, code]);
-
+    if (superseded) return null;
     const status = args.loading_messages?.[0];
     return (
       <div data-gf-widget={title || undefined}>
@@ -484,6 +522,7 @@ export function createWidgetToolkit(
     const messages = useAuiState((s) => s.thread.messages);
     const title = typeof args.title === "string" ? args.title : "";
     const complete = argsStatus === "complete";
+    const superseded = useWidgetCallSuperseded(messages, toolCallId, title);
     const code = useMemo(
       () => (complete ? resolveWidgetCode(messages, toolCallId) : undefined),
       [complete, messages, toolCallId],
@@ -498,7 +537,7 @@ export function createWidgetToolkit(
       if (!title || code === undefined) return;
       if (registry.get(title)?.code !== code) registry.set(title, code);
     }, [title, code]);
-
+    if (superseded) return null;
     if (!complete) {
       return (
         <p role="status" style={{ margin: "4px 0", opacity: 0.7 }}>
