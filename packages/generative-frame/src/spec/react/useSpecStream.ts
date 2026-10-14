@@ -41,6 +41,7 @@ type Follower = {
   stream: SpecStream;
   consumed: string;
   mode: SpecStreamMode;
+  generation: number;
   text: string;
   errors: SpecStreamError[];
 };
@@ -67,6 +68,7 @@ export function useSpecStream(
   );
 
   const follower = useRef<Follower | null>(null);
+  const [generation, setGeneration] = useState(0);
   const followed = useMemo<Snapshot | null>(() => {
     if (source === undefined) return null;
     if (complete) {
@@ -81,9 +83,17 @@ export function useSpecStream(
     if (
       !current ||
       current.mode !== mode ||
+      current.generation !== generation ||
       !source.startsWith(current.consumed)
     ) {
-      current = { stream: start(), consumed: "", mode, text: "", errors: [] };
+      current = {
+        stream: start(),
+        consumed: "",
+        mode,
+        generation,
+        text: "",
+        errors: [],
+      };
       follower.current = current;
     }
     if (source.length > current.consumed.length) {
@@ -98,7 +108,7 @@ export function useSpecStream(
       text: current.text,
       errors: current.errors,
     };
-  }, [source, complete, mode, start]);
+  }, [source, complete, mode, start, generation]);
 
   const imperative = useRef<SpecStream | null>(null);
   const [snapshot, setSnapshot] = useState<Snapshot>(() => ({
@@ -141,7 +151,7 @@ export function useSpecStream(
 
   const reset = useCallback(() => {
     imperative.current = null;
-    follower.current = null;
+    setGeneration((value) => value + 1);
     setSnapshot({
       spec: initialRef.current ?? emptySpec(),
       text: "",
