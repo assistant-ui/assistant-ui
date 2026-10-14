@@ -32,12 +32,11 @@ export function upperBound(
   guides?: readonly Guide[],
   floor = 1,
 ): number {
-  return Math.max(
-    ...values,
-    ...tickValues(ticks),
-    ...(guides?.map((guide) => guide.at) ?? []),
-    floor,
-  );
+  let max = floor;
+  for (const value of values) max = Math.max(max, value);
+  for (const value of tickValues(ticks)) max = Math.max(max, value);
+  for (const guide of guides ?? []) max = Math.max(max, guide.at);
+  return max;
 }
 
 /** The same reconciliation for an axis that is not zero-based. */
