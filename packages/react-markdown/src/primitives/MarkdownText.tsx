@@ -13,9 +13,11 @@ import {
   type ForwardRefExoticComponent,
   type RefAttributes,
   memo,
+  createContext,
   useDeferredValue,
   useMemo,
   useRef,
+  useContext,
   type ComponentPropsWithoutRef,
   type ComponentType,
 } from "react";
@@ -23,6 +25,8 @@ import ReactMarkdown, { type Options } from "react-markdown";
 import type {
   SyntaxHighlighterProps,
   CodeHeaderProps,
+  CodeComponent,
+  PreComponent,
 } from "../overrides/types";
 import type { ComponentsByLanguage } from "../code-fence";
 import { PreOverride } from "../overrides/PreOverride";
@@ -32,21 +36,44 @@ import {
   DefaultCodeBlockContent,
   DefaultCodeHeader,
 } from "../overrides/defaultComponents";
-import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import { CodeOverride } from "../overrides/CodeOverride";
 import type { Primitive } from "@radix-ui/react-primitive";
 import classNames from "classnames";
 
 const { useSmooth, useSmoothStatus, withSmoothContextProvider } = INTERNAL;
 
+type MarkdownOverrideContextValue = {
+  pre: PreComponent;
+  components: {
+    Pre: PreComponent;
+    Code: CodeComponent;
+    SyntaxHighlighter: ComponentType<SyntaxHighlighterProps>;
+    CodeHeader: ComponentType<CodeHeaderProps>;
+  };
+  componentsByLanguage?: ComponentsByLanguage | undefined;
+};
+
+const MarkdownOverrideContext =
+  createContext<MarkdownOverrideContextValue | null>(null);
+
+function MarkdownCodeOverride(props: ComponentPropsWithoutRef<CodeComponent>) {
+  const overrides = useContext(MarkdownOverrideContext)!;
+  return (
+    <CodeOverride
+      components={overrides.components}
+      componentsByLanguage={overrides.componentsByLanguage}
+      {...props}
+    />
+  );
+}
+
+function MarkdownPreOverride(props: ComponentPropsWithoutRef<PreComponent>) {
+  const overrides = useContext(MarkdownOverrideContext)!;
+  return <PreOverride fallbackPre={overrides.pre} {...props} />;
+}
+
 type MarkdownRendererProps = Omit<Options, "children"> & {
   text: string;
-  /**
-   * Carried only so the memo below can see it. The code override reaches the
-   * tree through an identity-stable callback, so a change to any value it
-   * closes over moves no other prop.
-   */
-  overrideVersion?: unknown;
 };
 
 // react-markdown builds a fresh processor and parses the whole accumulated text
@@ -55,9 +82,7 @@ type MarkdownRendererProps = Omit<Options, "children"> & {
 // its props keep their identity; useStableProps is what keeps a caller's inline
 // plugin array from breaking it.
 const MarkdownRenderer: FC<MarkdownRendererProps> = memo(
-  ({ text, overrideVersion: _overrideVersion, ...options }) => (
-    <ReactMarkdown {...options}>{text}</ReactMarkdown>
-  ),
+  ({ text, ...options }) => <ReactMarkdown {...options}>{text}</ReactMarkdown>,
 );
 MarkdownRenderer.displayName = "MarkdownRenderer";
 
@@ -214,25 +239,29 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
     SyntaxHighlighter = DefaultCodeBlockContent,
     CodeHeader = DefaultCodeHeader,
   } = userComponents ?? {};
-  const useCodeOverrideComponents = useMemo(() => {
+  const useCodeOverrideComponents = useMemo<
+    MarkdownOverrideContextValue["components"]
+  >(() => {
     return {
-      Pre: pre,
-      Code: code,
-      SyntaxHighlighter,
-      CodeHeader,
+      Pre: pre as PreComponent,
+      Code: code as CodeComponent,
+      SyntaxHighlighter:
+        SyntaxHighlighter as ComponentType<SyntaxHighlighterProps>,
+      CodeHeader: CodeHeader as ComponentType<CodeHeaderProps>,
     };
   }, [pre, code, SyntaxHighlighter, CodeHeader]);
-  const CodeComponent = useCallbackRef((props) => (
-    <CodeOverride
-      components={useCodeOverrideComponents}
-      componentsByLanguage={componentsByLanguage}
-      {...props}
-    />
-  ));
 
-  const PreComponentWithFallback = useCallbackRef((props) => (
-    <PreOverride fallbackPre={pre} {...props} />
-  ));
+  const markdownOverrides = useStableValue(
+    useMemo(
+      () => ({
+        pre: pre as PreComponent,
+        components: useCodeOverrideComponents,
+        componentsByLanguage,
+      }),
+      [pre, useCodeOverrideComponents, componentsByLanguage],
+    ),
+    3,
+  );
 
   // An inline `components={{ h1: MyH1 }}` is a fresh object on every render, so
   // the merged map is stabilized here; without it the renderer sees a new prop
@@ -243,30 +272,19 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
         userComponents ?? {};
       return {
         ...componentsRest,
-        pre: PreComponentWithFallback,
-        code: CodeComponent,
+        pre: MarkdownPreOverride,
+        code: MarkdownCodeOverride,
       };
-    }, [CodeComponent, PreComponentWithFallback, userComponents]),
-  );
-
-  const overrideVersion = useStableValue(
-    useMemo(
-      () => ({ components: useCodeOverrideComponents, componentsByLanguage }),
-      [useCodeOverrideComponents, componentsByLanguage],
-    ),
-    3,
+    }, [userComponents]),
   );
 
   const Renderer = defer ? DeferredMarkdownRenderer : MarkdownRenderer;
   const stableRest = useStableProps(rest);
 
   return (
-    <Renderer
-      text={text}
-      components={components}
-      overrideVersion={overrideVersion}
-      {...stableRest}
-    />
+    <MarkdownOverrideContext.Provider value={markdownOverrides}>
+      <Renderer text={text} components={components} {...stableRest} />
+    </MarkdownOverrideContext.Provider>
   );
 };
 
