@@ -23,7 +23,7 @@ const useComposerAddAttachment = ({
     () => () => {
       scopeGenerationRef.current += 1;
     },
-    [aui.composer, aui.threadListItem],
+    [aui.composer, aui.optional.threadListItem],
   );
 
   const callback = useCallback(() => {
