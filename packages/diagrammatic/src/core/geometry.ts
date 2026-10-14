@@ -169,6 +169,16 @@ export function ring(
   const o1 = polar(cx, cy, rOuter, end);
   const i0 = polar(cx, cy, rInner, end);
   const i1 = polar(cx, cy, rInner, start);
+  // SVG omits an arc whose endpoints coincide, so a sector that closes on
+  // itself is drawn as whole circles, the inner one wound the other way.
+  if (large && round(o0.x) === round(o1.x) && round(o0.y) === round(o1.y)) {
+    return [
+      circlePath(cx, cy, rOuter, start, 1),
+      circlePath(cx, cy, rInner, start, 0),
+    ]
+      .filter(Boolean)
+      .join(" ");
+  }
   return [
     `M${round(o0.x)} ${round(o0.y)}`,
     `A${rOuter} ${rOuter} 0 ${large} 1 ${round(o1.x)} ${round(o1.y)}`,
@@ -176,6 +186,20 @@ export function ring(
     `A${rInner} ${rInner} 0 ${large} 0 ${round(i1.x)} ${round(i1.y)}`,
     "Z",
   ].join(" ");
+}
+
+function circlePath(
+  cx: number,
+  cy: number,
+  r: number,
+  angle: number,
+  sweep: 0 | 1,
+): string {
+  const a = polar(cx, cy, r, angle);
+  const b = polar(cx, cy, r, angle + Math.PI);
+  const [ax, ay, bx, by] = [round(a.x), round(a.y), round(b.x), round(b.y)];
+  if (ax === bx && ay === by) return "";
+  return `M${ax} ${ay} A${r} ${r} 0 0 ${sweep} ${bx} ${by} A${r} ${r} 0 0 ${sweep} ${ax} ${ay} Z`;
 }
 
 export function arcStroke(
