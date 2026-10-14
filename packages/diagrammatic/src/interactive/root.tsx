@@ -91,11 +91,45 @@ export const Root = forwardRef<HTMLDivElement, RootProps>(
           : null;
     const highlightKey = JSON.stringify(effectiveHighlight ?? null);
     useEffect(() => {
-      if (!container.current) return;
-      applyHighlight(
-        container.current,
-        JSON.parse(highlightKey) as MarkQuery | MarkQuery[] | null,
-      );
+      const node = container.current;
+      if (!node) return;
+      const highlight = JSON.parse(highlightKey) as
+        | MarkQuery
+        | MarkQuery[]
+        | null;
+      const stamp = () => applyHighlight(node, highlight);
+      stamp();
+      if (highlight === null) return;
+      const markSelector = '[data-part="mark"], [data-part="region"]';
+      const observer = new MutationObserver((mutations) => {
+        if (
+          mutations.some(
+            (mutation) =>
+              mutation.type === "attributes" ||
+              Array.from(mutation.addedNodes).some(
+                (added) =>
+                  added instanceof Element &&
+                  (added.matches(markSelector) ||
+                    added.querySelector(markSelector)),
+              ),
+          )
+        ) {
+          stamp();
+        }
+      });
+      observer.observe(node, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: [
+          "data-part",
+          "data-series",
+          "data-series2",
+          "data-i",
+          "data-i2",
+        ],
+      });
+      return () => observer.disconnect();
     }, [highlightKey]);
 
     const dispatch = useMemo(
