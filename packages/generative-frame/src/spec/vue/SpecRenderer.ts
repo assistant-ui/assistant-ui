@@ -175,6 +175,13 @@ const ElementBoundary = defineComponent({
   setup(props, { slots }) {
     const ctx = inject<RenderContext>(renderContextKey)!;
     const error = shallowRef<Error | null>(null);
+    // A streaming element can pass through values its component rejects, such as a state path cut short, so a changed element renders again.
+    watch(
+      () => props.element,
+      () => {
+        error.value = null;
+      },
+    );
     onErrorCaptured((caught) => {
       const normalized =
         caught instanceof Error ? caught : new Error(String(caught));
