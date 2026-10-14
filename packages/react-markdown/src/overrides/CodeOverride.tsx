@@ -79,18 +79,16 @@ const CodeBlockOverride: FC<CodeOverrideProps> = ({
   if (children != null && typeof children !== "string") {
     return (
       <CodeRenderContext.Provider value={renderContext}>
-        <>
-          <CodeHeader
-            node={node}
-            language={language}
-            code={extractCode(children)}
-          />
-          <DefaultCodeBlockContent
-            node={node}
-            components={{ Pre: WrappedPre, Code: WrappedCode }}
-            code={children}
-          />
-        </>
+        <CodeHeader
+          node={node}
+          language={language}
+          code={extractCode(children)}
+        />
+        <DefaultCodeBlockContent
+          node={node}
+          components={{ Pre: WrappedPre, Code: WrappedCode }}
+          code={children}
+        />
       </CodeRenderContext.Provider>
     );
   }

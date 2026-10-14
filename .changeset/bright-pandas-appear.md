@@ -2,4 +2,4 @@
 "@assistant-ui/react-markdown": patch
 ---
 
-Refresh custom pre and code renderers when their component references change.
+fix: refresh fenced code blocks when `components.pre` or `components.code` changes

@@ -10,7 +10,7 @@ import {
   useExternalStoreRuntime,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
-import type { PreComponent } from "../overrides/types";
+import type { CodeComponent, PreComponent } from "../overrides/types";
 import {
   MarkdownTextPrimitive,
   type MarkdownTextPrimitiveProps,
@@ -55,6 +55,12 @@ const BeforePre: PreComponent = ({ node: _, ...props }) => (
 );
 const AfterPre: PreComponent = ({ node: _, ...props }) => (
   <pre data-variant="after" {...props} />
+);
+const BeforeCode: CodeComponent = ({ node: _, ...props }) => (
+  <code data-variant="before" {...props} />
+);
+const AfterCode: CodeComponent = ({ node: _, ...props }) => (
+  <code data-variant="after" {...props} />
 );
 const injectRawPre = () => (tree: Root) => {
   tree.children.push({
@@ -133,6 +139,42 @@ describe("MarkdownText override updates", () => {
       expect(rawPre()?.getAttribute("data-variant")).toBe("before");
       act(() => root.render(<App overrides={props(AfterPre)} />));
       expect(rawPre()?.getAttribute("data-variant")).toBe("after");
+    } finally {
+      act(() => root.unmount());
+    }
+  });
+
+  it("updates a fenced pre without changing text", () => {
+    const props = (pre: PreComponent): MarkdownTextPrimitiveProps => ({
+      components: { pre },
+    });
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    const fencedPre = () => container.querySelector("pre");
+    try {
+      act(() => root.render(<App overrides={props(BeforePre)} />));
+      expect(fencedPre()?.getAttribute("data-variant")).toBe("before");
+      act(() => root.render(<App overrides={props(AfterPre)} />));
+      expect(fencedPre()?.getAttribute("data-variant")).toBe("after");
+      expect(container.querySelector('pre[data-variant="before"]')).toBeNull();
+    } finally {
+      act(() => root.unmount());
+    }
+  });
+
+  it("updates a fenced code renderer without changing text", () => {
+    const props = (code: CodeComponent): MarkdownTextPrimitiveProps => ({
+      components: { code },
+    });
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    const fencedCode = () => container.querySelector("pre > code");
+    try {
+      act(() => root.render(<App overrides={props(BeforeCode)} />));
+      expect(fencedCode()?.getAttribute("data-variant")).toBe("before");
+      act(() => root.render(<App overrides={props(AfterCode)} />));
+      expect(fencedCode()?.getAttribute("data-variant")).toBe("after");
+      expect(container.querySelector('code[data-variant="before"]')).toBeNull();
     } finally {
       act(() => root.unmount());
     }
