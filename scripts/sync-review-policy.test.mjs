@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { loadReviewPolicy } from "./lib/review-policy.mjs";
+import { loadReviewPolicy, tierLabel } from "./lib/review-policy.mjs";
 import {
   buildRulesets,
   renderCodeowners,
@@ -634,6 +634,25 @@ test("required labels cover every label the policy names", () => {
   for (const { color, description } of labels) {
     assert.match(color, /^[0-9a-f]{6}$/);
     assert.ok(description.length <= 100);
+  }
+});
+
+test("the review tier workflow runs for the labels the policy names", () => {
+  const workflow = readFileSync(
+    path.join(repoRoot, ".github/workflows/review-tier.yaml"),
+    "utf8",
+  );
+  const condition = /^ {4}if: >-\n((?: {6}.*\n)+)/m.exec(workflow)?.[1] ?? "";
+  for (const expected of [
+    `github.event.label.name == '${policy.labels.behaviorChange}'`,
+    `startsWith(github.event.label.name, '${policy.labels.overridePrefix}')`,
+    `contains(github.event.pull_request.labels.*.name, '${tierLabel(policy, 3)}')`,
+    `github.event.label.name == '${policy.labels.decisionAccepted}'`,
+  ]) {
+    assert.ok(
+      condition.includes(expected),
+      `the job condition lacks ${expected}`,
+    );
   }
 });
 
