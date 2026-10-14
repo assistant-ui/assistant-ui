@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { resolveSpec } from "./resolve";
 import type { Spec } from "./types";
