@@ -380,19 +380,16 @@ describe("createWidgetToolkit", () => {
     expect(mocks.widgets).toHaveLength(2);
   });
 
-  it("waits until a later same-title call's streamed title is complete", () => {
+  it("waits until a later same-title show's streamed title is complete", () => {
+    const first = call("a", "show_widget", {
+      title: "w",
+      widget_code: "<p>one</p>",
+    });
     const laterCall = {
-      ...call("b", "edit_widget", { title: "w" }),
+      ...call("b", "show_widget", { title: "w" }),
       argsText: '{"title":"w',
     };
-    mocks.messages = [
-      {
-        content: [
-          call("a", "show_widget", { title: "w", widget_code: "<p>one</p>" }),
-          laterCall,
-        ],
-      },
-    ];
+    mocks.messages = [{ content: [first, laterCall] }];
     const ShowWidget = entries(
       createWidgetToolkit({ renderReport: false }).toolkit,
     )["show_widget"]!.render;
@@ -406,11 +403,8 @@ describe("createWidgetToolkit", () => {
     mocks.messages = [
       {
         content: [
-          call("a", "show_widget", { title: "w", widget_code: "<p>one</p>" }),
-          {
-            ...laterCall,
-            argsText: '{"title":"w"}',
-          },
+          first,
+          { ...laterCall, argsText: '{"title":"w","widget_code":"<p>' },
         ],
       },
     ];
@@ -420,6 +414,50 @@ describe("createWidgetToolkit", () => {
       />,
     );
     expect(view.container.querySelectorAll("[data-gf-widget]")).toHaveLength(0);
+  });
+
+  it("keeps a widget while a later edit in its message streams or cannot apply", () => {
+    const first = call("a", "show_widget", {
+      title: "w",
+      widget_code: "<p>one</p>",
+    });
+    const edit = (oldString: string, argsText?: string) => ({
+      ...call("b", "edit_widget", {
+        title: "w",
+        edits: [{ old_string: oldString, new_string: "two" }],
+      }),
+      ...(argsText === undefined ? {} : { argsText }),
+    });
+    mocks.propStatus = { widget_code: "complete" };
+    const tools = entries(createWidgetToolkit({ renderReport: false }).toolkit);
+    const ShowWidget = tools["show_widget"]!.render;
+    const EditWidget = tools["edit_widget"]!.render;
+    const shown = () =>
+      render(
+        <ShowWidget
+          {...partProps("a", { title: "w", widget_code: "<p>one</p>" })}
+        />,
+      ).container.querySelectorAll("[data-gf-widget]").length;
+
+    mocks.messages = [
+      {
+        content: [
+          first,
+          edit(
+            "one",
+            '{"title":"w","edits":[{"old_string":"one","new_string":"tw',
+          ),
+        ],
+      },
+    ];
+    expect(shown()).toBe(1);
+
+    mocks.messages = [{ content: [first, edit("missing")] }];
+    expect(shown()).toBe(1);
+    expect(
+      render(<EditWidget {...partProps("b", { title: "w" })} />).container
+        .textContent,
+    ).toBe("w could not be updated.");
   });
 
   it("returns immediately for a superseded widget's render report", async () => {

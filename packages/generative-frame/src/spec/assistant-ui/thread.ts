@@ -123,8 +123,7 @@ export function resolveSpecBase(
   return spec;
 }
 
-const SPEC_TOOL_NAMES = new Set(["render_spec"]);
-
+/** Whether a later `render_spec` call in the same message has this call's title. That call shows the spec this one's patches lead to, so this one shows nothing rather than a second copy. */
 export function supersededInMessage(
   messages: readonly MessageLike[],
   toolCallId: string,
@@ -134,7 +133,7 @@ export function supersededInMessage(
     messages,
     toolCallId,
     title,
-    SPEC_TOOL_NAMES,
+    (call) => call.name === "render_spec",
   );
 }
 

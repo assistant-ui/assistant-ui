@@ -33,7 +33,11 @@ import {
   type WidgetTools,
 } from "../tools/tools";
 import type { AnyTool, ToolDefinition } from "../tools/define";
-import { hasLaterToolCallInMessage, type MessageLike } from "./tool-calls";
+import {
+  hasLaterToolCallInMessage,
+  type MessageLike,
+  type ToolCall,
+} from "./tool-calls";
 import { toolkitEntry } from "./entry";
 import type { ToolkitDisplay, WidgetToolkitExtension } from "./extension";
 import { resolveWidgetCode, resolveWidgetOrigin } from "./history";
@@ -150,7 +154,24 @@ type ShowArgs = Partial<ShowWidgetInput>;
 type EditArgs = Partial<EditWidgetInput>;
 
 const REPORT_BACKLOG = 50;
-const WIDGET_TOOL_NAMES = new Set(["show_widget", "edit_widget"]);
+/** A runtime that streams arguments closes their text only once they are complete, so it parses only then. */
+const argsComplete = (call: ToolCall) => {
+  if (call.result !== undefined) return true;
+  if (call.argsText === undefined) return false;
+  try {
+    JSON.parse(call.argsText);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/** A later show takes over as it streams; a later edit only once it is complete and applies, so the widget never disappears while an edit streams or fails. */
+const takesOverWidget = (messages: readonly MessageLike[], call: ToolCall) =>
+  call.name === "show_widget" ||
+  (call.name === "edit_widget" &&
+    argsComplete(call) &&
+    resolveWidgetCode(messages, call.id) !== undefined);
 
 /** Hands render reports from the thread's widgets to the tool calls waiting for them. */
 function createRenderReports() {
@@ -445,11 +466,8 @@ export function createWidgetToolkit(
   ) {
     const superseded = useMemo(
       () =>
-        hasLaterToolCallInMessage(
-          messages,
-          toolCallId,
-          title,
-          WIDGET_TOOL_NAMES,
+        hasLaterToolCallInMessage(messages, toolCallId, title, (call) =>
+          takesOverWidget(messages, call),
         ),
       [messages, toolCallId, title],
     );
