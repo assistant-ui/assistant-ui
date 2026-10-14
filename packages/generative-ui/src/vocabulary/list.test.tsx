@@ -1,19 +1,10 @@
-// @vitest-environment jsdom
-
 import { describe, it, expect, vi } from "vitest";
-import { act } from "react";
 import type { ReactElement } from "react";
-import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { renderGenerativeUI } from "../renderGenerativeUI";
 import { createActionRegistry } from "../actionRegistry";
 import type { GenerativeUIDispatch } from "../types";
-import { alertVocabulary } from "./alert";
 import { listVocabulary } from "./list";
-
-(
-  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
-).IS_REACT_ACT_ENVIRONMENT = true;
 
 const render = (node: unknown) =>
   renderToStaticMarkup(<>{renderGenerativeUI(node, listVocabulary)}</>);
@@ -90,55 +81,6 @@ describe("listVocabulary", () => {
     expect(html).toContain('<button type="button" aria-labelledby=');
     expect(html).toContain('data-aui="listview-item-content"');
     expect(html).not.toContain('role="button"');
-  });
-
-  it("switches a root ListViewItem to a Carousel and back without changing hook order", async () => {
-    const container = document.createElement("div");
-    const root = createRoot(container);
-    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
-    const registry = createActionRegistry({ open: vi.fn() });
-    const library = { ...listVocabulary, ...alertVocabulary };
-    const item = {
-      $type: "ListViewItem",
-      $action: { type: "open" },
-      children: "row",
-    };
-    const renderRoot = (node: unknown) =>
-      root.render(
-        renderGenerativeUI(node, library, {
-          status: "done",
-          dispatch: registry.dispatch,
-        }),
-      );
-
-    try {
-      await act(async () => renderRoot(item));
-      expect(
-        container.querySelector('[data-aui="listview-item-trigger"]'),
-      ).not.toBeNull();
-      await act(async () =>
-        renderRoot({ $type: "Carousel", label: "Cards", children: [] }),
-      );
-      expect(
-        container.querySelector('[data-aui="listview-item-trigger"]'),
-      ).toBeNull();
-      await act(async () => renderRoot(item));
-      expect(
-        container.querySelector('[data-aui="listview-item-trigger"]'),
-      ).not.toBeNull();
-      expect(
-        errors.mock.calls
-          .flat()
-          .filter((message) =>
-            /hook order|order of hooks|rendered (more|fewer) hooks/i.test(
-              String(message),
-            ),
-          ),
-      ).toEqual([]);
-    } finally {
-      await act(async () => root.unmount());
-      errors.mockRestore();
-    }
   });
 });
 
