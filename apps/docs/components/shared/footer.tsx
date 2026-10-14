@@ -6,6 +6,7 @@ import { LegalLinks } from "@/components/shared/legal-links";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { checkoutEnabled } from "@/lib/checkout/config";
+import { SUB_PROJECT_SLUGS, subProject } from "@/lib/docs-sites";
 
 type FooterLinkItem = {
   label: string;
@@ -29,12 +30,16 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
     { label: "Elements", href: "/elements" },
     { label: "Design", href: "/design" },
   ],
-  Primitives: [
-    { label: "tw-shimmer", href: "/tw-shimmer" },
-    { label: "Heat Graph", href: "/heat-graph" },
-    { label: "Safe Content Frame", href: "/safe-content-frame" },
-    { label: "react-o11y", href: "/react-o11y" },
-  ],
+  Primitives: SUB_PROJECT_SLUGS.flatMap((slug) => {
+    const project = subProject(slug);
+    if (!project.oss) return [];
+    return [{ slug, order: project.oss.footerOrder, project }];
+  })
+    .sort((a, b) => a.order - b.order)
+    .map(({ slug, project }) => ({
+      label: project.productLabel ?? project.title,
+      href: `/${slug}`,
+    })),
   Resources: [
     { label: "Examples", href: "/examples" },
     { label: "Showcase", href: "/showcase" },

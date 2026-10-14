@@ -56,7 +56,7 @@ import {
 import {
   type CodeHeaderProps,
   MarkdownTextPrimitive,
-  unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
+  memoizeMarkdownComponents,
   useIsMarkdownCodeBlock,
   type SyntaxHighlighterProps,
 } from "@assistant-ui/react-markdown";

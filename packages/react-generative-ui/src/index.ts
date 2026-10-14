@@ -1,2 +1,1 @@
-export { JSONGenerativeUI } from "./JSONGenerativeUI.client";
-export * from "./index.shared";
+export * from "@assistant-ui/generative-ui/react";

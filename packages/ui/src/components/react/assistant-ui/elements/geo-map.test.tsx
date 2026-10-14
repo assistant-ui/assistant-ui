@@ -115,6 +115,16 @@ describe("GeoMap", () => {
     expect(mapInstance.panTo).toHaveBeenCalledWith([1.2974, 103.776]);
   });
 
+  it("marks each place's coordinates with a slot a host can hide", async () => {
+    render(<GeoMap places={PLACES} />);
+
+    await waitFor(() => expect(leaflet.map).toHaveBeenCalledTimes(1));
+    const museum = screen.getByRole("button", { name: /Museum/ });
+    expect(
+      museum.querySelector('[data-slot="geo-map-coordinates"]')?.textContent,
+    ).toBe("1.2974, 103.7760");
+  });
+
   it("skips places and route points outside geographic bounds", async () => {
     render(
       <GeoMap

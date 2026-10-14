@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { CheckIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { inkButton, mono, paper } from "./surfaces";
+import { useReceiptFocus } from "./receipt-focus";
 
 export type RecommendationState = "idle" | "accepted";
 
@@ -38,6 +39,7 @@ export function RecommendationCard({
   onAccept?: () => void;
   onAlternatives?: () => void;
 }) {
+  const { receiptRef, focusHandlers } = useReceiptFocus<HTMLDivElement>(props);
   return (
     <div
       data-slot="recommendation-card"
@@ -48,6 +50,7 @@ export function RecommendationCard({
       )}
 
       {...props}
+      {...focusHandlers}
     >
       <p className="text-sm font-medium">{question}</p>
       <p className="text-muted-foreground text-[13px] leading-relaxed">
@@ -94,6 +97,8 @@ export function RecommendationCard({
         ) : (
           <div
             key="accepted"
+            ref={receiptRef}
+            tabIndex={-1}
             className="fade-in animate-in text-muted-foreground flex items-center gap-2 text-xs duration-300"
           >
             <CheckIcon className="size-3.5 text-emerald-500" />

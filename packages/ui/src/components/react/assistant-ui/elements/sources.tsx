@@ -1,12 +1,12 @@
 "use client";
 
 import { ChevronDownIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
-  Collapsible,
+  CollapsibleRoot as Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { cn } from "@/lib/utils";
+} from "./collapsible-root";
 import { collapsePanel, fieldInteractive, mono, paper } from "./surfaces";
 import { hostOf, safeHref } from "../utils/href";
 
@@ -24,8 +24,20 @@ export interface SourcesProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   layout?: "grid" | "list" | undefined;
+  hideTrigger?: boolean | undefined;
   locale?: string | undefined;
   className?: string | undefined;
+}
+
+export function SourceGlyph({ domain }: { domain: string }) {
+  return (
+    <span
+      aria-hidden
+      className="bg-foreground/[0.06] text-muted-foreground flex size-4 shrink-0 items-center justify-center rounded text-[9px] font-medium"
+    >
+      {domain.charAt(0).toUpperCase()}
+    </span>
+  );
 }
 
 const displayDomain = (source: Source) => source.domain || hostOf(source.url);
@@ -50,6 +62,7 @@ export function Sources({
   open,
   onOpenChange,
   layout = "grid",
+  hideTrigger = false,
   locale = "en-US",
   className,
 }: SourcesProps) {
@@ -66,31 +79,33 @@ export function Sources({
       onOpenChange={onOpenChange}
       className={cn("w-full max-w-sm", className)}
     >
-      <CollapsibleTrigger
-        className={cn(
-          fieldInteractive,
-          "group/trigger text-foreground/60 hover:text-foreground/90 inline-flex w-fit items-center gap-1.5 rounded-full px-3.5 py-2 text-xs outline-none",
-        )}
-      >
-        {badgeDomains.length > 0 ? (
-          <span aria-hidden className="flex -space-x-1">
-            {badgeDomains.map((domain, index) => (
-              <span
-                key={`${domain}-${index}`}
-                data-slot="sources-badge"
-                className="bg-foreground/[0.08] text-muted-foreground ring-background dark:ring-popover flex size-4 items-center justify-center rounded-full text-[8px] font-medium ring-1"
-              >
-                {domain.charAt(0).toUpperCase()}
-              </span>
-            ))}
+      {hideTrigger ? null : (
+        <CollapsibleTrigger
+          className={cn(
+            fieldInteractive,
+            "group/trigger text-foreground/60 hover:text-foreground/90 inline-flex w-fit items-center gap-1.5 rounded-full px-3.5 py-2 text-xs outline-none",
+          )}
+        >
+          {badgeDomains.length > 0 ? (
+            <span aria-hidden className="flex -space-x-1">
+              {badgeDomains.map((domain, index) => (
+                <span
+                  key={`${domain}-${index}`}
+                  data-slot="sources-badge"
+                  className="bg-foreground/[0.08] text-muted-foreground ring-background dark:ring-popover flex size-4 items-center justify-center rounded-full text-[8px] font-medium ring-1"
+                >
+                  {domain.charAt(0).toUpperCase()}
+                </span>
+              ))}
+            </span>
+          ) : null}
+          <span>Sources</span>
+          <span className={cn(mono, "text-muted-foreground tabular-nums")}>
+            {sources.length}
           </span>
-        ) : null}
-        <span>Sources</span>
-        <span className={cn(mono, "text-muted-foreground tabular-nums")}>
-          {sources.length}
-        </span>
-        <ChevronDownIcon className="size-3 opacity-60 transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-data-open/trigger:rotate-180 group-data-panel-open/trigger:rotate-180 motion-reduce:transition-none" />
-      </CollapsibleTrigger>
+          <ChevronDownIcon className="size-3 opacity-60 transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-data-open/trigger:rotate-180 group-data-panel-open/trigger:rotate-180 motion-reduce:transition-none" />
+        </CollapsibleTrigger>
+      )}
       <CollapsibleContent className={cn(collapsePanel, "outline-none")}>
         <div
           className={
@@ -115,11 +130,7 @@ export function Sources({
                     paper,
                     "focus-visible:ring-foreground/20 flex flex-col gap-1.5 rounded-2xl p-3 transition-transform duration-150 outline-none hover:-translate-y-px focus-visible:ring-1 focus-visible:ring-inset motion-reduce:transition-none",
                   );
-            const glyph = domain ? (
-              <span className="bg-foreground/[0.06] text-muted-foreground flex size-4 shrink-0 items-center justify-center rounded text-[9px] font-medium">
-                {domain.charAt(0).toUpperCase()}
-              </span>
-            ) : null;
+            const glyph = domain ? <SourceGlyph domain={domain} /> : null;
             const details = (
               <>
                 {source.snippet ? (

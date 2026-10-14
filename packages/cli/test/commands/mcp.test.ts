@@ -332,6 +332,22 @@ describe("mcp command", () => {
     expect(fs.readFileSync(configPath, "utf-8")).toBe(content);
   });
 
+  it.each(["null", "[]", '"settings"'])(
+    "leaves non-object Cursor configuration %j unchanged",
+    async (content) => {
+      const configPath = path.join(tempDir, ".cursor", "mcp.json");
+      fs.mkdirSync(path.dirname(configPath), { recursive: true });
+      fs.writeFileSync(configPath, content);
+
+      await expect(
+        mcp.parseAsync(["node", "mcp", "--cursor"], { from: "node" }),
+      ).rejects.toThrow("process.exit");
+
+      expect(exitSpy).toHaveBeenCalledWith(1);
+      expect(fs.readFileSync(configPath)).toEqual(Buffer.from(content));
+    },
+  );
+
   it("replaces an existing stdio assistant-ui entry wholesale for an http client", async () => {
     const configPath = path.join(tempDir, ".cursor", "mcp.json");
     fs.mkdirSync(path.dirname(configPath), { recursive: true });
@@ -360,6 +376,55 @@ describe("mcp command", () => {
       },
     });
   });
+
+  it.each([
+    ["cursor", [".cursor", "mcp.json"], { url: HOSTED_MCP_URL }],
+    [
+      "windsurf",
+      [".codeium", "windsurf", "mcp_config.json"],
+      { serverUrl: HOSTED_MCP_URL },
+    ],
+    [
+      "claude-desktop",
+      [
+        "Library",
+        "Application Support",
+        "Claude",
+        "claude_desktop_config.json",
+      ],
+      { command: "npx", args: ["-y", "@assistant-ui/mcp-docs-server"] },
+    ],
+  ] as const)(
+    "writes only the selected assistant-ui entry in %s JSON config",
+    async (target, pathParts, expectedServer) => {
+      setPlatform("darwin");
+      const configPath = path.join(tempDir, ...pathParts);
+      fs.mkdirSync(path.dirname(configPath), { recursive: true });
+      const oldEntry = '"assistant-ui": { "command": "old" }';
+      const content = `{
+  "preferences": { "theme" : "dark", "items": [1, 2] },
+  "mcpServers": { "shadowed": { "command": "first" } },
+  "mcpServers": {
+    "other-server": { "command": "custom", "args": ["--flag"] },
+    ${oldEntry}
+  },
+  "enabled" : true
+}\n`;
+      fs.writeFileSync(configPath, content);
+
+      await mcp.parseAsync(["node", "mcp", `--${target}`], { from: "node" });
+
+      const updated = fs.readFileSync(configPath, "utf-8");
+      const entryOffset = content.indexOf(oldEntry);
+      expect(updated.startsWith(content.slice(0, entryOffset))).toBe(true);
+      expect(
+        updated.endsWith(content.slice(entryOffset + oldEntry.length)),
+      ).toBe(true);
+      expect(JSON.parse(updated).mcpServers["assistant-ui"]).toEqual(
+        expectedServer,
+      );
+    },
+  );
 
   it.each(["\n", "\r\n"])(
     "preserves commented Zed settings with %j line endings",
@@ -488,6 +553,46 @@ describe("mcp command", () => {
         },
       },
     });
+  });
+
+  it("preserves extra keys on the Claude Desktop assistant-ui entry", async () => {
+    setPlatform("darwin");
+    const configPath = path.join(
+      tempDir,
+      "Library",
+      "Application Support",
+      "Claude",
+      "claude_desktop_config.json",
+    );
+    fs.mkdirSync(path.dirname(configPath), { recursive: true });
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        mcpServers: {
+          "assistant-ui": {
+            command: "old",
+            args: ["old-server"],
+            env: { CUSTOM: "value" },
+          },
+          other: { command: "custom" },
+        },
+      }),
+    );
+
+    await mcp.parseAsync(["node", "mcp", "--claude-desktop"], {
+      from: "node",
+    });
+
+    expect(JSON.parse(fs.readFileSync(configPath, "utf-8")).mcpServers).toEqual(
+      {
+        "assistant-ui": {
+          command: "npx",
+          args: ["-y", "@assistant-ui/mcp-docs-server"],
+          env: { CUSTOM: "value" },
+        },
+        other: { command: "custom" },
+      },
+    );
   });
 
   it("re-registers claude-code by removing the previous entry before adding", async () => {

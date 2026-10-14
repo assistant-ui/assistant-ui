@@ -18,7 +18,7 @@ export type TooltipProps = Omit<PopperContentProps, "children"> & {
 export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(
   ({ children, side = "top", sideOffset = 8, ...props }, ref) => {
     const state = useTooltipState();
-    if (!state?.hoveredCell || !state.anchor) return null;
+    if (!state.hoveredCell || !state.anchor) return null;
 
     return (
       <Popper.Root>

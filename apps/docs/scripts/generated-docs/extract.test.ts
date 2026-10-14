@@ -2,13 +2,22 @@ import { Project } from "ts-morph";
 import {
   cleanSignatureText,
   cleanTypeText,
+  exportSpecifierDeprecated,
   extractSignature,
   processClassDeclaration,
+  processTypeOrInterface,
 } from "./extract.mts";
+
+const project = new Project({ useInMemoryFileSystem: true });
+
+afterEach(() => {
+  for (const sourceFile of project.getSourceFiles()) {
+    project.removeSourceFile(sourceFile);
+  }
+});
 
 describe("signature text cleanup", () => {
   it("preserves undefined in callable return types", () => {
-    const project = new Project({ useInMemoryFileSystem: true });
     const sourceFile = project.createSourceFile(
       "hooks.ts",
       "export const useEveError = (): Error | undefined => undefined;",
@@ -28,7 +37,6 @@ describe("signature text cleanup", () => {
   });
 
   it("deduplicates imported and re-exported local types", () => {
-    const project = new Project({ useInMemoryFileSystem: true });
     project.createSourceFile(
       "/dedupe/adapters.ts",
       "export type WidgetAdapters = { foo?: string };",
@@ -58,7 +66,6 @@ describe("signature text cleanup", () => {
 
 describe("class member descriptions", () => {
   it("keeps constructor, property and method prose without changing their shape", () => {
-    const project = new Project({ useInMemoryFileSystem: true });
     const source = project.createSourceFile(
       "client.ts",
       `
@@ -97,7 +104,6 @@ describe("class member descriptions", () => {
   });
 
   it("uses the configured JSDoc link renderer for each member kind", () => {
-    const project = new Project({ useInMemoryFileSystem: true });
     const source = project.createSourceFile(
       "links.ts",
       `
@@ -127,7 +133,6 @@ describe("class member descriptions", () => {
   });
 
   it("keeps undocumented members blank and excludes non-public members", () => {
-    const project = new Project({ useInMemoryFileSystem: true });
     const source = project.createSourceFile(
       "visibility.ts",
       `
@@ -155,6 +160,122 @@ describe("class member descriptions", () => {
       { name: "label", description: "" },
       { name: "static shared", description: "Shared default." },
       { name: "load", description: "" },
+    ]);
+  });
+});
+
+describe("deprecation tags", () => {
+  const TAG =
+    "@deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.";
+
+  it("reads the tag on an export specifier and ignores one above the statement", () => {
+    const source = project.createSourceFile(
+      "barrel.ts",
+      [
+        "export {",
+        `  /** ${TAG} */`,
+        "  convert as unstable_convert,",
+        "  /**",
+        "   * @deprecated Use `TriggerPopover` instead.",
+        "   * Removed in the next minor.",
+        "   */",
+        "  Popover as Unstable_TriggerPopover,",
+        "  plain,",
+        '} from "./convert";',
+        `/** ${TAG} */`,
+        'export { memoize as unstable_memoize } from "./memoize";',
+      ].join("\n"),
+    );
+    const specifiers = source
+      .getExportDeclarations()
+      .flatMap((declaration) => declaration.getNamedExports());
+
+    expect(specifiers.map(exportSpecifierDeprecated)).toEqual([
+      TAG.slice("@deprecated ".length),
+      "Use `TriggerPopover` instead.\nRemoved in the next minor.",
+      undefined,
+      undefined,
+    ]);
+  });
+
+  it("follows re-exports to the specifier that carries the tag", () => {
+    project.createSourceFile("/chain/base.ts", "export function convert() {}");
+    project.createSourceFile(
+      "/chain/middle.ts",
+      [
+        "export {",
+        `  /** ${TAG} */`,
+        "  convert as unstable_convert,",
+        '} from "./base";',
+      ].join("\n"),
+    );
+    const barrel = project.createSourceFile(
+      "/chain/index.ts",
+      [
+        'export { unstable_convert } from "./middle";',
+        'export { convert } from "./base";',
+      ].join("\n"),
+    );
+    const specifiers = barrel
+      .getExportDeclarations()
+      .flatMap((declaration) => declaration.getNamedExports());
+
+    expect(specifiers.map(exportSpecifierDeprecated)).toEqual([
+      TAG.slice("@deprecated ".length),
+      undefined,
+    ]);
+  });
+
+  it("reads the tag on a specifier that exports a local declaration", () => {
+    const source = project.createSourceFile(
+      "/local/index.ts",
+      [
+        "function convert() {}",
+        "export {",
+        `  /** ${TAG} */`,
+        "  convert as unstable_convert,",
+        "};",
+      ].join("\n"),
+    );
+    const [specifier] = source
+      .getExportDeclarations()
+      .flatMap((declaration) => declaration.getNamedExports());
+
+    expect(specifier && exportSpecifierDeprecated(specifier)).toBe(
+      TAG.slice("@deprecated ".length),
+    );
+  });
+
+  it("marks an experimental property instead of reporting it deprecated", () => {
+    const source = project.createSourceFile(
+      "options.ts",
+      [
+        "export type Options = {",
+        `  /** ${TAG} */`,
+        "  unstable_flag?: boolean;",
+        "  /** @deprecated Use `flag` instead. */",
+        "  legacyFlag?: boolean;",
+        "};",
+      ].join("\n"),
+    );
+    const props = processTypeOrInterface(
+      source.getTypeAliasOrThrow("Options"),
+      "Options",
+    );
+
+    expect(
+      props?.map(({ name, deprecated, experimental }) => ({
+        name,
+        deprecated,
+        experimental,
+      })),
+    ).toEqual([
+      { name: "unstable_flag", deprecated: undefined, experimental: true },
+      {
+        name: "legacyFlag",
+        deprecated: "Use `flag` instead.",
+        experimental: undefined,
+      },
     ]);
   });
 });

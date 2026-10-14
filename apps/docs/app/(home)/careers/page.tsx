@@ -86,7 +86,7 @@ function RoleCell({ role, fig }: { role: CareerPage; fig: number }) {
     >
       <span className="mb-6 block">
         <GlyphPlate scene={scene} />
-        <span className="text-muted-foreground/70 mt-2 flex items-baseline justify-between font-mono text-[11px] tracking-wide">
+        <span className="text-muted-foreground/70 mt-2 flex items-baseline justify-between text-xs">
           <span>fig. {String(fig).padStart(2, "0")}</span>
           <span>{scene.name}</span>
         </span>
@@ -106,7 +106,7 @@ function RoleCell({ role, fig }: { role: CareerPage; fig: number }) {
         </span>
       ) : null}
       {role.data.salary ? (
-        <span className="text-muted-foreground/70 mt-auto block pt-5 font-mono text-[11px] tracking-wide">
+        <span className="text-muted-foreground/70 mt-auto block pt-5 text-xs">
           {role.data.salary}
         </span>
       ) : null}

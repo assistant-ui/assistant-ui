@@ -1,11 +1,15 @@
 import type { ReactNode } from "react";
 import { SubProjectLayout } from "@/components/shared/sub-project-layout";
 import type { Metadata } from "next";
+import { subProject, subProjectGithubUrl } from "@/lib/docs-sites";
+import { createOgMetadata } from "@/lib/og";
+
+const { title, description, metadataTitle } = subProject("tw-shimmer");
 
 export const metadata: Metadata = {
-  title: "tw-shimmer by assistant-ui",
-  description:
-    "Zero-dependency Tailwind v4 shimmer for text and skeleton loaders. Pure CSS.",
+  title: metadataTitle,
+  description,
+  ...createOgMetadata(title, description),
 };
 
 export default function TwShimmerHomeLayout({
@@ -16,7 +20,7 @@ export default function TwShimmerHomeLayout({
   return (
     <SubProjectLayout
       name="tw-shimmer"
-      githubPath="https://github.com/assistant-ui/assistant-ui/tree/main/packages/tw-shimmer"
+      githubPath={subProjectGithubUrl("tw-shimmer")}
     >
       {children}
     </SubProjectLayout>

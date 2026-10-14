@@ -35,6 +35,7 @@ import { SyncPlugin } from "./SyncPlugin";
 
 const mocks = vi.hoisted(() => ({
   aui: undefined as unknown as ReturnType<typeof createAui>,
+  threadId: undefined as string | undefined,
 }));
 
 vi.mock("@assistant-ui/store", async (importOriginal) => {
@@ -42,6 +43,15 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   return {
     ...actual,
     useAui: () => mocks.aui,
+    useAuiState: <T,>(
+      selector: (s: { optional: { threads?: { mainThreadId: string } } }) => T,
+    ) =>
+      selector({
+        optional:
+          mocks.threadId === undefined
+            ? {}
+            : { threads: { mainThreadId: mocks.threadId } },
+      }),
   };
 });
 
@@ -55,11 +65,52 @@ const createAui = (text: string) => {
   };
 
   return {
+    optional: {},
     composer: {
       __internal_getRuntime: () => runtime,
       setText: vi.fn((next: string) => {
         current = next;
       }),
+    },
+  };
+};
+
+// One client and one composer runtime across a thread switch: the runtime
+// notifies while the threads state still names the old thread, and the new id
+// commits afterwards.
+const createSwitchableAui = (text: string, threadId: string) => {
+  const state = { text, threadId };
+  const listeners = new Set<() => void>();
+  const runtime = {
+    getState: () => ({ text: state.text }),
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+  mocks.threadId = threadId;
+  return {
+    aui: {
+      optional: {
+        threads: { getState: () => ({ mainThreadId: state.threadId }) },
+      },
+      composer: {
+        __internal_getRuntime: () => runtime,
+        setText: vi.fn((next: string) => {
+          state.text = next;
+        }),
+      },
+    },
+    getText: () => state.text,
+    notifyText(next: string) {
+      state.text = next;
+      for (const listener of [...listeners]) listener();
+    },
+    commitThread(next: string) {
+      state.threadId = next;
+      mocks.threadId = next;
     },
   };
 };
@@ -136,6 +187,7 @@ describe("SyncPlugin", () => {
     });
     container.remove();
     vi.restoreAllMocks();
+    mocks.threadId = undefined;
   });
 
   it("clears the editor when switching to a composer with an empty draft", async () => {
@@ -166,6 +218,203 @@ describe("SyncPlugin", () => {
     });
 
     expect(readEditorText(editor)).toBe("");
+  });
+
+  it("does not restore the previous composer when switching to a populated draft", async () => {
+    const extension = defineExtension({
+      name: "sync-populated-history",
+      namespace: "sync-populated-history",
+      dependencies: [HistoryExtension],
+    });
+    const capture = (capturedEditor: LexicalEditor) => {
+      editor = capturedEditor;
+    };
+    const render = () =>
+      root.render(
+        <LexicalExtensionComposer extension={extension} contentEditable={null}>
+          <SyncPlugin />
+          <EditorProbe capture={capture} />
+        </LexicalExtensionComposer>,
+      );
+
+    mocks.aui = createAui("thread A draft");
+    await act(async () => {
+      render();
+    });
+    await act(async () => {
+      editor.update(
+        () => {
+          $getRoot()
+            .clear()
+            .append(
+              $createParagraphNode().append(
+                $createTextNode("thread A private draft"),
+              ),
+            );
+          $getRoot().selectEnd();
+        },
+        { discrete: true, tag: [HISTORY_PUSH_TAG, SKIP_DOM_SELECTION_TAG] },
+      );
+    });
+
+    const nextAui = createAui("thread B populated draft");
+    mocks.aui = nextAui;
+    await act(async () => {
+      render();
+    });
+    expect(readEditorText(editor)).toBe("thread B populated draft");
+
+    await act(async () => {
+      editor.dispatchCommand(UNDO_COMMAND, undefined);
+    });
+
+    expect(readEditorText(editor)).toBe("thread B populated draft");
+    expect(nextAui.composer.__internal_getRuntime!().getState().text).toBe(
+      "thread B populated draft",
+    );
+  });
+
+  it("resets history when switched composers have equal text", async () => {
+    const extension = defineExtension({
+      name: "sync-equal-history",
+      namespace: "sync-equal-history",
+      dependencies: [HistoryExtension],
+    });
+    const capture = (capturedEditor: LexicalEditor) => {
+      editor = capturedEditor;
+    };
+    const render = () =>
+      root.render(
+        <LexicalExtensionComposer extension={extension} contentEditable={null}>
+          <SyncPlugin />
+          <EditorProbe capture={capture} />
+        </LexicalExtensionComposer>,
+      );
+
+    mocks.aui = createAui("thread A private draft");
+    await act(async () => {
+      render();
+    });
+    await act(async () => {
+      editor.update(
+        () => {
+          $getRoot()
+            .clear()
+            .append(
+              $createParagraphNode().append($createTextNode("shared draft")),
+            );
+          $getRoot().selectEnd();
+        },
+        { discrete: true, tag: [HISTORY_PUSH_TAG, SKIP_DOM_SELECTION_TAG] },
+      );
+    });
+    expect(readEditorText(editor)).toBe("shared draft");
+
+    const nextAui = createAui("shared draft");
+    mocks.aui = nextAui;
+    await act(async () => {
+      render();
+    });
+
+    await act(async () => {
+      editor.dispatchCommand(UNDO_COMMAND, undefined);
+    });
+
+    expect(readEditorText(editor)).toBe("shared draft");
+    expect(nextAui.composer.__internal_getRuntime!().getState().text).toBe(
+      "shared draft",
+    );
+  });
+
+  describe("when the thread id commits after the composer notified", () => {
+    const typeDraft = (text: string) =>
+      editor.update(
+        () => {
+          $getRoot()
+            .clear()
+            .append($createParagraphNode().append($createTextNode(text)));
+          $getRoot().selectEnd();
+        },
+        { discrete: true, tag: [HISTORY_PUSH_TAG, SKIP_DOM_SELECTION_TAG] },
+      );
+
+    const mountSwitchable = async (name: string) => {
+      const extension = defineExtension({
+        name,
+        namespace: name,
+        dependencies: [HistoryExtension],
+      });
+      const switchable = createSwitchableAui("thread A draft", "thread-a");
+      mocks.aui = switchable.aui as unknown as typeof mocks.aui;
+      const render = () =>
+        root.render(
+          <LexicalExtensionComposer
+            extension={extension}
+            contentEditable={null}
+          >
+            <SyncPlugin />
+            <EditorProbe
+              capture={(value) => {
+                editor = value;
+              }}
+            />
+          </LexicalExtensionComposer>,
+        );
+      await act(async () => {
+        render();
+      });
+      await act(async () => {
+        typeDraft("thread A private draft");
+      });
+      await act(async () => {
+        switchable.notifyText("thread B draft");
+      });
+      expect(readEditorText(editor)).toBe("thread B draft");
+      switchable.commitThread("thread-b");
+      await act(async () => {
+        render();
+      });
+      return switchable;
+    };
+
+    it("does not restore the previous thread on undo", async () => {
+      const switchable = await mountSwitchable("sync-thread-commit-undo");
+
+      await act(async () => {
+        editor.dispatchCommand(UNDO_COMMAND, undefined);
+      });
+
+      expect(readEditorText(editor)).toBe("thread B draft");
+      expect(switchable.getText()).toBe("thread B draft");
+    });
+
+    it("keeps the new thread's own history across a later runtime notification", async () => {
+      const switchable = await mountSwitchable("sync-thread-commit-history");
+      await act(async () => {
+        typeDraft("thread B first");
+      });
+      await act(async () => {
+        typeDraft("thread B second");
+      });
+
+      await act(async () => {
+        switchable.notifyText("thread B external");
+      });
+      expect(readEditorText(editor)).toBe("thread B external");
+
+      for (const expected of [
+        "thread B second",
+        "thread B first",
+        "thread B draft",
+        "thread B draft",
+      ]) {
+        await act(async () => {
+          editor.dispatchCommand(UNDO_COMMAND, undefined);
+        });
+        expect(readEditorText(editor)).toBe(expected);
+      }
+      expect(switchable.getText()).toBe("thread B draft");
+    });
   });
 
   it("adds no text-node reads for selection-only updates in a 1,000-paragraph draft", async () => {

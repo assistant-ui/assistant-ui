@@ -1,11 +1,7 @@
 "use client";
 
-import {
-  type MutableRefObject,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-} from "react";
+import { type MutableRefObject, useEffect, useRef } from "react";
+import { useIsomorphicLayoutEffect } from "../utils/useIsomorphicLayoutEffect";
 import { type McpAppBridge, createMcpAppBridge } from "./bridge";
 import {
   SandboxHost,
@@ -147,9 +143,9 @@ function buildLiveHandlers(
     lifecycle.onSizeChange(p);
     live()?.onSizeChange?.(p);
   };
-  out.onInitialized = () => {
+  out.onInitialized = (params) => {
     lifecycle.onInitialized();
-    live()?.onInitialized?.();
+    live()?.onInitialized?.(params);
   };
   out.onRequestTeardown = (p) => live()?.onRequestTeardown?.(p);
   out.onLog = (p) => live()?.onLog?.(p);
@@ -191,7 +187,7 @@ export function McpAppFrame({
     input,
     output,
   });
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     liveRef.current = {
       handlers,
       hostInfo,

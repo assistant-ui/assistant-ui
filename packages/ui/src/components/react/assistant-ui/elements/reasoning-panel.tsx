@@ -1,13 +1,13 @@
 "use client";
 
 import { ChevronDownIcon } from "lucide-react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { collapsePanel, mono, ShimmerLabel, SwapLabel } from "./surfaces";
+import {
+  CollapsibleRoot as Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "./collapsible-root";
 import { take } from "../utils/range";
 
 export interface ReasoningStep {

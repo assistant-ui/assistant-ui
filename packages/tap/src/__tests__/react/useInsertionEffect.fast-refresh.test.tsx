@@ -14,6 +14,8 @@ import { useResource } from "../../hooks/useResource";
 import { useResources } from "../../hooks/useResources";
 import { useTapHost } from "../../hooks/useTapHost";
 import { useTapRoot } from "../../hooks/useTapRoot";
+import { flushTapSync } from "../../core/scheduler";
+import { useState as useResourceState } from "../../react-hooks/useState";
 
 type Family = { current: unknown };
 type RendererInternals = {
@@ -159,4 +161,40 @@ describe.each(hosts)("$name Fast Refresh", ({ useHost, size }) => {
       },
     );
   });
+});
+
+it("keeps non-StrictMode tap updates single after Fast Refresh", async () => {
+  let setCount!: (value: number) => void;
+  let renders = 0;
+  function useCounter() {
+    useTapRoot(function Counter() {
+      const [count, set] = useResourceState(0);
+      setCount = set;
+      renders++;
+      return count;
+    });
+  }
+  function Before() {
+    useCounter();
+    return null;
+  }
+  function After() {
+    useCounter();
+    return null;
+  }
+  render(<Before />);
+  const family: Family = { current: After };
+  renderer!.setRefreshHandler((type) =>
+    type === Before || type === After ? family : undefined,
+  );
+  await act(async () => {
+    for (const root of fiberRoots)
+      renderer!.scheduleRefresh(root, {
+        staleFamilies: new Set(),
+        updatedFamilies: new Set([family]),
+      });
+  });
+  renders = 0;
+  act(() => flushTapSync(() => setCount(1)));
+  expect(renders).toBe(1);
 });

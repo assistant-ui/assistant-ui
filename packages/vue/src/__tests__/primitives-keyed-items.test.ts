@@ -260,10 +260,13 @@ describe("Vue list item keys", () => {
     expect(mounts).toHaveBeenCalledTimes(2);
 
     suggestions.value = [suggestions.value[1]!, suggestions.value[0]!];
-    await vi.waitFor(async () => {
-      await nextTick();
-      expect(labels(el)).toEqual(["beta", "alpha"]);
-    });
+    await vi.waitFor(
+      async () => {
+        await nextTick();
+        expect(labels(el)).toEqual(["beta", "alpha"]);
+      },
+      { interval: 5 },
+    );
     expect(mounts).toHaveBeenCalledTimes(2);
     app.unmount();
   });

@@ -97,6 +97,8 @@ export type ToolCallMessagePartProps<
      * conversation keeps it. Resolves once recorded, and rejects when the
      * payload is not plain JSON, is over the size limit, or the runtime
      * cannot record interactions; the user's action itself is unaffected.
+     *
+     * @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release.
      */
     unstable_recordInteraction?:
       | ((input: Unstable_ToolInteractionInput) => Promise<void>)

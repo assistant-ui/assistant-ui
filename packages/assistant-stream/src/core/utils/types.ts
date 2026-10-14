@@ -32,6 +32,7 @@ export type ReasoningPart = {
   type: "reasoning";
   text: string;
   status: TextStatus;
+  /** @deprecated Experimental since 2026-08-07. Not scheduled for removal; the API may change in any release. */
   unstable_summary?: string;
   timing?: MessagePartTiming;
   parentId?: string;
@@ -223,8 +224,11 @@ export type AssistantMessage = {
   content: AssistantMessagePart[];
 
   metadata: {
+    /** @deprecated Experimental since 2025-05-20. Not scheduled for removal; the API may change in any release. */
     unstable_state: ReadonlyJSONValue;
+    /** @deprecated Experimental since 2025-01-04. Not scheduled for removal; the API may change in any release. */
     unstable_data: ReadonlyJSONValue[];
+    /** @deprecated Experimental since 2025-01-27. Not scheduled for removal; the API may change in any release. */
     unstable_annotations: ReadonlyJSONValue[];
     steps: AssistantMessageStepMetadata[];
     custom: Record<string, unknown>;

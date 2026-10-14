@@ -326,13 +326,19 @@ const DelayedThread = ({
 };
 
 describe("useThreadViewportAutoScroll", () => {
-  it("keeps viewport event subscriptions across an unrelated rerender", () => {
+  it("keeps viewport listeners and observers across rerenders", () => {
     const view = render(
       <SyncRuntimeProvider>
         <Thread autoScroll={false} scrollToBottomOnInitialize={false} />
       </SyncRuntimeProvider>,
     );
-
+    const observe = vi.spyOn(TestResizeObserver.prototype, "observe");
+    const disconnect = vi.spyOn(TestResizeObserver.prototype, "disconnect");
+    const observeMutations = vi.spyOn(MutationObserver.prototype, "observe");
+    const disconnectMutations = vi.spyOn(
+      MutationObserver.prototype,
+      "disconnect",
+    );
     const viewport = getViewport();
     const addListenerSpy = vi.spyOn(viewport, "addEventListener");
     const removeListenerSpy = vi.spyOn(viewport, "removeEventListener");
@@ -343,12 +349,22 @@ describe("useThreadViewportAutoScroll", () => {
         </SyncRuntimeProvider>,
       );
 
+      expect(observe).not.toHaveBeenCalled();
+      expect(disconnect).not.toHaveBeenCalled();
+      expect(observeMutations).not.toHaveBeenCalled();
+      expect(disconnectMutations).not.toHaveBeenCalled();
       expect(addListenerSpy).not.toHaveBeenCalled();
       expect(removeListenerSpy).not.toHaveBeenCalled();
 
       view.unmount();
+      expect(disconnect).toHaveBeenCalled();
+      expect(disconnectMutations).toHaveBeenCalled();
       expect(removeListenerSpy).toHaveBeenCalled();
     } finally {
+      observe.mockRestore();
+      disconnect.mockRestore();
+      observeMutations.mockRestore();
+      disconnectMutations.mockRestore();
       addListenerSpy.mockRestore();
       removeListenerSpy.mockRestore();
     }
@@ -400,6 +416,13 @@ describe("useThreadViewportAutoScroll", () => {
       );
     });
 
+    act(() => {
+      viewport.scrollTop = getMaxScrollTop(viewport);
+      viewport.dispatchEvent(new Event("scroll"));
+    });
+    expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
+    viewportMeasurementOffset += 200;
+
     const scrollToSpy = vi
       .spyOn(viewport, "scrollTo")
       .mockImplementation(() => {});
@@ -422,7 +445,7 @@ describe("useThreadViewportAutoScroll", () => {
       });
 
       act(() => {
-        viewport.scrollTop = 100;
+        viewport.scrollTop += 100;
         viewport.dispatchEvent(new Event("scroll"));
       });
       expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");

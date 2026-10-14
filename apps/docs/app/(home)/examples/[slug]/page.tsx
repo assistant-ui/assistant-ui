@@ -76,7 +76,7 @@ export default async function ExamplePage(props: {
             {page.data.description}
           </p>
         )}
-        <p className="mt-6 flex flex-wrap items-baseline gap-x-7 gap-y-2 font-mono text-[13px]">
+        <p className="mt-6 flex flex-wrap items-baseline gap-x-7 gap-y-2 text-[13px]">
           {demo && (
             <Link
               href={`/demos/${demo.slug}`}
@@ -115,7 +115,7 @@ export default async function ExamplePage(props: {
             />
           </div>
         )}
-        <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between font-mono text-[11px] tracking-wide">
+        <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between text-xs">
           <span>fig. 01</span>
           {preview ? (
             <span className="flex items-center gap-1.5">

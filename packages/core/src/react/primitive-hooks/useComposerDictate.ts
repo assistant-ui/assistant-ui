@@ -5,6 +5,7 @@ export const useComposerDictate = () => {
   const aui = useAui();
   const disabled = useAuiState(
     (s) =>
+      s.thread.isDisabled ||
       s.composer.dictation != null ||
       !s.thread.capabilities.dictation ||
       !s.composer.isEditing,

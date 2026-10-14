@@ -4,6 +4,7 @@ import {
   type FC,
   isValidElement,
   memo,
+  createContext,
   useContext,
 } from "react";
 import { PreContext, useIsMarkdownCodeBlock } from "./PreOverride";
@@ -15,10 +16,28 @@ import type {
 } from "./types";
 import { DefaultCodeBlock } from "./CodeBlock";
 import { type ComponentsByLanguage, parseLanguageClass } from "../code-fence";
-import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import { withDefaultProps } from "./withDefaults";
 import { DefaultCodeBlockContent } from "./defaultComponents";
 import { memoCompareNodes } from "../memoization";
+
+type CodeRenderContextValue = {
+  Pre: PreComponent;
+  Code: CodeComponent;
+  preProps: Omit<ComponentPropsWithoutRef<PreComponent>, "children">;
+  codeProps: ComponentPropsWithoutRef<CodeComponent>;
+};
+
+const CodeRenderContext = createContext<CodeRenderContextValue | null>(null);
+
+function WrappedPre(props: ComponentPropsWithoutRef<PreComponent>) {
+  const { Pre, preProps } = useContext(CodeRenderContext)!;
+  return <Pre {...withDefaultProps<any>(preProps)(props)} />;
+}
+
+function WrappedCode(props: ComponentPropsWithoutRef<CodeComponent>) {
+  const { Code, codeProps } = useContext(CodeRenderContext)!;
+  return <Code {...withDefaultProps<any>(codeProps)(props)} />;
+}
 
 function extractCode(children: unknown): string {
   if (typeof children === "string") return children;
@@ -46,15 +65,7 @@ const CodeBlockOverride: FC<CodeOverrideProps> = ({
   ...codeProps
 }) => {
   const preProps = useContext(PreContext)!;
-  const getPreProps = withDefaultProps<any>(preProps);
-  const WrappedPre: PreComponent = useCallbackRef((props) => (
-    <Pre {...getPreProps(props)} />
-  ));
-
-  const getCodeProps = withDefaultProps<any>(codeProps);
-  const WrappedCode: CodeComponent = useCallbackRef((props) => (
-    <Code {...getCodeProps(props)} />
-  ));
+  const renderContext = { Pre, Code, preProps, codeProps };
 
   const language = parseLanguageClass(codeProps.className);
 
@@ -67,7 +78,7 @@ const CodeBlockOverride: FC<CodeOverrideProps> = ({
 
   if (children != null && typeof children !== "string") {
     return (
-      <>
+      <CodeRenderContext.Provider value={renderContext}>
         <CodeHeader
           node={node}
           language={language}
@@ -78,22 +89,24 @@ const CodeBlockOverride: FC<CodeOverrideProps> = ({
           components={{ Pre: WrappedPre, Code: WrappedCode }}
           code={children}
         />
-      </>
+      </CodeRenderContext.Provider>
     );
   }
 
   return (
-    <DefaultCodeBlock
-      node={node}
-      components={{
-        Pre: WrappedPre,
-        Code: WrappedCode,
-        SyntaxHighlighter,
-        CodeHeader,
-      }}
-      language={language}
-      code={children ?? ""}
-    />
+    <CodeRenderContext.Provider value={renderContext}>
+      <DefaultCodeBlock
+        node={node}
+        components={{
+          Pre: WrappedPre,
+          Code: WrappedCode,
+          SyntaxHighlighter,
+          CodeHeader,
+        }}
+        language={language}
+        code={children ?? ""}
+      />
+    </CodeRenderContext.Provider>
   );
 };
 

@@ -60,6 +60,7 @@ const useSingleThreadList = ({
       newThreadId: null,
       isLoading: false,
       loadError: undefined,
+      switchError: undefined,
       isLoadingMore: false,
       hasMore: false,
       threadIds: [THREAD_ID],

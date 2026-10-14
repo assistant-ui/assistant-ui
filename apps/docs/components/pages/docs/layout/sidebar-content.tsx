@@ -175,7 +175,13 @@ function SidebarSection({
   );
 }
 
-export function SidebarContent({ tree }: { tree?: PageTree.Root }) {
+export function SidebarContent({
+  tree,
+  platformSwitcher = true,
+}: {
+  tree?: PageTree.Root;
+  platformSwitcher?: boolean;
+}) {
   const { setOpen: setSidebarOpen } = useDocsSidebar();
   const pathname = usePathname();
   const { platform } = usePlatform();
@@ -244,12 +250,14 @@ export function SidebarContent({ tree }: { tree?: PageTree.Root }) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="shrink-0 px-3 pt-4 lg:hidden">
-        <PlatformSwitcher
-          tree={tree}
-          className="mb-3 h-8 w-full rounded-lg px-2.5 text-[13px] tracking-tight"
-        />
-      </div>
+      {platformSwitcher && (
+        <div className="shrink-0 px-3 pt-4 lg:hidden">
+          <PlatformSwitcher
+            tree={tree}
+            className="bg-muted/70 hover:bg-muted data-[popup-open]:bg-muted mx-0 mb-3 h-8 w-full rounded-lg px-2.5 text-[13px] font-medium tracking-tight"
+          />
+        </div>
+      )}
       <nav
         ref={navRef}
         data-docs-platform={platform}

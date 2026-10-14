@@ -247,6 +247,31 @@ function ReloadOnAuth() {
 
 `reload()` discards in-flight responses from superseded calls, so it is safe to invoke on every auth transition. On the `RemoteThreadList` store entry, a recreated adapter object is a no-op until you call `reload()`. `reload()` against the same instance refreshes the list and keeps the open thread. `reload()` after a different adapter instance resets selection and cached records, then loads the replacement store.
 
+### Handling a thread that fails to open
+
+When a switch cannot open its thread, for example because `fetch()` rejects for the thread a URL-controlled `threadId` names, the previous thread stays selected and the threads state reports the failure as `switchError`: the id the switch asked for and the error it threw. It clears when another switch starts or that thread opens.
+
+```tsx
+function ThreadOpenError({ threadId }: { threadId: string }) {
+  const aui = useAui();
+  const switchError = useAuiState((s) => s.threads.switchError);
+  if (switchError?.threadId !== threadId) return null;
+  return (
+    <div role="alert">
+      <p>This conversation could not be opened.</p>
+      <button
+        type="button"
+        onClick={() => aui.threads.switchToThread(threadId)}
+      >
+        Retry
+      </button>
+    </div>
+  );
+}
+```
+
+A switch driven by the controlled `threadId` option also retries on its own when the browser comes back online or the tab becomes visible, as a failed `list()` load does.
+
 ### Refetching the open thread
 
 `reload()` against the same adapter instance re-runs `list()`, which refreshes thread list metadata only. It does not touch the messages of the thread the user is looking at. When the open thread's server state changes out of band, so that nothing arrives over the stream (a human-in-the-loop interrupt raised by another process, a stalled stream, a status change picked up by polling), call `aui.threads.reloadMainThread()`:

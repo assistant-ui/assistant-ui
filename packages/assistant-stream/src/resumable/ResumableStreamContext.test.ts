@@ -358,6 +358,154 @@ describe("createResumableStreamContext", () => {
     expect(failing.locked).toBe(false);
   });
 
+  it.each(["resolve", "reject"] as const)(
+    "publishes append errors before source cancellation settles with %s",
+    async (cleanupOutcome) => {
+      const cleanupError = new Error("cleanup failed");
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      let finishCleanup!: () => void;
+      const cleanup = new Promise<void>((resolve, reject) => {
+        finishCleanup = () =>
+          cleanupOutcome === "resolve" ? resolve() : reject(cleanupError);
+      });
+      let markCancelStarted!: () => void;
+      const cancelStarted = new Promise<void>((resolve) => {
+        markCancelStarted = resolve;
+      });
+      const cancel = vi.fn(() => {
+        markCancelStarted();
+        return cleanup;
+      });
+      const source = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(bytes("ab"));
+        },
+        cancel,
+      });
+      const store = createInMemoryResumableStreamStore({ maxChunkBytes: 1 });
+      const onError = vi.fn();
+      const onFinalize = vi.fn();
+      let task!: Promise<unknown>;
+      let taskSettled = false;
+      const ctx = createResumableStreamContext({
+        store,
+        onError,
+        onFinalize,
+        waitUntil: (value) => {
+          task = value.then(() => {
+            taskSettled = true;
+          });
+        },
+      });
+      const response = await ctx.run("a", () => source);
+      const result = collect(response).catch((error: unknown) => error);
+
+      try {
+        await cancelStarted;
+        expect(await ctx.status("a")).toBe("error");
+        expect(await result).toEqual(
+          new Error("Chunk exceeds maxChunkBytes: 2"),
+        );
+        expect(onError).toHaveBeenCalledExactlyOnceWith(
+          "a",
+          new Error("Chunk exceeds maxChunkBytes: 2"),
+        );
+        expect(onFinalize).toHaveBeenCalledExactlyOnceWith(
+          "a",
+          "error",
+          "Chunk exceeds maxChunkBytes: 2",
+        );
+        expect(taskSettled).toBe(false);
+        expect(source.locked).toBe(true);
+      } finally {
+        finishCleanup();
+        await task;
+        await result;
+        store.dispose();
+      }
+
+      expect(taskSettled).toBe(true);
+      expect(source.locked).toBe(false);
+      expect(cancel).toHaveBeenCalledExactlyOnceWith(
+        new Error("Chunk exceeds maxChunkBytes: 2"),
+      );
+      if (cleanupOutcome === "reject") {
+        expect(consoleError).toHaveBeenCalledExactlyOnceWith(
+          "resumable stream reader cancel failed:",
+          cleanupError,
+        );
+      } else {
+        expect(consoleError).not.toHaveBeenCalled();
+      }
+    },
+  );
+
+  it.each(["fenced", "failed"] as const)(
+    "awaits source cleanup when error finalization is %s",
+    async (finalizeOutcome) => {
+      const finalizeError = new Error("finalize failed");
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      let finishCleanup!: () => void;
+      const cleanup = new Promise<void>((resolve) => {
+        finishCleanup = resolve;
+      });
+      const source = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(bytes("ab"));
+        },
+        cancel: () => cleanup,
+      });
+      const store = createInMemoryResumableStreamStore({ maxChunkBytes: 1 });
+      const finalize = vi
+        .spyOn(store, "finalize")
+        .mockImplementation(async () => {
+          if (finalizeOutcome === "failed") throw finalizeError;
+          return false;
+        });
+      const onFinalize = vi.fn();
+      let task!: Promise<unknown>;
+      let taskSettled = false;
+      const ctx = createResumableStreamContext({
+        store,
+        onFinalize,
+        waitUntil: (value) => {
+          task = value.then(() => {
+            taskSettled = true;
+          });
+        },
+      });
+      const response = await ctx.run("a", () => source);
+
+      try {
+        await vi.waitFor(() => expect(finalize).toHaveBeenCalledOnce());
+        expect(taskSettled).toBe(false);
+        expect(source.locked).toBe(true);
+        expect(onFinalize).not.toHaveBeenCalled();
+      } finally {
+        finishCleanup();
+        await task;
+        await response.cancel();
+        store.dispose();
+      }
+
+      expect(taskSettled).toBe(true);
+      expect(source.locked).toBe(false);
+      expect(onFinalize).not.toHaveBeenCalled();
+      if (finalizeOutcome === "failed") {
+        expect(consoleError).toHaveBeenCalledExactlyOnceWith(
+          "resumable stream finalize failed:",
+          finalizeError,
+        );
+      } else {
+        expect(consoleError).not.toHaveBeenCalled();
+      }
+    },
+  );
+
   it("waitUntil receives the producer task promise", async () => {
     const promises: Promise<unknown>[] = [];
     const ctx = createResumableStreamContext({

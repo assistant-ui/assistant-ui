@@ -8,9 +8,6 @@ import {
   useTextBuffer,
 } from "./useTextBuffer";
 
-// cap dedup map so an owner that drops echoes can't grow the counter without bound
-const PENDING_SYNC_CAP = 64;
-
 export type TextInputProps = ComponentProps<typeof Box> & {
   value: string;
   onChange: (text: string) => void;
@@ -21,7 +18,11 @@ export type TextInputProps = ComponentProps<typeof Box> & {
   multiLine?: boolean | undefined;
 };
 
-export const TextInput = ({
+type TextInputInternalProps = TextInputProps & {
+  isDisabled: boolean;
+};
+
+const TextInputInternal = ({
   value,
   onChange,
   onSubmit,
@@ -29,45 +30,41 @@ export const TextInput = ({
   placeholder = "",
   autoFocus = true,
   multiLine = false,
+  isDisabled,
   ...boxProps
-}: TextInputProps) => {
+}: TextInputInternalProps) => {
   const { isFocused } = useFocus({ autoFocus });
   const { text, cursorOffset, preferredColumn, dispatchAction, setText } =
     useTextBuffer(value);
   const bufferStateRef = useRef({ text, cursorOffset, preferredColumn });
-  const pendingLocalSyncTextsRef = useRef(new Map<string, number>());
-  bufferStateRef.current = { text, cursorOffset, preferredColumn };
+  const lastEmittedValueRef = useRef<string | undefined>(undefined);
 
   useEffect(() => {
-    const counter = pendingLocalSyncTextsRef.current;
-    const pending = counter.get(value) ?? 0;
-    if (pending > 0) {
-      if (pending === 1) counter.delete(value);
-      else counter.set(value, pending - 1);
+    if (value === lastEmittedValueRef.current) {
+      if (text === value) lastEmittedValueRef.current = undefined;
       return;
     }
-    if (value === text) return;
 
-    // a mismatched value while echoes are pending is the owner correcting our
-    // own edit; keep the cursor at the edit instead of jumping to the end
-    const isCorrection = counter.size > 0;
+    const isCorrection = lastEmittedValueRef.current !== undefined;
+    lastEmittedValueRef.current = undefined;
+    if (value === bufferStateRef.current.text) return;
     const previousCursorOffset = bufferStateRef.current.cursorOffset;
-    counter.clear();
-    setText(value);
     let nextState = textBufferReducer(bufferStateRef.current, {
       type: "set-text",
       text: value,
     });
+    let restoreCursor: { type: "set-cursor"; cursorOffset: number } | undefined;
     if (isCorrection) {
-      const restoreCursor = {
+      restoreCursor = {
         type: "set-cursor",
         cursorOffset: previousCursorOffset,
-      } as const;
-      dispatchAction(restoreCursor);
+      };
       nextState = textBufferReducer(nextState, restoreCursor);
     }
     bufferStateRef.current = nextState;
-  }, [setText, value, text, dispatchAction]);
+    setText(value);
+    if (restoreCursor) dispatchAction(restoreCursor);
+  });
 
   const commitAction = (
     action: Parameters<typeof textBufferReducer>[1],
@@ -76,23 +73,24 @@ export const TextInput = ({
     const currentState = bufferStateRef.current;
     // run the reducer eagerly so submit-after-edit sees post-action state before react commits
     const nextState = textBufferReducer(currentState, action);
-    dispatchAction(action);
     bufferStateRef.current = nextState;
+    dispatchAction(action);
 
     if (options?.syncText !== false && nextState.text !== currentState.text) {
-      const counter = pendingLocalSyncTextsRef.current;
-      if (counter.size >= PENDING_SYNC_CAP) counter.clear();
-      counter.set(nextState.text, (counter.get(nextState.text) ?? 0) + 1);
+      lastEmittedValueRef.current = nextState.text;
       onChange(nextState.text);
     }
   };
 
   const submit = () => {
+    if (isDisabled) return;
     onSubmit?.(bufferStateRef.current.text);
   };
 
   useInput(
     (input, key) => {
+      if (isDisabled) return;
+
       const extendedKey = key as typeof key & {
         home?: boolean;
         end?: boolean;
@@ -229,7 +227,7 @@ export const TextInput = ({
 
   return (
     <Box {...boxProps}>
-      {!isFocused ? (
+      {!isFocused || isDisabled ? (
         <Text dimColor={isShowingPlaceholder}>
           {hasText ? text : placeholder}
         </Text>
@@ -243,3 +241,30 @@ export const TextInput = ({
     </Box>
   );
 };
+
+export const TextInput = ({
+  value,
+  onChange,
+  onSubmit,
+  submitOnEnter = false,
+  placeholder = "",
+  autoFocus = true,
+  multiLine = false,
+  ...boxProps
+}: TextInputProps) => (
+  <TextInputInternal
+    value={value}
+    onChange={onChange}
+    onSubmit={onSubmit}
+    submitOnEnter={submitOnEnter}
+    placeholder={placeholder}
+    autoFocus={autoFocus}
+    multiLine={multiLine}
+    {...boxProps}
+    isDisabled={false}
+  />
+);
+
+export const ComposerTextInput = (
+  props: TextInputProps & { isDisabled: boolean },
+) => <TextInputInternal {...props} />;

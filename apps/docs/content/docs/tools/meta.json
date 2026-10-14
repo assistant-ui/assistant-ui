@@ -13,6 +13,8 @@
     "---Rendering tool calls---",
     "tool-ui",
     "generative-ui",
+    "generative-ui-formats",
+    "generative-ui-spec-migration",
     "generative-ui-slack",
     "generative-ui-teams",
     "generative-ui-primitive",

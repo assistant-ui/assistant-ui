@@ -20,13 +20,13 @@ export async function POST(req: Request) {
     tools?: Record<string, { description?: string; parameters: JSONSchema7 }>;
   } = await req.json();
 
+  const aiSDKTools = { ...frontendTools(tools ?? {}) };
   const result = streamText({
+    abortSignal: req.signal,
     model: openai.responses("gpt-6-luna"),
-    messages: await convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
     system,
-    tools: {
-      ...frontendTools(tools ?? {}),
-    },
+    tools: aiSDKTools,
     providerOptions: {
       openai: {
         reasoningEffort: "low",

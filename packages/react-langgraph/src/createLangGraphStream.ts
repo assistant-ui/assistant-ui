@@ -27,6 +27,8 @@ export type CreateLangGraphStreamOptions = {
  * SDK client and assistant id. Forwards `config.abortSignal` as `signal`
  * and defaults `onDisconnect` to `"cancel"`. Forwards `streamSubgraphs` to
  * the LangGraph SDK to include subgraph events.
+ *
+ * @deprecated Experimental since 2026-04-17. Not scheduled for removal; the API may change in any release.
  */
 export const unstable_createLangGraphStream = ({
   client,

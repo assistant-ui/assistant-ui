@@ -14,6 +14,29 @@ const input = (overrides: Partial<Checkout.Input>): Checkout.Input => ({
 });
 
 describe("describeAnswer", () => {
+  it("retains an entry point's app-specific placement and trigger", () => {
+    expect(
+      describeAnswer(
+        input({
+          kind: "entry-point",
+          answer: "report",
+          options: [
+            {
+              id: "report",
+              label: "Report assistant",
+              description: "Inspect this report",
+              entryPoint: {
+                formFactor: "sidebar",
+                placement: "Report workspace",
+                trigger: "Ask in toolbar",
+              },
+            },
+          ],
+        }),
+      ),
+    ).toBe("Report assistant · Report workspace · Ask in toolbar");
+  });
+
   it("returns nothing for a skipped question", () => {
     expect(describeAnswer(input({ status: "dismissed" }))).toBeUndefined();
     expect(describeAnswer(input({ status: "open" }))).toBeUndefined();
