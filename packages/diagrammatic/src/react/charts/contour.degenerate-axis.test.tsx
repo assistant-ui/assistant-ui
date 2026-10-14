@@ -21,6 +21,58 @@ function ellipseMarks(html: string) {
 }
 
 describe("Contour degenerate axes", () => {
+  it("centers a constant log x coordinate with a visible y radius", () => {
+    const marks = ellipseMarks(
+      renderToStaticMarkup(
+        <Contour
+          width={400}
+          height={240}
+          xScale="log"
+          points={[
+            { x: 5, y: 0 },
+            { x: 5, y: 1 },
+            { x: 5, y: 2 },
+          ]}
+        />,
+      ),
+    );
+    expect(marks).toHaveLength(4);
+    for (const mark of marks) {
+      expect(mark.cx).toBeCloseTo((left + right) / 2, 1);
+      expect(mark.cx).toBeGreaterThan(left);
+      expect(mark.cx).toBeLessThan(right);
+      expect(mark.cy).toBeGreaterThan(top);
+      expect(mark.cy).toBeLessThan(bottom);
+      expect(mark.ry).toBeGreaterThan(0);
+    }
+  });
+
+  it("centers a constant log y coordinate with a visible x radius", () => {
+    const marks = ellipseMarks(
+      renderToStaticMarkup(
+        <Contour
+          width={400}
+          height={240}
+          yScale="log"
+          points={[
+            { x: 0, y: 5 },
+            { x: 1, y: 5 },
+            { x: 2, y: 5 },
+          ]}
+        />,
+      ),
+    );
+    expect(marks).toHaveLength(4);
+    for (const mark of marks) {
+      expect(mark.cy).toBeCloseTo((top + bottom) / 2, 1);
+      expect(mark.cx).toBeGreaterThan(left);
+      expect(mark.cx).toBeLessThan(right);
+      expect(mark.cy).toBeGreaterThan(top);
+      expect(mark.cy).toBeLessThan(bottom);
+      expect(mark.rx).toBeGreaterThan(0);
+    }
+  });
+
   it.each([
     [
       "x",
