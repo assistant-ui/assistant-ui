@@ -2,4 +2,4 @@
 "generative-frame": patch
 ---
 
-Fail skipped `sendMessage` actions so later actions do not confirm a message that was not sent.
+fix: the assistant-ui spec toolkits fail a `sendMessage` that a `watch` dispatches or whose `text` is empty, as `copyText` does, so an action list stops there instead of confirming a message that was never sent.
