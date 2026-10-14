@@ -13,7 +13,8 @@ export type Pt = { x: number; y: number };
 export function formatCompact(value: number): string {
   const abs = Math.abs(value);
   const trim = (n: number) => {
-    const fixed = abs >= 100e9 || n >= 100 ? n.toFixed(0) : n.toFixed(1);
+    const fixed =
+      abs >= 100e9 || Math.abs(n) >= 100 ? n.toFixed(0) : n.toFixed(1);
     return fixed.endsWith(".0") ? fixed.slice(0, -2) : fixed;
   };
   if (abs >= 1e9) return `${trim(value / 1e9)}b`;
