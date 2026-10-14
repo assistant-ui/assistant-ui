@@ -1425,6 +1425,22 @@ test("statusLine names the window duration when its start is missing or invalid"
   }
 });
 
+test("statusLine names an approval only a maintainer can give", () => {
+  assert.equal(
+    statusLine(
+      {
+        tierResult: { tier: 1 },
+        requirementResult: {
+          unmet: [{ code: "approvals", maintainer: true }],
+        },
+        context: {},
+      },
+      policy,
+    ),
+    "T1 · waiting on 1 maintainer approval",
+  );
+});
+
 test("statusLine uses an unknown owner area id", () => {
   assert.equal(
     statusLine(

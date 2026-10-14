@@ -602,8 +602,9 @@ export function statusLine({ tierResult, requirementResult, context }, policy) {
   ];
   if (changes.length) return `T${tier} · needs a change: ${changes.join(", ")}`;
 
-  const waiting = unmet.map(({ code }) => {
-    if (code === "approvals") return "1 approval";
+  const waiting = unmet.map(({ code, maintainer }) => {
+    if (code === "approvals")
+      return maintainer ? "1 maintainer approval" : "1 approval";
     if (code.startsWith("owner:"))
       return `${areaName(code.slice(6), policy)} owner approval`;
     if (code === "decision") return "an accepted decision";

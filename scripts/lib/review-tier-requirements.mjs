@@ -85,6 +85,7 @@ export function evaluateRequirements(input, policy) {
       unmet.push({
         code: "approvals",
         detail: "needs 1 maintainer approval on the current head",
+        maintainer: true,
       });
     }
     for (const { id, members } of owners) {
@@ -102,6 +103,7 @@ export function evaluateRequirements(input, policy) {
       unmet.push({
         code: "approvals",
         detail: "needs 1 maintainer approval on the current head",
+        maintainer: true,
       });
     } else if (
       !(input.tier === 0 && maintainerSet.has(input.author)) &&

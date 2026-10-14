@@ -192,6 +192,7 @@ for (const tier of [2, 3]) {
       {
         code: "approvals",
         detail: "needs 1 maintainer approval on the current head",
+        maintainer: true,
       },
     ]);
     assert.equal(
