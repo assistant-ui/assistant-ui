@@ -174,6 +174,19 @@ const compare = (
   }
 };
 
+/** The state paths a condition only holds true while they have a value: a `$state` it tests for truthiness or compares with anything but `neq`, in every part of `$and` or a list. */
+export function conditionGuards(condition: unknown): string[] {
+  if (Array.isArray(condition)) return condition.flatMap(conditionGuards);
+  if (!isRecord(condition)) return [];
+  if (Array.isArray(condition["$and"]))
+    return conditionGuards(condition["$and"]);
+  return typeof condition["$state"] === "string" &&
+    condition["not"] !== true &&
+    !("neq" in condition)
+    ? [condition["$state"]]
+    : [];
+}
+
 /**
  * Evaluates a visibility condition. Unknown shapes are false, so a
  * half-streamed condition hides its element rather than throwing.

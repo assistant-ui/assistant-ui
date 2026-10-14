@@ -5,8 +5,8 @@ import {
 } from "../../assistant-ui/tool-calls";
 import type { ActionHandler } from "../actions";
 import type { Catalog } from "../catalog";
-import { formulaReads } from "../calc";
-import { templateStatePaths } from "../expressions";
+import { formulaValueReads } from "../calc";
+import { conditionGuards, templateStatePaths } from "../expressions";
 import { escapePointerToken, getAtPointer } from "../pointer";
 import type { SpecPromptOptions } from "../prompt";
 import {
@@ -182,33 +182,45 @@ export const callHistory = (
 const readsTools = (pointer: string) =>
   pointer === "/tools" || pointer.startsWith("/tools/");
 
-/** The state paths a value reads, split into those it shows and those it tests: inside a `$cond` test, or as a `$calc` condition. */
-function stateReads(root: unknown): { shown: string[]; tested: string[] } {
-  const shown: string[] = [];
-  const tested: string[] = [];
-  const pending: { value: unknown; testing: boolean }[] = [
-    { value: root, testing: false },
-  ];
-  for (let index = 0; index < pending.length; index++) {
-    const { value, testing } = pending[index]!;
-    if (typeof value !== "object" || value === null) continue;
-    const into = testing ? tested : shown;
-    for (const [key, child] of Object.entries(value)) {
-      if (typeof child !== "string") {
-        pending.push({ value: child, testing: testing || key === "$cond" });
-      } else if (key === "$state" || key === "$bindState") into.push(child);
-      else if (key === "$template") into.push(...templateStatePaths(child));
-      else if (key === "$calc") {
-        const reads = formulaReads(child);
-        into.push(...reads.values);
-        tested.push(...reads.tested);
-      }
+/** Collects the state paths a value shows, leaving out reads in a branch that only renders while that path has a value: the `$then` of a `$cond` that tests it, and the `?` branch of a `$calc` condition on it. */
+function collectShown(
+  value: unknown,
+  guarded: ReadonlySet<string>,
+  shown: string[],
+): void {
+  if (Array.isArray(value)) {
+    for (const item of value) collectShown(item, guarded, shown);
+    return;
+  }
+  if (typeof value !== "object" || value === null) return;
+  const record = value as Record<string, unknown>;
+  if ("$cond" in record) {
+    const tested = conditionGuards(record["$cond"]).map(safePointer);
+    collectShown(record["$then"], new Set([...guarded, ...tested]), shown);
+    collectShown(record["$else"], guarded, shown);
+    return;
+  }
+  for (const [key, child] of Object.entries(record)) {
+    if (typeof child !== "string") {
+      collectShown(child, guarded, shown);
+      continue;
+    }
+    const paths =
+      key === "$state" || key === "$bindState"
+        ? [child]
+        : key === "$template"
+          ? templateStatePaths(child)
+          : key === "$calc"
+            ? formulaValueReads(child)
+            : [];
+    for (const path of paths) {
+      const pointer = safePointer(path);
+      if (!guarded.has(pointer)) shown.push(pointer);
     }
   }
-  return { shown, tested };
 }
 
-/** Each place a spec shows state under `/tools` that the mounted results do not have, as a warning, since the model may have read the value from output the thread does not store or may mean a field that is absent. A path the element tests anywhere, in `visible`, a `$cond` test, or a `$calc` condition, is left out, since an absent value takes the other branch there. */
+/** Each place a spec shows state under `/tools` that the mounted results do not have, as a warning, since the model may have read the value from output the thread does not store or may mean a field that is absent. A read that only renders while its path has a value, under a `visible` condition or `$cond` test on it, is left out. */
 function missingToolResults(
   spec: Spec,
   toolResults: Record<string, unknown[]>,
@@ -216,19 +228,15 @@ function missingToolResults(
   const issues: SpecIssue[] = [];
   const state = { tools: toolResults };
   for (const [id, element] of Object.entries(spec.elements ?? {})) {
-    const visible = stateReads(element?.visible);
-    const reads = stateReads([element?.props, element?.on, element?.watch]);
-    const tested = new Set(
-      [...visible.shown, ...visible.tested, ...reads.tested].map(safePointer),
-    );
-    const shown = [
-      ...reads.shown,
-      ...(typeof element?.repeat?.path === "string"
-        ? [element.repeat.path]
-        : []),
-    ].map(safePointer);
+    const guarded = new Set(conditionGuards(element?.visible).map(safePointer));
+    const shown: string[] = [];
+    collectShown([element?.props, element?.on, element?.watch], guarded, shown);
+    if (typeof element?.repeat?.path === "string") {
+      const pointer = safePointer(element.repeat.path);
+      if (!guarded.has(pointer)) shown.push(pointer);
+    }
     for (const pointer of new Set(shown)) {
-      if (!readsTools(pointer) || tested.has(pointer)) continue;
+      if (!readsTools(pointer)) continue;
       if (getAtPointer(state, pointer) !== undefined) continue;
       issues.push({
         code: "missing-tool-result",

@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { evaluateFormula, formulaIssue, formulaReads } from "./calc";
+import { evaluateFormula, formulaIssue, formulaValueReads } from "./calc";
 
 const ctx = {
   state: {
@@ -539,15 +539,16 @@ describe("formula bounds and parsing", () => {
   });
 });
 
-describe("formulaReads", () => {
+describe("formulaValueReads", () => {
   it.each([
-    ["${/a} + ${$item/b} * ${$index}", ["/a"], []],
-    ["'${/a}' + ${/b}", ["/b"], []],
-    ["${/a} ? ${/a} : ${/b}", ["/b"], ["/a"]],
-    ["!${/a} || ${/b} == 1 ? 'x' : ${/c}", ["/c"], ["/a", "/b"]],
-    ["round(${/a}, 1)", ["/a"], []],
-    ["round(", [], []],
-  ])("reads %s as values %j and tests %j", (formula, values, tested) => {
-    expect(formulaReads(formula)).toEqual({ values, tested });
+    ["${/a} + ${$item/b} * ${$index}", ["/a"]],
+    ["'${/a}' + ${/b}", ["/b"]],
+    ["${/a} ? ${/a} : ${/b}", ["/b"]],
+    ["${/a} ? 'x' : ${/a}", ["/a"]],
+    ["!${/a} || ${/b} == 1 ? 'x' : ${/c}", ["/c"]],
+    ["round(${/a}, 1)", ["/a"]],
+    ["round(", []],
+  ])("shows %s as %j", (formula, reads) => {
+    expect(formulaValueReads(formula)).toEqual(reads);
   });
 });

@@ -1034,6 +1034,39 @@ describe("createWidgetToolkit", () => {
       },
       warned: ["/tools/get_price/0/total"],
     },
+    {
+      form: "a value shown while a negated visible condition holds",
+      element: {
+        props: { text: { $state: "/tools/get_price/0/warning" } },
+        visible: { not: { $state: "/tools/get_price/0/warning" } },
+      },
+      warned: ["/tools/get_price/0/warning"],
+    },
+    {
+      form: "an $else branch reading what its $cond tests",
+      element: {
+        props: {
+          text: {
+            $cond: { $state: "/tools/get_price/0/discount" },
+            $then: "On sale",
+            $else: { $state: "/tools/get_price/0/discount" },
+          },
+        },
+      },
+      warned: ["/tools/get_price/0/discount"],
+    },
+    {
+      form: "a $calc else branch reading its own test",
+      element: {
+        props: {
+          text: {
+            $calc:
+              "${/tools/get_price/0/total} ? 'x' : ${/tools/get_price/0/total}",
+          },
+        },
+      },
+      warned: ["/tools/get_price/0/total"],
+    },
   ])(
     "warns when $form reads a /tools path the stored results do not have",
     async ({ element, warned }) => {
