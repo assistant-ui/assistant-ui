@@ -1,0 +1,117 @@
+---
+title: Generative UI
+description: Let the model compose cards, tables, charts, and form controls drawn with React Native components.
+---
+
+The model can answer with an interface built from the generative UI vocabulary: cards, text, tables, charts, form controls, and more, the same components [Generative UI](/docs/tools/generative-ui) documents for the web. On React Native, Metro resolves `@assistant-ui/generative-ui/spec` to a React Native build through the `react-native` export condition, so `toSpecCatalog` draws every component with React Native's own components and no other dependency. `createSpecToolkit` from `generative-frame/spec/assistant-ui` resolves the same way and renders the model's `render_spec` calls in your thread.
+
+## Install
+
+```sh
+npx expo install @assistant-ui/generative-ui generative-frame zod
+```
+
+`@assistant-ui/generative-ui` takes `react-native` as an optional peer, and `generative-frame` also takes `@assistant-ui/react-native`; your app already has both.
+
+## Add it to your runtime
+
+The toolkit runs `render_spec` in the app, so its entries go into `Tools({ toolkit })`, and the toolkit's `spec` module carries the guidance the model needs to write specs for this catalog:
+
+```tsx title="app/runtime-provider.tsx"
+import {
+  AuiConfig,
+  AssistantRuntimeProvider,
+  Tools,
+  useAssistantInstructions,
+  type AssistantRuntime,
+} from "@assistant-ui/react-native";
+import { toSpecCatalog } from "@assistant-ui/generative-ui/spec";
+import { createSpecToolkit } from "generative-frame/spec/assistant-ui";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+
+const { catalog, components } = toSpecCatalog();
+const spec = createSpecToolkit(catalog, { components });
+const tools = Tools({
+  toolkit: spec.entries({ execution: "frontend", display: "standalone" }),
+});
+const guidance = (spec.modules ?? [])
+  .map((module) => module.guidance())
+  .join("\n\n");
+
+function SpecInstructions() {
+  useAssistantInstructions(guidance);
+  return null;
+}
+
+export function RuntimeProvider({ runtime }: { runtime: AssistantRuntime }) {
+  const config = AuiConfig({ tools });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      <SpecInstructions />
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+Your route forwards the toolkit's tools to the model, as for any frontend tool. To run `render_spec` on the server instead, see [frontend and backend execution](/generative-frame/docs/assistant-ui#frontend-and-backend-execution).
+
+## On a phone
+
+Every component dispatches the same events with the same payloads as on the web, writes a value bound with `$bindState` back the same way, and an `asForm` Card or a `Form` collects its named controls when a submit button or a field's return key submits it. The default styles follow the device's light or dark mode, and text on a Card with its own `background` turns white.
+
+A few components take a form that suits a touch screen:
+
+- `Select` and `RadioGroup` are single-choice lists, and `CheckboxGroup` is a list of checkboxes.
+- `Slider` is a stepper with buttons on either side of its value.
+- `DatePicker` is a text field with a format hint.
+- `Chart` draws every chart kind as bars.
+- `Icon` is a text character.
+- `Carousel` pages through its cards in a horizontal scroll view.
+- `Tabs` scrolls its row of tabs sideways when they do not fit.
+- `Citation` opens its link with `Linking`.
+- A pressable `ListViewItem` is one button, which screen readers name after the text inside it in reading order, a `Table`'s cells included.
+- `Diagram` shows its Mermaid source, and `Map` lists its places, each opening OpenStreetMap.
+- `background` takes a color React Native can paint, and a CSS gradient leaves the plain surface. A `Box` takes points, pixels, rems, or percentages.
+
+## Change a component
+
+`defaultGenerativeUILibrary` from `@assistant-ui/generative-ui/spec` is the React Native vocabulary. Replace an entry to restyle a component, or add your own, as on the web:
+
+```tsx title="app/catalog.tsx"
+import { Text } from "react-native";
+import { z } from "zod";
+import {
+  defaultGenerativeUILibrary,
+  toSpecCatalog,
+} from "@assistant-ui/generative-ui/spec";
+
+export const { catalog, components } = toSpecCatalog({
+  ...defaultGenerativeUILibrary,
+  Rating: {
+    description: "A rating from 1 to 5 stars.",
+    properties: z.object({ value: z.number().int().min(1).max(5) }),
+    render: ({ value }) => <Text>{"★".repeat(value)}</Text>,
+  },
+});
+```
+
+A component of your own joins a pressable `ListViewItem`'s name with `useListViewItemText` from the same import. It returns `true` when a row took the text, so hide what the component draws from screen readers then, or they read it twice:
+
+```tsx title="app/rating.tsx"
+import { Text } from "react-native";
+import { useListViewItemText } from "@assistant-ui/generative-ui/spec";
+
+export function Rating({ value }: { value: number }) {
+  const label = `${value} out of 5 stars`;
+  const named = useListViewItemText(label);
+  return (
+    <Text aria-hidden={named} accessibilityLabel={label}>
+      {"★".repeat(value)}
+    </Text>
+  );
+}
+```
+
+Import it into `app/catalog.tsx` and render it from the `Rating` entry with `render: ({ value }) => <Rating value={value} />`.

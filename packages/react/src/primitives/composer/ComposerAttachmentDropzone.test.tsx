@@ -6,9 +6,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ComposerPrimitiveAttachmentDropzone } from "./ComposerAttachmentDropzone";
 
-const { addAttachment, threadCapabilities } = vi.hoisted(() => ({
+const { addAttachment, threadCapabilities, threadState } = vi.hoisted(() => ({
   addAttachment: vi.fn<(file: File) => Promise<void>>(),
   threadCapabilities: { attachments: true },
+  threadState: { isDisabled: false },
 }));
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
@@ -25,6 +26,9 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
         getState: () => ({ capabilities: threadCapabilities }),
       },
     }),
+    useAuiState: (
+      selector: (state: { thread: typeof threadState }) => unknown,
+    ) => selector({ thread: threadState }),
   };
 });
 
@@ -53,6 +57,7 @@ describe("ComposerPrimitiveAttachmentDropzone", () => {
   beforeEach(async () => {
     addAttachment.mockReset();
     threadCapabilities.attachments = true;
+    threadState.isDisabled = false;
     container = document.createElement("div");
     document.body.appendChild(container);
     root = createRoot(container);
@@ -231,6 +236,32 @@ describe("ComposerPrimitiveAttachmentDropzone", () => {
     await act(async () => {
       root.render(
         <ComposerPrimitiveAttachmentDropzone data-testid="dropzone" disabled />,
+      );
+    });
+    const dropzone = container.querySelector("[data-testid='dropzone']")!;
+    const over = createDragEvent("dragover", ["Files"]);
+    const drop = createDropEvent([
+      new File(["file"], "photo.png", { type: "image/png" }),
+    ]);
+
+    await act(async () => {
+      dropzone.dispatchEvent(over);
+      dropzone.dispatchEvent(drop);
+    });
+
+    expect(over.defaultPrevented).toBe(true);
+    expect(drop.defaultPrevented).toBe(true);
+    expect(addAttachment).not.toHaveBeenCalled();
+    expect(dropzone.hasAttribute("data-dragging")).toBe(false);
+  });
+
+  it("blocks file drops when the thread is disabled", async () => {
+    threadState.isDisabled = true;
+    await act(async () => {
+      root.render(
+        <ComposerPrimitiveAttachmentDropzone data-testid="dropzone">
+          <div>dropzone</div>
+        </ComposerPrimitiveAttachmentDropzone>,
       );
     });
     const dropzone = container.querySelector("[data-testid='dropzone']")!;

@@ -15,13 +15,11 @@ function createCore(
   history?: ThreadHistoryAdapter,
   agent = {} as AbstractAgent,
 ) {
-  const notifyUpdate = vi.fn();
   const core = new AgUiThreadRuntimeCore({
     agent,
     logger: makeLogger(),
     showThinking: true,
     ...(history && { history }),
-    notifyUpdate,
   });
   const update = (nextHistory?: ThreadHistoryAdapter) =>
     core.updateOptions({
@@ -527,7 +525,6 @@ describe("AgUiThreadRuntimeCore activity deltas", () => {
       agent,
       logger: makeLogger(),
       showThinking: true,
-      notifyUpdate: vi.fn(),
     });
 
     await core.append({ ...userMessage("go"), startRun: true });

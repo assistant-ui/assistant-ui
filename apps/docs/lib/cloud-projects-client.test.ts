@@ -43,7 +43,12 @@ describe("useCloudProjects", () => {
   it("reports unavailable when the route refuses or cannot be reached", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => new Response(null, { status: 502 })),
+      vi.fn(async () =>
+        Response.json(
+          { error: "Accounts could not list the projects." },
+          { status: 502 },
+        ),
+      ),
     );
     const refused = renderHook(() => useCloudProjects(true));
     await waitFor(() =>

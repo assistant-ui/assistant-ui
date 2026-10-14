@@ -32,6 +32,91 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("DataStreamRuntimeAdapter message IDs", () => {
+  it("pairs followed pending calls with results when extra message fields are enabled", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response("data: [DONE]\n\n"));
+    vi.stubGlobal("fetch", fetchMock);
+    const pending: ThreadMessage = {
+      id: "pending",
+      role: "assistant",
+      createdAt: new Date(0),
+      status: { type: "requires-action", reason: "tool-calls" },
+      metadata: {
+        custom: {},
+        steps: [],
+        unstable_data: [],
+        unstable_annotations: [],
+        unstable_state: {},
+      },
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "lookup",
+          args: {},
+          argsText: "{}",
+          approval: { id: "approval-1" },
+        },
+      ],
+    };
+    const adapter = new DataStreamRuntimeAdapter({
+      api: "/api/chat",
+      protocol: "ui-message-stream",
+      sendExtraMessageFields: true,
+    });
+    await runOnce(adapter, {
+      ...createRunOptions(new AbortController().signal),
+      messages: [pending, userMessage],
+      unstable_getMessage: () => ({
+        ...pending,
+        id: "current",
+        status: { type: "running" },
+        content: [],
+      }),
+    });
+    const body = JSON.parse(fetchMock.mock.calls[0]![1]!.body as string);
+    expect(body.messages).toEqual([
+      {
+        role: "assistant",
+        unstable_id: "pending",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "lookup",
+            input: {},
+          },
+        ],
+      },
+      {
+        role: "tool",
+        content: [
+          {
+            type: "tool-result",
+            toolCallId: "call-1",
+            toolName: "lookup",
+            output: {
+              type: "error-json",
+              value: { error: "Tool call was not completed" },
+            },
+          },
+        ],
+      },
+      {
+        role: "user",
+        unstable_id: "user-message",
+        content: [{ type: "text", text: "Hello" }],
+      },
+    ]);
+    expect(pending.status).toEqual({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+  });
+});
+
 describe("DataStreamRuntimeAdapter cancellation", () => {
   it("invokes onCancel when the signal is already aborted before the run starts", async () => {
     const onCancel = vi.fn();

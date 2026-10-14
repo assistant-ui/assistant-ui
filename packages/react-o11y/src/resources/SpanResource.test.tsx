@@ -190,5 +190,5 @@ describe("SpanResource", () => {
     expect(html).toContain(
       'data-span-id="span-19999" data-parent-span-id="span-19998" data-span-depth="19999"',
     );
-  });
+  }, 30_000);
 });

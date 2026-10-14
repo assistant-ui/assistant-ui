@@ -5,6 +5,8 @@ import type { ClientElement, ClientOutput } from "@assistant-ui/store";
 import {
   useAssistantClientDestroySignal,
   useOptionalAssistantClientRef,
+  useOptionalAssistantEmit,
+  useOptionalAssistantScopeEffect,
 } from "@assistant-ui/store/internal";
 import {
   useClientLookup,
@@ -144,6 +146,7 @@ export type ExternalThreadProps = {
   onRespondToToolApproval?: (
     options: RespondToToolApprovalOptions,
   ) => void | Promise<void>;
+  /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
   unstable_onRecordToolInteraction?:
     | ((options: Unstable_RecordToolInteractionOptions) => void | Promise<void>)
     | undefined;
@@ -161,12 +164,14 @@ type MessageClientProps = {
   onRespondToToolApproval?:
     | ((options: RespondToToolApprovalOptions) => void | Promise<void>)
     | undefined;
+  /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
   unstable_onRecordToolInteraction?:
     | ((options: Unstable_RecordToolInteractionOptions) => void | Promise<void>)
     | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
   onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
   attachmentAdapter?: AttachmentAdapter | undefined;
+  captureCleanupOwner?: (() => CleanupOwner) | undefined;
   submittedFeedback:
     | { type: "positive" | "negative"; comment?: string }
     | undefined;
@@ -194,6 +199,7 @@ const useMessageClient = ({
   onAddToolResult,
   onResumeToolCall,
   attachmentAdapter,
+  captureCleanupOwner,
   submittedFeedback,
   onSubmitFeedback,
   speech,
@@ -255,6 +261,7 @@ const useMessageClient = ({
       message,
       queue,
       attachmentAdapter,
+      captureCleanupOwner,
     }),
   );
 
@@ -357,6 +364,7 @@ type PartResourceProps = {
   onRespondToToolApproval?:
     | ((options: RespondToToolApprovalOptions) => void | Promise<void>)
     | undefined;
+  /** @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release. */
   unstable_onRecordToolInteraction?:
     | ((options: Unstable_RecordToolInteractionOptions) => void | Promise<void>)
     | undefined;
@@ -490,6 +498,11 @@ const AttachmentResource = resource(useAttachmentResource);
 
 const EMPTY_MESSAGE_KEYS: readonly string[] = Object.freeze([]);
 
+type CleanupOwner = (
+  source: AttachmentSendOperations,
+  attachment: PendingAttachment,
+) => void;
+
 type ComposerClientResourceProps = {
   type: "thread" | "edit";
   canCancel: boolean;
@@ -501,6 +514,7 @@ type ComposerClientResourceProps = {
   message?: ExternalThreadMessage;
   queue?: ExternalThreadQueueAdapter | undefined;
   attachmentAdapter?: AttachmentAdapter | undefined;
+  captureCleanupOwner?: (() => CleanupOwner) | undefined;
   /** `id|role` of each thread message, used to tell when a send has landed. */
   messageKeys?: readonly string[] | undefined;
 };
@@ -536,21 +550,6 @@ const useLiveState = <T>(initial: T) => {
     setState(ref.current);
   }, []);
   return [state, set, ref] as const;
-};
-
-// A try/catch inside the resource makes the React Compiler bail out of the
-// whole hook, so calls that can throw go through these module-scope helpers.
-const removeAttachmentThroughAdapter = async (
-  attachment: Attachment,
-  attachmentAdapter: AttachmentAdapter | undefined,
-  onError: (message: string) => void,
-) => {
-  try {
-    await attachmentAdapter?.remove(attachment);
-  } catch (error) {
-    onError(error instanceof Error ? error.message : String(error));
-    throw error;
-  }
 };
 
 const dispatchSafely = (dispatch: () => void) => {
@@ -604,6 +603,7 @@ const useComposerClientResource = ({
   message,
   queue,
   attachmentAdapter,
+  captureCleanupOwner,
   messageKeys = EMPTY_MESSAGE_KEYS,
 }: ComposerClientResourceProps): ClientOutput<"composer"> => {
   const [isEditing, setIsEditing, isEditingRef] = useLiveState(
@@ -646,6 +646,7 @@ const useComposerClientResource = ({
     useLiveState<readonly InTransitEntry[]>(EMPTY_IN_TRANSIT);
   const messageKeysRef = useRef(messageKeys);
   const sendGeneration = useRef(0);
+  const cleanupEpoch = useRef(0);
 
   // A dispatched message stays on screen until the host shows it, so the two
   // never swap through an empty frame. Each new message of a send's role
@@ -698,11 +699,9 @@ const useComposerClientResource = ({
     setText(messageText);
     setRole(message.role);
     setQuote(message.metadata.custom.quote as QuoteInfo | undefined);
-    // Re-seeding from the message abandons any removal begun in a previous
-    // edit session, so the restored objects must shed their removal marks.
     const restored = message.attachments ?? [];
     for (const attachment of restored)
-      attachmentSends.unmarkRemoved(attachment);
+      attachmentSends.abandonRemoval(attachment);
     if (message.role === "user") {
       setAttachments([...restored, ...liftNonTextParts(message.content)]);
       nonTextPassthrough.current = [];
@@ -714,98 +713,108 @@ const useComposerClientResource = ({
     }
   };
 
-  const handleRemoveAttachment = useCallback(
-    async (attachment: Attachment) => {
-      if (attachmentSends.isRemoved(attachment)) return;
-      attachmentAddOperations.cancel(attachment.id);
-      attachmentSends.markRemoved(attachment);
-      if (!isAttachmentComplete(attachment)) {
-        await removeAttachmentThroughAdapter(
-          attachment,
-          attachmentAdapter,
-          (message) =>
-            setAttachments((prev) =>
-              prev.map((candidate) =>
-                candidate.id === attachment.id &&
-                !isAttachmentComplete(candidate)
-                  ? attachmentSends.transfer(candidate, {
-                      ...candidate,
-                      status: { type: "incomplete", reason: "error", message },
-                    })
-                  : candidate,
-              ),
-            ),
+  const captureLocalCleanupOwner = useCallback((): CleanupOwner => {
+    const epoch = cleanupEpoch.current;
+    return (source, failed) => {
+      if (cleanupEpoch.current !== epoch) return;
+      const current = attachmentsRef.current.find(
+        (attachment) => attachment.id === failed.id,
+      );
+      if (current) {
+        if (!source.isSameRemoval(current, failed)) return;
+        setAttachments((prev) =>
+          prev.map((attachment) =>
+            attachment === current ? failed : attachment,
+          ),
         );
+        return;
       }
-      setAttachments((prev) => prev.filter((a) => a.id !== attachment.id));
+      attachmentSends.adoptFrom(source, failed);
+      setAttachments((prev) => [failed, ...prev]);
+    };
+  }, [attachmentSends, attachmentsRef, setAttachments]);
+
+  const retrySubmittedRemoval = useCallback(
+    (attachment: PendingAttachment, accept: CleanupOwner) => {
+      attachmentSends.beginRemoval(attachment);
+      void attachmentSends
+        .remove(attachment, attachmentAdapter, (_error, message) => {
+          console.error("Failed to remove sent attachment", message);
+          const failed = attachmentSends.transfer(attachment, {
+            ...attachment,
+            status: { type: "incomplete", reason: "error", message },
+          });
+          accept(attachmentSends, failed);
+        })
+        .catch(() => {});
     },
-    [
-      attachmentAddOperations,
-      attachmentAdapter,
-      attachmentSends,
-      setAttachments,
-    ],
+    [attachmentAdapter, attachmentSends],
   );
 
-  // A submission is not delivered yet, so its attachments stay reachable by id
-  // and can still be taken out of the message that is being sent.
-  const handleRemoveSubmittedAttachment = useCallback(
+  const handleRemoveAttachment = useCallback(
     async (attachment: Attachment) => {
-      if (attachmentSends.isRemovalPending(attachment)) return;
+      if (!attachmentSends.beginRemoval(attachment)) return;
       attachmentAddOperations.cancel(attachment.id);
-      attachmentSends.markRemoved(attachment);
-      if (!isAttachmentComplete(attachment)) {
-        // An attachment whose removal failed stays out of the message it was
-        // taken from and shows why, so the removal can be tried again. Once
-        // that message is back in the draft, it is a draft attachment again.
-        await removeAttachmentThroughAdapter(
-          attachment,
-          attachmentAdapter,
-          (message) => {
-            const fail = (candidate: PendingAttachment) =>
-              attachmentSends.transfer(candidate, {
-                ...candidate,
-                status: { type: "incomplete", reason: "error", message },
-              });
-            setSubmission((prev) =>
-              prev
-                ? {
-                    ...prev,
-                    attachments: prev.attachments.map((candidate) => {
-                      if (
-                        candidate.id !== attachment.id ||
-                        isAttachmentComplete(candidate)
-                      )
-                        return candidate;
-                      const failed = fail(candidate);
-                      attachmentSends.holdOut(failed);
-                      return failed;
-                    }),
-                  }
-                : prev,
-            );
+      setAttachments((prev) =>
+        prev.some((candidate) => candidate === attachment) ? [...prev] : prev,
+      );
+      await attachmentSends.remove(
+        attachment,
+        attachmentAdapter,
+        (_error, message) => {
+          const fail = (candidate: PendingAttachment) =>
+            attachmentSends.transfer(candidate, {
+              ...candidate,
+              status: { type: "incomplete", reason: "error", message },
+            });
+          let hasSubmission = false;
+          setSubmission((prev) => {
+            hasSubmission = prev !== undefined;
+            return prev
+              ? {
+                  ...prev,
+                  attachments: prev.attachments.map((candidate) =>
+                    !isAttachmentComplete(candidate) &&
+                    attachmentSends.isSameRemoval(candidate, attachment)
+                      ? fail(candidate)
+                      : candidate,
+                  ),
+                }
+              : prev;
+          });
+          setAttachments((prev) =>
+            prev.map((candidate) =>
+              !isAttachmentComplete(candidate) &&
+              attachmentSends.isSameRemoval(candidate, attachment)
+                ? fail(candidate)
+                : candidate,
+            ),
+          );
+          if (!hasSubmission)
             setAttachments((prev) =>
-              prev.includes(attachment)
-                ? prev.map((candidate) =>
-                    candidate === attachment ? fail(attachment) : candidate,
-                  )
-                : prev,
+              prev.map((candidate) =>
+                attachmentSends.isSameRemoval(candidate, attachment)
+                  ? attachmentSends.restore(candidate)
+                  : candidate,
+              ),
             );
-          },
-        );
-      }
+        },
+      );
       setSubmission((prev) =>
         prev
           ? {
               ...prev,
               attachments: prev.attachments.filter(
-                (a) => a.id !== attachment.id,
+                (candidate) =>
+                  !attachmentSends.isSameRemoval(candidate, attachment),
               ),
             }
           : prev,
       );
       setAttachments((prev) =>
-        prev.includes(attachment) ? prev.filter((a) => a !== attachment) : prev,
+        prev.filter(
+          (candidate) => !attachmentSends.isSameRemoval(candidate, attachment),
+        ),
       );
     },
     [
@@ -837,7 +846,7 @@ const useComposerClientResource = ({
           attachment.id,
           AttachmentResource({
             attachment,
-            onRemove: () => handleRemoveSubmittedAttachment(attachment),
+            onRemove: () => handleRemoveAttachment(attachment),
           }),
         ),
       ),
@@ -848,12 +857,17 @@ const useComposerClientResource = ({
     await Promise.all(
       removed
         .filter((a) => a.status.type !== "complete")
-        .map(async (a) => attachmentAdapter.remove(a)),
+        .map((attachment) => {
+          attachmentSends.beginRemoval(attachment);
+          return attachmentSends.remove(attachment, attachmentAdapter);
+        }),
     );
   };
 
   const draftUploadsToRemove = (draft: readonly Attachment[]) =>
-    draft.filter((attachment) => !attachmentSends.isRemoved(attachment));
+    draft.filter((attachment) =>
+      attachmentSends.shouldRemoveOnClear(attachment),
+    );
 
   const upsertAttachment = (attachment: Attachment) => {
     const current = submissionRef.current;
@@ -900,7 +914,9 @@ const useComposerClientResource = ({
   );
 
   const state = useMemo(() => {
-    const isEmpty = !text.trim() && !attachments.length;
+    const isEmpty =
+      !text.trim() &&
+      !attachments.some((attachment) => !attachmentSends.isRemoved(attachment));
     return {
       text,
       role,
@@ -930,7 +946,8 @@ const useComposerClientResource = ({
     submission,
     inTransitSubmissions,
     type,
-    attachments.length,
+    attachments,
+    attachmentSends,
     quote,
     queueItems,
     attachmentAdapter?.accept,
@@ -957,8 +974,10 @@ const useComposerClientResource = ({
       setAttachments((prev) =>
         prev.map((attachment) =>
           attachmentSends.isRemoved(attachment)
-            ? attachment
-            : (returned.get(attachment.id) ?? attachment),
+            ? attachmentSends.restore(attachment)
+            : attachmentSends.restore(
+                returned.get(attachment.id) ?? attachment,
+              ),
         ),
       );
       return;
@@ -1007,9 +1026,6 @@ const useComposerClientResource = ({
       if (result.status === "rejected")
         failures.set(sent[index]!.id, result.reason);
     });
-    // Each attachment that could not be prepared carries its own reason, so
-    // the draft it returns to shows which file needs another try. One removed
-    // meanwhile keeps its removal mark, so that removal still settles it.
     const attachments = current.attachments.map((attachment) => {
       if (
         !failures.has(attachment.id) ||
@@ -1084,6 +1100,9 @@ const useComposerClientResource = ({
         : undefined;
     if (entry) setInTransit((prev) => [...prev, entry]);
 
+    const acceptCleanup =
+      (type === "edit" ? captureCleanupOwner?.() : undefined) ??
+      captureLocalCleanupOwner();
     const failure = dispatchSafely(() => {
       if (queued) {
         if (context.options?.steer ?? isRunning) queue.steer(composedMessage);
@@ -1099,6 +1118,15 @@ const useComposerClientResource = ({
       returnToDraft(sent);
       return;
     }
+    if (isSubmission)
+      for (const attachment of current.attachments)
+        if (!isAttachmentComplete(attachment))
+          attachmentSends.dispatchRemoval(attachment, () =>
+            retrySubmittedRemoval(
+              attachment as PendingAttachment,
+              acceptCleanup,
+            ),
+          );
     if (type === "edit") {
       attachmentAddOperations.cancelAll();
       setIsEditing(false);
@@ -1155,7 +1183,7 @@ const useComposerClientResource = ({
     const submitted = submissionRef.current ?? current;
     if (!submitted.text.trim() && finalAttachments.length === 0) {
       endSubmission();
-      returnToDraft({ ...submitted, attachments: [] });
+      returnToDraft(submitted);
       return;
     }
     dispatchMessage(submitted, finalAttachments, context, true);
@@ -1220,6 +1248,7 @@ const useComposerClientResource = ({
       }
     },
     clearAttachments: async () => {
+      cleanupEpoch.current++;
       // A send that detached the draft holds the submission's attachments, so
       // their uploads keep going for it.
       attachmentAddOperations.cancelAll(
@@ -1236,7 +1265,7 @@ const useComposerClientResource = ({
       const pending = draftUploadsToRemove(removed);
       if (submissionRef.current) {
         for (const attachment of removed)
-          attachmentSends.markRemoved(attachment);
+          attachmentSends.beginRemoval(attachment);
       }
       setAttachments([]);
       await removePendingAttachments(pending);
@@ -1256,6 +1285,7 @@ const useComposerClientResource = ({
       return attachmentClients.get(selector);
     },
     reset: async () => {
+      cleanupEpoch.current++;
       attachmentAddOperations.cancelAll();
       sendGeneration.current++;
       const discarded = discardSubmission();
@@ -1327,6 +1357,7 @@ const useComposerClientResource = ({
       // land in a later session; the thread composer's cancel stops the run
       // and leaves the draft (and its pending adds) alone.
       if (type === "edit") {
+        cleanupEpoch.current++;
         attachmentAddOperations.cancelAll();
         sendGeneration.current++;
         void discardSubmission();
@@ -1345,9 +1376,11 @@ const useComposerClientResource = ({
       onBeginEdit?.();
       if (type === "thread") return;
       if (isEditingRef.current) throw new Error("Edit already in progress");
+      cleanupEpoch.current++;
       setIsEditing(true);
       updateFromMessage();
     },
+    captureCleanupOwner: captureLocalCleanupOwner,
     startDictation: () => {},
     stopDictation: () => {},
     setQuote,
@@ -1467,6 +1500,23 @@ const useExternalThread = ({
   onRespondToToolApproval,
 }: ExternalThreadProps): ClientOutput<"thread"> => {
   const clientRef = useOptionalAssistantClientRef();
+  const emit = useOptionalAssistantEmit();
+
+  useOptionalAssistantScopeEffect(
+    "modelContext",
+    () => {
+      const modelContext = clientRef?.current?.modelContext;
+      if (!modelContext || modelContext.source == null) return;
+
+      return modelContext().subscribe?.(() => {
+        const threadId =
+          clientRef?.current?.threads?.().getState().mainThreadId || "unknown";
+        emit("thread.modelContextUpdate", { threadId });
+      });
+    },
+    [clientRef, emit],
+  );
+
   const messages = useMemo(
     () => dedupeMessagesById(messagesProp),
     [messagesProp],
@@ -1639,6 +1689,11 @@ const useExternalThread = ({
       messageKeys,
     }),
   );
+  const captureCleanupOwner = (
+    composerClient.methods as typeof composerClient.methods & {
+      captureCleanupOwner: () => CleanupOwner;
+    }
+  ).captureCleanupOwner;
   const submission = composerClient.state.submission;
   const inTransit = composerClient.state.inTransit;
   // Messages the composer sent that the host does not show yet render after
@@ -1663,6 +1718,7 @@ const useExternalThread = ({
         onAddToolResult,
         onResumeToolCall,
         attachmentAdapter,
+        captureCleanupOwner,
         submittedFeedback: feedbackFor(msg),
         onSubmitFeedback: (feedback) => handleSubmitFeedback(msg, feedback),
         speech: speech?.messageId === msg.id ? speech : undefined,

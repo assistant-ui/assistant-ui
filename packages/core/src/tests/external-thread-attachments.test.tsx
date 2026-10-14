@@ -22,11 +22,6 @@ import type {
 
 const onReact18 = version.startsWith("18.");
 
-// useAssistantClientDestroySignal fails outside a tap resource on React 18: TypeError: ReactRuntime.use is not a function. Shipped React 18 incompatibility.
-const useDestroySignalProbe = onReact18
-  ? () => undefined
-  : useAssistantClientDestroySignal;
-
 const { mockGenerateId, realGenerateId } = vi.hoisted(() => {
   const realGenerateId = { current: (): string => "" };
   return {
@@ -146,6 +141,539 @@ const setupPartialSend = (type: "thread" | "edit" = "thread") => {
 };
 
 describe("ExternalThread attachments", () => {
+  it("keeps a repeatedly failed removal out of later messages", async () => {
+    const { composer, successfulUpload, remove, onNew } = setupPartialSend();
+    remove
+      .mockRejectedValueOnce(new Error("first failure"))
+      .mockRejectedValueOnce(new Error("second failure"))
+      .mockRejectedValueOnce(new Error("third failure"));
+    await act(() => composer().addAttachment(new File(["a"], "a")));
+    await act(async () => {
+      composer().setText("first");
+      composer().send();
+    });
+    await act(async () => {
+      await expect(composer().attachment({ id: "a" }).remove()).rejects.toThrow(
+        "first failure",
+      );
+    });
+    await act(async () => successfulUpload.resolve());
+    await waitFor(() =>
+      expect(composer().getState().attachments).toHaveLength(1),
+    );
+    await act(async () => {
+      await expect(composer().attachment({ id: "a" }).remove()).rejects.toThrow(
+        "third failure",
+      );
+    });
+    await act(async () => {
+      composer().setText("second");
+      composer().send();
+    });
+
+    expect(onNew).toHaveBeenCalledTimes(2);
+    expect(onNew.mock.calls[1]![0].attachments).toEqual([]);
+  });
+
+  it.each([
+    ["thread", "reset"],
+    ["thread", "clearAttachments"],
+    ["edit", "reset"],
+    ["edit", "clearAttachments"],
+  ] as const)(
+    "retries an adopted %s cleanup on the live composer's %s",
+    async (type, action) => {
+      const { aui, composer, successfulUpload, remove, onNew } =
+        setupPartialSend(type);
+      remove
+        .mockRejectedValueOnce(new Error("first failure"))
+        .mockRejectedValueOnce(new Error("second failure"))
+        .mockResolvedValue(undefined);
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      if (type === "edit") act(() => composer().beginEdit());
+      await act(() => composer().addAttachment(new File(["a"], "a")));
+      await act(async () => {
+        composer().setText("first");
+        composer().send();
+      });
+      await act(async () => {
+        await expect(
+          composer().attachment({ id: "a" }).remove(),
+        ).rejects.toThrow("first failure");
+      });
+      await act(async () => successfulUpload.resolve());
+      await waitFor(() => expect(onNew).toHaveBeenCalledOnce());
+      const owner = aui().thread.composer();
+      await waitFor(() =>
+        expect(owner.getState().attachments).toMatchObject([
+          { id: "a", status: { message: "second failure" } },
+        ]),
+      );
+      expect(remove).toHaveBeenCalledTimes(2);
+
+      await act(() => owner[action]());
+
+      expect(remove).toHaveBeenCalledTimes(3);
+      expect(owner.getState().attachments).toEqual([]);
+    },
+  );
+
+  it("does not enable send for only a failed cleanup", async () => {
+    const { composer, successfulUpload, remove } = setupPartialSend();
+    remove
+      .mockRejectedValueOnce(new Error("first failure"))
+      .mockRejectedValueOnce(new Error("second failure"));
+    await act(() => composer().addAttachment(new File(["a"], "a")));
+    await act(async () => {
+      composer().setText("first");
+      composer().send();
+    });
+    await act(async () => {
+      await expect(composer().attachment({ id: "a" }).remove()).rejects.toThrow(
+        "first failure",
+      );
+    });
+    await act(async () => successfulUpload.resolve());
+    await waitFor(() =>
+      expect(composer().getState().attachments).toHaveLength(1),
+    );
+
+    expect(composer().getState().isEmpty).toBe(true);
+    expect(composer().getState().canSend).toBe(false);
+  });
+
+  it.each(["empty", "replacement"] as const)(
+    "does not restore a failed cleanup after the draft is reset to %s",
+    async (draft) => {
+      const { composer, successfulUpload, remove } = setupPartialSend();
+      const retry = deferred();
+      remove
+        .mockRejectedValueOnce(new Error("first failure"))
+        .mockReturnValueOnce(retry.promise);
+      await act(() => composer().addAttachment(new File(["a"], "a")));
+      await act(async () => {
+        composer().setText("first");
+        composer().send();
+      });
+      await act(async () => {
+        await expect(
+          composer().attachment({ id: "a" }).remove(),
+        ).rejects.toThrow("first failure");
+      });
+      await act(async () => successfulUpload.resolve());
+      expect(remove).toHaveBeenCalledTimes(2);
+      await act(() => composer().reset());
+      if (draft === "replacement")
+        await act(() => composer().addAttachment(new File(["new"], "a")));
+      const current = composer().getState().attachments;
+      await act(async () => retry.reject(new Error("second failure")));
+
+      await waitFor(() =>
+        expect(composer().getState().attachments).toEqual(current),
+      );
+      expect(composer().getState().attachments[0]).toBe(current[0]);
+    },
+  );
+
+  it.each([
+    ["thread", "reset"],
+    ["thread", "clearAttachments"],
+    ["edit", "reset"],
+    ["edit", "clearAttachments"],
+  ] as const)(
+    "does not restore a %s cleanup after the owner calls %s before removal settles",
+    async (type, action) => {
+      const { aui, composer, successfulUpload, remove, onNew } =
+        setupPartialSend(type);
+      const removal = deferred();
+      remove
+        .mockReturnValueOnce(removal.promise)
+        .mockRejectedValueOnce(new Error("retry failed"));
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      if (type === "edit") act(() => composer().beginEdit());
+      await act(() => composer().addAttachment(new File(["a"], "a")));
+      await act(async () => {
+        composer().setText("first");
+        composer().send();
+      });
+      let removing!: Promise<void>;
+      act(() => {
+        removing = composer().attachment({ id: "a" }).remove();
+      });
+      await act(async () => successfulUpload.resolve());
+      await waitFor(() => expect(onNew).toHaveBeenCalledOnce());
+      const owner = aui().thread.composer();
+      await act(() => owner[action]());
+      await act(async () => {
+        removal.reject(new Error("first failure"));
+        await expect(removing).rejects.toThrow("first failure");
+      });
+      await waitFor(() => expect(remove).toHaveBeenCalledTimes(2));
+
+      expect(owner.getState().attachments).toEqual([]);
+    },
+  );
+
+  it("keeps a second failed edit removal reachable after dispatch", async () => {
+    const { aui, composer, successfulUpload, remove, onNew } =
+      setupPartialSend("edit");
+    remove
+      .mockRejectedValueOnce(new Error("first failure"))
+      .mockRejectedValueOnce(new Error("second failure"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    act(() => composer().beginEdit());
+    await act(() => composer().addAttachment(new File(["a"], "a")));
+    await act(async () => {
+      composer().setText("edited");
+      composer().send();
+    });
+    await act(async () => {
+      await expect(composer().attachment({ id: "a" }).remove()).rejects.toThrow(
+        "first failure",
+      );
+    });
+    await act(async () => successfulUpload.resolve());
+    await waitFor(() => expect(onNew).toHaveBeenCalledOnce());
+    await waitFor(() => expect(remove).toHaveBeenCalledTimes(2));
+
+    expect(composer().getState().isEditing).toBe(false);
+    const owner = aui().thread.composer();
+    expect(owner.getState().attachments).toMatchObject([
+      {
+        id: "a",
+        status: {
+          type: "incomplete",
+          reason: "error",
+          message: "second failure",
+        },
+      },
+    ]);
+    await act(async () => owner.attachment({ id: "a" }).remove());
+    expect(remove).toHaveBeenCalledTimes(3);
+  });
+  it("keeps a failed cleanup retriable after dispatch", async () => {
+    const { composer, successfulUpload, remove, onNew } = setupPartialSend();
+    remove
+      .mockRejectedValueOnce(new Error("first failure"))
+      .mockRejectedValueOnce(new Error("second failure"));
+    await act(async () => {
+      await composer().addAttachment(new File(["a"], "a"));
+    });
+    await act(async () => {
+      composer().setText("hello");
+      composer().send();
+    });
+    await act(async () => {
+      await expect(composer().attachment({ id: "a" }).remove()).rejects.toThrow(
+        "first failure",
+      );
+    });
+    await act(async () => {
+      successfulUpload.resolve();
+    });
+
+    expect(onNew.mock.calls[0]![0].attachments).toEqual([]);
+    await waitFor(() =>
+      expect(composer().getState().attachments).toMatchObject([
+        {
+          id: "a",
+          status: {
+            type: "incomplete",
+            reason: "error",
+            message: "second failure",
+          },
+        },
+      ]),
+    );
+    await act(async () => composer().attachment({ id: "a" }).remove());
+    expect(remove).toHaveBeenCalledTimes(3);
+    expect(composer().getState().attachments).toEqual([]);
+  });
+
+  it.each(["thread", "edit"] as const)(
+    "cleans up a removed %s upload when removal fails before dispatch",
+    async (type) => {
+      const { composer, successfulUpload, remove, onNew } =
+        setupPartialSend(type);
+      const removal = deferred();
+      remove.mockReturnValueOnce(removal.promise);
+      if (type === "edit") act(() => composer().beginEdit());
+      await act(async () => {
+        await composer().addAttachment(new File(["a"], "a"));
+      });
+      await act(async () => {
+        composer().setText("hello");
+        composer().send();
+      });
+      await waitFor(() =>
+        expect(composer().getState().submission?.attachments).toMatchObject([
+          { id: "a" },
+        ]),
+      );
+      let removing!: Promise<void>;
+      act(() => {
+        removing = composer().attachment({ id: "a" }).remove();
+      });
+      await act(async () => {
+        removal.reject(new Error("remove failed"));
+        await expect(removing).rejects.toThrow("remove failed");
+      });
+      await act(async () => {
+        successfulUpload.resolve();
+      });
+
+      await waitFor(() => expect(onNew).toHaveBeenCalledOnce());
+      expect(onNew.mock.calls[0]![0].attachments).toEqual([]);
+      expect(remove).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it.each(["thread", "edit"] as const)(
+    "cleans up a removed %s upload when removal fails after dispatch",
+    async (type) => {
+      const { composer, successfulUpload, remove, onNew } =
+        setupPartialSend(type);
+      const removal = deferred();
+      remove.mockReturnValueOnce(removal.promise);
+      if (type === "edit") act(() => composer().beginEdit());
+      await act(async () => {
+        await composer().addAttachment(new File(["a"], "a"));
+      });
+      await act(async () => {
+        composer().setText("hello");
+        composer().send();
+      });
+      await waitFor(() =>
+        expect(composer().getState().submission?.attachments).toMatchObject([
+          { id: "a" },
+        ]),
+      );
+      let removing!: Promise<void>;
+      act(() => {
+        removing = composer().attachment({ id: "a" }).remove();
+      });
+      await act(async () => {
+        successfulUpload.resolve();
+      });
+      await waitFor(() => expect(onNew).toHaveBeenCalledOnce());
+      expect(onNew.mock.calls[0]![0].attachments).toEqual([]);
+      await act(async () => {
+        removal.reject(new Error("remove failed"));
+        await expect(removing).rejects.toThrow("remove failed");
+      });
+      expect(remove).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it("logs a cleanup that fails again once the edit was sent", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { composer, successfulUpload, remove, onNew } =
+      setupPartialSend("edit");
+    const removal = deferred();
+    remove
+      .mockReturnValueOnce(removal.promise)
+      .mockRejectedValueOnce(new Error("second failure"));
+    act(() => composer().beginEdit());
+    await act(async () => {
+      await composer().addAttachment(new File(["a"], "a"));
+    });
+    await act(async () => {
+      composer().setText("hello");
+      composer().send();
+    });
+    await waitFor(() =>
+      expect(composer().getState().submission?.attachments).toMatchObject([
+        { id: "a" },
+      ]),
+    );
+    let removing!: Promise<void>;
+    act(() => {
+      removing = composer().attachment({ id: "a" }).remove();
+    });
+    await act(async () => {
+      successfulUpload.resolve();
+    });
+    await waitFor(() => expect(onNew).toHaveBeenCalledOnce());
+    await act(async () => {
+      removal.reject(new Error("first failure"));
+      await expect(removing).rejects.toThrow("first failure");
+    });
+
+    await waitFor(() =>
+      expect(error).toHaveBeenCalledWith(
+        "Failed to remove sent attachment",
+        "second failure",
+      ),
+    );
+    expect(remove).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["before", "after"] as const)(
+    "keeps a file in the draft when its removal fails %s an empty send ends",
+    async (order) => {
+      const { composer, successfulUpload, remove, onNew } = setupPartialSend();
+      const removal = deferred();
+      remove.mockReturnValueOnce(removal.promise);
+      await act(async () => {
+        await composer().addAttachment(new File(["a"], "a"));
+      });
+      await act(async () => composer().send());
+      let removing!: Promise<void>;
+      act(() => {
+        removing = composer().attachment({ id: "a" }).remove();
+      });
+      if (order === "before") {
+        await act(async () => {
+          removal.reject(new Error("remove failed"));
+          await expect(removing).rejects.toThrow("remove failed");
+        });
+      }
+      await act(async () => {
+        successfulUpload.resolve();
+      });
+      if (order === "after") {
+        await act(async () => {
+          removal.reject(new Error("remove failed"));
+          await expect(removing).rejects.toThrow("remove failed");
+        });
+      }
+
+      expect(onNew).not.toHaveBeenCalled();
+      expect(composer().getState().submission).toBeUndefined();
+      expect(composer().getState().attachments).toMatchObject([
+        {
+          id: "a",
+          status: {
+            type: "incomplete",
+            reason: "error",
+            message: "remove failed",
+          },
+        },
+      ]);
+      await act(async () => composer().attachment({ id: "a" }).remove());
+      expect(remove).toHaveBeenCalledTimes(2);
+      expect(composer().getState().attachments).toEqual([]);
+    },
+  );
+
+  it("ignores other ids while accepting later states of the first attachment", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const aui = renderThreadWithProps({
+      attachmentAdapter: {
+        accept: "*",
+        async *add({ file }) {
+          const a: PendingAttachment = {
+            id: "A",
+            type: "file",
+            name: file.name,
+            file,
+            status: { type: "running", reason: "uploading", progress: 0 },
+          };
+          yield a;
+          yield { ...a, id: "B" };
+          yield { ...a, id: "B" };
+          yield {
+            ...a,
+            status: { type: "requires-action", reason: "composer-send" },
+          } satisfies PendingAttachment;
+        },
+        send: async (attachment) => ({
+          ...attachment,
+          status: { type: "complete" },
+          content: [],
+        }),
+        remove: async () => {},
+      },
+    });
+    const composer = () => aui().thread.composer();
+
+    await act(async () => {
+      await composer().addAttachment(new File(["data"], "notes.txt"));
+    });
+
+    await waitFor(() =>
+      expect(composer().getState().attachments).toMatchObject([
+        { id: "A", status: { type: "requires-action" } },
+      ]),
+    );
+    expect(warn).toHaveBeenCalledOnce();
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("[assistant-ui] AttachmentAdapter.add()"),
+    );
+    warn.mockRestore();
+  });
+
+  it("keeps a sending upload alive for its first id without adding another id to the draft", async () => {
+    const upload = deferred();
+    const yieldedAfterSend = vi.fn();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const send = vi.fn(async (attachment: PendingAttachment) => ({
+      ...attachment,
+      status: { type: "complete" as const },
+      content: [],
+    }));
+    const onNew = vi.fn();
+    const aui = renderThreadWithProps({
+      attachmentAdapter: {
+        accept: "*",
+        async *add({ file }) {
+          const a: PendingAttachment = {
+            id: "A",
+            type: "file",
+            name: file.name,
+            file,
+            status: { type: "running", reason: "uploading", progress: 0 },
+          };
+          yield a;
+          await upload.promise;
+          yieldedAfterSend();
+          yield { ...a, id: "B" };
+          yield {
+            ...a,
+            status: { type: "requires-action", reason: "composer-send" },
+          } satisfies PendingAttachment;
+        },
+        send,
+        remove: async () => {},
+      },
+      onNew,
+    });
+    const composer = () => aui().thread.composer();
+    let adding!: Promise<void>;
+    act(() => {
+      adding = composer().addAttachment(new File(["data"], "notes.txt"));
+    });
+    await waitFor(() =>
+      expect(composer().getState().attachments).toMatchObject([{ id: "A" }]),
+    );
+
+    await act(async () => {
+      composer().setText("hello");
+      composer().send();
+    });
+    expect(send).not.toHaveBeenCalled();
+    expect(onNew).not.toHaveBeenCalled();
+
+    await act(async () => {
+      upload.resolve();
+      await adding;
+    });
+    await waitFor(() => expect(onNew).toHaveBeenCalledOnce());
+
+    expect(yieldedAfterSend).toHaveBeenCalledOnce();
+    expect(send).toHaveBeenCalledOnce();
+    expect(send.mock.calls[0]![0]).toMatchObject({
+      id: "A",
+      status: { type: "requires-action" },
+    });
+    expect(onNew.mock.calls[0]![0]).toMatchObject({
+      attachments: [{ id: "A", status: { type: "complete" } }],
+    });
+    expect(composer().getState().attachments).toEqual([]);
+    expect(warn).toHaveBeenCalledOnce();
+    warn.mockRestore();
+  });
+
   it.each([
     ["thread", "before"],
     ["thread", "after"],
@@ -2618,7 +3146,7 @@ describe("attachment sends and the client lifetime", () => {
     } = {};
     const Capture: FC = () => {
       captured.aui = useAui();
-      captured.destroySignal = useDestroySignalProbe();
+      captured.destroySignal = useAssistantClientDestroySignal();
       return null;
     };
     const Chat: FC = () => (
@@ -2804,27 +3332,23 @@ describe("attachment sends and the client lifetime", () => {
     expect(onNew).not.toHaveBeenCalled();
   });
 
-  // Fails on React 18: TypeError: ReactRuntime.use is not a function. Shipped React 18 incompatibility.
-  it.skipIf(onReact18)(
-    "leaves a finished send's signal alone when the client is destroyed later",
-    async () => {
-      const { adapter, upload, signals } = slowAdapter();
-      const onNew = vi.fn();
-      const thread = renderOwnedThread({ onNew, attachmentAdapter: adapter });
-      const composer = () => thread.aui().thread.composer();
-      const listeners = thread.destroyListeners();
-      await act(async () => {
-        await composer().addAttachment(new File(["a"], "a"));
-        composer().send();
-      });
-      await act(async () => upload.resolve());
-      expect(onNew).toHaveBeenCalledOnce();
-      expect(thread.destroyListeners()).toBe(listeners);
+  it("leaves a finished send's signal alone when the client is destroyed later", async () => {
+    const { adapter, upload, signals } = slowAdapter();
+    const onNew = vi.fn();
+    const thread = renderOwnedThread({ onNew, attachmentAdapter: adapter });
+    const composer = () => thread.aui().thread.composer();
+    const listeners = thread.destroyListeners();
+    await act(async () => {
+      await composer().addAttachment(new File(["a"], "a"));
+      composer().send();
+    });
+    await act(async () => upload.resolve());
+    expect(onNew).toHaveBeenCalledOnce();
+    expect(thread.destroyListeners()).toBe(listeners);
 
-      await thread.destroy();
-      expect(signals[0]?.aborted).toBe(false);
-    },
-  );
+    await thread.destroy();
+    expect(signals[0]?.aborted).toBe(false);
+  });
 
   it("never calls the adapter for a send made after the client is destroyed", async () => {
     const { adapter, send } = slowAdapter();
@@ -2843,10 +3367,7 @@ describe("attachment sends and the client lifetime", () => {
     expect(onNew).not.toHaveBeenCalled();
   });
 
-  // Fails on React 18: TypeError: ReactRuntime.use is not a function. Shipped React 18 incompatibility.
-  it
-    .skipIf(onReact18)
-    .each(["the adapter's send", "an upload in add()"] as const)(
+  it.each(["the adapter's send", "an upload in add()"] as const)(
     "releases the destroy signal when a send stalled on %s is cancelled",
     async (stall) => {
       const { adapter } = slowAdapter();

@@ -40,6 +40,8 @@ export type PartMethods = {
   /**
    * Record a user interaction on a tool call part. Resolves once recorded and
    * rejects when it cannot be.
+   *
+   * @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release.
    */
   unstable_recordInteraction?(
     input: Unstable_ToolInteractionInput,

@@ -2,6 +2,7 @@ import {
   defineComponent,
   h,
   mergeProps,
+  onScopeDispose,
   ref,
   watch,
   type SlotsType,
@@ -39,8 +40,8 @@ export const ComposerPrimitiveAttachments = defineComponent({
 
 /**
  * A button that opens a file picker and adds the selected files to the
- * composer. Disabled while the composer is not editable. The picker's accept
- * filter follows the composer's `attachmentAccept`.
+ * composer. Disabled while the thread is disabled or the composer is not
+ * editable. The picker's accept filter follows the composer's `attachmentAccept`.
  */
 export const ComposerPrimitiveAddAttachment = defineComponent({
   name: "ComposerPrimitiveAddAttachment",
@@ -54,11 +55,18 @@ export const ComposerPrimitiveAddAttachment = defineComponent({
   slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(props, { attrs, slots }) {
     const aui = useAui();
-    const disabled = useAuiState((s) => !s.composer.isEditing);
+    const threadId = useAuiState((s) => s.optional.threads?.mainThreadId);
+    let scopeGeneration = 0;
+    watch(threadId, () => scopeGeneration++, { flush: "sync" });
+    onScopeDispose(() => scopeGeneration++);
+    const disabled = useAuiState(
+      (s) => s.thread.isDisabled || !s.composer.isEditing,
+    );
     const onClick = (event: MouseEvent) => {
       if (event.defaultPrevented || disabled.value || isAttrDisabled(attrs))
         return;
 
+      const pickerScopeGeneration = scopeGeneration;
       const input = document.createElement("input");
       input.type = "file";
       input.multiple = props.multiple;
@@ -73,7 +81,7 @@ export const ComposerPrimitiveAddAttachment = defineComponent({
 
       input.onchange = (e) => {
         const fileList = (e.target as HTMLInputElement).files;
-        if (fileList) {
+        if (fileList && scopeGeneration === pickerScopeGeneration) {
           for (const file of Array.from(fileList)) {
             aui.composer.addAttachment(file).catch(() => {});
           }
@@ -116,9 +124,10 @@ export const ComposerPrimitiveAttachmentDropzone = defineComponent({
   setup(props, { attrs, slots }) {
     const aui = useAui();
     const isDragging = ref(false);
+    const threadDisabled = useAuiState((s) => s.thread.isDisabled);
 
     watch(
-      () => props.disabled,
+      () => props.disabled || threadDisabled.value,
       (disabled) => {
         if (disabled) isDragging.value = false;
       },
@@ -130,7 +139,10 @@ export const ComposerPrimitiveAttachmentDropzone = defineComponent({
     const onDragenterCapture = (event: DragEvent) => {
       if (props.disabled || !isFileDrag(event)) return;
       event.preventDefault();
-      if (!aui.thread.getState().capabilities.attachments) {
+      if (
+        threadDisabled.value ||
+        !aui.thread.getState().capabilities.attachments
+      ) {
         event.dataTransfer!.dropEffect = "none";
         return;
       }
@@ -139,7 +151,10 @@ export const ComposerPrimitiveAttachmentDropzone = defineComponent({
     const onDragoverCapture = (event: DragEvent) => {
       if (props.disabled || !isFileDrag(event)) return;
       event.preventDefault();
-      if (!aui.thread.getState().capabilities.attachments) {
+      if (
+        threadDisabled.value ||
+        !aui.thread.getState().capabilities.attachments
+      ) {
         event.dataTransfer!.dropEffect = "none";
         return;
       }
@@ -152,12 +167,15 @@ export const ComposerPrimitiveAttachmentDropzone = defineComponent({
       isDragging.value = false;
     };
     const onDropCapture = (event: DragEvent) => {
-      if (props.disabled) return;
+      if (props.disabled || !isFileDrag(event)) return;
       isDragging.value = false;
-      if (!isFileDrag(event)) return;
       event.preventDefault();
       const files = Array.from(event.dataTransfer?.files ?? []);
-      if (!aui.thread.getState().capabilities.attachments || files.length === 0)
+      if (
+        threadDisabled.value ||
+        !aui.thread.getState().capabilities.attachments ||
+        files.length === 0
+      )
         return;
       for (const file of files) {
         aui.composer.addAttachment(file).catch(() => {});
@@ -169,6 +187,7 @@ export const ComposerPrimitiveAttachmentDropzone = defineComponent({
         "div",
         mergeProps(attrs, {
           ...(!props.disabled &&
+            !threadDisabled.value &&
             isDragging.value && { "data-dragging": "true" }),
           onDragenterCapture,
           onDragoverCapture,

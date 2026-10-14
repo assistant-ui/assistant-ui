@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { SubProjectLayout } from "@/components/shared/sub-project-layout";
+import { subProject, subProjectGithubUrl } from "@/lib/docs-sites";
 import { createOgMetadata } from "@/lib/og";
 
-const title = "safe-content-frame";
-const description =
-  "Untrusted HTML in a sandboxed iframe. Unique origin per render. Pure JS.";
+const { title, description } = subProject("safe-content-frame");
 
 export const metadata: Metadata = {
   title,
@@ -13,7 +12,7 @@ export const metadata: Metadata = {
   ...createOgMetadata(title, description),
 };
 
-export default function SafeContentFrameLayout({
+export default function SandboxLayout({
   children,
 }: {
   children: ReactNode;
@@ -21,7 +20,7 @@ export default function SafeContentFrameLayout({
   return (
     <SubProjectLayout
       name="safe-content-frame"
-      githubPath="https://github.com/assistant-ui/assistant-ui/tree/main/packages/safe-content-frame"
+      githubPath={subProjectGithubUrl("safe-content-frame")}
     >
       {children}
     </SubProjectLayout>

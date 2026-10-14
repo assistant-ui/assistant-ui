@@ -479,6 +479,30 @@ const openRename = async (container: HTMLElement) => {
 };
 
 describe("ThreadList rename", () => {
+  it.each([
+    { label: "IME keyCode", event: { key: "Enter", keyCode: 229 } },
+    { label: "isComposing", event: { key: "Enter", isComposing: true } },
+  ])(
+    "ignores Enter during $label and commits on plain Enter",
+    async ({ event }) => {
+      const adapter = makeAdapter(withTitles("Trip planning"));
+      const { container } = renderThreadList(adapter);
+
+      const input = await openRename(container);
+      fireEvent.change(input, { target: { value: "Trip notes" } });
+      fireEvent.keyDown(input, event);
+      await act(async () => {});
+
+      expect(adapter.rename).not.toHaveBeenCalled();
+      expect(slots(container, "item-rename")).toHaveLength(1);
+
+      fireEvent.keyDown(input, { key: "Enter" });
+      await waitFor(() =>
+        expect(adapter.rename).toHaveBeenCalledWith("t0", "Trip notes"),
+      );
+    },
+  );
+
   it("seeds the rename input with the current title and commits the trimmed value", async () => {
     const adapter = makeAdapter(withTitles("Trip planning"));
     const { container } = renderThreadList(adapter);

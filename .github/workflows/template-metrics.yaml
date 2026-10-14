@@ -63,7 +63,7 @@ jobs:
         run: node --test scripts/template-metrics-install.test.mjs
 
       - name: Setup pnpm and node.js
-        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
         with:
           runtime: node@24
           cache: false
@@ -85,8 +85,6 @@ jobs:
           NEXT_PUBLIC_ASSISTANT_BASE_URL: "https://example.com"
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_placeholder"
           NEXT_TELEMETRY_DISABLED: "1"
-          TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-          TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
         run: |
           filters=""
           for t in $BUNDLE_TEMPLATES; do

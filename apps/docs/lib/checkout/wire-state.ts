@@ -1,4 +1,4 @@
-import type { Checkout } from "@/lib/checkout/protocol";
+import { isValidEntryPointInput, type Checkout } from "@/lib/checkout/protocol";
 
 type Shape = Record<string, (value: unknown) => boolean>;
 
@@ -44,6 +44,14 @@ const choiceOption = shaped({
   description: optional(str),
   icon: optional(str),
   variants: optional(listOf(shaped({ id: str, label: str }))),
+  entryPoint: optional(
+    shaped({
+      formFactor: oneOf("modal", "sidebar", "full-page"),
+      placement: str,
+      trigger: str,
+      recommended: optional(bool),
+    }),
+  ),
 });
 
 const state = shaped({
@@ -86,7 +94,7 @@ const state = shaped({
     shaped({
       phase: status,
       id: str,
-      kind: oneOf("text", "choice", "model", "product"),
+      kind: oneOf("text", "choice", "model", "product", "entry-point"),
       product: optional(str),
       preset: optional(str),
       prompt: str,
@@ -131,5 +139,13 @@ export const parseCheckoutState = (
 ): Checkout.State | undefined => {
   if (value === undefined) return undefined;
   if (!state(value)) throw new IncompatibleCheckoutError();
+  const parsed = value as Checkout.State;
+  if (
+    parsed.inputs.some(
+      (input) => input.kind === "entry-point" && !isValidEntryPointInput(input),
+    )
+  ) {
+    throw new IncompatibleCheckoutError();
+  }
   return value as Checkout.State;
 };

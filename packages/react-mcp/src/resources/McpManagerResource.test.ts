@@ -1,4 +1,9 @@
-import { createTapRoot, resource, useResource } from "@assistant-ui/tap";
+import {
+  createTapRoot,
+  flushTapSync,
+  resource,
+  useResource,
+} from "@assistant-ui/tap";
 import { describe, expect, it, vi } from "vitest";
 import { useState } from "react";
 import { defineConnector } from "../connector";
@@ -65,6 +70,9 @@ const connector = (id: string, name = id): MCPConnector =>
     auth: { type: "none" },
   });
 
+const waitFor = (assertion: () => void) =>
+  vi.waitFor(assertion, { interval: 10 });
+
 const mount = (
   connectors: MCPConnector[],
   storage: MCPStorageElement = McpMemoryStorage(),
@@ -119,7 +127,7 @@ describe("McpManagerResource server ids", () => {
     );
 
     try {
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(root.getValue().getState().isHydrated).toBe(true),
       );
       expect(root.getValue().getState().customServers).toHaveLength(1);
@@ -176,7 +184,7 @@ describe("McpManagerResource server ids", () => {
         cache: { defaultTtlMs: 5_000 },
       });
 
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(root.getValue().getState().customServers).toHaveLength(1),
       );
       await root.getValue().server({ id }).connect();
@@ -215,7 +223,7 @@ describe("McpManagerResource server ids", () => {
     let resolveFirstClose = () => {};
 
     try {
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(mocks.StreamableHTTPClientTransport).toHaveBeenCalledOnce(),
       );
       const firstTransport = mocks.StreamableHTTPClientTransport.mock
@@ -236,13 +244,11 @@ describe("McpManagerResource server ids", () => {
         }),
       );
 
-      await vi.waitFor(() =>
-        expect(firstTransport.close).toHaveBeenCalledOnce(),
-      );
+      await waitFor(() => expect(firstTransport.close).toHaveBeenCalledOnce());
       expect(mocks.StreamableHTTPClientTransport).toHaveBeenCalledOnce();
 
       resolveFirstClose();
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(mocks.StreamableHTTPClientTransport).toHaveBeenCalledTimes(2),
       );
 
@@ -306,7 +312,7 @@ describe("McpManagerResource server ids", () => {
       expect(transport.close).not.toHaveBeenCalled();
 
       updatePresentation();
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(
           root.getValue().connector({ index: 0 }).getState(),
         ).toMatchObject({
@@ -343,7 +349,7 @@ describe("McpManagerResource storage failures", () => {
     );
 
     try {
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(root.getValue().getState().isHydrated).toBe(true),
       );
       expect(root.getValue().getState().customServers).toHaveLength(0);
@@ -389,7 +395,7 @@ describe("McpManagerResource storage failures", () => {
     );
 
     try {
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(root.getValue().getState().isHydrated).toBe(true),
       );
       expect(saveCustomServers).not.toHaveBeenCalled();
@@ -401,7 +407,7 @@ describe("McpManagerResource storage failures", () => {
         auth: { type: "none" },
       });
 
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(saveCustomServers).toHaveBeenCalledWith([
           expect.objectContaining({ name: "Docs" }),
         ]);
@@ -440,7 +446,7 @@ describe("McpManagerResource storage failures", () => {
     );
 
     try {
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(root.getValue().getState().customServers[0]?.id).toBe("docs"),
       );
 
@@ -483,13 +489,11 @@ describe("McpManagerResource storage ordering", () => {
       await root.getValue().removeServer("docs");
       resolveLoad([docsServer]);
 
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(root.getValue().getState().isHydrated).toBe(true),
       );
       expect(root.getValue().getState().customServers).toHaveLength(0);
-      await vi.waitFor(() =>
-        expect(saveCustomServers).toHaveBeenCalledWith([]),
-      );
+      await waitFor(() => expect(saveCustomServers).toHaveBeenCalledWith([]));
     } finally {
       root.unmount();
     }
@@ -521,7 +525,7 @@ describe("McpManagerResource storage ordering", () => {
     );
 
     try {
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(root.getValue().getState().isHydrated).toBe(true),
       );
       expect(saveCustomServers).not.toHaveBeenCalled();
@@ -533,9 +537,7 @@ describe("McpManagerResource storage ordering", () => {
         url: "https://example.com/docs/mcp",
         auth: { type: "none" },
       });
-      await vi.waitFor(() =>
-        expect(saveCustomServers).toHaveBeenCalledTimes(1),
-      );
+      await waitFor(() => expect(saveCustomServers).toHaveBeenCalledTimes(1));
 
       await root.getValue().addCustomServer({
         name: "Linear",
@@ -547,9 +549,7 @@ describe("McpManagerResource storage ordering", () => {
       expect(saveCustomServers).toHaveBeenCalledTimes(1);
 
       resolveFirstSave?.();
-      await vi.waitFor(() =>
-        expect(saveCustomServers).toHaveBeenCalledTimes(2),
-      );
+      await waitFor(() => expect(saveCustomServers).toHaveBeenCalledTimes(2));
       expect(persistedSnapshots).toEqual([["Docs"], ["Docs", "Linear"]]);
     } finally {
       resolveFirstSave?.();
@@ -583,7 +583,7 @@ describe("McpManagerResource storage ordering", () => {
     });
 
     try {
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(root.getValue().getState().isHydrated).toBe(true),
       );
       expect(saveCustomServers).not.toHaveBeenCalled();
@@ -647,14 +647,14 @@ describe("McpManagerResource storage switching", () => {
     });
 
     try {
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(root.getValue().getState().customServers[0]?.id).toBe("docs"),
       );
       expect(storageA.saveCustomServers).not.toHaveBeenCalled();
 
       switchStorage();
 
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(storageB.loadCustomServers).toHaveBeenCalled(),
       );
       expect(root.getValue().getState()).toMatchObject({
@@ -663,7 +663,7 @@ describe("McpManagerResource storage switching", () => {
       });
 
       resolveStorageB?.([]);
-      await vi.waitFor(() => {
+      await waitFor(() => {
         expect(root.getValue().getState().isHydrated).toBe(true);
         expect(root.getValue().getState().customServers).toHaveLength(0);
       });
@@ -675,7 +675,7 @@ describe("McpManagerResource storage switching", () => {
         auth: { type: "none" },
       });
 
-      await vi.waitFor(() => expect(saveStorageB).toHaveBeenCalledOnce());
+      await waitFor(() => expect(saveStorageB).toHaveBeenCalledOnce());
       expect(saveStorageB).toHaveBeenCalledWith([
         expect.objectContaining({ name: "Linear" }),
       ]);
@@ -720,7 +720,7 @@ describe("McpManagerResource storage switching", () => {
     });
 
     try {
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(root.getValue().getState().customServers[0]?.id).toBe("docs"),
       );
 
@@ -774,7 +774,7 @@ describe("McpManagerResource storage switching", () => {
     });
 
     try {
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(root.getValue().getState().isHydrated).toBe(true),
       );
       expect(storageA.saveCustomServers).not.toHaveBeenCalled();
@@ -785,16 +785,16 @@ describe("McpManagerResource storage switching", () => {
         url: "https://example.com/docs/mcp",
         auth: { type: "none" },
       });
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(storageA.saveCustomServers).toHaveBeenCalledOnce(),
       );
 
       switchStorage();
 
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(storageB.loadCustomServers).toHaveBeenCalled(),
       );
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(root.getValue().getState().isHydrated).toBe(true),
       );
       await root.getValue().addCustomServer({
@@ -803,7 +803,7 @@ describe("McpManagerResource storage switching", () => {
         auth: { type: "none" },
       });
 
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(storageB.saveCustomServers).toHaveBeenCalledWith([
           expect.objectContaining({ name: "Linear" }),
         ]),
@@ -848,7 +848,7 @@ describe("McpManagerResource storage switching", () => {
     });
 
     try {
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(root.getValue().getState().isHydrated).toBe(true),
       );
 
@@ -859,10 +859,10 @@ describe("McpManagerResource storage switching", () => {
       });
       switchStorage();
 
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(storageB.loadCustomServers).toHaveBeenCalled(),
       );
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(storageA.saveCustomServers).toHaveBeenCalledWith([
           expect.objectContaining({ name: "Docs" }),
         ]),
@@ -918,7 +918,7 @@ describe("McpManagerResource storage switching", () => {
     });
 
     try {
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(root.getValue().getState().isHydrated).toBe(true),
       );
       expect(storageA.saveCustomServers).not.toHaveBeenCalled();
@@ -929,12 +929,12 @@ describe("McpManagerResource storage switching", () => {
         url: "https://example.com/docs/mcp",
         auth: { type: "none" },
       });
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(storageA.saveCustomServers).toHaveBeenCalledOnce(),
       );
 
       setStorage("b");
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(storageB.loadCustomServers).toHaveBeenCalled(),
       );
       const storageALoadCount = storageA.loadCustomServers.mock.calls.length;
@@ -946,12 +946,12 @@ describe("McpManagerResource storage switching", () => {
       );
 
       resolveStorageASave?.();
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(storageA.loadCustomServers.mock.calls.length).toBeGreaterThan(
           storageALoadCount,
         ),
       );
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(root.getValue().getState().customServers[0]?.name).toBe("Docs"),
       );
     } finally {
@@ -959,6 +959,115 @@ describe("McpManagerResource storage switching", () => {
       root.unmount();
     }
   });
+
+  it.each([1, 2])(
+    "preserves additions when revisiting a scope during hydration (%i revisits)",
+    async (revisits) => {
+      let resolveFirstLoad!: (records: MCPCustomServerRecord[]) => void;
+      const firstLoad = new Promise<MCPCustomServerRecord[]>((resolve) => {
+        resolveFirstLoad = resolve;
+      });
+      let persisted: MCPCustomServerRecord[] = [];
+      let initialRead = true;
+      const storageA = {
+        scopeId: "account:a",
+        loadCustomServers: vi.fn(() =>
+          initialRead ? firstLoad : Promise.resolve([...persisted]),
+        ),
+        saveCustomServers: vi.fn(async (records: MCPCustomServerRecord[]) => {
+          persisted = records;
+        }),
+        loadAuthState: vi.fn(async () => null),
+        saveAuthState: vi.fn(async () => {}),
+        clearAuthState: vi.fn(async () => {}),
+      };
+      const storageB = {
+        ...storageA,
+        scopeId: "account:b",
+        loadCustomServers: vi.fn(async () => []),
+        saveCustomServers: vi.fn(async () => {}),
+      };
+      let setStorage = (_key: "a" | "b") => {};
+      const DynamicManager = resource(function useDynamicManager() {
+        const [key, setKey] = useState<"a" | "b">("a");
+        setStorage = setKey;
+        return useResource(
+          McpManagerResource({
+            storage: McpCustomStorage(key === "a" ? storageA : storageB),
+            autoConnect: false,
+          }),
+        );
+      });
+      const root = createTapRoot(function Root() {
+        return useResource(DynamicManager());
+      });
+
+      try {
+        await waitFor(() =>
+          expect(storageA.loadCustomServers).toHaveBeenCalled(),
+        );
+        expect(root.getValue().getState().isHydrated).toBe(false);
+        const firstId = await root.getValue().addCustomServer({
+          name: "First",
+          url: "https://example.com/first/mcp",
+          auth: { type: "none" },
+        });
+        const expectedIds = [firstId];
+        for (let visit = 0; visit < revisits; visit++) {
+          const previousLoads = storageB.loadCustomServers.mock.calls.length;
+          setStorage("b");
+          await waitFor(() =>
+            expect(
+              storageB.loadCustomServers.mock.calls.length,
+            ).toBeGreaterThan(previousLoads),
+          );
+          initialRead = false;
+          flushTapSync(() => setStorage("a"));
+          if (visit < revisits - 1) {
+            expectedIds.push(
+              await root.getValue().addCustomServer({
+                name: "Queued",
+                url: "https://example.com/queued/mcp",
+                auth: { type: "none" },
+              }),
+            );
+          }
+        }
+        resolveFirstLoad([]);
+        await waitFor(() =>
+          expect(persisted.map((server) => server.id)).toContain(firstId),
+        );
+        await waitFor(() =>
+          expect(root.getValue().getState().isHydrated).toBe(true),
+        );
+
+        const secondId = await root.getValue().addCustomServer({
+          name: "Second",
+          url: "https://example.com/second/mcp",
+          auth: { type: "none" },
+        });
+        expectedIds.push(secondId);
+        await waitFor(() =>
+          expect(storageA.saveCustomServers).toHaveBeenCalledTimes(
+            expectedIds.length,
+          ),
+        );
+        expect(persisted.map((server) => server.id)).toEqual(expectedIds);
+        await waitFor(() =>
+          expect(
+            root
+              .getValue()
+              .getState()
+              .customServers.map((server) => server.id),
+          ).toEqual(expectedIds),
+        );
+        expect(storageB.saveCustomServers).not.toHaveBeenCalled();
+      } finally {
+        resolveFirstLoad([]);
+        root.unmount();
+      }
+    },
+  );
 
   it("ignores hydration that resolves after changing scopes", async () => {
     let resolveStorageA: ((records: (typeof docsServer)[]) => void) | undefined;
@@ -997,17 +1106,17 @@ describe("McpManagerResource storage switching", () => {
     });
 
     try {
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(storageA.loadCustomServers).toHaveBeenCalled(),
       );
       switchStorage();
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(storageB.loadCustomServers).toHaveBeenCalled(),
       );
 
       resolveStorageA?.([docsServer]);
 
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(root.getValue().getState().isHydrated).toBe(true),
       );
       expect(root.getValue().getState().customServers).toHaveLength(0);
@@ -1056,7 +1165,7 @@ describe("McpManagerResource storage switching", () => {
     });
 
     try {
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(storageA.loadCustomServers).toHaveBeenCalled(),
       );
       expect(root.getValue().getState().isHydrated).toBe(false);
@@ -1068,12 +1177,12 @@ describe("McpManagerResource storage switching", () => {
       });
       switchStorage();
 
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(storageB.loadCustomServers).toHaveBeenCalled(),
       );
       resolveStorageA?.([]);
 
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(storageA.saveCustomServers).toHaveBeenCalledWith([
           expect.objectContaining({ name: "Docs" }),
         ]),
@@ -1128,17 +1237,17 @@ describe("McpManagerResource storage switching", () => {
     });
 
     try {
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(root.getValue().getState().customServers[0]?.id).toBe("docs"),
       );
       const removal = root.getValue().server({ id: "docs" }).remove();
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(storageA.clearAuthState).toHaveBeenCalledWith("docs"),
       );
 
       switchStorage();
 
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(root.getValue().getState().customServers[0]?.name).toBe(
           "Workspace B Docs",
         ),
@@ -1198,16 +1307,16 @@ describe("McpManagerResource storage switching", () => {
     });
 
     try {
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(root.getValue().getState().customServers[0]?.id).toBe("docs"),
       );
       const removal = root.getValue().server({ id: "docs" }).remove();
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(storageA.clearAuthState).toHaveBeenCalledWith("docs"),
       );
 
       setStorage("b");
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(storageB.loadCustomServers).toHaveBeenCalled(),
       );
       const storageALoadCount = storageA.loadCustomServers.mock.calls.length;
@@ -1220,12 +1329,12 @@ describe("McpManagerResource storage switching", () => {
 
       resolveStorageAClear?.();
       await removal;
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(storageA.loadCustomServers.mock.calls.length).toBeGreaterThan(
           storageALoadCount,
         ),
       );
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(root.getValue().getState().customServers).toHaveLength(0),
       );
       expect(persistedStorageARecords).toEqual([]);
@@ -1268,7 +1377,7 @@ describe("McpManagerResource storage switching", () => {
     });
 
     try {
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(
           root.getValue().customServer({ index: 0 }).getState().connectionState,
         ).toBe("connected"),
@@ -1278,10 +1387,10 @@ describe("McpManagerResource storage switching", () => {
 
       switchStorage();
 
-      await vi.waitFor(() =>
+      await waitFor(() =>
         expect(storageB.loadCustomServers).toHaveBeenCalled(),
       );
-      await vi.waitFor(() => expect(firstTransport.close).toHaveBeenCalled());
+      await waitFor(() => expect(firstTransport.close).toHaveBeenCalled());
       expect(root.getValue().getState().customServers).toHaveLength(0);
     } finally {
       root.unmount();

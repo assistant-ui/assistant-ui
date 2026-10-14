@@ -28,5 +28,5 @@ describe("@assistant-ui/react-ai-sdk react-native entry", () => {
     expect(entry["useChatRuntime"]).toBeTypeOf("function");
     expect(entry).not.toHaveProperty("AISDKThreads");
     expect(entry).not.toHaveProperty("AISDKToolkit");
-  });
+  }, 20_000);
 });

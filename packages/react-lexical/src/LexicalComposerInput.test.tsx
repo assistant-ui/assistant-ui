@@ -60,12 +60,17 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   type Selector<T> = (s: {
     composer: typeof composerState;
     thread: typeof threadState;
+    optional: { threads: { mainThreadId: string } };
   }) => T;
   return {
     ...actual,
     useAui: () => aui,
     useAuiState: <T,>(selector: Selector<T>) =>
-      selector({ composer: composerState, thread: threadState }),
+      selector({
+        composer: composerState,
+        thread: threadState,
+        optional: { threads: { mainThreadId: "test-thread" } },
+      }),
   };
 });
 

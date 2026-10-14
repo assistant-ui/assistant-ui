@@ -154,6 +154,7 @@ export type AISDKToolkitToolsOptions = {
  * // In your route handler:
  * const { tools } = await req.json();
  * streamText({
+ *   abortSignal: req.signal,
  *   model,
  *   messages,
  *   tools: await aiToolkit.tools({ frontend: tools }),

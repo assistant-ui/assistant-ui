@@ -12,6 +12,9 @@ import {
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+const useIsomorphicLayoutEffect =
+  typeof window !== "undefined" ? useLayoutEffect : useEffect;
+
 export interface CodeBlockProps extends Omit<
   ComponentProps<"figure">,
   "title"
@@ -115,7 +118,7 @@ export function CodeBlock({
   const isCollapsible = collapsedLines > 0 && lineCount > collapsedLines;
   const isCollapsed = isCollapsible && !expanded;
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const viewport = viewportRef.current;
 
     if (!viewport || collapsedLines <= 0) {

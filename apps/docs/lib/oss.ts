@@ -1,3 +1,8 @@
+import {
+  SUB_PROJECT_SLUGS,
+  subProject,
+  type SubProjectSlug,
+} from "./docs-sites";
 import { REVALIDATE, getRepo } from "./github";
 import { NPM_REVALIDATE, getWeeklyDownloads } from "./npm";
 import { PACKAGES } from "./traction";
@@ -12,11 +17,14 @@ export type OssCategory =
   | "agents"
   | "infrastructure";
 
+export type OssTier = "flagship" | "major" | "minor";
+
 export type OssProject = {
   id: string;
   name: string;
   description: string;
   category: OssCategory;
+  tier: OssTier;
   repo: string;
   path?: string;
   docs?: string;
@@ -78,20 +86,47 @@ type OssProjectInput = Omit<OssProject, "description"> & {
   description?: string;
 };
 
+function ossSubProject(slug: SubProjectSlug): OssProjectInput {
+  const project = subProject(slug);
+  if (!project.oss) throw new Error(`Missing OSS data for ${slug}`);
+  return {
+    id: slug,
+    name: project.oss.name ?? project.title,
+    ...(project.oss.description && { description: project.oss.description }),
+    category: "primitives",
+    tier: project.oss.tier,
+    repo: OSS_MONOREPO,
+    path: project.path,
+    site: `/${slug}`,
+    npm: project.oss.npm,
+    license: "MIT",
+  };
+}
+
+const TOP_SUB_PROJECTS = SUB_PROJECT_SLUGS.filter(
+  (slug) => subProject(slug).oss?.placement === "top",
+).map(ossSubProject);
+const BOTTOM_SUB_PROJECTS = SUB_PROJECT_SLUGS.filter(
+  (slug) => subProject(slug).oss?.placement === "bottom",
+).map(ossSubProject);
+
 const OSS_PROJECT_INPUTS: OssProjectInput[] = [
   {
     id: "assistant-ui",
     name: "assistant-ui",
     category: "sdk",
+    tier: "flagship",
     repo: OSS_MONOREPO,
     docs: "/docs",
     npm: "@assistant-ui/react",
     license: "MIT",
   },
+  ...TOP_SUB_PROJECTS,
   {
     id: "tap",
     name: "@assistant-ui/tap",
     category: "libraries",
+    tier: "major",
     repo: OSS_MONOREPO,
     path: "packages/tap",
     docs: "/docs/tap",
@@ -102,6 +137,7 @@ const OSS_PROJECT_INPUTS: OssProjectInput[] = [
     id: "store",
     name: "@assistant-ui/store",
     category: "libraries",
+    tier: "minor",
     repo: OSS_MONOREPO,
     path: "packages/store",
     docs: "/docs/store/why-store",
@@ -112,6 +148,7 @@ const OSS_PROJECT_INPUTS: OssProjectInput[] = [
     id: "assistant-stream",
     name: "assistant-stream",
     category: "libraries",
+    tier: "minor",
     repo: OSS_MONOREPO,
     path: "packages/assistant-stream",
     npm: "assistant-stream",
@@ -119,19 +156,11 @@ const OSS_PROJECT_INPUTS: OssProjectInput[] = [
     license: "MIT",
   },
   {
-    id: "tool-ui",
-    name: "tool-ui",
-    description: "UI components for AI interfaces.",
-    category: "libraries",
-    repo: "assistant-ui/tool-ui",
-    site: "https://tool-ui.com",
-    license: "MIT",
-  },
-  {
     id: "xpm",
     name: "@assistant-ui/xpm",
     description: "One command for npm, yarn, pnpm, bun, deno, and uv.",
     category: "libraries",
+    tier: "minor",
     repo: "assistant-ui/xpm",
     npm: "@assistant-ui/xpm",
     license: "MIT",
@@ -141,6 +170,7 @@ const OSS_PROJECT_INPUTS: OssProjectInput[] = [
     name: "modelpedia",
     description: "Open catalog of AI models across providers.",
     category: "apps",
+    tier: "minor",
     repo: "assistant-ui/modelpedia",
     site: "https://modelpedia.dev",
     license: "MIT",
@@ -150,65 +180,12 @@ const OSS_PROJECT_INPUTS: OssProjectInput[] = [
     name: "open-prism",
     description: "AI LaTeX writing workspace with live preview.",
     category: "apps",
+    tier: "minor",
     repo: "assistant-ui/open-prism",
     site: "https://openprism.vercel.app",
     license: "MIT",
   },
-  {
-    id: "tw-shimmer",
-    name: "tw-shimmer",
-    category: "primitives",
-    repo: OSS_MONOREPO,
-    path: "packages/tw-shimmer",
-    site: "/tw-shimmer",
-    npm: "tw-shimmer",
-    license: "MIT",
-  },
-  {
-    id: "heat-graph",
-    name: "heat-graph",
-    category: "primitives",
-    repo: OSS_MONOREPO,
-    path: "packages/heat-graph",
-    site: "/heat-graph",
-    npm: "heat-graph",
-    license: "MIT",
-  },
-  {
-    id: "safe-content-frame",
-    name: "safe-content-frame",
-    category: "primitives",
-    repo: OSS_MONOREPO,
-    path: "packages/safe-content-frame",
-    site: "/safe-content-frame",
-    npm: "safe-content-frame",
-    license: "MIT",
-  },
-  {
-    id: "skills",
-    name: "skills",
-    description: "Agent skills for building AI chat interfaces.",
-    category: "agents",
-    repo: "assistant-ui/skills",
-    license: null,
-  },
-  {
-    id: "mcp-docs-server",
-    name: "@assistant-ui/mcp-docs-server",
-    category: "agents",
-    repo: OSS_MONOREPO,
-    path: "packages/mcp-docs-server",
-    npm: "@assistant-ui/mcp-docs-server",
-    license: "MIT",
-  },
-  {
-    id: "sync-server",
-    name: "assistant-ui-sync-server",
-    description: "Resumable streaming proxy for long-running AI tasks.",
-    category: "infrastructure",
-    repo: "assistant-ui/assistant-ui-sync-server",
-    license: null,
-  },
+  ...BOTTOM_SUB_PROJECTS,
 ];
 
 function describe(project: OssProjectInput): string {

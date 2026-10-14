@@ -1,9 +1,7 @@
 "use client";
 
 import {
-  useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -14,7 +12,10 @@ import {
   useExternalStoreSharedOptions,
   useRuntimeAdapters,
 } from "@assistant-ui/core/react";
-import { useReplaySafeEffect } from "@assistant-ui/store/internal";
+import {
+  useIsomorphicLayoutEffect,
+  useReplaySafeEffect,
+} from "@assistant-ui/store/internal";
 import { createMessageQueue } from "@assistant-ui/core";
 import type {
   MessageQueueController,
@@ -61,8 +62,6 @@ export function useAgUiRuntime(
   options: UseAgUiRuntimeOptions,
 ): AgUiAssistantRuntime {
   const logger = useMemo(() => makeLogger(options.logger), [options.logger]);
-  const [_version, setVersion] = useState(0);
-  const notifyUpdate = useCallback(() => setVersion((v) => v + 1), []);
   const coreRef = useRef<AgUiThreadRuntimeCore | null>(null);
   const threadSwitchGenerationRef = useRef(0);
   const switchingGenerationRef = useRef<number | null>(null);
@@ -81,12 +80,16 @@ export function useAgUiRuntime(
       ...(options.onError && { onError: options.onError }),
       ...(options.onCancel && { onCancel: options.onCancel }),
       ...(historyAdapter && { history: historyAdapter }),
-      notifyUpdate,
       isThreadSwitching: () => switchingGenerationRef.current !== null,
     });
   }
 
   const core = coreRef.current;
+  const snapshot = useSyncExternalStore(
+    core.subscribe,
+    core.getSnapshot,
+    core.getSnapshot,
+  );
   useEffect(() => {
     core.updateOptions({
       agent: options.agent,
@@ -107,7 +110,7 @@ export function useAgUiRuntime(
   const hasExecutingTools = Object.values(toolStatuses).some(
     (s) => s?.type === "executing",
   );
-  const isRunning = core.isRunning() || hasExecutingTools;
+  const isRunning = snapshot.isRunning || hasExecutingTools;
 
   // The driver sends through the agent core rather than the runtime, because
   // the runtime's append routes every tail append back into this queue.
@@ -157,7 +160,7 @@ export function useAgUiRuntime(
   const queueController = options.unstable_enableMessageQueue
     ? queueRef.current
     : null;
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     if (options.unstable_enableMessageQueue || !queueRef.current) return;
     const controller = queueRef.current;
     queueRef.current = null;
@@ -306,14 +309,12 @@ export function useAgUiRuntime(
   const shared = useExternalStoreSharedOptions(options);
   const store = useMemo(
     () => {
-      void _version; // rerender on version change
-
       return {
         ...shared,
-        isLoading: core.isLoading,
-        messageRepository: core.getMessageRepository(),
-        state: core.getState(),
-        isRunning: core.isRunning(),
+        isLoading: snapshot.isLoading,
+        messageRepository: snapshot.messageRepository,
+        state: snapshot.state,
+        isRunning: snapshot.isRunning,
         extras: agUiExtras.provide({
           interrupts:
             core.getPendingInterrupts()?.interrupts ?? EMPTY_INTERRUPTS,
@@ -321,7 +322,7 @@ export function useAgUiRuntime(
           submitInterruptResponses: (responses) =>
             core.submitInterruptResponses(responses),
           steerAway: (message, responses) => core.steerAway(message, responses),
-          state: core.getState(),
+          state: snapshot.state,
           setState: (next) => core.setState(next),
         }),
         unstable_enableToolInvocations: true,
@@ -363,29 +364,34 @@ export function useAgUiRuntime(
         ...(queueController && { queue: queueController.adapter }),
       } satisfies ExternalStoreAdapter<ThreadMessage>;
     },
-    // _version is intentionally included to trigger re-computation when core state changes via notifyUpdate
     // toolInvocations intentionally excluded: abort/resume use refs internally and work with stale captures
     [
       adapterAdapters,
       core,
-      _version,
       isRunning,
       queueController,
       queueItems,
       steerQueueItems,
       shared,
+      snapshot,
     ],
   );
 
   const baseRuntime = useExternalStoreRuntime(store);
 
   const createRuntime = (): AgUiAssistantRuntime => {
-    const wrapper = Object.create(baseRuntime) as AgUiAssistantRuntime;
-    wrapper.unstable_getPendingInterrupts = () =>
-      core.getPendingInterrupts()?.interrupts ?? [];
-    wrapper.unstable_submitInterruptResponses = (responses) =>
-      core.submitInterruptResponses(responses);
-    return wrapper;
+    return {
+      threads: baseRuntime.threads,
+      get thread() {
+        return baseRuntime.thread;
+      },
+      registerModelContextProvider: (provider) =>
+        baseRuntime.registerModelContextProvider(provider),
+      unstable_getPendingInterrupts: () =>
+        core.getPendingInterrupts()?.interrupts ?? [],
+      unstable_submitInterruptResponses: (responses) =>
+        core.submitInterruptResponses(responses),
+    };
   };
   const [pinnedRuntime, setPinnedRuntime] = useState(() => ({
     baseRuntime,

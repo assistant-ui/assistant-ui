@@ -8,6 +8,7 @@ import {
   Tools,
   unstable_Interactables,
   AuiConfig,
+  type Toolkit,
 } from "@assistant-ui/react";
 import { DevToolsModal } from "@assistant-ui/react-devtools";
 import { feedbackAdapter } from "@/lib/feedback-adapter";
@@ -45,12 +46,15 @@ export function DocsRuntimeProvider({
   devtools = true,
   followUps = false,
   countConversations = false,
+  toolkit: surfaceToolkit,
 }: {
   children: ReactNode;
   devtools?: boolean;
   followUps?: boolean;
   /** Only the landing page demo draws on the daily conversation budget. */
   countConversations?: boolean;
+  /** Tools this surface adds to the docs toolkit. */
+  toolkit?: Toolkit;
 }) {
   const { cloud, claims } = useDocsCloud();
   const speech = useSpeechAdapters({ dictation: true });
@@ -74,9 +78,12 @@ export function DocsRuntimeProvider({
   });
 
   const toolkit = useMemo(
-    () =>
-      countConversations ? { ...docsToolkit, ...usageToolkit } : docsToolkit,
-    [countConversations],
+    () => ({
+      ...docsToolkit,
+      ...(countConversations ? usageToolkit : {}),
+      ...surfaceToolkit,
+    }),
+    [countConversations, surfaceToolkit],
   );
 
   const config = AuiConfig({

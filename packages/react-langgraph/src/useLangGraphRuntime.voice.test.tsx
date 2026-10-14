@@ -419,9 +419,9 @@ describe("useLangGraphRuntime voice transcripts", () => {
       unstable_threadListAdapter: makeThreadListAdapter(),
       unstable_allowCancellation: true,
     });
-    await act(async () => {
-      await result.current.threads.switchToThread("lg-thread-1");
-    });
+    await settleOutsideAct(() =>
+      result.current.threads.switchToThread("lg-thread-1"),
+    );
     await waitFor(() =>
       expect(result.current.thread.getState().capabilities.voice).toBe(true),
     );

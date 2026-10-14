@@ -28,7 +28,7 @@ import {
   surfaceToPresentToolCall,
   type A2uiState,
   type A2uiSurfaceState,
-} from "@assistant-ui/react-generative-ui/a2ui";
+} from "@assistant-ui/generative-ui/a2ui";
 import type { AgUiInterrupt } from "../types";
 import { projectAgUiToolApprovals } from "./tool-approval";
 import {
@@ -105,6 +105,7 @@ type CoreToolCallPart = Extract<
 type ToolCallPart = Omit<CoreToolCallPart, "result" | "isError"> & {
   result?: unknown;
   isError?: boolean | undefined;
+  /** @deprecated Experimental since 2026-03-08. Not scheduled for removal; the API may change in any release. */
   unstable_toolMessageId?: string;
 };
 

@@ -1450,17 +1450,33 @@ describe("AdkEventAccumulator - snake_case normalization", () => {
   describe.each(["user", "agent"])("%s media", (author) => {
     it.each([
       {
-        part: { inline_data: { mime_type: "image/png", data: "aGVsbG8=" } },
-        expected: { type: "image", mimeType: "image/png", data: "aGVsbG8=" },
+        part: {
+          inline_data: {
+            mime_type: "image/png",
+            data: "aGVsbG8=",
+            display_name: "photo.png",
+          },
+        },
+        expected: {
+          type: "image",
+          mimeType: "image/png",
+          data: "aGVsbG8=",
+          filename: "photo.png",
+        },
       },
       {
         part: {
-          inline_data: { mime_type: "application/pdf", data: "aGVsbG8=" },
+          inline_data: {
+            mime_type: "application/pdf",
+            data: "aGVsbG8=",
+            display_name: "report.pdf",
+          },
         },
         expected: {
           type: "file",
           mimeType: "application/pdf",
           data: "aGVsbG8=",
+          filename: "report.pdf",
         },
       },
       {
@@ -1468,21 +1484,28 @@ describe("AdkEventAccumulator - snake_case normalization", () => {
           file_data: {
             mime_type: "image/png",
             file_uri: "https://example.test/image.png",
+            display_name: "photo.png",
           },
         },
-        expected: { type: "image_url", url: "https://example.test/image.png" },
+        expected: {
+          type: "image_url",
+          url: "https://example.test/image.png",
+          filename: "photo.png",
+        },
       },
       {
         part: {
           file_data: {
             mime_type: "application/pdf",
             file_uri: "https://example.test/report.pdf",
+            display_name: "report.pdf",
           },
         },
         expected: {
           type: "file_url",
           mimeType: "application/pdf",
           url: "https://example.test/report.pdf",
+          filename: "report.pdf",
         },
       },
       {
@@ -1789,14 +1812,29 @@ describe("AdkEventAccumulator - user message handling", () => {
         author: "user",
         content: {
           role: "user",
-          parts: [{ inlineData: { mimeType: "image/png", data: "abc123" } }],
+          parts: [
+            {
+              inlineData: {
+                mimeType: "image/png",
+                data: "abc123",
+                displayName: "photo.png",
+              },
+            },
+          ],
         },
       }),
     );
     expect(msgs).toHaveLength(1);
     expect(msgs[0]).toMatchObject({
       type: "human",
-      content: [{ type: "image", mimeType: "image/png", data: "abc123" }],
+      content: [
+        {
+          type: "image",
+          mimeType: "image/png",
+          data: "abc123",
+          filename: "photo.png",
+        },
+      ],
     });
   });
 
@@ -1836,6 +1874,7 @@ describe("AdkEventAccumulator - user message handling", () => {
               fileData: {
                 fileUri: "gs://bucket/image.png",
                 mimeType: "image/png",
+                displayName: "photo.png",
               },
             },
           ],
@@ -1845,7 +1884,13 @@ describe("AdkEventAccumulator - user message handling", () => {
     expect(msgs).toHaveLength(1);
     expect(msgs[0]).toMatchObject({
       type: "human",
-      content: [{ type: "image_url", url: "gs://bucket/image.png" }],
+      content: [
+        {
+          type: "image_url",
+          url: "gs://bucket/image.png",
+          filename: "photo.png",
+        },
+      ],
     });
   });
 
@@ -1858,7 +1903,11 @@ describe("AdkEventAccumulator - user message handling", () => {
           role: "user",
           parts: [
             {
-              inlineData: { mimeType: "application/pdf", data: "JVBERi0xLjQK" },
+              inlineData: {
+                mimeType: "application/pdf",
+                data: "JVBERi0xLjQK",
+                displayName: "report.pdf",
+              },
             },
           ],
         },
@@ -1868,7 +1917,12 @@ describe("AdkEventAccumulator - user message handling", () => {
     expect(msgs[0]).toMatchObject({
       type: "human",
       content: [
-        { type: "file", mimeType: "application/pdf", data: "JVBERi0xLjQK" },
+        {
+          type: "file",
+          mimeType: "application/pdf",
+          data: "JVBERi0xLjQK",
+          filename: "report.pdf",
+        },
       ],
     });
   });
@@ -1885,6 +1939,7 @@ describe("AdkEventAccumulator - user message handling", () => {
               fileData: {
                 fileUri: "gs://bucket/report.pdf",
                 mimeType: "application/pdf",
+                displayName: "report.pdf",
               },
             },
           ],
@@ -1899,6 +1954,7 @@ describe("AdkEventAccumulator - user message handling", () => {
           type: "file_url",
           url: "gs://bucket/report.pdf",
           mimeType: "application/pdf",
+          filename: "report.pdf",
         },
       ],
     });

@@ -11,7 +11,7 @@ import type { AdkMessage, AdkMessageContentPart } from "./types";
 type ContentPart =
   | { type: "text"; text: string }
   | { type: "reasoning"; text: string }
-  | { type: "image"; image: string }
+  | { type: "image"; image: string; filename?: string }
   | {
       type: "file";
       data: string;
@@ -56,10 +56,15 @@ const contentToParts = (
           return {
             type: "image",
             image: `data:${part.mimeType};base64,${part.data}`,
+            ...(part.filename != null && { filename: part.filename }),
           };
         case "image_url":
           if (typeof part.url !== "string") return null;
-          return { type: "image", image: part.url };
+          return {
+            type: "image",
+            image: part.url,
+            ...(part.filename != null && { filename: part.filename }),
+          };
         case "file":
           if (
             typeof part.mimeType !== "string" ||
@@ -80,6 +85,7 @@ const contentToParts = (
               data: part.url,
               mimeType: part.mimeType ?? "application/octet-stream",
               sourceType: "url",
+              ...(part.filename != null && { filename: part.filename }),
             };
           }
           return {
@@ -88,6 +94,7 @@ const contentToParts = (
             data: {
               url: part.url,
               ...(part.mimeType != null && { mimeType: part.mimeType }),
+              ...(part.filename != null && { filename: part.filename }),
             },
           };
         case "code":

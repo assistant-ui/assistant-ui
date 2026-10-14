@@ -1511,6 +1511,62 @@ describe("useAISDKRuntime tool approvals with a Chat", () => {
     });
   });
 
+  it("keeps descendants after history loads and the chat republishes its visible path", async () => {
+    historyState.remoteId = "remote-branch-history";
+    onTestFinished(() => {
+      historyState.remoteId = undefined;
+    });
+    const stored: UIMessage[] = [
+      { id: "u1", role: "user", parts: [{ type: "text", text: "first" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "first reply" }],
+      },
+      { id: "u2", role: "user", parts: [{ type: "text", text: "second" }] },
+      {
+        id: "a2",
+        role: "assistant",
+        parts: [{ type: "text", text: "second reply" }],
+      },
+    ];
+    const load = vi.fn(async () => ({
+      headId: "a1",
+      messages: stored.map((message, index) => ({
+        parentId: stored[index - 1]?.id ?? null,
+        message,
+      })),
+    }));
+    const history = {
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue({ load, append: vi.fn() }),
+    } as unknown as ThreadHistoryAdapter;
+    const { chat, thread } = await setup(undefined, { history });
+
+    await waitFor(() =>
+      expect(chat().messages.map((message) => message.id)).toEqual([
+        "u1",
+        "a1",
+      ]),
+    );
+    expect(load).toHaveBeenCalledTimes(1);
+    expect(
+      thread()
+        .export()
+        .messages.map((item) => item.message.id),
+    ).toEqual(["u1", "a1", "u2", "a2"]);
+
+    const priorMessages = chat().messages;
+    act(() => chat().setMessages([...priorMessages]));
+    await waitFor(() => expect(chat().messages).not.toBe(priorMessages));
+    expect(
+      thread()
+        .export()
+        .messages.map((item) => item.message.id),
+    ).toEqual(["u1", "a1", "u2", "a2"]);
+  });
+
   it("restores a superseded approval through external history", async () => {
     historyState.remoteId = "remote-thread";
     onTestFinished(() => {

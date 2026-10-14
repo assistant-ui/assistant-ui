@@ -53,12 +53,17 @@ import { useShallowStable } from "./utils/useShallowStable";
 import {
   createClientAccessor,
   getClientId,
+  isForwardingClient,
   isScopeAvailable,
   isScopeUnavailable,
 } from "./utils/client-accessor";
 import { createOptionalClientView } from "./utils/optional-client-view";
 import { getClientIndex } from "./utils/tap-client-stack-context";
 import { isDevelopment } from "./utils/env";
+import {
+  trackSignal,
+  useTrackedSyncExternalStore,
+} from "./utils/scoped-signal";
 
 export type ClientRef = {
   parent: AssistantClient;
@@ -225,6 +230,16 @@ const useScopeMeta = (element: ScopeElement): ScopeMeta => {
   return useShallowStable({ source, query: useShallowStable(query) });
 };
 
+// A forwarding client can switch its target without rendering, so a read
+// through it keeps its reader on every notification
+const readScope = (client: ClientMethods) =>
+  isForwardingClient(client)
+    ? () => {
+        trackSignal(undefined);
+        return client;
+      }
+    : () => client;
+
 // Kept separate from useScopeMount: the building-client mutation there makes
 // the React Compiler bail, which would leave the resource element unmemoized
 const useScopeValue = (element: ScopeElement, derived: boolean) =>
@@ -246,7 +261,7 @@ const useScopeMount = (
 
   const meta = useScopeMeta(element);
   const accessor = useMemo(
-    () => createClientAccessor({ name, ...meta }, () => methods),
+    () => createClientAccessor({ name, ...meta }, readScope(methods)),
     [name, meta, methods],
   );
 
@@ -299,8 +314,12 @@ export const useAuiRoot = ({
   // memoized: a fresh object here marks the context changed on every update,
   // which defeats the deps bailout of every resource that reads it.
   const tapContextValue = useMemo(
-    () => ({ clientRef, emit: notifications.emit }),
-    [clientRef, notifications.emit],
+    () => ({
+      clientRef,
+      emit: notifications.emit,
+      markChanged: notifications.markChanged,
+    }),
+    [clientRef, notifications.emit, notifications.markChanged],
   );
 
   const accessors = useAssistantTapContextProvider(
@@ -430,15 +449,13 @@ const useDerivedScopeMount = (
   const { get } = element.args[0] as {
     get: (client: AssistantClient) => ClientMethods;
   };
-  const value = useSyncExternalStore(
-    parent.subscribe,
-    () => get(parent),
-    () => get(parent),
+  const value = useTrackedSyncExternalStore(parent.subscribe, () =>
+    get(parent),
   );
 
   const meta = useScopeMeta(element);
   const accessor = useMemo(
-    () => createClientAccessor({ name, ...meta }, () => value),
+    () => createClientAccessor({ name, ...meta }, readScope(value)),
     [name, meta, value],
   );
 

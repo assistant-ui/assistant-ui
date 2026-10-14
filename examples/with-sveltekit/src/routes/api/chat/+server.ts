@@ -11,6 +11,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
   const openai = createOpenAI({ apiKey: env.OPENAI_API_KEY });
   const result = streamText({
+    abortSignal: request.signal,
     model: openai("gpt-6-luna"),
     messages: await convertToModelMessages(messages),
     system,

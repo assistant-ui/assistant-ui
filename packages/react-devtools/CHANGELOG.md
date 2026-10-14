@@ -1,5 +1,11 @@
 # @assistant-ui/react-devtools
 
+## 1.2.24
+
+### Patch Changes
+
+- [#8900](https://github.com/assistant-ui/assistant-ui/pull/8900) [`8f6b33d`](https://github.com/assistant-ui/assistant-ui/commit/8f6b33d8968a96fcba840117c49a960ab350316e) - share one registry subscription and one projection per change across in-process devtools subscribers ([@okisdev](https://github.com/okisdev))
+
 ## 1.2.23
 
 ### Patch Changes

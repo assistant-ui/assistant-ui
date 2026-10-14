@@ -7,6 +7,28 @@ import { ElicitationForm, type ElicitationField } from "./elicitation-form";
 afterEach(cleanup);
 
 describe("ElicitationForm", () => {
+  it("focuses the receipt after the focused answer settles", () => {
+    function Form() {
+      const [state, setState] = useState<"request" | "accepted">("request");
+      return (
+        <ElicitationForm
+          server="GitHub"
+          message="Choose a repository"
+          fields={[]}
+          state={state}
+          onAccept={() => setState("accepted")}
+        />
+      );
+    }
+
+    render(<Form />);
+    const send = screen.getByRole("button", { name: "Send" });
+    send.focus();
+    fireEvent.click(send);
+
+    expect(document.activeElement).toBe(screen.getByText("Sent to GitHub"));
+  });
+
   it("disables Send until required text is filled in an editable request", () => {
     const onAccept = vi.fn();
 

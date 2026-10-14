@@ -363,7 +363,9 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
       />,
     );
     await waitFor(() => expect(adapter.fetch).toHaveBeenCalledWith("thread-a"));
-    await act(() => runtimeRef.current!.threads.switchToThread("thread-b"));
+    await actSettled(() =>
+      runtimeRef.current!.threads.switchToThread("thread-b"),
+    );
     await waitForRemoteThread(runtimeRef, "thread-b");
 
     await act(async () => {
