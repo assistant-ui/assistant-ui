@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, render, waitFor } from "@testing-library/react";
+import { act, render, waitFor as waitForDefault } from "@testing-library/react";
 import type {
   AssistantRuntime,
   RemoteThreadListAdapter,
@@ -21,6 +21,9 @@ import type { AdkAuthRequest, AdkEvent, AdkMessage } from "./types";
 import { useAdkRuntime } from "./useAdkRuntime";
 import { createAdkStream } from "./AdkClient";
 import { settleOutsideAct } from "./tests/settleOutsideAct";
+
+const waitFor: typeof waitForDefault = (callback, options) =>
+  waitForDefault(callback, { interval: 10, ...options });
 
 describe("ADK state hook rendering", () => {
   it("keeps app state stable across unrelated store updates", async () => {
