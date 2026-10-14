@@ -54,7 +54,7 @@ Maintainers add the `preview` label to a ready pull request to publish installab
 
 ### Review policy
 
-Every pull request gets a tier from T0 to T3, and the `review-tier` check reports the tier, the reasons for it, and what the merge still needs. `.github/review-policy.json` holds the areas, their owner teams and the thresholds; `.github/CODEOWNERS` and the branch rulesets are generated from it by `scripts/sync-review-policy.mjs`.
+Every pull request gets a tier from T0 to T3, and the `review-tier` check reports the tier, the reasons for it, and what the merge still needs. The check stays in progress while the pull request waits on approvals, the waiting window, or a decision, and fails only when the pull request itself needs a change. `.github/review-policy.json` holds the areas, their owner teams and the thresholds; `.github/CODEOWNERS` and the branch rulesets are generated from it by `scripts/sync-review-policy.mjs`.
 
 | Tier | Triggered by | Needs before merge |
 | --- | --- | --- |

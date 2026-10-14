@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { loadReviewPolicy, tierLabel } from "./lib/review-policy.mjs";
 import {
   createGitHubClient,
+  dailySweepCron,
   evaluatePullRequest,
   gatherPullRequest,
   main,
@@ -151,6 +153,7 @@ function fakeClient({
   const currentComments = new Map([[12, structuredClone(comments)]]);
   let nextCommentId = Math.max(90, ...comments.map(({ id }) => id ?? 0)) + 1;
   let currentCheckRuns = structuredClone(checkRuns);
+  let nextCheckRunId = 1;
   let gatherRead = 0;
   let stateRead = 0;
   const historyPage = (history, after) => {
@@ -324,8 +327,20 @@ function fakeClient({
       }
       writes.push({ method, resource, body });
       if (resource === `${repo}/check-runs` && method === "POST") {
-        currentCheckRuns.unshift({ ...structuredClone(body), app: { id: 42 } });
-        return { status: 201, data: { id: 1 } };
+        const id = nextCheckRunId++;
+        currentCheckRuns.unshift({
+          ...structuredClone(body),
+          id,
+          app: { id: 42 },
+        });
+        return { status: 201, data: { id } };
+      }
+      if (method === "PATCH" && resource.startsWith(`${repo}/check-runs/`)) {
+        const id = Number(resource.slice(`${repo}/check-runs/`.length));
+        const run = currentCheckRuns.find((candidate) => candidate.id === id);
+        assert.ok(run, `Unrecorded check run ${id}`);
+        Object.assign(run, structuredClone(body));
+        return { status: 200, data: structuredClone(run) };
       }
       if (method === "POST" && resource.endsWith("/labels")) {
         const number = Number(resource.split("/issues/")[1].split("/")[0]);
@@ -1392,7 +1407,9 @@ test("publishing syncs tier labels and creates a sticky comment without repeatin
       ["POST", `${repo}/issues/12/comments`],
     ],
   );
-  assert.equal(recording.writes[0].body.conclusion, "action_required");
+  assert.equal(recording.writes[0].body.status, "in_progress");
+  assert.equal(Object.hasOwn(recording.writes[0].body, "conclusion"), false);
+  assert.equal(Object.hasOwn(recording.writes[0].body, "completed_at"), false);
   assert.deepEqual(recording.writes[1].body, { labels: ["tier/3"] });
   assert.deepEqual(recording.writes[4].body, {
     body: renderComment(evaluation, policy),
@@ -1466,18 +1483,19 @@ test("identical checks from the pinned app still sync each pull request", async 
     reviewTierCheck: { ...enforcePolicy.reviewTierCheck, integrationId: 42 },
   };
   for (const [checkRuns, expectedWrites] of [
-    [[{ ...intended, app: { id: 42 } }], 0],
+    [[{ ...intended, id: 7, app: { id: 42 } }], 0],
     [
       [
         {
           ...intended,
+          id: 7,
           output: { ...intended.output, summary: "Old summary" },
           app: { id: 42 },
         },
       ],
       1,
     ],
-    [[{ ...intended, app: { id: 99 } }], 1],
+    [[{ ...intended, id: 7, app: { id: 99 } }], 1],
   ]) {
     const recording = fakeClient({
       checkRuns,
@@ -1511,7 +1529,7 @@ test("identical checks from the pinned app still sync each pull request", async 
     );
   }
   const recording = fakeClient({
-    checkRuns: [{ ...intended, app: { id: 42 } }],
+    checkRuns: [{ ...intended, id: 7, app: { id: 42 } }],
     labels: [{ name: "tier/3" }],
     comments: [
       {
@@ -1545,7 +1563,7 @@ test("identical checks from the pinned app still sync each pull request", async 
 });
 
 test("newer check runs block stale publishes while older runs allow them", async () => {
-  const evaluation = await evaluationFor();
+  const evaluation = await evaluationFor(fakeClient({ openCount: 6 }));
   for (const integrationId of [42, null]) {
     const recording = fakeClient({
       checkRuns: [
@@ -1688,6 +1706,227 @@ test("merge groups ignore updatedAt changes when the pull request head is unchan
         ({ method, resource }) =>
           method === "POST" && resource === `${repo}/check-runs`,
       ),
+  );
+});
+
+test("an identical in-progress run is not reposted", async () => {
+  const recording = fakeClient();
+  const evaluation = await evaluationFor();
+  const options = {
+    number: 12,
+    headSha: "head",
+    evaluation,
+    startedAt: now.toISOString(),
+    labelsAndComment: false,
+  };
+  await publish(recording.client, enforcePolicy, options);
+  await publish(recording.client, enforcePolicy, options);
+  assert.equal(recording.writes.length, 1);
+  assert.equal(recording.writes[0].body.status, "in_progress");
+});
+
+test("a passing evaluation completes an in-progress run", async () => {
+  const recording = fakeClient();
+  const waiting = await evaluationFor();
+  const passing = await evaluationFor(
+    fakeClient({ pr: docsPullRequest(), files: [file("README.md")] }),
+  );
+  const options = {
+    number: 12,
+    headSha: "head",
+    startedAt: now.toISOString(),
+    labelsAndComment: false,
+  };
+  await publish(recording.client, enforcePolicy, {
+    ...options,
+    evaluation: waiting,
+  });
+  await publish(recording.client, enforcePolicy, {
+    ...options,
+    evaluation: passing,
+  });
+  assert.deepEqual(
+    recording.writes.map(({ method, resource }) => [method, resource]),
+    [
+      ["POST", `${repo}/check-runs`],
+      ["PATCH", `${repo}/check-runs/1`],
+    ],
+  );
+  assert.equal(recording.writes[0].body.status, "in_progress");
+  assert.equal(recording.writes[1].body.status, "completed");
+  assert.equal(recording.writes[1].body.conclusion, "success");
+  assert.ok(Object.hasOwn(recording.writes[1].body, "completed_at"));
+});
+
+test("a changed waiting evaluation updates the in-progress run in place", async () => {
+  const recording = fakeClient();
+  const waiting = await evaluationFor();
+  const fewer = structuredClone(waiting);
+  fewer.requirementResult.unmet = fewer.requirementResult.unmet.slice(1);
+  const options = { number: 12, headSha: "head", labelsAndComment: false };
+  await publish(recording.client, enforcePolicy, {
+    ...options,
+    evaluation: waiting,
+    startedAt: "2026-10-08T11:00:00Z",
+  });
+  await publish(recording.client, enforcePolicy, {
+    ...options,
+    evaluation: fewer,
+    startedAt: now.toISOString(),
+  });
+  assert.deepEqual(
+    recording.writes.map(({ method, resource }) => [method, resource]),
+    [
+      ["POST", `${repo}/check-runs`],
+      ["PATCH", `${repo}/check-runs/1`],
+    ],
+  );
+  assert.equal(recording.writes[1].body.status, "in_progress");
+  assert.equal(recording.writes[1].body.external_id, now.toISOString());
+  assert.equal(Object.hasOwn(recording.writes[1].body, "started_at"), false);
+  assert.equal(Object.hasOwn(recording.writes[1].body, "conclusion"), false);
+  assert.equal(Object.hasOwn(recording.writes[1].body, "head_sha"), false);
+  await publish(recording.client, enforcePolicy, {
+    ...options,
+    evaluation: waiting,
+    startedAt: "2026-10-08T11:30:00Z",
+  });
+  assert.equal(recording.writes.length, 2);
+});
+
+test("a matching in-progress run older than seven days is reposted", async () => {
+  const recording = fakeClient();
+  const evaluation = await evaluationFor();
+  const options = {
+    number: 12,
+    headSha: "head",
+    evaluation,
+    labelsAndComment: false,
+  };
+  await publish(recording.client, enforcePolicy, {
+    ...options,
+    startedAt: "2026-09-30T12:00:00Z",
+  });
+  await publish(recording.client, enforcePolicy, {
+    ...options,
+    startedAt: now.toISOString(),
+  });
+  assert.deepEqual(
+    recording.writes.map(({ method, resource }) => [method, resource]),
+    [
+      ["POST", `${repo}/check-runs`],
+      ["PATCH", `${repo}/check-runs/1`],
+      ["POST", `${repo}/check-runs`],
+    ],
+  );
+  assert.equal(recording.writes[1].body.status, "completed");
+  assert.equal(recording.writes[1].body.conclusion, "action_required");
+  assert.equal(recording.writes[2].body.status, "in_progress");
+  assert.equal(recording.writes[2].body.head_sha, "head");
+  assert.equal(recording.writes[2].body.started_at, now.toISOString());
+  assert.equal(Object.hasOwn(recording.writes[2].body, "completed_at"), false);
+});
+
+test("the seven-day refresh counts from the run's start, which in-place updates keep", async () => {
+  const recording = fakeClient();
+  const waiting = await evaluationFor();
+  const fewer = structuredClone(waiting);
+  fewer.requirementResult.unmet = fewer.requirementResult.unmet.slice(1);
+  const options = { number: 12, headSha: "head", labelsAndComment: false };
+  await publish(recording.client, enforcePolicy, {
+    ...options,
+    evaluation: waiting,
+    startedAt: "2026-09-30T12:00:00Z",
+  });
+  await publish(recording.client, enforcePolicy, {
+    ...options,
+    evaluation: fewer,
+    startedAt: "2026-10-06T12:00:00Z",
+  });
+  await publish(recording.client, enforcePolicy, {
+    ...options,
+    evaluation: fewer,
+    startedAt: now.toISOString(),
+  });
+  assert.deepEqual(
+    recording.writes.map(({ method, resource }) => [method, resource]),
+    [
+      ["POST", `${repo}/check-runs`],
+      ["PATCH", `${repo}/check-runs/1`],
+      ["PATCH", `${repo}/check-runs/1`],
+      ["POST", `${repo}/check-runs`],
+    ],
+  );
+  assert.equal(recording.writes[2].body.conclusion, "action_required");
+  assert.equal(recording.writes[3].body.started_at, now.toISOString());
+});
+
+test("a merge group waiting on reviewers posts a completed action_required run", async () => {
+  const recording = fakeClient();
+  assert.equal(
+    await main(
+      eventOptions(recording.client, "merge_group", {
+        merge_group: {
+          head_ref: "refs/heads/gh-readonly-queue/main/pr-12-abcdef1234",
+          head_sha: "queue-sha",
+        },
+      }),
+    ),
+    0,
+  );
+  assert.equal(recording.writes.length, 1);
+  assert.equal(recording.writes[0].body.status, "completed");
+  assert.equal(recording.writes[0].body.conclusion, "action_required");
+  assert.ok(Object.hasOwn(recording.writes[0].body, "completed_at"));
+});
+
+test("the daily schedule lists all open non-draft pull requests", async () => {
+  for (const [schedule, labels] of [
+    [dailySweepCron, null],
+    ["*/10 * * * *", [tierLabel(policy, 2), tierLabel(policy, 3)]],
+  ]) {
+    const recording = fakeClient({
+      pages: [
+        {
+          nodes: [
+            { number: 12, isDraft: false },
+            { number: 13, isDraft: true },
+            { number: 14, isDraft: false },
+          ],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      ],
+    });
+    assert.equal(
+      await main(eventOptions(recording.client, "schedule", { schedule })),
+      0,
+    );
+    assert.deepEqual(
+      recording.calls
+        .filter(({ query }) =>
+          query?.includes("query ReviewTierOpenPullRequests("),
+        )
+        .map(({ variables }) => variables.labels),
+      [labels],
+    );
+    assert.deepEqual(
+      recording.calls
+        .filter(({ query }) => query?.includes("query ReviewTierPullRequest("))
+        .map(({ variables }) => variables.number),
+      [12, 14],
+    );
+  }
+});
+
+test("the review tier workflow contains the daily sweep cron", () => {
+  const workflow = readFileSync(
+    new URL("../.github/workflows/review-tier.yaml", import.meta.url),
+    "utf8",
+  );
+  assert.ok(
+    workflow.includes(
+      `  schedule:\n    - cron: "*/10 * * * *"\n    - cron: "${dailySweepCron}"`,
+    ),
   );
 });
 
@@ -1891,7 +2130,12 @@ test("explicit dispatch input and pull request events evaluate one PR", async ()
           call.variables.number === 12,
       ),
     );
-    assert.equal(recording.writes[0].body.conclusion, "action_required");
+    assert.equal(recording.writes[0].body.status, "in_progress");
+    assert.equal(Object.hasOwn(recording.writes[0].body, "conclusion"), false);
+    assert.equal(
+      Object.hasOwn(recording.writes[0].body, "completed_at"),
+      false,
+    );
     assert.equal(recording.writes[0].body.started_at, now.toISOString());
     assert.equal(
       recording.writes.filter(
@@ -2277,8 +2521,16 @@ test("the CLI uses the policy mode instead of the environment mode", async () =>
       0,
     );
     assert.equal(
-      recording.writes[0].body.conclusion,
-      mode === "enforce" ? "action_required" : "neutral",
+      recording.writes[0].body.status,
+      mode === "enforce" ? "in_progress" : "completed",
+    );
+    assert.equal(
+      recording.writes[0].body.conclusion ?? null,
+      mode === "enforce" ? null : "neutral",
+    );
+    assert.equal(
+      Object.hasOwn(recording.writes[0].body, "completed_at"),
+      mode === "shadow",
     );
   }
 });

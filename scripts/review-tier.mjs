@@ -12,6 +12,7 @@ import { hasOption, optionValues } from "./lib/script-options.mjs";
 const marker = "<!-- review-tier -->";
 const rawAccept = "application/vnd.github.raw";
 const transientStatuses = new Set([0, 502, 503, 504]);
+export const dailySweepCron = "0 4 * * *";
 
 export function createGitHubClient({
   token,
@@ -683,6 +684,7 @@ export async function publish(
     evaluation,
     startedAt = new Date().toISOString(),
     labelsAndComment = true,
+    mergeGroup = false,
   },
 ) {
   const repo = `/repos/${policy.repository}`;
@@ -690,15 +692,22 @@ export async function publish(
   const { tier } = evaluation.tierResult;
   const ready = evaluation.conclusion === "success";
   const targetSha = checkSha ?? headSha;
+  const inProgress =
+    policy.reviewTierCheck.mode === "enforce" &&
+    evaluation.conclusion === "action_required" &&
+    !mergeGroup;
   const check = {
     name: policy.reviewTierCheck.name,
-    head_sha: targetSha,
-    started_at: startedAt,
-    status: "completed",
-    conclusion:
-      policy.reviewTierCheck.mode === "shadow" && !ready
-        ? "neutral"
-        : evaluation.conclusion,
+    external_id: startedAt,
+    status: inProgress ? "in_progress" : "completed",
+    ...(inProgress
+      ? {}
+      : {
+          conclusion:
+            policy.reviewTierCheck.mode === "shadow" && !ready
+              ? "neutral"
+              : evaluation.conclusion,
+        }),
     output: {
       title: `T${tier} · ${ready ? "ready to merge" : `${evaluation.requirementResult.unmet.length} still needed`}`,
       summary: body.slice(marker.length + 1),
@@ -713,16 +722,45 @@ export async function publish(
       policy.reviewTierCheck.integrationId === null ||
       run.app?.id === policy.reviewTierCheck.integrationId,
   );
-  if (Date.parse(latest?.started_at) > Date.parse(startedAt)) return;
   if (
-    latest?.conclusion !== check.conclusion ||
+    Date.parse(latest?.external_id || latest?.started_at) >
+    Date.parse(startedAt)
+  )
+    return;
+  const open = latest?.status === "in_progress";
+  const refresh =
+    inProgress &&
+    open &&
+    Date.parse(startedAt) - Date.parse(latest.started_at) >
+      7 * 24 * 60 * 60 * 1000;
+  if (
+    refresh ||
+    latest?.status !== check.status ||
+    (latest?.conclusion ?? null) !== (check.conclusion ?? null) ||
     latest.output?.title !== check.output.title ||
     latest.output?.summary !== check.output.summary
   ) {
-    await client.rest("POST", `${repo}/check-runs`, {
+    const run = {
       ...check,
-      completed_at: new Date().toISOString(),
-    });
+      ...(inProgress ? {} : { completed_at: new Date().toISOString() }),
+    };
+    // Updating an open run in place keeps one incomplete run per head; a run open for 7 days is closed as action_required, never passing, and replaced before GitHub marks it stale at 14.
+    if (open && !refresh) {
+      await client.rest("PATCH", `${repo}/check-runs/${latest.id}`, run);
+    } else {
+      if (refresh) {
+        await client.rest("PATCH", `${repo}/check-runs/${latest.id}`, {
+          status: "completed",
+          conclusion: "action_required",
+          completed_at: new Date().toISOString(),
+        });
+      }
+      await client.rest("POST", `${repo}/check-runs`, {
+        ...run,
+        head_sha: targetSha,
+        started_at: startedAt,
+      });
+    }
   }
   if (!labelsAndComment) return;
   const label = tierLabel(policy, tier);
@@ -859,7 +897,8 @@ export async function main({
         listOpen = true;
         break;
       case "schedule":
-        labels = [tierLabel(policy, 2), tierLabel(policy, 3)];
+        if (event.schedule !== dailySweepCron)
+          labels = [tierLabel(policy, 2), tierLabel(policy, 3)];
         listOpen = true;
         break;
       default:
@@ -954,6 +993,7 @@ export async function main({
           evaluation,
           startedAt: gathered.startedAt,
           labelsAndComment: !mergeGroup,
+          mergeGroup,
         });
         break;
       }
