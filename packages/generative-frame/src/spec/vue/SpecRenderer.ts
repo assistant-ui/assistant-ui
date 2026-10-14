@@ -20,6 +20,7 @@ import {
   type ActionSource,
 } from "../actions";
 import type { Catalog } from "../catalog";
+import { validateSchema, type SchemaIssue } from "../../json-schema";
 import {
   evaluateCondition,
   resolveProps,
@@ -127,6 +128,10 @@ type RenderContext = {
   readonly streaming: boolean;
   readonly placeholder: Component;
   readonly invalid: (element: SpecElement) => string | undefined;
+  readonly invalidResolvedProps: (
+    type: string,
+    props: unknown,
+  ) => string | undefined;
   readonly onError: SpecRendererProps["onError"];
 };
 const renderContextKey = Symbol("SpecRenderer");
@@ -165,6 +170,17 @@ function declaredNames(
 }
 
 const handlerKey = (event: string) => toHandlerKey(camelize(event));
+
+const formatSchemaIssues = (type: string, issues: SchemaIssue[]) =>
+  issues.length
+    ? `${type}: ${issues
+        .slice(0, 2)
+        .map(
+          (issue) =>
+            `${issue.path === "/" ? "props" : issue.path.slice(1)} ${issue.message}`,
+        )
+        .join("; ")}`
+    : undefined;
 
 const ElementBoundary = defineComponent({
   name: "SpecElementBoundary",
@@ -316,6 +332,13 @@ const ResolvedElement = defineComponent({
     );
     return () => {
       const { props: values, bindings } = resolved();
+      const invalid = ctx.invalidResolvedProps(props.element.type, values);
+      if (invalid)
+        return h(ctx.placeholder, {
+          id: props.id,
+          reason: "invalid-props",
+          message: invalid,
+        });
       const impl = props.impl as DeclaredOptions;
       const propNames = declaredNames(impl, "props");
       const emitNames = declaredNames(impl, "emits");
@@ -434,18 +457,15 @@ export const SpecRenderer = defineComponent({
       let message = cache.get(element);
       if (message === undefined) {
         const issues = catalog.validateProps(element.type, element.props);
-        message = issues.length
-          ? `${element.type}: ${issues
-              .slice(0, 2)
-              .map(
-                (issue) =>
-                  `${issue.path === "/" ? "props" : issue.path.slice(1)} ${issue.message}`,
-              )
-              .join("; ")}`
-          : null;
+        message = formatSchemaIssues(element.type, issues) ?? null;
         cache.set(element, message);
       }
       return message ?? undefined;
+    };
+    const invalidResolvedProps = (type: string, values: unknown) => {
+      const schema = props.catalog?.propsSchema(type);
+      if (!schema) return undefined;
+      return formatSchemaIssues(type, validateSchema(schema, values));
     };
     let dispatcherStore: SpecStateStore | undefined;
     let dispatcherCatalog: Catalog | undefined;
@@ -496,6 +516,7 @@ export const SpecRenderer = defineComponent({
         return props.placeholder;
       },
       invalid,
+      invalidResolvedProps,
       get onError() {
         return props.onError;
       },

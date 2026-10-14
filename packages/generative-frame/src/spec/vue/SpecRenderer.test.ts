@@ -277,7 +277,6 @@ describe("SpecRenderer", () => {
         { tools },
       );
     const view = mount({
-      catalog,
       components,
       spec: photo("/tools"),
       streaming: true,
@@ -285,7 +284,45 @@ describe("SpecRenderer", () => {
     await nextTick();
     expect(view.container.textContent).toContain("Photo failed");
 
-    await view.update({ catalog, components, spec: photo("/tools/photos/0") });
+    await view.update({ components, spec: photo("/tools/photos/0") });
+    expect(view.container.querySelector("img")?.getAttribute("src")).toBe(
+      "https://example.com/bridge.jpg",
+    );
+  });
+
+  it("rejects invalid resolved props before mounting the Vue component", async () => {
+    const onError = vi.fn();
+    const store = createStateStore({
+      tools: Object.assign(Object.create(null), { photos: [] }),
+    });
+    const Photo = defineComponent({
+      props: ["src"],
+      setup(props) {
+        return () => h("img", { alt: "", src: props.src });
+      },
+    });
+    const view = mount({
+      catalog,
+      components: { ...components, Photo },
+      state: store,
+      onError,
+      spec: spec({
+        main: { type: "Photo", props: { src: { $state: "/tools" } } },
+      }),
+      streaming: true,
+    });
+    await nextTick();
+
+    expect(
+      view.container.querySelector(
+        '[data-gf-spec-placeholder="invalid-props"]',
+      ),
+    ).not.toBeNull();
+    expect(view.container.querySelector("img")).toBeNull();
+    expect(onError).not.toHaveBeenCalled();
+
+    store.set("/tools", "https://example.com/bridge.jpg");
+    await nextTick();
     expect(view.container.querySelector("img")?.getAttribute("src")).toBe(
       "https://example.com/bridge.jpg",
     );
