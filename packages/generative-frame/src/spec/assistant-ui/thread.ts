@@ -5,7 +5,7 @@ import {
 } from "../../assistant-ui/tool-calls";
 import type { ActionHandler } from "../actions";
 import type { Catalog } from "../catalog";
-import { formulaValueReads } from "../calc";
+import { formulaReads } from "../calc";
 import { templateStatePaths } from "../expressions";
 import { escapePointerToken, getAtPointer } from "../pointer";
 import type { SpecPromptOptions } from "../prompt";
@@ -181,7 +181,33 @@ export const callHistory = (
 const readsTools = (pointer: string) =>
   pointer === "/tools" || pointer.startsWith("/tools/");
 
-/** Each place a spec shows state under `/tools` that the mounted results do not have, as a warning, since the model may have read the value from output the thread does not store or may mean a field that is absent. A read only tested as a condition is left out, since there an absent value takes the other branch. */
+/** The state paths a value reads, split into those it shows and those it tests: inside a `$cond` test, or as a `$calc` condition. */
+function stateReads(root: unknown): { shown: string[]; tested: string[] } {
+  const shown: string[] = [];
+  const tested: string[] = [];
+  const pending: { value: unknown; testing: boolean }[] = [
+    { value: root, testing: false },
+  ];
+  for (let index = 0; index < pending.length; index++) {
+    const { value, testing } = pending[index]!;
+    if (typeof value !== "object" || value === null) continue;
+    const into = testing ? tested : shown;
+    for (const [key, child] of Object.entries(value)) {
+      if (typeof child !== "string") {
+        pending.push({ value: child, testing: testing || key === "$cond" });
+      } else if (key === "$state" || key === "$bindState") into.push(child);
+      else if (key === "$template") into.push(...templateStatePaths(child));
+      else if (key === "$calc") {
+        const reads = formulaReads(child);
+        into.push(...reads.values);
+        tested.push(...reads.tested);
+      }
+    }
+  }
+  return { shown, tested };
+}
+
+/** Each place a spec shows state under `/tools` that the mounted results do not have, as a warning, since the model may have read the value from output the thread does not store or may mean a field that is absent. A path the element tests anywhere, in `visible`, a `$cond` test, or a `$calc` condition, is left out, since an absent value takes the other branch there. */
 function missingToolResults(
   spec: Spec,
   toolResults: Record<string, unknown[]>,
@@ -189,12 +215,20 @@ function missingToolResults(
   const issues: SpecIssue[] = [];
   const state = { tools: toolResults };
   for (const [id, element] of Object.entries(spec.elements ?? {})) {
-    const reported = new Set<string>();
-    const check = (path: string) => {
-      const pointer = safePointer(path);
-      if (!readsTools(pointer) || reported.has(pointer)) return;
-      if (getAtPointer(state, pointer) !== undefined) return;
-      reported.add(pointer);
+    const visible = stateReads(element?.visible);
+    const reads = stateReads([element?.props, element?.on, element?.watch]);
+    const tested = new Set(
+      [...visible.shown, ...visible.tested, ...reads.tested].map(safePointer),
+    );
+    const shown = [
+      ...reads.shown,
+      ...(typeof element?.repeat?.path === "string"
+        ? [element.repeat.path]
+        : []),
+    ].map(safePointer);
+    for (const pointer of new Set(shown)) {
+      if (!readsTools(pointer) || tested.has(pointer)) continue;
+      if (getAtPointer(state, pointer) !== undefined) continue;
       issues.push({
         code: "missing-tool-result",
         severity: "warning",
@@ -202,24 +236,7 @@ function missingToolResults(
         path: `/elements/${escapePointerToken(id)}`,
         message: `"${id}" shows \`${pointer}\`, which the earlier tool results do not have, so it shows nothing there. If you read that value from the tool's output, write it into the spec instead.`,
       });
-    };
-    const pending: unknown[] = [element?.props, element?.on, element?.watch];
-    while (pending.length > 0) {
-      const value = pending.pop();
-      if (typeof value !== "object" || value === null) continue;
-      for (const [key, child] of Object.entries(value)) {
-        if (key === "$cond") continue;
-        if (typeof child === "string") {
-          if (key === "$state" || key === "$bindState") check(child);
-          else if (key === "$template")
-            templateStatePaths(child).forEach(check);
-          else if (key === "$calc") formulaValueReads(child).forEach(check);
-          continue;
-        }
-        pending.push(child);
-      }
     }
-    if (typeof element?.repeat?.path === "string") check(element.repeat.path);
   }
   return issues;
 }
@@ -258,8 +275,10 @@ export function createSpecCalls(
       if (spec) specs.set(input.title, { spec, version });
       else specs.delete(input.title);
     }
-    const result = await tools.render_spec.execute(input);
+    const running = tools.render_spec.execute(input);
+    // `execute` stores this call's spec before it returns, so the spec is read before an overlapping call with the same title stores its own.
     const spec = specs.get(input.title)?.spec;
+    const result = await running;
     // The results are mounted only while the spec writes no `tools` of its own.
     if (!history?.toolResults || !spec || spec.state?.["tools"] !== undefined)
       return result;

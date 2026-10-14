@@ -999,6 +999,40 @@ describe("createWidgetToolkit", () => {
       },
       warned: [],
     },
+    {
+      form: "a value its visible condition tests",
+      element: {
+        props: { text: { $state: "/tools/get_price/0/warning" } },
+        visible: { $state: "/tools/get_price/0/warning" },
+      },
+      warned: [],
+    },
+    {
+      form: "a $then branch reading what its $cond tests",
+      element: {
+        props: {
+          text: {
+            $cond: { $state: "/tools/get_price/0/discount" },
+            $then: { $template: "Save ${/tools/get_price/0/discount}" },
+            $else: "",
+          },
+        },
+      },
+      warned: [],
+    },
+    {
+      form: "a $then branch reading another path",
+      element: {
+        props: {
+          text: {
+            $cond: { $state: "/tools/get_price/0/discount" },
+            $then: { $state: "/tools/get_price/0/total" },
+            $else: "",
+          },
+        },
+      },
+      warned: ["/tools/get_price/0/total"],
+    },
   ])(
     "warns when $form reads a /tools path the stored results do not have",
     async ({ element, warned }) => {
@@ -1036,6 +1070,40 @@ describe("createWidgetToolkit", () => {
       ).toEqual(warned);
     },
   );
+
+  it("checks each of two overlapping calls with one title against its own spec", async () => {
+    const reading = (path: string) => ({
+      root: "t",
+      elements: { t: { type: "Text", props: { text: { $state: path } } } },
+      state: {},
+    });
+    const missing = reading("/tools/get_price/0/total");
+    const present = reading("/tools/get_price/0/price");
+    mocks.messages = [
+      { content: [call("price", "get_price", {}, { price: "$42" })] },
+      { content: [call("a", "render_spec", { title: "s", spec: missing })] },
+      { content: [call("b", "render_spec", { title: "s", spec: present })] },
+    ];
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, { components }),
+    });
+    const entry = entries(toolkit)["render_spec"]!;
+    const RenderSpec = entry.render;
+    render(
+      <>
+        <RenderSpec {...partProps("a", { title: "s", spec: missing })} />
+        <RenderSpec {...partProps("b", { title: "s", spec: present })} />
+      </>,
+    );
+    const [first, second] = (await Promise.all([
+      entry.execute!({ title: "s", spec: missing }, { toolCallId: "a" }),
+      entry.execute!({ title: "s", spec: present }, { toolCallId: "b" }),
+    ])) as { issues: { code: string }[] }[];
+    expect(first!.issues.map((issue) => issue.code)).toEqual([
+      "missing-tool-result",
+    ]);
+    expect(second!.issues).toEqual([]);
+  });
 
   it("skips the /tools check for a spec that writes its own tools", async () => {
     const spec = {
