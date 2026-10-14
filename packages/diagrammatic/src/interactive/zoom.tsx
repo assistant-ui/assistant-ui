@@ -92,6 +92,9 @@ export const Zoom = forwardRef<HTMLDivElement, ZoomProps>(
       disabled,
       style,
       onPointerDown,
+      onPointerMove,
+      onPointerUp,
+      onPointerCancel,
       onDoubleClick,
       onKeyDown,
       ...props
@@ -106,6 +109,11 @@ export const Zoom = forwardRef<HTMLDivElement, ZoomProps>(
     const drag = useRef<{ id: number; x: number; y: number } | null>(null);
     const latest = useRef(transform);
     latest.current = transform;
+
+    const getFigure = useCallback(() => {
+      const node = container.current;
+      return windowed ? (node?.querySelector("svg") ?? node) : node;
+    }, [windowed]);
 
     const setRefs = useCallback(
       (node: HTMLDivElement | null) => {
@@ -129,10 +137,10 @@ export const Zoom = forwardRef<HTMLDivElement, ZoomProps>(
     );
 
     useEffect(() => {
-      const node = container.current;
-      if (!node || !windowed) return;
+      const figure = getFigure();
+      if (!figure || !windowed) return;
       const read = () => {
-        const rect = node.getBoundingClientRect();
+        const rect = figure.getBoundingClientRect();
         setBox((current) =>
           current.w === rect.width && current.h === rect.height
             ? current
@@ -142,16 +150,17 @@ export const Zoom = forwardRef<HTMLDivElement, ZoomProps>(
       read();
       if (typeof ResizeObserver === "undefined") return;
       const observer = new ResizeObserver(read);
-      observer.observe(node);
+      observer.observe(figure);
       return () => observer.disconnect();
-    }, [windowed]);
+    }, [getFigure, windowed]);
 
     useEffect(() => {
       const node = container.current;
       if (!node || disabled) return;
       const onWheel = (event: WheelEvent) => {
         event.preventDefault();
-        const rect = node.getBoundingClientRect();
+        const rect = getFigure()?.getBoundingClientRect();
+        if (!rect) return;
         const current = latest.current;
         const k = clamp(current.k * Math.exp(-event.deltaY * 0.002), min, max);
         if (k === current.k) return;
@@ -166,7 +175,7 @@ export const Zoom = forwardRef<HTMLDivElement, ZoomProps>(
       };
       node.addEventListener("wheel", onWheel, { passive: false });
       return () => node.removeEventListener("wheel", onWheel);
-    }, [apply, disabled, max, min]);
+    }, [apply, disabled, getFigure, max, min]);
 
     const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
       onPointerDown?.(event);
@@ -181,6 +190,8 @@ export const Zoom = forwardRef<HTMLDivElement, ZoomProps>(
     };
 
     const move = (event: ReactPointerEvent<HTMLDivElement>) => {
+      onPointerMove?.(event);
+      if (event.defaultPrevented) return;
       const state = drag.current;
       if (!state || state.id !== event.pointerId) return;
       apply({
@@ -191,6 +202,7 @@ export const Zoom = forwardRef<HTMLDivElement, ZoomProps>(
     };
 
     const endDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (event.defaultPrevented) return;
       if (drag.current?.id !== event.pointerId) return;
       drag.current = null;
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
@@ -201,8 +213,7 @@ export const Zoom = forwardRef<HTMLDivElement, ZoomProps>(
     const keys = (event: KeyboardEvent<HTMLDivElement>) => {
       onKeyDown?.(event);
       if (disabled || event.defaultPrevented) return;
-      const node = container.current;
-      const rect = node?.getBoundingClientRect();
+      const rect = getFigure()?.getBoundingClientRect();
       const cx = (rect?.width ?? 0) / 2;
       const cy = (rect?.height ?? 0) / 2;
       const step = 24;
@@ -250,8 +261,14 @@ export const Zoom = forwardRef<HTMLDivElement, ZoomProps>(
         tabIndex={disabled ? undefined : 0}
         onPointerDown={startDrag}
         onPointerMove={move}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
+        onPointerUp={(event) => {
+          onPointerUp?.(event);
+          endDrag(event);
+        }}
+        onPointerCancel={(event) => {
+          onPointerCancel?.(event);
+          endDrag(event);
+        }}
         onDoubleClick={(event) => {
           onDoubleClick?.(event);
           if (disabled || event.defaultPrevented) return;
