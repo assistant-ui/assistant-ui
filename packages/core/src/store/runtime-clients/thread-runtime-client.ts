@@ -10,6 +10,7 @@ import { liveRef } from "./liveRef";
 import type { ClientOutput } from "@assistant-ui/store";
 import {
   useAssistantEmit,
+  useAssistantContextValue,
   useClientLookup,
   useClientResource,
 } from "@assistant-ui/store/client";
@@ -59,6 +60,7 @@ const useThreadClient = ({
 }): ClientOutput<"thread"> => {
   const runtimeState = useSubscribable(runtime);
   const emit = useAssistantEmit();
+  const aui = useAssistantContextValue();
 
   useEffect(() => {
     const unsubscribers: Unsubscribe[] = [];
@@ -72,7 +74,10 @@ const useThreadClient = ({
 
     for (const event of threadEvents) {
       const unsubscribe = runtime.unstable_on(event, () => {
-        const threadId = runtime.getState()?.threadId || "unknown";
+        const threadId =
+          aui.threadListItem.source !== null
+            ? aui.threadListItem.getState().id
+            : runtime.getState()?.threadId || "unknown";
         emit(`thread.${event}`, {
           threadId,
         });
@@ -82,7 +87,10 @@ const useThreadClient = ({
 
     unsubscribers.push(
       runtime.unstable_on("historyWriteError", (payload) => {
-        const threadId = runtime.getState()?.threadId || "unknown";
+        const threadId =
+          aui.threadListItem.source !== null
+            ? aui.threadListItem.getState().id
+            : runtime.getState()?.threadId || "unknown";
         // payload.error omitted: raw Error is not store-serializable; use runtime.unstable_on for it.
         emit("thread.historyWriteError", {
           threadId,
@@ -92,13 +100,16 @@ const useThreadClient = ({
         });
       }),
       runtime.unstable_on("toolApprovalAnswered", (payload) => {
-        const threadId = runtime.getState()?.threadId || "unknown";
+        const threadId =
+          aui.threadListItem.source !== null
+            ? aui.threadListItem.getState().id
+            : runtime.getState()?.threadId || "unknown";
         emit("thread.toolApprovalAnswered", { threadId, ...payload });
       }),
     );
 
     return () => runCleanups(unsubscribers);
-  }, [runtime, emit]);
+  }, [runtime, emit, aui]);
 
   const threadIdRef = useMemo(
     () => liveRef(() => runtime.getState()!.threadId),

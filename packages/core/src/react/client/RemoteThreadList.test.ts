@@ -2288,7 +2288,18 @@ describe("RemoteThreadList", () => {
     },
   );
 
-  it("retains an unlisted controlled selection through a failed replacement load", async () => {
+  it.each([
+    {
+      name: "retains an unlisted controlled selection through a failed replacement load",
+      reopen: undefined,
+      failedFetches: 0,
+    },
+    {
+      name: "reopens an unlisted controlled selection through a replacement adapter whose list fails, then after a later load",
+      reopen: true,
+      failedFetches: 1,
+    },
+  ])("$name", async ({ reopen, failedFetches }) => {
     const selected = { status: "regular" as const, remoteId: "selected" };
     let threadId = "old-selected";
     let adapter = makeAdapter({
@@ -2305,6 +2316,7 @@ describe("RemoteThreadList", () => {
             adapter,
             threadId,
             onThreadIdChange,
+            __internal_reopenControlledThreadOnAdapterChange: reopen,
             thread: (id) => StubThread({ threadId: id }) as never,
           }),
         }),
@@ -2340,14 +2352,17 @@ describe("RemoteThreadList", () => {
       await handle.getClient().threads.reload();
       await microtasks(20);
       expect(handle.getClient().threads.getState().loadError).toBe(error);
-      expect(fetch).toHaveBeenCalledTimes(fetchesBeforeReload);
+      expect(fetch).toHaveBeenCalledTimes(fetchesBeforeReload + failedFetches);
+      if (reopen) expect(fetch).toHaveBeenLastCalledWith("selected");
       await handle.getClient().threads.reload();
       await waitFor(() =>
         expect(handle.getClient().threads.getState().mainThreadId).toBe(
           "selected",
         ),
       );
-      expect(fetch).toHaveBeenCalledTimes(fetchesBeforeReload + 1);
+      expect(fetch).toHaveBeenCalledTimes(
+        fetchesBeforeReload + failedFetches + 1,
+      );
       expect(fetch).toHaveBeenLastCalledWith("selected");
       expect(onThreadIdChange).not.toHaveBeenCalled();
     } finally {
