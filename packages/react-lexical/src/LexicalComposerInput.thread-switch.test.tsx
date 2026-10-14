@@ -92,10 +92,15 @@ describe("LexicalComposerInput thread switches", () => {
     });
   };
 
+  // React 18's act holds renders until its callback settles, so the switch starts inside act and settles outside it, where React can commit what the switch waits on.
   const switchToNewThread = async () => {
+    let pending!: Promise<void>;
     await act(async () => {
-      await runtime.threads.switchToNewThread();
+      pending = runtime.threads.switchToNewThread();
+      pending.catch(() => {});
     });
+    await pending;
+    await act(async () => {});
     return runtime.threads.getState().mainThreadId;
   };
 
