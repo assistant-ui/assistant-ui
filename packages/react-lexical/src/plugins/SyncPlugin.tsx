@@ -21,7 +21,7 @@ import {
   type LexicalEditor,
   type LexicalNode,
 } from "lexical";
-import { useAui, useAuiState } from "@assistant-ui/store";
+import { useAui } from "@assistant-ui/store";
 import type {
   Unstable_DirectiveFormatter,
   Unstable_DirectiveSegment,
@@ -47,7 +47,7 @@ type CompositeParser = (text: string) => readonly ParsedSegment[];
 type ParsedLines = readonly (readonly ParsedSegment[])[];
 type ComposerIdentity = {
   composerRuntime: object;
-  threadId: string;
+  threadId: string | undefined;
 };
 
 type SegmentKey =
@@ -423,7 +423,6 @@ export function SyncPlugin({
 } = {}) {
   const [editor] = useLexicalComposerContext();
   const aui = useAui();
-  const mainThreadId = useAuiState((state) => state.threads.mainThreadId);
   const root = unstable_useTriggerPopoverRootContextOptional();
 
   const subscribe = useCallback(
@@ -516,7 +515,7 @@ export function SyncPlugin({
     const updateComposerIdentity = () => {
       const nextIdentity = {
         composerRuntime,
-        threadId: aui.threads.getState().mainThreadId,
+        threadId: aui.optional.threads?.getState().mainThreadId,
       };
       const previousIdentity = lastComposerIdentityRef.current;
       const composerChanged =
@@ -598,7 +597,7 @@ export function SyncPlugin({
 
       applyRuntimeText(runtimeText, undefined, undefined, composerChanged);
     });
-  }, [editor, aui, parser, mainThreadId]);
+  }, [editor, aui, parser]);
 
   return null;
 }

@@ -42,7 +42,6 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   return {
     ...actual,
     useAui: () => mocks.aui,
-    useAuiState: () => mocks.aui.threads.getState().mainThreadId,
   };
 });
 
@@ -56,7 +55,7 @@ const createAui = (text: string) => {
   };
 
   return {
-    threads: { getState: () => ({ mainThreadId: "test-thread" }) },
+    optional: {},
     composer: {
       __internal_getRuntime: () => runtime,
       setText: vi.fn((next: string) => {
