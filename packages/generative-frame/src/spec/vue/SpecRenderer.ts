@@ -35,7 +35,7 @@ import {
 import { getAtPointer } from "../pointer";
 import { rejectedPropType } from "../resolved";
 import { createStateStore, type SpecStateStore } from "../state";
-import { childIdsOf, firstMissingId, repeatItems, safePointer } from "../tree";
+import { childIdsOf, repeatItems, safePointer } from "../tree";
 import type { Spec, SpecElement } from "../types";
 
 export type SpecComponents = Record<string, Component>;
@@ -123,8 +123,6 @@ type RenderContext = {
   readonly state: Record<string, unknown>;
   readonly dispatch: ActionDispatcher;
   readonly streaming: boolean;
-  /** The missing element that shows the pending placeholder while the spec streams. */
-  readonly frontier: string | undefined;
   readonly placeholder: Component;
   readonly invalid: (element: SpecElement) => string | undefined;
   readonly onError: SpecRendererProps["onError"];
@@ -254,9 +252,7 @@ const ElementView = defineComponent({
         typeof element.type !== "string"
       )
         return ctx.streaming
-          ? id === ctx.frontier
-            ? placeholder("pending", `"${id}" is streaming`)
-            : null
+          ? null
           : placeholder("missing", `Missing element "${id}"`);
       if (!evaluateCondition(element.visible, { ...scope, state: ctx.state }))
         return null;
@@ -531,9 +527,6 @@ export const SpecRenderer = defineComponent({
       get streaming() {
         return props.streaming;
       },
-      get frontier() {
-        return props.streaming ? firstMissingId(props.spec) : undefined;
-      },
       get placeholder() {
         return props.placeholder;
       },
@@ -543,15 +536,17 @@ export const SpecRenderer = defineComponent({
       },
     };
     provide(renderContextKey, ctx);
-    return () =>
+    return () => [
       props.spec.root
         ? h(ElementView, { id: props.spec.root, scope: {}, ancestors: [] })
-        : props.streaming
-          ? h(props.placeholder, {
-              id: "",
-              reason: "pending",
-              message: "The spec is streaming",
-            })
-          : null;
+        : null,
+      props.streaming
+        ? h(props.placeholder, {
+            id: "",
+            reason: "pending",
+            message: "The spec is streaming",
+          })
+        : null,
+    ];
   },
 });

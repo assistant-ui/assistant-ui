@@ -5,6 +5,7 @@ import {
   render,
   renderHook,
 } from "@testing-library/react";
+import { useEffect } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineCatalog } from "../catalog";
 import { createStateStore } from "../state";
@@ -318,8 +319,10 @@ describe("SpecRenderer", () => {
       />,
     );
     expect(
-      view.container.querySelector("[data-gf-spec-placeholder]"),
-    ).toBeNull();
+      [...view.container.querySelectorAll("[data-gf-spec-placeholder]")].map(
+        (node) => node.getAttribute("data-gf-spec-placeholder"),
+      ),
+    ).toEqual(["pending"]);
     expect(view.container.querySelector("img")).toBeNull();
 
     view.rerender(
@@ -391,7 +394,7 @@ describe("SpecRenderer", () => {
     expect((view.getByRole("checkbox") as HTMLInputElement).checked).toBe(true);
   });
 
-  it("shows one pending placeholder, where the spec grows next, while streaming", () => {
+  it("shows one pending placeholder after the spec while it streams", () => {
     const streamed = (elements: Spec["elements"]) =>
       spec({
         main: {
@@ -402,6 +405,11 @@ describe("SpecRenderer", () => {
         a: { type: "Text", props: { text: "A" } },
         ...elements,
       });
+    const complete = streamed({
+      b: { type: "Text", props: { text: "B" } },
+      c: { type: "Text", props: { text: "C" } },
+      f: { type: "Text", props: { text: "F" } },
+    });
     const pending = () =>
       view.container.querySelectorAll('[data-gf-spec-placeholder="pending"]');
     const view = render(
@@ -413,18 +421,18 @@ describe("SpecRenderer", () => {
       />,
     );
     expect(pending()).toHaveLength(1);
-    expect(pending()[0]?.previousElementSibling?.textContent).toBe("A");
+    expect(pending()[0]?.previousElementSibling?.tagName).toBe("SECTION");
+    expect(view.container.querySelector("section")?.textContent).toBe("A");
 
     view.rerender(
       <SpecRenderer
         catalog={catalog}
         components={components}
-        spec={streamed({ b: { type: "Text", props: { text: "B" } } })}
+        spec={complete}
         streaming
       />,
     );
     expect(pending()).toHaveLength(1);
-    expect(pending()[0]?.previousElementSibling?.textContent).toBe("B");
 
     view.rerender(
       <SpecRenderer
@@ -437,6 +445,29 @@ describe("SpecRenderer", () => {
     expect(
       view.container.querySelectorAll('[data-gf-spec-placeholder="missing"]'),
     ).toHaveLength(3);
+  });
+
+  it("keeps elements mounted when the spec stops streaming", () => {
+    const mounted = vi.fn();
+    const Text = ({ props }: SpecComponentProps<{ text: string }>) => {
+      useEffect(() => mounted(), []);
+      return <p>{props.text}</p>;
+    };
+    const probe = { ...components, Text };
+    const done = spec({ main: { type: "Text", props: { text: "Hi" } } });
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={probe}
+        spec={done}
+        streaming
+      />,
+    );
+    view.rerender(
+      <SpecRenderer catalog={catalog} components={probe} spec={done} />,
+    );
+    expect(view.container.textContent).toBe("Hi");
+    expect(mounted).toHaveBeenCalledTimes(1);
   });
 
   it("shows a pending placeholder until the root arrives", () => {

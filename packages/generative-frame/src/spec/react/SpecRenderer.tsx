@@ -32,7 +32,7 @@ import {
 import { getAtPointer } from "../pointer";
 import { rejectedPropType } from "../resolved";
 import { createStateStore, type SpecStateStore } from "../state";
-import { childIdsOf, firstMissingId, repeatItems, safePointer } from "../tree";
+import { childIdsOf, repeatItems, safePointer } from "../tree";
 import type { Spec, SpecElement } from "../types";
 
 /** What a component implementation receives for one element. */
@@ -108,8 +108,6 @@ type RenderContext = {
   state: Record<string, unknown>;
   dispatch: ActionDispatcher;
   streaming: boolean;
-  /** The missing element that shows the pending placeholder while the spec streams. */
-  frontier: string | undefined;
   placeholder: ComponentType<SpecPlaceholderProps>;
   invalid: (element: SpecElement) => string | undefined;
   onError: SpecRendererProps["onError"];
@@ -243,15 +241,7 @@ function ElementView({
     typeof element !== "object" ||
     typeof element.type !== "string"
   ) {
-    if (ctx.streaming) {
-      return id === ctx.frontier ? (
-        <Placeholder
-          id={id}
-          reason="pending"
-          message={`"${id}" is streaming`}
-        />
-      ) : null;
-    }
+    if (ctx.streaming) return null;
     return (
       <Placeholder
         id={id}
@@ -529,21 +519,20 @@ export function SpecRenderer({
     state: snapshot,
     dispatch,
     streaming,
-    frontier: streaming ? firstMissingId(spec) : undefined,
     placeholder,
     invalid,
     onError,
   };
 
-  if (!spec.root) {
-    const Placeholder = placeholder;
-    return streaming ? (
-      <Placeholder id="" reason="pending" message="The spec is streaming" />
-    ) : null;
-  }
+  const Placeholder = placeholder;
   return (
     <SpecContext.Provider value={ctx}>
-      <ElementView id={spec.root} scope={{}} ancestors={[]} />
+      {spec.root ? (
+        <ElementView id={spec.root} scope={{}} ancestors={[]} />
+      ) : null}
+      {streaming ? (
+        <Placeholder id="" reason="pending" message="The spec is streaming" />
+      ) : null}
     </SpecContext.Provider>
   );
 }
