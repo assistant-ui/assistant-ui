@@ -147,18 +147,35 @@ export function SpecPlaceholder({ id, reason, message }: SpecPlaceholderProps) {
   );
 }
 
+type ElementBoundaryProps = {
+  id: string;
+  element: SpecElement;
+  children: ReactNode;
+  onError: (error: Error) => void;
+  fallback: (error: Error) => ReactNode;
+};
+
+type ElementBoundaryState = { error: Error | null; element: SpecElement };
+
 class ElementBoundary extends Component<
-  {
-    id: string;
-    children: ReactNode;
-    onError: (error: Error) => void;
-    fallback: (error: Error) => ReactNode;
-  },
-  { error: Error | null }
+  ElementBoundaryProps,
+  ElementBoundaryState
 > {
-  override state: { error: Error | null } = { error: null };
+  override state: ElementBoundaryState = {
+    error: null,
+    element: this.props.element,
+  };
   static getDerivedStateFromError(error: Error) {
     return { error };
+  }
+  // A streaming element can pass through values its component rejects, such as a state path cut short, so a changed element renders again.
+  static getDerivedStateFromProps(
+    props: ElementBoundaryProps,
+    state: ElementBoundaryState,
+  ): Partial<ElementBoundaryState> | null {
+    return props.element === state.element
+      ? null
+      : { error: null, element: props.element };
   }
   override componentDidCatch(error: Error, _info: ErrorInfo) {
     this.props.onError(error);
@@ -245,6 +262,7 @@ function ElementView({
   return (
     <ElementBoundary
       id={id}
+      element={element}
       onError={(error) => ctx.onError?.(error, { elementId: id })}
       fallback={(error) => (
         <Placeholder
