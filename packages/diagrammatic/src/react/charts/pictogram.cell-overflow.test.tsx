@@ -11,6 +11,20 @@ const cells = (html: string) =>
     height: Number(/\bheight="([^"]+)"/.exec(tag)?.[1]),
   }));
 
+const largestCellSize = (count: number, plotW: number, rowH: number) =>
+  Math.max(
+    ...Array.from({ length: count }, (_, index) => {
+      const columns = index + 1;
+      const rows = Math.ceil(count / columns);
+      return Math.min(
+        20,
+        rowH - 8,
+        plotW / (columns + (columns - 1) * 0.2),
+        rowH / (rows + (rows - 1) * 0.2),
+      );
+    }),
+  );
+
 describe("Pictogram cell overflow", () => {
   it("wraps 100 cells within the plot at width 320", () => {
     const html = renderToStaticMarkup(
@@ -20,7 +34,10 @@ describe("Pictogram cell overflow", () => {
     const F = frame({ width: 320 }, 5 / 3, { labels: true, left: 22 });
     expect(rects).toHaveLength(100);
     expect(new Set(rects.map(({ y }) => y)).size).toBeGreaterThan(1);
-    expect(rects[0]!.width).toBe(2);
+    expect(rects[0]!.width).toBeCloseTo(
+      largestCellSize(100, F.right - F.left, F.bottom - F.top),
+      1,
+    );
     for (const { x, y, width, height } of rects) {
       expect(x).toBeGreaterThanOrEqual(F.left);
       expect(x + width).toBeLessThanOrEqual(F.right);
@@ -29,7 +46,7 @@ describe("Pictogram cell overflow", () => {
     }
   });
 
-  it("shrinks cells when even wrapped rows cannot fit at the size floor", () => {
+  it("fits 300 cells at the largest size allowed by a small plot", () => {
     const html = renderToStaticMarkup(
       <Pictogram
         width={120}
@@ -44,7 +61,10 @@ describe("Pictogram cell overflow", () => {
       left: 22,
     });
     expect(rects).toHaveLength(300);
-    expect(rects[0]!.width).toBeLessThan(2);
+    expect(rects[0]!.width).toBeCloseTo(
+      largestCellSize(300, F.right - F.left, F.bottom - F.top),
+      1,
+    );
     for (const { x, y, width, height } of rects) {
       expect(x).toBeGreaterThanOrEqual(F.left);
       expect(x + width).toBeLessThanOrEqual(F.right);

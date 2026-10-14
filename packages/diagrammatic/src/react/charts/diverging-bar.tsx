@@ -12,7 +12,6 @@ export type DivergingBarProps = BaseProps & {
   sorted?: boolean;
 };
 
-/** The share of the width row labels may take before they are cut. */
 const LABEL_SHARE = 0.4;
 
 export const DivergingBar = forwardRef<SVGSVGElement, DivergingBarProps>(
@@ -73,7 +72,12 @@ export const DivergingBar = forwardRef<SVGSVGElement, DivergingBarProps>(
     );
     const F = frame({ width, height, aspect, fontSize }, 5 / 3, {
       labels: true,
-      left: labelEdge + (reachesGutter ? negativeValueW + 6 : 0),
+      left: reachesGutter
+        ? Math.min(
+            labelEdge + negativeValueW + 6,
+            rightEdge - Math.max(12, Math.round(W * 0.2)),
+          )
+        : labelEdge,
       right: rightEdge,
     });
     const { left, right, top, bottom, axisY, T } = F;

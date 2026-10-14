@@ -69,6 +69,10 @@ export const StripPlot = forwardRef<SVGSVGElement, StripPlotProps>(
           for (const value of row.values) {
             counts.set(value, (counts.get(value) ?? 0) + 1);
           }
+          const maxStackRows = Math.max(
+            1,
+            Math.floor((rowH - 2 * DOT_RADIUS) / (2 * DOT_RADIUS)) + 1,
+          );
           return (
             <g key={row.label} data-part="mark" data-i={i}>
               <text
@@ -92,13 +96,47 @@ export const StripPlot = forwardRef<SVGSVGElement, StripPlotProps>(
                 const count = counts.get(v) ?? 1;
                 const occurrence = seen.get(v) ?? 0;
                 seen.set(v, occurrence + 1);
-                const offset =
-                  count > 1 ? (2 * occurrence) / (count - 1) - 1 : (k % 3) - 1;
+                let cx = X(v) + ((k % 3) - 1) * JITTER_X;
+                let cy = y + ((k % 3) - 1) * JITTER_Y;
+                if (count > 1) {
+                  const stackRows = Math.min(count, maxStackRows);
+                  const columns = Math.ceil(count / stackRows);
+                  const xPitch =
+                    columns === 1
+                      ? 0
+                      : Math.min(
+                          2 * DOT_RADIUS,
+                          Math.max(0, right - left - 2 * DOT_RADIUS) /
+                            (columns - 1),
+                        );
+                  const yPitch =
+                    stackRows === 1
+                      ? 0
+                      : Math.min(
+                          2 * DOT_RADIUS,
+                          Math.max(0, rowH - 2 * DOT_RADIUS) / (stackRows - 1),
+                        );
+                  const column = Math.floor(occurrence / stackRows);
+                  const position = occurrence % stackRows;
+                  const rowsInColumn = Math.min(
+                    stackRows,
+                    count - column * stackRows,
+                  );
+                  const startX = Math.max(
+                    left + DOT_RADIUS,
+                    Math.min(
+                      X(v) - ((columns - 1) * xPitch) / 2,
+                      right - DOT_RADIUS - (columns - 1) * xPitch,
+                    ),
+                  );
+                  cx = startX + column * xPitch;
+                  cy = y + (position - (rowsInColumn - 1) / 2) * yPitch;
+                }
                 return (
                   <circle
                     key={k}
-                    cx={X(v) + offset * JITTER_X}
-                    cy={y + offset * JITTER_Y}
+                    cx={cx}
+                    cy={cy}
                     r={DOT_RADIUS}
                     fill={ink(0.4)}
                   />

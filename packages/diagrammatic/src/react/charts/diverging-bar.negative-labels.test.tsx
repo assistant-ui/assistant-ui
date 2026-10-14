@@ -5,6 +5,15 @@ import { typeScale } from "../svg";
 import { DivergingBar } from "./diverging-bar";
 
 describe("DivergingBar negative labels", () => {
+  it("keeps a usable bar span with negative labels at small widths", () => {
+    const html = renderToStaticMarkup(
+      <DivergingBar width={90} items={[{ label: "Sales", value: -100 }]} />,
+    );
+    const bar = /<rect\b([^>]*)>/.exec(html)?.[1] ?? "";
+    const barWidth = Number(/\bwidth="([^"]+)"/.exec(bar)?.[1]);
+    expect(barWidth).toBeGreaterThanOrEqual(6);
+  });
+
   it("keeps the negative value text clear of its row label", () => {
     const html = renderToStaticMarkup(
       <DivergingBar width={320} items={[{ label: "Sales", value: -100 }]} />,

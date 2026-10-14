@@ -21,6 +21,7 @@ describe("Slope long labels", () => {
     const dots = endpoints(html);
     expect(dots).toHaveLength(2);
     expect(dots[0]!.cx).toBeLessThan(dots[1]!.cx);
+    expect(dots[1]!.cx - dots[0]!.cx).toBeGreaterThanOrEqual(100);
     for (const { cx, r } of dots) {
       expect(cx - r).toBeGreaterThanOrEqual(0);
       expect(cx + r).toBeLessThanOrEqual(320);
