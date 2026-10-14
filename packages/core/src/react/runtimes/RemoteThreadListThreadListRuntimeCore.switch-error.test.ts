@@ -60,6 +60,23 @@ describe("RemoteThreadListThreadListRuntimeCore switch errors", () => {
     expect(seen).toContain(undefined);
   });
 
+  it("does not report a subscriber error after the target becomes main", async () => {
+    const error = new Error("subscriber failed");
+    const core = createCore(makeAdapter());
+    let threw = false;
+    core.subscribe(() => {
+      if (core.getItemById("r5")?.id !== core.mainThreadId || threw) return;
+      threw = true;
+      throw error;
+    });
+
+    await expect(core.switchToThread("r5")).rejects.toBe(error);
+
+    expect(threw).toBe(true);
+    expect(core.getItemById("r5")?.id).toBe(core.mainThreadId);
+    expect(core.switchError).toBeUndefined();
+  });
+
   it("ignores a failed switch superseded before its fetch rejects", async () => {
     const fetch =
       deferred<Awaited<ReturnType<ReturnType<typeof makeAdapter>["fetch"]>>>();

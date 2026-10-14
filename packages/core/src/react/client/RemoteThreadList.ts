@@ -749,29 +749,24 @@ const useRemoteThreadList = (
       const generation = ++session.switchGeneration;
       session.controlledReloadPending = false;
       setSwitchError(undefined);
-      let settle!: (error?: unknown) => void;
+      let resolveTask!: () => void;
+      let rejectTask!: (error: unknown) => void;
       const task = new Promise<void>((resolve, reject) => {
-        settle = (error) => {
-          if (error === undefined) resolve();
-          else reject(error);
-        };
+        resolveTask = resolve;
+        rejectTask = reject;
       });
       session.switchTask = task;
-      void run(generation).then(
-        () => settle(),
-        (error: unknown) => {
-          if (
-            threadId !== undefined &&
-            error !== undefined &&
-            generation === session.switchGeneration &&
-            !isSilentRuntimeAction(error) &&
-            !isSameThread(store.value, threadId, session.mainThreadId)
-          ) {
-            setSwitchError({ threadId, error });
-          }
-          settle(error);
-        },
-      );
+      void run(generation).then(resolveTask, (error: unknown) => {
+        if (
+          threadId !== undefined &&
+          generation === session.switchGeneration &&
+          !isSilentRuntimeAction(error) &&
+          !isSameThread(store.value, threadId, session.mainThreadId)
+        ) {
+          setSwitchError({ threadId, error });
+        }
+        rejectTask(error);
+      });
       return task;
     },
     [session, store],

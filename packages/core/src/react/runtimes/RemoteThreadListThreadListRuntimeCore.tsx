@@ -805,7 +805,9 @@ export class RemoteThreadListThreadListRuntimeCore
     ).catch((error: unknown) => {
       if (
         generation === this._switchGeneration &&
-        !isSilentRuntimeAction(error)
+        !isSilentRuntimeAction(error) &&
+        getThreadData(this._state.value, threadIdOrRemoteId)?.id !==
+          this._mainThreadId
       ) {
         this._setSwitchError({ threadId: threadIdOrRemoteId, error });
       }

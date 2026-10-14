@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { flushTapSync, resource } from "@assistant-ui/tap";
 import { AuiConfig, createAssistantClient } from "@assistant-ui/store/client";
+import * as threadListActions from "../../store/runtime-clients/handle-thread-list-action";
 import type { RemoteThreadListAdapter } from "../../runtimes/remote-thread-list/types";
 import { RemoteThreadList } from "./RemoteThreadList";
 
@@ -48,6 +49,49 @@ const waitFor = (assertion: () => void) =>
   vi.waitFor(assertion, { interval: 10 });
 
 describe("RemoteThreadList switchError", () => {
+  it("reports a controlled switch rejected with undefined", async () => {
+    let rejectFetch!: (reason?: unknown) => void;
+    const fetch = vi.fn(
+      () =>
+        new Promise<Awaited<ReturnType<RemoteThreadListAdapter["fetch"]>>>(
+          (_resolve, reject) => {
+            rejectFetch = reject;
+          },
+        ),
+    );
+    let switchTask!: Promise<void>;
+    const handleAction = threadListActions.handleThreadListAction;
+    const actionSpy = vi
+      .spyOn(threadListActions, "handleThreadListAction")
+      .mockImplementation((action, execute) => {
+        const task = handleAction(action, execute);
+        if (action === "switch") switchTask = task;
+        return task;
+      });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const handle = mount(makeAdapter(fetch), "r5");
+
+    try {
+      const threads = handle.getClient().threads;
+      await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
+      rejectFetch(undefined);
+
+      await expect(switchTask).rejects.toBeUndefined();
+      await waitFor(() =>
+        expect(threads.getState().switchError).toEqual({
+          threadId: "r5",
+          error: undefined,
+        }),
+      );
+    } finally {
+      handle.destroy();
+      actionSpy.mockRestore();
+      consoleError.mockRestore();
+    }
+  });
+
   it.each(["online", "visibilitychange"] as const)(
     "reports a failed controlled switch and retries on %s",
     async (event) => {
