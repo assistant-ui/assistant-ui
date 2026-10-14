@@ -1760,8 +1760,6 @@ declare const defaultGenerativeUILibrary$1: GenerativeUILibrary$1;
 
 declare function defineGenerativeComponents(_library: GenerativeUILibrary$1): GenerativeUILibrary$1;
 
-declare function descend(partialPath: readonly string[] | undefined, key: string): readonly string[] | undefined;
-
 declare const emptyActionRegistry: ActionRegistry;
 
 declare function fromSlackBlocks(blocks: unknown): FromSlackBlocksResult;
@@ -1784,7 +1782,7 @@ declare global {
 declare const hasFieldReference: (value: unknown) => boolean;
 
 declare namespace entry_root_exports {
-  export { ALERT_TONES, ALIGNS, Action, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, TEXT_SIZES, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, descend, hasFieldReference, normalizeSpec, normalizeUINode, resolveFieldReferences };
+  export { ALERT_TONES, ALIGNS, Action, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, TEXT_SIZES, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, hasFieldReference, normalizeSpec, normalizeUINode, resolveFieldReferences };
 }
 
 declare function normalizeSpec(spec: UISpec): {

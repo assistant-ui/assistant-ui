@@ -4,12 +4,12 @@ import { Fragment, type ReactNode } from "react";
 import { z } from "zod";
 import { hasFieldReference, resolveFieldReferences } from "./fieldReferences";
 import {
-  descend,
   normalizeUINode,
   type Action,
   type NormalizedUIElement,
   type NormalizedUINode,
 } from "./ir";
+import { descend } from "./partialPath";
 import type { GenerativeUILibrary, GenerativeUIRenderContext } from "./types";
 
 const DEFAULT_CONTEXT: GenerativeUIRenderContext = { status: "done" };

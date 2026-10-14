@@ -19,6 +19,7 @@
  */
 
 import { isReservedKey, MODEL_KEYS, readReserved, TYPE_KEY } from "./constants";
+import { descend } from "./partialPath";
 
 export const TEXT_SIZES = ["sm", "md", "lg", "xl", "2xl", "3xl"] as const;
 export type TextSize = (typeof TEXT_SIZES)[number];
@@ -173,12 +174,6 @@ const MAX_DEPTH = 64;
  * segment of the parse meta's partial path relative to `node` (`undefined` once
  * the walk leaves the partial frontier, i.e. everything below is complete).
  */
-export function descend(
-  partialPath: readonly string[] | undefined,
-  key: string,
-): readonly string[] | undefined {
-  return partialPath?.[0] === key ? partialPath.slice(1) : undefined;
-}
 
 /**
  * Normalizes a generative-ui input to {@link NormalizedUINode}. The flat

@@ -1587,8 +1587,6 @@ declare const defaultGenerativeUILibrary: GenerativeUILibrary;
 
 declare function defineGenerativeComponents(_library: GenerativeUILibrary): GenerativeUILibrary;
 
-declare function descend(partialPath: readonly string[] | undefined, key: string): readonly string[] | undefined;
-
 declare const emptyActionRegistry: ActionRegistry;
 
 declare function fromSlackBlocks(blocks: unknown): FromSlackBlocksResult;
@@ -1619,7 +1617,7 @@ declare namespace entry_root_react_server_exports {
 }
 
 declare namespace entry_ir_exports {
-  export { ALERT_TONES, ALIGNS, Action, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, TEXT_SIZES, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, descend, hasFieldReference, normalizeSpec, normalizeUINode, resolveFieldReferences };
+  export { ALERT_TONES, ALIGNS, Action, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, TEXT_SIZES, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, hasFieldReference, normalizeSpec, normalizeUINode, resolveFieldReferences };
 }
 
 declare function normalizeSpec(spec: UISpec): {
