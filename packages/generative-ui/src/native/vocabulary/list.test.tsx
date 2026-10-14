@@ -765,6 +765,11 @@ describe("list vocabulary on React Native", () => {
     expect(
       byRole(container, "button", "Widget, 4 out of 5 stars"),
     ).toBeTruthy();
+    expect(
+      [...container.querySelectorAll("[aria-hidden='true']")].map(
+        (element) => element.textContent,
+      ),
+    ).toEqual(["Widget", "★★★★"]);
   });
 
   it("names a row made of Markdown or an Image", () => {
