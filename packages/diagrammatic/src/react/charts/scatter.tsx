@@ -1,7 +1,12 @@
 import type { BaseProps, Frame } from "../svg";
 import { forwardRef } from "react";
 import { formatCompact } from "../../core/types";
-import { type TickSpec, resolveTicks, tickValues } from "../../core/scale";
+import {
+  type TickSpec,
+  expandDegenerateDomain,
+  resolveTicks,
+  tickValues,
+} from "../../core/scale";
 import type { Guide, Pt, ScaleKind } from "../../core/types";
 import {
   extent,
@@ -46,9 +51,13 @@ export function scatterDomain(points: Pt[], extra: ScatterExtra = {}) {
   const xValues = [...points.map((p) => p.x), ...(extra.x ?? [])];
   const yValues = [...points.map((p) => p.y), ...(extra.y ?? [])];
   const [xLo, xHi] =
-    xScale === "log" ? positiveExtent(xValues) : extent(xValues);
+    xScale === "log"
+      ? positiveExtent(xValues)
+      : expandDegenerateDomain(extent(xValues));
   const [yLo, yHi] =
-    yScale === "log" ? positiveExtent(yValues) : extent(yValues);
+    yScale === "log"
+      ? positiveExtent(yValues)
+      : expandDegenerateDomain(extent(yValues));
   return { xScale, yScale, xLo, xHi, yLo, yHi };
 }
 

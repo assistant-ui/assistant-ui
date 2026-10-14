@@ -33,8 +33,13 @@ function contourDomain(
   scale: ScaleKind,
 ): [number, number, boolean] {
   const [lo, hi] = scale === "log" ? positiveExtent(values) : extent(values);
-  if (values.length === 0 || lo !== hi) return [lo, hi, false];
-  if (scale === "log") return [lo / 2, hi * 2, true];
+  const candidates = scale === "log" ? values.filter((v) => v > 0) : values;
+  if (
+    candidates.length === 0 ||
+    candidates.some((value) => value !== candidates[0])
+  )
+    return [lo, hi, false];
+  if (scale === "log") return [lo, hi, true];
   const pad = Math.abs(lo) || 1;
   return [lo - pad, hi + pad, true];
 }

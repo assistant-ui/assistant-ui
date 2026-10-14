@@ -43,7 +43,9 @@ export function project(
 export function positiveExtent(values: number[]): [number, number] {
   const pos = values.filter((v) => v > 0);
   if (pos.length === 0) return [1, 10];
-  return extent(pos);
+  const [lo, hi] = extent(pos);
+  if (lo !== hi) return [lo, hi];
+  return [lo / Math.sqrt(10), Math.min(hi * Math.sqrt(10), Number.MAX_VALUE)];
 }
 
 export function rowMid(index: number, rowH: number, top: number): number {
