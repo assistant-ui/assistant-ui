@@ -54,20 +54,28 @@ export const DifferenceArea = forwardRef<SVGSVGElement, DifferenceAreaProps>(
     });
     const { left, right, top, bottom, axisY, T } = F;
     const Y = linear(0, max, bottom, top);
-    const count = Math.max(1, actual.data.length - 1);
+    const length = Math.max(actual.data.length, reference.data.length);
+    const count = Math.max(1, length - 1);
     const X = (i: number) =>
       left + (Math.max(0, Math.min(count, i)) / count) * (right - left);
     const along = (values: number[]) =>
       values.map((value, i) => ({
-        x:
-          left +
-          (values.length > 1 ? (i / (values.length - 1)) * (right - left) : 0),
+        x: X(i),
         y: Y(value),
       }));
     const a = along(actual.data);
     const b = along(reference.data);
-    const above = a.map((p, i) => ({ x: p.x, y: Math.min(p.y, b[i]!.y) }));
-    const below = a.map((p, i) => ({ x: p.x, y: Math.max(p.y, b[i]!.y) }));
+    const sharedCount = Math.min(a.length, b.length);
+    const sharedActual = a.slice(0, sharedCount);
+    const sharedReference = b.slice(0, sharedCount);
+    const above = sharedActual.map((p, i) => ({
+      x: p.x,
+      y: Math.min(p.y, sharedReference[i]!.y),
+    }));
+    const below = sharedActual.map((p, i) => ({
+      x: p.x,
+      y: Math.max(p.y, sharedReference[i]!.y),
+    }));
     const actualEnd = a[a.length - 1];
     const referenceEnd = b[b.length - 1];
     const actualLabel = format(actual.data[actual.data.length - 1] ?? 0);
@@ -137,20 +145,20 @@ export const DifferenceArea = forwardRef<SVGSVGElement, DifferenceAreaProps>(
           {...stroke.hair}
         />
         <ColumnHits
-          count={actual.data.length}
+          count={length}
           x0={left}
           x1={right}
           top={top}
           bottom={bottom}
         />
         <path
-          d={bandPath(above, b)}
+          d={bandPath(above, sharedReference)}
           fill={POS}
           opacity="0.22"
           data-part="mark"
         />
         <path
-          d={bandPath(b, below)}
+          d={bandPath(sharedReference, below)}
           fill={NEG}
           opacity="0.22"
           data-part="mark"
