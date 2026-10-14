@@ -79,10 +79,17 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
       },
       5 / 3,
     );
-    const { left, right, top, bottom, T } = F;
+    const { left, right, bottom, T } = F;
+    const top = Math.min(F.top, Math.max(PAD, bottom - T.value.px * 2));
     const cx = (left + right) / 2;
-    const endAllowance = Math.max(T.axis.px * 2 + 4, 24);
-    const endCaptionSpace = Math.max(T.axis.px * 2 + 8, (right - left) * 0.08);
+    const endAllowance = Math.min(
+      Math.max(T.axis.px * 2 + 4, 24),
+      (right - left) / 4,
+    );
+    const endCaptionSpace = Math.min(
+      Math.max(T.axis.px * 2 + 8, (right - left) * 0.08),
+      (bottom - top) / 2,
+    );
     const cy = bottom - endCaptionSpace;
     const r = Math.min(
       (right - left) / 2 - endAllowance,
@@ -97,14 +104,16 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
     );
     const valueSize = typeSize(
       T,
-      Math.max(1.4, Math.min(r / (needle ? 71 : 57), 3.2)),
+      Math.max(0.5, Math.min(r / (needle ? 71 : 57), 3.2)),
     );
     const endSize = typeSize(T, Math.max(0.9, Math.min(r / 172, 1.2)));
+    const showEndLabels = endCaptionSpace >= endSize.px + 4;
     const arcWidth = r * (needle ? 0.04 : 0.12);
     const redlineOffset = r * 0.096;
     const endY = cy + r * 0.166;
     const endFit = Math.max(0, 2 * (cx - r - PAD));
     const labelFit = Math.max(0, Math.min(r * 1.6, 2 * (cx - PAD)));
+    const dialLabel = label ? truncate(label, plateSize.px, labelFit) : "";
     return (
       <ChartSvg
         ref={ref}
@@ -231,7 +240,7 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
         >
           {display ?? `${Math.round(share * 100)}%`}
         </text>
-        {label && (
+        {dialLabel && (
           <text
             x={cx}
             y={cy + r * (needle ? -0.077 : 0.051)}
@@ -240,10 +249,10 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
             {...T.label.attrs}
             fontSize={plateSize.fontSize}
           >
-            {truncate(label, plateSize.px, labelFit)}
+            {dialLabel}
           </text>
         )}
-        {min ? (
+        {showEndLabels && min ? (
           <text
             x={cx - r}
             y={endY}
@@ -255,7 +264,7 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
             {truncate(min, endSize.px, endFit)}
           </text>
         ) : null}
-        {max ? (
+        {showEndLabels && max ? (
           <text
             x={cx + r}
             y={endY}
