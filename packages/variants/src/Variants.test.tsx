@@ -97,6 +97,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
+  document.documentElement.dispatchEvent(new Event("pointerleave"));
   store.reset();
   configureVariants({});
   vi.restoreAllMocks();
