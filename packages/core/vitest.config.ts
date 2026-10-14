@@ -17,6 +17,7 @@ export default defineConfig({
       },
     },
     environment: "node",
+    pool: "threads",
     globals: true,
     passWithNoTests: true,
   },
