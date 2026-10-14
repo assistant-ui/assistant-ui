@@ -541,6 +541,45 @@ export function evaluateFormula(
   }
 }
 
+/** The state paths a formula shows as values, leaving out any it also tests as a condition, where an absent value takes the other branch. */
+export function formulaValueReads(formula: string): string[] {
+  const node = parsedFormula(formula);
+  if (typeof node === "string") return [];
+  const reads = new Set<string>();
+  const tested = new Set<string>();
+  const visit = (current: Node, condition: boolean): void => {
+    switch (current.kind) {
+      case "literal":
+        return;
+      case "reference":
+        if (!current.path.startsWith("$")) {
+          reads.add(current.path);
+          if (condition) tested.add(current.path);
+        }
+        return;
+      case "unary":
+        visit(current.operand, condition || current.operator === "!");
+        return;
+      case "binary": {
+        const logical = current.operator === "&&" || current.operator === "||";
+        visit(current.left, condition || logical);
+        visit(current.right, condition || logical);
+        return;
+      }
+      case "conditional":
+        visit(current.condition, true);
+        visit(current.then, condition);
+        visit(current.otherwise, condition);
+        return;
+      case "call":
+        for (const arg of current.args) visit(arg, condition);
+        return;
+    }
+  };
+  visit(node, false);
+  return [...reads].filter((path) => !tested.has(path));
+}
+
 /** Why a formula cannot run, or undefined when it parses within the bounds. */
 export function formulaIssue(formula: string): string | undefined {
   const result = parsedFormula(formula);

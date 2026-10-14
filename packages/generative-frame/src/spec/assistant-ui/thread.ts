@@ -5,6 +5,8 @@ import {
 } from "../../assistant-ui/tool-calls";
 import type { ActionHandler } from "../actions";
 import type { Catalog } from "../catalog";
+import { formulaValueReads } from "../calc";
+import { templateStatePaths } from "../expressions";
 import { escapePointerToken, getAtPointer } from "../pointer";
 import type { SpecPromptOptions } from "../prompt";
 import {
@@ -14,6 +16,7 @@ import {
 } from "../render-spec";
 import type { SpecStateWrite } from "../state";
 import { parseSpecStream } from "../stream";
+import { safePointer } from "../tree";
 import type { Spec } from "../types";
 import { formatSpecIssues, type SpecIssue } from "../validate";
 
@@ -175,12 +178,10 @@ export const callHistory = (
   toolResults,
 });
 
-const TOOLS_REFERENCE = /\$\{\s*(\/tools(?:\/[^}\s]*)?)\s*\}/g;
-
 const readsTools = (pointer: string) =>
   pointer === "/tools" || pointer.startsWith("/tools/");
 
-/** Each place a spec reads state under `/tools` the mounted results do not have, since the value renders blank and the model read a result the thread does not store as it is. */
+/** Each place a spec shows state under `/tools` that the mounted results do not have, as a warning, since the model may have read the value from output the thread does not store or may mean a field that is absent. A read only tested as a condition is left out, since there an absent value takes the other branch. */
 function missingToolResults(
   spec: Spec,
   toolResults: Record<string, unknown[]>,
@@ -189,28 +190,30 @@ function missingToolResults(
   const state = { tools: toolResults };
   for (const [id, element] of Object.entries(spec.elements ?? {})) {
     const reported = new Set<string>();
-    const check = (pointer: string) => {
+    const check = (path: string) => {
+      const pointer = safePointer(path);
       if (!readsTools(pointer) || reported.has(pointer)) return;
       if (getAtPointer(state, pointer) !== undefined) return;
       reported.add(pointer);
       issues.push({
         code: "missing-tool-result",
-        severity: "error",
+        severity: "warning",
         elementId: id,
         path: `/elements/${escapePointerToken(id)}`,
-        message: `"${id}" reads \`${pointer}\`, which the earlier tool results do not have, so it renders blank. Write the value you read into the spec instead.`,
+        message: `"${id}" shows \`${pointer}\`, which the earlier tool results do not have, so it shows nothing there. If you read that value from the tool's output, write it into the spec instead.`,
       });
     };
-    const pending: unknown[] = [element];
+    const pending: unknown[] = [element?.props, element?.on, element?.watch];
     while (pending.length > 0) {
       const value = pending.pop();
       if (typeof value !== "object" || value === null) continue;
       for (const [key, child] of Object.entries(value)) {
+        if (key === "$cond") continue;
         if (typeof child === "string") {
           if (key === "$state" || key === "$bindState") check(child);
-          else if (key === "$template" || key === "$calc")
-            for (const [, pointer] of child.matchAll(TOOLS_REFERENCE))
-              check(pointer!);
+          else if (key === "$template")
+            templateStatePaths(child).forEach(check);
+          else if (key === "$calc") formulaValueReads(child).forEach(check);
           continue;
         }
         pending.push(child);
@@ -263,12 +266,7 @@ export function createSpecCalls(
     const missing = missingToolResults(spec, history.toolResults);
     if (missing.length === 0) return result;
     const issues = [...result.issues, ...missing];
-    return {
-      ...result,
-      ok: false,
-      issues,
-      feedback: formatSpecIssues(issues),
-    };
+    return { ...result, issues, feedback: formatSpecIssues(issues) };
   };
   return { tools, histories, execute };
 }

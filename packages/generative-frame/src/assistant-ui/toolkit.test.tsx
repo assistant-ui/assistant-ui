@@ -916,22 +916,134 @@ describe("createWidgetToolkit", () => {
     expect(renderedState).toBe(firstState);
   });
 
-  it("reports a /tools read the stored results do not have, so the model copies the value", async () => {
+  it.each([
+    {
+      form: "a $template placeholder",
+      element: {
+        props: {
+          text: {
+            $template:
+              "${/tools/get_price/0/price} (${/tools/get_price/0/total})",
+          },
+        },
+      },
+      warned: ["/tools/get_price/0/total"],
+    },
+    {
+      form: "a placeholder token with a space",
+      element: {
+        props: { text: { $template: "${/tools/get_price/0/unit price}" } },
+      },
+      warned: ["/tools/get_price/0/unit price"],
+    },
+    {
+      form: "a $state path without its leading slash",
+      element: { props: { text: { $state: "tools/get_price/0/total" } } },
+      warned: ["/tools/get_price/0/total"],
+    },
+    {
+      form: "a $bindState path",
+      element: { props: { text: { $bindState: "/tools/get_price/0/total" } } },
+      warned: ["/tools/get_price/0/total"],
+    },
+    {
+      form: "a $calc reference",
+      element: {
+        props: { text: { $calc: "round(${/tools/get_price/0/total}, 1)" } },
+      },
+      warned: ["/tools/get_price/0/total"],
+    },
+    {
+      form: "a repeat path",
+      element: {
+        props: { text: "x" },
+        repeat: { path: "/tools/get_price/0/items" },
+      },
+      warned: ["/tools/get_price/0/items"],
+    },
+    {
+      form: "a quoted $calc string",
+      element: { props: { text: { $calc: "'${/tools/get_price/0/total}'" } } },
+      warned: [],
+    },
+    {
+      form: "a $calc default for an absent field",
+      element: {
+        props: {
+          text: {
+            $calc:
+              "${/tools/get_price/0/total} ? ${/tools/get_price/0/total} : 'none'",
+          },
+        },
+      },
+      warned: [],
+    },
+    {
+      form: "a visible condition",
+      element: {
+        props: { text: "Warning" },
+        visible: { $state: "/tools/get_price/0/warning" },
+      },
+      warned: [],
+    },
+    {
+      form: "a $cond test",
+      element: {
+        props: {
+          text: {
+            $cond: { $state: "/tools/get_price/0/discount" },
+            $then: "On sale",
+            $else: "Full price",
+          },
+        },
+      },
+      warned: [],
+    },
+  ])(
+    "warns when $form reads a /tools path the stored results do not have",
+    async ({ element, warned }) => {
+      const spec = {
+        root: "t",
+        elements: { t: { type: "Text", ...element } },
+        state: {},
+      };
+      mocks.messages = [
+        { content: [call("price", "get_price", {}, { price: "$42" })] },
+        { content: [call("s", "render_spec", { title: "s", spec })] },
+      ];
+      const { toolkit } = createWidgetToolkit({
+        spec: createSpecToolkit(catalog, { components }),
+      });
+      const entry = entries(toolkit)["render_spec"]!;
+      const RenderSpec = entry.render;
+      render(<RenderSpec {...partProps("s", { title: "s", spec })} />);
+      const result = (await entry.execute!(
+        { title: "s", spec },
+        { toolCallId: "s" },
+      )) as {
+        ok: boolean;
+        issues: { code: string; severity: string; message: string }[];
+      };
+      const missing = result.issues.filter(
+        (issue) => issue.code === "missing-tool-result",
+      );
+      expect(result.ok).toBe(true);
+      expect(missing.map((issue) => issue.severity)).toEqual(
+        warned.map(() => "warning"),
+      );
+      expect(
+        missing.map((issue) => /shows `([^`]*)`/.exec(issue.message)?.[1]),
+      ).toEqual(warned);
+    },
+  );
+
+  it("skips the /tools check for a spec that writes its own tools", async () => {
     const spec = {
       root: "t",
       elements: {
-        t: {
-          type: "Text",
-          props: {
-            text: {
-              $template:
-                "${/tools/get_price/0/price} (${/tools/get_price/0/total})",
-            },
-          },
-          visible: { $state: "/tools/get_price/0/price" },
-        },
+        t: { type: "Text", props: { text: { $state: "/tools/a/0/b" } } },
       },
-      state: {},
+      state: { tools: { get_price: [{}] } },
     };
     mocks.messages = [
       { content: [call("price", "get_price", {}, { price: "$42" })] },
@@ -943,25 +1055,8 @@ describe("createWidgetToolkit", () => {
     const entry = entries(toolkit)["render_spec"]!;
     const RenderSpec = entry.render;
     render(<RenderSpec {...partProps("s", { title: "s", spec })} />);
-    const result = (await entry.execute!(
-      { title: "s", spec },
-      { toolCallId: "s" },
-    )) as { ok: boolean; issues: unknown[]; feedback: string };
-    expect(result).toMatchObject({
-      ok: false,
-      issues: [
-        {
-          code: "missing-tool-result",
-          elementId: "t",
-          path: "/elements/t",
-        },
-      ],
-    });
-    expect(result.feedback).toContain("/tools/get_price/0/total");
-
-    const owned = { ...spec, state: { tools: { get_price: [{}] } } };
     expect(
-      await entry.execute!({ title: "s", spec: owned }, { toolCallId: "s" }),
+      await entry.execute!({ title: "s", spec }, { toolCallId: "s" }),
     ).toMatchObject({ ok: true, issues: [] });
   });
 

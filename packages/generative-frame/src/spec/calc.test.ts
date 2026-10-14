@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { evaluateFormula, formulaIssue } from "./calc";
+import { evaluateFormula, formulaIssue, formulaValueReads } from "./calc";
 
 const ctx = {
   state: {
@@ -536,5 +536,18 @@ describe("formula bounds and parsing", () => {
     expect(formulaIssue("0 + ${/count}")).toBeUndefined();
     expect(formulaIssue("unknown()")).toMatch(/unknown function/i);
     expect(formulaIssue("unknown()")).toMatch(/unknown function/i);
+  });
+});
+
+describe("formulaValueReads", () => {
+  it.each([
+    ["${/a} + ${$item/b} * ${$index}", ["/a"]],
+    ["'${/a}' + ${/b}", ["/b"]],
+    ["${/a} ? ${/a} : ${/b}", ["/b"]],
+    ["!${/a} || ${/b} == 1 ? 'x' : ${/c}", ["/c"]],
+    ["round(${/a}, 1)", ["/a"]],
+    ["round(", []],
+  ])("reads %s as values %j", (formula, reads) => {
+    expect(formulaValueReads(formula)).toEqual(reads);
   });
 });
