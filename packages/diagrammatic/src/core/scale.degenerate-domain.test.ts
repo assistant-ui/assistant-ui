@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { positiveExtent } from "./geometry";
 import { expandDegenerateDomain } from "./scale";
 
 describe("expandDegenerateDomain", () => {
@@ -24,4 +25,19 @@ describe("expandDegenerateDomain", () => {
       expect(hi).toBeGreaterThanOrEqual(value);
     },
   );
+});
+
+describe("positiveExtent", () => {
+  it("centers a single positive value on a log scale", () => {
+    expect(positiveExtent([10, 10])).toEqual([
+      10 / Math.sqrt(10),
+      10 * Math.sqrt(10),
+    ]);
+  });
+
+  it("keeps a single Number.MAX_VALUE finite", () => {
+    const [lo, hi] = positiveExtent([Number.MAX_VALUE]);
+    expect(lo).toBeLessThan(hi);
+    expect(hi).toBe(Number.MAX_VALUE);
+  });
 });

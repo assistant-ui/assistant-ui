@@ -45,7 +45,7 @@ export function positiveExtent(values: number[]): [number, number] {
   if (pos.length === 0) return [1, 10];
   const [lo, hi] = extent(pos);
   if (lo !== hi) return [lo, hi];
-  return [lo / Math.sqrt(10), hi * Math.sqrt(10)];
+  return [lo / Math.sqrt(10), Math.min(hi * Math.sqrt(10), Number.MAX_VALUE)];
 }
 
 export function rowMid(index: number, rowH: number, top: number): number {

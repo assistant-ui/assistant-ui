@@ -39,7 +39,7 @@ function contourDomain(
     candidates.some((value) => value !== candidates[0])
   )
     return [lo, hi, false];
-  if (scale === "log") return [candidates[0]! / 2, candidates[0]! * 2, true];
+  if (scale === "log") return [lo, hi, true];
   const pad = Math.abs(lo) || 1;
   return [lo - pad, hi + pad, true];
 }
