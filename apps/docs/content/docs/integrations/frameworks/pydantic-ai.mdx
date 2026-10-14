@@ -64,9 +64,9 @@ The key stays on the Python server. If your frontend uses a different origin, up
 
 ## Connect the React frontend
 
-Start with the [assistant-ui installation](/docs/installation) to add the `Thread` component to your app, then install the runtime and protocol client:
+Start with the [assistant-ui installation](/docs/installation) to add the `Thread` component to your app, then install the runtime and the protocol client version it uses:
 
-<InstallCommand npm={["@assistant-ui/react-ag-ui", "@ag-ui/client"]} />
+<InstallCommand npm={["@assistant-ui/react-ag-ui", "@ag-ui/client@^0.0.59"]} />
 
 Replace your page's runtime setup with an `HttpAgent` pointing at the Python endpoint:
 
@@ -104,7 +104,7 @@ Before exposing the endpoint, authenticate requests in your Python application a
 
 ## Using the AI SDK runtime
 
-If your frontend already uses `@assistant-ui/ai-sdk`, Pydantic AI also provides a [`VercelAIAdapter`](https://pydantic.dev/docs/ai/integrations/ui/vercel-ai/). It accepts AI SDK chat requests and returns UI message streams. Point `DefaultChatTransport` from `ai` at that endpoint and pass it to `useChatRuntime` as a [custom transport](/docs/runtimes/ai-sdk/v7#custom-transport), following Pydantic AI's protocol-version guidance.
+If your frontend already uses `@assistant-ui/ai-sdk`, Pydantic AI also provides a [`VercelAIAdapter`](https://pydantic.dev/docs/ai/integrations/ui/vercel-ai/). It accepts AI SDK chat requests and returns UI message streams. Point `DefaultChatTransport` from `ai` at that endpoint and pass it to `useChatRuntime` as a [custom transport](/docs/runtimes/ai-sdk/v7#custom-transport). Create the adapter with `sdk_version=7`, since it defaults to the AI SDK 5 protocol.
 
 ## Related
 
