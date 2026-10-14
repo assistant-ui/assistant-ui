@@ -1,7 +1,12 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Tile } from "../../core/tiles";
-import { ABSTRACT_TILES, tileAt, tileCenter } from "../../core/tiles";
+import {
+  ABSTRACT_TILES,
+  tileAt,
+  tileCenter,
+  tileLayout,
+} from "../../core/tiles";
 import { round, stroke } from "../../core/geometry";
 import { truncate } from "../../core/text";
 import { ACCENT, ink } from "../../core/theme";
@@ -33,10 +38,8 @@ export const SymbolMap = forwardRef<SVGSVGElement, SymbolMapProps>(
     const F = frame({ width, height, aspect, fontSize }, 5 / 3, {
       labels: true,
     });
-    const { left, right, top, bottom, axisY, T } = F;
-    const u = Math.min((right - left) / 200, (bottom - top) / 120);
-    const tx = left + (right - left - 200 * u) / 2;
-    const ty = top + (bottom - top - 120 * u) / 2;
+    const { left, right, axisY, T } = F;
+    const { u, tx, ty } = tileLayout(tiles, F);
     const X = (x: number) => round(x * u + tx);
     const Y = (y: number) => round(y * u + ty);
     const max = Math.max(...marks.map((m) => m.value), 1);

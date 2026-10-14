@@ -75,6 +75,45 @@ export const HEX_TILES: Tile[] = HEX_MASK.flatMap((line, row) =>
   ),
 );
 
+export function tileLayout(
+  tiles: readonly Tile[],
+  frame: { left: number; right: number; top: number; bottom: number },
+): { u: number; tx: number; ty: number } {
+  let minX = 0;
+  let minY = 0;
+  let maxX = 200;
+  let maxY = 120;
+  if (tiles !== ABSTRACT_TILES && tiles.length > 0) {
+    minX = Infinity;
+    minY = Infinity;
+    maxX = -Infinity;
+    maxY = -Infinity;
+    for (const tile of tiles) {
+      const rx =
+        tile.kind === "hex"
+          ? (Math.abs(tile.size ?? HEX_R) * Math.sqrt(3)) / 2
+          : TILE_SIZE;
+      const ry =
+        tile.kind === "hex" ? Math.abs(tile.size ?? HEX_R) : TILE_HEIGHT;
+      const x = tile.kind === "hex" ? tile.x - rx : tile.x;
+      const y = tile.kind === "hex" ? tile.y - ry : tile.y;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x + (tile.kind === "hex" ? rx * 2 : rx));
+      maxY = Math.max(maxY, y + (tile.kind === "hex" ? ry * 2 : ry));
+    }
+  }
+  const width = maxX - minX;
+  const height = maxY - minY;
+  const u = Math.min(
+    (frame.right - frame.left) / width,
+    (frame.bottom - frame.top) / height,
+  );
+  const tx = frame.left + (frame.right - frame.left - width * u) / 2 - minX * u;
+  const ty = frame.top + (frame.bottom - frame.top - height * u) / 2 - minY * u;
+  return { u, tx, ty };
+}
+
 export function tileCenter(tile: Tile): { x: number; y: number } {
   if (tile.kind === "hex") return { x: tile.x, y: tile.y };
   return { x: tile.x + TILE_SIZE / 2, y: tile.y + TILE_HEIGHT / 2 };
