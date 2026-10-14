@@ -26,6 +26,7 @@ export const METHODS = {
   callTool: "tools/call",
   requestDisplayMode: "ui/request-display-mode",
   updateModelContext: "ui/update-model-context",
+  copyText: "genframe/copy-text",
   widgetState: "genframe/widget-state",
   log: "genframe/log",
   error: "genframe/error",

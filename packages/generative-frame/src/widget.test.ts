@@ -1,5 +1,5 @@
 import type { RenderedFrame, SafeContentFrame } from "safe-content-frame";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import {
   INIT_MESSAGE,
   METHODS,
@@ -490,6 +490,36 @@ describe("createWidget", () => {
     await vi.waitFor(() => expect(replacing).toBe(true));
     widget.dispose();
     await expect(replacement).rejects.toThrow("Widget disposed");
+  });
+
+  it("passes the text a widget copies to onCopyText, and refuses without one", async () => {
+    const onCopyText = vi.fn();
+    const custom = setup({ onCopyText });
+    const customFrame = await custom.fake.connect(0);
+    await custom.widget.ready;
+    await customFrame.request(METHODS.copyText, { text: "Shopping list" });
+    expect(onCopyText).toHaveBeenCalledExactlyOnceWith("Shopping list");
+    await expect(
+      customFrame.request(METHODS.copyText, { text: 1 }),
+    ).rejects.toThrow("requires a string 'text'");
+    custom.widget.dispose();
+
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    onTestFinished(() => {
+      Reflect.deleteProperty(navigator, "clipboard");
+    });
+    const plain = setup();
+    const plainFrame = await plain.fake.connect(0);
+    await plain.widget.ready;
+    await expect(
+      plainFrame.request(METHODS.copyText, { text: "a" }),
+    ).rejects.toThrow("This host does not copy text");
+    expect(writeText).not.toHaveBeenCalled();
+    plain.widget.dispose();
   });
 
   it("drops widget state that cannot be JSON stringified", async () => {

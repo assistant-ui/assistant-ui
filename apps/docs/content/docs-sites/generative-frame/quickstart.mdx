@@ -49,7 +49,7 @@ await widget.replace(nextCode);
 
 ## Handle what the widget asks for
 
-Widget code can call `sendPrompt(text)`, `openLink(url)`, and `genframe.callTool(name, args)`. Each reaches a handler on the host:
+Widget code can call `sendPrompt(text)`, `openLink(url)`, `genframe.callTool(name, args)`, and `genframe.copyText(text)`. Each reaches a handler on the host:
 
 ```ts
 const widget = createWidget({
@@ -59,12 +59,13 @@ const widget = createWidget({
     if (confirm(`Open ${url}?`)) window.open(url, "_blank", "noopener");
   },
   onCallTool: async ({ name, arguments: args }) => runAllowedTool(name, args),
+  onCopyText: (text) => offerToCopy(text),
   onError: (error) => reportToModel(error),
   onLog: (entry) => console.debug(entry.level, entry.message),
 });
 ```
 
-Without `onOpenLink`, http(s) links open in a new tab with `noopener`. Without `onCallTool`, `onPrompt`, or `onMessage`, those calls fail inside the widget. See [Security model](/generative-frame/docs/security) for what each handler exposes.
+Without `onOpenLink`, http(s) links open in a new tab with `noopener`. `genframe.copyText` and `navigator.clipboard.writeText` in a widget reach `onCopyText`, since the sandboxed frame cannot write the clipboard itself; the request alone does not show the user asked for the copy, so confirm with them, such as through a Copy control you render, before writing. Without `onCopyText`, copying fails inside the widget. Without `onCallTool`, `onPrompt`, or `onMessage`, those calls fail inside the widget. See [Security model](/generative-frame/docs/security) for what each handler exposes.
 
 You can also subscribe to events. `on` returns an unsubscribe function:
 

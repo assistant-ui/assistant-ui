@@ -145,6 +145,9 @@ export function startRuntime(win: Window & typeof globalThis = window): void {
     requirePeer().request(METHODS.requestDisplayMode, { mode });
   const updateModelContext = (params: unknown) =>
     requirePeer().request(METHODS.updateModelContext, params);
+  const copyText = async (text: string) => {
+    await requirePeer().request(METHODS.copyText, { text: String(text) });
+  };
   const setState = (state: unknown) => {
     widgetState = state;
     requirePeer().notify(METHODS.widgetState, { state });
@@ -172,6 +175,7 @@ export function startRuntime(win: Window & typeof globalThis = window): void {
     callTool,
     requestDisplayMode,
     updateModelContext,
+    copyText,
     setState,
     on(type: "themechange" | "toolinput" | "toolresult", listener: Listener) {
       win.addEventListener(type, listener);
@@ -183,6 +187,17 @@ export function startRuntime(win: Window & typeof globalThis = window): void {
   globals["genframe"] = genframe;
   globals["sendPrompt"] = sendPrompt;
   globals["openLink"] = openLink;
+  // The sandboxed frame cannot write the clipboard, so a widget's own writes are copied by the host too.
+  if (win.navigator.clipboard)
+    Object.defineProperty(win.navigator.clipboard, "writeText", {
+      configurable: true,
+      value: copyText,
+    });
+  else
+    Object.defineProperty(win.navigator, "clipboard", {
+      configurable: true,
+      value: { writeText: copyText },
+    });
   win.open = ((url?: string | URL) => {
     if (url !== undefined) void openLink(String(url)).catch(() => {});
     return null;

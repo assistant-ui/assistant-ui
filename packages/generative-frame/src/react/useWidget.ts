@@ -24,6 +24,7 @@ const HANDLER_KEYS = Object.keys({
   onInitialized: true,
   onRequestDisplayMode: true,
   onUpdateModelContext: true,
+  onCopyText: true,
   onWidgetState: true,
   onResize: true,
   onError: true,

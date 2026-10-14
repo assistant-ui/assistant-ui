@@ -50,6 +50,8 @@ export type WidgetHandlers = {
   onInitialized?: (params: McpAppInitializeParams) => void;
   onRequestDisplayMode?: (request: { mode: DisplayMode }) => unknown;
   onUpdateModelContext?: (params: unknown) => unknown;
+  /** A widget called `genframe.copyText(text)` or `navigator.clipboard.writeText(text)`. The request alone does not show the user asked for the copy, so confirm with them, such as through a Copy control the host renders, before writing the clipboard. Without it, copying fails in the widget. */
+  onCopyText?: (text: string) => unknown;
   onWidgetState?: (state: unknown) => void;
   onResize?: (size: WidgetSize) => void;
   onError?: (error: WidgetError) => void;
@@ -562,6 +564,22 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
         if (!options.onRequestDisplayMode)
           return { mode: context.displayMode ?? "inline" };
         return (await options.onRequestDisplayMode({ mode })) ?? { mode };
+      }
+      case METHODS.copyText: {
+        if (!options.onCopyText) {
+          throw new RpcError(
+            RPC_ERROR.methodNotFound,
+            "This host does not copy text",
+          );
+        }
+        if (typeof p["text"] !== "string") {
+          throw new RpcError(
+            RPC_ERROR.invalidParams,
+            "genframe/copy-text requires a string 'text'",
+          );
+        }
+        await options.onCopyText(p["text"]);
+        return {};
       }
       case METHODS.updateModelContext:
         if (!options.onUpdateModelContext) {
