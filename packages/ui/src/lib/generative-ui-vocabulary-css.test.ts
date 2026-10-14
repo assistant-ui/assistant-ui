@@ -131,6 +131,7 @@ const toneStyleCases = [
 ] as const;
 
 describe("tone text contrast", () => {
+  // `currentColor` is the foreground on a plain surface and the white ink of a tinted Card.
   it.each(toneStyleCases)(
     "keeps $name above 4.5:1 in both default themes",
     ({ selector, token }) => {
@@ -139,7 +140,7 @@ describe("tone text contrast", () => {
         `color-mix(in oklab, var(${token}) 15%, transparent)`,
       );
       expect(style.color).toBe(
-        `color-mix(in oklab, var(${token}) 60%, var(--foreground))`,
+        `color-mix(in oklab, var(${token}) 55%, currentColor)`,
       );
 
       for (const mode of ["light", "dark"] as const) {
@@ -150,7 +151,7 @@ describe("tone text contrast", () => {
         const foreground = defaultThemeToken(mode, "foreground");
         const background = defaultThemeToken(mode, "background");
         const textColor = toSrgb(
-          mixOklab(toOklab(tone), toOklab(foreground), 0.6),
+          mixOklab(toOklab(tone), toOklab(foreground), 0.55),
         );
         const toneRgb = toSrgb(toOklab(tone));
         const backgroundRgb = toSrgb(toOklab(background));
@@ -162,6 +163,19 @@ describe("tone text contrast", () => {
 
         expect(
           contrastRatio(textColor, tintedBackground),
+        ).toBeGreaterThanOrEqual(4.5);
+
+        const cardTint = toSrgb(toOklab("oklch(0.379 0.146 265.522)"));
+        const onCard = toSrgb(
+          mixOklab(toOklab(tone), toOklab("oklch(1 0 0)"), 0.55),
+        );
+        const tintedCardBackground: Srgb = [
+          toneRgb[0] * 0.15 + cardTint[0] * 0.85,
+          toneRgb[1] * 0.15 + cardTint[1] * 0.85,
+          toneRgb[2] * 0.15 + cardTint[2] * 0.85,
+        ];
+        expect(
+          contrastRatio(onCard, tintedCardBackground),
         ).toBeGreaterThanOrEqual(4.5);
       }
     },

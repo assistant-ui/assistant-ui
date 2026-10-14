@@ -496,9 +496,9 @@ describe("layout vocabulary on React Native", () => {
 
   it.each([
     ["info", "rgba(23, 23, 23, 0.15)", "rgb(23, 23, 23)"],
-    ["success", "rgba(42, 152, 75, 0.15)", "rgb(35, 90, 48)"],
-    ["warning", "rgba(213, 131, 0, 0.15)", "rgb(123, 79, 24)"],
-    ["danger", "rgba(231, 0, 11, 0.15)", "rgb(134, 27, 22)"],
+    ["success", "rgba(42, 152, 75, 0.15)", "rgb(33, 82, 45)"],
+    ["warning", "rgba(213, 131, 0, 0.15)", "rgb(113, 72, 24)"],
+    ["danger", "rgba(231, 0, 11, 0.15)", "rgb(123, 27, 22)"],
     ["unknown", "rgb(245, 245, 245)", "rgba(10, 10, 10, 0.62)"],
   ] as const)("colors a %s Badge", (variant, background, color) => {
     const { container } = renderNativeSpec(
