@@ -50,7 +50,7 @@ export type WidgetHandlers = {
   onInitialized?: (params: McpAppInitializeParams) => void;
   onRequestDisplayMode?: (request: { mode: DisplayMode }) => unknown;
   onUpdateModelContext?: (params: unknown) => unknown;
-  /** A widget called `genframe.copyText(text)` while the user was interacting with it. Defaults to writing `text` to the page's clipboard. */
+  /** A widget called `genframe.copyText(text)` right after the user acted in it, while its frame has focus. Defaults to writing `text` to the page's clipboard. */
   onCopyText?: (text: string) => unknown;
   onWidgetState?: (state: unknown) => void;
   onResize?: (size: WidgetSize) => void;
@@ -479,7 +479,11 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
     emit("error", error);
   };
 
-  const onRequest = async (method: string, params: unknown) => {
+  const onRequest = async (
+    method: string,
+    params: unknown,
+    session: Session,
+  ) => {
     const p = (params ?? {}) as Record<string, unknown>;
     switch (method) {
       case METHODS.initialize:
@@ -577,8 +581,14 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
             "genframe/copy-text requires a string 'text'",
           );
         }
-        // A click in the frame activates the page too, so this keeps a widget from writing the clipboard on its own.
-        if (navigator.userActivation && !navigator.userActivation.isActive) {
+        // Any input on the page activates it, so the copy also needs this widget's frame to hold focus, which only the user can give a cross-origin frame.
+        const iframe = session.iframe();
+        const root = iframe?.getRootNode();
+        const focused =
+          root instanceof Document || root instanceof ShadowRoot
+            ? root.activeElement === iframe
+            : false;
+        if (!focused || !navigator.userActivation?.isActive) {
           throw new RpcError(
             RPC_ERROR.invalidRequest,
             "genframe/copy-text needs a user action in the widget",
@@ -706,7 +716,7 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
           if (method === METHODS.initialize) {
             initializeParams = getInitializeParams(params);
           }
-          return onRequest(method, params);
+          return onRequest(method, params, session);
         },
         onNotification: (method, params) => {
           const p = (params ?? {}) as Record<string, unknown>;

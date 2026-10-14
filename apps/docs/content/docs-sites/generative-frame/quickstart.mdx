@@ -64,7 +64,7 @@ const widget = createWidget({
 });
 ```
 
-Without `onOpenLink`, http(s) links open in a new tab with `noopener`. Without `onCopyText`, the host writes the text to its page's clipboard, since the sandboxed frame cannot, and `navigator.clipboard.writeText` in a widget takes the same route; either way it runs only while the user is interacting with the page or the widget. Without `onCallTool`, `onPrompt`, or `onMessage`, those calls fail inside the widget. See [Security model](/generative-frame/docs/security) for what each handler exposes.
+Without `onOpenLink`, http(s) links open in a new tab with `noopener`. Without `onCopyText`, the host writes the text to its page's clipboard, since the sandboxed frame cannot, and `navigator.clipboard.writeText` in a widget takes the same route; either way it runs only right after the user clicks or types in the widget, while its frame has focus. Without `onCallTool`, `onPrompt`, or `onMessage`, those calls fail inside the widget. See [Security model](/generative-frame/docs/security) for what each handler exposes.
 
 You can also subscribe to events. `on` returns an unsubscribe function:
 
