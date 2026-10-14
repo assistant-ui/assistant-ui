@@ -56,6 +56,15 @@ export function boundsOf(
   ]);
 }
 
+export function expandDegenerateDomain([lo, hi]: [number, number]): [
+  number,
+  number,
+] {
+  if (lo !== hi) return [lo, hi];
+  const pad = Math.abs(lo || 1) * 0.05;
+  return [lo - pad, hi + pad];
+}
+
 /**
  * The 1-2-5 ladder rung closest to `raw` on a log scale, so a requested tick
  * count lands near what was asked for rather than always under it.

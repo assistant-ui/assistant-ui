@@ -1,6 +1,7 @@
 import type { BaseProps } from "../svg";
 import { Fragment, forwardRef } from "react";
 import { extent, project, round, stroke } from "../../core/geometry";
+import { expandDegenerateDomain } from "../../core/scale";
 import { truncate } from "../../core/text";
 import { ACCENT, GRID, ink } from "../../core/theme";
 import { ChartSvg, frame } from "../svg";
@@ -41,8 +42,8 @@ export const Quadrant = forwardRef<SVGSVGElement, QuadrantProps>(
       ...points.map((point) => point.y),
       ...(cutY === undefined ? [] : [cutY]),
     ];
-    const [xLo, xHi] = extent(xValues);
-    const [yLo, yHi] = extent(yValues);
+    const [xLo, xHi] = expandDegenerateDomain(extent(xValues));
+    const [yLo, yHi] = expandDegenerateDomain(extent(yValues));
     const xMid = cutX ?? (xLo + xHi) / 2;
     const yMid = cutY ?? (yLo + yHi) / 2;
     const F = frame({ width, height, aspect, fontSize }, 5 / 3, {
