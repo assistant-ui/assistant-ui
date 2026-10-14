@@ -29,7 +29,7 @@ Start with a [Tauri 2 React/Vite application](https://v2.tauri.app/start/create-
 
 ## Pattern 1: hosted backend
 
-Install `@assistant-ui/react` and `@assistant-ui/ai-sdk`. Point the transport at an existing [AI SDK chat endpoint](/docs/runtimes/ai-sdk/v7):
+Install `@assistant-ui/react`, `@assistant-ui/ai-sdk`, and its `ai@^7` peer. Point the transport at an existing [AI SDK chat endpoint](/docs/runtimes/ai-sdk/v7):
 
 ```tsx title="src/assistant-runtime.tsx"
 import type { ReactNode } from "react";
@@ -55,7 +55,7 @@ Use an absolute URL. A relative `/api/chat` points at the packaged application's
 
 The request uses webview `fetch`, so configure your backend's CORS policy for the origins your app actually sends. With Tauri's default custom protocol, these include `tauri://localhost` on macOS and `http://tauri.localhost` on Windows. Development commonly uses `http://localhost:1420`. Configuration such as `useHttpsScheme` changes the origin: inspect it in a packaged build on every target OS. Handle preflight requests and your authentication headers; a permitted origin is not authentication.
 
-Allow your API in `app.security.csp.connect-src` in `src-tauri/tauri.conf.json`. Preserve the IPC sources when the application also uses native commands:
+Allow your API in the `connect-src` directive of `app.security.csp` in `src-tauri/tauri.conf.json`. Preserve the IPC sources when the application also uses native commands:
 
 ```json
 {
