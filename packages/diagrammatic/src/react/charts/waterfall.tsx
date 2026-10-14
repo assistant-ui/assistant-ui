@@ -1,6 +1,11 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import { type TickSpec, resolveTicks, upperBound } from "../../core/scale";
+import {
+  type TickSpec,
+  resolveTicks,
+  tickValues,
+  upperBound,
+} from "../../core/scale";
 import type { Guide } from "../../core/types";
 import { formatCompact } from "../../core/types";
 import { linear, round, stroke } from "../../core/geometry";
@@ -43,13 +48,21 @@ export const Waterfall = forwardRef<SVGSVGElement, WaterfallProps>(
       yTicks,
       guides,
     );
-    const yTickList = resolveTicks(yTicks, 0, max, "linear", format);
+    const min = Math.min(
+      0,
+      ...resolved.flatMap((s) => [s.from, s.to]),
+      ...tickValues(yTicks),
+      ...(guides?.filter((g) => (g.axis ?? "y") === "y").map((g) => g.at) ??
+        []),
+    );
+    const yTickList = resolveTicks(yTicks, min, max, "linear", format);
     const F = frame({ width, height, aspect, fontSize }, 5 / 3, {
       labels: true,
       ticks: yTickList ?? false,
     });
     const { left, right, top, bottom, axisY, T } = F;
-    const Y = linear(0, max, bottom, top);
+    const Y = linear(min, max, bottom, top);
+    const zeroY = Y(0);
     const step = (right - left) / Math.max(1, steps.length);
     const X = (i: number) => left + step * (i + 0.5);
     const columnW = Math.min(48, step * 0.6);
@@ -63,9 +76,9 @@ export const Waterfall = forwardRef<SVGSVGElement, WaterfallProps>(
       >
         <line
           x1={left}
-          y1={bottom}
+          y1={zeroY}
           x2={right}
-          y2={bottom}
+          y2={zeroY}
           stroke={GRID}
           data-part="grid"
           {...stroke.hair}
@@ -91,14 +104,16 @@ export const Waterfall = forwardRef<SVGSVGElement, WaterfallProps>(
           const x = left + step * (i + 0.5) - columnW / 2;
           const barTop = Y(Math.max(entry.from, entry.to));
           const h = Math.abs(Y(entry.from) - Y(entry.to));
+          const displayH = Math.max(h, 1.5);
+          const barY = min < 0 ? Math.min(barTop, bottom - displayH) : barTop;
           const next = resolved[i + 1];
           return (
             <g key={entry.label} data-part="mark" data-i={i}>
               <rect
                 x={round(x)}
-                y={round(barTop)}
+                y={round(barY)}
                 width={round(columnW)}
-                height={round(Math.max(h, 1.5))}
+                height={round(displayH)}
                 fill={entry.total ? ink(0.55) : entry.value >= 0 ? POS : NEG}
                 opacity={entry.total ? 1 : 0.85}
               />

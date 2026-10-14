@@ -60,7 +60,9 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
         []),
     ];
     const [yLo, yHi] =
-      yScale === "log" ? positiveExtent(yValues) : [0, Math.max(...yValues, 1)];
+      yScale === "log"
+        ? positiveExtent(yValues)
+        : [Math.min(0, ...yValues), Math.max(...yValues, 1)];
     const yTickList = resolveTicks(yTicks, yLo, yHi, yScale, format);
     const F = frame({ width, height, aspect, fontSize }, 5 / 3, {
       labels: true,
@@ -68,6 +70,7 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
     });
     const { left, right, top, bottom, axisY, T } = F;
     const Y = project(yScale, yLo, yHi, bottom, top);
+    const zeroY = yScale === "log" ? bottom : Y(0);
     const step = (right - left) / Math.max(1, items.length);
     const X = (i: number) => left + (i + 0.5) * step;
     const highest = Math.max(...items.map((r) => r.value));
@@ -82,9 +85,9 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
       >
         <line
           x1={left}
-          y1={bottom}
+          y1={zeroY}
           x2={right}
-          y2={bottom}
+          y2={zeroY}
           stroke={GRID}
           data-part="grid"
           {...stroke.hair}
@@ -131,7 +134,8 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
         ))}
         {items.map((row, i) => {
           const x = X(i) - columnW / 2;
-          const h = bottom - Y(row.value);
+          const valueY = Y(row.value);
+          const h = Math.abs(zeroY - valueY);
           const accent =
             highlight === "last"
               ? i === items.length - 1
@@ -142,7 +146,7 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
             <g key={`${row.label}-${i}`} data-part="mark" data-i={i}>
               <rect
                 x={round(x)}
-                y={round(bottom - h)}
+                y={round(Math.min(zeroY, valueY))}
                 width={round(columnW)}
                 height={round(h)}
                 fill={categorical ? cat(i) : accent ? ACCENT : ink(0.3)}
@@ -151,7 +155,7 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
               {(values || (!categorical && accent)) && (
                 <text
                   x={round(X(i))}
-                  y={round(bottom - h - 5)}
+                  y={round(valueY - 5)}
                   textAnchor="middle"
                   {...T.value.attrs}
                 >
