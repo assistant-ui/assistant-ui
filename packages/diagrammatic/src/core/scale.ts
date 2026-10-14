@@ -88,9 +88,9 @@ export function niceTicks(
   if (span <= 0) return [{ at: hi, label: format(hi) }];
   const step = niceStep(span / Math.max(1, count));
   if (!(step > 0) || !Number.isFinite(step)) return [];
-  const first = Math.ceil(lo / step);
-  const last = Math.floor(hi / step + 1e-9);
   const inverse = step < 1 ? Math.round(1 / step) : 1;
+  const first = Math.round(step < 1 ? lo * inverse : lo / step);
+  const last = Math.floor(hi / step + 1e-9);
   if (
     !Number.isFinite(first) ||
     !Number.isFinite(last) ||
