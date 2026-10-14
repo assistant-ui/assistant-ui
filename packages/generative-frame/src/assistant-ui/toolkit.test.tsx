@@ -421,13 +421,11 @@ describe("createWidgetToolkit", () => {
       title: "w",
       widget_code: "<p>one</p>",
     });
-    const edit = (oldString: string, argsText?: string) => ({
-      ...call("b", "edit_widget", {
+    const edit = (oldString: string, newString: string) =>
+      call("b", "edit_widget", {
         title: "w",
-        edits: [{ old_string: oldString, new_string: "two" }],
-      }),
-      ...(argsText === undefined ? {} : { argsText }),
-    });
+        edits: [{ old_string: oldString, new_string: newString }],
+      });
     mocks.propStatus = { widget_code: "complete" };
     const tools = entries(createWidgetToolkit({ renderReport: false }).toolkit);
     const ShowWidget = tools["show_widget"]!.render;
@@ -439,20 +437,23 @@ describe("createWidgetToolkit", () => {
         />,
       ).container.querySelectorAll("[data-gf-widget]").length;
 
+    // Runtimes that rebuild argsText from the parsed snapshot close it on every chunk.
     mocks.messages = [
-      {
-        content: [
-          first,
-          edit(
-            "one",
-            '{"title":"w","edits":[{"old_string":"one","new_string":"tw',
-          ),
-        ],
-      },
+      { status: { type: "running" }, content: [first, edit("one", "tw")] },
     ];
     expect(shown()).toBe(1);
 
-    mocks.messages = [{ content: [first, edit("missing")] }];
+    mocks.messages = [
+      { status: { type: "complete" }, content: [first, edit("one", "two")] },
+    ];
+    expect(shown()).toBe(0);
+
+    mocks.messages = [
+      {
+        status: { type: "complete" },
+        content: [first, edit("missing", "two")],
+      },
+    ];
     expect(shown()).toBe(1);
     expect(
       render(<EditWidget {...partProps("b", { title: "w" })} />).container

@@ -8,7 +8,10 @@ type ToolCallLike = {
 };
 
 /** The part of a thread message the history readers need. */
-export type MessageLike = { readonly content: string | readonly unknown[] };
+export type MessageLike = {
+  readonly content: string | readonly unknown[];
+  readonly status?: { readonly type: string };
+};
 
 /** A tool call as the history readers see it. */
 export type ToolCall = {
@@ -17,6 +20,8 @@ export type ToolCall = {
   args: Record<string, unknown>;
   argsText: string | undefined;
   result: unknown;
+  /** Whether the arguments can no longer change: the call has a result, its message is no longer running, or another part follows it. */
+  settled: boolean;
 };
 
 export function* toolCalls(
@@ -24,7 +29,8 @@ export function* toolCalls(
 ): Generator<ToolCall> {
   for (const message of messages) {
     if (typeof message.content === "string") continue;
-    for (const part of message.content) {
+    const running = message.status?.type === "running";
+    for (const [index, part] of message.content.entries()) {
       const call = part as ToolCallLike;
       if (call?.type === "tool-call" && call.toolCallId && call.toolName) {
         yield {
@@ -34,6 +40,10 @@ export function* toolCalls(
           argsText:
             typeof call.argsText === "string" ? call.argsText : undefined,
           result: call.result,
+          settled:
+            call.result !== undefined ||
+            !running ||
+            index < message.content.length - 1,
         };
       }
     }
