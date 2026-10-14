@@ -228,7 +228,7 @@ The `RenderReportOptions`, `WidgetRenderReport`, `WidgetToolkitExtension`, `Tool
     { name: "handlers", type: "Record<string, ActionHandler>", description: "Action handlers by name." },
     { name: "onAction", type: "(name, params, context) => unknown", description: "Called for catalog actions without a handler." },
     { name: "onError", type: "(error, { elementId? }) => void", description: "A component threw or an action failed." },
-    { name: "streaming", type: "boolean", default: "false", description: "Missing elements take no space, and one pending placeholder follows the spec." },
+    { name: "streaming", type: "boolean", default: "false", description: "Missing elements take no space, an element with invalid props keeps its last valid render, and one pending placeholder follows the spec." },
     { name: "placeholder", type: "ComponentType<SpecPlaceholderProps>", default: "SpecPlaceholder", description: "Rendered for elements that cannot render." },
   ]}
 />

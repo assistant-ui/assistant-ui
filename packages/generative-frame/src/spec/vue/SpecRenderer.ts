@@ -214,11 +214,13 @@ const ElementBoundary = defineComponent({
     });
     return () =>
       error.value
-        ? h(ctx.placeholder, {
-            id: props.id,
-            reason: "error",
-            message: `${props.element.type} failed: ${error.value.message}`,
-          })
+        ? ctx.streaming
+          ? null
+          : h(ctx.placeholder, {
+              id: props.id,
+              reason: "error",
+              message: `${props.element.type} failed: ${error.value.message}`,
+            })
         : slots.default?.();
   },
 });
@@ -235,6 +237,7 @@ const ElementView = defineComponent({
   },
   setup(props) {
     const ctx = inject<RenderContext>(renderContextKey)!;
+    let settled: SpecElement | undefined;
     return () => {
       const { id, scope, ancestors } = props;
       const element = Object.hasOwn(ctx.spec.elements, id)
@@ -260,20 +263,24 @@ const ElementView = defineComponent({
         ? ctx.components[element.type]
         : undefined;
       if (!impl || (ctx.catalog && !ctx.catalog.component(element.type)))
-        return placeholder(
-          "unknown-type",
-          `Unknown component "${element.type}"`,
-        );
+        return ctx.streaming
+          ? null
+          : placeholder("unknown-type", `Unknown component "${element.type}"`);
+      // A value cut short by the stream, such as half an enum, fails until the rest arrives, so the last valid element stands in.
       const invalid = ctx.invalid(element);
-      if (invalid) return placeholder("invalid-props", invalid);
+      if (!invalid) settled = element;
+      else if (!ctx.streaming) return placeholder("invalid-props", invalid);
+      const shown = invalid ? settled : element;
+      if (shown?.type !== element.type) return null;
       return h(
         ElementBoundary,
-        { id, element },
+        { id, element: shown },
         {
           default: () =>
             h(ResolvedElement, {
+              key: shown.type,
               id,
-              element,
+              element: shown,
               impl,
               scope,
               ancestors: [...ancestors, id],
@@ -300,6 +307,7 @@ const ResolvedElement = defineComponent({
     const ctx = inject<RenderContext>(renderContextKey)!;
     const resolved = () =>
       resolveProps(props.element.props, { ...props.scope, state: ctx.state });
+    let settled: ReturnType<typeof resolved> | undefined;
     provide<SpecElementContext>(elementContextKey, {
       get id() {
         return props.id;
@@ -308,7 +316,13 @@ const ResolvedElement = defineComponent({
         return props.element;
       },
       get bindings() {
-        return resolved().bindings;
+        const current = resolved();
+        return rejectedPropType(
+          ctx.catalog?.propsSchema(props.element.type),
+          current.props,
+        )
+          ? (settled?.bindings ?? {})
+          : current.bindings;
       },
       get state() {
         return ctx.store;
@@ -338,19 +352,21 @@ const ResolvedElement = defineComponent({
       { flush: "post" },
     );
     return () => {
-      const { props: values, bindings } = resolved();
+      const current = resolved();
       const rejected = rejectedPropType(
         ctx.catalog?.propsSchema(props.element.type),
-        values,
+        current.props,
       );
-      if (rejected) {
-        if (ctx.streaming) return null;
+      if (!rejected) settled = current;
+      else if (!ctx.streaming)
         return h(ctx.placeholder, {
           id: props.id,
           reason: "invalid-props",
           message: `${props.element.type}: ${rejected}`,
         });
-      }
+      const shown = rejected ? settled : current;
+      if (!shown) return null;
+      const { props: values, bindings } = shown;
       const impl = props.impl as DeclaredOptions;
       const propNames = declaredNames(impl, "props");
       const emitNames = declaredNames(impl, "emits");

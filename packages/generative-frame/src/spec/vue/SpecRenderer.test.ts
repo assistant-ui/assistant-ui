@@ -287,19 +287,217 @@ describe("SpecRenderer", () => {
         { main: { type: "Photo", props: { src: { $state: path } } } },
         { tools },
       );
+    const failing = photo("/tools");
     const view = mount({
       catalog,
       components,
-      spec: photo("/tools"),
+      spec: failing,
       streaming: true,
     });
     await nextTick();
+    expect(
+      view.container.querySelector('[data-gf-spec-placeholder="error"]'),
+    ).toBeNull();
+
+    await view.update({ catalog, components, spec: failing });
     expect(view.container.textContent).toContain("Photo failed");
 
     await view.update({ catalog, components, spec: photo("/tools/photos/0") });
     expect(view.container.querySelector("img")?.getAttribute("src")).toBe(
       "https://example.com/bridge.jpg",
     );
+  });
+
+  it("keeps an element's last valid render while the spec streams", async () => {
+    const mounted = vi.fn();
+    const Text = defineComponent({
+      props: { text: String },
+      setup(props) {
+        onMounted(mounted);
+        return () => h("p", props.text);
+      },
+    });
+    const probe = { ...components, Text };
+    const text = (value: unknown) =>
+      spec({ main: { type: "Text", props: { text: value } } });
+    const view = mount({
+      catalog,
+      components: probe,
+      spec: text("Hi"),
+      streaming: true,
+    });
+    await view.update({
+      catalog,
+      components: probe,
+      spec: text(5),
+      streaming: true,
+    });
+    expect(view.container.querySelector("p")?.textContent).toBe("Hi");
+    expect(
+      view.container.querySelector(
+        '[data-gf-spec-placeholder="invalid-props"]',
+      ),
+    ).toBeNull();
+
+    await view.update({
+      catalog,
+      components: probe,
+      spec: text("Hello"),
+      streaming: true,
+    });
+    expect(view.container.querySelector("p")?.textContent).toBe("Hello");
+    expect(mounted).toHaveBeenCalledTimes(1);
+
+    await view.update({ catalog, components: probe, spec: text(5) });
+    expect(view.container.querySelector("p")).toBeNull();
+    expect(
+      view.container.querySelector(
+        '[data-gf-spec-placeholder="invalid-props"]',
+      ),
+    ).not.toBeNull();
+  });
+
+  it("does not stand an element of another type in for one that is still invalid", async () => {
+    const view = mount({
+      catalog,
+      components,
+      spec: spec({ main: { type: "Text", props: { text: "Hi" } } }),
+      streaming: true,
+    });
+    await view.update({
+      catalog,
+      components,
+      spec: spec({ main: { type: "Picture", props: { src: 5 } } }),
+      streaming: true,
+    });
+    expect(view.container.querySelector("p")).toBeNull();
+    expect(view.container.querySelector("img")).toBeNull();
+  });
+
+  it("does not carry accepted props over to an element's new type", async () => {
+    const tools = Object.assign(Object.create(null), {
+      photos: ["https://example.com/bridge.jpg"],
+    });
+    const view = mount({
+      catalog,
+      components,
+      spec: spec({ main: { type: "Text", props: { text: "Hi" } } }, { tools }),
+      streaming: true,
+    });
+    await view.update({
+      catalog,
+      components,
+      spec: spec(
+        { main: { type: "Picture", props: { src: { $state: "/tools" } } } },
+        { tools },
+      ),
+      streaming: true,
+    });
+    expect(view.container.querySelector("p")).toBeNull();
+    expect(view.container.querySelector("img")).toBeNull();
+  });
+
+  it("keeps an element's last accepted props while a bound value streams", async () => {
+    const tools = Object.assign(Object.create(null), {
+      photos: ["https://example.com/bridge.jpg"],
+    });
+    const picture = (src: unknown) =>
+      spec({ main: { type: "Picture", props: { src } } }, { tools });
+    const view = mount({
+      catalog,
+      components,
+      spec: picture("https://example.com/first.jpg"),
+      streaming: true,
+    });
+    await view.update({
+      catalog,
+      components,
+      spec: picture({ $state: "/tools" }),
+      streaming: true,
+    });
+    expect(view.container.querySelector("img")?.getAttribute("src")).toBe(
+      "https://example.com/first.jpg",
+    );
+
+    await view.update({
+      catalog,
+      components,
+      spec: picture({ $state: "/tools" }),
+    });
+    expect(view.container.querySelector("img")).toBeNull();
+    expect(
+      view.container.querySelector(
+        '[data-gf-spec-placeholder="invalid-props"]',
+      ),
+    ).not.toBeNull();
+  });
+
+  it("writes a held element's binding to the path it shows", async () => {
+    const store = createStateStore({ form: { agree: false } });
+    const Toggle = defineComponent({
+      props: { checked: Boolean },
+      emits: ["update:checked"],
+      setup(props, { emit }) {
+        const element = useSpecElement();
+        return () =>
+          h("label", [
+            h("input", {
+              type: "checkbox",
+              checked: props.checked,
+              onChange: (event: Event) =>
+                emit(
+                  "update:checked",
+                  (event.target as HTMLInputElement).checked,
+                ),
+            }),
+            h("span", element.bindings["checked"]),
+          ]);
+      },
+    });
+    const probe = { ...components, Toggle };
+    const toggle = (path: string) =>
+      spec({
+        main: { type: "Toggle", props: { checked: { $bindState: path } } },
+      });
+    const view = mount({
+      catalog,
+      components: probe,
+      state: store,
+      spec: toggle("/f"),
+      streaming: true,
+    });
+    await view.update({
+      catalog,
+      components: probe,
+      state: store,
+      spec: toggle("/form"),
+      streaming: true,
+    });
+    expect(view.container.querySelector("span")?.textContent).toBe("/f");
+    await click(view.container.querySelector("input")!);
+    expect(store.getState()).toEqual({ form: { agree: false }, f: true });
+  });
+
+  it("shows an element's problem only once the spec stops streaming", async () => {
+    const broken = spec({
+      main: { type: "Stack", children: ["a", "b"] },
+      a: { type: "Text", props: { text: 5 } },
+      b: { type: "Nope" },
+    });
+    const view = mount({
+      catalog,
+      components,
+      spec: broken,
+      streaming: true,
+    });
+    const reasons = () =>
+      [...view.container.querySelectorAll("[data-gf-spec-placeholder]")].map(
+        (node) => node.getAttribute("data-gf-spec-placeholder"),
+      );
+    expect(reasons()).toEqual(["pending"]);
+
+    await view.update({ catalog, components, spec: broken });
+    expect(reasons()).toEqual(["invalid-props", "unknown-type"]);
   });
 
   it("waits for a primitive prop to resolve while streaming", async () => {

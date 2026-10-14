@@ -4,6 +4,7 @@ import {
   Fragment,
   useContext,
   useEffect,
+  useInsertionEffect,
   useMemo,
   useRef,
   useState,
@@ -95,7 +96,7 @@ export type SpecRendererProps = {
     context: ActionSource & { state: SpecStateStore },
   ) => unknown;
   onError?: (error: Error, context: { elementId?: string }) => void;
-  /** The spec is still streaming: missing elements take no space, and one pending placeholder follows the spec. */
+  /** The spec is still streaming: missing elements take no space, an element with invalid props keeps its last valid render, and one pending placeholder follows the spec. */
   streaming?: boolean;
   placeholder?: ComponentType<SpecPlaceholderProps>;
 };
@@ -199,6 +200,14 @@ class ElementBoundary extends Component<
   }
 }
 
+function useLastCommitted<T>(value: T | undefined) {
+  const last = useRef<T | undefined>(undefined);
+  useInsertionEffect(() => {
+    if (value !== undefined) last.current = value;
+  });
+  return last.current;
+}
+
 function renderChildren(
   ids: readonly unknown[],
   scope: Scope,
@@ -230,6 +239,13 @@ function ElementView({
   const element = Object.hasOwn(ctx.spec.elements, id)
     ? ctx.spec.elements[id]
     : undefined;
+  const usable =
+    element && typeof element === "object" && typeof element.type === "string"
+      ? element
+      : undefined;
+  // A value cut short by the stream, such as half an enum, fails until the rest arrives, so the last valid element stands in.
+  const invalid = usable && ctx.invalid(usable);
+  const settled = useLastCommitted(invalid ? undefined : usable);
 
   if (ancestors.includes(id)) {
     return (
@@ -257,6 +273,7 @@ function ElementView({
     ? ctx.components[element.type]
     : undefined;
   if (!Impl || (ctx.catalog && !ctx.catalog.component(element.type))) {
+    if (ctx.streaming) return null;
     return (
       <Placeholder
         id={id}
@@ -265,27 +282,31 @@ function ElementView({
       />
     );
   }
-  const invalid = ctx.invalid(element);
-  if (invalid) {
+  if (invalid && !ctx.streaming) {
     return <Placeholder id={id} reason="invalid-props" message={invalid} />;
   }
+  const shown = invalid ? settled : element;
+  if (shown?.type !== element.type) return null;
 
   return (
     <ElementBoundary
       id={id}
-      element={element}
+      element={shown}
       onError={(error) => ctx.onError?.(error, { elementId: id })}
-      fallback={(error) => (
-        <Placeholder
-          id={id}
-          reason="error"
-          message={`${element.type} failed: ${error.message}`}
-        />
-      )}
+      fallback={(error) =>
+        ctx.streaming ? null : (
+          <Placeholder
+            id={id}
+            reason="error"
+            message={`${shown.type} failed: ${error.message}`}
+          />
+        )
+      }
     >
       <ResolvedElement
+        key={shown.type}
         id={id}
-        element={element}
+        element={shown}
         Impl={Impl}
         scope={scope}
         ancestors={[...ancestors, id]}
@@ -308,13 +329,21 @@ function ResolvedElement({
   ancestors: readonly string[];
 }) {
   const ctx = useContext(SpecContext)!;
-  const { props, bindings } = resolveProps(element.props, {
+  const resolved = resolveProps(element.props, {
     ...scope,
     state: ctx.state,
   });
+  const rejected = rejectedPropType(
+    ctx.catalog?.propsSchema(element.type),
+    resolved.props,
+  );
+  const settled = useLastCommitted(rejected ? undefined : resolved);
+  const shown = rejected ? settled : resolved;
 
-  const latest = useRef({ element, scope, ctx });
-  latest.current = { element, scope, ctx };
+  const latest = useRef({ element, scope, ctx, bindings: shown?.bindings });
+  useInsertionEffect(() => {
+    latest.current = { element, scope, ctx, bindings: shown?.bindings };
+  });
 
   const watched = element.watch ? Object.keys(element.watch) : [];
   const watchedValues = watched.map((path) =>
@@ -364,15 +393,8 @@ function ResolvedElement({
         });
       },
       setProp(name: string, value: unknown) {
-        const {
-          element: current,
-          scope: currentScope,
-          ctx: currentCtx,
-        } = latest.current;
-        const path = resolveProps(current.props, {
-          ...currentScope,
-          state: currentCtx.state,
-        }).bindings[name];
+        const { bindings, ctx: currentCtx } = latest.current;
+        const path = bindings?.[name];
         if (path) currentCtx.store.set(path, value);
       },
     }),
@@ -402,12 +424,7 @@ function ResolvedElement({
     if (Array.isArray(ids)) slots[slot] = renderChildren(ids, scope, ancestors);
   }
 
-  const rejected = rejectedPropType(
-    ctx.catalog?.propsSchema(element.type),
-    props,
-  );
-  if (rejected) {
-    if (ctx.streaming) return null;
+  if (rejected && !ctx.streaming) {
     const Placeholder = ctx.placeholder;
     return (
       <Placeholder
@@ -417,6 +434,8 @@ function ResolvedElement({
       />
     );
   }
+  if (!shown) return null;
+  const { props, bindings } = shown;
 
   return (
     <Impl
@@ -437,9 +456,11 @@ function ResolvedElement({
 
 /**
  * Renders a spec with trusted host components. It renders whatever has
- * streamed so far, followed by one pending placeholder while it streams, and
- * unknown types, invalid props, cycles, and components that throw render a
- * small placeholder instead of breaking the tree.
+ * streamed so far, followed by one pending placeholder while it streams.
+ * Unknown types, invalid props, cycles, and components that throw render a
+ * small placeholder instead of breaking the tree; while the spec streams, all
+ * but cycles wait instead, and an element with invalid props keeps its last
+ * valid render.
  */
 export function SpecRenderer({
   spec,
