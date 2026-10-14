@@ -5,7 +5,7 @@ import {
   type ActionButtonProps,
   createActionButton,
 } from "../../utils/createActionButton";
-import { useCallback } from "react";
+import { useCallback, useInsertionEffect, useRef } from "react";
 import { useAui } from "@assistant-ui/store";
 import { useComposerAddAttachment as useComposerAddAttachmentBehavior } from "@assistant-ui/core/react";
 
@@ -17,8 +17,17 @@ const useComposerAddAttachment = ({
 } = {}) => {
   const { disabled, addAttachment } = useComposerAddAttachmentBehavior();
   const aui = useAui();
+  const scopeGenerationRef = useRef(0);
+
+  useInsertionEffect(
+    () => () => {
+      scopeGenerationRef.current += 1;
+    },
+    [aui],
+  );
 
   const callback = useCallback(() => {
+    const scopeGeneration = scopeGenerationRef.current;
     const input = document.createElement("input");
     input.type = "file";
     input.multiple = multiple;
@@ -37,6 +46,7 @@ const useComposerAddAttachment = ({
 
       const attachmentPromises = Array.from(fileList, async (file) => {
         try {
+          if (scopeGenerationRef.current !== scopeGeneration) return;
           await addAttachment(file);
         } catch {
           // The composer runtime emits composer.attachmentAddError before rejecting.
