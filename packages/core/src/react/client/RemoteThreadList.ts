@@ -609,6 +609,8 @@ const useRemoteThreadList = (
 
   const notifyRemoteId = useCallback(
     (remoteId: string | undefined, emit: boolean) => {
+      const main = getThreadData(store.value, session.mainThreadId);
+      if (remoteId === undefined && main && main.status !== "new") return;
       if (session.lastNotifiedRemoteId === remoteId) return;
       session.lastNotifiedRemoteId = remoteId;
       if (emit) {
@@ -620,7 +622,16 @@ const useRemoteThreadList = (
         );
       }
     },
-    [session],
+    [session, store],
+  );
+
+  useEffect(
+    () =>
+      store.subscribe(() => {
+        const main = getThreadData(store.value, session.mainThreadId);
+        if (main) notifyRemoteId(main.remoteId, true);
+      }),
+    [notifyRemoteId, session, store],
   );
 
   const getLoadThreadsPromise = useCallback(() => {
@@ -1389,15 +1400,8 @@ const useRemoteThreadList = (
 
   const mainRemoteId = getThreadData(listState, mainThreadId)?.remoteId;
   useEffect(() => {
-    if (session.lastNotifiedRemoteId === mainRemoteId) return;
-    session.lastNotifiedRemoteId = mainRemoteId;
-    invokeUserCallback(
-      "assistant-ui",
-      "onThreadIdChange",
-      onThreadIdChange,
-      mainRemoteId,
-    );
-  }, [mainRemoteId, onThreadIdChange, session]);
+    notifyRemoteId(mainRemoteId, true);
+  }, [mainRemoteId, notifyRemoteId, onThreadIdChange]);
 
   useEffect(() => {
     if (session.isFirstThreadIdEffect) {
