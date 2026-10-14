@@ -30,9 +30,11 @@ describe("formVocabulary", () => {
     const html = render({
       $type: "Form",
       gap: 2,
-      children: { $type: "Fact", label: "a", value: "b" } as never,
+      children: "form content",
     });
-    expect(html).toContain('<form data-aui="form" data-aui-gap="2">');
+    expect(html).toBe(
+      '<form data-aui="form" data-aui-gap="2">form content</form>',
+    );
   });
 
   it("Form without gap or $action renders bare", () => {
