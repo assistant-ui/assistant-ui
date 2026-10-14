@@ -18,6 +18,7 @@ import {
   type ToSpecCatalogOptions,
 } from "./catalogDefinitions";
 import { ElementLevel } from "./elementDepth";
+import { positionChildren, useSpecPosition } from "./position";
 import { BOUND_VALUE_PROPS } from "./wiring";
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -42,6 +43,7 @@ function toSpecComponent(
   render: (props: any) => ReactNode,
   events: readonly string[],
   isVocabulary: boolean,
+  positions: boolean,
 ) {
   return function GenerativeUISpecElement({
     id,
@@ -53,6 +55,14 @@ function toSpecComponent(
     emit,
     setProp,
   }: SpecComponentProps) {
+    const position = useSpecPosition();
+    const place = (nodes: ReactNode, branch: number) =>
+      positions
+        ? positionChildren(
+            nodes,
+            position === undefined ? `${branch}` : `${position}.${branch}`,
+          )
+        : nodes;
     // A component only acts interactive (a ListViewItem becomes a clickable row) when the element binds the event.
     const live = events.filter((event) =>
       Object.hasOwn(element.on ?? {}, event),
@@ -92,8 +102,17 @@ function toSpecComponent(
           render={render}
           props={{
             ...wired,
-            ...(hasChildren(element) ? { children } : {}),
-            ...(Object.keys(slots).length > 0 ? { $slots: slots } : {}),
+            ...(hasChildren(element) ? { children: place(children, 0) } : {}),
+            ...(Object.keys(slots).length > 0
+              ? {
+                  $slots: Object.fromEntries(
+                    Object.entries(slots).map(([name, nodes], index) => [
+                      name,
+                      place(nodes, index + 1),
+                    ]),
+                  ),
+                }
+              : {}),
             ...($bindings ? { $bindings } : {}),
             $status: "done",
             $dispatch,
@@ -124,6 +143,7 @@ export function buildSpecCatalog(
   library: GenerativeUILibrary,
   defaultLibrary: GenerativeUILibrary,
   options: ToSpecCatalogOptions,
+  { positions = false }: { positions?: boolean } = {},
 ): { catalog: Catalog; components: SpecComponents } {
   const definitions: Record<string, ComponentDefinition> = Object.create(null);
   const components: SpecComponents = Object.create(null);
@@ -138,7 +158,12 @@ export function buildSpecCatalog(
       isDefault,
     );
     definitions[name] = definition;
-    components[name] = toSpecComponent(entry.render, events, isDefault);
+    components[name] = toSpecComponent(
+      entry.render,
+      events,
+      isDefault,
+      positions,
+    );
   }
   return {
     catalog: defineCatalog({
