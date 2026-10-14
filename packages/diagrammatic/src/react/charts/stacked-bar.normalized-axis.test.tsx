@@ -36,7 +36,7 @@ describe("StackedBar normalized axis", () => {
         groups={["A"]}
         series={[{ name: "value", data: [40] }]}
         yTicks={2}
-        guides={[{ at: 0.5, label: "half" }]}
+        guides={[{ at: 50, label: "half" }]}
       />,
     );
     const bar = [...html.matchAll(/<rect\b[^>]*>/g)]
@@ -72,6 +72,6 @@ describe("StackedBar normalized axis", () => {
       />,
     );
 
-    expect(html).toContain(">1 shares</text>");
+    expect(html).toContain(">100 shares</text>");
   });
 });

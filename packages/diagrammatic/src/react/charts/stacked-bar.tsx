@@ -47,12 +47,9 @@ export const StackedBar = forwardRef<SVGSVGElement, StackedBarProps>(
     const totals = groups.map((_, g) =>
       series.reduce((sum, s) => sum + (s.data[g] ?? 0), 0),
     );
-    const max = normalize ? 1 : upperBound([...totals], yTicks, guides);
+    const max = normalize ? 100 : upperBound([...totals], yTicks, guides);
     const tickFormat =
-      format ??
-      (normalize
-        ? (value: number) => `${Math.round(value * 100)}%`
-        : formatCompact);
+      format ?? (normalize ? (value: number) => `${value}%` : formatCompact);
     const yTickList = resolveTicks(yTicks, 0, max, "linear", tickFormat);
     const F = frame({ width, height, aspect, fontSize }, 5 / 3, {
       legend: showLegend,
