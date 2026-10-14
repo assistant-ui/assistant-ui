@@ -78,6 +78,7 @@ describe("ADK state hook rendering", () => {
     await waitFor(() => expect(appState?.visible).toBe(1));
 
     const initial = appState;
+    expect(Object.getPrototypeOf(initial)).toBe(Object.prototype);
     expect(Object.hasOwn(initial!, "__proto__")).toBe(true);
     expect(initial?.["__proto__"]).toEqual({ source: "provider" });
 
