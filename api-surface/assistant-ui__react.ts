@@ -2080,6 +2080,7 @@ declare class DefaultThreadComposerRuntimeCore extends BaseComposerRuntimeCore i
   get canCancel(): boolean;
   get canSend(): boolean;
   addAttachment(fileOrAttachment: File | CreateAttachment): Promise<void>;
+  startDictation(): void;
   cancel(): void;
   protected threadMessageIds(role: MessageRole): string[];
   get queue(): readonly QueueItemState[];
