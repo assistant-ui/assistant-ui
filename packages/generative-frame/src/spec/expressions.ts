@@ -270,4 +270,4 @@ export function resolveProps(
 
 /** The state path of item `index` in the array at `path`. */
 export const itemPointer = (path: string, index: number) =>
-  `${normalizePath(path) === "/" ? "" : normalizePath(path)}${joinPointer([index])}`;
+  `${path === "" ? "" : normalizePath(path)}${joinPointer([index])}`;
