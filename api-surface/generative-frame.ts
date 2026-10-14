@@ -1122,14 +1122,15 @@ type SpecRendererProps$1 = {
 type SpecStateStore = {
   getState(): Record<string, unknown>;
   get(path: string): unknown;
-  set(path: string, value: unknown): void;
+  set(path: string, value: unknown, mode?: "add" | "replace"): void;
   seed(state: Record<string, unknown>): void;
   subscribe(listener: StateListener): () => void;
 };
 
 type SpecStateWrite = readonly [
   path: string,
-  value: unknown
+  value: unknown,
+  mode?: "replace"
 ];
 
 type SpecStream = {

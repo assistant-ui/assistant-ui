@@ -41,6 +41,22 @@ describe("createStateStore writes", () => {
     expect(store.getState()).toEqual({ name: "Ada", count: 1 });
   });
 
+  it.each(["remove", "unknown", null])(
+    "keeps add semantics for an unsupported saved mode: %s",
+    (mode) => {
+      const store = createStateStore(
+        { list: ["original"] },
+        {
+          writes: JSON.parse(JSON.stringify([["/list/0", "restored", mode]])),
+        },
+      );
+      expect(store.get("/list")).toEqual(["restored", "original"]);
+      expect(store.writes()).toEqual([["/list/0", "restored"]]);
+      store.seed({ list: ["streamed"] });
+      expect(store.get("/list")).toEqual(["restored", "streamed"]);
+    },
+  );
+
   it("drops a restored write that no longer applies", () => {
     const store = createStateStore(
       { text: "plain" },
@@ -108,6 +124,36 @@ describe("createStateStore writes", () => {
       ["/list/-", { done: false }],
       ["/list/0/done", false],
     ]);
+  });
+
+  it("replays replacements and insertions without losing shifted edits", () => {
+    const initial = { list: ["a", "b"] };
+    const store = createStateStore(initial);
+    store.set("/list/0", "edited", "replace");
+    store.set("/list/0", "inserted");
+    store.set("/list/0", "edited insert", "replace");
+    store.set("/list/0", "final", "replace");
+    expect(store.get("/list")).toEqual(["final", "edited", "b"]);
+    expect(store.writes()).toEqual([
+      ["/list/0", "edited", "replace"],
+      ["/list/0", "inserted"],
+      ["/list/0", "final", "replace"],
+    ]);
+    store.seed({ list: ["a", "streamed"] });
+    expect(store.get("/list")).toEqual(["final", "edited", "streamed"]);
+    expect(
+      createStateStore(initial, {
+        writes: JSON.parse(JSON.stringify(store.writes())),
+      }).get("/list"),
+    ).toEqual(["final", "edited", "b"]);
+  });
+
+  it("drops a replacement when its array item no longer exists", () => {
+    const store = createStateStore({ list: ["a"] });
+    store.set("/list/0", "edited", "replace");
+    store.seed({ list: [] });
+    expect(store.get("/list")).toEqual([]);
+    expect(store.writes()).toEqual([]);
   });
 
   it("treats `-` under an object as an ordinary key", () => {
