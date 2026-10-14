@@ -22,6 +22,7 @@ export const A2UI_SURFACE_ACTIVITY_TYPE = "a2ui-surface";
 export type AgUiOpaqueReasoning = {
   id: string;
   encryptedValue: string;
+  metadata?: Record<string, unknown>;
   after?: boolean;
 };
 

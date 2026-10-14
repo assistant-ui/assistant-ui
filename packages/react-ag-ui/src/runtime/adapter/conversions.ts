@@ -69,6 +69,7 @@ export type AgUiMessage =
       role: "user";
       content: string | InputContent[];
       name?: string;
+      metadata?: Record<string, unknown>;
     }
   | {
       id: string;
@@ -76,18 +77,21 @@ export type AgUiMessage =
       content: string;
       name?: string;
       toolCalls?: AgUiToolCall[];
+      metadata?: Record<string, unknown>;
     }
   | {
       id: string;
       role: "system" | "developer";
       content: string;
       name?: string;
+      metadata?: Record<string, unknown>;
     }
   | {
       id: string;
       role: "reasoning";
       content: string;
       encryptedValue?: string;
+      metadata?: Record<string, unknown>;
     }
   | {
       id: string;
@@ -95,6 +99,7 @@ export type AgUiMessage =
       content: string;
       toolCallId: string;
       error?: string;
+      metadata?: Record<string, unknown>;
     };
 
 type CoreToolCallPart = Extract<
@@ -117,6 +122,84 @@ const getString = (record: Record<string, unknown>, key: string) => {
   return typeof value === "string" ? value : undefined;
 };
 
+function readAgUiMessageMetadata(metadata: unknown): Record<string, unknown> {
+  if (!isObject(metadata)) return {};
+
+  const legacyCustom = isObject(metadata.custom) ? metadata.custom : {};
+  const legacyNamespaceValue = legacyCustom[AG_UI_METADATA_NAMESPACE];
+  const hasLegacyNamespace = isObject(legacyNamespaceValue);
+  const legacyNamespace = hasLegacyNamespace ? legacyNamespaceValue : {};
+  const namespaceValue = metadata[AG_UI_METADATA_NAMESPACE];
+  const namespace = isObject(namespaceValue) ? namespaceValue : {};
+  const messageMetadata = { ...metadata };
+  if (hasLegacyNamespace) delete messageMetadata.custom;
+
+  return {
+    ...messageMetadata,
+    ...(hasLegacyNamespace ? legacyCustom : {}),
+    ...(Object.keys(legacyNamespace).length > 0 ||
+    Object.keys(namespace).length > 0
+      ? {
+          [AG_UI_METADATA_NAMESPACE]: {
+            ...legacyNamespace,
+            ...namespace,
+          },
+        }
+      : {}),
+  };
+}
+
+function toAgUiWireMetadata(
+  metadata: unknown,
+): Record<string, unknown> | undefined {
+  if (!isObject(metadata)) return undefined;
+  const wireMetadata = { ...metadata };
+  delete wireMetadata[AG_UI_METADATA_NAMESPACE];
+  return Object.keys(wireMetadata).length > 0 ? wireMetadata : undefined;
+}
+
+function toAgUiMessageMetadata(
+  metadata: unknown,
+): Record<string, unknown> | undefined {
+  const custom = readCustomMetadata(metadata);
+  return toAgUiWireMetadata(custom);
+}
+
+function withAgUiMessageMetadata(metadata: unknown): {
+  metadata?: Record<string, unknown>;
+} {
+  const messageMetadata = toAgUiMessageMetadata(metadata);
+  return messageMetadata ? { metadata: messageMetadata } : {};
+}
+
+function withAgUiPartMessageMetadata(
+  providerMetadata: PartProviderMetadata | undefined,
+  messageMetadata: Record<string, unknown> | undefined,
+): PartProviderMetadata {
+  if (!messageMetadata) return providerMetadata ?? {};
+
+  const existing = providerMetadata ?? {};
+  const namespaced = isObject(existing[AG_UI_METADATA_NAMESPACE])
+    ? existing[AG_UI_METADATA_NAMESPACE]
+    : {};
+  return {
+    ...existing,
+    [AG_UI_METADATA_NAMESPACE]: {
+      ...namespaced,
+      messageMetadata: messageMetadata as ReadonlyJSONObject,
+    },
+  };
+}
+
+function readAgUiPartMessageMetadata(
+  providerMetadata: unknown,
+): Record<string, unknown> | undefined {
+  const namespaced = readAgUiNamespace(providerMetadata);
+  return namespaced && isObject(namespaced.messageMetadata)
+    ? toAgUiWireMetadata(namespaced.messageMetadata)
+    : undefined;
+}
+
 const getToolCallId = (record: Record<string, unknown>) =>
   getString(record, "toolCallId") ?? getString(record, "tool_call_id");
 
@@ -132,6 +215,7 @@ const readAgUiReasoningMeta = (providerMetadata: unknown) => {
   return {
     encryptedValue: getString(namespaced, "encryptedValue"),
     reasoningId: getString(namespaced, "reasoningId"),
+    messageMetadata: toAgUiWireMetadata(namespaced.messageMetadata),
   };
 };
 
@@ -600,8 +684,14 @@ function readOpaqueReasoning(metadata: unknown): AgUiOpaqueReasoning[] {
     const id = getString(entry, "id");
     const encryptedValue = getString(entry, "encryptedValue");
     if (!id?.trim() || !encryptedValue?.trim()) return [];
+    const metadata = toAgUiWireMetadata(entry.metadata);
     return [
-      { id, encryptedValue, ...(entry.after === true ? { after: true } : {}) },
+      {
+        id,
+        encryptedValue,
+        ...(metadata ? { metadata } : {}),
+        ...(entry.after === true ? { after: true } : {}),
+      },
     ];
   });
 }
@@ -631,7 +721,8 @@ function toAssistantSnapshotMessage(
   rawMessage: Record<string, unknown>,
 ): CoreThreadMessageLike {
   const text = extractText(rawMessage.content);
-  const interrupts = readPersistedInterrupts(rawMessage.metadata);
+  const custom = readAgUiMessageMetadata(rawMessage.metadata);
+  const interrupts = readPersistedInterrupts({ custom });
   const restoredToolCalls = extractAssistantToolCalls(rawMessage);
   const approvals = projectAgUiToolApprovals(
     interrupts,
@@ -652,21 +743,24 @@ function toAssistantSnapshotMessage(
     ...toolCallParts,
   ];
   const messageName = getString(rawMessage, "name");
+  const namespaced = isObject(custom[AG_UI_METADATA_NAMESPACE])
+    ? { ...custom[AG_UI_METADATA_NAMESPACE] }
+    : {};
+  if (interrupts) namespaced.interrupts = interrupts;
+  else delete namespaced.interrupts;
+  const messageCustom = { ...custom };
+  if (Object.keys(namespaced).length > 0) {
+    messageCustom[AG_UI_METADATA_NAMESPACE] = namespaced;
+  } else {
+    delete messageCustom[AG_UI_METADATA_NAMESPACE];
+  }
   return {
     id: getString(rawMessage, "id") ?? generateId(),
     role: "assistant",
     content: assistantContent.length > 0 ? assistantContent : "",
     ...(messageName !== undefined ? { name: messageName } : {}),
-    ...(interrupts
-      ? {
-          metadata: {
-            custom: {
-              [AG_UI_METADATA_NAMESPACE]: {
-                interrupts,
-              } satisfies AgUiCustomMetadata,
-            },
-          },
-        }
+    ...(Object.keys(messageCustom).length > 0
+      ? { metadata: { custom: messageCustom } }
       : {}),
   };
 }
@@ -676,8 +770,18 @@ function toUserOrSystemSnapshotMessage(
   rawMessage: Record<string, unknown>,
 ): CoreThreadMessageLike {
   const messageName = getString(rawMessage, "name");
+  const custom = readAgUiMessageMetadata(rawMessage.metadata);
   const attachments =
     role === "user" ? toSnapshotAttachments(rawMessage.content) : [];
+  if (role === "developer") {
+    const namespaced = isObject(custom[AG_UI_METADATA_NAMESPACE])
+      ? custom[AG_UI_METADATA_NAMESPACE]
+      : {};
+    custom[AG_UI_METADATA_NAMESPACE] = {
+      ...namespaced,
+      role: "developer",
+    } satisfies AgUiCustomMetadata;
+  }
   return {
     id: getString(rawMessage, "id") ?? generateId(),
     // The internal message model has no developer role; it rides as a system
@@ -686,17 +790,7 @@ function toUserOrSystemSnapshotMessage(
     content: extractText(rawMessage.content),
     ...(messageName !== undefined ? { name: messageName } : {}),
     ...(attachments.length > 0 ? { attachments } : {}),
-    ...(role === "developer"
-      ? {
-          metadata: {
-            custom: {
-              [AG_UI_METADATA_NAMESPACE]: {
-                role: "developer",
-              } satisfies AgUiCustomMetadata,
-            },
-          },
-        }
-      : {}),
+    ...(Object.keys(custom).length > 0 ? { metadata: { custom } } : {}),
   };
 }
 
@@ -941,6 +1035,9 @@ export function fromAgUiMessages(
       const mcpAppUri = readMcpAppResourceUri(mcpResult?._meta);
       const mcpApp =
         mcpAppUri !== undefined ? { resourceUri: mcpAppUri } : undefined;
+      const messageMetadata = toAgUiWireMetadata(
+        readAgUiMessageMetadata(rawMessage.metadata),
+      );
 
       let updated = false;
       for (
@@ -974,6 +1071,14 @@ export function fromAgUiMessages(
               ? { unstable_toolMessageId: toolMessageId }
               : {}),
             ...(mcpApp ? { mcp: { app: mcpApp } } : {}),
+            ...(messageMetadata
+              ? {
+                  providerMetadata: withAgUiPartMessageMetadata(
+                    (part as ToolCallPart).providerMetadata,
+                    messageMetadata,
+                  ),
+                }
+              : {}),
           };
           const updatedContent = message.content.map((contentPart, index) =>
             index === partIndex ? updatedPart : contentPart,
@@ -1010,6 +1115,14 @@ export function fromAgUiMessages(
               ? { unstable_toolMessageId: toolMessageId }
               : {}),
             ...(mcpApp ? { mcp: { app: mcpApp } } : {}),
+            ...(messageMetadata
+              ? {
+                  providerMetadata: withAgUiPartMessageMetadata(
+                    undefined,
+                    messageMetadata,
+                  ),
+                }
+              : {}),
           },
         ],
       });
@@ -1108,6 +1221,9 @@ export function fromAgUiMessages(
     if (role === "reasoning") {
       const text = extractText(rawMessage.content);
       const encryptedValue = getString(rawMessage, "encryptedValue");
+      const messageMetadata = toAgUiWireMetadata(
+        readAgUiMessageMetadata(rawMessage.metadata),
+      );
       if (text.trim().length === 0) {
         // showThinking hides reasoning; this record is never rendered anyway,
         // and dropping it would deny the provider the payload it needs to
@@ -1120,6 +1236,7 @@ export function fromAgUiMessages(
           opaqueReasoning.push({
             id: opaqueId,
             encryptedValue,
+            ...(messageMetadata ? { metadata: messageMetadata } : {}),
             anchor: converted.length,
           });
         }
@@ -1135,6 +1252,7 @@ export function fromAgUiMessages(
           opaqueReasoning.push({
             id: hiddenId,
             encryptedValue,
+            ...(messageMetadata ? { metadata: messageMetadata } : {}),
             anchor: converted.length,
           });
         }
@@ -1149,6 +1267,9 @@ export function fromAgUiMessages(
       const meta = {
         ...(reasoningId !== undefined ? { reasoningId } : {}),
         ...(encryptedValue !== undefined ? { encryptedValue } : {}),
+        ...(messageMetadata
+          ? { messageMetadata: messageMetadata as ReadonlyJSONObject }
+          : {}),
       };
       pendingReasoning.push({
         id: reasoningId,
@@ -1265,9 +1386,8 @@ function convertAssistantMessage(
     if (!isObject(part) || part.type !== "reasoning") continue;
     const text = getString(part, "text") ?? "";
     if (text.trim().length === 0) continue;
-    const { encryptedValue, reasoningId } = readAgUiReasoningMeta(
-      part.providerMetadata,
-    );
+    const { encryptedValue, reasoningId, messageMetadata } =
+      readAgUiReasoningMeta(part.providerMetadata);
     converted.push({
       // The wire id is what a signature was issued against, so it wins over a
       // synthesized one whenever the run carried it.
@@ -1279,6 +1399,7 @@ function convertAssistantMessage(
       role: "reasoning",
       content: text,
       ...(encryptedValue !== undefined ? { encryptedValue } : {}),
+      ...(messageMetadata ? { metadata: messageMetadata } : {}),
     });
     reasoningIndex++;
   }
@@ -1319,6 +1440,7 @@ function convertAssistantMessage(
     role: "assistant",
     content,
     ...(message.name ? { name: message.name } : {}),
+    ...withAgUiMessageMetadata(message.metadata),
     ...(toolCalls.length + nestedToolCalls.length > 0
       ? {
           toolCalls: [...toolCalls, ...nestedToolCalls].map(
@@ -1356,6 +1478,7 @@ function emitToolResult(
       : typeof part.result === "string"
         ? part.result
         : JSON.stringify(part.result);
+  const messageMetadata = readAgUiPartMessageMetadata(part.providerMetadata);
 
   converted.push({
     id: part.unstable_toolMessageId ?? `${toolCallId}:tool`,
@@ -1363,6 +1486,7 @@ function emitToolResult(
     content: resultContent,
     toolCallId,
     ...(part.isError ? { error: resultContent } : {}),
+    ...(messageMetadata ? { metadata: messageMetadata } : {}),
   });
 }
 
@@ -1379,6 +1503,7 @@ function convertToolMessage(
     content,
     toolCallId,
     ...(typeof message.error === "string" ? { error: message.error } : {}),
+    ...withAgUiMessageMetadata(message.metadata),
   });
 }
 
@@ -1398,6 +1523,7 @@ export function toAgUiMessages(
       role: "reasoning",
       content: "",
       encryptedValue: entry.encryptedValue,
+      ...(entry.metadata ? { metadata: entry.metadata } : {}),
     });
     for (const entry of opaqueReasoning) {
       if (entry.after !== true) converted.push(toOpaqueRecord(entry));
@@ -1426,6 +1552,7 @@ export function toAgUiMessages(
         role: "user",
         content: buildUserContent(message),
         ...(message.name ? { name: message.name } : {}),
+        ...withAgUiMessageMetadata(message.metadata),
       });
       flushTrailingOpaqueReasoning();
       continue;
@@ -1449,6 +1576,7 @@ export function toAgUiMessages(
         role: wireRole,
         content: extractText(message.content),
         ...(message.name ? { name: message.name } : {}),
+        ...withAgUiMessageMetadata(message.metadata),
       });
       flushTrailingOpaqueReasoning();
       continue;
@@ -1459,6 +1587,7 @@ export function toAgUiMessages(
         id: message.id,
         role: "reasoning",
         content: extractText(message.content),
+        ...withAgUiMessageMetadata(message.metadata),
       });
       flushTrailingOpaqueReasoning();
       continue;
