@@ -7,10 +7,17 @@ import {
 
 const styles = StyleSheet.create({
   pending: {
-    height: 16,
-    marginVertical: 4,
-    borderRadius: 4,
-    backgroundColor: "rgba(128, 128, 128, 0.12)",
+    flexDirection: "row",
+    alignSelf: "flex-start",
+    gap: 4,
+    paddingVertical: 6,
+    paddingHorizontal: 2,
+  },
+  pendingDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: "rgba(128, 128, 128, 0.35)",
   },
   note: {
     paddingVertical: 4,
@@ -33,7 +40,11 @@ export function SpecPlaceholder({ id, reason, message }: SpecPlaceholderProps) {
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
         style={styles.pending}
-      />
+      >
+        <View style={styles.pendingDot} />
+        <View style={styles.pendingDot} />
+        <View style={styles.pendingDot} />
+      </View>
     );
   }
   return (

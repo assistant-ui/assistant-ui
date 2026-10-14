@@ -978,7 +978,7 @@ type SpecPromptOptions = {
   };
 };
 
-declare function SpecRenderer$1(_param1: SpecRendererProps): import("react").JSX.Element | null;
+declare function SpecRenderer$1(_param1: SpecRendererProps): import("react").JSX.Element;
 
 declare const SpecRenderer$2: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
   spec: {
@@ -1030,9 +1030,9 @@ declare const SpecRenderer$2: import("vue").DefineComponent<import("vue").Extrac
       };
     }>> & Readonly<{}>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
   };
-}>, () => VNode<import("vue").RendererNode, import("vue").RendererElement, {
+}>, () => (VNode<import("vue").RendererNode, import("vue").RendererElement, {
   [key: string]: any;
-}> | null, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<import("vue").ExtractPropTypes<{
+}> | null)[], {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<import("vue").ExtractPropTypes<{
   spec: {
     type: PropType<Spec>;
     required: true;

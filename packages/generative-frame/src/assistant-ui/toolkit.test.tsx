@@ -853,6 +853,11 @@ describe("createWidgetToolkit", () => {
     expect(
       view.container.querySelector('[data-gf-spec-placeholder="pending"]'),
     ).not.toBeNull();
+    expect(
+      view.container
+        .querySelector('[data-gf-spec="s"]')
+        ?.hasAttribute("data-gf-streaming"),
+    ).toBe(true);
     mocks.argsStatus = "complete";
     view.rerender(
       <RenderSpec
@@ -860,6 +865,11 @@ describe("createWidgetToolkit", () => {
       />,
     );
     expect(view.container.textContent).toBe("Hello");
+    expect(
+      view.container
+        .querySelector('[data-gf-spec="s"]')
+        ?.hasAttribute("data-gf-streaming"),
+    ).toBe(false);
   });
 
   it("renders earlier tool results through state", () => {

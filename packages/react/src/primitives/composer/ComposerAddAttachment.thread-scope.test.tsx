@@ -1,13 +1,15 @@
 // @vitest-environment jsdom
-import { act, createElement } from "react";
+import { act, createElement, useState } from "react";
 import { render, waitFor, cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { AuiProvider, useAui } from "@assistant-ui/store";
+import { AuiConfig, AuiProvider, Derived, useAui } from "@assistant-ui/store";
+import { resource, useResource } from "@assistant-ui/tap";
 import { InMemoryThreadList } from "@assistant-ui/core/store";
 import {
   AssistantRuntimeProvider,
   ExternalThread,
   SimpleTextAttachmentAdapter,
+  Tools,
   useLocalRuntime,
   type AssistantRuntime,
   type ChatModelAdapter,
@@ -25,14 +27,30 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const setup = async (mode: "store" | "runtime") => {
+const StandaloneThread = resource(function useStandaloneThread() {
+  return useResource(ExternalThread({ messages: [], attachmentAdapter }));
+});
+
+const setup = async (mode: "store" | "runtime" | "standalone") => {
   vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(() => {});
   let captured!: ReturnType<typeof useAui>;
   let runtime: AssistantRuntime | undefined;
+  let changeScope!: () => void;
   const Capture = () => {
     captured = useAui();
     return (
       <ComposerPrimitiveAddAttachment>Add file</ComposerPrimitiveAddAttachment>
+    );
+  };
+  const Scope = () => {
+    const aui = useAui();
+    const [withTools, setWithTools] = useState(false);
+    changeScope = () => setWithTools(true);
+    const config = AuiConfig(withTools ? { tools: Tools({}) } : {});
+    return (
+      <AuiProvider extends={aui} config={config}>
+        <Capture />
+      </AuiProvider>
     );
   };
   const StoreApp = () => {
@@ -43,7 +61,7 @@ const setup = async (mode: "store" | "runtime") => {
     });
     return (
       <AuiProvider value={aui}>
-        <Capture />
+        <Scope />
       </AuiProvider>
     );
   };
@@ -53,11 +71,32 @@ const setup = async (mode: "store" | "runtime") => {
     });
     return (
       <AssistantRuntimeProvider runtime={runtime}>
-        <Capture />
+        <Scope />
       </AssistantRuntimeProvider>
     );
   };
-  const view = render(createElement(mode === "store" ? StoreApp : RuntimeApp));
+  const StandaloneApp = () => {
+    const config = AuiConfig({
+      thread: StandaloneThread(),
+      composer: Derived({
+        source: "thread",
+        query: {},
+        get: (aui) => aui.thread.composer(),
+      }),
+    });
+    return (
+      <AuiProvider config={config}>
+        <Capture />
+      </AuiProvider>
+    );
+  };
+  const App =
+    mode === "store"
+      ? StoreApp
+      : mode === "runtime"
+        ? RuntimeApp
+        : StandaloneApp;
+  const view = render(createElement(App));
   if (runtime)
     await act(async () => {
       await runtime!.threads.mainItem.initialize();
@@ -77,7 +116,13 @@ const setup = async (mode: "store" | "runtime") => {
       await input.onchange?.call(input, event);
     });
   };
-  return { aui: () => captured, select, unmount: view.unmount };
+  return {
+    aui: () => captured,
+    select,
+    changeScope,
+    unmount: view.unmount,
+    rerender: () => view.rerender(createElement(App)),
+  };
 };
 
 describe.each(["store", "runtime"] as const)(
@@ -121,6 +166,20 @@ describe.each(["store", "runtime"] as const)(
       ).toEqual(["thread-a.txt"]);
     });
 
+    it("keeps the picker usable when an unrelated scope changes", async () => {
+      const { aui, select, changeScope } = await setup(mode);
+      const original = aui();
+      await act(async () => changeScope());
+      expect(Object.is(aui(), original)).toBe(false);
+      expect(Object.is(aui().composer, original.composer)).toBe(true);
+      await select();
+      expect(
+        aui()
+          .composer.getState()
+          .attachments.map((item) => item.name),
+      ).toEqual(["thread-a.txt"]);
+    });
+
     it("settles a picker result after its provider unmounts", async () => {
       const { select, unmount } = await setup(mode);
       unmount();
@@ -129,3 +188,15 @@ describe.each(["store", "runtime"] as const)(
     });
   },
 );
+
+it("keeps a standalone composer picker usable after a parent re-render", async () => {
+  const { aui, select, rerender } = await setup("standalone");
+  expect(aui().optional.threadListItem).toBeUndefined();
+  rerender();
+  await select();
+  expect(
+    aui()
+      .composer.getState()
+      .attachments.map((item) => item.name),
+  ).toEqual(["thread-a.txt"]);
+});

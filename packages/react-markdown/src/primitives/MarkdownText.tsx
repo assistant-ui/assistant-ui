@@ -12,12 +12,12 @@ import {
   forwardRef,
   type ForwardRefExoticComponent,
   type RefAttributes,
-  memo,
   createContext,
+  memo,
   useDeferredValue,
+  useContext,
   useMemo,
   useRef,
-  useContext,
   type ComponentPropsWithoutRef,
   type ComponentType,
 } from "react";
@@ -25,8 +25,8 @@ import ReactMarkdown, { type Options } from "react-markdown";
 import type {
   SyntaxHighlighterProps,
   CodeHeaderProps,
-  CodeComponent,
-  PreComponent,
+  CodeComponent as MarkdownCodeComponentType,
+  PreComponent as MarkdownPreComponentType,
 } from "../overrides/types";
 import type { ComponentsByLanguage } from "../code-fence";
 import { PreOverride } from "../overrides/PreOverride";
@@ -36,44 +36,38 @@ import {
   DefaultCodeBlockContent,
   DefaultCodeHeader,
 } from "../overrides/defaultComponents";
-import { CodeOverride } from "../overrides/CodeOverride";
+import {
+  CodeOverride,
+  type CodeOverrideProps,
+} from "../overrides/CodeOverride";
 import type { Primitive } from "@radix-ui/react-primitive";
 import classNames from "classnames";
 
 const { useSmooth, useSmoothStatus, withSmoothContextProvider } = INTERNAL;
 
-type MarkdownOverrideContextValue = {
-  pre: PreComponent;
-  components: {
-    Pre: PreComponent;
-    Code: CodeComponent;
-    SyntaxHighlighter: ComponentType<SyntaxHighlighterProps>;
-    CodeHeader: ComponentType<CodeHeaderProps>;
-  };
-  componentsByLanguage?: ComponentsByLanguage | undefined;
+type MarkdownRendererProps = Omit<Options, "children"> & { text: string };
+
+type CodeOverrideContextValue = Pick<
+  CodeOverrideProps,
+  "components" | "componentsByLanguage"
+>;
+
+const CodeOverrideContext = createContext<CodeOverrideContextValue | null>(
+  null,
+);
+
+const MarkdownCodeOverride: FC<
+  ComponentPropsWithoutRef<MarkdownCodeComponentType>
+> = (props) => {
+  const codeOverrides = useContext(CodeOverrideContext)!;
+  return <CodeOverride {...codeOverrides} {...props} />;
 };
 
-const MarkdownOverrideContext =
-  createContext<MarkdownOverrideContextValue | null>(null);
-
-function MarkdownCodeOverride(props: ComponentPropsWithoutRef<CodeComponent>) {
-  const overrides = useContext(MarkdownOverrideContext)!;
-  return (
-    <CodeOverride
-      components={overrides.components}
-      componentsByLanguage={overrides.componentsByLanguage}
-      {...props}
-    />
-  );
-}
-
-function MarkdownPreOverride(props: ComponentPropsWithoutRef<PreComponent>) {
-  const overrides = useContext(MarkdownOverrideContext)!;
-  return <PreOverride fallbackPre={overrides.pre} {...props} />;
-}
-
-type MarkdownRendererProps = Omit<Options, "children"> & {
-  text: string;
+const MarkdownPreOverride: FC<
+  ComponentPropsWithoutRef<MarkdownPreComponentType>
+> = (props) => {
+  const { components } = useContext(CodeOverrideContext)!;
+  return <PreOverride {...props} fallbackPre={components.Pre} />;
 };
 
 // react-markdown builds a fresh processor and parses the whole accumulated text
@@ -239,26 +233,23 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
     SyntaxHighlighter = DefaultCodeBlockContent,
     CodeHeader = DefaultCodeHeader,
   } = userComponents ?? {};
-  const useCodeOverrideComponents = useMemo<
-    MarkdownOverrideContextValue["components"]
-  >(() => {
+  const useCodeOverrideComponents = useMemo(() => {
     return {
-      Pre: pre as PreComponent,
-      Code: code as CodeComponent,
-      SyntaxHighlighter:
-        SyntaxHighlighter as ComponentType<SyntaxHighlighterProps>,
-      CodeHeader: CodeHeader as ComponentType<CodeHeaderProps>,
+      Pre: pre,
+      Code: code,
+      SyntaxHighlighter,
+      CodeHeader,
     };
   }, [pre, code, SyntaxHighlighter, CodeHeader]);
 
-  const markdownOverrides = useStableValue(
+  const codeOverrideContextValue = useStableValue(
     useMemo(
       () => ({
-        pre: pre as PreComponent,
-        components: useCodeOverrideComponents,
+        components:
+          useCodeOverrideComponents as CodeOverrideContextValue["components"],
         componentsByLanguage,
       }),
-      [pre, useCodeOverrideComponents, componentsByLanguage],
+      [useCodeOverrideComponents, componentsByLanguage],
     ),
     3,
   );
@@ -282,9 +273,9 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
   const stableRest = useStableProps(rest);
 
   return (
-    <MarkdownOverrideContext.Provider value={markdownOverrides}>
+    <CodeOverrideContext.Provider value={codeOverrideContextValue}>
       <Renderer text={text} components={components} {...stableRest} />
-    </MarkdownOverrideContext.Provider>
+    </CodeOverrideContext.Provider>
   );
 };
 

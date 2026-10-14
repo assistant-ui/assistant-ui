@@ -2,6 +2,7 @@ import {
   defineComponent,
   h,
   mergeProps,
+  onScopeDispose,
   ref,
   watch,
   type SlotsType,
@@ -54,6 +55,10 @@ export const ComposerPrimitiveAddAttachment = defineComponent({
   slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(props, { attrs, slots }) {
     const aui = useAui();
+    const threadId = useAuiState((s) => s.optional.threads?.mainThreadId);
+    let scopeGeneration = 0;
+    watch(threadId, () => scopeGeneration++, { flush: "sync" });
+    onScopeDispose(() => scopeGeneration++);
     const disabled = useAuiState(
       (s) => s.thread.isDisabled || !s.composer.isEditing,
     );
@@ -61,6 +66,7 @@ export const ComposerPrimitiveAddAttachment = defineComponent({
       if (event.defaultPrevented || disabled.value || isAttrDisabled(attrs))
         return;
 
+      const pickerScopeGeneration = scopeGeneration;
       const input = document.createElement("input");
       input.type = "file";
       input.multiple = props.multiple;
@@ -75,7 +81,7 @@ export const ComposerPrimitiveAddAttachment = defineComponent({
 
       input.onchange = (e) => {
         const fileList = (e.target as HTMLInputElement).files;
-        if (fileList) {
+        if (fileList && scopeGeneration === pickerScopeGeneration) {
           for (const file of Array.from(fileList)) {
             aui.composer.addAttachment(file).catch(() => {});
           }

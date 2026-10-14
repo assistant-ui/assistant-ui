@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, render, waitFor } from "@testing-library/react";
+import { act, render, waitFor as waitForDefault } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import type {
@@ -13,6 +13,9 @@ import { useAdkSubmitInput } from "./hooks";
 import { settleOutsideAct } from "./tests/settleOutsideAct";
 import type { AdkEvent } from "./types";
 import type { AdkThreadSnapshot } from "./types";
+
+const waitFor: typeof waitForDefault = (callback, options) =>
+  waitForDefault(callback, { interval: 10, ...options });
 
 const makeThreadListAdapter = (): RemoteThreadListAdapter => ({
   list: vi.fn(async () => ({

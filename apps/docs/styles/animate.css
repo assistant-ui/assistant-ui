@@ -458,3 +458,20 @@
     stroke-dasharray: none;
   }
 }
+
+@keyframes spec-element-in {
+  from {
+    opacity: 0;
+    translate: 0 4px;
+  }
+}
+
+[data-gf-streaming] [data-aui] {
+  animation: spec-element-in 220ms ease-out backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-gf-streaming] [data-aui] {
+    animation: none;
+  }
+}

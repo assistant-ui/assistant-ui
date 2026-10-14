@@ -69,7 +69,11 @@ export type SpecToolkitPlatform = {
   useArgsComplete(): boolean;
   SpecRenderer: ComponentType<SpecRendererProps>;
   /** Wraps each call's rendered spec. */
-  Frame: ComponentType<{ title: string; children: ReactNode }>;
+  Frame: ComponentType<{
+    title: string;
+    streaming: boolean;
+    children: ReactNode;
+  }>;
   /** Appends a user message to the thread, for the `sendMessage` action. */
   useSendMessage(): (text: string) => void;
   /** Registers what `updateModelContext` shares as model context, read when each request starts. */
@@ -249,7 +253,7 @@ export const specToolkitFor =
 
         if (superseded) return null;
         return (
-          <Frame title={title}>
+          <Frame title={title} streaming={streaming}>
             <SpecRenderer
               spec={renderSpec}
               state={store}
