@@ -1,7 +1,84 @@
 import { describe, expect, it } from "vitest";
 import { toGenericMessages, type GenericFilePart } from "./toGenericMessages";
+import type { ToolModelContentPart } from "../tool/tool-types";
 
 describe("toGenericMessages", () => {
+  describe("tool model content", () => {
+    const modelContent: readonly ToolModelContentPart[] = [
+      { type: "text", text: "Report contents" },
+      {
+        type: "file",
+        data: "JVBERi0xLjQ=",
+        mediaType: "application/pdf",
+        filename: "report.pdf",
+      },
+    ];
+
+    it.each([{ content: modelContent }, { content: [] }])(
+      "preserves explicit content on a settled result: %j",
+      ({ content }) => {
+        const result = toGenericMessages([
+          {
+            role: "assistant",
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "call-1",
+                toolName: "report",
+                result: { documentId: "report-1" },
+                modelContent: content,
+              },
+            ],
+          },
+        ]);
+        expect(result.at(-1)).toEqual({
+          role: "tool",
+          content: [
+            {
+              type: "tool-result",
+              toolCallId: "call-1",
+              toolName: "report",
+              result: { documentId: "report-1" },
+              modelContent: content,
+            },
+          ],
+        });
+      },
+    );
+
+    it.each([{}, { result: "preview", isPreliminary: true }])(
+      "does not forward content from an unfinished result: %j",
+      (extra) => {
+        const result = toGenericMessages([
+          {
+            role: "assistant",
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "call-1",
+                toolName: "report",
+                modelContent,
+                ...extra,
+              },
+            ],
+          },
+        ]);
+        expect(result.at(-1)).toEqual({
+          role: "tool",
+          content: [
+            {
+              type: "tool-result",
+              toolCallId: "call-1",
+              toolName: "report",
+              result: { error: "Tool call was not completed" },
+              isError: true,
+            },
+          ],
+        });
+      },
+    );
+  });
+
   describe("system messages", () => {
     it("converts text content", () => {
       const result = toGenericMessages([

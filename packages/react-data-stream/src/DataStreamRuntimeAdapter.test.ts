@@ -32,6 +32,71 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+it("posts explicit tool model content in the next request", async () => {
+  const fetchMock = vi
+    .fn<typeof fetch>()
+    .mockResolvedValue(new Response("data: [DONE]\n\n"));
+  vi.stubGlobal("fetch", fetchMock);
+  const current: ThreadMessage = {
+    id: "assistant-1",
+    role: "assistant",
+    createdAt: new Date(0),
+    status: { type: "running" },
+    metadata: {
+      custom: {},
+      steps: [],
+      unstable_data: [],
+      unstable_annotations: [],
+      unstable_state: {},
+    },
+    content: [
+      {
+        type: "tool-call",
+        toolCallId: "read-1",
+        toolName: "read_report",
+        args: {},
+        argsText: "{}",
+        result: { documentId: "report-1" },
+        modelContent: [
+          { type: "text", text: "Report contents" },
+          { type: "file", data: "JVBERi0xLjQ=", mediaType: "application/pdf" },
+        ],
+      },
+    ],
+  };
+  const adapter = new DataStreamRuntimeAdapter({
+    api: "/api/chat",
+    protocol: "ui-message-stream",
+  });
+  await runOnce(adapter, {
+    ...createRunOptions(new AbortController().signal),
+    messages: [userMessage],
+    unstable_getMessage: () => current,
+  });
+  const body = JSON.parse(fetchMock.mock.calls[0]![1]!.body as string);
+  expect(body.messages.at(-1)).toEqual({
+    role: "tool",
+    content: [
+      {
+        type: "tool-result",
+        toolCallId: "read-1",
+        toolName: "read_report",
+        output: {
+          type: "content",
+          value: [
+            { type: "text", text: "Report contents" },
+            {
+              type: "media",
+              data: "JVBERi0xLjQ=",
+              mediaType: "application/pdf",
+            },
+          ],
+        },
+      },
+    ],
+  });
+});
+
 describe("DataStreamRuntimeAdapter message IDs", () => {
   it("pairs followed pending calls with results when extra message fields are enabled", async () => {
     const fetchMock = vi

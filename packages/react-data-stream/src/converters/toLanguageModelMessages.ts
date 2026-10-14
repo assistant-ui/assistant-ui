@@ -69,7 +69,20 @@ function convertToolContent(
     toolName: part.toolName,
     output: part.isError
       ? { type: "error-json", value: part.result as JSONValue }
-      : { type: "json", value: part.result as JSONValue },
+      : part.modelContent !== undefined
+        ? {
+            type: "content",
+            value: part.modelContent.map((content) =>
+              content.type === "text"
+                ? { type: "text", text: content.text }
+                : {
+                    type: "media",
+                    data: content.data,
+                    mediaType: content.mediaType,
+                  },
+            ),
+          }
+        : { type: "json", value: part.result as JSONValue },
   }));
 }
 
