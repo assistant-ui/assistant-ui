@@ -339,7 +339,7 @@ describe("decodeSubmitData", () => {
 
   it("never throws even when reading the input itself throws", () => {
     const hostile = new Proxy(
-      {},
+      { aui: { type: "approve" } },
       {
         get() {
           throw new Error("boom");
