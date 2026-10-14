@@ -480,6 +480,10 @@ type MessagePartLike = {
   type: string;
   text?: string;
   image?: string;
+  audio?: {
+    data?: string;
+    format?: "mp3" | "wav";
+  };
   data?: string;
   mimeType?: string;
   filename?: string;

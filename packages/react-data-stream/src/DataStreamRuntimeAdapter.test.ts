@@ -32,6 +32,60 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe.each(["mp3", "wav"] as const)(
+  "DataStreamRuntimeAdapter %s audio",
+  (format) => {
+    it.each([false, true])(
+      "posts an audio-only message (attachment: %s)",
+      async (attachment) => {
+        const fetchMock = vi
+          .fn<typeof fetch>()
+          .mockResolvedValue(new Response("data: [DONE]\n\n"));
+        vi.stubGlobal("fetch", fetchMock);
+        const part = {
+          type: "audio" as const,
+          audio: { data: "UklGRg==", format },
+        };
+        const message: ThreadMessage = {
+          ...userMessage,
+          content: attachment ? [] : [part],
+          attachments: attachment
+            ? [
+                {
+                  id: "audio-1",
+                  type: "file",
+                  name: `recording.${format}`,
+                  contentType: `audio/${format}`,
+                  status: { type: "complete" },
+                  content: [part],
+                },
+              ]
+            : [],
+        };
+        const adapter = new DataStreamRuntimeAdapter({
+          api: "/api/chat",
+          protocol: "ui-message-stream",
+          sendExtraMessageFields: true,
+        });
+        await runOnce(adapter, {
+          ...createRunOptions(new AbortController().signal),
+          unstable_getMessage: () => message,
+        });
+        const body = JSON.parse(fetchMock.mock.calls[0]![1]!.body as string);
+        expect(body.messages).toEqual([
+          {
+            role: "user",
+            unstable_id: message.id,
+            content: [
+              { type: "file", data: "UklGRg==", mediaType: `audio/${format}` },
+            ],
+          },
+        ]);
+      },
+    );
+  },
+);
+
 describe("DataStreamRuntimeAdapter message IDs", () => {
   it("pairs followed pending calls with results when extra message fields are enabled", async () => {
     const fetchMock = vi
