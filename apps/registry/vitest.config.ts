@@ -5,7 +5,7 @@ import { defineConfig } from "vitest/config";
 const require = createRequire(import.meta.url);
 
 export default defineConfig({
-  // Templates share this harness without installing their own SDK copies.
+  // Template routes must share SDK module identities with the test's mocks.
   resolve: {
     alias: {
       ai: require.resolve("ai"),
