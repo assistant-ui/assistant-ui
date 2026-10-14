@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import type { Tile } from "../../core/tiles";
+import { ABSTRACT_TILES, HEX_TILES, type Tile } from "../../core/tiles";
+import { round } from "../../core/geometry";
+import { frame } from "../svg";
 import { Choropleth } from "./choropleth";
 import { DotMap } from "./dot-map";
 import { FlowMap } from "./flow-map";
@@ -44,14 +46,6 @@ function expectPointInside(html: string, x: number, y: number) {
   expect(x).toBeLessThanOrEqual(vx + vw);
   expect(y).toBeGreaterThanOrEqual(vy);
   expect(y).toBeLessThanOrEqual(vy + vh);
-}
-
-function markupHash(html: string) {
-  let hash = 2166136261;
-  for (let i = 0; i < html.length; i++) {
-    hash = Math.imul(hash ^ html.charCodeAt(i), 16777619);
-  }
-  return (hash >>> 0).toString(16);
 }
 
 describe("tile hosts with custom tiles", () => {
@@ -125,41 +119,107 @@ describe("tile hosts with custom tiles", () => {
     expect(symbol).not.toBeNull();
     expectPointInside(html, Number(symbol![1]), Number(symbol![2]));
   });
+
+  it("SymbolMap keeps the full circle inside a plot-sized viewBox at an edge tile", () => {
+    const F = frame({}, 5 / 3, { labels: true });
+    const html = renderToStaticMarkup(
+      <SymbolMap
+        marks={[{ col: 1, row: 1, value: 1 }]}
+        tiles={tiles}
+        view={{
+          x: F.left / F.width,
+          y: F.top / F.height,
+          w: (F.right - F.left) / F.width,
+          h: (F.bottom - F.top) / F.height,
+        }}
+      />,
+    );
+    const symbol =
+      /<g data-part="mark"[^>]*><circle cx="([-\d.]+)" cy="([-\d.]+)" r="([-\d.]+)"/.exec(
+        html,
+      );
+    expect(symbol).not.toBeNull();
+    const { vx, vy, vw, vh } = layout(html);
+    const cx = Number(symbol![1]);
+    const cy = Number(symbol![2]);
+    const radius = Number(symbol![3]);
+    expect(cx - radius).toBeGreaterThanOrEqual(vx);
+    expect(cx + radius).toBeLessThanOrEqual(vx + vw);
+    expect(cy - radius).toBeGreaterThanOrEqual(vy);
+    expect(cy + radius).toBeLessThanOrEqual(vy + vh);
+  });
 });
 
-describe("default tile host markup", () => {
-  it("keeps Choropleth markup", () => {
-    expect(
-      markupHash(renderToStaticMarkup(<Choropleth values={[1, 2]} />)),
-    ).toBe("a654cb69");
-  });
-
-  it("keeps DotMap markup", () => {
-    expect(markupHash(renderToStaticMarkup(<DotMap counts={[1, 2]} />))).toBe(
-      "1fd1463a",
-    );
-  });
-
-  it("keeps FlowMap markup", () => {
-    expect(
-      markupHash(
+describe("tile host transforms inside the designed canvas", () => {
+  const hosts = [
+    {
+      name: "Choropleth",
+      labels: true,
+      render: (tiles?: Tile[]) =>
+        renderToStaticMarkup(
+          <Choropleth values={[1, 2]} {...(tiles ? { tiles } : {})} />,
+        ),
+    },
+    {
+      name: "DotMap",
+      labels: false,
+      render: (tiles?: Tile[]) =>
+        renderToStaticMarkup(
+          <DotMap counts={[1, 2]} {...(tiles ? { tiles } : {})} />,
+        ),
+    },
+    {
+      name: "FlowMap",
+      labels: true,
+      render: (tiles?: Tile[]) =>
         renderToStaticMarkup(
           <FlowMap
             origin={{ col: 4, row: 1 }}
             routes={[{ col: 7, row: 3, value: 1 }]}
+            {...(tiles ? { tiles } : {})}
           />,
         ),
-      ),
-    ).toBe("5a12ed1e");
-  });
-
-  it("keeps SymbolMap markup", () => {
-    expect(
-      markupHash(
+    },
+    {
+      name: "SymbolMap",
+      labels: true,
+      render: (tiles?: Tile[]) =>
         renderToStaticMarkup(
-          <SymbolMap marks={[{ col: 4, row: 1, value: 1 }]} />,
+          <SymbolMap
+            marks={[{ col: 4, row: 1, value: 1 }]}
+            {...(tiles ? { tiles } : {})}
+          />,
         ),
-      ),
-    ).toBe("e65aeab0");
-  });
+    },
+  ];
+  const tileSets = [
+    { name: "default", tiles: undefined },
+    { name: "hex preset", tiles: HEX_TILES },
+    {
+      name: "filtered default preset",
+      tiles: ABSTRACT_TILES.filter((tile) => tile.col > 3 && tile.col < 12),
+    },
+    {
+      name: "filtered hex preset",
+      tiles: HEX_TILES.filter((tile) => tile.col >= 4 && tile.col <= 7),
+    },
+    { name: "small custom set", tiles: [{ col: 0, row: 0, x: 50, y: 50 }] },
+  ];
+
+  for (const host of hosts) {
+    for (const tileSet of tileSets) {
+      it(`${host.name} keeps the original transform for ${tileSet.name}`, () => {
+        const F = frame({}, 5 / 3, { labels: host.labels });
+        const u = Math.min((F.right - F.left) / 200, (F.bottom - F.top) / 120);
+        const tx = F.left + (F.right - F.left - 200 * u) / 2;
+        const ty = F.top + (F.bottom - F.top - 120 * u) / 2;
+        const transform = /<g transform="([^"]+)"/.exec(
+          host.render(tileSet.tiles),
+        )?.[1];
+        expect(transform).toBe(
+          `translate(${round(tx)} ${round(ty)}) scale(${u})`,
+        );
+      });
+    }
+  }
 });

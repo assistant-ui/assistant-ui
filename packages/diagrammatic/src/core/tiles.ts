@@ -83,25 +83,18 @@ export function tileLayout(
   let minY = 0;
   let maxX = 200;
   let maxY = 120;
-  if (tiles !== ABSTRACT_TILES && tiles.length > 0) {
-    minX = Infinity;
-    minY = Infinity;
-    maxX = -Infinity;
-    maxY = -Infinity;
-    for (const tile of tiles) {
-      const rx =
-        tile.kind === "hex"
-          ? (Math.abs(tile.size ?? HEX_R) * Math.sqrt(3)) / 2
-          : TILE_SIZE;
-      const ry =
-        tile.kind === "hex" ? Math.abs(tile.size ?? HEX_R) : TILE_HEIGHT;
-      const x = tile.kind === "hex" ? tile.x - rx : tile.x;
-      const y = tile.kind === "hex" ? tile.y - ry : tile.y;
-      minX = Math.min(minX, x);
-      minY = Math.min(minY, y);
-      maxX = Math.max(maxX, x + (tile.kind === "hex" ? rx * 2 : rx));
-      maxY = Math.max(maxY, y + (tile.kind === "hex" ? ry * 2 : ry));
-    }
+  for (const tile of tiles) {
+    const rx =
+      tile.kind === "hex"
+        ? (Math.abs(tile.size ?? HEX_R) * Math.sqrt(3)) / 2
+        : TILE_SIZE;
+    const ry = tile.kind === "hex" ? Math.abs(tile.size ?? HEX_R) : TILE_HEIGHT;
+    const x = tile.kind === "hex" ? tile.x - rx : tile.x;
+    const y = tile.kind === "hex" ? tile.y - ry : tile.y;
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x + (tile.kind === "hex" ? rx * 2 : rx));
+    maxY = Math.max(maxY, y + (tile.kind === "hex" ? ry * 2 : ry));
   }
   const width = maxX - minX;
   const height = maxY - minY;
