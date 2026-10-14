@@ -1,7 +1,7 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Tile } from "../../core/tiles";
-import { ABSTRACT_TILES } from "../../core/tiles";
+import { ABSTRACT_TILES, tileLayout } from "../../core/tiles";
 import { round } from "../../core/geometry";
 import { textWidth, truncate } from "../../core/text";
 import { ACCENT, seqOpacity } from "../../core/theme";
@@ -34,10 +34,8 @@ export const Choropleth = forwardRef<SVGSVGElement, ChoroplethProps>(
     const F = frame({ width, height, aspect, fontSize }, 5 / 3, {
       labels: true,
     });
-    const { left, right, top, bottom, axisY, T } = F;
-    const u = Math.min((right - left) / 200, (bottom - top) / 120);
-    const tx = left + (right - left - 200 * u) / 2;
-    const ty = top + (bottom - top - 120 * u) / 2;
+    const { left, right, axisY, T } = F;
+    const { u, tx, ty } = tileLayout(tiles, F);
     const max = Math.max(...values, 1);
     const low = legendLabel ? `${legendLabel}: low` : "low";
     const swatchW = 12;
