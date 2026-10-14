@@ -39,7 +39,7 @@ export const Candlestick = forwardRef<SVGSVGElement, CandlestickProps>(
     const [lo, hi] = boundsOf(
       data.flatMap((c) => [c.low, c.high]),
       yTicks,
-      guides,
+      guides?.filter((guide) => (guide.axis ?? "y") === "y"),
     );
     const yTickList = resolveTicks(yTicks, lo, hi, "linear", format);
     const F = frame({ width, height, aspect, fontSize }, 5 / 3, {

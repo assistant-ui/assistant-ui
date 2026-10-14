@@ -49,7 +49,11 @@ export const StackedArea = forwardRef<SVGSVGElement, StackedAreaProps>(
   ) => {
     const showLegend = legend ?? series.length > 1;
     const { totals, levels } = stack(series.map((s) => s.data));
-    const max = upperBound([...totals], yTicks, guides);
+    const max = upperBound(
+      [...totals],
+      yTicks,
+      guides?.filter((guide) => (guide.axis ?? "y") === "y"),
+    );
     const yTickList = resolveTicks(yTicks, 0, max, "linear", format);
     const F = frame({ width, height, aspect, fontSize }, 5 / 3, {
       legend: showLegend,
