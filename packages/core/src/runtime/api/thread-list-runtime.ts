@@ -35,6 +35,10 @@ export type ThreadListState = {
   readonly isLoading: boolean;
   /** The error thrown by the most recent thread list load that failed, cleared when a later load starts. */
   readonly loadError: unknown;
+  /** The most recent thread switch that failed: the id it was asked to open and the error it threw. Cleared when a later switch starts or that thread opens. A switch to a controlled `threadId` is retried when the browser comes back online or the tab becomes visible. */
+  readonly switchError:
+    | { readonly threadId: string; readonly error: unknown }
+    | undefined;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
   readonly threadItems: Readonly<
@@ -103,6 +107,7 @@ const getThreadListState = (
     archivedThreadIds: threadList.archivedThreadIds,
     isLoading: threadList.isLoading,
     loadError: threadList.loadError,
+    switchError: threadList.switchError,
     isLoadingMore: threadList.isLoadingMore ?? false,
     hasMore: threadList.hasMore ?? false,
     threadItems: threadList.threadItems,

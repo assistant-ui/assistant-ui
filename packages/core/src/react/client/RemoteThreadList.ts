@@ -1431,6 +1431,7 @@ const useRemoteThreadList = (
       newThreadId: listState.newThreadId ?? null,
       isLoading: listState.isLoading,
       loadError: listState.loadError,
+      switchError: undefined,
       isLoadingMore: listState.isLoadingMore,
       hasMore: listState.cursor !== undefined,
       threadIds: listState.threadIds,

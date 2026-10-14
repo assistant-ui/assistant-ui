@@ -27,6 +27,9 @@ export type ThreadListRuntimeEvent = {
 export type ThreadListRuntimeCore = {
   readonly isLoading: boolean;
   readonly loadError?: unknown;
+  readonly switchError?:
+    | { readonly threadId: string; readonly error: unknown }
+    | undefined;
   readonly isLoadingMore?: boolean;
   readonly hasMore?: boolean;
   mainThreadId: string;
