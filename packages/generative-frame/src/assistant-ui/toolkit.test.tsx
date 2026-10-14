@@ -1201,6 +1201,50 @@ describe("createWidgetToolkit", () => {
     ).toEqual(["/tools/get_price/0/items"]);
   });
 
+  it("warns about a child one parent guards when another parent renders it unguarded", async () => {
+    const spec = {
+      root: "page",
+      elements: {
+        page: {
+          type: "Text",
+          props: { text: "Page" },
+          children: ["plain", "gated"],
+        },
+        plain: { type: "Text", props: { text: "Plain" }, children: ["saving"] },
+        gated: {
+          type: "Text",
+          props: { text: "Deal" },
+          visible: { $state: "/tools/get_price/0/discount" },
+          children: ["saving"],
+        },
+        saving: {
+          type: "Text",
+          props: { text: { $template: "Save ${/tools/get_price/0/discount}" } },
+        },
+      },
+      state: {},
+    };
+    mocks.messages = [
+      { content: [call("price", "get_price", {}, { price: "$42" })] },
+      { content: [call("s", "render_spec", { title: "s", spec })] },
+    ];
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, { components }),
+    });
+    const entry = entries(toolkit)["render_spec"]!;
+    const RenderSpec = entry.render;
+    render(<RenderSpec {...partProps("s", { title: "s", spec })} />);
+    const result = (await entry.execute!(
+      { title: "s", spec },
+      { toolCallId: "s" },
+    )) as { issues: { code: string; elementId?: string }[] };
+    expect(
+      result.issues
+        .filter((issue) => issue.code === "missing-tool-result")
+        .map((issue) => issue.elementId),
+    ).toEqual(["saving"]);
+  });
+
   it("checks each of two overlapping calls with one title against its own spec", async () => {
     const reading = (path: string) => ({
       root: "t",

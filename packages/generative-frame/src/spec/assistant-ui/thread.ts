@@ -220,7 +220,7 @@ function collectShown(
   }
 }
 
-/** The elements a spec can render, each with the paths a `visible` condition on it or an ancestor guards: reachable from the root through children and slots, leaving out one hidden with `visible: false` along with what it holds, and the repeated children of a `/tools` path the results hold no array at. */
+/** Each place a spec can render an element, with the paths a `visible` condition on it or an ancestor guards there: reachable from the root through children and slots, leaving out one hidden with `visible: false` along with what it holds, and the repeated children of a `/tools` path the results hold no array at. An element under parents that guard different paths appears once per set of guards. */
 function renderedElements(
   spec: Spec,
   state: unknown,
@@ -232,8 +232,7 @@ function renderedElements(
     typeof spec.root === "string" ? [[spec.root, new Set()]] : [];
   while (pending.length > 0) {
     const [id, inherited] = pending.pop()!;
-    if (seen.has(id) || !Object.hasOwn(elements, id)) continue;
-    seen.add(id);
+    if (!Object.hasOwn(elements, id)) continue;
     const element = elements[id];
     if (typeof element !== "object" || element === null) continue;
     if (element.visible === false) continue;
@@ -241,6 +240,9 @@ function renderedElements(
       ...inherited,
       ...conditionGuards(element.visible).map(safePointer),
     ]);
+    const visit = JSON.stringify([id, ...[...guarded].sort()]);
+    if (seen.has(visit)) continue;
+    seen.add(visit);
     rendered.push([id, element, guarded]);
     const repeat =
       typeof element.repeat?.path === "string"
@@ -266,6 +268,7 @@ function missingToolResults(
 ): SpecIssue[] {
   const issues: SpecIssue[] = [];
   const state = { tools: toolResults };
+  const reported = new Set<string>();
   for (const [id, element, guarded] of renderedElements(spec, state)) {
     const shown: string[] = [];
     collectShown([element.props, element.on, element.watch], guarded, shown);
@@ -276,6 +279,9 @@ function missingToolResults(
     for (const pointer of new Set(shown)) {
       if (!readsTools(pointer)) continue;
       if (getAtPointer(state, pointer) !== undefined) continue;
+      const report = JSON.stringify([id, pointer]);
+      if (reported.has(report)) continue;
+      reported.add(report);
       issues.push({
         code: "missing-tool-result",
         severity: "warning",
