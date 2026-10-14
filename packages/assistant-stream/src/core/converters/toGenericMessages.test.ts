@@ -128,6 +128,90 @@ describe("toGenericMessages", () => {
       ]);
     });
 
+    it.each(["mp3", "wav"] as const)(
+      "converts legacy %s audio parts to file parts",
+      (format) => {
+        const result = toGenericMessages([
+          {
+            role: "user",
+            content: [{ type: "audio", audio: { data: "UklGRg==", format } }],
+          },
+        ]);
+
+        expect(result).toEqual([
+          {
+            role: "user",
+            content: [
+              { type: "file", data: "UklGRg==", mediaType: `audio/${format}` },
+            ],
+          },
+        ]);
+      },
+    );
+
+    it.each([
+      {
+        label: "data URLs",
+        data: "data:audio/mpeg;base64,UklGRg==",
+        expectedData: new URL("data:audio/wav;base64,UklGRg=="),
+      },
+      {
+        label: "percent-escaped data URL payloads",
+        data: "data:audio/mpeg;base64,UklGRg%3D%3D",
+        expectedData: new URL("data:audio/wav;base64,UklGRg=="),
+      },
+      {
+        label: "URL references",
+        data: "https://cdn.example.com/voice.wav",
+        expectedData: new URL("https://cdn.example.com/voice.wav"),
+      },
+    ])("preserves audio $label", ({ data, expectedData }) => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [{ type: "audio", audio: { data, format: "wav" } }],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: [
+            { type: "file", data: expectedData, mediaType: "audio/wav" },
+          ],
+        },
+      ]);
+    });
+
+    it.each(["mp3", "wav"] as const)(
+      "converts legacy %s audio attachment parts to file parts",
+      (format) => {
+        const result = toGenericMessages([
+          {
+            role: "user",
+            content: [],
+            attachments: [
+              {
+                contentType: `audio/${format}`,
+                content: [
+                  { type: "audio", audio: { data: "UklGRg==", format } },
+                ],
+              },
+            ],
+          },
+        ]);
+
+        expect(result).toEqual([
+          {
+            role: "user",
+            content: [
+              { type: "file", data: "UklGRg==", mediaType: `audio/${format}` },
+            ],
+          },
+        ]);
+      },
+    );
+
     it("preserves zero-byte file parts", () => {
       const result = toGenericMessages([
         {

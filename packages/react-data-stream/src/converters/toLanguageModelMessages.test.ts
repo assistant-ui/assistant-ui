@@ -13,6 +13,30 @@ const createFileMessage = (
   metadata: { custom: {} },
 });
 
+const createAudioMessage = (
+  format: "mp3" | "wav",
+  attached = false,
+  data = "UklGRg==",
+): Extract<ThreadMessage, { role: "user" }> => ({
+  id: "user-audio",
+  role: "user",
+  createdAt: new Date(0),
+  content: attached ? [] : [{ type: "audio", audio: { data, format } }],
+  attachments: attached
+    ? [
+        {
+          id: "attachment-audio",
+          type: "audio",
+          name: `recording.${format}`,
+          contentType: `audio/${format}`,
+          status: { type: "complete" },
+          content: [{ type: "audio", audio: { data, format } }],
+        },
+      ]
+    : [],
+  metadata: { custom: {} },
+});
+
 const createToolMessage = (
   part: Partial<ToolCallMessagePart>,
 ): ThreadMessage => ({
@@ -50,6 +74,67 @@ const convertFileData = (data: string) => {
 };
 
 describe("toLanguageModelMessages", () => {
+  it.each(["mp3", "wav"] as const)(
+    "converts inline legacy %s audio into a model file part",
+    (format) => {
+      expect(toLanguageModelMessages([createAudioMessage(format)])).toEqual([
+        {
+          role: "user",
+          content: [
+            { type: "file", data: "UklGRg==", mediaType: `audio/${format}` },
+          ],
+        },
+      ]);
+    },
+  );
+
+  it("uses the audio format when an input data URL declares a different type", () => {
+    const [message] = toLanguageModelMessages([
+      createAudioMessage("wav", false, "data:audio/mpeg;base64,UklGRg=="),
+    ]);
+
+    expect(message).toEqual({
+      role: "user",
+      content: [
+        {
+          type: "file",
+          data: new URL("data:audio/wav;base64,UklGRg=="),
+          mediaType: "audio/wav",
+        },
+      ],
+    });
+  });
+
+  it.each(["mp3", "wav"] as const)(
+    "converts completed %s audio attachments into model file parts",
+    (format) => {
+      expect(
+        toLanguageModelMessages([createAudioMessage(format, true)]),
+      ).toEqual([
+        {
+          role: "user",
+          content: [
+            { type: "file", data: "UklGRg==", mediaType: `audio/${format}` },
+          ],
+        },
+      ]);
+    },
+  );
+
+  it("preserves an equivalent audio MIME file part", () => {
+    const [message] = toLanguageModelMessages([
+      {
+        ...createFileMessage("UklGRg=="),
+        content: [{ type: "file", data: "UklGRg==", mimeType: "audio/wav" }],
+      },
+    ]);
+
+    expect(message).toEqual({
+      role: "user",
+      content: [{ type: "file", data: "UklGRg==", mediaType: "audio/wav" }],
+    });
+  });
+
   it("skips an assistant message without content instead of throwing", () => {
     expect(
       toLanguageModelMessages([{ id: "a", role: "assistant" }] as never),

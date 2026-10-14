@@ -63,6 +63,7 @@ type MessagePartLike = {
   type: string;
   text?: string;
   image?: string;
+  audio?: { data: string; format: "mp3" | "wav" };
   data?: string;
   mimeType?: string;
   filename?: string;
@@ -132,7 +133,18 @@ function inferImageMediaType(url: string, contentType?: string): string {
   return IMAGE_MEDIA_TYPES[ext] ?? "image/png";
 }
 
-function toUrlOrString(value: string): string | URL {
+function toUrlOrString(value: string, mediaType?: string): string | URL {
+  if (mediaType) {
+    const dataUrl = value.match(/^data:[^;,]*(?:;[^;,]+)*;base64,(.*)$/i);
+    if (dataUrl) {
+      const data = dataUrl[1]!.replace(
+        /%([\da-f]{2})/gi,
+        (_match, hex: string) => String.fromCharCode(Number.parseInt(hex, 16)),
+      );
+      value = `data:${mediaType};base64,${data}`;
+    }
+  }
+
   try {
     return new URL(value);
   } catch {
@@ -150,6 +162,18 @@ function toGenericFilePart(
       data: toUrlOrString(part.image),
       mediaType: inferImageMediaType(part.image, contentType),
       ...(part.filename && { filename: part.filename }),
+    };
+  }
+  if (
+    part.type === "audio" &&
+    typeof part.audio?.data === "string" &&
+    (part.audio.format === "mp3" || part.audio.format === "wav")
+  ) {
+    const mediaType = `audio/${part.audio.format}`;
+    return {
+      type: "file",
+      data: toUrlOrString(part.audio.data, mediaType),
+      mediaType,
     };
   }
   if (part.type === "file" && typeof part.data === "string") {
