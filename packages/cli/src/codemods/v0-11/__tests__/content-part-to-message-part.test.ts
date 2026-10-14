@@ -376,3 +376,38 @@ export const custom = (Message) => <Message.Content />;`);
     );
   });
 });
+
+describe("content-part re-exports", () => {
+  it.each([
+    [
+      'export { useContentPart } from "@assistant-ui/react";',
+      'export { useMessagePart as useContentPart } from "@assistant-ui/react";',
+    ],
+    [
+      'export type { TextContentPart } from "@assistant-ui/react";',
+      'export type { TextMessagePart as TextContentPart } from "@assistant-ui/react";',
+    ],
+    [
+      'export { type TextContentPart as Part } from "@assistant-ui/react";',
+      'export { type TextMessagePart as Part } from "@assistant-ui/react";',
+    ],
+    [
+      'export { useContentPart as usePart } from "@assistant-ui/react";',
+      'export { useMessagePart as usePart } from "@assistant-ui/react";',
+    ],
+  ])(
+    "migrates the source symbol while preserving its public name: %s",
+    (input, expected) => {
+      const output = applyTransform(input);
+      expect(output).toBe(expected);
+      expect(applyTransform(output)).toBe(output);
+    },
+  );
+
+  it("preserves unrelated re-exports and export namespaces", () => {
+    const input = `export { useContentPart } from "./custom-hooks";
+export type { TextContentPart } from "./custom-types";
+export * as ContentPartPrimitive from "@assistant-ui/react";`;
+    expect(applyTransform(input)).toBe(input);
+  });
+});

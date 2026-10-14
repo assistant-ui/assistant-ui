@@ -72,6 +72,19 @@ const typeRenamingMap: Record<string, string> = {
 
 const migrateContentPartToMessagePart = createTransformer(
   ({ j, root, markAsChanged }) => {
+    const renameExport = (path: any, newName: string) => {
+      const specifier = path.value;
+      const replacement: any = j.exportSpecifier.from({
+        local: j.identifier(newName),
+        exported: j.Identifier.check(specifier.exported)
+          ? j.identifier(specifier.exported.name)
+          : specifier.exported,
+      });
+      replacement.exportKind = specifier.exportKind;
+      replacement.comments = specifier.comments;
+      path.replace(replacement);
+    };
+
     const declaredNames = new Set<string>();
     root.find(j.TSTypeParameter).forEach((path: any) => {
       declaredNames.add(path.value.name.name ?? path.value.name);
@@ -158,17 +171,7 @@ const migrateContentPartToMessagePart = createTransformer(
               parent.key = j.identifier(oldName);
               parent.value = j.identifier(newName);
             } else if (j.ExportSpecifier.check(parent)) {
-              const replacement: any = j.exportSpecifier.from({
-                local: j.identifier(newName),
-                exported: j.Identifier.check(parent.exported)
-                  ? j.identifier(parent.exported.name)
-                  : parent.exported,
-              });
-              replacement.exportKind = (
-                parent as { exportKind?: string }
-              ).exportKind;
-              replacement.comments = parent.comments;
-              reference.parent.replace(replacement);
+              renameExport(reference.parent, newName);
             } else {
               reference.value.name = newName;
             }
@@ -181,6 +184,23 @@ const migrateContentPartToMessagePart = createTransformer(
         replacement.importKind = importKind;
         replacement.comments = specifier.comments;
         path.get("specifiers", index).replace(replacement);
+        markAsChanged();
+      });
+    });
+
+    root.find(j.ExportNamedDeclaration).forEach((path: any) => {
+      const source = path.value.source?.value;
+      if (typeof source !== "string" || !source.startsWith("@assistant-ui/"))
+        return;
+      path.value.specifiers?.forEach((specifier: any, index: number) => {
+        if (
+          !j.ExportSpecifier.check(specifier) ||
+          !j.Identifier.check(specifier.local)
+        )
+          return;
+        const newName = typeRenamingMap[specifier.local.name];
+        if (!newName) return;
+        renameExport(path.get("specifiers", index), newName);
         markAsChanged();
       });
     });
