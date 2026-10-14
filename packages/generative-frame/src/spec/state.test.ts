@@ -56,9 +56,20 @@ describe("createStateStore writes", () => {
       JSON.stringify(store.writes()),
     ) as SpecStateWrite[];
 
-    expect(createStateStore({}, { writes }).getState()).toEqual({
+    expect(createStateStore({ groups: [{}] }, { writes }).getState()).toEqual({
       groups: [{ items: ["first", "second"] }],
     });
+    expect(createStateStore({}, { writes }).getState()).toEqual({});
+  });
+
+  it("drops a replayed write into an array item that is gone", () => {
+    const store = createStateStore({
+      todos: [{ done: false }, { done: false }, { done: false }],
+    });
+    store.set("/todos/2/done", true, "replace");
+    store.seed({});
+    expect(store.getState()).toEqual({});
+    expect(store.writes()).toEqual([]);
   });
 
   it("keeps a present object parent when saved writes recorded an array", () => {
@@ -94,7 +105,7 @@ describe("createStateStore writes", () => {
     },
   );
 
-  it("preserves the replacement marker when restoring an array write", () => {
+  it("keeps the replacement marker and drops a restored replacement whose item is gone", () => {
     const writes = JSON.parse(
       JSON.stringify([["/items/0", "edited", "replace"]]),
     ) as SpecStateWrite[];
@@ -110,9 +121,10 @@ describe("createStateStore writes", () => {
         writes: JSON.parse(JSON.stringify(store.writes())) as SpecStateWrite[],
       },
     );
-    expect(restored.getState()).toEqual({ items: ["edited"] });
+    expect(restored.getState()).toEqual({});
     store.seed({});
-    expect(store.getState()).toEqual({ items: ["edited"] });
+    expect(store.getState()).toEqual({});
+    expect(store.writes()).toEqual([]);
   });
 
   it("applies restored writes over the initial state and keeps them through seeds", () => {

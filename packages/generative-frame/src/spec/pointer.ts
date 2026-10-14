@@ -76,7 +76,6 @@ function writeAtPointerAt(
   options: WriteOptions,
   arrayParents: readonly string[],
   prefix: readonly string[],
-  created = false,
 ): unknown {
   if (tokens.length === 0) {
     if (mode === "remove") throw new Error("Cannot remove the whole document");
@@ -106,9 +105,6 @@ function writeAtPointerAt(
         }
         copy.splice(index, 0, value);
       } else {
-        if (created && mode === "replace") {
-          while (copy.length <= index) copy.push(undefined);
-        }
         if (index >= copy.length) {
           throw new Error(`Index ${index} is out of bounds`);
         }
@@ -116,9 +112,6 @@ function writeAtPointerAt(
         else copy[index] = value;
       }
       return copy;
-    }
-    if (created && mode !== "remove") {
-      while (copy.length <= index) copy.push(undefined);
     }
     if (index >= copy.length)
       throw new Error(`Index ${index} is out of bounds`);
@@ -136,17 +129,15 @@ function writeAtPointerAt(
 
   if (!isContainer(doc)) {
     if (options.createMissing && doc === undefined && mode !== "remove") {
-      // An array the write went through is recreated as one, so its indices and `-` do not become object keys; only such a new array grows to reach an index.
-      const array = arrayParents.includes(joinPointer(prefix));
+      // An array the write went through is recreated as one, so `-` and its indices do not become object keys; an index it does not have still fails, so no item appears that the user never wrote.
       return writeAtPointerAt(
-        array ? [] : {},
+        arrayParents.includes(joinPointer(prefix)) ? [] : {},
         tokens,
         mode,
         value,
         options,
         arrayParents,
         prefix,
-        array,
       );
     }
     throw new Error(`Path segment "${token}" does not exist`);
