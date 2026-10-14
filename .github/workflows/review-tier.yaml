@@ -23,6 +23,7 @@ on:
     types: [checks_requested]
   schedule:
     - cron: "*/10 * * * *"
+    - cron: "0 4 * * *"
   workflow_dispatch:
     inputs:
       pr:
