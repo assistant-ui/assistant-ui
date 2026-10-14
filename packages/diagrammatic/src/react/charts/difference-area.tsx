@@ -5,7 +5,6 @@ import { type TickSpec, resolveTicks, upperBound } from "../../core/scale";
 import type { Guide, Pt, Series } from "../../core/types";
 import {
   type CubicSegment,
-  bandPath,
   lineCubicSegment,
   linePath,
   linear,
@@ -99,6 +98,70 @@ function cubicCrossings(
   return roots;
 }
 
+function cubicParameterAtX(c: CubicSegment, x: number): number {
+  let lo = 0;
+  let hi = 1;
+  for (let step = 0; step < 50; step += 1) {
+    const mid = (lo + hi) / 2;
+    if (splitCubic(c, mid)[0].end.x < x) lo = mid;
+    else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+
+type CubicCut = { actual: number; reference: number };
+
+function sharesXParameterization(
+  actual: CubicSegment,
+  reference: CubicSegment,
+): boolean {
+  return (
+    actual.control1.x === reference.control1.x &&
+    actual.control2.x === reference.control2.x
+  );
+}
+
+function alignedCrossings(
+  actual: CubicSegment,
+  reference: CubicSegment,
+): CubicCut[] {
+  if (sharesXParameterization(actual, reference)) {
+    return cubicCrossings(actual, reference).map((t) => ({
+      actual: t,
+      reference: t,
+    }));
+  }
+  const at = (t: number) => {
+    const point = splitCubic(actual, t)[0].end;
+    const referenceT = cubicParameterAtX(reference, point.x);
+    return {
+      t,
+      referenceT,
+      difference: point.y - splitCubic(reference, referenceT)[0].end.y,
+    };
+  };
+  const roots: CubicCut[] = [];
+  let previous = at(0);
+  for (let step = 1; step <= 64; step += 1) {
+    const next = at(step / 64);
+    if (previous.difference * next.difference < 0) {
+      let lo = previous.t;
+      let hi = next.t;
+      for (let iteration = 0; iteration < 50; iteration += 1) {
+        const mid = (lo + hi) / 2;
+        if (previous.difference * at(mid).difference > 0) lo = mid;
+        else hi = mid;
+      }
+      const root = at((lo + hi) / 2);
+      roots.push({ actual: root.t, reference: root.referenceT });
+    }
+    if (previous.difference === 0 || next.difference !== 0) {
+      previous = next;
+    }
+  }
+  return roots;
+}
+
 type BandRun = { actual: CubicSegment[]; reference: CubicSegment[] };
 
 function bandRunPath(run: BandRun, actualAbove: boolean): string {
@@ -121,29 +184,39 @@ function bandRunPath(run: BandRun, actualAbove: boolean): string {
 function splitDifferenceBands(
   actual: Pt[],
   reference: Pt[],
-  fallback: [string, string],
+  sharedCount: number,
 ): [string, string] {
-  if (
-    actual.length < 2 ||
-    actual.some((point, i) => point.x !== reference[i]?.x)
-  ) {
-    return fallback;
-  }
   const positive: BandRun[] = [];
   const negative: BandRun[] = [];
   let previousSign = 0;
-  for (let i = 0; i + 1 < actual.length; i += 1) {
+  for (let i = 0; i + 1 < sharedCount; i += 1) {
     const actualCurve = lineCubicSegment(actual, i);
     const referenceCurve = lineCubicSegment(reference, i);
-    const cuts = [0, ...cubicCrossings(actualCurve, referenceCurve), 1];
+    const cuts: CubicCut[] = [
+      { actual: 0, reference: 0 },
+      ...alignedCrossings(actualCurve, referenceCurve),
+      { actual: 1, reference: 1 },
+    ];
     for (let j = 0; j + 1 < cuts.length; j += 1) {
       const from = cuts[j]!;
       const to = cuts[j + 1]!;
-      const actualPart = cubicSection(actualCurve, from, to);
-      const referencePart = cubicSection(referenceCurve, from, to);
-      const midpoint =
-        cubicSection(actualCurve, from, (from + to) / 2).end.y -
-        cubicSection(referenceCurve, from, (from + to) / 2).end.y;
+      const actualPart = cubicSection(actualCurve, from.actual, to.actual);
+      const referencePart = cubicSection(
+        referenceCurve,
+        from.reference,
+        to.reference,
+      );
+      const actualMidpoint = splitCubic(actualPart, 0.5)[0].end;
+      const referenceMidpoint = sharesXParameterization(
+        actualCurve,
+        referenceCurve,
+      )
+        ? splitCubic(referencePart, 0.5)[0].end
+        : splitCubic(
+            referenceCurve,
+            cubicParameterAtX(referenceCurve, actualMidpoint.x),
+          )[0].end;
+      const midpoint = actualMidpoint.y - referenceMidpoint.y;
       const sign = Math.sign(midpoint);
       if (sign === 0) {
         previousSign = 0;
@@ -156,7 +229,6 @@ function splitDifferenceBands(
       previousSign = sign;
     }
   }
-  if (positive.length === 0 || negative.length === 0) return fallback;
   return [
     positive.map((run) => bandRunPath(run, true)).join(" "),
     negative.map((run) => bandRunPath(run, false)).join(" "),
@@ -206,20 +278,10 @@ export const DifferenceArea = forwardRef<SVGSVGElement, DifferenceAreaProps>(
     const a = along(actual.data);
     const b = along(reference.data);
     const sharedCount = Math.min(a.length, b.length);
-    const sharedActual = a.slice(0, sharedCount);
-    const sharedReference = b.slice(0, sharedCount);
-    const above = sharedActual.map((p, i) => ({
-      x: p.x,
-      y: Math.min(p.y, sharedReference[i]!.y),
-    }));
-    const below = sharedActual.map((p, i) => ({
-      x: p.x,
-      y: Math.max(p.y, sharedReference[i]!.y),
-    }));
     const [positivePath, negativePath] = splitDifferenceBands(
-      sharedActual,
-      sharedReference,
-      [bandPath(above, sharedReference), bandPath(sharedReference, below)],
+      a,
+      b,
+      sharedCount,
     );
     const actualEnd = a[a.length - 1];
     const referenceEnd = b[b.length - 1];

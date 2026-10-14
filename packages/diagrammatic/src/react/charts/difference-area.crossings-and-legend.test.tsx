@@ -77,6 +77,26 @@ const samplePath = (path: string, steps: number, skipVertical = false) => {
   return samples;
 };
 
+const expectBandEdgesOnLines = (paths: string[], minimumSamples: number) => {
+  const lineSamples = [
+    ...samplePath(paths[2]!, 1000),
+    ...samplePath(paths[3]!, 1000),
+  ];
+  for (const band of paths.slice(0, 2)) {
+    if (!band) continue;
+    const edgeSamples = samplePath(band, 8, true);
+    expect(edgeSamples.length).toBeGreaterThan(minimumSamples);
+    for (const point of edgeSamples) {
+      const distance = Math.min(
+        ...lineSamples.map((linePoint) =>
+          Math.hypot(point.x - linePoint.x, point.y - linePoint.y),
+        ),
+      );
+      expect(distance).toBeLessThan(0.5);
+    }
+  }
+};
+
 describe("DifferenceArea crossings and legend", () => {
   it("omits the built-in legend and frees its frame space", () => {
     const withLegend = render();
@@ -116,21 +136,34 @@ describe("DifferenceArea crossings and legend", () => {
       />,
     );
     const paths = markPaths(html);
-    const lineSamples = [
-      ...samplePath(paths[2]!, 1000),
-      ...samplePath(paths[3]!, 1000),
-    ];
-    for (const band of paths.slice(0, 2)) {
-      const edgeSamples = samplePath(band, 8, true);
-      expect(edgeSamples.length).toBeGreaterThan(20);
-      for (const point of edgeSamples) {
-        const distance = Math.min(
-          ...lineSamples.map((linePoint) =>
-            Math.hypot(point.x - linePoint.x, point.y - linePoint.y),
-          ),
-        );
-        expect(distance).toBeLessThan(0.5);
-      }
-    }
+    expect(paths[0]).not.toBe("");
+    expect(paths[1]).not.toBe("");
+    expectBandEdgesOnLines(paths, 20);
+  });
+
+  it("keeps unequal-length crossing band edges within 0.5px of the drawn curves", () => {
+    const html = renderToStaticMarkup(
+      <DifferenceArea
+        actual={{ name: "actual", data: [0, 20, 0] }}
+        reference={{ name: "reference", data: [20, 0, 20, 100] }}
+      />,
+    );
+    const paths = markPaths(html);
+    expect(paths[0]).not.toBe("");
+    expect(paths[1]).not.toBe("");
+    expectBandEdgesOnLines(paths, 8);
+  });
+
+  it("keeps a two-point non-crossing band on the drawn lines", () => {
+    const html = renderToStaticMarkup(
+      <DifferenceArea
+        actual={{ name: "actual", data: [0, 20] }}
+        reference={{ name: "reference", data: [30, 30, 70] }}
+      />,
+    );
+    const paths = markPaths(html);
+    expect(paths[0]).toBe("");
+    expect(paths[1]).not.toBe("");
+    expectBandEdgesOnLines(paths, 8);
   });
 });
