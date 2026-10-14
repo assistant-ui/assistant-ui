@@ -35,7 +35,7 @@ export type HostApiOptions = {
   callTool?: boolean;
   /** The host passes what `genframe.updateModelContext` shares to the model. Defaults to false. */
   modelContext?: boolean;
-  /** The host copies what `genframe.copyText` passes to the user's clipboard, which `createWidget` does by default. Defaults to true. */
+  /** The host copies what `genframe.copyText` passes, through `onCopyText`. Defaults to false. */
   clipboard?: boolean;
 };
 
@@ -339,7 +339,7 @@ const createContext = (options: GuidanceOptions): Context => {
       prompt: options.hostApi?.prompt ?? true,
       callTool: options.hostApi?.callTool ?? false,
       modelContext: options.hostApi?.modelContext ?? false,
-      clipboard: options.hostApi?.clipboard ?? true,
+      clipboard: options.hostApi?.clipboard ?? false,
     },
     tokenNames: names,
     extraTokens: names.filter((name) => !canonical.has(name)).sort(),

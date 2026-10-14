@@ -492,31 +492,11 @@ describe("createWidget", () => {
     await expect(replacement).rejects.toThrow("Widget disposed");
   });
 
-  const stubClipboard = (isActive: boolean | undefined) => {
-    const writeText = vi.fn(async () => {});
-    Object.defineProperty(navigator, "clipboard", {
-      configurable: true,
-      value: { writeText },
-    });
-    if (isActive !== undefined)
-      Object.defineProperty(navigator, "userActivation", {
-        configurable: true,
-        value: { isActive },
-      });
-    onTestFinished(() => {
-      Reflect.deleteProperty(navigator, "clipboard");
-      Reflect.deleteProperty(navigator, "userActivation");
-    });
-    return writeText;
-  };
-
-  it("copies through onCopyText or the page's clipboard while the widget has focus during a user action", async () => {
-    const writeText = stubClipboard(true);
+  it("passes the text a widget copies to onCopyText, and refuses without one", async () => {
     const onCopyText = vi.fn();
     const custom = setup({ onCopyText });
     const customFrame = await custom.fake.connect(0);
     await custom.widget.ready;
-    custom.fake.rendered[0]!.iframe.focus();
     await customFrame.request(METHODS.copyText, { text: "Shopping list" });
     expect(onCopyText).toHaveBeenCalledExactlyOnceWith("Shopping list");
     await expect(
@@ -524,41 +504,23 @@ describe("createWidget", () => {
     ).rejects.toThrow("requires a string 'text'");
     custom.widget.dispose();
 
+    const writeText = vi.fn(async () => {});
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+    onTestFinished(() => {
+      Reflect.deleteProperty(navigator, "clipboard");
+    });
     const plain = setup();
     const plainFrame = await plain.fake.connect(0);
     await plain.widget.ready;
-    plain.fake.rendered[0]!.iframe.focus();
-    await plainFrame.request(METHODS.copyText, { text: "a" });
-    expect(writeText).toHaveBeenCalledExactlyOnceWith("a");
+    await expect(
+      plainFrame.request(METHODS.copyText, { text: "a" }),
+    ).rejects.toThrow("This host does not copy text");
+    expect(writeText).not.toHaveBeenCalled();
     plain.widget.dispose();
   });
-
-  it.each([
-    ["the page has a user action but focus is elsewhere", true, false],
-    ["the widget has focus without a user action", false, true],
-    ["the browser has no user activation API", undefined, true],
-  ] as const)(
-    "rejects a copy when %s",
-    async (_case, isActive, focusWidget) => {
-      const writeText = stubClipboard(isActive);
-      const onCopyText = vi.fn();
-      const { container, fake, widget } = setup({ onCopyText });
-      const frame = await fake.connect(0);
-      await widget.ready;
-      if (focusWidget) fake.rendered[0]!.iframe.focus();
-      else {
-        const button = document.createElement("button");
-        container.after(button);
-        button.focus();
-      }
-      await expect(
-        frame.request(METHODS.copyText, { text: "a" }),
-      ).rejects.toThrow("needs a user action in the widget");
-      expect(onCopyText).not.toHaveBeenCalled();
-      expect(writeText).not.toHaveBeenCalled();
-      widget.dispose();
-    },
-  );
 
   it("drops widget state that cannot be JSON stringified", async () => {
     const onWidgetState = vi.fn();

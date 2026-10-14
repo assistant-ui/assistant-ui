@@ -177,17 +177,17 @@ describe("buildWidgetGuidance", () => {
     expect(base).toContain("`sendPrompt(text)`");
     expect(base).not.toContain("genframe.callTool");
     expect(base).not.toContain("genframe.updateModelContext");
-    expect(base).toContain("`await genframe.copyText(text)` copies");
+    expect(base).not.toContain("genframe.copyText");
 
     const full = buildWidgetGuidance({
       hostApi: {
         prompt: false,
         callTool: true,
         modelContext: true,
-        clipboard: false,
+        clipboard: true,
       },
     });
-    expect(full).not.toContain("genframe.copyText");
+    expect(full).toContain("`await genframe.copyText(text)` copies");
     expect(full).not.toContain("`sendPrompt(text)` sends");
     expect(full).toContain("genframe.callTool");
     expect(full).toContain(

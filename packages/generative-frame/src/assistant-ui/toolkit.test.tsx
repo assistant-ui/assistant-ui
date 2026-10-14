@@ -556,6 +556,17 @@ describe("createWidgetToolkit", () => {
     );
   });
 
+  it("documents genframe.copyText only when the app handles onCopyText", async () => {
+    const readMe = async (widget?: { onCopyText: (text: string) => void }) =>
+      (await entries(createWidgetToolkit(widget ? { widget } : {}).toolkit)[
+        "read_me"
+      ]!.execute!({ modules: [] })) as string;
+    expect(await readMe()).not.toContain("genframe.copyText");
+    expect(await readMe({ onCopyText: () => {} })).toContain(
+      "`await genframe.copyText(text)` copies",
+    );
+  });
+
   it("adds extra tools that execute and render nothing", async () => {
     const lookup = {
       name: "lookup",

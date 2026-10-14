@@ -50,7 +50,7 @@ export type WidgetHandlers = {
   onInitialized?: (params: McpAppInitializeParams) => void;
   onRequestDisplayMode?: (request: { mode: DisplayMode }) => unknown;
   onUpdateModelContext?: (params: unknown) => unknown;
-  /** A widget called `genframe.copyText(text)` right after the user acted in it, while its frame has focus. Defaults to writing `text` to the page's clipboard. */
+  /** A widget called `genframe.copyText(text)` or `navigator.clipboard.writeText(text)`. The request alone does not show the user asked for the copy, so confirm with them, such as through a Copy control the host renders, before writing the clipboard. Without it, copying fails in the widget. */
   onCopyText?: (text: string) => unknown;
   onWidgetState?: (state: unknown) => void;
   onResize?: (size: WidgetSize) => void;
@@ -410,11 +410,6 @@ const defaultOpenLink = (url: string) => {
   window.open(url, "_blank", "noopener,noreferrer");
 };
 
-const defaultCopyText = async (text: string) => {
-  if (!navigator.clipboard) throw new Error("This page has no clipboard");
-  await navigator.clipboard.writeText(text);
-};
-
 type Session = {
   slot: HTMLElement;
   ready: Promise<void>;
@@ -479,11 +474,7 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
     emit("error", error);
   };
 
-  const onRequest = async (
-    method: string,
-    params: unknown,
-    session: Session,
-  ) => {
+  const onRequest = async (method: string, params: unknown) => {
     const p = (params ?? {}) as Record<string, unknown>;
     switch (method) {
       case METHODS.initialize:
@@ -575,26 +566,19 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
         return (await options.onRequestDisplayMode({ mode })) ?? { mode };
       }
       case METHODS.copyText: {
+        if (!options.onCopyText) {
+          throw new RpcError(
+            RPC_ERROR.methodNotFound,
+            "This host does not copy text",
+          );
+        }
         if (typeof p["text"] !== "string") {
           throw new RpcError(
             RPC_ERROR.invalidParams,
             "genframe/copy-text requires a string 'text'",
           );
         }
-        // Any input on the page activates it, so the copy also needs this widget's frame to hold focus, which only the user can give a cross-origin frame.
-        const iframe = session.iframe();
-        const root = iframe?.getRootNode();
-        const focused =
-          root instanceof Document || root instanceof ShadowRoot
-            ? root.activeElement === iframe
-            : false;
-        if (!focused || !navigator.userActivation?.isActive) {
-          throw new RpcError(
-            RPC_ERROR.invalidRequest,
-            "genframe/copy-text needs a user action in the widget",
-          );
-        }
-        await (options.onCopyText ?? defaultCopyText)(p["text"]);
+        await options.onCopyText(p["text"]);
         return {};
       }
       case METHODS.updateModelContext:
@@ -716,7 +700,7 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
           if (method === METHODS.initialize) {
             initializeParams = getInitializeParams(params);
           }
-          return onRequest(method, params, session);
+          return onRequest(method, params);
         },
         onNotification: (method, params) => {
           const p = (params ?? {}) as Record<string, unknown>;
