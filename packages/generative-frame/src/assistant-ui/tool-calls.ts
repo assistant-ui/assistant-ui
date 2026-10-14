@@ -5,6 +5,7 @@ type ToolCallLike = {
   args?: unknown;
   argsText?: unknown;
   result?: unknown;
+  isPreliminary?: unknown;
 };
 
 /** The part of a thread message the history readers need. */
@@ -20,7 +21,7 @@ export type ToolCall = {
   args: Record<string, unknown>;
   argsText: string | undefined;
   result: unknown;
-  /** Whether the arguments can no longer change: the call has a result, its message is no longer running, or another part follows it. */
+  /** Whether the arguments can no longer change, read as core reads a tool call's status: it has a final result, or its message is no longer running. */
   settled: boolean;
 };
 
@@ -30,7 +31,7 @@ export function* toolCalls(
   for (const message of messages) {
     if (typeof message.content === "string") continue;
     const running = message.status?.type === "running";
-    for (const [index, part] of message.content.entries()) {
+    for (const part of message.content) {
       const call = part as ToolCallLike;
       if (call?.type === "tool-call" && call.toolCallId && call.toolName) {
         yield {
@@ -41,9 +42,8 @@ export function* toolCalls(
             typeof call.argsText === "string" ? call.argsText : undefined,
           result: call.result,
           settled:
-            call.result !== undefined ||
-            !running ||
-            index < message.content.length - 1,
+            (call.result !== undefined && call.isPreliminary !== true) ||
+            !running,
         };
       }
     }

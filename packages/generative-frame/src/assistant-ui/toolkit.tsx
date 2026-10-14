@@ -154,9 +154,11 @@ type ShowArgs = Partial<ShowWidgetInput>;
 type EditArgs = Partial<EditWidgetInput>;
 
 const REPORT_BACKLOG = 50;
-/** A later show takes over as it streams; a later edit only once its arguments are settled and its edits apply, so the widget stays while an edit streams or fails. */
+/** A later show takes over once it has code to show; a later edit only once its arguments are settled and its edits apply, so the widget stays while a show has no code or an edit streams or fails. */
 const takesOverWidget = (messages: readonly MessageLike[], call: ToolCall) =>
-  call.name === "show_widget" ||
+  (call.name === "show_widget" &&
+    typeof call.args["widget_code"] === "string" &&
+    call.args["widget_code"].trim() !== "") ||
   (call.name === "edit_widget" &&
     call.settled &&
     resolveWidgetCode(messages, call.id) !== undefined);

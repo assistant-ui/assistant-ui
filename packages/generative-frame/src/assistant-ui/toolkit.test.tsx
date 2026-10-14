@@ -380,40 +380,60 @@ describe("createWidgetToolkit", () => {
     expect(mocks.widgets).toHaveLength(2);
   });
 
-  it("waits until a later same-title show's streamed title is complete", () => {
+  it("lets a later same-title show take over once its title is whole and it has code", () => {
     const first = call("a", "show_widget", {
       title: "w",
       widget_code: "<p>one</p>",
     });
-    const laterCall = {
-      ...call("b", "show_widget", { title: "w" }),
-      argsText: '{"title":"w',
-    };
-    mocks.messages = [{ content: [first, laterCall] }];
+    const later = (args: Record<string, unknown>, argsText: string) => ({
+      ...call("b", "show_widget", args),
+      argsText,
+    });
     const ShowWidget = entries(
       createWidgetToolkit({ renderReport: false }).toolkit,
     )["show_widget"]!.render;
-    const view = render(
-      <ShowWidget
-        {...partProps("a", { title: "w", widget_code: "<p>one</p>" })}
-      />,
-    );
-    expect(view.container.querySelectorAll("[data-gf-widget]")).toHaveLength(1);
+    const shown = () =>
+      render(
+        <ShowWidget
+          {...partProps("a", { title: "w", widget_code: "<p>one</p>" })}
+        />,
+      ).container.querySelectorAll("[data-gf-widget]").length;
 
     mocks.messages = [
       {
+        status: { type: "running" },
+        content: [first, later({ title: "w" }, '{"title":"w')],
+      },
+    ];
+    expect(shown()).toBe(1);
+
+    mocks.messages = [
+      {
+        status: { type: "running" },
         content: [
           first,
-          { ...laterCall, argsText: '{"title":"w","widget_code":"<p>' },
+          later(
+            { title: "w", widget_code: "<p>" },
+            '{"title":"w","widget_code":"<p>',
+          ),
         ],
       },
     ];
-    view.rerender(
-      <ShowWidget
-        {...partProps("a", { title: "w", widget_code: "<p>one</p>" })}
-      />,
-    );
-    expect(view.container.querySelectorAll("[data-gf-widget]")).toHaveLength(0);
+    expect(shown()).toBe(0);
+
+    mocks.messages = [
+      {
+        status: { type: "complete" },
+        content: [
+          first,
+          later(
+            { title: "w", widget_code: "  " },
+            '{"title":"w","widget_code":"  "}',
+          ),
+        ],
+      },
+    ];
+    expect(shown()).toBe(1);
   });
 
   it("keeps a widget while a later edit in its message streams or cannot apply", () => {
@@ -440,6 +460,14 @@ describe("createWidgetToolkit", () => {
     // Runtimes that rebuild argsText from the parsed snapshot close it on every chunk.
     mocks.messages = [
       { status: { type: "running" }, content: [first, edit("one", "tw")] },
+    ];
+    expect(shown()).toBe(1);
+
+    mocks.messages = [
+      {
+        status: { type: "running" },
+        content: [first, edit("one", "tw"), { type: "data", data: {} }],
+      },
     ];
     expect(shown()).toBe(1);
 
