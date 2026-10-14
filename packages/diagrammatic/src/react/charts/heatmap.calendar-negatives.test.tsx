@@ -14,7 +14,34 @@ const marks = (html: string) =>
   );
 
 describe("Heatmap calendar negatives", () => {
-  it("colors losses separately and scales both signs by absolute magnitude", () => {
+  it("keeps positive opacities when a small loss is added", () => {
+    const positive = marks(
+      renderToStaticMarkup(
+        <Heatmap
+          mark="calendar"
+          matrix={{ rows: [""], cols: ["", ""], values: [[0.1, 0.2]] }}
+        />,
+      ),
+    );
+    const withLoss = marks(
+      renderToStaticMarkup(
+        <Heatmap
+          mark="calendar"
+          matrix={{
+            rows: [""],
+            cols: ["", "", ""],
+            values: [[0.1, 0.2, -0.01]],
+          }}
+        />,
+      ),
+    );
+
+    expect(withLoss.slice(0, 2).map((cell) => cell.opacity)).toEqual(
+      positive.map((cell) => cell.opacity),
+    );
+  });
+
+  it("colors losses separately and scales both signs with a floor of one", () => {
     const html = renderToStaticMarkup(
       <Heatmap
         mark="calendar"
@@ -28,15 +55,15 @@ describe("Heatmap calendar negatives", () => {
     const cells = marks(html);
     expect(cells).toHaveLength(4);
     expect(cells.map((cell) => cell["data-i"])).toEqual(["0", "1", "2", "3"]);
-    expect(Number(cells[0]?.opacity)).toBe(seqOpacity(0.2 / 0.8));
-    expect(Number(cells[1]?.opacity)).toBe(seqOpacity(0.8 / 0.8));
+    expect(Number(cells[0]?.opacity)).toBe(seqOpacity(0.2));
+    expect(Number(cells[1]?.opacity)).toBe(seqOpacity(0.8));
     expect(Number(cells[1]?.opacity)).toBeGreaterThan(
       Number(cells[0]?.opacity),
     );
     expect(cells[0]?.fill).toBe(NEG);
     expect(cells[1]?.fill).toBe(NEG);
     expect(cells[2]?.fill).toBe(ACCENT);
-    expect(Number(cells[2]?.opacity)).toBe(seqOpacity(0.4 / 0.8));
+    expect(Number(cells[2]?.opacity)).toBe(seqOpacity(0.4));
     expect(cells[3]?.fill).toBe(ACCENT);
     expect(Number(cells[3]?.opacity)).toBe(0.06);
   });

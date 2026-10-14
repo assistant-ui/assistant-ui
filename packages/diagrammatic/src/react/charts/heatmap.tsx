@@ -110,9 +110,7 @@ export const Heatmap = forwardRef<SVGSVGElement, HeatmapProps>(
 
     if (mark === "calendar") {
       const calendarValues = matrix.values.flat();
-      const calendarMax = calendarValues.some((v) => v < 0)
-        ? Math.max(...calendarValues.map(Math.abs))
-        : max;
+      const calendarMax = Math.max(...calendarValues.map(Math.abs), 1);
       const gap = Math.min(4, cellW * 0.18, cellH * 0.18);
       const radius = Math.min(4, cellW * 0.22, cellH * 0.22);
       return (
