@@ -47,42 +47,45 @@ export function getMarkDatum(target: EventTarget | null): MarkDatum | null {
 /**
  * Resolves the rendered color of a series from any element inside the same
  * SVG, so tooltip swatches and cross-chart legends can match the live theme
- * without configuration. Reads the first mark stamped with the series,
- * resolving group marks through their painted descendants.
+ * without configuration. Prefers the series' own marks over links to other
+ * series and resolves group marks through their painted descendants.
  */
 export function getSeriesColor(
   from: Element,
   series: string,
 ): string | undefined {
   const svg = from.closest("svg");
-  const mark = svg?.querySelector(`[data-series="${CSS.escape(series)}"]`);
-  if (!mark) return undefined;
-  const isGroup = mark.localName === "g";
-  const candidates = isGroup
-    ? mark.querySelectorAll(
-        "path,rect,circle,ellipse,line,polyline,polygon,text,use",
-      )
-    : [mark];
-  for (const candidate of candidates) {
-    const computed =
-      typeof getComputedStyle === "function"
-        ? getComputedStyle(candidate)
-        : null;
-    for (const value of [
-      candidate.localName === "line" && isGroup ? undefined : computed?.fill,
-      computed?.stroke,
-      candidate.localName === "line" && isGroup
-        ? undefined
-        : candidate.getAttribute("fill"),
-      candidate.getAttribute("stroke"),
-    ]) {
-      if (
-        value &&
-        value !== "none" &&
-        value !== "transparent" &&
-        (!isGroup || !/^rgba\(.+,\s*0\)$/.test(value))
-      ) {
-        return value;
+  const matches = [
+    ...(svg?.querySelectorAll(`[data-series="${CSS.escape(series)}"]`) ?? []),
+  ];
+  const ownMarks = matches.filter((mark) => !mark.hasAttribute("data-series2"));
+  const links = matches.filter((mark) => mark.hasAttribute("data-series2"));
+  for (const mark of [...ownMarks, ...links]) {
+    const candidates =
+      mark.localName === "g"
+        ? mark.querySelectorAll(
+            "path,rect,circle,ellipse,line,polyline,polygon,text,use",
+          )
+        : [mark];
+    for (const candidate of candidates) {
+      const computed =
+        typeof getComputedStyle === "function"
+          ? getComputedStyle(candidate)
+          : null;
+      const fill =
+        candidate.localName === "line"
+          ? undefined
+          : computed?.fill || candidate.getAttribute("fill");
+      const stroke = computed?.stroke || candidate.getAttribute("stroke");
+      for (const value of [fill, stroke]) {
+        if (
+          value &&
+          value !== "none" &&
+          value !== "transparent" &&
+          !/^rgba\(.+,\s*0\)$/.test(value)
+        ) {
+          return value;
+        }
       }
     }
   }

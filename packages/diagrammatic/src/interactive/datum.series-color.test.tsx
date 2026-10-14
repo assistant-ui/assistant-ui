@@ -20,6 +20,42 @@ describe("getSeriesColor", () => {
     expect(getSeriesColor(node, "solo")).toBe("rgb(12, 34, 56)");
   });
 
+  it("resolves a linked Network series from its node before its link", () => {
+    const { container } = render(
+      <Network
+        graph={{
+          nodes: [{ id: "a" }, { id: "b" }],
+          links: [{ source: "a", target: "b" }],
+        }}
+      />,
+    );
+    const link = container.querySelector('line[data-series="a"]')!;
+    const node = container.querySelector('g[data-series="a"]')!;
+    const circles = node.querySelectorAll("circle");
+    circles[0]!.style.fill = "transparent";
+    circles[1]!.style.fill = "rgb(12, 34, 56)";
+    expect(
+      link.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(getSeriesColor(link, "a")).toBe("rgb(12, 34, 56)");
+  });
+
+  it("skips a transparent series hit target before a painted mark", () => {
+    const { container } = render(
+      <svg>
+        <circle
+          data-series="target"
+          fill="transparent"
+          style={{ fill: "rgba(12, 34, 56, 0)" }}
+        />
+        <circle data-series="target" style={{ fill: "rgb(70, 80, 90)" }} />
+      </svg>,
+    );
+    expect(getSeriesColor(container.querySelector("svg")!, "target")).toBe(
+      "rgb(70, 80, 90)",
+    );
+  });
+
   it("skips unpainted descendants and reads the first drawable stroke", () => {
     const { container } = render(
       <svg>
