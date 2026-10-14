@@ -37,13 +37,14 @@ permissions:
 jobs:
   evaluate:
     name: Evaluate review tier
-    # The evaluator reads no other label or edit, and a run for one would cancel the run in progress, which the pull request shows as a failed check.
+    # The evaluator runs only for the labels and edits it reads and for tier labels a person changes; any other run would cancel the one in progress, which the pull request shows as a failed check.
     if: >-
       vars.REVIEW_POLICY_APP_ID != '' &&
       (github.event_name != 'pull_request_target' ||
         (((github.event.action != 'labeled' && github.event.action != 'unlabeled') ||
             github.event.label.name == 'behavior-change' ||
-            startsWith(github.event.label.name, 'review-tier/override: ')) &&
+            startsWith(github.event.label.name, 'review-tier/override: ') ||
+            (startsWith(github.event.label.name, 'tier/') && github.event.sender.type != 'Bot')) &&
           (github.event.action != 'edited' ||
             github.event.changes.title || github.event.changes.base ||
             contains(github.event.pull_request.labels.*.name, 'tier/3')))) &&

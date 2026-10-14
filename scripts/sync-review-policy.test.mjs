@@ -646,6 +646,7 @@ test("the review tier workflow runs for the labels the policy names", () => {
   for (const expected of [
     `github.event.label.name == '${policy.labels.behaviorChange}'`,
     `startsWith(github.event.label.name, '${policy.labels.overridePrefix}')`,
+    `startsWith(github.event.label.name, '${policy.labels.tierPrefix}')`,
     `contains(github.event.pull_request.labels.*.name, '${tierLabel(policy, 3)}')`,
     `github.event.label.name == '${policy.labels.decisionAccepted}'`,
   ]) {
