@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import type { RemoteThreadListAdapter } from "../runtimes/remote-thread-list/types";
-import { createCore, makeAdapter } from "./remote-thread-list-test-helpers";
+import {
+  createCore,
+  deferred,
+  makeAdapter,
+} from "./remote-thread-list-test-helpers";
 
 /**
  * Tests for onThreadIdChange, driving the real
@@ -46,6 +50,65 @@ describe("onThreadIdChange", () => {
     await core.initialize(newThreadId);
 
     expect(cb).toHaveBeenLastCalledWith("remote-1");
+  });
+
+  it("emits the settled id before switching away from an initializing draft", async () => {
+    const initialize = deferred<{ remoteId: string; externalId: undefined }>();
+    const cb = vi.fn();
+    const { core } = createCoreWithCallback(cb, {
+      initialize: vi.fn(() => initialize.promise),
+    });
+    await flush();
+
+    const initializingId = core.mainThreadId;
+    const initialization = core.initialize(initializingId);
+    expect(core.getItemById(initializingId)?.status).toBe("regular");
+
+    const switchTask = core.switchToNewThread();
+    expect(cb).not.toHaveBeenCalled();
+
+    initialize.resolve({ remoteId: "r1", externalId: undefined });
+    await initialization;
+    await switchTask;
+
+    expect(core.getItemById(core.mainThreadId)?.status).toBe("new");
+    expect(cb.mock.calls.map(([id]) => id)).toEqual(["r1", undefined]);
+  });
+
+  it("keeps an echoed switch to an initializing thread selected until its id settles", async () => {
+    const initialize = deferred<{ remoteId: string; externalId: undefined }>();
+    const reportedIds: (string | undefined)[] = [];
+    const cb = vi.fn((id: string | undefined) => {
+      reportedIds.push(id);
+      core.__internal_setOptions({
+        adapter,
+        runtimeHook: () => ({}) as never,
+        threadId: id,
+        onThreadIdChange: cb,
+      });
+    });
+    const { core, adapter } = createCoreWithCallback(cb, {
+      initialize: vi.fn(() => initialize.promise),
+    });
+    core.__internal_load();
+    await core.getLoadThreadsPromise();
+    await flush();
+
+    const initializingId = core.mainThreadId;
+    const initialization = core.initialize(initializingId);
+    expect(core.getItemById(initializingId)?.status).toBe("regular");
+
+    await core.switchToThread("r0");
+    expect(reportedIds).toEqual(["r0"]);
+    await core.switchToThread(initializingId);
+    expect(core.mainThreadId).toBe(initializingId);
+    expect(reportedIds).toEqual(["r0"]);
+
+    initialize.resolve({ remoteId: "r1", externalId: undefined });
+    await initialization;
+    expect(core.mainThreadId).toBe(initializingId);
+    expect(core.getItemById(initializingId)?.remoteId).toBe("r1");
+    expect(reportedIds).toEqual(["r0", "r1"]);
   });
 
   it("emits the remote ID when switching to an existing thread", async () => {

@@ -691,17 +691,15 @@ export class RemoteThreadListThreadListRuntimeCore
     return this._mainThreadId;
   }
 
-  // The settled remote ID of the active thread, or undefined while it is still
-  // a new/optimistic thread. This is the value surfaced to `onThreadIdChange`.
-  private get _mainThreadRemoteId(): string | undefined {
-    if (this._mainThreadId === undefined) return undefined;
-    return getThreadData(this._state.value, this._mainThreadId)?.remoteId;
-  }
-
   private _lastNotifiedThreadId: string | undefined = undefined;
 
   private _notifyThreadIdChange(emit = true) {
-    const threadId = this._mainThreadRemoteId;
+    const main =
+      this._mainThreadId === undefined
+        ? undefined
+        : getThreadData(this._state.value, this._mainThreadId);
+    const threadId = main?.remoteId;
+    if (threadId === undefined && main && main.status !== "new") return;
     if (this._lastNotifiedThreadId === threadId) return;
     this._lastNotifiedThreadId = threadId;
     if (emit) {
