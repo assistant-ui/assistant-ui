@@ -394,6 +394,22 @@ describe("validateSpec", () => {
     );
   });
 
+  it.each([["text"], [[1, 2]], [null], [7]])(
+    "reports a state that is not an object: %j",
+    (state) => {
+      const spec = {
+        ...validSpec(),
+        state: state as unknown as Record<string, unknown>,
+      };
+      expect(
+        validateSpec(spec, catalog).issues.map((issue) => [
+          issue.code,
+          issue.path,
+        ]),
+      ).toEqual([["invalid-state", "/state"]]);
+    },
+  );
+
   it("reports placeholders a plain string shows as written", () => {
     const spec = validSpec();
     spec.elements["card"]!.props = { title: "Serves ${/guests}" };

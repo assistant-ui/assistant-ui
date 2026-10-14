@@ -21,7 +21,8 @@ export type SpecIssueCode =
   | "unfilled-placeholder"
   | "invalid-repeat"
   | "unreachable"
-  | "invalid-patch";
+  | "invalid-patch"
+  | "invalid-state";
 
 export type SpecIssue = {
   code: SpecIssueCode;
@@ -81,6 +82,19 @@ export function validateSpec(
       code: "unknown-root",
       message: `The root "${spec.root}" is not an element.`,
       path: "/root",
+    });
+  }
+  const specState: unknown = spec?.state;
+  if (
+    specState !== undefined &&
+    (typeof specState !== "object" ||
+      specState === null ||
+      Array.isArray(specState))
+  ) {
+    error({
+      code: "invalid-state",
+      message: "The spec's state is not an object.",
+      path: "/state",
     });
   }
 
