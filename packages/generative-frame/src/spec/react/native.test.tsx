@@ -3,6 +3,7 @@ import { cleanup, render } from "@testing-library/react";
 import { Text, View } from "react-native";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Spec } from "../types";
+import { createSpecStream } from "../stream";
 import { SpecRenderer } from "../react.native";
 import type { SpecComponents } from "./SpecRenderer";
 
@@ -42,6 +43,65 @@ describe("SpecRenderer for React Native", () => {
       view.container.querySelector("[data-gf-spec-placeholder]"),
     ).toBeNull();
   });
+
+  it.each(["plain", "not", "$cond"] as const)(
+    "hides an unfinished visibility condition until streamed state enables it (form: %s)",
+    (form) => {
+      const negated = form !== "plain";
+      const stream = createSpecStream({
+        initial: {
+          root: "main",
+          state: { open: negated },
+          elements: {
+            main: {
+              type: "Label",
+              props: { text: "Visible" },
+              visible:
+                form === "$cond"
+                  ? { $cond: {}, $then: false, $else: true }
+                  : negated
+                    ? { not: {} }
+                    : {},
+            },
+          },
+        },
+      });
+      const view = render(
+        <SpecRenderer components={components} spec={stream.spec} streaming />,
+      );
+      expect(view.container.textContent).toBe("");
+      stream.push(
+        JSON.stringify({
+          op: "add",
+          path: `/elements/main/visible${form === "plain" ? "" : `/${form}`}/$state`,
+          value: "/open",
+        }) + "\n",
+      );
+      view.rerender(
+        <SpecRenderer components={components} spec={stream.spec} streaming />,
+      );
+      expect(view.container.textContent).toBe("");
+      stream.push(
+        JSON.stringify({
+          op: "replace",
+          path: "/state/open",
+          value: !negated,
+        }) + "\n",
+      );
+      view.rerender(
+        <SpecRenderer components={components} spec={stream.spec} streaming />,
+      );
+      expect(view.container.textContent).toBe("Visible");
+      stream.push(
+        JSON.stringify({ op: "replace", path: "/state/open", value: negated }) +
+          "\n",
+      );
+      view.rerender(
+        <SpecRenderer components={components} spec={stream.spec} />,
+      );
+      expect(view.container.textContent).toBe("");
+    },
+  );
 
   it("names an unknown type and a failed element in React Native placeholders", () => {
     const onError = vi.fn();

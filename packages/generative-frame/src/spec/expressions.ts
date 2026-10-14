@@ -169,27 +169,55 @@ export function evaluateCondition(
   condition: Condition | undefined,
   ctx: ExpressionContext,
 ): boolean {
+  return evaluateConditionValue(condition, ctx) ?? false;
+}
+
+function evaluateConditionValue(
+  condition: Condition | undefined,
+  ctx: ExpressionContext,
+): boolean | undefined {
   if (condition === undefined) return true;
   if (typeof condition === "boolean") return condition;
   if (Array.isArray(condition)) {
-    return condition.every((part) => evaluateCondition(part as Condition, ctx));
+    let result: boolean | undefined = true;
+    for (const part of condition) {
+      const value = evaluateConditionValue(part as Condition, ctx);
+      if (value === false) return false;
+      if (value === undefined) result = undefined;
+    }
+    return result;
   }
   if (!isRecord(condition)) return Boolean(condition);
   if (Array.isArray(condition["$and"])) {
-    return (condition["$and"] as Condition[]).every((part) =>
-      evaluateCondition(part, ctx),
-    );
+    return evaluateConditionValue(condition["$and"] as Condition[], ctx);
   }
   if (Array.isArray(condition["$or"])) {
-    return (condition["$or"] as Condition[]).some((part) =>
-      evaluateCondition(part, ctx),
-    );
+    let result: boolean | undefined = false;
+    for (const part of condition["$or"] as Condition[]) {
+      const value = evaluateConditionValue(part, ctx);
+      if (value === true) return true;
+      if (value === undefined) result = undefined;
+    }
+    return result;
   }
   const hasSource = SOURCE_KEYS.some((key) => key in condition);
   if (!hasSource && "not" in condition) {
-    return !evaluateCondition(condition["not"] as Condition, ctx);
+    const value = evaluateConditionValue(condition["not"] as Condition, ctx);
+    return value === undefined ? undefined : !value;
   }
-  if (!hasSource) return Boolean(resolveValue(condition, ctx));
+  if (!hasSource) {
+    if (!isExpression(condition)) return undefined;
+    let expression: unknown = condition;
+    while (isRecord(expression) && "$cond" in expression) {
+      const matches = evaluateConditionValue(
+        expression["$cond"] as Condition,
+        ctx,
+      );
+      if (matches === undefined) return undefined;
+      expression = expression[matches ? "$then" : "$else"];
+    }
+    return Boolean(resolveValue(expression, ctx));
+  }
 
   const value = readSource(condition, ctx);
   let result = true;

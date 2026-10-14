@@ -13,6 +13,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineCatalog } from "../catalog";
 import { createStateStore } from "../state";
+import { createSpecStream } from "../stream";
 import type { Spec } from "../types";
 import {
   SpecRenderer,
@@ -615,6 +616,58 @@ describe("SpecRenderer", () => {
         ?.textContent,
     ).toBe("Picture: src expected string, got object");
   });
+
+  it.each(["plain", "not", "$cond"] as const)(
+    "hides an unfinished visibility condition until streamed state enables it (form: %s)",
+    async (form) => {
+      const negated = form !== "plain";
+      const stream = createSpecStream({
+        initial: spec(
+          {
+            main: {
+              type: "Button",
+              props: { label: "Continue" },
+              visible:
+                form === "$cond"
+                  ? { $cond: {}, $then: false, $else: true }
+                  : negated
+                    ? { not: {} }
+                    : {},
+            },
+          },
+          { open: negated },
+        ),
+      });
+      const view = mount({ components, spec: stream.spec, streaming: true });
+      expect(view.container.querySelector("button")).toBeNull();
+      stream.push(
+        JSON.stringify({
+          op: "add",
+          path: `/elements/main/visible${form === "plain" ? "" : `/${form}`}/$state`,
+          value: "/open",
+        }) + "\n",
+      );
+      await view.update({ components, spec: stream.spec, streaming: true });
+      expect(view.container.querySelector("button")).toBeNull();
+      stream.push(
+        JSON.stringify({
+          op: "replace",
+          path: "/state/open",
+          value: !negated,
+        }) + "\n",
+      );
+      await view.update({ components, spec: stream.spec, streaming: true });
+      expect(view.container.querySelector("button")?.textContent).toBe(
+        "Continue",
+      );
+      stream.push(
+        JSON.stringify({ op: "replace", path: "/state/open", value: negated }) +
+          "\n",
+      );
+      await view.update({ components, spec: stream.spec });
+      expect(view.container.querySelector("button")).toBeNull();
+    },
+  );
 
   it("renders placeholders and captures each element error", async () => {
     const onError = vi.fn();

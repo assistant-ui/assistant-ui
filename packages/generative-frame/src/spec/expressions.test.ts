@@ -99,7 +99,54 @@ describe("resolveValue", () => {
 describe("evaluateCondition", () => {
   const ctx = { state };
   it.each([
+    [[false, { $state: "/unused" }], false],
+    [{ $and: [false, { $state: "/unused" }] }, false],
+    [{ $or: [true, { $state: "/unused" }] }, true],
+    [{ $and: [{}, false, { $state: "/unused" }] }, false],
+    [{ $or: [{}, true, { $state: "/unused" }] }, true],
+  ])("stops reading after a decisive branch in %j", (condition, expected) => {
+    const state = {
+      get unused() {
+        throw new Error("A decisive branch must skip this read");
+      },
+    };
+    expect(evaluateCondition(condition as never, { state })).toBe(expected);
+  });
+  it.each([
     [undefined, true],
+    [true, true],
+    [{}, false],
+    [{ $and: {} }, false],
+    [{ $or: {} }, false],
+    [{ unknown: true }, false],
+    [{ not: {} }, false],
+    [{ $cond: {}, $then: false, $else: true }, false],
+    [{ not: { $cond: {}, $then: false, $else: true } }, false],
+    [{ not: { $cond: {}, $then: true, $else: false } }, false],
+    [{ $cond: false, $then: false, $else: { $cond: {}, $else: true } }, false],
+    [{ $cond: true, $then: { $cond: {}, $else: true }, $else: false }, false],
+    [{ $cond: false, $then: false, $else: true }, true],
+    [{ $cond: false, $then: true, $else: false }, false],
+    [{ not: { $cond: false, $then: true, $else: false } }, true],
+    [{ $cond: true, $then: { label: "value" } }, true],
+    [{ not: { $and: {} } }, false],
+    [{ not: { unknown: true } }, false],
+    [{ not: { $or: [{}] } }, false],
+    [{ not: [{}] }, false],
+    [{ not: { $and: [true, {}] } }, false],
+    [{ not: { not: {} } }, false],
+    [{ not: { $or: [false, {}] } }, false],
+    [{ $or: [true, {}] }, true],
+    [{ $and: [false, {}] }, false],
+    [{ not: { $and: [false, {}] } }, true],
+    [{ not: { $or: [true, {}] } }, false],
+    [[], true],
+    [{ $and: [] }, true],
+    [{ $or: [] }, false],
+    [{ $template: "${/user/name}" }, true],
+    [{ $template: "${/missing}" }, false],
+    [{ $cond: { $state: "/count", gt: 2 }, $then: "visible", $else: "" }, true],
+    [{ $cond: { $state: "/open" }, $then: "visible", $else: "" }, false],
     [false, false],
     [{ $state: "/open" }, false],
     [{ $state: "/count", eq: 3 }, true],
