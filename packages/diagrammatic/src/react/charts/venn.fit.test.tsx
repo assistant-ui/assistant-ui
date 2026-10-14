@@ -40,6 +40,18 @@ describe("Venn fit", () => {
     }
   });
 
+  it("keeps a mid-length side label in full at the default size", () => {
+    const html = renderToStaticMarkup(
+      <Venn
+        a={{ label: "Desktop users", value: 1 }}
+        b={{ label: "Mobile users", value: 2 }}
+        overlap={1}
+      />,
+    );
+
+    expect(html).toContain(">Desktop users</text>");
+  });
+
   it("keeps long labels and values apart on each baseline", () => {
     const html = renderToStaticMarkup(
       <Venn

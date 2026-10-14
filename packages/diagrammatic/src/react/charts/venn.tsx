@@ -3,7 +3,7 @@ import { forwardRef } from "react";
 import type { Item } from "../../core/types";
 import { formatCompact } from "../../core/types";
 import { round, stroke } from "../../core/geometry";
-import { truncate } from "../../core/text";
+import { textWidth, truncate } from "../../core/text";
 import { C } from "../../core/theme";
 import { ChartSvg, frame } from "../svg";
 
@@ -41,8 +41,18 @@ export const Venn = forwardRef<SVGSVGElement, VennProps>(
     );
     const aX = cx - r * centerOffset;
     const bX = cx + r * centerOffset;
-    const labelRoom = (x: number) =>
-      Math.max(0, Math.min((x - left) * 2, (right - x) * 2, cx - aX) - 8);
+    const centerRoom = cx - aX - 8;
+    const both = truncate("both", T.axis.px, centerRoom);
+    const shared = truncate(format(overlap), T.value.px, centerRoom);
+    const sideRoom = (x: number, center: string, px: number) =>
+      Math.max(
+        0,
+        Math.min(
+          (x - left) * 2 - 8,
+          (right - x) * 2 - 8,
+          2 * (cx - aX) - textWidth(center, px) - 16,
+        ),
+      );
     const labelY = cy - 4;
     const valueY = cy + T.value.px + 3;
     return (
@@ -84,7 +94,7 @@ export const Venn = forwardRef<SVGSVGElement, VennProps>(
           {...T.axis.attrs}
           fill={C[0]}
         >
-          {truncate(a.label, T.axis.px, labelRoom(aX))}
+          {truncate(a.label, T.axis.px, sideRoom(aX, both, T.axis.px))}
         </text>
         <text
           x={round(aX)}
@@ -92,7 +102,11 @@ export const Venn = forwardRef<SVGSVGElement, VennProps>(
           textAnchor="middle"
           {...T.value.attrs}
         >
-          {truncate(format(a.value), T.value.px, labelRoom(aX))}
+          {truncate(
+            format(a.value),
+            T.value.px,
+            sideRoom(aX, shared, T.value.px),
+          )}
         </text>
         <text
           x={round(bX)}
@@ -101,7 +115,7 @@ export const Venn = forwardRef<SVGSVGElement, VennProps>(
           {...T.axis.attrs}
           fill={C[2]}
         >
-          {truncate(b.label, T.axis.px, labelRoom(bX))}
+          {truncate(b.label, T.axis.px, sideRoom(bX, both, T.axis.px))}
         </text>
         <text
           x={round(bX)}
@@ -109,7 +123,11 @@ export const Venn = forwardRef<SVGSVGElement, VennProps>(
           textAnchor="middle"
           {...T.value.attrs}
         >
-          {truncate(format(b.value), T.value.px, labelRoom(bX))}
+          {truncate(
+            format(b.value),
+            T.value.px,
+            sideRoom(bX, shared, T.value.px),
+          )}
         </text>
         <text
           x={round(cx)}
@@ -117,7 +135,7 @@ export const Venn = forwardRef<SVGSVGElement, VennProps>(
           textAnchor="middle"
           {...T.axis.attrs}
         >
-          {truncate("both", T.axis.px, labelRoom(cx))}
+          {both}
         </text>
         <text
           x={round(cx)}
@@ -125,7 +143,7 @@ export const Venn = forwardRef<SVGSVGElement, VennProps>(
           textAnchor="middle"
           {...T.value.attrs}
         >
-          {truncate(format(overlap), T.value.px, labelRoom(cx))}
+          {shared}
         </text>
       </ChartSvg>
     );
