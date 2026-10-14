@@ -25,6 +25,7 @@ type DataStreamRuntimeRequestOptions = {
   tools: any;
   system?: string | undefined;
   runConfig?: any;
+  /** @deprecated Experimental since 2024-10-24. Not scheduled for removal; the API may change in any release. */
   unstable_assistantMessageId?: string;
   threadId?: string;
   parentId?: string | null;

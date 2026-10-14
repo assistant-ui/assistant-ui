@@ -1,7 +1,6 @@
 import {
   useEffect,
   useId,
-  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -18,7 +17,10 @@ import { useRemoteThreadListRuntime } from "./useRemoteThreadListRuntime";
 import { useCloudThreadListAdapter } from "./cloud/useCloudThreadListAdapter";
 import { useRuntimeAdapters } from "./RuntimeAdapterProvider";
 import type { AssistantCloud } from "assistant-cloud";
-import { useReplaySafeEffect } from "@assistant-ui/store/internal";
+import {
+  useIsomorphicLayoutEffect,
+  useReplaySafeEffect,
+} from "@assistant-ui/store/internal";
 
 const subscribeNever = () => () => {};
 
@@ -29,7 +31,7 @@ export type LocalRuntimeOptions = Omit<LocalRuntimeOptionsBase, "adapters"> & {
    * Provide it from the first render and change it when that scope changes.
    */
   scopeId?: string | undefined;
-  /** A message without an id gets a generated id, and a message without createdAt is stamped with the current time. Set createdAt on each initial message when prerendering a page with Next.js cacheComponents. */
+  /** A message without an id gets a generated id, and a message without createdAt is stamped with the current time. Set createdAt on each initial message when prerendering a page with Next.js cacheComponents. With a history adapter, they survive an empty load, and those still in the thread are written to history before the first write for another message or when a run settles one of them, under the ids they carry, so a history adapter that keys messages across threads needs ids that differ per thread. A non-empty load replaces them. */
   initialMessages?: readonly ThreadMessageLike[] | undefined;
   adapters?: Omit<LocalRuntimeOptionsBase["adapters"], "chatModel"> | undefined;
 };
@@ -90,7 +92,7 @@ const useLocalThreadRuntime = (
     };
   }, [runtime]);
 
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     runtime.threads.getMainThreadRuntimeCore().__internal_setOptions(opt);
   });
 

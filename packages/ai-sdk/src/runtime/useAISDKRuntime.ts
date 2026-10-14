@@ -115,12 +115,15 @@ export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
         })
       | undefined;
     toCreateMessage?: CustomToCreateMessageFunction;
+    /** @deprecated Experimental since 2026-08-28. Not scheduled for removal; the API may change in any release. */
     unstable_messageRepositoryInstance?: MessageRepository | undefined;
     /**
      * The object a host answer belongs to, normally the `Chat` the runtime
      * renders. A host answer never reaches the `useChat` messages, so without
      * an owner it lives only as long as this runtime. With an owner, it
      * survives runtime remounts over the same chat.
+     *
+     * @deprecated Experimental since 2026-09-29. Not scheduled for removal; the API may change in any release.
      */
     unstable_hostApprovalOwner?: object | undefined;
     /**
@@ -184,7 +187,7 @@ export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
      * Called after an explicit `switchToBranch` (for example a BranchPicker
      * click). Complements `setMessages` and does not enable switching by itself.
      *
-     * @deprecated This API is still under active development and might change without notice.
+     * @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release.
      */
     unstable_onBranchChange?: ExternalStoreAdapter["unstable_onBranchChange"];
   };
@@ -317,6 +320,7 @@ type OwnedApproval = {
 type ChatRuntimeState = {
   approvals: Map<string, OwnedApproval>;
   cancelledMessageIds: ReadonlySet<string>;
+  cancelledToolCallIds: Set<string>;
 };
 
 const chatRuntimeStates = new WeakMap<object, ChatRuntimeState>();
@@ -328,6 +332,7 @@ const getChatRuntimeState = (owner: object | undefined) => {
     state = {
       approvals: new Map(),
       cancelledMessageIds: NO_CANCELLED_MESSAGE_IDS,
+      cancelledToolCallIds: new Set(),
     };
     chatRuntimeStates.set(owner, state);
   }
@@ -541,6 +546,10 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const approvalOwner = adapter.unstable_hostApprovalOwner;
   const chatRuntimeState = getChatRuntimeState(approvalOwner);
   const ownedApprovals = chatRuntimeState?.approvals;
+  const localCancelledToolCallIdsRef = useRef(new Set<string>());
+  const cancelledToolCallIds =
+    chatRuntimeState?.cancelledToolCallIds ??
+    localCancelledToolCallIdsRef.current;
   const ownedCancelledMessageIds = useSyncExternalStore(
     useCallback(
       (listener) =>
@@ -1085,6 +1094,10 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       runtimeRef.current.thread.import(exportedRepo);
     },
     onCancel: async () => {
+      for (const toolCallId of Object.keys(toolStatuses)) {
+        cancelledToolCallIds.add(toolCallId);
+      }
+
       const message = chatHelpers.messages.at(-1);
       const cancelledId =
         isRunning && message?.role === "assistant" ? message.id : undefined;
@@ -1232,6 +1245,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       artifact,
       modelContent,
     }) => {
+      const wasCancelled = cancelledToolCallIds.delete(toolCallId);
       if (artifact !== undefined) {
         toolArtifactsRef.current.set(toolCallId, artifact);
         markToolArtifactsChanged();
@@ -1251,7 +1265,10 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           ? wrapModelContentEnvelope(result, modelContent)
           : result;
 
-      if (targetIndex >= 0 && targetIndex !== chatHelpers.messages.length - 1) {
+      if (
+        targetIndex >= 0 &&
+        (targetIndex !== chatHelpers.messages.length - 1 || wasCancelled)
+      ) {
         const target = chatHelpers.messages[targetIndex]!;
         const targetPart = target.parts.find(
           (part) =>
@@ -1259,7 +1276,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
             isToolUIPart(part) &&
             part.toolCallId === toolCallId,
         ) as { state?: string; preliminary?: boolean } | undefined;
-        // An earlier message's settled output may already have reached the model, as the error a cancelling send writes does.
+        // An earlier message's or a cancelled call's settled output may already have reached the model, as the error a cancelling send writes does.
         if (
           targetPart?.state === "output-error" ||
           targetPart?.state === "output-denied" ||
@@ -1298,6 +1315,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         );
         return Promise.resolve();
       }
+
+      if (wasCancelled) return Promise.resolve();
 
       const options = { metadata: lastRunConfigRef.current };
       if (isError) {

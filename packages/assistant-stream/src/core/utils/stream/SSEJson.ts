@@ -54,8 +54,9 @@ export const createSSEJsonDecoder =
   (readable: ReadableStream<Uint8Array<ArrayBuffer>>) => {
     let receivedDone = false;
 
+    // Let the SSE parser consume the single permitted leading BOM.
     return readable
-      .pipeThrough(new TextDecoderStream())
+      .pipeThrough(new TextDecoderStream("utf-8", { ignoreBOM: true }))
       .pipeThrough(
         new SSEEventDecoderStream({
           maxLineLength: options.maxLineLength,

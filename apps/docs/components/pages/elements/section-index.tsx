@@ -18,11 +18,11 @@ export function SectionIndex({
               href={`#${section.id}`}
               className="hover:bg-foreground/[0.025] -mx-2 flex items-baseline gap-2.5 px-2 py-1.5 transition-colors"
             >
-              <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
+              <span className="text-muted-foreground text-xs tabular-nums">
                 {String(index + 1).padStart(2, "0")}
               </span>
               <span className="text-[13.5px]">{section.label}</span>
-              <span className="text-muted-foreground ms-auto font-mono text-[11px] tabular-nums">
+              <span className="text-muted-foreground ms-auto text-xs tabular-nums">
                 {section.count}
               </span>
             </Link>
@@ -44,7 +44,7 @@ export function SectionHeader({
 }) {
   return (
     <div className="flex items-baseline gap-3">
-      <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
+      <span className="text-muted-foreground text-xs tabular-nums">
         {String(index).padStart(2, "0")}
       </span>
       <h2 className="text-sm font-medium">{label}</h2>

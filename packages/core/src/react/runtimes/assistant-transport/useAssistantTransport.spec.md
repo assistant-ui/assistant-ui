@@ -146,7 +146,7 @@ Notes
 Callbacks
 
 - `onError({ error, commands, updateState })`: invoked on network/stream errors. Commands are not restored; use `updateState(state => newState)` to reflect the error in state and/or messages. `commands` reflects the current in-transit commands at the moment of error (often `[]` after the first snapshot).
-- `onCancel({ commands, updateState })`: invoked after a cancellation. Commands are not restored. `commands` contains all pending work at cancel time (`inTransitCommands` plus queued). Use `updateState` to reflect cancellation in state and/or messages. The last received snapshot remains committed.
+- `onCancel({ commands, updateState })`: invoked after a cancellation. Commands are not restored. `commands` contains all pending work at cancel time (`inTransitCommands` plus queued). Use `updateState` to reflect cancellation in state and/or messages. The last snapshot applied before the cancel remains committed; snapshots read after it are dropped, even when the response body had already fully arrived.
 
 Return Value
 

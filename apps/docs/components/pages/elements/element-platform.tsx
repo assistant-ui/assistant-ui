@@ -58,6 +58,7 @@ export function ElementPlatformProvider({
   native: boolean;
   children: ReactNode;
 }) {
+  const hydrated = useHydrated();
   const storedPlatform = useSyncExternalStore(
     subscribeToNothing,
     readStoredPlatform,
@@ -87,11 +88,13 @@ export function ElementPlatformProvider({
     <ElementPlatformContext.Provider value={{ platform, setPlatform }}>
       {native && (
         <>
-          <script
-            data-key={STORAGE_KEY}
-            data-docs-key={DOCS_PLATFORM_STORAGE_KEY}
-            dangerouslySetInnerHTML={{ __html: HINT_SCRIPT }}
-          />
+          {!hydrated && (
+            <script
+              data-key={STORAGE_KEY}
+              data-docs-key={DOCS_PLATFORM_STORAGE_KEY}
+              dangerouslySetInnerHTML={{ __html: HINT_SCRIPT }}
+            />
+          )}
           <style>{HINT_STYLE}</style>
         </>
       )}

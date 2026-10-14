@@ -125,6 +125,11 @@ export const PACKAGES: PackageInfo[] = [
     category: "tooling",
   },
   {
+    name: "setup-agent",
+    description: "Live setup shared between the browser and a coding agent.",
+    category: "tooling",
+  },
+  {
     name: "@assistant-ui/x-buildutils",
     description: "Shared build utilities for the monorepo.",
     category: "tooling",
@@ -271,6 +276,11 @@ export const PACKAGES: PackageInfo[] = [
     category: "ui",
   },
   {
+    name: "@assistant-ui/generative-ui",
+    description: "Framework-neutral generative UI.",
+    category: "ui",
+  },
+  {
     name: "@assistant-ui/react-generative-ui",
     description: "Render model-authored component trees.",
     category: "ui",
@@ -296,6 +306,11 @@ export const PACKAGES: PackageInfo[] = [
     category: "effects",
   },
   {
+    name: "generative-frame",
+    description: "Streaming model-written widgets in sandboxed frames.",
+    category: "effects",
+  },
+  {
     name: "@assistant-ui/mcp-docs-server",
     description: "MCP server exposing assistant-ui docs.",
     category: "mcp",
@@ -314,6 +329,11 @@ export const PACKAGES: PackageInfo[] = [
     name: "@assistant-ui/react-o11y",
     description: "Observability primitives for assistants.",
     category: "observability",
+  },
+  {
+    name: "@assistant-ui/variants",
+    description: "Inline design comparisons for the real page.",
+    category: "tooling",
   },
   {
     name: "@assistant-ui/react-edge",

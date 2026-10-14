@@ -125,3 +125,26 @@ function MyComponent() {
     );
   });
 });
+
+describe("event-name migration preserves unrelated strings", () => {
+  const cases = [
+    "constructor",
+    "toString",
+    "__proto__",
+    "hasOwnProperty",
+  ].flatMap((name) => [JSON.stringify(name), `\`${name}\``]);
+
+  it.each(cases)("leaves %s unchanged without event renames", (literal) => {
+    expectNoChange(`const key = ${literal};`);
+  });
+
+  it.each(cases)("preserves %s beside an event rename", (literal) => {
+    const source = `import { useAuiEvent } from "@assistant-ui/react";
+const key = ${literal};
+useAuiEvent("thread.run-start", () => {});`;
+    const output = applyTransform(source);
+    expect(output).toBe(source.replace("thread.run-start", "thread.runStart"));
+    expect(() => j(output!)).not.toThrow();
+    expectNoChange(output!);
+  });
+});

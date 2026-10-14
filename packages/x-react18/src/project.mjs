@@ -75,6 +75,31 @@ function mtimes(dir, keep) {
     .map((entry) => statSync(join(entry.parentPath, entry.name)).mtimeMs);
 }
 
+// Sources are the files git counts under src, the inputs turbo hashes. A file a build generates into src is ignored, because a turbo cache restore writes it just after the declarations it restores.
+function sourceMtimes(cwd) {
+  const listed = spawnSync(
+    "git",
+    [
+      "ls-files",
+      "-z",
+      "--cached",
+      "--others",
+      "--exclude-standard",
+      "--",
+      "src",
+    ],
+    { cwd, encoding: "utf8" },
+  );
+  if (listed.error) throw listed.error;
+  if (listed.status !== 0) {
+    throw new Error(`git ls-files failed in ${cwd}: ${listed.stderr}`);
+  }
+  return listed.stdout
+    .split("\0")
+    .filter((file) => file !== "" && existsSync(join(cwd, file)))
+    .map((file) => statSync(join(cwd, file)).mtimeMs);
+}
+
 // Whether the resolved project reads dist, through an include pattern rooted inside it or a file it resolved there.
 export function readsDist(config, projectDir, cwd) {
   const dist = join(cwd, "dist");
@@ -90,13 +115,13 @@ export function readsDist(config, projectDir, cwd) {
   return [...includeRoots, ...(config.files ?? [])].some(insideDist);
 }
 
-// "missing" when dist has no declarations, "stale" when any src file is newer than the oldest one.
+// "missing" when dist has no declarations, "stale" when any source is newer than the oldest one.
 export function declarationState(cwd) {
   const declarations = mtimes(join(cwd, "dist"), (name) =>
     /\.d\.[cm]?ts$/.test(name),
   );
   if (declarations.length === 0) return "missing";
-  const sources = mtimes(join(cwd, "src"), () => true);
+  const sources = sourceMtimes(cwd);
   return sources.length > 0 && Math.max(...sources) > Math.min(...declarations)
     ? "stale"
     : "fresh";

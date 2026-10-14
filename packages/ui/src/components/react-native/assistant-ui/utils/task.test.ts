@@ -127,6 +127,7 @@ describe("useTaskElapsed", () => {
   }) => createElement("output", null, String(useTaskElapsed(timing, running)));
 
   it("does not read the clock during server render", () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
     const now = vi.spyOn(Date, "now");
     try {
       expect(
@@ -137,6 +138,7 @@ describe("useTaskElapsed", () => {
       expect(now).not.toHaveBeenCalled();
     } finally {
       now.mockRestore();
+      errors.mockRestore();
     }
   });
 

@@ -24,7 +24,7 @@ import {
   defaultGenerativeUILibrary,
   defineGenerativeComponents,
   generativeUIToJSX,
-} from "@assistant-ui/react-generative-ui";
+} from "@assistant-ui/generative-ui/react";
 import { ToolErrorCard, ToolStatusCard, ToolTraceCard } from "@/lib/tool-trace";
 import { Notepad } from "@/components/tool-ui/notepad";
 import { RememberToolUI } from "@/components/shared/memory";
@@ -185,7 +185,7 @@ export default defineToolkit({
   get_weather: {
     description:
       "Fetch the weather for coordinates from `geocode_location`. Returns an " +
-      '`id`; call `present` with `{ $type: "Weather", id }` to show the user a card.',
+      '`id`; call `present` with `{ _type: "Weather", id }` to show the user a card.',
     parameters: z.object({
       location: z.string(),
       latitude: z.number(),

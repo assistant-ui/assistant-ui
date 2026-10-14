@@ -33,9 +33,11 @@ async function waitFor(
 const createState = (
   messages: ThreadAssistantMessage[],
   isRunning: boolean = true,
+  discardedToolCallIds?: ReadonlySet<string>,
 ): ToolInvocationTracker.Snapshot => ({
   messages: messages as readonly ThreadMessage[],
   isRunning,
+  ...(discardedToolCallIds && { discardedToolCallIds }),
 });
 
 const createAssistantMessage = (
@@ -926,6 +928,137 @@ describe("ToolInvocationTracker", () => {
 
     expect(execute).not.toHaveBeenCalled();
     expect(onResult).not.toHaveBeenCalled();
+  });
+
+  describe("a call named discarded when first seen", () => {
+    const setup = (isClientToolCall?: () => boolean) => {
+      const execute = vi.fn(async () => ({ deleted: true }));
+      const streamCall = vi.fn();
+      const onResult = vi.fn();
+      const tracker = new ToolInvocationTracker(
+        () => ({
+          deleteFile: {
+            parameters: { type: "object", properties: {} },
+            execute,
+            streamCall,
+          } satisfies Tool,
+        }),
+        { onResult, onStatusesChange: () => {} },
+        isClientToolCall,
+      );
+      return { tracker, execute, streamCall, onResult };
+    };
+    const deleteFile = (toolCallId = "tool-1") =>
+      createAssistantMessage(
+        '{"path":"/tmp/a"}',
+        { path: "/tmp/a" },
+        { toolCallId, toolName: "deleteFile" },
+      );
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    it("suppresses an unresolved call in the settled snapshot", async () => {
+      const { tracker, execute, streamCall, onResult } = setup();
+      tracker.setState(createState([], false));
+      tracker.setState(createState([deleteFile()], false, new Set(["tool-1"])));
+      await flush();
+
+      expect(execute).not.toHaveBeenCalled();
+      expect(streamCall).not.toHaveBeenCalled();
+      expect(onResult).not.toHaveBeenCalled();
+    });
+
+    it("suppresses a call first seen after an empty settled snapshot", async () => {
+      const { tracker, execute, streamCall, onResult } = setup();
+      tracker.setState(createState([], true));
+      tracker.setState(createState([], false));
+      tracker.setState(createState([deleteFile()], false, new Set(["tool-1"])));
+      await flush();
+
+      expect(execute).not.toHaveBeenCalled();
+      expect(streamCall).not.toHaveBeenCalled();
+      expect(onResult).not.toHaveBeenCalled();
+    });
+
+    it("suppresses a client-owned call during a running snapshot", async () => {
+      const { tracker, execute, streamCall } = setup(() => true);
+      tracker.setState(createState([], true));
+      tracker.setState(createState([deleteFile()], true, new Set(["tool-1"])));
+      tracker.setState(createState([deleteFile()], false));
+      await flush();
+
+      expect(execute).not.toHaveBeenCalled();
+      expect(streamCall).not.toHaveBeenCalled();
+    });
+
+    it("does not stream a call first seen with a final result", async () => {
+      const { tracker, execute, streamCall, onResult } = setup();
+      tracker.setState(createState([], true));
+      tracker.setState(
+        createState(
+          [
+            createAssistantMessage(
+              '{"path":"/tmp/a"}',
+              { path: "/tmp/a" },
+              { toolName: "deleteFile", result: { deleted: true } },
+            ),
+          ],
+          false,
+          new Set(["tool-1"]),
+        ),
+      );
+
+      await flush();
+      expect(streamCall).not.toHaveBeenCalled();
+      expect(execute).not.toHaveBeenCalled();
+      expect(onResult).not.toHaveBeenCalled();
+    });
+
+    it("runs the unmarked call in a mixed snapshot", async () => {
+      const { tracker, execute, streamCall, onResult } = setup(() => true);
+      tracker.setState(createState([], true));
+      tracker.setState(
+        createState(
+          [deleteFile("old-call"), deleteFile("new-call")],
+          true,
+          new Set(["old-call"]),
+        ),
+      );
+
+      await waitFor(() => expect(execute).toHaveBeenCalledOnce());
+      await waitFor(() => expect(onResult).toHaveBeenCalledOnce());
+      expect(execute).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ toolCallId: "new-call" }),
+      );
+      expect(streamCall).toHaveBeenCalledOnce();
+      expect(streamCall).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ toolCallId: "new-call" }),
+      );
+    });
+
+    it("does not change an existing call's decision when a later snapshot names it", async () => {
+      const { tracker, execute, streamCall } = setup();
+      tracker.setState(createState([], true));
+      tracker.setState(createState([deleteFile()], true));
+      tracker.setState(createState([deleteFile()], false, new Set(["tool-1"])));
+
+      await waitFor(() => expect(execute).toHaveBeenCalledOnce());
+      expect(streamCall).toHaveBeenCalledOnce();
+    });
+
+    it("allows the same call id after reset opens a new execution boundary", async () => {
+      const { tracker, execute } = setup();
+      tracker.setState(createState([], false));
+      tracker.setState(createState([deleteFile()], false, new Set(["tool-1"])));
+      await flush();
+      expect(execute).not.toHaveBeenCalled();
+      tracker.reset();
+      tracker.setState(createState([], false));
+      tracker.setState(createState([deleteFile()], false));
+
+      await waitFor(() => expect(execute).toHaveBeenCalledOnce());
+    });
   });
 
   it("still executes a waiting tool when an abort only interrupts the turn", async () => {

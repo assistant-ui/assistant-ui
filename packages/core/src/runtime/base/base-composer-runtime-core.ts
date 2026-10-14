@@ -9,7 +9,6 @@ import {
 import type { MessageRole, AppendMessage } from "../../types/message";
 import { isMessageNotSentError } from "../../types/error";
 import type { QuoteInfo } from "../../types/quote";
-import type { Unsubscribe } from "../../types/unsubscribe";
 import type { RunConfig } from "../../types/message";
 import { BaseSubscribable } from "../../subscribable/subscribable";
 import {
@@ -36,6 +35,7 @@ import {
   drainAttachmentAdd,
 } from "../utils/attachment-add-operations";
 import { AttachmentSendOperations } from "../utils/attachment-send-operations";
+import { DictationSessionController } from "./dictation-session";
 
 type InTransit = {
   readonly submission: ComposerSubmission;
@@ -82,10 +82,26 @@ export abstract class BaseComposerRuntimeCore
   public abstract get canSend(): boolean;
 
   public get isEmpty() {
-    return !this.text.trim() && !this.attachments.length;
+    return !this.text.trim() && !this.sendableAttachments.length;
+  }
+
+  protected get sendableAttachments() {
+    return this.attachments.filter(
+      (attachment) => !this._attachmentSends.isRemoved(attachment),
+    );
   }
 
   private _text = "";
+  private readonly _dictationSessionController = new DictationSessionController(
+    {
+      getAdapter: () => this.getDictationAdapter(),
+      getText: () => this._text,
+      setText: (value) => {
+        this._text = value;
+      },
+      notify: () => this._notifySubscribers(),
+    },
+  );
 
   get text() {
     return this._text;
@@ -124,16 +140,8 @@ export abstract class BaseComposerRuntimeCore
     this._notifySubscribers();
   }
 
-  // A live dictation session appends to the text it last saw, so any write
-  // that bypasses `setText` has to move that baseline or the next transcript
-  // overwrites what was just written.
   private _rebaseDictation(value: string) {
-    if (!this._dictation) return;
-
-    this._dictationBaseText = value;
-    this._currentInterimText = "";
-    const { status, inputDisabled } = this._dictation;
-    this._dictation = inputDisabled ? { status, inputDisabled } : { status };
+    this._dictationSessionController.rebase(value);
   }
 
   public setRole(role: MessageRole) {
@@ -161,6 +169,7 @@ export abstract class BaseComposerRuntimeCore
   private _inTransit: readonly InTransit[] = [];
   private _inTransitSubmissions: readonly ComposerSubmission[] = [];
   private _sendGeneration = 0;
+  private _draftEpoch = 0;
   private _attachmentAddOperations = new AttachmentAddOperations();
   private _attachmentSends = new AttachmentSendOperations();
 
@@ -251,19 +260,26 @@ export abstract class BaseComposerRuntimeCore
 
   private _draftUploadsToRemove() {
     return this._attachments.filter(
-      (a) => !isAttachmentComplete(a) && !this._attachmentSends.isRemoved(a),
+      (a) =>
+        !isAttachmentComplete(a) &&
+        this._attachmentSends.shouldRemoveOnClear(a),
     );
   }
 
   private async _onClearAttachments(pending: readonly Attachment[]) {
     const adapter = this.getAttachmentAdapter();
-    if (adapter) {
-      await Promise.all(pending.map(async (a) => adapter.remove(a)));
-    }
+    if (!adapter) return;
+    await Promise.all(
+      pending.map((attachment) => {
+        this._attachmentSends.beginRemoval(attachment);
+        return this._attachmentSends.remove(attachment, adapter);
+      }),
+    );
   }
 
   public async reset() {
     this._cancelAllAttachmentAdds();
+    this._draftEpoch++;
 
     // A send whose adapter never settles must not brick the composer; reset is
     // the escape hatch that releases the in-flight lock. Bumping the generation
@@ -293,6 +309,7 @@ export abstract class BaseComposerRuntimeCore
   }
 
   public async clearAttachments() {
+    this._draftEpoch++;
     // A send that detached the draft holds the submission's attachments, so
     // their uploads keep going for it.
     this._attachmentAddOperations.cancelAll(
@@ -306,7 +323,7 @@ export abstract class BaseComposerRuntimeCore
     const pending = this._draftUploadsToRemove();
     if (this.isSubmitting) {
       for (const attachment of this._attachments)
-        this._attachmentSends.markRemoved(attachment);
+        this._attachmentSends.beginRemoval(attachment);
     }
     const task = this._onClearAttachments(pending);
     this.setAttachments([]);
@@ -317,24 +334,11 @@ export abstract class BaseComposerRuntimeCore
   public async send(options?: SendOptions) {
     if (!this.canSend || this.isSubmitting) return;
 
-    if (this._dictationSession) {
-      const sessionId = this._activeDictationSessionId;
-      try {
-        this._dictationSession.cancel();
-      } catch (error) {
-        console.error("[assistant-ui] Dictation session cancel threw", error);
-      } finally {
-        this._cleanupDictation({ sessionId });
-      }
-    }
+    this._dictationSessionController.cancel();
 
     // An attachment whose removal is still awaiting the adapter is excluded
     // up front, or a send started mid-removal would upload and dispatch it.
-    const attachments = this.attachments.filter(
-      (attachment) => !this._attachmentSends.isRemoved(attachment),
-    );
-    // canSend counted an attachment whose removal is still in flight, so the
-    // draft can be empty by the time the filter above has run.
+    const attachments = this.sendableAttachments;
     if (!this.text.trim() && attachments.length === 0) return;
 
     const draft: ComposerSubmission = {
@@ -422,12 +426,13 @@ export abstract class BaseComposerRuntimeCore
         ? []
         : [result.value],
     );
-    if (!submission.text.trim() && finalAttachments.length === 0) {
+    const submitted = this._submission ?? submission;
+    if (!submitted.text.trim() && finalAttachments.length === 0) {
       this._endSubmission();
-      this._returnToDraft({ ...submission, attachments: [] });
+      this._returnToDraft(submitted);
       return;
     }
-    this._dispatch(generation, submission, finalAttachments, context, true);
+    this._dispatch(generation, submitted, finalAttachments, context, true);
   }
 
   private _dispatch(
@@ -474,6 +479,8 @@ export abstract class BaseComposerRuntimeCore
         ]);
     }
 
+    const cleanupOwner = this.cleanupOwner;
+    const cleanupEpoch = cleanupOwner._draftEpoch;
     let sendTask: void | Promise<void>;
     try {
       sendTask = this.handleSend(message, context.options);
@@ -491,6 +498,19 @@ export abstract class BaseComposerRuntimeCore
           this._returnToDraft(sent);
         else if (wasInTransit) this._notifySubscribers();
       });
+
+    if (isSubmission)
+      for (const attachment of draft.attachments)
+        if (!isAttachmentComplete(attachment))
+          this._attachmentSends.dispatchRemoval(
+            attachment,
+            () =>
+              void this._retrySubmittedRemoval(
+                attachment as PendingAttachment,
+                cleanupOwner,
+                cleanupEpoch,
+              ),
+          );
 
     this._notifyEventSubscribers("send", {
       chars: draft.text.length,
@@ -517,9 +537,6 @@ export abstract class BaseComposerRuntimeCore
       if (result.status === "rejected")
         failures.set(sent[index]!.id, result.reason);
     });
-    // Each attachment that could not be prepared carries its own reason, so
-    // the draft it returns to shows which file needs another try. One removed
-    // meanwhile keeps its removal mark, so that removal still settles it.
     const attachments = submission.attachments.map((attachment) => {
       if (
         !failures.has(attachment.id) ||
@@ -594,8 +611,10 @@ export abstract class BaseComposerRuntimeCore
       );
       this._attachments = this._attachments.map((attachment) =>
         this._attachmentSends.isRemoved(attachment)
-          ? attachment
-          : (returned.get(attachment.id) ?? attachment),
+          ? this._attachmentSends.restore(attachment)
+          : this._attachmentSends.restore(
+              returned.get(attachment.id) ?? attachment,
+            ),
       );
     }
     this._notifySubscribers();
@@ -902,355 +921,127 @@ export abstract class BaseComposerRuntimeCore
   }
 
   async removeAttachment(attachmentId: string) {
-    const index = this._attachments.findIndex((a) => a.id === attachmentId);
-    if (index === -1) {
-      await this._removeSubmittedAttachment(attachmentId);
-      return;
-    }
-    const attachment = this._attachments[index]!;
-    if (this._attachmentSends.isRemoved(attachment)) return;
+    const attachment =
+      this._attachments.find((candidate) => candidate.id === attachmentId) ??
+      this._submission?.attachments.find(
+        (candidate) => candidate.id === attachmentId,
+      );
+    if (!attachment) throw new Error("Attachment not found");
+    const adapter = this.getAttachmentAdapter();
+    if (!isAttachmentComplete(attachment) && !adapter)
+      throw new Error("Attachments are not supported");
+    if (!this._attachmentSends.beginRemoval(attachment)) return;
 
     this._cancelAttachmentAdd(attachmentId);
-
-    // The mark must precede any await: an in-flight send drops the attachment
-    // from its outgoing message, and a send that starts while the adapter
-    // removal is still pending excludes it from the batch entirely.
-    this._attachmentSends.markRemoved(attachment);
-
-    if (!isAttachmentComplete(attachment)) {
-      const adapter = this.getAttachmentAdapter();
-      if (!adapter) throw new Error("Attachments are not supported");
-      try {
-        await adapter.remove(attachment);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        this._attachments = this._attachments.map((candidate) =>
-          candidate.id === attachmentId && !isAttachmentComplete(candidate)
-            ? this._attachmentSends.transfer(candidate, {
-                ...candidate,
-                status: { type: "incomplete", reason: "error", message },
-              })
-            : candidate,
-        );
-        this._notifySubscribers();
-        throw error;
-      }
-    }
-    this._attachments = this._attachments.filter((a) => a.id !== attachmentId);
     this._notifySubscribers();
-  }
 
-  /**
-   * A submission is not delivered yet, so an attachment can still be taken out
-   * of it, which the draft no longer holds once the send detached it.
-   */
-  private async _removeSubmittedAttachment(attachmentId: string) {
-    const submitted = this._submission?.attachments.find(
-      (a) => a.id === attachmentId,
+    await this._attachmentSends.remove(
+      attachment,
+      adapter,
+      (_error, message) => {
+        const fail = (candidate: PendingAttachment) =>
+          this._attachmentSends.transfer(candidate, {
+            ...candidate,
+            status: { type: "incomplete", reason: "error", message },
+          });
+        const submission = this._submission;
+        if (submission)
+          this._submission = {
+            ...submission,
+            attachments: submission.attachments.map((candidate) =>
+              !isAttachmentComplete(candidate) &&
+              this._attachmentSends.isSameRemoval(candidate, attachment)
+                ? fail(candidate)
+                : candidate,
+            ),
+          };
+        if (
+          this._attachments.some((candidate) =>
+            this._attachmentSends.isSameRemoval(candidate, attachment),
+          )
+        ) {
+          this._attachments = this._attachments.map((candidate) =>
+            !isAttachmentComplete(candidate) &&
+            this._attachmentSends.isSameRemoval(candidate, attachment)
+              ? fail(candidate)
+              : candidate,
+          );
+          if (!this._submission)
+            this._attachments = this._attachments.map((candidate) =>
+              this._attachmentSends.isSameRemoval(candidate, attachment)
+                ? this._attachmentSends.restore(candidate)
+                : candidate,
+            );
+        }
+        this._notifySubscribers();
+      },
     );
-    if (!submitted) throw new Error("Attachment not found");
-    if (this._attachmentSends.isRemovalPending(submitted)) return;
-
-    this._cancelAttachmentAdd(attachmentId);
-    this._attachmentSends.markRemoved(submitted);
-    if (!isAttachmentComplete(submitted)) {
-      const adapter = this.getAttachmentAdapter();
-      if (!adapter) throw new Error("Attachments are not supported");
-      try {
-        await adapter.remove(submitted);
-      } catch (error) {
-        this._failSubmittedRemoval(submitted, error);
-        throw error;
-      }
-    }
     const submission = this._submission;
     if (submission)
       this._submission = {
         ...submission,
         attachments: submission.attachments.filter(
-          (a) => a.id !== attachmentId,
+          (candidate) =>
+            !this._attachmentSends.isSameRemoval(candidate, attachment),
         ),
       };
-    if (this._attachments.includes(submitted))
-      this._attachments = this._attachments.filter((a) => a !== submitted);
-    this._notifySubscribers();
-  }
-
-  /**
-   * An attachment whose removal failed stays out of the message it was taken
-   * from and shows why, so the removal can be tried again. Once that message
-   * is back in the draft, it is a draft attachment again.
-   */
-  private _failSubmittedRemoval(submitted: PendingAttachment, error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    const fail = (attachment: PendingAttachment) =>
-      this._attachmentSends.transfer(attachment, {
-        ...attachment,
-        status: { type: "incomplete", reason: "error", message },
-      });
-    const submission = this._submission;
-    if (submission)
-      this._submission = {
-        ...submission,
-        attachments: submission.attachments.map((attachment) => {
-          if (
-            attachment.id !== submitted.id ||
-            isAttachmentComplete(attachment)
-          )
-            return attachment;
-          const failed = fail(attachment);
-          this._attachmentSends.holdOut(failed);
-          return failed;
-        }),
-      };
-    if (this._attachments.includes(submitted))
-      this._attachments = this._attachments.map((attachment) =>
-        attachment === submitted ? fail(submitted) : attachment,
+    if (
+      this._attachments.some((candidate) =>
+        this._attachmentSends.isSameRemoval(candidate, attachment),
+      )
+    )
+      this._attachments = this._attachments.filter(
+        (candidate) =>
+          !this._attachmentSends.isSameRemoval(candidate, attachment),
       );
     this._notifySubscribers();
   }
 
-  private _dictation: DictationState | undefined;
-  private _dictationSession: DictationAdapter.Session | undefined;
-  private _stoppingDictationSession: DictationAdapter.Session | undefined;
-  private _dictationUnsubscribes: Unsubscribe[] = [];
-  private _dictationBaseText = "";
-  private _currentInterimText = "";
-  private _dictationSessionIdCounter = 0;
-  private _activeDictationSessionId: number | undefined;
-  private _isCleaningDictation = false;
-
-  public get dictation(): DictationState | undefined {
-    return this._dictation;
+  protected get cleanupOwner(): BaseComposerRuntimeCore {
+    return this;
   }
 
-  private _isActiveSession(
-    sessionId: number,
-    session: DictationAdapter.Session,
-  ): boolean {
-    return (
-      this._activeDictationSessionId === sessionId &&
-      this._dictationSession === session
-    );
+  private _adoptCleanupFailure(
+    source: AttachmentSendOperations,
+    failed: PendingAttachment,
+    epoch: number,
+  ) {
+    if (this._draftEpoch !== epoch) return;
+    if (this._attachments.some((attachment) => attachment.id === failed.id))
+      return;
+    this._attachmentSends.adoptFrom(source, failed);
+    this._attachments = [failed, ...this._attachments];
+    this._notifySubscribers();
+  }
+
+  private async _retrySubmittedRemoval(
+    submitted: PendingAttachment,
+    owner: BaseComposerRuntimeCore,
+    epoch: number,
+  ) {
+    this._attachmentSends.beginRemoval(submitted);
+    await this._attachmentSends
+      .remove(submitted, this.getAttachmentAdapter(), (error, message) => {
+        console.error("[assistant-ui] Failed to remove sent attachment", error);
+        const failed = this._attachmentSends.transfer(submitted, {
+          ...submitted,
+          status: { type: "incomplete", reason: "error", message },
+        });
+        owner._adoptCleanupFailure(this._attachmentSends, failed, epoch);
+      })
+      .catch(() => {});
+  }
+
+  public get dictation(): DictationState | undefined {
+    return this._dictationSessionController.dictation;
   }
 
   public startDictation(): void {
-    const adapter = this.getDictationAdapter();
-    if (!adapter) {
-      throw new Error("Dictation adapter not configured");
-    }
-
-    const isReplacing = this._dictationSession !== undefined;
-    if (this._dictationSession) {
-      const oldSession = this._dictationSession;
-      this._cleanupDictation({ notify: false });
-      this._stopDictationSession(oldSession);
-    }
-
-    const inputDisabled = adapter.disableInputDuringDictation ?? false;
-
-    this._dictationBaseText = this._text;
-    this._currentInterimText = "";
-
-    let session: DictationAdapter.Session;
-    try {
-      session = adapter.listen();
-    } catch (error) {
-      if (isReplacing) {
-        try {
-          this._notifySubscribers();
-        } catch (notifyError) {
-          console.error(
-            "[assistant-ui] Dictation replacement rollback notification threw",
-            notifyError,
-          );
-        }
-      }
-      throw error;
-    }
-    this._dictationSession = session;
-    const sessionId = ++this._dictationSessionIdCounter;
-    this._activeDictationSessionId = sessionId;
-    this._dictation = { status: session.status, inputDisabled };
-    try {
-      this._notifySubscribers();
-    } catch (notifyError) {
-      console.error(
-        "[assistant-ui] Dictation start notification threw",
-        notifyError,
-      );
-    }
-
-    if (!this._isActiveSession(sessionId, session)) return;
-
-    // Handles stay local because cleanup can run synchronously during setup
-    // and would drain the shared list before the remaining handles exist.
-    const setupUnsubscribes: Unsubscribe[] = [];
-    const releaseSetup = () => {
-      for (const unsubscribe of setupUnsubscribes.splice(0)) {
-        try {
-          unsubscribe();
-        } catch (cleanupError) {
-          console.error("[assistant-ui] Dictation cleanup threw", cleanupError);
-        }
-      }
-    };
-    const keepUnsubscribe = (unsubscribe: Unsubscribe) => {
-      setupUnsubscribes.push(unsubscribe);
-      if (this._isActiveSession(sessionId, session)) return true;
-      releaseSetup();
-      return false;
-    };
-
-    try {
-      const unsubSpeech = session.onSpeech((result) => {
-        if (!this._isActiveSession(sessionId, session)) return;
-        const isFinal = result.isFinal !== false;
-
-        const needsSeparator =
-          this._dictationBaseText &&
-          !this._dictationBaseText.endsWith(" ") &&
-          result.transcript;
-        const separator = needsSeparator ? " " : "";
-
-        if (isFinal) {
-          this._dictationBaseText =
-            this._dictationBaseText + separator + result.transcript;
-          this._currentInterimText = "";
-          this._text = this._dictationBaseText;
-
-          if (this._dictation) {
-            const { transcript: _, ...rest } = this._dictation;
-            this._dictation = rest;
-          }
-          this._notifySubscribers();
-        } else {
-          this._currentInterimText = separator + result.transcript;
-          this._text = this._dictationBaseText + this._currentInterimText;
-
-          if (this._dictation) {
-            this._dictation = {
-              ...this._dictation,
-              transcript: result.transcript,
-            };
-          }
-          this._notifySubscribers();
-        }
-      });
-      if (!keepUnsubscribe(unsubSpeech)) return;
-
-      const unsubStart = session.onSpeechStart(() => {
-        if (!this._isActiveSession(sessionId, session)) return;
-
-        this._dictation = {
-          status: { type: "running" },
-          inputDisabled,
-          ...(this._dictation?.transcript && {
-            transcript: this._dictation.transcript,
-          }),
-        };
-        this._notifySubscribers();
-      });
-      if (!keepUnsubscribe(unsubStart)) return;
-
-      const unsubEnd = session.onSpeechEnd(() => {
-        this._cleanupDictation({ sessionId });
-      });
-      if (!keepUnsubscribe(unsubEnd)) return;
-
-      const statusInterval = setInterval(() => {
-        if (!this._isActiveSession(sessionId, session)) return;
-
-        if (session.status.type === "ended") {
-          this._cleanupDictation({ sessionId });
-        }
-      }, 100);
-      if (!keepUnsubscribe(() => clearInterval(statusInterval))) return;
-
-      this._dictationUnsubscribes.push(...setupUnsubscribes.splice(0));
-    } catch (error) {
-      releaseSetup();
-      if (this._isActiveSession(sessionId, session)) {
-        try {
-          session.cancel();
-        } catch (cancelError) {
-          console.error(
-            "[assistant-ui] Dictation session cancel threw",
-            cancelError,
-          );
-        } finally {
-          this._cleanupDictation({ sessionId });
-        }
-      }
-      throw error;
-    }
+    this._dictationSessionController.startDictation();
   }
 
   public stopDictation(): void {
-    if (!this._dictationSession) return;
-
-    const session = this._dictationSession;
-    if (this._stoppingDictationSession === session) return;
-    this._stoppingDictationSession = session;
-    const sessionId = this._activeDictationSessionId;
-    const cleanup = () => this._cleanupDictation({ sessionId });
-    this._stopDictationSession(session, cleanup);
-  }
-
-  private _stopDictationSession(
-    session: DictationAdapter.Session,
-    onSettled: () => void = () => {},
-  ): void {
-    let task: Promise<void>;
-    try {
-      task = session.stop();
-    } catch (error) {
-      console.error("[assistant-ui] Dictation session stop threw", error);
-      onSettled();
-      return;
-    }
-
-    void task.then(onSettled, (error) => {
-      console.error("[assistant-ui] Dictation session stop rejected", error);
-      onSettled();
-    });
-  }
-
-  private _cleanupDictation(options?: {
-    sessionId?: number | undefined;
-    notify?: boolean | undefined;
-  }): void {
-    const isStaleSession =
-      options?.sessionId !== undefined &&
-      options.sessionId !== this._activeDictationSessionId;
-    if (isStaleSession || this._isCleaningDictation) return;
-
-    this._isCleaningDictation = true;
-    const runCleanup = (cleanup: () => void) => {
-      try {
-        cleanup();
-      } catch (error) {
-        console.error("[assistant-ui] Dictation cleanup threw", error);
-      }
-    };
-
-    try {
-      const unsubscribes = this._dictationUnsubscribes;
-      this._dictationUnsubscribes = [];
-      this._dictationSession = undefined;
-      this._stoppingDictationSession = undefined;
-      this._activeDictationSessionId = undefined;
-      this._dictation = undefined;
-      this._dictationBaseText = "";
-      this._currentInterimText = "";
-
-      for (const unsubscribe of unsubscribes) runCleanup(unsubscribe);
-      if (options?.notify !== false) {
-        runCleanup(() => this._notifySubscribers());
-      }
-    } finally {
-      this._isCleaningDictation = false;
-    }
+    this._dictationSessionController.stopDictation();
   }
 
   private _eventSubscribers = new Map<
@@ -1268,6 +1059,7 @@ export abstract class BaseComposerRuntimeCore
     notifyEventListeners(subscribers, payload, `Composer runtime "${event}"`);
   }
 
+  /** @deprecated Experimental since 2024-10-12. Not scheduled for removal; the API may change in any release. */
   public unstable_on<E extends ComposerRuntimeEventType>(
     event: E,
     callback: ComposerRuntimeEventCallback<E>,

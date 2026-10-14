@@ -161,6 +161,8 @@ class _Canonicalizer:
             result["artifact"] = chunk.artifact
         if chunk.is_preliminary:
             result["isPreliminary"] = True
+        if chunk.messages is not None:
+            result["messages"] = chunk.messages
         if path is None:
             # A result without a matching tool-call part has no part to address;
             # emit it at the message root so it stays on the wire.
@@ -280,7 +282,12 @@ class _Canonicalizer:
                     }
                 ]
             case "error":
-                return [{"type": "error", "error": chunk.error}]
+                error = {"type": "error", "error": chunk.error}
+                if chunk.code is not None:
+                    error["code"] = chunk.code
+                if chunk.severity is not None:
+                    error["severity"] = chunk.severity
+                return [error]
             case "update-state":
                 return [{"type": "update-state", "operations": chunk.operations}]
             case _:

@@ -44,9 +44,10 @@ cd my-agent
 
 Add the Cloudflare Agents packages and the AI SDK:
 
-<InstallCommand npm={["agents@0.12.4", "@cloudflare/ai-chat@0.7.0", "ai@latest", "@ai-sdk/openai@latest"]} />
+<InstallCommand npm={["agents@0.12.4", "@cloudflare/ai-chat@0.7.0", "ai@^6", "@ai-sdk/openai@^3"]} />
 
 The two Cloudflare packages above are pinned to exact versions because `agents` and `@cloudflare/ai-chat` are pre-1.0 and ship breaking changes between minor releases. See [version stability](#version-stability) below before bumping them.
+The Worker packages require AI SDK 6, so the server uses `ai@^6` and the matching `@ai-sdk/openai@^3`; the frontend is configured separately below.
 
 </Step>
 
@@ -57,7 +58,7 @@ The two Cloudflare packages above are pinned to exact versions because `agents` 
 `AIChatAgent` already implements message persistence, streaming protocol, and WebSocket plumbing. Override `onChatMessage` to plug in your model and tools.
 
 ```ts title="src/chat.ts"
-import { AIChatAgent } from "@cloudflare/ai-chat";
+import { AIChatAgent, type OnChatMessageOptions } from "@cloudflare/ai-chat";
 import { openai } from "@ai-sdk/openai";
 import { streamText, convertToModelMessages } from "ai";
 
@@ -67,12 +68,19 @@ export type Env = {
 };
 
 export class Chat extends AIChatAgent<Env> {
-  async onChatMessage(onFinish: Parameters<typeof streamText>[0]["onFinish"]) {
-    return streamText({
+  async onChatMessage(
+    onFinish: NonNullable<Parameters<typeof streamText>[0]["onFinish"]>,
+    options?: OnChatMessageOptions,
+  ) {
+    const result = streamText({
       model: openai("gpt-6-luna"),
       messages: await convertToModelMessages(this.messages),
+      ...(options?.abortSignal === undefined
+        ? {}
+        : { abortSignal: options.abortSignal }),
       onFinish,
     });
+    return result.toUIMessageStreamResponse();
   }
 }
 ```

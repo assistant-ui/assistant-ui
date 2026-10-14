@@ -4,6 +4,7 @@ import { appendFileSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseBumpLine, readChangesetSource } from "./lib/changesets.mjs";
+import { hasIntendedCaretBreakMarker } from "./lib/changeset-markers.mjs";
 import { isExecutedAsMain } from "./lib/main.mjs";
 import { collectPackages } from "./lib/workspace.mjs";
 
@@ -140,9 +141,6 @@ export function computeCascade(bumps, pkgMap, revDeps) {
 
   return cascade;
 }
-
-const INTENDED_MARKER =
-  /^\s*(?:<!--\s*)?caret-break:\s*intended\s*(?:-->)?\s*$/m;
 
 function rangeBreakReason(bump) {
   const major = Number(bump.version.split(".")[0]);
@@ -283,7 +281,7 @@ function readChangesetBumps(root, files, pkgMap) {
     const source = readFileSync(path.join(root, ".changeset", file), "utf8");
     const changeset = readChangesetSource(source);
     if (!changeset) continue;
-    const intended = INTENDED_MARKER.test(changeset.body);
+    const intended = hasIntendedCaretBreakMarker(changeset.body);
     for (const line of changeset.frontmatter.split("\n")) {
       const parsed = parseBumpLine(line);
       if (!parsed) continue;

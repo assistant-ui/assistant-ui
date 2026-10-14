@@ -10,7 +10,7 @@ import { LangChainIcon } from "@/components/icons/langchain";
 import { McpIcon } from "@/components/icons/mcp";
 import { VercelIcon } from "@/components/icons/vercel";
 
-Integrations are wiring guides for using third-party services with assistant-ui, plus canonical recipes for the adapter slots (persistence, attachments). They are distinct from [runtimes](/docs/runtimes/pick-a-runtime), which are the React adapter packages (`@assistant-ui/ai-sdk`, `@assistant-ui/react-langgraph`, etc.) that connect the UI to a backend. An integration assumes you already have a working runtime and adds something on top.
+Integrations are wiring guides for using third-party services with assistant-ui, plus canonical recipes for the adapter slots (persistence, attachments). They are distinct from [runtimes](/docs/runtimes/pick-a-runtime), which are the React adapter packages (`@assistant-ui/ai-sdk`, `@assistant-ui/react-langgraph`, etc.) that connect the UI to a backend. Most integrations assume you already have a working runtime and add something on top; framework guides also set up the runtime.
 
 ## Where integrations slot in
 
@@ -35,6 +35,16 @@ Framework integrations that pair with assistant-ui at the API-route layer.
     href="/docs/integrations/frameworks/ai-sdk"
   />
   <PlatformOnly platforms={["react"]}>
+    <Card
+      title="OpenAI Agents SDK"
+      description="Run agents on your server and connect their UI message streams through the AI SDK runtime."
+      href="/docs/integrations/frameworks/openai-agents"
+    />
+    <Card
+      title="Pydantic AI"
+      description="Python agents and tools connected through the AG-UI runtime."
+      href="/docs/integrations/frameworks/pydantic-ai"
+    />
     <Card
       icon={<CloudflareIcon width={20} height={20} />}
       title="Cloudflare Agents"

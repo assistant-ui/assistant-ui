@@ -29,23 +29,17 @@ const MCP_CONFIGS: Record<
   {
     name: string;
     getPath: () => string;
-    config: object;
-    replaceServerKey?: string;
-    jsoncServerKey?: string;
+    serverKey: string;
+    server: object;
+    jsonc?: boolean;
     postInstall?: string;
   }
 > = {
   cursor: {
     name: "Cursor",
     getPath: () => path.join(process.cwd(), ".cursor", "mcp.json"),
-    config: {
-      mcpServers: {
-        "assistant-ui": {
-          url: HOSTED_MCP_URL,
-        },
-      },
-    },
-    replaceServerKey: "mcpServers",
+    serverKey: "mcpServers",
+    server: { url: HOSTED_MCP_URL },
     postInstall:
       "Open Cursor Settings → MCP → find 'assistant-ui' and click enable.",
   },
@@ -53,49 +47,33 @@ const MCP_CONFIGS: Record<
     name: "Windsurf",
     getPath: () =>
       path.join(os.homedir(), ".codeium", "windsurf", "mcp_config.json"),
-    config: {
-      mcpServers: {
-        "assistant-ui": {
-          serverUrl: HOSTED_MCP_URL,
-        },
-      },
-    },
-    replaceServerKey: "mcpServers",
+    serverKey: "mcpServers",
+    server: { serverUrl: HOSTED_MCP_URL },
     postInstall: "Fully quit and re-open Windsurf to activate.",
   },
   vscode: {
     name: "VSCode",
     getPath: () => path.join(process.cwd(), ".vscode", "mcp.json"),
-    config: {
-      servers: {
-        "assistant-ui": {
-          type: "http",
-          url: HOSTED_MCP_URL,
-        },
-      },
-    },
-    replaceServerKey: "servers",
-    jsoncServerKey: "servers",
+    serverKey: "servers",
+    server: { type: "http", url: HOSTED_MCP_URL },
+    jsonc: true,
     postInstall:
       "Enable MCP in Settings → search 'MCP' → enable 'Chat > MCP'. Use Copilot Chat in Agent mode.",
   },
   zed: {
     name: "Zed",
-    jsoncServerKey: "context_servers",
+    serverKey: "context_servers",
+    jsonc: true,
     getPath: () => {
       if (process.platform === "win32") {
         return path.join(process.env.APPDATA || "", "Zed", "settings.json");
       }
       return path.join(os.homedir(), ".config", "zed", "settings.json");
     },
-    config: {
-      context_servers: {
-        "assistant-ui": {
-          command: {
-            path: "npx",
-            args: ["-y", "@assistant-ui/mcp-docs-server"],
-          },
-        },
+    server: {
+      command: {
+        path: "npx",
+        args: ["-y", "@assistant-ui/mcp-docs-server"],
       },
     },
     postInstall: "The server starts automatically with the Assistant Panel.",
@@ -118,13 +96,10 @@ const MCP_CONFIGS: Record<
         "claude_desktop_config.json",
       );
     },
-    config: {
-      mcpServers: {
-        "assistant-ui": {
-          command: "npx",
-          args: ["-y", "@assistant-ui/mcp-docs-server"],
-        },
-      },
+    serverKey: "mcpServers",
+    server: {
+      command: "npx",
+      args: ["-y", "@assistant-ui/mcp-docs-server"],
     },
     postInstall: "Restart Claude Desktop to activate.",
   },
@@ -380,7 +355,7 @@ async function installForTarget(target: MCPTarget): Promise<void> {
   if (fs.existsSync(configPath)) {
     content = fs.readFileSync(configPath, "utf-8");
     try {
-      if (targetConfig.jsoncServerKey) {
+      if (targetConfig.jsonc) {
         const errors: ParseError[] = [];
         existingConfig = parseJsonc(content, errors, {
           allowTrailingComma: true,
@@ -397,6 +372,13 @@ async function installForTarget(target: MCPTarget): Promise<void> {
         }
       } else {
         existingConfig = JSON.parse(content);
+        if (
+          existingConfig === null ||
+          typeof existingConfig !== "object" ||
+          Array.isArray(existingConfig)
+        ) {
+          throw new SyntaxError("Invalid MCP configuration");
+        }
       }
     } catch {
       const flag = getTargetFlag(target);
@@ -410,30 +392,23 @@ async function installForTarget(target: MCPTarget): Promise<void> {
     }
   }
 
-  const newConfig = deepMerge(existingConfig, targetConfig.config);
-
-  if (targetConfig.replaceServerKey) {
-    const key = targetConfig.replaceServerKey;
-    newConfig[key] = {
-      ...newConfig[key],
-      "assistant-ui": (targetConfig.config as any)[key]["assistant-ui"],
-    };
-  }
-
-  const updatedContent = targetConfig.jsoncServerKey
-    ? updateJsoncConfig(
-        content,
-        targetConfig.jsoncServerKey,
-        newConfig[targetConfig.jsoncServerKey]["assistant-ui"],
-      )
-    : `${JSON.stringify(newConfig, null, 2)}\n`;
+  const updatedContent = updateJsoncConfig(
+    content,
+    targetConfig.serverKey,
+    target === "zed" || target === "claude-desktop"
+      ? deepMerge(
+          existingConfig[targetConfig.serverKey]?.["assistant-ui"] ?? {},
+          targetConfig.server,
+        )
+      : targetConfig.server,
+  );
   fs.writeFileSync(configPath, updatedContent);
 
   logger.break();
   logger.success(`MCP server installed for ${targetConfig.name}!`);
   logger.info(`Config written to: ${configPath}`);
 
-  if (targetConfig.replaceServerKey) {
+  if (target === "cursor" || target === "windsurf" || target === "vscode") {
     logger.break();
     logger.info(
       `Connects to the hosted assistant-ui MCP server at ${HOSTED_MCP_URL}.`,

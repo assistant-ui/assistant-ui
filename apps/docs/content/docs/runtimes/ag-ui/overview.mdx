@@ -32,17 +32,17 @@ Shared adapters (attachments, speech, dictation, feedback, history) work the sam
 <PlatformTabs>
 <Tab value="React">
 
-<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-ag-ui", "@ag-ui/client"]} />
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-ag-ui", "@ag-ui/client@^0.0.59"]} />
 
 </Tab>
 <Tab value="React Native">
 
-<InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/react-ag-ui", "@ag-ui/client"]} />
+<InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/react-ag-ui", "@ag-ui/client@^0.0.59"]} />
 
 </Tab>
 <Tab value="React Ink">
 
-<InstallCommand npm={["@assistant-ui/react-ink", "@assistant-ui/react-ag-ui", "@ag-ui/client", "ink", "react"]} />
+<InstallCommand npm={["@assistant-ui/react-ink", "@assistant-ui/react-ag-ui", "@ag-ui/client@^0.0.59", "ink", "react"]} />
 
 </Tab>
 </PlatformTabs>
@@ -58,6 +58,13 @@ npx assistant-ui@latest create my-app -e with-ag-ui
 ## Next
 
 <Cards>
+  <PlatformOnly platforms={["react"]}>
+    <Card
+      title="Pydantic AI"
+      description="Connect a Python agent with a streaming endpoint and React frontend."
+      href="/docs/integrations/frameworks/pydantic-ai"
+    />
+  </PlatformOnly>
   <Card
     title="Quickstart"
     description="Minimal HttpAgent + useAgUiRuntime setup."

@@ -19,6 +19,7 @@ type Msg = { id: string; role: "user" | "assistant"; text: string };
 
 const counter = createRenderCounter();
 let conversions = 0;
+let roleReads = 0;
 
 const convertMessage = (m: Msg): ThreadMessageLike => {
   conversions += 1;
@@ -31,7 +32,10 @@ const Text = ({ text }: { text: string }) => {
 };
 
 const Message = () => {
-  const role = useAuiState((s) => s.message.role);
+  const role = useAuiState((s) => {
+    roleReads += 1;
+    return s.message.role;
+  });
   counter.useRender(`message:${role}`);
   return createElement(MessagePrimitiveParts, { components: { Text } });
 };
@@ -80,9 +84,11 @@ const TOKENS = 20;
 const streamInto = (n: number) => {
   counter.reset();
   conversions = 0;
+  roleReads = 0;
   const app = mount(n);
   const mounted = counter.snapshot();
   const converted = conversions;
+  const readsAtMount = roleReads;
   for (let i = 0; i < TOKENS; i++) app.append(`m${n - 1}`);
   const after = counter.snapshot();
   app.unmount();
@@ -96,6 +102,7 @@ const streamInto = (n: number) => {
       user: delta("renders:message:user"),
       commits: delta("commits:thread"),
       conversions: conversions - converted,
+      roleReads: roleReads - readsAtMount,
     },
   };
 };
@@ -114,8 +121,10 @@ describe("thread length", () => {
 
   // The external-store core walks every message on every update (conversion
   // cache lookups, dedupe, repository relink), so wall time per token still
-  // grows with thread length; this pins that the React work does not.
-  it("streams a token at the same render, commit, and conversion cost in a 2-message and a 200-message thread", () => {
+  // grows with thread length; this pins that the React work does not, and
+  // that a token re-renders only the streaming message's client, whose role
+  // selector is the only one it wakes.
+  it("streams a token at the same render, commit, conversion, and selector cost in a 2-message and a 200-message thread", () => {
     const short = streamInto(2).perStream;
     const long = streamInto(200).perStream;
     expect(short).toEqual({
@@ -124,6 +133,7 @@ describe("thread length", () => {
       user: 0,
       commits: 2 * TOKENS,
       conversions: TOKENS,
+      roleReads: TOKENS,
     });
     expect(long).toEqual(short);
   });

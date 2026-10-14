@@ -1,5 +1,13 @@
 # @assistant-ui/x-generative-compiler
 
+## 0.0.21
+
+### Patch Changes
+
+- [#8864](https://github.com/assistant-ui/assistant-ui/pull/8864) [`8bcb4ee`](https://github.com/assistant-ui/assistant-ui/commit/8bcb4ee20ef745a6a3b0fa6a9075bf374b8583ef) - keep unused classes whose static blocks, static initializers, computed keys, or `extends` expressions run code, and unused JSX whose attributes or children may run code, when pruning compiled output ([@okisdev](https://github.com/okisdev))
+
+- [#9071](https://github.com/assistant-ui/assistant-ui/pull/9071) [`7a1342e`](https://github.com/assistant-ui/assistant-ui/commit/7a1342edd7849fda809161752182cc9da7c67983) - feat: recognize `JSONGenerativeUI` imported from `@assistant-ui/generative-ui/react`, so "use generative" toolkits can depend on the framework-neutral package. ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.20
 
 ### Patch Changes

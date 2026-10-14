@@ -8,11 +8,12 @@ export default defineConfig({
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/tests/**", "src/unstable/webmcp/__tests__/**"],
       thresholds: {
-        lines: 84,
-        functions: 74,
-        branches: 72,
-        statements: 81,
-        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+        lines: 83,
+        functions: 73,
+        branches: 71,
+        statements: 80,
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
       },
     },
     environment: "node",

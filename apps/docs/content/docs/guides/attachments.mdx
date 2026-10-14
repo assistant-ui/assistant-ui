@@ -333,7 +333,7 @@ const runtime = useLocalRuntime(MyModelAdapter, {
 
 ### Progress Updates
 
-Report upload progress by writing `add()` as an async generator:
+Report upload progress by writing `add()` as an async generator. Each call adds one attachment, so every yield must carry the same `id`. Yields with another `id` are ignored:
 
 ```tsx
 class UploadAttachmentAdapter implements AttachmentAdapter {

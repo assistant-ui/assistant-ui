@@ -1,5 +1,11 @@
 # heat-graph
 
+## 0.0.24
+
+### Patch Changes
+
+- [#8833](https://github.com/assistant-ui/assistant-ui/pull/8833) [`0a3ca24`](https://github.com/assistant-ui/assistant-ui/commit/0a3ca2482e72e4d1c35805222df44e81ba6b55c5) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.23
 
 ### Patch Changes

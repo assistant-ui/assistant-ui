@@ -12,7 +12,7 @@ import {
 import { composeEventHandlers } from "radix-ui/internal";
 import { Slot } from "radix-ui";
 import type React from "react";
-import { useAui } from "@assistant-ui/store";
+import { useAui, useAuiState } from "@assistant-ui/store";
 import { renderSlot } from "../../utils/Primitive";
 
 export namespace ComposerPrimitiveAttachmentDropzone {
@@ -30,13 +30,15 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
 >(({ disabled, asChild = false, render, children, ...rest }, ref) => {
   const [isDragging, setIsDragging] = useState(false);
   const aui = useAui();
+  const disabledByThread = useAuiState((s) => s.thread.isDisabled);
+  const isDisabled = disabled || disabledByThread;
 
   useEffect(() => {
-    if (!disabled) return;
+    if (!isDisabled) return;
     // Disabled handlers cannot clear the latch, so reset it when the enabled period ends.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsDragging(false);
-  }, [disabled]);
+  }, [isDisabled]);
 
   // An unprevented file drop navigates the tab to the file, so file drags are
   // claimed via preventDefault even when the runtime does not support attachments.
@@ -44,31 +46,31 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
     (e: React.DragEvent) => {
       if (!e.dataTransfer.types.includes("Files")) return;
       e.preventDefault();
-      if (disabled || !aui.thread.getState().capabilities.attachments) {
+      if (isDisabled || !aui.thread.getState().capabilities.attachments) {
         e.dataTransfer.dropEffect = "none";
         return;
       }
       setIsDragging(true);
     },
-    [disabled, aui],
+    [isDisabled, aui],
   );
 
   const handleDragOverCapture = useCallback(
     (e: React.DragEvent) => {
       if (!e.dataTransfer.types.includes("Files")) return;
       e.preventDefault();
-      if (disabled || !aui.thread.getState().capabilities.attachments) {
+      if (isDisabled || !aui.thread.getState().capabilities.attachments) {
         e.dataTransfer.dropEffect = "none";
         return;
       }
       if (!isDragging) setIsDragging(true);
     },
-    [disabled, isDragging, aui],
+    [isDisabled, isDragging, aui],
   );
 
   const handleDragLeaveCapture = useCallback(
     (e: React.DragEvent) => {
-      if (disabled) return;
+      if (isDisabled) return;
       e.preventDefault();
       const next = e.relatedTarget as Node | null;
       if (next && e.currentTarget.contains(next)) {
@@ -76,7 +78,7 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
       }
       setIsDragging(false);
     },
-    [disabled],
+    [isDisabled],
   );
 
   const handleDrop = useCallback(
@@ -84,7 +86,7 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
       setIsDragging(false);
       if (!e.dataTransfer.types.includes("Files")) return;
       e.preventDefault();
-      if (disabled) return;
+      if (isDisabled) return;
       const files = Array.from(e.dataTransfer.files);
       if (!aui.thread.getState().capabilities.attachments || files.length === 0)
         return;
@@ -99,11 +101,11 @@ export const ComposerPrimitiveAttachmentDropzone = forwardRef<
         }),
       );
     },
-    [disabled, aui],
+    [isDisabled, aui],
   );
 
   const mergedProps = {
-    ...(isDragging && !disabled ? { "data-dragging": "true" } : null),
+    ...(isDragging && !isDisabled ? { "data-dragging": "true" } : null),
     ...rest,
     onDragEnterCapture: composeEventHandlers(
       rest.onDragEnterCapture,

@@ -44,8 +44,11 @@ const DISTRIBUTION_PACKAGES = [
   "@assistant-ui/react-native",
   "@assistant-ui/react-ink",
 ] as const;
-/** Package that exports the generative UI runtime split by export condition. */
-const GENERATIVE_UI_PACKAGE = "@assistant-ui/react-generative-ui";
+/** Entries that export the generative UI runtime split by export condition. */
+const GENERATIVE_UI_ENTRIES: ReadonlySet<string> = new Set([
+  "@assistant-ui/generative-ui/react",
+  "@assistant-ui/react-generative-ui",
+]);
 /**
  * The class whose instances expose split-by-condition tools (`present()`,
  * `promptUser()`). A toolkit entry that calls a method on one of these passes
@@ -687,7 +690,7 @@ function collectGenerativeFactoryImports(ast: t.File): Set<string> {
   for (const statement of ast.program.body) {
     if (
       !t.isImportDeclaration(statement) ||
-      statement.source.value !== GENERATIVE_UI_PACKAGE
+      !GENERATIVE_UI_ENTRIES.has(statement.source.value)
     ) {
       continue;
     }

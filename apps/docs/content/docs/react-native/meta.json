@@ -13,6 +13,7 @@
     "migration",
     "custom-backend",
     "tool-ui",
+    "generative-ui",
     "thread-list",
     "web-export",
     "testing",

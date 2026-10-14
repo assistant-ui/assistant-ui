@@ -59,11 +59,20 @@ class DataStreamEncoder(StreamEncoder):
                 res["isError"] = chunk.is_error
             if chunk.is_preliminary:
                 res["isPreliminary"] = True
+            if chunk.messages is not None:
+                res["messages"] = chunk.messages
             return f"a:{json.dumps(res, cls=StateProxyJSONEncoder)}\n"
         elif chunk.type == "data":
             return f"2:{json.dumps([chunk.data], cls=StateProxyJSONEncoder)}\n"
         elif chunk.type == "error":
-            return f"3:{json.dumps(chunk.error, cls=StateProxyJSONEncoder)}\n"
+            value: str | dict[str, str] = chunk.error
+            if chunk.code is not None or chunk.severity is not None:
+                value = {"error": chunk.error}
+                if chunk.code is not None:
+                    value["code"] = chunk.code
+                if chunk.severity is not None:
+                    value["severity"] = chunk.severity
+            return f"3:{json.dumps(value, cls=StateProxyJSONEncoder)}\n"
         elif chunk.type == "source":
             source_data = {
                 "sourceType": chunk.source_type,
@@ -93,6 +102,8 @@ class DataStreamEncoder(StreamEncoder):
             return f"e:{json.dumps(payload, cls=StateProxyJSONEncoder)}\n"
         elif chunk.type == "file":
             file_data = {"data": chunk.data, "mimeType": chunk.mime_type}
+            if chunk.parent_id is not None:
+                file_data["parentId"] = chunk.parent_id
             return f"k:{json.dumps(file_data, cls=StateProxyJSONEncoder)}\n"
         return None
 
@@ -128,7 +139,9 @@ class DataStreamEncoder(StreamEncoder):
         )
 
         async for chunk in stream:
-            if chunk.type in ("step-finish", "error"):
+            if chunk.type == "step-finish" or (
+                chunk.type == "error" and chunk.severity not in ("warning", "info")
+            ):
                 for finish in tool_call_args.finish_open():
                     yield finish
             if chunk.type == "tool-call-begin":

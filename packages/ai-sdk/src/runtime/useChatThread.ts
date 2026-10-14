@@ -53,6 +53,7 @@ export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       onResumeError?: ((error: unknown) => void) | undefined;
       joinStrategy?: AISDKRuntimeAdapter["joinStrategy"];
       messageRepository?: AISDKRuntimeAdapter<UI_MESSAGE>["messageRepository"];
+      /** @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release. */
       unstable_onBranchChange?: AISDKRuntimeAdapter["unstable_onBranchChange"];
     };
 

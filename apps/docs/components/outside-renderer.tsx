@@ -2,8 +2,8 @@
 
 import type { ReactNode } from "react";
 import { usePathname } from "next/navigation";
-import { RENDERER_PATH } from "@/lib/renderer";
+import { EMBEDDED_PATHS } from "@/lib/embedded-paths";
 
 export function OutsideRenderer({ children }: { children: ReactNode }) {
-  return usePathname() === RENDERER_PATH ? null : children;
+  return EMBEDDED_PATHS.includes(usePathname()) ? null : children;
 }

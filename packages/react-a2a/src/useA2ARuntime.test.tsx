@@ -140,6 +140,42 @@ describe("useA2ARuntime", () => {
     append: vi.fn().mockResolvedValue(undefined),
   });
 
+  it("re-renders when the core publishes loaded history", async () => {
+    const { client, getAgentCard } = createMockClient();
+    getAgentCard.mockImplementation(() => new Promise(() => {}));
+    let resolveHistory!: (repo: ExportedMessageRepository) => void;
+    const pendingHistory = new Promise<ExportedMessageRepository>((resolve) => {
+      resolveHistory = resolve;
+    });
+    const history = {
+      load: vi.fn(() => pendingHistory),
+      append: async () => {},
+    };
+    const render = vi.fn();
+    const { result } = renderHook(() => {
+      render();
+      return useA2ARuntime({ client, adapters: { history } });
+    });
+
+    await waitFor(() => expect(history.load).toHaveBeenCalledOnce());
+    const rendersBeforeHistory = render.mock.calls.length;
+
+    await act(async () => {
+      resolveHistory({
+        headId: "restored",
+        messages: [
+          { parentId: null, message: createThreadMessage("restored") },
+        ],
+      });
+      await pendingHistory;
+    });
+
+    expect(render.mock.calls.length).toBeGreaterThan(rendersBeforeHistory);
+    expect(result.current.thread.getState().messages.map((m) => m.id)).toEqual([
+      "restored",
+    ]);
+  });
+
   it("loads a history adapter that arrives on a later render", async () => {
     const { client } = createMockClient();
     const history = createHistory();
@@ -465,6 +501,74 @@ describe("useA2ARuntime", () => {
     });
     expect(result.current.thread.export().messages).toEqual([]);
   });
+
+  it.each(["existing", "new"] as const)(
+    "drops a send started by onCancel while switching to the %s thread",
+    async (destination) => {
+      const { client, streamMessage } = createMockClient(true);
+      let resolveSwitch!: () => void;
+      const pendingSwitch = new Promise<void>((resolve) => {
+        resolveSwitch = resolve;
+      });
+      let result!: { current: ReturnType<typeof useA2ARuntime> };
+      let cancelled = false;
+      ({ result } = renderHook(() => {
+        const [threadId, setThreadId] = useState("initial");
+        return useA2ARuntime({
+          client,
+          onCancel: () => {
+            if (cancelled) return;
+            cancelled = true;
+            void result.current.thread.append("started by onCancel");
+          },
+          adapters: {
+            threadList: {
+              threadId,
+              onSwitchToThread: async (id) => {
+                setThreadId(id);
+                await pendingSwitch;
+                return { messages: [createThreadMessage("loaded")] };
+              },
+              onSwitchToNewThread: async () => {
+                setThreadId("thread-new");
+                await pendingSwitch;
+              },
+            },
+          },
+        });
+      }));
+
+      act(() => {
+        void result.current.thread.append("old prompt");
+      });
+      await waitFor(() => expect(streamMessage).toHaveBeenCalledOnce());
+
+      let switching!: Promise<void>;
+      act(() => {
+        switching =
+          destination === "existing"
+            ? result.current.threads.switchToThread("thread-a")
+            : result.current.threads.switchToNewThread();
+      });
+      act(() => {
+        void result.current.thread.append("during switch");
+      });
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      await act(async () => {
+        resolveSwitch();
+        await switching;
+      });
+
+      expect(cancelled).toBe(true);
+      expect(streamMessage).toHaveBeenCalledOnce();
+      expect(result.current.thread.getState().isRunning).toBe(false);
+      expect(
+        result.current.thread.getState().messages.map((m) => m.id),
+      ).toEqual(destination === "existing" ? ["loaded"] : []);
+    },
+  );
 
   it("leaves a new thread empty after an active run and failed creation", async () => {
     const { client, streamMessage } = createMockClient(true);

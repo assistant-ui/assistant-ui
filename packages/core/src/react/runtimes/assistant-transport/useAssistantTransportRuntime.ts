@@ -320,6 +320,8 @@ const useAssistantTransportThreadRuntime = <T>(
       let markedDelivered = false;
 
       for await (const chunk of asAsyncIterableStream(stream)) {
+        // abort() cannot error a body that has fully arrived.
+        if (signal.aborted) throw signal.reason;
         if (chunk.metadata.unstable_state === agentStateRef.current) continue;
 
         if (!markedDelivered) {

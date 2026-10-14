@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { loadReviewPolicy } from "./lib/review-policy.mjs";
+import { loadReviewPolicy, tierLabel } from "./lib/review-policy.mjs";
 import {
   buildRulesets,
   renderCodeowners,
@@ -284,6 +284,7 @@ test("ruleset updates replace only review floors and required checks", () => {
                   integration_id: 15368,
                 },
                 { context: "Review Policy Scripts", integration_id: 15368 },
+                { context: "Test Coverage", integration_id: 15368 },
               ],
             },
           },
@@ -307,20 +308,20 @@ test("ruleset updates replace only review floors and required checks", () => {
               required_reviewers: [
                 {
                   file_patterns: [
-                    "packages/tap/**",
-                    "packages/store/**",
-                    "apps/docs/content/docs/tap/**",
-                    "apps/docs/content/docs/store/**",
-                    "packages/assistant-stream/**",
-                    "api-surface/**",
-                    ".github/**",
-                    "CONTRIBUTING.md",
-                    "AGENTS.md",
-                    "scripts/review-tier.mjs",
-                    "scripts/diff-api-surface.mjs",
-                    "scripts/sync-review-policy.mjs",
-                    "scripts/review-health.mjs",
-                    "scripts/lib/review-*.mjs",
+                    "/packages/tap/**",
+                    "/packages/store/**",
+                    "/apps/docs/content/docs/tap/**",
+                    "/apps/docs/content/docs/store/**",
+                    "/packages/assistant-stream/**",
+                    "/api-surface/**",
+                    "/.github/**",
+                    "/CONTRIBUTING.md",
+                    "/AGENTS.md",
+                    "/scripts/review-tier.mjs",
+                    "/scripts/diff-api-surface.mjs",
+                    "/scripts/sync-review-policy.mjs",
+                    "/scripts/review-health.mjs",
+                    "/scripts/lib/review-*.mjs",
                   ],
                   minimum_approvals: 1,
                   reviewer: { id: teamIds.owners, type: "Team" },
@@ -359,25 +360,25 @@ test("contract review floors group each owner team's paths and contract docs", (
   assert.deepEqual(updates[1].payload.rules[0].parameters.required_reviewers, [
     {
       file_patterns: [
-        "packages/tap/**",
-        "packages/store/**",
-        "apps/docs/content/docs/tap/**",
-        "apps/docs/content/docs/store/**",
-        "api-surface/**",
-        ".github/**",
-        "CONTRIBUTING.md",
-        "AGENTS.md",
-        "scripts/review-tier.mjs",
-        "scripts/diff-api-surface.mjs",
-        "scripts/sync-review-policy.mjs",
-        "scripts/review-health.mjs",
-        "scripts/lib/review-*.mjs",
+        "/packages/tap/**",
+        "/packages/store/**",
+        "/apps/docs/content/docs/tap/**",
+        "/apps/docs/content/docs/store/**",
+        "/api-surface/**",
+        "/.github/**",
+        "/CONTRIBUTING.md",
+        "/AGENTS.md",
+        "/scripts/review-tier.mjs",
+        "/scripts/diff-api-surface.mjs",
+        "/scripts/sync-review-policy.mjs",
+        "/scripts/review-health.mjs",
+        "/scripts/lib/review-*.mjs",
       ],
       minimum_approvals: 1,
       reviewer: { id: teamIds.owners, type: "Team" },
     },
     {
-      file_patterns: ["packages/assistant-stream/**", "docs/protocol/**"],
+      file_patterns: ["/packages/assistant-stream/**", "/docs/protocol/**"],
       minimum_approvals: 1,
       reviewer: { id: 2, type: "Team" },
     },
@@ -633,6 +634,26 @@ test("required labels cover every label the policy names", () => {
   for (const { color, description } of labels) {
     assert.match(color, /^[0-9a-f]{6}$/);
     assert.ok(description.length <= 100);
+  }
+});
+
+test("the review tier workflow runs for the labels the policy names", () => {
+  const workflow = readFileSync(
+    path.join(repoRoot, ".github/workflows/review-tier.yaml"),
+    "utf8",
+  );
+  const condition = /^ {4}if: >-\n((?: {6}.*\n)+)/m.exec(workflow)?.[1] ?? "";
+  for (const expected of [
+    `github.event.label.name == '${policy.labels.behaviorChange}'`,
+    `startsWith(github.event.label.name, '${policy.labels.overridePrefix}')`,
+    `startsWith(github.event.label.name, '${policy.labels.tierPrefix}')`,
+    `contains(github.event.pull_request.labels.*.name, '${tierLabel(policy, 3)}')`,
+    `github.event.label.name == '${policy.labels.decisionAccepted}'`,
+  ]) {
+    assert.ok(
+      condition.includes(expected),
+      `the job condition lacks ${expected}`,
+    );
   }
 });
 
