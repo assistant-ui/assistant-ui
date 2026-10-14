@@ -1,0 +1,268 @@
+// @vitest-environment jsdom
+
+import { act, cleanup, render, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import type { ReactNode } from "react";
+import type { ChatModelAdapter } from "../../../index";
+import type { AssistantRuntime } from "../../../runtime/api/assistant-runtime";
+import type { ThreadMessage } from "../../../types/message";
+import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/adapter/in-memory";
+import { makeAdapter } from "../../../tests/remote-thread-list-test-helpers";
+import { AssistantRuntimeProvider } from "../../AssistantRuntimeProvider";
+import { useExternalStoreRuntime } from "../useExternalStoreRuntime";
+import { useLocalRuntime } from "../useLocalRuntime";
+import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
+
+const { legacyConstructed } = vi.hoisted(() => ({
+  legacyConstructed: vi.fn(),
+}));
+
+vi.mock("../RemoteThreadListThreadListRuntimeCore", async (importOriginal) => {
+  const original =
+    await importOriginal<
+      typeof import("../RemoteThreadListThreadListRuntimeCore")
+    >();
+  return {
+    ...original,
+    RemoteThreadListThreadListRuntimeCore: class
+      extends original.RemoteThreadListThreadListRuntimeCore
+    {
+      constructor(
+        ...args: ConstructorParameters<
+          typeof original.RemoteThreadListThreadListRuntimeCore
+        >
+      ) {
+        super(...args);
+        legacyConstructed();
+      }
+    },
+  };
+});
+
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+  legacyConstructed.mockClear();
+});
+
+const useEmptyThreadRuntime = () =>
+  useExternalStoreRuntime({ messages: [], onNew: async () => {} } as never);
+
+describe("useRemoteThreadListRuntime client bridge", () => {
+  it("waits for reload after a failed list when the controlled ID changes", async () => {
+    const error = new Error("offline");
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const list = vi
+      .fn()
+      .mockRejectedValueOnce(error)
+      .mockResolvedValueOnce({
+        threads: [{ status: "regular", remoteId: "one" }],
+      });
+    const updateCustom = vi.fn(async () => {});
+    const adapter = makeAdapter({ list, updateCustom });
+    let runtime: AssistantRuntime | undefined;
+    const App = ({ threadId }: { threadId: string }) => {
+      runtime = useRemoteThreadListRuntime({
+        adapter,
+        threadId,
+        runtimeHook: useEmptyThreadRuntime,
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    const { rerender } = render(<App threadId="one" />);
+    await waitFor(() =>
+      expect(runtime!.threads.getState().loadError).toBe(error),
+    );
+    expect(list).toHaveBeenCalledTimes(1);
+
+    rerender(<App threadId="two" />);
+    await act(async () => {});
+    expect(list).toHaveBeenCalledTimes(1);
+
+    await act(async () => runtime!.threads.reload());
+    expect(list).toHaveBeenCalledTimes(2);
+    expect(runtime!.threads.getState().loadError).toBeUndefined();
+    await act(async () =>
+      runtime!.threads.getItemById("one").updateCustom({ recovered: true }),
+    );
+    expect(updateCustom).toHaveBeenCalledWith("one", { recovered: true });
+  });
+
+  it("forwards item custom updates to the adapter", async () => {
+    const custom = { color: "blue" };
+    const updateCustom = vi.fn(async () => {});
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "one", custom: {} }],
+      })),
+      updateCustom,
+    });
+    let runtime: AssistantRuntime | undefined;
+    const App = () => {
+      runtime = useRemoteThreadListRuntime({
+        adapter,
+        runtimeHook: useEmptyThreadRuntime,
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+    await waitFor(() =>
+      expect(runtime!.threads.getState().threadIds).toContain("one"),
+    );
+    await act(async () =>
+      runtime!.threads.getItemById("one").updateCustom(custom),
+    );
+    expect(updateCustom).toHaveBeenCalledWith("one", custom);
+    expect(runtime!.threads.getItemById("one").getState().custom).toEqual(
+      custom,
+    );
+  });
+
+  it("generates an item title from its hosted messages", async () => {
+    const messages: readonly ThreadMessage[] = [
+      {
+        id: "message-one",
+        role: "user",
+        content: [{ type: "text", text: "Hello" }],
+        attachments: [],
+        createdAt: new Date(0),
+        metadata: { custom: {} },
+      },
+    ];
+    const generateTitle = vi.fn(
+      async () =>
+        new ReadableStream({
+          start(controller) {
+            controller.close();
+          },
+        }),
+    );
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "one" }],
+      })),
+      generateTitle,
+    });
+    let runtime: AssistantRuntime | undefined;
+    const useThreadRuntime = () =>
+      useExternalStoreRuntime({ messages, onNew: async () => {} });
+    const App = () => {
+      runtime = useRemoteThreadListRuntime({
+        adapter,
+        threadId: "one",
+        runtimeHook: useThreadRuntime,
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+    await waitFor(() =>
+      expect(runtime!.threads.getState().threadIds).toContain("one"),
+    );
+    await waitFor(() =>
+      expect(runtime!.thread.getState().messages).toHaveLength(1),
+    );
+    generateTitle.mockClear();
+    await act(async () => runtime!.threads.getItemById("one").generateTitle());
+    expect(generateTitle).toHaveBeenCalledWith(
+      "one",
+      expect.arrayContaining([
+        expect.objectContaining({ id: "message-one", role: "user" }),
+      ]),
+    );
+  });
+
+  it("lists threads, initializes a sent draft, and keeps the main runtime bound across switches", async () => {
+    const adapter = new InMemoryThreadListAdapter();
+    const initialize = vi.spyOn(adapter, "initialize");
+    const model = {
+      run: vi.fn(async (_args: Parameters<ChatModelAdapter["run"]>[0]) => ({
+        content: [],
+      })),
+    };
+    let runtime: AssistantRuntime | undefined;
+    const App = () => {
+      runtime = useRemoteThreadListRuntime({
+        adapter,
+        runtimeHook: () => useLocalRuntime(model),
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+    render(<App />);
+    await waitFor(() =>
+      expect(runtime!.threads.getState().isLoading).toBe(false),
+    );
+    expect(legacyConstructed).not.toHaveBeenCalled();
+    expect(runtime!.threads.getState().threadIds).toEqual([]);
+    expect(runtime!.thread).toBe(runtime!.threads.main);
+    const firstId = runtime!.threads.getState().mainThreadId;
+
+    await act(async () => {
+      runtime!.thread.composer.setText("first");
+      runtime!.thread.composer.send();
+    });
+    await waitFor(() => expect(initialize).toHaveBeenCalledWith(firstId));
+    await waitFor(() =>
+      expect(runtime!.threads.getState().threadIds).toContain(firstId),
+    );
+
+    await act(async () => runtime!.threads.switchToNewThread());
+    const nextId = runtime!.threads.getState().mainThreadId;
+    expect(nextId).not.toBe(firstId);
+    await act(async () => {
+      runtime!.thread.composer.setText("hello");
+      runtime!.thread.composer.send();
+    });
+    await waitFor(() => expect(initialize).toHaveBeenCalledWith(nextId));
+    await waitFor(() =>
+      expect(runtime!.threads.getState().threadIds).toContain(nextId),
+    );
+    await waitFor(() => expect(model.run).toHaveBeenCalled());
+    expect(model.run.mock.calls[0]?.[0].unstable_threadId).toBeDefined();
+
+    await act(async () => runtime!.threads.switchToThread(firstId));
+    await waitFor(() =>
+      expect(runtime!.threads.getState().mainThreadId).toBe(firstId),
+    );
+    expect(runtime!.thread.getState().threadId).toBe(firstId);
+    expect(runtime!.thread).toBe(runtime!.threads.main);
+  });
+
+  it("uses the frozen class path when unstable_Provider is present", async () => {
+    const adapter = Object.assign(new InMemoryThreadListAdapter(), {
+      unstable_Provider: ({ children }: { children?: ReactNode }) => children,
+    });
+    const model = { run: vi.fn(async () => ({ content: [] })) };
+    const App = () => {
+      const runtime = useRemoteThreadListRuntime({
+        adapter,
+        runtimeHook: () => useLocalRuntime(model),
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+    render(<App />);
+    await waitFor(() => expect(legacyConstructed).toHaveBeenCalledTimes(1));
+  });
+});

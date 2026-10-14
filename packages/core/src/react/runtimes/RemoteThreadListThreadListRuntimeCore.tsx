@@ -82,6 +82,7 @@ const threadStatusError = (
 
 const EMPTY_REMOTE_STATE = createEmptyRemoteThreadState();
 
+/** @deprecated Since 2026-10-14, `useRemoteThreadListRuntime` uses this class only when the adapter sets `unstable_Provider`; other adapters run on the `RemoteThreadList` store client. Use `useRemoteThreadListRuntime` instead of constructing it. */
 export class RemoteThreadListThreadListRuntimeCore
   extends BaseSubscribable
   implements ThreadListRuntimeCore

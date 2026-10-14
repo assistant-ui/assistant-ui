@@ -81,7 +81,7 @@ describe("useRemoteThreadListRuntime reload", () => {
       expect(Object.keys(threads().getState().threadItems)).not.toContain("t2");
       if (visited) {
         await expect(threads().getItemById("t2").archive()).rejects.toThrow(
-          'Thread "t2" not found while archiving it.',
+          'Thread "t2" was not found while archiving it.',
         );
       } else {
         expect(() => threads().getItemById("t2")).toThrow();
@@ -161,7 +161,7 @@ describe("useRemoteThreadListRuntime reload", () => {
     expect(threads().getItemById("t2").getState().isMain).toBe(false);
     expect(Object.keys(threads().getState().threadItems)).not.toContain("t2");
     await expect(threads().getItemById("t2").archive()).rejects.toThrow(
-      'Thread "t2" not found while archiving it.',
+      'Thread "t2" was not found while archiving it.',
     );
     expect(adapter.archive).not.toHaveBeenCalled();
     expect(error).not.toHaveBeenCalled();
