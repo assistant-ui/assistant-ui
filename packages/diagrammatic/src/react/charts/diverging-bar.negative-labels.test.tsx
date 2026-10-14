@@ -14,20 +14,24 @@ describe("DivergingBar negative labels", () => {
     expect(barWidth).toBeGreaterThanOrEqual(6);
   });
 
-  it("keeps a negative value label clear of its row label at width 90", () => {
-    const html = renderToStaticMarkup(
+  it("omits a negative value that cannot be shown whole beside its row label", () => {
+    const narrow = renderToStaticMarkup(
       <DivergingBar width={90} items={[{ label: "Sales", value: -100 }]} />,
     );
-    const texts = [...html.matchAll(/<text\b([^>]*)>([^<]*)<\/text>/g)];
-    const row = texts.find(([, , content]) => content?.includes("Sa"));
-    const value = texts.find(([, , content]) => content?.includes("-"));
-    expect(row).toBeDefined();
-    if (value) {
-      const rowRight = Number(/\bx="([^"]+)"/.exec(row?.[1] ?? "")?.[1]);
-      const valueRight = Number(/\bx="([^"]+)"/.exec(value[1] ?? "")?.[1]);
-      expect(
-        valueRight - textWidth(value[2] ?? "", typeScale().axis.px),
-      ).toBeGreaterThanOrEqual(rowRight);
+    const longLabel = renderToStaticMarkup(
+      <DivergingBar
+        width={180}
+        items={[{ label: "A very long row label here", value: -1200 }]}
+      />,
+    );
+    for (const html of [narrow, longLabel]) {
+      const contents = [...html.matchAll(/<text\b[^>]*>([^<]*)<\/text>/g)].map(
+        ([, content]) => content,
+      );
+      expect(contents.filter((content) => content?.startsWith("-"))).toEqual(
+        [],
+      );
+      expect(contents).toContain("");
     }
   });
 

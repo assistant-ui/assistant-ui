@@ -115,11 +115,10 @@ export const DivergingBar = forwardRef<SVGSVGElement, DivergingBarProps>(
           const valueX = positive ? x + w + 6 : x - 6;
           const valueText = positive
             ? `+${format(row.value)}`
-            : truncate(
-                format(row.value),
-                T.axis.px,
-                round(valueX) - (labelEdge - 6),
-              );
+            : textWidth(format(row.value), T.axis.px) <=
+                round(valueX) - labelEdge
+              ? format(row.value)
+              : "";
           return (
             <g key={row.label} data-part="mark" data-i={i}>
               <text
