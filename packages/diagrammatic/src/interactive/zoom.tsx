@@ -92,6 +92,10 @@ export const Zoom = forwardRef<HTMLDivElement, ZoomProps>(
       disabled,
       style,
       onPointerDown,
+      onPointerMove,
+      onPointerUp,
+      onPointerCancel,
+      onLostPointerCapture,
       onDoubleClick,
       onKeyDown,
       ...props
@@ -106,6 +110,14 @@ export const Zoom = forwardRef<HTMLDivElement, ZoomProps>(
     const drag = useRef<{ id: number; x: number; y: number } | null>(null);
     const latest = useRef(transform);
     latest.current = transform;
+
+    const getFigure = useCallback(() => {
+      const node = container.current;
+      // ChartSvg sets font-size and MicroSvg does not, so this skips sparklines rendered beside the chart.
+      return windowed
+        ? (node?.querySelector("svg[data-dg][font-size]") ?? node)
+        : node;
+    }, [windowed]);
 
     const setRefs = useCallback(
       (node: HTMLDivElement | null) => {
@@ -131,27 +143,46 @@ export const Zoom = forwardRef<HTMLDivElement, ZoomProps>(
     useEffect(() => {
       const node = container.current;
       if (!node || !windowed) return;
+      let figure: Element | null = null;
+      let resizeObserver: ResizeObserver | null = null;
       const read = () => {
-        const rect = node.getBoundingClientRect();
+        const next = getFigure();
+        if (next !== figure) {
+          if (figure && figure !== node) resizeObserver?.unobserve(figure);
+          if (next && next !== node) resizeObserver?.observe(next);
+          figure = next;
+        }
+        const rect = next?.getBoundingClientRect();
+        if (!rect) return;
         setBox((current) =>
           current.w === rect.width && current.h === rect.height
             ? current
             : { w: rect.width, h: rect.height },
         );
       };
+      if (typeof ResizeObserver !== "undefined") {
+        resizeObserver = new ResizeObserver(read);
+        resizeObserver.observe(node);
+      }
+      const mutationObserver =
+        typeof MutationObserver === "undefined"
+          ? null
+          : new MutationObserver(read);
+      mutationObserver?.observe(node, { childList: true, subtree: true });
       read();
-      if (typeof ResizeObserver === "undefined") return;
-      const observer = new ResizeObserver(read);
-      observer.observe(node);
-      return () => observer.disconnect();
-    }, [windowed]);
+      return () => {
+        mutationObserver?.disconnect();
+        resizeObserver?.disconnect();
+      };
+    }, [getFigure, windowed]);
 
     useEffect(() => {
       const node = container.current;
       if (!node || disabled) return;
       const onWheel = (event: WheelEvent) => {
         event.preventDefault();
-        const rect = node.getBoundingClientRect();
+        const rect = getFigure()?.getBoundingClientRect();
+        if (!rect) return;
         const current = latest.current;
         const k = clamp(current.k * Math.exp(-event.deltaY * 0.002), min, max);
         if (k === current.k) return;
@@ -166,7 +197,7 @@ export const Zoom = forwardRef<HTMLDivElement, ZoomProps>(
       };
       node.addEventListener("wheel", onWheel, { passive: false });
       return () => node.removeEventListener("wheel", onWheel);
-    }, [apply, disabled, max, min]);
+    }, [apply, disabled, getFigure, max, min]);
 
     const startDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
       onPointerDown?.(event);
@@ -181,6 +212,8 @@ export const Zoom = forwardRef<HTMLDivElement, ZoomProps>(
     };
 
     const move = (event: ReactPointerEvent<HTMLDivElement>) => {
+      onPointerMove?.(event);
+      if (event.defaultPrevented) return;
       const state = drag.current;
       if (!state || state.id !== event.pointerId) return;
       apply({
@@ -191,6 +224,7 @@ export const Zoom = forwardRef<HTMLDivElement, ZoomProps>(
     };
 
     const endDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+      if (event.defaultPrevented) return;
       if (drag.current?.id !== event.pointerId) return;
       drag.current = null;
       if (event.currentTarget.hasPointerCapture(event.pointerId)) {
@@ -201,8 +235,7 @@ export const Zoom = forwardRef<HTMLDivElement, ZoomProps>(
     const keys = (event: KeyboardEvent<HTMLDivElement>) => {
       onKeyDown?.(event);
       if (disabled || event.defaultPrevented) return;
-      const node = container.current;
-      const rect = node?.getBoundingClientRect();
+      const rect = getFigure()?.getBoundingClientRect();
       const cx = (rect?.width ?? 0) / 2;
       const cy = (rect?.height ?? 0) / 2;
       const step = 24;
@@ -250,8 +283,18 @@ export const Zoom = forwardRef<HTMLDivElement, ZoomProps>(
         tabIndex={disabled ? undefined : 0}
         onPointerDown={startDrag}
         onPointerMove={move}
-        onPointerUp={endDrag}
-        onPointerCancel={endDrag}
+        onPointerUp={(event) => {
+          onPointerUp?.(event);
+          endDrag(event);
+        }}
+        onPointerCancel={(event) => {
+          onPointerCancel?.(event);
+          endDrag(event);
+        }}
+        onLostPointerCapture={(event) => {
+          onLostPointerCapture?.(event);
+          if (drag.current?.id === event.pointerId) drag.current = null;
+        }}
         onDoubleClick={(event) => {
           onDoubleClick?.(event);
           if (disabled || event.defaultPrevented) return;
