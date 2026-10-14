@@ -95,7 +95,7 @@ export type SpecRendererProps = {
     context: ActionSource & { state: SpecStateStore },
   ) => unknown;
   onError?: (error: Error, context: { elementId?: string }) => void;
-  /** The spec is still streaming: missing children render as pending. */
+  /** The spec is still streaming: missing elements take no space, and one pending placeholder follows the spec. */
   streaming?: boolean;
   placeholder?: ComponentType<SpecPlaceholderProps>;
 };
@@ -437,7 +437,7 @@ function ResolvedElement({
 
 /**
  * Renders a spec with trusted host components. It renders whatever has
- * streamed so far: children that have not arrived show as pending, and
+ * streamed so far, followed by one pending placeholder while it streams, and
  * unknown types, invalid props, cycles, and components that throw render a
  * small placeholder instead of breaking the tree.
  */
