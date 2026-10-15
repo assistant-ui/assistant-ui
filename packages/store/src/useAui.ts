@@ -318,8 +318,14 @@ export const useAuiRoot = ({
       clientRef,
       emit: notifications.emit,
       markChanged: notifications.markChanged,
+      invalidate: notifications.invalidate,
     }),
-    [clientRef, notifications.emit, notifications.markChanged],
+    [
+      clientRef,
+      notifications.emit,
+      notifications.markChanged,
+      notifications.invalidate,
+    ],
   );
 
   const accessors = useAssistantTapContextProvider(

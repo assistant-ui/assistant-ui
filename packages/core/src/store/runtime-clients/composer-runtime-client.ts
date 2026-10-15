@@ -5,6 +5,7 @@ import type { ClientOutput } from "@assistant-ui/store";
 import { useAssistantEmit, useClientLookup } from "@assistant-ui/store/client";
 import type {
   ComposerRuntime,
+  ComposerRuntimeState,
   EditComposerRuntime,
 } from "../../runtime/api/composer-runtime";
 import type { ComposerState } from "../scopes/composer";
@@ -56,6 +57,27 @@ const useQueueItemClient = ({
 
 const QueueItemClient = resource(useQueueItemClient);
 
+const toComposerState = (
+  runtimeState: ComposerRuntimeState,
+  attachments: ComposerState["attachments"],
+): ComposerState => ({
+  text: runtimeState.text,
+  role: runtimeState.role,
+  attachments,
+  runConfig: runtimeState.runConfig,
+  isEditing: runtimeState.isEditing,
+  canCancel: runtimeState.canCancel,
+  canSend: runtimeState.canSend,
+  attachmentAccept: runtimeState.attachmentAccept,
+  isEmpty: runtimeState.isEmpty,
+  type: runtimeState.type ?? "thread",
+  dictation: runtimeState.dictation,
+  quote: runtimeState.quote,
+  queue: runtimeState.queue,
+  submission: runtimeState.submission,
+  inTransit: runtimeState.inTransit,
+});
+
 const useComposerClient = ({
   threadIdRef,
   messageIdRef,
@@ -67,7 +89,7 @@ const useComposerClient = ({
   runtime: ComposerRuntime;
   isSuggestion?: ((text: string) => boolean) | undefined;
 }): ClientOutput<"composer"> => {
-  const runtimeState = useSubscribable(runtime);
+  const runtimeState = useSubscribable(runtime, { live: true });
   const emit = useAssistantEmit();
   const pendingSuggestion = useRef(false);
 
@@ -149,28 +171,25 @@ const useComposerClient = ({
     ),
   );
 
-  const state = useMemo<ComposerState>(() => {
-    return {
-      text: runtimeState.text,
-      role: runtimeState.role,
-      attachments: attachments.state,
-      runConfig: runtimeState.runConfig,
-      isEditing: runtimeState.isEditing,
-      canCancel: runtimeState.canCancel,
-      canSend: runtimeState.canSend,
-      attachmentAccept: runtimeState.attachmentAccept,
-      isEmpty: runtimeState.isEmpty,
-      type: runtimeState.type ?? "thread",
-      dictation: runtimeState.dictation,
-      quote: runtimeState.quote,
-      queue,
-      submission: runtimeState.submission,
-      inTransit: runtimeState.inTransit,
-    };
-  }, [runtimeState, attachments.state, queue]);
+  const state = useMemo(
+    () => toComposerState(runtimeState, attachments.state),
+    [runtimeState, attachments.state],
+  );
+
+  let overlaySnapshot: typeof runtimeState | undefined;
+  let overlay: ComposerState | undefined;
+  const getState = () => {
+    const snapshot = runtime.getState();
+    if (snapshot === runtimeState) return state;
+    if (snapshot !== overlaySnapshot) {
+      overlaySnapshot = snapshot;
+      overlay = toComposerState(snapshot, state.attachments);
+    }
+    return overlay!;
+  };
 
   return {
-    getState: () => state,
+    getState,
     setText: runtime.setText,
     setRole: runtime.setRole,
     setRunConfig: runtime.setRunConfig,

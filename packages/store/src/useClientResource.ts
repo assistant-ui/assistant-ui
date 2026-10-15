@@ -11,7 +11,10 @@ import {
   handleIntrospectionProp,
 } from "./utils/BaseProxyHandler";
 import { CLIENT_ID_SYMBOL, INSTANCE_TAG_SYMBOL } from "./utils/client-accessor";
-import { useScopedSignal } from "./utils/tap-assistant-context";
+import {
+  useOptionalAssistantInvalidate,
+  useScopedSignal,
+} from "./utils/tap-assistant-context";
 import { trackSignal, type ScopedSignal } from "./utils/scoped-signal";
 
 /**
@@ -28,6 +31,19 @@ type ClientInternal = {
 
 export const getClientSignal = (client: ClientMethods) =>
   (client as unknown as ClientInternal)[SYMBOL_SIGNAL];
+
+/** @deprecated Experimental since 2026-10-15. Not scheduled for removal; the API may change in any release. */
+export const unstable_useClientSource = (
+  subscribe: ((callback: () => void) => () => void) | undefined,
+) => {
+  const client = useClientStack().at(-1);
+  const signal = client && getClientSignal(client);
+  const invalidate = useOptionalAssistantInvalidate();
+  useEffect(() => {
+    if (!signal || !invalidate || !subscribe) return;
+    return subscribe(() => invalidate(signal));
+  }, [subscribe, signal, invalidate]);
+};
 
 export const getClientState = (client: ClientMethods) => {
   const output = (client as unknown as ClientInternal)[SYMBOL_GET_OUTPUT];
