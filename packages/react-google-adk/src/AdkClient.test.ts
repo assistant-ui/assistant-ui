@@ -70,6 +70,61 @@ beforeEach(() => {
   mockFetch.mockReset();
 });
 
+describe.each(["direct", "proxy"] as const)(
+  "%s user message identity",
+  (mode) => {
+    it.each([
+      { label: "one human", humanCount: 1, toolCount: 0 },
+      { label: "one human with a cancellation", humanCount: 1, toolCount: 1 },
+      { label: "only tools", humanCount: 0, toolCount: 2 },
+      { label: "several humans", humanCount: 2, toolCount: 0 },
+      { label: "no messages", humanCount: 0, toolCount: 0 },
+    ])(
+      "sends the first human message's identity ($label)",
+      async ({ humanCount, toolCount }) => {
+        mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
+        const messages: AdkMessage[] = [
+          ...Array.from({ length: toolCount }, (_, index) => ({
+            id: `tool-${index}`,
+            type: "tool" as const,
+            name: "confirm",
+            tool_call_id: `call-${index}`,
+            content: "cancelled",
+            status: "error" as const,
+          })),
+          ...Array.from({ length: humanCount }, (_, index) => ({
+            id: `human-${index}`,
+            type: "human" as const,
+            content: "Hi",
+          })),
+        ];
+        const stream = createAdkStream(
+          mode === "direct"
+            ? { api: "http://localhost:8000", appName: "app", userId: "user" }
+            : { api: "/api/adk" },
+        );
+        const events = await stream(messages, makeConfig());
+        for await (const event of events) expect(event).toBeUndefined();
+        const body = JSON.parse(mockFetch.mock.calls[0]![1]!.body as string);
+        if (humanCount > 0) {
+          if (mode === "direct") {
+            expect(body.customMetadata).toEqual({
+              assistant_ui_message_id: "human-0",
+            });
+            expect(body).not.toHaveProperty("messageId");
+          } else {
+            expect(body.messageId).toBe("human-0");
+            expect(body).not.toHaveProperty("customMetadata");
+          }
+        } else {
+          expect(body).not.toHaveProperty("customMetadata");
+          expect(body).not.toHaveProperty("messageId");
+        }
+      },
+    );
+  },
+);
+
 describe.each(["direct", "proxy", "proxy batch"] as const)(
   "%s tool outcomes",
   (mode) => {

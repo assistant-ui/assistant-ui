@@ -1701,6 +1701,7 @@ type ParsedAdkRequest = {
   sessionId?: string | undefined;
   config: AdkSendMessageConfig;
   stateDelta?: Record<string, unknown> | undefined;
+  customMetadata?: Record<string, unknown> | undefined;
 } | {
   type: "tool-result";
   toolCallId: string;
@@ -1710,6 +1711,7 @@ type ParsedAdkRequest = {
   sessionId?: string | undefined;
   config: AdkSendMessageConfig;
   stateDelta?: Record<string, unknown> | undefined;
+  customMetadata?: Record<string, unknown> | undefined;
 };
 
 type PartInit = {
