@@ -97,7 +97,10 @@ it("clears a reloaded frame when the hook mounted after its initial load", () =>
     expect(postMessage).toHaveBeenCalledWith(
       {
         channel: "assistant-ui-frame",
-        message: { type: "model-context-request" },
+        message: {
+          type: "model-context-request",
+          requestId: expect.any(String),
+        },
       },
       window.location.origin,
     );

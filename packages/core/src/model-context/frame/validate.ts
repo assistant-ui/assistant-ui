@@ -36,10 +36,14 @@ export const isFrameMessage = (value: unknown): value is FrameMessage => {
 
   switch (value.type) {
     case "model-context-request":
+      return hasOptionalPropertyType(value, "requestId", "string");
     case "provider-disposed":
       return true;
     case "model-context-update":
-      return isSerializedModelContext(value.context);
+      return (
+        hasOptionalPropertyType(value, "requestId", "string") &&
+        isSerializedModelContext(value.context)
+      );
     case "tool-call":
       return (
         typeof value.id === "string" &&

@@ -21,10 +21,12 @@ export type FrameMessageType =
 export type FrameMessage = (
   | {
       type: "model-context-request";
+      requestId?: string;
     }
   | {
       type: "model-context-update";
       context: SerializedModelContext;
+      requestId?: string;
     }
   | {
       type: "tool-call";

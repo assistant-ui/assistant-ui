@@ -25,12 +25,17 @@ const createHost = () => {
       origin,
       data: { channel: FRAME_MESSAGE_CHANNEL, message },
     } as MessageEvent);
-  const publish = (documentId?: string) =>
+  const publish = (
+    documentId?: string,
+    requestId?: string,
+    toolName = "search",
+  ) =>
     send({
       type: "model-context-update",
-      ...(documentId && { documentId }),
+      ...(documentId !== undefined && { documentId }),
+      ...(requestId !== undefined && { requestId }),
       context: {
-        tools: { search: { parameters: { type: "object" } } },
+        tools: { [toolName]: { parameters: { type: "object" } } },
       },
     });
   const call = () =>
@@ -43,7 +48,11 @@ const createHost = () => {
     postMessage.mock.calls
       .filter(([data]) => data.message.type === "tool-call")
       .at(-1)![0].message.id as string;
-  return { host, send, publish, call, lastCallId, postMessage };
+  const lastRequestId = () =>
+    postMessage.mock.calls
+      .filter(([data]) => data.message.type === "model-context-request")
+      .at(-1)![0].message.requestId as string;
+  return { host, send, publish, call, lastCallId, lastRequestId, postMessage };
 };
 
 afterEach(() => {
@@ -51,35 +60,140 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it("expires a late first document when the next page has no provider", async () => {
-  vi.useFakeTimers();
-  const { host, publish, call, postMessage } = createHost();
-  host.frameLoaded();
-  publish("first");
-  const outcome = call().catch((error: unknown) => error);
-
-  postMessage.mockClear();
-  host.frameLoaded();
-  expect(postMessage).toHaveBeenCalledWith(
+it("requests initial context without a load request id", () => {
+  const { host, postMessage } = createHost();
+  expect(postMessage).toHaveBeenCalledExactlyOnceWith(
     {
       channel: FRAME_MESSAGE_CHANNEL,
       message: { type: "model-context-request" },
     },
     origin,
   );
-  vi.advanceTimersByTime(1999);
-  expect(host.getModelContext().tools?.search).toBeDefined();
-  vi.advanceTimersByTime(1);
+  host.dispose();
+});
+
+it("restores a timed out document only when it echoes the load request", async () => {
+  vi.useFakeTimers();
+  const { host, publish, call, lastRequestId, postMessage } = createHost();
+  publish("first");
+  const outcome = call().catch((error: unknown) => error);
+  const subscriber = vi.fn();
+  host.subscribe(subscriber);
+
+  postMessage.mockClear();
+  host.frameLoaded();
+  const requestId = lastRequestId();
+  vi.advanceTimersByTime(2000);
   expect(host.getModelContext().tools?.search).toBeUndefined();
+  expect(subscriber).toHaveBeenCalledOnce();
   await expect(outcome).resolves.toMatchObject({
     message: "AssistantFrame document has changed",
   });
+  expect(postMessage).not.toHaveBeenCalledWith(
+    expect.objectContaining({
+      message: expect.objectContaining({ type: "tool-cancel" }),
+    }),
+    expect.anything(),
+  );
+
+  publish("first", requestId);
+  expect(host.getModelContext().tools?.search).toBeDefined();
+  publish("first", undefined, "updatedSearch");
+  expect(host.getModelContext().tools?.search).toBeUndefined();
+  expect(host.getModelContext().tools?.updatedSearch).toBeDefined();
+
+  publish("second", undefined, "replacementSearch");
+  publish("first", requestId);
+  expect(host.getModelContext().tools?.search).toBeUndefined();
+  expect(host.getModelContext().tools?.replacementSearch).toBeDefined();
+  host.dispose();
+});
+
+it("ignores a retired document without the matching load echo", () => {
+  vi.useFakeTimers();
+  const { host, publish } = createHost();
+  publish("first");
+  host.frameLoaded();
+  vi.advanceTimersByTime(2000);
+
+  publish("first");
+  expect(host.getModelContext()).toEqual({});
+  publish("first", "unmatched-request");
+  expect(host.getModelContext()).toEqual({});
+  host.dispose();
+});
+
+it("expires a silent replacement despite a queued update from the old document", () => {
+  vi.useFakeTimers();
+  const { host, publish } = createHost();
+  publish("first");
+  host.frameLoaded();
+  vi.advanceTimersByTime(1000);
+  publish("first");
+  vi.advanceTimersByTime(1000);
+  expect(host.getModelContext()).toEqual({});
+
+  publish("first");
+  expect(host.getModelContext()).toEqual({});
+  host.dispose();
+});
+
+it.each([
+  { type: "tool-result", documentId: "first", id: "queued-call" },
+  { type: "provider-disposed", documentId: "first" },
+  { type: "tool-result", id: "legacy-call" },
+])(
+  "keeps the load timer running after a queued $type without an answer",
+  (message) => {
+    vi.useFakeTimers();
+    const { host, send, publish } = createHost();
+    publish("first");
+    host.frameLoaded();
+    send(message);
+    vi.advanceTimersByTime(2000);
+    expect(host.getModelContext()).toEqual({});
+    host.dispose();
+  },
+);
+
+it("accepts a different document's message as a load answer without an echo", () => {
+  vi.useFakeTimers();
+  const { host, send, publish } = createHost();
+  publish("first");
+  host.frameLoaded();
+  send({ type: "tool-result", documentId: "second", id: "unknown-call" });
+  expect(host.getModelContext()).toEqual({});
+  vi.advanceTimersByTime(2000);
+  publish("second");
+  expect(host.getModelContext().tools?.search).toBeDefined();
+  host.dispose();
+});
+
+it("clears tools and pending calls as soon as another document answers the load", async () => {
+  vi.useFakeTimers();
+  const { host, publish, call, lastRequestId } = createHost();
+  publish("first");
+  const outcome = call().catch((error: unknown) => error);
+  host.frameLoaded();
+
+  publish("second", lastRequestId(), "replacementSearch");
+  expect(host.getModelContext().tools?.search).toBeUndefined();
+  expect(host.getModelContext().tools?.replacementSearch).toBeDefined();
+  await expect(outcome).resolves.toMatchObject({
+    message: "AssistantFrame document has changed",
+  });
+
+  publish("first");
+  expect(host.getModelContext().tools?.search).toBeUndefined();
+  expect(host.getModelContext().tools?.replacementSearch).toBeDefined();
+  vi.advanceTimersByTime(2000);
+  expect(host.getModelContext().tools?.replacementSearch).toBeDefined();
   host.dispose();
 });
 
 it("keeps an early new document when it answers after load", () => {
   vi.useFakeTimers();
-  const { host, publish, postMessage } = createHost();
+  const { host, publish, lastRequestId, postMessage } = createHost();
   publish("first");
   publish("second");
 
@@ -88,11 +202,11 @@ it("keeps an early new document when it answers after load", () => {
   expect(postMessage).toHaveBeenCalledWith(
     {
       channel: FRAME_MESSAGE_CHANNEL,
-      message: { type: "model-context-request" },
+      message: { type: "model-context-request", requestId: expect.any(String) },
     },
     origin,
   );
-  publish("second");
+  publish("second", lastRequestId());
   vi.advanceTimersByTime(2000);
   expect(host.getModelContext().tools?.search).toBeDefined();
   host.dispose();
@@ -100,7 +214,7 @@ it("keeps an early new document when it answers after load", () => {
 
 it("keeps the initial document announced before its first load when it answers", () => {
   vi.useFakeTimers();
-  const { host, publish, postMessage } = createHost();
+  const { host, publish, lastRequestId, postMessage } = createHost();
   publish("first");
 
   postMessage.mockClear();
@@ -108,11 +222,11 @@ it("keeps the initial document announced before its first load when it answers",
   expect(postMessage).toHaveBeenCalledWith(
     {
       channel: FRAME_MESSAGE_CHANNEL,
-      message: { type: "model-context-request" },
+      message: { type: "model-context-request", requestId: expect.any(String) },
     },
     origin,
   );
-  publish("first");
+  publish("first", lastRequestId());
   vi.advanceTimersByTime(2000);
   expect(host.getModelContext().tools?.search).toBeDefined();
   host.dispose();
@@ -132,15 +246,24 @@ it("keeps legacy tools when the provider answers the load request", () => {
 
 it("restarts the grace period on a later load", () => {
   vi.useFakeTimers();
-  const { host, publish } = createHost();
+  const { host, publish, lastRequestId } = createHost();
   publish("first");
   host.frameLoaded();
+  const firstRequestId = lastRequestId();
   vi.advanceTimersByTime(1000);
   host.frameLoaded();
+  const secondRequestId = lastRequestId();
+  expect(secondRequestId).toEqual(expect.any(String));
+  expect(secondRequestId).not.toBe(firstRequestId);
+  publish("first", firstRequestId);
   vi.advanceTimersByTime(1000);
   expect(host.getModelContext().tools?.search).toBeDefined();
   vi.advanceTimersByTime(1000);
   expect(host.getModelContext().tools?.search).toBeUndefined();
+  publish("first", firstRequestId);
+  expect(host.getModelContext().tools?.search).toBeUndefined();
+  publish("first", secondRequestId);
+  expect(host.getModelContext().tools?.search).toBeDefined();
   host.dispose();
 });
 
@@ -207,7 +330,8 @@ it("keeps legacy messages and pending calls working without a document id", asyn
 
 it("keeps a new document's tools and results when its update precedes load", async () => {
   vi.useFakeTimers();
-  const { host, send, publish, call, lastCallId, postMessage } = createHost();
+  const { host, send, publish, call, lastCallId, lastRequestId, postMessage } =
+    createHost();
   publish("first");
   host.frameLoaded();
   publish("second");
@@ -219,11 +343,11 @@ it("keeps a new document's tools and results when its update precedes load", asy
   expect(postMessage).toHaveBeenCalledWith(
     {
       channel: FRAME_MESSAGE_CHANNEL,
-      message: { type: "model-context-request" },
+      message: { type: "model-context-request", requestId: expect.any(String) },
     },
     origin,
   );
-  publish("second");
+  publish("second", lastRequestId());
   vi.advanceTimersByTime(2000);
   expect(host.getModelContext().tools?.search).toBeDefined();
 
@@ -258,7 +382,7 @@ it("clears the old document after load when the new document does not answer", a
   expect(postMessage).toHaveBeenCalledWith(
     {
       channel: FRAME_MESSAGE_CHANNEL,
-      message: { type: "model-context-request" },
+      message: { type: "model-context-request", requestId: expect.any(String) },
     },
     origin,
   );
@@ -293,7 +417,7 @@ it("re-requests legacy tools after load", async () => {
   expect(postMessage).toHaveBeenCalledWith(
     {
       channel: FRAME_MESSAGE_CHANNEL,
-      message: { type: "model-context-request" },
+      message: { type: "model-context-request", requestId: expect.any(String) },
     },
     origin,
   );
@@ -313,4 +437,65 @@ it("validates messages with and without a document id", () => {
     expect(isFrameMessage({ type, documentId: "page" })).toBe(true);
     expect(isFrameMessage({ type, documentId: 42 })).toBe(false);
   }
+});
+
+it("validates optional request ids on context requests and updates", () => {
+  for (const type of ["model-context-request", "model-context-update"]) {
+    const message = { type, context: {} };
+    expect(isFrameMessage(message)).toBe(true);
+    expect(isFrameMessage({ ...message, requestId: "load-request" })).toBe(
+      true,
+    );
+    expect(isFrameMessage({ ...message, requestId: "" })).toBe(true);
+    for (const requestId of [42, null, false, {}, []]) {
+      expect(isFrameMessage({ ...message, requestId })).toBe(false);
+    }
+  }
+});
+
+it("stamps tool calls with the document that offered the captured tool", async () => {
+  vi.useFakeTimers();
+  const { host, publish, call, postMessage } = createHost();
+  publish("first");
+  const staleTool = host.getModelContext().tools!.search!;
+  const firstOutcome = call().catch((error: unknown) => error);
+  expect(postMessage.mock.lastCall![0].message).toMatchObject({
+    type: "tool-call",
+    documentId: "first",
+  });
+
+  publish("second");
+  await expect(firstOutcome).resolves.toMatchObject({
+    message: "AssistantFrame document has changed",
+  });
+  const staleOutcome = Promise.resolve(
+    staleTool.execute!({}, {
+      abortSignal: new AbortController().signal,
+    } as any),
+  ).catch((error: unknown) => error);
+  expect(postMessage.mock.lastCall![0].message).toMatchObject({
+    type: "tool-call",
+    documentId: "first",
+  });
+  const secondOutcome = call().catch((error: unknown) => error);
+  expect(postMessage.mock.lastCall![0].message).toMatchObject({
+    type: "tool-call",
+    documentId: "second",
+  });
+  host.dispose();
+  await staleOutcome;
+  await secondOutcome;
+});
+
+it("omits the document id on tool calls from a legacy context", async () => {
+  const { host, send, publish, call, lastCallId, postMessage } = createHost();
+  publish("first");
+  publish();
+  const outcome = call();
+  expect(postMessage.mock.lastCall![0].message).not.toHaveProperty(
+    "documentId",
+  );
+  send({ type: "tool-result", id: lastCallId(), result: "legacy" });
+  await expect(outcome).resolves.toBe("legacy");
+  host.dispose();
 });

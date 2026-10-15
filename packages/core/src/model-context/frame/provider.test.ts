@@ -29,6 +29,7 @@ describe("AssistantFrameProvider", () => {
     source: Window = parentWindow,
     id = "tool-call-1",
     toolName = "sensitiveTool",
+    documentId?: string,
   ) => {
     messageHandler?.(
       new MessageEvent("message", {
@@ -39,6 +40,7 @@ describe("AssistantFrameProvider", () => {
             id,
             toolName,
             args: {},
+            ...(documentId !== undefined && { documentId }),
           },
         },
         origin,
@@ -64,12 +66,15 @@ describe("AssistantFrameProvider", () => {
     );
   };
 
-  const dispatchContextRequest = (origin: string) => {
+  const dispatchContextRequest = (origin: string, requestId?: string) => {
     messageHandler?.(
       new MessageEvent("message", {
         data: {
           channel: FRAME_MESSAGE_CHANNEL,
-          message: { type: "model-context-request" },
+          message: {
+            type: "model-context-request",
+            ...(requestId !== undefined && { requestId }),
+          },
         },
         origin,
         source: parentWindow,
@@ -199,6 +204,106 @@ describe("AssistantFrameProvider", () => {
     expect(execute).not.toHaveBeenCalled();
 
     dispatchToolCall(window.location.origin);
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+  });
+
+  it.each(["load-request", ""])(
+    "echoes request id %j only on the direct context reply",
+    (requestId) => {
+      let broadcast: () => void = () => {};
+      AssistantFrameProvider.addModelContextProvider({
+        getModelContext: () => ({ system: "current page" }),
+        subscribe: (listener) => {
+          broadcast = listener;
+          return () => {};
+        },
+      });
+      const postMessage = vi.mocked(parentWindow.postMessage);
+      expect(postMessage.mock.lastCall![0].message).not.toHaveProperty(
+        "requestId",
+      );
+
+      dispatchContextRequest(window.location.origin, requestId);
+      expect(postMessage.mock.lastCall![0].message).toMatchObject({
+        type: "model-context-update",
+        documentId: expect.any(String),
+        requestId,
+      });
+
+      broadcast();
+      expect(postMessage.mock.lastCall![0].message).not.toHaveProperty(
+        "requestId",
+      );
+      dispatchContextRequest(window.location.origin);
+      expect(postMessage.mock.lastCall![0].message).not.toHaveProperty(
+        "requestId",
+      );
+    },
+  );
+
+  it("rejects calls for another document before looking up tools and accepts legacy calls", async () => {
+    const execute = vi.fn(async () => "result");
+    const getModelContext = vi.fn(() => ({
+      tools: { sensitiveTool: createTool(execute) },
+    }));
+    AssistantFrameProvider.addModelContextProvider({ getModelContext });
+    getModelContext.mockClear();
+
+    dispatchToolCall(
+      window.location.origin,
+      parentWindow,
+      "stale-call",
+      "sensitiveTool",
+      "another-document",
+    );
+    expect(getModelContext).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+    expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
+      {
+        channel: FRAME_MESSAGE_CHANNEL,
+        message: {
+          type: "tool-result",
+          documentId: expect.any(String),
+          id: "stale-call",
+          error: "AssistantFrame document has changed",
+        },
+      },
+      { targetOrigin: window.location.origin },
+    );
+
+    dispatchToolCall(window.location.origin);
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+    expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
+      {
+        channel: FRAME_MESSAGE_CHANNEL,
+        message: {
+          type: "tool-result",
+          documentId: expect.any(String),
+          id: "tool-call-1",
+          result: "result",
+        },
+      },
+      { targetOrigin: window.location.origin },
+    );
+  });
+
+  it("runs tool calls addressed to its own document", async () => {
+    const execute = vi.fn(async () => "result");
+    AssistantFrameProvider.addModelContextProvider({
+      getModelContext: () => ({
+        tools: { sensitiveTool: createTool(execute) },
+      }),
+    });
+    const documentId = vi.mocked(parentWindow.postMessage).mock.lastCall![0]
+      .message.documentId as string;
+
+    dispatchToolCall(
+      window.location.origin,
+      parentWindow,
+      "current-call",
+      "sensitiveTool",
+      documentId,
+    );
     await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
   });
 

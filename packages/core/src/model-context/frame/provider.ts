@@ -114,6 +114,9 @@ export class AssistantFrameProvider {
         this.sendMessage(event, {
           type: "model-context-update",
           context: serializeModelContext(this.getModelContext()),
+          ...(message.requestId !== undefined && {
+            requestId: message.requestId,
+          }),
         });
         break;
 
@@ -136,6 +139,18 @@ export class AssistantFrameProvider {
     message: Extract<FrameMessage, { type: "tool-call" }>,
     event: MessageEvent,
   ) {
+    if (
+      message.documentId !== undefined &&
+      message.documentId !== this._documentId
+    ) {
+      this.sendMessage(event, {
+        type: "tool-result",
+        id: message.id,
+        error: "AssistantFrame document has changed",
+      });
+      return;
+    }
+
     const resolvedTool = this.getTool(message.toolName);
     const tool = resolvedTool?.tool;
     const abortController = new AbortController();

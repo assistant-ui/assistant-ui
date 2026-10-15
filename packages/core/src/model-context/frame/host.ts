@@ -71,6 +71,8 @@ export class AssistantFrameHost implements ModelContextProvider {
   private _documentId: string | undefined;
   private _previousDocumentIds = new Set<string>();
   private _frameLoadTimeout: ReturnType<typeof setTimeout> | undefined;
+  private _frameLoadRequestId: string | undefined;
+  private _frameLoadDocumentId: string | undefined;
 
   constructor(
     iframeWindow: Window,
@@ -95,8 +97,35 @@ export class AssistantFrameHost implements ModelContextProvider {
     const message = event.data.message;
     if (!isFrameMessage(message)) return;
 
+    const isLoadResponse =
+      this._frameLoadRequestId !== undefined &&
+      message.type === "model-context-update" &&
+      message.requestId === this._frameLoadRequestId;
+    if (isLoadResponse) {
+      if (message.documentId !== undefined)
+        this._previousDocumentIds.delete(message.documentId);
+      this._frameLoadRequestId = undefined;
+    }
+
+    if (
+      message.documentId !== undefined &&
+      this._previousDocumentIds.has(message.documentId)
+    )
+      return;
+
+    if (
+      this._frameLoadTimeout !== undefined &&
+      (isLoadResponse ||
+        (message.documentId !== undefined &&
+          message.documentId !== this._frameLoadDocumentId) ||
+        (message.type === "model-context-update" &&
+          message.documentId === undefined))
+    ) {
+      clearTimeout(this._frameLoadTimeout);
+      this._frameLoadTimeout = undefined;
+    }
+
     if (message.documentId !== undefined) {
-      if (this._previousDocumentIds.has(message.documentId)) return;
       if (message.documentId !== this._documentId) {
         if (this._documentId !== undefined)
           this._previousDocumentIds.add(this._documentId);
@@ -105,15 +134,10 @@ export class AssistantFrameHost implements ModelContextProvider {
       }
     }
 
-    if (this._frameLoadTimeout !== undefined) {
-      clearTimeout(this._frameLoadTimeout);
-      this._frameLoadTimeout = undefined;
-    }
-
     switch (message.type) {
       case "model-context-update": {
         this._providerDisposed = false;
-        this.updateContext(message.context);
+        this.updateContext(message.context, message.documentId);
         break;
       }
 
@@ -157,6 +181,8 @@ export class AssistantFrameHost implements ModelContextProvider {
   /** Request tools after each iframe load; clear the previous document if no provider answers within two seconds. */
   frameLoaded() {
     if (this._disposed) return;
+    this._frameLoadRequestId = generateId();
+    this._frameLoadDocumentId = this._documentId;
     if (this._frameLoadTimeout !== undefined)
       clearTimeout(this._frameLoadTimeout);
     this._frameLoadTimeout = setTimeout(() => {
@@ -166,10 +192,13 @@ export class AssistantFrameHost implements ModelContextProvider {
       this._documentId = undefined;
       this.clearDocument();
     }, FRAME_LOAD_GRACE_MS);
-    this.requestContext();
+    this.requestContext(this._frameLoadRequestId);
   }
 
-  private updateContext(serializedContext: SerializedModelContext) {
+  private updateContext(
+    serializedContext: SerializedModelContext,
+    documentId: string | undefined,
+  ) {
     const context = deserializeModelContext(serializedContext);
     this._context = {
       ...context,
@@ -181,7 +210,7 @@ export class AssistantFrameHost implements ModelContextProvider {
             {
               ...tool,
               execute: (args: any, context: { abortSignal: AbortSignal }) =>
-                this.callTool(name, args, context.abortSignal),
+                this.callTool(name, args, context.abortSignal, documentId),
             } as Tool<any, any>,
           ]),
         ),
@@ -193,6 +222,7 @@ export class AssistantFrameHost implements ModelContextProvider {
     toolName: string,
     args: any,
     abortSignal: AbortSignal,
+    documentId: string | undefined,
   ): Promise<any> {
     return this.sendRequest(
       {
@@ -200,6 +230,7 @@ export class AssistantFrameHost implements ModelContextProvider {
         id: `tool-${generateId()}`,
         toolName,
         args,
+        ...(documentId !== undefined && { documentId }),
       },
       30000,
       `Tool call "${toolName}" timed out`,
@@ -294,12 +325,13 @@ export class AssistantFrameHost implements ModelContextProvider {
     }
   }
 
-  private requestContext() {
+  private requestContext(requestId?: string) {
     this._iframeWindow.postMessage(
       {
         channel: FRAME_MESSAGE_CHANNEL,
         message: {
           type: "model-context-request",
+          ...(requestId !== undefined && { requestId }),
         } as FrameMessage,
       },
       this._targetOrigin,
