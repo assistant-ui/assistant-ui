@@ -408,6 +408,7 @@ export const useExternalHistory = <TMessage>(
       }
 
       if (wasRunning) {
+        queuedPromptIdRef.current = null;
         // Record step boundary offset (synchronous for accuracy)
         if (runStartRef.current != null) {
           stepBoundariesRef.current.push(Date.now() - runStartRef.current);

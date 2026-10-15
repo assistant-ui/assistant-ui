@@ -2406,6 +2406,37 @@ describe("useExternalHistory persistence", () => {
     });
   });
 
+  it("retries an unstored prompt when the next run starts", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const { append, flush, load, step } = createPersistenceHarness(false);
+    await waitFor(() => expect(load).toHaveBeenCalledOnce());
+    await flush();
+    append
+      .mockRejectedValueOnce(new Error("temporary storage failure"))
+      .mockRejectedValueOnce(new Error("temporary storage failure"));
+    const promptInner: InnerMessage = {
+      id: "user-retry",
+      role: "user",
+      parts: ["prompt"],
+    };
+    const prompt = createUserMessage(promptInner);
+
+    await step({ isRunning: true, messages: [prompt] });
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+    await step({ isRunning: false, messages: [prompt] });
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+    await step({ isRunning: true, messages: [prompt] });
+
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(3));
+    expect(append).toHaveBeenLastCalledWith({
+      parentId: null,
+      message: promptInner,
+    });
+  });
+
   it("persists a new user message while its run is active", async () => {
     const previousInner: InnerMessage = {
       id: "previous-assistant",
