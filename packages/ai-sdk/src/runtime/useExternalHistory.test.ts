@@ -564,6 +564,91 @@ describe("useExternalHistory withFormat contract", () => {
     });
   });
 
+  it("merges live and stored tool interactions when history loads during a run", async () => {
+    mocks.hasThreadListItem = true;
+    mocks.remoteId = "remote-thread";
+    let resolveLoad!: (repo: MessageFormatRepository<unknown>) => void;
+    const load = vi.fn(
+      () =>
+        new Promise<MessageFormatRepository<unknown>>((resolve) => {
+          resolveLoad = resolve;
+        }),
+    );
+    const threadState = {
+      isRunning: false,
+      messages: [] as ThreadMessage[],
+    };
+    const thread = {
+      subscribe: () => () => {},
+      getState: () => threadState,
+      import: vi.fn(),
+    } as unknown as AssistantRuntime["thread"];
+    const toolInteractions = new Map<string, Unstable_ToolInteractionLog>();
+    const shared = { type: "action" as const, occurredAt: 1, payload: {} };
+    const stored = {
+      type: "human-response" as const,
+      occurredAt: 2,
+      payload: "stored",
+    };
+    const live = {
+      type: "human-response" as const,
+      occurredAt: 3,
+      payload: "live",
+    };
+    const adapter: ThreadHistoryAdapter = {
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue({
+        load,
+        append: vi.fn().mockResolvedValue(undefined),
+      }),
+    };
+
+    renderHook(() =>
+      useExternalHistory(
+        { current: { thread } as AssistantRuntime },
+        adapter,
+        (messages) => messages.map((message) => message as ThreadMessage),
+        storageFormat,
+        () => {},
+        undefined,
+        undefined,
+        toolInteractions,
+      ),
+    );
+
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      threadState.isRunning = true;
+      threadState.messages = [{ id: "live" } as ThreadMessage];
+      toolInteractions.set("call-1", { entries: [shared, live] });
+      resolveLoad({
+        headId: "stored",
+        messages: [
+          {
+            parentId: null,
+            message: {
+              id: "stored",
+              metadata: {
+                __aui_toolInteractions: {
+                  "call-1": { entries: [shared, stored] },
+                  "call-2": { entries: [stored] },
+                },
+              },
+            },
+          },
+        ],
+      });
+    });
+
+    expect(toolInteractions.get("call-1")?.entries).toEqual([
+      shared,
+      stored,
+      live,
+    ]);
+    expect(toolInteractions.get("call-2")?.entries).toEqual([stored]);
+  });
+
   it("discards a pending history load after switching threads", async () => {
     mocks.hasThreadListItem = true;
     mocks.remoteId = "thread-a";
@@ -840,6 +925,23 @@ describe("useExternalHistory persistence", () => {
       message: { id: "live", parts: ["reply"] },
     });
     expect(appendCountBeforeLoad).toBe(0);
+  });
+
+  it("persists a settled live turn when unmounted before history loads", async () => {
+    const { append, first } = createSlowLoadHarness();
+    await first.settle();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(append).not.toHaveBeenCalled();
+
+    first.unmount();
+
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+    expect(append).toHaveBeenCalledWith({
+      parentId: null,
+      message: { id: "live", parts: ["reply"] },
+    });
   });
 
   it("reloads the persisted turn after its earlier history on one branch", async () => {

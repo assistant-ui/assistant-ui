@@ -3,7 +3,12 @@ import type {
   ThreadMessage,
   Unstable_ToolInteractionLog,
 } from "@assistant-ui/core";
-import { isRecord, readToolInteractionLog } from "@assistant-ui/core/internal";
+import {
+  appendToolInteraction,
+  isJSONValueEqual,
+  isRecord,
+  readToolInteractionLog,
+} from "@assistant-ui/core/internal";
 import { normalizeToolApprovalAnswers } from "../converters/toolApprovalAnswers";
 
 const TOOL_ARTIFACTS_METADATA_KEY = "__aui_toolArtifacts";
@@ -14,6 +19,33 @@ export type StoredToolApprovalResponse = Omit<
   RespondToToolApprovalOptions,
   "approvalId"
 >;
+
+const mergeInteractionLogs = (
+  stored: Unstable_ToolInteractionLog,
+  current: Unstable_ToolInteractionLog | undefined,
+): Unstable_ToolInteractionLog => {
+  const incoming = readToolInteractionLog(current);
+  if (!incoming) return stored;
+  const omitted = Math.max(stored.omitted ?? 0, incoming.omitted ?? 0);
+  let merged: Unstable_ToolInteractionLog = {
+    entries: stored.entries,
+    ...(omitted ? { omitted } : undefined),
+  };
+  for (const entry of incoming.entries) {
+    if (
+      merged.entries.some(
+        (existing) =>
+          existing.type === entry.type &&
+          existing.occurredAt === entry.occurredAt &&
+          isJSONValueEqual(existing.payload, entry.payload),
+      )
+    ) {
+      continue;
+    }
+    merged = appendToolInteraction(merged, entry);
+  }
+  return merged;
+};
 
 export const collectToolArtifacts = (
   message: ThreadMessage,
@@ -172,7 +204,12 @@ export const restoreToolData = <TMessage>(
   if (toolInteractions && isRecord(interactions)) {
     for (const [toolCallId, value] of Object.entries(interactions)) {
       const log = readToolInteractionLog(value);
-      if (log) toolInteractions.set(toolCallId, log);
+      if (log) {
+        toolInteractions.set(
+          toolCallId,
+          mergeInteractionLogs(log, toolInteractions.get(toolCallId)),
+        );
+      }
     }
   }
   const approvalResponses = metadata[TOOL_APPROVAL_RESPONSES_METADATA_KEY];

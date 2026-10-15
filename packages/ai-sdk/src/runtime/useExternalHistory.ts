@@ -105,6 +105,7 @@ export const useExternalHistory = <TMessage>(
 
   const [hasLoaded, setHasLoaded] = useState(false);
   const historyReadyRef = useRef(false);
+  const deferredPersistRef = useRef(false);
   const persistWhenReadyRef = useRef<() => void>(() => {});
 
   useEffect(() => {
@@ -435,11 +436,18 @@ export const useExternalHistory = <TMessage>(
       persistSettled(true);
     }
 
-    function persistSettled(ignoreRunning: boolean) {
+    function persistSettled(
+      ignoreRunning: boolean,
+      ignoreHistoryReady = false,
+    ) {
       persistTimerRef.current = null;
-      if (!historyReadyRef.current) return;
+      if (!historyReadyRef.current && !ignoreHistoryReady) {
+        deferredPersistRef.current = true;
+        return;
+      }
       const latest = runtimeRef.current.thread.getState();
       if (!ignoreRunning && latest.isRunning) return;
+      deferredPersistRef.current = false;
 
       const boundaries = stepBoundariesRef.current;
       const durationMs = boundaries.length > 0 ? boundaries.at(-1) : undefined;
@@ -603,9 +611,17 @@ export const useExternalHistory = <TMessage>(
     return () => {
       persistWhenReadyRef.current = () => {};
       unsubscribe();
+      const hasPendingTimer = persistTimerRef.current !== null;
       if (persistTimerRef.current) {
         clearTimeout(persistTimerRef.current);
         persistTimerRef.current = null;
+      }
+      if (
+        !historyReadyRef.current &&
+        (deferredPersistRef.current || hasPendingTimer)
+      ) {
+        persistSettled(true, true);
+      } else if (hasPendingTimer) {
         persistSettled(false);
       }
     };
