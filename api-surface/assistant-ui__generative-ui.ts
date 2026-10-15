@@ -1483,6 +1483,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly toolName: string;
   readonly args: TArgs;
   readonly result?: TResult | undefined;
+  readonly responseDeliveryStatus?: "queued" | undefined;
   readonly isError?: boolean | undefined;
   readonly isPreliminary?: boolean | undefined;
   readonly argsText: string;
