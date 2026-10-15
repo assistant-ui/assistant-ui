@@ -251,7 +251,11 @@ export function DirectivePlugin({
   }, [editor]);
 
   const insertDirective = useCallback(
-    (item: Unstable_TriggerItem, active: ActiveMatch) => {
+    (
+      item: Unstable_TriggerItem,
+      active: ActiveMatch,
+      onInserted: () => void,
+    ) => {
       const { node, startOffset, endOffset } = active.match;
 
       editor.update(
@@ -281,11 +285,18 @@ export function DirectivePlugin({
 
           directiveNode.selectNext();
         },
-        { tag: "history-merge" },
+        {
+          tag: "history-merge",
+          // Runs after the commit's update listeners, so SyncPlugin has
+          // already written the directive to the composer.
+          onUpdate: () => {
+            onDirectiveSelect?.(item);
+            onInserted();
+          },
+        },
       );
 
       matchRef.current = null;
-      onDirectiveSelect?.(item);
     },
     [editor, onDirectiveSelect],
   );
@@ -330,12 +341,16 @@ export function DirectivePlugin({
 function wireTrigger(
   trigger: Unstable_RegisteredTrigger,
   matchRef: React.RefObject<ActiveMatch | null>,
-  insertDirective: (item: Unstable_TriggerItem, active: ActiveMatch) => void,
+  insertDirective: (
+    item: Unstable_TriggerItem,
+    active: ActiveMatch,
+    onInserted: () => void,
+  ) => void,
 ): () => void {
-  return trigger.resource.registerSelectItemOverride((item) => {
+  return trigger.resource.registerSelectItemOverride((item, onInserted) => {
     const active = matchRef.current;
     if (!active || active.char !== trigger.char) return false;
-    insertDirective(item, active);
+    insertDirective(item, active, onInserted);
     return true;
   });
 }

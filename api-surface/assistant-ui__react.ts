@@ -4103,7 +4103,7 @@ type SdkIdentity = {
   version: string;
 };
 
-type SelectItemOverride = (item: Unstable_TriggerItem) => boolean;
+type SelectItemOverride = (item: Unstable_TriggerItem, onInserted: () => void) => boolean;
 
 declare namespace SelectionToolbarPrimitiveQuote {
   type Element = ComponentRef<typeof Primitive$1.button>;

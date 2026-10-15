@@ -7,8 +7,15 @@ import type {
 import type { AssistantClient } from "@assistant-ui/store";
 import type { DetectedTrigger } from "./triggerDetectionResource";
 
-/** External override for selection (used by Lexical's DirectivePlugin). */
-export type SelectItemOverride = (item: Unstable_TriggerItem) => boolean;
+/**
+ * External override for selection (used by Lexical's DirectivePlugin).
+ * Returns whether it handled the item, and calls `onInserted` once the
+ * insertion has reached the composer.
+ */
+export type SelectItemOverride = (
+  item: Unstable_TriggerItem,
+  onInserted: () => void,
+) => boolean;
 
 export type TriggerBehavior =
   | {
@@ -66,8 +73,11 @@ const useTriggerSelectionResource = ({
   const selectItem = useEffectEvent((item: Unstable_TriggerItem) => {
     if (!trigger || !behavior) return;
 
-    if (selectItemOverrideRef.current?.(item)) {
+    const reportInserted = () => {
       if (behavior.kind === "directive") behavior.onInserted?.(item);
+    };
+
+    if (selectItemOverrideRef.current?.(item, reportInserted)) {
       onSelected();
       return;
     }
