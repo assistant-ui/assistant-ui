@@ -31,6 +31,7 @@ import {
 import type {
   AbstractAgent,
   AgentSubscriber,
+  Context,
   RunAgentParameters,
   RunAgentResult,
 } from "@ag-ui/client";
@@ -110,6 +111,7 @@ type CoreOptions = {
   agent: AbstractAgent;
   logger: Logger;
   showThinking: boolean;
+  getRunContext?: (() => readonly Context[]) | undefined;
   resumeTranscript?: AgUiResumeTranscript | undefined;
   autoCancelPendingToolCalls?: boolean | undefined;
   onError?: (error: Error) => void;
@@ -155,6 +157,7 @@ export class AgUiThreadRuntimeCore {
   private agent: AbstractAgent;
   private logger: Logger;
   private showThinking: boolean;
+  private getRunContext: (() => readonly Context[]) | undefined;
   private resumeTranscript: AgUiResumeTranscript;
   private autoCancelPendingToolCalls: boolean | undefined;
   private onError: ((error: Error) => void) | undefined;
@@ -214,6 +217,7 @@ export class AgUiThreadRuntimeCore {
     this.agent = options.agent;
     this.logger = options.logger;
     this.showThinking = options.showThinking;
+    this.getRunContext = options.getRunContext;
     this.resumeTranscript = options.resumeTranscript ?? "full";
     this.autoCancelPendingToolCalls = options.autoCancelPendingToolCalls;
     this.onError = options.onError;
@@ -244,6 +248,7 @@ export class AgUiThreadRuntimeCore {
     this.agent = options.agent;
     this.logger = options.logger;
     this.showThinking = options.showThinking;
+    this.getRunContext = options.getRunContext;
     this.resumeTranscript = options.resumeTranscript ?? "full";
     this.autoCancelPendingToolCalls = options.autoCancelPendingToolCalls;
     this.onError = options.onError;
@@ -1612,9 +1617,12 @@ export class AgUiThreadRuntimeCore {
       state: this.stateSnapshot ?? null,
       messages,
       tools: toAgUiTools(context?.tools),
-      context: context?.system
-        ? [{ description: "system", value: context.system }]
-        : [],
+      context: [
+        ...(context?.system
+          ? [{ description: "system", value: context.system }]
+          : []),
+        ...(this.getRunContext?.() ?? []),
+      ],
       forwardedProps: {
         ...(context?.callSettings ?? {}),
         ...(context?.config ?? {}),

@@ -10,7 +10,7 @@ import type {
   ThreadHistoryAdapter,
   ThreadMessage,
 } from "@assistant-ui/core";
-import type { AbstractAgent } from "@ag-ui/client";
+import type { AbstractAgent, Context } from "@ag-ui/client";
 import type { Logger } from "./logger";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { McpToolCallResult } from "./mcp-tool-result";
@@ -81,6 +81,11 @@ export type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
   agent: AbstractAgent;
   logger?: Partial<Logger>;
   showThinking?: boolean;
+  /**
+   * Context entries added to every run input after the system entry,
+   * resume runs included.
+   */
+  getRunContext?: (() => readonly Context[]) | undefined;
   /**
    * What `messages` carries on a resume run, meaning a `RunAgentInput` that
    * also carries `resume`. The AG-UI interrupt spec leaves this undefined: its
