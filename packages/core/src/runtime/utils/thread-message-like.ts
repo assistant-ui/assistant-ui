@@ -76,6 +76,7 @@ export type ThreadMessageLike = {
     | undefined;
   readonly metadata?:
     | {
+        readonly runId?: string | undefined;
         /** @deprecated Experimental since 2025-05-20. Not scheduled for removal; the API may change in any release. */
         readonly unstable_state?: ReadonlyJSONValue | undefined;
         /** @deprecated Experimental since 2025-01-27. Not scheduled for removal; the API may change in any release. */
@@ -248,6 +249,7 @@ export const fromThreadMessageLike = (
           .filter((c) => !!c),
         status: status ?? fallbackStatus,
         metadata: {
+          ...(metadata?.runId !== undefined && { runId: metadata.runId }),
           unstable_state: metadata?.unstable_state ?? null,
           unstable_annotations: metadata?.unstable_annotations ?? [],
           unstable_data: metadata?.unstable_data ?? [],

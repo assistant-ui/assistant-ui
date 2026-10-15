@@ -577,6 +577,7 @@ export type ThreadAssistantMessage = MessageCommonProps & {
   readonly content: readonly ThreadAssistantMessagePart[];
   readonly status: MessageStatus;
   readonly metadata: {
+    readonly runId?: string | undefined;
     /** @deprecated Experimental since 2025-05-20. Not scheduled for removal; the API may change in any release. */
     readonly unstable_state: ReadonlyJSONValue;
     /** @deprecated Experimental since 2025-01-27. Not scheduled for removal; the API may change in any release. */
