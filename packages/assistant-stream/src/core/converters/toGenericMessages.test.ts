@@ -192,6 +192,59 @@ describe("toGenericMessages", () => {
           },
         ]);
       });
+
+      it.each([
+        {
+          name: "a mismatched data URL",
+          input: "data:audio/mpeg;base64,QUJD",
+          expected: `data:audio/${format};base64,QUJD`,
+          isUrl: true,
+        },
+        {
+          name: "a matching data URL",
+          input: `data:audio/${format};base64,QUJD`,
+          expected: `data:audio/${format};base64,QUJD`,
+          isUrl: true,
+        },
+        {
+          name: "raw base64",
+          input: "QUJD",
+          expected: "QUJD",
+          isUrl: false,
+        },
+        {
+          name: "an HTTP URL",
+          input: "http://example.com/recording",
+          expected: "http://example.com/recording",
+          isUrl: true,
+        },
+        {
+          name: "an HTTPS URL",
+          input: "https://example.com/recording",
+          expected: "https://example.com/recording",
+          isUrl: true,
+        },
+      ])("uses the typed format for $name", ({ input, expected, isUrl }) => {
+        expect(
+          toGenericMessages([
+            {
+              role: "user",
+              content: [{ type: "audio", audio: { data: input, format } }],
+            },
+          ]),
+        ).toEqual([
+          {
+            role: "user",
+            content: [
+              {
+                type: "file",
+                data: isUrl ? new URL(expected) : expected,
+                mediaType: `audio/${format}`,
+              },
+            ],
+          },
+        ]);
+      });
     });
 
     it.each([undefined, {}, { data: "UklGRg==" }, { format: "wav" }])(

@@ -157,10 +157,18 @@ function toGenericFilePart(
     typeof part.audio?.data === "string" &&
     part.audio.format !== undefined
   ) {
+    const mediaType = `audio/${part.audio.format}`;
+    const base64DataUrl = part.audio.data.match(
+      /^data:[^;,]*(?:;[^;,]+)*;base64,(.*)$/i,
+    );
     return {
       type: "file",
-      data: toUrlOrString(part.audio.data),
-      mediaType: `audio/${part.audio.format}`,
+      data: toUrlOrString(
+        base64DataUrl
+          ? `data:${mediaType};base64,${base64DataUrl[1]}`
+          : part.audio.data,
+      ),
+      mediaType,
     };
   }
   if (part.type === "image" && part.image) {
