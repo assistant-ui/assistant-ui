@@ -28,6 +28,7 @@ import { flushTapSync } from "@assistant-ui/tap";
 import { useComposerInputPluginRegistryOptional } from "./ComposerInputPluginContext";
 import { useComposerCompactContextOptional } from "./ComposerCompactContext";
 import { useComposerCancelWithFocus } from "./useComposerCancelWithFocus";
+import { useThreadRootElementRef } from "../thread/ThreadRootElementContext";
 import {
   useComposerInputDisabled,
   useComposerInputValue,
@@ -57,7 +58,9 @@ export namespace ComposerPrimitiveInput {
      */
     cancelOnEscape?: boolean | undefined;
     /**
-     * Whether to automatically focus the input when a new run starts.
+     * Whether to focus the input when a new run starts if nothing is focused
+     * or focus is already inside the same thread. Keeps the current selection
+     * when the input is already focused. Applies when `autoFocus` is enabled.
      *
      * @deprecated Experimental since 2024-10-12. Not scheduled for removal; the API may change in any release.
      *
@@ -189,6 +192,7 @@ export const ComposerPrimitiveInput = forwardRef<
     forwardedRef,
   ) => {
     const aui = useAui();
+    const threadRootRef = useThreadRootElementRef();
     const pluginRegistry = useComposerInputPluginRegistryOptional();
     const compactContext = useComposerCompactContextOptional();
 
@@ -343,6 +347,25 @@ export const ComposerPrimitiveInput = forwardRef<
       textarea.setSelectionRange(textarea.value.length, textarea.value.length);
     }, [autoFocusEnabled]);
 
+    const focusOnRunStart = useCallback(() => {
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+      const doc = textarea.ownerDocument;
+      const active = doc.activeElement;
+      if (active === textarea) return;
+
+      const root = threadRootRef?.current;
+      if (
+        active &&
+        active !== doc.body &&
+        (!root?.contains(active) ||
+          active.closest("[data-aui-thread-root]") !== root)
+      )
+        return;
+
+      focus();
+    }, [focus, threadRootRef]);
+
     useEffect(() => focus(), [focus]);
 
     useOnScrollToBottom(() => {
@@ -361,8 +384,8 @@ export const ComposerPrimitiveInput = forwardRef<
       )
         return undefined;
 
-      return aui.on("thread.runStart", focus);
-    }, [unstable_focusOnRunStart, focus, aui]);
+      return aui.on("thread.runStart", focusOnRunStart);
+    }, [unstable_focusOnRunStart, focusOnRunStart, aui]);
 
     useEffect(() => {
       if (
