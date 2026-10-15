@@ -1603,6 +1603,8 @@ export class AgUiThreadRuntimeCore {
     historyMessages: readonly ThreadMessage[] | undefined,
     resume?: ResumeDispatch,
   ) {
+    const pendingA2uiAction = this.pendingA2uiAction;
+    this.pendingA2uiAction = undefined;
     const threadId = this.agent.threadId || "main";
     const messages = toAgUiMessages(
       this.selectRunMessages(
@@ -1627,13 +1629,12 @@ export class AgUiThreadRuntimeCore {
         ...(context?.callSettings ?? {}),
         ...(context?.config ?? {}),
         ...(runConfig?.custom ? { runConfig: runConfig.custom } : {}),
-        ...(this.pendingA2uiAction
-          ? { a2uiAction: { userAction: this.pendingA2uiAction } }
+        ...(pendingA2uiAction
+          ? { a2uiAction: { userAction: pendingA2uiAction } }
           : {}),
       },
       ...(resume !== undefined ? { resume: resume.entries } : {}),
     };
-    this.pendingA2uiAction = undefined;
     return input;
   }
 

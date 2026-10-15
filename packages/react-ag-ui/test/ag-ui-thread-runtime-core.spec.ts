@@ -7919,6 +7919,36 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runInputs[2].forwardedProps.a2uiAction).toBeUndefined();
   });
 
+  it("drops an A2UI action when getRunContext throws before the next send", async () => {
+    const runInputs: any[] = [];
+    const onError = vi.fn();
+    const contextError = new Error("context failed");
+    const getRunContext = vi
+      .fn(() => [])
+      .mockImplementationOnce(() => [])
+      .mockImplementationOnce(() => {
+        throw contextError;
+      });
+    const agent = {
+      runAgent: vi.fn(async (input: any, subscriber: AgentSubscriber) => {
+        runInputs.push(input);
+        notifyRunFinalized(subscriber);
+      }),
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+    const core = createCore(agent, { getRunContext, onError });
+
+    await core.append(createAppendMessage());
+
+    core.sendA2uiAction({ type: "a2ui:action", name: "submit" });
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledWith(contextError));
+
+    await core.append(createAppendMessage());
+
+    expect(runInputs).toHaveLength(2);
+    expect(runInputs[1].forwardedProps.a2uiAction).toBeUndefined();
+  });
+
   it("defers A2UI action runs until the active run settles", async () => {
     const runInputs: any[] = [];
     let releaseRun!: () => void;
