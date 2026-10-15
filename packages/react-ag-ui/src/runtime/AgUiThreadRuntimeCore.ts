@@ -15,6 +15,7 @@ import type {
   ExportedMessageRepository,
   MessageStatus,
   RespondToToolApprovalOptions,
+  RunConfig,
   ThreadAssistantMessage,
   ThreadHistoryAdapter,
   ThreadMessage,
@@ -31,7 +32,6 @@ import {
 import type {
   AbstractAgent,
   AgentSubscriber,
-  Context,
   RunAgentParameters,
   RunAgentResult,
 } from "@ag-ui/client";
@@ -44,6 +44,7 @@ import type {
   AgUiInterrupt,
   AgUiResumeEntry,
   AgUiResumeTranscript,
+  UseAgUiRuntimeOptions,
 } from "./types";
 import { AG_UI_METADATA_NAMESPACE, MCP_APPS_ACTIVITY_TYPE } from "./types";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
@@ -86,7 +87,6 @@ const isResolvedToolCall = (
 const isActivityPart = (part: ThreadAssistantMessage["content"][number]) =>
   part.type === "data" && part.name.startsWith("agui-activity/");
 
-type RunConfig = NonNullable<AppendMessage["runConfig"]>;
 type ResumeStream = (
   options: ChatModelRunOptions,
 ) => AsyncGenerator<ChatModelRunResult, void, unknown>;
@@ -111,7 +111,7 @@ type CoreOptions = {
   agent: AbstractAgent;
   logger: Logger;
   showThinking: boolean;
-  getRunContext?: (() => readonly Context[]) | undefined;
+  getRunContext?: UseAgUiRuntimeOptions["getRunContext"];
   resumeTranscript?: AgUiResumeTranscript | undefined;
   autoCancelPendingToolCalls?: boolean | undefined;
   onError?: (error: Error) => void;
@@ -157,7 +157,7 @@ export class AgUiThreadRuntimeCore {
   private agent: AbstractAgent;
   private logger: Logger;
   private showThinking: boolean;
-  private getRunContext: (() => readonly Context[]) | undefined;
+  private getRunContext: UseAgUiRuntimeOptions["getRunContext"];
   private resumeTranscript: AgUiResumeTranscript;
   private autoCancelPendingToolCalls: boolean | undefined;
   private onError: ((error: Error) => void) | undefined;
@@ -1621,7 +1621,7 @@ export class AgUiThreadRuntimeCore {
         ...(context?.system
           ? [{ description: "system", value: context.system }]
           : []),
-        ...(this.getRunContext?.() ?? []),
+        ...(this.getRunContext?.({ messages, runConfig }) ?? []),
       ],
       forwardedProps: {
         ...(context?.callSettings ?? {}),

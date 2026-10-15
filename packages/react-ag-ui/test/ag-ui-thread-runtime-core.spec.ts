@@ -13,7 +13,10 @@ import type {
 import { EventType, HttpAgent, type AgentSubscriber } from "@ag-ui/client";
 import { AgUiThreadRuntimeCore } from "../src/runtime/AgUiThreadRuntimeCore";
 import { makeLogger, type Logger } from "../src/runtime/logger";
-import type { AgUiResumeTranscript } from "../src/runtime/types";
+import type {
+  AgUiResumeTranscript,
+  UseAgUiRuntimeOptions,
+} from "../src/runtime/types";
 
 const createAppendMessage = (
   overrides: Partial<AppendMessage> = {},
@@ -127,6 +130,7 @@ const createCore = (
     history?: ThreadHistoryAdapter;
     logger?: Logger;
     autoCancelPendingToolCalls?: boolean;
+    getRunContext?: UseAgUiRuntimeOptions["getRunContext"];
     resumeTranscript?: AgUiResumeTranscript;
   } = {},
 ) =>
@@ -134,6 +138,7 @@ const createCore = (
     agent,
     logger: hooks.logger ?? noopLogger,
     showThinking: true,
+    getRunContext: hooks.getRunContext,
     resumeTranscript: hooks.resumeTranscript,
     autoCancelPendingToolCalls: hooks.autoCancelPendingToolCalls,
     ...(hooks.onError ? { onError: hooks.onError } : {}),
@@ -4037,6 +4042,67 @@ describe("AGUIThreadRuntimeCore", () => {
       expect(runInputs[1].resume).toEqual([
         { interruptId: "int-1", status: "cancelled" },
       ]);
+    });
+
+    it("passes each run's selected messages and config to getRunContext", async () => {
+      const runInputs: any[] = [];
+      const runConfig = { custom: { model: "test-model" } };
+      const getRunContext = vi.fn(
+        (
+          input: Parameters<
+            NonNullable<UseAgUiRuntimeOptions["getRunContext"]>
+          >[0],
+        ) => [
+          {
+            description: "messageCount",
+            value: String(input.messages.length),
+          },
+        ],
+      );
+      let runCount = 0;
+      const runAgent = vi.fn(async (input: any, subscriber: any) => {
+        runInputs.push(input);
+        runCount++;
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome:
+              runCount === 1
+                ? {
+                    type: "interrupt",
+                    interrupts: [{ id: "int-1", reason: "input_required" }],
+                  }
+                : { type: "success" },
+          },
+        });
+        subscriber.onRunFinalized?.();
+      });
+      const core = createCore({ runAgent } as unknown as HttpAgent, {
+        getRunContext,
+        resumeTranscript: "appended",
+      });
+
+      await core.append(createAppendMessage({ runConfig }));
+      await core.steerAway({
+        role: "user",
+        content: [{ type: "text", text: "changed my mind" }],
+        runConfig,
+      });
+
+      expect(runInputs).toHaveLength(2);
+      expect(getRunContext).toHaveBeenCalledTimes(2);
+      expect(getRunContext.mock.calls[0]?.[0].messages).toBe(
+        runInputs[0].messages,
+      );
+      expect(getRunContext.mock.calls[0]?.[0].runConfig).toBe(runConfig);
+      expect(getRunContext.mock.calls[1]?.[0].messages).toBe(
+        runInputs[1].messages,
+      );
+      expect(getRunContext.mock.calls[1]?.[0].messages).toMatchObject([
+        { role: "user", content: "changed my mind" },
+      ]);
+      expect(getRunContext.mock.calls[1]?.[0].runConfig).toBe(runConfig);
     });
 
     it("leaves a run without resume on the whole transcript when set to appended", async () => {
