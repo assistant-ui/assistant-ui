@@ -1,7 +1,7 @@
 "use client";
 
 import { createTapRoot, flushTapSync } from "@assistant-ui/tap";
-import { useReducer, useSyncExternalStore } from "react";
+import { useInsertionEffect, useReducer, useSyncExternalStore } from "react";
 
 import type { AssistantClient, Unsubscribe } from "./types/client";
 import type { AuiConfig } from "./AuiConfig";
@@ -150,8 +150,11 @@ export const createAssistantClient = (
     createTapRoot(
       function AssistantClientRoot() {
         const [, refresh] = useReducer((version: number) => version + 1, 0);
-        refreshRoot = refresh;
-        renderedParentSnapshot = getParentSnapshot();
+        const snapshot = getParentSnapshot();
+        useInsertionEffect(() => {
+          refreshRoot = refresh;
+          renderedParentSnapshot = snapshot;
+        });
         const parent = useSyncExternalStore(
           parentSource.subscribe,
           parentSource.getClient,
@@ -185,30 +188,44 @@ export const createAssistantClient = (
     clientRef.parent = parentSource.getClient();
     clientRef.current = root.getValue().client;
     publishedParentSnapshot = getParentSnapshot();
-    notifications.notifySubscribers();
+    flushTapSync(notifications.notifySubscribers);
   };
 
   let hasMounted = false;
-  const syncRoot = () => {
-    if (Object.is(renderedParentSnapshot, getParentSnapshot())) return false;
+  let pendingRootSync = false;
+  const syncRoot = (force = false) => {
+    if (!force && Object.is(renderedParentSnapshot, getParentSnapshot()))
+      return false;
     if (!hasMounted) {
       root.unmount();
       clientRef.current = null;
       root = createRoot();
       root.getValue();
+      renderedParentSnapshot = getParentSnapshot();
     } else {
-      flushTapSync(() => refreshRoot?.());
+      pendingRootSync = true;
+      try {
+        flushTapSync(() => refreshRoot?.());
+      } finally {
+        pendingRootSync = false;
+      }
     }
     return true;
   };
 
   const notifyRoot = () => {
-    if (syncRoot()) return;
+    const force =
+      hasMounted &&
+      options?.parent !== undefined &&
+      !parentSnapshot &&
+      !pendingRootSync;
+    pendingRootSync = false;
+    if (syncRoot(force)) return;
     publish();
   };
 
   const notifyParent = () => {
-    if (syncRoot()) return;
+    if (syncRoot(!parentSnapshot)) return;
     if (
       parentSnapshot &&
       Object.is(publishedParentSnapshot, getParentSnapshot())
@@ -249,6 +266,8 @@ export const createAssistantClient = (
   const handle: AssistantClientHandle = {
     getClient: () => {
       root.getValue();
+      if (!hasMounted && renderedParentSnapshot === undefined)
+        renderedParentSnapshot = getParentSnapshot();
       syncRoot();
       return root.getValue().client;
     },

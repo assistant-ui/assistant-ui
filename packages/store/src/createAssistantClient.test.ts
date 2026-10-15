@@ -260,6 +260,155 @@ describe("createAssistantClient", () => {
     parent.destroy();
   });
 
+  it("notifies child subscribers after derived scopes catch up with a wrapped parent source", () => {
+    const parent = createTestClient({ thread: ThreadClient() });
+    const child = createTestClient(
+      { message: messageDerived() },
+      {
+        parent: {
+          getClient: parent.getClient,
+          subscribe: parent.subscribe,
+        } as never,
+      },
+    );
+    const seen: string[] = [];
+    child.subscribe(() => {
+      const aui = child.getClient();
+      seen.push(
+        `${aui.thread.getState().selected}:${aui.message.getState().id}`,
+      );
+    });
+    seen.length = 0;
+
+    flushTapSync(() => parent.getClient().thread.setSelected(1));
+
+    expect(seen).toEqual(["1:m1"]);
+
+    child.destroy();
+    parent.destroy();
+  });
+
+  it("does not notify stale derived scopes when child and wrapped parent source update together", () => {
+    const LocalClient = resource(() => {
+      const [text, setText] = useState("");
+      return { getState: () => ({ text }), setText };
+    });
+    const parent = createTestClient({ thread: ThreadClient() });
+    const child = createTestClient(
+      { local: LocalClient(), message: messageDerived() },
+      {
+        parent: {
+          getClient: parent.getClient,
+          subscribe: parent.subscribe,
+        } as never,
+      },
+    );
+    const seen: string[] = [];
+    child.subscribe(() => {
+      const aui = child.getClient();
+      seen.push(
+        `${aui.thread.getState().selected}:${aui.message.getState().id}`,
+      );
+    });
+    seen.length = 0;
+
+    flushTapSync(() => {
+      child.getClient().local.setText("x");
+      parent.getClient().thread.setSelected(1);
+    });
+
+    expect(seen).not.toContain("1:m0");
+    expect(seen).toContain("1:m1");
+
+    child.destroy();
+    parent.destroy();
+  });
+
+  it("flushes updates dispatched by child subscribers before a parent notification returns", () => {
+    const LocalClient = resource(() => {
+      const [text, setText] = useState("");
+      return { getState: () => ({ text }), setText };
+    });
+    const parent = createTestClient({ thread: ThreadClient() });
+    const listeners = new Set<() => void>();
+    const child = createTestClient(
+      { local: LocalClient() },
+      {
+        parent: {
+          getClient: parent.getClient,
+          subscribe: (listener: () => void) => {
+            listeners.add(listener);
+            return () => listeners.delete(listener);
+          },
+        } as never,
+      },
+    );
+    let update = false;
+    child.subscribe(() => {
+      if (update) {
+        update = false;
+        child.getClient().local.setText("updated");
+      }
+    });
+    update = true;
+
+    listeners.forEach((listener) => listener());
+
+    expect(child.getClient().local.getState().text).toBe("updated");
+
+    child.destroy();
+    parent.destroy();
+  });
+
+  it("settles the child on the next notification after a scope render throws", () => {
+    let shouldThrow = false;
+    const LocalClient = resource(() => {
+      const [text, setText] = useState("");
+      if (shouldThrow) throw new Error("Scope render failed");
+      return { getState: () => ({ text }), setText };
+    });
+    const parent = createTestClient({ thread: ThreadClient() });
+    const child = createTestClient(
+      { local: LocalClient(), message: messageDerived() },
+      { parent: parent as never },
+    );
+    const errors: unknown[] = [];
+    let updateChild: (() => void) | undefined;
+    parent.subscribe(() => {
+      if (!updateChild) return;
+      const update = updateChild;
+      updateChild = undefined;
+      shouldThrow = true;
+      try {
+        flushTapSync(update);
+      } catch (error) {
+        errors.push(error);
+      } finally {
+        shouldThrow = false;
+      }
+    });
+    const seen: string[] = [];
+    child.subscribe(() => {
+      const aui = child.getClient();
+      seen.push(
+        `${aui.thread.getState().selected}:${aui.message.getState().id}`,
+      );
+    });
+    seen.length = 0;
+    const local = child.getClient().local;
+    updateChild = () => local.setText("x");
+
+    flushTapSync(() => parent.getClient().thread.setSelected(1));
+
+    expect(errors).toHaveLength(1);
+    expect((errors[0] as Error).message).toBe("Scope render failed");
+    expect(seen).toEqual(["1:m1"]);
+    expect(child.getClient().local.getState().text).toBe("x");
+
+    child.destroy();
+    parent.destroy();
+  });
+
   it("notifies a child once for parent value updates and keeps its identity", () => {
     const parent = createTestClient({ thread: ThreadClient() });
     const child = createTestClient({}, { parent: parent as never });
