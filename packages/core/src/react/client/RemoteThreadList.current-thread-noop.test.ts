@@ -20,6 +20,66 @@ const useStubThread = (props: {
 const StubThread = resource(useStubThread);
 
 describe("RemoteThreadList current thread selection", () => {
+  it("cancels a pending direct switch when the displayed thread is selected", async () => {
+    let resolveUnarchive!: () => void;
+    const unarchivePromise = new Promise<void>((resolve) => {
+      resolveUnarchive = resolve;
+    });
+    const adapter = {
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "regular" as const, remoteId: "r0" },
+          { status: "archived" as const, remoteId: "r1" },
+        ],
+      })),
+      fetch: vi.fn(async (id: string) => ({
+        status: "regular" as const,
+        remoteId: id,
+      })),
+      initialize: vi.fn(async (id: string) => ({ remoteId: id })),
+      rename: vi.fn(async () => {}),
+      archive: vi.fn(async () => {}),
+      unarchive: vi.fn(() => unarchivePromise),
+      delete: vi.fn(async () => {}),
+      generateTitle: vi.fn(async () => new ReadableStream() as never),
+    };
+    const onSwitchToThread = vi.fn();
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: RemoteThreadList({
+          adapter,
+          thread: (id) => StubThread({ threadId: id }) as never,
+          threadId: "r0",
+          onSwitchToThread,
+        }),
+      }),
+    );
+    handle.subscribe(() => {});
+    try {
+      await handle.getClient().threads.getLoadThreadsPromise();
+      await vi.waitFor(() =>
+        expect(handle.getClient().threads.getState().mainThreadId).toBe("r0"),
+      );
+      await vi.waitFor(() =>
+        expect(onSwitchToThread).toHaveBeenCalledWith("r0"),
+      );
+      onSwitchToThread.mockClear();
+
+      flushTapSync(() => handle.getClient().threads.switchToThread("r1"));
+      await vi.waitFor(() =>
+        expect(adapter.unarchive).toHaveBeenCalledWith("r1"),
+      );
+      flushTapSync(() => handle.getClient().threads.switchToThread("r0"));
+      resolveUnarchive();
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+      expect(handle.getClient().threads.getState().mainThreadId).toBe("r0");
+      expect(onSwitchToThread).not.toHaveBeenCalledWith("r1");
+    } finally {
+      handle.destroy();
+    }
+  });
+
   it("preserves a pending controlled switch when the displayed thread is selected", async () => {
     let resolveFetch!: (value: { status: "regular"; remoteId: string }) => void;
     const fetchPromise = new Promise<{

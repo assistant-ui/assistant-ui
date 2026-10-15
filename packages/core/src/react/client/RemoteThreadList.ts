@@ -556,6 +556,7 @@ const useRemoteThreadList = (
           | undefined,
         controlledReloadPending: false,
         switchTask: undefined as Promise<void> | undefined,
+        pendingSwitchGeneration: undefined as number | undefined,
         mainThreadId: seeded.id,
         isFirstThreadIdEffect: true,
         onThreadIdChange,
@@ -685,6 +686,7 @@ const useRemoteThreadList = (
         session.controlledSwitchGeneration = session.switchGeneration;
       }
       session.switchTask = undefined;
+      session.pendingSwitchGeneration = undefined;
       session.adapterAtLoad = adapter;
       const seeded = seedNewThread(EMPTY_LIST);
       store.reset({ ...seeded.state, isLoading: true });
@@ -767,17 +769,29 @@ const useRemoteThreadList = (
         rejectTask = reject;
       });
       session.switchTask = task;
-      void run(generation).then(resolveTask, (error: unknown) => {
-        if (
-          threadId !== undefined &&
-          generation === session.switchGeneration &&
-          !isSilentRuntimeAction(error) &&
-          !isSameThread(store.value, threadId, session.mainThreadId)
-        ) {
-          setSwitchError({ threadId, error });
-        }
-        rejectTask(error);
-      });
+      session.pendingSwitchGeneration = generation;
+      void run(generation).then(
+        () => {
+          if (session.pendingSwitchGeneration === generation) {
+            session.pendingSwitchGeneration = undefined;
+          }
+          resolveTask();
+        },
+        (error: unknown) => {
+          if (session.pendingSwitchGeneration === generation) {
+            session.pendingSwitchGeneration = undefined;
+          }
+          if (
+            threadId !== undefined &&
+            generation === session.switchGeneration &&
+            !isSilentRuntimeAction(error) &&
+            !isSameThread(store.value, threadId, session.mainThreadId)
+          ) {
+            setSwitchError({ threadId, error });
+          }
+          rejectTask(error);
+        },
+      );
       return task;
     },
     [session, store],
@@ -791,6 +805,8 @@ const useRemoteThreadList = (
     ) => {
       if (
         emitThreadIdChange &&
+        session.controlledSwitchGeneration === session.switchGeneration &&
+        session.pendingSwitchGeneration === session.switchGeneration &&
         isSameThread(store.value, threadIdOrRemoteId, session.mainThreadId)
       ) {
         return RESOLVED_PROMISE;
