@@ -107,6 +107,7 @@ export const useExternalHistory = <TMessage>(
   const historyReadyRef = useRef(false);
   const deferredPersistRef = useRef(false);
   const persistWhenReadyRef = useRef<() => void>(() => {});
+  const loadInFlightRef = useRef<Promise<void> | null>(null);
 
   useEffect(() => {
     historyReadyRef.current = hasLoaded;
@@ -254,7 +255,7 @@ export const useExternalHistory = <TMessage>(
     loadedRef.current = true;
     historyReadyRef.current = false;
     setHasLoaded(false);
-    void loadHistory();
+    loadInFlightRef.current = loadHistory();
     return undefined;
   }, [
     formatAdapter,
@@ -620,7 +621,11 @@ export const useExternalHistory = <TMessage>(
         !historyReadyRef.current &&
         (deferredPersistRef.current || hasPendingTimer)
       ) {
-        persistSettled(true, true);
+        if (loadInFlightRef.current) {
+          void loadInFlightRef.current.then(() => persistSettled(true, true));
+        } else {
+          persistSettled(true, true);
+        }
       } else if (hasPendingTimer) {
         persistSettled(false);
       }

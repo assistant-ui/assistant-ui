@@ -197,7 +197,8 @@ export const restoreToolData = <TMessage>(
   const artifacts = metadata[TOOL_ARTIFACTS_METADATA_KEY];
   if (toolArtifacts && isRecord(artifacts)) {
     for (const [toolCallId, artifact] of Object.entries(artifacts)) {
-      toolArtifacts.set(toolCallId, artifact);
+      if (!toolArtifacts.has(toolCallId))
+        toolArtifacts.set(toolCallId, artifact);
     }
   }
   const interactions = metadata[TOOL_INTERACTIONS_METADATA_KEY];

@@ -810,7 +810,7 @@ describe("useExternalHistory persistence", () => {
     return message;
   };
 
-  const createSlowLoadHarness = () => {
+  const createSlowLoadHarness = (resolveOnUnmount = true) => {
     mocks.hasThreadListItem = true;
     mocks.remoteId = "remote-thread";
 
@@ -824,13 +824,17 @@ describe("useExternalHistory persistence", () => {
       ],
     };
     let resolveLoad!: (repo: MessageFormatRepository<InnerMessage>) => void;
+    let rejectLoad!: (error: Error) => void;
     const load = vi
       .fn()
       .mockImplementationOnce(
         () =>
-          new Promise<MessageFormatRepository<InnerMessage>>((resolve) => {
-            resolveLoad = resolve;
-          }),
+          new Promise<MessageFormatRepository<InnerMessage>>(
+            (resolve, reject) => {
+              resolveLoad = resolve;
+              rejectLoad = reject;
+            },
+          ),
       )
       .mockImplementation(async () => ({
         headId: stored.headId,
@@ -899,6 +903,13 @@ describe("useExternalHistory persistence", () => {
     };
 
     const first = mount();
+    const unmount = first.unmount;
+    first.unmount = () => {
+      unmount();
+      if (resolveOnUnmount) {
+        resolveLoad({ headId: "stored", messages: [stored.messages[0]!] });
+      }
+    };
     const settleBeforeLoad = async () => {
       await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
       await first.settle();
@@ -912,7 +923,16 @@ describe("useExternalHistory persistence", () => {
       await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
       return appendCountBeforeLoad;
     };
-    return { append, first, mount, settleBeforeLoad };
+    return {
+      append,
+      first,
+      mount,
+      settleBeforeLoad,
+      resolveLoad: () =>
+        resolveLoad({ headId: "stored", messages: [stored.messages[0]!] }),
+      resolveEmptyLoad: () => resolveLoad({ headId: null, messages: [] }),
+      rejectLoad: () => rejectLoad(new Error("load failed")),
+    };
   };
 
   it("waits for slow history before persisting a settled live turn", async () => {
@@ -937,6 +957,73 @@ describe("useExternalHistory persistence", () => {
 
     first.unmount();
 
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+    expect(append).toHaveBeenCalledWith({
+      parentId: "stored",
+      message: { id: "live", parts: ["reply"] },
+    });
+  });
+
+  it("reloads an unmounted settled turn after its earlier history on one branch", async () => {
+    const { append, first, mount, resolveLoad } = createSlowLoadHarness(false);
+    await first.settle();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    first.unmount();
+    expect(append).not.toHaveBeenCalled();
+
+    await act(async () => resolveLoad());
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+
+    const second = mount();
+    await waitFor(() => expect(second.importMessages).toHaveBeenCalledTimes(1));
+    const imported = second.importMessages.mock.calls[0]![0];
+    const repository = new MessageRepository();
+    repository.import(imported);
+
+    expect(imported.headId).toBe("live");
+    expect(
+      imported.messages.map((item) => [item.parentId, item.message.id]),
+    ).toEqual([
+      [null, "stored"],
+      ["stored", "live"],
+    ]);
+    expect(repository.getMessages().map((message) => message.id)).toEqual([
+      "stored",
+      "live",
+    ]);
+  });
+
+  it("persists an unmounted settled turn when loaded history is empty", async () => {
+    const { append, first, resolveEmptyLoad } = createSlowLoadHarness(false);
+    await first.settle();
+    first.unmount();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(append).not.toHaveBeenCalled();
+
+    await act(async () => resolveEmptyLoad());
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+    expect(append).toHaveBeenCalledWith({
+      parentId: null,
+      message: { id: "live", parts: ["reply"] },
+    });
+  });
+
+  it("persists an unmounted settled turn when history loading fails", async () => {
+    const { append, first, rejectLoad } = createSlowLoadHarness(false);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    onTestFinished(() => errorSpy.mockRestore());
+    await first.settle();
+    first.unmount();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(append).not.toHaveBeenCalled();
+
+    await act(async () => rejectLoad());
     await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
     expect(append).toHaveBeenCalledWith({
       parentId: null,
