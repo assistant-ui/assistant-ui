@@ -408,31 +408,39 @@ const useAdkMessagesInternal = ({
         } finally {
           if (abortControllerRef.current === abortController) {
             if (abortController.signal.aborted) {
-              controller.dispatch({
-                type: "longRunningToolIds.set",
-                ids: accumulator
-                  .getLongRunningToolIds()
-                  .filter((id) => initialLongRunningToolIds.includes(id)),
-              });
-              const updatedMessages = controller.getState().messages;
-              const lastAssistantMessage = updatedMessages.findLast(
-                (m) => m.type === "ai",
-              );
-              if (
-                lastAssistantMessage &&
-                !initialMessageIds.has(lastAssistantMessage.id) &&
-                !lastAssistantMessage.status
-              ) {
-                setMessagesImmediate(
-                  updatedMessages.map((m) =>
-                    m === lastAssistantMessage
-                      ? {
-                          ...lastAssistantMessage,
-                          status: { type: "incomplete", reason: "cancelled" },
-                        }
-                      : m,
-                  ),
+              if (!receivedEvent && rollbackState) {
+                controller.dispatch({
+                  type: "run.rollback",
+                  state: rollbackState,
+                  ownIds: [...ownIds, ...queuedIds],
+                });
+              } else {
+                controller.dispatch({
+                  type: "longRunningToolIds.set",
+                  ids: accumulator
+                    .getLongRunningToolIds()
+                    .filter((id) => initialLongRunningToolIds.includes(id)),
+                });
+                const updatedMessages = controller.getState().messages;
+                const lastAssistantMessage = updatedMessages.findLast(
+                  (m) => m.type === "ai",
                 );
+                if (
+                  lastAssistantMessage &&
+                  !initialMessageIds.has(lastAssistantMessage.id) &&
+                  !lastAssistantMessage.status
+                ) {
+                  setMessagesImmediate(
+                    updatedMessages.map((m) =>
+                      m === lastAssistantMessage
+                        ? {
+                            ...lastAssistantMessage,
+                            status: { type: "incomplete", reason: "cancelled" },
+                          }
+                        : m,
+                    ),
+                  );
+                }
               }
             }
             abortControllerRef.current = null;
