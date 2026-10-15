@@ -70,10 +70,13 @@ export function resolveFileMediaType(
 export function toMediaWireUrl(payload: string, mediaType: string): string {
   const parsed = parseDataUrl(payload, "");
   if (parsed) {
-    return parsed.mimeType === mediaType &&
-      parsed.data === payload.slice(payload.indexOf(",") + 1)
+    if (parsed.mimeType !== mediaType) {
+      return `data:${mediaType};base64,${parsed.data}`;
+    }
+    const comma = payload.indexOf(",");
+    return parsed.data === payload.slice(comma + 1)
       ? payload
-      : `data:${mediaType};base64,${parsed.data}`;
+      : `${payload.slice(0, comma + 1)}${parsed.data}`;
   }
 
   const percentEncodedDataUrl = /^data:([^,]*),(.*)$/i.exec(payload);
