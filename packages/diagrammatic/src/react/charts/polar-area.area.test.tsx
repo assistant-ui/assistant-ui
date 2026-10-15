@@ -28,4 +28,16 @@ describe("PolarArea sector areas", () => {
     );
     expect(areas[1]! / areas[0]!).toBeCloseTo(4, 2);
   });
+
+  it("draws a negative value as an empty sector without NaN", () => {
+    const html = renderToStaticMarkup(
+      <PolarArea
+        items={[
+          { label: "Four", value: 4 },
+          { label: "Minus one", value: -1 },
+        ]}
+      />,
+    );
+    expect(html).not.toContain("NaN");
+  });
 });
