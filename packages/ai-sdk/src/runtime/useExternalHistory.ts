@@ -116,6 +116,8 @@ export const useExternalHistory = <TMessage>(
 
   const historyIds = useRef(new Set<string>());
   const deferredTelemetryIds = useRef(new Set<string>());
+  // A deleted message stays in the chat until its storage delete resolves, so passes queued before it leaves skip it, and its release is queued behind them.
+  const deletedMessageIds = useRef(new Map<string, boolean>());
   // `content` is a snapshot taken at write time rather than a re-encode of `source`, because a retained message object can be mutated in place by the runtime that produced it.
   const persistedInnerMessages = useRef(
     new Map<string, { source: TMessage; content: string }>(),
@@ -281,6 +283,23 @@ export const useExternalHistory = <TMessage>(
   const toolCallCountRef = useRef(0);
   const queuedPromptIdRef = useRef<string | null>(null);
 
+  const releaseRemovedMessages = useCallback(
+    (messages: readonly ThreadMessage[]) => {
+      for (const [messageId, releaseQueued] of deletedMessageIds.current) {
+        if (
+          releaseQueued ||
+          messages.some((message) => message.id === messageId)
+        )
+          continue;
+        deletedMessageIds.current.set(messageId, true);
+        persistInFlightRef.current = persistInFlightRef.current.then(() => {
+          deletedMessageIds.current.delete(messageId);
+        });
+      }
+    },
+    [],
+  );
+
   const persistToolInteractions = useCallback(
     (messageId: string) => {
       const persistence = persistInFlightRef.current.then(async () => {
@@ -298,6 +317,7 @@ export const useExternalHistory = <TMessage>(
 
         const previousMessages = messages
           .slice(0, messages.indexOf(message))
+          .filter((item) => !deletedMessageIds.current.has(item.id))
           .flatMap(getExternalStoreMessages<TMessage>);
         let parentId = previousMessages.at(-1)
           ? storageFormatAdapter.getId(previousMessages.at(-1)!)
@@ -373,6 +393,7 @@ export const useExternalHistory = <TMessage>(
 
     const unsubscribe = runtimeRef.current.thread.subscribe(() => {
       const threadState = runtimeRef.current.thread.getState();
+      releaseRemovedMessages(threadState.messages);
       const { isRunning } = threadState;
       const wasRunning = wasRunningRef.current;
       wasRunningRef.current = isRunning;
@@ -525,6 +546,7 @@ export const useExternalHistory = <TMessage>(
             }));
 
           for (const message of messages) {
+            if (deletedMessageIds.current.has(message.id)) continue;
             const innerMessages = getExternalStoreMessages<TMessage>(message);
 
             const isTerminal = isTerminalMessage(message);
@@ -634,6 +656,7 @@ export const useExternalHistory = <TMessage>(
         .at(-1);
 
       const persistence = persistInFlightRef.current.then(async () => {
+        if (deletedMessageIds.current.has(prompt.id)) return;
         let parentId = previousInnerMessage
           ? storageFormatAdapter.getId(previousInnerMessage)
           : null;
@@ -691,6 +714,7 @@ export const useExternalHistory = <TMessage>(
     toolArtifacts,
     toolInteractions,
     toolApprovalResponses,
+    releaseRemovedMessages,
   ]);
 
   const deleteMessage = useCallback(
@@ -721,6 +745,8 @@ export const useExternalHistory = <TMessage>(
 
         historyIds.current.delete(messageId);
         deferredTelemetryIds.current.delete(messageId);
+        deletedMessageIds.current.set(messageId, false);
+        releaseRemovedMessages(runtimeRef.current.thread.getState().messages);
         for (const item of itemsToDelete) {
           persistedInnerMessages.current.delete(
             storageFormatAdapter.getId(item.message),
@@ -731,7 +757,7 @@ export const useExternalHistory = <TMessage>(
       persistInFlightRef.current = deletion.catch(() => {});
       await deletion;
     },
-    [formatAdapter, runtimeRef, storageFormatAdapter],
+    [formatAdapter, runtimeRef, storageFormatAdapter, releaseRemovedMessages],
   );
 
   return {

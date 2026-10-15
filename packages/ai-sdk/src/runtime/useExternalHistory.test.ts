@@ -2651,6 +2651,22 @@ describe("useExternalHistory persistence", () => {
             ),
           ],
         }),
+      settleNextRun: async () => {
+        await step({
+          isRunning: false,
+          messages: [
+            promptA,
+            replyA,
+            promptB,
+            createAssistantMessage(
+              { type: "complete", reason: "stop" },
+              [replyBInner],
+              "reply-b",
+            ),
+          ],
+        });
+        await flush();
+      },
       finishDeletion: async () => {
         releaseReply();
         await act(async () => {
@@ -2668,6 +2684,200 @@ describe("useExternalHistory persistence", () => {
     await race.finishDeletion();
 
     expect([...race.stored]).toEqual(["reply-a", "prompt-b"]);
+  });
+
+  it("keeps a prompt deleted when the next run settles before its deletion lands", async () => {
+    const race = await createDeletionRace();
+
+    await race.startNextRun();
+    await race.settleNextRun();
+    await race.finishDeletion();
+
+    expect([...race.stored]).toEqual(["reply-a", "prompt-b", "reply-b"]);
+  });
+
+  it("keeps a prompt deleted during its run when the run resumes before the prompt leaves the chat", async () => {
+    const { append, deleteItems, deleteMessage, flush, load, step } =
+      createPersistenceHarness(false);
+    await waitFor(() => expect(load).toHaveBeenCalledOnce());
+    await flush();
+    const prompt = createUserMessage({
+      id: "prompt",
+      role: "user",
+      parts: ["prompt"],
+    });
+
+    await step({
+      isRunning: true,
+      messages: [
+        prompt,
+        createAssistantMessage(
+          { type: "running" },
+          [{ id: "reply", parts: [] }],
+          "reply",
+        ),
+      ],
+    });
+    await waitFor(() => expect(append).toHaveBeenCalledOnce());
+    await act(async () => {
+      await deleteMessage("prompt");
+    });
+    expect(deleteItems).toHaveBeenCalledOnce();
+    await step({ isRunning: false });
+    await step({ isRunning: true });
+    await flush();
+
+    expect(append).toHaveBeenCalledOnce();
+  });
+
+  it("stores a message that reuses a deleted id once the deleted one has left the chat", async () => {
+    const { append, deleteItems, deleteMessage, flush, load, runCycle, step } =
+      createPersistenceHarness(false);
+    await waitFor(() => expect(load).toHaveBeenCalledOnce());
+    await flush();
+    await runCycle([
+      createAssistantMessage(
+        { type: "complete", reason: "stop" },
+        [{ id: "reused", parts: ["old"] }],
+        "reused",
+      ),
+    ]);
+    await waitFor(() => expect(append).toHaveBeenCalledOnce());
+    await act(async () => {
+      await deleteMessage("reused");
+    });
+    expect(deleteItems).toHaveBeenCalledOnce();
+    await step({ messages: [] });
+    await flush();
+
+    const replacementInner: InnerMessage = { id: "reused", parts: ["new"] };
+    await runCycle([
+      createAssistantMessage(
+        { type: "complete", reason: "stop" },
+        [replacementInner],
+        "reused",
+      ),
+    ]);
+
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+    expect(append).toHaveBeenLastCalledWith({
+      parentId: null,
+      message: replacementInner,
+    });
+  });
+
+  it("releases a deleted message that left the chat before its delete resolved", async () => {
+    const { append, deleteItems, deleteMessage, flush, load, runCycle, step } =
+      createPersistenceHarness(false);
+    await waitFor(() => expect(load).toHaveBeenCalledOnce());
+    await flush();
+    await runCycle([
+      createAssistantMessage(
+        { type: "complete", reason: "stop" },
+        [{ id: "reused", parts: ["old"] }],
+        "reused",
+      ),
+    ]);
+    await waitFor(() => expect(append).toHaveBeenCalledOnce());
+    let resolveDelete!: () => void;
+    deleteItems.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveDelete = resolve;
+        }),
+    );
+    const deletion = deleteMessage("reused");
+    await step({ messages: [] });
+    await act(async () => {
+      resolveDelete();
+      await deletion;
+    });
+    await flush();
+
+    const replacementInner: InnerMessage = { id: "reused", parts: ["new"] };
+    await runCycle([
+      createAssistantMessage(
+        { type: "complete", reason: "stop" },
+        [replacementInner],
+        "reused",
+      ),
+    ]);
+
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+    expect(append).toHaveBeenLastCalledWith({
+      parentId: null,
+      message: replacementInner,
+    });
+  });
+
+  it("parents a tool interaction update past a deleted message that is still in the chat", async () => {
+    type Item = { parentId: string | null; message: InnerMessage };
+    const stored = new Map<string, Item>();
+    const toolInteractions = new Map<string, Unstable_ToolInteractionLog>();
+    const {
+      append,
+      update,
+      deleteItems,
+      deleteMessage,
+      flush,
+      load,
+      persistToolInteractions,
+      runCycle,
+      step,
+    } = createPersistenceHarness(true, { toolInteractions });
+    append.mockImplementation(async (item) => {
+      stored.set(item.message.id, item);
+    });
+    update.mockImplementation(async (item) => {
+      stored.set(item.message.id, item);
+    });
+    deleteItems.mockImplementation(async (items) => {
+      for (const item of items) stored.delete(item.message.id);
+      const reply = stored.get("reply");
+      if (reply?.parentId === "prompt")
+        stored.set("reply", { ...reply, parentId: null });
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledOnce());
+    await flush();
+    const prompt = createUserMessage({ id: "prompt", role: "user", parts: [] });
+    const reply = Object.assign(
+      createAssistantMessage(
+        { type: "complete", reason: "stop" },
+        [{ id: "reply", parts: [{ toolCallId: "call-1" }] }],
+        "reply",
+      ),
+      {
+        content: [
+          {
+            type: "tool-call" as const,
+            toolCallId: "call-1",
+            toolName: "weather",
+            args: {},
+            argsText: "{}",
+            result: undefined,
+            isError: false,
+          },
+        ],
+      },
+    );
+
+    await runCycle([prompt, reply]);
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+    await flush();
+    await act(async () => {
+      await deleteMessage("prompt");
+    });
+    await step({ isRunning: false });
+    await flush();
+    toolInteractions.set("call-1", {
+      entries: [{ type: "human-response", occurredAt: 2, payload: "yes" }],
+    });
+    await act(async () => {
+      await persistToolInteractions("reply");
+    });
+
+    expect(update).toHaveBeenCalledOnce();
+    expect(stored.get("reply")?.parentId).toBeNull();
   });
 
   it("stores a new prompt after an earlier reply that failed to store", async () => {
