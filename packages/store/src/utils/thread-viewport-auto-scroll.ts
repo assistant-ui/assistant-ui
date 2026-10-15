@@ -50,6 +50,10 @@ export type ThreadViewportAutoScroll = {
   readonly isAtBottom: boolean;
   scrollToBottom(behavior?: ScrollBehavior): void;
   setContentInset(inset: number): void;
+  registerContentInset(): {
+    setHeight(height: number): void;
+    unregister(): void;
+  };
   setHasMessages(hasMessages: boolean): void;
   runStarted(): void;
   threadSwitched(): void;
@@ -68,6 +72,8 @@ export const createThreadViewportAutoScroll = (input: {
   let followPaused = false;
   let scrolledSincePause = false;
   let contentInset = 0;
+  let directContentInset = 0;
+  const contentInsetEntries = new Map<symbol, number>();
   let hasMessages = false;
   let initialized = false;
   let lastScrollTop = 0;
@@ -226,6 +232,17 @@ export const createThreadViewportAutoScroll = (input: {
     scheduleScrollToBottom("instant");
   };
 
+  const updateContentInset = () => {
+    let inset = directContentInset;
+    for (const height of contentInsetEntries.values()) inset += height;
+    if (contentInset === inset) return;
+    const grew = inset > contentInset;
+    contentInset = inset;
+    // A growing inset obscures pinned content and follows like a resize; a shrinking inset reveals content without moving the viewport.
+    if (grew) followGrowth();
+    handleScroll();
+  };
+
   return {
     attach: (el) => {
       detachAttached?.();
@@ -284,12 +301,28 @@ export const createThreadViewportAutoScroll = (input: {
     },
     scrollToBottom,
     setContentInset: (inset) => {
-      if (contentInset === inset) return;
-      const grew = inset > contentInset;
-      contentInset = inset;
-      // A growing inset obscures pinned content and follows like a resize; a shrinking inset reveals content without moving the viewport.
-      if (grew) followGrowth();
-      handleScroll();
+      if (directContentInset === inset) return;
+      directContentInset = inset;
+      updateContentInset();
+    },
+    registerContentInset: () => {
+      const id = Symbol();
+      contentInsetEntries.set(id, 0);
+      return {
+        setHeight: (height) => {
+          if (
+            !contentInsetEntries.has(id) ||
+            contentInsetEntries.get(id) === height
+          )
+            return;
+          contentInsetEntries.set(id, height);
+          updateContentInset();
+        },
+        unregister: () => {
+          if (!contentInsetEntries.delete(id)) return;
+          updateContentInset();
+        },
+      };
     },
     setHasMessages: (value) => {
       hasMessages = value;
