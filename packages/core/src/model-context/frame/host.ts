@@ -13,6 +13,7 @@ import {
 import { isFrameMessage } from "./validate";
 
 const getDefaultTargetOrigin = () => window.location.origin;
+const FRAME_LOAD_GRACE_MS = 2000;
 
 const logCancellationFailure = (error: unknown) => {
   console.error(
@@ -68,8 +69,8 @@ export class AssistantFrameHost implements ModelContextProvider {
   private _disposed = false;
   private _providerDisposed = false;
   private _documentId: string | undefined;
-  private _documentIdAtLoad: string | undefined;
   private _previousDocumentIds = new Set<string>();
+  private _frameLoadTimeout: ReturnType<typeof setTimeout> | undefined;
 
   constructor(
     iframeWindow: Window,
@@ -102,6 +103,11 @@ export class AssistantFrameHost implements ModelContextProvider {
         this.clearDocument();
         this._documentId = message.documentId;
       }
+    }
+
+    if (this._frameLoadTimeout !== undefined) {
+      clearTimeout(this._frameLoadTimeout);
+      this._frameLoadTimeout = undefined;
     }
 
     switch (message.type) {
@@ -148,21 +154,18 @@ export class AssistantFrameHost implements ModelContextProvider {
     }
   }
 
-  /** Call when the iframe has loaded a new document. */
+  /** Request tools after each iframe load; clear the previous document if no provider answers within two seconds. */
   frameLoaded() {
     if (this._disposed) return;
-    if (
-      this._documentId !== undefined &&
-      this._documentId !== this._documentIdAtLoad
-    ) {
-      this._documentIdAtLoad = this._documentId;
-      return;
-    }
-    if (this._documentId !== undefined)
-      this._previousDocumentIds.add(this._documentId);
-    this._documentId = undefined;
-    this._documentIdAtLoad = undefined;
-    this.clearDocument();
+    if (this._frameLoadTimeout !== undefined)
+      clearTimeout(this._frameLoadTimeout);
+    this._frameLoadTimeout = setTimeout(() => {
+      this._frameLoadTimeout = undefined;
+      if (this._documentId !== undefined)
+        this._previousDocumentIds.add(this._documentId);
+      this._documentId = undefined;
+      this.clearDocument();
+    }, FRAME_LOAD_GRACE_MS);
     this.requestContext();
   }
 
@@ -318,6 +321,8 @@ export class AssistantFrameHost implements ModelContextProvider {
 
   dispose() {
     this._disposed = true;
+    if (this._frameLoadTimeout !== undefined)
+      clearTimeout(this._frameLoadTimeout);
     window.removeEventListener("message", this.handleMessage);
     this._subscribers.clear();
     const error = new Error("AssistantFrameHost has been disposed");

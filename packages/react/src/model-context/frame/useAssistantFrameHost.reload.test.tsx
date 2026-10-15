@@ -13,6 +13,7 @@ vi.mock("@assistant-ui/core", async (importOriginal) => ({
 }));
 
 it("drops tools and pending calls when a frame loads a page without a provider", async () => {
+  vi.useFakeTimers();
   const iframe = document.createElement("iframe");
   document.body.append(iframe);
   vi.spyOn(iframe.contentWindow!, "postMessage").mockImplementation(() => {});
@@ -45,16 +46,20 @@ it("drops tools and pending calls when a frame loads a page without a provider",
     );
 
     iframe.dispatchEvent(new Event("load"));
+    expect(registry.getModelContext().tools?.search).toBeDefined();
+    vi.advanceTimersByTime(2000);
     expect(registry.getModelContext().tools?.search).toBeUndefined();
     expect(await outcome).toBeInstanceOf(Error);
   } finally {
     unmount();
     iframe.remove();
     vi.restoreAllMocks();
+    vi.useRealTimers();
   }
 });
 
 it("clears a reloaded frame when the hook mounted after its initial load", () => {
+  vi.useFakeTimers();
   const iframe = document.createElement("iframe");
   document.body.append(iframe);
   const postMessage = vi
@@ -76,6 +81,7 @@ it("clears a reloaded frame when the hook mounted after its initial load", () =>
           channel: "assistant-ui-frame",
           message: {
             type: "model-context-update",
+            documentId: "first",
             context: { tools: { search: { parameters: { type: "object" } } } },
           },
         },
@@ -85,6 +91,8 @@ it("clears a reloaded frame when the hook mounted after its initial load", () =>
     postMessage.mockClear();
 
     iframe.dispatchEvent(new Event("load"));
+    expect(registry.getModelContext().tools?.search).toBeDefined();
+    vi.advanceTimersByTime(2000);
     expect(registry.getModelContext().tools?.search).toBeUndefined();
     expect(postMessage).toHaveBeenCalledWith(
       {
@@ -97,5 +105,6 @@ it("clears a reloaded frame when the hook mounted after its initial load", () =>
     unmount();
     iframe.remove();
     vi.restoreAllMocks();
+    vi.useRealTimers();
   }
 });
