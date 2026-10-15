@@ -785,6 +785,12 @@ export class RemoteThreadListThreadListRuntimeCore
     threadIdOrRemoteId: string,
     options?: { unarchive?: boolean },
   ): Promise<void> {
+    if (
+      getThreadData(this._state.value, threadIdOrRemoteId)?.id ===
+      this._mainThreadId
+    ) {
+      return Promise.resolve();
+    }
     return this._startSwitchToThread(threadIdOrRemoteId, options, true);
   }
 
