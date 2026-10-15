@@ -3,6 +3,7 @@ import { flushSync, mount, unmount } from "svelte";
 import { SvelteMap } from "svelte/reactivity";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig } from "@assistant-ui/store/client";
+import { getAuiContext } from "../context";
 import { provideAui } from "../provideAui";
 import { useAuiState } from "../useAuiState";
 import Host from "./fixtures/Host.svelte";
@@ -18,6 +19,58 @@ import {
 const target = () => document.createElement("div");
 
 describe("useAuiState", () => {
+  it("tracks a reactive input reached after an equal store selection", async () => {
+    let aui!: AnyClient;
+    const subscriptions = vi.fn();
+    const releases = vi.fn();
+    const container = target();
+    const app = mount(SelectorProbe, {
+      target: container,
+      props: {
+        setup: function useConditionalSelection(getIndex: () => number) {
+          aui = provideAui(AuiConfig({ thread: ThreadClient() } as never));
+          const context = getAuiContext();
+          const subscribe: typeof context.source.subscribe = (listener) => {
+            subscriptions();
+            const release = context.source.subscribe(listener);
+            return () => {
+              releases();
+              release();
+            };
+          };
+          return useAuiState(
+            (s) => (s as AnyClient).thread.selected === 1 && getIndex() === 1,
+            { item: { ...context, source: { ...context.source, subscribe } } },
+          );
+        },
+      },
+    });
+
+    try {
+      flushSync();
+      expect(container.querySelector("output")!.textContent).toBe(
+        "not selected",
+      );
+
+      flushTapSync(() => aui.thread.setSelected(1));
+      await flushEvents();
+      flushSync();
+      expect(container.querySelector("output")!.textContent).toBe(
+        "not selected",
+      );
+      expect(subscriptions).toHaveBeenCalledTimes(1);
+
+      container.querySelector("button")!.click();
+      flushSync();
+      expect(container.querySelector("output")!.textContent).toBe("selected");
+      expect(subscriptions).toHaveBeenCalledTimes(1);
+    } finally {
+      flushSync(() => void unmount(app));
+      await flushEvents();
+      expect(releases).toHaveBeenCalledTimes(1);
+    }
+  });
+
   it("updates rendered selection after a reactive selector input changes", async () => {
     let aui!: AnyClient;
     const container = target();

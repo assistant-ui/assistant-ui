@@ -1,5 +1,6 @@
 import { createSubscriber } from "svelte/reactivity";
 import { toStore } from "svelte/store";
+import { untrack } from "svelte";
 import {
   getProxiedAssistantState,
   type AssistantState,
@@ -36,9 +37,13 @@ export const useAuiState = <T>(
   options?: { item?: ScopeTarget | undefined },
 ): { readonly current: T } => {
   const source = (options?.item ?? getAuiContext()).source;
+  const subscribeSource = createSubscriber((update) =>
+    source.subscribe(update),
+  );
 
   const read = () => selector(getProxiedAssistantState(source.getClient()));
   const snapshot = (): { value: T } | { error: unknown } => {
+    subscribeSource();
     try {
       return { value: read() };
     } catch (error) {
@@ -61,24 +66,14 @@ export const useAuiState = <T>(
       }
     };
     const unsubscribeSelector = selection.subscribe(notify);
-    let unsubscribeSource: () => void;
-    try {
-      unsubscribeSource = source.subscribe(() => notify(snapshot()));
-    } catch (error) {
-      unsubscribeSelector();
-      throw error;
-    }
-    return () => {
-      unsubscribeSource();
-      unsubscribeSelector();
-    };
+    return unsubscribeSelector;
   });
 
   return {
     get current(): T {
       subscribe();
       const state = getProxiedAssistantState(source.getClient());
-      const slice = selector(state);
+      const slice = untrack(() => selector(state));
 
       if (
         typeof slice === "object" &&
