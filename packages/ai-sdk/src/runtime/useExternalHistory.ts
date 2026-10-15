@@ -132,9 +132,11 @@ export const useExternalHistory = <TMessage>(
   useEffect(() => {
     if (!formatAdapter || loadedRef.current) return undefined;
 
+    const remoteId = optionalThreadListItem()?.getState().remoteId;
     const loadHistory = async () => {
       try {
         const repo = await formatAdapter.load();
+        if (optionalThreadListItem()?.getState().remoteId !== remoteId) return;
         // A resumed stream or a send may have appended live messages while
         // the load was in flight. The history imports beneath that live tail
         // so neither side of the race is dropped.
@@ -172,19 +174,24 @@ export const useExternalHistory = <TMessage>(
             toThreadMessages,
             restoredRepo,
           );
-          const loadedIds = new Set(
-            converted.messages.map((m) => m.message.id),
+          const liveById = new Map(
+            liveMessages.map((message) => [message.id, message]),
           );
+          const loadedMessages = converted.messages.map((item) => ({
+            ...item,
+            message: liveById.get(item.message.id) ?? item.message,
+          }));
+          const loadedIds = new Set(loadedMessages.map((m) => m.message.id));
           const liveTail = liveMessages.filter((m) => !loadedIds.has(m.id));
           const anchorId =
             converted.headId ?? converted.messages.at(-1)?.message.id ?? null;
           const merged =
             liveTail.length === 0
-              ? converted
+              ? { ...converted, messages: loadedMessages }
               : {
                   headId: liveTail.at(-1)!.id,
                   messages: [
-                    ...converted.messages,
+                    ...loadedMessages,
                     ...liveTail.map((message, index) => ({
                       parentId:
                         index === 0 ? anchorId : liveTail[index - 1]!.id,
@@ -203,7 +210,7 @@ export const useExternalHistory = <TMessage>(
           );
 
           historyIds.current = new Set();
-          for (const m of converted.messages) {
+          for (const m of loadedMessages) {
             historyIds.current.add(m.message.id);
             if (isAwaitingToolApproval(m.message)) {
               deferredTelemetryIds.current.add(m.message.id);
@@ -219,7 +226,6 @@ export const useExternalHistory = <TMessage>(
 
     formatAdapter.pin?.();
 
-    const remoteId = optionalThreadListItem()?.getState().remoteId;
     if (!remoteId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setHasLoaded(true);

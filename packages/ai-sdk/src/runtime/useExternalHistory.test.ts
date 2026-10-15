@@ -480,6 +480,144 @@ describe("useExternalHistory withFormat contract", () => {
       ],
     });
   });
+
+  it("keeps the live content of a resumed assistant reply with a stored id", async () => {
+    mocks.hasThreadListItem = true;
+    mocks.remoteId = "remote-thread";
+    let resolveLoad!: (repo: MessageFormatRepository<unknown>) => void;
+    const load = vi.fn(
+      () =>
+        new Promise<MessageFormatRepository<unknown>>((resolve) => {
+          resolveLoad = resolve;
+        }),
+    );
+    const threadState = {
+      isRunning: false,
+      messages: [] as ThreadMessage[],
+    };
+    const threadImport = vi.fn();
+    const thread = {
+      subscribe: () => () => {},
+      getState: () => threadState,
+      import: threadImport,
+      export: () => ({ headId: null, messages: [] }),
+    } as unknown as AssistantRuntime["thread"];
+    const adapter: ThreadHistoryAdapter = {
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue({
+        load,
+        append: vi.fn().mockResolvedValue(undefined),
+      }),
+    };
+
+    renderHook(() =>
+      useExternalHistory(
+        { current: { thread } as AssistantRuntime },
+        adapter,
+        (messages) => messages.map((message) => message as ThreadMessage),
+        storageFormat,
+        () => {},
+      ),
+    );
+
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    const liveReply: ThreadAssistantMessage = {
+      id: "assistant",
+      role: "assistant",
+      content: [{ type: "text", text: "complete streamed reply" }],
+      createdAt: new Date(),
+      status: { type: "running" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+    };
+    await act(async () => {
+      threadState.isRunning = true;
+      threadState.messages = [liveReply];
+      resolveLoad({
+        headId: "assistant",
+        messages: [
+          { parentId: null, message: { id: "user" } },
+          {
+            parentId: "user",
+            message: {
+              id: "assistant",
+              content: [{ type: "text", text: "partial reply" }],
+            },
+          },
+        ],
+      });
+    });
+
+    expect(threadImport).toHaveBeenCalledWith({
+      headId: "assistant",
+      messages: [
+        { parentId: null, message: { id: "user" } },
+        { parentId: "user", message: liveReply },
+      ],
+    });
+  });
+
+  it("discards a pending history load after switching threads", async () => {
+    mocks.hasThreadListItem = true;
+    mocks.remoteId = "thread-a";
+    let resolveLoad!: (repo: MessageFormatRepository<unknown>) => void;
+    const load = vi.fn(
+      () =>
+        new Promise<MessageFormatRepository<unknown>>((resolve) => {
+          resolveLoad = resolve;
+        }),
+    );
+    const threadState = {
+      isRunning: false,
+      messages: [] as ThreadMessage[],
+    };
+    const threadImport = vi.fn();
+    const setMessages = vi.fn();
+    const thread = {
+      subscribe: () => () => {},
+      getState: () => threadState,
+      import: threadImport,
+      export: () => ({ headId: null, messages: [] }),
+    } as unknown as AssistantRuntime["thread"];
+    const adapter: ThreadHistoryAdapter = {
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue({
+        load,
+        append: vi.fn().mockResolvedValue(undefined),
+      }),
+    };
+
+    renderHook(() =>
+      useExternalHistory(
+        { current: { thread } as AssistantRuntime },
+        adapter,
+        (messages) => messages.map((message) => message as ThreadMessage),
+        storageFormat,
+        setMessages,
+      ),
+    );
+
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      mocks.remoteId = "thread-b";
+      threadState.isRunning = true;
+      threadState.messages = [{ id: "thread-b-live" } as ThreadMessage];
+      resolveLoad({
+        headId: "thread-a-stored",
+        messages: [{ parentId: null, message: { id: "thread-a-stored" } }],
+      });
+    });
+
+    expect(threadImport).not.toHaveBeenCalled();
+    expect(setMessages).not.toHaveBeenCalled();
+  });
 });
 
 describe("toExportedMessageRepository", () => {
