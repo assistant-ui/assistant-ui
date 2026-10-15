@@ -1904,10 +1904,7 @@ const useExternalThread = ({
           "Runtime does not support resuming runs (onResume is not set).",
         );
       if (resumePendingRef.current) return resumePendingRef.current;
-      if (!canResume) {
-        onResume(config);
-        return;
-      }
+      if (!canResume) return onResume(config);
       let start!: () => void;
       const pending = new Promise<void>((resolve, reject) => {
         start = () => {

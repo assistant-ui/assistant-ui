@@ -76,6 +76,36 @@ describe("checkpoint resume", () => {
     },
   );
 
+  it("returns the adapter's resume task without opt-in", async () => {
+    const onResume = vi.fn(async () => {
+      throw new Error("resume failed");
+    });
+    render(<App options={{ messages: [], onResume, canResume: false }} />);
+    await expect(
+      Promise.resolve(aui.thread().resumeRun({ parentId: null })),
+    ).rejects.toThrow("resume failed");
+  });
+
+  it("reports a failed resume instead of leaving it unhandled", async () => {
+    const error = new Error("resume failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const onResume = vi.fn(async () => {
+      throw error;
+    });
+    render(<App options={{ messages: [], onResume, canResume: true }} />);
+    await waitFor(() => expect(action.disabled).toBe(false));
+    act(() => action.resume());
+    await waitFor(() =>
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] Resume failed",
+        error,
+      ),
+    );
+    consoleError.mockRestore();
+  });
+
   it.each([undefined, false])(
     "does not coalesce existing runtime calls without opt-in: %s",
     async (canResume) => {
