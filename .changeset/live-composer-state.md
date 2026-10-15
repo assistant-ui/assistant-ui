@@ -4,4 +4,4 @@
 "@assistant-ui/react": patch
 ---
 
-Wake scoped composer readers when its runtime changes and expose the latest composer state synchronously.
+`useAuiState` and `aui.composer.getState()` now see composer text as soon as `setText` returns, so an input that keeps its own state, such as react-mentions, no longer moves the caret to the end.
