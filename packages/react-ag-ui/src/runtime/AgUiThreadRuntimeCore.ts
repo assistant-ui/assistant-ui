@@ -1411,8 +1411,9 @@ export class AgUiThreadRuntimeCore {
     const runAgentInstance = this.agent;
     this.activeRunAgent = runAgentInstance;
 
+    let runId: string | undefined;
     let cancelRun = () => {
-      if (!runFinished) dispatch({ type: "RUN_CANCELLED" });
+      dispatch({ type: "RUN_CANCELLED", ...(runId && { runId }) });
     };
     abortSignal.addEventListener(
       "abort",
@@ -1449,7 +1450,7 @@ export class AgUiThreadRuntimeCore {
             getAssistantMessageId: () => assistantMessageId,
           })) ?? null;
       } else {
-        const runId = generateId();
+        runId = generateId();
         aggregator.handle({ type: "RUN_STARTED", runId });
         const input = this.buildRunInput(
           runId,

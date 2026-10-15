@@ -85,6 +85,65 @@ function createOpenRun(finishWithInterrupt: boolean) {
 }
 
 describe("AgUiThreadRuntimeCore Stop after an interrupt", () => {
+  it("cancels a finished tool call when stopped before the stream closes", async () => {
+    let releaseFirst!: () => void;
+    const firstRunClosed = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const runAgent = vi.fn(
+      async (input: { runId: string }, subscriber: EventSubscriber) => {
+        if (runAgent.mock.calls.length !== 1) return;
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "call-1",
+            toolCallName: "lookup",
+          },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+        });
+        subscriber.onRunFinishedEvent?.({
+          event: { type: "RUN_FINISHED", runId: input.runId },
+        });
+        await firstRunClosed;
+      },
+    );
+    const abortRun = vi.fn(() => releaseFirst());
+    const core = new AgUiThreadRuntimeCore({
+      agent: { runAgent, abortRun } as unknown as AbstractAgent,
+      logger: makeLogger(),
+      showThinking: false,
+    });
+    const firstRun = core.append(userMessage("start"));
+
+    expect(core.getMessages().at(-1)?.status).toEqual({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+
+    await core.cancel();
+    await firstRun;
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    expect(assistant.status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+    expect(core.isRunning()).toBe(false);
+    expect(abortRun).toHaveBeenCalledOnce();
+
+    core.addToolResult({
+      messageId: assistant.id,
+      toolCallId: "call-1",
+      toolName: "lookup",
+      result: "found",
+      isError: false,
+    });
+
+    expect(runAgent).toHaveBeenCalledOnce();
+  });
+
   it("keeps the gate answerable and accepts a steer-away run", async () => {
     const { core, runAgent, abortRun } = createOpenRun(true);
     const firstRun = core.append(userMessage("start"));
