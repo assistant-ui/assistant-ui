@@ -1,5 +1,11 @@
 # tw-shimmer
 
+## 0.4.14
+
+### Patch Changes
+
+- [#9568](https://github.com/assistant-ui/assistant-ui/pull/9568) [`4b6de13`](https://github.com/assistant-ui/assistant-ui/commit/4b6de13123077ab10e548f26f129a2205b910e1b) - fix: redraw shimmer text when its content changes in Chrome, so a text shimmer whose box keeps its size (a block that fills its container, or a fixed-width inline-block) no longer garbles the new text ([@okisdev](https://github.com/okisdev))
+
 ## 0.4.13
 
 ### Patch Changes
