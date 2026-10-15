@@ -2415,6 +2415,50 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(streamCall).not.toHaveBeenCalled();
     });
 
+    it("suppresses a late call with a run id when Stop precedes activeRunId", async () => {
+      const u1 = createUserMessage("u1");
+      const { core, execute, streamCall, publish } = setup([u1]);
+      core.cancelRun();
+      publish(
+        [
+          u1,
+          {
+            ...toolMessage("a1", "late-call"),
+            metadata: {
+              ...createAssistantMessage("a1").metadata,
+              runId: "srv-1",
+            },
+          },
+        ],
+        false,
+      );
+      await settle();
+
+      expect(execute).not.toHaveBeenCalled();
+      expect(streamCall).not.toHaveBeenCalled();
+    });
+
+    it("suppresses a call in the cancelled message with a different run id", async () => {
+      const u1 = createUserMessage("u1");
+      const a1 = createAssistantMessage("a1");
+      const { core, execute, streamCall, publish } = setup([u1, a1]);
+      core.cancelRun();
+      publish(
+        [
+          u1,
+          {
+            ...toolMessage("a1", "existing-call"),
+            metadata: { ...a1.metadata, runId: "srv-1" },
+          },
+        ],
+        false,
+      );
+      await settle();
+
+      expect(execute).not.toHaveBeenCalled();
+      expect(streamCall).not.toHaveBeenCalled();
+    });
+
     it("keeps the cancelled scope through a second cancel after settle", async () => {
       const u1 = createUserMessage("u1");
       const { core, execute, streamCall, publish } = setup([u1]);

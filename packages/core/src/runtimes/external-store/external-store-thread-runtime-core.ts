@@ -945,16 +945,18 @@ export class ExternalStoreThreadRuntimeCore
       const message = this._messages[i]!;
       if (message.role !== "assistant" || message.metadata.isOptimistic)
         continue;
-      if (message.metadata.runId !== undefined) {
-        if (!this._cancelledRunIds.has(message.metadata.runId)) continue;
-      } else if (scope && !scope.messageIds.has(message.id)) {
-        if (
-          !scope.parentOpen ||
-          (this._messages[i - 1]?.id ?? null) !== scope.parentId
-        )
-          continue;
-        scope.messageIds.add(message.id);
-      } else if (!scope) continue;
+      const runId = message.metadata.runId;
+      if (runId === undefined || !this._cancelledRunIds.has(runId)) {
+        if (!scope) continue;
+        if (!scope.messageIds.has(message.id)) {
+          if (
+            !scope.parentOpen ||
+            (this._messages[i - 1]?.id ?? null) !== scope.parentId
+          )
+            continue;
+          scope.messageIds.add(message.id);
+        }
+      }
       for (const { part } of walkToolCallTree([message])) {
         ids.add(part.toolCallId);
       }
