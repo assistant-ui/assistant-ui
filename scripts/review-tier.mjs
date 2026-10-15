@@ -255,16 +255,19 @@ export async function gatherPullRequest(
   const readyForReviewAt =
     node.readyEvents.nodes.map(({ createdAt }) => createdAt).at(-1) ??
     node.createdAt;
-  const withPullRequests = (issue) => ({
+  const withPullRequests = (issue, closing) => ({
     number: issue.number,
     repository: issue.repository.nameWithOwner,
+    closing,
     pullRequests: issue.closedByPullRequestsReferences.nodes.map((other) => ({
       number: other.number,
       state: other.state,
       repository: other.repository.nameWithOwner,
     })),
   });
-  const adviceIssues = node.closingIssuesReferences.nodes.map(withPullRequests);
+  const adviceIssues = node.closingIssuesReferences.nodes.map((issue) =>
+    withPullRequests(issue, true),
+  );
   // Decision labels live on this repository's issues, so a closing issue in
   // another repository is never looked up here by its bare number.
   const decisionNumbers = new Set(
@@ -300,7 +303,7 @@ export async function gatherPullRequest(
     if (!issue) continue;
     linkedIssues.push({ number: issueNumber, labels: attributedLabels(issue) });
     if (!closingNumbers.has(issueNumber))
-      adviceIssues.push(withPullRequests(issue));
+      adviceIssues.push(withPullRequests(issue, false));
   }
 
   const files = (await client.paginate(`${repo}/pulls/${number}/files`)).map(

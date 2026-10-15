@@ -8,6 +8,7 @@ const policy = loadReviewPolicy(path.resolve(import.meta.dirname, "../.."));
 const issue = (number, ...pullRequests) => ({
   number,
   repository: policy.repository,
+  closing: true,
   pullRequests,
 });
 const pr = (number, state = "OPEN", repository = policy.repository) => ({
@@ -71,6 +72,20 @@ test("issues and pull requests from another repository keep their repository in 
     [
       "someone/fork-tools#12 is also open for #42",
       "someone/fork-tools#12 already merged for someone/fork-tools#7",
+    ],
+  );
+});
+
+test("a pull request closing an issue this one cites only as its decision is not called parallel work", () => {
+  assert.deepEqual(
+    adviceFor({
+      linkedIssues: [
+        { ...issue(9780, pr(15), pr(9, "MERGED")), closing: false },
+      ],
+    }),
+    [
+      "#15 closes #9780, which this PR cites as its decision",
+      "#9 closed #9780, which this PR cites as its decision",
     ],
   );
 });

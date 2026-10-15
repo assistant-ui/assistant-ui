@@ -30,11 +30,15 @@ export function advise(
   const lines = linkedIssues.flatMap((issue) =>
     issue.pullRequests
       .filter((other) => !isThis(other) && other.state !== "CLOSED")
-      .map((other) =>
-        other.state === "MERGED"
+      .map((other) => {
+        // Every PR in a stack cites the same decision issue and only the last
+        // one closes it, so that one is named as closing it, not as a duplicate.
+        if (!issue.closing)
+          return `${ref(other)} ${other.state === "MERGED" ? "closed" : "closes"} ${ref(issue)}, which this PR cites as its decision`;
+        return other.state === "MERGED"
           ? `${ref(other)} already merged for ${ref(issue)}`
-          : `${ref(other)} is also open for ${ref(issue)}`,
-      ),
+          : `${ref(other)} is also open for ${ref(issue)}`;
+      }),
   );
   if (type === "feat" && !hasLinkedIssue)
     lines.push(

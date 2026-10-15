@@ -1342,8 +1342,8 @@ test("an issue linked only under Decision still names other pull requests for it
   );
   assert.deepEqual(evaluation.advice, [
     "#14 is also open for #42",
-    "#15 is also open for #9780",
-    "#9 already merged for #9780",
+    "#15 closes #9780, which this PR cites as its decision",
+    "#9 closed #9780, which this PR cites as its decision",
   ]);
 });
 
