@@ -130,6 +130,118 @@ describe("scheduled error handlers", () => {
     root.unmount();
   });
 
+  it("delivers two unclaimed createTapRoot task errors individually and unwrapped", async () => {
+    const { createTapRoot, setTapErrorHandler, useState } = await setup();
+    const errors = [
+      new Error("first task failed"),
+      new Error("second task failed"),
+    ];
+    const onError = vi.fn();
+    setTapErrorHandler(onError);
+    const updates: ((value: number) => void)[] = [];
+    const roots = errors.map((error) =>
+      createTapRoot(function Root() {
+        const [count, setCount] = useState(0);
+        updates.push(setCount);
+        if (count === 1) throw error;
+        return count;
+      }),
+    );
+
+    for (const update of updates) update(1);
+    expect(() => FakeMessageChannel.instance.port1.deliver()).not.toThrow();
+    expect(onError).toHaveBeenCalledTimes(2);
+    expect(onError.mock.calls[0]?.[0]).toBe(errors[0]);
+    expect(onError.mock.calls[1]?.[0]).toBe(errors[1]);
+    for (const root of roots) root.unmount();
+  });
+
+  it.each([1, 2])(
+    "delivers all errors before rethrowing %i global handler failures",
+    async (failureCount) => {
+      const { setTapErrorHandler } = await setup();
+      const { scheduleNotify, UpdateScheduler } =
+        await import("../core/scheduler");
+      const errors = [
+        new Error("scheduler failed"),
+        new Error("notify failed"),
+      ];
+      const handlerErrors = Array.from(
+        { length: failureCount },
+        (_, index) => new Error(`handler failed ${index}`),
+      );
+      const onError = vi.fn();
+      for (const error of handlerErrors) {
+        onError.mockImplementationOnce(() => {
+          throw error;
+        });
+      }
+      setTapErrorHandler(onError);
+      const scheduler = new UpdateScheduler(() => {
+        scheduleNotify(() => {
+          throw errors[1];
+        });
+        throw errors[0];
+      });
+
+      scheduler.markDirty();
+      let caught: unknown;
+      try {
+        FakeMessageChannel.instance.port1.deliver();
+      } catch (error) {
+        caught = error;
+      }
+
+      expect(onError).toHaveBeenCalledTimes(2);
+      expect(onError.mock.calls[0]?.[0]).toBe(errors[0]);
+      expect(onError.mock.calls[1]?.[0]).toBe(errors[1]);
+      if (failureCount === 1) {
+        expect(caught).toBe(handlerErrors[0]);
+      } else {
+        expect(caught).toBeInstanceOf(AggregateError);
+        expect((caught as AggregateError).errors).toEqual(handlerErrors);
+      }
+    },
+  );
+
+  it("preserves task aggregation and logging without a global handler", async () => {
+    const { createTapRoot, useState } = await setup();
+    const errors = [
+      new Error("first task failed"),
+      new Error("second task failed"),
+    ];
+    const updates: ((value: number) => void)[] = [];
+    const roots = errors.map((error) =>
+      createTapRoot(function Root() {
+        const [count, setCount] = useState(0);
+        updates.push(setCount);
+        if (count === 1) throw error;
+        return count;
+      }),
+    );
+    const logError = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      for (const update of updates) update(1);
+      let caught: unknown;
+      try {
+        FakeMessageChannel.instance.port1.deliver();
+      } catch (error) {
+        caught = error;
+      }
+
+      expect(caught).toBeInstanceOf(AggregateError);
+      expect((caught as AggregateError).message).toBe(
+        "Errors occurred while running scheduled tasks",
+      );
+      expect((caught as AggregateError).errors).toEqual(errors);
+      expect(logError.mock.calls).toEqual(errors.map((error) => [error]));
+    } finally {
+      logError.mockRestore();
+      for (const root of roots) root.unmount();
+    }
+  });
+
   it("prefers the root handler over the global handler", async () => {
     const { createTapRoot, setTapErrorHandler, useState } = await setup();
     const error = new Error("owned");

@@ -20,7 +20,7 @@ let flushState: GlobalFlushState = {
   isScheduled: false,
 };
 let activeDrainRuns: Map<UpdateScheduler, number> | null = null;
-let isAsyncFlush = false;
+let asyncFlushErrors: unknown[] | undefined;
 let tapErrorHandler: ErrorHandler | undefined;
 
 export const setTapErrorHandler = (handler: ErrorHandler | undefined): void => {
@@ -78,7 +78,7 @@ const taskScheduler = new UpdateScheduler(() => {
     try {
       run();
     } catch (error) {
-      if (isAsyncFlush && onError) {
+      if (asyncFlushErrors && onError) {
         try {
           onError(error);
         } catch (handlerError) {
@@ -88,6 +88,10 @@ const taskScheduler = new UpdateScheduler(() => {
         errors.push(error);
       }
     }
+  }
+  if (asyncFlushErrors && tapErrorHandler) {
+    for (const error of errors) asyncFlushErrors.push(error);
+    return;
   }
   throwAggregated(errors, "Errors occurred while running scheduled tasks");
 });
@@ -117,10 +121,10 @@ const scheduleFlush = () => {
 const flushScheduled = (isAsync = false) => {
   // save/restore: flushTapSync re-enters flushScheduled with its own flushState
   const prevDrainRuns = activeDrainRuns;
-  const prevAsyncFlush = isAsyncFlush;
-  activeDrainRuns = new Map();
-  isAsyncFlush = isAsync;
+  const prevAsyncFlushErrors = asyncFlushErrors;
   const errors: unknown[] = [];
+  activeDrainRuns = new Map();
+  asyncFlushErrors = isAsync ? errors : undefined;
   try {
     for (const scheduler of flushState.schedulers) {
       flushState.schedulers.delete(scheduler);
@@ -142,7 +146,7 @@ const flushScheduled = (isAsync = false) => {
     }
   } finally {
     activeDrainRuns = prevDrainRuns;
-    isAsyncFlush = prevAsyncFlush;
+    asyncFlushErrors = prevAsyncFlushErrors;
     flushState.schedulers.clear();
     flushState.isScheduled = false;
 
@@ -166,8 +170,17 @@ const flushScheduled = (isAsync = false) => {
       }
     }
   }
-  if (isAsync && tapErrorHandler) {
-    for (const error of errors) tapErrorHandler(error);
+  const handler = tapErrorHandler;
+  if (isAsync && handler) {
+    const handlerErrors: unknown[] = [];
+    for (const error of errors) {
+      try {
+        handler(error);
+      } catch (handlerError) {
+        handlerErrors.push(handlerError);
+      }
+    }
+    throwAggregated(handlerErrors, "Errors occurred in tap error handler");
     return;
   }
   throwAggregated(errors, "Errors occurred during flushSync");
