@@ -42,6 +42,7 @@ export type LangGraphMessageConverterMetadata =
     uiMessagesByParent?: Map<string, UIMessage[]>;
     messageTiming?: Record<string, MessageTiming>;
     attachmentsByMessageId?: Map<string, readonly CompleteAttachment[]>;
+    streamingMessage?: LangChainMessage;
   };
 
 export const createLangGraphMetadataKey =
@@ -62,6 +63,11 @@ export const createLangGraphMetadataKey =
               previous as readonly UIMessage[],
               current as readonly UIMessage[],
             )),
+      },
+      {
+        select: (message, metadata) =>
+          message ===
+          (metadata as LangGraphMessageConverterMetadata).streamingMessage,
       },
       {
         select: (message, metadata) =>
@@ -400,6 +406,12 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
               toolName: chunk.name,
               args,
               argsText,
+              ...(!chunk.id && message !== metadata.streamingMessage
+                ? {
+                    result: "The provider sent this tool call without an id.",
+                    isError: true,
+                  }
+                : {}),
             };
           })
           .filter((part) => part !== null) ?? [];

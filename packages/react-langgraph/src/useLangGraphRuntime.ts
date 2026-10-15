@@ -378,8 +378,9 @@ const useLangGraphRuntimeImpl = (
         uiMessagesByParent,
         messageTiming,
         attachmentsByMessageId: attachmentsByMessageIdRef.current,
+        streamingMessage: isRunning ? messages.at(-1) : undefined,
       }) as unknown as useExternalMessageConverter.Metadata,
-    [uiMessagesByParent, messageTiming],
+    [uiMessagesByParent, messageTiming, isRunning, messages],
   );
 
   const sendMessageRef = useRef(sendMessage);
@@ -1029,6 +1030,15 @@ const useLangGraphRuntimeImpl = (
       isError,
       artifact,
     }) => {
+      const issuedInMessages = messages.some(
+        (message) =>
+          message.type === "ai" &&
+          message.tool_calls?.some((call) => call?.id === toolCallId),
+      );
+      const issuedInPendingRun = [
+        ...threadController.getState().pendingToolCallIdsByRun.values(),
+      ].some((ids) => ids.includes(toolCallId));
+      if (!issuedInMessages && !issuedInPendingRun) return;
       // A result for a call that already has a tool message (e.g. one
       // auto-cancelled when a new turn started, or a duplicate) must not resume
       // the graph with a second tool message. A call awaiting human input has

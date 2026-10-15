@@ -25,6 +25,7 @@ export type LangChainMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
     uiMessagesByParent?: Map<string, UIMessage[]>;
     messageTiming?: Record<string, MessageTiming>;
+    streamingMessage?: LangChainBaseMessage | undefined;
   };
 
 export const createLangChainMetadataKey =
@@ -45,6 +46,11 @@ export const createLangChainMetadataKey =
               previous as readonly UIMessage[],
               current as readonly UIMessage[],
             )),
+      },
+      {
+        select: (message, metadata) =>
+          message ===
+          (metadata as LangChainMessageConverterMetadata).streamingMessage,
       },
       {
         select: (message, metadata) =>
@@ -176,6 +182,12 @@ export const convertLangChainBaseMessage = (
               toolName: tc.name,
               args,
               argsText,
+              ...(!tc.id && message !== metadata.streamingMessage
+                ? {
+                    result: "The provider sent this tool call without an id.",
+                    isError: true,
+                  }
+                : {}),
             };
           }) ?? [];
 
