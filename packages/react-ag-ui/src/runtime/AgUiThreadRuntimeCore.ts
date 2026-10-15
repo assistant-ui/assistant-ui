@@ -1411,7 +1411,9 @@ export class AgUiThreadRuntimeCore {
     const runAgentInstance = this.agent;
     this.activeRunAgent = runAgentInstance;
 
-    let cancelRun = () => dispatch({ type: "RUN_CANCELLED" });
+    let cancelRun = () => {
+      if (!runFinished) dispatch({ type: "RUN_CANCELLED" });
+    };
     abortSignal.addEventListener(
       "abort",
       () => {
