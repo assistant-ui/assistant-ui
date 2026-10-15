@@ -18,6 +18,7 @@ import {
   type ToolCallMessagePart,
   type ToolExecutionStatus,
   generateId,
+  MessageNotSentError,
 } from "@assistant-ui/core";
 import {
   createAbortableThreadLoad,
@@ -269,6 +270,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     isRunningRef.current = effectiveIsRunning;
   }, [effectiveIsRunning]);
   const [runLeases] = useState(() => new RunLeases());
+  const stopGenerationRef = useRef(0);
   const checkpointLookupRef = useRef<{
     lease: RunLease;
     snapshot: ReturnType<typeof controller.getState>;
@@ -337,6 +339,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     msgs: AdkMessage[],
     config: AdkSendMessageConfig,
     rollbackState?: ReturnType<typeof controller.getState>,
+    onFirstEvent?: () => void,
   ): Promise<void> => {
     const toolResultBatches = new Map<string, AdkMessage[]>();
     const otherMessages: AdkMessage[] = [];
@@ -356,9 +359,41 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     if (toolResultBatches.size > 1) {
       const batches = [...toolResultBatches.values()];
       batches.at(-1)!.push(...otherMessages);
-      return Promise.all(
-        batches.map((batch) => handleSendMessage(batch, config, rollbackState)),
-      ).then(() => undefined);
+      const stopGeneration = stopGenerationRef.current;
+      return (async () => {
+        let nextIndex = 0;
+        let started = false;
+        try {
+          for (const batch of batches) {
+            if (stopGeneration !== stopGenerationRef.current)
+              throw new MessageNotSentError();
+            started = false;
+            await handleSendMessage(batch, config, rollbackState, () => {
+              started = true;
+            });
+            if (stopGeneration !== stopGenerationRef.current)
+              throw new MessageNotSentError();
+            nextIndex++;
+            started = false;
+          }
+        } catch (error) {
+          const unsent = batches
+            .slice(nextIndex + (started ? 1 : 0))
+            .flatMap((batch) => batch)
+            .filter(
+              (message): message is Extract<AdkMessage, { type: "tool" }> =>
+                message.type === "tool",
+            );
+          if (unsent.length > 0)
+            controller.dispatch({ type: "results.restore", messages: unsent });
+          if (
+            otherMessages.some((message) => message.type === "human") &&
+            (nextIndex < batches.length - 1 || !started)
+          )
+            throw new MessageNotSentError();
+          throw error;
+        }
+      })();
     }
     const isToolContinuation =
       msgs.length > 0 && msgs.every((msg) => msg.type === "tool");
@@ -377,6 +412,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       continuationConfig,
       (run) => runExclusive(() => run()),
       rollbackState,
+      onFirstEvent,
     );
   };
 
@@ -391,6 +427,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   };
 
   const stopRun = () => {
+    stopGenerationRef.current++;
     controller.dispatch({ type: "run.cancelled" });
     runLeases.invalidate();
     setIsRunning(false);

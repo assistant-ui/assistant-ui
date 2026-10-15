@@ -201,6 +201,7 @@ const useAdkMessagesInternal = ({
       config: AdkSendMessageConfig,
       executeWithRun?: RunExecutor,
       rollbackState?: AdkThreadState,
+      onFirstEventForSend?: () => void,
     ) => {
       const newMessagesWithId = newMessages.map((m) =>
         m.id ? m : { ...m, id: generateId() },
@@ -289,6 +290,7 @@ const useAdkMessagesInternal = ({
             if (!receivedEvent) {
               receivedEvent = true;
               onFirstEvent?.(rollbackState);
+              onFirstEventForSend?.();
             }
             const event = normalizeAdkEvent(rawEvent);
             const updatedMessages = accumulator.processEvent(event);
