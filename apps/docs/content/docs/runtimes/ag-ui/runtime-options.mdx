@@ -31,11 +31,13 @@ Use `getRunContext` to pass host context through AG-UI's `RunAgentInput.context`
 ```tsx
 const runtime = useAgUiRuntime({
   agent,
-  getRunContext: () => [{ description: "tenantId", value: tenantId }],
+  getRunContext: () => [
+    { description: "selectedRecord", value: JSON.stringify(record) },
+  ],
 });
 ```
 
-The runtime calls the latest getter for every run, including resumes. `messages` is the exact converted AG-UI transcript in `RunAgentInput`. On a resume it reflects `resumeTranscript`: "full" sends the whole thread, while "appended" sends messages after the interrupted assistant message, falling back to the whole thread if that message is missing. `runConfig` is the run config used to build the input. Returned entries follow the system prompt entry when one is present.
+The browser builds these entries, so the backend must not trust them for authorization. The runtime calls the latest getter for every run, including resumes. `messages` is the exact converted AG-UI transcript in `RunAgentInput`. On a resume it reflects `resumeTranscript`: "full" sends the whole thread, while "appended" sends messages after the interrupted assistant message, falling back to the whole thread if that message is missing. `runConfig` is the run config used to build the input. Returned entries follow the system prompt entry when one is present.
 
 If the getter throws, the error is reported and the run continues without host entries.
 
