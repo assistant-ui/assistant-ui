@@ -5,10 +5,16 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import type { ChatModelAdapter } from "../../../index";
 import type { AssistantRuntime } from "../../../runtime/api/assistant-runtime";
+import type { ThreadRuntimeImpl } from "../../../runtime/api/thread-runtime";
+import { EMPTY_THREAD_CORE } from "../../../runtimes/remote-thread-list/empty-thread-core";
 import type { ThreadMessage } from "../../../types/message";
 import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/adapter/in-memory";
-import { makeAdapter } from "../../../tests/remote-thread-list-test-helpers";
+import {
+  actSettled,
+  makeAdapter,
+} from "../../../tests/remote-thread-list-test-helpers";
 import { AssistantRuntimeProvider } from "../../AssistantRuntimeProvider";
+import { RemoteThreadListHookInstanceManager } from "../RemoteThreadListHookInstanceManager";
 import { useExternalStoreRuntime } from "../useExternalStoreRuntime";
 import { useLocalRuntime } from "../useLocalRuntime";
 import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
@@ -49,6 +55,62 @@ const useEmptyThreadRuntime = () =>
   useExternalStoreRuntime({ messages: [], onNew: async () => {} } as never);
 
 describe("useRemoteThreadListRuntime client bridge", () => {
+  it("settles a switch only after a replacement runtime attaches", async () => {
+    let manager: RemoteThreadListHookInstanceManager | undefined;
+    const startThreadRuntime =
+      RemoteThreadListHookInstanceManager.prototype.startThreadRuntime;
+    vi.spyOn(
+      RemoteThreadListHookInstanceManager.prototype,
+      "startThreadRuntime",
+    ).mockImplementation(function (
+      this: RemoteThreadListHookInstanceManager,
+      id,
+    ) {
+      if (id === "thread-b") manager = this;
+      return startThreadRuntime.call(this, id);
+    });
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "regular" as const, remoteId: "thread-a" },
+          { status: "archived" as const, remoteId: "thread-b" },
+        ],
+      })),
+      unarchive: vi.fn(async () => manager!.stopThreadRuntime("thread-b")),
+    });
+    let runtime: AssistantRuntime | undefined;
+    const App = () => {
+      runtime = useRemoteThreadListRuntime({
+        adapter,
+        runtimeHook: useEmptyThreadRuntime,
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+    await actSettled(() => runtime!.threads.getLoadThreadsPromise());
+    await actSettled(() => runtime!.threads.switchToThread("thread-a"));
+    expect(runtime!.threads.getState().mainThreadId).toBe("thread-a");
+
+    let targetAtSettlement: unknown;
+    await actSettled(() =>
+      runtime!.threads.switchToThread("thread-b").then(() => {
+        targetAtSettlement = manager!.getThreadRuntimeCore("thread-b");
+      }),
+    );
+    expect(runtime!.threads.getState().mainThreadId).toBe("thread-b");
+    expect(targetAtSettlement).toBeDefined();
+    expect(
+      (
+        runtime!.thread as ThreadRuntimeImpl
+      ).__internal_threadBinding.getState(),
+    ).not.toBe(EMPTY_THREAD_CORE);
+  });
+
   it("waits for reload after a failed list when the controlled ID changes", async () => {
     const error = new Error("offline");
     vi.spyOn(console, "error").mockImplementation(() => {});

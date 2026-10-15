@@ -106,6 +106,7 @@ const useRemoteThreadListRuntimeThreads = ({
       onThreadIdChange: options.onThreadIdChange,
       backgroundThreads: true,
       __internal_ensureThread: clientCore?.__internal_ensureThread,
+      __internal_isThreadAttached: clientCore?.__internal_isThreadAttached,
       __internal_initialThreadIdSeed: initialThreadIdSeed,
       __internal_preserveDraftOnAdapterChange: true,
       __internal_reopenControlledThreadOnAdapterChange: true,

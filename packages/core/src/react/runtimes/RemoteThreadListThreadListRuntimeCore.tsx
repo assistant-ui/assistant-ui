@@ -101,6 +101,7 @@ export class RemoteThreadListThreadListRuntimeCore
   private _staleThreadsAdapter: RemoteThreadListAdapter | undefined;
   private _switchGeneration = 0;
   private _switchTask: Promise<void> | undefined;
+  private _supersedeAttachmentWait: (() => void) | undefined;
   private _switchError:
     | { readonly threadId: string; readonly error: unknown }
     | undefined;
@@ -398,7 +399,7 @@ export class RemoteThreadListThreadListRuntimeCore
     if (adapterChanged) {
       this._loadGeneration++;
       this._adapterGeneration++;
-      this._switchGeneration++;
+      this._nextSwitchGeneration();
       this._switchTask = undefined;
       this._loadThreadsPromise = undefined;
       this._loadMorePromise = undefined;
@@ -789,12 +790,17 @@ export class RemoteThreadListThreadListRuntimeCore
     return this._startSwitchToThread(threadIdOrRemoteId, options, true);
   }
 
+  private _nextSwitchGeneration() {
+    this._supersedeAttachmentWait?.();
+    return ++this._switchGeneration;
+  }
+
   private _startSwitchToThread(
     threadIdOrRemoteId: string,
     options: { unarchive?: boolean } | undefined,
     emitThreadIdChange: boolean,
   ): Promise<void> {
-    const generation = ++this._switchGeneration;
+    const generation = this._nextSwitchGeneration();
     this._setSwitchError(undefined);
     const task = this._switchToThread(
       threadIdOrRemoteId,
@@ -861,6 +867,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
     if (generation !== this._switchGeneration) return;
 
+    const attachedRuntime = this._hookManager.getThreadRuntimeCore(data.id);
     let current = getThreadData(this._state.value, data.id);
     if (current?.id !== data.id) return;
 
@@ -876,7 +883,15 @@ export class RemoteThreadListThreadListRuntimeCore
         if (current?.id !== data.id) return;
       }
     }
+    const replacementNeeded =
+      !this._disposed &&
+      attachedRuntime !== undefined &&
+      !this._hookManager.getThreadRuntimeCore(current.id);
     this._setMainThreadId(current.id);
+    if (replacementNeeded) {
+      await this._waitForReplacement(current.id);
+      if (generation !== this._switchGeneration) return;
+    }
 
     this._notifySubscribers();
     this._notifyThreadIdChange(emitThreadIdChange);
@@ -890,6 +905,24 @@ export class RemoteThreadListThreadListRuntimeCore
       return;
     const notify = () => this._notifySubscribers();
     void this._hookManager.startThreadRuntime(threadId).then(notify, notify);
+  }
+
+  private async _waitForReplacement(threadId: string) {
+    let supersede!: () => void;
+    const superseded = new Promise<void>((resolve) => {
+      supersede = resolve;
+    });
+    this._supersedeAttachmentWait = supersede;
+    try {
+      await Promise.race([
+        this._hookManager.startThreadRuntime(threadId),
+        superseded,
+      ]);
+    } finally {
+      if (this._supersedeAttachmentWait === supersede) {
+        this._supersedeAttachmentWait = undefined;
+      }
+    }
   }
 
   public switchToNewThread(): Promise<void> {
@@ -922,7 +955,7 @@ export class RemoteThreadListThreadListRuntimeCore
     emitThreadIdChange: boolean,
     initialThreadIdSeed?: string,
   ): Promise<void> {
-    const generation = ++this._switchGeneration;
+    const generation = this._nextSwitchGeneration();
     this._setSwitchError(undefined);
     const task = this._switchToNewThread(
       generation,

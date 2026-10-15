@@ -91,6 +91,9 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
     await this.hookManager.startThreadRuntime(item.id);
   };
 
+  public __internal_isThreadAttached = (threadId: string) =>
+    this.hookManager.getThreadRuntimeCore(threadId) !== undefined;
+
   public __internal_dispose() {
     this.hookManager.__internal_dispose();
   }
