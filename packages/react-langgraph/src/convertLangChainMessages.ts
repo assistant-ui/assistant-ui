@@ -89,14 +89,29 @@ export const createLangGraphMetadataKey =
       {
         select: (message, metadata) =>
           message.type === "ai"
-            ? message.tool_calls?.map((call) =>
-                Boolean(
-                  call?.id &&
-                  (
-                    metadata as LangGraphMessageConverterMetadata
-                  ).bufferedReplyIds?.has(call.id),
+            ? [
+                ...(message.tool_calls?.map((call) =>
+                  Boolean(
+                    call?.id &&
+                    (
+                      metadata as LangGraphMessageConverterMetadata
+                    ).bufferedReplyIds?.has(call.id),
+                  ),
+                ) ?? []),
+                ...getAiContent(message).flatMap((part, index) =>
+                  part.type === "computer_call"
+                    ? [
+                        Boolean(
+                          (
+                            metadata as LangGraphMessageConverterMetadata
+                          ).bufferedReplyIds?.has(
+                            getComputerCallId(part, message.id, index),
+                          ),
+                        ),
+                      ]
+                    : [],
                 ),
-              )
+              ]
             : undefined,
         isEqual: (previous, current) =>
           previous === current ||
@@ -241,6 +256,24 @@ const contentBlocks = (
   );
 };
 
+const getAiContent = (message: Extract<LangChainMessage, { type: "ai" }>) =>
+  [
+    message.additional_kwargs?.reasoning,
+    ...(typeof message.content === "string"
+      ? [{ type: "text" as const, text: message.content }]
+      : contentBlocks(message.content)),
+    ...(message.additional_kwargs?.tool_outputs ?? []),
+  ].filter((part) => part !== undefined);
+
+const getComputerCallId = (
+  part: Extract<LangChainMessageContentBlock, { type: "computer_call" }>,
+  messageId: string | undefined,
+  partIndex: number,
+) =>
+  part.call_id ||
+  part.id ||
+  `lc-toolcall-${messageId ?? "unknown"}-computer-${part.index ?? partIndex}`;
+
 const contentToParts = (
   content: LangChainMessage["content"],
   metadata: LangGraphMessageConverterMetadata,
@@ -258,10 +291,7 @@ const contentToParts = (
         | (ThreadUserMessage | ThreadAssistantMessage)["content"][number]
         | null => {
         if (part.type === "computer_call") {
-          const toolCallId =
-            part.call_id ||
-            part.id ||
-            `lc-toolcall-${messageId ?? "unknown"}-computer-${part.index ?? partIndex}`;
+          const toolCallId = getComputerCallId(part, messageId, partIndex);
           const { args, argsText } = serializeToolCallArgs(
             part.action,
             metadata.toolArgsKeyOrderCache,
@@ -273,6 +303,9 @@ const contentToParts = (
             toolName: "computer_call",
             args,
             argsText,
+            ...(metadata.bufferedReplyIds?.has(toolCallId) && {
+              responseDeliveryStatus: "queued" as const,
+            }),
           };
         }
 
@@ -441,17 +474,6 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
           })
           .filter((part) => part !== null) ?? [];
 
-      const normalizedContent =
-        typeof message.content === "string"
-          ? [{ type: "text" as const, text: message.content }]
-          : contentBlocks(message.content);
-
-      const allContent = [
-        message.additional_kwargs?.reasoning,
-        ...normalizedContent,
-        ...(message.additional_kwargs?.tool_outputs ?? []),
-      ].filter((c) => c !== undefined);
-
       const uiDataParts: readonly DataMessagePart[] =
         (message.id
           ? metadata.uiMessagesByParent
@@ -469,7 +491,7 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
         id: message.id,
         content: [
           ...withAudioTranscript(
-            contentToParts(allContent, metadata, message.id),
+            contentToParts(getAiContent(message), metadata, message.id),
             message.additional_kwargs,
           ),
           ...toolCallParts,
