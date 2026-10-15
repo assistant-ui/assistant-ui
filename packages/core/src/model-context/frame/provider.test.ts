@@ -224,6 +224,7 @@ describe("AssistantFrameProvider", () => {
           channel: FRAME_MESSAGE_CHANNEL,
           message: {
             type: "model-context-update",
+            documentId: expect.any(String),
             context: {
               system: "current context",
               tools: {},
@@ -290,6 +291,7 @@ describe("AssistantFrameProvider", () => {
           channel: FRAME_MESSAGE_CHANNEL,
           message: {
             type: "tool-result",
+            documentId: expect.any(String),
             id: "tool-call-1",
             error: "Tool result could not be sent across the frame boundary",
           },
@@ -413,18 +415,29 @@ describe("AssistantFrameProvider", () => {
       [
         {
           channel: FRAME_MESSAGE_CHANNEL,
-          message: { type: "model-context-update", context: {} },
+          message: {
+            type: "model-context-update",
+            documentId: expect.any(String),
+            context: {},
+          },
         },
         "https://parent.example",
       ],
       [
         {
           channel: FRAME_MESSAGE_CHANNEL,
-          message: { type: "provider-disposed" },
+          message: {
+            type: "provider-disposed",
+            documentId: expect.any(String),
+          },
         },
         "https://parent.example",
       ],
     ]);
+    const messages = vi
+      .mocked(parentWindow.postMessage)
+      .mock.calls.map(([data]) => data.message);
+    expect(messages[0]?.documentId).toBe(messages[1]?.documentId);
   });
 
   it("aborts in-flight tool calls when the provider is disposed", async () => {
@@ -458,6 +471,7 @@ describe("AssistantFrameProvider", () => {
         channel: FRAME_MESSAGE_CHANNEL,
         message: {
           type: "tool-result",
+          documentId: expect.any(String),
           id: "tool-call-1",
           error: "AssistantFrameProvider has been disposed",
         },
@@ -467,7 +481,10 @@ describe("AssistantFrameProvider", () => {
     expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
       {
         channel: FRAME_MESSAGE_CHANNEL,
-        message: { type: "provider-disposed" },
+        message: {
+          type: "provider-disposed",
+          documentId: expect.any(String),
+        },
       },
       window.location.origin,
     );
@@ -513,6 +530,7 @@ describe("AssistantFrameProvider", () => {
         channel: FRAME_MESSAGE_CHANNEL,
         message: {
           type: "tool-result",
+          documentId: expect.any(String),
           id: "tool-call-1",
           error: "AssistantFrame tool provider has been removed",
         },
@@ -793,6 +811,7 @@ describe("AssistantFrameProvider", () => {
         channel: FRAME_MESSAGE_CHANNEL,
         message: {
           type: "tool-result",
+          documentId: expect.any(String),
           id: "tool-call-1",
           error: "AssistantFrame tool provider has been removed",
         },
@@ -849,6 +868,7 @@ describe("AssistantFrameProvider", () => {
         channel: FRAME_MESSAGE_CHANNEL,
         message: {
           type: "model-context-update",
+          documentId: expect.any(String),
           context: {
             system: "shared system",
             tools: {},
@@ -968,7 +988,11 @@ describe("AssistantFrameProvider", () => {
     expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
       {
         channel: FRAME_MESSAGE_CHANNEL,
-        message: { type: "model-context-update", context: {} },
+        message: {
+          type: "model-context-update",
+          documentId: expect.any(String),
+          context: {},
+        },
       },
       "https://parent.example",
     );
@@ -998,7 +1022,11 @@ describe("AssistantFrameProvider", () => {
 
     expect(sentTo("https://parent.example").at(-1)).toEqual({
       channel: FRAME_MESSAGE_CHANNEL,
-      message: { type: "model-context-update", context: {} },
+      message: {
+        type: "model-context-update",
+        documentId: expect.any(String),
+        context: {},
+      },
     });
     expect(JSON.stringify(sentTo("https://parent.example"))).not.toContain(
       "otherTool",
@@ -1063,7 +1091,11 @@ describe("AssistantFrameProvider", () => {
     expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
       {
         channel: FRAME_MESSAGE_CHANNEL,
-        message: { type: "model-context-update", context: {} },
+        message: {
+          type: "model-context-update",
+          documentId: expect.any(String),
+          context: {},
+        },
       },
       "https://parent.example",
     );

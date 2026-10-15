@@ -32,6 +32,7 @@ const isSerializedModelContext = (
 
 export const isFrameMessage = (value: unknown): value is FrameMessage => {
   if (!isRecord(value) || typeof value.type !== "string") return false;
+  if (!hasOptionalPropertyType(value, "documentId", "string")) return false;
 
   switch (value.type) {
     case "model-context-request":

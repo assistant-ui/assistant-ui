@@ -313,6 +313,8 @@ useAssistantFrameHost({
 
 `register` is required. The hook calls it with the new `AssistantFrameHost` and calls the returned function on cleanup. Pass a stable function (for example from `useCallback`), because the hook reconnects whenever `register` changes.
 
+When the iframe reloads, the host removes the previous page's tools and fails its pending tool calls, even if the new page does not register a provider.
+
 ### ModelContextRegistry
 
 A registry for model context that supports updates at runtime.

@@ -67,6 +67,9 @@ export class AssistantFrameHost implements ModelContextProvider {
   private _targetOrigin: string;
   private _disposed = false;
   private _providerDisposed = false;
+  private _documentId: string | undefined;
+  private _documentIdAtLoad: string | undefined;
+  private _previousDocumentIds = new Set<string>();
 
   constructor(
     iframeWindow: Window,
@@ -90,6 +93,16 @@ export class AssistantFrameHost implements ModelContextProvider {
 
     const message = event.data.message;
     if (!isFrameMessage(message)) return;
+
+    if (message.documentId !== undefined) {
+      if (this._previousDocumentIds.has(message.documentId)) return;
+      if (message.documentId !== this._documentId) {
+        if (this._documentId !== undefined)
+          this._previousDocumentIds.add(this._documentId);
+        this.clearDocument();
+        this._documentId = message.documentId;
+      }
+    }
 
     switch (message.type) {
       case "model-context-update": {
@@ -122,6 +135,35 @@ export class AssistantFrameHost implements ModelContextProvider {
         break;
       }
     }
+  }
+
+  private clearDocument() {
+    this._context = {};
+    this._providerDisposed = true;
+    this.notifySubscribers();
+    const error = new Error("AssistantFrame document has changed");
+    for (const [id, pending] of this._pendingRequests) {
+      this._pendingRequests.delete(id);
+      pending.reject(error);
+    }
+  }
+
+  /** Call when the iframe has loaded a new document. */
+  frameLoaded() {
+    if (this._disposed) return;
+    if (
+      this._documentId !== undefined &&
+      this._documentId !== this._documentIdAtLoad
+    ) {
+      this._documentIdAtLoad = this._documentId;
+      return;
+    }
+    if (this._documentId !== undefined)
+      this._previousDocumentIds.add(this._documentId);
+    this._documentId = undefined;
+    this._documentIdAtLoad = undefined;
+    this.clearDocument();
+    this.requestContext();
   }
 
   private updateContext(serializedContext: SerializedModelContext) {
