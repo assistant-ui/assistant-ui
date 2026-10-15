@@ -3,6 +3,7 @@ import {
   convertLangChainMessages,
   createLangGraphMetadataKey,
 } from "./convertLangChainMessages";
+import type { LangGraphMessageConverterMetadata } from "./convertLangChainMessages";
 import type { LangChainMessage } from "./types";
 
 const message: LangChainMessage = {
@@ -20,14 +21,30 @@ const message: LangChainMessage = {
   ],
 };
 
+const metadata = (
+  bufferedReplyIds: ReadonlySet<string>,
+): LangGraphMessageConverterMetadata => ({ bufferedReplyIds });
+
 describe("buffered computer_call replies", () => {
   it("marks the content block as queued only while its reply is buffered", () => {
-    const queued = convertLangChainMessages(message, {
-      bufferedReplyIds: new Set(["computer-1"]),
-    });
-    const unqueued = convertLangChainMessages(message, {
-      bufferedReplyIds: new Set(),
-    });
+    const queuedResult = convertLangChainMessages(
+      message,
+      metadata(new Set(["computer-1"])),
+    );
+    const queued = Array.isArray(queuedResult) ? queuedResult[0] : queuedResult;
+    if (!queued || queued.role !== "assistant") {
+      throw new Error("Expected an assistant message");
+    }
+    const unqueuedResult = convertLangChainMessages(
+      message,
+      metadata(new Set()),
+    );
+    const unqueued = Array.isArray(unqueuedResult)
+      ? unqueuedResult[0]
+      : unqueuedResult;
+    if (!unqueued || unqueued.role !== "assistant") {
+      throw new Error("Expected an assistant message");
+    }
 
     expect(queued.content).toMatchObject([
       {
@@ -42,11 +59,9 @@ describe("buffered computer_call replies", () => {
 
   it("updates the metadata key when a computer_call reply is buffered or released", () => {
     const getMetadataKey = createLangGraphMetadataKey();
-    const initial = getMetadataKey(message, { bufferedReplyIds: new Set() });
-    const queued = getMetadataKey(message, {
-      bufferedReplyIds: new Set(["computer-1"]),
-    });
-    const released = getMetadataKey(message, { bufferedReplyIds: new Set() });
+    const initial = getMetadataKey(message, metadata(new Set()));
+    const queued = getMetadataKey(message, metadata(new Set(["computer-1"])));
+    const released = getMetadataKey(message, metadata(new Set()));
 
     expect(queued).not.toBe(initial);
     expect(released).not.toBe(queued);

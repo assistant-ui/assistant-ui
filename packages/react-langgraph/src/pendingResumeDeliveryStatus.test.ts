@@ -4,6 +4,7 @@ import {
   convertLangChainMessages,
   createLangGraphMetadataKey,
 } from "./convertLangChainMessages";
+import type { LangGraphMessageConverterMetadata } from "./convertLangChainMessages";
 import type { LangChainMessage } from "./types";
 
 const message: LangChainMessage = {
@@ -16,29 +17,50 @@ const message: LangChainMessage = {
   ],
 };
 
+const metadata = (
+  bufferedReplyIds: ReadonlySet<string>,
+): LangGraphMessageConverterMetadata => ({ bufferedReplyIds });
+
 it("marks a sibling merged into a pending resume queued and clears it when dropped", () => {
   const controller = new LangGraphThreadController();
   const listener = vi.fn();
   controller.subscribe(listener);
   const getMetadataKey = createLangGraphMetadataKey();
-  const first = [{ type: "tool" as const, tool_call_id: "c1", content: "1" }];
-  const sibling = [{ type: "tool" as const, tool_call_id: "c2", content: "2" }];
+  const first: Extract<LangChainMessage, { type: "tool" }>[] = [
+    {
+      type: "tool",
+      tool_call_id: "c1",
+      name: "ask",
+      content: "1",
+      status: "success",
+    },
+  ];
+  const sibling: Extract<LangChainMessage, { type: "tool" }>[] = [
+    {
+      type: "tool",
+      tool_call_id: "c2",
+      name: "ask",
+      content: "2",
+      status: "success",
+    },
+  ];
 
   controller.dispatch({
     type: "resume.enqueue",
     groupKey: "run:1",
     batch: first,
   });
-  const before = getMetadataKey(message, {
-    bufferedReplyIds: controller.getQueuedReplyIds(),
-  });
+  const before = getMetadataKey(
+    message,
+    metadata(controller.getQueuedReplyIds()),
+  );
   controller.dispatch({
     type: "resume.enqueue",
     groupKey: "run:1",
     batch: sibling,
   });
   const queuedReplyIds = controller.getQueuedReplyIds();
-  const merged = getMetadataKey(message, { bufferedReplyIds: queuedReplyIds });
+  const merged = getMetadataKey(message, metadata(queuedReplyIds));
 
   expect(controller.getState().pendingResume.get("run:1")?.messages).toEqual([
     ...first,
@@ -46,10 +68,17 @@ it("marks a sibling merged into a pending resume queued and clears it when dropp
   ]);
   expect(listener).toHaveBeenCalledTimes(2);
   expect(merged).not.toBe(before);
-  expect(
-    convertLangChainMessages(message, { bufferedReplyIds: queuedReplyIds })
-      .content,
-  ).toEqual(
+  const queuedResult = convertLangChainMessages(
+    message,
+    metadata(queuedReplyIds),
+  );
+  const queuedMessage = Array.isArray(queuedResult)
+    ? queuedResult[0]
+    : queuedResult;
+  if (!queuedMessage || queuedMessage.role !== "assistant") {
+    throw new Error("Expected an assistant message");
+  }
+  expect(queuedMessage.content).toEqual(
     expect.arrayContaining([
       expect.objectContaining({
         type: "tool-call",
@@ -67,12 +96,27 @@ it("marks a sibling merged into a pending resume queued and clears it when dropp
   controller.dispatch({ type: "run.cancelled" });
   const droppedReplyIds = controller.getQueuedReplyIds();
   expect(droppedReplyIds.size).toBe(0);
+  expect(getMetadataKey(message, metadata(droppedReplyIds))).not.toBe(merged);
+  const droppedResult = convertLangChainMessages(
+    message,
+    metadata(droppedReplyIds),
+  );
+  const droppedMessage = Array.isArray(droppedResult)
+    ? droppedResult[0]
+    : droppedResult;
+  if (!droppedMessage || droppedMessage.role !== "assistant") {
+    throw new Error("Expected an assistant message");
+  }
+  if (typeof droppedMessage.content === "string") {
+    throw new Error("Expected array content");
+  }
   expect(
-    getMetadataKey(message, { bufferedReplyIds: droppedReplyIds }),
-  ).not.toBe(merged);
-  expect(
-    convertLangChainMessages(message, { bufferedReplyIds: droppedReplyIds })
-      .content.filter((part) => part.type === "tool-call")
-      .map((part) => part.responseDeliveryStatus),
+    droppedMessage.content
+      .filter((part) => part.type === "tool-call")
+      .map((part) =>
+        "responseDeliveryStatus" in part
+          ? part.responseDeliveryStatus
+          : undefined,
+      ),
   ).toEqual([undefined, undefined]);
 });
