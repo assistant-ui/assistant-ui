@@ -286,6 +286,63 @@ describe("useLangGraphRuntime parallel tool results", () => {
     await waitFor(() => expect(deliveryStatus(runtime, "c1")).toBeUndefined());
   });
 
+  it("marks a second group's resume queued until its request is sent", async () => {
+    let finishFirstResume!: () => void;
+    const firstResumeGate = new Promise<void>((resolve) => {
+      finishFirstResume = resolve;
+    });
+    const sent: unknown[][] = [];
+    const stream = vi.fn(async function* (messages: unknown[]) {
+      sent.push(messages);
+      if (sent.length === 1) yield aiWith(["c1"]);
+      if (sent.length === 2) {
+        yield {
+          event: "messages/complete",
+          data: [
+            {
+              id: "second-calls",
+              type: "ai" as const,
+              content: "",
+              tool_calls: [{ id: "c2", name: "ask", args: {} }],
+            },
+          ],
+        };
+      }
+      if (sent.length === 3) await firstResumeGate;
+    });
+    const runtime = mount(stream);
+    const { result: send } = renderHook(() => useLangGraphSend(), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {children}
+        </AssistantRuntimeProvider>
+      ),
+    });
+
+    act(() => runtime.thread.append("go"));
+    await waitForCall(runtime, "c1");
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+    act(() => {
+      void send.current([], {});
+    });
+    await waitForCall(runtime, "c2");
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+    act(() => addResult(runtime, "c1"));
+    await waitFor(() => expect(sent).toHaveLength(3));
+    act(() => addResult(runtime, "c2"));
+
+    await waitFor(() => expect(deliveryStatus(runtime, "c2")).toBe("queued"));
+    expect(sent).toHaveLength(3);
+    act(() => finishFirstResume());
+    await waitFor(() => expect(sent).toHaveLength(4));
+    expect(sent[3]).toMatchObject([{ type: "tool", tool_call_id: "c2" }]);
+    await waitFor(() => expect(deliveryStatus(runtime, "c2")).toBeUndefined());
+  });
+
   it("holds a messages-tuple tool result until every streamed call is answered", async () => {
     let releaseSecondCall!: () => void;
     const secondCall = new Promise<void>((resolve) => {
