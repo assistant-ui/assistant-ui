@@ -724,12 +724,156 @@ describe("useExternalHistory persistence", () => {
     return message;
   };
 
+  const createSlowLoadHarness = () => {
+    mocks.hasThreadListItem = true;
+    mocks.remoteId = "remote-thread";
+
+    const stored: MessageFormatRepository<InnerMessage> = {
+      headId: "stored",
+      messages: [
+        {
+          parentId: null,
+          message: { id: "stored", parts: ["earlier"] },
+        },
+      ],
+    };
+    let resolveLoad!: (repo: MessageFormatRepository<InnerMessage>) => void;
+    const load = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<MessageFormatRepository<InnerMessage>>((resolve) => {
+            resolveLoad = resolve;
+          }),
+      )
+      .mockImplementation(async () => ({
+        headId: stored.headId,
+        messages: [...stored.messages],
+      }));
+    const append = vi.fn(
+      async (
+        item: MessageFormatRepository<InnerMessage>["messages"][number],
+      ) => {
+        stored.messages.push(item);
+        stored.headId = item.message.id;
+      },
+    );
+    const adapter: ThreadHistoryAdapter = {
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue({ load, append }),
+    };
+    const toMessages = (messages: InnerMessage[]) =>
+      messages.map((message) =>
+        createAssistantMessage(
+          { type: "complete", reason: "stop" },
+          [message],
+          message.id,
+        ),
+      );
+    const mount = () => {
+      let listener: (() => void) | undefined;
+      let isRunning = false;
+      let messages: ThreadMessage[] = [];
+      const importMessages = vi.fn(
+        (repo: { messages: { message: ThreadMessage }[] }) => {
+          messages = repo.messages.map((item) => item.message);
+        },
+      );
+      const thread = {
+        subscribe: (next: () => void) => {
+          listener = next;
+          return () => {};
+        },
+        getState: () => ({ isRunning, messages }),
+        import: importMessages,
+      } as unknown as AssistantRuntime["thread"];
+      const hook = renderHook(() =>
+        useExternalHistory(
+          { current: { thread } as AssistantRuntime },
+          adapter,
+          toMessages,
+          persistenceStorageFormat,
+          () => {},
+        ),
+      );
+      return {
+        ...hook,
+        importMessages,
+        settle: async () => {
+          await act(async () => {
+            isRunning = true;
+            messages = toMessages([{ id: "live", parts: ["reply"] }]);
+            listener?.();
+          });
+          await act(async () => {
+            isRunning = false;
+            listener?.();
+          });
+        },
+      };
+    };
+
+    const first = mount();
+    const settleBeforeLoad = async () => {
+      await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+      await first.settle();
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      const appendCountBeforeLoad = append.mock.calls.length;
+      await act(async () => {
+        resolveLoad({ headId: "stored", messages: [stored.messages[0]!] });
+      });
+      await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+      return appendCountBeforeLoad;
+    };
+    return { append, first, mount, settleBeforeLoad };
+  };
+
+  it("waits for slow history before persisting a settled live turn", async () => {
+    const { append, settleBeforeLoad } = createSlowLoadHarness();
+
+    const appendCountBeforeLoad = await settleBeforeLoad();
+
+    expect(append).toHaveBeenCalledWith({
+      parentId: "stored",
+      message: { id: "live", parts: ["reply"] },
+    });
+    expect(appendCountBeforeLoad).toBe(0);
+  });
+
+  it("reloads the persisted turn after its earlier history on one branch", async () => {
+    const { first, mount, settleBeforeLoad } = createSlowLoadHarness();
+    await settleBeforeLoad();
+    first.unmount();
+
+    const second = mount();
+    await waitFor(() => expect(second.importMessages).toHaveBeenCalledTimes(1));
+    const imported = second.importMessages.mock.calls[0]![0];
+    const repository = new MessageRepository();
+    repository.import(imported);
+
+    expect(imported.headId).toBe("live");
+    expect(
+      imported.messages.map((item) => [item.parentId, item.message.id]),
+    ).toEqual([
+      [null, "stored"],
+      ["stored", "live"],
+    ]);
+    expect(repository.getMessages().map((message) => message.id)).toEqual([
+      "stored",
+      "live",
+    ]);
+  });
+
   const createPersistenceHarness = (
     supportsUpdate: boolean,
     options?: {
       loadMessages?: MessageFormatRepository<InnerMessage>;
       toThreadMessages?: (messages: InnerMessage[]) => ThreadMessage[];
       initialIsRunning?: boolean;
+      skipRemoteId?: boolean;
       onSetMessages?: (messages: InnerMessage[]) => void;
       toolArtifacts?: Map<string, unknown>;
       onToolArtifactsRestored?: () => void;
@@ -789,7 +933,7 @@ describe("useExternalHistory persistence", () => {
     };
 
     mocks.hasThreadListItem = true;
-    mocks.remoteId = "remote-thread";
+    mocks.remoteId = options?.skipRemoteId ? undefined : "remote-thread";
 
     const { result, unmount } = renderHook(() =>
       useExternalHistory(
@@ -899,6 +1043,25 @@ describe("useExternalHistory persistence", () => {
     expect(append).toHaveBeenCalledWith({
       parentId: null,
       message: { id: "spoken-1", parts: ["spoken"] },
+    });
+  });
+
+  it("persists a settled turn without a remote history load", async () => {
+    const { append, load, runCycle } = createPersistenceHarness(false, {
+      skipRemoteId: true,
+    });
+    const message = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "local", parts: ["reply"] }],
+    );
+
+    await runCycle([message]);
+
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+    expect(load).not.toHaveBeenCalled();
+    expect(append).toHaveBeenCalledWith({
+      parentId: null,
+      message: { id: "local", parts: ["reply"] },
     });
   });
 

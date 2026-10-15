@@ -104,6 +104,13 @@ export const useExternalHistory = <TMessage>(
   );
 
   const [hasLoaded, setHasLoaded] = useState(false);
+  const historyReadyRef = useRef(false);
+  const persistWhenReadyRef = useRef<() => void>(() => {});
+
+  useEffect(() => {
+    historyReadyRef.current = hasLoaded;
+    if (hasLoaded) persistWhenReadyRef.current();
+  }, [hasLoaded]);
 
   const historyIds = useRef(new Set<string>());
   const deferredTelemetryIds = useRef(new Set<string>());
@@ -244,6 +251,7 @@ export const useExternalHistory = <TMessage>(
     }
 
     loadedRef.current = true;
+    historyReadyRef.current = false;
     setHasLoaded(false);
     void loadHistory();
     return undefined;
@@ -429,6 +437,7 @@ export const useExternalHistory = <TMessage>(
 
     function persistSettled(ignoreRunning: boolean) {
       persistTimerRef.current = null;
+      if (!historyReadyRef.current) return;
       const latest = runtimeRef.current.thread.getState();
       if (!ignoreRunning && latest.isRunning) return;
 
@@ -584,7 +593,15 @@ export const useExternalHistory = <TMessage>(
         });
     }
 
+    persistWhenReadyRef.current = () => {
+      const state = runtimeRef.current.thread.getState();
+      if (state.isRunning || state.messages.length === 0) return;
+      if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+      persistSettled(true);
+    };
+
     return () => {
+      persistWhenReadyRef.current = () => {};
       unsubscribe();
       if (persistTimerRef.current) {
         clearTimeout(persistTimerRef.current);
