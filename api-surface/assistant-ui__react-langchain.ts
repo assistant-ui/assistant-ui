@@ -1125,6 +1125,7 @@ type LangChainMediaBlock = {
 type LangChainMessageConverterMetadata = useExternalMessageConverter.Metadata & {
   uiMessagesByParent?: Map<string, UIMessage[]>;
   messageTiming?: Record<string, MessageTiming>;
+  streamingMessage?: LangChainBaseMessage | undefined;
 };
 
 type LangChainRuntimeExtraOptions = ExternalStoreSharedOptions & {
