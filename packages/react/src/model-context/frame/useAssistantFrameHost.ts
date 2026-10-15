@@ -33,39 +33,68 @@ export const useAssistantFrameHost = ({
   register,
 }: UseAssistantFrameHostOptions): void => {
   useEffect(() => {
-    const iframeWindow = iframeRef.current?.contentWindow;
-    if (!iframeWindow) return;
+    let active:
+      | {
+          iframe: HTMLIFrameElement;
+          window: Window;
+          dispose: () => void;
+        }
+      | undefined;
 
-    const frameHost = new AssistantFrameHost(iframeWindow, targetOrigin);
+    const syncFrame = () => {
+      const iframe = iframeRef.current;
+      const iframeWindow =
+        iframe?.isConnected === false ? null : iframe?.contentWindow;
+      if (active && active.iframe === iframe && active.window === iframeWindow)
+        return;
 
-    const unsubscribe = register(frameHost);
+      const previous = active;
+      active = undefined;
+      previous?.dispose();
+      if (!iframe || !iframeWindow) return;
+
+      const frameHost = new AssistantFrameHost(iframeWindow, targetOrigin);
+      const unsubscribe = register(frameHost);
+      active = {
+        iframe,
+        window: iframeWindow,
+        dispose: () => {
+          let cleanupFailed = false;
+          let cleanupError: unknown;
+
+          try {
+            frameHost.dispose();
+          } catch (error) {
+            cleanupFailed = true;
+            cleanupError = error;
+          }
+
+          try {
+            unsubscribe();
+          } catch (error) {
+            if (cleanupFailed) {
+              console.error(
+                "[assistant-ui] AssistantFrameHost unregistration failed.",
+                error,
+              );
+            } else {
+              cleanupFailed = true;
+              cleanupError = error;
+            }
+          }
+
+          if (cleanupFailed) throw cleanupError;
+        },
+      };
+    };
+
+    syncFrame();
+    const observer = new MutationObserver(syncFrame);
+    observer.observe(document, { childList: true, subtree: true });
 
     return () => {
-      let cleanupFailed = false;
-      let cleanupError: unknown;
-
-      try {
-        frameHost.dispose();
-      } catch (error) {
-        cleanupFailed = true;
-        cleanupError = error;
-      }
-
-      try {
-        unsubscribe();
-      } catch (error) {
-        if (cleanupFailed) {
-          console.error(
-            "[assistant-ui] AssistantFrameHost unregistration failed.",
-            error,
-          );
-        } else {
-          cleanupFailed = true;
-          cleanupError = error;
-        }
-      }
-
-      if (cleanupFailed) throw cleanupError;
+      observer.disconnect();
+      active?.dispose();
     };
   }, [iframeRef, targetOrigin, register]);
 };
