@@ -43,6 +43,7 @@ describe("RemoteThreadListThreadListRuntimeCore switch/delete ordering", () => {
 
   it("does not select a thread deleted while its switch is unarchiving", async () => {
     const unarchive = deferred<void>();
+    let unarchiveSettled = false;
     const adapter = makeAdapter({
       list: vi.fn(async () => ({
         threads: [
@@ -54,7 +55,13 @@ describe("RemoteThreadListThreadListRuntimeCore switch/delete ordering", () => {
           },
         ],
       })),
-      unarchive: vi.fn(() => unarchive.promise),
+      unarchive: vi.fn(async () => {
+        await unarchive.promise;
+        unarchiveSettled = true;
+      }),
+      delete: vi.fn(async () => {
+        expect(unarchiveSettled).toBe(true);
+      }),
     });
     const core = createCore(adapter);
     await core.getLoadThreadsPromise();
@@ -64,10 +71,10 @@ describe("RemoteThreadListThreadListRuntimeCore switch/delete ordering", () => {
     await vi.waitFor(() => {
       expect(adapter.unarchive).toHaveBeenCalledWith("thread-b");
     });
-    await core.delete("thread-b");
-
+    const deleting = core.delete("thread-b");
+    expect(adapter.delete).not.toHaveBeenCalled();
     unarchive.resolve();
-    await switchToB;
+    await Promise.all([switchToB, deleting]);
 
     expect(core.getItemById("thread-b")).toBeUndefined();
     expect(core.mainThreadId).toBe(initialMainThreadId);
