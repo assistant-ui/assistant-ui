@@ -85,6 +85,27 @@ describe("ring full turn", () => {
     expect(d).toBe(ring(211, 199.05, 0.001, 170.95, 0, TURN));
   });
 
+  it("keeps the hole when only the near-full inner arc rounds closed", () => {
+    const d = ring(211, 199.05, 106, 170.95, 0, (150_000 / 150_001) * TURN);
+
+    expect(d).toBe(
+      "M211 28.1 A170.95 170.95 0 1 1 210.99 28.1 L211 93.05 A106 106 0 0 0 211 305.05 A106 106 0 0 0 211 93.05 Z",
+    );
+    expectDrawable(d);
+  });
+
+  it("keeps the path when both near-full arcs have distinct endpoints", () => {
+    expect(ring(100, 100, 40, 80, 0, (999 / 1_000) * TURN)).toBe(
+      "M100 20 A80 80 0 1 1 99.5 20 L99.75 60 A40 40 0 1 0 100 60 Z",
+    );
+  });
+
+  it("leaves a tiny sector with coinciding endpoints as a sector", () => {
+    expect(ring(211, 199.05, 106, 170.95, 0, 1e-6)).toBe(
+      "M211 28.1 A170.95 170.95 0 0 1 211 28.1 L211 93.05 A106 106 0 0 0 211 93.05 Z",
+    );
+  });
+
   it("leaves a sliver that rounds to a point as a sector", () => {
     expect(ring(100, 100, 40, 80, 0, 1e-6)).toBe(
       "M100 20 A80 80 0 0 1 100 20 L100 60 A40 40 0 0 0 100 60 Z",
