@@ -31,9 +31,9 @@ export function Activity() {
   </Step>
   <Step>
 
-### The visible window is always the trailing year
+### The visible window follows the data, then today
 
-`HeatGraph` never exposes `start` or `end`, the underlying primitive's own knobs for the date range, so the grid always covers the 365 days ending today, computed fresh at render time, aligned back to the start of its week. A `data` point outside that window, too old or dated in the future, is silently left off the grid rather than shown or reported as an error. If you need a fixed or a different window, compose the primitives yourself; see [Editing the composition directly](#editing-the-composition-directly) below.
+`HeatGraph` does not expose `start` or `end`, the underlying primitive's date-range props. During server rendering and hydration, the grid covers the 365 days ending at the latest valid data date, aligned back to the start of its week. With no valid data dates, that initial grid is empty. After mount, the grid ends today and covers the trailing 365 days. A `data` point outside the active window is left off the grid. If you need a fixed or a different window, compose the primitives yourself; see [Editing the composition directly](#editing-the-composition-directly) below.
 
   </Step>
 </Steps>
