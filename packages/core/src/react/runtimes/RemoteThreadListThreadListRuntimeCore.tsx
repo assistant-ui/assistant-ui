@@ -706,6 +706,14 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   private _lastNotifiedThreadId: string | undefined = undefined;
+  private _newThreadIntent:
+    | { id: string; generation: number; unsubscribe: () => void }
+    | undefined;
+
+  private _clearNewThreadIntent() {
+    this._newThreadIntent?.unsubscribe();
+    this._newThreadIntent = undefined;
+  }
 
   private _notifyThreadIdChange(emit = true) {
     const main =
@@ -713,6 +721,12 @@ export class RemoteThreadListThreadListRuntimeCore
         ? undefined
         : getThreadData(this._state.value, this._mainThreadId);
     const threadId = main?.remoteId;
+    if (
+      threadId !== undefined &&
+      this._newThreadIntent?.generation === this._switchGeneration &&
+      this._newThreadIntent.id === this._mainThreadId
+    )
+      return;
     if (threadId === undefined && main && main.status !== "new") return;
     if (this._lastNotifiedThreadId === threadId) return;
     this._lastNotifiedThreadId = threadId;
@@ -794,6 +808,7 @@ export class RemoteThreadListThreadListRuntimeCore
     options: { unarchive?: boolean } | undefined,
     emitThreadIdChange: boolean,
   ): Promise<void> {
+    this._clearNewThreadIntent();
     const generation = ++this._switchGeneration;
     this._setSwitchError(undefined);
     const task = this._switchToThread(
@@ -922,7 +937,18 @@ export class RemoteThreadListThreadListRuntimeCore
     emitThreadIdChange: boolean,
     initialThreadIdSeed?: string,
   ): Promise<void> {
+    this._clearNewThreadIntent();
     const generation = ++this._switchGeneration;
+    if (
+      !emitThreadIdChange &&
+      this._state.baseValue.newThreadId === this._mainThreadId
+    ) {
+      this._newThreadIntent = {
+        id: this._mainThreadId,
+        generation,
+        unsubscribe: () => {},
+      };
+    }
     this._setSwitchError(undefined);
     const task = this._switchToNewThread(
       generation,
@@ -938,24 +964,61 @@ export class RemoteThreadListThreadListRuntimeCore
     emitThreadIdChange: boolean,
     initialThreadIdSeed?: string,
   ): Promise<void> {
-    // an initialization transaction is in progress, wait for it to settle
-    while (
-      this._state.baseValue.newThreadId !== undefined &&
-      this._state.value.newThreadId === undefined
-    ) {
-      await this._state.waitForUpdate();
+    while (generation === this._switchGeneration) {
+      while (
+        this._state.baseValue.newThreadId !== undefined &&
+        this._state.value.newThreadId === undefined
+      ) {
+        await this._state.waitForUpdate();
+        if (generation !== this._switchGeneration) return;
+      }
+
+      let id = this._state.value.newThreadId;
+      if (id === undefined) {
+        const next = seedNewThread(this._state.baseValue, initialThreadIdSeed);
+        id = next.id;
+        this._state.update(next.state);
+      }
+
+      const data = getThreadData(this._state.value, id);
+      if (data?.status !== "new") continue;
+      if (data.id === this._mainThreadId) {
+        if (!emitThreadIdChange) {
+          const unsubscribe = this._state.subscribe(() => {
+            if (generation !== this._switchGeneration) {
+              unsubscribe();
+              return;
+            }
+            if (getThreadData(this._state.value, id)?.status === "new") return;
+            unsubscribe();
+            queueMicrotask(() => {
+              if (generation !== this._switchGeneration) return;
+              void this._switchToThreadFromProp(undefined).catch(() => {});
+            });
+          });
+          this._newThreadIntent = { id: data.id, generation, unsubscribe };
+        }
+        return;
+      }
+
+      const task = this._hookManager.startThreadRuntime(data.id);
+      if (this.mainThreadId !== undefined) {
+        await task;
+      } else {
+        void task.then(
+          () => this._notifySubscribers(),
+          () => undefined,
+        );
+      }
       if (generation !== this._switchGeneration) return;
+      const current = getThreadData(this._state.value, data.id);
+      if (current?.status !== "new" || current.id !== data.id) continue;
+      this._setMainThreadId(current.id);
+      this._clearNewThreadIntent();
+      this._notifySubscribers();
+      this._notifyThreadIdChange(emitThreadIdChange);
+      return;
     }
-
-    const state = this._state.baseValue;
-    let id: string | undefined = this._state.value.newThreadId;
-    if (id === undefined) {
-      const next = seedNewThread(state, initialThreadIdSeed);
-      id = next.id;
-      this._state.update(next.state);
-    }
-
-    return this._switchToThread(id, undefined, generation, emitThreadIdChange);
   }
 
   public initialize = async (threadId: string) => {
@@ -1516,6 +1579,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
   public __internal_dispose() {
     this._disposed = true;
+    this._clearNewThreadIntent();
     this._disarmAutomaticTitles();
     this._hookManager.__internal_dispose();
   }
