@@ -347,6 +347,8 @@ export type ToolCallMessagePart<
   readonly args: TArgs;
   /** Result returned by the tool. Final once it has completed; an interim value while `isPreliminary` is set. */
   readonly result?: TResult | undefined;
+  /** The runtime holds this call's response locally and has not sent it yet. */
+  readonly responseDeliveryStatus?: "queued" | undefined;
   /** Whether the result represents a tool execution error. */
   readonly isError?: boolean | undefined;
   /** Whether `result` is an interim value from a tool that is still running, so the call is not settled yet. */
