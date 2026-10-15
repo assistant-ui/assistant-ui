@@ -66,6 +66,10 @@ type MessagePartLike = {
   type: string;
   text?: string;
   image?: string;
+  audio?: {
+    data?: string;
+    format?: "mp3" | "wav";
+  };
   data?: string;
   mimeType?: string;
   filename?: string;
@@ -148,6 +152,25 @@ function toGenericFilePart(
   part: MessagePartLike,
   contentType?: string,
 ): GenericFilePart | undefined {
+  if (
+    part.type === "audio" &&
+    typeof part.audio?.data === "string" &&
+    part.audio.format !== undefined
+  ) {
+    const mediaType = `audio/${part.audio.format}`;
+    const base64DataUrl = part.audio.data.match(
+      /^data:[^;,]*(?:;[^;,]+)*;base64,(.*)$/i,
+    );
+    return {
+      type: "file",
+      data: toUrlOrString(
+        base64DataUrl
+          ? `data:${mediaType};base64,${base64DataUrl[1]}`
+          : part.audio.data,
+      ),
+      mediaType,
+    };
+  }
   if (part.type === "image" && part.image) {
     return {
       type: "file",
