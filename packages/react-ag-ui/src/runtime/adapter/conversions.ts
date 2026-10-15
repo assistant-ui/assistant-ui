@@ -122,54 +122,60 @@ const getString = (record: Record<string, unknown>, key: string) => {
   return typeof value === "string" ? value : undefined;
 };
 
-function readAgUiMessageMetadata(metadata: unknown): Record<string, unknown> {
-  if (!isObject(metadata)) return {};
-
-  const legacyCustom = isObject(metadata.custom) ? metadata.custom : {};
-  const legacyNamespaceValue = legacyCustom[AG_UI_METADATA_NAMESPACE];
-  const hasLegacyNamespace = isObject(legacyNamespaceValue);
-  const legacyNamespace = hasLegacyNamespace ? legacyNamespaceValue : {};
-  const namespaceValue = metadata[AG_UI_METADATA_NAMESPACE];
-  const namespace = isObject(namespaceValue) ? namespaceValue : {};
-  const messageMetadata = { ...metadata };
-  if (hasLegacyNamespace) delete messageMetadata.custom;
-
-  return {
-    ...messageMetadata,
-    ...(hasLegacyNamespace ? legacyCustom : {}),
-    ...(Object.keys(legacyNamespace).length > 0 ||
-    Object.keys(namespace).length > 0
-      ? {
-          [AG_UI_METADATA_NAMESPACE]: {
-            ...legacyNamespace,
-            ...namespace,
-          },
-        }
-      : {}),
-  };
-}
-
 function toAgUiWireMetadata(
   metadata: unknown,
 ): Record<string, unknown> | undefined {
-  if (!isObject(metadata)) return undefined;
-  const wireMetadata = { ...metadata };
-  delete wireMetadata[AG_UI_METADATA_NAMESPACE];
-  return Object.keys(wireMetadata).length > 0 ? wireMetadata : undefined;
+  return isObject(metadata) ? { ...metadata } : undefined;
+}
+
+function readLegacyAgUiNamespace(metadata: unknown): Record<string, unknown> {
+  if (!isObject(metadata) || !isObject(metadata.custom)) return {};
+  const namespaced = metadata.custom[AG_UI_METADATA_NAMESPACE];
+  if (!isObject(namespaced)) return {};
+  return "interrupts" in namespaced
+    ? { interrupts: namespaced.interrupts }
+    : {};
+}
+
+function toSnapshotCustom(
+  metadata: unknown,
+  state: Record<string, unknown> = {},
+): Record<string, unknown> {
+  const wire = toAgUiWireMetadata(metadata) ?? {};
+  const hasWire = isObject(metadata);
+  const needsWireSlot =
+    hasWire &&
+    (Object.keys(wire).length === 0 || AG_UI_METADATA_NAMESPACE in wire);
+  const namespaced = {
+    ...readLegacyAgUiNamespace(metadata),
+    ...state,
+    ...(needsWireSlot ? { messageMetadata: wire } : {}),
+  };
+  return {
+    ...wire,
+    ...(Object.keys(namespaced).length > 0
+      ? { [AG_UI_METADATA_NAMESPACE]: namespaced }
+      : {}),
+  };
 }
 
 function toAgUiMessageMetadata(
   metadata: unknown,
 ): Record<string, unknown> | undefined {
   const custom = readCustomMetadata(metadata);
-  return toAgUiWireMetadata(custom);
+  const namespaced = readNamespacedMetadata(metadata);
+  if (isObject(namespaced.messageMetadata)) {
+    return { ...namespaced.messageMetadata };
+  }
+  const { [AG_UI_METADATA_NAMESPACE]: _state, ...wire } = custom;
+  return Object.keys(wire).length > 0 ? wire : undefined;
 }
 
 function withAgUiMessageMetadata(metadata: unknown): {
   metadata?: Record<string, unknown>;
 } {
   const messageMetadata = toAgUiMessageMetadata(metadata);
-  return messageMetadata ? { metadata: messageMetadata } : {};
+  return messageMetadata !== undefined ? { metadata: messageMetadata } : {};
 }
 
 function withAgUiPartMessageMetadata(
@@ -721,7 +727,7 @@ function toAssistantSnapshotMessage(
   rawMessage: Record<string, unknown>,
 ): CoreThreadMessageLike {
   const text = extractText(rawMessage.content);
-  const custom = readAgUiMessageMetadata(rawMessage.metadata);
+  const custom = toSnapshotCustom(rawMessage.metadata);
   const interrupts = readPersistedInterrupts({ custom });
   const restoredToolCalls = extractAssistantToolCalls(rawMessage);
   const approvals = projectAgUiToolApprovals(
@@ -770,18 +776,12 @@ function toUserOrSystemSnapshotMessage(
   rawMessage: Record<string, unknown>,
 ): CoreThreadMessageLike {
   const messageName = getString(rawMessage, "name");
-  const custom = readAgUiMessageMetadata(rawMessage.metadata);
+  const custom = toSnapshotCustom(
+    rawMessage.metadata,
+    role === "developer" ? { role: "developer" } : {},
+  );
   const attachments =
     role === "user" ? toSnapshotAttachments(rawMessage.content) : [];
-  if (role === "developer") {
-    const namespaced = isObject(custom[AG_UI_METADATA_NAMESPACE])
-      ? custom[AG_UI_METADATA_NAMESPACE]
-      : {};
-    custom[AG_UI_METADATA_NAMESPACE] = {
-      ...namespaced,
-      role: "developer",
-    } satisfies AgUiCustomMetadata;
-  }
   return {
     id: getString(rawMessage, "id") ?? generateId(),
     // The internal message model has no developer role; it rides as a system
@@ -1035,9 +1035,7 @@ export function fromAgUiMessages(
       const mcpAppUri = readMcpAppResourceUri(mcpResult?._meta);
       const mcpApp =
         mcpAppUri !== undefined ? { resourceUri: mcpAppUri } : undefined;
-      const messageMetadata = toAgUiWireMetadata(
-        readAgUiMessageMetadata(rawMessage.metadata),
-      );
+      const messageMetadata = toAgUiWireMetadata(rawMessage.metadata);
 
       let updated = false;
       for (
@@ -1221,9 +1219,7 @@ export function fromAgUiMessages(
     if (role === "reasoning") {
       const text = extractText(rawMessage.content);
       const encryptedValue = getString(rawMessage, "encryptedValue");
-      const messageMetadata = toAgUiWireMetadata(
-        readAgUiMessageMetadata(rawMessage.metadata),
-      );
+      const messageMetadata = toAgUiWireMetadata(rawMessage.metadata);
       if (text.trim().length === 0) {
         // showThinking hides reasoning; this record is never rendered anyway,
         // and dropping it would deny the provider the payload it needs to
@@ -1404,9 +1400,7 @@ function convertAssistantMessage(
     reasoningIndex++;
   }
 
-  // Drop assistant messages with no text or tool calls (e.g. an imported
-  // reasoning-only entry) so they are not re-sent as a blank assistant turn.
-  if (shellIsDropped) {
+  if (shellIsDropped && toAgUiMessageMetadata(message.metadata) === undefined) {
     return;
   }
 
