@@ -55,6 +55,7 @@ export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       messageRepository?: AISDKRuntimeAdapter<UI_MESSAGE>["messageRepository"];
       /** @deprecated Experimental since 2026-06-23. Not scheduled for removal; the API may change in any release. */
       unstable_onBranchChange?: AISDKRuntimeAdapter["unstable_onBranchChange"];
+      /** @deprecated Experimental since 2026-10-15. Not scheduled for removal; the API may change in any release. */
       unstable_enableMessageQueue?: AISDKRuntimeAdapter["unstable_enableMessageQueue"];
     };
 
