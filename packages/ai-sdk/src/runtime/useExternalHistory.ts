@@ -300,6 +300,7 @@ export const useExternalHistory = <TMessage>(
 
         const previousMessages = messages
           .slice(0, messages.indexOf(message))
+          .filter((item) => !deletedMessageIds.current.has(item.id))
           .flatMap(getExternalStoreMessages<TMessage>);
         let parentId = previousMessages.at(-1)
           ? storageFormatAdapter.getId(previousMessages.at(-1)!)
