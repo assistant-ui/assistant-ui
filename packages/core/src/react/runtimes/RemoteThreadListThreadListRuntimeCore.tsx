@@ -1060,7 +1060,11 @@ export class RemoteThreadListThreadListRuntimeCore
     }
 
     this._requireAdapterGeneration(adapterGeneration);
-    const initializeTask = adapter.initialize(threadId);
+    const custom = getThreadData(this._state.value, threadId)?.custom;
+    const initializeTask =
+      custom === undefined
+        ? adapter.initialize(threadId)
+        : adapter.initialize(threadId, { custom });
     let removedMappingId: string | undefined;
     const initialization = this._state.optimisticUpdate({
       execute: () => initializeTask,
@@ -1337,12 +1341,23 @@ export class RemoteThreadListThreadListRuntimeCore
         threadIdOrRemoteId,
         "updating its custom metadata",
       );
-    if (data.status === "new")
-      throw threadStatusError(
-        threadIdOrRemoteId,
-        data.status,
-        "update custom metadata",
-      );
+    const applyCustom = (state: RemoteThreadState): RemoteThreadState => {
+      if (this._isOtherAdaptersThread(state, adapter, threadIdOrRemoteId))
+        return state;
+      const current = getThreadData(state, threadIdOrRemoteId);
+      if (!current) return state;
+      return {
+        ...state,
+        threadData: {
+          ...state.threadData,
+          [current.id]: { ...current, custom },
+        },
+      };
+    };
+    if (data.status === "new") {
+      this._state.update(applyCustom(this._state.baseValue));
+      return;
+    }
 
     if (!adapter.updateCustom) {
       throw new Error(
@@ -1363,23 +1378,7 @@ export class RemoteThreadListThreadListRuntimeCore
           }
           return adapter.updateCustom(remoteId, custom);
         }),
-      optimistic: (state) => {
-        if (this._isOtherAdaptersThread(state, adapter, threadIdOrRemoteId))
-          return state;
-        const data = getThreadData(state, threadIdOrRemoteId);
-        if (!data) return state;
-
-        return {
-          ...state,
-          threadData: {
-            ...state.threadData,
-            [data.id]: {
-              ...data,
-              custom,
-            },
-          },
-        };
-      },
+      optimistic: applyCustom,
     });
   }
 

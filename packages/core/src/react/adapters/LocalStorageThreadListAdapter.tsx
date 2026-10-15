@@ -839,6 +839,7 @@ export const createLocalStorageAdapter = (
 
     async initialize(
       threadId: string,
+      options?: { custom?: Record<string, unknown> | undefined },
     ): Promise<RemoteThreadInitializeResponse> {
       const remoteId = threadId;
       const key = messagesKey(remoteId);
@@ -853,6 +854,9 @@ export const createLocalStorageAdapter = (
             threads.unshift({
               remoteId,
               status: "regular",
+              ...(options?.custom !== undefined
+                ? { custom: options.custom }
+                : {}),
             });
             await saveThreadMetadata(threads);
           }

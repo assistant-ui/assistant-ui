@@ -455,7 +455,7 @@ function ThreadListItemMeta() {
 }
 ```
 
-`custom` is preserved across `rename`, `archive`, `unarchive`, and `generateTitle`. To replace it from your UI, implement `RemoteThreadListAdapter.updateCustom` and call `aui.threadListItem.updateCustom(custom)`. The cloud adapter persists this through `cloud.threads.update(threadId, { metadata })`. If your adapter mutates thread metadata through a separate application path, return the updated values from `fetch()` or call `aui.threads.reload()` to re-run `list()`.
+`custom` is preserved across `rename`, `archive`, `unarchive`, and `generateTitle`. To replace it from your UI, implement `RemoteThreadListAdapter.updateCustom` and call `aui.threadListItem.updateCustom(custom)`. On a new draft, this updates the item immediately without calling the adapter; `initialize(threadId, options?)` receives the value as `options.custom` when it creates the thread. Later updates call `updateCustom` on the adapter. The cloud adapter includes it in `cloud.threads.create({ metadata })`. If your adapter mutates thread metadata through a separate application path, return the updated values from `fetch()` or call `aui.threads.reload()` to re-run `list()`.
 
 ## ExternalStoreThreadListAdapter
 
