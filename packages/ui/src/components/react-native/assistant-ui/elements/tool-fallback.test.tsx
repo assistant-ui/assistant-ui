@@ -112,7 +112,7 @@ describe("ToolFallback", () => {
 
     await renderTool({ status: { type: "complete" }, result: "approved" });
     expect(container.textContent).not.toContain("Reply queued, not sent yet");
-    expect(container.textContent).toContain("approved");
+    expect(container.textContent).not.toContain("approved");
   });
 
   it.each([

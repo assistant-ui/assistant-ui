@@ -768,7 +768,7 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
           respondToApproval={respondToApproval}
         />
       )}
-      {result !== undefined && (
+      {responseDeliveryStatus === "queued" && result !== undefined && (
         <View className="aui-tool-fallback-result ps-6">
           <Text className="text-muted-foreground text-xs font-semibold">
             Result:
