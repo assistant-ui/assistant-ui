@@ -88,6 +88,76 @@ it("matches live user and AI ids with a replay of stored events", async () => {
   expect(result.current.messages).toEqual(loaded.messages);
 });
 
+it("replays a staged multi-human batch under the id it showed live", async () => {
+  const agentEvent: AdkEvent = {
+    id: "final",
+    invocationId: "run-3",
+    author: "agent",
+    content: { role: "model", parts: [{ text: "Hello" }] },
+  };
+  let runBody: { customMetadata?: unknown; newMessage?: unknown } | undefined;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/run_sse")) {
+        runBody = JSON.parse(String(init?.body));
+        return new Response(`data: ${JSON.stringify(agentEvent)}\n\n`, {
+          headers: { "Content-Type": "text/event-stream" },
+        });
+      }
+      return new Response(
+        JSON.stringify({
+          id: "session-1",
+          events: [
+            {
+              id: "server-user",
+              invocationId: "run-3",
+              author: "user",
+              customMetadata: runBody?.customMetadata,
+              content: runBody?.newMessage,
+            },
+            agentEvent,
+          ],
+        }),
+      );
+    }),
+  );
+  const adkStream = createAdkStream({
+    api: "http://localhost:8000",
+    appName: "app",
+    userId: "user",
+  });
+  const stream: AdkStreamCallback = (messages, config) =>
+    adkStream(messages, {
+      ...config,
+      initialize: async () => ({
+        remoteId: "session-1",
+        externalId: "session-1",
+      }),
+    });
+  const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
+  await act(async () => {
+    await result.current.sendMessage(
+      [
+        { id: "human-a", type: "human", content: "Hi" },
+        { id: "human-b", type: "human", content: "there" },
+      ],
+      {},
+    );
+  });
+  const { load } = createAdkSessionAdapter({
+    apiUrl: "http://localhost:8000",
+    appName: "app",
+    userId: "user",
+  });
+  const loaded = await load("session-1");
+  expect(result.current.messages.map((message) => message.id)).toEqual([
+    "human-a",
+    "run-3:ai",
+  ]);
+  expect(result.current.messages).toEqual(loaded.messages);
+});
+
 it("keeps the sent user id when the first stream event is from an agent", async () => {
   const userEvent: AdkEvent = {
     id: "server-user",
