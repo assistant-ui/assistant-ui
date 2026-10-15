@@ -122,3 +122,24 @@ it("serves a replacement frame before reporting a disposal failure", () => {
     vi.unstubAllGlobals();
   }
 });
+
+it("disposes a host whose registration throws", () => {
+  const dispose = vi.spyOn(AssistantFrameHost.prototype, "dispose");
+  const iframe = attachFrame();
+  const register = vi.fn((): (() => void) => {
+    throw new Error("register failed");
+  });
+
+  try {
+    expect(() =>
+      renderHook(() =>
+        useAssistantFrameHost({ iframeRef: { current: iframe }, register }),
+      ),
+    ).toThrow("register failed");
+    expect(register).toHaveBeenCalledOnce();
+    expect(dispose).toHaveBeenCalledOnce();
+  } finally {
+    dispose.mockRestore();
+    iframe.remove();
+  }
+});

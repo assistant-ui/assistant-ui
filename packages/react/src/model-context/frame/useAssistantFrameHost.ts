@@ -61,7 +61,13 @@ export const useAssistantFrameHost = ({
 
       if (iframe && iframeWindow) {
         const frameHost = new AssistantFrameHost(iframeWindow, targetOrigin);
-        const unsubscribe = register(frameHost);
+        let unsubscribe: Unsubscribe;
+        try {
+          unsubscribe = register(frameHost);
+        } catch (error) {
+          frameHost.dispose();
+          throw error;
+        }
         active = {
           iframe,
           window: iframeWindow,
