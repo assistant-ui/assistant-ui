@@ -21,6 +21,25 @@ const metadata = (
   bufferedReplyIds: ReadonlySet<string>,
 ): LangGraphMessageConverterMetadata => ({ bufferedReplyIds });
 
+it("keeps queued reply IDs stable when a send queues no replies", () => {
+  const controller = new LangGraphThreadController();
+  const listener = vi.fn();
+  const queuedReplyIds = controller.getQueuedReplyIds();
+  const pendingResume = controller.getState().pendingResume;
+  controller.subscribe(listener);
+
+  controller.dispatch({ type: "run.started", messages: [] });
+
+  expect(controller.getState().pendingResume).toBe(pendingResume);
+  expect(controller.getQueuedReplyIds()).toBe(queuedReplyIds);
+  expect(listener).not.toHaveBeenCalled();
+
+  controller.dispatch({ type: "results.clear" });
+
+  expect(controller.getQueuedReplyIds()).toBe(queuedReplyIds);
+  expect(listener).not.toHaveBeenCalled();
+});
+
 it("marks a sibling merged into a pending resume queued and clears it when dropped", () => {
   const controller = new LangGraphThreadController();
   const listener = vi.fn();

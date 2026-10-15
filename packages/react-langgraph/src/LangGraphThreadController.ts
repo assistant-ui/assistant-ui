@@ -25,13 +25,19 @@ export class LangGraphThreadController {
       previousBuffer !== this.state.toolResultBuffer ||
       previousPendingResume !== this.state.pendingResume
     ) {
-      this.queuedReplyIds = new Set([
+      const queuedReplyIds = new Set([
         ...this.state.toolResultBuffer.keys(),
         ...[...this.state.pendingResume.values()].flatMap((entry) =>
           entry.messages.map((message) => message.tool_call_id),
         ),
       ]);
-      for (const listener of this.listeners) listener();
+      if (
+        queuedReplyIds.size !== this.queuedReplyIds.size ||
+        [...queuedReplyIds].some((id) => !this.queuedReplyIds.has(id))
+      ) {
+        this.queuedReplyIds = queuedReplyIds;
+        for (const listener of this.listeners) listener();
+      }
     }
     return this.state;
   };
