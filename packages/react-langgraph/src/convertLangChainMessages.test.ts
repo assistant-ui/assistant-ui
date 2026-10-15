@@ -161,6 +161,17 @@ describe("createLangGraphMetadataKey", () => {
     expect(getMetadataKey(userMessage, attachmentsUpdated)).not.toBe(userKey);
     expect(getMetadataKey(toolMessage, attachmentsUpdated)).toBe(toolKey);
   });
+
+  it("converts an ai message with null reasoning", () => {
+    const message = {
+      ...assistant("a1"),
+      additional_kwargs: { reasoning: null },
+    } as unknown as LangChainMessage;
+    const getMetadataKey = createLangGraphMetadataKey();
+
+    expect(() => getMetadataKey(message, {})).not.toThrow();
+    expect(convertLangChainMessages(message).role).toBe("assistant");
+  });
 });
 
 describe("convertLangChainMessages tool result names", () => {

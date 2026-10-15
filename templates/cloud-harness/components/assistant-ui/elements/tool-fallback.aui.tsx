@@ -141,11 +141,13 @@ function ToolFallbackDuration({
 function ToolFallbackTrigger({
   toolName,
   status,
+  responseDeliveryStatus,
   className,
   ...props
 }: React.ComponentProps<typeof CollapsibleTrigger> & {
   toolName: string;
   status?: ToolCallMessagePartStatus;
+  responseDeliveryStatus?: ToolCallMessagePart["responseDeliveryStatus"];
 }) {
   const statusType = status?.type ?? "complete";
   const isRunning = statusType === "running";
@@ -154,13 +156,15 @@ function ToolFallbackTrigger({
 
   const Icon = statusIconMap[statusType];
   const label =
-    statusType === "running"
-      ? "Running tool"
-      : statusType === "requires-action"
-        ? "Waiting on tool"
-        : statusType === "incomplete"
-          ? `${isCancelled ? "Cancelled" : "Failed"} tool`
-          : "Used tool";
+    responseDeliveryStatus === "queued"
+      ? "Reply queued, not sent yet"
+      : statusType === "running"
+        ? "Running tool"
+        : statusType === "requires-action"
+          ? "Waiting on tool"
+          : statusType === "incomplete"
+            ? `${isCancelled ? "Cancelled" : "Failed"} tool`
+            : "Used tool";
 
   return (
     <CollapsibleTrigger
@@ -1195,6 +1199,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   argsText,
   result,
   status,
+  responseDeliveryStatus,
   addResult,
   resume,
   interrupt,
@@ -1243,7 +1248,11 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
 
   return (
     <ToolFallbackRoot open={open} onOpenChange={setOpen}>
-      <ToolFallbackTrigger toolName={toolName} status={status} />
+      <ToolFallbackTrigger
+        toolName={toolName}
+        status={status}
+        responseDeliveryStatus={responseDeliveryStatus}
+      />
       <ToolFallbackContent>
         <ToolFallbackError status={status} />
         <ToolFallbackArgs

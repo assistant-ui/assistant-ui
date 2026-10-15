@@ -466,7 +466,7 @@ By default, sending while the thread is running is disabled. Provide a `queue` a
 
 The `createMessageQueue` helper owns the two-lane ordering and the in-flight guard: `steerItems` drain before `items`, and within each lane items drain in order. Supply a driver that runs a message, pass its `adapter` to the runtime, and tell the queue when a run starts (`notifyBusy()`, so concurrent sends buffer) and ends (`notifyIdle()`).
 
-The driver can return a promise. A throw or rejection before `notifyBusy()` restores the message and pauses draining until the next explicit send. A failure after `notifyBusy()` leaves the started message with the runtime. A rejected dispatch that never reported busy needs no idle notification, including when a steer cancelled it. Promise fulfillment does not replace `notifyIdle()`. Handle the failure in the driver if you need to display an error; the queue logs failures other than aborts.
+The driver can return a promise. A throw or rejection before `notifyBusy()` restores the message and pauses draining until the next explicit send. A failure after `notifyBusy()` leaves the started message with the runtime. A rejected dispatch that never reported busy needs no idle notification. Promise fulfillment does not replace `notifyIdle()`. Handle the failure in the driver if you need to display an error; the queue logs failures other than aborts.
 
 Call `notifyBusy()` synchronously before committing a message or starting work that can fail. A busy notification from a later React effect can arrive after a fast failure and is too late to establish that the message was already accepted. After accepting a message, the driver owns failure handling and must eventually report `notifyIdle()` when that run settles.
 
@@ -521,6 +521,8 @@ const runtime = useExternalStoreRuntime({
 ```
 
 With a `createMessageQueue` adapter, cancelling pauses the queue for you: the runtime tells the queue before your `onCancel` runs, so the cancelled run's settle keeps the pending items instead of dispatching the next one, and the next send resumes draining. Call `queue.clear()` in `onCancel` instead if you want a cancel to drop them. A hand-rolled adapter has no such channel, so it owns its cancel policy the same way it owns the rest. Edit and reload stay host-owned: call `queue.clear()` in your `onEdit` and `onReload` handlers so stale items do not drain onto the new branch.
+
+For client tool calls, publish the current run's id as `activeRunId` and keep it through `cancelRun`. Set `metadata.runId` on each assistant message from that run, including late messages. The runtime discards calls from the cancelled run in addition to calls caught by its message and parent rules. A replacement started under the same parent can run its calls once that parent rule closes. Run ids should be unique within a thread session.
 
 ```tsx
 const runtime = useExternalStoreRuntime({
@@ -882,6 +884,12 @@ useExternalStoreRuntime({
       default: "false",
     },
     {
+      name: "activeRunId",
+      type: "string",
+      description:
+        "Id of the current run. Keep it through cancelRun so late assistant tool calls from that run can be discarded.",
+    },
+    {
       name: "isDisabled",
       type: "boolean",
       description:
@@ -1074,7 +1082,8 @@ useExternalStoreRuntime({
     {
       name: "metadata",
       type: "object",
-      description: "Additional message metadata (steps, custom fields).",
+      description:
+        "Additional message metadata (steps, custom fields, and assistant runId for cancellation attribution).",
     },
   ]}
 />

@@ -1,7 +1,38 @@
 import { describe, it, expect } from "vitest";
 import { convertExternalMessages } from "@assistant-ui/core/react";
-import { convertAdkMessage } from "./convertAdkMessages";
+import {
+  convertAdkMessage,
+  createAdkMessageConverter,
+} from "./convertAdkMessages";
 import type { AdkMessage } from "./types";
+
+describe("createAdkMessageConverter - queued replies", () => {
+  it("marks the gated call while its confirmation reply is buffered", () => {
+    const message: AdkMessage = {
+      id: "ai-1",
+      type: "ai",
+      content: [],
+      tool_calls: [{ id: "gated", name: "delete_file", args: {} }],
+    };
+    const approvals = new Map([["gated", { id: "confirmation" }]]);
+    const queued = createAdkMessageConverter(
+      approvals,
+      new Set(["confirmation"]),
+    )(message, {});
+    const sent = createAdkMessageConverter(approvals)(message, {});
+
+    expect(queued).toMatchObject({
+      content: [
+        {
+          toolCallId: "gated",
+          approval: { id: "confirmation" },
+          responseDeliveryStatus: "queued",
+        },
+      ],
+    });
+    expect(sent).not.toHaveProperty("content.0.responseDeliveryStatus");
+  });
+});
 
 describe("convertAdkMessage - human messages", () => {
   it("converts a human message with string content to user role", () => {
