@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { renderHook } from "@testing-library/react";
-import { ModelContextRegistry } from "@assistant-ui/core";
+import { AssistantFrameHost, ModelContextRegistry } from "@assistant-ui/core";
 import { expect, it, vi } from "vitest";
 import { useAssistantFrameHost } from "./useAssistantFrameHost";
 
@@ -70,5 +70,55 @@ it("withdraws a detached frame's tools and calls, then serves an attached frame"
   } finally {
     unmount();
     firstFrame.remove();
+  }
+});
+
+it("serves a replacement frame before reporting a disposal failure", () => {
+  const disposalError = new Error("tool cancellation failed");
+  const dispose = vi
+    .spyOn(AssistantFrameHost.prototype, "dispose")
+    .mockImplementationOnce(() => {
+      throw disposalError;
+    });
+  const mutationCallbacks: MutationCallback[] = [];
+  vi.stubGlobal(
+    "MutationObserver",
+    class {
+      constructor(callback: MutationCallback) {
+        mutationCallbacks.push(callback);
+      }
+      observe() {}
+      disconnect() {}
+    },
+  );
+
+  const registry = new ModelContextRegistry();
+  const firstFrame = attachFrame();
+  const secondFrame = attachFrame();
+  const iframeRef = { current: firstFrame };
+  const register = (host: Parameters<typeof registry.addProvider>[0]) =>
+    registry.addProvider(host).remove;
+  const { unmount } = renderHook(() =>
+    useAssistantFrameHost({ iframeRef, register }),
+  );
+
+  try {
+    publishTool(firstFrame, "search");
+    expect(registry.getModelContext().tools?.search).toBeDefined();
+
+    iframeRef.current = secondFrame;
+    expect(() => mutationCallbacks[0]!([], {} as MutationObserver)).toThrow(
+      disposalError,
+    );
+
+    expect(registry.getModelContext().tools?.search).toBeUndefined();
+    publishTool(secondFrame, "replacement");
+    expect(registry.getModelContext().tools?.replacement).toBeDefined();
+  } finally {
+    unmount();
+    firstFrame.remove();
+    secondFrame.remove();
+    dispose.mockRestore();
+    vi.unstubAllGlobals();
   }
 });

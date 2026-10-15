@@ -50,42 +50,52 @@ export const useAssistantFrameHost = ({
 
       const previous = active;
       active = undefined;
-      previous?.dispose();
-      if (!iframe || !iframeWindow) return;
+      let disposalFailed = false;
+      let disposalError: unknown;
+      try {
+        previous?.dispose();
+      } catch (error) {
+        disposalFailed = true;
+        disposalError = error;
+      }
 
-      const frameHost = new AssistantFrameHost(iframeWindow, targetOrigin);
-      const unsubscribe = register(frameHost);
-      active = {
-        iframe,
-        window: iframeWindow,
-        dispose: () => {
-          let cleanupFailed = false;
-          let cleanupError: unknown;
+      if (iframe && iframeWindow) {
+        const frameHost = new AssistantFrameHost(iframeWindow, targetOrigin);
+        const unsubscribe = register(frameHost);
+        active = {
+          iframe,
+          window: iframeWindow,
+          dispose: () => {
+            let cleanupFailed = false;
+            let cleanupError: unknown;
 
-          try {
-            frameHost.dispose();
-          } catch (error) {
-            cleanupFailed = true;
-            cleanupError = error;
-          }
-
-          try {
-            unsubscribe();
-          } catch (error) {
-            if (cleanupFailed) {
-              console.error(
-                "[assistant-ui] AssistantFrameHost unregistration failed.",
-                error,
-              );
-            } else {
+            try {
+              frameHost.dispose();
+            } catch (error) {
               cleanupFailed = true;
               cleanupError = error;
             }
-          }
 
-          if (cleanupFailed) throw cleanupError;
-        },
-      };
+            try {
+              unsubscribe();
+            } catch (error) {
+              if (cleanupFailed) {
+                console.error(
+                  "[assistant-ui] AssistantFrameHost unregistration failed.",
+                  error,
+                );
+              } else {
+                cleanupFailed = true;
+                cleanupError = error;
+              }
+            }
+
+            if (cleanupFailed) throw cleanupError;
+          },
+        };
+      }
+
+      if (disposalFailed) throw disposalError;
     };
 
     syncFrame();
