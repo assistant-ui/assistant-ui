@@ -76,6 +76,11 @@ export type ThreadMessageLike = {
     | undefined;
   readonly metadata?:
     | {
+        /**
+         * The run that produced this assistant message. Set it to the value the
+         * adapter publishes as `activeRunId` while that run is active, so the
+         * runtime can discard late tool calls from a cancelled run.
+         */
         readonly runId?: string | undefined;
         /** @deprecated Experimental since 2025-05-20. Not scheduled for removal; the API may change in any release. */
         readonly unstable_state?: ReadonlyJSONValue | undefined;
