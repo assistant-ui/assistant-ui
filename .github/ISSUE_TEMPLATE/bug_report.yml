@@ -16,7 +16,7 @@ body:
       options:
         - label: I have searched existing issues and this is not a duplicate
           required: true
-        - label: This is a reproducible bug, not a usage question (use [Discord](https://discord.gg/S9dwgCNEFs) for questions)
+        - label: This is a bug, not a usage question (use [Discord](https://discord.gg/S9dwgCNEFs) for questions)
           required: true
 
   - type: textarea
@@ -93,7 +93,7 @@ body:
   - type: textarea
     attributes:
       label: Reproduction
-      description: A link to a repository or sandbox, or a self-contained snippet a maintainer can run on the versions above. A report we cannot reproduce is closed.
+      description: A link to a repository or sandbox, or a self-contained snippet a maintainer can run on the versions above. If nobody ran it yet, give the snippet you expect to fail. A report we cannot reproduce is closed.
       placeholder: https://github.com/you/repro, https://stackblitz.com/..., or a complete component and route handler
     validations:
       required: true
@@ -131,6 +131,15 @@ body:
         - I hit it in an example or template from this repo
         - Reading the source
         - Automated audit or agent
+    validations:
+      required: true
+
+  - type: dropdown
+    attributes:
+      label: Was the reproduction run?
+      options:
+        - Yes, it fails as described
+        - No, nobody has run it yet
     validations:
       required: true
 
