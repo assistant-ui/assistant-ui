@@ -2766,6 +2766,50 @@ describe("useExternalHistory persistence", () => {
     });
   });
 
+  it("releases a deleted message that left the chat before its delete resolved", async () => {
+    const { append, deleteItems, deleteMessage, flush, load, runCycle, step } =
+      createPersistenceHarness(false);
+    await waitFor(() => expect(load).toHaveBeenCalledOnce());
+    await flush();
+    await runCycle([
+      createAssistantMessage(
+        { type: "complete", reason: "stop" },
+        [{ id: "reused", parts: ["old"] }],
+        "reused",
+      ),
+    ]);
+    await waitFor(() => expect(append).toHaveBeenCalledOnce());
+    let resolveDelete!: () => void;
+    deleteItems.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveDelete = resolve;
+        }),
+    );
+    const deletion = deleteMessage("reused");
+    await step({ messages: [] });
+    await act(async () => {
+      resolveDelete();
+      await deletion;
+    });
+    await flush();
+
+    const replacementInner: InnerMessage = { id: "reused", parts: ["new"] };
+    await runCycle([
+      createAssistantMessage(
+        { type: "complete", reason: "stop" },
+        [replacementInner],
+        "reused",
+      ),
+    ]);
+
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+    expect(append).toHaveBeenLastCalledWith({
+      parentId: null,
+      message: replacementInner,
+    });
+  });
+
   it("parents a tool interaction update past a deleted message that is still in the chat", async () => {
     type Item = { parentId: string | null; message: InnerMessage };
     const stored = new Map<string, Item>();
