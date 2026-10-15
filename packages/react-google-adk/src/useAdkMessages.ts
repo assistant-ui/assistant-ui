@@ -120,6 +120,7 @@ const useAdkMessagesInternal = ({
     },
     [controller],
   );
+  const replacementGenerationRef = useRef(0);
   /**
    * Swap the thread over to a loaded snapshot in one commit. Unlike
    * {@link replaceMessages} this never passes through a cleared state, so a
@@ -139,6 +140,7 @@ const useAdkMessagesInternal = ({
   // into the next turn.
   const replaceMessages = useCallback(
     (msgs: AdkMessage[]) => {
+      replacementGenerationRef.current += 1;
       controller.dispatch({ type: "messages.replaced", messages: msgs });
     },
     [controller],
@@ -229,6 +231,7 @@ const useAdkMessagesInternal = ({
       ) as AdkMessage[];
 
       const run = async (messageBatches: AdkMessage[][]) => {
+        const replacementGeneration = replacementGenerationRef.current;
         const messages = messageBatches.flat();
         // A staged message is already in the thread under its own id, and the
         // merged event below re-emits the whole batch under the first one. Seeding
@@ -408,31 +411,40 @@ const useAdkMessagesInternal = ({
         } finally {
           if (abortControllerRef.current === abortController) {
             if (abortController.signal.aborted) {
-              controller.dispatch({
-                type: "longRunningToolIds.set",
-                ids: accumulator
-                  .getLongRunningToolIds()
-                  .filter((id) => initialLongRunningToolIds.includes(id)),
-              });
-              const updatedMessages = controller.getState().messages;
-              const lastAssistantMessage = updatedMessages.findLast(
-                (m) => m.type === "ai",
-              );
-              if (
-                lastAssistantMessage &&
-                !initialMessageIds.has(lastAssistantMessage.id) &&
-                !lastAssistantMessage.status
-              ) {
-                setMessagesImmediate(
-                  updatedMessages.map((m) =>
-                    m === lastAssistantMessage
-                      ? {
-                          ...lastAssistantMessage,
-                          status: { type: "incomplete", reason: "cancelled" },
-                        }
-                      : m,
-                  ),
+              if (!receivedEvent && rollbackState) {
+                if (replacementGenerationRef.current === replacementGeneration)
+                  controller.dispatch({
+                    type: "run.rollback",
+                    state: rollbackState,
+                    ownIds: [...ownIds, ...queuedIds],
+                  });
+              } else {
+                controller.dispatch({
+                  type: "longRunningToolIds.set",
+                  ids: accumulator
+                    .getLongRunningToolIds()
+                    .filter((id) => initialLongRunningToolIds.includes(id)),
+                });
+                const updatedMessages = controller.getState().messages;
+                const lastAssistantMessage = updatedMessages.findLast(
+                  (m) => m.type === "ai",
                 );
+                if (
+                  lastAssistantMessage &&
+                  !initialMessageIds.has(lastAssistantMessage.id) &&
+                  !lastAssistantMessage.status
+                ) {
+                  setMessagesImmediate(
+                    updatedMessages.map((m) =>
+                      m === lastAssistantMessage
+                        ? {
+                            ...lastAssistantMessage,
+                            status: { type: "incomplete", reason: "cancelled" },
+                          }
+                        : m,
+                    ),
+                  );
+                }
               }
             }
             abortControllerRef.current = null;
