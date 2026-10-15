@@ -129,10 +129,8 @@ body:
       options:
         - I hit it in my app
         - I hit it in an example or template from this repo
-        - Reading the source, reproduced
-        - Reading the source, not reproduced
-        - Automated audit or agent, reproduced
-        - Automated audit or agent, not reproduced
+        - Reading the source
+        - Automated audit or agent
     validations:
       required: true
 

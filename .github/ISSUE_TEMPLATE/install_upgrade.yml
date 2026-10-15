@@ -17,7 +17,6 @@ body:
     attributes:
       label: Environment info
       description: Run `npx assistant-ui info` and paste the output. If the command itself fails, paste your `package.json` dependencies, Node.js version, package manager and OS.
-      render: text
     validations:
       required: true
 
@@ -48,10 +47,17 @@ body:
   - type: textarea
     attributes:
       label: Duplicate package check
-      description: Many upgrade failures come from two copies of one package. Paste the output of `pnpm why @assistant-ui/core` (or `npm ls @assistant-ui/core`).
+      description: Many upgrade failures come from two copies of one package. Paste the output of `npx assistant-ui doctor`.
       render: text
 
   - type: textarea
     attributes:
+      label: Reproduction
+      description: A repository or sandbox with your `package.json` and lockfile, or the steps from a fresh project that hit the error. A report we cannot reproduce is closed.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
       label: Additional context
-      description: A reproduction repository helps most. Mention monorepo setups, custom bundler config, and proxies.
+      description: Mention monorepo setups, custom bundler config, and proxies.

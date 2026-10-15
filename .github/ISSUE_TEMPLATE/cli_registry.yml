@@ -43,7 +43,13 @@ body:
     attributes:
       label: Environment info
       description: Output of `npx assistant-ui info`, or OS, Node.js version and package manager if the CLI cannot run. Add your Tailwind version and `components.json` if a component landed broken.
-      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Reproduction
+      description: A repository that shows the problem, or the steps from a fresh project (for example `npx assistant-ui@latest create`) that hit it. A report we cannot reproduce is closed.
     validations:
       required: true
 

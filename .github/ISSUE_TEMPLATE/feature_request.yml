@@ -55,6 +55,7 @@ body:
         - Generative UI
         - MCP
         - Provider Adapters
+        - Performance
         - CLI / Scaffolding
         - DevTools / Observability
         - Documentation
