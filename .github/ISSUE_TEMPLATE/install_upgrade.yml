@@ -1,7 +1,7 @@
 name: Install, build or upgrade problem
 description: Dependency conflicts, bundler or type errors, or something that broke after changing versions
 type: Bug
-labels: ["bug", "compat"]
+labels: ["bug"]
 
 body:
   - type: checkboxes
