@@ -59,8 +59,9 @@ export namespace ComposerPrimitiveInput {
     cancelOnEscape?: boolean | undefined;
     /**
      * Whether to focus the input when a new run starts if nothing is focused
-     * or focus is already inside the same thread. Keeps the current selection
-     * when the input is already focused. Applies when `autoFocus` is enabled.
+     * or focus is already inside the same thread or composer. Keeps the current
+     * selection when the input is already focused. Applies when `autoFocus` is
+     * enabled.
      *
      * @deprecated Experimental since 2024-10-12. Not scheduled for removal; the API may change in any release.
      *
@@ -355,9 +356,11 @@ export const ComposerPrimitiveInput = forwardRef<
       if (active === textarea) return;
 
       const root = threadRootRef?.current;
+      const composerRoot = textarea.closest("[data-aui-composer-type]");
       if (
         active &&
         active !== doc.body &&
+        !composerRoot?.contains(active) &&
         (!root?.contains(active) ||
           active.closest("[data-aui-thread-root]") !== root)
       )

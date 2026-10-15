@@ -6,6 +6,7 @@ import { AssistantRuntimeProvider } from "../../context";
 import { useLocalRuntime } from "../../legacy-runtime/runtime-cores/local/useLocalRuntime";
 import { ThreadPrimitiveRoot } from "../thread/ThreadRoot";
 import { ComposerPrimitiveInput } from "./ComposerInput";
+import { ComposerPrimitiveRoot } from "./ComposerRoot";
 
 const adapter = { async *run() {} };
 
@@ -43,6 +44,35 @@ const setup = () => {
 };
 
 describe("ComposerPrimitiveInput run-start focus", () => {
+  it("focuses the composer when its button is focused without a thread root", async () => {
+    let runtime: Runtime | null = null;
+    const App = () => {
+      const currentRuntime = useLocalRuntime(adapter);
+      runtime = currentRuntime;
+      return (
+        <AssistantRuntimeProvider runtime={currentRuntime}>
+          <ComposerPrimitiveRoot>
+            <ComposerPrimitiveInput aria-label="Floating composer" autoFocus />
+            <button type="button">Send</button>
+          </ComposerPrimitiveRoot>
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+    const composer = screen.getByRole("textbox", {
+      name: "Floating composer",
+    });
+    const send = screen.getByRole("button", { name: "Send" });
+    act(() => send.focus());
+
+    await act(async () => {
+      await runtime!.thread.append("Programmatic message");
+    });
+
+    expect(document.activeElement).toBe(composer);
+  });
+
   it("keeps focus in an input outside the thread", async () => {
     const { startRun } = setup();
     const outside = screen.getByRole("textbox", { name: "Outside thread" });
