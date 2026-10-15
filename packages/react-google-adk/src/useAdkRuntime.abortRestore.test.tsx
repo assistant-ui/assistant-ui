@@ -114,6 +114,14 @@ const reload = (runtime: AssistantRuntime) => {
 const texts = (runtime: AssistantRuntime) =>
   JSON.stringify(runtime.thread.getState().messages);
 
+const messageTexts = (runtime: AssistantRuntime) =>
+  runtime.thread.getState().messages.map((message) =>
+    message.content
+      .filter((part) => part.type === "text")
+      .map((part) => part.text)
+      .join(""),
+  );
+
 describe("useAdkRuntime abort restoration", () => {
   it("restores an edit and its tool state when Stop precedes the first event", async () => {
     const gate = deferred();
@@ -257,6 +265,8 @@ describe("useAdkRuntime abort restoration", () => {
       await waitFor(() => expect(stream).toHaveBeenCalledTimes(2));
       expect(texts(runtime)).toContain("second edit");
       expect(texts(runtime)).not.toContain("first edit");
+      expect(messageTexts(runtime)).toEqual(["second edit"]);
+      expect(texts(runtime)).not.toContain("original answer");
       gate.resolve();
     },
   );
@@ -283,9 +293,44 @@ describe("useAdkRuntime abort restoration", () => {
       await waitFor(() => expect(stream).toHaveBeenCalledTimes(2));
       await waitFor(() => expect(texts(runtime)).toContain("new answer"));
       expect(texts(runtime)).not.toContain("first edit");
+      expect(messageTexts(runtime)).toEqual(
+        kind === "edit" ? ["new answer"] : ["original question", "new answer"],
+      );
+      expect(texts(runtime)).not.toContain("original answer");
       gate.resolve();
     },
   );
+
+  it("shows one answer when a reload supersedes an in-flight edit and completes", async () => {
+    const gate = deferred();
+    const stream = vi.fn(async function* (): AsyncGenerator<AdkEvent> {
+      if (stream.mock.calls.length === 1) {
+        await gate.promise;
+      } else {
+        yield {
+          id: "replacement",
+          author: "agent",
+          content: { role: "model", parts: [{ text: "new answer" }] },
+        };
+      }
+    });
+    const runtime = await mount(stream);
+    act(() => edit(runtime, "first edit"));
+    await waitFor(() => expect(stream).toHaveBeenCalledOnce());
+    act(() => reload(runtime));
+    await waitFor(() => expect(stream).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(texts(runtime)).toContain("new answer"));
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+    expect(messageTexts(runtime)).toEqual(["new answer"]);
+    expect(
+      runtime.thread
+        .getState()
+        .messages.filter((message) => message.role === "assistant"),
+    ).toHaveLength(1);
+    gate.resolve();
+  });
 
   it.each(["edit", "reload"] as const)(
     "keeps an %s and partial reply when Stop follows the first event",
