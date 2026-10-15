@@ -498,6 +498,7 @@ type AssistantEventSelector<TEvent extends AssistantEventName> = TEvent | {
 declare class AssistantFrameHost implements ModelContextProvider {
   #private;
   constructor(iframeWindow: Window, targetOrigin?: string);
+  frameLoaded(): void;
   getModelContext(): ModelContext$1;
   subscribe(callback: () => void): Unsubscribe$1;
   dispose(): void;
@@ -2223,11 +2224,13 @@ type FilePartSource = {
   mimeType: string;
 };
 
-type FrameMessage = {
+type FrameMessage = ({
   type: "model-context-request";
+  requestId?: string;
 } | {
   type: "model-context-update";
   context: SerializedModelContext;
+  requestId?: string;
 } | {
   type: "tool-call";
   id: string;
@@ -2243,6 +2246,8 @@ type FrameMessage = {
   error?: string;
 } | {
   type: "provider-disposed";
+}) & {
+  documentId?: string;
 };
 
 type FrameMessageType = "model-context-request" | "model-context-update" | "provider-disposed" | "tool-call" | "tool-cancel" | "tool-result";

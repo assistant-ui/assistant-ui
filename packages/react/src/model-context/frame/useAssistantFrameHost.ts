@@ -68,10 +68,13 @@ export const useAssistantFrameHost = ({
           frameHost.dispose();
           throw error;
         }
+        const onLoad = () => frameHost.frameLoaded();
+        iframe.addEventListener("load", onLoad);
         active = {
           iframe,
           window: iframeWindow,
           dispose: () => {
+            iframe.removeEventListener("load", onLoad);
             let cleanupFailed = false;
             let cleanupError: unknown;
 
