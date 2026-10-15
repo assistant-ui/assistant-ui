@@ -1033,7 +1033,12 @@ const useLangGraphRuntimeImpl = (
       const issuedInMessages = messages.some(
         (message) =>
           message.type === "ai" &&
-          message.tool_calls?.some((call) => call?.id === toolCallId),
+          (message.tool_calls?.some((call) => call?.id === toolCallId) ||
+            (Array.isArray(message.content) &&
+              message.content.some(
+                (part) =>
+                  part?.type === "computer_call" && part.call_id === toolCallId,
+              ))),
       );
       const issuedInPendingRun = [
         ...threadController.getState().pendingToolCallIdsByRun.values(),

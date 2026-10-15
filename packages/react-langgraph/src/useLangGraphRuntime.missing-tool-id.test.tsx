@@ -145,3 +145,57 @@ it("leaves an idless call pending while streaming and accepts the provider's lat
     { type: "tool", tool_call_id: "issued-id" },
   ]);
 });
+
+it("submits a result for a computer_call with a provider call_id", async () => {
+  const stream = vi.fn(async function* (_messages: LangChainMessage[]) {
+    yield {
+      event: "messages/complete",
+      data: [
+        {
+          id: "ai-1",
+          type: "ai" as const,
+          content: [
+            {
+              type: "computer_call" as const,
+              call_id: "issued-computer-id",
+              id: "computer-1",
+              action: { kind: "click" },
+              pending_safety_checks: [],
+              index: 0,
+            },
+          ],
+        },
+      ],
+    };
+  });
+  const { result: runtime } = renderHook(() => useLangGraphRuntime({ stream }));
+  const Wrapper = ({ children }: { children: ReactNode }) => (
+    <AssistantRuntimeProvider runtime={runtime.current}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+  const { result: aui } = renderHook(() => useAui(), { wrapper: Wrapper });
+
+  act(() => {
+    aui.current.composer.setText("hello");
+    aui.current.composer.send();
+  });
+  await waitFor(() =>
+    expect(
+      aui.current.thread
+        .getState()
+        .messages.at(-1)
+        ?.content.find((part) => part.type === "tool-call"),
+    ).toMatchObject({ toolCallId: "issued-computer-id" }),
+  );
+  act(() => {
+    aui.current.thread
+      .message({ id: "ai-1" })
+      .part({ toolCallId: "issued-computer-id" })
+      .addToolResult({ ok: true });
+  });
+  await waitFor(() => expect(stream).toHaveBeenCalledTimes(2));
+  expect(stream.mock.calls[1]?.[0]).toMatchObject([
+    { type: "tool", tool_call_id: "issued-computer-id" },
+  ]);
+});

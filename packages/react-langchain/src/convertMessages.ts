@@ -1,6 +1,6 @@
 "use client";
 
-import type { MessageTiming } from "@assistant-ui/core";
+import { generateId, type MessageTiming } from "@assistant-ui/core";
 import type { useExternalMessageConverter } from "@assistant-ui/core/react";
 import {
   createExternalMessageMetadataKey,
@@ -18,8 +18,21 @@ import {
 import type {
   LangChainBaseMessage,
   LangChainContentBlock,
+  LangChainToolCall,
   UIMessage,
 } from "./types";
+
+const uiToolCallIds = new WeakMap<LangChainToolCall, string>();
+
+const getToolCallUIId = (call: LangChainToolCall): string => {
+  if (call.id) return call.id;
+  let id = uiToolCallIds.get(call);
+  if (!id) {
+    id = `tool-${generateId()}`;
+    uiToolCallIds.set(call, id);
+  }
+  return id;
+};
 
 export type LangChainMessageConverterMetadata =
   useExternalMessageConverter.Metadata & {
@@ -178,7 +191,7 @@ export const convertLangChainBaseMessage = (
             const { args, argsText } = toolCallArgs(tc.args);
             return {
               type: "tool-call" as const,
-              toolCallId: tc.id,
+              toolCallId: getToolCallUIId(tc),
               toolName: tc.name,
               args,
               argsText,
