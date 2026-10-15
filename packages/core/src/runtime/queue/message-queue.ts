@@ -104,6 +104,12 @@ const getQueueItemParts = (
         mimeType: "image/*",
         ...(part.filename !== undefined && { filename: part.filename }),
       });
+    } else if (part.type === "audio") {
+      parts.push({
+        type: "file",
+        data: part.audio.data,
+        mimeType: `audio/${part.audio.format}`,
+      });
     }
   }
   return parts;
