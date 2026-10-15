@@ -157,7 +157,12 @@ const DocsPageControls = ({
                 href={previous.url}
                 className="aui-docs-pager-button"
                 aria-label="Previous page"
-                title="Previous page"
+                title={
+                  typeof previous.name === "string" ||
+                  typeof previous.name === "number"
+                    ? `Previous: ${previous.name}`
+                    : "Previous page"
+                }
               >
                 <ChevronLeft aria-hidden="true" />
               </Link>
@@ -175,7 +180,11 @@ const DocsPageControls = ({
                 href={next.url}
                 className="aui-docs-pager-button"
                 aria-label="Next page"
-                title="Next page"
+                title={
+                  typeof next.name === "string" || typeof next.name === "number"
+                    ? `Next: ${next.name}`
+                    : "Next page"
+                }
               >
                 <ChevronRight aria-hidden="true" />
               </Link>

@@ -68,6 +68,7 @@ it("keeps localized actions attached when the framework replaces the page header
       "/guide.md?lang=fr",
     );
     expect(document.body.textContent).not.toContain("[object Object]");
+    expect(document.querySelector('a[title="Next: Next"]')).not.toBeNull();
 
     const replacement = document.createElement("div");
     replacement.className = "fd-generated-page-header";
