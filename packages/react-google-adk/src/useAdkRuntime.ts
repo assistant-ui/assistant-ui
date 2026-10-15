@@ -281,7 +281,6 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     isRunningRef.current = effectiveIsRunning;
   }, [effectiveIsRunning]);
   const [runLeases] = useState(() => new RunLeases());
-  const stopGenerationRef = useRef(0);
   const checkpointLookupRef = useRef<{
     lease: RunLease;
     snapshot: ReturnType<typeof controller.getState>;
@@ -343,6 +342,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     config: AdkSendMessageConfig,
     rollbackState?: ReturnType<typeof controller.getState>,
     onFirstEvent?: () => void,
+    chain?: object,
   ): Promise<void> => {
     const toolResultBatches = new Map<string, AdkMessage[]>();
     const otherMessages: AdkMessage[] = [];
@@ -362,26 +362,29 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     if (toolResultBatches.size > 1) {
       const batches = [...toolResultBatches.values()];
       batches.at(-1)!.push(...otherMessages);
-      const stopGeneration = stopGenerationRef.current;
+      const chain = {};
+      const started = batches.map(() => false);
+      const sends = batches.map((batch, index) =>
+        handleSendMessage(
+          batch,
+          config,
+          rollbackState,
+          () => {
+            started[index] = true;
+          },
+          chain,
+        ),
+      );
       return (async () => {
-        let nextIndex = 0;
-        let started = false;
-        try {
-          for (const batch of batches) {
-            if (stopGeneration !== stopGenerationRef.current)
-              throw new MessageNotSentError();
-            started = false;
-            await handleSendMessage(batch, config, rollbackState, () => {
-              started = true;
-            });
-            nextIndex++;
-            started = false;
-          }
-        } catch (error) {
+        const results = await Promise.allSettled(sends);
+        if (results.some((result) => result.status === "rejected")) {
           const toolCallIds = getToolCallIds(controller.getState().messages);
           const unsent = batches
-            .slice(nextIndex + (started ? 1 : 0))
-            .flatMap((batch) => batch)
+            .flatMap((batch, index) =>
+              results[index]?.status === "rejected" && !started[index]
+                ? batch
+                : [],
+            )
             .filter(
               (message): message is Extract<AdkMessage, { type: "tool" }> =>
                 message.type === "tool" &&
@@ -391,10 +394,14 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             controller.dispatch({ type: "results.restore", messages: unsent });
           if (
             otherMessages.some((message) => message.type === "human") &&
-            (nextIndex < batches.length - 1 || !started)
+            results.at(-1)?.status === "rejected" &&
+            !started.at(-1)
           )
             throw new MessageNotSentError();
-          throw error;
+          const failure = results.find(
+            (result) => result.status === "rejected",
+          );
+          if (failure?.status === "rejected") throw failure.reason;
         }
       })();
     }
@@ -415,7 +422,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       continuationConfig,
       (run) => runExclusive(() => run()),
       rollbackState,
-      onFirstEvent,
+      { onFirstEvent, chain },
     );
   };
 
@@ -430,7 +437,6 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   };
 
   const stopRun = () => {
-    stopGenerationRef.current++;
     controller.dispatch({ type: "run.cancelled" });
     runLeases.invalidate();
     setIsRunning(false);

@@ -7,7 +7,7 @@ import {
   useSyncExternalStore,
   useInsertionEffect,
 } from "react";
-import { generateId } from "@assistant-ui/core";
+import { generateId, MessageNotSentError } from "@assistant-ui/core";
 import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { useAui } from "@assistant-ui/store";
 import {
@@ -64,11 +64,17 @@ type QueuedAdkSend = {
   ids: string[];
   run: (messageBatches: AdkMessage[][]) => Promise<void>;
   rollbackState: AdkThreadState | undefined;
+  chain: object | undefined;
   resolve: () => void;
   reject: (error: unknown) => void;
 };
 
 type RunExecutor = (run: () => Promise<void>) => Promise<void>;
+
+type SendOptions = {
+  onFirstEvent?: (() => void) | undefined;
+  chain?: object | undefined;
+};
 
 const sameSendConfig = (
   left: Record<PropertyKey, unknown>,
@@ -173,6 +179,7 @@ const useAdkMessagesInternal = ({
             next.toolResultOwnerKey !== undefined &&
             next.toolResultOwnerKey !== toolResultOwnerKey) ||
           !sameSendConfig(first.config, next.config) ||
+          next.chain !== first.chain ||
           (sends.length > 0 && (first.rollbackState || next.rollbackState))
         ) {
           break;
@@ -189,6 +196,20 @@ const useAdkMessagesInternal = ({
           ids: sends.flatMap((send) => send.ids),
         });
         for (const send of sends) send.reject(error);
+        const chains = new Set(sends.map((send) => send.chain).filter(Boolean));
+        if (chains.size > 0) {
+          const dropped = pendingSendsRef.current.filter(
+            (send) => send.chain && chains.has(send.chain),
+          );
+          pendingSendsRef.current = pendingSendsRef.current.filter(
+            (send) => !send.chain || !chains.has(send.chain),
+          );
+          controller.dispatch({
+            type: "messages.queue.remove",
+            ids: dropped.flatMap((send) => send.ids),
+          });
+          for (const send of dropped) send.reject(new MessageNotSentError());
+        }
       }
     }
   };
@@ -201,7 +222,7 @@ const useAdkMessagesInternal = ({
       config: AdkSendMessageConfig,
       executeWithRun?: RunExecutor,
       rollbackState?: AdkThreadState,
-      onFirstEventForSend?: () => void,
+      { onFirstEvent: onFirstEventForSend, chain }: SendOptions = {},
     ) => {
       const newMessagesWithId = newMessages.map((m) =>
         m.id ? m : { ...m, id: generateId() },
@@ -459,6 +480,7 @@ const useAdkMessagesInternal = ({
           toolResultOwnerKey,
           ids: queuedIds,
           rollbackState,
+          chain,
           run: (messageBatches: AdkMessage[][]) =>
             executeWithRun
               ? executeWithRun(() => run(messageBatches))
@@ -492,7 +514,10 @@ const useAdkMessagesInternal = ({
     const queued = pendingSendsRef.current;
     pendingSendsRef.current = [];
     if (queued.length > 0) {
-      for (const send of queued) send.resolve();
+      for (const send of queued) {
+        if (send.chain) send.reject(new MessageNotSentError());
+        else send.resolve();
+      }
       controller.dispatch({
         type: "messages.queue.remove",
         ids: queued.flatMap((send) => send.ids),

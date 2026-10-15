@@ -196,6 +196,37 @@ const sendDraft = (runtime: AssistantRuntime) =>
   });
 
 describe("useAdkRuntime split new turns", () => {
+  it("shows every queued group while the first group streams", async () => {
+    const h = await mount("success");
+    sendDraft(h.runtime);
+    await h.firstGroupEntered.promise;
+    await waitFor(() =>
+      expect(
+        h.runtime.thread
+          .getState()
+          .messages.some(
+            (message) =>
+              message.role === "user" &&
+              message.content.some(
+                (part) => part.type === "text" && part.text === "third",
+              ),
+          ),
+      ).toBe(true),
+    );
+    expect(reply(h.runtime, "c2")).toMatchObject({
+      result: '{"result":"second"}',
+    });
+    expect(h.requests).toHaveLength(3);
+    await act(async () => {
+      h.holdFirstGroup.resolve();
+    });
+    await waitFor(() => expect(h.requests).toHaveLength(4));
+    await waitFor(() =>
+      expect(h.runtime.thread.getState().isRunning).toBe(false),
+    );
+    h.unmount();
+  });
+
   it("stops after a first group failure and returns the unsent draft and reply", async () => {
     const h = await mount("fail");
     sendDraft(h.runtime);
