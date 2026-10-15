@@ -85,11 +85,7 @@ export function createAdkStream(
 
   return async function* (messages, config) {
     const headers = await resolveHeaders(options.headers, config.abortSignal);
-    const humanMessages = messages.filter(
-      (message) => message.type === "human",
-    );
-    const messageId =
-      humanMessages.length === 1 ? humanMessages[0]!.id : undefined;
+    const messageId = messages.find((message) => message.type === "human")?.id;
 
     let url: string;
     let body: unknown;

@@ -259,6 +259,39 @@ describe("ADK runtime callbacks", () => {
     },
   );
 
+  it("keeps the message id metadata out of onCustomEvent", async () => {
+    const onCustomEvent = vi.fn();
+    const stream: AdkStreamCallback = async function* () {
+      yield {
+        id: "partial",
+        invocationId: "run-1",
+        author: "agent",
+        partial: true,
+        customMetadata: { assistant_ui_message_id: "user", progress: 1 },
+        content: { role: "model", parts: [{ text: "do" }] },
+      };
+      yield {
+        id: "final",
+        invocationId: "run-1",
+        author: "agent",
+        customMetadata: { assistant_ui_message_id: "user" },
+        content: { role: "model", parts: [{ text: "done" }] },
+      };
+    };
+    const { result } = renderHook(() =>
+      useAdkMessages({ stream, eventHandlers: { onCustomEvent } }),
+    );
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ id: "user", type: "human", content: "hello" }],
+        {},
+      );
+    });
+
+    expect(onCustomEvent.mock.calls).toEqual([["progress", 1]]);
+  });
+
   it("continues streaming when onCustomEvent rejects", async () => {
     const callbackError = new Error("async telemetry failed");
     const consoleError = vi

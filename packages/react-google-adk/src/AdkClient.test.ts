@@ -80,7 +80,7 @@ describe.each(["direct", "proxy"] as const)(
       { label: "several humans", humanCount: 2, toolCount: 0 },
       { label: "no messages", humanCount: 0, toolCount: 0 },
     ])(
-      "sends message identity only for one human ($label)",
+      "sends the first human message's identity ($label)",
       async ({ humanCount, toolCount }) => {
         mockFetch.mockResolvedValueOnce(sseResponse(sseBody("")));
         const messages: AdkMessage[] = [
@@ -106,7 +106,7 @@ describe.each(["direct", "proxy"] as const)(
         const events = await stream(messages, makeConfig());
         for await (const event of events) expect(event).toBeUndefined();
         const body = JSON.parse(mockFetch.mock.calls[0]![1]!.body as string);
-        if (humanCount === 1) {
+        if (humanCount > 0) {
           if (mode === "direct") {
             expect(body.customMetadata).toEqual({
               assistant_ui_message_id: "human-0",
