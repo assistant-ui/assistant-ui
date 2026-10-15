@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { bindExternalStoreMessage } from "@assistant-ui/core";
 import type {
   AssistantRuntime,
+  ExportedMessageRepository,
   MessageFormatAdapter,
   MessageFormatRepository,
   ThreadAssistantMessage,
@@ -775,11 +776,9 @@ describe("useExternalHistory persistence", () => {
       let listener: (() => void) | undefined;
       let isRunning = false;
       let messages: ThreadMessage[] = [];
-      const importMessages = vi.fn(
-        (repo: { messages: { message: ThreadMessage }[] }) => {
-          messages = repo.messages.map((item) => item.message);
-        },
-      );
+      const importMessages = vi.fn((repo: ExportedMessageRepository) => {
+        messages = repo.messages.map((item) => item.message);
+      });
       const thread = {
         subscribe: (next: () => void) => {
           listener = next;
