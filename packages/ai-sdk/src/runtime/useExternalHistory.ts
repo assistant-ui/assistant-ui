@@ -435,8 +435,6 @@ export const useExternalHistory = <TMessage>(
         toolCallCountRef.current = 0;
         adapter.pin?.();
       }
-      if (historyReadyRef.current)
-        persistRunningUserMessages(initialThreadState.messages);
     } else if (initialThreadState.messages.length > 0) {
       persistSettled(true);
     }

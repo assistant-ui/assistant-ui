@@ -876,9 +876,10 @@ describe("useExternalHistory persistence", () => {
         getState: () => ({ isRunning, messages }),
         import: importMessages,
       } as unknown as AssistantRuntime["thread"];
+      const slowRuntimeRef = { current: { thread } as AssistantRuntime };
       const hook = renderHook(() =>
         useExternalHistory(
-          { current: { thread } as AssistantRuntime },
+          slowRuntimeRef,
           adapter,
           toMessages,
           persistenceStorageFormat,
@@ -2459,6 +2460,82 @@ describe("useExternalHistory persistence", () => {
       parentId: userInner.id,
       message: { ...partialInner, parts: ["complete"] },
     });
+  });
+
+  it("keeps a prompt deleted during its pending write deleted after the subscription restarts", async () => {
+    type Item = { parentId: string | null; message: InnerMessage };
+    const stored = new Map<string, Item>();
+    let releaseAppend!: () => void;
+    const appendGate = new Promise<void>((resolve) => {
+      releaseAppend = resolve;
+    });
+    const adapter: ThreadHistoryAdapter = {
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue({
+        load: async () => ({ messages: [] }),
+        append: async (item: Item) => {
+          await appendGate;
+          stored.set(item.message.id, item);
+        },
+        delete: async (items: Item[]) => {
+          for (const item of items) stored.delete(item.message.id);
+        },
+      }),
+    };
+    let listener = () => {};
+    let isRunning = false;
+    let messages: ThreadMessage[] = [];
+    const deletionRuntimeRef = {
+      current: {
+        thread: {
+          getState: () => ({ isRunning, messages }),
+          subscribe: (next: () => void) => {
+            listener = next;
+            return () => {};
+          },
+        },
+      } as unknown as AssistantRuntime,
+    };
+    const hook = renderHook(
+      ({ toolArtifacts }) =>
+        useExternalHistory(
+          deletionRuntimeRef,
+          adapter,
+          () => [],
+          persistenceStorageFormat,
+          () => {},
+          toolArtifacts,
+        ),
+      { initialProps: { toolArtifacts: new Map<string, unknown>() } },
+    );
+    const user = {
+      id: "user-1",
+      role: "user",
+      content: [],
+    } as unknown as ThreadMessage;
+    bindExternalStoreMessage(user, {
+      id: "user-1",
+      role: "user",
+      parts: ["prompt"],
+    });
+
+    await act(async () => {
+      messages = [user];
+      isRunning = true;
+      listener();
+    });
+    const deletion = hook.result.current.deleteMessage("user-1");
+    hook.rerender({ toolArtifacts: new Map() });
+    await act(async () => {
+      releaseAppend();
+      await deletion;
+      messages = [];
+      listener();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(stored.has("user-1")).toBe(false);
   });
 
   it("stores a new prompt after an earlier reply that failed to store", async () => {
