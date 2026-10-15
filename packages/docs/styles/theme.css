@@ -732,6 +732,13 @@ html.dark body:has(.aui-docs) {
 
   .aui-docs
     #nd-sidebar
+    > div:first-child:has([data-docs-sidebar-banner])
+    > :not([data-docs-sidebar-banner]) {
+    display: none;
+  }
+
+  .aui-docs
+    #nd-sidebar
     > div:last-child:not([data-radix-scroll-area-viewport]) {
     display: none;
   }
