@@ -77,7 +77,6 @@ export type AdkThreadState = {
 };
 
 export type AdkThreadAction =
-  | { type: "message.rekeyed"; oldId: string; newId: string }
   | {
       type: "event.published";
       state: Omit<
@@ -234,37 +233,6 @@ export const reduceAdkThreadState = (
   action: AdkThreadAction,
 ): AdkThreadState => {
   switch (action.type) {
-    case "message.rekeyed": {
-      if (action.oldId === action.newId) return state;
-      const rekey = (id: string) => (id === action.oldId ? action.newId : id);
-      const stagedEntries = new Map<string, AdkStagedEntry>();
-      for (const [id, entry] of state.stagedEntries) {
-        stagedEntries.set(rekey(id), {
-          ...entry,
-          message:
-            id === action.oldId
-              ? { ...entry.message, id: action.newId }
-              : entry.message,
-        });
-      }
-      const messageMetadata = new Map(state.messageMetadata);
-      const metadata = messageMetadata.get(action.oldId);
-      if (metadata) {
-        messageMetadata.delete(action.oldId);
-        messageMetadata.set(action.newId, metadata);
-      }
-      return {
-        ...state,
-        messages: state.messages.map((message) =>
-          message.id === action.oldId
-            ? { ...message, id: action.newId }
-            : message,
-        ),
-        queuedMessageIds: new Set([...state.queuedMessageIds].map(rekey)),
-        stagedEntries,
-        messageMetadata,
-      };
-    }
     case "event.published": {
       const next = action.state;
       const merged = {

@@ -128,7 +128,7 @@ return adkEventStream(events);
 
 ### parseAdkRequest and toAdkContent
 
-Lower-level helpers for custom API routes. `parseAdkRequest` parses incoming requests; `toAdkContent` converts to ADK's `Content` format. Supports user messages, tool results, `stateDelta`, `checkpointId`, and multimodal content:
+Lower-level helpers for custom API routes. `parseAdkRequest` parses incoming requests; `toAdkContent` converts to ADK's `Content` format. Supports user messages, tool results, `messageId`, `stateDelta`, `checkpointId`, and multimodal content:
 
 ```ts
 const parsed = await parseAdkRequest(req);
@@ -143,9 +143,12 @@ const events = runner.runAsync({
   sessionId,
   newMessage,
   stateDelta,
+  customMetadata: parsed.customMetadata,
 });
 return adkEventStream(events);
 ```
+
+`messageId` is the ID of the human message a run sends. `parseAdkRequest` turns it into `parsed.customMetadata`; forward that to `runner.runAsync` as shown above so the stored user event keeps the message's ID across reloads. `createAdkApiRoute` forwards it for you.
 
 `runConfig` and `stateDelta` arrive from the browser and must be treated as
 untrusted input. Custom routes using `parseAdkRequest` must validate

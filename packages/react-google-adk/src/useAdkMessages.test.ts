@@ -39,6 +39,7 @@ it("matches live user and AI ids with a replay of stored events", async () => {
       id: "server-user",
       invocationId: "run-1",
       author: "user",
+      customMetadata: { assistant_ui_message_id: "client-user" },
       content: { role: "user", parts: [{ text: "Hi" }] },
     },
     {
@@ -81,17 +82,18 @@ it("matches live user and AI ids with a replay of stored events", async () => {
   });
   const loaded = await load("session-1");
   expect(result.current.messages.map((message) => message.id)).toEqual([
-    "run-1:user",
+    "client-user",
     "run-1:ai",
   ]);
   expect(result.current.messages).toEqual(loaded.messages);
 });
 
-it("rekeys the optimistic user when the first stream event is from an agent", async () => {
+it("keeps the sent user id when the first stream event is from an agent", async () => {
   const userEvent: AdkEvent = {
     id: "server-user",
     invocationId: "run-2",
     author: "user",
+    customMetadata: { assistant_ui_message_id: "client-user" },
     content: { parts: [{ text: "Hi" }] },
   };
   const agentEvent: AdkEvent = {
@@ -1795,14 +1797,25 @@ describe("ADK request coalescing", () => {
       sessionId: "thread-1",
       runConfig: firstConfig,
       message: "first",
+      messageId: "first",
     });
     releaseFirst();
     await act(async () => {
       await Promise.all([first, second]);
     });
     expect(requests).toEqual([
-      { sessionId: "thread-1", runConfig: firstConfig, message: "first" },
-      { sessionId: "thread-1", runConfig: secondConfig, message: "second" },
+      {
+        sessionId: "thread-1",
+        runConfig: firstConfig,
+        message: "first",
+        messageId: "first",
+      },
+      {
+        sessionId: "thread-1",
+        runConfig: secondConfig,
+        message: "second",
+        messageId: "second",
+      },
     ]);
     expect(result.current.messages.map((message) => message.content)).toEqual([
       "first",
