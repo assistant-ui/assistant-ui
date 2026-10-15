@@ -19,6 +19,7 @@ import {
   type ToolExecutionStatus,
   generateId,
   MessageNotSentError,
+  isMessageNotSentError,
 } from "@assistant-ui/core";
 import {
   createAbortableThreadLoad,
@@ -396,8 +397,16 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             otherMessages.some((message) => message.type === "human") &&
             results.at(-1)?.status === "rejected" &&
             !started.at(-1)
-          )
-            throw new MessageNotSentError();
+          ) {
+            const notSent = new MessageNotSentError();
+            const cause = results.find(
+              (result) =>
+                result.status === "rejected" &&
+                !isMessageNotSentError(result.reason),
+            );
+            if (cause?.status === "rejected") notSent.cause = cause.reason;
+            throw notSent;
+          }
           const failure = results.find(
             (result) => result.status === "rejected",
           );

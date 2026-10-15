@@ -7,8 +7,9 @@ import type {
   AssistantRuntime,
   RemoteThreadListAdapter,
 } from "@assistant-ui/core";
+import { MessageNotSentError } from "@assistant-ui/core";
 import { useAdkRuntime } from "./useAdkRuntime";
-import { useAdkSubmitInput } from "./hooks";
+import { useAdkSend, useAdkSubmitInput } from "./hooks";
 import { settleOutsideAct } from "./tests/settleOutsideAct";
 import type { AdkEvent, AdkMessage, AdkStreamCallback } from "./types";
 
@@ -37,14 +38,22 @@ const sessionAdapter: RemoteThreadListAdapter = {
   }),
 };
 
-const call = (id: string, run: string): AdkEvent => ({
+const call = (id: string, run: string, pendingCall = false): AdkEvent => ({
   id: `event-${id}`,
   invocationId: run,
   author: "agent",
-  longRunningToolIds: [id],
+  ...(!pendingCall && { longRunningToolIds: [id] }),
   content: {
     role: "model",
-    parts: [{ functionCall: { id, name: "adk_request_input", args: {} } }],
+    parts: [
+      {
+        functionCall: {
+          id,
+          name: pendingCall ? "lookup" : "adk_request_input",
+          args: {},
+        },
+      },
+    ],
   },
 });
 
@@ -59,25 +68,27 @@ const deferred = () => {
 const mount = async (
   behavior: "fail" | "fail-second" | "stop" | "stop-last" | "success",
   getCheckpointId?: () => Promise<null>,
+  options: { pendingCalls?: boolean } = {},
 ) => {
   const requests: AdkMessage[][] = [];
   const firstGroupEntered = deferred();
   const holdFirstGroup = deferred();
+  const firstGroupFailure = new Error("first group failed");
   const stream: AdkStreamCallback = async function* (
     messages,
     { abortSignal },
   ) {
     requests.push(messages);
     if (requests.length === 1) {
-      yield call("c1", "run-1");
+      yield call("c1", "run-1", options.pendingCalls);
     } else if (requests.length === 2) {
-      yield call("c2", "run-2");
+      yield call("c2", "run-2", options.pendingCalls);
       await new Promise<void>((resolve) =>
         abortSignal.addEventListener("abort", () => resolve(), { once: true }),
       );
     } else if (requests.length === 3) {
       firstGroupEntered.resolve();
-      if (behavior === "fail") throw new Error("first group failed");
+      if (behavior === "fail") throw firstGroupFailure;
       if (behavior === "stop") {
         yield {
           id: "group-progress",
@@ -112,9 +123,12 @@ const mount = async (
   const capture: {
     runtime: AssistantRuntime | null;
     submitInput: ReturnType<typeof useAdkSubmitInput> | null;
-  } = { runtime: null, submitInput: null };
+    send: ReturnType<typeof useAdkSend> | null;
+  } = { runtime: null, submitInput: null, send: null };
+  let autoCancelPendingToolCalls = false;
   const SubmitInput = () => {
     capture.submitInput = useAdkSubmitInput();
+    capture.send = useAdkSend();
     return null;
   };
   const Inner = () => {
@@ -122,7 +136,7 @@ const mount = async (
       stream,
       sessionAdapter,
       unstable_allowCancellation: true,
-      autoCancelPendingToolCalls: false,
+      ...(!autoCancelPendingToolCalls && { autoCancelPendingToolCalls: false }),
       ...(getCheckpointId && { getCheckpointId }),
     });
     capture.runtime = runtime;
@@ -164,15 +178,22 @@ const mount = async (
         ),
     ).toBe(true),
   );
-  await act(async () => {
-    await Promise.all([
-      capture.submitInput!("c1", "first"),
-      capture.submitInput!("c2", "second"),
-    ]);
-  });
+  if (options.pendingCalls) {
+    autoCancelPendingToolCalls = true;
+    act(() => view.rerender(<Inner />));
+  } else {
+    await act(async () => {
+      await Promise.all([
+        capture.submitInput!("c1", "first"),
+        capture.submitInput!("c2", "second"),
+      ]);
+    });
+  }
   return {
     runtime: capture.runtime!,
     requests,
+    send: capture.send!,
+    firstGroupFailure,
     firstGroupEntered,
     holdFirstGroup,
     unmount: () => view.unmount(),
@@ -196,6 +217,35 @@ const sendDraft = (runtime: AssistantRuntime) =>
   });
 
 describe("useAdkRuntime split new turns", () => {
+  it("preserves the first group failure as the cause when the human group never starts", async () => {
+    const h = await mount("fail", undefined, { pendingCalls: true });
+    const result = h.send(
+      [
+        {
+          id: "reply-c1",
+          type: "tool",
+          tool_call_id: "c1",
+          name: "lookup",
+          content: '{"result":"first"}',
+          status: "success",
+        },
+        {
+          id: "reply-c2",
+          type: "tool",
+          tool_call_id: "c2",
+          name: "lookup",
+          content: '{"result":"second"}',
+          status: "success",
+        },
+        { id: "human-third", type: "human", content: "third" },
+      ],
+      {},
+    );
+    await expect(result).rejects.toBeInstanceOf(MessageNotSentError);
+    await expect(result).rejects.toHaveProperty("cause", h.firstGroupFailure);
+    h.unmount();
+  });
+
   it("shows every queued group while the first group streams", async () => {
     const h = await mount("success");
     sendDraft(h.runtime);
@@ -263,6 +313,28 @@ describe("useAdkRuntime split new turns", () => {
     h.unmount();
   });
 
+  it("resends one cancellation per pending call after the first group fails", async () => {
+    const h = await mount("fail", undefined, { pendingCalls: true });
+    sendDraft(h.runtime);
+    await h.firstGroupEntered.promise;
+    await waitFor(() =>
+      expect(h.runtime.thread.composer.getState().text).toBe("third"),
+    );
+    expect(h.requests).toHaveLength(3);
+
+    act(() => h.runtime.thread.composer.send());
+    await waitFor(() => expect(h.requests).toHaveLength(5));
+    const resent = h.requests.slice(3).flat();
+    expect(resent.filter((message) => message.type === "tool")).toMatchObject([
+      { tool_call_id: "c1", content: '{"cancelled":true}' },
+      { tool_call_id: "c2", content: '{"cancelled":true}' },
+    ]);
+    expect(resent.filter((message) => message.type === "human")).toMatchObject([
+      { content: "third" },
+    ]);
+    h.unmount();
+  });
+
   it("stops before a later group after Stop and restores the unsent draft and reply", async () => {
     const h = await mount("stop");
     sendDraft(h.runtime);
@@ -302,6 +374,43 @@ describe("useAdkRuntime split new turns", () => {
         expect.objectContaining({ type: "human", content: "third" }),
       ]),
     );
+    h.unmount();
+  });
+
+  it("resends only the pending cancellation after Stop answers the first call", async () => {
+    const h = await mount("stop", undefined, { pendingCalls: true });
+    sendDraft(h.runtime);
+    await h.firstGroupEntered.promise;
+    await waitFor(() =>
+      expect(
+        h.runtime.thread
+          .getState()
+          .messages.some((message) =>
+            message.content.some(
+              (part) => part.type === "text" && part.text === "working",
+            ),
+          ),
+      ).toBe(true),
+    );
+    act(() => h.runtime.thread.cancelRun());
+    h.holdFirstGroup.resolve();
+    await waitFor(() =>
+      expect(h.runtime.thread.composer.getState().text).toBe("third"),
+    );
+    expect(h.requests).toHaveLength(3);
+    expect(
+      h.requests[2]!.filter((message) => message.type === "tool"),
+    ).toMatchObject([{ tool_call_id: "c1", content: '{"cancelled":true}' }]);
+
+    act(() => h.runtime.thread.composer.send());
+    await waitFor(() => expect(h.requests).toHaveLength(4));
+    const resent = h.requests[3]!;
+    expect(resent.filter((message) => message.type === "tool")).toMatchObject([
+      { tool_call_id: "c2", content: '{"cancelled":true}' },
+    ]);
+    expect(resent.filter((message) => message.type === "human")).toMatchObject([
+      { content: "third" },
+    ]);
     h.unmount();
   });
 
