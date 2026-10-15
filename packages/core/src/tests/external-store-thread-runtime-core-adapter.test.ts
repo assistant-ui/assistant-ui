@@ -2415,6 +2415,50 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(streamCall).not.toHaveBeenCalled();
     });
 
+    it("suppresses a late call with a run id when Stop precedes activeRunId", async () => {
+      const u1 = createUserMessage("u1");
+      const { core, execute, streamCall, publish } = setup([u1]);
+      core.cancelRun();
+      publish(
+        [
+          u1,
+          {
+            ...toolMessage("a1", "late-call"),
+            metadata: {
+              ...createAssistantMessage("a1").metadata,
+              runId: "srv-1",
+            },
+          },
+        ],
+        false,
+      );
+      await settle();
+
+      expect(execute).not.toHaveBeenCalled();
+      expect(streamCall).not.toHaveBeenCalled();
+    });
+
+    it("suppresses a call in the cancelled message with a different run id", async () => {
+      const u1 = createUserMessage("u1");
+      const a1 = createAssistantMessage("a1");
+      const { core, execute, streamCall, publish } = setup([u1, a1]);
+      core.cancelRun();
+      publish(
+        [
+          u1,
+          {
+            ...toolMessage("a1", "existing-call"),
+            metadata: { ...a1.metadata, runId: "srv-1" },
+          },
+        ],
+        false,
+      );
+      await settle();
+
+      expect(execute).not.toHaveBeenCalled();
+      expect(streamCall).not.toHaveBeenCalled();
+    });
+
     it("keeps the cancelled scope through a second cancel after settle", async () => {
       const u1 = createUserMessage("u1");
       const { core, execute, streamCall, publish } = setup([u1]);
@@ -2506,6 +2550,56 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
     });
 
+    it("discards a late cancelled call after regeneration under the same parent while running the replacement", async () => {
+      const u1 = createUserMessage("u1");
+      const oldCall = {
+        ...toolMessage("a-old", "old-call"),
+        metadata: {
+          ...createAssistantMessage("a-old").metadata,
+          runId: "old-run",
+        },
+      };
+      const newCall = {
+        ...toolMessage("a-new", "new-call"),
+        metadata: {
+          ...createAssistantMessage("a-new").metadata,
+          runId: "new-run",
+        },
+      };
+      const { core, execute, streamCall, publish } = setup([u1], true, {
+        activeRunId: "old-run",
+      });
+      const branch = (
+        headId: string,
+        assistants: ThreadAssistantMessage[],
+      ) => ({
+        activeRunId: "new-run",
+        messageRepository: {
+          headId,
+          messages: [
+            { message: u1, parentId: null },
+            ...assistants.map((message) => ({ message, parentId: "u1" })),
+          ],
+        },
+      });
+
+      core.cancelRun();
+      await core.startRun({ parentId: "u1", sourceId: null, runConfig: {} });
+      publish([u1, oldCall], true, branch("a-old", [oldCall]));
+      publish([u1, newCall], true, branch("a-new", [oldCall, newCall]));
+
+      await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+      expect(execute).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ toolCallId: "new-call" }),
+      );
+      expect(streamCall).toHaveBeenCalledOnce();
+      expect(streamCall).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ toolCallId: "new-call" }),
+      );
+    });
+
     it("runs a host-started call under the cancelled parent after settle", async () => {
       const u1 = createUserMessage("u1");
       const { core, execute, publish } = setup([u1]);
@@ -2580,6 +2674,33 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       const replacement = { unstable_messageRepositoryInstance: repository };
       publish([u1], false, replacement);
       publish([u1, toolMessage("a2", "new-call")], false, replacement);
+
+      await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+    });
+
+    it("clears cancelled run ids when the repository changes", async () => {
+      const u1 = createUserMessage("u1");
+      const { core, execute, publish } = setup([u1], true, {
+        activeRunId: "old-run",
+      });
+      core.cancelRun();
+      const repository = new MessageRepository();
+      const replacement = { unstable_messageRepositoryInstance: repository };
+      publish([u1], false, replacement);
+      publish(
+        [
+          u1,
+          {
+            ...toolMessage("a1", "new-call"),
+            metadata: {
+              ...createAssistantMessage("a1").metadata,
+              runId: "old-run",
+            },
+          },
+        ],
+        false,
+        replacement,
+      );
 
       await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
     });

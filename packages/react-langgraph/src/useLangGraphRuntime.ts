@@ -219,6 +219,11 @@ const useLangGraphRuntimeImpl = (
     };
   }, []);
   const [threadController] = useState(() => new LangGraphThreadController());
+  const queuedReplyIds = useSyncExternalStore(
+    threadController.subscribe,
+    threadController.getQueuedReplyIds,
+    threadController.getQueuedReplyIds,
+  );
   const wrappedEventHandlers = useMemo(
     () =>
       ({
@@ -379,8 +384,9 @@ const useLangGraphRuntimeImpl = (
         messageTiming,
         attachmentsByMessageId: attachmentsByMessageIdRef.current,
         streamingMessage: isRunning ? messages.at(-1) : undefined,
+        bufferedReplyIds: queuedReplyIds,
       }) as unknown as useExternalMessageConverter.Metadata,
-    [uiMessagesByParent, messageTiming, isRunning, messages],
+    [uiMessagesByParent, messageTiming, isRunning, messages, queuedReplyIds],
   );
 
   const sendMessageRef = useRef(sendMessage);

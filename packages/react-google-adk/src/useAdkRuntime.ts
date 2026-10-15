@@ -474,13 +474,16 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     [],
   );
 
-  const messageConverter = useMemo(
-    () =>
-      toolApprovalsKey === ""
+  const messageConverter = useMemo(() => {
+    if (threadState.toolResultBuffer.size === 0)
+      return toolApprovalsKey === ""
         ? convertAdkMessage
-        : createAdkMessageConverter(toolApprovalsRef.current),
-    [toolApprovalsKey],
-  );
+        : createAdkMessageConverter(toolApprovalsRef.current);
+    return createAdkMessageConverter(
+      toolApprovalsRef.current,
+      new Set(threadState.toolResultBuffer.keys()),
+    );
+  }, [toolApprovalsKey, threadState.toolResultBuffer]);
 
   const threadMessages = useExternalMessageConverter({
     callback: messageConverter,

@@ -709,7 +709,9 @@ const ToolFallbackApprovalImpl: FC<
 export const ToolFallback: ToolCallMessagePartComponent = ({
   toolName,
   argsText,
+  result,
   status,
+  responseDeliveryStatus,
   approval,
   interrupt,
   addResult,
@@ -719,13 +721,15 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
   const isCancelled =
     status.type === "incomplete" && status.reason === "cancelled";
   const label =
-    status.type === "running"
-      ? `Running ${toolName}…`
-      : status.type === "requires-action"
-        ? `Waiting on ${toolName}`
-        : status.type === "incomplete"
-          ? `${isCancelled ? "Cancelled" : "Failed"} ${toolName}`
-          : `Used ${toolName}`;
+    responseDeliveryStatus === "queued"
+      ? `Reply to ${toolName} queued, not sent yet`
+      : status.type === "running"
+        ? `Running ${toolName}…`
+        : status.type === "requires-action"
+          ? `Waiting on ${toolName}`
+          : status.type === "incomplete"
+            ? `${isCancelled ? "Cancelled" : "Failed"} ${toolName}`
+            : `Used ${toolName}`;
   const error =
     status.type === "incomplete" && status.error != null
       ? formatUnknownValue(status.error)
@@ -763,6 +767,16 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
           resume={resume}
           respondToApproval={respondToApproval}
         />
+      )}
+      {responseDeliveryStatus === "queued" && result !== undefined && (
+        <View className="aui-tool-fallback-result ps-6">
+          <Text className="text-muted-foreground text-xs font-semibold">
+            Result:
+          </Text>
+          <Text className="text-foreground text-xs" selectable>
+            {formatUnknownValue(result)}
+          </Text>
+        </View>
       )}
     </View>
   );

@@ -104,6 +104,15 @@ export const useExternalHistory = <TMessage>(
   );
 
   const [hasLoaded, setHasLoaded] = useState(false);
+  const historyReadyRef = useRef(false);
+  const deferredPersistRef = useRef(false);
+  const persistWhenReadyRef = useRef<() => void>(() => {});
+  const loadInFlightRef = useRef<Promise<void> | null>(null);
+
+  useEffect(() => {
+    historyReadyRef.current = hasLoaded;
+    if (hasLoaded) persistWhenReadyRef.current();
+  }, [hasLoaded]);
 
   const historyIds = useRef(new Set<string>());
   const deferredTelemetryIds = useRef(new Set<string>());
@@ -132,16 +141,20 @@ export const useExternalHistory = <TMessage>(
   useEffect(() => {
     if (!formatAdapter || loadedRef.current) return undefined;
 
+    const remoteId = optionalThreadListItem()?.getState().remoteId;
     const loadHistory = async () => {
       try {
         const repo = await formatAdapter.load();
-        const threadState = runtimeRef.current.thread.getState();
-        if (threadState.isRunning || threadState.messages.length > 0) {
-          return;
+        if (optionalThreadListItem()?.getState().remoteId !== remoteId) return;
+        // A resumed stream or a send may have appended live messages while
+        // the load was in flight. The history imports beneath that live tail
+        // so neither side of the race is dropped.
+        const liveMessages = runtimeRef.current.thread.getState().messages;
+        if (liveMessages.length === 0) {
+          toolArtifacts?.clear();
+          toolInteractions?.clear();
+          toolApprovalResponses?.clear();
         }
-        toolArtifacts?.clear();
-        toolInteractions?.clear();
-        toolApprovalResponses?.clear();
         const restoredMessages =
           repo?.messages.map((item) => ({
             ...item,
@@ -170,10 +183,35 @@ export const useExternalHistory = <TMessage>(
             toThreadMessages,
             restoredRepo,
           );
-          runtimeRef.current.thread.import(converted);
+          const liveById = new Map(
+            liveMessages.map((message) => [message.id, message]),
+          );
+          const loadedMessages = converted.messages.map((item) => ({
+            ...item,
+            message: liveById.get(item.message.id) ?? item.message,
+          }));
+          const loadedIds = new Set(loadedMessages.map((m) => m.message.id));
+          const liveTail = liveMessages.filter((m) => !loadedIds.has(m.id));
+          const anchorId =
+            converted.headId ?? converted.messages.at(-1)?.message.id ?? null;
+          const merged =
+            liveTail.length === 0
+              ? { ...converted, messages: loadedMessages }
+              : {
+                  headId: liveTail.at(-1)!.id,
+                  messages: [
+                    ...loadedMessages,
+                    ...liveTail.map((message, index) => ({
+                      parentId:
+                        index === 0 ? anchorId : liveTail[index - 1]!.id,
+                      message,
+                    })),
+                  ],
+                };
+          runtimeRef.current.thread.import(merged);
 
           const tempRepo = new MessageRepository();
-          tempRepo.import(converted);
+          tempRepo.import(merged);
           const messages = tempRepo.getMessages();
 
           onSetMessagesRef.current(
@@ -181,7 +219,7 @@ export const useExternalHistory = <TMessage>(
           );
 
           historyIds.current = new Set();
-          for (const m of converted.messages) {
+          for (const m of loadedMessages) {
             historyIds.current.add(m.message.id);
             if (isAwaitingToolApproval(m.message)) {
               deferredTelemetryIds.current.add(m.message.id);
@@ -197,7 +235,6 @@ export const useExternalHistory = <TMessage>(
 
     formatAdapter.pin?.();
 
-    const remoteId = optionalThreadListItem()?.getState().remoteId;
     if (!remoteId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setHasLoaded(true);
@@ -216,8 +253,9 @@ export const useExternalHistory = <TMessage>(
     }
 
     loadedRef.current = true;
+    historyReadyRef.current = false;
     setHasLoaded(false);
-    void loadHistory();
+    loadInFlightRef.current = loadHistory();
     return undefined;
   }, [
     formatAdapter,
@@ -400,10 +438,18 @@ export const useExternalHistory = <TMessage>(
       persistSettled(true);
     }
 
-    function persistSettled(ignoreRunning: boolean) {
+    function persistSettled(
+      ignoreRunning: boolean,
+      ignoreHistoryReady = false,
+    ) {
       persistTimerRef.current = null;
+      if (!historyReadyRef.current && !ignoreHistoryReady) {
+        deferredPersistRef.current = true;
+        return;
+      }
       const latest = runtimeRef.current.thread.getState();
       if (!ignoreRunning && latest.isRunning) return;
+      deferredPersistRef.current = false;
 
       const boundaries = stepBoundariesRef.current;
       const durationMs = boundaries.length > 0 ? boundaries.at(-1) : undefined;
@@ -553,6 +599,13 @@ export const useExternalHistory = <TMessage>(
         });
     }
 
+    persistWhenReadyRef.current = () => {
+      const state = runtimeRef.current.thread.getState();
+      if (state.isRunning || state.messages.length === 0) return;
+      if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
+      persistSettled(true);
+    };
+
     function persistRunningUserMessages(messages: readonly ThreadMessage[]) {
       const persistence = persistInFlightRef.current.then(async () => {
         let lastInnerMessageId: string | null = null;
@@ -591,10 +644,23 @@ export const useExternalHistory = <TMessage>(
     }
 
     return () => {
+      persistWhenReadyRef.current = () => {};
       unsubscribe();
+      const hasPendingTimer = persistTimerRef.current !== null;
       if (persistTimerRef.current) {
         clearTimeout(persistTimerRef.current);
         persistTimerRef.current = null;
+      }
+      if (
+        !historyReadyRef.current &&
+        (deferredPersistRef.current || hasPendingTimer)
+      ) {
+        if (loadInFlightRef.current) {
+          void loadInFlightRef.current.then(() => persistSettled(true, true));
+        } else {
+          persistSettled(true, true);
+        }
+      } else if (hasPendingTimer) {
         persistSettled(false);
       }
     };

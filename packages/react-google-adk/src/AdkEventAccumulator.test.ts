@@ -19,6 +19,155 @@ const makeTextEvent = (
     content: { role: "model", parts: [{ text }] },
   });
 
+describe("stable invocation message ids", () => {
+  it("keeps the first partial id when only the final event is reloaded", () => {
+    const live = new AdkEventAccumulator();
+    const events = [
+      makeTextEvent("Hel", true),
+      makeTextEvent("lo", true),
+      makeTextEvent("Hello"),
+    ].map((event, index) => ({
+      ...event,
+      id: `e${index + 1}`,
+      invocationId: "run-1",
+    }));
+    expect(live.processEvent(events[0]!)[0]?.id).toBe("run-1:ai");
+    expect(live.processEvent(events[1]!)[0]?.id).toBe("run-1:ai");
+    const streamed = live.processEvent(events[2]!);
+    const reloaded = new AdkEventAccumulator().processEvent(events[2]!);
+    expect(streamed[0]?.id).toBe("run-1:ai");
+    expect(reloaded).toEqual(streamed);
+  });
+
+  it("numbers separate AI messages within one invocation", () => {
+    const events = [
+      makeEvent({
+        id: "first",
+        invocationId: "run-1",
+        author: "agent-a",
+        content: { parts: [{ text: "First" }] },
+      }),
+      makeEvent({
+        id: "second",
+        invocationId: "run-1",
+        author: "agent-b",
+        content: { parts: [{ text: "Second" }] },
+      }),
+    ];
+    const accumulator = new AdkEventAccumulator();
+    for (const event of events) accumulator.processEvent(event);
+    expect(accumulator.getMessages().map((message) => message.id)).toEqual([
+      "run-1:ai",
+      "run-1:ai1",
+    ]);
+  });
+
+  it("preserves assistant messages across runs of the same invocation", () => {
+    const firstEvent = makeEvent({
+      id: "first-final",
+      invocationId: "X",
+      author: "agent",
+      longRunningToolIds: ["call-1"],
+      content: {
+        parts: [
+          { text: "Waiting for confirmation" },
+          { functionCall: { id: "call-1", name: "confirm", args: {} } },
+        ],
+      },
+    });
+    const secondEvent = makeEvent({
+      id: "second-final",
+      invocationId: "X",
+      author: "agent",
+      content: { parts: [{ text: "Confirmed" }] },
+    });
+    const firstRun = new AdkEventAccumulator();
+    const firstMessages = firstRun.processEvent(firstEvent);
+    expect(firstMessages[0]?.id).toBe("X:ai");
+
+    const secondRun = new AdkEventAccumulator(firstMessages);
+    const liveMessages = secondRun.processEvent(secondEvent);
+    expect(liveMessages.map((message) => message.id)).toEqual([
+      "X:ai",
+      "X:ai1",
+    ]);
+    expect(liveMessages[0]).toEqual(firstMessages[0]);
+    expect(liveMessages[0]?.content).toEqual([
+      { type: "text", text: "Waiting for confirmation" },
+    ]);
+
+    const replay = new AdkEventAccumulator();
+    replay.processEvent(firstEvent);
+    expect(replay.processEvent(secondEvent)).toEqual(liveMessages);
+  });
+
+  it("replays a user message with its sent id from custom metadata", () => {
+    const accumulator = new AdkEventAccumulator();
+    expect(
+      accumulator.processEvent(
+        makeEvent({
+          id: "stored-user",
+          invocationId: "X",
+          author: "user",
+          customMetadata: { assistant_ui_message_id: "sent-user" },
+          content: { parts: [{ text: "Hi" }] },
+        }),
+      ),
+    ).toEqual([{ id: "sent-user", type: "human", content: "Hi" }]);
+  });
+
+  it.each([undefined, "", 42, false, null, {}])(
+    "uses the user event id when message metadata is %j",
+    (messageId) => {
+      const accumulator = new AdkEventAccumulator();
+      expect(
+        accumulator.processEvent(
+          makeEvent({
+            id: "stored-user",
+            invocationId: "X",
+            author: "user",
+            customMetadata:
+              messageId === undefined
+                ? {}
+                : { assistant_ui_message_id: messageId },
+            content: { parts: [{ text: "Hi" }] },
+          }),
+        ),
+      ).toEqual([{ id: "stored-user", type: "human", content: "Hi" }]);
+    },
+  );
+
+  it("ignores user message metadata on agent events", () => {
+    const accumulator = new AdkEventAccumulator();
+    const messages = accumulator.processEvent(
+      makeEvent({
+        id: "stored-agent",
+        invocationId: "X",
+        author: "agent",
+        customMetadata: { assistant_ui_message_id: "sent-user" },
+        content: { parts: [{ text: "Hello" }] },
+      }),
+    );
+    expect(messages[0]).toMatchObject({ id: "X:ai", type: "ai" });
+  });
+
+  it("keeps event ids when invocationId is absent", () => {
+    const accumulator = new AdkEventAccumulator();
+    accumulator.processEvent(
+      makeEvent({
+        id: "user-event",
+        author: "user",
+        content: { parts: [{ text: "Hi" }] },
+      }),
+    );
+    accumulator.processEvent(makeTextEvent("Hello"));
+    expect(accumulator.getMessages().map((message) => message.id)).toEqual([
+      "user-event",
+      "evt-1:ai",
+    ]);
+  });
+});
+
 describe.each(["user", "agent"])("%s function response status", (author) => {
   it.each([
     [{ error: "denied" }, "error"],

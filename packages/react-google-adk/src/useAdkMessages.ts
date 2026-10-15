@@ -38,6 +38,7 @@ import type {
   OnAdkCustomEventCallback,
   OnAdkAgentTransferCallback,
 } from "./types";
+import { ADK_MESSAGE_ID_METADATA_KEY } from "./messageIdMetadataKey";
 
 export type UseAdkMessagesOptions = {
   stream: AdkStreamCallback;
@@ -362,6 +363,7 @@ const useAdkMessagesInternal = ({
             // Fire custom event callback for events with customMetadata
             if (event.customMetadata && onCustomEvent) {
               for (const [key, value] of Object.entries(event.customMetadata)) {
+                if (key === ADK_MESSAGE_ID_METADATA_KEY) continue;
                 invokeAdkRuntimeCallback(
                   "onCustomEvent",
                   onCustomEvent,
