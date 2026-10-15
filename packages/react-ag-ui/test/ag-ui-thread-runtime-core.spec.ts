@@ -7919,7 +7919,7 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(runInputs[2].forwardedProps.a2uiAction).toBeUndefined();
   });
 
-  it("drops an A2UI action when getRunContext throws before the next send", async () => {
+  it("sends an A2UI action when getRunContext throws without leaking it to the next send", async () => {
     const runInputs: any[] = [];
     const onError = vi.fn();
     const contextError = new Error("context failed");
@@ -7942,11 +7942,15 @@ describe("AGUIThreadRuntimeCore", () => {
 
     core.sendA2uiAction({ type: "a2ui:action", name: "submit" });
     await vi.waitFor(() => expect(onError).toHaveBeenCalledWith(contextError));
+    expect(runInputs[1].forwardedProps.a2uiAction.userAction.name).toBe(
+      "submit",
+    );
 
     await core.append(createAppendMessage());
 
-    expect(runInputs).toHaveLength(2);
-    expect(runInputs[1].forwardedProps.a2uiAction).toBeUndefined();
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(runInputs).toHaveLength(3);
+    expect(runInputs[2].forwardedProps.a2uiAction).toBeUndefined();
   });
 
   it("defers A2UI action runs until the active run settles", async () => {

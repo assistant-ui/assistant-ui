@@ -32,6 +32,7 @@ import {
 import type {
   AbstractAgent,
   AgentSubscriber,
+  Context,
   RunAgentParameters,
   RunAgentResult,
 } from "@ag-ui/client";
@@ -1613,6 +1614,14 @@ export class AgUiThreadRuntimeCore {
       ),
     );
     const context = this.runtime?.thread.getModelContext();
+    let hostContext: readonly Context[] = [];
+    try {
+      hostContext = this.getRunContext?.({ messages, runConfig }) ?? [];
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error("[agui] getRunContext failed", err);
+      invokeRuntimeCallback("onError", this.onError, err);
+    }
     const input = {
       threadId,
       runId,
@@ -1623,7 +1632,7 @@ export class AgUiThreadRuntimeCore {
         ...(context?.system
           ? [{ description: "system", value: context.system }]
           : []),
-        ...(this.getRunContext?.({ messages, runConfig }) ?? []),
+        ...hostContext,
       ],
       forwardedProps: {
         ...(context?.callSettings ?? {}),

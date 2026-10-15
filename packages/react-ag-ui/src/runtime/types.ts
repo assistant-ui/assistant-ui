@@ -89,6 +89,7 @@ export type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
    * whole thread, while "appended" sends messages after the interrupted
    * assistant message, falling back to the whole thread if that message is
    * missing. `runConfig` is the run config passed while building that input.
+   * If the getter throws, the error is reported and the run continues without host entries.
    */
   getRunContext?:
     | ((input: {
