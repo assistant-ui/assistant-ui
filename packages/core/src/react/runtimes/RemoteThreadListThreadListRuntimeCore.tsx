@@ -786,8 +786,10 @@ export class RemoteThreadListThreadListRuntimeCore
     options?: { unarchive?: boolean },
   ): Promise<void> {
     if (
+      this._controlledSwitchTask !== undefined &&
+      this._controlledSwitchGeneration === this._switchGeneration &&
       getThreadData(this._state.value, threadIdOrRemoteId)?.id ===
-      this._mainThreadId
+        this._mainThreadId
     ) {
       return Promise.resolve();
     }
@@ -902,6 +904,7 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   private _controlledSwitchGeneration: number | undefined;
+  private _controlledSwitchTask: Promise<void> | undefined;
 
   private _switchToThreadFromProp(threadId: string | undefined): Promise<void> {
     const task =
@@ -913,6 +916,13 @@ export class RemoteThreadListThreadListRuntimeCore
             this._startSwitchToNewThread(false),
           );
     this._controlledSwitchGeneration = this._switchGeneration;
+    this._controlledSwitchTask = task;
+    const clearTask = () => {
+      if (this._controlledSwitchTask === task) {
+        this._controlledSwitchTask = undefined;
+      }
+    };
+    void task.then(clearTask, clearTask);
     return task;
   }
 
