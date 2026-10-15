@@ -5,13 +5,6 @@ import { ModelContextRegistry } from "@assistant-ui/core";
 import { expect, it, vi } from "vitest";
 import { useAssistantFrameHost } from "./useAssistantFrameHost";
 
-vi.mock("@assistant-ui/core", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@assistant-ui/core")>()),
-  AssistantFrameHost: (
-    await import("../../../../core/src/model-context/frame/host")
-  ).AssistantFrameHost,
-}));
-
 it("drops tools and pending calls when a frame loads a page without a provider", async () => {
   vi.useFakeTimers();
   const iframe = document.createElement("iframe");
