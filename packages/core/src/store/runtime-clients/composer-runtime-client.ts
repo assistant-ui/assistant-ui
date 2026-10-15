@@ -60,6 +60,7 @@ const QueueItemClient = resource(useQueueItemClient);
 const toComposerState = (
   runtimeState: ComposerRuntimeState,
   attachments: ComposerState["attachments"],
+  queue: ComposerState["queue"],
 ): ComposerState => ({
   text: runtimeState.text,
   role: runtimeState.role,
@@ -73,10 +74,28 @@ const toComposerState = (
   type: runtimeState.type ?? "thread",
   dictation: runtimeState.dictation,
   quote: runtimeState.quote,
-  queue: runtimeState.queue,
+  queue,
   submission: runtimeState.submission,
   inTransit: runtimeState.inTransit,
 });
+
+const createGetState = (
+  runtime: ComposerRuntime,
+  runtimeState: ComposerRuntimeState,
+  state: ComposerState,
+) => {
+  let overlaySnapshot: ComposerRuntimeState | undefined;
+  let overlay: ComposerState | undefined;
+  return () => {
+    const snapshot = runtime.getState();
+    if (snapshot === runtimeState) return state;
+    if (snapshot !== overlaySnapshot) {
+      overlaySnapshot = snapshot;
+      overlay = toComposerState(snapshot, state.attachments, state.queue);
+    }
+    return overlay!;
+  };
+};
 
 const useComposerClient = ({
   threadIdRef,
@@ -172,21 +191,13 @@ const useComposerClient = ({
   );
 
   const state = useMemo(
-    () => toComposerState(runtimeState, attachments.state),
-    [runtimeState, attachments.state],
+    () => toComposerState(runtimeState, attachments.state, queue),
+    [runtimeState, attachments.state, queue],
   );
-
-  let overlaySnapshot: typeof runtimeState | undefined;
-  let overlay: ComposerState | undefined;
-  const getState = () => {
-    const snapshot = runtime.getState();
-    if (snapshot === runtimeState) return state;
-    if (snapshot !== overlaySnapshot) {
-      overlaySnapshot = snapshot;
-      overlay = toComposerState(snapshot, state.attachments);
-    }
-    return overlay!;
-  };
+  const getState = useMemo(
+    () => createGetState(runtime, runtimeState, state),
+    [runtime, runtimeState, state],
+  );
 
   return {
     getState,
