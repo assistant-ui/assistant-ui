@@ -71,21 +71,30 @@ export class InMemoryThreadListAdapter implements RemoteThreadListAdapter {
     return Promise.resolve();
   }
 
-  initialize(threadId: string): Promise<RemoteThreadInitializeResponse> {
-    return Promise.resolve(this.register(threadId));
+  initialize(
+    threadId: string,
+    options?: { custom?: Record<string, unknown> | undefined },
+  ): Promise<RemoteThreadInitializeResponse> {
+    return Promise.resolve(this.register(threadId, undefined, options?.custom));
   }
 
   /** @internal */
   register(
     threadId: string,
     externalId?: string | undefined,
+    custom?: Record<string, unknown> | undefined,
   ): RemoteThreadInitializeResponse {
     const current = this.threads.get(threadId);
     const thread = current
       ? externalId === undefined || current.externalId === externalId
         ? current
         : { ...current, externalId }
-      : { status: "regular" as const, remoteId: threadId, externalId };
+      : {
+          status: "regular" as const,
+          remoteId: threadId,
+          externalId,
+          ...(custom !== undefined ? { custom } : {}),
+        };
     this.threads.set(threadId, thread);
     return { remoteId: threadId, externalId: thread.externalId };
   }

@@ -128,6 +128,33 @@ const setup = () => {
   return { getAui: () => aui, onSwitchToThread, selectionChanged };
 };
 
+describe("InMemoryThreadList custom metadata", () => {
+  it("keeps custom metadata when its item is initialized and updates it afterward", async () => {
+    const { getAui } = setup();
+    await act(async () => {});
+    await act(async () => {
+      await getAui().threads.item("main").updateCustom({ label: "draft" });
+    });
+    expect(getAui().threads.item("main").getState().custom).toEqual({
+      label: "draft",
+    });
+
+    await act(async () => {
+      await getAui().threads.item("main").initialize();
+    });
+    expect(getAui().threads.item("main").getState().custom).toEqual({
+      label: "draft",
+    });
+
+    await act(async () => {
+      await getAui().threads.item("main").updateCustom({ label: "saved" });
+    });
+    expect(getAui().threads.item("main").getState().custom).toEqual({
+      label: "saved",
+    });
+  });
+});
+
 describe("InMemoryThreadList selection events", () => {
   it("emits item switch events once to both scopes after mount", async () => {
     const starTo = vi.fn();

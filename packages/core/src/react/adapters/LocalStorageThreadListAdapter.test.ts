@@ -622,6 +622,17 @@ describe("parseStoredMessageRepository", () => {
 });
 
 describe("createLocalStorageAdapter", () => {
+  it("stores custom metadata during initialization", async () => {
+    const storage = createStorage();
+    const adapter = createLocalStorageAdapter({ storage });
+
+    await adapter.initialize("thread-1", { custom: { label: "draft" } });
+
+    expect((await adapter.list()).threads[0]?.custom).toEqual({
+      label: "draft",
+    });
+  });
+
   it("persists history for a newly initialized thread", async () => {
     const messagesKey = "@assistant-ui:messages:thread-1";
     const storage = createStorage();
