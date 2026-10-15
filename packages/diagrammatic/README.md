@@ -50,7 +50,7 @@ Colors resolve through `--dg-*` custom properties with the shipped defaults as f
 | `--dg-surface` | Separator strokes and occluding fills |
 | `--dg-font` | Chart text, inherits the host font by default |
 
-Import `diagrammatic/styles.css` to see the defaults in one place, or set the tokens yourself. That file also carries the highlight styles, so import it if you use `highlight` on `Interactive.Root`. A shadcn/ui app imports `diagrammatic/shadcn.css` and every figure takes its `--chart-*`, foreground, muted, border, and background tokens.
+Import `diagrammatic/styles.css` to see the defaults in one place, or set the tokens yourself. That file also carries the highlight styles, so import it if you use `highlight` on `Interactive.Root`. A shadcn/ui app imports `diagrammatic/shadcn.css` and every figure takes its `--chart-*`, foreground, muted, border, and background tokens. The bridge reads each of those tokens as a complete color, the format shadcn/ui generates for Tailwind CSS v4 (`--chart-1: oklch(0.646 0.222 41.116)`). A Tailwind CSS v3 theme stores bare HSL channels (`--chart-1: 12 76% 61%`), so set the `--dg-*` tokens to `hsl(var(--chart-1))` and so on instead of importing the bridge.
 
 The built-in legend is drawn inside the figure; `legend={false}` plus the `Legend` export puts one on the page instead, on the page's own type and colored through the same tokens.
 
