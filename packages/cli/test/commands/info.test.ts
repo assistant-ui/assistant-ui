@@ -312,4 +312,35 @@ describe("info command", () => {
       fs.rmSync(root, { recursive: true, force: true });
     }
   });
+
+  it("lists a first-party peer once, under Packages", async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "aui-info-"));
+    const consoleLog = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    try {
+      fs.writeFileSync(
+        path.join(root, "package.json"),
+        JSON.stringify({
+          name: "fixture",
+          dependencies: { "@assistant-ui/react": "0.12.0" },
+        }),
+      );
+      writePackage(root, "@assistant-ui/react", { version: "0.12.0" });
+      writePackage(root, "@assistant-ui/core", {
+        version: "0.1.0",
+        peerDependencies: { "assistant-cloud": "^0.2.1" },
+      });
+      writePackage(root, "assistant-cloud", { version: "0.2.1" });
+
+      await info.parseAsync(["node", "info", "--cwd", root], {
+        from: "node",
+      });
+
+      const report = consoleLog.mock.calls.flat().join("\n").split("```")[1];
+      expect(report?.match(/assistant-cloud\s+0\.2\.1/g)).toHaveLength(1);
+    } finally {
+      consoleLog.mockRestore();
+      fs.rmSync(root, { recursive: true, force: true });
+    }
+  });
 });

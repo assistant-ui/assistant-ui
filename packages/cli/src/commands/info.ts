@@ -123,7 +123,11 @@ function getEcosystemPackageNames(
 ): string[] {
   const upstreamPeers = packages
     .flatMap((pkg) => Object.keys(getPeerDeps(pkg.name, cwd) ?? {}))
-    .filter((name) => !name.startsWith("@assistant-ui/"))
+    .filter(
+      (name) =>
+        !name.startsWith("@assistant-ui/") &&
+        !ASSISTANT_UI_PACKAGES.includes(name),
+    )
     .sort();
 
   return [...new Set([...ECOSYSTEM_PACKAGES, ...upstreamPeers])];
