@@ -56,7 +56,9 @@ const deferred = () => {
   return { promise, resolve };
 };
 
-const mount = async (behavior: "fail" | "fail-second" | "stop" | "success") => {
+const mount = async (
+  behavior: "fail" | "fail-second" | "stop" | "stop-last" | "success",
+) => {
   const requests: AdkMessage[][] = [];
   const firstGroupEntered = deferred();
   const holdFirstGroup = deferred();
@@ -89,8 +91,21 @@ const mount = async (behavior: "fail" | "fail-second" | "stop" | "success") => {
         );
       }
       await holdFirstGroup.promise;
-    } else if (requests.length === 4 && behavior === "fail-second") {
-      throw new Error("second group failed");
+    } else if (requests.length === 4) {
+      if (behavior === "fail-second") throw new Error("second group failed");
+      if (behavior === "stop-last") {
+        yield {
+          id: "last-group-progress",
+          invocationId: "run-4",
+          author: "agent",
+          content: { role: "model", parts: [{ text: "last group working" }] },
+        };
+        await new Promise<void>((resolve) =>
+          abortSignal.addEventListener("abort", () => resolve(), {
+            once: true,
+          }),
+        );
+      }
     }
   };
   const capture: {
@@ -271,6 +286,42 @@ describe("useAdkRuntime split new turns", () => {
         expect.objectContaining({ type: "human", content: "third" }),
       ]),
     );
+    h.unmount();
+  });
+
+  it("keeps the sent message and clears the draft when Stop interrupts the last group", async () => {
+    const h = await mount("stop-last");
+    sendDraft(h.runtime);
+    await h.firstGroupEntered.promise;
+    await act(async () => {
+      h.holdFirstGroup.resolve();
+    });
+    await waitFor(() => expect(h.requests).toHaveLength(4));
+    await waitFor(() =>
+      expect(
+        h.runtime.thread
+          .getState()
+          .messages.some((m) =>
+            m.content.some(
+              (p) => p.type === "text" && p.text === "last group working",
+            ),
+          ),
+      ).toBe(true),
+    );
+    await act(async () => {
+      h.runtime.thread.cancelRun();
+    });
+    expect(h.runtime.thread.composer.getState().text).toBe("");
+    expect(
+      h.runtime.thread
+        .getState()
+        .messages.some(
+          (m) =>
+            m.role === "user" &&
+            m.content.some((p) => p.type === "text" && p.text === "third"),
+        ),
+    ).toBe(true);
+    expect(h.requests).toHaveLength(4);
     h.unmount();
   });
 

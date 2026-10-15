@@ -371,8 +371,6 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             await handleSendMessage(batch, config, rollbackState, () => {
               started = true;
             });
-            if (stopGeneration !== stopGenerationRef.current)
-              throw new MessageNotSentError();
             nextIndex++;
             started = false;
           }
