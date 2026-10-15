@@ -1,6 +1,7 @@
 import type {
   ChatModelAdapter,
   ChatModelRunOptions,
+  ChatModelRunResult,
   ThreadMessage,
 } from "@assistant-ui/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -487,5 +488,39 @@ describe("DataStreamRuntimeAdapter protocol fallback", () => {
     await runOnce(adapter, createRunOptions(new AbortController().signal));
 
     expect(warn).not.toHaveBeenCalled();
+  });
+});
+
+describe("DataStreamRuntimeAdapter server abort", () => {
+  it("retains partial text as incomplete when the client signal is still active", async () => {
+    const frames = [
+      { type: "start", messageId: "answer" },
+      { type: "text-start", id: "text" },
+      { type: "text-delta", id: "text", delta: "An unfinished answer" },
+      { type: "abort", reason: "Server stopped run" },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(
+            frames
+              .map((frame) => `data: ${JSON.stringify(frame)}\n\n`)
+              .join("") + "data: [DONE]\n\n",
+            { headers: { "x-vercel-ai-ui-message-stream": "v1" } },
+          ),
+        ),
+    );
+    const signal = new AbortController().signal;
+    const adapter = new DataStreamRuntimeAdapter({ api: "/api/chat" });
+    let last: ChatModelRunResult | undefined;
+    for await (const update of adapter.run(createRunOptions(signal)))
+      last = update;
+    expect(signal.aborted).toBe(false);
+    expect(last?.content).toEqual([
+      expect.objectContaining({ type: "text", text: "An unfinished answer" }),
+    ]);
+    expect(last?.status).toEqual({ type: "incomplete", reason: "other" });
   });
 });
