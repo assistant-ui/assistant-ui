@@ -2651,6 +2651,22 @@ describe("useExternalHistory persistence", () => {
             ),
           ],
         }),
+      settleNextRun: async () => {
+        await step({
+          isRunning: false,
+          messages: [
+            promptA,
+            replyA,
+            promptB,
+            createAssistantMessage(
+              { type: "complete", reason: "stop" },
+              [replyBInner],
+              "reply-b",
+            ),
+          ],
+        });
+        await flush();
+      },
       finishDeletion: async () => {
         releaseReply();
         await act(async () => {
@@ -2668,6 +2684,86 @@ describe("useExternalHistory persistence", () => {
     await race.finishDeletion();
 
     expect([...race.stored]).toEqual(["reply-a", "prompt-b"]);
+  });
+
+  it("keeps a prompt deleted when the next run settles before its deletion lands", async () => {
+    const race = await createDeletionRace();
+
+    await race.startNextRun();
+    await race.settleNextRun();
+    await race.finishDeletion();
+
+    expect([...race.stored]).toEqual(["reply-a", "prompt-b", "reply-b"]);
+  });
+
+  it("keeps a prompt deleted during its run when the run resumes before the prompt leaves the chat", async () => {
+    const { append, deleteItems, deleteMessage, flush, load, step } =
+      createPersistenceHarness(false);
+    await waitFor(() => expect(load).toHaveBeenCalledOnce());
+    await flush();
+    const prompt = createUserMessage({
+      id: "prompt",
+      role: "user",
+      parts: ["prompt"],
+    });
+
+    await step({
+      isRunning: true,
+      messages: [
+        prompt,
+        createAssistantMessage(
+          { type: "running" },
+          [{ id: "reply", parts: [] }],
+          "reply",
+        ),
+      ],
+    });
+    await waitFor(() => expect(append).toHaveBeenCalledOnce());
+    await act(async () => {
+      await deleteMessage("prompt");
+    });
+    expect(deleteItems).toHaveBeenCalledOnce();
+    await step({ isRunning: false });
+    await step({ isRunning: true });
+    await flush();
+
+    expect(append).toHaveBeenCalledOnce();
+  });
+
+  it("stores a message that reuses a deleted id once the deleted one has left the chat", async () => {
+    const { append, deleteItems, deleteMessage, flush, load, runCycle, step } =
+      createPersistenceHarness(false);
+    await waitFor(() => expect(load).toHaveBeenCalledOnce());
+    await flush();
+    await runCycle([
+      createAssistantMessage(
+        { type: "complete", reason: "stop" },
+        [{ id: "reused", parts: ["old"] }],
+        "reused",
+      ),
+    ]);
+    await waitFor(() => expect(append).toHaveBeenCalledOnce());
+    await act(async () => {
+      await deleteMessage("reused");
+    });
+    expect(deleteItems).toHaveBeenCalledOnce();
+    await step({ messages: [] });
+    await flush();
+
+    const replacementInner: InnerMessage = { id: "reused", parts: ["new"] };
+    await runCycle([
+      createAssistantMessage(
+        { type: "complete", reason: "stop" },
+        [replacementInner],
+        "reused",
+      ),
+    ]);
+
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+    expect(append).toHaveBeenLastCalledWith({
+      parentId: null,
+      message: replacementInner,
+    });
   });
 
   it("stores a new prompt after an earlier reply that failed to store", async () => {
