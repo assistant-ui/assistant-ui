@@ -45,7 +45,7 @@ pnpm dev
 Pick the issue form that matches what you are reporting. Usage questions go to Discord.
 
 - An issue created through the API or `gh` skips the forms, so give it the same headings as the matching form in `.github/ISSUE_TEMPLATE/`, set the issue type, and add the label that form applies. This holds for maintainers and for agents.
-- Label by what the issue is. `bug` means shipped code misbehaves; documentation, CI, accessibility, performance and refactor work take their own label.
+- Label by what the issue is. `bug` means shipped code misbehaves. Documentation takes `type/docs`, performance `type/perf`, refactors `type/refactor`, and CI and other upkeep `maintenance`.
 - State how a bug was found and whether it was reproduced. A finding from reading the source that nobody ran says so.
 - Link the pull request or issue a follow-up came from.
 - Report a vulnerability through a private advisory (see [`SECURITY.md`](./SECURITY.md)), including one a maintainer or an agent finds. Hardening with no exploit path can be a public issue.
