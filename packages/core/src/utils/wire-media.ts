@@ -60,14 +60,18 @@ export function resolveFileMediaType(
  * URL's own media type wins over a separately declared one downstream, so a
  * base64 envelope that disagrees with `mediaType` or omits one is rebuilt
  * around the same bytes. A media-less percent-encoded data URL is stamped with
- * its resolved type without changing its payload. Everything else passes
- * through byte for byte, including an explicitly declared percent-encoded data
- * URL whose declaration is authoritative for the bytes it carries.
+ * its resolved type without changing its payload. A base64 data URL whose
+ * payload carries percent escapes is rebuilt around the decoded bytes, because
+ * downstream consumers pass the payload to providers without decoding it.
+ * Everything else passes through byte for byte, including an explicitly
+ * declared percent-encoded data URL whose declaration is authoritative for the
+ * bytes it carries.
  */
 export function toMediaWireUrl(payload: string, mediaType: string): string {
   const parsed = parseDataUrl(payload, "");
   if (parsed) {
-    return parsed.mimeType === mediaType
+    return parsed.mimeType === mediaType &&
+      parsed.data === payload.slice(payload.indexOf(",") + 1)
       ? payload
       : `data:${mediaType};base64,${parsed.data}`;
   }
