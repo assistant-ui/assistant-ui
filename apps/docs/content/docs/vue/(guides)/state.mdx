@@ -1,0 +1,137 @@
+---
+title: State and actions
+description: Read assistant state with useAuiState, call actions through useAui, and react to events with useAuiEvent.
+---
+
+`useAuiState` reads reactive state, `useAui` calls actions, and `useAuiEvent` listens for events. `AuiIf` renders its slot while a state condition is true. All four use the nearest `AuiProvider`, including the providers that scope repeated messages and other items.
+
+## Read state
+
+Pass a selector to `useAuiState`. It returns a computed ref, so read `.value` in script and use the ref directly in a template. The selector runs on store updates; Vue dependents update when the selected value changes by `Object.is`.
+
+```vue title="app/components/ThreadStatus.vue"
+<script setup lang="ts">
+import { useAuiState } from "@assistant-ui/vue";
+
+const isRunning = useAuiState((s) => s.thread.isRunning);
+const draftLength = useAuiState((s) => s.composer.text.length);
+</script>
+
+<template>
+  <p>{{ isRunning ? "Responding" : "Ready" }} · {{ draftLength }} draft characters</p>
+</template>
+```
+
+Render this component under an `AuiProvider` with a thread. Select a primitive value or a reference that stays stable when its contents do not change. Returning `s` or `s.optional` throws. A fresh object or array literal has a new identity on every update, so dependents update each time. Use separate `useAuiState` calls for separate fields instead of returning one new object.
+
+## Optional scopes
+
+An unavailable scope throws when read as `s.message`. Read `s.optional.message?.role` when the same component can render inside or outside a message row. An unavailable optional scope is `undefined`.
+
+```ts
+const role = useAuiState((s) => s.optional.message?.role ?? "none");
+```
+
+## Which scope a component sees
+
+The provider config supplies the starting scopes. Each iterator below extends those scopes and binds its item for descendants; a component outside an iterator keeps the scopes from its nearest provider.
+
+| Placement | Scope available or rebound there |
+|---|---|
+| Under an `AuiProvider` with `AISDKChat` or `AISDKThreads` | `s.threads`, the current `s.thread`, its thread `s.composer` and `s.suggestions`, the selected `s.threadListItem`, and `s.modelContext`, `s.tools`, and `s.dataRenderers`. |
+| Inside a `ThreadPrimitiveMessages` row | `s.message` is that row's message; `s.composer` is its edit composer. |
+| Inside `MessagePrimitiveParts` | `s.part` is that message part. |
+| Inside `MessagePrimitiveAttachments` or `ComposerPrimitiveAttachments` | `s.attachment` is the current message or composer attachment. |
+| Inside `ThreadPrimitiveSuggestions` | `s.suggestion` is the current suggestion. |
+| Inside `ThreadListPrimitiveItems` | `s.threadListItem` is that list item. |
+
+An item provider retains its parent scopes. For example, a part can still read its message and thread. Place a component inside the iterator's slot when it needs that item's scope.
+
+## Call actions
+
+`useAui()` returns a stable client for the provider's lifetime. Capture it once in setup; its scope accessors follow the provider's current client when the structure changes. Call `getState()` for a one-off read in a handler and use `useAuiState` for reactive display.
+
+```vue title="app/components/ThreadActions.vue"
+<script setup lang="ts">
+import { useAui, useAuiState } from "@assistant-ui/vue";
+
+const props = defineProps<{ targetThreadId: string }>();
+const aui = useAui();
+const canSend = useAuiState(
+  (s) => s.composer.canSend && (!s.thread.isRunning || s.thread.capabilities.queue),
+);
+const canCancel = useAuiState(
+  (s) => s.thread.isRunning && s.thread.capabilities.cancel,
+);
+
+const send = () => {
+  if (canSend.value) aui.composer.send();
+};
+
+const fillDraft = () => {
+  const current = aui.composer.getState().text;
+  aui.composer.setText(current ? `${current}\nSummarize this conversation.` : "Summarize this conversation.");
+};
+</script>
+
+<template>
+  <div>
+    <button type="button" @click="aui.thread.append('Hello')">Append message</button>
+    <button type="button" @click="fillDraft">Add to draft</button>
+    <button type="button" :disabled="!canSend" @click="send">Send draft</button>
+    <button type="button" :disabled="!canCancel" @click="aui.thread.cancelRun()">Stop</button>
+    <button type="button" @click="aui.threads.switchToThread(props.targetThreadId)">Open thread</button>
+  </div>
+</template>
+```
+
+Render this at thread level, where `aui.composer` is the thread composer. `aui.thread.append()` appends a user message; `aui.composer.setText()` changes the draft, and `aui.composer.send()` sends it. Pass an existing thread id to `targetThreadId` when using a runtime with multiple threads. Inside a `ThreadPrimitiveMessages` row, `aui.message.reload()` reloads that row's assistant message; gate it on the message role, run state, and the runtime's reload capability.
+
+## Render conditionally
+
+`AuiIf` takes a boolean state selector and renders its default slot only while the result is true. Use it for a condition local to the markup:
+
+```vue
+<AuiIf :condition="(s) => s.thread.isRunning">
+  <span>Responding</span>
+</AuiIf>
+```
+
+When the condition also drives script logic, select it once with `useAuiState` and use `v-if` on that ref. Both react to the same provider state.
+
+## React to events
+
+`useAuiEvent` subscribes for the lifetime of the current Vue effect scope and unsubscribes when it ends. A string selector such as `"threads.selectionChanged"` binds to that event's scope at the current provider. Use `{ scope, event }` to choose a scope explicitly. `scope: "*"` accepts the named event from any descendant scope. `event: "*"` accepts every event and passes `{ event, payload }`, where `payload` is the data for that event.
+
+```vue title="app/components/ThreadEvents.vue"
+<script setup lang="ts">
+import { ref } from "vue";
+import { useAuiEvent } from "@assistant-ui/vue";
+
+const selectedThreadId = ref("");
+const lastRunEndThreadId = ref("");
+
+useAuiEvent("threads.selectionChanged", ({ threadId }) => {
+  selectedThreadId.value = threadId;
+});
+
+useAuiEvent({ scope: "*", event: "*" }, (entry) => {
+  if (entry.event === "thread.runEnd") {
+    lastRunEndThreadId.value = entry.payload.threadId;
+  }
+});
+</script>
+
+<template>
+  <p v-if="selectedThreadId">Selected thread: {{ selectedThreadId }}</p>
+  <p v-if="lastRunEndThreadId">Last completed run: {{ lastRunEndThreadId }}</p>
+</template>
+```
+
+The subscription follows structural changes to the provider's client. If the selected scope is unavailable when it binds, development mode warns; the composable retries when a later structural change makes that scope available.
+
+## Outside a provider
+
+`useAui()` returns a default client outside `AuiProvider`; accessing one of its scope methods throws an error asking for the provider. `useAuiState()` returns a computed ref, but reading a required scope through it throws the same error. Put the component under an `AuiProvider` before reading or calling a scope.
+
+See the [state reference](/docs/vue/api-reference/state) for scope fields and the [event reference](/docs/vue/api-reference/events) for event names and payloads.

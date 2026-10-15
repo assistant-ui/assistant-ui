@@ -412,6 +412,21 @@ export default defineToolkit({ present: ui.present() });`;
     );
   });
 
+  it("allows a JSONGenerativeUI imported from @assistant-ui/generative-ui/react", () => {
+    const src = `"use generative";
+import { defineToolkit } from "@assistant-ui/react";
+import { JSONGenerativeUI } from "@assistant-ui/generative-ui/react";
+const ui = new JSONGenerativeUI({ library: {} });
+export default defineToolkit({ present: ui.present() });`;
+
+    expect(compileGenerative(src, { target: "server" }).code).toContain(
+      "ui.present()",
+    );
+    expect(compileGenerative(src, { target: "client" }).code).toContain(
+      "ui.present()",
+    );
+  });
+
   it("rejects an unknown method on a JSONGenerativeUI instance", () => {
     const src = `"use generative";
 import { defineToolkit } from "@assistant-ui/react";
@@ -1775,6 +1790,110 @@ export default defineToolkit({
     expect(compileGenerative(src, { target: "server" }).code).toContain(
       "getWeather",
     );
+  });
+
+  it("keeps an unused class with a static block", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "class Registry { static { register(); } }\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("class Registry");
+    expect(code).toContain("register()");
+  });
+
+  it("keeps an unused class with a static initializer", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "class Registry { static x = track(); }\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("class Registry");
+    expect(code).toContain("track()");
+  });
+
+  it("keeps an unused class expression with a static block", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "const C = class { static { register(); } };\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("const C = class");
+    expect(code).toContain("register()");
+  });
+
+  it("keeps an unused class with an evaluated superclass", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "class Registry extends make() {}\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("class Registry extends make()");
+  });
+
+  it("keeps an unused class with a computed member key", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "class Registry { [key()]() {} }\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("class Registry");
+    expect(code).toContain("key()");
+  });
+
+  it("keeps an unused class whose static JSX initializer calls code", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "class Registry { static node = <Widget value={register()} />; }\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("class Registry");
+    expect(code).toContain("register()");
+  });
+
+  it("keeps an unused JSX initializer that calls code", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "const node = <Widget>{track()}</Widget>;\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("track()");
+  });
+
+  it("keeps an unused JSX initializer that spreads props", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "const node = <Widget {...props} />;\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("Widget");
+  });
+
+  it("keeps an unused JSX initializer that spreads children", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "const node = <Widget>{...items}</Widget>;\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).toContain("Widget");
+  });
+
+  it("prunes an unused JSX initializer without calls", () => {
+    const src = minimalSource.replace(
+      "export default",
+      "const node = <Widget value={label}>{title}</Widget>;\nexport default",
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).not.toContain("Widget");
+  });
+
+  it("prunes an unused class with only methods and literal static fields", () => {
+    const src = minimalSource.replace(
+      "export default",
+      'class Registry { method() {} static label = "x"; }\nexport default',
+    );
+    const code = compileGenerative(src, { target: "client" }).code;
+    expect(code).not.toContain("class Registry");
   });
 });
 

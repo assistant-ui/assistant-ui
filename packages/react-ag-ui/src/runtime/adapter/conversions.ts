@@ -6,14 +6,13 @@ import type {
   ThreadMessageLike as CoreThreadMessageLike,
   PartProviderMetadata,
   ReasoningMessagePart,
-  ThreadMessage,
-  ToolCallMessagePartMcpMetadata,
-  ToolModelContentPart,
 } from "@assistant-ui/core";
 import {
   getAutoStatus,
   parseDataUrl,
   resolveFilePartSource,
+  resolveImageMediaType,
+  walkToolCallTree,
 } from "@assistant-ui/core/internal";
 import { type Tool, toToolsJSONSchema } from "assistant-stream";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
@@ -23,14 +22,13 @@ import {
   MCP_APPS_ACTIVITY_TYPE,
   type AgUiCustomMetadata,
   type AgUiOpaqueReasoning,
-} from "./run-aggregator";
+} from "../types";
 import {
   applyA2uiOperations,
-  convertSurfaceToUISpec,
-  surfaceToOperations,
+  surfaceToPresentToolCall,
   type A2uiState,
   type A2uiSurfaceState,
-} from "@assistant-ui/react-generative-ui/a2ui";
+} from "@assistant-ui/generative-ui/a2ui";
 import type { AgUiInterrupt } from "../types";
 import { projectAgUiToolApprovals } from "./tool-approval";
 import {
@@ -71,6 +69,7 @@ export type AgUiMessage =
       role: "user";
       content: string | InputContent[];
       name?: string;
+      metadata?: Record<string, unknown>;
     }
   | {
       id: string;
@@ -78,18 +77,21 @@ export type AgUiMessage =
       content: string;
       name?: string;
       toolCalls?: AgUiToolCall[];
+      metadata?: Record<string, unknown>;
     }
   | {
       id: string;
       role: "system" | "developer";
       content: string;
       name?: string;
+      metadata?: Record<string, unknown>;
     }
   | {
       id: string;
       role: "reasoning";
       content: string;
       encryptedValue?: string;
+      metadata?: Record<string, unknown>;
     }
   | {
       id: string;
@@ -97,30 +99,20 @@ export type AgUiMessage =
       content: string;
       toolCallId: string;
       error?: string;
+      metadata?: Record<string, unknown>;
     };
 
-type ToolCallPart = {
-  type: "tool-call";
-  toolCallId?: string;
-  toolName: string;
-  argsText?: string;
-  args?: ReadonlyJSONObject;
-  result?: unknown;
-  artifact?: unknown;
-  isError?: boolean;
-  modelContent?: readonly ToolModelContentPart[];
-  unstable_toolMessageId?: string;
-  mcp?: ToolCallMessagePartMcpMetadata;
-  messages?: readonly ThreadMessage[];
-  approval?: CoreToolCallPartApproval;
-};
-
-type CoreToolCallPartApproval = NonNullable<
-  Extract<
-    Exclude<CoreThreadMessageLike["content"], string>[number],
-    { type: "tool-call" }
-  >["approval"]
+type CoreToolCallPart = Extract<
+  Exclude<CoreThreadMessageLike["content"], string>[number],
+  { type: "tool-call" }
 >;
+
+type ToolCallPart = Omit<CoreToolCallPart, "result" | "isError"> & {
+  result?: unknown;
+  isError?: boolean | undefined;
+  /** @deprecated Experimental since 2026-03-08. Not scheduled for removal; the API may change in any release. */
+  unstable_toolMessageId?: string;
+};
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -129,6 +121,108 @@ const getString = (record: Record<string, unknown>, key: string) => {
   const value = record[key];
   return typeof value === "string" ? value : undefined;
 };
+
+function toAgUiWireMetadata(
+  metadata: unknown,
+): Record<string, unknown> | undefined {
+  return isObject(metadata) ? { ...metadata } : undefined;
+}
+
+function readLegacyAgUiNamespace(metadata: unknown): Record<string, unknown> {
+  if (!isObject(metadata) || !isObject(metadata.custom)) return {};
+  const namespaced = metadata.custom[AG_UI_METADATA_NAMESPACE];
+  if (!isObject(namespaced)) return {};
+  return "interrupts" in namespaced
+    ? { interrupts: namespaced.interrupts }
+    : {};
+}
+
+function withoutPersistedInterrupts(
+  wire: Record<string, unknown>,
+): Record<string, unknown> {
+  if (!isObject(wire.custom)) return wire;
+  const namespaced = wire.custom[AG_UI_METADATA_NAMESPACE];
+  if (!isObject(namespaced) || !("interrupts" in namespaced)) return wire;
+
+  const { interrupts: _interrupts, ...remainingNamespace } = namespaced;
+  const { [AG_UI_METADATA_NAMESPACE]: _namespace, ...remainingCustom } =
+    wire.custom;
+  if (Object.keys(remainingNamespace).length > 0) {
+    remainingCustom[AG_UI_METADATA_NAMESPACE] = remainingNamespace;
+  }
+  const { custom: _custom, ...remainingWire } = wire;
+  return Object.keys(remainingCustom).length > 0
+    ? { ...remainingWire, custom: remainingCustom }
+    : remainingWire;
+}
+
+function toSnapshotCustom(
+  metadata: unknown,
+  state: Record<string, unknown> = {},
+): Record<string, unknown> {
+  const wire = withoutPersistedInterrupts(toAgUiWireMetadata(metadata) ?? {});
+  const needsWireSlot =
+    isObject(metadata) &&
+    (Object.keys(metadata).length === 0 || AG_UI_METADATA_NAMESPACE in wire);
+  const namespaced = {
+    ...readLegacyAgUiNamespace(metadata),
+    ...state,
+    ...(needsWireSlot ? { messageMetadata: wire } : {}),
+  };
+  return {
+    ...wire,
+    ...(Object.keys(namespaced).length > 0
+      ? { [AG_UI_METADATA_NAMESPACE]: namespaced }
+      : {}),
+  };
+}
+
+function toAgUiMessageMetadata(
+  metadata: unknown,
+): Record<string, unknown> | undefined {
+  const custom = readCustomMetadata(metadata);
+  const namespaced = readNamespacedMetadata(metadata);
+  if (isObject(namespaced.messageMetadata)) {
+    return { ...namespaced.messageMetadata };
+  }
+  const { [AG_UI_METADATA_NAMESPACE]: _state, ...wire } = custom;
+  return Object.keys(wire).length > 0 ? wire : undefined;
+}
+
+function withAgUiMessageMetadata(metadata: unknown): {
+  metadata?: Record<string, unknown>;
+} {
+  const messageMetadata = toAgUiMessageMetadata(metadata);
+  return messageMetadata !== undefined ? { metadata: messageMetadata } : {};
+}
+
+function withAgUiPartMessageMetadata(
+  providerMetadata: PartProviderMetadata | undefined,
+  messageMetadata: Record<string, unknown> | undefined,
+): PartProviderMetadata {
+  if (!messageMetadata) return providerMetadata ?? {};
+
+  const existing = providerMetadata ?? {};
+  const namespaced = isObject(existing[AG_UI_METADATA_NAMESPACE])
+    ? existing[AG_UI_METADATA_NAMESPACE]
+    : {};
+  return {
+    ...existing,
+    [AG_UI_METADATA_NAMESPACE]: {
+      ...namespaced,
+      messageMetadata: messageMetadata as ReadonlyJSONObject,
+    },
+  };
+}
+
+function readAgUiPartMessageMetadata(
+  providerMetadata: unknown,
+): Record<string, unknown> | undefined {
+  const namespaced = readAgUiNamespace(providerMetadata);
+  return namespaced && isObject(namespaced.messageMetadata)
+    ? toAgUiWireMetadata(namespaced.messageMetadata)
+    : undefined;
+}
 
 const getToolCallId = (record: Record<string, unknown>) =>
   getString(record, "toolCallId") ?? getString(record, "tool_call_id");
@@ -145,6 +239,7 @@ const readAgUiReasoningMeta = (providerMetadata: unknown) => {
   return {
     encryptedValue: getString(namespaced, "encryptedValue"),
     reasoningId: getString(namespaced, "reasoningId"),
+    messageMetadata: toAgUiWireMetadata(namespaced.messageMetadata),
   };
 };
 
@@ -214,6 +309,9 @@ function normalizeToolCall(part: ToolCallPart): {
     },
   };
 }
+
+const isExportableNestedToolCall = (part: { readonly toolCallId?: unknown }) =>
+  typeof part.toolCallId === "string" && !part.toolCallId.startsWith("a2ui:");
 
 function extractText(content: unknown): string {
   if (typeof content === "string") return content;
@@ -287,9 +385,16 @@ function toInputContent(
     const image = getString(part, "image");
     if (image === undefined) return null;
     const metadata = buildInputMetadata(part, getString(part, "filename"));
+    const source = buildInputSource(image, fallbackMimeType);
     return {
       type: "image",
-      source: buildInputSource(image, fallbackMimeType),
+      source:
+        source.type === "data"
+          ? {
+              ...source,
+              mimeType: resolveImageMediaType(image, fallbackMimeType),
+            }
+          : source,
       ...(metadata && { metadata }),
     };
   }
@@ -513,7 +618,6 @@ function toToolCallPart(value: unknown): ToolCallPart | null {
       : isObject(value.args) && !Array.isArray(value.args)
         ? (value.args as ReadonlyJSONObject)
         : undefined;
-
   const part: ToolCallPart = {
     type: "tool-call",
     ...(toolCallId !== undefined ? { toolCallId } : {}),
@@ -604,8 +708,14 @@ function readOpaqueReasoning(metadata: unknown): AgUiOpaqueReasoning[] {
     const id = getString(entry, "id");
     const encryptedValue = getString(entry, "encryptedValue");
     if (!id?.trim() || !encryptedValue?.trim()) return [];
+    const metadata = toAgUiWireMetadata(entry.metadata);
     return [
-      { id, encryptedValue, ...(entry.after === true ? { after: true } : {}) },
+      {
+        id,
+        encryptedValue,
+        ...(metadata ? { metadata } : {}),
+        ...(entry.after === true ? { after: true } : {}),
+      },
     ];
   });
 }
@@ -635,7 +745,8 @@ function toAssistantSnapshotMessage(
   rawMessage: Record<string, unknown>,
 ): CoreThreadMessageLike {
   const text = extractText(rawMessage.content);
-  const interrupts = readPersistedInterrupts(rawMessage.metadata);
+  const custom = toSnapshotCustom(rawMessage.metadata);
+  const interrupts = readPersistedInterrupts({ custom });
   const restoredToolCalls = extractAssistantToolCalls(rawMessage);
   const approvals = projectAgUiToolApprovals(
     interrupts,
@@ -656,21 +767,24 @@ function toAssistantSnapshotMessage(
     ...toolCallParts,
   ];
   const messageName = getString(rawMessage, "name");
+  const namespaced = isObject(custom[AG_UI_METADATA_NAMESPACE])
+    ? { ...custom[AG_UI_METADATA_NAMESPACE] }
+    : {};
+  if (interrupts) namespaced.interrupts = interrupts;
+  else delete namespaced.interrupts;
+  const messageCustom = { ...custom };
+  if (Object.keys(namespaced).length > 0) {
+    messageCustom[AG_UI_METADATA_NAMESPACE] = namespaced;
+  } else {
+    delete messageCustom[AG_UI_METADATA_NAMESPACE];
+  }
   return {
     id: getString(rawMessage, "id") ?? generateId(),
     role: "assistant",
     content: assistantContent.length > 0 ? assistantContent : "",
     ...(messageName !== undefined ? { name: messageName } : {}),
-    ...(interrupts
-      ? {
-          metadata: {
-            custom: {
-              [AG_UI_METADATA_NAMESPACE]: {
-                interrupts,
-              } satisfies AgUiCustomMetadata,
-            },
-          },
-        }
+    ...(Object.keys(messageCustom).length > 0
+      ? { metadata: { custom: messageCustom } }
       : {}),
   };
 }
@@ -680,6 +794,10 @@ function toUserOrSystemSnapshotMessage(
   rawMessage: Record<string, unknown>,
 ): CoreThreadMessageLike {
   const messageName = getString(rawMessage, "name");
+  const custom = toSnapshotCustom(
+    rawMessage.metadata,
+    role === "developer" ? { role: "developer" } : {},
+  );
   const attachments =
     role === "user" ? toSnapshotAttachments(rawMessage.content) : [];
   return {
@@ -690,41 +808,21 @@ function toUserOrSystemSnapshotMessage(
     content: extractText(rawMessage.content),
     ...(messageName !== undefined ? { name: messageName } : {}),
     ...(attachments.length > 0 ? { attachments } : {}),
-    ...(role === "developer"
-      ? {
-          metadata: {
-            custom: {
-              [AG_UI_METADATA_NAMESPACE]: {
-                role: "developer",
-              } satisfies AgUiCustomMetadata,
-            },
-          },
-        }
-      : {}),
+    ...(Object.keys(custom).length > 0 ? { metadata: { custom } } : {}),
   };
 }
 
-// Rebuilds the a2ui:<surfaceId> "present" tool-call parts for one owning
-// assistant message from a bucket of rebuilt surface state, mirroring the
-// live RunAggregator.synthesizeA2uiToolCalls shape. Non-a2ui parts (text,
-// other tool calls) are preserved; existing a2ui parts are replaced wholesale
-// so create/update/delete within the bucket all converge on the rebuilt set.
 function attachA2uiSurfaces(
   message: CoreThreadMessageLike,
   state: A2uiState,
 ): CoreThreadMessageLike {
   const a2uiParts: ToolCallPart[] = [];
   for (const [surfaceId, surface] of state) {
-    const { spec } = convertSurfaceToUISpec(surface);
-    if (!spec) continue;
+    const { toolCall } = surfaceToPresentToolCall(surfaceId, surface);
+    if (!toolCall) continue;
     a2uiParts.push({
       type: "tool-call",
-      toolCallId: `a2ui:${surfaceId}`,
-      toolName: "present",
-      args: spec as unknown as ReadonlyJSONObject,
-      argsText: JSON.stringify(spec),
-      result: {},
-      artifact: { a2ui: surfaceToOperations(surface) },
+      ...toolCall,
     });
   }
 
@@ -955,6 +1053,7 @@ export function fromAgUiMessages(
       const mcpAppUri = readMcpAppResourceUri(mcpResult?._meta);
       const mcpApp =
         mcpAppUri !== undefined ? { resourceUri: mcpAppUri } : undefined;
+      const messageMetadata = toAgUiWireMetadata(rawMessage.metadata);
 
       let updated = false;
       for (
@@ -988,6 +1087,14 @@ export function fromAgUiMessages(
               ? { unstable_toolMessageId: toolMessageId }
               : {}),
             ...(mcpApp ? { mcp: { app: mcpApp } } : {}),
+            ...(messageMetadata
+              ? {
+                  providerMetadata: withAgUiPartMessageMetadata(
+                    (part as ToolCallPart).providerMetadata,
+                    messageMetadata,
+                  ),
+                }
+              : {}),
           };
           const updatedContent = message.content.map((contentPart, index) =>
             index === partIndex ? updatedPart : contentPart,
@@ -1024,6 +1131,14 @@ export function fromAgUiMessages(
               ? { unstable_toolMessageId: toolMessageId }
               : {}),
             ...(mcpApp ? { mcp: { app: mcpApp } } : {}),
+            ...(messageMetadata
+              ? {
+                  providerMetadata: withAgUiPartMessageMetadata(
+                    undefined,
+                    messageMetadata,
+                  ),
+                }
+              : {}),
           },
         ],
       });
@@ -1122,6 +1237,7 @@ export function fromAgUiMessages(
     if (role === "reasoning") {
       const text = extractText(rawMessage.content);
       const encryptedValue = getString(rawMessage, "encryptedValue");
+      const messageMetadata = toAgUiWireMetadata(rawMessage.metadata);
       if (text.trim().length === 0) {
         // showThinking hides reasoning; this record is never rendered anyway,
         // and dropping it would deny the provider the payload it needs to
@@ -1134,6 +1250,7 @@ export function fromAgUiMessages(
           opaqueReasoning.push({
             id: opaqueId,
             encryptedValue,
+            ...(messageMetadata ? { metadata: messageMetadata } : {}),
             anchor: converted.length,
           });
         }
@@ -1149,6 +1266,7 @@ export function fromAgUiMessages(
           opaqueReasoning.push({
             id: hiddenId,
             encryptedValue,
+            ...(messageMetadata ? { metadata: messageMetadata } : {}),
             anchor: converted.length,
           });
         }
@@ -1163,6 +1281,9 @@ export function fromAgUiMessages(
       const meta = {
         ...(reasoningId !== undefined ? { reasoningId } : {}),
         ...(encryptedValue !== undefined ? { encryptedValue } : {}),
+        ...(messageMetadata
+          ? { messageMetadata: messageMetadata as ReadonlyJSONObject }
+          : {}),
       };
       pendingReasoning.push({
         id: reasoningId,
@@ -1279,9 +1400,8 @@ function convertAssistantMessage(
     if (!isObject(part) || part.type !== "reasoning") continue;
     const text = getString(part, "text") ?? "";
     if (text.trim().length === 0) continue;
-    const { encryptedValue, reasoningId } = readAgUiReasoningMeta(
-      part.providerMetadata,
-    );
+    const { encryptedValue, reasoningId, messageMetadata } =
+      readAgUiReasoningMeta(part.providerMetadata);
     converted.push({
       // The wire id is what a signature was issued against, so it wins over a
       // synthesized one whenever the run carried it.
@@ -1293,12 +1413,12 @@ function convertAssistantMessage(
       role: "reasoning",
       content: text,
       ...(encryptedValue !== undefined ? { encryptedValue } : {}),
+      ...(messageMetadata ? { metadata: messageMetadata } : {}),
     });
     reasoningIndex++;
   }
 
-  // Drop assistant messages with no text or tool calls (e.g. an imported
-  // reasoning-only entry) so they are not re-sent as a blank assistant turn.
+  // Some providers reject a replayed blank assistant turn, even when it carries metadata.
   if (shellIsDropped) {
     return;
   }
@@ -1316,7 +1436,16 @@ function convertAssistantMessage(
     part: ToolCallPart;
   }[] = [];
   for (const { part } of toolCalls) {
-    collectNestedToolCalls(part, nestedToolCalls);
+    for (const { part: nestedToolCall } of walkToolCallTree(
+      part.messages ?? [],
+      { shouldDescend: isExportableNestedToolCall },
+    )) {
+      if (!isExportableNestedToolCall(nestedToolCall)) continue;
+      nestedToolCalls.push({
+        ...normalizeToolCall(nestedToolCall),
+        part: nestedToolCall,
+      });
+    }
   }
 
   converted.push({
@@ -1324,6 +1453,7 @@ function convertAssistantMessage(
     role: "assistant",
     content,
     ...(message.name ? { name: message.name } : {}),
+    ...withAgUiMessageMetadata(message.metadata),
     ...(toolCalls.length + nestedToolCalls.length > 0
       ? {
           toolCalls: [...toolCalls, ...nestedToolCalls].map(
@@ -1348,28 +1478,6 @@ function convertAssistantMessage(
   }
 }
 
-function collectNestedToolCalls(
-  part: ToolCallPart,
-  out: { id: string; call: AgUiToolCall; part: ToolCallPart }[],
-): void {
-  for (const nested of part.messages ?? []) {
-    if (!isObject(nested) || nested.role !== "assistant") continue;
-    const nestedContent = Array.isArray(nested.content) ? nested.content : [];
-    for (const nestedPart of nestedContent) {
-      if (!isObject(nestedPart) || nestedPart.type !== "tool-call") continue;
-      const nestedToolCall = nestedPart as ToolCallPart;
-      if (
-        typeof nestedToolCall.toolCallId !== "string" ||
-        nestedToolCall.toolCallId.startsWith("a2ui:")
-      ) {
-        continue;
-      }
-      out.push({ ...normalizeToolCall(nestedToolCall), part: nestedToolCall });
-      collectNestedToolCalls(nestedToolCall, out);
-    }
-  }
-}
-
 function emitToolResult(
   toolCallId: string,
   part: ToolCallPart,
@@ -1383,6 +1491,7 @@ function emitToolResult(
       : typeof part.result === "string"
         ? part.result
         : JSON.stringify(part.result);
+  const messageMetadata = readAgUiPartMessageMetadata(part.providerMetadata);
 
   converted.push({
     id: part.unstable_toolMessageId ?? `${toolCallId}:tool`,
@@ -1390,6 +1499,7 @@ function emitToolResult(
     content: resultContent,
     toolCallId,
     ...(part.isError ? { error: resultContent } : {}),
+    ...(messageMetadata ? { metadata: messageMetadata } : {}),
   });
 }
 
@@ -1406,6 +1516,7 @@ function convertToolMessage(
     content,
     toolCallId,
     ...(typeof message.error === "string" ? { error: message.error } : {}),
+    ...withAgUiMessageMetadata(message.metadata),
   });
 }
 
@@ -1425,6 +1536,7 @@ export function toAgUiMessages(
       role: "reasoning",
       content: "",
       encryptedValue: entry.encryptedValue,
+      ...(entry.metadata ? { metadata: entry.metadata } : {}),
     });
     for (const entry of opaqueReasoning) {
       if (entry.after !== true) converted.push(toOpaqueRecord(entry));
@@ -1453,6 +1565,7 @@ export function toAgUiMessages(
         role: "user",
         content: buildUserContent(message),
         ...(message.name ? { name: message.name } : {}),
+        ...withAgUiMessageMetadata(message.metadata),
       });
       flushTrailingOpaqueReasoning();
       continue;
@@ -1476,6 +1589,7 @@ export function toAgUiMessages(
         role: wireRole,
         content: extractText(message.content),
         ...(message.name ? { name: message.name } : {}),
+        ...withAgUiMessageMetadata(message.metadata),
       });
       flushTrailingOpaqueReasoning();
       continue;
@@ -1486,6 +1600,7 @@ export function toAgUiMessages(
         id: message.id,
         role: "reasoning",
         content: extractText(message.content),
+        ...withAgUiMessageMetadata(message.metadata),
       });
       flushTrailingOpaqueReasoning();
       continue;

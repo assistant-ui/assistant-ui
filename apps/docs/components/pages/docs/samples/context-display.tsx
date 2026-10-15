@@ -2,6 +2,7 @@
 
 import { Fragment } from "react";
 import { cn } from "@/lib/utils";
+import { formatTokenCount } from "@/components/assistant-ui/utils/tokens";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
 const RING_SIZE = 24;
@@ -33,12 +34,6 @@ const getBarColor = (percent: number): string => {
   if (percent > 85) return "bg-red-500";
   if (percent >= 65) return "bg-amber-500";
   return "bg-emerald-500";
-};
-
-const formatTokenCount = (tokens: number): string => {
-  if (tokens >= 1_000_000) return `${(tokens / 1_000_000).toFixed(1)}M`;
-  if (tokens >= 1_000) return `${(tokens / 1_000).toFixed(1)}k`;
-  return `${tokens}`;
 };
 
 export function ContextDisplaySample() {

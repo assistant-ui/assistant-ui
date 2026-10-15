@@ -7,6 +7,17 @@ export default defineConfig({
     },
   },
   test: {
+    coverage: {
+      include: ["src/**/*.{ts,tsx}"],
+      thresholds: {
+        lines: 97,
+        functions: 95,
+        branches: 91,
+        statements: 97,
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
+      },
+    },
     environment: "jsdom",
     pool: "threads",
     fsModuleCache: true,

@@ -63,6 +63,27 @@ describe("RemoteThreadListThreadListRuntimeCore.switchToThread unarchive option"
     expect(core.mainThreadId).toBe(core.getItemById(THREAD_ID)?.id);
   });
 
+  it("stays on an archived thread opened with unarchive: false when another thread is archived or deleted", async () => {
+    const THREAD_ID = "archived-opened";
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          archivedThread(THREAD_ID),
+          { status: "regular" as const, remoteId: "b", externalId: "b" },
+          { status: "regular" as const, remoteId: "c", externalId: "c" },
+        ],
+      })),
+    });
+
+    const core = createCore(adapter);
+    await core.getLoadThreadsPromise();
+    await core.switchToThread(THREAD_ID, { unarchive: false });
+    await core.archive("b");
+    await core.delete("c");
+
+    expect(core.mainThreadId).toBe(core.getItemById(THREAD_ID)?.id);
+  });
+
   it("restores an initialized draft's archived thread when unarchive fails", async () => {
     const THREAD_ID = "archived-initialized-draft";
     const error = new Error("unarchive failed");

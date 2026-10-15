@@ -16,58 +16,18 @@ import {
   type ReactNode,
 } from "react";
 
-export type TokenUsage = {
-  totalTokens?: number | undefined;
-  inputTokens?: number | undefined;
-  cachedInputTokens?: number | undefined;
-  outputTokens?: number | undefined;
-  reasoningTokens?: number | undefined;
-};
+import {
+  getBarColor,
+  getContextSegments,
+  getPercentColor,
+  getStrokeColor,
+  getUsagePercent,
+  type TokenUsage,
+} from "../utils/context-usage";
+import { formatTokenCount } from "../utils/tokens";
 
-const formatTokenCount = (tokens: number): string => {
-  if (tokens >= 1_000_000)
-    return `${(tokens / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
-  if (tokens >= 1_000)
-    return `${(tokens / 1_000).toFixed(1).replace(/\.0$/, "")}k`;
-  return `${tokens}`;
-};
+export type { TokenUsage } from "../utils/context-usage";
 
-const getUsagePercent = (
-  totalTokens: number | undefined,
-  modelContextWindow: number,
-): number => {
-  if (!totalTokens) return 0;
-  return Math.min((totalTokens / modelContextWindow) * 100, 100);
-};
-
-type UsageSeverity = "normal" | "warning" | "critical";
-
-const getUsageSeverity = (percent: number): UsageSeverity => {
-  if (percent > 85) return "critical";
-  if (percent >= 65) return "warning";
-  return "normal";
-};
-
-const getStrokeColor = (percent: number): string => {
-  const severity = getUsageSeverity(percent);
-  if (severity === "critical") return "stroke-red-500";
-  if (severity === "warning") return "stroke-amber-500";
-  return "stroke-foreground";
-};
-
-const getBarColor = (percent: number): string => {
-  const severity = getUsageSeverity(percent);
-  if (severity === "critical") return "bg-red-500";
-  if (severity === "warning") return "bg-amber-500";
-  return "bg-foreground";
-};
-
-const getPercentColor = (percent: number): string => {
-  const severity = getUsageSeverity(percent);
-  if (severity === "critical") return "text-red-500";
-  if (severity === "warning") return "text-amber-500";
-  return "text-muted-foreground";
-};
 type ContextDisplayContextValue = {
   usage: TokenUsage | undefined;
   totalTokens: number;
@@ -187,30 +147,6 @@ function ContextDisplayTrigger({
   );
 }
 
-type ContextSegment = {
-  label: string;
-  tokens: number;
-};
-
-// Whether a provider counts cached tokens inside inputTokens, or reasoning
-// inside outputTokens, differs by provider: OpenAI reports cached_tokens as a
-// subset of prompt_tokens, while Anthropic documents input_tokens as excluding
-// cache_read_input_tokens. Nothing in the usage contract says which is in hand,
-// so these are reported as the counts they are and none of them is given a
-// share of the bar, which stays the one reading that always holds: the
-// provider's own total against the window.
-const getContextSegments = (
-  usage: TokenUsage | undefined,
-): ContextSegment[] => {
-  if (!usage) return [];
-  return [
-    { label: "Input", tokens: usage.inputTokens ?? 0 },
-    { label: "Cached input", tokens: usage.cachedInputTokens ?? 0 },
-    { label: "Output", tokens: usage.outputTokens ?? 0 },
-    { label: "Reasoning", tokens: usage.reasoningTokens ?? 0 },
-  ].filter((segment) => segment.tokens > 0);
-};
-
 function ContextDisplayContent({
   side = "top",
   className,
@@ -242,10 +178,13 @@ function ContextDisplayContent({
             {formatTokenCount(modelContextWindow)}
           </span>
         </div>
-        <div className="bg-muted mt-2.5 h-1 overflow-hidden rounded-full">
+        <div
+          data-slot="context-display-track"
+          className="bg-muted inset-ring-border mt-2.5 h-1 overflow-hidden rounded-full inset-ring forced-colors:border"
+        >
           <div
             className={cn(
-              "h-full w-(--usage-width) rounded-full transition-[width] duration-300",
+              "h-full w-(--usage-width) rounded-full transition-[width] duration-300 forced-color-adjust-none",
               totalTokens > 0 && "min-w-1",
               getBarColor(percent),
             )}
@@ -294,7 +233,7 @@ function RingVisual() {
         r={RING_RADIUS}
         fill="none"
         strokeWidth={RING_STROKE}
-        className="stroke-muted"
+        className="stroke-border"
       />
       <circle
         cx={RING_SIZE / 2}
@@ -351,10 +290,13 @@ function BarVisual() {
 
   return (
     <div className="flex items-center gap-2">
-      <div className="bg-muted h-1.5 w-16 overflow-hidden rounded-full">
+      <div
+        data-slot="context-display-track"
+        className="bg-muted inset-ring-border h-1.5 w-16 overflow-hidden rounded-full inset-ring forced-colors:border"
+      >
         <div
           className={cn(
-            "h-full rounded-full transition-all duration-300",
+            "h-full rounded-full transition-all duration-300 forced-color-adjust-none",
             getBarColor(percent),
           )}
           style={{ width: `${percent}%` }}

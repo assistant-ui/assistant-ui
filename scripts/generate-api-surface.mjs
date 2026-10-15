@@ -5,16 +5,17 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
-  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
+import { pathToFileURL } from "node:url";
+import { isExecutedAsMain } from "./lib/main.mjs";
 import { optionValues } from "./lib/script-options.mjs";
 import {
+  apiSurfaceFileName,
   collectPackages,
   collectTurboFilteredPackageNames,
   posixPath,
@@ -33,12 +34,8 @@ const requireFromBuildUtils = createRequire(
 const { build } = await import(requireFromBuildUtils.resolve("tsdown"));
 const ts = requireFromBuildUtils("typescript");
 
-function packageFileName(packageName) {
-  return `${packageName.replace(/^@/, "").replaceAll("/", "__")}.ts`;
-}
-
 function packageEntryName(packageName) {
-  return packageFileName(packageName).replace(/\.ts$/, "");
+  return apiSurfaceFileName(packageName).replace(/\.ts$/, "");
 }
 
 function relativeImport(fromDir, toFile) {
@@ -860,19 +857,19 @@ function writeOrCheck(file, content, changedFiles) {
 
 // A filtered run cannot judge files for unselected packages, but a file
 // matching no current publishable package (deleted, renamed, privatized) is
-// stale under any filter; only the unfiltered run may treat
-// not-regenerated-this-run as stale.
+// stale under any filter. A selected package may no longer expose declarations.
 export function selectStaleSurfaceFiles({
   files,
   generatedFiles,
   knownFiles,
   filtered,
+  selectedFiles = new Set(),
 }) {
   return files.filter(
     (file) =>
       file.endsWith(".ts") &&
       !generatedFiles.has(file) &&
-      !(filtered && knownFiles.has(file)),
+      !(filtered && knownFiles.has(file) && !selectedFiles.has(file)),
   );
 }
 
@@ -913,7 +910,10 @@ async function main() {
       if (!bundledSurface && !cliPackageSurface) continue;
       const content = bundledSurface ?? renderCliSurface(cliPackageSurface);
 
-      const outputFile = path.join(apiSurfaceRoot, packageFileName(pkg.name));
+      const outputFile = path.join(
+        apiSurfaceRoot,
+        apiSurfaceFileName(pkg.name),
+      );
       generatedFiles.add(outputFile);
       writeOrCheck(outputFile, content, changedFiles);
     }
@@ -921,7 +921,7 @@ async function main() {
     if (existsSync(apiSurfaceRoot)) {
       const knownFiles = new Set(
         allPackages.map(({ pkg }) =>
-          path.join(apiSurfaceRoot, packageFileName(pkg.name)),
+          path.join(apiSurfaceRoot, apiSurfaceFileName(pkg.name)),
         ),
       );
       const stale = selectStaleSurfaceFiles({
@@ -931,6 +931,11 @@ async function main() {
         generatedFiles,
         knownFiles,
         filtered: turboFilters.length > 0,
+        selectedFiles: new Set(
+          packages.map(({ pkg }) =>
+            path.join(apiSurfaceRoot, apiSurfaceFileName(pkg.name)),
+          ),
+        ),
       });
       for (const file of stale) {
         if (checkMode) {
@@ -962,20 +967,6 @@ async function main() {
   }
 }
 
-// import.meta.main requires Node >= 24.2; on older runtimes it is undefined
-// and the script would silently no-op with exit code 0. Both sides are
-// realpath'd because Node resolves the main module through symlinks while
-// argv keeps the invoked path (e.g. /tmp vs /private/tmp on macOS).
-const realPath = (file) => {
-  try {
-    return realpathSync.native(file);
-  } catch {
-    return path.resolve(file);
-  }
-};
-const isMainEntry =
-  process.argv[1] !== undefined &&
-  realPath(process.argv[1]) === realPath(fileURLToPath(import.meta.url));
-if (isMainEntry) {
+if (isExecutedAsMain(import.meta.url, process.argv[1])) {
   await main();
 }

@@ -2,6 +2,14 @@ import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import {
+  applyEdits,
+  parse as parseJsonc,
+  parseTree,
+  stripComments,
+  type Node,
+  type ParseError,
+} from "jsonc-parser";
 import { logger } from "../lib/utils/logger";
 import { runSpawn, SpawnExitError, SpawnSignalError } from "../lib/run-spawn";
 import * as p from "@clack/prompts";
@@ -21,22 +29,17 @@ const MCP_CONFIGS: Record<
   {
     name: string;
     getPath: () => string;
-    config: object;
-    replaceServerKey?: string;
+    serverKey: string;
+    server: object;
+    jsonc?: boolean;
     postInstall?: string;
   }
 > = {
   cursor: {
     name: "Cursor",
     getPath: () => path.join(process.cwd(), ".cursor", "mcp.json"),
-    config: {
-      mcpServers: {
-        "assistant-ui": {
-          url: HOSTED_MCP_URL,
-        },
-      },
-    },
-    replaceServerKey: "mcpServers",
+    serverKey: "mcpServers",
+    server: { url: HOSTED_MCP_URL },
     postInstall:
       "Open Cursor Settings → MCP → find 'assistant-ui' and click enable.",
   },
@@ -44,47 +47,33 @@ const MCP_CONFIGS: Record<
     name: "Windsurf",
     getPath: () =>
       path.join(os.homedir(), ".codeium", "windsurf", "mcp_config.json"),
-    config: {
-      mcpServers: {
-        "assistant-ui": {
-          serverUrl: HOSTED_MCP_URL,
-        },
-      },
-    },
-    replaceServerKey: "mcpServers",
+    serverKey: "mcpServers",
+    server: { serverUrl: HOSTED_MCP_URL },
     postInstall: "Fully quit and re-open Windsurf to activate.",
   },
   vscode: {
     name: "VSCode",
     getPath: () => path.join(process.cwd(), ".vscode", "mcp.json"),
-    config: {
-      servers: {
-        "assistant-ui": {
-          type: "http",
-          url: HOSTED_MCP_URL,
-        },
-      },
-    },
-    replaceServerKey: "servers",
+    serverKey: "servers",
+    server: { type: "http", url: HOSTED_MCP_URL },
+    jsonc: true,
     postInstall:
       "Enable MCP in Settings → search 'MCP' → enable 'Chat > MCP'. Use Copilot Chat in Agent mode.",
   },
   zed: {
     name: "Zed",
+    serverKey: "context_servers",
+    jsonc: true,
     getPath: () => {
       if (process.platform === "win32") {
         return path.join(process.env.APPDATA || "", "Zed", "settings.json");
       }
       return path.join(os.homedir(), ".config", "zed", "settings.json");
     },
-    config: {
-      context_servers: {
-        "assistant-ui": {
-          command: {
-            path: "npx",
-            args: ["-y", "@assistant-ui/mcp-docs-server"],
-          },
-        },
+    server: {
+      command: {
+        path: "npx",
+        args: ["-y", "@assistant-ui/mcp-docs-server"],
       },
     },
     postInstall: "The server starts automatically with the Assistant Panel.",
@@ -107,13 +96,10 @@ const MCP_CONFIGS: Record<
         "claude_desktop_config.json",
       );
     },
-    config: {
-      mcpServers: {
-        "assistant-ui": {
-          command: "npx",
-          args: ["-y", "@assistant-ui/mcp-docs-server"],
-        },
-      },
+    serverKey: "mcpServers",
+    server: {
+      command: "npx",
+      args: ["-y", "@assistant-ui/mcp-docs-server"],
     },
     postInstall: "Restart Claude Desktop to activate.",
   },
@@ -146,6 +132,162 @@ class McpConfigParseError extends Error {
 
 const getTargetFlag = (target: Exclude<MCPTarget, "claude-code">) =>
   `--${target}`;
+
+const lastPropertyValue = (node: Node, key: string) =>
+  node.children?.findLast((property) => property.children?.[0]?.value === key)
+    ?.children?.[1];
+
+const lineStartAt = (content: string, offset: number) =>
+  content.lastIndexOf("\n", offset - 1) + 1;
+
+const lineIndentAt = (content: string, offset: number) =>
+  content.slice(lineStartAt(content, offset), offset).match(/^[\t ]*/)?.[0] ??
+  "";
+
+const getIndentUnit = (content: string, object: Node) => {
+  const objectLine = lineStartAt(content, object.offset);
+  const objectIndent = lineIndentAt(content, object.offset);
+  const multilineChild = object.children?.find(
+    (child) => lineStartAt(content, child.offset) > objectLine,
+  );
+  if (multilineChild) {
+    const childIndent = lineIndentAt(content, multilineChild.offset);
+    if (
+      childIndent.startsWith(objectIndent) &&
+      childIndent.length > objectIndent.length
+    ) {
+      return childIndent.slice(objectIndent.length);
+    }
+  }
+
+  const documentIndent = content.match(/(?:^|\r?\n)([\t ]+)(?=")/)?.[1];
+  if (documentIndent?.includes("\t")) return "\t";
+  return documentIndent || "  ";
+};
+
+const stringifyValue = (
+  value: object,
+  baseIndent: string,
+  indentUnit: string,
+  eol: string,
+) =>
+  JSON.stringify(value, null, indentUnit).replaceAll(
+    "\n",
+    `${eol}${baseIndent}`,
+  );
+
+const appendObjectProperty = (
+  content: string,
+  object: Node,
+  key: string,
+  value: object,
+  eol: string,
+) => {
+  const objectIndent = lineIndentAt(content, object.offset);
+  const indentUnit = getIndentUnit(content, object);
+  const propertyIndent = objectIndent + indentUnit;
+  const property = `${propertyIndent}${JSON.stringify(key)}: ${stringifyValue(
+    value,
+    propertyIndent,
+    indentUnit,
+    eol,
+  )}`;
+  const closeOffset = object.offset + object.length - 1;
+  const closeLineStart = lineStartAt(content, closeOffset);
+  const closeOnOwnLine = /^[\t ]*$/.test(
+    content.slice(closeLineStart, closeOffset),
+  );
+  const edits = [
+    {
+      offset: closeOnOwnLine ? closeLineStart : closeOffset,
+      length: 0,
+      content: closeOnOwnLine
+        ? `${property}${eol}`
+        : `${eol}${property}${eol}${objectIndent}`,
+    },
+  ];
+
+  const lastProperty = object.children?.at(-1);
+  if (lastProperty) {
+    const propertyEnd = lastProperty.offset + lastProperty.length;
+    const trailingContent = stripComments(
+      content.slice(propertyEnd, closeOffset),
+    ).trimStart();
+    if (!trailingContent.startsWith(",")) {
+      edits.unshift({ offset: propertyEnd, length: 0, content: "," });
+    }
+  }
+
+  return applyEdits(content, edits);
+};
+
+const replaceNodeValue = (
+  content: string,
+  node: Node,
+  container: Node,
+  value: object,
+  eol: string,
+) =>
+  applyEdits(content, [
+    {
+      offset: node.offset,
+      length: node.length,
+      content: stringifyValue(
+        value,
+        lineIndentAt(content, node.offset),
+        getIndentUnit(content, container),
+        eol,
+      ),
+    },
+  ]);
+
+function updateJsoncConfig(
+  content: string,
+  serverKey: string,
+  server: object,
+): string {
+  const eol = content.includes("\r\n") ? "\r\n" : "\n";
+  const root = parseTree(content, [], {
+    allowTrailingComma: true,
+    allowEmptyContent: true,
+  });
+  if (!root) {
+    const initialized = JSON.stringify(
+      { [serverKey]: { "assistant-ui": server } },
+      null,
+      2,
+    ).replaceAll("\n", eol);
+    if (!content.trim()) return `${initialized}${eol}`;
+    return `${content}${content.endsWith(eol) ? "" : eol}${initialized}${eol}`;
+  }
+
+  // JSONC resolves duplicate keys to the last value.
+  const servers = lastPropertyValue(root, serverKey);
+  if (!servers) {
+    return appendObjectProperty(
+      content,
+      root,
+      serverKey,
+      { "assistant-ui": server },
+      eol,
+    );
+  }
+
+  if (servers.type !== "object") {
+    return replaceNodeValue(
+      content,
+      servers,
+      root,
+      { "assistant-ui": server },
+      eol,
+    );
+  }
+
+  const existing = lastPropertyValue(servers, "assistant-ui");
+  return existing
+    ? replaceNodeValue(content, existing, servers, server, eol)
+    : appendObjectProperty(content, servers, "assistant-ui", server, eol);
+}
 
 async function installForTarget(target: MCPTarget): Promise<void> {
   if (target === "claude-code") {
@@ -209,10 +351,35 @@ async function installForTarget(target: MCPTarget): Promise<void> {
   }
 
   let existingConfig: any = {};
+  let content = "{}\n";
   if (fs.existsSync(configPath)) {
-    const content = fs.readFileSync(configPath, "utf-8");
+    content = fs.readFileSync(configPath, "utf-8");
     try {
-      existingConfig = JSON.parse(content);
+      if (targetConfig.jsonc) {
+        const errors: ParseError[] = [];
+        existingConfig = parseJsonc(content, errors, {
+          allowTrailingComma: true,
+          allowEmptyContent: true,
+        });
+        if (existingConfig === undefined) existingConfig = {};
+        if (
+          errors.length > 0 ||
+          existingConfig === null ||
+          typeof existingConfig !== "object" ||
+          Array.isArray(existingConfig)
+        ) {
+          throw new SyntaxError("Invalid MCP configuration");
+        }
+      } else {
+        existingConfig = JSON.parse(content);
+        if (
+          existingConfig === null ||
+          typeof existingConfig !== "object" ||
+          Array.isArray(existingConfig)
+        ) {
+          throw new SyntaxError("Invalid MCP configuration");
+        }
+      }
     } catch {
       const flag = getTargetFlag(target);
       logger.error(`Could not parse ${targetConfig.name} MCP config.`);
@@ -225,23 +392,23 @@ async function installForTarget(target: MCPTarget): Promise<void> {
     }
   }
 
-  const newConfig = deepMerge(existingConfig, targetConfig.config);
-
-  if (targetConfig.replaceServerKey) {
-    const key = targetConfig.replaceServerKey;
-    newConfig[key] = {
-      ...newConfig[key],
-      "assistant-ui": (targetConfig.config as any)[key]["assistant-ui"],
-    };
-  }
-
-  fs.writeFileSync(configPath, `${JSON.stringify(newConfig, null, 2)}\n`);
+  const updatedContent = updateJsoncConfig(
+    content,
+    targetConfig.serverKey,
+    target === "zed" || target === "claude-desktop"
+      ? deepMerge(
+          existingConfig[targetConfig.serverKey]?.["assistant-ui"] ?? {},
+          targetConfig.server,
+        )
+      : targetConfig.server,
+  );
+  fs.writeFileSync(configPath, updatedContent);
 
   logger.break();
   logger.success(`MCP server installed for ${targetConfig.name}!`);
   logger.info(`Config written to: ${configPath}`);
 
-  if (targetConfig.replaceServerKey) {
+  if (target === "cursor" || target === "windsurf" || target === "vscode") {
     logger.break();
     logger.info(
       `Connects to the hosted assistant-ui MCP server at ${HOSTED_MCP_URL}.`,

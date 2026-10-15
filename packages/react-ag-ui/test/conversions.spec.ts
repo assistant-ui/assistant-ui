@@ -7,7 +7,7 @@ import { MessageSchema, UserMessageSchema, type Message } from "@ag-ui/client";
 import {
   applyA2uiOperations,
   convertSurfaceToUISpec,
-} from "@assistant-ui/react-generative-ui/a2ui";
+} from "@assistant-ui/generative-ui/a2ui";
 import {
   ExportedMessageRepository,
   type AppendMessage,

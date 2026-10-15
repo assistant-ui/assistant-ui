@@ -56,5 +56,7 @@ readiness banner's credential check. The selector is wired to Pi's per-thread
    To override the model or workspace, copy `.env.example` to `.env.local` and
    set `PI_PROVIDER` / `PI_MODEL_ID` / `PI_WORKSPACE_PATH`.
 
+This is a local-development harness. Its agent API binds to loopback during development and returns 404 in production builds. Writes require a same-origin `Origin` or `Sec-Fetch-Site` header, or `application/json` when both headers are absent.
+
 The agent reads and writes files and runs shell commands in `PI_WORKSPACE_PATH`.
 Point it at a scratch directory.

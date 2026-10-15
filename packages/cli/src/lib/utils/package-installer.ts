@@ -31,7 +31,9 @@ export async function installPackageIfNeeded(
 
   const answer = await askQuestion(config.promptMessage);
   if (answer === "" || answer.toLowerCase().startsWith("y")) {
-    await installPackage(config.packageName);
+    if (!(await installPackage(config.packageName))) {
+      throw new Error(`Failed to install ${config.packageName}`);
+    }
   } else {
     logger.info("Skipping installation.");
   }

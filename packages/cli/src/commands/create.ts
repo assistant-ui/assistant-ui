@@ -6,10 +6,8 @@ import * as p from "@clack/prompts";
 import { logger } from "../lib/utils/logger";
 import {
   cleanupPendingProjectDownloads,
-  dlxCommand,
   downloadProject,
   resolveLatestReleaseRef,
-  resolvePackageManager,
   scaffoldProject,
   transformProject,
   type TransformResult,
@@ -20,7 +18,11 @@ import {
   SpawnExitError,
   SpawnSignalError,
 } from "../lib/run-spawn";
-import { resolvePackageManagerForCwd } from "../lib/utils/package-manager";
+import {
+  dlxCommand,
+  resolvePackageManager,
+  resolvePackageManagerForCwd,
+} from "../lib/utils/package-manager";
 import {
   buildSkillsAddCommand,
   resolveSkillsInstall,

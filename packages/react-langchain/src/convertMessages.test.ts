@@ -208,6 +208,29 @@ describe("getMessageContent file blocks", () => {
     ]);
   });
 
+  it("uses the file media type for a media-less base64 data URL", () => {
+    const content = getMessageContent(
+      appendMessage({
+        type: "file",
+        data: "data:;base64,ZmFrZQ==",
+        mimeType: "application/pdf",
+        filename: "a.pdf",
+      }),
+    );
+
+    expect(content).toEqual([
+      { type: "text", text: " " },
+      {
+        type: "file",
+        data: "ZmFrZQ==",
+        mime_type: "application/pdf",
+        filename: "a.pdf",
+        metadata: { filename: "a.pdf" },
+        source_type: "base64",
+      },
+    ]);
+  });
+
   it("keeps non-http schemes on the base64 path", () => {
     const content = getMessageContent(
       appendMessage({

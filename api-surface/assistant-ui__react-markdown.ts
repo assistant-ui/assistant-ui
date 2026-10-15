@@ -241,7 +241,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { CodeHeaderProps, MarkdownTextPrimitive, MarkdownTextPrimitiveProps, SyntaxHighlighterProps, escapeCurrencyDollars, normalizeMathDelimiters, rewriteCustomMathTags, rewriteLatexBracketDelimiters, memoizeMarkdownComponents as unstable_memoizeMarkdownComponents, useIsMarkdownCodeBlock };
+  export { CodeHeaderProps, MarkdownTextPrimitive, MarkdownTextPrimitiveProps, SyntaxHighlighterProps, escapeCurrencyDollars, memoizeMarkdownComponents, normalizeMathDelimiters, rewriteCustomMathTags, rewriteLatexBracketDelimiters, memoizeMarkdownComponents as unstable_memoizeMarkdownComponents, useIsMarkdownCodeBlock };
 }
 
 declare const memoizeMarkdownComponents: (components?: Components) => {
@@ -254,10 +254,14 @@ declare function normalizeMathDelimiters(text: string): string;
 
 declare const parseLanguageClass: (className: string | undefined) => string;
 
+declare namespace entry_preprocess_exports {
+  export { escapeCurrencyDollars, normalizeMathDelimiters, rewriteCustomMathTags, rewriteLatexBracketDelimiters };
+}
+
 declare function rewriteCustomMathTags(text: string): string;
 
 declare function rewriteLatexBracketDelimiters(text: string): string;
 
 declare const useIsMarkdownCodeBlock: () => boolean;
 
-export { entry_code_fence_exports as entry_code_fence, entry_root_exports as entry_root };
+export { entry_code_fence_exports as entry_code_fence, entry_preprocess_exports as entry_preprocess, entry_root_exports as entry_root };

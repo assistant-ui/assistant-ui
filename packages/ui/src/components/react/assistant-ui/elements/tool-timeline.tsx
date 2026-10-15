@@ -1,16 +1,17 @@
 "use client";
 
 import { ChevronRightIcon, type LucideIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
 import {
-  Collapsible,
+  CollapsibleRoot as Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { cn } from "@/lib/utils";
+} from "./collapsible-root";
 import { collapsePanel, ShimmerLabel, SwapLabel } from "./surfaces";
 import { take } from "../utils/range";
 
 export interface TimelineStep {
+  id?: string;
   verb: string;
   chip: string;
   icon: LucideIcon;
@@ -52,7 +53,7 @@ export function ToolTimeline({
       onOpenChange={onOpenChange}
       className={cn("w-full max-w-sm", className)}
     >
-      <CollapsibleTrigger className="group/trigger text-foreground/55 hover:text-foreground/90 flex items-center gap-1.5 rounded-md py-1 text-[13.5px] transition-colors outline-none">
+      <CollapsibleTrigger className="group/trigger text-muted-foreground hover:text-foreground/90 flex items-center gap-1.5 rounded-md py-1 text-[13.5px] transition-colors outline-none">
         <ChevronRightIcon className="size-3.5 shrink-0 opacity-60 transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-data-open/trigger:rotate-90 group-data-panel-open/trigger:rotate-90 motion-reduce:transition-none" />
         <SwapLabel
           active={streaming ? 0 : 1}
@@ -75,10 +76,10 @@ export function ToolTimeline({
 
             return (
               <div
-                key={step.chip}
-                className="fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-foreground/55 flex items-center gap-2 text-[13.5px] duration-300"
+                key={step.id ? `id:${step.id}` : index}
+                className="fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-muted-foreground flex items-center gap-2 text-[13.5px] duration-300"
               >
-                <Icon className="text-foreground/35 size-3.5 shrink-0" />
+                <Icon className="text-muted-foreground size-3.5 shrink-0" />
                 <ShimmerLabel
                   active={active}
                   className="relative inline-block leading-none"

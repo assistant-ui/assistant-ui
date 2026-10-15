@@ -5,12 +5,12 @@ import type {
   RemoteThreadListResponse,
   RemoteThreadMetadata,
 } from "@assistant-ui/core";
+import { raceWithAbortSignal } from "@assistant-ui/core/internal";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
 import { normalizeAdkPart } from "./normalizeAdkPart";
 import { parseAdkEventValue } from "./parseAdkEvent";
 import type { AdkMessage, AdkThreadSnapshot } from "./types";
 import { trimTrailingSlashes } from "./trimTrailingSlashes";
-import { raceWithAbortSignal } from "./raceWithAbortSignal";
 
 export type AdkSessionAdapterOptions = {
   /**

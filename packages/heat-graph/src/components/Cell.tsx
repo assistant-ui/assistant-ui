@@ -38,12 +38,12 @@ export const Cell = forwardRef<HTMLDivElement, CellProps>(
         onMouseEnter={(event) => {
           onMouseEnter?.(event);
           if (event.defaultPrevented) return;
-          dispatch?.onCellEnter(cell, event.currentTarget);
+          dispatch.onCellEnter(cell, event.currentTarget);
         }}
         onMouseLeave={(event) => {
           onMouseLeave?.(event);
           if (event.defaultPrevented) return;
-          dispatch?.onCellLeave();
+          dispatch.onCellLeave();
         }}
         {...props}
       />

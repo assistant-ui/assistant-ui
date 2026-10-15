@@ -6,11 +6,12 @@ import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import { ExportedMessageRepository } from "../../runtime/utils/message-repository";
 import type { ExternalStoreAdapter } from "../../runtimes/external-store/external-store-adapter";
-import type { ThreadMessage } from "../../types/message";
+import type { CompleteAttachment } from "../../types/attachment";
+import type { ThreadMessage, ThreadUserMessage } from "../../types/message";
 import { RuntimeAdapterProvider } from "./RuntimeAdapterProvider";
 import { useExternalStoreRuntime } from "./useExternalStoreRuntime";
 
-const user = (id: string): ThreadMessage => ({
+const user = (id: string): ThreadUserMessage => ({
   id,
   role: "user",
   content: [{ type: "text", text: id }],
@@ -152,6 +153,77 @@ describe("useExternalStoreRuntime history copy", () => {
     await settle();
     expect(unstable_copy.mock.calls[1]![1]).toEqual(["assistant-2"]);
     app.view.unmount();
+  });
+
+  describe("attachment changes", () => {
+    const attachment: CompleteAttachment = {
+      id: "file-1",
+      type: "document",
+      name: "report.pdf",
+      status: { type: "complete" },
+      content: [{ type: "file", data: "cGRm", mimeType: "application/pdf" }],
+    };
+
+    it.each([
+      { change: "added", before: [], after: [attachment], changed: true },
+      { change: "removed", before: [attachment], after: [], changed: true },
+      {
+        change: "replaced under the same attachment id",
+        before: [attachment],
+        after: [
+          {
+            ...attachment,
+            content: [
+              {
+                type: "file" as const,
+                data: "bmV3",
+                mimeType: "application/pdf",
+              },
+            ],
+          },
+        ],
+        changed: true,
+      },
+      {
+        change: "recreated with identical values",
+        before: [attachment],
+        after: [
+          {
+            ...attachment,
+            status: { ...attachment.status },
+            content: attachment.content.map((part) => ({ ...part })),
+          },
+        ],
+        changed: false,
+      },
+    ])(
+      "copies only changed messages when attachments are $change",
+      async ({ before, after, changed }) => {
+        const { history, unstable_copy } = historyAdapter();
+        const app = setup(history);
+        const first: ThreadUserMessage = {
+          ...user("user-1"),
+          attachments: before,
+        };
+        const next: ThreadUserMessage = { ...first, attachments: after };
+
+        app.update({ isRunning: true });
+        app.update({ isRunning: false, messages: [first] });
+        await settle();
+        app.update({ isRunning: true });
+        app.update({ isRunning: false, messages: [next, assistant("answer")] });
+        await settle();
+        app.view.unmount();
+
+        expect(unstable_copy).toHaveBeenCalledTimes(2);
+        expect(unstable_copy.mock.calls[1]![1]).toEqual(
+          changed ? ["user-1", "answer"] : ["answer"],
+        );
+        expect(unstable_copy.mock.calls[1]![0][0]).toMatchObject({
+          attachments: after,
+        });
+      },
+    );
   });
 
   it("skips stores that persist their own history", async () => {

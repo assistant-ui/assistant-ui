@@ -1,5 +1,9 @@
 import type { AppendMessage, ThreadMessage } from "../../types/message";
-import type { CompleteAttachment } from "../../types/attachment";
+import type {
+  CompleteAttachment,
+  CreateAttachment,
+} from "../../types/attachment";
+import type { QuoteInfo } from "../../types/quote";
 import { getThreadMessageText } from "../../utils/text";
 import { liftNonTextParts } from "../../adapters/attachment";
 import type { AttachmentAdapter } from "../../adapters/attachment";
@@ -19,8 +23,29 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     return false;
   }
 
+  protected override get cleanupOwner(): BaseComposerRuntimeCore {
+    return this.runtime.composer instanceof BaseComposerRuntimeCore
+      ? this.runtime.composer
+      : this;
+  }
+
   public get canSend() {
-    return !this.isEmpty && !this.runtime.voice && !this.isSubmitting;
+    return (
+      !this.runtime.isDisabled &&
+      !this.isEmpty &&
+      !this.runtime.voice &&
+      !this.isSubmitting
+    );
+  }
+
+  public override addAttachment(fileOrAttachment: File | CreateAttachment) {
+    if (this.runtime.isDisabled) return Promise.resolve();
+    return super.addAttachment(fileOrAttachment);
+  }
+
+  public override startDictation(): void {
+    if (this.runtime.isDisabled) return;
+    super.startDictation();
   }
 
   protected getAttachmentAdapter() {
@@ -60,10 +85,13 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
     super();
     this.runtime = runtime;
     let lastHasVoice = runtime.voice !== undefined;
+    let lastIsDisabled = runtime.isDisabled;
     const unsubscribe = runtime.subscribe(() => {
       const hasVoice = runtime.voice !== undefined;
-      if (hasVoice === lastHasVoice) return;
+      const isDisabled = runtime.isDisabled;
+      if (hasVoice === lastHasVoice && isDisabled === lastIsDisabled) return;
       lastHasVoice = hasVoice;
+      lastIsDisabled = isDisabled;
       this._notifySubscribers();
     });
     this.endEditCallback = () => {
@@ -90,6 +118,7 @@ export class DefaultEditComposerRuntimeCore extends BaseComposerRuntimeCore {
       );
     }
     this.setAttachments(attachments);
+    this.setQuote(message.metadata.custom.quote as QuoteInfo | undefined);
 
     this.setRunConfig({ ...runtime.composer.runConfig });
   }

@@ -13,6 +13,16 @@ import type {
   CodeHeaderProps,
 } from "../types";
 
+const remendSpy = vi.hoisted(() => ({
+  tailBoundedRemend: vi.fn<typeof import("../remend").tailBoundedRemend>(),
+}));
+
+vi.mock("../remend", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../remend")>();
+  remendSpy.tailBoundedRemend.mockImplementation(original.tailBoundedRemend);
+  return { ...original, tailBoundedRemend: remendSpy.tailBoundedRemend };
+});
+
 const smoothStatus = vi.hoisted(() => ({
   value: undefined as { type: "incomplete"; reason: "cancelled" } | undefined,
 }));
@@ -598,6 +608,25 @@ describe("StreamdownTextPrimitive", () => {
       );
 
       expect(screen.getByTestId("user-pre")).toBe(first);
+    });
+
+    it("keeps the memoized body when remend is a fresh inline object", () => {
+      smoothStatus.value = { type: "incomplete", reason: "cancelled" };
+      const view = () => (
+        <TextMessagePartProvider text="**bold" isRunning={false}>
+          <StreamdownTextPrimitive
+            defer={false}
+            remend={{ linkMode: "text-only" }}
+          />
+        </TextMessagePartProvider>
+      );
+      const { rerender } = render(view());
+      const calls = remendSpy.tailBoundedRemend.mock.calls.length;
+      expect(calls).toBeGreaterThan(0);
+
+      rerender(view());
+
+      expect(remendSpy.tailBoundedRemend).toHaveBeenCalledTimes(calls);
     });
 
     it("keeps a fenced block mounted while the text grows", () => {

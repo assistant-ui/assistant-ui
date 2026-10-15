@@ -239,10 +239,12 @@ export function getFlatListPagingProps<T>(
 
 export const setForwardedRef = <T>(ref: ForwardedRef<T>, value: T | null) => {
   if (typeof ref === "function") {
-    ref(value);
+    const cleanup: unknown = ref(value);
+    if (typeof cleanup === "function") return cleanup as () => void;
   } else if (ref) {
     ref.current = value;
   }
+  return undefined;
 };
 
 export const useComposedFlatListRef = <T>(
@@ -253,7 +255,14 @@ export const useComposedFlatListRef = <T>(
   const setFlatListRef = useCallback(
     (node: FlatList<T> | null) => {
       flatListRef.current = node;
-      setForwardedRef(forwardedRef, node);
+      const cleanup = setForwardedRef(forwardedRef, node);
+      if (cleanup) {
+        return () => {
+          flatListRef.current = null;
+          cleanup();
+        };
+      }
+      return undefined;
     },
     [forwardedRef],
   );

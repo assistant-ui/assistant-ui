@@ -50,6 +50,8 @@ export class ExternalStoreHistoryCopy {
         JSON.stringify({
           role: message.role,
           content: message.content,
+          attachments:
+            message.role === "user" ? message.attachments : undefined,
           status: message.role === "assistant" ? message.status : undefined,
           metadata: message.metadata,
         }) ?? message

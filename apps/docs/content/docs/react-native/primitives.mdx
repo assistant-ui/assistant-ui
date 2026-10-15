@@ -538,7 +538,7 @@ Renders message content parts using render-prop functions instead of the compone
 |------|------|-------------|
 | `renderText` | `(props: { part, index }) => ReactElement` | Renderer for text parts (default: React Native `<Text>`) |
 | `renderToolCall` | `(props: { part, index }) => ReactElement` | Fallback renderer for tool-call parts not handled by registered tool UIs |
-| `renderImage` | `(props: { part, index }) => ReactElement` | Renderer for image parts |
+| `renderImage` | `(props: { part, index }) => ReactElement` | Renderer for image parts (default: React Native `<Image>`) |
 | `renderReasoning` | `(props: { part, index }) => ReactElement` | Renderer for reasoning parts |
 | `renderSource` | `(props: { part, index }) => ReactElement` | Renderer for source parts |
 | `renderFile` | `(props: { part, index }) => ReactElement` | Renderer for file parts |
@@ -621,6 +621,20 @@ Renders a single message part at the specified index, providing part context. Us
 |------|------|-------------|
 | `index` | `number` | Zero-based index of the message part to render |
 | `components` | `object` | Same component map as `MessagePrimitive.Parts` |
+
+### MessagePrimitive.Quote
+
+Renders the quote a message was sent with, read from `s.message.metadata.custom.quote`. Renders nothing when the message carries no quote. Place it above `MessagePrimitive.Parts` in the user message. This component is shared from `@assistant-ui/core/react`.
+
+```tsx
+<MessagePrimitive.Quote>
+  {({ text }) => <Text numberOfLines={2}>{text}</Text>}
+</MessagePrimitive.Quote>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `(value: { text: string; messageId: string }) => ReactNode` | Render function called when the message has a quote |
 
 ### Conditional Rendering (Message)
 

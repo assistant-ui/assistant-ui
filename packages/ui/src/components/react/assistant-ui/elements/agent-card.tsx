@@ -57,17 +57,17 @@ export function AgentCard({
       {...props}
     >
       <div className="flex items-start gap-3">
-        <span className="bg-foreground/[0.05] text-foreground/45 flex size-9 shrink-0 items-center justify-center rounded-xl">
+        <span className="bg-foreground/[0.05] text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-xl">
           <BotIcon className="size-4" />
         </span>
         <div className="flex min-w-0 flex-1 flex-col">
           <span className="flex items-baseline gap-2">
             <span className="truncate text-[13.5px] font-medium">{name}</span>
-            <span className={cn(mono, "text-foreground/30 shrink-0")}>
+            <span className={cn(mono, "text-muted-foreground shrink-0")}>
               v{version}
             </span>
           </span>
-          <span className="text-foreground/45 truncate text-xs">
+          <span className="text-muted-foreground truncate text-xs">
             {provider}
           </span>
         </div>
@@ -84,12 +84,12 @@ export function AgentCard({
               className={cn(
                 field,
                 mono,
-                "text-foreground/55 shrink-0 rounded-md px-1.5 py-0.5",
+                "text-muted-foreground shrink-0 rounded-md px-1.5 py-0.5",
               )}
             >
               {skill.name}
             </span>
-            <span className="text-foreground/45 min-w-0 flex-1 truncate text-xs">
+            <span className="text-muted-foreground min-w-0 flex-1 truncate text-xs">
               {skill.description}
             </span>
           </div>
@@ -98,11 +98,13 @@ export function AgentCard({
 
       <div className="border-foreground/[0.07] flex items-center gap-2 border-t pt-3">
         <span
-          className={cn(mono, "text-foreground/30 min-w-0 flex-1 truncate")}
+          className={cn(mono, "text-muted-foreground min-w-0 flex-1 truncate")}
         >
           {endpoint}
         </span>
-        <span className={cn(mono, "text-foreground/30 shrink-0")}>{model}</span>
+        <span className={cn(mono, "text-muted-foreground shrink-0")}>
+          {model}
+        </span>
       </div>
 
       <button
@@ -111,7 +113,7 @@ export function AgentCard({
         disabled={connected}
         className={cn(
           connected
-            ? cn(field, "text-foreground/55")
+            ? cn(field, "text-muted-foreground")
             : cn(inkButton, "justify-center"),
           "flex h-8 items-center justify-center gap-1.5 rounded-full px-3.5 text-xs font-medium disabled:pointer-events-none",
         )}

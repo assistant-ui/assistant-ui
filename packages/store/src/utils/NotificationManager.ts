@@ -6,6 +6,7 @@ import type {
 } from "../types/events";
 import type { Unsubscribe } from "../types/client";
 import { withBatchedStateReads } from "./proxied-assistant-state";
+import type { ScopedSignal } from "./scoped-signal";
 
 type InternalCallback = (payload: unknown, clientStack: ClientStack) => unknown;
 
@@ -23,7 +24,16 @@ export type NotificationManager = {
     clientStack: ClientStack,
   ): void;
   subscribe(callback: () => void): Unsubscribe;
+  markChanged(signal: ScopedSignal): void;
   notifySubscribers(): void;
+};
+
+const runSubscriber = (cb: () => void) => {
+  try {
+    cb();
+  } catch (e) {
+    console.error("NotificationManager: subscriber callback error", e);
+  }
 };
 
 const reportListenerError = (error: unknown) => {
@@ -55,6 +65,7 @@ export const createNotificationManager = (): NotificationManager => {
   const listeners = new Map<string, Set<InternalCallback>>();
   const wildcardListeners = new Set<InternalCallback>();
   const subscribers = new Set<() => void>();
+  const changed = new Set<ScopedSignal>();
 
   return {
     on(event, callback) {
@@ -105,15 +116,22 @@ export const createNotificationManager = (): NotificationManager => {
       return () => subscribers.delete(callback);
     },
 
+    markChanged(signal) {
+      signal.version++;
+      changed.add(signal);
+    },
+
     notifySubscribers() {
       withBatchedStateReads(() => {
-        for (const cb of subscribers) {
-          try {
-            cb();
-          } catch (e) {
-            console.error("NotificationManager: subscriber callback error", e);
-          }
+        for (const cb of subscribers) runSubscriber(cb);
+        if (changed.size === 0) return;
+        // A reader of several changed signals wakes once
+        const woken = new Set<() => void>();
+        for (const signal of changed) {
+          for (const cb of signal.readers) woken.add(cb);
         }
+        changed.clear();
+        for (const cb of woken) runSubscriber(cb);
       });
     },
   };

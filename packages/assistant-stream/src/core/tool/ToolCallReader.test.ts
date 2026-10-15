@@ -56,14 +56,24 @@ describe("ToolCallArgsReader parsing", () => {
     await reader.appendArgsTextDelta('{"required":"hel');
     expect(parsePartialJsonObjectCalls).not.toHaveBeenCalled();
 
-    const stream = reader.args.streamText("required");
-    expect(parsePartialJsonObjectCalls).toHaveBeenCalledOnce();
+    const streamReader = reader.args.streamText("required").getReader();
+    expect(parsePartialJsonObjectCalls).not.toHaveBeenCalledWith(
+      '{"required":"hel',
+    );
+    await expect(streamReader.read()).resolves.toEqual({
+      done: false,
+      value: "hel",
+    });
 
     await reader.appendArgsTextDelta('lo"}');
     await reader.finishArgsText();
 
-    let value = "";
-    for await (const delta of stream) value += delta;
+    let value = "hel";
+    while (true) {
+      const next = await streamReader.read();
+      if (next.done) break;
+      value += next.value;
+    }
     expect(value).toBe("hello");
   });
 
@@ -81,7 +91,7 @@ describe("ToolCallArgsReader parsing", () => {
     expect(parsePartialJsonObjectCalls).toHaveBeenCalledTimes(2);
   });
 
-  it("parses completed arguments for a late reader", async () => {
+  it("parses completed arguments once for late readers", async () => {
     parsePartialJsonObjectCalls.mockClear();
     const reader = createReader();
 
@@ -90,7 +100,12 @@ describe("ToolCallArgsReader parsing", () => {
     expect(parsePartialJsonObjectCalls).not.toHaveBeenCalled();
 
     await expect(reader.args.get("required")).resolves.toBe("hello");
-    expect(parsePartialJsonObjectCalls).toHaveBeenCalledOnce();
+    await expect(reader.args.get("required")).resolves.toBe("hello");
+    expect(
+      parsePartialJsonObjectCalls.mock.calls.filter(
+        ([text]) => text === '{"required":"hello"}',
+      ),
+    ).toHaveLength(1);
   });
 
   it("stops parsing after a reader is cancelled", async () => {
@@ -99,7 +114,9 @@ describe("ToolCallArgsReader parsing", () => {
 
     await reader.appendArgsTextDelta('{"required":"hel');
     const streamReader = reader.args.streamText("required").getReader();
-    expect(parsePartialJsonObjectCalls).toHaveBeenCalledOnce();
+    expect(parsePartialJsonObjectCalls).not.toHaveBeenCalledWith(
+      '{"required":"hel',
+    );
 
     await streamReader.cancel();
     parsePartialJsonObjectCalls.mockClear();

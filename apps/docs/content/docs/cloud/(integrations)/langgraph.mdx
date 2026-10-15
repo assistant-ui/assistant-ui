@@ -46,7 +46,7 @@ const runtime = useLangGraphRuntime({
 });
 ```
 
-`useStreamRuntime` from `@assistant-ui/react-langchain` and `useAdkRuntime` from `@assistant-ui/react-google-adk` use the same Cloud thread-list arrangement. When `create` is omitted, the runtime initializes its own thread first and that initialization supplies the external id for the cloud thread. `onThreadIdChange` receives the settled cloud thread id on all three runtimes.
+`useStreamRuntime` from `@assistant-ui/react-langchain` and `useAdkRuntime` from `@assistant-ui/react-google-adk` use the same Cloud thread-list arrangement. When `create` is omitted, the runtime initializes its own thread first and that initialization supplies the external id for the cloud thread. `onThreadIdChange` receives the settled cloud thread id on all three runtimes. All three accept `scopeId`: provide the stable account or workspace identity from the first render and change it with the owning scope.
 
 ### Choose one thread-list owner
 

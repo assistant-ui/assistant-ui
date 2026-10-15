@@ -217,6 +217,59 @@ describe("MessageRepository rejected operations", () => {
 });
 
 describe("MessageRepository import order", () => {
+  it.each([
+    ["a1", ["u1", "a1"]],
+    ["u1", ["u1"]],
+  ])("keeps descendants when importing with head %s", (headId, visible) => {
+    const repository = new MessageRepository();
+    repository.import(
+      ExportedMessageRepository.fromBranchableArray(
+        [
+          { parentId: null, message: message("u1") },
+          { parentId: "u1", message: assistantMessage("a1") },
+          { parentId: "a1", message: message("u2") },
+          { parentId: "u2", message: assistantMessage("a2") },
+          { parentId: "u1", message: assistantMessage("a1b") },
+        ],
+        { headId },
+      ),
+    );
+
+    expect(repository.getMessages().map((item) => item.id)).toEqual(visible);
+    expect(repository.headId).toBe(headId);
+    expect(repository.export().headId).toBe(headId);
+    expect(repository.export().messages.map((item) => item.message.id)).toEqual(
+      ["u1", "a1", "u2", "a2", "a1b"],
+    );
+  });
+
+  it("appends a sibling from an imported head with children", () => {
+    const repository = new MessageRepository();
+    repository.import(
+      ExportedMessageRepository.fromBranchableArray(
+        [
+          { parentId: null, message: message("u2") },
+          { parentId: "u2", message: assistantMessage("a2") },
+        ],
+        { headId: "u2" },
+      ),
+    );
+
+    repository.addOrUpdateMessage("u2", assistantMessage("a2b"));
+
+    expect(repository.headId).toBe("a2b");
+    expect(repository.getMessages().map((item) => item.id)).toEqual([
+      "u2",
+      "a2b",
+    ]);
+    expect(repository.getBranches("a2b")).toEqual(["a2", "a2b"]);
+    expect(repository.export().messages.map((item) => item.message.id)).toEqual(
+      ["u2", "a2", "a2b"],
+    );
+    repository.switchToBranch("u2");
+    expect(repository.headId).toBe("a2b");
+  });
+
   it("imports a message listed before its parent", () => {
     const repository = new MessageRepository();
     repository.import({
@@ -268,5 +321,163 @@ describe("MessageRepository import order", () => {
       "follow-up",
       "answer",
     ]);
+  });
+});
+
+const assistantMessage = (id: string, isOptimistic = false): ThreadMessage => ({
+  id,
+  createdAt: new Date(0),
+  role: "assistant",
+  content: [{ type: "text", text: id }],
+  status: { type: "complete", reason: "stop" },
+  metadata: {
+    unstable_state: null,
+    unstable_annotations: [],
+    unstable_data: [],
+    steps: [],
+    custom: {},
+    ...(isOptimistic ? { isOptimistic: true } : {}),
+  },
+});
+
+const roundTrip = (repository: MessageRepository) => {
+  const restored = new MessageRepository();
+  restored.import(repository.export());
+  return restored;
+};
+
+describe("MessageRepository export with an optimistic head", () => {
+  it("falls back to a later persisted sibling when a selected running branch has no earlier one", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, assistantMessage("u"));
+    repository.addOrUpdateMessage("u", {
+      ...assistantMessage("placeholder", true),
+      status: { type: "running" },
+    });
+    repository.addOrUpdateMessage("u", assistantMessage("later"));
+    expect(repository.headId).toBe("placeholder");
+
+    expect(repository.export().headId).toBe("later");
+    const restored = roundTrip(repository);
+    expect(restored.getMessages().map((m) => m.id)).toEqual(["u", "later"]);
+    expect(restored.getBranches("later")).toEqual(["later"]);
+  });
+
+  it("keeps the saved answer before a selected optimistic branch over a later sibling", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, assistantMessage("u"));
+    repository.addOrUpdateMessage("u", assistantMessage("answer"));
+    repository.addOrUpdateMessage("u", {
+      ...assistantMessage("placeholder", true),
+      status: { type: "running" },
+    });
+    repository.switchToBranch("placeholder");
+    repository.addOrUpdateMessage("u", assistantMessage("later"));
+    expect(repository.headId).toBe("placeholder");
+
+    expect(repository.export().headId).toBe("answer");
+    const restored = roundTrip(repository);
+    expect(restored.getMessages().map((m) => m.id)).toEqual(["u", "answer"]);
+  });
+
+  it("keeps a persisted sibling of the optimistic head through export and import", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, assistantMessage("u"));
+    repository.addOrUpdateMessage("u", assistantMessage("placeholder", true));
+    repository.addOrUpdateMessage("u", assistantMessage("a"));
+    expect(repository.headId).toBe("placeholder");
+
+    expect(repository.export().headId).toBe("a");
+
+    const restored = roundTrip(repository);
+    expect(restored.getMessages().map((m) => m.id)).toEqual(["u", "a"]);
+    expect(restored.getBranches("a")).toEqual(["a"]);
+  });
+
+  it("exports a persisted root sibling as the head when the optimistic head is a root message", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, assistantMessage("a"));
+    repository.addOrUpdateMessage(null, assistantMessage("placeholder", true));
+    repository.switchToBranch("placeholder");
+
+    expect(repository.export().headId).toBe("a");
+    expect(
+      roundTrip(repository)
+        .getMessages()
+        .map((m) => m.id),
+    ).toEqual(["a"]);
+  });
+
+  it("follows a persisted branch below the optimistic head's ancestor to its leaf", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, assistantMessage("u"));
+    repository.addOrUpdateMessage("u", assistantMessage("a1"));
+    repository.addOrUpdateMessage("a1", assistantMessage("u2"));
+    repository.addOrUpdateMessage("u", assistantMessage("placeholder", true));
+    repository.switchToBranch("placeholder");
+
+    expect(repository.export().headId).toBe("u2");
+    expect(
+      roundTrip(repository)
+        .getMessages()
+        .map((m) => m.id),
+    ).toEqual(["u", "a1", "u2"]);
+  });
+
+  it("follows a persisted message's selected child, not its last child", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, assistantMessage("u"));
+    repository.addOrUpdateMessage("u", assistantMessage("a1"));
+    repository.addOrUpdateMessage("a1", assistantMessage("b1"));
+    repository.addOrUpdateMessage("a1", assistantMessage("b2"));
+    repository.switchToBranch("b1");
+    repository.addOrUpdateMessage("u", assistantMessage("placeholder", true));
+    repository.switchToBranch("placeholder");
+
+    expect(repository.export().headId).toBe("b1");
+    const restored = roundTrip(repository);
+    expect(restored.getMessages().map((m) => m.id)).toEqual(["u", "a1", "b1"]);
+    expect(restored.getBranches("b1")).toEqual(["b1", "b2"]);
+  });
+
+  it("follows the selected optimistic chain to its persisted descendant before a later sibling", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, assistantMessage("u"));
+    repository.addOrUpdateMessage("u", assistantMessage("o1", true));
+    repository.addOrUpdateMessage("o1", assistantMessage("d"));
+    repository.addOrUpdateMessage("o1", assistantMessage("o2", true));
+    repository.switchToBranch("o2");
+    repository.addOrUpdateMessage("u", assistantMessage("s"));
+    expect(repository.headId).toBe("o2");
+
+    expect(repository.export().headId).toBe("d");
+    const restored = roundTrip(repository);
+    expect(restored.getMessages().map((m) => m.id)).toEqual(["u", "d"]);
+    expect(restored.getBranches("d")).toEqual(["d", "s"]);
+  });
+
+  it("follows the selected persisted child below an optimistic message, not its last child", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, assistantMessage("a"));
+    repository.addOrUpdateMessage("a", assistantMessage("o", true));
+    repository.addOrUpdateMessage("o", assistantMessage("b"));
+    repository.addOrUpdateMessage("o", assistantMessage("c"));
+    repository.addOrUpdateMessage("b", assistantMessage("p", true));
+    repository.addOrUpdateMessage(null, assistantMessage("p", true));
+    expect(repository.headId).toBe("p");
+
+    expect(repository.export().headId).toBe("b");
+    const restored = roundTrip(repository);
+    expect(restored.getMessages().map((m) => m.id)).toEqual(["a", "b"]);
+    expect(restored.getBranches("b")).toEqual(["b", "c"]);
+  });
+
+  it("exports the persisted ancestor when nothing persisted lies below it", () => {
+    const repository = new MessageRepository();
+    repository.addOrUpdateMessage(null, assistantMessage("u"));
+    repository.addOrUpdateMessage("u", assistantMessage("placeholder", true));
+    expect(repository.headId).toBe("placeholder");
+
+    expect(repository.export().headId).toBe("u");
   });
 });

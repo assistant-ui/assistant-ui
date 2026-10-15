@@ -2,7 +2,8 @@
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { isExecutedAsMain } from "./check-built-declarations.mjs";
+import { committedRangeChangedFiles } from "./lib/changed-files.mjs";
+import { isExecutedAsMain } from "./lib/main.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -57,18 +58,13 @@ function readProjectAt(root, ref, file) {
 
 export function runPythonVersionCheck(root, baseSha, headSha) {
   try {
-    const forkPoint = runGit(root, ["merge-base", baseSha, headSha]).trim();
-    const packageFiles = runGit(root, [
-      "diff",
-      "--name-only",
-      "--no-renames",
-      "-z",
-      `${baseSha}...${headSha}`,
-      "--",
-      "python/",
-    ])
-      .split("\0")
-      .filter((file) => file.split("/").length > 2);
+    const { forkPoint, files } = committedRangeChangedFiles(
+      root,
+      baseSha,
+      headSha,
+      ["--", "python/"],
+    );
+    const packageFiles = files.filter((file) => file.split("/").length > 2);
     const versionChanges = [];
     const otherChanges = [];
     for (const file of packageFiles) {

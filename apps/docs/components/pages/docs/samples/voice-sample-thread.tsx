@@ -1,0 +1,389 @@
+"use client";
+
+import {
+  ComposerAddAttachment,
+  ComposerAttachments,
+  UserMessageAttachments,
+} from "@/components/assistant-ui/elements/attachment.aui";
+import {
+  ActionBarPrimitive,
+  AuiIf,
+  BranchPickerPrimitive,
+  ComposerPrimitive,
+  ErrorPrimitive,
+  MessagePrimitive,
+  ThreadPrimitive,
+} from "@assistant-ui/react";
+import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
+import type { FC, ReactNode } from "react";
+import {
+  ArrowDownIcon,
+  CopyIcon,
+  CheckIcon,
+  PencilIcon,
+  RefreshCwIcon,
+  ArrowUpIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  Square,
+} from "lucide-react";
+import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";
+import { useHydrated } from "@/hooks/use-hydrated";
+
+type VoiceSampleThreadProps = {
+  welcomeTitle: string;
+  welcomeSubtitle: string;
+  composerActions?: ReactNode;
+  assistantActionBarActions?: ReactNode;
+};
+
+export const VoiceSampleThread: FC<VoiceSampleThreadProps> = ({
+  welcomeTitle,
+  welcomeSubtitle,
+  composerActions,
+  assistantActionBarActions,
+}) => {
+  return (
+    <ThreadPrimitive.Root
+      className="aui-root aui-thread-root bg-background @container flex h-full flex-col"
+      style={{
+        ["--thread-max-width" as string]: "44rem",
+        ["--composer-bg" as string]:
+          "color-mix(in oklab, var(--color-muted) 30%, transparent)",
+        ["--composer-radius" as string]: "1rem",
+        ["--composer-padding" as string]: "8px",
+      }}
+    >
+      <ThreadPrimitive.Viewport className="aui-thread-viewport relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll px-4">
+        <ThreadWelcome title={welcomeTitle} subtitle={welcomeSubtitle} />
+
+        <ThreadPrimitive.Messages>
+          {({ message }) => {
+            if (message.composer.isEditing) return <EditComposer />;
+            if (message.role === "user") return <UserMessage />;
+            return <AssistantMessage actions={assistantActionBarActions} />;
+          }}
+        </ThreadPrimitive.Messages>
+        <div className="aui-thread-viewport-spacer min-h-8 grow" />
+        <Composer actions={composerActions} />
+      </ThreadPrimitive.Viewport>
+    </ThreadPrimitive.Root>
+  );
+};
+
+const ThreadScrollToBottom: FC = () => {
+  return (
+    <ThreadPrimitive.ScrollToBottom asChild>
+      <TooltipIconButton
+        tooltip="Scroll to bottom"
+        variant="outline"
+        className="aui-thread-scroll-to-bottom dark:bg-background dark:hover:bg-accent absolute -top-12 z-10 self-center rounded-full p-4 disabled:invisible"
+      >
+        <ArrowDownIcon />
+      </TooltipIconButton>
+    </ThreadPrimitive.ScrollToBottom>
+  );
+};
+
+const ThreadWelcome: FC<{ title: string; subtitle: string }> = ({
+  title,
+  subtitle,
+}) => {
+  const hydrated = useHydrated();
+
+  return (
+    <AuiIf condition={(s) => hydrated && s.thread.isEmpty}>
+      <div className="aui-thread-welcome-root mx-auto mb-6 flex w-full max-w-(--thread-max-width) grow flex-col px-2">
+        <div className="aui-thread-welcome-center flex w-full grow flex-col justify-center">
+          <div className="aui-thread-welcome-message flex size-full flex-col justify-center px-8 md:mt-20">
+            <div className="aui-thread-welcome-message-motion-1 text-2xl font-semibold">
+              {title}
+            </div>
+            <div className="aui-thread-welcome-message-motion-2 text-muted-foreground/65 text-2xl">
+              {subtitle}
+            </div>
+          </div>
+        </div>
+      </div>
+    </AuiIf>
+  );
+};
+
+const ThreadWelcomeSuggestions: FC = () => {
+  return (
+    <div className="aui-thread-welcome-suggestions flex w-full flex-col">
+      {[
+        {
+          title: "What's the weather",
+          label: "in San Francisco?",
+          action: "What's the weather in San Francisco?",
+        },
+        {
+          title: "Help me write an essay",
+          label: `about AI chat applications`,
+          action: `Help me write an essay about AI chat applications`,
+        },
+      ].map((suggestedAction, index) => (
+        <div
+          key={`suggested-action-${suggestedAction.title}-${index}`}
+          className="aui-thread-welcome-suggestion-display nth-[n+3]:hidden @md:nth-[n+3]:block"
+        >
+          <ThreadPrimitive.Suggestion
+            prompt={suggestedAction.action}
+            clearComposer
+            send
+            asChild
+          >
+            <button
+              type="button"
+              className="aui-thread-welcome-suggestion group hover:bg-foreground/[0.03] focus-visible:ring-ring/50 flex w-full items-baseline gap-2.5 rounded-md px-2 py-2 text-start text-sm transition-colors outline-none focus-visible:ring-1 motion-reduce:transition-none"
+              aria-label={suggestedAction.action}
+            >
+              <span
+                aria-hidden
+                className="text-muted-foreground/60 group-hover:text-foreground font-mono text-xs transition-colors motion-reduce:transition-none"
+              >
+                {">"}
+              </span>
+              <span className="min-w-0 flex-1 truncate">
+                <span className="aui-thread-welcome-suggestion-text-1 text-foreground">
+                  {suggestedAction.title}
+                </span>{" "}
+                <span className="aui-thread-welcome-suggestion-text-2 text-muted-foreground">
+                  {suggestedAction.label}
+                </span>
+              </span>
+            </button>
+          </ThreadPrimitive.Suggestion>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+const Composer: FC<{ actions?: ReactNode }> = ({ actions }) => {
+  const hydrated = useHydrated();
+
+  return (
+    <div className="aui-composer-wrapper bg-background sticky bottom-0 mx-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 overflow-visible rounded-t-(--composer-radius) pb-4 md:pb-6">
+      <ThreadScrollToBottom />
+      <AuiIf condition={(s) => hydrated && s.thread.isEmpty}>
+        <ThreadWelcomeSuggestions />
+      </AuiIf>
+      <ComposerPrimitive.Root className="aui-composer-root border-foreground/10 focus-within:border-foreground/25 relative flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color]">
+        <ComposerAttachments />
+        <ComposerPrimitive.Input
+          placeholder="Send a message..."
+          className="aui-composer-input placeholder:text-muted-foreground focus:outline-primary mb-1 max-h-32 min-h-16 w-full resize-none bg-transparent px-3.5 pt-1.5 pb-3 text-base outline-none"
+          rows={1}
+          autoFocus
+          aria-label="Message input"
+        />
+        <ComposerAction actions={actions} />
+      </ComposerPrimitive.Root>
+    </div>
+  );
+};
+
+const ComposerAction: FC<{ actions?: ReactNode }> = ({ actions }) => {
+  return (
+    <div className="aui-composer-action-wrapper relative mx-1 mt-2 mb-2 flex items-center justify-between">
+      <div className="flex items-center gap-1">
+        <ComposerAddAttachment />
+        {actions}
+      </div>
+
+      <AuiIf condition={(s) => !s.thread.isRunning}>
+        <ComposerPrimitive.Send asChild>
+          <TooltipIconButton
+            tooltip="Send message"
+            side="bottom"
+            type="button"
+            variant="default"
+            size="icon"
+            className="aui-composer-send size-8.5 rounded-full p-1"
+            aria-label="Send message"
+          >
+            <ArrowUpIcon className="aui-composer-send-icon size-5" />
+          </TooltipIconButton>
+        </ComposerPrimitive.Send>
+      </AuiIf>
+
+      <AuiIf condition={(s) => s.thread.isRunning}>
+        <ComposerPrimitive.Cancel asChild>
+          <Button
+            type="button"
+            variant="default"
+            size="icon"
+            className="aui-composer-cancel border-muted-foreground/60 hover:bg-primary/75 dark:border-muted-foreground/90 size-8.5 rounded-full border"
+            aria-label="Stop generating"
+          >
+            <Square className="aui-composer-cancel-icon size-3.5 fill-white dark:fill-black" />
+          </Button>
+        </ComposerPrimitive.Cancel>
+      </AuiIf>
+    </div>
+  );
+};
+
+const MessageError: FC = () => {
+  return (
+    <MessagePrimitive.Error>
+      <ErrorPrimitive.Root className="aui-message-error-root border-destructive bg-destructive/10 text-destructive dark:bg-destructive/5 mt-2 rounded-md border p-3 text-sm dark:text-red-200">
+        <ErrorPrimitive.Message className="aui-message-error-message line-clamp-2" />
+      </ErrorPrimitive.Root>
+    </MessagePrimitive.Error>
+  );
+};
+
+const AssistantMessage: FC<{ actions?: ReactNode }> = ({ actions }) => {
+  return (
+    <MessagePrimitive.Root
+      className="aui-assistant-message-root relative mx-auto w-full max-w-(--thread-max-width) py-4 last:mb-24"
+      data-role="assistant"
+    >
+      <div className="aui-assistant-message-content text-foreground mx-2 leading-7 wrap-break-word">
+        <MessagePrimitive.Parts>
+          {({ part }) => {
+            if (part.type === "text") return <MarkdownText />;
+            if (part.type === "tool-call")
+              return part.toolUI ?? <ToolFallback {...part} />;
+            return null;
+          }}
+        </MessagePrimitive.Parts>
+        <MessageError />
+      </div>
+
+      <div className="aui-assistant-message-footer ms-2 mt-2 flex min-h-6 items-center">
+        <BranchPicker />
+        <AssistantActionBar actions={actions} />
+      </div>
+    </MessagePrimitive.Root>
+  );
+};
+
+const AssistantActionBar: FC<{ actions?: ReactNode }> = ({ actions }) => {
+  return (
+    <ActionBarPrimitive.Root
+      hideWhenRunning
+      autohide="not-last"
+      className="aui-assistant-action-bar-root text-muted-foreground col-start-3 row-start-2 -ms-1 flex gap-1"
+    >
+      {actions}
+      <ActionBarPrimitive.Copy asChild>
+        <TooltipIconButton tooltip="Copy">
+          <AuiIf condition={(s) => s.message.isCopied}>
+            <CheckIcon />
+          </AuiIf>
+          <AuiIf condition={(s) => !s.message.isCopied}>
+            <CopyIcon />
+          </AuiIf>
+        </TooltipIconButton>
+      </ActionBarPrimitive.Copy>
+      <ActionBarPrimitive.Reload asChild>
+        <TooltipIconButton tooltip="Refresh">
+          <RefreshCwIcon />
+        </TooltipIconButton>
+      </ActionBarPrimitive.Reload>
+    </ActionBarPrimitive.Root>
+  );
+};
+
+const UserMessage: FC = () => {
+  return (
+    <MessagePrimitive.Root asChild>
+      <div
+        className="aui-user-message-root mx-auto grid w-full max-w-(--thread-max-width) auto-rows-auto grid-cols-[minmax(72px,1fr)_auto] gap-y-2 px-2 py-4 first:mt-3 last:mb-5 [&:where(>*)]:col-start-2"
+        data-role="user"
+      >
+        <UserMessageAttachments />
+
+        <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
+          <div className="aui-user-message-content bg-muted text-foreground rounded-(--composer-radius) px-5 py-2.5 break-words">
+            <MessagePrimitive.Parts />
+          </div>
+          <div className="aui-user-action-bar-wrapper absolute start-0 top-1/2 -translate-x-full -translate-y-1/2 pe-2 rtl:translate-x-full">
+            <UserActionBar />
+          </div>
+        </div>
+
+        <BranchPicker className="aui-user-branch-picker col-span-full col-start-1 -me-1 justify-end" />
+      </div>
+    </MessagePrimitive.Root>
+  );
+};
+
+const UserActionBar: FC = () => {
+  return (
+    <ActionBarPrimitive.Root
+      hideWhenRunning
+      autohide="not-last"
+      className="aui-user-action-bar-root flex flex-col items-end"
+    >
+      <ActionBarPrimitive.Edit asChild>
+        <TooltipIconButton tooltip="Edit" className="aui-user-action-edit p-4">
+          <PencilIcon />
+        </TooltipIconButton>
+      </ActionBarPrimitive.Edit>
+    </ActionBarPrimitive.Root>
+  );
+};
+
+const EditComposer: FC = () => {
+  return (
+    <div className="aui-edit-composer-wrapper mx-auto flex w-full max-w-(--thread-max-width) flex-col gap-4 px-2 first:mt-4">
+      <ComposerPrimitive.Root className="aui-edit-composer-root border-foreground/10 focus-within:border-foreground/25 ms-auto flex w-full max-w-7/8 cursor-text flex-col rounded-(--composer-radius) border bg-(--composer-bg) transition-[border-color]">
+        <ComposerPrimitive.Input
+          className="aui-edit-composer-input text-foreground flex min-h-15 w-full resize-none bg-transparent p-4 outline-none"
+          autoFocus
+        />
+
+        <div className="aui-edit-composer-footer mx-3 mb-3 flex items-center justify-center gap-2 self-end">
+          <ComposerPrimitive.Cancel asChild>
+            <Button variant="ghost" size="sm" aria-label="Cancel edit">
+              Cancel
+            </Button>
+          </ComposerPrimitive.Cancel>
+          <ComposerPrimitive.Send asChild>
+            <Button size="sm" aria-label="Update message">
+              Update
+            </Button>
+          </ComposerPrimitive.Send>
+        </div>
+      </ComposerPrimitive.Root>
+    </div>
+  );
+};
+
+const BranchPicker: FC<BranchPickerPrimitive.Root.Props> = ({
+  className,
+  ...rest
+}) => {
+  return (
+    <BranchPickerPrimitive.Root
+      hideWhenSingleBranch
+      className={cn(
+        "aui-branch-picker-root text-muted-foreground -ms-2 me-2 inline-flex items-center text-xs",
+        className,
+      )}
+      {...rest}
+    >
+      <BranchPickerPrimitive.Previous asChild>
+        <TooltipIconButton tooltip="Previous">
+          <ChevronLeftIcon />
+        </TooltipIconButton>
+      </BranchPickerPrimitive.Previous>
+      <span className="aui-branch-picker-state font-medium">
+        <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
+      </span>
+      <BranchPickerPrimitive.Next asChild>
+        <TooltipIconButton tooltip="Next">
+          <ChevronRightIcon />
+        </TooltipIconButton>
+      </BranchPickerPrimitive.Next>
+    </BranchPickerPrimitive.Root>
+  );
+};

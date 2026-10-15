@@ -19,6 +19,7 @@ export default defineConfig({
     ],
   },
   test: {
+    include: ["src/ai-sdk/**/*.test.ts"],
     environment: "node",
     globals: true,
     setupFiles: ["./src/tests/setup.ts"],

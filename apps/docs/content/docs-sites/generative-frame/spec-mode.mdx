@@ -1,0 +1,351 @@
+---
+title: Spec mode
+description: Let the model build UI from your own components with a flat spec streamed as JSONL patches.
+---
+
+In spec mode the model does not write HTML. It writes a flat spec that names components from a catalog you define, and your own components render it. Nothing runs in a frame, and no model-written code runs at all.
+
+The format follows the flat spec and JSONL patch shape of Vercel's json-render, without depending on it.
+
+## Define a catalog
+
+```ts
+import { defineCatalog } from "generative-frame/spec";
+
+export const catalog = defineCatalog({
+  components: {
+    Card: {
+      description: "A titled panel.",
+      props: {
+        type: "object",
+        properties: { title: { type: "string" } },
+        required: ["title"],
+      },
+      slots: ["default", "footer"],
+    },
+    Button: {
+      description: "A button.",
+      props: {
+        type: "object",
+        properties: { label: { type: "string" } },
+        required: ["label"],
+      },
+      events: ["press"],
+    },
+  },
+  actions: {
+    refresh: {
+      description: "Reloads the data for a range.",
+      params: {
+        type: "object",
+        properties: { range: { type: "string" } },
+      },
+    },
+  },
+});
+```
+
+Props and params are JSON Schema. A Standard Schema that exposes JSON Schema, such as a Zod 4 schema, works too. `slots` lists the child slots a component accepts (`"default"` maps to `children`); a component without slots takes no children. `events` lists what elements may bind with `on`.
+
+`catalog.prompt({ mode })` returns the model guidance for the catalog: the components and actions, the patch protocol, expressions, and rules. The rules include how to compose an answer: the takeaway first, a `Card` for each module, key figures side by side, `-` and `+` buttons for a number the user adjusts, and a component that suits the content, such as a `Map` for places or a `Timeline` for a schedule. Each rule names only components the catalog has and only uses their slots and events allow, so a rule that nests elements needs a `default` slot and the stepper needs a `Button` event, and `customRules` follow them. Use `mode: "jsonl"` (the default) when the output is only patches, as in `render_spec`, and `mode: "inline"` when patches sit in a fenced block inside a normal reply.
+
+## The spec format
+
+```json
+{
+  "root": "main",
+  "elements": {
+    "main": { "type": "Card", "props": { "title": "Orders" }, "children": ["reload"] },
+    "reload": {
+      "type": "Button",
+      "props": { "label": "Reload" },
+      "on": { "press": { "action": "refresh", "params": { "range": "7d" } } }
+    }
+  },
+  "state": {}
+}
+```
+
+Elements are flat and refer to children by id. An element is `{ type, props?, children?, slots?, visible?, repeat?, on?, watch? }`.
+
+## JSONL patches
+
+The model builds the spec with RFC 6902 JSON Patch operations, one per line, so the UI renders while it writes:
+
+```jsonl
+{"op":"add","path":"/root","value":"main"}
+{"op":"add","path":"/state","value":{"count":0}}
+{"op":"add","path":"/elements/main","value":{"type":"Card","props":{"title":"Clicks"},"children":["bump"]}}
+{"op":"add","path":"/elements/bump","value":{"type":"Button","props":{"label":"Click"}}}
+```
+
+A line may also hold an array of operations or a whole spec. A malformed line is skipped and reported, and the rest keeps rendering.
+
+## Stream patches
+
+`createSpecStream` applies each complete line as it arrives:
+
+```ts
+import { createSpecStream } from "generative-frame/spec";
+
+const stream = createSpecStream({ mode: "jsonl" });
+for await (const chunk of modelStream) {
+  const { spec, errors } = stream.push(chunk);
+  render(spec);
+}
+const { spec, errors } = stream.result();
+```
+
+`push` returns the spec after every patch so far (a new object only when it changed), the operations it applied, any prose, and errors for lines it completed. `result()` processes a last line without a newline. In `inline` mode, patch lines inside a fence opened with `` ```spec `` or lines starting with `{"op"` are patches and everything else is returned as `text`. `parseSpecStream(source, options)` does the same for a complete string, and `initial` sets the spec the patches apply onto.
+
+## Render with React
+
+```tsx
+import {
+  SpecRenderer,
+  useSpecStream,
+  type SpecComponentProps,
+  type SpecComponents,
+} from "generative-frame/spec/react";
+
+const components: SpecComponents = {
+  Card: ({ props, children, slots }: SpecComponentProps<{ title: string }>) => (
+    <section>
+      <h2>{props.title}</h2>
+      {children}
+      {slots["footer"]}
+    </section>
+  ),
+  Button: ({ props, emit }: SpecComponentProps<{ label: string }>) => (
+    <button type="button" onClick={() => emit("press")}>
+      {props.label}
+    </button>
+  ),
+};
+
+function GeneratedUI({ output, streaming }: { output: string; streaming: boolean }) {
+  const { spec, text } = useSpecStream({
+    source: output,
+    mode: "inline",
+    complete: !streaming,
+  });
+  return (
+    <>
+      <p>{text}</p>
+      <SpecRenderer
+        spec={spec}
+        catalog={catalog}
+        components={components}
+        streaming={streaming}
+        handlers={{
+          refresh: async (params, { state }) => {
+            state.set("/rows", await loadRows(String(params["range"])));
+          },
+        }}
+      />
+    </>
+  );
+}
+```
+
+`useSpecStream` follows a growing `source` string, or, without `source`, takes chunks through `push`, `end`, and `reset`.
+
+Each component receives `id`, `element`, resolved `props`, `children`, `slots`, `emit(event, payload?)`, `setProp(name, value)` for bound props, `bindings`, the `state` store, and `streaming`. While `streaming` is true, elements that have not arrived take no space, and one pending placeholder follows the spec: three dots that pulse in turn, and hold still when the user prefers reduced motion. An unknown type, invalid props, a cycle, or a component that throws renders a small placeholder; pass `placeholder` to replace these and the pending placeholder, whose `reason` is `"pending"` and whose `id` is empty. While the spec streams, a value can be cut short, such as half of a state path or an enum, so an element with invalid props keeps its last valid render, or takes no space before it has one, and an element with an unknown type or a component that throws takes no space; each shows its placeholder only if the problem remains once streaming ends. An element whose component threw renders again once the element changes. A prop the catalog declares as a string, number, or boolean never receives an object or array; such a value counts as invalid props.
+
+## Render with Vue
+
+`generative-frame/spec/vue` renders the same spec with Vue components, with `vue` as an optional peer:
+
+```ts
+import { defineComponent, h } from "vue";
+import { SpecRenderer, useSpecStream } from "generative-frame/spec/vue";
+
+const Card = defineComponent({
+  props: { title: { type: String, required: true } },
+  setup(props, { slots }) {
+    return () =>
+      h("section", [h("h2", props.title), slots.default?.(), slots.footer?.()]);
+  },
+});
+
+const Button = defineComponent({
+  props: { label: { type: String, required: true } },
+  emits: ["press"],
+  setup(props, { emit }) {
+    return () =>
+      h("button", { type: "button", onClick: () => emit("press") }, props.label);
+  },
+});
+
+export const GeneratedUI = defineComponent({
+  props: { output: { type: String, required: true }, streaming: Boolean },
+  setup(props) {
+    const { spec, text } = useSpecStream({
+      source: () => props.output,
+      mode: "inline",
+      complete: () => !props.streaming,
+    });
+    return () => [
+      h("p", text.value),
+      h(SpecRenderer, {
+        spec: spec.value,
+        catalog,
+        components: { Card, Button },
+        streaming: props.streaming,
+        handlers: {
+          refresh: async (params, { state }) => {
+            state.set("/rows", await loadRows(String(params["range"])));
+          },
+        },
+      }),
+    ];
+  },
+});
+```
+
+A Vue component receives the resolved props it declares, in its own `props` or through `extends` and `mixins`, the element's children through its default slot, and each named slot through the slot of that name. It emits a spec event it declares in `emits` with `emit(event, payload)`, and writes a prop the spec binds with `$bindState` by emitting `update:<prop>`, the `v-model` convention, which needs only the prop declared. Props and events the component does not declare are dropped, so a spec cannot set attributes such as `innerHTML` or `style`, or native listeners such as `onClick`, on the component's root element. A `defineAsyncComponent` wrapper declares no props or events of its own, so it receives none; wrap a lazily loaded component in one that declares them and passes them on. `useSpecElement()` returns the element's `id`, `element`, `bindings`, `state` store, and `streaming` for a component that needs them. Pending children, placeholders, and errors behave as in React. For a ready-made vocabulary of cards, tables, charts, and form controls as Vue components, use `toSpecCatalog` from `@assistant-ui/generative-ui/vue`.
+
+## Render with React Native
+
+On React Native, Metro resolves `generative-frame/spec/react` and `generative-frame/spec/assistant-ui` to React Native builds through the `react-native` export condition, so the imports stay the same. The renderer is the one React uses; only its default placeholder is drawn with React Native views, and `react-native` is an optional peer of those entries. Components receive the same props as on the web and render React Native primitives:
+
+```tsx
+import { Pressable, Text, View } from "react-native";
+import {
+  SpecRenderer,
+  type SpecComponentProps,
+  type SpecComponents,
+} from "generative-frame/spec/react";
+
+const components: SpecComponents = {
+  Card: ({ props, children }: SpecComponentProps<{ title: string }>) => (
+    <View>
+      <Text>{props.title}</Text>
+      {children}
+    </View>
+  ),
+  Button: ({ props, emit }: SpecComponentProps<{ label: string }>) => (
+    <Pressable onPress={() => emit("press")}>
+      <Text>{props.label}</Text>
+    </Pressable>
+  ),
+};
+
+<SpecRenderer spec={spec} catalog={catalog} components={components} />;
+```
+
+Frame mode needs a browser and is not available on React Native.
+
+## Resolve to a static tree
+
+`resolveSpec(spec, { state })` from `generative-frame/spec` resolves a spec into the tree the renderer draws for one state, for a target that cannot run a renderer, such as a chat platform's message format. Each element comes back with its `id`, `type`, plain `props`, the state path behind each bound prop in `bindings`, its `on` actions with their params resolved, its `children`, its named `slots`, and, inside a `repeat`, the `itemPath` its `$item` reads resolve against. An element whose `visible` condition fails is left out, and `repeat` renders its children once per item, each child carrying the item's `key`. `{ "$event": "" }` reads `undefined`, `watch` does not run, missing elements and cycles are left out, and types are not checked against a catalog, so validate the spec first. `state` defaults to `spec.state`; pass a store's `getState()` to resolve what the user changed. [`specToUISpec`](/docs/tools/generative-ui-spec-migration#slack-and-teams) builds on it to send a spec to Slack and Teams.
+
+## Expressions
+
+Any prop or action param, or any value nested inside one, such as a table cell, can be an expression:
+
+| Expression | Value |
+| --- | --- |
+| `{ "$state": "/path" }` | The state value at a JSON Pointer. |
+| `{ "$bindState": "/path" }` | The same, and the component can write it back with `setProp`. |
+| `{ "$template": "Hi ${/name}" }` | A string with state values filled in. A placeholder in a plain string shows as written. |
+| `{ "$cond": condition, "$then": a, "$else": b }` | `a` or `b`. |
+| `{ "$calc": "${/price} * ${/qty}" }` | A value computed by a formula; see [Formulas](#formulas). |
+| `{ "$item": "/field" }`, `{ "$bindItem": "/field" }`, `{ "$index": true }` | The current item, a two-way binding to it, and its index, inside `repeat`. |
+| `{ "$event": "" }` | The payload of the event that triggered an action. |
+
+`visible` takes a condition: a boolean, a value expression (truthy), a comparison such as `{ "$state": "/count", "gt": 0 }` with `eq`, `neq`, `gt`, `gte`, `lt`, or `lte`, `{ "not": condition }`, `{ "$and": [...] }`, `{ "$or": [...] }`, or an array (all must hold). A condition with an unknown shape is false, so a half-streamed condition hides its element.
+
+`repeat: { path, key? }` renders the element's children once per item of the state array at `path`.
+
+### Formulas
+
+A `$calc` formula reads values with the same `${…}` references as `$template` (`${/path}` for state, `${$item/field}` and `${$index}` inside `repeat`, `${$event/field}` in action params) and combines them with numbers, `'text'` or `"text"`, `true`, `false`, and `null`:
+
+| Kind | Forms |
+| --- | --- |
+| Operators, loosest first | `? :`, `\|\|`, `&&`, `==` `!=`, `<` `<=` `>` `>=`, `+` `-`, `*` `/` `%`, unary `-` `!`, and parentheses |
+| Numbers | `round(x, digits?)`, `floor(x)`, `ceil(x)`, `abs(x)`, `clamp(x, low, high)`, `min(…)`, `max(…)` |
+| Lists | `count(list)`, `sum(list, field?)`, `avg(list, field?)`, and `min` or `max` over `(list, field?)`, where `field` is a JSON Pointer inside each item such as `'/price'` |
+| Text | `number(x, digits?)`, `currency(x, code)`, `percent(fraction, digits?)`, `time(minutes)` for minutes after midnight as a clock time, `plural(n, one, other)` |
+
+`+` adds numbers and joins text when either side is text, `==` compares deeply, like `eq`, and `&&`, `||`, and `!` give `true` or `false`, so a default is written `${/name} ? ${/name} : 'Guest'`. Text functions format in `en-US`. A formula that cannot compute, such as a division by zero, a missing value, arithmetic on text, or a syntax error, gives `null` and never throws: a component receives `null` like a missing prop, and an action receives it as the param's value. A formula is at most 500 characters and 32 levels deep and stops after 10,000 steps, comparisons included, and a list function's field is at most 500 characters and 32 levels. Its value depends only on the state, repeat item, and event it reads, never on the clock, randomness, or the network. `validateSpec` reports a formula that does not parse as `invalid-formula`, so the model can fix it in a repair round.
+
+A button that adds a guest, up to 20: `{ "action": "setState", "params": { "path": "/guests", "value": { "$calc": "min(${/guests} + 1, 20)" } } }`.
+
+## Actions and state
+
+`on: { press: { action, params } }` runs actions when a component emits an event; a list runs in order and stops at the first action that fails, which goes to `onError` when you pass one and is logged otherwise, so a `setState` that confirms a host action runs only when that action succeeded. `setState` is built in and writes `params.value` at `params.path`, so `defineCatalog` rejects a host action named `setState`. `sendMessage` (`{ text }`), `updateModelContext` (`{ text?, data? }`), and `copyText` (`{ text }`) are built in too, so validation accepts them and `defineCatalog` rejects a host action with any of these names, but the host runs them: like every other action, they go to `handlers[name]`, then to `onAction`. The guidance describes each one only when `catalog.prompt({ hostApi })` says the host handles it: `prompt` for `sendMessage`, `modelContext` for `updateModelContext`, and `clipboard` for `copyText`. The [assistant-ui toolkit](/generative-frame/docs/assistant-ui) handles them with `handlers` of its own, `copyText` only on the web, so `onAction` never sees them there and an app replaces them through `handlers`. A handler's second argument says what dispatched the action: `elementId`, `trigger` (the event name or the watched path), and `kind`, `"event"` or `"watch"`, which the toolkit's `sendMessage` and `copyText` check so that they run from a component's event, never from `watch`. `watch: { "/path": action }` runs an action when that state value changes.
+
+State lives in a store created from `spec.state`. When the model streams more state, the store re-applies what the user already changed on top of it, so user input is not lost. Pass `state={createStateStore(initial)}` to own the store; an external store is not seeded from `spec.state`. A store from `createStateStore` also has `writes()`, the writes `seed` re-applies, oldest first: a write that replaces a value drops earlier writes at and below its path, unless an insert at an index of an array on that path came after them and may have moved them to another item, while inserts into an array are all kept. A write that went through an array also records that array's path, so replaying it where the model state no longer has the array recreates the array instead of an object with a `-` or numeric key, while numeric and `-` keys of objects stay object keys. `createStateStore(initial, { writes })` applies saved ones again, so an app can keep the user's changes between sessions. The assistant-ui toolkit does this for each `render_spec` call.
+
+Bound edits replace their target, including an entire repeated item bound with `{ "$bindItem": "" }`. For direct store writes, `store.set(path, value)` keeps JSON Pointer add semantics, inserting at array indices; `store.set(path, value, "replace")` replaces an existing array item. Saved replacements use `[path, value, "replace"]`, while existing `[path, value]` writes retain add semantics.
+
+## Validation
+
+```ts
+import { formatSpecIssues, validateSpec } from "generative-frame/spec";
+
+const { ok, issues } = validateSpec(spec, catalog);
+const feedback = formatSpecIssues(issues);
+```
+
+Each issue has a `code`, a `severity`, a `message`, and a JSON Pointer `path`. Codes include `missing-root`, `unknown-type`, `invalid-props`, `missing-child`, `children-not-allowed`, `unknown-slot`, `cycle`, `unknown-event`, `unknown-action`, `invalid-params`, `invalid-formula`, `unfilled-placeholder` (a plain string with a `${/path}`, `${$item…}`, or `${$index}` placeholder, which only `$template` and `$calc` fill, or one that is only an expression key, such as `"$calc"`), `invalid-repeat`, `invalid-state` (a `state` that is not an object), and `unreachable`. Pass `{ partial: true }` while the spec is still streaming, so children not yet added and unreachable elements are not reported.
+
+## As a tool
+
+`generative-frame/spec/tools` turns a catalog into a model-facing tool. `createSpecTools(catalog)` returns `{ render_spec }`, whose description carries those rules and any `customRules` you pass (`createSpecTools(catalog, { customRules })`), so they hold even when the model never loads the guidance, and `specGuidanceModule(catalog)` returns the catalog guidance as a `spec` module for `read_me`. Patches on a title that was already rendered apply to that spec, so a repair is a few lines. The result lists validation issues and a `feedback` text. See [`render_spec`](/generative-frame/docs/tools#render_spec).
+
+The spec half never imports the widget half, and the widget half never imports the spec half. Pick one of these setups.
+
+With HTML widgets, pass the spec tool and its module into `createWidgetTools`:
+
+```ts
+import { createWidgetTools } from "generative-frame/tools";
+import { createSpecTools, specGuidanceModule } from "generative-frame/spec/tools";
+
+const tools = createWidgetTools({
+  extraTools: createSpecTools(catalog),
+  modules: [specGuidanceModule(catalog)],
+});
+// { read_me, show_widget, edit_widget, preview_widget, render_spec }
+```
+
+Spec only, with no frame code in the bundle, put the catalog guidance in the system prompt instead of `read_me`:
+
+```ts
+import { jsonSchema, streamText } from "ai";
+import { createSpecTools, toAISDKTools } from "generative-frame/spec/tools";
+
+const tools = createSpecTools(catalog);
+const result = streamText({
+  model,
+  system: `${basePrompt}\n\n${catalog.prompt()}`,
+  messages,
+  tools: toAISDKTools(tools, { jsonSchema }),
+});
+```
+
+## With assistant-ui
+
+`createSpecToolkit(catalog, { components })` from `generative-frame/spec/assistant-ui` builds spec mode for the [assistant-ui toolkit](/generative-frame/docs/assistant-ui). Pass it as `spec`, and `render_spec` calls render in the thread:
+
+```tsx
+import { createWidgetToolkit } from "generative-frame/assistant-ui";
+import { createSpecToolkit } from "generative-frame/spec/assistant-ui";
+
+const widgets = createWidgetToolkit({
+  spec: createSpecToolkit(catalog, {
+    components,
+    handlers: {
+      refresh: async (params, { state }) => {
+        state.set("/rows", await loadRows(String(params["range"])));
+      },
+    },
+  }),
+});
+```
+
+`createSpecToolkit` also takes `onAction`, `placeholder`, and `specPrompt` (options for the `spec` module guidance, such as `customRules`, which `render_spec`'s description also carries, and `omitExample`).
+
+To render assistant-ui's generative UI vocabulary instead of your own components, build the catalog and components with [`toSpecCatalog`](/docs/tools/generative-ui#spec-mode) from `@assistant-ui/generative-ui/spec`. With `@assistant-ui/vue`, `createSpecToolkit` from `generative-frame/spec/assistant-ui/vue` takes Vue components instead, as [assistant-ui on Vue](/generative-frame/docs/assistant-ui#on-vue) shows.

@@ -1,4 +1,4 @@
-import { NextResponse, type NextRequest } from "next/server";
+import { connection, NextResponse, type NextRequest } from "next/server";
 import { accounts } from "@/lib/accounts-auth";
 
 export type SessionPayload = {
@@ -18,6 +18,8 @@ export type SessionPayload = {
 // so it is where the session is revalidated and where the cache cookie that
 // keeps every other read off the store is renewed.
 export async function GET(request: NextRequest) {
+  // The build runs without the accounts configuration, so a prerendered response would report sign-in as disabled to every visitor.
+  await connection();
   const resolved = accounts
     ? await accounts.resolveSession(request).catch(() => null)
     : null;

@@ -88,14 +88,14 @@ export function LinkPreview({
               data-slot="link-preview-site-initial"
               className={cn(
                 field,
-                "text-foreground/45 flex size-4 shrink-0 items-center justify-center rounded-sm text-[9px] font-medium",
+                "text-muted-foreground flex size-4 shrink-0 items-center justify-center rounded-sm text-[9px] font-medium",
               )}
             >
               {site?.charAt(0).toUpperCase() ?? "?"}
             </span>
           )}
           {site ? (
-            <span className={cn(mono, "text-foreground/40 truncate")}>
+            <span className={cn(mono, "text-muted-foreground truncate")}>
               {site}
             </span>
           ) : null}
@@ -116,7 +116,7 @@ export function LinkPreview({
           </span>
         )}
         {description ? (
-          <span className="text-foreground/50 line-clamp-2 text-xs leading-relaxed">
+          <span className="text-muted-foreground line-clamp-2 text-xs leading-relaxed">
             {description}
           </span>
         ) : null}

@@ -7,6 +7,7 @@ type ParsedAdkRequest =
       type: "message";
       text: string;
       parts?: Array<Record<string, unknown>> | undefined;
+      sessionId?: string | undefined;
       config: AdkSendMessageConfig;
       stateDelta?: Record<string, unknown> | undefined;
     }
@@ -16,6 +17,7 @@ type ParsedAdkRequest =
       toolName: string;
       result: unknown;
       isError: boolean;
+      sessionId?: string | undefined;
       config: AdkSendMessageConfig;
       stateDelta?: Record<string, unknown> | undefined;
     };
@@ -114,10 +116,20 @@ const validatePart = (part: Record<string, unknown>, index: number) => {
       field("inlineData.mimeType"),
     );
     validateOptionalPartString(content, "data", field("inlineData.data"));
+    validateOptionalPartString(
+      content,
+      "displayName",
+      field("inlineData.displayName"),
+    );
   });
   validateRecordField("fileData", (content) => {
     validateOptionalPartString(content, "fileUri", field("fileData.fileUri"));
     validateOptionalPartString(content, "mimeType", field("fileData.mimeType"));
+    validateOptionalPartString(
+      content,
+      "displayName",
+      field("fileData.displayName"),
+    );
   });
 };
 
@@ -162,6 +174,7 @@ export const parseAdkRequest = async (
   if (body.runConfig !== undefined) config.runConfig = body.runConfig;
   const checkpointId = readOptionalString(body, "checkpointId");
   if (checkpointId !== undefined) config.checkpointId = checkpointId;
+  const sessionId = readOptionalString(body, "sessionId");
 
   const stateDelta = body.stateDelta;
   if (stateDelta !== undefined && !isRecord(stateDelta)) {
@@ -181,6 +194,7 @@ export const parseAdkRequest = async (
       toolName: readString(body, "toolName"),
       result: body.result,
       isError: body.isError ?? false,
+      ...(sessionId !== undefined && { sessionId }),
       config,
       ...(stateDelta != null && { stateDelta }),
     };
@@ -213,6 +227,7 @@ export const parseAdkRequest = async (
     type: "message",
     text: text ?? "",
     ...(parts !== undefined && { parts }),
+    ...(sessionId !== undefined && { sessionId }),
     config,
     ...(stateDelta != null && { stateDelta }),
   };
@@ -226,7 +241,8 @@ export const parseAdkRequest = async (
  * ```ts
  * const parsed = await parseAdkRequest(req);
  * const newMessage = toAdkContent(parsed);
- * const events = runner.runAsync({ userId, sessionId, newMessage, stateDelta: parsed.stateDelta });
+ * const stateDelta = validateSessionState(parsed.stateDelta);
+ * const events = runner.runAsync({ userId, sessionId, newMessage, stateDelta });
  * return adkEventStream(events);
  * ```
  */

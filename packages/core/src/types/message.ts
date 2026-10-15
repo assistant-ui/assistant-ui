@@ -31,6 +31,7 @@ export type ReasoningMessagePart = {
   readonly id?: string;
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
+  /** @deprecated Experimental since 2026-08-07. Not scheduled for removal; the API may change in any release. */
   readonly unstable_summary?: string;
   /** Wall-clock timing for this reasoning part, when the runtime or host tracks it. */
   readonly timing?: MessagePartTiming;
@@ -286,7 +287,11 @@ export type ToolApprovalResponse =
       readonly reason?: string;
     };
 
-/** One thing a user did in a tool call's rendered UI, stored with the call. */
+/**
+ * One thing a user did in a tool call's rendered UI, stored with the call.
+ *
+ * @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release.
+ */
 export type Unstable_ToolInteraction =
   | {
       /** A generative UI action the user fired, with the user's input under `$input`. */
@@ -306,13 +311,19 @@ export type Unstable_ToolInteraction =
 /**
  * The interactions recorded on a tool call, oldest first. `omitted` counts
  * earlier entries dropped to keep the log within its size limit.
+ *
+ * @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release.
  */
 export type Unstable_ToolInteractionLog = {
   readonly entries: readonly Unstable_ToolInteraction[];
   readonly omitted?: number;
 };
 
-/** An interaction to record; the runtime validates the payload and stamps the time. */
+/**
+ * An interaction to record; the runtime validates the payload and stamps the time.
+ *
+ * @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release.
+ */
 export type Unstable_ToolInteractionInput = {
   readonly type: Unstable_ToolInteraction["type"];
   readonly payload: unknown;
@@ -336,6 +347,8 @@ export type ToolCallMessagePart<
   readonly args: TArgs;
   /** Result returned by the tool. Final once it has completed; an interim value while `isPreliminary` is set. */
   readonly result?: TResult | undefined;
+  /** The runtime holds this call's response locally and has not sent it yet. */
+  readonly responseDeliveryStatus?: "queued" | undefined;
   /** Whether the result represents a tool execution error. */
   readonly isError?: boolean | undefined;
   /** Whether `result` is an interim value from a tool that is still running, so the call is not settled yet. */
@@ -399,6 +412,8 @@ export type ToolCallMessagePart<
   /**
    * What the user did in this call's rendered UI, recorded so a stored
    * conversation shows the answer beside the question.
+   *
+   * @deprecated Experimental since 2026-09-23. Not scheduled for removal; the API may change in any release.
    */
   readonly unstable_interactions?: Unstable_ToolInteractionLog;
 };
@@ -524,8 +539,11 @@ export type ThreadSystemMessage = MessageCommonProps & {
   readonly role: "system";
   readonly content: readonly [TextMessagePart];
   readonly metadata: {
+    /** @deprecated Experimental since 2025-05-20. Not scheduled for removal; the API may change in any release. */
     readonly unstable_state?: undefined;
+    /** @deprecated Experimental since 2025-01-27. Not scheduled for removal; the API may change in any release. */
     readonly unstable_annotations?: undefined;
+    /** @deprecated Experimental since 2025-01-04. Not scheduled for removal; the API may change in any release. */
     readonly unstable_data?: undefined;
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
@@ -540,8 +558,11 @@ export type ThreadUserMessage = MessageCommonProps & {
   readonly content: readonly ThreadUserMessagePart[];
   readonly attachments: readonly CompleteAttachment[];
   readonly metadata: {
+    /** @deprecated Experimental since 2025-05-20. Not scheduled for removal; the API may change in any release. */
     readonly unstable_state?: undefined;
+    /** @deprecated Experimental since 2025-01-27. Not scheduled for removal; the API may change in any release. */
     readonly unstable_annotations?: undefined;
+    /** @deprecated Experimental since 2025-01-04. Not scheduled for removal; the API may change in any release. */
     readonly unstable_data?: undefined;
     readonly steps?: undefined;
     readonly submittedFeedback?: undefined;
@@ -558,8 +579,13 @@ export type ThreadAssistantMessage = MessageCommonProps & {
   readonly content: readonly ThreadAssistantMessagePart[];
   readonly status: MessageStatus;
   readonly metadata: {
+    /** The run that produced this message, matching the external store adapter's `activeRunId` for that run. */
+    readonly runId?: string | undefined;
+    /** @deprecated Experimental since 2025-05-20. Not scheduled for removal; the API may change in any release. */
     readonly unstable_state: ReadonlyJSONValue;
+    /** @deprecated Experimental since 2025-01-27. Not scheduled for removal; the API may change in any release. */
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
+    /** @deprecated Experimental since 2025-01-04. Not scheduled for removal; the API may change in any release. */
     readonly unstable_data: readonly ReadonlyJSONValue[];
     readonly steps: readonly ThreadStep[];
     readonly submittedFeedback?: {
@@ -581,8 +607,11 @@ export type ThreadAssistantMessage = MessageCommonProps & {
 type BaseThreadMessage = {
   readonly status?: ThreadAssistantMessage["status"];
   readonly metadata: {
+    /** @deprecated Experimental since 2025-05-20. Not scheduled for removal; the API may change in any release. */
     readonly unstable_state?: ReadonlyJSONValue | undefined;
+    /** @deprecated Experimental since 2025-01-27. Not scheduled for removal; the API may change in any release. */
     readonly unstable_annotations?: readonly ReadonlyJSONValue[] | undefined;
+    /** @deprecated Experimental since 2025-01-04. Not scheduled for removal; the API may change in any release. */
     readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
     readonly steps?: readonly ThreadStep[] | undefined;
     readonly submittedFeedback?:

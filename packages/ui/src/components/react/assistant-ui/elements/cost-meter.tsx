@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
 import { announced, pct } from "../utils/range";
+import { formatTokenCount } from "../utils/tokens";
 
 export interface CostLine {
   model: string;
@@ -42,13 +43,15 @@ export function CostMeter({
         <span className="text-2xl font-medium tracking-tight tabular-nums">
           {runCost}
         </span>
-        <span className={cn(mono, "text-foreground/30")}>this run</span>
-        <span className={cn(mono, "text-foreground/35 ms-auto tabular-nums")}>
+        <span className={cn(mono, "text-muted-foreground")}>this run</span>
+        <span
+          className={cn(mono, "text-muted-foreground ms-auto tabular-nums")}
+        >
           {sessionCost} session
         </span>
       </div>
 
-      <div className="bg-foreground/[0.06] flex h-1.5 w-full overflow-hidden rounded-full">
+      <div className="bg-foreground/[0.06] inset-ring-border flex h-1.5 w-full overflow-hidden rounded-full inset-ring forced-colors:border">
         {lines.map((line, i) => {
           const width = pct(line.share, 1);
           if (announced(width) === 0) return null;
@@ -61,7 +64,7 @@ export function CostMeter({
               aria-valuemax={100}
               aria-valuenow={announced(width)}
               className={cn(
-                "h-full transition-[width] duration-500 motion-reduce:transition-none",
+                "h-full transition-[width] duration-500 forced-color-adjust-none motion-reduce:transition-none",
                 i === 0
                   ? "bg-blue-500 dark:bg-blue-400"
                   : i === 1
@@ -76,20 +79,28 @@ export function CostMeter({
 
       <div className="flex flex-col gap-1.5">
         {lines.map((line) => (
-          <div key={line.model} className="flex items-baseline gap-2">
-            <span className="text-foreground/75 min-w-0 flex-1 truncate text-[13px]">
+          <div
+            key={line.model}
+            className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5"
+          >
+            <span className="text-foreground/75 min-w-0 grow truncate text-[13px]">
               {line.model}
             </span>
-            <span
-              className={cn(mono, "text-foreground/25 shrink-0 tabular-nums")}
-            >
-              {(line.inputTokens / 1000).toFixed(1)}k in ·{" "}
-              {(line.outputTokens / 1000).toFixed(1)}k out
-            </span>
-            <span
-              className={cn(mono, "text-foreground/55 shrink-0 tabular-nums")}
-            >
-              {line.cost}
+            <span className="ms-auto flex min-w-0 items-baseline gap-2">
+              <span
+                className={cn(
+                  mono,
+                  "text-muted-foreground truncate tabular-nums",
+                )}
+              >
+                {formatTokenCount(line.inputTokens)} in ·{" "}
+                {formatTokenCount(line.outputTokens)} out
+              </span>
+              <span
+                className={cn(mono, "text-foreground/75 shrink-0 tabular-nums")}
+              >
+                {line.cost}
+              </span>
             </span>
           </div>
         ))}

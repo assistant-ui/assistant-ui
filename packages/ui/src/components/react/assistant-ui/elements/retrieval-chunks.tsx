@@ -43,11 +43,11 @@ export function RetrievalChunks({
           "text-foreground/70 inline-flex w-fit items-center gap-1.5 rounded-full px-3.5 py-2 text-xs",
         )}
       >
-        <DatabaseIcon className="text-foreground/40 size-3" />
+        <DatabaseIcon className="text-muted-foreground size-3" />
         {query}
       </span>
 
-      <div className="text-foreground/45 text-xs">
+      <div className="text-muted-foreground text-xs">
         {searching ? (
           <ShimmerLabel className="relative inline-block leading-none">
             Retrieving
@@ -72,7 +72,7 @@ export function RetrievalChunks({
               <span className="text-foreground/90 min-w-0 flex-1 truncate text-[13px] font-medium">
                 {chunk.source}
               </span>
-              <span className={cn(mono, "text-foreground/30 shrink-0")}>
+              <span className={cn(mono, "text-muted-foreground shrink-0")}>
                 {chunk.locator}
               </span>
               <span
@@ -81,13 +81,13 @@ export function RetrievalChunks({
                   "shrink-0 tabular-nums",
                   chunk.score >= 0.8
                     ? "text-emerald-600 dark:text-emerald-400"
-                    : "text-foreground/35",
+                    : "text-muted-foreground",
                 )}
               >
                 {chunk.score.toFixed(2)}
               </span>
             </div>
-            <p className="text-foreground/55 line-clamp-2 text-xs leading-relaxed">
+            <p className="text-muted-foreground line-clamp-2 text-xs leading-relaxed">
               {chunk.text}
             </p>
             <span
@@ -97,10 +97,10 @@ export function RetrievalChunks({
               aria-valuemax={100}
               aria-valuenow={announced(pct(chunk.score, 1))}
               aria-valuetext={`${chunk.score.toFixed(2)} of 1.00`}
-              className="bg-foreground/[0.06] h-[2px] w-full overflow-hidden rounded-full"
+              className="bg-foreground/[0.06] inset-ring-border h-[2px] w-full overflow-hidden rounded-full inset-ring forced-colors:outline"
             >
               <span
-                className="block h-full rounded-full bg-blue-500/70 transition-[width] duration-500 dark:bg-blue-400/70"
+                className="block h-full rounded-full bg-blue-500/70 transition-[width] duration-500 forced-color-adjust-none dark:bg-blue-400/70"
                 style={{ width: `${pct(chunk.score, 1)}%` }}
               />
             </span>

@@ -477,6 +477,66 @@ describe("ExternalThread composer", () => {
     await waitFor(() => expect(composer().getState().isEditing).toBe(false));
   });
 
+  it("keeps the quote of the edited message on the sent message", async () => {
+    const onEdit = vi.fn();
+    const quote = { text: "quoted", messageId: "a0" };
+    const { aui } = renderThread({
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          content: [{ type: "text", text: "hi" }],
+          createdAt: new Date(0),
+          attachments: [],
+          metadata: { custom: { quote } },
+        } as unknown as ExternalThreadMessage,
+      ],
+      isRunning: false,
+      onEdit,
+    });
+
+    const composer = () => aui().thread.message({ id: "u1" }).composer();
+    composer().beginEdit();
+    await waitFor(() => expect(composer().getState().quote).toEqual(quote));
+    composer().setText("edited");
+    composer().send();
+
+    await waitFor(() => expect(onEdit).toHaveBeenCalledTimes(1));
+    expect(onEdit.mock.calls[0]![0].metadata.custom).toEqual({ quote });
+  });
+
+  it("does not carry a quote set during a cancelled edit into the next edit", async () => {
+    const onEdit = vi.fn();
+    const { aui } = renderThread({
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          content: [{ type: "text", text: "hi" }],
+          createdAt: new Date(0),
+          attachments: [],
+          metadata: { custom: {} },
+        } as unknown as ExternalThreadMessage,
+      ],
+      isRunning: false,
+      onEdit,
+    });
+
+    const composer = () => aui().thread.message({ id: "u1" }).composer();
+    composer().beginEdit();
+    await waitFor(() => expect(composer().getState().isEditing).toBe(true));
+    composer().setQuote({ text: "stale", messageId: "a0" });
+    composer().cancel();
+    await waitFor(() => expect(composer().getState().isEditing).toBe(false));
+
+    composer().beginEdit();
+    await waitFor(() => expect(composer().getState().isEditing).toBe(true));
+    composer().send();
+
+    await waitFor(() => expect(onEdit).toHaveBeenCalledTimes(1));
+    expect(onEdit.mock.calls[0]![0].metadata.custom).toEqual({});
+  });
+
   it("prefills the edit composer from the message on beginEdit", async () => {
     const onEdit = vi.fn();
     const { aui } = renderThread({
@@ -519,6 +579,111 @@ describe("ExternalThread composer", () => {
       sourceId: "a1",
       content: [{ type: "text", text: "original answer" }],
     });
+  });
+
+  it("keeps the non-text parts of an edited user message as attachments", async () => {
+    const onEdit = vi.fn();
+    const { aui } = renderThread({
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          content: [
+            { type: "image", image: "data:image/png;base64,AAAA" },
+            { type: "text", text: "what is this?" },
+          ],
+          createdAt: new Date(0),
+          attachments: [],
+          metadata: { custom: {} },
+        } as unknown as ExternalThreadMessage,
+      ],
+      isRunning: false,
+      onEdit,
+    });
+
+    const composer = () => aui().thread.message({ id: "u1" }).composer();
+    composer().beginEdit();
+    await waitFor(() =>
+      expect(composer().getState().attachments).toHaveLength(1),
+    );
+    composer().setText("what is in this picture?");
+    composer().send();
+
+    await waitFor(() => expect(onEdit).toHaveBeenCalledTimes(1));
+    const sent = onEdit.mock.calls[0]![0];
+    expect(sent.content).toEqual([
+      { type: "text", text: "what is in this picture?" },
+    ]);
+    expect(sent.attachments).toHaveLength(1);
+    expect(sent.attachments[0].content).toEqual([
+      { type: "image", image: "data:image/png;base64,AAAA" },
+    ]);
+  });
+
+  it("keeps the non-text parts of an edited assistant message", async () => {
+    const onEdit = vi.fn();
+    const { aui } = renderThread({
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          content: [
+            { type: "reasoning", text: "thinking" },
+            { type: "text", text: "answer" },
+          ],
+          createdAt: new Date(0),
+          status: { type: "complete", reason: "stop" },
+          metadata: { custom: {} },
+        } as unknown as ExternalThreadMessage,
+      ],
+      isRunning: false,
+      onEdit,
+    });
+
+    const composer = () => aui().thread.message({ id: "a1" }).composer();
+    composer().beginEdit();
+    await waitFor(() => expect(composer().getState().isEditing).toBe(true));
+    composer().setText("better answer");
+    composer().send();
+
+    await waitFor(() => expect(onEdit).toHaveBeenCalledTimes(1));
+    expect(onEdit.mock.calls[0]![0].content).toEqual([
+      { type: "text", text: "better answer" },
+      { type: "reasoning", text: "thinking" },
+    ]);
+  });
+
+  it("drops the kept non-text parts when the edit composer is reset", async () => {
+    const onEdit = vi.fn();
+    const { aui } = renderThread({
+      messages: [
+        {
+          id: "a1",
+          role: "assistant",
+          content: [
+            { type: "reasoning", text: "thinking" },
+            { type: "text", text: "answer" },
+          ],
+          createdAt: new Date(0),
+          status: { type: "complete", reason: "stop" },
+          metadata: { custom: {} },
+        } as unknown as ExternalThreadMessage,
+      ],
+      isRunning: false,
+      onEdit,
+    });
+
+    const composer = () => aui().thread.message({ id: "a1" }).composer();
+    composer().beginEdit();
+    await waitFor(() => expect(composer().getState().isEditing).toBe(true));
+    await composer().reset();
+    composer().setText("fresh");
+    composer().send();
+
+    await waitFor(() => expect(onEdit).toHaveBeenCalledTimes(1));
+    expect(onEdit.mock.calls[0]![0].content).toEqual([
+      { type: "text", text: "fresh" },
+    ]);
   });
 
   it("throws on edit-composer send before beginEdit", () => {

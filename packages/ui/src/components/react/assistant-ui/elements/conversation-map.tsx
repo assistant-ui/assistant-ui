@@ -149,7 +149,7 @@ export function ConversationMap({
                   {payload?.title}
                 </p>
                 {payload?.preview && (
-                  <p className="text-foreground/50 mt-1 line-clamp-3 text-[13px] leading-relaxed">
+                  <p className="text-muted-foreground mt-1 line-clamp-3 text-[13px] leading-relaxed">
                     {payload.preview}
                   </p>
                 )}

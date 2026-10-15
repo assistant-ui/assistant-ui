@@ -1,85 +1,45 @@
-export type Theme = "light" | "dark" | "system";
-export type BorderRadius = "none" | "sm" | "md" | "lg" | "full";
-export type FontSize = "13px" | "14px" | "15px" | "16px";
-export type MessageSpacing = "compact" | "comfortable" | "spacious";
-export type TypingIndicator = "none" | "dot";
-export type LoadingIndicator = "none" | "spinner" | "text";
-export type CodeHighlightTheme =
-  | "none"
-  | "github"
-  | "vitesse"
-  | "tokyo-night"
-  | "one-dark-pro"
-  | "dracula";
+import type { PartialBuilderConfig } from "@/lib/playground-config-schema";
 
-export interface ActionBarConfig {
-  copy: boolean;
-  reload: boolean;
-  speak: boolean;
-  feedback: boolean;
-}
+type ComponentUpdate = NonNullable<PartialBuilderConfig["components"]>;
+type StyleUpdate = NonNullable<PartialBuilderConfig["styles"]>;
+type ColorUpdate = NonNullable<StyleUpdate["colors"]>;
+type Complete<T> = { [K in keyof T]-?: NonNullable<T[K]> };
 
-export interface ComponentsConfig {
-  attachments: boolean;
-  branchPicker: boolean;
-  editMessage: boolean;
+export type Theme = NonNullable<StyleUpdate["theme"]>;
+export type BorderRadius = NonNullable<StyleUpdate["borderRadius"]>;
+export type FontSize = NonNullable<StyleUpdate["fontSize"]>;
+export type MessageSpacing = NonNullable<StyleUpdate["messageSpacing"]>;
+export type TypingIndicator = NonNullable<ComponentUpdate["typingIndicator"]>;
+export type LoadingIndicator = NonNullable<ComponentUpdate["loadingIndicator"]>;
+export type CodeHighlightTheme = NonNullable<
+  ComponentUpdate["codeHighlightTheme"]
+>;
+export type UserMessagePosition = NonNullable<
+  StyleUpdate["userMessagePosition"]
+>;
+
+export type ActionBarConfig = Complete<
+  NonNullable<ComponentUpdate["actionBar"]>
+>;
+export type ComponentsConfig = Complete<Omit<ComponentUpdate, "actionBar">> & {
   actionBar: ActionBarConfig;
-  threadWelcome: boolean;
-  suggestions: boolean;
-  scrollToBottom: boolean;
-  markdown: boolean;
-  codeHighlightTheme: CodeHighlightTheme;
-  reasoning: boolean;
-  sources: boolean;
-  followUpSuggestions: boolean;
-  avatar: boolean;
-  typingIndicator: TypingIndicator;
-  loadingIndicator: LoadingIndicator;
-  loadingText: string;
-}
+};
 
-export type UserMessagePosition = "right" | "left";
+export type ThemeColor = Complete<NonNullable<ColorUpdate["accent"]>>;
+type ColorsConfig = { [K in keyof ColorUpdate]?: ThemeColor } & {
+  accent: ThemeColor;
+};
+export type StylesConfig = Complete<Omit<StyleUpdate, "colors">> & {
+  colors: ColorsConfig;
+};
 
-export interface ThemeColor {
-  light: string;
-  dark: string;
-}
-
-export interface StylesConfig {
-  theme: Theme;
-
-  // Colors (with light/dark variants)
-  colors: {
-    accent: ThemeColor;
-    background?: ThemeColor;
-    foreground?: ThemeColor;
-    muted?: ThemeColor;
-    mutedForeground?: ThemeColor;
-    border?: ThemeColor;
-    userMessage?: ThemeColor;
-    assistantMessage?: ThemeColor;
-    composer?: ThemeColor;
-    userAvatar?: ThemeColor;
-    assistantAvatar?: ThemeColor;
-    suggestion?: ThemeColor;
-    suggestionBorder?: ThemeColor;
-  };
-
-  // Layout
-  borderRadius: BorderRadius;
-  maxWidth: string;
-  fontFamily: string;
-  fontSize: FontSize;
-  messageSpacing: MessageSpacing;
-  userMessagePosition: UserMessagePosition;
-  animations: boolean;
-}
-
-export interface BuilderConfig {
+export type BuilderConfig = Omit<
+  PartialBuilderConfig,
+  "components" | "styles"
+> & {
   components: ComponentsConfig;
   styles: StylesConfig;
-  customCSS?: string;
-}
+};
 
 export interface Preset {
   id: string;

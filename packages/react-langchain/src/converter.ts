@@ -10,6 +10,7 @@ import {
   resolveFilePartSource,
 } from "@assistant-ui/core/internal";
 import type { StreamingTimingAccessors } from "@assistant-ui/core/react";
+import type { ReadonlyJSONObject } from "assistant-stream/utils";
 
 /** Known content block types from @langchain/core messages. */
 export type LangChainContentBlock =
@@ -51,12 +52,143 @@ export type LangChainContentBlock =
     }
   | { type: "tool_use" | "input_json_delta" };
 
+/**
+ * One block covers both multimodal vocabularies: the standard content blocks
+ * key their payload off a camelCase JavaScript field or snake_case Python
+ * field, while the legacy data content blocks use a `source_type` discriminator.
+ */
+type LangChainMediaBlock = {
+  type: "image" | "video" | "audio" | "file" | "text-plain";
+  mimeType?: string;
+  mime_type?: string;
+  data?: string | Uint8Array;
+  base64?: string | Uint8Array;
+  url?: string;
+  fileId?: string;
+  file_id?: string;
+  id?: string;
+  text?: string;
+  source_type?: "base64" | "url" | "id" | "text";
+  metadata?: { filename?: string };
+};
+
 type ConvertedContentPart =
   | ThreadUserMessage["content"][number]
   | ThreadAssistantMessage["content"][number];
 
+type MediaSource = { data: string; sourceType?: "url" | "id" };
+
+/**
+ * `id` names the block, not the payload, in the standard content blocks, so it
+ * only identifies a file under the legacy `source_type: "id"` discriminator.
+ */
+const resolveMediaSource = (
+  part: LangChainMediaBlock,
+): MediaSource | undefined => {
+  switch (part.source_type) {
+    case "url":
+      return typeof part.url === "string"
+        ? { data: part.url, sourceType: "url" }
+        : undefined;
+    case "id":
+      return typeof part.id === "string"
+        ? { data: part.id, sourceType: "id" }
+        : undefined;
+    case "base64": {
+      const data = part.data ?? part.base64;
+      return typeof data === "string" ? { data } : undefined;
+    }
+  }
+  if (typeof part.url === "string")
+    return { data: part.url, sourceType: "url" };
+  const fileId = part.fileId ?? part.file_id;
+  if (typeof fileId === "string") return { data: fileId, sourceType: "id" };
+  const data = part.data ?? part.base64;
+  if (typeof data === "string") return { data };
+  if (part.type === "text-plain" && typeof part.text === "string")
+    return { data: textToBase64(part.text) };
+  return undefined;
+};
+
+const textToBase64 = (text: string): string => {
+  const bytes = new TextEncoder().encode(text);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
+};
+
+const resolveMediaMimeType = (part: LangChainMediaBlock): string | undefined =>
+  typeof part.mimeType === "string"
+    ? part.mimeType
+    : typeof part.mime_type === "string"
+      ? part.mime_type
+      : undefined;
+
+const defaultMediaFilename = (type: string, mimeType: string): string => {
+  if (type !== "audio" && type !== "video") return "file";
+  const subtype = mimeType.startsWith(`${type}/`)
+    ? mimeType.slice(type.length + 1)
+    : undefined;
+  return subtype ? `${type}.${subtype}` : type;
+};
+
+const resolveImage = (
+  source: MediaSource,
+  mimeType: string | undefined,
+): string | undefined => {
+  if (source.sourceType === "id") return undefined;
+  // `parseDataUrl` only matches the base64 form, so a percent-encoded data URL
+  // would otherwise be wrapped in a second base64 envelope.
+  if (source.sourceType === "url" || /^data:/i.test(source.data))
+    return source.data;
+  return mimeType ? `data:${mimeType};base64,${source.data}` : undefined;
+};
+
+const convertMediaBlock = (
+  part: LangChainMediaBlock,
+): ConvertedContentPart | undefined => {
+  const source = resolveMediaSource(part);
+  if (!source) return undefined;
+
+  const mimeType = resolveMediaMimeType(part);
+  if (part.type === "image") {
+    const image = resolveImage(source, mimeType);
+    if (image) return { type: "image" as const, image };
+  }
+
+  const resolvedMimeType =
+    mimeType ??
+    (part.type === "text-plain" ? "text/plain" : "application/octet-stream");
+  return {
+    type: "file" as const,
+    filename:
+      part.metadata?.filename ??
+      defaultMediaFilename(part.type, resolvedMimeType),
+    data: source.data,
+    mimeType: resolvedMimeType,
+    ...(source.sourceType && { sourceType: source.sourceType }),
+  };
+};
+
+export const normalizeToolCallArgs = (args: unknown): ReadonlyJSONObject => {
+  if (typeof args !== "object" || args === null || Array.isArray(args)) {
+    return {};
+  }
+
+  try {
+    const prototype = Object.getPrototypeOf(args);
+    return prototype === Object.prototype || prototype === null
+      ? (args as ReadonlyJSONObject)
+      : {};
+  } catch {
+    return {};
+  }
+};
+
 export const convertLangChainContentBlock = (
-  part: LangChainContentBlock,
+  part: LangChainContentBlock | LangChainMediaBlock,
 ): ConvertedContentPart | null | undefined => {
   const type = part.type;
   switch (type) {
@@ -74,33 +206,12 @@ export const convertLangChainContentBlock = (
       if (!image) return null;
       return { type: "image" as const, image };
     }
+    case "image":
+    case "video":
+    case "audio":
     case "file":
-      return {
-        type: "file" as const,
-        filename: part.metadata?.filename ?? "file",
-        data:
-          part.source_type === "url"
-            ? part.url
-            : part.source_type === "id"
-              ? part.id
-              : part.data,
-        mimeType: part.mime_type ?? "application/octet-stream",
-        ...((part.source_type === "url" || part.source_type === "id") && {
-          sourceType: part.source_type,
-        }),
-      };
-    case "audio": {
-      const mimeType = part.mime_type ?? "application/octet-stream";
-      const subtype = mimeType.startsWith("audio/")
-        ? mimeType.slice("audio/".length)
-        : undefined;
-      return {
-        type: "file" as const,
-        filename: subtype ? `audio.${subtype}` : "audio",
-        data: part.data,
-        mimeType,
-      };
-    }
+    case "text-plain":
+      return convertMediaBlock(part);
     case "thinking":
       return hasVisibleText(part.thinking)
         ? { type: "reasoning" as const, text: part.thinking }

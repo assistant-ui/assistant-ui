@@ -48,10 +48,7 @@ vi.mock("./useInteractableState", async (importOriginal) => ({
 
 import { unstable_useInteractable } from "./useInteractable";
 
-afterEach(() => {
-  cleanup();
-  vi.clearAllMocks();
-});
+afterEach(cleanup);
 
 describe("unstable_useInteractable", () => {
   it("refreshes the registration when its JSON schema changes", async () => {

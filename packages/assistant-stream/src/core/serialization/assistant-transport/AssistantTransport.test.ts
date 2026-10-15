@@ -99,6 +99,30 @@ describe("AssistantTransportEncoder", () => {
 });
 
 describe("AssistantTransportDecoder", () => {
+  it("decodes a valid chunk after a field prefixed by a second BOM", async () => {
+    const chunk = {
+      type: "text-delta",
+      textDelta: "kept",
+      path: [0],
+    } satisfies AssistantStreamChunk;
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(
+            `\uFEFF\uFEFFdata: {"ignored":true}\ndata: ${JSON.stringify(chunk)}\n\ndata: [DONE]\n\n`,
+          ),
+        );
+        controller.close();
+      },
+    });
+
+    const chunks = await collectChunks(
+      stream.pipeThrough(new AssistantTransportDecoder()),
+    );
+
+    expect(chunks).toEqual([chunk]);
+  });
+
   it("should decode SSE format back to chunks", async () => {
     const originalChunks: AssistantStreamChunk[] = [
       { type: "text-delta", textDelta: "Hello", path: [] },
@@ -118,6 +142,55 @@ describe("AssistantTransportDecoder", () => {
     const decodedChunks = await collectChunks(decodedStream);
 
     expect(decodedChunks).toEqual(originalChunks);
+  });
+
+  it("forwards configured SSE line and event limits", async () => {
+    const chunk = {
+      type: "text-delta",
+      textDelta: "Hello",
+      path: [],
+    } satisfies AssistantStreamChunk;
+    const sseText = `data: ${JSON.stringify(chunk)}\n\ndata: [DONE]\n\n`;
+    const createStream = () =>
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(sseText));
+          controller.close();
+        },
+      });
+
+    await expect(
+      collectChunks(
+        createStream().pipeThrough(
+          new AssistantTransportDecoder({
+            maxLineLength: 20,
+            maxEventLength: 256,
+          }),
+        ),
+      ),
+    ).rejects.toThrow("SSE line exceeds maxLineLength");
+
+    await expect(
+      collectChunks(
+        createStream().pipeThrough(
+          new AssistantTransportDecoder({
+            maxLineLength: 256,
+            maxEventLength: 20,
+          }),
+        ),
+      ),
+    ).rejects.toThrow("SSE event exceeds maxEventLength");
+
+    await expect(
+      collectChunks(
+        createStream().pipeThrough(
+          new AssistantTransportDecoder({
+            maxLineLength: 256,
+            maxEventLength: 256,
+          }),
+        ),
+      ),
+    ).resolves.toEqual([chunk]);
   });
 
   it("should stop decoding at [DONE]", async () => {

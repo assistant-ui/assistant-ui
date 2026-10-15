@@ -282,7 +282,7 @@ describe("ThreadList", () => {
 
   it("shows skeleton rows while the list loads and drops them once it resolves", async () => {
     let resolveList!: (response: { threads: RemoteThreadMetadata[] }) => void;
-    const { container } = renderThreadList(
+    const { container, queryAllByRole } = renderThreadList(
       makeAdapter([], {
         list: () =>
           new Promise((resolve) => {
@@ -294,11 +294,15 @@ describe("ThreadList", () => {
     await waitFor(() =>
       expect(slots(container, "skeleton-wrapper")).toHaveLength(5),
     );
+    expect(queryAllByRole("status", { name: "Loading threads" })).toHaveLength(
+      1,
+    );
     expect(
       slots(container, "skeleton-wrapper").every(
         (row) =>
-          row.getAttribute("role") === "status" &&
-          row.getAttribute("aria-label") === "Loading threads",
+          row.getAttribute("aria-hidden") === "true" &&
+          !row.hasAttribute("role") &&
+          !row.hasAttribute("aria-label"),
       ),
     ).toBe(true);
     expect(slots(container, "item")).toHaveLength(0);
@@ -311,6 +315,9 @@ describe("ThreadList", () => {
       expect(texts(container, "item-title")).toEqual(["Loaded thread"]),
     );
     expect(slots(container, "skeleton-wrapper")).toHaveLength(0);
+    expect(queryAllByRole("status", { name: "Loading threads" })).toHaveLength(
+      0,
+    );
   });
 
   it("groups threads by day, newest first, and coalesces a repeated label", async () => {
@@ -472,6 +479,30 @@ const openRename = async (container: HTMLElement) => {
 };
 
 describe("ThreadList rename", () => {
+  it.each([
+    { label: "IME keyCode", event: { key: "Enter", keyCode: 229 } },
+    { label: "isComposing", event: { key: "Enter", isComposing: true } },
+  ])(
+    "ignores Enter during $label and commits on plain Enter",
+    async ({ event }) => {
+      const adapter = makeAdapter(withTitles("Trip planning"));
+      const { container } = renderThreadList(adapter);
+
+      const input = await openRename(container);
+      fireEvent.change(input, { target: { value: "Trip notes" } });
+      fireEvent.keyDown(input, event);
+      await act(async () => {});
+
+      expect(adapter.rename).not.toHaveBeenCalled();
+      expect(slots(container, "item-rename")).toHaveLength(1);
+
+      fireEvent.keyDown(input, { key: "Enter" });
+      await waitFor(() =>
+        expect(adapter.rename).toHaveBeenCalledWith("t0", "Trip notes"),
+      );
+    },
+  );
+
   it("seeds the rename input with the current title and commits the trimmed value", async () => {
     const adapter = makeAdapter(withTitles("Trip planning"));
     const { container } = renderThreadList(adapter);

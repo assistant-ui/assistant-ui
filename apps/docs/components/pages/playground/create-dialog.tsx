@@ -7,7 +7,7 @@ import { XIcon } from "lucide-react";
 
 import type { BuilderConfig } from "./types";
 import { configMatchesPreset } from "./presets";
-import { encodeConfig } from "@/lib/playground-url-state";
+import { encodeConfig } from "@/lib/playground-config-codec";
 import { BASE_URL } from "@/lib/constants";
 import { analytics } from "@/lib/analytics";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
@@ -76,7 +76,7 @@ export function CreateDialog({
             <div className="border-t pt-4">
               <p className="text-muted-foreground mb-3">Or set up manually:</p>
               <div className="space-y-3">
-                {commands.manual.slice(0, 2).map((cmd, index) => (
+                {commands.manual.map((cmd, index) => (
                   <CommandBlock
                     key={index}
                     label={`${index + 1}. ${cmd.label}`}
@@ -90,7 +90,7 @@ export function CreateDialog({
                     3. Copy code
                   </div>
                   <p className="text-muted-foreground">
-                    Copy the code from the{" "}
+                    Paste thread.aui.tsx from the{" "}
                     <button
                       type="button"
                       onClick={handleOpenCodeView}
@@ -98,7 +98,8 @@ export function CreateDialog({
                     >
                       Code view
                     </button>{" "}
-                    into your thread.tsx
+                    over components/assistant-ui/elements/thread.aui.tsx, and
+                    its CSS variables into your global CSS.
                   </p>
                 </div>
               </div>
@@ -262,10 +263,6 @@ function generateCliCommands(config: BuilderConfig): CliCommands {
       {
         label: "Add components",
         command: addCommand,
-      },
-      {
-        label: "Copy code",
-        description: "Copy the code from the Code view into your thread.tsx",
       },
     ],
     summary,

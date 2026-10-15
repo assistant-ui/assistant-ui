@@ -2,9 +2,12 @@
 import { globSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { isExecutedAsMain } from "./check-built-declarations.mjs";
-import { parseWorkspaceGlobs } from "./check-changesets.mjs";
-import { posixPath, readJson } from "./lib/workspace.mjs";
+import { isExecutedAsMain } from "./lib/main.mjs";
+import {
+  posixPath,
+  readJson,
+  readWorkspaceManifestEntries,
+} from "./lib/workspace.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -198,14 +201,19 @@ function readWorkspaceVersions(root) {
   const floors = new Map();
   const declared = new Map();
   const published = new Set();
-  const manifests = ["package.json"];
-  for (const glob of parseWorkspaceGlobs(
-    readFileSync(path.join(root, "pnpm-workspace.yaml"), "utf8"),
-  )) {
-    manifests.push(...globSync(`${glob}/package.json`, { cwd: root }));
-  }
-  for (const manifest of new Set(manifests.map(posixPath))) {
-    const pkg = readJson(path.join(root, manifest));
+  const { source, manifests } = readWorkspaceManifestEntries(root);
+  const entries = [
+    {
+      manifest: "package.json",
+      pkg: readJson(path.join(root, "package.json")),
+    },
+    ...manifests,
+  ];
+  const seen = new Set();
+  for (const { manifest, pkg } of entries) {
+    const file = posixPath(manifest);
+    if (seen.has(file)) continue;
+    seen.add(file);
     if (typeof pkg.name === "string" && pkg.private !== true) {
       published.add(pkg.name);
     }
@@ -223,7 +231,7 @@ function readWorkspaceVersions(root) {
   for (const [name, counts] of declared) {
     floors.set(name, prevailingFloor(counts));
   }
-  return { floors, published };
+  return { floors, published, source };
 }
 
 function readLockedIds(root) {
@@ -237,7 +245,7 @@ function readLockedIds(root) {
 
 export function runCheck(root = repoRoot) {
   const workflows = readWorkflows(root);
-  const { floors, published } = readWorkspaceVersions(root);
+  const { floors, published, source } = readWorkspaceVersions(root);
   const courses = globSync(COURSE_PROJECT_GLOB, { cwd: root })
     .map(posixPath)
     .sort()
@@ -251,10 +259,7 @@ export function runCheck(root = repoRoot) {
     unmarked: findUnmarkedActionRefs(workflows),
     nodePins: findInconsistentNodePins(workflows),
     allowBuilds: findDriftedAllowBuilds(
-      parseIndentedBlock(
-        readFileSync(path.join(root, "pnpm-workspace.yaml"), "utf8"),
-        "allowBuilds",
-      ),
+      parseIndentedBlock(source, "allowBuilds"),
       readLockedIds(root),
     ),
     coursePins: findStaleCoursePins(courses, floors, published),

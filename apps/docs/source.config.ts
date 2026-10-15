@@ -50,6 +50,28 @@ export const docs = defineDocs({
   },
 });
 
+export const docsSites = defineDocs({
+  dir: "content/docs-sites",
+  docs: {
+    schema: frontmatterSchema.extend({
+      links: z
+        .array(
+          z.object({
+            label: z.string(),
+            url: z.string(),
+          }),
+        )
+        .optional(),
+    }),
+    async: true,
+  },
+  meta: {
+    schema: metaSchema.extend({
+      description: z.string().optional(),
+    }),
+  },
+});
+
 export const examples = defineCollections({
   type: "doc",
   dir: "content/examples",

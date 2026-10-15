@@ -91,7 +91,7 @@ const findHead = (
 
 // A history may store a message before its parent, for example one that
 // commits appends concurrently, so such a message is added after its parent.
-const withParentsFirst = (
+export const withParentsFirst = (
   messages: ExportedMessageRepository["messages"],
   isStored: (id: string) => boolean,
 ) => {
@@ -371,6 +371,7 @@ export class MessageRepository {
 
     if (this.head === prev) {
       this.head = newItem;
+      this.selectPathTo(newItem);
     }
 
     this._messages.dirty();
@@ -506,7 +507,7 @@ export class MessageRepository {
     this._messages.dirty();
   }
 
-  resetHead(messageId: string | null) {
+  private setHead(messageId: string | null, pruneChildren: boolean) {
     if (messageId === null) {
       this.clear();
       return;
@@ -515,12 +516,12 @@ export class MessageRepository {
     const message = this.messages.get(messageId);
     if (!message)
       throw new Error(
-        "MessageRepository(resetHead): Branch not found. This is likely an internal bug in assistant-ui.",
+        `MessageRepository(${pruneChildren ? "resetHead" : "import"}): Branch not found. This is likely an internal bug in assistant-ui.`,
       );
 
     const previousHead = this.head;
 
-    if (message.children.length > 0) {
+    if (pruneChildren && message.children.length > 0) {
       const pending = [...message.children];
       while (pending.length > 0) {
         const childId = pending.pop()!;
@@ -543,6 +544,10 @@ export class MessageRepository {
     this.evictOffBranchOptimisticMessages(previousHead, this.head);
 
     this._messages.dirty();
+  }
+
+  resetHead(messageId: string | null) {
+    this.setHead(messageId, true);
   }
 
   clear(): void {
@@ -582,9 +587,51 @@ export class MessageRepository {
     }
 
     return {
-      headId: this.canonicalHeadId,
+      headId: this.exportedHeadId(),
       messages: exportItems,
     };
+  }
+
+  /**
+   * The head as it would be if the optimistic messages were deleted. An
+   * optimistic head resolves to a leaf of the exported tree, so an import
+   * returns to the branch that was visible instead of the one its persisted
+   * ancestor selects.
+   */
+  private exportedHeadId(): string | null {
+    let head = this.head;
+    while (head?.current.metadata?.isOptimistic) head = head.prev;
+    if (head === this.head) return head?.current.id ?? null;
+
+    for (;;) {
+      const next = this.exportedChild(head ?? this.root);
+      if (!next) return head?.current.id ?? null;
+      head = next;
+    }
+  }
+
+  private exportedChild(parent: RepositoryParent): RepositoryMessage | null {
+    const selected = parent.next;
+    if (selected) {
+      if (!selected.current.metadata?.isOptimistic) return selected;
+      const descendant = this.exportedChild(selected);
+      if (descendant) return descendant;
+    }
+    const selectedIndex = selected
+      ? parent.children.indexOf(selected.current.id)
+      : parent.children.length;
+    const siblings = [
+      ...parent.children.slice(0, selectedIndex).reverse(),
+      ...parent.children.slice(selectedIndex + 1).reverse(),
+    ];
+    for (const id of siblings) {
+      const child = this.messages.get(id);
+      if (!child) continue;
+      if (!child.current.metadata?.isOptimistic) return child;
+      const descendant = this.exportedChild(child);
+      if (descendant) return descendant;
+    }
+    return null;
   }
 
   import({ headId, messages }: ExportedMessageRepository) {
@@ -593,6 +640,7 @@ export class MessageRepository {
       this.addOrUpdateMessage(parentId, message);
     }
 
-    this.resetHead(headId ?? ordered.at(-1)?.message.id ?? null);
+    const importedHeadId = headId ?? ordered.at(-1)?.message.id ?? null;
+    this.setHead(importedHeadId, false);
   }
 }

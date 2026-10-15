@@ -1,0 +1,103 @@
+---
+title: Installation
+description: "Add @assistant-ui/vue to an existing Vue or Nuxt app, with or without the AI SDK."
+---
+
+Add the Vue binding to an existing app, then choose a runtime for its messages. For a new Nuxt chat app, follow the [quickstart](/docs/vue/quickstart).
+
+## Requirements
+
+`@assistant-ui/vue` requires Vue 3.5 or newer and the `@types/react` peer package. Mount `AuiProvider` only in the browser; Nuxt apps need a `.client.vue` boundary.
+
+## Install the packages
+
+For an AI SDK chat with an OpenAI model:
+
+```sh
+pnpm add @assistant-ui/vue @assistant-ui/ai-sdk ai @ai-sdk/openai react
+pnpm add -D @types/react
+```
+
+`@assistant-ui/ai-sdk` runs AI SDK chat state through React hooks in the shared runtime, so it needs `react` even though Vue renders the UI. `@types/react` is a required peer of `@assistant-ui/vue`.
+
+## Nuxt
+
+Put the runtime and `AuiProvider` in an `app/components/Assistant.client.vue` component. Keep the model call and provider credentials in a Nitro route at `server/api/chat.post.ts`. The [quickstart](/docs/vue/quickstart) shows both files, and [Server rendering](/docs/vue/ssr) explains the client boundary.
+
+## Vite
+
+Mount `AuiProvider` in the root component. The chat route must run on a server you provide; Vite does not supply the Nitro route from the Nuxt example. When the server is on another origin, pass its URL through the `api` option of `AssistantChatTransport`:
+
+```vue title="src/App.vue"
+<script setup lang="ts">
+import {
+  AuiConfig,
+  AuiProvider,
+  ComposerPrimitiveInput,
+  ComposerPrimitiveSend,
+  MessagePrimitiveParts,
+  ThreadPrimitiveMessages,
+  ThreadPrimitiveViewport,
+} from "@assistant-ui/vue";
+import { AISDKChat, AssistantChatTransport } from "@assistant-ui/ai-sdk";
+
+const config = AuiConfig({
+  threads: AISDKChat({
+    transport: new AssistantChatTransport({
+      api: "http://localhost:3001/api/chat",
+    }),
+  }),
+});
+</script>
+
+<template>
+  <AuiProvider :config="config">
+    <ThreadPrimitiveViewport class="h-dvh overflow-y-auto">
+      <ThreadPrimitiveMessages>
+        <MessagePrimitiveParts />
+      </ThreadPrimitiveMessages>
+    </ThreadPrimitiveViewport>
+    <ComposerPrimitiveInput aria-label="Message" placeholder="Message..." />
+    <ComposerPrimitiveSend>Send</ComposerPrimitiveSend>
+  </AuiProvider>
+</template>
+```
+
+Replace the example URL with your chat server's endpoint, and allow the app's origin in that server's CORS settings. For a route on the same origin, `AISDKChat()` uses `/api/chat` by default.
+
+## Without the AI SDK
+
+For a runtime supplied through `RuntimeAdapter` from `@assistant-ui/core/store`, install `@assistant-ui/core` and `@assistant-ui/tap` alongside the Vue binding. Alias the shared runtime's `react` imports to the standalone shim so this path can run without React:
+
+```sh
+pnpm add @assistant-ui/vue @assistant-ui/core @assistant-ui/tap
+pnpm add -D @types/react
+```
+
+```ts title="vite.config.ts"
+import { defineConfig } from "vite";
+import vue from "@vitejs/plugin-vue";
+
+export default defineConfig({
+  plugins: [vue()],
+  resolve: {
+    alias: [
+      {
+        find: /^react\/compiler-runtime$/,
+        replacement: "@assistant-ui/tap/standalone-shim/compiler-runtime",
+      },
+      { find: /^react$/, replacement: "@assistant-ui/tap/standalone-shim" },
+    ],
+  },
+});
+```
+
+The [External store guide](/docs/vue/external-store) shows the `RuntimeAdapter` setup.
+
+## Styled components
+
+Install the registry thread and thread list through [Styled components](/docs/vue/components), or build your own UI from the Vue primitives.
+
+## TypeScript
+
+`@assistant-ui/vue` ships its types with the package. Use `vue-tsc --noEmit` to check `.vue` files as well as TypeScript files.

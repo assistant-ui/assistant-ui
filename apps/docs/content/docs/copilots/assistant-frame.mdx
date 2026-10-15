@@ -251,7 +251,7 @@ When `targetOrigin` is omitted, the provider only communicates with `window.loca
 
 ##### `dispose()`
 
-Cleans up all resources and removes all providers. The parent host is told that the frame no longer provides any model context.
+Cleans up all resources and removes all providers. The parent host is told that the frame no longer provides any model context and rejects tool calls still waiting on the frame.
 
 ```tsx
 AssistantFrameProvider.dispose();

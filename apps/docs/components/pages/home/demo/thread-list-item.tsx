@@ -16,7 +16,7 @@ import {
   TrashIcon,
 } from "lucide-react";
 import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { Input } from "@/components/ui/input";
+import { ThreadRenameInput } from "./thread-rename-input";
 import { cn } from "@/lib/utils";
 import { SidebarNavigationContext } from "./sidebar-context";
 import { menuContentClass, menuItemClass } from "./styles";
@@ -34,7 +34,7 @@ function ThreadListItem(): ReactNode {
   }, [isRenaming]);
 
   return (
-    <ThreadListItemPrimitive.Root className="group data-active:bg-foreground/[0.06] hover:bg-foreground/[0.04] has-data-[state=open]:bg-foreground/[0.04] rounded-control relative flex h-8 shrink-0 items-center transition-colors">
+    <ThreadListItemPrimitive.Root className="group data-active:bg-foreground/[0.06] hover:bg-foreground/[0.04] has-data-[state=open]:bg-foreground/[0.04] rounded-control relative flex min-h-8 shrink-0 items-center transition-colors">
       {isRenaming ? (
         <ThreadListItemRename
           onDone={(restoreFocus) => {
@@ -46,14 +46,16 @@ function ThreadListItem(): ReactNode {
         <ThreadListItemPrimitive.Trigger
           ref={triggerRef}
           onClick={onNavigate}
-          className="text-muted-foreground group-data-active:text-foreground hover:text-foreground flex h-full min-w-0 flex-1 items-center px-2 text-left text-[13px] transition-colors outline-none group-hover:pe-8 group-has-focus-visible:pe-8 group-has-data-[state=open]:pe-8 group-data-active:pe-8"
+          className="text-muted-foreground group-data-active:text-foreground hover:text-foreground flex h-8 min-w-0 flex-1 items-center px-2 text-left text-[13px] transition-colors outline-none group-hover:pe-8 group-has-focus-visible:pe-8 group-has-data-[state=open]:pe-8 group-data-active:pe-8"
         >
           <span className="min-w-0 truncate">
             <ThreadListItemPrimitive.Title fallback="New chat" />
           </span>
         </ThreadListItemPrimitive.Trigger>
       )}
-      <ThreadListItemMenu onRename={() => setIsRenaming(true)} />
+      {!isRenaming ? (
+        <ThreadListItemMenu onRename={() => setIsRenaming(true)} />
+      ) : null}
     </ThreadListItemPrimitive.Root>
   );
 }
@@ -67,59 +69,11 @@ function ThreadListItemRename({
 }): ReactNode {
   const aui = useAui();
   const title = useAuiState((s) => s.threadListItem.title) ?? "";
-  const [value, setValue] = useState(title);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const settledRef = useRef(false);
-
-  useEffect(() => {
-    inputRef.current?.select();
-  }, []);
-
-  const commit = (restoreFocus: boolean) => {
-    if (settledRef.current) return;
-    settledRef.current = true;
-
-    const next = value.trim();
-    if (!next || next === title) {
-      onDone(restoreFocus);
-      return;
-    }
-
-    Promise.resolve()
-      .then(() => aui.threadListItem.rename(next))
-      .then(
-        () => onDone(restoreFocus),
-        () => {
-          settledRef.current = false;
-          if (restoreFocus) inputRef.current?.focus();
-        },
-      );
-  };
-
-  const cancel = () => {
-    if (settledRef.current) return;
-    settledRef.current = true;
-    onDone(true);
-  };
-
   return (
-    <Input
-      ref={inputRef}
-      autoFocus
-      aria-label="Rename thread"
-      value={value}
-      className="h-7 min-w-0 flex-1 ps-2 pe-8 text-[13px]"
-      onChange={(event) => setValue(event.target.value)}
-      onBlur={() => commit(false)}
-      onKeyDown={(event) => {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          commit(true);
-        } else if (event.key === "Escape") {
-          event.preventDefault();
-          cancel();
-        }
-      }}
+    <ThreadRenameInput
+      title={title}
+      onRename={(next) => aui.threadListItem.rename(next)}
+      onDone={onDone}
     />
   );
 }

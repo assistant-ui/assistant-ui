@@ -15,6 +15,27 @@ import { useAui } from "@assistant-ui/store";
 import { useComposedRefs } from "radix-ui/internal";
 import { tool } from "@assistant-ui/core";
 
+const DEFAULT_ACTION_SETTLE_DELAY_MS = 2000;
+const MAX_ACTION_SETTLE_DELAY_MS = 2_147_483_647;
+
+const waitForSettle = async (settleDelayMs: number) => {
+  const delay =
+    Number.isFinite(settleDelayMs) &&
+    settleDelayMs >= 0 &&
+    settleDelayMs <= MAX_ACTION_SETTLE_DELAY_MS
+      ? settleDelayMs
+      : DEFAULT_ACTION_SETTLE_DELAY_MS;
+  if (delay === 0) return;
+  await new Promise<void>((resolve) => setTimeout(resolve, delay));
+};
+
+const readActionSettleDelay = (element: HTMLElement) => {
+  const value = element.dataset.actionSettleDelay;
+  return value === undefined || value.trim() === ""
+    ? DEFAULT_ACTION_SETTLE_DELAY_MS
+    : Number(value);
+};
+
 const click = tool({
   parameters: {
     type: "object",
@@ -30,9 +51,7 @@ const click = tool({
     const el = document.querySelector(`[data-click-id='${escapedClickId}']`);
     if (el instanceof HTMLElement) {
       el.click();
-
-      // todo make adjustable
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await waitForSettle(readActionSettleDelay(el));
       return {};
     } else {
       return "Element not found";
@@ -77,9 +96,7 @@ const edit = tool({
       setNativeValue(el, value);
       el.dispatchEvent(new Event("input", { bubbles: true }));
       el.dispatchEvent(new Event("change", { bubbles: true }));
-
-      // todo make adjustable
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      await waitForSettle(readActionSettleDelay(el));
       return {};
     } else {
       return "Element not found";
@@ -91,8 +108,23 @@ const ReadableContext = createContext<boolean>(false);
 
 export const makeAssistantVisible = <T extends ComponentType<any>>(
   Component: T,
-  config?: { clickable?: boolean | undefined; editable?: boolean | undefined },
+  config?: {
+    clickable?: boolean | undefined;
+    editable?: boolean | undefined;
+    settleDelayMs?: number | undefined;
+  },
 ) => {
+  const settleDelayMs = config?.settleDelayMs ?? DEFAULT_ACTION_SETTLE_DELAY_MS;
+  if (
+    !Number.isFinite(settleDelayMs) ||
+    settleDelayMs < 0 ||
+    settleDelayMs > MAX_ACTION_SETTLE_DELAY_MS
+  ) {
+    throw new RangeError(
+      `settleDelayMs must be between 0 and ${MAX_ACTION_SETTLE_DELAY_MS}`,
+    );
+  }
+
   const ReadableComponent = forwardRef(
     (props: PropsWithoutRef<T>, outerRef: ForwardedRef<any>) => {
       const isNestedReadable = useContext(ReadableContext);
@@ -127,6 +159,10 @@ export const makeAssistantVisible = <T extends ComponentType<any>>(
             {...(props as any)}
             {...(config?.clickable ? { "data-click-id": clickId } : {})}
             {...(config?.editable ? { "data-edit-id": clickId } : {})}
+            {...(config?.settleDelayMs !== undefined &&
+            (config.clickable || config.editable)
+              ? { "data-action-settle-delay": settleDelayMs }
+              : {})}
             ref={ref}
           />
         </ReadableContext.Provider>

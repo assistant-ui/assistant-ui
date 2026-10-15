@@ -12,6 +12,24 @@ export interface SafeContentFrameOptions {
   enableBrowserCaching?: boolean;
   sandbox?: SandboxOption[];
   salt?: string;
+  /**
+   * Serves the shim from `https://<hash>-h184756.<domain>/<product>/shim.html`
+   * instead of `scf.auiusercontent.com`. Frames are isolated from your app and
+   * from each other only when `<domain>` is a public suffix on the Public
+   * Suffix List; otherwise every frame shares a site, and with it cookies and
+   * a browser process, with the others and with any app under the same
+   * registrable domain.
+   */
+  unsafeShimDomain?: string;
+}
+
+export interface SafeContentFrameRenderOptions {
+  /** Cancels the render while its iframe is still loading. */
+  signal?: AbortSignal;
+}
+
+export interface SafeContentFrameHtmlRenderOptions extends SafeContentFrameRenderOptions {
+  unsafeDocumentWrite?: boolean;
 }
 
 /**
@@ -65,8 +83,13 @@ export function isShimLoadError(error: unknown): error is ShimLoadError {
   );
 }
 
-const SCF_HOST = "scf.auiusercontent.com";
+const DEFAULT_SHIM_DOMAIN = "scf.auiusercontent.com";
 const PRODUCT_HASH = "h184756";
+const SHIM_DOMAIN =
+  /^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+/** DNS caps a hostname at 253 characters, and the shim label takes the rest. */
+const MAX_SHIM_DOMAIN_LENGTH =
+  253 - `${"0".repeat(50)}-${PRODUCT_HASH}.`.length;
 
 async function sha256(data: ArrayBuffer): Promise<ArrayBuffer> {
   return crypto.subtle.digest("SHA-256", data);
@@ -128,6 +151,15 @@ export class SafeContentFrame {
   private options: SafeContentFrameOptions;
 
   constructor(product: string, options: SafeContentFrameOptions = {}) {
+    if (
+      options.unsafeShimDomain !== undefined &&
+      (!SHIM_DOMAIN.test(options.unsafeShimDomain) ||
+        options.unsafeShimDomain.length > MAX_SHIM_DOMAIN_LENGTH)
+    ) {
+      throw new TypeError(
+        `unsafeShimDomain must be a bare hostname such as "usercontent.example", got ${JSON.stringify(options.unsafeShimDomain)}`,
+      );
+    }
     this.product = product;
     this.options = options;
   }
@@ -135,7 +167,7 @@ export class SafeContentFrame {
   async renderHtml(
     html: string,
     container: HTMLElement,
-    opts?: { unsafeDocumentWrite?: boolean },
+    opts?: SafeContentFrameHtmlRenderOptions,
   ): Promise<RenderedFrame> {
     return this.render(
       new TextEncoder().encode(html),
@@ -149,25 +181,29 @@ export class SafeContentFrame {
     content: Uint8Array | string,
     mimeType: string,
     container: HTMLElement,
+    opts?: SafeContentFrameRenderOptions,
   ): Promise<RenderedFrame> {
     const data =
       typeof content === "string" ? new TextEncoder().encode(content) : content;
-    return this.render(data, mimeType, container);
+    return this.render(data, mimeType, container, opts);
   }
 
   async renderPdf(
     content: Uint8Array,
     container: HTMLElement,
+    opts?: SafeContentFrameRenderOptions,
   ): Promise<RenderedFrame> {
-    return this.render(content, "application/pdf", container);
+    return this.render(content, "application/pdf", container, opts);
   }
 
   private async render(
     content: Uint8Array,
     mimeType: string,
     container: HTMLElement,
-    opts?: { unsafeDocumentWrite?: boolean },
+    opts?: SafeContentFrameHtmlRenderOptions,
   ): Promise<RenderedFrame> {
+    const signal = opts?.signal;
+    signal?.throwIfAborted();
     const origin = window.location.origin;
     const salt = this.options.salt
       ? (new TextEncoder().encode(this.options.salt).buffer as ArrayBuffer)
@@ -175,8 +211,10 @@ export class SafeContentFrame {
         ? await contentSalt(content, location.pathname)
         : randomSalt();
 
+    signal?.throwIfAborted();
     const hash = await computeOriginHash(this.product, salt, origin);
-    const shimUrl = `https://${hash}-${PRODUCT_HASH}.${SCF_HOST}/${this.product}/shim.html?origin=${encodeURIComponent(origin)}${this.options.enableBrowserCaching ? "&cache=1" : ""}`;
+    signal?.throwIfAborted();
+    const shimUrl = `https://${hash}-${PRODUCT_HASH}.${this.options.unsafeShimDomain ?? DEFAULT_SHIM_DOMAIN}/${this.product}/shim.html?origin=${encodeURIComponent(origin)}${this.options.enableBrowserCaching ? "&cache=1" : ""}`;
     const iframeOrigin = new URL(shimUrl).origin;
 
     const iframe = document.createElement("iframe");
@@ -213,14 +251,15 @@ export class SafeContentFrame {
 
         if (event.data?.type === "ready") shimReady = true;
         else if (event.data?.type === "error") {
-          onLoadError(shimLoadError("shim-error", event.data.message));
+          failPendingLoad(shimLoadError("shim-error", event.data.message));
         }
       };
       window.addEventListener("message", onWindowMessage);
 
-      const cleanup = () => {
+      function cleanup() {
         if (cleanedUp) return;
         cleanedUp = true;
+        signal?.removeEventListener("abort", onAbort);
         iframe.onload = null;
         iframe.onerror = null;
         window.removeEventListener("message", onWindowMessage);
@@ -228,7 +267,21 @@ export class SafeContentFrame {
         channel.port1.close();
         if (!channelTransferred) channel.port2.close();
         mountElement.remove();
-      };
+      }
+
+      function onAbort() {
+        if (!signal) return;
+        cleanup();
+        reject(signal.reason);
+      }
+      signal?.addEventListener("abort", onAbort, { once: true });
+
+      function failPendingLoad(error: Error) {
+        onLoadError(error);
+        if (channelTransferred) return;
+        cleanup();
+        reject(error);
+      }
 
       channel.port1.onmessage = (e) => {
         if (e.data?.type === "msg") onLoaded();
@@ -259,6 +312,7 @@ export class SafeContentFrame {
             [channel.port2],
           );
           channelTransferred = true;
+          signal?.removeEventListener("abort", onAbort);
         } catch (error) {
           cleanup();
           reject(error);

@@ -10,7 +10,7 @@ import {
 } from "@assistant-ui/react";
 import {
   MarkdownTextPrimitive,
-  unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
+  memoizeMarkdownComponents,
 } from "@assistant-ui/react-markdown";
 import { createRenderCounter } from "../src/render-counter";
 

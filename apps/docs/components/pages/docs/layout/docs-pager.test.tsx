@@ -2,7 +2,7 @@
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { PlatformScope, type Platform } from "../platform/context";
+import { PLATFORMS, PlatformScope, type Platform } from "../platform/context";
 import { DocsPager } from "./docs-pager";
 
 describe("DocsPager", () => {
@@ -10,7 +10,7 @@ describe("DocsPager", () => {
     vi.unstubAllGlobals();
   });
 
-  it.each<Platform>(["react", "rn", "ink", "tap", "cloud"])(
+  it.each<Platform>([...PLATFORMS])(
     "uses the %s Markdown URL for both viewing and asking Claude",
     async (platform) => {
       const markdownUrl = "/docs/example.md";

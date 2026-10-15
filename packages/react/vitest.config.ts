@@ -4,6 +4,18 @@ import { aui } from "@assistant-ui/vite";
 export default defineConfig({
   plugins: [aui()],
   test: {
+    coverage: {
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["src/tests/**", "src/unstable/webmcp/__tests__/**"],
+      thresholds: {
+        lines: 85,
+        functions: 76,
+        branches: 74,
+        statements: 82,
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
+      },
+    },
     environment: "node",
     pool: "threads",
     fsModuleCache: true,

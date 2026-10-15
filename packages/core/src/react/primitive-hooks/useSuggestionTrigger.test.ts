@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => {
   const state = {
     thread: {
       isDisabled: false,
+      isSendDisabled: false,
       isRunning: false,
       capabilities: { queue: false },
       voice: undefined as { canSendText: boolean } | undefined,
@@ -49,6 +50,7 @@ import { useSuggestionTrigger } from "./useSuggestionTrigger";
 afterEach(() => {
   cleanup();
   mocks.state.thread.isDisabled = false;
+  mocks.state.thread.isSendDisabled = false;
   mocks.state.thread.isRunning = false;
   mocks.state.thread.capabilities = { queue: false };
   mocks.state.thread.voice = undefined;
@@ -103,6 +105,18 @@ describe("useSuggestionTrigger", () => {
     expect(mocks.setText).not.toHaveBeenCalled();
   });
 
+  it("rechecks the current send policy before appending", () => {
+    const { result } = renderHook(() =>
+      useSuggestionTrigger({ prompt: "Hello", send: true }),
+    );
+    mocks.state.thread.isSendDisabled = true;
+
+    result.current.trigger();
+
+    expect(mocks.append).not.toHaveBeenCalled();
+    expect(mocks.setText).not.toHaveBeenCalled();
+  });
+
   it("sends into a voice session that takes typed text while a spoken reply is running", () => {
     mocks.state.thread.isRunning = true;
     mocks.state.thread.voice = { canSendText: true };
@@ -136,6 +150,7 @@ describe("useSuggestionTrigger", () => {
 
   it("replaces the composer text when send is false, even while running", () => {
     mocks.state.thread.isRunning = true;
+    mocks.state.thread.isSendDisabled = true;
     mocks.composerState.text = "my draft";
     const { result } = renderHook(() =>
       useSuggestionTrigger({ prompt: "Hello" }),

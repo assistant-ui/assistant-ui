@@ -1,4 +1,10 @@
-import { act, cleanup, fireEvent, render } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { ConversationMapAui } from "./conversation-map.aui";
@@ -106,6 +112,86 @@ afterEach(() => {
 });
 
 describe("ConversationMapAui", () => {
+  it("updates the preview when a message is replaced with the same id", async () => {
+    mocks.state.thread.messages = [user("u1", "Question\nOld preview")];
+    const { rerender } = render(<ConversationMapAui />);
+
+    mocks.state.thread.messages = [user("u1", "Question\nNew preview")];
+    rerender(<ConversationMapAui />);
+    fireEvent.focus(ticks()[0]!);
+
+    expect(await screen.findByText("New preview")).toBeTruthy();
+    expect(screen.queryByText("Old preview")).toBeNull();
+  });
+
+  it("rebuilds the affected boundary when messages are appended or removed", async () => {
+    const first = user("u1", "First");
+    mocks.state.thread.messages = [first];
+    const { rerender } = render(<ConversationMapAui />);
+
+    const firstAnswer = assistant("a1", "First answer");
+    const second = user("u2", "Second");
+    mocks.state.thread.messages = [first, firstAnswer, second];
+    rerender(<ConversationMapAui />);
+    fireEvent.focus(ticks()[0]!);
+
+    expect(await screen.findByText("First answer")).toBeTruthy();
+    expect(labels()).toEqual(["First", "Second"]);
+
+    mocks.state.thread.messages = [
+      first,
+      firstAnswer,
+      assistant("a2", "Continued answer"),
+    ];
+    rerender(<ConversationMapAui />);
+
+    expect(labels()).toEqual(["First"]);
+
+    mocks.state.thread.messages = [first, firstAnswer];
+    rerender(<ConversationMapAui />);
+
+    expect(labels()).toEqual(["First"]);
+  });
+
+  it("does not reproject completed turns during a streaming update", () => {
+    let reads = 0;
+    const counted = (
+      id: string,
+      role: "user" | "assistant",
+      value: string,
+    ) => ({
+      get id() {
+        reads++;
+        return id;
+      },
+      get role() {
+        reads++;
+        return role;
+      },
+      get content() {
+        reads++;
+        return [{ type: "text", text: value }];
+      },
+    });
+    const prefix = Array.from({ length: 100 }, (_, index) => [
+      counted(`u${index}`, "user", `Question ${index}`),
+      counted(`a${index}`, "assistant", `Answer ${index}`),
+    ]).flat();
+    const tail = user("tail", "Tail question");
+    mocks.state.thread.messages = [...prefix, tail, assistant("stream", "Old")];
+    const { rerender } = render(<ConversationMapAui />);
+
+    reads = 0;
+    mocks.state.thread.messages = [...prefix, tail, assistant("stream", "New")];
+    rerender(<ConversationMapAui />);
+
+    expect(reads).toBe(0);
+    expect(labels()).toEqual([
+      ...Array.from({ length: 100 }, (_, index) => `Question ${index}`),
+      "Tail question",
+    ]);
+  });
+
   it("puts one tick on each turn rather than each message", async () => {
     mocks.state.thread.messages = [
       user("u1", "Can you check the extension build?"),

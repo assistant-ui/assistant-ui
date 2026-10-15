@@ -1,3 +1,4 @@
+/** @vitest-environment jsdom */
 /**
  * A/B concurrency tests for render-phase updates (setState during render)
  * in renders React discards and replays.

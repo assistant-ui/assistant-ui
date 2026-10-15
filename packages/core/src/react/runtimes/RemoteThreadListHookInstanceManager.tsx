@@ -2,7 +2,6 @@ import {
   type FC,
   type RefObject,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   memo,
@@ -12,6 +11,7 @@ import {
 } from "react";
 import { useResources, useTapHost, withKey } from "@assistant-ui/tap";
 import type { AssistantClient } from "@assistant-ui/store";
+import { useIsomorphicLayoutEffect } from "@assistant-ui/store/internal";
 import { ThreadListItemRuntimeProvider } from "../providers/ThreadListItemRuntimeProvider";
 import type {
   ThreadRuntimeCore,
@@ -80,7 +80,7 @@ type HostSnapshot = {
 const ProviderRenderDetector: FC<{
   detectorRef: RefObject<boolean>;
 }> = ({ detectorRef }) => {
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     detectorRef.current = true;
   }, [detectorRef]);
   return null;
@@ -149,14 +149,9 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     return this._whenRuntimeAttached(threadId);
   }
 
-  public __internal_restartThreadRuntime(threadId: string) {
-    const instance = this.instances.get(threadId);
-    if (!instance) return this.startThreadRuntime(threadId);
-
-    // Detach before superseding and aborting, as stopThreadRuntime does: both
-    // tear the outgoing runtime down synchronously, and its terminal events
-    // would otherwise reach the subscription the next generation is about to
-    // reuse.
+  private _retireThreadRuntime(instance: RemoteThreadListHookInstance) {
+    // Detach before superseding and aborting: teardown can synchronously emit
+    // terminal events that must not reach subscribers for the next generation.
     try {
       instance.unsubscribeRunning?.();
     } finally {
@@ -165,6 +160,16 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
       instance.destroy.abort();
       instance.destroy = new AbortController();
       instance.generation = this.nextGeneration++;
+    }
+  }
+
+  public __internal_restartThreadRuntime(threadId: string) {
+    const instance = this.instances.get(threadId);
+    if (!instance) return this.startThreadRuntime(threadId);
+
+    try {
+      this._retireThreadRuntime(instance);
+    } finally {
       this._syncHostThreads();
       this._notifySubscribers();
     }
@@ -176,6 +181,10 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     const instance = this.instances.get(threadId);
     if (!instance) return undefined;
     return instance.runtime;
+  }
+
+  public __internal_hasThreadRuntime(threadId: string) {
+    return this.instances.has(threadId);
   }
 
   public __internal_isThreadRunning(threadId: string) {
@@ -317,8 +326,17 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   public setRuntimeHook(newRuntimeHook: RemoteThreadListHook) {
     if (this.runtimeHook === newRuntimeHook) return;
     this.runtimeHook = newRuntimeHook;
-    const host = this.hostStore.getState();
-    this.hostStore.setState({ ...host, hookEpoch: host.hookEpoch + 1 });
+    const nextHookEpoch = this.hostStore.getState().hookEpoch + 1;
+    try {
+      runCleanups(
+        Array.from(
+          this.instances.values(),
+          (instance) => () => this._retireThreadRuntime(instance),
+        ),
+      );
+    } finally {
+      this._syncHostThreads(nextHookEpoch);
+    }
   }
 
   public __internal_setDefaultAdapters(adapters: RuntimeAdapters | null) {
@@ -351,10 +369,11 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     }
   }
 
-  private _syncHostThreads() {
+  private _syncHostThreads(hookEpoch?: number) {
     const host = this.hostStore.getState();
     this.hostStore.setState({
       ...host,
+      hookEpoch: hookEpoch ?? host.hookEpoch,
       threads: Array.from(this.instances.entries()).map(
         ([id, { generation, destroy }]) => ({
           id,
@@ -425,7 +444,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     });
     // Descendant layout effects may already dispatch to the thread resources,
     // and tap commits a hosted resource only when its host effects run.
-    useLayoutEffect(effects);
+    useIsomorphicLayoutEffect(effects);
     return null;
   };
 
@@ -470,7 +489,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   }> = ({ threadId, detectorRef }) => {
     const adapters = useRuntimeAdapters();
     this.pendingThreadAdapters.set(threadId, adapters);
-    useLayoutEffect(() => {
+    useIsomorphicLayoutEffect(() => {
       this.__internal_setThreadAdapters(threadId, adapters);
       return () => {
         if (this.pendingThreadAdapters.get(threadId) === adapters) {

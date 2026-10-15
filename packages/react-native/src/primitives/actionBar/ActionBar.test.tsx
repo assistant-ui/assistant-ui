@@ -1,5 +1,6 @@
 import { act, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { Text } from "react-native";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ActionBarCopy } from "./ActionBarCopy";
 import { ActionBarEdit } from "./ActionBarEdit";
@@ -221,6 +222,50 @@ describe("ActionBar", () => {
     });
     return container.querySelector('[data-testid="t"]') as HTMLElement;
   };
+
+  const assertRenderState = async <TState extends object>(
+    render: (children: (state: TState) => ReactNode) => ReactNode,
+    expectedState: TState,
+  ) => {
+    let renderState: unknown;
+    await mount(
+      render((state) => {
+        renderState = state;
+        return <Text>label</Text>;
+      }),
+    );
+
+    expect(renderState).toMatchObject(expectedState);
+  };
+
+  it("ActionBarCopy passes Pressable state alongside isCopied", async () => {
+    await assertRenderState(
+      (children) => <ActionBarCopy testID="t">{children}</ActionBarCopy>,
+      { pressed: false, disabled: false, isCopied: false },
+    );
+  });
+
+  it("ActionBarFeedbackPositive passes Pressable state alongside isSubmitted", async () => {
+    await assertRenderState(
+      (children) => (
+        <ActionBarFeedbackPositive testID="t">
+          {children}
+        </ActionBarFeedbackPositive>
+      ),
+      { pressed: false, disabled: false, isSubmitted: false },
+    );
+  });
+
+  it("ActionBarFeedbackNegative passes Pressable state alongside isSubmitted", async () => {
+    await assertRenderState(
+      (children) => (
+        <ActionBarFeedbackNegative testID="t">
+          {children}
+        </ActionBarFeedbackNegative>
+      ),
+      { pressed: false, disabled: false, isSubmitted: false },
+    );
+  });
 
   for (const actionBar of actionBars) {
     describe(actionBar.name, () => {

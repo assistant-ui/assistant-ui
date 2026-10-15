@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { groupUIMessagesByParent } from "./useStreamRuntime";
+import { groupUIMessagesByParent } from "./converter";
 import type { UIMessage } from "./types";
 
 const uiMessage = (

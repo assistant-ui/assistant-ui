@@ -54,38 +54,20 @@ export {
   type McpToolkitDefinition,
   type McpToolkitToolConfig,
 } from "./model-context/define-mcp-toolkit";
-/**
- * @deprecated Since 2026-06-14 — migrate to the Unstable / Experimental API.
- * Scheduled for removal on/after 2026-09-14. See
- * {@link https://www.assistant-ui.com/docs/tools/interactables#migrating-from-the-previous-api | Interactables migration guide}.
- */
 export {
   useAssistantInteractable,
   type AssistantInteractableProps,
 } from "./interactables-legacy/useAssistantInteractable";
-/**
- * @deprecated Since 2026-06-14 — migrate to the Unstable / Experimental API.
- * Scheduled for removal on/after 2026-09-14. See
- * {@link https://www.assistant-ui.com/docs/tools/interactables#migrating-from-the-previous-api | Interactables migration guide}.
- */
 export { useInteractableState } from "./interactables-legacy/useInteractableState";
 export {
-  /** @deprecated Unstable / Experimental — may change in any release. */
   unstable_useInteractable,
   type Unstable_InteractableConfig,
   type Unstable_InferInteractableState,
   type Unstable_InteractableVersionInfo,
 } from "./model-context/useInteractable";
+export { unstable_useInteractableState } from "./model-context/useInteractableState";
+export { unstable_useInteractableVersions } from "./model-context/useInteractableVersions";
 export {
-  /** @deprecated Unstable / Experimental — may change in any release. */
-  unstable_useInteractableState,
-} from "./model-context/useInteractableState";
-export {
-  /** @deprecated Unstable / Experimental — may change in any release. */
-  unstable_useInteractableVersions,
-} from "./model-context/useInteractableVersions";
-export {
-  /** @deprecated Unstable / Experimental — may change in any release. */
   unstable_interactableTool,
   type Unstable_InteractableToolConfig,
   type Unstable_InteractableToolRenderProps,
@@ -98,16 +80,8 @@ export {
 // client
 export { Tools, type McpAppResourceOutput } from "./client/Tools";
 export { DataRenderers } from "./client/DataRenderers";
-/**
- * @deprecated Since 2026-06-14 — migrate to the Unstable / Experimental API.
- * Scheduled for removal on/after 2026-09-14. See
- * {@link https://www.assistant-ui.com/docs/tools/interactables#migrating-from-the-previous-api | Interactables migration guide}.
- */
 export { Interactables } from "./interactables-legacy/Interactables";
-export {
-  /** @deprecated Unstable / Experimental — may change in any release. */
-  unstable_Interactables,
-} from "./client/Interactables";
+export { unstable_Interactables } from "./client/Interactables";
 
 // types
 export type {

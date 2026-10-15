@@ -41,11 +41,14 @@ const aiToolkit = new AISDKToolkit({ toolkit });
 export async function POST(req: Request) {
   const { messages, system, tools } = await req.json();
 
+  const aiSDKTools = await aiToolkit.tools({ frontend: tools });
+
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
     system,
-    messages: await convertToModelMessages(messages),
-    tools: await aiToolkit.tools({ frontend: tools }),
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse();
@@ -53,6 +56,10 @@ export async function POST(req: Request) {
 ```
 
 `AISDKToolkit.tools()` registers every toolkit tool with the model using its schema, wires the backend `execute` where the server build carries one, and merges in the uploaded frontend tools. A server `execute` wins over an uploaded entry of the same name. Frontend and human tools (no server `execute`) are exposed schema-only and left for the client and the user to fulfill.
+
+Parameter schema conversion is cached by schema object identity. Treat schema
+definitions as immutable; replace the `parameters` object when changing a
+tool's schema.
 
 <Callout type="info">
   If your toolkit spreads in MCP server tools (`defineMcpToolkit`), `.tools()`
@@ -78,17 +85,20 @@ import { z } from "zod";
 export async function POST(req: Request) {
   const { messages, tools } = await req.json();
 
+  const aiSDKTools = {
+    ...frontendTools(tools ?? {}),
+    query_database: tool({
+      description: "Query the application database.",
+      inputSchema: zodSchema(z.object({ query: z.string() })),
+      execute: async ({ query }) => db.query(query),
+    }),
+  };
+
   const result = streamText({
+    abortSignal: req.signal,
     model: openai("gpt-6-luna"),
-    messages: await convertToModelMessages(messages),
-    tools: {
-      ...frontendTools(tools ?? {}),
-      query_database: tool({
-        description: "Query the application database.",
-        inputSchema: zodSchema(z.object({ query: z.string() })),
-        execute: async ({ query }) => db.query(query),
-      }),
-    },
+    messages: await convertToModelMessages(messages, { tools: aiSDKTools }),
+    tools: aiSDKTools,
   });
 
   return result.toUIMessageStreamResponse();
@@ -96,7 +106,9 @@ export async function POST(req: Request) {
 ```
 
 `AISDKToolkit.tools()` calls `frontendTools` for you; use
-`frontendTools` directly when you're not on the generative build.
+`frontendTools` directly when you're not on the generative build. A backend
+that only converts tool schemas can import it from `assistant-stream/ai-sdk`
+instead, which needs just `assistant-stream` and `ai` installed.
 
 <Callout type="tip">
   `toToolsJSONSchema` emits the uploaded tools in alphabetical order, so two
@@ -112,6 +124,7 @@ When a tool declares [`toModelOutput`](/docs/tools/defining-tools#multi-modal-to
 const aiSDKTools = { ...frontendTools(tools ?? {}) };
 
 const result = streamText({
+  abortSignal: req.signal,
   model,
   // Pass tools to BOTH calls so prior results are projected via toModelOutput.
   messages: await convertToModelMessages(messages, { tools: aiSDKTools }),

@@ -7,7 +7,10 @@ import {
   type ChainOfThoughtPart,
   type PartState,
 } from "@assistant-ui/core/store";
-import type { ExternalStoreAdapter } from "@assistant-ui/core";
+import type {
+  ExternalStoreAdapter,
+  ThreadMessageLike,
+} from "@assistant-ui/core";
 import {
   AssistantRuntimeImpl,
   ExternalStoreRuntimeCore,
@@ -18,15 +21,21 @@ import { useAuiState } from "../useAuiState";
 import { ThreadPrimitiveMessages } from "./ThreadPrimitiveMessages";
 import { ChainOfThoughtPrimitiveParts } from "./ChainOfThoughtPrimitiveParts";
 
-type DemoMessage = { id: string; texts: readonly string[] };
+type DemoMessage = {
+  id: string;
+  texts: readonly string[];
+  parts?: ThreadMessageLike["content"];
+};
 
 const convertDemoMessage = (message: DemoMessage) => ({
   id: message.id,
   role: "assistant" as const,
-  content: message.texts.map((text) => ({
-    type: "reasoning" as const,
-    text,
-  })),
+  content:
+    message.parts ??
+    message.texts.map((text) => ({
+      type: "reasoning" as const,
+      text,
+    })),
 });
 
 const createReasoningRuntime = (initial: readonly string[]) => {
@@ -43,7 +52,11 @@ const createReasoningRuntime = (initial: readonly string[]) => {
     messages = [{ id: "a0", texts }];
     core.setAdapter(makeAdapter());
   };
-  return { runtime, setTexts };
+  const setParts = (parts: ThreadMessageLike["content"]) => {
+    messages = [{ id: "a0", texts: [], parts }];
+    core.setAdapter(makeAdapter());
+  };
+  return { runtime, setTexts, setParts };
 };
 
 const CollapsedProbe = defineComponent({
@@ -89,8 +102,16 @@ const ChainOfThoughtHost = defineComponent({
   },
 });
 
-const mountParts = (initial: readonly string[]) => {
-  const { runtime, setTexts } = createReasoningRuntime(initial);
+const mountParts = (
+  initial: readonly string[],
+  renderPart: (part: PartState) => ReturnType<typeof h> = (part) =>
+    h(
+      "li",
+      { class: "part" },
+      part.type === "reasoning" ? part.text : part.type,
+    ),
+) => {
+  const { runtime, setTexts, setParts } = createReasoningRuntime(initial);
   const app = createApp(
     defineComponent({
       setup: () => () =>
@@ -106,11 +127,7 @@ const mountParts = (initial: readonly string[]) => {
                       default: () => [
                         h(ChainOfThoughtPrimitiveParts, null, {
                           default: ({ part }: { part: PartState }) => [
-                            h(
-                              "li",
-                              { class: "part" },
-                              part.type === "reasoning" ? part.text : part.type,
-                            ),
+                            renderPart(part),
                           ],
                         }),
                         h(CollapsedProbe),
@@ -125,7 +142,7 @@ const mountParts = (initial: readonly string[]) => {
   );
   const el = document.createElement("div");
   app.mount(el);
-  return { el, setTexts, unmount: () => app.unmount() };
+  return { el, setTexts, setParts, unmount: () => app.unmount() };
 };
 
 const partTexts = (el: HTMLElement) =>
@@ -136,6 +153,42 @@ afterEach(() => {
 });
 
 describe("ChainOfThoughtPrimitiveParts", () => {
+  it("keeps tool-call slot state with its part when chain parts swap", async () => {
+    const mounts = vi.fn();
+    const Tool = defineComponent({
+      setup() {
+        mounts();
+        const initialName = useAuiState((s) =>
+          s.part.type === "tool-call" ? s.part.toolName : "",
+        ).value;
+        return () => h("li", { class: "part" }, initialName);
+      },
+    });
+    const { el, setParts, unmount } = mountParts([], () => h(Tool));
+    const first = {
+      type: "tool-call" as const,
+      toolCallId: "call-a",
+      toolName: "alpha",
+      args: {},
+    };
+    const second = { ...first, toolCallId: "call-b", toolName: "beta" };
+
+    setParts([first, second]);
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(partTexts(el)).toEqual(["alpha", "beta"]);
+    });
+    expect(mounts).toHaveBeenCalledTimes(2);
+
+    setParts([second, first]);
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(partTexts(el)).toEqual(["beta", "alpha"]);
+    });
+    expect(mounts).toHaveBeenCalledTimes(2);
+    unmount();
+  });
+
   it("renders one slot invocation per part with its state", async () => {
     const { el, unmount } = mountParts(["alpha", "beta"]);
 

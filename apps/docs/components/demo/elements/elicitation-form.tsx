@@ -7,7 +7,7 @@ import {
   type ElicitationState,
 } from "@/components/assistant-ui/elements/elicitation-form";
 
-const FIELDS: readonly ElicitationField[] = [
+const INITIAL_FIELDS: readonly ElicitationField[] = [
   {
     name: "repo",
     label: "Repository",
@@ -27,6 +27,7 @@ const FIELDS: readonly ElicitationField[] = [
 
 export function ElicitationFormDemo() {
   const [state, setState] = useState<ElicitationState>("request");
+  const [fields, setFields] = useState(INITIAL_FIELDS);
 
   useEffect(() => {
     if (state === "request") return;
@@ -38,8 +39,15 @@ export function ElicitationFormDemo() {
     <ElicitationForm
       server="github-mcp"
       message="Confirm where the release notes should be published before the tool runs."
-      fields={FIELDS}
+      fields={fields}
       state={state}
+      onFieldChange={(name, value) =>
+        setFields((current) =>
+          current.map((item) =>
+            item.name === name ? { ...item, value } : item,
+          ),
+        )
+      }
       onAccept={() => setState("accepted")}
       onDecline={() => setState("declined")}
     />

@@ -2,12 +2,15 @@
 
 import { useSyncExternalStore } from "react";
 import { CHECKOUT_BASE_URL, checkoutEnabled } from "@/lib/checkout/config";
+import { isAgentToolCartEntry, type CartEntry } from "./cart-entries";
 
 export type CheckoutSession = {
   id: string;
   products: readonly string[];
   startedAt: number;
   instructions?: string;
+  cartEntries?: readonly CartEntry[];
+  cartInstructions?: string;
   /** The products came out of the cart and return to it when the setup is abandoned. */
   fromCart?: boolean;
   /** The user read how a setup works and chose to continue. */
@@ -37,8 +40,16 @@ const createId = () => {
 
 const normalize = (value: unknown): CheckoutSession | null => {
   if (typeof value !== "object" || value === null) return null;
-  const { id, products, startedAt, instructions, fromCart, introSeen } =
-    value as Record<string, unknown>;
+  const {
+    id,
+    products,
+    startedAt,
+    instructions,
+    fromCart,
+    introSeen,
+    cartEntries,
+    cartInstructions,
+  } = value as Record<string, unknown>;
   if (typeof id !== "string" || !Array.isArray(products)) return null;
   const slugs = products.filter(
     (entry): entry is string => typeof entry === "string",
@@ -52,6 +63,13 @@ const normalize = (value: unknown): CheckoutSession | null => {
       instructions.trim() && { instructions: instructions.trim() }),
     ...(fromCart === true && { fromCart }),
     ...(introSeen === true && { introSeen }),
+    ...(Array.isArray(cartEntries) && {
+      cartEntries: cartEntries.filter(
+        (entry): entry is CartEntry =>
+          typeof entry === "string" || isAgentToolCartEntry(entry),
+      ),
+    }),
+    ...(typeof cartInstructions === "string" && { cartInstructions }),
   };
 };
 
@@ -147,7 +165,15 @@ export const agentLinkUrl = () => checkoutUrl(getAgentLinkId());
 export const startCheckout = (
   products: readonly string[],
   instructions = "",
-  { fromCart = false } = {},
+  {
+    fromCart = false,
+    cartEntries,
+    cartInstructions,
+  }: {
+    fromCart?: boolean;
+    cartEntries?: readonly CartEntry[];
+    cartInstructions?: string;
+  } = {},
 ): CheckoutSession | null => {
   if (!checkoutEnabled) return null;
   load();
@@ -160,6 +186,8 @@ export const startCheckout = (
     startedAt: Date.now(),
     ...(instructions.trim() && { instructions: instructions.trim() }),
     ...(fromCart && { fromCart }),
+    ...(cartEntries && { cartEntries }),
+    ...(cartInstructions !== undefined && { cartInstructions }),
   };
   writeStored(session);
   notify();

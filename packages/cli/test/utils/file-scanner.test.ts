@@ -3,8 +3,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import * as os from "node:os";
 import {
+  readProjectFiles,
   scanForImport,
-  getFilesContaining,
 } from "../../src/lib/utils/file-scanner";
 
 describe("file-scanner utilities", () => {
@@ -99,67 +99,17 @@ describe("file-scanner utilities", () => {
     });
   });
 
-  describe("getFilesContaining", () => {
-    it("should return empty array when no files match", () => {
-      const result = getFilesContaining("@assistant-ui/react", {
-        cwd: testDir,
-      });
-      expect(result).toEqual([]);
-    });
+  describe("readProjectFiles", () => {
+    it("should skip entries it cannot read", () => {
+      const file = path.join(testDir, "test1.ts");
+      fs.writeFileSync(file, 'import { Thread } from "@assistant-ui/react";');
+      fs.mkdirSync(path.join(testDir, "unreadable.ts"));
 
-    it("should return list of files containing the search string", () => {
-      const file1 = path.join(testDir, "test1.ts");
-      const file2 = path.join(testDir, "test2.ts");
-      const file3 = path.join(testDir, "test3.ts");
+      const files = [...readProjectFiles("**/*.ts", { cwd: testDir })].map(
+        ({ fullPath }) => fullPath,
+      );
 
-      fs.writeFileSync(file1, 'import { Thread } from "@assistant-ui/react";');
-      fs.writeFileSync(file2, 'import React from "react";');
-      fs.writeFileSync(file3, 'import { useChat } from "@assistant-ui/react";');
-
-      const result = getFilesContaining("@assistant-ui/react", {
-        cwd: testDir,
-      });
-
-      expect(result).toHaveLength(2);
-      expect(result).toContain(file1);
-      expect(result).toContain(file3);
-      expect(result).not.toContain(file2);
-    });
-
-    it("should handle nested directories", () => {
-      const srcPath = path.join(testDir, "src");
-      fs.mkdirSync(srcPath);
-
-      const file1 = path.join(srcPath, "Chat.tsx");
-      const file2 = path.join(testDir, "App.tsx");
-
-      fs.writeFileSync(file1, 'import { Thread } from "@assistant-ui/react";');
-      fs.writeFileSync(file2, 'import { Thread } from "@assistant-ui/react";');
-
-      const result = getFilesContaining("@assistant-ui/react", {
-        cwd: testDir,
-      });
-
-      expect(result).toHaveLength(2);
-      expect(result).toContain(file1);
-      expect(result).toContain(file2);
-    });
-
-    it("should ignore unreadable files gracefully", () => {
-      const file1 = path.join(testDir, "test1.ts");
-      fs.writeFileSync(file1, 'import { Thread } from "@assistant-ui/react";');
-
-      // Create a directory with the same name as a file pattern would match
-      // This tests the error handling
-      const unreadableDir = path.join(testDir, "unreadable.ts");
-      fs.mkdirSync(unreadableDir);
-
-      const result = getFilesContaining("@assistant-ui/react", {
-        cwd: testDir,
-      });
-
-      expect(result).toContain(file1);
-      expect(result).not.toContain(unreadableDir);
+      expect(files).toEqual([file]);
     });
   });
 });

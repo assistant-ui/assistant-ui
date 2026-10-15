@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useAuiState } from "@assistant-ui/store";
 import { useShallowSelector } from "@assistant-ui/store/internal";
 
+/** @deprecated Experimental since 2026-06-13. Not scheduled for removal; the API may change in any release. */
 export type Unstable_MessageStallDetectionOptions = {
   /**
    * Milliseconds of unchanged message content before the message counts as
@@ -13,6 +14,7 @@ export type Unstable_MessageStallDetectionOptions = {
   thresholdMs?: number | undefined;
 };
 
+/** @deprecated Experimental since 2026-06-13. Not scheduled for removal; the API may change in any release. */
 export type Unstable_MessageStallDetection = {
   /** True while the message is running and its content has not changed for at least `thresholdMs`. */
   stalled: boolean;
@@ -21,8 +23,6 @@ export type Unstable_MessageStallDetection = {
 };
 
 /**
- * @deprecated Under active development and might change without notice.
- *
  * Detects mid-run output stalls on the current message: while the message is
  * running, watches its text, reasoning, and tool-argument values plus tool-result
  * availability and reports a stall once they stop changing for `thresholdMs`.
@@ -30,6 +30,8 @@ export type Unstable_MessageStallDetection = {
  * provider stalls, after the first tokens have already streamed.
  *
  * Must be used inside a message scope.
+ *
+ * @deprecated Experimental since 2026-06-13. Not scheduled for removal; the API may change in any release.
  */
 export function unstable_useMessageStallDetection(
   options?: Unstable_MessageStallDetectionOptions,

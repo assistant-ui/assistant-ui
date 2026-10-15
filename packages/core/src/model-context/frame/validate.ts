@@ -35,6 +35,7 @@ export const isFrameMessage = (value: unknown): value is FrameMessage => {
 
   switch (value.type) {
     case "model-context-request":
+    case "provider-disposed":
       return true;
     case "model-context-update":
       return isSerializedModelContext(value.context);

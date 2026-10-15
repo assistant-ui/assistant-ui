@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { announced, at, clamp, indexIn, pct, progressOf, take } from "./range";
 

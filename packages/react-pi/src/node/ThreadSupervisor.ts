@@ -199,14 +199,11 @@ export class PiThreadSupervisor {
     tokens.add(token);
     try {
       const record = await this.ensureOpen(threadId);
-      // A cancel that arrived while the session was still opening leaves no
-      // live record to abort. Reject rather than resolve silently: the caller
-      // has already marked the thread running with an optimistic message, and a
-      // silent success leaves the run spinning forever with no event to settle
-      // it. Rejecting drives the caller's send-rollback (drops the optimistic
-      // message, clears running), and the prompt never launches.
       if (token.cancelled) {
-        throw new Error("Pi run was cancelled before it started");
+        // A cold cancellation has no session event. The flag lets the client
+        // settle without retaining an optimistic message Pi never received.
+        this.emit(record, { type: "agent_end", cancelledBeforeStart: true });
+        return;
       }
       await this.send(record, input);
     } finally {

@@ -1,5 +1,31 @@
 # assistant-ui
 
+## 0.0.123
+
+### Patch Changes
+
+- [#9274](https://github.com/assistant-ui/assistant-ui/pull/9274) [`36691cc`](https://github.com/assistant-ui/assistant-ui/commit/36691cc0f089368d1145acdb5e3a086e5290f83d) - the agent skill the CLI installs now comes from the skills commit that teaches `@assistant-ui/generative-ui` and the `_type`, `_key` and `_action` keys `present` models write ([@okisdev](https://github.com/okisdev))
+
+## 0.0.122
+
+### Patch Changes
+
+- [#9132](https://github.com/assistant-ui/assistant-ui/pull/9132) [`97b053b`](https://github.com/assistant-ui/assistant-ui/commit/97b053b93c025e48c2e2458b83cd7a870cd95592) - fix(cli): write only the assistant-ui server into Cursor, Windsurf and Claude Desktop MCP configs ([@okisdev](https://github.com/okisdev))
+
+- [#8896](https://github.com/assistant-ui/assistant-ui/pull/8896) [`bddc100`](https://github.com/assistant-ui/assistant-ui/commit/bddc1003a0a67440142119672fd93204ed41f1e7) - give the CLI's download, package manager, and file discovery helpers one home each ([@okisdev](https://github.com/okisdev))
+
+- [#7255](https://github.com/assistant-ui/assistant-ui/pull/7255) [`025505a`](https://github.com/assistant-ui/assistant-ui/commit/025505a948664137e47a5e6a753ddb8911c14e53) - fix(cli): accept comments and trailing commas in VS Code and Zed MCP configuration while preserving unrelated settings. ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.0.121
+
+### Patch Changes
+
+- [#8758](https://github.com/assistant-ui/assistant-ui/pull/8758) [`cae68a4`](https://github.com/assistant-ui/assistant-ui/commit/cae68a45bf24b528151d182e657979053910bec5) - the agent skill the CLI installs now comes from the skills commit that routes cloud persistence to the `cloud` option of `useChatRuntime` instead of the removed cloud-ai-sdk hooks ([@okisdev](https://github.com/okisdev))
+
+- [#8754](https://github.com/assistant-ui/assistant-ui/pull/8754) [`880d66a`](https://github.com/assistant-ui/assistant-ui/commit/880d66af8cdb171cd5eee1b1159e35df5b0d9919) - add browser sign-in and cloud setup commands that provision a shared multiplayer chat with hackathon access-code support. ([@Yonom](https://github.com/Yonom))
+
+- [#8759](https://github.com/assistant-ui/assistant-ui/pull/8759) [`a73237b`](https://github.com/assistant-ui/assistant-ui/commit/a73237b277793c9b9e56cd638357fc57005c07e1) - add --setup-url to cloud login and setup so an active setup wizard can show device authorization while the CLI polls Accounts and keeps its credentials locally. ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.120
 
 ### Patch Changes

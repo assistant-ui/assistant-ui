@@ -78,6 +78,7 @@ All messages are wrapped with a channel identifier to avoid conflicts with other
 2. **Tool Execution**
    - `tool-call`: Parent requests tool execution in iframe (where tools are defined)
    - `tool-result`: Iframe returns execution result or error to parent
+   - `provider-disposed`: Iframe tells the parent it was disposed, so the parent rejects tool calls the iframe will not answer
 
 #### Serialization
 

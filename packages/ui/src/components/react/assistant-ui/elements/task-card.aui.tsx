@@ -67,7 +67,7 @@ const NestedMessage: FC = () => {
       data-role={role}
       className="flex flex-col gap-1 text-xs leading-relaxed"
     >
-      <span className={cn(mono, "text-foreground/35")}>
+      <span className={cn(mono, "text-muted-foreground")}>
         {ROLE_LABELS[role]}
       </span>
       <MessagePrimitive.Parts

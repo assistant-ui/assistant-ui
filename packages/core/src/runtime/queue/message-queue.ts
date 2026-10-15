@@ -14,9 +14,10 @@ import type {
 
 export type MessageQueueDriver = {
   /**
-   * A synchronous throw is treated as a run that never started and restores
-   * the message. A driver that already started work must call `notifyBusy`
-   * before throwing.
+   * A throw or rejected promise before `notifyBusy` restores the message and
+   * pauses draining until the next send. Call `notifyBusy` synchronously before
+   * committing the message or starting work that can fail; a later render's
+   * effect is insufficient. Promise fulfillment does not signal idle.
    */
   run: (message: AppendMessage, options: { steer: boolean }) => void;
   /** When omitted, steering degrades to "process next" instead of interrupting. */
@@ -49,6 +50,36 @@ type DispatchItem = {
   id: string;
   item: QueueItemState;
   message: AppendMessage;
+  transform: DispatchTransform | undefined;
+};
+
+type DispatchTransform = (message: AppendMessage) => AppendMessage;
+
+type DispatchTransformControls = {
+  bindNext: () => void;
+  getCurrent: () => DispatchTransform;
+};
+
+const dispatchTransformControls = new WeakMap<
+  NonNullable<ExternalThreadQueueAdapter["__internal_setDispatchTransform"]>,
+  DispatchTransformControls
+>();
+
+export const __internal_bindNextDispatchTransform = (
+  adapter: ExternalThreadQueueAdapter,
+) => {
+  const setDispatchTransform = adapter.__internal_setDispatchTransform;
+  if (setDispatchTransform)
+    dispatchTransformControls.get(setDispatchTransform)?.bindNext();
+};
+
+export const __internal_getDispatchTransform = (
+  adapter: ExternalThreadQueueAdapter,
+) => {
+  const setDispatchTransform = adapter.__internal_setDispatchTransform;
+  return setDispatchTransform
+    ? dispatchTransformControls.get(setDispatchTransform)?.getCurrent()
+    : undefined;
 };
 
 const getQueueItemParts = (
@@ -73,6 +104,17 @@ const getQueueItemParts = (
         mimeType: "image/*",
         ...(part.filename !== undefined && { filename: part.filename }),
       });
+    } else if (part.type === "audio") {
+      const dataUrlMatch = part.audio.data.match(
+        /^data:[^;,]*(?:;[^;,]+)*;base64,(.*)$/i,
+      );
+      parts.push({
+        type: "file",
+        data: dataUrlMatch
+          ? `data:audio/${part.audio.format};base64,${dataUrlMatch[1]}`
+          : part.audio.data,
+        mimeType: `audio/${part.audio.format}`,
+      });
     }
   }
   return parts;
@@ -86,19 +128,60 @@ export const createMessageQueue = (
     steer: EMPTY_QUEUE_ITEMS,
   };
   const messages = new Map<string, AppendMessage>();
+  const dispatchTransforms = new Map<string, DispatchTransform>();
   const subscribers = new Set<() => void>();
 
   let running = false;
   let dispatchPending = false;
   let paused = false;
   let held = false;
-  let dispatchTransform: (message: AppendMessage) => AppendMessage = (m) => m;
-  // swallow the cancelled run's settle when steering so it does not double-advance
-  let suppressIdle = 0;
-  // settles from cancelled runs that must drop `running` without advancing
-  let cancelSettles = 0;
+  let dispatchTransform: DispatchTransform = (message) => message;
+  let nextDispatchTransform: DispatchTransform | undefined;
+  type DispatchToken = {
+    started: boolean;
+    busyEdge: number;
+    suppressedAt?: number;
+  };
+  let suppressIdle: (DispatchToken | undefined)[] = [];
+  let cancelSettles: (DispatchToken | undefined)[] = [];
   let interrupting = false;
   let busyEdges = 0;
+  let generation = 0;
+  let activeDispatch: DispatchToken | undefined;
+
+  const retireFailure = (dispatch: DispatchToken): boolean => {
+    if (!dispatch.started) {
+      if (dispatch.suppressedAt === busyEdges) notifyIdle();
+      suppressIdle = suppressIdle.filter((pending) => pending !== dispatch);
+      const cancelled = cancelSettles.includes(dispatch);
+      cancelSettles = cancelSettles.filter((pending) => pending !== dispatch);
+      if (cancelled && dispatch !== activeDispatch) {
+        if (cancelSettles.length === 0 && suppressIdle.length > 0)
+          cancelSettles.push(suppressIdle.pop());
+        running = cancelSettles.length > 0;
+        advance();
+      }
+    }
+    return dispatch === activeDispatch;
+  };
+
+  const reportFailure = (error: unknown) => {
+    if (!(error instanceof Error && error.name === "AbortError")) {
+      console.error("[MessageQueue] run rejected", error);
+    }
+  };
+
+  const observeRun = (pending: unknown, restoreFailure: () => void) => {
+    if (pending === undefined) return;
+    void Promise.resolve(pending).catch((error: unknown) => {
+      try {
+        restoreFailure();
+      } catch (recoveryError) {
+        reportFailure(recoveryError);
+      }
+      reportFailure(error);
+    });
+  };
 
   const notify = () => {
     notifyEventListeners(subscribers, undefined, "Message queue");
@@ -120,6 +203,8 @@ export const createMessageQueue = (
   const restore = (lane: Lane, dispatch: DispatchItem, index = 0) => {
     paused = true;
     messages.set(dispatch.id, dispatch.message);
+    if (dispatch.transform)
+      dispatchTransforms.set(dispatch.id, dispatch.transform);
     setLanes({
       ...lanes,
       [lane]: [
@@ -143,20 +228,36 @@ export const createMessageQueue = (
     if (!head) return;
     const message = messages.get(head.id);
     if (!message) return;
+    const transform = dispatchTransforms.get(head.id);
+    dispatchTransforms.delete(head.id);
     running = true;
     messages.delete(head.id);
+    const dispatch = { id: head.id, item: head, message, transform };
+    const dispatchId: DispatchToken = { started: false, busyEdge: busyEdges };
+    activeDispatch = dispatchId;
+    const busyEdgesBeforeRun = busyEdges;
+    const dispatchGeneration = generation;
     dispatchPending = true;
     setLanes({ ...lanes, [lane]: lanes[lane].slice(1) });
     dispatchPending = false;
-    const dispatch = { id: head.id, item: head, message };
-    const busyEdgesBeforeRun = busyEdges;
-    try {
-      driver.run(dispatchTransform(message), { steer: false });
-    } catch (error) {
+    const restoreFailure = () => {
+      if (!retireFailure(dispatchId)) return;
       if (busyEdges === busyEdgesBeforeRun) {
         running = false;
-        restore(lane, dispatch);
+        if (generation === dispatchGeneration) restore(lane, dispatch);
+        else advance();
       }
+    };
+    try {
+      observeRun(
+        driver.run(
+          transform ? transform(message) : dispatchTransform(message),
+          { steer: false },
+        ),
+        restoreFailure,
+      );
+    } catch (error) {
+      restoreFailure();
       throw error;
     }
   };
@@ -167,19 +268,22 @@ export const createMessageQueue = (
     restoreIndex = 0,
   ) => {
     paused = false;
-    // the interrupted run settles exactly once, whether or not it was
-    // already cancel-notified
-    suppressIdle += Math.max(cancelSettles, 1);
-    cancelSettles = 0;
+    const dispatchGeneration = generation;
+    suppressIdle.push(
+      ...(cancelSettles.length ? cancelSettles : [activeDispatch]),
+    );
+    cancelSettles = [];
+    const dispatchId: DispatchToken = { started: false, busyEdge: busyEdges };
+    activeDispatch = dispatchId;
     const restoreInterrupted = (replacementStarted = false) => {
-      if (replacementStarted) return;
-      // The live count distinguishes an outstanding cancellation settle
-      // from one delivered synchronously by cancel().
-      const pendingSettles = suppressIdle;
-      suppressIdle = Math.max(pendingSettles - 1, 0);
-      cancelSettles = pendingSettles > 0 ? 1 : 0;
+      if (!retireFailure(dispatchId) || replacementStarted) return;
+      const pendingSettles = suppressIdle.length;
+      const pending = suppressIdle.pop();
+      cancelSettles = pendingSettles > 0 ? [pending] : [];
       running = pendingSettles > 0;
-      restore(restoreLane, dispatch, restoreIndex);
+      if (generation === dispatchGeneration)
+        restore(restoreLane, dispatch, restoreIndex);
+      else advance();
     };
     // a driver whose cancel routes through the runtime notifies this queue
     // back; the interrupt already accounted for that settle and is dispatching
@@ -195,11 +299,21 @@ export const createMessageQueue = (
     }
     running = true;
     const busyEdgesBeforeRun = busyEdges;
+    const restoreFailure = () => {
+      restoreInterrupted(busyEdges !== busyEdgesBeforeRun);
+    };
     try {
-      driver.run(dispatchTransform(dispatch.message), { steer: true });
+      observeRun(
+        driver.run(
+          dispatch.transform
+            ? dispatch.transform(dispatch.message)
+            : dispatchTransform(dispatch.message),
+          { steer: true },
+        ),
+        restoreFailure,
+      );
     } catch (error) {
-      const replacementStarted = busyEdges !== busyEdgesBeforeRun;
-      restoreInterrupted(replacementStarted);
+      restoreFailure();
       throw error;
     }
   };
@@ -207,6 +321,9 @@ export const createMessageQueue = (
   const push = (lane: Lane, message: AppendMessage) => {
     paused = false;
     const id = generateId();
+    const transform = nextDispatchTransform;
+    nextDispatchTransform = undefined;
+    if (transform) dispatchTransforms.set(id, transform);
     messages.set(id, message);
     setLanes({ ...lanes, [lane]: [...lanes[lane], toItem(id, message)] });
     advance();
@@ -219,7 +336,9 @@ export const createMessageQueue = (
   const steer = (message: AppendMessage) => {
     if (running && !dispatchPending && driver.cancel) {
       const id = generateId();
-      interrupt({ id, item: toItem(id, message), message });
+      const transform = nextDispatchTransform;
+      nextDispatchTransform = undefined;
+      interrupt({ id, item: toItem(id, message), message, transform });
       return;
     }
     push("steer", message);
@@ -280,12 +399,18 @@ export const createMessageQueue = (
       driver.cancel
     ) {
       const message = messages.get(queueItemId)!;
+      const transform = dispatchTransforms.get(queueItemId);
+      dispatchTransforms.delete(queueItemId);
       messages.delete(queueItemId);
       setLanes({
         queue: lanes.queue.filter((i) => i.id !== queueItemId),
         steer: lanes.steer,
       });
-      interrupt({ id: queueItemId, item, message }, fromLane, fromIndex);
+      interrupt(
+        { id: queueItemId, item, message, transform },
+        fromLane,
+        fromIndex,
+      );
       return;
     }
 
@@ -311,6 +436,7 @@ export const createMessageQueue = (
 
   const remove = (queueItemId: string) => {
     if (!messages.delete(queueItemId)) return;
+    dispatchTransforms.delete(queueItemId);
     setLanes({
       queue: lanes.queue.filter((item) => item.id !== queueItemId),
       steer: lanes.steer.filter((item) => item.id !== queueItemId),
@@ -319,10 +445,14 @@ export const createMessageQueue = (
 
   const notifyCancelled = () => {
     if (interrupting || dispatchPending) return;
-    if (running && cancelSettles === 0) {
+    if (running && cancelSettles.length === 0) {
       paused = true;
-      cancelSettles = 1;
+      cancelSettles = [activeDispatch];
     }
+  };
+
+  const setDispatchTransform = (transform: DispatchTransform) => {
+    dispatchTransform = transform;
   };
 
   const adapter: ExternalThreadQueueAdapter = {
@@ -333,10 +463,28 @@ export const createMessageQueue = (
     move,
     edit,
     remove,
-    __internal_setDispatchTransform: (transform) => {
-      dispatchTransform = transform;
-    },
+    __internal_setDispatchTransform: setDispatchTransform,
     __internal_notifyCancelled: notifyCancelled,
+  };
+
+  dispatchTransformControls.set(setDispatchTransform, {
+    bindNext: () => {
+      nextDispatchTransform = dispatchTransform;
+    },
+    getCurrent: () => dispatchTransform,
+  });
+
+  const notifyIdle = () => {
+    if (suppressIdle.length > 0) {
+      const dispatch = suppressIdle.shift();
+      if (dispatch && !dispatch.started && busyEdges > dispatch.busyEdge) {
+        dispatch.suppressedAt = busyEdges;
+      }
+      return;
+    }
+    cancelSettles.shift();
+    running = false;
+    advance();
   };
 
   return {
@@ -352,23 +500,23 @@ export const createMessageQueue = (
       paused = false;
       // a cancelled run's settle that is still outstanding belongs to a run
       // this new one replaces; swallow it entirely
-      suppressIdle += cancelSettles;
-      cancelSettles = 0;
+      if (cancelSettles.length > 0) {
+        suppressIdle.push(...cancelSettles);
+        cancelSettles = [];
+        activeDispatch = undefined;
+      } else if (activeDispatch) {
+        activeDispatch.started = true;
+      }
       running = true;
       busyEdges++;
     },
-    notifyIdle: () => {
-      if (suppressIdle > 0) {
-        suppressIdle--;
-        return;
-      }
-      if (cancelSettles > 0) cancelSettles--;
-      running = false;
-      advance();
-    },
+    notifyIdle,
     notifyCancelled,
     clear: () => {
+      generation++;
       messages.clear();
+      dispatchTransforms.clear();
+      nextDispatchTransform = undefined;
       setLanes({ queue: EMPTY_QUEUE_ITEMS, steer: EMPTY_QUEUE_ITEMS });
     },
     subscribe: (callback) => {

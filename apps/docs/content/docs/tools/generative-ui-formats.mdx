@@ -1,0 +1,51 @@
+---
+title: Choosing an answer format
+description: When the model should answer in Markdown, with spec mode or the present tool, or with a widget in a sandboxed frame, and how the formats compared on the same tasks.
+platforms: ["react"]
+---
+
+A model in assistant-ui can answer in four formats: Markdown in the message, a [`present`](/docs/tools/generative-ui) tree built from your component vocabulary, a [spec](/generative-frame/docs/spec-mode) built from the same components, or a [widget](/generative-frame/docs) of model-written HTML and SVG that runs in a sandboxed frame. They differ in what they can show, where they render, and whether any model-written code runs.
+
+## Pick by what the answer has to do
+
+| The answer | Format | Renders on |
+| --- | --- | --- |
+| Is read once, such as an explanation, advice, or a short answer | Markdown | Anywhere the message renders |
+| Is scanned or acted on, such as a comparison, a step-by-step guide, a plan whose figures follow an input, a summary of facts, or a form | Spec mode, through `render_spec` | React, Vue, React Native, and the Slack, Teams, and JSX converters through [`specToUISpec`](/docs/tools/generative-ui-spec-migration#slack-and-teams) |
+| Arrives as an A2UI surface, or waits for the user's input with `promptUser()` | The `present` tool | React, and the Slack, Teams, and JSX converters |
+| Is a tool whose point is the calculation, such as a calculator, a simulation, or a game, or draws something your components cannot | A widget, through `show_widget` | Browsers |
+
+Spec mode and `present` render the same components. Spec mode adds state, bindings, and conditions, and it runs no model-written code ([security model](/generative-frame/docs/security#spec-mode-runs-no-model-code)). [Moving to spec mode](/docs/tools/generative-ui-spec-migration) covers when to switch and what stays with `present`.
+
+A spec can show values that [`$calc` formulas](/generative-frame/docs/spec-mode#formulas) compute from its state, such as the brisket to buy for a guest count in a party plan, and an action handler you write can compute anything else into state. A tool whose point is the calculation, such as a calculator, a simulation, or a game, is still a widget, which runs model-written code in a [sandboxed frame](/generative-frame/docs/security). The comparison below was measured before `$calc` existed.
+
+## Offer more than one format
+
+The formats combine. To let the model pick between a spec and a widget for each answer, pass your spec toolkit to `createWidgetToolkit`:
+
+```tsx
+import { createWidgetToolkit } from "generative-frame/assistant-ui";
+import { createSpecToolkit } from "generative-frame/spec/assistant-ui";
+
+const widgets = createWidgetToolkit({
+  spec: createSpecToolkit(catalog, { components }),
+});
+```
+
+`widgets.toolkit` then holds `render_spec` next to the widget tools, and `useWidgetInstructions(widgets.tools)` gives the model the rules from the table above: Markdown for answers read once, `render_spec` for structured content, and `show_widget` for tools that calculate and visuals your components cannot draw. [With assistant-ui](/generative-frame/docs/assistant-ui#set-up-the-toolkit) shows the full setup.
+
+In the runs that gave models both tools and these rules ([issue #9221](https://github.com/assistant-ui/assistant-ui/issues/9221)), all three models answered every computed task with a widget and every other task with a spec, apart from one Markdown answer among 108. Asked to explain the Monty Hall problem and let the user play it, Claude Opus 5.5 answered with a widget that left the explanation out, while GPT-6 astra and Gemini 3.1 Pro wrote it as Markdown before the widget.
+
+## How the formats compared
+
+Six tasks were answered in each format: a bike repair guide, a brisket planner that scales with the guest count, a bill split, the Monty Hall problem, a laptop comparison, and a road trip. Claude Opus 5.5, GPT-6 astra, and Gemini 3.1 Pro answered every task three times per format. Each answer rendered in Chrome, with `present` trees and specs drawn by the [generative UI element](/elements/generative-ui) and without the text a model wrote around a tool answer, and a separate model scored the screenshots from 1 to 5 for clarity, usefulness, and completeness. Nothing was clicked or typed: the judge saw each answer before any interaction and read its source to tell what the controls do. The method and every score are in [issue #9221](https://github.com/assistant-ui/assistant-ui/issues/9221).
+
+| Model | Markdown | `present` | Spec | Widget |
+| --- | ---: | ---: | ---: | ---: |
+| Claude Opus 5.5 | 4.41 | 4.07 | 4.22 | 4.15 |
+| GPT-6 astra | 4.17 | 4.43 | 4.44 | 4.11 |
+| Gemini 3.1 Pro | 4.04 | 3.20 | 3.41 | 3.52 |
+
+- With the same components, specs scored at or above `present` trees for every model, and all but one of the 54 spec answers passed validation.
+- On the three tasks that calculate (the brisket planner, the bill split, and the Monty Hall game), widgets scored 0.26 to 0.56 above specs. On the other three, specs scored 0.33 to 0.93 above widgets.
+- Markdown scored highest overall for Opus and Gemini.

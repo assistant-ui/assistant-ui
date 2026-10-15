@@ -32,7 +32,7 @@ export function ArtifactCard({
 
       {...props}
     >
-      <span className="bg-foreground/[0.05] text-foreground/45 flex size-9 shrink-0 items-center justify-center rounded-xl">
+      <span className="bg-foreground/[0.05] text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-xl">
         <FileTextIcon
           className={cn(
             "size-4",
@@ -43,7 +43,12 @@ export function ArtifactCard({
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13.5px] font-medium">{title}</p>
         {generating ? (
-          <p className={cn(mono, "text-foreground/40 flex items-center gap-1")}>
+          <p
+            className={cn(
+              mono,
+              "text-muted-foreground flex items-center gap-1",
+            )}
+          >
             <ShimmerLabel className="relative inline-block leading-none">
               Writing
             </ShimmerLabel>
@@ -54,7 +59,7 @@ export function ArtifactCard({
           <p
             className={cn(
               mono,
-              "fade-in blur-in-[2px] animate-in text-foreground/40 duration-300 motion-reduce:animate-none",
+              "fade-in blur-in-[2px] animate-in text-muted-foreground duration-300 motion-reduce:animate-none",
             )}
           >
             {meta}

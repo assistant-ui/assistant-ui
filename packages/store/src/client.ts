@@ -70,3 +70,8 @@ export {
   viewportOverflows,
   type ViewportMetrics,
 } from "./utils/viewport-scroll";
+export {
+  createThreadViewportAutoScroll,
+  type ThreadViewportAutoScroll,
+  type ThreadViewportAutoScrollOptions,
+} from "./utils/thread-viewport-auto-scroll";

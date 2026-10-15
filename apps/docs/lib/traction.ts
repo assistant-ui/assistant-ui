@@ -64,7 +64,7 @@ export const PACKAGE_CATEGORIES: Record<
   },
   platforms: {
     label: "Platform bindings",
-    description: "Run anywhere React runs.",
+    description: "Native, terminal, and Vue bindings.",
   },
   ui: {
     label: "UI & rendering",
@@ -122,6 +122,11 @@ export const PACKAGES: PackageInfo[] = [
   {
     name: "create-assistant-ui",
     description: "Scaffold an assistant-ui app in one command.",
+    category: "tooling",
+  },
+  {
+    name: "setup-agent",
+    description: "Live setup shared between the browser and a coding agent.",
     category: "tooling",
   },
   {
@@ -231,6 +236,11 @@ export const PACKAGES: PackageInfo[] = [
     category: "platforms",
   },
   {
+    name: "@assistant-ui/vue",
+    description: "Vue bindings.",
+    category: "platforms",
+  },
+  {
     name: "@assistant-ui/react-markdown",
     description: "Streaming-aware markdown renderer.",
     category: "ui",
@@ -266,6 +276,11 @@ export const PACKAGES: PackageInfo[] = [
     category: "ui",
   },
   {
+    name: "@assistant-ui/generative-ui",
+    description: "Framework-neutral generative UI.",
+    category: "ui",
+  },
+  {
     name: "@assistant-ui/react-generative-ui",
     description: "Render model-authored component trees.",
     category: "ui",
@@ -291,6 +306,11 @@ export const PACKAGES: PackageInfo[] = [
     category: "effects",
   },
   {
+    name: "generative-frame",
+    description: "Streaming model-written widgets in sandboxed frames.",
+    category: "effects",
+  },
+  {
     name: "@assistant-ui/mcp-docs-server",
     description: "MCP server exposing assistant-ui docs.",
     category: "mcp",
@@ -309,6 +329,11 @@ export const PACKAGES: PackageInfo[] = [
     name: "@assistant-ui/react-o11y",
     description: "Observability primitives for assistants.",
     category: "observability",
+  },
+  {
+    name: "@assistant-ui/variants",
+    description: "Inline design comparisons for the real page.",
+    category: "tooling",
   },
   {
     name: "@assistant-ui/react-edge",
@@ -559,10 +584,9 @@ async function fetchPackageDownloadRange(
     end,
     revalidate,
   );
-  const all = downloads.map((d) => d.downloads);
-  if (all.length === 0) return null;
+  if (downloads === null) return null;
 
-  const last60 = all.slice(-60);
+  const last60 = downloads.map((d) => d.downloads).slice(-60);
   const last30 = last60.slice(-30);
   const prior30 = last60.slice(-60, -30);
   const last7 = last60.slice(-7);
@@ -762,7 +786,7 @@ async function fetchDownloadsTimelineForEnd(
       monthEnd(settled),
       revalidate ?? NPM_REVALIDATE.COLD,
     );
-    if (!settledDailies.length) return { points: [], complete: false };
+    if (!settledDailies?.length) return { points: [], complete: false };
     dailies.push(...settledDailies);
   }
   let complete = true;
@@ -774,7 +798,7 @@ async function fetchDownloadsTimelineForEnd(
       npmEnd,
       revalidate ?? NPM_REVALIDATE.WARM,
     );
-    if (tailDailies.length) dailies.push(...tailDailies);
+    if (tailDailies?.length) dailies.push(...tailDailies);
     else complete = false;
   }
   if (!dailies.length) return { points: [], complete: false };

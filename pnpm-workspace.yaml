@@ -1,5 +1,6 @@
 packages:
   - api-surface
+  - evals
   - packages/*
   - examples/*
   - apps/*
@@ -11,6 +12,9 @@ publicHoistPattern:
   - '@types/*'
 
 strictDepBuilds: true
+
+overrides:
+  '@google/adk>adm-zip': ^0.6.1
 
 verifyDepsBeforeRun: install
 
@@ -25,6 +29,7 @@ update:
     - '@babel/traverse'
     - '@babel/types'
 
+# Release age is a verification gate: review fresh releases, then add narrowly scoped, exact-version exceptions when justified.
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - '@assistant-ui/*'
@@ -51,11 +56,14 @@ allowBuilds:
   '@parcel/watcher': false
   '@tailwindcss/oxide': false
   core-js: false
+  core-js-pure: false
   cpu-features: false
   esbuild@0.27.0: true
+  esbuild@0.28.1: true
   esbuild@0.28.2: true
   node-liblzma: false
   protobufjs: false
   react-grab: false
   ssh2: false
   vue-demi: false
+  workerd@1.20261006.1: true

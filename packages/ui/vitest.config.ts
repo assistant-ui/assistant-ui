@@ -27,6 +27,17 @@ const web = {
 
 export default defineConfig({
   test: {
+    coverage: {
+      include: ["src/**/*.{ts,tsx,vue}"],
+      thresholds: {
+        lines: 60,
+        functions: 53,
+        branches: 58,
+        statements: 59,
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
+      },
+    },
     fsModuleCache: true,
     projects: [
       {

@@ -7,23 +7,23 @@ import {
   type PropsWithChildren,
   useMemo,
 } from "react";
-import { useAuiState, useAui } from "@assistant-ui/store";
+import { useAuiState } from "@assistant-ui/store";
 import { PartByIndexProvider } from "../../context/providers/PartByIndexProvider";
 import { TextMessagePartProvider } from "../../context/providers/TextMessagePartProvider";
 import { MessagePartPrimitiveText } from "../messagePart/MessagePartText";
 import { MessagePartPrimitiveImage } from "../messagePart/MessagePartImage";
-import type {
-  Unstable_AudioMessagePartComponent,
-  DataMessagePartComponent,
-  DataMessagePartProps,
-  EmptyMessagePartComponent,
-  TextMessagePartComponent,
-  ImageMessagePartComponent,
-  SourceMessagePartComponent,
-  ToolCallMessagePartComponent,
-  ToolCallMessagePartProps,
-  FileMessagePartComponent,
-  ReasoningMessagePartComponent,
+import {
+  MessagePartComponent,
+  type Unstable_AudioMessagePartComponent,
+  type DataMessagePartComponent,
+  type EmptyMessagePartComponent,
+  type TextMessagePartComponent,
+  type ImageMessagePartComponent,
+  type SourceMessagePartComponent,
+  type ToolCallMessagePartComponent,
+  type ToolCallMessagePartProps,
+  type FileMessagePartComponent,
+  type ReasoningMessagePartComponent,
 } from "@assistant-ui/core/react";
 import { MessagePartPrimitiveInProgress } from "../messagePart/MessagePartInProgress";
 import type { MessagePartStatus } from "@assistant-ui/core";
@@ -86,6 +86,13 @@ const useMessagePartsGrouped = (
   return { groups, partKeys: getMessagePartKeys(parts) };
 };
 
+/**
+ * @deprecated Prefer `<MessagePrimitive.GroupedParts>` for adjacent
+ * grouping — it dispatches all rendering through one `switch (part.type)`
+ * and supports nested group paths. Keep this primitive only for
+ * non-adjacent clustering (e.g., gathering parts with the same parent-id
+ * across the message).
+ */
 export namespace MessagePrimitiveUnstable_PartsGrouped {
   export type Props = {
     /**
@@ -231,34 +238,6 @@ export namespace MessagePrimitiveUnstable_PartsGrouped {
   };
 }
 
-const ToolUIDisplay = ({
-  Fallback,
-  ...props
-}: {
-  Fallback: ToolCallMessagePartComponent | undefined;
-} & ToolCallMessagePartProps) => {
-  const Render = useAuiState(
-    (s) => s.tools.toolUIs[props.toolName]?.[0]?.render ?? Fallback,
-  );
-  if (!Render) return null;
-  return <Render {...props} />;
-};
-
-const DataUIDisplay = ({
-  Fallback,
-  ...props
-}: {
-  Fallback: DataMessagePartComponent | undefined;
-} & DataMessagePartProps) => {
-  const Render = useAuiState((s) => {
-    const named = s.dataRenderers.renderers[props.name]?.[0];
-    if (named) return named;
-    return s.dataRenderers.fallbacks[0] ?? Fallback;
-  });
-  if (!Render) return null;
-  return <Render {...props} />;
-};
-
 const defaultComponents = {
   Text: () => (
     <p style={{ whiteSpace: "pre-line" }}>
@@ -280,104 +259,17 @@ type MessagePartComponentProps = {
   components: MessagePrimitiveUnstable_PartsGrouped.Props["components"];
 };
 
-const MessagePartComponent: FC<MessagePartComponentProps> = ({
-  components: {
-    Text = defaultComponents.Text,
-    Reasoning = defaultComponents.Reasoning,
-    Image = defaultComponents.Image,
-    Source = defaultComponents.Source,
-    File = defaultComponents.File,
-    Unstable_Audio: Audio = defaultComponents.Unstable_Audio,
-    tools = {},
-    data,
-  } = {},
-}) => {
-  const aui = useAui();
-  const part = useAuiState((s) => s.part);
-
-  const type = part.type;
-  if (type === "tool-call") {
-    const addResult = aui.part.addToolResult;
-    const resume = aui.part.resumeToolCall;
-    const respondToApproval = aui.part.respondToToolApproval;
-    const unstable_recordInteraction = aui.part.unstable_recordInteraction;
-    if ("Override" in tools)
-      return (
-        <tools.Override
-          {...part}
-          addResult={addResult}
-          resume={resume}
-          respondToApproval={respondToApproval}
-          {...(unstable_recordInteraction && { unstable_recordInteraction })}
-        />
-      );
-    const Tool =
-      (tools.by_name && Object.hasOwn(tools.by_name, part.toolName)
-        ? tools.by_name[part.toolName]
-        : undefined) ?? tools.Fallback;
-    return (
-      <ToolUIDisplay
-        {...part}
-        Fallback={Tool}
-        addResult={addResult}
-        resume={resume}
-        respondToApproval={respondToApproval}
-        {...(unstable_recordInteraction && { unstable_recordInteraction })}
-      />
-    );
-  }
-
-  if (part.status?.type === "requires-action")
-    throw new Error("Encountered unexpected requires-action status");
-
-  switch (type) {
-    case "text":
-      return <Text {...part} />;
-
-    case "reasoning":
-      return <Reasoning {...part} />;
-
-    case "source":
-      return <Source {...part} />;
-
-    case "image":
-      return <Image {...part} />;
-
-    case "file":
-      return <File {...part} />;
-
-    case "audio":
-      return <Audio {...part} />;
-
-    case "data": {
-      const Data =
-        (data?.by_name && Object.hasOwn(data.by_name, part.name)
-          ? data.by_name[part.name]
-          : undefined) ?? data?.Fallback;
-      return <DataUIDisplay {...part} Fallback={Data} />;
-    }
-
-    default:
-      console.warn(`Unknown message part type: ${type}`);
-      return null;
-  }
-};
-
 type MessagePartProps = {
   partIndex: number;
   components: MessagePrimitiveUnstable_PartsGrouped.Props["components"];
 };
 
-const MessagePartImpl: FC<MessagePartProps> = ({ partIndex, components }) => {
-  return (
+const MessagePart = memo(
+  ({ partIndex, components }: MessagePartProps) => (
     <PartByIndexProvider index={partIndex}>
       <MessagePartComponent components={components} />
     </PartByIndexProvider>
-  );
-};
-
-const MessagePart = memo(
-  MessagePartImpl,
+  ),
   (prev, next) =>
     prev.partIndex === next.partIndex &&
     prev.components?.Text === next.components?.Text &&
@@ -387,8 +279,7 @@ const MessagePart = memo(
     prev.components?.File === next.components?.File &&
     prev.components?.Unstable_Audio === next.components?.Unstable_Audio &&
     prev.components?.tools === next.components?.tools &&
-    prev.components?.data === next.components?.data &&
-    prev.components?.Group === next.components?.Group,
+    prev.components?.data === next.components?.data,
 );
 
 const EmptyPartFallback: FC<{
@@ -473,6 +364,17 @@ export const MessagePrimitiveUnstable_PartsGrouped: FC<
       return <EmptyParts components={components} />;
     }
 
+    const leafComponents = {
+      ...components,
+      Text: components?.Text ?? defaultComponents.Text,
+      Reasoning: components?.Reasoning ?? defaultComponents.Reasoning,
+      Image: components?.Image ?? defaultComponents.Image,
+      Source: components?.Source ?? defaultComponents.Source,
+      File: components?.File ?? defaultComponents.File,
+      Unstable_Audio:
+        components?.Unstable_Audio ?? defaultComponents.Unstable_Audio,
+    };
+
     return messageGroups.map((group, groupIndex) => {
       const GroupComponent = components?.Group ?? defaultComponents.Group;
       const identity = partKeys[group.indices[0]!];
@@ -491,7 +393,7 @@ export const MessagePrimitiveUnstable_PartsGrouped: FC<
             <MessagePart
               key={partKeys[partIndex]}
               partIndex={partIndex}
-              components={components}
+              components={leafComponents}
             />
           ))}
         </GroupComponent>

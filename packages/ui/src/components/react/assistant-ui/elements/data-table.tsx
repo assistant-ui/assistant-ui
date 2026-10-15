@@ -4,6 +4,7 @@ import { useEffect, useState, type ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { safeHref } from "../utils/href";
 import { clamp } from "../utils/range";
+import { useIsomorphicLayoutEffect } from "../utils/useIsomorphicLayoutEffect";
 import { field, mono, paper } from "./surfaces";
 
 export type DataTableValue =
@@ -209,20 +210,18 @@ const withUnit = (text: string, unit: string | undefined) =>
       ? `${text}${unit}`
       : `${text} ${unit}`;
 
-const EmptyValue = () => <span className="text-foreground/35">none</span>;
+const EmptyValue = () => <span className="text-muted-foreground">none</span>;
 
 function Value({
   column,
   row,
   locale,
   relativeTo,
-  suppressRelativeHydrationWarning,
 }: {
   column: DataTableColumn;
   row: DataTableRow;
   locale: string;
-  relativeTo: number;
-  suppressRelativeHydrationWarning: boolean;
+  relativeTo: number | undefined;
 }) {
   const value = row[column.key];
   if (isEmpty(value)) return <EmptyValue />;
@@ -286,7 +285,7 @@ function Value({
       <span
         className={cn(
           number === 0
-            ? "text-foreground/55"
+            ? "text-muted-foreground"
             : good
               ? "text-emerald-600 dark:text-emerald-400"
               : "text-red-600 dark:text-red-400",
@@ -302,7 +301,7 @@ function Value({
     if (!date) return <>{textValue(value)}</>;
     const style = format.style ?? "date";
     const content = formatted(value, () =>
-      style === "relative"
+      style === "relative" && relativeTo !== undefined
         ? relativeDate(date, locale, relativeTo)
         : new Intl.DateTimeFormat(
             locale,
@@ -310,22 +309,14 @@ function Value({
               ? { dateStyle: "medium", timeStyle: "short" }
               : {
                   dateStyle: "medium",
-                  ...(typeof value === "string" && DATE_ONLY.test(value)
+                  ...((style === "relative" && relativeTo === undefined) ||
+                  (typeof value === "string" && DATE_ONLY.test(value))
                     ? { timeZone: "UTC" }
                     : {}),
                 },
           ).format(date),
     );
-    return (
-      <span
-        title={date.toISOString()}
-        {...(style === "relative" && suppressRelativeHydrationWarning
-          ? { suppressHydrationWarning: true }
-          : {})}
-      >
-        {content}
-      </span>
-    );
+    return <span title={date.toISOString()}>{content}</span>;
   }
 
   if (format.kind === "boolean") {
@@ -395,7 +386,7 @@ function Value({
           </span>
         ))}
         {value.length > shown.length ? (
-          <span className="text-foreground/45 px-1.5 py-0.5 text-xs">
+          <span className="text-muted-foreground px-1.5 py-0.5 text-xs">
             +{value.length - shown.length}
           </span>
         ) : null}
@@ -473,21 +464,21 @@ export function DataTable({
     (column) =>
       column.format?.kind === "date" && column.format.style === "relative",
   );
-  const [, setTick] = useState(0);
-  const relativeTime = relativeTo ?? Date.now();
+  const [now, setNow] = useState<number>();
+  useIsomorphicLayoutEffect(() => {
+    if (relativeTo === undefined && hasRelativeDates) setNow(Date.now());
+  }, [columns, rows, relativeTo, hasRelativeDates]);
+  const relativeTime = relativeTo ?? now;
   const refreshDelay =
-    relativeTo === undefined && hasRelativeDates
+    relativeTo === undefined && hasRelativeDates && relativeTime !== undefined
       ? relativeRefreshDelay(columns, rows, relativeTime)
       : undefined;
 
   useEffect(() => {
     if (refreshDelay === undefined) return;
-    const timeout = window.setTimeout(
-      () => setTick((tick) => tick + 1),
-      refreshDelay,
-    );
+    const timeout = window.setTimeout(() => setNow(Date.now()), refreshDelay);
     return () => window.clearTimeout(timeout);
-  });
+  }, [refreshDelay, relativeTime]);
   const sortColumn = columns.find((column) => column.key === activeSort?.key);
   const collator = collatorFor(locale);
   const indexedRows = rows.map((row, index) => ({ row, index }));
@@ -569,7 +560,7 @@ export function DataTable({
                   style={column.width ? { width: column.width } : undefined}
                   className={cn(
                     mono,
-                    "text-foreground/35 px-4 py-3 font-medium",
+                    "text-muted-foreground px-4 py-3 font-medium",
                     (column.align ??
                       (isNumeric(column.format) ? "end" : "start")) === "end"
                       ? "text-end"
@@ -603,7 +594,7 @@ export function DataTable({
             <tr>
               <td
                 colSpan={Math.max(columns.length, 1)}
-                className="text-foreground/45 px-4 py-6 text-center text-[13px]"
+                className="text-muted-foreground px-4 py-6 text-center text-[13px]"
               >
                 <span role="status">{emptyMessage}</span>
               </td>
@@ -621,9 +612,6 @@ export function DataTable({
                       row={row}
                       locale={locale}
                       relativeTo={relativeTime}
-                      suppressRelativeHydrationWarning={
-                        relativeTo === undefined
-                      }
                     />
                   </td>
                 ))}
@@ -636,7 +624,7 @@ export function DataTable({
         {sortedRows.length === 0 ? (
           <div
             role="status"
-            className="text-foreground/45 px-2 py-3 text-center text-[13px]"
+            className="text-muted-foreground px-2 py-3 text-center text-[13px]"
           >
             {emptyMessage}
           </div>
@@ -654,12 +642,11 @@ export function DataTable({
                     row={row}
                     locale={locale}
                     relativeTo={relativeTime}
-                    suppressRelativeHydrationWarning={relativeTo === undefined}
                   />
                 </div>
               ) : null}
               {columns.length > 1 ? (
-                <dl className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 text-[12px] leading-4">
+                <dl className="mt-1.5 grid grid-cols-1 gap-x-4 gap-y-1 text-[12px] leading-4 @xs:grid-cols-2">
                   {columns
                     .filter((column) => column.key !== primaryColumn?.key)
                     .map((column) => (
@@ -667,7 +654,7 @@ export function DataTable({
                         key={column.key}
                         className="flex min-w-0 items-baseline justify-between gap-2"
                       >
-                        <dt className="text-foreground/45 truncate">
+                        <dt className="text-muted-foreground truncate">
                           {column.label}
                         </dt>
                         <dd className="text-foreground/75 shrink-0 text-end tabular-nums">
@@ -676,9 +663,6 @@ export function DataTable({
                             row={row}
                             locale={locale}
                             relativeTo={relativeTime}
-                            suppressRelativeHydrationWarning={
-                              relativeTo === undefined
-                            }
                           />
                         </dd>
                       </div>

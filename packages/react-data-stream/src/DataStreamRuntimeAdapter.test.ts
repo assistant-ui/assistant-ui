@@ -1,6 +1,7 @@
 import type {
   ChatModelAdapter,
   ChatModelRunOptions,
+  ChatModelRunResult,
   ThreadMessage,
 } from "@assistant-ui/core";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -30,6 +31,156 @@ const runOnce = (adapter: ChatModelAdapter, options: ChatModelRunOptions) =>
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+});
+
+it("posts explicit tool model content in the next request", async () => {
+  const fetchMock = vi
+    .fn<typeof fetch>()
+    .mockResolvedValue(new Response("data: [DONE]\n\n"));
+  vi.stubGlobal("fetch", fetchMock);
+  const current: ThreadMessage = {
+    id: "assistant-1",
+    role: "assistant",
+    createdAt: new Date(0),
+    status: { type: "running" },
+    metadata: {
+      custom: {},
+      steps: [],
+      unstable_data: [],
+      unstable_annotations: [],
+      unstable_state: {},
+    },
+    content: [
+      {
+        type: "tool-call",
+        toolCallId: "read-1",
+        toolName: "read_report",
+        args: {},
+        argsText: "{}",
+        result: { documentId: "report-1" },
+        modelContent: [
+          { type: "text", text: "Report contents" },
+          { type: "file", data: "JVBERi0xLjQ=", mediaType: "application/pdf" },
+        ],
+      },
+    ],
+  };
+  const adapter = new DataStreamRuntimeAdapter({
+    api: "/api/chat",
+    protocol: "ui-message-stream",
+  });
+  await runOnce(adapter, {
+    ...createRunOptions(new AbortController().signal),
+    messages: [userMessage],
+    unstable_getMessage: () => current,
+  });
+  const body = JSON.parse(fetchMock.mock.calls[0]![1]!.body as string);
+  expect(body.messages.at(-1)).toEqual({
+    role: "tool",
+    content: [
+      {
+        type: "tool-result",
+        toolCallId: "read-1",
+        toolName: "read_report",
+        output: {
+          type: "content",
+          value: [
+            { type: "text", text: "Report contents" },
+            {
+              type: "media",
+              data: "JVBERi0xLjQ=",
+              mediaType: "application/pdf",
+            },
+          ],
+        },
+      },
+    ],
+  });
+});
+
+describe("DataStreamRuntimeAdapter message IDs", () => {
+  it("pairs followed pending calls with results when extra message fields are enabled", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(new Response("data: [DONE]\n\n"));
+    vi.stubGlobal("fetch", fetchMock);
+    const pending: ThreadMessage = {
+      id: "pending",
+      role: "assistant",
+      createdAt: new Date(0),
+      status: { type: "requires-action", reason: "tool-calls" },
+      metadata: {
+        custom: {},
+        steps: [],
+        unstable_data: [],
+        unstable_annotations: [],
+        unstable_state: {},
+      },
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "lookup",
+          args: {},
+          argsText: "{}",
+          approval: { id: "approval-1" },
+        },
+      ],
+    };
+    const adapter = new DataStreamRuntimeAdapter({
+      api: "/api/chat",
+      protocol: "ui-message-stream",
+      sendExtraMessageFields: true,
+    });
+    await runOnce(adapter, {
+      ...createRunOptions(new AbortController().signal),
+      messages: [pending, userMessage],
+      unstable_getMessage: () => ({
+        ...pending,
+        id: "current",
+        status: { type: "running" },
+        content: [],
+      }),
+    });
+    const body = JSON.parse(fetchMock.mock.calls[0]![1]!.body as string);
+    expect(body.messages).toEqual([
+      {
+        role: "assistant",
+        unstable_id: "pending",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "lookup",
+            input: {},
+          },
+        ],
+      },
+      {
+        role: "tool",
+        content: [
+          {
+            type: "tool-result",
+            toolCallId: "call-1",
+            toolName: "lookup",
+            output: {
+              type: "error-json",
+              value: { error: "Tool call was not completed" },
+            },
+          },
+        ],
+      },
+      {
+        role: "user",
+        unstable_id: "user-message",
+        content: [{ type: "text", text: "Hello" }],
+      },
+    ]);
+    expect(pending.status).toEqual({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+  });
 });
 
 describe("DataStreamRuntimeAdapter cancellation", () => {
@@ -77,6 +228,90 @@ describe("DataStreamRuntimeAdapter cancellation", () => {
 });
 
 describe("DataStreamRuntimeAdapter response handling", () => {
+  it("cancels the response body when decoder construction fails", async () => {
+    const cancel = vi.fn();
+    const onError = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          new ReadableStream({
+            cancel,
+          }),
+        ),
+      ),
+    );
+
+    const adapter = new DataStreamRuntimeAdapter({
+      api: "/api/chat",
+      protocol: "ui-message-stream",
+      maxStreamLineLength: 0,
+      onError,
+    });
+
+    await expect(
+      runOnce(adapter, createRunOptions(new AbortController().signal)),
+    ).rejects.toThrow("maxLineLength must be a positive safe integer");
+    expect(cancel).toHaveBeenCalledOnce();
+    expect(onError).toHaveBeenCalledOnce();
+  });
+
+  it("applies the configured line limit to UI message streams", async () => {
+    const onError = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response("data: [DONE]\n\n")),
+    );
+
+    const adapter = new DataStreamRuntimeAdapter({
+      api: "/api/chat",
+      protocol: "ui-message-stream",
+      maxStreamLineLength: 5,
+      onError,
+    });
+
+    const consumeRun = async () => {
+      for await (const chunk of adapter.run(
+        createRunOptions(new AbortController().signal),
+      ) as AsyncGenerator) {
+        void chunk;
+      }
+    };
+
+    await expect(consumeRun()).rejects.toThrow(
+      "SSE line exceeds maxLineLength",
+    );
+    expect(onError).toHaveBeenCalledOnce();
+  });
+
+  it("applies the configured line limit to data streams", async () => {
+    const onError = vi.fn();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response('0:"hello"\n')),
+    );
+
+    const adapter = new DataStreamRuntimeAdapter({
+      api: "/api/chat",
+      protocol: "data-stream",
+      maxStreamLineLength: 4,
+      onError,
+    });
+
+    const consumeRun = async () => {
+      for await (const chunk of adapter.run(
+        createRunOptions(new AbortController().signal),
+      ) as AsyncGenerator) {
+        void chunk;
+      }
+    };
+
+    await expect(consumeRun()).rejects.toThrow(
+      "Stream line exceeds maxLineLength",
+    );
+    expect(onError).toHaveBeenCalledOnce();
+  });
+
   it("reports a response that carries no body", async () => {
     const onError = vi.fn();
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null)));
@@ -253,5 +488,93 @@ describe("DataStreamRuntimeAdapter protocol fallback", () => {
     await runOnce(adapter, createRunOptions(new AbortController().signal));
 
     expect(warn).not.toHaveBeenCalled();
+  });
+});
+
+describe.each(["mp3", "wav"] as const)(
+  "DataStreamRuntimeAdapter %s audio",
+  (format) => {
+    it.each([false, true])(
+      "posts an audio-only message (attachment: %s)",
+      async (attachment) => {
+        const fetchMock = vi
+          .fn<typeof fetch>()
+          .mockResolvedValue(new Response("data: [DONE]\n\n"));
+        vi.stubGlobal("fetch", fetchMock);
+        const part = {
+          type: "audio" as const,
+          audio: { data: "UklGRg==", format },
+        };
+        const message: ThreadMessage = {
+          ...userMessage,
+          content: attachment ? [] : [part],
+          attachments: attachment
+            ? [
+                {
+                  id: "audio-1",
+                  type: "file",
+                  name: `recording.${format}`,
+                  contentType: `audio/${format}`,
+                  status: { type: "complete" },
+                  content: [part],
+                },
+              ]
+            : [],
+        };
+        const adapter = new DataStreamRuntimeAdapter({
+          api: "/api/chat",
+          protocol: "ui-message-stream",
+          sendExtraMessageFields: true,
+        });
+        await runOnce(adapter, {
+          ...createRunOptions(new AbortController().signal),
+          unstable_getMessage: () => message,
+        });
+        const body = JSON.parse(fetchMock.mock.calls[0]![1]!.body as string);
+        expect(body.messages).toEqual([
+          {
+            role: "user",
+            unstable_id: message.id,
+            content: [
+              { type: "file", data: "UklGRg==", mediaType: `audio/${format}` },
+            ],
+          },
+        ]);
+      },
+    );
+  },
+);
+
+describe("DataStreamRuntimeAdapter server abort", () => {
+  it("retains partial text as incomplete when the client signal is still active", async () => {
+    const frames = [
+      { type: "start", messageId: "answer" },
+      { type: "text-start", id: "text" },
+      { type: "text-delta", id: "text", delta: "An unfinished answer" },
+      { type: "abort", reason: "Server stopped run" },
+    ];
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValue(
+          new Response(
+            frames
+              .map((frame) => `data: ${JSON.stringify(frame)}\n\n`)
+              .join("") + "data: [DONE]\n\n",
+            { headers: { "x-vercel-ai-ui-message-stream": "v1" } },
+          ),
+        ),
+    );
+    const signal = new AbortController().signal;
+    const adapter = new DataStreamRuntimeAdapter({ api: "/api/chat" });
+    let last: ChatModelRunResult | undefined;
+    for await (const update of adapter.run(createRunOptions(signal)))
+      last = update;
+    expect(signal.aborted).toBe(false);
+    expect(last?.content).toEqual([
+      expect.objectContaining({ type: "text", text: "An unfinished answer" }),
+    ]);
+    expect(last?.status).toEqual({ type: "incomplete", reason: "other" });
   });
 });

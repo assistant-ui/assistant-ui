@@ -292,9 +292,13 @@ export const GENERATIVE_UI_PACKAGE_EXPORTS = new Map<
   ["ActionRegistry", { page: "actions", role: "primary" }],
   ["ActionHandler", { page: "actions", role: "primary" }],
   ["ActionDispatchContext", { page: "actions", role: "primary" }],
+  ["resolveFieldReferences", { page: "actions", role: "primary" }],
+  ["hasFieldReference", { page: "actions", role: "primary" }],
 
   ["renderGenerativeUI", { page: "rendering", role: "primary" }],
   ["generativeUIToJSX", { page: "rendering", role: "primary" }],
+  ["toSpecCatalog", { page: "rendering", role: "primary" }],
+  ["ToSpecCatalogOptions", { page: "rendering", role: "primary" }],
   ["buildPresentParameters", { page: "rendering", role: "primary" }],
   ["GenerativeUIRenderContext", { page: "rendering", role: "primary" }],
 
@@ -414,9 +418,9 @@ function generativeUIPackageRule(
     "generative-ui",
     placement.page,
     placement.role,
-    "feature:react-generative-ui",
+    "feature:generative-ui-package",
     "strong",
-    "@assistant-ui/react-generative-ui package export",
+    "@assistant-ui/generative-ui package export",
   );
 }
 

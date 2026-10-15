@@ -26,7 +26,7 @@ afterEach(() => {
 describe("ComponentViewer", () => {
   it("opens on the intro and switches entries from the rail", async () => {
     render(<ComponentViewer />);
-    expect(screen.getByText(/Welcome to the setup wizard/)).toBeTruthy();
+    expect(screen.getByText(/You are installing/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Choice" }));
     expect(
       await screen.findByRole("heading", {

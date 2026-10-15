@@ -5,6 +5,7 @@ import {
 } from "../core/ResourceFiber";
 import { scheduleNotify, UpdateScheduler } from "../core/scheduler";
 import { isDevelopment } from "../core/helpers/env";
+import { peekResourceFiber } from "../core/helpers/execution-context";
 import {
   commitRoot,
   createResourceFiberRoot,
@@ -174,6 +175,7 @@ const createInstance = <R>(
 };
 
 export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
+  const isReactHost = peekResourceFiber() === null;
   const [, forceHostRender] = useState(0);
   const getDevStrictMode = useDevStrictMode();
 
@@ -222,6 +224,9 @@ export const useTapRoot = <R>(render: () => R): useTapRoot.Root<R> => {
   useHostLifecycle(inst.fiber);
 
   useEffect(() => {
+    if (isDevelopment && isReactHost) {
+      inst.fiber.devStrictMode ??= getDevStrictMode();
+    }
     if (renderState.processed) {
       if (!inst.fiber.isMounted) {
         commitResourceFiber(inst.fiber);

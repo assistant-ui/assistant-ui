@@ -153,9 +153,14 @@ export type ThreadRuntimeState = {
   readonly metadata: ThreadListItemRuntimeState;
 
   /**
-   * Whether the thread is disabled. Disabled threads cannot receive new messages.
+   * Whether typing into the composer, adding attachments, sending, and editing messages are disabled for the thread.
    */
   readonly isDisabled: boolean;
+
+  /**
+   * Whether the runtime's send policy disables composer sends, apart from whether the current draft is ready.
+   */
+  readonly isSendDisabled: boolean;
 
   /**
    * Whether the thread is loading its history.
@@ -192,7 +197,7 @@ export type ThreadRuntimeState = {
   /**
    * The thread state.
    *
-   * @deprecated This feature is experimental
+   * @deprecated Experimental since 2024-04-21. Not scheduled for removal; the API may change in any release.
    */
   readonly state: ReadonlyJSONValue;
 
@@ -207,7 +212,7 @@ export type ThreadRuntimeState = {
   readonly extras: unknown;
 
   /**
-   * @deprecated This API is still under active development and might change without notice.
+   * @deprecated Experimental since 2024-09-01. Not scheduled for removal; the API may change in any release.
    */
   readonly speech: SpeechState | undefined;
 
@@ -242,6 +247,7 @@ export const getThreadState = (
     metadata: threadListItemState,
     capabilities: runtime.capabilities,
     isDisabled: runtime.isDisabled,
+    isSendDisabled: runtime.isSendDisabled,
     isLoading: runtime.isLoading,
     hasEarlier: runtime.hasEarlier ?? false,
     isLoadingEarlier: runtime.isLoadingEarlier ?? false,
@@ -332,6 +338,8 @@ export type ThreadRuntime = {
    * Clears session-scoped tool-invocation state without run-cancel side
    * effects such as composer draft restoration. Internal API for
    * external-store adapter authors.
+   *
+   * @deprecated Experimental since 2026-08-14. Not scheduled for removal; the API may change in any release.
    */
   unstable_notifySessionReset(): void;
   getModelContext(): ModelContext;
@@ -350,7 +358,7 @@ export type ThreadRuntime = {
   getMessageById(messageId: string): MessageRuntime;
 
   /**
-   * @deprecated This API is still under active development and might change without notice.
+   * @deprecated Experimental since 2024-09-01. Not scheduled for removal; the API may change in any release.
    */
   stopSpeaking(): void;
 
@@ -361,6 +369,7 @@ export type ThreadRuntime = {
   muteVoice(): void;
   unmuteVoice(): void;
 
+  /** @deprecated Experimental since 2024-10-12. Not scheduled for removal; the API may change in any release. */
   unstable_on<E extends ThreadRuntimeEventType>(
     event: E,
     callback: ThreadRuntimeEventCallback<E>,
@@ -508,6 +517,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     return this._threadBinding.getState().loadEarlier?.() ?? Promise.resolve();
   }
 
+  /** @deprecated Experimental since 2026-08-14. Not scheduled for removal; the API may change in any release. */
   public unstable_notifySessionReset() {
     this._threadBinding.getState().unstable_notifySessionReset();
   }
@@ -633,6 +643,7 @@ export class ThreadRuntimeImpl implements ThreadRuntime {
     EventSubscriptionSubject<ThreadRuntimeEventType>
   >();
 
+  /** @deprecated Experimental since 2024-10-12. Not scheduled for removal; the API may change in any release. */
   public unstable_on<E extends ThreadRuntimeEventType>(
     event: E,
     callback: ThreadRuntimeEventCallback<E>,

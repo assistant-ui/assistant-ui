@@ -606,6 +606,20 @@ Renders the message attachment at a specific index and sets up its attachment co
 | `index` | `number` | Zero-based attachment index |
 | `components` | `{ Image?, Document?, File?, Attachment? }` | Component renderers by attachment type |
 
+### Quote
+
+Renders the quote a message was sent with, read from `s.message.metadata.custom.quote`. Renders nothing when the message carries no quote. Place it above `MessagePrimitive.Parts` in the user message.
+
+```tsx
+<MessagePrimitive.Quote>
+  {({ text }) => <Text dimColor>Replying to: {text}</Text>}
+</MessagePrimitive.Quote>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `(value: { text: string; messageId: string }) => ReactNode` | Render function called when the message has a quote |
+
 ### Conditional Rendering (Message)
 
 Use `AuiIf` for conditional rendering based on message properties:

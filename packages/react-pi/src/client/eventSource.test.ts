@@ -137,7 +137,11 @@ const knownEventBodies = {
     },
   },
   agent_start: { type: "agent_start" },
-  agent_end: { type: "agent_end", willRetry: false },
+  agent_end: {
+    type: "agent_end",
+    willRetry: false,
+    cancelledBeforeStart: true,
+  },
   agent_settled: { type: "agent_settled" },
   turn_start: { type: "turn_start", turnIndex: 1 },
   turn_end: { type: "turn_end", turnIndex: 1 },
@@ -217,6 +221,41 @@ const knownEventBodies = {
 };
 
 describe("openPiEventStream", () => {
+  it.each([
+    ["one initial BOM", ["\uFEFF"], [1, 2]],
+    ["two initial BOMs", ["\uFEFF\uFEFF"], [2]],
+    ["two initial BOMs in separate chunks", ["\uFEFF", "\uFEFF"], [2]],
+  ] as const)(
+    "strips only one initial BOM: %s",
+    async (_, prefixes, expected) => {
+      const text =
+        `data: ${JSON.stringify({ type: "agent_start", threadId: "t1", seq: 1 })}\n\n` +
+        `data: ${JSON.stringify({ type: "agent_end", threadId: "t1", seq: 2 })}\n\n`;
+      const chunks = prefixes.map((prefix, index) =>
+        index === prefixes.length - 1 ? `${prefix}${text}` : prefix,
+      );
+      const fetchImpl = (async () =>
+        sseResponse(chunks)) as unknown as typeof fetch;
+      const events = await new Promise<PiAnyClientEvent[]>((resolve) => {
+        const collected: PiAnyClientEvent[] = [];
+        const close = openPiEventStream({
+          url: "/events",
+          fetchImpl,
+          reconnectDelay: () => Promise.resolve(),
+          onEvent: (event) => {
+            collected.push(event);
+            if (event.seq === 2) {
+              close();
+              resolve(collected);
+            }
+          },
+        });
+      });
+
+      expect(events.map((event) => event.seq)).toEqual(expected);
+    },
+  );
+
   it("delivers parsed events from the stream", async () => {
     const events: PiAnyClientEvent[] = [];
     const fetchImpl = (async () =>
@@ -511,7 +550,7 @@ describe("openPiEventStream", () => {
 
   it("notifies each successful connection before its events", async () => {
     let calls = 0;
-    const onConnect = vi.fn();
+    const callbacks: string[] = [];
     const fetchImpl = (async () => {
       calls += 1;
       if (calls === 1) {
@@ -537,15 +576,16 @@ describe("openPiEventStream", () => {
         url: "/events",
         fetchImpl,
         reconnectDelay: () => Promise.resolve(),
-        onConnect,
+        onConnect: () => callbacks.push("connect"),
         onEvent: () => {
+          callbacks.push("event");
           close();
           resolve();
         },
       });
     });
 
-    expect(onConnect).toHaveBeenCalledTimes(2);
+    expect(callbacks).toEqual(["connect", "connect", "event"]);
   });
 
   it("releases a completed response body before reconnecting", async () => {
@@ -577,6 +617,58 @@ describe("openPiEventStream", () => {
     });
 
     expect(fetchImpl).toHaveBeenCalledOnce();
+  });
+
+  it("terminates instead of reconnecting after a decoder limit failure", async () => {
+    const fetchImpl = vi.fn(async () =>
+      sseResponse(["data: " + "x".repeat(64) + "\n\n"]),
+    ) as unknown as typeof fetch;
+    const reconnectDelay = vi.fn(() => Promise.resolve());
+    const onError = vi.fn();
+    const connection = createPiEventStreamConnection({
+      url: "/events",
+      fetchImpl,
+      reconnectDelay,
+      maxStreamLineLength: 32,
+      onEvent: vi.fn(),
+      onError,
+    });
+
+    await connection.finished;
+
+    expect(fetchImpl).toHaveBeenCalledOnce();
+    expect(reconnectDelay).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledOnce();
+    expect(onError.mock.calls[0]![0]).toEqual(
+      expect.objectContaining({
+        message: expect.stringContaining("SSE line exceeds maxLineLength"),
+      }),
+    );
+  });
+
+  it("rejects invalid decoder limits before fetching", async () => {
+    const fetchImpl = vi.fn() as unknown as typeof fetch;
+    const reconnectDelay = vi.fn(() => Promise.resolve());
+    const onError = vi.fn();
+    const connection = createPiEventStreamConnection({
+      url: "/events",
+      fetchImpl,
+      reconnectDelay,
+      maxStreamLineLength: 0,
+      onEvent: vi.fn(),
+      onError,
+    });
+
+    await connection.finished;
+
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(reconnectDelay).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledOnce();
+    expect(onError.mock.calls[0]![0]).toEqual(
+      expect.objectContaining({
+        message: "maxLineLength must be a positive safe integer",
+      }),
+    );
   });
 
   it("settles when closed during a pending reconnect delay", async () => {

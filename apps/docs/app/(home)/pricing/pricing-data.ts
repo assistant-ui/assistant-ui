@@ -94,7 +94,7 @@ export const pricingPlans = [
       "Early access to new features",
     ],
     cta: "Get started",
-    href: CLOUD_URL,
+    href: `${CLOUD_URL}/org?plan=pro`,
     highlighted: true,
   },
   {

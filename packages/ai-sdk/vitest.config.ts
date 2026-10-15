@@ -8,6 +8,19 @@ const standaloneShim = "@assistant-ui/tap/standalone-shim";
 
 export default defineConfig({
   test: {
+    coverage: {
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["src/__tests__/**", "src/runtime/__tests__/**"],
+      thresholds: {
+        lines: 95,
+        functions: 92,
+        branches: 88,
+        statements: 93,
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
+      },
+    },
+    pool: "threads",
     fsModuleCache: true,
     projects: [
       {

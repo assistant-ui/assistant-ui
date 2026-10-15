@@ -22,6 +22,47 @@ import json
 
 
 @pytest.mark.anyio
+async def test_assistant_transport_encoder_error_metadata():
+    async def stream():
+        yield ErrorChunk(error="slow", code="rate_limit", severity="warning")
+        yield ErrorChunk(error="failed")
+
+    frames = [
+        json.loads(line[6:-2])
+        async for line in AssistantTransportEncoder().encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    assert frames == [
+        {"type": "error", "error": "slow", "code": "rate_limit", "severity": "warning"},
+        {"type": "error", "error": "failed"},
+    ]
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_tool_result_carries_nested_messages():
+    messages = [{"role": "assistant", "content": [{"type": "text", "text": "done"}]}]
+
+    async def stream():
+        yield ToolCallBeginChunk(tool_call_id="t1", tool_name="search")
+        yield ToolResultChunk(tool_call_id="t1", result="ok", messages=messages)
+
+    frames = [
+        json.loads(line[6:-2])
+        async for line in AssistantTransportEncoder().encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    assert next(frame for frame in frames if frame["type"] == "result") == {
+        "type": "result",
+        "result": "ok",
+        "isError": False,
+        "messages": messages,
+        "path": [0],
+    }
+
+
+@pytest.mark.anyio
 async def test_assistant_transport_encoder_format():
     """Test that AssistantTransportEncoder produces SSE format."""
     encoder = AssistantTransportEncoder()

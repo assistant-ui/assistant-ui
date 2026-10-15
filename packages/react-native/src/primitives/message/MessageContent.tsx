@@ -1,16 +1,21 @@
 import { type ReactElement, Fragment, useMemo } from "react";
 import { Text } from "react-native";
-import { getMessagePartKeys } from "@assistant-ui/core/internal";
 import type {
   ThreadUserMessagePart,
   ThreadAssistantMessagePart,
   MessagePartState,
 } from "@assistant-ui/core";
 import { useAui, useAuiState } from "@assistant-ui/store";
-import type {
-  ToolCallMessagePartProps,
-  DataMessagePartProps,
+import {
+  PartByIndexProvider,
+  type ToolCallMessagePartProps,
+  type DataMessagePartProps,
 } from "@assistant-ui/core/react";
+import { DefaultMessageImage } from "./MessageParts";
+import {
+  getMessagePartKeys,
+  resolveToolRender,
+} from "@assistant-ui/core/internal";
 
 type MessageContentPart = ThreadUserMessagePart | ThreadAssistantMessagePart;
 type MessageContentStatePart = MessagePartState;
@@ -69,9 +74,7 @@ const ToolUIDisplay = ({
   index: number;
 }) => {
   const aui = useAui();
-  const Render = useAuiState(
-    (s) => s.tools.toolUIs[part.toolName]?.[0]?.render,
-  );
+  const Render = useAuiState((s) => resolveToolRender(s.tools, part));
 
   const partMethods = useMemo(() => aui.message.part({ index }), [aui, index]);
 
@@ -153,9 +156,16 @@ export const MessageContent = ({
               </Fragment>
             );
           case "image":
-            if (!renderImage) return null;
             return (
-              <Fragment key={key}>{renderImage({ part, index })}</Fragment>
+              <Fragment key={key}>
+                {renderImage ? (
+                  renderImage({ part, index })
+                ) : (
+                  <PartByIndexProvider index={index}>
+                    <DefaultMessageImage />
+                  </PartByIndexProvider>
+                )}
+              </Fragment>
             );
           case "reasoning":
             if (!renderReasoning) return null;

@@ -227,6 +227,9 @@ export const joinExternalMessages = (
 
           if (output.metadata) {
             assistantMessage.metadata ??= {};
+            if (output.metadata.runId !== undefined) {
+              assistantMessage.metadata.runId = output.metadata.runId;
+            }
             if (output.metadata.unstable_state !== undefined) {
               assistantMessage.metadata.unstable_state =
                 output.metadata.unstable_state;
@@ -305,7 +308,9 @@ export const joinExternalMessages = (
                 const timing = mergePartTiming(existing.timing, part.timing);
                 assistantMessage.content[existingIdx] = {
                   ...existing,
-                  text: `${existing.text}\n\n${part.text}`,
+                  text: [existing.text, part.text]
+                    .filter((text) => text?.trim())
+                    .join("\n\n"),
                   ...(timing && { timing }),
                   ...mergeInnerMessages(existing, part),
                 };
@@ -345,6 +350,8 @@ export const chunkExternalMessages = <T>(
 ) => {
   const results: ExternalMessageConverterChunk<T>[] = [];
   let isAssistant = false;
+  let hasAssistantOutput = false;
+  let assistantRunId: string | undefined;
   let pendingNone = false; // true if the previous assistant message had joinStrategy "none"
   let inputs: T[] = [];
   let outputs: ExternalMessageConverterMessage[] = [];
@@ -359,6 +366,8 @@ export const chunkExternalMessages = <T>(
     inputs = [];
     outputs = [];
     isAssistant = false;
+    hasAssistantOutput = false;
+    assistantRunId = undefined;
     pendingNone = false;
   };
 
@@ -368,6 +377,9 @@ export const chunkExternalMessages = <T>(
         output.role === "assistant" && output.metadata?.modality === "voice";
       if (
         (pendingNone && output.role !== "tool") ||
+        (output.role === "assistant" &&
+          hasAssistantOutput &&
+          assistantRunId !== output.metadata?.runId) ||
         !isAssistant ||
         output.role === "user" ||
         output.role === "system" ||
@@ -376,6 +388,10 @@ export const chunkExternalMessages = <T>(
         flush();
       }
       isAssistant = output.role === "assistant" || output.role === "tool";
+      if (output.role === "assistant") {
+        hasAssistantOutput = true;
+        assistantRunId = output.metadata?.runId;
+      }
 
       if (inputs.at(-1) !== callbackResult.input) {
         inputs.push(callbackResult.input);
@@ -407,6 +423,55 @@ export const shallowArrayEqual = (
   return true;
 };
 
+export type ExternalMessageMetadataKeySelector<TMessage> = {
+  select: (
+    message: TMessage,
+    metadata: ExternalMessageConverterMetadata,
+  ) => unknown;
+  isEqual?: (previous: unknown, current: unknown) => boolean;
+};
+
+type ExternalMessageMetadataKeyEntry = {
+  values: readonly unknown[];
+  key: object;
+};
+
+const EMPTY_METADATA_KEY = Object.freeze({});
+
+export const createExternalMessageMetadataKey = <TMessage extends WeakKey>(
+  selectors: readonly ExternalMessageMetadataKeySelector<TMessage>[],
+) => {
+  const cache = new WeakMap<TMessage, ExternalMessageMetadataKeyEntry>();
+
+  return (
+    message: TMessage,
+    metadata: ExternalMessageConverterMetadata,
+  ): object => {
+    const values = selectors.map((selector) =>
+      selector.select(message, metadata),
+    );
+    if (values.every((value) => value === undefined)) {
+      return EMPTY_METADATA_KEY;
+    }
+
+    const cached = cache.get(message);
+    if (
+      cached &&
+      selectors.every((selector, index) =>
+        selector.isEqual
+          ? selector.isEqual(cached.values[index], values[index])
+          : Object.is(cached.values[index], values[index]),
+      )
+    ) {
+      return cached.key;
+    }
+
+    const entry = { values, key: {} };
+    cache.set(message, entry);
+    return entry.key;
+  };
+};
+
 type ExternalMessageChunkConversionCache = {
   message: ThreadMessage | undefined;
   generatedFallbackMessages: WeakSet<object>;
@@ -414,7 +479,7 @@ type ExternalMessageChunkConversionCache = {
 
 type ExternalMessageConversionCallbackCacheEntry<T> =
   ExternalMessageConverterCallbackResult<T> & {
-    metadata: ExternalMessageConverterMetadata;
+    metadataKey: unknown;
     callback: ExternalMessageConverterCallback<T>;
   };
 
@@ -561,17 +626,24 @@ export const convertExternalMessages = <T extends WeakKey>(
   metadata: ExternalMessageConverterMetadata,
   joinStrategy?: JoinStrategy,
   cache?: InternalExternalMessageConversionCache<T>,
+  getMetadataKey?: (
+    message: T,
+    metadata: ExternalMessageConverterMetadata,
+  ) => unknown,
 ) => {
   const callbackResults = messages.map((message) => {
+    const metadataKey = getMetadataKey
+      ? getMetadataKey(message, metadata)
+      : metadata;
     let result = cache?.callbackCache.get(message);
     if (
       !result ||
-      result.metadata !== metadata ||
+      !Object.is(result.metadataKey, metadataKey) ||
       result.callback !== callback
     ) {
       result = {
         ...convertExternalMessageCallback(message, callback, metadata),
-        metadata,
+        metadataKey,
         callback,
       };
       cache?.callbackCache.set(message, result);

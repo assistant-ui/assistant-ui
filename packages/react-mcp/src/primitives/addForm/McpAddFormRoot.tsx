@@ -17,6 +17,7 @@ import {
 } from "./context";
 import type { MCPAuthConfig } from "../../mcp-scope";
 import { invokeMcpCallback } from "../../utils/invokeMcpCallback";
+import { isSecureNetworkUrl } from "../../utils/serverUrl";
 
 const INITIAL: AddFormState = {
   name: "",
@@ -77,7 +78,8 @@ export const McpAddFormPrimitiveRoot = forwardRef<
         const clearsError =
           prev.errorField === "form" ||
           prev.errorField === key ||
-          (key === "authType" && prev.errorField === "bearerToken");
+          (key === "authType" &&
+            (prev.errorField === "bearerToken" || prev.errorField === "url"));
         return {
           ...prev,
           [key]: value,
@@ -132,6 +134,14 @@ export const McpAddFormPrimitiveRoot = forwardRef<
       setState((p) => ({
         ...p,
         error: urlResult.error,
+        errorField: "url",
+      }));
+      return;
+    }
+    if (state.authType !== "none" && !isSecureNetworkUrl(urlResult.url)) {
+      setState((p) => ({
+        ...p,
+        error: "Authenticated servers must use HTTPS or loopback HTTP",
         errorField: "url",
       }));
       return;

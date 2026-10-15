@@ -41,7 +41,7 @@ export function GuardrailNotice({
         <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium">
           {title}
         </span>
-        <span className={cn(mono, "text-foreground/30 shrink-0")}>
+        <span className={cn(mono, "text-muted-foreground shrink-0")}>
           {policy}
         </span>
       </div>
@@ -52,7 +52,7 @@ export function GuardrailNotice({
 
       {alternatives.length > 0 && (
         <div className="flex flex-col gap-1.5">
-          <span className={cn(mono, "text-foreground/30")}>try instead</span>
+          <span className={cn(mono, "text-muted-foreground")}>try instead</span>
           {alternatives.map((alternative) =>
             onPick ? (
               <button

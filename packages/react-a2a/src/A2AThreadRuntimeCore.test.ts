@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
   applyA2uiOperations,
   convertSurfaceToUISpec,
-} from "@assistant-ui/react-generative-ui/a2ui";
+} from "@assistant-ui/generative-ui/a2ui";
 import { A2AThreadRuntimeCore } from "./A2AThreadRuntimeCore";
 import type { A2AClient } from "./A2AClient";
 import type {
@@ -155,10 +155,10 @@ const toolInteraction = {
 };
 
 describe("A2AThreadRuntimeCore", () => {
-  let notifyUpdate: ReturnType<typeof vi.fn>;
+  let onUpdate = vi.fn<() => void>();
 
   beforeEach(() => {
-    notifyUpdate = vi.fn();
+    onUpdate = vi.fn<() => void>();
   });
 
   afterEach(() => {
@@ -169,11 +169,12 @@ describe("A2AThreadRuntimeCore", () => {
     clientOverrides: Partial<A2AClient> = {},
     coreOverrides: Record<string, unknown> = {},
   ) {
-    return new A2AThreadRuntimeCore({
+    const core = new A2AThreadRuntimeCore({
       client: createMockClient(clientOverrides),
-      notifyUpdate: notifyUpdate as unknown as () => void,
       ...coreOverrides,
     });
+    core.subscribe(onUpdate);
+    return core;
   }
 
   describe("late history loading", () => {
@@ -406,11 +407,11 @@ describe("A2AThreadRuntimeCore", () => {
       expect(core.isLoading).toBe(true);
       core.applyExternalMessages([]);
       core.resetContext();
-      const updatesAfterReplacement = notifyUpdate.mock.calls.length;
+      const updatesAfterReplacement = onUpdate.mock.calls.length;
       expect(core.isLoading).toBe(false);
       resolve({ messages: [] });
       await loading;
-      expect(notifyUpdate).toHaveBeenCalledTimes(updatesAfterReplacement);
+      expect(onUpdate).toHaveBeenCalledTimes(updatesAfterReplacement);
     });
 
     it("does not import old history when agent-card discovery settles after a thread switch", async () => {
@@ -635,13 +636,10 @@ describe("A2AThreadRuntimeCore", () => {
       const client = createMockClient({ streamMessage });
       const core = new A2AThreadRuntimeCore({
         client,
-        notifyUpdate: notifyUpdate as unknown as () => void,
       });
 
       await core.append(createUserAppendMessage("First"));
 
-      // useA2ARuntime re-applies its options on every render, including the
-      // renders triggered by the stream's own notifyUpdate calls.
       core.updateOptions({ client, contextId: undefined });
 
       await core.append(createUserAppendMessage("Second"));
@@ -657,7 +655,6 @@ describe("A2AThreadRuntimeCore", () => {
       const client = createMockClient({ streamMessage });
       const core = new A2AThreadRuntimeCore({
         client,
-        notifyUpdate: notifyUpdate as unknown as () => void,
       });
 
       await core.append(createUserAppendMessage("First"));
@@ -711,7 +708,6 @@ describe("A2AThreadRuntimeCore", () => {
       const client = createMockClient({ streamMessage });
       const core = new A2AThreadRuntimeCore({
         client,
-        notifyUpdate: notifyUpdate as unknown as () => void,
       });
 
       await core.append(createUserAppendMessage("First"));
@@ -731,7 +727,6 @@ describe("A2AThreadRuntimeCore", () => {
       const client = createMockClient({ streamMessage });
       const core = new A2AThreadRuntimeCore({
         client,
-        notifyUpdate: notifyUpdate as unknown as () => void,
       });
 
       await core.append(createUserAppendMessage("First"));
@@ -1778,7 +1773,6 @@ describe("A2AThreadRuntimeCore", () => {
           }),
         }),
         onArtifactComplete,
-        notifyUpdate: notifyUpdate as unknown as () => void,
       });
 
       await core.append(createUserAppendMessage("Go"));
@@ -2363,6 +2357,65 @@ describe("A2AThreadRuntimeCore", () => {
     });
   });
 
+  // --- Runtime detachment ---
+
+  describe("runtime detachment", () => {
+    it("keeps an onCancel replacement run abortable", async () => {
+      const streamSignals: AbortSignal[] = [];
+      const releaseStreams: Array<() => void> = [];
+      const streamMessage = vi.fn().mockImplementation(async function* (
+        _msg: any,
+        _cfg: any,
+        _meta: any,
+        signal: AbortSignal,
+      ) {
+        const streamIndex = streamSignals.push(signal) - 1;
+        yield statusUpdateEvent("working");
+        if (signal.aborted) return;
+        await new Promise<void>((resolve) => {
+          releaseStreams[streamIndex] = resolve;
+          signal.addEventListener("abort", () => resolve(), { once: true });
+        });
+      });
+      let core!: A2AThreadRuntimeCore;
+      let replacementRun: Promise<void> | undefined;
+      let startReplacement = true;
+      core = createCore(
+        {
+          getAgentCard: vi.fn().mockResolvedValue({
+            name: "Agent",
+            url: "https://agent.example",
+          }),
+          streamMessage,
+        },
+        {
+          onCancel: () => {
+            if (!startReplacement) return;
+            startReplacement = false;
+            replacementRun = core.append(
+              createUserAppendMessage("Replacement"),
+            );
+          },
+        },
+      );
+
+      const firstRun = core.append(createUserAppendMessage("First"));
+      await vi.waitFor(() => expect(streamSignals).toHaveLength(1));
+
+      core.detachRuntime();
+      await vi.waitFor(() => expect(streamSignals).toHaveLength(2));
+      await vi.waitFor(() => expect(releaseStreams[1]).toBeTypeOf("function"));
+
+      await core.cancel();
+      const replacementWasAborted = streamSignals[1]!.aborted;
+      releaseStreams[1]!();
+      await Promise.all([firstRun, replacementRun]);
+
+      expect(streamSignals[0]!.aborted).toBe(true);
+      expect(replacementWasAborted).toBe(true);
+    });
+  });
+
   // --- Cancel ---
 
   describe("cancel", () => {
@@ -2380,13 +2433,13 @@ describe("A2AThreadRuntimeCore", () => {
         status: { state: "working" },
       };
       (core as any).abortController = new AbortController();
-      notifyUpdate.mockClear();
+      onUpdate.mockClear();
 
       await core.cancel();
 
       expect(cancelTask).toHaveBeenCalledWith("t1");
       expect(core.getTask()!.status.state).toBe("canceled");
-      expect(notifyUpdate).toHaveBeenCalledOnce();
+      expect(onUpdate).toHaveBeenCalledOnce();
     });
 
     it("does nothing when no abort controller", async () => {
@@ -2485,6 +2538,67 @@ describe("A2AThreadRuntimeCore", () => {
       await cancelPromise;
 
       expect(core.getTask()?.status.state).toBe("working");
+    });
+
+    it("keeps the run onCancel starts when a send supersedes the active run", async () => {
+      const signals: AbortSignal[] = [];
+      const streamMessage = vi.fn().mockImplementation(async function* (
+        _msg: any,
+        _cfg: any,
+        _meta: any,
+        signal: AbortSignal,
+      ) {
+        signals.push(signal);
+        await new Promise<void>((resolve) => {
+          if (signal.aborted) resolve();
+          else
+            signal.addEventListener("abort", () => resolve(), { once: true });
+        });
+      });
+      let restarted = false;
+      let core!: A2AThreadRuntimeCore;
+      core = createCore(
+        { streamMessage },
+        {
+          onCancel: () => {
+            if (restarted) return;
+            restarted = true;
+            void core.append({
+              ...createUserAppendMessage("from onCancel"),
+              parentId: core.getMessages().at(-1)!.id,
+            });
+          },
+        },
+      );
+
+      void core.append(createUserAppendMessage("first"));
+      await vi.waitFor(() => expect(signals).toHaveLength(1));
+      void core.append({
+        ...createUserAppendMessage("second"),
+        parentId: core.getMessages().at(-1)!.id,
+      });
+      await vi.waitFor(() => expect(signals).toHaveLength(2));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(signals).toHaveLength(2);
+      expect(
+        core.getMessages().map((message) => ({
+          role: message.role,
+          text: message.content.map((part) =>
+            part.type === "text" ? part.text : "",
+          ),
+        })),
+      ).toEqual([
+        { role: "user", text: ["first"] },
+        { role: "assistant", text: [] },
+        { role: "user", text: ["second"] },
+        { role: "user", text: ["from onCancel"] },
+        { role: "assistant", text: [] },
+      ]);
+
+      await core.cancel();
+
+      expect(signals.every((signal) => signal.aborted)).toBe(true);
+      expect(core.isRunning()).toBe(false);
     });
 
     it("still cancels the server task when onCancel clears the thread", async () => {
@@ -2602,7 +2716,6 @@ describe("A2AThreadRuntimeCore", () => {
           })),
         }),
         onError,
-        notifyUpdate: notifyUpdate as unknown as () => void,
       });
 
       await expect(core.append(createUserAppendMessage("Go"))).rejects.toThrow(
@@ -2848,7 +2961,6 @@ describe("outbound message conversion", () => {
     });
     const core = new A2AThreadRuntimeCore({
       client: createMockClient({ streamMessage }),
-      notifyUpdate: vi.fn() as unknown as () => void,
     });
     return { core, streamMessage };
   }

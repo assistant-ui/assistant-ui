@@ -43,10 +43,7 @@ export function Timeline({
           <span
             className={cn(
               mono,
-              "pt-[3px] text-end tabular-nums",
-              event.when === "future"
-                ? "text-foreground/25"
-                : "text-foreground/40",
+              "text-muted-foreground pt-[3px] text-end tabular-nums",
             )}
           >
             {event.time}
@@ -57,10 +54,11 @@ export function Timeline({
               className={cn(
                 "mt-1 size-2 shrink-0 rounded-full",
                 event.when === "now" &&
-                  "bg-blue-500 ring-4 ring-blue-500/15 dark:bg-blue-400",
-                event.when === "past" && "bg-foreground/30",
+                  "bg-blue-500 ring-4 ring-blue-500/15 dark:bg-blue-400 forced-colors:bg-[Highlight]",
+                event.when === "past" &&
+                  "bg-muted-foreground forced-colors:bg-[CanvasText]",
                 event.when === "future" &&
-                  "border-foreground/20 border bg-transparent",
+                  "border-muted-foreground border bg-transparent",
               )}
             />
             {i < shown.length - 1 && (
@@ -85,7 +83,7 @@ export function Timeline({
               className={cn(
                 "text-[13px] break-words",
                 event.when === "future"
-                  ? "text-foreground/40"
+                  ? "text-muted-foreground"
                   : "text-foreground/90",
                 event.when === "now" && "font-medium",
               )}
@@ -93,7 +91,7 @@ export function Timeline({
               {event.title}
             </span>
             {event.detail && (
-              <span className="text-foreground/45 text-xs leading-relaxed break-words">
+              <span className="text-muted-foreground text-xs leading-relaxed break-words">
                 {event.detail}
               </span>
             )}

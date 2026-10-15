@@ -3,8 +3,8 @@ import {
   AssistantCloudJWTAuthStrategy,
   AssistantCloudAPIKeyAuthStrategy,
   AssistantCloudAnonymousAuthStrategy,
-  normalizeBaseUrl,
 } from "./AssistantCloudAuthStrategy";
+import { normalizeBaseUrl } from "./baseUrl";
 import type { AssistantCloudRunReport } from "./AssistantCloudRuns";
 import { ASSISTANT_CLOUD_VERSION } from "./version";
 
@@ -103,6 +103,28 @@ type MakeRequestOptions = {
 };
 
 const HEADER_TOKEN = /^[\x21-\x7e]+$/;
+const authGenerations = new WeakMap<AssistantCloudAPI, number>();
+
+export const buildCloudHeaders = async <
+  TRequired extends Record<string, string>,
+>(
+  cloud: AssistantCloudAPI,
+  requiredHeaders: TRequired,
+  additionalHeaders?: Record<string, string>,
+  authGeneration = authGenerations.get(cloud) ?? 0,
+) => {
+  const authHeaders = await cloud._auth.getAuthHeaders();
+  if (authGeneration !== (authGenerations.get(cloud) ?? 0) || !authHeaders) {
+    throw new Error("Authorization failed");
+  }
+
+  return {
+    ...authHeaders,
+    ...additionalHeaders,
+    ...requiredHeaders,
+    "Aui-Sdk": cloud.sdkHeader(),
+  };
+};
 
 export class AssistantCloudAPI {
   public _auth: AssistantCloudAuthStrategy;
@@ -153,19 +175,22 @@ export class AssistantCloudAPI {
     return !!(await this._auth.getAuthHeaders());
   }
 
+  public invalidateAuth(): void {
+    authGenerations.set(this, (authGenerations.get(this) ?? 0) + 1);
+    this._auth.invalidate();
+  }
+
   public async makeRawRequest(
     endpoint: string,
     options: MakeRequestOptions = {},
   ) {
-    const authHeaders = await this._auth.getAuthHeaders();
-    if (!authHeaders) throw new Error("Authorization failed");
-
-    const headers = {
-      ...authHeaders,
-      ...options.headers,
-      "Content-Type": "application/json",
-      "Aui-Sdk": this.sdkHeader(),
-    };
+    const authGeneration = authGenerations.get(this) ?? 0;
+    const headers = await buildCloudHeaders(
+      this,
+      { "Content-Type": "application/json" },
+      options.headers,
+      authGeneration,
+    );
 
     const queryParams = new URLSearchParams();
     if (options.query) {
@@ -189,7 +214,9 @@ export class AssistantCloudAPI {
       ...(options.keepalive ? { keepalive: true } : {}),
     });
 
-    this._auth.readAuthHeaders(response.headers);
+    if (authGeneration === (authGenerations.get(this) ?? 0)) {
+      this._auth.readAuthHeaders(response.headers);
+    }
 
     if (!response.ok) {
       const text = await response.text();

@@ -24,7 +24,7 @@ export const API_CATALOG_CONTENT_TYPE = `application/linkset+json; profile="${AP
 const absoluteUrl = (path: string) => `${BASE_URL}${path}`;
 
 const AGENT_SKILL_DESCRIPTION =
-  "Use assistant-ui documentation to implement and troubleshoot AI chat interfaces across React, React Native, and terminal applications.";
+  "Use assistant-ui documentation to implement and troubleshoot AI chat interfaces across React, Vue, React Native, and terminal applications.";
 
 export const SITE_SKILL_DOCUMENT = `---
 name: assistant-ui-docs

@@ -1,4 +1,5 @@
 import { checkoutEnabled } from "./checkout/config";
+import { SUB_PROJECT_SLUGS, subProject } from "./docs-sites";
 import { isAiPlaygroundEnabled } from "./feature-flags";
 
 export const BASE_URL = "https://www.assistant-ui.com";
@@ -8,7 +9,7 @@ export const STATUS_URL = "https://status.assistant-ui.com";
 export const SURFACES = ["react", "rn", "ink"] as const;
 export type Surface = (typeof SURFACES)[number];
 
-export const PLATFORMS = [...SURFACES, "tap", "cloud"] as const;
+export const PLATFORMS = [...SURFACES, "vue", "tap", "cloud"] as const;
 export type Platform = (typeof PLATFORMS)[number];
 
 export const DEFAULT_PLATFORM: Surface = "react";
@@ -17,6 +18,7 @@ export const PLATFORM_LABELS: Record<Platform, string> = {
   react: "React",
   rn: "React Native",
   ink: "React Ink",
+  vue: "Vue",
   tap: "Tap",
   cloud: "assistant-cloud",
 };
@@ -30,50 +32,18 @@ export type Product = {
   external: boolean;
 };
 
-export const PRODUCTS: Product[] = [
-  {
-    slug: "tw-shimmer",
-    label: "tw-shimmer",
-    href: "/tw-shimmer",
-    description: "Tailwind CSS shimmer effects",
+export const PRODUCTS: Product[] = SUB_PROJECT_SLUGS.filter(
+  (slug) => slug !== "playground" && slug !== "learn",
+).map((slug) => {
+  const project = subProject(slug);
+  return {
+    slug,
+    label: project.productLabel ?? project.title,
+    href: `/${slug}`,
+    description: project.productDescription,
     external: false,
-  },
-  {
-    slug: "safe-content-frame",
-    label: "Safe Content Frame",
-    href: "/safe-content-frame",
-    description: "Secure sandboxed iframes",
-    external: false,
-  },
-  {
-    slug: "native",
-    label: "React Native",
-    href: "/native",
-    description: "Build mobile apps with React Native",
-    external: false,
-  },
-  {
-    slug: "ink",
-    label: "Ink",
-    href: "/ink",
-    description: "Build interactive experiences with Ink",
-    external: false,
-  },
-  {
-    slug: "heat-graph",
-    label: "Heat Graph",
-    href: "/heat-graph",
-    description: "Activity heatmap graph components",
-    external: false,
-  },
-  {
-    slug: "react-o11y",
-    label: "react-o11y",
-    href: "/react-o11y",
-    description: "Observability span primitives",
-    external: false,
-  },
-];
+  };
+});
 
 /** Internal products/pages that have sub-project routes (used by SubProjectLayout switcher). */
 export const SUB_PROJECTS: (Product & { slug: string })[] = [
@@ -81,18 +51,18 @@ export const SUB_PROJECTS: (Product & { slug: string })[] = [
     ? [
         {
           slug: "learn",
-          label: "Learn",
+          label: subProject("learn").title,
           href: "/learn",
-          description: "Guided assistant-ui courses",
+          description: subProject("learn").productDescription,
           external: false,
         },
       ]
     : []),
   {
     slug: "playground",
-    label: "Playground",
+    label: subProject("playground").title,
     href: "/playground",
-    description: "Interactive playground",
+    description: subProject("playground").productDescription,
     external: false,
   },
   ...PRODUCTS.filter((p): p is Product & { slug: string } => !!p.slug),
@@ -104,6 +74,7 @@ export type NavGlyphKind =
   | "react"
   | "native"
   | "ink"
+  | "vue"
   | "cloud"
   | "playground"
   | "shimmer"
@@ -198,6 +169,13 @@ export const NAV_ITEMS: NavItem[] = [
             description: "Terminal UIs on the same runtime",
             external: false,
             glyph: "ink",
+          },
+          {
+            label: "Vue",
+            href: "/docs/vue",
+            description: "Vue and Nuxt apps on the same runtime",
+            external: false,
+            glyph: "vue",
           },
         ],
       },

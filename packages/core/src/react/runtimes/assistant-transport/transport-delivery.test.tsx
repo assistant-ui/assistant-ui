@@ -22,7 +22,10 @@ const emptySuccessfulResponse = () =>
   );
 
 const setupRuntime = () => {
-  const fetchMock = vi.fn(async () => emptySuccessfulResponse());
+  const fetchMock = vi.fn(
+    async (_url: RequestInfo | URL, _init?: RequestInit) =>
+      emptySuccessfulResponse(),
+  );
   vi.stubGlobal("fetch", fetchMock);
 
   const pendingRef: { current: AssistantTransportCommand[] } = { current: [] };
@@ -75,5 +78,42 @@ describe("assistant transport delivery contracts", () => {
       expect(runtimeRef.current!.thread.getState().isRunning).toBe(false),
     );
     await waitFor(() => expect(pendingRef.current).toHaveLength(0));
+  });
+
+  it("sends a message appended before a command ahead of it", async () => {
+    const { App, fetchMock, runtimeRef } = setupRuntime();
+
+    await act(async () => {
+      render(<App />);
+    });
+    await waitFor(() => expect(runtimeRef.current).not.toBeNull());
+    const extras = () =>
+      runtimeRef.current!.thread.getState().extras as {
+        sendCommand: (command: AssistantTransportCommand) => void;
+      };
+    await waitFor(() => expect(extras().sendCommand).toBeTypeOf("function"));
+
+    await act(async () => {
+      void runtimeRef.current!.thread.append("m1");
+      extras().sendCommand({
+        type: "add-tool-result",
+        toolCallId: "t1",
+        toolName: "tool",
+        result: {},
+        isError: false,
+      });
+    });
+
+    await waitFor(() =>
+      expect(runtimeRef.current!.thread.getState().isRunning).toBe(false),
+    );
+    const sent = fetchMock.mock.calls.flatMap(
+      ([, init]) =>
+        JSON.parse(init!.body as string).commands as { type: string }[],
+    );
+    expect(sent.map((command) => command.type)).toEqual([
+      "add-message",
+      "add-tool-result",
+    ]);
   });
 });

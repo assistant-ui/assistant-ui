@@ -37,7 +37,7 @@ export function DaySeparator({
             {newDay && (
               <div className="flex items-center gap-2.5 py-1">
                 <span className="bg-foreground/[0.08] h-px flex-1" />
-                <span className={cn(mono, "text-foreground/30")}>
+                <span className={cn(mono, "text-muted-foreground")}>
                   {message.day}
                 </span>
                 <span className="bg-foreground/[0.08] h-px flex-1" />

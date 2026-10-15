@@ -4,7 +4,7 @@ import { ArrowLeftIcon } from "lucide-react";
 import {
   defaultGenerativeUILibrary,
   generativeUIToJSX,
-} from "@assistant-ui/react-generative-ui";
+} from "@assistant-ui/generative-ui/react";
 import { cn } from "@/lib/utils";
 import { createOgMetadata } from "@/lib/og";
 import { highlightElementSource } from "@/lib/element-source";
@@ -67,6 +67,24 @@ function PropsTable({
   );
 }
 
+const MODEL_SPELLING: Record<string, string> = {
+  $type: "_type",
+  $key: "_key",
+  $action: "_action",
+};
+
+const toModelSpelling = (value: unknown): unknown =>
+  Array.isArray(value)
+    ? value.map(toModelSpelling)
+    : value !== null && typeof value === "object"
+      ? Object.fromEntries(
+          Object.entries(value).map(([key, entry]) => [
+            MODEL_SPELLING[key] ?? key,
+            toModelSpelling(entry),
+          ]),
+        )
+      : value;
+
 export default async function VocabularyPage() {
   let runningIndex = 0;
 
@@ -77,7 +95,7 @@ export default async function VocabularyPage() {
   for (const category of COMPONENT_CATEGORIES) {
     for (const name of category.components) {
       const example = COMPONENT_EXAMPLES[name]!;
-      const jsonRaw = JSON.stringify(example, null, 2);
+      const jsonRaw = JSON.stringify(toModelSpelling(example), null, 2);
       const jsxRaw = generativeUIToJSX(example, { escape: true, pretty: true });
       highlighted.set(name, {
         jsonRaw,
@@ -134,7 +152,7 @@ export default async function VocabularyPage() {
                     return (
                       <section key={name} id={name} className="scroll-mt-24">
                         <div className="flex items-baseline gap-2.5">
-                          <span className="text-muted-foreground font-mono text-[11px] tabular-nums">
+                          <span className="text-muted-foreground text-xs tabular-nums">
                             {String(runningIndex).padStart(2, "0")}
                           </span>
                           <h3 className="text-[15px] font-medium">{name}</h3>
@@ -148,7 +166,7 @@ export default async function VocabularyPage() {
                             data-aui-theme="elements"
                             className={cn(
                               demoCanvasClass,
-                              "[&_[data-aui='card']]:bg-background min-h-[180px] py-10",
+                              "min-h-[180px] py-10",
                             )}
                           >
                             <div className="w-full max-w-sm">

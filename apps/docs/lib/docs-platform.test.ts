@@ -10,12 +10,13 @@ describe("docs platform", () => {
     expect(isPlatform("react")).toBe(true);
     expect(isPlatform("rn")).toBe(true);
     expect(isPlatform("ink")).toBe(true);
-    expect(isPlatform("vue")).toBe(false);
+    expect(isPlatform("vue")).toBe(true);
+    expect(isPlatform("svelte")).toBe(false);
   });
 
   it("falls back to React for missing or invalid platform parameters", () => {
     expect(resolveDocsPlatform(null)).toBe("react");
-    expect(resolveDocsPlatform("vue")).toBe("react");
+    expect(resolveDocsPlatform("svelte")).toBe("react");
   });
 
   it("adds the selected platform without dropping other parameters", () => {

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>generative-frame demo</title>
+    <style>
+      :root {
+        --background: #ffffff;
+        --foreground: #0f172a;
+        --card: #ffffff;
+        --muted: #f1f5f9;
+        --muted-foreground: #64748b;
+        --border: #e2e8f0;
+        --primary: #7c3aed;
+        --primary-foreground: #ffffff;
+        --radius: 10px;
+        color-scheme: light;
+      }
+      :root.dark {
+        --background: #0b1020;
+        --foreground: #e2e8f0;
+        --card: #111827;
+        --muted: #1f2937;
+        --muted-foreground: #94a3b8;
+        --border: #1f2937;
+        --primary: #a78bfa;
+        --primary-foreground: #0b1020;
+        color-scheme: dark;
+      }
+      body {
+        margin: 0;
+        font-family: system-ui, sans-serif;
+        background: var(--background);
+        color: var(--foreground);
+      }
+      main {
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 24px 16px 64px;
+      }
+      .bubble {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 16px;
+        margin: 16px 0;
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      button {
+        font: inherit;
+        padding: 6px 12px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: inherit;
+        cursor: pointer;
+      }
+      #log {
+        font: 12px/1.5 ui-monospace, monospace;
+        white-space: pre-wrap;
+        background: var(--muted);
+        border-radius: 8px;
+        padding: 12px;
+        max-height: 240px;
+        overflow: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>generative-frame</h1>
+      <p>
+        More demos: <a href="./spec.html">spec mode</a> ·
+        <a href="./thread.html">assistant-ui thread</a>. Append
+        <code>?auto</code> (and <code>&amp;dark</code>) for scripted runs.
+      </p>
+      <div class="controls">
+        <button id="run">Stream chart</button>
+        <button id="diagram">Stream diagram</button>
+        <button id="theme">Toggle theme</button>
+        <button id="edit">Edit chart</button>
+        <button id="shot">Screenshot</button>
+        <button id="preview">Preview widget</button>
+      </div>
+      <div class="bubble" id="widget"></div>
+      <div class="bubble" id="diagram-widget"></div>
+      <div id="log"></div>
+    </main>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

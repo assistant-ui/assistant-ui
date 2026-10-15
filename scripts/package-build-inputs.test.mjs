@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { globSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import { fileURLToPath } from "node:url";
+import { parseWorkspaceGlobs } from "./lib/workspace.mjs";
 import {
   PACKAGE_BUILD_INPUTS,
   hasPackageBuildInputs,
@@ -24,8 +25,19 @@ assert.ok(buildJob, "Build Changed Packages job");
 test("detects package build and checker inputs", () => {
   for (const file of [
     "packages/react/src/index.ts",
+    "packages/core/package.json",
+    "packages/core/src/client.spec.ts",
+    "packages/core/src/client.bench.ts",
+    "packages/core/src/testUtils.ts",
+    "packages/core/src/tests/fixture.ts",
+    "packages/core/src/client.test.mts",
+    "packages/core/tests/client.test.ts",
+    "packages/ui/src/components/react/thread.test.tsx",
+    "packages/react-devtools/src/views/thread.test.tsx",
+    "packages/metro/src/transformer.test.ts",
     "api-surface/assistant-ui__react.ts",
     "scripts/check-built-declarations.mjs",
+    "scripts/lib/package-test-inputs.mjs",
     "package.json",
     "pnpm-lock.yaml",
     "pnpm-workspace.yaml",
@@ -33,6 +45,8 @@ test("detects package build and checker inputs", () => {
     ".github/workflows/code-quality.yaml",
     ".github/workflows/deploy-examples.yaml",
     "examples/with-expo/package.json",
+    "apps/docs/turbo.json",
+    "examples/with-resumable-stream/turbo.json",
   ]) {
     assert.equal(hasPackageBuildInputs([file]), true, file);
   }
@@ -45,23 +59,46 @@ test("ignores changes outside the package build job", () => {
     "templates/minimal/app/page.tsx",
     ".changeset/example.md",
     "README.md",
+    "packages/cloud/src/telemetry/index.test.ts",
+    "packages/core/src/react/client/RemoteThreadList.concurrent.test.tsx",
+    "packages/react/src/index.test.ts",
+    "packages/x-buildutils/src/declarations.test.ts",
     "packages-extra/react/src/index.ts",
+    "apps/docs/turbo.json.bak",
+    "examples/with-resumable-stream/turbo.json.bak",
   ]) {
     assert.equal(hasPackageBuildInputs([file]), false, file);
   }
   assert.equal(hasPackageBuildInputs([]), false);
 });
 
+test("keeps real build inputs in mixed package-test changes", () => {
+  const packageTest = "packages/cloud/src/telemetry/index.test.ts";
+  for (const input of [
+    "packages/cloud/src/telemetry/index.ts",
+    "packages/ui/src/components/react/thread.test.tsx",
+    "packages/react-devtools/src/views/thread.test.tsx",
+    "packages/metro/src/transformer.test.ts",
+    "api-surface/assistant-ui__react.ts",
+    "pnpm-lock.yaml",
+  ]) {
+    assert.equal(hasPackageBuildInputs([packageTest, input]), true, input);
+    assert.equal(hasPackageBuildInputs([input, packageTest]), true, input);
+  }
+});
+
 test("the CLI reads NUL-separated paths", () => {
   const relevant = spawnSync(process.execPath, [script], {
-    input: "README.md\0packages/tap/src/index.ts\0",
+    input:
+      "README.md\0packages/cloud/src/telemetry/index.test.ts\0packages/tap/src/index.ts\0",
     encoding: "utf8",
   });
   assert.equal(relevant.status, 0, relevant.stderr);
   assert.equal(relevant.stdout, "true\n");
 
   const unrelated = spawnSync(process.execPath, [script], {
-    input: "README.md\0examples/with-ai-sdk-v7/app/page.tsx\0",
+    input:
+      "README.md\0examples/with-ai-sdk-v7/app/page.tsx\0packages/cloud/src/telemetry/index.test.ts\0",
     encoding: "utf8",
   });
   assert.equal(unrelated.status, 0, unrelated.stderr);
@@ -72,6 +109,27 @@ test("the detector watches its own implementation", () => {
   assert.ok(PACKAGE_BUILD_INPUTS.includes("scripts"));
 });
 
+test("test-only changes still run coverage and affected typechecks", () => {
+  const typecheck = workflow.match(/\n  typecheck:\n[\s\S]*$/)?.[0];
+  assert.ok(typecheck);
+  assert.match(typecheck, /if: \$\{\{ !cancelled\(\) \}\}/);
+  assert.doesNotMatch(typecheck, /package_build_inputs/);
+  assert.match(typecheck, /scripts\/typecheck\.sh --continue --filter=/);
+
+  const coverage = readFileSync(
+    path.join(repoRoot, ".github/workflows/test-coverage.yaml"),
+    "utf8",
+  );
+  assert.match(
+    coverage,
+    /git diff --quiet "\$BASE" HEAD -- \\\n\s+packages \\/,
+  );
+  assert.match(coverage, /pnpm turbo build --filter="\.\/packages\/\*"/);
+  assert.match(coverage, /pnpm test:coverage --continue/);
+  const turbo = JSON.parse(readFileSync(path.join(repoRoot, "turbo.json")));
+  assert.ok(turbo.tasks.typecheck.dependsOn.includes("^build"));
+});
+
 test("the workflow runs for detector changes", () => {
   for (const file of [
     "scripts/package-build-inputs.mjs",
@@ -79,7 +137,7 @@ test("the workflow runs for detector changes", () => {
   ]) {
     assert.equal(
       workflow.match(new RegExp(`      - "${file}"`, "g"))?.length,
-      2,
+      1,
       file,
     );
   }
@@ -141,10 +199,20 @@ test("the workflow gates dependency-backed package steps", () => {
 test("the build install follows the affected package graph", () => {
   assert.match(step("Setup pnpm and node.js"), /cache: false/);
   const install = step("Install dependencies");
-  assert.match(install, /BASE="origin\/\$\{\{ github\.base_ref \}\}"/);
-  assert.match(install, /BASE="\$\{\{ github\.event\.before \}\}"/);
+  for (const name of [
+    "Install dependencies",
+    "Build packages",
+    "Check API surface",
+  ]) {
+    assert.match(
+      step(name),
+      /BASE: \$\{\{ steps\.package_build_inputs\.outputs\.base \}\}/,
+    );
+  }
+  assert.match(step("Detect package build inputs"), /echo "base=\$BASE"/);
+  assert.match(step("Detect package build inputs"), /run=true\n\s+BASE=""/);
   const guardedInstall = install.match(
-    /if git diff --quiet "\$BASE" HEAD -- \\\n(?<inputs>[\s\S]*?); then\n(?<filteredInstall>[\s\S]*?)\n\s+else/,
+    /if \[ -n "\$BASE" \] && git diff --quiet "\$BASE" HEAD -- \\\n(?<inputs>[\s\S]*?); then\n(?<filteredInstall>[\s\S]*?)\n\s+else/,
   );
   assert.ok(guardedInstall?.groups);
   for (const input of [
@@ -166,7 +234,6 @@ test("the build install follows the affected package graph", () => {
     "@assistant-ui/react-devtools...",
     "@assistant-ui/x-buildutils...",
     "@assistant-ui/x-performance",
-    "...[$BASE]...",
     "!./apps/*",
     "!./examples/*",
     "!./templates/*",
@@ -176,5 +243,72 @@ test("the build install follows the affected package graph", () => {
       filter,
     );
   }
+  assert.match(guardedInstall.groups.filteredInstall, /\$\{filters\[@\]\}/);
+  assert.match(
+    install,
+    /node scripts\/update-api-surface\.mjs --base "\$BASE" --print-filters/,
+  );
+  assert.match(install, /--filter=\.\/packages\/\*\.\.\./);
+  assert.match(
+    step("Build packages"),
+    /pnpm api-surface -- --base=.* --build-only/,
+  );
+  assert.match(step("Check API surface"), /--skip-build --base=/);
   assert.match(install, /else\n\s+pnpm install --frozen-lockfile\n\s+fi/);
+});
+
+test("the typecheck install excludes API snapshots without weakening the build check", () => {
+  const job = "typecheck";
+  const content = workflow.match(
+    new RegExp(`\\n  ${job}:\\n[\\s\\S]*?(?=\\n  [a-z-]+:|$)`),
+  )?.[0];
+  assert.ok(content, job);
+  const install = content.match(
+    /      - name: Install dependencies\n[\s\S]*?(?=\n      - name:)/,
+  )?.[0];
+  assert.ok(install, job);
+  assert.match(install, /--filter="!@assistant-ui\/api-surface"/);
+  assert.match(install, /--filter="\.\.\.\[\$CI_BASE\]\.\.\."/);
+  assert.match(install, /--filter="@assistant-ui\/react-devtools\.\.\."/);
+  assert.match(install, /else\n\s+pnpm install --frozen-lockfile\n\s+fi/);
+  assert.doesNotMatch(
+    step("Install dependencies"),
+    /!@assistant-ui\/api-surface/,
+  );
+  assert.match(step("Check API surface"), /api-surface:check/);
+});
+
+test("the excluded snapshot workspace has no build, test, typecheck, or workspace consumers", () => {
+  const manifest = JSON.parse(
+    readFileSync(path.join(repoRoot, "api-surface/package.json"), "utf8"),
+  );
+  for (const task of ["build", "test", "typecheck"]) {
+    assert.equal(manifest.scripts[task], undefined, task);
+  }
+  const workspaceGlobs = parseWorkspaceGlobs(
+    readFileSync(path.join(repoRoot, "pnpm-workspace.yaml"), "utf8"),
+  );
+  const workspaceManifests = new Set([
+    "package.json",
+    ...workspaceGlobs.flatMap((glob) =>
+      globSync(`${glob}/package.json`, { cwd: repoRoot }),
+    ),
+  ]);
+  for (const workspaceManifest of workspaceManifests) {
+    const pkg = JSON.parse(
+      readFileSync(path.join(repoRoot, workspaceManifest), "utf8"),
+    );
+    for (const field of [
+      "dependencies",
+      "devDependencies",
+      "peerDependencies",
+      "optionalDependencies",
+    ]) {
+      assert.equal(
+        pkg[field]?.[manifest.name],
+        undefined,
+        `${workspaceManifest}: ${field}`,
+      );
+    }
+  }
 });

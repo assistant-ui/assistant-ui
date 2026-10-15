@@ -9,6 +9,8 @@ import { CloudResponseError } from "../cloudResponse";
 
 const baseUrl = "https://test.example.com";
 const accessToken = `${Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url")}.${Buffer.from(JSON.stringify({ exp: 4102444800 })).toString("base64url")}.sig`;
+const createAccessToken = (subject: string) =>
+  `${Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url")}.${Buffer.from(JSON.stringify({ exp: 4102444800, sub: subject })).toString("base64url")}.sig`;
 const refreshToken = {
   token: "r1",
   expires_at: "2099-01-01",
@@ -42,6 +44,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
       globalThis,
       "localStorage",
     );
+    vi.stubGlobal("navigator", {});
   });
 
   afterEach(() => {
@@ -198,6 +201,51 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
       { Authorization: `Bearer ${accessToken}` },
     ]);
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(values.get(refreshTokenKey)).toBe(JSON.stringify(refreshToken));
+  });
+
+  it("reuses an in-flight anonymous token request after invalidation", async () => {
+    const values = new Map<string, string>();
+    installLocalStorage({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        values.delete(key);
+      },
+    } as Storage);
+    let resolveResponse: (response: Response) => void = () => {};
+    const response = new Promise<Response>((resolve) => {
+      resolveResponse = resolve;
+    });
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockImplementationOnce(() => response);
+    vi.stubGlobal("fetch", fetchMock);
+    const strategy = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+
+    const firstRequest = strategy.getAuthHeaders();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+    strategy.invalidate();
+    const secondRequest = strategy.getAuthHeaders();
+    expect(fetchMock).toHaveBeenCalledOnce();
+
+    resolveResponse({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      }),
+    } as unknown as Response);
+    await expect(firstRequest).resolves.toBe(false);
+    await expect(secondRequest).resolves.toEqual({
+      Authorization: `Bearer ${accessToken}`,
+    });
+    await expect(strategy.getAuthHeaders()).resolves.toEqual({
+      Authorization: `Bearer ${accessToken}`,
+    });
+    expect(fetchMock).toHaveBeenCalledOnce();
     expect(values.get(refreshTokenKey)).toBe(JSON.stringify(refreshToken));
   });
 
@@ -935,6 +983,47 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
 });
 
 describe("AssistantCloudJWTAuthStrategy", () => {
+  it("discards an in-flight provider token after invalidation", async () => {
+    let resolveUserAToken: (token: string) => void = () => {};
+    const userAToken = new Promise<string>((resolve) => {
+      resolveUserAToken = resolve;
+    });
+    const authToken = vi
+      .fn<() => Promise<string | null>>()
+      .mockImplementationOnce(() => userAToken)
+      .mockResolvedValueOnce(null);
+    const strategy = new AssistantCloudJWTAuthStrategy(authToken);
+
+    const userARequest = strategy.getAuthHeaders();
+    strategy.invalidate();
+    await expect(strategy.getAuthHeaders()).resolves.toBe(false);
+
+    resolveUserAToken(createAccessToken("user-a"));
+    await expect(userARequest).resolves.toBe(false);
+    expect(authToken).toHaveBeenCalledTimes(2);
+  });
+
+  it("shares an in-flight provider token request", async () => {
+    let resolveToken: (token: string) => void = () => {};
+    const token = new Promise<string>((resolve) => {
+      resolveToken = resolve;
+    });
+    const authToken = vi.fn(() => token);
+    const strategy = new AssistantCloudJWTAuthStrategy(authToken);
+
+    const first = strategy.getAuthHeaders();
+    const second = strategy.getAuthHeaders();
+    resolveToken(accessToken);
+
+    await expect(first).resolves.toEqual({
+      Authorization: `Bearer ${accessToken}`,
+    });
+    await expect(second).resolves.toEqual({
+      Authorization: `Bearer ${accessToken}`,
+    });
+    expect(authToken).toHaveBeenCalledOnce();
+  });
+
   it("retries token acquisition after a failed request", async () => {
     const authToken = vi
       .fn<() => Promise<string | null>>()
@@ -949,27 +1038,5 @@ describe("AssistantCloudJWTAuthStrategy", () => {
       Authorization: `Bearer ${accessToken}`,
     });
     expect(authToken).toHaveBeenCalledTimes(2);
-  });
-
-  it("does not cache a malformed rotated token", async () => {
-    const authToken = vi
-      .fn<() => Promise<string | null>>()
-      .mockResolvedValue(accessToken);
-    const strategy = new AssistantCloudJWTAuthStrategy(authToken);
-
-    await expect(strategy.getAuthHeaders()).resolves.toEqual({
-      Authorization: `Bearer ${accessToken}`,
-    });
-
-    expect(() =>
-      strategy.readAuthHeaders(
-        new Headers({ Authorization: "Bearer malformed" }),
-      ),
-    ).toThrow("Unable to determine the token expiry");
-
-    await expect(strategy.getAuthHeaders()).resolves.toEqual({
-      Authorization: `Bearer ${accessToken}`,
-    });
-    expect(authToken).toHaveBeenCalledTimes(1);
   });
 });

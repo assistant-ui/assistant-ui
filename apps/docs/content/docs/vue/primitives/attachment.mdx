@@ -1,0 +1,135 @@
+---
+title: Attachment
+description: Render one composer or message attachment with its name, type label, and remove button.
+---
+
+The attachment parts read the attachment scoped by `ComposerPrimitiveAttachments` or `MessagePrimitiveAttachments`. Use the remove button for pending composer attachments; sent message attachments cannot be removed.
+
+```vue title="app/components/ComposerAttachmentList.vue"
+<script setup lang="ts">
+import {
+  AttachmentPrimitiveName,
+  AttachmentPrimitiveRemove,
+  AttachmentPrimitiveRoot,
+  AttachmentPrimitiveThumb,
+  ComposerPrimitiveAttachments,
+} from "@assistant-ui/vue";
+</script>
+
+<template>
+  <div class="flex flex-wrap gap-2 empty:hidden">
+    <ComposerPrimitiveAttachments>
+      <AttachmentPrimitiveRoot class="flex items-center gap-2 rounded-lg border px-2 py-1 text-xs">
+        <AttachmentPrimitiveThumb class="font-mono uppercase" />
+        <span class="max-w-40 truncate"><AttachmentPrimitiveName /></span>
+        <AttachmentPrimitiveRemove aria-label="Remove attachment">Remove</AttachmentPrimitiveRemove>
+      </AttachmentPrimitiveRoot>
+    </ComposerPrimitiveAttachments>
+  </div>
+</template>
+```
+
+Place that list in a composer. Inside a user message row rendered by `ThreadPrimitiveMessages`, show sent attachments without a remove button:
+
+```vue title="app/components/MessageAttachmentList.vue"
+<script setup lang="ts">
+import {
+  AttachmentPrimitiveName,
+  AttachmentPrimitiveRoot,
+  AttachmentPrimitiveThumb,
+  MessagePrimitiveAttachments,
+} from "@assistant-ui/vue";
+</script>
+
+<template>
+  <div class="flex flex-wrap gap-1.5 empty:hidden">
+    <MessagePrimitiveAttachments>
+      <AttachmentPrimitiveRoot class="flex items-center gap-1.5 rounded-md border px-1.5 py-0.5 text-xs">
+        <AttachmentPrimitiveThumb class="font-mono uppercase" />
+        <AttachmentPrimitiveName />
+      </AttachmentPrimitiveRoot>
+    </MessagePrimitiveAttachments>
+  </div>
+</template>
+```
+
+`MessagePrimitiveAttachments` uses the in-flight submission's attachments when present. It renders nothing for assistant messages. The [attachments guide](/docs/vue/attachments) covers adding files, adapters, and upload errors.
+
+## Attachment state
+
+Read the current item with `useAuiState((s) => s.attachment)`. Its fields include:
+
+| Field | Type | Meaning |
+|---|---|---|
+| `id` | `string` | Attachment identity. |
+| `type` | `string` | Attachment kind, such as `image`, `document`, or `file`. |
+| `name` | `string` | File name displayed by `AttachmentPrimitiveName`. |
+| `contentType` | `string \| undefined` | MIME type when supplied. |
+| `file` | `File \| undefined` | Local file. Present on pending attachments, optional on complete ones. |
+| `status` | `AttachmentStatus` | Preparation or completion state. See the [status table](/docs/vue/attachments#upload-state-and-errors). |
+
+## Show an image preview
+
+`AttachmentPrimitiveThumb` shows a text label, not image pixels. For a pending image attachment, create a browser object URL from `s.attachment.file`. This component belongs inside `ComposerPrimitiveAttachments`; its watcher revokes the URL when the file changes or the component unmounts.
+
+```vue title="app/components/ImageAttachmentPreview.vue"
+<script setup lang="ts">
+import { ref, watch } from "vue";
+import { AttachmentPrimitiveName, useAuiState } from "@assistant-ui/vue";
+
+const type = useAuiState((s) => s.attachment.type);
+const file = useAuiState((s) => s.attachment.file);
+const name = useAuiState((s) => s.attachment.name);
+const src = ref<string | null>(null);
+
+watch(
+  () => [type.value, file.value] as const,
+  ([kind, currentFile], _previous, onCleanup) => {
+    src.value = null;
+    if (kind !== "image" || !currentFile) return;
+    const url = URL.createObjectURL(currentFile);
+    src.value = url;
+    onCleanup(() => URL.revokeObjectURL(url));
+  },
+  { immediate: true },
+);
+</script>
+
+<template>
+  <img v-if="src" :src="src" :alt="name" class="size-16 rounded-md object-cover" />
+  <span v-else><AttachmentPrimitiveName /></span>
+</template>
+```
+
+## Parts
+
+Element parts pass attributes and native listeners through to their rendered element. The text part renders no wrapper.
+
+### AttachmentPrimitiveRoot
+
+A `<div>` around one scoped attachment. It always renders and has no props.
+
+### AttachmentPrimitiveName
+
+Raw name text with no element. Its default slot replaces the name.
+
+### AttachmentPrimitiveThumb
+
+A `<div>` containing the extension with its leading dot when the name has one, or the attachment type otherwise. Its default slot replaces the label. A leading-dot name such as `.env` has no extension label.
+
+### AttachmentPrimitiveRemove
+
+A `<button type="button">` that calls `aui.attachment.remove()`. Render it in the composer iterator; removing a message attachment throws. Its default slot supplies button content, and a `disabled` attribute or `preventDefault()` on a click listener stops removal.
+
+### AttachmentByIndexProvider
+
+Scopes its slot to one attachment from the composer or current message. The iterator parts above already provide this scope; use the provider when you render your own indexed list.
+
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `source` | `"composer" \| "message"` | Required | Read pending composer attachments or attachments on the current message. |
+| `index` | `number` | Required | Position in that source's attachment list. |
+
+## Compared with React
+
+Vue exports each part under its full name, such as `AttachmentPrimitiveThumb` for React's `AttachmentPrimitive.unstable_Thumb`. The Vue thumb renders a text label rather than an image, and Vue parts have no `asChild` prop.

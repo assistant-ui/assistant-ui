@@ -486,7 +486,11 @@ export type PiHostUiResponse =
 export type PiClientEventBody =
   | { type: "snapshot"; snapshot: PiThreadSnapshot }
   | { type: "agent_start" }
-  | { type: "agent_end"; willRetry?: boolean }
+  | {
+      type: "agent_end";
+      willRetry?: boolean;
+      cancelledBeforeStart?: boolean;
+    }
   | { type: "agent_settled" }
   | { type: "turn_start"; turnIndex: number }
   | { type: "turn_end"; turnIndex: number }
@@ -530,7 +534,12 @@ export type PiClientEventBody =
   | { type: "context_usage"; contextUsage: PiContextUsage }
   | { type: "extension_ui_request"; request: PiHostUiRequest }
   | { type: "extension_ui_resolved"; requestId: string }
-  | { type: "error"; error: string };
+  | {
+      type: "error";
+      error: string;
+      /** Set when the client ended the subscription's stream; subscribe again to receive events. */
+      terminal?: boolean;
+    };
 
 /**
  * Forward-compatible fallback for augmented/unknown event types. The transport

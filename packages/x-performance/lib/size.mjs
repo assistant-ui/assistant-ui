@@ -11,6 +11,11 @@ import { gzipSync } from "node:zlib";
 import { ensureRefWorktree } from "./ref-worktree.mjs";
 import { envStamp, git } from "./suite.mjs";
 
+export const BASE_INSTALL_FILTERS = [
+  "--filter=.",
+  "--filter=@assistant-ui/react-devtools...",
+];
+
 export const SIZE_IGNORE = new Set([
   "assistant-ui",
   "create-assistant-ui",
@@ -236,13 +241,21 @@ export const compareSizes = async ({ root, ref, report }) => {
 
   if (names.length > 0) build(root, names);
   const { wt } = ensureRefWorktree(base, { build: false });
-  execFileSync("pnpm", ["install"], {
-    cwd: wt,
-    stdio: ["ignore", 2, "inherit"],
-    env: { ...process.env, CI: "true" },
-  });
   const baseNames = [...publishedPackages(wt).keys()].filter(
     (name) => names.includes(name) || !onHead.has(name),
+  );
+  execFileSync(
+    "pnpm",
+    [
+      "install",
+      ...BASE_INSTALL_FILTERS,
+      ...baseNames.map((name) => `--filter=${name}...`),
+    ],
+    {
+      cwd: wt,
+      stdio: ["ignore", 2, "inherit"],
+      env: { ...process.env, CI: "true" },
+    },
   );
   if (baseNames.length > 0) build(wt, baseNames);
 

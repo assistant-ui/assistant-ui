@@ -27,6 +27,8 @@ import { useAui } from "@assistant-ui/store";
 import { flushTapSync } from "@assistant-ui/tap";
 import { useComposerInputPluginRegistryOptional } from "./ComposerInputPluginContext";
 import { useComposerCompactContextOptional } from "./ComposerCompactContext";
+import { useComposerCancelWithFocus } from "./useComposerCancelWithFocus";
+import { useThreadRootElementRef } from "../thread/ThreadRootElementContext";
 import {
   useComposerInputDisabled,
   useComposerInputValue,
@@ -50,21 +52,35 @@ export namespace ComposerPrimitiveInput {
     render?: ReactElement | undefined;
     /**
      * Whether to cancel message composition when Escape is pressed.
+     * After cancelling an edit, focus returns to the main thread composer when
+     * available, unless a handler has moved focus elsewhere.
      * @default true
      */
     cancelOnEscape?: boolean | undefined;
     /**
-     * Whether to automatically focus the input when a new run starts.
+     * Whether to focus the input when a new run starts if nothing is focused
+     * or focus is already inside the same thread or composer. Keeps the current
+     * selection when the input is already focused. Applies when `autoFocus` is
+     * enabled.
+     *
+     * @deprecated Experimental since 2024-10-12. Not scheduled for removal; the API may change in any release.
+     *
      * @default true
      */
     unstable_focusOnRunStart?: boolean | undefined;
     /**
      * Whether to automatically focus the input when scrolling to bottom.
+     *
+     * @deprecated Experimental since 2024-10-12. Not scheduled for removal; the API may change in any release.
+     *
      * @default true
      */
     unstable_focusOnScrollToBottom?: boolean | undefined;
     /**
      * Whether to automatically focus the input when switching threads.
+     *
+     * @deprecated Experimental since 2024-10-12. Not scheduled for removal; the API may change in any release.
+     *
      * @default true
      */
     unstable_focusOnThreadSwitched?: boolean | undefined;
@@ -73,6 +89,9 @@ export namespace ComposerPrimitiveInput {
      * instead of submitting, detected via
      * `(pointer: coarse) and (not (any-pointer: fine))`. Only takes effect
      * when `submitMode` resolves to `"enter"`.
+     *
+     * @deprecated Experimental since 2026-05-24. Not scheduled for removal; the API may change in any release.
+     *
      * @default false
      */
     unstable_insertNewlineOnTouchEnter?: boolean | undefined;
@@ -174,6 +193,7 @@ export const ComposerPrimitiveInput = forwardRef<
     forwardedRef,
   ) => {
     const aui = useAui();
+    const threadRootRef = useThreadRootElementRef();
     const pluginRegistry = useComposerInputPluginRegistryOptional();
     const compactContext = useComposerCompactContextOptional();
 
@@ -192,6 +212,9 @@ export const ComposerPrimitiveInput = forwardRef<
     const value = useComposerInputValue();
     const isDisabled = useComposerInputDisabled(disabledProp);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const cancel = useComposerCancelWithFocus(
+      useCallback(() => aui.composer.cancel(), [aui]),
+    );
     const ref = useComposedRefs(forwardedRef, textareaRef);
     // suppress text/cursor broadcasts during IME composition
     const compositionRef = useRef(false);
@@ -214,7 +237,7 @@ export const ComposerPrimitiveInput = forwardRef<
 
       const composer = aui.composer;
       if (composer.getState().canCancel) {
-        composer.cancel();
+        cancel(textareaRef.current);
         e.preventDefault();
       }
     });
@@ -325,6 +348,27 @@ export const ComposerPrimitiveInput = forwardRef<
       textarea.setSelectionRange(textarea.value.length, textarea.value.length);
     }, [autoFocusEnabled]);
 
+    const focusOnRunStart = useCallback(() => {
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+      const doc = textarea.ownerDocument;
+      const active = doc.activeElement;
+      if (active === textarea) return;
+
+      const root = threadRootRef?.current;
+      const composerRoot = textarea.closest("[data-aui-composer-type]");
+      if (
+        active &&
+        active !== doc.body &&
+        !composerRoot?.contains(active) &&
+        (!root?.contains(active) ||
+          active.closest("[data-aui-thread-root]") !== root)
+      )
+        return;
+
+      focus();
+    }, [focus, threadRootRef]);
+
     useEffect(() => focus(), [focus]);
 
     useOnScrollToBottom(() => {
@@ -343,8 +387,8 @@ export const ComposerPrimitiveInput = forwardRef<
       )
         return undefined;
 
-      return aui.on("thread.runStart", focus);
-    }, [unstable_focusOnRunStart, focus, aui]);
+      return aui.on("thread.runStart", focusOnRunStart);
+    }, [unstable_focusOnRunStart, focusOnRunStart, aui]);
 
     useEffect(() => {
       if (
