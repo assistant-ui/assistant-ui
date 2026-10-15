@@ -21,6 +21,7 @@ type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = Externa
   unstable_messageRepositoryInstance?: MessageRepository | undefined;
   unstable_hostApprovalOwner?: object | undefined;
   cancelPendingToolCallsOnSend?: boolean | undefined;
+  unstable_enableMessageQueue?: boolean | undefined;
   onResume?: ExternalStoreAdapter["onResume"];
   onResumeToolCall?: ExternalStoreAdapter["onResumeToolCall"];
   onRespondToToolApproval?: ((response: RespondToToolApprovalOptions, context: {
@@ -673,6 +674,7 @@ type ChatThreadOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatInit<
   joinStrategy?: AISDKRuntimeAdapter["joinStrategy"];
   messageRepository?: AISDKRuntimeAdapter<UI_MESSAGE>["messageRepository"];
   unstable_onBranchChange?: AISDKRuntimeAdapter["unstable_onBranchChange"];
+  unstable_enableMessageQueue?: AISDKRuntimeAdapter["unstable_enableMessageQueue"];
 };
 
 type ClientError<E extends string> = {
