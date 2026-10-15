@@ -8,6 +8,8 @@ export type ActionSource = {
   elementId?: string;
   /** The event name, or the watched path for `watch`. */
   trigger?: string;
+  /** Whether a component's event or a `watch` binding dispatched the action. */
+  kind?: "event" | "watch";
 };
 
 export type ActionHandler = (
@@ -43,7 +45,8 @@ export type ActionDispatcher = (
  * Creates the function elements use to run their bound actions: params are
  * resolved against current state (and the event payload), `setState` writes
  * the store, and every other action goes to a host handler. Actions in a list
- * run in order and see state written by the ones before them.
+ * run in order, see state written by the ones before them, and stop at the
+ * first one that fails.
  */
 export function createActionDispatcher(
   options: ActionDispatcherOptions,
@@ -68,7 +71,7 @@ export function createActionDispatcher(
           : [bindings];
     const results: unknown[] = [];
     for (const binding of list as ActionBinding[]) {
-      const { payload, elementId, trigger, ...scope } = context;
+      const { payload, elementId, trigger, kind, ...scope } = context;
       const params = (resolveValue(binding.params ?? {}, {
         ...scope,
         state: options.store.getState(),
@@ -77,6 +80,7 @@ export function createActionDispatcher(
       const source = {
         ...(elementId !== undefined ? { elementId } : {}),
         ...(trigger !== undefined ? { trigger } : {}),
+        ...(kind !== undefined ? { kind } : {}),
         state: options.store,
       };
       try {
@@ -99,6 +103,7 @@ export function createActionDispatcher(
       } catch (error) {
         report(error, binding);
         results.push(undefined);
+        break;
       }
     }
     return results;

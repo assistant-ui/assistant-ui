@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { pathToFileURL } from "node:url";
+import { isExecutedAsMain } from "./lib/main.mjs";
 
 export function hasTasks(base, args, exec = execFileSync) {
   const options = {
@@ -59,10 +59,7 @@ export function hasTasks(base, args, exec = execFileSync) {
   }
 }
 
-if (
-  process.argv[1] &&
-  import.meta.url === pathToFileURL(process.argv[1]).href
-) {
+if (isExecutedAsMain(import.meta.url, process.argv[1])) {
   const [base, ...args] = process.argv.slice(2);
   if (!base || args.length === 0)
     throw new Error("Usage: ci-has-tasks.mjs <base> <task> [turbo options]");

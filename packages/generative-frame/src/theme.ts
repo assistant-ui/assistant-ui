@@ -292,11 +292,11 @@ export function readThemeTokens(
 ): ThemeTokens {
   const colorScheme = detectColorScheme(element);
   const style = element.ownerDocument.defaultView?.getComputedStyle(element);
-  const variables: Record<string, string> = {
-    ...defaultThemeTokens(colorScheme).variables,
-  };
+  const defaults = defaultThemeTokens(colorScheme).variables;
+  const variables: Record<string, string> = { ...defaults };
   if (!style) return { colorScheme, variables };
 
+  const declared = new Set<ThemeTokenName>();
   for (const info of THEME_TOKENS) {
     const override = sources[info.name];
     const candidates =
@@ -308,6 +308,7 @@ export function readThemeTokens(
     for (const candidate of candidates) {
       const value = style.getPropertyValue(candidate).trim();
       if (value) {
+        declared.add(info.name);
         variables[info.name] = HSL_CHANNELS.test(value)
           ? `hsl(${value})`
           : value;
@@ -323,12 +324,17 @@ export function readThemeTokens(
   if (radius && !style.getPropertyValue("--radius-lg").trim()) {
     variables["--radius-lg"] = `calc(${radius} + 4px)`;
   }
-  if (!style.getPropertyValue("--font-sans").trim()) {
-    const doc = element.ownerDocument;
-    const fontElement =
-      element === doc.documentElement && doc.body ? doc.body : element;
-    const family = doc.defaultView?.getComputedStyle(fontElement).fontFamily;
-    if (family) variables["--font-sans"] = family;
+  const doc = element.ownerDocument;
+  const font = declared.has("--font-sans")
+    ? variables["--font-sans"]
+    : doc.defaultView?.getComputedStyle(
+        element === doc.documentElement && doc.body ? doc.body : element,
+      ).fontFamily;
+  // The page's web fonts do not load inside the frame, so the default stacks follow them.
+  if (font) variables["--font-sans"] = `${font}, ${SHARED["--font-sans"]}`;
+  if (declared.has("--font-mono")) {
+    variables["--font-mono"] =
+      `${variables["--font-mono"]}, ${SHARED["--font-mono"]}`;
   }
 
   return { colorScheme, variables };

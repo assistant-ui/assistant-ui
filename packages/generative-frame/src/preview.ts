@@ -5,11 +5,22 @@ import type {
   WidgetKind,
 } from "./protocol";
 import { defaultThemeTokens } from "./theme";
-import { createWidget, type CreateWidgetOptions } from "./widget";
+import {
+  createWidget,
+  type CreateWidgetOptions,
+  type WidgetHandle,
+} from "./widget";
 
 export type PreviewOptions = Pick<
   CreateWidgetOptions,
-  "product" | "frame" | "id" | "csp" | "css" | "readyTimeoutMs"
+  | "product"
+  | "frame"
+  | "id"
+  | "unsafeShimDomain"
+  | "opaqueOrigin"
+  | "csp"
+  | "css"
+  | "readyTimeoutMs"
 > & {
   /** Layout width in CSS pixels. Defaults to 680. */
   width?: number;
@@ -51,23 +62,30 @@ export async function previewWidget(
   container.style.cssText = `position:fixed;left:0;top:0;width:${width}px;opacity:0.01;pointer-events:none;z-index:-2147483647;`;
   document.body.appendChild(container);
 
-  const widget = createWidget({
-    container,
-    tokens: options.tokens ?? defaultThemeTokens(options.appearance ?? "light"),
-    animate: false,
-    onOpenLink: () => {},
-    onPrompt: () => {},
-    ...(options.product !== undefined ? { product: options.product } : {}),
-    ...(options.frame !== undefined ? { frame: options.frame } : {}),
-    ...(options.id !== undefined ? { id: options.id } : {}),
-    ...(options.csp !== undefined ? { csp: options.csp } : {}),
-    ...(options.css !== undefined ? { css: options.css } : {}),
-    ...(options.readyTimeoutMs !== undefined
-      ? { readyTimeoutMs: options.readyTimeoutMs }
-      : {}),
-  });
-
+  let widget: WidgetHandle | undefined;
   try {
+    widget = createWidget({
+      container,
+      tokens:
+        options.tokens ?? defaultThemeTokens(options.appearance ?? "light"),
+      animate: false,
+      onOpenLink: () => {},
+      onPrompt: () => {},
+      ...(options.product !== undefined ? { product: options.product } : {}),
+      ...(options.frame !== undefined ? { frame: options.frame } : {}),
+      ...(options.id !== undefined ? { id: options.id } : {}),
+      ...(options.unsafeShimDomain !== undefined
+        ? { unsafeShimDomain: options.unsafeShimDomain }
+        : {}),
+      ...(options.opaqueOrigin !== undefined
+        ? { opaqueOrigin: options.opaqueOrigin }
+        : {}),
+      ...(options.csp !== undefined ? { csp: options.csp } : {}),
+      ...(options.css !== undefined ? { css: options.css } : {}),
+      ...(options.readyTimeoutMs !== undefined
+        ? { readyTimeoutMs: options.readyTimeoutMs }
+        : {}),
+    });
     widget.write(code);
     await widget.end();
     await new Promise((resolve) =>
@@ -96,7 +114,7 @@ export async function previewWidget(
       ...(screenshotError !== undefined ? { screenshotError } : {}),
     };
   } finally {
-    widget.dispose();
+    widget?.dispose();
     container.remove();
   }
 }

@@ -1,5 +1,6 @@
 packages:
   - api-surface
+  - evals
   - packages/*
   - examples/*
   - apps/*
@@ -28,6 +29,7 @@ update:
     - '@babel/traverse'
     - '@babel/types'
 
+# Release age is a verification gate: review fresh releases, then add narrowly scoped, exact-version exceptions when justified.
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - '@assistant-ui/*'
@@ -54,6 +56,7 @@ allowBuilds:
   '@parcel/watcher': false
   '@tailwindcss/oxide': false
   core-js: false
+  core-js-pure: false
   cpu-features: false
   esbuild@0.27.0: true
   esbuild@0.28.1: true

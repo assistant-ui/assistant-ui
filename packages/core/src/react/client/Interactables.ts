@@ -1,4 +1,11 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  useMemo,
+  useInsertionEffect,
+} from "react";
 import { resource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
 import {
@@ -88,7 +95,9 @@ const useInteractablesResource = ({
 
   const clientRef = useAssistantClientRef();
   const clientRefRef = useRef(clientRef);
-  clientRefRef.current = clientRef;
+  useInsertionEffect(() => {
+    clientRefRef.current = clientRef;
+  }, [clientRef]);
 
   const stateRef = useRef(state);
 
@@ -118,6 +127,8 @@ const useInteractablesResource = ({
   );
   // Ids edited locally this session — a local edit always wins over a slow load.
   const touchedIdsRef = useRef(new Set<string>());
+  // Ids holding an edit, import, or load; an untouched initialState is never saved.
+  const persistableIdsRef = useRef(new Set<string>());
   const declarativePersistenceRef = useRef<
     Unstable_InteractablePersistenceAdapter | undefined
   >(undefined);
@@ -161,6 +172,7 @@ const useInteractablesResource = ({
       nullProtoRecord<Unstable_InteractablePersistedState[string]>();
     for (const [id, def] of Object.entries(stateRef.current.definitions)) {
       if (def.scope === "thread") continue; // thread items persist via snapshot, not the adapter
+      if (!persistableIdsRef.current.has(id)) continue;
       result[id] = { name: def.name, state: def.state };
     }
     return result;
@@ -208,7 +220,7 @@ const useInteractablesResource = ({
       }
     }
     for (const [id, entry] of detachedAppStateRef.current) {
-      if (!isThreadScoped(id, entry)) {
+      if (persistableIdsRef.current.has(id) && !isThreadScoped(id, entry)) {
         result[id] = entry;
       }
     }
@@ -301,6 +313,7 @@ const useInteractablesResource = ({
 
   const importState = useCallback(
     (saved: Unstable_InteractablePersistedState) => {
+      for (const id of Object.keys(saved)) persistableIdsRef.current.add(id);
       restorePersistedState(saved, { stash: detachedAppStateRef.current });
     },
     [restorePersistedState],
@@ -314,6 +327,7 @@ const useInteractablesResource = ({
       for (const id of Object.keys(saved)) {
         if (!touchedIdsRef.current.has(id)) {
           detachedAppStateRef.current.delete(id);
+          persistableIdsRef.current.add(id);
         }
       }
       restorePersistedState(saved, {
@@ -351,6 +365,7 @@ const useInteractablesResource = ({
       if (ids.length === 0) return;
       for (const id of ids) {
         touchedIdsRef.current.add(id);
+        persistableIdsRef.current.add(id);
         loadedStateRef.current.delete(id);
       }
       restorePersistedState(unsaved, {
@@ -447,6 +462,7 @@ const useInteractablesResource = ({
   const resetPersistenceScope = useCallback(() => {
     loadedStateRef.current.clear();
     touchedIdsRef.current.clear();
+    persistableIdsRef.current.clear();
     detachedAppStateRef.current.clear();
     for (const [toolCallId, baseline] of streamBaselinesRef.current) {
       if (stateRef.current.definitions[baseline.targetId]?.scope !== "thread") {
@@ -537,16 +553,14 @@ const useInteractablesResource = ({
     const adapter = adapterRef.current;
     if (adapter && saveAdapterRef.current !== adapter) {
       let timer: ReturnType<typeof setTimeout> | undefined;
-      try {
-        await Promise.race([
-          prepareAdapter(adapter),
-          new Promise<boolean>((resolve) => {
-            timer = setTimeout(() => resolve(false), FLUSH_LOAD_TIMEOUT_MS);
-          }),
-        ]);
-      } finally {
+      await Promise.race([
+        prepareAdapter(adapter),
+        new Promise<boolean>((resolve) => {
+          timer = setTimeout(() => resolve(false), FLUSH_LOAD_TIMEOUT_MS);
+        }),
+      ]).finally(() => {
         if (timer !== undefined) clearTimeout(timer);
-      }
+      });
     }
     await flushPersistence();
   }, [flushPersistence, prepareAdapter]);
@@ -596,6 +610,7 @@ const useInteractablesResource = ({
         };
       });
       if (stateRef.current.definitions[id]?.scope !== "thread") {
+        persistableIdsRef.current.add(id);
         schedulePersistence(id);
         const adapter = adapterRef.current;
         if (adapter && saveAdapterRef.current !== adapter) {
@@ -868,15 +883,30 @@ const useInteractablesResource = ({
     ],
   );
 
-  return {
-    getState: () => stateRef.current,
-    register,
-    setState: setDefState,
-    exportState,
-    importState,
-    setPersistenceAdapter,
-    flush,
-  };
+  return useMemo(
+    () => ({
+      getState: () => {
+        // The React Compiler keys this memo on what its body reads, so the result has to depend on state.
+        const current = stateRef.current;
+        return current === state ? state : current;
+      },
+      register,
+      setState: setDefState,
+      exportState,
+      importState,
+      setPersistenceAdapter,
+      flush,
+    }),
+    [
+      state,
+      register,
+      setDefState,
+      exportState,
+      importState,
+      setPersistenceAdapter,
+      flush,
+    ],
+  );
 };
 
 /**

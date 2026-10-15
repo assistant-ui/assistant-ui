@@ -39,6 +39,15 @@ describe("iconVocabulary", () => {
     );
   });
 
+  it.each(["huge", "toString", "__proto__"])(
+    "renders the size %s at the medium size",
+    (size) => {
+      expect(render({ $type: "Icon", name: "star", size })).toContain(
+        'width="16"',
+      );
+    },
+  );
+
   it("emits the size token as a data-aui-size hook when given", () => {
     expect(render({ $type: "Icon", name: "bell", size: "lg" })).toContain(
       'data-aui-size="lg"',
@@ -51,6 +60,14 @@ describe("iconVocabulary", () => {
     ).not.toThrow();
     expect(render({ $type: "Icon", name: "not-a-real-icon" })).toBe("");
   });
+
+  it.each(["constructor", "toString", "__proto__"])(
+    "renders nothing for the inherited key %s",
+    (name) => {
+      expect(() => render({ $type: "Icon", name })).not.toThrow();
+      expect(render({ $type: "Icon", name })).toBe("");
+    },
+  );
 
   it("exposes the closed name enum in buildPresentParameters", () => {
     const schema = buildPresentParameters(iconVocabulary) as Record<

@@ -241,7 +241,7 @@ const PATHS = [
     body: "The model fills in your own components.",
     products: ["generative-frame"],
     instructions:
-      "Use spec mode: define a catalog of the app's components with defineCatalog and render the model's spec with SpecRenderer from generative-frame/react.",
+      "Use spec mode: define a catalog of the app's components with defineCatalog and render the model's spec with SpecRenderer from generative-frame/spec/react.",
     manualHref: "/generative-frame/docs/spec-mode",
   },
 ];

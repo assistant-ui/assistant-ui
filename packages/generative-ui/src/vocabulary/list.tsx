@@ -1,50 +1,105 @@
-import { z } from "zod";
-import type { GenerativeUILibrary } from "../types";
+import { useId, type ReactNode } from "react";
+import type { Action } from "../ir";
+import type { GenerativeUIDispatch, GenerativeUILibrary } from "../types";
+import { listDefinitions } from "./definitions/list";
 import { fire } from "./dispatch";
+import { INTERACTIVE_DESCENDANT_SELECTOR } from "./listItemValues";
+import { sequenceItems } from "./structureValues";
 
-const INTERACTIVE_DESCENDANT_SELECTOR =
-  'button, a, input, select, textarea, label, [role="button"], [role="link"], [role="checkbox"], [role="radio"], [role="switch"], [role="textbox"], [role="combobox"], [role="menuitem"]';
+function ListViewItemRender({
+  $action,
+  $dispatch,
+  children,
+}: {
+  $action?: Action;
+  $dispatch?: GenerativeUIDispatch;
+  children?: ReactNode;
+}) {
+  const contentId = useId();
+  if (!$action || !$dispatch) {
+    return <li data-aui="listview-item">{children}</li>;
+  }
+  return (
+    <li data-aui="listview-item">
+      <div
+        data-aui="listview-item-trigger"
+        style={{ position: "relative" }}
+        onClick={(event) => {
+          const target = event.target as Element;
+          const hit = target.closest(INTERACTIVE_DESCENDANT_SELECTOR);
+          if (hit !== null && hit !== event.currentTarget) return;
+          fire($action, $dispatch, undefined, event.currentTarget);
+        }}
+      >
+        <button
+          type="button"
+          aria-labelledby={contentId}
+          style={{
+            position: "absolute",
+            inset: "0",
+            width: "100%",
+            height: "100%",
+            padding: "0",
+            border: "0",
+            background: "transparent",
+            cursor: "pointer",
+          }}
+          onClick={(event) =>
+            fire($action, $dispatch, undefined, event.currentTarget)
+          }
+        />
+        <div
+          data-aui="listview-item-content"
+          id={contentId}
+          style={{ position: "relative" }}
+        >
+          {children}
+        </div>
+      </div>
+    </li>
+  );
+}
 
 export const listVocabulary = {
   ListView: {
-    description:
-      "A vertical list container. Wrap `ListViewItem` children as rows.",
-    properties: z.object({}),
+    ...listDefinitions.ListView,
     render: ({ children }) => <ul data-aui="listview">{children}</ul>,
   },
   ListViewItem: {
-    description:
-      "A row inside a ListView. Carries `$action` to make the whole row clickable and keyboard-activatable.",
-    properties: z.object({}),
-    render: ({ $action, $dispatch, children }) => {
-      if (!$action || !$dispatch) {
-        return <li data-aui="listview-item">{children}</li>;
-      }
-      return (
-        <li data-aui="listview-item">
-          <div
-            role="button"
-            tabIndex={0}
-            data-aui="listview-item-trigger"
-            onClick={(event) => {
-              const target = event.target as Element;
-              const hit = target.closest(INTERACTIVE_DESCENDANT_SELECTOR);
-              if (hit !== null && hit !== event.currentTarget) return;
-              fire($action, $dispatch, undefined, event.currentTarget);
-            }}
-            onKeyDown={(event) => {
-              if (event.key !== "Enter" && event.key !== " ") return;
-              const target = event.target as Element;
-              const hit = target.closest(INTERACTIVE_DESCENDANT_SELECTOR);
-              if (hit !== null && hit !== event.currentTarget) return;
-              if (event.key === " ") event.preventDefault();
-              fire($action, $dispatch, undefined, event.currentTarget);
-            }}
-          >
-            {children}
-          </div>
-        </li>
-      );
-    },
+    ...listDefinitions.ListViewItem,
+    render: (props) => <ListViewItemRender {...props} />,
+  },
+  Steps: {
+    ...listDefinitions.Steps,
+    render: ({ steps }) => (
+      <ol data-aui="steps">
+        {sequenceItems(steps).map((step, index) => (
+          <li key={index} data-aui="steps-item">
+            <div data-aui="steps-title">{step.title}</div>
+            {step.detail !== undefined ? (
+              <div data-aui="steps-detail">{step.detail}</div>
+            ) : null}
+          </li>
+        ))}
+      </ol>
+    ),
+  },
+  Timeline: {
+    ...listDefinitions.Timeline,
+    render: ({ items }) => (
+      <ol data-aui="timeline">
+        {sequenceItems(items).map((item, index) => (
+          <li key={index} data-aui="timeline-item">
+            {item.time !== undefined ? (
+              <div data-aui="timeline-time">{item.time}</div>
+            ) : null}
+            <div data-aui="timeline-title">{item.title}</div>
+            {item.detail !== undefined ? (
+              <div data-aui="timeline-detail">{item.detail}</div>
+            ) : null}
+          </li>
+        ))}
+      </ol>
+    ),
   },
 } satisfies GenerativeUILibrary;

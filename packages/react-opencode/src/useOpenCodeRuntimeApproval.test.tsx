@@ -21,6 +21,9 @@ const mocks = vi.hoisted(() => ({
     externalId: "session-1" as string | undefined,
     remoteId: "session-1" as string | undefined,
     status: "regular" as "new" | "regular",
+    title: undefined as string | undefined,
+    source: null as string | null,
+    generateTitle: vi.fn(),
     initialize: vi.fn(() => {
       mocks.initializeTask ??= (async () => {
         const adapter = mocks.threadListAdapter;
@@ -37,6 +40,7 @@ const mocks = vi.hoisted(() => ({
     replyToQuestion: vi.fn().mockResolvedValue(undefined),
     rejectQuestion: vi.fn().mockResolvedValue(undefined),
   },
+  threads: { isLoading: false },
   state: undefined as unknown,
 }));
 
@@ -44,7 +48,7 @@ vi.mock("@assistant-ui/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/react")>()),
   useAui: () => ({ threadListItem: mocks.threadListItem }),
   useAuiState: (selector: (state: unknown) => unknown) =>
-    selector({ threadListItem: mocks.threadListItem }),
+    selector({ threadListItem: mocks.threadListItem, threads: mocks.threads }),
   useExternalStoreRuntime: (adapter: unknown) => {
     mocks.adapters.push(adapter);
     return {};
@@ -115,7 +119,11 @@ afterEach(() => {
   mocks.threadListItem.externalId = "session-1";
   mocks.threadListItem.remoteId = "session-1";
   mocks.threadListItem.status = "regular";
+  mocks.threadListItem.title = undefined;
+  mocks.threadListItem.source = null;
   mocks.threadListItem.initialize.mockClear();
+  mocks.threadListItem.generateTitle.mockClear();
+  mocks.threads.isLoading = false;
   mocks.sessionCreate
     .mockReset()
     .mockResolvedValue({ data: { id: "session-1" } });
@@ -154,6 +162,65 @@ describe("useOpenCodeRuntime", () => {
     await act(async () => rejectLoad(loadError));
     expect(first).not.toHaveBeenCalled();
     expect(latest).toHaveBeenCalledExactlyOnceWith(loadError);
+  });
+
+  it("applies the title OpenCode gives the open session to its list item", async () => {
+    mocks.state = {
+      ...createOpenCodeThreadState("session-1"),
+      session: { id: "session-1", title: "Fix the login redirect", time: {} },
+    };
+    mocks.threadListItem.title = "Old title";
+
+    const App = () => {
+      useOpenCodeRuntime({ client: stubClient });
+      return null;
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
+
+    expect(mocks.threadListItem.generateTitle).toHaveBeenCalledOnce();
+  });
+
+  it("applies the session title once the thread list has loaded", async () => {
+    mocks.state = {
+      ...createOpenCodeThreadState("session-1"),
+      session: { id: "session-1", title: "Fix the login redirect", time: {} },
+    };
+    mocks.threadListItem.title = "Old title";
+    mocks.threads.isLoading = true;
+
+    const App = () => {
+      useOpenCodeRuntime({ client: stubClient });
+      return null;
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
+    expect(mocks.threadListItem.generateTitle).not.toHaveBeenCalled();
+
+    mocks.threads.isLoading = false;
+    await act(async () => root!.render(createElement(App)));
+    expect(mocks.threadListItem.generateTitle).toHaveBeenCalledOnce();
+  });
+
+  it("leaves an outer thread list alone when nested in it", async () => {
+    mocks.state = {
+      ...createOpenCodeThreadState("session-1"),
+      session: { id: "session-1", title: "Fix the login redirect", time: {} },
+    };
+    mocks.threadListItem.title = "Old title";
+    mocks.threadListItem.source = "threads";
+
+    const App = () => {
+      useOpenCodeRuntime({ client: stubClient });
+      return null;
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
+
+    expect(mocks.threadListItem.generateTitle).not.toHaveBeenCalled();
   });
 
   it("keeps a new thread enabled and prompts before ids land", async () => {

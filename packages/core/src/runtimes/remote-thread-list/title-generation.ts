@@ -12,6 +12,8 @@ type ThreadTitleGeneration = {
   claim: ThreadTitleClaim | null;
   readonly claims: ThreadTitleClaim[];
   beforeGenerationClaims: readonly ThreadTitleClaim[];
+  outranked: ThreadTitleGeneration | null;
+  hiddenManual: ThreadTitleClaim | null;
   superseded: boolean;
   readonly persisted: Promise<string | undefined>;
   readonly settlePersisted: (title: string | undefined) => void;
@@ -22,9 +24,11 @@ export type ThreadTitleState = {
   pendingClaim: ThreadTitleClaim | null;
   inFlightClaims: Set<ThreadTitleClaim>;
   manualClaim: ThreadTitleClaim | null;
-  latestExplicit: ThreadTitleGeneration | null;
+  latestGeneration: ThreadTitleGeneration | null;
   nextOrder: number;
 };
+
+const waitingAutomatics = new WeakMap<ThreadTitleState, number>();
 
 export type ThreadTitleGenerationRun = {
   states: Map<string, ThreadTitleState>;
@@ -48,7 +52,7 @@ function getThreadTitleState(
       pendingClaim: null,
       inFlightClaims: new Set(),
       manualClaim: null,
-      latestExplicit: null,
+      latestGeneration: null,
       nextOrder: 0,
     };
     states.set(threadId, state);
@@ -63,6 +67,7 @@ function pruneThreadTitleState(
 ): void {
   if (
     state.generations.size === 0 &&
+    !waitingAutomatics.has(state) &&
     state.pendingClaim === null &&
     state.inFlightClaims.size === 0 &&
     state.manualClaim === null &&
@@ -78,15 +83,25 @@ function isCurrentGeneration(
 ): boolean {
   return (
     !generation.superseded &&
-    (state.latestExplicit?.order ?? 0) <= generation.order
+    (state.latestGeneration?.order ?? 0) <= generation.order
   );
+}
+
+function latestExplicitGeneration(
+  state: ThreadTitleState,
+): ThreadTitleGeneration | null {
+  let generation = state.latestGeneration;
+  while (generation !== null && generation.automatic) {
+    generation = generation.outranked;
+  }
+  return generation;
 }
 
 function isCurrentClaim(
   state: ThreadTitleState,
   claim: ThreadTitleClaim,
 ): boolean {
-  return (state.latestExplicit?.order ?? 0) < claim.order;
+  return (latestExplicitGeneration(state)?.order ?? 0) < claim.order;
 }
 
 export function startThreadTitleRename(
@@ -167,6 +182,60 @@ function takeManualTitle(
   return retained.title;
 }
 
+function retractGeneration(
+  state: ThreadTitleState,
+  generation: ThreadTitleGeneration,
+): void {
+  if (state.latestGeneration === generation) {
+    state.latestGeneration = generation.outranked;
+  }
+  const hidden = [
+    ...(generation.hiddenManual === null ? [] : [generation.hiddenManual]),
+    ...generation.beforeGenerationClaims,
+  ].reduce<ThreadTitleClaim | null>(
+    (newest, claim) =>
+      claim.renamed === true && (newest?.order ?? 0) < claim.order
+        ? claim
+        : newest,
+    null,
+  );
+  for (
+    let active = state.latestGeneration;
+    active !== null;
+    active = active.outranked
+  ) {
+    if (active.outranked === generation) {
+      active.outranked = generation.outranked;
+    }
+  }
+  for (const active of state.generations) {
+    if (
+      hidden !== null &&
+      !active.automatic &&
+      active.order > generation.order &&
+      (active.hiddenManual?.order ?? 0) < hidden.order
+    ) {
+      active.hiddenManual = hidden;
+    }
+  }
+  if (
+    hidden !== null &&
+    isCurrentClaim(state, hidden) &&
+    (state.manualClaim?.order ?? 0) < hidden.order
+  ) {
+    state.manualClaim = hidden;
+  }
+  for (const active of state.generations) {
+    if (active === generation || !active.automatic || active.claim !== null)
+      continue;
+    active.claim = newestClaim(state, [
+      ...active.claims,
+      ...state.inFlightClaims,
+      ...(state.manualClaim === null ? [] : [state.manualClaim]),
+    ]);
+  }
+}
+
 export function clearThreadTitleState(
   states: Map<string, ThreadTitleState>,
   threadId: string,
@@ -199,6 +268,8 @@ function startThreadTitleGeneration(
     claims:
       automatic && state.pendingClaim !== null ? [state.pendingClaim] : [],
     beforeGenerationClaims: automatic ? [] : [...state.inFlightClaims],
+    outranked: state.latestGeneration,
+    hiddenManual: automatic ? null : state.manualClaim,
     superseded: false,
     persisted,
     settlePersisted,
@@ -206,11 +277,8 @@ function startThreadTitleGeneration(
   if (!automatic) {
     state.pendingClaim = null;
     state.manualClaim = null;
-    state.latestExplicit = generation;
-    for (const active of state.generations) {
-      if (active.automatic) active.superseded = true;
-    }
   }
+  state.latestGeneration = generation;
   state.generations.add(generation);
   return generation;
 }
@@ -230,7 +298,65 @@ export async function runThreadTitleGeneration(
 ): Promise<void> {
   const { states, threadId, automatic } = run;
   const state = getThreadTitleState(states, threadId);
-  const generation = startThreadTitleGeneration(states, threadId, automatic);
+  const explicitAtStart = automatic
+    ? [...state.generations].filter((generation) => !generation.automatic)
+    : [];
+  const waitingForExplicit = explicitAtStart.length > 0;
+  const waitStartOrder = state.nextOrder;
+  if (waitingForExplicit) {
+    waitingAutomatics.set(state, (waitingAutomatics.get(state) ?? 0) + 1);
+  }
+  let generation: ThreadTitleGeneration | null;
+  try {
+    if (waitingForExplicit) {
+      const waited = new Set(explicitAtStart);
+      const collectExplicit = () => {
+        let added = false;
+        for (const candidate of state.generations) {
+          if (candidate.automatic || waited.has(candidate)) continue;
+          waited.add(candidate);
+          added = true;
+        }
+        for (
+          let candidate = state.latestGeneration;
+          candidate !== null;
+          candidate = candidate.outranked
+        ) {
+          if (
+            candidate.automatic ||
+            candidate.order <= waitStartOrder ||
+            waited.has(candidate)
+          )
+            continue;
+          waited.add(candidate);
+          added = true;
+        }
+        return added;
+      };
+      while (true) {
+        collectExplicit();
+        const titles = await Promise.all(
+          [...waited].map((candidate) => candidate.persisted),
+        );
+        if (states.get(threadId) !== state) return;
+        if (
+          collectExplicit() ||
+          [...state.generations].some((candidate) => !candidate.automatic)
+        )
+          continue;
+        if (titles.some((title) => title !== undefined)) return;
+        break;
+      }
+    }
+    generation = startThreadTitleGeneration(states, threadId, automatic);
+  } finally {
+    if (waitingForExplicit) {
+      const remaining = waitingAutomatics.get(state)! - 1;
+      if (remaining === 0) waitingAutomatics.delete(state);
+      else waitingAutomatics.set(state, remaining);
+      pruneThreadTitleState(states, threadId, state);
+    }
+  }
   if (generation === null) return;
 
   // `clearThreadTitleState` ends the runs on the cleared state, so a thread
@@ -242,12 +368,18 @@ export async function runThreadTitleGeneration(
   const rename = async (title: string) => {
     if (isLive()) await run.rename(title);
   };
+  let appliedTitle: string | undefined;
   const applyTitle = async (title: string | undefined) => {
-    if (isLive()) await run.applyTitle(title);
+    if (isLive()) {
+      await run.applyTitle(title);
+      appliedTitle = title;
+    }
   };
 
   let persistedTitle: string | undefined;
   let persistedOrder = generation.order;
+  let sawTitle = false;
+  let lastTitle: string | undefined;
 
   const settleClaim = async (claim: ThreadTitleClaim) => {
     const renamed = await claim.settled;
@@ -275,6 +407,15 @@ export async function runThreadTitleGeneration(
   const retainManualTitle = () =>
     automatic && takeManualTitle(states, threadId, state) !== undefined;
 
+  const awaitOutrankingGeneration = async () => {
+    while (!generation.superseded) {
+      const winner = state.latestGeneration;
+      if (winner === null || winner.order <= generation.order) return;
+      await winner.persisted;
+      if (state.latestGeneration === winner) return;
+    }
+  };
+
   // `generate` resolves only once the run has persisted its title, so a run
   // that lost the ordering race while it streamed has already overwritten the
   // winner. It waits for the winning generation to persist its own title and
@@ -285,8 +426,9 @@ export async function runThreadTitleGeneration(
       const claim = generation.claim;
       if (
         claim !== null &&
-        claim.order > persistedOrder &&
-        isCurrentClaim(state, claim)
+        isCurrentClaim(state, claim) &&
+        (claim.order > persistedOrder ||
+          (claim.renamed === true && claim.title !== persistedTitle))
       ) {
         const renamed = await settleClaim(claim);
         if (renamed === true) {
@@ -296,10 +438,15 @@ export async function runThreadTitleGeneration(
         }
         continue;
       }
-      const winner = state.latestExplicit;
-      if (winner === null || winner.order <= persistedOrder) return;
+      const winner = state.latestGeneration;
+      if (
+        winner === null ||
+        winner === generation ||
+        winner.order <= persistedOrder
+      )
+        return;
       const title = await winner.persisted;
-      if (state.latestExplicit !== winner) continue;
+      if (state.latestGeneration !== winner) continue;
       persistedOrder = winner.order;
       if (title === undefined || title === persistedTitle) return;
       persistedTitle = title;
@@ -315,20 +462,26 @@ export async function runThreadTitleGeneration(
         generation.beforeGenerationClaims.map((claim) => claim.settled),
       );
     }
-    while (generation.claim !== null) {
-      const renamed = await settleClaim(generation.claim);
-      if (renamed === undefined) continue;
-      if (renamed) {
-        generation.superseded = true;
-        return;
+    while (true) {
+      while (generation.claim !== null) {
+        const renamed = await settleClaim(generation.claim);
+        if (renamed === undefined) continue;
+        if (renamed) {
+          generation.superseded = true;
+          return;
+        }
+        if (retainManualTitle()) return;
+        break;
       }
-      if (retainManualTitle()) return;
+      if (automatic && !isCurrentGeneration(state, generation)) {
+        await awaitOutrankingGeneration();
+        if (!isCurrentGeneration(state, generation)) return;
+        continue;
+      }
+      if (!isCurrentGeneration(state, generation)) return;
       break;
     }
-    if (!isCurrentGeneration(state, generation)) return;
 
-    let sawTitle = false;
-    let lastTitle: string | undefined;
     await generate(async (title) => {
       sawTitle = true;
       lastTitle = title;
@@ -342,7 +495,12 @@ export async function runThreadTitleGeneration(
           return;
         }
       }
-      if (isCurrentGeneration(state, generation)) await applyTitle(lastTitle);
+      if (
+        persistedTitle !== undefined &&
+        isCurrentGeneration(state, generation)
+      ) {
+        await applyTitle(lastTitle);
+      }
     });
 
     while (true) {
@@ -352,12 +510,20 @@ export async function runThreadTitleGeneration(
       if (renamed === undefined) continue;
       if (renamed === false) {
         if (retainManualTitle()) return;
-        if (sawTitle && isCurrentGeneration(state, generation)) {
+        if (
+          sawTitle &&
+          persistedTitle !== undefined &&
+          isCurrentGeneration(state, generation)
+        ) {
           await applyTitle(lastTitle);
         }
         return;
       }
-      if (!isCurrentClaim(state, claim)) return;
+      if (!isCurrentClaim(state, claim)) {
+        await awaitOutrankingGeneration();
+        if (!isCurrentClaim(state, claim)) return;
+        if (generation.claim !== claim) continue;
+      }
       await rename(claim.title);
       persistedTitle = claim.title;
       persistedOrder = claim.order;
@@ -371,8 +537,25 @@ export async function runThreadTitleGeneration(
 
   try {
     await runGeneration();
+    if (persistedTitle !== undefined) await awaitOutrankingGeneration();
     await repairLostRace();
+    if (
+      persistedTitle !== undefined &&
+      isCurrentGeneration(state, generation)
+    ) {
+      const claim = generation.claim;
+      if (
+        claim !== null &&
+        claim.renamed === true &&
+        isCurrentClaim(state, claim)
+      ) {
+        if (appliedTitle !== claim.title) await applyTitle(claim.title);
+      } else if (claim === null && sawTitle && appliedTitle !== lastTitle) {
+        await applyTitle(lastTitle);
+      }
+    }
   } finally {
+    if (persistedTitle === undefined) retractGeneration(state, generation);
     generation.settlePersisted(persistedTitle);
     state.generations.delete(generation);
     pruneThreadTitleState(states, threadId, state);

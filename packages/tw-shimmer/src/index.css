@@ -141,7 +141,11 @@
 
     @supports (-webkit-mask-clip: text) {
       animation: none;
-      background: none;
+      /* A text-clipped background makes Chrome re-record the text mask when the
+       * text changes. */
+      background: linear-gradient(transparent, transparent);
+      -webkit-background-clip: text;
+      background-clip: text;
       -webkit-text-fill-color: currentColor;
       -webkit-mask-image: linear-gradient(#000, #000);
       -webkit-mask-clip: text;

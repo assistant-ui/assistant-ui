@@ -371,6 +371,7 @@ export class MessageRepository {
 
     if (this.head === prev) {
       this.head = newItem;
+      this.selectPathTo(newItem);
     }
 
     this._messages.dirty();
@@ -506,7 +507,7 @@ export class MessageRepository {
     this._messages.dirty();
   }
 
-  resetHead(messageId: string | null) {
+  private setHead(messageId: string | null, pruneChildren: boolean) {
     if (messageId === null) {
       this.clear();
       return;
@@ -515,12 +516,12 @@ export class MessageRepository {
     const message = this.messages.get(messageId);
     if (!message)
       throw new Error(
-        "MessageRepository(resetHead): Branch not found. This is likely an internal bug in assistant-ui.",
+        `MessageRepository(${pruneChildren ? "resetHead" : "import"}): Branch not found. This is likely an internal bug in assistant-ui.`,
       );
 
     const previousHead = this.head;
 
-    if (message.children.length > 0) {
+    if (pruneChildren && message.children.length > 0) {
       const pending = [...message.children];
       while (pending.length > 0) {
         const childId = pending.pop()!;
@@ -543,6 +544,10 @@ export class MessageRepository {
     this.evictOffBranchOptimisticMessages(previousHead, this.head);
 
     this._messages.dirty();
+  }
+
+  resetHead(messageId: string | null) {
+    this.setHead(messageId, true);
   }
 
   clear(): void {
@@ -588,10 +593,10 @@ export class MessageRepository {
   }
 
   /**
-   * The head as it would be if the optimistic messages were deleted. Import
-   * resets to the exported head and drops its descendants, so an optimistic
-   * head resolves to a leaf of the exported tree rather than to its persisted
-   * ancestor, whose other children would be lost.
+   * The head as it would be if the optimistic messages were deleted. An
+   * optimistic head resolves to a leaf of the exported tree, so an import
+   * returns to the branch that was visible instead of the one its persisted
+   * ancestor selects.
    */
   private exportedHeadId(): string | null {
     let head = this.head;
@@ -635,6 +640,7 @@ export class MessageRepository {
       this.addOrUpdateMessage(parentId, message);
     }
 
-    this.resetHead(headId ?? ordered.at(-1)?.message.id ?? null);
+    const importedHeadId = headId ?? ordered.at(-1)?.message.id ?? null;
+    this.setHead(importedHeadId, false);
   }
 }

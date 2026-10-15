@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AssistantCloudAPI, CloudAPIError } from "../AssistantCloudAPI";
 import { CloudResponseError } from "../cloudResponse";
+import { assistantCloudTraceExportOptions } from "../telemetry";
 
 const createAccessToken = (subject: string) =>
   `${Buffer.from(JSON.stringify({ alg: "none" })).toString("base64url")}.${Buffer.from(JSON.stringify({ exp: 4102444800, sub: subject })).toString("base64url")}.sig`;
@@ -147,6 +148,33 @@ describe("AssistantCloudAPI", () => {
 
     const [url] = fetchMock.mock.calls[0]!;
     expect(url.toString()).toBe("https://custom.example.com/v1/threads");
+  });
+
+  it("uses the same base URL for anonymous auth and trace export with two trailing slashes", async () => {
+    const baseUrl = "https://custom.example.com//";
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        access_token: createAccessToken("user"),
+        refresh_token: {
+          token: "refresh-token",
+          expires_at: "2099-01-01",
+        },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const api = new AssistantCloudAPI({ baseUrl, anonymous: true });
+    await api.initializeAuth();
+
+    const traceUrl = assistantCloudTraceExportOptions({
+      apiKey: "test-key",
+      baseUrl,
+    }).url;
+    expect(fetchMock).toHaveBeenCalledWith(
+      traceUrl.replace("/v1/traces", "/v1/auth/tokens/anonymous"),
+      expect.objectContaining({ method: "POST" }),
+    );
   });
 
   it("rejects before fetch when auth token callback returns null", async () => {

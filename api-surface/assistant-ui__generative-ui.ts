@@ -10,7 +10,9 @@ import { ComponentType, ReactNode } from "react";
 
 import "react-textarea-autosize";
 
-import { ZodType } from "zod";
+import { Component } from "vue";
+
+import { ZodType, z } from "zod";
 
 import "zustand";
 
@@ -137,6 +139,16 @@ interface Action {
   readonly [payload: string]: unknown;
 }
 
+type ActionBinding = {
+  action: string;
+  params?: Record<string, unknown>;
+};
+
+type ActionDefinition = {
+  description: string;
+  params?: PropsSchema;
+};
+
 type ActionDispatchContext = {
   readonly payload: Action;
 };
@@ -262,6 +274,18 @@ declare const COLORS: readonly [
   "white-50"
 ];
 
+type Catalog<TComponents extends Record<string, ComponentDefinition> = Record<string, ComponentDefinition>, TActions extends Record<string, ActionDefinition> = Record<string, ActionDefinition>> = {
+  readonly components: TComponents;
+  readonly actions: TActions;
+  component(type: string): ComponentDefinition | undefined;
+  action(name: string): ActionDefinition | undefined;
+  propsSchema(type: string): JsonSchema | undefined;
+  paramsSchema(action: string): JsonSchema | undefined;
+  validateProps(type: string, props: unknown): SchemaIssue[];
+  validateParams(action: string, params: unknown): SchemaIssue[];
+  prompt(options?: SpecPromptOptions): string;
+};
+
 type ClientError<E extends string> = {
   methods: Record<E, () => E>;
   meta: {
@@ -313,6 +337,13 @@ type CompleteAttachmentStatus = {
   type: "complete";
 };
 
+type ComponentDefinition = {
+  description: string;
+  props?: PropsSchema;
+  slots?: readonly string[];
+  events?: readonly string[];
+};
+
 interface ComponentNode extends Record<string, unknown> {
   readonly id: string;
   readonly component: string;
@@ -321,6 +352,10 @@ interface ComponentNode extends Record<string, unknown> {
     readonly path: string;
   } | A2uiTemplateChildren;
 }
+
+type Condition = boolean | readonly Condition[] | {
+  readonly [key: string]: unknown;
+};
 
 type DataMessagePart<T = any> = {
   readonly type: "data";
@@ -383,15 +418,31 @@ type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown
 
 type GenerativeUIAction = Action;
 
-type GenerativeUIComponent<P = any> = {
+type GenerativeUIBindings<P> = {
+  readonly [K in keyof P]?: (value: P[K]) => void;
+};
+
+type GenerativeUIComponent = {
+  description: string;
+  properties: ZodType;
+  events?: readonly string[] | undefined;
+  slots?: readonly string[] | undefined;
+  component: Component;
+};
+
+type GenerativeUIComponent$1<P = any> = {
   description: string;
   properties: ZodType<P>;
   streamProperties: boolean | undefined;
+  events?: readonly string[] | undefined;
+  slots?: readonly string[] | undefined;
   render: (props: StreamingRenderProps<P>) => ReactNode;
 } | {
   description: string;
   properties: ZodType<P>;
   streamProperties?: false | undefined;
+  events?: readonly string[] | undefined;
+  slots?: readonly string[] | undefined;
   render: (props: StaticRenderProps<P>) => ReactNode;
 };
 
@@ -400,6 +451,8 @@ type GenerativeUIDispatch = (action: Action) => unknown;
 type GenerativeUIElement = NormalizedUIElement;
 
 type GenerativeUILibrary = Record<string, GenerativeUIComponent>;
+
+type GenerativeUILibrary$1 = Record<string, GenerativeUIComponent$1>;
 
 type GenerativeUIMessagePart = {
   readonly type: "generative-ui";
@@ -507,7 +560,7 @@ declare class JSONGenerativeUI$1 {
 }
 
 type JSONGenerativeUIOptions = {
-  library: GenerativeUILibrary;
+  library: GenerativeUILibrary$1;
   actions?: ActionRegistry;
 };
 
@@ -517,6 +570,28 @@ declare const JUSTIFIES: readonly [
   "end",
   "between"
 ];
+
+type JsonSchema = {
+  type?: JsonSchemaType | readonly JsonSchemaType[];
+  description?: string;
+  properties?: Record<string, JsonSchema>;
+  required?: readonly string[];
+  items?: JsonSchema;
+  enum?: readonly unknown[];
+  const?: unknown;
+  anyOf?: readonly JsonSchema[];
+  oneOf?: readonly JsonSchema[];
+  minItems?: number;
+  maxItems?: number;
+  minLength?: number;
+  maxLength?: number;
+  minimum?: number;
+  maximum?: number;
+  additionalProperties?: boolean | JsonSchema;
+  default?: unknown;
+};
+
+type JsonSchemaType = "array" | "boolean" | "integer" | "null" | "number" | "object" | "string";
 
 type Justify = (typeof JUSTIFIES)[number];
 
@@ -650,6 +725,8 @@ type PresentToolOptions = {
 
 type PromptUserTool = ToolDefinition<Record<string, unknown>, unknown> & BackendDefaultMetadata;
 
+type PropsSchema = JsonSchema | StandardSchemaLike;
+
 type ProviderOptions = Record<string, Record<string, unknown>>;
 
 type ProviderTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
@@ -688,6 +765,11 @@ type ReasoningMessagePart = {
 type ReservedAccessorProps = "name" | "query" | "source";
 
 type ReservedScopeNames = "on" | "optional" | "subscribe";
+
+type SchemaIssue = {
+  path: string;
+  message: string;
+};
 
 interface ScopeRegistry {
   [key: string]: { methods: any; meta?: any; events?: any };
@@ -894,6 +976,68 @@ type SourceMessagePart = {
 
 type SourceProviderMetadata = PartProviderMetadata;
 
+type Spec = {
+  root: string;
+  elements: Record<string, SpecElement>;
+  state?: Record<string, unknown>;
+};
+
+type SpecComponentProps<P extends Record<string, unknown> = Record<string, unknown>> = {
+  id: string;
+  element: SpecElement;
+  props: P;
+  children: ReactNode;
+  slots: Record<string, ReactNode>;
+  emit(event: string, payload?: unknown): void;
+  setProp(name: string, value: unknown): void;
+  bindings: Record<string, string>;
+  state: SpecStateStore;
+  streaming: boolean;
+};
+
+type SpecComponents = Record<string, Component>;
+
+type SpecComponents$1 = Record<string, ComponentType<SpecComponentProps<any>>>;
+
+type SpecElement = {
+  type: string;
+  props?: Record<string, unknown>;
+  children?: string[];
+  slots?: Record<string, string[]>;
+  visible?: Condition;
+  repeat?: {
+    path: string;
+    key?: string;
+  };
+  on?: Record<string, ActionBinding | ActionBinding[]>;
+  watch?: Record<string, ActionBinding | ActionBinding[]>;
+};
+
+type SpecPromptOptions = {
+  mode?: SpecStreamMode;
+  customRules?: readonly string[];
+  omitExample?: boolean;
+  hostApi?: {
+    prompt?: boolean;
+    modelContext?: boolean;
+    clipboard?: boolean;
+  };
+};
+
+type SpecStateStore = {
+  getState(): Record<string, unknown>;
+  get(path: string): unknown;
+  set(path: string, value: unknown, mode?: "add" | "replace"): void;
+  seed(state: Record<string, unknown>): void;
+  subscribe(listener: StateListener): () => void;
+};
+
+type SpecStreamMode = "inline" | "jsonl";
+
+type SpecToUISpecOptions = {
+  state?: unknown;
+};
+
 interface SpeechRecognitionConstructor {
   new (): SpeechRecognitionInstance;
 }
@@ -907,11 +1051,37 @@ interface SpeechRecognitionInstance extends EventTarget {
   abort(): void;
 }
 
+type StandardResult = {
+  readonly issues?: ReadonlyArray<{
+    readonly message: string;
+    readonly path?: ReadonlyArray<PropertyKey | {
+      readonly key: PropertyKey;
+    }> | undefined;
+  }> | undefined;
+};
+
+type StandardSchemaLike = {
+  readonly "~standard": {
+    readonly version: 1;
+    readonly vendor: string;
+    readonly validate: (value: unknown) => StandardResult | Promise<StandardResult>;
+    readonly jsonSchema?: {
+      readonly input: (options: {
+        target: string;
+      }) => Record<string, unknown>;
+    };
+  };
+};
+
+type StateListener = (state: Record<string, unknown>) => void;
+
 type StaticRenderProps<P> = P & {
   children?: ReactNode;
   $status: "done";
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
+  $slots?: Readonly<Record<string, ReactNode>>;
+  $bindings?: GenerativeUIBindings<P>;
 };
 
 type StreamingRenderProps<P> = (Partial<P> & {
@@ -919,11 +1089,15 @@ type StreamingRenderProps<P> = (Partial<P> & {
   $status: "streaming";
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
+  $slots?: Readonly<Record<string, ReactNode>>;
+  $bindings?: GenerativeUIBindings<P>;
 }) | (P & {
   children?: ReactNode;
   $status: "done";
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
+  $slots?: Readonly<Record<string, ReactNode>>;
+  $bindings?: GenerativeUIBindings<P>;
 });
 
 declare const TEXT_SIZES: readonly [
@@ -1124,12 +1298,13 @@ interface TeamsTextBlock {
   readonly type: "TextBlock";
   readonly text: string;
   readonly wrap: true;
+  readonly fontType?: "Monospace";
   readonly size?: TeamsTextSize;
   readonly weight?: "bolder";
   readonly style?: "heading";
   readonly isSubtle?: true;
   readonly separator?: true;
-  readonly spacing?: "large";
+  readonly spacing?: "large" | "none";
 }
 
 type TeamsTextSize = "extraLarge" | "large" | "medium" | "small";
@@ -1150,6 +1325,7 @@ type ThreadAssistantMessage = MessageCommonProps & {
   readonly content: readonly ThreadAssistantMessagePart[];
   readonly status: MessageStatus;
   readonly metadata: {
+    readonly runId?: string | undefined;
     readonly unstable_state: ReadonlyJSONValue;
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
     readonly unstable_data: readonly ReadonlyJSONValue[];
@@ -1219,6 +1395,10 @@ interface ToAdaptiveCardOptions {
 interface ToSlackBlocksOptions {
   readonly surface?: "message" | "modal";
 }
+
+type ToSpecCatalogOptions = {
+  actions?: Record<string, ActionDefinition>;
+};
 
 type Tool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = FrontendTool<TArgs, TResult> | BackendTool<TArgs, TResult> | HumanTool<TArgs, TResult> | ProviderTool<TArgs, TResult> | McpTool | ToolWithoutType<TArgs, TResult>;
 
@@ -1303,6 +1483,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly toolName: string;
   readonly args: TArgs;
   readonly result?: TResult | undefined;
+  readonly responseDeliveryStatus?: "queued" | undefined;
   readonly isError?: boolean | undefined;
   readonly isPreliminary?: boolean | undefined;
   readonly argsText: string;
@@ -1560,7 +1741,7 @@ declare namespace entry_a2ui_exports {
 
 declare function applyA2uiOperations(state: A2uiState, operations: unknown): A2uiOperationResult;
 
-declare function buildPresentParameters(library: GenerativeUILibrary): JSONSchema7;
+declare function buildPresentParameters(library: GenerativeUILibrary$1): JSONSchema7;
 
 declare function convertSurfaceToUISpec(surface: A2uiSurfaceState, options?: {
   readonly keepUnknownComponents?: boolean;
@@ -1577,7 +1758,9 @@ declare function decodeSubmitData(value: unknown): Action | undefined;
 
 declare const defaultGenerativeUILibrary: GenerativeUILibrary;
 
-declare function defineGenerativeComponents(_library: GenerativeUILibrary): GenerativeUILibrary;
+declare const defaultGenerativeUILibrary$1: GenerativeUILibrary$1;
+
+declare function defineGenerativeComponents(_library: GenerativeUILibrary$1): GenerativeUILibrary$1;
 
 declare const emptyActionRegistry: ActionRegistry;
 
@@ -1611,19 +1794,25 @@ declare function normalizeSpec(spec: UISpec): {
 declare function normalizeUINode(node: unknown, partialPath?: readonly string[] | undefined, depth?: number): NormalizedUINode;
 
 declare namespace entry_react_default_exports {
-  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI$1 as JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, hasFieldReference, normalizeSpec, normalizeUINode, renderGenerativeUI, resolveFieldReferences };
+  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIBindings, GenerativeUIComponent$1 as GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary$1 as GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI$1 as JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary$1 as defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, hasFieldReference, normalizeSpec, normalizeUINode, renderGenerativeUI, resolveFieldReferences };
 }
 
 declare namespace entry_react_react_server_exports {
-  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, hasFieldReference, normalizeSpec, normalizeUINode, renderGenerativeUI, resolveFieldReferences };
+  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIBindings, GenerativeUIComponent$1 as GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary$1 as GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary$1 as defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, hasFieldReference, normalizeSpec, normalizeUINode, renderGenerativeUI, resolveFieldReferences };
 }
 
-declare function renderGenerativeUI(node: unknown, library: GenerativeUILibrary, context?: GenerativeUIRenderContext): ReactNode;
+declare function renderGenerativeUI(node: unknown, library: GenerativeUILibrary$1, context?: GenerativeUIRenderContext): ReactNode;
 
 declare const resolveFieldReferences: (value: unknown, fields: Readonly<Record<string, unknown>>) => unknown;
 
 declare namespace entry_slack_exports {
   export { FromSlackBlocksResult, SlackActionElement, SlackActionsBlock, SlackAlertBlock, SlackAlertLevel, SlackBlock, SlackBlocksResult, SlackButtonElement, SlackCardBlock, SlackCarouselBlock, SlackCheckboxesElement, SlackContextBlock, SlackConversionWarning, SlackDataTableBlock, SlackDataTableCell, SlackDataTableRawNumberCell, SlackDataTableRawTextCell, SlackDatePickerElement, SlackDateTimePickerElement, SlackDividerBlock, SlackHeaderBlock, SlackImageBlock, SlackInputBlock, SlackMarkdownBlock, SlackMrkdwnText, SlackOption, SlackPlainText, SlackPlainTextInputElement, SlackRadioButtonsElement, SlackSectionBlock, SlackStaticSelectElement, SlackTextObject, SlackTimePickerElement, ToSlackBlocksOptions, decodeBlockAction, fromSlackBlocks, toSlackBlocks };
+}
+
+declare function specToUISpec(spec: Spec, options?: SpecToUISpecOptions): UISpec;
+
+declare namespace entry_spec_exports {
+  export { ToSpecCatalogOptions, defaultGenerativeUILibrary$1 as defaultGenerativeUILibrary, toSpecCatalog$1 as toSpecCatalog };
 }
 
 declare function surfaceToOperations(surface: A2uiSurfaceState, surfaceId?: string): readonly A2uiSurfaceSnapshotOperation[];
@@ -1641,6 +1830,24 @@ declare function toAdaptiveCard(node: unknown, _options?: ToAdaptiveCardOptions)
 
 declare function toSlackBlocks(node: unknown, options?: ToSlackBlocksOptions): SlackBlocksResult;
 
+declare function toSpecCatalog(library?: GenerativeUILibrary, options?: ToSpecCatalogOptions): {
+  catalog: Catalog;
+  components: SpecComponents;
+};
+
+declare function toSpecCatalog$1(library?: GenerativeUILibrary$1, options?: ToSpecCatalogOptions): {
+  catalog: Catalog;
+  components: SpecComponents$1;
+};
+
 declare function toTeamsAttachments(node: unknown, _options?: ToAdaptiveCardOptions): TeamsAttachmentsResult;
 
-export { entry_a2ui_exports as entry_a2ui, entry_react_default_exports as entry_react_default, entry_react_react_server_exports as entry_react_react_server, entry_root_exports as entry_root, entry_slack_exports as entry_slack, entry_teams_exports as entry_teams };
+declare namespace entry_spec_tree_exports {
+  export { SpecToUISpecOptions, specToUISpec };
+}
+
+declare namespace entry_vue_exports {
+  export { GenerativeUIComponent, GenerativeUILibrary, ToSpecCatalogOptions, defaultGenerativeUILibrary, toSpecCatalog };
+}
+
+export { entry_a2ui_exports as entry_a2ui, entry_react_default_exports as entry_react_default, entry_react_react_server_exports as entry_react_react_server, entry_root_exports as entry_root, entry_slack_exports as entry_slack, entry_spec_exports as entry_spec, entry_spec_tree_exports as entry_spec_tree, entry_teams_exports as entry_teams, entry_vue_exports as entry_vue };

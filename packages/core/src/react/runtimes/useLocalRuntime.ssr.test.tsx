@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, render } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { type ReactNode } from "react";
 import { hydrateRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, expect, it, vi } from "vitest";

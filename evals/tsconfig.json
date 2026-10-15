@@ -1,0 +1,21 @@
+{
+  "extends": "@assistant-ui/x-buildutils/ts/base-node",
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "paths": {
+      "@/components/assistant-ui/*": [
+        "../packages/ui/src/components/react/assistant-ui/*"
+      ],
+      "@/components/icons/*": ["../packages/ui/src/components/react/icons/*"],
+      "@/components/ui/*": [
+        "../packages/ui/src/components/react/ui/base/*",
+        "../packages/ui/src/components/react/ui/radix/*"
+      ],
+      "@/components/ui/radix/*": [
+        "../packages/ui/src/components/react/ui/radix/*"
+      ],
+      "@/*": ["../packages/ui/src/*"]
+    }
+  },
+  "include": ["src", "../packages/ui/src/globals.d.ts"]
+}

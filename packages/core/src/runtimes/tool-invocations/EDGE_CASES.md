@@ -162,49 +162,17 @@ gated, so a gate on such a call is still late and A.8 governs it
 (#6677).
 
 ### A.11. The turn is discarded before a call's `execute` starts
-`abort({ discardPending: true })` records every active entry that holds
-no result and whose `execute` has not started in `_discardedToolCallIds`,
-and marks it `skipExecute`. A call whose `execute` already started keeps
-its result.
+`abort({ discardPending: true })` records each active entry with no result whose `execute` has not started in `_discardedToolCallIds`, then marks it `skipExecute` and `discarded`. The `discarded` marker prevents a `streamCall` that has not started from firing; `skipExecute` prevents `execute`. A call whose `execute` already started keeps its result.
 
-The abort signal alone does not cover these. A call waiting on the run to
-settle (A.10) has not reached the executor, so there is nothing to signal,
-and `abort()` installs a fresh `AbortController` before the settled
-snapshot arrives; without the record, cancelling a run would be what
-starts the call it was meant to stop. The same holds for a call whose args
-closed in the tick the turn was discarded (the settled snapshot and the
-user's next action landing together): the executor calls `execute` only
-after `abort()` has installed the fresh controller.
+The abort signal alone does not cover these. A call waiting on the run to settle (A.10) has not reached the executor, so there is nothing to signal, and `abort()` installs a fresh `AbortController` before the settled snapshot arrives; without the record, cancelling a run would start the call it was meant to stop. The same holds for a call whose args closed in the tick the turn was discarded: the executor calls `execute` only after `abort()` has installed the fresh controller.
 
-The record covers only calls the tracker has already observed. A call
-first seen in a snapshot that arrives after the discard, such as a store
-that publishes the assistant message only when its run resolves and still
-publishes it after `cancelRun`, gets a fresh entry and runs.
+For a call the tracker has not observed yet, `ExternalStoreThreadRuntimeCore` attributes calls to the cancelled turn's assistant message and supplies their ids in each snapshot's `discardedToolCallIds`. The tracker decides at first sight: a named call starts with both `discarded` and `skipExecute`, even if that first snapshot already carries its final result. A later snapshot cannot change the entry's decision. This keeps a late cancelled call suppressed while an unmarked call in the replacement turn can run.
 
-`discardPending` is the caller's claim that the turn is over, not that it
-is being interrupted, so only the three callers that end it pass it: a new
-turn starting, a reload, and `cancelRun`. `deleteMessage` does not: its
-`setMessages` fallback aborts while the provider run continues, and
-discarding there would strand that run's remaining calls result-less,
-while its `onDelete` path never aborts at all. `reset()` is unaffected
-either way: it clears `_entries` and the recorded ids before aborting,
-because it opens a new execution boundary.
+`discardPending` is the caller's claim that the turn is over, not that it is being interrupted, so only the three callers that end it pass it: a new turn starting, a reload, and `cancelRun`. `deleteMessage` does not: its `setMessages` fallback aborts while the provider run continues, and discarding there would strand that run's remaining calls result-less, while its `onDelete` path never aborts at all. `reset()` clears entries and recorded ids before aborting because it opens a new execution boundary.
 
-An id is forgotten once a live snapshot observes the call with a final result,
-which bounds the set to the open calls of a discarded turn. That is all
-it does: an id re-emitted inside the same execution boundary keeps its
-existing entry, so A.4 and A.7 govern it rather than this set, and a new
-boundary clears the set outright. The residual is a call that is
-discarded, answered, and then loses its result (A.7) across a pipeline
-restart; it is left to A.7 rather than pinned here, because holding the
-id past the answer would trade a five-step chain for a set that grows for
-the life of the tracker.
+The tracker remembers a discarded unresolved id across entry rebuilds because a later snapshot does not carry the entry's discard marker. It forgets the id when a live snapshot carries a final result, bounding the set to open calls; an existing entry still retains its decision. A call that is discarded, answered, and then loses its result (A.7) across a pipeline restart remains governed by A.7 rather than keeping every answered id for the tracker's lifetime.
 
-The record lives on the tracker rather than the entry because it is the one
-reason to skip that no later snapshot carries: an `approval` is re-read at
-each snapshot and provider ownership is recomputed, while a rebuilt entry
-would otherwise come back clean. That is what lets F.4 drop a waiting entry
-without a special case.
+Host-provided run ids close the gap for a cancelled message that arrives after a replacement starts under the same parent: `activeRunId` identifies the cancelled run at Stop, and assistant `metadata.runId` attributes its late calls even after the parent rule closes. Run ids only add discards; every other assistant message still uses the message and parent rules. This also covers a run id first published after Stop and a message already in the cancelled scope. Starting a replacement closes the parent rule, so its calls remain active unless they carry a cancelled run id. The parent-order limit still applies when a late message arrives after a newer user message.
 
 ### A.12. An interim result (`isPreliminary`)
 A result flagged `isPreliminary` marks the entry `skipExecute` like any backend result and reaches the active controller as a preliminary response, which keeps the part open. `entry.hasResult` stays false, so each later snapshot hands the controller its current interim value, while the skip marker keeps the frontend `execute` from running and drops the echo of each value at the result-chunk handler, so `onResult` never fires for it. `reader.response.get()` resolves only when the final result lands, which is A.5 for that call.

@@ -1,6 +1,6 @@
 # `generative-frame`
 
-Render model-generated HTML and SVG widgets safely while they stream. Each widget runs in a [Safe Content Frame](https://www.npmjs.com/package/safe-content-frame) on its own site, under a strict Content Security Policy, and code streams into it chunk by chunk without reloading the frame.
+Render model-generated HTML and SVG widgets safely while they stream. By default each widget runs in a [Safe Content Frame](https://www.npmjs.com/package/safe-content-frame) on its own site (or, with `opaqueOrigin`, in a `null`-origin sandbox), under a strict Content Security Policy, and code streams into it chunk by chunk without reloading the frame.
 
 - **Streaming**: partial markup renders as it arrives and is morphed in place, so finished elements stay put while new ones fade in. Scripts are held and run once, in order, when the code is complete.
 - **Host bridge**: widgets call `sendPrompt(text)`, `openLink(url)`, and `genframe.callTool(name, args)`. The frame speaks the MCP Apps `ui/*` JSON-RPC protocol, so MCP Apps widgets work too.
@@ -10,7 +10,7 @@ Render model-generated HTML and SVG widgets safely while they stream. Each widge
 - **Spec mode**: the model streams JSONL patches against a catalog of your own components; no frame, your design system.
 - **assistant-ui**: toolkit entries that render the tool calls in a thread as their arguments stream.
 
-Framework-agnostic; the React and assistant-ui bindings are optional.
+Framework-agnostic; the React, Vue, and assistant-ui bindings are optional, and each framework is an optional peer of the entries that use it. On React Native, `generative-frame/spec/react` and `generative-frame/spec/assistant-ui` resolve to React Native builds through the `react-native` export condition.
 
 | Entry | Contents |
 | --- | --- |
@@ -20,10 +20,12 @@ Framework-agnostic; the React and assistant-ui bindings are optional.
 | `generative-frame/prompts` | `buildWidgetGuidance` |
 | `generative-frame/repair` | `repairLoop` |
 | `generative-frame/assistant-ui` | `createWidgetToolkit`, `useWidgetInstructions`, `useAssistantUiThemeTokens` |
-| `generative-frame/spec` | `defineCatalog`, `createSpecStream`, `applyPatch`, `validateSpec`, expressions, state, actions |
+| `generative-frame/spec` | `emptySpec`, `defineCatalog`, `createSpecStream`, `parseSpecStream`, `applyPatch`, `validateSpec`, `formatSpecIssues`, `createStateStore`, and types |
 | `generative-frame/spec/react` | `<SpecRenderer>`, `useSpecStream` |
+| `generative-frame/spec/vue` | `SpecRenderer`, `useSpecStream`, `useSpecElement` for Vue |
 | `generative-frame/spec/tools` | `createSpecTools` (`render_spec`), `specGuidanceModule` |
 | `generative-frame/spec/assistant-ui` | `createSpecToolkit` |
+| `generative-frame/spec/assistant-ui/vue` | `createSpecToolkit` for `@assistant-ui/vue` |
 
 The frame entries and the spec entries never import each other, so an app that only renders HTML widgets ships no spec code, and a spec-only app ships no frame, runtime, or Safe Content Frame. Combine them by passing values in, as shown under Spec mode. `src/bundle-boundary.test.ts` enforces this.
 
@@ -64,7 +66,9 @@ await widget.end();
 
 Pass `id` to give a widget a stable origin, so its localStorage and IndexedDB persist across reloads for that id on your site; choose it on the host, never from model output. `clearWidgetStorage(id)` wipes it. Without `id`, every frame gets a fresh origin.
 
-Handlers: `onPrompt`, `onMessage`, `onOpenLink`, `onCallTool`, `onRequestDisplayMode`, `onUpdateModelContext`, `onWidgetState`, `onResize`, `onError`, `onLog`.
+Handlers: `onPrompt`, `onMessage`, `onOpenLink`, `onCallTool`, `onInitialized`, `onRequestDisplayMode`, `onUpdateModelContext`, `onWidgetState`, `onResize`, `onError`, `onLog`.
+
+`onInitialized` runs when an MCP Apps widget sends `ui/notifications/initialized` (for a frame that `replace()` remounts, once that frame is shown) and receives the params of its `ui/initialize` request (`appInfo`, `appCapabilities`, and `protocolVersion`). When a widget declares `appCapabilities.availableDisplayModes`, the MCP Apps spec forbids switching it into a display mode missing from that list, so check the list in `onRequestDisplayMode`.
 
 Code that starts with `<svg` renders as a standalone SVG; anything else is an HTML fragment.
 
@@ -74,7 +78,7 @@ Code that starts with `<svg` renders as a standalone SVG; anything else is an HT
 
 ### Content Security Policy
 
-By default a frame cannot reach the network (`connect-src 'none'`), loads scripts, styles, images, and fonts only from cdnjs, jsDelivr, unpkg, and esm.sh (plus Google Fonts), and blocks form submissions and `eval`. Configure with `csp: { cdnOrigins, connectOrigins, imageOrigins, frameOrigins, allowEval }`, or pass a policy string.
+By default a frame blocks `fetch`, XHR, and WebSocket (`connect-src 'none'`), loads scripts, styles, images, and fonts only from cdnjs, jsDelivr, unpkg, and esm.sh, and blocks form submissions and `eval`. Configure with `csp: { cdnOrigins, fontStyleOrigins, fontOrigins, connectOrigins, imageOrigins, frameOrigins, allowEval }`, or pass a policy string. `fontStyleOrigins` and `fontOrigins` default to empty and add hosts only to `style-src` and `font-src`, respectively. To opt into Google Fonts, set `fontStyleOrigins: ["https://fonts.googleapis.com"]` and `fontOrigins: ["https://fonts.gstatic.com"]`. With `csp: { cdnOrigins: [] }`, external scripts, styles, fonts, images, and media are blocked unless explicitly allowed. Opaque-origin frames also enforce the parent page's CSP; these options cannot relax it. If the parent policy blocks the inline bootstrap runtime, the frame never becomes ready and fails with a ready timeout. A hash-based parent policy that allows the bootstrap runtime may still block model-written widget scripts.
 
 ## React
 
@@ -108,7 +112,7 @@ streamText({ model, tools: toAISDKTools(tools, { jsonSchema }) });
 
 Each tool is `{ name, description, inputSchema, execute }` with a JSON Schema input, so it adapts to any provider. `edit_widget` applies exact `old_string` → `new_string` replacements to the latest code of a widget, tracked by title in a registry, and fails without changes when a match is missing or ambiguous. `preview_widget` renders through the `preview` option, typically `previewWidget` in the browser; without it the tool returns an error result, so leave it out of tool sets that run on a server.
 
-`generative-frame/prompts` exports `buildWidgetGuidance({ modules, platform, tokens, cdnOrigins, connectOrigins, allowEval, width, hostApi })`, which `read_me` returns: base rules, a token reference generated from your tokens, platform notes, rules that match the frame's CSP (`cdnOrigins`, `connectOrigins`, `allowEval`) and host API (`hostApi`), and modules (`diagram`, `chart`, `data_viz`, `interactive`, `mockup`, `elicitation`, `art`).
+`generative-frame/prompts` exports `buildWidgetGuidance({ modules, platform, tokens, cdnOrigins, fontStyleOrigins, fontOrigins, connectOrigins, allowEval, width, hostApi })`, which `read_me` returns: base rules, a token reference generated from your tokens, platform notes, rules that match the frame's CSP (`cdnOrigins`, `fontStyleOrigins`, `fontOrigins`, `connectOrigins`, `allowEval`) and host API (`hostApi`), and modules (`diagram`, `chart`, `data_viz`, `interactive`, `mockup`, `elicitation`, `art`). Guidance only describes the policy to the model; it does not grant access. Configure matching origins in `createWidget({ csp })`.
 
 ## Repair loop
 
@@ -169,11 +173,12 @@ const { spec, text } = useSpecStream({ source: modelOutput, mode: "inline", comp
 />;
 ```
 
-- **Streaming**: `createSpecStream()` (and `useSpecStream`) apply each complete line as it arrives, skip and report bad lines, and in `inline` mode separate prose from patches (in a ```spec fence or bare `{"op"` lines). Children that have not arrived render as pending; unknown types, invalid props, cycles, and components that throw render a small placeholder.
-- **Expressions**: `{ $state: "/path" }`, `{ $bindState: "/path" }` (two-way, via `setProp`), `{ $template: "Hi ${/name}" }`, `{ $cond, $then, $else }`, and `$item`/`$bindItem`/`$index` inside `repeat`. `visible` takes conditions with `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `not`, `$and`, `$or`, and arrays (all).
+- **Streaming**: `createSpecStream()` (and `useSpecStream`) apply each complete line as it arrives, skip and report bad lines, and in `inline` mode separate prose from patches (in a ```spec fence or bare `{"op"` lines). While the spec streams, elements that have not arrived take no space, an element with invalid props keeps its last valid render, and one pending placeholder follows the spec; once it stops, unknown types, invalid props, and components that throw render a small placeholder, as do cycles at any time.
+- **Expressions**: `{ $state: "/path" }`, `{ $bindState: "/path" }` (two-way, via `setProp`), `{ $template: "Hi ${/name}" }`, `{ $cond, $then, $else }`, `{ $calc: "${/price} * ${/qty}" }` (bounded formulas with arithmetic, comparisons, list totals, and formatting), and `$item`/`$bindItem`/`$index` inside `repeat`. `visible` takes conditions with `eq`, `neq`, `gt`, `gte`, `lt`, `lte`, `not`, `$and`, `$or`, and arrays (all).
 - **Actions**: `on: { press: { action, params } }` runs the built-in `setState` or a catalog action through your handlers; `watch: { "/path": action }` runs when a state value changes. User changes to state survive the model streaming more state.
 - **Validation**: `validateSpec(spec, catalog)` returns issues with codes and JSON Pointers (`unknown-type`, `invalid-props`, `missing-child`, `cycle`, `unknown-action`, …); `formatSpecIssues` turns them into repair feedback.
 - **Tool**: `createSpecTools(catalog)` from `generative-frame/spec/tools` returns `render_spec({ title, patches | spec })`, which validates and returns the issues. Patches on a title already rendered apply to that spec, so repairs are small. A spec-only app puts `catalog.prompt()` in its system prompt; next to the widget tools, compose them with `createWidgetTools({ extraTools: createSpecTools(catalog), modules: [specGuidanceModule(catalog)] })`, which also adds a `spec` module to `read_me`.
+- **Vue**: `generative-frame/spec/vue` exports `SpecRenderer`, `useSpecStream`, and `useSpecElement` for Vue and needs `vue` (an optional peer, imported only by that entry). `useSpecStream` returns refs, and a Vue component gets the props it declares, its children and named slots as slots, and emits the spec events it declares in `emits`.
 
 The format follows the flat-spec and JSONL-patch shape of Vercel's json-render, without depending on it.
 
@@ -183,7 +188,7 @@ To keep widget code out of the main agent's context, give it one tool that asks 
 
 ## assistant-ui
 
-`generative-frame/assistant-ui` and `generative-frame/spec/assistant-ui` need `@assistant-ui/react` (an optional peer, imported only by these entries).
+`generative-frame/assistant-ui` and `generative-frame/spec/assistant-ui` need `@assistant-ui/react` (an optional peer, imported only by these entries); on React Native, `generative-frame/spec/assistant-ui` resolves to a build that needs `@assistant-ui/react-native` instead. `generative-frame/spec/assistant-ui/vue` builds the spec toolkit for `@assistant-ui/vue` instead and needs it and `@assistant-ui/core`.
 
 ```tsx
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
@@ -213,7 +218,8 @@ function Instructions() {
 ```
 
 - `show_widget` streams `widget_code` into a `<Widget>` from the partial tool arguments; `edit_widget` replays the edits from the thread, so history renders after a reload; `render_spec` streams patches into a `<SpecRenderer>`.
-- In frontend execution, `show_widget` and `edit_widget` wait for the frame to finish rendering and return a `render` report (errors, console warnings, blank flag, height, and `feedback` text), so the model can fix a broken widget with `edit_widget`. Tune with `renderReport: { timeoutMs, settleMs }` (10000 and 300 ms by default) or turn it off with `renderReport: false`.
+- Within one message, a later `show_widget` with the same title takes over a widget as it streams, and a later `edit_widget` once its edits are complete and apply, so the widget shows once; a streaming or failed edit leaves it in place, and earlier messages keep their own widgets.
+- In frontend execution, calls that render a frame wait for it to finish and return a `render` report (errors, console warnings, blank flag, height, and `feedback` text), so the model can fix a broken widget with `edit_widget`. A superseded call returns immediately with a `timeout` report explaining that it was not rendered. Tune with `renderReport: { timeoutMs, settleMs }` (10000 and 300 ms by default) or turn it off with `renderReport: false`.
 - `preview_widget` runs `previewWidget` in the browser. Its result leaves out the PNG unless `previewScreenshot: true`, because a base64 image in a JSON tool result is large.
 - A widget's `sendPrompt(text)` appends a user message to the thread.
 - Frames follow the app's shadcn/ui theme (`useAssistantUiThemeTokens`).

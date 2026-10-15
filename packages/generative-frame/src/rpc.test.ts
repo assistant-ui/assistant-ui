@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
 import { createRpcPeer, RPC_ERROR, RpcError, type RpcEndpoint } from "./rpc";
 

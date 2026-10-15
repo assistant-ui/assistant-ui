@@ -45,11 +45,11 @@ const widget = createWidget({ container, code: savedWidgetCode });
 await widget.replace(nextCode);
 ```
 
-`replace` morphs in place while no script has run. Once scripts have run, it renders the new code in a fresh frame and swaps it in when that frame has ended.
+`replace` morphs in place while no script has run. Once scripts have run, it renders the new code in a fresh frame and swaps it in when that frame has ended. A newer `replace` removes a fresh frame that is still rendering, so only the latest code shows and the older frame sends your handlers nothing after that, and the earlier call's promise rejects.
 
 ## Handle what the widget asks for
 
-Widget code can call `sendPrompt(text)`, `openLink(url)`, and `genframe.callTool(name, args)`. Each reaches a handler on the host:
+Widget code can call `sendPrompt(text)`, `openLink(url)`, `genframe.callTool(name, args)`, and `genframe.copyText(text)`. Each reaches a handler on the host:
 
 ```ts
 const widget = createWidget({
@@ -59,12 +59,13 @@ const widget = createWidget({
     if (confirm(`Open ${url}?`)) window.open(url, "_blank", "noopener");
   },
   onCallTool: async ({ name, arguments: args }) => runAllowedTool(name, args),
+  onCopyText: (text) => offerToCopy(text),
   onError: (error) => reportToModel(error),
   onLog: (entry) => console.debug(entry.level, entry.message),
 });
 ```
 
-Without `onOpenLink`, http(s) links open in a new tab with `noopener`. Without `onCallTool`, `onPrompt`, or `onMessage`, those calls fail inside the widget. See [Security model](/generative-frame/docs/security) for what each handler exposes.
+Without `onOpenLink`, http(s) links open in a new tab with `noopener`. `genframe.copyText` and `navigator.clipboard.writeText` in a widget reach `onCopyText`, since the sandboxed frame cannot write the clipboard itself; the request alone does not show the user asked for the copy, so confirm with them, such as through a Copy control you render, before writing. Without `onCopyText`, copying fails inside the widget. Without `onCallTool`, `onPrompt`, or `onMessage`, those calls fail inside the widget. See [Security model](/generative-frame/docs/security) for what each handler exposes.
 
 You can also subscribe to events. `on` returns an unsubscribe function:
 
@@ -108,7 +109,7 @@ createWidget({ container, id: `${conversationId}:${widgetKey}` });
 
 - The same `id` on the same host origin gets the same localStorage, IndexedDB, and cookies, across reloads. Widgets mounted at the same time with the same `id` share that storage.
 - Storage belongs to the site that embeds the widget. The same `id` on another site starts empty.
-- The browser can evict it, and cookies are often blocked in third-party frames, so keep only small UI state there. State that must last goes to the host through `genframe.setState`.
+- The browser can evict it, and cookies are often blocked in third-party frames, so keep only small UI state there. State that must last goes to the host through `genframe.setState`, and `genframe.state` reads back what the host restored, such as the state the [assistant-ui toolkit](/generative-frame/docs/assistant-ui#history-after-a-reload) saved before a reload.
 - Choose the `id` on the host, from data the model does not control. An `id` taken from model output would let one widget read another's storage.
 
 `clearWidgetStorage(id)` loads a hidden frame on that origin and clears its localStorage, sessionStorage, IndexedDB, Cache Storage, and cookies. `id` cannot be combined with `frame`; to configure your own `SafeContentFrame`, give it `salt: widgetStorageSalt(id)`.

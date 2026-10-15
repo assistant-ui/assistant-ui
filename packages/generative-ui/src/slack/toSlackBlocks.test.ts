@@ -38,11 +38,13 @@ import {
 import type {
   SlackActionsBlock,
   SlackAlertBlock,
+  SlackButtonElement,
   SlackCardBlock,
   SlackCarouselBlock,
   SlackCheckboxesElement,
   SlackContextBlock,
   SlackDataTableBlock,
+  SlackHeaderBlock,
   SlackInputBlock,
   SlackRadioButtonsElement,
   SlackSectionBlock,
@@ -76,6 +78,517 @@ const hostileSpecies = <T>(
 };
 
 describe("toSlackBlocks", () => {
+  describe("numeric text props", () => {
+    it("stringifies numeric labels and descriptions", () => {
+      const { blocks } = toSlackBlocks([
+        { $type: "Header", text: 101 },
+        { $type: "Alert", title: 102, description: 103 },
+        { $type: "Fact", label: 104, value: "ready" },
+        {
+          $type: "Card",
+          title: 105,
+          confirm: { label: 106 },
+          cancel: { label: 107 },
+        },
+        {
+          $type: "Select",
+          options: [],
+          placeholder: 108,
+          $action: { type: "select" },
+        },
+        { $type: "Checkbox", label: 109, $action: { type: "check" } },
+        { $type: "Button", label: 110, $action: { type: "submit" } },
+      ]);
+      expect((blocks[0] as SlackHeaderBlock).text.text).toBe("101");
+      expect((blocks[1] as SlackContextBlock).elements[0]?.text).toBe(
+        "ℹ️ *102*",
+      );
+      expect((blocks[2] as SlackSectionBlock).text?.text).toBe("103");
+      expect((blocks[3] as SlackSectionBlock).fields?.[0]?.text).toBe(
+        "*104*\nready",
+      );
+      const card = blocks[4] as SlackCardBlock;
+      expect(card.title?.text).toBe("105");
+      expect(card.actions?.[0]?.text.text).toBe("106");
+      expect(card.actions?.[1]?.text.text).toBe("107");
+      expect(
+        (
+          (blocks[5] as SlackActionsBlock)
+            .elements[0] as SlackStaticSelectElement
+        ).placeholder?.text,
+      ).toBe("108");
+      expect(
+        ((blocks[5] as SlackActionsBlock).elements[1] as SlackCheckboxesElement)
+          .options[0]?.text.text,
+      ).toBe("109");
+      expect(
+        ((blocks[5] as SlackActionsBlock).elements[2] as SlackButtonElement)
+          .text.text,
+      ).toBe("110");
+    });
+  });
+
+  describe("structure components", () => {
+    it("renders numeric Citation title, source, and snippet", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Citation",
+        title: 0,
+        url: "https://example.com",
+        source: 12,
+        snippet: 34,
+      });
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          text: { type: "mrkdwn", text: "<https://example.com|0>\n34" },
+        },
+        { type: "context", elements: [{ type: "mrkdwn", text: "12" }] },
+      ]);
+      expect(warnings).toEqual([]);
+    });
+
+    it("leaves out an explicitly empty Citation source instead of showing the link's site", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Citation",
+        title: "Reference",
+        url: "https://example.com",
+        source: "",
+      });
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          text: { type: "mrkdwn", text: "<https://example.com|Reference>" },
+        },
+      ]);
+    });
+
+    it("renders every Tabs panel in order with a label, including a missing label", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Tabs",
+        tabs: ["First & <one>"],
+        children: [
+          { $type: "Text", value: "one" },
+          { $type: "Text", value: "two" },
+        ],
+      });
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          text: { type: "mrkdwn", text: "*First &amp; &lt;one&gt;*" },
+        },
+        { type: "section", text: { type: "mrkdwn", text: "one" } },
+        { type: "section", text: { type: "mrkdwn", text: "*2*" } },
+        { type: "section", text: { type: "mrkdwn", text: "two" } },
+      ]);
+      expect(warnings).toEqual([]);
+    });
+
+    it("keeps a Tabs label even when its panel is missing", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Tabs",
+        tabs: ["One", "Two"],
+        children: [{ $type: "Text", value: "First panel" }],
+      });
+      expect(blocks).toEqual([
+        { type: "section", text: { type: "mrkdwn", text: "*One*" } },
+        { type: "section", text: { type: "mrkdwn", text: "First panel" } },
+        { type: "section", text: { type: "mrkdwn", text: "*Two*" } },
+      ]);
+    });
+
+    it("numbers valid Steps after malformed entries and keeps optional details", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Steps",
+        steps: [
+          null,
+          { detail: "missing title" },
+          { title: "Open <box>", detail: "Take & keep" },
+          { title: "Finish" },
+        ],
+      });
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "*1. Open &lt;box&gt;*\nTake &amp; keep",
+          },
+        },
+        { type: "section", text: { type: "mrkdwn", text: "*2. Finish*" } },
+      ]);
+      expect(warnings).toEqual([
+        {
+          code: "dropped",
+          component: "Steps",
+          detail: "2 malformed entries were dropped.",
+        },
+      ]);
+    });
+
+    it("renders Timeline time, title, and detail without dropping missing optional fields", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Timeline",
+        items: [
+          { time: "Day 1", title: "Arrive", detail: "At noon" },
+          { time: "Yesterday" },
+          { title: "Leave" },
+        ],
+      });
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          text: { type: "mrkdwn", text: "*Day 1*\nArrive\nAt noon" },
+        },
+        { type: "section", text: { type: "mrkdwn", text: "Leave" } },
+      ]);
+      expect(warnings).toEqual([
+        {
+          code: "dropped",
+          component: "Timeline",
+          detail: "1 malformed entry was dropped.",
+        },
+      ]);
+    });
+
+    it("clamps a long Citation title and snippet without cutting the link apart", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Citation",
+        title: "t".repeat(SECTION_TEXT_CAP),
+        url: "https://example.com/a",
+        snippet: "s".repeat(SECTION_TEXT_CAP),
+      });
+      const text = (blocks[0] as { text: { text: string } }).text.text;
+      expect(text.length).toBeLessThanOrEqual(SECTION_TEXT_CAP);
+      expect(text.startsWith("<https://example.com/a|t")).toBe(true);
+      expect(text.endsWith(">")).toBe(true);
+      expect(warnings).toContainEqual(
+        expect.objectContaining({ code: "clamped", component: "Citation" }),
+      );
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Citation",
+        detail: "snippet did not fit beside the title.",
+      });
+
+      const short = toSlackBlocks({
+        $type: "Citation",
+        title: "Short",
+        url: "https://example.com/a",
+        snippet: "s".repeat(SECTION_TEXT_CAP),
+      });
+      const kept = (short.blocks[0] as { text: { text: string } }).text.text;
+      expect(kept.length).toBe(SECTION_TEXT_CAP);
+      expect(kept.startsWith("<https://example.com/a|Short>\nsss")).toBe(true);
+      expect(short.warnings).toContainEqual({
+        code: "clamped",
+        component: "Citation",
+        detail: `snippet was clamped to ${SECTION_TEXT_CAP - 30} characters.`,
+      });
+    });
+
+    it("links an http Citation and renders a non-http Citation as plain text", () => {
+      const { blocks } = toSlackBlocks([
+        {
+          $type: "Citation",
+          title: "A & B",
+          url: "https://www.example.com/a?x=1&y=2",
+          snippet: "Quote <here>",
+        },
+        {
+          $type: "Citation",
+          title: "Local",
+          url: "javascript:alert(1)",
+          source: "Notes",
+          snippet: "Read me",
+        },
+      ]);
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "<https://www.example.com/a?x=1&amp;y=2|A &amp; B>\nQuote &lt;here&gt;",
+          },
+        },
+        {
+          type: "context",
+          elements: [{ type: "mrkdwn", text: "example.com" }],
+        },
+        { type: "section", text: { type: "mrkdwn", text: "Local\nRead me" } },
+        { type: "context", elements: [{ type: "mrkdwn", text: "Notes" }] },
+      ]);
+    });
+
+    it("renders a Citation without optional fields and forwards dropped panel warnings", () => {
+      const { blocks, warnings } = toSlackBlocks([
+        { $type: "Citation", title: "Unlinked" },
+        { $type: "Tabs", tabs: ["Missing"], children: [{ $type: "Unknown" }] },
+      ]);
+      expect(blocks).toEqual([
+        { type: "section", text: { type: "mrkdwn", text: "Unlinked" } },
+        { type: "section", text: { type: "mrkdwn", text: "*Missing*" } },
+      ]);
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Unknown",
+        detail: "Unknown component type was dropped.",
+      });
+    });
+
+    it("keeps a fence inside the Diagram source from closing the code block", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Diagram",
+        code: "flowchart LR\n  A --> B\n```\nnot code",
+      });
+      const text = (blocks[0] as { text: { text: string } }).text.text;
+      expect(text.startsWith("```\n")).toBe(true);
+      expect(text.endsWith("not code\n```")).toBe(true);
+      expect(text.slice(4, -4)).not.toContain("```");
+    });
+
+    it("renders an escaped Diagram source and title", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Diagram",
+        code: "flowchart LR\nA[You & me] --> B[<Done>]",
+        title: "Plan <today> & tomorrow",
+      });
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "```\nflowchart LR\nA[You &amp; me] --&gt; B[&lt;Done&gt;]\n```",
+          },
+        },
+        {
+          type: "context",
+          elements: [
+            { type: "mrkdwn", text: "Plan &lt;today&gt; &amp; tomorrow" },
+          ],
+        },
+      ]);
+      expect(warnings).toEqual([]);
+    });
+
+    it("captions a Diagram with a numeric title and skips an empty one", () => {
+      const caption = (title: unknown) =>
+        toSlackBlocks({ $type: "Diagram", code: "flowchart LR", title })
+          .blocks[1];
+      expect(caption(2024)).toEqual({
+        type: "context",
+        elements: [{ type: "mrkdwn", text: "2024" }],
+      });
+      expect(caption("")).toBeUndefined();
+    });
+
+    it("renders a Diagram without a title and closes an oversized code fence", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Diagram",
+        code: "x".repeat(SECTION_TEXT_CAP),
+      });
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: `\`\`\`\n${"x".repeat(SECTION_TEXT_CAP - 8)}\n\`\`\``,
+          },
+        },
+      ]);
+      expect(warnings).toEqual([
+        {
+          code: "clamped",
+          component: "Diagram",
+          detail: `code was clamped to ${SECTION_TEXT_CAP - 8} characters.`,
+        },
+      ]);
+    });
+
+    it("clamps a Diagram title to the context text cap", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Diagram",
+        code: "flowchart LR",
+        title: "t".repeat(CONTEXT_TEXT_CAP + 1),
+      });
+      expect((blocks[1] as SlackContextBlock).elements[0]?.text).toHaveLength(
+        CONTEXT_TEXT_CAP,
+      );
+      expect(warnings).toEqual([
+        {
+          code: "clamped",
+          component: "Diagram",
+          detail: `title was clamped to ${CONTEXT_TEXT_CAP} characters.`,
+        },
+      ]);
+    });
+
+    it("clamps escaped Diagram source and title at entity boundaries", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Diagram",
+        code: `${"x".repeat(SECTION_TEXT_CAP - 9)}<`,
+        title: `${"x".repeat(CONTEXT_TEXT_CAP - 1)}<`,
+      });
+      const code = (blocks[0] as SlackSectionBlock).text?.text ?? "";
+      const title = (blocks[1] as SlackContextBlock).elements[0]?.text ?? "";
+
+      expect(code).toBe(`\`\`\`\n${"x".repeat(SECTION_TEXT_CAP - 9)}\n\`\`\``);
+      expect(title).toBe("x".repeat(CONTEXT_TEXT_CAP - 1));
+      expect(code).not.toMatch(/&[a-z]*$/);
+      expect(title).not.toMatch(/&[a-z]*$/);
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Diagram",
+        detail: `code was clamped to ${SECTION_TEXT_CAP - 8} characters.`,
+      });
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Diagram",
+        detail: `title was clamped to ${CONTEXT_TEXT_CAP} characters.`,
+      });
+    });
+
+    it("links valid Map places, keeps optional details, and warns for invalid coordinates", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Map",
+        places: [
+          { label: "A & <B>", lat: 25, lng: 121, detail: "Meet > here" },
+          { label: "Invalid", lat: 91, lng: 0 },
+          { label: "Second", lat: -3, lng: 4 },
+        ],
+        route: true,
+      });
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "<https://www.openstreetmap.org/?mlat=25&amp;mlon=121#map=14/25/121|A &amp; &lt;B&gt;>\nMeet &gt; here",
+          },
+        },
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "<https://www.openstreetmap.org/?mlat=-3&amp;mlon=4#map=14/-3/4|Second>",
+          },
+        },
+      ]);
+      expect(warnings).toEqual([
+        {
+          code: "dropped",
+          component: "Map",
+          detail: "1 malformed entry was dropped.",
+        },
+      ]);
+    });
+
+    it("clamps escaped Map labels and details at entity boundaries", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Map",
+        places: [
+          {
+            label: `${"x".repeat(499)}<`,
+            lat: 0,
+            lng: 0,
+            detail: `${"x".repeat(1999)}<`,
+          },
+        ],
+      });
+      const text = (blocks[0] as SlackSectionBlock).text?.text ?? "";
+
+      expect(text).toContain(`|${"x".repeat(499)}>\n${"x".repeat(1999)}`);
+      expect(text).not.toMatch(/&[a-z]*$/);
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Map",
+        detail: "label was clamped to 500 characters.",
+      });
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Map",
+        detail: "detail was clamped to 2000 characters.",
+      });
+    });
+
+    it("clamps Map entries and reports multiple invalid places", () => {
+      const { warnings } = toSlackBlocks({
+        $type: "Map",
+        places: [
+          { label: "No latitude", lat: 91, lng: 0 },
+          { label: "No longitude", lat: 0, lng: 181 },
+          ...Array.from({ length: CHILDREN_CAP }, (_, index) => ({
+            label: `Place ${index}`,
+            lat: 0,
+            lng: 0,
+          })),
+        ],
+      });
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Map",
+        detail: `places were clamped to ${CHILDREN_CAP} entries.`,
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Map",
+        detail: "2 malformed entries were dropped.",
+      });
+    });
+
+    it("renders an absent Map places list without warnings", () => {
+      expect(toSlackBlocks({ $type: "Map" })).toEqual({
+        blocks: [],
+        warnings: [],
+      });
+    });
+
+    it("clamps structured text through the section warning path", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Steps",
+        steps: [{ title: "a".repeat(SECTION_TEXT_CAP) }],
+      });
+      expect((blocks[0] as SlackSectionBlock).text?.text).toHaveLength(
+        SECTION_TEXT_CAP,
+      );
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Steps",
+        detail: `text was clamped to ${SECTION_TEXT_CAP} characters.`,
+      });
+    });
+
+    it.each([
+      [
+        "Tabs",
+        "tabs",
+        "tabs",
+        Array.from({ length: CHILDREN_CAP + 1 }, (_, i) => `Tab ${i}`),
+      ],
+      [
+        "Steps",
+        "steps",
+        "steps",
+        Array.from({ length: CHILDREN_CAP + 1 }, (_, i) => ({
+          title: `Step ${i}`,
+        })),
+      ],
+      [
+        "Timeline",
+        "items",
+        "items",
+        Array.from({ length: CHILDREN_CAP + 1 }, (_, i) => ({
+          title: `Event ${i}`,
+        })),
+      ],
+    ])("clamps %s entries", (component, prop, field, entries) => {
+      const { warnings } = toSlackBlocks({ $type: component, [prop]: entries });
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component,
+        detail: `${field} were clamped to ${CHILDREN_CAP} entries.`,
+      });
+    });
+  });
   describe("Header", () => {
     it("renders a header block", () => {
       const { blocks } = toSlackBlocks({ $type: "Header", text: "Title" });
@@ -111,6 +624,11 @@ describe("toSlackBlocks", () => {
       ]);
     });
 
+    it("renders a numeric value", () => {
+      const { blocks } = toSlackBlocks({ $type: "Text", value: 42 });
+      expect((blocks[0] as SlackSectionBlock).text?.text).toBe("42");
+    });
+
     it(`clamps value to ${SECTION_TEXT_CAP} characters and warns`, () => {
       const value = "t".repeat(4000);
       const { blocks, warnings } = toSlackBlocks({ $type: "Text", value });
@@ -137,6 +655,11 @@ describe("toSlackBlocks", () => {
         { type: "context", elements: [{ type: "mrkdwn", text: "Fine print" }] },
       ]);
     });
+
+    it("renders a numeric value", () => {
+      const { blocks } = toSlackBlocks({ $type: "Caption", value: 42 });
+      expect((blocks[0] as SlackContextBlock).elements[0]?.text).toBe("42");
+    });
   });
 
   describe("Badge", () => {
@@ -145,6 +668,11 @@ describe("toSlackBlocks", () => {
       expect(blocks).toEqual([
         { type: "context", elements: [{ type: "mrkdwn", text: "New" }] },
       ]);
+    });
+
+    it("renders a numeric value", () => {
+      const { blocks } = toSlackBlocks({ $type: "Badge", value: 42 });
+      expect((blocks[0] as SlackContextBlock).elements[0]?.text).toBe("42");
     });
   });
 
@@ -161,6 +689,17 @@ describe("toSlackBlocks", () => {
           fields: [{ type: "mrkdwn", text: "*Status*\nActive" }],
         },
       ]);
+    });
+
+    it("renders a numeric value", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Fact",
+        label: "Count",
+        value: 42,
+      });
+      expect((blocks[0] as SlackSectionBlock).fields?.[0]?.text).toBe(
+        "*Count*\n42",
+      );
     });
 
     it("merges consecutive Fact siblings into one section, starting a new section past the field cap", () => {
@@ -1225,6 +1764,13 @@ describe("toSlackBlocks", () => {
       { label: "Large", value: "l" },
     ];
 
+    it("drops progress without changing the checkboxes", () => {
+      const base = { $type: "CheckboxGroup", options, defaultValue: ["l"] };
+      expect(toSlackBlocks({ ...base, progress: true })).toEqual(
+        toSlackBlocks(base),
+      );
+    });
+
     it("emits a multi-option checkboxes element", () => {
       const { blocks } = toSlackBlocks({
         $type: "CheckboxGroup",
@@ -1521,6 +2067,176 @@ describe("toSlackBlocks", () => {
   });
 
   describe("Card", () => {
+    it("keeps numeric body and subtext values", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Card",
+        children: [
+          { $type: "Text", value: 42 },
+          { $type: "Caption", value: 7 },
+        ],
+      });
+      const card = blocks[0] as SlackCardBlock;
+      expect([card.body?.text, card.subtext?.text]).toEqual(["42", "7"]);
+    });
+
+    it("uses the confirm action for an asForm card when both actions exist", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Card",
+        asForm: true,
+        $action: { type: "card_submit" },
+        confirm: { label: "Save", $action: { type: "confirm_submit" } },
+      });
+      expect((blocks[0] as SlackCardBlock).actions).toEqual([
+        expect.objectContaining({
+          action_id: "confirm_submit",
+          style: "primary",
+        }),
+      ]);
+    });
+
+    it("uses the card action on a confirm footer without an action", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Card",
+        asForm: true,
+        $action: { type: "card_submit" },
+        confirm: { label: "Save" },
+      });
+      expect((blocks[0] as SlackCardBlock).actions).toEqual([
+        expect.objectContaining({ action_id: "card_submit", style: "primary" }),
+      ]);
+    });
+
+    it("adds a Submit button for an asForm card without a confirm footer", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Card",
+        asForm: true,
+        $action: { type: "card_submit" },
+      });
+      expect((blocks[0] as SlackCardBlock).actions).toEqual([
+        expect.objectContaining({
+          text: { type: "plain_text", text: "Submit" },
+          action_id: "card_submit",
+          style: "primary",
+        }),
+      ]);
+    });
+
+    it("puts an asForm card's Submit button before its cancel footer", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Card",
+        asForm: true,
+        $action: { type: "card_submit" },
+        cancel: { label: "Discard", $action: { type: "discard" } },
+      });
+      expect((blocks[0] as SlackCardBlock).actions).toEqual([
+        expect.objectContaining({
+          text: { type: "plain_text", text: "Submit" },
+          action_id: "card_submit",
+          style: "primary",
+        }),
+        expect.objectContaining({
+          text: { type: "plain_text", text: "Discard" },
+          action_id: "discard",
+        }),
+      ]);
+    });
+
+    it("keeps non-form card actions and actionless form cards unchanged", () => {
+      const nonForm = toSlackBlocks({
+        $type: "Card",
+        title: "Plain",
+        $action: { type: "ignored" },
+      });
+      const actionlessForm = toSlackBlocks({
+        $type: "Card",
+        title: "Plain",
+        asForm: true,
+      });
+      expect(nonForm.blocks).toEqual(actionlessForm.blocks);
+      expect((nonForm.blocks[0] as SlackCardBlock).actions).toBeUndefined();
+    });
+
+    it("adds the asForm card Submit button after inline children", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Card",
+        asForm: true,
+        $action: { type: "card_submit" },
+        children: { $type: "Fact", label: "Status", value: "Ready" },
+      });
+      expect(blocks).toEqual([
+        {
+          type: "section",
+          fields: [{ type: "mrkdwn", text: "*Status*\nReady" }],
+        },
+        {
+          type: "actions",
+          elements: [
+            expect.objectContaining({
+              text: { type: "plain_text", text: "Submit" },
+              action_id: "card_submit",
+            }),
+          ],
+        },
+      ]);
+    });
+
+    it("keeps the Submit button on a clean carousel card", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Carousel",
+        children: [
+          { $type: "Card", asForm: true, $action: { type: "submit" } },
+        ],
+      });
+      expect((blocks[0] as SlackCarouselBlock).elements[0]?.actions).toEqual([
+        expect.objectContaining({ action_id: "submit", style: "primary" }),
+      ]);
+    });
+
+    it("reports a form card's Submit button lost in a carousel reshape", () => {
+      const { warnings } = toSlackBlocks({
+        $type: "Carousel",
+        children: [
+          {
+            $type: "Card",
+            title: "Plan",
+            asForm: true,
+            $action: { type: "submit" },
+            children: { $type: "Fact", label: "Price", value: "$10" },
+          },
+        ],
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Card",
+        detail: "A reshaped carousel card's controls were dropped.",
+      });
+    });
+
+    it("reports a nested form card's Submit button lost in a carousel reshape", () => {
+      const { warnings } = toSlackBlocks({
+        $type: "Carousel",
+        children: [
+          {
+            $type: "Card",
+            title: "Plan",
+            children: {
+              $type: "Col",
+              children: {
+                $type: "Card",
+                asForm: true,
+                $action: { type: "submit" },
+              },
+            },
+          },
+        ],
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Card",
+        detail: "A reshaped carousel card's controls were dropped.",
+      });
+    });
+
     it("maps a clean card into a native card block with title, hero image, body, subtext, and actions", () => {
       const { blocks, warnings } = toSlackBlocks({
         $type: "Card",
@@ -1560,6 +2276,26 @@ describe("toSlackBlocks", () => {
         },
       ]);
       expect(warnings).toEqual([]);
+    });
+
+    it("maps the _type/_action spelling models emit like the $ spelling", () => {
+      const card = (spelling: "$" | "_") => ({
+        [`${spelling}type`]: "Card",
+        title: "Order #42",
+        confirm: { label: "Ship", [`${spelling}action`]: { type: "ship" } },
+        cancel: { label: "Cancel", [`${spelling}action`]: { type: "cancel" } },
+        children: [{ [`${spelling}type`]: "Text", value: "Shipped" }],
+      });
+      const model = toSlackBlocks(card("_"));
+      expect(model).toEqual(toSlackBlocks(card("$")));
+      expect(model.blocks).toContainEqual(
+        expect.objectContaining({
+          actions: [
+            expect.objectContaining({ action_id: "ship" }),
+            expect.objectContaining({ action_id: "cancel" }),
+          ],
+        }),
+      );
     });
 
     it("maps confirm/cancel to the actions array directly, without a title or body", () => {
@@ -1755,6 +2491,28 @@ describe("toSlackBlocks", () => {
       ]);
       expect(warnings).toEqual([]);
     });
+
+    it.each([7, "7"])(
+      "keeps a %s title when reshaping a card with numeric child text",
+      (title) => {
+        const { blocks } = toSlackBlocks({
+          $type: "Carousel",
+          children: [
+            {
+              $type: "Card",
+              title,
+              children: [
+                { $type: "Header", text: 8 },
+                { $type: "Text", value: "body" },
+              ],
+            },
+          ],
+        });
+        const card = (blocks[0] as SlackCarouselBlock).elements[0];
+        expect(card?.title?.text).toBe("7");
+        expect(card?.body?.text).toBe("8\nbody");
+      },
+    );
 
     it(`clamps to ${CAROUSEL_CARD_CAP} elements and warns`, () => {
       const cards = Array.from({ length: CAROUSEL_CARD_CAP + 1 }, (_, i) => ({
@@ -2110,6 +2868,21 @@ describe("toSlackBlocks", () => {
   });
 
   describe("Row", () => {
+    it("keeps a numeric Badge in a context row", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "Row",
+        children: [
+          { $type: "Badge", value: 3 },
+          { $type: "Caption", value: "open" },
+        ],
+      });
+      expect(
+        (blocks[0] as SlackContextBlock).elements.map(
+          (element) => element.text,
+        ),
+      ).toEqual(["3", "open"]);
+    });
+
     it("flattens children in order when they are not all Badge/Caption", () => {
       const { blocks } = toSlackBlocks({
         $type: "Row",
@@ -2560,6 +3333,65 @@ describe("toSlackBlocks", () => {
   });
 
   describe("ListView and ListViewItem", () => {
+    it.each(["constructor", "toString", "__proto__"])(
+      "ignores a numeric value on a component named %s",
+      (type) => {
+        const { blocks } = toSlackBlocks({
+          $type: "ListView",
+          children: [
+            {
+              $type: "ListViewItem",
+              children: [
+                { $type: type, value: 5 },
+                { $type: "Text", value: "tail" },
+              ],
+            },
+          ],
+        });
+        expect((blocks[0] as SlackSectionBlock).text?.text).toBe("tail");
+      },
+    );
+
+    it.each([8, "8"])("flattens %s text props in a list item", (text) => {
+      const { blocks } = toSlackBlocks({
+        $type: "ListView",
+        children: [
+          {
+            $type: "ListViewItem",
+            children: [
+              { $type: "Header", text },
+              { $type: "Fact", label: text, value: "v" },
+              { $type: "Alert", title: text, description: text },
+              { $type: "Text", value: "tail" },
+            ],
+          },
+        ],
+      });
+      expect((blocks[0] as SlackSectionBlock).text?.text).toBe(
+        "8\nv\n8\n8\n8\ntail",
+      );
+    });
+
+    it("keeps numeric Text and Fact values in an item", () => {
+      const { blocks } = toSlackBlocks({
+        $type: "ListView",
+        children: [
+          {
+            $type: "ListViewItem",
+            children: [
+              { $type: "Text", value: 42 },
+              { $type: "Fact", label: "n", value: 5 },
+            ],
+          },
+        ],
+      });
+      expect((blocks[0] as SlackSectionBlock).text?.text.split("\n")).toEqual([
+        "42",
+        "5",
+        "n",
+      ]);
+    });
+
     it("forwards a discarded child's own dropped warning and counts it", () => {
       const { warnings } = toSlackBlocks({
         $type: "ListView",
@@ -3176,4 +4008,305 @@ it("resolves a Slider field reference from numeric Slack state", () => {
       },
     }),
   ).toEqual({ type: "submit", count: 3 });
+});
+
+describe("Slack mrkdwn escaping", () => {
+  it("escapes structured component fields once after adding Slack formatting", () => {
+    const { blocks } = toSlackBlocks([
+      {
+        $type: "Tabs",
+        tabs: ["A & <@U1>"],
+        children: [{ $type: "Text", value: "<@U2> &" }],
+      },
+      {
+        $type: "Steps",
+        steps: [{ title: "<@U3> &", detail: "<!here> >" }],
+      },
+      {
+        $type: "Timeline",
+        items: [{ time: "A & B", title: "<@U4>", detail: "x > y" }],
+      },
+      {
+        $type: "Citation",
+        title: "A & <@U5>",
+        url: "https://example.com/?a=1&b=2",
+        snippet: "See <!channel> & more",
+        source: "From <@U6> & docs",
+      },
+    ]);
+
+    expect(blocks).toEqual([
+      {
+        type: "section",
+        text: { type: "mrkdwn", text: "*A &amp; &lt;@U1&gt;*" },
+      },
+      { type: "section", text: { type: "mrkdwn", text: "&lt;@U2&gt; &amp;" } },
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: "*1. &lt;@U3&gt; &amp;*\n&lt;!here&gt; &gt;",
+        },
+      },
+      {
+        type: "section",
+        text: { type: "mrkdwn", text: "*A &amp; B*\n&lt;@U4&gt;\nx &gt; y" },
+      },
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: "<https://example.com/?a=1&amp;b=2|A &amp; &lt;@U5&gt;>\nSee &lt;!channel&gt; &amp; more",
+        },
+      },
+      {
+        type: "context",
+        elements: [{ type: "mrkdwn", text: "From &lt;@U6&gt; &amp; docs" }],
+      },
+    ]);
+    expect(JSON.stringify(blocks)).not.toContain("&amp;amp;");
+  });
+
+  it("clamps escaped structured fields without splitting an entity", () => {
+    const { blocks } = toSlackBlocks([
+      { $type: "Tabs", tabs: ["<".repeat(SECTION_TEXT_CAP)] },
+      {
+        $type: "Citation",
+        title: "Short",
+        url: "https://example.com/a",
+        snippet: "<".repeat(SECTION_TEXT_CAP),
+        source: "<".repeat(CONTEXT_TEXT_CAP),
+      },
+      { $type: "Citation", title: "<".repeat(SECTION_TEXT_CAP) },
+    ]);
+    const texts = [
+      (blocks[0] as SlackSectionBlock).text?.text ?? "",
+      (blocks[1] as SlackSectionBlock).text?.text ?? "",
+      (blocks[2] as SlackContextBlock).elements[0]?.text ?? "",
+      (blocks[3] as SlackSectionBlock).text?.text ?? "",
+    ];
+
+    expect(texts[0]?.length).toBeLessThanOrEqual(SECTION_TEXT_CAP);
+    expect(texts[1]?.length).toBeLessThanOrEqual(SECTION_TEXT_CAP);
+    expect(texts[2]?.length).toBeLessThanOrEqual(CONTEXT_TEXT_CAP);
+    expect(texts[3]?.length).toBeLessThanOrEqual(SECTION_TEXT_CAP);
+    for (const text of texts) {
+      expect(text).not.toMatch(/&[a-z]*$/);
+    }
+  });
+
+  it("escapes collected text once when numeric props become strings", () => {
+    const { blocks } = toSlackBlocks({
+      $type: "ListViewItem",
+      children: [
+        { $type: "Text", value: 2 },
+        { $type: "Fact", label: "A & B", value: 3 },
+      ],
+    });
+
+    expect(blocks[0]).toMatchObject({
+      type: "section",
+      text: { type: "mrkdwn", text: "2\n3\nA &amp; B" },
+    });
+  });
+
+  it("escapes direct and flattened model text", () => {
+    const { blocks } = toSlackBlocks([
+      { $type: "Text", value: "Fees < $5 & > $1 <!channel> <@U123>" },
+      "<!here>",
+    ]);
+
+    expect(blocks).toEqual([
+      {
+        type: "section",
+        text: {
+          type: "mrkdwn",
+          text: "Fees &lt; $5 &amp; &gt; $1 &lt;!channel&gt; &lt;@U123&gt;",
+        },
+      },
+      {
+        type: "section",
+        text: { type: "mrkdwn", text: "&lt;!here&gt;" },
+      },
+    ]);
+  });
+
+  it("escapes Fact data while retaining its generated bold label", () => {
+    const { blocks } = toSlackBlocks({
+      $type: "Fact",
+      label: "Price < $5 & <@U123>",
+      value: "Fees < $5 & > $1",
+      delta: "<1% &",
+      trend: "down",
+    });
+
+    expect(blocks).toEqual([
+      {
+        type: "section",
+        fields: [
+          {
+            type: "mrkdwn",
+            text: "*Price &lt; $5 &amp; &lt;@U123&gt;*\nFees &lt; $5 &amp; &gt; $1 (↓ &lt;1% &amp;)",
+          },
+        ],
+      },
+    ]);
+  });
+
+  it("escapes context rows and collected list-item text", () => {
+    const row = toSlackBlocks({
+      $type: "Row",
+      children: [
+        { $type: "Caption", value: "From <@U123>" },
+        { $type: "Badge", value: "Fees < $5 & > $1" },
+      ],
+    });
+    const item = toSlackBlocks({
+      $type: "ListViewItem",
+      children: [
+        { $type: "Text", value: "Notify <!channel>" },
+        { $type: "Fact", label: "Price < $5", value: "$5 > $1" },
+      ],
+    });
+
+    expect(row.blocks[0]).toMatchObject({
+      type: "context",
+      elements: [
+        { type: "mrkdwn", text: "From &lt;@U123&gt;" },
+        { type: "mrkdwn", text: "Fees &lt; $5 &amp; &gt; $1" },
+      ],
+    });
+    expect(item.blocks[0]).toMatchObject({
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: "Notify &lt;!channel&gt;\n$5 &gt; $1\nPrice &lt; $5",
+      },
+    });
+  });
+
+  it("escapes clean and reshaped card fields but leaves plain text alone", () => {
+    const clean = toSlackBlocks({
+      $type: "Card",
+      title: "<@U123>",
+      children: [
+        { $type: "Text", value: "Fees < $5" },
+        { $type: "Caption", value: "<!here>" },
+      ],
+    });
+    const reshaped = toSlackBlocks({
+      $type: "Carousel",
+      children: [
+        {
+          $type: "Card",
+          title: "<card>",
+          children: {
+            $type: "Fact",
+            label: "Price < $5",
+            value: "<@U123>",
+          },
+        },
+      ],
+    });
+    const inline = toSlackBlocks({
+      $type: "Card",
+      title: "<@U123>",
+      children: { $type: "Fact", label: "Status", value: "Ready" },
+    });
+
+    expect(clean.blocks[0]).toMatchObject({
+      type: "card",
+      title: { type: "mrkdwn", text: "&lt;@U123&gt;" },
+      body: { type: "mrkdwn", text: "Fees &lt; $5" },
+      subtext: { type: "mrkdwn", text: "&lt;!here&gt;" },
+    });
+    expect(reshaped.blocks[0]).toMatchObject({
+      type: "carousel",
+      elements: [
+        {
+          type: "card",
+          title: { type: "mrkdwn", text: "&lt;card&gt;" },
+          body: { type: "mrkdwn", text: "&lt;@U123&gt;\nPrice &lt; $5" },
+        },
+      ],
+    });
+    expect(inline.blocks[0]).toMatchObject({
+      type: "header",
+      text: { type: "plain_text", text: "<@U123>" },
+    });
+  });
+
+  it("escapes alert text before applying its generated formatting", () => {
+    const message = toSlackBlocks({
+      $type: "Alert",
+      title: "<@U123>",
+      description: "Fees < $5 & <!channel>",
+    });
+    const modal = toSlackBlocks(
+      {
+        $type: "Alert",
+        title: "<@U123>",
+        description: "Fees < $5 & <!channel>",
+      },
+      { surface: "modal" },
+    );
+
+    expect(message.blocks).toMatchObject([
+      { elements: [{ type: "mrkdwn", text: "ℹ️ *&lt;@U123&gt;*" }] },
+      {
+        text: {
+          type: "mrkdwn",
+          text: "Fees &lt; $5 &amp; &lt;!channel&gt;",
+        },
+      },
+    ]);
+    expect(modal.blocks[0]).toMatchObject({
+      type: "alert",
+      text: {
+        type: "mrkdwn",
+        text: "&lt;@U123&gt;\nFees &lt; $5 &amp; &lt;!channel&gt;",
+      },
+    });
+  });
+
+  it("keeps escaped alert titles within the Slack context text cap", () => {
+    const { blocks } = toSlackBlocks({
+      $type: "Alert",
+      title: "<".repeat(CONTEXT_TEXT_CAP),
+    });
+    const title = (blocks[0] as SlackContextBlock).elements[0]?.text ?? "";
+
+    expect(title.length).toBeLessThanOrEqual(CONTEXT_TEXT_CAP);
+    expect(title.slice(0, -1)).not.toMatch(/&[a-z]*$/);
+  });
+
+  it("keeps standard Markdown intact and escapes its mrkdwn overflow fallback", () => {
+    const markdown = toSlackBlocks({ $type: "Markdown", value: "<@U123>" });
+    const overflow = toSlackBlocks([
+      { $type: "Markdown", value: "m".repeat(MARKDOWN_TEXT_BUDGET) },
+      { $type: "Markdown", value: "<@U123>" },
+    ]);
+
+    expect(markdown.blocks).toEqual([{ type: "markdown", text: "<@U123>" }]);
+    expect(overflow.blocks[1]).toMatchObject({
+      type: "section",
+      text: { type: "mrkdwn", text: "&lt;@U123&gt;" },
+    });
+  });
+
+  it("clamps after escaping without leaving a partial entity", () => {
+    const { blocks, warnings } = toSlackBlocks({
+      $type: "Text",
+      value: `${"x".repeat(SECTION_TEXT_CAP - 1)}<`,
+    });
+    const text = (blocks[0] as SlackSectionBlock).text?.text;
+
+    expect(text).toBe("x".repeat(SECTION_TEXT_CAP - 1));
+    expect(text).toHaveLength(SECTION_TEXT_CAP - 1);
+    expect(warnings).toContainEqual({
+      code: "clamped",
+      component: "Text",
+      detail: `value was clamped to ${SECTION_TEXT_CAP} characters.`,
+    });
+  });
 });

@@ -1,6 +1,5 @@
 import { getLLMText } from "@/lib/get-llm-text";
-import { getDistinctId } from "@/lib/posthog-server";
-import { injectQuoteContext } from "@assistant-ui/ai-sdk";
+import { prepareDocChatMessages, streamDocsChat } from "@/lib/ai/chat-route";
 import { checkPublicAssistantRateLimit } from "@/lib/rate-limit";
 import { requirePublicAssistantSession } from "@/lib/anonymous-session";
 import {
@@ -10,21 +9,17 @@ import {
 import { source, examples as examplesSource } from "@/lib/source";
 import { resolveDocsUrl } from "@/lib/docs-pages";
 import { resolveChatModel } from "@/lib/ai/provider";
-import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { frontendTools } from "@assistant-ui/ai-sdk";
 import { createRepoSandbox } from "@/lib/repo-sandbox";
 import {
-  convertToModelMessages,
   createUIMessageStream,
   createUIMessageStreamResponse,
-  pruneMessages,
   stepCountIs,
-  streamText,
   tool,
   zodSchema,
 } from "ai";
 import type * as PageTree from "fumadocs-core/page-tree";
-import type { ToolSet, UIMessage, UIMessageChunk } from "ai";
+import type { UIMessageChunk } from "ai";
 import z from "zod";
 
 function normalizeSegment(name: string): string {
@@ -125,27 +120,6 @@ function resolveDocPage(slugs: string[]) {
 export const maxDuration = 300;
 
 const MAX_PAGE_CONTEXT_CHARS = 4_000;
-
-export const DOC_CHAT_PRUNE_OPTIONS = {
-  toolCalls: "before-last-2-messages",
-  reasoning: "none",
-  emptyMessages: "remove",
-} as const;
-
-export async function prepareDocChatMessages(
-  messages: readonly UIMessage[],
-  tools: ToolSet,
-) {
-  const modelMessages = await convertToModelMessages(
-    injectQuoteContext([...messages]),
-    { tools },
-  );
-
-  return pruneMessages({
-    messages: modelMessages,
-    ...DOC_CHAT_PRUNE_OPTIONS,
-  });
-}
 
 export async function* withReadDocSources(
   chunks: AsyncIterable<UIMessageChunk>,
@@ -335,125 +309,119 @@ export async function POST(req: Request): Promise<Response> {
     const inputError = validateDocChatInput(prunedMessages);
     if (inputError) return inputError;
 
-    const { model, providerOptions } = resolveChatModel({
+    const modelConfig = resolveChatModel({
       modelName: config?.modelName,
     });
-    const distinctId = getDistinctId(req);
 
     const repoTools = createRepoTools();
 
-    const result = streamText({
-      abortSignal: req.signal,
-      model,
-      ...(providerOptions ? { providerOptions } : {}),
-      system: [SYSTEM_PROMPT, pageContext].filter(Boolean).join("\n\n"),
-      messages: prunedMessages,
-      maxOutputTokens: 8192,
-      stopWhen: stepCountIs(25),
-      ...posthogTelemetry({
-        distinctId,
+    const { result, messageMetadata } = streamDocsChat(
+      req,
+      modelConfig,
+      {
         spanName: "docs_assistant_chat",
         source: "docs_assistant",
-      }),
-      tools: {
-        ...clientTools,
-        ...repoTools,
-        listDocs: tool({
-          description:
-            "List documentation pages. Use with no path for root categories, or specify path to browse a section.",
-          inputSchema: zodSchema(
-            z.object({
-              path: z
-                .string()
-                .optional()
-                .describe(
-                  "Path to browse (e.g., 'ui', 'runtimes'). Empty for root.",
-                ),
-            }),
-          ),
-          execute: async ({ path }) => {
-            const pageTree = source.pageTree;
-
-            if (!path) {
-              // Return root categories
-              return [
-                ...listChildren(
-                  pageTree.children.filter(
-                    (node): node is PageTree.Folder => node.type === "folder",
+      },
+      {
+        system: [SYSTEM_PROMPT, pageContext].filter(Boolean).join("\n\n"),
+        messages: prunedMessages,
+        maxOutputTokens: 8192,
+        stopWhen: stepCountIs(25),
+        tools: {
+          ...clientTools,
+          ...repoTools,
+          listDocs: tool({
+            description:
+              "List documentation pages. Use with no path for root categories, or specify path to browse a section.",
+            inputSchema: zodSchema(
+              z.object({
+                path: z
+                  .string()
+                  .optional()
+                  .describe(
+                    "Path to browse (e.g., 'ui', 'runtimes'). Empty for root.",
                   ),
-                ),
-                {
-                  type: "folder",
-                  name: "examples",
-                  description:
-                    "Examples of app types users can build with assistant-ui, showing instructions, recommended patterns, and UI structure.",
-                },
-              ];
-            }
+              }),
+            ),
+            execute: async ({ path }) => {
+              const pageTree = source.pageTree;
 
-            const segments = path.split("/").filter(Boolean);
-            if (segments[0] === "examples") {
-              const rest = segments.slice(1).join("/");
-              const target = rest
-                ? findFolderByPath(examplesSource.pageTree, rest)
-                : examplesSource.pageTree;
-              if (!target) return { error: "Path not found" };
-              return listChildren(target.children);
-            }
+              if (!path) {
+                // Return root categories
+                return [
+                  ...listChildren(
+                    pageTree.children.filter(
+                      (node): node is PageTree.Folder => node.type === "folder",
+                    ),
+                  ),
+                  {
+                    type: "folder",
+                    name: "examples",
+                    description:
+                      "Examples of app types users can build with assistant-ui, showing instructions, recommended patterns, and UI structure.",
+                  },
+                ];
+              }
 
-            const targetFolder = findFolderByPath(pageTree, path);
-            if (!targetFolder) return { error: "Path not found" };
-            return listChildren(targetFolder.children);
-          },
-        }),
-        readDoc: tool({
-          description: "Read full content of a documentation page",
-          inputSchema: zodSchema(
-            z.object({
-              slugOrUrl: z
-                .string()
-                .describe("Page slug (e.g., 'ui/thread') or URL"),
-            }),
-          ),
-          execute: async ({ slugOrUrl }) => {
-            let normalized: string;
-            try {
-              normalized = normalizeDocPath(slugOrUrl, req.url);
-            } catch (error) {
-              return {
-                error:
-                  error instanceof Error ? error.message : "Invalid docs path",
-              };
-            }
+              const segments = path.split("/").filter(Boolean);
+              if (segments[0] === "examples") {
+                const rest = segments.slice(1).join("/");
+                const target = rest
+                  ? findFolderByPath(examplesSource.pageTree, rest)
+                  : examplesSource.pageTree;
+                if (!target) return { error: "Path not found" };
+                return listChildren(target.children);
+              }
 
-            const slugs = normalized.split("/").filter(Boolean);
-            const page = resolveDocPage(slugs);
-            if (!page) return { error: `Page not found: ${slugOrUrl}` };
+              const targetFolder = findFolderByPath(pageTree, path);
+              if (!targetFolder) return { error: "Path not found" };
+              return listChildren(targetFolder.children);
+            },
+          }),
+          readDoc: tool({
+            description: "Read full content of a documentation page",
+            inputSchema: zodSchema(
+              z.object({
+                slugOrUrl: z
+                  .string()
+                  .describe("Page slug (e.g., 'ui/thread') or URL"),
+              }),
+            ),
+            execute: async ({ slugOrUrl }) => {
+              let normalized: string;
+              try {
+                normalized = normalizeDocPath(slugOrUrl, req.url);
+              } catch (error) {
+                return {
+                  error:
+                    error instanceof Error
+                      ? error.message
+                      : "Invalid docs path",
+                };
+              }
 
-            const content = await getLLMText(page);
-            return { title: page.data.title, url: page.url, content };
-          },
-        }),
+              const slugs = normalized.split("/").filter(Boolean);
+              const page = resolveDocPage(slugs);
+              if (!page) return { error: `Page not found: ${slugOrUrl}` };
+
+              const content = await getLLMText(page);
+              return { title: page.data.title, url: page.url, content };
+            },
+          }),
+        },
       },
-      onError: ({ error }) => {
-        console.error(error);
-      },
-    });
+    );
 
     const stream = createUIMessageStream({
       execute: async ({ writer }) => {
         for await (const chunk of withReadDocSources(
           result.toUIMessageStream({
             originalMessages: messages,
-            // gets usage and modelId for internal telemetry
             messageMetadata: ({ part }) => {
-              if (part.type === "finish-step") {
-                return { modelId: part.response.modelId };
-              }
               if (part.type === "finish") {
                 return { custom: { usage: part.totalUsage } };
               }
-              return undefined;
+              return messageMetadata({ part });
             },
           }),
         )) {

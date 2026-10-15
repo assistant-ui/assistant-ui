@@ -69,7 +69,20 @@ function convertToolContent(
     toolName: part.toolName,
     output: part.isError
       ? { type: "error-json", value: part.result as JSONValue }
-      : { type: "json", value: part.result as JSONValue },
+      : part.modelContent !== undefined
+        ? {
+            type: "content",
+            value: part.modelContent.map((content) =>
+              content.type === "text"
+                ? { type: "text", text: content.text }
+                : {
+                    type: "media",
+                    data: content.data,
+                    mediaType: content.mediaType,
+                  },
+            ),
+          }
+        : { type: "json", value: part.result as JSONValue },
   }));
 }
 
@@ -113,8 +126,12 @@ export function toLanguageModelMessages(
 
   const result: LanguageModelV2Message[] = [];
 
-  for (const message of messages) {
-    for (const generic of toGenericMessages([message] as any)) {
+  for (const [index, message] of messages.entries()) {
+    const source =
+      message.role === "assistant" && index < messages.length - 1
+        ? { ...message, status: { type: "incomplete" } }
+        : message;
+    for (const generic of toGenericMessages([source] as any)) {
       const converted = convertGenericToLanguageModel(generic);
       if (generic.role !== "tool") {
         (converted as any).unstable_id = message.id;

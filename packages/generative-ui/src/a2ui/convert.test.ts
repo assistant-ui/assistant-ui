@@ -2598,16 +2598,12 @@ describe("convertSurfaceToUISpec", () => {
     });
   });
 
-  it("keeps the content of kept Modal, Tabs, and single child components", () => {
-    const tabs = [
-      { title: "Pickup", child: "pickup" },
-      { title: "Drop off", child: "drop-off" },
-    ];
+  it("keeps the content of kept Modal and single child components", () => {
     const surface = surfaceFrom([
       {
         id: "root",
         component: "Column",
-        children: ["modal", "tabs", "panel"],
+        children: ["modal", "panel"],
       },
       { id: "modal", component: "Modal", trigger: "open", content: "details" },
       {
@@ -2618,9 +2614,6 @@ describe("convertSurfaceToUISpec", () => {
       },
       { id: "open-text", component: "Text", text: "Details" },
       { id: "details", component: "Text", text: "Ships in two days." },
-      { id: "tabs", component: "Tabs", tabs },
-      { id: "pickup", component: "Text", text: "A courier collects it." },
-      { id: "drop-off", component: "Text", text: "Any service point." },
       { id: "panel", component: "ReturnPanel", child: "note" },
       { id: "note", component: "Text", text: "Returns are free." },
     ]);
@@ -2650,19 +2643,134 @@ describe("convertSurfaceToUISpec", () => {
             ],
           },
           {
-            $type: "Tabs",
-            tabs,
-            children: [
-              { $type: "Markdown", value: "A courier collects it." },
-              { $type: "Markdown", value: "Any service point." },
-            ],
-          },
-          {
             $type: "ReturnPanel",
             children: [{ $type: "Markdown", value: "Returns are free." }],
           },
         ],
       },
+      warnings: [],
+    });
+  });
+
+  it("maps Tabs with literal and bound titles and ordered converted panels", () => {
+    const surface = surfaceFrom(
+      [
+        {
+          id: "root",
+          component: "Tabs",
+          tabs: [
+            { title: "Pickup", child: "pickup" },
+            { title: { path: "/dropLabel" }, child: "drop-off" },
+          ],
+        },
+        { id: "pickup", component: "Text", text: "A courier collects it." },
+        { id: "drop-off", component: "Text", text: "Any service point." },
+      ],
+      { dropLabel: "Drop off" },
+    );
+    expect(convertSurfaceToUISpec(surface)).toEqual(
+      convertSurfaceToUISpec(surface, { keepUnknownComponents: true }),
+    );
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "Tabs",
+        tabs: [
+          { title: "Pickup", child: "pickup" },
+          { title: "Drop off", child: "drop-off" },
+        ],
+        children: [
+          { $type: "Markdown", value: "A courier collects it." },
+          { $type: "Markdown", value: "Any service point." },
+        ],
+      },
+      warnings: [],
+    });
+  });
+
+  it("keeps a Tabs entry whose title does not resolve, which the renderer labels by number", () => {
+    const surface = surfaceFrom([
+      {
+        id: "root",
+        component: "Tabs",
+        tabs: [{ title: { path: "/missing" }, child: "panel" }],
+      },
+      { id: "panel", component: "Text", text: "Still visible" },
+    ]);
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "Tabs",
+        tabs: [{ child: "panel" }],
+        children: [{ $type: "Markdown", value: "Still visible" }],
+      },
+      warnings: [],
+    });
+  });
+
+  it("keeps every Tabs panel under its own label when an entry is malformed or missing", () => {
+    const surface = surfaceFrom([
+      {
+        id: "root",
+        component: "Tabs",
+        tabs: [null, { title: 12, child: "panel" }],
+      },
+      { id: "panel", component: "Text", text: "Kept" },
+    ]);
+    expect(convertSurfaceToUISpec(surface)).toEqual({
+      spec: {
+        $type: "Tabs",
+        tabs: [{}, { title: 12, child: "panel" }],
+        children: [{ $type: "Col" }, { $type: "Markdown", value: "Kept" }],
+      },
+      warnings: ['Component "root" has a malformed child reference.'],
+    });
+    expect(
+      convertSurfaceToUISpec(
+        surfaceFrom([
+          {
+            id: "root",
+            component: "Tabs",
+            tabs: [
+              { title: "Gone", child: "missing" },
+              { title: "Here", child: "panel" },
+            ],
+          },
+          { id: "panel", component: "Text", text: "Kept" },
+        ]),
+      ),
+    ).toEqual({
+      spec: {
+        $type: "Tabs",
+        tabs: [
+          { title: "Gone", child: "missing" },
+          { title: "Here", child: "panel" },
+        ],
+        children: [{ $type: "Col" }, { $type: "Markdown", value: "Kept" }],
+      },
+      warnings: ['A2UI component "missing" was not found.'],
+    });
+    expect(
+      convertSurfaceToUISpec(
+        surfaceFrom([
+          {
+            id: "root",
+            component: "Tabs",
+            tabs: [{ path: "/tabZero" }, { title: "Here", child: "panel" }],
+          },
+          { id: "panel", component: "Text", text: "Kept" },
+        ]),
+      ),
+    ).toEqual({
+      spec: {
+        $type: "Tabs",
+        tabs: [{}, { title: "Here", child: "panel" }],
+        children: [{ $type: "Col" }, { $type: "Markdown", value: "Kept" }],
+      },
+      warnings: ['Component "root" has a malformed child reference.'],
+    });
+    expect(
+      convertSurfaceToUISpec(surfaceFrom([{ id: "root", component: "Tabs" }])),
+    ).toEqual({
+      spec: { $type: "Tabs", tabs: [] },
       warnings: [],
     });
   });
@@ -2835,6 +2943,9 @@ describe("convertSurfaceToUISpec", () => {
         $action: { type: "injected" },
         $key: "injected",
         $status: "injected",
+        _action: { type: "injected" },
+        _key: "injected",
+        _type: "Button",
       },
     ]);
     const templateSurface = surfaceFrom(
@@ -2846,6 +2957,9 @@ describe("convertSurfaceToUISpec", () => {
           $action: { type: "injected" },
           $key: "injected",
           $status: "injected",
+          _action: { type: "injected" },
+          _key: "injected",
+          _type: "Button",
           children: { componentId: "item", path: "/items" },
         },
         { id: "item", component: "Text", text: { path: "label" } },

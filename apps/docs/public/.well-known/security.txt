@@ -1,0 +1,7 @@
+Contact: https://github.com/assistant-ui/assistant-ui/security/advisories/new
+Contact: mailto:security@assistant-ui.com
+Encryption: https://www.assistant-ui.com/.well-known/pgp-key.txt
+Expires: 2027-10-09T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://www.assistant-ui.com/.well-known/security.txt
+Policy: https://github.com/assistant-ui/assistant-ui/blob/main/SECURITY.md

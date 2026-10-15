@@ -1,6 +1,7 @@
 import { getDistinctId } from "@/lib/posthog-server";
 import { createPrismTracer, prismAISDK } from "@/lib/prism-server";
-import { injectQuoteContext, type FrontendTools } from "@assistant-ui/ai-sdk";
+import { type FrontendTools } from "@assistant-ui/ai-sdk";
+import { prepareDocChatMessages } from "@/lib/ai/chat-route";
 import { checkPublicAssistantRateLimit } from "@/lib/rate-limit";
 import { requirePublicAssistantSession } from "@/lib/anonymous-session";
 import {
@@ -10,12 +11,7 @@ import {
 import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { NextResponse } from "next/server";
-import {
-  convertToModelMessages,
-  pruneMessages,
-  stepCountIs,
-  streamText,
-} from "ai";
+import { stepCountIs, streamText } from "ai";
 import type { UIMessage } from "ai";
 import type { ToolSet } from "ai";
 import { beginTurn, finishTurn } from "@/lib/xulux/usage-budget";
@@ -27,12 +23,6 @@ import {
 } from "@/lib/xulux/turn-outcome";
 import type { XuluxAgentDefinition } from "./agents";
 import { resolveChatModel } from "@/lib/ai/provider";
-
-const PRUNE_OPTIONS = {
-  toolCalls: "before-last-2-messages",
-  reasoning: "none",
-  emptyMessages: "remove",
-} as const;
 
 type SelectedTemplateRequestContext = {
   id?: unknown;
@@ -65,14 +55,6 @@ const MAX_ACTIVE_PREVIEW_CONFIG_CHARS = 8_000;
 const MAX_RAW_MESSAGES_CHARS = 1_000_000;
 const MAX_SYSTEM_CHARS = 4_000;
 const MAX_SESSION_ID_CHARS = 128;
-
-async function prepareMessages(messages: readonly UIMessage[], tools: ToolSet) {
-  const modelMessages = await convertToModelMessages(
-    injectQuoteContext([...messages]),
-    { tools },
-  );
-  return pruneMessages({ messages: modelMessages, ...PRUNE_OPTIONS });
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
@@ -229,7 +211,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
       });
       if (preparedTools instanceof Response) return preparedTools;
       const xuluxTools: ToolSet = preparedTools;
-      const prunedMessages = await prepareMessages(
+      const prunedMessages = await prepareDocChatMessages(
         preparedUiMessages,
         xuluxTools,
       );
@@ -358,6 +340,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
         : null;
 
       const result = streamText({
+        abortSignal: req.signal,
         model: prism?.model ?? baseModel,
         ...(modelConfig.providerOptions
           ? { providerOptions: modelConfig.providerOptions }
@@ -395,7 +378,20 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
           console.error(error);
           await prism?.end({ status: "error" });
         },
-        onAbort: async () => {
+        onAbort: async ({ steps }) => {
+          const usage = steps.reduce(
+            (total, step) => ({
+              inputTokens: total.inputTokens + (step.usage.inputTokens ?? 0),
+              outputTokens: total.outputTokens + (step.usage.outputTokens ?? 0),
+            }),
+            { inputTokens: 0, outputTokens: 0 },
+          );
+          await finishTurn(
+            budgetSessionId,
+            publicSession.id,
+            usage,
+            budgetDate,
+          );
           await prism?.end();
         },
       });

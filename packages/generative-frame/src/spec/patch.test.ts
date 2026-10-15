@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { applyPatch, applyPatchOperation, checkPatchOperation } from "./patch";
 import { getAtPointer, joinPointer, parsePointer } from "./pointer";

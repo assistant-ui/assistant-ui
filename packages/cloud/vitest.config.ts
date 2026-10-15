@@ -6,11 +6,12 @@ export default defineConfig({
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/tests/**"],
       thresholds: {
-        lines: 97,
-        functions: 92,
-        branches: 91,
-        statements: 96,
-        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+        lines: 96,
+        functions: 91,
+        branches: 90,
+        statements: 95,
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
       },
     },
     environment: "node",

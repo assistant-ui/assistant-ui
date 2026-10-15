@@ -142,8 +142,19 @@ function extractSendMessageTexts(params: unknown): string[] | undefined {
   if (typeof obj["prompt"] === "string") return [obj["prompt"]];
   if (typeof obj["text"] === "string") return [obj["text"]];
   if (typeof obj["message"] === "string") return [obj["message"]];
-  if (Array.isArray(obj["content"])) {
-    return obj["content"]
+  const content = obj["content"];
+  if (Array.isArray(content)) {
+    return Object.keys(content)
+      .filter((key) => {
+        const index = Number(key);
+        return (
+          Number.isInteger(index) &&
+          index >= 0 &&
+          index < content.length &&
+          String(index) === key
+        );
+      })
+      .map((key) => content[Number(key)])
       .filter(
         (block): block is { type: "text"; text: string } =>
           isRecord(block) &&

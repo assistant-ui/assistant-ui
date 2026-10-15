@@ -1,6 +1,10 @@
 // @vitest-environment jsdom
 
-import { act, render, waitFor } from "@testing-library/react";
+import {
+  act,
+  render,
+  waitFor as waitForAssertion,
+} from "@testing-library/react";
 import { Suspense, useState, type FC } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAui } from "@assistant-ui/store";
@@ -18,6 +22,9 @@ import type {
 } from "./types";
 
 const nextTask = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+const waitFor = (assertion: () => void) =>
+  waitForAssertion(assertion, { interval: 10 });
 
 const converter: AssistantTransportStateConverter<unknown> = (
   _state,

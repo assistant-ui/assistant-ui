@@ -1,6 +1,6 @@
 import type { GuidanceModule, ToolDefinition } from "../tools/define";
 import type { Catalog } from "./catalog";
-import type { SpecPromptOptions } from "./prompt";
+import { specRules, type SpecPromptOptions } from "./prompt";
 import { parseSpecStream } from "./stream";
 import { emptySpec, type Spec } from "./types";
 import { formatSpecIssues, validateSpec, type SpecIssue } from "./validate";
@@ -30,7 +30,18 @@ export type SpecTools = { render_spec: RenderSpecTool };
 export type CreateSpecToolsOptions = {
   /** Latest spec per title, shared with the host so it can render them. */
   specs?: Map<string, { spec: Spec; version: number }>;
+  /** The app's rules for a spec, added to the tool's description after the built-in ones so they hold even when the model never loads the spec guidance. */
+  customRules?: readonly string[];
 };
+
+/**
+ * The rule that tells a model where the assistant-ui spec toolkit mounts the
+ * results of earlier tool calls. In backend execution, add it to the server's
+ * `customRules` for both `createSpecTools` and `specGuidanceModule`, and pass
+ * `toolResults: true` to `createSpecToolkit`.
+ */
+export const SPEC_TOOL_RESULTS_RULE =
+  'Results of earlier tool calls are in state under `/tools/<toolName>/<n>`, newest first: `0` is the latest call to that tool before this `render_spec` call, `1` the one before it, and so on. Show their values with `{ "$state": "/tools/<toolName>/<n>/..." }` rather than copying them, and never write `tools` in `state`. Indexes count back from each `render_spec` call, so when a patch follows another call to the same tool, update any binding that should keep showing the older result.';
 
 const TITLE_SCHEMA = {
   type: "string",
@@ -51,8 +62,12 @@ export function createSpecTools(
     options.specs ?? new Map<string, { spec: Spec; version: number }>();
   const render_spec: RenderSpecTool = {
     name: "render_spec",
-    description:
-      "Shows declarative UI built from the host's components, streaming it as you write. Follow the spec guidance you were given (the `spec` module of read_me, or the system prompt). Pass `patches` (JSONL patch operations, one per line) or a complete `spec`. Patches on a title you already rendered apply to that spec, so fix or update it with small patches. The result lists validation issues to fix.",
+    description: [
+      "Shows declarative UI built from the host's components, streaming it as you write. Follow the spec guidance in the system prompt; only when it has none, load the `spec` module with read_me, if read_me offers one. Pass `patches` (JSONL patch operations, one per line) or a complete `spec`. Patches on a title you already rendered apply to that spec, so fix or update it with small patches. The result lists validation issues to fix.",
+      "",
+      "Every spec follows these rules:",
+      ...specRules(catalog, options.customRules).map((rule) => `- ${rule}`),
+    ].join("\n"),
     inputSchema: {
       type: "object",
       properties: {

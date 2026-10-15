@@ -13,6 +13,7 @@ import {
   type FrameInspection,
   type HostContext,
   type InitMessage,
+  type McpAppInitializeParams,
   type ScreenshotOptions,
   type WidgetError,
   type WidgetSize,
@@ -46,8 +47,11 @@ export type WidgetHandlers = {
   /** Defaults to opening an `http(s)` URL in a new tab with `noopener`. */
   onOpenLink?: (url: string) => unknown;
   onCallTool?: (call: ToolCallRequest) => unknown;
+  onInitialized?: (params: McpAppInitializeParams) => void;
   onRequestDisplayMode?: (request: { mode: DisplayMode }) => unknown;
   onUpdateModelContext?: (params: unknown) => unknown;
+  /** A widget called `genframe.copyText(text)` or `navigator.clipboard.writeText(text)`. The request alone does not show the user asked for the copy, so confirm with them, such as through a Copy control the host renders, before writing the clipboard. Without it, copying fails in the widget. */
+  onCopyText?: (text: string) => unknown;
   onWidgetState?: (state: unknown) => void;
   onResize?: (size: WidgetSize) => void;
   onError?: (error: WidgetError) => void;
@@ -60,6 +64,18 @@ export type CreateWidgetOptions = WidgetHandlers & {
   product?: string;
   /** A preconfigured `SafeContentFrame`, for example with `useShadowDom`. */
   frame?: SafeContentFrame;
+  /**
+   * Loads the Safe Content Frame shim from a domain you host instead of
+   * `scf.auiusercontent.com`. Widgets are isolated from your app and from each
+   * other only when the domain is a public suffix on the Public Suffix List.
+   */
+  unsafeShimDomain?: string;
+  /**
+   * Renders in a `sandbox="allow-scripts"` frame with an opaque (`null`)
+   * origin instead of Safe Content Frame: no shim domain, and no storage or
+   * cookies. Cannot be combined with `id`, `frame`, or `unsafeShimDomain`.
+   */
+  opaqueOrigin?: boolean;
   /**
    * Gives the widget a stable origin, so its localStorage, IndexedDB, and
    * cookies persist across reloads for this id on this host origin. Choose
@@ -77,6 +93,7 @@ export type CreateWidgetOptions = WidgetHandlers & {
   maxHeight?: number;
   minHeight?: number;
   readyTimeoutMs?: number;
+  initialState?: unknown;
   /** Complete code to render immediately, as `write(code)` then `end()`. */
   code?: string;
 };
@@ -104,7 +121,7 @@ export type WidgetHandle = {
   write(chunk: string): void;
   /** Marks the code complete and runs held scripts in order. */
   end(): Promise<EndResult>;
-  /** Renders new complete code, morphing in place or remounting when scripts already ran. */
+  /** Renders new complete code, morphing in place or remounting when scripts already ran. A newer call removes a remount still in progress, whose promise rejects. */
   replace(code: string): Promise<EndResult>;
   setTheme(tokens: ThemeTokens): void;
   setContext(context: HostContext): void;
@@ -127,20 +144,95 @@ const DEFAULT_PRODUCT = "generative-frame";
 /** The Safe Content Frame salt behind a widget id's stable origin. */
 export const widgetStorageSalt = (id: string) => `genframe:v1:${id}`;
 
+type FrameRenderer = {
+  renderHtml(html: string, container: HTMLElement): Promise<RenderedFrame>;
+};
+
+/**
+ * An opaque origin cannot be named as a `postMessage` target, so messages to
+ * the frame use `"*"`. A sandboxed frame keeps its opaque origin and window
+ * when it navigates, so after a navigated document loads, `origin` stops
+ * matching and nothing is posted to the frame. Loads are counted from the
+ * bootstrap's first ready message, so an extra initial `about:blank` load in
+ * some browser cannot cut off the bootstrap itself. A navigated document can
+ * still post before its own `load`; that grants it nothing the widget code
+ * could not already do.
+ */
+const opaqueFrame: FrameRenderer = {
+  async renderHtml(html, container) {
+    const iframe = container.ownerDocument.createElement("iframe");
+    iframe.setAttribute("sandbox", "allow-scripts");
+    iframe.style.cssText = "border:none;width:100%;height:100%";
+    iframe.srcdoc = html;
+    let ready = false;
+    let loads = 0;
+    const onMessage = (event: MessageEvent) => {
+      if (
+        event.source === iframe.contentWindow &&
+        (event.data as { type?: unknown } | null)?.type === READY_MESSAGE
+      ) {
+        ready = true;
+      }
+    };
+    window.addEventListener("message", onMessage);
+    iframe.addEventListener("load", () => {
+      if (ready) loads++;
+    });
+    container.appendChild(iframe);
+    return {
+      iframe,
+      get origin() {
+        return loads > 1 ? "" : "null";
+      },
+      sendMessage: (data, transfer) => {
+        if (loads > 1) return;
+        iframe.contentWindow?.postMessage(data, "*", transfer);
+      },
+      fullyLoadedPromiseWithTimeout: async () => {},
+      dispose: () => {
+        window.removeEventListener("message", onMessage);
+        iframe.remove();
+      },
+    };
+  },
+};
+
 const resolveFrame = (
-  options: Pick<CreateWidgetOptions, "frame" | "id" | "product">,
-) => {
-  if (options.frame && options.id !== undefined) {
+  options: Pick<
+    CreateWidgetOptions,
+    "frame" | "id" | "product" | "unsafeShimDomain" | "opaqueOrigin"
+  >,
+): FrameRenderer => {
+  if (options.opaqueOrigin) {
+    if (
+      options.frame ||
+      options.id !== undefined ||
+      options.unsafeShimDomain !== undefined
+    ) {
+      throw new TypeError(
+        "`opaqueOrigin` renders without Safe Content Frame, so it cannot be combined with `frame`, `id`, or `unsafeShimDomain`.",
+      );
+    }
+    return opaqueFrame;
+  }
+  if (
+    options.frame &&
+    (options.id !== undefined || options.unsafeShimDomain !== undefined)
+  ) {
     throw new TypeError(
-      "Pass either `frame` or `id` to createWidget; for both, build the frame with `salt: widgetStorageSalt(id)`.",
+      "`frame` cannot be combined with `id` or `unsafeShimDomain`; configure the `SafeContentFrame` instead, with `salt: widgetStorageSalt(id)` and `unsafeShimDomain` as needed.",
     );
   }
   return (
     options.frame ??
-    new SafeContentFrame(
-      options.product ?? DEFAULT_PRODUCT,
-      options.id !== undefined ? { salt: widgetStorageSalt(options.id) } : {},
-    )
+    new SafeContentFrame(options.product ?? DEFAULT_PRODUCT, {
+      ...(options.id !== undefined
+        ? { salt: widgetStorageSalt(options.id) }
+        : {}),
+      ...(options.unsafeShimDomain !== undefined
+        ? { unsafeShimDomain: options.unsafeShimDomain }
+        : {}),
+    })
   );
 };
 
@@ -157,11 +249,162 @@ const REVEAL_MS = 120;
 const prefersReducedMotion = () =>
   window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
-const promptText = (params: UiMessageParams) =>
-  (params.content ?? [])
-    .filter((part) => part.type === "text" && typeof part.text === "string")
+const promptText = (params: UiMessageParams) => {
+  const content = params.content ?? [];
+  return Object.keys(content)
+    .filter((key) => {
+      const index = Number(key);
+      return (
+        Number.isInteger(index) &&
+        index >= 0 &&
+        index < content.length &&
+        String(index) === key
+      );
+    })
+    .map((key) => content[Number(key)])
+    .filter(
+      (part): part is { type: string; text: string } =>
+        typeof part === "object" &&
+        part !== null &&
+        part.type === "text" &&
+        typeof part.text === "string",
+    )
     .map((part) => part.text)
     .join("\n");
+};
+
+const VALID_DISPLAY_MODES = [
+  "inline",
+  "fullscreen",
+  "pip",
+] as const satisfies readonly DisplayMode[];
+
+const isDisplayMode = (value: unknown): value is DisplayMode =>
+  VALID_DISPLAY_MODES.some((mode) => mode === value);
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/** How many characters a widget's state may take as JSON. A shared object counts once for each place it appears, as it does once serialized, so checking and saving a state stay bounded however the widget shares objects. */
+const MAX_STATE_LENGTH = 1_000_000;
+
+/** The length of `text` once JSON quotes and escapes it. */
+const jsonStringLength = (text: string) => {
+  let length = text.length + 2;
+  for (let index = 0; index < text.length; index++) {
+    const code = text.charCodeAt(index);
+    if (code === 0x22 || code === 0x5c) length += 1;
+    else if (code < 0x20)
+      length +=
+        code === 0x08 ||
+        code === 0x09 ||
+        code === 0x0a ||
+        code === 0x0c ||
+        code === 0x0d
+          ? 1
+          : 5;
+    else if (code >= 0xd800 && code <= 0xdbff) {
+      const next = text.charCodeAt(index + 1);
+      if (next >= 0xdc00 && next <= 0xdfff) index++;
+      else length += 5;
+    } else if (code >= 0xdc00 && code <= 0xdfff) length += 5;
+  }
+  return length;
+};
+
+const isPlainJson = (state: unknown): boolean => {
+  let budget = MAX_STATE_LENGTH;
+  const spend = (length: number) => (budget -= length) >= 0;
+  const spendText = (text: string) =>
+    text.length + 2 <= budget && spend(jsonStringLength(text));
+  const ancestors = new Set<object>();
+  const check = (value: unknown): boolean => {
+    if (value === null || typeof value === "boolean") return spend(5);
+    if (typeof value === "string") return spendText(value);
+    if (typeof value === "number")
+      return Number.isFinite(value) && spend(String(value).length);
+    if (typeof value !== "object" || ancestors.has(value) || !spend(2))
+      return false;
+
+    const array = Array.isArray(value);
+    const prototype = Object.getPrototypeOf(value);
+    if (
+      array
+        ? prototype !== Array.prototype
+        : prototype !== Object.prototype && prototype !== null
+    )
+      return false;
+
+    ancestors.add(value);
+    const keys = Reflect.ownKeys(value);
+    if (array && keys.length !== value.length + 1) return false;
+    if (array) {
+      for (let index = 0; index < value.length; index++) {
+        const property = Object.getOwnPropertyDescriptor(value, String(index));
+        if (
+          !property ||
+          !("value" in property) ||
+          !spend(1) ||
+          !check(property.value)
+        )
+          return false;
+      }
+    } else {
+      for (const key of keys) {
+        if (typeof key !== "string") return false;
+        const property = Object.getOwnPropertyDescriptor(value, key);
+        if (
+          !property ||
+          !("value" in property) ||
+          !property.enumerable ||
+          !spendText(key) ||
+          !spend(2) ||
+          !check(property.value)
+        )
+          return false;
+      }
+    }
+    ancestors.delete(value);
+    return true;
+  };
+  return check(state);
+};
+
+const isAppInfo = (
+  value: unknown,
+): value is NonNullable<McpAppInitializeParams["appInfo"]> =>
+  isRecord(value) &&
+  typeof value["name"] === "string" &&
+  typeof value["version"] === "string";
+
+const getAppCapabilities = (
+  value: unknown,
+): McpAppInitializeParams["appCapabilities"] => {
+  if (!isRecord(value)) return undefined;
+  const { availableDisplayModes, ...rest } = value;
+  return {
+    ...rest,
+    ...(Array.isArray(availableDisplayModes)
+      ? {
+          availableDisplayModes: Object.values(availableDisplayModes).filter(
+            isDisplayMode,
+          ),
+        }
+      : {}),
+  };
+};
+
+const getInitializeParams = (params: unknown): McpAppInitializeParams => {
+  if (!isRecord(params)) return {};
+  const appCapabilities = getAppCapabilities(params["appCapabilities"]);
+  return {
+    ...(isAppInfo(params["appInfo"]) ? { appInfo: params["appInfo"] } : {}),
+    ...(appCapabilities ? { appCapabilities } : {}),
+    ...(typeof params["protocolVersion"] === "string"
+      ? { protocolVersion: params["protocolVersion"] }
+      : {}),
+  };
+};
 
 const defaultOpenLink = (url: string) => {
   window.open(url, "_blank", "noopener,noreferrer");
@@ -174,6 +417,8 @@ type Session = {
   iframe: () => HTMLIFrameElement | undefined;
   /** Shows the iframe once the runtime has themed and laid out its document. */
   reveal(): void;
+  /** Delivers the frame's MCP Apps initialization if it is the shown frame. */
+  deliverInitialized(): void;
   dispose(): void;
 };
 
@@ -199,6 +444,7 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
     ...options.context,
   };
   let code = "";
+  let widgetState: unknown = options.initialState ?? null;
   let ended = false;
   let disposed = false;
   let lastToolInput:
@@ -245,7 +491,7 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
               ? { message: { text: {} } }
               : {}),
             ...(options.onUpdateModelContext
-              ? { updateModelContext: { text: {} } }
+              ? { updateModelContext: { text: {}, structuredContent: {} } }
               : {}),
             logging: {},
           },
@@ -309,7 +555,7 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
       }
       case METHODS.requestDisplayMode: {
         const mode = p["mode"];
-        if (mode !== "inline" && mode !== "fullscreen" && mode !== "pip") {
+        if (!isDisplayMode(mode)) {
           throw new RpcError(
             RPC_ERROR.invalidParams,
             "ui/request-display-mode requires a valid 'mode'",
@@ -318,6 +564,22 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
         if (!options.onRequestDisplayMode)
           return { mode: context.displayMode ?? "inline" };
         return (await options.onRequestDisplayMode({ mode })) ?? { mode };
+      }
+      case METHODS.copyText: {
+        if (!options.onCopyText) {
+          throw new RpcError(
+            RPC_ERROR.methodNotFound,
+            "This host does not copy text",
+          );
+        }
+        if (typeof p["text"] !== "string") {
+          throw new RpcError(
+            RPC_ERROR.invalidParams,
+            "genframe/copy-text requires a string 'text'",
+          );
+        }
+        await options.onCopyText(p["text"]);
+        return {};
       }
       case METHODS.updateModelContext:
         if (!options.onUpdateModelContext) {
@@ -336,6 +598,11 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
   };
 
   let activeSession: Session | undefined;
+  let pendingSession: Session | undefined;
+  let pendingWidgetState: unknown;
+  let hasPendingWidgetState = false;
+  let heldWidgetState: unknown;
+  let hasHeldWidgetState = false;
 
   const applySize = (session: Session, size: WidgetSize) => {
     const iframe = session.iframe();
@@ -364,6 +631,8 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
     let rendered: RenderedFrame | undefined;
     let peer: RpcPeer | undefined;
     let initSent = false;
+    let initializeParams: McpAppInitializeParams = {};
+    let pendingInitialized: McpAppInitializeParams | undefined;
     let sessionDisposed = false;
     let revealed = false;
     let resolveReady!: () => void;
@@ -389,6 +658,16 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
           slot.style.transition = `opacity ${REVEAL_MS}ms ease-out`;
         }
         slot.style.opacity = "1";
+      },
+      deliverInitialized() {
+        if (session !== activeSession || !pendingInitialized) return;
+        const params = pendingInitialized;
+        pendingInitialized = undefined;
+        try {
+          options.onInitialized?.(params);
+        } catch {
+          // A host handler error must not fail a remount that already swapped in.
+        }
       },
       dispose() {
         if (sessionDisposed) return;
@@ -417,13 +696,22 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
       initSent = true;
       const channel = new MessageChannel();
       peer = createRpcPeer(channel.port1, {
-        onRequest,
+        onRequest: (method, params) => {
+          if (method === METHODS.initialize) {
+            initializeParams = getInitializeParams(params);
+          }
+          return onRequest(method, params);
+        },
         onNotification: (method, params) => {
           const p = (params ?? {}) as Record<string, unknown>;
           switch (method) {
             case METHODS.ready:
               clearTimeout(timer);
               resolveReady();
+              return;
+            case METHODS.initialized:
+              pendingInitialized = initializeParams;
+              session.deliverInitialized();
               return;
             case METHODS.sizeChanged:
               if (
@@ -443,7 +731,25 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
               }
               return;
             case METHODS.widgetState:
-              options.onWidgetState?.(p["state"]);
+              if (session !== pendingSession && session !== activeSession)
+                return;
+              try {
+                if (!isPlainJson(p["state"])) return;
+              } catch {
+                return;
+              }
+              if (session === pendingSession) {
+                pendingWidgetState = p["state"];
+                hasPendingWidgetState = true;
+                return;
+              }
+              if (pendingSession) {
+                heldWidgetState = p["state"];
+                hasHeldWidgetState = true;
+                return;
+              }
+              widgetState = p["state"];
+              options.onWidgetState?.(widgetState);
               return;
             default:
               return;
@@ -453,6 +759,7 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
       const init: InitMessage = {
         type: INIT_MESSAGE,
         context,
+        state: widgetState,
       };
       rendered.sendMessage(init, [channel.port2]);
     };
@@ -576,23 +883,58 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
 
   const remount = async (next: string): Promise<EndResult> => {
     const previous = activeSession;
+    // The newest replacement wins, so one still booting retires now rather than reaching the host until it settles.
+    pendingSession?.dispose();
     const session = createSession(true);
-    await session.ready;
-    if (disposed) throw new Error("Widget disposed");
-    replayState(session);
-    const result = (await session
-      .peer()
-      .request(
-        METHODS.replace,
-        { code: next },
-        { timeoutMs: REQUEST_TIMEOUT_MS },
-      )) as EndResult;
-    if (disposed) throw new Error("Widget disposed");
+    pendingSession = session;
+    hasPendingWidgetState = false;
+    let result: EndResult;
+    try {
+      await session.ready;
+      if (disposed || pendingSession !== session)
+        throw new Error("Widget replacement superseded");
+      replayState(session);
+      result = (await session
+        .peer()
+        .request(
+          METHODS.replace,
+          { code: next },
+          { timeoutMs: REQUEST_TIMEOUT_MS },
+        )) as EndResult;
+      if (disposed || pendingSession !== session)
+        throw new Error("Widget replacement superseded");
+    } catch (error) {
+      const superseded = !disposed && pendingSession !== session;
+      if (pendingSession === session) {
+        pendingSession = undefined;
+        hasPendingWidgetState = false;
+        if (hasHeldWidgetState && !disposed) {
+          hasHeldWidgetState = false;
+          widgetState = heldWidgetState;
+          try {
+            options.onWidgetState?.(widgetState);
+          } catch {}
+        }
+      }
+      session.dispose();
+      if (disposed) throw new Error("Widget disposed");
+      throw superseded ? new Error("Widget replacement superseded") : error;
+    }
+    pendingSession = undefined;
+    hasHeldWidgetState = false;
     activeSession = session;
+    if (hasPendingWidgetState) widgetState = pendingWidgetState;
     // The new frame has rendered completely, so it swaps in without a fade.
     session.slot.style.cssText = "display:block";
-    applySize(session, result.size);
     previous?.dispose();
+    if (hasPendingWidgetState) {
+      hasPendingWidgetState = false;
+      try {
+        options.onWidgetState?.(widgetState);
+      } catch {}
+    }
+    session.deliverInitialized();
+    applySize(session, result.size);
     return result;
   };
 
@@ -626,7 +968,9 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
       return result;
     },
     async replace(next) {
-      const scriptsRan = ended && SCRIPT_TAG.test(code);
+      // While a remount is pending, the frame on screen is still the one whose scripts ran.
+      const scriptsRan =
+        pendingSession !== undefined || (ended && SCRIPT_TAG.test(code));
       code = next;
       ended = true;
       const result = scriptsRan
@@ -684,6 +1028,8 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
       if (disposed) return;
       disposed = true;
       queue = undefined;
+      pendingSession?.dispose();
+      pendingSession = undefined;
       activeSession?.dispose();
       activeSession = undefined;
       listeners.clear();
@@ -707,21 +1053,25 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
  */
 export async function clearWidgetStorage(
   id: string,
-  options: Pick<CreateWidgetOptions, "product" | "readyTimeoutMs"> = {},
+  options: Pick<
+    CreateWidgetOptions,
+    "product" | "unsafeShimDomain" | "readyTimeoutMs"
+  > = {},
 ): Promise<ClearStorageResult> {
   const container = document.createElement("div");
   container.setAttribute("aria-hidden", "true");
   container.style.cssText =
     "position:fixed;left:0;top:0;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none;";
   document.body.appendChild(container);
-  const widget = createWidget({ ...options, container, id });
+  let widget: WidgetHandle | undefined;
   try {
+    widget = createWidget({ ...options, container, id });
     await widget.ready;
     return await internalRequests.get(widget)!<ClearStorageResult>(
       METHODS.clearStorage,
     );
   } finally {
-    widget.dispose();
+    widget?.dispose();
     container.remove();
   }
 }

@@ -1,14 +1,42 @@
-import type { ThreadMessage } from "@assistant-ui/core";
+import type { ThreadMessage, ToolCallMessagePart } from "@assistant-ui/core";
 import { describe, expect, it } from "vitest";
 import { toLanguageModelMessages } from "./toLanguageModelMessages";
 
-const createFileMessage = (data: string): ThreadMessage => ({
+const createFileMessage = (
+  data: string,
+): Extract<ThreadMessage, { role: "user" }> => ({
   id: "user-1",
   role: "user",
   createdAt: new Date("2026-01-01T00:00:00.000Z"),
   content: [{ type: "file", data, mimeType: "text/plain" }],
   attachments: [],
   metadata: { custom: {} },
+});
+
+const createToolMessage = (
+  part: Partial<ToolCallMessagePart>,
+): ThreadMessage => ({
+  id: "assistant-1",
+  role: "assistant",
+  createdAt: new Date(0),
+  status: { type: "requires-action", reason: "tool-calls" },
+  metadata: {
+    custom: {},
+    steps: [],
+    unstable_data: [],
+    unstable_annotations: [],
+    unstable_state: {},
+  },
+  content: [
+    {
+      type: "tool-call",
+      toolCallId: "call-1",
+      toolName: "lookup",
+      args: {},
+      argsText: "{}",
+      ...part,
+    },
+  ],
 });
 
 const convertFileData = (data: string) => {
@@ -22,6 +50,66 @@ const convertFileData = (data: string) => {
 };
 
 describe("toLanguageModelMessages", () => {
+  describe.each([false, true])(
+    "tool model content with message IDs %s",
+    (unstable_includeId) => {
+      const convertTool = (part: Partial<ToolCallMessagePart>) =>
+        toLanguageModelMessages([createToolMessage(part)], {
+          unstable_includeId,
+        }).find((message) => message.role === "tool")?.content[0];
+
+      it("sends explicit text and media instead of the UI result", () => {
+        expect(
+          convertTool({
+            result: { documentId: "report-1" },
+            modelContent: [
+              { type: "text", text: "Report contents" },
+              {
+                type: "file",
+                data: "JVBERi0xLjQ=",
+                mediaType: "application/pdf",
+                filename: "report.pdf",
+              },
+              { type: "file", data: "iVBORw0KGgo=", mediaType: "image/png" },
+            ],
+          }),
+        ).toEqual({
+          type: "tool-result",
+          toolCallId: "call-1",
+          toolName: "lookup",
+          output: {
+            type: "content",
+            value: [
+              { type: "text", text: "Report contents" },
+              {
+                type: "media",
+                data: "JVBERi0xLjQ=",
+                mediaType: "application/pdf",
+              },
+              { type: "media", data: "iVBORw0KGgo=", mediaType: "image/png" },
+            ],
+          },
+        });
+      });
+
+      it("honors explicitly empty model content", () => {
+        expect(
+          convertTool({ result: "UI only", modelContent: [] })?.output,
+        ).toEqual({ type: "content", value: [] });
+      });
+
+      it("keeps error results even when model content is present", () => {
+        expect(
+          convertTool({
+            result: { error: "failed" },
+            isError: true,
+            modelContent: [{ type: "text", text: "Preview" }],
+          })?.output,
+        ).toEqual({ type: "error-json", value: { error: "failed" } });
+      });
+    },
+  );
+
   it("skips an assistant message without content instead of throwing", () => {
     expect(
       toLanguageModelMessages([{ id: "a", role: "assistant" }] as never),
@@ -108,6 +196,72 @@ describe("toLanguageModelMessages", () => {
     expect(converted[0]).toHaveProperty("unstable_id", "assistant-1");
     expect(converted[1]).not.toHaveProperty("unstable_id");
     expect(converted[2]).toHaveProperty("unstable_id", "assistant-1");
+  });
+
+  describe.each<[string, Partial<ToolCallMessagePart>]>([
+    ["a pending approval", { approval: { id: "approval-1" } }],
+    [
+      "an approved call awaiting execution",
+      { approval: { id: "approval-1", approved: true } },
+    ],
+    ["an interrupted call", { interrupt: { type: "human", payload: {} } }],
+  ])("message IDs with %s", (_label, part) => {
+    it.each([false, true])(
+      "closes a followed call without changing its source (empty next message: %s)",
+      (empty) => {
+        const assistant = createToolMessage(part);
+        const user = {
+          ...createFileMessage("SGVsbG8="),
+          ...(empty ? { content: [] } : {}),
+        };
+        const messages = [assistant, user];
+        const original = structuredClone(messages);
+        const plain = toLanguageModelMessages(messages);
+        expect(plain.map((message) => message.role)).toEqual(
+          empty ? ["assistant", "tool"] : ["assistant", "tool", "user"],
+        );
+        const withIds = toLanguageModelMessages(messages, {
+          unstable_includeId: true,
+        });
+        expect(withIds.map(({ role, content }) => ({ role, content }))).toEqual(
+          plain,
+        );
+        expect(withIds[0]).toHaveProperty("unstable_id", "assistant-1");
+        expect(withIds[1]).not.toHaveProperty("unstable_id");
+        if (!empty) expect(withIds[2]).toHaveProperty("unstable_id", "user-1");
+        expect(messages).toEqual(original);
+      },
+    );
+
+    it("keeps the last call awaiting the host", () => {
+      const messages = [createToolMessage(part)];
+      const plain = toLanguageModelMessages(messages);
+      expect(plain.map((message) => message.role)).toEqual(["assistant"]);
+      const withIds = toLanguageModelMessages(messages, {
+        unstable_includeId: true,
+      });
+      expect(withIds.map(({ role, content }) => ({ role, content }))).toEqual(
+        plain,
+      );
+      expect(withIds[0]).toHaveProperty("unstable_id", "assistant-1");
+    });
+  });
+
+  it.each<Partial<ToolCallMessagePart>>([
+    { approval: { id: "approval-1", approved: false } },
+    { approval: { id: "approval-1", resolution: "cancelled" } },
+    { result: { partial: true }, isPreliminary: true },
+    { result: { error: "lookup failed" }, isError: true },
+  ])("preserves terminal and preliminary results with IDs: %j", (part) => {
+    const messages = [createToolMessage(part)];
+    const plain = toLanguageModelMessages(messages);
+    expect(plain.map((message) => message.role)).toEqual(["assistant", "tool"]);
+    const withIds = toLanguageModelMessages(messages, {
+      unstable_includeId: true,
+    });
+    expect(withIds.map(({ role, content }) => ({ role, content }))).toEqual(
+      plain,
+    );
   });
 
   it("carries a file part filename through to the model message", () => {

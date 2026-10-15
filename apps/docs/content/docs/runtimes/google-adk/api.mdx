@@ -228,6 +228,10 @@ The resolved `checkpointId` is passed to your `stream` callback via `config.chec
 Without `getCheckpointId`, edit and regenerate buttons will not appear. This is intentional; truncating client-side messages without forking from the correct server-side checkpoint would produce incorrect state.
 </Callout>
 
+<Callout type="warn">
+`createAdkApiRoute` and the direct `/run_sse` mode do not rewind the ADK session to the checkpoint yet. After an edit or regenerate, the session still holds the turns the client removed, and the agent sees them on the next run. adk-js has no session rewind API, and `adk api_server` does not expose the rewind that adk-python's `Runner.rewind_async` provides. A custom Python route can call `rewind_async` before it runs the new message, if your `getCheckpointId` returns the ID of the invocation to rewind before.
+</Callout>
+
 ## Event handlers
 
 Listen to streaming events:

@@ -1,7 +1,12 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { Sources, type Source, type SourcesProps } from "./sources";
+import {
+  SourceGlyph,
+  Sources,
+  type Source,
+  type SourcesProps,
+} from "./sources";
 
 afterEach(cleanup);
 
@@ -133,5 +138,28 @@ describe("Sources", () => {
       screen.getByText("Unsafe citation").closest('[data-slot="source-card"]')
         ?.tagName,
     ).toBe("DIV");
+  });
+
+  it("omits the trigger when hideTrigger is set and still renders the panel", () => {
+    render(
+      <Sources
+        sources={[{ domain: "assistant-ui.com", title: "Runtime drafts API" }]}
+        open
+        onOpenChange={() => {}}
+        hideTrigger
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: /Sources/ })).toBeNull();
+    expect(screen.getByText("Runtime drafts API")).toBeTruthy();
+    expect(screen.getByText("assistant-ui.com")).toBeTruthy();
+  });
+});
+
+describe("SourceGlyph", () => {
+  it("renders the domain's first letter, uppercased", () => {
+    render(<SourceGlyph domain="wikipedia.org" />);
+
+    expect(screen.getByText("W")).toBeTruthy();
   });
 });

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { createRef, Suspense, use, type ReactNode } from "react";
+import { createRef, Suspense, use, version, type ReactNode } from "react";
 import { act, cleanup, render, screen } from "@testing-library/react";
 import { resource } from "@assistant-ui/tap";
 import {
@@ -19,6 +19,7 @@ import type { RemoteThreadListAdapter } from "../../runtimes/remote-thread-list/
 import { RemoteThreadList } from "./RemoteThreadList";
 
 type ListPage = Awaited<ReturnType<RemoteThreadListAdapter["list"]>>;
+const onReact18 = version.startsWith("18.");
 
 const composer = { getState: () => ({}) };
 const suggestions = { getState: () => ({ suggestions: [] }) };
@@ -73,34 +74,37 @@ describe("RemoteThreadList list promises", () => {
     await reloaded;
   });
 
-  it("suspends a use() reader of the load promise until the list is loaded", async () => {
-    const list = deferred<ListPage>();
-    const adapter = makeAdapter({ list: vi.fn(() => list.promise) });
-    const consoleError = vi.spyOn(console, "error");
-    const Threads = () => {
-      const aui = useAui();
-      use(aui.threads.getLoadThreadsPromise());
-      const ids = useAuiState((s) => s.threads.threadIds);
-      return <p>{ids.join(",")}</p>;
-    };
+  it.skipIf(onReact18)(
+    "suspends a use() reader of the load promise until the list is loaded",
+    async () => {
+      const list = deferred<ListPage>();
+      const adapter = makeAdapter({ list: vi.fn(() => list.promise) });
+      const consoleError = vi.spyOn(console, "error");
+      const Threads = () => {
+        const aui = useAui();
+        use(aui.threads.getLoadThreadsPromise());
+        const ids = useAuiState((s) => s.threads.threadIds);
+        return <p>{ids.join(",")}</p>;
+      };
 
-    mount(
-      adapter,
-      <Suspense fallback={<p>loading</p>}>
-        <Threads />
-      </Suspense>,
-    );
-    expect(screen.getByText("loading")).toBeDefined();
+      mount(
+        adapter,
+        <Suspense fallback={<p>loading</p>}>
+          <Threads />
+        </Suspense>,
+      );
+      expect(screen.getByText("loading")).toBeDefined();
 
-    list.resolve({
-      threads: [{ remoteId: "t1", status: "regular", title: "One" }],
-    });
+      list.resolve({
+        threads: [{ remoteId: "t1", status: "regular", title: "One" }],
+      });
 
-    expect(await screen.findByText("t1")).toBeDefined();
-    expect(consoleError).not.toHaveBeenCalledWith(
-      expect.stringContaining("uncached promise"),
-    );
-  });
+      expect(await screen.findByText("t1")).toBeDefined();
+      expect(consoleError).not.toHaveBeenCalledWith(
+        expect.stringContaining("uncached promise"),
+      );
+    },
+  );
 
   it("settles a suspense cache keyed on the load promise", async () => {
     const list = deferred<ListPage>();

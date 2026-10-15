@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import {
+  __internal_bindNextDispatchTransform,
   createMessageQueue,
   type MessageQueueDriver,
 } from "../runtime/queue/message-queue";
@@ -703,6 +704,78 @@ describe("createMessageQueue", () => {
     ]);
   });
 
+  it.each(["mp3", "wav"] as const)(
+    "projects a legacy %s audio part as a file part with its audio media type",
+    (format) => {
+      const run = vi.fn();
+      const { adapter, notifyBusy } = createMessageQueue({ run });
+      notifyBusy();
+
+      adapter.enqueue(
+        msg("", {
+          content: [{ type: "audio", audio: { data: "UklGRg==", format } }],
+        }),
+      );
+
+      expect(adapter.items[0]!.parts).toEqual([
+        { type: "file", data: "UklGRg==", mimeType: `audio/${format}` },
+      ]);
+    },
+  );
+
+  it("retags a base64 audio data URL to match the legacy audio format", () => {
+    const run = vi.fn();
+    const { adapter, notifyBusy } = createMessageQueue({ run });
+    notifyBusy();
+
+    adapter.enqueue(
+      msg("", {
+        content: [
+          {
+            type: "audio",
+            audio: { data: "data:audio/mpeg;base64,SUQzAw==", format: "wav" },
+          },
+        ],
+      }),
+    );
+
+    expect(adapter.items[0]!.parts).toEqual([
+      {
+        type: "file",
+        data: "data:audio/wav;base64,SUQzAw==",
+        mimeType: "audio/wav",
+      },
+    ]);
+  });
+
+  it("projects an audio part inside an attachment", () => {
+    const run = vi.fn();
+    const { adapter, notifyBusy } = createMessageQueue({ run });
+    notifyBusy();
+
+    adapter.enqueue(
+      msg("caption", {
+        content: [],
+        attachments: [
+          {
+            id: "att1",
+            type: "file",
+            name: "recording.mp3",
+            contentType: "audio/mp3",
+            status: { type: "complete" },
+            content: [
+              { type: "audio", audio: { data: "UklGRg==", format: "mp3" } },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(adapter.items[0]!.parts).toEqual([
+      { type: "file", data: "UklGRg==", mimeType: "audio/mp3" },
+    ]);
+  });
+
   it("removes a queued message before it runs", () => {
     const run = vi.fn();
     const { adapter, notifyIdle } = createMessageQueue({ run });
@@ -733,6 +806,42 @@ describe("createMessageQueue", () => {
     adapter.edit(id, msg("a2"));
     expect(prompts(adapter.items)).toEqual(["a2", "b"]);
     expect(adapter.items[0]!.id).toBe(id);
+  });
+
+  it("keeps a bound transform when an edited item moves between lanes", () => {
+    const run = vi.fn();
+    const { adapter, notifyBusy, notifyIdle } = createMessageQueue({ run });
+    notifyBusy();
+
+    adapter.__internal_setDispatchTransform?.((message) => ({
+      ...message,
+      parentId: "a",
+    }));
+    __internal_bindNextDispatchTransform(adapter);
+    adapter.enqueue(msg("a"));
+    adapter.__internal_setDispatchTransform?.((message) => ({
+      ...message,
+      parentId: "b",
+    }));
+    __internal_bindNextDispatchTransform(adapter);
+    adapter.enqueue(msg("b"));
+
+    const id = adapter.items[0]!.id;
+    adapter.edit(id, msg("edited"));
+    adapter.move(id, { lane: "steer", insertAfter: null });
+
+    notifyIdle();
+    expect(run).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ parentId: "a" }),
+      { steer: false },
+    );
+    notifyIdle();
+    expect(run).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ parentId: "b" }),
+      { steer: false },
+    );
   });
 
   it("edit throws on an unknown queue item", () => {

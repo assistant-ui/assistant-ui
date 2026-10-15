@@ -8,10 +8,12 @@ import {
   DefinitionName,
   DefinitionTerm,
 } from "@/components/ui/definition-list";
-import { StatusBadge } from "./status-badge";
-
-const DESCRIPTION_LINK_CLASSNAME =
-  "font-medium text-foreground underline underline-offset-2";
+import {
+  COMMON_PARAMS,
+  DESCRIPTION_LINK_CLASSNAME,
+  DeprecatedNotice,
+  getParameterAnnotations,
+} from "./parameter-annotations";
 
 type ParameterDef = {
   name: string;
@@ -22,30 +24,6 @@ type ParameterDef = {
   deprecated?: string;
   experimental?: boolean;
   children?: Array<ParametersTableProps>;
-};
-
-const COMMON_PARAMS: Record<string, ParameterDef> = {
-  asChild: {
-    name: "asChild",
-    type: "boolean",
-    default: "false",
-    description: (
-      <>
-        Change the default rendered element for the one passed as a child,
-        merging their props and behavior.
-        <br />
-        <br />
-        Read the{" "}
-        <Link
-          className={DESCRIPTION_LINK_CLASSNAME}
-          href="/docs/api-reference/primitives/composition"
-        >
-          Composition
-        </Link>{" "}
-        guide for more details.
-      </>
-    ),
-  },
 };
 
 const MARKDOWN_LINK_REGEX = /\[([^\]]+)\]\(([^)\s]+)\)/g;
@@ -103,7 +81,7 @@ const Parameter: FC<{ parameter: ParameterDef }> = ({
   parameter: partialParameter,
 }) => {
   const parameter = {
-    ...COMMON_PARAMS[partialParameter.name],
+    ...COMMON_PARAMS.parameters[partialParameter.name],
     ...partialParameter,
   };
 
@@ -122,21 +100,14 @@ const Parameter: FC<{ parameter: ParameterDef }> = ({
         {parameter.default && (
           <DefinitionAnnotation>= {parameter.default}</DefinitionAnnotation>
         )}
-        {parameter.deprecated && <StatusBadge variant="deprecated" />}
-        {(parameter.experimental || parameter.name.startsWith("unstable_")) && (
-          <StatusBadge variant="unstable" />
-        )}
+        {getParameterAnnotations(parameter, "term")}
       </DefinitionTerm>
       <DefinitionDetails>
         <p className="whitespace-pre-line">
           {renderDescription(parameter.description)}
         </p>
 
-        {parameter.deprecated && (
-          <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
-            Deprecated: {parameter.deprecated}
-          </p>
-        )}
+        <DeprecatedNotice deprecated={parameter.deprecated} />
 
         {parameter.children?.map((child, i) => (
           <ParametersGroup key={child.type ?? i} {...child} />
@@ -271,5 +242,7 @@ const DefItemLLM: FC<
 export const ParametersTableLLM: FC<ParametersTableProps> = ({
   parameters,
 }) => {
-  return <DefListLLM defs={parameters} commonParams={COMMON_PARAMS} />;
+  return (
+    <DefListLLM defs={parameters} commonParams={COMMON_PARAMS.parameters} />
+  );
 };

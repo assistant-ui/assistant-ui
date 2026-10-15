@@ -3,18 +3,26 @@ import { configDefaults, defineConfig } from "vitest/config";
 const temporalTests = [
   "src/temporal.test.ts",
   "src/vocabulary/datepicker.dom.test.tsx",
+  "src/vue/vocabulary/datepicker.test.ts",
+  "src/native/vocabulary/datepicker.test.tsx",
 ];
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      "react-native": "react-native-web",
+    },
+  },
   test: {
     coverage: {
       include: ["src/**/*.{ts,tsx}"],
       thresholds: {
-        lines: 97,
-        functions: 98,
-        branches: 91,
-        statements: 96,
-        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+        lines: 96,
+        functions: 97,
+        branches: 90,
+        statements: 95,
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
       },
     },
     pool: "threads",

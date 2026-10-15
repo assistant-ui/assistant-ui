@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   act,
   cleanup,
@@ -5,9 +6,11 @@ import {
   render,
   renderHook,
 } from "@testing-library/react";
+import { useEffect } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defineCatalog } from "../catalog";
-import { createStateStore } from "../state";
+import { createStateStore, type SpecStateStore } from "../state";
+import { createSpecStream } from "../stream";
 import type { Spec } from "../types";
 import {
   SpecRenderer,
@@ -46,6 +49,14 @@ const catalog = defineCatalog({
       },
     },
     Boom: { description: "Throws" },
+    Photo: {
+      description: "Image",
+      props: { type: "object", properties: { src: {} } },
+    },
+    Picture: {
+      description: "Image",
+      props: { type: "object", properties: { src: { type: "string" } } },
+    },
   },
   actions: { refresh: { description: "Reload" } },
 });
@@ -81,6 +92,12 @@ const components: SpecComponents = {
   Boom: () => {
     throw new Error("kaboom");
   },
+  Photo: ({ props }: SpecComponentProps<{ src?: string }>) => (
+    <img alt="" src={props.src} />
+  ),
+  Picture: ({ props }: SpecComponentProps<{ src?: string }>) => (
+    <img alt="" src={props.src} />
+  ),
 };
 
 const spec = (elements: Spec["elements"], state: Spec["state"] = {}): Spec => ({
@@ -90,6 +107,75 @@ const spec = (elements: Spec["elements"], state: Spec["state"] = {}): Spec => ({
 });
 
 describe("SpecRenderer", () => {
+  it.each(["default", "footer"])(
+    "preserves repeated child identities when %s siblings move",
+    (slot) => {
+      function Editor() {
+        const [value, setValue] = useState("");
+        return (
+          <input
+            value={value}
+            onChange={(event) => setValue(event.target.value)}
+          />
+        );
+      }
+      const registry = { ...components, Editor };
+      const draw = (ids: string[]) =>
+        spec({
+          main: {
+            type: "Stack",
+            ...(slot === "default"
+              ? { children: ids }
+              : { slots: { footer: ids } }),
+          },
+          editor: { type: "Editor" },
+          other: { type: "Editor" },
+          label: { type: "Text", props: { text: "new label" } },
+        });
+      const view = render(
+        <SpecRenderer
+          components={registry}
+          spec={draw(["editor", "editor", "other"])}
+        />,
+      );
+      const [first, second, other] = [
+        ...view.container.querySelectorAll("input"),
+      ];
+      fireEvent.change(first!, { target: { value: "first draft" } });
+      fireEvent.change(second!, { target: { value: "second draft" } });
+      fireEvent.change(other!, { target: { value: "other draft" } });
+      second!.focus();
+      view.rerender(
+        <SpecRenderer
+          components={registry}
+          spec={draw(["label", "other", "editor", "editor"])}
+        />,
+      );
+      expect([...view.container.querySelectorAll("input")]).toEqual([
+        other,
+        first,
+        second,
+      ]);
+      expect(
+        [...view.container.querySelectorAll("input")].map(
+          (input) => input.value,
+        ),
+      ).toEqual(["other draft", "first draft", "second draft"]);
+      expect(document.activeElement).toBe(second);
+      view.rerender(
+        <SpecRenderer
+          components={registry}
+          spec={draw(["editor", "editor"])}
+        />,
+      );
+      expect([...view.container.querySelectorAll("input")]).toEqual([
+        first,
+        second,
+      ]);
+      expect(document.activeElement).toBe(second);
+    },
+  );
+
   it("renders the tree, resolves expressions, and runs setState on events", () => {
     const view = render(
       <SpecRenderer
@@ -172,6 +258,114 @@ describe("SpecRenderer", () => {
     );
   });
 
+  it("writes a root binding and preserves it through reseeding and restoration", () => {
+    const store = createStateStore({ name: "model" });
+    const view = render(
+      <SpecRenderer
+        state={store}
+        spec={spec({
+          main: { type: "Form", props: { value: { $bindState: "" } } },
+        })}
+        components={{
+          Form: ({ props, setProp }: SpecComponentProps) => (
+            <button
+              type="button"
+              onClick={() => setProp("value", { name: "edited" })}
+            >
+              {JSON.stringify(props["value"])}
+            </button>
+          ),
+        }}
+      />,
+    );
+    expect(view.container.textContent).toBe('{"name":"model"}');
+    fireEvent.click(view.getByRole("button"));
+    expect(store.getState()).toEqual({ name: "edited" });
+    expect(view.container.textContent).toBe('{"name":"edited"}');
+    act(() => store.seed({ name: "replacement", extra: true }));
+    expect(store.getState()).toEqual({ name: "edited" });
+    expect(view.container.textContent).toBe('{"name":"edited"}');
+    const restored = createStateStore(
+      { name: "restored" },
+      {
+        writes: JSON.parse(JSON.stringify(store.writes())),
+      },
+    );
+    expect(restored.getState()).toEqual({ name: "edited" });
+  });
+
+  it.each(["state", "item"])(
+    "replaces a %s-bound array item without growing the list",
+    (binding) => {
+      const store = createStateStore({ items: [false, true] });
+      const view = render(
+        <SpecRenderer
+          catalog={catalog}
+          components={components}
+          state={store}
+          spec={spec({
+            main: {
+              type: "Stack",
+              children: ["toggle"],
+              ...(binding === "item" ? { repeat: { path: "/items" } } : {}),
+            },
+            toggle: {
+              type: "Toggle",
+              props: {
+                checked:
+                  binding === "item"
+                    ? { $bindItem: "" }
+                    : { $bindState: "/items/0" },
+              },
+            },
+          })}
+        />,
+      );
+      fireEvent.click(view.getAllByRole("checkbox")[0]!);
+      expect(store.get("/items")).toEqual([true, true]);
+      fireEvent.click(view.getAllByRole("checkbox")[0]!);
+      expect(store.get("/items")).toEqual([false, true]);
+      act(() => store.seed({ items: [true, false], extra: "streamed" }));
+      expect(store.getState()).toEqual({
+        items: [false, false],
+        extra: "streamed",
+      });
+      expect(
+        createStateStore(
+          { items: [true, false] },
+          { writes: store.writes() },
+        ).get("/items"),
+      ).toEqual([false, false]);
+    },
+  );
+
+  it("writes repeated bindings under the empty-string state key", () => {
+    const store = createStateStore({ "": [{ value: false }] });
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        state={store}
+        spec={spec({
+          main: {
+            type: "Stack",
+            repeat: { path: "/" },
+            children: ["item"],
+          },
+          item: {
+            type: "Toggle",
+            props: { checked: { $bindItem: "/value" } },
+          },
+        })}
+      />,
+    );
+
+    fireEvent.click(view.getByRole("checkbox"));
+
+    expect(store.get("//0/value")).toBe(true);
+    expect(store.get("/0")).toBeUndefined();
+  });
+
   it("sends catalog actions to handlers and onAction", () => {
     const refresh = vi.fn();
     const onAction = vi.fn();
@@ -216,6 +410,64 @@ describe("SpecRenderer", () => {
     );
   });
 
+  it.each(["plain", "not", "$cond"] as const)(
+    "hides an unfinished visibility condition until streamed state enables it (form: %s)",
+    (form) => {
+      const negated = form !== "plain";
+      const stream = createSpecStream({
+        initial: spec(
+          {
+            main: {
+              type: "Button",
+              props: { label: "Continue" },
+              visible:
+                form === "$cond"
+                  ? { $cond: {}, $then: false, $else: true }
+                  : negated
+                    ? { not: {} }
+                    : {},
+            },
+          },
+          { open: negated },
+        ),
+      });
+      const view = render(
+        <SpecRenderer components={components} spec={stream.spec} streaming />,
+      );
+      expect(view.queryByRole("button")).toBeNull();
+      stream.push(
+        JSON.stringify({
+          op: "add",
+          path: `/elements/main/visible${form === "plain" ? "" : `/${form}`}/$state`,
+          value: "/open",
+        }) + "\n",
+      );
+      view.rerender(
+        <SpecRenderer components={components} spec={stream.spec} streaming />,
+      );
+      expect(view.queryByRole("button")).toBeNull();
+      stream.push(
+        JSON.stringify({
+          op: "replace",
+          path: "/state/open",
+          value: !negated,
+        }) + "\n",
+      );
+      view.rerender(
+        <SpecRenderer components={components} spec={stream.spec} streaming />,
+      );
+      expect(view.getByRole("button").textContent).toBe("Continue");
+      stream.push(
+        JSON.stringify({ op: "replace", path: "/state/open", value: negated }) +
+          "\n",
+      );
+      view.rerender(
+        <SpecRenderer components={components} spec={stream.spec} />,
+      );
+      expect(view.queryByRole("button")).toBeNull();
+    },
+  );
+
   it("renders placeholders instead of throwing", () => {
     const onError = vi.fn();
     vi.spyOn(console, "error").mockImplementation(() => {});
@@ -254,6 +506,302 @@ describe("SpecRenderer", () => {
     );
   });
 
+  it("renders an element again once it changes after its component threw", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const tools = Object.assign(Object.create(null), {
+      photos: ["https://example.com/bridge.jpg"],
+    });
+    const photo = (path: string) =>
+      spec(
+        { main: { type: "Photo", props: { src: { $state: path } } } },
+        { tools },
+      );
+    const failing = photo("/tools");
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={failing}
+        streaming
+      />,
+    );
+    expect(
+      view.container.querySelector('[data-gf-spec-placeholder="error"]'),
+    ).toBeNull();
+
+    view.rerender(
+      <SpecRenderer catalog={catalog} components={components} spec={failing} />,
+    );
+    expect(view.container.textContent).toContain("Photo failed");
+
+    view.rerender(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={photo("/tools/photos/0")}
+      />,
+    );
+    expect(view.container.querySelector("img")?.getAttribute("src")).toBe(
+      "https://example.com/bridge.jpg",
+    );
+  });
+
+  it("keeps an element's last valid render while the spec streams", () => {
+    const mounted = vi.fn();
+    const Text = ({ props }: SpecComponentProps<{ text: string }>) => {
+      useEffect(() => mounted(), []);
+      return <p>{props.text}</p>;
+    };
+    const probe = { ...components, Text };
+    const text = (value: unknown) =>
+      spec({ main: { type: "Text", props: { text: value } } });
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={probe}
+        spec={text("Hi")}
+        streaming
+      />,
+    );
+    view.rerender(
+      <SpecRenderer
+        catalog={catalog}
+        components={probe}
+        spec={text(5)}
+        streaming
+      />,
+    );
+    expect(view.container.querySelector("p")?.textContent).toBe("Hi");
+    expect(
+      view.container.querySelector(
+        '[data-gf-spec-placeholder="invalid-props"]',
+      ),
+    ).toBeNull();
+
+    view.rerender(
+      <SpecRenderer
+        catalog={catalog}
+        components={probe}
+        spec={text("Hello")}
+        streaming
+      />,
+    );
+    expect(view.container.querySelector("p")?.textContent).toBe("Hello");
+    expect(mounted).toHaveBeenCalledTimes(1);
+
+    view.rerender(
+      <SpecRenderer catalog={catalog} components={probe} spec={text(5)} />,
+    );
+    expect(view.container.querySelector("p")).toBeNull();
+    expect(
+      view.container.querySelector(
+        '[data-gf-spec-placeholder="invalid-props"]',
+      ),
+    ).not.toBeNull();
+  });
+
+  it("does not stand an element of another type in for one that is still invalid", () => {
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={spec({ main: { type: "Text", props: { text: "Hi" } } })}
+        streaming
+      />,
+    );
+    view.rerender(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={spec({ main: { type: "Picture", props: { src: 5 } } })}
+        streaming
+      />,
+    );
+    expect(view.container.querySelector("p")).toBeNull();
+    expect(view.container.querySelector("img")).toBeNull();
+  });
+
+  it("does not carry accepted props over to an element's new type", () => {
+    const tools = Object.assign(Object.create(null), {
+      photos: ["https://example.com/bridge.jpg"],
+    });
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={spec(
+          { main: { type: "Text", props: { text: "Hi" } } },
+          { tools },
+        )}
+        streaming
+      />,
+    );
+    view.rerender(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={spec(
+          { main: { type: "Picture", props: { src: { $state: "/tools" } } } },
+          { tools },
+        )}
+        streaming
+      />,
+    );
+    expect(view.container.querySelector("p")).toBeNull();
+    expect(view.container.querySelector("img")).toBeNull();
+  });
+
+  it("keeps an element's last accepted props while a bound value streams", () => {
+    const tools = Object.assign(Object.create(null), {
+      photos: ["https://example.com/bridge.jpg"],
+    });
+    const picture = (src: unknown) =>
+      spec({ main: { type: "Picture", props: { src } } }, { tools });
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={picture("https://example.com/first.jpg")}
+        streaming
+      />,
+    );
+    view.rerender(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={picture({ $state: "/tools" })}
+        streaming
+      />,
+    );
+    expect(view.container.querySelector("img")?.getAttribute("src")).toBe(
+      "https://example.com/first.jpg",
+    );
+
+    view.rerender(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={picture({ $state: "/tools" })}
+      />,
+    );
+    expect(view.container.querySelector("img")).toBeNull();
+    expect(
+      view.container.querySelector(
+        '[data-gf-spec-placeholder="invalid-props"]',
+      ),
+    ).not.toBeNull();
+  });
+
+  it("writes a held element's binding to the path it shows", () => {
+    const store = createStateStore({ form: { agree: false } });
+    const toggle = (path: string) =>
+      spec({
+        main: { type: "Toggle", props: { checked: { $bindState: path } } },
+      });
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        state={store}
+        spec={toggle("/f")}
+        streaming
+      />,
+    );
+    view.rerender(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        state={store}
+        spec={toggle("/form")}
+        streaming
+      />,
+    );
+    fireEvent.click(view.getByRole("checkbox"));
+    expect(store.getState()).toEqual({ form: { agree: false }, f: true });
+  });
+
+  it("shows an element's problem only once the spec stops streaming", () => {
+    const broken = spec({
+      main: { type: "Stack", children: ["a", "b"] },
+      a: { type: "Text", props: { text: 5 } },
+      b: { type: "Nope" },
+    });
+    const reasons = () =>
+      [...view.container.querySelectorAll("[data-gf-spec-placeholder]")].map(
+        (node) => node.getAttribute("data-gf-spec-placeholder"),
+      );
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={broken}
+        streaming
+      />,
+    );
+    expect(reasons()).toEqual(["pending"]);
+
+    view.rerender(
+      <SpecRenderer catalog={catalog} components={components} spec={broken} />,
+    );
+    expect(reasons()).toEqual(["invalid-props", "unknown-type"]);
+  });
+
+  it("waits for a primitive prop to resolve while streaming", () => {
+    const tools = Object.assign(Object.create(null), {
+      photos: ["https://example.com/bridge.jpg"],
+    });
+    const picture = (path: string) =>
+      spec(
+        { main: { type: "Picture", props: { src: { $state: path } } } },
+        { tools },
+      );
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={picture("/tools")}
+        streaming
+      />,
+    );
+    expect(
+      [...view.container.querySelectorAll("[data-gf-spec-placeholder]")].map(
+        (node) => node.getAttribute("data-gf-spec-placeholder"),
+      ),
+    ).toEqual(["pending"]);
+    expect(view.container.querySelector("img")).toBeNull();
+
+    view.rerender(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={picture("/tools/photos/0")}
+      />,
+    );
+    expect(view.container.querySelector("img")?.getAttribute("src")).toBe(
+      "https://example.com/bridge.jpg",
+    );
+  });
+
+  it("shows invalid props when a primitive prop resolves to an object", () => {
+    const tools = Object.assign(Object.create(null), {
+      photos: ["https://example.com/bridge.jpg"],
+    });
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={spec(
+          { main: { type: "Picture", props: { src: { $state: "/tools" } } } },
+          { tools },
+        )}
+      />,
+    );
+    expect(
+      view.container.querySelector('[data-gf-spec-placeholder="invalid-props"]')
+        ?.textContent,
+    ).toBe("Picture: src expected string, got object");
+  });
+
   it("shows pending children while streaming and keeps user state when spec state streams in", () => {
     const first = spec(
       {
@@ -289,6 +837,173 @@ describe("SpecRenderer", () => {
     );
     expect(view.container.textContent).toBe("Streamed");
     expect((view.getByRole("checkbox") as HTMLInputElement).checked).toBe(true);
+  });
+
+  it("shows one pending placeholder after the spec while it streams", () => {
+    const streamed = (elements: Spec["elements"]) =>
+      spec({
+        main: {
+          type: "Stack",
+          children: ["a", "b", "c"],
+          slots: { footer: ["f"] },
+        },
+        a: { type: "Text", props: { text: "A" } },
+        ...elements,
+      });
+    const complete = streamed({
+      b: { type: "Text", props: { text: "B" } },
+      c: { type: "Text", props: { text: "C" } },
+      f: { type: "Text", props: { text: "F" } },
+    });
+    const pending = () =>
+      view.container.querySelectorAll('[data-gf-spec-placeholder="pending"]');
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={streamed({})}
+        streaming
+      />,
+    );
+    expect(pending()).toHaveLength(1);
+    expect(pending()[0]?.previousElementSibling?.tagName).toBe("SECTION");
+    expect(view.container.querySelector("section")?.textContent).toBe("A");
+
+    view.rerender(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={complete}
+        streaming
+      />,
+    );
+    expect(pending()).toHaveLength(1);
+
+    view.rerender(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={streamed({})}
+      />,
+    );
+    expect(pending()).toHaveLength(0);
+    expect(
+      view.container.querySelectorAll('[data-gf-spec-placeholder="missing"]'),
+    ).toHaveLength(3);
+  });
+
+  it("keeps elements mounted when the spec stops streaming", () => {
+    const mounted = vi.fn();
+    const Text = ({ props }: SpecComponentProps<{ text: string }>) => {
+      useEffect(() => mounted(), []);
+      return <p>{props.text}</p>;
+    };
+    const probe = { ...components, Text };
+    const done = spec({ main: { type: "Text", props: { text: "Hi" } } });
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={probe}
+        spec={done}
+        streaming
+      />,
+    );
+    view.rerender(
+      <SpecRenderer catalog={catalog} components={probe} spec={done} />,
+    );
+    expect(view.container.textContent).toBe("Hi");
+    expect(mounted).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows a pending placeholder until the root arrives", () => {
+    const empty: Spec = { root: "", elements: {} };
+    const view = render(
+      <SpecRenderer
+        catalog={catalog}
+        components={components}
+        spec={empty}
+        streaming
+      />,
+    );
+    expect(
+      view.container.querySelectorAll('[data-gf-spec-placeholder="pending"]'),
+    ).toHaveLength(1);
+
+    view.rerender(
+      <SpecRenderer catalog={catalog} components={components} spec={empty} />,
+    );
+    expect(
+      view.container.querySelector("[data-gf-spec-placeholder]"),
+    ).toBeNull();
+  });
+
+  it("tracks the first change after switching to an equally valued watched path", () => {
+    const store = createStateStore({ a: 0, b: 0 });
+    const refresh = vi.fn();
+    const draw = (path: string) => (
+      <SpecRenderer
+        components={components}
+        state={store}
+        handlers={{ refresh }}
+        spec={spec({
+          main: { type: "Stack", watch: { [path]: { action: "refresh" } } },
+        })}
+      />
+    );
+    const view = render(draw("/a"));
+    view.rerender(draw("/b"));
+    expect(refresh).not.toHaveBeenCalled();
+    act(() => store.set("/b", 1));
+    expect(refresh).toHaveBeenCalledExactlyOnceWith(
+      {},
+      expect.objectContaining({ trigger: "/b" }),
+    );
+    view.rerender(draw("/b"));
+    act(() => store.set("/a", 1));
+    expect(refresh).toHaveBeenCalledTimes(1);
+    act(() => store.set("/b", 2));
+    expect(refresh).toHaveBeenCalledTimes(2);
+  });
+
+  it("baselines added and re-added watches without dependency-array warnings", () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const store = createStateStore({ a: 0, b: 0 });
+      const refresh = vi.fn();
+      const draw = (paths: string[]) => (
+        <SpecRenderer
+          components={components}
+          state={store}
+          handlers={{ refresh }}
+          spec={spec({
+            main: {
+              type: "Stack",
+              watch: Object.fromEntries(
+                paths.map((path) => [path, { action: "refresh" }]),
+              ),
+            },
+          })}
+        />
+      );
+      const view = render(draw(["/a"]));
+      view.rerender(draw(["/a", "/b"]));
+      expect(refresh).not.toHaveBeenCalled();
+      act(() => store.set("/b", 1));
+      expect(refresh).toHaveBeenCalledTimes(1);
+      view.rerender(draw(["/b"]));
+      act(() => store.set("/a", 1));
+      expect(refresh).toHaveBeenCalledTimes(1);
+      view.rerender(draw(["/b", "/a"]));
+      expect(refresh).toHaveBeenCalledTimes(1);
+      act(() => store.set("/a", 2));
+      expect(refresh).toHaveBeenCalledTimes(2);
+      view.rerender(draw([]));
+      act(() => store.set("/b", 2));
+      expect(refresh).toHaveBeenCalledTimes(2);
+      expect(error).not.toHaveBeenCalled();
+    } finally {
+      error.mockRestore();
+    }
   });
 
   it("runs watch actions when a watched value changes", () => {
@@ -367,4 +1082,123 @@ describe("useSpecStream", () => {
     act(() => result.current.reset());
     expect(result.current.spec.root).toBe("");
   });
+
+  it("restarts a followed source from the new initial when reset", () => {
+    const before: Spec = {
+      root: "t",
+      elements: { t: { type: "Text", props: { text: "before" } } },
+    };
+    const source =
+      '{"op":"replace","path":"/elements/t/props/text","value":"after"}\n';
+    const hook = renderHook(
+      ({ initial }: { initial?: Spec }) =>
+        useSpecStream({ source, ...(initial ? { initial } : {}) }),
+      { initialProps: {} },
+    );
+    expect(hook.result.current.spec.elements["t"]?.type).toBeUndefined();
+
+    hook.rerender({ initial: before });
+    act(() => hook.result.current.reset());
+    expect(hook.result.current.spec.elements["t"]).toEqual({
+      type: "Text",
+      props: { text: "after" },
+    });
+  });
+});
+
+describe("SpecRenderer model state", () => {
+  it.each([false, true])(
+    "clears a removed model base while preserving user writes (external: %s)",
+    (external) => {
+      const initial = spec(
+        {
+          main: { type: "Stack", children: ["label", "toggle"] },
+          label: { type: "Text", props: { text: { $state: "/label" } } },
+          toggle: { type: "Toggle", props: { checked: { $bindState: "/on" } } },
+        },
+        { label: "model", on: false },
+      );
+      const state = external
+        ? createStateStore({ label: "external", on: false })
+        : undefined;
+      const optionalState = state ? { state } : {};
+      const next: Spec = { root: initial.root, elements: initial.elements };
+      const view = render(
+        <SpecRenderer
+          components={components}
+          spec={initial}
+          {...optionalState}
+        />,
+      );
+      fireEvent.click(view.container.querySelector("input")!);
+      expect(view.container.textContent).toBe(external ? "external" : "model");
+      view.rerender(
+        <SpecRenderer components={components} spec={next} {...optionalState} />,
+      );
+      expect(view.container.textContent).toBe(external ? "external" : "");
+      expect(view.container.querySelector("input")!.checked).toBe(true);
+      view.rerender(
+        <SpecRenderer
+          components={components}
+          spec={{ ...next }}
+          {...optionalState}
+        />,
+      );
+      expect(view.container.textContent).toBe(external ? "external" : "");
+      expect(view.container.querySelector("input")!.checked).toBe(true);
+    },
+  );
+});
+
+it("does not dispatch a root watch when mounting a spec without state", () => {
+  const refresh = vi.fn();
+  const view = render(
+    <SpecRenderer
+      components={components}
+      handlers={{ refresh }}
+      spec={{
+        root: "main",
+        elements: {
+          main: {
+            type: "Button",
+            props: { label: "change" },
+            watch: { "": { action: "refresh" } },
+            on: {
+              press: {
+                action: "setState",
+                params: { path: "/count", value: 1 },
+              },
+            },
+          },
+        },
+      }}
+    />,
+  );
+  expect(refresh).not.toHaveBeenCalled();
+  fireEvent.click(view.getByRole("button"));
+  expect(refresh).toHaveBeenCalledTimes(1);
+});
+
+it("isolates the empty model base between renderer instances", () => {
+  const stores: SpecStateStore[] = [];
+  const capture = ({ state }: SpecComponentProps) => {
+    stores.push(state);
+    return null;
+  };
+  const input: Spec = {
+    root: "capture",
+    elements: { capture: { type: "Capture" } },
+  };
+  const mount = () =>
+    render(<SpecRenderer spec={input} components={{ Capture: capture }} />);
+  const first = mount();
+  const firstState = stores.at(-1)!.getState();
+  first.unmount();
+  mount();
+  const secondState = stores.at(-1)!.getState();
+  expect(secondState).not.toBe(firstState);
+  firstState["name"] = "first renderer";
+  expect(secondState).toEqual({});
+  mount();
+  expect(stores.at(-1)!.getState()).toEqual({});
 });

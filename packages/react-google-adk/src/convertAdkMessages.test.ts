@@ -1,7 +1,38 @@
 import { describe, it, expect } from "vitest";
 import { convertExternalMessages } from "@assistant-ui/core/react";
-import { convertAdkMessage } from "./convertAdkMessages";
+import {
+  convertAdkMessage,
+  createAdkMessageConverter,
+} from "./convertAdkMessages";
 import type { AdkMessage } from "./types";
+
+describe("createAdkMessageConverter - queued replies", () => {
+  it("marks the gated call while its confirmation reply is buffered", () => {
+    const message: AdkMessage = {
+      id: "ai-1",
+      type: "ai",
+      content: [],
+      tool_calls: [{ id: "gated", name: "delete_file", args: {} }],
+    };
+    const approvals = new Map([["gated", { id: "confirmation" }]]);
+    const queued = createAdkMessageConverter(
+      approvals,
+      new Set(["confirmation"]),
+    )(message, {});
+    const sent = createAdkMessageConverter(approvals)(message, {});
+
+    expect(queued).toMatchObject({
+      content: [
+        {
+          toolCallId: "gated",
+          approval: { id: "confirmation" },
+          responseDeliveryStatus: "queued",
+        },
+      ],
+    });
+    expect(sent).not.toHaveProperty("content.0.responseDeliveryStatus");
+  });
+});
 
 describe("convertAdkMessage - human messages", () => {
   it("converts a human message with string content to user role", () => {
@@ -104,6 +135,7 @@ describe("convertAdkMessage - human messages", () => {
           type: "file_url",
           url: "gs://bucket/report.pdf",
           mimeType: "application/pdf",
+          filename: "report.pdf",
         },
       ],
     };
@@ -116,6 +148,89 @@ describe("convertAdkMessage - human messages", () => {
           data: "gs://bucket/report.pdf",
           mimeType: "application/pdf",
           sourceType: "url",
+          filename: "report.pdf",
+        },
+      ],
+    });
+  });
+
+  it("preserves file_url filenames in assistant data parts", () => {
+    const msg: AdkMessage = {
+      id: "m1",
+      type: "ai",
+      content: [
+        {
+          type: "file_url",
+          url: "gs://bucket/report.pdf",
+          mimeType: "application/pdf",
+          filename: "report.pdf",
+        },
+      ],
+    };
+    expect(convertAdkMessage(msg, {})).toMatchObject({
+      role: "assistant",
+      content: [
+        {
+          type: "data",
+          name: "file_url",
+          data: {
+            url: "gs://bucket/report.pdf",
+            mimeType: "application/pdf",
+            filename: "report.pdf",
+          },
+        },
+      ],
+    });
+  });
+
+  it("preserves image filenames from inline and URL media", () => {
+    const inline = convertAdkMessage(
+      {
+        id: "m1",
+        type: "human",
+        content: [
+          {
+            type: "image",
+            mimeType: "image/png",
+            data: "AAAA",
+            filename: "photo.png",
+          },
+        ],
+      },
+      {},
+    );
+    expect(inline).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "image",
+          image: "data:image/png;base64,AAAA",
+          filename: "photo.png",
+        },
+      ],
+    });
+
+    const url = convertAdkMessage(
+      {
+        id: "m2",
+        type: "human",
+        content: [
+          {
+            type: "image_url",
+            url: "https://example.com/photo.png",
+            filename: "photo.png",
+          },
+        ],
+      },
+      {},
+    );
+    expect(url).toMatchObject({
+      role: "user",
+      content: [
+        {
+          type: "image",
+          image: "https://example.com/photo.png",
+          filename: "photo.png",
         },
       ],
     });

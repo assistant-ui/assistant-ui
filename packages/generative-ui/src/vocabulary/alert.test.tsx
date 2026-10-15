@@ -133,6 +133,13 @@ describe("alertVocabulary", () => {
     ).toBe('<div data-aui="alert" data-aui-tone="info" role="alert"></div>');
   });
 
+  it.each([
+    ["title", '<header data-aui="alert-title">0</header>'],
+    ["description", '<p data-aui="alert-desc">0</p>'],
+  ] as const)("renders a zero Alert %s", (prop, expected) => {
+    expect(render({ $type: "Alert", [prop]: 0 })).toContain(expected);
+  });
+
   it("Carousel wraps each child Card in a slide, capped at 10", () => {
     const children = Array.from({ length: 12 }, (_, i) => ({
       $type: "Card",
@@ -361,6 +368,23 @@ describe("alertVocabulary", () => {
     );
     await act(async () => next!.click());
     expect(scrollBy).toHaveBeenCalledWith({ left: 200 });
+  });
+
+  it("Carousel moves to the next slide start without Element.scrollBy", async () => {
+    const { container, track } = await mountCarousel();
+    setCarouselLayout(track, {
+      scrollWidth: 600,
+      clientWidth: 300,
+      scrollLeft: 0,
+    });
+    delete (track as { scrollBy?: unknown }).scrollBy;
+    await measure();
+
+    const next = container.querySelector<HTMLButtonElement>(
+      '[data-aui="carousel-next"]',
+    );
+    await act(async () => next!.click());
+    expect(track.scrollLeft).toBe(200);
   });
 
   it("Carousel moves back one slide from the middle", async () => {

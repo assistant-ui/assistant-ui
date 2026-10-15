@@ -23,7 +23,19 @@ declare namespace Checkout {
     guide?: string;
   };
   type InputStatus = "answered" | "dismissed" | "open";
-  type InputKind = "choice" | "model" | "product" | "text";
+  type InputKind = "choice" | "entry-point" | "model" | "product" | "text";
+  type EntryPoint = {
+    formFactor: "full-page" | "modal" | "sidebar";
+    placement: string;
+    trigger: string;
+    recommended?: boolean;
+  };
+  type EntryPointOption = {
+    id: string;
+    label: string;
+    description: string;
+    entryPoint: EntryPoint;
+  };
   type ChoiceVariant = {
     id: string;
     label: string;
@@ -34,6 +46,7 @@ declare namespace Checkout {
     description?: string;
     icon?: string;
     variants?: ChoiceVariant[];
+    entryPoint?: EntryPoint;
   };
   type InputHelp = {
     summary: string;
@@ -156,7 +169,9 @@ declare namespace Checkout {
       inputId: string;
     }) => void;
     "checkout/plan": (params: PlanDecision) => void;
-    "checkout/cancel": () => void;
+    "checkout/cancel": (params?: {
+      id?: string;
+    }) => void;
     "checkout/finish": () => void;
     "agent/intro": (params: {
       kind?: string;
@@ -334,6 +349,8 @@ type StreamEvent = {
   products: string[];
 };
 
+declare const agentInstructions: (url: string) => string;
+
 declare const askSeed: (rest: readonly string[], flags: Parsed["flags"]) => Checkout.InputSeed & {
   stepId?: string;
 };
@@ -341,7 +358,7 @@ declare const askSeed: (rest: readonly string[], flags: Parsed["flags"]) => Chec
 declare const classifyChoiceAnswer: (input: Checkout.Input, answer: string) => ChoiceAnswerKind;
 
 declare namespace entry_cli_exports {
-  export { HELP, INSTRUCTIONS, askSeed, detectAgentKind, diffEvents, isDirectInvocation, main, upsertEnvLine, waitForStart, writeEnvSecret };
+  export { HELP, INSTRUCTIONS, agentInstructions, askSeed, detectAgentKind, diffEvents, isDirectInvocation, main, upsertEnvLine, waitForStart, writeEnvSecret };
 }
 
 declare const connectCheckout: (url: string) => Promise<CheckoutClient>;
@@ -361,7 +378,7 @@ declare namespace entry_host_exports {
 }
 
 declare namespace entry_root_exports {
-  export { AGENT_HEARTBEAT_MS, AGENT_PRESENCE_MS, Checkout, CheckoutClient, INPUT_PRESETS, OPTION_ICONS, OptionIcon, PresetId, PresetOverrides, classifyChoiceAnswer, connectCheckout, currentPlan, finishProposed, followedUpSinceProposal, initialCheckoutState, isAgentPresent, isClosed, isOptionIcon, isPresetId, isValidModelAnswer, openInputs, parseChoiceAnswer, parseModelAnswer, parseMultipleAnswer, parsePreviewUrl, planNeedsReview, presetInput, stepProgress };
+  export { AGENT_HEARTBEAT_MS, AGENT_PRESENCE_MS, Checkout, CheckoutClient, INPUT_PRESETS, OPTION_ICONS, OptionIcon, PresetId, PresetOverrides, classifyChoiceAnswer, connectCheckout, currentPlan, finishProposed, followedUpSinceProposal, initialCheckoutState, isAgentPresent, isClosed, isOptionIcon, isPresetId, isValidEntryPointAnswer, isValidEntryPointInput, isValidModelAnswer, openInputs, parseChoiceAnswer, parseEntryPointOptions, parseModelAnswer, parseMultipleAnswer, parsePreviewUrl, planNeedsReview, presetInput, stepProgress };
 }
 
 declare const initialCheckoutState: () => Checkout.State;
@@ -380,6 +397,10 @@ declare const isOptionIcon: (value: string) => value is OptionIcon;
 
 declare const isPresetId: (id: string) => id is PresetId;
 
+declare const isValidEntryPointAnswer: (input: Checkout.Input, answer: string) => boolean;
+
+declare const isValidEntryPointInput: (input: Checkout.InputSeed) => boolean;
+
 declare const isValidModelAnswer: (input: Checkout.Input, answer: string) => boolean;
 
 declare const main: (argv: readonly string[]) => Promise<undefined>;
@@ -390,6 +411,8 @@ declare const parseChoiceAnswer: (answer: string) => {
   variant?: string;
   option: string;
 };
+
+declare const parseEntryPointOptions: (value: unknown) => Checkout.EntryPointOption[] | undefined;
 
 declare const parseModelAnswer: (answer: string) => Checkout.ModelAnswer | undefined;
 

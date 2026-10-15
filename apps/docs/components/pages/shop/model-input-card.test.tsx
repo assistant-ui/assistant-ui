@@ -186,6 +186,23 @@ describe("ModelInputCard", () => {
     expect(next).toHaveProperty("disabled", true);
   });
 
+  it("does not test the key on an IME confirmation Enter", () => {
+    render(
+      <WizardHost>
+        <ModelInputCard input={input} checkout={checkout()} />
+      </WizardHost>,
+    );
+    toKeyStep();
+    const key = screen.getByLabelText("API key");
+    fireEvent.change(key, { target: { value: "openai-key" } });
+    fireEvent.keyDown(key, {
+      key: "Enter",
+      keyCode: 229,
+      isComposing: false,
+    });
+    expect(testProviderKey).not.toHaveBeenCalled();
+  });
+
   it("lets a failed test be overridden", async () => {
     testProviderKey.mockResolvedValueOnce({ status: "unauthorized" });
     render(

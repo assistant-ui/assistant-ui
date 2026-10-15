@@ -1,4 +1,5 @@
 import type { GenerativeUILibrary } from "../types";
+import { registerDefaultGenerativeUILibrary } from "../defaultGenerativeUIComponents";
 import { alertVocabulary } from "./alert";
 import { dataVocabulary } from "./data";
 import { factVocabulary } from "./fact";
@@ -31,3 +32,5 @@ export const defaultGenerativeUILibrary: GenerativeUILibrary = {
   ...alertVocabulary,
   ...iconVocabulary,
 };
+
+registerDefaultGenerativeUILibrary(defaultGenerativeUILibrary);

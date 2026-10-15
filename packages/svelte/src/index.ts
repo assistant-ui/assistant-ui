@@ -22,6 +22,7 @@ export {
   threadScrollToBottom,
   threadViewport,
 } from "./primitives/threadViewport";
+export { threadViewportFooter } from "./primitives/threadViewportFooter";
 export { threadMessages, type MessageItem } from "./primitives/threadMessages";
 export { messageParts, type PartItem } from "./primitives/messageParts";
 export { suggestionTrigger } from "./primitives/suggestions";

@@ -40,6 +40,7 @@ export type {
   GenerativeUIRenderContext,
   GenerativeUIAction,
   GenerativeUIDispatch,
+  GenerativeUIBindings,
 } from "./types";
 export type {
   UINode,

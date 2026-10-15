@@ -12,6 +12,7 @@ import type { AppendMessage } from "../../types/message";
 import type { ThreadMessageLike } from "../../runtime/utils/thread-message-like";
 import type { RemoteThreadListAdapter } from "../../runtimes/remote-thread-list/types";
 import {
+  actSettled,
   deferred,
   makeAdapter,
 } from "../../tests/remote-thread-list-test-helpers";
@@ -422,9 +423,7 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
       expect(adapter.initialize).toHaveBeenCalledTimes(1);
     });
 
-    await act(async () => {
-      await capture.runtime!.threads.reloadMainThread();
-    });
+    await actSettled(() => capture.runtime!.threads.reloadMainThread());
 
     await act(async () => {
       initialization.resolve({
@@ -485,9 +484,7 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
       expect(adapter.initialize).toHaveBeenCalledTimes(1);
     });
 
-    await act(async () => {
-      await runtimeRef.current!.threads.reloadMainThread();
-    });
+    await actSettled(() => runtimeRef.current!.threads.reloadMainThread());
     await act(async () => {
       initialization.resolve({
         remoteId: `remote-${localId}`,

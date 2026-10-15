@@ -64,7 +64,7 @@ Tools the server owns go in the same `tools` map with their own `execute`; see [
 | `throttle` | `number` | None | Passed to AI SDK `useChat` for update throttling. |
 | `adapters` | `AISDKRuntimeAdapter["adapters"]` | Runtime defaults | Supplies history, suggestion, attachment, and other supported adapters. |
 | `suggestions` | `ThreadSuggestion[]` | None | Supplies thread suggestions. |
-| `isDisabled` | `boolean` | `false` | Disables the thread and its composer input. |
+| `isDisabled` | `boolean` | `false` | Blocks typing, attaching, sending (including direct `composer.send()` calls), and editing messages. |
 | `isSendDisabled` | `boolean` | `false` | Blocks sends while leaving the input usable. |
 | `unstable_capabilities` | `{ copy?: boolean }` | None | Overrides the copy capability. |
 | `toCreateMessage` | Callback | Runtime conversion | Converts a new assistant-ui message to an AI SDK UI message. |
@@ -75,6 +75,7 @@ Tools the server owns go in the same `tools` map with their own `execute`; see [
 | `joinStrategy` | `"concat-content" \| "none"` | `"concat-content"` | Merges consecutive assistant messages into one thread message, or keeps them separate with `"none"`. |
 | `messageRepository` | Exported message repository | Runtime-owned repository | Supplies branch history. |
 | `unstable_onBranchChange` | Callback | None | Receives branch changes. |
+| `unstable_enableMessageQueue` | `boolean` | `false` | Keeps sending open during a run. A send steers by default: it waits for the run and any client tools to finish, then goes before queued follow-ups. `send({ steer: false })` waits in `composer.queue` until the run settles. |
 
 The chat captures its id, initial messages, id generator, and schemas when it mounts. Its callbacks read the latest options on later renders. The runtime also reads adapter and shared thread options again when it renders. Remount the assistant client to start a different chat id or initial history.
 

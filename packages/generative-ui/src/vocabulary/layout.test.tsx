@@ -30,6 +30,18 @@ const getFooterButtons = (out: ReactElement) => {
 };
 
 describe("layoutVocabulary", () => {
+  it("uses numeric Tabs text for the tab and tab list name", () => {
+    const html = render({ $type: "Tabs", tabs: [0], label: 42 });
+    expect(html).toContain('role="tablist" aria-label="42"');
+    expect(html).toContain('data-aui="tabs-tab">0</button>');
+  });
+
+  it("renders a zero Card title", () => {
+    expect(render({ $type: "Card", title: 0 })).toContain(
+      '<header data-aui="card-title">0</header>',
+    );
+  });
+
   it("Card renders a section with optional title and padding/background hooks", () => {
     expect(
       render({
@@ -89,9 +101,11 @@ describe("layoutVocabulary", () => {
         $type: "Col",
         gap: 2,
         align: "center",
-        children: { $type: "Text", value: "x" } as never,
+        children: "column content",
       }),
-    ).toContain('data-aui="col"');
+    ).toBe(
+      '<div data-aui="col" data-aui-gap="2" data-aui-align="center">column content</div>',
+    );
   });
 
   it("Row renders a div with gap/align/justify hooks", () => {
@@ -257,9 +271,14 @@ describe("layoutVocabulary Card asForm/confirm/cancel", () => {
 describe("layoutVocabulary Card asForm/confirm/cancel dispatch", () => {
   it("Card asForm submit collects named values and dispatches confirm.$action with $input", () => {
     const handler = vi.fn();
-    const registry = createActionRegistry({ save: handler });
+    const cardHandler = vi.fn();
+    const registry = createActionRegistry({
+      save: handler,
+      fallback: cardHandler,
+    });
     const out = layoutVocabulary.Card.render({
       asForm: true,
+      $action: { type: "fallback" },
       confirm: { label: "Save", $action: { type: "save" } },
       $status: "done",
       $dispatch: registry.dispatch,
@@ -276,7 +295,37 @@ describe("layoutVocabulary Card asForm/confirm/cancel dispatch", () => {
     expect(handler).toHaveBeenCalledWith({
       payload: { type: "save", $input: { email: "a@x.com" } },
     });
+    expect(cardHandler).not.toHaveBeenCalled();
   });
+
+  it.each([
+    ["is absent", undefined],
+    ["has no action", { label: "Save" }],
+  ])(
+    "Card asForm submit dispatches the Card action with named values when confirm %s",
+    (_, confirm) => {
+      const handler = vi.fn();
+      const registry = createActionRegistry({ save: handler });
+      const out = layoutVocabulary.Card.render({
+        asForm: true,
+        ...(confirm ? { confirm } : {}),
+        $action: { type: "save" },
+        $status: "done",
+        $dispatch: registry.dispatch,
+      }) as ReactElement;
+      const onSubmit = (out.props as { onSubmit: (e: unknown) => void })
+        .onSubmit;
+      onSubmit({
+        preventDefault: vi.fn(),
+        currentTarget: {
+          elements: [el({ name: "email", type: "email", value: "a@x.com" })],
+        },
+      });
+      expect(handler).toHaveBeenCalledWith({
+        payload: { type: "save", $input: { email: "a@x.com" } },
+      });
+    },
+  );
 
   it("Card confirm click (non-asForm) fires confirm.$action without $input", () => {
     const handler = vi.fn();
@@ -319,5 +368,56 @@ describe("layoutVocabulary Card asForm/confirm/cancel dispatch", () => {
       .onClick;
     onClick({ currentTarget: {} });
     expect(handler).toHaveBeenCalledWith({ payload: { type: "dismiss" } });
+  });
+
+  it("Card confirm click fires the confirm._action spelling models emit", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ save: handler });
+    const out = layoutVocabulary.Card.render({
+      confirm: { label: "Save", _action: { type: "save" } },
+      $status: "done",
+      $dispatch: registry.dispatch,
+    }) as ReactElement;
+    const { confirmBtn } = getFooterButtons(out);
+    const onClick = (confirmBtn!.props as { onClick: (e: object) => void })
+      .onClick;
+    onClick({ currentTarget: {} });
+    expect(handler).toHaveBeenCalledWith({ payload: { type: "save" } });
+  });
+
+  it("Card cancel click fires the cancel._action spelling models emit", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ dismiss: handler });
+    const out = layoutVocabulary.Card.render({
+      cancel: { label: "Dismiss", _action: { type: "dismiss" } },
+      $status: "done",
+      $dispatch: registry.dispatch,
+    }) as ReactElement;
+    const { cancelBtn } = getFooterButtons(out);
+    const onClick = (cancelBtn!.props as { onClick: (e: object) => void })
+      .onClick;
+    onClick({ currentTarget: {} });
+    expect(handler).toHaveBeenCalledWith({ payload: { type: "dismiss" } });
+  });
+
+  it("Card asForm submit dispatches the confirm._action spelling models emit", () => {
+    const handler = vi.fn();
+    const registry = createActionRegistry({ save: handler });
+    const out = layoutVocabulary.Card.render({
+      asForm: true,
+      confirm: { label: "Save", _action: { type: "save" } },
+      $status: "done",
+      $dispatch: registry.dispatch,
+    }) as ReactElement;
+    const onSubmit = (out.props as { onSubmit: (e: unknown) => void }).onSubmit;
+    onSubmit({
+      preventDefault: vi.fn(),
+      currentTarget: {
+        elements: [el({ name: "email", type: "email", value: "a@x.com" })],
+      },
+    });
+    expect(handler).toHaveBeenCalledWith({
+      payload: { type: "save", $input: { email: "a@x.com" } },
+    });
   });
 });

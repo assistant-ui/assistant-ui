@@ -14,6 +14,7 @@ import {
   HELP,
   INSTRUCTIONS,
   askSeed,
+  agentInstructions,
   diffEvents,
   detectAgentKind,
   isDirectInvocation,
@@ -23,6 +24,17 @@ import {
 } from "./cli";
 
 describe("the agent's briefing", () => {
+  it("preserves the published instructions export and setup-created event wording", () => {
+    expect(INSTRUCTIONS).toBe(agentInstructions);
+    expect(typeof HELP).toBe("string");
+    expect(INSTRUCTIONS("https://example.test/session")).toContain(
+      '"setup.created"',
+    );
+    expect(INSTRUCTIONS("https://example.test/session")).not.toContain(
+      '"checkout.created"',
+    );
+  });
+
   it("describes a setup without the wording of a purchase", () => {
     const briefing = HELP + INSTRUCTIONS("https://example.test/session");
     expect(briefing).not.toMatch(/\b(?:cart|shop|checkout|purchase)\b/i);
@@ -56,6 +68,96 @@ describe("askSeed", () => {
       stderr.mockRestore();
     }
   };
+
+  const entryPoints = [
+    {
+      id: "ticket-modal",
+      label: "Ticket reply modal",
+      description: "Draft a response without leaving the support ticket.",
+      entryPoint: {
+        formFactor: "modal",
+        placement: "Above the ticket detail page",
+        trigger: "Draft reply button in the ticket toolbar",
+        recommended: true,
+      },
+    },
+  ];
+
+  it("asks an entry-point question preserving contextual choices and exact default", () => {
+    expect(
+      parse([
+        "Where should support agents draft replies?",
+        "--entry-points",
+        JSON.stringify(entryPoints),
+        "--default",
+        "ticket-modal",
+        "--step",
+        "s1",
+        "--wait",
+      ]),
+    ).toEqual({
+      kind: "entry-point",
+      prompt: "Where should support agents draft replies?",
+      options: entryPoints,
+      default: "ticket-modal",
+      stepId: "s1",
+      optional: false,
+    });
+  });
+
+  it("refuses malformed JSON, defaults and conflicting input flags", () => {
+    expect(withExit(() => parse(["Where?", "--entry-points", "{"]))).toContain(
+      "JSON array",
+    );
+    expect(withExit(() => parse(["Where?", "--entry-points"]))).toContain(
+      "JSON array",
+    );
+    expect(withExit(() => parse(["Where?", "--entry-points", "[]"]))).toContain(
+      "unique options",
+    );
+    expect(
+      withExit(() =>
+        parse([
+          "Where?",
+          "--entry-points",
+          JSON.stringify(entryPoints),
+          "--default",
+          "unknown",
+        ]),
+      ),
+    ).toContain('no option "unknown"');
+    for (const flag of [
+      "--preset",
+      "--choices",
+      "--product",
+      "--multiple",
+      "--icons",
+      "--placeholder",
+      "--single",
+      "--only",
+    ]) {
+      expect(
+        withExit(() =>
+          parse([
+            "Where?",
+            "--entry-points",
+            JSON.stringify(entryPoints),
+            flag,
+            "x",
+          ]),
+        ),
+      ).toContain("cannot be combined");
+    }
+  });
+
+  it("keeps the legacy product command decoder", () => {
+    expect(parse(["Add it?", "--product", "assistant-ui"])).toEqual({
+      kind: "product",
+      prompt: "Add it?",
+      product: "assistant-ui",
+      optional: false,
+    });
+  });
 
   it("asks a multi-select choice with an icon on every option by default", () => {
     expect(
@@ -398,6 +500,55 @@ describe("begin planning", () => {
       expect(settled).toHaveBeenCalledWith("cancelled");
     },
   );
+});
+
+describe("agent instructions", () => {
+  it("discovers related products and asks contextual entry points before the plan", () => {
+    const instructions = agentInstructions(
+      "http://localhost:18892/checkout/session",
+    );
+    expect(instructions).toContain(
+      "products are starting names and guide references",
+    );
+    expect(instructions).toContain(
+      "The starting list does not restrict the implementation",
+    );
+    expect(instructions).toContain("only 1–3 sensible alternatives");
+    expect(instructions).toContain(
+      "two options may use the same form factor in different places",
+    );
+    expect(instructions).toContain("--entry-points '<JSON array>'");
+    expect(instructions).not.toContain("--product assistant-ui");
+    expect(instructions.indexOf("--entry-points")).toBeLessThan(
+      instructions.indexOf("plan --file"),
+    );
+  });
+
+  it("waits for the entry-point answer before the plan is submitted", () => {
+    const ask = agentInstructions("http://localhost:18892/checkout/session")
+      .split("\n")
+      .find((line) => line.includes("--entry-points '<JSON array>'"));
+    expect(ask?.trim().endsWith("--wait")).toBe(true);
+    expect(ask).not.toContain("--default");
+  });
+
+  it("skips the entry-point question for a setup that puts no assistant in the app", () => {
+    const instructions = agentInstructions(
+      "http://localhost:18892/checkout/session",
+    );
+    expect(instructions).toContain(
+      "When the setup puts an assistant in the app, ask how users should access it",
+    );
+    expect(instructions).toContain(
+      "Skip this question when no product's guide installs an assistant",
+    );
+    expect(instructions).toContain(
+      "When you ask it, do not submit the plan before the user picks an entry point.",
+    );
+    expect(instructions).not.toContain(
+      "recommendation. Do not submit the plan before the user picks an entry point.",
+    );
+  });
 });
 
 describe("writeEnvSecret", () => {

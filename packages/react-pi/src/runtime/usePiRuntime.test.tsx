@@ -20,9 +20,12 @@ const mocks = vi.hoisted(() => ({
   mainThreadId: "t1",
   allListeners: new Set<() => void>(),
   messageListeners: new Set<() => void>(),
+  activeRun: undefined as string | undefined,
+  cancelledRuns: [] as string[],
   controller: {
     load: vi.fn().mockResolvedValue(undefined),
     sendMessage: vi.fn().mockResolvedValue(undefined),
+    clearQueue: vi.fn().mockResolvedValue({ steering: [], followUp: [] }),
     respondToHostUiRequest: vi.fn().mockResolvedValue(undefined),
   },
 }));
@@ -70,8 +73,16 @@ vi.mock("./ThreadController", async (importOriginal) => {
     load = mocks.controller.load;
     refresh = vi.fn().mockResolvedValue(undefined);
     sendMessage = mocks.controller.sendMessage;
-    cancel = vi.fn().mockResolvedValue(undefined);
-    clearQueue = vi.fn().mockResolvedValue({ steering: [], followUp: [] });
+    cancel = vi.fn(async () => {
+      if (mocks.activeRun) mocks.cancelledRuns.push(mocks.activeRun);
+    });
+    captureCancel = () => {
+      const run = mocks.activeRun;
+      return async () => {
+        if (mocks.activeRun === run) await this.cancel();
+      };
+    };
+    clearQueue = mocks.controller.clearQueue;
     setModel = vi.fn().mockResolvedValue(undefined);
     setThinkingLevel = vi.fn().mockResolvedValue(undefined);
     respondToToolApproval = vi.fn().mockResolvedValue(undefined);
@@ -115,7 +126,53 @@ afterEach(() => {
   mocks.liveState = undefined;
   mocks.allListeners.clear();
   mocks.messageListeners.clear();
+  mocks.activeRun = undefined;
+  mocks.cancelledRuns.length = 0;
   vi.restoreAllMocks();
+});
+
+describe("usePiRuntime Stop", () => {
+  it("cancels the run active when Stop was pressed without cancelling a replacement", async () => {
+    mocks.state = { ...createPiThreadState("t1"), runStatus: "running" };
+    mocks.repository = ExportedMessageRepository.fromArray([]);
+    mocks.activeRun = "original";
+    const client = {} as PiClient;
+    const App = () => {
+      usePiRuntime({ client, initialThreadId: "t1" });
+      return null;
+    };
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
+
+    const adapter = mocks.adapters.at(-1)!;
+    const firstStop = adapter.onCancel!();
+    await firstStop;
+    expect(mocks.cancelledRuns).toEqual(["original"]);
+
+    const clear = Promise.withResolvers<{
+      steering: string[];
+      followUp: string[];
+    }>();
+    mocks.controller.clearQueue.mockReturnValueOnce(clear.promise);
+    const stop = adapter.onCancel!();
+    const message: AppendMessage = {
+      role: "user",
+      createdAt: new Date(0),
+      metadata: { custom: {} },
+      parentId: null,
+      sourceId: null,
+      runConfig: undefined,
+      content: [{ type: "text", text: "new" }],
+    };
+    mocks.controller.sendMessage.mockImplementationOnce(async () => {
+      mocks.activeRun = "replacement";
+    });
+    await adapter.onNew(message);
+    clear.resolve({ steering: [], followUp: [] });
+    await stop;
+
+    expect(mocks.cancelledRuns).toEqual(["original"]);
+  });
 });
 
 describe("usePiRuntime error callbacks", () => {

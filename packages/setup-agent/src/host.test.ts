@@ -310,12 +310,6 @@ describe("steps", () => {
         host.commands["agent/step"]({ stepId: "nope", status: "done" }),
       ),
     ).toEqual({ reason: "unknown-step" });
-    expect(
-      await reason(
-        host.commands["agent/add-step"]({ title: "x", product: "nope" }),
-      ),
-    ).toEqual({ reason: "unknown-product" });
-
     await host.commands["agent/ask"]({ prompt: "Port?", stepId: "s2" });
     expect(await reason(host.commands["checkout/finish"]())).toEqual({
       reason: "finish-not-proposed",
@@ -776,6 +770,138 @@ describe("setup chat", () => {
   });
 });
 
+describe("entry-point questions", () => {
+  const options = [
+    {
+      id: "ticket-sidebar",
+      label: "Ticket sidebar",
+      description: "Keep the support ticket visible while drafting a reply.",
+      entryPoint: {
+        formFactor: "sidebar" as const,
+        placement: "Right side of the ticket detail page",
+        trigger: "Draft reply button in the ticket toolbar",
+        recommended: true,
+      },
+    },
+    {
+      id: "inbox-sidebar",
+      label: "Inbox sidebar",
+      description: "Draft replies from the selected ticket in the inbox.",
+      entryPoint: {
+        formFactor: "sidebar" as const,
+        placement: "Right side of the inbox",
+        trigger: "Assist button in the inbox header",
+      },
+    },
+  ];
+
+  it("persists agent-generated placements and answers by stable id across restore", async () => {
+    const host = mount();
+    await host.commands["checkout/create"](seed);
+    await host.commands["checkout/begin-plan"]();
+    const { inputId } = await host.commands["agent/ask"]({
+      kind: "entry-point",
+      prompt: "Where should support agents draft replies?",
+      options,
+      default: "ticket-sidebar",
+    });
+    expect(host.state.inputs[0]?.options).toEqual(options);
+    for (const answer of [
+      "sidebar",
+      "ticket-sidebar:variant",
+      '["ticket-sidebar"]',
+      "",
+    ]) {
+      expect(
+        await reason(host.commands["checkout/answer"]({ inputId, answer })),
+      ).toEqual({ reason: "invalid-answer" });
+    }
+    await host.commands["checkout/answer"]({
+      inputId,
+      answer: "inbox-sidebar",
+      note: "Keep the ticket list visible",
+    });
+    const restored = mount(host.snapshot());
+    expect(restored.state.inputs[0]).toMatchObject({
+      kind: "entry-point",
+      options,
+      status: "answered",
+      answer: "inbox-sidebar",
+      note: "Keep the ticket list visible",
+    });
+  });
+
+  it("rejects invalid structured inputs before they enter persisted state", async () => {
+    const host = mount();
+    await host.commands["checkout/create"](seed);
+    await host.commands["checkout/begin-plan"]();
+    for (const invalid of [
+      { options: [] },
+      { options: [options[0]!, options[0]!] },
+      { options, multiple: true as const },
+      { options, default: "unknown" },
+      { options: [{ ...options[0]!, description: "" }] },
+      {
+        options: [
+          {
+            ...options[0]!,
+            entryPoint: { ...options[0]!.entryPoint, trigger: "" },
+          },
+        ],
+      },
+    ]) {
+      expect(
+        await reason(
+          host.commands["agent/ask"]({
+            kind: "entry-point",
+            prompt: "Where?",
+            ...invalid,
+          }),
+        ),
+      ).toEqual({ reason: "invalid-input" });
+    }
+    expect(host.state.inputs).toEqual([]);
+  });
+});
+
+describe("product discovery", () => {
+  it("rejects an empty related-product identifier", async () => {
+    const host = await approvedHost();
+    expect(
+      await reason(
+        host.commands["agent/add-step"]({
+          title: "Install integration",
+          product: " ",
+        }),
+      ),
+    ).toEqual({ reason: "invalid-input" });
+    expect(host.state.steps).toEqual([]);
+  });
+
+  it("tracks relevant products outside the starting list without changing that list", async () => {
+    const host = await approvedHost();
+    const discovered = await host.commands["agent/add-step"]({
+      title: "Install discovered integration",
+      product: "discovered-integration",
+    });
+    expect(
+      host.state.steps.find((step) => step.id === discovered.stepId),
+    ).toMatchObject({
+      product: "discovered-integration",
+    });
+    await host.commands["agent/step"]({
+      stepId: discovered.stepId,
+      status: "done",
+    });
+    const restored = mount(host.snapshot());
+    expect(restored.state.steps[0]).toMatchObject({
+      product: "discovered-integration",
+      status: "done",
+    });
+    expect(restored.state.products).toEqual(seed.products);
+  });
+});
+
 describe("closing", () => {
   it("keeps a finished setup done when a late cancel arrives", async () => {
     const host = await approvedHost();
@@ -783,6 +909,27 @@ describe("closing", () => {
     await host.commands["checkout/finish"]();
     await host.commands["checkout/cancel"]();
     expect(host.state.status).toBe("done");
+  });
+
+  it("ignores a cancel meant for another checkout", async () => {
+    const host = mount();
+    await host.commands["checkout/create"](seed);
+    await host.commands["checkout/cancel"]({ id: "c0" });
+    expect(host.state.status).toBe("waiting");
+  });
+
+  it("cancels the checkout a cancel names", async () => {
+    const host = mount();
+    await host.commands["checkout/create"](seed);
+    await host.commands["checkout/cancel"]({ id: seed.id });
+    expect(host.state.status).toBe("cancelled");
+  });
+
+  it("cancels the current checkout when a cancel names none", async () => {
+    const host = mount();
+    await host.commands["checkout/create"](seed);
+    await host.commands["checkout/cancel"]({});
+    expect(host.state.status).toBe("cancelled");
   });
 
   it("ignores a cancel before the setup exists", async () => {

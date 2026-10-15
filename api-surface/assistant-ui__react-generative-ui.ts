@@ -383,15 +383,23 @@ type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown
 
 type GenerativeUIAction = Action;
 
+type GenerativeUIBindings<P> = {
+  readonly [K in keyof P]?: (value: P[K]) => void;
+};
+
 type GenerativeUIComponent<P = any> = {
   description: string;
   properties: ZodType<P>;
   streamProperties: boolean | undefined;
+  events?: readonly string[] | undefined;
+  slots?: readonly string[] | undefined;
   render: (props: StreamingRenderProps<P>) => ReactNode;
 } | {
   description: string;
   properties: ZodType<P>;
   streamProperties?: false | undefined;
+  events?: readonly string[] | undefined;
+  slots?: readonly string[] | undefined;
   render: (props: StaticRenderProps<P>) => ReactNode;
 };
 
@@ -905,6 +913,8 @@ type StaticRenderProps<P> = P & {
   $status: "done";
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
+  $slots?: Readonly<Record<string, ReactNode>>;
+  $bindings?: GenerativeUIBindings<P>;
 };
 
 type StreamingRenderProps<P> = (Partial<P> & {
@@ -912,11 +922,15 @@ type StreamingRenderProps<P> = (Partial<P> & {
   $status: "streaming";
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
+  $slots?: Readonly<Record<string, ReactNode>>;
+  $bindings?: GenerativeUIBindings<P>;
 }) | (P & {
   children?: ReactNode;
   $status: "done";
   $action?: Action;
   $dispatch?: GenerativeUIDispatch;
+  $slots?: Readonly<Record<string, ReactNode>>;
+  $bindings?: GenerativeUIBindings<P>;
 });
 
 declare const TEXT_SIZES: readonly [
@@ -1117,12 +1131,13 @@ interface TeamsTextBlock {
   readonly type: "TextBlock";
   readonly text: string;
   readonly wrap: true;
+  readonly fontType?: "Monospace";
   readonly size?: TeamsTextSize;
   readonly weight?: "bolder";
   readonly style?: "heading";
   readonly isSubtle?: true;
   readonly separator?: true;
-  readonly spacing?: "large";
+  readonly spacing?: "large" | "none";
 }
 
 type TeamsTextSize = "extraLarge" | "large" | "medium" | "small";
@@ -1143,6 +1158,7 @@ type ThreadAssistantMessage = MessageCommonProps & {
   readonly content: readonly ThreadAssistantMessagePart[];
   readonly status: MessageStatus;
   readonly metadata: {
+    readonly runId?: string | undefined;
     readonly unstable_state: ReadonlyJSONValue;
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
     readonly unstable_data: readonly ReadonlyJSONValue[];
@@ -1296,6 +1312,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly toolName: string;
   readonly args: TArgs;
   readonly result?: TResult | undefined;
+  readonly responseDeliveryStatus?: "queued" | undefined;
   readonly isError?: boolean | undefined;
   readonly isPreliminary?: boolean | undefined;
   readonly argsText: string;
@@ -1594,11 +1611,11 @@ declare global {
 declare const hasFieldReference: (value: unknown) => boolean;
 
 declare namespace entry_root_default_exports {
-  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, hasFieldReference, normalizeSpec, normalizeUINode, renderGenerativeUI, resolveFieldReferences };
+  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIBindings, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, hasFieldReference, normalizeSpec, normalizeUINode, renderGenerativeUI, resolveFieldReferences };
 }
 
 declare namespace entry_root_react_server_exports {
-  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, hasFieldReference, normalizeSpec, normalizeUINode, renderGenerativeUI, resolveFieldReferences };
+  export { ALERT_TONES, ALIGNS, Action, ActionDispatchContext, ActionHandler, ActionRegistry, AlertTone, Align, BUTTON_STYLES, ButtonStyle, COLORS, Color, GenerativeUIAction, GenerativeUIBindings, GenerativeUIComponent, GenerativeUIDispatch, GenerativeUIElement, GenerativeUILibrary, GenerativeUINode, GenerativeUIProps, GenerativeUIRenderContext, GenerativeUIStatus, GenerativeUIToJSXOptions, ICON_NAMES, IMAGE_SIZE_TOKENS, IconName, ImageSize, JSONGenerativeUI, JSONGenerativeUIOptions, JUSTIFIES, Justify, LegacyComponentNode, NormalizedUIElement, NormalizedUINode, PresentTool, PresentToolOptions, PromptUserTool, TEXT_SIZES, TYPE_KEY, TextSize, UIChildren, UIElement, UINode, UISpec, WEIGHTS, Weight, buildPresentParameters, createActionRegistry, defaultGenerativeUILibrary, defineGenerativeComponents, emptyActionRegistry, generativeUIToJSX, hasFieldReference, normalizeSpec, normalizeUINode, renderGenerativeUI, resolveFieldReferences };
 }
 
 declare namespace entry_ir_exports {

@@ -1,20 +1,24 @@
 "use client";
 
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
-import { AssistantRuntimeProvider, useLocalRuntime } from "@assistant-ui/react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useCallback } from "react";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
+import { SampleScope } from "../sample-scope";
+import { useSampleRuntime } from "../use-sample-runtime";
 
 export function ThreadRunningSample() {
   return (
     <SampleFrame className="bg-muted/40 h-120 overflow-hidden">
-      <RunningResponseChat />
+      <SampleScope>
+        <RunningResponseChat />
+      </SampleScope>
     </SampleFrame>
   );
 }
 
 function RunningResponseChat() {
-  const runtime = useLocalRuntime({
+  const runtime = useSampleRuntime({
     // First run yields a partial response and stays running until the user
     // clicks stop; follow-up prompts finish with a short reply.
     async *run({ messages, abortSignal }) {

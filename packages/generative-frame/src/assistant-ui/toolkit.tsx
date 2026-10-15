@@ -6,8 +6,15 @@ import {
   type Toolkit,
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
-import { useEffect, useMemo, useState, type ComponentType } from "react";
-import { previewWidget } from "../preview";
+import {
+  useEffect,
+  useInsertionEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentType,
+} from "react";
+import { previewWidget, type PreviewOptions } from "../preview";
 import type { ConsoleEntry, WidgetError } from "../protocol";
 import { buildRepairFeedback } from "../repair/repair";
 import { useThemeTokens } from "../react/useThemeTokens";
@@ -27,11 +34,21 @@ import {
 } from "../tools/tools";
 import type { AnyTool, ToolDefinition } from "../tools/define";
 import {
-  toolkitEntry,
-  type ToolkitDisplay,
-  type WidgetToolkitExtension,
-} from "./extension";
+  hasLaterToolCallInMessage,
+  type MessageLike,
+  type ToolCall,
+} from "./tool-calls";
+import { toolkitEntry } from "./entry";
+import type { ToolkitDisplay, WidgetToolkitExtension } from "./extension";
 import { resolveWidgetCode, resolveWidgetOrigin } from "./history";
+import {
+  frameContext,
+  savedContext,
+  type ModelContextSource,
+  type SharedContext,
+} from "./modelContext";
+import { createSnapshotSaver } from "./snapshotSaver";
+import { useSharedContext } from "./useSharedContext";
 
 /**
  * Where theme tokens come from in an assistant-ui app: shadcn/ui variables
@@ -73,7 +90,7 @@ export type WidgetToolkitOptions = Omit<
    */
   execution?: "frontend" | "backend";
   /** Options for every widget frame (csp, product, maxHeight, handlers, …). */
-  widget?: Omit<UseWidgetOptions, "tokens">;
+  widget?: Omit<UseWidgetOptions, "tokens" | "initialState">;
   /** Spec mode: `createSpecToolkit(catalog, { components })` from `generative-frame/spec/assistant-ui`. */
   spec?: WidgetToolkitExtension;
   /** More tools for the model, such as data lookups. They execute like the widget tools and render nothing in the thread. */
@@ -137,6 +154,14 @@ type ShowArgs = Partial<ShowWidgetInput>;
 type EditArgs = Partial<EditWidgetInput>;
 
 const REPORT_BACKLOG = 50;
+/** A later show takes over once it has code to show; a later edit only once its arguments are settled and its edits apply, so the widget stays while a show has no code or an edit streams or fails. */
+const takesOverWidget = (messages: readonly MessageLike[], call: ToolCall) =>
+  (call.name === "show_widget" &&
+    typeof call.args["widget_code"] === "string" &&
+    call.args["widget_code"].trim() !== "") ||
+  (call.name === "edit_widget" &&
+    call.settled &&
+    resolveWidgetCode(messages, call.id) !== undefined);
 
 /** Hands render reports from the thread's widgets to the tool calls waiting for them. */
 function createRenderReports() {
@@ -196,6 +221,52 @@ const visuallyHidden = {
   whiteSpace: "nowrap",
 } as const;
 
+const previewFrameOptions = (
+  widget: WidgetToolkitOptions["widget"],
+): PreviewOptions => ({
+  ...(widget?.product !== undefined ? { product: widget.product } : {}),
+  ...(widget?.frame !== undefined ? { frame: widget.frame } : {}),
+  ...(widget?.unsafeShimDomain !== undefined
+    ? { unsafeShimDomain: widget.unsafeShimDomain }
+    : {}),
+  ...(widget?.opaqueOrigin !== undefined
+    ? { opaqueOrigin: widget.opaqueOrigin }
+    : {}),
+});
+
+function savedWidgetState(
+  log: ToolCallMessagePartProps<ShowArgs>["unstable_interactions"],
+  toolCallId: string,
+): unknown {
+  const entries = log?.entries ?? [];
+  for (let index = entries.length - 1; index >= 0; index--) {
+    const { type, payload } = entries[index]!;
+    if (
+      type === "action" &&
+      payload["type"] === "widgetState" &&
+      payload["toolCallId"] === toolCallId
+    ) {
+      return payload["state"] ?? null;
+    }
+  }
+  return null;
+}
+
+function useWidgetModelContext(source: ModelContextSource) {
+  const aui = useAui();
+  useEffect(
+    () =>
+      aui.modelContext.register({
+        getModelContext: () => {
+          const system = source.read();
+          return system ? { system } : {};
+        },
+        subscribe: source.subscribe,
+      }),
+    [aui, source],
+  );
+}
+
 /**
  * Renders `show_widget`, `edit_widget`, and `render_spec` tool calls in an
  * assistant-ui thread: widget code streams into a frame from the partial
@@ -209,7 +280,21 @@ export function createWidgetToolkit(
   const registry = options.registry ?? createWidgetRegistry();
   const tools: WidgetTools & Record<string, AnyTool> = createWidgetTools({
     ...options,
-    preview: options.preview ?? previewWidget,
+    guidance: {
+      ...options.guidance,
+      hostApi: {
+        modelContext: true,
+        clipboard: options.widget?.onCopyText !== undefined,
+        ...options.guidance?.hostApi,
+      },
+    },
+    preview:
+      options.preview ??
+      ((code, previewOptions) =>
+        previewWidget(code, {
+          ...previewFrameOptions(options.widget),
+          ...previewOptions,
+        })),
     registry,
     modules: [...(options.modules ?? []), ...(options.spec?.modules ?? [])],
     extraTools: { ...options.extraTools, ...options.spec?.tools },
@@ -249,19 +334,82 @@ export function createWidgetToolkit(
   function ToolWidget({
     code,
     streaming,
+    title,
     toolCallId,
     storageId,
+    unstable_interactions,
+    unstable_recordInteraction,
   }: {
     code: string;
     streaming: boolean;
+    title: string;
     toolCallId: string;
     storageId: string | undefined;
+    unstable_interactions: ToolCallMessagePartProps<ShowArgs>["unstable_interactions"];
+    unstable_recordInteraction: ToolCallMessagePartProps<ShowArgs>["unstable_recordInteraction"];
   }) {
     const widgetProps = useWidgetProps();
+    const [initialState] = useState(() =>
+      savedWidgetState(unstable_interactions, toolCallId),
+    );
+    const record = useRef(unstable_recordInteraction);
+    useInsertionEffect(() => {
+      record.current = unstable_recordInteraction;
+    });
+    const [initialContext] = useState(() =>
+      savedContext(unstable_interactions, toolCallId, "widgetState"),
+    );
+    const latest = useRef({ state: initialState, context: initialContext });
+    // An empty snapshot stays `null`, which tells the saver nothing was saved yet, so a failed first save leaves no marker.
+    const [snapshot] = useState(() => () => {
+      const { state, context } = latest.current;
+      return context ? { state, context } : state === null ? null : { state };
+    });
+    const [saver] = useState(() =>
+      createSnapshotSaver<{ state: unknown; context?: SharedContext } | null>(
+        snapshot(),
+        (saved) =>
+          record.current?.({
+            type: "action",
+            payload: {
+              type: "widgetState",
+              toolCallId,
+              state: saved ? saved.state : null,
+              ...(saved?.context ? { context: saved.context } : {}),
+            },
+          }),
+      ),
+    );
+    useEffect(() => () => saver.flush(), [saver]);
+    const share = useSharedContext({
+      title,
+      toolCallId,
+      initial: widgetProps.onUpdateModelContext ? undefined : initialContext,
+      useModelContext: useWidgetModelContext,
+      onShare: (context) => {
+        latest.current.context = context;
+        saver.schedule(snapshot);
+      },
+    });
+    const widgetOptions = {
+      ...widgetProps,
+      initialState,
+      onWidgetState: (state: unknown) => {
+        latest.current.state = state;
+        saver.schedule(snapshot);
+        widgetProps.onWidgetState?.(state);
+      },
+      onUpdateModelContext:
+        widgetProps.onUpdateModelContext ??
+        ((params: unknown) => {
+          share(frameContext(params));
+          return {};
+        }),
+    };
     const { ref, widget } = useWidget(
-      storageId !== undefined && !widgetProps.frame
-        ? { ...widgetProps, id: storageId }
-        : widgetProps,
+      storageId !== undefined && !widgetProps.frame && !widgetProps.opaqueOrigin
+        ? { ...widgetOptions, id: storageId }
+        : widgetOptions,
     );
 
     useEffect(() => {
@@ -305,21 +453,48 @@ export function createWidgetToolkit(
     return <div ref={ref} />;
   }
 
+  function useWidgetCallSuperseded(
+    messages: readonly MessageLike[],
+    toolCallId: string,
+    title: string,
+  ) {
+    const superseded = useMemo(
+      () =>
+        hasLaterToolCallInMessage(messages, toolCallId, title, (call) =>
+          takesOverWidget(messages, call),
+        ),
+      [messages, toolCallId, title],
+    );
+    useEffect(() => {
+      if (!superseded || !reportOptions) return;
+      reports.report(toolCallId, {
+        status: "timeout",
+        feedback:
+          "This widget was superseded by a later call with the same title in this message and was not rendered.",
+      });
+    }, [superseded, toolCallId]);
+    return superseded;
+  }
+
   function ShowWidgetUI({
     args,
     toolCallId,
+    unstable_interactions,
+    unstable_recordInteraction,
   }: ToolCallMessagePartProps<ShowArgs>) {
     const { propStatus } = useToolArgsStatus<ShowWidgetInput>();
+    const messages = useAuiState((s) => s.thread.messages);
     const streaming = propStatus.widget_code !== "complete";
     const code = typeof args.widget_code === "string" ? args.widget_code : "";
     const title = typeof args.title === "string" ? args.title : "";
     const storageId = useStorageId(toolCallId);
+    const superseded = useWidgetCallSuperseded(messages, toolCallId, title);
 
     useEffect(() => {
       if (streaming || !title || !code) return;
       if (registry.get(title)?.code !== code) registry.set(title, code);
     }, [streaming, title, code]);
-
+    if (superseded) return null;
     const status = args.loading_messages?.[0];
     return (
       <div data-gf-widget={title || undefined}>
@@ -331,8 +506,11 @@ export function createWidgetToolkit(
         <ToolWidget
           code={code}
           streaming={streaming}
+          title={title}
           toolCallId={toolCallId}
           storageId={storageId}
+          unstable_interactions={unstable_interactions}
+          unstable_recordInteraction={unstable_recordInteraction}
         />
       </div>
     );
@@ -341,11 +519,14 @@ export function createWidgetToolkit(
   function EditWidgetUI({
     args,
     toolCallId,
+    unstable_interactions,
+    unstable_recordInteraction,
   }: ToolCallMessagePartProps<EditArgs>) {
     const { argsStatus } = useToolArgsStatus<EditWidgetInput>();
     const messages = useAuiState((s) => s.thread.messages);
     const title = typeof args.title === "string" ? args.title : "";
     const complete = argsStatus === "complete";
+    const superseded = useWidgetCallSuperseded(messages, toolCallId, title);
     const code = useMemo(
       () => (complete ? resolveWidgetCode(messages, toolCallId) : undefined),
       [complete, messages, toolCallId],
@@ -360,7 +541,7 @@ export function createWidgetToolkit(
       if (!title || code === undefined) return;
       if (registry.get(title)?.code !== code) registry.set(title, code);
     }, [title, code]);
-
+    if (superseded) return null;
     if (!complete) {
       return (
         <p role="status" style={{ margin: "4px 0", opacity: 0.7 }}>
@@ -381,8 +562,11 @@ export function createWidgetToolkit(
         <ToolWidget
           code={code}
           streaming={false}
+          title={title}
           toolCallId={toolCallId}
           storageId={storageId}
+          unstable_interactions={unstable_interactions}
+          unstable_recordInteraction={unstable_recordInteraction}
         />
       </div>
     );

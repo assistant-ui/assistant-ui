@@ -26,6 +26,7 @@ export const METHODS = {
   callTool: "tools/call",
   requestDisplayMode: "ui/request-display-mode",
   updateModelContext: "ui/update-model-context",
+  copyText: "genframe/copy-text",
   widgetState: "genframe/widget-state",
   log: "genframe/log",
   error: "genframe/error",
@@ -36,6 +37,20 @@ export type WidgetKind = "html" | "svg";
 export type ColorScheme = "light" | "dark";
 
 export type DisplayMode = "inline" | "fullscreen" | "pip";
+
+/**
+ * The params of a widget's MCP Apps `ui/initialize` request, as
+ * `onInitialized` receives them. A malformed field is omitted, and
+ * `availableDisplayModes` keeps only the modes in `DisplayMode`.
+ */
+export type McpAppInitializeParams = {
+  appInfo?: { name: string; version: string; [key: string]: unknown };
+  appCapabilities?: {
+    availableDisplayModes?: DisplayMode[];
+    [key: string]: unknown;
+  };
+  protocolVersion?: string;
+};
 
 /** The MCP Apps host context, plus the fields this package adds. */
 export type HostContext = {
@@ -52,6 +67,7 @@ export type HostContext = {
 export type InitMessage = {
   type: typeof INIT_MESSAGE;
   context: HostContext;
+  state?: unknown;
 };
 
 export type WidgetErrorKind =

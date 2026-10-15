@@ -5,7 +5,7 @@ import { createRoot, hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { convertSurfaceToUISpec } from "../a2ui/convert";
-import { A2uiBindingContext } from "../a2ui/BindingContext";
+import { A2uiBindingContext } from "../bindingContext";
 import { applyA2uiOperations } from "../a2ui/reducer";
 import { A2uiPresentRenderer } from "../a2ui/PresentRenderer";
 import { createActionRegistry, type ActionHandler } from "../actionRegistry";
@@ -62,7 +62,50 @@ const mount = async (
   return container;
 };
 
+const confirmComposition = async (
+  control: HTMLInputElement | HTMLTextAreaElement,
+  ctrlKey = false,
+) => {
+  const event = new KeyboardEvent("keydown", {
+    key: "Enter",
+    isComposing: false,
+    ctrlKey,
+    bubbles: true,
+  });
+  Object.defineProperty(event, "keyCode", { value: 229 });
+  await act(async () => control.dispatchEvent(event));
+};
+
 describe("Input", () => {
+  it("does not submit a single-line input on an IME confirmation Enter", async () => {
+    const submit = vi.fn();
+    const container = await mount(
+      { $type: "Input", defaultValue: "draft", $action: { type: "submit" } },
+      { submit },
+    );
+
+    await confirmComposition(container.querySelector("input")!);
+
+    expect(submit).not.toHaveBeenCalled();
+  });
+
+  it("does not submit a multiline input on an IME confirmation Ctrl+Enter", async () => {
+    const submit = vi.fn();
+    const container = await mount(
+      {
+        $type: "Input",
+        multiline: true,
+        defaultValue: "draft",
+        $action: { type: "submit" },
+      },
+      { submit },
+    );
+
+    await confirmComposition(container.querySelector("textarea")!, true);
+
+    expect(submit).not.toHaveBeenCalled();
+  });
+
   it("keeps password and number single-line when multiline is set", async () => {
     const container = await mount(
       [
@@ -367,6 +410,101 @@ describe("option identity", () => {
 });
 
 describe("CheckboxGroup", () => {
+  it("counts the checked options of a progress checklist as the user works through it", async () => {
+    const container = await mount(
+      {
+        $type: "CheckboxGroup",
+        options: toppings,
+        defaultValue: ["onion"],
+        progress: true,
+      },
+      {},
+    );
+    const label = () =>
+      container.querySelector('[data-aui="checkboxgroup-progress-label"]')
+        ?.textContent;
+    const fill = () =>
+      container.querySelector<HTMLElement>(
+        '[data-aui="checkboxgroup-progress-fill"]',
+      )?.style.width;
+    expect(label()).toBe("1 of 3");
+    const [basil, olives] = container.querySelectorAll("input");
+
+    await act(async () => basil!.click());
+    await act(async () => olives!.click());
+    expect(label()).toBe("3 of 3");
+    expect(fill()).toBe("100%");
+    await act(async () => basil!.click());
+    expect(label()).toBe("2 of 3");
+  });
+
+  it("counts each checked box once when two options share a value", async () => {
+    const container = await mount(
+      {
+        $type: "CheckboxGroup",
+        progress: true,
+        options: [
+          { label: "Levers", value: "tools" },
+          { label: "Pump", value: "tools" },
+          { label: "Patch kit", value: "patches" },
+        ],
+      },
+      {},
+    );
+    const label = () =>
+      container.querySelector('[data-aui="checkboxgroup-progress-label"]')
+        ?.textContent;
+    const [levers, pump] = container.querySelectorAll("input");
+    await act(async () => levers!.click());
+    expect(label()).toBe("1 of 3");
+    await act(async () => pump!.click());
+    expect(label()).toBe("2 of 3");
+    await act(async () => levers!.click());
+    expect(label()).toBe("1 of 3");
+  });
+
+  it("leaves a removed option out of the count", async () => {
+    const tree = (choices: typeof toppings) => ({
+      $type: "CheckboxGroup",
+      progress: true,
+      options: choices,
+    });
+    const container = await mount(tree(toppings), {});
+    const [basil, olives] = container.querySelectorAll("input");
+    await act(async () => basil!.click());
+    await act(async () => olives!.click());
+    await act(async () => root!.render(view(tree(toppings.slice(1)))));
+    expect(
+      container.querySelector('[data-aui="checkboxgroup-progress-label"]')
+        ?.textContent,
+    ).toBe("1 of 2");
+  });
+
+  it("counts boxes checked before progress was turned on", async () => {
+    const tree = (progress: boolean) => ({
+      $type: "CheckboxGroup",
+      progress,
+      options: toppings,
+    });
+    const container = await mount(tree(false), {});
+    await act(async () => container.querySelector("input")!.click());
+    await act(async () => root!.render(view(tree(true))));
+    expect(
+      container.querySelector('[data-aui="checkboxgroup-progress-label"]')
+        ?.textContent,
+    ).toBe("1 of 3");
+  });
+
+  it("shows no progress unless asked", async () => {
+    const container = await mount(
+      { $type: "CheckboxGroup", options: toppings },
+      {},
+    );
+    expect(
+      container.querySelector('[data-aui="checkboxgroup-progress"]'),
+    ).toBeNull();
+  });
+
   it("dispatches its checked option values in option order on every change", async () => {
     const pick = vi.fn();
     const container = await mount(

@@ -1,38 +1,20 @@
-import type { CSSProperties } from "react";
-import { z } from "zod";
 import type { GenerativeUILibrary } from "../types";
-import { IMAGE_SIZE_TOKENS } from "../ir";
+import { mediaDefinitions } from "./definitions/media";
+import { imageStyle } from "./imageStyle";
+import { mapPlaces, placeHref } from "./structureValues";
+import { toTextContent } from "./toTextContent";
 
 export const mediaVocabulary = {
   Image: {
-    description: "An image. Provide `src` and `alt` for accessibility.",
-    properties: z.object({
-      src: z.string().describe("Image URL."),
-      alt: z.string().describe("Alt text for accessibility."),
-      size: z
-        .union([z.enum(IMAGE_SIZE_TOKENS), z.number()])
-        .optional()
-        .describe("Size token or pixel value."),
-      round: z
-        .boolean()
-        .optional()
-        .describe(
-          "Render as a circular avatar (fully rounded, cropped to a square).",
-        ),
-    }),
+    ...mediaDefinitions.Image,
     render: ({ src, alt, size, round }) => {
-      const numericSize = typeof size === "number" ? size : undefined;
-      const style: CSSProperties | undefined =
-        numericSize === undefined
-          ? undefined
-          : round
-            ? { width: `${numericSize}px`, height: `${numericSize}px` }
-            : { maxWidth: `${numericSize}px` };
+      const { numericSize, style } = imageStyle(size, round);
 
       return (
         <img
           data-aui="image"
           data-aui-size={numericSize === undefined ? size : undefined}
+          data-aui-sized={numericSize !== undefined || undefined}
           data-aui-round={round || undefined}
           src={src}
           alt={alt}
@@ -42,15 +24,47 @@ export const mediaVocabulary = {
     },
   },
   Divider: {
-    description: "A horizontal rule between sections.",
-    properties: z.object({
-      flush: z
-        .boolean()
-        .optional()
-        .describe("Whether the divider spans the full width with no inset."),
-    }),
+    ...mediaDefinitions.Divider,
     render: ({ flush }) => (
       <hr data-aui="divider" data-aui-flush={flush || undefined} />
+    ),
+  },
+  Diagram: {
+    ...mediaDefinitions.Diagram,
+    render: ({ code, title }) => {
+      const caption = toTextContent(title);
+      return (
+        <figure data-aui="diagram">
+          <pre data-aui="diagram-code">
+            <code>{toTextContent(code)}</code>
+          </pre>
+          {caption != null ? (
+            <figcaption data-aui="diagram-title">{caption}</figcaption>
+          ) : null}
+        </figure>
+      );
+    },
+  },
+  Map: {
+    ...mediaDefinitions.Map,
+    render: ({ places }) => (
+      <ol data-aui="map">
+        {mapPlaces(places).map((place, index) => (
+          <li key={index} data-aui="map-place">
+            <a
+              data-aui="map-place-label"
+              href={placeHref(place)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {place.label}
+            </a>
+            {place.detail !== undefined ? (
+              <div data-aui="map-place-detail">{place.detail}</div>
+            ) : null}
+          </li>
+        ))}
+      </ol>
     ),
   },
 } satisfies GenerativeUILibrary;

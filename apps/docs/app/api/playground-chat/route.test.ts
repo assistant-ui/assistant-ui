@@ -1,6 +1,9 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { updateConfigSchema } from "@/lib/playground-config-schema";
 
 const mocks = vi.hoisted(() => ({
+  requireSession: vi.fn(),
+  enabled: true,
   checkRateLimit: vi.fn(),
   resolveChatModel: vi.fn(),
   getDistinctId: vi.fn(),
@@ -12,12 +15,19 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/feature-flags", async (importOriginal) => ({
   ...(await importOriginal()),
-  isAiPlaygroundEnabled: true,
+  get isAiPlaygroundEnabled() {
+    return mocks.enabled;
+  },
 }));
 
 vi.mock("@/lib/rate-limit", async (importOriginal) => ({
   ...(await importOriginal()),
-  checkRateLimit: mocks.checkRateLimit,
+  checkPublicAssistantRateLimit: mocks.checkRateLimit,
+}));
+
+vi.mock("@/lib/anonymous-session", async (importOriginal) => ({
+  ...(await importOriginal()),
+  requirePublicAssistantSession: mocks.requireSession,
 }));
 
 vi.mock("@/lib/ai/provider", async (importOriginal) => ({
@@ -59,7 +69,54 @@ const request = (overrides?: Record<string, unknown>) =>
     }),
   });
 
+beforeEach(() => {
+  mocks.enabled = true;
+  mocks.requireSession.mockReturnValue({
+    id: "session_1234567890",
+    expiresAt: Date.now() + 60_000,
+  });
+});
+
 describe("POST /api/playground-chat telemetry", () => {
+  it("lists exactly the config schema fields in the system prompt", async () => {
+    mocks.checkRateLimit.mockResolvedValue(null);
+    mocks.resolveChatModel.mockReturnValue({ model: {} });
+    mocks.streamText.mockReturnValue({
+      toUIMessageStreamResponse: () => new Response(null, { status: 200 }),
+    });
+
+    await POST(request());
+
+    const system = mocks.streamText.mock.calls[0]?.[0].system as string;
+    const fieldsIn = (section: string) => {
+      const body = system.split(`### ${section}\n`)[1]?.split("\n\n")[0];
+      return Array.from(
+        body?.matchAll(/^- ([\w.]+) \(/gm) ?? [],
+        ([, field]) => field,
+      );
+    };
+    const components = updateConfigSchema.shape.components.unwrap().shape;
+    const styles = updateConfigSchema.shape.styles.unwrap().shape;
+    const expectedComponents = Object.keys(components).flatMap((key) =>
+      key === "actionBar"
+        ? Object.keys(components.actionBar.unwrap().shape).map(
+            (child) => `${key}.${child}`,
+          )
+        : [key],
+    );
+    const expectedStyles = Object.keys(styles).flatMap((key) =>
+      key === "colors"
+        ? Object.keys(styles.colors.unwrap().shape).map(
+            (child) => `${key}.${child}`,
+          )
+        : [key],
+    );
+
+    expect(fieldsIn("components")).toEqual(expectedComponents);
+    expect(fieldsIn("styles")).toEqual(expectedStyles);
+    expect(system).toContain("### customCSS (string, optional)");
+  });
+
   it("reports under its own capability so it separates from the other chat routes", async () => {
     mocks.checkRateLimit.mockResolvedValue(null);
     mocks.resolveChatModel.mockReturnValue({ model: {} });
@@ -148,4 +205,60 @@ describe("POST /api/playground-chat telemetry", () => {
     expect(mocks.resolveChatModel).not.toHaveBeenCalled();
     expect(mocks.streamText).not.toHaveBeenCalled();
   });
+});
+
+describe("POST /api/playground-chat access boundary", () => {
+  it("checks the feature flag before session or quota work", async () => {
+    mocks.enabled = false;
+
+    const response = await POST(request());
+
+    expect(response.status).toBe(404);
+    expect(mocks.requireSession).not.toHaveBeenCalled();
+    expect(mocks.checkRateLimit).not.toHaveBeenCalled();
+    expect(mocks.resolveChatModel).not.toHaveBeenCalled();
+  });
+
+  it.each([401, 403, 503])(
+    "rejects a refused session (%i) before quota or body parsing",
+    async (status) => {
+      mocks.requireSession.mockReturnValue(new Response("refused", { status }));
+      const req = request();
+      const readBody = vi.spyOn(req, "json");
+
+      const response = await POST(req);
+
+      expect(response.status).toBe(status);
+      expect(readBody).not.toHaveBeenCalled();
+      expect(mocks.checkRateLimit).not.toHaveBeenCalled();
+      expect(mocks.resolveChatModel).not.toHaveBeenCalled();
+      expect(mocks.streamText).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([429, 503])(
+    "preserves a shared quota refusal (%i) before body parsing",
+    async (status) => {
+      mocks.checkRateLimit.mockResolvedValue(
+        new Response("refused", {
+          status,
+          headers: { "Retry-After": "30" },
+        }),
+      );
+      const req = request();
+      const readBody = vi.spyOn(req, "json");
+
+      const response = await POST(req);
+
+      expect(response.status).toBe(status);
+      expect(response.headers.get("Retry-After")).toBe("30");
+      expect(mocks.checkRateLimit).toHaveBeenCalledWith(
+        req,
+        "session_1234567890",
+      );
+      expect(readBody).not.toHaveBeenCalled();
+      expect(mocks.resolveChatModel).not.toHaveBeenCalled();
+      expect(mocks.streamText).not.toHaveBeenCalled();
+    },
+  );
 });

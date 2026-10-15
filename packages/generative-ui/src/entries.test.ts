@@ -59,6 +59,15 @@ function collectGraph(entry: string): Set<string> {
   return visited;
 }
 
+function graphMatches(
+  entry: string,
+  matches: (file: string, source: string) => boolean,
+): string[] {
+  return [...collectGraph(join(SRC_DIR, entry))]
+    .map((file) => relative(SRC_DIR, file).replaceAll("\\", "/"))
+    .filter((file) => matches(file, readFileSync(join(SRC_DIR, file), "utf8")));
+}
+
 function clientOnlyReactImports(file: string): string[] {
   const names: string[] = [];
   for (const [, typeOnly, specifiers] of readFileSync(file, "utf8").matchAll(
@@ -83,6 +92,7 @@ const ENTRIES = [
   "a2ui.ts",
   "slack.ts",
   "teams.ts",
+  "spec.ts",
 ];
 
 describe("published entries", () => {
@@ -112,14 +122,53 @@ describe("framework-neutral entries", () => {
   it.each(["index.ts", "a2ui.ts", "slack.ts", "teams.ts"])(
     "%s never reaches React, not even through a type import",
     (entry) => {
-      const reactFiles = [...collectGraph(join(SRC_DIR, entry))]
-        .filter(
-          (file) =>
-            file.endsWith(".tsx") ||
-            REACT_SPECIFIER_RE.test(readFileSync(file, "utf8")),
-        )
-        .map((file) => relative(SRC_DIR, file));
+      const reactFiles = graphMatches(
+        entry,
+        (file, source) =>
+          file.endsWith(".tsx") || REACT_SPECIFIER_RE.test(source),
+      );
       expect(reactFiles).toEqual([]);
     },
   );
+});
+
+describe("framework-neutral vocabulary modules", () => {
+  it.each([
+    "vocabulary/definitions/index.ts",
+    "vue.ts",
+    "spec/catalogDefinitions.ts",
+    "vocabulary/tableData.ts",
+    "vocabulary/chartData.ts",
+    "vocabulary/interactiveValues.ts",
+    "vocabulary/layoutValues.ts",
+    "vocabulary/carouselValues.ts",
+    "vocabulary/listItemValues.ts",
+    "vocabulary/structureValues.ts",
+    "vocabulary/imageStyle.ts",
+    "vocabulary/iconGlyphs.ts",
+    "vocabulary/collectFormValues.ts",
+  ])("%s never reaches React, not even through a type import", (entry) => {
+    const reactFiles = graphMatches(
+      entry,
+      (file, source) =>
+        file.endsWith(".tsx") || REACT_SPECIFIER_RE.test(source),
+    );
+    expect(reactFiles).toEqual([]);
+  });
+});
+
+const WEB_SPECIFIER_RE =
+  /\b(?:from|import)\s*\(?\s*["'](?:react-dom|@assistant-ui\/react)(?:\/[^"']*)?["']/;
+
+describe("React Native entry", () => {
+  it("spec.native.ts never reaches react-dom, @assistant-ui/react, or the web vocabulary", () => {
+    const webFiles = graphMatches(
+      "spec.native.ts",
+      (file, source) =>
+        /^vocabulary\/(?:index\.ts|[^/]+\.tsx)$/.test(file) ||
+        file === "spec/toSpecCatalog.tsx" ||
+        WEB_SPECIFIER_RE.test(source),
+    );
+    expect(webFiles).toEqual([]);
+  });
 });

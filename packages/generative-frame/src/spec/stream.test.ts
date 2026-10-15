@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { createSpecStream, parseSpecStream } from "./stream";
 
@@ -8,6 +9,75 @@ const LINES = [
 ];
 
 describe("createSpecStream", () => {
+  it.each([null, [], false, 7, "text"])(
+    "rejects invalid state %j in whole specs and patches",
+    (state) => {
+      const initial = parseSpecStream(LINES.join("\n")).spec;
+      for (const source of [
+        JSON.stringify({ ...initial, state }),
+        JSON.stringify({ op: "add", path: "/state", value: state }),
+      ]) {
+        const result = parseSpecStream(source, { initial });
+        expect(result.spec).toBe(initial);
+        expect(result.errors).toHaveLength(1);
+      }
+    },
+  );
+
+  it.each([
+    null,
+    [],
+    false,
+    7,
+    "text",
+    { root: "main", elements: null },
+    { root: "main", elements: [] },
+    { elements: {} },
+  ])(
+    "rejects an invalid document replacement %j without losing the current spec",
+    (value) => {
+      const initial = parseSpecStream(LINES.join("\n")).spec;
+      const stream = createSpecStream({ initial });
+      const update = stream.push(
+        JSON.stringify({ op: "replace", path: "", value }) + "\n",
+      );
+      expect(update.spec).toBe(initial);
+      expect(update.errors).toHaveLength(1);
+      expect(update.patches).toEqual([]);
+      stream.push(
+        '{"op":"replace","path":"/elements/t/props/text","value":"repaired"}\n',
+      );
+      expect(stream.result().spec.elements["t"]?.props?.["text"]).toBe(
+        "repaired",
+      );
+    },
+  );
+
+  it.each(["/root", "/elements"])(
+    "rejects removing the required %s field",
+    (path) => {
+      const initial = parseSpecStream(LINES.join("\n")).spec;
+      const result = parseSpecStream(JSON.stringify({ op: "remove", path }), {
+        initial,
+      });
+      expect(result.spec).toBe(initial);
+      expect(result.errors).toHaveLength(1);
+    },
+  );
+
+  it.each([null, []])(
+    "skips a complete spec with an invalid elements value %j",
+    (elements) => {
+      const initial = parseSpecStream(LINES.join("\n")).spec;
+      const result = parseSpecStream(
+        JSON.stringify({ root: "main", elements }),
+        { initial },
+      );
+      expect(result.spec).toBe(initial);
+      expect(result.errors).toHaveLength(1);
+    },
+  );
+
   it("builds the spec across arbitrary chunk boundaries", () => {
     const source = `${LINES.join("\n")}\n`;
     const stream = createSpecStream();
@@ -85,6 +155,34 @@ describe("createSpecStream", () => {
   });
 
   describe("inline mode", () => {
+    it.each([
+      "hello\r\nworld",
+      "hello\r\n\r\nworld\r\n",
+      "hello\r",
+      "hello\rworld",
+      "hello\r\r\nworld",
+      `hello\r\n\`\`\`spec\r\n${LINES[0]}\r\n\`\`\`\r\nworld`,
+    ])("preserves inline output at every split in %j", (source) => {
+      const expected = parseSpecStream(source, { mode: "inline" });
+      for (let split = 0; split <= source.length; split++) {
+        const stream = createSpecStream({ mode: "inline" });
+        stream.push(source.slice(0, split));
+        stream.push(source.slice(split));
+        expect(stream.result()).toEqual(expected);
+      }
+      const stream = createSpecStream({ mode: "inline" });
+      for (const character of source) stream.push(character);
+      expect(stream.result()).toEqual(expected);
+    });
+
+    it("holds a trailing carriage return until the next character arrives", () => {
+      const stream = createSpecStream({ mode: "inline" });
+      expect(stream.push("hello\r").text).toBe("hello");
+      expect(stream.push("").text).toBe("");
+      expect(stream.push("\nworld").text).toBe("\nworld");
+      expect(stream.result().text).toBe("hello\nworld");
+    });
+
     it("separates prose, fenced patches, and bare patch lines", () => {
       const source = [
         "Here is the dashboard:",

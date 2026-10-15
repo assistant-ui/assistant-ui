@@ -24,9 +24,10 @@ export default defineConfig({
       thresholds: {
         lines: 95,
         functions: 91,
-        branches: 79,
+        branches: 80,
         statements: 92,
-        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
       },
     },
     environment: "jsdom",

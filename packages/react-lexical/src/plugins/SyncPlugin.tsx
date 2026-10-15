@@ -15,12 +15,13 @@ import {
   $isElementNode,
   $isLineBreakNode,
   $isTextNode,
+  CLEAR_HISTORY_COMMAND,
   HISTORY_MERGE_TAG,
   SKIP_DOM_SELECTION_TAG,
   type LexicalEditor,
   type LexicalNode,
 } from "lexical";
-import { useAui } from "@assistant-ui/store";
+import { useAui, useAuiState } from "@assistant-ui/store";
 import type {
   Unstable_DirectiveFormatter,
   Unstable_DirectiveSegment,
@@ -44,6 +45,10 @@ type ParsedSegment = {
 
 type CompositeParser = (text: string) => readonly ParsedSegment[];
 type ParsedLines = readonly (readonly ParsedSegment[])[];
+type ComposerIdentity = {
+  composerRuntime: object;
+  threadId: string | undefined;
+};
 
 type SegmentKey =
   | readonly ["text", string]
@@ -277,7 +282,7 @@ function isEditorFocused(editor: LexicalEditor) {
   );
 }
 
-function parserOnlyTags(editor: LexicalEditor) {
+function syncHistoryMergeTags(editor: LexicalEditor) {
   const tags = [SYNC_TAG, HISTORY_MERGE_TAG];
   if (!isEditorFocused(editor)) tags.push(SKIP_DOM_SELECTION_TAG);
   return tags;
@@ -333,6 +338,7 @@ function syncRuntimeToLexical(
   previousParser: CompositeParser | undefined,
   onComplete: () => void,
   parsedLines?: ParsedLines,
+  historyBoundary = false,
 ) {
   const parserOnly = previousParser !== undefined;
   editor.update(
@@ -394,7 +400,11 @@ function syncRuntimeToLexical(
     },
     {
       onUpdate: onComplete,
-      tag: parserOnly ? parserOnlyTags(editor) : SYNC_TAG,
+      tag: parserOnly
+        ? syncHistoryMergeTags(editor)
+        : historyBoundary
+          ? [SYNC_TAG, HISTORY_MERGE_TAG]
+          : SYNC_TAG,
     },
   );
 }
@@ -413,6 +423,7 @@ export function SyncPlugin({
 } = {}) {
   const [editor] = useLexicalComposerContext();
   const aui = useAui();
+  const mainThreadId = useAuiState((s) => s.optional.threads?.mainThreadId);
   const root = unstable_useTriggerPopoverRootContextOptional();
 
   const subscribe = useCallback(
@@ -446,6 +457,9 @@ export function SyncPlugin({
   const isSyncingFromRuntimeRef = useRef(false);
   const textDirtySinceSyncRef = useRef(false);
   const lastSyncedTextRef = useRef("");
+  const lastComposerIdentityRef = useRef<ComposerIdentity | undefined>(
+    undefined,
+  );
   const lastAppliedParserRef = useRef(parser);
   const applyPendingParserRef = useRef(() => {});
 
@@ -499,10 +513,29 @@ export function SyncPlugin({
     const composerRuntime = aui.composer.__internal_getRuntime?.();
     if (!composerRuntime) return;
 
+    const updateComposerIdentity = () => {
+      const nextIdentity = { composerRuntime, threadId: mainThreadId };
+      const previousIdentity = lastComposerIdentityRef.current;
+      const composerChanged =
+        previousIdentity !== undefined &&
+        (previousIdentity.composerRuntime !== nextIdentity.composerRuntime ||
+          previousIdentity.threadId !== nextIdentity.threadId);
+      lastComposerIdentityRef.current = nextIdentity;
+      if (composerChanged) {
+        editor.dispatchCommand(CLEAR_HISTORY_COMMAND, undefined);
+        editor.update(() => $getRoot().selectEnd(), {
+          tag: syncHistoryMergeTags(editor),
+        });
+      }
+      return composerChanged;
+    };
+    const composerChanged = updateComposerIdentity();
+
     const applyRuntimeText = (
       runtimeText: string,
       previousParser: CompositeParser | undefined,
       parsedLines?: ParsedLines,
+      historyBoundary = false,
     ) => {
       isSyncingFromRuntimeRef.current = true;
       lastSyncedTextRef.current = runtimeText;
@@ -517,6 +550,7 @@ export function SyncPlugin({
           isSyncingFromRuntimeRef.current = false;
         },
         parsedLines,
+        historyBoundary,
       );
     };
 
@@ -545,7 +579,7 @@ export function SyncPlugin({
     applyPendingParserRef.current = tryApplyParserChange;
 
     if (runtimeTextChanged) {
-      applyRuntimeText(initialText, undefined);
+      applyRuntimeText(initialText, undefined, undefined, composerChanged);
     } else {
       tryApplyParserChange();
     }
@@ -553,13 +587,15 @@ export function SyncPlugin({
     return composerRuntime.subscribe(() => {
       if (isSyncingFromLexicalRef.current) return;
 
+      const composerChanged = updateComposerIdentity();
+
       const runtimeText = composerRuntime.getState().text;
 
       if (runtimeText === lastSyncedTextRef.current) return;
 
-      applyRuntimeText(runtimeText, undefined);
+      applyRuntimeText(runtimeText, undefined, undefined, composerChanged);
     });
-  }, [editor, aui, parser]);
+  }, [editor, aui, parser, mainThreadId]);
 
   return null;
 }

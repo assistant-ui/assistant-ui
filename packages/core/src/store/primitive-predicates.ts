@@ -11,6 +11,7 @@ import type { AssistantState } from "@assistant-ui/store";
  */
 
 export const composerSendDisabled = (s: AssistantState): boolean =>
+  s.thread.isDisabled ||
   !s.composer.canSend ||
   (s.thread.isRunning &&
     !s.thread.capabilities.queue &&
@@ -25,6 +26,7 @@ export const composerInputDisabled = (s: AssistantState): boolean =>
 export const actionBarEditDisabled = (s: AssistantState): boolean =>
   s.composer.isEditing ||
   s.optional.message?.submission !== undefined ||
+  s.optional.thread?.isDisabled === true ||
   s.optional.thread?.voice !== undefined ||
   s.optional.thread?.capabilities.edit === false;
 

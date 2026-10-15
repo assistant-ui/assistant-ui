@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { isExecutedAsMain } from "./lib/main.mjs";
+import { isExcludedPackageTest } from "./lib/package-test-inputs.mjs";
 
 export const APP_BUILD_INPUTS = [
   ".github/workflows/code-quality.yaml",
@@ -14,6 +15,7 @@ export const APP_BUILD_INPUTS = [
   "scripts/app-build-inputs.test.mjs",
   "turbo.json",
   "scripts/lib/script-options.mjs",
+  "scripts/lib/package-test-inputs.mjs",
   "scripts/build-example-bundle.mjs",
   "scripts/package-example-bundles.mjs",
   "scripts/prepare-example-bundles.mjs",
@@ -30,12 +32,13 @@ const touchesBuiltApp = (file) =>
 export function hasAppBuildInputs(changedFiles) {
   return changedFiles.some(
     (file) =>
-      touchesBuiltApp(file) ||
-      APP_BUILD_INPUTS.some((input) => touches(file, input)),
+      !isExcludedPackageTest(file) &&
+      (touchesBuiltApp(file) ||
+        APP_BUILD_INPUTS.some((input) => touches(file, input))),
   );
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+if (isExecutedAsMain(import.meta.url, process.argv[1])) {
   const changedFiles = readFileSync(0, "utf8")
     .split("\0")
     .filter((file) => file !== "");

@@ -10,6 +10,8 @@ import { CSSProperties, ComponentType, ReactNode } from "react";
 
 import "react-textarea-autosize";
 
+import { Component as Component$1, ComputedRef, MaybeRefOrGetter, PropType, VNode } from "vue";
+
 import "zustand";
 
 type ActionBinding = {
@@ -29,6 +31,7 @@ type ActionHandler = (params: Record<string, unknown>, context: ActionSource & {
 type ActionSource = {
   elementId?: string;
   trigger?: string;
+  kind?: "event" | "watch";
 };
 
 type AncestorsOf<K extends ClientNames, Seen extends ClientNames = never> = K extends Seen ? never : ParentOf<K> extends never ? never : ParentOf<K> | AncestorsOf<ParentOf<K>, Seen | K>;
@@ -222,12 +225,15 @@ type CreateSpecToolsOptions = {
     spec: Spec;
     version: number;
   }>;
+  customRules?: readonly string[];
 };
 
 type CreateWidgetOptions = WidgetHandlers & {
   container: HTMLElement;
   product?: string;
   frame?: SafeContentFrame;
+  unsafeShimDomain?: string;
+  opaqueOrigin?: boolean;
   id?: string;
   csp?: CspOptions | string;
   tokens?: ThemeTokens;
@@ -237,6 +243,7 @@ type CreateWidgetOptions = WidgetHandlers & {
   maxHeight?: number;
   minHeight?: number;
   readyTimeoutMs?: number;
+  initialState?: unknown;
   code?: string;
 };
 
@@ -252,6 +259,8 @@ type CreateWidgetToolsOptions = {
 
 type CspOptions = {
   cdnOrigins?: readonly string[];
+  fontStyleOrigins?: readonly string[];
+  fontOrigins?: readonly string[];
   connectOrigins?: readonly string[];
   imageOrigins?: readonly string[];
   frameOrigins?: readonly string[];
@@ -390,6 +399,8 @@ type GuidanceOptions = {
   platform?: Platform;
   tokens?: ThemeTokens;
   cdnOrigins?: readonly string[];
+  fontStyleOrigins?: readonly string[];
+  fontOrigins?: readonly string[];
   connectOrigins?: readonly string[];
   allowEval?: boolean;
   width?: number;
@@ -399,6 +410,8 @@ type GuidanceOptions = {
 type HostApiOptions = {
   prompt?: boolean;
   callTool?: boolean;
+  modelContext?: boolean;
+  clipboard?: boolean;
 };
 
 type HostContext = {
@@ -458,6 +471,19 @@ type JsonSchema = {
 };
 
 type JsonSchemaType = "array" | "boolean" | "integer" | "null" | "number" | "object" | "string";
+
+type McpAppInitializeParams = {
+  appInfo?: {
+    name: string;
+    version: string;
+    [key: string]: unknown;
+  };
+  appCapabilities?: {
+    availableDisplayModes?: DisplayMode[];
+    [key: string]: unknown;
+  };
+  protocolVersion?: string;
+};
 
 type McpAppMetadata = {
   readonly resourceUri: string;
@@ -591,7 +617,7 @@ type PatchOperation = {
 
 type Platform = "desktop" | "mobile";
 
-type PreviewOptions = Pick<CreateWidgetOptions, "csp" | "css" | "frame" | "id" | "product" | "readyTimeoutMs"> & {
+type PreviewOptions = Pick<CreateWidgetOptions, "csp" | "css" | "frame" | "id" | "opaqueOrigin" | "product" | "readyTimeoutMs" | "unsafeShimDomain"> & {
   width?: number;
   appearance?: ColorScheme;
   tokens?: CreateWidgetOptions["tokens"];
@@ -737,6 +763,29 @@ type ReservedAccessorProps = "name" | "query" | "source";
 
 type ReservedScopeNames = "on" | "optional" | "subscribe";
 
+type ResolveSpecOptions = {
+  state?: unknown;
+};
+
+type ResolvedAction = {
+  action: string;
+  params: Record<string, unknown>;
+};
+
+type ResolvedElement = {
+  id: string;
+  type: string;
+  props: Record<string, unknown>;
+  bindings: Record<string, string>;
+  on: Record<string, ResolvedAction[]>;
+  children: ResolvedElement[];
+  slots: Record<string, ResolvedElement[]>;
+  key?: string;
+  itemPath?: string;
+};
+
+declare const SPEC_TOOL_RESULTS_RULE = "Results of earlier tool calls are in state under `/tools/<toolName>/<n>`, newest first: `0` is the latest call to that tool before this `render_spec` call, `1` the one before it, and so on. Show their values with `{ \"$state\": \"/tools/<toolName>/<n>/...\" }` rather than copying them, and never write `tools` in `state`. Indexes count back from each `render_spec` call, so when a patch follows another call to the same tool, update any binding that should keep showing the older result.";
+
 declare class SafeContentFrame {
   #private;
   constructor(product: string, options?: SafeContentFrameOptions);
@@ -754,6 +803,7 @@ interface SafeContentFrameOptions {
   enableBrowserCaching?: boolean;
   sandbox?: SandboxOption[];
   salt?: string;
+  unsafeShimDomain?: string;
 }
 
 interface SafeContentFrameRenderOptions {
@@ -842,6 +892,8 @@ type SpecComponentProps<P extends Record<string, unknown> = Record<string, unkno
 
 type SpecComponents = Record<string, ComponentType<SpecComponentProps<any>>>;
 
+type SpecComponents$1 = Record<string, Component$1>;
+
 type SpecElement = {
   type: string;
   props?: Record<string, unknown>;
@@ -856,6 +908,14 @@ type SpecElement = {
   watch?: Record<string, ActionBinding | ActionBinding[]>;
 };
 
+type SpecElementContext = {
+  readonly id: string;
+  readonly element: SpecElement;
+  readonly bindings: Record<string, string>;
+  readonly state: SpecStateStore;
+  readonly streaming: boolean;
+};
+
 type SpecIssue = {
   code: SpecIssueCode;
   severity: "error" | "warning";
@@ -864,11 +924,47 @@ type SpecIssue = {
   elementId?: string;
 };
 
-type SpecIssueCode = "children-not-allowed" | "cycle" | "invalid-element" | "invalid-params" | "invalid-patch" | "invalid-props" | "invalid-repeat" | "missing-child" | "missing-root" | "unknown-action" | "unknown-event" | "unknown-root" | "unknown-slot" | "unknown-type" | "unreachable";
+type SpecIssueCode = "children-not-allowed" | "cycle" | "invalid-element" | "invalid-formula" | "invalid-params" | "invalid-patch" | "invalid-props" | "invalid-repeat" | "invalid-state" | "missing-child" | "missing-root" | "missing-tool-result" | "unfilled-placeholder" | "unknown-action" | "unknown-event" | "unknown-root" | "unknown-slot" | "unknown-type" | "unreachable";
 
 declare function SpecPlaceholder(_param0: SpecPlaceholderProps): import("react").JSX.Element;
 
+declare const SpecPlaceholder$1: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
+  id: {
+    type: StringConstructor;
+    required: true;
+  };
+  reason: {
+    type: PropType<SpecPlaceholderProps$1["reason"]>;
+    required: true;
+  };
+  message: {
+    type: StringConstructor;
+    required: true;
+  };
+}>, () => VNode<import("vue").RendererNode, import("vue").RendererElement, {
+  [key: string]: any;
+}>, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<import("vue").ExtractPropTypes<{
+  id: {
+    type: StringConstructor;
+    required: true;
+  };
+  reason: {
+    type: PropType<SpecPlaceholderProps$1["reason"]>;
+    required: true;
+  };
+  message: {
+    type: StringConstructor;
+    required: true;
+  };
+}>> & Readonly<{}>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
+
 type SpecPlaceholderProps = {
+  id: string;
+  reason: "cycle" | "error" | "invalid-props" | "missing" | "pending" | "unknown-type";
+  message: string;
+};
+
+type SpecPlaceholderProps$1 = {
   id: string;
   reason: "cycle" | "error" | "invalid-props" | "missing" | "pending" | "unknown-type";
   message: string;
@@ -878,9 +974,121 @@ type SpecPromptOptions = {
   mode?: SpecStreamMode;
   customRules?: readonly string[];
   omitExample?: boolean;
+  hostApi?: {
+    prompt?: boolean;
+    modelContext?: boolean;
+    clipboard?: boolean;
+  };
 };
 
-declare function SpecRenderer(_param1: SpecRendererProps): import("react").JSX.Element | null;
+declare function SpecRenderer$1(_param1: SpecRendererProps): import("react").JSX.Element;
+
+declare const SpecRenderer$2: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
+  spec: {
+    type: PropType<Spec>;
+    required: true;
+  };
+  components: {
+    type: PropType<SpecComponents$1>;
+    required: true;
+  };
+  catalog: PropType<Catalog>;
+  state: PropType<SpecStateStore>;
+  handlers: PropType<Record<string, ActionHandler>>;
+  onAction: PropType<SpecRendererProps$1["onAction"]>;
+  onError: PropType<SpecRendererProps$1["onError"]>;
+  streaming: {
+    type: BooleanConstructor;
+    default: boolean;
+  };
+  placeholder: {
+    type: PropType<Component$1>;
+    default: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
+      id: {
+        type: StringConstructor;
+        required: true;
+      };
+      reason: {
+        type: PropType<SpecPlaceholderProps$1["reason"]>;
+        required: true;
+      };
+      message: {
+        type: StringConstructor;
+        required: true;
+      };
+    }>, () => VNode<import("vue").RendererNode, import("vue").RendererElement, {
+      [key: string]: any;
+    }>, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<import("vue").ExtractPropTypes<{
+      id: {
+        type: StringConstructor;
+        required: true;
+      };
+      reason: {
+        type: PropType<SpecPlaceholderProps$1["reason"]>;
+        required: true;
+      };
+      message: {
+        type: StringConstructor;
+        required: true;
+      };
+    }>> & Readonly<{}>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
+  };
+}>, () => (VNode<import("vue").RendererNode, import("vue").RendererElement, {
+  [key: string]: any;
+}> | null)[], {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<import("vue").ExtractPropTypes<{
+  spec: {
+    type: PropType<Spec>;
+    required: true;
+  };
+  components: {
+    type: PropType<SpecComponents$1>;
+    required: true;
+  };
+  catalog: PropType<Catalog>;
+  state: PropType<SpecStateStore>;
+  handlers: PropType<Record<string, ActionHandler>>;
+  onAction: PropType<SpecRendererProps$1["onAction"]>;
+  onError: PropType<SpecRendererProps$1["onError"]>;
+  streaming: {
+    type: BooleanConstructor;
+    default: boolean;
+  };
+  placeholder: {
+    type: PropType<Component$1>;
+    default: import("vue").DefineComponent<import("vue").ExtractPropTypes<{
+      id: {
+        type: StringConstructor;
+        required: true;
+      };
+      reason: {
+        type: PropType<SpecPlaceholderProps$1["reason"]>;
+        required: true;
+      };
+      message: {
+        type: StringConstructor;
+        required: true;
+      };
+    }>, () => VNode<import("vue").RendererNode, import("vue").RendererElement, {
+      [key: string]: any;
+    }>, {}, {}, {}, import("vue").ComponentOptionsMixin, import("vue").ComponentOptionsMixin, {}, string, import("vue").PublicProps, Readonly<import("vue").ExtractPropTypes<{
+      id: {
+        type: StringConstructor;
+        required: true;
+      };
+      reason: {
+        type: PropType<SpecPlaceholderProps$1["reason"]>;
+        required: true;
+      };
+      message: {
+        type: StringConstructor;
+        required: true;
+      };
+    }>> & Readonly<{}>, {}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
+  };
+}>> & Readonly<{}>, {
+  streaming: boolean;
+  placeholder: Component$1;
+}, {}, {}, {}, string, import("vue").ComponentProvideOptions, true, {}, any>;
 
 type SpecRendererProps = {
   spec: Spec;
@@ -898,13 +1106,36 @@ type SpecRendererProps = {
   placeholder?: ComponentType<SpecPlaceholderProps>;
 };
 
+type SpecRendererProps$1 = {
+  spec: Spec;
+  components: SpecComponents$1;
+  catalog?: Catalog;
+  state?: SpecStateStore;
+  handlers?: Record<string, ActionHandler>;
+  onAction?: (name: string, params: Record<string, unknown>, context: ActionSource & {
+    state: SpecStateStore;
+  }) => unknown;
+  onError?: (error: Error, context: {
+    elementId?: string;
+  }) => void;
+  streaming?: boolean;
+  placeholder?: Component$1;
+};
+
 type SpecStateStore = {
   getState(): Record<string, unknown>;
   get(path: string): unknown;
-  set(path: string, value: unknown): void;
+  set(path: string, value: unknown, mode?: "add" | "replace"): void;
   seed(state: Record<string, unknown>): void;
   subscribe(listener: StateListener): () => void;
 };
+
+type SpecStateWrite = readonly [
+  path: string,
+  value: unknown,
+  mode?: "add" | "replace",
+  arrayParents?: readonly string[]
+];
 
 type SpecStream = {
   push(chunk: string): SpecStreamUpdate;
@@ -944,6 +1175,20 @@ type SpecToolkitOptions = {
   }) => unknown;
   placeholder?: ComponentType<SpecPlaceholderProps>;
   specPrompt?: Omit<SpecPromptOptions, "mode">;
+  toolResults?: boolean;
+};
+
+type SpecToolkitOptions$1 = {
+  components: SpecComponents$1;
+  handlers?: Record<string, ActionHandler>;
+  onAction?: (name: string, params: Record<string, unknown>, context: {
+    elementId?: string;
+    trigger?: string;
+    state: SpecStateStore;
+  }) => unknown;
+  placeholder?: Component$1;
+  specPrompt?: Omit<SpecPromptOptions, "mode">;
+  toolResults?: boolean;
 };
 
 type SpecTools = {
@@ -973,8 +1218,8 @@ type StandardResult = {
     readonly message: string;
     readonly path?: ReadonlyArray<PropertyKey | {
       readonly key: PropertyKey;
-    }>;
-  }>;
+    }> | undefined;
+  }> | undefined;
 };
 
 type StandardSchemaLike = {
@@ -991,6 +1236,10 @@ type StandardSchemaLike = {
 };
 
 type StateListener = (state: Record<string, unknown>) => void;
+
+type StateStoreOptions = {
+  writes?: readonly SpecStateWrite[];
+};
 
 declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 
@@ -1021,6 +1270,7 @@ type ThreadAssistantMessage = MessageCommonProps & {
   readonly content: readonly ThreadAssistantMessagePart[];
   readonly status: MessageStatus;
   readonly metadata: {
+    readonly runId?: string | undefined;
     readonly unstable_state: ReadonlyJSONValue;
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
     readonly unstable_data: readonly ReadonlyJSONValue[];
@@ -1167,6 +1417,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly toolName: string;
   readonly args: TArgs;
   readonly result?: TResult | undefined;
+  readonly responseDeliveryStatus?: "queued" | undefined;
   readonly isError?: boolean | undefined;
   readonly isPreliminary?: boolean | undefined;
   readonly argsText: string;
@@ -1390,6 +1641,13 @@ type Unstable_ToolInteractionLog = {
 type Unsubscribe = () => void;
 
 type UseSpecStreamOptions = {
+  source?: MaybeRefOrGetter<string | undefined>;
+  complete?: MaybeRefOrGetter<boolean | undefined>;
+  mode?: MaybeRefOrGetter<SpecStreamMode | undefined>;
+  initial?: MaybeRefOrGetter<Spec | undefined>;
+};
+
+type UseSpecStreamOptions$1 = {
   source?: string;
   complete?: boolean;
   mode?: SpecStreamMode;
@@ -1397,6 +1655,15 @@ type UseSpecStreamOptions = {
 };
 
 type UseSpecStreamResult = {
+  spec: ComputedRef<Spec>;
+  text: ComputedRef<string>;
+  errors: ComputedRef<SpecStreamError[]>;
+  push(chunk: string): void;
+  end(): void;
+  reset(): void;
+};
+
+type UseSpecStreamResult$1 = {
   spec: Spec;
   text: string;
   errors: SpecStreamError[];
@@ -1424,6 +1691,13 @@ type ValidateMethods<K extends string, TClient> = TClient extends {
 
 type ValidateSpecOptions = {
   partial?: boolean;
+};
+
+type VueSpecToolkit = Omit<WidgetToolkitExtension, "entries"> & {
+  entries(context: {
+    execution: ToolkitExecution;
+    display: ToolkitDisplay;
+  }): Toolkit;
 };
 
 declare const WIDGET_MODULES: readonly [
@@ -1487,10 +1761,12 @@ type WidgetHandlers = {
   onMessage?: (params: UiMessageParams) => unknown;
   onOpenLink?: (url: string) => unknown;
   onCallTool?: (call: ToolCallRequest) => unknown;
+  onInitialized?: (params: McpAppInitializeParams) => void;
   onRequestDisplayMode?: (request: {
     mode: DisplayMode;
   }) => unknown;
   onUpdateModelContext?: (params: unknown) => unknown;
+  onCopyText?: (text: string) => unknown;
   onWidgetState?: (state: unknown) => void;
   onResize?: (size: WidgetSize) => void;
   onError?: (error: WidgetError) => void;
@@ -1566,7 +1842,7 @@ type WidgetToolkitExtension = {
 type WidgetToolkitOptions = Omit<CreateWidgetToolsOptions, "registry"> & {
   registry?: WidgetRegistry;
   execution?: "backend" | "frontend";
-  widget?: Omit<UseWidgetOptions, "tokens">;
+  widget?: Omit<UseWidgetOptions, "initialState" | "tokens">;
   spec?: WidgetToolkitExtension;
   extraTools?: Record<string, AnyTool>;
   themeElement?: Element | null;
@@ -1638,15 +1914,19 @@ declare function buildWidgetGuidance(options?: GuidanceOptions): string;
 
 declare function buildWidgetInstructions(tools: WidgetTools & Record<string, AnyTool>, options?: WidgetInstructionsOptions): Promise<string>;
 
-declare function clearWidgetStorage(id: string, options?: Pick<CreateWidgetOptions, "product" | "readyTimeoutMs">): Promise<ClearStorageResult>;
+declare function clearWidgetStorage(id: string, options?: Pick<CreateWidgetOptions, "product" | "readyTimeoutMs" | "unsafeShimDomain">): Promise<ClearStorageResult>;
 
 declare function createSpecStream(options?: CreateSpecStreamOptions): SpecStream;
 
 declare function createSpecToolkit(catalog: Catalog, options: SpecToolkitOptions): WidgetToolkitExtension;
 
+declare function createSpecToolkit$1(catalog: Catalog, options: SpecToolkitOptions$1): VueSpecToolkit;
+
 declare function createSpecTools(catalog: Catalog, options?: CreateSpecToolsOptions): SpecTools;
 
-declare function createStateStore(initial?: Record<string, unknown>): SpecStateStore;
+declare function createStateStore(initial?: Record<string, unknown>, options?: StateStoreOptions): SpecStateStore & {
+  writes(): readonly SpecStateWrite[];
+};
 
 declare function createWidget(options: CreateWidgetOptions): WidgetHandle;
 
@@ -1690,7 +1970,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { ClearStorageResult, ColorScheme, ConsoleEntry, ConsoleLevel, CreateWidgetOptions, CspOptions, DEFAULT_CDN_ORIGINS, DEFAULT_DARK_TOKENS, DEFAULT_LIGHT_TOKENS, DisplayMode, EndResult, FrameInspection, HostContext, PreviewOptions, PreviewResult, Screenshot, ScreenshotOptions, ThemeTokenName, ThemeTokenSources, ThemeTokens, ToolCallRequest, UiMessageParams, WidgetError, WidgetErrorKind, WidgetEventMap, WidgetHandle, WidgetHandlers, WidgetInspection, WidgetKind, WidgetSize, buildCsp, clearWidgetStorage, createWidget, defaultThemeTokens, previewWidget, readThemeTokens, widgetStorageSalt };
+  export { ClearStorageResult, ColorScheme, ConsoleEntry, ConsoleLevel, CreateWidgetOptions, CspOptions, DEFAULT_CDN_ORIGINS, DEFAULT_DARK_TOKENS, DEFAULT_LIGHT_TOKENS, DisplayMode, EndResult, FrameInspection, HostContext, McpAppInitializeParams, PreviewOptions, PreviewResult, Screenshot, ScreenshotOptions, ThemeTokenName, ThemeTokenSources, ThemeTokens, ToolCallRequest, UiMessageParams, WidgetError, WidgetErrorKind, WidgetEventMap, WidgetHandle, WidgetHandlers, WidgetInspection, WidgetKind, WidgetSize, buildCsp, clearWidgetStorage, createWidget, defaultThemeTokens, previewWidget, readThemeTokens, widgetStorageSalt };
 }
 
 declare function parseSpecStream(source: string, options?: CreateSpecStreamOptions): SpecStreamResult;
@@ -1706,7 +1986,7 @@ declare namespace entry_react_exports {
 }
 
 declare namespace entry_spec_react_exports {
-  export { SpecComponentProps, SpecComponents, SpecPlaceholder, SpecPlaceholderProps, SpecRenderer, SpecRendererProps, UseSpecStreamOptions, UseSpecStreamResult, useSpecStream };
+  export { SpecComponentProps, SpecComponents, SpecPlaceholder, SpecPlaceholderProps, SpecRenderer$1 as SpecRenderer, SpecRendererProps, UseSpecStreamOptions$1 as UseSpecStreamOptions, UseSpecStreamResult$1 as UseSpecStreamResult, useSpecStream$1 as useSpecStream };
 }
 
 declare function readThemeTokens(element?: Element, sources?: ThemeTokenSources): ThemeTokens;
@@ -1717,10 +1997,12 @@ declare namespace entry_repair_exports {
   export { GenerateContext, GenerateResult, RenderReport, RepairFeedback, RepairLoopOptions, RepairLoopResult, RepairRound, buildRepairFeedback, repairLoop };
 }
 
+declare function resolveSpec(spec: Spec, options?: ResolveSpecOptions): ResolvedElement | null;
+
 declare function specGuidanceModule(catalog: Catalog, options?: Omit<SpecPromptOptions, "mode">): GuidanceModule;
 
 declare namespace entry_spec_exports {
-  export { ActionBinding, ActionDefinition, ActionHandler, ActionSource, Catalog, CatalogDefinition, ComponentDefinition, Condition, CreateSpecStreamOptions, JsonSchema, JsonSchemaType, PatchOperation, PropsSchema, Spec, SpecElement, SpecIssue, SpecIssueCode, SpecPromptOptions, SpecStateStore, SpecStream, SpecStreamError, SpecStreamMode, SpecStreamResult, SpecStreamUpdate, SpecValidation, StandardSchemaLike, StateListener, ValidateSpecOptions, applyPatch, createSpecStream, createStateStore, defineCatalog, emptySpec, formatSpecIssues, parseSpecStream, validateSpec };
+  export { ActionBinding, ActionDefinition, ActionHandler, ActionSource, Catalog, CatalogDefinition, ComponentDefinition, Condition, CreateSpecStreamOptions, JsonSchema, JsonSchemaType, PatchOperation, PropsSchema, ResolveSpecOptions, ResolvedAction, ResolvedElement, Spec, SpecElement, SpecIssue, SpecIssueCode, SpecPromptOptions, SpecStateStore, SpecStateWrite, SpecStream, SpecStreamError, SpecStreamMode, SpecStreamResult, SpecStreamUpdate, SpecValidation, StandardSchemaLike, StateListener, StateStoreOptions, ValidateSpecOptions, applyPatch, createSpecStream, createStateStore, defineCatalog, emptySpec, formatSpecIssues, parseSpecStream, resolveSpec, validateSpec };
 }
 
 declare function toAISDKTools<T extends Record<string, AnyTool>, Schema>(tools: T, sdk: {
@@ -1734,7 +2016,7 @@ declare function toAISDKTools<T extends Record<string, AnyTool>, Schema>(tools: 
 };
 
 declare namespace entry_spec_tools_exports {
-  export { CreateSpecToolsOptions, GuidanceModule, JsonSchema, RenderSpecInput, RenderSpecResult, RenderSpecTool, SpecTools, ToolDefinition, createSpecTools, getToolDeclarations, specGuidanceModule, toAISDKTools };
+  export { CreateSpecToolsOptions, GuidanceModule, JsonSchema, RenderSpecInput, RenderSpecResult, RenderSpecTool, SPEC_TOOL_RESULTS_RULE, SpecTools, ToolDefinition, createSpecTools, getToolDeclarations, specGuidanceModule, toAISDKTools };
 }
 
 declare namespace entry_tools_exports {
@@ -1743,7 +2025,11 @@ declare namespace entry_tools_exports {
 
 declare function useAssistantUiThemeTokens(element?: Element | null): ThemeTokens;
 
+declare function useSpecElement(): SpecElementContext;
+
 declare function useSpecStream(options?: UseSpecStreamOptions): UseSpecStreamResult;
+
+declare function useSpecStream$1(options?: UseSpecStreamOptions$1): UseSpecStreamResult$1;
 
 declare function useThemeTokens(element?: Element | null, sources?: ThemeTokenSources, options?: ThemeObserveOptions): ThemeTokens;
 
@@ -1753,6 +2039,14 @@ declare function useWidgetInstructions(tools: WidgetTools & Record<string, AnyTo
 
 declare function validateSpec(spec: Spec, catalog: Catalog, options?: ValidateSpecOptions): SpecValidation;
 
+declare namespace entry_spec_assistant_ui_vue_exports {
+  export { SpecToolkitOptions$1 as SpecToolkitOptions, VueSpecToolkit, createSpecToolkit$1 as createSpecToolkit };
+}
+
+declare namespace entry_spec_vue_exports {
+  export { SpecComponents$1 as SpecComponents, SpecElementContext, SpecPlaceholder$1 as SpecPlaceholder, SpecPlaceholderProps$1 as SpecPlaceholderProps, SpecRenderer$2 as SpecRenderer, SpecRendererProps$1 as SpecRendererProps, UseSpecStreamOptions, UseSpecStreamResult, useSpecElement, useSpecStream };
+}
+
 declare const widgetStorageSalt: (id: string) => string;
 
-export { entry_assistant_ui_exports as entry_assistant_ui, entry_prompts_exports as entry_prompts, entry_react_exports as entry_react, entry_repair_exports as entry_repair, entry_root_exports as entry_root, entry_spec_exports as entry_spec, entry_spec_assistant_ui_exports as entry_spec_assistant_ui, entry_spec_react_exports as entry_spec_react, entry_spec_tools_exports as entry_spec_tools, entry_tools_exports as entry_tools };
+export { entry_assistant_ui_exports as entry_assistant_ui, entry_prompts_exports as entry_prompts, entry_react_exports as entry_react, entry_repair_exports as entry_repair, entry_root_exports as entry_root, entry_spec_exports as entry_spec, entry_spec_assistant_ui_exports as entry_spec_assistant_ui, entry_spec_assistant_ui_vue_exports as entry_spec_assistant_ui_vue, entry_spec_react_exports as entry_spec_react, entry_spec_tools_exports as entry_spec_tools, entry_spec_vue_exports as entry_spec_vue, entry_tools_exports as entry_tools };

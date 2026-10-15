@@ -432,9 +432,6 @@ const convertUserPart = (
     case "text":
       return { type: "text", text: part.text };
 
-    case "file":
-      return convertFilePart(part);
-
     default:
       return null;
   }
@@ -442,9 +439,12 @@ const convertUserPart = (
 
 const toUserContent = (
   parts: readonly EveMessagePart[],
+  attachments: readonly CompleteAttachment[],
 ): readonly ThreadUserMessagePart[] => {
   const content = parts.map(convertUserPart).filter((part) => part !== null);
-  return content.length > 0 ? content : [{ type: "text", text: "" }];
+  return content.length > 0 || attachments.length > 0
+    ? content
+    : [{ type: "text", text: "" }];
 };
 
 const toUserAttachments = (
@@ -508,14 +508,16 @@ const convertEveMessageWithInterruptions = (
     },
   };
 
+  const attachments =
+    message.role === "user" ? toUserAttachments(message.parts) : [];
   const like: ThreadMessageLike =
     message.role === "user"
       ? {
           role: "user",
           id: message.id,
           createdAt,
-          content: toUserContent(message.parts),
-          attachments: toUserAttachments(message.parts),
+          content: toUserContent(message.parts, attachments),
+          attachments,
           metadata,
         }
       : {

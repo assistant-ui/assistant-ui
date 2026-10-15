@@ -26,13 +26,12 @@ import {
   type UIMessage,
 } from "ai";
 import { SendHorizontal, SquareIcon } from "lucide-react";
-import {
-  createPlaygroundChatToolkit,
-  type PartialBuilderConfig,
-} from "@/lib/playground-chat-toolkit";
+import { createPlaygroundChatToolkit } from "@/lib/playground-chat-toolkit";
+import type { PartialBuilderConfig } from "@/lib/playground-config-schema";
 import { AuiConfig, useAui, AuiProvider } from "@assistant-ui/store";
 import type { BuilderConfig } from "./types";
 import { applyDiff } from "@/lib/playground-config-codec";
+import { anonymousSessionFetch } from "@/lib/anonymous-session-client";
 
 const PLAYGROUND_SUGGESTIONS = [
   {
@@ -117,6 +116,7 @@ export function PlaygroundChatProvider({
     () =>
       new AssistantChatTransport({
         api: "/api/playground-chat",
+        fetch: anonymousSessionFetch,
         prepareSendMessagesRequest: async (options) => ({
           body: {
             ...options.body,

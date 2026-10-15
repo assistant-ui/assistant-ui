@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { access, readFile, writeFile, mkdir } from "node:fs/promises";
-import test from "node:test";
+import test, { before, describe } from "node:test";
 import { fileURLToPath } from "node:url";
 import "tsx/esm";
 
@@ -45,7 +45,7 @@ const {
   BUTTON_STYLES,
   ALERT_TONES,
   IMAGE_SIZE_TOKENS,
-} = await import("../../../packages/react-generative-ui/src/ir.ts");
+} = await import("../../../packages/generative-ui/src/ir.ts");
 
 const createBuilt = (
   name,
@@ -159,124 +159,6 @@ test("native flavor content validation rejects web packages and accepts the kit"
   );
 });
 
-test("native registry build emits the React Native kit", async () => {
-  const { nativeRegistry, registry, vueRegistry } =
-    await import("../src/registry.ts");
-  await buildRegistry(registry, vueRegistry, nativeRegistry);
-
-  const [registryContent, threadContent] = await Promise.all([
-    readFile("dist/native/registry.json", "utf8"),
-    readFile("dist/native/thread.json", "utf8"),
-  ]);
-  const nativeIndex = JSON.parse(registryContent);
-  const thread = JSON.parse(threadContent);
-
-  assert.equal(
-    thread.files[0].path,
-    "components/assistant-ui/elements/thread.aui.tsx",
-  );
-  assert.ok(
-    thread.dependencies.includes(
-      `@assistant-ui/react-native@^${workspaceVersions.get("@assistant-ui/react-native")}`,
-    ),
-  );
-  assert.ok(
-    thread.registryDependencies.includes(
-      "https://r.assistant-ui.com/native/attachment.json",
-    ),
-  );
-  assert.ok(
-    thread.registryDependencies.includes(
-      "https://r.assistant-ui.com/native/icon.json",
-    ),
-  );
-  assert.deepEqual(
-    nativeIndex.items.map((item) => item.name),
-    [
-      "thread",
-      "markdown-text",
-      "reasoning",
-      "attachment",
-      "thread-list",
-      "icon",
-      "elements-surfaces",
-      "elements-range",
-      "elements-task",
-      "elements-icon-button",
-      "elements-typing-indicator",
-      "elements-reasoning",
-      "elements-error-state",
-      "elements-stopped-run",
-      "elements-message-queue",
-      "elements-tool-fallback",
-      "file",
-      "image",
-      "elements-approval-card",
-      "elements-agent-status",
-      "elements-task-card",
-      "elements-tool-timeline",
-      "elements-conversation-map",
-      "elements-voice-conversation",
-      "conversation-map",
-      "voice-conversation",
-      "task-card",
-      "agent-status",
-    ],
-  );
-});
-
-test("vue registry build emits self-contained items", async () => {
-  const { registry, vueRegistry } = await import("../src/registry.ts");
-  await buildRegistry(registry, vueRegistry);
-
-  const [registryContent, threadContent, threadListContent] = await Promise.all(
-    [
-      readFile("dist/vue/registry.json", "utf8"),
-      readFile("dist/vue/thread.json", "utf8"),
-      readFile("dist/vue/thread-list.json", "utf8"),
-    ],
-  );
-  const vueIndex = JSON.parse(registryContent);
-  const thread = JSON.parse(threadContent);
-  const threadList = JSON.parse(threadListContent);
-  const threadFile = thread.files.find(
-    (file) => file.path === "components/assistant-ui/thread.vue",
-  );
-  const threadListFile = threadList.files.find(
-    (file) => file.path === "components/assistant-ui/thread-list.vue",
-  );
-
-  assert.ok(
-    threadFile,
-    "vue thread registry output includes components/assistant-ui/thread.vue",
-  );
-  assert.ok(
-    threadListFile,
-    "vue thread list registry output includes components/assistant-ui/thread-list.vue",
-  );
-  assert.deepEqual(
-    vueIndex.items.map((item) => item.name),
-    ["thread-list", "thread"],
-  );
-  assert.deepEqual(thread.dependencies, [
-    `@assistant-ui/core@^${workspaceVersions.get("@assistant-ui/core")}`,
-    `@assistant-ui/vue@^${workspaceVersions.get("@assistant-ui/vue")}`,
-    "@lucide/vue",
-    "markdown-it",
-    "reka-ui",
-  ]);
-  assert.deepEqual(thread.devDependencies, ["@types/markdown-it"]);
-  assert.equal("target" in threadFile, false);
-  assert.deepEqual(threadList.dependencies, [
-    `@assistant-ui/vue@^${workspaceVersions.get("@assistant-ui/vue")}`,
-    "reka-ui",
-    "@lucide/vue",
-  ]);
-  assert.equal("target" in threadListFile, false);
-  assert.match(threadFile.content, /import Message from "\.\/message\.vue"/);
-  assert.match(threadListFile.content, /from "reka-ui"/);
-});
-
 test("workspace dependencies are pinned to the caret range of the built version", () => {
   const versions = new Map([
     ["@assistant-ui/react", "0.15.22"],
@@ -325,75 +207,6 @@ test("workspace dependencies are pinned to the caret range of the built version"
       ),
     /"@assistant-ui\/missing" is not a workspace package/,
   );
-});
-
-test("web registry build pins every published assistant-ui dependency", async () => {
-  const { registry, vueRegistry } = await import("../src/registry.ts");
-  await buildRegistry(registry, vueRegistry);
-
-  const reactRange = `@assistant-ui/react@^${workspaceVersions.get("@assistant-ui/react")}`;
-  for (const file of [
-    "dist/thread.json",
-    "dist/base/thread.json",
-    "dist/registry.json",
-    "dist/base/registry.json",
-  ]) {
-    const parsed = JSON.parse(await readFile(file, "utf8"));
-    const items = parsed.items ?? [parsed];
-    const thread = items.find((item) => item.name === "thread");
-    assert.ok(thread.dependencies.includes(reactRange), file);
-    for (const item of items) {
-      for (const dependency of [
-        ...(item.dependencies ?? []),
-        ...(item.devDependencies ?? []),
-      ]) {
-        assert.doesNotMatch(
-          dependency,
-          /^@assistant-ui\/[^@]+$/,
-          `${file}: ${item.name} declares unpinned "${dependency}"`,
-        );
-      }
-    }
-  }
-});
-
-test("emitted vue artifacts compile as SFCs and pass the vue purity gate", async () => {
-  const { parse, compileScript } = await import("@vue/compiler-sfc");
-  const [thread, threadList] = await Promise.all([
-    readFile("dist/vue/thread.json", "utf8").then(JSON.parse),
-    readFile("dist/vue/thread-list.json", "utf8").then(JSON.parse),
-  ]);
-  const threadEmitted = thread.files.map((file) => [file.path, file.content]);
-  const threadListEmitted = threadList.files.map((file) => [
-    file.path,
-    file.content,
-  ]);
-  assert.deepEqual(threadEmitted.map(([outputPath]) => outputPath).sort(), [
-    "components/assistant-ui/markdown-text.vue",
-    "components/assistant-ui/message.vue",
-    "components/assistant-ui/reasoning.vue",
-    "components/assistant-ui/thread.vue",
-    "components/assistant-ui/tool-fallback.vue",
-  ]);
-  assert.deepEqual(
-    threadListEmitted.map(([outputPath]) => outputPath),
-    ["components/assistant-ui/thread-list.vue"],
-  );
-
-  for (const [outputPath, content] of [
-    ...threadEmitted,
-    ...threadListEmitted,
-  ]) {
-    const { descriptor, errors } = parse(content, { filename: outputPath });
-    assert.deepEqual(errors, []);
-    const compiled = compileScript(descriptor, { id: outputPath });
-    assert.ok(compiled.content.length > 0);
-  }
-
-  validateVueFlavorContent([
-    createBuilt("thread", threadEmitted),
-    createBuilt("thread-list", threadListEmitted),
-  ]);
 });
 
 test("vue payload parsing fails on a malformed sfc", () => {
@@ -1581,6 +1394,23 @@ test("collectAttributeSelectorValues groups value-selectors by component:attribu
   assert.equal(values.has("button:block"), false);
 });
 
+test("collectAttributeSelectorValues reads each value-selector's component from its own compound selector", () => {
+  const values = collectAttributeSelectorValues({
+    '[data-aui="row"] > [data-aui="image"][data-aui-size="sm"]:not([data-aui-round], [data-aui-flush])':
+      { width: "4.5rem" },
+    '[data-aui="table"] td[data-aui-align="end"]': { "text-align": "end" },
+    ':is([data-aui="text"], [data-aui="header"])[data-aui-size="lg"]': {
+      "font-size": "1.125rem",
+    },
+  });
+
+  assert.deepEqual([...(values.get("image:size") ?? [])], ["sm"]);
+  assert.equal(values.has("row:size"), false);
+  assert.deepEqual([...(values.get("table:align") ?? [])], ["end"]);
+  assert.deepEqual([...(values.get("text:size") ?? [])], ["lg"]);
+  assert.deepEqual([...(values.get("header:size") ?? [])], ["lg"]);
+});
+
 // Every attribute-mapped prop backed by a closed enum, keyed by the components
 // that emit it. A shared attribute name (`size`) can carry a different enum per
 // component, so contracts are scoped to a component list rather than the bare
@@ -2612,26 +2442,6 @@ test("internal usage exemptions do not leak into Vue payloads or indexes", async
   }
 });
 
-test("the real registry build satisfies the emitted install metadata contract", async () => {
-  const { registry, vueRegistry } = await import("../src/registry.ts");
-
-  await assert.doesNotReject(() => buildRegistry(registry, vueRegistry));
-
-  for (const outputPath of [
-    "dist/registry.json",
-    "dist/base/registry.json",
-    "dist/generative-ui.json",
-    "dist/base/generative-ui.json",
-  ]) {
-    const output = await readFile(outputPath, "utf8");
-    assert.equal(
-      output.includes("registryDependencyUsageExemptions"),
-      false,
-      `${outputPath} excludes internal validation metadata`,
-    );
-  }
-});
-
 test("emitted files carry a repo-root sourcePath for source links", () => {
   const kit = createRegistryPayload({
     name: "sourcepath-kit",
@@ -2686,57 +2496,6 @@ test("emitted files carry a repo-root sourcePath for source links", () => {
     template.payload.files[0].sourcePath,
     "apps/registry/templates/ai-sdk-backend-resumable/app/api/chat/route.ts",
   );
-});
-
-test("every emitted sourcePath exists at the repo root", async () => {
-  const { existsSync, readFileSync, readdirSync } = await import("node:fs");
-  const { join, resolve } = await import("node:path");
-
-  // Build inside the test so it neither ENOENTs in isolation nor validates a
-  // stale dist from an earlier run.
-  const { registry, vueRegistry } = await import("../src/registry.ts");
-  await buildRegistry(registry, vueRegistry);
-
-  const repoRoot = resolve(process.cwd(), "../..");
-  const jsonPaths = [];
-  const walk = (dir) => {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const full = join(dir, entry.name);
-      if (entry.isDirectory()) {
-        if (entry.name === "files") continue;
-        walk(full);
-      } else if (entry.name.endsWith(".json")) {
-        jsonPaths.push(full);
-      }
-    }
-  };
-  walk("dist");
-
-  assert.ok(
-    jsonPaths.length > 50,
-    `unexpectedly few items: ${jsonPaths.length}`,
-  );
-
-  const missing = [];
-  for (const jsonPath of jsonPaths) {
-    let item;
-    try {
-      item = JSON.parse(readFileSync(jsonPath, "utf8"));
-    } catch {
-      continue;
-    }
-    if (!item || typeof item !== "object" || !Array.isArray(item.files)) {
-      continue;
-    }
-    for (const file of item.files) {
-      if (typeof file.sourcePath !== "string") {
-        missing.push(`${jsonPath}: ${file.path} has no sourcePath`);
-      } else if (!existsSync(join(repoRoot, file.sourcePath))) {
-        missing.push(`${jsonPath}: ${file.sourcePath}`);
-      }
-    }
-  }
-  assert.deepEqual(missing, [], `emitted sourcePaths missing from the repo`);
 });
 
 test("packaged file contents are written per item at the install target", async () => {
@@ -2825,96 +2584,6 @@ test("packaged file contents are written per item at the install target", async 
   }
 });
 
-test("the built dist serves every packaged file at the docs' URL convention", async () => {
-  const { readFile: readJson, readdir } = await import("node:fs/promises");
-  const { join } = await import("node:path");
-
-  // Build inside the test so it neither ENOENTs in isolation nor validates a
-  // stale dist from an earlier run.
-  const { registry, vueRegistry } = await import("../src/registry.ts");
-  await buildRegistry(registry, vueRegistry);
-
-  // The consumer half of the convention. Both sides derive the same key
-  // independently, so the docs' own builder runs against the real dist here
-  // rather than against fixtures that could agree with neither.
-  const { buildDownloadCommand, packagedFileUrl } =
-    await import("../../docs/components/pages/docs/fumadocs/install/packaged-file-url.ts");
-
-  // Item names may contain slashes, so the walk is recursive. files/ holds the
-  // packaged bytes themselves, base/ is walked as its own root, and vue/ and
-  // native/ are flavors the docs' packaged-file URLs do not serve yet.
-  const collectItemJsons = async (dir, out) => {
-    for (const entry of await readdir(dir, { withFileTypes: true })) {
-      if (entry.isDirectory()) {
-        if (
-          entry.name === "files" ||
-          entry.name === "base" ||
-          entry.name === "vue" ||
-          entry.name === "native"
-        ) {
-          continue;
-        }
-        await collectItemJsons(join(dir, entry.name), out);
-      } else if (entry.name.endsWith(".json")) {
-        out.push(join(dir, entry.name));
-      }
-    }
-  };
-
-  for (const [distRoot, flavor, origin] of [
-    ["dist", "radix", "https://r.assistant-ui.com/files/"],
-    ["dist/base", "base", "https://r.assistant-ui.com/base/files/"],
-  ]) {
-    const jsonPaths = [];
-    await collectItemJsons(distRoot, jsonPaths);
-    for (const jsonPath of jsonPaths) {
-      let item;
-      try {
-        item = JSON.parse(await readJson(jsonPath, "utf8"));
-      } catch {
-        continue;
-      }
-      if (!item || typeof item !== "object" || !Array.isArray(item.files)) {
-        continue;
-      }
-      for (const file of item.files) {
-        const url = packagedFileUrl(flavor, {
-          name: item.name,
-          path: file.target ?? file.path,
-        });
-        assert.equal(url.slice(0, origin.length), origin);
-        const served = await readJson(
-          join(
-            distRoot,
-            "files",
-            url
-              .slice(origin.length)
-              .split("/")
-              .map(decodeURIComponent)
-              .join("/"),
-          ),
-          "utf8",
-        );
-        assert.equal(served, file.content);
-      }
-    }
-  }
-
-  const resumable = JSON.parse(
-    await readJson("dist/ai-sdk-backend-resumable.json", "utf8"),
-  );
-  const bracketed = resumable.files.find((file) =>
-    (file.target ?? file.path).includes("[streamId]"),
-  );
-  assert.equal(
-    buildDownloadCommand(
-      [{ name: resumable.name, path: bracketed.target ?? bracketed.path }],
-      "radix",
-    ),
-    "curl -fsSL --create-dirs \\\n  -o 'app/api/chat/resume/[streamId]/route.ts' https://r.assistant-ui.com/files/ai-sdk-backend-resumable/app/api/chat/resume/%5BstreamId%5D/route.ts",
-  );
-});
-
 test("disclosure registry items install their ref-owning root in both flavors", async () => {
   const { registry } = await import("../src/registry.ts");
   const rootItem = registry.find(
@@ -2946,4 +2615,337 @@ test("disclosure registry items install their ref-owning root in both flavors", 
       assert.ok(!built.registryDependencies.includes("collapsible"));
     }
   }
+});
+
+describe("built registry artifacts", { concurrency: false }, () => {
+  before(async () => {
+    const { registry, vueRegistry, nativeRegistry } =
+      await import("../src/registry.ts");
+    await assert.doesNotReject(() =>
+      buildRegistry(registry, vueRegistry, nativeRegistry),
+    );
+  });
+
+  test("native registry build emits the React Native kit", async () => {
+    const [registryContent, threadContent] = await Promise.all([
+      readFile("dist/native/registry.json", "utf8"),
+      readFile("dist/native/thread.json", "utf8"),
+    ]);
+    const nativeIndex = JSON.parse(registryContent);
+    const thread = JSON.parse(threadContent);
+
+    assert.equal(
+      thread.files[0].path,
+      "components/assistant-ui/elements/thread.aui.tsx",
+    );
+    assert.ok(
+      thread.dependencies.includes(
+        `@assistant-ui/react-native@^${workspaceVersions.get("@assistant-ui/react-native")}`,
+      ),
+    );
+    assert.ok(
+      thread.registryDependencies.includes(
+        "https://r.assistant-ui.com/native/attachment.json",
+      ),
+    );
+    assert.ok(
+      thread.registryDependencies.includes(
+        "https://r.assistant-ui.com/native/icon.json",
+      ),
+    );
+    assert.deepEqual(
+      nativeIndex.items.map((item) => item.name),
+      [
+        "thread",
+        "markdown-text",
+        "reasoning",
+        "attachment",
+        "thread-list",
+        "icon",
+        "elements-surfaces",
+        "elements-range",
+        "elements-task",
+        "elements-icon-button",
+        "elements-typing-indicator",
+        "elements-reasoning",
+        "elements-error-state",
+        "elements-stopped-run",
+        "elements-message-queue",
+        "elements-tool-fallback",
+        "file",
+        "image",
+        "elements-approval-card",
+        "elements-agent-status",
+        "elements-task-card",
+        "elements-tool-timeline",
+        "elements-conversation-map",
+        "elements-voice-conversation",
+        "conversation-map",
+        "voice-conversation",
+        "task-card",
+        "agent-status",
+      ],
+    );
+  });
+
+  test("vue registry build emits self-contained items", async () => {
+    const [registryContent, threadContent, threadListContent] =
+      await Promise.all([
+        readFile("dist/vue/registry.json", "utf8"),
+        readFile("dist/vue/thread.json", "utf8"),
+        readFile("dist/vue/thread-list.json", "utf8"),
+      ]);
+    const vueIndex = JSON.parse(registryContent);
+    const thread = JSON.parse(threadContent);
+    const threadList = JSON.parse(threadListContent);
+    const threadFile = thread.files.find(
+      (file) => file.path === "components/assistant-ui/thread.vue",
+    );
+    const threadListFile = threadList.files.find(
+      (file) => file.path === "components/assistant-ui/thread-list.vue",
+    );
+
+    assert.ok(
+      threadFile,
+      "vue thread registry output includes components/assistant-ui/thread.vue",
+    );
+    assert.ok(
+      threadListFile,
+      "vue thread list registry output includes components/assistant-ui/thread-list.vue",
+    );
+    assert.deepEqual(
+      vueIndex.items.map((item) => item.name),
+      ["thread-list", "thread"],
+    );
+    assert.deepEqual(thread.dependencies, [
+      `@assistant-ui/core@^${workspaceVersions.get("@assistant-ui/core")}`,
+      `@assistant-ui/vue@^${workspaceVersions.get("@assistant-ui/vue")}`,
+      "@lucide/vue",
+      "markdown-it",
+      "reka-ui",
+    ]);
+    assert.deepEqual(thread.devDependencies, ["@types/markdown-it"]);
+    assert.equal("target" in threadFile, false);
+    assert.deepEqual(threadList.dependencies, [
+      `@assistant-ui/vue@^${workspaceVersions.get("@assistant-ui/vue")}`,
+      "reka-ui",
+      "@lucide/vue",
+    ]);
+    assert.equal("target" in threadListFile, false);
+    assert.match(threadFile.content, /import Message from "\.\/message\.vue"/);
+    assert.match(threadListFile.content, /from "reka-ui"/);
+  });
+
+  test("web registry build pins every published assistant-ui dependency", async () => {
+    const reactRange = `@assistant-ui/react@^${workspaceVersions.get("@assistant-ui/react")}`;
+    for (const file of [
+      "dist/thread.json",
+      "dist/base/thread.json",
+      "dist/registry.json",
+      "dist/base/registry.json",
+    ]) {
+      const parsed = JSON.parse(await readFile(file, "utf8"));
+      const items = parsed.items ?? [parsed];
+      const thread = items.find((item) => item.name === "thread");
+      assert.ok(thread.dependencies.includes(reactRange), file);
+      for (const item of items) {
+        for (const dependency of [
+          ...(item.dependencies ?? []),
+          ...(item.devDependencies ?? []),
+        ]) {
+          assert.doesNotMatch(
+            dependency,
+            /^@assistant-ui\/[^@]+$/,
+            `${file}: ${item.name} declares unpinned "${dependency}"`,
+          );
+        }
+      }
+    }
+  });
+
+  test("emitted vue artifacts compile as SFCs and pass the vue purity gate", async () => {
+    const { parse, compileScript } = await import("@vue/compiler-sfc");
+    const [thread, threadList] = await Promise.all([
+      readFile("dist/vue/thread.json", "utf8").then(JSON.parse),
+      readFile("dist/vue/thread-list.json", "utf8").then(JSON.parse),
+    ]);
+    const threadEmitted = thread.files.map((file) => [file.path, file.content]);
+    const threadListEmitted = threadList.files.map((file) => [
+      file.path,
+      file.content,
+    ]);
+    assert.deepEqual(threadEmitted.map(([outputPath]) => outputPath).sort(), [
+      "components/assistant-ui/markdown-text.vue",
+      "components/assistant-ui/message.vue",
+      "components/assistant-ui/reasoning.vue",
+      "components/assistant-ui/thread.vue",
+      "components/assistant-ui/tool-fallback.vue",
+    ]);
+    assert.deepEqual(
+      threadListEmitted.map(([outputPath]) => outputPath),
+      ["components/assistant-ui/thread-list.vue"],
+    );
+
+    for (const [outputPath, content] of [
+      ...threadEmitted,
+      ...threadListEmitted,
+    ]) {
+      const { descriptor, errors } = parse(content, { filename: outputPath });
+      assert.deepEqual(errors, []);
+      const compiled = compileScript(descriptor, { id: outputPath });
+      assert.ok(compiled.content.length > 0);
+    }
+
+    validateVueFlavorContent([
+      createBuilt("thread", threadEmitted),
+      createBuilt("thread-list", threadListEmitted),
+    ]);
+  });
+
+  test("the real registry build satisfies the emitted install metadata contract", async () => {
+    for (const outputPath of [
+      "dist/registry.json",
+      "dist/base/registry.json",
+      "dist/generative-ui.json",
+      "dist/base/generative-ui.json",
+    ]) {
+      const output = await readFile(outputPath, "utf8");
+      assert.equal(
+        output.includes("registryDependencyUsageExemptions"),
+        false,
+        `${outputPath} excludes internal validation metadata`,
+      );
+    }
+  });
+
+  test("every emitted sourcePath exists at the repo root", async () => {
+    const { existsSync, readFileSync, readdirSync } = await import("node:fs");
+    const { join, resolve } = await import("node:path");
+
+    const repoRoot = resolve(process.cwd(), "../..");
+    const jsonPaths = [];
+    const walk = (dir) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) {
+          if (entry.name === "files") continue;
+          walk(full);
+        } else if (entry.name.endsWith(".json")) {
+          jsonPaths.push(full);
+        }
+      }
+    };
+    walk("dist");
+
+    assert.ok(
+      jsonPaths.length > 50,
+      `unexpectedly few items: ${jsonPaths.length}`,
+    );
+
+    const missing = [];
+    for (const jsonPath of jsonPaths) {
+      let item;
+      try {
+        item = JSON.parse(readFileSync(jsonPath, "utf8"));
+      } catch {
+        continue;
+      }
+      if (!item || typeof item !== "object" || !Array.isArray(item.files)) {
+        continue;
+      }
+      for (const file of item.files) {
+        if (typeof file.sourcePath !== "string") {
+          missing.push(`${jsonPath}: ${file.path} has no sourcePath`);
+        } else if (!existsSync(join(repoRoot, file.sourcePath))) {
+          missing.push(`${jsonPath}: ${file.sourcePath}`);
+        }
+      }
+    }
+    assert.deepEqual(missing, [], `emitted sourcePaths missing from the repo`);
+  });
+
+  test("the built dist serves every packaged file at the docs' URL convention", async () => {
+    const { readFile: readJson, readdir } = await import("node:fs/promises");
+    const { join } = await import("node:path");
+
+    // The consumer half of the convention. Both sides derive the same key
+    // independently, so the docs' own builder runs against the real dist here
+    // rather than against fixtures that could agree with neither.
+    const { buildDownloadCommand, packagedFileUrl } =
+      await import("../../docs/components/pages/docs/fumadocs/install/packaged-file-url.ts");
+
+    // Item names may contain slashes, so the walk is recursive. files/ holds the
+    // packaged bytes themselves, base/ is walked as its own root, and vue/ and
+    // native/ are flavors the docs' packaged-file URLs do not serve yet.
+    const collectItemJsons = async (dir, out) => {
+      for (const entry of await readdir(dir, { withFileTypes: true })) {
+        if (entry.isDirectory()) {
+          if (
+            entry.name === "files" ||
+            entry.name === "base" ||
+            entry.name === "vue" ||
+            entry.name === "native"
+          ) {
+            continue;
+          }
+          await collectItemJsons(join(dir, entry.name), out);
+        } else if (entry.name.endsWith(".json")) {
+          out.push(join(dir, entry.name));
+        }
+      }
+    };
+
+    for (const [distRoot, flavor, origin] of [
+      ["dist", "radix", "https://r.assistant-ui.com/files/"],
+      ["dist/base", "base", "https://r.assistant-ui.com/base/files/"],
+    ]) {
+      const jsonPaths = [];
+      await collectItemJsons(distRoot, jsonPaths);
+      for (const jsonPath of jsonPaths) {
+        let item;
+        try {
+          item = JSON.parse(await readJson(jsonPath, "utf8"));
+        } catch {
+          continue;
+        }
+        if (!item || typeof item !== "object" || !Array.isArray(item.files)) {
+          continue;
+        }
+        for (const file of item.files) {
+          const url = packagedFileUrl(flavor, {
+            name: item.name,
+            path: file.target ?? file.path,
+          });
+          assert.equal(url.slice(0, origin.length), origin);
+          const served = await readJson(
+            join(
+              distRoot,
+              "files",
+              url
+                .slice(origin.length)
+                .split("/")
+                .map(decodeURIComponent)
+                .join("/"),
+            ),
+            "utf8",
+          );
+          assert.equal(served, file.content);
+        }
+      }
+    }
+
+    const resumable = JSON.parse(
+      await readJson("dist/ai-sdk-backend-resumable.json", "utf8"),
+    );
+    const bracketed = resumable.files.find((file) =>
+      (file.target ?? file.path).includes("[streamId]"),
+    );
+    assert.equal(
+      buildDownloadCommand(
+        [{ name: resumable.name, path: bracketed.target ?? bracketed.path }],
+        "radix",
+      ),
+      "curl -fsSL --create-dirs \\\n  -o 'app/api/chat/resume/[streamId]/route.ts' https://r.assistant-ui.com/files/ai-sdk-backend-resumable/app/api/chat/resume/%5BstreamId%5D/route.ts",
+    );
+  });
 });

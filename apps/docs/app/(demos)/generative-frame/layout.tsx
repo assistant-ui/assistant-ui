@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { SubProjectLayout } from "@/components/shared/sub-project-layout";
+import { subProject, subProjectGithubUrl } from "@/lib/docs-sites";
 import { createOgMetadata } from "@/lib/og";
 
-const title = "Generative Frame";
-const description =
-  "Render model-written HTML and SVG widgets as they stream, each in a sandboxed frame on its own domain.";
+const { title, description } = subProject("generative-frame");
 
 export const metadata: Metadata = {
   title,
@@ -21,7 +20,7 @@ export default function GenerativeFrameLayout({
   return (
     <SubProjectLayout
       name="generative-frame"
-      githubPath="https://github.com/assistant-ui/assistant-ui/tree/main/packages/generative-frame"
+      githubPath={subProjectGithubUrl("generative-frame")}
     >
       {children}
     </SubProjectLayout>

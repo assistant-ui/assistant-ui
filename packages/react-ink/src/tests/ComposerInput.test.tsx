@@ -73,6 +73,7 @@ vi.mock("ink", async (importOriginal) => {
 });
 
 import { ComposerInput } from "../primitives/composer/ComposerInput";
+import { textBufferReducer } from "../primitives/textInput/useTextBuffer";
 
 const flush = async () => {
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -631,6 +632,11 @@ describe("ComposerInput", () => {
   it("does not treat local store echoes as external resets", async () => {
     const state = { composer: { text: "hello" } };
     const buffer = createBuffer("hello", 2);
+    buffer.dispatchAction.mockImplementation(
+      (action: Parameters<typeof textBufferReducer>[1]) => {
+        Object.assign(buffer, textBufferReducer(buffer, action));
+      },
+    );
     const setStoreText = vi.fn((text: string) => {
       state.composer.text = text;
     });

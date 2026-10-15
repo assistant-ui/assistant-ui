@@ -93,8 +93,9 @@ type ExternalStoreAdapterBase<T> = {
    */
   unstable_persistsHistory?: boolean | undefined;
   /**
-   * Whether the entire thread is disabled. When `true`, the composer's input
-   * is also disabled (the user cannot type, attach files, or submit). For a
+   * Whether the entire thread is disabled. When `true`, the composer input
+   * cannot be typed into, attachments cannot be added, sends (including direct
+   * `composer.send()` calls) are blocked, and messages cannot be edited. For a
    * narrower gate that keeps the input usable but blocks only sending, use
    * `isSendDisabled`.
    */
@@ -117,6 +118,8 @@ type ExternalStoreAdapterBase<T> = {
    * to the last-message-status heuristic.
    */
   isRunning?: boolean | undefined;
+  /** The current run's id, kept through `cancelRun` so its late calls can be discarded. */
+  activeRunId?: string | undefined;
   isLoading?: boolean | undefined;
   /**
    * Whether messages exist before the first one in `messages`, for a host
@@ -141,6 +144,11 @@ type ExternalStoreAdapterBase<T> = {
    * conversations through one runtime keep each conversation's history and
    * branches isolated in its own instance. Omit it to keep the runtime's own
    * repository.
+   *
+   * When `unstable_enableToolInvocations` is true, frontend tool executions
+   * belong to the instance as well: a runtime mounted with an instance whose
+   * tools are still executing takes them over, so it reports them as running,
+   * stops them on cancel, and resumes their human input requests.
    *
    * @deprecated Experimental since 2026-08-28. Not scheduled for removal; the API may change in any release.
    */
@@ -193,7 +201,11 @@ type ExternalStoreAdapterBase<T> = {
    * from its branches when `messages` stops carrying the id, and reads a
    * `messages` update that still carries it after every call for it has
    * settled as a declined delete. A host that accepts the delete therefore
-   * publishes the removal before the returned promise settles.
+   * publishes the removal before the returned promise settles. While a
+   * branch switch, `messages` can omit ids on another branch. A reload or
+   * edit can omit messages after an earlier reply. For deletes pending across
+   * those changes, the runtime waits for the promise: a rejection keeps the
+   * message and a resolution drops it.
    */
   onDelete?: ((messageId: string) => Promise<void> | void) | undefined;
   onReload?: // TODO: remove parentId in 0.12.0

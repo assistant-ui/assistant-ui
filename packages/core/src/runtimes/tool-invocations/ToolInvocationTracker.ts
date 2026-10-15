@@ -51,6 +51,7 @@ type ToolCallEntry = {
   hasResult: boolean;
   executionId?: symbol;
   skipExecute?: boolean;
+  discarded?: boolean;
   executeStarted?: boolean;
 } & (
   | {
@@ -321,7 +322,7 @@ export class ToolInvocationTracker {
       const previousIsRunning = this._isRunning;
       this._isRunning = snapshot.isRunning;
       try {
-        this._processMessages(snapshot.messages);
+        this._processMessages(snapshot.messages, snapshot.discardedToolCallIds);
       } catch (err) {
         this._isRunning = previousIsRunning;
         throw err;
@@ -391,6 +392,7 @@ export class ToolInvocationTracker {
           if (entry.hasResult || entry.executeStarted) continue;
           this._discardedToolCallIds.add(toolCallId);
           entry.skipExecute = true;
+          entry.discarded = true;
         }
       }
 
@@ -491,7 +493,7 @@ export class ToolInvocationTracker {
                 context.toolCallId,
                 executionId,
               );
-              if (!entry) return;
+              if (!entry || entry.discarded) return;
               return streamCall(reader, context);
             },
           }),
@@ -708,6 +710,7 @@ export class ToolInvocationTracker {
     toolCallId: string,
     toolName: string,
     skipExecute: boolean,
+    discarded: boolean,
     clientOwned: boolean,
   ): ToolCallEntry {
     const toolCallController = this._controller.addToolCallPart({
@@ -720,6 +723,7 @@ export class ToolInvocationTracker {
       argsText: "",
       hasResult: false,
       skipExecute,
+      discarded,
       argsComplete: false,
       clientOwned,
     };
@@ -862,7 +866,10 @@ export class ToolInvocationTracker {
     }
   }
 
-  private _processMessages(messages: readonly ThreadMessage[]): void {
+  private _processMessages(
+    messages: readonly ThreadMessage[],
+    discardedToolCallIds?: ReadonlySet<string>,
+  ): void {
     const isRestore = this._pendingRestore;
 
     for (const { part: content } of walkToolCallTree(messages)) {
@@ -884,6 +891,7 @@ export class ToolInvocationTracker {
 
       // Live snapshot.
       let entry = existing;
+      const wasDiscarded = this._discardedToolCallIds.has(content.toolCallId);
 
       // A discarded id is remembered only until the call is answered, which
       // bounds the set to the open calls of a discarded turn.
@@ -906,6 +914,11 @@ export class ToolInvocationTracker {
       }
 
       if (!entry) {
+        const discarded =
+          wasDiscarded ||
+          discardedToolCallIds?.has(content.toolCallId) === true;
+        if (discarded && !hasFinalResult(content))
+          this._discardedToolCallIds.add(content.toolCallId);
         const ownership = this._isClientToolCall?.(content);
         const providerOwned =
           content.result === undefined && ownership === false;
@@ -914,9 +927,8 @@ export class ToolInvocationTracker {
         entry = this._startActiveEntry(
           content.toolCallId,
           content.toolName,
-          content.result !== undefined ||
-            providerOwned ||
-            this._discardedToolCallIds.has(content.toolCallId),
+          content.result !== undefined || providerOwned || discarded,
+          discarded,
           ownership === true,
         );
       }
@@ -967,6 +979,7 @@ export namespace ToolInvocationTracker {
      * `execute` fires). When `false`, processing resumes as live.
      */
     readonly isLoading?: boolean;
+    readonly discardedToolCallIds?: ReadonlySet<string>;
   };
 
   export type Callbacks = {

@@ -12,7 +12,8 @@ description: Render widget tool calls in an assistant-ui thread as their argumen
 
 import type { ReactNode } from "react";
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import {
   createWidgetToolkit,
   useWidgetInstructions,
@@ -22,7 +23,9 @@ const widgets = createWidgetToolkit({ widget: { maxHeight: 700 } });
 const config = AuiConfig({ tools: Tools({ toolkit: widgets.toolkit }) });
 
 export function Provider({ children }: { children: ReactNode }) {
-  const runtime = useChatRuntime();
+  const runtime = useChatRuntime({
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+  });
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
       <WidgetInstructions />
@@ -64,6 +67,55 @@ const widgets = createWidgetToolkit({
 ```
 
 This adds `render_spec` to the toolkit and the `spec` module to `read_me`. `createSpecToolkit(catalog, options)` takes `components` (required), `handlers`, `onAction`, `placeholder`, and `specPrompt`. See [Spec mode](/generative-frame/docs/spec-mode) for the catalog and components.
+
+Each `render_spec` call renders inside a `div` whose `data-gf-spec` holds the call's title and which carries `data-gf-streaming` while the arguments stream, so your styles can ease elements in as they arrive without animating a thread that loads already complete.
+
+The built-in `copyText` action (`{ text }`) writes `text` to the user's clipboard with `navigator.clipboard.writeText`, so a spec can offer a button such as "Copy list". It runs only from an event a component emits, never from `watch`, and the `spec` module documents it for the model.
+
+Results of the tool calls before a `render_spec` call are in its state under `/tools/<toolName>/<n>`, newest first, so a spec can show a value such as a price straight from the latest search with `{ "$state": "/tools/search_flights/0/price" }` instead of the model copying it. Tool names are keys every model sees, which call ids are not, and counting back from the call keeps each index stable when the host prunes older history, as AI SDK `pruneMessages` and LangChain `trimMessages` do. A patch counts from its own call, so the `spec` module tells the model where the results are and to update a binding that should keep an older result after calling the same tool again. The widget tools' own results are left out, a call without a result yet holds `undefined`, and a spec that writes its own `tools` key in `state` keeps it and gets no results, so specs saved before this release render as they did. A string result that holds a JSON object or array, such as a LangGraph tool message, is mounted decoded, because that is the structure the model read. An entry is the result the thread stores, so an AI SDK tool with `toModelOutput` exposes its `execute` result rather than the output the model saw. In frontend execution, when a spec shows a `/tools` path the stored results do not have, `render_spec` adds a `missing-tool-result` warning, so a model that read the value from output the thread does not store can write it into the spec; a read that only renders while its path has a value, such as one gated by `visible` or a `$cond` test on that path, or a `$calc` default like `${/tools/x/0/name} ? ${/tools/x/0/name} : 'Guest'`, is left out. In frontend execution the toolkit's own `read_me` and `render_spec` tell the model about `tools`. With `execution: "backend"` the server defines them: pass `toolResults: true` to `createSpecToolkit` so the toolkit mounts the results, and add `SPEC_TOOL_RESULTS_RULE` from `generative-frame/spec/tools` to the `customRules` of the server's `createSpecTools` and its spec guidance so the model knows they are there. Without `toolResults`, the toolkit leaves `state` as the model wrote it.
+
+### On React Native
+
+`createWidgetToolkit` and frame mode run only in a browser. With `@assistant-ui/react-native`, `createSpecToolkit` from `generative-frame/spec/assistant-ui` resolves to a React Native build, and its entries go straight into your toolkit:
+
+```tsx
+import { Tools, useAssistantInstructions } from "@assistant-ui/react-native";
+import { createSpecToolkit } from "generative-frame/spec/assistant-ui";
+
+const spec = createSpecToolkit(catalog, { components });
+const tools = Tools({
+  toolkit: spec.entries({ execution: "frontend", display: "standalone" }),
+});
+const guidance = (spec.modules ?? [])
+  .map((module) => module.guidance())
+  .join("\n\n");
+
+function SpecInstructions() {
+  useAssistantInstructions(guidance);
+  return null;
+}
+```
+
+Pass `tools` to your `AuiConfig`, and render `SpecInstructions` inside the runtime provider so the model gets the toolkit's `spec` module, the guidance `read_me` gives it on the web, including your `specPrompt` and the rule for earlier tool results. With `execution: "backend"`, the server defines `render_spec` with `createSpecTools(catalog)` and puts the catalog guidance in its system prompt instead, as in [spec mode as a tool](/generative-frame/docs/spec-mode#as-a-tool); earlier tool results reach a spec's state there once the server carries their rule and the toolkit gets `toolResults: true`, as described for the web above. What the user changes in a rendered spec is saved and restored as on the web (see [History after a reload](#history-after-a-reload)). React Native has no clipboard API of its own, so this build leaves `copyText` out of the guidance; an app that has a clipboard module adds it with `handlers: { copyText }` and `specPrompt: { hostApi: { clipboard: true } }`. `@assistant-ui/react-native` is an optional peer of this entry.
+
+### On Vue
+
+With `@assistant-ui/vue`, `createSpecToolkit` from `generative-frame/spec/assistant-ui/vue` renders `render_spec` calls with the [Vue renderer](/generative-frame/docs/spec-mode#render-with-vue) and your Vue components. Its entries go into `Tools({ toolkit })` from `@assistant-ui/core/react`, as other [Vue tool UIs](/docs/vue/tool-ui) do:
+
+```ts
+import { Tools } from "@assistant-ui/core/react";
+import { createSpecToolkit } from "generative-frame/spec/assistant-ui/vue";
+
+const spec = createSpecToolkit(catalog, { components });
+const tools = Tools({
+  toolkit: spec.entries({ execution: "frontend", display: "standalone" }),
+});
+const guidance = (spec.modules ?? [])
+  .map((module) => module.guidance())
+  .join("\n\n");
+```
+
+Pass `tools` to your `AuiConfig`, and register `guidance` as `system` [model context](/docs/vue/model-context) in a component under `AuiProvider`, so the model gets the `spec` module. With `execution: "backend"`, the server defines `render_spec` and its guidance instead, as on React Native. The toolkit reads the thread as the React one does: patches apply onto earlier calls with the same title, earlier tool results are in state under `/tools` in frontend execution or with `toolResults: true`, what the user changes is saved on the call, `copyText` writes to the clipboard as it does on the web, and `sendMessage` and `updateModelContext` behave as described below. `@assistant-ui/vue` and `@assistant-ui/core` are optional peers of this entry.
 
 ## Frontend and backend execution
 
@@ -150,7 +202,13 @@ const tokens = useAssistantUiThemeTokens();
 
 ## History after a reload
 
-The renderers derive their state from the thread, not from memory. `show_widget` renders from its arguments, `edit_widget` replays the edits of earlier calls with the same title, and `render_spec` applies its patches onto the spec built by earlier calls with that title. The registry is filled from rendered calls, so `edit_widget` also executes after a reload. Scripts run again when a widget mounts.
+The renderers derive their state from the thread, not from memory. `show_widget` renders from its arguments, `edit_widget` replays the edits of earlier calls with the same title, and `render_spec` applies its patches onto the spec built by earlier calls with that title. Within one message, a `render_spec` call that a later call with the same title patches shows nothing and shares nothing with the model, so a repair does not leave a second copy; a later call counts once its own top-level title has fully arrived, and model context subscribers hear when the earlier call stops sharing. Widgets follow the same rule: a later `show_widget` with the same title takes over as it streams, and a later `edit_widget` once its edits are complete and apply, so an edit that is still streaming or fails leaves the widget in place. The registry is filled from rendered calls, so `edit_widget` also executes after a reload. Scripts run again when a widget mounts.
+
+What the user changes in a rendered spec, through a bound input, a `setState` action, or a value a handler writes, is saved on its `render_spec` call with `unstable_recordInteraction` half a second after the last change and when the call unmounts, and restored when the call renders again. It comes back after a reload with any runtime that keeps tool interactions with the thread (see [Recording interactions](/docs/tools/tool-ui#recording-interactions)), and it is not sent to the model unless the UI shares it, as described below. Each call keeps its own changes, so a later `render_spec` call with the same title starts from the spec the model wrote. Saving is best effort: the state has to be plain JSON within the runtime's 16,384-character limit for one interaction, and a save that fails is recorded as such, so the call starts from the model's state after a reload rather than from an older save. A change made in the last half second before the call unmounts, for example when switching threads, may not be saved.
+
+A UI tells the model what the user chose only on purpose. In a spec, the built-in `updateModelContext` action (`{ text?, data? }`) replaces what the UI shares, and `sendMessage` (`{ text }`) sends a user message; a widget calls `genframe.updateModelContext({ content: [{ type: "text", text }], structuredContent })` or `sendPrompt(text)`. The toolkit adds what each UI shares to the system prompt of every later request, including one that `sendMessage` starts in the same event, as a section that names the UI, marks the shared value as data rather than instructions, and holds at most 4,000 characters of it. It saves the context with the call's state, so it comes back after a reload wherever the state does, on the same best effort terms, and drops it when the UI shares empty params. `sendMessage` runs only from an event a component emits, never from `watch`. Your own `handlers` in `createSpecToolkit`, or `widget.onUpdateModelContext` in `createWidgetToolkit`, replace these defaults.
+
+A widget's own state, the value its script passes to `genframe.setState`, is saved the same way on the `show_widget` or `edit_widget` call that drew it, and `genframe.state` holds the saved value when the widget's scripts run again after a reload. Each call keeps its own state, so an `edit_widget` call starts from the state its own frame saved, or `null`, and the same plain JSON limit applies. Your `onWidgetState` handler still receives every state the host accepts: plain JSON from the frame that is showing.
 
 ## Storage
 

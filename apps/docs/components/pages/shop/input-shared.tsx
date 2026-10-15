@@ -281,6 +281,7 @@ export const submitOnModifiedEnter = (
   if (
     event.key !== "Enter" ||
     event.nativeEvent.isComposing ||
+    event.keyCode === 229 ||
     !(event.shiftKey || event.metaKey || event.ctrlKey)
   )
     return;

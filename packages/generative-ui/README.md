@@ -1,6 +1,6 @@
 # @assistant-ui/generative-ui
 
-Framework-neutral generative UI for assistant-ui. The root entry holds the React-free UI tree types and normalizer, `@assistant-ui/generative-ui/react` renders the tree with React, and the `slack`, `teams`, and `a2ui` subpaths convert it for other surfaces.
+Framework-neutral generative UI for assistant-ui. The root entry holds the React-free UI tree types and normalizer, `@assistant-ui/generative-ui/react` renders the tree with React, the `slack`, `teams`, and `a2ui` subpaths convert it for other surfaces, `@assistant-ui/generative-ui/spec` renders a library in generative-frame's spec mode (with React Native components under the `react-native` export condition), `@assistant-ui/generative-ui/spec/tree` converts a spec into the tree for the Slack and Teams subpaths, and `@assistant-ui/generative-ui/vue` does the same with Vue components.
 
 ## Installation
 
@@ -8,13 +8,13 @@ Framework-neutral generative UI for assistant-ui. The root entry holds the React
 npm install @assistant-ui/generative-ui @assistant-ui/react zod
 ```
 
-`react`, `@assistant-ui/react`, and `zod` are optional peers that only `@assistant-ui/generative-ui/react` needs; the root entry and the `slack`, `teams`, and `a2ui` subpaths work without them.
+Every framework and library is an optional peer that only some subpaths need: `@assistant-ui/generative-ui/react` needs `react`, `@assistant-ui/react`, and `zod`; `@assistant-ui/generative-ui/spec` needs `react`, `zod`, and `generative-frame`, plus `react-native` on React Native; `@assistant-ui/generative-ui/spec/tree` needs only `generative-frame`; and `@assistant-ui/generative-ui/vue` needs `vue`, `zod`, and `generative-frame`. The root entry and the `slack`, `teams`, and `a2ui` subpaths need none of them.
 
 ## Usage
 
 Declare the components the model is allowed to render in a library, then expose
-them through the `present` tool. The model emits a `{ $type, ...props }` tree
-(`$type` names the component, so a real `type` prop never collides); the tool
+them through the `present` tool. The model emits a `{ _type, ...props }` tree
+(`_type` names the component, so a real `type` prop never collides); the tool
 renders it against the library.
 
 ```tsx
@@ -60,9 +60,9 @@ A node's `children` prop is rendered recursively, so components can be nested:
 
 ```json
 {
-  "$type": "Card",
+  "_type": "Card",
   "title": "Hello",
-  "children": [{ "$type": "Text", "tone": "muted", "children": "Nested text" }]
+  "children": [{ "_type": "Text", "tone": "muted", "children": "Nested text" }]
 }
 ```
 
@@ -132,14 +132,14 @@ export default defineToolkit({
 });
 ```
 
-The model calls `present` with a node like `{ "$type": "Weather", "city": "SF" }`.
+The model calls `present` with a node like `{ "_type": "Weather", "city": "SF" }`.
 Pass `present({ display: "standalone" })` to render the component on its own
 surface instead of inline. See the
 [`"use generative"` docs](https://www.assistant-ui.com/docs) for the build setup.
 
 ## Slack, Teams, and A2UI
 
-The same tree is plain JSON, so it is not tied to the browser. Three React-free subpaths convert it for Slack Block Kit, Microsoft Teams Adaptive Cards, and inbound [A2UI](https://a2ui.org/) surfaces. They run in server actions, queue workers, and webhook handlers. Conversion is over the built-in vocabulary; a `$type` outside it is dropped with a warning. What each target does with a component, and how unsupported content degrades, is documented on [Generative UI on Slack](https://www.assistant-ui.com/docs/tools/generative-ui-slack), [Generative UI on Microsoft Teams](https://www.assistant-ui.com/docs/tools/generative-ui-teams), and [A2UI over AG-UI](https://www.assistant-ui.com/docs/tools/a2ui).
+The same tree is plain JSON, so it is not tied to the browser. Three React-free subpaths convert it for Slack Block Kit, Microsoft Teams Adaptive Cards, and inbound [A2UI](https://a2ui.org/) surfaces. They run in server actions, queue workers, and webhook handlers. Conversion is over the built-in vocabulary; a `$type` outside it is dropped with a warning. A spec from generative-frame's spec mode converts with `specToUISpec` from `@assistant-ui/generative-ui/spec/tree` first. What each target does with a component, and how unsupported content degrades, is documented on [Generative UI on Slack](https://www.assistant-ui.com/docs/tools/generative-ui-slack), [Generative UI on Microsoft Teams](https://www.assistant-ui.com/docs/tools/generative-ui-teams), and [A2UI over AG-UI](https://www.assistant-ui.com/docs/tools/a2ui).
 
 ### `@assistant-ui/generative-ui/slack`
 
@@ -183,6 +183,35 @@ const { state } = applyA2uiOperations(new Map(), operations);
 for (const surface of state.values()) {
   const { spec, warnings } = convertSurfaceToUISpec(surface);
 }
+```
+
+## Spec mode
+
+In [generative-frame's spec mode](https://www.assistant-ui.com/generative-frame/docs/spec-mode), the model builds the UI as a flat spec, streamed as JSON Patch lines, with state, bindings, and validation. `toSpecCatalog` from `@assistant-ui/generative-ui/spec` turns a library, the built-in vocabulary by default, into the catalog and components spec mode renders. Install `generative-frame` alongside it.
+
+```tsx
+import { createWidgetToolkit } from "generative-frame/assistant-ui";
+import { createSpecToolkit } from "generative-frame/spec/assistant-ui";
+import { toSpecCatalog } from "@assistant-ui/generative-ui/spec";
+
+const { catalog, components } = toSpecCatalog();
+const widgets = createWidgetToolkit({
+  spec: createSpecToolkit(catalog, { components }),
+});
+```
+
+[Spec mode](https://www.assistant-ui.com/docs/tools/generative-ui#spec-mode) lists the events each component emits, how a bound value writes back, and how your own components declare their events and slots.
+
+`toSpecCatalog` from `@assistant-ui/generative-ui/vue` builds the same catalog with Vue components for `SpecRenderer` from `generative-frame/spec/vue`. They render the same `data-aui` markup as the React vocabulary, so the same stylesheet applies:
+
+```ts
+import { h } from "vue";
+import type { Spec } from "generative-frame/spec";
+import { SpecRenderer } from "generative-frame/spec/vue";
+import { toSpecCatalog } from "@assistant-ui/generative-ui/vue";
+
+const { catalog, components } = toSpecCatalog();
+const render = (spec: Spec) => h(SpecRenderer, { spec, catalog, components });
 ```
 
 ## License

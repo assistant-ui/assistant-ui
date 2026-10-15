@@ -1,12 +1,12 @@
 ---
 title: Generative UI
-description: Let the model compose an interface at runtime from a component vocabulary you ship, using the present tool from @assistant-ui/react-generative-ui.
+description: Let the model compose an interface at runtime from a component vocabulary you ship, using the present tool from @assistant-ui/generative-ui.
 platforms: ["react"]
 ---
 
 With generative UI, you ship a **vocabulary** of components and let the model assemble them, instead of writing one component per tool. The model calls a single `present` tool whose arguments are a JSON tree of component names and props, and assistant-ui renders that tree.
 
-The package ships a default vocabulary of 29 components (cards, facts, tables, charts, forms, controls), so the shortest useful setup registers one tool and writes no components at all.
+The package ships a default vocabulary of 35 components (cards, facts, tables, charts, tabs, steps, timelines, citations, diagrams, maps, forms, controls), so the shortest useful setup registers one tool and writes no components at all.
 
 ## Which generative UI pattern?
 
@@ -21,6 +21,8 @@ assistant-ui uses "generative UI" for more than one thing. Two questions separat
 
 The first two are tool-driven, so the model decides when UI appears; the last two are backend-driven, so your agent does. The backend-driven pair splits on transport rather than on either axis: the primitive reads a `generative-ui` message part, while LangGraph data UI reads `push_ui_message` off the LangGraph stream. `present` and the primitive both take a JSON component tree, but in [non-interchangeable shapes](/docs/tools/generative-ui-primitive#spec-shape). A third-party option also exists in the tool-driven space: [OpenUI](/docs/tools/openui) publishes an integration that streams OpenUI Lang through the same shape.
 
+To decide between Markdown, `present`, spec mode, and a model-written widget for an answer, see [Choosing an answer format](/docs/tools/generative-ui-formats).
+
 Browse every component the default vocabulary offers in the [component vocabulary reference](/elements/vocabulary), and see finished compositions in the [Generative section of Elements](/elements).
 
 ## Quick start
@@ -31,13 +33,13 @@ Browse every component the default vocabulary offers in the [component vocabular
 
 ### Install the package
 
-<InstallCommand npm={["@assistant-ui/react-generative-ui"]} />
+<InstallCommand npm={["@assistant-ui/generative-ui", "zod"]} />
 
 The vocabulary renders as unstyled semantic HTML with `data-aui` attributes. Add the styled library to get the shipped look:
 
 <InstallCommand shadcn={["generative-ui"]} />
 
-This merges the vocabulary stylesheet and theme variables into your CSS, which is what the rest of this page assumes, and lands `components/assistant-ui/elements/generative-ui.tsx`. That file exports `styledGenerativeUILibrary`, whose only difference from the default vocabulary is a real markdown renderer; [Styling](#styling) wires it in.
+This merges the vocabulary stylesheet and theme variables into your CSS, which is what the rest of this page assumes, and lands `components/assistant-ui/elements/generative-ui.tsx`. That file exports `styledGenerativeUILibrary`, which differs from the default vocabulary in three entries: a real markdown renderer, and a drawn `Diagram` and `Map` (see [Diagrams and maps](#diagrams-and-maps)); [Styling](#styling) wires it in.
 
 </Step>
 
@@ -72,7 +74,7 @@ import { defineToolkit } from "@assistant-ui/react";
 import {
   JSONGenerativeUI,
   defaultGenerativeUILibrary,
-} from "@assistant-ui/react-generative-ui";
+} from "@assistant-ui/generative-ui/react";
 
 const generative = new JSONGenerativeUI({
   library: defaultGenerativeUILibrary,
@@ -168,22 +170,22 @@ Ask for something the vocabulary can express, for example "show me a sales dashb
 
 ## What the model emits
 
-Every node is a flat object: `$type` names the component, `children` nests, and every other key is a prop.
+Every node is a flat object: `_type` names the component, `children` nests, and every other key is a prop.
 
 ```json
 {
-  "$type": "Card",
+  "_type": "Card",
   "title": "Q3 revenue",
   "children": [
     {
-      "$type": "Row",
+      "_type": "Row",
       "children": [
-        { "$type": "Fact", "label": "Bookings", "value": "$1.2M" },
-        { "$type": "Fact", "label": "Growth", "value": "+18%" }
+        { "_type": "Fact", "label": "Bookings", "value": "$1.2M" },
+        { "_type": "Fact", "label": "Growth", "value": "+18%" }
       ]
     },
     {
-      "$type": "Chart",
+      "_type": "Chart",
       "variant": "bar",
       "showAxis": true,
       "data": [
@@ -196,7 +198,7 @@ Every node is a flat object: `$type` names the component, `children` nests, and 
 }
 ```
 
-Keys beginning with `$` are reserved by the framework (`$type`, `$key`, `$action`, and the injected `$status`), and `children` follows the JSX convention. Every other key is yours, so a component is free to declare props named `type`, `status`, or `variant` without colliding.
+`_type`, `_key`, and `_action` are reserved by the framework, as is every key beginning with `$` (such as the injected `$status`), and `children` follows the JSX convention. The model writes the reserved keys with `_` because Anthropic rejects tool schemas with `$` in property names; trees built in code, such as converter output and the `UIElement` type, write them as `$type`, `$key`, and `$action`, and both spellings render the same. Every other key is yours, so a component is free to declare props named `type`, `status`, or `variant` without colliding.
 
 ## Extending the vocabulary
 
@@ -210,7 +212,7 @@ import {
   JSONGenerativeUI,
   defaultGenerativeUILibrary,
   defineGenerativeComponents,
-} from "@assistant-ui/react-generative-ui";
+} from "@assistant-ui/generative-ui/react";
 import { WeatherCard } from "@/components/weather-card";
 
 const generative = new JSONGenerativeUI({
@@ -237,14 +239,14 @@ Inside a `"use generative"` module, a `"use client"` module may be referenced **
 
 ## Actions
 
-Pass an action registry to let rendered nodes call back into your app. The model puts an `$action` object on a node, and its `type` is matched against your handlers.
+Pass an action registry to let rendered nodes call back into your app. The model puts an `_action` object on a node, and its `type` is matched against your handlers.
 
 ```tsx
 import {
   JSONGenerativeUI,
   createActionRegistry,
   defaultGenerativeUILibrary,
-} from "@assistant-ui/react-generative-ui";
+} from "@assistant-ui/generative-ui/react";
 
 const actions = createActionRegistry({
   purchase: async ({ payload }) => {
@@ -260,9 +262,9 @@ const generative = new JSONGenerativeUI({
 
 ```json
 {
-  "$type": "Button",
+  "_type": "Button",
   "label": "Buy",
-  "$action": { "type": "purchase", "sku": "pro-plan" }
+  "_action": { "type": "purchase", "sku": "pro-plan" }
 }
 ```
 
@@ -272,33 +274,33 @@ Set `undoable` for sends and other hard-to-reverse actions. The button waits fiv
 
 ```json
 {
-  "$type": "Button",
+  "_type": "Button",
   "label": "Delete order",
   "undoable": true,
-  "$action": { "type": "delete_order", "orderId": "48213" }
+  "_action": { "type": "delete_order", "orderId": "48213" }
 }
 ```
 
-`Select`, `Input`, `DatePicker`, `Checkbox`, `Slider`, `RadioGroup`, and `CheckboxGroup` add the user's value as `$input` when they fire the action; `Slider` sends a number and a `CheckboxGroup` sends the array of its checked option values. `Form`, and a `Card` with `asForm` set, add an object keyed by each control's `name` instead. On a `Card` there is no card-level `$action`: the collected object is dispatched through `confirm.$action`, while `cancel.$action` always fires without `$input`. Unknown action types are ignored and warn in development.
+`Select`, `Input`, `DatePicker`, `Checkbox`, `Slider`, `RadioGroup`, and `CheckboxGroup` add the user's value as `$input` when they fire the action; `Slider` sends a number and a `CheckboxGroup` sends the array of its checked option values. `Form`, and a `Card` with `asForm` set, add an object keyed by each control's `name` instead. On a `Card` the collected object is dispatched through `confirm._action`, or through the card's own `_action` when `confirm` has none, while `cancel._action` always fires without `$input`. Unknown action types are ignored and warn in development.
 
 `Slider` takes `min`, `max`, an optional `step`, `defaultValue`, and `unit`; it shows the live value and commits only when the adjustment finishes. Set `Checkbox` `variant` to `"switch"` for a switch presentation without changing its boolean value. `RadioGroup` and `CheckboxGroup` options can add a short `description`, rendered under the label.
 
-Any value inside `$action` can be a `{ "$field": name }` reference instead, which resolves to a control's current value when the action fires. It reads the control with that `name` in the nearest enclosing `Form` or `Card` with `asForm`, or else anywhere in the same `JSONGenerativeUI` render, collected the way a `Form` collects it. When no control holds a value, a reference written as `{ "$field": name, "fallback": value }` resolves to its `fallback`, and one without a fallback is dropped. A component outside the default vocabulary that dispatches `$action` itself reads no control, so each reference in it resolves the same way. Such a component can resolve references against its own values before it dispatches: `resolveFieldReferences(action, fields)` from `@assistant-ui/react-generative-ui` replaces each reference with the matching value in `fields`, falling back the same way, and `hasFieldReference(action)` tells whether an action carries any. A tree rendered with `renderGenerativeUI` directly resolves references only inside one of those forms or an element marked `data-aui="root"`, so they never read a host page's own form. `Input` and `Select` take a `defaultValue`, so a button can send an edited value without a form:
+Any value inside `_action` can be a `{ "$field": name }` reference instead, which resolves to a control's current value when the action fires. It reads the control with that `name` in the nearest enclosing `Form` or `Card` with `asForm`, or else anywhere in the same `JSONGenerativeUI` render, collected the way a `Form` collects it. When no control holds a value, a reference written as `{ "$field": name, "fallback": value }` resolves to its `fallback`, and one without a fallback is dropped. A component outside the default vocabulary that dispatches `$action` itself reads no control, so each reference in it resolves the same way. Such a component can resolve references against its own values before it dispatches: `resolveFieldReferences(action, fields)` from `@assistant-ui/generative-ui` replaces each reference with the matching value in `fields`, falling back the same way, and `hasFieldReference(action)` tells whether an action carries any. A tree rendered with `renderGenerativeUI` directly resolves references only inside one of those forms or an element marked `data-aui="root"`, so they never read a host page's own form. `Input` and `Select` take a `defaultValue`, so a button can send an edited value without a form:
 
 ```json
 {
-  "$type": "Col",
+  "_type": "Col",
   "children": [
     {
-      "$type": "Input",
+      "_type": "Input",
       "name": "note",
       "label": "Delivery note",
       "defaultValue": "Leave at the door"
     },
     {
-      "$type": "Button",
+      "_type": "Button",
       "label": "Save",
-      "$action": { "type": "save_note", "note": { "$field": "note" } }
+      "_action": { "type": "save_note", "note": { "$field": "note" } }
     }
   ]
 }
@@ -308,7 +310,7 @@ On Teams, `decodeSubmitData` resolves these references from the card's inputs. O
 
 `Input` accepts an optional `inputType` of `"text"`, `"password"`, or `"number"` for a single line control, defaulting to text. A number input uses `step="any"` and keeps its value as a string, including decimal values such as `"12.5"` and `""` when cleared. Setting `multiline` renders a textarea instead.
 
-`DatePicker` accepts `inputType` `"date"` (the default), `"time"`, or `"datetime"`. Its own `$action` runs once per committed value: a pick from the native picker commits at once, and a typed value commits on blur or on Enter outside a form. Date values use `YYYY-MM-DD`; time values use `HH:mm` or `HH:mm:ss`; datetime values use `YYYY-MM-DDTHH:mm` with optional seconds, fractional seconds, and an offset (`Z` or `±HH:mm`). A datetime with an offset displays in the viewer's time zone and submits with the same offset; one without an offset submits unchanged. The [A2UI converter](/docs/tools/a2ui#component-mapping) maps `DateTimeInput` to the matching type, and uses a text `Input` when its value cannot fit that type. A single choice A2UI `ChoicePicker` maps to `RadioGroup` even for a `chips` display hint, preserving an empty selection as `[]` and a selected value as a one item string array; `multipleSelection` maps to `CheckboxGroup`.
+`DatePicker` accepts `inputType` `"date"` (the default), `"time"`, or `"datetime"`. Its own `_action` runs once per committed value: a pick from the native picker commits at once, and a typed value commits on blur or on Enter outside a form. Date values use `YYYY-MM-DD`; time values use `HH:mm` or `HH:mm:ss`; datetime values use `YYYY-MM-DDTHH:mm` with optional seconds, fractional seconds, and an offset (`Z` or `±HH:mm`). A datetime with an offset displays in the viewer's time zone and submits with the same offset; one without an offset submits unchanged. The [A2UI converter](/docs/tools/a2ui#component-mapping) maps `DateTimeInput` to the matching type, and uses a text `Input` when its value cannot fit that type. A single choice A2UI `ChoicePicker` maps to `RadioGroup` even for a `chips` display hint, preserving an empty selection as `[]` and a selected value as a one item string array; `multipleSelection` maps to `CheckboxGroup`.
 
 A control resets to its initial value (`defaultValue`, `defaultChecked`, or a `DatePicker`'s `value`) whenever a re-render changes that value, and otherwise keeps what the user entered.
 
@@ -319,6 +321,111 @@ Each dispatched action, including its `$input`, is recorded on the tool call on 
 Once answered, a `prompt_user` locks its controls and shows the submitted values. Only values submitted through a `Form` or a `Card` with `asForm` are restored after a reload.
 
 Without a registry, the tree still renders and model-emitted actions degrade to a no-op.
+
+## Spec mode
+
+In [generative-frame's spec mode](/generative-frame/docs/spec-mode), the model builds the UI as a flat spec, streamed as JSON Patch lines, with state, bindings, and validation. `toSpecCatalog` from `@assistant-ui/generative-ui/spec` turns a library into the catalog and components spec mode takes, so the default vocabulary, or a styled library, renders there too. [Moving to spec mode](/docs/tools/generative-ui-spec-migration) maps a `present` setup onto it. Install `generative-frame` alongside it:
+
+```tsx
+import { createWidgetToolkit } from "generative-frame/assistant-ui";
+import { createSpecToolkit } from "generative-frame/spec/assistant-ui";
+import { defaultGenerativeUILibrary } from "@assistant-ui/generative-ui/react";
+import { toSpecCatalog } from "@assistant-ui/generative-ui/spec";
+
+const { catalog, components } = toSpecCatalog(defaultGenerativeUILibrary, {
+  actions: { purchase: { description: "Buys the plan in `sku`." } },
+});
+
+const widgets = createWidgetToolkit({
+  spec: createSpecToolkit(catalog, {
+    components,
+    handlers: { purchase: (params) => checkout(params) },
+  }),
+});
+```
+
+A spec element binds behavior with `on` instead of carrying `_action`. A `Button` and a `ListViewItem` emit `press`, the value controls emit `change` (an `Input` emits `submit`), a `Form` emits `submit`, and a `Card` emits `cancel` from its cancel button and `confirm` from its confirm button or, with `asForm`, whenever it submits. The payload, which `{ "$event": "" }` reads, is the control's value, or every named control's value when a `Form` emits `submit` or a `Card` with `asForm` emits `confirm`. A control whose value prop (`defaultValue`, `defaultChecked`, or a `DatePicker`'s `value`) is bound with `$bindState` follows that state and writes every change back to it, inside a `Form` too. Declare host actions through `actions` so the model can bind them; `setState` is always available.
+
+Your own components take part through the same library entry. Declare the `events` a component emits and the `slots` it renders: `$dispatch({ type, $input })` emits a declared event, the element's `$action` carries the first one when the element binds it, `default` slot content arrives as `children` and any other slot in `$slots`, and `slots: []` takes no children. A prop the spec binds with `$bindState` arrives as its current value, and `$bindings` holds a setter that writes a new one back to state. The `present` tool ignores `events` and `slots`, and present mode passes neither `$slots` nor `$bindings`. Declaring either on a vocabulary component replaces its spec events, slots, and description, so give the override its own `description` too, since the vocabulary's description covers `present` behavior.
+
+```tsx
+import {
+  defaultGenerativeUILibrary,
+  type GenerativeUIComponent,
+} from "@assistant-ui/generative-ui/react";
+import { toSpecCatalog } from "@assistant-ui/generative-ui/spec";
+import { z } from "zod";
+import { Stars } from "@/components/stars";
+
+const Rating: GenerativeUIComponent<{ value: number }> = {
+  description: "A 1 to 5 star rating the user can change.",
+  properties: z.object({ value: z.number().describe("Stars, from 1 to 5.") }),
+  events: ["rate"],
+  slots: [],
+  render: ({ value, $bindings, $dispatch }) => (
+    <Stars
+      value={value}
+      onChange={(stars) => {
+        $bindings?.value?.(stars);
+        $dispatch?.({ type: "rate", $input: stars });
+      }}
+    />
+  ),
+};
+
+const { catalog, components } = toSpecCatalog({
+  ...defaultGenerativeUILibrary,
+  Rating,
+});
+```
+
+### With Vue
+
+`@assistant-ui/generative-ui/vue` ships the vocabulary as Vue components for `SpecRenderer` from `generative-frame/spec/vue`, with `vue` as an optional peer. Its `toSpecCatalog` takes a Vue library and the same `actions` option, and every component renders the same `data-aui` markup, emits the same events with the same payloads, and writes bound values back the same way as the React vocabulary, so the stylesheet and the behavior above carry over:
+
+```ts
+import { defineComponent, h } from "vue";
+import { SpecRenderer } from "generative-frame/spec/vue";
+import {
+  defaultGenerativeUILibrary,
+  toSpecCatalog,
+  type GenerativeUIComponent,
+} from "@assistant-ui/generative-ui/vue";
+import { z } from "zod";
+import { Stars } from "@/components/stars";
+
+const Rating: GenerativeUIComponent = {
+  description: "A 1 to 5 star rating the user can change.",
+  properties: z.object({ value: z.number().describe("Stars, from 1 to 5.") }),
+  events: ["rate"],
+  slots: [],
+  component: defineComponent({
+    props: ["value"],
+    emits: ["rate", "update:value"],
+    setup(props, { emit }) {
+      return () =>
+        h(Stars, {
+          value: props.value,
+          onChange: (stars: number) => {
+            emit("update:value", stars);
+            emit("rate", stars);
+          },
+        });
+    },
+  }),
+};
+
+const { catalog, components } = toSpecCatalog({
+  ...defaultGenerativeUILibrary,
+  Rating,
+});
+```
+
+A Vue entry carries a `component` instead of a `render` function. The component follows the [Vue component contract](/generative-frame/docs/spec-mode#render-with-vue): it declares its props and the events it emits, receives children and named slots as Vue slots, and writes a bound prop by emitting `update:<prop>`. To render `render_spec` calls in an `@assistant-ui/vue` thread, pass the catalog and components to `createSpecToolkit` from `generative-frame/spec/assistant-ui/vue` ([assistant-ui on Vue](/generative-frame/docs/assistant-ui#on-vue)).
+
+### With React Native
+
+On React Native, `@assistant-ui/generative-ui/spec` resolves to a React Native build through the `react-native` export condition: `toSpecCatalog` and `defaultGenerativeUILibrary` from it draw the same vocabulary with React Native's own components, with the same events, payloads, and bound values. [Generative UI on React Native](/docs/react-native/generative-ui) shows the setup and the components that take a different form on a phone.
 
 ## Charts
 
@@ -338,11 +445,31 @@ Use `series[].color` to set an individual series to `emphasis`, `secondary`, `al
 
 Carousel paging controls appear only when cards overflow the available width. Each press moves one card, and motion follows the user's reduced motion preference.
 
+## Tabs, steps, and timelines
+
+`Tabs` shows one child panel at a time under a row of tabs, labeled in order by its `tabs` strings, and `label` names the row for screen readers; a panel without a label is labeled with its number. Every panel stays mounted, so a control on a hidden tab keeps its value. On the web, the arrow keys, Home, and End move between tabs. Slack and Teams show every panel in order under its label.
+
+`Steps` numbers its `steps`, each a `title` with an optional `detail`, for instructions to follow in order. `Timeline` lists its `items`, each a `time` label, a `title`, and an optional `detail`, for schedules, itineraries, and histories. A `present` tree skips an entry without a title; spec mode reports it to the model as an invalid prop instead.
+
+## Citations
+
+`Citation` shows a source the answer draws on: its `title`, an optional `snippet`, and the `source` it comes from, which defaults to the link's domain. Only an `http` or `https` `url` to a plain host makes the title a link, which opens in a new tab on the web and through `Linking` on React Native; any other value leaves the title as plain text.
+
+## Checklists
+
+Set `progress` on a `CheckboxGroup` to show how many of its options are checked, as a count and a bar, for a checklist the user works through. The count follows the boxes as the user checks them, also when spec mode binds the group's value. Slack and Teams show the options without the count.
+
+## Diagrams and maps
+
+`Diagram` takes Mermaid source in `code` and an optional `title`. `Map` takes `places`, each a `label` with `lat`, `lng`, and an optional `detail`, and `route` to draw a line through them in order; a place without valid coordinates is skipped.
+
+The default vocabulary draws neither, so it adds no dependency: `Diagram` shows its source, and `Map` lists its places, each linking to OpenStreetMap. Slack, Teams, and React Native show the same. The `generative-ui` registry item draws them with the [Mermaid diagram](/elements/mermaid-diagram) and [Geo map](/elements/geo-map) elements, which bring `beautiful-mermaid` and `leaflet` into your app, and the map loads OpenStreetMap tiles.
+
 ## Styling
 
 The vocabulary renders semantic HTML tagged with `data-aui` and `data-aui-*` attributes and ships no styles of its own, so it cannot conflict with your CSS. The `generative-ui` registry item above installs the shipped stylesheet, which is written entirely against your existing theme variables: change `--radius` or `--primary` in your own CSS and the rendered widgets follow.
 
-A `Card` renders as a plain section by default, so several in a row read as one answer rather than a stack of boxes. It takes on a framed surface only where one is warranted: when the model sets a `background`, when `confirm` or `cancel` add a footer whose buttons need a delimited target, or when it is a carousel slot.
+A `Card` is a module the reader scans or acts on, such as a summary, a checklist, a form, or one option in a comparison, so it renders as a panel: a fill from the vocabulary's `--aui-panel` token, with no border. A card inside another card stays plain, so a module never nests a second panel. A card takes on a framed surface where one is warranted: when the model sets a `background`, when `confirm` or `cancel` add a footer whose buttons need a delimited target, or when it is a carousel slot.
 
 To restyle a single component, target its attribute:
 
@@ -353,12 +480,14 @@ To restyle a single component, target its attribute:
 }
 ```
 
-Overriding a component's markup rather than its appearance is a library-level change: spread `defaultGenerativeUILibrary` and replace that one entry through `defineGenerativeComponents`. The default `Markdown` renders its source as plain text, which is why the registry item ships a replacement. Wiring it is the same override:
+Overriding a component's markup rather than its appearance is a library-level change: spread `defaultGenerativeUILibrary` and replace that one entry through `defineGenerativeComponents`. The default `Markdown` renders its source as plain text, and `Diagram` and `Map` draw nothing, which is why the registry item ships replacements. Wiring them is the same override:
 
 ```tsx title="app/toolkit.tsx"
 import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
 
 const markdown = defaultGenerativeUILibrary.Markdown!;
+const diagram = defaultGenerativeUILibrary.Diagram!;
+const map = defaultGenerativeUILibrary.Map!;
 
 const generative = new JSONGenerativeUI({
   library: {
@@ -369,6 +498,16 @@ const generative = new JSONGenerativeUI({
         streamProperties: markdown.streamProperties,
         description: "A markdown string, rendered with GitHub-flavored markdown.",
         render: styledGenerativeUILibrary.Markdown!.render,
+      },
+      Diagram: {
+        properties: diagram.properties,
+        description: diagram.description,
+        render: styledGenerativeUILibrary.Diagram!.render,
+      },
+      Map: {
+        properties: map.properties,
+        description: map.description,
+        render: styledGenerativeUILibrary.Map!.render,
       },
     }),
   },
@@ -381,13 +520,15 @@ const generative = new JSONGenerativeUI({
 
 The library is the boundary on **which** components can render: the model can only name components you put in it, resolved by lookup with no `eval` and no dynamic import. Unknown names are dropped.
 
-Props are a separate question. Each component's `properties` schema shapes the `present` tool parameters the model sees, but the renderer does not validate incoming props against that schema. Treat props as untrusted input: validate URLs and values passed to APIs, and sanitize content rendered as raw HTML. Components with `streamProperties: true` can also receive partial props while the model is streaming, so account for incomplete values.
+Props are a separate question. Each component's `properties` schema shapes the `present` tool parameters the model sees, and when several components declare a prop with different schemas, the parameters offer each one. The renderer checks props only to keep such a shared prop's value away from a component whose schema rejects it while another declaring component's schema accepts it, so declare every value a component can render: a `value: z.string()` component loses a number that a `value: z.number()` component in the same library accepts. Treat props as untrusted input: validate URLs and values passed to APIs, and sanitize content rendered as raw HTML. Components with `streamProperties: true` can also receive partial props while the model is streaming, so account for incomplete values.
 
 ## Beyond the browser
 
-The tree is plain JSON, so it is not tied to the browser. Four React-free subpaths let a server action, queue worker, or webhook handler consume it without pulling React:
+The tree is plain JSON, so it is not tied to the browser. The package root, `/slack`, `/teams`, and `/a2ui` let a server action, queue worker, or webhook handler consume the tree without pulling React, while `/react` and `/spec` import it and `/vue` imports Vue:
 
-- `@assistant-ui/react-generative-ui/ir` holds the tree types, normalization, and token enums.
-- `@assistant-ui/react-generative-ui/slack` converts the tree into Block Kit and decodes `block_actions` back into `$action`. See [Generative UI on Slack](/docs/tools/generative-ui-slack).
-- `@assistant-ui/react-generative-ui/teams` converts it into an Adaptive Card and decodes the submit payload. See [Generative UI on Microsoft Teams](/docs/tools/generative-ui-teams).
-- `@assistant-ui/react-generative-ui/a2ui` consumes [A2UI surfaces over AG-UI](/docs/tools/a2ui).
+- `@assistant-ui/generative-ui` holds the tree types, normalization, token enums, and `resolveFieldReferences`.
+- `@assistant-ui/generative-ui/spec` exports `toSpecCatalog` and `ToSpecCatalogOptions` to build a generative-frame spec catalog from a generative UI library.
+- `@assistant-ui/generative-ui/vue` exports `toSpecCatalog`, `defaultGenerativeUILibrary`, and the `GenerativeUIComponent` and `GenerativeUILibrary` types for the same catalog with Vue components.
+- `@assistant-ui/generative-ui/slack` converts the tree into Block Kit and decodes `block_actions` back into `$action`. See [Generative UI on Slack](/docs/tools/generative-ui-slack).
+- `@assistant-ui/generative-ui/teams` converts it into an Adaptive Card and decodes the submit payload. See [Generative UI on Microsoft Teams](/docs/tools/generative-ui-teams).
+- `@assistant-ui/generative-ui/a2ui` consumes [A2UI surfaces over AG-UI](/docs/tools/a2ui).

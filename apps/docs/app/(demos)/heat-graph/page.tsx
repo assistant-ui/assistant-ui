@@ -6,6 +6,7 @@ import { CopyCommandButton } from "@/components/shared/copy-command-button";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
+import { subProjectGithubUrl } from "@/lib/docs-sites";
 import { HeatGraphDemo } from "./heat-graph-demo";
 
 const ANALYTICS_PAGE = "heat-graph" as const;
@@ -125,7 +126,7 @@ export default function HeatGraphPage() {
           .
         </p>
         <a
-          href="https://github.com/assistant-ui/assistant-ui/tree/main/packages/heat-graph"
+          href={subProjectGithubUrl("heat-graph")}
           target="_blank"
           rel="noopener noreferrer"
           className="text-muted-foreground hover:text-foreground group inline-flex items-center gap-1.5 text-sm transition-colors"

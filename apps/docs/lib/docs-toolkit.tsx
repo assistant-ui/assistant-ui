@@ -185,7 +185,7 @@ export default defineToolkit({
   get_weather: {
     description:
       "Fetch the weather for coordinates from `geocode_location`. Returns an " +
-      '`id`; call `present` with `{ $type: "Weather", id }` to show the user a card.',
+      '`id`; call `present` with `{ _type: "Weather", id }` to show the user a card.',
     parameters: z.object({
       location: z.string(),
       latitude: z.number(),

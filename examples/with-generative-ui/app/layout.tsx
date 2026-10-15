@@ -5,7 +5,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "assistant-ui Generative UI Example",
   description:
-    "Example showcasing model-composed interfaces with the present tool and a custom component vocabulary",
+    "A chat that answers in Markdown, with the kit's generative UI components, or with a sandboxed widget",
 };
 
 export default function RootLayout({

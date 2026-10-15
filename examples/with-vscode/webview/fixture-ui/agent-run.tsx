@@ -9,7 +9,7 @@ import type {
   DataMessagePartComponent,
   ToolCallMessagePartComponent,
 } from "@assistant-ui/react";
-import { JSONGenerativeUI } from "@assistant-ui/react-generative-ui";
+import { JSONGenerativeUI } from "@assistant-ui/generative-ui/react";
 import { AgentHandoff } from "@assistant-ui/ui/components/assistant-ui/elements/agent-handoff.tsx";
 import { ArtifactCard } from "@assistant-ui/ui/components/assistant-ui/elements/artifact-card.tsx";
 import { CheckpointHistory } from "@assistant-ui/ui/components/assistant-ui/elements/checkpoint-history.tsx";

@@ -1,4 +1,4 @@
-import { AbstractAgent, InputContent } from "@ag-ui/client";
+import { AbstractAgent, Context, InputContent, Message } from "@ag-ui/client";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
@@ -36,28 +36,33 @@ type AgUiMessage = {
   role: "user";
   content: string | InputContent[];
   name?: string;
+  metadata?: Record<string, unknown>;
 } | {
   id: string;
   role: "assistant";
   content: string;
   name?: string;
   toolCalls?: AgUiToolCall[];
+  metadata?: Record<string, unknown>;
 } | {
   id: string;
   role: "developer" | "system";
   content: string;
   name?: string;
+  metadata?: Record<string, unknown>;
 } | {
   id: string;
   role: "reasoning";
   content: string;
   encryptedValue?: string;
+  metadata?: Record<string, unknown>;
 } | {
   id: string;
   role: "tool";
   content: string;
   toolCallId: string;
   error?: string;
+  metadata?: Record<string, unknown>;
 };
 
 type AgUiResumeEntry = {
@@ -443,6 +448,7 @@ type ExternalStoreAdapterBase<T> = {
   isDisabled?: boolean | undefined;
   isSendDisabled?: boolean | undefined;
   isRunning?: boolean | undefined;
+  activeRunId?: string | undefined;
   isLoading?: boolean | undefined;
   hasEarlier?: boolean | undefined;
   onLoadEarlier?: (() => Promise<void>) | undefined;
@@ -1115,6 +1121,7 @@ type ThreadAssistantMessage = MessageCommonProps & {
   readonly content: readonly ThreadAssistantMessagePart[];
   readonly status: MessageStatus;
   readonly metadata: {
+    readonly runId?: string | undefined;
     readonly unstable_state: ReadonlyJSONValue;
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
     readonly unstable_data: readonly ReadonlyJSONValue[];
@@ -1262,6 +1269,10 @@ type ThreadListState = {
   readonly archivedThreadIds: readonly string[];
   readonly isLoading: boolean;
   readonly loadError: unknown;
+  readonly switchError: {
+    readonly threadId: string;
+    readonly error: unknown;
+  } | undefined;
   readonly isLoadingMore: boolean;
   readonly hasMore: boolean;
   readonly threadItems: Readonly<Record<string, Omit<ThreadListItemRuntimeState, "isMain" | "isRunning" | "threadId">>>;
@@ -1290,6 +1301,7 @@ type ThreadMessageLike$1 = {
     readonly content: readonly (ThreadUserMessagePart | DataPrefixedPart)[];
   })[] | undefined;
   readonly metadata?: {
+    readonly runId?: string | undefined;
     readonly unstable_state?: ReadonlyJSONValue | undefined;
     readonly unstable_annotations?: readonly ReadonlyJSONValue[] | undefined;
     readonly unstable_data?: readonly ReadonlyJSONValue[] | undefined;
@@ -1538,6 +1550,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly toolName: string;
   readonly args: TArgs;
   readonly result?: TResult | undefined;
+  readonly responseDeliveryStatus?: "queued" | undefined;
   readonly isError?: boolean | undefined;
   readonly isPreliminary?: boolean | undefined;
   readonly argsText: string;
@@ -1736,6 +1749,10 @@ type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
   agent: AbstractAgent;
   logger?: Partial<Logger>;
   showThinking?: boolean;
+  getRunContext?: ((input: {
+    messages: readonly Message[];
+    runConfig: RunConfig | undefined;
+  }) => readonly Context[]) | undefined;
   resumeTranscript?: AgUiResumeTranscript | undefined;
   autoCancelPendingToolCalls?: boolean | undefined;
   unstable_enableMessageQueue?: boolean | undefined;

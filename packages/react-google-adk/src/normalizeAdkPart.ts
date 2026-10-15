@@ -14,8 +14,13 @@ export const normalizeAdkPart = (
     result.fileData = part.file_data;
   if (isRecord(result.inlineData)) {
     const data = result.inlineData;
-    if ("mime_type" in data && !("mimeType" in data))
-      result.inlineData = { ...data, mimeType: data.mime_type };
+    result.inlineData = {
+      ...data,
+      ...("mime_type" in data &&
+        !("mimeType" in data) && { mimeType: data.mime_type }),
+      ...("display_name" in data &&
+        !("displayName" in data) && { displayName: data.display_name }),
+    };
   }
   if (isRecord(result.fileData)) {
     const data = result.fileData;
@@ -25,6 +30,8 @@ export const normalizeAdkPart = (
         !("mimeType" in data) && { mimeType: data.mime_type }),
       ...("file_uri" in data &&
         !("fileUri" in data) && { fileUri: data.file_uri }),
+      ...("display_name" in data &&
+        !("displayName" in data) && { displayName: data.display_name }),
     };
   }
   if ("executable_code" in part && !("executableCode" in part))

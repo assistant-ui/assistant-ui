@@ -7,26 +7,31 @@ import { rolldown } from "rolldown";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 
-/** Maps every `generative-frame/*` export to its source entry. */
-const sourceEntries = () => {
+/** Maps every `generative-frame/*` export to its source entry, through `condition` where an export has it. */
+const sourceEntries = (condition) => {
   const entries = {};
   for (const key of Object.keys(pkg.exports)) {
     const name = key === "." ? "index" : key.slice(2);
-    const dist = pkg.exports[key].default;
+    const dist = (pkg.exports[key][condition] ?? pkg.exports[key]).default;
     const src = dist.replace(/^\.\/dist\//, "src/").replace(/\.js$/, "");
     entries[key === "." ? pkg.name : `${pkg.name}/${name}`] = join(root, src);
   }
   return entries;
 };
 
-const EXTERNAL = [/^react($|\/)/, /^react-dom($|\/)/, /^@assistant-ui\//];
+const EXTERNAL = [
+  /^react($|\/)/,
+  /^react-dom($|\/)/,
+  /^react-native($|\/)/,
+  /^vue($|\/)/,
+  /^@assistant-ui\//,
+];
 
 /**
- * Bundles a fixture the way an app would (minified ESM, React external) and
- * returns its size and the source modules it contains, relative to the repo.
+ * Bundles a fixture the way an app would (minified ESM, framework peers external, `condition` picking a conditional export such as `react-native`) and returns its size, the source modules it contains (relative to the repo), and the static and dynamic imports it leaves external.
  */
-export async function bundleFixture(fixture) {
-  const entries = sourceEntries();
+export async function bundleFixture(fixture, { condition } = {}) {
+  const entries = sourceEntries(condition);
   const bundle = await rolldown({
     input: join(root, "scripts/bundle-fixtures", fixture),
     external: (id) => EXTERNAL.some((pattern) => pattern.test(id)),
@@ -59,8 +64,12 @@ export async function bundleFixture(fixture) {
     .filter((chunk) => chunk.type === "chunk")
     .flatMap((chunk) => chunk.moduleIds)
     .map((id) => relative(join(root, "../.."), id.replace(/^\0/, "")));
+  const imports = output
+    .filter((chunk) => chunk.type === "chunk")
+    .flatMap((chunk) => [...chunk.imports, ...chunk.dynamicImports]);
   return {
     modules,
+    imports,
     bytes: Buffer.byteLength(code),
     gzip: gzipSync(code).length,
   };

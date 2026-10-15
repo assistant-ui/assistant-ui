@@ -22,6 +22,7 @@ import {
   detectImageMediaType,
   parseDataUrl,
   resolveImageMediaType,
+  RunLeases,
 } from "@assistant-ui/core/internal";
 import {
   createPiThreadState,
@@ -143,6 +144,7 @@ const MESSAGE_DIRTY_EVENT_TYPES: ReadonlySet<string> = new Set([
   "tool_execution_end",
   "extension_ui_request",
   "extension_ui_resolved",
+  "error",
 ]);
 
 const MESSAGE_FRAME_COALESCED_EVENT_TYPES: ReadonlySet<string> = new Set([
@@ -446,6 +448,8 @@ export class PiThreadController implements PiThreadControllerLike {
   private sendDispatchTail: Promise<void> = Promise.resolve();
   private readonly pendingSends = new Set<PendingSend>();
   private runStateRevision = 0;
+  private readonly runLeases = new RunLeases();
+  private runStartedLocally = false;
   private messageFlushScheduled = false;
   /** Fallback sequence for snapshots without a supervisor-provided sequence. */
   private readonly localSnapshotSeq = 0;
@@ -674,34 +678,34 @@ export class PiThreadController implements PiThreadControllerLike {
       (entry) => entry.message === send.message,
     );
     if (index !== -1) this.optimisticUserMessages.splice(index, 1);
-    this.recomputeProjectedMessagesAndNotify();
 
     const runStateChanged = this.runStateRevision !== send.runStateRevision;
 
     if (isSendInterruption(error)) {
-      if (runStateChanged) return;
+      if (!runStateChanged) {
+        this.setState({
+          ...this.state,
+          lastError: send.previousLastError,
+          runStatus: send.previousRunStatus,
+          metadata: {
+            ...this.state.metadata,
+            status: send.previousMetadataStatus,
+          },
+        });
+      }
+    } else {
       this.setState({
         ...this.state,
-        lastError: send.previousLastError,
-        runStatus: send.previousRunStatus,
-        metadata: {
-          ...this.state.metadata,
-          status: send.previousMetadataStatus,
-        },
+        lastError: errorText(error),
+        ...(runStateChanged
+          ? {}
+          : {
+              runStatus: "failed",
+              metadata: { ...this.state.metadata, status: "failed" },
+            }),
       });
-      return;
     }
-
-    this.setState({
-      ...this.state,
-      lastError: errorText(error),
-      ...(runStateChanged
-        ? {}
-        : {
-            runStatus: "failed",
-            metadata: { ...this.state.metadata, status: "failed" },
-          }),
-    });
+    this.recomputeProjectedMessagesAndNotify();
   }
 
   private async sendPreparedMessage(
@@ -907,6 +911,21 @@ export class PiThreadController implements PiThreadControllerLike {
     }
   }
 
+  /** @internal */
+  public captureCancel(): () => Promise<void> {
+    const lease = this.runLeases.current();
+    const hadQueuedPrompt =
+      this.state.queue.steering.length > 0 ||
+      this.state.queue.followUp.length > 0;
+    return () =>
+      lease.isCurrent() ||
+      (hadQueuedPrompt &&
+        !this.runStartedLocally &&
+        this.state.runStatus === "running")
+        ? this.cancel()
+        : Promise.resolve();
+  }
+
   private abortPendingSendsBeforeDispatch() {
     for (const pending of this.pendingSends) {
       if (pending.accepted) continue;
@@ -1031,6 +1050,10 @@ export class PiThreadController implements PiThreadControllerLike {
     const next = reducePiThreadState(this.state, event);
     const changed = next !== this.state;
     if (changed) {
+      if (this.state.runStatus !== "running" && next.runStatus === "running") {
+        this.runLeases.begin();
+        this.runStartedLocally = false;
+      }
       this.state = next;
       if (RUN_STATE_EVENT_TYPES.has(event.type)) {
         this.runStateRevision += 1;
@@ -1064,6 +1087,10 @@ export class PiThreadController implements PiThreadControllerLike {
 
   private setState(next: PiThreadState) {
     if (next === this.state) return;
+    if (this.state.runStatus !== "running" && next.runStatus === "running") {
+      this.runLeases.begin();
+      this.runStartedLocally = true;
+    }
     this.state = next;
     this.notifyMetadataListeners();
   }

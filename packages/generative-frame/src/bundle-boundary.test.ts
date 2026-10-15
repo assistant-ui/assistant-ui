@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 // @ts-expect-error The script is plain JavaScript without declarations.
 import { bundleFixture } from "../scripts/bundle-boundary.mjs";
 
-type Bundle = { modules: string[]; bytes: number; gzip: number };
+type Bundle = {
+  modules: string[];
+  imports: string[];
+  bytes: number;
+  gzip: number;
+};
 
 const PKG = "packages/generative-frame/src/";
 const SPEC = [
@@ -42,7 +47,62 @@ describe("bundle boundaries", { timeout: 60_000 }, () => {
     const bundle: Bundle = await bundleFixture("spec.ts");
     report("spec (spec, spec/react, spec/tools)", bundle);
     expect(bundle.modules).toContain(`${PKG}spec/catalog.ts`);
+    expect(bundle.modules).toContain(`${PKG}spec/react/SpecRenderer.tsx`);
     expect(offending(bundle, FRAME)).toEqual([]);
+  });
+
+  it("keeps React and frame code out of a Vue-only spec app", async () => {
+    const bundle: Bundle = await bundleFixture("spec-vue.ts");
+    report("spec vue", bundle);
+    expect(bundle.modules).toContain(`${PKG}spec/vue/SpecRenderer.ts`);
+    expect(
+      offending(bundle, [new RegExp(`^${PKG}spec/react/`), ...FRAME]),
+    ).toEqual([]);
+    expect(
+      bundle.imports.filter((id) => /^react(?:-dom)?(?:\/|$)/.test(id)),
+    ).toEqual([]);
+  });
+
+  it("keeps React, the React toolkit, and frame code out of a Vue assistant-ui spec app", async () => {
+    const bundle: Bundle = await bundleFixture("spec-assistant-ui-vue.ts");
+    report("spec assistant-ui vue", bundle);
+    expect(bundle.modules).toContain(`${PKG}spec/assistant-ui/vue.ts`);
+    expect(
+      offending(bundle, [
+        new RegExp(`^${PKG}spec/react/`),
+        new RegExp(`^${PKG}spec/assistant-ui/(toolkit|web|native)\\.tsx$`),
+        new RegExp(`^${PKG}assistant-ui/(toolkit|useSharedContext)\\.tsx?$`),
+        ...FRAME,
+      ]),
+    ).toEqual([]);
+    expect(
+      bundle.imports.filter((id) =>
+        /^(?:react|react-dom|@assistant-ui\/react)(?:\/|$)/.test(id),
+      ),
+    ).toEqual([]);
+    expect(bundle.imports).toContain("@assistant-ui/vue");
+  });
+
+  it("resolves the React Native spec entries without web or frame code", async () => {
+    const bundle: Bundle = await bundleFixture("spec-native.ts", {
+      condition: "react-native",
+    });
+    report("spec react-native", bundle);
+    expect(bundle.modules).toContain(`${PKG}spec/react/native.tsx`);
+    expect(bundle.modules).toContain(`${PKG}spec/assistant-ui/native.tsx`);
+    expect(
+      offending(bundle, [
+        new RegExp(`^${PKG}spec/assistant-ui/web\\.tsx$`),
+        ...FRAME,
+      ]),
+    ).toEqual([]);
+    expect(
+      bundle.imports.filter((id) =>
+        /^(?:react-dom|@assistant-ui\/react)(?:\/|$)/.test(id),
+      ),
+    ).toEqual([]);
+    expect(bundle.imports).toContain("@assistant-ui/react-native");
+    expect(bundle.imports).toContain("react-native");
   });
 
   it("keeps the halves apart in the assistant-ui entries", async () => {

@@ -71,6 +71,7 @@ import {
   toExportedMessageRepository,
 } from "./useExternalHistory";
 import { useStreamingTiming } from "./useStreamingTiming";
+import { useMessageQueue } from "./useMessageQueue";
 import { aiSDKExtras } from "../aiSDKExtras";
 
 export type CustomToCreateMessageFunction = <
@@ -135,6 +136,12 @@ export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
      * @default true
      */
     cancelPendingToolCallsOnSend?: boolean | undefined;
+    /**
+     * Holds messages sent during a run in `composer.queue` until the run
+     * settles. Steered messages dispatch before queued follow-ups.
+     * @deprecated Experimental since 2026-10-15. Not scheduled for removal; the API may change in any release.
+     */
+    unstable_enableMessageQueue?: boolean | undefined;
     /**
      * Called when `runtime.thread.resumeRun(config)` is invoked.
      *
@@ -320,6 +327,7 @@ type OwnedApproval = {
 type ChatRuntimeState = {
   approvals: Map<string, OwnedApproval>;
   cancelledMessageIds: ReadonlySet<string>;
+  cancelledToolCallIds: Set<string>;
 };
 
 const chatRuntimeStates = new WeakMap<object, ChatRuntimeState>();
@@ -331,6 +339,7 @@ const getChatRuntimeState = (owner: object | undefined) => {
     state = {
       approvals: new Map(),
       cancelledMessageIds: NO_CANCELLED_MESSAGE_IDS,
+      cancelledToolCallIds: new Set(),
     };
     chatRuntimeStates.set(owner, state);
   }
@@ -529,9 +538,14 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     joinStrategy,
     messageRepository,
     unstable_onBranchChange,
+    unstable_enableMessageQueue,
   } = adapter;
   const suggestionAdapter = adapters?.suggestion;
   const contextAdapters = useRuntimeAdapters();
+  const [queueError, setQueueError] = useState<Error>();
+  const runtimeError = unstable_enableMessageQueue
+    ? (queueError ?? chatHelpers.error)
+    : chatHelpers.error;
   const [toolStatuses, setToolStatuses] = useState<
     Record<string, ToolExecutionStatus>
   >({});
@@ -544,6 +558,10 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const approvalOwner = adapter.unstable_hostApprovalOwner;
   const chatRuntimeState = getChatRuntimeState(approvalOwner);
   const ownedApprovals = chatRuntimeState?.approvals;
+  const localCancelledToolCallIdsRef = useRef(new Set<string>());
+  const cancelledToolCallIds =
+    chatRuntimeState?.cancelledToolCallIds ??
+    localCancelledToolCallIdsRef.current;
   const ownedCancelledMessageIds = useSyncExternalStore(
     useCallback(
       (listener) =>
@@ -840,16 +858,15 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     id: chatId,
     messages: chatMessages,
     status: chatStatus,
-    error,
   } = chatHelpers;
   const extras = useMemo(
     () =>
       aiSDKExtras.provide({
         chat: chatHelpers as unknown as UseChatHelpers<UIMessage>,
-        error,
+        error: runtimeError,
       }),
     // oxlint-disable-next-line react/exhaustive-deps -- keyed on the chat's identity and reactive snapshots; useChat re-mints the helpers object every render while its remaining fields are instance-bound methods, and a render-stable extras identity is what lets the external-store core dedupe adapter updates
-    [chatId, chatMessages, chatStatus, error],
+    [chatId, chatMessages, chatStatus, runtimeError],
   );
 
   const completePendingToolCalls = async () => {
@@ -1009,6 +1026,80 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     );
   };
 
+  const cancelRun = async () => {
+    for (const toolCallId of Object.keys(toolStatuses)) {
+      cancelledToolCallIds.add(toolCallId);
+    }
+
+    const message = chatHelpers.messages.at(-1);
+    const cancelledId =
+      isRunning && message?.role === "assistant" ? message.id : undefined;
+    if (cancelledId) {
+      const liveIds = new Set(chatHelpers.messages.map((m) => m.id));
+      if (chatRuntimeState !== undefined && approvalOwner !== undefined) {
+        chatRuntimeState.cancelledMessageIds = new Set([
+          ...[...chatRuntimeState.cancelledMessageIds].filter((id) =>
+            liveIds.has(id),
+          ),
+          cancelledId,
+        ]);
+        notifyChatRuntimeState(approvalOwner);
+      } else {
+        setCancelledMessages((prev) => {
+          const kept =
+            prev?.chatId === chatHelpers.id
+              ? [...prev.ids].filter((id) => liveIds.has(id))
+              : [];
+          return {
+            chatId: chatHelpers.id,
+            ids: new Set([...kept, cancelledId]),
+          };
+        });
+      }
+    }
+    try {
+      await chatHelpers.stop();
+    } catch (error) {
+      if (!(error instanceof Error && error.name === "AbortError")) {
+        if (cancelledId) retractCancellation(chatHelpers.id, cancelledId);
+        throw error;
+      }
+    }
+  };
+
+  const sendNew = async (message: AppendMessage) => {
+    setQueueError(undefined);
+    const createMessage = (
+      customToCreateMessage ?? toCreateMessage
+    )<UI_MESSAGE>(message);
+
+    if (!(message.startRun ?? message.role === "user")) {
+      chatHelpers.setMessages((current) => [
+        ...current,
+        toUIMessage<UI_MESSAGE>(createMessage, message.role),
+      ]);
+      return;
+    }
+
+    lastRunConfigRef.current = message.runConfig;
+    await completePendingToolCalls();
+    await chatHelpers.sendMessage(createMessage, {
+      metadata: message.runConfig,
+    });
+  };
+
+  const messageQueue = useMessageQueue({
+    onError: (error) => {
+      if (error?.name === "AbortError") setQueueError(undefined);
+      else setQueueError(error);
+    },
+    enabled: unstable_enableMessageQueue === true,
+    isRunning,
+    isSendDisabled: adapter.isSendDisabled === true,
+    send: sendNew,
+    cancel: cancelRun,
+  });
+
   const hasSeededRepositoryRef = useRef(false);
   const shouldFeedRepository =
     exportedMessageRepository != null &&
@@ -1087,62 +1178,11 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       // Import into the thread's MessageRepository
       runtimeRef.current.thread.import(exportedRepo);
     },
-    onCancel: async () => {
-      const message = chatHelpers.messages.at(-1);
-      const cancelledId =
-        isRunning && message?.role === "assistant" ? message.id : undefined;
-      if (cancelledId) {
-        const liveIds = new Set(chatHelpers.messages.map((m) => m.id));
-        if (chatRuntimeState !== undefined && approvalOwner !== undefined) {
-          chatRuntimeState.cancelledMessageIds = new Set([
-            ...[...chatRuntimeState.cancelledMessageIds].filter((id) =>
-              liveIds.has(id),
-            ),
-            cancelledId,
-          ]);
-          notifyChatRuntimeState(approvalOwner);
-        } else {
-          setCancelledMessages((prev) => {
-            const kept =
-              prev?.chatId === chatHelpers.id
-                ? [...prev.ids].filter((id) => liveIds.has(id))
-                : [];
-            return {
-              chatId: chatHelpers.id,
-              ids: new Set([...kept, cancelledId]),
-            };
-          });
-        }
-      }
-      try {
-        await chatHelpers.stop();
-      } catch (error) {
-        if (!(error instanceof Error && error.name === "AbortError")) {
-          if (cancelledId) retractCancellation(chatHelpers.id, cancelledId);
-          throw error;
-        }
-      }
-    },
-    onNew: async (message) => {
-      const createMessage = (
-        customToCreateMessage ?? toCreateMessage
-      )<UI_MESSAGE>(message);
-
-      if (!(message.startRun ?? message.role === "user")) {
-        chatHelpers.setMessages((current) => [
-          ...current,
-          toUIMessage<UI_MESSAGE>(createMessage, message.role),
-        ]);
-        return;
-      }
-
-      lastRunConfigRef.current = message.runConfig;
-      await completePendingToolCalls();
-      await chatHelpers.sendMessage(createMessage, {
-        metadata: message.runConfig,
-      });
-    },
+    onCancel: messageQueue.cancel,
+    onNew: sendNew,
+    ...(messageQueue.adapter && { queue: messageQueue.adapter }),
     onEdit: async (message) => {
+      messageQueue.clear();
       const createMessage = (
         customToCreateMessage ?? toCreateMessage
       )<UI_MESSAGE>(message);
@@ -1213,6 +1253,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       );
     },
     onReload: async (parentId: string | null, config) => {
+      messageQueue.clear();
       lastRunConfigRef.current = config.runConfig;
       const newMessages = sliceMessagesUntil(
         chatHelpers.messages,
@@ -1235,6 +1276,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       artifact,
       modelContent,
     }) => {
+      const wasCancelled = cancelledToolCallIds.delete(toolCallId);
       if (artifact !== undefined) {
         toolArtifactsRef.current.set(toolCallId, artifact);
         markToolArtifactsChanged();
@@ -1254,7 +1296,10 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           ? wrapModelContentEnvelope(result, modelContent)
           : result;
 
-      if (targetIndex >= 0 && targetIndex !== chatHelpers.messages.length - 1) {
+      if (
+        targetIndex >= 0 &&
+        (targetIndex !== chatHelpers.messages.length - 1 || wasCancelled)
+      ) {
         const target = chatHelpers.messages[targetIndex]!;
         const targetPart = target.parts.find(
           (part) =>
@@ -1262,7 +1307,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
             isToolUIPart(part) &&
             part.toolCallId === toolCallId,
         ) as { state?: string; preliminary?: boolean } | undefined;
-        // An earlier message's settled output may already have reached the model, as the error a cancelling send writes does.
+        // An earlier message's or a cancelled call's settled output may already have reached the model, as the error a cancelling send writes does.
         if (
           targetPart?.state === "output-error" ||
           targetPart?.state === "output-denied" ||
@@ -1301,6 +1346,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         );
         return Promise.resolve();
       }
+
+      if (wasCancelled) return Promise.resolve();
 
       const options = { metadata: lastRunConfigRef.current };
       if (isError) {

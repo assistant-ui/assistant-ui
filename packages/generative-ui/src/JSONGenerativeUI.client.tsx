@@ -14,7 +14,7 @@ import {
   type PromptUserTool,
 } from "./JSONGenerativeUI.shared";
 import { type ActionRegistry } from "./actionRegistry";
-import { renderGenerativeUI } from "./renderGenerativeUI";
+import { GenerativeUITree } from "./GenerativeUITree";
 import type { GenerativeUILibrary, GenerativeUIStatus } from "./types";
 
 // A cancelled argument stream can leave a tool waiting with partial arguments.
@@ -33,7 +33,7 @@ function uiStatus(
  * Client build of {@link JSONGenerativeUI}, resolved through the package's
  * `default` export condition (browser and SSR).
  *
- * `present` is a frontend tool that renders the model's `{ $type, ...props }`
+ * `present` is a frontend tool that renders the model's `{ _type, ...props }`
  * tree against the library and resolves immediately. `prompt_user` is a
  * human-in-the-loop tool: the model pauses and the rendered UI supplies the
  * result. Both draw the tree the same way, so they share one `render`. The
@@ -57,7 +57,7 @@ export class JSONGenerativeUI {
    * between top-level blocks, which the host's message container does not
    * provide, and stays out of the way while it has nothing to show.
    */
-  private readonly render = (
+  private readonly renderCall = (
     {
       args,
       status,
@@ -68,7 +68,7 @@ export class JSONGenerativeUI {
       unstable_recordInteraction,
       unstable_interactions,
     }: ToolCallMessagePartProps<Record<string, unknown>, any>,
-    completesPrompt = false,
+    completesPrompt: boolean,
   ): ReactNode => {
     const answered = completesPrompt && result !== undefined;
     const actions = this.actions;
@@ -126,10 +126,14 @@ export class JSONGenerativeUI {
           {...(dispatch ? { dispatch } : {})}
         />
       ) : (
-        renderGenerativeUI(args, this.library, {
-          status: uiStatus(status, args),
-          ...(dispatch ? { dispatch } : {}),
-        })
+        <GenerativeUITree
+          node={args}
+          library={this.library}
+          context={{
+            status: uiStatus(status, args),
+            ...(dispatch ? { dispatch } : {}),
+          }}
+        />
       );
 
     return (
@@ -149,12 +153,21 @@ export class JSONGenerativeUI {
     );
   };
 
+  // A tool's render is mounted as a component, and React 18 passes legacy context as a component's second argument, so the prompt flag cannot be one.
+  private readonly renderPresent = (
+    props: ToolCallMessagePartProps<Record<string, unknown>, any>,
+  ): ReactNode => this.renderCall(props, false);
+
+  private readonly renderPrompt = (
+    props: ToolCallMessagePartProps<Record<string, unknown>, any>,
+  ): ReactNode => this.renderCall(props, true);
+
   present(options?: PresentToolOptions): PresentTool {
     return {
       ...presentToolBase(this.parameters, options),
       unstable_backendDefault: { parameters: true },
       execute: async () => ({}),
-      render: this.render,
+      render: this.renderPresent,
     };
   }
 
@@ -162,7 +175,7 @@ export class JSONGenerativeUI {
     return {
       ...promptUserToolBase(this.parameters),
       unstable_backendDefault: { parameters: true },
-      render: (props) => this.render(props, true),
+      render: this.renderPrompt,
     };
   }
 }

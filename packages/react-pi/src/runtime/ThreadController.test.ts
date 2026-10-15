@@ -448,6 +448,143 @@ describe("PiThreadController", () => {
     expect(client.cancelled).toEqual([THREAD]);
   });
 
+  it("keeps a new run started during queue clearing out of a captured Stop", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(ev({ type: "agent_start" }, 1));
+
+    await controller.captureCancel()();
+    expect(client.cancelled).toEqual([THREAD]);
+    client.cancelled.length = 0;
+
+    const clear = Promise.withResolvers<{
+      steering: string[];
+      followUp: string[];
+    }>();
+    client.clearQueue = vi.fn(() => clear.promise);
+    const cancel = controller.captureCancel();
+    const clearing = controller.clearQueue();
+
+    client.emit(ev({ type: "agent_end" }, 2));
+    await controller.sendMessage(userMessage("new"));
+    expect(controller.getState().runStatus).toBe("running");
+    clear.resolve({ steering: [], followUp: [] });
+    await clearing;
+    await cancel();
+
+    expect(client.sent.map(({ input }) => input.content)).toEqual(["new"]);
+    expect(client.cancelled).toEqual([]);
+    expect(controller.getState().runStatus).toBe("running");
+  });
+
+  it.each([
+    [
+      "the server announces it",
+      [
+        { type: "agent_start" },
+        { type: "queue_update", steering: [], followUp: [] },
+      ],
+    ],
+    [
+      "the queue drains first",
+      [
+        { type: "queue_update", steering: [], followUp: [] },
+        { type: "agent_start" },
+      ],
+    ],
+  ] satisfies [string, PiClientEventBody[]][])(
+    "cancels a queued run promoted while Stop clears the queue when %s",
+    async (_order, promotion) => {
+      const client = createFakeClient();
+      const controller = new PiThreadController(client, THREAD);
+      controller.connect();
+      client.emit(ev({ type: "agent_start" }, 1));
+      client.emit(
+        ev({ type: "queue_update", steering: [], followUp: ["queued"] }, 2),
+      );
+
+      const clear = Promise.withResolvers<{
+        steering: string[];
+        followUp: string[];
+      }>();
+      client.clearQueue = vi.fn(() => clear.promise);
+      const cancel = controller.captureCancel();
+      const clearing = controller.clearQueue();
+
+      client.emit(ev({ type: "agent_end" }, 3));
+      promotion.forEach((body, index) => client.emit(ev(body, 4 + index)));
+      clear.resolve({ steering: [], followUp: [] });
+      await clearing;
+      await cancel();
+
+      expect(client.cancelled).toEqual([THREAD]);
+    },
+  );
+
+  it("cancels a queued run first seen in a snapshot while Stop clears the queue", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(ev({ type: "agent_start" }, 1));
+    client.emit(
+      ev({ type: "queue_update", steering: [], followUp: ["queued"] }, 2),
+    );
+
+    const clear = Promise.withResolvers<{
+      steering: string[];
+      followUp: string[];
+    }>();
+    client.clearQueue = vi.fn(() => clear.promise);
+    const cancel = controller.captureCancel();
+    const clearing = controller.clearQueue();
+
+    client.emit(ev({ type: "agent_end" }, 3));
+    client.emit(
+      ev(
+        {
+          type: "snapshot",
+          snapshot: snapshot({ metadata: { id: THREAD, status: "running" } }),
+        },
+        4,
+      ),
+    );
+    clear.resolve({ steering: [], followUp: [] });
+    await clearing;
+    await cancel();
+
+    expect(client.cancelled).toEqual([THREAD]);
+  });
+
+  it("preserves a locally started run despite a queue at Stop", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    controller.connect();
+    client.emit(ev({ type: "agent_start" }, 1));
+    client.emit(
+      ev({ type: "queue_update", steering: [], followUp: ["queued"] }, 2),
+    );
+
+    const clear = Promise.withResolvers<{
+      steering: string[];
+      followUp: string[];
+    }>();
+    client.clearQueue = vi.fn(() => clear.promise);
+    const cancel = controller.captureCancel();
+    const clearing = controller.clearQueue();
+
+    client.emit(ev({ type: "agent_end" }, 3));
+    await controller.sendMessage(userMessage("new"));
+    client.emit(ev({ type: "agent_start" }, 4));
+    clear.resolve({ steering: [], followUp: [] });
+    await clearing;
+    await cancel();
+
+    expect(client.sent.map(({ input }) => input.content)).toEqual(["new"]);
+    expect(client.cancelled).toEqual([]);
+    expect(controller.getState().runStatus).toBe("running");
+  });
+
   it("sets model and thinking level via the client", async () => {
     const client = createFakeClient();
     const controller = new PiThreadController(client, THREAD);
@@ -1473,6 +1610,51 @@ describe("PiThreadController", () => {
     expect(controller.getState().lastError).toContain(error);
   });
 
+  it("settles the message repository after a terminal stream error", () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    onTestFinished(() => controller.dispose());
+    controller.connect();
+    client.emit(ev({ type: "agent_start" }, 1));
+    client.emit(
+      ev(
+        { type: "message_start", message: assistantMessage("partial reply") },
+        2,
+      ),
+    );
+    expect(controller.getProjectedMessages().at(-1)?.status?.type).toBe(
+      "running",
+    );
+    const listener = vi.fn(
+      () => controller.getMessageRepository().messages.at(-1)?.message.status,
+    );
+    controller.subscribeMessages(listener);
+
+    client.emit(
+      ev(
+        {
+          type: "error",
+          error: "stream exceeded decoder limit",
+          terminal: true,
+        },
+        3,
+      ),
+    );
+
+    expect(controller.getState()).toMatchObject({
+      runStatus: "failed",
+      lastError: "stream exceeded decoder limit",
+    });
+    expect(controller.getProjectedMessages().at(-1)?.status?.type).not.toBe(
+      "running",
+    );
+    expect(listener).toHaveBeenCalledOnce();
+    expect(listener.mock.results[0]?.value).toEqual(
+      controller.getProjectedMessages().at(-1)?.status,
+    );
+    expect(client.unsubscribed).toBe(1);
+  });
+
   it("resubscribes on the next send after a decoder limit ends the stream", async () => {
     const sse = (body: string, keepOpen: boolean) =>
       new Response(
@@ -1609,6 +1791,44 @@ describe("PiThreadController", () => {
       { role: "assistant", content: [{ type: "text", text: "reply" }] },
     ]);
   });
+
+  it.each(["failure", "cancellation"] as const)(
+    "keeps the previous reply complete after a new send's %s",
+    async (outcome) => {
+      const client = createFakeClient(
+        snapshot({
+          messages: [
+            { role: "user", content: "hello", timestamp: 1 },
+            assistantMessage("finished reply", 2),
+          ],
+        }),
+      );
+      const controller = new PiThreadController(client, THREAD);
+      onTestFinished(() => controller.dispose());
+      await controller.load();
+      const previousMessages = controller.getProjectedMessages();
+      expect(previousMessages.at(-1)?.status?.type).toBe("complete");
+      client.sendMessage = vi.fn().mockRejectedValue(new Error("HTTP 503"));
+
+      const rejected = controller
+        .sendMessage(userMessage("next prompt"))
+        .catch((error: unknown) => error);
+      if (outcome === "cancellation") {
+        await controller.cancel();
+        expect(isMessageNotSentError(await rejected)).toBe(true);
+        expect(client.sendMessage).not.toHaveBeenCalled();
+        expect(controller.getState().runStatus).toBe("idle");
+      } else {
+        expect(await rejected).toEqual(new Error("HTTP 503"));
+        expect(controller.getState().runStatus).toBe("failed");
+      }
+
+      expect(controller.getProjectedMessages()).toEqual(previousMessages);
+      expect(
+        controller.getMessageRepository().messages.at(-1)?.message.status,
+      ).toEqual({ type: "complete", reason: "stop" });
+    },
+  );
 
   it("rolls back the optimistic running mark when a send rejects", async () => {
     const client = createFakeClient();

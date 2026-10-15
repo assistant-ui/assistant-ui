@@ -10,6 +10,7 @@ import { TrustedBy } from "@/components/pages/home/trusted-by";
 import { Button } from "@/components/ui/button";
 import { typeDeck, typePackage, typeSection } from "@/components/shared/type";
 import { analytics } from "@/lib/analytics";
+import Image from "next/image";
 import Link from "next/link";
 
 const CONTACT_SALES_URL = "https://cal.com/simon-farshid/assistant-ui";
@@ -68,7 +69,14 @@ export function LibraryBody({
                 <p className="text-[14px] leading-relaxed text-pretty">
                   {quote.message}
                 </p>
-                <span className="text-muted-foreground group-hover:text-foreground text-xs font-medium transition-colors">
+                <span className="text-muted-foreground group-hover:text-foreground inline-flex items-center gap-2 text-xs font-medium transition-colors">
+                  <Image
+                    src={quote.avatar}
+                    alt=""
+                    width={20}
+                    height={20}
+                    className="rounded-capsule size-5"
+                  />
                   {quote.username}
                 </span>
               </a>
@@ -77,55 +85,75 @@ export function LibraryBody({
         </ul>
       </section>
 
-      <section className="border-foreground/10 grid gap-6 border-t pt-10 md:grid-cols-[minmax(0,20rem)_1fr] md:gap-12">
-        <div className="flex flex-col gap-2.5">
-          <h2 className={typeSection}>Start in the docs.</h2>
-          <p className="text-muted-foreground max-w-[36ch] text-[14px] leading-relaxed">
-            The command scaffolds a working thread. The docs take it from there.
-          </p>
-        </div>
-
-        <div className="bg-foreground/[0.025] dark:bg-foreground/[0.04] rounded-document flex min-w-0 flex-col gap-7 px-6 py-8 md:px-10 md:py-10">
-          <div className="flex flex-wrap items-center gap-3">
-            <p className="font-mono text-[1.125rem] tracking-[-0.01em] break-all [font-variant-ligatures:none] md:text-[1.375rem]">
-              npx assistant-ui init
+      <section className="border-foreground/10 flex flex-col gap-10 border-t pt-10">
+        <h2 className={typeSection}>Start in the docs.</h2>
+        <ol className="grid gap-10 md:grid-cols-3 md:gap-12">
+          <li className="flex flex-col gap-4">
+            <p className="text-[15px] font-medium">
+              Scaffold a thread.{" "}
+              <span className="text-muted-foreground font-normal">
+                The CLI copies the UI source into your project.
+              </span>
             </p>
-            <CopyButton text="npx assistant-ui init" />
-          </div>
-          <div className="flex flex-wrap items-center gap-4">
-            <Button
-              nativeButton={false}
-              render={
-                <Link
-                  href="/docs"
-                  onClick={() =>
-                    analytics.cta.clicked("get_started", "home_closer")
-                  }
-                />
-              }
-            >
-              Read the docs
-            </Button>
-            <a
-              href={CONTACT_SALES_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() =>
-                analytics.cta.clicked("contact_sales", "home_closer")
-              }
-              className="text-muted-foreground hover:text-foreground text-[13px] transition-colors"
-            >
-              Contact sales
-            </a>
-          </div>
-          <p className="text-muted-foreground text-xs">
-            <span className="font-mono">
-              @assistant-ui/react
-              {reactVersion && <span>@{reactVersion}</span>}
-            </span>{" "}
-            · MIT License
-          </p>
-        </div>
+            <div className="bg-foreground/[0.025] dark:bg-foreground/[0.04] rounded-document flex min-w-0 flex-wrap items-center gap-3 px-4 py-3">
+              <p className="font-mono text-[14px] tracking-[-0.01em] break-all [font-variant-ligatures:none]">
+                npx assistant-ui init
+              </p>
+              <CopyButton text="npx assistant-ui init" />
+            </div>
+            <p className="text-muted-foreground text-xs">
+              <span className="font-mono">
+                @assistant-ui/react
+                {reactVersion && <span>@{reactVersion}</span>}
+              </span>{" "}
+              · MIT License
+            </p>
+          </li>
+          <li className="flex flex-col gap-4">
+            <p className="text-[15px] font-medium">
+              Connect a backend.{" "}
+              <span className="text-muted-foreground font-normal">
+                Pick the runtime adapter for your stack.
+              </span>
+            </p>
+            <div>
+              <Button
+                nativeButton={false}
+                render={
+                  <Link
+                    href="/docs"
+                    onClick={() =>
+                      analytics.cta.clicked("get_started", "home_closer")
+                    }
+                  />
+                }
+              >
+                Read the docs
+              </Button>
+            </div>
+          </li>
+          <li className="flex flex-col gap-4">
+            <p className="text-[15px] font-medium">
+              Talk to the team.{" "}
+              <span className="text-muted-foreground font-normal">
+                Book a call about your deployment.
+              </span>
+            </p>
+            <div>
+              <a
+                href={CONTACT_SALES_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() =>
+                  analytics.cta.clicked("contact_sales", "home_closer")
+                }
+                className="text-muted-foreground hover:text-foreground text-[13px] transition-colors"
+              >
+                Contact sales
+              </a>
+            </div>
+          </li>
+        </ol>
       </section>
     </div>
   );

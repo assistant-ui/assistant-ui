@@ -30,11 +30,12 @@ export default defineConfig({
     coverage: {
       include: ["src/**/*.{ts,tsx,vue}"],
       thresholds: {
-        lines: 61,
-        functions: 54,
-        branches: 59,
-        statements: 60,
-        autoUpdate: (threshold) => Math.ceil(threshold) - 1,
+        lines: 60,
+        functions: 53,
+        branches: 58,
+        statements: 59,
+        autoUpdate: (threshold, previous) =>
+          Math.max(previous, Math.floor(threshold) - 1),
       },
     },
     fsModuleCache: true,

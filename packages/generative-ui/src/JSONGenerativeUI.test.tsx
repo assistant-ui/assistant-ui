@@ -3,7 +3,7 @@ import { surfaceToOperations } from "./a2ui/snapshot";
 import { applyA2uiOperations } from "./a2ui/reducer";
 /** @vitest-environment jsdom */
 import { describe, it, expect, vi } from "vitest";
-import { act } from "react";
+import { act, useState, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { z } from "zod";
@@ -96,14 +96,14 @@ describe("JSONGenerativeUI — client build", () => {
     expect(typeof tool.execute).toBe("function");
     expect(typeof tool.render).toBe("function");
     expect(tool.unstable_backendDefault).toEqual({ parameters: true });
-    expect((tool.parameters as any).properties.$type.enum).toEqual([
+    expect((tool.parameters as any).properties._type.enum).toEqual([
       "Card",
       "Button",
     ]);
   });
 
   it("present renders the model's tree against the library", () => {
-    const html = renderTool(ui.present(), { $type: "Card", title: "Hi" });
+    const html = renderTool(ui.present(), { _type: "Card", title: "Hi" });
     expect(html).toContain('<section data-title="Hi"></section>');
   });
 
@@ -158,6 +158,94 @@ describe("JSONGenerativeUI — client build", () => {
 
     expect(html).not.toContain('data-aui="answered"');
     expect(html).toContain('value="model default"');
+  });
+
+  it("keeps a streamed child's state when its _key arrives after its _type", async () => {
+    const ui = new ClientGenUI({
+      library: {
+        Stack: {
+          description: "A stack.",
+          properties: z.object({}),
+          streamProperties: true,
+          render: ({ children }) => <div>{children}</div>,
+        },
+        Counter: {
+          description: "A counter.",
+          properties: z.object({}),
+          streamProperties: true,
+          render: function CounterRender() {
+            const [count, setCount] = useState(0);
+            return (
+              <button onClick={() => setCount((current) => current + 1)}>
+                {count}
+              </button>
+            );
+          },
+        },
+      },
+    });
+    const Render = ui.present().render as (
+      props: Record<string, unknown>,
+    ) => ReactNode;
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    const stream = (json: string) =>
+      act(async () => {
+        root.render(
+          <Render
+            args={parsePartialJsonObject(json)}
+            status={{ type: "running" }}
+            toolCallId="call"
+          />,
+        );
+      });
+    try {
+      await stream('{"_type":"Stack","children":[{"_type":"Counter"');
+      await act(async () => container.querySelector("button")!.click());
+      for (const key of ['"', '"em', '"email', '"email"']) {
+        await stream(
+          `{"_type":"Stack","children":[{"_type":"Counter","_key":${key}`,
+        );
+        expect(container.querySelector("button")?.textContent).toBe("1");
+      }
+      await stream(
+        '{"_type":"Stack","children":[{"_type":"Counter","_key":"email"},{"_type":"Counter","_key":"b"}]}',
+      );
+      expect(
+        [...container.querySelectorAll("button")].map(
+          (button) => button.textContent,
+        ),
+      ).toEqual(["1", "0"]);
+    } finally {
+      act(() => root.unmount());
+    }
+  });
+
+  it("locks only the prompt tool when its render is mounted as a component", async () => {
+    const ui = new ClientGenUI({ library: defaultGenerativeUILibrary });
+    const mount = async (tool: { render?: unknown }) => {
+      const Render = tool.render as (
+        props: Record<string, unknown>,
+      ) => ReactNode;
+      const container = document.createElement("div");
+      const root = createRoot(container);
+      await act(async () => {
+        root.render(
+          <Render
+            args={{ $type: "Input", name: "note", defaultValue: "x" }}
+            status={{ type: "complete" }}
+            result={{}}
+            toolCallId="call"
+          />,
+        );
+      });
+      const locked = container.querySelector('fieldset[data-aui="answered"]');
+      act(() => root.unmount());
+      return locked !== null;
+    };
+
+    expect(await mount(ui.present())).toBe(false);
+    expect(await mount(ui.promptUser())).toBe(true);
   });
 
   it("locks an answered prompt without recorded actions at its defaults", () => {
@@ -679,7 +767,7 @@ describe("JSONGenerativeUI — server build", () => {
     expect(tool.render).toBeUndefined();
     expect(tool.execute).toBeUndefined();
     expect(tool.unstable_backendDefault).toBeUndefined();
-    expect(tool.parameters.properties.$type.enum).toEqual(["Card", "Button"]);
+    expect(tool.parameters.properties._type.enum).toEqual(["Card", "Button"]);
     expect(tool.parameters).toEqual(
       new ClientGenUI({ library }).present().parameters,
     );
@@ -690,7 +778,7 @@ describe("JSONGenerativeUI — server build", () => {
     expect(tool.type).toBe("human");
     expect(tool.render).toBeUndefined();
     expect(tool.unstable_backendDefault).toBeUndefined();
-    expect(tool.parameters.properties.$type.enum).toEqual(["Card", "Button"]);
+    expect(tool.parameters.properties._type.enum).toEqual(["Card", "Button"]);
   });
 });
 

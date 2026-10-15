@@ -1,10 +1,8 @@
+import { isReservedKey } from "../constants";
 import { ICON_NAMES, type UIElement } from "../ir";
+import type { A2uiBinding } from "../binding";
 import { classifyTemporal } from "../temporal";
-import {
-  A2UI_SURFACE_ID,
-  type A2uiBinding,
-  type A2uiSurfaceState,
-} from "./types";
+import { A2UI_SURFACE_ID, type A2uiSurfaceState } from "./types";
 import {
   evaluateA2uiValueFunction,
   type ExpressionPart,
@@ -33,6 +31,7 @@ const SUPPORTED_COMPONENTS = new Set([
   "ChoicePicker",
   "DateTimeInput",
   "Slider",
+  "Tabs",
 ]);
 
 const CHILD_LIST_COMPONENTS: ReadonlySet<string> = new Set([
@@ -537,15 +536,20 @@ const childrenOf = (
   visited: Set<string>,
 ): UIElement[] => {
   const result: UIElement[] = [];
+  // A Tabs panel that cannot convert stays as an empty panel, so every later panel keeps its own label.
+  const keepPositions = node["component"] === "Tabs";
   for (const childId of childReferences(node)) {
     if (typeof childId !== "string") {
       context.warnings.push(
         `Component "${String(node["id"] ?? "")}" has a malformed child reference.`,
       );
+      if (keepPositions && reserveNode(context)) result.push({ $type: "Col" });
       continue;
     }
     const child = convertComponent(childId, scope, context, depth + 1, visited);
     if (child) result.push(child);
+    else if (keepPositions && reserveNode(context))
+      result.push({ $type: "Col" });
   }
   return result;
 };
@@ -658,6 +662,14 @@ const mappedProps = (
     return {
       $type: "Markdown",
       ...(text !== undefined ? { value: text } : {}),
+    };
+  }
+
+  if (component === "Tabs") {
+    const tabs = Array.isArray(props["tabs"]) ? props["tabs"] : [];
+    return {
+      $type: "Tabs",
+      tabs: tabs.map((tab) => (isRecord(tab) ? tab : {})),
     };
   }
 
@@ -1057,10 +1069,11 @@ function convertComponent(
           context,
           key !== "checks",
           0,
-          key === "action" &&
+          (key === "action" &&
             component === "Button" &&
             isRecord(value) &&
-            eventContext(value) !== undefined,
+            eventContext(value) !== undefined) ||
+            (key === "tabs" && component === "Tabs"),
         );
         if (resolved !== undefined) setOwnProperty(props, key, resolved);
       }
@@ -1115,7 +1128,7 @@ function convertComponent(
         ? {
             $type: component,
             ...Object.fromEntries(
-              Object.entries(props).filter(([key]) => !key.startsWith("$")),
+              Object.entries(props).filter(([key]) => !isReservedKey(key)),
             ),
           }
         : undefined;

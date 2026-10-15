@@ -6,7 +6,7 @@ import type { GenerativeUILibrary } from "./types";
 /** Options for {@link JSONGenerativeUI}. */
 export type JSONGenerativeUIOptions = {
   /**
-   * The components the model is allowed to render, keyed by the `$type` it
+   * The components the model is allowed to render, keyed by the `_type` it
    * selects them with. Author it with `defineGenerativeComponents({ ... })` so a
    * `"use generative"` build can split each `render` from its `properties`.
    */
@@ -49,14 +49,16 @@ export type PresentTool = ToolDefinition<
 export type PromptUserTool = ToolDefinition<Record<string, unknown>, unknown> &
   BackendDefaultMetadata;
 
-const PRESENT_DESCRIPTION =
-  "Present a UI component to the user. Select a component with `$type` and " +
-  "provide its props inline; nest components with `children`.";
+const NODE_GUIDE =
+  "Every node, the root included, selects a component with `_type` and " +
+  "provides its props inline; nest components with `children`, and wrap " +
+  "several top-level components in one layout component.";
+
+const PRESENT_DESCRIPTION = `Present a UI component to the user. ${NODE_GUIDE}`;
 
 const PROMPT_USER_DESCRIPTION =
-  "Present a UI component to the user and wait for their response. Select a " +
-  "component with `$type` and provide its props inline; nest components with " +
-  "`children`. The user interacts with it and the result is returned to you.";
+  `Present a UI component to the user and wait for their response. ${NODE_GUIDE} ` +
+  "The user interacts with it and the result is returned to you.";
 
 /** The tool `parameters` schema, built once per instance (see `buildPresentParameters`). */
 export type PresentParameters = JSONSchema7;
