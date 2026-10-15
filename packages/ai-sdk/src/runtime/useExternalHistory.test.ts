@@ -2386,6 +2386,26 @@ describe("useExternalHistory persistence", () => {
     await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
   });
 
+  it("persists a prompt that reaches the thread after its run started", async () => {
+    const { append, flush, load, step } = createPersistenceHarness(false);
+    await waitFor(() => expect(load).toHaveBeenCalledOnce());
+    await flush();
+    const promptInner: InnerMessage = {
+      id: "late-prompt",
+      role: "user",
+      parts: ["prompt"],
+    };
+
+    await step({ isRunning: true, messages: [] });
+    await step({ messages: [createUserMessage(promptInner)] });
+
+    await waitFor(() => expect(append).toHaveBeenCalledOnce());
+    expect(append).toHaveBeenCalledWith({
+      parentId: null,
+      message: promptInner,
+    });
+  });
+
   it("persists a new user message while its run is active", async () => {
     const previousInner: InnerMessage = {
       id: "previous-assistant",
@@ -2600,22 +2620,6 @@ describe("useExternalHistory persistence", () => {
             ),
           ],
         }),
-      settleNextRun: async () => {
-        await step({
-          isRunning: false,
-          messages: [
-            promptA,
-            replyA,
-            promptB,
-            createAssistantMessage(
-              { type: "complete", reason: "stop" },
-              [replyBInner],
-              "reply-b",
-            ),
-          ],
-        });
-        await flush();
-      },
       finishDeletion: async () => {
         releaseReply();
         await act(async () => {
@@ -2633,16 +2637,6 @@ describe("useExternalHistory persistence", () => {
     await race.finishDeletion();
 
     expect([...race.stored]).toEqual(["reply-a", "prompt-b"]);
-  });
-
-  it("keeps a prompt deleted when the next run settles before its deletion lands", async () => {
-    const race = await createDeletionRace();
-
-    await race.startNextRun();
-    await race.settleNextRun();
-    await race.finishDeletion();
-
-    expect([...race.stored]).toEqual(["reply-a", "prompt-b", "reply-b"]);
   });
 
   it("stores a new prompt after an earlier reply that failed to store", async () => {

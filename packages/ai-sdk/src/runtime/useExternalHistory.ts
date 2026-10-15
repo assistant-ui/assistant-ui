@@ -116,8 +116,6 @@ export const useExternalHistory = <TMessage>(
 
   const historyIds = useRef(new Set<string>());
   const deferredTelemetryIds = useRef(new Set<string>());
-  // A persistence pass can run on a snapshot taken before a deletion finished, so it skips deleted messages instead of writing them back.
-  const deletedMessageIds = useRef(new Set<string>());
   // `content` is a snapshot taken at write time rather than a re-encode of `source`, because a retained message object can be mutated in place by the runtime that produced it.
   const persistedInnerMessages = useRef(
     new Map<string, { source: TMessage; content: string }>(),
@@ -281,6 +279,7 @@ export const useExternalHistory = <TMessage>(
   const stepBoundariesRef = useRef<number[]>([]);
   const wasRunningRef = useRef(false);
   const toolCallCountRef = useRef(0);
+  const queuedPromptIdRef = useRef<string | null>(null);
 
   const persistToolInteractions = useCallback(
     (messageId: string) => {
@@ -399,8 +398,7 @@ export const useExternalHistory = <TMessage>(
           toolCallCountRef.current = 0;
           adapter.pin?.();
         }
-        if (!wasRunning && historyReadyRef.current)
-          persistRunningUserMessages(threadState.messages);
+        if (historyReadyRef.current) persistRunPrompt(threadState.messages);
         // Cancel any pending persist — isRunning went back to true
         if (persistTimerRef.current) {
           clearTimeout(persistTimerRef.current);
@@ -526,7 +524,6 @@ export const useExternalHistory = <TMessage>(
             }));
 
           for (const message of messages) {
-            if (deletedMessageIds.current.has(message.id)) continue;
             const innerMessages = getExternalStoreMessages<TMessage>(message);
 
             const isTerminal = isTerminalMessage(message);
@@ -607,32 +604,47 @@ export const useExternalHistory = <TMessage>(
       const state = runtimeRef.current.thread.getState();
       if (state.messages.length === 0) return;
       if (state.isRunning) {
-        persistRunningUserMessages(state.messages);
+        persistRunPrompt(state.messages);
         return;
       }
       if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
       persistSettled(true);
     };
 
-    function persistRunningUserMessages(messages: readonly ThreadMessage[]) {
-      const persistence = persistInFlightRef.current.then(async () => {
-        let parentId: string | null = null;
+    function persistRunPrompt(messages: readonly ThreadMessage[]) {
+      const promptIndex = messages.findLastIndex(
+        (message) => message.role === "user",
+      );
+      const prompt = messages[promptIndex];
+      if (!prompt || prompt.id === queuedPromptIdRef.current) return;
+      queuedPromptIdRef.current = prompt.id;
+      const innerMessages = getExternalStoreMessages<TMessage>(prompt);
+      if (
+        innerMessages.every((innerMessage) =>
+          persistedInnerMessages.current.has(
+            storageFormatAdapter.getId(innerMessage),
+          ),
+        )
+      )
+        return;
+      const previousInnerMessage = messages
+        .slice(0, promptIndex)
+        .flatMap(getExternalStoreMessages<TMessage>)
+        .at(-1);
 
-        for (const message of messages) {
-          if (deletedMessageIds.current.has(message.id)) continue;
-          for (const innerMessage of getExternalStoreMessages<TMessage>(
-            message,
-          )) {
-            // Rows are appended parent first, so a prompt whose parent is not stored yet waits for the settled pass.
-            if (
-              message.role === "user" &&
-              (parentId === null ||
-                persistedInnerMessages.current.has(parentId))
-            ) {
-              await appendIfUnpersisted({ parentId, message: innerMessage });
-            }
-            parentId = storageFormatAdapter.getId(innerMessage);
-          }
+      const persistence = persistInFlightRef.current.then(async () => {
+        let parentId = previousInnerMessage
+          ? storageFormatAdapter.getId(previousInnerMessage)
+          : null;
+        for (const innerMessage of innerMessages) {
+          // Rows are appended parent first, so a prompt whose parent is not stored yet waits for the settled pass.
+          if (
+            parentId !== null &&
+            !persistedInnerMessages.current.has(parentId)
+          )
+            return;
+          await appendIfUnpersisted({ parentId, message: innerMessage });
+          parentId = storageFormatAdapter.getId(innerMessage);
         }
       });
       persistInFlightRef.current = persistence.catch((error) => {
@@ -708,7 +720,6 @@ export const useExternalHistory = <TMessage>(
 
         historyIds.current.delete(messageId);
         deferredTelemetryIds.current.delete(messageId);
-        deletedMessageIds.current.add(messageId);
         for (const item of itemsToDelete) {
           persistedInnerMessages.current.delete(
             storageFormatAdapter.getId(item.message),
