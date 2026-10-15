@@ -31,6 +31,8 @@ Change over time (`Line`, `Area`, `StackedArea`, `Streamgraph`, `MirroredArea`, 
 
 Thin variants are host props rather than separate forms: `Line` takes `step`, `Histogram` takes `smooth`, `StackedBar` takes `normalize`, `Heatmap` takes a calendar layout and `mark="cell" | "dot"`, `Scatter` takes `size`, and `Pie` takes an inner radius and a center label. `SmallMultiples` lays any form out as a panel grid.
 
+`DotMap` draws `counts[i]` inside `tiles[i]`. Its optional `unit` says how many counted units one dot represents across all tiles (default 1), and `unitLabel` names those units, such as `users`. When the dots would exceed `maxDots` (default 200), the chart raises the unit to a shared nice value and prints the scale below the map. Every positive tile retains at least one dot, so a budget below the number of positive tiles cannot be met.
+
 Real geography lives in its own entry so only map pages pay for the geometry:
 
 ```tsx
