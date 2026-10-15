@@ -1,4 +1,4 @@
-import { AbstractAgent, InputContent } from "@ag-ui/client";
+import { AbstractAgent, Context, InputContent } from "@ag-ui/client";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
@@ -1745,6 +1745,7 @@ type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
   agent: AbstractAgent;
   logger?: Partial<Logger>;
   showThinking?: boolean;
+  getRunContext?: (() => readonly Context[]) | undefined;
   resumeTranscript?: AgUiResumeTranscript | undefined;
   autoCancelPendingToolCalls?: boolean | undefined;
   unstable_enableMessageQueue?: boolean | undefined;
