@@ -85,8 +85,7 @@ export const __internal_getDispatchTransform = (
 const getQueueItemParts = (
   message: AppendMessage,
 ): readonly (FileMessagePart | TextMessagePart)[] => {
-  // attachment-derived text is the file body, not user-authored prose;
-  // project only the file/image content of attachments
+  // Attachment text is the file body, not user-authored prose.
   const source = [
     ...message.content,
     ...(message.attachments ?? []).flatMap((attachment) =>
@@ -103,6 +102,12 @@ const getQueueItemParts = (
         data: part.image,
         mimeType: "image/*",
         ...(part.filename !== undefined && { filename: part.filename }),
+      });
+    } else if (part.type === "audio") {
+      parts.push({
+        type: "file",
+        data: part.audio.data,
+        mimeType: `audio/${part.audio.format}`,
       });
     }
   }

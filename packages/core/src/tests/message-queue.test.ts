@@ -629,6 +629,50 @@ describe("createMessageQueue", () => {
     expect(adapter.items[0]!.prompt).toBe("hello");
   });
 
+  it("projects legacy audio message parts to file parts", () => {
+    const run = vi.fn();
+    const { adapter, notifyBusy } = createMessageQueue({ run });
+    notifyBusy();
+
+    adapter.enqueue(
+      msg("", {
+        content: [{ type: "audio", audio: { data: "SUQz", format: "mp3" } }],
+      }),
+    );
+
+    expect(adapter.items[0]!.parts).toEqual([
+      { type: "file", data: "SUQz", mimeType: "audio/mp3" },
+    ]);
+  });
+
+  it("projects legacy audio attachment parts to file parts", () => {
+    const run = vi.fn();
+    const { adapter, notifyBusy } = createMessageQueue({ run });
+    notifyBusy();
+
+    adapter.enqueue(
+      msg("", {
+        content: [],
+        attachments: [
+          {
+            id: "audio1",
+            type: "audio",
+            name: "audio.wav",
+            contentType: "audio/wav",
+            status: { type: "complete" },
+            content: [
+              { type: "audio", audio: { data: "UklG", format: "wav" } },
+            ],
+          },
+        ],
+      }),
+    );
+
+    expect(adapter.items[0]!.parts).toEqual([
+      { type: "file", data: "UklG", mimeType: "audio/wav" },
+    ]);
+  });
+
   it("excludes attachment-derived text parts from the projection", () => {
     const run = vi.fn();
     const { adapter, notifyBusy } = createMessageQueue({ run });
