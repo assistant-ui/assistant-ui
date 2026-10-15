@@ -712,10 +712,39 @@ export class ExternalStoreThreadRuntimeCore
         this._importedMessageIds = undefined;
       }
 
+      const incomingIds = new Set(messages.map((message) => message.id));
+      const hostDeletedMessages = new Map<string, ThreadMessage>();
+      for (let i = 1; i < messages.length; i++) {
+        const messageId = messages[i]!.id;
+        const parentId = messages[i - 1]!.id;
+        let previousParentId: string | null;
+        try {
+          previousParentId = this.repository.getMessage(messageId).parentId;
+        } catch {
+          continue;
+        }
+        if (previousParentId === parentId) continue;
+
+        const previousPath = this.repository.getMessages(messageId);
+        const ancestorIndex = previousPath.findIndex(
+          (message) => message.id === parentId,
+        );
+        if (ancestorIndex === -1) continue;
+        for (let j = ancestorIndex + 1; j < previousPath.length - 1; j++) {
+          const skipped = previousPath[j]!;
+          if (!incomingIds.has(skipped.id)) {
+            hostDeletedMessages.set(skipped.id, skipped);
+          }
+        }
+      }
+
       for (let i = 0; i < messages.length; i++) {
         const message = messages[i]!;
         const parent = messages[i - 1];
         this.repository.addOrUpdateMessage(parent?.id ?? null, message);
+      }
+      for (const [id, message] of hostDeletedMessages) {
+        this._evictDeletedMessage(id, message, false);
       }
 
       // A pass over the host's previous array, such as a client tool's
@@ -1278,14 +1307,15 @@ export class ExternalStoreThreadRuntimeCore
     this._evictDeletedMessage(messageId);
   }
 
-  // The snapshot pass only relinks incoming messages; it never evicts, so
-  // without this the deleted message survives as a sibling branch that the
-  // branch picker can resurrect into the host store. `_messages` is refreshed
-  // before notifying so `messages` and the branch graph agree at notify time,
-  // mirroring the end of the snapshot pass.
+  // The snapshot pass evicts only messages the host drops from the middle of
+  // its array, so a deletion through the runtime would otherwise survive as a
+  // sibling branch that the branch picker can resurrect into the host store.
+  // `_messages` is refreshed before notifying so `messages` and the branch
+  // graph agree at notify time, mirroring the end of the snapshot pass.
   private _evictDeletedMessage(
     messageId: string,
     expectedMessage?: ThreadMessage,
+    publish = true,
   ) {
     // Positional fallback ids can be reused by another message after a snapshot.
     if (messageId.startsWith(FALLBACK_ID_PREFIX) && !expectedMessage) return;
@@ -1304,7 +1334,7 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     this.repository.deleteMessage(messageId);
-    this._publishRepositoryMessages();
+    if (publish) this._publishRepositoryMessages();
   }
 
   // Notifies even when the visible messages are unchanged: deleting an
