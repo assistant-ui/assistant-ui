@@ -81,10 +81,10 @@ const adapter: RemoteThreadListAdapter = {
       })),
     };
   },
-  async initialize(localId) {
+  async initialize(localId, options) {
     const t = await fetch("/api/threads", {
       method: "POST",
-      body: JSON.stringify({ localId }),
+      body: JSON.stringify({ localId, custom: options?.custom }),
     }).then((r) => r.json());
     return { remoteId: t.id };
   },
@@ -378,9 +378,9 @@ export function ThreadList() {
     },
     {
       name: "initialize",
-      type: "(localId: string) => Promise<{ remoteId: string; externalId?: string }>",
+      type: "(localId: string, options?: { custom?: Record<string, unknown> }) => Promise<{ remoteId: string; externalId?: string }>",
       description:
-        "Create a new remote record when the user starts a conversation. Return the canonical ids.",
+        "Create a new remote record when the user starts a conversation, persisting `options.custom` from the draft. Return the canonical ids.",
       required: true,
     },
     {
