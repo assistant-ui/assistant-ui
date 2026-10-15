@@ -810,6 +810,16 @@ describe("useExternalHistory persistence", () => {
     return message;
   };
 
+  const createUserMessage = (id: string): ThreadMessage => {
+    const message = {
+      id,
+      role: "user",
+      content: [],
+    } as unknown as ThreadMessage;
+    bindExternalStoreMessage(message, [{ id, role: "user", parts: [id] }]);
+    return message;
+  };
+
   const createSlowLoadHarness = (resolveOnUnmount = true) => {
     mocks.hasThreadListItem = true;
     mocks.remoteId = "remote-thread";
@@ -1123,20 +1133,22 @@ describe("useExternalHistory persistence", () => {
     mocks.hasThreadListItem = true;
     mocks.remoteId = options?.skipRemoteId ? undefined : "remote-thread";
 
-    const { result, unmount } = renderHook(() =>
-      useExternalHistory(
-        persistenceRuntimeRef,
-        historyAdapter,
-        options?.toThreadMessages ?? (() => []),
-        persistenceStorageFormat,
-        options?.onSetMessages ?? (() => {}),
-        options?.toolArtifacts,
-        options?.onToolArtifactsRestored,
-        options?.toolInteractions,
-        options?.onToolInteractionsRestored,
-        options?.toolApprovalResponses,
-        options?.onToolApprovalResponsesRestored,
-      ),
+    const { result, unmount, rerender } = renderHook(
+      ({ toolArtifacts }) =>
+        useExternalHistory(
+          persistenceRuntimeRef,
+          historyAdapter,
+          options?.toThreadMessages ?? (() => []),
+          persistenceStorageFormat,
+          options?.onSetMessages ?? (() => {}),
+          toolArtifacts,
+          options?.onToolArtifactsRestored,
+          options?.toolInteractions,
+          options?.onToolInteractionsRestored,
+          options?.toolApprovalResponses,
+          options?.onToolApprovalResponsesRestored,
+        ),
+      { initialProps: { toolArtifacts: options?.toolArtifacts } },
     );
 
     const runCycle = async (nextMessages: ThreadMessage[]) => {
@@ -1166,6 +1178,15 @@ describe("useExternalHistory persistence", () => {
         listener?.();
       });
 
+    const stepWithoutNotify = (partial: {
+      isRunning?: boolean;
+      messages?: ThreadMessage[];
+    }) =>
+      act(async () => {
+        if (partial.messages !== undefined) messages = partial.messages;
+        if (partial.isRunning !== undefined) isRunning = partial.isRunning;
+      });
+
     return {
       append,
       update,
@@ -1180,6 +1201,9 @@ describe("useExternalHistory persistence", () => {
       runCycle,
       flush,
       step,
+      stepWithoutNotify,
+      rerender: (toolArtifacts: Map<string, unknown> | undefined) =>
+        rerender({ toolArtifacts }),
       unmount,
     };
   };
@@ -2813,6 +2837,119 @@ describe("useExternalHistory persistence", () => {
     } finally {
       releaseFirstAppend();
     }
+  });
+
+  it("does not restore a deleted prompt from a queued pass and allows ID reuse", async () => {
+    const {
+      append,
+      deleteItems,
+      deleteMessage,
+      flush,
+      load,
+      rerender,
+      step,
+      stepWithoutNotify,
+    } = createPersistenceHarness(false, { toolArtifacts: new Map() });
+    await waitFor(() => expect(load).toHaveBeenCalledOnce());
+    await flush();
+
+    const stored = new Map<string, InnerMessage>();
+    let releaseReply!: () => void;
+    const replyGate = new Promise<void>((resolve) => {
+      releaseReply = resolve;
+    });
+    append.mockImplementation(async (item) => {
+      if (item.message.id === "reply-a") await replyGate;
+      stored.set(item.message.id, item.message);
+    });
+    deleteItems.mockImplementation(async (items) => {
+      for (const item of items) stored.delete(item.message.id);
+    });
+
+    const promptA = createUserMessage("prompt-a");
+    const replyA = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "reply-a", parts: ["a"] }],
+      "reply-a",
+    );
+    const promptB = createUserMessage("prompt-b");
+    const replyB = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "reply-b", parts: ["b"] }],
+      "reply-b",
+    );
+
+    await step({
+      isRunning: true,
+      messages: [
+        promptA,
+        createAssistantMessage(
+          { type: "running" },
+          [{ id: "reply-a", parts: ["a"] }],
+          "reply-a",
+        ),
+      ],
+    });
+    await step({ isRunning: false, messages: [promptA, replyA] });
+    await flush();
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+
+    const deletion = deleteMessage("prompt-a");
+    await step({
+      isRunning: true,
+      messages: [
+        promptA,
+        replyA,
+        promptB,
+        createAssistantMessage(
+          { type: "running" },
+          [{ id: "reply-b", parts: ["b"] }],
+          "reply-b",
+        ),
+      ],
+    });
+    await step({
+      isRunning: false,
+      messages: [promptA, replyA, promptB, replyB],
+    });
+    await flush();
+
+    releaseReply();
+    await deletion;
+    await stepWithoutNotify({ messages: [replyA, promptB, replyB] });
+    rerender(new Map());
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(4));
+    await flush();
+
+    expect(stored.has("prompt-a")).toBe(false);
+
+    const reusedPrompt = createUserMessage("prompt-a");
+    const replyC = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "reply-c", parts: ["c"] }],
+      "reply-c",
+    );
+    await step({
+      isRunning: true,
+      messages: [
+        replyA,
+        promptB,
+        replyB,
+        reusedPrompt,
+        createAssistantMessage(
+          { type: "running" },
+          [{ id: "reply-c", parts: ["c"] }],
+          "reply-c",
+        ),
+      ],
+    });
+    await step({
+      isRunning: false,
+      messages: [replyA, promptB, replyB, reusedPrompt, replyC],
+    });
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(6));
+
+    expect(stored.has("prompt-a")).toBe(true);
   });
 
   it("uses the requested deletion snapshot after runtime state changes", async () => {

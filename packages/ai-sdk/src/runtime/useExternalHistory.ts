@@ -276,6 +276,7 @@ export const useExternalHistory = <TMessage>(
   const runStartRef = useRef<number | null>(null);
   const persistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const persistInFlightRef = useRef<Promise<void>>(Promise.resolve());
+  const pendingDeleteTokensRef = useRef(new Map<string, Set<object>>());
   const stepBoundariesRef = useRef<number[]>([]);
   const wasRunningRef = useRef(false);
   const toolCallCountRef = useRef(0);
@@ -370,8 +371,32 @@ export const useExternalHistory = <TMessage>(
             .filter((innerId) => !persistedInnerMessages.current.has(innerId))
         : [];
 
+    const clearRemovedDeleteTokens = (messages: readonly ThreadMessage[]) => {
+      const liveMessageIds = new Set(messages.map((message) => message.id));
+      const removedMessages = [...pendingDeleteTokensRef.current]
+        .filter(([messageId]) => !liveMessageIds.has(messageId))
+        .map(([messageId, tokens]) => ({
+          messageId,
+          tokens: [...tokens],
+        }));
+      if (removedMessages.length === 0) return;
+
+      const queuedPersistence = persistInFlightRef.current;
+      void queuedPersistence.then(() => {
+        for (const { messageId, tokens } of removedMessages) {
+          const currentTokens = pendingDeleteTokensRef.current.get(messageId);
+          if (!currentTokens) continue;
+          for (const token of tokens) currentTokens.delete(token);
+          if (currentTokens.size === 0)
+            pendingDeleteTokensRef.current.delete(messageId);
+        }
+      });
+    };
+
     const unsubscribe = runtimeRef.current.thread.subscribe(() => {
       const threadState = runtimeRef.current.thread.getState();
+      clearRemovedDeleteTokens(threadState.messages);
+
       const { isRunning } = threadState;
       const wasRunning = wasRunningRef.current;
       wasRunningRef.current = isRunning;
@@ -425,6 +450,7 @@ export const useExternalHistory = <TMessage>(
     });
 
     const initialThreadState = runtimeRef.current.thread.getState();
+    clearRemovedDeleteTokens(initialThreadState.messages);
     wasRunningRef.current = initialThreadState.isRunning;
     if (initialThreadState.isRunning) {
       if (runStartRef.current == null) {
@@ -522,6 +548,8 @@ export const useExternalHistory = <TMessage>(
             }));
 
           for (const message of messages) {
+            if (pendingDeleteTokensRef.current.has(message.id)) continue;
+
             const innerMessages = getExternalStoreMessages<TMessage>(message);
 
             const isTerminal = isTerminalMessage(message);
@@ -662,6 +690,14 @@ export const useExternalHistory = <TMessage>(
         return item;
       });
 
+      const deletionToken = {};
+      let deletionTokens = pendingDeleteTokensRef.current.get(messageId);
+      if (!deletionTokens) {
+        deletionTokens = new Set();
+        pendingDeleteTokensRef.current.set(messageId, deletionTokens);
+      }
+      deletionTokens.add(deletionToken);
+
       const deletion = persistInFlightRef.current.then(async () => {
         await deleteMessages(itemsToDelete);
 
@@ -675,7 +711,15 @@ export const useExternalHistory = <TMessage>(
       });
 
       persistInFlightRef.current = deletion.catch(() => {});
-      await deletion;
+      try {
+        await deletion;
+      } catch (error) {
+        const currentTokens = pendingDeleteTokensRef.current.get(messageId);
+        currentTokens?.delete(deletionToken);
+        if (currentTokens?.size === 0)
+          pendingDeleteTokensRef.current.delete(messageId);
+        throw error;
+      }
     },
     [formatAdapter, runtimeRef, storageFormatAdapter],
   );
