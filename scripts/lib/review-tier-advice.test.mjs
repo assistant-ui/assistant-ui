@@ -5,8 +5,16 @@ import { loadReviewPolicy } from "./review-policy.mjs";
 import { advise, sectionText } from "./review-tier-advice.mjs";
 
 const policy = loadReviewPolicy(path.resolve(import.meta.dirname, "../.."));
-const issue = (number, ...pullRequests) => ({ number, pullRequests });
-const pr = (number, state = "OPEN") => ({ number, state });
+const issue = (number, ...pullRequests) => ({
+  number,
+  repository: policy.repository,
+  pullRequests,
+});
+const pr = (number, state = "OPEN", repository = policy.repository) => ({
+  number,
+  state,
+  repository,
+});
 const complete =
   "## Problem\nIt broke.\n\n## Verification\npnpm test\n\n## AI use\nNone.\n";
 const adviceFor = (overrides = {}) =>
@@ -17,7 +25,7 @@ const adviceFor = (overrides = {}) =>
       body: complete,
       authorIsBot: false,
       hasLinkedIssue: true,
-      closingIssues: [],
+      linkedIssues: [],
       ...overrides,
     },
     policy,
@@ -35,7 +43,7 @@ test("a complete description draws no advice", () => {
 
 test("another open or merged pull request for the same issue is named", () => {
   assert.deepEqual(
-    adviceFor({ closingIssues: [issue(42, pr(12), pr(15), pr(9, "MERGED"))] }),
+    adviceFor({ linkedIssues: [issue(42, pr(12), pr(15), pr(9, "MERGED"))] }),
     ["#15 is also open for #42", "#9 already merged for #42"],
   );
 });
@@ -43,9 +51,27 @@ test("another open or merged pull request for the same issue is named", () => {
 test("the pull request itself and closed attempts are not parallel work", () => {
   assert.deepEqual(
     adviceFor({
-      closingIssues: [issue(42, pr(12), pr(7, "CLOSED")), issue(43)],
+      linkedIssues: [issue(42, pr(12), pr(7, "CLOSED")), issue(43)],
     }),
     [],
+  );
+});
+
+test("issues and pull requests from another repository keep their repository in the reference", () => {
+  assert.deepEqual(
+    adviceFor({
+      linkedIssues: [
+        issue(42, pr(12, "OPEN", "someone/fork-tools")),
+        {
+          ...issue(7, pr(12, "MERGED", "someone/fork-tools")),
+          repository: "someone/fork-tools",
+        },
+      ],
+    }),
+    [
+      "someone/fork-tools#12 is also open for #42",
+      "someone/fork-tools#12 already merged for someone/fork-tools#7",
+    ],
   );
 });
 

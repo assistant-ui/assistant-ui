@@ -14,18 +14,26 @@ const verifiedTypes = ["fix", "feat", "perf", "refactor"];
 // Advice never blocks a merge. It names what a reviewer would otherwise have
 // to find out for themselves.
 export function advise(
-  { number, title, body, authorIsBot, hasLinkedIssue, closingIssues },
+  { number, title, body, authorIsBot, hasLinkedIssue, linkedIssues },
   policy,
 ) {
   const type = parseTitleType(policy, title);
   const isEmpty = (heading) => !sectionText(body, heading)?.trim();
-  const lines = closingIssues.flatMap((issue) =>
+  // Issues and pull requests can link across repositories, so a bare
+  // `#number` is only right for this one.
+  const ref = (item) =>
+    item.repository === policy.repository
+      ? `#${item.number}`
+      : `${item.repository}#${item.number}`;
+  const isThis = (other) =>
+    other.number === number && other.repository === policy.repository;
+  const lines = linkedIssues.flatMap((issue) =>
     issue.pullRequests
-      .filter((other) => other.number !== number && other.state !== "CLOSED")
+      .filter((other) => !isThis(other) && other.state !== "CLOSED")
       .map((other) =>
         other.state === "MERGED"
-          ? `#${other.number} already merged for #${issue.number}`
-          : `#${other.number} is also open for #${issue.number}`,
+          ? `${ref(other)} already merged for ${ref(issue)}`
+          : `${ref(other)} is also open for ${ref(issue)}`,
       ),
   );
   if (type === "feat" && !hasLinkedIssue)

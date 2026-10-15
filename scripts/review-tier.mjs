@@ -116,6 +116,11 @@ export function createGitHubClient({
   };
 }
 
+const issuePullRequestsFields = `number repository { nameWithOwner }
+  closedByPullRequestsReferences(first: 10, includeClosedPrs: true) {
+    nodes { number state repository { nameWithOwner } }
+  }`;
+
 const pullRequestQuery = `query ReviewTierPullRequest($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
@@ -138,14 +143,7 @@ const pullRequestQuery = `query ReviewTierPullRequest($owner: String!, $name: St
         nodes { commit { oid author { user { login } } committer { user { login } } } }
         pageInfo { hasNextPage endCursor }
       }
-      closingIssuesReferences(first: 10) {
-        nodes {
-          number
-          closedByPullRequestsReferences(first: 10, includeClosedPrs: true) {
-            nodes { number state }
-          }
-        }
-      }
+      closingIssuesReferences(first: 10) { nodes { ${issuePullRequestsFields} } }
     }
   }
 }`;
@@ -181,6 +179,7 @@ const commitsQuery = `query ReviewTierCommits($owner: String!, $name: String!, $
 const decisionQuery = `query ReviewTierDecision($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
     issue(number: $number) {
+      ${issuePullRequestsFields}
       labels(first: 100) { nodes { name } }
       timelineItems(itemTypes: [LABELED_EVENT], last: 100) {
         nodes { ... on LabeledEvent { label { name } actor { login } createdAt } }
@@ -256,9 +255,24 @@ export async function gatherPullRequest(
   const readyForReviewAt =
     node.readyEvents.nodes.map(({ createdAt }) => createdAt).at(-1) ??
     node.createdAt;
+  const withPullRequests = (issue) => ({
+    number: issue.number,
+    repository: issue.repository.nameWithOwner,
+    pullRequests: issue.closedByPullRequestsReferences.nodes.map((other) => ({
+      number: other.number,
+      state: other.state,
+      repository: other.repository.nameWithOwner,
+    })),
+  });
+  const adviceIssues = node.closingIssuesReferences.nodes.map(withPullRequests);
+  // Decision labels live on this repository's issues, so a closing issue in
+  // another repository is never looked up here by its bare number.
   const decisionNumbers = new Set(
-    node.closingIssuesReferences.nodes.map((issue) => issue.number),
+    adviceIssues
+      .filter((issue) => issue.repository === policy.repository)
+      .map((issue) => issue.number),
   );
+  const closingNumbers = new Set(decisionNumbers);
   const body = withoutHtmlComments(node.body);
   for (const match of (sectionText(body, "Decision") ?? "").matchAll(
     /#(\d+)\b/g,
@@ -285,6 +299,8 @@ export async function gatherPullRequest(
     const issue = result.repository.issue;
     if (!issue) continue;
     linkedIssues.push({ number: issueNumber, labels: attributedLabels(issue) });
+    if (!closingNumbers.has(issueNumber))
+      adviceIssues.push(withPullRequests(issue));
   }
 
   const files = (await client.paginate(`${repo}/pulls/${number}/files`)).map(
@@ -388,10 +404,7 @@ export async function gatherPullRequest(
       body,
       authorIsBot: node.author?.__typename === "Bot",
       hasLinkedIssue: linkedIssues.length > 0,
-      closingIssues: node.closingIssuesReferences.nodes.map((issue) => ({
-        number: issue.number,
-        pullRequests: issue.closedByPullRequestsReferences.nodes,
-      })),
+      linkedIssues: adviceIssues,
     },
     signalsInput: {
       title: node.title,

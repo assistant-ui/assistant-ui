@@ -73,7 +73,13 @@ const file = (filename, overrides = {}) => ({
 
 const closingIssue = (number, pullRequests = []) => ({
   number,
-  closedByPullRequestsReferences: { nodes: pullRequests },
+  repository: { nameWithOwner: "assistant-ui/assistant-ui" },
+  closedByPullRequestsReferences: {
+    nodes: pullRequests.map((pullRequest) => ({
+      repository: { nameWithOwner: "assistant-ui/assistant-ui" },
+      ...pullRequest,
+    })),
+  },
 });
 
 function tapPullRequest(overrides = {}) {
@@ -232,7 +238,12 @@ function fakeClient({
           `Unrecorded decision issue ${variables.number}`,
         );
         return {
-          repository: { issue: structuredClone(issues[variables.number]) },
+          repository: {
+            issue: {
+              ...closingIssue(variables.number),
+              ...structuredClone(issues[variables.number]),
+            },
+          },
         };
       }
       if (query.includes("query ReviewTierAuthorCount(")) {
@@ -1306,6 +1317,62 @@ test("the comment names another pull request for the same issue without blocking
     renderComment(parallel, policy).includes("- #15 is also open for #42"),
   );
   assert.ok(!renderComment(alone, policy).includes("Worth a look"));
+});
+
+test("an issue linked only under Decision still names other pull requests for it, once per issue", async () => {
+  const unlabeled = { labels: { nodes: [] }, timelineItems: { nodes: [] } };
+  const closing = closingIssue(42, [{ number: 14, state: "OPEN" }]);
+  const evaluation = await evaluationFor(
+    fakeClient({
+      pr: docsPullRequest({
+        body: "Clarify installation.\n\n## Decision\n#9780 and #42\n\n## AI use\nNone.\n",
+        closingIssuesReferences: { nodes: [closing] },
+      }),
+      issues: {
+        42: { ...unlabeled, ...closing },
+        9780: {
+          ...unlabeled,
+          ...closingIssue(9780, [
+            { number: 15, state: "OPEN" },
+            { number: 9, state: "MERGED" },
+          ]),
+        },
+      },
+    }),
+  );
+  assert.deepEqual(evaluation.advice, [
+    "#14 is also open for #42",
+    "#15 is also open for #9780",
+    "#9 already merged for #9780",
+  ]);
+});
+
+test("a closing issue in another repository keeps its repository and is not looked up here", async () => {
+  const recording = fakeClient({
+    pr: docsPullRequest({
+      body: "Clarify installation.\n\n## AI use\nNone.\n",
+      closingIssuesReferences: {
+        nodes: [
+          {
+            ...closingIssue(42, [{ number: 15, state: "OPEN" }]),
+            repository: { nameWithOwner: "someone/fork-tools" },
+          },
+        ],
+      },
+    }),
+  });
+  const gathered = await gatherPullRequest(recording.client, policy, 12, {
+    now,
+  });
+  assert.deepEqual(gathered.people.linkedIssues, []);
+  assert.ok(
+    !recording.calls.some(({ query }) =>
+      query?.includes("query ReviewTierDecision("),
+    ),
+  );
+  assert.deepEqual(evaluatePullRequest(gathered, policy).advice, [
+    "#15 is also open for someone/fork-tools#42",
+  ]);
 });
 
 test("dynamic details stay inside their code spans and the comment stays under the size limit", async () => {
