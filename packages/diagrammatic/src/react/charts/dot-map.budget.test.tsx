@@ -90,3 +90,28 @@ describe("DotMap dot budget", () => {
     expect(html).toContain("1 dot = 2 users");
   });
 });
+
+describe("DotMap extreme units", () => {
+  it("raises a vanishing requested unit to a finite scale", () => {
+    const html = renderToStaticMarkup(
+      <DotMap
+        counts={[1, 0]}
+        tiles={tiles}
+        unit={Number.MIN_VALUE}
+        maxDots={20}
+      />,
+    );
+    expect(
+      dots(html).reduce((sum, count) => sum + count, 0),
+    ).toBeLessThanOrEqual(20);
+    expect(html).not.toContain("Infinity");
+    expect(html).not.toContain("NaN");
+  });
+
+  it("keeps a huge count within a one-dot budget", () => {
+    const html = renderToStaticMarkup(
+      <DotMap counts={[Number.MAX_VALUE, 0]} tiles={tiles} maxDots={1} />,
+    );
+    expect(dots(html)).toEqual([1, 0]);
+  });
+});

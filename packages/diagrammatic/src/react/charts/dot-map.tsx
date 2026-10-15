@@ -18,6 +18,15 @@ export type DotMapProps = BaseProps & {
 
 const DEFAULT_MAX_DOTS = 200;
 
+function niceAtLeast(value: number): number {
+  const magnitude = 10 ** Math.floor(Math.log10(value));
+  if (!(magnitude > 0) || !Number.isFinite(magnitude)) return value;
+  const scaled = value / magnitude;
+  const nice =
+    (scaled <= 1 ? 1 : scaled <= 2 ? 2 : scaled <= 5 ? 5 : 10) * magnitude;
+  return Number.isFinite(nice) ? nice : value;
+}
+
 function nextNiceUnit(unit: number): number {
   const magnitude = 10 ** Math.floor(Math.log10(unit));
   const scaled = unit / magnitude;
@@ -55,6 +64,13 @@ export const DotMap = forwardRef<SVGSVGElement, DotMapProps>(
         : DEFAULT_MAX_DOTS,
     );
     let dotUnit = Number.isFinite(unit) && unit > 0 ? unit : 1;
+    const total = values.reduce((sum, count) => sum + count, 0);
+    if (total / dotUnit > budget) {
+      dotUnit = Math.max(
+        dotUnit,
+        niceAtLeast(Math.min(total / budget, Number.MAX_VALUE)),
+      );
+    }
     const dotsForUnit = (size: number) =>
       values.map((count) =>
         count > 0 ? Math.max(1, Math.round(count / size)) : 0,
