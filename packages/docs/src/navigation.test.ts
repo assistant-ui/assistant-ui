@@ -47,6 +47,18 @@ describe("documentation navigation", () => {
     );
   });
 
+  it("matches localized routes while preserving the locale in navigation links", () => {
+    const { current, next } = getPageNeighbors(
+      [
+        { type: "page", name: "Accueil", url: "/guide?lang=fr" },
+        { type: "page", name: "Client", url: "/guide/client?lang=fr" },
+      ],
+      "/guide",
+    );
+    expect(current?.name).toBe("Accueil");
+    expect(next?.url).toBe("/guide/client?lang=fr");
+  });
+
   it("does not invent neighbors for an unknown route or empty tree", () => {
     for (const result of [
       getPageNeighbors(tree, "/missing"),

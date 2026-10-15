@@ -25,7 +25,8 @@ package and install the resulting `.tgz` with `pnpm add /path/to/package.tgz`.
 Once published, the same package can be installed with `pnpm add @assistant-ui/docs`.
 
 Use Farming Labs Docs, Next, and Theme 0.2.x (0.2.98 or newer) with the
-same Fumadocs UI version that those packages install (currently 16.7.16). These
+same Fumadocs UI version that those packages install. For example, Farming Labs
+0.2.98 uses Fumadocs UI 16.7.16, while 0.2.120 uses 16.17.1. These
 packages must resolve to the same Fumadocs context instance. The framework owns
 MDX rendering, content discovery, search, Markdown routes, and MCP endpoints;
 this package supplies the appearance and navigation components.
@@ -78,6 +79,9 @@ export default createDocsLayout(config, {
 ```
 
 Use `brand` for interactive header content such as a project switcher.
+For a multilingual site, pass `locale` from the site's locale selection to
+`createDocsLayout`. This selects the framework's localized content tree and
+preserves locale parameters in header, pagination, and Markdown links.
 Use `layoutProps` to provide a custom Fumadocs `tree`, navigation `slots`, or
 sidebar options. Wrap a persistent sidebar banner in an element with
 `data-docs-sidebar-banner` to keep it visible on desktop.

@@ -17,11 +17,14 @@ export const createDocsLayout = (
   options: createDocsLayout.Options,
 ) => {
   const normalized = withThemeDefaults(config);
-  const DocsLayout = createFrameworkDocsLayout({
-    ...normalized,
-    // Farming Labs 0.2 uses the base preset name to label Introduction folders.
-    theme: { ...normalized.theme, name: "shadcn" },
-  });
+  const DocsLayout = createFrameworkDocsLayout(
+    {
+      ...normalized,
+      // Farming Labs 0.2 uses the base preset name to label Introduction folders.
+      theme: { ...normalized.theme, name: "shadcn" },
+    },
+    options.locale ? { locale: options.locale } : undefined,
+  );
   const docsUrl = config.docsPath ?? `/${config.entry ?? "docs"}`;
   const Layout = ({ children }: { children: ReactNode }) => {
     const layout = DocsLayout({
@@ -55,7 +58,11 @@ export const createDocsLayout = (
           brand={(config.nav?.title as ReactNode) ?? options.name}
           brandSlot={options.brand}
           homeUrl={options.homeUrl ?? config.nav?.url ?? docsUrl}
-          docsUrl={docsUrl}
+          docsUrl={
+            options.locale
+              ? `${docsUrl}?lang=${encodeURIComponent(options.locale)}`
+              : docsUrl
+          }
           name={options.name}
           links={options.links}
           themeToggle={
@@ -74,6 +81,8 @@ export const createDocsLayout = (
 export namespace createDocsLayout {
   export interface Options {
     name: string;
+    /** Active locale from the site's Farming Labs i18n configuration. */
+    locale?: string;
     /** Custom header branding, including interactive project switchers. */
     brand?: ReactNode;
     /** Framework layout overrides for custom page trees and sidebar slots. */

@@ -30,10 +30,24 @@ import type { createDocsLayout } from "./next";
 
 type PageLink = getPageNeighbors.Link;
 
+const documentSubscribers = new Set<() => void>();
+let documentObserver: MutationObserver | undefined;
+
 const subscribeToDocument = (onChange: () => void) => {
-  const observer = new MutationObserver(onChange);
-  observer.observe(document.body, { childList: true, subtree: true });
-  return () => observer.disconnect();
+  documentSubscribers.add(onChange);
+  if (!documentObserver) {
+    documentObserver = new MutationObserver(() => {
+      for (const subscriber of documentSubscribers) subscriber();
+    });
+    documentObserver.observe(document.body, { childList: true, subtree: true });
+  }
+  return () => {
+    documentSubscribers.delete(onChange);
+    if (documentSubscribers.size === 0) {
+      documentObserver?.disconnect();
+      documentObserver = undefined;
+    }
+  };
 };
 
 const useDocumentElement = (selector: string | null) =>
@@ -65,6 +79,7 @@ const DocsPageControls = ({
   next,
   title,
   pathname,
+  markdownUrl,
   siteName,
   editUrl,
   mcpUrl,
@@ -73,11 +88,13 @@ const DocsPageControls = ({
   next: PageLink | undefined;
   title: string;
   pathname: string;
+  markdownUrl: string;
   siteName: string;
   editUrl: string | undefined;
   mcpUrl: string | undefined;
 }) => {
   const toc = useTOCItems();
+  // These portal hosts are supplied by Farming Labs 0.2.120 and Fumadocs UI 16.17.1.
   const headerHost = useDocumentElement("#nd-page .fd-generated-page-header");
   const tocHost = useDocumentElement(toc.length > 0 ? "#nd-toc" : null);
   const [message, setMessage] = useState("");
@@ -88,7 +105,6 @@ const DocsPageControls = ({
     getServerOrigin,
   );
   const markdown = useRef<Promise<string> | null>(null);
-  const markdownUrl = `${pathname}.md`;
   const githubUrl = editUrl?.replaceAll("{path}", pathname);
   const publishedUrl = `${origin}${markdownUrl}`;
   const claudeUrl = `https://claude.ai/new?q=${encodeURIComponent(`Read ${publishedUrl} (the ${siteName} documentation page "${title}") so I can ask questions about it.`)}`;
@@ -141,7 +157,7 @@ const DocsPageControls = ({
                 href={previous.url}
                 className="aui-docs-pager-button"
                 aria-label="Previous page"
-                title={`Previous: ${previous.name}`}
+                title="Previous page"
               >
                 <ChevronLeft aria-hidden="true" />
               </Link>
@@ -159,7 +175,7 @@ const DocsPageControls = ({
                 href={next.url}
                 className="aui-docs-pager-button"
                 aria-label="Next page"
-                title={`Next: ${next.name}`}
+                title="Next page"
               >
                 <ChevronRight aria-hidden="true" />
               </Link>
@@ -329,12 +345,15 @@ export const DocsPageContent = ({
   const { root } = useTreeContext();
   const { previous, next, current } = getPageNeighbors(root.children, pathname);
   const title = current?.name;
+  const pageUrl = new URL(current?.url ?? pathname, "https://docs.local");
+  const markdownUrl = `${pathname}.md${pageUrl.search}`;
 
   return (
     <div className="aui-docs-page-content">
       <DocsPageControls
-        key={pathname}
+        key={markdownUrl}
         pathname={pathname}
+        markdownUrl={markdownUrl}
         title={typeof title === "string" ? title : name}
         siteName={name}
         editUrl={editUrl ?? getEditUrl(pathname, github)}

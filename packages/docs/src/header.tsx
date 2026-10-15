@@ -25,7 +25,7 @@ export const DocsHeader = ({
   themeToggle: boolean;
 }) => {
   const { resolvedTheme, setTheme } = useTheme();
-  const { setOpenSearch } = useSearchContext();
+  const { setOpenSearch, hotKey } = useSearchContext();
   return (
     <header className="aui-docs-header">
       {brandSlot ? (
@@ -48,10 +48,19 @@ export const DocsHeader = ({
         >
           <Search aria-hidden="true" />
           <span>Search...</span>
-          <kbd>⌘ K</kbd>
+          {hotKey.length > 0 && (
+            <kbd aria-hidden="true">
+              {hotKey.map((key, index) => (
+                <span key={index}>
+                  {index > 0 && " "}
+                  {key.display}
+                </span>
+              ))}
+            </kbd>
+          )}
         </button>
         <nav className="aui-docs-header-links" aria-label="Site navigation">
-          <Link href={docsUrl} aria-current="page">
+          <Link href={docsUrl} aria-current="true">
             Docs
           </Link>
           {links?.map((link) => (

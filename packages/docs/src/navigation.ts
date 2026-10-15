@@ -19,7 +19,9 @@ export const getPageNeighbors = (
   };
   visit(nodes);
   const index = pages.findIndex(
-    (page) => page.url === pathname.replace(/\/$/, ""),
+    (page) =>
+      page.url.split(/[?#]/, 1)[0]?.replace(/\/$/, "") ===
+      pathname.replace(/\/$/, ""),
   );
   return {
     current: pages[index],
