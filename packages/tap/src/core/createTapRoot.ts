@@ -12,7 +12,7 @@ import { isThenable } from "./helpers/thenable";
 
 export const createTapRoot = <R>(
   render: () => R,
-  options?: { mountOnSubscribe?: boolean },
+  options?: { mountOnSubscribe?: boolean; onError?: (error: unknown) => void },
 ): useTapRoot.Root<R> & { unmount: () => void } => {
   let isUnmounted = false;
   const fiber = createResourceFiber(
@@ -27,8 +27,8 @@ export const createTapRoot = <R>(
         }
         void renderResourceFiber(fiber, [render]);
         commitResourceFiber(fiber);
-      });
-    }),
+      }, options?.onError);
+    }, options?.onError),
     undefined,
     isDevelopment ? "root" : null,
   );
@@ -81,7 +81,7 @@ export const createTapRoot = <R>(
     scheduleTask(() => {
       if (subscriberCount === 0 && fiber.isMounted)
         unmountResourceFiber(fiber, false);
-    });
+    }, options?.onError);
 
   return {
     getValue: () => ensureRoot().getValue(),

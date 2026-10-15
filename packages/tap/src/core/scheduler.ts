@@ -1,12 +1,14 @@
 import { throwAggregated } from "./helpers/throwAggregated";
 import { isDevelopment } from "./helpers/env";
 
-type Task = () => void;
+type ErrorHandler = (error: unknown) => void;
+type Task = { run: () => void; onError: ErrorHandler | undefined };
+type Notify = { run: () => void; onError: ErrorHandler | undefined };
 
 type GlobalFlushState = {
   schedulers: Set<UpdateScheduler>;
   tasks: Task[];
-  notifies: (() => void)[];
+  notifies: Notify[];
   isScheduled: boolean;
 };
 
@@ -18,14 +20,22 @@ let flushState: GlobalFlushState = {
   isScheduled: false,
 };
 let activeDrainRuns: Map<UpdateScheduler, number> | null = null;
+let isAsyncFlush = false;
+let tapErrorHandler: ErrorHandler | undefined;
+
+export const setTapErrorHandler = (handler: ErrorHandler | undefined): void => {
+  tapErrorHandler = handler;
+};
 
 export class UpdateScheduler {
   private _isDirty = false;
 
-  private readonly _task: Task;
+  private readonly _task: () => void;
+  readonly onError: ErrorHandler | undefined;
 
-  constructor(_task: Task) {
-    this._task = _task;
+  constructor(task: () => void, onError?: ErrorHandler) {
+    this._task = task;
+    this.onError = onError;
   }
 
   get isDirty() {
@@ -64,24 +74,35 @@ export class UpdateScheduler {
 const taskScheduler = new UpdateScheduler(() => {
   const tasks = flushState.tasks.splice(0);
   const errors: unknown[] = [];
-  for (const task of tasks) {
+  for (const { run, onError } of tasks) {
     try {
-      task();
+      run();
     } catch (error) {
-      errors.push(error);
+      if (isAsyncFlush && onError) {
+        try {
+          onError(error);
+        } catch (handlerError) {
+          errors.push(handlerError);
+        }
+      } else {
+        errors.push(error);
+      }
     }
   }
   throwAggregated(errors, "Errors occurred while running scheduled tasks");
 });
 
-export const scheduleTask = (task: Task): void => {
+export const scheduleTask = (run: () => void, onError?: ErrorHandler): void => {
   taskScheduler.markDirty();
-  flushState.tasks.push(task);
+  flushState.tasks.push({ run, onError });
 };
 
-export const scheduleNotify = (notify: () => void): void => {
+export const scheduleNotify = (
+  notify: () => void,
+  onError?: ErrorHandler,
+): void => {
   if (activeDrainRuns !== null) {
-    flushState.notifies.push(notify);
+    flushState.notifies.push({ run: notify, onError });
     return;
   }
   notify();
@@ -93,10 +114,12 @@ const scheduleFlush = () => {
   scheduleMacrotask();
 };
 
-const flushScheduled = () => {
+const flushScheduled = (isAsync = false) => {
   // save/restore: flushTapSync re-enters flushScheduled with its own flushState
   const prevDrainRuns = activeDrainRuns;
+  const prevAsyncFlush = isAsyncFlush;
   activeDrainRuns = new Map();
+  isAsyncFlush = isAsync;
   const errors: unknown[] = [];
   try {
     for (const scheduler of flushState.schedulers) {
@@ -106,24 +129,46 @@ const flushScheduled = () => {
       try {
         scheduler.runTask();
       } catch (error) {
-        errors.push(error);
+        if (isAsync && scheduler.onError) {
+          try {
+            scheduler.onError(error);
+          } catch (handlerError) {
+            errors.push(handlerError);
+          }
+        } else {
+          errors.push(error);
+        }
       }
     }
   } finally {
     activeDrainRuns = prevDrainRuns;
+    isAsyncFlush = prevAsyncFlush;
     flushState.schedulers.clear();
     flushState.isScheduled = false;
 
     if (activeDrainRuns === null) {
       const notifies = flushState.notifies;
       while (notifies.length > 0) {
+        const { run, onError } = notifies.shift()!;
         try {
-          notifies.shift()!();
+          run();
         } catch (error) {
-          errors.push(error);
+          if (isAsync && onError) {
+            try {
+              onError(error);
+            } catch (handlerError) {
+              errors.push(handlerError);
+            }
+          } else {
+            errors.push(error);
+          }
         }
       }
     }
+  }
+  if (isAsync && tapErrorHandler) {
+    for (const error of errors) tapErrorHandler(error);
+    return;
   }
   throwAggregated(errors, "Errors occurred during flushSync");
 };
@@ -144,7 +189,7 @@ const scheduleMacrotask = (() => {
         const channel = new MessageChannel();
         channel.port1.onmessage = () => {
           port1?.unref?.();
-          flushScheduled();
+          flushScheduled(true);
         };
         port1 = channel.port1;
         port2 = channel.port2;
@@ -154,7 +199,7 @@ const scheduleMacrotask = (() => {
     };
   }
   // Fallback for environments without MessageChannel
-  return () => setTimeout(flushScheduled, 0);
+  return () => setTimeout(() => flushScheduled(true), 0);
 })();
 
 export const flushTapSync = <T>(callback: () => T): T => {
