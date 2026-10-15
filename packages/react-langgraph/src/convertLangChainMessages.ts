@@ -43,6 +43,7 @@ export type LangGraphMessageConverterMetadata =
     messageTiming?: Record<string, MessageTiming>;
     attachmentsByMessageId?: Map<string, readonly CompleteAttachment[]>;
     streamingMessage?: LangChainMessage;
+    bufferedReplyIds?: ReadonlySet<string>;
   };
 
 export const createLangGraphMetadataKey =
@@ -84,6 +85,27 @@ export const createLangGraphMetadataKey =
                 metadata as LangGraphMessageConverterMetadata
               ).attachmentsByMessageId?.get(message.id)
             : undefined,
+      },
+      {
+        select: (message, metadata) =>
+          message.type === "ai"
+            ? message.tool_calls?.map((call) =>
+                Boolean(
+                  call?.id &&
+                  (
+                    metadata as LangGraphMessageConverterMetadata
+                  ).bufferedReplyIds?.has(call.id),
+                ),
+              )
+            : undefined,
+        isEqual: (previous, current) =>
+          previous === current ||
+          (previous !== undefined &&
+            current !== undefined &&
+            shallowArrayEqual(
+              previous as readonly boolean[],
+              current as readonly boolean[],
+            )),
       },
     ]);
 
@@ -406,6 +428,9 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
               toolName: chunk.name,
               args,
               argsText,
+              ...(metadata.bufferedReplyIds?.has(toolCallId) && {
+                responseDeliveryStatus: "queued" as const,
+              }),
               ...(!chunk.id && message !== metadata.streamingMessage
                 ? {
                     result: "The provider sent this tool call without an id.",

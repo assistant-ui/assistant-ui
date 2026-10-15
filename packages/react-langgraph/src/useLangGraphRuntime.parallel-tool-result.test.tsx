@@ -216,6 +216,76 @@ describe("useLangGraphRuntime parallel tool results", () => {
       ).toBe(true);
     });
 
+  const deliveryStatus = (runtime: AssistantRuntime, id: string) => {
+    for (const message of runtime.thread.getState().messages) {
+      for (const part of message.content) {
+        if (part.type === "tool-call" && part.toolCallId === id)
+          return part.responseDeliveryStatus;
+      }
+    }
+    throw new Error(`Missing tool call ${id}`);
+  };
+
+  it("marks a reply queued while its producing run is active", async () => {
+    let finish!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const sent: unknown[][] = [];
+    const stream = vi.fn(async function* (messages: unknown[]) {
+      sent.push(messages);
+      if (sent.length !== 1) return;
+      yield metadataEvent;
+      yield aiWith(["c1"]);
+      await gate;
+    });
+    const runtime = mount(stream);
+
+    act(() => runtime.thread.append("go"));
+    await waitForCall(runtime, "c1");
+    act(() => addResult(runtime, "c1"));
+
+    await waitFor(() => expect(deliveryStatus(runtime, "c1")).toBe("queued"));
+    expect(sent).toHaveLength(1);
+    act(() => finish());
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+  });
+
+  it("clears queued status after the buffered reply is sent", async () => {
+    let finish!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const sent: unknown[][] = [];
+    const stream = vi.fn(async function* (messages: unknown[]) {
+      sent.push(messages);
+      if (sent.length !== 1) return;
+      yield metadataEvent;
+      yield aiWith(["c1"]);
+      await gate;
+      yield aiWith(["c1", "c2"]);
+    });
+    const runtime = mount(stream);
+
+    act(() => runtime.thread.append("go"));
+    await waitForCall(runtime, "c1");
+    act(() => addResult(runtime, "c1"));
+    await waitFor(() => expect(deliveryStatus(runtime, "c1")).toBe("queued"));
+
+    act(() => finish());
+    await waitForCall(runtime, "c2");
+    act(() => addResult(runtime, "c2"));
+    await waitFor(() => expect(sent).toHaveLength(2));
+    expect(sent[1]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "tool", tool_call_id: "c1" }),
+      ]),
+    );
+    await waitFor(() => expect(deliveryStatus(runtime, "c1")).toBeUndefined());
+  });
+
   it("holds a messages-tuple tool result until every streamed call is answered", async () => {
     let releaseSecondCall!: () => void;
     const secondCall = new Promise<void>((resolve) => {

@@ -219,6 +219,11 @@ const useLangGraphRuntimeImpl = (
     };
   }, []);
   const [threadController] = useState(() => new LangGraphThreadController());
+  const toolResultBuffer = useSyncExternalStore(
+    threadController.subscribe,
+    threadController.getToolResultBuffer,
+    threadController.getToolResultBuffer,
+  );
   const wrappedEventHandlers = useMemo(
     () =>
       ({
@@ -379,8 +384,9 @@ const useLangGraphRuntimeImpl = (
         messageTiming,
         attachmentsByMessageId: attachmentsByMessageIdRef.current,
         streamingMessage: isRunning ? messages.at(-1) : undefined,
+        bufferedReplyIds: new Set(toolResultBuffer.keys()),
       }) as unknown as useExternalMessageConverter.Metadata,
-    [uiMessagesByParent, messageTiming, isRunning, messages],
+    [uiMessagesByParent, messageTiming, isRunning, messages, toolResultBuffer],
   );
 
   const sendMessageRef = useRef(sendMessage);
