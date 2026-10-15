@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, waitFor } from "@testing-library/react";
-import { useState } from "react";
+import { useState, version } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Line } from "../react/charts/line";
 import { Root } from "./root";
@@ -8,7 +8,75 @@ import { Tooltip } from "./tooltip";
 
 afterEach(cleanup);
 
+const onReact18 = version.startsWith("18.");
+
 describe("Interactive.Root highlight after rerender", () => {
+  it.skipIf(onReact18)(
+    "preserves root and tooltip callback ref cleanups across rerenders",
+    () => {
+      const rootCleanup = vi.fn();
+      const tooltipCleanup = vi.fn();
+      const rootRef = vi.fn((node: HTMLDivElement | null) =>
+        node ? rootCleanup : undefined,
+      );
+      const tooltipRef = vi.fn((node: HTMLDivElement | null) =>
+        node ? tooltipCleanup : undefined,
+      );
+      const view = render(
+        <Root ref={rootRef}>
+          <Line data={[1, 2, 3]} />
+          <Tooltip ref={tooltipRef}>
+            {({ datum }) => <span>{datum.index}</span>}
+          </Tooltip>
+        </Root>,
+      );
+      const marks = view.container.querySelectorAll(
+        'circle[data-part="mark"][data-i]',
+      );
+
+      fireEvent.pointerMove(marks[0]!, { clientX: 5, clientY: 5 });
+      expect(tooltipRef).toHaveBeenCalledOnce();
+      fireEvent.pointerMove(marks[1]!, { clientX: 10, clientY: 10 });
+      expect(tooltipRef).toHaveBeenCalledOnce();
+      expect(tooltipCleanup).not.toHaveBeenCalled();
+
+      view.unmount();
+      expect(rootRef).toHaveBeenCalledOnce();
+      expect(rootCleanup).toHaveBeenCalledOnce();
+      expect(tooltipRef).toHaveBeenCalledOnce();
+      expect(tooltipCleanup).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("forwards null to callback refs that return no cleanup", () => {
+    const rootCalls: (HTMLDivElement | null)[] = [];
+    const tooltipCalls: (HTMLDivElement | null)[] = [];
+    const view = render(
+      <Root
+        ref={(node) => {
+          rootCalls.push(node);
+        }}
+      >
+        <Line data={[1, 2]} />
+        <Tooltip
+          ref={(node) => {
+            tooltipCalls.push(node);
+          }}
+        >
+          {({ datum }) => <span>{datum.index}</span>}
+        </Tooltip>
+      </Root>,
+    );
+    const mark = view.container.querySelector('circle[data-part="mark"]')!;
+    fireEvent.pointerMove(mark, { clientX: 5, clientY: 5 });
+    expect(tooltipCalls[0]).toBeInstanceOf(HTMLDivElement);
+
+    view.unmount();
+    expect(rootCalls[0]).toBeInstanceOf(HTMLDivElement);
+    expect(rootCalls[1]).toBeNull();
+    expect(tooltipCalls[1]).toBeNull();
+  });
+
   it("stamps marks added by a child without rerendering Root", async () => {
     function LiveLine() {
       const [expanded, setExpanded] = useState(false);

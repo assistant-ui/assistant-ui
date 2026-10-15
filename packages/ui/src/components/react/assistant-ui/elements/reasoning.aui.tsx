@@ -38,10 +38,17 @@ const ReasoningRoot = forwardRef<
     (node: HTMLDivElement | null) => {
       collapsibleRef.current = node;
       if (typeof ref === "function") {
-        ref(node);
+        const cleanup: unknown = ref(node);
+        if (typeof cleanup === "function") {
+          return () => {
+            collapsibleRef.current = null;
+            (cleanup as () => void)();
+          };
+        }
       } else if (ref) {
         (ref as { current: HTMLDivElement | null }).current = node;
       }
+      return undefined;
     },
     [ref],
   );
