@@ -88,6 +88,7 @@ declare class AdkEventAccumulator {
   constructor(initialMessages?: AdkMessage[], initialLongRunningToolIds?: readonly string[]);
   processEvent(rawEvent: AdkEvent): AdkMessage[];
   getMessages(): AdkMessage[];
+  rekeyMessage(oldId: string, newId: string): void;
   getStateDelta(): Record<string, unknown>;
   getArtifactDelta(): Record<string, number>;
   getAgentInfo(): {
