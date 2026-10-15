@@ -1,5 +1,21 @@
 # assistant-ui
 
+## 0.0.124
+
+### Patch Changes
+
+- [#9591](https://github.com/assistant-ui/assistant-ui/pull/9591) [`bd0b31b`](https://github.com/assistant-ui/assistant-ui/commit/bd0b31b1047e65056a4a72c158a5ae138c3e1933) - fix: preserve local bindings and type imports when migrating legacy AI SDK imports ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9596](https://github.com/assistant-ui/assistant-ui/pull/9596) [`87f7c36`](https://github.com/assistant-ui/assistant-ui/commit/87f7c36ada5bd7509dfce26ef92776a7a4dc1e83) - fix: preserve unrelated strings such as `constructor` and `toString` when migrating event names during upgrades. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9623](https://github.com/assistant-ui/assistant-ui/pull/9623) [`a08acc9`](https://github.com/assistant-ui/assistant-ui/commit/a08acc987406753b80ceca081319ea9d0fa36f6b) - fix(cli): preserve import aliases and type kinds during the v0.8 UI package split ([@okisdev](https://github.com/okisdev))
+
+- [#9589](https://github.com/assistant-ui/assistant-ui/pull/9589) [`616663b`](https://github.com/assistant-ui/assistant-ui/commit/616663baa568388c6a5af02395e8e4fbbc37c6c1) - fix: fail upgrades when a required dependency installation fails ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9722](https://github.com/assistant-ui/assistant-ui/pull/9722) [`c6c1199`](https://github.com/assistant-ui/assistant-ui/commit/c6c11991cf4811d72eee7f337e72d8b028c05f5d) - fix: preserve runtime import bindings when migrating conditional primitives to AuiIf ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9725](https://github.com/assistant-ui/assistant-ui/pull/9725) [`471b88d`](https://github.com/assistant-ui/assistant-ui/commit/471b88d0d3d003485bcc09a9cd0ff8a1133f425b) - fix: preserve unrelated bindings when migrating ContentPart imports and MessagePrimitive.Content ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.0.123
 
 ### Patch Changes
