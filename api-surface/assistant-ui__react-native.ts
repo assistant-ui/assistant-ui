@@ -4,7 +4,7 @@ import { JSONSchema7 } from "json-schema";
 
 import React, { ComponentRef, ComponentType, FC, ForwardRefExoticComponent, PropsWithChildren, ReactElement, ReactNode, RefAttributes } from "react";
 
-import { FlatList, FlatListProps, Image, ImageProps, PressableProps, PressableStateCallbackType, Text, TextInputProps, TextProps, ViewProps } from "react-native";
+import { FlatList, FlatListProps, Image, ImageProps, Pressable, PressableProps, PressableStateCallbackType, Text, TextInputProps, TextProps, ViewProps } from "react-native";
 
 declare const ActionBarCopy: (_param0: ActionBarCopyProps) => import("react").JSX.Element;
 
@@ -1156,7 +1156,7 @@ type CompleteAttachmentStatus = {
 
 declare const ComposerAddAttachment: (_param15: ComposerAddAttachmentProps) => import("react").JSX.Element;
 
-type ComposerAddAttachmentProps = Omit<PressableProps, "children"> & {
+type ComposerAddAttachmentProps = Omit<PrimitivePressableProps, "children"> & {
   children: PressableProps["children"];
 };
 
@@ -1187,7 +1187,7 @@ type ComposerAttachmentsProps = ComposerPrimitiveAttachments.Props;
 
 declare const ComposerCancel: (_param16: ComposerCancelProps) => import("react").JSX.Element;
 
-type ComposerCancelProps = Omit<PressableProps, "children" | "onPress"> & {
+type ComposerCancelProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
 };
 
@@ -1249,7 +1249,7 @@ declare const ComposerQuote: (_param18: ComposerQuoteProps) => import("react").J
 
 declare const ComposerQuoteDismiss: (_param19: ComposerQuoteDismissProps) => import("react").JSX.Element;
 
-type ComposerQuoteDismissProps = Omit<PressableProps, "children" | "onPress"> & {
+type ComposerQuoteDismissProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
 };
 
@@ -1385,7 +1385,7 @@ type ComposerSendOptions = SendOptions & {
   steer?: boolean;
 };
 
-type ComposerSendProps = Omit<PressableProps, "children" | "onPress"> & {
+type ComposerSendProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
 };
 
@@ -2887,6 +2887,10 @@ type PendingAttachmentStatus = {
   type: "incomplete";
   reason: "error" | "upload-paused";
   message?: string;
+};
+
+type PrimitivePressableProps = PressableProps & {
+  asChild?: boolean | undefined;
 };
 
 type PropFieldStatus = "complete" | "streaming";

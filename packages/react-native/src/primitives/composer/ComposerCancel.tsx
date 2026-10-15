@@ -1,8 +1,9 @@
-import { Pressable, type PressableProps } from "react-native";
+import type { PressableProps } from "react-native";
 import { useComposerCancel } from "@assistant-ui/core/react";
+import { Primitive, type PrimitivePressableProps } from "../../utils/Primitive";
 
 export type ComposerCancelProps = Omit<
-  PressableProps,
+  PrimitivePressableProps,
   "onPress" | "children"
 > & {
   children: PressableProps["children"];
@@ -16,13 +17,13 @@ export const ComposerCancel = ({
   const { cancel, disabled: hookDisabled } = useComposerCancel();
 
   return (
-    <Pressable
+    <Primitive.Pressable
       onPress={cancel}
       disabled={disabled ?? hookDisabled}
       accessibilityRole="button"
       {...pressableProps}
     >
       {children}
-    </Pressable>
+    </Primitive.Pressable>
   );
 };
