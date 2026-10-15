@@ -36,28 +36,33 @@ type AgUiMessage = {
   role: "user";
   content: string | InputContent[];
   name?: string;
+  metadata?: Record<string, unknown>;
 } | {
   id: string;
   role: "assistant";
   content: string;
   name?: string;
   toolCalls?: AgUiToolCall[];
+  metadata?: Record<string, unknown>;
 } | {
   id: string;
   role: "developer" | "system";
   content: string;
   name?: string;
+  metadata?: Record<string, unknown>;
 } | {
   id: string;
   role: "reasoning";
   content: string;
   encryptedValue?: string;
+  metadata?: Record<string, unknown>;
 } | {
   id: string;
   role: "tool";
   content: string;
   toolCallId: string;
   error?: string;
+  metadata?: Record<string, unknown>;
 };
 
 type AgUiResumeEntry = {
