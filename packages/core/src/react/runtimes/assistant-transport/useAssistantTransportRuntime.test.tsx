@@ -161,6 +161,18 @@ afterEach(() => {
 });
 
 describe("useAssistantTransportRuntime", () => {
+  it("accepts explicit undefined checkpoint availability", async () => {
+    const options = {
+      initialState: {},
+      api: "https://example.com/api",
+      headers: {},
+      converter,
+      canResume: undefined,
+    } satisfies AssistantTransportOptions<unknown>;
+    const { aui } = mountRuntime(options);
+    await waitFor(() => expect(aui().thread.getState().canResume).toBe(false));
+  });
+
   it.each([
     {
       resumeApi: "https://example.com/resume",
@@ -190,7 +202,9 @@ describe("useAssistantTransportRuntime", () => {
       canResume: true,
     });
     await waitFor(() => expect(aui().thread.getState().canResume).toBe(true));
-    await act(async () => aui().thread.resumeRun({ parentId: null }));
+    act(() => {
+      aui().thread.resumeRun({ parentId: null });
+    });
     await waitFor(() => expect(fetchMock.requests).toHaveLength(1));
     expect(fetchMock.requests[0]?.url).toBe("https://example.com/resume");
     expect(fetchMock.requests[0]?.body["commands"]).toEqual([]);

@@ -50,7 +50,7 @@ export type ThreadState = {
    */
   readonly isRunning: boolean;
   /** Whether the adapter can resume the current interrupted run from its checkpoint. */
-  readonly canResume?: boolean;
+  readonly canResume?: boolean | undefined;
   /**
    * The capabilities of the thread, such as whether the thread supports editing, branch switching, etc.
    */

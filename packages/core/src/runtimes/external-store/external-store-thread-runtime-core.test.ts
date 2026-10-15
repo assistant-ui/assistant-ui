@@ -775,6 +775,18 @@ describe("ExternalStoreThreadRuntimeCore interaction recording", () => {
 });
 
 describe("ExternalStoreThreadRuntimeCore resume compatibility", () => {
+  it("accepts explicit undefined checkpoint availability", () => {
+    const adapter = {
+      messages: [],
+      onNew: vi.fn(),
+      canResume: undefined,
+    } satisfies ExternalStoreAdapter;
+    expect(
+      new ExternalStoreThreadRuntimeCore(modelContextProvider, adapter)
+        .canResume,
+    ).toBe(false);
+  });
+
   it.each([
     [false, false],
     [false, true],

@@ -211,6 +211,8 @@ Reconnects to an interrupted run when the runtime reports a resumable checkpoint
 The button is disabled while the draft is nonempty, the thread is busy, or another
 resume control for the same thread is reconnecting.
 
+Resume runs only from the button; pressing Enter in an empty composer does nothing.
+
 ```tsx
 <ComposerPrimitive.Resume>Resume</ComposerPrimitive.Resume>
 ```

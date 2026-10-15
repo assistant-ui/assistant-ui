@@ -484,6 +484,38 @@ describe("useChatThread", () => {
     },
   );
 
+  it("does not advertise manual resume with canResume true without a pending stream id", async () => {
+    const storage = createResumableSessionStorage({
+      key: "resume-without-stream-id",
+    });
+    storage.clear();
+    const fetch = vi.fn<typeof globalThis.fetch>();
+    const Host = createHost({});
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: Host({
+          canResume: true,
+          transport: new AssistantChatTransport({
+            fetch,
+            resumable: { storage, resumeApi: (id) => `/api/resume/${id}` },
+          }),
+        }),
+      }),
+    );
+    handle.subscribe(() => {});
+
+    try {
+      expect(storage.getStreamId("main")).toBeNull();
+      await vi.waitFor(() =>
+        expect(handle.getClient().thread.getState().canResume).toBe(false),
+      );
+      expect(fetch).not.toHaveBeenCalled();
+    } finally {
+      handle.destroy();
+      storage.clear();
+    }
+  });
+
   it("does not advertise manual resume from a stored stream id alone", async () => {
     const storage = createResumableSessionStorage({
       key: "resume-without-opt-in",

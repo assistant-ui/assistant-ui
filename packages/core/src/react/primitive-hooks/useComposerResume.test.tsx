@@ -1,6 +1,13 @@
 // @vitest-environment jsdom
 
-import { act, cleanup, render, waitFor } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, expectTypeOf, it, vi } from "vitest";
 import { AuiProvider, useAui } from "@assistant-ui/store";
 import { ExternalThread } from "../../store/clients/external-thread";
@@ -13,13 +20,18 @@ import { ExternalStoreRuntimeCore } from "../../runtimes/external-store/external
 import { getThreadRuntimeCoreIsRunning } from "../../runtime/api/thread-runtime";
 import type { ThreadRuntimeState } from "../../runtime/api/thread-runtime";
 import type { ThreadState } from "../../store/scopes/thread";
+import { fromThreadMessageLike } from "../../runtime/utils/thread-message-like";
 
 let action!: ReturnType<typeof useComposerResume>;
 let aui!: ReturnType<typeof useAui>;
 const Capture = () => {
   aui = useAui();
   action = useComposerResume();
-  return null;
+  return (
+    <button disabled={action.disabled} onClick={action.resume}>
+      Resume
+    </button>
+  );
 };
 const App = ({
   options,
@@ -40,7 +52,14 @@ describe("checkpoint resume", () => {
     expectTypeOf<Omit<ThreadState, "canResume">>().toExtend<ThreadState>();
     expectTypeOf<
       Omit<ThreadRuntimeState, "canResume">
-    >().toExtend<ThreadRuntimeState>();
+    >().not.toExtend<ThreadRuntimeState>();
+    expectTypeOf<ThreadRuntimeState["canResume"]>().toEqualTypeOf<boolean>();
+    expectTypeOf<ThreadState["canResume"]>().toEqualTypeOf<
+      boolean | undefined
+    >();
+    expectTypeOf<
+      ReturnType<typeof useComposerResume>["resume"]
+    >().returns.toBeVoid();
   });
 
   it.each([undefined, false])(
@@ -143,30 +162,24 @@ describe("checkpoint resume", () => {
       );
     };
     render(<TwoControls />);
-    let pending!: Promise<void>;
-    let duplicate!: Promise<void>;
     act(() => {
-      pending = first.resume();
-      duplicate = second.resume();
+      expect(first.resume()).toBeUndefined();
+      expect(second.resume()).toBeUndefined();
       expect(onResume).toHaveBeenCalledOnce();
     });
     await waitFor(() => {
       expect(first.disabled).toBe(true);
       expect(second.disabled).toBe(true);
     });
-    let duplicateSettled = false;
-    void duplicate.then(() => {
-      duplicateSettled = true;
-    });
     await Promise.resolve();
-    expect(duplicateSettled).toBe(false);
+    expect(first.disabled).toBe(true);
+    expect(second.disabled).toBe(true);
     expect(onResume).toHaveBeenCalledOnce();
-    await act(async () => {
-      finish();
-      await Promise.all([pending, duplicate]);
+    act(() => finish());
+    await waitFor(() => {
+      expect(first.disabled).toBe(false);
+      expect(second.disabled).toBe(false);
     });
-    expect(duplicateSettled).toBe(true);
-    expect(second.disabled).toBe(false);
   });
 
   it("blocks repeated Resume controls through the external-store runtime bridge", async () => {
@@ -190,18 +203,14 @@ describe("checkpoint resume", () => {
         <Capture />
       </AssistantRuntimeProvider>,
     );
-    let pending!: Promise<void>;
     act(() => {
-      pending = action.resume();
-      void action.resume();
+      action.resume();
+      action.resume();
     });
     expect(onResume).toHaveBeenCalledOnce();
     expect(action.disabled).toBe(true);
-    await act(async () => {
-      finish();
-      await pending;
-    });
-    expect(action.disabled).toBe(false);
+    act(() => finish());
+    await waitFor(() => expect(action.disabled).toBe(false));
   });
 
   it("allows resuming a new thread while the previous thread is pending", async () => {
@@ -235,23 +244,21 @@ describe("checkpoint resume", () => {
         <Capture />
       </AssistantRuntimeProvider>,
     );
-    let first!: Promise<void>;
     act(() => {
-      first = action.resume();
+      action.resume();
     });
     act(() => {
       core.setAdapter(adapter("second"));
     });
-    await act(async () => {
-      await action.resume();
+    act(() => {
+      action.resume();
     });
-    expect(firstResume).toHaveBeenCalledOnce();
-    expect(secondResume).toHaveBeenCalledOnce();
-    await act(async () => {
-      finishFirst();
-      await first;
+    await waitFor(() => {
+      expect(firstResume).toHaveBeenCalledOnce();
+      expect(secondResume).toHaveBeenCalledOnce();
     });
-    expect(action.disabled).toBe(false);
+    act(() => finishFirst());
+    await waitFor(() => expect(action.disabled).toBe(false));
   });
 
   it("uses the latest callback when checkpoint availability is unchanged", async () => {
@@ -264,9 +271,11 @@ describe("checkpoint resume", () => {
     const state = aui.thread.getState();
     rerender(<App options={{ messages, canResume: true, onResume: second }} />);
     expect(aui.thread.getState().canResume).toBe(state.canResume);
-    await act(async () => action.resume());
+    act(() => {
+      action.resume();
+    });
     expect(first).not.toHaveBeenCalled();
-    expect(second).toHaveBeenCalledOnce();
+    await waitFor(() => expect(second).toHaveBeenCalledOnce());
   });
 
   it("does not share pending controls between providers with the same thread id", async () => {
@@ -290,16 +299,15 @@ describe("checkpoint resume", () => {
       />,
     );
     const second = action;
-    let pending!: Promise<void>;
     act(() => {
-      pending = first.resume();
+      first.resume();
     });
-    await act(async () => second.resume());
-    expect(onSecondResume).toHaveBeenCalledOnce();
-    await act(async () => {
-      finish();
-      await pending;
+    act(() => {
+      second.resume();
     });
+    await waitFor(() => expect(onSecondResume).toHaveBeenCalledOnce());
+    act(() => finish());
+    await waitFor(() => expect(action.disabled).toBe(false));
   });
 
   it.each([
@@ -312,7 +320,7 @@ describe("checkpoint resume", () => {
     async (options) => {
       render(<App options={{ messages: [], ...options }} />);
       await waitFor(() => expect(action.disabled).toBe(true));
-      await act(async () => action.resume());
+      fireEvent.click(screen.getByRole("button", { name: "Resume" }));
       if (options.onResume) expect(options.onResume).not.toHaveBeenCalled();
     },
   );
@@ -326,21 +334,36 @@ describe("checkpoint resume", () => {
         }),
     );
     const onNew = vi.fn();
+    const core = new ExternalStoreRuntimeCore({
+      messages: [],
+      canResume: true,
+      onResume,
+      onNew,
+    });
+    const resumeRun = vi.spyOn(
+      core.threads.getMainThreadRuntimeCore(),
+      "resumeRun",
+    );
     render(
-      <App options={{ messages: [], canResume: true, onResume, onNew }} />,
+      <AssistantRuntimeProvider runtime={new AssistantRuntimeImpl(core)}>
+        <Capture />
+      </AssistantRuntimeProvider>,
     );
     await waitFor(() => expect(action.disabled).toBe(false));
-    let pending!: Promise<void>;
-    let duplicate!: Promise<void>;
     act(() => {
-      pending = action.resume();
-      duplicate = action.resume();
+      action.resume();
+      action.resume();
     });
     await waitFor(() => expect(action.disabled).toBe(true));
     expect(onResume).toHaveBeenCalledTimes(1);
     expect(onNew).not.toHaveBeenCalled();
-    const outcomes = Promise.allSettled([pending, duplicate]);
-    await act(async () => reject(new Error("resume failed")));
+    const outcomes = Promise.allSettled(
+      resumeRun.mock.results.map((result) => result.value),
+    );
+    await act(async () => {
+      reject(new Error("resume failed"));
+      await outcomes;
+    });
     expect(await outcomes).toEqual([
       expect.objectContaining({
         status: "rejected",
@@ -359,10 +382,44 @@ describe("checkpoint resume", () => {
     render(<App options={{ messages: [], canResume: true, onResume }} />);
     await act(async () => aui.composer.setText("new request"));
     expect(action.disabled).toBe(true);
-    await act(async () => action.resume());
+    fireEvent.click(screen.getByRole("button", { name: "Resume" }));
     expect(onResume).not.toHaveBeenCalled();
     expect(aui.composer.getState().text).toBe("new request");
   });
+
+  it.each([null, "answer"])(
+    "forwards the latest parent id %s without an imperative disabled guard",
+    async (parentId) => {
+      const onResume = vi.fn(async () => {});
+      const messages: ThreadMessage[] =
+        parentId === null
+          ? []
+          : [
+              fromThreadMessageLike(
+                {
+                  role: "assistant",
+                  createdAt: new Date(0),
+                  content: "Partial",
+                },
+                parentId,
+                { type: "incomplete", reason: "cancelled" },
+              ),
+            ];
+      render(<App options={{ messages, canResume: true, onResume }} />);
+      await act(async () => {
+        aui.composer.setText("new request");
+      });
+      expect(action.disabled).toBe(true);
+      act(() => {
+        expect(action.resume()).toBeUndefined();
+      });
+      await waitFor(() =>
+        expect(onResume).toHaveBeenCalledExactlyOnceWith({ parentId }),
+      );
+      await waitFor(() => expect(aui.thread.getState().canResume).toBe(true));
+      expect(aui.composer.getState().text).toBe("new request");
+    },
+  );
 
   it("exposes the same checkpoint gate on the external-store runtime", () => {
     const provider = { getModelContext: () => ({}) };

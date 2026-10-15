@@ -10,12 +10,9 @@ import {
 
 const useComposerResume = () => {
   const { disabled, resume } = useComposerResumeBehavior();
-  const callback = useCallback(() => {
-    void resume().catch((error: unknown) => {
-      console.error("[assistant-ui] Failed to resume the run:", error);
-    });
-  }, [resume]);
-  return disabled ? null : callback;
+  const callback = useCallback(() => resume(), [resume]);
+  if (disabled) return null;
+  return callback;
 };
 
 export namespace ComposerPrimitiveResume {

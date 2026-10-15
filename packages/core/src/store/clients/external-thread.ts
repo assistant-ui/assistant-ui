@@ -43,6 +43,7 @@ import type {
 } from "../../runtime/interfaces/thread-runtime-core";
 import type { Unstable_ToolInteractionInput } from "../../types/message";
 import type { QuoteInfo } from "../../types/quote";
+import type { CreateResumeRunConfig } from "../../runtime/api/thread-runtime";
 import type {
   ExternalThreadQueueAdapter,
   QueuePlacement,
@@ -124,7 +125,9 @@ export type ExternalThreadProps = {
   onStartRun?: () => void;
   onCancel?: () => void;
   /** Resume the existing run from its checkpoint without appending a user message. */
-  onResume?: (() => void | Promise<void>) | undefined;
+  onResume?:
+    | ((config: CreateResumeRunConfig) => void | Promise<void>)
+    | undefined;
   /** True only while a checkpoint is available; requires onResume. */
   canResume?: boolean | undefined;
   /**
@@ -1895,21 +1898,21 @@ const useExternalThread = ({
     startRun: () => {
       onStartRun?.();
     },
-    resumeRun: () => {
+    resumeRun: (config: CreateResumeRunConfig) => {
       if (!onResume)
         throw new Error(
           "Runtime does not support resuming runs (onResume is not set).",
         );
       if (resumePendingRef.current) return resumePendingRef.current;
       if (!canResume) {
-        onResume();
+        onResume(config);
         return;
       }
       let start!: () => void;
       const pending = new Promise<void>((resolve, reject) => {
         start = () => {
           try {
-            resolve(onResume());
+            resolve(onResume(config));
           } catch (error) {
             reject(error);
           }

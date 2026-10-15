@@ -8,6 +8,7 @@ import {
   branchPickerPreviousDisabled,
   composerCancelDisabled,
   composerInputDisabled,
+  composerResumeDisabled,
   composerSendDisabled,
   suggestionSendMode,
   suggestionTriggerDisabled,
@@ -16,6 +17,52 @@ import {
 const state = (partial: Record<string, unknown>) => partial as never;
 
 describe("primitive predicates", () => {
+  describe("composerResumeDisabled", () => {
+    const base = {
+      thread: {
+        isDisabled: false,
+        isRunning: false,
+        voice: undefined,
+        canResume: true,
+      },
+      composer: { type: "thread", isEmpty: true },
+    };
+
+    it("enables resume when every gate is clear", () => {
+      expect(composerResumeDisabled(state(base))).toBe(false);
+    });
+
+    it.each([
+      ["a disabled thread", { isDisabled: true }],
+      ["a running thread", { isRunning: true }],
+      ["a connected voice session", { voice: {} }],
+      ["an unavailable checkpoint", { canResume: false }],
+      ["undefined checkpoint availability", { canResume: undefined }],
+    ])("disables resume for %s alone", (_name, thread) => {
+      expect(
+        composerResumeDisabled(
+          state({ ...base, thread: { ...base.thread, ...thread } }),
+        ),
+      ).toBe(true);
+    });
+
+    it.each([
+      ["an edit composer", { type: "edit" }],
+      ["a nonempty composer", { isEmpty: false }],
+    ])("disables resume for %s alone", (_name, composer) => {
+      expect(
+        composerResumeDisabled(
+          state({ ...base, composer: { ...base.composer, ...composer } }),
+        ),
+      ).toBe(true);
+    });
+
+    it("disables resume when a custom thread omits canResume", () => {
+      const { canResume: _canResume, ...thread } = base.thread;
+      expect(composerResumeDisabled(state({ ...base, thread }))).toBe(true);
+    });
+  });
+
   it("composerSendDisabled requires canSend and either an idle thread or a queue", () => {
     const composer = { canSend: true };
     expect(
