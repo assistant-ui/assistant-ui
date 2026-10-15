@@ -80,6 +80,17 @@ const overlayBufferedToolResults = (
   ];
 };
 
+const getToolCallIds = (messages: readonly AdkMessage[]) =>
+  new Set(
+    messages.flatMap((message) =>
+      message.type === "ai"
+        ? (message.tool_calls ?? []).flatMap((call) =>
+            call && typeof call.id === "string" ? [call.id] : [],
+          )
+        : [],
+    ),
+  );
+
 export type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
   stream: AdkStreamCallback;
   /**
@@ -289,15 +300,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     if (!snapshot) return undefined;
     const toolResultBuffer = controller.getState().toolResultBuffer;
     if (toolResultBuffer.size === 0) return snapshot;
-    const toolCallIds = new Set(
-      snapshot.messages.flatMap((message) =>
-        message.type === "ai"
-          ? (message.tool_calls ?? []).flatMap((call) =>
-              call && typeof call.id === "string" ? [call.id] : [],
-            )
-          : [],
-      ),
-    );
+    const toolCallIds = getToolCallIds(snapshot.messages);
     return {
       ...snapshot,
       toolResultBuffer: new Map([
@@ -375,12 +378,14 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             started = false;
           }
         } catch (error) {
+          const toolCallIds = getToolCallIds(controller.getState().messages);
           const unsent = batches
             .slice(nextIndex + (started ? 1 : 0))
             .flatMap((batch) => batch)
             .filter(
               (message): message is Extract<AdkMessage, { type: "tool" }> =>
-                message.type === "tool",
+                message.type === "tool" &&
+                toolCallIds.has(message.tool_call_id),
             );
           if (unsent.length > 0)
             controller.dispatch({ type: "results.restore", messages: unsent });

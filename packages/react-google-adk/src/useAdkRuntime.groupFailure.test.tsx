@@ -58,6 +58,7 @@ const deferred = () => {
 
 const mount = async (
   behavior: "fail" | "fail-second" | "stop" | "stop-last" | "success",
+  getCheckpointId?: () => Promise<null>,
 ) => {
   const requests: AdkMessage[][] = [];
   const firstGroupEntered = deferred();
@@ -122,6 +123,7 @@ const mount = async (
       sessionAdapter,
       unstable_allowCancellation: true,
       autoCancelPendingToolCalls: false,
+      ...(getCheckpointId && { getCheckpointId }),
     });
     capture.runtime = runtime;
     return (
@@ -269,6 +271,51 @@ describe("useAdkRuntime split new turns", () => {
         expect.objectContaining({ type: "human", content: "third" }),
       ]),
     );
+    h.unmount();
+  });
+
+  it("does not restore a reply after editing away its tool call", async () => {
+    const h = await mount("stop", async () => null);
+    const second = h.runtime.thread
+      .getState()
+      .messages.find(
+        (message) =>
+          message.role === "user" &&
+          message.content.some(
+            (part) => part.type === "text" && part.text === "second",
+          ),
+      )!;
+    sendDraft(h.runtime);
+    await h.firstGroupEntered.promise;
+    act(() => {
+      const composer = h.runtime.thread.getMessageById(second.id).composer;
+      composer.beginEdit();
+      composer.setText("edited second");
+      composer.send();
+    });
+    h.holdFirstGroup.resolve();
+    await waitFor(() =>
+      expect(h.runtime.thread.composer.getState().text).toBe("third"),
+    );
+    expect(reply(h.runtime, "c2")).toBeUndefined();
+    act(() => h.runtime.thread.composer.send());
+    await waitFor(() => expect(h.requests).toHaveLength(5));
+    expect(h.requests[3]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "human", content: "edited second" }),
+      ]),
+    );
+    expect(h.requests[4]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "human", content: "third" }),
+      ]),
+    );
+    expect(h.requests[4]).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ type: "tool", tool_call_id: "c2" }),
+      ]),
+    );
+    expect(reply(h.runtime, "c2")).toBeUndefined();
     h.unmount();
   });
 
