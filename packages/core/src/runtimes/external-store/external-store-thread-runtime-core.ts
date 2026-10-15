@@ -288,6 +288,7 @@ export class ExternalStoreThreadRuntimeCore
     parentOpen: boolean;
     lease: RunLease;
   } | null = null;
+  private readonly _cancelledRunIds = new Set<string>();
   private readonly _pendingCancelResyncs = new Set<() => void>();
   private _movedLeaf:
     | {
@@ -506,6 +507,7 @@ export class ExternalStoreThreadRuntimeCore
     if (repositoryChanged) {
       this.repository = repositoryInstance;
       this._cancelledToolTurn = null;
+      this._cancelledRunIds.clear();
       this._pendingDeleteEvictions.clear();
       this._pendingDeleteWindows.clear();
       this._submittedFeedback.clear();
@@ -936,20 +938,24 @@ export class ExternalStoreThreadRuntimeCore
 
   private _getDiscardedToolCallIds(): ReadonlySet<string> | undefined {
     const scope = this._cancelledToolTurn;
-    if (!scope) return undefined;
+    if (!scope && this._cancelledRunIds.size === 0) return undefined;
 
     const ids = new Set<string>();
     for (let i = 0; i < this._messages.length; i++) {
       const message = this._messages[i]!;
       if (message.role !== "assistant" || message.metadata.isOptimistic)
         continue;
-      if (!scope.messageIds.has(message.id)) {
-        if (
-          !scope.parentOpen ||
-          (this._messages[i - 1]?.id ?? null) !== scope.parentId
-        )
-          continue;
-        scope.messageIds.add(message.id);
+      const runId = message.metadata.runId;
+      if (runId === undefined || !this._cancelledRunIds.has(runId)) {
+        if (!scope) continue;
+        if (!scope.messageIds.has(message.id)) {
+          if (
+            !scope.parentOpen ||
+            (this._messages[i - 1]?.id ?? null) !== scope.parentId
+          )
+            continue;
+          scope.messageIds.add(message.id);
+        }
       }
       for (const { part } of walkToolCallTree([message])) {
         ids.add(part.toolCallId);
@@ -1440,6 +1446,7 @@ export class ExternalStoreThreadRuntimeCore
     this._pendingDeleteWindows.clear();
     this._cancelRunResyncLeases.invalidate();
     this._cancelledToolTurn = null;
+    this._cancelledRunIds.clear();
 
     // Re-arm the tracker so the next adapter snapshot (containing the
     // imported state) is treated as historical — no streamCall/execute
@@ -1463,6 +1470,7 @@ export class ExternalStoreThreadRuntimeCore
   public unstable_notifySessionReset(): void {
     this._cancelRunResyncLeases.invalidate();
     this._cancelledToolTurn = null;
+    this._cancelledRunIds.clear();
     this._runTrackerUpdate(() => this._toolInvocations?.reset());
     this._store.queue?.__internal_notifyCancelled?.();
   }
@@ -1476,6 +1484,8 @@ export class ExternalStoreThreadRuntimeCore
     this._runCancellationLeases.invalidate();
     const generation = captureThreadRuntimeGeneration(this);
     const resyncLease = this._cancelRunResyncLeases.current();
+    if (this._store.activeRunId !== undefined)
+      this._cancelledRunIds.add(this._store.activeRunId);
 
     if (isRunning) {
       const hostMessages = this._storeMessages.filter(
@@ -1680,6 +1690,7 @@ export class ExternalStoreThreadRuntimeCore
     this._pendingDeleteWindows.clear();
     this._cancelRunResyncLeases.invalidate();
     this._cancelledToolTurn = null;
+    this._cancelledRunIds.clear();
     this._submittedFeedback.clear();
     this._importedMessageIds = undefined;
     const repo = new MessageRepository();
@@ -1694,6 +1705,7 @@ export class ExternalStoreThreadRuntimeCore
     this._pendingDeleteWindows.clear();
     this._cancelRunResyncLeases.invalidate();
     this._cancelledToolTurn = null;
+    this._cancelledRunIds.clear();
     this._submittedFeedback.clear();
     super.import(data);
     const messages = this.repository.getMessages();
