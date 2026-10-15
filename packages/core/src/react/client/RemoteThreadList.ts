@@ -841,7 +841,16 @@ const useRemoteThreadList = (
 
   const startSwitch = useCallback(
     (run: (generation: number) => Promise<void>, threadId?: string) => {
+      if (
+        session.supersedeAttachmentWait &&
+        session.switchTask &&
+        threadId !== undefined &&
+        isSameThread(store.value, threadId, session.mainThreadId)
+      ) {
+        return session.switchTask;
+      }
       session.supersedeAttachmentWait?.();
+      session.supersedeAttachmentWait = undefined;
       const generation = ++session.switchGeneration;
       session.controlledReloadPending = false;
       if (store.baseValue.switchError !== undefined) {

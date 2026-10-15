@@ -792,6 +792,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
   private _nextSwitchGeneration() {
     this._supersedeAttachmentWait?.();
+    this._supersedeAttachmentWait = undefined;
     return ++this._switchGeneration;
   }
 
@@ -800,6 +801,14 @@ export class RemoteThreadListThreadListRuntimeCore
     options: { unarchive?: boolean } | undefined,
     emitThreadIdChange: boolean,
   ): Promise<void> {
+    if (
+      this._supersedeAttachmentWait &&
+      this._switchTask &&
+      getThreadData(this._state.value, threadIdOrRemoteId)?.id ===
+        this._mainThreadId
+    ) {
+      return this._switchTask;
+    }
     const generation = this._nextSwitchGeneration();
     this._setSwitchError(undefined);
     const task = this._switchToThread(

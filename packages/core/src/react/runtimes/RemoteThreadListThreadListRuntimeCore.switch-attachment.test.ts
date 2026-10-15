@@ -72,6 +72,30 @@ it("settles a switch only after a replacement runtime attaches", async () => {
   expect(core.getMainThreadRuntimeCore()).toBe(replacement);
 });
 
+it("joins repeated switches until the replacement runtime attaches", async () => {
+  const { core, publish } = await setup();
+  const first = core.switchToThread("thread-b");
+  const firstSettled = vi.fn();
+  void first.then(firstSettled, firstSettled);
+  publish("thread-b", new ReadonlyThreadRuntimeCore());
+  await vi.waitFor(() => expect(core.mainThreadId).toBe("thread-b"));
+
+  const second = core.switchToThread("thread-b");
+  const secondSettled = vi.fn();
+  void second.then(secondSettled, secondSettled);
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+  expect(firstSettled).not.toHaveBeenCalled();
+  expect(secondSettled).not.toHaveBeenCalled();
+  const replacement = new ReadonlyThreadRuntimeCore();
+  publish("thread-b", replacement);
+  await Promise.all([first, second]);
+
+  expect(firstSettled).toHaveBeenCalledTimes(1);
+  expect(secondSettled).toHaveBeenCalledTimes(1);
+  expect(core.getMainThreadRuntimeCore()).toBe(replacement);
+});
+
 it("rejects if the replacement runtime is stopped before attachment", async () => {
   const { core, manager, publish } = await setup();
   const switchToB = core.switchToThread("thread-b");
