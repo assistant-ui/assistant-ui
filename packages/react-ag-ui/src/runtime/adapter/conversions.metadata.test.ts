@@ -149,6 +149,110 @@ describe("AG-UI message metadata", () => {
     expect(toAgUiMessages(fromAgUiMessages(source))).toEqual(source);
   });
 
+  it("decodes interrupts without echoing them in nested wire metadata", () => {
+    const interrupts = [{ id: "int-1", reason: "confirmation" }];
+    const source = [
+      {
+        id: "a-1",
+        role: "assistant",
+        content: "Waiting",
+        metadata: { custom: { agui: { interrupts } } },
+      },
+      {
+        id: "a-2",
+        role: "assistant",
+        content: "Waiting",
+        metadata: { custom: { agui: { interrupts, app: 1 } } },
+      },
+      {
+        id: "a-3",
+        role: "assistant",
+        content: "Waiting",
+        metadata: { custom: { agui: { interrupts }, keep: 2 } },
+      },
+    ];
+    const imported = fromAgUiMessages(source);
+
+    expect(imported.map((message) => message.metadata?.custom)).toEqual([
+      { agui: { interrupts } },
+      { custom: { agui: { app: 1 } }, agui: { interrupts } },
+      { custom: { keep: 2 }, agui: { interrupts } },
+    ]);
+    expect(toAgUiMessages(imported)).toEqual([
+      { id: "a-1", role: "assistant", content: "Waiting" },
+      {
+        id: "a-2",
+        role: "assistant",
+        content: "Waiting",
+        metadata: { custom: { agui: { app: 1 } } },
+      },
+      {
+        id: "a-3",
+        role: "assistant",
+        content: "Waiting",
+        metadata: { custom: { keep: 2 } },
+      },
+    ]);
+  });
+
+  it("removes interrupts from wire metadata when the top-level agui key collides", () => {
+    const interrupts = [{ id: "int-1", reason: "confirmation" }];
+    const source = [
+      {
+        id: "a-1",
+        role: "assistant",
+        content: "Waiting",
+        metadata: { agui: { source: "app" }, custom: { agui: { interrupts } } },
+      },
+      {
+        id: "a-2",
+        role: "assistant",
+        content: "Waiting",
+        metadata: {
+          agui: { source: "app" },
+          custom: { agui: { interrupts, app: 1 }, keep: 2 },
+        },
+      },
+    ];
+    const imported = fromAgUiMessages(source);
+
+    expect(imported.map((message) => message.metadata?.custom)).toEqual([
+      {
+        agui: {
+          interrupts,
+          messageMetadata: { agui: { source: "app" } },
+        },
+      },
+      {
+        custom: { agui: { app: 1 }, keep: 2 },
+        agui: {
+          interrupts,
+          messageMetadata: {
+            agui: { source: "app" },
+            custom: { agui: { app: 1 }, keep: 2 },
+          },
+        },
+      },
+    ]);
+    expect(toAgUiMessages(imported)).toEqual([
+      {
+        id: "a-1",
+        role: "assistant",
+        content: "Waiting",
+        metadata: { agui: { source: "app" } },
+      },
+      {
+        id: "a-2",
+        role: "assistant",
+        content: "Waiting",
+        metadata: {
+          agui: { source: "app" },
+          custom: { agui: { app: 1 }, keep: 2 },
+        },
+      },
+    ]);
+  });
+
   it("drops an empty assistant record with wire metadata", () => {
     const source = [
       {
@@ -224,7 +328,7 @@ describe("AG-UI message metadata", () => {
     expect(toAgUiMessages(fromAgUiMessages(source))).toEqual(source);
   });
 
-  it("does not treat state-like nested wire keys as the adapter's state", () => {
+  it("keeps non-owned nested wire keys while consuming interrupts", () => {
     const source = [
       {
         id: "s-1",
@@ -247,7 +351,22 @@ describe("AG-UI message metadata", () => {
         },
       },
     ];
-    expect(toAgUiMessages(fromAgUiMessages(source))).toEqual(source);
+    expect(toAgUiMessages(fromAgUiMessages(source))).toEqual([
+      source[0],
+      {
+        id: "a-1",
+        role: "assistant",
+        content: "Done",
+        metadata: {
+          custom: {
+            agui: {
+              role: "developer",
+              opaqueReasoning: [{ id: "app-2", encryptedValue: "app" }],
+            },
+          },
+        },
+      },
+    ]);
   });
 
   it("decodes adapter state in the legacy ThreadMessage custom.agui slot", () => {

@@ -137,15 +137,33 @@ function readLegacyAgUiNamespace(metadata: unknown): Record<string, unknown> {
     : {};
 }
 
+function withoutPersistedInterrupts(
+  wire: Record<string, unknown>,
+): Record<string, unknown> {
+  if (!isObject(wire.custom)) return wire;
+  const namespaced = wire.custom[AG_UI_METADATA_NAMESPACE];
+  if (!isObject(namespaced) || !("interrupts" in namespaced)) return wire;
+
+  const { interrupts: _interrupts, ...remainingNamespace } = namespaced;
+  const { [AG_UI_METADATA_NAMESPACE]: _namespace, ...remainingCustom } =
+    wire.custom;
+  if (Object.keys(remainingNamespace).length > 0) {
+    remainingCustom[AG_UI_METADATA_NAMESPACE] = remainingNamespace;
+  }
+  const { custom: _custom, ...remainingWire } = wire;
+  return Object.keys(remainingCustom).length > 0
+    ? { ...remainingWire, custom: remainingCustom }
+    : remainingWire;
+}
+
 function toSnapshotCustom(
   metadata: unknown,
   state: Record<string, unknown> = {},
 ): Record<string, unknown> {
-  const wire = toAgUiWireMetadata(metadata) ?? {};
-  const hasWire = isObject(metadata);
+  const wire = withoutPersistedInterrupts(toAgUiWireMetadata(metadata) ?? {});
   const needsWireSlot =
-    hasWire &&
-    (Object.keys(wire).length === 0 || AG_UI_METADATA_NAMESPACE in wire);
+    isObject(metadata) &&
+    (Object.keys(metadata).length === 0 || AG_UI_METADATA_NAMESPACE in wire);
   const namespaced = {
     ...readLegacyAgUiNamespace(metadata),
     ...state,
