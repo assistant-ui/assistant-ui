@@ -169,13 +169,56 @@ export function ring(
   const o1 = polar(cx, cy, rOuter, end);
   const i0 = polar(cx, cy, rInner, end);
   const i1 = polar(cx, cy, rInner, start);
+  const outerClosed =
+    round(o0.x) === round(o1.x) && round(o0.y) === round(o1.y);
+  const innerClosed =
+    round(i0.x) === round(i1.x) && round(i0.y) === round(i1.y);
+  // SVG omits an arc whose endpoints coincide, so a sector that closes on
+  // itself is drawn as whole circles, the inner one wound the other way.
+  if (large && outerClosed && innerClosed) {
+    return [
+      circlePath(cx, cy, rOuter, start, 1),
+      circlePath(cx, cy, rInner, start, 0),
+    ]
+      .filter(Boolean)
+      .join(" ");
+  }
+  const arc = (r: number, sweep: 0 | 1, from: Pt, to: Pt): string => {
+    const path = `A${r} ${r} 0 ${large} ${sweep} ${round(to.x)} ${round(to.y)}`;
+    if (
+      !large ||
+      round(from.x) !== round(to.x) ||
+      round(from.y) !== round(to.y)
+    ) {
+      return path;
+    }
+    const mid = polar(cx, cy, r, start + Math.PI);
+    if (round(mid.x) === round(from.x) && round(mid.y) === round(from.y)) {
+      return path;
+    }
+    return `A${r} ${r} 0 0 ${sweep} ${round(mid.x)} ${round(mid.y)} A${r} ${r} 0 0 ${sweep} ${round(to.x)} ${round(to.y)}`;
+  };
   return [
     `M${round(o0.x)} ${round(o0.y)}`,
-    `A${rOuter} ${rOuter} 0 ${large} 1 ${round(o1.x)} ${round(o1.y)}`,
+    arc(rOuter, 1, o0, o1),
     `L${round(i0.x)} ${round(i0.y)}`,
-    `A${rInner} ${rInner} 0 ${large} 0 ${round(i1.x)} ${round(i1.y)}`,
+    arc(rInner, 0, i0, i1),
     "Z",
   ].join(" ");
+}
+
+function circlePath(
+  cx: number,
+  cy: number,
+  r: number,
+  angle: number,
+  sweep: 0 | 1,
+): string {
+  const a = polar(cx, cy, r, angle);
+  const b = polar(cx, cy, r, angle + Math.PI);
+  const [ax, ay, bx, by] = [round(a.x), round(a.y), round(b.x), round(b.y)];
+  if (ax === bx && ay === by) return "";
+  return `M${ax} ${ay} A${r} ${r} 0 0 ${sweep} ${bx} ${by} A${r} ${r} 0 0 ${sweep} ${ax} ${ay} Z`;
 }
 
 export function arcStroke(
