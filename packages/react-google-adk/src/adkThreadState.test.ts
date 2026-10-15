@@ -49,6 +49,41 @@ describe("getToolResultOwnerKey", () => {
 });
 
 describe("reduceAdkThreadState", () => {
+  it("rekeys a user message and its queued and staged references in place", () => {
+    const oldId = "client-user";
+    const newId = "run-1:user";
+    const user = { ...message, id: oldId };
+    const heldReply = interruptAnswer("call-1");
+    const state = {
+      ...createAdkThreadState(),
+      messages: [message, user, heldReply],
+      queuedMessageIds: new Set([oldId]),
+      stagedEntries: new Map([
+        [oldId, { message: user, runConfig: undefined }],
+      ]),
+      messageMetadata: new Map([
+        [oldId, { usageMetadata: { promptTokenCount: 1 } }],
+      ]),
+      toolResultBuffer: new Map([["call-1", heldReply]]),
+    };
+    const next = reduceAdkThreadState(state, {
+      type: "message.rekeyed",
+      oldId,
+      newId,
+    });
+    expect(next.messages.map((item) => item.id)).toEqual([
+      message.id,
+      newId,
+      heldReply.id,
+    ]);
+    expect([...next.queuedMessageIds]).toEqual([newId]);
+    expect([...next.stagedEntries.keys()]).toEqual([newId]);
+    expect(next.stagedEntries.get(newId)?.message.id).toBe(newId);
+    expect(next.messageMetadata.has(newId)).toBe(true);
+    expect(next.messageMetadata.has(oldId)).toBe(false);
+    expect(next.toolResultBuffer).toEqual(state.toolResultBuffer);
+  });
+
   it("flushes healthy answers when an unrelated run fails", () => {
     const state = {
       ...createAdkThreadState(),

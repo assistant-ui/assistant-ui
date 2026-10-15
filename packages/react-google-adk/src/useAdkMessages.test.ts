@@ -24,12 +24,97 @@ import {
 import { projectAdkToolApprovals } from "./adkToolApproval";
 import { createAdkStream } from "./AdkClient";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
+import { createAdkSessionAdapter } from "./AdkSessionAdapter";
 import { getPendingCancellations } from "./convertToAdkMessages";
 import type { AdkEvent, AdkMessage, AdkStreamCallback } from "./types";
 
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+it("matches live user and AI ids with a replay of stored events", async () => {
+  const events: AdkEvent[] = [
+    {
+      id: "server-user",
+      invocationId: "run-1",
+      author: "user",
+      content: { role: "user", parts: [{ text: "Hi" }] },
+    },
+    {
+      id: "partial",
+      invocationId: "run-1",
+      author: "agent",
+      partial: true,
+      content: { role: "model", parts: [{ text: "Hel" }] },
+    },
+    {
+      id: "final",
+      invocationId: "run-1",
+      author: "agent",
+      content: { role: "model", parts: [{ text: "Hello" }] },
+    },
+  ];
+  const stream: AdkStreamCallback = async function* () {
+    yield* events;
+  };
+  const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
+  await act(async () => {
+    await result.current.sendMessage(
+      [{ id: "client-user", type: "human", content: "Hi" }],
+      {},
+    );
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({ id: "session-1", events: [events[0], events[2]] }),
+        ),
+    ),
+  );
+  const { load } = createAdkSessionAdapter({
+    apiUrl: "http://localhost:8000",
+    appName: "app",
+    userId: "user",
+  });
+  const loaded = await load("session-1");
+  expect(result.current.messages.map((message) => message.id)).toEqual([
+    "run-1:user",
+    "run-1:ai",
+  ]);
+  expect(result.current.messages).toEqual(loaded.messages);
+});
+
+it("rekeys the optimistic user when the first stream event is from an agent", async () => {
+  const userEvent: AdkEvent = {
+    id: "server-user",
+    invocationId: "run-2",
+    author: "user",
+    content: { parts: [{ text: "Hi" }] },
+  };
+  const agentEvent: AdkEvent = {
+    id: "reply",
+    invocationId: "run-2",
+    author: "agent",
+    content: { parts: [{ text: "Hello" }] },
+  };
+  const stream: AdkStreamCallback = async function* () {
+    yield agentEvent;
+  };
+  const { result } = renderHook(() => useAdkMessagesInternal({ stream }));
+  await act(async () => {
+    await result.current.sendMessage(
+      [{ id: "client-user", type: "human", content: "Hi" }],
+      {},
+    );
+  });
+  const loaded = new AdkEventAccumulator();
+  loaded.processEvent(userEvent);
+  loaded.processEvent(agentEvent);
+  expect(result.current.messages).toEqual(loaded.getMessages());
+  expect(result.current.controller.getState().queuedMessageIds.size).toBe(0);
 });
 
 describe("optimistic tool outcomes", () => {

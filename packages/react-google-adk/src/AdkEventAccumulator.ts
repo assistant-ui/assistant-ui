@@ -20,20 +20,25 @@ type InProgressMessage = AdkMessage & { type: "ai" };
 
 /**
  * A session load replays the stored events through a fresh accumulator, so a
- * message needs an id derived from the event that carries it rather than one
- * minted per replay. An event with no id of its own has never been through the
- * session and has nothing stable to derive from, so it keeps a generated one.
- *
- * A human message keeps the bare event id it has always had. The other kinds
- * take a suffixed namespace, since one event can carry several of them: a tool
- * message by the index of its part, an assistant message by how many this
- * event has already opened.
+ * message needs an id derived from what the stored events carry rather than one
+ * minted per replay. ADK stores only the final event of a streamed response, and
+ * adk-js gives each partial chunk its own event id, so an assistant message is
+ * named by its invocation and how many assistant messages that invocation has
+ * opened, and the user's message by its invocation. A tool message keeps its
+ * event id and part index, since a tool event is stored with the id it streamed
+ * with. Without
+ * an invocation id the event id is used, and an event with neither keeps a
+ * generated id.
  */
 const toolMessageId = (event: AdkEvent, partIndex: number): string =>
   event.id ? `${event.id}:${partIndex}` : generateId();
 
-const aiMessageId = (event: AdkEvent, ordinal: number): string =>
-  event.id ? `${event.id}:ai${ordinal === 0 ? "" : ordinal}` : generateId();
+const aiMessageId = (event: AdkEvent, ordinal: number): string => {
+  const sourceId = event.invocationId ?? event.id;
+  return sourceId
+    ? `${sourceId}:ai${ordinal === 0 ? "" : ordinal}`
+    : generateId();
+};
 
 const ADK_REQUEST_CONFIRMATION = "adk_request_confirmation";
 const ADK_REQUEST_CREDENTIAL = "adk_request_credential";
@@ -217,8 +222,8 @@ export class AdkEventAccumulator {
   private pendingLongRunningToolIds = new Set<string>();
   private escalated = false;
   private messageMetadataMap = new Map<string, AdkMessageMetadata>();
-  // How many assistant messages each event has opened, so a replay of that
-  // event opens them with the same ids.
+  // How many assistant messages each invocation, or each event without one,
+  // has opened, so a replay opens them with the same ids.
   private aiMessageOrdinals = new Map<string, number>();
   constructor(
     initialMessages?: AdkMessage[],
@@ -360,7 +365,9 @@ export class AdkEventAccumulator {
         this.messagesMap.set(toolMsg.id, toolMsg);
       }
       if (humanParts.length > 0) {
-        const id = event.id ?? generateId();
+        const id = event.invocationId
+          ? `${event.invocationId}:user`
+          : (event.id ?? generateId());
         const first = humanParts[0];
         const content: string | AdkMessageContentPart[] =
           humanParts.length === 1 && first?.type === "text"
@@ -560,8 +567,11 @@ export class AdkEventAccumulator {
       }
     }
 
-    const ordinal = this.aiMessageOrdinals.get(event.id ?? "") ?? 0;
-    this.aiMessageOrdinals.set(event.id ?? "", ordinal + 1);
+    const key = event.invocationId
+      ? `invocation:${event.invocationId}`
+      : `event:${event.id ?? ""}`;
+    const ordinal = this.aiMessageOrdinals.get(key) ?? 0;
+    this.aiMessageOrdinals.set(key, ordinal + 1);
     const id = aiMessageId(event, ordinal);
     const msg: InProgressMessage = {
       id,
@@ -634,6 +644,22 @@ export class AdkEventAccumulator {
 
   getMessages(): AdkMessage[] {
     return [...this.messagesMap.values()];
+  }
+
+  rekeyMessage(oldId: string, newId: string): void {
+    const message = this.messagesMap.get(oldId);
+    if (!message || oldId === newId) return;
+    this.messagesMap = new Map(
+      [...this.messagesMap].map(([id, value]) =>
+        id === oldId ? [newId, { ...value, id: newId }] : [id, value],
+      ),
+    );
+    if (this.currentMessageId === oldId) this.currentMessageId = newId;
+    const metadata = this.messageMetadataMap.get(oldId);
+    if (metadata) {
+      this.messageMetadataMap.delete(oldId);
+      this.messageMetadataMap.set(newId, metadata);
+    }
   }
 
   getStateDelta(): Record<string, unknown> {

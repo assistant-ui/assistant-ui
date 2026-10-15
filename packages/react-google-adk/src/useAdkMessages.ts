@@ -268,6 +268,9 @@ const useAdkMessagesInternal = ({
         const ownIds = initialMessages
           .filter((m) => !seeded.has(m))
           .map((m) => m.id);
+        const optimisticUserId = initialMessages.findLast(
+          (message) => !seeded.has(message) && message.type === "human",
+        )?.id;
         const pendingMessages = currentState.messages.filter(
           (message) =>
             queuedMessageIds.has(message.id) &&
@@ -284,6 +287,7 @@ const useAdkMessagesInternal = ({
         });
         let lastTransferToAgent: string | undefined;
         let receivedEvent = false;
+        let userRekeyed = false;
 
         const abortController = new AbortController();
         abortControllerRef.current = abortController;
@@ -317,6 +321,16 @@ const useAdkMessagesInternal = ({
               onFirstEventForSend?.();
             }
             const event = normalizeAdkEvent(rawEvent);
+            if (!userRekeyed && event.invocationId && optimisticUserId) {
+              userRekeyed = true;
+              const userId = `${event.invocationId}:user`;
+              accumulator.rekeyMessage(optimisticUserId, userId);
+              controller.dispatch({
+                type: "message.rekeyed",
+                oldId: optimisticUserId,
+                newId: userId,
+              });
+            }
             const updatedMessages = accumulator.processEvent(event);
             // Each event part can append at most one message, and a function call
             // stays on the current assistant message until a later part finalizes
