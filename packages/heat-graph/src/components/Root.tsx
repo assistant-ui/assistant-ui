@@ -16,7 +16,7 @@ import {
   TooltipStateContext,
 } from "../context";
 import type { CellData } from "../types";
-import { normalizeDate } from "../utils/date-utils";
+import { addDays, normalizeDate } from "../utils/date-utils";
 import { type ComputeGridOptions, computeGrid, emptyGrid } from "../utils/grid";
 
 const useIsomorphicLayoutEffect =
@@ -68,16 +68,19 @@ export const Root = forwardRef<HTMLDivElement, RootProps>(
       if (end === undefined) setToday(new Date());
     }, [data, end]);
 
-    const latestDataDate = useMemo(
-      () =>
-        data.reduce<Date | undefined>((latest, point) => {
-          const date = normalizeDate(point.date);
-          if (Number.isNaN(date.getTime())) return latest;
-          return latest === undefined || date > latest ? date : latest;
-        }, undefined),
-      [data],
-    );
-    const resolvedEnd = end ?? today ?? latestDataDate ?? start;
+    const dataEnd = useMemo(() => {
+      const latestDataDate = data.reduce<Date | undefined>((latest, point) => {
+        const date = normalizeDate(point.date);
+        if (Number.isNaN(date.getTime())) return latest;
+        return latest === undefined || date > latest ? date : latest;
+      }, undefined);
+      if (latestDataDate === undefined || start === undefined) {
+        return latestDataDate;
+      }
+      const maxEnd = addDays(normalizeDate(start), 364);
+      return latestDataDate > maxEnd ? maxEnd : latestDataDate;
+    }, [data, start]);
+    const resolvedEnd = end ?? today ?? dataEnd;
     const state = useMemo(
       () => ({
         ...(resolvedEnd === undefined

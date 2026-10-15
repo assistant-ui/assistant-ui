@@ -16,6 +16,11 @@ function LastDay() {
   );
 }
 
+function CellCount() {
+  const { cells } = useHeatGraphContext();
+  return <span data-testid="cell-count">{cells.length}</span>;
+}
+
 it("prerenders an omitted end from data independently of the clock, then follows today", () => {
   vi.useFakeTimers({ toFake: ["Date"] });
   const graph = (
@@ -64,4 +69,28 @@ it("prerenders an empty grid without a clock-derived end", () => {
 
   render(graph);
   expect(screen.getByTestId("last-day").textContent).toBe("Thu Feb 11 2027");
+});
+
+it("caps a data-derived server end to 365 days from a fixed start", () => {
+  const html = renderToString(
+    <Root start="2025-01-01" data={[{ date: "2035-12-31", count: 1 }]}>
+      <CellCount />
+      <LastDay />
+    </Root>,
+  );
+
+  expect(html).toContain('data-testid="cell-count">368</span>');
+  expect(html).toContain('data-testid="last-day">Wed Dec 31 2025</span>');
+});
+
+it("prerenders an empty grid with a fixed start and no valid data dates", () => {
+  const html = renderToString(
+    <Root start="2025-01-01" data={[{ date: "invalid", count: 1 }]}>
+      <CellCount />
+      <LastDay />
+    </Root>,
+  );
+
+  expect(html).toContain('data-testid="cell-count">0</span>');
+  expect(html).toContain('data-testid="last-day"></span>');
 });
