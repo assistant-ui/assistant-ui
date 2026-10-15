@@ -343,7 +343,7 @@ describe("useExternalHistory withFormat contract", () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
   });
 
-  it("does not replace live messages when history resolves after a send starts", async () => {
+  it("imports history beneath live messages when a run wins the load race", async () => {
     mocks.hasThreadListItem = true;
     mocks.remoteId = "remote-thread";
     let resolveLoad!: (repo: MessageFormatRepository<unknown>) => void;
@@ -403,8 +403,82 @@ describe("useExternalHistory withFormat contract", () => {
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(threadState.messages).toBe(liveMessages);
-    expect(threadImport).not.toHaveBeenCalled();
-    expect(setMessages).not.toHaveBeenCalled();
+    expect(threadImport).toHaveBeenCalledTimes(1);
+    expect(threadImport).toHaveBeenCalledWith({
+      headId: "live-assistant",
+      messages: [
+        { parentId: null, message: { id: "stored" } },
+        { parentId: "stored", message: { id: "live-user" } },
+        { parentId: "live-user", message: { id: "live-assistant" } },
+      ],
+    });
+    expect(setMessages).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps a live message out of the merged tail when history already holds it", async () => {
+    mocks.hasThreadListItem = true;
+    mocks.remoteId = "remote-thread";
+    let resolveLoad!: (repo: MessageFormatRepository<unknown>) => void;
+    const load = vi.fn(
+      () =>
+        new Promise<MessageFormatRepository<unknown>>((resolve) => {
+          resolveLoad = resolve;
+        }),
+    );
+    const threadState = {
+      isRunning: false,
+      messages: [] as ThreadMessage[],
+    };
+    const threadImport = vi.fn();
+    const thread = {
+      subscribe: () => () => {},
+      getState: () => threadState,
+      import: threadImport,
+      export: () => ({ headId: null, messages: [] }),
+    } as unknown as AssistantRuntime["thread"];
+    const historyRuntimeRef = {
+      current: { thread } as AssistantRuntime,
+    };
+    const adapter: ThreadHistoryAdapter = {
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue({
+        load,
+        append: vi.fn().mockResolvedValue(undefined),
+      }),
+    };
+
+    const { result } = renderHook(() =>
+      useExternalHistory(
+        historyRuntimeRef,
+        adapter,
+        (messages) => messages.map((message) => message as ThreadMessage),
+        storageFormat,
+        () => {},
+      ),
+    );
+
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    await act(async () => {
+      threadState.isRunning = true;
+      threadState.messages = [
+        { id: "stored-user" },
+        { id: "live-assistant" },
+      ] as ThreadMessage[];
+      resolveLoad({
+        headId: "stored-user",
+        messages: [{ parentId: null, message: { id: "stored-user" } }],
+      });
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(threadImport).toHaveBeenCalledWith({
+      headId: "live-assistant",
+      messages: [
+        { parentId: null, message: { id: "stored-user" } },
+        { parentId: "stored-user", message: { id: "live-assistant" } },
+      ],
+    });
   });
 });
 

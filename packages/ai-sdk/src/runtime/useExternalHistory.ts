@@ -135,13 +135,15 @@ export const useExternalHistory = <TMessage>(
     const loadHistory = async () => {
       try {
         const repo = await formatAdapter.load();
-        const threadState = runtimeRef.current.thread.getState();
-        if (threadState.isRunning || threadState.messages.length > 0) {
-          return;
+        // A resumed stream or a send may have appended live messages while
+        // the load was in flight. The history imports beneath that live tail
+        // so neither side of the race is dropped.
+        const liveMessages = runtimeRef.current.thread.getState().messages;
+        if (liveMessages.length === 0) {
+          toolArtifacts?.clear();
+          toolInteractions?.clear();
+          toolApprovalResponses?.clear();
         }
-        toolArtifacts?.clear();
-        toolInteractions?.clear();
-        toolApprovalResponses?.clear();
         const restoredMessages =
           repo?.messages.map((item) => ({
             ...item,
@@ -170,10 +172,30 @@ export const useExternalHistory = <TMessage>(
             toThreadMessages,
             restoredRepo,
           );
-          runtimeRef.current.thread.import(converted);
+          const loadedIds = new Set(
+            converted.messages.map((m) => m.message.id),
+          );
+          const liveTail = liveMessages.filter((m) => !loadedIds.has(m.id));
+          const anchorId =
+            converted.headId ?? converted.messages.at(-1)?.message.id ?? null;
+          const merged =
+            liveTail.length === 0
+              ? converted
+              : {
+                  headId: liveTail.at(-1)!.id,
+                  messages: [
+                    ...converted.messages,
+                    ...liveTail.map((message, index) => ({
+                      parentId:
+                        index === 0 ? anchorId : liveTail[index - 1]!.id,
+                      message,
+                    })),
+                  ],
+                };
+          runtimeRef.current.thread.import(merged);
 
           const tempRepo = new MessageRepository();
-          tempRepo.import(converted);
+          tempRepo.import(merged);
           const messages = tempRepo.getMessages();
 
           onSetMessagesRef.current(
