@@ -810,6 +810,16 @@ describe("useExternalHistory persistence", () => {
     return message;
   };
 
+  const createUserMessage = (inner: InnerMessage) => {
+    const message = {
+      id: inner.id,
+      role: "user",
+      content: [],
+    } as unknown as ThreadMessage;
+    bindExternalStoreMessage(message, inner);
+    return message;
+  };
+
   const createSlowLoadHarness = (resolveOnUnmount = true) => {
     mocks.hasThreadListItem = true;
     mocks.remoteId = "remote-thread";
@@ -965,12 +975,7 @@ describe("useExternalHistory persistence", () => {
       role: "user",
       parts: ["prompt"],
     };
-    const user = {
-      id: "user-1",
-      role: "user",
-      content: [],
-    } as unknown as ThreadMessage;
-    bindExternalStoreMessage(user, userInner);
+    const user = createUserMessage(userInner);
     const runningAssistant = createAssistantMessage(
       { type: "running" },
       [{ id: "assistant-1", role: "assistant", parts: ["partial"] }],
@@ -2509,12 +2514,7 @@ describe("useExternalHistory persistence", () => {
         ),
       { initialProps: { toolArtifacts: new Map<string, unknown>() } },
     );
-    const user = {
-      id: "user-1",
-      role: "user",
-      content: [],
-    } as unknown as ThreadMessage;
-    bindExternalStoreMessage(user, {
+    const user = createUserMessage({
       id: "user-1",
       role: "user",
       parts: ["prompt"],
@@ -2538,20 +2538,118 @@ describe("useExternalHistory persistence", () => {
     expect(stored.has("user-1")).toBe(false);
   });
 
+  const createDeletionRace = async () => {
+    const { append, deleteItems, deleteMessage, flush, load, step } =
+      createPersistenceHarness(false);
+    await waitFor(() => expect(load).toHaveBeenCalledOnce());
+    await flush();
+    const stored = new Set<string>();
+    let releaseReply!: () => void;
+    const replyGate = new Promise<void>((resolve) => {
+      releaseReply = resolve;
+    });
+    append.mockImplementation(async (item) => {
+      if (item.message.id === "reply-a") await replyGate;
+      stored.add(item.message.id);
+    });
+    deleteItems.mockImplementation(async (items) => {
+      for (const item of items) stored.delete(item.message.id);
+    });
+    const promptA = createUserMessage({
+      id: "prompt-a",
+      role: "user",
+      parts: [],
+    });
+    const replyAInner: InnerMessage = { id: "reply-a", parts: ["a"] };
+    const replyA = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [replyAInner],
+      "reply-a",
+    );
+    const promptB = createUserMessage({
+      id: "prompt-b",
+      role: "user",
+      parts: [],
+    });
+    const replyBInner: InnerMessage = { id: "reply-b", parts: ["b"] };
+
+    await step({
+      isRunning: true,
+      messages: [
+        promptA,
+        createAssistantMessage({ type: "running" }, [replyAInner], "reply-a"),
+      ],
+    });
+    await step({ isRunning: false, messages: [promptA, replyA] });
+    await flush();
+    const deletion = deleteMessage("prompt-a");
+
+    return {
+      stored,
+      startNextRun: () =>
+        step({
+          isRunning: true,
+          messages: [
+            promptA,
+            replyA,
+            promptB,
+            createAssistantMessage(
+              { type: "running" },
+              [replyBInner],
+              "reply-b",
+            ),
+          ],
+        }),
+      settleNextRun: async () => {
+        await step({
+          isRunning: false,
+          messages: [
+            promptA,
+            replyA,
+            promptB,
+            createAssistantMessage(
+              { type: "complete", reason: "stop" },
+              [replyBInner],
+              "reply-b",
+            ),
+          ],
+        });
+        await flush();
+      },
+      finishDeletion: async () => {
+        releaseReply();
+        await act(async () => {
+          await deletion;
+        });
+        await flush();
+      },
+    };
+  };
+
+  it("keeps a prompt deleted when the next run starts before its deletion lands", async () => {
+    const race = await createDeletionRace();
+
+    await race.startNextRun();
+    await race.finishDeletion();
+
+    expect([...race.stored]).toEqual(["reply-a", "prompt-b"]);
+  });
+
+  it("keeps a prompt deleted when the next run settles before its deletion lands", async () => {
+    const race = await createDeletionRace();
+
+    await race.startNextRun();
+    await race.settleNextRun();
+    await race.finishDeletion();
+
+    expect([...race.stored]).toEqual(["reply-a", "prompt-b", "reply-b"]);
+  });
+
   it("stores a new prompt after an earlier reply that failed to store", async () => {
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
     onTestFinished(() => consoleError.mockRestore());
-    const createUserMessage = (inner: InnerMessage) => {
-      const message = {
-        id: inner.id,
-        role: "user",
-        content: [],
-      } as unknown as ThreadMessage;
-      bindExternalStoreMessage(message, inner);
-      return message;
-    };
     const userAInner: InnerMessage = { id: "user-a", role: "user", parts: [] };
     const replyAInner: InnerMessage = { id: "reply-a", parts: ["a"] };
     const userBInner: InnerMessage = { id: "user-b", role: "user", parts: [] };

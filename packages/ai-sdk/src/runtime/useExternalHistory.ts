@@ -116,6 +116,8 @@ export const useExternalHistory = <TMessage>(
 
   const historyIds = useRef(new Set<string>());
   const deferredTelemetryIds = useRef(new Set<string>());
+  // A persistence pass can run on a snapshot taken before a deletion finished, so it skips deleted messages instead of writing them back.
+  const deletedMessageIds = useRef(new Set<string>());
   // `content` is a snapshot taken at write time rather than a re-encode of `source`, because a retained message object can be mutated in place by the runtime that produced it.
   const persistedInnerMessages = useRef(
     new Map<string, { source: TMessage; content: string }>(),
@@ -524,6 +526,7 @@ export const useExternalHistory = <TMessage>(
             }));
 
           for (const message of messages) {
+            if (deletedMessageIds.current.has(message.id)) continue;
             const innerMessages = getExternalStoreMessages<TMessage>(message);
 
             const isTerminal = isTerminalMessage(message);
@@ -616,6 +619,7 @@ export const useExternalHistory = <TMessage>(
         let parentId: string | null = null;
 
         for (const message of messages) {
+          if (deletedMessageIds.current.has(message.id)) continue;
           for (const innerMessage of getExternalStoreMessages<TMessage>(
             message,
           )) {
@@ -704,6 +708,7 @@ export const useExternalHistory = <TMessage>(
 
         historyIds.current.delete(messageId);
         deferredTelemetryIds.current.delete(messageId);
+        deletedMessageIds.current.add(messageId);
         for (const item of itemsToDelete) {
           persistedInnerMessages.current.delete(
             storageFormatAdapter.getId(item.message),
