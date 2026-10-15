@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it, onTestFinished, vi } from "vitest";
 import { bindExternalStoreMessage } from "@assistant-ui/core";
 import type {
   AssistantRuntime,
+  ExportedMessageRepository,
   MessageFormatAdapter,
   MessageFormatRepository,
   ThreadAssistantMessage,
@@ -70,7 +71,7 @@ const storageFormat: MessageFormatAdapter<unknown, Record<string, unknown>> = {
     parentId: stored.parent_id,
     message: stored.content,
   }),
-  getId: () => "id",
+  getId: (message) => (message as { id?: string }).id ?? "id",
 };
 
 const toThreadMessages = (_messages: unknown[]): ThreadMessage[] => [];
@@ -343,69 +344,199 @@ describe("useExternalHistory withFormat contract", () => {
     await waitFor(() => expect(result.current.isLoading).toBe(false));
   });
 
-  it("does not replace live messages when history resolves after a send starts", async () => {
-    mocks.hasThreadListItem = true;
-    mocks.remoteId = "remote-thread";
-    let resolveLoad!: (repo: MessageFormatRepository<unknown>) => void;
-    const load = vi.fn(
-      () =>
-        new Promise<MessageFormatRepository<unknown>>((resolve) => {
-          resolveLoad = resolve;
+  it.each([
+    {
+      name: "a resumed assistant message",
+      liveMessages: [{ id: "resumed-assistant" }],
+      alternateMessages: [],
+      expectedIds: ["stored-user", "stored-assistant", "resumed-assistant"],
+      expectedRuntimeIds: ["stored-user", "stored-assistant"],
+      expectedRepositoryIds: ["stored-user", "stored-assistant"],
+      optimisticMessageIds: ["resumed-assistant"],
+      expectedProviderContents: [],
+    },
+    {
+      name: "a concurrent send",
+      liveMessages: [{ id: "live-user" }, { id: "live-assistant" }],
+      alternateMessages: [{ id: "live-alternate" }],
+      expectedIds: [
+        "stored-user",
+        "stored-assistant",
+        "live-user",
+        "live-assistant",
+      ],
+      expectedRuntimeIds: [
+        "stored-user",
+        "stored-assistant",
+        "live-user",
+        "live-assistant",
+      ],
+      expectedRepositoryIds: [
+        "stored-user",
+        "stored-assistant",
+        "live-user",
+        "live-assistant",
+        "live-alternate",
+      ],
+      optimisticMessageIds: [],
+      expectedProviderContents: [],
+    },
+    {
+      name: "an updated message with a persisted ID",
+      liveMessages: [{ id: "stored-assistant", content: "resumed" }],
+      alternateMessages: [],
+      expectedIds: ["stored-user", "stored-assistant"],
+      expectedRuntimeIds: ["stored-user", "stored-assistant"],
+      expectedRepositoryIds: ["stored-user", "stored-assistant"],
+      optimisticMessageIds: [],
+      expectedProviderContents: [],
+    },
+    {
+      name: "a resumed assistant sharing a persisted ID",
+      liveMessages: [{ id: "stored-assistant", content: "resumed" }],
+      alternateMessages: [],
+      expectedIds: ["stored-user", "stored-assistant"],
+      expectedRuntimeIds: ["stored-user", "stored-assistant"],
+      expectedRepositoryIds: ["stored-user", "stored-assistant"],
+      optimisticMessageIds: ["stored-assistant"],
+      expectedProviderContents: [
+        { id: "stored-assistant", content: "resumed" },
+      ],
+    },
+  ])(
+    "merges loaded history before $name",
+    async ({
+      liveMessages,
+      alternateMessages,
+      expectedIds,
+      expectedRuntimeIds,
+      expectedRepositoryIds,
+      optimisticMessageIds = [],
+      expectedProviderContents,
+    }) => {
+      mocks.hasThreadListItem = true;
+      mocks.remoteId = "remote-thread";
+      let resolveLoad!: (repo: MessageFormatRepository<unknown>) => void;
+      const load = vi.fn(
+        () =>
+          new Promise<MessageFormatRepository<unknown>>((resolve) => {
+            resolveLoad = resolve;
+          }),
+      );
+      const repository = new MessageRepository();
+      let isRunning = false;
+      const toThreadMessage = (message: {
+        id: string;
+        content?: string;
+        metadata?: { isOptimistic?: boolean };
+      }) => {
+        const threadMessage = {
+          id: message.id,
+          metadata: message.metadata,
+        } as ThreadMessage;
+        bindExternalStoreMessage(threadMessage, [message]);
+        return threadMessage;
+      };
+      const thread = {
+        subscribe: () => () => {},
+        getState: () => ({
+          isRunning,
+          messages: repository.getMessages(),
         }),
-    );
-    const threadState = {
-      isRunning: false,
-      messages: [] as ThreadMessage[],
-    };
-    const threadImport = vi.fn();
-    const setMessages = vi.fn();
-    const thread = {
-      subscribe: () => () => {},
-      getState: () => threadState,
-      import: threadImport,
-      export: () => ({ headId: null, messages: [] }),
-    } as unknown as AssistantRuntime["thread"];
-    const historyRuntimeRef = {
-      current: { thread } as AssistantRuntime,
-    };
-    const adapter: ThreadHistoryAdapter = {
-      load: vi.fn(),
-      append: vi.fn(),
-      withFormat: vi.fn().mockReturnValue({
-        load,
-        append: vi.fn().mockResolvedValue(undefined),
-      }),
-    };
+        import: vi.fn((repo: ExportedMessageRepository) => {
+          repository.clear();
+          repository.import(repo);
+        }),
+        export: () => repository.export(),
+      } as unknown as AssistantRuntime["thread"];
+      const historyRuntimeRef = {
+        current: { thread } as AssistantRuntime,
+      };
+      const adapter: ThreadHistoryAdapter = {
+        load: vi.fn(),
+        append: vi.fn(),
+        withFormat: vi.fn().mockReturnValue({
+          load,
+          append: vi.fn().mockResolvedValue(undefined),
+        }),
+      };
+      const setMessages = vi.fn();
 
-    const { result } = renderHook(() =>
-      useExternalHistory(
-        historyRuntimeRef,
-        adapter,
-        (messages) => messages.map((message) => message as ThreadMessage),
-        storageFormat,
-        setMessages,
-      ),
-    );
+      const { result } = renderHook(() =>
+        useExternalHistory(
+          historyRuntimeRef,
+          adapter,
+          (messages) =>
+            messages.map((message) =>
+              toThreadMessage(
+                message as {
+                  id: string;
+                  content?: string;
+                  metadata?: { isOptimistic?: boolean };
+                },
+              ),
+            ),
+          storageFormat,
+          setMessages,
+        ),
+      );
 
-    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
-    const liveMessages = [
-      { id: "live-user" },
-      { id: "live-assistant" },
-    ] as ThreadMessage[];
-    await act(async () => {
-      threadState.isRunning = true;
-      threadState.messages = liveMessages;
-      resolveLoad({
-        headId: "stored",
-        messages: [{ parentId: null, message: { id: "stored" } }],
+      await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+      await act(async () => {
+        isRunning = true;
+        let parentId: string | null = null;
+        for (const message of liveMessages as Array<{
+          id: string;
+          content?: string;
+        }>) {
+          const threadMessage = toThreadMessage({
+            ...message,
+            ...(optimisticMessageIds.includes(message.id) && {
+              metadata: { isOptimistic: true },
+            }),
+          });
+          repository.addOrUpdateMessage(parentId, threadMessage);
+          parentId = threadMessage.id;
+        }
+        for (const message of alternateMessages as Array<{
+          id: string;
+          content?: string;
+        }>) {
+          repository.addOrUpdateMessage(null, toThreadMessage(message));
+        }
+        resolveLoad({
+          headId: "stored-assistant",
+          messages: [
+            { parentId: null, message: { id: "stored-user" } },
+            {
+              parentId: "stored-user",
+              message: { id: "stored-assistant" },
+            },
+          ],
+        });
       });
-    });
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(threadState.messages).toBe(liveMessages);
-    expect(threadImport).not.toHaveBeenCalled();
-    expect(setMessages).not.toHaveBeenCalled();
-  });
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      expect(thread.import).toHaveBeenCalledTimes(1);
+      expect(repository.getMessages().map((message) => message.id)).toEqual(
+        expectedRuntimeIds,
+      );
+      expect(
+        repository.export().messages.map(({ message }) => message.id),
+      ).toEqual(expectedRepositoryIds);
+      expect(setMessages).toHaveBeenCalledTimes(1);
+      expect(
+        setMessages.mock.calls[0]![0].map(
+          (message: { id: string }) => message.id,
+        ),
+      ).toEqual(expectedIds);
+      for (const expectedMessage of expectedProviderContents) {
+        expect(setMessages.mock.calls[0]![0]).toContainEqual(
+          expect.objectContaining(expectedMessage),
+        );
+      }
+    },
+  );
 });
 
 describe("toExportedMessageRepository", () => {

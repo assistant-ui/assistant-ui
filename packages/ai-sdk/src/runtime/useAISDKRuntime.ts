@@ -811,7 +811,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   }));
 
   const {
-    isLoading,
+    isLoading: isLoadingHistory,
     deleteMessage: deleteHistoryMessage,
     persistToolInteractions,
     persistToolApprovalResponses,
@@ -841,6 +841,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       setToolApprovalResponses(new Map(toolApprovalResponsesRef.current));
     },
   );
+  const isLoading = isLoadingHistory && messages.length === 0;
 
   const {
     id: chatId,

@@ -93,6 +93,32 @@ describe("useAISDKRuntime", () => {
     });
   });
 
+  it("keeps live messages visible while external history is loading", () => {
+    vi.mocked(useExternalHistory).mockReturnValue({
+      isLoading: true,
+      deleteMessage: vi.fn().mockResolvedValue(undefined),
+      persistToolInteractions: vi.fn().mockResolvedValue(undefined),
+      persistToolApprovalResponses: vi.fn().mockResolvedValue(undefined),
+    });
+    const chat = createChatHelpers([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        parts: [{ type: "text", text: "partial", state: "streaming" }],
+      },
+    ]);
+    chat.status = "streaming";
+
+    const { result } = renderHook(() => useAISDKRuntime(chat));
+
+    expect(result.current.thread.getState().messages).toHaveLength(1);
+    expect(result.current.thread.getState().isLoading).toBe(false);
+
+    const emptyChat = createChatHelpers();
+    const emptyResult = renderHook(() => useAISDKRuntime(emptyChat)).result;
+    expect(emptyResult.current.thread.getState().isLoading).toBe(true);
+  });
+
   it("sends a new user message through the runtime", async () => {
     const chat = createChatHelpers();
 

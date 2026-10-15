@@ -56,6 +56,47 @@ export const toExportedMessageRepository = <TMessage>(
   };
 };
 
+const mergeHistoryWithLiveMessages = (
+  history: ExportedMessageRepository,
+  liveRepository: ExportedMessageRepository,
+): ExportedMessageRepository => {
+  const historyHeadId =
+    history.headId ?? history.messages.at(-1)?.message.id ?? null;
+  const repository = new MessageRepository();
+  repository.import({ ...history, headId: historyHeadId });
+
+  const historyParents = new Map(
+    history.messages.map(({ message, parentId }) => [message.id, parentId]),
+  );
+  const liveIds = new Set(
+    liveRepository.messages.map(({ message }) => message.id),
+  );
+  const liveMessages = liveRepository.messages.map((item) => {
+    if (historyParents.has(item.message.id)) {
+      return {
+        ...item,
+        parentId: historyParents.get(item.message.id)!,
+      };
+    }
+
+    return {
+      ...item,
+      parentId:
+        item.parentId !== null &&
+        (liveIds.has(item.parentId) || historyParents.has(item.parentId))
+          ? item.parentId
+          : historyHeadId,
+    };
+  });
+
+  repository.import({
+    headId: liveRepository.headId ?? historyHeadId,
+    messages: liveMessages,
+  });
+
+  return repository.export();
+};
+
 const hasUnansweredApproval = (message: ThreadMessage) =>
   message.content.some(
     (part) =>
@@ -136,22 +177,52 @@ export const useExternalHistory = <TMessage>(
       try {
         const repo = await formatAdapter.load();
         const threadState = runtimeRef.current.thread.getState();
-        if (threadState.isRunning || threadState.messages.length > 0) {
-          return;
+        const liveRepository = runtimeRef.current.thread.export();
+        const hasLiveState =
+          threadState.isRunning ||
+          threadState.messages.length > 0 ||
+          liveRepository.messages.length > 0;
+        if (!hasLiveState) {
+          toolArtifacts?.clear();
+          toolInteractions?.clear();
+          toolApprovalResponses?.clear();
         }
-        toolArtifacts?.clear();
-        toolInteractions?.clear();
-        toolApprovalResponses?.clear();
+        const restoredToolArtifacts =
+          hasLiveState && toolArtifacts
+            ? new Map<string, unknown>()
+            : toolArtifacts;
+        const restoredToolInteractions =
+          hasLiveState && toolInteractions
+            ? new Map<string, Unstable_ToolInteractionLog>()
+            : toolInteractions;
+        const restoredToolApprovalResponses =
+          hasLiveState && toolApprovalResponses
+            ? new Map<string, RespondToToolApprovalOptions>()
+            : toolApprovalResponses;
         const restoredMessages =
           repo?.messages.map((item) => ({
             ...item,
             message: restoreToolData(
               item.message,
-              toolArtifacts,
-              toolInteractions,
-              toolApprovalResponses,
+              restoredToolArtifacts,
+              restoredToolInteractions,
+              restoredToolApprovalResponses,
             ),
           })) ?? [];
+        if (hasLiveState) {
+          for (const [id, artifact] of restoredToolArtifacts ?? []) {
+            if (!toolArtifacts?.has(id)) toolArtifacts?.set(id, artifact);
+          }
+          for (const [id, interactions] of restoredToolInteractions ?? []) {
+            if (!toolInteractions?.has(id))
+              toolInteractions?.set(id, interactions);
+          }
+          for (const [id, response] of restoredToolApprovalResponses ?? []) {
+            if (!toolApprovalResponses?.has(id)) {
+              toolApprovalResponses?.set(id, response);
+            }
+          }
+        }
         onToolArtifactsRestored?.();
         onToolInteractionsRestored?.();
         onToolApprovalResponsesRestored?.();
@@ -170,15 +241,33 @@ export const useExternalHistory = <TMessage>(
             toThreadMessages,
             restoredRepo,
           );
-          runtimeRef.current.thread.import(converted);
+          const mergedRepo =
+            liveRepository.messages.length > 0
+              ? mergeHistoryWithLiveMessages(converted, liveRepository)
+              : converted;
+          runtimeRef.current.thread.import(mergedRepo);
 
           const tempRepo = new MessageRepository();
-          tempRepo.import(converted);
+          tempRepo.import(mergedRepo);
           const messages = tempRepo.getMessages();
-
-          onSetMessagesRef.current(
-            messages.flatMap(getExternalStoreMessages<TMessage>),
+          const optimisticMessages = threadState.messages.filter(
+            (message) => message.metadata?.isOptimistic,
           );
+          const externalMessages = messages.flatMap(
+            getExternalStoreMessages<TMessage>,
+          );
+          for (const message of optimisticMessages.flatMap(
+            getExternalStoreMessages<TMessage>,
+          )) {
+            const id = storageFormatAdapter.getId(message);
+            const existingIndex = externalMessages.findIndex(
+              (item) => storageFormatAdapter.getId(item) === id,
+            );
+            if (existingIndex === -1) externalMessages.push(message);
+            else externalMessages[existingIndex] = message;
+          }
+
+          onSetMessagesRef.current(externalMessages);
 
           historyIds.current = new Set();
           for (const m of converted.messages) {
