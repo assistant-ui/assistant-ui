@@ -279,6 +279,7 @@ export const useExternalHistory = <TMessage>(
   const stepBoundariesRef = useRef<number[]>([]);
   const wasRunningRef = useRef(false);
   const toolCallCountRef = useRef(0);
+  const queuedPromptIdRef = useRef<string | null>(null);
 
   const persistToolInteractions = useCallback(
     (messageId: string) => {
@@ -397,6 +398,7 @@ export const useExternalHistory = <TMessage>(
           toolCallCountRef.current = 0;
           adapter.pin?.();
         }
+        if (historyReadyRef.current) persistRunPrompt(threadState.messages);
         // Cancel any pending persist — isRunning went back to true
         if (persistTimerRef.current) {
           clearTimeout(persistTimerRef.current);
@@ -406,6 +408,7 @@ export const useExternalHistory = <TMessage>(
       }
 
       if (wasRunning) {
+        queuedPromptIdRef.current = null;
         // Record step boundary offset (synchronous for accuracy)
         if (runStartRef.current != null) {
           stepBoundariesRef.current.push(Date.now() - runStartRef.current);
@@ -552,11 +555,7 @@ export const useExternalHistory = <TMessage>(
               const innerId = storageFormatAdapter.getId(item.message);
               const persisted = persistedInnerMessages.current.get(innerId);
               if (!persisted) {
-                await adapter.append(item);
-                persistedInnerMessages.current.set(innerId, {
-                  source: item.message,
-                  content: encodeContent(storageFormatAdapter, item),
-                });
+                await appendIfUnpersisted(item);
               } else if (
                 persisted.source !== item.message &&
                 durationMs !== undefined &&
@@ -604,10 +603,65 @@ export const useExternalHistory = <TMessage>(
 
     persistWhenReadyRef.current = () => {
       const state = runtimeRef.current.thread.getState();
-      if (state.isRunning || state.messages.length === 0) return;
+      if (state.messages.length === 0) return;
+      if (state.isRunning) {
+        persistRunPrompt(state.messages);
+        return;
+      }
       if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
       persistSettled(true);
     };
+
+    function persistRunPrompt(messages: readonly ThreadMessage[]) {
+      const promptIndex = messages.findLastIndex(
+        (message) => message.role === "user",
+      );
+      const prompt = messages[promptIndex];
+      if (!prompt || prompt.id === queuedPromptIdRef.current) return;
+      queuedPromptIdRef.current = prompt.id;
+      const innerMessages = getExternalStoreMessages<TMessage>(prompt);
+      if (
+        innerMessages.every((innerMessage) =>
+          persistedInnerMessages.current.has(
+            storageFormatAdapter.getId(innerMessage),
+          ),
+        )
+      )
+        return;
+      const previousInnerMessage = messages
+        .slice(0, promptIndex)
+        .flatMap(getExternalStoreMessages<TMessage>)
+        .at(-1);
+
+      const persistence = persistInFlightRef.current.then(async () => {
+        let parentId = previousInnerMessage
+          ? storageFormatAdapter.getId(previousInnerMessage)
+          : null;
+        for (const innerMessage of innerMessages) {
+          // Rows are appended parent first, so a prompt whose parent is not stored yet waits for the settled pass.
+          if (
+            parentId !== null &&
+            !persistedInnerMessages.current.has(parentId)
+          )
+            return;
+          await appendIfUnpersisted({ parentId, message: innerMessage });
+          parentId = storageFormatAdapter.getId(innerMessage);
+        }
+      });
+      persistInFlightRef.current = persistence.catch((error) => {
+        console.error("Failed to persist message history:", error);
+      });
+    }
+
+    async function appendIfUnpersisted(item: MessageFormatItem<TMessage>) {
+      const innerId = storageFormatAdapter.getId(item.message);
+      if (persistedInnerMessages.current.has(innerId)) return;
+      await adapter.append(item);
+      persistedInnerMessages.current.set(innerId, {
+        source: item.message,
+        content: encodeContent(storageFormatAdapter, item),
+      });
+    }
 
     return () => {
       persistWhenReadyRef.current = () => {};
