@@ -99,6 +99,8 @@ export const createLangGraphMetadataKey =
                   ),
                 ) ?? []),
                 ...getAiContent(message).flatMap((part, index) =>
+                  part !== null &&
+                  typeof part === "object" &&
                   part.type === "computer_call"
                     ? [
                         Boolean(

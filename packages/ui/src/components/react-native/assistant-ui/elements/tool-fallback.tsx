@@ -722,7 +722,7 @@ export const ToolFallback: ToolCallMessagePartComponent = ({
     status.type === "incomplete" && status.reason === "cancelled";
   const label =
     responseDeliveryStatus === "queued"
-      ? "Reply queued, not sent yet"
+      ? `Reply to ${toolName} queued, not sent yet`
       : status.type === "running"
         ? `Running ${toolName}…`
         : status.type === "requires-action"
