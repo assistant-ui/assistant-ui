@@ -397,7 +397,8 @@ export const useExternalHistory = <TMessage>(
           toolCallCountRef.current = 0;
           adapter.pin?.();
         }
-        if (!wasRunning) persistRunningUserMessages(threadState.messages);
+        if (!wasRunning && historyReadyRef.current)
+          persistRunningUserMessages(threadState.messages);
         // Cancel any pending persist — isRunning went back to true
         if (persistTimerRef.current) {
           clearTimeout(persistTimerRef.current);
@@ -434,6 +435,8 @@ export const useExternalHistory = <TMessage>(
         toolCallCountRef.current = 0;
         adapter.pin?.();
       }
+      if (historyReadyRef.current)
+        persistRunningUserMessages(initialThreadState.messages);
     } else if (initialThreadState.messages.length > 0) {
       persistSettled(true);
     }
@@ -601,30 +604,32 @@ export const useExternalHistory = <TMessage>(
 
     persistWhenReadyRef.current = () => {
       const state = runtimeRef.current.thread.getState();
-      if (state.isRunning || state.messages.length === 0) return;
+      if (state.messages.length === 0) return;
+      if (state.isRunning) {
+        persistRunningUserMessages(state.messages);
+        return;
+      }
       if (persistTimerRef.current) clearTimeout(persistTimerRef.current);
       persistSettled(true);
     };
 
     function persistRunningUserMessages(messages: readonly ThreadMessage[]) {
       const persistence = persistInFlightRef.current.then(async () => {
-        let lastInnerMessageId: string | null = null;
+        let parentId: string | null = null;
 
         for (const message of messages) {
-          const innerMessages = getExternalStoreMessages<TMessage>(message);
-          for (const innerMessage of innerMessages) {
-            if (message.role === "user") {
-              await appendIfUnpersisted({
-                parentId: lastInnerMessageId,
-                message: addToolData(
-                  innerMessage,
-                  collectToolArtifacts(message, toolArtifacts),
-                  collectToolInteractions(message, toolInteractions),
-                  collectToolApprovalResponses(message, toolApprovalResponses),
-                ),
-              });
+          for (const innerMessage of getExternalStoreMessages<TMessage>(
+            message,
+          )) {
+            // Rows are appended parent first, so a prompt whose parent is not stored yet waits for the settled pass.
+            if (
+              message.role === "user" &&
+              (parentId === null ||
+                persistedInnerMessages.current.has(parentId))
+            ) {
+              await appendIfUnpersisted({ parentId, message: innerMessage });
             }
-            lastInnerMessageId = storageFormatAdapter.getId(innerMessage);
+            parentId = storageFormatAdapter.getId(innerMessage);
           }
         }
       });

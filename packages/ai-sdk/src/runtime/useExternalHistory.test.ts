@@ -888,6 +888,16 @@ describe("useExternalHistory persistence", () => {
       return {
         ...hook,
         importMessages,
+        step: async (next: {
+          isRunning: boolean;
+          messages: ThreadMessage[];
+        }) => {
+          await act(async () => {
+            isRunning = next.isRunning;
+            messages = next.messages;
+            listener?.();
+          });
+        },
         settle: async () => {
           await act(async () => {
             isRunning = true;
@@ -945,6 +955,40 @@ describe("useExternalHistory persistence", () => {
       message: { id: "live", parts: ["reply"] },
     });
     expect(appendCountBeforeLoad).toBe(0);
+  });
+
+  it("persists a prompt sent before history loads beneath the loaded history", async () => {
+    const { append, first, resolveLoad } = createSlowLoadHarness(false);
+    const userInner: InnerMessage = {
+      id: "user-1",
+      role: "user",
+      parts: ["prompt"],
+    };
+    const user = {
+      id: "user-1",
+      role: "user",
+      content: [],
+    } as unknown as ThreadMessage;
+    bindExternalStoreMessage(user, userInner);
+    const runningAssistant = createAssistantMessage(
+      { type: "running" },
+      [{ id: "assistant-1", role: "assistant", parts: ["partial"] }],
+      "assistant-1",
+    );
+
+    await first.step({ isRunning: true, messages: [user, runningAssistant] });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(append).not.toHaveBeenCalled();
+
+    await act(async () => resolveLoad());
+
+    await waitFor(() => expect(append).toHaveBeenCalledOnce());
+    expect(append).toHaveBeenCalledWith({
+      parentId: "stored",
+      message: userInner,
+    });
   });
 
   it("persists a settled live turn when unmounted before history loads", async () => {
@@ -2415,6 +2459,82 @@ describe("useExternalHistory persistence", () => {
       parentId: userInner.id,
       message: { ...partialInner, parts: ["complete"] },
     });
+  });
+
+  it("stores a new prompt after an earlier reply that failed to store", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const createUserMessage = (inner: InnerMessage) => {
+      const message = {
+        id: inner.id,
+        role: "user",
+        content: [],
+      } as unknown as ThreadMessage;
+      bindExternalStoreMessage(message, inner);
+      return message;
+    };
+    const userAInner: InnerMessage = { id: "user-a", role: "user", parts: [] };
+    const replyAInner: InnerMessage = { id: "reply-a", parts: ["a"] };
+    const userBInner: InnerMessage = { id: "user-b", role: "user", parts: [] };
+    const replyBInner: InnerMessage = { id: "reply-b", parts: ["b"] };
+    const userA = createUserMessage(userAInner);
+    const replyA = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [replyAInner],
+      "reply-a",
+    );
+    const userB = createUserMessage(userBInner);
+    const { append, flush, load, step } = createPersistenceHarness(false);
+    await waitFor(() => expect(load).toHaveBeenCalledOnce());
+    await flush();
+    append.mockImplementation(async (item) => {
+      if (item.message.id === "reply-a" && append.mock.calls.length === 2)
+        throw new Error("temporary storage failure");
+    });
+
+    await step({
+      isRunning: true,
+      messages: [
+        userA,
+        createAssistantMessage({ type: "running" }, [replyAInner], "reply-a"),
+      ],
+    });
+    await step({ isRunning: false, messages: [userA, replyA] });
+    await flush();
+    await step({
+      isRunning: true,
+      messages: [
+        userA,
+        replyA,
+        userB,
+        createAssistantMessage({ type: "running" }, [replyBInner], "reply-b"),
+      ],
+    });
+    await flush();
+    await step({
+      isRunning: false,
+      messages: [
+        userA,
+        replyA,
+        userB,
+        createAssistantMessage(
+          { type: "complete", reason: "stop" },
+          [replyBInner],
+          "reply-b",
+        ),
+      ],
+    });
+    await flush();
+
+    expect(append.mock.calls.map(([item]) => item)).toEqual([
+      { parentId: null, message: userAInner },
+      { parentId: "user-a", message: replyAInner },
+      { parentId: "user-a", message: replyAInner },
+      { parentId: "reply-a", message: userBInner },
+      { parentId: "user-b", message: replyBInner },
+    ]);
   });
 
   it("retries a failed append on the next persistence pass", async () => {
