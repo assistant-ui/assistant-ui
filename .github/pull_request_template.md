@@ -1,4 +1,4 @@
-<!-- Delete the sections that do not apply. docs, test, ci and chore changes usually need only Problem, Change and Verification. -->
+<!-- Delete the sections that do not apply. docs, test, ci and chore changes usually need only Problem, Change, Verification and AI use. -->
 
 Closes #
 
