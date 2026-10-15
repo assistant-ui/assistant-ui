@@ -97,6 +97,7 @@ const migrateContentPartToMessagePart = createTransformer(
     const usedNames = new Set(identifiers.map((path: any) => path.value.name));
     const messageBindings = new Set<any>();
     const namespaceBindings = new Set<any>();
+    const namespaceNames = new Set<string>();
 
     root.find(j.ImportDeclaration).forEach((path: any) => {
       const source = path.value.source.value;
@@ -106,6 +107,8 @@ const migrateContentPartToMessagePart = createTransformer(
       path.value.specifiers?.forEach((specifier: any, index: number) => {
         if (j.ImportNamespaceSpecifier.check(specifier)) {
           namespaceBindings.add(specifier.local);
+          if (j.Identifier.check(specifier.local))
+            namespaceNames.add(specifier.local.name);
           return;
         }
         if (
@@ -210,6 +213,45 @@ const migrateContentPartToMessagePart = createTransformer(
       });
     });
 
+    const isTypeShadowed = (path: any, name: string) => {
+      if (!declaredNames.has(name)) return false;
+      for (let current = path.parent; current; current = current.parent) {
+        const node = current.value;
+        if (
+          node.type === "TSTypeParameterDeclaration" &&
+          node.params.some((param: any) => param.name === name)
+        )
+          return true;
+        if (node.type === "ClassExpression" && node.id?.name === name)
+          return true;
+        if (!["Program", "BlockStatement", "TSModuleBlock"].includes(node.type))
+          continue;
+        if (
+          node.body.some((statement: any) => {
+            const declaration = statement.declaration ?? statement;
+            return (
+              [
+                "TSInterfaceDeclaration",
+                "TSTypeAliasDeclaration",
+                "TSEnumDeclaration",
+                "ClassDeclaration",
+                "TSModuleDeclaration",
+              ].includes(declaration.type) && declaration.id?.name === name
+            );
+          })
+        )
+          return true;
+      }
+      return false;
+    };
+
+    const isInTypeQuery = (path: any) => {
+      for (let current = path.parent; current; current = current.parent) {
+        if (j.TSTypeQuery.check(current.value)) return true;
+      }
+      return false;
+    };
+
     const renameNamespaceMember = (path: any) => {
       const node = path.value;
       const qualified = j.TSQualifiedName.check(node);
@@ -222,11 +264,16 @@ const migrateContentPartToMessagePart = createTransformer(
       )
         return;
       const newName = typeRenamingMap[property.name];
-      if (
-        !newName ||
-        !namespaceBindings.has(resolveBinding(j, path, object.name))
-      )
+      if (!newName) return;
+      if (qualified && !isInTypeQuery(path)) {
+        if (
+          !namespaceNames.has(object.name) ||
+          isTypeShadowed(path, object.name)
+        )
+          return;
+      } else if (!namespaceBindings.has(resolveBinding(j, path, object.name))) {
         return;
+      }
       property.name = newName;
       markAsChanged();
     };

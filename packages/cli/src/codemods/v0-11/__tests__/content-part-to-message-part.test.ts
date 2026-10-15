@@ -242,7 +242,7 @@ function shadow(AUI: typeof X) { return null as AUI.TextContentPart | null; }`,
 import * as X from "./local";
 type Part = AUI.TextMessagePart;
 type LocalPart = X.TextContentPart;
-function shadow(AUI: typeof X) { return null as AUI.TextContentPart | null; }`,
+function shadow(AUI: typeof X) { return null as AUI.TextMessagePart | null; }`,
     ],
     [
       "JSX members",
@@ -276,6 +276,42 @@ function shadow(AUI: typeof X) { return AUI.useContentPart(); }`,
       expect(applyTransform(input)).toBe(expected);
     },
   );
+
+  it("renames qualified types from a type-only namespace import", () => {
+    const input = `import type * as AUI from "@assistant-ui/react";
+type Part = AUI.TextContentPart;`;
+    const expected = `import type * as AUI from "@assistant-ui/react";
+type Part = AUI.TextMessagePart;`;
+    expect(applyTransform(input)).toBe(expected);
+  });
+
+  it("preserves qualified types shadowed by a type-space declaration", () => {
+    const input = `import * as AUI from "@assistant-ui/react";
+type Part = AUI.TextContentPart;
+namespace Local {
+  namespace AUI { export type TextContentPart = string; }
+  type Part = AUI.TextContentPart;
+}`;
+    const expected = `import * as AUI from "@assistant-ui/react";
+type Part = AUI.TextMessagePart;
+namespace Local {
+  namespace AUI { export type TextContentPart = string; }
+  type Part = AUI.TextContentPart;
+}`;
+    expect(applyTransform(input)).toBe(expected);
+  });
+
+  it("resolves typeof qualified names as values", () => {
+    const input = `import * as AUI from "@assistant-ui/react";
+import * as X from "./local";
+type Part = typeof AUI.TextContentPart;
+function shadow(AUI: typeof X) { return null as typeof AUI.TextContentPart | null; }`;
+    const expected = `import * as AUI from "@assistant-ui/react";
+import * as X from "./local";
+type Part = typeof AUI.TextMessagePart;
+function shadow(AUI: typeof X) { return null as typeof AUI.TextContentPart | null; }`;
+    expect(applyTransform(input)).toBe(expected);
+  });
 
   it.each([
     'import { useContentPart } from "./custom-hooks";\nexport const read = () => useContentPart();',
