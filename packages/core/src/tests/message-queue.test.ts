@@ -723,6 +723,31 @@ describe("createMessageQueue", () => {
     },
   );
 
+  it("retags a base64 audio data URL to match the legacy audio format", () => {
+    const run = vi.fn();
+    const { adapter, notifyBusy } = createMessageQueue({ run });
+    notifyBusy();
+
+    adapter.enqueue(
+      msg("", {
+        content: [
+          {
+            type: "audio",
+            audio: { data: "data:audio/mpeg;base64,SUQzAw==", format: "wav" },
+          },
+        ],
+      }),
+    );
+
+    expect(adapter.items[0]!.parts).toEqual([
+      {
+        type: "file",
+        data: "data:audio/wav;base64,SUQzAw==",
+        mimeType: "audio/wav",
+      },
+    ]);
+  });
+
   it("projects an audio part inside an attachment", () => {
     const run = vi.fn();
     const { adapter, notifyBusy } = createMessageQueue({ run });
