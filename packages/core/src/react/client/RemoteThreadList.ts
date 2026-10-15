@@ -788,8 +788,14 @@ const useRemoteThreadList = (
       threadIdOrRemoteId: string,
       options?: { unarchive?: boolean },
       emitThreadIdChange = true,
-    ) =>
-      startSwitch(async (generation) => {
+    ) => {
+      if (
+        emitThreadIdChange &&
+        isSameThread(store.value, threadIdOrRemoteId, session.mainThreadId)
+      ) {
+        return RESOLVED_PROMISE;
+      }
+      return startSwitch(async (generation) => {
         let data = getThreadData(store.value, threadIdOrRemoteId);
         if (!data) {
           const currentAdapter = session.adapter;
@@ -833,7 +839,8 @@ const useRemoteThreadList = (
         assignMainThreadId(current.id);
         notifyRemoteId(current.remoteId, emitThreadIdChange);
         session.onSwitchToThread?.(current.id);
-      }, threadIdOrRemoteId),
+      }, threadIdOrRemoteId);
+    },
     [assignMainThreadId, notifyRemoteId, session, startSwitch, store],
   );
 
