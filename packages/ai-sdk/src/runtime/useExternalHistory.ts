@@ -359,6 +359,7 @@ export const useExternalHistory = <TMessage>(
           toolCallCountRef.current = 0;
           adapter.pin?.();
         }
+        if (!wasRunning) persistRunningUserMessages(threadState.messages);
         // Cancel any pending persist — isRunning went back to true
         if (persistTimerRef.current) {
           clearTimeout(persistTimerRef.current);
@@ -506,11 +507,7 @@ export const useExternalHistory = <TMessage>(
               const innerId = storageFormatAdapter.getId(item.message);
               const persisted = persistedInnerMessages.current.get(innerId);
               if (!persisted) {
-                await adapter.append(item);
-                persistedInnerMessages.current.set(innerId, {
-                  source: item.message,
-                  content: encodeContent(storageFormatAdapter, item),
-                });
+                await appendIfUnpersisted(item);
               } else if (
                 persisted.source !== item.message &&
                 durationMs !== undefined &&
@@ -554,6 +551,43 @@ export const useExternalHistory = <TMessage>(
         .catch((error) => {
           console.error("Failed to persist message history:", error);
         });
+    }
+
+    function persistRunningUserMessages(messages: readonly ThreadMessage[]) {
+      const persistence = persistInFlightRef.current.then(async () => {
+        let lastInnerMessageId: string | null = null;
+
+        for (const message of messages) {
+          const innerMessages = getExternalStoreMessages<TMessage>(message);
+          for (const innerMessage of innerMessages) {
+            if (message.role === "user") {
+              await appendIfUnpersisted({
+                parentId: lastInnerMessageId,
+                message: addToolData(
+                  innerMessage,
+                  collectToolArtifacts(message, toolArtifacts),
+                  collectToolInteractions(message, toolInteractions),
+                  collectToolApprovalResponses(message, toolApprovalResponses),
+                ),
+              });
+            }
+            lastInnerMessageId = storageFormatAdapter.getId(innerMessage);
+          }
+        }
+      });
+      persistInFlightRef.current = persistence.catch((error) => {
+        console.error("Failed to persist message history:", error);
+      });
+    }
+
+    async function appendIfUnpersisted(item: MessageFormatItem<TMessage>) {
+      const innerId = storageFormatAdapter.getId(item.message);
+      if (persistedInnerMessages.current.has(innerId)) return;
+      await adapter.append(item);
+      persistedInnerMessages.current.set(innerId, {
+        source: item.message,
+        content: encodeContent(storageFormatAdapter, item),
+      });
     }
 
     return () => {

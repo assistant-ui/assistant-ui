@@ -1773,6 +1773,87 @@ describe("useExternalHistory persistence", () => {
     await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
   });
 
+  it("persists a new user message while its run is active", async () => {
+    const previousInner: InnerMessage = {
+      id: "previous-assistant",
+      parts: ["previous"],
+    };
+    const userInner: InnerMessage = {
+      id: "user-1",
+      role: "user",
+      parts: ["prompt"],
+    };
+    const previous = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [previousInner],
+      "previous-assistant",
+    );
+    const user = {
+      id: "user-1",
+      role: "user",
+      content: [],
+    } as unknown as ThreadMessage;
+    bindExternalStoreMessage(user, userInner);
+    const partialInner: InnerMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      parts: ["partial"],
+    };
+    const partialAssistant = createAssistantMessage(
+      { type: "running" },
+      [partialInner],
+      "assistant-1",
+    );
+    const { append, flush, load, step } = createPersistenceHarness(false, {
+      loadMessages: {
+        headId: previousInner.id,
+        messages: [{ parentId: null, message: previousInner }],
+      },
+      toThreadMessages: (messages) =>
+        messages.map((message) =>
+          createAssistantMessage(
+            { type: "complete", reason: "stop" },
+            [message],
+            message.id,
+          ),
+        ),
+    });
+
+    await waitFor(() => expect(load).toHaveBeenCalledOnce());
+    await flush();
+
+    await step({
+      isRunning: true,
+      messages: [previous, user, partialAssistant],
+    });
+
+    await waitFor(() => expect(append).toHaveBeenCalledOnce());
+    expect(append).toHaveBeenCalledWith({
+      parentId: previousInner.id,
+      message: userInner,
+    });
+
+    const completeAssistant = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ ...partialInner, parts: ["complete"] }],
+      "assistant-1",
+    );
+    await step({
+      isRunning: false,
+      messages: [previous, user, completeAssistant],
+    });
+
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+    expect(append).toHaveBeenNthCalledWith(1, {
+      parentId: previousInner.id,
+      message: userInner,
+    });
+    expect(append).toHaveBeenNthCalledWith(2, {
+      parentId: userInner.id,
+      message: { ...partialInner, parts: ["complete"] },
+    });
+  });
+
   it("retries a failed append on the next persistence pass", async () => {
     const consoleError = vi
       .spyOn(console, "error")
