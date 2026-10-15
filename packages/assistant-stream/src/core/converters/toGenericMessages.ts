@@ -5,6 +5,7 @@
  */
 
 import { NO_RESULT } from "../tool/ToolResponse";
+import type { ToolModelContentPart } from "../tool/tool-types";
 
 export type GenericTextPart = {
   type: "text";
@@ -30,6 +31,8 @@ export type GenericToolResultPart = {
   toolCallId: string;
   toolName: string;
   result: unknown;
+  /** Explicit model-visible content for a settled tool result. */
+  modelContent?: readonly ToolModelContentPart[];
   isError?: boolean;
 };
 
@@ -75,6 +78,7 @@ type MessagePartLike = {
   args?: Record<string, unknown>;
   state?: string;
   result?: unknown;
+  modelContent?: readonly ToolModelContentPart[];
   isError?: boolean;
   isPreliminary?: boolean;
   approval?: {
@@ -224,6 +228,9 @@ function processToolCall(
       : part.result === undefined
         ? NO_RESULT
         : part.result,
+    ...(settled && part.modelContent !== undefined
+      ? { modelContent: part.modelContent }
+      : {}),
   };
   if (!settled || part.isError) {
     toolResult.isError = true;
