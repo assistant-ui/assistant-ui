@@ -149,7 +149,7 @@ describe("AG-UI message metadata", () => {
     expect(toAgUiMessages(fromAgUiMessages(source))).toEqual(source);
   });
 
-  it("keeps an empty assistant record with wire metadata", () => {
+  it("drops an empty assistant record with wire metadata", () => {
     const source = [
       {
         id: "a-1",
@@ -158,27 +158,31 @@ describe("AG-UI message metadata", () => {
         metadata: { stopped: true },
       },
     ];
-    expect(toAgUiMessages(fromAgUiMessages(source))).toEqual(source);
+    const imported = fromAgUiMessages(source);
+    expect(imported[0]?.metadata?.custom).toEqual({ stopped: true });
+    expect(toAgUiMessages(imported)).toEqual([]);
   });
 
-  it("keeps distinct ids for reasoning and a metadata-bearing assistant shell", () => {
+  it("exports only reasoning records with distinct ids from a metadata-bearing assistant shell", () => {
     expect(
       toAgUiMessages([
         {
           id: "a-1",
           role: "assistant",
-          content: [{ type: "reasoning", text: "Thinking" }],
+          content: [
+            { type: "reasoning", text: "Thinking" },
+            { type: "reasoning", text: "More thinking" },
+          ],
           metadata: { custom: { stopped: true } },
         },
       ]),
     ).toEqual([
-      { id: "a-1:reasoning-0", role: "reasoning", content: "Thinking" },
       {
         id: "a-1",
-        role: "assistant",
-        content: "",
-        metadata: { stopped: true },
+        role: "reasoning",
+        content: "Thinking",
       },
+      { id: "a-1:reasoning-1", role: "reasoning", content: "More thinking" },
     ]);
   });
 
@@ -215,7 +219,7 @@ describe("AG-UI message metadata", () => {
   it("preserves an explicit empty metadata object", () => {
     const source = [
       { id: "u-1", role: "user", content: "Hi", metadata: {} },
-      { id: "a-1", role: "assistant", content: "", metadata: {} },
+      { id: "a-1", role: "assistant", content: "Done", metadata: {} },
     ];
     expect(toAgUiMessages(fromAgUiMessages(source))).toEqual(source);
   });
