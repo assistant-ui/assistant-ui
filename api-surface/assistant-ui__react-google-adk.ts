@@ -88,7 +88,6 @@ declare class AdkEventAccumulator {
   constructor(initialMessages?: AdkMessage[], initialLongRunningToolIds?: readonly string[]);
   processEvent(rawEvent: AdkEvent): AdkMessage[];
   getMessages(): AdkMessage[];
-  rekeyMessage(oldId: string, newId: string): void;
   getStateDelta(): Record<string, unknown>;
   getArtifactDelta(): Record<string, number>;
   getAgentInfo(): {
@@ -1702,6 +1701,7 @@ type ParsedAdkRequest = {
   sessionId?: string | undefined;
   config: AdkSendMessageConfig;
   stateDelta?: Record<string, unknown> | undefined;
+  customMetadata?: Record<string, unknown> | undefined;
 } | {
   type: "tool-result";
   toolCallId: string;
@@ -1711,6 +1711,7 @@ type ParsedAdkRequest = {
   sessionId?: string | undefined;
   config: AdkSendMessageConfig;
   stateDelta?: Record<string, unknown> | undefined;
+  customMetadata?: Record<string, unknown> | undefined;
 };
 
 type PartInit = {
