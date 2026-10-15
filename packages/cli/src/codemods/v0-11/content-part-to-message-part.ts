@@ -96,6 +96,7 @@ const migrateContentPartToMessagePart = createTransformer(
     }
     const usedNames = new Set(identifiers.map((path: any) => path.value.name));
     const messageBindings = new Set<any>();
+    const namespaceBindings = new Set<any>();
 
     root.find(j.ImportDeclaration).forEach((path: any) => {
       const source = path.value.source.value;
@@ -103,6 +104,10 @@ const migrateContentPartToMessagePart = createTransformer(
         return;
 
       path.value.specifiers?.forEach((specifier: any, index: number) => {
+        if (j.ImportNamespaceSpecifier.check(specifier)) {
+          namespaceBindings.add(specifier.local);
+          return;
+        }
         if (
           !j.ImportSpecifier.check(specifier) ||
           !j.Identifier.check(specifier.imported) ||
@@ -204,6 +209,30 @@ const migrateContentPartToMessagePart = createTransformer(
         markAsChanged();
       });
     });
+
+    const renameNamespaceMember = (path: any) => {
+      const node = path.value;
+      const qualified = j.TSQualifiedName.check(node);
+      const object = qualified ? node.left : node.object;
+      const property = qualified ? node.right : node.property;
+      if (
+        node.computed ||
+        !j.Identifier.check(object) ||
+        !j.Identifier.check(property)
+      )
+        return;
+      const newName = typeRenamingMap[property.name];
+      if (
+        !newName ||
+        !namespaceBindings.has(resolveBinding(j, path, object.name))
+      )
+        return;
+      property.name = newName;
+      markAsChanged();
+    };
+    root.find(j.TSQualifiedName).forEach(renameNamespaceMember);
+    root.find(j.JSXMemberExpression).forEach(renameNamespaceMember);
+    root.find(j.MemberExpression).forEach(renameNamespaceMember);
 
     const renameContent = (path: any) => {
       const { object, property, computed } = path.value;

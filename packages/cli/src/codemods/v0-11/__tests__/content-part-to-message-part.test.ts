@@ -231,6 +231,53 @@ function MyComponent() {
 
 describe("content-part import bindings", () => {
   it.each([
+    [
+      "type references",
+      `import * as AUI from "@assistant-ui/react";
+import * as X from "./local";
+type Part = AUI.TextContentPart;
+type LocalPart = X.TextContentPart;
+function shadow(AUI: typeof X) { return null as AUI.TextContentPart | null; }`,
+      `import * as AUI from "@assistant-ui/react";
+import * as X from "./local";
+type Part = AUI.TextMessagePart;
+type LocalPart = X.TextContentPart;
+function shadow(AUI: typeof X) { return null as AUI.TextContentPart | null; }`,
+    ],
+    [
+      "JSX members",
+      `import * as AUI from "@assistant-ui/react";
+import * as X from "./local";
+const View = () => <AUI.ContentPartPrimitive.Text />;
+const LocalView = () => <X.ContentPartPrimitive.Text />;
+function shadow(AUI: typeof X) { return <AUI.ContentPartPrimitive.Text />; }`,
+      `import * as AUI from "@assistant-ui/react";
+import * as X from "./local";
+const View = () => <AUI.MessagePartPrimitive.Text />;
+const LocalView = () => <X.ContentPartPrimitive.Text />;
+function shadow(AUI: typeof X) { return <AUI.ContentPartPrimitive.Text />; }`,
+    ],
+    [
+      "calls",
+      `import * as AUI from "@assistant-ui/react";
+import * as X from "./local";
+const part = AUI.useContentPart();
+const localPart = X.useContentPart();
+function shadow(AUI: typeof X) { return AUI.useContentPart(); }`,
+      `import * as AUI from "@assistant-ui/react";
+import * as X from "./local";
+const part = AUI.useMessagePart();
+const localPart = X.useContentPart();
+function shadow(AUI: typeof X) { return AUI.useContentPart(); }`,
+    ],
+  ])(
+    "renames assistant-ui namespace %s without changing other bindings",
+    (_, input, expected) => {
+      expect(applyTransform(input)).toBe(expected);
+    },
+  );
+
+  it.each([
     'import { useContentPart } from "./custom-hooks";\nexport const read = () => useContentPart();',
     'import type { TextContentPart } from "./custom-types";\nexport const read = (part: TextContentPart) => part.text;',
     'import { ContentPartPrimitive } from "./custom-ui";\nexport const Text = () => <ContentPartPrimitive.Text />;',
