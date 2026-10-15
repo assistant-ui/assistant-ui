@@ -18,6 +18,8 @@ import {
   type ToolCallMessagePart,
   type ToolExecutionStatus,
   generateId,
+  MessageNotSentError,
+  isMessageNotSentError,
 } from "@assistant-ui/core";
 import {
   createAbortableThreadLoad,
@@ -78,6 +80,17 @@ const overlayBufferedToolResults = (
     ...[...bufferedResults.values()].filter((message) => !ids.has(message.id)),
   ];
 };
+
+const getToolCallIds = (messages: readonly AdkMessage[]) =>
+  new Set(
+    messages.flatMap((message) =>
+      message.type === "ai"
+        ? (message.tool_calls ?? []).flatMap((call) =>
+            call && typeof call.id === "string" ? [call.id] : [],
+          )
+        : [],
+    ),
+  );
 
 export type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
   stream: AdkStreamCallback;
@@ -287,15 +300,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     if (!snapshot) return undefined;
     const toolResultBuffer = controller.getState().toolResultBuffer;
     if (toolResultBuffer.size === 0) return snapshot;
-    const toolCallIds = new Set(
-      snapshot.messages.flatMap((message) =>
-        message.type === "ai"
-          ? (message.tool_calls ?? []).flatMap((call) =>
-              call && typeof call.id === "string" ? [call.id] : [],
-            )
-          : [],
-      ),
-    );
+    const toolCallIds = getToolCallIds(snapshot.messages);
     return {
       ...snapshot,
       toolResultBuffer: new Map([
@@ -337,6 +342,8 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     msgs: AdkMessage[],
     config: AdkSendMessageConfig,
     rollbackState?: ReturnType<typeof controller.getState>,
+    onFirstEvent?: () => void,
+    chain?: object,
   ): Promise<void> => {
     const toolResultBatches = new Map<string, AdkMessage[]>();
     const otherMessages: AdkMessage[] = [];
@@ -356,9 +363,56 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     if (toolResultBatches.size > 1) {
       const batches = [...toolResultBatches.values()];
       batches.at(-1)!.push(...otherMessages);
-      return Promise.all(
-        batches.map((batch) => handleSendMessage(batch, config, rollbackState)),
-      ).then(() => undefined);
+      const chain = {};
+      const started = batches.map(() => false);
+      const sends = batches.map((batch, index) =>
+        handleSendMessage(
+          batch,
+          config,
+          rollbackState,
+          () => {
+            started[index] = true;
+          },
+          chain,
+        ),
+      );
+      return (async () => {
+        const results = await Promise.allSettled(sends);
+        if (results.some((result) => result.status === "rejected")) {
+          const toolCallIds = getToolCallIds(controller.getState().messages);
+          const unsent = batches
+            .flatMap((batch, index) =>
+              results[index]?.status === "rejected" && !started[index]
+                ? batch
+                : [],
+            )
+            .filter(
+              (message): message is Extract<AdkMessage, { type: "tool" }> =>
+                message.type === "tool" &&
+                toolCallIds.has(message.tool_call_id),
+            );
+          if (unsent.length > 0)
+            controller.dispatch({ type: "results.restore", messages: unsent });
+          if (
+            otherMessages.some((message) => message.type === "human") &&
+            results.at(-1)?.status === "rejected" &&
+            !started.at(-1)
+          ) {
+            const notSent = new MessageNotSentError();
+            const cause = results.find(
+              (result) =>
+                result.status === "rejected" &&
+                !isMessageNotSentError(result.reason),
+            );
+            if (cause?.status === "rejected") notSent.cause = cause.reason;
+            throw notSent;
+          }
+          const failure = results.find(
+            (result) => result.status === "rejected",
+          );
+          if (failure?.status === "rejected") throw failure.reason;
+        }
+      })();
     }
     const isToolContinuation =
       msgs.length > 0 && msgs.every((msg) => msg.type === "tool");
@@ -377,6 +431,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       continuationConfig,
       (run) => runExclusive(() => run()),
       rollbackState,
+      { onFirstEvent, chain },
     );
   };
 

@@ -123,6 +123,7 @@ export type AdkThreadAction =
   | { type: "run.cancelled" }
   | { type: "run.newTurn" }
   | { type: "results.received"; message: ToolMessage }
+  | { type: "results.restore"; messages: ToolMessage[] }
   | { type: "results.flush"; runId: string; failed: boolean }
   | { type: "results.clear" }
   | {
@@ -591,6 +592,16 @@ export const reduceAdkThreadState = (
         readyBatch: batch.length > 0 ? batch : null,
       };
     }
+    case "results.restore":
+      return {
+        ...state,
+        toolResultBuffer: new Map([
+          ...state.toolResultBuffer,
+          ...action.messages.map(
+            (message) => [message.tool_call_id, message] as const,
+          ),
+        ]),
+      };
     case "results.flush": {
       const toolResultBuffer = new Map(state.toolResultBuffer);
       const batch: ToolMessage[] = [];
