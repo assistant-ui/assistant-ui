@@ -80,6 +80,31 @@ describe("repository edit links", () => {
     );
   });
 
+  it.each(["", "/", "////"])(
+    "treats directory %j as the repository root",
+    (directory) => {
+      expect(
+        getEditUrl("/docs", {
+          url: "https://github.com/example/project",
+          directory,
+        }),
+      ).toBe("https://github.com/example/project/edit/main/app/docs/page.mdx");
+    },
+  );
+
+  it("trims long boundary slash runs while preserving interior slashes", () => {
+    const slashes = "/".repeat(100_000);
+    const directory = `website${slashes}content`;
+    expect(
+      getEditUrl("/docs", {
+        url: "https://github.com/example/project",
+        directory: `${slashes}${directory}${slashes}`,
+      }),
+    ).toBe(
+      `https://github.com/example/project/edit/main/${directory}/app/docs/page.mdx`,
+    );
+  });
+
   it("omits editing when no repository is configured", () => {
     expect(getEditUrl("/docs")).toBeUndefined();
   });

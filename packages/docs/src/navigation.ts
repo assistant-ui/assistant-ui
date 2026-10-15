@@ -39,7 +39,12 @@ export namespace getPageNeighbors {
 export const getEditUrl = (pathname: string, github?: getEditUrl.Options) => {
   if (!github) return undefined;
   const base = typeof github === "string" ? { url: github } : github;
-  const directory = base.directory?.replace(/^\/+|\/+$/g, "");
+  const path = base.directory ?? "";
+  let start = 0;
+  let end = path.length;
+  while (path[start] === "/") start++;
+  while (end > start && path[end - 1] === "/") end--;
+  const directory = path.slice(start, end);
   return `${base.url.replace(/\/$/, "")}/edit/${base.branch ?? "main"}/${directory ? `${directory}/` : ""}app${pathname.replace(/\/$/, "")}/page.mdx`;
 };
 
