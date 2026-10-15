@@ -210,7 +210,13 @@ export class AssistantFrameHost implements ModelContextProvider {
             {
               ...tool,
               execute: (args: any, context: { abortSignal: AbortSignal }) =>
-                this.callTool(name, args, context.abortSignal, documentId),
+                this.callTool(
+                  name,
+                  args,
+                  context.abortSignal,
+                  // A provider that sends no document id predates them; the empty id makes any provider that has one refuse the call.
+                  documentId ?? "",
+                ),
             } as Tool<any, any>,
           ]),
         ),
@@ -222,7 +228,7 @@ export class AssistantFrameHost implements ModelContextProvider {
     toolName: string,
     args: any,
     abortSignal: AbortSignal,
-    documentId: string | undefined,
+    documentId: string,
   ): Promise<any> {
     return this.sendRequest(
       {
@@ -230,7 +236,7 @@ export class AssistantFrameHost implements ModelContextProvider {
         id: `tool-${generateId()}`,
         toolName,
         args,
-        ...(documentId !== undefined && { documentId }),
+        documentId,
       },
       30000,
       `Tool call "${toolName}" timed out`,

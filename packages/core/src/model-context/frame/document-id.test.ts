@@ -487,13 +487,14 @@ it("stamps tool calls with the document that offered the captured tool", async (
   await secondOutcome;
 });
 
-it("omits the document id on tool calls from a legacy context", async () => {
+it("stamps an empty document id on tool calls from a legacy context", async () => {
   const { host, send, publish, call, lastCallId, postMessage } = createHost();
   publish("first");
   publish();
   const outcome = call();
-  expect(postMessage.mock.lastCall![0].message).not.toHaveProperty(
+  expect(postMessage.mock.lastCall![0].message).toHaveProperty(
     "documentId",
+    "",
   );
   send({ type: "tool-result", id: lastCallId(), result: "legacy" });
   await expect(outcome).resolves.toBe("legacy");

@@ -241,51 +241,57 @@ describe("AssistantFrameProvider", () => {
     },
   );
 
-  it("rejects calls for another document before looking up tools and accepts legacy calls", async () => {
-    const execute = vi.fn(async () => "result");
-    const getModelContext = vi.fn(() => ({
-      tools: { sensitiveTool: createTool(execute) },
-    }));
-    AssistantFrameProvider.addModelContextProvider({ getModelContext });
-    getModelContext.mockClear();
+  it.each([
+    ["another document", "another-document"],
+    ["a document without an id", ""],
+  ])(
+    "rejects calls offered by %s before looking up tools and accepts legacy calls",
+    async (_label, documentId) => {
+      const execute = vi.fn(async () => "result");
+      const getModelContext = vi.fn(() => ({
+        tools: { sensitiveTool: createTool(execute) },
+      }));
+      AssistantFrameProvider.addModelContextProvider({ getModelContext });
+      getModelContext.mockClear();
 
-    dispatchToolCall(
-      window.location.origin,
-      parentWindow,
-      "stale-call",
-      "sensitiveTool",
-      "another-document",
-    );
-    expect(getModelContext).not.toHaveBeenCalled();
-    expect(execute).not.toHaveBeenCalled();
-    expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
-      {
-        channel: FRAME_MESSAGE_CHANNEL,
-        message: {
-          type: "tool-result",
-          documentId: expect.any(String),
-          id: "stale-call",
-          error: "AssistantFrame document has changed",
+      dispatchToolCall(
+        window.location.origin,
+        parentWindow,
+        "stale-call",
+        "sensitiveTool",
+        documentId,
+      );
+      expect(getModelContext).not.toHaveBeenCalled();
+      expect(execute).not.toHaveBeenCalled();
+      expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
+        {
+          channel: FRAME_MESSAGE_CHANNEL,
+          message: {
+            type: "tool-result",
+            documentId: expect.any(String),
+            id: "stale-call",
+            error: "AssistantFrame document has changed",
+          },
         },
-      },
-      { targetOrigin: window.location.origin },
-    );
+        { targetOrigin: window.location.origin },
+      );
 
-    dispatchToolCall(window.location.origin);
-    await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
-    expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
-      {
-        channel: FRAME_MESSAGE_CHANNEL,
-        message: {
-          type: "tool-result",
-          documentId: expect.any(String),
-          id: "tool-call-1",
-          result: "result",
+      dispatchToolCall(window.location.origin);
+      await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+      expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
+        {
+          channel: FRAME_MESSAGE_CHANNEL,
+          message: {
+            type: "tool-result",
+            documentId: expect.any(String),
+            id: "tool-call-1",
+            result: "result",
+          },
         },
-      },
-      { targetOrigin: window.location.origin },
-    );
-  });
+        { targetOrigin: window.location.origin },
+      );
+    },
+  );
 
   it("runs tool calls addressed to its own document", async () => {
     const execute = vi.fn(async () => "result");

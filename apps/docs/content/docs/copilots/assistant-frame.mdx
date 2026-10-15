@@ -291,6 +291,14 @@ const unsubscribe = host.subscribe(() => {
 });
 ```
 
+##### `frameLoaded()`
+
+Call it on every `load` event of the iframe. The host asks the new page for its tools; if no provider answers within two seconds, it clears the previous page's tools and fails its pending tool calls. `useAssistantFrameHost` calls it for you.
+
+```tsx
+iframe.addEventListener("load", () => host.frameLoaded());
+```
+
 ##### `dispose()`
 
 Cleans up the connection to the iframe.
