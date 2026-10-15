@@ -161,6 +161,27 @@ describe("AG-UI message metadata", () => {
     expect(toAgUiMessages(fromAgUiMessages(source))).toEqual(source);
   });
 
+  it("keeps distinct ids for reasoning and a metadata-bearing assistant shell", () => {
+    expect(
+      toAgUiMessages([
+        {
+          id: "a-1",
+          role: "assistant",
+          content: [{ type: "reasoning", text: "Thinking" }],
+          metadata: { custom: { stopped: true } },
+        },
+      ]),
+    ).toEqual([
+      { id: "a-1:reasoning-0", role: "reasoning", content: "Thinking" },
+      {
+        id: "a-1",
+        role: "assistant",
+        content: "",
+        metadata: { stopped: true },
+      },
+    ]);
+  });
+
   it("preserves colliding metadata across every wire role", () => {
     const metadata = {
       agui: { custom: { agui: [1, { custom: null }] } },

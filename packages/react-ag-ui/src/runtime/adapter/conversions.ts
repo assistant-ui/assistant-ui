@@ -1376,7 +1376,10 @@ function convertAssistantMessage(
 
   // An AG-UI assistant record has no reasoning field, so reasoning leaves as
   // the standalone record it arrived as, ahead of the assistant it belongs to.
-  const shellIsDropped = content.length === 0 && toolCalls.length === 0;
+  const shellIsDropped =
+    content.length === 0 &&
+    toolCalls.length === 0 &&
+    toAgUiMessageMetadata(message.metadata) === undefined;
   let reasoningIndex = 0;
   for (const part of contentArray) {
     if (!isObject(part) || part.type !== "reasoning") continue;
@@ -1400,7 +1403,8 @@ function convertAssistantMessage(
     reasoningIndex++;
   }
 
-  if (shellIsDropped && toAgUiMessageMetadata(message.metadata) === undefined) {
+  // A re-send must not carry a blank assistant turn from a reasoning-only message.
+  if (shellIsDropped) {
     return;
   }
 
