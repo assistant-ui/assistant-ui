@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { resource } from "@assistant-ui/tap";
+import { flushTapSync, resource } from "@assistant-ui/tap";
 import { AuiConfig, createAssistantClient } from "@assistant-ui/store/client";
 import type { RemoteThreadListAdapter } from "../../runtimes/remote-thread-list/types";
 import { RemoteThreadList } from "./RemoteThreadList";
@@ -44,18 +44,33 @@ const mount = async (overrides: Partial<RemoteThreadListAdapter> = {}) => {
     generateTitle: vi.fn(async () => new ReadableStream() as never),
     ...overrides,
   };
-  const handle = createAssistantClient(
-    AuiConfig({
-      threads: RemoteThreadList({
-        adapter,
-        thread: () => StubThread() as never,
+  let currentAdapter = adapter;
+  const listeners = new Set<() => void>();
+  const handle = createAssistantClient({
+    getConfig: () =>
+      AuiConfig({
+        threads: RemoteThreadList({
+          adapter: currentAdapter,
+          thread: () => StubThread() as never,
+        }),
       }),
-    }),
-  );
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  });
   handle.subscribe(() => {});
   const threads = handle.getClient().threads;
   await threads.getLoadThreadsPromise();
-  return { adapter, handle, threads };
+  const setAdapter = (nextAdapter: RemoteThreadListAdapter) => {
+    flushTapSync(() => {
+      currentAdapter = nextAdapter;
+      for (const listener of listeners) listener();
+    });
+  };
+  return { adapter, handle, threads, setAdapter };
 };
 
 describe("RemoteThreadList thread mutations", () => {
@@ -112,6 +127,52 @@ describe("RemoteThreadList thread mutations", () => {
       handle.destroy();
     }
   });
+
+  it.each(["pending", "settled"] as const)(
+    "isolates mutation queues after an adapter swap when the previous request is %s",
+    async (previousState) => {
+      const previous = deferred();
+      const current = deferred();
+      const { adapter, handle, threads, setAdapter } = await mount({
+        rename: vi.fn(() => previous.promise),
+      });
+      const replacement = {
+        ...adapter,
+        rename: vi.fn((_: string, title: string) =>
+          title === "Current" ? current.promise : Promise.resolve(),
+        ),
+      };
+      try {
+        const previousMutation = threads.item({ id: "a" }).rename("Previous");
+        await vi.waitFor(() =>
+          expect(adapter.rename).toHaveBeenCalledWith("a", "Previous"),
+        );
+
+        setAdapter(replacement);
+        await threads.reload();
+        const currentMutation = threads.item({ id: "a" }).rename("Current");
+        await vi.waitFor(() =>
+          expect(replacement.rename).toHaveBeenCalledWith("a", "Current"),
+        );
+
+        if (previousState === "settled") {
+          previous.resolve();
+          await previousMutation;
+        }
+
+        const queuedMutation = threads.item({ id: "a" }).rename("Queued");
+        await vi.waitFor(() =>
+          expect(threads.item({ id: "a" }).getState().title).toBe("Queued"),
+        );
+        expect(replacement.rename).toHaveBeenCalledTimes(1);
+        current.resolve();
+        await Promise.all([currentMutation, queuedMutation]);
+        expect(replacement.rename).toHaveBeenLastCalledWith("a", "Queued");
+      } finally {
+        handle.destroy();
+      }
+    },
+  );
 
   it("sends the next mutation after the first rejects", async () => {
     const first = deferred();

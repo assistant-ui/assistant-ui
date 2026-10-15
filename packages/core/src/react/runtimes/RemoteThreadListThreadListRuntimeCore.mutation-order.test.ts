@@ -63,6 +63,52 @@ describe("RemoteThreadListThreadListRuntimeCore thread mutations", () => {
     await a;
   });
 
+  it.each(["pending", "settled"] as const)(
+    "isolates mutation queues after an adapter swap when the previous request is %s",
+    async (previousState) => {
+      const previous = deferred<void>();
+      const current = deferred<void>();
+      const adapter = makeAdapter({
+        list: vi.fn(async () => listed()),
+        rename: vi.fn(() => previous.promise),
+      });
+      const replacement = makeAdapter({
+        list: vi.fn(async () => listed()),
+        rename: vi.fn((_: string, title: string) =>
+          title === "Current" ? current.promise : Promise.resolve(),
+        ),
+      });
+      const core = createCore(adapter);
+      await core.getLoadThreadsPromise();
+      const previousMutation = core.rename("a", "Previous");
+      await vi.waitFor(() =>
+        expect(adapter.rename).toHaveBeenCalledWith("a", "Previous"),
+      );
+
+      core.__internal_setOptions({
+        adapter: replacement,
+        runtimeHook: () => ({}) as never,
+      });
+      await core.getLoadThreadsPromise();
+      const currentMutation = core.rename("a", "Current");
+      await vi.waitFor(() =>
+        expect(replacement.rename).toHaveBeenCalledWith("a", "Current"),
+      );
+
+      if (previousState === "settled") {
+        previous.resolve();
+        await previousMutation;
+      }
+
+      const queuedMutation = core.rename("a", "Queued");
+      await Promise.resolve();
+      expect(replacement.rename).toHaveBeenCalledTimes(1);
+      current.resolve();
+      await Promise.all([currentMutation, queuedMutation]);
+      expect(replacement.rename).toHaveBeenLastCalledWith("a", "Queued");
+    },
+  );
+
   it("sends the next mutation after the first rejects", async () => {
     const first = deferred<void>();
     const adapter = makeAdapter({

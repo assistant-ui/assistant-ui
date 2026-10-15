@@ -106,7 +106,7 @@ export class RemoteThreadListThreadListRuntimeCore
     | { readonly threadId: string; readonly error: unknown }
     | undefined;
   private readonly _titleStates = new Map<string, ThreadTitleState>();
-  private readonly _mutations = new ThreadMutationQueue();
+  private _mutations = new ThreadMutationQueue();
   private readonly _automaticTitles = new Map<string, Unsubscribe>();
   private _disposed = false;
 
@@ -400,6 +400,7 @@ export class RemoteThreadListThreadListRuntimeCore
     if (adapterChanged) {
       this._loadGeneration++;
       this._adapterGeneration++;
+      this._mutations = new ThreadMutationQueue();
       this._switchGeneration++;
       this._switchTask = undefined;
       this._loadThreadsPromise = undefined;

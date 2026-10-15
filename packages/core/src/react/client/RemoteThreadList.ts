@@ -744,6 +744,7 @@ const useRemoteThreadList = (
         lifetimes.releaseAll();
       }
       session.adapterGeneration++;
+      session.mutations = new ThreadMutationQueue();
       session.titleStates.clear();
       session.pendingAutomaticTitles.clear();
       const preserveControlled =
