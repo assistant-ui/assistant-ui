@@ -242,7 +242,7 @@ export function Chat() {
 
 `sendAutomaticallyWhen` sends completed frontend tool results back to the server so the model can continue after a tool call. `useChatRuntime()` targets `/api/chat` by default; to point at a different endpoint, see [Custom transport](/docs/runtimes/ai-sdk/v7#custom-transport).
 
-Tool names are prefixed `serverId__toolName` to avoid collisions across connected servers. The toolkit re-registers whenever a server connects / disconnects or its tool list changes.
+Tool names use `serverId__toolName` when that name contains only letters, numbers, underscores, and dashes and fits within 64 characters. Longer names or names containing other characters receive a stable alias derived from the server ID and tool name. Aliases retain a readable tool-name suffix and route calls to the original MCP server and tool. Persisted server IDs stay unchanged. The toolkit re-registers whenever a server connects / disconnects or its tool list changes.
 
 If no chat runtime is mounted, `McpManagerResource` brings its own minimal `modelContext` along. Tools are still callable directly:
 
