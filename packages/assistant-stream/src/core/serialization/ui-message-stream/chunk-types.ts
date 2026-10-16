@@ -17,11 +17,11 @@ type Usage = {
 export type UIMessageStreamChunk =
   | { type: "start"; messageId: string }
   | { type: "text-start"; id: string }
-  | { type: "text-delta"; textDelta: string }
-  | { type: "text-end" }
+  | { type: "text-delta"; id?: string; textDelta: string }
+  | { type: "text-end"; id?: string }
   | { type: "reasoning-start"; id: string }
-  | { type: "reasoning-delta"; delta: string }
-  | { type: "reasoning-end" }
+  | { type: "reasoning-delta"; id?: string; delta: string }
+  | { type: "reasoning-end"; id?: string }
   | {
       type: "source";
       source: { sourceType: "url"; id: string; url: string; title?: string };
