@@ -14,6 +14,7 @@ import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
 import { handleThreadListAction } from "../../store/runtime-clients/handle-thread-list-action";
 import { nullProtoRecord } from "../../utils/record";
 import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
+import { ThreadMutationQueue } from "../../runtimes/remote-thread-list/thread-mutation-queue";
 import { EMPTY_THREAD_CORE } from "../../runtimes/remote-thread-list/empty-thread-core";
 import type {
   ClassifyAccumulator,
@@ -105,6 +106,7 @@ export class RemoteThreadListThreadListRuntimeCore
     | { readonly threadId: string; readonly error: unknown }
     | undefined;
   private readonly _titleStates = new Map<string, ThreadTitleState>();
+  private _mutations = new ThreadMutationQueue();
   private readonly _automaticTitles = new Map<string, Unsubscribe>();
   private _disposed = false;
 
@@ -398,6 +400,7 @@ export class RemoteThreadListThreadListRuntimeCore
     if (adapterChanged) {
       this._loadGeneration++;
       this._adapterGeneration++;
+      this._mutations = new ThreadMutationQueue();
       this._switchGeneration++;
       this._switchTask = undefined;
       this._loadThreadsPromise = undefined;
@@ -1168,9 +1171,12 @@ export class RemoteThreadListThreadListRuntimeCore
         await applyTitleStream(stream, onTitle);
       },
       rename: async (title) => {
-        this._requireAdapterGeneration(adapterGeneration);
-        if (isRemoved()) return;
-        await adapter.rename(remoteId, title);
+        const mutation = this._mutations.reserve(data.id);
+        await mutation.run(async () => {
+          this._requireAdapterGeneration(adapterGeneration);
+          if (isRemoved()) return;
+          await adapter.rename(remoteId, title);
+        });
       },
       applyTitle: async (title) => {
         await this._state.optimisticUpdate({
@@ -1209,13 +1215,15 @@ export class RemoteThreadListThreadListRuntimeCore
       throw threadStatusError(threadIdOrRemoteId, data.status, "be renamed");
 
     const claim = startThreadTitleRename(this._titleStates, data.id, newTitle);
+    const mutation = this._mutations.reserve(data.id);
     try {
       const result = await this._state.optimisticUpdate({
-        execute: async () => {
-          const { remoteId } = await data.initializeTask;
-          this._requireAdapterGeneration(adapterGeneration);
-          return adapter.rename(remoteId, newTitle);
-        },
+        execute: () =>
+          mutation.run(async () => {
+            const { remoteId } = await data.initializeTask;
+            this._requireAdapterGeneration(adapterGeneration);
+            return adapter.rename(remoteId, newTitle);
+          }),
         optimistic: (state) => {
           if (this._isOtherAdaptersThread(state, adapter, threadIdOrRemoteId))
             return state;
@@ -1267,18 +1275,20 @@ export class RemoteThreadListThreadListRuntimeCore
         "Remote thread list adapter does not support updating custom metadata",
       );
     }
+    const mutation = this._mutations.reserve(data.id);
 
     return this._state.optimisticUpdate({
-      execute: async () => {
-        const { remoteId } = await data.initializeTask;
-        this._requireAdapterGeneration(adapterGeneration);
-        if (!adapter.updateCustom) {
-          throw new Error(
-            "Remote thread list adapter does not support updating custom metadata",
-          );
-        }
-        return adapter.updateCustom(remoteId, custom);
-      },
+      execute: () =>
+        mutation.run(async () => {
+          const { remoteId } = await data.initializeTask;
+          this._requireAdapterGeneration(adapterGeneration);
+          if (!adapter.updateCustom) {
+            throw new Error(
+              "Remote thread list adapter does not support updating custom metadata",
+            );
+          }
+          return adapter.updateCustom(remoteId, custom);
+        }),
       optimistic: (state) => {
         if (this._isOtherAdaptersThread(state, adapter, threadIdOrRemoteId))
           return state;
@@ -1381,20 +1391,26 @@ export class RemoteThreadListThreadListRuntimeCore
     if (data.status !== "regular")
       throw threadStatusError(threadIdOrRemoteId, data.status, "be archived");
 
-    do {
-      await this._ensureThreadIsNotMain(data.id);
-    } while (data.id === this._mainThreadId);
-    this._requireAdapterGeneration(adapterGeneration);
+    const mutation = this._mutations.reserve(data.id);
+    try {
+      do {
+        await this._ensureThreadIsNotMain(data.id);
+      } while (data.id === this._mainThreadId);
+      this._requireAdapterGeneration(adapterGeneration);
 
-    await this._state.optimisticUpdate({
-      execute: async () => {
-        const { remoteId } = await data.initializeTask;
-        this._requireAdapterGeneration(adapterGeneration);
-        return adapter.archive(remoteId);
-      },
-      optimistic: (state) =>
-        this._updateStatusFromAdapter(state, adapter, data.id, "archived"),
-    });
+      await this._state.optimisticUpdate({
+        execute: () =>
+          mutation.run(async () => {
+            const { remoteId } = await data.initializeTask;
+            this._requireAdapterGeneration(adapterGeneration);
+            return adapter.archive(remoteId);
+          }),
+        optimistic: (state) =>
+          this._updateStatusFromAdapter(state, adapter, data.id, "archived"),
+      });
+    } finally {
+      mutation.cancel();
+    }
     await this._leaveRemovedMainThread(data.id);
   }
 
@@ -1417,19 +1433,21 @@ export class RemoteThreadListThreadListRuntimeCore
     if (data.status !== "archived")
       throw threadStatusError(threadIdOrRemoteId, data.status, "be unarchived");
 
+    const mutation = this._mutations.reserve(data.id);
     return this._state.optimisticUpdate({
-      execute: async () => {
-        try {
-          const { remoteId } = await data.initializeTask;
-          this._requireAdapterGeneration(adapterGeneration);
-          return await adapter.unarchive(remoteId);
-        } catch (error) {
-          if (adapterGeneration === this._adapterGeneration) {
-            await this._ensureThreadIsNotMain(data.id);
+      execute: () =>
+        mutation.run(async () => {
+          try {
+            const { remoteId } = await data.initializeTask;
+            this._requireAdapterGeneration(adapterGeneration);
+            return await adapter.unarchive(remoteId);
+          } catch (error) {
+            if (adapterGeneration === this._adapterGeneration) {
+              await this._ensureThreadIsNotMain(data.id);
+            }
+            throw error;
           }
-          throw error;
-        }
-      },
+        }),
       optimistic: (state) =>
         this._updateStatusFromAdapter(state, adapter, data.id, "regular"),
     });
@@ -1445,6 +1463,7 @@ export class RemoteThreadListThreadListRuntimeCore
       throw threadStatusError(threadIdOrRemoteId, data.status, "be deleted");
     // Identity protects a replacement draft that reused this local id.
     const draftAtDelete = getThreadData(this._state.baseValue, data.id);
+    const mutation = this._mutations.reserve(data.id);
 
     let remoteId: string | undefined;
     try {
@@ -1453,11 +1472,12 @@ export class RemoteThreadListThreadListRuntimeCore
       } while (data.id === this._mainThreadId);
       this._requireAdapterGeneration(adapterGeneration);
       await this._state.optimisticUpdate({
-        execute: async () => {
-          ({ remoteId } = await data.initializeTask);
-          this._requireAdapterGeneration(adapterGeneration);
-          return await adapter.delete(remoteId);
-        },
+        execute: () =>
+          mutation.run(async () => {
+            ({ remoteId } = await data.initializeTask);
+            this._requireAdapterGeneration(adapterGeneration);
+            return await adapter.delete(remoteId);
+          }),
         optimistic: (state) =>
           this._isOtherAdaptersThread(state, adapter, data.id)
             ? state
@@ -1469,6 +1489,7 @@ export class RemoteThreadListThreadListRuntimeCore
               ),
       });
     } catch (error) {
+      mutation.cancel();
       const hideDeletedThread = () => {
         if (adapterGeneration === this._adapterGeneration) return;
         const current = getThreadData(this._state.baseValue, data.id);
