@@ -158,8 +158,8 @@ describe("projectApi", () => {
       event: "thread.runStart",
       data: {},
     };
-    expect(projectApi(1, { api: {}, logs: [event] }).logs[0]!.id).toBe(
-      event.id,
+    expect(projectApi(1, { api: {}, logs: [{ ...event }] }).logs[0]!.id).toBe(
+      projectApi(1, { api: {}, logs: [event] }).logs[0]!.id,
     );
   });
 

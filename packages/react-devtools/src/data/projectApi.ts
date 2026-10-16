@@ -16,7 +16,7 @@ const eventIds = new WeakMap<EventLogEntry, string>();
 let nextEventId = 0;
 
 const eventIdOf = (log: EventLogEntry): string => {
-  if (log.id !== undefined) return log.id;
+  if (log.id !== undefined) return `source:${log.id}`;
   let id = eventIds.get(log);
   if (id === undefined) {
     id = `event-${nextEventId++}`;
