@@ -3,6 +3,7 @@ import { AuiConfig, createAssistantClient } from "@assistant-ui/store/client";
 import { describe, expect, it, vi } from "vitest";
 import { makeAdapter } from "../../../tests/remote-thread-list-test-helpers";
 import { RemoteThreadList } from "../../client/RemoteThreadList";
+import { EMPTY_THREAD_CORE } from "../../../runtimes/remote-thread-list/empty-thread-core";
 import { ClientThreadListRuntimeCore } from "./ClientThreadListRuntimeCore";
 
 const waitFor = (assertion: () => void) =>
@@ -93,6 +94,21 @@ describe("ClientThreadListRuntimeCore", () => {
     await waitFor(() => expect(threads.getState().mainThreadId).not.toBe("t2"));
     expect(facade.mainThreadId).toBe(threads.getState().mainThreadId);
     expect(threads.getState().newThreadId).toBe(facade.mainThreadId);
+
+    facade.__internal_dispose();
+    handle.destroy();
+  });
+
+  it("throws for an unknown thread and returns a placeholder for a listed thread without a runtime", async () => {
+    const { handle, facade } = mountFacade();
+    await handle.getClient().threads.getLoadThreadsPromise();
+    await waitFor(() => expect(facade.threadIds).toEqual(["t1", "t2"]));
+
+    expect(() => facade.getThreadRuntimeCore("missing")).toThrow(
+      'Thread "missing" not found while getting its runtime.',
+    );
+    expect(facade.getThreadRuntimeCore("t1")).toBe(EMPTY_THREAD_CORE);
+    expect(facade.getMainThreadRuntimeCore()).toBe(EMPTY_THREAD_CORE);
 
     facade.__internal_dispose();
     handle.destroy();
