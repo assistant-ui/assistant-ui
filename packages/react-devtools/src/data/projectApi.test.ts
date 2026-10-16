@@ -122,6 +122,47 @@ describe("projectApi", () => {
     expect(result.logs[0]?.data).toEqual({ foo: 1 });
   });
 
+  it("preserves distinct event identities across projections and retention", () => {
+    const first = {
+      time: new Date(0),
+      event: "thread.runStart",
+      data: { threadId: "T1" },
+    };
+    const second = { ...first };
+    const before = projectApi(1, { api: {}, logs: [first, second] });
+    const after = projectApi(1, { api: {}, logs: [second] });
+    const ids = before.logs.map((log) => log.id);
+
+    expect(ids.every((id) => typeof id === "string")).toBe(true);
+    expect(ids[0]).not.toBe(ids[1]);
+    expect(after.logs[0]!.id).toBe(ids[1]);
+  });
+
+  it("does not recycle event identities after clearing the log", () => {
+    const event = {
+      time: new Date(0),
+      event: "thread.runStart",
+      data: { threadId: "T1" },
+    };
+    const before = projectApi(1, { api: {}, logs: [event] });
+    projectApi(1, { api: {}, logs: [] });
+    const after = projectApi(1, { api: {}, logs: [{ ...event }] });
+
+    expect(after.logs[0]!.id).not.toBe(before.logs[0]!.id);
+  });
+
+  it("preserves identities supplied by an event source", () => {
+    const event = {
+      id: "source-event",
+      time: new Date(0),
+      event: "thread.runStart",
+      data: {},
+    };
+    expect(projectApi(1, { api: {}, logs: [event] }).logs[0]!.id).toBe(
+      event.id,
+    );
+  });
+
   it("does not throw on scopes whose accessor throws", () => {
     const broken = scope("root", {}, undefined);
     const throwing = (() => {

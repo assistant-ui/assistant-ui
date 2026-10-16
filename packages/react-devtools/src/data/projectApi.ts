@@ -12,6 +12,19 @@ interface DevToolsApiEntry {
   logs: ReadonlyArray<EventLogEntry>;
 }
 
+const eventIds = new WeakMap<EventLogEntry, string>();
+let nextEventId = 0;
+
+const eventIdOf = (log: EventLogEntry): string => {
+  if (log.id !== undefined) return log.id;
+  let id = eventIds.get(log);
+  if (id === undefined) {
+    id = `event-${nextEventId++}`;
+    eventIds.set(log, id);
+  }
+  return id;
+};
+
 /**
  * Lists the method names of a client proxy. The client proxy throws from its
  * `getOwnPropertyDescriptor` trap, so `Object.keys` is best-effort and isolated
@@ -164,6 +177,7 @@ export const projectApi = (apiId: number, entry: DevToolsApiEntry): ApiInfo => {
     id: apiId,
     state: sanitizedState,
     logs: entry.logs.map((log) => ({
+      id: eventIdOf(log),
       time: log.time,
       event: log.event,
       data: sanitizeForMessage(log.data),

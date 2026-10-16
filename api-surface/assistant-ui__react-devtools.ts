@@ -185,6 +185,7 @@ interface EventLog {
 }
 
 interface EventLogEntry {
+  readonly id?: string;
   readonly time: Date;
   readonly event: string;
   readonly data: unknown;

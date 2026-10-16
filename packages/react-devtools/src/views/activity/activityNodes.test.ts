@@ -19,6 +19,6 @@ describe("buildActivityNav", () => {
     expect(runs).toHaveLength(1);
     expect(orphans).toHaveLength(1);
     expect(nodes.some((node) => node.id === "activity:orphans")).toBe(true);
-    expect(defaultActivitySelection(nodes)).toBe("activity:run:run-0");
+    expect(defaultActivitySelection(nodes)).toBe(`activity:run:${runs[0]!.id}`);
   });
 });
