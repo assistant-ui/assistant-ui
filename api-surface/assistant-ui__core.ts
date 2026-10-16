@@ -4070,6 +4070,10 @@ type RemoteThreadListProps = {
   onSwitchToNewThread?: (() => void) | undefined;
   onDelete?: ((threadId: string) => void) | undefined;
   backgroundThreads?: boolean | undefined;
+  __internal_initialThreadIdSeed?: string | undefined;
+  __internal_ensureThread?: ((item: ThreadListItemCoreState) => Promise<void>) | undefined;
+  __internal_preserveDraftOnAdapterChange?: boolean | undefined;
+  __internal_reopenControlledThreadOnAdapterChange?: boolean | undefined;
 };
 
 type RemoteThreadListProviderComponent = ((props: RemoteThreadListProviderProps) => any) | (new (props: RemoteThreadListProviderProps) => any);
@@ -4260,6 +4264,10 @@ type RemoteThreadMetadata = {
 type RemoteThreadState = {
   readonly isLoading: boolean;
   readonly loadError: unknown;
+  readonly switchError?: {
+    readonly threadId: string;
+    readonly error: unknown;
+  } | undefined;
   readonly isLoadingMore: boolean;
   readonly cursor: string | undefined;
   readonly newThreadId: string | undefined;
@@ -5841,6 +5849,29 @@ type ThreadsMethods = {
   reloadMainThread(): Promise<void>;
   loadMore(): Promise<void>;
   __internal_getAssistantRuntime?(): AssistantRuntime;
+  __internal_getRawActions?(): {
+    switchToThread(threadId: string, options?: {
+      unarchive?: boolean;
+    }, emitThreadIdChange?: boolean): Promise<void>;
+    switchToNewThread(emitThreadIdChange?: boolean): Promise<void>;
+    rename(threadId: string, title: string): Promise<void>;
+    archive(threadId: string): Promise<void>;
+    unarchive(threadId: string): Promise<void>;
+    delete(threadId: string): Promise<void>;
+    detach(threadId: string): Promise<void>;
+    generateTitle(threadId: string, messages: readonly ThreadMessage[] | undefined, options?: {
+      automatic?: boolean;
+    }): Promise<void>;
+    initialize(threadId: string): Promise<{
+      remoteId: string;
+      externalId: string | undefined;
+    }>;
+    reload(): Promise<void>;
+    reloadMainThread(): Promise<void>;
+    getLoadThreadsPromise(): Promise<void>;
+    loadMore(): Promise<void>;
+  };
+  __internal_getThreadBody?(threadId: string): ThreadMethods | undefined;
 };
 
 type ThreadsState = {

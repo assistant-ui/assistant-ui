@@ -24,6 +24,7 @@ const STORE_ALLOWED_REACT_NAMES = new Set([
   "useEffectEvent",
   "useSyncExternalStore",
   "useDebugValue",
+  "useId",
   "use",
   "useContext",
   "createContext",
