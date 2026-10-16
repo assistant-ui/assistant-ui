@@ -3851,7 +3851,7 @@ type RemoteThreadListHook = () => AssistantRuntime;
 
 declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   #private;
-  constructor(runtimeHook: RemoteThreadListHook, parent: ThreadListRuntimeCore);
+  constructor(runtimeHook: RemoteThreadListHook, parent: ThreadListRuntimeCore, publishInCommit?: boolean);
   startThreadRuntime(threadId: string): Promise<Readonly<{
     getMessageById: (messageId: string) => {
       parentId: string | null;
