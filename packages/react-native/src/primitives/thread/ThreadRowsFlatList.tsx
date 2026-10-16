@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useMemo } from "react";
-import { FlatList, type FlatListProps } from "react-native";
+import { FlatList, type FlatListProps, StyleSheet } from "react-native";
 import {
   createThreadRowsSelector,
   ThreadPrimitiveRow,
@@ -142,6 +142,10 @@ export const ThreadRowsFlatList = forwardRef<
       },
     );
 
+    const headerMinHeight = StyleSheet.flatten(
+      flatListProps.ListHeaderComponentStyle,
+    )?.minHeight;
+
     return (
       <FlatList
         ref={setFlatListRef}
@@ -157,14 +161,17 @@ export const ThreadRowsFlatList = forwardRef<
         {...scrollProps}
         {...pagingProps}
         {...flatListProps}
-        {...(inverted && {
-          ListHeaderComponent:
-            flatListProps.ListHeaderComponent ?? EmptyListHeader,
-          ListHeaderComponentStyle: [
-            anchorHeaderStyle,
-            flatListProps.ListHeaderComponentStyle,
-          ],
-        })}
+        {...(inverted &&
+          data.length > 0 && {
+            ListHeaderComponent:
+              flatListProps.ListHeaderComponent ?? EmptyListHeader,
+            ListHeaderComponentStyle: [
+              flatListProps.ListHeaderComponentStyle,
+              typeof headerMinHeight === "number" && headerMinHeight >= 1
+                ? null
+                : anchorHeaderStyle,
+            ],
+          })}
       />
     );
   },

@@ -250,16 +250,39 @@ describe("ThreadRowsFlatList", () => {
     expect(h.loadEarlier).toHaveBeenCalledOnce();
   });
 
-  it("keeps a passed list header and its style under the inverted anchor", async () => {
+  it("keeps a passed list header and floors its style at the anchor height", async () => {
     const Header = () => <span>header</span>;
     await mount({
       inverted: true,
       ListHeaderComponent: Header,
       ListHeaderComponentStyle: { paddingTop: 8 },
     });
-    const props = getProps();
-    expect(props.ListHeaderComponent).toBe(Header);
-    expect(headerStyle(props)).toEqual({ minHeight: 1, paddingTop: 8 });
+    expect(getProps().ListHeaderComponent).toBe(Header);
+    expect(headerStyle(getProps())).toEqual({ paddingTop: 8, minHeight: 1 });
+
+    await mount({ inverted: true, ListHeaderComponentStyle: { minHeight: 0 } });
+    expect(headerStyle(getProps())).toEqual({ minHeight: 1 });
+
+    await mount({
+      inverted: true,
+      ListHeaderComponentStyle: { minHeight: 40 },
+    });
+    expect(headerStyle(getProps())).toEqual({ minHeight: 40 });
+  });
+
+  it("adds no anchor header while the inverted list has no rows", async () => {
+    h.state.thread.messages = [];
+    await mount({ inverted: true });
+    expect(getProps().ListHeaderComponent).toBeUndefined();
+
+    const Header = () => <span>header</span>;
+    await mount({
+      inverted: true,
+      ListHeaderComponent: Header,
+      ListHeaderComponentStyle: { paddingTop: 8 },
+    });
+    expect(getProps().ListHeaderComponent).toBe(Header);
+    expect(getProps().ListHeaderComponentStyle).toEqual({ paddingTop: 8 });
   });
 
   it("stops following new inverted rows when autoScroll is off", async () => {
