@@ -109,6 +109,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   store.reset();
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
@@ -412,6 +413,7 @@ describe("sidebar", () => {
   });
 
   it("animates a toggle but not the first render", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     renderPage();
     const panel = () =>
       document
@@ -423,7 +425,7 @@ describe("sidebar", () => {
     );
     expect(panel().hasAttribute("data-enter")).toBe(true);
     expect(html.hasAttribute("data-variants-animating")).toBe(true);
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await act(() => vi.advanceTimersByTimeAsync(300));
     expect(html.hasAttribute("data-variants-animating")).toBe(false);
   });
 
@@ -502,6 +504,7 @@ describe("container replication", () => {
   });
 
   it("keeps display: contents wrappers' classes and follows container resizes", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const { container } = renderPage(
       <div className="prose">
         <div className="wrapper" style={{ display: "contents" }}>
@@ -529,13 +532,14 @@ describe("container replication", () => {
     act(() => {
       parent.append(document.createElement("span"));
     });
-    await act(() => new Promise((resolve) => setTimeout(resolve, 60)));
+    await act(() => vi.advanceTimersByTimeAsync(60));
     expect(slot.style.getPropertyValue("--cw")).toBe("320px");
   });
 });
 
 describe("page changes", () => {
   it("reorders rows when groups move on the page", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     const Two = ({ swap }: { swap: boolean }) => {
       const a = (
         <Variants key="a" id="a">
@@ -561,7 +565,7 @@ describe("page changes", () => {
         <Two swap />
       </StoreContext.Provider>,
     );
-    await act(() => new Promise((resolve) => setTimeout(resolve, 60)));
+    await act(() => vi.advanceTimersByTimeAsync(60));
     expect(rows().map(([id]) => id)).toEqual(["b", "a"]);
   });
 
