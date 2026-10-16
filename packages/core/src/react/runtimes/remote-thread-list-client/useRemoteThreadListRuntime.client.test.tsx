@@ -10,6 +10,7 @@ import type { ThreadRuntimeImpl } from "../../../runtime/api/thread-runtime";
 import { EMPTY_THREAD_CORE } from "../../../runtimes/remote-thread-list/empty-thread-core";
 import type { ThreadMessage } from "../../../types/message";
 import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/adapter/in-memory";
+import type { RemoteThreadListAdapter } from "../../../runtimes/remote-thread-list/types";
 import {
   actSettled,
   deferred,
@@ -634,6 +635,68 @@ describe("useRemoteThreadListRuntime client bridge", () => {
       expect(runtime!.threads.getState().mainThreadId).toBe(mainId);
     },
   );
+
+  it("serves a replacement adapter through unstable_useAdapters and warns when it only has unstable_Provider", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const makeHistory = () => ({
+      load: vi.fn(async () => ({ messages: [] })),
+      append: vi.fn(async () => {}),
+    });
+    const providedHistory = makeHistory();
+    const suppliedHistory = makeHistory();
+    const ProvidedHistory = ({ children }: { children?: ReactNode }) => (
+      <RuntimeAdapterProvider adapters={{ history: providedHistory }}>
+        {children}
+      </RuntimeAdapterProvider>
+    );
+    const withBothFaces = Object.assign(new InMemoryThreadListAdapter(), {
+      unstable_useAdapters: () => ({ history: suppliedHistory }),
+      unstable_Provider: ProvidedHistory,
+    });
+    const providerOnly = Object.assign(new InMemoryThreadListAdapter(), {
+      unstable_Provider: ProvidedHistory,
+    });
+    const model = { run: vi.fn(async () => ({ content: [] })) };
+    const seen = new Map<string, RuntimeAdapters | null>();
+    let runtime: AssistantRuntime | undefined;
+    const App = ({ adapter }: { adapter: RemoteThreadListAdapter }) => {
+      runtime = useRemoteThreadListRuntime({
+        adapter,
+        runtimeHook: function useThreadRuntime() {
+          const id = useAui().threadListItem.getState().id;
+          seen.set(id, useRuntimeAdapters());
+          return useLocalRuntime(model);
+        },
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+    const { rerender } = render(
+      <App adapter={new InMemoryThreadListAdapter()} />,
+    );
+    await waitFor(() =>
+      expect(runtime!.threads.getState().isLoading).toBe(false),
+    );
+    const mainId = () => runtime!.threads.getState().mainThreadId;
+
+    rerender(<App adapter={withBothFaces} />);
+    await waitFor(() =>
+      expect(seen.get(mainId())?.history).toBe(suppliedHistory),
+    );
+
+    rerender(<App adapter={providerOnly} />);
+    await waitFor(() =>
+      expect(warn).toHaveBeenCalledWith(
+        "[assistant-ui] useRemoteThreadListRuntime mounted with an adapter without unstable_Provider, so it ignores RemoteThreadListAdapter.unstable_Provider on this adapter. Expose unstable_useAdapters so per-thread history loads.",
+      ),
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(seen.get(mainId())?.history).not.toBe(providedHistory);
+    expect(legacyConstructed).not.toHaveBeenCalled();
+  });
 
   it("uses the frozen class path when unstable_Provider is present", async () => {
     const adapter = Object.assign(new InMemoryThreadListAdapter(), {

@@ -1,10 +1,5 @@
 import { useEffect, useInsertionEffect, useMemo, useRef } from "react";
-import {
-  resource,
-  useResource,
-  useResources,
-  withKey,
-} from "@assistant-ui/tap";
+import { resource, useResource } from "@assistant-ui/tap";
 import { useAui } from "@assistant-ui/store";
 import {
   createClientFacade,
@@ -65,9 +60,7 @@ const useHostedThreadRuntime = ({
   );
 };
 
-const HostedThreadRuntime = resource(useHostedThreadRuntime);
-
-const useRemoteThreadListRuntimeThread = (options: ThreadOptions) => {
+const useStableClientThreadRuntime = (options: ThreadOptions) => {
   const aui = useAui();
   const auiRef = useRef(aui);
   useInsertionEffect(() => {
@@ -81,24 +74,13 @@ const useRemoteThreadListRuntimeThread = (options: ThreadOptions) => {
       }),
     [],
   );
-  const hookElement = useMemo(
-    () =>
-      withKey(
-        "runtime",
-        HostedThreadRuntime({
-          clientCore: options.clientCore,
-          threadId: options.threadId,
-          startThread: options.startThread,
-        }),
-      ),
-    [options],
-  );
-  const runtime = useAssistantContextProvider(
-    stableAui,
-    function WithStableAssistantClient() {
-      return useResources([hookElement])[0]!;
-    },
-  );
+  return useAssistantContextProvider(stableAui, function useHostedRuntime() {
+    return useHostedThreadRuntime(options);
+  });
+};
+
+const useRemoteThreadListRuntimeThread = (options: ThreadOptions) => {
+  const runtime = useStableClientThreadRuntime(options);
   return useResource(ThreadClient({ runtime }));
 };
 
