@@ -4,6 +4,7 @@ import { useEffect, useState, type ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { safeHref } from "../utils/href";
 import { clamp } from "../utils/range";
+import { useIsomorphicLayoutEffect } from "../utils/useIsomorphicLayoutEffect";
 import { field, mono, paper } from "./surfaces";
 
 export type DataTableValue =
@@ -216,13 +217,11 @@ function Value({
   row,
   locale,
   relativeTo,
-  suppressRelativeHydrationWarning,
 }: {
   column: DataTableColumn;
   row: DataTableRow;
   locale: string;
-  relativeTo: number;
-  suppressRelativeHydrationWarning: boolean;
+  relativeTo: number | undefined;
 }) {
   const value = row[column.key];
   if (isEmpty(value)) return <EmptyValue />;
@@ -302,7 +301,7 @@ function Value({
     if (!date) return <>{textValue(value)}</>;
     const style = format.style ?? "date";
     const content = formatted(value, () =>
-      style === "relative"
+      style === "relative" && relativeTo !== undefined
         ? relativeDate(date, locale, relativeTo)
         : new Intl.DateTimeFormat(
             locale,
@@ -310,22 +309,14 @@ function Value({
               ? { dateStyle: "medium", timeStyle: "short" }
               : {
                   dateStyle: "medium",
-                  ...(typeof value === "string" && DATE_ONLY.test(value)
+                  ...((style === "relative" && relativeTo === undefined) ||
+                  (typeof value === "string" && DATE_ONLY.test(value))
                     ? { timeZone: "UTC" }
                     : {}),
                 },
           ).format(date),
     );
-    return (
-      <span
-        title={date.toISOString()}
-        {...(style === "relative" && suppressRelativeHydrationWarning
-          ? { suppressHydrationWarning: true }
-          : {})}
-      >
-        {content}
-      </span>
-    );
+    return <span title={date.toISOString()}>{content}</span>;
   }
 
   if (format.kind === "boolean") {
@@ -473,21 +464,21 @@ export function DataTable({
     (column) =>
       column.format?.kind === "date" && column.format.style === "relative",
   );
-  const [, setTick] = useState(0);
-  const relativeTime = relativeTo ?? Date.now();
+  const [now, setNow] = useState<number>();
+  useIsomorphicLayoutEffect(() => {
+    if (relativeTo === undefined && hasRelativeDates) setNow(Date.now());
+  }, [columns, rows, relativeTo, hasRelativeDates]);
+  const relativeTime = relativeTo ?? now;
   const refreshDelay =
-    relativeTo === undefined && hasRelativeDates
+    relativeTo === undefined && hasRelativeDates && relativeTime !== undefined
       ? relativeRefreshDelay(columns, rows, relativeTime)
       : undefined;
 
   useEffect(() => {
     if (refreshDelay === undefined) return;
-    const timeout = window.setTimeout(
-      () => setTick((tick) => tick + 1),
-      refreshDelay,
-    );
+    const timeout = window.setTimeout(() => setNow(Date.now()), refreshDelay);
     return () => window.clearTimeout(timeout);
-  });
+  }, [refreshDelay, relativeTime]);
   const sortColumn = columns.find((column) => column.key === activeSort?.key);
   const collator = collatorFor(locale);
   const indexedRows = rows.map((row, index) => ({ row, index }));
@@ -621,9 +612,6 @@ export function DataTable({
                       row={row}
                       locale={locale}
                       relativeTo={relativeTime}
-                      suppressRelativeHydrationWarning={
-                        relativeTo === undefined
-                      }
                     />
                   </td>
                 ))}
@@ -654,7 +642,6 @@ export function DataTable({
                     row={row}
                     locale={locale}
                     relativeTo={relativeTime}
-                    suppressRelativeHydrationWarning={relativeTo === undefined}
                   />
                 </div>
               ) : null}
@@ -676,9 +663,6 @@ export function DataTable({
                             row={row}
                             locale={locale}
                             relativeTo={relativeTime}
-                            suppressRelativeHydrationWarning={
-                              relativeTo === undefined
-                            }
                           />
                         </dd>
                       </div>

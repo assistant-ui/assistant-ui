@@ -104,6 +104,75 @@ describe("InMemoryResumableStreamStore", () => {
     }
   });
 
+  it.each(["default", "per-stream"])(
+    "waits for updates without overflowing native timers with a long %s TTL",
+    async (source) => {
+      const ttlMs = 30 * 24 * 60 * 60 * 1000;
+      const store = createInMemoryResumableStreamStore(
+        source === "default" ? { defaultTtlMs: ttlMs } : {},
+      );
+      const ac = new AbortController();
+      const warnings = vi
+        .spyOn(process, "emitWarning")
+        .mockImplementation(() => {});
+      try {
+        await store.acquire(
+          "long",
+          source === "per-stream" ? { ttlMs } : undefined,
+        );
+        const iterator = store
+          .read("long", "", ac.signal)
+          [Symbol.asyncIterator]();
+        const pending = iterator.next();
+        await store.append("long", bytes("update"));
+        expect(await pending).toEqual({
+          done: false,
+          value: { cursor: "1", chunk: bytes("update") },
+        });
+        const waiting = iterator.next();
+        ac.abort();
+        expect(await waiting).toEqual({ done: true, value: undefined });
+        expect(warnings).not.toHaveBeenCalled();
+      } finally {
+        ac.abort();
+        store.dispose();
+        warnings.mockRestore();
+      }
+    },
+  );
+
+  it("keeps a long TTL past the timer limit and expires at its full deadline", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    const ttlMs = 30 * 24 * 60 * 60 * 1000;
+    const store = createInMemoryResumableStreamStore({ defaultTtlMs: ttlMs });
+    const ac = new AbortController();
+    const settled = vi.fn();
+    try {
+      await store.acquire("long");
+      const iterator = store
+        .read("long", "", ac.signal)
+        [Symbol.asyncIterator]();
+      const pending = iterator.next().then(settled, settled);
+      await vi.advanceTimersToNextTimerAsync();
+      expect(Date.now()).toBe(2_147_483_647);
+      expect(settled).not.toHaveBeenCalled();
+      expect(await store.status("long")).toBe("streaming");
+      await vi.advanceTimersToNextTimerAsync();
+      await pending;
+      expect(Date.now()).toBe(ttlMs);
+      expect(settled).toHaveBeenCalledExactlyOnceWith(
+        new Error("Stream expired"),
+      );
+      expect(await store.status("long")).toBe("missing");
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      ac.abort();
+      store.dispose();
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps replay bytes independent of producer and consumer buffers", async () => {
     const store = createInMemoryResumableStreamStore();
     const chunk = Buffer.from("a");

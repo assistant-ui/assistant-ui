@@ -5,6 +5,7 @@ import {
   type CSSProperties,
   type ReactNode,
   forwardRef,
+  useCallback,
   useLayoutEffect,
   useRef,
   useState,
@@ -102,6 +103,24 @@ export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(
   ) => {
     const state = useTooltipState();
     const inner = useRef<HTMLDivElement | null>(null);
+    const setRefs = useCallback(
+      (node: HTMLDivElement | null) => {
+        inner.current = node;
+        if (typeof ref === "function") {
+          const cleanup: unknown = ref(node);
+          if (typeof cleanup === "function") {
+            return () => {
+              inner.current = null;
+              (cleanup as () => void)();
+            };
+          }
+        } else if (ref) {
+          ref.current = node;
+        }
+        return undefined;
+      },
+      [ref],
+    );
     const [box, setBox] = useState<{ w: number; h: number } | null>(null);
     const datum = state?.datum ?? null;
 
@@ -137,11 +156,7 @@ export const Tooltip = forwardRef<HTMLDivElement, TooltipProps>(
 
     return (
       <div
-        ref={(node) => {
-          inner.current = node;
-          if (typeof ref === "function") ref(node);
-          else if (ref) ref.current = node;
-        }}
+        ref={setRefs}
         role="tooltip"
         data-part="tooltip"
         {...props}

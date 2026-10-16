@@ -1,4 +1,6 @@
 import { createSubscriber } from "svelte/reactivity";
+import { toStore } from "svelte/store";
+import { untrack } from "svelte";
 import {
   getProxiedAssistantState,
   type AssistantState,
@@ -15,10 +17,10 @@ import { getAuiContext, type ScopeTarget } from "./context";
  *
  * Reading `current` inside an effect or template tracks the store: the read
  * re-runs when the selected slice changes by `Object.is`, so a store update
- * that does not move the slice wakes nothing. The `selector` runs per store
- * notification and on each read; returning the entire state object is not
- * supported and throws. Select a specific field instead, or compose multiple
- * `useAuiState` calls. Returning a fresh object or array literal defeats the
+ * that does not move the slice wakes nothing. The `selector` tracks reactive
+ * inputs and runs per store notification and on each read. Returning the
+ * entire state object is not supported and throws. Select a field instead,
+ * or compose multiple `useAuiState` calls. Returning a fresh literal defeats the
  * deduplication; select primitives or a memoized reference.
  *
  * Scopes that may be unavailable can be read via `s.optional.<scope>`, which
@@ -35,45 +37,43 @@ export const useAuiState = <T>(
   options?: { item?: ScopeTarget | undefined },
 ): { readonly current: T } => {
   const source = (options?.item ?? getAuiContext()).source;
+  const subscribeSource = createSubscriber((update) =>
+    source.subscribe(update),
+  );
 
-  // Wake dependents only when the selected slice changes by Object.is, matching
-  // the react (useSyncExternalStore) and vue (computed) bridges: a store tick
-  // that does not move the slice re-runs nothing. A selector that throws (a
-  // scope shrinking out from under it) wakes so the getter surfaces it.
   const read = () => selector(getProxiedAssistantState(source.getClient()));
-  const subscribe = createSubscriber((update) => {
-    let last: T;
-    let primed = false;
-    // Seed the baseline so the first notification with an unchanged slice does
-    // not wake; a selector that throws now stays unprimed and wakes on the
-    // first notification, letting the getter surface the error.
+  const snapshot = (): { value: T } | { error: unknown } => {
+    subscribeSource();
     try {
-      last = read();
-      primed = true;
-    } catch {
-      /* unprimed */
+      return { value: read() };
+    } catch (error) {
+      return { error };
     }
-    return source.subscribe(() => {
-      let next: T;
-      try {
-        next = read();
-      } catch {
-        primed = false;
+  };
+  // Capture the component scope before createSubscriber enters a transient render effect.
+  const selection = toStore(snapshot);
+  const subscribe = createSubscriber((update) => {
+    let previous: ReturnType<typeof snapshot> | undefined;
+    const notify = (next: ReturnType<typeof snapshot>) => {
+      const changed =
+        previous !== undefined &&
+        ("error" in next ||
+          "error" in previous ||
+          !Object.is(next.value, previous.value));
+      previous = next;
+      if (changed) {
         update();
-        return;
       }
-      if (primed && Object.is(next, last)) return;
-      last = next;
-      primed = true;
-      update();
-    });
+    };
+    const unsubscribeSelector = selection.subscribe(notify);
+    return unsubscribeSelector;
   });
 
   return {
     get current(): T {
       subscribe();
       const state = getProxiedAssistantState(source.getClient());
-      const slice = selector(state);
+      const slice = untrack(() => selector(state));
 
       if (
         typeof slice === "object" &&

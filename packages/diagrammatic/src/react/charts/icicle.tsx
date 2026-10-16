@@ -31,24 +31,22 @@ export const Icicle = forwardRef<SVGSVGElement, IcicleProps>(
     const all = partition(root, depth);
     const span = right - left;
     const rowH = (bottom - top - depth * GAP) / (depth + 1);
-    const branchOf = (index: number): number => {
-      let current = all[index]!;
-      let currentIndex = index;
-      while (current.depth > 1) {
-        currentIndex = current.parentIndex;
-        current = all[currentIndex]!;
-      }
-      return all.filter((s) => s.depth === 1 && all.indexOf(s) < currentIndex)
-        .length;
-    };
-    const priorSiblings = (index: number): number => {
-      const slice = all[index]!;
-      let count = 0;
-      for (let i = 0; i < index; i += 1) {
-        if (all[i]!.parentIndex === slice.parentIndex) count += 1;
-      }
-      return count;
-    };
+    const branches: number[] = [];
+    const siblings: number[] = [];
+    const siblingCounts = new Map<number, number>();
+    let branchCount = 0;
+    for (let i = 0; i < all.length; i += 1) {
+      const slice = all[i]!;
+      branches[i] =
+        slice.depth === 1
+          ? branchCount++
+          : slice.depth > 1
+            ? branches[slice.parentIndex]!
+            : 0;
+      const siblingCount = siblingCounts.get(slice.parentIndex) ?? 0;
+      siblings[i] = siblingCount;
+      siblingCounts.set(slice.parentIndex, siblingCount + 1);
+    }
     return (
       <ChartSvg
         ref={ref}
@@ -92,11 +90,11 @@ export const Icicle = forwardRef<SVGSVGElement, IcicleProps>(
                 y={y}
                 width={w}
                 height={rowH}
-                fill={cat(branchOf(i))}
+                fill={cat(branches[i]!)}
                 opacity={
                   slice.depth === 1
                     ? 0.85
-                    : priorSiblings(i) % 2 === 0
+                    : siblings[i]! % 2 === 0
                       ? 0.55
                       : 0.35
                 }

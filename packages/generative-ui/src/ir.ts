@@ -19,6 +19,7 @@
  */
 
 import { isReservedKey, MODEL_KEYS, readReserved, TYPE_KEY } from "./constants";
+import { descend } from "./partialPath";
 
 export const TEXT_SIZES = ["sm", "md", "lg", "xl", "2xl", "3xl"] as const;
 export type TextSize = (typeof TEXT_SIZES)[number];
@@ -169,18 +170,6 @@ const isLegacyNode = (
 const MAX_DEPTH = 64;
 
 /**
- * Steps a streaming partial path down into `key`. `partialPath` is the remaining
- * segment of the parse meta's partial path relative to `node` (`undefined` once
- * the walk leaves the partial frontier, i.e. everything below is complete).
- */
-function descend(
-  partialPath: readonly string[] | undefined,
-  key: string,
-): readonly string[] | undefined {
-  return partialPath?.[0] === key ? partialPath.slice(1) : undefined;
-}
-
-/**
  * Normalizes a generative-ui input to {@link NormalizedUINode}. The flat
  * `$type` shape (in either reserved-key spelling) and the legacy `component`
  * shape all map to the same canonical element, with reserved keys (`$type`,
@@ -218,6 +207,10 @@ export function normalizeUINode(
   const type = node[typeKey];
   if (typeof type === "string") {
     if (partialPath?.length === 1 && partialPath[0] === typeKey) return null;
+    // A key still streaming in is a prefix of the final one, so the node stays keyless until it completes.
+    const keyName = node["$key"] != null ? "$key" : MODEL_KEYS.key;
+    const keyStreaming =
+      partialPath?.length === 1 && partialPath[0] === keyName;
     const { children, ...rest } = node;
     // Reserved keys never reach the prop bag the component sees (see the
     // module header), including strays such as `$status`, so they cannot leak
@@ -226,7 +219,9 @@ export function normalizeUINode(
       type,
       props: stripReservedProps(rest),
       children: normalizeChildren(children, partialPath, depth),
-      key: readReserved(node, "key") as string | number | undefined,
+      key: keyStreaming
+        ? undefined
+        : (readReserved(node, "key") as string | number | undefined),
       action: readReserved(node, "action") as Action | undefined,
     };
   }

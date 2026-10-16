@@ -27,10 +27,27 @@ export const Waffle = forwardRef<SVGSVGElement, WaffleProps>(
       legend: showLegend,
     });
     const { left, right, top, bottom } = F;
-    const total = items.reduce((sum, r) => sum + r.value, 0) || 1;
-    const shares = items.map((r) => Math.round((r.value / total) * 100));
+    const values = items.map((r) => Math.max(0, r.value));
+    const max = values.reduce((largest, value) => Math.max(largest, value), 0);
+    const scaled = max > 0 ? values.map((value) => value / max) : values;
+    const total = scaled.reduce((sum, value) => sum + value, 0) || 1;
+    const exact = scaled.map((value) => (value / total) * 100);
+    const shares = exact.map(Math.round);
     const drift = 100 - shares.reduce((a, b) => a + b, 0);
-    if (shares.length > 0) shares[0]! += drift;
+    if (drift !== 0 && shares.length > 0) {
+      if (values.every((value) => value === 0)) {
+        shares[0] = 100;
+      } else {
+        const order = exact
+          .map((share, i) => ({ i, fraction: share - Math.floor(share) }))
+          .sort((a, b) => b.fraction - a.fraction || a.i - b.i);
+        exact.forEach((share, i) => {
+          shares[i] = Math.floor(share);
+        });
+        const remaining = 100 - shares.reduce((a, b) => a + b, 0);
+        for (const { i } of order.slice(0, remaining)) shares[i]! += 1;
+      }
+    }
     const cells: number[] = [];
     shares.forEach((count, series) => {
       for (let i = 0; i < count; i += 1) cells.push(series);
@@ -44,7 +61,6 @@ export const Waffle = forwardRef<SVGSVGElement, WaffleProps>(
     const gridHeight = cell * 10 + gap * 9;
     const gridLeft = left + (right - left - gridWidth) / 2;
     const gridTop = top + (bottom - top - gridHeight) / 2;
-    const fmt = format ?? ((v: number) => `${Math.round((v / total) * 100)}%`);
     return (
       <ChartSvg
         ref={ref}
@@ -69,7 +85,10 @@ export const Waffle = forwardRef<SVGSVGElement, WaffleProps>(
         {showLegend && (
           <SvgLegend
             frame={F}
-            names={items.map((item) => `${item.label} ${fmt(item.value)}`)}
+            names={items.map(
+              (item, i) =>
+                `${item.label} ${format ? format(item.value) : `${Math.round(exact[i]!)}%`}`,
+            )}
             colors={items.map((_, i) => cat(i))}
           />
         )}

@@ -50,6 +50,66 @@ const convertFileData = (data: string) => {
 };
 
 describe("toLanguageModelMessages", () => {
+  describe.each([false, true])(
+    "tool model content with message IDs %s",
+    (unstable_includeId) => {
+      const convertTool = (part: Partial<ToolCallMessagePart>) =>
+        toLanguageModelMessages([createToolMessage(part)], {
+          unstable_includeId,
+        }).find((message) => message.role === "tool")?.content[0];
+
+      it("sends explicit text and media instead of the UI result", () => {
+        expect(
+          convertTool({
+            result: { documentId: "report-1" },
+            modelContent: [
+              { type: "text", text: "Report contents" },
+              {
+                type: "file",
+                data: "JVBERi0xLjQ=",
+                mediaType: "application/pdf",
+                filename: "report.pdf",
+              },
+              { type: "file", data: "iVBORw0KGgo=", mediaType: "image/png" },
+            ],
+          }),
+        ).toEqual({
+          type: "tool-result",
+          toolCallId: "call-1",
+          toolName: "lookup",
+          output: {
+            type: "content",
+            value: [
+              { type: "text", text: "Report contents" },
+              {
+                type: "media",
+                data: "JVBERi0xLjQ=",
+                mediaType: "application/pdf",
+              },
+              { type: "media", data: "iVBORw0KGgo=", mediaType: "image/png" },
+            ],
+          },
+        });
+      });
+
+      it("honors explicitly empty model content", () => {
+        expect(
+          convertTool({ result: "UI only", modelContent: [] })?.output,
+        ).toEqual({ type: "content", value: [] });
+      });
+
+      it("keeps error results even when model content is present", () => {
+        expect(
+          convertTool({
+            result: { error: "failed" },
+            isError: true,
+            modelContent: [{ type: "text", text: "Preview" }],
+          })?.output,
+        ).toEqual({ type: "error-json", value: { error: "failed" } });
+      });
+    },
+  );
+
   it("skips an assistant message without content instead of throwing", () => {
     expect(
       toLanguageModelMessages([{ id: "a", role: "assistant" }] as never),

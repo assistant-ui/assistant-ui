@@ -83,7 +83,7 @@ describe("Fact on React Native", () => {
       undefined,
       undefined,
       "↑ 8%",
-      "rgb(35, 90, 48)",
+      "rgb(33, 82, 45)",
       "rgba(42, 152, 75, 0.15)",
     ],
     [
@@ -91,7 +91,7 @@ describe("Fact on React Native", () => {
       undefined,
       undefined,
       "↓ 8%",
-      "rgb(134, 27, 22)",
+      "rgb(123, 27, 22)",
       "rgba(231, 0, 11, 0.15)",
     ],
     [
@@ -99,7 +99,7 @@ describe("Fact on React Native", () => {
       undefined,
       false,
       "↓ 8%",
-      "rgb(35, 90, 48)",
+      "rgb(33, 82, 45)",
       "rgba(42, 152, 75, 0.15)",
     ],
     [
@@ -107,7 +107,7 @@ describe("Fact on React Native", () => {
       undefined,
       false,
       "↑ 8%",
-      "rgb(134, 27, 22)",
+      "rgb(123, 27, 22)",
       "rgba(231, 0, 11, 0.15)",
     ],
     [
@@ -123,7 +123,7 @@ describe("Fact on React Native", () => {
       "up",
       undefined,
       "↑ -8%",
-      "rgb(35, 90, 48)",
+      "rgb(33, 82, 45)",
       "rgba(42, 152, 75, 0.15)",
     ],
   ] as const)(

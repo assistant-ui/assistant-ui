@@ -16,8 +16,8 @@ afterEach(() => {
 });
 
 describe("React Native theme", () => {
-  it("mixes 60% tone with 40% ink in Oklab", () => {
-    expect(toneTextColor("#2a984b", "#0a0a0a")).toBe("rgb(35, 90, 48)");
+  it("mixes 55% tone with 45% ink in Oklab", () => {
+    expect(toneTextColor("#2a984b", "#0a0a0a")).toBe("rgb(33, 82, 45)");
   });
 
   it("paints only colors React Native understands", () => {

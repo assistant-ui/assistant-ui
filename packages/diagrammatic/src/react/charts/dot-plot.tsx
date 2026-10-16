@@ -42,8 +42,9 @@ export const DotPlot = forwardRef<SVGSVGElement, DotPlotProps>(
     });
     const { left, right, top, bottom, axisY, T } = F;
     const max = Math.max(...items.map((r) => r.value), ...(ticks ?? []), 1);
+    const min = Math.min(0, ...items.map((r) => r.value), ...(ticks ?? []));
     const highest = Math.max(...items.map((r) => r.value));
-    const X = linear(0, max, left, right);
+    const X = linear(min, max, left, right);
     const rowH = (bottom - top) / Math.max(1, items.length);
     return (
       <ChartSvg

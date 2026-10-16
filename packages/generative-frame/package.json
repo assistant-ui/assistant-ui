@@ -1,6 +1,6 @@
 {
   "name": "generative-frame",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "Stream model-generated HTML and SVG widgets into Safe Content Frames, with a host bridge, theming, diagnostics, screenshots, tools, and prompts",
   "keywords": [
     "generative-ui",
@@ -99,7 +99,7 @@
     "@assistant-ui/core": "^0.3.26",
     "@assistant-ui/react": "^0.15.0",
     "@assistant-ui/react-native": "^0.1.47",
-    "@assistant-ui/vue": "^0.0.3",
+    "@assistant-ui/vue": "^0.0.4",
     "@types/react": "*",
     "react": "^18 || ^19",
     "react-native": "*",

@@ -50,6 +50,8 @@ export type WidgetHandlers = {
   onInitialized?: (params: McpAppInitializeParams) => void;
   onRequestDisplayMode?: (request: { mode: DisplayMode }) => unknown;
   onUpdateModelContext?: (params: unknown) => unknown;
+  /** A widget called `genframe.copyText(text)` or `navigator.clipboard.writeText(text)`. The request alone does not show the user asked for the copy, so confirm with them, such as through a Copy control the host renders, before writing the clipboard. Without it, copying fails in the widget. */
+  onCopyText?: (text: string) => unknown;
   onWidgetState?: (state: unknown) => void;
   onResize?: (size: WidgetSize) => void;
   onError?: (error: WidgetError) => void;
@@ -119,7 +121,7 @@ export type WidgetHandle = {
   write(chunk: string): void;
   /** Marks the code complete and runs held scripts in order. */
   end(): Promise<EndResult>;
-  /** Renders new complete code, morphing in place or remounting when scripts already ran. */
+  /** Renders new complete code, morphing in place or remounting when scripts already ran. A newer call removes a remount still in progress, whose promise rejects. */
   replace(code: string): Promise<EndResult>;
   setTheme(tokens: ThemeTokens): void;
   setContext(context: HostContext): void;
@@ -563,6 +565,22 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
           return { mode: context.displayMode ?? "inline" };
         return (await options.onRequestDisplayMode({ mode })) ?? { mode };
       }
+      case METHODS.copyText: {
+        if (!options.onCopyText) {
+          throw new RpcError(
+            RPC_ERROR.methodNotFound,
+            "This host does not copy text",
+          );
+        }
+        if (typeof p["text"] !== "string") {
+          throw new RpcError(
+            RPC_ERROR.invalidParams,
+            "genframe/copy-text requires a string 'text'",
+          );
+        }
+        await options.onCopyText(p["text"]);
+        return {};
+      }
       case METHODS.updateModelContext:
         if (!options.onUpdateModelContext) {
           throw new RpcError(
@@ -865,6 +883,8 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
 
   const remount = async (next: string): Promise<EndResult> => {
     const previous = activeSession;
+    // The newest replacement wins, so one still booting retires now rather than reaching the host until it settles.
+    pendingSession?.dispose();
     const session = createSession(true);
     pendingSession = session;
     hasPendingWidgetState = false;
@@ -884,6 +904,7 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
       if (disposed || pendingSession !== session)
         throw new Error("Widget replacement superseded");
     } catch (error) {
+      const superseded = !disposed && pendingSession !== session;
       if (pendingSession === session) {
         pendingSession = undefined;
         hasPendingWidgetState = false;
@@ -896,7 +917,8 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
         }
       }
       session.dispose();
-      throw error;
+      if (disposed) throw new Error("Widget disposed");
+      throw superseded ? new Error("Widget replacement superseded") : error;
     }
     pendingSession = undefined;
     hasHeldWidgetState = false;
@@ -946,7 +968,9 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
       return result;
     },
     async replace(next) {
-      const scriptsRan = ended && SCRIPT_TAG.test(code);
+      // While a remount is pending, the frame on screen is still the one whose scripts ran.
+      const scriptsRan =
+        pendingSession !== undefined || (ended && SCRIPT_TAG.test(code));
       code = next;
       ended = true;
       const result = scriptsRan
@@ -1004,6 +1028,8 @@ export function createWidget(options: CreateWidgetOptions): WidgetHandle {
       if (disposed) return;
       disposed = true;
       queue = undefined;
+      pendingSession?.dispose();
+      pendingSession = undefined;
       activeSession?.dispose();
       activeSession = undefined;
       listeners.clear();

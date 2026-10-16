@@ -18,13 +18,15 @@ export type FrameMessageType =
   | "tool-result"
   | "provider-disposed";
 
-export type FrameMessage =
+export type FrameMessage = (
   | {
       type: "model-context-request";
+      requestId?: string;
     }
   | {
       type: "model-context-update";
       context: SerializedModelContext;
+      requestId?: string;
     }
   | {
       type: "tool-call";
@@ -44,6 +46,7 @@ export type FrameMessage =
     }
   | {
       type: "provider-disposed";
-    };
+    }
+) & { documentId?: string };
 
 export const FRAME_MESSAGE_CHANNEL = "assistant-ui-frame";

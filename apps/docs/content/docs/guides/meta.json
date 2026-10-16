@@ -29,6 +29,7 @@
     "streamdown",
     "---Audio---",
     "voice",
+    "openai-realtime",
     "speech",
     "---Programmatic---",
     "context-api",

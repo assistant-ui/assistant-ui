@@ -7,7 +7,7 @@ import {
   useSyncExternalStore,
   useInsertionEffect,
 } from "react";
-import { generateId } from "@assistant-ui/core";
+import { generateId, MessageNotSentError } from "@assistant-ui/core";
 import { useReplaySafeEffect } from "@assistant-ui/store/internal";
 import { useAui } from "@assistant-ui/store";
 import {
@@ -38,6 +38,7 @@ import type {
   OnAdkCustomEventCallback,
   OnAdkAgentTransferCallback,
 } from "./types";
+import { ADK_MESSAGE_ID_METADATA_KEY } from "./messageIdMetadataKey";
 
 export type UseAdkMessagesOptions = {
   stream: AdkStreamCallback;
@@ -64,11 +65,17 @@ type QueuedAdkSend = {
   ids: string[];
   run: (messageBatches: AdkMessage[][]) => Promise<void>;
   rollbackState: AdkThreadState | undefined;
+  chain: object | undefined;
   resolve: () => void;
   reject: (error: unknown) => void;
 };
 
 type RunExecutor = (run: () => Promise<void>) => Promise<void>;
+
+type SendOptions = {
+  onFirstEvent?: (() => void) | undefined;
+  chain?: object | undefined;
+};
 
 const sameSendConfig = (
   left: Record<PropertyKey, unknown>,
@@ -114,6 +121,7 @@ const useAdkMessagesInternal = ({
     },
     [controller],
   );
+  const replacementGenerationRef = useRef(0);
   /**
    * Swap the thread over to a loaded snapshot in one commit. Unlike
    * {@link replaceMessages} this never passes through a cleared state, so a
@@ -133,6 +141,7 @@ const useAdkMessagesInternal = ({
   // into the next turn.
   const replaceMessages = useCallback(
     (msgs: AdkMessage[]) => {
+      replacementGenerationRef.current += 1;
       controller.dispatch({ type: "messages.replaced", messages: msgs });
     },
     [controller],
@@ -173,6 +182,7 @@ const useAdkMessagesInternal = ({
             next.toolResultOwnerKey !== undefined &&
             next.toolResultOwnerKey !== toolResultOwnerKey) ||
           !sameSendConfig(first.config, next.config) ||
+          next.chain !== first.chain ||
           (sends.length > 0 && (first.rollbackState || next.rollbackState))
         ) {
           break;
@@ -189,6 +199,20 @@ const useAdkMessagesInternal = ({
           ids: sends.flatMap((send) => send.ids),
         });
         for (const send of sends) send.reject(error);
+        const chains = new Set(sends.map((send) => send.chain).filter(Boolean));
+        if (chains.size > 0) {
+          const dropped = pendingSendsRef.current.filter(
+            (send) => send.chain && chains.has(send.chain),
+          );
+          pendingSendsRef.current = pendingSendsRef.current.filter(
+            (send) => !send.chain || !chains.has(send.chain),
+          );
+          controller.dispatch({
+            type: "messages.queue.remove",
+            ids: dropped.flatMap((send) => send.ids),
+          });
+          for (const send of dropped) send.reject(new MessageNotSentError());
+        }
       }
     }
   };
@@ -201,12 +225,14 @@ const useAdkMessagesInternal = ({
       config: AdkSendMessageConfig,
       executeWithRun?: RunExecutor,
       rollbackState?: AdkThreadState,
+      { onFirstEvent: onFirstEventForSend, chain }: SendOptions = {},
     ) => {
       const newMessagesWithId = newMessages.map((m) =>
         m.id ? m : { ...m, id: generateId() },
       ) as AdkMessage[];
 
       const run = async (messageBatches: AdkMessage[][]) => {
+        const replacementGeneration = replacementGenerationRef.current;
         const messages = messageBatches.flat();
         // A staged message is already in the thread under its own id, and the
         // merged event below re-emits the whole batch under the first one. Seeding
@@ -289,6 +315,7 @@ const useAdkMessagesInternal = ({
             if (!receivedEvent) {
               receivedEvent = true;
               onFirstEvent?.(rollbackState);
+              onFirstEventForSend?.();
             }
             const event = normalizeAdkEvent(rawEvent);
             const updatedMessages = accumulator.processEvent(event);
@@ -336,6 +363,7 @@ const useAdkMessagesInternal = ({
             // Fire custom event callback for events with customMetadata
             if (event.customMetadata && onCustomEvent) {
               for (const [key, value] of Object.entries(event.customMetadata)) {
+                if (key === ADK_MESSAGE_ID_METADATA_KEY) continue;
                 invokeAdkRuntimeCallback(
                   "onCustomEvent",
                   onCustomEvent,
@@ -385,31 +413,40 @@ const useAdkMessagesInternal = ({
         } finally {
           if (abortControllerRef.current === abortController) {
             if (abortController.signal.aborted) {
-              controller.dispatch({
-                type: "longRunningToolIds.set",
-                ids: accumulator
-                  .getLongRunningToolIds()
-                  .filter((id) => initialLongRunningToolIds.includes(id)),
-              });
-              const updatedMessages = controller.getState().messages;
-              const lastAssistantMessage = updatedMessages.findLast(
-                (m) => m.type === "ai",
-              );
-              if (
-                lastAssistantMessage &&
-                !initialMessageIds.has(lastAssistantMessage.id) &&
-                !lastAssistantMessage.status
-              ) {
-                setMessagesImmediate(
-                  updatedMessages.map((m) =>
-                    m === lastAssistantMessage
-                      ? {
-                          ...lastAssistantMessage,
-                          status: { type: "incomplete", reason: "cancelled" },
-                        }
-                      : m,
-                  ),
+              if (!receivedEvent && rollbackState) {
+                if (replacementGenerationRef.current === replacementGeneration)
+                  controller.dispatch({
+                    type: "run.rollback",
+                    state: rollbackState,
+                    ownIds: [...ownIds, ...queuedIds],
+                  });
+              } else {
+                controller.dispatch({
+                  type: "longRunningToolIds.set",
+                  ids: accumulator
+                    .getLongRunningToolIds()
+                    .filter((id) => initialLongRunningToolIds.includes(id)),
+                });
+                const updatedMessages = controller.getState().messages;
+                const lastAssistantMessage = updatedMessages.findLast(
+                  (m) => m.type === "ai",
                 );
+                if (
+                  lastAssistantMessage &&
+                  !initialMessageIds.has(lastAssistantMessage.id) &&
+                  !lastAssistantMessage.status
+                ) {
+                  setMessagesImmediate(
+                    updatedMessages.map((m) =>
+                      m === lastAssistantMessage
+                        ? {
+                            ...lastAssistantMessage,
+                            status: { type: "incomplete", reason: "cancelled" },
+                          }
+                        : m,
+                    ),
+                  );
+                }
               }
             }
             abortControllerRef.current = null;
@@ -457,6 +494,7 @@ const useAdkMessagesInternal = ({
           toolResultOwnerKey,
           ids: queuedIds,
           rollbackState,
+          chain,
           run: (messageBatches: AdkMessage[][]) =>
             executeWithRun
               ? executeWithRun(() => run(messageBatches))
@@ -490,7 +528,10 @@ const useAdkMessagesInternal = ({
     const queued = pendingSendsRef.current;
     pendingSendsRef.current = [];
     if (queued.length > 0) {
-      for (const send of queued) send.resolve();
+      for (const send of queued) {
+        if (send.chain) send.reject(new MessageNotSentError());
+        else send.resolve();
+      }
       controller.dispatch({
         type: "messages.queue.remove",
         ids: queued.flatMap((send) => send.ids),

@@ -126,6 +126,7 @@ const EMPTY_APPROVALS: ReadonlyMap<string, AdkToolApproval> = new Map();
 export const createAdkMessageConverter =
   (
     approvals: ReadonlyMap<string, AdkToolApproval>,
+    bufferedReplyIds: ReadonlySet<string> = new Set(),
   ): useExternalMessageConverter.Callback<AdkMessage> =>
   (message) => {
     switch (message.type) {
@@ -148,6 +149,10 @@ export const createAdkMessageConverter =
               args: tc.args,
               argsText: tc.argsText ?? JSON.stringify(tc.args),
               ...(approval && { approval }),
+              ...((bufferedReplyIds.has(tc.id) ||
+                (approval && bufferedReplyIds.has(approval.id))) && {
+                responseDeliveryStatus: "queued" as const,
+              }),
             };
           }) ?? [];
 

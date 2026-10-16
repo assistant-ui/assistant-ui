@@ -14,6 +14,7 @@ import {
   supersededInMessage,
 } from "../spec/assistant-ui/thread";
 import { defineCatalog } from "../spec/catalog";
+import { SPEC_TOOL_RESULTS_RULE } from "../spec/tools";
 import type { SpecComponentProps } from "../spec/react/SpecRenderer";
 import { resolveWidgetCode, resolveWidgetOrigin } from "./history";
 import { createWidgetToolkit, useWidgetInstructions } from "./toolkit";
@@ -555,6 +556,17 @@ describe("createWidgetToolkit", () => {
     );
   });
 
+  it("documents genframe.copyText only when the app handles onCopyText", async () => {
+    const readMe = async (widget?: { onCopyText: (text: string) => void }) =>
+      (await entries(createWidgetToolkit(widget ? { widget } : {}).toolkit)[
+        "read_me"
+      ]!.execute!({ modules: [] })) as string;
+    expect(await readMe()).not.toContain("genframe.copyText");
+    expect(await readMe({ onCopyText: () => {} })).toContain(
+      "`await genframe.copyText(text)` copies",
+    );
+  });
+
   it("adds extra tools that execute and render nothing", async () => {
     const lookup = {
       name: "lookup",
@@ -916,6 +928,391 @@ describe("createWidgetToolkit", () => {
     expect(renderedState).toBe(firstState);
   });
 
+  it.each([
+    {
+      form: "a $template placeholder",
+      element: {
+        props: {
+          text: {
+            $template:
+              "${/tools/get_price/0/price} (${/tools/get_price/0/total})",
+          },
+        },
+      },
+      warned: ["/tools/get_price/0/total"],
+    },
+    {
+      form: "a placeholder token with a space",
+      element: {
+        props: { text: { $template: "${/tools/get_price/0/unit price}" } },
+      },
+      warned: ["/tools/get_price/0/unit price"],
+    },
+    {
+      form: "a $state path without its leading slash",
+      element: { props: { text: { $state: "tools/get_price/0/total" } } },
+      warned: ["/tools/get_price/0/total"],
+    },
+    {
+      form: "a $bindState path",
+      element: { props: { text: { $bindState: "/tools/get_price/0/total" } } },
+      warned: ["/tools/get_price/0/total"],
+    },
+    {
+      form: "a $calc reference",
+      element: {
+        props: { text: { $calc: "round(${/tools/get_price/0/total}, 1)" } },
+      },
+      warned: ["/tools/get_price/0/total"],
+    },
+    {
+      form: "a repeat path",
+      element: {
+        props: { text: "x" },
+        repeat: { path: "/tools/get_price/0/items" },
+      },
+      warned: ["/tools/get_price/0/items"],
+    },
+    {
+      form: "a quoted $calc string",
+      element: { props: { text: { $calc: "'${/tools/get_price/0/total}'" } } },
+      warned: [],
+    },
+    {
+      form: "a $calc default for an absent field",
+      element: {
+        props: {
+          text: {
+            $calc:
+              "${/tools/get_price/0/total} ? ${/tools/get_price/0/total} : 'none'",
+          },
+        },
+      },
+      warned: [],
+    },
+    {
+      form: "a visible condition",
+      element: {
+        props: { text: "Warning" },
+        visible: { $state: "/tools/get_price/0/warning" },
+      },
+      warned: [],
+    },
+    {
+      form: "a $cond test",
+      element: {
+        props: {
+          text: {
+            $cond: { $state: "/tools/get_price/0/discount" },
+            $then: "On sale",
+            $else: "Full price",
+          },
+        },
+      },
+      warned: [],
+    },
+    {
+      form: "a value its visible condition tests",
+      element: {
+        props: { text: { $state: "/tools/get_price/0/warning" } },
+        visible: { $state: "/tools/get_price/0/warning" },
+      },
+      warned: [],
+    },
+    {
+      form: "a $then branch reading what its $cond tests",
+      element: {
+        props: {
+          text: {
+            $cond: { $state: "/tools/get_price/0/discount" },
+            $then: { $template: "Save ${/tools/get_price/0/discount}" },
+            $else: "",
+          },
+        },
+      },
+      warned: [],
+    },
+    {
+      form: "a $then branch reading another path",
+      element: {
+        props: {
+          text: {
+            $cond: { $state: "/tools/get_price/0/discount" },
+            $then: { $state: "/tools/get_price/0/total" },
+            $else: "",
+          },
+        },
+      },
+      warned: ["/tools/get_price/0/total"],
+    },
+    {
+      form: "a value shown while a negated visible condition holds",
+      element: {
+        props: { text: { $state: "/tools/get_price/0/warning" } },
+        visible: { not: { $state: "/tools/get_price/0/warning" } },
+      },
+      warned: ["/tools/get_price/0/warning"],
+    },
+    {
+      form: "an $else branch reading what its $cond tests",
+      element: {
+        props: {
+          text: {
+            $cond: { $state: "/tools/get_price/0/discount" },
+            $then: "On sale",
+            $else: { $state: "/tools/get_price/0/discount" },
+          },
+        },
+      },
+      warned: ["/tools/get_price/0/discount"],
+    },
+    {
+      form: "a $calc else branch reading its own test",
+      element: {
+        props: {
+          text: {
+            $calc:
+              "${/tools/get_price/0/total} ? 'x' : ${/tools/get_price/0/total}",
+          },
+        },
+      },
+      warned: ["/tools/get_price/0/total"],
+    },
+    {
+      form: "a value its visible condition compares with eq and neq",
+      element: {
+        props: { text: { $state: "/tools/get_price/0/plan" } },
+        visible: { $state: "/tools/get_price/0/plan", neq: "", eq: "pro" },
+      },
+      warned: [],
+    },
+  ])(
+    "warns when $form reads a /tools path the stored results do not have",
+    async ({ element, warned }) => {
+      const spec = {
+        root: "t",
+        elements: { t: { type: "Text", ...element } },
+        state: {},
+      };
+      mocks.messages = [
+        { content: [call("price", "get_price", {}, { price: "$42" })] },
+        { content: [call("s", "render_spec", { title: "s", spec })] },
+      ];
+      const { toolkit } = createWidgetToolkit({
+        spec: createSpecToolkit(catalog, { components }),
+      });
+      const entry = entries(toolkit)["render_spec"]!;
+      const RenderSpec = entry.render;
+      render(<RenderSpec {...partProps("s", { title: "s", spec })} />);
+      const result = (await entry.execute!(
+        { title: "s", spec },
+        { toolCallId: "s" },
+      )) as {
+        ok: boolean;
+        issues: { code: string; severity: string; message: string }[];
+      };
+      const missing = result.issues.filter(
+        (issue) => issue.code === "missing-tool-result",
+      );
+      expect(result.ok).toBe(true);
+      expect(missing.map((issue) => issue.severity)).toEqual(
+        warned.map(() => "warning"),
+      );
+      expect(
+        missing.map((issue) => /shows `([^`]*)`/.exec(issue.message)?.[1]),
+      ).toEqual(warned);
+    },
+  );
+
+  it("leaves out elements that never render: hidden with visible false or unreachable from the root", async () => {
+    const spec = {
+      root: "hidden",
+      elements: {
+        hidden: {
+          type: "Text",
+          visible: false,
+          props: { text: { $state: "/tools/get_price/0/total" } },
+        },
+        orphan: {
+          type: "Text",
+          props: { text: { $state: "/tools/get_price/0/unit" } },
+        },
+      },
+      state: {},
+    };
+    mocks.messages = [
+      { content: [call("price", "get_price", {}, { price: "$42" })] },
+      { content: [call("s", "render_spec", { title: "s", spec })] },
+    ];
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, { components }),
+    });
+    const entry = entries(toolkit)["render_spec"]!;
+    const RenderSpec = entry.render;
+    render(<RenderSpec {...partProps("s", { title: "s", spec })} />);
+    const result = (await entry.execute!(
+      { title: "s", spec },
+      { toolCallId: "s" },
+    )) as { issues: { code: string }[] };
+    expect(
+      result.issues.filter((issue) => issue.code === "missing-tool-result"),
+    ).toEqual([]);
+  });
+
+  it("leaves out a child its parent's visible condition guards and the children of a repeat over a missing result", async () => {
+    const spec = {
+      root: "page",
+      elements: {
+        page: {
+          type: "Text",
+          props: { text: "Page" },
+          children: ["card", "list"],
+        },
+        card: {
+          type: "Text",
+          props: { text: "Deal" },
+          visible: { $state: "/tools/get_price/0/discount" },
+          children: ["saving"],
+        },
+        saving: {
+          type: "Text",
+          props: { text: { $template: "Save ${/tools/get_price/0/discount}" } },
+        },
+        list: {
+          type: "Text",
+          props: { text: "Items" },
+          repeat: { path: "/tools/get_price/0/items" },
+          children: ["item"],
+        },
+        item: {
+          type: "Text",
+          props: { text: { $state: "/tools/get_price/0/unit" } },
+        },
+      },
+      state: {},
+    };
+    mocks.messages = [
+      { content: [call("price", "get_price", {}, { price: "$42" })] },
+      { content: [call("s", "render_spec", { title: "s", spec })] },
+    ];
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, { components }),
+    });
+    const entry = entries(toolkit)["render_spec"]!;
+    const RenderSpec = entry.render;
+    render(<RenderSpec {...partProps("s", { title: "s", spec })} />);
+    const result = (await entry.execute!(
+      { title: "s", spec },
+      { toolCallId: "s" },
+    )) as { issues: { code: string; message: string }[] };
+    expect(
+      result.issues
+        .filter((issue) => issue.code === "missing-tool-result")
+        .map((issue) => /shows `([^`]*)`/.exec(issue.message)?.[1]),
+    ).toEqual(["/tools/get_price/0/items"]);
+  });
+
+  it("warns about a child one parent guards when another parent renders it unguarded", async () => {
+    const spec = {
+      root: "page",
+      elements: {
+        page: {
+          type: "Text",
+          props: { text: "Page" },
+          children: ["plain", "gated"],
+        },
+        plain: { type: "Text", props: { text: "Plain" }, children: ["saving"] },
+        gated: {
+          type: "Text",
+          props: { text: "Deal" },
+          visible: { $state: "/tools/get_price/0/discount" },
+          children: ["saving"],
+        },
+        saving: {
+          type: "Text",
+          props: { text: { $template: "Save ${/tools/get_price/0/discount}" } },
+        },
+      },
+      state: {},
+    };
+    mocks.messages = [
+      { content: [call("price", "get_price", {}, { price: "$42" })] },
+      { content: [call("s", "render_spec", { title: "s", spec })] },
+    ];
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, { components }),
+    });
+    const entry = entries(toolkit)["render_spec"]!;
+    const RenderSpec = entry.render;
+    render(<RenderSpec {...partProps("s", { title: "s", spec })} />);
+    const result = (await entry.execute!(
+      { title: "s", spec },
+      { toolCallId: "s" },
+    )) as { issues: { code: string; elementId?: string }[] };
+    expect(
+      result.issues
+        .filter((issue) => issue.code === "missing-tool-result")
+        .map((issue) => issue.elementId),
+    ).toEqual(["saving"]);
+  });
+
+  it("checks each of two overlapping calls with one title against its own spec", async () => {
+    const reading = (path: string) => ({
+      root: "t",
+      elements: { t: { type: "Text", props: { text: { $state: path } } } },
+      state: {},
+    });
+    const missing = reading("/tools/get_price/0/total");
+    const present = reading("/tools/get_price/0/price");
+    mocks.messages = [
+      { content: [call("price", "get_price", {}, { price: "$42" })] },
+      { content: [call("a", "render_spec", { title: "s", spec: missing })] },
+      { content: [call("b", "render_spec", { title: "s", spec: present })] },
+    ];
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, { components }),
+    });
+    const entry = entries(toolkit)["render_spec"]!;
+    const RenderSpec = entry.render;
+    render(
+      <>
+        <RenderSpec {...partProps("a", { title: "s", spec: missing })} />
+        <RenderSpec {...partProps("b", { title: "s", spec: present })} />
+      </>,
+    );
+    const [first, second] = (await Promise.all([
+      entry.execute!({ title: "s", spec: missing }, { toolCallId: "a" }),
+      entry.execute!({ title: "s", spec: present }, { toolCallId: "b" }),
+    ])) as { issues: { code: string }[] }[];
+    expect(first!.issues.map((issue) => issue.code)).toEqual([
+      "missing-tool-result",
+    ]);
+    expect(second!.issues).toEqual([]);
+  });
+
+  it("skips the /tools check for a spec that writes its own tools", async () => {
+    const spec = {
+      root: "t",
+      elements: {
+        t: { type: "Text", props: { text: { $state: "/tools/a/0/b" } } },
+      },
+      state: { tools: { get_price: [{}] } },
+    };
+    mocks.messages = [
+      { content: [call("price", "get_price", {}, { price: "$42" })] },
+      { content: [call("s", "render_spec", { title: "s", spec })] },
+    ];
+    const { toolkit } = createWidgetToolkit({
+      spec: createSpecToolkit(catalog, { components }),
+    });
+    const entry = entries(toolkit)["render_spec"]!;
+    const RenderSpec = entry.render;
+    render(<RenderSpec {...partProps("s", { title: "s", spec })} />);
+    expect(
+      await entry.execute!({ title: "s", spec }, { toolCallId: "s" }),
+    ).toMatchObject({ ok: true, issues: [] });
+  });
+
   it("mounts a JSON string result as the structure the model read", () => {
     const spec = {
       root: "t",
@@ -1015,6 +1412,39 @@ describe("createWidgetToolkit", () => {
       <RenderSpec {...partProps("s", { title: "s", spec })} />,
     );
     expect(view.container.textContent).toBe("hammer");
+  });
+
+  it("mounts earlier tool results in backend execution when the server carries their rule", () => {
+    const spec = {
+      root: "t",
+      elements: {
+        t: {
+          type: "Text",
+          props: { text: { $state: "/tools/get_price/0/price" } },
+        },
+      },
+      state: {},
+    };
+    mocks.messages = [
+      { content: [call("price", "get_price", {}, { price: "$42" })] },
+      { content: [call("s", "render_spec", { title: "s", spec })] },
+    ];
+    const { toolkit } = createWidgetToolkit({
+      execution: "backend",
+      spec: createSpecToolkit(catalog, {
+        components: {
+          Text: ({ props }: SpecComponentProps<{ text: string }>) => (
+            <p>{props.text}</p>
+          ),
+        },
+        toolResults: true,
+      }),
+    });
+    const RenderSpec = entries(toolkit)["render_spec"]!.render;
+    const view = render(
+      <RenderSpec {...partProps("s", { title: "s", spec })} />,
+    );
+    expect(view.container.textContent).toBe("$42");
   });
 
   it("keeps index 0 on the latest call to a tool when older calls precede it", () => {
@@ -1145,9 +1575,7 @@ describe("createWidgetToolkit", () => {
     const output = await entries(toolkit)["read_me"]!.execute!({
       modules: ["spec"],
     });
-    expect(output).toContain(
-      'Results of earlier tool calls are in state under `/tools/<toolName>/<n>`, newest first: `0` is the latest call to that tool before this `render_spec` call, `1` the one before it, and so on. Show their values with `{ "$state": "/tools/<toolName>/<n>/..." }` rather than copying them, and never write `tools` in `state`. Indexes count back from each `render_spec` call, so when a patch follows another call to the same tool, update any binding that should keep showing the older result.',
-    );
+    expect(output).toContain(SPEC_TOOL_RESULTS_RULE);
     expect((output as string).indexOf("Keep labels short.")).toBeLessThan(
       (output as string).indexOf("Results of earlier tool calls"),
     );
@@ -1162,9 +1590,7 @@ describe("createWidgetToolkit", () => {
     });
     const description = entries(toolkit)["render_spec"]!.description ?? "";
     expect(description).toContain("- Keep labels short.");
-    expect(description).toContain(
-      "- Results of earlier tool calls are in state under `/tools/<toolName>/<n>`",
-    );
+    expect(description).toContain(`- ${SPEC_TOOL_RESULTS_RULE}`);
   });
 });
 

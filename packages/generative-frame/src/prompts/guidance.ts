@@ -35,6 +35,8 @@ export type HostApiOptions = {
   callTool?: boolean;
   /** The host passes what `genframe.updateModelContext` shares to the model. Defaults to false. */
   modelContext?: boolean;
+  /** The host copies what `genframe.copyText` passes, through `onCopyText`. Defaults to false. */
+  clipboard?: boolean;
 };
 
 export type GuidanceOptions = {
@@ -186,6 +188,11 @@ const hostApiSection = (ctx: Context) => {
       '`genframe.updateModelContext({ content: [{ type: "text", text }], structuredContent })` tells you what the user chose in the widget, such as the option they picked, with every later message, replacing what it shared before, and empty params clear it; nothing is sent. Put the choice in words in `text`, and the same choice as data in `structuredContent` when it helps, such as `{ "selected": "WN 1185" }`. Call it when a choice should shape your next answer.',
     );
   }
+  if (ctx.hostApi.clipboard) {
+    items.push(
+      '`await genframe.copyText(text)` copies `text` to the user\'s clipboard, such as a shopping list behind a "Copy list" button; `navigator.clipboard.writeText` does the same. Call it only from a user action, and show a short confirmation when it resolves.',
+    );
+  }
   items.push(
     "`genframe.setState(value)` reports a small JSON-serializable state (a selection, the current step) to the host; `genframe.state` reads it back.",
     '`genframe.theme` is `"light"` or `"dark"`; the window fires `themechange` when it changes.',
@@ -332,6 +339,7 @@ const createContext = (options: GuidanceOptions): Context => {
       prompt: options.hostApi?.prompt ?? true,
       callTool: options.hostApi?.callTool ?? false,
       modelContext: options.hostApi?.modelContext ?? false,
+      clipboard: options.hostApi?.clipboard ?? false,
     },
     tokenNames: names,
     extraTokens: names.filter((name) => !canonical.has(name)).sort(),

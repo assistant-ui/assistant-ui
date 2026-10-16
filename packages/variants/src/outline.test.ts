@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import { layoutFrames, type FrameInput, type Rect } from "./outline";
 

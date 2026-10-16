@@ -5,15 +5,21 @@ import {
 } from "../../assistant-ui/tool-calls";
 import type { ActionHandler } from "../actions";
 import type { Catalog } from "../catalog";
+import { formulaValueReads } from "../calc";
+import { conditionGuards, templateStatePaths } from "../expressions";
+import { escapePointerToken, getAtPointer } from "../pointer";
 import type { SpecPromptOptions } from "../prompt";
 import {
   createSpecTools,
+  SPEC_TOOL_RESULTS_RULE,
   specGuidanceModule,
   type RenderSpecInput,
 } from "../render-spec";
 import type { SpecStateWrite } from "../state";
 import { parseSpecStream } from "../stream";
-import type { Spec } from "../types";
+import { childIdsOf, safePointer } from "../tree";
+import type { Spec, SpecElement } from "../types";
+import { formatSpecIssues, type SpecIssue } from "../validate";
 
 /** The arguments of a `render_spec` call, which stream in. */
 export type SpecArgs = Partial<RenderSpecInput>;
@@ -155,26 +161,143 @@ function priorSpecCalls(
   return count;
 }
 
-type SpecHistory = (title: string) => {
-  spec: Spec | undefined;
-  version: number;
+type SpecHistory = {
+  base(title: string): { spec: Spec | undefined; version: number };
+  toolResults: Record<string, unknown[]> | undefined;
 };
 
-/** What a mounted call registers for `execute`: the spec each title held before it in its own thread, and how many calls built it. */
-export const callHistory =
-  (messages: readonly MessageLike[], toolCallId: string): SpecHistory =>
-  (title) => ({
+/** What a mounted call registers for `execute`: the spec each title held before it in its own thread, how many calls built it, and the earlier results it mounts under `/tools`. */
+export const callHistory = (
+  messages: readonly MessageLike[],
+  toolCallId: string,
+  toolResults: Record<string, unknown[]> | undefined,
+): SpecHistory => ({
+  base: (title) => ({
     spec: resolveSpecBase(messages, toolCallId, title),
     version: priorSpecCalls(messages, toolCallId, title),
-  });
+  }),
+  toolResults,
+});
+
+const readsTools = (pointer: string) =>
+  pointer === "/tools" || pointer.startsWith("/tools/");
+
+/** Collects the state paths a value shows, leaving out reads in a branch that only renders while that path has a value: the `$then` of a `$cond` that tests it, and the `?` branch of a `$calc` condition on it. */
+function collectShown(
+  value: unknown,
+  guarded: ReadonlySet<string>,
+  shown: string[],
+): void {
+  if (Array.isArray(value)) {
+    for (const item of value) collectShown(item, guarded, shown);
+    return;
+  }
+  if (typeof value !== "object" || value === null) return;
+  const record = value as Record<string, unknown>;
+  if ("$cond" in record) {
+    const tested = conditionGuards(record["$cond"]).map(safePointer);
+    collectShown(record["$then"], new Set([...guarded, ...tested]), shown);
+    collectShown(record["$else"], guarded, shown);
+    return;
+  }
+  for (const [key, child] of Object.entries(record)) {
+    if (typeof child !== "string") {
+      collectShown(child, guarded, shown);
+      continue;
+    }
+    const paths =
+      key === "$state" || key === "$bindState"
+        ? [child]
+        : key === "$template"
+          ? templateStatePaths(child)
+          : key === "$calc"
+            ? formulaValueReads(child)
+            : [];
+    for (const path of paths) {
+      const pointer = safePointer(path);
+      if (!guarded.has(pointer)) shown.push(pointer);
+    }
+  }
+}
+
+/** Each place a spec can render an element, with the paths a `visible` condition on it or an ancestor guards there: reachable from the root through children and slots, leaving out one hidden with `visible: false` along with what it holds, and the repeated children of a `/tools` path the results hold no array at. An element under parents that guard different paths appears once per set of guards. */
+function renderedElements(
+  spec: Spec,
+  state: unknown,
+): [string, SpecElement, ReadonlySet<string>][] {
+  const elements = spec.elements ?? {};
+  const rendered: [string, SpecElement, ReadonlySet<string>][] = [];
+  const seen = new Set<string>();
+  const pending: [string, ReadonlySet<string>][] =
+    typeof spec.root === "string" ? [[spec.root, new Set()]] : [];
+  while (pending.length > 0) {
+    const [id, inherited] = pending.pop()!;
+    if (!Object.hasOwn(elements, id)) continue;
+    const element = elements[id];
+    if (typeof element !== "object" || element === null) continue;
+    if (element.visible === false) continue;
+    const guarded = new Set([
+      ...inherited,
+      ...conditionGuards(element.visible).map(safePointer),
+    ]);
+    const visit = JSON.stringify([id, ...[...guarded].sort()]);
+    if (seen.has(visit)) continue;
+    seen.add(visit);
+    rendered.push([id, element, guarded]);
+    const repeat =
+      typeof element.repeat?.path === "string"
+        ? safePointer(element.repeat.path)
+        : undefined;
+    const repeatsNothing =
+      repeat !== undefined &&
+      readsTools(repeat) &&
+      !Array.isArray(getAtPointer(state, repeat));
+    for (const slot of ["default", ...Object.keys(element.slots ?? {})]) {
+      if (slot === "default" && repeatsNothing) continue;
+      for (const child of childIdsOf(element, slot))
+        if (typeof child === "string") pending.push([child, guarded]);
+    }
+  }
+  return rendered;
+}
+
+/** Each place a spec shows state under `/tools` that the mounted results do not have, as a warning, since the model may have read the value from output the thread does not store or may mean a field that is absent. A read that only renders while its path has a value, under a `visible` condition or `$cond` test on it, is left out. */
+function missingToolResults(
+  spec: Spec,
+  toolResults: Record<string, unknown[]>,
+): SpecIssue[] {
+  const issues: SpecIssue[] = [];
+  const state = { tools: toolResults };
+  const reported = new Set<string>();
+  for (const [id, element, guarded] of renderedElements(spec, state)) {
+    const shown: string[] = [];
+    collectShown([element.props, element.on, element.watch], guarded, shown);
+    if (typeof element.repeat?.path === "string") {
+      const pointer = safePointer(element.repeat.path);
+      if (!guarded.has(pointer)) shown.push(pointer);
+    }
+    for (const pointer of new Set(shown)) {
+      if (!readsTools(pointer)) continue;
+      if (getAtPointer(state, pointer) !== undefined) continue;
+      const report = JSON.stringify([id, pointer]);
+      if (reported.has(report)) continue;
+      reported.add(report);
+      issues.push({
+        code: "missing-tool-result",
+        severity: "warning",
+        elementId: id,
+        path: `/elements/${escapePointerToken(id)}`,
+        message: `"${id}" shows \`${pointer}\`, which the earlier tool results do not have, so it shows nothing there. If you read that value from the tool's output, write it into the spec instead.`,
+      });
+    }
+  }
+  return issues;
+}
 
 /** The app's rules and where earlier tool results are, which `render_spec`'s description and the `spec` module both carry. */
 const toolkitRules = (
   specPrompt: Omit<SpecPromptOptions, "mode"> | undefined,
-) => [
-  ...(specPrompt?.customRules ?? []),
-  'Results of earlier tool calls are in state under `/tools/<toolName>/<n>`, newest first: `0` is the latest call to that tool before this `render_spec` call, `1` the one before it, and so on. Show their values with `{ "$state": "/tools/<toolName>/<n>/..." }` rather than copying them, and never write `tools` in `state`. Indexes count back from each `render_spec` call, so when a patch follows another call to the same tool, update any binding that should keep showing the older result.',
-];
+) => [...(specPrompt?.customRules ?? []), SPEC_TOOL_RESULTS_RULE];
 
 /**
  * The `render_spec` tool a toolkit shares across its calls. Each mounted call
@@ -192,14 +315,27 @@ export function createSpecCalls(
     customRules: toolkitRules(specPrompt),
   });
   const histories = new Map<string, SpecHistory>();
-  const execute = (input: RenderSpecInput, call: { toolCallId: string }) => {
+  const execute = async (
+    input: RenderSpecInput,
+    call: { toolCallId: string },
+  ) => {
     const history = histories.get(call.toolCallId);
     if (history) {
-      const { spec, version } = history(input.title);
+      const { spec, version } = history.base(input.title);
       if (spec) specs.set(input.title, { spec, version });
       else specs.delete(input.title);
     }
-    return tools.render_spec.execute(input);
+    const running = tools.render_spec.execute(input);
+    // `execute` stores this call's spec before it returns, so the spec is read before an overlapping call with the same title stores its own.
+    const spec = specs.get(input.title)?.spec;
+    const result = await running;
+    // The results are mounted only while the spec writes no `tools` of its own.
+    if (!history?.toolResults || !spec || spec.state?.["tools"] !== undefined)
+      return result;
+    const missing = missingToolResults(spec, history.toolResults);
+    if (missing.length === 0) return result;
+    const issues = [...result.issues, ...missing];
+    return { ...result, issues, feedback: formatSpecIssues(issues) };
   };
   return { tools, histories, execute };
 }

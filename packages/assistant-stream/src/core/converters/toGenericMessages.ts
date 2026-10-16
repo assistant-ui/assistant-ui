@@ -5,6 +5,7 @@
  */
 
 import { NO_RESULT } from "../tool/ToolResponse";
+import type { ToolModelContentPart } from "../tool/tool-types";
 
 export type GenericTextPart = {
   type: "text";
@@ -30,6 +31,8 @@ export type GenericToolResultPart = {
   toolCallId: string;
   toolName: string;
   result: unknown;
+  /** Explicit model-visible content for a settled tool result. */
+  modelContent?: readonly ToolModelContentPart[];
   isError?: boolean;
 };
 
@@ -63,6 +66,10 @@ type MessagePartLike = {
   type: string;
   text?: string;
   image?: string;
+  audio?: {
+    data?: string;
+    format?: "mp3" | "wav";
+  };
   data?: string;
   mimeType?: string;
   filename?: string;
@@ -71,6 +78,7 @@ type MessagePartLike = {
   args?: Record<string, unknown>;
   state?: string;
   result?: unknown;
+  modelContent?: readonly ToolModelContentPart[];
   isError?: boolean;
   isPreliminary?: boolean;
   approval?: {
@@ -144,6 +152,25 @@ function toGenericFilePart(
   part: MessagePartLike,
   contentType?: string,
 ): GenericFilePart | undefined {
+  if (
+    part.type === "audio" &&
+    typeof part.audio?.data === "string" &&
+    part.audio.format !== undefined
+  ) {
+    const mediaType = `audio/${part.audio.format}`;
+    const base64DataUrl = part.audio.data.match(
+      /^data:[^;,]*(?:;[^;,]+)*;base64,(.*)$/i,
+    );
+    return {
+      type: "file",
+      data: toUrlOrString(
+        base64DataUrl
+          ? `data:${mediaType};base64,${base64DataUrl[1]}`
+          : part.audio.data,
+      ),
+      mediaType,
+    };
+  }
   if (part.type === "image" && part.image) {
     return {
       type: "file",
@@ -209,6 +236,9 @@ function processToolCall(
       : part.result === undefined
         ? NO_RESULT
         : part.result,
+    ...(settled && part.modelContent !== undefined
+      ? { modelContent: part.modelContent }
+      : {}),
   };
   if (!settled || part.isError) {
     toolResult.isError = true;

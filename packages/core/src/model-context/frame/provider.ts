@@ -8,6 +8,7 @@ import {
   type SerializedTool,
 } from "./types";
 import { isFrameMessage } from "./validate";
+import { generateId } from "../../utils/id";
 
 const serializeTool = (tool: Tool<any, any>): SerializedTool => ({
   ...(tool.description && { description: tool.description }),
@@ -34,6 +35,10 @@ const getDefaultTargetOrigin = () => window.location.origin;
 
 export class AssistantFrameProvider {
   private static _instance: AssistantFrameProvider | null = null;
+  private readonly _documentId =
+    typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : generateId();
 
   private _providers = new Map<symbol, ModelContextProvider>();
   private _providerUnsubscribes = new Map<symbol, Unsubscribe | undefined>();
@@ -109,6 +114,9 @@ export class AssistantFrameProvider {
         this.sendMessage(event, {
           type: "model-context-update",
           context: serializeModelContext(this.getModelContext()),
+          ...(message.requestId !== undefined && {
+            requestId: message.requestId,
+          }),
         });
         break;
 
@@ -131,6 +139,18 @@ export class AssistantFrameProvider {
     message: Extract<FrameMessage, { type: "tool-call" }>,
     event: MessageEvent,
   ) {
+    if (
+      message.documentId !== undefined &&
+      message.documentId !== this._documentId
+    ) {
+      this.sendMessage(event, {
+        type: "tool-result",
+        id: message.id,
+        error: "AssistantFrame document has changed",
+      });
+      return;
+    }
+
     const resolvedTool = this.getTool(message.toolName);
     const tool = resolvedTool?.tool;
     const abortController = new AbortController();
@@ -229,7 +249,10 @@ export class AssistantFrameProvider {
 
   private sendMessage(event: MessageEvent, message: FrameMessage) {
     event.source?.postMessage(
-      { channel: FRAME_MESSAGE_CHANNEL, message },
+      {
+        channel: FRAME_MESSAGE_CHANNEL,
+        message: { ...message, documentId: this._documentId },
+      },
       { targetOrigin: event.origin },
     );
   }
@@ -279,6 +302,7 @@ export class AssistantFrameProvider {
       const updateMessage: FrameMessage = {
         type: "model-context-update",
         context: serializeModelContext(this.getModelContext()),
+        documentId: this._documentId,
       };
 
       window.parent.postMessage(
@@ -456,7 +480,10 @@ export class AssistantFrameProvider {
           window.parent.postMessage(
             {
               channel: FRAME_MESSAGE_CHANNEL,
-              message: { type: "provider-disposed" } satisfies FrameMessage,
+              message: {
+                type: "provider-disposed",
+                documentId: instance._documentId,
+              } satisfies FrameMessage,
             },
             instance._targetOrigin,
           );

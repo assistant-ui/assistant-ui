@@ -233,6 +233,67 @@ const responseIds = (parts: Record<string, unknown>[]) =>
 afterEach(() => vi.unstubAllGlobals());
 
 describe("useAdkRuntime tool result batching", () => {
+  it("marks replies from a failed run as queued until the next user turn sends them", async () => {
+    const { runtime, requests, publishFirstRun, closeFirstRun } =
+      await mount(true);
+    const call = () =>
+      runtime.thread
+        .getState()
+        .messages.flatMap((message) =>
+          message.role === "assistant" ? message.content : [],
+        )
+        .find((part) => part.type === "tool-call" && part.toolCallId === "c1");
+
+    act(() => {
+      answer(runtime, "c1");
+      publishFirstRun({
+        id: "error",
+        invocationId: "run-1",
+        author: "agent",
+        errorMessage: "run failed",
+      });
+    });
+    await act(async () => closeFirstRun());
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+    expect(requests).toHaveLength(1);
+    expect(call()).toMatchObject({
+      result: '{"value":"c1"}',
+      responseDeliveryStatus: "queued",
+    });
+
+    act(() =>
+      runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "next" }],
+      }),
+    );
+    await waitFor(() => expect(requests).toHaveLength(2));
+    expect(responseIds(requests[1]!.newMessage.parts)).toEqual(["c1"]);
+    await waitFor(() =>
+      expect(call()).not.toHaveProperty("responseDeliveryStatus"),
+    );
+  });
+
+  it("removes the queued status when Stop drops the reply", async () => {
+    const { runtime } = await mount(true);
+    const call = () =>
+      runtime.thread
+        .getState()
+        .messages.flatMap((message) =>
+          message.role === "assistant" ? message.content : [],
+        )
+        .find((part) => part.type === "tool-call" && part.toolCallId === "c1");
+
+    act(() => answer(runtime, "c1"));
+    await waitFor(() =>
+      expect(call()).toHaveProperty("responseDeliveryStatus", "queued"),
+    );
+    await act(async () => runtime.thread.cancelRun());
+    expect(call()).not.toHaveProperty("responseDeliveryStatus");
+  });
+
   it("clears a queued tool answer when Stop cancels an earlier run", async () => {
     const { runtime, requests } = await mount(false, {
       firstEvent: callEvent("c1", "run-1"),

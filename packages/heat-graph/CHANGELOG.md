@@ -1,5 +1,13 @@
 # heat-graph
 
+## 0.0.25
+
+### Patch Changes
+
+- [#9755](https://github.com/assistant-ui/assistant-ui/pull/9755) [`9bbb2d2`](https://github.com/assistant-ui/assistant-ui/commit/9bbb2d24d6ebf9082dd744943cbd5f85c9241525) - An omitted `end` no longer reads the clock during render: the server render and hydration end the graph at the latest data date, and it moves to today right after mount. ([@okisdev](https://github.com/okisdev))
+
+- [#9452](https://github.com/assistant-ui/assistant-ui/pull/9452) [`09a8380`](https://github.com/assistant-ui/assistant-ui/commit/09a8380db8038284a2bbd4f5e72f4ff06d82a870) - `HeatGraph.Tooltip` now throws when rendered outside `HeatGraph.Root`, matching the other parts ([@gilsmt](https://github.com/gilsmt))
+
 ## 0.0.24
 
 ### Patch Changes

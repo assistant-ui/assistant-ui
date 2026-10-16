@@ -69,14 +69,14 @@ const fromOklab = ([lightness, a, b]: Oklab) => {
   ];
 };
 
-/** Mixes a `#rrggbb` tone at 60% with 40% ink in Oklab. */
+/** Mixes a `#rrggbb` tone at 55% with 45% ink in Oklab. */
 export const toneTextColor = (tone: string, foreground: string) => {
   const [lightness, a, b] = toOklab(tone);
   const [foregroundLightness, foregroundA, foregroundB] = toOklab(foreground);
   const mixed = fromOklab([
-    lightness * 0.6 + foregroundLightness * 0.4,
-    a * 0.6 + foregroundA * 0.4,
-    b * 0.6 + foregroundB * 0.4,
+    lightness * 0.55 + foregroundLightness * 0.45,
+    a * 0.55 + foregroundA * 0.45,
+    b * 0.55 + foregroundB * 0.45,
   ]);
   return `rgb(${mixed.join(", ")})`;
 };

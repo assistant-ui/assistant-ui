@@ -630,7 +630,7 @@ type ReasoningMessagePart = {
   readonly parentId?: string;
 };
 
-type ReservedAccessorProps = "name" | "query" | "source";
+type ReservedAccessorProps = "apply" | "bind" | "call" | "name" | "query" | "source";
 
 type ReservedScopeNames = "on" | "optional" | "subscribe";
 
@@ -749,6 +749,7 @@ type ThreadAssistantMessage = MessageCommonProps & {
   readonly content: readonly ThreadAssistantMessagePart[];
   readonly status: MessageStatus;
   readonly metadata: {
+    readonly runId?: string | undefined;
     readonly unstable_state: ReadonlyJSONValue;
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
     readonly unstable_data: readonly ReadonlyJSONValue[];
@@ -1080,6 +1081,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly toolName: string;
   readonly args: TArgs;
   readonly result?: TResult | undefined;
+  readonly responseDeliveryStatus?: "queued" | undefined;
   readonly isError?: boolean | undefined;
   readonly isPreliminary?: boolean | undefined;
   readonly argsText: string;
@@ -1212,7 +1214,7 @@ type ValidateMeta<K extends string, TClient> = "meta" extends keyof TClient ? TC
 
 type ValidateMethods<K extends string, TClient> = TClient extends {
   methods: ClientMethods;
-} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
+} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name/call/apply/bind)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
 
 type WildcardPayload = {
   [K in keyof ClientEventMap]: {

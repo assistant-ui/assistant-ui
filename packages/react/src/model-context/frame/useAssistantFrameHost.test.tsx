@@ -26,7 +26,9 @@ describe("useAssistantFrameHost", () => {
     const iframeRef = {
       current: {
         contentWindow: { postMessage: vi.fn() } as unknown as Window,
-      } as HTMLIFrameElement,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      } as unknown as HTMLIFrameElement,
     };
     const { unmount } = renderHook(() =>
       useAssistantFrameHost({ iframeRef, register }),
