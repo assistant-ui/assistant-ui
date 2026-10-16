@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { act, useState } from "react";
 import { Text } from "ink";
 import { cleanup, render } from "ink-testing-library";
 import { afterEach, expect, it, vi } from "vitest";
@@ -13,7 +13,11 @@ import {
 } from "@assistant-ui/react-ink";
 import { ThreadShell } from "./thread-shell";
 
-afterEach(cleanup);
+(
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT = true;
+
+afterEach(() => act(async () => cleanup()));
 
 it("keeps drafts while navigating, renaming, archiving and restoring real runtime threads", async () => {
   let client: ReturnType<typeof useAui> | undefined;
@@ -50,10 +54,15 @@ it("keeps drafts while navigating, renaming, archiving and restoring real runtim
       </AssistantRuntimeProvider>
     );
   }
-  const { stdin } = render(<App />);
+  let result!: ReturnType<typeof render>;
+  await act(async () => {
+    result = render(<App />);
+  });
+  const { stdin } = result;
   const press = async (value: string) => {
-    stdin.write(value);
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await act(async () => {
+      stdin.write(value);
+    });
   };
   await vi.waitFor(() => expect(client).toBeDefined());
   await press("Hello");
