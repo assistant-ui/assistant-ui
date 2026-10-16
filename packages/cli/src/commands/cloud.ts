@@ -15,8 +15,10 @@ import {
   cloudAuthConfig,
   loginToCloud,
   logoutFromCloud,
+  savedCloudAccessToken,
   validateCloudUrl,
 } from "../lib/cloud-auth";
+import { runCloudCommand } from "../lib/cloud-remote";
 import {
   readCloudProjectConfig,
   mergeCloudEnvironment,
@@ -370,9 +372,24 @@ export const setupCloud = async (
   );
 };
 
+const DEFAULT_CLOUD_URL = "https://cloud.assistant-ui.com";
+
 export const cloud = new Command()
   .name("cloud")
-  .description("sign in and set up a multiplayer Assistant Cloud chat")
+  .description("manage Assistant Cloud (run `assistant-ui cloud help`)")
+  .helpOption(false)
+  .helpCommand(false)
+  .argument("[command...]")
+  .allowUnknownOption()
+  .allowExcessArguments()
+  .action(async (args: string[]) => {
+    process.exitCode = await runCloudCommand(args, {
+      cloudUrl: process.env.ASSISTANT_UI_CLOUD_URL ?? DEFAULT_CLOUD_URL,
+      accessToken: () => savedCloudAccessToken(cloudAuthConfig()),
+      stdout: (text) => process.stdout.write(text),
+      stderr: (text) => process.stderr.write(text),
+    });
+  })
   .addCommand(
     new Command("login")
       .description("sign in to Assistant Cloud using your browser")
@@ -418,7 +435,7 @@ export const cloud = new Command()
       .option(
         "--api-url <url>",
         "Assistant Cloud management URL",
-        process.env.ASSISTANT_UI_CLOUD_URL ?? "https://cloud.assistant-ui.com",
+        process.env.ASSISTANT_UI_CLOUD_URL ?? DEFAULT_CLOUD_URL,
       )
       .option(
         "--access-code <code>",
