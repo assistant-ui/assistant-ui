@@ -332,9 +332,16 @@ export const cliSurface: CliSurfaceSnapshot = {
     },
     {
       "name": "cloud",
-      "description": "sign in and set up a multiplayer Assistant Cloud chat",
-      "usage": "[options] [command]",
-      "arguments": [],
+      "description": "manage Assistant Cloud (run `assistant-ui cloud help`)",
+      "usage": "[command] [command...]",
+      "arguments": [
+        {
+          "syntax": "[command...]",
+          "description": "",
+          "required": false,
+          "variadic": true
+        }
+      ],
       "options": [],
       "commands": [
         {

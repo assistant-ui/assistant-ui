@@ -233,7 +233,7 @@ export async function POST(
 
 ### Implement `RemoteThreadListAdapter`
 
-The adapter calls your endpoints. `unstable_useAdapters` injects the per-thread history adapter on the `RemoteThreadList` store entry and on `useRemoteThreadListRuntime` when `unstable_Provider` is omitted. `unstable_Provider` is an optional React component that `useRemoteThreadListRuntime` renders instead. On the `RemoteThreadList` store entry, key the thread factory with `withKey(id, …)` so history reloads when the visible thread changes.
+The adapter calls your endpoints. `unstable_useAdapters` injects the per-thread history adapter on the `RemoteThreadList` store entry and on `useRemoteThreadListRuntime`. `unstable_Provider` is an optional React component that `useRemoteThreadListRuntime` renders instead, only when the adapter it mounts with has one. On the `RemoteThreadList` store entry, key the thread factory with `withKey(id, …)` so history reloads when the visible thread changes.
 
 <PlatformTabs>
 <Tab value="React">
