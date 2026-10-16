@@ -582,6 +582,7 @@ describe("page changes", () => {
 describe("copy prompt", () => {
   const writeText = vi.fn(async (_text: string) => {});
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     writeText.mockClear();
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText },
@@ -589,6 +590,7 @@ describe("copy prompt", () => {
     });
   });
   afterEach(() => {
+    vi.useRealTimers();
     delete (navigator as { clipboard?: unknown }).clipboard;
   });
 
