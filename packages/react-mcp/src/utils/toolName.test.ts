@@ -39,6 +39,8 @@ describe("getMcpToolName", () => {
       getMcpToolName(`${prefix}second`, "search"),
     ];
     expect(new Set(names).size).toBe(names.length);
+    expect(names[0]).toMatch(/first$/);
+    expect(names[1]).toMatch(/second$/);
   });
 
   it("distinguishes names that sanitize to the same readable suffix", () => {

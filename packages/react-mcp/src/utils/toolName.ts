@@ -15,6 +15,6 @@ export function getMcpToolName(serverId: string, toolName: string): string {
   const prefix = `__mcp_${hash.toString(16).padStart(16, "0")}_`;
   return (
     prefix +
-    toolName.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64 - prefix.length)
+    toolName.replace(/[^a-zA-Z0-9_-]/g, "_").slice(-(64 - prefix.length))
   );
 }
