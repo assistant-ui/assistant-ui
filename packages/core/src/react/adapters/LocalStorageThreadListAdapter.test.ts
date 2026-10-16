@@ -622,6 +622,12 @@ describe("parseStoredMessageRepository", () => {
 });
 
 describe("createLocalStorageAdapter", () => {
+  it("exposes per-thread adapters only through unstable_useAdapters", () => {
+    const adapter = createLocalStorageAdapter({ storage: createStorage() });
+    expect(adapter.unstable_useAdapters).toBeTypeOf("function");
+    expect(adapter.unstable_Provider).toBeUndefined();
+  });
+
   it("persists history for a newly initialized thread", async () => {
     const messagesKey = "@assistant-ui:messages:thread-1";
     const storage = createStorage();
