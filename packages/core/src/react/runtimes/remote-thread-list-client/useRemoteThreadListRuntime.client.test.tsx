@@ -2,7 +2,7 @@
 
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useAui } from "@assistant-ui/store";
 import type { ChatModelAdapter } from "../../../index";
 import type { AssistantRuntime } from "../../../runtime/api/assistant-runtime";
@@ -12,6 +12,7 @@ import type { ThreadMessage } from "../../../types/message";
 import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/adapter/in-memory";
 import {
   actSettled,
+  deferred,
   makeAdapter,
 } from "../../../tests/remote-thread-list-test-helpers";
 import { AssistantRuntimeProvider } from "../../AssistantRuntimeProvider";
@@ -434,6 +435,69 @@ describe("useRemoteThreadListRuntime client bridge", () => {
     await waitFor(() => expect(model.run).toHaveBeenCalledTimes(1));
     expect(model.run.mock.calls[0]?.[0].unstable_threadId).toBe(
       firstRunThreadId,
+    );
+  });
+
+  it("hands the remote ID to a runtime the hook swaps in while the thread initializes", async () => {
+    const initialization = deferred<{
+      remoteId: string;
+      externalId: string | undefined;
+    }>();
+    const initialize = vi.fn(() => initialization.promise);
+    const adapter = makeAdapter({ initialize });
+    const makeModel = () => ({
+      run: vi.fn(async (_args: Parameters<ChatModelAdapter["run"]>[0]) => ({
+        content: [],
+      })),
+    });
+    const firstModel = makeModel();
+    const secondModel = makeModel();
+    let swap!: () => void;
+    const useSwappingRuntime = () => {
+      const first = useLocalRuntime(firstModel);
+      const second = useLocalRuntime(secondModel);
+      const [swapped, setSwapped] = useState(false);
+      swap = () => setSwapped(true);
+      return swapped ? second : first;
+    };
+    let runtime: AssistantRuntime | undefined;
+    const App = () => {
+      runtime = useRemoteThreadListRuntime({
+        adapter,
+        runtimeHook: useSwappingRuntime,
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+    render(<App />);
+    await waitFor(() =>
+      expect(runtime!.threads.getState().isLoading).toBe(false),
+    );
+    const localId = runtime!.threads.getState().mainThreadId;
+
+    await act(async () => {
+      runtime!.thread.composer.setText("first");
+      runtime!.thread.composer.send();
+    });
+    await waitFor(() => expect(initialize).toHaveBeenCalledTimes(1));
+    await act(async () => swap());
+    await act(async () => {
+      runtime!.thread.composer.setText("second");
+      runtime!.thread.composer.send();
+    });
+    await act(async () =>
+      initialization.resolve({
+        remoteId: `remote-${localId}`,
+        externalId: undefined,
+      }),
+    );
+
+    await waitFor(() => expect(secondModel.run).toHaveBeenCalledTimes(1));
+    expect(secondModel.run.mock.calls[0]?.[0].unstable_threadId).toBe(
+      `remote-${localId}`,
     );
   });
 
