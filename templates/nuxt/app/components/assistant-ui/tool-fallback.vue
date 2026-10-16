@@ -115,6 +115,8 @@ const isCancelled = computed(
 const requiresAction = computed(() => statusType.value === "requires-action");
 
 const label = computed(() => {
+  if (part.value?.responseDeliveryStatus === "queued")
+    return "Reply queued, not sent yet";
   switch (statusType.value) {
     case "running":
       return "Running tool";

@@ -59,8 +59,8 @@ export const Chord = forwardRef<SVGSVGElement, ChordProps>(
               d={[
                 `M${round(s0.x)} ${round(s0.y)}`,
                 `A${radius} ${radius} 0 0 1 ${round(s1.x)} ${round(s1.y)}`,
-                `Q${round(cx)} ${round(cy)} ${round(t0.x)} ${round(t0.y)}`,
-                `A${radius} ${radius} 0 0 1 ${round(t1.x)} ${round(t1.y)}`,
+                `Q${round(cx)} ${round(cy)} ${round(t1.x)} ${round(t1.y)}`,
+                `A${radius} ${radius} 0 0 0 ${round(t0.x)} ${round(t0.y)}`,
                 `Q${round(cx)} ${round(cy)} ${round(s0.x)} ${round(s0.y)}`,
                 "Z",
               ].join(" ")}

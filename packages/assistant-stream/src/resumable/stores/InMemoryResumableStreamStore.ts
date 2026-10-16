@@ -110,7 +110,7 @@ export function createInMemoryResumableStreamStore(
       signal.addEventListener("abort", wake, { once: true });
       if (wakeBy !== undefined) {
         if (wakeBy > 0) {
-          timer = setTimeout(wake, wakeBy);
+          timer = setTimeout(wake, Math.min(wakeBy, 2_147_483_647));
         } else {
           // already past the deadline; resolve so the caller can re-check
           // expiration without waiting for an external notify.

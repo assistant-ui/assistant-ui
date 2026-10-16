@@ -26,10 +26,23 @@ export const auiCardSurfaceSelectors = [
 
 const cardSurface = (scope?: string) =>
   auiCardSurfaceSelectors.map((s) => (scope ? `${scope} ${s}` : s)).join(", ");
+// Tone text mixes with the inherited ink, so it stays readable on a tinted Card whose text turns white, as the native renderer does.
 const toneText = (token: string) =>
-  `color-mix(in oklab, var(${token}) 60%, var(--foreground))`;
+  `color-mix(in oklab, var(${token}) 55%, currentColor)`;
 const inkFill = (pct: number) =>
   `color-mix(in oklab, var(--foreground) ${pct}%, transparent)`;
+const tintedCardDefaultBadge =
+  '[data-aui="card"][data-aui-background][data-aui-surface] [data-aui="badge"]:not([data-aui-variant="info"]):not([data-aui-variant="success"]):not([data-aui-variant="warning"]):not([data-aui-variant="danger"])';
+const tintedCardInfoBadge =
+  '[data-aui="card"][data-aui-background][data-aui-surface] [data-aui="badge"][data-aui-variant="info"]';
+const tintedCardDefaultBadgeStyle = {
+  "background-color": "var(--muted)",
+  color: "var(--secondary-foreground)",
+};
+const tintedCardInfoBadgeStyle = {
+  "background-color": "var(--primary)",
+  color: "var(--primary-foreground)",
+};
 
 // Density knobs, host-overridable via CSS custom properties: --aui-control-height, --aui-control-font-size, --aui-button-padding-x, --aui-field-padding-x.
 export const generativeUiVocabularyCss: CssRuleset = {
@@ -1194,6 +1207,8 @@ export const generativeUiVocabularyCss: CssRuleset = {
     "background-color": "color-mix(in oklab, var(--primary) 15%, transparent)",
     color: "var(--primary)",
   },
+  [tintedCardDefaultBadge]: tintedCardDefaultBadgeStyle,
+  [tintedCardInfoBadge]: tintedCardInfoBadgeStyle,
   '[data-aui="badge"][data-aui-variant="success"]': {
     "background-color":
       "color-mix(in oklab, var(--aui-success) 15%, transparent)",
@@ -1420,6 +1435,10 @@ export const generativeUiElementsThemeCss: CssRuleset = {
     "background-color": "color-mix(in oklab, var(--aui-live) 12%, transparent)",
     color: "var(--aui-live)",
   },
+  [`${T} ${tintedCardDefaultBadge}`]: tintedCardDefaultBadgeStyle,
+  [`${TD} ${tintedCardDefaultBadge}`]: tintedCardDefaultBadgeStyle,
+  [`${T} ${tintedCardInfoBadge}`]: tintedCardInfoBadgeStyle,
+  [`${TD} ${tintedCardInfoBadge}`]: tintedCardInfoBadgeStyle,
 
   [`${T} [data-aui="chart"]`]: {
     color: inkFill(70),

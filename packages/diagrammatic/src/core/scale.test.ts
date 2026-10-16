@@ -93,12 +93,12 @@ describe("niceTicks", () => {
       niceTicks(1e308, Number.MAX_VALUE, 4, boundedFormat()).map(
         (tick) => tick.at,
       ),
-    ).toEqual([1e308, 1.2e308, 1.3999999999999999e308, 1.5999999999999998e308]);
+    ).toEqual([1e308, 1.2e308, 1.4e308, 1.6e308]);
   });
 
   it("preserves fractional ticks and the endpoint tolerance", () => {
     expect(niceTicks(0, 0.6, 3).map((tick) => tick.at)).toEqual([
-      0, 0.2, 0.4, 0.6000000000000001,
+      0, 0.2, 0.4, 0.6,
     ]);
   });
 

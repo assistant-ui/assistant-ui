@@ -282,7 +282,11 @@ export function createWidgetToolkit(
     ...options,
     guidance: {
       ...options.guidance,
-      hostApi: { modelContext: true, ...options.guidance?.hostApi },
+      hostApi: {
+        modelContext: true,
+        clipboard: options.widget?.onCopyText !== undefined,
+        ...options.guidance?.hostApi,
+      },
     },
     preview:
       options.preview ??

@@ -38,7 +38,11 @@ export const ParallelCoordinates = forwardRef<
       (_, i) => left + (i * (right - left)) / Math.max(1, axes.length - 1),
     );
     const domains = axes.map((_, a) =>
-      extent(records.map((record) => record.values[a] ?? 0)),
+      extent(
+        records
+          .map((record) => record.values[a])
+          .filter((value): value is number => Number.isFinite(value)),
+      ),
     );
     const Y = (value: number, a: number) => {
       const [lo, hi] = domains[a]!;
@@ -84,11 +88,18 @@ export const ParallelCoordinates = forwardRef<
         {records.map((record, k) => (
           <g key={record.name} data-part="mark" data-series={record.name}>
             <path
-              d={record.values
-                .map(
-                  (value, a) =>
-                    `${a === 0 ? "M" : "L"}${round(xs[a] ?? left)} ${round(Y(value, a))}`,
-                )
+              d={axes
+                .map((_, a) => {
+                  const value = record.values[a];
+                  if (typeof value !== "number" || !Number.isFinite(value))
+                    return "";
+                  const command =
+                    a === 0 || !Number.isFinite(record.values[a - 1])
+                      ? "M"
+                      : "L";
+                  return `${command}${round(xs[a] ?? left)} ${round(Y(value, a))}`;
+                })
+                .filter(Boolean)
                 .join(" ")}
               fill="none"
               stroke={cat(k)}
@@ -96,15 +107,18 @@ export const ParallelCoordinates = forwardRef<
               strokeLinejoin="round"
               {...stroke.line}
             />
-            {record.values.map((value, a) => (
-              <circle
-                key={a}
-                cx={round(xs[a] ?? left)}
-                cy={round(Y(value, a))}
-                r={3}
-                fill={cat(k)}
-              />
-            ))}
+            {axes.map((_, a) => {
+              const value = record.values[a];
+              return typeof value === "number" && Number.isFinite(value) ? (
+                <circle
+                  key={a}
+                  cx={round(xs[a] ?? left)}
+                  cy={round(Y(value, a))}
+                  r={3}
+                  fill={cat(k)}
+                />
+              ) : null;
+            })}
           </g>
         ))}
         {showLegend && (

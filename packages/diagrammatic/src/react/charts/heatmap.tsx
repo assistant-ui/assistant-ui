@@ -3,7 +3,7 @@ import { forwardRef } from "react";
 import { textWidth, truncate } from "../../core/text";
 import { formatCompact, type Matrix } from "../../core/types";
 import { rowMid, round } from "../../core/geometry";
-import { ACCENT, alpha, seqOpacity } from "../../core/theme";
+import { ACCENT, NEG, alpha, seqOpacity } from "../../core/theme";
 import { ChartSvg, PAD, frame, resolveWidth, typeScale } from "../svg";
 
 export type HeatmapProps = BaseProps & {
@@ -63,7 +63,7 @@ export const Heatmap = forwardRef<SVGSVGElement, HeatmapProps>(
         >
           {matrix.rows.map((row, r) => (
             <text
-              key={row}
+              key={`${row}-${r}`}
               x={round(left - 6)}
               y={round(rowMid(r, cellH, top))}
               textAnchor="end"
@@ -109,6 +109,8 @@ export const Heatmap = forwardRef<SVGSVGElement, HeatmapProps>(
     }
 
     if (mark === "calendar") {
+      const calendarValues = matrix.values.flat();
+      const calendarMax = Math.max(...calendarValues.map(Math.abs), 1);
       const gap = Math.min(4, cellW * 0.18, cellH * 0.18);
       const radius = Math.min(4, cellW * 0.22, cellH * 0.22);
       return (
@@ -148,7 +150,7 @@ export const Heatmap = forwardRef<SVGSVGElement, HeatmapProps>(
           )}
           {matrix.values.flatMap((rowValues, r) =>
             rowValues.map((v, c) => {
-              const share = v / max;
+              const share = Math.abs(v) / calendarMax;
               return (
                 <rect
                   key={`${r}-${c}`}
@@ -157,7 +159,7 @@ export const Heatmap = forwardRef<SVGSVGElement, HeatmapProps>(
                   width={round(Math.max(cellW - gap, 0.5))}
                   height={round(Math.max(cellH - gap, 0.5))}
                   rx={round(radius)}
-                  fill={ACCENT}
+                  fill={v < 0 ? NEG : ACCENT}
                   opacity={v === 0 ? 0.06 : seqOpacity(share)}
                   data-part="mark"
                   data-i={c}
@@ -181,7 +183,7 @@ export const Heatmap = forwardRef<SVGSVGElement, HeatmapProps>(
       >
         {matrix.rows.map((row, r) => (
           <text
-            key={row}
+            key={`${row}-${r}`}
             x={round(left - 6)}
             y={round(rowMid(r, cellH, top))}
             textAnchor="end"

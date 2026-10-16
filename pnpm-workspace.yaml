@@ -29,6 +29,7 @@ update:
     - '@babel/traverse'
     - '@babel/types'
 
+# Release age is a verification gate: review fresh releases, then add narrowly scoped, exact-version exceptions when justified.
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
   - '@assistant-ui/*'

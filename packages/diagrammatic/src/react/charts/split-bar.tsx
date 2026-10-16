@@ -45,11 +45,14 @@ export const SplitBar = forwardRef<SVGSVGElement, SplitBarProps>(
         className={className}
       >
         {parts.map((part, i) => {
-          const lead = i === 0 ? 0 : GAP;
-          const trail = i === parts.length - 1 ? 0 : GAP;
+          const lead = cursor > 0 ? GAP : 0;
+          const trail = widths.slice(i + 1).some((width) => width > 0)
+            ? GAP
+            : 0;
           const x = cursor + lead;
           cursor += widths[i]!;
-          const width = Math.max(widths[i]! - lead - trail, 0.6);
+          const width =
+            widths[i]! > 0 ? Math.max(widths[i]! - lead - trail, 0.6) : 0;
           return (
             <rect
               key={`${part.label}-${i}`}

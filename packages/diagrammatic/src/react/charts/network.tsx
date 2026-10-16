@@ -2,7 +2,11 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Graph } from "../../core/types";
 import { round, stroke } from "../../core/geometry";
-import { placeNetworkLabels, radialNetwork } from "../../core/layout";
+import {
+  networkHub,
+  placeNetworkLabels,
+  radialNetwork,
+} from "../../core/layout";
 import { ACCENT, SURFACE, ink } from "../../core/theme";
 import { textWidth, truncate } from "../../core/text";
 import { ChartSvg, PAD, frame } from "../svg";
@@ -29,7 +33,7 @@ export const Network = forwardRef<SVGSVGElement, NetworkProps>(
       degree.set(link.target, (degree.get(link.target) ?? 0) + 1);
     }
     const maxDegree = Math.max(...degree.values(), 1);
-    const hub = [...degree.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+    const hub = networkHub(graph)?.id;
     const marks = graph.nodes.flatMap((node) => {
       const p = positions.get(node.id);
       if (!p) return [];

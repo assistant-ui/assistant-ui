@@ -55,7 +55,7 @@
     "test:types:peer-react18": "aui-react18-types"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.28"
+    "@assistant-ui/core": "^0.3.29"
   },
   "peerDependencies": {
     "@types/react": "*",

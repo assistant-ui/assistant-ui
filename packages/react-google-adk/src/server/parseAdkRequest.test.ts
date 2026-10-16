@@ -12,7 +12,42 @@ describe("parseAdkRequest", () => {
   it("parses a simple message request", async () => {
     const result = await parseAdkRequest(makeRequest({ message: "Hello" }));
     expect(result).toMatchObject({ type: "message", text: "Hello" });
+    expect(result).not.toHaveProperty("customMetadata");
   });
+
+  it.each([
+    { message: "Hello" },
+    {
+      parts: [
+        { text: "Hello" },
+        { functionResponse: { id: "call-1", name: "confirm", response: {} } },
+      ],
+    },
+    {
+      type: "tool-result",
+      toolCallId: "call-1",
+      toolName: "confirm",
+      result: {},
+    },
+  ])("maps messageId to stored user event metadata %#", async (body) => {
+    const parsed = await parseAdkRequest(
+      makeRequest({ ...body, messageId: "sent-user" }),
+    );
+    expect(parsed).toHaveProperty("customMetadata", {
+      assistant_ui_message_id: "sent-user",
+    });
+  });
+
+  it.each([[42], [null], [false], [{}], [[]]])(
+    "rejects a non-string messageId %j",
+    async (messageId) => {
+      await expect(
+        parseAdkRequest(makeRequest({ message: "Hello", messageId })),
+      ).rejects.toThrow(
+        'Invalid Google ADK proxy request field "messageId": expected a string.',
+      );
+    },
+  );
 
   it("parses a message request with runConfig and checkpointId", async () => {
     const result = await parseAdkRequest(

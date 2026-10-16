@@ -173,6 +173,49 @@ describe("useAdkRuntime replacement runs", () => {
     return capture.runtime!;
   };
 
+  it("keeps one user message and no extra branch when the first ADK event is delayed", async () => {
+    const firstEvent = deferred();
+    const stream = vi.fn(async function* (
+      _messages: AdkMessage[],
+    ): AsyncGenerator<AdkEvent> {
+      await firstEvent.promise;
+      yield {
+        id: "stored-agent",
+        invocationId: "run-1",
+        author: "agent",
+        content: { parts: [{ text: "Hello" }] },
+      };
+    });
+    const runtime = await mountWithCheckpoint(stream, async () => null);
+    act(() => {
+      runtime.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "Hi" }],
+      });
+    });
+    await waitFor(() => expect(stream).toHaveBeenCalledOnce());
+    const sentUser = stream.mock.calls[0]![0].find(
+      (message) => message.type === "human",
+    )!;
+    expect(runtime.thread.getState().messages[0]?.id).toBe(sentUser.id);
+
+    await act(async () => {
+      firstEvent.resolve();
+    });
+    await waitFor(() =>
+      expect(runtime.thread.getState().isRunning).toBe(false),
+    );
+    expect(
+      runtime.thread.getState().messages.map((message) => message.id),
+    ).toEqual([sentUser.id, "run-1:ai"]);
+    expect(
+      runtime.thread.export().messages.map(({ message }) => message.id),
+    ).toEqual([sentUser.id, "run-1:ai"]);
+    expect(
+      runtime.thread.getMessageById(sentUser.id).getState().branchCount,
+    ).toBe(1);
+  });
+
   it("starts one run with both staged messages", async () => {
     const stream = vi.fn(async function* (
       _messages: AdkMessage[],

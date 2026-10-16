@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from "vitest";
 import * as index from "./index";
 import * as light from "./react-syntax-highlighter-light";

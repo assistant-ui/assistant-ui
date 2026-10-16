@@ -16,6 +16,15 @@ import {
 } from "./external-message-conversion";
 
 describe("joined assistant status", () => {
+  it("keeps run identity when joining assistant chunks", () => {
+    const joined = joinExternalMessages([
+      { role: "assistant", content: "First", metadata: { runId: "run-1" } },
+      { role: "assistant", content: "Second", metadata: { runId: "run-1" } },
+    ]);
+
+    expect(joined.metadata?.runId).toBe("run-1");
+  });
+
   it.each([
     { status: { type: "running" }, isRunning: true },
     { status: { type: "complete", reason: "stop" }, isRunning: false },
@@ -329,6 +338,28 @@ describe("joinExternalMessages", () => {
 });
 
 describe("chunkExternalMessages", () => {
+  it("keeps adjacent assistant messages from different runs separate", () => {
+    const old = { id: "old" };
+    const replacement = { id: "replacement" };
+    const chunks = chunkExternalMessages([
+      {
+        input: old,
+        outputs: [
+          { role: "assistant", content: "old", metadata: { runId: "old-run" } },
+        ],
+      },
+      {
+        input: replacement,
+        outputs: [
+          { role: "assistant", content: "new", metadata: { runId: "new-run" } },
+        ],
+      },
+    ]);
+
+    expect(chunks).toHaveLength(2);
+    expect(chunks.map((chunk) => chunk.inputs)).toEqual([[old], [replacement]]);
+  });
+
   it("keeps a tool result with a non-joining assistant before starting the next chunk", () => {
     const toolCall = {};
     const toolResult = {};

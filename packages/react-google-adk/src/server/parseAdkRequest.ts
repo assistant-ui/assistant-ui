@@ -1,6 +1,7 @@
 import { isRecord } from "@assistant-ui/core/internal";
 import type { AdkSendMessageConfig } from "../types";
 import { toAdkFunctionResponse } from "../toAdkFunctionResponse";
+import { ADK_MESSAGE_ID_METADATA_KEY } from "../messageIdMetadataKey";
 
 type ParsedAdkRequest =
   | {
@@ -10,6 +11,7 @@ type ParsedAdkRequest =
       sessionId?: string | undefined;
       config: AdkSendMessageConfig;
       stateDelta?: Record<string, unknown> | undefined;
+      customMetadata?: Record<string, unknown> | undefined;
     }
   | {
       type: "tool-result";
@@ -20,6 +22,7 @@ type ParsedAdkRequest =
       sessionId?: string | undefined;
       config: AdkSendMessageConfig;
       stateDelta?: Record<string, unknown> | undefined;
+      customMetadata?: Record<string, unknown> | undefined;
     };
 
 const invalidField = (field: string, expectation: string): Error =>
@@ -140,7 +143,7 @@ const validatePart = (part: Record<string, unknown>, index: number) => {
  *
  * 1. User message:
  * ```json
- * { "message": "Hello", "runConfig": {}, "stateDelta": {} }
+ * { "message": "Hello", "messageId": "user-1", "runConfig": {}, "stateDelta": {} }
  * ```
  *
  * 2. Tool result:
@@ -175,6 +178,11 @@ export const parseAdkRequest = async (
   const checkpointId = readOptionalString(body, "checkpointId");
   if (checkpointId !== undefined) config.checkpointId = checkpointId;
   const sessionId = readOptionalString(body, "sessionId");
+  const messageId = readOptionalString(body, "messageId");
+  const customMetadata =
+    messageId !== undefined
+      ? { [ADK_MESSAGE_ID_METADATA_KEY]: messageId }
+      : undefined;
 
   const stateDelta = body.stateDelta;
   if (stateDelta !== undefined && !isRecord(stateDelta)) {
@@ -197,6 +205,7 @@ export const parseAdkRequest = async (
       ...(sessionId !== undefined && { sessionId }),
       config,
       ...(stateDelta != null && { stateDelta }),
+      ...(customMetadata !== undefined && { customMetadata }),
     };
   }
 
@@ -230,6 +239,7 @@ export const parseAdkRequest = async (
     ...(sessionId !== undefined && { sessionId }),
     config,
     ...(stateDelta != null && { stateDelta }),
+    ...(customMetadata !== undefined && { customMetadata }),
   };
 };
 
@@ -242,7 +252,7 @@ export const parseAdkRequest = async (
  * const parsed = await parseAdkRequest(req);
  * const newMessage = toAdkContent(parsed);
  * const stateDelta = validateSessionState(parsed.stateDelta);
- * const events = runner.runAsync({ userId, sessionId, newMessage, stateDelta });
+ * const events = runner.runAsync({ userId, sessionId, newMessage, stateDelta, customMetadata: parsed.customMetadata });
  * return adkEventStream(events);
  * ```
  */

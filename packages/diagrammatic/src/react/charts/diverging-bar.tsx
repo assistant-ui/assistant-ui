@@ -12,7 +12,6 @@ export type DivergingBarProps = BaseProps & {
   sorted?: boolean;
 };
 
-/** The share of the width row labels may take before they are cut. */
 const LABEL_SHARE = 0.4;
 
 export const DivergingBar = forwardRef<SVGSVGElement, DivergingBarProps>(
@@ -47,16 +46,41 @@ export const DivergingBar = forwardRef<SVGSVGElement, DivergingBarProps>(
         ),
       ),
     );
+    const max = Math.max(...rows.map((r) => Math.abs(r.value)), 1);
+    const labelEdge = Math.min(
+      Math.round(W * LABEL_SHARE),
+      Math.ceil(PAD + Math.max(labelW, valueW) + 6),
+    );
+    const rightEdge = W - PAD - Math.ceil(valueW) - 6;
+    const originalCenter = (labelEdge + rightEdge) / 2;
+    const originalHalf = Math.max(0, (rightEdge - labelEdge) / 2 - 2);
+    const negativeValueW = Math.max(
+      0,
+      ...rows
+        .filter((row) => row.value < 0)
+        .map((row) => textWidth(format(row.value), measured.axis.px)),
+    );
+    const reachesGutter = rows.some(
+      (row) =>
+        row.value < 0 &&
+        originalCenter -
+          1 -
+          (Math.abs(row.value) / max) * originalHalf -
+          6 -
+          textWidth(format(row.value), measured.axis.px) <
+          labelEdge - 6,
+    );
     const F = frame({ width, height, aspect, fontSize }, 5 / 3, {
       labels: true,
-      left: Math.min(
-        Math.round(W * LABEL_SHARE),
-        Math.ceil(PAD + Math.max(labelW, valueW) + 6),
-      ),
-      right: W - PAD - Math.ceil(valueW) - 6,
+      left: reachesGutter
+        ? Math.min(
+            labelEdge + negativeValueW + 6,
+            rightEdge - Math.max(12, Math.round(W * 0.2)),
+          )
+        : labelEdge,
+      right: rightEdge,
     });
     const { left, right, top, bottom, axisY, T } = F;
-    const max = Math.max(...rows.map((r) => Math.abs(r.value)), 1);
     const center = (left + right) / 2;
     const gap = 2;
     const half = Math.max(0, (right - left) / 2 - gap);
@@ -89,16 +113,22 @@ export const DivergingBar = forwardRef<SVGSVGElement, DivergingBarProps>(
           const positive = row.value >= 0;
           const x = positive ? center + gap / 2 : center - gap / 2 - w;
           const valueX = positive ? x + w + 6 : x - 6;
+          const valueText = positive
+            ? `+${format(row.value)}`
+            : textWidth(format(row.value), T.axis.px) <=
+                round(valueX) - labelEdge
+              ? format(row.value)
+              : "";
           return (
             <g key={row.label} data-part="mark" data-i={i}>
               <text
-                x={round(left - 6)}
+                x={round(labelEdge - 6)}
                 y={round(mid)}
                 textAnchor="end"
                 dominantBaseline="central"
                 {...T.label.attrs}
               >
-                {truncate(row.label, T.label.px, left - PAD - 6)}
+                {truncate(row.label, T.label.px, labelEdge - PAD - 6)}
               </text>
               <rect
                 x={round(x)}
@@ -115,7 +145,7 @@ export const DivergingBar = forwardRef<SVGSVGElement, DivergingBarProps>(
                 dominantBaseline="central"
                 {...T.axis.attrs}
               >
-                {positive ? `+${format(row.value)}` : format(row.value)}
+                {valueText}
               </text>
             </g>
           );
