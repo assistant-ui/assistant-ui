@@ -107,6 +107,15 @@ describe("toMediaWireUrl", () => {
     expect(toMediaWireUrl(payload, "image/jpeg")).toBe(payload);
   });
 
+  it("decodes a percent-encoded payload and keeps the header", () => {
+    expect(
+      toMediaWireUrl(
+        "data:text/plain;charset=utf-8;base64,aGk%3D",
+        "text/plain",
+      ),
+    ).toBe("data:text/plain;charset=utf-8;base64,aGk=");
+  });
+
   it("rebuilds an envelope that disagrees", () => {
     expect(
       toMediaWireUrl("data:application/octet-stream;base64,QUJD", "image/jpeg"),

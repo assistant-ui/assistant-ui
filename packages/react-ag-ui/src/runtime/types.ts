@@ -6,11 +6,12 @@ import type {
   ExternalStoreThreadListAdapter,
   FeedbackAdapter,
   RealtimeVoiceAdapter,
+  RunConfig,
   SpeechSynthesisAdapter,
   ThreadHistoryAdapter,
   ThreadMessage,
 } from "@assistant-ui/core";
-import type { AbstractAgent } from "@ag-ui/client";
+import type { AbstractAgent, Context, Message } from "@ag-ui/client";
 import type { Logger } from "./logger";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { McpToolCallResult } from "./mcp-tool-result";
@@ -22,6 +23,7 @@ export const A2UI_SURFACE_ACTIVITY_TYPE = "a2ui-surface";
 export type AgUiOpaqueReasoning = {
   id: string;
   encryptedValue: string;
+  metadata?: Record<string, unknown>;
   after?: boolean;
 };
 
@@ -80,6 +82,21 @@ export type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
   agent: AbstractAgent;
   logger?: Partial<Logger>;
   showThinking?: boolean;
+  /**
+   * Return context entries for each run. `messages` is the exact AG-UI
+   * transcript sent in the run input, after transcript selection and message
+   * conversion. On resume, it follows `resumeTranscript`: "full" sends the
+   * whole thread, while "appended" sends messages after the interrupted
+   * assistant message, falling back to the whole thread if that message is
+   * missing. `runConfig` is the run config passed while building that input.
+   * If the getter throws, the error is reported and the run continues without host entries.
+   */
+  getRunContext?:
+    | ((input: {
+        messages: readonly Message[];
+        runConfig: RunConfig | undefined;
+      }) => readonly Context[])
+    | undefined;
   /**
    * What `messages` carries on a resume run, meaning a `RunAgentInput` that
    * also carries `resume`. The AG-UI interrupt spec leaves this undefined: its

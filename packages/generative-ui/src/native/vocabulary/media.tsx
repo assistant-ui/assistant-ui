@@ -127,14 +127,16 @@ function Divider({ flush }: { flush?: boolean }) {
   );
 }
 
+// Stays mounted without a value, so a detail that empties and fills again keeps its place in the row name.
 function RowText({
   value,
   style,
 }: {
-  value: string;
+  value: string | undefined;
   style: ComponentProps<typeof Text>["style"];
 }) {
   const consumed = useListViewItemText(value);
+  if (value === undefined) return null;
   return (
     <Text aria-hidden={consumed} style={style}>
       {value}
@@ -184,12 +186,10 @@ function MapPlaces({ places }: { places: unknown }) {
               {place.label}
             </Text>
           </Pressable>
-          {place.detail !== undefined ? (
-            <RowText
-              value={place.detail}
-              style={[styles.placeDetail, { color: fade(ink, 0.62) }]}
-            />
-          ) : null}
+          <RowText
+            value={place.detail}
+            style={[styles.placeDetail, { color: fade(ink, 0.62) }]}
+          />
         </View>
       ))}
     </View>

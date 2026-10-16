@@ -101,6 +101,24 @@ const type = async (name: string, value: string) => {
 const settle = () => act(() => new Promise((resolve) => setTimeout(resolve)));
 
 describe("ToolFallback", () => {
+  it("shows a queued reply and its answer only while delivery is pending", async () => {
+    await renderTool({
+      status: { type: "complete" },
+      result: "approved",
+      responseDeliveryStatus: "queued",
+    });
+    expect(container.textContent).toContain(
+      "Reply to search queued, not sent yet",
+    );
+    expect(container.textContent).toContain("approved");
+
+    await renderTool({ status: { type: "complete" }, result: "approved" });
+    expect(container.textContent).not.toContain(
+      "Reply to search queued, not sent yet",
+    );
+    expect(container.textContent).not.toContain("approved");
+  });
+
   it.each([
     [{ type: "running" }, "Running search…"],
     [{ type: "complete" }, "Used search"],

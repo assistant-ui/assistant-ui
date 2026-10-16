@@ -49,6 +49,47 @@ describe("getToolResultOwnerKey", () => {
 });
 
 describe("reduceAdkThreadState", () => {
+  it("preserves the sent user id and its queued and staged references when publishing events", () => {
+    const userId = "client-user";
+    const user = { ...message, id: userId };
+    const heldReply = interruptAnswer("call-1");
+    const state = {
+      ...createAdkThreadState(),
+      messages: [message, user, heldReply],
+      queuedMessageIds: new Set([userId]),
+      stagedEntries: new Map([
+        [userId, { message: user, runConfig: undefined }],
+      ]),
+      messageMetadata: new Map([
+        [userId, { usageMetadata: { promptTokenCount: 1 } }],
+      ]),
+      toolResultBuffer: new Map([["call-1", heldReply]]),
+    };
+    const next = reduceAdkThreadState(state, {
+      type: "event.published",
+      state: {
+        ...state,
+        messages: [
+          ...state.messages,
+          { id: "run-1:ai", type: "ai", content: "Hello" },
+        ],
+      },
+    });
+    expect(next.messages.map((item) => item.id)).toEqual([
+      message.id,
+      userId,
+      heldReply.id,
+      "run-1:ai",
+    ]);
+    expect([...next.queuedMessageIds]).toEqual([userId]);
+    expect([...next.stagedEntries.keys()]).toEqual([userId]);
+    expect(next.stagedEntries.get(userId)?.message.id).toBe(userId);
+    expect(next.messageMetadata.get(userId)).toEqual({
+      usageMetadata: { promptTokenCount: 1 },
+    });
+    expect(next.toolResultBuffer).toEqual(state.toolResultBuffer);
+  });
+
   it("flushes healthy answers when an unrelated run fails", () => {
     const state = {
       ...createAdkThreadState(),

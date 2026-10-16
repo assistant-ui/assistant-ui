@@ -41,6 +41,15 @@ export const Beeswarm = forwardRef<SVGSVGElement, BeeswarmProps>(
     const X = linear(lo, hi, left, right);
     const xs = values.map(X);
     const lanes = swarmLanes(xs, LANE_GAP);
+    const maxLane = Math.max(0, ...lanes.map(Math.abs));
+    const lanePitch =
+      maxLane === 0
+        ? LANE_PITCH
+        : Math.min(
+            LANE_PITCH,
+            Math.max(0, Math.min(mid - top, bottom - mid) - DOT_RADIUS) /
+              maxLane,
+          );
     return (
       <ChartSvg
         ref={ref}
@@ -64,7 +73,7 @@ export const Beeswarm = forwardRef<SVGSVGElement, BeeswarmProps>(
             <circle
               key={i}
               cx={xs[i]}
-              cy={mid + lanes[i]! * LANE_PITCH}
+              cy={mid + lanes[i]! * lanePitch}
               r={DOT_RADIUS}
               fill={flagged ? ACCENT : ink(0.45)}
               data-part="mark"

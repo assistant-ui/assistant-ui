@@ -14,7 +14,7 @@ import {
   type PromptUserTool,
 } from "./JSONGenerativeUI.shared";
 import { type ActionRegistry } from "./actionRegistry";
-import { renderGenerativeUI } from "./renderGenerativeUI";
+import { GenerativeUITree } from "./GenerativeUITree";
 import type { GenerativeUILibrary, GenerativeUIStatus } from "./types";
 
 // A cancelled argument stream can leave a tool waiting with partial arguments.
@@ -126,10 +126,14 @@ export class JSONGenerativeUI {
           {...(dispatch ? { dispatch } : {})}
         />
       ) : (
-        renderGenerativeUI(args, this.library, {
-          status: uiStatus(status, args),
-          ...(dispatch ? { dispatch } : {}),
-        })
+        <GenerativeUITree
+          node={args}
+          library={this.library}
+          context={{
+            status: uiStatus(status, args),
+            ...(dispatch ? { dispatch } : {}),
+          }}
+        />
       );
 
     return (

@@ -152,6 +152,7 @@ export const Bar = forwardRef<SVGSVGElement, BarProps>(
             width={round(F.width - PAD - left)}
             height={round(rowH)}
             fill="transparent"
+            data-dg-hit-target=""
             data-part="mark"
             data-i={i}
           />

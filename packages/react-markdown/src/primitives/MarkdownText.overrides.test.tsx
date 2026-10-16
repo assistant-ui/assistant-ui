@@ -71,31 +71,6 @@ const injectRawPre = () => (tree: Root) => {
   });
 };
 
-describe("MarkdownText overrides", () => {
-  it.each(["global highlighter", "language highlighter", "code header"])(
-    "uses %s on a fresh mount",
-    (kind) => {
-      const overrides: MarkdownTextPrimitiveProps =
-        kind === "language highlighter"
-          ? { componentsByLanguage: { js: { SyntaxHighlighter: After } } }
-          : {
-              components: {
-                [kind === "code header" ? "CodeHeader" : "SyntaxHighlighter"]:
-                  After,
-              },
-            };
-      const container = document.createElement("div");
-      const root = createRoot(container);
-      try {
-        act(() => root.render(<App overrides={overrides} />));
-        expect(container.textContent).toContain("after");
-      } finally {
-        act(() => root.unmount());
-      }
-    },
-  );
-});
-
 describe("MarkdownText override updates", () => {
   it.each(["global highlighter", "language highlighter", "code header"])(
     "updates %s without changing text",

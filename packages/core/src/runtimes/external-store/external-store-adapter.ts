@@ -118,6 +118,8 @@ type ExternalStoreAdapterBase<T> = {
    * to the last-message-status heuristic.
    */
   isRunning?: boolean | undefined;
+  /** The current run's id, kept through `cancelRun` so its late calls can be discarded. */
+  activeRunId?: string | undefined;
   isLoading?: boolean | undefined;
   /**
    * Whether messages exist before the first one in `messages`, for a host

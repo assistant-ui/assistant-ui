@@ -541,8 +541,9 @@ export const FIXTURES: Record<string, ReactElement> = {
   ),
   "dot-map": (
     <dg.DotMap
-      counts={dg.ABSTRACT_TILES.map((_, i) => Math.round(wave(i, 8) * 3))}
-      unitLabel="1 dot = 100 users"
+      counts={dg.ABSTRACT_TILES.map((_, i) => Math.round(wave(i, 8) * 3) * 100)}
+      unit={100}
+      unitLabel="users"
     />
   ),
   "flow-map": (

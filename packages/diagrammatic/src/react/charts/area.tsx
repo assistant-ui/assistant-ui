@@ -78,7 +78,9 @@ export const Area = forwardRef<SVGSVGElement, AreaProps>(
         []),
     ];
     const [yLo, yHi0] =
-      yScale === "log" ? positiveExtent(yValues) : [0, Math.max(...yValues, 1)];
+      yScale === "log"
+        ? positiveExtent(yValues)
+        : [Math.min(0, ...yValues), Math.max(...yValues, 1)];
     const yHi = yMax ?? yHi0;
     const ticks = resolveTicks(yTicks, yLo, yHi, yScale, format);
     const F = frame({ width, height, aspect, fontSize }, 5 / 3, {
@@ -88,6 +90,7 @@ export const Area = forwardRef<SVGSVGElement, AreaProps>(
     });
     const { left, right, top, bottom, axisY, T } = F;
     const Y = project(yScale, yLo, yHi, bottom, top);
+    const zeroY = yScale === "log" ? bottom : Y(0);
     const along = (values: number[]) =>
       values.map((v, i) => ({
         x:
@@ -164,9 +167,9 @@ export const Area = forwardRef<SVGSVGElement, AreaProps>(
         ))}
         <line
           x1={left}
-          y1={bottom}
+          y1={zeroY}
           x2={right}
-          y2={bottom}
+          y2={zeroY}
           stroke={GRID}
           data-part="grid"
           {...stroke.hair}
@@ -174,7 +177,7 @@ export const Area = forwardRef<SVGSVGElement, AreaProps>(
         {plotted.map((points, k) => (
           <g key={all[k]!.name || `series-${k}`}>
             <path
-              d={areaPath(points, bottom)}
+              d={areaPath(points, zeroY)}
               fill={multi ? cat(k) : ink(0.1)}
               fillOpacity={multi ? 0.22 : undefined}
               data-part="mark"
@@ -208,6 +211,7 @@ export const Area = forwardRef<SVGSVGElement, AreaProps>(
               cy={round(p.y)}
               r={hit}
               fill="transparent"
+              data-dg-hit-target="point"
               data-part="mark"
               data-i={i}
               data-series={all[k]!.name || undefined}

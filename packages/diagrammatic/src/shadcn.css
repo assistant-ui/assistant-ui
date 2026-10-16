@@ -1,4 +1,4 @@
-/* Bridges the chart tokens to a shadcn/ui theme, so every figure and DOM legend takes the host's chart palette, foreground, muted foreground, border, and background. Import next to styles.css, or alone when the highlight defaults are not wanted. --chart-6 and --chart-7 fall back to the shipped hues because the shadcn preset defines five. */
+/* Bridges the chart tokens to a shadcn/ui theme, so every figure and DOM legend takes the host's chart palette, foreground, muted foreground, border, and background. Import next to styles.css, or alone when the highlight defaults are not wanted. --chart-6 and --chart-7 fall back to the shipped hues because the shadcn preset defines five. Each host token must hold a complete color, as shadcn/ui's Tailwind CSS v4 themes do; bare HSL channels from a v3 theme are not a valid color here. */
 [data-dg],
 [data-dg-legend] {
   --dg-c1: var(--chart-1);

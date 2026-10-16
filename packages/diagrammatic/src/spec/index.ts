@@ -99,7 +99,7 @@ type Strip<P> = Omit<
       "width" | "height" | "fontSize"
     >
 > & { title?: string };
-type S<T extends string, P> = Common & { type: T } & Strip<P>;
+type S<T extends string, P> = Omit<Common, keyof P> & { type: T } & Strip<P>;
 
 export type ChartSpec =
   | S<"line", LineProps>
@@ -175,6 +175,7 @@ type Kind = "array" | "object" | "string" | "number";
 type Descriptor = {
   Component: ElementType;
   required: [string, Kind][];
+  acceptsNumericUnit?: boolean;
   /** Fields a chart accepts in place of one another; at least one must be present. */
   either?: [string, Kind][];
 };
@@ -301,7 +302,10 @@ const REGISTRY: Record<string, Descriptor> = {
   ]),
   choropleth: entry(charts.Choropleth, [["values", "array"]]),
   "symbol-map": entry(charts.SymbolMap, [["marks", "array"]]),
-  "dot-map": entry(charts.DotMap, [["counts", "array"]]),
+  "dot-map": {
+    ...entry(charts.DotMap, [["counts", "array"]]),
+    acceptsNumericUnit: true,
+  },
   "flow-map": entry(charts.FlowMap, [
     ["origin", "object"],
     ["routes", "array"],
@@ -350,7 +354,7 @@ export function validateSpec(input: unknown): ChartSpec {
     throw new Error(`Unknown spec version at "v": ${String(spec["v"])}.`);
   }
   const type = spec["type"];
-  if (typeof type !== "string" || !(type in REGISTRY)) {
+  if (typeof type !== "string" || !Object.hasOwn(REGISTRY, type)) {
     throw new Error(`Unknown chart type at "type": ${String(type)}.`);
   }
   const descriptor = REGISTRY[type]!;
@@ -395,7 +399,8 @@ export type ChartProps = {
  * run {@link validateSpec} first when you want the error.
  */
 export function Chart({ spec, className }: ChartProps): ReactElement {
-  const descriptor = REGISTRY[(spec as { type?: string }).type ?? ""];
+  const type = (spec as { type?: string }).type ?? "";
+  const descriptor = Object.hasOwn(REGISTRY, type) ? REGISTRY[type] : undefined;
   if (!descriptor) {
     return createElement(
       "svg",
@@ -429,8 +434,20 @@ export function Chart({ spec, className }: ChartProps): ReactElement {
   }
   const { type: _type, v: _v, unit, ...rest } = spec as Record<string, unknown>;
   const props: Record<string, unknown> = { ...rest };
-  if (unit !== undefined) {
-    props["format"] = UNIT_FORMAT[unit as Unit] ?? formatCompact;
+  if (
+    typeof unit === "number" &&
+    (descriptor.acceptsNumericUnit ||
+      descriptor.required.some(
+        ([key, kind]) => key === "unit" && kind === "number",
+      ))
+  ) {
+    props["unit"] = unit;
+  } else if (unit !== undefined) {
+    const format =
+      typeof unit === "string" && Object.hasOwn(UNIT_FORMAT, unit)
+        ? UNIT_FORMAT[unit as Unit]
+        : undefined;
+    props["format"] = format ?? formatCompact;
   }
   if (className !== undefined) props["className"] = className;
   return createElement(descriptor.Component, props);

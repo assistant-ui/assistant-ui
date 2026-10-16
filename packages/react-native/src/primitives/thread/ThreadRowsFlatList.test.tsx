@@ -1,6 +1,7 @@
-import { act } from "react";
+import { act, version } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { FlatList } from "react-native";
 import type { AssistantState } from "@assistant-ui/store";
 import type { MessageState } from "@assistant-ui/core/store";
 import { groupPartByType, type ThreadRow } from "@assistant-ui/core/react";
@@ -144,6 +145,21 @@ describe("ThreadRowsFlatList", () => {
     await act(async () => root.unmount());
     container.remove();
   });
+
+  it.skipIf(version.startsWith("18."))(
+    "runs callback ref cleanup when the list unmounts",
+    async () => {
+      const cleanup = vi.fn();
+      const ref = vi.fn((node: FlatList<ThreadRow> | null) =>
+        node ? cleanup : undefined,
+      );
+      await mount({ ref });
+      expect(ref).toHaveBeenCalledOnce();
+      await act(async () => root.render(null));
+      expect(cleanup).toHaveBeenCalledOnce();
+      expect(ref).toHaveBeenCalledOnce();
+    },
+  );
 
   it("renders part and turn-end rows through the render function and keys rows", async () => {
     await mount();

@@ -541,6 +541,56 @@ export function evaluateFormula(
   }
 }
 
+/** The state paths a formula shows as values, leaving out reads under a condition and reads in the `?` branch of a condition on that same path, which only runs while it has a value. */
+export function formulaValueReads(formula: string): string[] {
+  const node = parsedFormula(formula);
+  if (typeof node === "string") return [];
+  const reads = new Set<string>();
+  const visit = (
+    current: Node,
+    condition: boolean,
+    guarded: ReadonlySet<string>,
+  ): void => {
+    switch (current.kind) {
+      case "literal":
+        return;
+      case "reference":
+        if (
+          !condition &&
+          !current.path.startsWith("$") &&
+          !guarded.has(current.path)
+        )
+          reads.add(current.path);
+        return;
+      case "unary":
+        visit(current.operand, condition || current.operator === "!", guarded);
+        return;
+      case "binary": {
+        const logical = current.operator === "&&" || current.operator === "||";
+        visit(current.left, condition || logical, guarded);
+        visit(current.right, condition || logical, guarded);
+        return;
+      }
+      case "conditional":
+        visit(current.condition, true, guarded);
+        visit(
+          current.then,
+          condition,
+          current.condition.kind === "reference"
+            ? new Set([...guarded, current.condition.path])
+            : guarded,
+        );
+        visit(current.otherwise, condition, guarded);
+        return;
+      case "call":
+        for (const arg of current.args) visit(arg, condition, guarded);
+        return;
+    }
+  };
+  visit(node, false, new Set());
+  return [...reads];
+}
+
 /** Why a formula cannot run, or undefined when it parses within the bounds. */
 export function formulaIssue(formula: string): string | undefined {
   const result = parsedFormula(formula);

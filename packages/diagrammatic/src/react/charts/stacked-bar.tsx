@@ -30,7 +30,7 @@ export const StackedBar = forwardRef<SVGSVGElement, StackedBarProps>(
       normalize,
       yTicks,
       guides,
-      format = formatCompact,
+      format,
       legend,
       title,
       width,
@@ -47,8 +47,10 @@ export const StackedBar = forwardRef<SVGSVGElement, StackedBarProps>(
     const totals = groups.map((_, g) =>
       series.reduce((sum, s) => sum + (s.data[g] ?? 0), 0),
     );
-    const max = upperBound([...totals], yTicks, guides);
-    const yTickList = resolveTicks(yTicks, 0, max, "linear", format);
+    const max = normalize ? 100 : upperBound([...totals], yTicks, guides);
+    const tickFormat =
+      format ?? (normalize ? (value: number) => `${value}%` : formatCompact);
+    const yTickList = resolveTicks(yTicks, 0, max, "linear", tickFormat);
     const F = frame({ width, height, aspect, fontSize }, 5 / 3, {
       legend: showLegend,
       labels: true,
@@ -110,6 +112,7 @@ export const StackedBar = forwardRef<SVGSVGElement, StackedBarProps>(
             width={round(step)}
             height={plotBottom - top}
             fill="transparent"
+            data-dg-hit-target=""
             data-part="mark"
             data-i={g}
           />

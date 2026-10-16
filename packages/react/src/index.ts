@@ -65,6 +65,10 @@ export { CloudFileAttachmentAdapter } from "./legacy-runtime/runtime-cores/adapt
 // --- adapters/voice ---
 export type { RealtimeVoiceAdapter } from "@assistant-ui/core";
 export { createVoiceSession } from "@assistant-ui/core";
+export {
+  OpenAIRealtimeVoiceAdapter,
+  type OpenAIRealtimeVoiceAdapterOptions,
+} from "./adapters/OpenAIRealtimeVoiceAdapter";
 export type {
   VoiceSessionControls,
   VoiceSessionHelpers,

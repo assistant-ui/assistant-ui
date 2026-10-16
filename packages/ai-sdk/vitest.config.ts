@@ -20,6 +20,7 @@ export default defineConfig({
           Math.max(previous, Math.floor(threshold) - 1),
       },
     },
+    pool: "threads",
     fsModuleCache: true,
     projects: [
       {
