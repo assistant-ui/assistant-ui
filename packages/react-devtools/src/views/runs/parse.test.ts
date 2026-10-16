@@ -149,4 +149,66 @@ describe("groupRuns", () => {
   it("returns nothing for an empty log", () => {
     expect(groupRuns([])).toEqual({ runs: [], orphans: [] });
   });
+
+  it("preserves retained run identities when earlier events expire", () => {
+    const logs: EventLogEntry[] = Array.from({ length: 100 }, (_, index) => [
+      {
+        time: t(index * 2),
+        event: "thread.runStart",
+        data: { threadId: `T${index}` },
+      },
+      {
+        time: t(index * 2 + 1),
+        event: "thread.runEnd",
+        data: { threadId: `T${index}` },
+      },
+    ]).flat();
+    const before = groupRuns(logs).runs;
+    const after = groupRuns(
+      [
+        ...logs,
+        { time: t(200), event: "thread.runStart", data: { threadId: "T100" } },
+      ].slice(-200),
+    ).runs;
+
+    expect(after.find((run) => run.id === before[1]!.id)?.threadId).toBe("T1");
+    expect(after.some((run) => run.id === before[0]!.id)).toBe(false);
+  });
+
+  it("keeps explicit start-event identities across transport copies and equal timestamps", () => {
+    const logs = [
+      {
+        id: "first",
+        time: t(0),
+        event: "thread.runStart",
+        data: { threadId: "T1" },
+      },
+      {
+        id: "second",
+        time: t(0),
+        event: "thread.runStart",
+        data: { threadId: "T1" },
+      },
+    ];
+    const before = groupRuns(logs).runs;
+    const after = groupRuns(
+      logs.slice(1).map((log) => ({
+        ...log,
+        time: new Date(log.time),
+        data: { ...log.data },
+      })),
+    ).runs;
+
+    expect(before[0]!.id).not.toBe(before[1]!.id);
+    expect(after[0]!.id).toBe(before[1]!.id);
+  });
+
+  it("distinguishes legacy starts in the same thread and millisecond", () => {
+    const logs: EventLogEntry[] = [
+      { time: t(0), event: "thread.runStart", data: { threadId: "T1" } },
+      { time: t(0), event: "thread.runStart", data: { threadId: "T1" } },
+    ];
+    const { runs } = groupRuns(logs);
+    expect(new Set(runs.map((run) => run.id)).size).toBe(2);
+  });
 });

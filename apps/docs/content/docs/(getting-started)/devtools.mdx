@@ -79,3 +79,9 @@ export function AssistantApp() {
   );
 }
 ```
+
+## Custom event sources
+
+A custom `DevToolsClient` should give each entry in `ApiInfo.logs` a stable string `id`, unique within the inspected instance even after clearing the log. Preserve that ID when copying events across snapshots or transports so the Activity panel keeps the same run selected as older events expire. The default in-process client assigns these IDs automatically.
+
+Logs without IDs remain supported through a timestamp and thread fallback. That fallback cannot preserve selection when indistinguishable starts in the same thread and millisecond are removed from the log; supply event IDs for those sources.
