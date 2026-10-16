@@ -908,6 +908,7 @@ const useRemoteThreadList = (
         emitThreadIdChange &&
         session.controlledSwitchGeneration === session.switchGeneration &&
         session.pendingSwitchGeneration === session.switchGeneration &&
+        session.supersedeAttachmentWait === undefined &&
         isSameThread(store.value, threadIdOrRemoteId, session.mainThreadId)
       ) {
         return RESOLVED_PROMISE;

@@ -790,6 +790,7 @@ export class RemoteThreadListThreadListRuntimeCore
     if (
       this._controlledSwitchTask !== undefined &&
       this._controlledSwitchGeneration === this._switchGeneration &&
+      this._supersedeAttachmentWait === undefined &&
       getThreadData(this._state.value, threadIdOrRemoteId)?.id ===
         this._mainThreadId
     ) {

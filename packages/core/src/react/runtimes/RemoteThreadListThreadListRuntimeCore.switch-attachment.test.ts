@@ -31,8 +31,9 @@ const setup = async (
     })),
     unarchive: vi.fn(async () => onUnarchive(manager)),
   });
+  const options = { adapter, runtimeHook: () => ({}) as never };
   const core = new RemoteThreadListThreadListRuntimeCore(
-    { adapter, runtimeHook: () => ({}) as never },
+    options,
     contextProvider,
   );
   const manager = (core as unknown as { _hookManager: HookManager })
@@ -50,7 +51,7 @@ const setup = async (
   await switchToA;
   expect(core.mainThreadId).toBe("thread-a");
 
-  return { core, manager, publish };
+  return { core, manager, options, publish };
 };
 
 it("settles a switch only after a replacement runtime attaches", async () => {
@@ -84,6 +85,25 @@ it("settles a switch only after the target's current runtime generation attaches
   void switchToB.then(settled, settled);
   publish("thread-b", new ReadonlyThreadRuntimeCore());
   await vi.waitFor(() => expect(core.mainThreadId).toBe("thread-b"));
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+  expect(settled).not.toHaveBeenCalled();
+  const replacement = new ReadonlyThreadRuntimeCore();
+  publish("thread-b", replacement);
+  await switchToB;
+  expect(core.getMainThreadRuntimeCore()).toBe(replacement);
+});
+
+it("joins a same-target switch while a controlled switch waits for attachment", async () => {
+  const { core, options, publish } = await setup();
+  core.__internal_load();
+  core.__internal_setOptions({ ...options, threadId: "thread-b" });
+  publish("thread-b", new ReadonlyThreadRuntimeCore());
+  await vi.waitFor(() => expect(core.mainThreadId).toBe("thread-b"));
+
+  const switchToB = core.switchToThread("thread-b");
+  const settled = vi.fn();
+  void switchToB.then(settled, settled);
   await new Promise<void>((resolve) => setTimeout(resolve, 0));
 
   expect(settled).not.toHaveBeenCalled();
