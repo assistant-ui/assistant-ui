@@ -69,6 +69,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
@@ -143,15 +144,17 @@ it("filters to the selected category and returns focus to the input", async () =
 });
 
 it("retains local matches while Jev is unavailable", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("unavailable")));
-  render(<SearchDialog open onOpenChange={() => {}} />);
-  await screen.findByRole("option", { name: /Assistant Cloud/ });
+  await act(async () => {
+    render(<SearchDialog open onOpenChange={() => {}} />);
+  });
+  screen.getByRole("option", { name: /Assistant Cloud/ });
   fireEvent.change(screen.getByRole("combobox"), {
     target: { value: "conversation" },
   });
-  await waitFor(() =>
-    expect(screen.getByRole("status").textContent).toBe("2 results"),
-  );
+  await act(() => vi.advanceTimersByTimeAsync(200));
+  expect(screen.getByRole("status").textContent).toBe("2 results");
   expect(screen.getByRole("option", { name: /Assistant Cloud/ })).toBeTruthy();
 });
 
@@ -227,20 +230,22 @@ it("adds every indexed page by category without losing the selected shortcut", a
 });
 
 it("keeps local results in place when Jev recommends an existing match", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   vi.stubGlobal(
     "fetch",
     vi
       .fn()
       .mockImplementation(async () => Response.json({ pages: [pages[2]] })),
   );
-  render(<SearchDialog open onOpenChange={() => {}} />);
-  await screen.findByRole("option", { name: /Assistant Cloud/ });
+  await act(async () => {
+    render(<SearchDialog open onOpenChange={() => {}} />);
+  });
+  screen.getByRole("option", { name: /Assistant Cloud/ });
   fireEvent.change(screen.getByRole("combobox"), {
     target: { value: "conversation" },
   });
-  await waitFor(() =>
-    expect(screen.getByRole("status").textContent).toBe("2 results"),
-  );
+  await act(() => vi.advanceTimersByTimeAsync(200));
+  expect(screen.getByRole("status").textContent).toBe("2 results");
   const options = screen.getAllByRole("option");
   expect(options).toHaveLength(2);
   expect(options[0]!.textContent).toContain("Assistant Cloud");
@@ -250,6 +255,7 @@ it("keeps local results in place when Jev recommends an existing match", async (
 });
 
 it("adds semantic destinations after local results without moving the selection", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
   const suggestion = {
     url: "/docs/history",
     title: "Chat History",
@@ -262,12 +268,15 @@ it("adds semantic destinations after local results without moving the selection"
       .mockImplementation(async () => Response.json({ pages: [suggestion] })),
   );
   const close = vi.fn();
-  render(<SearchDialog open onOpenChange={close} />);
-  await screen.findByRole("option", { name: /Assistant Cloud/ });
+  await act(async () => {
+    render(<SearchDialog open onOpenChange={close} />);
+  });
+  screen.getByRole("option", { name: /Assistant Cloud/ });
   fireEvent.change(screen.getByRole("combobox"), {
     target: { value: "conversation" },
   });
-  await screen.findByText("Suggested pages");
+  await act(() => vi.advanceTimersByTimeAsync(200));
+  expect(screen.getByText("Suggested pages")).toBeTruthy();
   const options = screen.getAllByRole("option");
   expect(options.map((item) => item.textContent)).toEqual([
     expect.stringContaining("Assistant Cloud"),
