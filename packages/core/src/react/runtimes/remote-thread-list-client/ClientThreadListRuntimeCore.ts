@@ -245,11 +245,14 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
     const id = this.mainThreadId;
     if (this.getItemById(id)?.status === "new") return;
     const core = this.getMainThreadRuntimeCore();
-    if (core.unstable_refetchThread) {
-      await core.unstable_refetchThread();
-      return;
+    try {
+      if (core.unstable_refetchThread) await core.unstable_refetchThread();
+      else await this.hookManager.__internal_restartThreadRuntime(id);
+    } catch (error) {
+      // delete and detach move the main thread away before stopping its runtime, so a rejection after that belongs to them.
+      if (id !== this.mainThreadId) return;
+      throw error;
     }
-    await this.hookManager.__internal_restartThreadRuntime(id);
   }
 
   public subscribe(callback: () => void): Unsubscribe {
