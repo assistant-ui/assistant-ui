@@ -8,6 +8,7 @@ import type { ChatModelAdapter } from "../../../index";
 import type { AssistantRuntime } from "../../../runtime/api/assistant-runtime";
 import type { ThreadMessage } from "../../../types/message";
 import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/adapter/in-memory";
+import { createLocalStorageAdapter } from "../../adapters/LocalStorageThreadListAdapter";
 import type { RemoteThreadListAdapter } from "../../../runtimes/remote-thread-list/types";
 import {
   actSettled,
@@ -705,6 +706,46 @@ describe("useRemoteThreadListRuntime client bridge", () => {
     expect(warn).toHaveBeenCalledTimes(1);
     expect(seen.get(mainId())?.history).not.toBe(providedHistory);
     expect(legacyConstructed).not.toHaveBeenCalled();
+  });
+
+  it("runs the local storage adapter on the client with its per-thread history", async () => {
+    const values = new Map<string, string>();
+    const adapter = createLocalStorageAdapter({
+      storage: {
+        getItem: async (key) => values.get(key) ?? null,
+        setItem: async (key, value) => {
+          values.set(key, value);
+        },
+        removeItem: async (key) => {
+          values.delete(key);
+        },
+      },
+    });
+    const model = { run: vi.fn(async () => ({ content: [] })) };
+    const seen = new Map<string, RuntimeAdapters | null>();
+    let runtime: AssistantRuntime | undefined;
+    const App = () => {
+      runtime = useRemoteThreadListRuntime({
+        adapter,
+        runtimeHook: function useThreadRuntime() {
+          const id = useAui().threadListItem.getState().id;
+          seen.set(id, useRuntimeAdapters());
+          return useLocalRuntime(model);
+        },
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+    render(<App />);
+    await waitFor(() =>
+      expect(runtime!.threads.getState().isLoading).toBe(false),
+    );
+    expect(legacyConstructed).not.toHaveBeenCalled();
+    const mainId = runtime!.threads.getState().mainThreadId;
+    await waitFor(() => expect(seen.get(mainId)?.history).toBeDefined());
   });
 
   it("uses the frozen class path when unstable_Provider is present", async () => {
