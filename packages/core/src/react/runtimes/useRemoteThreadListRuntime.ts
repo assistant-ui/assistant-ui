@@ -91,10 +91,6 @@ class ClientRemoteThreadListRuntimeCore extends BaseAssistantRuntimeCore {
   public get RenderComponent() {
     return this.threads.__internal_RenderComponent;
   }
-
-  public get modelContext() {
-    return this._contextProvider;
-  }
 }
 
 const useLegacyRemoteThreadListRuntime = (
@@ -163,7 +159,6 @@ const useClientRemoteThreadListRuntime = (
           threads: RemoteThreadListRuntimeThreads({
             optionsStore: core.optionsStore,
             assistantRuntime: () => assistantRuntime,
-            modelContext: core.modelContext,
             initialThreadIdSeed: seed,
             clientCore: core.threads,
           }),
