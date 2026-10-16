@@ -15,6 +15,7 @@ import type {
   ExportedMessageRepository,
   MessageStatus,
   RespondToToolApprovalOptions,
+  RunConfig,
   ThreadAssistantMessage,
   ThreadHistoryAdapter,
   ThreadMessage,
@@ -31,6 +32,7 @@ import {
 import type {
   AbstractAgent,
   AgentSubscriber,
+  Context,
   RunAgentParameters,
   RunAgentResult,
 } from "@ag-ui/client";
@@ -43,6 +45,7 @@ import type {
   AgUiInterrupt,
   AgUiResumeEntry,
   AgUiResumeTranscript,
+  UseAgUiRuntimeOptions,
 } from "./types";
 import { AG_UI_METADATA_NAMESPACE, MCP_APPS_ACTIVITY_TYPE } from "./types";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
@@ -85,7 +88,6 @@ const isResolvedToolCall = (
 const isActivityPart = (part: ThreadAssistantMessage["content"][number]) =>
   part.type === "data" && part.name.startsWith("agui-activity/");
 
-type RunConfig = NonNullable<AppendMessage["runConfig"]>;
 type ResumeStream = (
   options: ChatModelRunOptions,
 ) => AsyncGenerator<ChatModelRunResult, void, unknown>;
@@ -110,6 +112,7 @@ type CoreOptions = {
   agent: AbstractAgent;
   logger: Logger;
   showThinking: boolean;
+  getRunContext?: UseAgUiRuntimeOptions["getRunContext"];
   resumeTranscript?: AgUiResumeTranscript | undefined;
   autoCancelPendingToolCalls?: boolean | undefined;
   onError?: (error: Error) => void;
@@ -155,6 +158,7 @@ export class AgUiThreadRuntimeCore {
   private agent: AbstractAgent;
   private logger: Logger;
   private showThinking: boolean;
+  private getRunContext: UseAgUiRuntimeOptions["getRunContext"];
   private resumeTranscript: AgUiResumeTranscript;
   private autoCancelPendingToolCalls: boolean | undefined;
   private onError: ((error: Error) => void) | undefined;
@@ -214,6 +218,7 @@ export class AgUiThreadRuntimeCore {
     this.agent = options.agent;
     this.logger = options.logger;
     this.showThinking = options.showThinking;
+    this.getRunContext = options.getRunContext;
     this.resumeTranscript = options.resumeTranscript ?? "full";
     this.autoCancelPendingToolCalls = options.autoCancelPendingToolCalls;
     this.onError = options.onError;
@@ -244,6 +249,7 @@ export class AgUiThreadRuntimeCore {
     this.agent = options.agent;
     this.logger = options.logger;
     this.showThinking = options.showThinking;
+    this.getRunContext = options.getRunContext;
     this.resumeTranscript = options.resumeTranscript ?? "full";
     this.autoCancelPendingToolCalls = options.autoCancelPendingToolCalls;
     this.onError = options.onError;
@@ -1598,6 +1604,8 @@ export class AgUiThreadRuntimeCore {
     historyMessages: readonly ThreadMessage[] | undefined,
     resume?: ResumeDispatch,
   ) {
+    const pendingA2uiAction = this.pendingA2uiAction;
+    this.pendingA2uiAction = undefined;
     const threadId = this.agent.threadId || "main";
     const messages = toAgUiMessages(
       this.selectRunMessages(
@@ -1606,26 +1614,36 @@ export class AgUiThreadRuntimeCore {
       ),
     );
     const context = this.runtime?.thread.getModelContext();
+    let hostContext: readonly Context[] = [];
+    try {
+      hostContext = this.getRunContext?.({ messages, runConfig }) ?? [];
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.logger.error("[agui] getRunContext failed", err);
+      invokeRuntimeCallback("onError", this.onError, err);
+    }
     const input = {
       threadId,
       runId,
       state: this.stateSnapshot ?? null,
       messages,
       tools: toAgUiTools(context?.tools),
-      context: context?.system
-        ? [{ description: "system", value: context.system }]
-        : [],
+      context: [
+        ...(context?.system
+          ? [{ description: "system", value: context.system }]
+          : []),
+        ...hostContext,
+      ],
       forwardedProps: {
         ...(context?.callSettings ?? {}),
         ...(context?.config ?? {}),
         ...(runConfig?.custom ? { runConfig: runConfig.custom } : {}),
-        ...(this.pendingA2uiAction
-          ? { a2uiAction: { userAction: this.pendingA2uiAction } }
+        ...(pendingA2uiAction
+          ? { a2uiAction: { userAction: pendingA2uiAction } }
           : {}),
       },
       ...(resume !== undefined ? { resume: resume.entries } : {}),
     };
-    this.pendingA2uiAction = undefined;
     return input;
   }
 

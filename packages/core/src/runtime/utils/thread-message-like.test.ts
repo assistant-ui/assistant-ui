@@ -2,6 +2,20 @@ import { describe, expect, it } from "vitest";
 import { fromThreadMessageLike } from "./thread-message-like";
 
 describe("fromThreadMessageLike", () => {
+  it("preserves assistant run identity", () => {
+    const message = fromThreadMessageLike(
+      {
+        role: "assistant",
+        content: "Hello",
+        metadata: { runId: "run-1" },
+      },
+      "assistant-id",
+      { type: "complete", reason: "stop" },
+    );
+
+    expect(message.metadata).toMatchObject({ runId: "run-1" });
+  });
+
   it.each(["assistant", "user"] as const)(
     "drops non-string data-prefixed part ids on %s messages",
     (role) => {

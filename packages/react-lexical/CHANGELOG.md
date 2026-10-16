@@ -1,5 +1,11 @@
 # @assistant-ui/react-lexical
 
+## 0.2.18
+
+### Patch Changes
+
+- [#9593](https://github.com/assistant-ui/assistant-ui/pull/9593) [`bae7070`](https://github.com/assistant-ui/assistant-ui/commit/bae7070af8d2463f07ceec39c7edff7c86507565) - Reset Lexical undo and redo history when the active composer changes threads. ([@rupic-app](https://github.com/apps/rupic-app))
+
 ## 0.2.17
 
 ### Patch Changes

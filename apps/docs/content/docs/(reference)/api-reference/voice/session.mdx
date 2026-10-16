@@ -3,7 +3,7 @@ title: Voice Sessions
 description: Create and control realtime assistant-ui voice sessions, state, controls, and helpers.
 ---
 
-import { RealtimeVoiceAdapter, VoiceSessionControls, VoiceSessionHelpers, VoiceSessionState, createVoiceSession } from "@/generated/typeDocs";
+import { OpenAIRealtimeVoiceAdapter, RealtimeVoiceAdapter, VoiceSessionControls, VoiceSessionHelpers, VoiceSessionState, createVoiceSession } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -17,6 +17,15 @@ import { RealtimeVoiceAdapter, VoiceSessionControls, VoiceSessionHelpers, VoiceS
 ### createVoiceSession
 
 <ParametersTable {...createVoiceSession} />
+
+### OpenAIRealtimeVoiceAdapter
+
+Connects browser microphone audio directly to OpenAI Realtime over WebRTC.
+Configure audio output, input transcription, and automatic turn detection on
+the server. Each connection starts a new conversation; existing thread history
+and assistant-ui tools are not sent to the voice model.
+
+<ParametersTable {...OpenAIRealtimeVoiceAdapter} />
 
 ### RealtimeVoiceAdapter
 

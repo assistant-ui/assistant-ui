@@ -32,20 +32,24 @@ export const WinLoss = forwardRef<SVGSVGElement, WinLossProps>(
           data-part="grid"
           {...stroke.hair}
         />
-        {data.map((v, i) => (
-          <rect
-            key={i}
-            x={step * i + (step - width) / 2}
-            y={v >= 0 ? 2.5 : 11}
-            width={width}
-            height={6.5}
-            rx={Math.min(1.2, width / 2)}
-            fill={v >= 0 ? POS : NEG}
-            opacity={v >= 0 ? 0.85 : 0.7}
-            data-part="mark"
-            data-i={i}
-          />
-        ))}
+        {data.map((v, i) => {
+          const win = v > 0;
+          const loss = v < 0;
+          return (
+            <rect
+              key={i}
+              x={step * i + (step - width) / 2}
+              y={win ? 2.5 : loss ? 11 : 9.5}
+              width={width}
+              height={win || loss ? 6.5 : 1}
+              rx={Math.min(1.2, width / 2)}
+              fill={win ? POS : loss ? NEG : GRID}
+              opacity={win ? 0.85 : loss ? 0.7 : 1}
+              data-part="mark"
+              data-i={i}
+            />
+          );
+        })}
       </MicroSvg>
     );
   },

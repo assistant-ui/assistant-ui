@@ -122,14 +122,16 @@ function ListViewItem({
   );
 }
 
+// Stays mounted without a value, so a field that empties and fills again keeps its place in the row name.
 function SequenceText({
   value,
   style,
 }: {
-  value: string;
+  value: string | undefined;
   style: ComponentProps<typeof Text>["style"];
 }) {
   const consumed = useListViewItemText(value);
+  if (value === undefined) return null;
   return (
     <Text aria-hidden={consumed} style={style}>
       {value}
@@ -158,12 +160,10 @@ function Steps({ steps }: { steps: unknown }) {
               value={step.title}
               style={[styles.sequenceTitle, { color: ink }]}
             />
-            {step.detail !== undefined ? (
-              <SequenceText
-                value={step.detail}
-                style={[styles.sequenceDetail, { color: fade(ink, 0.62) }]}
-              />
-            ) : null}
+            <SequenceText
+              value={step.detail}
+              style={[styles.sequenceDetail, { color: fade(ink, 0.62) }]}
+            />
           </View>
         </View>
       ))}
@@ -193,22 +193,18 @@ function Timeline({ items }: { items: unknown }) {
             ) : null}
           </View>
           <View style={styles.sequenceBody}>
-            {item.time !== undefined ? (
-              <SequenceText
-                value={item.time}
-                style={[styles.timelineTime, { color: fade(ink, 0.62) }]}
-              />
-            ) : null}
+            <SequenceText
+              value={item.time}
+              style={[styles.timelineTime, { color: fade(ink, 0.62) }]}
+            />
             <SequenceText
               value={item.title}
               style={[styles.sequenceTitle, { color: ink }]}
             />
-            {item.detail !== undefined ? (
-              <SequenceText
-                value={item.detail}
-                style={[styles.sequenceDetail, { color: fade(ink, 0.62) }]}
-              />
-            ) : null}
+            <SequenceText
+              value={item.detail}
+              style={[styles.sequenceDetail, { color: fade(ink, 0.62) }]}
+            />
           </View>
         </View>
       ))}

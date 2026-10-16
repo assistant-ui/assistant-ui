@@ -246,15 +246,22 @@ export const reduceLangGraphThreadState = (
       return { ...state, interruptRunConfig: action.runConfig };
     case "run.started": {
       const runId = String(state.nextRunId + 1);
-      const pendingResume = new Map(state.pendingResume);
-      const pendingToolCallIdsByRun = new Map(state.pendingToolCallIdsByRun);
+      let pendingResume = state.pendingResume;
+      let pendingToolCallIdsByRun = state.pendingToolCallIdsByRun;
       let startedMessages: LangChainMessage[] = action.messages;
-      for (const [groupKey, entry] of pendingResume) {
+      for (const [groupKey, entry] of state.pendingResume) {
         if (entry.queued === action.messages) {
           startedMessages = entry.messages;
-          pendingResume.delete(groupKey);
-          if (groupKey.startsWith("run:"))
-            pendingToolCallIdsByRun.delete(groupKey.slice(4));
+          const nextPendingResume = new Map(state.pendingResume);
+          nextPendingResume.delete(groupKey);
+          pendingResume = nextPendingResume;
+          if (groupKey.startsWith("run:")) {
+            const nextPendingToolCallIdsByRun = new Map(
+              state.pendingToolCallIdsByRun,
+            );
+            nextPendingToolCallIdsByRun.delete(groupKey.slice(4));
+            pendingToolCallIdsByRun = nextPendingToolCallIdsByRun;
+          }
           break;
         }
       }

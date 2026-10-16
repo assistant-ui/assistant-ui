@@ -1207,7 +1207,7 @@ describe("useStreamRuntime fork ownership", () => {
 });
 
 describe("useStreamRuntime pending tool call cancellation", () => {
-  it("cancels only the pending tool calls that carry an id", async () => {
+  it("sends after malformed and answered tool calls, cancelling only pending calls with an id", async () => {
     const stream = createMockStream([
       message("u1", "human", "look it up"),
       {
@@ -1215,9 +1215,17 @@ describe("useStreamRuntime pending tool call cancellation", () => {
         _getType: () => "ai",
         content: "",
         tool_calls: [
+          null as unknown as LangChainToolCall,
           { name: "lookup", args: {} } as LangChainToolCall,
+          { id: "answered-1", name: "lookup", args: {} },
           { id: "call-1", name: "search", args: {} },
         ],
+      },
+      {
+        id: "tool-1",
+        _getType: () => "tool",
+        content: "done",
+        tool_call_id: "answered-1",
       },
     ]);
     const { auiResult } = renderAui(stream);

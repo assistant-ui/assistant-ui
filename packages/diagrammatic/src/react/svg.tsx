@@ -171,6 +171,7 @@ export type FrameOptions = {
   legend?: boolean | undefined;
   /** Category labels or tick labels printed along the bottom edge. */
   labels?: boolean | undefined;
+  bottomValueLabel?: boolean | undefined;
   /** Value-axis ticks printed down the left edge. The labels size the gutter; `true` reserves a default one. */
   ticks?: readonly Tick[] | boolean | undefined;
   left?: number | undefined;
@@ -236,7 +237,11 @@ export function frame(
     opts.top ??
     (opts.legend ? legendY + T.value.px + 10 : PAD + T.value.px + 2);
   const axisY = height - PAD;
-  const bottom = opts.bottom ?? (opts.labels ? axisY - axis - 6 : height - PAD);
+  const bottom =
+    opts.bottom ??
+    (opts.labels
+      ? axisY - axis - 6 - (opts.bottomValueLabel ? T.value.px + 5 : 0)
+      : height - PAD);
   return { width, height, left, right, top, bottom, axisY, legendY, T };
 }
 
@@ -699,12 +704,14 @@ export function ColumnHits({
   x1,
   top,
   bottom,
+  series,
 }: {
   count: number;
   x0: number;
   x1: number;
   top: number;
   bottom: number;
+  series?: string;
 }) {
   if (count < 1) return null;
   const step = count === 1 ? x1 - x0 : (x1 - x0) / (count - 1);
@@ -721,8 +728,10 @@ export function ColumnHits({
             width={round(right - left)}
             height={round(bottom - top)}
             fill="transparent"
+            data-dg-hit-target=""
             data-part="mark"
             data-i={i}
+            data-series={series}
           />
         );
       })}

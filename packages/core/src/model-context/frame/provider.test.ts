@@ -29,6 +29,7 @@ describe("AssistantFrameProvider", () => {
     source: Window = parentWindow,
     id = "tool-call-1",
     toolName = "sensitiveTool",
+    documentId?: string,
   ) => {
     messageHandler?.(
       new MessageEvent("message", {
@@ -39,6 +40,7 @@ describe("AssistantFrameProvider", () => {
             id,
             toolName,
             args: {},
+            ...(documentId !== undefined && { documentId }),
           },
         },
         origin,
@@ -64,12 +66,15 @@ describe("AssistantFrameProvider", () => {
     );
   };
 
-  const dispatchContextRequest = (origin: string) => {
+  const dispatchContextRequest = (origin: string, requestId?: string) => {
     messageHandler?.(
       new MessageEvent("message", {
         data: {
           channel: FRAME_MESSAGE_CHANNEL,
-          message: { type: "model-context-request" },
+          message: {
+            type: "model-context-request",
+            ...(requestId !== undefined && { requestId }),
+          },
         },
         origin,
         source: parentWindow,
@@ -202,6 +207,112 @@ describe("AssistantFrameProvider", () => {
     await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
   });
 
+  it.each(["load-request", ""])(
+    "echoes request id %j only on the direct context reply",
+    (requestId) => {
+      let broadcast: () => void = () => {};
+      AssistantFrameProvider.addModelContextProvider({
+        getModelContext: () => ({ system: "current page" }),
+        subscribe: (listener) => {
+          broadcast = listener;
+          return () => {};
+        },
+      });
+      const postMessage = vi.mocked(parentWindow.postMessage);
+      expect(postMessage.mock.lastCall![0].message).not.toHaveProperty(
+        "requestId",
+      );
+
+      dispatchContextRequest(window.location.origin, requestId);
+      expect(postMessage.mock.lastCall![0].message).toMatchObject({
+        type: "model-context-update",
+        documentId: expect.any(String),
+        requestId,
+      });
+
+      broadcast();
+      expect(postMessage.mock.lastCall![0].message).not.toHaveProperty(
+        "requestId",
+      );
+      dispatchContextRequest(window.location.origin);
+      expect(postMessage.mock.lastCall![0].message).not.toHaveProperty(
+        "requestId",
+      );
+    },
+  );
+
+  it.each([
+    ["another document", "another-document"],
+    ["a document without an id", ""],
+  ])(
+    "rejects calls offered by %s before looking up tools and accepts legacy calls",
+    async (_label, documentId) => {
+      const execute = vi.fn(async () => "result");
+      const getModelContext = vi.fn(() => ({
+        tools: { sensitiveTool: createTool(execute) },
+      }));
+      AssistantFrameProvider.addModelContextProvider({ getModelContext });
+      getModelContext.mockClear();
+
+      dispatchToolCall(
+        window.location.origin,
+        parentWindow,
+        "stale-call",
+        "sensitiveTool",
+        documentId,
+      );
+      expect(getModelContext).not.toHaveBeenCalled();
+      expect(execute).not.toHaveBeenCalled();
+      expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
+        {
+          channel: FRAME_MESSAGE_CHANNEL,
+          message: {
+            type: "tool-result",
+            documentId: expect.any(String),
+            id: "stale-call",
+            error: "AssistantFrame document has changed",
+          },
+        },
+        { targetOrigin: window.location.origin },
+      );
+
+      dispatchToolCall(window.location.origin);
+      await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+      expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
+        {
+          channel: FRAME_MESSAGE_CHANNEL,
+          message: {
+            type: "tool-result",
+            documentId: expect.any(String),
+            id: "tool-call-1",
+            result: "result",
+          },
+        },
+        { targetOrigin: window.location.origin },
+      );
+    },
+  );
+
+  it("runs tool calls addressed to its own document", async () => {
+    const execute = vi.fn(async () => "result");
+    AssistantFrameProvider.addModelContextProvider({
+      getModelContext: () => ({
+        tools: { sensitiveTool: createTool(execute) },
+      }),
+    });
+    const documentId = vi.mocked(parentWindow.postMessage).mock.lastCall![0]
+      .message.documentId as string;
+
+    dispatchToolCall(
+      window.location.origin,
+      parentWindow,
+      "current-call",
+      "sensitiveTool",
+      documentId,
+    );
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+  });
+
   it("does not broadcast from a disposed provider", async () => {
     vi.useFakeTimers();
 
@@ -224,6 +335,7 @@ describe("AssistantFrameProvider", () => {
           channel: FRAME_MESSAGE_CHANNEL,
           message: {
             type: "model-context-update",
+            documentId: expect.any(String),
             context: {
               system: "current context",
               tools: {},
@@ -290,6 +402,7 @@ describe("AssistantFrameProvider", () => {
           channel: FRAME_MESSAGE_CHANNEL,
           message: {
             type: "tool-result",
+            documentId: expect.any(String),
             id: "tool-call-1",
             error: "Tool result could not be sent across the frame boundary",
           },
@@ -413,18 +526,29 @@ describe("AssistantFrameProvider", () => {
       [
         {
           channel: FRAME_MESSAGE_CHANNEL,
-          message: { type: "model-context-update", context: {} },
+          message: {
+            type: "model-context-update",
+            documentId: expect.any(String),
+            context: {},
+          },
         },
         "https://parent.example",
       ],
       [
         {
           channel: FRAME_MESSAGE_CHANNEL,
-          message: { type: "provider-disposed" },
+          message: {
+            type: "provider-disposed",
+            documentId: expect.any(String),
+          },
         },
         "https://parent.example",
       ],
     ]);
+    const messages = vi
+      .mocked(parentWindow.postMessage)
+      .mock.calls.map(([data]) => data.message);
+    expect(messages[0]?.documentId).toBe(messages[1]?.documentId);
   });
 
   it("aborts in-flight tool calls when the provider is disposed", async () => {
@@ -458,6 +582,7 @@ describe("AssistantFrameProvider", () => {
         channel: FRAME_MESSAGE_CHANNEL,
         message: {
           type: "tool-result",
+          documentId: expect.any(String),
           id: "tool-call-1",
           error: "AssistantFrameProvider has been disposed",
         },
@@ -467,7 +592,10 @@ describe("AssistantFrameProvider", () => {
     expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
       {
         channel: FRAME_MESSAGE_CHANNEL,
-        message: { type: "provider-disposed" },
+        message: {
+          type: "provider-disposed",
+          documentId: expect.any(String),
+        },
       },
       window.location.origin,
     );
@@ -513,6 +641,7 @@ describe("AssistantFrameProvider", () => {
         channel: FRAME_MESSAGE_CHANNEL,
         message: {
           type: "tool-result",
+          documentId: expect.any(String),
           id: "tool-call-1",
           error: "AssistantFrame tool provider has been removed",
         },
@@ -793,6 +922,7 @@ describe("AssistantFrameProvider", () => {
         channel: FRAME_MESSAGE_CHANNEL,
         message: {
           type: "tool-result",
+          documentId: expect.any(String),
           id: "tool-call-1",
           error: "AssistantFrame tool provider has been removed",
         },
@@ -849,6 +979,7 @@ describe("AssistantFrameProvider", () => {
         channel: FRAME_MESSAGE_CHANNEL,
         message: {
           type: "model-context-update",
+          documentId: expect.any(String),
           context: {
             system: "shared system",
             tools: {},
@@ -968,7 +1099,11 @@ describe("AssistantFrameProvider", () => {
     expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
       {
         channel: FRAME_MESSAGE_CHANNEL,
-        message: { type: "model-context-update", context: {} },
+        message: {
+          type: "model-context-update",
+          documentId: expect.any(String),
+          context: {},
+        },
       },
       "https://parent.example",
     );
@@ -998,7 +1133,11 @@ describe("AssistantFrameProvider", () => {
 
     expect(sentTo("https://parent.example").at(-1)).toEqual({
       channel: FRAME_MESSAGE_CHANNEL,
-      message: { type: "model-context-update", context: {} },
+      message: {
+        type: "model-context-update",
+        documentId: expect.any(String),
+        context: {},
+      },
     });
     expect(JSON.stringify(sentTo("https://parent.example"))).not.toContain(
       "otherTool",
@@ -1063,7 +1202,11 @@ describe("AssistantFrameProvider", () => {
     expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
       {
         channel: FRAME_MESSAGE_CHANNEL,
-        message: { type: "model-context-update", context: {} },
+        message: {
+          type: "model-context-update",
+          documentId: expect.any(String),
+          context: {},
+        },
       },
       "https://parent.example",
     );

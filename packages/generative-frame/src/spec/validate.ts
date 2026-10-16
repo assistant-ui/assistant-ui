@@ -22,7 +22,8 @@ export type SpecIssueCode =
   | "invalid-repeat"
   | "unreachable"
   | "invalid-patch"
-  | "invalid-state";
+  | "invalid-state"
+  | "missing-tool-result";
 
 export type SpecIssue = {
   code: SpecIssueCode;

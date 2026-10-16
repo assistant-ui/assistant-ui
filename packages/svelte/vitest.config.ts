@@ -22,10 +22,10 @@ export default defineConfig({
       include: ["src/**/*.{ts,tsx,svelte}"],
       exclude: ["src/__tests__/**"],
       thresholds: {
-        lines: 94,
-        functions: 90,
-        branches: 78,
-        statements: 91,
+        lines: 95,
+        functions: 91,
+        branches: 80,
+        statements: 92,
         autoUpdate: (threshold, previous) =>
           Math.max(previous, Math.floor(threshold) - 1),
       },
