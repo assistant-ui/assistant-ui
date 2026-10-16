@@ -99,6 +99,27 @@ function TableView({
   const safeColumns = Array.isArray(columns) ? columns : [];
   const safeRows = Array.isArray(rows) ? rows.filter(Array.isArray) : [];
   const shownRows = sort ? sortTableRows(safeRows, sort) : safeRows;
+  const columnLabel = (index: number) => {
+    const column = safeColumns[index];
+    return isTableColumn(column) && column.label ? column.label : undefined;
+  };
+  const cellText = (cell: unknown, index: number) => {
+    const column = safeColumns[index];
+    return formatValue(cell, isTableColumn(column) ? column.format : undefined);
+  };
+  // A row reads its cells as each labels itself, or the column labels while it has no rows.
+  const consumed = useListViewItemText(
+    (shownRows.length > 0
+      ? shownRows.flatMap((row) =>
+          row.flatMap((cell, index) => {
+            const text = cellText(cell, index);
+            const label = columnLabel(index);
+            return text ? [label ? `${label}: ${text}` : text] : [];
+          }),
+        )
+      : safeColumns.flatMap((_, index) => columnLabel(index) ?? [])
+    ).join(", "),
+  );
   return (
     <ScrollView horizontal>
       <View style={styles.table}>
@@ -110,6 +131,7 @@ function TableView({
                 sort?.column === index ? sort.direction : undefined;
               const heading = (
                 <Text
+                  aria-hidden={consumed && !onSort}
                   style={[
                     styles.header,
                     {
@@ -159,10 +181,10 @@ function TableView({
               <View key={columnIndex} style={styles.cell}>
                 <Text
                   testID="table-cell"
+                  aria-hidden={consumed}
                   accessibilityLabel={
-                    isTableColumn(safeColumns[columnIndex]) &&
-                    safeColumns[columnIndex].label
-                      ? `${safeColumns[columnIndex].label}: ${formatValue(cell, safeColumns[columnIndex].format)}`
+                    columnLabel(columnIndex)
+                      ? `${columnLabel(columnIndex)}: ${cellText(cell, columnIndex)}`
                       : undefined
                   }
                   style={[
@@ -176,12 +198,7 @@ function TableView({
                     },
                   ]}
                 >
-                  {formatValue(
-                    cell,
-                    isTableColumn(safeColumns[columnIndex])
-                      ? safeColumns[columnIndex].format
-                      : undefined,
-                  )}
+                  {cellText(cell, columnIndex)}
                 </Text>
               </View>
             ))}

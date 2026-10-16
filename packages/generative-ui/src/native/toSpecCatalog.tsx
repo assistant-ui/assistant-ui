@@ -12,5 +12,7 @@ export function toSpecCatalog(
   library: GenerativeUILibrary = defaultGenerativeUILibrary,
   options: ToSpecCatalogOptions = {},
 ): { catalog: Catalog; components: SpecComponents } {
-  return buildSpecCatalog(library, defaultGenerativeUILibrary, options);
+  return buildSpecCatalog(library, defaultGenerativeUILibrary, options, {
+    positions: true,
+  });
 }

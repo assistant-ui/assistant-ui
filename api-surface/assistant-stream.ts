@@ -373,6 +373,7 @@ type GenericToolResultPart = {
   toolCallId: string;
   toolName: string;
   result: unknown;
+  modelContent?: readonly ToolModelContentPart[];
   isError?: boolean;
 };
 
@@ -480,6 +481,10 @@ type MessagePartLike = {
   type: string;
   text?: string;
   image?: string;
+  audio?: {
+    data?: string;
+    format?: "mp3" | "wav";
+  };
   data?: string;
   mimeType?: string;
   filename?: string;
@@ -488,6 +493,7 @@ type MessagePartLike = {
   args?: Record<string, unknown>;
   state?: string;
   result?: unknown;
+  modelContent?: readonly ToolModelContentPart[];
   isError?: boolean;
   isPreliminary?: boolean;
   approval?: {

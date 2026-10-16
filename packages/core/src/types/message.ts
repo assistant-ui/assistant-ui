@@ -347,6 +347,8 @@ export type ToolCallMessagePart<
   readonly args: TArgs;
   /** Result returned by the tool. Final once it has completed; an interim value while `isPreliminary` is set. */
   readonly result?: TResult | undefined;
+  /** The runtime holds this call's response locally and has not sent it yet. */
+  readonly responseDeliveryStatus?: "queued" | undefined;
   /** Whether the result represents a tool execution error. */
   readonly isError?: boolean | undefined;
   /** Whether `result` is an interim value from a tool that is still running, so the call is not settled yet. */
@@ -577,6 +579,8 @@ export type ThreadAssistantMessage = MessageCommonProps & {
   readonly content: readonly ThreadAssistantMessagePart[];
   readonly status: MessageStatus;
   readonly metadata: {
+    /** The run that produced this message, matching the external store adapter's `activeRunId` for that run. */
+    readonly runId?: string | undefined;
     /** @deprecated Experimental since 2025-05-20. Not scheduled for removal; the API may change in any release. */
     readonly unstable_state: ReadonlyJSONValue;
     /** @deprecated Experimental since 2025-01-27. Not scheduled for removal; the API may change in any release. */

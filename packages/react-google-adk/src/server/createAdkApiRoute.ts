@@ -183,6 +183,9 @@ export function createAdkApiRoute(
       sessionId,
       newMessage,
       ...(stateDelta != null && { stateDelta }),
+      ...(parsed.customMetadata !== undefined && {
+        customMetadata: parsed.customMetadata,
+      }),
       ...(runConfig != null && { runConfig }),
     });
 

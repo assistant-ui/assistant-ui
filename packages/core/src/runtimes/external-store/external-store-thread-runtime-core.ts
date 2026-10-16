@@ -288,6 +288,7 @@ export class ExternalStoreThreadRuntimeCore
     parentOpen: boolean;
     lease: RunLease;
   } | null = null;
+  private readonly _cancelledRunIds = new Set<string>();
   private readonly _pendingCancelResyncs = new Set<() => void>();
   private _movedLeaf:
     | {
@@ -506,6 +507,7 @@ export class ExternalStoreThreadRuntimeCore
     if (repositoryChanged) {
       this.repository = repositoryInstance;
       this._cancelledToolTurn = null;
+      this._cancelledRunIds.clear();
       this._pendingDeleteEvictions.clear();
       this._pendingDeleteWindows.clear();
       this._submittedFeedback.clear();
@@ -712,10 +714,39 @@ export class ExternalStoreThreadRuntimeCore
         this._importedMessageIds = undefined;
       }
 
+      const incomingIds = new Set(messages.map((message) => message.id));
+      const hostDeletedMessages = new Map<string, ThreadMessage>();
+      for (let i = 1; i < messages.length; i++) {
+        const messageId = messages[i]!.id;
+        const parentId = messages[i - 1]!.id;
+        let previousParentId: string | null;
+        try {
+          previousParentId = this.repository.getMessage(messageId).parentId;
+        } catch {
+          continue;
+        }
+        if (previousParentId === parentId) continue;
+
+        const previousPath = this.repository.getMessages(messageId);
+        const ancestorIndex = previousPath.findIndex(
+          (message) => message.id === parentId,
+        );
+        if (ancestorIndex === -1) continue;
+        for (let j = ancestorIndex + 1; j < previousPath.length - 1; j++) {
+          const skipped = previousPath[j]!;
+          if (!incomingIds.has(skipped.id)) {
+            hostDeletedMessages.set(skipped.id, skipped);
+          }
+        }
+      }
+
       for (let i = 0; i < messages.length; i++) {
         const message = messages[i]!;
         const parent = messages[i - 1];
         this.repository.addOrUpdateMessage(parent?.id ?? null, message);
+      }
+      for (const [id, message] of hostDeletedMessages) {
+        this._evictDeletedMessage(id, message, false);
       }
 
       // A pass over the host's previous array, such as a client tool's
@@ -907,20 +938,24 @@ export class ExternalStoreThreadRuntimeCore
 
   private _getDiscardedToolCallIds(): ReadonlySet<string> | undefined {
     const scope = this._cancelledToolTurn;
-    if (!scope) return undefined;
+    if (!scope && this._cancelledRunIds.size === 0) return undefined;
 
     const ids = new Set<string>();
     for (let i = 0; i < this._messages.length; i++) {
       const message = this._messages[i]!;
       if (message.role !== "assistant" || message.metadata.isOptimistic)
         continue;
-      if (!scope.messageIds.has(message.id)) {
-        if (
-          !scope.parentOpen ||
-          (this._messages[i - 1]?.id ?? null) !== scope.parentId
-        )
-          continue;
-        scope.messageIds.add(message.id);
+      const runId = message.metadata.runId;
+      if (runId === undefined || !this._cancelledRunIds.has(runId)) {
+        if (!scope) continue;
+        if (!scope.messageIds.has(message.id)) {
+          if (
+            !scope.parentOpen ||
+            (this._messages[i - 1]?.id ?? null) !== scope.parentId
+          )
+            continue;
+          scope.messageIds.add(message.id);
+        }
       }
       for (const { part } of walkToolCallTree([message])) {
         ids.add(part.toolCallId);
@@ -1278,14 +1313,15 @@ export class ExternalStoreThreadRuntimeCore
     this._evictDeletedMessage(messageId);
   }
 
-  // The snapshot pass only relinks incoming messages; it never evicts, so
-  // without this the deleted message survives as a sibling branch that the
-  // branch picker can resurrect into the host store. `_messages` is refreshed
-  // before notifying so `messages` and the branch graph agree at notify time,
-  // mirroring the end of the snapshot pass.
+  // The snapshot pass evicts only messages the host drops from the middle of
+  // its array, so a deletion through the runtime would otherwise survive as a
+  // sibling branch that the branch picker can resurrect into the host store.
+  // `_messages` is refreshed before notifying so `messages` and the branch
+  // graph agree at notify time, mirroring the end of the snapshot pass.
   private _evictDeletedMessage(
     messageId: string,
     expectedMessage?: ThreadMessage,
+    publish = true,
   ) {
     // Positional fallback ids can be reused by another message after a snapshot.
     if (messageId.startsWith(FALLBACK_ID_PREFIX) && !expectedMessage) return;
@@ -1304,7 +1340,7 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     this.repository.deleteMessage(messageId);
-    this._publishRepositoryMessages();
+    if (publish) this._publishRepositoryMessages();
   }
 
   // Notifies even when the visible messages are unchanged: deleting an
@@ -1410,6 +1446,7 @@ export class ExternalStoreThreadRuntimeCore
     this._pendingDeleteWindows.clear();
     this._cancelRunResyncLeases.invalidate();
     this._cancelledToolTurn = null;
+    this._cancelledRunIds.clear();
 
     // Re-arm the tracker so the next adapter snapshot (containing the
     // imported state) is treated as historical — no streamCall/execute
@@ -1433,6 +1470,7 @@ export class ExternalStoreThreadRuntimeCore
   public unstable_notifySessionReset(): void {
     this._cancelRunResyncLeases.invalidate();
     this._cancelledToolTurn = null;
+    this._cancelledRunIds.clear();
     this._runTrackerUpdate(() => this._toolInvocations?.reset());
     this._store.queue?.__internal_notifyCancelled?.();
   }
@@ -1446,6 +1484,8 @@ export class ExternalStoreThreadRuntimeCore
     this._runCancellationLeases.invalidate();
     const generation = captureThreadRuntimeGeneration(this);
     const resyncLease = this._cancelRunResyncLeases.current();
+    if (this._store.activeRunId !== undefined)
+      this._cancelledRunIds.add(this._store.activeRunId);
 
     if (isRunning) {
       const hostMessages = this._storeMessages.filter(
@@ -1650,6 +1690,7 @@ export class ExternalStoreThreadRuntimeCore
     this._pendingDeleteWindows.clear();
     this._cancelRunResyncLeases.invalidate();
     this._cancelledToolTurn = null;
+    this._cancelledRunIds.clear();
     this._submittedFeedback.clear();
     this._importedMessageIds = undefined;
     const repo = new MessageRepository();
@@ -1664,6 +1705,7 @@ export class ExternalStoreThreadRuntimeCore
     this._pendingDeleteWindows.clear();
     this._cancelRunResyncLeases.invalidate();
     this._cancelledToolTurn = null;
+    this._cancelledRunIds.clear();
     this._submittedFeedback.clear();
     super.import(data);
     const messages = this.repository.getMessages();

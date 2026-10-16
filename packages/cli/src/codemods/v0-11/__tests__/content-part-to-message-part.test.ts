@@ -158,14 +158,14 @@ function MyComponent() {
 
   it("should handle complex type unions and generics", () => {
     const input = `
-import { ThreadAssistantContentPart, ToolCallContentPart } from "@assistant-ui/react";
+import { ThreadAssistantContentPart, ToolCallContentPart, TextContentPart } from "@assistant-ui/react";
 
 type MyUnion = ThreadAssistantContentPart | TextContentPart;
 type MyGeneric = Array<ToolCallContentPart<{ query: string }, string>>;
     `;
 
     const expected = `
-import { ThreadAssistantMessagePart, ToolCallMessagePart } from "@assistant-ui/react";
+import { ThreadAssistantMessagePart, ToolCallMessagePart, TextMessagePart } from "@assistant-ui/react";
 
 type MyUnion = ThreadAssistantMessagePart | TextMessagePart;
 type MyGeneric = Array<ToolCallMessagePart<{ query: string }, string>>;
@@ -226,5 +226,271 @@ function MyComponent() {
     `;
 
     expect(applyTransform(input).trim()).toBe(expected.trim());
+  });
+});
+
+describe("content-part import bindings", () => {
+  it.each([
+    [
+      "type references",
+      `import * as AUI from "@assistant-ui/react";
+import * as X from "./local";
+type Part = AUI.TextContentPart;
+type LocalPart = X.TextContentPart;
+function shadow(AUI: typeof X) { return null as AUI.TextContentPart | null; }`,
+      `import * as AUI from "@assistant-ui/react";
+import * as X from "./local";
+type Part = AUI.TextMessagePart;
+type LocalPart = X.TextContentPart;
+function shadow(AUI: typeof X) { return null as AUI.TextMessagePart | null; }`,
+    ],
+    [
+      "JSX members",
+      `import * as AUI from "@assistant-ui/react";
+import * as X from "./local";
+const View = () => <AUI.ContentPartPrimitive.Text />;
+const LocalView = () => <X.ContentPartPrimitive.Text />;
+function shadow(AUI: typeof X) { return <AUI.ContentPartPrimitive.Text />; }`,
+      `import * as AUI from "@assistant-ui/react";
+import * as X from "./local";
+const View = () => <AUI.MessagePartPrimitive.Text />;
+const LocalView = () => <X.ContentPartPrimitive.Text />;
+function shadow(AUI: typeof X) { return <AUI.ContentPartPrimitive.Text />; }`,
+    ],
+    [
+      "calls",
+      `import * as AUI from "@assistant-ui/react";
+import * as X from "./local";
+const part = AUI.useContentPart();
+const localPart = X.useContentPart();
+function shadow(AUI: typeof X) { return AUI.useContentPart(); }`,
+      `import * as AUI from "@assistant-ui/react";
+import * as X from "./local";
+const part = AUI.useMessagePart();
+const localPart = X.useContentPart();
+function shadow(AUI: typeof X) { return AUI.useContentPart(); }`,
+    ],
+  ])(
+    "renames assistant-ui namespace %s without changing other bindings",
+    (_, input, expected) => {
+      expect(applyTransform(input)).toBe(expected);
+    },
+  );
+
+  it("renames qualified types from a type-only namespace import", () => {
+    const input = `import type * as AUI from "@assistant-ui/react";
+type Part = AUI.TextContentPart;`;
+    const expected = `import type * as AUI from "@assistant-ui/react";
+type Part = AUI.TextMessagePart;`;
+    expect(applyTransform(input)).toBe(expected);
+  });
+
+  it("preserves qualified types shadowed by a type-space declaration", () => {
+    const input = `import * as AUI from "@assistant-ui/react";
+type Part = AUI.TextContentPart;
+namespace Local {
+  namespace AUI { export type TextContentPart = string; }
+  type Part = AUI.TextContentPart;
+}`;
+    const expected = `import * as AUI from "@assistant-ui/react";
+type Part = AUI.TextMessagePart;
+namespace Local {
+  namespace AUI { export type TextContentPart = string; }
+  type Part = AUI.TextContentPart;
+}`;
+    expect(applyTransform(input)).toBe(expected);
+  });
+
+  it("resolves typeof qualified names as values", () => {
+    const input = `import * as AUI from "@assistant-ui/react";
+import * as X from "./local";
+type Part = typeof AUI.TextContentPart;
+function shadow(AUI: typeof X) { return null as typeof AUI.TextContentPart | null; }`;
+    const expected = `import * as AUI from "@assistant-ui/react";
+import * as X from "./local";
+type Part = typeof AUI.TextMessagePart;
+function shadow(AUI: typeof X) { return null as typeof AUI.TextContentPart | null; }`;
+    expect(applyTransform(input)).toBe(expected);
+  });
+
+  it.each([
+    'import { useContentPart } from "./custom-hooks";\nexport const read = () => useContentPart();',
+    'import type { TextContentPart } from "./custom-types";\nexport const read = (part: TextContentPart) => part.text;',
+    'import { ContentPartPrimitive } from "./custom-ui";\nexport const Text = () => <ContentPartPrimitive.Text />;',
+    'import { MessagePrimitive } from "./custom-ui";\nexport const Content = () => <MessagePrimitive.Content />;',
+  ])("preserves foreign imports and references: %s", (custom) => {
+    const input = `import { ThreadPrimitive } from "@assistant-ui/react";\n${custom}`;
+    expect(applyTransform(input)).toBe(input);
+  });
+
+  it("preserves unbound names", () => {
+    const input = `import { ThreadPrimitive } from "@assistant-ui/react";
+export const read = () => useContentPart();
+export type Part = TextContentPart;`;
+    expect(applyTransform(input)).toBe(input);
+  });
+
+  it("preserves an import alias while leaving another module's canonical name alone", () => {
+    const output =
+      applyTransform(`import { useContentPart as usePart, TextContentPart as Part } from "@assistant-ui/react";
+import { useContentPart } from "./custom-hooks";
+export const read = (part: Part) => [usePart(), useContentPart(), part];`);
+    expect(output).toContain("useMessagePart as usePart");
+    expect(output).toContain("TextMessagePart as Part");
+    expect(output).toContain("[usePart(), useContentPart(), part]");
+  });
+
+  it("preserves shadowed parameters and uses an import alias to keep their references intact", () => {
+    const output =
+      applyTransform(`import { useContentPart } from "@assistant-ui/react";
+export const read = () => useContentPart();
+export const custom = (useContentPart) => useContentPart();`);
+    expect(output).toContain("useMessagePart as useContentPart");
+    expect(output).toContain("export const read = () => useContentPart();");
+    expect(output).toContain(
+      "export const custom = (useContentPart) => useContentPart();",
+    );
+  });
+
+  it.each([
+    "export type Identity<TextContentPart> = TextContentPart;",
+    "export function custom() { type TextContentPart = { custom: string }; return null as TextContentPart | null; }",
+    'export type Keys = { [TextContentPart in "a" | "b"]: TextContentPart };',
+  ])("preserves type declarations and parameters: %s", (body) => {
+    const output =
+      applyTransform(`import type { TextContentPart } from "@assistant-ui/react";
+export type Part = TextContentPart;
+${body}`);
+    expect(output).toContain("TextMessagePart as TextContentPart");
+    expect(output).toContain("export type Part = TextContentPart;");
+    expect(output).toContain(body);
+  });
+
+  it("preserves ambient declarations with the same name", () => {
+    const output =
+      applyTransform(`import { useContentPart } from "@assistant-ui/react";
+export const read = () => useContentPart();
+namespace Custom {
+  export declare function useContentPart(): string;
+  export const read = () => useContentPart();
+}`);
+    expect(output).toContain("useMessagePart as useContentPart");
+    expect(output).toContain(
+      "export declare function useContentPart(): string;",
+    );
+    expect(output.match(/read = \(\) => useContentPart\(\)/g)).toHaveLength(2);
+  });
+
+  it.each([
+    'import type { TextContentPart } from "@assistant-ui/react";',
+    'import { type TextContentPart } from "@assistant-ui/react";',
+  ])("renames unshadowed type-only references: %s", (declaration) => {
+    const output = applyTransform(
+      `${declaration}\nexport type Part = Array<TextContentPart>;`,
+    );
+    expect(output).toContain(
+      declaration.replace("TextContentPart", "TextMessagePart"),
+    );
+    expect(output).toContain("Array<TextMessagePart>");
+  });
+
+  it.each([
+    'const useMessagePart = () => "custom";\nexport const read = () => [useContentPart(), useMessagePart()];',
+    "export const read = (useMessagePart) => [useContentPart(), useMessagePart()];",
+  ])("preserves names when the replacement would collide: %s", (body) => {
+    const output = applyTransform(
+      `import { useContentPart } from "@assistant-ui/react";\n${body}`,
+    );
+    expect(output).toContain("useMessagePart as useContentPart");
+    expect(output).toContain(body);
+  });
+
+  it("avoids capturing a type reference with a generic parameter", () => {
+    const output =
+      applyTransform(`import type { TextContentPart } from "@assistant-ui/react";
+export type Pair<TextMessagePart> = [TextContentPart, TextMessagePart];`);
+    expect(output).toContain("TextMessagePart as TextContentPart");
+    expect(output).toContain("[TextContentPart, TextMessagePart]");
+  });
+
+  it("keeps object keys, member names, JSX attributes, and public export names", () => {
+    const output =
+      applyTransform(`import { useContentPart, ContentPartPrimitive } from "@assistant-ui/react";
+export const hooks = { useContentPart };
+export const read = (other) => other.useContentPart();
+export const View = () => <ContentPartPrimitive.Text useContentPart={useContentPart} />;
+export { useContentPart };
+export { useContentPart as custom } from "./custom-hooks";`);
+    expect(output).toMatch(/useContentPart: useMessagePart/);
+    expect(output).toContain("other.useContentPart()");
+    expect(output).toContain(
+      "<MessagePartPrimitive.Text useContentPart={useMessagePart}",
+    );
+    expect(output).toContain("export { useMessagePart as useContentPart }");
+    expect(output).toContain(
+      'export { useContentPart as custom } from "./custom-hooks"',
+    );
+    expect(applyTransform(output)).toBe(output);
+  });
+
+  it("preserves type-only exports while renaming their local references", () => {
+    const output =
+      applyTransform(`import type { TextContentPart } from "@assistant-ui/react";
+export type { TextContentPart };
+export { type TextContentPart as PublicPart };`);
+    expect(output).toContain(
+      "export type { TextMessagePart as TextContentPart }",
+    );
+    expect(output).toContain("export { type TextMessagePart as PublicPart }");
+  });
+
+  it("resolves the MessagePrimitive import before renaming Content", () => {
+    const output =
+      applyTransform(`import { MessagePrimitive as Message } from "@assistant-ui/react";
+export const View = () => <Message.Content />;
+export const content = Message.Content;
+export const dynamic = (Content) => Message[Content];
+export const custom = (Message) => <Message.Content />;`);
+    expect(output).toContain("<Message.Parts />");
+    expect(output).toContain("export const content = Message.Parts;");
+    expect(output).toContain("Message[Content]");
+    expect(output).toContain(
+      "export const custom = (Message) => <Message.Content />;",
+    );
+  });
+});
+
+describe("content-part re-exports", () => {
+  it.each([
+    [
+      'export { useContentPart } from "@assistant-ui/react";',
+      'export { useMessagePart as useContentPart } from "@assistant-ui/react";',
+    ],
+    [
+      'export type { TextContentPart } from "@assistant-ui/react";',
+      'export type { TextMessagePart as TextContentPart } from "@assistant-ui/react";',
+    ],
+    [
+      'export { type TextContentPart as Part } from "@assistant-ui/react";',
+      'export { type TextMessagePart as Part } from "@assistant-ui/react";',
+    ],
+    [
+      'export { useContentPart as usePart } from "@assistant-ui/react";',
+      'export { useMessagePart as usePart } from "@assistant-ui/react";',
+    ],
+  ])(
+    "migrates the source symbol while preserving its public name: %s",
+    (input, expected) => {
+      const output = applyTransform(input);
+      expect(output).toBe(expected);
+      expect(applyTransform(output)).toBe(output);
+    },
+  );
+
+  it("preserves unrelated re-exports and export namespaces", () => {
+    const input = `export { useContentPart } from "./custom-hooks";
+export type { TextContentPart } from "./custom-types";
+export * as ContentPartPrimitive from "@assistant-ui/react";`;
+    expect(applyTransform(input)).toBe(input);
   });
 });

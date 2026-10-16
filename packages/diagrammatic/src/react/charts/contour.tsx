@@ -28,6 +28,22 @@ const LEVELS = [
   { sigma: 0.55, opacity: 0.85 },
 ];
 
+function contourDomain(
+  values: number[],
+  scale: ScaleKind,
+): [number, number, boolean] {
+  const [lo, hi] = scale === "log" ? positiveExtent(values) : extent(values);
+  const candidates = scale === "log" ? values.filter((v) => v > 0) : values;
+  if (
+    candidates.length === 0 ||
+    candidates.some((value) => value !== candidates[0])
+  )
+    return [lo, hi, false];
+  if (scale === "log") return [lo, hi, true];
+  const pad = Math.abs(lo) || 1;
+  return [lo - pad, hi + pad, true];
+}
+
 export const Contour = forwardRef<SVGSVGElement, ContourProps>(
   (
     {
@@ -58,8 +74,8 @@ export const Contour = forwardRef<SVGSVGElement, ContourProps>(
     const { left, right, top, bottom, axisY, T } = F;
     const xs = points.map((p) => p.x);
     const ys = points.map((p) => p.y);
-    const [xLo, xHi] = xScale === "log" ? positiveExtent(xs) : extent(xs);
-    const [yLo, yHi] = yScale === "log" ? positiveExtent(ys) : extent(ys);
+    const [xLo, xHi, xDegenerate] = contourDomain(xs, xScale);
+    const [yLo, yHi, yDegenerate] = contourDomain(ys, yScale);
     const X = project(xScale, xLo, xHi, left, right);
     const Y = project(yScale, yLo, yHi, bottom, top);
     const projected = points.map((p) => ({ x: X(p.x), y: Y(p.y) }));
@@ -94,8 +110,9 @@ export const Contour = forwardRef<SVGSVGElement, ContourProps>(
       halfH > 0 ? (ellipse.cy - top) / halfH : 1,
       halfH > 0 ? (bottom - ellipse.cy) / halfH : 1,
     );
-    const rx = ellipse.rx * Math.max(0, fit);
-    const ry = ellipse.ry * Math.max(0, fit);
+    const minRadius = xDegenerate || yDegenerate ? 1 : 0;
+    const rx = Math.max(ellipse.rx * Math.max(0, fit), minRadius);
+    const ry = Math.max(ellipse.ry * Math.max(0, fit), minRadius);
     const yText = yLabel
       ? truncate(yLabel, T.axis.px, bottom - top)
       : undefined;

@@ -220,8 +220,9 @@ const useStreamThreadRuntime = (
     () => ({
       uiMessagesByParent: uiMessagesByParent,
       messageTiming,
+      streamingMessage: stream.isLoading ? visibleMessages.at(-1) : undefined,
     }),
-    [uiMessagesByParent, messageTiming],
+    [uiMessagesByParent, messageTiming, stream.isLoading, visibleMessages],
   );
 
   const threadMessages = useExternalMessageConverter({
@@ -575,6 +576,13 @@ const useStreamThreadRuntime = (
       isError,
       artifact,
     }) => {
+      if (
+        !(streamRef.current.messages as LangChainBaseMessage[]).some(
+          (message) =>
+            message.tool_calls?.some((call) => call?.id === toolCallId),
+        )
+      )
+        return;
       const runConfig = runConfigByMessageIdRef.current.has(messageId)
         ? runConfigByMessageIdRef.current.get(messageId)
         : activeRunConfigRef.current;

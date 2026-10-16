@@ -52,7 +52,9 @@ export const PolarArea = forwardRef<SVGSVGElement, PolarAreaProps>(
                 cx,
                 cy,
                 inner,
-                inner + t * (outer - inner),
+                Math.sqrt(
+                  inner ** 2 + Math.max(0, t) * (outer ** 2 - inner ** 2),
+                ),
                 i * slice,
                 (i + 1) * slice,
               )}

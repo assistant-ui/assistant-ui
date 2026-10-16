@@ -41,7 +41,7 @@ export const WorldMap = forwardRef<SVGSVGElement, WorldMapProps>(
     ref,
   ) => {
     const highest = Math.max(...Object.values(values ?? { z: 1 }), 1);
-    const denominator = max ?? highest;
+    const denominator = max !== undefined && max > 0 ? max : highest;
     const F = frame(
       { width, height, aspect, fontSize },
       200 / WORLD_HEIGHT,

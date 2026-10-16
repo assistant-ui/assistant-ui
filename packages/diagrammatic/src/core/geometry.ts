@@ -43,7 +43,9 @@ export function project(
 export function positiveExtent(values: number[]): [number, number] {
   const pos = values.filter((v) => v > 0);
   if (pos.length === 0) return [1, 10];
-  return extent(pos);
+  const [lo, hi] = extent(pos);
+  if (lo !== hi) return [lo, hi];
+  return [lo / Math.sqrt(10), Math.min(hi * Math.sqrt(10), Number.MAX_VALUE)];
 }
 
 export function rowMid(index: number, rowH: number, top: number): number {
@@ -85,6 +87,32 @@ export function scalePoints(
   }));
 }
 
+export type CubicSegment = {
+  start: Pt;
+  control1: Pt;
+  control2: Pt;
+  end: Pt;
+};
+
+export function lineCubicSegment(points: Pt[], i: number): CubicSegment {
+  const p0 = points[Math.max(0, i - 1)]!;
+  const p1 = points[i]!;
+  const p2 = points[i + 1]!;
+  const p3 = points[Math.min(points.length - 1, i + 2)]!;
+  return {
+    start: p1,
+    control1: {
+      x: p1.x + (p2.x - p0.x) / 6,
+      y: p1.y + (p2.y - p0.y) / 6,
+    },
+    control2: {
+      x: p2.x - (p3.x - p1.x) / 6,
+      y: p2.y - (p3.y - p1.y) / 6,
+    },
+    end: p2,
+  };
+}
+
 export function linePath(points: Pt[], smooth = true): string {
   if (points.length === 0) return "";
   if (!smooth || points.length < 3) {
@@ -94,15 +122,8 @@ export function linePath(points: Pt[], smooth = true): string {
   }
   let d = `M${round(points[0]!.x)} ${round(points[0]!.y)}`;
   for (let i = 0; i < points.length - 1; i += 1) {
-    const p0 = points[Math.max(0, i - 1)]!;
-    const p1 = points[i]!;
-    const p2 = points[i + 1]!;
-    const p3 = points[Math.min(points.length - 1, i + 2)]!;
-    const c1x = p1.x + (p2.x - p0.x) / 6;
-    const c1y = p1.y + (p2.y - p0.y) / 6;
-    const c2x = p2.x - (p3.x - p1.x) / 6;
-    const c2y = p2.y - (p3.y - p1.y) / 6;
-    d += ` C${round(c1x)} ${round(c1y)} ${round(c2x)} ${round(c2y)} ${round(p2.x)} ${round(p2.y)}`;
+    const { control1, control2, end } = lineCubicSegment(points, i);
+    d += ` C${round(control1.x)} ${round(control1.y)} ${round(control2.x)} ${round(control2.y)} ${round(end.x)} ${round(end.y)}`;
   }
   return d;
 }
@@ -148,13 +169,56 @@ export function ring(
   const o1 = polar(cx, cy, rOuter, end);
   const i0 = polar(cx, cy, rInner, end);
   const i1 = polar(cx, cy, rInner, start);
+  const outerClosed =
+    round(o0.x) === round(o1.x) && round(o0.y) === round(o1.y);
+  const innerClosed =
+    round(i0.x) === round(i1.x) && round(i0.y) === round(i1.y);
+  // SVG omits an arc whose endpoints coincide, so a sector that closes on
+  // itself is drawn as whole circles, the inner one wound the other way.
+  if (large && outerClosed && innerClosed) {
+    return [
+      circlePath(cx, cy, rOuter, start, 1),
+      circlePath(cx, cy, rInner, start, 0),
+    ]
+      .filter(Boolean)
+      .join(" ");
+  }
+  const arc = (r: number, sweep: 0 | 1, from: Pt, to: Pt): string => {
+    const path = `A${r} ${r} 0 ${large} ${sweep} ${round(to.x)} ${round(to.y)}`;
+    if (
+      !large ||
+      round(from.x) !== round(to.x) ||
+      round(from.y) !== round(to.y)
+    ) {
+      return path;
+    }
+    const mid = polar(cx, cy, r, start + Math.PI);
+    if (round(mid.x) === round(from.x) && round(mid.y) === round(from.y)) {
+      return path;
+    }
+    return `A${r} ${r} 0 0 ${sweep} ${round(mid.x)} ${round(mid.y)} A${r} ${r} 0 0 ${sweep} ${round(to.x)} ${round(to.y)}`;
+  };
   return [
     `M${round(o0.x)} ${round(o0.y)}`,
-    `A${rOuter} ${rOuter} 0 ${large} 1 ${round(o1.x)} ${round(o1.y)}`,
+    arc(rOuter, 1, o0, o1),
     `L${round(i0.x)} ${round(i0.y)}`,
-    `A${rInner} ${rInner} 0 ${large} 0 ${round(i1.x)} ${round(i1.y)}`,
+    arc(rInner, 0, i0, i1),
     "Z",
   ].join(" ");
+}
+
+function circlePath(
+  cx: number,
+  cy: number,
+  r: number,
+  angle: number,
+  sweep: 0 | 1,
+): string {
+  const a = polar(cx, cy, r, angle);
+  const b = polar(cx, cy, r, angle + Math.PI);
+  const [ax, ay, bx, by] = [round(a.x), round(a.y), round(b.x), round(b.y)];
+  if (ax === bx && ay === by) return "";
+  return `M${ax} ${ay} A${r} ${r} 0 0 ${sweep} ${bx} ${by} A${r} ${r} 0 0 ${sweep} ${ax} ${ay} Z`;
 }
 
 export function arcStroke(
