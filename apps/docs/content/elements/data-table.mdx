@@ -137,7 +137,7 @@ The table has one hairline below its headers. Rows use a quiet hover fill instea
 
 Use `basis: "unit"` when a percentage arrives as `12` rather than `0.12`. A `link` format reads its href from the cell or `hrefKey`, and only links allowed by `safeHref` become anchors. External links open with `noopener noreferrer`.
 
-Relative dates use the current render time when `relativeTo` is absent, with hydration-safe text. Pass `relativeTo` when a shared reference time matters. Date strings must name a real calendar date; impossible values stay as their raw text.
+When `relativeTo` is absent, relative dates appear as absolute dates in UTC during server rendering and hydration. After mount, they switch to relative text using the client's clock. Pass `relativeTo` when a shared reference time matters. Date strings must name a real calendar date; impossible values stay as their raw text.
 
 ### Own the sorting
 
@@ -193,7 +193,7 @@ Set one column to `priority: "primary"` to make it the card title. If no column 
 | `onSortChange` | `(sort) => void` | | Called as a header cycles through sort states. |
 | `locale` | `string` | `"en-US"` | Formatting and collator locale. |
 | `emptyMessage` | `string` | `"No rows"` | Message in an empty table or card list. |
-| `relativeTo` | `number` | current render time | Epoch milliseconds for relative dates. Provide one for a shared reference time. |
+| `relativeTo` | `number` | absolute UTC dates until mount, then the client's clock | Epoch milliseconds for relative dates. Provide one for a shared reference time. |
 | `className` | `string` | | Extra classes merged onto the root. |
 
 </StandaloneMode>

@@ -7,6 +7,7 @@ import {
   resolveTicks,
   wantsTicks,
   boundsOf,
+  expandDegenerateDomain,
 } from "../../core/scale";
 import type { Guide } from "../../core/types";
 import { linear, round, stroke } from "../../core/geometry";
@@ -51,10 +52,12 @@ export const BoxPlot = forwardRef<SVGSVGElement, BoxPlotProps>(
     },
     ref,
   ) => {
-    const [lo, hi] = boundsOf(
-      groups.flatMap((g) => [g.low, g.high, ...(g.points ?? [])]),
-      yTicks,
-      guides,
+    const [lo, hi] = expandDegenerateDomain(
+      boundsOf(
+        groups.flatMap((g) => [g.low, g.high, ...(g.points ?? [])]),
+        yTicks,
+        guides,
+      ),
     );
     const yTickList = resolveTicks(yTicks, lo, hi, "linear", format);
     const F = frame({ width, height, aspect, fontSize }, 5 / 3, {

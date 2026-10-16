@@ -65,9 +65,9 @@ export type Rect = { x: number; y: number; w: number; h: number };
 
 /** Squarified treemap over one list of values inside a rectangle. */
 export function squarify(values: number[], rect: Rect, gap = 2): Rect[] {
-  const total = values.reduce((sum, v) => sum + v, 0) || 1;
+  const total = values.reduce((sum, v) => sum + (v > 0 ? v : 0), 0) || 1;
   const area = rect.w * rect.h;
-  const scaled = values.map((v) => (v / total) * area);
+  const scaled = values.map((v) => (v > 0 ? (v / total) * area : 0));
   const out: Rect[] = Array.from({ length: values.length }, () => ({
     x: 0,
     y: 0,
@@ -127,6 +127,7 @@ export function squarify(values: number[], rect: Rect, gap = 2): Rect[] {
 
   for (let i = 0; i < scaled.length; i += 1) {
     const a = scaled[i]!;
+    if (!(a > 0)) continue;
     const side = Math.min(free.w, free.h);
     if (row.length === 0 || worst([...row, a], side) <= worst(row, side)) {
       row.push(a);
@@ -139,12 +140,16 @@ export function squarify(values: number[], rect: Rect, gap = 2): Rect[] {
   }
   if (row.length > 0) layoutRow(row, rowIndex);
 
-  return out.map((r) => ({
-    x: r.x + gap / 2,
-    y: r.y + gap / 2,
-    w: Math.max(r.w - gap, 0.5),
-    h: Math.max(r.h - gap, 0.5),
-  }));
+  return out.map((r, i) =>
+    values[i]! > 0
+      ? {
+          x: r.x + gap / 2,
+          y: r.y + gap / 2,
+          w: Math.max(r.w - gap, 0.5),
+          h: Math.max(r.h - gap, 0.5),
+        }
+      : r,
+  );
 }
 
 export type Circle = { x: number; y: number; r: number };
@@ -304,8 +309,19 @@ export function densityEllipse(points: Pt[]): {
     cy,
     rx: Math.sqrt(Math.max(l1, 1e-6)),
     ry: Math.sqrt(Math.max(l2, 1e-6)),
-    angle: 90 - angle,
+    angle,
   };
+}
+
+export function networkHub(graph: Graph): Graph["nodes"][number] | undefined {
+  const degree = new Map<string, number>();
+  for (const link of graph.links) {
+    degree.set(link.source, (degree.get(link.source) ?? 0) + 1);
+    degree.set(link.target, (degree.get(link.target) ?? 0) + 1);
+  }
+  return [...graph.nodes].sort(
+    (a, b) => (degree.get(b.id) ?? 0) - (degree.get(a.id) ?? 0),
+  )[0];
 }
 
 /** Deterministic radial layout: highest-degree node centered, BFS rings out. */
@@ -315,15 +331,7 @@ export function radialNetwork(
   cy: number,
   ringGap: number,
 ): Map<string, Pt> {
-  const degree = new Map<string, number>();
-  for (const node of graph.nodes) degree.set(node.id, 0);
-  for (const link of graph.links) {
-    degree.set(link.source, (degree.get(link.source) ?? 0) + 1);
-    degree.set(link.target, (degree.get(link.target) ?? 0) + 1);
-  }
-  const hub = [...graph.nodes].sort(
-    (a, b) => (degree.get(b.id) ?? 0) - (degree.get(a.id) ?? 0),
-  )[0];
+  const hub = networkHub(graph);
   const positions = new Map<string, Pt>();
   if (!hub) return positions;
   positions.set(hub.id, { x: cx, y: cy });

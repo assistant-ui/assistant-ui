@@ -329,6 +329,47 @@ describe("createSpecToolkit for Vue", () => {
     },
   );
 
+  it.each([
+    [false, ""],
+    [true, "$42"],
+  ])(
+    "mounts earlier tool results in backend execution only with toolResults (%s)",
+    async (toolResults, text) => {
+      const spec = label({ $state: "/tools/get_price/0/price" });
+      mocks.messages = [
+        {
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "p",
+              toolName: "get_price",
+              args: {},
+              argsText: "{}",
+              result: { price: "$42" },
+            },
+            {
+              type: "tool-call",
+              toolCallId: "s",
+              toolName: "render_spec",
+              args: { title: "s", spec },
+              argsText: "",
+            },
+          ],
+        },
+      ];
+      const entries: Record<string, unknown> = createSpecToolkit(catalog, {
+        components,
+        toolResults,
+      }).entries({ execution: "backend", display: "standalone" });
+      const { container } = mount(
+        (entries["render_spec"] as Entry).render,
+        toolProp({ id: "s", args: { title: "s", spec } }),
+      );
+      await nextTick();
+      expect(container.textContent).toBe(text);
+    },
+  );
+
   it("applies patches onto the earlier spec when the title arrives after them", async () => {
     const first = {
       title: "s",

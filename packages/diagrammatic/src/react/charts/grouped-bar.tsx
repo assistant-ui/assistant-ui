@@ -1,7 +1,12 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import { formatCompact } from "../../core/types";
-import { type TickSpec, resolveTicks, upperBound } from "../../core/scale";
+import {
+  type TickSpec,
+  resolveTicks,
+  tickValues,
+  upperBound,
+} from "../../core/scale";
 import type { Guide, Series } from "../../core/types";
 import { linear, round, stroke } from "../../core/geometry";
 import { GRID, cat } from "../../core/theme";
@@ -46,14 +51,22 @@ export const GroupedBar = forwardRef<SVGSVGElement, GroupedBarProps>(
       yTicks,
       guides,
     );
-    const yTickList = resolveTicks(yTicks, 0, max, "linear", format);
+    const min = Math.min(
+      0,
+      ...series.flatMap((s) => s.data),
+      ...tickValues(yTicks),
+      ...(guides?.filter((g) => (g.axis ?? "y") === "y").map((g) => g.at) ??
+        []),
+    );
+    const yTickList = resolveTicks(yTicks, min, max, "linear", format);
     const F = frame({ width, height, aspect, fontSize }, 5 / 3, {
       legend: showLegend,
       labels: true,
       ticks: yTickList ?? false,
     });
     const { left, right, top, bottom, axisY, T } = F;
-    const Y = linear(0, max, bottom, top);
+    const Y = linear(min, max, bottom, top);
+    const zeroY = Y(0);
     const X = (i: number) =>
       left + ((right - left) / Math.max(1, groups.length)) * (i + 0.5);
     const groupStep = (right - left) / Math.max(1, groups.length);
@@ -77,9 +90,9 @@ export const GroupedBar = forwardRef<SVGSVGElement, GroupedBarProps>(
       >
         <line
           x1={left}
-          y1={bottom}
+          y1={zeroY}
           x2={right}
-          y2={bottom}
+          y2={zeroY}
           stroke={GRID}
           data-part="grid"
           {...stroke.hair}
@@ -116,6 +129,7 @@ export const GroupedBar = forwardRef<SVGSVGElement, GroupedBarProps>(
             width={round(groupStep)}
             height={bottom - top}
             fill="transparent"
+            data-dg-hit-target=""
             data-part="mark"
             data-i={g}
           />
@@ -123,7 +137,8 @@ export const GroupedBar = forwardRef<SVGSVGElement, GroupedBarProps>(
         {groups.map((group, g) =>
           series.map((s, k) => {
             const v = s.data[g] ?? 0;
-            const h = bottom - Y(v);
+            const valueY = Y(v);
+            const h = Math.abs(zeroY - valueY);
             const x =
               centers[g]! -
               (series.length * barW + Math.max(0, series.length - 1) * gap) /
@@ -133,7 +148,7 @@ export const GroupedBar = forwardRef<SVGSVGElement, GroupedBarProps>(
               <rect
                 key={`${group}-${s.name}`}
                 x={round(x)}
-                y={round(bottom - h)}
+                y={round(Math.min(zeroY, valueY))}
                 width={round(barW)}
                 height={round(h)}
                 fill={cat(k)}

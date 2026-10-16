@@ -1,4 +1,4 @@
-import { createRef } from "react";
+import { createRef, version } from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { ReasoningRoot, ReasoningTrigger } from "./reasoning.aui";
@@ -22,6 +22,8 @@ vi.mock("@assistant-ui/react", async (importOriginal) => ({
 
 afterEach(cleanup);
 
+const onReact18 = version.startsWith("18.");
+
 it("forwards the reasoning root to the caller and scroll lock", () => {
   const ref = createRef<HTMLDivElement>();
   const view = render(
@@ -37,6 +39,45 @@ it("forwards the reasoning root to the caller and scroll lock", () => {
   expect(mocks.lock).toHaveBeenCalledOnce();
   view.unmount();
   expect(ref.current).toBeNull();
+});
+
+it.skipIf(onReact18)(
+  "runs the forwarded callback ref cleanup and clears the scroll lock ref",
+  () => {
+    const cleanupRef = vi.fn();
+    const ref = vi.fn((node: HTMLDivElement | null) =>
+      node ? cleanupRef : undefined,
+    );
+    const view = render(
+      <ReasoningRoot ref={ref}>
+        <ReasoningTrigger>reasoning</ReasoningTrigger>
+      </ReasoningRoot>,
+    );
+
+    expect(mocks.ref?.current).not.toBeNull();
+    view.unmount();
+    expect(ref).toHaveBeenCalledOnce();
+    expect(cleanupRef).toHaveBeenCalledOnce();
+    expect(mocks.ref?.current).toBeNull();
+  },
+);
+
+it("forwards null when a callback ref returns no cleanup", () => {
+  const calls: (HTMLDivElement | null)[] = [];
+  const view = render(
+    <ReasoningRoot
+      ref={(node) => {
+        calls.push(node);
+      }}
+    >
+      <ReasoningTrigger>reasoning</ReasoningTrigger>
+    </ReasoningRoot>,
+  );
+
+  expect(mocks.ref?.current).not.toBeNull();
+  view.unmount();
+  expect(calls[1]).toBeNull();
+  expect(mocks.ref?.current).toBeNull();
 });
 
 it.each([

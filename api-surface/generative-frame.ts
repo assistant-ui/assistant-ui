@@ -411,6 +411,7 @@ type HostApiOptions = {
   prompt?: boolean;
   callTool?: boolean;
   modelContext?: boolean;
+  clipboard?: boolean;
 };
 
 type HostContext = {
@@ -758,7 +759,7 @@ type RepairRound = {
   feedback: RepairFeedback;
 };
 
-type ReservedAccessorProps = "name" | "query" | "source";
+type ReservedAccessorProps = "apply" | "bind" | "call" | "name" | "query" | "source";
 
 type ReservedScopeNames = "on" | "optional" | "subscribe";
 
@@ -782,6 +783,8 @@ type ResolvedElement = {
   key?: string;
   itemPath?: string;
 };
+
+declare const SPEC_TOOL_RESULTS_RULE = "Results of earlier tool calls are in state under `/tools/<toolName>/<n>`, newest first: `0` is the latest call to that tool before this `render_spec` call, `1` the one before it, and so on. Show their values with `{ \"$state\": \"/tools/<toolName>/<n>/...\" }` rather than copying them, and never write `tools` in `state`. Indexes count back from each `render_spec` call, so when a patch follows another call to the same tool, update any binding that should keep showing the older result.";
 
 declare class SafeContentFrame {
   #private;
@@ -921,7 +924,7 @@ type SpecIssue = {
   elementId?: string;
 };
 
-type SpecIssueCode = "children-not-allowed" | "cycle" | "invalid-element" | "invalid-formula" | "invalid-params" | "invalid-patch" | "invalid-props" | "invalid-repeat" | "invalid-state" | "missing-child" | "missing-root" | "unfilled-placeholder" | "unknown-action" | "unknown-event" | "unknown-root" | "unknown-slot" | "unknown-type" | "unreachable";
+type SpecIssueCode = "children-not-allowed" | "cycle" | "invalid-element" | "invalid-formula" | "invalid-params" | "invalid-patch" | "invalid-props" | "invalid-repeat" | "invalid-state" | "missing-child" | "missing-root" | "missing-tool-result" | "unfilled-placeholder" | "unknown-action" | "unknown-event" | "unknown-root" | "unknown-slot" | "unknown-type" | "unreachable";
 
 declare function SpecPlaceholder(_param0: SpecPlaceholderProps): import("react").JSX.Element;
 
@@ -1172,6 +1175,7 @@ type SpecToolkitOptions = {
   }) => unknown;
   placeholder?: ComponentType<SpecPlaceholderProps>;
   specPrompt?: Omit<SpecPromptOptions, "mode">;
+  toolResults?: boolean;
 };
 
 type SpecToolkitOptions$1 = {
@@ -1184,6 +1188,7 @@ type SpecToolkitOptions$1 = {
   }) => unknown;
   placeholder?: Component$1;
   specPrompt?: Omit<SpecPromptOptions, "mode">;
+  toolResults?: boolean;
 };
 
 type SpecTools = {
@@ -1265,6 +1270,7 @@ type ThreadAssistantMessage = MessageCommonProps & {
   readonly content: readonly ThreadAssistantMessagePart[];
   readonly status: MessageStatus;
   readonly metadata: {
+    readonly runId?: string | undefined;
     readonly unstable_state: ReadonlyJSONValue;
     readonly unstable_annotations: readonly ReadonlyJSONValue[];
     readonly unstable_data: readonly ReadonlyJSONValue[];
@@ -1411,6 +1417,7 @@ type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly toolName: string;
   readonly args: TArgs;
   readonly result?: TResult | undefined;
+  readonly responseDeliveryStatus?: "queued" | undefined;
   readonly isError?: boolean | undefined;
   readonly isPreliminary?: boolean | undefined;
   readonly argsText: string;
@@ -1680,7 +1687,7 @@ type ValidateMeta<K extends string, TClient> = "meta" extends keyof TClient ? TC
 
 type ValidateMethods<K extends string, TClient> = TClient extends {
   methods: ClientMethods;
-} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
+} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name/call/apply/bind)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
 
 type ValidateSpecOptions = {
   partial?: boolean;
@@ -1759,6 +1766,7 @@ type WidgetHandlers = {
     mode: DisplayMode;
   }) => unknown;
   onUpdateModelContext?: (params: unknown) => unknown;
+  onCopyText?: (text: string) => unknown;
   onWidgetState?: (state: unknown) => void;
   onResize?: (size: WidgetSize) => void;
   onError?: (error: WidgetError) => void;
@@ -2008,7 +2016,7 @@ declare function toAISDKTools<T extends Record<string, AnyTool>, Schema>(tools: 
 };
 
 declare namespace entry_spec_tools_exports {
-  export { CreateSpecToolsOptions, GuidanceModule, JsonSchema, RenderSpecInput, RenderSpecResult, RenderSpecTool, SpecTools, ToolDefinition, createSpecTools, getToolDeclarations, specGuidanceModule, toAISDKTools };
+  export { CreateSpecToolsOptions, GuidanceModule, JsonSchema, RenderSpecInput, RenderSpecResult, RenderSpecTool, SPEC_TOOL_RESULTS_RULE, SpecTools, ToolDefinition, createSpecTools, getToolDeclarations, specGuidanceModule, toAISDKTools };
 }
 
 declare namespace entry_tools_exports {
