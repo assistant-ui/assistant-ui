@@ -103,13 +103,16 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   private instances = new Map<string, RemoteThreadListHookInstance>();
   private nextGeneration = 0;
   private parent: ThreadListRuntimeCore;
+  private readonly publishInCommit: boolean;
 
   constructor(
     runtimeHook: RemoteThreadListHook,
     parent: ThreadListRuntimeCore,
+    publishInCommit = false,
   ) {
     super();
     this.parent = parent;
+    this.publishInCommit = publishInCommit;
     this.runtimeHook = runtimeHook;
   }
 
@@ -404,6 +407,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
           parentClient,
           adapters: threadAdapters,
           publish: this._publish,
+          publishInCommit: this.publishInCommit,
           destroySignal,
         }),
       );
@@ -438,7 +442,11 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   }) => {
     const host = useSubscribable(this.hostStore);
     const adapters = useSubscribable(this.adapterStore);
-    const elements = this._threadElements(parentClient, host, adapters);
+    const inheritedAdapters = useRuntimeAdapters();
+    const elements = this._threadElements(parentClient, host, {
+      ...adapters,
+      defaultAdapters: adapters.defaultAdapters ?? inheritedAdapters,
+    });
     const { effects } = useTapHost(function RemoteThreadResources() {
       return useResources(elements);
     });
