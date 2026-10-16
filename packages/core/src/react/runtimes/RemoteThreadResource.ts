@@ -79,6 +79,20 @@ const useRemoteThreadBinder = ({
     return threadBinding.outerSubscribe(updateRuntime);
   }, [threadBinding, updateRuntime]);
 
+  const remoteIdRef = useRef<string | undefined>(undefined);
+  const applyRemoteId = useEffectEvent(() => {
+    const remoteId = remoteIdRef.current;
+    if (remoteId === undefined || !threadBinding) return;
+    const core = threadBinding.getState();
+    const setGetThreadId = (core as Record<string, unknown>)
+      .__internal_setGetThreadId;
+    if (typeof setGetThreadId === "function")
+      setGetThreadId.call(core, () => remoteId);
+  });
+  useEffect(() => {
+    applyRemoteId();
+  }, [threadBinding]);
+
   const initPromiseRef = useRef<Promise<unknown> | undefined>(undefined);
   const hasInitializedRef = useRef(false);
   // Any caller's initialize() moves the item off "new"; a thread born "new"
@@ -96,11 +110,8 @@ const useRemoteThreadBinder = ({
     initPromiseRef.current = initPromise;
     void initPromise.then(
       ({ remoteId }) => {
-        const core = threadBinding?.getState();
-        const setGetThreadId = (core as Record<string, unknown> | undefined)
-          ?.__internal_setGetThreadId;
-        if (typeof setGetThreadId === "function")
-          setGetThreadId.call(core, () => remoteId);
+        remoteIdRef.current = remoteId;
+        applyRemoteId();
       },
       () => {},
     );
