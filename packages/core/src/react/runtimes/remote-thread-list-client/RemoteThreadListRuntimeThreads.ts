@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { resource, useResource, withKey } from "@assistant-ui/tap";
 import {
   attachTransformScopes,
@@ -42,24 +42,14 @@ const useRemoteThreadListRuntimeThreads = ({
     () => ({ clientCore, startThread }),
     [clientCore, startThread],
   );
-  const thread = useMemo(() => {
-    const elements = new Map<
-      string,
-      ReturnType<typeof RemoteThreadListRuntimeThread>
-    >();
-    return (id: string) => {
-      const key = `${id}:${generation}`;
-      let element = elements.get(key);
-      if (!element) {
-        element = withKey(
-          key,
-          RemoteThreadListRuntimeThread({ ...threadOptions, threadId: id }),
-        );
-        elements.set(key, element);
-      }
-      return element;
-    };
-  }, [generation, threadOptions]);
+  const thread = useCallback(
+    (id: string) =>
+      withKey(
+        `${id}:${generation}`,
+        RemoteThreadListRuntimeThread({ ...threadOptions, threadId: id }),
+      ),
+    [generation, threadOptions],
+  );
   const clientRef = useAssistantClientRef();
   useAssistantScopeEffect(
     "modelContext",
