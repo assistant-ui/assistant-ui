@@ -85,16 +85,16 @@ describe("RunAggregator tool approval projection", () => {
     ).toEqual([GATE]);
   });
 
-  it("drops the gate when the run is then cancelled, keeping the interrupts", () => {
+  it("keeps the gate when the finished run is then cancelled", () => {
     const { aggregator, last } = gatedAggregator();
 
     aggregator.handle({ type: "RUN_CANCELLED" } as any);
 
     expect(last().status).toMatchObject({
-      type: "incomplete",
-      reason: "cancelled",
+      type: "requires-action",
+      reason: "interrupt",
     });
-    expect(approvalOf(last())).toBeUndefined();
+    expect(approvalOf(last())).toBeDefined();
     expect(
       (last().metadata?.custom as Record<string, any> | undefined)?.agui
         ?.interrupts,

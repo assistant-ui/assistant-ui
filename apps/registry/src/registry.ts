@@ -2195,6 +2195,12 @@ export const registry: RegistryItem[] = [
         sourcePath:
           "../../packages/ui/src/components/react/assistant-ui/elements/heat-graph.tsx",
       },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/useIsomorphicLayoutEffect.ts",
+      },
     ],
     dependencies: ["heat-graph"],
     registryDependencies: [],

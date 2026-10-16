@@ -388,6 +388,7 @@ export const ConnectedScatter = forwardRef<
                   cy={round(Y(p.y))}
                   r={hit}
                   fill="transparent"
+                  data-dg-hit-target="point"
                   data-part="mark"
                   data-series={run.name || undefined}
                   data-i={i}

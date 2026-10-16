@@ -31,6 +31,8 @@ Change over time (`Line`, `Area`, `StackedArea`, `Streamgraph`, `MirroredArea`, 
 
 Thin variants are host props rather than separate forms: `Line` takes `step`, `Histogram` takes `smooth`, `StackedBar` takes `normalize`, `Heatmap` takes a calendar layout and `mark="cell" | "dot"`, `Scatter` takes `size`, and `Pie` takes an inner radius and a center label. `SmallMultiples` lays any form out as a panel grid.
 
+`DotMap` draws `counts[i]` inside `tiles[i]`. Its optional `unit` says how many counted units one dot represents across all tiles (default 1), and `unitLabel` names those units, such as `users`. When the dots would exceed `maxDots` (default 200), the chart raises the unit to a shared nice value and prints the scale below the map. Every positive tile retains at least one dot, so a budget below the number of positive tiles cannot be met.
+
 Real geography lives in its own entry so only map pages pay for the geometry:
 
 ```tsx
@@ -50,7 +52,22 @@ Colors resolve through `--dg-*` custom properties with the shipped defaults as f
 | `--dg-surface` | Separator strokes and occluding fills |
 | `--dg-font` | Chart text, inherits the host font by default |
 
-Import `diagrammatic/styles.css` to see the defaults in one place, or set the tokens yourself. That file also carries the highlight styles, so import it if you use `highlight` on `Interactive.Root`. A shadcn/ui app imports `diagrammatic/shadcn.css` and every figure takes its `--chart-*`, foreground, muted, border, and background tokens.
+Import `diagrammatic/styles.css` to see the defaults in one place, or set the tokens yourself. That file also carries the highlight styles, so import it if you use `highlight` on `Interactive.Root`. A shadcn/ui app imports `diagrammatic/shadcn.css` and every figure takes its `--chart-*`, foreground, muted, border, and background tokens. The bridge reads each of those tokens as a complete color, the format shadcn/ui generates for Tailwind CSS v4 (`--chart-1: oklch(0.646 0.222 41.116)`). A Tailwind CSS v3 theme stores bare HSL channels (`--chart-1: 12 76% 61%`), so skip the bridge and wrap the channels yourself, on the same elements the bridge targets so a `.dark` override on an ancestor still applies:
+
+```css
+[data-dg],
+[data-dg-legend] {
+  --dg-c1: hsl(var(--chart-1));
+  --dg-c2: hsl(var(--chart-2));
+  --dg-c3: hsl(var(--chart-3));
+  --dg-c4: hsl(var(--chart-4));
+  --dg-c5: hsl(var(--chart-5));
+  --dg-ink: hsl(var(--foreground));
+  --dg-muted: hsl(var(--muted-foreground));
+  --dg-grid: hsl(var(--border));
+  --dg-surface: hsl(var(--background));
+}
+```
 
 The built-in legend is drawn inside the figure; `legend={false}` plus the `Legend` export puts one on the page instead, on the page's own type and colored through the same tokens.
 

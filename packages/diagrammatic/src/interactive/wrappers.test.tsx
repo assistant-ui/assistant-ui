@@ -1,14 +1,72 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { version } from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Area } from "../react/charts/area";
 import { Fit, IDENTITY, Zoom, viewOf, zoomAbout } from "./index";
 
 afterEach(cleanup);
 
+const onReact18 = version.startsWith("18.");
 const DAYS = [12, 18, 15, 24, 30];
 
 describe("Fit", () => {
+  it.skipIf(onReact18)("runs callback ref cleanups when detached", () => {
+    const firstCleanup = vi.fn();
+    const nextCleanup = vi.fn();
+    const firstRef = vi.fn(() => firstCleanup);
+    const nextRef = vi.fn(() => nextCleanup);
+    const view = render(
+      <Fit ref={firstRef} initial={640}>
+        {() => null}
+      </Fit>,
+    );
+    const node = view.container.firstElementChild;
+
+    view.rerender(
+      <Fit ref={nextRef} initial={640}>
+        {() => null}
+      </Fit>,
+    );
+    expect(firstCleanup).toHaveBeenCalledOnce();
+    expect(firstRef).toHaveBeenCalledOnce();
+    expect(nextRef).toHaveBeenCalledWith(node);
+
+    view.unmount();
+    expect(nextCleanup).toHaveBeenCalledOnce();
+    expect(nextRef).toHaveBeenCalledOnce();
+  });
+
+  it("forwards null when callback refs return no cleanup", () => {
+    const fitCalls: (HTMLDivElement | null)[] = [];
+    const zoomCalls: (HTMLDivElement | null)[] = [];
+    const view = render(
+      <>
+        <Fit
+          ref={(node) => {
+            fitCalls.push(node);
+          }}
+          initial={640}
+        >
+          {() => null}
+        </Fit>
+        <Zoom
+          ref={(node) => {
+            zoomCalls.push(node);
+          }}
+        >
+          <div />
+        </Zoom>
+      </>,
+    );
+
+    view.unmount();
+    expect(fitCalls[0]).toBeInstanceOf(HTMLDivElement);
+    expect(fitCalls[1]).toBeNull();
+    expect(zoomCalls[0]).toBeInstanceOf(HTMLDivElement);
+    expect(zoomCalls[1]).toBeNull();
+  });
+
   it("renders the initial width before the box is measured", () => {
     const { container } = render(
       <Fit initial={640}>
@@ -52,6 +110,20 @@ describe("zoomAbout", () => {
 });
 
 describe("Zoom", () => {
+  it.skipIf(onReact18)("runs a callback ref cleanup when unmounted", () => {
+    const cleanupRef = vi.fn();
+    const ref = vi.fn(() => cleanupRef);
+    const view = render(
+      <Zoom ref={ref}>
+        <div />
+      </Zoom>,
+    );
+
+    view.unmount();
+    expect(cleanupRef).toHaveBeenCalledOnce();
+    expect(ref).toHaveBeenCalledOnce();
+  });
+
   it("leaves the figure untransformed until it is zoomed", () => {
     const { container } = render(
       <Zoom data-testid="zoom">

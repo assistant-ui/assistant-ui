@@ -75,8 +75,16 @@ export const Root = forwardRef<HTMLDivElement, RootProps>(
     const setRefs = useCallback(
       (node: HTMLDivElement | null) => {
         container.current = node;
-        if (typeof ref === "function") ref(node);
-        else if (ref) ref.current = node;
+        if (typeof ref === "function") {
+          const cleanup: unknown = ref(node);
+          if (typeof cleanup === "function") {
+            return () => {
+              container.current = null;
+              (cleanup as () => void)();
+            };
+          }
+        } else if (ref) ref.current = node;
+        return undefined;
       },
       [ref],
     );
@@ -91,11 +99,45 @@ export const Root = forwardRef<HTMLDivElement, RootProps>(
           : null;
     const highlightKey = JSON.stringify(effectiveHighlight ?? null);
     useEffect(() => {
-      if (!container.current) return;
-      applyHighlight(
-        container.current,
-        JSON.parse(highlightKey) as MarkQuery | MarkQuery[] | null,
-      );
+      const node = container.current;
+      if (!node) return;
+      const highlight = JSON.parse(highlightKey) as
+        | MarkQuery
+        | MarkQuery[]
+        | null;
+      const stamp = () => applyHighlight(node, highlight);
+      stamp();
+      if (highlight === null) return;
+      const markSelector = '[data-part="mark"], [data-part="region"]';
+      const observer = new MutationObserver((mutations) => {
+        if (
+          mutations.some(
+            (mutation) =>
+              mutation.type === "attributes" ||
+              Array.from(mutation.addedNodes).some(
+                (added) =>
+                  added instanceof Element &&
+                  (added.matches(markSelector) ||
+                    added.querySelector(markSelector)),
+              ),
+          )
+        ) {
+          stamp();
+        }
+      });
+      observer.observe(node, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: [
+          "data-part",
+          "data-series",
+          "data-series2",
+          "data-i",
+          "data-i2",
+        ],
+      });
+      return () => observer.disconnect();
     }, [highlightKey]);
 
     const dispatch = useMemo(
@@ -134,15 +176,24 @@ export const Root = forwardRef<HTMLDivElement, RootProps>(
         if (datum.element !== lastMark.current) {
           lastMark.current = datum.element;
           onMarkHover?.(datum);
+          const chart = datum.element.closest("svg") ?? event.currentTarget;
+          const paintedIndex =
+            datum.index !== undefined &&
+            (chart.querySelector(
+              `[data-part="mark"][data-i="${datum.index}"]:not([data-dg-hit-target])`,
+            ) ||
+              datum.element.getAttribute("data-dg-hit-target") === "point")
+              ? datum.index
+              : undefined;
           setHoverHighlight(
             highlightOnHover === "series"
               ? datum.series
                 ? { series: datum.series }
-                : datum.index !== undefined
-                  ? { index: datum.index }
+                : paintedIndex !== undefined
+                  ? { index: paintedIndex }
                   : null
-              : datum.index !== undefined
-                ? { index: datum.index }
+              : paintedIndex !== undefined
+                ? { index: paintedIndex }
                 : datum.series
                   ? { series: datum.series }
                   : null,

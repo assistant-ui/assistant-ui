@@ -1,8 +1,9 @@
 "use client";
 
 import * as HeatGraphPrimitive from "heat-graph";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useIsomorphicLayoutEffect } from "../utils/useIsomorphicLayoutEffect";
 
 const LEVEL_TINT = [
   "bg-foreground/[0.06] inset-ring inset-ring-border forced-colors:border",
@@ -13,7 +14,25 @@ const LEVEL_TINT = [
 ] as const;
 
 export function HeatGraph({ data }: { data: HeatGraphPrimitive.DataPoint[] }) {
-  const end = useMemo(() => new Date(), [data]);
+  const [today, setToday] = useState<Date>();
+  useIsomorphicLayoutEffect(() => {
+    setToday(new Date());
+  }, [data]);
+  const latestDataDate = useMemo(
+    () =>
+      data.reduce<Date | undefined>((latest, point) => {
+        const value =
+          typeof point.date === "string" &&
+          /^\d{4}-\d{2}-\d{2}$/.test(point.date)
+            ? new Date(`${point.date}T00:00:00`)
+            : new Date(point.date);
+        if (Number.isNaN(value.getTime())) return latest;
+        return latest === undefined || value > latest ? value : latest;
+      }, undefined),
+    [data],
+  );
+  const end = today ?? latestDataDate;
+  if (end === undefined) return <div className="flex flex-col gap-2" />;
   return (
     <HeatGraphPrimitive.Root
       data={data}

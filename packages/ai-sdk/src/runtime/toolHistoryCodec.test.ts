@@ -122,6 +122,32 @@ describe("tool history codec", () => {
     ).toEqual({ parts: [] });
   });
 
+  it("keeps live artifacts for matching calls while restoring other stored artifacts", () => {
+    const artifacts = new Map<string, unknown>([
+      ["call-live", { preview: "new" }],
+    ]);
+    restoreToolData(
+      {
+        metadata: {
+          __aui_toolArtifacts: {
+            "call-live": { preview: "stale" },
+            "call-stored": { preview: "earlier" },
+          },
+        },
+      },
+      artifacts,
+      undefined,
+      undefined,
+    );
+
+    expect(artifacts).toEqual(
+      new Map([
+        ["call-live", { preview: "new" }],
+        ["call-stored", { preview: "earlier" }],
+      ]),
+    );
+  });
+
   it("ignores non-object messages and malformed metadata values", () => {
     expect(
       addToolData(null, { "call-1": "artifact" }, undefined, undefined),

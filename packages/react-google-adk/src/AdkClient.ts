@@ -4,6 +4,7 @@ import { contentToParts } from "./contentToParts";
 import { parseAdkEventValue } from "./parseAdkEvent";
 import { toAdkFunctionResponse } from "./toAdkFunctionResponse";
 import { trimTrailingSlashes } from "./trimTrailingSlashes";
+import { ADK_MESSAGE_ID_METADATA_KEY } from "./messageIdMetadataKey";
 import type {
   AdkEvent,
   AdkEventPart,
@@ -84,6 +85,7 @@ export function createAdkStream(
 
   return async function* (messages, config) {
     const headers = await resolveHeaders(options.headers, config.abortSignal);
+    const messageId = messages.find((message) => message.type === "human")?.id;
 
     let url: string;
     let body: unknown;
@@ -99,12 +101,18 @@ export function createAdkStream(
         newMessage: messagesToContent(messages),
         streaming: true,
         ...(config.stateDelta != null && { stateDelta: config.stateDelta }),
+        ...(messageId !== undefined && {
+          customMetadata: { [ADK_MESSAGE_ID_METADATA_KEY]: messageId },
+        }),
       };
     } else {
       // Proxy mode: POST in parseAdkRequest-compatible format
       url = options.api;
       const { remoteId, externalId } = await config.initialize();
-      body = messagesToProxyBody(messages, config, externalId ?? remoteId);
+      body = {
+        ...messagesToProxyBody(messages, config, externalId ?? remoteId),
+        ...(messageId !== undefined && { messageId }),
+      };
     }
 
     const response = await fetch(url, {

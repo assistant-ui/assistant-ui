@@ -1,5 +1,5 @@
 import * as React from "react";
-import { renderGenerativeUI } from "../renderGenerativeUI";
+import { GenerativeUITree } from "../GenerativeUITree";
 import type {
   GenerativeUIDispatch,
   GenerativeUILibrary,
@@ -75,10 +75,11 @@ export function A2uiPresentRenderer({
           : undefined
       }
     >
-      {renderGenerativeUI(converted?.spec ?? fallback, library, {
-        status,
-        ...(dispatch ? { dispatch } : {}),
-      })}
+      <GenerativeUITree
+        node={converted?.spec ?? fallback}
+        library={library}
+        context={{ status, ...(dispatch ? { dispatch } : {}) }}
+      />
     </BindingContext.Provider>
   );
 }

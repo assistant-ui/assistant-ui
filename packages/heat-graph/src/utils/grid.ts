@@ -26,6 +26,17 @@ export type ComputeGridOptions = {
 
 const DEFAULT_CLASSIFY = autoLevels(5);
 
+export const emptyGrid = (weekStart: WeekStart): HeatGraphState => ({
+  cells: [],
+  totalWeeks: 0,
+  monthLabels: [],
+  dayLabels: getDayOfWeekIndices(weekStart).map((dayOfWeek, row) => ({
+    dayOfWeek,
+    row,
+  })),
+  levels: 1,
+});
+
 export const computeGrid = (options: ComputeGridOptions): HeatGraphState => {
   const { data, weekStart = "sunday", classify = DEFAULT_CLASSIFY } = options;
 

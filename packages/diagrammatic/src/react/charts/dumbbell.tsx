@@ -45,7 +45,9 @@ export const Dumbbell = forwardRef<SVGSVGElement, DumbbellProps>(
     const showLegend = legend ?? true;
     const [lo, hi] = extent([
       ...items.flatMap((row) => [row.from, row.to]),
-      ...(guides?.map((guide) => guide.at) ?? []),
+      ...(guides
+        ?.filter((guide) => (guide.axis ?? "x") === "x")
+        .map((guide) => guide.at) ?? []),
     ]);
     const measured = typeScale(fontSize);
     const W = resolveWidth(width);

@@ -92,6 +92,7 @@ const ENTRIES = [
   "a2ui.ts",
   "slack.ts",
   "teams.ts",
+  "spec.ts",
 ];
 
 describe("published entries", () => {

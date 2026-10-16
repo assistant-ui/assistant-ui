@@ -1,0 +1,154 @@
+---
+title: OpenAI Realtime
+description: Connect browser voice conversations directly to OpenAI Realtime with transcripts, interruptions, mute controls, and typed input.
+platforms: ["react"]
+---
+
+`OpenAIRealtimeVoiceAdapter` connects your browser's microphone directly to [OpenAI Realtime over WebRTC](https://developers.openai.com/api/docs/guides/voice-webrtc?api=realtime). It uses assistant-ui's existing [voice session](/docs/guides/voice) and voice components. Your server authenticates the user and exchanges the connection offer with OpenAI; audio and session events then flow between the browser and OpenAI.
+
+## Create the session endpoint
+
+Keep `OPENAI_API_KEY` in your server environment. The Next.js route below uses your application's `auth()` helper, as in the [Auth.js guide](/docs/integrations/auth/next-auth). Apply your application's per-user rate limit before creating a session.
+
+The server chooses the model, voice, and instructions. Input transcription supplies user messages for the thread, and automatic turn detection lets the model answer and handle spoken interruptions.
+
+```ts title="app/api/realtime/route.ts"
+import { auth } from "@/auth";
+
+export async function POST(request: Request) {
+  const user = await auth();
+  if (!user?.user?.id) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+  if (request.headers.get("origin") !== new URL(request.url).origin) {
+    return new Response("Forbidden", { status: 403 });
+  }
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    return new Response("Voice is not configured", { status: 503 });
+  }
+  const reader = request.body?.getReader();
+  if (!reader) {
+    return new Response("Missing connection offer", { status: 400 });
+  }
+  const decoder = new TextDecoder();
+  let sdp = "";
+  let bytes = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    bytes += value.byteLength;
+    if (bytes > 64_000) {
+      await reader.cancel();
+      return new Response("Connection offer too large", { status: 413 });
+    }
+    sdp += decoder.decode(value, { stream: true });
+  }
+  sdp += decoder.decode();
+  if (!sdp.startsWith("v=0")) {
+    return new Response("Invalid connection offer", { status: 400 });
+  }
+
+  const body = new FormData();
+  body.set("sdp", sdp);
+  body.set("session", JSON.stringify({
+    type: "realtime",
+    model: "gpt-realtime-2.1",
+    instructions: "Be concise and conversational.",
+    output_modalities: ["audio"],
+    audio: {
+      input: {
+        transcription: { model: "gpt-4o-mini-transcribe" },
+        turn_detection: {
+          type: "server_vad",
+          create_response: true,
+          interrupt_response: true,
+        },
+      },
+      output: { voice: "marin" },
+    },
+  }));
+
+  const response = await fetch("https://api.openai.com/v1/realtime/calls", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}` },
+    body,
+    signal: request.signal,
+  });
+  if (!response.ok) {
+    return new Response("Could not create voice session", { status: 502 });
+  }
+  return new Response(await response.text(), {
+    headers: {
+      "Content-Type": "application/sdp",
+      "Cache-Control": "no-store",
+    },
+  });
+}
+```
+
+Behind a reverse proxy, preserve the public scheme and host in the request URL so the origin check matches your site. OpenAI bills voice sessions separately from your text chat requests.
+
+## Connect the adapter
+
+Add the adapter to your existing runtime. `exchangeSdp` receives an abort signal: pass it to `fetch` so hanging up cancels a pending connection request.
+
+```tsx title="app/assistant.tsx"
+"use client";
+
+import { useMemo } from "react";
+import {
+  AssistantRuntimeProvider,
+  OpenAIRealtimeVoiceAdapter,
+} from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import { VoiceControl } from "@/components/assistant-ui/elements/voice.aui";
+import { VoiceConversation } from "@/components/assistant-ui/elements/voice-conversation.aui";
+
+export function Assistant() {
+  const voice = useMemo(() => new OpenAIRealtimeVoiceAdapter({
+    exchangeSdp: async (sdp, { signal }) => {
+      const response = await fetch("/api/realtime", {
+        method: "POST",
+        headers: { "Content-Type": "application/sdp" },
+        body: sdp,
+        signal,
+      });
+      if (!response.ok) throw new Error("Could not connect voice");
+      return response.text();
+    },
+  }), []);
+
+  const runtime = useChatRuntime({ adapters: { voice } });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <VoiceControl />
+      <VoiceConversation />
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+This assumes an existing AI SDK chat setup, including `/api/chat`, the [Thread element](/elements/thread), the [voice controls](/elements/orb), and the [Voice Conversation element](/elements/voice-conversation). The adapter also works with other runtimes that accept `adapters.voice`; their [transcript persistence behavior](/docs/guides/voice#realtimevoiceadapter) still applies.
+
+Use HTTPS or localhost and connect from a user action so the browser can request microphone permission and play audio. Microphone or playback failures end the session; `useVoiceState()` returns `undefined` once the session ends.
+
+## Conversation behavior
+
+- User audio transcriptions become user messages; assistant audio transcripts stream into assistant messages.
+- The speaking indicator follows audio playback. Generation can finish before buffered audio finishes playing.
+- Speaking while the assistant talks interrupts it through OpenAI's configured turn detection. Typed messages cancel an active response and clear buffered playback before requesting a new response.
+- Typed text is committed only after OpenAI acknowledges the conversation item. It is not echoed as a second voice transcript.
+- Muting disables microphone tracks. Hanging up stops capture and playback, closes the connection, and rejects pending text sends. A microphone stream granted after cancellation is stopped immediately.
+
+Each connection starts a new OpenAI conversation. Existing assistant-ui history, model context, tool registrations, and approval UI are not forwarded to it. This adapter covers audio conversations and typed input; configure any server-side OpenAI tools separately. Finalized transcripts remain in assistant-ui according to the runtime's persistence behavior, but reconnecting does not replay them into OpenAI. Transcripts reflect the provider's generated text and can include speech that was interrupted before playback completed.
+
+## Related
+
+- [Realtime voice](/docs/guides/voice): shared session contract, hooks, and runtime behavior.
+- [LiveKit example](/docs/guides/voice#example-livekit): connect through a LiveKit room and agent worker.
+- [OpenAI Realtime conversations](https://developers.openai.com/api/docs/guides/realtime-conversations): upstream events and session configuration.

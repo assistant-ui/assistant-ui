@@ -71,6 +71,7 @@ A few components take a form that suits a touch screen:
 - `Carousel` pages through its cards in a horizontal scroll view.
 - `Tabs` scrolls its row of tabs sideways when they do not fit.
 - `Citation` opens its link with `Linking`.
+- A pressable `ListViewItem` is one button, which screen readers name after the text inside it in reading order, a `Table`'s cells included.
 - `Diagram` shows its Mermaid source, and `Map` lists its places, each opening OpenStreetMap.
 - `background` takes a color React Native can paint, and a CSS gradient leaves the plain surface. A `Box` takes points, pixels, rems, or percentages.
 
@@ -95,3 +96,22 @@ export const { catalog, components } = toSpecCatalog({
   },
 });
 ```
+
+A component of your own joins a pressable `ListViewItem`'s name with `useListViewItemText` from the same import. It returns `true` when a row took the text, so hide what the component draws from screen readers then, or they read it twice:
+
+```tsx title="app/rating.tsx"
+import { Text } from "react-native";
+import { useListViewItemText } from "@assistant-ui/generative-ui/spec";
+
+export function Rating({ value }: { value: number }) {
+  const label = `${value} out of 5 stars`;
+  const named = useListViewItemText(label);
+  return (
+    <Text aria-hidden={named} accessibilityLabel={label}>
+      {"★".repeat(value)}
+    </Text>
+  );
+}
+```
+
+Import it into `app/catalog.tsx` and render it from the `Rating` entry with `render: ({ value }) => <Rating value={value} />`.

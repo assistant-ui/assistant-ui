@@ -40,7 +40,7 @@ export const useActionBarCopy = ({
       copiedFeedbackTargetRef.current?.(false);
       copiedFeedbackTargetRef.current = undefined;
     },
-    [aui, messageId],
+    [aui.message, messageId],
   );
 
   const copy = useCallback(() => {
