@@ -2,12 +2,16 @@
 
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
+import { useAui } from "@assistant-ui/store";
 import type { ChatModelAdapter } from "../../../index";
 import type { AssistantRuntime } from "../../../runtime/api/assistant-runtime";
 import type { ThreadMessage } from "../../../types/message";
 import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/adapter/in-memory";
-import { makeAdapter } from "../../../tests/remote-thread-list-test-helpers";
+import {
+  actSettled,
+  makeAdapter,
+} from "../../../tests/remote-thread-list-test-helpers";
 import { AssistantRuntimeProvider } from "../../AssistantRuntimeProvider";
 import { useExternalStoreRuntime } from "../useExternalStoreRuntime";
 import { useLocalRuntime } from "../useLocalRuntime";
@@ -244,6 +248,135 @@ describe("useRemoteThreadListRuntime client bridge", () => {
     );
     expect(runtime!.thread.getState().threadId).toBe(firstId);
     expect(runtime!.thread).toBe(runtime!.threads.main);
+  });
+
+  it.each(["delete", "archive"] as const)(
+    "hosts the fallback draft after the main thread is %sd",
+    async (action) => {
+      const adapter = new InMemoryThreadListAdapter();
+      const initialize = vi.spyOn(adapter, "initialize");
+      const model = {
+        run: vi.fn(async (_args: Parameters<ChatModelAdapter["run"]>[0]) => ({
+          content: [],
+        })),
+      };
+      let runtime: AssistantRuntime | undefined;
+      const App = () => {
+        runtime = useRemoteThreadListRuntime({
+          adapter,
+          runtimeHook: () => useLocalRuntime(model),
+        });
+        return (
+          <AssistantRuntimeProvider runtime={runtime}>
+            {null}
+          </AssistantRuntimeProvider>
+        );
+      };
+      render(<App />);
+      await waitFor(() =>
+        expect(runtime!.threads.getState().isLoading).toBe(false),
+      );
+      expect(legacyConstructed).not.toHaveBeenCalled();
+      const firstId = runtime!.threads.getState().mainThreadId;
+
+      await act(async () => {
+        runtime!.thread.composer.setText("first");
+        runtime!.thread.composer.send();
+      });
+      await waitFor(() => expect(initialize).toHaveBeenCalledWith(firstId));
+      await waitFor(() => expect(model.run).toHaveBeenCalledTimes(1));
+      await waitFor(() =>
+        expect(runtime!.threads.getState().threadIds).toContain(firstId),
+      );
+
+      await actSettled(() => runtime!.threads.getItemById(firstId)[action]());
+      const nextId = runtime!.threads.getState().mainThreadId;
+      expect(nextId).not.toBe(firstId);
+      expect(runtime!.threads.mainItem.getState().status).toBe("new");
+      expect(runtime!.thread).toBe(runtime!.threads.main);
+
+      await act(async () => {
+        runtime!.thread.composer.setText("next");
+        runtime!.thread.composer.send();
+      });
+      await waitFor(() => expect(initialize).toHaveBeenCalledWith(nextId));
+      await waitFor(() => expect(model.run).toHaveBeenCalledTimes(2));
+      expect(runtime!.thread.getState().threadId).toBe(nextId);
+    },
+  );
+
+  it("tears down a deleted thread's hosted runtime without unmounting the main thread", async () => {
+    const adapter = new InMemoryThreadListAdapter();
+    const model = {
+      run: vi.fn(async (_args: Parameters<ChatModelAdapter["run"]>[0]) => ({
+        content: [],
+      })),
+    };
+    const mounts: string[] = [];
+    const cleanups: string[] = [];
+    let runtime: AssistantRuntime | undefined;
+    const App = () => {
+      runtime = useRemoteThreadListRuntime({
+        adapter,
+        runtimeHook: function useThreadRuntime() {
+          const id = useAui().threadListItem.getState().id;
+          useEffect(() => {
+            mounts.push(id);
+            return () => {
+              cleanups.push(id);
+            };
+          }, [id]);
+          return useLocalRuntime(model);
+        },
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+    render(<App />);
+    await waitFor(() =>
+      expect(runtime!.threads.getState().isLoading).toBe(false),
+    );
+    expect(legacyConstructed).not.toHaveBeenCalled();
+    const firstId = runtime!.threads.getState().mainThreadId;
+
+    await act(async () => {
+      runtime!.thread.composer.setText("first");
+      runtime!.thread.composer.send();
+    });
+    await waitFor(() => expect(model.run).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(runtime!.threads.getState().threadIds).toContain(firstId),
+    );
+
+    await actSettled(() => runtime!.threads.switchToNewThread());
+    const mainId = runtime!.threads.getState().mainThreadId;
+    expect(mainId).not.toBe(firstId);
+    await act(async () => {
+      runtime!.thread.composer.setText("second");
+      runtime!.thread.composer.send();
+    });
+    await waitFor(() => expect(model.run).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(runtime!.threads.getState().threadIds).toContain(mainId),
+    );
+    await waitFor(() => expect(mounts).toContain(mainId));
+    const firstCleanups = cleanups.filter((id) => id === firstId).length;
+    const mainCleanups = cleanups.filter((id) => id === mainId).length;
+    expect(mounts.filter((id) => id === firstId).length).toBeGreaterThan(
+      firstCleanups,
+    );
+
+    await actSettled(() => runtime!.threads.getItemById(firstId).delete());
+    await waitFor(() =>
+      expect(cleanups.filter((id) => id === firstId).length).toBeGreaterThan(
+        firstCleanups,
+      ),
+    );
+    expect(cleanups.filter((id) => id === mainId)).toHaveLength(mainCleanups);
+    expect(runtime!.threads.getState().mainThreadId).toBe(mainId);
   });
 
   it("uses the frozen class path when unstable_Provider is present", async () => {
