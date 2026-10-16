@@ -2,8 +2,6 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 afterEach(() => {
   vi.restoreAllMocks();
-  clearPartWarningsForTesting();
-  clearScrollToBottomWarningForTesting();
 });
 import { createApp, defineComponent, h, nextTick, type Component } from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
@@ -23,14 +21,8 @@ import { ThreadPrimitiveMessages } from "../primitives/ThreadPrimitiveMessages";
 import { ThreadPrimitiveViewport } from "../primitives/ThreadPrimitiveViewport";
 import { ThreadPrimitiveViewportFooter } from "../primitives/ThreadPrimitiveViewportFooter";
 import { MessagePrimitiveRoot } from "../primitives/message";
-import {
-  ThreadPrimitiveScrollToBottom,
-  clearScrollToBottomWarningForTesting,
-} from "../primitives/ThreadPrimitiveScrollToBottom";
-import {
-  MessagePrimitiveParts,
-  clearPartWarningsForTesting,
-} from "../primitives/MessagePrimitiveParts";
+import { ThreadPrimitiveScrollToBottom } from "../primitives/ThreadPrimitiveScrollToBottom";
+import { MessagePrimitiveParts } from "../primitives/MessagePrimitiveParts";
 import {
   BranchPickerPrimitiveCount,
   BranchPickerPrimitiveNext,
@@ -194,7 +186,7 @@ describe("MessagePrimitiveParts", () => {
 });
 
 describe("MessagePrimitiveParts dev warning", () => {
-  it("warns once in dev for a part type without a slot", async () => {
+  it("warns once per unhandled part type across instances and remounts", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const { runtime, append } = createTestRuntime();
     const View = defineComponent({
@@ -203,8 +195,6 @@ describe("MessagePrimitiveParts dev warning", () => {
           default: () => h(MessagePrimitiveParts),
         }),
     });
-    const { unmount } = mountChat(runtime, View);
-
     flushTapSync(() =>
       append({
         role: "assistant",
@@ -215,18 +205,33 @@ describe("MessagePrimitiveParts dev warning", () => {
             toolName: "search",
             args: {},
           },
+          {
+            type: "tool-call",
+            toolCallId: "call-2",
+            toolName: "search",
+            args: {},
+          },
+          { type: "reasoning", text: "thinking" },
+          { type: "text", text: "visible" },
         ],
       }),
     );
-    await vi.waitFor(async () => {
-      await nextTick();
-      expect(warn).toHaveBeenCalledTimes(1);
-    });
-    expect(warn.mock.calls[0]![0]).toContain(
-      'no slot for part type "tool-call"',
-    );
-
-    unmount();
+    for (let mount = 0; mount < 2; mount++) {
+      const { el, unmount } = mountChat(runtime, View);
+      try {
+        await nextTick();
+        expect(el.textContent).toBe("visible");
+        expect(warn).toHaveBeenCalledTimes(2);
+        expect(warn).toHaveBeenCalledWith(
+          expect.stringContaining('no slot for part type "tool-call"'),
+        );
+        expect(warn).toHaveBeenCalledWith(
+          expect.stringContaining('no slot for part type "reasoning"'),
+        );
+      } finally {
+        unmount();
+      }
+    }
   });
 });
 
@@ -807,23 +812,32 @@ describe("ThreadPrimitiveViewport", () => {
     }
   });
 
-  it("renders scroll-to-bottom disabled outside a viewport and warns in dev", () => {
+  it("disables scroll-to-bottom outside a viewport and warns once across instances and remounts", () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const { runtime } = createTestRuntime();
     const View = defineComponent({
       setup: () => () =>
-        h(
-          ThreadPrimitiveScrollToBottom,
-          { class: "jump" },
-          { default: () => "Jump" },
+        [0, 1].map((key) =>
+          h(
+            ThreadPrimitiveScrollToBottom,
+            { key, class: "jump" },
+            { default: () => "Jump" },
+          ),
         ),
     });
-    const { el, unmount } = mountChat(runtime, View);
-    expect(el.querySelector<HTMLButtonElement>("button.jump")!.disabled).toBe(
-      true,
-    );
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn.mock.calls[0]![0]).toContain("no surrounding");
-    unmount();
+    for (let mount = 0; mount < 2; mount++) {
+      const { el, unmount } = mountChat(runtime, View);
+      try {
+        const buttons = el.querySelectorAll<HTMLButtonElement>("button.jump");
+        expect([...buttons].map((button) => button.disabled)).toEqual([
+          true,
+          true,
+        ]);
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(warn.mock.calls[0]![0]).toContain("no surrounding");
+      } finally {
+        unmount();
+      }
+    }
   });
 });

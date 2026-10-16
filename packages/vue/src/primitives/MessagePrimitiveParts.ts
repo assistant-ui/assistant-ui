@@ -20,8 +20,6 @@ import { useStableKeys } from "./stableKeys";
 
 const warnedTypes = new Set<string>();
 
-export const clearPartWarningsForTesting = () => warnedTypes.clear();
-
 /**
  * The value of the single `tool` prop passed to a tool UI registered in the
  * `tools` scope. React spreads the part state as individual props; in Vue any
