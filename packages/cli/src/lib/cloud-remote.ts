@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import { validateCloudUrl } from "./cloud-url";
 
 export const CLOUD_CLI_RUN_PATH = "/api/cli/run";
@@ -24,7 +23,15 @@ export const parseCloudCliResponse = (
 ): CloudCliResponse | null => {
   if (!value || typeof value !== "object") return null;
   const body = value as Record<string, unknown>;
-  if (!Number.isInteger(body["exitCode"])) return null;
+  const exitCode = body["exitCode"];
+  if (
+    typeof exitCode !== "number" ||
+    !Number.isInteger(exitCode) ||
+    exitCode < 0 ||
+    exitCode > 255
+  ) {
+    return null;
+  }
   for (const key of ["stdout", "stderr"]) {
     if (body[key] !== undefined && typeof body[key] !== "string") return null;
   }
@@ -46,16 +53,10 @@ export const parseCloudCliResponse = (
   return body as CloudCliResponse;
 };
 
-const cliVersion = (): string => {
-  try {
-    const { version } = JSON.parse(
-      readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
-    ) as { version?: unknown };
-    return typeof version === "string" ? version : "unknown";
-  } catch {
-    return "unknown";
-  }
-};
+const cliVersion: string =
+  typeof __AUI_PACKAGE_VERSION__ === "string"
+    ? __AUI_PACKAGE_VERSION__
+    : "0.0.0";
 
 export const sendCloudCommand = async (
   cloudUrl: string,
@@ -75,7 +76,7 @@ export const sendCloudCommand = async (
         command: joinCloudArgs(args),
         client: {
           name: "assistant-ui",
-          version: cliVersion(),
+          version: cliVersion,
           platform: `${process.platform}-${process.arch}`,
         },
       }),
@@ -119,7 +120,12 @@ export const runCloudCommand = async (
     response = await (deps.send ?? sendCloudCommand)(
       deps.cloudUrl,
       args,
-      await deps.accessToken(),
+      await deps.accessToken().catch((error: unknown) => {
+        deps.stderr(
+          `${error instanceof Error ? error.message : String(error)}\n`,
+        );
+        return null;
+      }),
     );
   } catch (error) {
     deps.stderr(`${error instanceof Error ? error.message : String(error)}\n`);

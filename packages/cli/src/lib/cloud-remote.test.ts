@@ -72,6 +72,35 @@ describe("cloud remote commands", () => {
     expect(output.stderr).toBe("Could not reach the cloud\n");
   });
 
+  it("sends anonymously when the saved login cannot be read", async () => {
+    const output = { stdout: "", stderr: "" };
+    const send = vi.fn(async () => ({ stdout: "help\n", exitCode: 0 }));
+    await expect(
+      runCloudCommand(["help"], {
+        cloudUrl: "https://cloud.example.com",
+        accessToken: async () => {
+          throw new Error("Invalid saved login.");
+        },
+        stdout: (text) => {
+          output.stdout += text;
+        },
+        stderr: (text) => {
+          output.stderr += text;
+        },
+        send,
+      }),
+    ).resolves.toBe(0);
+    expect(send).toHaveBeenCalledWith(
+      "https://cloud.example.com",
+      ["help"],
+      null,
+    );
+    expect(output).toEqual({
+      stdout: "help\n",
+      stderr: "Invalid saved login.\n",
+    });
+  });
+
   it("accepts only a well-formed envelope", () => {
     expect(parseCloudCliResponse({ stdout: "x", exitCode: 0 })).toEqual({
       stdout: "x",
@@ -82,6 +111,8 @@ describe("cloud remote commands", () => {
       "text",
       { stdout: "x" },
       { exitCode: 1.5 },
+      { exitCode: 256 },
+      { exitCode: -1 },
       { exitCode: 0, stderr: 3 },
       { exitCode: 0, actions: [{}] },
     ]) {
