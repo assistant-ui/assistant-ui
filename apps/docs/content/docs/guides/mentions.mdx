@@ -461,28 +461,23 @@ Use `DirectiveText` as the `Text` component for user messages so directives rend
 
 ## Processing Mentions on the Backend
 
-The message text arrives at your backend with directives inline. Parse them to extract mentioned items:
+The message text arrives at your backend with directives inline. Use the shared formatter to parse both bracket and JSON-quoted directives:
 
 ```ts
-// Default format: :type[label]{name=id}
-const DIRECTIVE_RE = /:([\w-]+)\[([^\]]+)\](?:\{name=([^}]+)\})?/g;
+import { defaultDirectiveFormatter } from "@assistant-ui/react";
 
 function parseMentions(text: string) {
-  const mentions = [];
-  let match;
-  while ((match = DIRECTIVE_RE.exec(text)) !== null) {
-    mentions.push({
-      type: match[1],        // e.g. "tool"
-      label: match[2],       // e.g. "Get Weather"
-      id: match[3] ?? match[2], // e.g. "get_weather"
-    });
-  }
-  return mentions;
+  return defaultDirectiveFormatter
+    .parse(text)
+    .filter((segment) => segment.kind === "mention")
+    .map(({ type, label, id }) => ({ type, label, id }));
 }
 
 // Example:
 // parseMentions("Use :tool[Get Weather]{name=get_weather} to check")
 // → [{ type: "tool", label: "Get Weather", id: "get_weather" }]
+// parseMentions(':file{label="[id].tsx" name="src/pages/[id].tsx"}')
+// → [{ type: "file", label: "[id].tsx", id: "src/pages/[id].tsx" }]
 ```
 
 You can use the extracted mentions to:
