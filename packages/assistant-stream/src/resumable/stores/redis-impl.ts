@@ -311,16 +311,20 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     const metaKey = this.metaKey(streamId);
     const existingRaw = await this.client.get(metaKey);
     if (existingRaw === null) {
+      if (lease) this.clearAcquiredGeneration(streamId, lease.token);
       throw new Error(`Stream not found: ${streamId}`);
     }
     const existing = parseMeta(existingRaw);
     if (!existing) {
       throw new Error(`Stream not found: ${streamId}`);
     }
-    // A second finalize must not append a duplicate FIN entry. A generation
-    // change observed by this store must not finalize the replacement stream.
-    if (existing.status !== "streaming") return false;
-    if (this.isSupersededGeneration(streamId, existing, lease)) return false;
+    if (
+      existing.status !== "streaming" ||
+      this.isSupersededGeneration(streamId, existing, lease)
+    ) {
+      if (lease) this.clearAcquiredGeneration(streamId, lease.token);
+      return false;
+    }
     const ttlSec = existing.ttlSec ?? msToSec(this.defaultTtlMs);
     const meta = JSON.stringify({
       status,
@@ -345,12 +349,14 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
       fields,
       ttlSec,
     });
-    // Keeping the fencing token when the compare-and-finalize loses is what
-    // makes a later append from this superseded producer throw instead of
-    // writing into the replacement generation.
-    if (!finalized) return false;
-    this.clearAcquiredGeneration(streamId, existing.generation);
-    return true;
+    // Lease-less producers still need their local fence after a lost finalize.
+    if (finalized || lease) {
+      this.clearAcquiredGeneration(
+        streamId,
+        lease?.token ?? existing.generation,
+      );
+    }
+    return finalized;
   }
 
   async *read(
