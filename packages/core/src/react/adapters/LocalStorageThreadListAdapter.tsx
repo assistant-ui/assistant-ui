@@ -1,12 +1,5 @@
 import { type AssistantStream, createAssistantStream } from "assistant-stream";
-import {
-  type FC,
-  type PropsWithChildren,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAui } from "@assistant-ui/store";
 import type {
   MessageModality,
@@ -39,10 +32,7 @@ import {
   parseStoredDate,
   parseStoredThreadSteps,
 } from "../../runtime/utils/stored-message-parts";
-import {
-  RuntimeAdapterProvider,
-  type RuntimeAdapters,
-} from "../runtimes/RuntimeAdapterProvider";
+import type { RuntimeAdapters } from "../runtimes/RuntimeAdapterProvider";
 import {
   type KeyedThreadListItem,
   tryGetKeyedThreadListItem,
@@ -662,26 +652,6 @@ const useLocalStorageThreadAdapters = (
   return useMemo(() => ({ history }), [history]);
 };
 
-const createHistoryProvider = (
-  storage: AsyncStorageLike,
-  prefix: string,
-  mutationQueue: KeyedMutationQueue,
-): FC<PropsWithChildren> => {
-  const Provider: FC<PropsWithChildren> = ({ children }) => {
-    const adapters = useLocalStorageThreadAdapters(
-      storage,
-      prefix,
-      mutationQueue,
-    );
-    return (
-      <RuntimeAdapterProvider adapters={adapters}>
-        {children}
-      </RuntimeAdapterProvider>
-    );
-  };
-  return Provider;
-};
-
 export const createLocalStorageAdapter = (
   options: LocalStorageAdapterOptions,
 ): RemoteThreadListAdapter => {
@@ -842,7 +812,6 @@ export const createLocalStorageAdapter = (
   };
 
   const adapter: RemoteThreadListAdapter = {
-    unstable_Provider: createHistoryProvider(storage, prefix, mutationQueue),
     unstable_useAdapters: function useLocalStorageAdapters() {
       return useLocalStorageThreadAdapters(storage, prefix, mutationQueue);
     },
