@@ -798,9 +798,11 @@ const useRemoteThreadList = (
     if (adapter.unstable_useAdapters !== undefined) return;
     if (adapter.unstable_Provider === undefined) return;
     console.warn(
-      "[assistant-ui] RemoteThreadList ignores RemoteThreadListAdapter.unstable_Provider. Expose unstable_useAdapters so per-thread history loads on this entry. useRemoteThreadListRuntime still honors unstable_Provider.",
+      ensureThread
+        ? "[assistant-ui] useRemoteThreadListRuntime mounted with an adapter without unstable_Provider, so it ignores RemoteThreadListAdapter.unstable_Provider on this adapter. Expose unstable_useAdapters so per-thread history loads."
+        : "[assistant-ui] RemoteThreadList ignores RemoteThreadListAdapter.unstable_Provider. Expose unstable_useAdapters so per-thread history loads on this entry. useRemoteThreadListRuntime renders unstable_Provider only when the adapter it mounts with has one.",
     );
-  }, [adapter]);
+  }, [adapter, ensureThread]);
 
   const loadMore = useCallback(() => {
     if (session.loadMorePromise) return session.loadMorePromise;
@@ -1730,7 +1732,7 @@ const useRemoteThreadList = (
  * bodies are born from the `thread` factory inside the client tree, so any
  * `AssistantClient` host can run a remote or cloud list. Per-thread history
  * and attachments come from `unstable_useAdapters`. `useRemoteThreadListRuntime`
- * uses the same hook when `unstable_Provider` is omitted. Key the factory
+ * uses the same hook except while it renders `unstable_Provider`, which it does only when the adapter it mounts with has one. Key the factory
  * with `withKey` so history reloads when the visible thread changes.
  * With `backgroundThreads`, every visited thread stays mounted: runs continue
  * across switches, per-item `isRunning` is live, and freshly initialized

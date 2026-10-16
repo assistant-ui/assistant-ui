@@ -139,8 +139,8 @@ export function MyProvider({ children }: { children: React.ReactNode }) {
 
 `RemoteThreadListAdapter` only manages thread metadata. Per-thread history and attachments are a separate seam with two faces:
 
-- `unstable_useAdapters` is a hook. The `RemoteThreadList` store entry calls it inside the client tree, so any `createAssistantClient` host gets the same adapters as a React hook host. `useRemoteThreadListRuntime` also calls it when `unstable_Provider` is omitted.
-- `unstable_Provider` is a React component. `useRemoteThreadListRuntime` renders it when present. The store entry ignores it.
+- `unstable_useAdapters` is a hook. The `RemoteThreadList` store entry calls it inside the client tree, so any `createAssistantClient` host gets the same adapters as a React hook host. `useRemoteThreadListRuntime` also calls it, except while it renders `unstable_Provider`.
+- `unstable_Provider` is a React component. `useRemoteThreadListRuntime` renders it only when the adapter it mounts with has one; a hook that mounts without it ignores it on later adapters. The store entry ignores it.
 
 On the store entry, wrap the thread factory with `withKey` so the thread remounts on a switch. History adapters load once per mount. An unkeyed factory keeps one instance, and the next thread's messages never appear.
 
@@ -430,13 +430,13 @@ export function ThreadList() {
       name: "unstable_Provider",
       type: "RemoteThreadListProviderComponent",
       description:
-        "Optional React wrapper rendered around each active thread by useRemoteThreadListRuntime when present. Inject thread-scoped adapters here. Omit it to let that host use unstable_useAdapters.",
+        "Optional React wrapper rendered around each active thread by useRemoteThreadListRuntime when the adapter it mounts with has one; a hook that mounts without it ignores it on later adapters. Inject thread-scoped adapters here. Omit it to let that host use unstable_useAdapters.",
     },
     {
       name: "unstable_useAdapters",
       type: "() => RuntimeAdapters | null | undefined",
       description:
-        "Optional hook called by the RemoteThreadList store entry, and by useRemoteThreadListRuntime when unstable_Provider is omitted. Per-thread history requires the thread factory to be keyed with withKey.",
+        "Optional hook called by the RemoteThreadList store entry, and by useRemoteThreadListRuntime except while it renders unstable_Provider. Per-thread history requires the thread factory to be keyed with withKey.",
     },
   ]}
 />

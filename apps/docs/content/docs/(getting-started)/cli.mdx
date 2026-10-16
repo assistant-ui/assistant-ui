@@ -213,6 +213,13 @@ setup. `npx assistant-ui@latest cloud login` signs in separately; `npx assistant
 prints the sign-in URL. `npx assistant-ui@latest cloud logout` revokes and removes the
 saved CLI credentials.
 
+Every other `cloud` subcommand runs on Assistant Cloud: the CLI sends it to the
+cloud management server (`ASSISTANT_UI_CLOUD_URL`, default
+`https://cloud.assistant-ui.com`) with the saved login and prints the answer,
+so new commands arrive without a CLI update. Run
+`npx assistant-ui@latest cloud help` for the current list, such as
+`cloud whoami` and `cloud projects list`.
+
 In an active setup wizard, an agent can pass its setup-agent URL to `cloud login`
 or `cloud setup` with `--setup-url <url>`. The wizard displays the public code,
 then opens Accounts for explicit approval and returns to the same setup. It
