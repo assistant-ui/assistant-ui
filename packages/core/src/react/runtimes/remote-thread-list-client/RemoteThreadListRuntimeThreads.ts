@@ -8,7 +8,6 @@ import {
 import { RemoteThreadList } from "../../client/RemoteThreadList";
 import { inMemoryThreadListTransformScopes } from "../../client/InMemoryThreadList";
 import type { AssistantRuntime } from "../../../runtime/api/assistant-runtime";
-import type { ModelContextProvider } from "../../../model-context/types";
 import type { RemoteThreadListOptions } from "../../../runtimes/remote-thread-list/types";
 import { WritableSubscribable } from "../../../subscribable/subscribable";
 import { useSubscribable } from "../../../store/runtime-clients/useSubscribable";
@@ -25,16 +24,14 @@ const useRemoteThreadListRuntimeThreads = ({
   optionsStore,
   generationStore,
   assistantRuntime,
-  modelContext,
   initialThreadIdSeed,
   clientCore,
 }: {
   optionsStore: WritableSubscribable<RemoteThreadListOptions>;
   generationStore?: WritableSubscribable<number> | undefined;
   assistantRuntime: AssistantRuntime | (() => AssistantRuntime);
-  modelContext: ModelContextProvider;
   initialThreadIdSeed?: string | undefined;
-  clientCore?: ClientThreadListRuntimeCore | undefined;
+  clientCore: ClientThreadListRuntimeCore;
 }) => {
   const options = useSubscribable(optionsStore);
   const generation = useSubscribable(generationStore ?? INITIAL_GENERATION);
@@ -42,8 +39,8 @@ const useRemoteThreadListRuntimeThreads = ({
     options.threadId !== undefined || options.initialThreadId === undefined,
   );
   const threadOptions = useMemo(
-    () => ({ optionsStore, modelContext, clientCore, startThread }),
-    [optionsStore, modelContext, clientCore, startThread],
+    () => ({ clientCore, startThread }),
+    [clientCore, startThread],
   );
   const thread = useMemo(() => {
     const elements = new Map<
@@ -105,8 +102,8 @@ const useRemoteThreadListRuntimeThreads = ({
       threadId: options.threadId,
       onThreadIdChange: options.onThreadIdChange,
       backgroundThreads: true,
-      __internal_ensureThread: clientCore?.__internal_ensureThread,
-      __internal_isThreadAttached: clientCore?.__internal_isThreadAttached,
+      __internal_ensureThread: clientCore.__internal_ensureThread,
+      __internal_isThreadAttached: clientCore.__internal_isThreadAttached,
       __internal_initialThreadIdSeed: initialThreadIdSeed,
       __internal_preserveDraftOnAdapterChange: true,
       __internal_reopenControlledThreadOnAdapterChange: true,
@@ -114,8 +111,7 @@ const useRemoteThreadListRuntimeThreads = ({
   );
   return {
     ...threads,
-    reloadMainThread: () =>
-      clientCore?.reloadMainThread() ?? threads.reloadMainThread(),
+    reloadMainThread: () => clientCore.reloadMainThread(),
     __internal_getAssistantRuntime: () =>
       typeof assistantRuntime === "function"
         ? assistantRuntime()

@@ -162,12 +162,10 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
     return this.hookManager.getThreadRuntimeCore(id) ?? EMPTY_THREAD_CORE;
   }
 
-  public unstable_isThreadRunning(threadId: string) {
-    return (
-      this.state?.threadItems.find(
-        (item) => item.id === threadId || item.remoteId === threadId,
-      )?.isRunning ?? false
-    );
+  public unstable_isThreadRunning(threadIdOrRemoteId: string) {
+    const item = this.getItemById(threadIdOrRemoteId);
+    if (!item) return false;
+    return this.hookManager.__internal_isThreadRunning(item.id);
   }
 
   public unstable_subscribeThreadEvents(
@@ -257,9 +255,12 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
   public subscribe(callback: () => void): Unsubscribe {
     const unsubscribeClient = this.handle.subscribe(callback);
     const unsubscribeManager = this.hookManager.subscribe(callback);
+    const unsubscribeRunning =
+      this.hookManager.__internal_subscribeRunningChanged(callback);
     return () => {
       unsubscribeClient();
       unsubscribeManager();
+      unsubscribeRunning();
     };
   }
 }
