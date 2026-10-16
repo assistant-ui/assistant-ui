@@ -903,7 +903,7 @@ export class RemoteThreadListThreadListRuntimeCore
     const replacementNeeded =
       !this._disposed &&
       attachedRuntime !== undefined &&
-      !this._hookManager.getThreadRuntimeCore(current.id);
+      !this._hookManager.__internal_isThreadRuntimeAttached(current.id);
     this._setMainThreadId(current.id);
     if (replacementNeeded) {
       await this._waitForReplacement(current.id);

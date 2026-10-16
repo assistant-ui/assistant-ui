@@ -4,10 +4,24 @@ import {
   contextProvider,
   makeAdapter,
 } from "../../tests/remote-thread-list-test-helpers";
+import type { RemoteThreadListHook } from "./RemoteThreadResource";
 import { RemoteThreadListThreadListRuntimeCore } from "./RemoteThreadListThreadListRuntimeCore";
 
-const setup = async () => {
-  let stopTarget!: () => void;
+type HookManager = {
+  instances: Map<string, { generation: number }>;
+  setRuntimeHook(runtimeHook: RemoteThreadListHook): void;
+  stopThreadRuntime(id: string): void;
+  _publishThreadRuntime(
+    id: string,
+    runtime: ReadonlyThreadRuntimeCore,
+    generation: number,
+  ): void;
+};
+
+const setup = async (
+  onUnarchive: (manager: HookManager) => void = (manager) =>
+    manager.stopThreadRuntime("thread-b"),
+) => {
   const adapter = makeAdapter({
     list: vi.fn(async () => ({
       threads: [
@@ -15,32 +29,20 @@ const setup = async () => {
         { status: "archived" as const, remoteId: "thread-b" },
       ],
     })),
-    unarchive: vi.fn(async () => stopTarget()),
+    unarchive: vi.fn(async () => onUnarchive(manager)),
   });
   const core = new RemoteThreadListThreadListRuntimeCore(
     { adapter, runtimeHook: () => ({}) as never },
     contextProvider,
   );
-  const manager = (
-    core as unknown as {
-      _hookManager: {
-        instances: Map<string, { generation: number }>;
-        stopThreadRuntime(id: string): void;
-        _publishThreadRuntime(
-          id: string,
-          runtime: ReadonlyThreadRuntimeCore,
-          generation: number,
-        ): void;
-      };
-    }
-  )._hookManager;
+  const manager = (core as unknown as { _hookManager: HookManager })
+    ._hookManager;
   const publish = (id: string, runtime: ReadonlyThreadRuntimeCore) =>
     manager._publishThreadRuntime(
       id,
       runtime,
       manager.instances.get(id)!.generation,
     );
-  stopTarget = () => manager.stopThreadRuntime("thread-b");
 
   await core.getLoadThreadsPromise();
   const switchToA = core.switchToThread("thread-a");
@@ -69,6 +71,25 @@ it("settles a switch only after a replacement runtime attaches", async () => {
   await switchToB;
 
   expect(settledBeforeAttachment).toBe(false);
+  expect(core.getMainThreadRuntimeCore()).toBe(replacement);
+});
+
+it("settles a switch only after the target's current runtime generation attaches", async () => {
+  const { core, publish } = await setup((manager) =>
+    manager.setRuntimeHook(() => ({}) as never),
+  );
+
+  const switchToB = core.switchToThread("thread-b");
+  const settled = vi.fn();
+  void switchToB.then(settled, settled);
+  publish("thread-b", new ReadonlyThreadRuntimeCore());
+  await vi.waitFor(() => expect(core.mainThreadId).toBe("thread-b"));
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+  expect(settled).not.toHaveBeenCalled();
+  const replacement = new ReadonlyThreadRuntimeCore();
+  publish("thread-b", replacement);
+  await switchToB;
   expect(core.getMainThreadRuntimeCore()).toBe(replacement);
 });
 

@@ -7,6 +7,7 @@ import { useAui } from "@assistant-ui/store";
 import type { ChatModelAdapter } from "../../../index";
 import type { AssistantRuntime } from "../../../runtime/api/assistant-runtime";
 import type { ThreadRuntimeImpl } from "../../../runtime/api/thread-runtime";
+import type { ThreadRuntimeCore } from "../../../runtime/interfaces/thread-runtime-core";
 import { EMPTY_THREAD_CORE } from "../../../runtimes/remote-thread-list/empty-thread-core";
 import type { ThreadMessage } from "../../../types/message";
 import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/adapter/in-memory";
@@ -62,61 +63,124 @@ afterEach(() => {
 const useEmptyThreadRuntime = () =>
   useExternalStoreRuntime({ messages: [], onNew: async () => {} } as never);
 
+const renderWithArchivedTarget = async (
+  onUnarchive: (manager: RemoteThreadListHookInstanceManager) => void,
+) => {
+  let manager: RemoteThreadListHookInstanceManager | undefined;
+  const startThreadRuntime =
+    RemoteThreadListHookInstanceManager.prototype.startThreadRuntime;
+  vi.spyOn(
+    RemoteThreadListHookInstanceManager.prototype,
+    "startThreadRuntime",
+  ).mockImplementation(function (
+    this: RemoteThreadListHookInstanceManager,
+    id,
+  ) {
+    if (id === "thread-b") manager = this;
+    return startThreadRuntime.call(this, id);
+  });
+  const adapter = makeAdapter({
+    list: vi.fn(async () => ({
+      threads: [
+        { status: "regular" as const, remoteId: "thread-a" },
+        { status: "archived" as const, remoteId: "thread-b" },
+      ],
+    })),
+    unarchive: vi.fn(async () => onUnarchive(manager!)),
+  });
+  let runtime: AssistantRuntime | undefined;
+  const App = () => {
+    runtime = useRemoteThreadListRuntime({
+      adapter,
+      runtimeHook: useEmptyThreadRuntime,
+    });
+    return (
+      <AssistantRuntimeProvider runtime={runtime}>
+        {null}
+      </AssistantRuntimeProvider>
+    );
+  };
+
+  render(<App />);
+  await actSettled(() => runtime!.threads.getLoadThreadsPromise());
+  await actSettled(() => runtime!.threads.switchToThread("thread-a"));
+  expect(runtime!.threads.getState().mainThreadId).toBe("thread-a");
+  return { runtime: runtime!, getManager: () => manager! };
+};
+
 describe("useRemoteThreadListRuntime client bridge", () => {
   it("settles a switch only after a replacement runtime attaches", async () => {
-    let manager: RemoteThreadListHookInstanceManager | undefined;
-    const startThreadRuntime =
-      RemoteThreadListHookInstanceManager.prototype.startThreadRuntime;
-    vi.spyOn(
-      RemoteThreadListHookInstanceManager.prototype,
-      "startThreadRuntime",
-    ).mockImplementation(function (
-      this: RemoteThreadListHookInstanceManager,
-      id,
-    ) {
-      if (id === "thread-b") manager = this;
-      return startThreadRuntime.call(this, id);
-    });
-    const adapter = makeAdapter({
-      list: vi.fn(async () => ({
-        threads: [
-          { status: "regular" as const, remoteId: "thread-a" },
-          { status: "archived" as const, remoteId: "thread-b" },
-        ],
-      })),
-      unarchive: vi.fn(async () => manager!.stopThreadRuntime("thread-b")),
-    });
-    let runtime: AssistantRuntime | undefined;
-    const App = () => {
-      runtime = useRemoteThreadListRuntime({
-        adapter,
-        runtimeHook: useEmptyThreadRuntime,
-      });
-      return (
-        <AssistantRuntimeProvider runtime={runtime}>
-          {null}
-        </AssistantRuntimeProvider>
-      );
-    };
-
-    render(<App />);
-    await actSettled(() => runtime!.threads.getLoadThreadsPromise());
-    await actSettled(() => runtime!.threads.switchToThread("thread-a"));
-    expect(runtime!.threads.getState().mainThreadId).toBe("thread-a");
+    const { runtime, getManager } = await renderWithArchivedTarget((manager) =>
+      manager.stopThreadRuntime("thread-b"),
+    );
 
     let targetAtSettlement: unknown;
     await actSettled(() =>
-      runtime!.threads.switchToThread("thread-b").then(() => {
-        targetAtSettlement = manager!.getThreadRuntimeCore("thread-b");
+      runtime.threads.switchToThread("thread-b").then(() => {
+        targetAtSettlement = getManager().getThreadRuntimeCore("thread-b");
       }),
     );
-    expect(runtime!.threads.getState().mainThreadId).toBe("thread-b");
+    expect(runtime.threads.getState().mainThreadId).toBe("thread-b");
     expect(targetAtSettlement).toBeDefined();
     expect(
-      (
-        runtime!.thread as ThreadRuntimeImpl
-      ).__internal_threadBinding.getState(),
+      (runtime.thread as ThreadRuntimeImpl).__internal_threadBinding.getState(),
     ).not.toBe(EMPTY_THREAD_CORE);
+  });
+
+  it("settles a switch only after the target's current runtime generation attaches", async () => {
+    const prototype =
+      RemoteThreadListHookInstanceManager.prototype as unknown as {
+        _publishThreadRuntime: (
+          threadId: string,
+          runtime: ThreadRuntimeCore,
+          generation: number,
+        ) => void;
+      };
+    const publishThreadRuntime = prototype._publishThreadRuntime;
+    let holdTarget = false;
+    let heldRuntime: ThreadRuntimeCore | undefined;
+    let releaseTarget: (() => void) | undefined;
+    vi.spyOn(prototype, "_publishThreadRuntime").mockImplementation(function (
+      this: RemoteThreadListHookInstanceManager,
+      threadId,
+      threadRuntime,
+      generation,
+    ) {
+      if (holdTarget && threadId === "thread-b") {
+        heldRuntime = threadRuntime;
+        releaseTarget = () =>
+          publishThreadRuntime.call(this, threadId, threadRuntime, generation);
+        return;
+      }
+      publishThreadRuntime.call(this, threadId, threadRuntime, generation);
+    });
+    const { runtime, getManager } = await renderWithArchivedTarget(
+      (manager) => {
+        holdTarget = true;
+        manager.setRuntimeHook(useEmptyThreadRuntime);
+      },
+    );
+
+    const settled = vi.fn();
+    let targetAtSettlement: unknown;
+    let switchToB!: Promise<void>;
+    await act(async () => {
+      switchToB = runtime.threads.switchToThread("thread-b").then(() => {
+        targetAtSettlement = getManager().getThreadRuntimeCore("thread-b");
+      });
+      void switchToB.then(settled, settled);
+    });
+    await waitFor(() => expect(releaseTarget).toBeDefined());
+    await act(async () => {});
+    expect(settled).not.toHaveBeenCalled();
+
+    holdTarget = false;
+    await actSettled(() => {
+      releaseTarget!();
+      return switchToB;
+    });
+    expect(runtime.threads.getState().mainThreadId).toBe("thread-b");
+    expect(targetAtSettlement).toBe(heldRuntime);
   });
 
   it("waits for reload after a failed list when the controlled ID changes", async () => {
