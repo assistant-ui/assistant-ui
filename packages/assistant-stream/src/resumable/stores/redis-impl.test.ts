@@ -258,6 +258,79 @@ describe("RedisResumableStreamStore", () => {
     await expect(store.status(streamId)).resolves.toBe("missing");
   });
 
+  it("clears an explicit lease when finalize finds expired metadata", async () => {
+    const client = new FakeRedisClient();
+    const keyPrefix = "test";
+    const streamId = "expired-lease";
+    const store = new RedisResumableStreamStore(client, { keyPrefix });
+    const acquisition = await store.acquireLease(streamId);
+    if (acquisition.role !== "producer") throw new Error("Expected producer");
+
+    client.strings.delete(`${keyPrefix}:{${streamId}}:meta`);
+    await expect(
+      store.finalize(streamId, "done", undefined, acquisition.lease),
+    ).rejects.toThrow(`Stream not found: ${streamId}`);
+    expect(
+      (Reflect.get(store, "acquiredGenerations") as Map<string, string>).has(
+        streamId,
+      ),
+    ).toBe(false);
+  });
+
+  it("preserves a reacquired generation when an expired lease finalizes", async () => {
+    const client = new FakeRedisClient();
+    const keyPrefix = "test";
+    const streamId = "expired-lease-race";
+    const metaKey = `${keyPrefix}:{${streamId}}:meta`;
+    const store = new RedisResumableStreamStore(client, { keyPrefix });
+    const stale = await store.acquireLease(streamId);
+    if (stale.role !== "producer") throw new Error("Expected producer");
+    client.strings.delete(metaKey);
+
+    let resumeFinalizer!: () => void;
+    const finalizerPaused = new Promise<void>((resolve) => {
+      client.onNextGet = () =>
+        new Promise<void>((resume) => {
+          resumeFinalizer = resume;
+          resolve();
+        });
+    });
+    const finalizing = store.finalize(streamId, "done", undefined, stale.lease);
+    await finalizerPaused;
+
+    const current = await store.acquireLease(streamId);
+    if (current.role !== "producer") throw new Error("Expected producer");
+    resumeFinalizer();
+    await expect(finalizing).rejects.toThrow(`Stream not found: ${streamId}`);
+    expect(
+      (Reflect.get(store, "acquiredGenerations") as Map<string, string>).get(
+        streamId,
+      ),
+    ).toBe(current.lease.token);
+    await expect(
+      store.finalize(streamId, "done", undefined, current.lease),
+    ).resolves.toBe(true);
+  });
+
+  it("keeps the lease-less ownership fence after missing finalization", async () => {
+    const client = new FakeRedisClient();
+    const keyPrefix = "test";
+    const streamId = "lease-less-expired";
+    const metaKey = `${keyPrefix}:{${streamId}}:meta`;
+    const staleStore = new RedisResumableStreamStore(client, { keyPrefix });
+    await expect(staleStore.acquire(streamId)).resolves.toBe("producer");
+    client.strings.delete(metaKey);
+
+    await expect(staleStore.finalize(streamId, "done")).rejects.toThrow(
+      `Stream not found: ${streamId}`,
+    );
+    const freshStore = new RedisResumableStreamStore(client, { keyPrefix });
+    await expect(freshStore.acquire(streamId)).resolves.toBe("producer");
+    await expect(
+      staleStore.append(streamId, encoder.encode("stale")),
+    ).rejects.toThrow(`Stream superseded by a new acquisition: ${streamId}`);
+  });
+
   it("fences a superseded producer out of the reacquired stream", async () => {
     const client = new FakeRedisClient();
     const keyPrefix = "test";

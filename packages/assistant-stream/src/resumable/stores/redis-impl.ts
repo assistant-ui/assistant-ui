@@ -310,11 +310,9 @@ export class RedisResumableStreamStore implements ResumableStreamStore {
     validateStreamId(streamId);
     const metaKey = this.metaKey(streamId);
     const existingRaw = await this.client.get(metaKey);
-    if (existingRaw === null) {
-      throw new Error(`Stream not found: ${streamId}`);
-    }
-    const existing = parseMeta(existingRaw);
-    if (!existing) {
+    const existing = existingRaw === null ? undefined : parseMeta(existingRaw);
+    if (existingRaw === null || !existing) {
+      if (lease) this.clearAcquiredGeneration(streamId, lease.token);
       throw new Error(`Stream not found: ${streamId}`);
     }
     // A second finalize must not append a duplicate FIN entry. A generation
