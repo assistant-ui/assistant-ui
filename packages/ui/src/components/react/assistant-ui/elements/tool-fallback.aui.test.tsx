@@ -54,6 +54,38 @@ const renderTool = (props: Partial<ToolCallMessagePartProps> = {}) => {
 };
 
 describe("ToolFallback", () => {
+  it("shows a queued reply and its answer only while delivery is pending", () => {
+    const view = renderTool({
+      status: { type: "complete" },
+      result: "approved",
+      responseDeliveryStatus: "queued",
+    });
+    expect(view.container.textContent).toContain("Reply queued, not sent yet");
+    fireEvent.click(
+      screen.getByRole("button", { name: /Reply queued, not sent yet/ }),
+    );
+    expect(view.container.textContent).toContain("approved");
+
+    view.rerender(
+      <ToolFallback
+        type="tool-call"
+        toolCallId="call-1"
+        toolName="test-tool"
+        args={{}}
+        argsText="{}"
+        status={{ type: "complete" }}
+        result="approved"
+        addResult={vi.fn()}
+        resume={vi.fn()}
+        respondToApproval={vi.fn(async () => {})}
+      />,
+    );
+    expect(view.container.textContent).not.toContain(
+      "Reply queued, not sent yet",
+    );
+    expect(view.container.textContent).toContain("approved");
+  });
+
   it("forwards the approval ref through its receipt and clears it on unmount", () => {
     const ref = createRef<HTMLDivElement>();
     const view = render(

@@ -1,7 +1,84 @@
 import { describe, expect, it } from "vitest";
 import { toGenericMessages, type GenericFilePart } from "./toGenericMessages";
+import type { ToolModelContentPart } from "../tool/tool-types";
 
 describe("toGenericMessages", () => {
+  describe("tool model content", () => {
+    const modelContent: readonly ToolModelContentPart[] = [
+      { type: "text", text: "Report contents" },
+      {
+        type: "file",
+        data: "JVBERi0xLjQ=",
+        mediaType: "application/pdf",
+        filename: "report.pdf",
+      },
+    ];
+
+    it.each([{ content: modelContent }, { content: [] }])(
+      "preserves explicit content on a settled result: %j",
+      ({ content }) => {
+        const result = toGenericMessages([
+          {
+            role: "assistant",
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "call-1",
+                toolName: "report",
+                result: { documentId: "report-1" },
+                modelContent: content,
+              },
+            ],
+          },
+        ]);
+        expect(result.at(-1)).toEqual({
+          role: "tool",
+          content: [
+            {
+              type: "tool-result",
+              toolCallId: "call-1",
+              toolName: "report",
+              result: { documentId: "report-1" },
+              modelContent: content,
+            },
+          ],
+        });
+      },
+    );
+
+    it.each([{}, { result: "preview", isPreliminary: true }])(
+      "does not forward content from an unfinished result: %j",
+      (extra) => {
+        const result = toGenericMessages([
+          {
+            role: "assistant",
+            content: [
+              {
+                type: "tool-call",
+                toolCallId: "call-1",
+                toolName: "report",
+                modelContent,
+                ...extra,
+              },
+            ],
+          },
+        ]);
+        expect(result.at(-1)).toEqual({
+          role: "tool",
+          content: [
+            {
+              type: "tool-result",
+              toolCallId: "call-1",
+              toolName: "report",
+              result: { error: "Tool call was not completed" },
+              isError: true,
+            },
+          ],
+        });
+      },
+    );
+  });
+
   describe("system messages", () => {
     it("converts text content", () => {
       const result = toGenericMessages([
@@ -65,6 +142,130 @@ describe("toGenericMessages", () => {
   });
 
   describe("user messages", () => {
+    describe.each(["mp3", "wav"] as const)("legacy %s audio", (format) => {
+      it.each([false, true])(
+        "preserves audio bytes (attachment: %s)",
+        (attachment) => {
+          const part = { type: "audio", audio: { data: "UklGRg==", format } };
+          const message = {
+            role: "user" as const,
+            content: attachment ? [] : [part],
+            attachments: attachment ? [{ content: [part] }] : [],
+          };
+          expect(toGenericMessages([message])).toEqual([
+            {
+              role: "user",
+              content: [
+                {
+                  type: "file",
+                  data: "UklGRg==",
+                  mediaType: `audio/${format}`,
+                },
+              ],
+            },
+          ]);
+        },
+      );
+
+      it.each([
+        "https://example.com/recording",
+        "data:audio/FORMAT;base64,UklGRg==",
+      ])("preserves an audio URL: %s", (value) => {
+        const data = value.replace("FORMAT", format);
+        expect(
+          toGenericMessages([
+            {
+              role: "user",
+              content: [{ type: "audio", audio: { data, format } }],
+            },
+          ]),
+        ).toEqual([
+          {
+            role: "user",
+            content: [
+              {
+                type: "file",
+                data: new URL(data),
+                mediaType: `audio/${format}`,
+              },
+            ],
+          },
+        ]);
+      });
+
+      it.each([
+        {
+          name: "a mismatched data URL",
+          input: "data:audio/mpeg;base64,QUJD",
+          expected: `data:audio/${format};base64,QUJD`,
+          isUrl: true,
+        },
+        {
+          name: "a matching data URL",
+          input: `data:audio/${format};base64,QUJD`,
+          expected: `data:audio/${format};base64,QUJD`,
+          isUrl: true,
+        },
+        {
+          name: "raw base64",
+          input: "QUJD",
+          expected: "QUJD",
+          isUrl: false,
+        },
+        {
+          name: "an HTTP URL",
+          input: "http://example.com/recording",
+          expected: "http://example.com/recording",
+          isUrl: true,
+        },
+        {
+          name: "an HTTPS URL",
+          input: "https://example.com/recording",
+          expected: "https://example.com/recording",
+          isUrl: true,
+        },
+      ])("uses the typed format for $name", ({ input, expected, isUrl }) => {
+        expect(
+          toGenericMessages([
+            {
+              role: "user",
+              content: [{ type: "audio", audio: { data: input, format } }],
+            },
+          ]),
+        ).toEqual([
+          {
+            role: "user",
+            content: [
+              {
+                type: "file",
+                data: isUrl ? new URL(expected) : expected,
+                mediaType: `audio/${format}`,
+              },
+            ],
+          },
+        ]);
+      });
+    });
+
+    it.each([undefined, {}, { data: "UklGRg==" }, { format: "wav" }])(
+      "skips an audio part missing its payload or format: %j",
+      (audio) => {
+        expect(
+          toGenericMessages([
+            {
+              role: "user",
+              content: [
+                { type: "text", text: "Keep this" },
+                { type: "audio", audio },
+              ],
+            },
+          ] as never),
+        ).toEqual([
+          { role: "user", content: [{ type: "text", text: "Keep this" }] },
+        ]);
+      },
+    );
+
     it("converts text parts", () => {
       const result = toGenericMessages([
         {

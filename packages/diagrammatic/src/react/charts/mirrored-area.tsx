@@ -1,6 +1,7 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Guide, Series } from "../../core/types";
+import { upperBound } from "../../core/scale";
 import { areaPath, linePath, scalePoints, stroke } from "../../core/geometry";
 import { truncate } from "../../core/text";
 import { ACCENT, ink } from "../../core/theme";
@@ -45,12 +46,7 @@ export const MirroredArea = forwardRef<SVGSVGElement, MirroredAreaProps>(
     const splitGap = 6;
     const upperBase = mid - splitGap / 2;
     const lowerBase = mid + splitGap / 2;
-    const max = Math.max(
-      ...down.data,
-      ...up.data,
-      ...(guides?.map((g) => g.at) ?? []),
-      1,
-    );
+    const max = upperBound([...down.data, ...up.data], undefined, guides);
     const Ydown = (v: number) => upperBase - (v / max) * (upperBase - top);
     const X = (i: number) => {
       const n = down.data.length;

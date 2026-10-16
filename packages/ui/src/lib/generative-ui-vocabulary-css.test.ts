@@ -29,7 +29,14 @@ const defaultThemeCss = readFileSync(
 
 const defaultThemeToken = (
   mode: ThemeMode,
-  name: "background" | "foreground" | "destructive",
+  name:
+    | "background"
+    | "foreground"
+    | "destructive"
+    | "muted"
+    | "primary"
+    | "primary-foreground"
+    | "secondary-foreground",
 ) => {
   const selector = mode === "light" ? ":root" : "\\.dark";
   const block = defaultThemeCss.match(
@@ -124,6 +131,7 @@ const toneStyleCases = [
 ] as const;
 
 describe("tone text contrast", () => {
+  // `currentColor` is the foreground on a plain surface and the white ink of a tinted Card.
   it.each(toneStyleCases)(
     "keeps $name above 4.5:1 in both default themes",
     ({ selector, token }) => {
@@ -132,7 +140,7 @@ describe("tone text contrast", () => {
         `color-mix(in oklab, var(${token}) 15%, transparent)`,
       );
       expect(style.color).toBe(
-        `color-mix(in oklab, var(${token}) 60%, var(--foreground))`,
+        `color-mix(in oklab, var(${token}) 55%, currentColor)`,
       );
 
       for (const mode of ["light", "dark"] as const) {
@@ -143,7 +151,7 @@ describe("tone text contrast", () => {
         const foreground = defaultThemeToken(mode, "foreground");
         const background = defaultThemeToken(mode, "background");
         const textColor = toSrgb(
-          mixOklab(toOklab(tone), toOklab(foreground), 0.6),
+          mixOklab(toOklab(tone), toOklab(foreground), 0.55),
         );
         const toneRgb = toSrgb(toOklab(tone));
         const backgroundRgb = toSrgb(toOklab(background));
@@ -156,9 +164,76 @@ describe("tone text contrast", () => {
         expect(
           contrastRatio(textColor, tintedBackground),
         ).toBeGreaterThanOrEqual(4.5);
+
+        const cardTint = toSrgb(toOklab("oklch(0.379 0.146 265.522)"));
+        const onCard = toSrgb(
+          mixOklab(toOklab(tone), toOklab("oklch(1 0 0)"), 0.55),
+        );
+        const tintedCardBackground: Srgb = [
+          toneRgb[0] * 0.15 + cardTint[0] * 0.85,
+          toneRgb[1] * 0.15 + cardTint[1] * 0.85,
+          toneRgb[2] * 0.15 + cardTint[2] * 0.85,
+        ];
+        expect(
+          contrastRatio(onCard, tintedCardBackground),
+        ).toBeGreaterThanOrEqual(4.5);
       }
     },
   );
+});
+
+describe("Badge contrast inside tinted Cards", () => {
+  const defaultSelector =
+    '[data-aui="card"][data-aui-background][data-aui-surface] [data-aui="badge"]:not([data-aui-variant="info"]):not([data-aui-variant="success"]):not([data-aui-variant="warning"]):not([data-aui-variant="danger"])';
+  const infoSelector =
+    '[data-aui="card"][data-aui-background][data-aui-surface] [data-aui="badge"][data-aui-variant="info"]';
+
+  it("gives default and info Badges opaque theme surface pairs", () => {
+    expect(rules[defaultSelector]).toEqual({
+      "background-color": "var(--muted)",
+      color: "var(--secondary-foreground)",
+    });
+    expect(rules[infoSelector]).toEqual({
+      "background-color": "var(--primary)",
+      color: "var(--primary-foreground)",
+    });
+  });
+
+  it("keeps both pairs readable in the light and dark themes", () => {
+    for (const mode of ["light", "dark"] as const) {
+      const muted = toSrgb(toOklab(defaultThemeToken(mode, "muted")));
+      const secondaryForeground = toSrgb(
+        toOklab(defaultThemeToken(mode, "secondary-foreground")),
+      );
+      const primary = toSrgb(toOklab(defaultThemeToken(mode, "primary")));
+      const primaryForeground = toSrgb(
+        toOklab(defaultThemeToken(mode, "primary-foreground")),
+      );
+
+      expect(contrastRatio(secondaryForeground, muted)).toBeGreaterThanOrEqual(
+        4.5,
+      );
+      expect(contrastRatio(primaryForeground, primary)).toBeGreaterThanOrEqual(
+        4.5,
+      );
+    }
+  });
+
+  it("keeps the opaque pairs when the Elements theme overrides Badge colors", () => {
+    for (const scope of [
+      '[data-aui-theme="elements"]',
+      '.dark [data-aui-theme="elements"]',
+    ]) {
+      expect(themedRules[`${scope} ${defaultSelector}`]).toMatchObject({
+        "background-color": "var(--muted)",
+        color: "var(--secondary-foreground)",
+      });
+      expect(themedRules[`${scope} ${infoSelector}`]).toMatchObject({
+        "background-color": "var(--primary)",
+        color: "var(--primary-foreground)",
+      });
+    }
+  });
 });
 
 describe("card surface", () => {

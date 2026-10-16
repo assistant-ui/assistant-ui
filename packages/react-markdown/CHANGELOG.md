@@ -1,5 +1,13 @@
 # @assistant-ui/react-markdown
 
+## 0.14.23
+
+### Patch Changes
+
+- [#9628](https://github.com/assistant-ui/assistant-ui/pull/9628) [`7ec1c32`](https://github.com/assistant-ui/assistant-ui/commit/7ec1c32f33937629aab4ac8dab8199ebc87e3269) - fix: refresh fenced code blocks when `components.pre` or `components.code` changes ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9603](https://github.com/assistant-ui/assistant-ui/pull/9603) [`1dfdbcc`](https://github.com/assistant-ui/assistant-ui/commit/1dfdbccbaeced5885b10c346f638e5546f34182e) - Refresh existing fenced code blocks when their renderer overrides change. ([@rupic-app](https://github.com/apps/rupic-app))
+
 ## 0.14.22
 
 ### Patch Changes

@@ -1,5 +1,27 @@
 # @assistant-ui/react
 
+## 0.15.29
+
+### Patch Changes
+
+- [#9613](https://github.com/assistant-ui/assistant-ui/pull/9613) [`6e17b3a`](https://github.com/assistant-ui/assistant-ui/commit/6e17b3a89531c630491ae99835fc87841c42fa3d) - fix: preserve pending attachment selections when unrelated assistant scopes change ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9602](https://github.com/assistant-ui/assistant-ui/pull/9602) [`c696c16`](https://github.com/assistant-ui/assistant-ui/commit/c696c162a093c25c569b7d9923723062f4d8f323) - fix: ignore an attachment picker's selection after the active thread changes, keeping files out of the replacement conversation. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9753](https://github.com/assistant-ui/assistant-ui/pull/9753) [`14eec8a`](https://github.com/assistant-ui/assistant-ui/commit/14eec8aafccec4c3377c0ec8aa9603c2a98e7587) - A run that starts while focus is in a field outside the thread no longer moves focus into the composer, and a composer that already has focus keeps its selection. ([@okisdev](https://github.com/okisdev))
+
+- [#9586](https://github.com/assistant-ui/assistant-ui/pull/9586) [`2eb0447`](https://github.com/assistant-ui/assistant-ui/commit/2eb0447c2dc3fb0cb2c7841ca873e8655afa6f18) - feat: add OpenAIRealtimeVoiceAdapter for direct browser voice sessions with streamed transcripts, typed input, mute controls, and cancellable WebRTC setup. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9768](https://github.com/assistant-ui/assistant-ui/pull/9768) [`c71326f`](https://github.com/assistant-ui/assistant-ui/commit/c71326ff9c91fdf7c852a3094c24169b76f27cba) - Clear frame tools and pending calls when the iframe document changes or reloads. ([@okisdev](https://github.com/okisdev))
+
+- [#9747](https://github.com/assistant-ui/assistant-ui/pull/9747) [`b4558a5`](https://github.com/assistant-ui/assistant-ui/commit/b4558a562e47b8ef537cdeb1fafb41869c45fd25) - `useAssistantFrameHost` disposes the host when its iframe is removed from the page, so the frame's tools leave the model context and its pending calls reject right away, and it serves a new iframe mounted into the same ref. ([@okisdev](https://github.com/okisdev))
+
+- [#9252](https://github.com/assistant-ui/assistant-ui/pull/9252) [`1371e4f`](https://github.com/assistant-ui/assistant-ui/commit/1371e4f22f2bd018b6fb74c177595f63f7ae9f57) - Handle sparse MCP Apps message content without scanning array holes. ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`b78a043`](https://github.com/assistant-ui/assistant-ui/commit/b78a0436faf8361323cd2fbb23362aee65867e09), [`fe13206`](https://github.com/assistant-ui/assistant-ui/commit/fe132065dd8a887abe5984941aa59bd6b3449fc5), [`8289dd1`](https://github.com/assistant-ui/assistant-ui/commit/8289dd1947a74cf883f7dc9c0cc42d0ef94c3b85), [`e09563a`](https://github.com/assistant-ui/assistant-ui/commit/e09563a7fb7877b496478342d143c1c2820ee69e), [`b88d62d`](https://github.com/assistant-ui/assistant-ui/commit/b88d62d6d944efff99134508696ef51c922dc2ff), [`5588bfb`](https://github.com/assistant-ui/assistant-ui/commit/5588bfb975dca65f0304fe9af5f77f11837ad89e), [`d6e8a0c`](https://github.com/assistant-ui/assistant-ui/commit/d6e8a0c0753d3d8cef24a0c8e6657b7325b842ef), [`fe7179d`](https://github.com/assistant-ui/assistant-ui/commit/fe7179d24df32f94c11d9b2b16a6946c33f327d5), [`c71326f`](https://github.com/assistant-ui/assistant-ui/commit/c71326ff9c91fdf7c852a3094c24169b76f27cba), [`55d065c`](https://github.com/assistant-ui/assistant-ui/commit/55d065c8036c948b56c328cf1f780ce2f81180b8), [`61aaccf`](https://github.com/assistant-ui/assistant-ui/commit/61aaccfe1d21aa1d5f939802713aff469c8818e6), [`43c9c7c`](https://github.com/assistant-ui/assistant-ui/commit/43c9c7cc2fdbbc0f99a9fd479ed9fb24d77947f2), [`75abfbe`](https://github.com/assistant-ui/assistant-ui/commit/75abfbe3c2b16a5b372751d40c3665402bde7172), [`12dfc85`](https://github.com/assistant-ui/assistant-ui/commit/12dfc85bf0dd991c1b023c5b4b549b7494dc646f), [`1091bbc`](https://github.com/assistant-ui/assistant-ui/commit/1091bbc273c2c7d453a3f959a56209a11c43e341), [`01225b9`](https://github.com/assistant-ui/assistant-ui/commit/01225b99661556557ca4d79f2d9c43c5db3588e5), [`d2f04ca`](https://github.com/assistant-ui/assistant-ui/commit/d2f04ca1bb8a987a2510f91ebeae7dc90847334d), [`6537c5f`](https://github.com/assistant-ui/assistant-ui/commit/6537c5f02691650d8d360f92b7e5b41f55f060de), [`2217804`](https://github.com/assistant-ui/assistant-ui/commit/2217804cce3bd143689047af8ea7bee4099e9a54), [`7ba7c54`](https://github.com/assistant-ui/assistant-ui/commit/7ba7c54e66cfa58ae13a6b891b5b7a78ceacb93e), [`cd5fd6c`](https://github.com/assistant-ui/assistant-ui/commit/cd5fd6c30447fde8c8efc4b86bd2d7fb66614b9d), [`5197671`](https://github.com/assistant-ui/assistant-ui/commit/5197671ee14b965a8dd81da7f0365c31e3c4566c), [`04c5d36`](https://github.com/assistant-ui/assistant-ui/commit/04c5d36ec58f1bb5a82c414e6e7048edef88bd10)]:
+  - @assistant-ui/core@0.3.29
+  - assistant-stream@0.3.52
+  - @assistant-ui/store@0.3.21
+
 ## 0.15.28
 
 ### Patch Changes

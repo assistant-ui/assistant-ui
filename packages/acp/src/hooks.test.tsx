@@ -42,8 +42,7 @@ const renderHookValue = <T,>(useHook: () => T): T => {
     captured = useHook();
     return null;
   };
-  const container = document.createElement("div");
-  root = createRoot(container);
+  root ??= createRoot(document.createElement("div"));
   act(() => {
     root!.render(createElement(Probe));
   });

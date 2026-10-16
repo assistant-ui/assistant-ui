@@ -2,7 +2,7 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import { arcStroke } from "../../core/geometry";
 import { ACCENT, ink } from "../../core/theme";
-import { ChartSvg, frame, typeSize } from "../svg";
+import { ChartSvg, PAD, frame, typeSize } from "../svg";
 
 export type ProgressRingProps = BaseProps & {
   value: number;
@@ -28,8 +28,11 @@ export const ProgressRing = forwardRef<SVGSVGElement, ProgressRingProps>(
     ref,
   ) => {
     const F = frame({ width, height, aspect, fontSize }, 5 / 3);
-    const { left, right, top, bottom, T } = F;
-    const labelReserve = label ? T.axis.px * 2 + 8 : 0;
+    const { left, right, bottom, T } = F;
+    const top = Math.min(F.top, Math.max(PAD, bottom - T.value.px * 2));
+    const showLabel =
+      label && bottom - top - (T.axis.px * 2 + 8) > T.axis.px * 2;
+    const labelReserve = showLabel ? T.axis.px * 2 + 8 : 0;
     const cx = (left + right) / 2;
     const cy = (top + bottom - labelReserve) / 2;
     const r = Math.min(
@@ -75,7 +78,7 @@ export const ProgressRing = forwardRef<SVGSVGElement, ProgressRingProps>(
         >
           {display ?? `${Math.round(share * 100)}%`}
         </text>
-        {label && (
+        {showLabel && (
           <text
             x={cx}
             y={cy + r * 1.14 + labelSize.px}

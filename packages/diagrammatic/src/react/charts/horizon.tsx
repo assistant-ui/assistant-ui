@@ -61,7 +61,6 @@ export const Horizon = forwardRef<SVGSVGElement, HorizonProps>(
     const { left, right, top, bottom, axisY, T: frameType } = F;
     const rowH = (bottom - top) / Math.max(1, rows.length);
     const peak = Math.max(...rows.flatMap((row) => row.data), 1);
-    const count = rows[0]?.data.length ?? 0;
     return (
       <ChartSvg
         ref={ref}
@@ -70,13 +69,6 @@ export const Horizon = forwardRef<SVGSVGElement, HorizonProps>(
         title={title}
         className={className}
       >
-        <ColumnHits
-          count={count}
-          x0={left}
-          x1={right}
-          top={top}
-          bottom={bottom}
-        />
         {rows.map((row, ri) => {
           const y1 = top + ri * rowH;
           const y0 = y1 + rowH - 2;
@@ -106,10 +98,17 @@ export const Horizon = forwardRef<SVGSVGElement, HorizonProps>(
                     opacity={OPACITIES[layer] ?? 0.9}
                     data-part="mark"
                     data-series={row.name || undefined}
-                    data-i={layer}
                   />
                 );
               })}
+              <ColumnHits
+                count={row.data.length}
+                x0={left}
+                x1={right}
+                top={y1}
+                bottom={y1 + rowH}
+                {...(row.name ? { series: row.name } : {})}
+              />
             </g>
           );
         })}

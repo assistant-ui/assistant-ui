@@ -32,12 +32,13 @@ export function upperBound(
   guides?: readonly Guide[],
   floor = 1,
 ): number {
-  return Math.max(
-    ...values,
-    ...tickValues(ticks),
-    ...(guides?.map((guide) => guide.at) ?? []),
-    floor,
-  );
+  let max = floor;
+  for (const value of values) max = Math.max(max, value);
+  for (const value of tickValues(ticks)) max = Math.max(max, value);
+  for (const guide of guides ?? []) {
+    if ((guide.axis ?? "y") === "y") max = Math.max(max, guide.at);
+  }
+  return max;
 }
 
 /** The same reconciliation for an axis that is not zero-based. */
@@ -49,8 +50,22 @@ export function boundsOf(
   return extent([
     ...values,
     ...tickValues(ticks),
-    ...(guides?.map((guide) => guide.at) ?? []),
+    ...(guides
+      ?.filter((guide) => (guide.axis ?? "y") === "y")
+      .map((guide) => guide.at) ?? []),
   ]);
+}
+
+export function expandDegenerateDomain([lo, hi]: [number, number]): [
+  number,
+  number,
+] {
+  if (lo !== hi) return [lo, hi];
+  const pad = Math.max(Math.abs(lo || 1) * 0.05, Number.EPSILON);
+  return [
+    Math.max(-Number.MAX_VALUE, lo - pad),
+    Math.min(Number.MAX_VALUE, hi + pad),
+  ];
 }
 
 /**
@@ -87,14 +102,32 @@ export function niceTicks(
   const span = hi - lo;
   if (span <= 0) return [{ at: hi, label: format(hi) }];
   const step = niceStep(span / Math.max(1, count));
-  const first = Math.ceil(lo / step) * step;
+  if (!(step > 0) || !Number.isFinite(step)) return [];
+  const inverse = step < 1 ? Math.round(1 / step) : 1;
+  const first = Math.round(step < 1 ? lo * inverse : lo / step);
+  const last = Math.round(step < 1 ? hi * inverse : hi / step);
+  if (
+    !Number.isFinite(first) ||
+    !Number.isFinite(last) ||
+    !Number.isFinite(inverse)
+  )
+    return [];
+  const tolerance = step * 1e-9;
   const ticks: Tick[] = [];
-  for (let at = first; Number.isFinite(at) && at <= hi + step * 1e-9;) {
+  for (let index = first; index <= last;) {
+    const at = step < 1 ? index / inverse : index * step;
+    if (!Number.isFinite(at) || at > hi + tolerance) break;
+    if (at < lo - tolerance) {
+      const next = index + 1;
+      if (next <= index) break;
+      index = next;
+      continue;
+    }
     const value = Math.abs(at) < step * 1e-9 ? 0 : at;
     ticks.push({ at: value, label: format(value) });
-    const next = at + step;
-    if (next <= at) break;
-    at = next;
+    const next = index + 1;
+    if (next <= index || (step < 1 ? next / inverse : next * step) <= at) break;
+    index = next;
   }
   return ticks;
 }

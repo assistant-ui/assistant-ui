@@ -1,5 +1,5 @@
 import type { BaseProps } from "../svg";
-import { forwardRef } from "react";
+import { forwardRef, useId } from "react";
 import type { Series } from "../../core/types";
 import { bandPath, round, scalePoints } from "../../core/geometry";
 import { truncate } from "../../core/text";
@@ -28,6 +28,7 @@ export const Streamgraph = forwardRef<SVGSVGElement, StreamgraphProps>(
     },
     ref,
   ) => {
+    const hitClipId = useId();
     const showLegend = legend ?? series.length > 1;
     const F = frame({ width, height, aspect, fontSize }, 5 / 3, {
       legend: showLegend,
@@ -91,13 +92,13 @@ export const Streamgraph = forwardRef<SVGSVGElement, StreamgraphProps>(
             ) : null}
           </g>
         ))}
-        <ColumnHits
-          count={series[0]?.data.length ?? 0}
-          x0={left}
-          x1={right}
-          top={mid - half}
-          bottom={mid + half}
-        />
+        <defs>
+          {series.map((s, k) => (
+            <clipPath key={s.name} id={`${hitClipId}-${k}`}>
+              <path d={bandPath(scaled[k + 1]!, scaled[k]!)} />
+            </clipPath>
+          ))}
+        </defs>
         {series.map((s, k) => (
           <path
             key={s.name}
@@ -107,6 +108,18 @@ export const Streamgraph = forwardRef<SVGSVGElement, StreamgraphProps>(
             data-part="mark"
             data-series={s.name}
           />
+        ))}
+        {series.map((s, k) => (
+          <g key={s.name} clipPath={`url(#${hitClipId}-${k})`}>
+            <ColumnHits
+              count={s.data.length}
+              x0={left}
+              x1={right}
+              top={mid - half}
+              bottom={mid + half}
+              series={s.name}
+            />
+          </g>
         ))}
         {showLegend && (
           <SvgLegend

@@ -20,6 +20,7 @@ import {
   SvgLegend,
   TickGrid,
   frame,
+  labelXs,
 } from "../svg";
 
 export type StackedAreaProps = BaseProps & {
@@ -127,7 +128,10 @@ export const StackedArea = forwardRef<SVGSVGElement, StackedAreaProps>(
         {labels && (
           <AxisLabels
             labels={labels}
-            xs={scaled[0]!.map((p) => p.x)}
+            xs={labelXs(
+              scaled[0]!.map((p) => p.x),
+              labels.length,
+            )}
             y={axisY}
             type={T.axis}
           />

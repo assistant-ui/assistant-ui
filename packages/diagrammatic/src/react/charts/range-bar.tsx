@@ -54,7 +54,8 @@ export const RangeBar = forwardRef<SVGSVGElement, RangeBarProps>(
     const lo = Number.isFinite(lo0) ? lo0 : 0;
     const hi0 = Math.max(...values);
     const hi = Number.isFinite(hi0) ? Math.max(hi0, lo + 1) : lo + 1;
-    const guideAts = guides?.map((g) => g.at) ?? [];
+    const guideAts =
+      guides?.filter((g) => (g.axis ?? "x") === "x").map((g) => g.at) ?? [];
     const xLo = Math.min(lo, ...guideAts);
     const xHi = Math.max(hi, ...guideAts);
     const xTickList = resolveTicks(xTicks, xLo, xHi, "linear", format);

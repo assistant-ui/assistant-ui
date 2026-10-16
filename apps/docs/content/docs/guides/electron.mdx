@@ -1,6 +1,6 @@
 ---
 title: Electron
-description: Run assistant-ui in an Electron renderer with a hosted backend or a secure, streaming preload and IPC bridge.
+description: Run assistant-ui in an Electron renderer with a hosted backend or an AI SDK route in the main process.
 platforms: ["react"]
 ---
 
@@ -15,18 +15,15 @@ assistant-ui works in Electron through `@assistant-ui/react`. The renderer is a 
 | Pattern | Use it when | Runtime |
 | --- | --- | --- |
 | Hosted backend | You already have an AI SDK endpoint, need server auth or persistence, or ship the app to other people | `useChatRuntime` with an absolute HTTPS URL |
-| Local main process | The desktop app owns the provider or agent process and must work without your web backend | `useLocalRuntime` with a narrow preload/IPC bridge |
+| Local main process | The desktop app owns the provider or agent process and must work without your web backend | `useChatRuntime` with a route served by `protocol.handle` |
 
 ```mermaid
 flowchart LR
   Renderer["Electron renderer<br/>assistant-ui React"] -->|"absolute HTTPS"| Backend["Hosted chat backend"]
-  Renderer -->|"window.assistantAI"| Preload["context-isolated preload"]
-  Preload -->|"transferred MessagePort"| Main["Electron main process"]
+  Renderer -->|"fetch app://local/api/chat"| Main["Electron main process<br/>protocol.handle"]
   Backend --> Provider["Model or agent"]
   Main --> Provider
 ```
-
-Do not send an SDK client, assistant-ui runtime, callback, `AbortSignal`, or `File` through IPC. Electron IPC uses structured clone semantics; define a small data-only protocol instead.
 
 ## Pattern 1: hosted backend
 
@@ -61,283 +58,169 @@ The endpoint must return the AI SDK UI message stream consumed by `AssistantChat
 
 ## Pattern 2: local main process
 
-Use this pattern when the Electron main process calls the model or runs a local agent. Keep `contextIsolation: true`, `sandbox: true`, and `nodeIntegration: false` on the `BrowserWindow`. Register `registerAssistantIpc(mainWindow)` after creating the trusted window.
+Use this pattern when the desktop app calls the model itself and must work without your web backend. Electron's [`protocol.handle`](https://www.electronjs.org/docs/latest/api/protocol#protocolhandlescheme-handler) answers renderer `fetch` calls with a `(Request) => Response` handler, so the main process runs the same AI SDK route a web app would, and the renderer keeps `AssistantChatTransport`. It needs no preload script or IPC messages. The renderer gets the full UI message stream, so tool calls, reasoning, and attachments work as they do on the web.
 
-The following example is intentionally text-only. It streams one request over a dedicated `MessagePort`; closing that port propagates assistant-ui's Stop action to an `AbortController` in the main process.
+This pattern needs Electron 44.4 or later (or 43.7 and later on the 43 line), the first releases that set `request.initiatorOrigin` on protocol requests.
 
-### 1. Define a data-only protocol
+### 1. Serve the renderer and the route from one scheme
 
-Place the shared types somewhere all three Electron bundles can import.
+```ts title="main/main.ts"
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+import { app, BrowserWindow, net, protocol, session } from "electron";
+import { POST } from "./api/chat";
 
-```ts title="shared/assistant-ipc.ts"
-export const ASSISTANT_STREAM_CHANNEL = "assistant:stream";
-
-export type ChatMessage =
-  | { role: "user"; content: string }
-  | { role: "assistant"; content: string };
-
-export type ChatRequest = {
-  system?: string;
-  messages: ChatMessage[];
-};
-
-export type ChatEvent =
-  | { type: "delta"; text: string }
-  | { type: "done" }
-  | { type: "error"; message: string };
-
-export type AssistantAI = {
-  streamChat(
-    request: ChatRequest,
-    onEvent: (event: ChatEvent) => void,
-  ): () => void;
-};
-```
-
-### 2. Expose one preload capability
-
-Expose the smallest API the renderer needs, not `ipcRenderer` itself. The callback receives only validated event data, never Electron's privileged IPC event object.
-
-```ts title="preload/assistant.ts"
-import { contextBridge, ipcRenderer } from "electron";
-import {
-  ASSISTANT_STREAM_CHANNEL,
-  type AssistantAI,
-  type ChatEvent,
-} from "../shared/assistant-ipc";
-
-const assistantAI: AssistantAI = {
-  streamChat(request, onEvent) {
-    const { port1, port2 } = new MessageChannel();
-    const onMessage = (event: MessageEvent<ChatEvent>) => onEvent(event.data);
-
-    port1.addEventListener("message", onMessage);
-    port1.start();
-    ipcRenderer.postMessage(ASSISTANT_STREAM_CHANNEL, request, [port2]);
-
-    let stopped = false;
-    return () => {
-      if (stopped) return;
-      stopped = true;
-      port1.removeEventListener("message", onMessage);
-      port1.close();
-    };
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "app",
+    privileges: { standard: true, secure: true, supportFetchAPI: true },
   },
-};
+]);
 
-contextBridge.exposeInMainWorld("assistantAI", assistantAI);
-```
+const APP_ORIGIN = "app://local";
+const rendererRoot = path.join(__dirname, "renderer");
 
-Declare the context-bridge API for renderer TypeScript:
-
-```ts title="renderer/electron.d.ts"
-import type { AssistantAI } from "../shared/assistant-ipc";
-
-declare global {
-  interface Window {
-    assistantAI: AssistantAI;
+function serveRenderer(url: URL) {
+  const pathname =
+    url.pathname === "/" ? "/index.html" : decodeURIComponent(url.pathname);
+  const filePath = path.join(rendererRoot, pathname);
+  if (!filePath.startsWith(rendererRoot + path.sep)) {
+    return new Response("Not found", { status: 404 });
   }
+  return net.fetch(pathToFileURL(filePath).toString());
 }
 
-export {};
+app.whenReady().then(() => {
+  const assistantSession = session.fromPartition("persist:assistant");
+
+  assistantSession.protocol.handle("app", (req) => {
+    const url = new URL(req.url);
+    if (url.host !== "local") return new Response("Not found", { status: 404 });
+    if (url.pathname !== "/api/chat") return serveRenderer(url);
+
+    // Set by Electron, not the page. Electron's typings don't declare it yet.
+    const { initiatorOrigin } = req as Request & { initiatorOrigin?: string };
+    if (req.method !== "POST" || initiatorOrigin !== APP_ORIGIN) {
+      return new Response("Forbidden", { status: 403 });
+    }
+    return POST(req);
+  });
+
+  const mainWindow = new BrowserWindow({
+    webPreferences: {
+      session: assistantSession,
+      contextIsolation: true,
+      sandbox: true,
+      nodeIntegration: false,
+    },
+  });
+  mainWindow.loadURL(`${APP_ORIGIN}/index.html`);
+});
 ```
 
-### 3. Stream from the main process
+- Registering `app` as a standard, secure scheme gives the renderer a real origin, `app://local`. The relative `/api/chat` URL is then same-origin, so it needs no CORS setup and survives packaging. Compare hosts rather than `url.origin`, which Node reports as `"null"` for custom schemes.
+- The handler is registered on a dedicated session partition. Only windows created with that session can load `app://` at all, so keep other windows, such as ones that show external content, on the default session.
+- `initiatorOrigin` comes from Electron, so a page cannot fake it the way it can set `referrer`. Without this check, any page loaded in the assistant session could post to the route, even with `mode: "no-cors"`. Requests started by the main process itself carry no initiator and are rejected too.
+- `net.fetch` also reads files from inside a packaged `app.asar` archive.
 
-Install the provider packages in the Electron main-process bundle:
+### 2. Run the AI SDK route in the main process
+
+Install the provider packages in the main-process bundle:
 
 ```sh
 pnpm add ai @ai-sdk/openai
 ```
 
-The handler checks both the sending `WebContents` and its main frame, validates the untrusted payload and bounds its size before calling the model. Set `OPENAI_API_KEY` only in the main-process environment.
+This is the [AI SDK route](/docs/runtimes/ai-sdk/v7) with two changes:
 
-```ts title="main/assistant-ipc.ts"
+- The body is untrusted input to a privileged process, so the route caps it at 20 MB before decoding and checks it with `validateUIMessages` before anything reaches the model. Electron buffers this JSON upload in the main process before calling the handler, so the cap limits what the route decodes, processes, and sends on, not that first copy. Raise the cap if your app accepts larger attachments, and pass `tools` and any data part schemas to `validateUIMessages` so it checks those parts too.
+- Electron builds the handler's `Request` without an abort signal, so `abortSignal: req.signal` would never fire and the model request would keep running after the user presses Stop. Instead, the route aborts when the renderer cancels the response body, which happens on Stop, on reload, and when the window closes.
+
+```ts title="main/api/chat.ts"
 import { openai } from "@ai-sdk/openai";
-import { streamText } from "ai";
-import { ipcMain, type BrowserWindow, type IpcMainEvent } from "electron";
 import {
-  ASSISTANT_STREAM_CHANNEL,
-  type ChatEvent,
-  type ChatRequest,
-} from "../shared/assistant-ipc";
+  convertToModelMessages,
+  createUIMessageStreamResponse,
+  streamText,
+  toUIMessageStream,
+  validateUIMessages,
+  type UIMessage,
+} from "ai";
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null;
+// Attachments arrive inline as data URLs, so leave room for them.
+const MAX_BODY_BYTES = 20_000_000;
 
-const isChatRequest = (value: unknown): value is ChatRequest => {
-  if (!isRecord(value) || !Array.isArray(value.messages)) return false;
-  if (value.system !== undefined && typeof value.system !== "string") {
-    return false;
+// Electron has already buffered the upload; this avoids a second full-size copy.
+async function readBody(req: Request) {
+  const decoder = new TextDecoder();
+  let bytesRead = 0;
+  let body = "";
+  for await (const chunk of req.body ?? []) {
+    bytesRead += chunk.byteLength;
+    if (bytesRead > MAX_BODY_BYTES) return null;
+    body += decoder.decode(chunk, { stream: true });
   }
-  if (value.messages.length > 200) return false;
+  return body + decoder.decode();
+}
 
-  let totalLength = typeof value.system === "string" ? value.system.length : 0;
-  for (const message of value.messages) {
-    if (!isRecord(message)) return false;
-    if (message.role !== "user" && message.role !== "assistant") return false;
-    if (typeof message.content !== "string") return false;
-    totalLength += message.content.length;
-    if (totalLength > 1_000_000) return false;
+export async function POST(req: Request) {
+  const body = await readBody(req);
+  if (body === null) {
+    return new Response("Request too large", { status: 413 });
   }
 
-  return true;
-};
+  let messages: UIMessage[];
+  try {
+    messages = await validateUIMessages({ messages: JSON.parse(body).messages });
+  } catch {
+    return new Response("Invalid request", { status: 400 });
+  }
 
-export function registerAssistantIpc(mainWindow: BrowserWindow) {
-  const handleStream = (event: IpcMainEvent, request: unknown) => {
-    const [port] = event.ports;
-    if (!port) return;
+  // protocol.handle never aborts req.signal, so abort when the renderer
+  // cancels the response body instead (Stop, reload, or window close).
+  const abortController = new AbortController();
+  const result = streamText({
+    model: openai("gpt-6-luna"),
+    messages: await convertToModelMessages(messages),
+    abortSignal: abortController.signal,
+  });
 
-    if (
-      event.sender !== mainWindow.webContents ||
-      event.senderFrame !== mainWindow.webContents.mainFrame
-    ) {
-      port.close();
-      return;
-    }
-
-    port.start();
-    if (!isChatRequest(request)) {
-      port.postMessage({
-        type: "error",
-        message: "Invalid chat request.",
-      } satisfies ChatEvent);
-      port.close();
-      return;
-    }
-
-    const abortController = new AbortController();
-    port.once("close", () => abortController.abort());
-    const send = (message: ChatEvent) => port.postMessage(message);
-
-    void (async () => {
-      try {
-        const result = streamText({
-          model: openai("gpt-6-luna"),
-          messages: request.messages,
-          ...(request.system ? { system: request.system } : {}),
-          abortSignal: abortController.signal,
-        });
-
-        for await (const text of result.textStream) {
-          send({ type: "delta", text });
-        }
-        send({ type: "done" });
-      } catch (error) {
-        if (abortController.signal.aborted) return;
-        console.error("Assistant stream failed", error);
-        send({ type: "error", message: "The model request failed." });
-      }
-    })();
-  };
-
-  ipcMain.on(ASSISTANT_STREAM_CHANNEL, handleStream);
-  mainWindow.once("closed", () => {
-    ipcMain.removeListener(ASSISTANT_STREAM_CHANNEL, handleStream);
+  const reader = toUIMessageStream({ stream: result.stream }).getReader();
+  return createUIMessageStreamResponse({
+    stream: new ReadableStream({
+      async pull(controller) {
+        const { done, value } = await reader.read();
+        if (done) controller.close();
+        else controller.enqueue(value);
+      },
+      cancel(reason) {
+        abortController.abort(reason);
+        return reader.cancel(reason);
+      },
+    }),
   });
 }
 ```
 
-If your app can open more than one trusted assistant window, register a unique channel per window or route requests through one application-level registry. A global `ipcMain.on` listener should not be re-registered under the same channel for every window.
+Set `OPENAI_API_KEY` only in the main-process environment. Add tools, a system prompt, and other `streamText` options exactly as in a web route.
 
-### 4. Adapt IPC to assistant-ui
+### 3. Point the renderer at the route
 
-`ChatModelAdapter` yields complete snapshots, so the renderer accumulates each IPC delta before yielding it. Its cleanup function closes the port on Stop, unmount, or completion.
+The renderer is the same as in Pattern 1, with a relative URL:
 
 ```tsx title="renderer/assistant-runtime.tsx"
 import type { ReactNode } from "react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import {
-  AssistantRuntimeProvider,
-  useLocalRuntime,
-  type ChatModelAdapter,
-} from "@assistant-ui/react";
-import type { ChatMessage } from "../shared/assistant-ipc";
+  AssistantChatTransport,
+  useChatRuntime,
+} from "@assistant-ui/ai-sdk";
 
-const ipcChatModel: ChatModelAdapter = {
-  async *run({ messages, context, abortSignal }) {
-    abortSignal.throwIfAborted();
-
-    const system = [context.system];
-    const serializedMessages: ChatMessage[] = [];
-
-    for (const message of messages) {
-      const text = message.content
-        .flatMap((part) => (part.type === "text" ? [part.text] : []))
-        .join("\n");
-      if (!text) continue;
-
-      if (message.role === "system") system.push(text);
-      if (message.role === "user") {
-        serializedMessages.push({ role: "user", content: text });
-      }
-      if (message.role === "assistant") {
-        serializedMessages.push({ role: "assistant", content: text });
-      }
-    }
-
-    const systemText = system.filter(Boolean).join("\n\n");
-    let stop: (() => void) | undefined;
-    let removeAbortListener: (() => void) | undefined;
-    const deltas = new ReadableStream<string>({
-      start(controller) {
-        let settled = false;
-        const close = () => {
-          if (settled) return;
-          settled = true;
-          controller.close();
-        };
-        const fail = (error: unknown) => {
-          if (settled) return;
-          settled = true;
-          controller.error(error);
-        };
-
-        stop = window.assistantAI.streamChat(
-          {
-            ...(systemText ? { system: systemText } : {}),
-            messages: serializedMessages,
-          },
-          (event) => {
-            if (event.type === "delta") controller.enqueue(event.text);
-            if (event.type === "done") close();
-            if (event.type === "error") fail(new Error(event.message));
-          },
-        );
-
-        const onAbort = () => {
-          stop?.();
-          fail(abortSignal.reason);
-        };
-        abortSignal.addEventListener("abort", onAbort, { once: true });
-        removeAbortListener = () =>
-          abortSignal.removeEventListener("abort", onAbort);
-        if (abortSignal.aborted) onAbort();
-      },
-      cancel() {
-        stop?.();
-      },
-    });
-
-    const reader = deltas.getReader();
-    let fullText = "";
-    try {
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) return;
-        fullText += value;
-        yield { content: [{ type: "text", text: fullText }] };
-      }
-    } finally {
-      removeAbortListener?.();
-      stop?.();
-      reader.releaseLock();
-    }
-  },
-};
+const transport = new AssistantChatTransport({ api: "/api/chat" });
 
 export function ElectronRuntimeProvider({ children }: { children: ReactNode }) {
-  const runtime = useLocalRuntime(ipcChatModel);
+  const runtime = useChatRuntime({ transport });
+
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       {children}
@@ -348,22 +231,33 @@ export function ElectronRuntimeProvider({ children }: { children: ReactNode }) {
 
 Wrap your existing assistant-ui thread with `ElectronRuntimeProvider`. Primitives and installed UI components work exactly as they do in a browser React app.
 
-## Extend the protocol deliberately
+### Development server
 
-The local example drops every non-text content part. Add explicit structured-clone-safe fields before claiming support for more features:
+If the window loads your dev server's URL directly, `/api/chat` resolves against `http://localhost` and never reaches the handler. Load `app://local` in development too, and have `serveRenderer` forward to the dev server:
 
-- Attachments: pass bounded `ArrayBuffer` data or an app-owned file reference after validating type, size, and path in the main process. Do not pass browser `File` objects.
-- Tools: define serializable tool-call and tool-result events, and validate every tool invocation in the privileged process. Never expose a generic shell or filesystem IPC method.
-- Reasoning and metadata: add distinct event variants and map them to the corresponding assistant-ui content parts.
-- Thread persistence: store serializable thread data in the main process or use a remote thread-list adapter; do not try to transfer a runtime object.
+```ts title="main/main.ts"
+const devServerUrl = process.env.VITE_DEV_SERVER_URL;
+
+function serveRenderer(url: URL) {
+  if (devServerUrl) {
+    const target = new URL(devServerUrl);
+    target.pathname = url.pathname;
+    target.search = url.search;
+    return net.fetch(target.toString());
+  }
+  // ...serve built files as above
+}
+```
+
+Use whichever variable your build tool provides: Electron Forge's Vite plugin defines `MAIN_WINDOW_VITE_DEV_SERVER_URL`, and electron-vite sets `process.env.ELECTRON_RENDERER_URL`. With Vite, set `server.hmr.clientPort` to the dev server's port so the HMR client connects from `app://local`, and allow `ws://localhost:<port>` in your development CSP's `connect-src`.
 
 ## Packaged-app checklist
 
-- Use an absolute HTTPS endpoint, a privileged custom protocol, or the preload bridge. Relative `/api/*` routes that worked against a development server will not follow your backend after packaging.
+- Use an absolute HTTPS endpoint or a route on your own privileged scheme. A relative `/api/*` URL only works when the page itself is served from the scheme that handles it.
 - Serve local content through a custom protocol instead of `file://` when possible, and define a restrictive Content Security Policy. Do not disable `webSecurity` to work around origin errors.
-- Validate every IPC sender and every payload in the main process. Treat renderer data as untrusted even when the renderer is local.
+- Check `initiatorOrigin` on every route the main process serves, and validate request bodies there. Treat renderer data as untrusted even when the renderer is local.
 - Intercept new windows and external links with `webContents.setWindowOpenHandler`; do not let model-generated links create unrestricted Electron windows.
 - If you render remote HTML with `SafeContentFrame`, allow its documented host in `frame-src`. Ordinary text and Markdown rendering need no Electron-specific change.
-- Test the packaged build, not only the Vite or Webpack development server. The scheme, origin, preload path, CSP, and environment loading can all differ.
+- Test the packaged build, not only the Vite or Webpack development server. The scheme, origin, file paths inside `app.asar`, CSP, and environment loading can all differ.
 
-For the underlying platform constraints, see Electron's official guides to [IPC and MessagePorts](https://www.electronjs.org/docs/latest/tutorial/message-ports), [context isolation](https://www.electronjs.org/docs/latest/tutorial/context-isolation), and the [security checklist](https://www.electronjs.org/docs/latest/tutorial/security).
+For the underlying platform constraints, see Electron's [`protocol` API](https://www.electronjs.org/docs/latest/api/protocol), [context isolation](https://www.electronjs.org/docs/latest/tutorial/context-isolation), and the [security checklist](https://www.electronjs.org/docs/latest/tutorial/security).

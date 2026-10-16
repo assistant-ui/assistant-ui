@@ -1,5 +1,49 @@
 # @assistant-ui/core
 
+## 0.3.29
+
+### Patch Changes
+
+- [#9670](https://github.com/assistant-ui/assistant-ui/pull/9670) [`b78a043`](https://github.com/assistant-ui/assistant-ui/commit/b78a0436faf8361323cd2fbb23362aee65867e09) - fix: keep copy feedback when unrelated assistant scopes change ([@okisdev](https://github.com/okisdev))
+
+- [#9750](https://github.com/assistant-ui/assistant-ui/pull/9750) [`fe13206`](https://github.com/assistant-ui/assistant-ui/commit/fe132065dd8a887abe5984941aa59bd6b3449fc5) - `assistant-cloud` is a dependency of `@assistant-ui/core` instead of an optional peer, so `@assistant-ui/core/react` loads in Node and Vitest without installing it separately. ([@okisdev](https://github.com/okisdev))
+
+- [#9738](https://github.com/assistant-ui/assistant-ui/pull/9738) [`8289dd1`](https://github.com/assistant-ui/assistant-ui/commit/8289dd1947a74cf883f7dc9c0cc42d0ef94c3b85) - Project legacy audio parts as file parts with an `audio/<format>` media type when building a queued message's item, instead of dropping them. ([@tunglambk](https://github.com/tunglambk))
+
+- [#9615](https://github.com/assistant-ui/assistant-ui/pull/9615) [`5588bfb`](https://github.com/assistant-ui/assistant-ui/commit/5588bfb975dca65f0304fe9af5f77f11837ad89e) - fix: prevent dictation from starting on a disabled thread ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9754](https://github.com/assistant-ui/assistant-ui/pull/9754) [`d6e8a0c`](https://github.com/assistant-ui/assistant-ui/commit/d6e8a0c0753d3d8cef24a0c8e6657b7325b842ef) - A message an external-store host drops from the middle of its `messages` array is removed from the thread, with its feedback, instead of staying behind as a sibling branch. ([@okisdev](https://github.com/okisdev))
+
+- [#9763](https://github.com/assistant-ui/assistant-ui/pull/9763) [`fe7179d`](https://github.com/assistant-ui/assistant-ui/commit/fe7179d24df32f94c11d9b2b16a6946c33f327d5) - Discard late client tool calls from cancelled external-store runs using host-provided run ids. ([@okisdev](https://github.com/okisdev))
+
+- [#9768](https://github.com/assistant-ui/assistant-ui/pull/9768) [`c71326f`](https://github.com/assistant-ui/assistant-ui/commit/c71326ff9c91fdf7c852a3094c24169b76f27cba) - Clear frame tools and pending calls when the iframe document changes or reloads. ([@okisdev](https://github.com/okisdev))
+
+- [#9702](https://github.com/assistant-ui/assistant-ui/pull/9702) [`55d065c`](https://github.com/assistant-ui/assistant-ui/commit/55d065c8036c948b56c328cf1f780ce2f81180b8) - Keep external-store history copies up to date when an existing user message's attachments are added, removed, or changed. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9537](https://github.com/assistant-ui/assistant-ui/pull/9537) [`61aaccf`](https://github.com/assistant-ui/assistant-ui/commit/61aaccfe1d21aa1d5f939802713aff469c8818e6) - fix: settle pending deletes after reloads, branch switches, and edits ([@okisdev](https://github.com/okisdev))
+
+- [#9555](https://github.com/assistant-ui/assistant-ui/pull/9555) [`43c9c7c`](https://github.com/assistant-ui/assistant-ui/commit/43c9c7cc2fdbbc0f99a9fd479ed9fb24d77947f2) - Percent-decode base64 data URL payloads before forwarding them to model adapters, so escaped padding and alphabet characters are sent as bare base64. ([@Jun516](https://github.com/Jun516))
+
+- [#9745](https://github.com/assistant-ui/assistant-ui/pull/9745) [`75abfbe`](https://github.com/assistant-ui/assistant-ui/commit/75abfbe3c2b16a5b372751d40c3665402bde7172) - Selecting the thread that is already displayed no longer cancels an in-flight controlled switch in the `RemoteThreadList` client. ([@okisdev](https://github.com/okisdev))
+
+- [#9744](https://github.com/assistant-ui/assistant-ui/pull/9744) [`12dfc85`](https://github.com/assistant-ui/assistant-ui/commit/12dfc85bf0dd991c1b023c5b4b549b7494dc646f) - Selecting the thread that is already displayed no longer cancels a pending thread switch in `useRemoteThreadListRuntime`. ([@okisdev](https://github.com/okisdev))
+
+- [#9639](https://github.com/assistant-ui/assistant-ui/pull/9639) [`1091bbc`](https://github.com/assistant-ui/assistant-ui/commit/1091bbc273c2c7d453a3f959a56209a11c43e341) - fix: report a still-initializing thread through `onThreadIdChange` once its remote id settles, instead of as `undefined` ([@okisdev](https://github.com/okisdev))
+
+- [#9642](https://github.com/assistant-ui/assistant-ui/pull/9642) [`6537c5f`](https://github.com/assistant-ui/assistant-ui/commit/6537c5f02691650d8d360f92b7e5b41f55f060de) - feat: report a failed thread switch, such as a URL-controlled `threadId` whose `fetch()` rejects, as `switchError` on the threads state, and retry a controlled switch when the browser comes back online or the tab becomes visible ([@okisdev](https://github.com/okisdev))
+
+- [#9551](https://github.com/assistant-ui/assistant-ui/pull/9551) [`2217804`](https://github.com/assistant-ui/assistant-ui/commit/2217804cce3bd143689047af8ea7bee4099e9a54) - fix(core): make an automatic title wait for an explicit title generation in flight and run only if that produced no title, so the thread list and the server end on the same title ([@okisdev](https://github.com/okisdev))
+
+- [#9556](https://github.com/assistant-ui/assistant-ui/pull/9556) [`7ba7c54`](https://github.com/assistant-ui/assistant-ui/commit/7ba7c54e66cfa58ae13a6b891b5b7a78ceacb93e) - fix(core): show the automatic title the server already saved when an explicit title generation fails or returns no title, and settle overlapping automatic titles on the newest one ([@okisdev](https://github.com/okisdev))
+
+- [#9769](https://github.com/assistant-ui/assistant-ui/pull/9769) [`cd5fd6c`](https://github.com/assistant-ui/assistant-ui/commit/cd5fd6c30447fde8c8efc4b86bd2d7fb66614b9d) - A tool-call part carries `responseDeliveryStatus: "queued"` while the runtime holds its reply and has not sent it. The ADK runtime sets it on interrupt replies and tool answers held for the next turn, and LangGraph sets it on buffered tool replies, so the tool UI no longer shows them as sent. ([@okisdev](https://github.com/okisdev))
+
+- [#9575](https://github.com/assistant-ui/assistant-ui/pull/9575) [`5197671`](https://github.com/assistant-ui/assistant-ui/commit/5197671ee14b965a8dd81da7f0365c31e3c4566c) - fix: keep text sending available when voice setup ends synchronously ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9751](https://github.com/assistant-ui/assistant-ui/pull/9751) [`04c5d36`](https://github.com/assistant-ui/assistant-ui/commit/04c5d36ec58f1bb5a82c414e6e7048edef88bd10) - A base64 data URL whose payload is percent-encoded is sent to providers with the decoded payload, even when its media type already matches. ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`e09563a`](https://github.com/assistant-ui/assistant-ui/commit/e09563a7fb7877b496478342d143c1c2820ee69e), [`b88d62d`](https://github.com/assistant-ui/assistant-ui/commit/b88d62d6d944efff99134508696ef51c922dc2ff), [`01225b9`](https://github.com/assistant-ui/assistant-ui/commit/01225b99661556557ca4d79f2d9c43c5db3588e5)]:
+  - assistant-stream@0.3.52
+
 ## 0.3.28
 
 ### Patch Changes

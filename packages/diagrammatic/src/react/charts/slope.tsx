@@ -10,6 +10,8 @@ export type SlopeProps = BaseProps & {
   highlight?: string;
 };
 
+const LABEL_SHARE = 0.4;
+
 export const Slope = forwardRef<SVGSVGElement, SlopeProps>(
   (
     {
@@ -34,7 +36,8 @@ export const Slope = forwardRef<SVGSVGElement, SlopeProps>(
     );
     const F = frame({ width, height, aspect, fontSize }, 5 / 3, {
       labels: Boolean(labels),
-      right: W - PAD - Math.ceil(widest) - 6,
+      right:
+        W - Math.min(Math.round(W * LABEL_SHARE), Math.ceil(PAD + widest + 6)),
     });
     const { left, right, top, bottom, axisY, T } = F;
     const [lo, hi] = extent(items.flatMap((r) => [r.from, r.to]));

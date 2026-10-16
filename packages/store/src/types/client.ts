@@ -70,7 +70,13 @@ type ClientError<E extends string> = {
   events: Record<`${E}.`, E>;
 };
 
-type ReservedAccessorProps = "source" | "query" | "name";
+type ReservedAccessorProps =
+  | "source"
+  | "query"
+  | "name"
+  | "call"
+  | "apply"
+  | "bind";
 
 type ReservedScopeNames = "optional" | "subscribe" | "on";
 
@@ -79,7 +85,7 @@ type ValidateMethods<K extends string, TClient> = TClient extends {
 }
   ? keyof TClient["methods"] & ReservedAccessorProps extends never
     ? unknown
-    : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`>
+    : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name/call/apply/bind)`>
   : ClientError<`ERROR: ${K} has invalid methods type`>;
 
 type ValidateMeta<K extends string, TClient> = "meta" extends keyof TClient
@@ -195,7 +201,8 @@ export type AssistantState = ScopeStates & {
  * for backwards compatibility.
  *
  * An unavailable scope's accessor has `source: null` and throws when any
- * other property is read or the accessor is called. The accessor itself is
+ * client method is read or the accessor is invoked, including via `call`,
+ * `apply`, or `bind`. The accessor itself is
  * always truthy — check availability via `aui.optional.thread`.
  */
 export type AssistantClientAccessor<K extends ClientNames> =
