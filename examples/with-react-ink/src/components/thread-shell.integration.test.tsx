@@ -58,11 +58,12 @@ it("keeps drafts while navigating, renaming, archiving and restoring real runtim
   await act(async () => {
     result = render(<App />);
   });
-  const { stdin } = result;
+  const { stdin, lastFrame } = result;
   const press = async (value: string) => {
     await act(async () => {
       stdin.write(value);
     });
+    await vi.waitFor(() => expect(lastFrame()).not.toMatch(/Working…|Saving…/));
   };
   await vi.waitFor(() => expect(client).toBeDefined());
   await press("Hello");
