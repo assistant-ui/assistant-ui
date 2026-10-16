@@ -1,3 +1,15 @@
+/**
+ * Returns the name McpManagerResource registers for an MCP server's tool.
+ * Use this name for tool-call renderers; server state and direct callTool calls
+ * keep the original MCP tool name.
+ *
+ * Names containing only letters, numbers, underscores, and dashes retain the
+ * `serverId__toolName` form when it fits within 64 characters. Other names use
+ * a stable alias containing a hash of both inputs and a readable tool suffix.
+ *
+ * @param serverId - The connector or persisted custom server ID.
+ * @param toolName - The original name reported by the MCP server.
+ */
 export function getMcpToolName(serverId: string, toolName: string): string {
   const name = `${serverId}__${toolName}`;
   if (name.length <= 64 && !/[^a-zA-Z0-9_-]/.test(name)) return name;

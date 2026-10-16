@@ -244,6 +244,26 @@ export function Chat() {
 
 Tool names use `serverId__toolName` when that name contains only letters, numbers, underscores, and dashes and fits within 64 characters. Longer names or names containing other characters receive a stable alias derived from the server ID and tool name. Aliases retain a readable tool-name suffix and route calls to the original MCP server and tool. Persisted server IDs stay unchanged. The toolkit re-registers whenever a server connects / disconnects or its tool list changes.
 
+For a custom tool renderer, use `getMcpToolName(serverId, toolName)` to obtain the registered name. Pass the server's ID and the original MCP tool name; the helper works before the server connects. Server state and direct `callTool()` calls continue to use the original tool name.
+
+```tsx
+import { MessagePrimitive } from "@assistant-ui/react";
+import { getMcpToolName } from "@assistant-ui/react-mcp";
+
+<MessagePrimitive.Parts
+  components={{
+    tools: {
+      by_name: {
+        [getMcpToolName(serverId, "get_pull_request_review_comments")]:
+          ReviewCommentsToolUI,
+      },
+    },
+  }}
+/>
+```
+
+Replace `serverId` with the connected server's ID and `ReviewCommentsToolUI` with your tool renderer. A renderer keyed by the old `serverId__toolName` string must use the helper when that name requires an alias.
+
 If no chat runtime is mounted, `McpManagerResource` brings its own minimal `modelContext` along. Tools are still callable directly:
 
 ```ts

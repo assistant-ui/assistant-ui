@@ -1,4 +1,5 @@
 import { createAssistantClient } from "@assistant-ui/store/client";
+import { Tools } from "@assistant-ui/core/react";
 import { toToolsJSONSchema } from "assistant-stream";
 import { describe, expect, it, vi } from "vitest";
 import { defineConnector } from "../connector";
@@ -6,6 +7,7 @@ import { McpManagerResource } from "./McpManagerResource";
 import { McpMemoryStorage } from "./storage/McpMemoryStorage";
 import { McpCustomStorage } from "./storage/McpCustomStorage";
 import type { MCPCustomServerRecord } from "../mcp-scope";
+import * as mcp from "../index";
 
 const mocks = vi.hoisted(() => ({
   toolNames: ["search"],
@@ -52,6 +54,55 @@ const mount = (props: Parameters<typeof McpManagerResource>[0]) => {
 };
 
 describe("McpManagerResource tool registration", () => {
+  it.each(["search", "get_pull_request_review_comments", "files.read"])(
+    "resolves a named renderer for the registered %s tool",
+    async (toolName) => {
+      mocks.toolNames = [toolName];
+      const handle = createAssistantClient({
+        mcp: McpManagerResource({
+          autoConnect: false,
+          storage: McpMemoryStorage(),
+        }),
+        tools: Tools({}),
+      });
+      handle.subscribe(() => {});
+      let unregister: (() => void) | undefined;
+      try {
+        const aui = handle.getClient();
+        await vi.waitFor(() =>
+          expect(aui.mcp.getState().isHydrated).toBe(true),
+        );
+        const id = await aui.mcp.addCustomServer({
+          name: "GitHub",
+          url: "https://example.com/mcp",
+          auth: { type: "none" },
+        });
+        const render = () => null;
+        unregister = aui.tools.setToolUI(
+          mcp.getMcpToolName(id, toolName),
+          render,
+        );
+        await vi.waitFor(() =>
+          expect(aui.mcp.getState().servers).toHaveLength(1),
+        );
+        await aui.mcp.server({ id }).connect();
+        await vi.waitFor(() => {
+          const names = Object.keys(
+            toToolsJSONSchema(aui.modelContext.getModelContext().tools),
+          );
+          expect(names).toHaveLength(1);
+          expect(aui.tools.getState().toolUIs[names[0]!]![0]!.render).toBe(
+            render,
+          );
+        });
+        expect(aui.mcp.server({ id }).getState().tools[0]!.name).toBe(toolName);
+      } finally {
+        unregister?.();
+        handle.destroy();
+      }
+    },
+  );
+
   it.each([
     "search",
     "a".repeat(26),
