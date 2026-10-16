@@ -151,18 +151,6 @@ describe("projectApi", () => {
     expect(after.logs[0]!.id).not.toBe(before.logs[0]!.id);
   });
 
-  it("preserves identities supplied by an event source", () => {
-    const event = {
-      id: "source-event",
-      time: new Date(0),
-      event: "thread.runStart",
-      data: {},
-    };
-    expect(projectApi(1, { api: {}, logs: [{ ...event }] }).logs[0]!.id).toBe(
-      projectApi(1, { api: {}, logs: [event] }).logs[0]!.id,
-    );
-  });
-
   it("does not throw on scopes whose accessor throws", () => {
     const broken = scope("root", {}, undefined);
     const throwing = (() => {

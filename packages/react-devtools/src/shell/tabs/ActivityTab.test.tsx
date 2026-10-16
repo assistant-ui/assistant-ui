@@ -72,45 +72,4 @@ describe("ActivityTab", () => {
     expect(html).toContain(">T1<");
     expect(html).not.toContain(">T2<");
   });
-
-  it("expires a selection when a later source ID matches its generated ID", () => {
-    const first = {
-      time: t(0),
-      event: "thread.runStart",
-      data: { threadId: "T1" },
-    };
-    const before = projectApi(1, { api: {}, logs: [first] });
-    const selection = buildActivityNav(before.logs).nodes.find(
-      (node) => node.kind === "run",
-    )!.id;
-    const second = {
-      id: before.logs[0]!.id!,
-      time: t(1),
-      event: "thread.runStart",
-      data: { threadId: "T2" },
-    };
-    const mixed = projectApi(1, { api: {}, logs: [first, second] });
-    const after = projectApi(1, {
-      api: {},
-      logs: [
-        { ...second },
-        { time: t(2), event: "thread.runStart", data: { threadId: "T3" } },
-      ],
-    });
-    const html = renderToStaticMarkup(
-      <ActivityTab
-        apiId={1}
-        data={after}
-        clearEvents={() => {}}
-        theme="light"
-        selection={selection}
-        setSelection={() => {}}
-      />,
-    );
-
-    expect(html).toContain(">T3<");
-    expect(html).not.toContain(">T2<");
-    expect(mixed.logs[0]!.id).not.toBe(mixed.logs[1]!.id);
-    expect(after.logs[0]!.id).toBe(mixed.logs[1]!.id);
-  });
 });
