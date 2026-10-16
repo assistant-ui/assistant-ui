@@ -422,14 +422,15 @@ export const useFlatListAutoScroll = <T>({
         return;
       }
 
-      if (!autoScroll) return;
+      // An inverted list keeps its newest row at offset 0 and slides to a row inserted there through autoscrollToTopThreshold, which a commanded offset would cut short.
+      if (inverted || !autoScroll) return;
       if (!wasAtBottom) return;
       if (previousContentHeight === 0) return;
       if (contentHeight <= previousContentHeight) return;
 
       scrollToBottom(false);
     },
-    [autoScroll, horizontal, scrollToBottom, updateIsAtBottom],
+    [autoScroll, horizontal, inverted, scrollToBottom, updateIsAtBottom],
   );
 
   useEffect(() => {

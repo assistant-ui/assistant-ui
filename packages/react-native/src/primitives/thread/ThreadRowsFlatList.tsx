@@ -33,6 +33,11 @@ export type ThreadRowsFlatListProps = Omit<
   history?: FlatListHistory | undefined;
 };
 
+const EmptyListHeader = () => null;
+
+// Native maintainVisibleContentPosition skips a row whose bottom edge sits at the scroll offset, so the header lifts an empty newest row off offset 0 to keep it as the anchor.
+const anchorHeaderStyle = { minHeight: 1 };
+
 /** Virtualizes flattened thread rows while keeping the visible row anchored. */
 export const ThreadRowsFlatList = forwardRef<
   FlatList<ThreadRow>,
@@ -145,13 +150,21 @@ export const ThreadRowsFlatList = forwardRef<
         keyExtractor={keyExtractor}
         inverted={inverted}
         maintainVisibleContentPosition={
-          inverted
+          inverted && (autoScroll ?? true)
             ? { minIndexForVisible: 0, autoscrollToTopThreshold: 4 }
             : { minIndexForVisible: 0 }
         }
         {...scrollProps}
         {...pagingProps}
         {...flatListProps}
+        {...(inverted && {
+          ListHeaderComponent:
+            flatListProps.ListHeaderComponent ?? EmptyListHeader,
+          ListHeaderComponentStyle: [
+            anchorHeaderStyle,
+            flatListProps.ListHeaderComponentStyle,
+          ],
+        })}
       />
     );
   },

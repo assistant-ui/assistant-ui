@@ -1,7 +1,12 @@
 import { act, version } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { FlatList } from "react-native";
+import {
+  type FlatList,
+  type StyleProp,
+  StyleSheet,
+  type ViewStyle,
+} from "react-native";
 import type { AssistantState } from "@assistant-ui/store";
 import type { MessageState } from "@assistant-ui/core/store";
 import { groupPartByType, type ThreadRow } from "@assistant-ui/core/react";
@@ -105,6 +110,9 @@ const getProps = () => {
   return h.flatListProps;
 };
 
+const headerStyle = (props: Record<string, unknown>) =>
+  StyleSheet.flatten(props.ListHeaderComponentStyle as StyleProp<ViewStyle>);
+
 const reachedInfo = { distanceFromEnd: 0 };
 
 describe("ThreadRowsFlatList", () => {
@@ -205,6 +213,7 @@ describe("ThreadRowsFlatList", () => {
     expect(props.maintainVisibleContentPosition).toEqual({
       minIndexForVisible: 0,
     });
+    expect(props.ListHeaderComponent).toBeUndefined();
     expect(props.onStartReachedThreshold).toBe(1);
     (props.onStartReached as (info: typeof reachedInfo) => void)(reachedInfo);
     expect(onStartReached).toHaveBeenCalledWith(reachedInfo);
@@ -226,6 +235,8 @@ describe("ThreadRowsFlatList", () => {
       minIndexForVisible: 0,
       autoscrollToTopThreshold: 4,
     });
+    expect(props.ListHeaderComponent).toBeTypeOf("function");
+    expect(headerStyle(props)).toEqual({ minHeight: 1 });
     expect(props.onEndReachedThreshold).toBe(1);
     expect(props.onStartReached).toBe(onStartReached);
     expect(h.scrollToOffset).toHaveBeenCalledWith({
@@ -239,28 +250,60 @@ describe("ThreadRowsFlatList", () => {
     expect(h.loadEarlier).toHaveBeenCalledOnce();
   });
 
+  it("keeps a passed list header and its style under the inverted anchor", async () => {
+    const Header = () => <span>header</span>;
+    await mount({
+      inverted: true,
+      ListHeaderComponent: Header,
+      ListHeaderComponentStyle: { paddingTop: 8 },
+    });
+    const props = getProps();
+    expect(props.ListHeaderComponent).toBe(Header);
+    expect(headerStyle(props)).toEqual({ minHeight: 1, paddingTop: 8 });
+  });
+
+  it("stops following new inverted rows when autoScroll is off", async () => {
+    await mount({ inverted: true, autoScroll: false });
+    expect(getProps().maintainVisibleContentPosition).toEqual({
+      minIndexForVisible: 0,
+    });
+  });
+
+  it("leaves following inverted content growth to the native threshold", async () => {
+    await mount({ inverted: true, scrollToBottomOnInitialize: false });
+    const onContentSizeChange = getProps().onContentSizeChange as (
+      width: number,
+      height: number,
+    ) => void;
+
+    onContentSizeChange(100, 400);
+    onContentSizeChange(100, 500);
+    expect(h.scrollToOffset).not.toHaveBeenCalled();
+  });
+
   it("unpins an inverted list when the offset moves away from zero", async () => {
     await mount({ inverted: true, scrollToBottomOnInitialize: false });
     const props = getProps();
     const onScroll = props.onScroll as (event: unknown) => void;
-    const onContentSizeChange = props.onContentSizeChange as (
-      width: number,
-      height: number,
-    ) => void;
-    const scrollEvent = (offset: number) => ({
+    const onLayout = props.onLayout as (event: unknown) => void;
+    const scrollEvent = (offset: number, height: number) => ({
       nativeEvent: {
         contentOffset: { x: 0, y: offset },
         contentSize: { width: 100, height: 400 },
-        layoutMeasurement: { width: 100, height: 100 },
+        layoutMeasurement: { width: 100, height },
       },
     });
+    const layoutEvent = (height: number) => ({
+      nativeEvent: { layout: { x: 0, y: 0, width: 100, height } },
+    });
 
-    onScroll(scrollEvent(8));
-    onContentSizeChange(100, 500);
+    onLayout(layoutEvent(100));
+    onScroll(scrollEvent(8, 100));
+    onLayout(layoutEvent(60));
     expect(h.scrollToOffset).not.toHaveBeenCalled();
 
-    onScroll(scrollEvent(2));
-    onContentSizeChange(100, 600);
+    onScroll(scrollEvent(2, 60));
+    onLayout(layoutEvent(100));
     expect(h.scrollToOffset).toHaveBeenCalledWith({
       offset: 0,
       animated: false,
