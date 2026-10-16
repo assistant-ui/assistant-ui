@@ -325,6 +325,14 @@ When `id` equals `label`, the `{name=…}` attribute is omitted for brevity:
 :tool[search]
 ```
 
+Labels containing `]` or distinct IDs containing `}` use JSON-quoted fields so the delimiters remain part of the mention:
+
+```text
+:file{label="[id].tsx" name="src/pages/[id].tsx"}
+```
+
+The `name` field is omitted when the ID equals the label. Quotes and backslashes inside these fields follow JSON string escaping. Existing bracket-form directives keep their literal labels, IDs, and backslashes.
+
 ### Custom Formatter
 
 Implement `DirectiveFormatter` to use a different format:

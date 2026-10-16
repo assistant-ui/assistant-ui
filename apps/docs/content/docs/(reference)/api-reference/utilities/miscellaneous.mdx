@@ -90,6 +90,9 @@ const createThreadRowsSelector: (options?: ThreadRowsOptions) => (state: Assista
 Default directive formatter using the `:type[label]{name=id}` syntax.
 
 When `id` equals `label`, the `{name=…}` attribute is omitted for brevity.
+Labels containing `]` or distinct IDs containing `}` use
+`:type{label="..." name="..."}` with JSON-quoted values instead. The `name`
+field is omitted when it equals the label. Existing bracket syntax stays literal.
 
 ```ts
 const defaultDirectiveFormatter: DirectiveFormatter;
