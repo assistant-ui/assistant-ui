@@ -47,11 +47,9 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
   private get aui() {
     return this.handle.getClient();
   }
-  private readonly initialId: string;
-  private readonly initialItem: ThreadListItemCoreState;
-  private readonly initialItems: readonly ThreadListItemCoreState[];
   private cachedItems: readonly ThreadListItemCoreState[] | undefined;
   private cachedItemMap: Record<string, ThreadListItemCoreState> | undefined;
+  private seenSource: readonly ThreadListItemCoreState[] | undefined;
   private readonly seenItems = new Map<string, ThreadListItemCoreState>();
   private readonly visitedIds = new Set<string>();
 
@@ -67,20 +65,14 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
       this,
       true,
     );
-    this.initialId = `${LOCAL_THREAD_ID_PREFIX}${initialThreadIdSeed}`;
-    this.initialItem = {
-      id: this.initialId,
-      remoteId: undefined,
-      externalId: undefined,
-      status: "new",
-    };
-    this.initialItems = [this.initialItem];
     this.__internal_RenderComponent = createRuntimeHost(
       this.hookManager,
       this.boundIdsStore,
     );
     if (startInitialThread)
-      void this.hookManager.startThreadRuntime(this.initialId).catch(() => {});
+      void this.hookManager
+        .startThreadRuntime(`${LOCAL_THREAD_ID_PREFIX}${initialThreadIdSeed}`)
+        .catch(() => {});
   }
 
   public readonly __internal_RenderComponent: FC;
@@ -96,48 +88,50 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
   }
 
   private get state() {
-    const state = this.aui?.threads.getState();
-    for (const item of state?.threadItems ?? [])
-      this.seenItems.set(item.id, item);
-    if (state) this.visitedIds.add(state.mainThreadId);
+    const state = this.aui.threads.getState();
+    if (state.threadItems !== this.seenSource) {
+      this.seenSource = state.threadItems;
+      for (const item of state.threadItems) this.seenItems.set(item.id, item);
+    }
+    this.visitedIds.add(state.mainThreadId);
     return state;
   }
 
   private get actions() {
-    const actions = this.aui?.threads.__internal_getRawActions?.();
+    const actions = this.aui.threads.__internal_getRawActions?.();
     if (!actions) throw new Error("Remote thread list is not mounted.");
     return actions;
   }
 
   public get isLoading() {
-    return this.state?.isLoading ?? true;
+    return this.state.isLoading;
   }
   public get loadError() {
-    return this.state?.loadError;
+    return this.state.loadError;
   }
   public get switchError() {
-    return this.state?.switchError;
+    return this.state.switchError;
   }
   public get isLoadingMore() {
-    return this.state?.isLoadingMore ?? false;
+    return this.state.isLoadingMore;
   }
   public get hasMore() {
-    return this.state?.hasMore ?? false;
+    return this.state.hasMore;
   }
   public get mainThreadId() {
-    return this.state?.mainThreadId ?? this.initialId;
+    return this.state.mainThreadId;
   }
   public get newThreadId() {
-    return this.state?.newThreadId ?? (this.aui ? undefined : this.initialId);
+    return this.state.newThreadId ?? undefined;
   }
   public get threadIds() {
-    return this.state?.threadIds ?? [];
+    return this.state.threadIds;
   }
   public get archivedThreadIds() {
-    return this.state?.archivedThreadIds ?? [];
+    return this.state.archivedThreadIds;
   }
   public get threadItems() {
-    const items = this.state?.threadItems ?? this.initialItems;
+    const items = this.state.threadItems;
     if (
       this.cachedItems?.length !== items.length ||
       items.some((item, index) => item !== this.cachedItems?.[index])
@@ -151,20 +145,29 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
   }
 
   public getMainThreadRuntimeCore(): ThreadRuntimeCore {
-    return this.getThreadRuntimeCore(this.mainThreadId);
+    return (
+      this.hookManager.getThreadRuntimeCore(this.mainThreadId) ??
+      EMPTY_THREAD_CORE
+    );
   }
 
   public getThreadRuntimeCore(threadId: string): ThreadRuntimeCore {
-    const id = this.getItemById(threadId)?.id ?? threadId;
-    return this.hookManager.getThreadRuntimeCore(id) ?? EMPTY_THREAD_CORE;
+    const item = this.getItemById(threadId);
+    if (!item)
+      throw new Error(
+        `Thread "${threadId}" not found while getting its runtime.`,
+      );
+    return this.hookManager.getThreadRuntimeCore(item.id) ?? EMPTY_THREAD_CORE;
   }
 
+  /** @deprecated Experimental since 2026-08-03. Not scheduled for removal; the API may change in any release. */
   public unstable_isThreadRunning(threadIdOrRemoteId: string) {
     const item = this.getItemById(threadIdOrRemoteId);
     if (!item) return false;
     return this.hookManager.__internal_isThreadRunning(item.id);
   }
 
+  /** @deprecated Experimental since 2026-09-01. Not scheduled for removal; the API may change in any release. */
   public unstable_subscribeThreadEvents(
     callback: (event: ThreadListRuntimeEvent) => void,
   ): Unsubscribe {
@@ -173,13 +176,10 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
 
   public getItemById(threadId: string) {
     return (
-      this.state?.threadItems.find(
+      this.state.threadItems.find(
         (item) => item.id === threadId || item.remoteId === threadId,
       ) ??
-      (this.visitedIds.has(threadId)
-        ? this.seenItems.get(threadId)
-        : undefined) ??
-      (!this.aui && threadId === this.initialId ? this.initialItem : undefined)
+      (this.visitedIds.has(threadId) ? this.seenItems.get(threadId) : undefined)
     );
   }
 
