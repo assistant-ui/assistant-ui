@@ -113,6 +113,7 @@ export type RemoteThreadListProps = {
   __internal_ensureThread?:
     | ((item: ThreadListItemCoreState) => Promise<void>)
     | undefined;
+  __internal_isThreadAttached?: ((threadId: string) => boolean) | undefined;
   __internal_preserveDraftOnAdapterChange?: boolean | undefined;
   __internal_reopenControlledThreadOnAdapterChange?: boolean | undefined;
 };
@@ -566,6 +567,7 @@ const useRemoteThreadList = (
     onSwitchToNewThread,
     onDelete,
     __internal_ensureThread: ensureThread,
+    __internal_isThreadAttached: isThreadAttached,
     __internal_preserveDraftOnAdapterChange: preserveDraftOnAdapterChange,
     __internal_reopenControlledThreadOnAdapterChange:
       reopenControlledThreadOnAdapterChange,
@@ -611,6 +613,7 @@ const useRemoteThreadList = (
         controlledReloadPending: false,
         switchTask: undefined as Promise<void> | undefined,
         pendingSwitchGeneration: undefined as number | undefined,
+        supersedeAttachmentWait: undefined as (() => void) | undefined,
         mainThreadId: seeded.id,
         isFirstThreadIdEffect: true,
         onThreadIdChange,
@@ -750,6 +753,7 @@ const useRemoteThreadList = (
         (reopenControlledThreadOnAdapterChange ||
           session.controlledSwitchAdapter === adapter) &&
         session.controlledSwitchGeneration === session.switchGeneration;
+      session.supersedeAttachmentWait?.();
       session.switchGeneration++;
       session.controlledReloadPending = preserveControlled;
       if (preserveControlled) {
@@ -841,6 +845,16 @@ const useRemoteThreadList = (
 
   const startSwitch = useCallback(
     (run: (generation: number) => Promise<void>, threadId?: string) => {
+      if (
+        session.supersedeAttachmentWait &&
+        session.switchTask &&
+        threadId !== undefined &&
+        isSameThread(store.value, threadId, session.mainThreadId)
+      ) {
+        return session.switchTask;
+      }
+      session.supersedeAttachmentWait?.();
+      session.supersedeAttachmentWait = undefined;
       const generation = ++session.switchGeneration;
       session.controlledReloadPending = false;
       if (store.baseValue.switchError !== undefined) {
@@ -894,6 +908,7 @@ const useRemoteThreadList = (
         emitThreadIdChange &&
         session.controlledSwitchGeneration === session.switchGeneration &&
         session.pendingSwitchGeneration === session.switchGeneration &&
+        session.supersedeAttachmentWait === undefined &&
         isSameThread(store.value, threadIdOrRemoteId, session.mainThreadId)
       ) {
         return RESOLVED_PROMISE;
@@ -960,6 +975,21 @@ const useRemoteThreadList = (
           }
           if (generation !== session.switchGeneration) return;
           assignMainThreadId(current.id);
+          if (ensureThread && isThreadAttached?.(current.id) === false) {
+            let supersede!: () => void;
+            const superseded = new Promise<void>((resolve) => {
+              supersede = resolve;
+            });
+            session.supersedeAttachmentWait = supersede;
+            try {
+              await Promise.race([ensureThread(current), superseded]);
+            } finally {
+              if (session.supersedeAttachmentWait === supersede) {
+                session.supersedeAttachmentWait = undefined;
+              }
+            }
+            if (generation !== session.switchGeneration) return;
+          }
           notifyRemoteId(current.remoteId, emitThreadIdChange);
           session.onSwitchToThread?.(current.id);
         } finally {
@@ -986,6 +1016,7 @@ const useRemoteThreadList = (
     [
       assignMainThreadId,
       ensureThread,
+      isThreadAttached,
       lifetimes,
       notifyRemoteId,
       session,

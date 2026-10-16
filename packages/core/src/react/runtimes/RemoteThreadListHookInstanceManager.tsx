@@ -63,6 +63,14 @@ type RemoteThreadListHookInstance = {
   destroy: AbortController;
 };
 
+const isRuntimeAttached = (
+  instance: RemoteThreadListHookInstance | undefined,
+): instance is RemoteThreadListHookInstance & {
+  runtime: ThreadRuntimeCore;
+} =>
+  instance?.runtime !== undefined &&
+  instance.publishedGeneration === instance.generation;
+
 type AdapterSnapshot = {
   defaultAdapters: RuntimeAdapters | null;
   threadAdapters: ReadonlyMap<string, RuntimeAdapters | null>;
@@ -123,12 +131,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
         if (!instance) {
           dispose();
           reject(new Error("Thread was deleted before runtime was started"));
-        } else if (
-          !instance.runtime ||
-          instance.publishedGeneration !== instance.generation
-        ) {
-          return;
-        } else {
+        } else if (isRuntimeAttached(instance)) {
           dispose();
           resolve(instance.runtime);
         }
@@ -188,6 +191,10 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
 
   public __internal_hasThreadRuntime(threadId: string) {
     return this.instances.has(threadId);
+  }
+
+  public __internal_isThreadRuntimeAttached(threadId: string) {
+    return isRuntimeAttached(this.instances.get(threadId));
   }
 
   public __internal_isThreadRunning(threadId: string) {

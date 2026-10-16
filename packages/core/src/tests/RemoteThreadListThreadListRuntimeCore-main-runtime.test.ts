@@ -20,9 +20,11 @@ const trackRunningThreads = (core: RemoteThreadListThreadListRuntimeCore) => {
       _hookManager: {
         stopThreadRuntime: (id: string) => void;
         getThreadRuntimeCore: (id: string) => unknown;
+        __internal_isThreadRuntimeAttached: (id: string) => boolean;
       };
     }
   )._hookManager;
+  hookManager.__internal_isThreadRuntimeAttached = (id) => running.has(id);
   const runtimes = new Map<string, object>();
   hookManager.getThreadRuntimeCore = (id) => {
     if (!running.has(id)) return undefined;

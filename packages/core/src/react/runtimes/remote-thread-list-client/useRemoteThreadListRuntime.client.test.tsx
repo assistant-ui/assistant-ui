@@ -6,6 +6,9 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useAui } from "@assistant-ui/store";
 import type { ChatModelAdapter } from "../../../index";
 import type { AssistantRuntime } from "../../../runtime/api/assistant-runtime";
+import type { ThreadRuntimeImpl } from "../../../runtime/api/thread-runtime";
+import type { ThreadRuntimeCore } from "../../../runtime/interfaces/thread-runtime-core";
+import { EMPTY_THREAD_CORE } from "../../../runtimes/remote-thread-list/empty-thread-core";
 import type { ThreadMessage } from "../../../types/message";
 import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/adapter/in-memory";
 import type { RemoteThreadListAdapter } from "../../../runtimes/remote-thread-list/types";
@@ -15,6 +18,7 @@ import {
   makeAdapter,
 } from "../../../tests/remote-thread-list-test-helpers";
 import { AssistantRuntimeProvider } from "../../AssistantRuntimeProvider";
+import { RemoteThreadListHookInstanceManager } from "../RemoteThreadListHookInstanceManager";
 import {
   RuntimeAdapterProvider,
   useRuntimeAdapters,
@@ -23,7 +27,6 @@ import {
 import { useExternalStoreRuntime } from "../useExternalStoreRuntime";
 import { useLocalRuntime } from "../useLocalRuntime";
 import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
-import { RemoteThreadListHookInstanceManager } from "../RemoteThreadListHookInstanceManager";
 
 const { legacyConstructed } = vi.hoisted(() => ({
   legacyConstructed: vi.fn(),
@@ -60,7 +63,171 @@ afterEach(() => {
 const useEmptyThreadRuntime = () =>
   useExternalStoreRuntime({ messages: [], onNew: async () => {} } as never);
 
+const renderWithArchivedTarget = async (
+  onUnarchive: (manager: RemoteThreadListHookInstanceManager) => void,
+) => {
+  let manager: RemoteThreadListHookInstanceManager | undefined;
+  const startThreadRuntime =
+    RemoteThreadListHookInstanceManager.prototype.startThreadRuntime;
+  vi.spyOn(
+    RemoteThreadListHookInstanceManager.prototype,
+    "startThreadRuntime",
+  ).mockImplementation(function (
+    this: RemoteThreadListHookInstanceManager,
+    id,
+  ) {
+    if (id === "thread-b") manager = this;
+    return startThreadRuntime.call(this, id);
+  });
+  const adapter = makeAdapter({
+    list: vi.fn(async () => ({
+      threads: [
+        { status: "regular" as const, remoteId: "thread-a" },
+        { status: "archived" as const, remoteId: "thread-b" },
+      ],
+    })),
+    unarchive: vi.fn(async () => onUnarchive(manager!)),
+  });
+  let runtime: AssistantRuntime | undefined;
+  const App = ({ threadId }: { threadId?: string }) => {
+    runtime = useRemoteThreadListRuntime({
+      adapter,
+      runtimeHook: useEmptyThreadRuntime,
+      threadId,
+    });
+    return (
+      <AssistantRuntimeProvider runtime={runtime}>
+        {null}
+      </AssistantRuntimeProvider>
+    );
+  };
+
+  const { rerender } = render(<App />);
+  await actSettled(() => runtime!.threads.getLoadThreadsPromise());
+  await actSettled(() => runtime!.threads.switchToThread("thread-a"));
+  expect(runtime!.threads.getState().mainThreadId).toBe("thread-a");
+  return {
+    runtime: runtime!,
+    getManager: () => manager!,
+    controlThreadId: (threadId: string) =>
+      rerender(<App threadId={threadId} />),
+  };
+};
+
+const holdThreadPublication = (threadId: string) => {
+  const prototype =
+    RemoteThreadListHookInstanceManager.prototype as unknown as {
+      _publishThreadRuntime: (
+        threadId: string,
+        runtime: ThreadRuntimeCore,
+        generation: number,
+      ) => void;
+    };
+  const publishThreadRuntime = prototype._publishThreadRuntime;
+  const held: {
+    holding: boolean;
+    runtime?: ThreadRuntimeCore;
+    release?: () => void;
+  } = { holding: false };
+  vi.spyOn(prototype, "_publishThreadRuntime").mockImplementation(function (
+    this: RemoteThreadListHookInstanceManager,
+    id,
+    runtime,
+    generation,
+  ) {
+    if (held.holding && id === threadId) {
+      held.runtime = runtime;
+      held.release = () =>
+        publishThreadRuntime.call(this, id, runtime, generation);
+      return;
+    }
+    publishThreadRuntime.call(this, id, runtime, generation);
+  });
+  return held;
+};
+
 describe("useRemoteThreadListRuntime client bridge", () => {
+  it("settles a switch only after a replacement runtime attaches", async () => {
+    const { runtime, getManager } = await renderWithArchivedTarget((manager) =>
+      manager.stopThreadRuntime("thread-b"),
+    );
+
+    let targetAtSettlement: unknown;
+    await actSettled(() =>
+      runtime.threads.switchToThread("thread-b").then(() => {
+        targetAtSettlement = getManager().getThreadRuntimeCore("thread-b");
+      }),
+    );
+    expect(runtime.threads.getState().mainThreadId).toBe("thread-b");
+    expect(targetAtSettlement).toBeDefined();
+    expect(
+      (runtime.thread as ThreadRuntimeImpl).__internal_threadBinding.getState(),
+    ).not.toBe(EMPTY_THREAD_CORE);
+  });
+
+  it("settles a switch only after the target's current runtime generation attaches", async () => {
+    const held = holdThreadPublication("thread-b");
+    const { runtime, getManager } = await renderWithArchivedTarget(
+      (manager) => {
+        held.holding = true;
+        manager.setRuntimeHook(useEmptyThreadRuntime);
+      },
+    );
+
+    const settled = vi.fn();
+    let targetAtSettlement: unknown;
+    let switchToB!: Promise<void>;
+    await act(async () => {
+      switchToB = runtime.threads.switchToThread("thread-b").then(() => {
+        targetAtSettlement = getManager().getThreadRuntimeCore("thread-b");
+      });
+      void switchToB.then(settled, settled);
+    });
+    await waitFor(() => expect(held.release).toBeDefined());
+    await act(async () => {});
+    expect(settled).not.toHaveBeenCalled();
+
+    held.holding = false;
+    await actSettled(() => {
+      held.release!();
+      return switchToB;
+    });
+    expect(runtime.threads.getState().mainThreadId).toBe("thread-b");
+    expect(targetAtSettlement).toBe(held.runtime);
+  });
+
+  it("joins a same-target switch while a controlled switch waits for attachment", async () => {
+    const held = holdThreadPublication("thread-b");
+    const { runtime, getManager, controlThreadId } =
+      await renderWithArchivedTarget((manager) => {
+        held.holding = true;
+        manager.stopThreadRuntime("thread-b");
+      });
+
+    act(() => controlThreadId("thread-b"));
+    await waitFor(() => expect(held.release).toBeDefined());
+    expect(runtime.threads.getState().mainThreadId).toBe("thread-b");
+
+    const settled = vi.fn();
+    let targetAtSettlement: unknown;
+    let switchToB!: Promise<void>;
+    await act(async () => {
+      switchToB = runtime.threads.switchToThread("thread-b").then(() => {
+        targetAtSettlement = getManager().getThreadRuntimeCore("thread-b");
+      });
+      void switchToB.then(settled, settled);
+    });
+    await act(async () => {});
+    expect(settled).not.toHaveBeenCalled();
+
+    held.holding = false;
+    await actSettled(() => {
+      held.release!();
+      return switchToB;
+    });
+    expect(targetAtSettlement).toBe(held.runtime);
+  });
+
   it("waits for reload after a failed list when the controlled ID changes", async () => {
     const error = new Error("offline");
     vi.spyOn(console, "error").mockImplementation(() => {});
