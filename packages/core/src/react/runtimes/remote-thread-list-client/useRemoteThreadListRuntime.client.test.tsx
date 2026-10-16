@@ -24,6 +24,7 @@ import {
 import { useExternalStoreRuntime } from "../useExternalStoreRuntime";
 import { useLocalRuntime } from "../useLocalRuntime";
 import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
+import { RemoteThreadListHookInstanceManager } from "../RemoteThreadListHookInstanceManager";
 
 const { legacyConstructed } = vi.hoisted(() => ({
   legacyConstructed: vi.fn(),
@@ -577,6 +578,73 @@ describe("useRemoteThreadListRuntime client bridge", () => {
       expect(runtime!.threads.getState().mainThreadId).toBe(mainId);
     },
   );
+
+  describe("reloadMainThread", () => {
+    const mountListedThread = async () => {
+      const adapter = makeAdapter({
+        list: vi.fn(async () => ({
+          threads: [{ status: "regular" as const, remoteId: "thread-a" }],
+        })),
+      });
+      const model = { run: vi.fn(async () => ({ content: [] })) };
+      let runtime: AssistantRuntime | undefined;
+      const App = () => {
+        runtime = useRemoteThreadListRuntime({
+          adapter,
+          runtimeHook: function useThreadRuntime() {
+            return useLocalRuntime(model);
+          },
+        });
+        return (
+          <AssistantRuntimeProvider runtime={runtime}>
+            {null}
+          </AssistantRuntimeProvider>
+        );
+      };
+      render(<App />);
+      await actSettled(() => runtime!.threads.getLoadThreadsPromise());
+      await actSettled(() => runtime!.threads.switchToThread("thread-a"));
+      expect(runtime!.threads.getState().mainThreadId).toBe("thread-a");
+      return runtime!;
+    };
+
+    it.each(["delete", "detach"] as const)(
+      "resolves quietly when %s moves the main thread away mid-reload",
+      async (action) => {
+        const runtime = await mountListedThread();
+        vi.spyOn(
+          RemoteThreadListHookInstanceManager.prototype,
+          "__internal_restartThreadRuntime",
+        ).mockImplementationOnce(async () => {
+          const item = runtime.threads.getItemById("thread-a");
+          if (action === "delete") await item.delete();
+          else item.detach();
+          await waitFor(() =>
+            expect(runtime.threads.getState().mainThreadId).not.toBe(
+              "thread-a",
+            ),
+          );
+          throw new Error("Thread was deleted before runtime was started");
+        });
+
+        await actSettled(() =>
+          expect(runtime.threads.reloadMainThread()).resolves.toBeUndefined(),
+        );
+      },
+    );
+
+    it("surfaces a restart failure while the thread is still main", async () => {
+      const runtime = await mountListedThread();
+      vi.spyOn(
+        RemoteThreadListHookInstanceManager.prototype,
+        "__internal_restartThreadRuntime",
+      ).mockRejectedValueOnce(new Error("boom"));
+
+      await actSettled(() =>
+        expect(runtime.threads.reloadMainThread()).rejects.toThrow("boom"),
+      );
+    });
+  });
 
   it("serves a replacement adapter through unstable_useAdapters and warns when it only has unstable_Provider", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
