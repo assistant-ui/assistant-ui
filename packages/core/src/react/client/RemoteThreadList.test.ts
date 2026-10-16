@@ -130,6 +130,39 @@ const makeAdapter = (
   ...overrides,
 });
 
+describe("RemoteThreadList draft custom metadata", () => {
+  it("passes draft metadata to initialize without updating the adapter, then updates initialized metadata", async () => {
+    const updateCustom = vi.fn(async () => {});
+    const adapter = makeAdapter({ updateCustom });
+    const { handle } = mountList(adapter);
+    await handle.getClient().threads.getLoadThreadsPromise();
+    const draftId = handle.getClient().threads.getState().mainThreadId;
+
+    flushTapSync(() => {
+      handle.getClient().threads.item("main").updateCustom({ label: "draft" });
+    });
+    expect(handle.getClient().threads.item("main").getState().custom).toEqual({
+      label: "draft",
+    });
+    expect(updateCustom).not.toHaveBeenCalled();
+
+    await handle.getClient().threads.item("main").initialize();
+    expect(adapter.initialize).toHaveBeenCalledWith(draftId, {
+      custom: { label: "draft" },
+    });
+    expect(updateCustom).not.toHaveBeenCalled();
+
+    await handle
+      .getClient()
+      .threads.item("main")
+      .updateCustom({ label: "saved" });
+    expect(updateCustom).toHaveBeenCalledWith(`remote-${draftId}`, {
+      label: "saved",
+    });
+    handle.destroy();
+  });
+});
+
 const mountList = (
   adapter: RemoteThreadListAdapter,
   threadId?: string,
