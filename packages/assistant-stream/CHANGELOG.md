@@ -1,5 +1,13 @@
 # assistant-stream
 
+## 0.3.53
+
+### Patch Changes
+
+- [#9799](https://github.com/assistant-ui/assistant-ui/pull/9799) [`6966821`](https://github.com/assistant-ui/assistant-ui/commit/69668210c9476323380067307284509f707b507a) - fix: release Redis producer lease bookkeeping when finalization finds an expired or superseded stream, preserving newer leases and legacy ownership fences. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9794](https://github.com/assistant-ui/assistant-ui/pull/9794) [`e99250f`](https://github.com/assistant-ui/assistant-ui/commit/e99250fb58a4d31431e27dd5c6820ca3a813034a) - fix: prevent idle resumable stream readers from repeatedly waking and emitting timer overflow warnings when retention exceeds the platform timer limit. ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.3.52
 
 ### Patch Changes
