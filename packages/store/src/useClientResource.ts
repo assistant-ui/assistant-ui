@@ -153,6 +153,70 @@ class ClientProxyHandler
   }
 }
 
+class ForwardingClientProxyHandler extends BaseProxyHandler {
+  private readonly targetRef: { current: ClientMethods };
+  private readonly signal: ScopedSignal | undefined;
+
+  constructor(
+    targetRef: { current: ClientMethods },
+    signal: ScopedSignal | undefined,
+  ) {
+    super();
+    this.targetRef = targetRef;
+    this.signal = signal;
+  }
+
+  get(_: unknown, prop: string | symbol) {
+    if (prop === SYMBOL_SIGNAL) return this.signal;
+    trackSignal(this.signal);
+    return (this.targetRef.current as Record<PropertyKey, unknown>)[prop];
+  }
+
+  ownKeys(): ArrayLike<string | symbol> {
+    trackSignal(this.signal);
+    return Reflect.ownKeys(this.targetRef.current);
+  }
+
+  has(_: unknown, prop: string | symbol) {
+    trackSignal(this.signal);
+    return prop in this.targetRef.current;
+  }
+
+  override getOwnPropertyDescriptor(_: unknown, prop: string | symbol) {
+    trackSignal(this.signal);
+    const value = Reflect.getOwnPropertyDescriptor(
+      this.targetRef.current,
+      prop,
+    )?.value;
+    if (value === undefined) return undefined;
+    return {
+      value,
+      writable: false,
+      enumerable: true,
+      configurable: true,
+    };
+  }
+}
+
+export const useForwardingClient = <TMethods extends ClientMethods>(
+  target: TMethods,
+): TMethods => {
+  const targetRef = useRef(target);
+  const { signal, markChanged } = useScopedSignal();
+  const methods = useMemo(() => {
+    const handler = new ForwardingClientProxyHandler(targetRef, signal);
+    return new Proxy<TMethods>({} as TMethods, handler);
+  }, [signal]);
+
+  useEffect(() => {
+    if (targetRef.current === target) return;
+    targetRef.current = target;
+    if (signal) markChanged!(signal);
+  }, [markChanged, signal, target]);
+
+  return methods;
+};
+
 /**
  * Mounts a client resource and returns its stable methods facade and state.
  *

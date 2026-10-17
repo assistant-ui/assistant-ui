@@ -3,12 +3,12 @@ import {
   useEffect,
   useId,
   useMemo,
-  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
 import { resource, withKey, type ResourceElement } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
+import { useForwardingClient } from "@assistant-ui/store/internal";
 import {
   useAssistantClientDestroySignal,
   useIsServerRender,
@@ -324,24 +324,7 @@ const RemoteThreadBody = resource(useRemoteThreadBody);
 // concurrent renders from changing the facade observed by committed consumers.
 const useMainThreadFacade = (
   current: ClientOutput<"thread">,
-): ClientOutput<"thread"> => {
-  const currentRef = useRef(current);
-  useEffect(() => {
-    currentRef.current = current;
-  }, [current]);
-  const [facade] = useState(
-    () =>
-      new Proxy({} as ClientOutput<"thread">, {
-        get: (_, prop) =>
-          (currentRef.current as unknown as Record<PropertyKey, unknown>)[prop],
-        has: (_, prop) => prop in (currentRef.current as object),
-        ownKeys: () => Reflect.ownKeys(currentRef.current as object),
-        getOwnPropertyDescriptor: (_, prop) =>
-          Reflect.getOwnPropertyDescriptor(currentRef.current as object, prop),
-      }),
-  );
-  return facade;
-};
+): ClientOutput<"thread"> => useForwardingClient(current);
 
 const useRemoteThreadListView = ({
   listState,
