@@ -639,3 +639,42 @@ def test_list_iterator_keeps_its_snapshot_when_items_are_appended() -> None:
 
     assert list(iterator) == [{"id": 1}]
     assert list(draft["tasks"]) == [{"id": 1}, {"id": 2}]
+
+
+@pytest.mark.parametrize("collection", ["list", "values", "items"])
+def test_iterated_containers_share_the_copy_on_write_snapshot(collection) -> None:
+    state = AssistantState({"tasks": [{"details": {"done": False}}]})
+    draft = state.draft(lambda _ops: None)
+    if collection == "list":
+        source = state.state["tasks"][0]
+        item = next(iter(draft["tasks"]))
+    else:
+        source = state.state["tasks"]
+        item = next(iter(getattr(draft, collection)()))
+        if collection == "items":
+            _, item = item
+
+    assert item._get_value() is source
+    if collection != "list":
+        item = next(iter(item))
+        source = source[0]
+    assert item._get_value() is source
+
+    item["details"]["done"] = True
+
+    assert source == {"details": {"done": False}}
+    assert state.state == {"tasks": [{"details": {"done": True}}]}
+
+
+def test_iterated_container_rejects_writes_after_another_reference_changes_it() -> None:
+    state = AssistantState({"tasks": [{"status": "pending", "progress": 0}]})
+    draft = state.draft(lambda _ops: None)
+    task = next(iter(draft["tasks"]))
+    task["status"] = "running"
+    draft["tasks"][0]["progress"] = 50
+
+    with pytest.raises(ValueError, match="changed through another reference"):
+        task["status"] = "done"
+
+    assert state.state == {"tasks": [{"status": "running", "progress": 50}]}
+    assert task == {"status": "running", "progress": 0}

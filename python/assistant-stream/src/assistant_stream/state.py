@@ -156,7 +156,9 @@ class _IterationDraft(StateDraft):
         self._parent = parent
         self._parent_path = path
         self._expected = value
-        super().__init__(AssistantState(value), self._forward)
+        snapshot = AssistantState()
+        snapshot.apply([{"type": "set", "path": [], "value": value}])
+        super().__init__(snapshot, self._forward)
 
     def add_operations(self, operations: List[StateOperation]) -> None:
         try:
@@ -164,7 +166,9 @@ class _IterationDraft(StateDraft):
         except KeyError:
             raise ValueError("The iterated container has been replaced") from None
         if current is not self._expected:
-            raise ValueError("The iterated container has been replaced")
+            raise ValueError(
+                "The iterated container was replaced or changed through another reference"
+            )
         super().add_operations(operations)
 
     def _forward(self, operations: List[StateOperation]) -> None:
@@ -232,7 +236,8 @@ class StateProxy:
 
     Reads resolve through the current state; writes emit set/append-text ops.
     Iteration retains container values and forwards writes while their source
-    location is unchanged. Iterated values can be copied back into state.
+    location is unchanged. Writes through another reference invalidate further
+    writes through the iterated value. Iterated values can be copied back into state.
     JSON serialization of proxies uses StateProxyJSONEncoder.
     String assignment that extends the current value emits append-text.
     Array-mutating methods that cannot be expressed as ops raise.
