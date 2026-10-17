@@ -768,6 +768,88 @@ describe("createThreadViewportAutoScroll", () => {
     controller.dispose();
   });
 
+  it("sums registered insets and removes them on unregister", () => {
+    const view = geometry(600, 100);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    const first = controller.registerContentInset();
+    const second = controller.registerContentInset();
+    first.setHeight(20);
+    second.setHeight(30);
+
+    view.setTop(455);
+    expect(controller.isAtBottom).toBe(true);
+
+    second.unregister();
+    expect(controller.isAtBottom).toBe(false);
+    first.setHeight(45);
+    expect(controller.isAtBottom).toBe(true);
+
+    first.unregister();
+    expect(controller.isAtBottom).toBe(false);
+    second.setHeight(100);
+    second.unregister();
+    expect(controller.isAtBottom).toBe(false);
+    controller.dispose();
+  });
+
+  it("re-follows a pinned viewport when a registered inset grows", () => {
+    const view = geometry(600, 100);
+    view.setTop(500);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    const inset = controller.registerContentInset();
+    inset.setHeight(20);
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 600,
+      behavior: "instant",
+    });
+
+    view.scrollTo.mockClear();
+    inset.setHeight(20);
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    inset.setHeight(40);
+    expect(view.scrollTo).toHaveBeenCalledWith({
+      top: 600,
+      behavior: "instant",
+    });
+
+    view.setTop(300);
+    view.scrollTo.mockClear();
+    inset.setHeight(50);
+    expect(view.scrollTo).not.toHaveBeenCalled();
+    controller.dispose();
+  });
+
+  it("adds registered insets to the direct content inset", () => {
+    const view = geometry(600, 100);
+    const controller = createThreadViewportAutoScroll({
+      getOptions: options,
+      onAtBottomChange: vi.fn(),
+    });
+    controller.attach(view.element);
+    controller.setContentInset(15);
+    const inset = controller.registerContentInset();
+    inset.setHeight(20);
+
+    view.setTop(470);
+    expect(controller.isAtBottom).toBe(true);
+    controller.setContentInset(5);
+    expect(controller.isAtBottom).toBe(false);
+
+    view.setTop(480);
+    expect(controller.isAtBottom).toBe(true);
+    inset.unregister();
+    expect(controller.isAtBottom).toBe(false);
+    controller.dispose();
+  });
+
   it("reads the initialize, run start, and thread switch gates live", () => {
     const view = geometry();
     let current = { ...options(), scrollToBottomOnInitialize: false };

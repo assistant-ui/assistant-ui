@@ -220,6 +220,10 @@ type ThreadViewportAutoScroll = {
   readonly isAtBottom: boolean;
   scrollToBottom(behavior?: ScrollBehavior): void;
   setContentInset(inset: number): void;
+  registerContentInset(): {
+    setHeight(height: number): void;
+    unregister(): void;
+  };
   setHasMessages(hasMessages: boolean): void;
   runStarted(): void;
   threadSwitched(): void;
