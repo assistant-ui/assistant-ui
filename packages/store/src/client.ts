@@ -25,6 +25,7 @@ export {
   useAssistantScopeEffect,
 } from "./utils/tap-assistant-context";
 export { useClientResource } from "./useClientResource";
+export { unstable_useClientSource } from "./useClientResource";
 export { useClientLookup } from "./useClientLookup";
 export {
   attachTransformScopes,

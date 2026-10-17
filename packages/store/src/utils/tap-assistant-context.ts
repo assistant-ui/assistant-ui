@@ -26,6 +26,7 @@ export type AssistantTapContextValue = {
   clientRef: { parent: AssistantClient; current: AssistantClient | null };
   emit: EmitFn;
   markChanged: (signal: ScopedSignal) => void;
+  invalidate: (signal: ScopedSignal) => void;
 };
 
 const AssistantTapContext = createContext<AssistantTapContextValue | null>(
@@ -54,6 +55,9 @@ export const useAssistantClientRef = () => {
 
 export const useOptionalAssistantClientRef = () =>
   use(AssistantTapContext)?.clientRef;
+
+export const useOptionalAssistantInvalidate = () =>
+  use(AssistantTapContext)?.invalidate;
 
 /**
  * Whether the caller runs inside a tap resource under a store host. Such a
