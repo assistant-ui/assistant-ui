@@ -151,6 +151,29 @@ class StateDraft:
         )
 
 
+class _IterationDraft(StateDraft):
+    def __init__(self, parent: StateOpHost, path: List[str], value: Any):
+        self._parent = parent
+        self._parent_path = path
+        self._expected = value
+        super().__init__(AssistantState(value), self._forward)
+
+    def add_operations(self, operations: List[StateOperation]) -> None:
+        try:
+            current = self._parent.get_value_at_path(self._parent_path)
+        except KeyError:
+            raise ValueError("The iterated container has been replaced") from None
+        if current is not self._expected:
+            raise ValueError("The iterated container has been replaced")
+        super().add_operations(operations)
+
+    def _forward(self, operations: List[StateOperation]) -> None:
+        self._parent.add_operations([
+            {**op, "path": self._parent_path + op["path"]} for op in operations
+        ])
+        self._expected = self._parent.get_value_at_path(self._parent_path)
+
+
 class Flusher:
     """Batches ops and emits them through a callback.
 
@@ -190,6 +213,10 @@ class Flusher:
 def _detach_value(value: Any) -> Any:
     """Rebuild containers so state never aliases a value the caller retains."""
     if isinstance(value, StateProxy):
+        if not isinstance(value._manager, _IterationDraft):
+            raise ValueError(
+                "Cannot store a StateProxy in state; assign a plain value instead"
+            )
         value = value._get_value()
     if isinstance(value, dict):
         return {key: _detach_value(item) for key, item in value.items()}
@@ -204,8 +231,9 @@ class StateProxy:
     """Mutation proxy over live state using dictionary-style access.
 
     Reads resolve through the current state; writes emit set/append-text ops.
-    Iteration returns the same tracked containers as indexed reads. Assigning
-    a proxy copies its value; JSON serialization uses StateProxyJSONEncoder.
+    Iteration retains container values and forwards writes while their source
+    location is unchanged. Iterated values can be copied back into state.
+    JSON serialization of proxies uses StateProxyJSONEncoder.
     String assignment that extends the current value emits append-text.
     Array-mutating methods that cannot be expressed as ops raise.
 
@@ -418,14 +446,16 @@ class StateProxy:
         """Make the proxy iterable."""
         value = self._get_value()
         if isinstance(value, list):
-            return self._iter_list()
+            return (
+                self._iterated_value(index, item) for index, item in enumerate(value)
+            )
         return iter(value)
 
-    def _iter_list(self):
-        index = 0
-        while index < len(self):
-            yield self[index]
-            index += 1
+    def _iterated_value(self, key: Union[str, int], value: Any) -> Any:
+        if isinstance(value, (dict, list)):
+            draft = _IterationDraft(self._manager, self._path + [str(key)], value)
+            return type(self)(draft, [])
+        return value
 
     # Efficient list operations
     def append(self, item: Any) -> None:
@@ -480,14 +510,14 @@ class StateProxy:
         value = self._get_value()
         if not isinstance(value, dict):
             raise TypeError(f"'values' not supported for type {type(value).__name__}")
-        return ValuesView(self)
+        return _StateValuesView(self)
 
     def items(self):
         """Dictionary items view."""
         value = self._get_value()
         if not isinstance(value, dict):
             raise TypeError(f"'items' not supported for type {type(value).__name__}")
-        return ItemsView(self)
+        return _StateItemsView(self)
 
     def setdefault(self, key, default=None):
         """Set default value if key doesn't exist."""
@@ -540,4 +570,20 @@ class StateProxy:
         """Not supported - would require sending entire dictionary."""
         raise NotImplementedError(
             "Would require sending the entire dictionary over the network"
+        )
+
+
+class _StateValuesView(ValuesView):
+    def __iter__(self):
+        return (
+            self._mapping._iterated_value(key, value)
+            for key, value in self._mapping._get_value().items()
+        )
+
+
+class _StateItemsView(ItemsView):
+    def __iter__(self):
+        return (
+            (key, self._mapping._iterated_value(key, value))
+            for key, value in self._mapping._get_value().items()
         )

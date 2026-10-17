@@ -250,22 +250,20 @@ def test_draft_mutating_list_methods_raise() -> None:
         draft["items"].reverse()
 
 
-def test_draft_detaches_proxy_values_before_storing_them() -> None:
+def test_draft_rejects_storing_proxy_in_state() -> None:
     state = AssistantState({"orig": {"a": 1}, "copy": None, "items": []})
     draft = state.draft(lambda _ops: None)
 
-    draft["copy"] = draft["orig"]
-    draft["nested"] = {"value": draft["orig"]}
-    draft["items"].append(draft["orig"])
-    draft["items"] += [draft["orig"]]
-    draft["orig"]["a"] = 2
+    with pytest.raises(ValueError):
+        draft["copy"] = draft["orig"]
+    with pytest.raises(ValueError):
+        draft["copy"] = {"nested": draft["orig"]}
+    with pytest.raises(ValueError):
+        draft["items"].append(draft["orig"])
+    with pytest.raises(ValueError):
+        draft["items"] += [draft["orig"]]
 
-    assert state.state == {
-        "orig": {"a": 2}, "copy": {"a": 1},
-        "nested": {"value": {"a": 1}}, "items": [{"a": 1}, {"a": 1}],
-    }
-    assert type(state.state["copy"]) is dict
-    assert type(state.state["items"][0]) is dict
+    assert state.state == {"orig": {"a": 1}, "copy": None, "items": []}
 
 
 def test_draft_list_iadd_plain_values_emits_indexed_sets() -> None:
@@ -282,22 +280,19 @@ def test_draft_list_iadd_plain_values_emits_indexed_sets() -> None:
     assert state.state["items"] == ["a", "b", "c"]
 
 
-def test_add_operations_detaches_proxy_values() -> None:
-    original = AssistantState({"a": 1})
-    source = original.draft(lambda _ops: None)
-    state = AssistantState({"copy": None})
-    ops = []
-    host = StateDraft(state, ops.extend)
+def test_add_operations_rejects_proxy_values() -> None:
+    state = AssistantState({"orig": {"a": 1}, "copy": None})
+    proxy = state.draft(lambda _ops: None)["orig"]
+    host = StateDraft(state, lambda _ops: None)
 
-    host.add_operations([{"type": "set", "path": ["copy"], "value": source}])
-    host.add_operations([{"type": "set", "path": [], "value": {"nested": source}}])
-    source["a"] = 2
+    with pytest.raises(ValueError):
+        host.add_operations([{"type": "set", "path": ["copy"], "value": proxy}])
+    with pytest.raises(ValueError):
+        host.add_operations(
+            [{"type": "set", "path": [], "value": {"copy": proxy}}]
+        )
 
-    assert state.state == {"nested": {"a": 1}}
-    assert ops == [
-        {"type": "set", "path": ["copy"], "value": {"a": 1}},
-        {"type": "set", "path": [], "value": {"nested": {"a": 1}}},
-    ]
+    assert state.state == {"orig": {"a": 1}, "copy": None}
 
 
 def test_add_operations_skips_same_path_writeback_proxy() -> None:
@@ -527,7 +522,7 @@ def test_list_extension_accepts_values_collected_from_iteration() -> None:
     assert state.state == {"source": [{"done": False}], "target": [{"done": True}]}
 
 
-def test_list_iteration_stops_after_the_list_is_shortened() -> None:
+def test_list_iteration_retains_values_after_the_list_is_shortened() -> None:
     state = AssistantState({"tasks": [{"done": False}, {"done": True}]})
     draft = state.draft(lambda _ops: None)
     iterator = iter(draft["tasks"])
@@ -535,7 +530,7 @@ def test_list_iteration_stops_after_the_list_is_shortened() -> None:
 
     draft["tasks"] = []
 
-    assert list(iterator) == []
+    assert list(iterator) == [{"done": True}]
 
 
 def test_iterated_containers_use_the_state_json_encoder() -> None:
@@ -546,3 +541,101 @@ def test_iterated_containers_use_the_state_json_encoder() -> None:
     draft = state.draft(lambda _ops: None)
 
     assert json.loads(json.dumps(list(draft["tasks"]), cls=StateProxyJSONEncoder)) == [{"done": False}]
+
+
+def test_partitioned_tasks_keep_their_original_values() -> None:
+    state = AssistantState({
+        "tasks": [{"id": 1, "done": True}, {"id": 2, "done": False}],
+        "archive": [],
+    })
+    draft = state.draft(lambda _ops: None)
+    done = [task for task in draft["tasks"] if task["done"]]
+
+    draft["tasks"] = [task for task in draft["tasks"] if not task["done"]]
+    draft["archive"] += done
+
+    assert state.state == {
+        "tasks": [{"id": 2, "done": False}],
+        "archive": [{"id": 1, "done": True}],
+    }
+
+
+def test_swapping_iterated_tasks_does_not_resolve_replaced_paths() -> None:
+    state = AssistantState({"tasks": [{"id": 1}, {"id": 2}]})
+    draft = state.draft(lambda _ops: None)
+    first, second = draft["tasks"]
+
+    draft["tasks"][0] = second
+    draft["tasks"][1] = first
+
+    assert state.state == {"tasks": [{"id": 2}, {"id": 1}]}
+
+
+@pytest.mark.parametrize("method", ["values", "items"])
+def test_collected_dictionary_values_survive_replacement(method) -> None:
+    state = AssistantState({"tasks": {"first": {"id": 1}}})
+    draft = state.draft(lambda _ops: None)
+    collected = list(getattr(draft["tasks"], method)())
+
+    draft["tasks"] = {}
+    draft["archive"] = collected if method == "values" else dict(collected)
+
+    expected = [{"id": 1}] if method == "values" else {"first": {"id": 1}}
+    assert state.state["archive"] == expected
+
+
+def test_stale_iterated_task_cannot_mutate_its_replacement() -> None:
+    ops = []
+    state = AssistantState({"tasks": [{"id": 1}]})
+    draft = state.draft(ops.extend)
+    task = next(iter(draft["tasks"]))
+    draft["tasks"] = [{"id": 2}]
+    ops.clear()
+
+    with pytest.raises(ValueError, match="replaced"):
+        task["id"] = 3
+
+    assert ops == []
+    assert state.state == {"tasks": [{"id": 2}]}
+    assert task["id"] == 1
+
+
+def test_iterated_container_forwards_successive_writes() -> None:
+    ops = []
+    state = AssistantState({"tasks": [{"text": "hello", "done": False}]})
+    draft = state.draft(ops.extend)
+    task = next(iter(draft["tasks"]))
+
+    task["text"] += "!"
+    task["done"] = True
+
+    assert state.state == {"tasks": [{"text": "hello!", "done": True}]}
+    assert ops == [
+        {"type": "append-text", "path": ["tasks", "0", "text"], "value": "!"},
+        {"type": "set", "path": ["tasks", "0", "done"], "value": True},
+    ]
+
+
+def test_nested_iteration_forwards_writes_through_parent_drafts() -> None:
+    ops = []
+    state = AssistantState({"groups": [[{"done": False}, {"done": False}]]})
+    draft = state.draft(ops.extend)
+
+    for group in draft["groups"]:
+        for task in group:
+            task["done"] = True
+
+    assert state.state == {"groups": [[{"done": True}, {"done": True}]]}
+    assert [op["path"] for op in ops] == [
+        ["groups", "0", "0", "done"], ["groups", "0", "1", "done"],
+    ]
+
+
+def test_list_iterator_keeps_its_snapshot_when_items_are_appended() -> None:
+    state = AssistantState({"tasks": [{"id": 1}]})
+    draft = state.draft(lambda _ops: None)
+    iterator = iter(draft["tasks"])
+    draft["tasks"].append({"id": 2})
+
+    assert list(iterator) == [{"id": 1}]
+    assert list(draft["tasks"]) == [{"id": 1}, {"id": 2}]
