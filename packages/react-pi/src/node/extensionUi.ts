@@ -19,8 +19,71 @@
  * "cancelled" channel); `select`/`input`/`editor → string | undefined`
  * (`undefined` = dismissed).
  */
-import type { ExtensionUIContext } from "@earendil-works/pi-coding-agent";
+import {
+  Theme,
+  type ExtensionUIContext,
+} from "@earendil-works/pi-coding-agent";
 import type { PiHostUiRequest, PiHostUiResponse } from "../types";
+
+const headlessTheme = new Theme(
+  {
+    accent: "",
+    border: "",
+    borderAccent: "",
+    borderMuted: "",
+    success: "",
+    error: "",
+    warning: "",
+    muted: "",
+    dim: "",
+    text: "",
+    thinkingText: "",
+    userMessageText: "",
+    customMessageText: "",
+    customMessageLabel: "",
+    toolTitle: "",
+    toolOutput: "",
+    mdHeading: "",
+    mdLink: "",
+    mdLinkUrl: "",
+    mdCode: "",
+    mdCodeBlock: "",
+    mdCodeBlockBorder: "",
+    mdQuote: "",
+    mdQuoteBorder: "",
+    mdHr: "",
+    mdListBullet: "",
+    toolDiffAdded: "",
+    toolDiffRemoved: "",
+    toolDiffContext: "",
+    syntaxComment: "",
+    syntaxKeyword: "",
+    syntaxFunction: "",
+    syntaxVariable: "",
+    syntaxString: "",
+    syntaxNumber: "",
+    syntaxType: "",
+    syntaxOperator: "",
+    syntaxPunctuation: "",
+    thinkingOff: "",
+    thinkingMinimal: "",
+    thinkingLow: "",
+    thinkingMedium: "",
+    thinkingHigh: "",
+    thinkingXhigh: "",
+    thinkingMax: "",
+    bashMode: "",
+  },
+  {
+    selectedBg: "",
+    userMessageBg: "",
+    customMessageBg: "",
+    toolPendingBg: "",
+    toolSuccessBg: "",
+    toolErrorBg: "",
+  },
+  "truecolor",
+);
 
 /** Thrown by `custom()` — the one host-UI method with no headless degradation
  * (it renders an arbitrary interactive TUI component). This gives extensions a
@@ -210,10 +273,7 @@ export const createSupervisorUiBridge = (
     // --- No headless equivalent ------------------------------------------------
     custom: () => Promise.reject(new PiUnsupportedHostUiError("custom")),
 
-    // --- Theme surface: inert, but answers so reads don't throw ----------------
-    get theme() {
-      return {} as ExtensionUIContext["theme"];
-    },
+    theme: headlessTheme,
     getAllThemes: () => [],
     getTheme: () => undefined,
     setTheme: () => ({
