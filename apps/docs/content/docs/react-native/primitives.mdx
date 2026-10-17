@@ -258,6 +258,20 @@ import {
 } from "@assistant-ui/react-native";
 ```
 
+### Using your own button
+
+`ComposerPrimitive.Send`, `Cancel`, `AddAttachment`, and `QuoteDismiss` accept `asChild`. With it, the primitive renders its single child instead of its own `Pressable` and passes its press handler, disabled state, and accessibility role to that child, so a button from your UI kit becomes the press target.
+
+```tsx
+<ComposerPrimitive.Send asChild>
+  <Button>
+    <Text>Send</Text>
+  </Button>
+</ComposerPrimitive.Send>
+```
+
+The child's `onPress` runs before the primitive's action, the child's other props take precedence, styles are combined (including `Pressable` style functions), and refs are composed. The child must forward these props to a pressable element.
+
 ### ComposerPrimitive.Root
 
 Container `View` for the composer area.

@@ -327,7 +327,8 @@ describe("react-native primitive accessibility roles", () => {
       }),
     ).filter(
       ([file, source]) =>
-        !file.endsWith(".test.tsx") && source.includes("<Pressable"),
+        !file.endsWith(".test.tsx") &&
+        /<(?:Primitive\.)?Pressable\b/.test(source),
     );
 
     expect(

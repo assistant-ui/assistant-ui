@@ -1,9 +1,10 @@
 import { useCallback } from "react";
-import { Pressable, type PressableProps } from "react-native";
+import type { PressableProps } from "react-native";
 import { useAui } from "@assistant-ui/store";
+import { Primitive, type PrimitivePressableProps } from "../../utils/Primitive";
 
 export type ComposerQuoteDismissProps = Omit<
-  PressableProps,
+  PrimitivePressableProps,
   "onPress" | "children"
 > & {
   children: PressableProps["children"];
@@ -20,12 +21,12 @@ export const ComposerQuoteDismiss = ({
   }, [aui]);
 
   return (
-    <Pressable
+    <Primitive.Pressable
       onPress={handleDismiss}
       accessibilityRole="button"
       {...pressableProps}
     >
       {children}
-    </Pressable>
+    </Primitive.Pressable>
   );
 };

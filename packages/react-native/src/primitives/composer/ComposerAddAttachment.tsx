@@ -1,7 +1,11 @@
-import { Pressable, type PressableProps } from "react-native";
+import type { PressableProps } from "react-native";
 import { useComposerAddAttachment } from "@assistant-ui/core/react";
+import { Primitive, type PrimitivePressableProps } from "../../utils/Primitive";
 
-export type ComposerAddAttachmentProps = Omit<PressableProps, "children"> & {
+export type ComposerAddAttachmentProps = Omit<
+  PrimitivePressableProps,
+  "children"
+> & {
   children: PressableProps["children"];
 };
 
@@ -18,12 +22,12 @@ export const ComposerAddAttachment = ({
   const { disabled } = useComposerAddAttachment();
 
   return (
-    <Pressable
+    <Primitive.Pressable
       disabled={disabledProp ?? disabled}
       accessibilityRole="button"
       {...pressableProps}
     >
       {children}
-    </Pressable>
+    </Primitive.Pressable>
   );
 };
