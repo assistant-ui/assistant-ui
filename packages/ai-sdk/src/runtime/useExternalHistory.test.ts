@@ -710,6 +710,44 @@ describe("toExportedMessageRepository", () => {
   const convert = (items: { id: string; ok: boolean }[]): ThreadMessage[] =>
     items[0]!.ok ? [{ id: items[0]!.id } as ThreadMessage] : [];
 
+  it("keeps descendants listed before their parents and preserves the head", () => {
+    const repo: MessageFormatRepository<{ id: string; ok: boolean }> = {
+      headId: "c",
+      messages: [
+        { parentId: "b", message: { id: "c", ok: true } },
+        { parentId: "a", message: { id: "b", ok: true } },
+        { parentId: null, message: { id: "a", ok: true } },
+      ],
+    };
+
+    const result = toExportedMessageRepository(convert, repo);
+    const repository = new MessageRepository();
+    repository.import(result);
+
+    expect(result.messages.map((m) => m.message.id)).toEqual(["a", "b", "c"]);
+    expect(result.headId).toBe("c");
+    expect(repository.getMessages().map((m) => m.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("drops missing and malformed parents' descendants regardless of row order", () => {
+    const repo: MessageFormatRepository<{ id: string; ok: boolean }> = {
+      headId: "c",
+      messages: [
+        { parentId: "b", message: { id: "c", ok: true } },
+        { parentId: "missing", message: { id: "orphan", ok: true } },
+        { parentId: "a", message: { id: "b", ok: false } },
+        { parentId: "a", message: { id: "valid", ok: true } },
+        { parentId: null, message: { id: "a", ok: true } },
+      ],
+    };
+
+    const result = toExportedMessageRepository(convert, repo);
+
+    expect(result.messages.map((m) => m.message.id)).toEqual(["a", "valid"]);
+    expect(result.headId).toBeNull();
+    expect(() => new MessageRepository().import(result)).not.toThrow();
+  });
+
   it("drops a malformed row together with its now-orphaned descendants", () => {
     const repo: MessageFormatRepository<{ id: string; ok: boolean }> = {
       headId: "c",

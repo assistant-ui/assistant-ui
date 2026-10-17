@@ -12,7 +12,10 @@ import type {
   Unstable_ToolInteractionLog,
 } from "@assistant-ui/core";
 import { getExternalStoreMessages } from "@assistant-ui/core";
-import { MessageRepository } from "@assistant-ui/core/internal";
+import {
+  MessageRepository,
+  withParentsFirst,
+} from "@assistant-ui/core/internal";
 import { useAui } from "@assistant-ui/store";
 import {
   useRef,
@@ -35,17 +38,22 @@ export const toExportedMessageRepository = <TMessage>(
   toThreadMessages: (messages: TMessage[]) => ThreadMessage[],
   messages: MessageFormatRepository<TMessage>,
 ): ExportedMessageRepository => {
-  const survivingIds = new Set<string>();
-  const survivors = messages.messages.flatMap((m) => {
+  const converted = messages.messages.flatMap((m) => {
     const message = toThreadMessages([m.message])[0];
     if (!message) {
       console.warn("Skipping a stored message that could not be loaded.");
       return [];
     }
-    if (m.parentId && !survivingIds.has(m.parentId)) return [];
-    survivingIds.add(message.id);
     return [{ ...m, message }];
   });
+  const survivingIds = new Set<string>();
+  const survivors = withParentsFirst(converted, () => false).filter(
+    ({ parentId, message }) => {
+      if (parentId && !survivingIds.has(parentId)) return false;
+      survivingIds.add(message.id);
+      return true;
+    },
+  );
 
   return {
     headId:

@@ -54,6 +54,7 @@ export { isAutoStatus, getAutoStatus } from "./utils/auto-status";
 export {
   ExportedMessageRepository,
   MessageRepository,
+  withParentsFirst,
 } from "./utils/message-repository";
 export type { ExportedMessageRepositoryItem } from "./utils/message-repository";
 export { createMessageRepositorySession } from "./utils/message-repository-session";
