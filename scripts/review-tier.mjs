@@ -5,6 +5,7 @@ import path from "node:path";
 import { diffApiSurface, diffExportsMap } from "./diff-api-surface.mjs";
 import { isExecutedAsMain } from "./lib/main.mjs";
 import { loadReviewPolicy, tierLabel } from "./lib/review-policy.mjs";
+import { advise, sectionText } from "./lib/review-tier-advice.mjs";
 import { evaluateRequirements } from "./lib/review-tier-requirements.mjs";
 import { computeTier } from "./lib/review-tier-signals.mjs";
 import { hasOption, optionValues } from "./lib/script-options.mjs";
@@ -115,6 +116,11 @@ export function createGitHubClient({
   };
 }
 
+const issuePullRequestsFields = `number repository { nameWithOwner }
+  closedByPullRequestsReferences(first: 10, includeClosedPrs: true) {
+    nodes { number state repository { nameWithOwner } }
+  }`;
+
 const pullRequestQuery = `query ReviewTierPullRequest($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
     pullRequest(number: $number) {
@@ -137,7 +143,7 @@ const pullRequestQuery = `query ReviewTierPullRequest($owner: String!, $name: St
         nodes { commit { oid author { user { login } } committer { user { login } } } }
         pageInfo { hasNextPage endCursor }
       }
-      closingIssuesReferences(first: 10) { nodes { number } }
+      closingIssuesReferences(first: 10) { nodes { ${issuePullRequestsFields} } }
     }
   }
 }`;
@@ -173,6 +179,7 @@ const commitsQuery = `query ReviewTierCommits($owner: String!, $name: String!, $
 const decisionQuery = `query ReviewTierDecision($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
     issue(number: $number) {
+      ${issuePullRequestsFields}
       labels(first: 100) { nodes { name } }
       timelineItems(itemTypes: [LABELED_EVENT], last: 100) {
         nodes { ... on LabeledEvent { label { name } actor { login } createdAt } }
@@ -248,18 +255,32 @@ export async function gatherPullRequest(
   const readyForReviewAt =
     node.readyEvents.nodes.map(({ createdAt }) => createdAt).at(-1) ??
     node.createdAt;
-  const decisionNumbers = new Set(
-    node.closingIssuesReferences.nodes.map((issue) => issue.number),
+  const withPullRequests = (issue, closing) => ({
+    number: issue.number,
+    repository: issue.repository.nameWithOwner,
+    closing,
+    pullRequests: issue.closedByPullRequestsReferences.nodes.map((other) => ({
+      number: other.number,
+      state: other.state,
+      repository: other.repository.nameWithOwner,
+    })),
+  });
+  const adviceIssues = node.closingIssuesReferences.nodes.map((issue) =>
+    withPullRequests(issue, true),
   );
+  // Decision labels live on this repository's issues, so a closing issue in
+  // another repository is never looked up here by its bare number.
+  const decisionNumbers = new Set(
+    adviceIssues
+      .filter((issue) => issue.repository === policy.repository)
+      .map((issue) => issue.number),
+  );
+  const closingNumbers = new Set(decisionNumbers);
   const body = withoutHtmlComments(node.body);
-  const heading = /^## Decision[ \t]*\r?$/im.exec(body);
-  if (heading) {
-    const section = body
-      .slice(heading.index + heading[0].length)
-      .split(/^##[ \t]+/m)[0];
-    for (const match of section.matchAll(/#(\d+)\b/g))
-      decisionNumbers.add(Number(match[1]));
-  }
+  for (const match of (sectionText(body, "Decision") ?? "").matchAll(
+    /#(\d+)\b/g,
+  ))
+    decisionNumbers.add(Number(match[1]));
   const linkedIssues = [];
   for (const issueNumber of decisionNumbers) {
     let result;
@@ -281,6 +302,8 @@ export async function gatherPullRequest(
     const issue = result.repository.issue;
     if (!issue) continue;
     linkedIssues.push({ number: issueNumber, labels: attributedLabels(issue) });
+    if (!closingNumbers.has(issueNumber))
+      adviceIssues.push(withPullRequests(issue, false));
   }
 
   const files = (await client.paginate(`${repo}/pulls/${number}/files`)).map(
@@ -378,6 +401,14 @@ export async function gatherPullRequest(
       headSha: node.headRefOid,
       updatedAt: node.updatedAt,
     },
+    adviceInput: {
+      number,
+      title: node.title,
+      body,
+      authorIsBot: node.author?.__typename === "Bot",
+      hasLinkedIssue: linkedIssues.length > 0,
+      linkedIssues: adviceIssues,
+    },
     signalsInput: {
       title: node.title,
       labels: labels.map(({ name: label }) => label),
@@ -460,6 +491,7 @@ export function evaluatePullRequest(gathered, policy) {
   return {
     tierResult,
     requirementResult,
+    advice: advise(gathered.adviceInput, policy),
     context: {
       headSha: gathered.pr.headSha,
       readyForReviewAt: gathered.people.readyForReviewAt,
@@ -621,7 +653,7 @@ export function statusLine({ tierResult, requirementResult, context }, policy) {
 }
 
 export function renderComment(evaluation, policy) {
-  const { tierResult, requirementResult, context } = evaluation;
+  const { tierResult, requirementResult, advice, context } = evaluation;
   const { tier } = tierResult;
   const reasons = tierResult.reasons.toSorted((a, b) => b.tier - a.tier);
   const { unmet, waived, approvals } = requirementResult;
@@ -666,6 +698,14 @@ export function renderComment(evaluation, policy) {
           ),
         ]),
       ),
+    );
+  }
+  if (advice.length) {
+    out.push(
+      "",
+      "**Worth a look** (never blocks a merge):",
+      "",
+      ...advice.map((line) => `- ${line}`),
     );
   }
   const signals = [];
