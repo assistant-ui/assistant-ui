@@ -139,7 +139,7 @@ An idle follower that learns a stream id from its backend can call `storage.setS
 
 If your transport already wraps `fetch` or `prepareReconnectToStreamRequest`, the `resumable` option composes with your existing handlers.
 
-The default finish detector scans the SSE body for the AI SDK `"type":"finish"` marker. Override `isFinishEvent` on the `resumable` option when you ship a custom encoder.
+The default finish detector reads complete SSE events and clears the pending stream id when an event's top-level JSON `type` is `"finish"`. A nested `type` inside tool output, custom data, or message metadata does not finish the stream. Override `isFinishEvent` on the `resumable` option when you ship a custom encoder; it receives each byte chunk and the accumulated decoded text.
 
 ### Multiple threads
 
