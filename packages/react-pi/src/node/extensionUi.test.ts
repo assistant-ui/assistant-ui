@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { stripVTControlCharacters } from "node:util";
 import {
   createSupervisorUiBridge,
   PiUnsupportedHostUiError,
@@ -131,6 +132,37 @@ describe("createSupervisorUiBridge — blocking dialogs", () => {
 });
 
 describe("createSupervisorUiBridge — degradation table", () => {
+  it("formats themed extension status and notification text", () => {
+    const onNotify = vi.fn();
+    const { bridge } = harness({ onNotify });
+    const theme = bridge.ui.theme;
+
+    expect(() =>
+      bridge.ui.setStatus("ready", theme.fg("dim", theme.bold("Ready"))),
+    ).not.toThrow();
+    bridge.ui.notify(theme.bg("toolSuccessBg", theme.fg("success", "Done")));
+
+    expect(stripVTControlCharacters(onNotify.mock.calls[0]![0])).toBe("Done");
+  });
+
+  it("supports the theme helpers used by extension renderers", () => {
+    const { bridge } = harness();
+    const theme = bridge.ui.theme;
+    const formatted = [
+      theme.italic("text"),
+      theme.underline("text"),
+      theme.inverse("text"),
+      theme.strikethrough("text"),
+      theme.getThinkingBorderColor("high")("text"),
+      theme.getBashModeBorderColor()("text"),
+      `${theme.getFgAnsi("toolTitle")}${theme.getBgAnsi("selectedBg")}text`,
+    ];
+
+    expect(formatted.map(stripVTControlCharacters)).toEqual(
+      formatted.map(() => "text"),
+    );
+  });
+
   it("rejects custom() with a typed unsupported error", async () => {
     const { bridge } = harness();
     await expect(bridge.ui.custom(() => ({}) as never)).rejects.toBeInstanceOf(

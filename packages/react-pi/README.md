@@ -214,6 +214,11 @@ requests are tracked on the server record (not the SSE connection), so a
 reconnecting client still sees them. Unsupported `ExtensionUIContext` methods
 degrade rather than crash.
 
+The host provides Pi's `Theme` with terminal-default colors, so extension
+formatting helpers such as `ctx.ui.theme.fg()` and `bold()` work without
+initializing or replacing Pi's process-wide theme. Theme selection remains
+unavailable in the Node host.
+
 ## Reconnect semantics
 
 - The supervisor keeps the runtime alive across browser disconnects — only an
