@@ -1,0 +1,37 @@
+name: Task or follow-up
+description: Maintenance, CI, refactors, and follow-ups from review. Mostly for maintainers.
+type: Task
+labels: ["maintenance"]
+
+body:
+  - type: textarea
+    attributes:
+      label: Problem
+      description: What is wrong or missing, and what it costs to leave it.
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Where
+      description: Packages or paths.
+      placeholder: packages/react-ag-ui/src/runtime, .github/workflows/perf.yaml
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Found via
+      description: The pull request, issue, or audit this came out of.
+      placeholder: "review of #8840"
+
+  - type: textarea
+    attributes:
+      label: Proposed change
+
+  - type: textarea
+    attributes:
+      label: Done when
+      description: The observable result or check that closes this.
+    validations:
+      required: true

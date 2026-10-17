@@ -1,0 +1,37 @@
+name: Documentation problem
+description: A docs page is wrong, outdated, missing something, or broken
+type: Task
+labels: ["type/docs"]
+
+body:
+  - type: input
+    attributes:
+      label: Page
+      description: URL on assistant-ui.com, or a file path in this repository.
+      placeholder: https://www.assistant-ui.com/docs/runtimes/custom/external-store
+    validations:
+      required: true
+
+  - type: dropdown
+    attributes:
+      label: What is wrong
+      options:
+        - Incorrect or outdated (does not match the current API)
+        - Missing (the topic or step is not documented)
+        - Unclear
+        - Broken link, snippet or example
+        - Site bug (layout, search, navigation)
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Details
+      description: Quote the passage, and say what you tried when you followed it.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: What it should say
+      description: Optional. Link the source or release that shows the correct behavior if you know it.
