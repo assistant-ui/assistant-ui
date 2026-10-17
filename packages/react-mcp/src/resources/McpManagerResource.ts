@@ -9,6 +9,7 @@ import {
 import { useAssistantScopeEffect } from "@assistant-ui/store/client";
 import { ModelContext } from "@assistant-ui/core/store";
 import { createMcpId } from "../utils/createMcpId";
+import { getMcpToolName } from "../utils/toolName";
 import { clearOAuthProviderAuthState } from "../auth/createOAuthProvider";
 import type { Tool } from "assistant-stream";
 import { McpServerResource } from "./McpServerResource";
@@ -159,18 +160,12 @@ const useMcpManagerResource = (
     };
   }, [lookup.state, isHydrated]);
 
-  // ─── Auto-register MCP tools as frontend tools in modelContext ─────
-  // Build the toolkit from connected servers; re-register when the visible
-  // tool surface changes. Tool names are prefixed with the server id to
-  // avoid collisions across connected servers — connector ids must not
-  // contain `__` (enforced by `defineConnector`); `addCustomServer`
-  // generates UUIDs that satisfy the constraint by construction.
   const toolkit = useMemo<Record<string, Tool<any, any>>>(() => {
     const out: Record<string, Tool<any, any>> = {};
     for (const server of state.servers) {
       if (server.connectionState !== "connected") continue;
       for (const tool of server.tools) {
-        const fullName = `${server.id}__${tool.name}`;
+        const fullName = getMcpToolName(server.id, tool.name);
         out[fullName] = {
           type: "frontend",
           ...(tool.description !== undefined

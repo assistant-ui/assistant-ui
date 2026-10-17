@@ -637,8 +637,10 @@ declare namespace elicitation_d_exports {
   export { McpElicitationPrimitiveAccept as Accept, McpElicitationPrimitiveCancel as Cancel, McpElicitationPrimitiveDecline as Decline, McpElicitationPrimitiveError as Error, McpElicitationPrimitiveFields as Fields, McpElicitationPrimitiveItems as Items, McpElicitationPrimitiveMessage as Message, McpElicitationPrimitiveRoot as Root, useMcpElicitation, useMcpElicitationField };
 }
 
+declare function getMcpToolName(serverId: string, toolName: string): string;
+
 declare namespace entry_root_exports {
-  export { MCPAuthConfig, MCPConnectionState, MCPConnector, MCPCustomServerRecord, MCPElicitation, MCPElicitationResponse, MCPManagerMethods, MCPManagerState, MCPPersistedAuthState, MCPResponseCacheConfig, MCPServerKind, MCPServerMethods, MCPServerQuery, MCPServerState, MCPStorage, MCPStorageElement, MCPToolInfo, addForm_d_exports as McpAddFormPrimitive, McpConnectorByIndexProvider, McpCustomServerByIndexProvider, McpCustomStorage, elicitation_d_exports as McpElicitationPrimitive, McpLocalStorage, McpLocalStorageOptions, manager_d_exports as McpManagerPrimitive, McpManagerResource, McpManagerResourceProps, McpMemoryStorage, McpOAuthCallback, McpServerByIdProvider, server_d_exports as McpServerPrimitive, McpServerResource, McpServerResourceProps, UseMcpOAuthCallbackOptions, UseMcpOAuthCallbackResult, defineConnector, useMcpOAuthCallback };
+  export { MCPAuthConfig, MCPConnectionState, MCPConnector, MCPCustomServerRecord, MCPElicitation, MCPElicitationResponse, MCPManagerMethods, MCPManagerState, MCPPersistedAuthState, MCPResponseCacheConfig, MCPServerKind, MCPServerMethods, MCPServerQuery, MCPServerState, MCPStorage, MCPStorageElement, MCPToolInfo, addForm_d_exports as McpAddFormPrimitive, McpConnectorByIndexProvider, McpCustomServerByIndexProvider, McpCustomStorage, elicitation_d_exports as McpElicitationPrimitive, McpLocalStorage, McpLocalStorageOptions, manager_d_exports as McpManagerPrimitive, McpManagerResource, McpManagerResourceProps, McpMemoryStorage, McpOAuthCallback, McpServerByIdProvider, server_d_exports as McpServerPrimitive, McpServerResource, McpServerResourceProps, UseMcpOAuthCallbackOptions, UseMcpOAuthCallbackResult, defineConnector, getMcpToolName, useMcpOAuthCallback };
 }
 
 declare namespace manager_d_exports {
