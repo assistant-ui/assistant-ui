@@ -24,7 +24,9 @@ async def _close_on_exit(
             try:
                 await body.aclose()
             finally:
-                await stream.aclose()
+                close = getattr(stream, "aclose", None)
+                if close is not None:
+                    await close()
 
 
 class AssistantStreamResponse(StreamingResponse):

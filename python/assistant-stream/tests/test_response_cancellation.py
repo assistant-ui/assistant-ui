@@ -175,3 +175,27 @@ async def test_encoder_failure_closes_run():
         assert finished.is_set()
     finally:
         await source.aclose()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("response_type", RESPONSES)
+@pytest.mark.parametrize("heartbeat", [False, True])
+async def test_response_accepts_source_without_aclose(response_type, heartbeat):
+    from assistant_stream.assistant_stream_chunk import TextDeltaChunk
+
+    class Chunks:
+        def __init__(self):
+            self.chunks = iter([TextDeltaChunk(text_delta="hello")])
+
+        def __aiter__(self):
+            return self
+
+        async def __anext__(self):
+            try:
+                return next(self.chunks)
+            except StopIteration:
+                raise StopAsyncIteration
+
+    response = response_type(Chunks(), heartbeat=heartbeat)
+    chunks = [chunk async for chunk in response.body_iterator]
+    assert any("hello" in chunk for chunk in chunks)
