@@ -1,5 +1,6 @@
 import asyncio
 import math
+from anyio import CancelScope
 from typing import AsyncGenerator, Optional, Union
 
 DEFAULT_HEARTBEAT_INTERVAL = 15.0
@@ -56,12 +57,13 @@ async def add_keepalive(
             task = None
             yield item
     finally:
-        if task is not None:
-            task.cancel()
-            await asyncio.wait({task})
-            if not task.cancelled():
-                task.exception()  # retrieve the outcome so asyncio does not log "Task exception was never retrieved"
-        await stream.aclose()
+        with CancelScope(shield=True):
+            if task is not None:
+                task.cancel()
+                await asyncio.wait({task})
+                if not task.cancelled():
+                    task.exception()  # retrieve the outcome so asyncio does not log "Task exception was never retrieved"
+            await stream.aclose()
 
 
 def add_sse_heartbeat(

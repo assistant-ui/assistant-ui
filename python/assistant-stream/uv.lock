@@ -35,6 +35,7 @@ name = "assistant-stream"
 version = "0.0.36"
 source = { editable = "." }
 dependencies = [
+    { name = "anyio" },
     { name = "starlette" },
 ]
 
@@ -52,6 +53,7 @@ redis = [
 
 [package.metadata]
 requires-dist = [
+    { name = "anyio", specifier = ">=3.4.0" },
     { name = "langchain-core", marker = "extra == 'langgraph'", specifier = ">=0.3.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = "<8" },
     { name = "redis", marker = "extra == 'dev'", specifier = ">=5" },
