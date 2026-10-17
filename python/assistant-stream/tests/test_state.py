@@ -407,3 +407,74 @@ def test_flusher_manual_flush_before_scheduled_callback() -> None:
 
     scheduled[0]()
     assert len(emitted) == 1
+
+
+def test_list_iteration_tracks_nested_container_writes() -> None:
+    ops = []
+    state = AssistantState({"items": [{"done": False}, ["first"], "plain", 3]})
+    draft = state.draft(ops.extend)
+    items = list(draft["items"])
+
+    items[0]["done"] = True
+    items[1].append("second")
+
+    assert ops == [
+        {"type": "set", "path": ["items", "0", "done"], "value": True},
+        {"type": "set", "path": ["items", "1", "1"], "value": "second"},
+    ]
+    assert state.state["items"] == [{"done": True}, ["first", "second"], "plain", 3]
+    assert items[2:] == ["plain", 3]
+
+
+@pytest.mark.parametrize("method", ["values", "items"])
+def test_dictionary_views_track_nested_writes(method) -> None:
+    ops = []
+    state = AssistantState({"tasks": {"first": {"done": False}, "second": []}})
+    draft = state.draft(ops.extend)
+    view = getattr(draft["tasks"], method)()
+    entries = list(view)
+    containers = entries if method == "values" else [value for _, value in entries]
+
+    containers[0]["done"] = True
+    containers[1].append("done")
+
+    assert ops == [
+        {"type": "set", "path": ["tasks", "first", "done"], "value": True},
+        {"type": "set", "path": ["tasks", "second", "0"], "value": "done"},
+    ]
+    assert len(view) == 2
+    assert list(view) == entries
+
+
+def test_dictionary_views_remain_reiterable_and_read_live_values() -> None:
+    state = AssistantState({"config": {"count": 1, "enabled": False}})
+    draft = state.draft(lambda _ops: None)
+    values = draft["config"].values()
+    items = draft["config"].items()
+
+    assert list(draft["config"]) == ["count", "enabled"]
+    assert list(values) == [1, False]
+    assert list(items) == [("count", 1), ("enabled", False)]
+    draft["config"]["count"] = 2
+
+    assert list(values) == [2, False]
+    assert list(items) == [("count", 2), ("enabled", False)]
+    assert 2 in values
+    assert ("count", 2) in items
+    assert len(values) == len(items) == 2
+
+
+@pytest.mark.parametrize("operation", ["extend", "iadd", "add"])
+def test_list_copy_operations_accept_nested_proxy_values(operation) -> None:
+    state = AssistantState({"target": [], "source": [{"count": 1}]})
+    draft = state.draft(lambda _ops: None)
+
+    if operation == "extend":
+        draft["target"].extend(draft["source"])
+    elif operation == "iadd":
+        draft["target"] += draft["source"]
+    else:
+        draft["target"] = draft["target"] + draft["source"]
+    draft["target"][0]["count"] = 2
+
+    assert state.state == {"target": [{"count": 2}], "source": [{"count": 1}]}

@@ -6,6 +6,7 @@ server side of the wire is implemented (ops-only, no ack).
 """
 
 import threading
+from collections.abc import ItemsView, ValuesView
 from typing import Any, Callable, List, Optional, Protocol, Sequence, Union
 
 from assistant_stream.assistant_stream_chunk import ObjectStreamOperation
@@ -213,6 +214,8 @@ class StateProxy:
         name = proxy["user"]["name"]
         proxy["messages"] += "Hello"
         proxy["items"].append("item")
+        for item in proxy["tasks"]:
+            item["done"] = True
     """
 
     def _get_value(self):
@@ -302,6 +305,9 @@ class StateProxy:
         """
         current_value = self._get_value()
 
+        if isinstance(other, StateProxy):
+            other = other._get_value()
+
         # String concatenation
         if isinstance(current_value, str):
             if not isinstance(other, str):
@@ -387,6 +393,8 @@ class StateProxy:
     def __add__(self, other: Any) -> Any:
         """Add operation for strings and lists."""
         value = self._get_value()
+        if isinstance(other, StateProxy):
+            other = other._get_value()
         if isinstance(value, str) and isinstance(other, str):
             return value + other
         if isinstance(value, list) and hasattr(other, "__iter__"):
@@ -413,7 +421,10 @@ class StateProxy:
 
     def __iter__(self):
         """Make the proxy iterable."""
-        return iter(self._get_value())
+        value = self._get_value()
+        if isinstance(value, list):
+            return (self[index] for index in range(len(value)))
+        return iter(value)
 
     # Efficient list operations
     def append(self, item: Any) -> None:
@@ -428,8 +439,6 @@ class StateProxy:
 
     def extend(self, iterable: Any) -> None:
         """Extend a list with items from an iterable."""
-        if isinstance(iterable, StateProxy):
-            iterable = iterable._get_value()
         self.__iadd__(iterable)
 
     def clear(self) -> None:
@@ -468,14 +477,14 @@ class StateProxy:
         value = self._get_value()
         if not isinstance(value, dict):
             raise TypeError(f"'values' not supported for type {type(value).__name__}")
-        return value.values()
+        return ValuesView(self)
 
     def items(self):
         """Dictionary items view."""
         value = self._get_value()
         if not isinstance(value, dict):
             raise TypeError(f"'items' not supported for type {type(value).__name__}")
-        return value.items()
+        return ItemsView(self)
 
     def setdefault(self, key, default=None):
         """Set default value if key doesn't exist."""
