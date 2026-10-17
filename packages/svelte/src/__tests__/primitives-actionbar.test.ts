@@ -37,6 +37,7 @@ const mountThread = (
 
 describe("action bar builders", () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -94,17 +95,25 @@ describe("action bar builders", () => {
       { id: "a0", role: "assistant", text: "reply" },
     ]);
     const item = messages().item(1);
-    const copyToClipboard = vi.fn(async () => {});
+    const write = Promise.resolve();
+    const copyToClipboard = vi.fn(() => write);
     const copy = actionBarCopy({ item, copiedDuration: 300, copyToClipboard });
 
     expect(copy.props.disabled).toBe(false);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     copy.props.onclick();
-    await vi.waitFor(() => expect(copy.isCopied).toBe(true));
+    await write;
+    expect(copy.isCopied).toBe(true);
+    expect(copy.props["data-copied"]).toBe("");
     expect(copyToClipboard).toHaveBeenCalledWith("reply");
 
-    await vi.waitFor(() => expect(copy.isCopied).toBe(false), {
-      timeout: 2000,
-    });
+    vi.advanceTimersByTime(299);
+    expect(copy.isCopied).toBe(true);
+    expect(copy.props["data-copied"]).toBe("");
+
+    vi.advanceTimersByTime(1);
+    expect(copy.isCopied).toBe(false);
+    expect(copy.props["data-copied"]).toBeUndefined();
 
     flushSync(() => void unmount(app));
   });
