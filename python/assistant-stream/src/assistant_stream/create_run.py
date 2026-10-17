@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from anyio import CancelScope
 from typing import Any, AsyncGenerator, Callable, Coroutine, List, Literal, Optional, Sequence, Union
 from assistant_stream.assistant_stream_chunk import (
     AssistantStreamChunk,
@@ -394,17 +395,18 @@ async def create_run(
             task.result()
         else:
             controller._mark_cancelled()
-            try:
-                # Callbacks get 50ms to observe `is_cancelled` and stop on their own.
-                # `asyncio.wait` rather than `shield`: Python 3.14 reports the late
-                # failure of an interrupted shield to the loop's exception handler.
-                await asyncio.wait({task}, timeout=0.05)
-                if not task.done():
-                    task.cancel()
-                    await asyncio.wait({task})
-            except asyncio.CancelledError:
-                _cancel_detached_task(task)
-                raise
+            with CancelScope(shield=True):
+                try:
+                    # Callbacks get 50ms to observe `is_cancelled` and stop on their own.
+                    # `asyncio.wait` rather than `shield`: Python 3.14 reports the late
+                    # failure of an interrupted shield to the loop's exception handler.
+                    await asyncio.wait({task}, timeout=0.05)
+                    if not task.done():
+                        task.cancel()
+                        await asyncio.wait({task})
+                except asyncio.CancelledError:
+                    _cancel_detached_task(task)
+                    raise
             error = None if task.cancelled() else task.exception()
             if error is not None:
                 if not isinstance(error, Exception):
