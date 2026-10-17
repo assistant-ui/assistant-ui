@@ -423,7 +423,7 @@ jobs:
           TURBO_TOKEN: ${{ github.event_name != 'pull_request' && secrets.TURBO_TOKEN || '' }}
           TURBO_TEAM: ${{ github.event_name != 'pull_request' && secrets.TURBO_TEAM || '' }}
         run: |
-          pnpm turbo build --filter="...[$BASE]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs" --filter="!./examples/*"
+          pnpm turbo build --filter="...[$BASE]" --filter="!./packages/*" --filter="!./api-surface" --filter="!@assistant-ui/docs-site" --filter="!./examples/*"
           pnpm turbo build --filter="{./examples/*}[$BASE]"
 
       - name: Verify standalone example bundle contracts
@@ -478,7 +478,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.api_ref.outputs.run == 'true'
-        run: pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/docs..." --filter="@assistant-ui/eve..."
+        run: pnpm install --frozen-lockfile --filter . --filter="@assistant-ui/docs-site..." --filter="@assistant-ui/eve..."
 
       - name: Generate API reference (strict)
         if: steps.api_ref.outputs.run == 'true'

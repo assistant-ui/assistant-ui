@@ -84,7 +84,7 @@ Every pull request gets a tier from T0 to T3, and the `review-tier` check report
 
 Every pull request that changes packages must include a changeset, otherwise your changes won't be published to npm. CI enforces this: the Changeset Semver Check fails a pull request that edits a published package's shipped files without a changeset naming that package. Tests and top-level Markdown files do not count, comment-only source edits do, and a `package.json` edit counts when it changes what consumers install. Bumping `version`, editing `devDependencies` or a `scripts` entry nobody installing your package runs, and moving the range (not the name) of a dependency on another workspace package are all handled by the release itself, so they need nothing from you; every other field needs a changeset naming that package, `exports`, `files`, `bin`, `sideEffects`, `engines`, `publishConfig`, `peerDependenciesMeta`, an install hook and a third-party range among them.
 
-Note, this does not apply to packages like `@assistant-ui/docs` or `@assistant-ui/shadcn-registry` which are not published to npm, they are deployed on Vercel.
+Note, this does not apply to packages like `@assistant-ui/docs-site` or `@assistant-ui/shadcn-registry` which are not published to npm, they are deployed on Vercel.
 
 Python packages under `python/` take no changeset. Leave their `pyproject.toml` version alone too: a maintainer bumps it in a release pull request right before publishing to PyPI, and the Changeset Semver Check fails a pull request that changes it alongside other package edits.
 
