@@ -38,6 +38,8 @@ const ASSISTANT_UI_PACKAGES = [
   "@assistant-ui/react-lexical",
   "@assistant-ui/react-syntax-highlighter",
   "@assistant-ui/react-hook-form",
+  "safe-content-frame",
+  "tw-shimmer",
   // Observability & DevTools
   "@assistant-ui/react-o11y",
   "@assistant-ui/react-devtools",
@@ -50,6 +52,7 @@ const ECOSYSTEM_PACKAGES = [
   "next",
   "vite",
   "expo",
+  "tailwindcss",
   "ai",
   "zod",
   "zustand",
@@ -110,6 +113,24 @@ function getAssistantUiPackageNames(
     .sort();
 
   return [...new Set([...ASSISTANT_UI_PACKAGES, ...declaredPackages])];
+}
+
+// Adapters peer on the provider SDK they wrap, so the installed packages
+// name the upstream versions a bug report needs.
+function getEcosystemPackageNames(
+  packages: PackageInfo[],
+  cwd: string,
+): string[] {
+  const upstreamPeers = packages
+    .flatMap((pkg) => Object.keys(getPeerDeps(pkg.name, cwd) ?? {}))
+    .filter(
+      (name) =>
+        !name.startsWith("@assistant-ui/") &&
+        !ASSISTANT_UI_PACKAGES.includes(name),
+    )
+    .sort();
+
+  return [...new Set([...ECOSYSTEM_PACKAGES, ...upstreamPeers])];
 }
 
 function getSpecifiedRange(
@@ -312,7 +333,11 @@ async function collectInfo(
     cwd,
     projectPkg,
   );
-  const ecosystem = collectPackages(ECOSYSTEM_PACKAGES, cwd, projectPkg);
+  const ecosystem = collectPackages(
+    getEcosystemPackageNames(packages, cwd),
+    cwd,
+    projectPkg,
+  );
   const warnings = collectWarnings(packages, cwd, projectPkg);
 
   return {
