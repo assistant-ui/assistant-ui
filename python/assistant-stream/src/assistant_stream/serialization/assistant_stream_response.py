@@ -22,7 +22,9 @@ async def _close_on_exit(
     finally:
         with CancelScope(shield=True):
             try:
-                await body.aclose()
+                close = getattr(body, "aclose", None)
+                if close is not None:
+                    await close()
             finally:
                 close = getattr(stream, "aclose", None)
                 if close is not None:

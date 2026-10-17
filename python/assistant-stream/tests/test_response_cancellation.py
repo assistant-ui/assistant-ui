@@ -199,3 +199,50 @@ async def test_response_accepts_source_without_aclose(response_type, heartbeat):
     response = response_type(Chunks(), heartbeat=heartbeat)
     chunks = [chunk async for chunk in response.body_iterator]
     assert any("hello" in chunk for chunk in chunks)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("early_close", [False, True])
+async def test_response_accepts_encoder_iterator_without_aclose(early_close):
+    from assistant_stream import AssistantStreamResponse
+    from assistant_stream.serialization.stream_encoder import StreamEncoder
+
+    finished = asyncio.Event()
+    controllers = []
+
+    async def callback(controller):
+        controllers.append(controller)
+        try:
+            controller.append_text("hello")
+            if early_close:
+                await controller.cancelled_event.wait()
+        finally:
+            finished.set()
+
+    class PlainEncoder(StreamEncoder):
+        def get_media_type(self):
+            return "text/plain"
+
+        def encode_stream(self, stream):
+            class Encoded:
+                def __aiter__(self):
+                    return self
+
+                async def __anext__(self):
+                    chunk = await anext(stream)
+                    return chunk.text_delta
+
+            return Encoded()
+
+    source = create_run(callback)
+    response = AssistantStreamResponse(source, PlainEncoder())
+    try:
+        if early_close:
+            assert await anext(response.body_iterator) == "hello"
+            await response.body_iterator.aclose()
+        else:
+            assert [chunk async for chunk in response.body_iterator] == ["hello"]
+        assert controllers[0].is_cancelled is early_close
+        assert finished.is_set()
+    finally:
+        await source.aclose()
