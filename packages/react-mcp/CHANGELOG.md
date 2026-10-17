@@ -1,5 +1,16 @@
 # @assistant-ui/react-mcp
 
+## 0.1.24
+
+### Patch Changes
+
+- [#9818](https://github.com/assistant-ui/assistant-ui/pull/9818) [`97d5852`](https://github.com/assistant-ui/assistant-ui/commit/97d5852e9dd06622592d08c8860b7917deec8dc6) - fix: keep registered MCP tool names within provider limits while preserving their original server and tool routing. ([@Kinfe123](https://github.com/Kinfe123))
+  
+  Export `getMcpToolName` so custom tool renderers can use the same registered names.
+- Updated dependencies [[`69bf91a`](https://github.com/assistant-ui/assistant-ui/commit/69bf91a6d5eb3c652ed6f2188dc6fb6934178e9b), [`6966821`](https://github.com/assistant-ui/assistant-ui/commit/69668210c9476323380067307284509f707b507a), [`ca0a1be`](https://github.com/assistant-ui/assistant-ui/commit/ca0a1be2b65d26b7454ee0ec89b323ede1aa5651), [`d420f42`](https://github.com/assistant-ui/assistant-ui/commit/d420f4248753f44352f102f498ce2d542945af55), [`ab3454d`](https://github.com/assistant-ui/assistant-ui/commit/ab3454dbee73ef652ea81db6d0b71189ad2e0e78), [`e99250f`](https://github.com/assistant-ui/assistant-ui/commit/e99250fb58a4d31431e27dd5c6820ca3a813034a)]:
+  - @assistant-ui/core@0.3.30
+  - assistant-stream@0.3.53
+
 ## 0.1.23
 
 ### Patch Changes

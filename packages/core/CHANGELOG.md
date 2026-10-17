@@ -1,5 +1,19 @@
 # @assistant-ui/core
 
+## 0.3.30
+
+### Patch Changes
+
+- [#9811](https://github.com/assistant-ui/assistant-ui/pull/9811) [`69bf91a`](https://github.com/assistant-ui/assistant-ui/commit/69bf91a6d5eb3c652ed6f2188dc6fb6934178e9b) - fix: preserve AI SDK history messages listed before their parents by sharing core's parent-first ordering helper. Keep the selected head and sibling branches while continuing to skip malformed messages and orphaned descendants. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9652](https://github.com/assistant-ui/assistant-ui/pull/9652) [`ca0a1be`](https://github.com/assistant-ui/assistant-ui/commit/ca0a1be2b65d26b7454ee0ec89b323ede1aa5651) - feat: add the internal thread list runtime core that runs on a `RemoteThreadList` client, and let `RemoteThreadListHookInstanceManager` publish hosted thread runtimes during commit ([@okisdev](https://github.com/okisdev))
+
+- [#9649](https://github.com/assistant-ui/assistant-ui/pull/9649) [`d420f42`](https://github.com/assistant-ui/assistant-ui/commit/d420f4248753f44352f102f498ce2d542945af55) - feat: add the internal `RemoteThreadList` seams that `useRemoteThreadListRuntime` needs to run on the store client. a plain `RemoteThreadList` now aborts a thread's pending send when that thread is deleted, detached or dropped by an adapter-replacing reload, as `InMemoryThreadList` and `useRemoteThreadListRuntime` already do, and logs a failed automatic title the way `useRemoteThreadListRuntime` does ([@okisdev](https://github.com/okisdev))
+
+- [#9653](https://github.com/assistant-ui/assistant-ui/pull/9653) [`ab3454d`](https://github.com/assistant-ui/assistant-ui/commit/ab3454dbee73ef652ea81db6d0b71189ad2e0e78) - refactor: add the internal per-thread hosts that run a `useRemoteThreadListRuntime` runtime hook inside a `RemoteThreadList` client ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`6966821`](https://github.com/assistant-ui/assistant-ui/commit/69668210c9476323380067307284509f707b507a), [`e99250f`](https://github.com/assistant-ui/assistant-ui/commit/e99250fb58a4d31431e27dd5c6820ca3a813034a)]:
+  - assistant-stream@0.3.53
+
 ## 0.3.29
 
 ### Patch Changes
