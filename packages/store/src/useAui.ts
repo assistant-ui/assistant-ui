@@ -104,7 +104,8 @@ export const applyTransformScopes = (
   return scopes;
 };
 
-const isDerivedElement = (element: ScopeElement) => isDerivedHook(element.hook);
+export const isDerivedElement = (element: ScopeElement) =>
+  isDerivedHook(element.hook);
 
 const metaOf = (element: ScopeElement): ScopeMeta => {
   if (!isDerivedElement(element)) return { source: "root", query: {} };

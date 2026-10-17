@@ -1,15 +1,17 @@
 "use client";
 
 import { createTapRoot, flushTapSync } from "@assistant-ui/tap";
-import { useSyncExternalStore } from "react";
+import { useReducer, useSyncExternalStore } from "react";
 
 import type { AssistantClient, Unsubscribe } from "./types/client";
 import type { AuiConfig } from "./AuiConfig";
 import { DefaultAssistantClient } from "./utils/react-assistant-context";
 import { createNotificationManager } from "./utils/NotificationManager";
+import { getClientId } from "./utils/client-accessor";
 import { useDestroySignalProvider } from "./utils/destroy-signal-context";
 import {
   applyTransformScopes,
+  isDerivedElement,
   useAuiRoot,
   type ClientRef,
   type ScopeEntry,
@@ -136,65 +138,122 @@ export const createAssistantClient = (
   };
   const destroyController = new AbortController();
   const notifications = createNotificationManager();
+  let rebindRoot: (() => void) | null = null;
+  let suppressNotifications = false;
+  let derivedBindings: Array<
+    [name: string, get: (client: AssistantClient) => unknown]
+  > = [];
 
-  const root = createTapRoot(
-    function AssistantClientRoot() {
-      const parent = useSyncExternalStore(
-        parentSource.subscribe,
-        parentSource.getClient,
-        parentSource.getClient,
-      );
-      const currentConfig = useSyncExternalStore(
-        configSource.subscribe,
-        configSource.getConfig,
-        configSource.getConfig,
-      );
-      const entries = Object.entries(
-        applyTransformScopes(currentConfig, parent),
-      ) as ScopeEntry[];
-      const result = useDestroySignalProvider(
-        destroyController.signal,
-        function useRootClient() {
-          return useAuiRoot({ parent, entries, clientRef, notifications });
-        },
-      );
-      // Seeded during render, before the commit runs mount effects that read it
-      if (clientRef.current === null) {
-        clientRef.current = result.client;
-      }
-      return result;
-    },
-    { mountOnSubscribe: true },
-  );
+  const createRoot = () =>
+    createTapRoot(
+      function AssistantClientRoot() {
+        const [, rebind] = useReducer((version: number) => version + 1, 0);
+        rebindRoot = rebind;
+        const parent = parentSource.getClient();
+        clientRef.parent = parent;
+        const currentConfig = useSyncExternalStore(
+          configSource.subscribe,
+          configSource.getConfig,
+          configSource.getConfig,
+        );
+        const entries = Object.entries(
+          applyTransformScopes(currentConfig, parent),
+        ) as ScopeEntry[];
+        derivedBindings = entries.flatMap(([name, element]) =>
+          isDerivedElement(element)
+            ? [
+                [
+                  name,
+                  (
+                    element.args[0] as {
+                      get: (client: AssistantClient) => unknown;
+                    }
+                  ).get,
+                ] as const,
+              ]
+            : [],
+        );
+        const result = useDestroySignalProvider(
+          destroyController.signal,
+          function useRootClient() {
+            return useAuiRoot({ parent, entries, clientRef, notifications });
+          },
+        );
+        // Seeded during render, before the commit runs mount effects that read it
+        if (clientRef.current === null) {
+          clientRef.current = result.client;
+        }
+        return result;
+      },
+      { mountOnSubscribe: true },
+    );
 
-  // flushTapSync makes structural rebinds triggered by a notification land
-  // before the notification returns
+  let root = createRoot();
+
   const notify = () => {
-    clientRef.parent = parentSource.getClient();
     clientRef.current = root.getValue().client;
+    if (suppressNotifications) return;
     flushTapSync(notifications.notifySubscribers);
+  };
+
+  const needsRebind = (parent: AssistantClient, current: AssistantClient) => {
+    if (clientRef.parent !== parent) return true;
+    return derivedBindings.some(([name, get]) => {
+      try {
+        return (
+          getClientId(get(current) as object) !==
+          getClientId(
+            (current as unknown as Record<string, object>)[name] as object,
+          )
+        );
+      } catch {
+        return true;
+      }
+    });
+  };
+
+  const rebindFromParent = () => {
+    const parent = parentSource.getClient();
+    const current = root.getValue().client;
+    const rebind = needsRebind(parent, current);
+    clientRef.parent = parent;
+    if (rebind) {
+      flushTapSync(() => rebindRoot?.());
+    } else {
+      notify();
+    }
   };
 
   let subscriberCount = 0;
   let unwire: Unsubscribe | null = null;
   let destroyed = false;
+  let hasMounted = false;
 
   const wire = () => {
-    const unsubscribeParent = parentSource.subscribe(notify);
-    let unsubscribeRoot: Unsubscribe;
+    const unsubscribeParent = parentSource.subscribe(rebindFromParent);
+    const latestParent = parentSource.getClient();
+    const rebind = needsRebind(latestParent, root.getValue().client);
+    clientRef.parent = latestParent;
+
+    suppressNotifications = true;
+    let unsubscribeRoot: Unsubscribe | null = null;
     try {
       // Commits the first mount; tap rolls the fiber back if it throws
       unsubscribeRoot = root.subscribe(notify);
+      if (rebind) flushTapSync(() => rebindRoot?.());
+      hasMounted = true;
     } catch (error) {
+      suppressNotifications = false;
+      unsubscribeRoot?.();
       unsubscribeParent();
       throw error;
     }
-    clientRef.parent = parentSource.getClient();
-    clientRef.current = root.getValue().client;
+    suppressNotifications = false;
+    notify();
     unwire = () => {
       unwire = null;
-      unsubscribeRoot();
       unsubscribeParent();
+      unsubscribeRoot?.();
     };
   };
 
@@ -204,7 +263,27 @@ export const createAssistantClient = (
   };
 
   return {
-    getClient: () => root.getValue().client,
+    getClient: () => {
+      let current = root.getValue().client;
+      if (subscriberCount > 0) return current;
+
+      const parent = parentSource.getClient();
+      if (!needsRebind(parent, current)) return current;
+      clientRef.parent = parent;
+
+      if (!hasMounted) {
+        root.unmount();
+        clientRef.current = null;
+        rebindRoot = null;
+        root = createRoot();
+        current = root.getValue().client;
+      } else {
+        flushTapSync(() => rebindRoot?.());
+        current = root.getValue().client;
+      }
+      clientRef.current = current;
+      return current;
+    },
     subscribe: (listener) => {
       if (destroyed) return () => {};
       const unsubscribe = notifications.subscribe(listener);
