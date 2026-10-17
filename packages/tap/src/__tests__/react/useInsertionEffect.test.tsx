@@ -18,6 +18,7 @@ import { flushTapSync } from "../../core/scheduler";
 import { withKey } from "../../core/withKey";
 import { useResource } from "../../hooks/useResource";
 import { useResources } from "../../hooks/useResources";
+import { useSuspenseResource } from "../../hooks/useSuspenseResource";
 import { useTapHost } from "../../hooks/useTapHost";
 import { useTapRoot } from "../../hooks/useTapRoot";
 
@@ -39,6 +40,12 @@ const hosts = [
         withKey("a", resource(callback)()),
         withKey("b", resource(callback)()),
       ]),
+  },
+  {
+    name: "useSuspenseResource",
+    size: 1,
+    useHost: (callback: () => void) =>
+      useSuspenseResource(resource(callback)(), resource(() => null)()),
   },
   {
     name: "useTapHost",
