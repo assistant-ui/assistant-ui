@@ -61,14 +61,12 @@ const tracked = (cloud: AssistantCloud, kind: AssistantCloudEvent["kind"]) =>
     .mock.calls.map(([event]) => event)
     .filter((event) => event.kind === kind);
 
-const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
-
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
 describe("cloud engagement events under useRemoteThreadListRuntime", () => {
-  const renderRuntime = (cloud: AssistantCloud) => {
+  const renderRuntime = async (cloud: AssistantCloud) => {
     const runs: ReturnType<typeof deferred<{ content: [] }>>[] = [];
     let runtime!: AssistantRuntime;
     let aui!: AssistantClient;
@@ -97,28 +95,40 @@ describe("cloud engagement events under useRemoteThreadListRuntime", () => {
       );
     };
     render(<Harness />);
+    await actSettled(() => aui.threads.getLoadThreadsPromise());
+    let sends = 0;
     const send = async (text: string) => {
+      sends++;
       await act(async () => {
         aui.thread.append(text);
       });
       await waitFor(() =>
         expect(runtime.threads.mainItem.getState().remoteId).toBeDefined(),
       );
-      await act(settle);
+      await waitFor(() => {
+        expect(runs).toHaveLength(sends);
+        expect(tracked(cloud, "message_sent")).toHaveLength(sends);
+      });
     };
-    const finishRun = async (index: number) => {
+    const finishRun = async (
+      index: number,
+      threadId = runtime.threads.mainItem.getState().id,
+    ) => {
       await act(async () => {
         runs[index]!.resolve({ content: [] });
       });
-      await act(settle);
+      await waitFor(() =>
+        expect(runtime.threads.getById(threadId).getState().isRunning).toBe(
+          false,
+        ),
+      );
     };
     return { getRuntime: () => runtime, send, finishRun };
   };
 
   it("reports one event per send and per switch with every visited thread mounted", async () => {
     const cloud = makeCloud();
-    const harness = renderRuntime(cloud);
-    await act(settle);
+    const harness = await renderRuntime(cloud);
     const runtime = harness.getRuntime();
     const first = runtime.threads.mainItem.getState().id;
 
@@ -155,8 +165,7 @@ describe("cloud engagement events under useRemoteThreadListRuntime", () => {
   it("times the next send from a run that ended while its thread was in the background", async () => {
     const now = vi.spyOn(Date, "now").mockReturnValue(1_000);
     const cloud = makeCloud();
-    const harness = renderRuntime(cloud);
-    await act(settle);
+    const harness = await renderRuntime(cloud);
     const runtime = harness.getRuntime();
     const first = runtime.threads.mainItem.getState().id;
 
@@ -167,7 +176,7 @@ describe("cloud engagement events under useRemoteThreadListRuntime", () => {
     await harness.send("second");
     await actSettled(() => runtime.threads.switchToThread(first));
     now.mockReturnValue(2_000);
-    await harness.finishRun(1);
+    await harness.finishRun(1, second);
     await actSettled(() => runtime.threads.switchToThread(second));
     now.mockReturnValue(2_500);
     await harness.send("again");
@@ -186,7 +195,11 @@ describe("cloud engagement suggestions under useRemoteThreadListRuntime", () => 
   it("follows the main thread and outlives the thread that installed the subscription", async () => {
     const cloud = makeCloud();
     let runtime!: AssistantRuntime;
-    const Harness = () => {
+    const Harness = ({
+      suggestions,
+    }: {
+      suggestions: { prompt: string }[];
+    }) => {
       const adapter = useCloudThreadListAdapter({ cloud });
       runtime = useRemoteThreadListRuntime({
         adapter,
@@ -195,7 +208,7 @@ describe("cloud engagement suggestions under useRemoteThreadListRuntime", () => 
             messages: EMPTY_MESSAGES,
             isRunning: false,
             onNew: async () => {},
-            suggestions: [{ prompt: "hi" }],
+            suggestions,
           });
         },
       });
@@ -205,21 +218,23 @@ describe("cloud engagement suggestions under useRemoteThreadListRuntime", () => 
         </AssistantRuntimeProvider>
       );
     };
-    render(<Harness />);
-    await act(settle);
-    const first = runtime.threads.mainItem.getState().id;
+    const { rerender } = render(<Harness suggestions={[{ prompt: "hi" }]} />);
     await waitFor(() =>
       expect(tracked(cloud, "suggestions_shown")).toHaveLength(1),
     );
+    const first = runtime.threads.mainItem.getState().id;
 
+    await act(async () => rerender(<Harness suggestions={[]} />));
     await actSettled(() => runtime.threads.mainItem.initialize());
     await actSettled(() => runtime.threads.switchToNewThread());
+
+    await actSettled(() => runtime.threads.getItemById(first).delete());
+    await act(async () =>
+      rerender(<Harness suggestions={[{ prompt: "hi" }]} />),
+    );
     await waitFor(() =>
       expect(tracked(cloud, "suggestions_shown")).toHaveLength(2),
     );
-
-    await actSettled(() => runtime.threads.getItemById(first).delete());
-    await act(settle);
     await actSettled(() => runtime.threads.mainItem.initialize());
     await actSettled(() => runtime.threads.switchToNewThread());
     await waitFor(() =>
@@ -270,20 +285,28 @@ describe("cloud engagement events under RemoteThreadList with backgroundThreads"
     const aui = handle.getClient();
     try {
       await aui.threads.getLoadThreadsPromise();
+      let sends = 0;
       const send = async (text: string) => {
+        sends++;
         flushTapSync(() => aui.thread.append(text));
-        await settle();
         await aui.threads.item("main").initialize();
-        await settle();
+        await vi.waitFor(() =>
+          expect(tracked(cloud, "message_sent")).toHaveLength(sends),
+        );
+      };
+      const switchToNewThread = async () => {
+        const previous = aui.threads.getState().mainThreadId;
+        flushTapSync(() => aui.threads.switchToNewThread());
+        await vi.waitFor(() =>
+          expect(aui.threads.getState().mainThreadId).not.toBe(previous),
+        );
       };
       const first = aui.threads.getState().mainThreadId;
 
       await send("0123456789");
-      flushTapSync(() => aui.threads.switchToNewThread());
-      await settle();
+      await switchToNewThread();
       await send("01234567890123456789");
-      flushTapSync(() => aui.threads.switchToNewThread());
-      await settle();
+      await switchToNewThread();
       await send("012345678901234567890123456789");
 
       await vi.waitFor(() =>
