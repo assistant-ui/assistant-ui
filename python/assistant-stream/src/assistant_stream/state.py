@@ -190,9 +190,7 @@ class Flusher:
 def _detach_value(value: Any) -> Any:
     """Rebuild containers so state never aliases a value the caller retains."""
     if isinstance(value, StateProxy):
-        raise ValueError(
-            "Cannot store a StateProxy in state; assign a plain value instead"
-        )
+        value = value._get_value()
     if isinstance(value, dict):
         return {key: _detach_value(item) for key, item in value.items()}
     if isinstance(value, list):
@@ -206,6 +204,8 @@ class StateProxy:
     """Mutation proxy over live state using dictionary-style access.
 
     Reads resolve through the current state; writes emit set/append-text ops.
+    Iteration returns the same tracked containers as indexed reads. Assigning
+    a proxy copies its value; JSON serialization uses StateProxyJSONEncoder.
     String assignment that extends the current value emits append-text.
     Array-mutating methods that cannot be expressed as ops raise.
 
@@ -305,9 +305,6 @@ class StateProxy:
         """
         current_value = self._get_value()
 
-        if isinstance(other, StateProxy):
-            other = other._get_value()
-
         # String concatenation
         if isinstance(current_value, str):
             if not isinstance(other, str):
@@ -393,8 +390,6 @@ class StateProxy:
     def __add__(self, other: Any) -> Any:
         """Add operation for strings and lists."""
         value = self._get_value()
-        if isinstance(other, StateProxy):
-            other = other._get_value()
         if isinstance(value, str) and isinstance(other, str):
             return value + other
         if isinstance(value, list) and hasattr(other, "__iter__"):
@@ -423,8 +418,14 @@ class StateProxy:
         """Make the proxy iterable."""
         value = self._get_value()
         if isinstance(value, list):
-            return (self[index] for index in range(len(value)))
+            return self._iter_list()
         return iter(value)
+
+    def _iter_list(self):
+        index = 0
+        while index < len(self):
+            yield self[index]
+            index += 1
 
     # Efficient list operations
     def append(self, item: Any) -> None:
@@ -439,6 +440,8 @@ class StateProxy:
 
     def extend(self, iterable: Any) -> None:
         """Extend a list with items from an iterable."""
+        if isinstance(iterable, StateProxy):
+            iterable = iterable._get_value()
         self.__iadd__(iterable)
 
     def clear(self) -> None:
