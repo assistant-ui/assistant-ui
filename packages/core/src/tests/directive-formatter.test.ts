@@ -134,4 +134,83 @@ describe("unstable_defaultDirectiveFormatter", () => {
       ]);
     });
   });
+
+  describe("delimiter support", () => {
+    it("roundtrips labels and IDs containing directive delimiters", () => {
+      const item = {
+        id: "src/pages/[id].tsx",
+        type: "file",
+        label: "[id].tsx",
+      };
+      const serialized = unstable_defaultDirectiveFormatter.serialize(item);
+
+      expect(serialized).toBe(
+        ":!file[%5Bid%5D.tsx]{name=src%2Fpages%2F%5Bid%5D.tsx}",
+      );
+      expect(unstable_defaultDirectiveFormatter.parse(serialized)).toEqual([
+        {
+          kind: "mention",
+          type: "file",
+          label: "[id].tsx",
+          id: "src/pages/[id].tsx",
+        },
+      ]);
+
+      const braceItem = {
+        id: "src/routes/{user}/route.ts",
+        type: "file",
+        label: "route.ts",
+      };
+      expect(
+        unstable_defaultDirectiveFormatter.parse(
+          unstable_defaultDirectiveFormatter.serialize(braceItem),
+        ),
+      ).toEqual([
+        {
+          kind: "mention",
+          type: "file",
+          label: "route.ts",
+          id: "src/routes/{user}/route.ts",
+        },
+      ]);
+    });
+
+    it("roundtrips display names containing brackets and percent escapes", () => {
+      const item = {
+        id: "user%5D1",
+        type: "user",
+        label: "Alex [support]",
+      };
+      expect(
+        unstable_defaultDirectiveFormatter.parse(
+          unstable_defaultDirectiveFormatter.serialize(item),
+        ),
+      ).toEqual([
+        {
+          kind: "mention",
+          type: "user",
+          label: "Alex [support]",
+          id: "user%5D1",
+        },
+      ]);
+    });
+
+    it("keeps backslashes in legacy stored paths unchanged", () => {
+      const directive = String.raw`:file[route.ts]{name=\\server\share\route.ts}`;
+      expect(unstable_defaultDirectiveFormatter.parse(directive)).toEqual([
+        {
+          kind: "mention",
+          type: "file",
+          label: "route.ts",
+          id: String.raw`\\server\share\route.ts`,
+        },
+      ]);
+    });
+
+    it("keeps malformed encoded directives as text", () => {
+      expect(unstable_defaultDirectiveFormatter.parse(":!file[%FF]")).toEqual([
+        { kind: "text", text: ":!file[%FF]" },
+      ]);
+    });
+  });
 });
