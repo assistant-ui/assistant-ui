@@ -101,6 +101,7 @@ export interface ResourceContextValue {
 }
 
 export interface TapRoot {
+  readonly onError: ((error: unknown) => void) | undefined;
   version: number;
   committedVersion: number;
   readonly changelog: ChangelogRecord[];
