@@ -1496,7 +1496,7 @@ describe("UIMessageStreamDecoder server abort", () => {
         { type: "finish", finishReason: "stop" },
       ],
       status: { type: "complete", reason: "stop" },
-      text: "An unfinished answer. Recovered answer",
+      texts: ["An unfinished answer", ". Recovered answer"],
     },
     {
       terminal: [{ type: "finish", finishReason: "stop" }],
@@ -1504,7 +1504,7 @@ describe("UIMessageStreamDecoder server abort", () => {
     },
   ])(
     "preserves partial text with $terminal and reports $status",
-    async ({ terminal, status, text = "An unfinished answer" }) => {
+    async ({ terminal, status, texts = ["An unfinished answer"] }) => {
       const messages = await collectChunks(
         createUIMessageStream([
           ...[
@@ -1518,9 +1518,9 @@ describe("UIMessageStreamDecoder server abort", () => {
           .pipeThrough(new UIMessageStreamDecoder())
           .pipeThrough(new AssistantMessageAccumulator()),
       );
-      expect(messages.at(-1)?.content).toEqual([
-        expect.objectContaining({ type: "text", text }),
-      ]);
+      expect(messages.at(-1)?.content).toEqual(
+        texts.map((text) => expect.objectContaining({ type: "text", text })),
+      );
       expect(messages.at(-1)?.status).toEqual(status);
     },
   );
