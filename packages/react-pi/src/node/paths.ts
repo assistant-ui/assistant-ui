@@ -9,7 +9,7 @@ export const resolvePiPath = (path: string): string => {
     path.startsWith("~/") ||
     (process.platform === "win32" && path.startsWith("~\\"))
   ) {
-    return resolve(homedir(), path.slice(2));
+    return resolve(join(homedir(), path.slice(2)));
   }
   return resolve(path);
 };
