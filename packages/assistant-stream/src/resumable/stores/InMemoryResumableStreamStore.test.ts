@@ -344,12 +344,18 @@ describe("InMemoryResumableStreamStore", () => {
       expect(await pending).toEqual([entry, entry, entry]);
     }
 
+    const unpaused = Promise.all([b.next(), c.next()]);
+    await store.append("a", bytes("p"));
+    const paused = { done: false, value: { cursor: "3", chunk: bytes("p") } };
+    expect(await unpaused).toEqual([paused, paused]);
+    expect(await a.next()).toEqual(paused);
+
     const cancelled = a.next();
     const continuing = Promise.all([b.next(), c.next()]);
     first.abort();
     expect(await cancelled).toEqual({ done: true, value: undefined });
     await store.append("a", bytes("z"));
-    const entry = { done: false, value: { cursor: "3", chunk: bytes("z") } };
+    const entry = { done: false, value: { cursor: "4", chunk: bytes("z") } };
     expect(await continuing).toEqual([entry, entry]);
 
     const finished = Promise.all([b.next(), c.next()]);
