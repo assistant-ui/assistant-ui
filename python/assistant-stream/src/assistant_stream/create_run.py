@@ -1,5 +1,6 @@
 import asyncio
 import logging
+from anyio import CancelScope
 from typing import Any, AsyncGenerator, Callable, Coroutine, List, Literal, Optional, Sequence, Union
 from assistant_stream.assistant_stream_chunk import (
     AssistantStreamChunk,
@@ -25,6 +26,7 @@ from assistant_stream.queue_stream import enqueue_threadsafe, queue_stream
 from assistant_stream.state_manager import StateManager
 
 logger = logging.getLogger(__name__)
+_EARLY_CLOSE_GRACE_SECONDS = 0.2
 
 
 def _log_detached_task_error(task: asyncio.Task[None]) -> None:
@@ -394,17 +396,23 @@ async def create_run(
             task.result()
         else:
             controller._mark_cancelled()
-            try:
-                # Callbacks get 50ms to observe `is_cancelled` and stop on their own.
-                # `asyncio.wait` rather than `shield`: Python 3.14 reports the late
-                # failure of an interrupted shield to the loop's exception handler.
-                await asyncio.wait({task}, timeout=0.05)
-                if not task.done():
-                    task.cancel()
+            with CancelScope(shield=True):
+                try:
+                    # `asyncio.wait` rather than `shield`: Python 3.14 reports the late
+                    # failure of an interrupted shield to the loop's exception handler.
+                    await asyncio.wait({task}, timeout=0.05)
+                    if not task.done():
+                        task.cancel()
+                        await asyncio.wait({task}, timeout=_EARLY_CLOSE_GRACE_SECONDS)
+                except asyncio.CancelledError:
+                    _cancel_detached_task(task)
+                    raise
+            if not task.done():
+                try:
                     await asyncio.wait({task})
-            except asyncio.CancelledError:
-                _cancel_detached_task(task)
-                raise
+                except asyncio.CancelledError:
+                    task.add_done_callback(_log_detached_task_error)
+                    raise
             error = None if task.cancelled() else task.exception()
             if error is not None:
                 if not isinstance(error, Exception):
