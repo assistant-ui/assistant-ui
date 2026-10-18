@@ -45,26 +45,66 @@ describe("Farming Labs layout contract", () => {
     expect(layout.props.children).toBeDefined();
   });
 
-  it("forwards the active locale to the framework's tree and header links", () => {
-    const Layout = createDocsLayout(
-      {
-        entry: "docs",
-        contentDir,
-        i18n: { locales: ["en", "fr"], defaultLocale: "en" },
-      },
-      { name: "Project", locale: "fr" },
-    );
-    const children = Layout({ children: null }).props.children;
-    const layout = getFrameworkLayout(children);
-    const header = Children.toArray(children).find(
-      (child) => isValidElement(child) && child.type === DocsHeader,
-    );
-    expect(
-      isValidElement<{ docsUrl: string }>(header) && header.props.docsUrl,
-    ).toBe("/docs?lang=fr");
-    expect(layout.props.nav?.url).toBe("/docs?lang=fr");
-    expect(layout.props.tree.children).toContainEqual(
-      expect.objectContaining({ name: "Bienvenue", url: "/docs?lang=fr" }),
-    );
-  });
+  it.each([undefined, "/docs"])(
+    "preserves the active locale in the default brand link (%s)",
+    (homeUrl) => {
+      const Layout = createDocsLayout(
+        {
+          entry: "docs",
+          ...(homeUrl ? { nav: { url: homeUrl } } : {}),
+          contentDir,
+          i18n: { locales: ["en", "fr"], defaultLocale: "en" },
+        },
+        { name: "Project", locale: "fr" },
+      );
+      const children = Layout({ children: null }).props.children;
+      const layout = getFrameworkLayout(children);
+      const header = Children.toArray(children).find(
+        (child) => isValidElement(child) && child.type === DocsHeader,
+      );
+      expect(
+        isValidElement<{ docsUrl: string }>(header) && header.props.docsUrl,
+      ).toBe("/docs?lang=fr");
+      expect(
+        isValidElement<{ homeUrl: string }>(header) && header.props.homeUrl,
+      ).toBe("/docs?lang=fr");
+      expect(layout.props.nav?.url).toBe("/docs?lang=fr");
+      expect(layout.props.tree.children).toContainEqual(
+        expect.objectContaining({ name: "Bienvenue", url: "/docs?lang=fr" }),
+      );
+    },
+  );
+
+  it.each([
+    { nav: "/", override: undefined, expected: "/" },
+    { nav: "/docs", override: "/", expected: "/" },
+    {
+      nav: "https://example.com",
+      override: undefined,
+      expected: "https://example.com",
+    },
+  ])(
+    "preserves an explicit home destination ($expected)",
+    ({ nav, override, expected }) => {
+      const Layout = createDocsLayout(
+        {
+          entry: "docs",
+          contentDir,
+          nav: { url: nav },
+          i18n: { locales: ["en", "fr"], defaultLocale: "en" },
+        },
+        {
+          name: "Project",
+          locale: "fr",
+          ...(override === undefined ? {} : { homeUrl: override }),
+        },
+      );
+      const header = Children.toArray(
+        Layout({ children: null }).props.children,
+      ).find((child) => isValidElement(child) && child.type === DocsHeader);
+      expect(
+        isValidElement<{ homeUrl: string }>(header) && header.props.homeUrl,
+      ).toBe(expected);
+    },
+  );
 });

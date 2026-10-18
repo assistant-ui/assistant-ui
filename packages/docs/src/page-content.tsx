@@ -94,7 +94,7 @@ const DocsPageControls = ({
   mcpUrl: string | undefined;
 }) => {
   const toc = useTOCItems();
-  // These portal hosts are supplied by Farming Labs 0.2.120 and Fumadocs UI 16.17.1.
+  // These portal hosts are supplied by Farming Labs 0.2.122 and Fumadocs UI 16.17.1.
   const headerHost = useDocumentElement("#nd-page .fd-generated-page-header");
   const tocHost = useDocumentElement(toc.length > 0 ? "#nd-toc" : null);
   const [message, setMessage] = useState("");

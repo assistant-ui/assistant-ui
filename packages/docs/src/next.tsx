@@ -26,6 +26,9 @@ export const createDocsLayout = (
     options.locale ? { locale: options.locale } : undefined,
   );
   const docsUrl = config.docsPath ?? `/${config.entry ?? "docs"}`;
+  const localizedDocsUrl = options.locale
+    ? `${docsUrl}?lang=${encodeURIComponent(options.locale)}`
+    : docsUrl;
   const Layout = ({ children }: { children: ReactNode }) => {
     const layout = DocsLayout({
       children: (
@@ -57,12 +60,13 @@ export const createDocsLayout = (
         <DocsHeader
           brand={(config.nav?.title as ReactNode) ?? options.name}
           brandSlot={options.brand}
-          homeUrl={options.homeUrl ?? config.nav?.url ?? docsUrl}
-          docsUrl={
-            options.locale
-              ? `${docsUrl}?lang=${encodeURIComponent(options.locale)}`
-              : docsUrl
+          homeUrl={
+            options.homeUrl ??
+            (config.nav?.url && config.nav.url !== docsUrl
+              ? config.nav.url
+              : localizedDocsUrl)
           }
+          docsUrl={localizedDocsUrl}
           name={options.name}
           links={options.links}
           themeToggle={
