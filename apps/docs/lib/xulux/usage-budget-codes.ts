@@ -27,10 +27,10 @@ export type TokenUsage = {
 };
 
 /** The model every xulux turn runs on; the per-token rates below are its gateway price. */
-export const XULUX_MODEL_ID = "deepseek/deepseek-v4-pro" satisfies KnownModelId;
+export const XULUX_MODEL_ID = "deepseek-v4.1-flash" satisfies KnownModelId;
 
-const DEFAULT_INPUT_MICRO_USD_PER_M = 150_000;
-const DEFAULT_OUTPUT_MICRO_USD_PER_M = 600_000;
+const DEFAULT_INPUT_MICRO_USD_PER_M = 280_000;
+const DEFAULT_OUTPUT_MICRO_USD_PER_M = 420_000;
 
 export function usdToMicroUsd(usd: number): number {
   return Math.round(usd * 1_000_000);

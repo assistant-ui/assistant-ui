@@ -1,6 +1,13 @@
 export const MODELS = [
   // DeepSeek
   {
+    name: "DeepSeek V4.1 Flash",
+    value: "deepseek-v4.1-flash",
+    icon: "/icons/deepseek.svg",
+    disabled: false,
+    contextWindow: 1_000_000,
+  },
+  {
     name: "DeepSeek V4 Pro",
     value: "deepseek/deepseek-v4-pro",
     icon: "/icons/deepseek.svg",
