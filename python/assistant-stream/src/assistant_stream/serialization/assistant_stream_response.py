@@ -7,7 +7,6 @@ from assistant_stream.serialization.heartbeat import (
 from assistant_stream.serialization.stream_encoder import StreamEncoder
 from typing import AsyncGenerator
 
-from anyio import CancelScope
 from starlette.responses import StreamingResponse
 from starlette.types import Send
 
@@ -20,15 +19,14 @@ async def _close_on_exit(
         async for chunk in body:
             yield chunk
     finally:
-        with CancelScope(shield=True):
-            try:
-                close = getattr(body, "aclose", None)
-                if close is not None:
-                    await close()
-            finally:
-                close = getattr(stream, "aclose", None)
-                if close is not None and not getattr(stream, "ag_running", False):
-                    await close()
+        try:
+            close = getattr(body, "aclose", None)
+            if close is not None:
+                await close()
+        finally:
+            close = getattr(stream, "aclose", None)
+            if close is not None and not getattr(stream, "ag_running", False):
+                await close()
 
 
 class AssistantStreamResponse(StreamingResponse):
@@ -60,5 +58,4 @@ class AssistantStreamResponse(StreamingResponse):
         try:
             await super().stream_response(send)
         finally:
-            with CancelScope(shield=True):
-                await self.body_iterator.aclose()
+            await self.body_iterator.aclose()

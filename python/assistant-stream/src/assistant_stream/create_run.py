@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from anyio import CancelScope, move_on_after
+from anyio import CancelScope
 from typing import Any, AsyncGenerator, Callable, Coroutine, List, Literal, Optional, Sequence, Union
 from assistant_stream.assistant_stream_chunk import (
     AssistantStreamChunk,
@@ -403,19 +403,21 @@ async def create_run(
                     await asyncio.wait({task}, timeout=0.05)
                     if not task.done():
                         task.cancel()
-                        with move_on_after(_EARLY_CLOSE_GRACE_SECONDS):
-                            await asyncio.wait({task})
+                        await asyncio.wait({task}, timeout=_EARLY_CLOSE_GRACE_SECONDS)
                 except asyncio.CancelledError:
                     _cancel_detached_task(task)
                     raise
             if not task.done():
-                task.add_done_callback(_log_detached_task_error)
-            else:
-                error = None if task.cancelled() else task.exception()
-                if error is not None:
-                    if not isinstance(error, Exception):
-                        raise error
-                    logger.warning(
-                        "Suppressed callback exception during early-close cleanup",
-                        exc_info=error,
-                    )
+                try:
+                    await asyncio.wait({task})
+                except asyncio.CancelledError:
+                    task.add_done_callback(_log_detached_task_error)
+                    raise
+            error = None if task.cancelled() else task.exception()
+            if error is not None:
+                if not isinstance(error, Exception):
+                    raise error
+                logger.warning(
+                    "Suppressed callback exception during early-close cleanup",
+                    exc_info=error,
+                )

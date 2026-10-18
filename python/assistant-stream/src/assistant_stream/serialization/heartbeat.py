@@ -1,6 +1,6 @@
 import asyncio
 import math
-from anyio import CancelScope, move_on_after
+from anyio import CancelScope
 from assistant_stream.create_run import _EARLY_CLOSE_GRACE_SECONDS
 from typing import AsyncGenerator, Optional, Union
 
@@ -63,19 +63,18 @@ async def add_keepalive(
             task = None
             yield item
     finally:
-        with CancelScope(shield=True):
-            if task is not None:
-                task.cancel()
-                try:
-                    with move_on_after(_EARLY_CLOSE_GRACE_SECONDS):
-                        await asyncio.wait({task})
-                finally:
-                    if task.done():
-                        _retrieve_task_exception(task)
-                    else:
-                        task.add_done_callback(_retrieve_task_exception)
-            if task is None or task.done():
-                await stream.aclose()
+        if task is not None:
+            try:
+                with CancelScope(shield=True):
+                    task.cancel()
+                    await asyncio.wait({task}, timeout=_EARLY_CLOSE_GRACE_SECONDS)
+                if not task.done():
+                    await asyncio.wait({task})
+            except asyncio.CancelledError:
+                task.add_done_callback(_retrieve_task_exception)
+                raise
+            _retrieve_task_exception(task)
+        await stream.aclose()
 
 
 def add_sse_heartbeat(
