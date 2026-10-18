@@ -14,7 +14,12 @@ import {
   PathAppendEncoder,
   PathMergeEncoder,
 } from "../utils/stream/path-utils";
-import type { DataPart, FilePart, SourcePart } from "../utils/types";
+import type {
+  DataPart,
+  FilePart,
+  PartProviderMetadata,
+  SourcePart,
+} from "../utils/types";
 import { generateId } from "../utils/generateId";
 import type {
   ReadonlyJSONObject,
@@ -35,6 +40,11 @@ type ToolCallPartInit = {
 type ReasoningPartInit = {
   /** @deprecated Experimental since 2026-08-07. Not scheduled for removal; the API may change in any release. */
   unstable_summary?: string;
+  providerMetadata?: PartProviderMetadata;
+};
+
+type TextPartInit = {
+  providerMetadata?: PartProviderMetadata;
 };
 
 /**
@@ -46,13 +56,17 @@ type ReasoningPartInit = {
  */
 export type AssistantStreamController = {
   /** Appends text to the current text part, opening one if needed. */
-  appendText(textDelta: string): void;
+  appendText(textDelta: string, providerMetadata?: PartProviderMetadata): void;
   /**
    * Appends reasoning text to the current reasoning part, opening one if
    * needed. Supplying options opens a new part and applies them to it, so a
    * summary always lands on a part of its own.
    */
-  appendReasoning(reasoningDelta: string, options?: ReasoningPartInit): void;
+  appendReasoning(
+    reasoningDelta: string,
+    options?: ReasoningPartInit,
+    providerMetadata?: PartProviderMetadata,
+  ): void;
   /** Appends a source citation part to the stream. */
   appendSource(options: SourcePart): void;
   /** Appends a file part to the stream. */
@@ -66,7 +80,7 @@ export type AssistantStreamController = {
    * part through this controller closes any implicit text or reasoning append
    * part first.
    */
-  addTextPart(): TextStreamController;
+  addTextPart(options?: TextPartInit): TextStreamController;
   /**
    * Opens a reasoning part and returns its writer.
    *
@@ -269,7 +283,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     );
   }
 
-  appendText(textDelta: string) {
+  appendText(textDelta: string, providerMetadata?: PartProviderMetadata) {
     if (
       this._state.append?.kind !== "text" ||
       this._state.append.parentId !== this._parentId
@@ -277,13 +291,19 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       this._state.append = {
         kind: "text",
         parentId: this._parentId,
-        controller: this.addTextPart(),
+        controller: this.addTextPart(
+          providerMetadata != null ? { providerMetadata } : undefined,
+        ),
       };
     }
-    this._state.append.controller.append(textDelta);
+    this._state.append.controller.append(textDelta, providerMetadata);
   }
 
-  appendReasoning(textDelta: string, options?: ReasoningPartInit) {
+  appendReasoning(
+    textDelta: string,
+    options?: ReasoningPartInit,
+    providerMetadata?: PartProviderMetadata,
+  ) {
     // An init describes a part, so supplying one opens a part rather than
     // extending whichever one happens to be open.
     if (
@@ -301,15 +321,15 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     // created, and appending there would put a chunk on the stream that no
     // producer emitted. An empty delta from an ordinary caller still appends.
     if (options !== undefined && textDelta.length === 0) return;
-    this._state.append.controller.append(textDelta);
+    this._state.append.controller.append(textDelta, providerMetadata);
   }
 
-  addTextPart() {
+  addTextPart(options?: TextPartInit) {
     const [stream, controller, written] = createCountedPartStream(
       (c) => new TextStreamControllerImpl(c, { strict: this._state.strict }),
     );
     this._addPart(
-      this._withParentIdOption({ type: "text" }),
+      this._withParentIdOption({ type: "text", ...options }),
       stream,
       written,
       () => controller.__internal_close(),

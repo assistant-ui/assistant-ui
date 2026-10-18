@@ -102,8 +102,16 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               textParts[kind].set(
                 chunk.id,
                 kind === "text"
-                  ? controller.addTextPart()
-                  : controller.addReasoningPart(),
+                  ? controller.addTextPart(
+                      chunk.providerMetadata != null
+                        ? { providerMetadata: chunk.providerMetadata }
+                        : undefined,
+                    )
+                  : controller.addReasoningPart(
+                      chunk.providerMetadata != null
+                        ? { providerMetadata: chunk.providerMetadata }
+                        : undefined,
+                    ),
               );
               activeTextIds[kind] = chunk.id;
               break;
@@ -117,9 +125,15 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                 id === undefined ? undefined : textParts[kind].get(id);
               const delta =
                 type === "text-delta" ? chunk.textDelta : chunk.delta;
-              if (part) part.append(delta);
-              else if (kind === "text") controller.appendText(delta);
-              else controller.appendReasoning(delta);
+              if (part) part.append(delta, chunk.providerMetadata);
+              else if (kind === "text")
+                controller.appendText(delta, chunk.providerMetadata);
+              else
+                controller.appendReasoning(
+                  delta,
+                  undefined,
+                  chunk.providerMetadata,
+                );
               break;
             }
 
@@ -128,7 +142,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               const kind = type === "text-end" ? "text" : "reasoning";
               const id = chunk.id ?? activeTextIds[kind];
               if (id === undefined) break;
-              textParts[kind].get(id)?.close();
+              textParts[kind].get(id)?.close(chunk.providerMetadata);
               textParts[kind].delete(id);
               if (activeTextIds[kind] === id) delete activeTextIds[kind];
               break;
