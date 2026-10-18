@@ -705,6 +705,19 @@ def test_rejected_nested_iteration_write_preserves_every_snapshot() -> None:
     assert ops == []
 
 
+def test_swapping_fields_inside_an_iterated_item_rejects_path_bound_reads() -> None:
+    ops = []
+    state = AssistantState({"pairs": [[{"id": 1}, {"id": 2}]]})
+    draft = state.draft(ops.extend)
+
+    with pytest.raises(ValueError, match="Cannot store a StateProxy"):
+        for pair in draft["pairs"]:
+            pair[0], pair[1] = pair[1], pair[0]
+
+    assert state.state == {"pairs": [[{"id": 1}, {"id": 2}]]}
+    assert ops == []
+
+
 def test_list_iterator_keeps_its_snapshot_when_items_are_appended() -> None:
     state = AssistantState({"tasks": [{"id": 1}]})
     draft = state.draft(lambda _ops: None)

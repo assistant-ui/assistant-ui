@@ -220,7 +220,7 @@ class Flusher:
 def _detach_value(value: Any) -> Any:
     """Rebuild containers so state never aliases a value the caller retains."""
     if isinstance(value, StateProxy):
-        if not isinstance(value._manager, _IterationDraft):
+        if not isinstance(value._manager, _IterationDraft) or value._path:
             raise ValueError(
                 "Cannot store a StateProxy in state; assign a plain value instead"
             )
