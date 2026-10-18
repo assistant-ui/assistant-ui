@@ -757,6 +757,10 @@ describe("useRemoteThreadListRuntime client bridge", () => {
         load: vi.fn(async () => ({ messages: [] })),
         append: vi.fn(async () => {}),
       };
+      const replacementHistory = {
+        load: vi.fn(async () => ({ messages: [] })),
+        append: vi.fn(async () => {}),
+      };
       const plain = new InMemoryThreadListAdapter();
       const hooked = Object.assign(new InMemoryThreadListAdapter(), {
         unstable_useAdapters: function useAdapters() {
@@ -766,7 +770,7 @@ describe("useRemoteThreadListRuntime client bridge", () => {
       });
       const replacement = Object.assign(new InMemoryThreadListAdapter(), {
         unstable_useAdapters: function useAdapters() {
-          const [history] = useState(inheritedHistory);
+          const [history] = useState(replacementHistory);
           useEffect(() => {}, []);
           return { history };
         },
@@ -811,7 +815,11 @@ describe("useRemoteThreadListRuntime client bridge", () => {
       await waitFor(() => {
         expect(runtime.threads.getState().isLoading).toBe(false);
         expect(seen?.history).toBe(
-          change === "adds" ? suppliedHistory : inheritedHistory,
+          {
+            adds: suppliedHistory,
+            removes: inheritedHistory,
+            replaces: replacementHistory,
+          }[change],
         );
       });
       expect(runtime.threads.getState().mainThreadId).toBe(threadId);
