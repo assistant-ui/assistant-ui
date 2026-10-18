@@ -24,6 +24,7 @@ it.each([
     "a repeated separator",
     (dir: string) => dir.replace("/workspace", "//workspace"),
   ],
+  ["a home path with a repeated separator", () => "~//pi-session-path-fixture"],
   [
     "a file URL with a trailing separator",
     (dir: string) => `${pathToFileURL(dir).href}/`,
