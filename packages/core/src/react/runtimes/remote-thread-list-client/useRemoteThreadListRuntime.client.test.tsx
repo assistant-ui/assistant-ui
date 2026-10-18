@@ -1180,6 +1180,7 @@ describe("useRemoteThreadListRuntime client bridge", () => {
     const createStore = () => {
       const values = new Map<string, string>();
       return {
+        values,
         getItem: async (key: string) => values.get(key) ?? null,
         setItem: async (key: string, value: string) => {
           values.set(key, value);
@@ -1189,8 +1190,10 @@ describe("useRemoteThreadListRuntime client bridge", () => {
         },
       };
     };
-    const first = createLocalStorageAdapter({ storage: createStore() });
-    const second = createLocalStorageAdapter({ storage: createStore() });
+    const firstStore = createStore();
+    const secondStore = createStore();
+    const first = createLocalStorageAdapter({ storage: firstStore });
+    const second = createLocalStorageAdapter({ storage: secondStore });
     const model = { run: vi.fn(async () => ({ content: [] })) };
     const seen = new Map<string, RuntimeAdapters | null>();
     let runtime: AssistantRuntime | undefined;
@@ -1221,10 +1224,24 @@ describe("useRemoteThreadListRuntime client bridge", () => {
     await waitFor(() =>
       expect(runtime!.threads.getState().isLoading).toBe(false),
     );
-    const nextId = runtime!.threads.getState().mainThreadId;
+    expect(runtime!.threads.getState().mainThreadId).toBe(mainId);
     await waitFor(() =>
-      expect(seen.get(nextId)?.history).not.toBe(firstHistory),
+      expect(seen.get(mainId)?.history).not.toBe(firstHistory),
     );
+
+    await act(async () => {
+      runtime!.thread.append("hello");
+    });
+    await waitFor(() =>
+      expect(
+        [...secondStore.values.values()].some((value) =>
+          value.includes("hello"),
+        ),
+      ).toBe(true),
+    );
+    expect(
+      [...firstStore.values.values()].some((value) => value.includes("hello")),
+    ).toBe(false);
   });
 
   it("uses the frozen class path when unstable_Provider is present", async () => {

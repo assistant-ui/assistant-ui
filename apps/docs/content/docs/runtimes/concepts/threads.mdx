@@ -137,7 +137,7 @@ export function MyProvider({ children }: { children: React.ReactNode }) {
 
 ### Persisting messages
 
-`RemoteThreadListAdapter` only manages thread metadata. Per-thread history and attachments come from `unstable_useAdapters`, a hook both hosts call: the `RemoteThreadList` store entry calls it inside the client tree, so any `createAssistantClient` host gets the same adapters as a React hook host, and `useRemoteThreadListRuntime` calls it for each hosted thread.
+`RemoteThreadListAdapter` only manages thread metadata. Per-thread history and attachments come from `unstable_useAdapters`. The `RemoteThreadList` store entry calls it inside the client tree, so any `createAssistantClient` host gets the same adapters as a React hook host, and `useRemoteThreadListRuntime` calls it for each hosted thread unless it mounts with an adapter that has `unstable_Provider`, in which case it renders that provider instead.
 
 `unstable_Provider` is an older React-component face for the same adapters. `useRemoteThreadListRuntime` renders it only when the adapter it mounts with has one, and a hook that mounts without it ignores it on later adapters. The store entry ignores it, so implement `unstable_useAdapters` instead.
 
