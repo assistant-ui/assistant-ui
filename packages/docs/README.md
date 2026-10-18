@@ -25,11 +25,11 @@ package and install the resulting `.tgz` with `pnpm add /path/to/package.tgz`.
 Once published, the same package can be installed with `pnpm add @assistant-ui/docs`.
 
 Use Farming Labs Docs, Next, and Theme 0.2.122 with Fumadocs UI 16.17.1.
-Fumadocs UI is pinned to the framework's version: its tree, search, and TOC
-providers and this theme's consumers must resolve to the same React context
-instance. A separately resolved patch version can break rendering and search.
-Update these packages together and run the full layout render test when changing
-the pin. The framework owns
+The Docs, Theme, and Fumadocs UI peers use exact versions as an exception to the
+repository's caret-range convention. A future framework patch may change its
+Fumadocs dependency, so accepting it independently could split the tree, search,
+and TOC React contexts and break rendering. Update all three pins together and
+run the full layout render tests when changing them. The framework owns
 MDX rendering, content discovery, search, Markdown routes, and MCP endpoints;
 this package supplies the appearance and navigation components.
 
