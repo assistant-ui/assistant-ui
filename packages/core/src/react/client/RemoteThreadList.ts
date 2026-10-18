@@ -625,6 +625,9 @@ const useRemoteThreadList = (
         switchTask: undefined as Promise<void> | undefined,
         pendingSwitchGeneration: undefined as number | undefined,
         settleSwitch: undefined as (() => void) | undefined,
+        newThreadIntent: undefined as
+          | { id: string; generation: number; unsubscribe: () => void }
+          | undefined,
         mainThreadId: seeded.id,
         isFirstThreadIdEffect: true,
         onThreadIdChange,
@@ -678,6 +681,12 @@ const useRemoteThreadList = (
 
   const notifyRemoteId = useCallback(
     (remoteId: string | undefined, emit: boolean) => {
+      if (
+        remoteId !== undefined &&
+        session.newThreadIntent?.generation === session.switchGeneration &&
+        session.newThreadIntent.id === session.mainThreadId
+      )
+        return;
       const main = getThreadData(store.value, session.mainThreadId);
       if (remoteId === undefined && main && main.status !== "new") return;
       if (session.lastNotifiedRemoteId === remoteId) return;
@@ -939,6 +948,8 @@ const useRemoteThreadList = (
 
   const startSwitch = useCallback(
     (run: (generation: number) => Promise<void>, threadId?: string) => {
+      session.newThreadIntent?.unsubscribe();
+      session.newThreadIntent = undefined;
       const generation = ++session.switchGeneration;
       session.settleSwitch?.();
       session.controlledReloadPending = false;
@@ -956,6 +967,10 @@ const useRemoteThreadList = (
       let unsubscribe: (() => void) | undefined;
       const settle = () => {
         unsubscribe?.();
+        if (session.newThreadIntent?.generation === generation) {
+          session.newThreadIntent.unsubscribe();
+          session.newThreadIntent = undefined;
+        }
         if (session.pendingSwitchGeneration === generation) {
           session.pendingSwitchGeneration = undefined;
           session.settleSwitch = undefined;
@@ -985,6 +1000,10 @@ const useRemoteThreadList = (
           complete();
         },
         (error: unknown) => {
+          if (session.newThreadIntent?.generation === generation) {
+            session.newThreadIntent.unsubscribe();
+            session.newThreadIntent = undefined;
+          }
           if (session.pendingSwitchGeneration === generation) {
             session.pendingSwitchGeneration = undefined;
             session.settleSwitch = undefined;
@@ -1086,6 +1105,7 @@ const useRemoteThreadList = (
           }
         }
         if (generation !== session.switchGeneration) return;
+        if (newThread && current.status !== "new") return;
         assignMainThreadId(current.id);
         notifyRemoteId(current.remoteId, emitThreadIdChange);
         if (newThread) session.onSwitchToNewThread?.();
@@ -1149,30 +1169,75 @@ const useRemoteThreadList = (
   );
 
   const switchToNewThread = useCallback(
-    (emitThreadIdChange = true) =>
-      startSwitch(async (generation) => {
-        while (
-          store.baseValue.newThreadId !== undefined &&
-          store.value.newThreadId === undefined
+    (emitThreadIdChange = true, keepIntent = false) => {
+      const run = async (generation: number) => {
+        if (
+          keepIntent &&
+          store.baseValue.newThreadId === session.mainThreadId
         ) {
-          await store.waitForUpdate();
+          session.newThreadIntent = {
+            id: session.mainThreadId,
+            generation,
+            unsubscribe: () => {},
+          };
+        }
+        while (generation === session.switchGeneration) {
+          while (
+            store.baseValue.newThreadId !== undefined &&
+            store.value.newThreadId === undefined
+          ) {
+            await store.waitForUpdate();
+            if (generation !== session.switchGeneration) return;
+          }
+          let id = store.value.newThreadId;
+          if (id === undefined) {
+            const seeded = seedNewThread(store.baseValue);
+            store.update(seeded.state);
+            id = seeded.id;
+          }
+          const draftId = getThreadData(store.value, id)?.id ?? id;
+          if (isSameThread(store.value, draftId, session.mainThreadId)) {
+            if (keepIntent) {
+              const unsubscribe = store.subscribe(() => {
+                if (generation !== session.switchGeneration) {
+                  unsubscribe();
+                  return;
+                }
+                if (getThreadData(store.value, draftId)?.status === "new")
+                  return;
+                unsubscribe();
+                queueMicrotask(() => {
+                  if (generation !== session.switchGeneration) return;
+                  handleThreadListAction("create", () => startSwitch(run));
+                });
+              });
+              session.newThreadIntent = {
+                id: draftId,
+                generation,
+                unsubscribe,
+              };
+            }
+            return selectThread(
+              draftId,
+              undefined,
+              emitThreadIdChange,
+              generation,
+              true,
+            );
+          }
+          await selectThread(
+            draftId,
+            undefined,
+            emitThreadIdChange,
+            generation,
+            true,
+          );
           if (generation !== session.switchGeneration) return;
+          if (getThreadData(store.value, draftId)?.status === "new") return;
         }
-        let id = store.value.newThreadId;
-        if (id === undefined) {
-          const seeded = seedNewThread(store.baseValue);
-          store.update(seeded.state);
-          id = seeded.id;
-        }
-        if (generation !== session.switchGeneration) return;
-        return selectThread(
-          id,
-          undefined,
-          emitThreadIdChange,
-          generation,
-          true,
-        );
-      }),
+      };
+      return startSwitch(run);
+    },
     [selectThread, session, startSwitch, store],
   );
 
@@ -1736,12 +1801,20 @@ const useRemoteThreadList = (
     });
 
   useEffect(() => {
+    const clearIntent = () => {
+      session.newThreadIntent?.unsubscribe();
+      session.newThreadIntent = undefined;
+    };
     const dispose = () => {
+      clearIntent();
       session.switchGeneration++;
       session.settleSwitch?.();
     };
     ownerDestroySignal?.addEventListener("abort", dispose, { once: true });
-    return () => ownerDestroySignal?.removeEventListener("abort", dispose);
+    return () => {
+      ownerDestroySignal?.removeEventListener("abort", dispose);
+      clearIntent();
+    };
   }, [ownerDestroySignal, session]);
 
   const mainRemoteId = getThreadData(listState, mainThreadId)?.remoteId;
@@ -1766,7 +1839,7 @@ const useRemoteThreadList = (
     session.lastControlledThreadId = threadId;
     if (threadId === undefined) {
       handleThreadListAction("create", () => {
-        const task = switchToNewThread(false);
+        const task = switchToNewThread(false, true);
         session.controlledSwitchGeneration = session.switchGeneration;
         session.controlledSwitchAdapter = session.adapter;
         return task;

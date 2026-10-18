@@ -105,6 +105,41 @@ const mount = (
 afterEach(() => vi.restoreAllMocks());
 
 describe("RemoteThreadList body lifetimes", () => {
+  it("opens a fresh draft when the target draft initializes while its runtime attaches", async () => {
+    const pending = new Map<string, () => void>();
+    const { handle } = mount(makeAdapter(), {
+      backgroundThreads: true,
+      ensureThread: (item) =>
+        new Promise<void>((resolve) => {
+          pending.set(item.id, resolve);
+        }),
+    });
+    const threads = handle.getClient().threads;
+    await threads.getLoadThreadsPromise();
+    const draftId = threads.getState().mainThreadId;
+    const toThread =
+      threads.__internal_getRawActions!().switchToThread("thread-a");
+    await vi.waitFor(() => expect(pending.has("thread-a")).toBe(true));
+    pending.get("thread-a")!();
+    await toThread;
+
+    const toNew = threads.__internal_getRawActions!().switchToNewThread();
+    await vi.waitFor(() => expect(pending.has(draftId)).toBe(true));
+    await threads.item({ id: draftId }).initialize();
+    pending.get(draftId)!();
+    await vi.waitFor(() => expect(pending.size).toBe(3));
+    for (const [id, resolve] of pending) {
+      if (id !== "thread-a" && id !== draftId) resolve();
+    }
+    await toNew;
+
+    const main = threads.item("main").getState();
+    expect(main.id).not.toBe(draftId);
+    expect(main.status).toBe("new");
+    expect(threads.item({ id: draftId }).getState().remoteId).toBe(draftId);
+    handle.destroy();
+  });
+
   it("releases a body when ensureThread rejects", async () => {
     let rejectEnsure!: (error: Error) => void;
     const ensureThread = vi.fn(
