@@ -1740,6 +1740,87 @@ describe("RemoteThreadList", () => {
     },
   );
 
+  it("keeps a restarted controlled new-thread request controlled while its fresh draft attaches", async () => {
+    const attachThread = deferred<void>();
+    const attachFresh = deferred<void>();
+    const initialization = deferred<{
+      remoteId: string;
+      externalId: undefined;
+    }>();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "regular" as const, remoteId: "t0", title: "Zero" },
+        ],
+      })),
+      initialize: vi.fn(() => initialization.promise),
+    });
+    const listeners = new Set<() => void>();
+    const onThreadIdChange = vi.fn();
+    let threadId: string | undefined = "t0";
+    let draftId: string | undefined;
+    const ensureThread = vi.fn((item: { id: string }) => {
+      if (item.id === "t0") return attachThread.promise;
+      if (item.id === draftId) return Promise.resolve();
+      return attachFresh.promise;
+    });
+    const source: AssistantConfigSource = {
+      getConfig: () =>
+        AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            thread: (id) => StubThread({ threadId: id }) as never,
+            threadId,
+            onThreadIdChange,
+            __internal_ensureThread: ensureThread,
+          }),
+        }),
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => listeners.delete(listener);
+      },
+    };
+    const handle = createAssistantClient(source);
+    handle.subscribe(() => {});
+    await waitFor(() => {
+      expect(ensureThread).toHaveBeenCalledWith(
+        expect.objectContaining({ id: "t0" }),
+      );
+    });
+    draftId = handle.getClient().threads.getState().newThreadId ?? undefined;
+    threadId = undefined;
+    flushTapSync(() => {
+      for (const listener of listeners) listener();
+    });
+    const initializing = handle
+      .getClient()
+      .threads.item({ id: draftId! })
+      .initialize();
+    initialization.resolve({ remoteId: "t1", externalId: undefined });
+    await initializing;
+    attachThread.resolve();
+    await waitFor(() => {
+      expect(ensureThread).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: expect.not.stringMatching(new RegExp(`^(t0|${draftId})$`)),
+        }),
+      );
+    });
+
+    void handle.getClient().threads.__internal_getRawActions!().switchToThread(
+      draftId!,
+    );
+    attachFresh.resolve();
+
+    await waitFor(() => {
+      const main = handle.getClient().threads.item("main").getState();
+      expect(main.id).not.toBe(draftId);
+      expect(main.status).toBe("new");
+    });
+    expect(onThreadIdChange).not.toHaveBeenCalledWith("t1");
+    handle.destroy();
+  });
+
   it("reports an ordinary initialization after a controlled switch settles", async () => {
     const adapter = makeAdapter();
     const { handle, draftId, onThreadIdChange } =

@@ -1208,7 +1208,13 @@ const useRemoteThreadList = (
                 unsubscribe();
                 queueMicrotask(() => {
                   if (generation !== session.switchGeneration) return;
-                  handleThreadListAction("create", () => startSwitch(run));
+                  handleThreadListAction("create", () => {
+                    const task = startSwitch(run);
+                    session.controlledSwitchGeneration =
+                      session.switchGeneration;
+                    session.controlledSwitchAdapter = session.adapter;
+                    return task;
+                  });
                 });
               });
               session.newThreadIntent = {
