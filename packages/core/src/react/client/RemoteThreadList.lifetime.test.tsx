@@ -195,6 +195,33 @@ describe("RemoteThreadList body lifetimes", () => {
     },
   );
 
+  it("rejects a destroyed client's switch while the client catches up to the attached thread", async () => {
+    const ensureThread = vi.fn(async () => {});
+    const { handle } = mount(makeAdapter(), {
+      ensureThread,
+      isThreadAttached: () => true,
+    });
+    const threads = handle.getClient().threads;
+    await threads.getLoadThreadsPromise();
+    const fulfilled = vi.fn();
+    const rejected = vi.fn();
+    void threads.__internal_getRawActions!()
+      .switchToThread("thread-a")
+      .then(fulfilled, rejected);
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(ensureThread).toHaveBeenCalled();
+    expect(threads.getState().mainThreadId).not.toBe("thread-a");
+    handle.destroy();
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+    expect(rejected.mock.calls[0]?.[0]).toBeInstanceOf(
+      ThreadListDestroyedError,
+    );
+    expect(fulfilled).not.toHaveBeenCalled();
+  });
+
   it("releases a body when ensureThread rejects", async () => {
     let rejectEnsure!: (error: Error) => void;
     const ensureThread = vi.fn(

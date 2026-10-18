@@ -983,7 +983,6 @@ const useRemoteThreadList = (
       session.switchTask = task;
       session.pendingSwitchGeneration = generation;
       let unsubscribe: (() => void) | undefined;
-      let ran = false;
       const settle = () => {
         unsubscribe?.();
         if (session.newThreadIntent?.generation === generation) {
@@ -998,10 +997,11 @@ const useRemoteThreadList = (
         resolveTask();
       };
       const onDestroy = () => {
-        if (ran || generation !== session.switchGeneration) {
+        if (generation !== session.switchGeneration) {
           settle();
           return;
         }
+        unsubscribe?.();
         session.switchGeneration++;
         session.pendingSwitchGeneration = undefined;
         session.settleSwitch = undefined;
@@ -1013,7 +1013,6 @@ const useRemoteThreadList = (
       if (ensureThread) session.settleSwitch = settle;
       void run(generation).then(
         () => {
-          ran = true;
           if (
             !ensureThread ||
             generation !== session.switchGeneration ||
