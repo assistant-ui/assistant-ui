@@ -81,9 +81,7 @@ const useLocalThreadRuntime = (
   useEffect(() => {
     runtime.threads
       .getMainThreadRuntimeCore()
-      .__internal_setGetThreadId(
-        () => aui.threadListItem.__internal_getRuntime?.().getState().remoteId,
-      );
+      .__internal_setGetThreadId(() => aui.threadListItem.getState().remoteId);
   }, [aui, runtime]);
 
   useReplaySafeEffect(() => {

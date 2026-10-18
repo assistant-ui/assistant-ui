@@ -17,6 +17,18 @@ import { WritableSubscribable } from "../../subscribable/subscribable";
 import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
 import { useAui } from "@assistant-ui/store";
 import {
+  AuiConfig,
+  createAssistantClient,
+  type AssistantClientHandle,
+} from "@assistant-ui/store/client";
+import {
+  useRuntimeAdapters,
+  useRuntimeAdaptersProvider,
+  useStableRuntimeAdapters,
+} from "./useRuntimeAdapters";
+import { ClientThreadListRuntimeCore } from "./remote-thread-list-client/ClientThreadListRuntimeCore";
+import { RemoteThreadListRuntimeThreads } from "./remote-thread-list-client/RemoteThreadListRuntimeThreads";
+import {
   useIsomorphicLayoutEffect,
   useIsServerRender,
 } from "@assistant-ui/store/internal";
@@ -44,18 +56,49 @@ class RemoteThreadListRuntimeCore
   }
 }
 
-const useRemoteThreadListRuntimeImpl = (
+class ClientRemoteThreadListRuntimeCore extends BaseAssistantRuntimeCore {
+  public readonly threads;
+  public readonly optionsStore: WritableSubscribable<RemoteThreadListOptions>;
+
+  constructor(
+    options: RemoteThreadListOptions,
+    seed: string,
+    handle: AssistantClientHandle,
+  ) {
+    super();
+    this.optionsStore = new WritableSubscribable(options);
+    const optionsStore = this.optionsStore;
+    const modelContext = this._contextProvider;
+    this.threads = new ClientThreadListRuntimeCore(
+      seed,
+      handle,
+      function useHostedRuntime() {
+        const options = useSubscribable(optionsStore);
+        const inherited = useRuntimeAdapters();
+        const supplied = useStableRuntimeAdapters(
+          options.adapter.unstable_useAdapters?.(),
+        );
+        const adapters = useMemo(
+          () => ({ modelContext, ...inherited, ...supplied }),
+          [inherited, supplied],
+        );
+        return useRuntimeAdaptersProvider(adapters, options.runtimeHook);
+      },
+      options.threadId !== undefined || options.initialThreadId === undefined,
+    );
+  }
+
+  public get RenderComponent() {
+    return this.threads.__internal_RenderComponent;
+  }
+}
+
+const useLegacyRemoteThreadListRuntime = (
   options: RemoteThreadListOptions,
+  initialThreadIdSeed: string | undefined,
 ): AssistantRuntime => {
-  // A server render must not read Math.random, and its runtime never reaches an adapter, so it names the first thread from useId; the client keeps a random id because adapters store it.
-  const serverThreadIdSeed = useId();
-  const isServerRender = useIsServerRender();
   const [runtime] = useState(
-    () =>
-      new RemoteThreadListRuntimeCore(
-        options,
-        isServerRender ? serverThreadIdSeed : undefined,
-      ),
+    () => new RemoteThreadListRuntimeCore(options, initialThreadIdSeed),
   );
   const [lifetime] = useState(() => ({ generation: 0 }));
 
@@ -71,8 +114,12 @@ const useRemoteThreadListRuntimeImpl = (
 
   useEffect(() => {
     runtime.threads.__internal_setOptions(options);
-    runtime.threads.__internal_load();
   }, [runtime, options]);
+
+  const adapter = options.adapter;
+  useEffect(() => {
+    runtime.threads.__internal_load();
+  }, [runtime, adapter]);
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof document === "undefined") {
@@ -99,6 +146,69 @@ const useRemoteThreadListRuntimeImpl = (
 
   const [assistantRuntime] = useState(() => new AssistantRuntimeImpl(runtime));
   return assistantRuntime;
+};
+
+const useClientRemoteThreadListRuntime = (
+  options: RemoteThreadListOptions,
+  seed: string,
+): AssistantRuntime => {
+  const [binding] = useState(() => {
+    const handle = createAssistantClient({
+      getConfig: () =>
+        AuiConfig({
+          threads: RemoteThreadListRuntimeThreads({
+            optionsStore: core.optionsStore,
+            assistantRuntime: () => assistantRuntime,
+            initialThreadIdSeed: seed,
+            clientCore: core.threads,
+          }),
+        }),
+      subscribe: () => () => {},
+    });
+    const core = new ClientRemoteThreadListRuntimeCore(options, seed, handle);
+    const assistantRuntime = new AssistantRuntimeImpl(core);
+    return { assistantRuntime, core, handle, generation: 0 };
+  });
+  useIsomorphicLayoutEffect(
+    () => binding.handle.subscribe(() => {}),
+    [binding],
+  );
+  useInsertionEffect(() => {
+    const generation = ++binding.generation;
+    return () =>
+      queueMicrotask(() => {
+        if (binding.generation !== generation) return;
+        binding.handle.destroy();
+        binding.core.threads.__internal_dispose();
+      });
+  }, [binding]);
+  useIsomorphicLayoutEffect(() => {
+    binding.core.optionsStore.setState(options);
+  }, [binding, options]);
+  return binding.assistantRuntime;
+};
+
+const useRemoteThreadListRuntimeImpl = (
+  options: RemoteThreadListOptions,
+): AssistantRuntime => {
+  const serverThreadIdSeed = useId();
+  const isServerRender = useIsServerRender();
+  const [mode] = useState(() =>
+    options.adapter.unstable_Provider === undefined ? "client" : "legacy",
+  );
+  const [seed] = useState(() =>
+    isServerRender
+      ? serverThreadIdSeed
+      : mode === "client"
+        ? Math.random().toString(36).slice(2)
+        : "",
+  );
+  return mode === "legacy"
+    ? useLegacyRemoteThreadListRuntime(
+        options,
+        isServerRender ? seed : undefined,
+      )
+    : useClientRemoteThreadListRuntime(options, seed);
 };
 
 export const useRemoteThreadListRuntime = (

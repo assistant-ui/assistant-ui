@@ -61,7 +61,6 @@ const useRemoteThreadListRuntimeThreads = ({
     [assistantRuntime],
   );
 
-  const previousAdapter = useRef(options.adapter);
   const initialThreadId = useRef(options.initialThreadId);
   useEffect(() => {
     if (options.threadId !== undefined || initialThreadId.current === undefined)
@@ -72,19 +71,6 @@ const useRemoteThreadListRuntimeThreads = ({
       .finally(() => setStartThread(true))
       .catch(() => {});
   }, [clientRef]);
-  useEffect(() => {
-    const previous = previousAdapter.current;
-    previousAdapter.current = options.adapter;
-    if (previous === options.adapter) return;
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (!cancelled) void clientRef.current!.threads.reload();
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [clientRef, options.adapter]);
-
   const threads = useResource(
     RemoteThreadList({
       adapter: options.adapter,

@@ -49,9 +49,13 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
   }
   private cachedItems: readonly ThreadListItemCoreState[] | undefined;
   private cachedItemMap: Record<string, ThreadListItemCoreState> | undefined;
-  private seenSource: readonly ThreadListItemCoreState[] | undefined;
-  private readonly seenItems = new Map<string, ThreadListItemCoreState>();
-  private readonly visitedIds = new Set<string>();
+  private readonly pendingItems = new Map<
+    string,
+    {
+      item: ThreadListItemCoreState;
+      source: readonly ThreadListItemCoreState[];
+    }
+  >();
 
   constructor(
     initialThreadIdSeed: string,
@@ -78,9 +82,15 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
   public readonly __internal_RenderComponent: FC;
 
   public __internal_ensureThread = async (item: ThreadListItemCoreState) => {
-    this.seenItems.set(item.id, item);
-    this.visitedIds.add(item.id);
-    await this.hookManager.startThreadRuntime(item.id);
+    const pending = { item, source: this.state.threadItems };
+    this.pendingItems.set(item.id, pending);
+    try {
+      await this.hookManager.startThreadRuntime(item.id);
+    } finally {
+      if (this.pendingItems.get(item.id) === pending) {
+        this.pendingItems.delete(item.id);
+      }
+    }
   };
 
   public __internal_dispose() {
@@ -88,13 +98,7 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
   }
 
   private get state() {
-    const state = this.aui.threads.getState();
-    if (state.threadItems !== this.seenSource) {
-      this.seenSource = state.threadItems;
-      for (const item of state.threadItems) this.seenItems.set(item.id, item);
-    }
-    this.visitedIds.add(state.mainThreadId);
-    return state;
+    return this.aui.threads.getState();
   }
 
   private get actions() {
@@ -175,20 +179,22 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
   }
 
   public getItemById(threadId: string) {
+    const items = this.state.threadItems;
+    const pending = this.pendingItems.get(threadId);
     return (
-      this.state.threadItems.find(
+      items.find(
         (item) => item.id === threadId || item.remoteId === threadId,
       ) ??
-      (this.visitedIds.has(threadId) ? this.seenItems.get(threadId) : undefined)
+      this.aui.threads
+        .__internal_getThreadBody?.(threadId)
+        ?.__internal_getRuntime?.()
+        .getState().metadata ??
+      (pending?.source === items ? pending.item : undefined)
     );
   }
 
-  public async switchToThread(
-    threadId: string,
-    options?: { unarchive?: boolean },
-  ) {
-    await this.actions.switchToThread(threadId, options);
-    this.visitedIds.add(this.getItemById(threadId)?.id ?? threadId);
+  public switchToThread(threadId: string, options?: { unarchive?: boolean }) {
+    return this.actions.switchToThread(threadId, options);
   }
   public switchToNewThread() {
     return this.actions.switchToNewThread();
@@ -202,10 +208,8 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
   public loadMore() {
     return this.aui.threads.loadMore();
   }
-  public async detach(threadId: string) {
-    await this.actions.detach(threadId);
-    this.visitedIds.delete(threadId);
-    this.seenItems.delete(threadId);
+  public detach(threadId: string) {
+    return this.actions.detach(threadId);
   }
   public rename(threadId: string, title: string) {
     return this.actions.rename(threadId, title);
@@ -222,10 +226,8 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
   public unarchive(threadId: string) {
     return this.actions.unarchive(threadId);
   }
-  public async delete(threadId: string) {
-    await this.actions.delete(threadId);
-    this.visitedIds.delete(threadId);
-    this.seenItems.delete(threadId);
+  public delete(threadId: string) {
+    return this.actions.delete(threadId);
   }
   public initialize(threadId: string) {
     return this.actions.initialize(threadId);
@@ -242,11 +244,14 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
     const id = this.mainThreadId;
     if (this.getItemById(id)?.status === "new") return;
     const core = this.getMainThreadRuntimeCore();
-    if (core.unstable_refetchThread) {
-      await core.unstable_refetchThread();
-      return;
+    try {
+      if (core.unstable_refetchThread) await core.unstable_refetchThread();
+      else await this.hookManager.__internal_restartThreadRuntime(id);
+    } catch (error) {
+      // delete and detach move the main thread away before stopping its runtime, so a rejection after that belongs to them.
+      if (id !== this.mainThreadId) return;
+      throw error;
     }
-    await this.hookManager.__internal_restartThreadRuntime(id);
   }
 
   public subscribe(callback: () => void): Unsubscribe {

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { cleanup, render } from "@testing-library/react";
+import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuiProvider, useAui } from "@assistant-ui/store";
 import {
@@ -19,6 +19,7 @@ import { LOCAL_THREAD_ID_PREFIX } from "../../../runtimes/remote-thread-list/rem
 import type { RemoteThreadListOptions } from "../../../runtimes/remote-thread-list/types";
 import { WritableSubscribable } from "../../../subscribable/subscribable";
 import type { AppendMessage } from "../../../types/message";
+import { actSettled } from "../../../tests/remote-thread-list-test-helpers";
 import { useLocalRuntime } from "../useLocalRuntime";
 import { ClientThreadListRuntimeCore } from "./ClientThreadListRuntimeCore";
 import { RemoteThreadListRuntimeThreads } from "./RemoteThreadListRuntimeThreads";
@@ -116,6 +117,52 @@ afterEach(() => {
 });
 
 describe("RemoteThreadListRuntimeThreads", () => {
+  it.each(["client deletion", "adapter replacement"] as const)(
+    "does not return a visited item removed by %s",
+    async (removal) => {
+      const adapter = new InMemoryThreadListAdapter();
+      adapter.register("one");
+      const setup = mount({ adapter });
+      const threads = setup.handle.getClient().threads;
+      try {
+        await actSettled(() => threads.getLoadThreadsPromise());
+        await actSettled(() => setup.clientCore.switchToThread("one"));
+        await actSettled(() => setup.clientCore.switchToNewThread());
+        expect(setup.clientCore.getItemById("one")?.status).toBe("regular");
+
+        await actSettled(() =>
+          threads.__internal_getRawActions!().rename("one", "Renamed"),
+        );
+        expect(setup.clientCore.getItemById("one")?.title).toBe("Renamed");
+        await actSettled(() =>
+          threads.__internal_getRawActions!().archive("one"),
+        );
+        expect(setup.clientCore.getItemById("one")?.status).toBe("archived");
+
+        if (removal === "client deletion") {
+          await actSettled(() =>
+            threads.__internal_getRawActions!().delete("one"),
+          );
+        } else {
+          act(() => {
+            setup.optionsStore.setState({
+              ...setup.optionsStore.getState(),
+              adapter: new InMemoryThreadListAdapter(),
+            });
+          });
+          await actSettled(() => threads.getLoadThreadsPromise());
+        }
+
+        expect(
+          threads.getState().threadItems.some((item) => item.id === "one"),
+        ).toBe(false);
+        expect(setup.clientCore.getItemById("one")).toBeUndefined();
+      } finally {
+        act(() => setup.handle.destroy());
+      }
+    },
+  );
+
   it("hosts the main thread runtime from runtimeHook", async () => {
     const setup = mount();
     const threads = setup.handle.getClient().threads;
