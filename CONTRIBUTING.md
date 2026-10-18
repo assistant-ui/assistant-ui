@@ -6,6 +6,8 @@ You can contribute by opening an issue, or by making a pull request. [Opening a 
 
 Project conventions live in [`AGENTS.md`](./AGENTS.md) and in the `AGENTS.md` of the directory you change, such as [`packages/AGENTS.md`](./packages/AGENTS.md) for package code and runtime adapters; please read and follow them.
 
+For bug fixes, behavior changes, and test reviews, follow the [test-quality guidance](./.claude/skills/test-quality/tests.md) and consult the [mocking guidance](./.claude/skills/test-quality/mocking.md) when using test doubles. In the PR's Verification section, identify the supported behavior protected by the tests, list exact checks and results, and, for a bug, demonstrate failure without the fix and success with it. State any verification limitations.
+
 ### Setting up your environment
 
 You need to have Node.js installed on your computer. We develop with the latest LTS version of Node.js.
