@@ -1724,7 +1724,9 @@ type RemoteThreadListAdapter = {
   archive(remoteId: string): Promise<void>;
   unarchive(remoteId: string): Promise<void>;
   delete(remoteId: string): Promise<void>;
-  initialize(threadId: string): Promise<RemoteThreadInitializeResponse>;
+  initialize(threadId: string, options?: {
+    custom?: Record<string, unknown> | undefined;
+  }): Promise<RemoteThreadInitializeResponse>;
   generateTitle(remoteId: string, unstable_messages: readonly ThreadMessage[]): Promise<AssistantStream>;
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
   unstable_Provider?: RemoteThreadListProviderComponent | undefined;

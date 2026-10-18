@@ -165,9 +165,9 @@ export const createCloudThreadListAdapter = (
 
   if (!cloud) {
     const inMemory = new InMemoryThreadListAdapter();
-    inMemory.initialize = async (threadId: string) => {
+    inMemory.initialize = async (threadId, options) => {
       const result = await getOptions().create?.(threadId);
-      return inMemory.register(threadId, result?.externalId);
+      return inMemory.register(threadId, result?.externalId, options?.custom);
     };
     return inMemory;
   }
@@ -244,13 +244,14 @@ export const createCloudThreadListAdapter = (
       };
     },
 
-    initialize: async (threadId) => {
+    initialize: async (threadId, options) => {
       const createTask = getOptions().create?.(threadId) ?? Promise.resolve();
       const t = await createTask;
       const external_id = t ? t.externalId : undefined;
       const { thread_id: remoteId } = await cloud.threads.create({
         last_message_at: new Date(),
         external_id,
+        ...(options?.custom !== undefined ? { metadata: options.custom } : {}),
         ...(external_id !== undefined && getOptions().upsert
           ? { upsert: true }
           : {}),

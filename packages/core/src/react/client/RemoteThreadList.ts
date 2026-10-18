@@ -1370,7 +1370,11 @@ const useRemoteThreadList = (
         return result;
       }
       requireAdapterGeneration(adapterGeneration);
-      const initializeTask = currentAdapter.initialize(threadId);
+      const custom = getThreadData(store.value, threadId)?.custom;
+      const initializeTask =
+        custom === undefined
+          ? currentAdapter.initialize(threadId)
+          : currentAdapter.initialize(threadId, { custom });
       if (backgroundThreads) session.pendingAutomaticTitles.set(threadId, []);
       let removedMappingId: string | undefined;
       let replacementMainThreadId: string | undefined;
@@ -1516,12 +1520,20 @@ const useRemoteThreadList = (
           "updating its custom metadata",
         );
       }
+      const applyCustom = (state: RemoteThreadState): RemoteThreadState => {
+        const current = getThreadData(state, threadIdOrRemoteId);
+        if (!current) return state;
+        return {
+          ...state,
+          threadData: {
+            ...state.threadData,
+            [current.id]: { ...current, custom },
+          },
+        };
+      };
       if (data.status === "new") {
-        throw threadStatusError(
-          threadIdOrRemoteId,
-          data.status,
-          "update custom metadata",
-        );
+        store.update(applyCustom(store.baseValue));
+        return;
       }
       if (!currentAdapter.updateCustom) {
         throw new Error(
@@ -1541,20 +1553,7 @@ const useRemoteThreadList = (
             }
             return currentAdapter.updateCustom(remoteId, custom);
           }),
-        optimistic: (state) => {
-          const current = getThreadData(state, threadIdOrRemoteId);
-          if (!current) return state;
-          return {
-            ...state,
-            threadData: {
-              ...state.threadData,
-              [current.id]: {
-                ...current,
-                custom,
-              },
-            },
-          };
-        },
+        optimistic: applyCustom,
       });
     },
     [requireAdapterGeneration, session, store],

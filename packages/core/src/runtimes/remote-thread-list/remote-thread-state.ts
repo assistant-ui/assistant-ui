@@ -13,7 +13,7 @@ export type RemoteThreadData =
       readonly externalId: undefined;
       readonly status: "new";
       readonly title: undefined;
-      readonly custom: undefined;
+      readonly custom?: Record<string, unknown> | undefined;
       readonly localOrigin?: true;
     }
   | {
@@ -23,7 +23,7 @@ export type RemoteThreadData =
       readonly externalId: undefined;
       readonly status: "regular" | "archived";
       readonly title?: string | undefined;
-      readonly custom: undefined;
+      readonly custom?: Record<string, unknown> | undefined;
       readonly localOrigin?: true;
     }
   | {
