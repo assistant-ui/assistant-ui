@@ -355,6 +355,16 @@ html.dark body:has(.aui-docs) {
   letter-spacing: -0.01em !important;
 }
 
+.aui-docs #nd-page :is(h1, h2, h3, h4, h5, h6) > a:is(.peer, [data-card]) {
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: inherit !important;
+  text-decoration: none !important;
+}
+
 .aui-docs
   #nd-page
   .prose
