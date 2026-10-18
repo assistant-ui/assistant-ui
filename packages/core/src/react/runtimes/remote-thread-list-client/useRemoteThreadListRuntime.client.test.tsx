@@ -1176,6 +1176,57 @@ describe("useRemoteThreadListRuntime client bridge", () => {
     await waitFor(() => expect(seen.get(mainId)?.history).toBeDefined());
   });
 
+  it("rebinds local storage history when the adapter switches storage", async () => {
+    const createStore = () => {
+      const values = new Map<string, string>();
+      return {
+        getItem: async (key: string) => values.get(key) ?? null,
+        setItem: async (key: string, value: string) => {
+          values.set(key, value);
+        },
+        removeItem: async (key: string) => {
+          values.delete(key);
+        },
+      };
+    };
+    const first = createLocalStorageAdapter({ storage: createStore() });
+    const second = createLocalStorageAdapter({ storage: createStore() });
+    const model = { run: vi.fn(async () => ({ content: [] })) };
+    const seen = new Map<string, RuntimeAdapters | null>();
+    let runtime: AssistantRuntime | undefined;
+    const App = ({ adapter }: { adapter: typeof first }) => {
+      runtime = useRemoteThreadListRuntime({
+        adapter,
+        runtimeHook: function useThreadRuntime() {
+          const id = useAui().threadListItem.getState().id;
+          seen.set(id, useRuntimeAdapters());
+          return useLocalRuntime(model);
+        },
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+    const { rerender } = render(<App adapter={first} />);
+    await waitFor(() =>
+      expect(runtime!.threads.getState().isLoading).toBe(false),
+    );
+    const mainId = runtime!.threads.getState().mainThreadId;
+    await waitFor(() => expect(seen.get(mainId)?.history).toBeDefined());
+    const firstHistory = seen.get(mainId)?.history;
+
+    rerender(<App adapter={second} />);
+    await waitFor(() =>
+      expect(runtime!.threads.getState().isLoading).toBe(false),
+    );
+    const nextId = runtime!.threads.getState().mainThreadId;
+    await waitFor(() =>
+      expect(seen.get(nextId)?.history).not.toBe(firstHistory),
+    );
+  });
+
   it("uses the frozen class path when unstable_Provider is present", async () => {
     const adapter = Object.assign(new InMemoryThreadListAdapter(), {
       unstable_Provider: ({ children }: { children?: ReactNode }) => children,

@@ -1,5 +1,5 @@
 import { type AssistantStream, createAssistantStream } from "assistant-stream";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useAui } from "@assistant-ui/store";
 import type {
   MessageModality,
@@ -641,15 +641,17 @@ const useLocalStorageThreadAdapters = (
   useEffect(() => {
     auiRef.current = aui;
   });
-  const [history] = useState(() =>
-    createLocalStorageHistoryAdapter(
-      storage,
-      () => auiRef.current,
-      prefix,
-      mutationQueue,
-    ),
+  return useMemo(
+    () => ({
+      history: createLocalStorageHistoryAdapter(
+        storage,
+        () => auiRef.current,
+        prefix,
+        mutationQueue,
+      ),
+    }),
+    [storage, prefix, mutationQueue],
   );
-  return useMemo(() => ({ history }), [history]);
 };
 
 export const createLocalStorageAdapter = (
