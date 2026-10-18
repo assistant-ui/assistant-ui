@@ -464,6 +464,62 @@ def test_dictionary_views_remain_reiterable_and_read_live_values() -> None:
     assert len(values) == len(items) == 2
 
 
+@pytest.mark.parametrize("method", ["values", "items"])
+def test_reversed_dictionary_views_track_nested_writes(method) -> None:
+    ops = []
+    state = AssistantState({"tasks": {"first": {"done": False}, "count": 7, "last": []}})
+    draft = state.draft(ops.extend)
+    entries = list(reversed(getattr(draft["tasks"], method)()))
+    values = entries if method == "values" else [value for _, value in entries]
+
+    assert values[1] == 7
+    assert type(values[1]) is int
+    values[0].append("done")
+    values[2]["done"] = True
+
+    assert state.state == {"tasks": {"first": {"done": True}, "count": 7, "last": ["done"]}}
+    assert ops == [
+        {"type": "set", "path": ["tasks", "last", "0"], "value": "done"},
+        {"type": "set", "path": ["tasks", "first", "done"], "value": True},
+    ]
+
+
+@pytest.mark.parametrize("method", ["list_copy", "dict_copy", "list_add", "reversed"])
+def test_retained_containers_from_copy_add_and_reverse_emit_ops(method) -> None:
+    ops = []
+    state = AssistantState({"tasks": [{"done": False}], "named": {"first": {"done": False}}})
+    draft = state.draft(ops.extend)
+
+    if method == "list_copy":
+        task = draft["tasks"].copy()[0]
+        path = ["tasks", "0", "done"]
+    elif method == "dict_copy":
+        task = draft["named"].copy()["first"]
+        path = ["named", "first", "done"]
+    elif method == "list_add":
+        task = (draft["tasks"] + [])[0]
+        path = ["tasks", "0", "done"]
+    else:
+        task = next(draft["tasks"].__reversed__())
+        path = ["tasks", "0", "done"]
+
+    task["done"] = True
+    draft["archive"] = [task]
+
+    expected = {"tasks": [{"done": False}], "named": {"first": {"done": False}}}
+    if method == "dict_copy":
+        expected["named"]["first"]["done"] = True
+    else:
+        expected["tasks"][0]["done"] = True
+    expected["archive"] = [{"done": True}]
+    assert state.state == expected
+    assert ops == [
+        {"type": "set", "path": path, "value": True},
+        {"type": "set", "path": ["archive"], "value": [{"done": True}]},
+    ]
+    assert type(ops[1]["value"][0]) is dict
+
+
 @pytest.mark.parametrize("operation", ["extend", "iadd", "add"])
 def test_list_copy_operations_accept_nested_proxy_values(operation) -> None:
     state = AssistantState({"target": [], "source": [{"count": 1}]})
@@ -629,6 +685,24 @@ def test_nested_iteration_forwards_writes_through_parent_drafts() -> None:
     assert [op["path"] for op in ops] == [
         ["groups", "0", "0", "done"], ["groups", "0", "1", "done"],
     ]
+
+
+def test_rejected_nested_iteration_write_preserves_every_snapshot() -> None:
+    ops = []
+    state = AssistantState({"groups": [[{"done": False}]]})
+    draft = state.draft(ops.extend)
+    group = next(iter(draft["groups"]))
+    task = next(iter(group))
+    draft["groups"][0][0]["done"] = True
+    ops.clear()
+
+    with pytest.raises(ValueError, match="changed through another reference"):
+        task["done"] = "rejected"
+
+    assert state.state == {"groups": [[{"done": True}]]}
+    assert group == [{"done": False}]
+    assert task == {"done": False}
+    assert ops == []
 
 
 def test_list_iterator_keeps_its_snapshot_when_items_are_appended() -> None:

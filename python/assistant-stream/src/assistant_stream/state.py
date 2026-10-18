@@ -161,14 +161,17 @@ class _IterationDraft(StateDraft):
         super().__init__(snapshot, self._forward)
 
     def add_operations(self, operations: List[StateOperation]) -> None:
-        try:
-            current = self._parent.get_value_at_path(self._parent_path)
-        except KeyError:
-            raise ValueError("The iterated container has been replaced") from None
-        if current is not self._expected:
-            raise ValueError(
-                "The iterated container was replaced or changed through another reference"
-            )
+        draft = self
+        while isinstance(draft, _IterationDraft):
+            try:
+                current = draft._parent.get_value_at_path(draft._parent_path)
+            except KeyError:
+                raise ValueError("The iterated container has been replaced") from None
+            if current is not draft._expected:
+                raise ValueError(
+                    "The iterated container was replaced or changed through another reference"
+                )
+            draft = draft._parent
         super().add_operations(operations)
 
     def _forward(self, operations: List[StateOperation]) -> None:
@@ -426,7 +429,7 @@ class StateProxy:
         if isinstance(value, str) and isinstance(other, str):
             return value + other
         if isinstance(value, list) and hasattr(other, "__iter__"):
-            return value + list(other)
+            return list(self) + list(other)
         return NotImplemented
 
     def __getattr__(self, name: str) -> Any:
@@ -456,11 +459,28 @@ class StateProxy:
             )
         return iter(value)
 
+    def __reversed__(self):
+        value = self._get_value()
+        if isinstance(value, list):
+            return (
+                self._iterated_value(index, value[index])
+                for index in range(len(value) - 1, -1, -1)
+            )
+        return reversed(value)
+
     def _iterated_value(self, key: Union[str, int], value: Any) -> Any:
         if isinstance(value, (dict, list)):
             draft = _IterationDraft(self._manager, self._path + [str(key)], value)
             return type(self)(draft, [])
         return value
+
+    def copy(self):
+        value = self._get_value()
+        if isinstance(value, list):
+            return list(self)
+        if isinstance(value, dict):
+            return dict(self.items())
+        return value.copy()
 
     # Efficient list operations
     def append(self, item: Any) -> None:
@@ -585,10 +605,22 @@ class _StateValuesView(ValuesView):
             for key, value in self._mapping._get_value().items()
         )
 
+    def __reversed__(self):
+        return (
+            self._mapping._iterated_value(key, value)
+            for key, value in reversed(self._mapping._get_value().items())
+        )
+
 
 class _StateItemsView(ItemsView):
     def __iter__(self):
         return (
             (key, self._mapping._iterated_value(key, value))
             for key, value in self._mapping._get_value().items()
+        )
+
+    def __reversed__(self):
+        return (
+            (key, self._mapping._iterated_value(key, value))
+            for key, value in reversed(self._mapping._get_value().items())
         )
