@@ -71,9 +71,7 @@ export type RemoteThreadListAdapter = {
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
 
   /**
-   * Optional React component wrapped around each active thread. Use it to
-   * inject per-thread context such as a history or attachments adapter (see
-   * `useCloudThreadListAdapter` for the canonical shape).
+   * Optional React component wrapped around each active thread, an older face of `unstable_useAdapters` for injecting per-thread adapters such as history or attachments. Prefer `unstable_useAdapters`, which `useCloudThreadListAdapter` and `createLocalStorageAdapter` implement.
    *
    * `useRemoteThreadListRuntime` renders this component only when the adapter it mounts with has one; it then renders each later adapter's provider and synthesizes a `RuntimeAdapterProvider` from `unstable_useAdapters` for a later adapter without one. A hook that mounts with an adapter without this component calls `unstable_useAdapters` for every later adapter and ignores this component. The `RemoteThreadList` store entry ignores it; expose `unstable_useAdapters` for that host.
    *
