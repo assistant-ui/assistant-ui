@@ -430,7 +430,12 @@ export class PiThreadSupervisor {
   private getModelRuntime(): Promise<ModelRuntime> {
     if (!this.modelRuntimePromise) {
       this.modelRuntimePromise = ModelRuntime.create(
-        this.agentDir ? { authPath: `${this.agentDir}/auth.json` } : undefined,
+        this.agentDir
+          ? {
+              authPath: join(this.agentDir, "auth.json"),
+              modelsPath: join(this.agentDir, "models.json"),
+            }
+          : undefined,
       ).catch((error) => {
         this.modelRuntimePromise = undefined;
         throw error;
