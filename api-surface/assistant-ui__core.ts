@@ -4034,6 +4034,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     unstable_on<E extends ThreadRuntimeEventType>(event: E, callback: ThreadRuntimeEventCallback<E>): Unsubscribe$1;
   }> | undefined;
   __internal_hasThreadRuntime(threadId: string): boolean;
+  __internal_isThreadRuntimeAttached(threadId: string): boolean;
   __internal_isThreadRunning(threadId: string): boolean;
   __internal_subscribeRunningChanged(callback: () => void): Unsubscribe$1;
   __internal_subscribeThreadEvents(callback: (event: ThreadListRuntimeEvent) => void): Unsubscribe$1;
@@ -4076,6 +4077,7 @@ type RemoteThreadListProps = {
   backgroundThreads?: boolean | undefined;
   __internal_initialThreadIdSeed?: string | undefined;
   __internal_ensureThread?: ((item: ThreadListItemCoreState) => Promise<void>) | undefined;
+  __internal_isThreadAttached?: ((threadId: string) => boolean) | undefined;
   __internal_preserveDraftOnAdapterChange?: boolean | undefined;
   __internal_reopenControlledThreadOnAdapterChange?: boolean | undefined;
 };

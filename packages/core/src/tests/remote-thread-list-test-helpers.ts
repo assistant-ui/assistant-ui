@@ -37,13 +37,16 @@ export function setStartThreadRuntime(
   core: RemoteThreadListThreadListRuntimeCore,
   startThreadRuntime: (id: string) => Promise<unknown>,
 ) {
-  (
+  const manager = (
     core as unknown as {
       _hookManager: {
         startThreadRuntime: (id: string) => Promise<unknown>;
+        __internal_isThreadRuntimeAttached: (id: string) => boolean;
       };
     }
-  )._hookManager.startThreadRuntime = startThreadRuntime;
+  )._hookManager;
+  manager.startThreadRuntime = startThreadRuntime;
+  manager.__internal_isThreadRuntimeAttached = () => true;
 }
 
 export function makeAdapter(

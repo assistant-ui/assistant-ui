@@ -52,6 +52,7 @@ import type {
   RemoteThreadListResponse,
 } from "../../runtimes/remote-thread-list/types";
 import { ThreadListAdapterChangedError } from "../../runtimes/remote-thread-list/adapter-changed";
+import { ThreadListDestroyedError } from "../../runtimes/remote-thread-list/thread-list-destroyed";
 import type { ThreadListItemCoreState } from "../../runtime/interfaces/thread-list-runtime-core";
 import type { ThreadMessage } from "../../types/message";
 import { handleThreadListAction } from "../../store/runtime-clients/handle-thread-list-action";
@@ -116,6 +117,7 @@ export type RemoteThreadListProps = {
   __internal_ensureThread?:
     | ((item: ThreadListItemCoreState) => Promise<void>)
     | undefined;
+  __internal_isThreadAttached?: ((threadId: string) => boolean) | undefined;
   __internal_preserveDraftOnAdapterChange?: boolean | undefined;
   __internal_reopenControlledThreadOnAdapterChange?: boolean | undefined;
 };
@@ -576,6 +578,7 @@ const useRemoteThreadList = (
     onSwitchToNewThread,
     onDelete,
     __internal_ensureThread: ensureThread,
+    __internal_isThreadAttached: isThreadAttached,
     __internal_preserveDraftOnAdapterChange: preserveDraftOnAdapterChange,
     __internal_reopenControlledThreadOnAdapterChange:
       reopenControlledThreadOnAdapterChange,
@@ -628,6 +631,7 @@ const useRemoteThreadList = (
         newThreadIntent: undefined as
           | { id: string; generation: number; unsubscribe: () => void }
           | undefined,
+        supersedeAttachmentWait: undefined as (() => void) | undefined,
         mainThreadId: seeded.id,
         isFirstThreadIdEffect: true,
         onThreadIdChange,
@@ -827,6 +831,7 @@ const useRemoteThreadList = (
         (reopenControlledThreadOnAdapterChange ||
           session.controlledSwitchAdapter === adapter) &&
         session.controlledSwitchGeneration === session.switchGeneration;
+      session.supersedeAttachmentWait?.();
       session.switchGeneration++;
       session.settleSwitch?.();
       session.controlledReloadPending = preserveControlled;
@@ -948,6 +953,19 @@ const useRemoteThreadList = (
 
   const startSwitch = useCallback(
     (run: (generation: number) => Promise<void>, threadId?: string) => {
+      if (ownerDestroySignal?.aborted) {
+        return Promise.reject(new ThreadListDestroyedError());
+      }
+      if (
+        session.supersedeAttachmentWait &&
+        session.switchTask &&
+        threadId !== undefined &&
+        isSameThread(store.value, threadId, session.mainThreadId)
+      ) {
+        return session.switchTask;
+      }
+      session.supersedeAttachmentWait?.();
+      session.supersedeAttachmentWait = undefined;
       session.newThreadIntent?.unsubscribe();
       session.newThreadIntent = undefined;
       const generation = ++session.switchGeneration;
@@ -965,21 +983,37 @@ const useRemoteThreadList = (
       session.switchTask = task;
       session.pendingSwitchGeneration = generation;
       let unsubscribe: (() => void) | undefined;
+      let ran = false;
       const settle = () => {
         unsubscribe?.();
         if (session.newThreadIntent?.generation === generation) {
           session.newThreadIntent.unsubscribe();
           session.newThreadIntent = undefined;
         }
+        ownerDestroySignal?.removeEventListener("abort", onDestroy);
         if (session.pendingSwitchGeneration === generation) {
           session.pendingSwitchGeneration = undefined;
           session.settleSwitch = undefined;
         }
         resolveTask();
       };
+      const onDestroy = () => {
+        if (ran || generation !== session.switchGeneration) {
+          settle();
+          return;
+        }
+        session.switchGeneration++;
+        session.pendingSwitchGeneration = undefined;
+        session.settleSwitch = undefined;
+        session.supersedeAttachmentWait?.();
+        session.supersedeAttachmentWait = undefined;
+        rejectTask(new ThreadListDestroyedError());
+      };
+      ownerDestroySignal?.addEventListener("abort", onDestroy, { once: true });
       if (ensureThread) session.settleSwitch = settle;
       void run(generation).then(
         () => {
+          ran = true;
           if (
             !ensureThread ||
             generation !== session.switchGeneration ||
@@ -1004,6 +1038,7 @@ const useRemoteThreadList = (
             session.newThreadIntent.unsubscribe();
             session.newThreadIntent = undefined;
           }
+          ownerDestroySignal?.removeEventListener("abort", onDestroy);
           if (session.pendingSwitchGeneration === generation) {
             session.pendingSwitchGeneration = undefined;
             session.settleSwitch = undefined;
@@ -1107,6 +1142,21 @@ const useRemoteThreadList = (
         if (generation !== session.switchGeneration) return;
         if (newThread && current.status !== "new") return;
         assignMainThreadId(current.id);
+        while (ensureThread && isThreadAttached?.(current.id) === false) {
+          let supersede!: () => void;
+          const superseded = new Promise<void>((resolve) => {
+            supersede = resolve;
+          });
+          session.supersedeAttachmentWait = supersede;
+          try {
+            await Promise.race([ensureThread(current), superseded]);
+          } finally {
+            if (session.supersedeAttachmentWait === supersede) {
+              session.supersedeAttachmentWait = undefined;
+            }
+          }
+          if (generation !== session.switchGeneration) return;
+        }
         notifyRemoteId(current.remoteId, emitThreadIdChange);
         if (newThread) session.onSwitchToNewThread?.();
         else session.onSwitchToThread?.(current.id);
@@ -1133,6 +1183,7 @@ const useRemoteThreadList = (
     [
       assignMainThreadId,
       ensureThread,
+      isThreadAttached,
       lifetimes,
       notifyRemoteId,
       session,
@@ -1150,6 +1201,7 @@ const useRemoteThreadList = (
         emitThreadIdChange &&
         session.controlledSwitchGeneration === session.switchGeneration &&
         session.pendingSwitchGeneration === session.switchGeneration &&
+        session.supersedeAttachmentWait === undefined &&
         isSameThread(store.value, threadIdOrRemoteId, session.mainThreadId)
       ) {
         return RESOLVED_PROMISE;
@@ -1810,14 +1862,9 @@ const useRemoteThreadList = (
       session.newThreadIntent?.unsubscribe();
       session.newThreadIntent = undefined;
     };
-    const dispose = () => {
-      clearIntent();
-      session.switchGeneration++;
-      session.settleSwitch?.();
-    };
-    ownerDestroySignal?.addEventListener("abort", dispose, { once: true });
+    ownerDestroySignal?.addEventListener("abort", clearIntent, { once: true });
     return () => {
-      ownerDestroySignal?.removeEventListener("abort", dispose);
+      ownerDestroySignal?.removeEventListener("abort", clearIntent);
       clearIntent();
     };
   }, [ownerDestroySignal, session]);
