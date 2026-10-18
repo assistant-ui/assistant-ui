@@ -103,6 +103,7 @@ export class RemoteThreadListThreadListRuntimeCore
   private _staleThreadIdsOnReplace: ReadonlySet<string> | undefined;
   private _staleThreadsAdapter: RemoteThreadListAdapter | undefined;
   private _switchGeneration = 0;
+  private _disposedSwitchGeneration: number | undefined;
   private _switchTask: Promise<void> | undefined;
   private _supersedeAttachmentWait: (() => void) | undefined;
   private _switchError:
@@ -824,6 +825,19 @@ export class RemoteThreadListThreadListRuntimeCore
     return ++this._switchGeneration;
   }
 
+  private _raceDispose(generation: number, operation: () => Promise<void>) {
+    const signal = this._destroyController.signal;
+    return raceWithAbortSignal(signal, operation).catch((error: unknown) => {
+      if (
+        error === signal.reason &&
+        this._disposedSwitchGeneration !== undefined &&
+        generation < this._disposedSwitchGeneration
+      )
+        return;
+      throw error;
+    });
+  }
+
   private _startSwitchToThread(
     threadIdOrRemoteId: string,
     options: { unarchive?: boolean } | undefined,
@@ -840,7 +854,7 @@ export class RemoteThreadListThreadListRuntimeCore
     this._clearNewThreadIntent();
     const generation = this._nextSwitchGeneration();
     this._setSwitchError(undefined);
-    const task = raceWithAbortSignal(this._destroyController.signal, () =>
+    const task = this._raceDispose(generation, () =>
       this._switchToThread(
         threadIdOrRemoteId,
         options,
@@ -1023,7 +1037,7 @@ export class RemoteThreadListThreadListRuntimeCore
       };
     }
     this._setSwitchError(undefined);
-    const task = raceWithAbortSignal(this._destroyController.signal, () =>
+    const task = this._raceDispose(generation, () =>
       this._switchToNewThread(
         generation,
         emitThreadIdChange,
@@ -1677,6 +1691,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
   public __internal_dispose() {
     this._clearNewThreadIntent();
+    this._disposedSwitchGeneration = this._switchGeneration;
     this._nextSwitchGeneration();
     this._destroyController.abort(new ThreadListDestroyedError());
     this._disarmAutomaticTitles();

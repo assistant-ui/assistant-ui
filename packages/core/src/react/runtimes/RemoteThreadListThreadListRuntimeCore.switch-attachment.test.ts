@@ -199,3 +199,22 @@ it("rechecks attachment when a published replacement is retired before settlemen
   await switchToB;
   expect(core.getMainThreadRuntimeCore()).toBe(replacement);
 });
+
+it("settles a superseded switch that is still running when the list is disposed", async () => {
+  let releaseUnarchive!: () => void;
+  const { core, publish } = await setup(
+    () =>
+      new Promise<void>((resolve) => {
+        releaseUnarchive = resolve;
+      }),
+  );
+  const switchToB = core.switchToThread("thread-b");
+  publish("thread-b", new ReadonlyThreadRuntimeCore());
+  await vi.waitFor(() => expect(releaseUnarchive).toBeTypeOf("function"));
+  await core.switchToThread("thread-a");
+
+  core.__internal_dispose();
+  releaseUnarchive();
+
+  await expect(switchToB).resolves.toBeUndefined();
+});
