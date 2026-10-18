@@ -27,7 +27,7 @@ async def _close_on_exit(
                     await close()
             finally:
                 close = getattr(stream, "aclose", None)
-                if close is not None:
+                if close is not None and not getattr(stream, "ag_running", False):
                     await close()
 
 

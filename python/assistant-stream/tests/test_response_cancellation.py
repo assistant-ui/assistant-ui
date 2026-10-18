@@ -1,5 +1,7 @@
 import asyncio
+import importlib
 
+import anyio
 import pytest
 from starlette.requests import ClientDisconnect
 
@@ -12,6 +14,15 @@ from assistant_stream.serialization import (
 
 
 RESPONSES = [DataStreamResponse, AssistantTransportResponse, OpenAIStreamResponse]
+
+
+@pytest.fixture
+def short_cleanup_grace(monkeypatch):
+    from assistant_stream.serialization import heartbeat as heartbeat_module
+
+    create_run_module = importlib.import_module("assistant_stream.create_run")
+    monkeypatch.setattr(create_run_module, "_EARLY_CLOSE_GRACE_SECONDS", 0.01, raising=False)
+    monkeypatch.setattr(heartbeat_module, "_EARLY_CLOSE_GRACE_SECONDS", 0.01, raising=False)
 
 
 @pytest.mark.anyio
@@ -246,3 +257,142 @@ async def test_response_accepts_encoder_iterator_without_aclose(early_close):
         assert finished.is_set()
     finally:
         await source.aclose()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("heartbeat", [False, True])
+async def test_disconnect_does_not_wait_for_callback_that_swallows_cancellation(
+    heartbeat, short_cleanup_grace
+):
+    cancelled = asyncio.Event()
+    release = asyncio.Event()
+    finished = asyncio.Event()
+    controllers = []
+
+    async def callback(controller):
+        controllers.append(controller)
+        controller.append_text("hello")
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            cancelled.set()
+            await release.wait()
+        finally:
+            finished.set()
+
+    async def send(message):
+        if message["type"] == "http.response.body":
+            raise BrokenPipeError("disconnected")
+
+    async def receive():
+        await asyncio.Event().wait()
+
+    response = AssistantTransportResponse(create_run(callback), heartbeat=heartbeat)
+    scope = {"type": "http", "asgi": {"spec_version": "2.4"}}
+    request = asyncio.create_task(response(scope, receive, send))
+    try:
+        await asyncio.wait_for(cancelled.wait(), 1)
+        done, _ = await asyncio.wait({request}, timeout=0.2)
+        assert done
+        assert controllers[0].is_cancelled
+        assert isinstance(request.exception(), ClientDisconnect)
+        assert not finished.is_set()
+    finally:
+        release.set()
+        await asyncio.wait_for(asyncio.gather(request, return_exceptions=True), 1)
+        await asyncio.wait_for(finished.wait(), 1)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("heartbeat", [False, True])
+async def test_outer_cancellation_exits_during_stubborn_callback_cleanup(
+    heartbeat, short_cleanup_grace
+):
+    cancelled = asyncio.Event()
+    release = asyncio.Event()
+    finished = asyncio.Event()
+    scope_ready = asyncio.Event()
+    scopes = []
+
+    async def callback(controller):
+        controller.append_text("hello")
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            cancelled.set()
+            await release.wait()
+        finally:
+            finished.set()
+
+    response = AssistantTransportResponse(create_run(callback), heartbeat=heartbeat)
+    await anext(response.body_iterator)
+
+    async def close_body():
+        with anyio.CancelScope() as scope:
+            scopes.append(scope)
+            scope_ready.set()
+            await response.body_iterator.aclose()
+
+    closing = asyncio.create_task(close_body())
+    try:
+        await scope_ready.wait()
+        await asyncio.wait_for(cancelled.wait(), 1)
+        scopes[0].cancel()
+        done, _ = await asyncio.wait({closing}, timeout=0.2)
+        assert done
+        await closing
+        assert not finished.is_set()
+    finally:
+        release.set()
+        await asyncio.wait_for(asyncio.gather(closing, return_exceptions=True), 1)
+        await asyncio.wait_for(finished.wait(), 1)
+
+
+@pytest.mark.anyio
+async def test_disconnect_during_pending_heartbeat_read_has_bounded_cleanup(
+    short_cleanup_grace,
+):
+    reading = asyncio.Event()
+    cancelled = asyncio.Event()
+    release = asyncio.Event()
+    finished = asyncio.Event()
+
+    async def callback(controller):
+        controller.append_text("hello")
+        try:
+            await asyncio.Event().wait()
+        except asyncio.CancelledError:
+            cancelled.set()
+            await release.wait()
+        finally:
+            finished.set()
+
+    source = create_run(callback)
+
+    async def chunks():
+        yield await anext(source)
+        reading.set()
+        async for chunk in source:
+            yield chunk
+
+    async def receive():
+        await reading.wait()
+        await asyncio.sleep(0)
+        return {"type": "http.disconnect"}
+
+    async def send(_message):
+        pass
+
+    response = AssistantTransportResponse(chunks(), heartbeat=True)
+    scope = {"type": "http", "asgi": {"spec_version": "2.3"}}
+    request = asyncio.create_task(response(scope, receive, send))
+    try:
+        await asyncio.wait_for(cancelled.wait(), 1)
+        done, _ = await asyncio.wait({request}, timeout=0.2)
+        assert done
+        assert request.exception() is None
+        assert not finished.is_set()
+    finally:
+        release.set()
+        await asyncio.wait_for(asyncio.gather(request, return_exceptions=True), 1)
+        await asyncio.wait_for(finished.wait(), 1)
