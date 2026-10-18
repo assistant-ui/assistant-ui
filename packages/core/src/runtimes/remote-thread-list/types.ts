@@ -55,7 +55,11 @@ export type RemoteThreadListAdapter = {
   archive(remoteId: string): Promise<void>;
   unarchive(remoteId: string): Promise<void>;
   delete(remoteId: string): Promise<void>;
-  /** Creates a thread with draft metadata passed in `options.custom`. */
+  /**
+   * Creates a thread with draft metadata passed in `options.custom`. Draft
+   * metadata reaches the backend only through this call, so an adapter that
+   * ignores `options.custom` drops it on the next `list()`.
+   */
   initialize(
     threadId: string,
     options?: { custom?: Record<string, unknown> | undefined },
