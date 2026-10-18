@@ -141,7 +141,7 @@ describe("PiThreadSupervisor", () => {
 
     const snapshot = await supervisor.getThread("t1");
 
-    expect(sdk.list).toHaveBeenCalledWith("/ws");
+    expect(sdk.list).toHaveBeenCalledWith("/ws", undefined);
     expect(sdk.open).toHaveBeenCalledWith(SESSION.path);
     expect(sdk.createAgentSession).not.toHaveBeenCalled();
     expect(snapshot.messages).toEqual([
