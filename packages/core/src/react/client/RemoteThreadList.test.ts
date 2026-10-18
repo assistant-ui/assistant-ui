@@ -1362,7 +1362,15 @@ describe("RemoteThreadList", () => {
       const { adapter, aui, handle, deleted, isDeletionCommitted } =
         await mountDeletableThread();
       const renamed = deferred<void>();
-      vi.mocked(adapter.rename).mockImplementation(() => renamed.promise);
+      let renameSettled = false;
+      vi.mocked(adapter.rename).mockImplementation(async () => {
+        await renamed.promise;
+        renameSettled = true;
+      });
+      vi.mocked(adapter.delete).mockImplementation(() => {
+        expect(renameSettled).toBe(true);
+        return deleted.promise;
+      });
       vi.mocked(adapter.generateTitle).mockImplementation(async () => {
         if (isDeletionCommitted()) late.push(offset);
         return new ReadableStream({
@@ -1375,13 +1383,14 @@ describe("RemoteThreadList", () => {
       const renaming = aui.threads.item({ id: "t1" }).rename("Manual title");
       const generation = aui.threads.item({ id: "t1" }).generateTitle();
       const deleting = aui.threads.item({ id: "t1" }).delete();
+      expect(adapter.delete).not.toHaveBeenCalled();
+      renamed.resolve();
       await vi.waitFor(
         () => {
           expect(adapter.delete).toHaveBeenCalledOnce();
         },
         { interval: 5 },
       );
-      renamed.resolve();
       await microtasks(offset);
       deleted.resolve();
       await Promise.all([renaming, generation, deleting]);
@@ -1433,11 +1442,18 @@ describe("RemoteThreadList", () => {
 
   it("does not request a title for a thread deleted while the request waits on a rename", async () => {
     const renamed = deferred<void>();
+    let renameSettled = false;
     const adapter = makeAdapter({
       list: vi.fn(async () => ({
         threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
       })),
-      rename: vi.fn(() => renamed.promise),
+      rename: vi.fn(async () => {
+        await renamed.promise;
+        renameSettled = true;
+      }),
+      delete: vi.fn(async () => {
+        expect(renameSettled).toBe(true);
+      }),
     });
     const { handle } = mountList(adapter);
     const aui = handle.getClient();
@@ -1451,12 +1467,16 @@ describe("RemoteThreadList", () => {
     });
 
     const renaming = aui.threads.item({ id: "t1" }).rename("Manual title");
-    const generation = aui.threads.item({ id: "t1" }).generateTitle();
-    await aui.threads.item({ id: "t1" }).delete();
+    const generation = aui.threads
+      .item({ id: "t1" })
+      .generateTitle({ automatic: true });
+    const deleting = aui.threads.item({ id: "t1" }).delete();
+    expect(adapter.delete).not.toHaveBeenCalled();
+    renamed.resolve();
+    await deleting;
     await waitFor(() => {
       expect(aui.threads.getState().threadIds).toEqual([]);
     });
-    renamed.resolve();
     await renaming;
     await generation;
 
