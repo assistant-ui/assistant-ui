@@ -205,6 +205,181 @@ const wrappedFetchOf = (
   ).fetch;
 
 describe("AssistantChatTransport resumable fetch wrapper", () => {
+  it.each([
+    { type: "data-progress", data: { type: "finish", step: "search" } },
+    {
+      type: "tool-output-available",
+      toolCallId: "call-1",
+      output: { type: "finish" },
+    },
+    { type: "message-metadata", messageMetadata: { type: "finish" } },
+  ])(
+    "keeps $type resumable when its payload contains a finish type",
+    async (event) => {
+      const storage = createMemoryStorage();
+      const fetch = vi
+        .fn<typeof globalThis.fetch>()
+        .mockResolvedValueOnce(
+          new Response(`data: ${JSON.stringify(event)}\n\n`, {
+            headers: { [RESUMABLE_STREAM_ID_HEADER]: "active-stream" },
+          }),
+        )
+        .mockResolvedValueOnce(new Response('data: {"type":"finish"}\n\n'));
+      const transport = new AssistantChatTransport({
+        fetch,
+        resumable: { storage, resumeApi: (id) => `/api/resume/${id}` },
+      });
+
+      const stream = await transport.sendMessages(sendMessagesOptions as never);
+      const reader = stream.getReader();
+      expect((await reader.read()).value).toEqual(event);
+      await reader.cancel();
+
+      expect(storage.getStreamId()).toBe("active-stream");
+      const resumed = await transport.reconnectToStream({
+        chatId: "local-chat-id",
+      });
+      expect(fetch.mock.calls[1]?.[0]).toBe("/api/resume/active-stream");
+      const resumedReader = resumed!.getReader();
+      expect((await resumedReader.read()).value).toEqual({ type: "finish" });
+      expect(storage.getStreamId()).toBeNull();
+      await resumedReader.cancel();
+    },
+  );
+
+  it.each(["\n", "\r\n", "\r"])(
+    "detects complete multiline finish events across byte boundaries (%j)",
+    async (newline) => {
+      const storage = createMemoryStorage("active-stream");
+      const body = [
+        "\uFEFF: heartbeat",
+        'data: {"messageMetadata": {"note":"✓"},',
+        'data: "type": "finish"}',
+        "",
+        "",
+      ].join(newline);
+      const transport = new AssistantChatTransport({
+        fetch: async () =>
+          new Response(
+            new ReadableStream({
+              start(controller) {
+                for (const byte of new TextEncoder().encode(body)) {
+                  controller.enqueue(new Uint8Array([byte]));
+                }
+                controller.close();
+              },
+            }),
+          ),
+        resumable: { storage, resumeApi: "/api/resume" },
+      });
+
+      const response = await wrappedFetchOf(transport)("https://example.com");
+      expect(new Uint8Array(await response.arrayBuffer())).toEqual(
+        new TextEncoder().encode(body),
+      );
+      expect(storage.getStreamId()).toBeNull();
+    },
+  );
+
+  it.each([
+    'data: {"type":"finish"}',
+    ': {"type":"finish"}\n\n',
+    'data: {"type":"finish",}\n\n',
+    "data: null\n\n",
+    "data: [DONE]\n\n",
+  ])("retains the checkpoint for non-finish input %j", async (body) => {
+    const storage = createMemoryStorage("active-stream");
+    const transport = new AssistantChatTransport({
+      fetch: async () => new Response(body),
+      resumable: { storage, resumeApi: "/api/resume" },
+    });
+    const response = await wrappedFetchOf(transport)("https://example.com");
+
+    expect(await response.text()).toBe(body);
+    expect(storage.getStreamId()).toBe("active-stream");
+  });
+
+  it("waits for the finish event delimiter before clearing the checkpoint", async () => {
+    const storage = createMemoryStorage("active-stream");
+    let source!: ReadableStreamDefaultController<Uint8Array>;
+    const transport = new AssistantChatTransport({
+      fetch: async () =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              source = controller;
+            },
+          }),
+        ),
+      resumable: { storage, resumeApi: "/api/resume" },
+    });
+    const response = await wrappedFetchOf(transport)("https://example.com");
+    const reader = response.body!.getReader();
+
+    source.enqueue(new TextEncoder().encode('data: {"type":"finish"}\n'));
+    await reader.read();
+    expect(storage.getStreamId()).toBe("active-stream");
+    source.enqueue(new TextEncoder().encode("\n"));
+    await reader.read();
+    expect(storage.getStreamId()).toBeNull();
+    await reader.cancel();
+  });
+
+  it("keeps large events intact before checking their top-level type", async () => {
+    const storage = createMemoryStorage("active-stream");
+    const body = `data: ${JSON.stringify({
+      type: "finish",
+      messageMetadata: { text: "x".repeat(8192) },
+    })}\n\n`;
+    const transport = new AssistantChatTransport({
+      fetch: async () =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(new TextEncoder().encode(body.slice(0, 6000)));
+              controller.enqueue(new TextEncoder().encode(body.slice(6000)));
+              controller.close();
+            },
+          }),
+        ),
+      resumable: { storage, resumeApi: "/api/resume" },
+    });
+    const response = await wrappedFetchOf(transport)("https://example.com");
+
+    expect(await response.text()).toBe(body);
+    expect(storage.getStreamId()).toBeNull();
+  });
+
+  it("preserves custom detectors and their decoded accumulator", async () => {
+    const storage = createMemoryStorage("active-stream");
+    const bytes = new TextEncoder().encode("✓done");
+    const chunks = [bytes.slice(0, 1), bytes.slice(1, 2), bytes.slice(2)];
+    const isFinishEvent = vi.fn(
+      (_chunk: Uint8Array, text: string) => text === "✓done",
+    );
+    const transport = new AssistantChatTransport({
+      fetch: async () =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              for (const chunk of chunks) controller.enqueue(chunk);
+              controller.close();
+            },
+          }),
+        ),
+      resumable: { storage, resumeApi: "/api/resume", isFinishEvent },
+    });
+    const response = await wrappedFetchOf(transport)("https://example.com");
+
+    expect(await response.text()).toBe("✓done");
+    expect(isFinishEvent.mock.calls).toEqual([
+      [chunks[0], ""],
+      [chunks[1], ""],
+      [chunks[2], "✓done"],
+    ]);
+    expect(storage.getStreamId()).toBeNull();
+  });
+
   it("keeps a replacement checkpoint set while preparing an older reconnect", async () => {
     const storage = createMemoryStorage("stream-old");
     let finishPrepare!: () => void;
