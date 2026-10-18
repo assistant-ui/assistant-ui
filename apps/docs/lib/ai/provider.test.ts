@@ -13,10 +13,20 @@ vi.mock("@ai-sdk/openai", async (importOriginal) => ({
 import { DEFAULT_MODEL_ID } from "../model";
 import { resolveChatModel } from "./provider";
 
+const REASONING_MODEL_ID = "grok-4.7";
+
 describe("resolveChatModel", () => {
-  it("runs a reasoning model through the Responses API when no effort is requested", () => {
+  it("runs the default model on Chat Completions", () => {
     expect(resolveChatModel()).toEqual({
-      model: { api: "responses", id: DEFAULT_MODEL_ID },
+      model: { api: "chat", id: DEFAULT_MODEL_ID },
+      providerOptions: undefined,
+      reasoning: false,
+    });
+  });
+
+  it("runs a reasoning model through the Responses API when no effort is requested", () => {
+    expect(resolveChatModel({ modelName: REASONING_MODEL_ID })).toEqual({
+      model: { api: "responses", id: REASONING_MODEL_ID },
       providerOptions: {
         openai: {
           reasoningEffort: "low",
@@ -31,11 +41,11 @@ describe("resolveChatModel", () => {
   it("runs a reasoning model through the Responses API at the requested effort", () => {
     expect(
       resolveChatModel({
-        modelName: DEFAULT_MODEL_ID,
+        modelName: REASONING_MODEL_ID,
         reasoningEffort: "medium",
       }),
     ).toEqual({
-      model: { api: "responses", id: DEFAULT_MODEL_ID },
+      model: { api: "responses", id: REASONING_MODEL_ID },
       providerOptions: {
         openai: {
           reasoningEffort: "medium",
@@ -51,7 +61,7 @@ describe("resolveChatModel", () => {
     for (const effort of ["high", "xhigh"]) {
       expect(
         resolveChatModel({
-          modelName: DEFAULT_MODEL_ID,
+          modelName: REASONING_MODEL_ID,
           reasoningEffort: effort,
         }).providerOptions?.openai.reasoningEffort,
       ).toBe("medium");
@@ -67,11 +77,11 @@ describe("resolveChatModel", () => {
   it("keeps models without reasoning on Chat Completions", () => {
     expect(
       resolveChatModel({
-        modelName: "grok/grok-4.3",
+        modelName: "moonshotai/kimi-k3",
         reasoningEffort: "high",
       }),
     ).toEqual({
-      model: { api: "chat", id: "grok/grok-4.3" },
+      model: { api: "chat", id: "moonshotai/kimi-k3" },
       providerOptions: undefined,
       reasoning: false,
     });
@@ -80,12 +90,12 @@ describe("resolveChatModel", () => {
   it("falls back to the default model for a model name that is not a string", () => {
     expect(
       resolveChatModel({ modelName: 42, reasoningEffort: "low" }).model,
-    ).toEqual({ api: "responses", id: DEFAULT_MODEL_ID });
+    ).toEqual({ api: "chat", id: DEFAULT_MODEL_ID });
   });
 
   it("falls back to the default model for an unknown model id", () => {
     expect(resolveChatModel({ modelName: "gpt-4.1-mini" }).model).toEqual({
-      api: "responses",
+      api: "chat",
       id: DEFAULT_MODEL_ID,
     });
   });
