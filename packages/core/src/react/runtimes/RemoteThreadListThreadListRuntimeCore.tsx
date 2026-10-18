@@ -43,6 +43,7 @@ import type {
   RemoteThreadMetadata,
 } from "../../runtimes/remote-thread-list/types";
 import { ThreadListAdapterChangedError } from "../../runtimes/remote-thread-list/adapter-changed";
+import { ThreadListDestroyedError } from "../../runtimes/remote-thread-list/thread-list-destroyed";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
 import {
   applyTitleStream,
@@ -68,6 +69,7 @@ import type { ModelContextProvider } from "../../model-context/types";
 import { RuntimeAdapterProvider } from "./RuntimeAdapterProvider";
 import { useStableRuntimeAdapters } from "./useRuntimeAdapters";
 import { invokeUserCallback } from "../../utils/invoke-user-callback";
+import { raceWithAbortSignal } from "../../utils/abortable-promise";
 
 const threadNotFoundError = (threadIdOrRemoteId: string, action: string) =>
   new Error(`Thread "${threadIdOrRemoteId}" not found while ${action}.`);
@@ -101,14 +103,16 @@ export class RemoteThreadListThreadListRuntimeCore
   private _staleThreadIdsOnReplace: ReadonlySet<string> | undefined;
   private _staleThreadsAdapter: RemoteThreadListAdapter | undefined;
   private _switchGeneration = 0;
+  private _disposedSwitchGeneration: number | undefined;
   private _switchTask: Promise<void> | undefined;
+  private _supersedeAttachmentWait: (() => void) | undefined;
   private _switchError:
     | { readonly threadId: string; readonly error: unknown }
     | undefined;
   private readonly _titleStates = new Map<string, ThreadTitleState>();
   private _mutations = new ThreadMutationQueue();
   private readonly _automaticTitles = new Map<string, Unsubscribe>();
-  private _disposed = false;
+  private readonly _destroyController = new AbortController();
 
   private _mainThreadId!: string;
   private readonly _state = new OptimisticState<RemoteThreadState>(
@@ -401,7 +405,7 @@ export class RemoteThreadListThreadListRuntimeCore
       this._loadGeneration++;
       this._adapterGeneration++;
       this._mutations = new ThreadMutationQueue();
-      this._switchGeneration++;
+      this._nextSwitchGeneration();
       this._switchTask = undefined;
       this._loadThreadsPromise = undefined;
       this._loadMorePromise = undefined;
@@ -806,6 +810,7 @@ export class RemoteThreadListThreadListRuntimeCore
     if (
       this._controlledSwitchTask !== undefined &&
       this._controlledSwitchGeneration === this._switchGeneration &&
+      this._supersedeAttachmentWait === undefined &&
       getThreadData(this._state.value, threadIdOrRemoteId)?.id ===
         this._mainThreadId
     ) {
@@ -814,19 +819,48 @@ export class RemoteThreadListThreadListRuntimeCore
     return this._startSwitchToThread(threadIdOrRemoteId, options, true);
   }
 
+  private _nextSwitchGeneration() {
+    this._supersedeAttachmentWait?.();
+    this._supersedeAttachmentWait = undefined;
+    return ++this._switchGeneration;
+  }
+
+  private _raceDispose(generation: number, operation: () => Promise<void>) {
+    const signal = this._destroyController.signal;
+    return raceWithAbortSignal(signal, operation).catch((error: unknown) => {
+      if (
+        error === signal.reason &&
+        this._disposedSwitchGeneration !== undefined &&
+        generation < this._disposedSwitchGeneration
+      )
+        return;
+      throw error;
+    });
+  }
+
   private _startSwitchToThread(
     threadIdOrRemoteId: string,
     options: { unarchive?: boolean } | undefined,
     emitThreadIdChange: boolean,
   ): Promise<void> {
+    if (
+      this._supersedeAttachmentWait &&
+      this._switchTask &&
+      getThreadData(this._state.value, threadIdOrRemoteId)?.id ===
+        this._mainThreadId
+    ) {
+      return this._switchTask;
+    }
     this._clearNewThreadIntent();
-    const generation = ++this._switchGeneration;
+    const generation = this._nextSwitchGeneration();
     this._setSwitchError(undefined);
-    const task = this._switchToThread(
-      threadIdOrRemoteId,
-      options,
-      generation,
-      emitThreadIdChange,
+    const task = this._raceDispose(generation, () =>
+      this._switchToThread(
+        threadIdOrRemoteId,
+        options,
+        generation,
+        emitThreadIdChange,
+      ),
     ).catch((error: unknown) => {
       if (
         generation === this._switchGeneration &&
@@ -875,8 +909,9 @@ export class RemoteThreadListThreadListRuntimeCore
     if (!data) throw threadNotFoundError(threadIdOrRemoteId, "switching to it");
     if (this._mainThreadId === data.id) return;
 
+    const attachmentRequired = this.mainThreadId !== undefined;
     const task = this._hookManager.startThreadRuntime(data.id);
-    if (this.mainThreadId !== undefined) {
+    if (attachmentRequired) {
       await task;
     } else {
       void task.then(
@@ -903,6 +938,13 @@ export class RemoteThreadListThreadListRuntimeCore
       }
     }
     this._setMainThreadId(current.id);
+    while (
+      attachmentRequired &&
+      !this._hookManager.__internal_isThreadRuntimeAttached(current.id)
+    ) {
+      await this._waitForReplacement(current.id);
+      if (generation !== this._switchGeneration) return;
+    }
 
     this._notifySubscribers();
     this._notifyThreadIdChange(emitThreadIdChange);
@@ -912,10 +954,31 @@ export class RemoteThreadListThreadListRuntimeCore
   // it, so selecting a thread starts its runtime if it is not running.
   private _setMainThreadId(threadId: string) {
     this._mainThreadId = threadId;
-    if (this._disposed || this._hookManager.getThreadRuntimeCore(threadId))
+    if (
+      this._destroyController.signal.aborted ||
+      this._hookManager.getThreadRuntimeCore(threadId)
+    )
       return;
     const notify = () => this._notifySubscribers();
     void this._hookManager.startThreadRuntime(threadId).then(notify, notify);
+  }
+
+  private async _waitForReplacement(threadId: string) {
+    let supersede!: () => void;
+    const superseded = new Promise<void>((resolve) => {
+      supersede = resolve;
+    });
+    this._supersedeAttachmentWait = supersede;
+    try {
+      await Promise.race([
+        this._hookManager.startThreadRuntime(threadId),
+        superseded,
+      ]);
+    } finally {
+      if (this._supersedeAttachmentWait === supersede) {
+        this._supersedeAttachmentWait = undefined;
+      }
+    }
   }
 
   public switchToNewThread(): Promise<void> {
@@ -962,7 +1025,7 @@ export class RemoteThreadListThreadListRuntimeCore
     initialThreadIdSeed?: string,
   ): Promise<void> {
     this._clearNewThreadIntent();
-    const generation = ++this._switchGeneration;
+    const generation = this._nextSwitchGeneration();
     if (
       !emitThreadIdChange &&
       this._state.baseValue.newThreadId === this._mainThreadId
@@ -974,10 +1037,12 @@ export class RemoteThreadListThreadListRuntimeCore
       };
     }
     this._setSwitchError(undefined);
-    const task = this._switchToNewThread(
-      generation,
-      emitThreadIdChange,
-      initialThreadIdSeed,
+    const task = this._raceDispose(generation, () =>
+      this._switchToNewThread(
+        generation,
+        emitThreadIdChange,
+        initialThreadIdSeed,
+      ),
     );
     this._switchTask = task;
     return task;
@@ -1112,7 +1177,7 @@ export class RemoteThreadListThreadListRuntimeCore
     threadId: string,
     initialization: Promise<unknown>,
   ) {
-    if (this._disposed) return;
+    if (this._destroyController.signal.aborted) return;
     this._automaticTitles.get(threadId)?.();
     let runtime: ThreadRuntimeCore | undefined;
     let unsubscribeRuntime: Unsubscribe | undefined;
@@ -1625,9 +1690,10 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   public __internal_dispose() {
-    this._disposed = true;
     this._clearNewThreadIntent();
-    this._switchGeneration++;
+    this._disposedSwitchGeneration = this._switchGeneration;
+    this._nextSwitchGeneration();
+    this._destroyController.abort(new ThreadListDestroyedError());
     this._disarmAutomaticTitles();
     this._hookManager.__internal_dispose();
   }

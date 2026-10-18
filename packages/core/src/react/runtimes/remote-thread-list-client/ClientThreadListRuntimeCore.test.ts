@@ -71,7 +71,7 @@ describe("ClientThreadListRuntimeCore", () => {
     assertState();
     notified.mockClear();
 
-    flushTapSync(() => void facade.switchToThread("t2"));
+    await flushTapSync(() => facade.switchToThread("t2"));
     await waitFor(() => expect(facade.mainThreadId).toBe("t2"));
     assertState();
     expect(notified).toHaveBeenCalled();
@@ -86,11 +86,11 @@ describe("ClientThreadListRuntimeCore", () => {
     const threads = handle.getClient().threads;
     await threads.getLoadThreadsPromise();
 
-    flushTapSync(() => void facade.switchToThread("t2"));
+    await flushTapSync(() => facade.switchToThread("t2"));
     await waitFor(() => expect(threads.getState().mainThreadId).toBe("t2"));
     expect(facade.mainThreadId).toBe("t2");
 
-    flushTapSync(() => void facade.switchToNewThread());
+    await flushTapSync(() => facade.switchToNewThread());
     await waitFor(() => expect(threads.getState().mainThreadId).not.toBe("t2"));
     expect(facade.mainThreadId).toBe(threads.getState().mainThreadId);
     expect(threads.getState().newThreadId).toBe(facade.mainThreadId);

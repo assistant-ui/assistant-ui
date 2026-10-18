@@ -9,10 +9,13 @@ import {
 } from "@assistant-ui/store/client";
 import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
 import type { RemoteThreadListAdapter } from "../../runtimes/remote-thread-list/types";
+import { deferred } from "../../tests/remote-thread-list-test-helpers";
 import {
   RemoteThreadList,
   type RemoteThreadListProps,
 } from "./RemoteThreadList";
+import { ThreadListDestroyedError } from "../../runtimes/remote-thread-list/thread-list-destroyed";
+import { isSilentRuntimeAction } from "../../utils/silent-runtime-action";
 
 const threadState = { isRunning: false, messages: [] };
 const composer = { getState: () => ({}) };
@@ -63,6 +66,8 @@ const mount = (
     threadId?: string;
     reopenControlledThreadOnAdapterChange?: boolean;
     ensureThread?: RemoteThreadListProps["__internal_ensureThread"];
+    isThreadAttached?: RemoteThreadListProps["__internal_isThreadAttached"];
+    onSwitchToThread?: RemoteThreadListProps["onSwitchToThread"];
     preserveDraftOnAdapterChange?: boolean;
   } = {},
 ) => {
@@ -79,6 +84,8 @@ const mount = (
           __internal_reopenControlledThreadOnAdapterChange:
             options.reopenControlledThreadOnAdapterChange,
           __internal_ensureThread: options.ensureThread,
+          __internal_isThreadAttached: options.isThreadAttached,
+          onSwitchToThread: options.onSwitchToThread,
           __internal_preserveDraftOnAdapterChange:
             options.preserveDraftOnAdapterChange,
           thread: (id) => CapturingThread({ id, signals }) as never,
@@ -138,6 +145,81 @@ describe("RemoteThreadList body lifetimes", () => {
     expect(main.status).toBe("new");
     expect(threads.item({ id: draftId }).getState().remoteId).toBe(draftId);
     handle.destroy();
+  });
+
+  it.each(["ensureThread", "unarchive"] as const)(
+    "rejects a destroyed client's switch while %s is pending",
+    async (pending) => {
+      const operation = deferred<void>();
+      const entered = deferred<void>();
+      const pause = () => {
+        entered.resolve();
+        return operation.promise;
+      };
+      const ensureThread = vi.fn(
+        pending === "ensureThread" ? pause : async () => {},
+      );
+      const onSwitchToThread = vi.fn();
+      const { handle } = mount(
+        makeAdapter({
+          list: vi.fn(async () => ({
+            threads: [{ remoteId: "thread-b", status: "archived" as const }],
+          })),
+          unarchive: pending === "unarchive" ? pause : async () => {},
+        }),
+        { ensureThread, isThreadAttached: () => false, onSwitchToThread },
+      );
+      const threads = handle.getClient().threads;
+      await threads.getLoadThreadsPromise();
+      const fulfilled = vi.fn();
+      const rejected = vi.fn();
+      void threads.__internal_getRawActions!()
+        .switchToThread("thread-b")
+        .then(fulfilled, rejected);
+      await entered.promise;
+      handle.destroy();
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      const rejectionBeforeCompletion = rejected.mock.calls[0]?.[0];
+      const ensuresBeforeCompletion = ensureThread.mock.calls.length;
+      operation.resolve();
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+      expect(rejectionBeforeCompletion).toBeInstanceOf(
+        ThreadListDestroyedError,
+      );
+      expect(isSilentRuntimeAction(rejectionBeforeCompletion)).toBe(true);
+      expect(rejected).toHaveBeenCalledTimes(1);
+      expect(fulfilled).not.toHaveBeenCalled();
+      expect(ensureThread).toHaveBeenCalledTimes(ensuresBeforeCompletion);
+      expect(onSwitchToThread).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects a destroyed client's switch while the client catches up to the attached thread", async () => {
+    const ensureThread = vi.fn(async () => {});
+    const { handle } = mount(makeAdapter(), {
+      ensureThread,
+      isThreadAttached: () => true,
+    });
+    const threads = handle.getClient().threads;
+    await threads.getLoadThreadsPromise();
+    const fulfilled = vi.fn();
+    const rejected = vi.fn();
+    void threads.__internal_getRawActions!()
+      .switchToThread("thread-a")
+      .then(fulfilled, rejected);
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(ensureThread).toHaveBeenCalled();
+    expect(threads.getState().mainThreadId).not.toBe("thread-a");
+    handle.destroy();
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+    expect(rejected.mock.calls[0]?.[0]).toBeInstanceOf(
+      ThreadListDestroyedError,
+    );
+    expect(fulfilled).not.toHaveBeenCalled();
   });
 
   it("releases a body when ensureThread rejects", async () => {
@@ -225,6 +307,59 @@ describe("RemoteThreadList body lifetimes", () => {
     );
     expect(signals.get("thread-a")).toBe(signal);
     handle.destroy();
+  });
+
+  it("joins repeated switches until the replacement runtime attaches", async () => {
+    let attached = true;
+    let resolveAttachment!: () => void;
+    const attachment = new Promise<void>((resolve) => {
+      resolveAttachment = resolve;
+    });
+    const onSwitchToThread = vi.fn();
+    const { handle } = mount(
+      makeAdapter({
+        list: vi.fn(async () => ({
+          threads: [{ remoteId: "thread-b", status: "archived" as const }],
+        })),
+        unarchive: vi.fn(async () => {
+          attached = false;
+        }),
+      }),
+      {
+        ensureThread: () => (attached ? Promise.resolve() : attachment),
+        isThreadAttached: () => attached,
+        onSwitchToThread,
+      },
+    );
+    try {
+      const threads = handle.getClient().threads;
+      await threads.getLoadThreadsPromise();
+      const actions = threads.__internal_getRawActions!();
+      const first = actions.switchToThread("thread-b");
+      const firstSettled = vi.fn();
+      void first.then(firstSettled, firstSettled);
+      await vi.waitFor(() =>
+        expect(threads.getState().mainThreadId).toBe("thread-b"),
+      );
+      const second = actions.switchToThread("thread-b");
+      const secondSettled = vi.fn();
+      void second.then(secondSettled, secondSettled);
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+
+      expect(firstSettled).not.toHaveBeenCalled();
+      expect(secondSettled).not.toHaveBeenCalled();
+      expect(onSwitchToThread).not.toHaveBeenCalled();
+      attached = true;
+      resolveAttachment();
+      await Promise.all([first, second]);
+
+      expect(firstSettled).toHaveBeenCalledTimes(1);
+      expect(secondSettled).toHaveBeenCalledTimes(1);
+      expect(onSwitchToThread).toHaveBeenCalledExactlyOnceWith("thread-b");
+    } finally {
+      resolveAttachment();
+      handle.destroy();
+    }
   });
 
   it("keeps a body that was already selected when a later ensureThread rejects", async () => {

@@ -3375,6 +3375,7 @@ type RemoteThreadListProps = {
   backgroundThreads?: boolean | undefined;
   __internal_initialThreadIdSeed?: string | undefined;
   __internal_ensureThread?: ((item: ThreadListItemCoreState) => Promise<void>) | undefined;
+  __internal_isThreadAttached?: ((threadId: string) => boolean) | undefined;
   __internal_preserveDraftOnAdapterChange?: boolean | undefined;
   __internal_reopenControlledThreadOnAdapterChange?: boolean | undefined;
 };
