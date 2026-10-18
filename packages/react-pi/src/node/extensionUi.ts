@@ -23,6 +23,7 @@ import {
   Theme,
   type ExtensionUIContext,
 } from "@earendil-works/pi-coding-agent";
+import { stripVTControlCharacters as plainText } from "node:util";
 import type { PiHostUiRequest, PiHostUiResponse } from "../types";
 
 const headlessTheme = new Theme(
@@ -202,8 +203,8 @@ export const createSupervisorUiBridge = (
       const request: PiHostUiRequest = {
         id: deps.nextRequestId(),
         kind: "confirm",
-        title,
-        message,
+        title: plainText(title),
+        message: plainText(message),
         ...correlation(opts),
       };
       return ask(
@@ -215,22 +216,34 @@ export const createSupervisorUiBridge = (
     },
 
     select: (title, options, opts) => {
+      const shown = options.map(plainText);
       const request: PiHostUiRequest = {
         id: deps.nextRequestId(),
         kind: "select",
-        title,
-        options,
+        title: plainText(title),
+        options: shown,
         ...correlation(opts),
       };
-      return ask(request, valueOrUndefined, undefined, opts);
+      return ask(
+        request,
+        (response) => {
+          const value = valueOrUndefined(response);
+          const index = value === undefined ? -1 : shown.indexOf(value);
+          return index === -1 ? value : options[index];
+        },
+        undefined,
+        opts,
+      );
     },
 
     input: (title, placeholder, opts) => {
       const request: PiHostUiRequest = {
         id: deps.nextRequestId(),
         kind: "input",
-        title,
-        ...(placeholder !== undefined ? { placeholder } : {}),
+        title: plainText(title),
+        ...(placeholder !== undefined
+          ? { placeholder: plainText(placeholder) }
+          : {}),
         ...correlation(opts),
       };
       return ask(request, valueOrUndefined, undefined, opts);
@@ -242,7 +255,7 @@ export const createSupervisorUiBridge = (
       const request: PiHostUiRequest = {
         id: deps.nextRequestId(),
         kind: "editor",
-        title,
+        title: plainText(title),
         ...(prefill !== undefined ? { prefill } : {}),
         ...(toolCallId ? { toolCallId } : {}),
       };
@@ -250,7 +263,8 @@ export const createSupervisorUiBridge = (
     },
 
     // --- Fire-and-forget / display surfaces: degrade, never crash --------------
-    notify: (message, type) => deps.onNotify?.(message, type ?? "info"),
+    notify: (message, type) =>
+      deps.onNotify?.(plainText(message), type ?? "info"),
     onTerminalInput: () => () => {},
     setStatus: () => {},
     setWorkingMessage: () => {},

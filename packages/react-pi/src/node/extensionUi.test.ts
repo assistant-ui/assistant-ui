@@ -142,7 +142,24 @@ describe("createSupervisorUiBridge — degradation table", () => {
     ).not.toThrow();
     bridge.ui.notify(theme.bg("toolSuccessBg", theme.fg("success", "Done")));
 
-    expect(stripVTControlCharacters(onNotify.mock.calls[0]![0])).toBe("Done");
+    expect(onNotify).toHaveBeenCalledWith("Done", "info");
+  });
+
+  it("sends themed dialog text as plain text and answers with the original option", async () => {
+    const { bridge, emitted } = harness();
+    const theme = bridge.ui.theme;
+    const option = theme.fg("accent", "Deploy");
+
+    const selected = bridge.ui.select(theme.bold("Pick"), [option, "Skip"]);
+    bridge.ui.confirm(theme.fg("warning", "Run?"), theme.fg("dim", "Proceed?"));
+
+    expect(emitted[0]).toMatchObject({
+      title: "Pick",
+      options: ["Deploy", "Skip"],
+    });
+    expect(emitted[1]).toMatchObject({ title: "Run?", message: "Proceed?" });
+    bridge.resolve({ requestId: "r1", value: "Deploy" });
+    expect(await selected).toBe(option);
   });
 
   it("supports the theme helpers used by extension renderers", () => {
