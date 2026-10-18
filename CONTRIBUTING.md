@@ -47,6 +47,7 @@ pnpm dev
 Open an issue before a non-trivial feature pull request, so a maintainer can confirm the direction is wanted before you invest in code. Trivial fixes, such as a typo or a small docs change, need no issue.
 
 - Keep one concern per pull request, so each one can be reviewed, approved, and reverted on its own.
+- Before opening a pull request or after substantive revisions, use the [change-review skill](./.claude/skills/change-review/SKILL.md) to apply the existing repository review standards to the diff.
 - Attach a minimal reproduction to every bug report and fix: a repository, a sandbox, or a snippet on the exact version. An issue or pull request whose behavior a maintainer cannot reproduce is closed.
 - Do not add an example app that duplicates one in `examples/`. A new example belongs in a repository of your own unless a maintainer asked for it here.
 - Title the pull request `<type>(<scope>): <observable outcome>`, for example `fix(react): preserve message status when switching threads` or `feat: expose runtime metadata mutation`. Omit the scope when no package or surface name improves the title, and put trade-offs and divergences in the body. The type is one of `fix`, `feat`, `docs`, `test`, `perf`, `refactor`, `chore`, `ci`, `build` or `revert`.
