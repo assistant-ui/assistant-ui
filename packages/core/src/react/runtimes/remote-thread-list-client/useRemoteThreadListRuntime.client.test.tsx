@@ -2,7 +2,7 @@
 
 import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { useEffect, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { useAui } from "@assistant-ui/store";
 import type { ChatModelAdapter } from "../../../index";
 import type { AssistantRuntime } from "../../../runtime/api/assistant-runtime";
@@ -60,7 +60,234 @@ afterEach(() => {
 const useEmptyThreadRuntime = () =>
   useExternalStoreRuntime({ messages: [], onNew: async () => {} } as never);
 
+describe.each(["class", "client"] as const)(
+  "%s selection contracts",
+  (path) => {
+    it.each([
+      { origin: "listed", outcome: "retained" },
+      { origin: "promoted", outcome: "retained" },
+      { origin: "listed", outcome: "removed" },
+      { origin: "listed", outcome: "failed" },
+    ] as const)(
+      "reconciles a replacement adapter with a $outcome $origin active runtime",
+      async ({ origin, outcome }) => {
+        const error = new Error("replacement offline");
+        if (outcome === "failed") {
+          vi.spyOn(console, "error").mockImplementation(() => {});
+        }
+        const adapter = makeAdapter({
+          list: vi.fn(async () => ({
+            threads: [
+              { status: "regular" as const, remoteId: "one" },
+              { status: "regular" as const, remoteId: "removed" },
+            ],
+          })),
+          initialize: vi.fn(async () => ({ remoteId: "promoted" })),
+          ...(path === "class" ? { unstable_Provider: Fragment } : {}),
+        });
+        const listed =
+          deferred<Awaited<ReturnType<RemoteThreadListAdapter["list"]>>>();
+        const replacement = makeAdapter({
+          list: vi.fn(() => listed.promise),
+          ...(path === "class" ? { unstable_Provider: Fragment } : {}),
+        });
+        const model = { run: vi.fn(async () => ({ content: [] })) };
+        const mounted = vi.fn();
+        const retired = vi.fn();
+        let runtime!: AssistantRuntime;
+        const App = ({ adapter }: { adapter: RemoteThreadListAdapter }) => {
+          runtime = useRemoteThreadListRuntime({
+            adapter,
+            runtimeHook: function useThreadRuntime() {
+              const id = useAui().threadListItem.getState().id;
+              useEffect(() => {
+                mounted(id);
+                return () => {
+                  retired(id);
+                };
+              }, [id]);
+              return useLocalRuntime(model);
+            },
+          });
+          return (
+            <AssistantRuntimeProvider runtime={runtime}>
+              {null}
+            </AssistantRuntimeProvider>
+          );
+        };
+        const view = render(<App adapter={adapter} />);
+        await actSettled(() => runtime.threads.getLoadThreadsPromise());
+        const activeId =
+          origin === "listed" ? "one" : runtime.threads.getState().mainThreadId;
+        if (origin === "promoted") {
+          await actSettled(() => runtime.threads.mainItem.initialize());
+        }
+        await actSettled(() => runtime.threads.switchToThread("removed"));
+        await actSettled(() => runtime.threads.switchToThread(activeId));
+        act(() => runtime.thread.composer.setText("keep composing"));
+        mounted.mockClear();
+        retired.mockClear();
+
+        view.rerender(<App adapter={replacement} />);
+        await waitFor(() => expect(replacement.list).toHaveBeenCalledTimes(1));
+        expect(runtime.threads.getState().mainThreadId).toBe(activeId);
+        expect(runtime.thread.composer.getState().text).toBe("keep composing");
+        expect(retired).not.toHaveBeenCalled();
+
+        await act(async () => {
+          if (outcome === "failed") listed.reject(error);
+          else
+            listed.resolve({
+              threads:
+                outcome === "removed"
+                  ? []
+                  : [
+                      {
+                        status: "regular",
+                        remoteId: origin === "listed" ? "one" : "promoted",
+                        title: "replacement title",
+                      },
+                    ],
+            });
+        });
+        await waitFor(() =>
+          expect(runtime.threads.getState().isLoading).toBe(false),
+        );
+
+        expect(retired).toHaveBeenCalledWith("removed");
+        expect(mounted).not.toHaveBeenCalledWith(activeId);
+        if (outcome === "retained") {
+          expect(runtime.threads.getState().mainThreadId).toBe(activeId);
+          expect(runtime.thread.getState().threadId).toBe(activeId);
+          expect(runtime.thread.composer.getState().text).toBe(
+            "keep composing",
+          );
+          expect(runtime.threads.mainItem.getState().title).toBe(
+            "replacement title",
+          );
+          expect(retired).not.toHaveBeenCalledWith(activeId);
+          expect(runtime.threads.getState().threadIds).toEqual([activeId]);
+        } else {
+          expect(runtime.threads.getState().mainThreadId).not.toBe(activeId);
+          expect(runtime.threads.mainItem.getState().status).toBe("new");
+          expect(runtime.thread.composer.getState().text).toBe("");
+          expect(retired).toHaveBeenCalledWith(activeId);
+          expect(runtime.threads.getState().threadIds).toEqual([]);
+          expect(runtime.threads.getState().loadError).toBe(
+            outcome === "failed" ? error : undefined,
+          );
+        }
+      },
+    );
+
+    it.each(["existing", "fresh"] as const)(
+      "publishes the attached %s draft before switchToNewThread resolves",
+      async (draft) => {
+        const adapter = makeAdapter({
+          list: vi.fn(async () => ({
+            threads: [{ status: "regular" as const, remoteId: "one" }],
+          })),
+          ...(path === "class" ? { unstable_Provider: Fragment } : {}),
+        });
+        const model = { run: vi.fn(async () => ({ content: [] })) };
+        let runtime!: AssistantRuntime;
+        const App = () => {
+          runtime = useRemoteThreadListRuntime({
+            adapter,
+            runtimeHook: function useThreadRuntime() {
+              return useLocalRuntime(model);
+            },
+          });
+          return (
+            <AssistantRuntimeProvider runtime={runtime}>
+              {null}
+            </AssistantRuntimeProvider>
+          );
+        };
+        render(<App />);
+        await actSettled(() => runtime.threads.getLoadThreadsPromise());
+        if (draft === "fresh") {
+          await actSettled(() => runtime.threads.mainItem.initialize());
+        }
+        await actSettled(() => runtime.threads.switchToThread("one"));
+        act(() => runtime.thread.composer.setText("keep one"));
+
+        let selectedId!: string;
+        let runtimeId!: string;
+        await actSettled(() =>
+          runtime.threads.switchToNewThread().then(() => {
+            selectedId = runtime.threads.getState().mainThreadId;
+            runtimeId = runtime.thread.getState().threadId;
+            runtime.thread.composer.setText("draft text");
+          }),
+        );
+
+        expect(selectedId).not.toBe("one");
+        expect(runtimeId).toBe(selectedId);
+        expect(runtime.threads.mainItem.getState().status).toBe("new");
+        expect(runtime.thread.composer.getState().text).toBe("draft text");
+        expect(runtime.threads.getById("one").composer.getState().text).toBe(
+          "keep one",
+        );
+      },
+    );
+  },
+);
+
 describe("useRemoteThreadListRuntime client bridge", () => {
+  it.each(["supersede", "dispose"] as const)(
+    "settles an unattached draft switch on %s",
+    async (action) => {
+      const adapter = makeAdapter({
+        list: vi.fn(async () => ({
+          threads: [{ status: "regular" as const, remoteId: "one" }],
+        })),
+      });
+      const model = { run: vi.fn(async () => ({ content: [] })) };
+      let runtime!: AssistantRuntime;
+      const App = ({ hosted }: { hosted: boolean }) => {
+        runtime = useRemoteThreadListRuntime({
+          adapter,
+          runtimeHook: function useThreadRuntime() {
+            return useLocalRuntime(model);
+          },
+        });
+        return hosted ? (
+          <AssistantRuntimeProvider runtime={runtime}>
+            {null}
+          </AssistantRuntimeProvider>
+        ) : null;
+      };
+      const view = render(<App hosted />);
+      await actSettled(() => runtime.threads.getLoadThreadsPromise());
+      await actSettled(() => runtime.threads.mainItem.initialize());
+      await actSettled(() => runtime.threads.switchToThread("one"));
+      view.rerender(<App hosted={false} />);
+
+      const settled = vi.fn();
+      let task!: Promise<void>;
+      await act(async () => {
+        task = runtime.threads.switchToNewThread();
+        void task.then(settled, settled);
+      });
+      expect(settled).not.toHaveBeenCalled();
+      expect(runtime.threads.getState().mainThreadId).toBe("one");
+
+      if (action === "supersede") {
+        await actSettled(() => runtime.threads.switchToThread("one"));
+      } else {
+        view.unmount();
+      }
+      await waitFor(() => expect(settled).toHaveBeenCalledTimes(1));
+      await task;
+      if (action === "supersede") {
+        view.rerender(<App hosted />);
+        await act(async () => {});
+        expect(runtime.threads.getState().mainThreadId).toBe("one");
+      }
+    },
+  );
+
   it("waits for reload after a failed list when the controlled ID changes", async () => {
     const error = new Error("offline");
     vi.spyOn(console, "error").mockImplementation(() => {});
@@ -96,7 +323,7 @@ describe("useRemoteThreadListRuntime client bridge", () => {
     await act(async () => {});
     expect(list).toHaveBeenCalledTimes(1);
 
-    await act(async () => runtime!.threads.reload());
+    await actSettled(() => runtime!.threads.reload());
     expect(list).toHaveBeenCalledTimes(2);
     expect(runtime!.threads.getState().loadError).toBeUndefined();
     await act(async () =>
@@ -236,7 +463,7 @@ describe("useRemoteThreadListRuntime client bridge", () => {
       expect(runtime!.threads.getState().threadIds).toContain(firstId),
     );
 
-    await act(async () => runtime!.threads.switchToNewThread());
+    await actSettled(() => runtime!.threads.switchToNewThread());
     const nextId = runtime!.threads.getState().mainThreadId;
     expect(nextId).not.toBe(firstId);
     await act(async () => {
@@ -250,7 +477,7 @@ describe("useRemoteThreadListRuntime client bridge", () => {
     await waitFor(() => expect(model.run).toHaveBeenCalled());
     expect(model.run.mock.calls[0]?.[0].unstable_threadId).toBeDefined();
 
-    await act(async () => runtime!.threads.switchToThread(firstId));
+    await actSettled(() => runtime!.threads.switchToThread(firstId));
     await waitFor(() =>
       expect(runtime!.threads.getState().mainThreadId).toBe(firstId),
     );
