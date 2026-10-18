@@ -1059,17 +1059,21 @@ type UIMessageStreamChunk = {
   id: string;
 } | {
   type: "text-delta";
+  id?: string;
   textDelta: string;
 } | {
   type: "text-end";
+  id?: string;
 } | {
   type: "reasoning-start";
   id: string;
 } | {
   type: "reasoning-delta";
+  id?: string;
   delta: string;
 } | {
   type: "reasoning-end";
+  id?: string;
 } | {
   type: "source";
   source: {
