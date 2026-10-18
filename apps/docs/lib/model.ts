@@ -1,47 +1,40 @@
 export const MODELS = [
-  // DeepSeek
   {
     name: "DeepSeek V4.1 Flash",
     value: "deepseek-v4.1-flash",
+    provider: "DeepSeek",
     icon: "/icons/deepseek.svg",
     disabled: false,
     contextWindow: 1_000_000,
   },
-  {
-    name: "DeepSeek V4 Pro",
-    value: "deepseek/deepseek-v4-pro",
-    icon: "/icons/deepseek.svg",
-    disabled: false,
-    contextWindow: 1_000_000,
-  },
-  // Moonshot AI
   {
     name: "Kimi K3",
     value: "moonshotai/kimi-k3",
+    provider: "Moonshot AI",
     icon: "/icons/kimi.svg",
     disabled: false,
     contextWindow: 1_048_576,
   },
-  // Z.ai
   {
     name: "GLM-5.3",
     value: "z-ai/glm-5.3",
+    provider: "Z.ai",
     icon: "/icons/zai.svg",
     disabled: false,
     contextWindow: 1_048_576,
   },
-  // Xiaomi
   {
     name: "MiMo-V2.6-Pro",
     value: "xiaomi/mimo-v2.6-pro",
+    provider: "Xiaomi",
     icon: "/icons/xiaomimimo.svg",
     disabled: false,
     contextWindow: 1_050_000,
   },
-  // xAI
   {
     name: "Grok 4.7",
     value: "grok-4.7",
+    provider: "xAI",
     icon: "/icons/xai.svg",
     disabled: false,
     contextWindow: 500_000,
@@ -59,6 +52,10 @@ export const DEFAULT_CONTEXT_WINDOW = DEFAULT_MODEL.contextWindow;
 export function getContextWindow(modelId: string): number {
   const model = MODELS.find((m) => m.value === modelId);
   return model?.contextWindow ?? DEFAULT_CONTEXT_WINDOW;
+}
+
+export function getProvider(modelId: string): string | undefined {
+  return MODELS.find((m) => m.value === modelId)?.provider;
 }
 
 export const REASONING_EFFORTS = [
