@@ -42,8 +42,8 @@ const messagePropMap: Record<
     expression: `s.message.role ${v === false ? "!==" : "==="} "system"`,
     negated: false,
   }),
-  hasBranches: () => ({
-    expression: "s.message.branchCount >= 2",
+  hasBranches: (v) => ({
+    expression: v === false ? "true" : "s.message.branchCount >= 2",
     negated: false,
   }),
   copied: (v) => ({
@@ -54,8 +54,9 @@ const messagePropMap: Record<
     expression: "s.message.isLast",
     negated: v === false,
   }),
-  lastOrHover: () => ({
-    expression: "s.message.isHovering || s.message.isLast",
+  lastOrHover: (v) => ({
+    expression:
+      v === false ? "true" : "s.message.isHovering || s.message.isLast",
     negated: false,
   }),
   speaking: (v) => ({
