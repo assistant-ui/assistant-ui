@@ -47,8 +47,9 @@ async function encodeAndDecode(
 }
 
 describe("GorpStream serialization and deserialization", () => {
-  it("does not settle the stream after cancellation", async () => {
+  it("ignores late writes and completion after cancellation", async () => {
     let finishExecution!: () => void;
+    let write!: () => void;
     let abortSignal!: AbortSignal;
     const execution = new Promise<void>((resolve) => {
       finishExecution = resolve;
@@ -56,6 +57,10 @@ describe("GorpStream serialization and deserialization", () => {
     const stream = createGorpStream({
       execute: (controller) => {
         abortSignal = controller.abortSignal;
+        write = () =>
+          controller.enqueue([
+            { type: "set", path: ["status"], value: "complete" },
+          ]);
         return execution;
       },
     });
@@ -65,6 +70,11 @@ describe("GorpStream serialization and deserialization", () => {
 
     expect(abortSignal.aborted).toBe(true);
     expect(abortSignal.reason).toBe("consumer stopped");
+    expect(write).not.toThrow();
+    await expect(reader.read()).resolves.toEqual({
+      done: true,
+      value: undefined,
+    });
 
     finishExecution();
     await execution;
