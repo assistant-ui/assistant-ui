@@ -1,12 +1,11 @@
 export const MODELS = [
-  // OpenAI
+  // DeepSeek
   {
-    name: "GPT-6 Luna",
-    value: "gpt-6-luna",
-    icon: "/icons/openai.svg",
+    name: "DeepSeek V4 Pro",
+    value: "deepseek/deepseek-v4-pro",
+    icon: "/icons/deepseek.svg",
     disabled: false,
-    contextWindow: 1_050_000,
-    reasoning: true,
+    contextWindow: 1_000_000,
   },
   // Moonshot AI
   {
@@ -24,12 +23,22 @@ export const MODELS = [
     disabled: false,
     contextWindow: 1_048_576,
   },
+  // Xiaomi
   {
-    name: "GLM-5.3 Flash",
-    value: "z-ai/glm-5.3-flash",
-    icon: "/icons/zai.svg",
+    name: "MiMo-V2.6-Pro",
+    value: "xiaomi/mimo-v2.6-pro",
+    icon: "/icons/xiaomimimo.svg",
     disabled: false,
-    contextWindow: 1_048_576,
+    contextWindow: 1_050_000,
+  },
+  // xAI
+  {
+    name: "Grok 4.7",
+    value: "grok-4.7",
+    icon: "/icons/xai.svg",
+    disabled: false,
+    contextWindow: 500_000,
+    reasoning: true,
   },
 ] as const;
 
