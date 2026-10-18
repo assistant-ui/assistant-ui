@@ -16,6 +16,7 @@ import { RemoteThreadListThreadListRuntimeCore } from "./RemoteThreadListThreadL
 import { WritableSubscribable } from "../../subscribable/subscribable";
 import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
 import { useAui } from "@assistant-ui/store";
+import { resource, useResource } from "@assistant-ui/tap";
 import {
   AuiConfig,
   createAssistantClient,
@@ -75,8 +76,18 @@ class ClientRemoteThreadListRuntimeCore extends BaseAssistantRuntimeCore {
       function useHostedRuntime() {
         const options = useSubscribable(optionsStore);
         const inherited = useRuntimeAdapters();
+        const useAdapters = options.adapter.unstable_useAdapters;
+        const Adapters = useMemo(
+          () =>
+            resource(function useAdapterHook(
+              adapter: RemoteThreadListOptions["adapter"],
+            ) {
+              return useAdapters?.call(adapter);
+            }),
+          [useAdapters],
+        );
         const supplied = useStableRuntimeAdapters(
-          options.adapter.unstable_useAdapters?.(),
+          useResource(Adapters(options.adapter)),
         );
         const adapters = useMemo(
           () => ({ modelContext, ...inherited, ...supplied }),

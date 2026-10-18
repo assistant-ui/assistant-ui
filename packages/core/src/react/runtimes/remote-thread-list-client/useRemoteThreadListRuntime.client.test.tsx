@@ -746,6 +746,90 @@ describe("useRemoteThreadListRuntime client bridge", () => {
     expect(seen.get(nextId)?.attachments).toBe(attachments);
   });
 
+  it.each(["adds", "removes", "replaces"] as const)(
+    "preserves the hosted runtime when an adapter swap %s unstable_useAdapters",
+    async (change) => {
+      const errors = vi.spyOn(console, "error");
+      const inheritedHistory = {
+        load: vi.fn(async () => ({ messages: [] })),
+        append: vi.fn(async () => {}),
+      };
+      const suppliedHistory = {
+        load: vi.fn(async () => ({ messages: [] })),
+        append: vi.fn(async () => {}),
+      };
+      const replacementHistory = {
+        load: vi.fn(async () => ({ messages: [] })),
+        append: vi.fn(async () => {}),
+      };
+      const plain = new InMemoryThreadListAdapter();
+      const hooked = Object.assign(new InMemoryThreadListAdapter(), {
+        unstable_useAdapters: function useAdapters() {
+          const [history] = useState(suppliedHistory);
+          return { history };
+        },
+      });
+      const replacement = Object.assign(new InMemoryThreadListAdapter(), {
+        unstable_useAdapters: function useAdapters() {
+          const [history] = useState(replacementHistory);
+          useEffect(() => {}, []);
+          return { history };
+        },
+      });
+      const initial = change === "adds" ? plain : hooked;
+      const next =
+        change === "adds" ? hooked : change === "removes" ? plain : replacement;
+      const model = { run: vi.fn(async () => ({ content: [] })) };
+      let seen: RuntimeAdapters | null = null;
+      let runtime!: AssistantRuntime;
+      const App = ({ adapter }: { adapter: RemoteThreadListAdapter }) => {
+        runtime = useRemoteThreadListRuntime({
+          adapter,
+          runtimeHook: function useThreadRuntime() {
+            seen = useRuntimeAdapters();
+            return useLocalRuntime(model);
+          },
+        });
+        return (
+          <AssistantRuntimeProvider runtime={runtime}>
+            {null}
+          </AssistantRuntimeProvider>
+        );
+      };
+      const view = render(<App adapter={initial} />, {
+        wrapper: ({ children }) => (
+          <RuntimeAdapterProvider adapters={{ history: inheritedHistory }}>
+            {children}
+          </RuntimeAdapterProvider>
+        ),
+      });
+      await waitFor(() => {
+        expect(runtime.threads.getState().isLoading).toBe(false);
+        expect(seen?.history).toBe(
+          change === "adds" ? inheritedHistory : suppliedHistory,
+        );
+      });
+      const threadId = runtime.threads.getState().mainThreadId;
+      act(() => runtime.thread.composer.setText("keep composing"));
+
+      expect(() => view.rerender(<App adapter={next} />)).not.toThrow();
+      await waitFor(() => {
+        expect(runtime.threads.getState().isLoading).toBe(false);
+        expect(seen?.history).toBe(
+          {
+            adds: suppliedHistory,
+            removes: inheritedHistory,
+            replaces: replacementHistory,
+          }[change],
+        );
+      });
+      expect(runtime.threads.getState().mainThreadId).toBe(threadId);
+      expect(runtime.thread.composer.getState().text).toBe("keep composing");
+      expect(errors).not.toHaveBeenCalled();
+      expect(legacyConstructed).not.toHaveBeenCalled();
+    },
+  );
+
   it("resolves a promoted draft by remote ID and switches back to its hosted runtime", async () => {
     const initialize = vi.fn(async (id: string) => ({
       remoteId: `remote-${id}`,
