@@ -252,6 +252,81 @@ describe.each(["class", "client"] as const)(
       },
     );
 
+    it("keeps replacing the list when a reload supersedes the replacement load", async () => {
+      const adapter = makeAdapter({
+        list: vi.fn(async () => ({
+          threads: [
+            { status: "regular" as const, remoteId: "one" },
+            { status: "regular" as const, remoteId: "removed" },
+          ],
+        })),
+        ...(path === "class" ? { unstable_Provider: Fragment } : {}),
+      });
+      const firstPage =
+        deferred<Awaited<ReturnType<RemoteThreadListAdapter["list"]>>>();
+      const secondPage =
+        deferred<Awaited<ReturnType<RemoteThreadListAdapter["list"]>>>();
+      const replacement = makeAdapter({
+        list: vi
+          .fn()
+          .mockReturnValueOnce(firstPage.promise)
+          .mockReturnValueOnce(secondPage.promise),
+        ...(path === "class" ? { unstable_Provider: Fragment } : {}),
+      });
+      const model = { run: vi.fn(async () => ({ content: [] })) };
+      const retired = vi.fn();
+      let runtime!: AssistantRuntime;
+      const App = ({ adapter }: { adapter: RemoteThreadListAdapter }) => {
+        runtime = useRemoteThreadListRuntime({
+          adapter,
+          runtimeHook: function useThreadRuntime() {
+            const id = useAui().threadListItem.getState().id;
+            useEffect(
+              () => () => {
+                retired(id);
+              },
+              [id],
+            );
+            return useLocalRuntime(model);
+          },
+        });
+        return (
+          <AssistantRuntimeProvider runtime={runtime}>
+            {null}
+          </AssistantRuntimeProvider>
+        );
+      };
+      const view = render(<App adapter={adapter} />);
+      await actSettled(() => runtime.threads.getLoadThreadsPromise());
+      await actSettled(() => runtime.threads.switchToThread("removed"));
+      await actSettled(() => runtime.threads.switchToThread("one"));
+      retired.mockClear();
+
+      view.rerender(<App adapter={replacement} />);
+      await waitFor(() => expect(replacement.list).toHaveBeenCalledTimes(1));
+      let reloaded!: Promise<void>;
+      act(() => {
+        reloaded = runtime.threads.reload();
+      });
+      await waitFor(() => expect(replacement.list).toHaveBeenCalledTimes(2));
+
+      await act(async () => {
+        firstPage.resolve({ threads: [] });
+        secondPage.resolve({
+          threads: [{ status: "regular", remoteId: "one" }],
+        });
+        await reloaded;
+      });
+      await waitFor(() =>
+        expect(runtime.threads.getState().isLoading).toBe(false),
+      );
+
+      expect(retired).toHaveBeenCalledWith("removed");
+      expect(retired).not.toHaveBeenCalledWith("one");
+      expect(runtime.threads.getState().mainThreadId).toBe("one");
+      expect(runtime.threads.getState().threadIds).toEqual(["one"]);
+    });
+
     it.each(["existing", "fresh"] as const)(
       "publishes the attached %s draft before switchToNewThread resolves",
       async (draft) => {
