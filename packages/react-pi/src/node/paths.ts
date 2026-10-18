@@ -1,24 +1,15 @@
-import { homedir } from "node:os";
-import { join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
+import { SessionManager } from "@earendil-works/pi-coding-agent";
 
-export const resolvePiPath = (path: string): string => {
-  if (path.startsWith("file://")) return fileURLToPath(path);
-  if (path === "~") return homedir();
-  if (
-    path.startsWith("~/") ||
-    (process.platform === "win32" && path.startsWith("~\\"))
-  ) {
-    return resolve(join(homedir(), path.slice(2)));
-  }
-  return resolve(path);
-};
+// Pi exports neither its path resolver nor its session directory encoder. An
+// in-memory session resolves a path exactly as Pi does without touching disk.
+export const resolvePiPath = (path: string): string =>
+  SessionManager.inMemory(path).getCwd();
 
 export const getPiSessionDirectory = (
   cwd: string,
   agentDir: string,
 ): string => {
-  // Pi's workspace directory encoder is not exported from its package entry.
   const name = `--${resolvePiPath(cwd)
     .replace(/^[/\\]/, "")
     .replace(/[/\\:]/g, "-")}--`;
