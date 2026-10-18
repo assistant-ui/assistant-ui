@@ -2,7 +2,7 @@
 
 A test earns its place by catching a realistic failure of supported behavior. Name that behavior in the test title. Test count and coverage percentage do not establish that the important assertion would fail.
 
-Colocate Vitest tests beside the module and import the tested module by relative path, never by package name. Follow the existing exceptions for build-tool tests and performance contracts. Consult [mocking.md](mocking.md) when choosing test doubles.
+Follow the root [test conventions](../../../AGENTS.md#tests) for placement and imports. [x-buildutils tests](../../../packages/x-buildutils/AGENTS.md#rules) use `node:test` with relative `.ts` imports. [Cross-package performance contracts](../../../packages/x-performance/README.md#disciplines-and-ci-tiers) live in `packages/x-performance/contracts/` and import measured packages through public entries against built dists; colocated tests of package internals still use relative imports. Consult [mocking.md](mocking.md) when choosing test doubles.
 
 ## Choose the owning boundary
 

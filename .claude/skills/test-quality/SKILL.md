@@ -19,7 +19,7 @@ Use the smallest existing interface that exercises the mechanism: a pure convert
 
 Work through one behavior at a time. For a bug, run the focused test against the unfixed behavior and confirm that its assertion fails for the reported reason. A missing import, broken fixture, or unrelated timeout is not regression evidence. Apply the smallest fix and rerun the test and relevant checks. If implementation already exists, verify against the base revision or an isolated copy with the fix removed, preserving unrelated work.
 
-Use the existing package test runner and relevant type checks. Include cross-runtime coverage when shared behavior or adapter parity is affected, following the root guide. Keep lasting coverage in the owning suite; fold useful temporary reproductions into it.
+Use the existing package test runner and relevant type checks. Include cross-runtime coverage when shared behavior or adapter parity is affected, following the [adapter rules](../../../packages/AGENTS.md#adapters). Keep lasting coverage in the owning suite; fold useful temporary reproductions into it.
 
 ## Review before the PR
 
