@@ -89,7 +89,7 @@ Verify: open a new thread, confirm the prompts show on the empty state, click on
 3. In the project's composer (usually components/assistant-ui/elements/thread.aui.tsx), wrap \`ComposerPrimitive.Root\` in \`ComposerPrimitive.TriggerPopoverRoot\`. If a slash-command trigger already added that wrapper, reuse it.
 4. Inside the composer root, render a trigger: \`const mention = unstable_useMentionAdapter(); return <ComposerTriggerPopover char="@" {...mention} />;\`. With no options it lists the tools registered in model context. If the user wants to mention users, documents, or other items, pass \`items\` or \`categories\` as "Built-in Mention Adapter" on the docs page above shows; for a server search use \`unstable_useLiveCompletionAdapter\`. Use the project's real data source and ask the user when none is obvious.
 5. Render sent mentions as chips: follow /elements/directive-text to register \`DirectiveText\` as the \`Text\` component for user messages.
-6. The backend receives \`:type[label]{name=id}\` text. If the user wants the server to act on mentions, add \`parseMentions\` from "Processing Mentions on the Backend" to the chat route.
+6. The backend receives bracket or JSON-quoted directives. If the user wants the server to act on mentions, add \`parseMentions\` from "Processing Mentions on the Backend" to the chat route; it uses \`defaultDirectiveFormatter\` from @assistant-ui/react to parse both forms.
 
 Verify: type @ in the composer, confirm the popover lists items, pick one with Enter, send, and confirm the user message shows a chip instead of raw \`:tool[...]\` text. An empty popover with the default adapter means no tools are registered.`,
   ],
