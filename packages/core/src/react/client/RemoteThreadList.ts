@@ -287,6 +287,7 @@ const useRemoteThreadBody = ({
     id: string,
     messages: readonly ThreadMessage[],
     initialized: boolean,
+    isLoading: boolean,
   ) => void;
 }): ClientOutput<"thread"> => {
   const parent = useAssistantContextValue();
@@ -311,7 +312,12 @@ const useRemoteThreadBody = ({
     }, [bodyRunning]);
     const messages = body.state.messages as readonly ThreadMessage[];
     useEffect(() => {
-      onAutomaticTitle(id, messages, remoteId !== undefined);
+      onAutomaticTitle(
+        id,
+        messages,
+        remoteId !== undefined,
+        body.state.isLoading,
+      );
     });
     return body.methods;
   });
@@ -421,13 +427,14 @@ const useRemoteThreadListView = ({
     id: string,
     messages: readonly ThreadMessage[],
     initialized: boolean,
+    isLoading: boolean,
   ) => {
     const previous = pendingAutomaticTitles.get(id);
     if (previous === undefined) return;
     const sources = messages.filter(isTitleSourceMessage);
     if (sources.length > 0) pendingAutomaticTitles.set(id, sources);
     const titleSources = sources.length > 0 ? sources : previous;
-    if (!initialized || titleSources.length === 0) return;
+    if (!initialized || isLoading || titleSources.length === 0) return;
     pendingAutomaticTitles.delete(id);
     void onGenerateTitle(id, titleSources, { automatic: true }).catch(
       (error: unknown) => {
@@ -874,16 +881,23 @@ const useRemoteThreadList = (
     if (ensureThread && adapter !== session.adapterAtLoad) void reload();
   }, [adapter, ensureThread, reload, session]);
 
+  const providerOnly =
+    adapter.unstable_useAdapters === undefined &&
+    adapter.unstable_Provider !== undefined;
+  const warnedProviderOnly = useRef(false);
   useEffect(() => {
-    if (!isDevelopment) return;
-    if (adapter.unstable_useAdapters !== undefined) return;
-    if (adapter.unstable_Provider === undefined) return;
+    if (!providerOnly) {
+      warnedProviderOnly.current = false;
+      return;
+    }
+    if (!isDevelopment || warnedProviderOnly.current) return;
+    warnedProviderOnly.current = true;
     console.warn(
       ensureThread
         ? "[assistant-ui] useRemoteThreadListRuntime mounted with an adapter without unstable_Provider, so it ignores RemoteThreadListAdapter.unstable_Provider on this adapter. Expose unstable_useAdapters so per-thread history loads."
         : "[assistant-ui] RemoteThreadList ignores RemoteThreadListAdapter.unstable_Provider. Expose unstable_useAdapters so per-thread history loads on this entry. useRemoteThreadListRuntime renders unstable_Provider only when the adapter it mounts with has one.",
     );
-  }, [adapter, ensureThread]);
+  }, [providerOnly, ensureThread]);
 
   const loadMore = useCallback(() => {
     if (session.loadMorePromise) return session.loadMorePromise;

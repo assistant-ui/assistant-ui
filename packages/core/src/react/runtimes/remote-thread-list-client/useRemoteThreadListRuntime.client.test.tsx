@@ -63,6 +63,78 @@ const useEmptyThreadRuntime = () =>
 describe.each(["class", "client"] as const)(
   "%s selection contracts",
   (path) => {
+    it("waits for hosted history to finish loading before claiming an automatic title", async () => {
+      const adapter = makeAdapter({
+        ...(path === "class" ? { unstable_Provider: Fragment } : {}),
+      });
+      const partialMessages: readonly ThreadMessage[] = [
+        {
+          id: "partial",
+          role: "user",
+          content: [{ type: "text", text: "Partial history" }],
+          attachments: [],
+          createdAt: new Date(0),
+          metadata: { custom: {} },
+        },
+      ];
+      const loadedMessages: readonly ThreadMessage[] = [
+        ...partialMessages,
+        {
+          id: "loaded",
+          role: "user",
+          content: [{ type: "text", text: "Loaded history" }],
+          attachments: [],
+          createdAt: new Date(1),
+          metadata: { custom: {} },
+        },
+      ];
+      let runtime!: AssistantRuntime;
+      const App = ({
+        isLoading,
+        messages,
+      }: {
+        isLoading: boolean;
+        messages: readonly ThreadMessage[];
+      }) => {
+        runtime = useRemoteThreadListRuntime({
+          adapter,
+          runtimeHook: function useThreadRuntime() {
+            return useExternalStoreRuntime({
+              isLoading,
+              messages,
+              onNew: async () => {},
+            });
+          },
+        });
+        return (
+          <AssistantRuntimeProvider runtime={runtime}>
+            {null}
+          </AssistantRuntimeProvider>
+        );
+      };
+      const view = render(<App isLoading messages={partialMessages} />);
+      await actSettled(() => runtime.threads.getLoadThreadsPromise());
+      await actSettled(() => runtime.threads.mainItem.initialize());
+      const remoteId = runtime.threads.mainItem.getState().remoteId;
+      expect(runtime.thread.getState().isLoading).toBe(true);
+      expect(adapter.generateTitle).not.toHaveBeenCalled();
+
+      view.rerender(<App isLoading messages={loadedMessages} />);
+      await act(async () => {});
+      expect(adapter.generateTitle).not.toHaveBeenCalled();
+
+      view.rerender(<App isLoading={false} messages={loadedMessages} />);
+      await waitFor(() =>
+        expect(adapter.generateTitle).toHaveBeenCalledExactlyOnceWith(
+          remoteId,
+          loadedMessages.map((message) => expect.objectContaining(message)),
+        ),
+      );
+      view.rerender(<App isLoading={false} messages={partialMessages} />);
+      await act(async () => {});
+      expect(adapter.generateTitle).toHaveBeenCalledTimes(1);
+    });
+
     it.each([
       { origin: "listed", outcome: "retained" },
       { origin: "promoted", outcome: "retained" },
@@ -235,6 +307,60 @@ describe.each(["class", "client"] as const)(
 );
 
 describe("useRemoteThreadListRuntime client bridge", () => {
+  it.each(["no provider", "useAdapters"] as const)(
+    "warns once per provider-only interval and rearms after %s",
+    async (exit) => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      let runtime!: AssistantRuntime;
+      const App = ({ adapter }: { adapter: RemoteThreadListAdapter }) => {
+        runtime = useRemoteThreadListRuntime({
+          adapter,
+          runtimeHook: useEmptyThreadRuntime,
+        });
+        return (
+          <AssistantRuntimeProvider runtime={runtime}>
+            {null}
+          </AssistantRuntimeProvider>
+        );
+      };
+      const view = render(<App adapter={makeAdapter()} />);
+      await actSettled(() => runtime.threads.getLoadThreadsPromise());
+      expect(warn).not.toHaveBeenCalled();
+
+      for (let render = 0; render < 3; render++) {
+        view.rerender(
+          <App adapter={makeAdapter({ unstable_Provider: Fragment })} />,
+        );
+        await actSettled(() => runtime.threads.getLoadThreadsPromise());
+        expect(warn).toHaveBeenCalledTimes(1);
+      }
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining("unstable_useAdapters"),
+      );
+
+      view.rerender(
+        <App
+          adapter={makeAdapter(
+            exit === "useAdapters"
+              ? {
+                  unstable_Provider: Fragment,
+                  unstable_useAdapters: () => ({}),
+                }
+              : {},
+          )}
+        />,
+      );
+      await actSettled(() => runtime.threads.getLoadThreadsPromise());
+      expect(warn).toHaveBeenCalledTimes(1);
+
+      view.rerender(
+        <App adapter={makeAdapter({ unstable_Provider: Fragment })} />,
+      );
+      await actSettled(() => runtime.threads.getLoadThreadsPromise());
+      expect(warn).toHaveBeenCalledTimes(2);
+    },
+  );
+
   it.each(["supersede", "dispose"] as const)(
     "settles an unattached draft switch on %s",
     async (action) => {
