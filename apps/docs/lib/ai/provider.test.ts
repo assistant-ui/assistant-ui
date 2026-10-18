@@ -67,11 +67,11 @@ describe("resolveChatModel", () => {
   it("keeps models without reasoning on Chat Completions", () => {
     expect(
       resolveChatModel({
-        modelName: "grok/grok-4.3",
+        modelName: "moonshotai/kimi-k3",
         reasoningEffort: "high",
       }),
     ).toEqual({
-      model: { api: "chat", id: "grok/grok-4.3" },
+      model: { api: "chat", id: "moonshotai/kimi-k3" },
       providerOptions: undefined,
       reasoning: false,
     });

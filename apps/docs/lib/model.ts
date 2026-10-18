@@ -8,44 +8,28 @@ export const MODELS = [
     contextWindow: 1_050_000,
     reasoning: true,
   },
-  // Google
+  // Moonshot AI
   {
-    name: "Gemini 3.5 Flash Lite",
-    value: "google-ai-studio/gemini-3.5-flash-lite",
-    icon: "/icons/google.svg",
+    name: "Kimi K3",
+    value: "moonshotai/kimi-k3",
+    icon: "/icons/kimi.svg",
     disabled: false,
     contextWindow: 1_048_576,
   },
-  // xAI
+  // Z.ai
   {
-    name: "Grok 4.3",
-    value: "grok/grok-4.3",
-    icon: "/icons/xai.svg",
-    disabled: false,
-    contextWindow: 1_000_000,
-  },
-  // DeepSeek
-  {
-    name: "DeepSeek V4.1 Flash",
-    value: "deepseek/deepseek-flash",
-    icon: "/icons/deepseek.svg",
+    name: "GLM-5.3",
+    value: "z-ai/glm-5.3",
+    icon: "/icons/zai.svg",
     disabled: false,
     contextWindow: 1_048_576,
   },
-  // Groq
   {
-    name: "GPT-OSS 20B",
-    value: "groq/openai/gpt-oss-20b",
-    icon: "/icons/openai.svg",
+    name: "GLM-5.3 Flash",
+    value: "z-ai/glm-5.3-flash",
+    icon: "/icons/zai.svg",
     disabled: false,
-    contextWindow: 131_072,
-  },
-  {
-    name: "GPT-OSS 120B",
-    value: "groq/openai/gpt-oss-120b",
-    icon: "/icons/openai.svg",
-    disabled: false,
-    contextWindow: 131_072,
+    contextWindow: 1_048_576,
   },
 ] as const;
 

@@ -324,7 +324,7 @@ describe("createXuluxChatHandler access boundary", () => {
     });
 
     const response = await createXuluxChatHandler(agent)(
-      request({ modelName: "grok/grok-4.3", reasoningEffort: "medium" }),
+      request({ modelName: "moonshotai/kimi-k3", reasoningEffort: "medium" }),
     );
 
     expect(response.status).toBe(200);
