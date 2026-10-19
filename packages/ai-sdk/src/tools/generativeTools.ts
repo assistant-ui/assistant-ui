@@ -299,7 +299,9 @@ export class AISDKToolkit {
   ): Promise<MCPClient> {
     const existing = this.#mcpClients.get(name);
     if (existing) return existing;
-    const createPromise = createMCPClient(toMCPClientConfig(config));
+    const createPromise = createMCPClient(
+      toMCPClientConfig(config),
+    ) as Promise<MCPClient>;
     let next: Promise<MCPClient>;
     next = withMcpConnectionTimeout(createPromise, {
       name,
@@ -320,9 +322,7 @@ export class AISDKToolkit {
   }
 }
 
-const toMCPClientConfig = (
-  config: McpServerConfig,
-): MCPClientConfig & { experimental_events?: { adapter?: never } } => {
+const toMCPClientConfig = (config: McpServerConfig): MCPClientConfig => {
   if (config.type === "stdio") {
     return {
       transport: new Experimental_StdioMCPTransport({
