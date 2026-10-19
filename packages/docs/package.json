@@ -79,9 +79,6 @@
   },
   "private": true,
   "peerDependenciesMeta": {
-    "fumadocs-ui": {
-      "optional": true
-    },
     "next": {
       "optional": true
     },

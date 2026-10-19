@@ -25,6 +25,13 @@ package and install the resulting `.tgz` with `pnpm add /path/to/package.tgz`.
 Once published, the same package can be installed with `pnpm add @assistant-ui/docs`.
 
 Use Farming Labs Docs, Next, and Theme 0.2.123 with Fumadocs UI 16.17.1.
+Fumadocs UI is a required peer because the theme imports its shared contexts.
+Package managers with automatic peer installation install it; otherwise, add
+`fumadocs-ui@16.17.1` directly and satisfy its peers. With Yarn PnP, also install
+`fumadocs-core@16.17.1` and align its Zod 4 peer with the version resolved by
+`@farming-labs/theme`. PnP can create separate context instances for different
+peer environments even when the Fumadocs versions match.
+
 The Docs, Theme, and Fumadocs UI peers use exact versions as an exception to the
 repository's caret-range convention. A future framework patch may change its
 Fumadocs dependency, so accepting it independently could split the tree, search,
