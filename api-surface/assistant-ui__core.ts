@@ -3848,7 +3848,7 @@ type RemoteThreadListAdapter = {
   rename(remoteId: string, newTitle: string): Promise<void>;
   updateCustom?(remoteId: string, custom: Record<string, unknown> | undefined): Promise<void>;
   archive(remoteId: string): Promise<void>;
-  unarchive(remoteId: string): Promise<void>;
+  unarchive?(remoteId: string): Promise<void>;
   delete(remoteId: string): Promise<void>;
   initialize(threadId: string, options?: {
     custom?: Record<string, unknown> | undefined;
@@ -6622,7 +6622,7 @@ declare const createAbortableThreadLoad: () => {
   run(_param15: AbortableThreadLoadOptions): Promise<void>;
 };
 
-declare const createCloudThreadListAdapter: (options: CloudThreadListAdapterOptions | (() => CloudThreadListAdapterOptions)) => RemoteThreadListAdapter;
+declare const createCloudThreadListAdapter: (options: CloudThreadListAdapterOptions | (() => CloudThreadListAdapterOptions)) => RemoteThreadListAdapter & Pick<Required<RemoteThreadListAdapter>, "unarchive">;
 
 declare const createCloudThreadListAdapterCreateFallback: (create: (() => Promise<ThreadData$2>) | undefined, threadListItem: ThreadListItem) => (() => Promise<ThreadData$2>);
 
@@ -6630,7 +6630,7 @@ declare const createExternalMessageConversionCache: () => ExternalMessageConvers
 
 declare const createExternalMessageMetadataKey: <TMessage extends WeakKey>(selectors: readonly ExternalMessageMetadataKeySelector<TMessage>[]) => (message: TMessage, metadata: ExternalMessageConverterMetadata) => object;
 
-declare const createLocalStorageAdapter: (options: LocalStorageAdapterOptions) => RemoteThreadListAdapter;
+declare const createLocalStorageAdapter: (options: LocalStorageAdapterOptions) => RemoteThreadListAdapter & Pick<Required<RemoteThreadListAdapter>, "unarchive">;
 
 declare const createMessageConverter: <T extends object>(callback: useExternalMessageConverter.Callback<T>) => {
   useThreadMessages: (_param16: {
@@ -7084,7 +7084,7 @@ declare const useBranchPickerPrevious: () => {
   disabled: boolean;
 };
 
-declare const useCloudThreadListAdapter: (adapter: CloudThreadListAdapterOptions) => RemoteThreadListAdapter;
+declare const useCloudThreadListAdapter: (adapter: CloudThreadListAdapterOptions) => RemoteThreadListAdapter & Pick<Required<RemoteThreadListAdapter>, "unarchive">;
 
 declare function useCloudThreadListRuntime(_param20: CloudThreadListAdapter): AssistantRuntime;
 

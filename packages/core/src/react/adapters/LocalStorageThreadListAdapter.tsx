@@ -656,7 +656,8 @@ const useLocalStorageThreadAdapters = (
 
 export const createLocalStorageAdapter = (
   options: LocalStorageAdapterOptions,
-): RemoteThreadListAdapter => {
+): RemoteThreadListAdapter &
+  Pick<Required<RemoteThreadListAdapter>, "unarchive"> => {
   const { storage, prefix = "@assistant-ui:", titleGenerator } = options;
 
   const threadsKey = `${prefix}threads`;
@@ -813,7 +814,8 @@ export const createLocalStorageAdapter = (
     });
   };
 
-  const adapter: RemoteThreadListAdapter = {
+  const adapter: RemoteThreadListAdapter &
+    Pick<Required<RemoteThreadListAdapter>, "unarchive"> = {
     unstable_useAdapters: function useLocalStorageAdapters() {
       return useLocalStorageThreadAdapters(storage, prefix, mutationQueue);
     },

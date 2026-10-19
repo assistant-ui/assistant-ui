@@ -298,7 +298,7 @@ type AdkSessionAdapterOptions = {
 };
 
 type AdkSessionAdapterResult = {
-  adapter: RemoteThreadListAdapter;
+  adapter: RemoteThreadListAdapter & Pick<Required<RemoteThreadListAdapter>, "unarchive">;
   load: (sessionId: string, options?: {
     signal?: AbortSignal | undefined;
   }) => Promise<AdkThreadSnapshot>;
@@ -1886,7 +1886,7 @@ type RemoteThreadListAdapter = {
   rename(remoteId: string, newTitle: string): Promise<void>;
   updateCustom?(remoteId: string, custom: Record<string, unknown> | undefined): Promise<void>;
   archive(remoteId: string): Promise<void>;
-  unarchive(remoteId: string): Promise<void>;
+  unarchive?(remoteId: string): Promise<void>;
   delete(remoteId: string): Promise<void>;
   initialize(threadId: string, options?: {
     custom?: Record<string, unknown> | undefined;

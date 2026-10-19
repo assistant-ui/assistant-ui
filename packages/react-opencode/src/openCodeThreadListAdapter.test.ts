@@ -37,6 +37,12 @@ describe("createOpenCodeThreadListAdapter", () => {
     );
   });
 
+  it("omits unarchive", () => {
+    const adapter = createOpenCodeThreadListAdapter({} as never);
+
+    expect(adapter).not.toHaveProperty("unarchive");
+  });
+
   it("streams the session's own title without asking OpenCode for one", async () => {
     const get = vi.fn().mockResolvedValue({
       data: { id: "session-1", title: "Fix the login redirect" },

@@ -77,7 +77,7 @@ const threadListAdapter: RemoteThreadListAdapter = {
   async delete(remoteId) {
     await client.threads.delete(remoteId);
   },
-  // rename, archive, unarchive, fetch, generateTitle — see the threads concept page
+  // rename, archive, fetch, generateTitle, and optional unarchive: see the threads concept page
 };
 
 const runtime = useLangGraphRuntime({
