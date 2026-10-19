@@ -1325,6 +1325,13 @@ export class RemoteThreadListThreadListRuntimeCore
           await adapter.rename(remoteId, title);
         });
       },
+      readTitle: async () => {
+        this._requireAdapterGeneration(adapterGeneration);
+        if (isRemoved()) return undefined;
+        const { title } = await adapter.fetch(remoteId);
+        this._requireAdapterGeneration(adapterGeneration);
+        return title;
+      },
       applyTitle: async (title) => {
         await this._state.optimisticUpdate({
           execute: async () => {},
