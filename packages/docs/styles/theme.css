@@ -435,6 +435,10 @@ html.dark body:has(.aui-docs) {
   display: none;
 }
 
+.aui-docs [data-toc-popover-content] a[data-active] {
+  font-weight: 400;
+}
+
 .aui-docs [data-toc-popover-content] a[data-active="true"] {
   color: var(--color-fd-foreground);
   font-weight: 500;
