@@ -4,7 +4,7 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { useResource } from "@assistant-ui/tap";
+import { createTapRoot, useResource } from "@assistant-ui/tap";
 import { AuiProvider, useAui, type ClientOutput } from "@assistant-ui/store";
 import * as SpanPrimitive from "../primitives/span";
 import { SpanResource, type SpanData } from "./SpanResource";
@@ -180,15 +180,25 @@ describe("SpanResource", () => {
     }
   });
 
-  it("renders deeply nested parent chains without overflowing the stack", () => {
+  it("flattens deeply nested parent chains without overflowing the stack", () => {
     const spans = Array.from({ length: 20_000 }, (_, index) =>
       createSpan(`span-${index}`, index === 0 ? null : `span-${index - 1}`),
     );
 
-    const html = renderSpans(spans);
+    const root = createTapRoot(function DeepSpanRoot() {
+      return useResource(SpanResource({ spans }));
+    });
 
-    expect(html).toContain(
-      'data-span-id="span-19999" data-parent-span-id="span-19998" data-span-depth="19999"',
-    );
+    try {
+      const resource = root.getValue();
+      expect(resource.getState().children).toHaveLength(20_000);
+      expect(resource.child({ index: 19_999 }).getState()).toMatchObject({
+        id: "span-19999",
+        parentSpanId: "span-19998",
+        depth: 19_999,
+      });
+    } finally {
+      root.unmount();
+    }
   }, 30_000);
 });
