@@ -15,6 +15,7 @@ export {
   branchPickerPreviousDisabled,
   composerCancelDisabled,
   composerInputDisabled,
+  composerResumeDisabled,
   composerSendDisabled,
   messageErrorText,
   suggestionSendMode,
