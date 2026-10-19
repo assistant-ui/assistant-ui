@@ -1,0 +1,61 @@
+name: CLI, registry or template problem
+description: "`npx assistant-ui`, `create-assistant-ui`, `shadcn add` of our components, or a starter template"
+type: Bug
+labels: ["bug", "pkg/cli"]
+
+body:
+  - type: checkboxes
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched open and closed issues and this is not a duplicate
+          required: true
+
+  - type: input
+    attributes:
+      label: Command you ran
+      placeholder: npx assistant-ui@latest add thread
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Full output
+      description: As text, not a screenshot.
+      render: text
+    validations:
+      required: true
+
+  - type: dropdown
+    attributes:
+      label: Project type
+      options:
+        - New project from create-assistant-ui
+        - Existing Next.js app
+        - Existing Vite app
+        - Expo / React Native
+        - This repository (examples or templates)
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Environment info
+      description: Output of `npx assistant-ui info`, or OS, Node.js version and package manager if the CLI cannot run. Add your Tailwind version and `components.json` if a component landed broken.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Reproduction
+      description: A repository that shows the problem, or the steps from a fresh project (for example `npx assistant-ui@latest create`) that hit it. A report we cannot reproduce is closed.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Expected vs actual result
+      description: For a component that installed but looks or behaves wrong, say which file and what is off.
+    validations:
+      required: true
