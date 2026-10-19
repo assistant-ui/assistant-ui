@@ -465,11 +465,13 @@ type AssistantStreamChunk = {
   readonly part: PartInit;
 } | {
   readonly type: "part-finish";
+  readonly providerMetadata?: PartProviderMetadata$1;
 } | {
   readonly type: "tool-call-args-text-finish";
 } | {
   readonly type: "text-delta";
   readonly textDelta: string;
+  readonly providerMetadata?: PartProviderMetadata$1;
 } | {
   readonly type: "annotations";
   readonly annotations: ReadonlyJSONValue[];
@@ -1397,10 +1399,12 @@ type OnSchemaValidationErrorFunction<TResult> = ToolExecuteFunction<unknown, TRe
 
 type PartInit = {
   readonly type: "text";
+  readonly providerMetadata?: PartProviderMetadata$1;
   readonly parentId?: string;
 } | {
   readonly type: "reasoning";
   readonly unstable_summary?: string;
+  readonly providerMetadata?: PartProviderMetadata$1;
   readonly parentId?: string;
 } | {
   readonly type: "tool-call";
@@ -1427,6 +1431,10 @@ type PartInit = {
 };
 
 type PartProviderMetadata = {
+  readonly [providerName: string]: ReadonlyJSONObject;
+};
+
+type PartProviderMetadata$1 = {
   readonly [providerName: string]: ReadonlyJSONObject;
 };
 

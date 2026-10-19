@@ -123,11 +123,13 @@ type AssistantStreamChunk = {
   readonly part: PartInit;
 } | {
   readonly type: "part-finish";
+  readonly providerMetadata?: PartProviderMetadata;
 } | {
   readonly type: "tool-call-args-text-finish";
 } | {
   readonly type: "text-delta";
   readonly textDelta: string;
+  readonly providerMetadata?: PartProviderMetadata;
 } | {
   readonly type: "annotations";
   readonly annotations: ReadonlyJSONValue[];
@@ -176,7 +178,7 @@ type AssistantStreamController = {
   appendSource(options: SourcePart): void;
   appendFile(options: FilePart): void;
   appendData(options: DataPart): void;
-  addTextPart(): TextStreamController;
+  addTextPart(options?: TextPartInit): TextStreamController;
   addReasoningPart(options?: ReasoningPartInit): TextStreamController;
   addToolCallPart(options: string): ToolCallStreamController;
   addToolCallPart(options: ToolCallPartInit): ToolCallStreamController;
@@ -549,10 +551,12 @@ declare const PARTIAL_JSON_OBJECT_META_SYMBOL: unique symbol;
 
 type PartInit = {
   readonly type: "text";
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 } | {
   readonly type: "reasoning";
   readonly unstable_summary?: string;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 } | {
   readonly type: "tool-call";
@@ -576,6 +580,10 @@ type PartInit = {
   readonly name: string;
   readonly data: ReadonlyJSONValue;
   readonly parentId?: string;
+};
+
+type PartProviderMetadata = {
+  readonly [providerName: string]: ReadonlyJSONObject;
 };
 
 type PartialJsonObjectMeta = {
@@ -638,11 +646,13 @@ type ReasoningPart = {
   status: TextStatus;
   unstable_summary?: string;
   timing?: MessagePartTiming;
+  providerMetadata?: PartProviderMetadata;
   parentId?: string;
 };
 
 type ReasoningPartInit = {
   unstable_summary?: string;
+  providerMetadata?: PartProviderMetadata;
 };
 
 type RedisAppendOptions = {
@@ -803,7 +813,12 @@ type TextPart = {
   type: "text";
   text: string;
   status: TextStatus;
+  providerMetadata?: PartProviderMetadata;
   parentId?: string;
+};
+
+type TextPartInit = {
+  providerMetadata?: PartProviderMetadata;
 };
 
 type TextStatus = {
@@ -817,8 +832,8 @@ type TextStatus = {
 };
 
 type TextStreamController = {
-  append(textDelta: string): void;
-  close(): void;
+  append(textDelta: string, providerMetadata?: PartProviderMetadata): void;
+  close(providerMetadata?: PartProviderMetadata): void;
 };
 
 type ThreadMessageLike = {
@@ -1057,23 +1072,29 @@ type UIMessageStreamChunk = {
 } | {
   type: "text-start";
   id: string;
+  providerMetadata?: PartProviderMetadata;
 } | {
   type: "text-delta";
   id?: string;
   textDelta: string;
+  providerMetadata?: PartProviderMetadata;
 } | {
   type: "text-end";
   id?: string;
+  providerMetadata?: PartProviderMetadata;
 } | {
   type: "reasoning-start";
   id: string;
+  providerMetadata?: PartProviderMetadata;
 } | {
   type: "reasoning-delta";
   id?: string;
   delta: string;
+  providerMetadata?: PartProviderMetadata;
 } | {
   type: "reasoning-end";
   id?: string;
+  providerMetadata?: PartProviderMetadata;
 } | {
   type: "source";
   source: {
