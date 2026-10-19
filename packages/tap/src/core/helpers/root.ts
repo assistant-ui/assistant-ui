@@ -7,8 +7,10 @@ import type {
 import { isDevelopment } from "./env";
 export const createResourceFiberRoot = (
   dispatchUpdate: (evaluate: () => boolean, apply: () => boolean) => void,
+  onError?: (error: unknown) => void,
 ): TapRoot => {
   return {
+    onError,
     version: 0,
     committedVersion: 0,
     dispatchUpdate,
