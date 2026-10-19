@@ -1,3 +1,5 @@
+import type { ThreadMessage } from "../../types/message";
+
 export type ThreadTitleClaim = {
   readonly title: string;
   readonly order: number;
@@ -29,6 +31,35 @@ export type ThreadTitleState = {
 };
 
 const waitingAutomatics = new WeakMap<ThreadTitleState, number>();
+const automaticTitleHistory = new WeakMap<
+  Map<string, ThreadTitleState>,
+  Map<
+    string,
+    {
+      runEnded: boolean;
+      renamed: boolean;
+      messages: readonly ThreadMessage[] | undefined;
+    }
+  >
+>();
+
+function getAutomaticTitleHistory(
+  states: Map<string, ThreadTitleState>,
+  threadId: string,
+) {
+  let history = automaticTitleHistory.get(states);
+  if (history === undefined) {
+    history = new Map();
+    automaticTitleHistory.set(states, history);
+  }
+  let thread = history.get(threadId);
+  if (thread === undefined) {
+    thread = { runEnded: false, renamed: false, messages: undefined };
+    history.set(threadId, thread);
+  }
+  return thread;
+}
+
 const successorObservers = new WeakMap<
   ThreadTitleState,
   Set<(settled: Promise<boolean>) => void>
@@ -45,6 +76,8 @@ export type ThreadTitleGenerationRun = {
   states: Map<string, ThreadTitleState>;
   threadId: string;
   automatic: boolean;
+  messages?: readonly ThreadMessage[];
+  afterRun?: (() => string | undefined) | undefined;
   generate: (
     onTitle: (title: string | undefined) => Promise<void>,
   ) => Promise<void>;
@@ -155,6 +188,7 @@ export function finishThreadTitleRename(
   claim.settle(renamed);
   const state = states.get(threadId);
   if (state === undefined) return;
+  if (renamed) getAutomaticTitleHistory(states, threadId).renamed = true;
   state.inFlightClaims.delete(claim);
   if (
     renamed &&
@@ -315,8 +349,48 @@ function startThreadTitleGeneration(
 export async function runThreadTitleGeneration(
   run: ThreadTitleGenerationRun,
 ): Promise<void> {
-  const { states, threadId, automatic } = run;
+  const { states, threadId, automatic, afterRun } = run;
   const state = getThreadTitleState(states, threadId);
+  const history = getAutomaticTitleHistory(states, threadId);
+  if (afterRun) {
+    if (history.runEnded || history.renamed) {
+      pruneThreadTitleState(states, threadId, state);
+      return;
+    }
+    history.runEnded = true;
+    const coalesced =
+      history.messages !== undefined &&
+      history.messages.some((message) => message.role === "assistant") &&
+      history.messages.length === run.messages?.length &&
+      history.messages.every(
+        (message, index) => message === run.messages![index],
+      );
+    history.messages = undefined;
+    if (coalesced) {
+      pruneThreadTitleState(states, threadId, state);
+      return;
+    }
+    waitingAutomatics.set(state, (waitingAutomatics.get(state) ?? 0) + 1);
+    let proceed = false;
+    try {
+      while (state.generations.size > 0 || state.inFlightClaims.size > 0) {
+        await Promise.all([
+          ...[...state.generations].map((generation) => generation.persisted),
+          ...[...state.inFlightClaims].map((claim) => claim.settled),
+        ]);
+        if (states.get(threadId) !== state) return;
+      }
+      if (history.renamed || afterRun()) return;
+      proceed = true;
+    } finally {
+      const remaining = waitingAutomatics.get(state)! - 1;
+      if (remaining === 0) waitingAutomatics.delete(state);
+      else waitingAutomatics.set(state, remaining);
+      if (!proceed) pruneThreadTitleState(states, threadId, state);
+    }
+  } else if (automatic && !history.runEnded) {
+    history.messages = run.messages;
+  }
   const explicitAtStart = automatic
     ? [...state.generations].filter((generation) => !generation.automatic)
     : [];

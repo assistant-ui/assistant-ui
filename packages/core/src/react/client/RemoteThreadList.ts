@@ -292,6 +292,7 @@ const useRemoteThreadBody = ({
     messages: readonly ThreadMessage[],
     initialized: boolean,
     isLoading: boolean,
+    runEnded: boolean,
   ) => void;
 }): ClientOutput<"thread"> => {
   const parent = useAssistantContextValue();
@@ -311,6 +312,7 @@ const useRemoteThreadBody = ({
   return useAssistantContextProvider(client, function useBoundRemoteBody() {
     const body = useClientResource(thread);
     const bodyRunning = body.state.isRunning === true;
+    const wasRunning = useRef(false);
     useEffect(() => {
       setIsRunning(bodyRunning);
     }, [bodyRunning]);
@@ -321,7 +323,9 @@ const useRemoteThreadBody = ({
         messages,
         remoteId !== undefined,
         body.state.isLoading,
+        wasRunning.current && !bodyRunning,
       );
+      wasRunning.current = bodyRunning;
     });
     return body.methods;
   });
@@ -385,6 +389,7 @@ const useRemoteThreadListView = ({
     threadId: string,
     messages: readonly ThreadMessage[] | undefined,
     options?: { automatic?: boolean },
+    afterRun?: boolean,
   ) => Promise<void>;
   onInitialize: (threadId: string) => Promise<{
     remoteId: string;
@@ -415,20 +420,37 @@ const useRemoteThreadListView = ({
     messages: readonly ThreadMessage[],
     initialized: boolean,
     isLoading: boolean,
+    runEnded: boolean,
   ) => {
     const previous = pendingAutomaticTitles.get(id);
-    if (previous === undefined) return;
+    if (previous === undefined && !(backgroundThreads && runEnded)) return;
     const sources = messages.filter(isTitleSourceMessage);
-    if (sources.length > 0) pendingAutomaticTitles.set(id, sources);
-    const titleSources = sources.length > 0 ? sources : previous;
-    if (!initialized || isLoading || titleSources.length === 0) return;
-    pendingAutomaticTitles.delete(id);
-    void onGenerateTitle(id, titleSources, { automatic: true }).catch(
-      (error: unknown) => {
+    const generate = (
+      titleSources: readonly ThreadMessage[],
+      afterRun = false,
+    ) => {
+      void onGenerateTitle(
+        id,
+        titleSources,
+        { automatic: true },
+        afterRun,
+      ).catch((error: unknown) => {
         if (!isSilentRuntimeAction(error))
           console.error("[assistant-ui] Thread title generation failed", error);
-      },
-    );
+      });
+    };
+    if (previous !== undefined) {
+      if (sources.length > 0) pendingAutomaticTitles.set(id, sources);
+      const titleSources = sources.length > 0 ? sources : previous;
+      if (initialized && !isLoading && titleSources.length > 0) {
+        pendingAutomaticTitles.delete(id);
+        generate(titleSources);
+      }
+    }
+    const data = getThreadData(listState, id);
+    if (backgroundThreads && runEnded && data && data.status !== "new") {
+      generate(sources, true);
+    }
   };
 
   const itemElementFor = (
@@ -1755,6 +1777,7 @@ const useRemoteThreadList = (
       threadIdOrRemoteId: string,
       messages: readonly ThreadMessage[] | undefined,
       options?: { automatic?: boolean },
+      afterRun = false,
     ) => {
       const currentAdapter = session.adapter;
       const adapterGeneration = session.adapterGeneration;
@@ -1784,6 +1807,7 @@ const useRemoteThreadList = (
         states: session.titleStates,
         threadId: data.id,
         automatic: options?.automatic === true,
+        messages,
         generate: async (onTitle) => {
           if (isRemoved()) return;
           const stream = await currentAdapter.generateTitle(remoteId, messages);
@@ -1825,9 +1849,23 @@ const useRemoteThreadList = (
             },
           });
         },
+        afterRun: afterRun
+          ? () => {
+              requireAdapterGeneration(adapterGeneration);
+              if (ownerDestroySignal?.aborted)
+                throw new ThreadListDestroyedError();
+              return getThreadData(store.value, data.id)?.title;
+            }
+          : undefined,
       });
     },
-    [backgroundThreads, requireAdapterGeneration, session, store],
+    [
+      backgroundThreads,
+      ownerDestroySignal,
+      requireAdapterGeneration,
+      session,
+      store,
+    ],
   );
 
   const detach = useCallback(
@@ -1860,8 +1898,8 @@ const useRemoteThreadList = (
       onArchive: (id) => archive(id),
       onUnarchive: (id) => unarchive(id),
       onDelete: (id) => deleteThread(id),
-      onGenerateTitle: (id, messages, options) =>
-        generateTitle(id, messages, options),
+      onGenerateTitle: (id, messages, options, afterRun) =>
+        generateTitle(id, messages, options, afterRun),
       onInitialize: async (id) => toInitializeResult(await initialize(id)),
       onDetach: (id) => detach(id),
     });
