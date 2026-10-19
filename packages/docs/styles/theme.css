@@ -390,8 +390,8 @@ html.dark body:has(.aui-docs) {
   background: var(--fd-shadcn-code) !important;
 }
 
-.aui-docs #nd-page [data-fd-code-group],
-.aui-docs #nd-page [data-fd-code-group] > [role="tabpanel"] {
+.aui-docs #nd-page .prose [data-fd-code-group],
+.aui-docs #nd-page .prose [data-fd-code-group] > [role="tabpanel"] {
   background: var(--fd-shadcn-code) !important;
 }
 
