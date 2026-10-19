@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -19,6 +19,7 @@ import {
 } from "@assistant-ui/core/internal";
 import { AuiProvider } from "../AuiProvider";
 import { useAuiState } from "../useAuiState";
+import { flushEvents } from "./fixtures";
 import { ThreadPrimitiveMessages } from "../primitives/ThreadPrimitiveMessages";
 import { ThreadPrimitiveViewport } from "../primitives/ThreadPrimitiveViewport";
 import { ThreadPrimitiveViewportFooter } from "../primitives/ThreadPrimitiveViewportFooter";
@@ -274,6 +275,21 @@ describe("BranchPickerPrimitive", () => {
 });
 
 describe("ThreadPrimitiveViewport", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({
+      toFake: ["requestAnimationFrame", "cancelAnimationFrame"],
+    });
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  const flushFrame = async () => {
+    await nextTick();
+    await flushEvents();
+    vi.advanceTimersToNextFrame();
+    await nextTick();
+  };
+
   it("mounts as a scroll container and renders its slot", async () => {
     const { runtime, append } = createTestRuntime();
     const View = defineComponent({
@@ -344,10 +360,8 @@ describe("ThreadPrimitiveViewport", () => {
     flushTapSync(() =>
       append({ role: "user", content: [{ type: "text", text: "one" }] }),
     );
-    await vi.waitFor(async () => {
-      await nextTick();
-      expect(scrollTo).toHaveBeenCalled();
-    });
+    await flushFrame();
+    expect(scrollTo).toHaveBeenCalled();
     div.dispatchEvent(new Event("scroll"));
     const callsWhilePinned = scrollTo.mock.calls.length;
 
@@ -355,12 +369,10 @@ describe("ThreadPrimitiveViewport", () => {
     flushTapSync(() =>
       append({ role: "assistant", content: [{ type: "text", text: "two" }] }),
     );
-    await vi.waitFor(async () => {
-      await nextTick();
-      expect(scrollTo.mock.calls.length).toBeGreaterThan(callsWhilePinned);
-    });
+    await flushFrame();
+    expect(scrollTo.mock.calls.length).toBeGreaterThan(callsWhilePinned);
     div.dispatchEvent(new Event("scroll"));
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    await flushFrame();
 
     div.dispatchEvent(new Event("pointerdown"));
     scrollTop = 50;
@@ -371,8 +383,8 @@ describe("ThreadPrimitiveViewport", () => {
     flushTapSync(() =>
       append({ role: "user", content: [{ type: "text", text: "three" }] }),
     );
-    await nextTick();
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await flushFrame();
+    expect(el.querySelectorAll("p")).toHaveLength(3);
     expect(scrollTo.mock.calls.length).toBe(callsAfterUnpin);
 
     unmount();
@@ -434,11 +446,9 @@ describe("ThreadPrimitiveViewport", () => {
     flushTapSync(() =>
       append({ role: "assistant", content: [{ type: "text", text: "one" }] }),
     );
-    await vi.waitFor(async () => {
-      await nextTick();
-      expect(el.querySelector("[data-message-id]")).not.toBeNull();
-      expect(scrollTo).toHaveBeenCalled();
-    });
+    await flushFrame();
+    expect(el.querySelector("[data-message-id]")).not.toBeNull();
+    expect(scrollTo).toHaveBeenCalled();
     scrollTo.mockClear();
 
     const disclosure =
@@ -450,7 +460,7 @@ describe("ThreadPrimitiveViewport", () => {
     disclosure.click();
     scrollHeight = 600;
     el.querySelector("[data-message-id]")!.append(document.createElement("p"));
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    await flushFrame();
 
     expect(scrollTo).not.toHaveBeenCalled();
     expect(scrollTop).toBe(400);
@@ -497,8 +507,8 @@ describe("ThreadPrimitiveViewport", () => {
     flushTapSync(() =>
       append({ role: "user", content: [{ type: "text", text: "one" }] }),
     );
-    await nextTick();
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await flushFrame();
+    expect(el.querySelectorAll("p")).toHaveLength(1);
     expect(scrollTo).not.toHaveBeenCalled();
 
     unmount();
@@ -510,7 +520,11 @@ describe("ThreadPrimitiveViewport", () => {
       setup: () => () =>
         h(
           ThreadPrimitiveViewport,
-          { class: "viewport" },
+          {
+            class: "viewport",
+            autoScroll: false,
+            scrollToBottomOnInitialize: false,
+          },
           { default: () => h("p", "row") },
         ),
     });
@@ -520,9 +534,8 @@ describe("ThreadPrimitiveViewport", () => {
     );
 
     flushTapSync(() => active.setRunning(true));
-    await vi.waitFor(() => {
-      expect(activeScrollTo).toHaveBeenCalled();
-    });
+    await flushFrame();
+    expect(activeScrollTo).toHaveBeenCalledWith({ top: 500, behavior: "auto" });
     mountedActive.unmount();
 
     const disabled = createTestRuntime();
@@ -545,7 +558,7 @@ describe("ThreadPrimitiveViewport", () => {
     );
 
     flushTapSync(() => disabled.setRunning(true));
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await flushFrame();
     expect(disabledScrollTo).not.toHaveBeenCalled();
 
     mountedDisabled.unmount();
