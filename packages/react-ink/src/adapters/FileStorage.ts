@@ -128,7 +128,8 @@ const getFileStorage = (dir: string): FileStorage => {
 
 export const createFileStorageAdapter = (
   options: CreateFileStorageAdapterOptions,
-): RemoteThreadListAdapter => {
+): RemoteThreadListAdapter &
+  Pick<Required<RemoteThreadListAdapter>, "unarchive"> => {
   const { dir, prefix, titleGenerator } = options;
 
   return createLocalStorageAdapter({

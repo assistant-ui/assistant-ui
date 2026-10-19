@@ -71,6 +71,17 @@ const file = (filename, overrides = {}) => ({
   ...overrides,
 });
 
+const closingIssue = (number, pullRequests = []) => ({
+  number,
+  repository: { nameWithOwner: "assistant-ui/assistant-ui" },
+  closedByPullRequestsReferences: {
+    nodes: pullRequests.map((pullRequest) => ({
+      repository: { nameWithOwner: "assistant-ui/assistant-ui" },
+      ...pullRequest,
+    })),
+  },
+});
+
 function tapPullRequest(overrides = {}) {
   return {
     title: "fix(tap): a flush owns its queued tasks and notifications",
@@ -227,7 +238,12 @@ function fakeClient({
           `Unrecorded decision issue ${variables.number}`,
         );
         return {
-          repository: { issue: structuredClone(issues[variables.number]) },
+          repository: {
+            issue: {
+              ...closingIssue(variables.number),
+              ...structuredClone(issues[variables.number]),
+            },
+          },
         };
       }
       if (query.includes("query ReviewTierAuthorCount(")) {
@@ -801,7 +817,7 @@ test("unresolved Decision issue numbers are skipped while closing issues still r
   const recording = fakeClient({
     pr: tapPullRequest({
       body: "## Decision\nSee #9002.\n",
-      closingIssuesReferences: { nodes: [{ number: 42 }] },
+      closingIssuesReferences: { nodes: [closingIssue(42)] },
     }),
     issues: { 42: { labels: { nodes: [] }, timelineItems: { nodes: [] } } },
     issueErrors: { 9002: missing },
@@ -919,7 +935,7 @@ test("decision references include closing issues and only the Decision section, 
   const recording = fakeClient({
     pr: tapPullRequest({
       body: "## Summary\r\nMention #999.\r\n## Decision\r\nSee #42, #43 and #42.\r\n### Context\r\nAlso #44.\r\n## Tests\r\nIgnore #888.\r\n",
-      closingIssuesReferences: { nodes: [{ number: 42 }] },
+      closingIssuesReferences: { nodes: [closingIssue(42)] },
     }),
     issues: {
       42: issue([labelEvent("decision: accepted", "outsider")]),
@@ -1264,6 +1280,99 @@ test("hard policy failures stay failures", async () => {
     waivable,
     /\| ⏳ Waiting window \| \d+ hours after ready for review, until .+ UTC; an owner can waive it with `review-tier\/override: window` \|/,
   );
+});
+
+test("the comment names another pull request for the same issue without blocking", async () => {
+  const issues = {
+    42: { labels: { nodes: [] }, timelineItems: { nodes: [] } },
+  };
+  const parallel = await evaluationFor(
+    fakeClient({
+      pr: docsPullRequest({
+        closingIssuesReferences: {
+          nodes: [
+            closingIssue(42, [
+              { number: 12, state: "OPEN" },
+              { number: 15, state: "OPEN" },
+            ]),
+          ],
+        },
+      }),
+      issues,
+    }),
+  );
+  const alone = await evaluationFor(
+    fakeClient({
+      pr: docsPullRequest({
+        body: "Clarify installation.\n\n## AI use\nNone.\n",
+        closingIssuesReferences: {
+          nodes: [closingIssue(42, [{ number: 12, state: "OPEN" }])],
+        },
+      }),
+      issues,
+    }),
+  );
+  assert.equal(parallel.conclusion, alone.conclusion);
+  assert.ok(
+    renderComment(parallel, policy).includes("- #15 is also open for #42"),
+  );
+  assert.ok(!renderComment(alone, policy).includes("Worth a look"));
+});
+
+test("an issue linked only under Decision still names other pull requests for it, once per issue", async () => {
+  const unlabeled = { labels: { nodes: [] }, timelineItems: { nodes: [] } };
+  const closing = closingIssue(42, [{ number: 14, state: "OPEN" }]);
+  const evaluation = await evaluationFor(
+    fakeClient({
+      pr: docsPullRequest({
+        body: "Clarify installation.\n\n## Decision\n#9780 and #42\n\n## AI use\nNone.\n",
+        closingIssuesReferences: { nodes: [closing] },
+      }),
+      issues: {
+        42: { ...unlabeled, ...closing },
+        9780: {
+          ...unlabeled,
+          ...closingIssue(9780, [
+            { number: 15, state: "OPEN" },
+            { number: 9, state: "MERGED" },
+          ]),
+        },
+      },
+    }),
+  );
+  assert.deepEqual(evaluation.advice, [
+    "#14 is also open for #42",
+    "#15 closes #9780, which this PR cites as its decision",
+    "#9 closed #9780, which this PR cites as its decision",
+  ]);
+});
+
+test("a closing issue in another repository keeps its repository and is not looked up here", async () => {
+  const recording = fakeClient({
+    pr: docsPullRequest({
+      body: "Clarify installation.\n\n## AI use\nNone.\n",
+      closingIssuesReferences: {
+        nodes: [
+          {
+            ...closingIssue(42, [{ number: 15, state: "OPEN" }]),
+            repository: { nameWithOwner: "someone/fork-tools" },
+          },
+        ],
+      },
+    }),
+  });
+  const gathered = await gatherPullRequest(recording.client, policy, 12, {
+    now,
+  });
+  assert.deepEqual(gathered.people.linkedIssues, []);
+  assert.ok(
+    !recording.calls.some(({ query }) =>
+      query?.includes("query ReviewTierDecision("),
+    ),
+  );
+  assert.deepEqual(evaluatePullRequest(gathered, policy).advice, [
+    "#15 is also open for someone/fork-tools#42",
+  ]);
 });
 
 test("dynamic details stay inside their code spans and the comment stays under the size limit", async () => {

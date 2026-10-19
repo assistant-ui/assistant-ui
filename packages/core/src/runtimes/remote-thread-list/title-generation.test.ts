@@ -31,6 +31,7 @@ describe("runThreadTitleGeneration", () => {
     const generation = runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => undefined,
       automatic: true,
       generate: async (onTitle) => {
         await streamOpen.promise;
@@ -61,6 +62,7 @@ describe("runThreadTitleGeneration", () => {
     const generation = runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => undefined,
       automatic: true,
       generate: async (onTitle) => {
         await streamOpen.promise;
@@ -90,6 +92,7 @@ describe("runThreadTitleGeneration", () => {
       runThreadTitleGeneration({
         states,
         threadId: "t1",
+        readTitle: async () => undefined,
         automatic: true,
         generate,
         rename: noop,
@@ -114,6 +117,7 @@ describe("runThreadTitleGeneration", () => {
     const generation = runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => undefined,
       automatic: true,
       generate: async (onTitle) => {
         await streamOpen.promise;
@@ -145,6 +149,7 @@ describe("runThreadTitleGeneration", () => {
     const generation = runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => undefined,
       automatic: true,
       generate: async (onTitle) => {
         await streamOpen.promise;
@@ -185,6 +190,7 @@ describe("runThreadTitleGeneration", () => {
     const generation = runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => undefined,
       automatic: true,
       generate,
       rename: noop,
@@ -222,6 +228,7 @@ describe("runThreadTitleGeneration", () => {
     const streaming = runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => undefined,
       automatic: true,
       generate: async (onTitle) => {
         await streamOpen.promise;
@@ -239,6 +246,7 @@ describe("runThreadTitleGeneration", () => {
     const waiting = runThreadTitleGeneration({
       states,
       threadId: "t2",
+      readTitle: async () => undefined,
       automatic: false,
       generate: waitingGenerate,
       rename,
@@ -267,6 +275,7 @@ describe("runThreadTitleGeneration", () => {
     const automatic = runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => undefined,
       automatic: true,
       generate: async (onTitle) => {
         await streamOpen.promise;
@@ -279,6 +288,7 @@ describe("runThreadTitleGeneration", () => {
     await runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => undefined,
       automatic: false,
       generate: async (onTitle) => {
         await onTitle("Explicit");
@@ -309,6 +319,7 @@ describe("runThreadTitleGeneration", () => {
       runThreadTitleGeneration({
         states,
         threadId: "t1",
+        readTitle: async () => undefined,
         automatic: false,
         generate: async (onTitle) => {
           generated.push(title);
@@ -356,6 +367,7 @@ describe("runThreadTitleGeneration", () => {
     const generation = runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => undefined,
       automatic: false,
       generate: async (onTitle) => {
         generated.push("Explicit");
@@ -388,6 +400,7 @@ describe("runThreadTitleGeneration", () => {
       runThreadTitleGeneration({
         states,
         threadId: "t1",
+        readTitle: async () => undefined,
         automatic,
         generate: async (onTitle) => {
           if (open) await open;
@@ -419,6 +432,7 @@ describe("runThreadTitleGeneration", () => {
       runThreadTitleGeneration({
         states,
         threadId: "t1",
+        readTitle: async () => undefined,
         automatic,
         generate: async (onTitle) => {
           await open;
@@ -449,6 +463,7 @@ describe("runThreadTitleGeneration", () => {
       runThreadTitleGeneration({
         states,
         threadId: "t1",
+        readTitle: async () => undefined,
         automatic,
         generate: async (onTitle) => {
           if (open) await open;
@@ -483,6 +498,7 @@ describe("runThreadTitleGeneration", () => {
       runThreadTitleGeneration({
         states,
         threadId: "t1",
+        readTitle: async () => undefined,
         automatic,
         generate: async (onTitle) => {
           await open;
@@ -528,6 +544,7 @@ describe("runThreadTitleGeneration", () => {
     const automatic = runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => undefined,
       automatic: true,
       generate: async (onTitle) => {
         await streamOpen.promise;
@@ -541,6 +558,7 @@ describe("runThreadTitleGeneration", () => {
     await runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => undefined,
       automatic: false,
       generate: async (onTitle) => {
         await onTitle("Explicit");
@@ -571,6 +589,7 @@ describe("runThreadTitleGeneration", () => {
       runThreadTitleGeneration({
         states,
         threadId: "t1",
+        readTitle: async () => undefined,
         automatic,
         generate: async (onTitle) => {
           if (open) await open;
@@ -604,6 +623,7 @@ describe("runThreadTitleGeneration", () => {
     const automatic = runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => undefined,
       automatic: true,
       generate: async (onTitle) => {
         await streamOpen.promise;
@@ -616,6 +636,7 @@ describe("runThreadTitleGeneration", () => {
     await runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => undefined,
       automatic: false,
       generate: async (onTitle) => {
         await onTitle("Explicit");
@@ -635,6 +656,7 @@ describe("runThreadTitleGeneration", () => {
     await runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => undefined,
       automatic: true,
       generate: async (onTitle) => {
         await onTitle("Generated");
@@ -655,6 +677,7 @@ describe("runThreadTitleGeneration", () => {
     const generation = runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => undefined,
       automatic: true,
       generate: async (onTitle) => {
         await streamOpen.promise;
@@ -697,6 +720,7 @@ describe("runThreadTitleGeneration", () => {
     const generation = runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => undefined,
       automatic: true,
       generate,
       rename: async (title) => {
@@ -730,6 +754,7 @@ describe("runThreadTitleGeneration", () => {
     const generation = runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => undefined,
       automatic: true,
       generate,
       rename: async (title) => {
@@ -758,6 +783,7 @@ describe("runThreadTitleGeneration", () => {
     const explicit = runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => undefined,
       automatic: false,
       generate: async (onTitle) => {
         await onTitle("Explicit");
@@ -774,6 +800,7 @@ describe("runThreadTitleGeneration", () => {
     await runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => undefined,
       automatic: true,
       generate,
       rename: noop,
@@ -793,6 +820,7 @@ describe("runThreadTitleGeneration", () => {
     const explicit = runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => undefined,
       automatic: false,
       generate: noop,
       rename: noop,
@@ -801,6 +829,7 @@ describe("runThreadTitleGeneration", () => {
     const automatic = runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => undefined,
       automatic: true,
       generate: async (onTitle) => {
         await streamOpen.promise;
@@ -832,6 +861,7 @@ describe("runThreadTitleGeneration", () => {
     const explicit = runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => undefined,
       automatic: false,
       generate: noop,
       rename: noop,
@@ -848,6 +878,7 @@ describe("runThreadTitleGeneration", () => {
     const automatic = runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => undefined,
       automatic: true,
       generate,
       rename,
@@ -875,6 +906,7 @@ describe("runThreadTitleGeneration", () => {
     const generation = runThreadTitleGeneration({
       states,
       threadId: "t1",
+      readTitle: async () => undefined,
       automatic: true,
       generate,
       rename: async (title) => {

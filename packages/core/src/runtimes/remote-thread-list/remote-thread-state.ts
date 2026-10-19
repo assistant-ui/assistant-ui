@@ -13,7 +13,7 @@ export type RemoteThreadData =
       readonly externalId: undefined;
       readonly status: "new";
       readonly title: undefined;
-      readonly custom: undefined;
+      readonly custom?: Record<string, unknown> | undefined;
       readonly localOrigin?: true;
     }
   | {
@@ -23,7 +23,7 @@ export type RemoteThreadData =
       readonly externalId: undefined;
       readonly status: "regular" | "archived";
       readonly title?: string | undefined;
-      readonly custom: undefined;
+      readonly custom?: Record<string, unknown> | undefined;
       readonly localOrigin?: true;
     }
   | {
@@ -153,6 +153,9 @@ export const mergeFetchedThread = (
 export type RemoteThreadState = {
   readonly isLoading: boolean;
   readonly loadError: unknown;
+  readonly switchError?:
+    | { readonly threadId: string; readonly error: unknown }
+    | undefined;
   readonly isLoadingMore: boolean;
   readonly cursor: string | undefined;
   readonly newThreadId: string | undefined;
@@ -165,6 +168,7 @@ export type RemoteThreadState = {
 export const createEmptyRemoteThreadState = (): RemoteThreadState => ({
   isLoading: true,
   loadError: undefined,
+  switchError: undefined,
   isLoadingMore: false,
   cursor: undefined,
   newThreadId: undefined,
@@ -174,6 +178,23 @@ export const createEmptyRemoteThreadState = (): RemoteThreadState => ({
   threadData: nullProtoRecord(),
 });
 
+export const seedDraftThread = (
+  state: RemoteThreadState,
+  draft: Extract<RemoteThreadData, { status: "new" }>,
+): RemoteThreadState => {
+  const mappingId = createThreadMappingId(draft.id);
+  return {
+    ...state,
+    newThreadId: draft.id,
+    threadIdMap: nullProtoRecord(state.threadIdMap, {
+      [draft.id]: mappingId,
+    }),
+    threadData: nullProtoRecord(state.threadData, {
+      [mappingId]: draft,
+    }),
+  };
+};
+
 export const seedNewThread = (
   state: RemoteThreadState,
   initialThreadIdSeed?: string,
@@ -182,27 +203,17 @@ export const seedNewThread = (
   while (state.threadIdMap[id]) {
     id = `${LOCAL_THREAD_ID_PREFIX}${generateId()}`;
   }
-  const mappingId = createThreadMappingId(id);
   return {
     id,
-    state: {
-      ...state,
-      newThreadId: id,
-      threadIdMap: nullProtoRecord(state.threadIdMap, {
-        [id]: mappingId,
-      }),
-      threadData: nullProtoRecord(state.threadData, {
-        [mappingId]: {
-          status: "new",
-          id,
-          remoteId: undefined,
-          externalId: undefined,
-          title: undefined,
-          custom: undefined,
-          localOrigin: true,
-        } satisfies RemoteThreadData,
-      }),
-    },
+    state: seedDraftThread(state, {
+      status: "new",
+      id,
+      remoteId: undefined,
+      externalId: undefined,
+      title: undefined,
+      custom: undefined,
+      localOrigin: true,
+    }),
   };
 };
 

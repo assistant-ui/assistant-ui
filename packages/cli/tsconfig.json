@@ -1,4 +1,7 @@
 {
   "extends": "@assistant-ui/x-buildutils/ts/base-node",
+  "compilerOptions": {
+    "types": ["node", "browser-process", "aui-build"]
+  },
   "include": ["src"]
 }

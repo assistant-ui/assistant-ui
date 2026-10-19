@@ -230,16 +230,11 @@ export const loginToCloud = async (
   }
 };
 
-export const cloudAccessToken = async (
+export const savedCloudAccessToken = async (
   config: CloudAuthConfig,
-  options: {
-    noOpen?: boolean;
-    setupUrl?: string;
-    print?: (text: string) => void;
-  } = {},
-): Promise<string> => {
+): Promise<string | null> => {
   const saved = await readCloudCredentials(config);
-  if (!saved) return (await loginToCloud(config, options)).tokens.accessToken;
+  if (!saved) return null;
   const login = createDeviceLogin({
     issuer: config.issuer,
     clientId: config.clientId,
@@ -258,6 +253,17 @@ export const cloudAccessToken = async (
     throw error;
   }
 };
+
+export const cloudAccessToken = async (
+  config: CloudAuthConfig,
+  options: {
+    noOpen?: boolean;
+    setupUrl?: string;
+    print?: (text: string) => void;
+  } = {},
+): Promise<string> =>
+  (await savedCloudAccessToken(config)) ??
+  (await loginToCloud(config, options)).tokens.accessToken;
 
 export const logoutFromCloud = async (
   config: CloudAuthConfig,

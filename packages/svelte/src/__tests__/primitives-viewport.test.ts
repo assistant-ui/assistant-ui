@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushSync, mount, unmount } from "svelte";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig } from "@assistant-ui/store/client";
@@ -10,7 +10,20 @@ import {
   threadViewport,
 } from "../primitives/threadViewport";
 import Host from "./fixtures/Host.svelte";
-import { createEchoRuntime, type AnyClient } from "./clients";
+import { createEchoRuntime, flushEvents, type AnyClient } from "./clients";
+
+beforeEach(() => {
+  vi.useFakeTimers({
+    toFake: ["requestAnimationFrame", "cancelAnimationFrame"],
+  });
+});
+
+afterEach(() => vi.useRealTimers());
+
+const flushFrame = async () => {
+  await flushEvents();
+  vi.advanceTimersToNextFrame();
+};
 
 const makeScrollable = (el: HTMLElement) => {
   let scrollTop = 0;
@@ -81,7 +94,8 @@ const mountViewport = (
 const mountOverflowingViewport = async () => {
   const mounted = mountViewport();
   mounted.controls.grow(1000);
-  await vi.waitFor(() => expect(mounted.controls.scrollTo).toHaveBeenCalled());
+  await flushFrame();
+  expect(mounted.controls.scrollTo).toHaveBeenCalled();
   return mounted;
 };
 
@@ -97,7 +111,8 @@ describe("threadViewport", () => {
     const { app, controls } = mountViewport();
 
     controls.grow(1000);
-    await vi.waitFor(() => expect(controls.scrollTo).toHaveBeenCalled());
+    await flushFrame();
+    expect(controls.scrollTo).toHaveBeenCalled();
     expect(controls.scrollTo).toHaveBeenLastCalledWith({
       top: 1000,
       behavior: "instant",
@@ -110,7 +125,8 @@ describe("threadViewport", () => {
     const { app, viewport, controls } = mountViewport();
 
     controls.grow(1000);
-    await vi.waitFor(() => expect(controls.scrollTo).toHaveBeenCalled());
+    await flushFrame();
+    expect(controls.scrollTo).toHaveBeenCalled();
     expect(viewport.isAtBottom).toBe(true);
 
     controls.setScrollTop(100);
@@ -119,7 +135,7 @@ describe("threadViewport", () => {
 
     const calls = controls.scrollTo.mock.calls.length;
     controls.grow(1500);
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await flushFrame();
     expect(controls.scrollTo.mock.calls.length).toBe(calls);
 
     flushSync(() => void unmount(app));
@@ -129,7 +145,8 @@ describe("threadViewport", () => {
     const { app, viewport, controls } = mountViewport();
 
     controls.grow(1000);
-    await vi.waitFor(() => expect(controls.scrollTo).toHaveBeenCalled());
+    await flushFrame();
+    expect(controls.scrollTo).toHaveBeenCalled();
     controls.setScrollTop(100);
     controls.dispatchScroll();
     expect(viewport.isAtBottom).toBe(false);
@@ -140,9 +157,8 @@ describe("threadViewport", () => {
 
     const calls = controls.scrollTo.mock.calls.length;
     controls.grow(1500);
-    await vi.waitFor(() =>
-      expect(controls.scrollTo.mock.calls.length).toBeGreaterThan(calls),
-    );
+    await flushFrame();
+    expect(controls.scrollTo.mock.calls.length).toBeGreaterThan(calls);
 
     flushSync(() => void unmount(app));
   });
@@ -151,12 +167,11 @@ describe("threadViewport", () => {
     const { app, echo, controls } = mountViewport();
 
     flushTapSync(() => echo.setRunning(true));
-    await vi.waitFor(() =>
-      expect(controls.scrollTo).toHaveBeenCalledWith({
-        top: 500,
-        behavior: "auto",
-      }),
-    );
+    await flushFrame();
+    expect(controls.scrollTo).toHaveBeenCalledWith({
+      top: 500,
+      behavior: "auto",
+    });
 
     flushSync(() => void unmount(app));
 
@@ -165,7 +180,7 @@ describe("threadViewport", () => {
       scrollToBottomOnInitialize: false,
     });
     flushTapSync(() => gated.echo.setRunning(true));
-    await new Promise((resolve) => setTimeout(resolve, 80));
+    await flushFrame();
     expect(gated.controls.scrollTo).not.toHaveBeenCalled();
     flushSync(() => void unmount(gated.app));
   });
@@ -174,13 +189,13 @@ describe("threadViewport", () => {
     const { app, aui, controls } = mountViewport([
       { id: "u0", role: "user", text: "hi" },
     ]);
-    await vi.waitFor(() => expect(controls.scrollTo).toHaveBeenCalled());
+    await flushFrame();
+    expect(controls.scrollTo).toHaveBeenCalled();
     const calls = controls.scrollTo.mock.calls.length;
 
     flushTapSync(() => aui.threads.switchToNewThread());
-    await vi.waitFor(() =>
-      expect(controls.scrollTo.mock.calls.length).toBeGreaterThan(calls),
-    );
+    await flushFrame();
+    expect(controls.scrollTo.mock.calls.length).toBeGreaterThan(calls);
     expect(controls.scrollTo).toHaveBeenLastCalledWith({
       top: 500,
       behavior: "instant",
@@ -195,10 +210,10 @@ describe("threadViewport", () => {
     });
 
     flushTapSync(() => echo.setRunning(true));
-    // The run-start event delivers on a microtask; the gesture lands after it
-    await Promise.resolve();
+    await flushEvents();
+    expect(vi.getTimerCount()).toBe(1);
     el.dispatchEvent(new Event("pointerdown"));
-    await new Promise((resolve) => setTimeout(resolve, 80));
+    await flushFrame();
     expect(controls.scrollTo).not.toHaveBeenCalled();
 
     flushSync(() => void unmount(app));
@@ -208,10 +223,12 @@ describe("threadViewport", () => {
     const { app, viewport, controls, detach } = mountViewport([
       { id: "u0", role: "user", text: "hi" },
     ]);
-    await vi.waitFor(() => expect(controls.scrollTo).toHaveBeenCalled());
+    await flushFrame();
+    expect(controls.scrollTo).toHaveBeenCalled();
 
     controls.grow(1000);
-    await vi.waitFor(() => expect(viewport.isAtBottom).toBe(true));
+    await flushFrame();
+    expect(viewport.isAtBottom).toBe(true);
     controls.setScrollTop(100);
     controls.dispatchScroll();
     expect(viewport.isAtBottom).toBe(false);
@@ -221,12 +238,11 @@ describe("threadViewport", () => {
     const nextControls = makeScrollable(next);
     const detachNext = viewport.attach(next);
     expect(viewport.isAtBottom).toBe(true);
-    await vi.waitFor(() =>
-      expect(nextControls.scrollTo).toHaveBeenCalledWith({
-        top: 500,
-        behavior: "instant",
-      }),
-    );
+    await flushFrame();
+    expect(nextControls.scrollTo).toHaveBeenCalledWith({
+      top: 500,
+      behavior: "instant",
+    });
 
     detachNext();
     flushSync(() => void unmount(app));
@@ -237,12 +253,11 @@ describe("threadViewport", () => {
       { id: "u0", role: "user", text: "hi" },
     ]);
 
-    await vi.waitFor(() =>
-      expect(controls.scrollTo).toHaveBeenCalledWith({
-        top: 500,
-        behavior: "instant",
-      }),
-    );
+    await flushFrame();
+    expect(controls.scrollTo).toHaveBeenCalledWith({
+      top: 500,
+      behavior: "instant",
+    });
 
     flushSync(() => void unmount(app));
   });
@@ -254,7 +269,8 @@ describe("threadScrollToBottom", () => {
     const button = threadScrollToBottom({ viewport });
 
     controls.grow(1000);
-    await vi.waitFor(() => expect(controls.scrollTo).toHaveBeenCalled());
+    await flushFrame();
+    expect(controls.scrollTo).toHaveBeenCalled();
     expect(button.props.disabled).toBe(true);
 
     controls.setScrollTop(100);

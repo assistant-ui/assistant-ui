@@ -2,6 +2,16 @@ import { describe, expect, it } from "vitest";
 import { InMemoryThreadListAdapter } from "./in-memory";
 
 describe("InMemoryThreadListAdapter", () => {
+  it("stores custom metadata during initialization", async () => {
+    const adapter = new InMemoryThreadListAdapter();
+
+    await adapter.initialize("thread-1", { custom: { label: "draft" } });
+
+    expect((await adapter.fetch("thread-1")).custom).toEqual({
+      label: "draft",
+    });
+  });
+
   it("preserves no-argument mutations as no-ops", async () => {
     const adapter = new InMemoryThreadListAdapter();
     await adapter.initialize("");

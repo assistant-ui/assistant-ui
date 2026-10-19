@@ -500,6 +500,44 @@ describe("DefaultEditComposerRuntimeCore sending attachments", () => {
 
   const file = () => new File(["content"], "f.txt", { type: "text/plain" });
 
+  it("returns a failed removal to the next edit send when dispatch throws synchronously", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const upload = Promise.withResolvers<void>();
+    const remove = vi
+      .fn<AttachmentAdapter["remove"]>()
+      .mockRejectedValueOnce(new Error("remove failed"))
+      .mockResolvedValue(undefined);
+    const composer = makeEditComposer(
+      attachmentAdapter({
+        remove,
+        send: async (attachment) => {
+          await upload.promise;
+          return { ...attachment, status: { type: "complete" }, content: [] };
+        },
+      }),
+    );
+    const send = vi.spyOn(composer, "handleSend").mockImplementation(() => {
+      throw new Error("send failed");
+    });
+    await composer.addAttachment(file());
+    const sending = composer.send();
+    await expect(composer.removeAttachment("f")).rejects.toThrow(
+      "remove failed",
+    );
+    upload.resolve();
+    await sending;
+    expect(send).toHaveBeenCalledOnce();
+    expect(composer.attachments).toMatchObject([
+      { id: "f", status: { type: "incomplete", message: "remove failed" } },
+    ]);
+    await composer.send();
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(
+      send.mock.calls[1]![0].attachments?.map((attachment) => attachment.id),
+    ).toEqual(["f"]);
+    expect(remove).toHaveBeenCalledTimes(1);
+  });
+
   it("keeps a second failed removal reachable after sending an edit", async () => {
     const upload = Promise.withResolvers<void>();
     const remove = vi

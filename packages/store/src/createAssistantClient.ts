@@ -1,7 +1,7 @@
 "use client";
 
 import { createTapRoot, flushTapSync } from "@assistant-ui/tap";
-import { useSyncExternalStore } from "react";
+import { useInsertionEffect, useReducer, useSyncExternalStore } from "react";
 
 import type { AssistantClient, Unsubscribe } from "./types/client";
 import type { AuiConfig } from "./AuiConfig";
@@ -97,6 +97,8 @@ const toClientSource = (
         subscribe: (parent as AssistantClient).subscribe,
       };
 
+const handleSnapshots = new WeakMap<AssistantClientSource, () => unknown>();
+
 /**
  * Creates an `AssistantClient` outside any UI framework.
  *
@@ -137,42 +139,99 @@ export const createAssistantClient = (
   const destroyController = new AbortController();
   const notifications = createNotificationManager();
 
-  const root = createTapRoot(
-    function AssistantClientRoot() {
-      const parent = useSyncExternalStore(
-        parentSource.subscribe,
-        parentSource.getClient,
-        parentSource.getClient,
-      );
-      const currentConfig = useSyncExternalStore(
-        configSource.subscribe,
-        configSource.getConfig,
-        configSource.getConfig,
-      );
-      const entries = Object.entries(
-        applyTransformScopes(currentConfig, parent),
-      ) as ScopeEntry[];
-      const result = useDestroySignalProvider(
-        destroyController.signal,
-        function useRootClient() {
-          return useAuiRoot({ parent, entries, clientRef, notifications });
-        },
-      );
-      // Seeded during render, before the commit runs mount effects that read it
-      if (clientRef.current === null) {
-        clientRef.current = result.client;
-      }
-      return result;
-    },
-    { mountOnSubscribe: true },
-  );
+  const parentSnapshot = handleSnapshots.get(parentSource);
+  const getParentSnapshot = () =>
+    parentSnapshot?.() ?? parentSource.getClient();
+  let renderedParentSnapshot: unknown;
+  let publishedParentSnapshot: unknown;
+  let refreshRoot: (() => void) | null = null;
 
-  // flushTapSync makes structural rebinds triggered by a notification land
-  // before the notification returns
-  const notify = () => {
+  const createRoot = () =>
+    createTapRoot(
+      function AssistantClientRoot() {
+        const [, refresh] = useReducer((version: number) => version + 1, 0);
+        const snapshot = getParentSnapshot();
+        useInsertionEffect(() => {
+          refreshRoot = refresh;
+          renderedParentSnapshot = snapshot;
+        });
+        const parent = useSyncExternalStore(
+          parentSource.subscribe,
+          parentSource.getClient,
+          parentSource.getClient,
+        );
+        const currentConfig = useSyncExternalStore(
+          configSource.subscribe,
+          configSource.getConfig,
+          configSource.getConfig,
+        );
+        const entries = Object.entries(
+          applyTransformScopes(currentConfig, parent),
+        ) as ScopeEntry[];
+        const result = useDestroySignalProvider(
+          destroyController.signal,
+          function useRootClient() {
+            return useAuiRoot({ parent, entries, clientRef, notifications });
+          },
+        );
+        // Seeded during render, before the commit runs mount effects that read it
+        if (clientRef.current === null) {
+          clientRef.current = result.client;
+        }
+        return result;
+      },
+      { mountOnSubscribe: true },
+    );
+  let root = createRoot();
+
+  const publish = () => {
     clientRef.parent = parentSource.getClient();
     clientRef.current = root.getValue().client;
+    publishedParentSnapshot = getParentSnapshot();
     flushTapSync(notifications.notifySubscribers);
+  };
+
+  let hasMounted = false;
+  let pendingRootSync = false;
+  const syncRoot = (force = false) => {
+    if (!force && Object.is(renderedParentSnapshot, getParentSnapshot()))
+      return false;
+    if (!hasMounted) {
+      root.unmount();
+      clientRef.current = null;
+      root = createRoot();
+      root.getValue();
+      renderedParentSnapshot = getParentSnapshot();
+    } else {
+      pendingRootSync = true;
+      try {
+        flushTapSync(() => refreshRoot?.());
+      } finally {
+        pendingRootSync = false;
+      }
+    }
+    return true;
+  };
+
+  const notifyRoot = () => {
+    const force =
+      hasMounted &&
+      options?.parent !== undefined &&
+      !parentSnapshot &&
+      !pendingRootSync;
+    pendingRootSync = false;
+    if (syncRoot(force)) return;
+    publish();
+  };
+
+  const notifyParent = () => {
+    if (syncRoot(!parentSnapshot)) return;
+    if (
+      parentSnapshot &&
+      Object.is(publishedParentSnapshot, getParentSnapshot())
+    )
+      return;
+    publish();
   };
 
   let subscriberCount = 0;
@@ -180,11 +239,12 @@ export const createAssistantClient = (
   let destroyed = false;
 
   const wire = () => {
-    const unsubscribeParent = parentSource.subscribe(notify);
+    const unsubscribeParent = parentSource.subscribe(notifyParent);
     let unsubscribeRoot: Unsubscribe;
     try {
       // Commits the first mount; tap rolls the fiber back if it throws
-      unsubscribeRoot = root.subscribe(notify);
+      unsubscribeRoot = root.subscribe(notifyRoot);
+      hasMounted = true;
     } catch (error) {
       unsubscribeParent();
       throw error;
@@ -203,8 +263,14 @@ export const createAssistantClient = (
     root.unmount();
   };
 
-  return {
-    getClient: () => root.getValue().client,
+  const handle: AssistantClientHandle = {
+    getClient: () => {
+      root.getValue();
+      if (!hasMounted && renderedParentSnapshot === undefined)
+        renderedParentSnapshot = getParentSnapshot();
+      syncRoot();
+      return root.getValue().client;
+    },
     subscribe: (listener) => {
       if (destroyed) return () => {};
       const unsubscribe = notifications.subscribe(listener);
@@ -238,4 +304,6 @@ export const createAssistantClient = (
       release();
     },
   };
+  handleSnapshots.set(handle, () => root.getValue());
+  return handle;
 };

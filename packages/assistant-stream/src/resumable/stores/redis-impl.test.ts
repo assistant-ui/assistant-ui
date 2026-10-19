@@ -258,6 +258,163 @@ describe("RedisResumableStreamStore", () => {
     await expect(store.status(streamId)).resolves.toBe("missing");
   });
 
+  it.each(["done", "error"] as const)(
+    "releases an expired producer's lease after %s finalization",
+    async (status) => {
+      const client = new FakeRedisClient();
+      const store = new RedisResumableStreamStore(client, {
+        keyPrefix: "test",
+      });
+      const generations = Reflect.get(store, "acquiredGenerations") as Map<
+        string,
+        string
+      >;
+      const acquisition = await store.acquireLease("expired");
+      if (acquisition.role !== "producer") throw new Error("Expected producer");
+      await store.acquireLease("active");
+      client.strings.delete("test:{expired}:meta");
+
+      await expect(
+        store.finalize("expired", status, undefined, acquisition.lease),
+      ).rejects.toThrow("Stream not found: expired");
+
+      expect([...generations.keys()]).toEqual(["active"]);
+      await expect(store.status("expired")).resolves.toBe("missing");
+    },
+  );
+
+  it.each(["expired", "superseded", "finalized"] as const)(
+    "releases a leased producer when its stream is %s during finalization",
+    async (outcome) => {
+      const client = new FakeRedisClient();
+      const store = new RedisResumableStreamStore(client, {
+        keyPrefix: "test",
+      });
+      const generations = Reflect.get(store, "acquiredGenerations") as Map<
+        string,
+        string
+      >;
+      const acquisition = await store.acquireLease("stream");
+      if (acquisition.role !== "producer") throw new Error("Expected producer");
+      let resumeFinalizer!: () => void;
+      const paused = new Promise<void>((resolve) => {
+        client.onNextGet = () =>
+          new Promise<void>((resume) => {
+            resumeFinalizer = resume;
+            resolve();
+          });
+      });
+      const finalizing = store.finalize(
+        "stream",
+        "done",
+        undefined,
+        acquisition.lease,
+      );
+      await paused;
+      const other = new RedisResumableStreamStore(client, {
+        keyPrefix: "test",
+      });
+      if (outcome === "finalized") {
+        await other.finalize("stream", "done");
+      } else {
+        client.strings.delete("test:{stream}:meta");
+        if (outcome === "superseded") await other.acquire("stream");
+      }
+      resumeFinalizer();
+
+      await expect(finalizing).resolves.toBe(false);
+      expect(generations.size).toBe(0);
+      if (outcome === "superseded") {
+        await expect(
+          store.append("stream", encoder.encode("stale"), acquisition.lease),
+        ).rejects.toMatchObject({ code: "missing" });
+        await expect(other.status("stream")).resolves.toBe("streaming");
+      }
+    },
+  );
+
+  it.each(["superseded", "finalized"] as const)(
+    "releases a lease when finalization finds the stream already %s",
+    async (outcome) => {
+      const client = new FakeRedisClient();
+      const store = new RedisResumableStreamStore(client, {
+        keyPrefix: "test",
+      });
+      const generations = Reflect.get(store, "acquiredGenerations") as Map<
+        string,
+        string
+      >;
+      const acquisition = await store.acquireLease("stream");
+      if (acquisition.role !== "producer") throw new Error("Expected producer");
+      const other = new RedisResumableStreamStore(client, {
+        keyPrefix: "test",
+      });
+      if (outcome === "superseded") {
+        client.strings.delete("test:{stream}:meta");
+        await other.acquire("stream");
+      } else {
+        await other.finalize("stream", "done");
+      }
+
+      await expect(
+        store.finalize("stream", "done", undefined, acquisition.lease),
+      ).resolves.toBe(false);
+      expect(generations.size).toBe(0);
+    },
+  );
+
+  it("keeps a newer local lease when an expired finalizer resumes", async () => {
+    const client = new FakeRedisClient();
+    const store = new RedisResumableStreamStore(client, { keyPrefix: "test" });
+    const generations = Reflect.get(store, "acquiredGenerations") as Map<
+      string,
+      string
+    >;
+    const stale = await store.acquireLease("stream");
+    if (stale.role !== "producer") throw new Error("Expected producer");
+    client.strings.delete("test:{stream}:meta");
+    let resumeFinalizer!: () => void;
+    const paused = new Promise<void>((resolve) => {
+      client.onNextGet = () =>
+        new Promise<void>((resume) => {
+          resumeFinalizer = resume;
+          resolve();
+        });
+    });
+    const finalizing = store.finalize("stream", "done", undefined, stale.lease);
+    const rejected = expect(finalizing).rejects.toThrow("Stream not found");
+    await paused;
+    const fresh = await store.acquireLease("stream");
+    if (fresh.role !== "producer") throw new Error("Expected producer");
+    resumeFinalizer();
+    await rejected;
+
+    expect(generations.get("stream")).toBe(fresh.lease.token);
+    await expect(
+      store.append("stream", encoder.encode("fresh"), fresh.lease),
+    ).resolves.toBeUndefined();
+    await expect(
+      store.append("stream", encoder.encode("stale"), stale.lease),
+    ).rejects.toMatchObject({ code: "missing" });
+  });
+
+  it("keeps the lease-less ownership fence after an expired finalization", async () => {
+    const client = new FakeRedisClient();
+    const store = new RedisResumableStreamStore(client, { keyPrefix: "test" });
+    await store.acquire("stream");
+    client.strings.delete("test:{stream}:meta");
+    await expect(store.finalize("stream", "done")).rejects.toThrow(
+      "Stream not found",
+    );
+    const other = new RedisResumableStreamStore(client, { keyPrefix: "test" });
+    await other.acquire("stream");
+
+    await expect(
+      store.append("stream", encoder.encode("stale")),
+    ).rejects.toMatchObject({ code: "missing" });
+    await expect(other.status("stream")).resolves.toBe("streaming");
+  });
+
   it("fences a superseded producer out of the reacquired stream", async () => {
     const client = new FakeRedisClient();
     const keyPrefix = "test";

@@ -588,7 +588,7 @@ type McpServerResourceProps = {
   onRemove: () => Promise<void>;
 };
 
-type ReservedAccessorProps = "name" | "query" | "source";
+type ReservedAccessorProps = "apply" | "bind" | "call" | "name" | "query" | "source";
 
 type ReservedScopeNames = "on" | "optional" | "subscribe";
 
@@ -625,7 +625,7 @@ type ValidateMeta<K extends string, TClient> = "meta" extends keyof TClient ? TC
 
 type ValidateMethods<K extends string, TClient> = TClient extends {
   methods: ClientMethods;
-} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
+} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name/call/apply/bind)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
 
 declare namespace addForm_d_exports {
   export { McpAddFormPrimitiveAuthFields as AuthFields, McpAddFormPrimitiveAuthSelect as AuthSelect, McpAddFormPrimitiveBearerTokenField as BearerTokenField, McpAddFormPrimitiveCancel as Cancel, McpAddFormPrimitiveError as Error, McpAddFormPrimitiveNameField as NameField, McpAddFormPrimitiveRoot as Root, McpAddFormPrimitiveScopesField as ScopesField, McpAddFormPrimitiveSubmit as Submit, McpAddFormPrimitiveUrlField as UrlField };
@@ -637,8 +637,10 @@ declare namespace elicitation_d_exports {
   export { McpElicitationPrimitiveAccept as Accept, McpElicitationPrimitiveCancel as Cancel, McpElicitationPrimitiveDecline as Decline, McpElicitationPrimitiveError as Error, McpElicitationPrimitiveFields as Fields, McpElicitationPrimitiveItems as Items, McpElicitationPrimitiveMessage as Message, McpElicitationPrimitiveRoot as Root, useMcpElicitation, useMcpElicitationField };
 }
 
+declare function getMcpToolName(serverId: string, toolName: string): string;
+
 declare namespace entry_root_exports {
-  export { MCPAuthConfig, MCPConnectionState, MCPConnector, MCPCustomServerRecord, MCPElicitation, MCPElicitationResponse, MCPManagerMethods, MCPManagerState, MCPPersistedAuthState, MCPResponseCacheConfig, MCPServerKind, MCPServerMethods, MCPServerQuery, MCPServerState, MCPStorage, MCPStorageElement, MCPToolInfo, addForm_d_exports as McpAddFormPrimitive, McpConnectorByIndexProvider, McpCustomServerByIndexProvider, McpCustomStorage, elicitation_d_exports as McpElicitationPrimitive, McpLocalStorage, McpLocalStorageOptions, manager_d_exports as McpManagerPrimitive, McpManagerResource, McpManagerResourceProps, McpMemoryStorage, McpOAuthCallback, McpServerByIdProvider, server_d_exports as McpServerPrimitive, McpServerResource, McpServerResourceProps, UseMcpOAuthCallbackOptions, UseMcpOAuthCallbackResult, defineConnector, useMcpOAuthCallback };
+  export { MCPAuthConfig, MCPConnectionState, MCPConnector, MCPCustomServerRecord, MCPElicitation, MCPElicitationResponse, MCPManagerMethods, MCPManagerState, MCPPersistedAuthState, MCPResponseCacheConfig, MCPServerKind, MCPServerMethods, MCPServerQuery, MCPServerState, MCPStorage, MCPStorageElement, MCPToolInfo, addForm_d_exports as McpAddFormPrimitive, McpConnectorByIndexProvider, McpCustomServerByIndexProvider, McpCustomStorage, elicitation_d_exports as McpElicitationPrimitive, McpLocalStorage, McpLocalStorageOptions, manager_d_exports as McpManagerPrimitive, McpManagerResource, McpManagerResourceProps, McpMemoryStorage, McpOAuthCallback, McpServerByIdProvider, server_d_exports as McpServerPrimitive, McpServerResource, McpServerResourceProps, UseMcpOAuthCallbackOptions, UseMcpOAuthCallbackResult, defineConnector, getMcpToolName, useMcpOAuthCallback };
 }
 
 declare namespace manager_d_exports {

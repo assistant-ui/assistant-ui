@@ -1,3 +1,5 @@
+// @vitest-environment node
+
 import { expect, it, vi } from "vitest";
 import { LangGraphThreadController } from "./LangGraphThreadController";
 import {

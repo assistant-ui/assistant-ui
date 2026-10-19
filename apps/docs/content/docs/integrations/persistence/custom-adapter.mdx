@@ -233,7 +233,7 @@ export async function POST(
 
 ### Implement `RemoteThreadListAdapter`
 
-The adapter calls your endpoints. `unstable_useAdapters` injects the per-thread history adapter on the `RemoteThreadList` store entry and on `useRemoteThreadListRuntime` when `unstable_Provider` is omitted. `unstable_Provider` is an optional React component that `useRemoteThreadListRuntime` renders instead. On the `RemoteThreadList` store entry, key the thread factory with `withKey(id, …)` so history reloads when the visible thread changes.
+The adapter calls your endpoints. `unstable_useAdapters` injects the per-thread history adapter on both the `RemoteThreadList` store entry and `useRemoteThreadListRuntime`. On the `RemoteThreadList` store entry, key the thread factory with `withKey(id, …)` so history reloads when the visible thread changes.
 
 <PlatformTabs>
 <Tab value="React">
@@ -242,7 +242,6 @@ The adapter calls your endpoints. `unstable_useAdapters` injects the per-thread 
 "use client";
 
 import {
-  RuntimeAdapterProvider,
   useAui,
   type RemoteThreadListAdapter,
   type ThreadHistoryAdapter,
@@ -347,14 +346,6 @@ export const threadListAdapter: RemoteThreadListAdapter = {
     });
   },
   unstable_useAdapters: useThreadListAdapters,
-  unstable_Provider({ children }) {
-    const adapters = useThreadListAdapters();
-    return (
-      <RuntimeAdapterProvider adapters={adapters}>
-        {children}
-      </RuntimeAdapterProvider>
-    );
-  },
 };
 ```
 
@@ -363,7 +354,6 @@ export const threadListAdapter: RemoteThreadListAdapter = {
 
 ```tsx title="runtime/thread-adapter.tsx"
 import {
-  RuntimeAdapterProvider,
   useAui,
   type RemoteThreadListAdapter,
   type ThreadHistoryAdapter,
@@ -470,14 +460,6 @@ export const threadListAdapter: RemoteThreadListAdapter = {
     });
   },
   unstable_useAdapters: useThreadListAdapters,
-  unstable_Provider({ children }) {
-    const adapters = useThreadListAdapters();
-    return (
-      <RuntimeAdapterProvider adapters={adapters}>
-        {children}
-      </RuntimeAdapterProvider>
-    );
-  },
 };
 ```
 
@@ -488,7 +470,6 @@ export const threadListAdapter: RemoteThreadListAdapter = {
 
 ```tsx title="runtime/thread-adapter.tsx"
 import {
-  RuntimeAdapterProvider,
   useAui,
   type RemoteThreadListAdapter,
   type ThreadHistoryAdapter,
@@ -595,14 +576,6 @@ export const threadListAdapter: RemoteThreadListAdapter = {
     });
   },
   unstable_useAdapters: useThreadListAdapters,
-  unstable_Provider({ children }) {
-    const adapters = useThreadListAdapters();
-    return (
-      <RuntimeAdapterProvider adapters={adapters}>
-        {children}
-      </RuntimeAdapterProvider>
-    );
-  },
 };
 ```
 
@@ -764,7 +737,6 @@ Send a message in a fresh thread. Check the database:
 - **Reload after async auth.** If `auth()` resolves after the initial `list()` call, threads won't appear until the user refreshes. Call `aui.threads.reload()` from a `useEffect` watching the session. See [threads](/docs/runtimes/concepts/threads#reloading-after-async-authentication).
 - **Format string.** The `format` column identifies the stored shape so multiple runtimes can coexist. Store it as written and pass it back unchanged; `useChatRuntime` sets and decodes it.
 - **Pending approvals need `update`.** Tool call approvals persist across reloads only when the formatted adapter implements `update`; omitting it keeps the pre-approval snapshot out of storage by design.
-- **`unstable_Provider` synchronous-children rule.** The Provider must render `children` on first commit; do not gate them behind suspense, loading state, or `useEffect`. Load data inside an always-rendered child.
 
 ## Related
 

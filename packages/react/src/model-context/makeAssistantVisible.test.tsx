@@ -136,6 +136,21 @@ const runEditTool = async (
   await task;
 };
 
+const expectDefaultSettleDelay = async (start: () => Promise<unknown>) => {
+  await act(async () => {
+    const settled = vi.fn();
+    const task = start();
+    void task.then(settled);
+
+    await vi.advanceTimersByTimeAsync(1999);
+    expect(settled).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(settled).toHaveBeenCalledOnce();
+    await task;
+  });
+};
+
 describe("makeAssistantVisible", () => {
   beforeEach(() => {
     registerMock.mockClear();
@@ -191,21 +206,14 @@ describe("makeAssistantVisible", () => {
     });
     const input = render(<EditableInput />).getByRole("textbox");
     const editId = (input as HTMLInputElement).dataset.editId!;
-    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
 
     expect(
       (input as HTMLInputElement).dataset.actionSettleDelay,
     ).toBeUndefined();
 
-    const task = getRegisteredTools().edit!.execute({
-      editId,
-      value: "updated",
-    });
-
-    expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 2000);
-    await vi.runAllTimersAsync();
-    await task;
-    setTimeoutSpy.mockRestore();
+    await expectDefaultSettleDelay(() =>
+      getRegisteredTools().edit!.execute({ editId, value: "updated" }),
+    );
   });
 
   it("uses the default when the rendered settle delay is invalid", async () => {
@@ -218,14 +226,9 @@ describe("makeAssistantVisible", () => {
     );
     const clickId = (button as HTMLButtonElement).dataset.clickId!;
     (button as HTMLButtonElement).dataset.actionSettleDelay = "invalid";
-    const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
-
-    const task = getRegisteredTools().click!.execute({ clickId });
-
-    expect(setTimeoutSpy).toHaveBeenCalledWith(expect.any(Function), 2000);
-    await vi.runAllTimersAsync();
-    await task;
-    setTimeoutSpy.mockRestore();
+    await expectDefaultSettleDelay(() =>
+      getRegisteredTools().click!.execute({ clickId }),
+    );
   });
 
   it.each(["", "   "])(
@@ -239,29 +242,14 @@ describe("makeAssistantVisible", () => {
       const input = render(<VisibleInput />).getByRole("textbox");
       const clickId = (input as HTMLInputElement).dataset.clickId!;
       const editId = (input as HTMLInputElement).dataset.editId!;
-      const setTimeoutSpy = vi.spyOn(globalThis, "setTimeout");
       input.dataset.actionSettleDelay = renderedDelay;
 
-      const clickTask = getRegisteredTools().click!.execute({ clickId });
-      expect(setTimeoutSpy).toHaveBeenLastCalledWith(
-        expect.any(Function),
-        2000,
+      await expectDefaultSettleDelay(() =>
+        getRegisteredTools().click!.execute({ clickId }),
       );
-      await vi.runAllTimersAsync();
-      await clickTask;
-
-      setTimeoutSpy.mockClear();
-      const editTask = getRegisteredTools().edit!.execute({
-        editId,
-        value: "updated",
-      });
-      expect(setTimeoutSpy).toHaveBeenLastCalledWith(
-        expect.any(Function),
-        2000,
+      await expectDefaultSettleDelay(() =>
+        getRegisteredTools().edit!.execute({ editId, value: "updated" }),
       );
-      await vi.runAllTimersAsync();
-      await editTask;
-      setTimeoutSpy.mockRestore();
     },
   );
 

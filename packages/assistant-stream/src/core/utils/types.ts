@@ -4,6 +4,10 @@ import type {
 } from "../../utils/json/json-value";
 import type { ToolModelContentPart } from "../tool/tool-types";
 
+export type PartProviderMetadata = {
+  readonly [providerName: string]: ReadonlyJSONObject;
+};
+
 type TextStatus =
   | {
       type: "running";
@@ -25,6 +29,7 @@ export type TextPart = {
   type: "text";
   text: string;
   status: TextStatus;
+  providerMetadata?: PartProviderMetadata;
   parentId?: string;
 };
 
@@ -35,6 +40,7 @@ export type ReasoningPart = {
   /** @deprecated Experimental since 2026-08-07. Not scheduled for removal; the API may change in any release. */
   unstable_summary?: string;
   timing?: MessagePartTiming;
+  providerMetadata?: PartProviderMetadata;
   parentId?: string;
 };
 

@@ -20,9 +20,11 @@ const trackRunningThreads = (core: RemoteThreadListThreadListRuntimeCore) => {
       _hookManager: {
         stopThreadRuntime: (id: string) => void;
         getThreadRuntimeCore: (id: string) => unknown;
+        __internal_isThreadRuntimeAttached: (id: string) => boolean;
       };
     }
   )._hookManager;
+  hookManager.__internal_isThreadRuntimeAttached = (id) => running.has(id);
   const runtimes = new Map<string, object>();
   hookManager.getThreadRuntimeCore = (id) => {
     if (!running.has(id)) return undefined;
@@ -92,10 +94,13 @@ describe("RemoteThreadListThreadListRuntimeCore main thread runtime", () => {
       expect(adapter.unarchive).toHaveBeenCalledWith("thread-b");
     });
     await core.detach("thread-b");
+    const rejection = expect(switchToB).rejects.toThrow(
+      "Thread list was destroyed while an operation was pending.",
+    );
     core.__internal_dispose();
     const startsBeforeLanding = starts.length;
     unarchive.resolve();
-    await switchToB;
+    await rejection;
 
     expect(starts).toHaveLength(startsBeforeLanding);
   });

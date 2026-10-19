@@ -21,7 +21,8 @@ import {
   ModelRuntime,
   SessionManager,
 } from "@earendil-works/pi-coding-agent";
-import { unlink } from "node:fs/promises";
+import { readdir, unlink } from "node:fs/promises";
+import { join } from "node:path";
 import {
   deriveReadiness,
   mapModelInfo,
@@ -33,6 +34,7 @@ import {
   toPiMessages,
 } from "./mapping";
 import { deriveContextUsage } from "./contextUsage";
+import { getPiSessionDirectory, resolvePiPath } from "./paths";
 import { errorText } from "../utils";
 import { piQueueItemId } from "../queueIds";
 import {
@@ -134,7 +136,9 @@ export class PiThreadSupervisor {
 
   constructor(options: PiThreadSupervisorOptions = {}) {
     this.workspacePath = options.workspacePath ?? process.cwd();
-    this.agentDir = options.agentDir;
+    this.agentDir = options.agentDir
+      ? resolvePiPath(options.agentDir)
+      : undefined;
     this.model = options.model;
   }
 
@@ -168,7 +172,10 @@ export class PiThreadSupervisor {
     initialMessage?: PiSendMessageInput;
   }): Promise<PiThreadSnapshot> {
     const cwd = input?.workspacePath ?? this.workspacePath;
-    const sessionManager = SessionManager.create(cwd);
+    const sessionManager = SessionManager.create(
+      cwd,
+      this.sessionDirectory(cwd),
+    );
     const record = await this.openSession(sessionManager, cwd);
     this.invalidateCatalog(cwd);
     if (input?.title) record.session.setSessionName(input.title);
@@ -423,7 +430,12 @@ export class PiThreadSupervisor {
   private getModelRuntime(): Promise<ModelRuntime> {
     if (!this.modelRuntimePromise) {
       this.modelRuntimePromise = ModelRuntime.create(
-        this.agentDir ? { authPath: `${this.agentDir}/auth.json` } : undefined,
+        this.agentDir
+          ? {
+              authPath: join(this.agentDir, "auth.json"),
+              modelsPath: join(this.agentDir, "models.json"),
+            }
+          : undefined,
       ).catch((error) => {
         this.modelRuntimePromise = undefined;
         throw error;
@@ -585,7 +597,10 @@ export class PiThreadSupervisor {
     if (existing?.promise) return existing.promise;
 
     const entry: CatalogCacheEntry = { infos: undefined, promise: undefined };
-    const promise = SessionManager.list(workspacePath)
+    const promise = SessionManager.list(
+      workspacePath,
+      this.sessionDirectory(workspacePath),
+    )
       .then((infos) => {
         entry.infos = infos;
         this.rememberSessionInfos(infos);
@@ -603,13 +618,36 @@ export class PiThreadSupervisor {
     this.catalogCache.delete(workspacePath);
   }
 
+  private sessionDirectory(workspacePath: string) {
+    return this.agentDir
+      ? getPiSessionDirectory(workspacePath, this.agentDir)
+      : undefined;
+  }
+
+  private async listAllSessionInfos(): Promise<PiSessionInfo[]> {
+    if (!this.agentDir) return SessionManager.listAll();
+    const root = join(this.agentDir, "sessions");
+    const entries = await readdir(root, { withFileTypes: true }).catch(
+      (error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return [];
+        throw error;
+      },
+    );
+    const sessions = await Promise.all(
+      entries
+        .filter((entry) => entry.isDirectory() || entry.isSymbolicLink())
+        .map((entry) => SessionManager.listAll(join(root, entry.name))),
+    );
+    return sessions.flat();
+  }
+
   private async findSessionInfo(threadId: string) {
     const cached = this.catalogInfoByThreadId.get(threadId);
     if (cached) return cached;
     const local = await this.listSessionInfos(this.workspacePath);
     const hit = local.find((info) => info.id === threadId);
     if (hit) return hit;
-    const all = await SessionManager.listAll();
+    const all = await this.listAllSessionInfos();
     this.rememberSessionInfos(all);
     return all.find((info) => info.id === threadId);
   }

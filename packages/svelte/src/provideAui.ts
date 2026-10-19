@@ -80,10 +80,7 @@ export const provideAui = (
   const release = handle.subscribe(() => {});
   onDestroy(release);
 
-  const source = {
-    getClient: handle.getClient,
-    subscribe: handle.subscribe,
-  };
+  const source = handle;
   const aui = createClientFacade(source);
   setContext(auiContextKey, { source, aui } satisfies AuiContext);
   return aui;

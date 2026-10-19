@@ -204,7 +204,7 @@ All other props forward to the popover's root `div`.
 | `categoryItems(id)` | `(categoryId: string) => readonly TriggerItem[]` | Items inside a category. |
 | `search(query)` | `(query: string) => readonly TriggerItem[]` | Optional. Without it, a query filters the `categoryItems` of every category instead. |
 
-`TriggerItem` is `{ id, type, label, description?, metadata? }`; the directive formatter's default serialization writes `:type[label]{name=id}`, omitting `{name=…}` when `id` equals `label`.
+`TriggerItem` is `{ id, type, label, description?, metadata? }`; the directive formatter's default serialization writes `:type[label]{name=id}`, omitting `{name=…}` when `id` equals `label`, and switches to [JSON-quoted fields](/docs/guides/mentions#directive-format) when the label contains `]` or the ID contains `}`.
 
 ### Adapter hooks
 

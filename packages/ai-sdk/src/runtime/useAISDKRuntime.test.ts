@@ -1356,20 +1356,12 @@ describe("useAISDKRuntime", () => {
     expect(result.current.thread.getState().suggestions).toEqual(suggestions);
   });
 
-  it("imports a message tree without replacing the chat feed", async () => {
+  it("imports a child-first message tree without replacing the chat feed", async () => {
     const chat = createChatHelpers();
     const onBranchChange = vi.fn();
     const messageRepository: MessageFormatRepository<UIMessage> = {
       headId: "a2",
       messages: [
-        {
-          parentId: null,
-          message: {
-            id: "u1",
-            role: "user" as const,
-            parts: [{ type: "text" as const, text: "question" }],
-          },
-        },
         {
           parentId: "u1",
           message: {
@@ -1384,6 +1376,14 @@ describe("useAISDKRuntime", () => {
             id: "a2",
             role: "assistant" as const,
             parts: [{ type: "text" as const, text: "second" }],
+          },
+        },
+        {
+          parentId: null,
+          message: {
+            id: "u1",
+            role: "user" as const,
+            parts: [{ type: "text" as const, text: "question" }],
           },
         },
       ],

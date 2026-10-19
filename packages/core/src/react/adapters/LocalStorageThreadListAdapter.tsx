@@ -1,12 +1,5 @@
 import { type AssistantStream, createAssistantStream } from "assistant-stream";
-import {
-  type FC,
-  type PropsWithChildren,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useAui } from "@assistant-ui/store";
 import type {
   MessageModality,
@@ -39,10 +32,7 @@ import {
   parseStoredDate,
   parseStoredThreadSteps,
 } from "../../runtime/utils/stored-message-parts";
-import {
-  RuntimeAdapterProvider,
-  type RuntimeAdapters,
-} from "../runtimes/RuntimeAdapterProvider";
+import type { RuntimeAdapters } from "../runtimes/RuntimeAdapterProvider";
 import {
   type KeyedThreadListItem,
   tryGetKeyedThreadListItem,
@@ -651,40 +641,23 @@ const useLocalStorageThreadAdapters = (
   useEffect(() => {
     auiRef.current = aui;
   });
-  const [history] = useState(() =>
-    createLocalStorageHistoryAdapter(
-      storage,
-      () => auiRef.current,
-      prefix,
-      mutationQueue,
-    ),
+  return useMemo(
+    () => ({
+      history: createLocalStorageHistoryAdapter(
+        storage,
+        () => auiRef.current,
+        prefix,
+        mutationQueue,
+      ),
+    }),
+    [storage, prefix, mutationQueue],
   );
-  return useMemo(() => ({ history }), [history]);
-};
-
-const createHistoryProvider = (
-  storage: AsyncStorageLike,
-  prefix: string,
-  mutationQueue: KeyedMutationQueue,
-): FC<PropsWithChildren> => {
-  const Provider: FC<PropsWithChildren> = ({ children }) => {
-    const adapters = useLocalStorageThreadAdapters(
-      storage,
-      prefix,
-      mutationQueue,
-    );
-    return (
-      <RuntimeAdapterProvider adapters={adapters}>
-        {children}
-      </RuntimeAdapterProvider>
-    );
-  };
-  return Provider;
 };
 
 export const createLocalStorageAdapter = (
   options: LocalStorageAdapterOptions,
-): RemoteThreadListAdapter => {
+): RemoteThreadListAdapter &
+  Pick<Required<RemoteThreadListAdapter>, "unarchive"> => {
   const { storage, prefix = "@assistant-ui:", titleGenerator } = options;
 
   const threadsKey = `${prefix}threads`;
@@ -841,8 +814,8 @@ export const createLocalStorageAdapter = (
     });
   };
 
-  const adapter: RemoteThreadListAdapter = {
-    unstable_Provider: createHistoryProvider(storage, prefix, mutationQueue),
+  const adapter: RemoteThreadListAdapter &
+    Pick<Required<RemoteThreadListAdapter>, "unarchive"> = {
     unstable_useAdapters: function useLocalStorageAdapters() {
       return useLocalStorageThreadAdapters(storage, prefix, mutationQueue);
     },
@@ -868,6 +841,7 @@ export const createLocalStorageAdapter = (
 
     async initialize(
       threadId: string,
+      options?: { custom?: Record<string, unknown> | undefined },
     ): Promise<RemoteThreadInitializeResponse> {
       const remoteId = threadId;
       const key = messagesKey(remoteId);
@@ -882,6 +856,9 @@ export const createLocalStorageAdapter = (
             threads.unshift({
               remoteId,
               status: "regular",
+              ...(options?.custom !== undefined
+                ? { custom: options.custom }
+                : {}),
             });
             await saveThreadMetadata(threads);
           }

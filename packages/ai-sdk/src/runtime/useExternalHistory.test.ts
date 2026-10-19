@@ -710,6 +710,44 @@ describe("toExportedMessageRepository", () => {
   const convert = (items: { id: string; ok: boolean }[]): ThreadMessage[] =>
     items[0]!.ok ? [{ id: items[0]!.id } as ThreadMessage] : [];
 
+  it("keeps descendants listed before their parents and preserves the head", () => {
+    const repo: MessageFormatRepository<{ id: string; ok: boolean }> = {
+      headId: "c",
+      messages: [
+        { parentId: "b", message: { id: "c", ok: true } },
+        { parentId: "a", message: { id: "b", ok: true } },
+        { parentId: null, message: { id: "a", ok: true } },
+      ],
+    };
+
+    const result = toExportedMessageRepository(convert, repo);
+    const repository = new MessageRepository();
+    repository.import(result);
+
+    expect(result.messages.map((m) => m.message.id)).toEqual(["a", "b", "c"]);
+    expect(result.headId).toBe("c");
+    expect(repository.getMessages().map((m) => m.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("drops missing and malformed parents' descendants regardless of row order", () => {
+    const repo: MessageFormatRepository<{ id: string; ok: boolean }> = {
+      headId: "c",
+      messages: [
+        { parentId: "b", message: { id: "c", ok: true } },
+        { parentId: "missing", message: { id: "orphan", ok: true } },
+        { parentId: "a", message: { id: "b", ok: false } },
+        { parentId: "a", message: { id: "valid", ok: true } },
+        { parentId: null, message: { id: "a", ok: true } },
+      ],
+    };
+
+    const result = toExportedMessageRepository(convert, repo);
+
+    expect(result.messages.map((m) => m.message.id)).toEqual(["a", "valid"]);
+    expect(result.headId).toBeNull();
+    expect(() => new MessageRepository().import(result)).not.toThrow();
+  });
+
   it("drops a malformed row together with its now-orphaned descendants", () => {
     const repo: MessageFormatRepository<{ id: string; ok: boolean }> = {
       headId: "c",
@@ -810,6 +848,16 @@ describe("useExternalHistory persistence", () => {
     return message;
   };
 
+  const createUserMessage = (inner: InnerMessage) => {
+    const message = {
+      id: inner.id,
+      role: "user",
+      content: [],
+    } as unknown as ThreadMessage;
+    bindExternalStoreMessage(message, inner);
+    return message;
+  };
+
   const createSlowLoadHarness = (resolveOnUnmount = true) => {
     mocks.hasThreadListItem = true;
     mocks.remoteId = "remote-thread";
@@ -876,9 +924,10 @@ describe("useExternalHistory persistence", () => {
         getState: () => ({ isRunning, messages }),
         import: importMessages,
       } as unknown as AssistantRuntime["thread"];
+      const slowRuntimeRef = { current: { thread } as AssistantRuntime };
       const hook = renderHook(() =>
         useExternalHistory(
-          { current: { thread } as AssistantRuntime },
+          slowRuntimeRef,
           adapter,
           toMessages,
           persistenceStorageFormat,
@@ -888,6 +937,16 @@ describe("useExternalHistory persistence", () => {
       return {
         ...hook,
         importMessages,
+        step: async (next: {
+          isRunning: boolean;
+          messages: ThreadMessage[];
+        }) => {
+          await act(async () => {
+            isRunning = next.isRunning;
+            messages = next.messages;
+            listener?.();
+          });
+        },
         settle: async () => {
           await act(async () => {
             isRunning = true;
@@ -945,6 +1004,35 @@ describe("useExternalHistory persistence", () => {
       message: { id: "live", parts: ["reply"] },
     });
     expect(appendCountBeforeLoad).toBe(0);
+  });
+
+  it("persists a prompt sent before history loads beneath the loaded history", async () => {
+    const { append, first, resolveLoad } = createSlowLoadHarness(false);
+    const userInner: InnerMessage = {
+      id: "user-1",
+      role: "user",
+      parts: ["prompt"],
+    };
+    const user = createUserMessage(userInner);
+    const runningAssistant = createAssistantMessage(
+      { type: "running" },
+      [{ id: "assistant-1", role: "assistant", parts: ["partial"] }],
+      "assistant-1",
+    );
+
+    await first.step({ isRunning: true, messages: [user, runningAssistant] });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(append).not.toHaveBeenCalled();
+
+    await act(async () => resolveLoad());
+
+    await waitFor(() => expect(append).toHaveBeenCalledOnce());
+    expect(append).toHaveBeenCalledWith({
+      parentId: "stored",
+      message: userInner,
+    });
   });
 
   it("persists a settled live turn when unmounted before history loads", async () => {
@@ -2334,6 +2422,567 @@ describe("useExternalHistory persistence", () => {
     await step({ isRunning: false, messages: [message] });
 
     await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+  });
+
+  it("persists a prompt that reaches the thread after its run started", async () => {
+    const { append, flush, load, step } = createPersistenceHarness(false);
+    await waitFor(() => expect(load).toHaveBeenCalledOnce());
+    await flush();
+    const promptInner: InnerMessage = {
+      id: "late-prompt",
+      role: "user",
+      parts: ["prompt"],
+    };
+
+    await step({ isRunning: true, messages: [] });
+    await step({ messages: [createUserMessage(promptInner)] });
+
+    await waitFor(() => expect(append).toHaveBeenCalledOnce());
+    expect(append).toHaveBeenCalledWith({
+      parentId: null,
+      message: promptInner,
+    });
+  });
+
+  it("retries an unstored prompt when the next run starts", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const { append, flush, load, step } = createPersistenceHarness(false);
+    await waitFor(() => expect(load).toHaveBeenCalledOnce());
+    await flush();
+    append
+      .mockRejectedValueOnce(new Error("temporary storage failure"))
+      .mockRejectedValueOnce(new Error("temporary storage failure"));
+    const promptInner: InnerMessage = {
+      id: "user-retry",
+      role: "user",
+      parts: ["prompt"],
+    };
+    const prompt = createUserMessage(promptInner);
+
+    await step({ isRunning: true, messages: [prompt] });
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+    await step({ isRunning: false, messages: [prompt] });
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+    await step({ isRunning: true, messages: [prompt] });
+
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(3));
+    expect(append).toHaveBeenLastCalledWith({
+      parentId: null,
+      message: promptInner,
+    });
+  });
+
+  it("persists a new user message while its run is active", async () => {
+    const previousInner: InnerMessage = {
+      id: "previous-assistant",
+      parts: ["previous"],
+    };
+    const userInner: InnerMessage = {
+      id: "user-1",
+      role: "user",
+      parts: ["prompt"],
+    };
+    const previous = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [previousInner],
+      "previous-assistant",
+    );
+    const user = {
+      id: "user-1",
+      role: "user",
+      content: [],
+    } as unknown as ThreadMessage;
+    bindExternalStoreMessage(user, userInner);
+    const partialInner: InnerMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      parts: ["partial"],
+    };
+    const partialAssistant = createAssistantMessage(
+      { type: "running" },
+      [partialInner],
+      "assistant-1",
+    );
+    const { append, flush, load, step } = createPersistenceHarness(false, {
+      loadMessages: {
+        headId: previousInner.id,
+        messages: [{ parentId: null, message: previousInner }],
+      },
+      toThreadMessages: (messages) =>
+        messages.map((message) =>
+          createAssistantMessage(
+            { type: "complete", reason: "stop" },
+            [message],
+            message.id,
+          ),
+        ),
+    });
+
+    await waitFor(() => expect(load).toHaveBeenCalledOnce());
+    await flush();
+
+    await step({
+      isRunning: true,
+      messages: [previous, user, partialAssistant],
+    });
+
+    await waitFor(() => expect(append).toHaveBeenCalledOnce());
+    expect(append).toHaveBeenCalledWith({
+      parentId: previousInner.id,
+      message: userInner,
+    });
+
+    const completeAssistant = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ ...partialInner, parts: ["complete"] }],
+      "assistant-1",
+    );
+    await step({
+      isRunning: false,
+      messages: [previous, user, completeAssistant],
+    });
+
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+    expect(append).toHaveBeenNthCalledWith(1, {
+      parentId: previousInner.id,
+      message: userInner,
+    });
+    expect(append).toHaveBeenNthCalledWith(2, {
+      parentId: userInner.id,
+      message: { ...partialInner, parts: ["complete"] },
+    });
+  });
+
+  it("keeps a prompt deleted during its pending write deleted after the subscription restarts", async () => {
+    type Item = { parentId: string | null; message: InnerMessage };
+    const stored = new Map<string, Item>();
+    let releaseAppend!: () => void;
+    const appendGate = new Promise<void>((resolve) => {
+      releaseAppend = resolve;
+    });
+    const adapter: ThreadHistoryAdapter = {
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue({
+        load: async () => ({ messages: [] }),
+        append: async (item: Item) => {
+          await appendGate;
+          stored.set(item.message.id, item);
+        },
+        delete: async (items: Item[]) => {
+          for (const item of items) stored.delete(item.message.id);
+        },
+      }),
+    };
+    let listener = () => {};
+    let isRunning = false;
+    let messages: ThreadMessage[] = [];
+    const deletionRuntimeRef = {
+      current: {
+        thread: {
+          getState: () => ({ isRunning, messages }),
+          subscribe: (next: () => void) => {
+            listener = next;
+            return () => {};
+          },
+        },
+      } as unknown as AssistantRuntime,
+    };
+    const hook = renderHook(
+      ({ toolArtifacts }) =>
+        useExternalHistory(
+          deletionRuntimeRef,
+          adapter,
+          () => [],
+          persistenceStorageFormat,
+          () => {},
+          toolArtifacts,
+        ),
+      { initialProps: { toolArtifacts: new Map<string, unknown>() } },
+    );
+    const user = createUserMessage({
+      id: "user-1",
+      role: "user",
+      parts: ["prompt"],
+    });
+
+    await act(async () => {
+      messages = [user];
+      isRunning = true;
+      listener();
+    });
+    const deletion = hook.result.current.deleteMessage("user-1");
+    hook.rerender({ toolArtifacts: new Map() });
+    await act(async () => {
+      releaseAppend();
+      await deletion;
+      messages = [];
+      listener();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(stored.has("user-1")).toBe(false);
+  });
+
+  const createDeletionRace = async () => {
+    const { append, deleteItems, deleteMessage, flush, load, step } =
+      createPersistenceHarness(false);
+    await waitFor(() => expect(load).toHaveBeenCalledOnce());
+    await flush();
+    const stored = new Set<string>();
+    let releaseReply!: () => void;
+    const replyGate = new Promise<void>((resolve) => {
+      releaseReply = resolve;
+    });
+    append.mockImplementation(async (item) => {
+      if (item.message.id === "reply-a") await replyGate;
+      stored.add(item.message.id);
+    });
+    deleteItems.mockImplementation(async (items) => {
+      for (const item of items) stored.delete(item.message.id);
+    });
+    const promptA = createUserMessage({
+      id: "prompt-a",
+      role: "user",
+      parts: [],
+    });
+    const replyAInner: InnerMessage = { id: "reply-a", parts: ["a"] };
+    const replyA = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [replyAInner],
+      "reply-a",
+    );
+    const promptB = createUserMessage({
+      id: "prompt-b",
+      role: "user",
+      parts: [],
+    });
+    const replyBInner: InnerMessage = { id: "reply-b", parts: ["b"] };
+
+    await step({
+      isRunning: true,
+      messages: [
+        promptA,
+        createAssistantMessage({ type: "running" }, [replyAInner], "reply-a"),
+      ],
+    });
+    await step({ isRunning: false, messages: [promptA, replyA] });
+    await flush();
+    const deletion = deleteMessage("prompt-a");
+
+    return {
+      stored,
+      startNextRun: () =>
+        step({
+          isRunning: true,
+          messages: [
+            promptA,
+            replyA,
+            promptB,
+            createAssistantMessage(
+              { type: "running" },
+              [replyBInner],
+              "reply-b",
+            ),
+          ],
+        }),
+      settleNextRun: async () => {
+        await step({
+          isRunning: false,
+          messages: [
+            promptA,
+            replyA,
+            promptB,
+            createAssistantMessage(
+              { type: "complete", reason: "stop" },
+              [replyBInner],
+              "reply-b",
+            ),
+          ],
+        });
+        await flush();
+      },
+      finishDeletion: async () => {
+        releaseReply();
+        await act(async () => {
+          await deletion;
+        });
+        await flush();
+      },
+    };
+  };
+
+  it("keeps a prompt deleted when the next run starts before its deletion lands", async () => {
+    const race = await createDeletionRace();
+
+    await race.startNextRun();
+    await race.finishDeletion();
+
+    expect([...race.stored]).toEqual(["reply-a", "prompt-b"]);
+  });
+
+  it("keeps a prompt deleted when the next run settles before its deletion lands", async () => {
+    const race = await createDeletionRace();
+
+    await race.startNextRun();
+    await race.settleNextRun();
+    await race.finishDeletion();
+
+    expect([...race.stored]).toEqual(["reply-a", "prompt-b", "reply-b"]);
+  });
+
+  it("keeps a prompt deleted during its run when the run resumes before the prompt leaves the chat", async () => {
+    const { append, deleteItems, deleteMessage, flush, load, step } =
+      createPersistenceHarness(false);
+    await waitFor(() => expect(load).toHaveBeenCalledOnce());
+    await flush();
+    const prompt = createUserMessage({
+      id: "prompt",
+      role: "user",
+      parts: ["prompt"],
+    });
+
+    await step({
+      isRunning: true,
+      messages: [
+        prompt,
+        createAssistantMessage(
+          { type: "running" },
+          [{ id: "reply", parts: [] }],
+          "reply",
+        ),
+      ],
+    });
+    await waitFor(() => expect(append).toHaveBeenCalledOnce());
+    await act(async () => {
+      await deleteMessage("prompt");
+    });
+    expect(deleteItems).toHaveBeenCalledOnce();
+    await step({ isRunning: false });
+    await step({ isRunning: true });
+    await flush();
+
+    expect(append).toHaveBeenCalledOnce();
+  });
+
+  it("stores a message that reuses a deleted id once the deleted one has left the chat", async () => {
+    const { append, deleteItems, deleteMessage, flush, load, runCycle, step } =
+      createPersistenceHarness(false);
+    await waitFor(() => expect(load).toHaveBeenCalledOnce());
+    await flush();
+    await runCycle([
+      createAssistantMessage(
+        { type: "complete", reason: "stop" },
+        [{ id: "reused", parts: ["old"] }],
+        "reused",
+      ),
+    ]);
+    await waitFor(() => expect(append).toHaveBeenCalledOnce());
+    await act(async () => {
+      await deleteMessage("reused");
+    });
+    expect(deleteItems).toHaveBeenCalledOnce();
+    await step({ messages: [] });
+    await flush();
+
+    const replacementInner: InnerMessage = { id: "reused", parts: ["new"] };
+    await runCycle([
+      createAssistantMessage(
+        { type: "complete", reason: "stop" },
+        [replacementInner],
+        "reused",
+      ),
+    ]);
+
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+    expect(append).toHaveBeenLastCalledWith({
+      parentId: null,
+      message: replacementInner,
+    });
+  });
+
+  it("releases a deleted message that left the chat before its delete resolved", async () => {
+    const { append, deleteItems, deleteMessage, flush, load, runCycle, step } =
+      createPersistenceHarness(false);
+    await waitFor(() => expect(load).toHaveBeenCalledOnce());
+    await flush();
+    await runCycle([
+      createAssistantMessage(
+        { type: "complete", reason: "stop" },
+        [{ id: "reused", parts: ["old"] }],
+        "reused",
+      ),
+    ]);
+    await waitFor(() => expect(append).toHaveBeenCalledOnce());
+    let resolveDelete!: () => void;
+    deleteItems.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveDelete = resolve;
+        }),
+    );
+    const deletion = deleteMessage("reused");
+    await step({ messages: [] });
+    await act(async () => {
+      resolveDelete();
+      await deletion;
+    });
+    await flush();
+
+    const replacementInner: InnerMessage = { id: "reused", parts: ["new"] };
+    await runCycle([
+      createAssistantMessage(
+        { type: "complete", reason: "stop" },
+        [replacementInner],
+        "reused",
+      ),
+    ]);
+
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+    expect(append).toHaveBeenLastCalledWith({
+      parentId: null,
+      message: replacementInner,
+    });
+  });
+
+  it("parents a tool interaction update past a deleted message that is still in the chat", async () => {
+    type Item = { parentId: string | null; message: InnerMessage };
+    const stored = new Map<string, Item>();
+    const toolInteractions = new Map<string, Unstable_ToolInteractionLog>();
+    const {
+      append,
+      update,
+      deleteItems,
+      deleteMessage,
+      flush,
+      load,
+      persistToolInteractions,
+      runCycle,
+      step,
+    } = createPersistenceHarness(true, { toolInteractions });
+    append.mockImplementation(async (item) => {
+      stored.set(item.message.id, item);
+    });
+    update.mockImplementation(async (item) => {
+      stored.set(item.message.id, item);
+    });
+    deleteItems.mockImplementation(async (items) => {
+      for (const item of items) stored.delete(item.message.id);
+      const reply = stored.get("reply");
+      if (reply?.parentId === "prompt")
+        stored.set("reply", { ...reply, parentId: null });
+    });
+    await waitFor(() => expect(load).toHaveBeenCalledOnce());
+    await flush();
+    const prompt = createUserMessage({ id: "prompt", role: "user", parts: [] });
+    const reply = Object.assign(
+      createAssistantMessage(
+        { type: "complete", reason: "stop" },
+        [{ id: "reply", parts: [{ toolCallId: "call-1" }] }],
+        "reply",
+      ),
+      {
+        content: [
+          {
+            type: "tool-call" as const,
+            toolCallId: "call-1",
+            toolName: "weather",
+            args: {},
+            argsText: "{}",
+            result: undefined,
+            isError: false,
+          },
+        ],
+      },
+    );
+
+    await runCycle([prompt, reply]);
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(2));
+    await flush();
+    await act(async () => {
+      await deleteMessage("prompt");
+    });
+    await step({ isRunning: false });
+    await flush();
+    toolInteractions.set("call-1", {
+      entries: [{ type: "human-response", occurredAt: 2, payload: "yes" }],
+    });
+    await act(async () => {
+      await persistToolInteractions("reply");
+    });
+
+    expect(update).toHaveBeenCalledOnce();
+    expect(stored.get("reply")?.parentId).toBeNull();
+  });
+
+  it("stores a new prompt after an earlier reply that failed to store", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const userAInner: InnerMessage = { id: "user-a", role: "user", parts: [] };
+    const replyAInner: InnerMessage = { id: "reply-a", parts: ["a"] };
+    const userBInner: InnerMessage = { id: "user-b", role: "user", parts: [] };
+    const replyBInner: InnerMessage = { id: "reply-b", parts: ["b"] };
+    const userA = createUserMessage(userAInner);
+    const replyA = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [replyAInner],
+      "reply-a",
+    );
+    const userB = createUserMessage(userBInner);
+    const { append, flush, load, step } = createPersistenceHarness(false);
+    await waitFor(() => expect(load).toHaveBeenCalledOnce());
+    await flush();
+    append.mockImplementation(async (item) => {
+      if (item.message.id === "reply-a" && append.mock.calls.length === 2)
+        throw new Error("temporary storage failure");
+    });
+
+    await step({
+      isRunning: true,
+      messages: [
+        userA,
+        createAssistantMessage({ type: "running" }, [replyAInner], "reply-a"),
+      ],
+    });
+    await step({ isRunning: false, messages: [userA, replyA] });
+    await flush();
+    await step({
+      isRunning: true,
+      messages: [
+        userA,
+        replyA,
+        userB,
+        createAssistantMessage({ type: "running" }, [replyBInner], "reply-b"),
+      ],
+    });
+    await flush();
+    await step({
+      isRunning: false,
+      messages: [
+        userA,
+        replyA,
+        userB,
+        createAssistantMessage(
+          { type: "complete", reason: "stop" },
+          [replyBInner],
+          "reply-b",
+        ),
+      ],
+    });
+    await flush();
+
+    expect(append.mock.calls.map(([item]) => item)).toEqual([
+      { parentId: null, message: userAInner },
+      { parentId: "user-a", message: replyAInner },
+      { parentId: "user-a", message: replyAInner },
+      { parentId: "reply-a", message: userBInner },
+      { parentId: "user-b", message: replyBInner },
+    ]);
   });
 
   it("retries a failed append on the next persistence pass", async () => {

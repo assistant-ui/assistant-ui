@@ -1,51 +1,44 @@
 export const MODELS = [
-  // OpenAI
   {
-    name: "GPT-6 Luna",
-    value: "gpt-6-luna",
-    icon: "/icons/openai.svg",
-    disabled: false,
-    contextWindow: 1_050_000,
-    reasoning: true,
-  },
-  // Google
-  {
-    name: "Gemini 3.5 Flash Lite",
-    value: "google-ai-studio/gemini-3.5-flash-lite",
-    icon: "/icons/google.svg",
-    disabled: false,
-    contextWindow: 1_048_576,
-  },
-  // xAI
-  {
-    name: "Grok 4.3",
-    value: "grok/grok-4.3",
-    icon: "/icons/xai.svg",
+    name: "DeepSeek V4.1 Flash",
+    value: "deepseek-v4.1-flash",
+    provider: "DeepSeek",
+    icon: "/icons/deepseek.svg",
     disabled: false,
     contextWindow: 1_000_000,
   },
-  // DeepSeek
   {
-    name: "DeepSeek V4.1 Flash",
-    value: "deepseek/deepseek-flash",
-    icon: "/icons/deepseek.svg",
+    name: "Kimi K3",
+    value: "moonshotai/kimi-k3",
+    provider: "Moonshot AI",
+    icon: "/icons/kimi.svg",
     disabled: false,
     contextWindow: 1_048_576,
   },
-  // Groq
   {
-    name: "GPT-OSS 20B",
-    value: "groq/openai/gpt-oss-20b",
-    icon: "/icons/openai.svg",
+    name: "GLM-5.3",
+    value: "z-ai/glm-5.3",
+    provider: "Z.ai",
+    icon: "/icons/zai.svg",
     disabled: false,
-    contextWindow: 131_072,
+    contextWindow: 1_048_576,
   },
   {
-    name: "GPT-OSS 120B",
-    value: "groq/openai/gpt-oss-120b",
-    icon: "/icons/openai.svg",
+    name: "MiMo-V2.6-Pro",
+    value: "xiaomi/mimo-v2.6-pro",
+    provider: "Xiaomi",
+    icon: "/icons/xiaomimimo.svg",
     disabled: false,
-    contextWindow: 131_072,
+    contextWindow: 1_050_000,
+  },
+  {
+    name: "Grok 4.7",
+    value: "grok-4.7",
+    provider: "xAI",
+    icon: "/icons/xai.svg",
+    disabled: false,
+    contextWindow: 500_000,
+    reasoning: true,
   },
 ] as const;
 
@@ -59,6 +52,10 @@ export const DEFAULT_CONTEXT_WINDOW = DEFAULT_MODEL.contextWindow;
 export function getContextWindow(modelId: string): number {
   const model = MODELS.find((m) => m.value === modelId);
   return model?.contextWindow ?? DEFAULT_CONTEXT_WINDOW;
+}
+
+export function getProvider(modelId: string): string | undefined {
+  return MODELS.find((m) => m.value === modelId)?.provider;
 }
 
 export const REASONING_EFFORTS = [

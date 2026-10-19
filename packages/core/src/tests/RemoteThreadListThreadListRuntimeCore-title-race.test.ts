@@ -586,7 +586,15 @@ describe("RemoteThreadListThreadListRuntimeCore title generation", () => {
       const { adapter, core, deleted, isDeletionCommitted } =
         await mountDeletableThread();
       const renamed = deferred<void>();
-      vi.mocked(adapter.rename).mockImplementation(() => renamed.promise);
+      let renameSettled = false;
+      vi.mocked(adapter.rename).mockImplementation(async () => {
+        await renamed.promise;
+        renameSettled = true;
+      });
+      vi.mocked(adapter.delete).mockImplementation(() => {
+        expect(renameSettled).toBe(true);
+        return deleted.promise;
+      });
       vi.mocked(adapter.generateTitle).mockImplementation(async () => {
         if (isDeletionCommitted()) late.push(offset);
         return new ReadableStream({
@@ -599,13 +607,14 @@ describe("RemoteThreadListThreadListRuntimeCore title generation", () => {
       const renaming = core.rename("thread-1", "Manual title");
       const generation = core.generateTitle("thread-1");
       const deleting = core.delete("thread-1");
+      expect(adapter.delete).not.toHaveBeenCalled();
+      renamed.resolve();
       await vi.waitFor(
         () => {
           expect(adapter.delete).toHaveBeenCalledOnce();
         },
         { interval: 5 },
       );
-      renamed.resolve();
       await microtasks(offset);
       deleted.resolve();
       await Promise.all([renaming, generation, deleting]);
@@ -653,6 +662,7 @@ describe("RemoteThreadListThreadListRuntimeCore title generation", () => {
 
   it("does not request a title for a thread deleted while the request waits on a rename", async () => {
     const renamed = deferred<void>();
+    let renameSettled = false;
     const adapter = makeAdapter({
       list: vi.fn(async () => ({
         threads: [
@@ -664,7 +674,13 @@ describe("RemoteThreadListThreadListRuntimeCore title generation", () => {
           },
         ],
       })),
-      rename: vi.fn(() => renamed.promise),
+      rename: vi.fn(async () => {
+        await renamed.promise;
+        renameSettled = true;
+      }),
+      delete: vi.fn(async () => {
+        expect(renameSettled).toBe(true);
+      }),
     });
     const core = createCore(adapter);
     await core.getLoadThreadsPromise();
@@ -675,11 +691,11 @@ describe("RemoteThreadListThreadListRuntimeCore title generation", () => {
     internals._hookManager.getThreadRuntimeCore = () => ({ messages: [] });
 
     const renaming = core.rename("thread-1", "Manual title");
-    const generation = core.generateTitle("thread-1");
-    await core.delete("thread-1");
+    const generation = core.generateTitle("thread-1", { automatic: true });
+    const deleting = core.delete("thread-1");
+    expect(adapter.delete).not.toHaveBeenCalled();
     renamed.resolve();
-    await renaming;
-    await generation;
+    await Promise.all([renaming, generation, deleting]);
 
     expect(adapter.generateTitle).not.toHaveBeenCalled();
   });

@@ -41,12 +41,33 @@ describe("ValidateClient", () => {
     >().toEqualTypeOf<"ERROR: thread has invalid events type">();
   });
 
+  it("rejects function members reserved for accessor invocation", () => {
+    expectTypeOf<
+      keyof ValidateClient<
+        "thread",
+        { methods: { call: () => void } }
+      >["methods"]
+    >().toEqualTypeOf<"ERROR: thread methods declare a reserved accessor property (source/query/name/call/apply/bind)">();
+    expectTypeOf<
+      keyof ValidateClient<
+        "thread",
+        { methods: { apply: () => void } }
+      >["methods"]
+    >().toEqualTypeOf<"ERROR: thread methods declare a reserved accessor property (source/query/name/call/apply/bind)">();
+    expectTypeOf<
+      keyof ValidateClient<
+        "thread",
+        { methods: { bind: () => void } }
+      >["methods"]
+    >().toEqualTypeOf<"ERROR: thread methods declare a reserved accessor property (source/query/name/call/apply/bind)">();
+  });
+
   it("rejects reserved accessor properties in methods", () => {
     expectTypeOf<
       keyof ValidateClient<
         "thread",
         { methods: { source: () => void } }
       >["methods"]
-    >().toEqualTypeOf<"ERROR: thread methods declare a reserved accessor property (source/query/name)">();
+    >().toEqualTypeOf<"ERROR: thread methods declare a reserved accessor property (source/query/name/call/apply/bind)">();
   });
 });

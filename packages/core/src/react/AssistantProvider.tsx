@@ -39,7 +39,10 @@ const AssistantProviderInner: FC<
   // changes (e.g. unstable_enableMessageQueue) from reaching the runtime.
   "use no memo";
   const RenderComponent = getRenderComponent(runtime);
-  const merged = AuiConfig({ ...config, threads: RuntimeAdapter(runtime) });
+  const merged = AuiConfig({
+    ...config,
+    threads: RuntimeAdapter(runtime),
+  });
   return (
     <AuiProvider extends={aui} config={merged}>
       {RenderComponent && <RenderComponent />}
