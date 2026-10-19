@@ -15,18 +15,18 @@
     "@assistant-ui/ui": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@tailwindcss/postcss": "^4.3.3",
-    "@types/node": "^26.6.4",
+    "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "ai": "^7.0.130",
+    "ai": "^7.0.143",
     "generative-frame": "workspace:*",
-    "postcss": "^8.5.29",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
+    "postcss": "^8.5.30",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
     "react-markdown": "^10.1.0",
     "remark-gfm": "^4.0.1",
-    "rolldown": "^1.2.12",
+    "rolldown": "^1.2.14",
     "tailwindcss": "^4.3.3",
-    "zod": "^4.6.5"
+    "zod": "^4.6.7"
   }
 }

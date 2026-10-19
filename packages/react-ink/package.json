@@ -43,7 +43,7 @@
   "dependencies": {
     "@assistant-ui/core": "^0.3.29",
     "@assistant-ui/store": "^0.3.21",
-    "@assistant-ui/tap": "^0.9.22",
+    "@assistant-ui/tap": "^0.9.23",
     "assistant-cloud": "workspace:^",
     "assistant-stream": "^0.3.52",
     "diff": "^9.0.0",
@@ -64,13 +64,13 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@assistant-ui/x-performance": "workspace:*",
-    "@types/node": "^26.6.4",
+    "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
     "ink": "^8.0.0",
     "ink-testing-library": "^4.0.0",
-    "react": "^19.3.0",
+    "react": "^19.3.1",
     "tsx": "^4.23.15",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.5"
   },
   "publishConfig": {
     "access": "public",
