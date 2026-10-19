@@ -925,7 +925,11 @@ export class RemoteThreadListThreadListRuntimeCore
     let current = getThreadData(this._state.value, data.id);
     if (current?.id !== data.id) return;
 
-    if (current.status === "archived" && options?.unarchive !== false) {
+    if (
+      current.status === "archived" &&
+      options?.unarchive !== false &&
+      this._options.adapter.unarchive
+    ) {
       await current.initializeTask;
       if (generation !== this._switchGeneration) return;
       current = getThreadData(this._state.value, data.id);
@@ -1321,6 +1325,13 @@ export class RemoteThreadListThreadListRuntimeCore
           await adapter.rename(remoteId, title);
         });
       },
+      readTitle: async () => {
+        this._requireAdapterGeneration(adapterGeneration);
+        if (isRemoved()) return undefined;
+        const { title } = await adapter.fetch(remoteId);
+        this._requireAdapterGeneration(adapterGeneration);
+        return title;
+      },
       applyTitle: async (title) => {
         await this._state.optimisticUpdate({
           execute: async () => {},
@@ -1570,6 +1581,11 @@ export class RemoteThreadListThreadListRuntimeCore
     if (!data) throw threadNotFoundError(threadIdOrRemoteId, "unarchiving it");
     if (data.status !== "archived")
       throw threadStatusError(threadIdOrRemoteId, data.status, "be unarchived");
+    if (!adapter.unarchive) {
+      throw new Error(
+        "Remote thread list adapter does not support unarchiving",
+      );
+    }
 
     const mutation = this._mutations.reserve(data.id, data);
     return this._state.optimisticUpdate({
@@ -1578,6 +1594,11 @@ export class RemoteThreadListThreadListRuntimeCore
           try {
             const { remoteId } = await data.initializeTask;
             this._requireAdapterGeneration(adapterGeneration);
+            if (!adapter.unarchive) {
+              throw new Error(
+                "Remote thread list adapter does not support unarchiving",
+              );
+            }
             return await adapter.unarchive(remoteId);
           } catch (error) {
             if (adapterGeneration === this._adapterGeneration) {

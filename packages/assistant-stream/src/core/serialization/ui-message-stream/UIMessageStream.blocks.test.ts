@@ -3,7 +3,7 @@ import { UIMessageStreamDecoder } from "./UIMessageStream";
 import { AssistantMessageAccumulator } from "../../accumulators/assistant-message-accumulator";
 import type { AssistantMessage } from "../../utils/types";
 
-async function decode(events: Record<string, unknown>[]) {
+async function decodeMessages(events: Record<string, unknown>[]) {
   const stream = new ReadableStream<Uint8Array<ArrayBuffer>>({
     start(controller) {
       controller.enqueue(
@@ -16,21 +16,73 @@ async function decode(events: Record<string, unknown>[]) {
       controller.close();
     },
   });
-  let message: AssistantMessage | undefined;
+  const messages: AssistantMessage[] = [];
   await stream
     .pipeThrough(new UIMessageStreamDecoder())
     .pipeThrough(new AssistantMessageAccumulator())
     .pipeTo(
       new WritableStream({
         write(value) {
-          message = value;
+          messages.push(value);
         },
       }),
     );
-  return message!;
+  return messages;
+}
+
+async function decode(events: Record<string, unknown>[]) {
+  return (await decodeMessages(events)).at(-1)!;
 }
 
 describe("UIMessageStreamDecoder block identity", () => {
+  it.each(["text", "reasoning"])(
+    "updates %s provider metadata across start, delta, and end chunks",
+    async (type) => {
+      const startMetadata = { example: { phase: "start" } };
+      const deltaMetadata = { example: { phase: "delta" } };
+      const endMetadata = { example: { phase: "end" } };
+      const makeDelta = (text: string, providerMetadata?: object) =>
+        type === "text"
+          ? {
+              type: "text-delta",
+              id: "part",
+              textDelta: text,
+              ...(providerMetadata && { providerMetadata }),
+            }
+          : {
+              type: "reasoning-delta",
+              id: "part",
+              delta: text,
+              ...(providerMetadata && { providerMetadata }),
+            };
+      const messages = await decodeMessages([
+        {
+          type: `${type}-start`,
+          id: "part",
+          providerMetadata: startMetadata,
+        },
+        makeDelta("Hello", deltaMetadata),
+        makeDelta(" world"),
+        { type: `${type}-end`, id: "part", providerMetadata: endMetadata },
+      ]);
+
+      expect(
+        messages.map((message) => {
+          const part = message.parts[0];
+          return part?.type === "text" || part?.type === "reasoning"
+            ? part.providerMetadata
+            : undefined;
+        }),
+      ).toEqual([
+        startMetadata,
+        deltaMetadata,
+        deltaMetadata,
+        endMetadata,
+        endMetadata,
+      ]);
+    },
+  );
+
   it.each(["text", "reasoning"])(
     "keeps interleaved %s blocks separate",
     async (type) => {

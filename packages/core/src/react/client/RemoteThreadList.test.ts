@@ -188,6 +188,71 @@ const mountList = (
   return { handle, onThreadIdChange };
 };
 
+describe("RemoteThreadList without adapter unarchive", () => {
+  const makeArchivedAdapter = () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "archived" as const, remoteId: "archived" }],
+      })),
+    });
+    delete adapter.unarchive;
+    return adapter;
+  };
+
+  it("opens an archived thread and keeps it archived", async () => {
+    const { handle } = mountList(makeArchivedAdapter());
+    try {
+      const threads = handle.getClient().threads;
+      await threads.getLoadThreadsPromise();
+      await waitFor(() =>
+        expect(threads.getState().archivedThreadIds).toContain("archived"),
+      );
+
+      await expect(
+        threads.__internal_getRawActions!().switchToThread("archived"),
+      ).resolves.toBeUndefined();
+
+      await waitFor(() =>
+        expect(threads.getState().mainThreadId).toBe("archived"),
+      );
+      expect(threads.item("main").getState().status).toBe("archived");
+      expect(threads.getState().archivedThreadIds).toContain("archived");
+    } finally {
+      handle.destroy();
+    }
+  });
+
+  it("rejects explicit unarchive without changing the archived status", async () => {
+    const { handle } = mountList(makeArchivedAdapter());
+    try {
+      const threads = handle.getClient().threads;
+      await threads.getLoadThreadsPromise();
+      const optimisticUpdate = vi.spyOn(
+        OptimisticState.prototype,
+        "optimisticUpdate",
+      );
+
+      try {
+        await expect(
+          threads.item({ id: "archived" }).unarchive(),
+        ).rejects.toThrow(
+          "Remote thread list adapter does not support unarchiving",
+        );
+
+        expect(optimisticUpdate).not.toHaveBeenCalled();
+        expect(threads.item({ id: "archived" }).getState().status).toBe(
+          "archived",
+        );
+        expect(threads.getState().archivedThreadIds).toContain("archived");
+      } finally {
+        optimisticUpdate.mockRestore();
+      }
+    } finally {
+      handle.destroy();
+    }
+  });
+});
+
 const mountDeletableThread = async () => {
   const deleted = deferred<void>();
   const adapter = makeAdapter({

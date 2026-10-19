@@ -14,7 +14,12 @@ import {
   PathAppendEncoder,
   PathMergeEncoder,
 } from "../utils/stream/path-utils";
-import type { DataPart, FilePart, SourcePart } from "../utils/types";
+import type {
+  DataPart,
+  FilePart,
+  PartProviderMetadata,
+  SourcePart,
+} from "../utils/types";
 import { generateId } from "../utils/generateId";
 import type {
   ReadonlyJSONObject,
@@ -35,6 +40,11 @@ type ToolCallPartInit = {
 type ReasoningPartInit = {
   /** @deprecated Experimental since 2026-08-07. Not scheduled for removal; the API may change in any release. */
   unstable_summary?: string;
+  providerMetadata?: PartProviderMetadata;
+};
+
+type TextPartInit = {
+  providerMetadata?: PartProviderMetadata;
 };
 
 /**
@@ -66,7 +76,7 @@ export type AssistantStreamController = {
    * part through this controller closes any implicit text or reasoning append
    * part first.
    */
-  addTextPart(): TextStreamController;
+  addTextPart(options?: TextPartInit): TextStreamController;
   /**
    * Opens a reasoning part and returns its writer.
    *
@@ -304,12 +314,12 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     this._state.append.controller.append(textDelta);
   }
 
-  addTextPart() {
+  addTextPart(options?: TextPartInit) {
     const [stream, controller, written] = createCountedPartStream(
       (c) => new TextStreamControllerImpl(c, { strict: this._state.strict }),
     );
     this._addPart(
-      this._withParentIdOption({ type: "text" }),
+      this._withParentIdOption({ type: "text", ...options }),
       stream,
       written,
       () => controller.__internal_close(),

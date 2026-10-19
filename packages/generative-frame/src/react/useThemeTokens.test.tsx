@@ -1,18 +1,28 @@
 import { act, cleanup, render } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { readThemeTokens } from "../theme";
 import { useThemeTokens } from "./useThemeTokens";
+
+beforeEach(() => {
+  vi.useFakeTimers({
+    toFake: ["requestAnimationFrame", "cancelAnimationFrame"],
+  });
+});
 
 afterEach(() => {
   cleanup();
   document.documentElement.className = "";
   document.documentElement.removeAttribute("style");
   document.body.removeAttribute("style");
+  vi.useRealTimers();
   vi.restoreAllMocks();
 });
 
 const frame = () =>
-  act(() => new Promise<void>((resolve) => setTimeout(resolve, 40)));
+  act(async () => {
+    await Promise.resolve();
+    vi.advanceTimersToNextFrame();
+  });
 
 function Probe({ onTokens }: { onTokens: (scheme: string) => void }) {
   const tokens = useThemeTokens();

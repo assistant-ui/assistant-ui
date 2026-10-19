@@ -73,6 +73,34 @@
   ],
   "overrides": [
     {
+      "files": ["packages/react-langchain/**/*.test.{ts,tsx}"],
+      "plugins": ["typescript", "react", "import", "oxc", "vitest"],
+      "rules": {
+        "vitest/expect-expect": "off",
+        "vitest/hoisted-apis-on-top": "off",
+        "vitest/no-conditional-tests": "off",
+        "vitest/no-disabled-tests": "off",
+        "vitest/no-focused-tests": "off",
+        "vitest/no-standalone-expect": "off",
+        "vitest/prefer-snapshot-hint": "off",
+        "vitest/require-awaited-expect-poll": "off",
+        "vitest/require-local-test-context-for-concurrent-snapshots": "off",
+        "vitest/require-mock-type-parameters": "off",
+        "vitest/require-to-throw-message": "off",
+        "vitest/valid-describe-callback": "off",
+        "vitest/valid-expect-in-promise": "off",
+        "vitest/valid-title": "off",
+        "vitest/warn-todo": "off",
+        "vitest/valid-expect": [
+          "error",
+          {
+            "maxArgs": 2
+          }
+        ],
+        "vitest/no-conditional-expect": "error"
+      }
+    },
+    {
       "files": ["packages/**/src/**"],
       "excludeFiles": [
         "packages/agent-launcher/**",

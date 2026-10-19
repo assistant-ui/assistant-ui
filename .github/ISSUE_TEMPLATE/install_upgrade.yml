@@ -1,0 +1,63 @@
+name: Install, build or upgrade problem
+description: Dependency conflicts, bundler or type errors, or something that broke after changing versions
+type: Bug
+labels: ["bug"]
+
+body:
+  - type: checkboxes
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched open and closed issues and this is not a duplicate
+          required: true
+        - label: I deleted `node_modules` and reinstalled, and the problem remains
+          required: true
+
+  - type: textarea
+    attributes:
+      label: Environment info
+      description: Run `npx assistant-ui info` and paste the output. If the command itself fails, paste your `package.json` dependencies, Node.js version, package manager and OS.
+    validations:
+      required: true
+
+  - type: input
+    attributes:
+      label: Command that fails
+      placeholder: pnpm build
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Full error output
+      description: As text, not a screenshot.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: What changed
+      description: The versions you moved between, for our packages and for the upstream SDK or framework. Leave empty for a fresh install.
+      placeholder: |
+        @assistant-ui/react 0.12.14 -> 0.12.19
+        ai 5.0.40 -> 6.0.2
+        next 15.3.1 (unchanged)
+
+  - type: textarea
+    attributes:
+      label: Duplicate package check
+      description: Many upgrade failures come from two copies of one package. Paste the output of `npx assistant-ui doctor`.
+      render: text
+
+  - type: textarea
+    attributes:
+      label: Reproduction
+      description: A repository or sandbox with your `package.json` and lockfile, or the steps from a fresh project that hit the error. A report we cannot reproduce is closed.
+    validations:
+      required: true
+
+  - type: textarea
+    attributes:
+      label: Additional context
+      description: Mention monorepo setups, custom bundler config, and proxies.

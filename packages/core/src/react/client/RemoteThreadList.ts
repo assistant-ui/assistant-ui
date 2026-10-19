@@ -1115,7 +1115,11 @@ const useRemoteThreadList = (
         let current = getThreadData(store.value, targetId);
         if (current?.id !== targetId) return;
 
-        if (current.status === "archived" && options?.unarchive !== false) {
+        if (
+          current.status === "archived" &&
+          options?.unarchive !== false &&
+          session.adapter.unarchive
+        ) {
           const { remoteId } = await current.initializeTask;
           if (generation !== session.switchGeneration) return;
           current = getThreadData(store.value, targetId);
@@ -1128,6 +1132,11 @@ const useRemoteThreadList = (
               execute: () =>
                 mutation.run(async () => {
                   requireAdapterGeneration(adapterGeneration);
+                  if (!currentAdapter.unarchive) {
+                    throw new Error(
+                      "Remote thread list adapter does not support unarchiving",
+                    );
+                  }
                   return currentAdapter.unarchive(remoteId);
                 }),
               optimistic: (state) =>
@@ -1671,6 +1680,11 @@ const useRemoteThreadList = (
           "be unarchived",
         );
       }
+      if (!currentAdapter.unarchive) {
+        throw new Error(
+          "Remote thread list adapter does not support unarchiving",
+        );
+      }
       const mutation = session.mutations.reserve(data.id, data);
       return store.optimisticUpdate({
         execute: () =>
@@ -1678,6 +1692,11 @@ const useRemoteThreadList = (
             try {
               const { remoteId } = await data.initializeTask;
               requireAdapterGeneration(adapterGeneration);
+              if (!currentAdapter.unarchive) {
+                throw new Error(
+                  "Remote thread list adapter does not support unarchiving",
+                );
+              }
               return await currentAdapter.unarchive(remoteId);
             } catch (error) {
               if (adapterGeneration === session.adapterGeneration) {
@@ -1794,6 +1813,13 @@ const useRemoteThreadList = (
             if (isRemoved()) return;
             await currentAdapter.rename(remoteId, title);
           });
+        },
+        readTitle: async () => {
+          requireAdapterGeneration(adapterGeneration);
+          if (isRemoved()) return undefined;
+          const { title } = await currentAdapter.fetch(remoteId);
+          requireAdapterGeneration(adapterGeneration);
+          return title;
         },
         applyTitle: async (title) => {
           await store.optimisticUpdate({

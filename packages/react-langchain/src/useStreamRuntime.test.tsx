@@ -476,11 +476,9 @@ describe("useStreamRuntime thread options", () => {
             : "submit failed",
       });
       await waitFor(() => expect(getText(capture.aui!)).toEqual([]));
-      if (failurePoint === "initialization") {
-        expect(stream.submit).not.toHaveBeenCalled();
-      } else {
-        expect(stream.submit).toHaveBeenCalledTimes(1);
-      }
+      expect(stream.submit).toHaveBeenCalledTimes(
+        failurePoint === "initialization" ? 0 : 1,
+      );
       view.unmount();
     },
   );

@@ -87,7 +87,7 @@ const deferred = () => Promise.withResolvers<void>();
 const setupPartialSend = (type: "thread" | "edit" = "thread") => {
   const successfulUpload = deferred();
   const failedUpload = deferred();
-  const remove = vi.fn(async () => {});
+  const remove = vi.fn(async (_attachment: PendingAttachment) => {});
   const onNew = vi.fn();
   const send = vi.fn(async (attachment: PendingAttachment) => {
     await (attachment.name === "a" ? successfulUpload : failedUpload).promise;
@@ -141,6 +141,44 @@ const setupPartialSend = (type: "thread" | "edit" = "thread") => {
 };
 
 describe("ExternalThread attachments", () => {
+  it("returns a failed removal when onNew throws and retries it on reset", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { composer, successfulUpload, failedUpload, remove, onNew } =
+      setupPartialSend();
+    remove
+      .mockRejectedValueOnce(new Error("remove failed"))
+      .mockResolvedValue(undefined);
+    onNew.mockImplementation(() => {
+      throw new Error("send failed");
+    });
+    await act(() => composer().addAttachment(new File(["a"], "a")));
+    await act(() => composer().addAttachment(new File(["b"], "b")));
+    await act(async () => {
+      composer().setText("hello");
+      composer().send();
+    });
+    await act(async () => {
+      await expect(composer().attachment({ id: "b" }).remove()).rejects.toThrow(
+        "remove failed",
+      );
+    });
+    await act(async () => {
+      successfulUpload.resolve();
+      failedUpload.resolve();
+    });
+    await waitFor(() => expect(onNew).toHaveBeenCalledOnce());
+    await waitFor(() =>
+      expect(composer().getState().attachments).toMatchObject([
+        { id: "a" },
+        { id: "b", status: { type: "incomplete", message: "remove failed" } },
+      ]),
+    );
+    await act(() => composer().reset());
+    expect(
+      remove.mock.calls.filter(([attachment]) => attachment.id === "b"),
+    ).toHaveLength(2);
+  });
+
   it("keeps a repeatedly failed removal out of later messages", async () => {
     const { composer, successfulUpload, remove, onNew } = setupPartialSend();
     remove

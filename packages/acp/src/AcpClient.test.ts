@@ -1283,35 +1283,58 @@ describe("AcpClient", () => {
     ).toEqual({ outcome: "selected", optionId: "once" });
   });
 
-  it("restarts the session/load deadline on every replayed frame", async () => {
-    const client = mockClient({ requestTimeoutMs: 40 });
-    const ws = await withSession(client);
-    ws.close();
+  it.each(["completes", "goes quiet"])(
+    "restarts the session/load deadline until the replay %s",
+    async (ending) => {
+      const client = mockClient({ requestTimeoutMs: 40 });
+      const ws = await withSession(client);
+      ws.close();
 
-    const restored = client.ensureSession();
-    const next = lastWs();
-    await completeHandshake(next);
-    const load = await until(() =>
-      next.sent.find((f) => f.method === "session/load"),
-    );
-    for (let frame = 0; frame < 4; frame++) {
-      await new Promise((resolve) => setTimeout(resolve, 25));
-      next.receive({
-        jsonrpc: "2.0",
-        method: "session/update",
-        params: {
-          sessionId: "s1",
-          update: {
-            sessionUpdate: "agent_message_chunk",
-            content: { type: "text", text: `replay ${frame}` },
-          },
-        },
-      });
-    }
-    next.receive({ jsonrpc: "2.0", id: load.id!, result: {} });
+      vi.useFakeTimers();
+      try {
+        const restored = client.ensureSession();
+        const settled = vi.fn();
+        void restored.then(settled, settled);
+        const next = lastWs();
+        await completeHandshake(next);
+        await vi.advanceTimersByTimeAsync(0);
+        const load = next.sent.find((f) => f.method === "session/load")!;
+        expect(load.method).toBe("session/load");
 
-    await expect(restored).resolves.toBe("s1");
-  });
+        for (let frame = 0; frame < 4; frame++) {
+          await vi.advanceTimersByTimeAsync(25);
+          expect(settled).not.toHaveBeenCalled();
+          next.receive({
+            jsonrpc: "2.0",
+            method: "session/update",
+            params: {
+              sessionId: "s1",
+              update: {
+                sessionUpdate: "agent_message_chunk",
+                content: { type: "text", text: `replay ${frame}` },
+              },
+            },
+          });
+        }
+        await vi.advanceTimersByTimeAsync(39);
+        expect(settled).not.toHaveBeenCalled();
+
+        if (ending === "completes") {
+          next.receive({ jsonrpc: "2.0", id: load.id!, result: {} });
+          await expect(restored).resolves.toBe("s1");
+        } else {
+          await vi.advanceTimersByTimeAsync(1);
+          expect(settled).toHaveBeenCalledOnce();
+          await expect(restored).rejects.toThrow(
+            "session/load timed out after 40ms",
+          );
+        }
+      } finally {
+        client.dispose();
+        vi.useRealTimers();
+      }
+    },
+  );
 
   it("still times out a session/load that goes quiet", async () => {
     const client = mockClient({ requestTimeoutMs: 20 });

@@ -389,11 +389,13 @@ type AssistantStreamChunk = {
   readonly part: PartInit;
 } | {
   readonly type: "part-finish";
+  readonly providerMetadata?: PartProviderMetadata;
 } | {
   readonly type: "tool-call-args-text-finish";
 } | {
   readonly type: "text-delta";
   readonly textDelta: string;
+  readonly providerMetadata?: PartProviderMetadata;
 } | {
   readonly type: "annotations";
   readonly annotations: ReadonlyJSONValue[];
@@ -628,10 +630,12 @@ type MessageFormatAdapter<TMessage, TStorageFormat> = {
 
 type PartInit = {
   readonly type: "text";
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 } | {
   readonly type: "reasoning";
   readonly unstable_summary?: string;
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 } | {
   readonly type: "tool-call";
@@ -655,6 +659,10 @@ type PartInit = {
   readonly name: string;
   readonly data: ReadonlyJSONValue;
   readonly parentId?: string;
+};
+
+type PartProviderMetadata = {
+  readonly [providerName: string]: ReadonlyJSONObject;
 };
 
 type PdfToImagesRequestBody = {

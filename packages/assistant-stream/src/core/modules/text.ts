@@ -1,10 +1,11 @@
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
+import type { PartProviderMetadata } from "../utils/types";
 import { closeIfOpen, enqueueIfOpen } from "../utils/stream/controller-guards";
 import { createControllerStreamPair } from "../utils/stream/createControllerStream";
 
 export type TextStreamController = {
-  append(textDelta: string): void;
-  close(): void; // TODO reason? error?
+  append(textDelta: string, providerMetadata?: PartProviderMetadata): void;
+  close(providerMetadata?: PartProviderMetadata): void; // TODO reason? error?
 };
 
 type TextStreamOptions = {
@@ -28,12 +29,13 @@ export class TextStreamControllerImpl implements TextStreamController {
     this._strict = options.strict ?? true;
   }
 
-  append(textDelta: string) {
+  append(textDelta: string, providerMetadata?: PartProviderMetadata) {
     if (this._ignoreAppends) return this;
     const chunk: AssistantStreamChunk = {
       type: "text-delta",
       path: [],
       textDelta,
+      ...(providerMetadata != null && { providerMetadata }),
     };
     if (this._isClosed) {
       if (this._strict) {
@@ -52,12 +54,13 @@ export class TextStreamControllerImpl implements TextStreamController {
     console.error(`Dropped text delta for closed stream: ${String(error)}`);
   };
 
-  close() {
+  close(providerMetadata?: PartProviderMetadata) {
     if (this._isClosed) return;
     this._isClosed = true;
     enqueueIfOpen(this._controller, {
       type: "part-finish",
       path: [],
+      ...(providerMetadata != null && { providerMetadata }),
     });
     closeIfOpen(this._controller);
   }

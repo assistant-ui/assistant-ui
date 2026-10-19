@@ -1,8 +1,10 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { act } from "react";
 import { createRenderCounter } from "@assistant-ui/x-performance";
-import { render } from "ink-testing-library";
+import { cleanup, render } from "ink-testing-library";
 import { MarkdownText } from "../MarkdownText";
+
+afterEach(cleanup);
 
 describe("MarkdownText", () => {
   it.each([{ width: 40 }, { wrap: false }])(
