@@ -11,7 +11,7 @@ Compare the current repository test-quality guide with an unguided baseline usin
 
 The first three seeds are intentionally weak and pass with their faults present. The last is a positive control: its existing exact notification assertion must remain effective. These are small self-contained JavaScript fixtures representing assistant-ui contracts, not integration coverage for the published packages.
 
-Each agent edits one test file using the fixture's existing Node test runner. Verification copies that output into a fresh directory with trusted implementation fixtures. Passing requires a successful run on correct code and an assertion failure on faulty code. A missing import, unconditional failure, skipped test, or non-assertion crash does not earn a passing verdict. Runner failures and timeouts are recorded as execution errors by the shared trial runner.
+Each agent edits one test file using the fixture's existing Node test runner. Verification copies that output into a separate fresh directory for each trusted implementation fixture. Files written by the correct run cannot become expectations for the faulty run. Passing requires a successful run on correct code and an assertion failure on faulty code. A missing import, unconditional failure, skipped test, or non-assertion crash does not earn a passing verdict. A generated test that times out, exceeds the output limit, or is terminated receives a failing verdict. Agent CLI failures and failures to start the test process are recorded as execution errors by the shared trial runner.
 
 Requires an authenticated `claude` CLI on PATH. From `evals/`:
 

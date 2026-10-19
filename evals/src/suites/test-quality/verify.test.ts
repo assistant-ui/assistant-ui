@@ -44,3 +44,24 @@ test("a runtime crash is not credited as an assertion failure", () => {
   assert.equal(verdict.pass, false);
   assert.match(verdict.reason, /without assertion evidence/);
 });
+
+test("a test that leaks a handle is a scored failure", () => {
+  const verdict = verify(cases[0]!, "setInterval(() => {}, 1000);");
+  assert.equal(verdict.pass, false);
+  assert.match(verdict.reason, /did not complete/);
+});
+
+test("files produced by the correct run cannot become the faulty run's expectations", () => {
+  const artifact = `import test from "node:test";
+import assert from "node:assert/strict";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { convert } from "./runtime.mjs";
+test("conversion", () => {
+const actual = convert({ role: "assistant", text: "hello" });
+const expected = existsSync("expected.json") ? JSON.parse(readFileSync("expected.json", "utf8")) : actual;
+writeFileSync("expected.json", JSON.stringify(actual));
+assert.deepEqual(actual, expected);
+});
+`;
+  assert.equal(verify(cases[0]!, artifact).pass, false);
+});
