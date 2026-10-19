@@ -435,6 +435,11 @@ html.dark body:has(.aui-docs) {
   display: none;
 }
 
+.aui-docs [data-toc-popover-content] a[data-active="true"] {
+  color: var(--color-fd-foreground);
+  font-weight: 500;
+}
+
 .aui-docs #toc-title {
   gap: 0;
   font-size: 0.75rem;
