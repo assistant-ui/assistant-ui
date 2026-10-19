@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
+import { useState } from "react";
 import { createTapRoot, useResource } from "@assistant-ui/tap";
 import type { Tool } from "assistant-stream";
 import { ModelContext } from "./model-context-client";
 import type {
   ModelContext as ModelContextValue,
+  ModelContextOptions,
   ModelContextProvider,
 } from "../../model-context/types";
 import { mergeModelContexts } from "../../model-context/types";
@@ -218,5 +220,77 @@ describe("mergeModelContexts", () => {
 
     expect(merged.tools?.shared?.description).toBe("high priority");
     expect(merged.tools?.shared?.execute).toBe(execute);
+  });
+});
+
+describe("ModelContext options", () => {
+  const renderWith = (options: ModelContextOptions) => {
+    const root = createTapRoot(function Root() {
+      return useResource(ModelContext(options));
+    });
+    return { sub: root, unmount: () => root.unmount() };
+  };
+
+  it("caps the merged system with maxSystemLength", () => {
+    const { sub, unmount } = renderWith({ maxSystemLength: 10 });
+    try {
+      sub.getValue().register(provider({ system: "trim me", priority: -1 }));
+      sub.getValue().register(provider({ system: "keep" }));
+
+      expect(sub.getValue().getModelContext().system).toBe("keep\n\ntrim");
+    } finally {
+      unmount();
+    }
+  });
+
+  it("combines system parts with mergeSystem", () => {
+    const { sub, unmount } = renderWith({
+      mergeSystem: (parts) => parts.map((part) => part.system).join("\n"),
+    });
+    try {
+      sub.getValue().register(provider({ system: "b", priority: -1 }));
+      sub.getValue().register(provider({ system: "a" }));
+
+      expect(sub.getValue().getModelContext().system).toBe("a\nb");
+    } finally {
+      unmount();
+    }
+  });
+
+  it("notifies subscribers when the options change", async () => {
+    const root = createTapRoot(function Root() {
+      const [options, setOptions] = useState<ModelContextOptions>({
+        maxSystemLength: 4,
+      });
+      return { client: useResource(ModelContext(options)), setOptions };
+    });
+    try {
+      root.getValue().client.register(provider({ system: "keep\n\ntrim" }));
+      await tick();
+      let notified = 0;
+      const unsubscribe = root.getValue().client.subscribe!(() => {
+        notified++;
+      });
+
+      root.getValue().setOptions({ maxSystemLength: 4 });
+      await tick();
+      expect(notified).toBe(0);
+
+      root.getValue().setOptions({ maxSystemLength: 10 });
+      await tick();
+      expect(notified).toBe(1);
+      expect(root.getValue().client.getModelContext().system).toBe(
+        "keep\n\ntrim",
+      );
+      unsubscribe();
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("throws on mount when both maxSystemLength and mergeSystem are passed", () => {
+    expect(() =>
+      renderWith({ maxSystemLength: 10, mergeSystem: () => "" }),
+    ).toThrow(/either maxSystemLength or mergeSystem/);
   });
 });

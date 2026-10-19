@@ -111,6 +111,8 @@ export type {
   // Model context
   ModelContext,
   ModelContextProvider,
+  ModelContextOptions,
+  SystemPart,
   // Tool & instruction config
   AssistantToolProps,
   AssistantInstructionsConfig,
