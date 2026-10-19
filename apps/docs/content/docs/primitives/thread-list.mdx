@@ -169,7 +169,7 @@ Pass `archived` to `Items` to render archived threads separately:
 
 ### Thread Actions
 
-`Archive`, `Unarchive`, and `Delete` call the matching thread list item action on click. They do not disable themselves, and an action the runtime does not support throws, so render only the actions your runtime supports.
+`Archive`, `Unarchive`, and `Delete` call the matching thread list item action on click. `Unarchive` disables itself when `s.threads.canUnarchive` is false. `Archive` and `Delete` do not check runtime support, so render them only when your runtime supports those actions.
 
 ### Composing Actions with Menu Items
 
@@ -328,6 +328,8 @@ Button that archives the current thread item. Renders a `<button>` element unles
 #### Unarchive
 
 Button that restores the current thread item from the archive. Renders a `<button>` element unless `asChild` is set.
+
+Disabled when the thread list cannot unarchive, such as a remote adapter that omits `unarchive` or an external-store adapter without `onUnarchive`. Archived threads can still be opened. Read `s.threads.canUnarchive` to conditionally render a custom restore control.
 
 ```tsx
 <ThreadListItemPrimitive.Unarchive>Unarchive</ThreadListItemPrimitive.Unarchive>

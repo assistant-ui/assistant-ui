@@ -204,6 +204,7 @@ describe("RemoteThreadList without adapter unarchive", () => {
     try {
       const threads = handle.getClient().threads;
       await threads.getLoadThreadsPromise();
+      expect(threads.getState().canUnarchive).toBe(false);
       await waitFor(() =>
         expect(threads.getState().archivedThreadIds).toContain("archived"),
       );

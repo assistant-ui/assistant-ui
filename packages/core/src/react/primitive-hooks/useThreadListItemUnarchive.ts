@@ -1,12 +1,13 @@
 import { useCallback } from "react";
-import { useAui } from "@assistant-ui/store";
+import { useAui, useAuiState } from "@assistant-ui/store";
 
 export const useThreadListItemUnarchive = () => {
   const aui = useAui();
+  const canUnarchive = useAuiState((s) => s.threads.canUnarchive);
 
   const unarchive = useCallback(() => {
     aui.threadListItem.unarchive();
   }, [aui]);
 
-  return { unarchive };
+  return { unarchive, disabled: !canUnarchive };
 };

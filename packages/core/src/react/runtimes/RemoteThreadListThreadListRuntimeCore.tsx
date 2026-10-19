@@ -709,6 +709,10 @@ export class RemoteThreadListThreadListRuntimeCore
     return this._state.value.isLoading;
   }
 
+  public get canUnarchive() {
+    return !!this._options.adapter.unarchive;
+  }
+
   public get loadError() {
     return this._state.value.loadError;
   }

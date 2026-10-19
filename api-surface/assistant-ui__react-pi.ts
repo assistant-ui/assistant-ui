@@ -2511,6 +2511,7 @@ type ThreadListRuntimeEvent = {
 };
 
 type ThreadListState = {
+  readonly canUnarchive: boolean;
   readonly mainThreadId: string;
   readonly newThreadId: string | undefined;
   readonly threadIds: readonly string[];
