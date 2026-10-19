@@ -49,3 +49,42 @@ it("re-renders when the core publishes a state change", () => {
   expect(renders).toBeGreaterThan(initialRenders);
   expect(result.current.thread.getState().messages).toHaveLength(1);
 });
+
+it("passes joinStrategy to the active run", async () => {
+  const agent = {
+    runAgent: vi.fn(async (_input: unknown, subscriber: any) => {
+      for (const [messageId, delta] of [
+        ["a", "A"],
+        ["b", "B"],
+      ]) {
+        subscriber.onTextMessageStartEvent?.({
+          event: { type: "TEXT_MESSAGE_START", messageId },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", messageId, delta },
+        });
+      }
+      subscriber.onRunFinalized?.();
+    }),
+    abortRun: vi.fn(),
+  } as unknown as HttpAgent;
+  const { result } = renderHook(() =>
+    useAgUiRuntime({ agent, joinStrategy: "concat-content" }),
+  );
+
+  await act(async () => {
+    await result.current.thread.append({
+      role: "user",
+      content: [{ type: "text", text: "hi" }],
+    });
+  });
+
+  const assistants = result.current.thread
+    .getState()
+    .messages.filter((message) => message.role === "assistant");
+  expect(assistants).toHaveLength(1);
+  expect(assistants[0]?.content).toMatchObject([
+    { type: "text", text: "A" },
+    { type: "text", text: "B" },
+  ]);
+});
