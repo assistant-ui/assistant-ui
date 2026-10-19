@@ -29,6 +29,17 @@ export type ThreadTitleState = {
 };
 
 const waitingAutomatics = new WeakMap<ThreadTitleState, number>();
+const successorObservers = new WeakMap<
+  ThreadTitleState,
+  Set<(settled: Promise<boolean>) => void>
+>();
+
+function notifySuccessor(
+  state: ThreadTitleState,
+  settled: Promise<boolean>,
+): void {
+  for (const observe of successorObservers.get(state) ?? []) observe(settled);
+}
 
 export type ThreadTitleGenerationRun = {
   states: Map<string, ThreadTitleState>;
@@ -124,6 +135,7 @@ export function startThreadTitleRename(
   };
   state.pendingClaim = claim;
   state.inFlightClaims.add(claim);
+  notifySuccessor(state, settled);
   for (const generation of state.generations) {
     if (generation.order < claim.order) {
       generation.claim = claim;
@@ -281,6 +293,12 @@ function startThreadTitleGeneration(
   }
   state.latestGeneration = generation;
   state.generations.add(generation);
+  if (successorObservers.has(state)) {
+    notifySuccessor(
+      state,
+      persisted.then((title) => title !== undefined),
+    );
+  }
   return generation;
 }
 
@@ -384,23 +402,41 @@ export async function runThreadTitleGeneration(
 
   const writeBack = async (title: string, ownsTitle: () => boolean) => {
     const order = state.nextOrder;
-    const canReconcile = () =>
-      isLive() && state.nextOrder === order && ownsTitle();
+    const successors: Promise<boolean>[] = [];
+    const observe = (settled: Promise<boolean>) => successors.push(settled);
+    let observers = successorObservers.get(state);
+    if (observers === undefined) {
+      observers = new Set();
+      successorObservers.set(state, observers);
+    }
+    observers.add(observe);
     try {
       await rename(title);
+      persistedTitle = title;
     } catch (error) {
       try {
-        if (canReconcile()) {
+        while (isLive()) {
+          const count = successors.length;
+          const results = await Promise.all(successors);
+          if (successors.length !== count) continue;
+          if (results.some(Boolean)) break;
+          if (count === 0 && (state.nextOrder !== order || !ownsTitle())) break;
+          const readOrder = state.nextOrder;
           const serverTitle = await run.readTitle();
-          if (canReconcile()) {
-            persistedTitle = serverTitle;
-            await applyTitle(serverTitle);
-          }
+          if (!isLive()) break;
+          if (state.nextOrder !== readOrder || successors.length !== count)
+            continue;
+          if (count === 0 && !ownsTitle()) break;
+          persistedTitle = serverTitle;
+          await applyTitle(serverTitle);
+          break;
         }
       } catch {}
       throw error;
+    } finally {
+      observers.delete(observe);
+      if (observers.size === 0) successorObservers.delete(state);
     }
-    persistedTitle = title;
   };
 
   const settleClaim = async (claim: ThreadTitleClaim) => {

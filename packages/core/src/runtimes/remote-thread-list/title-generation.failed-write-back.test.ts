@@ -222,9 +222,9 @@ describe.each(["reassertion", "repair"] as const)(
         const claim = startThreadTitleRename(server.states, "t1", "Newer");
         server.listTitle = "Newer";
         release.resolve();
-        await rejected;
         server.serverTitle = "Newer";
         finishThreadTitleRename(server.states, "t1", claim, true);
+        await rejected;
       } else if (successor === "removed thread") {
         clearThreadTitleState(server.states, "t1");
         server.manualRename("Newer");
@@ -246,9 +246,9 @@ describe.each(["reassertion", "repair"] as const)(
         );
         await applied.promise;
         release.resolve();
-        await rejected;
         close.resolve();
         await newer;
+        await rejected;
       }
 
       expect(server.listTitle).toBe("Newer");
@@ -259,7 +259,7 @@ describe.each(["reassertion", "repair"] as const)(
     });
 
     it.each(["write", "read"])(
-      "does not reclaim ownership when a newer generation rejects during the %s",
+      "reconciles when a newer generation rejects during the %s",
       async (phase) => {
         const server = fakeServer();
         const error = new Error("write-back failed");
@@ -296,13 +296,86 @@ describe.each(["reassertion", "repair"] as const)(
         release.resolve();
         await rejected;
 
-        expect(server.listTitle).toBe("Winner");
+        expect(server.listTitle).toBe("Generated");
+        expect(server.listTitle).toBe(server.serverTitle);
         expect(server.rename).toHaveBeenCalledExactlyOnceWith("Winner");
         expect(server.readTitle).toHaveBeenCalledTimes(
-          phase === "read" ? 1 : 0,
+          phase === "read" ? 2 : 1,
         );
       },
     );
+
+    it("reconciles after a newer explicit generation rejects during the failed write", async () => {
+      const server = fakeServer();
+      const error = new Error("write-back failed");
+      const successorError = new Error("generation failed");
+      const started = deferred();
+      const releaseWrite = deferred();
+      const failed = deferred();
+      const releaseSuccessor = deferred();
+      server.rename.mockImplementation(async () => {
+        server.serverTitle = "Server title";
+        started.resolve();
+        await releaseWrite.promise;
+        failed.resolve();
+        throw error;
+      });
+      const { generation, persisted } = await startWriteBack(server, path);
+      const rejected = expect(generation).rejects.toBe(error);
+      await started.promise;
+      const successor = runThreadTitleGeneration({
+        states: server.states,
+        threadId: "t1",
+        automatic: false,
+        generate: async () => {
+          await releaseSuccessor.promise;
+          throw successorError;
+        },
+        rename: server.rename,
+        readTitle: server.readTitle,
+        applyTitle: server.applyTitle,
+      });
+      releaseWrite.resolve();
+      await failed.promise;
+      releaseSuccessor.resolve();
+      await expect(successor).rejects.toBe(successorError);
+      await rejected;
+
+      expect(server.listTitle).toBe("Server title");
+      expect(server.listTitle).toBe(server.serverTitle);
+      await expect(persisted).resolves.toBe("Server title");
+      expect(server.readTitle).toHaveBeenCalledOnce();
+    });
+
+    it("reconciles after a newer rename is rejected during the failed write", async () => {
+      const server = fakeServer();
+      const error = new Error("write-back failed");
+      const started = deferred();
+      const releaseWrite = deferred();
+      const failed = deferred();
+      server.rename.mockImplementation(async () => {
+        server.serverTitle = "Server title";
+        started.resolve();
+        await releaseWrite.promise;
+        failed.resolve();
+        throw error;
+      });
+      const { generation, persisted } = await startWriteBack(server, path);
+      const rejected = expect(generation).rejects.toBe(error);
+      await started.promise;
+      const claim = startThreadTitleRename(server.states, "t1", "Newer");
+      server.listTitle = "Newer";
+      releaseWrite.resolve();
+      await failed.promise;
+      server.listTitle = "Winner";
+      finishThreadTitleRename(server.states, "t1", claim, false);
+      await rejected;
+
+      expect(server.listTitle).toBe("Server title");
+      expect(server.listTitle).toBe(server.serverTitle);
+      await expect(persisted).resolves.toBe("Server title");
+      expect(server.readTitle).toHaveBeenCalledOnce();
+    });
   },
 );
 
