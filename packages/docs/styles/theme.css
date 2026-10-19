@@ -419,6 +419,22 @@ html.dark body:has(.aui-docs) {
   line-height: 1.375;
 }
 
+.aui-docs
+  :is(#nd-toc, [data-toc-popover-content])
+  a[data-active]
+  > svg.absolute
+  > :is(line, path),
+.aui-docs
+  :is(#nd-toc, [data-toc-popover-content])
+  svg[style*="--track-top"]
+  > path,
+.aui-docs
+  :is(#nd-toc, [data-toc-popover-content])
+  svg[style*="--track-top"]
+  + div[style*="offset-path"] {
+  display: none;
+}
+
 .aui-docs #toc-title {
   gap: 0;
   font-size: 0.75rem;
@@ -606,9 +622,9 @@ html.dark body:has(.aui-docs) {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
-  padding: 0;
+  padding: 0 !important;
   color: var(--color-fd-muted-foreground);
-  font-size: 0.75rem;
+  font-size: 0.75rem !important;
   line-height: 1rem;
   cursor: pointer;
   transition: color 150ms;
