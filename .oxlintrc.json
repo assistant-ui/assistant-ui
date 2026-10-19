@@ -73,7 +73,10 @@
   ],
   "overrides": [
     {
-      "files": ["packages/react-langchain/**/*.test.{ts,tsx}"],
+      "files": [
+        "packages/flue/**/*.test.{ts,tsx}",
+        "packages/react-langchain/**/*.test.{ts,tsx}"
+      ],
       "plugins": ["typescript", "react", "import", "oxc", "vitest"],
       "rules": {
         "vitest/expect-expect": "off",
