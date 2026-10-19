@@ -5,6 +5,7 @@ import path from "node:path";
 import { diffApiSurface, diffExportsMap } from "./diff-api-surface.mjs";
 import { isExecutedAsMain } from "./lib/main.mjs";
 import { loadReviewPolicy, tierLabel } from "./lib/review-policy.mjs";
+import { isCoverageConfig } from "./lib/review-coverage-advice.mjs";
 import { advise, sectionText } from "./lib/review-tier-advice.mjs";
 import { evaluateRequirements } from "./lib/review-tier-requirements.mjs";
 import { computeTier } from "./lib/review-tier-signals.mjs";
@@ -323,6 +324,7 @@ export async function gatherPullRequest(
     `${repo}/compare/${node.baseRefOid}...${node.headRefOid}`,
   );
   const mergeBase = comparison.data.merge_base_commit.sha;
+  const coverageConfigs = [];
   const apiSurface = [];
   const manifests = [];
   const invalidManifests = [];
@@ -336,15 +338,44 @@ export async function gatherPullRequest(
   );
   for (const file of paths) {
     const isSurface = /^api-surface\/[^/]+\.ts$/.test(file);
-    if (!isSurface && !/^packages\/[^/]+\/package\.json$/.test(file)) continue;
+    const isCoverage = isCoverageConfig(file);
+    if (
+      isCoverage &&
+      files.some(
+        (changed) =>
+          changed.status === "renamed" &&
+          changed.previousPath === file &&
+          isCoverageConfig(changed.path),
+      )
+    )
+      continue;
+    const renamedConfig =
+      isCoverage &&
+      files.find(
+        (changed) =>
+          changed.status === "renamed" &&
+          changed.path === file &&
+          isCoverageConfig(changed.previousPath),
+      );
+    if (
+      !isSurface &&
+      !isCoverage &&
+      !/^packages\/[^/]+\/package\.json$/.test(file)
+    )
+      continue;
     const contents = `${repo}/contents/${file.split("/").map(encodeURIComponent).join("/")}`;
+    const baseContents = renamedConfig
+      ? `${repo}/contents/${renamedConfig.previousPath.split("/").map(encodeURIComponent).join("/")}`
+      : contents;
     const baseText = await client.raw(
-      `${contents}?ref=${encodeURIComponent(mergeBase)}`,
+      `${baseContents}?ref=${encodeURIComponent(mergeBase)}`,
     );
     const headText = await client.raw(
       `${contents}?ref=${encodeURIComponent(node.headRefOid)}`,
     );
-    if (isSurface) {
+    if (isCoverage) {
+      coverageConfigs.push({ path: file, base: baseText, head: headText });
+    } else if (isSurface) {
       apiSurface.push({ file, diff: diffApiSurface(baseText, headText) });
     } else {
       let base;
@@ -408,6 +439,7 @@ export async function gatherPullRequest(
       authorIsBot: node.author?.__typename === "Bot",
       hasLinkedIssue: linkedIssues.length > 0,
       linkedIssues: adviceIssues,
+      coverageConfigs,
     },
     signalsInput: {
       title: node.title,

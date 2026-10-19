@@ -1,3 +1,4 @@
+import { coverageAdvice } from "./review-coverage-advice.mjs";
 import { parseTitleType } from "./review-policy.mjs";
 
 // The text under a `## <heading>` of a description whose HTML comments are
@@ -14,7 +15,15 @@ const verifiedTypes = ["fix", "feat", "perf", "refactor"];
 // Advice never blocks a merge. It names what a reviewer would otherwise have
 // to find out for themselves.
 export function advise(
-  { number, title, body, authorIsBot, hasLinkedIssue, linkedIssues },
+  {
+    number,
+    title,
+    body,
+    authorIsBot,
+    hasLinkedIssue,
+    linkedIssues,
+    coverageConfigs = [],
+  },
   policy,
 ) {
   const type = parseTitleType(policy, title);
@@ -52,5 +61,6 @@ export function advise(
     lines.push(
       "the description has no AI use text; name the tools that wrote code and how their output was verified, or write None",
     );
+  lines.push(...coverageConfigs.flatMap(coverageAdvice));
   return lines;
 }
