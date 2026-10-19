@@ -11,6 +11,7 @@ import type {
   ThreadHistoryAdapter,
   ThreadMessage,
 } from "@assistant-ui/core";
+import type { JoinStrategy } from "@assistant-ui/core/react";
 import type { AbstractAgent, Context, Message } from "@ag-ui/client";
 import type { Logger } from "./logger";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
@@ -82,6 +83,7 @@ export type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
   agent: AbstractAgent;
   logger?: Partial<Logger>;
   showThinking?: boolean;
+  joinStrategy?: JoinStrategy;
   /**
    * Return context entries for each run. `messages` is the exact AG-UI
    * transcript sent in the run input, after transcript selection and message

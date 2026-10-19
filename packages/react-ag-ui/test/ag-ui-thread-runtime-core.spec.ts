@@ -32,6 +32,284 @@ const createAppendMessage = (
   startRun: overrides.startRun ?? true,
 });
 
+describe("joinStrategy", () => {
+  const runSequence = async (
+    joinStrategy?: UseAgUiRuntimeOptions["joinStrategy"],
+    withSnapshot = false,
+    snapshotOmitsFirst = false,
+  ) => {
+    let atSnapshot: readonly ThreadMessage[] = [];
+    let core: AgUiThreadRuntimeCore;
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber: AgentSubscriber) => {
+        const params = createAgentSubscriberParams();
+        for (const [id, text] of [
+          ["a", "A"],
+          ["b", ""],
+          ["c", "C"],
+        ] as const) {
+          subscriber.onTextMessageStartEvent?.({
+            event: {
+              type: EventType.TEXT_MESSAGE_START,
+              messageId: id,
+              role: "assistant",
+            },
+            ...params,
+          });
+          if (text) {
+            subscriber.onTextMessageContentEvent?.({
+              event: {
+                type: EventType.TEXT_MESSAGE_CONTENT,
+                messageId: id,
+                delta: text,
+              },
+              textMessageBuffer: text,
+              ...params,
+            });
+          }
+          if (id === "a" || id === "b") {
+            for (const callId of id === "a" ? ["t1", "t2"] : ["t3"]) {
+              notifyToolCallStarted(subscriber, callId, "lookup");
+              notifyToolCallEnded(subscriber, callId, "lookup");
+              subscriber.onToolCallResultEvent?.({
+                event: {
+                  type: EventType.TOOL_CALL_RESULT,
+                  messageId: `result-${callId}`,
+                  toolCallId: callId,
+                  content: JSON.stringify({ ok: callId }),
+                  role: "tool",
+                },
+                ...params,
+              });
+            }
+          }
+          if (id === "a") {
+            subscriber.onReasoningMessageStartEvent?.({
+              event: {
+                type: EventType.REASONING_MESSAGE_START,
+                messageId: "r1",
+                role: "reasoning",
+              },
+              ...params,
+            });
+            subscriber.onReasoningMessageContentEvent?.({
+              event: {
+                type: EventType.REASONING_MESSAGE_CONTENT,
+                messageId: "r1",
+                delta: "after tools",
+              },
+              reasoningMessageBuffer: "after tools",
+              ...params,
+            });
+            subscriber.onReasoningMessageEndEvent?.({
+              event: { type: EventType.REASONING_MESSAGE_END, messageId: "r1" },
+              reasoningMessageBuffer: "after tools",
+              ...params,
+            });
+          }
+          subscriber.onTextMessageEndEvent?.({
+            event: { type: EventType.TEXT_MESSAGE_END, messageId: id },
+            textMessageBuffer: text,
+            ...params,
+          });
+        }
+        if (withSnapshot) {
+          subscriber.onMessagesSnapshotEvent?.({
+            event: {
+              type: EventType.MESSAGES_SNAPSHOT,
+              messages: [
+                { id: "u", role: "user", content: "hi" },
+                ...(!snapshotOmitsFirst
+                  ? [
+                      {
+                        id: "a",
+                        role: "assistant" as const,
+                        content: "A",
+                        toolCalls: ["t1", "t2"].map((id) => ({
+                          id,
+                          type: "function" as const,
+                          function: { name: "lookup", arguments: "{}" },
+                        })),
+                      },
+                      {
+                        id: "result-t1",
+                        role: "tool" as const,
+                        toolCallId: "t1",
+                        content: '{"ok":"t1"}',
+                      },
+                      {
+                        id: "result-t2",
+                        role: "tool" as const,
+                        toolCallId: "t2",
+                        content: '{"ok":"t2"}',
+                      },
+                    ]
+                  : []),
+                {
+                  id: "b",
+                  role: "assistant",
+                  content: "",
+                  toolCalls: [
+                    {
+                      id: "t3",
+                      type: "function" as const,
+                      function: { name: "lookup", arguments: "{}" },
+                    },
+                  ],
+                },
+                {
+                  id: "result-t3",
+                  role: "tool",
+                  toolCallId: "t3",
+                  content: '{"ok":"t3"}',
+                },
+                { id: "c", role: "assistant", content: "C" },
+              ],
+            },
+            ...params,
+          });
+          atSnapshot = core.getMessages();
+        }
+        notifyRunFinalized(subscriber);
+      }),
+    } as unknown as HttpAgent;
+    core = createCore(agent, { joinStrategy });
+    await core.append(createAppendMessage());
+    return { messages: core.getMessages(), atSnapshot };
+  };
+
+  it.each([undefined, "none"] as const)(
+    "keeps three assistant messages with joinStrategy %s",
+    async (joinStrategy) => {
+      const { messages } = await runSequence(joinStrategy);
+      expect(
+        messages.filter((message) => message.role === "assistant"),
+      ).toHaveLength(3);
+    },
+  );
+
+  it("joins text, tools, and reasoning in event order", async () => {
+    const { messages } = await runSequence("concat-content");
+    const assistants = messages.filter(
+      (message) => message.role === "assistant",
+    );
+    expect(assistants).toHaveLength(1);
+    expect(
+      assistants[0]?.content.map((part) =>
+        part.type === "text"
+          ? `text:${part.text}`
+          : part.type === "tool-call"
+            ? `tool:${part.toolCallId}`
+            : part.type === "reasoning"
+              ? `reasoning:${part.text}`
+              : part.type,
+      ),
+    ).toEqual([
+      "text:A",
+      "tool:t1",
+      "tool:t2",
+      "reasoning:after tools",
+      "tool:t3",
+      "text:C",
+    ]);
+  });
+
+  it("keeps the run joined when a messages snapshot repeats its assistant records", async () => {
+    const { messages, atSnapshot } = await runSequence("concat-content", true);
+    for (const visible of [atSnapshot, messages]) {
+      const assistants = visible.filter(
+        (message) => message.role === "assistant",
+      );
+      expect(assistants).toHaveLength(1);
+      expect(
+        assistants[0]?.content.map((part) =>
+          part.type === "text"
+            ? `text:${part.text}`
+            : part.type === "tool-call"
+              ? `tool:${part.toolCallId}`
+              : part.type === "reasoning"
+                ? `reasoning:${part.text}`
+                : part.type,
+        ),
+      ).toEqual([
+        "text:A",
+        "tool:t1",
+        "tool:t2",
+        "reasoning:after tools",
+        "tool:t3",
+        "text:C",
+      ]);
+    }
+  });
+
+  it("keeps streamed content when a snapshot omits its message id", async () => {
+    const { messages, atSnapshot } = await runSequence(
+      "concat-content",
+      true,
+      true,
+    );
+    for (const visible of [atSnapshot, messages]) {
+      const assistants = visible.filter(
+        (message) => message.role === "assistant",
+      );
+      expect(assistants).toHaveLength(1);
+      expect(
+        assistants[0]?.content.map((part) =>
+          part.type === "text"
+            ? `text:${part.text}`
+            : part.type === "tool-call"
+              ? `tool:${part.toolCallId}`
+              : part.type === "reasoning"
+                ? `reasoning:${part.text}`
+                : part.type,
+        ),
+      ).toEqual([
+        "text:A",
+        "tool:t1",
+        "tool:t2",
+        "reasoning:after tools",
+        "tool:t3",
+        "text:C",
+      ]);
+    }
+  });
+
+  it("joins snapshot-only assistants after the current user without folding earlier turns", async () => {
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber: AgentSubscriber) => {
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: EventType.MESSAGES_SNAPSHOT,
+            messages: [
+              { id: "old-user", role: "user", content: "earlier" },
+              { id: "old-assistant", role: "assistant", content: "previous" },
+              { id: "new-user", role: "user", content: "hi" },
+              { id: "a", role: "assistant", content: "A" },
+              { id: "b", role: "assistant", content: "B" },
+            ],
+          },
+          ...createAgentSubscriberParams(),
+        });
+        notifyRunFinalized(subscriber);
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent, { joinStrategy: "concat-content" });
+
+    await core.append(createAppendMessage());
+
+    const assistants = core
+      .getMessages()
+      .filter((message) => message.role === "assistant");
+    expect(assistants.map((message) => message.content)).toEqual([
+      [{ type: "text", text: "previous" }],
+      [
+        { type: "text", text: "A" },
+        { type: "text", text: "B" },
+      ],
+    ]);
+  });
+});
+
 const noopLogger = makeLogger();
 
 type AgentSubscriberParams = Parameters<
@@ -132,6 +410,7 @@ const createCore = (
     autoCancelPendingToolCalls?: boolean;
     getRunContext?: UseAgUiRuntimeOptions["getRunContext"];
     resumeTranscript?: AgUiResumeTranscript;
+    joinStrategy?: UseAgUiRuntimeOptions["joinStrategy"];
   } = {},
 ) =>
   new AgUiThreadRuntimeCore({
@@ -140,6 +419,7 @@ const createCore = (
     showThinking: true,
     getRunContext: hooks.getRunContext,
     resumeTranscript: hooks.resumeTranscript,
+    joinStrategy: hooks.joinStrategy,
     autoCancelPendingToolCalls: hooks.autoCancelPendingToolCalls,
     ...(hooks.onError ? { onError: hooks.onError } : {}),
     ...(hooks.onCancel ? { onCancel: hooks.onCancel } : {}),

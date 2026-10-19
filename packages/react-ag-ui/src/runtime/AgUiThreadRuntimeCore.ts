@@ -112,6 +112,7 @@ type CoreOptions = {
   agent: AbstractAgent;
   logger: Logger;
   showThinking: boolean;
+  joinStrategy?: UseAgUiRuntimeOptions["joinStrategy"];
   getRunContext?: UseAgUiRuntimeOptions["getRunContext"];
   resumeTranscript?: AgUiResumeTranscript | undefined;
   autoCancelPendingToolCalls?: boolean | undefined;
@@ -158,6 +159,7 @@ export class AgUiThreadRuntimeCore {
   private agent: AbstractAgent;
   private logger: Logger;
   private showThinking: boolean;
+  private joinStrategy: UseAgUiRuntimeOptions["joinStrategy"];
   private getRunContext: UseAgUiRuntimeOptions["getRunContext"];
   private resumeTranscript: AgUiResumeTranscript;
   private autoCancelPendingToolCalls: boolean | undefined;
@@ -218,6 +220,7 @@ export class AgUiThreadRuntimeCore {
     this.agent = options.agent;
     this.logger = options.logger;
     this.showThinking = options.showThinking;
+    this.joinStrategy = options.joinStrategy;
     this.getRunContext = options.getRunContext;
     this.resumeTranscript = options.resumeTranscript ?? "full";
     this.autoCancelPendingToolCalls = options.autoCancelPendingToolCalls;
@@ -249,6 +252,7 @@ export class AgUiThreadRuntimeCore {
     this.agent = options.agent;
     this.logger = options.logger;
     this.showThinking = options.showThinking;
+    this.joinStrategy = options.joinStrategy;
     this.getRunContext = options.getRunContext;
     this.resumeTranscript = options.resumeTranscript ?? "full";
     this.autoCancelPendingToolCalls = options.autoCancelPendingToolCalls;
@@ -1297,6 +1301,8 @@ export class AgUiThreadRuntimeCore {
     const runStartMessageIds = new Set(
       this.getMessageRepository().messages.map(({ message }) => message.id),
     );
+    const joinStrategy = this.joinStrategy;
+    const hasRunUserBoundary = parent?.message.role === "user" && !resume;
 
     let pendingError: Error | null = null;
     const assistantParentId = parent ? parentId : this.session.headId;
@@ -1392,6 +1398,7 @@ export class AgUiThreadRuntimeCore {
     const abortSignal = abortController.signal;
     const aggregator = new RunAggregator({
       showThinking: this.showThinking,
+      joinStrategy,
       logger: this.logger,
       emit: applyUpdate,
       onServerMessageId: (serverId) => {
@@ -1407,6 +1414,9 @@ export class AgUiThreadRuntimeCore {
         aggregator,
         event,
         assistantMessageId,
+        joinStrategy,
+        runStartMessageIds,
+        hasRunUserBoundary,
       );
       if (event.type === "MESSAGES_SNAPSHOT") {
         assistantMessageId = nextAssistantMessageId;
@@ -2041,6 +2051,9 @@ export class AgUiThreadRuntimeCore {
     aggregator: RunAggregator,
     event: AgUiEvent,
     activeAssistantId: string | undefined,
+    joinStrategy: UseAgUiRuntimeOptions["joinStrategy"],
+    runStartMessageIds: ReadonlySet<string>,
+    hasRunUserBoundary: boolean,
   ): string | undefined {
     switch (event.type) {
       case "STATE_SNAPSHOT": {
@@ -2074,7 +2087,13 @@ export class AgUiThreadRuntimeCore {
         const hasActiveText =
           activeAssistant?.role === "assistant" &&
           activeAssistant.content.some((part) => part.type === "text");
-        this.importMessagesSnapshot(event.messages, activeAssistantId);
+        this.importMessagesSnapshot(
+          event.messages,
+          activeAssistantId,
+          joinStrategy,
+          runStartMessageIds,
+          hasRunUserBoundary,
+        );
         const headId = this.session.headId;
         if (hasActiveText && headId !== previousHeadId) {
           const head =
@@ -2283,6 +2302,9 @@ export class AgUiThreadRuntimeCore {
   private importMessagesSnapshot(
     rawMessages: readonly unknown[],
     activeAssistantId: string | undefined,
+    joinStrategy: UseAgUiRuntimeOptions["joinStrategy"],
+    runStartMessageIds: ReadonlySet<string>,
+    hasRunUserBoundary: boolean,
   ) {
     try {
       const activeAssistantItem = activeAssistantId
@@ -2335,6 +2357,101 @@ export class AgUiThreadRuntimeCore {
               snapshotHasActivity,
             ),
           };
+        }
+      }
+      if (joinStrategy === "concat-content") {
+        const activeIndex = converted.findIndex(
+          (message) => message.id === activeAssistantId,
+        );
+        const lastKnownIndex = converted.findLastIndex((message) =>
+          runStartMessageIds.has(message.id),
+        );
+        const lastUserIndex = hasRunUserBoundary
+          ? converted.findLastIndex((message) => message.role === "user")
+          : -1;
+        const startIndex =
+          activeIndex >= 0
+            ? activeIndex
+            : lastKnownIndex >= 0 || lastUserIndex >= 0
+              ? Math.max(lastKnownIndex, lastUserIndex) + 1
+              : -1;
+        if (startIndex >= 0 && converted[startIndex]?.role === "assistant") {
+          let endIndex = startIndex + 1;
+          while (converted[endIndex]?.role === "assistant") endIndex++;
+          const runMessages = converted.slice(
+            startIndex,
+            endIndex,
+          ) as ThreadAssistantMessage[];
+          const includesStreamedPrefix =
+            activeIndex < 0 &&
+            activeAssistant?.content.some((part) => part.type !== "data");
+          if (includesStreamedPrefix && activeAssistant) {
+            runMessages.unshift(activeAssistant);
+          }
+          if (runMessages.length > 1) {
+            const [first, ...rest] = runMessages;
+            let content = runMessages.flatMap((message) => message.content);
+            if (includesStreamedPrefix) {
+              content = [...first!.content];
+              let cursor = 0;
+              const keyOf = (part: (typeof content)[number]) =>
+                part.type === "tool-call"
+                  ? `tool:${part.toolCallId}`
+                  : part.type === "text" || part.type === "reasoning"
+                    ? `${part.type}:${part.text}`
+                    : undefined;
+              for (const message of rest) {
+                for (const part of message.content) {
+                  const key = keyOf(part);
+                  const match =
+                    key === undefined
+                      ? -1
+                      : content.findIndex(
+                          (previous, index) =>
+                            index >= cursor && keyOf(previous) === key,
+                        );
+                  if (match < 0) {
+                    content.push(part);
+                    cursor = content.length;
+                  } else {
+                    if (part.type === "tool-call") {
+                      content[match] = this.preserveToolResults(
+                        [content[match]!],
+                        [part],
+                      )[0]!;
+                    }
+                    cursor = match + 1;
+                  }
+                }
+              }
+            }
+            converted.splice(startIndex, endIndex - startIndex, {
+              ...first!,
+              content,
+              status: rest.at(-1)!.status,
+              metadata: rest.reduce(
+                (metadata, message) => ({
+                  ...metadata,
+                  ...message.metadata,
+                  unstable_state: message.metadata.unstable_state,
+                  unstable_annotations: [
+                    ...metadata.unstable_annotations,
+                    ...message.metadata.unstable_annotations,
+                  ],
+                  unstable_data: [
+                    ...metadata.unstable_data,
+                    ...message.metadata.unstable_data,
+                  ],
+                  steps: [...metadata.steps, ...message.metadata.steps],
+                  custom: mergeAgUiNamespace(
+                    metadata.custom,
+                    message.metadata.custom,
+                  ),
+                }),
+                first!.metadata,
+              ),
+            });
+          }
         }
       }
       const snapshotContainsActiveAssistant = converted.some(

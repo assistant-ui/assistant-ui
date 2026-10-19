@@ -14,6 +14,7 @@ Reference for the runtime's API surface. Start with [quickstart](/docs/runtimes/
 | `agent` | `AbstractAgent` | An AG-UI client agent from `@ag-ui/client`, such as `HttpAgent`. Required. |
 | `logger` | `Partial<Logger>` | Optional logger overrides. The runtime logs event-parser warnings and run lifecycle events. |
 | `showThinking` | `boolean` | Whether to render `THINKING_*` and `REASONING_*` events as visible reasoning. Defaults to `true`. |
+| `joinStrategy` | `"concat-content" \| "none"` | With `"concat-content"`, join assistant content from one run into a single message, including across `MESSAGES_SNAPSHOT` events. Defaults to `"none"`, which starts a new message for each new `TEXT_MESSAGE_START` id. |
 | `getRunContext` | `(input: { messages: readonly Message[]; runConfig: RunConfig \| undefined }) => readonly Context[]` | Return AG-UI context entries for each run using the messages and run config sent with that run. On resumes, `messages` follows `resumeTranscript`. |
 | `autoCancelPendingToolCalls` | `boolean` | Cancel unresolved client-side tool calls automatically when the user sends, edits, or reloads a message. Defaults to `true`. See [below](#auto-cancelling-pending-tool-calls). |
 | `resumeTranscript` | `"full" \| "appended"` | What `messages` carries on a run that also carries `resume`. Defaults to `"full"`. See [below](#the-transcript-on-a-resume-run). |

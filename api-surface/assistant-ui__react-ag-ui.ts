@@ -634,6 +634,8 @@ type ImageMessagePart = {
   readonly providerMetadata?: PartProviderMetadata;
 };
 
+type JoinStrategy = "concat-content" | "none";
+
 type LanguageModelConfig = {
   apiKey?: string;
   baseUrl?: string;
@@ -1749,6 +1751,7 @@ type UseAgUiRuntimeOptions = ExternalStoreSharedOptions & {
   agent: AbstractAgent;
   logger?: Partial<Logger>;
   showThinking?: boolean;
+  joinStrategy?: JoinStrategy;
   getRunContext?: ((input: {
     messages: readonly Message[];
     runConfig: RunConfig | undefined;
