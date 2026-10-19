@@ -44,7 +44,7 @@ Composable runtime and UI primitives for AI chat in React, Vue, React Native, an
 
 ### Tests
 
-- Colocate vitest tests beside the module and import it by relative path, never by package name.
+- Colocate Vitest tests beside the module and import it by relative path, never by package name; use [test-quality](.claude/skills/test-quality/SKILL.md) for behavior changes and tests.
 - Mock with `vi.hoisted` and spread `...await importOriginal()`; never use `toMatchSnapshot` or add `vi.clearAllMocks()` to hooks, because `clearMocks` already clears call history.
 - `pnpm typecheck` covers test files, so a type error in a test fails the PR.
 - Check a workspace that ships `.vue` or `.svelte` components with `vue-tsc` or `svelte-check` (`typescript` aliased to `npm:@typescript/typescript6`), never plain `tsc`, which skips component bodies.
