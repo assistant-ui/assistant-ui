@@ -29,6 +29,7 @@ import { ThreadPrimitiveMessages } from "./ThreadMessages";
 import { ThreadPrimitiveRoot } from "./ThreadRoot";
 import { ThreadPrimitiveScrollToBottom } from "./ThreadScrollToBottom";
 import { ThreadPrimitiveViewport } from "./ThreadViewport";
+import { ThreadPrimitiveViewportFooter } from "./ThreadViewportFooter";
 import {
   ExportedMessageRepository,
   useExternalStoreRuntime,
@@ -324,6 +325,95 @@ const DelayedThread = ({
     />
   );
 };
+
+const measureFooter = (element: HTMLDivElement | null) => {
+  if (!element) return;
+  Object.defineProperty(element, "offsetHeight", {
+    configurable: true,
+    get: () => Number.parseFloat(element.style.height),
+  });
+};
+
+const FooterInsetState = () => {
+  const inset = useThreadViewport((s) => s.height.inset);
+  return <output data-testid="footer-inset">{inset}</output>;
+};
+
+const FooterThread = ({
+  footerHeight,
+  autoScroll = false,
+}: {
+  footerHeight: number | null;
+  autoScroll?: boolean;
+}) => (
+  <SyncRuntimeProvider>
+    <ThreadPrimitiveViewport
+      data-testid="viewport"
+      autoScroll={autoScroll}
+      scrollToBottomOnInitialize={false}
+    >
+      {messages.map((_, index) => (
+        <div key={index} data-testid="thread-message" />
+      ))}
+      {footerHeight !== null && (
+        <ThreadPrimitiveViewportFooter
+          ref={measureFooter}
+          data-testid="footer"
+          style={{ height: footerHeight }}
+        />
+      )}
+      <AtBottom />
+      <FooterInsetState />
+    </ThreadPrimitiveViewport>
+  </SyncRuntimeProvider>
+);
+
+describe("viewport footer insets", () => {
+  it("counts a footer registered before viewport attachment toward at-bottom", () => {
+    render(<FooterThread footerHeight={40} />);
+
+    act(() => {
+      getViewport().scrollTop = 500;
+      fireEvent.scroll(getViewport());
+    });
+
+    expect(screen.getByTestId("footer-inset").textContent).toBe("40");
+    expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
+  });
+
+  it("follows a pinned viewport when its footer grows without a content resize", () => {
+    const view = render(<FooterThread footerHeight={40} autoScroll />);
+    act(notifyResizeObservers);
+
+    act(() => {
+      getViewport().scrollTop = 500;
+      fireEvent.scroll(getViewport());
+    });
+
+    view.rerender(<FooterThread footerHeight={80} autoScroll />);
+    act(() => notifyResizeOf(screen.getByTestId("footer")));
+
+    expect(getViewport().scrollTop).toBe(540);
+    expect(screen.getByTestId("footer-inset").textContent).toBe("80");
+    expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
+  });
+
+  it("unregisters an unmounted footer and recomputes at-bottom", () => {
+    const view = render(<FooterThread footerHeight={40} />);
+
+    act(() => {
+      getViewport().scrollTop = 500;
+      fireEvent.scroll(getViewport());
+    });
+    expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
+
+    view.rerender(<FooterThread footerHeight={null} />);
+
+    expect(screen.getByTestId("footer-inset").textContent).toBe("0");
+    expect(screen.getByTestId("is-at-bottom").textContent).toBe("false");
+    expect(getViewport().scrollTop).toBe(500);
+  });
+});
 
 describe("useThreadViewportAutoScroll", () => {
   it("keeps viewport listeners and observers across rerenders", () => {
