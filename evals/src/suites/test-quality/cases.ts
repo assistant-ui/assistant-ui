@@ -29,8 +29,7 @@ const wire = `export function encode(message) {
 }
 export function decode(encoded) {
   const data = JSON.parse(encoded);
-  if (data.format !== "aui/v1") throw new Error("Unsupported format");
-  return data.message;
+  return data.format === "aui/v1" ? data.message : undefined;
 }
 `;
 const wireTest = `${imports}import { encode, decode } from "./runtime.mjs";

@@ -12,6 +12,18 @@ for (const c of cases) {
   });
 }
 
+test("an independent decoder fixture detects a persisted format change", () => {
+  const c = cases.find((c) => c.id === "independent-wire-fixture")!;
+  const artifact = `import assert from "node:assert/strict";
+import test from "node:test";
+import { decode } from "./runtime.mjs";
+test("stored v1 messages stay readable", () => {
+  assert.deepEqual(decode('{"format":"aui/v1","message":{"text":"hello"}}'), { text: "hello" });
+});
+`;
+  assert.equal(verify(c, artifact).pass, true);
+});
+
 test("broken imports are not regression evidence", () => {
   const verdict = verify(cases[0]!, 'import "./missing.mjs";');
   assert.equal(verdict.pass, false);
