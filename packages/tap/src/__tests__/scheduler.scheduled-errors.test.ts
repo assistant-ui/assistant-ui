@@ -110,56 +110,37 @@ describe("scheduled error handlers", () => {
     root.unmount();
   });
 
-  it("sends unclaimed root errors to the global handler", async () => {
-    const { createTapRoot, setTapErrorHandler, useState } = await setup();
-    const error = new Error("unclaimed");
-    const onError = vi.fn();
-    setTapErrorHandler(onError);
-    let update!: (value: number) => void;
-    const root = createTapRoot(function Root() {
-      const [count, setCount] = useState(0);
-      update = setCount;
-      if (count === 1) throw error;
-      return count;
-    });
-
-    update(1);
-    expect(() => FakeMessageChannel.instance.port1.deliver()).not.toThrow();
-    expect(onError).toHaveBeenCalledExactlyOnceWith(error);
-    setTapErrorHandler(undefined);
-    root.unmount();
-  });
-
-  it("delivers two unclaimed createTapRoot task errors individually and unwrapped", async () => {
-    const { createTapRoot, setTapErrorHandler, useState } = await setup();
+  it("delivers two createTapRoot task errors to their own handlers", async () => {
+    const { createTapRoot, useState } = await setup();
     const errors = [
       new Error("first task failed"),
       new Error("second task failed"),
     ];
-    const onError = vi.fn();
-    setTapErrorHandler(onError);
+    const onErrors = errors.map(() => vi.fn());
     const updates: ((value: number) => void)[] = [];
-    const roots = errors.map((error) =>
-      createTapRoot(function Root() {
-        const [count, setCount] = useState(0);
-        updates.push(setCount);
-        if (count === 1) throw error;
-        return count;
-      }),
+    const roots = errors.map((error, index) =>
+      createTapRoot(
+        function Root() {
+          const [count, setCount] = useState(0);
+          updates.push(setCount);
+          if (count === 1) throw error;
+          return count;
+        },
+        { onError: onErrors[index]! },
+      ),
     );
 
     for (const update of updates) update(1);
     expect(() => FakeMessageChannel.instance.port1.deliver()).not.toThrow();
-    expect(onError).toHaveBeenCalledTimes(2);
-    expect(onError.mock.calls[0]?.[0]).toBe(errors[0]);
-    expect(onError.mock.calls[1]?.[0]).toBe(errors[1]);
+    expect(onErrors[0]).toHaveBeenCalledExactlyOnceWith(errors[0]);
+    expect(onErrors[1]).toHaveBeenCalledExactlyOnceWith(errors[1]);
     for (const root of roots) root.unmount();
   });
 
   it.each([1, 2])(
-    "delivers all errors before rethrowing %i global handler failures",
+    "delivers all errors before rethrowing %i root handler failures",
     async (failureCount) => {
-      const { setTapErrorHandler } = await setup();
+      await setup();
       const { scheduleNotify, UpdateScheduler } =
         await import("../core/scheduler");
       const errors = [
@@ -176,13 +157,12 @@ describe("scheduled error handlers", () => {
           throw error;
         });
       }
-      setTapErrorHandler(onError);
       const scheduler = new UpdateScheduler(() => {
         scheduleNotify(() => {
           throw errors[1];
-        });
+        }, onError);
         throw errors[0];
-      });
+      }, onError);
 
       scheduler.markDirty();
       let caught: unknown;
@@ -204,7 +184,7 @@ describe("scheduled error handlers", () => {
     },
   );
 
-  it("preserves task aggregation and logging without a global handler", async () => {
+  it("preserves task aggregation and logging without a root handler", async () => {
     const { createTapRoot, useState } = await setup();
     const errors = [
       new Error("first task failed"),
@@ -242,30 +222,6 @@ describe("scheduled error handlers", () => {
     }
   });
 
-  it("prefers the root handler over the global handler", async () => {
-    const { createTapRoot, setTapErrorHandler, useState } = await setup();
-    const error = new Error("owned");
-    const onRootError = vi.fn();
-    const onGlobalError = vi.fn();
-    setTapErrorHandler(onGlobalError);
-    let update!: (value: number) => void;
-    const root = createTapRoot(
-      function Root() {
-        const [count, setCount] = useState(0);
-        update = setCount;
-        if (count === 1) throw error;
-        return count;
-      },
-      { onError: onRootError },
-    );
-
-    update(1);
-    expect(() => FakeMessageChannel.instance.port1.deliver()).not.toThrow();
-    expect(onRootError).toHaveBeenCalledExactlyOnceWith(error);
-    expect(onGlobalError).not.toHaveBeenCalled();
-    root.unmount();
-  });
-
   it("routes a scheduled subscriber error to its root handler", async () => {
     const { createTapRoot, useState } = await setup();
     const error = new Error("listener failed");
@@ -291,12 +247,9 @@ describe("scheduled error handlers", () => {
   });
 
   it("keeps synchronous flush errors on the caller path", async () => {
-    const { createTapRoot, flushTapSync, setTapErrorHandler, useState } =
-      await setup();
+    const { createTapRoot, flushTapSync, useState } = await setup();
     const error = new Error("synchronous");
     const onRootError = vi.fn();
-    const onGlobalError = vi.fn();
-    setTapErrorHandler(onGlobalError);
     let update!: (value: number) => void;
     const root = createTapRoot(
       function Root() {
@@ -310,7 +263,6 @@ describe("scheduled error handlers", () => {
 
     expect(() => flushTapSync(() => update(1))).toThrow(error);
     expect(onRootError).not.toHaveBeenCalled();
-    expect(onGlobalError).not.toHaveBeenCalled();
     root.unmount();
   });
 
@@ -328,6 +280,39 @@ describe("scheduled error handlers", () => {
     update(1);
     expect(() => FakeMessageChannel.instance.port1.deliver()).toThrow(error);
     root.unmount();
+  });
+
+  it("does not let one root handle a sibling root's error", async () => {
+    const { createTapRoot, useState } = await setup();
+    const handledError = new Error("handled");
+    const unhandledError = new Error("unhandled");
+    const onError = vi.fn();
+    let updateFirst!: (value: number) => void;
+    let updateSecond!: (value: number) => void;
+    const first = createTapRoot(
+      function First() {
+        const [count, setCount] = useState(0);
+        updateFirst = setCount;
+        if (count === 1) throw handledError;
+        return count;
+      },
+      { onError },
+    );
+    const second = createTapRoot(function Second() {
+      const [count, setCount] = useState(0);
+      updateSecond = setCount;
+      if (count === 1) throw unhandledError;
+      return count;
+    });
+
+    updateFirst(1);
+    updateSecond(1);
+    expect(() => FakeMessageChannel.instance.port1.deliver()).toThrow(
+      unhandledError,
+    );
+    expect(onError).toHaveBeenCalledExactlyOnceWith(handledError);
+    first.unmount();
+    second.unmount();
   });
 
   it("runs a sibling root task after handling an error", async () => {

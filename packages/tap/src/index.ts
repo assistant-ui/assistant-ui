@@ -3,7 +3,7 @@ export { withKey } from "./core/withKey";
 
 // imperative
 export { createTapRoot } from "./core/createTapRoot";
-export { flushTapSync, setTapErrorHandler } from "./core/scheduler";
+export { flushTapSync } from "./core/scheduler";
 
 // context
 export { useContextProvider } from "./core/context";

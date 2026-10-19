@@ -1,7 +1,5 @@
 import { Context } from "react";
 
-type ErrorHandler = (error: unknown) => void;
-
 type ExtractResourceReturnType<T> = T extends ResourceElement<infer V> ? V : T extends Resource<infer V, any> ? V : never;
 
 type Resource<V, A extends readonly unknown[] = any[]> = (...args: A) => ResourceElement<V>;
@@ -23,7 +21,7 @@ declare const createTapRoot: <R>(render: () => R, options?: {
 declare const flushTapSync: <T>(callback: () => T) => T;
 
 declare namespace entry_root_exports {
-  export { Resource, ResourceElement, createTapRoot, flushTapSync, resource, setTapErrorHandler, useContextProvider, useMemoCache, useResource, useResources, useTapHost, useTapRoot, withKey };
+  export { Resource, ResourceElement, createTapRoot, flushTapSync, resource, useContextProvider, useMemoCache, useResource, useResources, useTapHost, useTapRoot, withKey };
 }
 
 declare namespace entry_internal_exports {
@@ -31,8 +29,6 @@ declare namespace entry_internal_exports {
 }
 
 declare function resource<R, A extends readonly unknown[]>(hook: (...args: A) => R): Resource<R, A>;
-
-declare const setTapErrorHandler: (handler: ErrorHandler | undefined) => void;
 
 declare const useContextProvider: <T, TResult>(context: Context<T>, value: T, fn: () => TResult) => TResult;
 

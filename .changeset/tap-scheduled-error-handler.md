@@ -2,4 +2,4 @@
 "@assistant-ui/tap": patch
 ---
 
-Add optional root and scheduler error handlers for scheduled tap flushes.
+Add an optional root error handler for scheduled tap flushes.

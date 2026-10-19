@@ -219,14 +219,6 @@ With `mountOnSubscribe: true` the lifecycle is derived from subscribers instead:
 
 `onError` receives errors from this root's scheduled updates; synchronous errors still throw to the caller.
 
-## setTapErrorHandler
-
-Sets a default handler for errors from scheduled tap flushes without a root handler; pass `undefined` to restore rethrowing them.
-
-```ts
-function setTapErrorHandler(handler: ((error: unknown) => void) | undefined): void;
-```
-
 ## flushTapSync
 
 Runs a callback and synchronously flushes the tap updates it schedules. The

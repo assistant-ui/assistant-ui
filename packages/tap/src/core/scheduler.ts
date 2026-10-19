@@ -21,11 +21,6 @@ let flushState: GlobalFlushState = {
 };
 let activeDrainRuns: Map<UpdateScheduler, number> | null = null;
 let asyncFlushErrors: unknown[] | undefined;
-let tapErrorHandler: ErrorHandler | undefined;
-
-export const setTapErrorHandler = (handler: ErrorHandler | undefined): void => {
-  tapErrorHandler = handler;
-};
 
 export class UpdateScheduler {
   private _isDirty = false;
@@ -88,10 +83,6 @@ const taskScheduler = new UpdateScheduler(() => {
         errors.push(error);
       }
     }
-  }
-  if (asyncFlushErrors && tapErrorHandler) {
-    for (const error of errors) asyncFlushErrors.push(error);
-    return;
   }
   throwAggregated(errors, "Errors occurred while running scheduled tasks");
 });
@@ -169,19 +160,6 @@ const flushScheduled = (isAsync = false) => {
         }
       }
     }
-  }
-  const handler = tapErrorHandler;
-  if (isAsync && handler) {
-    const handlerErrors: unknown[] = [];
-    for (const error of errors) {
-      try {
-        handler(error);
-      } catch (handlerError) {
-        handlerErrors.push(handlerError);
-      }
-    }
-    throwAggregated(handlerErrors, "Errors occurred in tap error handler");
-    return;
   }
   throwAggregated(errors, "Errors occurred during flushSync");
 };
