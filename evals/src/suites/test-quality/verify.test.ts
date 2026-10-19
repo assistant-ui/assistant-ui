@@ -46,7 +46,9 @@ test("a runtime crash is not credited as an assertion failure", () => {
 });
 
 test("a test that leaks a handle is a scored failure", () => {
-  const verdict = verify(cases[0]!, "setInterval(() => {}, 1000);");
+  const verdict = verify(cases[0]!, "setInterval(() => {}, 1000);", {
+    timeoutMs: 500,
+  });
   assert.equal(verdict.pass, false);
   assert.match(verdict.reason, /did not complete/);
 });

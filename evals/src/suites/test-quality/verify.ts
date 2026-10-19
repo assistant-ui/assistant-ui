@@ -5,7 +5,11 @@ import { join } from "node:path";
 import type { Verdict } from "../comment-hygiene/types.ts";
 import type { QualityCase } from "./cases.ts";
 
-export function verify(c: QualityCase, artifact: string): Verdict {
+export function verify(
+  c: QualityCase,
+  artifact: string,
+  { timeoutMs = 10_000 }: { timeoutMs?: number } = {},
+): Verdict {
   const env = { ...process.env };
   delete env.NODE_TEST_CONTEXT;
   const run = (source: string) => {
@@ -20,7 +24,7 @@ export function verify(c: QualityCase, artifact: string): Verdict {
           cwd: dir,
           env,
           encoding: "utf8",
-          timeout: 10_000,
+          timeout: timeoutMs,
           maxBuffer: 1024 * 1024,
         },
       );
