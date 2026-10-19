@@ -73,7 +73,7 @@
   ],
   "overrides": [
     {
-      "files": ["**/*.{test,spec}.{js,jsx,ts,tsx,mjs,cjs,mts,cts}"],
+      "files": ["**/*.{test,spec,e2e}.{js,jsx,ts,tsx,mjs,cjs,mts,cts}"],
       "plugins": ["typescript", "react", "import", "oxc", "vitest"],
       "rules": {
         "vitest/expect-expect": "off",
