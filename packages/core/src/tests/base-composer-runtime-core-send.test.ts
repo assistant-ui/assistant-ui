@@ -8,6 +8,8 @@ import type { PendingAttachment } from "../types/attachment";
 import { MessageNotSentError } from "../types/error";
 import { BaseComposerRuntimeCore } from "../runtime/base/base-composer-runtime-core";
 import { LocalRuntimeCore } from "../runtimes/local/local-runtime-core";
+import { ExternalStoreThreadRuntimeCore } from "../runtimes/external-store/external-store-thread-runtime-core";
+import type { ExternalStoreAdapter } from "../runtimes/external-store/external-store-adapter";
 
 const makeAdapter = (
   overrides: Partial<AttachmentAdapter> = {},
@@ -54,9 +56,285 @@ const deferred = () => {
   return { promise, resolve, reject };
 };
 
+const makeExternalStoreComposer = (
+  adapter: AttachmentAdapter,
+  onNew: ExternalStoreAdapter["onNew"],
+) =>
+  new ExternalStoreThreadRuntimeCore(
+    { getModelContext: () => ({}) },
+    { messages: [], onNew, adapters: { attachments: adapter } },
+  ).composer;
+
+describe("BaseComposerRuntimeCore.send with an external store", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it.each([
+    ["retry succeeds first", true, true],
+    ["retry fails first", true, false],
+    ["host rejects first, retry succeeds", false, true],
+    ["host rejects first, retry fails", false, false],
+  ] as const)(
+    "restores the current cleanup outcome when %s",
+    async (_order, retryFirst, retrySucceeds) => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const upload = deferred();
+      const retry = deferred();
+      const host = deferred();
+      const remove = vi
+        .fn<AttachmentAdapter["remove"]>()
+        .mockRejectedValueOnce(new Error("first failure"))
+        .mockReturnValueOnce(retry.promise);
+      const onNew = vi.fn(() => host.promise);
+      const composer = makeExternalStoreComposer(
+        makeAdapter({
+          add: async ({ file }) => ({
+            id: file.name,
+            type: "file",
+            name: file.name,
+            file,
+            status: { type: "requires-action", reason: "composer-send" },
+          }),
+          remove,
+          send: async (attachment) => {
+            await upload.promise;
+            return { ...attachment, status: { type: "complete" }, content: [] };
+          },
+        }),
+        onNew,
+      );
+      composer.setText("hello");
+      await composer.addAttachment(new File(["a"], "a"));
+      await composer.addAttachment(new File(["b"], "b"));
+      const sending = composer.send();
+      await expect(composer.removeAttachment("b")).rejects.toThrow(
+        "first failure",
+      );
+      upload.resolve();
+      await sending;
+      await vi.waitFor(() => expect(remove).toHaveBeenCalledTimes(2));
+      await vi.waitFor(() => expect(onNew).toHaveBeenCalledOnce());
+      const settleRetry = async () => {
+        if (retrySucceeds) retry.resolve();
+        else retry.reject(new Error("retry failed"));
+        if (retrySucceeds)
+          await new Promise((resolve) => setTimeout(resolve, 0));
+        else
+          await vi.waitFor(() =>
+            expect(
+              composer.attachments.some((attachment) => attachment.id === "b"),
+            ).toBe(true),
+          );
+      };
+      const rejectHost = async () => {
+        host.reject(new MessageNotSentError());
+        await vi.waitFor(() => expect(composer.text).toBe("hello"));
+      };
+      if (retryFirst) {
+        await settleRetry();
+        await rejectHost();
+      } else {
+        await rejectHost();
+        await settleRetry();
+      }
+      await vi.waitFor(() =>
+        expect(
+          composer.attachments.map((attachment) => attachment.id).sort(),
+        ).toEqual(retrySucceeds ? ["a"] : ["a", "b"]),
+      );
+      if (!retrySucceeds)
+        expect(
+          composer.attachments.find((attachment) => attachment.id === "b")
+            ?.status,
+        ).toMatchObject({
+          type: "incomplete",
+          message: "retry failed",
+        });
+    },
+  );
+
+  it("does not restore an attachment removed while onNew is pending", async () => {
+    const upload = deferred();
+    const removal = deferred();
+    const host = deferred();
+    const remove = vi
+      .fn<AttachmentAdapter["remove"]>()
+      .mockReturnValue(removal.promise);
+    const onNew = vi.fn(() => host.promise);
+    const composer = makeExternalStoreComposer(
+      makeAdapter({
+        add: async ({ file }) => ({
+          id: file.name,
+          type: "file",
+          name: file.name,
+          file,
+          status: { type: "requires-action", reason: "composer-send" },
+        }),
+        remove,
+        send: async (attachment) => {
+          await upload.promise;
+          return { ...attachment, status: { type: "complete" }, content: [] };
+        },
+      }),
+      onNew,
+    );
+    composer.setText("hello");
+    await composer.addAttachment(new File(["a"], "a"));
+    await composer.addAttachment(new File(["b"], "b"));
+    const sending = composer.send();
+    const removing = composer.removeAttachment("b");
+    upload.resolve();
+    await sending;
+    await vi.waitFor(() => expect(onNew).toHaveBeenCalledOnce());
+    removal.resolve();
+    await removing;
+    host.reject(new MessageNotSentError());
+    await vi.waitFor(() => expect(composer.text).toBe("hello"));
+    expect(composer.attachments.map((attachment) => attachment.id)).toEqual([
+      "a",
+    ]);
+  });
+
+  it("restores a completed upload whose adapter changed its id", async () => {
+    const host = deferred();
+    const composer = makeExternalStoreComposer(
+      makeAdapter({
+        send: async (attachment) => ({
+          ...attachment,
+          id: "server-id",
+          status: { type: "complete" },
+          content: [],
+        }),
+      }),
+      () => host.promise,
+    );
+    composer.setText("hello");
+    await composer.addAttachment(textFile());
+    await composer.send();
+    host.reject(new MessageNotSentError());
+    await vi.waitFor(() => expect(composer.text).toBe("hello"));
+    expect(composer.attachments).toMatchObject([
+      { id: "server-id", status: { type: "complete" } },
+    ]);
+  });
+});
+
 describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it.each(["sync throw", "async not sent"] as const)(
+    "returns a failed removal after a %s and retries it on reset",
+    async (failure) => {
+      vi.spyOn(console, "error").mockImplementation(() => {});
+      const upload = deferred();
+      const remove = vi
+        .fn<AttachmentAdapter["remove"]>()
+        .mockRejectedValueOnce(new Error("remove failed"))
+        .mockResolvedValue(undefined);
+      const append = vi.fn(() =>
+        Promise.reject(new MessageNotSentError("send failed")),
+      );
+      const { composer } = makeComposer(
+        makeAdapter({
+          add: async ({ file }) => ({
+            id: file.name,
+            type: "file",
+            name: file.name,
+            file,
+            status: { type: "requires-action", reason: "composer-send" },
+          }),
+          remove,
+          send: async (attachment) => {
+            await upload.promise;
+            return { ...attachment, status: { type: "complete" }, content: [] };
+          },
+        }),
+        append,
+      );
+      if (failure === "sync throw")
+        vi.spyOn(composer, "handleSend").mockImplementation(() => {
+          throw new Error("send failed");
+        });
+      composer.setText("hello");
+      await composer.addAttachment(new File(["a"], "a"));
+      await composer.addAttachment(new File(["b"], "b"));
+      const sending = composer.send();
+      await expect(composer.removeAttachment("b")).rejects.toThrow(
+        "remove failed",
+      );
+      upload.resolve();
+      await sending;
+      await vi.waitFor(() =>
+        expect(composer.attachments).toHaveLength(
+          failure === "sync throw" ? 2 : 1,
+        ),
+      );
+      expect(append).toHaveBeenCalledTimes(failure === "sync throw" ? 0 : 1);
+      expect(composer.attachments.map((attachment) => attachment.id)).toEqual(
+        failure === "sync throw" ? ["a", "b"] : ["a"],
+      );
+      if (failure === "sync throw")
+        expect(composer.attachments[1]?.status).toMatchObject({
+          type: "incomplete",
+          message: "remove failed",
+        });
+      await composer.reset();
+      expect(
+        remove.mock.calls.filter(([attachment]) => attachment.id === "b"),
+      ).toHaveLength(2);
+    },
+  );
+
+  it("keeps an in-flight removal on its record when a send throws and the draft resets", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const upload = deferred();
+    const removal = deferred();
+    const remove = vi
+      .fn<AttachmentAdapter["remove"]>()
+      .mockReturnValue(removal.promise);
+    const { composer } = makeComposer(
+      makeAdapter({
+        add: async ({ file }) => ({
+          id: file.name,
+          type: "file",
+          name: file.name,
+          file,
+          status: { type: "requires-action", reason: "composer-send" },
+        }),
+        remove,
+        send: async (attachment) => {
+          await upload.promise;
+          return { ...attachment, status: { type: "complete" }, content: [] };
+        },
+      }),
+    );
+    vi.spyOn(composer, "handleSend").mockImplementation(() => {
+      throw new Error("send failed");
+    });
+    composer.setText("hello");
+    await composer.addAttachment(new File(["a"], "a"));
+    await composer.addAttachment(new File(["b"], "b"));
+    const sending = composer.send();
+    const removing = composer.removeAttachment("b");
+    upload.resolve();
+    await sending;
+    expect(composer.attachments.map((attachment) => attachment.id)).toEqual([
+      "a",
+      "b",
+    ]);
+    expect(
+      remove.mock.calls.filter(([attachment]) => attachment.id === "b"),
+    ).toHaveLength(1);
+    const resetting = composer.reset();
+    expect(
+      remove.mock.calls.filter(([attachment]) => attachment.id === "b"),
+    ).toHaveLength(1);
+    removal.resolve();
+    await Promise.all([removing, resetting]);
+    expect(
+      remove.mock.calls.filter(([attachment]) => attachment.id === "b"),
+    ).toHaveLength(1);
   });
 
   it("keeps a repeatedly failed removal out of later messages", async () => {

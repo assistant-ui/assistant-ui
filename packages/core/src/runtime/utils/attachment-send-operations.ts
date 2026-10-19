@@ -111,6 +111,12 @@ export class AttachmentSendOperations {
     return restored;
   }
 
+  restoreUnsent(attachment: Attachment) {
+    const record = this.removals.get(attachment);
+    if (record?.dispatched || record?.phase === "complete") return undefined;
+    return this.restore(attachment);
+  }
+
   adoptFrom(source: AttachmentSendOperations, attachment: Attachment) {
     const record = source.removals.get(attachment);
     if (record) this.removals.set(attachment, record);
