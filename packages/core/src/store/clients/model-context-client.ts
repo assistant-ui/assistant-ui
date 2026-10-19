@@ -48,6 +48,18 @@ const useModelContext = (
     () => new CompositeContextProvider(() => optionsRef.current),
     [],
   );
+  const { maxSystemLength, mergeSystem } = options;
+  const appliedOptionsRef = useRef({ maxSystemLength, mergeSystem });
+  useEffect(() => {
+    const applied = appliedOptionsRef.current;
+    if (
+      applied.maxSystemLength === maxSystemLength &&
+      applied.mergeSystem === mergeSystem
+    )
+      return;
+    appliedOptionsRef.current = { maxSystemLength, mergeSystem };
+    composite.notifySubscribers();
+  }, [composite, maxSystemLength, mergeSystem]);
   const [state, setState] = useState<ModelContextState>(() =>
     deriveState(composite, INITIAL_STATE),
   );

@@ -70,14 +70,20 @@ export type ModelContextOptions = {
 
 const SYSTEM_SEPARATOR = "\n\n";
 
+const isHighSurrogate = (code: number) => code >= 0xd800 && code <= 0xdbff;
+
 const capSystem = (parts: readonly SystemPart[], maxLength: number) => {
   let result = "";
   for (const { system } of parts) {
     const separator = result ? SYSTEM_SEPARATOR : "";
     const room = maxLength - result.length - separator.length;
-    if (room <= 0) break;
-    result += separator + system.slice(0, room);
-    if (system.length > room) break;
+    const end =
+      room < system.length && isHighSurrogate(system.charCodeAt(room - 1))
+        ? room - 1
+        : room;
+    if (end <= 0) break;
+    result += separator + system.slice(0, end);
+    if (system.length > end) break;
   }
   return result;
 };

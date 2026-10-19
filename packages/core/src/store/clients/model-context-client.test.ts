@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
+import { useState } from "react";
 import { createTapRoot, useResource } from "@assistant-ui/tap";
 import type { Tool } from "assistant-stream";
 import { ModelContext } from "./model-context-client";
 import type {
   ModelContext as ModelContextValue,
+  ModelContextOptions,
   ModelContextProvider,
 } from "../../model-context/types";
 import { mergeModelContexts } from "../../model-context/types";
@@ -222,7 +224,7 @@ describe("mergeModelContexts", () => {
 });
 
 describe("ModelContext options", () => {
-  const renderWith = (options: Parameters<typeof ModelContext>[0]) => {
+  const renderWith = (options: ModelContextOptions) => {
     const root = createTapRoot(function Root() {
       return useResource(ModelContext(options));
     });
@@ -252,6 +254,37 @@ describe("ModelContext options", () => {
       expect(sub.getValue().getModelContext().system).toBe("a\nb");
     } finally {
       unmount();
+    }
+  });
+
+  it("notifies subscribers when the options change", async () => {
+    const root = createTapRoot(function Root() {
+      const [options, setOptions] = useState<ModelContextOptions>({
+        maxSystemLength: 4,
+      });
+      return { client: useResource(ModelContext(options)), setOptions };
+    });
+    try {
+      root.getValue().client.register(provider({ system: "keep\n\ntrim" }));
+      await tick();
+      let notified = 0;
+      const unsubscribe = root.getValue().client.subscribe!(() => {
+        notified++;
+      });
+
+      root.getValue().setOptions({ maxSystemLength: 4 });
+      await tick();
+      expect(notified).toBe(0);
+
+      root.getValue().setOptions({ maxSystemLength: 10 });
+      await tick();
+      expect(notified).toBe(1);
+      expect(root.getValue().client.getModelContext().system).toBe(
+        "keep\n\ntrim",
+      );
+      unsubscribe();
+    } finally {
+      root.unmount();
     }
   });
 

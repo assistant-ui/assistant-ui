@@ -94,6 +94,14 @@ describe("mergeModelContexts system", () => {
     );
   });
 
+  it("does not split a surrogate pair at the cut", () => {
+    const result = mergeModelContexts(
+      new Set([contextProvider({ system: "ab\u{1F600}cd" })]),
+      { maxSystemLength: 3 },
+    );
+    expect(result.system).toBe("ab");
+  });
+
   it("leaves the system unchanged when it fits the cap", () => {
     expect(mergeModelContexts(systems(), { maxSystemLength: 100 }).system).toBe(
       "high\n\ndefault\n\nlow",
