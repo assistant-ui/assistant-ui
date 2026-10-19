@@ -1,4 +1,3 @@
-import { coverageAdvice } from "./review-coverage-advice.mjs";
 import { parseTitleType } from "./review-policy.mjs";
 
 // The text under a `## <heading>` of a description whose HTML comments are
@@ -22,7 +21,7 @@ export function advise(
     authorIsBot,
     hasLinkedIssue,
     linkedIssues,
-    coverageConfigs = [],
+    coverageNotices = [],
   },
   policy,
 ) {
@@ -61,6 +60,6 @@ export function advise(
     lines.push(
       "the description has no AI use text; name the tools that wrote code and how their output was verified, or write None",
     );
-  lines.push(...coverageConfigs.flatMap(coverageAdvice));
+  lines.push(...coverageNotices);
   return lines;
 }

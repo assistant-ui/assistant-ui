@@ -5,7 +5,7 @@ import path from "node:path";
 import { diffApiSurface, diffExportsMap } from "./diff-api-surface.mjs";
 import { isExecutedAsMain } from "./lib/main.mjs";
 import { loadReviewPolicy, tierLabel } from "./lib/review-policy.mjs";
-import { isCoverageConfig } from "./lib/review-coverage-advice.mjs";
+import { coverageAdvice, isCoverageConfig } from "./review-coverage-advice.mjs";
 import { advise, sectionText } from "./lib/review-tier-advice.mjs";
 import { evaluateRequirements } from "./lib/review-tier-requirements.mjs";
 import { computeTier } from "./lib/review-tier-signals.mjs";
@@ -324,7 +324,7 @@ export async function gatherPullRequest(
     `${repo}/compare/${node.baseRefOid}...${node.headRefOid}`,
   );
   const mergeBase = comparison.data.merge_base_commit.sha;
-  const coverageConfigs = [];
+  const coverageNotices = [];
   const apiSurface = [];
   const manifests = [];
   const invalidManifests = [];
@@ -374,7 +374,9 @@ export async function gatherPullRequest(
       `${contents}?ref=${encodeURIComponent(node.headRefOid)}`,
     );
     if (isCoverage) {
-      coverageConfigs.push({ path: file, base: baseText, head: headText });
+      coverageNotices.push(
+        ...coverageAdvice({ path: file, base: baseText, head: headText }),
+      );
     } else if (isSurface) {
       apiSurface.push({ file, diff: diffApiSurface(baseText, headText) });
     } else {
@@ -439,7 +441,7 @@ export async function gatherPullRequest(
       authorIsBot: node.author?.__typename === "Bot",
       hasLinkedIssue: linkedIssues.length > 0,
       linkedIssues: adviceIssues,
-      coverageConfigs,
+      coverageNotices,
     },
     signalsInput: {
       title: node.title,

@@ -1,7 +1,7 @@
 import { createRequire } from "node:module";
 
 const ts = createRequire(
-  new URL("../../packages/x-buildutils/package.json", import.meta.url),
+  new URL("../packages/x-buildutils/package.json", import.meta.url),
 )("typescript");
 const printer = ts.createPrinter({ removeComments: true });
 const metrics = new Set(["lines", "functions", "branches", "statements"]);
@@ -70,7 +70,7 @@ function settings(text) {
       const read = (expression, keys) => {
         const value = unwrap(expression);
         if (ts.isObjectLiteralExpression(value)) {
-          for (const property of value.properties) {
+          for (const [index, property] of value.properties.entries()) {
             if (
               ts.isPropertyAssignment(property) &&
               (ts.isIdentifier(property.name) ||
@@ -78,8 +78,9 @@ function settings(text) {
             ) {
               read(property.initializer, [...keys, property.name.text]);
             } else {
-              values.set(JSON.stringify([...keys, "<computed>"]), {
+              values.set(JSON.stringify([...keys, `<computed:${index}>`]), {
                 keys,
+                computed: true,
                 text: normalized(property, source),
               });
             }
@@ -144,7 +145,13 @@ export function coverageAdvice({ path, base, head }) {
         const keys = (oldValue ?? newValue).keys;
         const setting = code(["coverage", ...keys].join("."));
         if (keys[0] === "thresholds") {
-          if (oldValue === undefined) continue;
+          if (oldValue === undefined) {
+            if (newValue.computed)
+              lines.push(
+                `${setting} adds computed settings in ${where}; review the coverage gate manually`,
+              );
+            continue;
+          }
           if (newValue === undefined) {
             lines.push(
               `${setting} removed in ${where} (was ${code(oldValue.text)})`,

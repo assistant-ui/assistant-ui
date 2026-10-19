@@ -144,3 +144,21 @@ test("adding an explicit disabled coverage setting is reported", () => {
   });
   assert.match(lines[0], /coverage disabled/);
 });
+
+test("new computed threshold spreads are sent to manual review", () => {
+  const lines = advice(
+    "{ thresholds: { lines: 94 } }",
+    "{ thresholds: { lines: 94, ...(process.env.CI ? {} : { lines: 0 }) } }",
+  );
+  assert.equal(lines.length, 1);
+  assert.match(lines[0], /adds computed settings/);
+});
+
+test("an unchanged later spread does not hide changes to an earlier spread", () => {
+  const lines = advice(
+    "{ thresholds: { ...base, ...overrides } }",
+    "{ thresholds: { ...weaker, ...overrides } }",
+  );
+  assert.equal(lines.length, 1);
+  assert.match(lines[0], /coverage gate/);
+});
