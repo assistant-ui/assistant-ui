@@ -310,14 +310,18 @@ describe("canvas", () => {
 
   it("opens from ?variants=canvas and unmounts variant content when closed", () => {
     const mounts: string[] = [];
+    const unmounts: string[] = [];
     function Counter({ name }: { name: string }) {
       useEffect(() => {
         mounts.push(name);
+        return () => {
+          unmounts.push(name);
+        };
       }, [name]);
       return <span>{name}</span>;
     }
     setUrl("?variants=canvas");
-    renderPage(
+    const { unmount } = renderPage(
       <Variants id="g">
         <Variant id="a">
           <Counter name="a" />
@@ -329,8 +333,13 @@ describe("canvas", () => {
     );
     expect(dialog()).not.toBeNull();
     expect(mounts.sort()).toEqual(["a", "a", "b"]);
+    expect(unmounts).toEqual([]);
     act(() => store.setCanvas(false));
     expect(document.body.textContent).not.toContain("b");
+    expect(unmounts.sort()).toEqual(["a", "b"]);
+    expect(mounts).toEqual(["a", "a", "b"]);
+    unmount();
+    expect(unmounts.sort()).toEqual(["a", "a", "b"]);
   });
 
   it("keeps focus inside the dialog", () => {
