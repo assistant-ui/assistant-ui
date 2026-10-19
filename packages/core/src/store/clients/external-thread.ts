@@ -43,6 +43,7 @@ import type {
 } from "../../runtime/interfaces/thread-runtime-core";
 import type { Unstable_ToolInteractionInput } from "../../types/message";
 import type { QuoteInfo } from "../../types/quote";
+import type { CreateResumeRunConfig } from "../../runtime/api/thread-runtime";
 import type {
   ExternalThreadQueueAdapter,
   QueuePlacement,
@@ -123,7 +124,12 @@ export type ExternalThreadProps = {
   onReload?: (parentId: string | null) => void;
   onStartRun?: () => void;
   onCancel?: () => void;
-  onResume?: (() => void) | undefined;
+  /** Resume the existing run from its checkpoint without appending a user message. */
+  onResume?:
+    | ((config: CreateResumeRunConfig) => void | Promise<void>)
+    | undefined;
+  /** True only while a checkpoint is available; requires onResume. */
+  canResume?: boolean | undefined;
   /**
    * Handler for re-fetching this thread's state in place, driving
    * `threads.reloadMainThread()`. Unrelated to `onReload`, which re-generates
@@ -1500,6 +1506,7 @@ const useExternalThread = ({
   onStartRun,
   onCancel,
   onResume,
+  canResume = false,
   onRefetchThread,
   onAddToolResult,
   onResumeToolCall,
@@ -1778,6 +1785,9 @@ const useExternalThread = ({
   const hasBranches = !!branches;
   const hasEdit = !!onEdit;
   const hasReload = !!onReload;
+  const hasResume = !!onResume;
+  const resumePendingRef = useRef<Promise<void> | null>(null);
+  const [resumePending, setResumePending] = useState(false);
   const hasAttachments = !!attachmentAdapter;
   const hasFeedback = !!feedbackAdapter;
   const hasSpeech = !!speechAdapter;
@@ -1797,6 +1807,8 @@ const useExternalThread = ({
       hasEarlier,
       isLoadingEarlier,
       isRunning,
+      canResume:
+        canResume && hasResume && !isRunning && !isLoading && !resumePending,
       capabilities: {
         edit: hasEdit,
         delete: false,
@@ -1827,6 +1839,9 @@ const useExternalThread = ({
     isRunning,
     isSendDisabled,
     isLoading,
+    canResume,
+    resumePending,
+    hasResume,
     hasEarlier,
     isLoadingEarlier,
     threadState,
@@ -1896,12 +1911,30 @@ const useExternalThread = ({
     startRun: () => {
       onStartRun?.();
     },
-    resumeRun: () => {
+    resumeRun: (config: CreateResumeRunConfig) => {
       if (!onResume)
         throw new Error(
           "Runtime does not support resuming runs (onResume is not set).",
         );
-      onResume();
+      if (resumePendingRef.current) return resumePendingRef.current;
+      if (!canResume) return onResume(config);
+      let start!: () => void;
+      const pending = new Promise<void>((resolve, reject) => {
+        start = () => {
+          try {
+            resolve(onResume(config));
+          } catch (error) {
+            reject(error);
+          }
+        };
+      }).finally(() => {
+        resumePendingRef.current = null;
+        setResumePending(false);
+      });
+      resumePendingRef.current = pending;
+      setResumePending(true);
+      start();
+      return pending;
     },
     cancelRun: handleCancelRun,
     loadEarlier,

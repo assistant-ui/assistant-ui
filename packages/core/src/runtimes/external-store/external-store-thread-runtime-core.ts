@@ -68,6 +68,7 @@ import {
   captureThreadRuntimeGeneration,
 } from "../../runtime/utils/thread-runtime-lifecycle";
 import { RunLeases, type RunLease } from "../../utils/run-lease";
+import { getThreadRuntimeCoreIsRunning } from "../../runtime/api/thread-runtime";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
 
@@ -156,6 +157,25 @@ export class ExternalStoreThreadRuntimeCore
   public get isLoading() {
     return this._store.isLoading ?? false;
   }
+  private _pendingResume: Promise<void> | undefined;
+
+  private _clearPendingResume(pending: Promise<void> | undefined) {
+    if (!pending || this._pendingResume !== pending) return;
+    this._pendingResume = undefined;
+    this._notifySubscribers();
+  }
+  public get canResume(): boolean {
+    return (
+      !!this._store.canResume &&
+      !!this._store.onResume &&
+      !this._pendingResume &&
+      !this.isDisabled &&
+      !getThreadRuntimeCoreIsRunning(this) &&
+      !this.isLoading &&
+      !this.voice
+    );
+  }
+
   public get hasEarlier() {
     return (
       this._store.hasEarlier === true && this._store.onLoadEarlier !== undefined
@@ -508,6 +528,7 @@ export class ExternalStoreThreadRuntimeCore
       this.repository = repositoryInstance;
       this._cancelledToolTurn = null;
       this._cancelledRunIds.clear();
+      this._pendingResume = undefined;
       this._pendingDeleteEvictions.clear();
       this._pendingDeleteWindows.clear();
       this._submittedFeedback.clear();
@@ -1065,9 +1086,9 @@ export class ExternalStoreThreadRuntimeCore
     }
 
     const onBranchChange = this._store.unstable_onBranchChange;
-    const previousHeadId = onBranchChange
-      ? this.repository.canonicalHeadId
-      : null;
+    const pendingResume = this._pendingResume;
+    const previousHeadId =
+      onBranchChange || pendingResume ? this.repository.canonicalHeadId : null;
 
     this.repository.switchToBranch(branchId);
     this._pendingDeleteWindows.clear();
@@ -1076,6 +1097,9 @@ export class ExternalStoreThreadRuntimeCore
       else this._pendingDeleteEvictions.delete(id);
     }
     this.updateMessages(this.repository.getMessages());
+    if (pendingResume && this.repository.canonicalHeadId !== previousHeadId) {
+      this._clearPendingResume(pendingResume);
+    }
     if (onBranchChange) {
       this._notifyBranchChange(previousHeadId, onBranchChange);
     }
@@ -1424,12 +1448,32 @@ export class ExternalStoreThreadRuntimeCore
       throw new Error("Cannot start a run while a voice session is connected");
     if (this._isVoiceMessage(config.sourceId))
       throw new Error("Voice transcript messages cannot be reloaded");
-
-    this._pendingDeleteWindows.clear();
-    this._restoreMovedLeafForRun(config.parentId);
-    this._runStartLeases.begin();
-    this._cancelledToolTurn = null;
-    await this._store.onResume(config);
+    const store = this._store;
+    if (this._pendingResume) return this._pendingResume;
+    const resume = async () => {
+      this._pendingDeleteWindows.clear();
+      this._restoreMovedLeafForRun(config.parentId);
+      this._runStartLeases.begin();
+      this._cancelledToolTurn = null;
+      await store.onResume!(config);
+    };
+    if (store.canResume !== true) return resume();
+    let start!: () => void;
+    const promise = new Promise<void>((resolve, reject) => {
+      start = () => {
+        try {
+          resolve(resume());
+        } catch (error) {
+          reject(error);
+        }
+      };
+    }).finally(() => {
+      this._clearPendingResume(promise);
+    });
+    this._pendingResume = promise;
+    this._notifySubscribers();
+    start();
+    return promise;
   }
 
   public exportExternalState(): any {
@@ -1455,9 +1499,11 @@ export class ExternalStoreThreadRuntimeCore
     // back here via __internal_setAdapter. The tracker publishes the
     // cleared status map itself, so adapter-side statuses reset only when
     // the tracker is the source of truth.
+    const pendingResume = this._pendingResume;
     this._runTrackerUpdate(() => this._toolInvocations?.reset());
 
     this._store.onLoadExternalState(state);
+    this._clearPendingResume(pendingResume);
   }
 
   /**
@@ -1471,6 +1517,7 @@ export class ExternalStoreThreadRuntimeCore
     this._cancelRunResyncLeases.invalidate();
     this._cancelledToolTurn = null;
     this._cancelledRunIds.clear();
+    this._clearPendingResume(this._pendingResume);
     this._runTrackerUpdate(() => this._toolInvocations?.reset());
     this._store.queue?.__internal_notifyCancelled?.();
   }
@@ -1687,6 +1734,7 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public override reset(initialMessages?: readonly ThreadMessageLike[]) {
+    const pendingResume = this._pendingResume;
     this._pendingDeleteWindows.clear();
     this._cancelRunResyncLeases.invalidate();
     this._cancelledToolTurn = null;
@@ -1696,18 +1744,21 @@ export class ExternalStoreThreadRuntimeCore
     const repo = new MessageRepository();
     repo.import(ExportedMessageRepository.fromArray(initialMessages ?? []));
     this.updateMessages(repo.getMessages());
+    this._clearPendingResume(pendingResume);
   }
 
   public override import(data: ExportedMessageRepository) {
     if (!this._store.onImport)
       throw new Error("Runtime does not support importing messages.");
 
+    const pendingResume = this._pendingResume;
     this._pendingDeleteWindows.clear();
     this._cancelRunResyncLeases.invalidate();
     this._cancelledToolTurn = null;
     this._cancelledRunIds.clear();
     this._submittedFeedback.clear();
     super.import(data);
+    this._clearPendingResume(pendingResume);
     const messages = this.repository.getMessages();
     this._importedMessageIds = messages.map((message) => message.id);
     this._store.onImport(messages);

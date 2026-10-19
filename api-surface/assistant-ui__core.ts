@@ -679,6 +679,7 @@ type AssistantTransportOptions<T> = {
   api: string;
   cloud?: AssistantCloud | undefined;
   resumeApi?: string;
+  canResume?: boolean | undefined;
   resumeStateApi?: string;
   protocol?: AssistantTransportProtocol;
   strict?: boolean;
@@ -1962,6 +1963,7 @@ type ExternalStoreAdapterBase<T> = {
   isDisabled?: boolean | undefined;
   isSendDisabled?: boolean | undefined;
   isRunning?: boolean | undefined;
+  canResume?: boolean | undefined;
   activeRunId?: string | undefined;
   isLoading?: boolean | undefined;
   hasEarlier?: boolean | undefined;
@@ -2093,6 +2095,7 @@ declare class ExternalStoreThreadRuntimeCore extends BaseThreadRuntimeCore imple
   isDisabled: boolean;
   isSendDisabled: boolean;
   get isLoading(): boolean;
+  get canResume(): boolean;
   get hasEarlier(): boolean;
   get isLoadingEarlier(): boolean;
   loadEarlier(): Promise<void>;
@@ -2164,7 +2167,8 @@ type ExternalThreadProps = {
   onReload?: (parentId: string | null) => void;
   onStartRun?: () => void;
   onCancel?: () => void;
-  onResume?: (() => void) | undefined;
+  onResume?: ((config: CreateResumeRunConfig) => void | Promise<void>) | undefined;
+  canResume?: boolean | undefined;
   onRefetchThread?: (() => Promise<void>) | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
   onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
@@ -3908,6 +3912,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     isLoadingEarlier?: boolean;
     loadEarlier?(): Promise<void>;
     isRunning?: boolean | undefined;
+    canResume?: boolean | undefined;
     messages: readonly ThreadMessage[];
     state: ReadonlyJSONValue;
     suggestions: readonly ThreadSuggestion[];
@@ -3967,6 +3972,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     isLoadingEarlier?: boolean;
     loadEarlier?(): Promise<void>;
     isRunning?: boolean | undefined;
+    canResume?: boolean | undefined;
     messages: readonly ThreadMessage[];
     state: ReadonlyJSONValue;
     suggestions: readonly ThreadSuggestion[];
@@ -4026,6 +4032,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     isLoadingEarlier?: boolean;
     loadEarlier?(): Promise<void>;
     isRunning?: boolean | undefined;
+    canResume?: boolean | undefined;
     messages: readonly ThreadMessage[];
     state: ReadonlyJSONValue;
     suggestions: readonly ThreadSuggestion[];
@@ -4167,6 +4174,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
     isLoadingEarlier?: boolean;
     loadEarlier?(): Promise<void>;
     isRunning?: boolean | undefined;
+    canResume?: boolean | undefined;
     messages: readonly ThreadMessage[];
     state: ReadonlyJSONValue;
     suggestions: readonly ThreadSuggestion[];
@@ -4226,6 +4234,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
     isLoadingEarlier?: boolean;
     loadEarlier?(): Promise<void>;
     isRunning?: boolean | undefined;
+    canResume?: boolean | undefined;
     messages: readonly ThreadMessage[];
     state: ReadonlyJSONValue;
     suggestions: readonly ThreadSuggestion[];
@@ -5561,6 +5570,7 @@ type ThreadRuntimeCore = Readonly<{
   isLoadingEarlier?: boolean;
   loadEarlier?(): Promise<void>;
   isRunning?: boolean | undefined;
+  canResume?: boolean | undefined;
   messages: readonly ThreadMessage[];
   state: ReadonlyJSONValue;
   suggestions: readonly ThreadSuggestion[];
@@ -5684,6 +5694,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       isLoadingEarlier?: boolean;
       loadEarlier?(): Promise<void>;
       isRunning?: boolean | undefined;
+      canResume?: boolean | undefined;
       messages: readonly ThreadMessage[];
       state: ReadonlyJSONValue;
       suggestions: readonly ThreadSuggestion[];
@@ -5753,6 +5764,7 @@ type ThreadRuntimeState = {
   readonly hasEarlier: boolean;
   readonly isLoadingEarlier: boolean;
   readonly isRunning: boolean;
+  readonly canResume: boolean;
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly ThreadMessage[];
   readonly state: ReadonlyJSONValue;
@@ -5770,6 +5782,7 @@ type ThreadState = {
   readonly hasEarlier: boolean;
   readonly isLoadingEarlier: boolean;
   readonly isRunning: boolean;
+  readonly canResume?: boolean | undefined;
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly MessageState[];
   readonly tasks: readonly TaskState[];
