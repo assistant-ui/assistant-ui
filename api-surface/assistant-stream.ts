@@ -173,8 +173,8 @@ type AssistantStreamChunk = {
 });
 
 type AssistantStreamController = {
-  appendText(textDelta: string, providerMetadata?: PartProviderMetadata): void;
-  appendReasoning(reasoningDelta: string, options?: ReasoningPartInit, providerMetadata?: PartProviderMetadata): void;
+  appendText(textDelta: string): void;
+  appendReasoning(reasoningDelta: string, options?: ReasoningPartInit): void;
   appendSource(options: SourcePart): void;
   appendFile(options: FilePart): void;
   appendData(options: DataPart): void;
