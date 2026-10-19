@@ -164,4 +164,25 @@ describe("LexicalComposerInput directive triggers", () => {
       });
     },
   );
+
+  it("reports nothing when the matched text is gone before the directive is inserted", async () => {
+    await act(async () => {
+      editor.update(() => {
+        const text = $createTextNode("ask @wea");
+        $getRoot().clear().append($createParagraphNode().append(text));
+        text.select();
+      });
+    });
+
+    await act(async () => {
+      editor.update(() => {
+        $getRoot().clear().append($createParagraphNode());
+      });
+      Array.from(container.querySelectorAll<HTMLElement>('[role="option"]'))
+        .find((element) => element.textContent === "Weather")!
+        .click();
+    });
+
+    expect(textSeenBy).toEqual({});
+  });
 });

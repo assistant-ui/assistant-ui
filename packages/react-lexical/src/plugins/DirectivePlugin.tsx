@@ -257,10 +257,12 @@ export function DirectivePlugin({
       onInserted: () => void,
     ) => {
       const { node, startOffset, endOffset } = active.match;
+      let inserted = false;
 
       editor.update(
         () => {
           if (!node.isAttached()) return;
+          inserted = true;
 
           const directiveNode = $createDirectiveNodeWithFormatter(
             item,
@@ -290,6 +292,7 @@ export function DirectivePlugin({
           // Runs after the commit's update listeners, so SyncPlugin has
           // already written the directive to the composer.
           onUpdate: () => {
+            if (!inserted) return;
             onDirectiveSelect?.(item);
             onInserted();
           },
