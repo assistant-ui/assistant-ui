@@ -53,6 +53,17 @@ test("removed thresholds and per-file changes remain visible", () => {
   assert.ok(lines.some((line) => /perFile.*changed/.test(line)));
 });
 
+test("the numeric 100 percent shorthand stays quiet when added and reports removal", () => {
+  assert.deepEqual(
+    advice("{ thresholds: {} }", "{ thresholds: { 100: true } }"),
+    [],
+  );
+  assert.match(
+    advice("{ thresholds: { 100: true } }", "{ thresholds: {} }")[0],
+    /coverage.thresholds.100.*removed.*true/,
+  );
+});
+
 test("coverage file selections show the old and new values", () => {
   const lines = advice(
     '{ include: ["src/**"], exclude: [] }',
@@ -107,6 +118,30 @@ test("disabled and removed coverage configurations are reported", () => {
       head: null,
     })[0],
     /coverage configuration removed/,
+  );
+});
+
+test("removing explicit coverage enablement asks whether coverage still runs", () => {
+  const lines = advice(
+    "{ enabled: true, thresholds: { lines: 80 } }",
+    "{ thresholds: { lines: 80 } }",
+  );
+  assert.equal(lines.length, 1);
+  assert.match(
+    lines[0],
+    /coverage.enabled.*true.*default.*confirm coverage still runs/,
+  );
+});
+
+test("replacing explicit enablement with a computed value asks for review", () => {
+  const lines = advice(
+    "{ enabled: true }",
+    '{ enabled: process.env.CI === "true" }',
+  );
+  assert.equal(lines.length, 1);
+  assert.match(
+    lines[0],
+    /coverage.enabled.*process.*confirm coverage still runs/,
   );
 });
 

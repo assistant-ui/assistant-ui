@@ -74,7 +74,8 @@ function settings(text) {
             if (
               ts.isPropertyAssignment(property) &&
               (ts.isIdentifier(property.name) ||
-                ts.isStringLiteral(property.name))
+                ts.isStringLiteral(property.name) ||
+                ts.isNumericLiteral(property.name))
             ) {
               read(property.initializer, [...keys, property.name.text]);
             } else {
@@ -183,8 +184,14 @@ export function coverageAdvice({ path, base, head }) {
           lines.push(
             `${setting} changed in ${where}: ${code(oldValue?.text ?? "default")} to ${code(newValue?.text ?? "default")}; review which source files are measured`,
           );
-        } else if (keys[0] === "enabled" && newValue?.text === "false") {
-          lines.push(`coverage disabled in ${where}`);
+        } else if (keys.length === 1 && keys[0] === "enabled") {
+          if (newValue?.text === "false") {
+            lines.push(`coverage disabled in ${where}`);
+          } else if (oldValue?.text === "true") {
+            lines.push(
+              `${setting} changed in ${where}: ${code("true")} to ${code(newValue?.text ?? "default (false)")}; confirm coverage still runs`,
+            );
+          }
         } else if (keys.length === 0) {
           lines.push(
             `computed coverage configuration changed in ${where}; review its thresholds and measured files manually`,
