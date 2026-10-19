@@ -1,13 +1,10 @@
 import type { ReactNode } from "react";
-import {
-  Pressable,
-  type PressableProps,
-  type PressableStateCallbackType,
-} from "react-native";
+import type { PressableStateCallbackType } from "react-native";
 import { useActionBarSpeak } from "@assistant-ui/core/react";
+import { Primitive, type PrimitivePressableProps } from "../../utils/Primitive";
 
 export type ActionBarSpeakProps = Omit<
-  PressableProps,
+  PrimitivePressableProps,
   "children" | "onPress"
 > & {
   children:
@@ -26,7 +23,7 @@ export const ActionBarSpeak = ({
   const isDisabled = disabledProp ?? disabled;
 
   return (
-    <Pressable
+    <Primitive.Pressable
       onPress={() => void speak()}
       disabled={isDisabled}
       accessibilityRole="button"
@@ -35,7 +32,7 @@ export const ActionBarSpeak = ({
       {typeof children === "function"
         ? (state) => children({ ...state, disabled: isDisabled })
         : children}
-    </Pressable>
+    </Primitive.Pressable>
   );
 };
 

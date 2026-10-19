@@ -8,7 +8,7 @@ import { FlatList, FlatListProps, Image, ImageProps, Pressable, PressableProps, 
 
 declare const ActionBarCopy: (_param0: ActionBarCopyProps) => import("react").JSX.Element;
 
-type ActionBarCopyProps = Omit<PressableProps, "children" | "onPress"> & UseActionBarCopyOptions & {
+type ActionBarCopyProps = Omit<PrimitivePressableProps, "children" | "onPress"> & UseActionBarCopyOptions & {
   children: ReactNode | ((props: PressableStateCallbackType & {
     isCopied: boolean;
     disabled: boolean;
@@ -17,7 +17,7 @@ type ActionBarCopyProps = Omit<PressableProps, "children" | "onPress"> & UseActi
 
 declare const ActionBarEdit: (_param1: ActionBarEditProps) => import("react").JSX.Element;
 
-type ActionBarEditProps = Omit<PressableProps, "children" | "onPress"> & {
+type ActionBarEditProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: ReactNode | ((state: PressableStateCallbackType & {
     disabled: boolean;
   }) => ReactNode);
@@ -25,7 +25,7 @@ type ActionBarEditProps = Omit<PressableProps, "children" | "onPress"> & {
 
 declare const ActionBarFeedbackNegative: (_param2: ActionBarFeedbackNegativeProps) => import("react").JSX.Element;
 
-type ActionBarFeedbackNegativeProps = Omit<PressableProps, "children" | "onPress"> & {
+type ActionBarFeedbackNegativeProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: ReactNode | ((props: PressableStateCallbackType & {
     isSubmitted: boolean;
     disabled: boolean;
@@ -34,7 +34,7 @@ type ActionBarFeedbackNegativeProps = Omit<PressableProps, "children" | "onPress
 
 declare const ActionBarFeedbackPositive: (_param3: ActionBarFeedbackPositiveProps) => import("react").JSX.Element;
 
-type ActionBarFeedbackPositiveProps = Omit<PressableProps, "children" | "onPress"> & {
+type ActionBarFeedbackPositiveProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: ReactNode | ((props: PressableStateCallbackType & {
     isSubmitted: boolean;
     disabled: boolean;
@@ -43,7 +43,7 @@ type ActionBarFeedbackPositiveProps = Omit<PressableProps, "children" | "onPress
 
 declare const ActionBarReload: (_param4: ActionBarReloadProps) => import("react").JSX.Element;
 
-type ActionBarReloadProps = Omit<PressableProps, "children" | "onPress"> & {
+type ActionBarReloadProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: ReactNode | ((state: PressableStateCallbackType & {
     disabled: boolean;
   }) => ReactNode);
@@ -54,7 +54,7 @@ declare const ActionBarSpeak: {
   displayName: string;
 };
 
-type ActionBarSpeakProps = Omit<PressableProps, "children" | "onPress"> & {
+type ActionBarSpeakProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: ReactNode | ((state: PressableStateCallbackType & {
     disabled: boolean;
   }) => ReactNode);
@@ -65,7 +65,7 @@ declare const ActionBarStopSpeaking: {
   displayName: string;
 };
 
-type ActionBarStopSpeakingProps = Omit<PressableProps, "children" | "onPress"> & {
+type ActionBarStopSpeakingProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: ReactNode | ((state: PressableStateCallbackType & {
     disabled: boolean;
   }) => ReactNode);
@@ -671,7 +671,7 @@ type AttachmentNameProps = TextProps;
 
 declare const AttachmentRemove: (_param8: AttachmentRemoveProps) => import("react").JSX.Element;
 
-type AttachmentRemoveProps = Omit<PressableProps, "children" | "onPress"> & {
+type AttachmentRemoveProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
 };
 
@@ -941,7 +941,7 @@ type BranchPickerCountProps = TextProps;
 
 declare const BranchPickerNext: (_param10: BranchPickerNextProps) => import("react").JSX.Element;
 
-type BranchPickerNextProps = Omit<PressableProps, "children" | "onPress"> & {
+type BranchPickerNextProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: ReactNode | ((state: PressableStateCallbackType & {
     disabled: boolean;
   }) => ReactNode);
@@ -953,7 +953,7 @@ type BranchPickerNumberProps = TextProps;
 
 declare const BranchPickerPrevious: (_param11: BranchPickerPreviousProps) => import("react").JSX.Element;
 
-type BranchPickerPreviousProps = Omit<PressableProps, "children" | "onPress"> & {
+type BranchPickerPreviousProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: ReactNode | ((state: PressableStateCallbackType & {
     disabled: boolean;
   }) => ReactNode);
@@ -961,7 +961,7 @@ type BranchPickerPreviousProps = Omit<PressableProps, "children" | "onPress"> & 
 
 declare const ChainOfThoughtAccordionTrigger: (_param12: ChainOfThoughtAccordionTriggerProps) => import("react").JSX.Element;
 
-type ChainOfThoughtAccordionTriggerProps = Omit<PressableProps, "children" | "onPress"> & {
+type ChainOfThoughtAccordionTriggerProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
 };
 
@@ -2938,7 +2938,7 @@ type QueueItemMethods = {
 
 declare const QueueItemRemove: (_param30: QueueItemRemoveProps) => import("react").JSX.Element;
 
-type QueueItemRemoveProps = Omit<PressableProps, "children" | "onPress"> & {
+type QueueItemRemoveProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
 };
 
@@ -2950,7 +2950,7 @@ type QueueItemState = {
 
 declare const QueueItemSteer: (_param31: QueueItemSteerProps) => import("react").JSX.Element;
 
-type QueueItemSteerProps = Omit<PressableProps, "children" | "onPress"> & {
+type QueueItemSteerProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
 };
 
@@ -3407,7 +3407,7 @@ type SuggestionTitleProps = TextProps & {
 
 declare const SuggestionTrigger: (_param35: SuggestionTriggerProps) => import("react").JSX.Element;
 
-type SuggestionTriggerProps = Omit<PressableProps, "children" | "onPress"> & {
+type SuggestionTriggerProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
   send?: boolean | undefined;
   clearComposer?: boolean | undefined;
@@ -3560,7 +3560,7 @@ type ThreadIfProps = {
 
 declare const ThreadListItemArchive: (_param38: ThreadListItemArchiveProps) => import("react").JSX.Element;
 
-type ThreadListItemArchiveProps = Omit<PressableProps, "children" | "onPress"> & {
+type ThreadListItemArchiveProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
 };
 
@@ -3582,7 +3582,7 @@ type ThreadListItemCoreState = {
 
 declare const ThreadListItemDelete: (_param39: ThreadListItemDeleteProps) => import("react").JSX.Element;
 
-type ThreadListItemDeleteProps = Omit<PressableProps, "children" | "onPress"> & {
+type ThreadListItemDeleteProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
 };
 
@@ -3713,7 +3713,7 @@ type ThreadListItemTitleProps = Omit<TextProps, "children"> & {
 
 declare const ThreadListItemTrigger: (_param42: ThreadListItemTriggerProps) => import("react").JSX.Element;
 
-type ThreadListItemTriggerProps = Omit<PressableProps, "children" | "onPress"> & {
+type ThreadListItemTriggerProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: ReactNode | ((state: PressableStateCallbackType & {
     isActive: boolean;
   }) => ReactNode);
@@ -3721,7 +3721,7 @@ type ThreadListItemTriggerProps = Omit<PressableProps, "children" | "onPress"> &
 
 declare const ThreadListItemUnarchive: (_param43: ThreadListItemUnarchiveProps) => import("react").JSX.Element;
 
-type ThreadListItemUnarchiveProps = Omit<PressableProps, "children" | "onPress"> & {
+type ThreadListItemUnarchiveProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
 };
 
@@ -3736,7 +3736,7 @@ type ThreadListItemsProps = Omit<FlatListProps<string>, "data" | "renderItem"> &
 
 declare const ThreadListNew: (_param45: ThreadListNewProps) => import("react").JSX.Element;
 
-type ThreadListNewProps = Omit<PressableProps, "children" | "onPress"> & {
+type ThreadListNewProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: ReactNode | ((state: PressableStateCallbackType & {
     isActive: boolean;
   }) => ReactNode);
@@ -4372,7 +4372,7 @@ type ThreadSuggestion$1 = {
   prompt: string;
 };
 
-type ThreadSuggestionProps = Omit<PressableProps, "children" | "onPress"> & {
+type ThreadSuggestionProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
   prompt: string;
   send?: boolean | undefined;
