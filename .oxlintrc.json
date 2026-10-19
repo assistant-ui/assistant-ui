@@ -97,6 +97,7 @@
     },
     {
       "files": ["packages/react-langchain/**/*.test.{ts,tsx}"],
+      "plugins": ["typescript", "react", "import", "oxc", "vitest"],
       "rules": {
         "vitest/valid-expect": [
           "error",
