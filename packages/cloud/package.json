@@ -74,7 +74,7 @@
     "@opentelemetry/sdk-trace-base": "^2.12.0",
     "@types/node": "^26.6.5",
     "ai": "^7.0.143",
-    "ai-v6": "npm:ai@^7.0.143",
+    "ai-v6": "npm:ai@^6.0.277",
     "jsdom": "^30.1.3",
     "vitest": "^5.0.5"
   },
