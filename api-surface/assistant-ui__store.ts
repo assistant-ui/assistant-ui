@@ -219,6 +219,7 @@ type ThreadViewportAutoScroll = {
   attach(element: HTMLElement): () => void;
   readonly isAtBottom: boolean;
   scrollToBottom(behavior?: ScrollBehavior): void;
+  messagesPrepended(previousFirstMessageId: string): void;
   setContentInset(inset: number): void;
   registerContentInset(): {
     setHeight(height: number): void;
@@ -232,6 +233,7 @@ type ThreadViewportAutoScroll = {
 
 type ThreadViewportAutoScrollOptions = {
   readonly autoScroll: boolean;
+  readonly holdFollow?: boolean;
   readonly scrollToBottomOnInitialize: boolean;
   readonly scrollToBottomOnRunStart: boolean;
   readonly scrollToBottomOnThreadSwitch: boolean;
@@ -296,6 +298,7 @@ declare const createStaleReporter: (options: {
 declare const createThreadViewportAutoScroll: (input: {
   getOptions: () => ThreadViewportAutoScrollOptions;
   onAtBottomChange: (isAtBottom: boolean) => void;
+  onContentInsetChange?: (total: number) => void;
 }) => ThreadViewportAutoScroll;
 
 declare function forwardTransformScopes(target: Hook, source: Hook): void;
