@@ -390,6 +390,20 @@ html.dark body:has(.aui-docs) {
   background: var(--fd-shadcn-code) !important;
 }
 
+.aui-docs #nd-page [data-fd-code-group],
+.aui-docs #nd-page [data-fd-code-group] > [role="tabpanel"] {
+  background: var(--fd-shadcn-code) !important;
+}
+
+.aui-docs
+  #nd-page
+  [data-fd-code-group]
+  > [role="tablist"]
+  > [role="tab"]
+  > .absolute.inset-x-2.bottom-0.h-px {
+  display: none;
+}
+
 .aui-docs #nd-toc {
   padding: 1rem 1rem 1rem 0;
   font-size: 0.75rem;
