@@ -390,8 +390,7 @@ export function ThreadList() {
     {
       name: "unarchive",
       type: "(remoteId: string) => Promise<void>",
-      description: "Restore an archived thread.",
-      required: true,
+      description: "Optional. Omit when the backend cannot unarchive; archived threads still open as archived, and explicit unarchive rejects.",
     },
     {
       name: "delete",

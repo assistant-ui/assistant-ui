@@ -37,16 +37,10 @@ describe("createOpenCodeThreadListAdapter", () => {
     );
   });
 
-  it("rejects unarchiving without sending a request", async () => {
-    const update = vi.fn();
-    const adapter = createOpenCodeThreadListAdapter({
-      session: { update },
-    } as never);
+  it("omits unarchive", () => {
+    const adapter = createOpenCodeThreadListAdapter({} as never);
 
-    await expect(adapter.unarchive("session-1")).rejects.toThrow(
-      "OpenCode cannot unarchive a session.",
-    );
-    expect(update).not.toHaveBeenCalled();
+    expect(adapter).not.toHaveProperty("unarchive");
   });
 
   it("streams the session's own title without asking OpenCode for one", async () => {

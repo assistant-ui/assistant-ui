@@ -1,5 +1,6 @@
 ---
 "@assistant-ui/react-opencode": patch
+"@assistant-ui/core": patch
 ---
 
-fix(react-opencode): reject unarchive instead of reporting a success OpenCode never applies
+adapters may omit unarchive; archived threads then open without unarchiving and explicit unarchive rejects. the OpenCode adapter omits it because OpenCode cannot unarchive a session.

@@ -53,7 +53,12 @@ export type RemoteThreadListAdapter = {
     custom: Record<string, unknown> | undefined,
   ): Promise<void>;
   archive(remoteId: string): Promise<void>;
-  unarchive(remoteId: string): Promise<void>;
+  /**
+   * Restores an archived thread. Omit it when the backend cannot unarchive:
+   * switching to an archived thread then opens it as archived, and an explicit
+   * unarchive rejects.
+   */
+  unarchive?(remoteId: string): Promise<void>;
   delete(remoteId: string): Promise<void>;
   /**
    * Creates a thread with draft metadata passed in `options.custom`. Draft

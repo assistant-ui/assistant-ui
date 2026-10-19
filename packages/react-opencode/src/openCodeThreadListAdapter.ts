@@ -81,9 +81,6 @@ export const createOpenCodeThreadListAdapter = (
       OPEN_CODE_REQUEST_OPTIONS,
     );
   },
-  unarchive: async () => {
-    throw new Error("OpenCode cannot unarchive a session.");
-  },
   delete: async (remoteId: string) => {
     await client.session.delete(
       {
