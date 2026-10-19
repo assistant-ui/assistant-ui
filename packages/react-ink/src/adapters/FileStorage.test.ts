@@ -221,8 +221,6 @@ describe("createFileStorageAdapter", () => {
       title: "Renamed",
     });
 
-    if (!adapter.unarchive)
-      throw new Error("File storage adapter must support unarchive");
     await adapter.unarchive("thread-1");
     await expect(
       createFileStorageAdapter({ dir }).fetch("thread-1"),

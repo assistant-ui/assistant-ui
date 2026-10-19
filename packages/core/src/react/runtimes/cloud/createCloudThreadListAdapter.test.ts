@@ -157,8 +157,6 @@ describe("createCloudThreadListAdapter", () => {
     expect(cloud.threads.update).toHaveBeenCalledWith("remote-1", {
       is_archived: true,
     });
-    if (!adapter.unarchive)
-      throw new Error("Cloud adapter must support unarchive");
     await adapter.unarchive("remote-1");
     expect(cloud.threads.update).toHaveBeenCalledWith("remote-1", {
       is_archived: false,

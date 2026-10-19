@@ -247,8 +247,6 @@ describe("createAdkSessionAdapter - no-op methods", () => {
     const { adapter } = createAdkSessionAdapter(baseOptions);
     await expect(adapter.rename("s1", "New Title")).resolves.toBeUndefined();
     await expect(adapter.archive("s1")).resolves.toBeUndefined();
-    if (!adapter.unarchive)
-      throw new Error("ADK adapter must support unarchive");
     await expect(adapter.unarchive("s1")).resolves.toBeUndefined();
     expect(mockFetch).not.toHaveBeenCalled();
   });

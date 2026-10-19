@@ -157,7 +157,8 @@ export const createCloudThreadListAdapter = (
   options:
     | CloudThreadListAdapterOptions
     | (() => CloudThreadListAdapterOptions),
-): RemoteThreadListAdapter => {
+): RemoteThreadListAdapter &
+  Pick<Required<RemoteThreadListAdapter>, "unarchive"> => {
   const getOptions = typeof options === "function" ? options : () => options;
   const initialOptions = getOptions();
   const cloud = initialOptions.cloud ?? autoCloud;

@@ -44,7 +44,8 @@ export type AdkArtifactData = {
 };
 
 type AdkSessionAdapterResult = {
-  adapter: RemoteThreadListAdapter;
+  adapter: RemoteThreadListAdapter &
+    Pick<Required<RemoteThreadListAdapter>, "unarchive">;
   load: (
     sessionId: string,
     options?: { signal?: AbortSignal | undefined },
@@ -241,7 +242,7 @@ export function createAdkSessionAdapter(
     return options.headers;
   };
 
-  const adapter: RemoteThreadListAdapter = {
+  const adapter: AdkSessionAdapterResult["adapter"] = {
     async list(): Promise<RemoteThreadListResponse> {
       const headers = await getHeaders();
       const res = await fetch(baseUrl, { headers });
