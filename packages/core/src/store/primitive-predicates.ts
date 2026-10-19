@@ -17,6 +17,14 @@ export const composerSendDisabled = (s: AssistantState): boolean =>
     !s.thread.capabilities.queue &&
     s.thread.voice === undefined);
 
+export const composerResumeDisabled = (s: AssistantState): boolean =>
+  s.thread.isDisabled ||
+  s.thread.isRunning ||
+  s.thread.voice !== undefined ||
+  !s.thread.canResume ||
+  s.composer.type !== "thread" ||
+  !s.composer.isEmpty;
+
 export const composerCancelDisabled = (s: AssistantState): boolean =>
   !s.composer.canCancel;
 
