@@ -274,55 +274,48 @@ describe("unstable_runPendingTools", () => {
     expect(settled).toBe(message);
   });
 
-  it("removes the abort listener after tool execution settles", async () => {
-    const abortController = new AbortController();
-    const addEventListener = vi.spyOn(
-      abortController.signal,
-      "addEventListener",
-    );
-    const removeEventListener = vi.spyOn(
-      abortController.signal,
-      "removeEventListener",
-    );
-    const message: AssistantMessage = {
-      role: "assistant",
-      status: { type: "requires-action", reason: "tool-calls" },
-      parts: [
+  it.each(["resolves", "rejects"] as const)(
+    "removes the abort listener after tool execution %s",
+    async (outcome) => {
+      const abortController = new AbortController();
+      const addEventListener = vi.spyOn(
+        abortController.signal,
+        "addEventListener",
+      );
+      const removeEventListener = vi.spyOn(
+        abortController.signal,
+        "removeEventListener",
+      );
+      const toolError = new Error("tool failed");
+      const pending = unstable_runPendingTools(
+        createPendingToolMessage("1"),
         {
-          type: "tool-call",
-          toolCallId: "1",
-          toolName: "tool",
-          args: {},
-        } as ToolCallPart,
-      ],
-      content: [],
-      metadata: {
-        unstable_state: {},
-        unstable_data: [],
-        unstable_annotations: [],
-        steps: [],
-        custom: {},
-      },
-    };
-
-    await unstable_runPendingTools(
-      message,
-      {
-        tool: {
-          parameters: { type: "object", properties: {} },
-          execute: async () => "done",
+          tool: {
+            parameters: { type: "object", properties: {} },
+            execute: async () => {
+              if (outcome === "rejects") throw toolError;
+              return "done";
+            },
+          },
         },
-      },
-      abortController.signal,
-      async () => {},
-    );
+        abortController.signal,
+        async () => {},
+      );
 
-    expect(addEventListener).toHaveBeenCalledOnce();
-    expect(removeEventListener).toHaveBeenCalledWith(
-      "abort",
-      addEventListener.mock.calls[0]![1],
-    );
-  });
+      if (outcome === "rejects") {
+        await expect(pending).rejects.toBe(toolError);
+      } else {
+        await expect(pending).resolves.toMatchObject({
+          parts: [{ result: "done" }],
+        });
+      }
+      expect(addEventListener).toHaveBeenCalledOnce();
+      expect(removeEventListener).toHaveBeenCalledWith(
+        "abort",
+        addEventListener.mock.calls[0]![1],
+      );
+    },
+  );
 
   it.each(["sync", "async"] as const)(
     "uses %s schema output for execution and model content",
