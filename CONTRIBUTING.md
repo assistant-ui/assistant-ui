@@ -2,7 +2,7 @@
 
 A big welcome and thank you for considering contributing to assistant-ui! It’s people like you that make it a reality for users in our community.
 
-You can contribute by opening an issue, or by making a pull request. [Opening a pull request](#opening-a-pull-request) says when to open an issue first.
+You can contribute by opening an issue, or by making a pull request. [Opening an issue](#opening-an-issue) says what an issue needs, and [Opening a pull request](#opening-a-pull-request) says when to open one first.
 
 Project conventions live in [`AGENTS.md`](./AGENTS.md) and in the `AGENTS.md` of the directory you change, such as [`packages/AGENTS.md`](./packages/AGENTS.md) for package code and runtime adapters; please read and follow them.
 
@@ -39,6 +39,17 @@ To run the examples project in development mode:
 cd examples/<your-example>
 pnpm dev
 ```
+
+### Opening an issue
+
+Pick the issue form that matches what you are reporting. Usage questions go to Discord.
+
+- An issue created through the API or `gh` skips the forms, so give it the same headings as the matching form in `.github/ISSUE_TEMPLATE/`, set the issue type the form sets (`Bug`, `Feature` or `Task`), and add the label it applies. This holds for maintainers and for agents.
+- Label by what the issue is. `bug` means shipped code misbehaves. Documentation takes `type/docs`, performance `type/perf`, refactors `type/refactor`, and CI and other upkeep `maintenance`.
+- State how a bug was found and whether it was reproduced. A finding from reading the source that nobody ran says so and still includes the snippet expected to fail, since an issue a maintainer cannot reproduce is closed.
+- Link the pull request or issue a follow-up came from.
+- Report a vulnerability through a private advisory (see [`SECURITY.md`](./SECURITY.md)), including one a maintainer or an agent finds. Hardening with no exploit path can be a public issue.
+- Do not name, link, or quote anything from a private repository.
 
 ### Opening a pull request
 
