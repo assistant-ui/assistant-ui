@@ -24,7 +24,7 @@ To use it in another repository before publishing, run `pnpm pack` in this
 package and install the resulting `.tgz` with `pnpm add /path/to/package.tgz`.
 Once published, the same package can be installed with `pnpm add @assistant-ui/docs`.
 
-Use Farming Labs Docs, Next, and Theme 0.2.122 with Fumadocs UI 16.17.1.
+Use Farming Labs Docs, Next, and Theme 0.2.123 with Fumadocs UI 16.17.1.
 The Docs, Theme, and Fumadocs UI peers use exact versions as an exception to the
 repository's caret-range convention. A future framework patch may change its
 Fumadocs dependency, so accepting it independently could split the tree, search,
