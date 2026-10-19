@@ -1154,7 +1154,7 @@ type CompleteAttachmentStatus = {
   type: "complete";
 };
 
-declare const ComposerAddAttachment: (_param15: ComposerAddAttachmentProps) => import("react").JSX.Element;
+declare const ComposerAddAttachment: import("react").ForwardRefExoticComponent<ComposerAddAttachmentProps & import("react").RefAttributes<ComponentRef<typeof Pressable>>>;
 
 type ComposerAddAttachmentProps = Omit<PrimitivePressableProps, "children"> & {
   children: PressableProps["children"];
@@ -1185,7 +1185,7 @@ type ComposerAttachmentsComponentConfig = {
 
 type ComposerAttachmentsProps = ComposerPrimitiveAttachments.Props;
 
-declare const ComposerCancel: (_param16: ComposerCancelProps) => import("react").JSX.Element;
+declare const ComposerCancel: import("react").ForwardRefExoticComponent<ComposerCancelProps & import("react").RefAttributes<ComponentRef<typeof Pressable>>>;
 
 type ComposerCancelProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
@@ -1247,7 +1247,7 @@ declare const ComposerPrimitiveQueue: import("react").NamedExoticComponent<{
 
 declare const ComposerQuote: (_param18: ComposerQuoteProps) => import("react").JSX.Element | null;
 
-declare const ComposerQuoteDismiss: (_param19: ComposerQuoteDismissProps) => import("react").JSX.Element;
+declare const ComposerQuoteDismiss: import("react").ForwardRefExoticComponent<ComposerQuoteDismissProps & import("react").RefAttributes<ComponentRef<typeof Pressable>>>;
 
 type ComposerQuoteDismissProps = Omit<PrimitivePressableProps, "children" | "onPress"> & {
   children: PressableProps["children"];
@@ -1379,7 +1379,7 @@ type ComposerRuntimePath = (ThreadRuntimePath & {
 
 type ComposerRuntimeState = ThreadComposerState | EditComposerState;
 
-declare const ComposerSend: (_param22: ComposerSendProps) => import("react").JSX.Element;
+declare const ComposerSend: import("react").ForwardRefExoticComponent<ComposerSendProps & import("react").RefAttributes<ComponentRef<typeof Pressable>>>;
 
 type ComposerSendOptions = SendOptions & {
   steer?: boolean;

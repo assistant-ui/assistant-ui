@@ -1,5 +1,5 @@
-import { useCallback } from "react";
-import type { PressableProps } from "react-native";
+import { forwardRef, useCallback, type ComponentRef } from "react";
+import { Pressable, type PressableProps } from "react-native";
 import { useAui } from "@assistant-ui/store";
 import { Primitive, type PrimitivePressableProps } from "../../utils/Primitive";
 
@@ -10,10 +10,10 @@ export type ComposerQuoteDismissProps = Omit<
   children: PressableProps["children"];
 };
 
-export const ComposerQuoteDismiss = ({
-  children,
-  ...pressableProps
-}: ComposerQuoteDismissProps) => {
+export const ComposerQuoteDismiss = forwardRef<
+  ComponentRef<typeof Pressable>,
+  ComposerQuoteDismissProps
+>(({ children, ...pressableProps }, ref) => {
   const aui = useAui();
 
   const handleDismiss = useCallback(() => {
@@ -22,6 +22,7 @@ export const ComposerQuoteDismiss = ({
 
   return (
     <Primitive.Pressable
+      ref={ref}
       onPress={handleDismiss}
       accessibilityRole="button"
       {...pressableProps}
@@ -29,4 +30,4 @@ export const ComposerQuoteDismiss = ({
       {children}
     </Primitive.Pressable>
   );
-};
+});

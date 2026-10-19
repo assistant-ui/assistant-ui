@@ -1,4 +1,10 @@
-import { act, type ReactElement, type ReactNode } from "react";
+import {
+  act,
+  type ComponentRef,
+  type ReactElement,
+  type ReactNode,
+  type Ref,
+} from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { Pressable, Text } from "react-native";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -45,14 +51,21 @@ const primitives: ReadonlyArray<{
   name: string;
   action: string;
   hookDisabled: boolean;
-  render: (child: ReactElement) => ReactNode;
+  render: (
+    child: ReactElement,
+    ref?: Ref<ComponentRef<typeof Pressable>>,
+  ) => ReactNode;
 }> = [
   {
     name: "ComposerAddAttachment",
     action: "pick",
     hookDisabled: true,
-    render: (child) => (
-      <ComposerAddAttachment asChild onPress={() => h.calls.push("pick")}>
+    render: (child, ref) => (
+      <ComposerAddAttachment
+        asChild
+        ref={ref}
+        onPress={() => h.calls.push("pick")}
+      >
         {child}
       </ComposerAddAttachment>
     ),
@@ -61,21 +74,31 @@ const primitives: ReadonlyArray<{
     name: "ComposerCancel",
     action: "cancel",
     hookDisabled: true,
-    render: (child) => <ComposerCancel asChild>{child}</ComposerCancel>,
+    render: (child, ref) => (
+      <ComposerCancel asChild ref={ref}>
+        {child}
+      </ComposerCancel>
+    ),
   },
   {
     name: "ComposerQuoteDismiss",
     action: "setQuote",
     hookDisabled: false,
-    render: (child) => (
-      <ComposerQuoteDismiss asChild>{child}</ComposerQuoteDismiss>
+    render: (child, ref) => (
+      <ComposerQuoteDismiss asChild ref={ref}>
+        {child}
+      </ComposerQuoteDismiss>
     ),
   },
   {
     name: "ComposerSend",
     action: "send",
     hookDisabled: true,
-    render: (child) => <ComposerSend asChild>{child}</ComposerSend>,
+    render: (child, ref) => (
+      <ComposerSend asChild ref={ref}>
+        {child}
+      </ComposerSend>
+    ),
   },
 ];
 
@@ -115,6 +138,22 @@ describe("react-native primitives with asChild", () => {
   };
 
   for (const { name, action, hookDisabled, render } of primitives) {
+    it(`${name} composes the wrapper and child refs`, async () => {
+      const wrapperRef = vi.fn();
+      const childRef = vi.fn();
+      const el = await mount(
+        render(
+          <Pressable ref={childRef} testID="kit">
+            <Text>Kit</Text>
+          </Pressable>,
+          wrapperRef,
+        ),
+      );
+
+      expect(wrapperRef).toHaveBeenCalledWith(el);
+      expect(childRef).toHaveBeenCalledWith(el);
+    });
+
     it(`${name} renders the child as its only press target`, async () => {
       await mount(render(kitButton));
     });
