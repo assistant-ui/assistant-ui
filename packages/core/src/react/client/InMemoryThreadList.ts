@@ -308,6 +308,7 @@ const useInMemoryThreadList = (
       mainThreadId,
       newThreadId: null,
       isLoading: false,
+      canUnarchive: true,
       loadError: undefined,
       switchError: undefined,
       isLoadingMore: false,

@@ -21,6 +21,7 @@ export {
   suggestionSendMode,
   suggestionTriggerDisabled,
   threadListLoadMoreDisabled,
+  threadListItemUnarchiveDisabled,
 } from "./primitive-predicates";
 export { isDevelopment } from "./env";
 export { useThreadSelectionEvents } from "./clients/thread-selection-events";

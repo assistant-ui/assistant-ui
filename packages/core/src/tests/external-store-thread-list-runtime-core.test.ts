@@ -42,6 +42,28 @@ const appendMessage = () => ({
 });
 
 describe("ExternalStoreThreadListRuntimeCore - construction", () => {
+  it("notifies subscribers when only unarchive support changes", async () => {
+    const adapter = makeAdapter({
+      archivedThreads: [{ id: "archived", status: "archived" }],
+    });
+    const core = new ExternalStoreThreadListRuntimeCore(adapter, makeFactory());
+    const runtime = new ThreadListRuntimeImpl(core);
+    const states: boolean[] = [];
+    const unsubscribe = runtime.subscribe(() =>
+      states.push(runtime.getState().canUnarchive),
+    );
+    expect(runtime.getState().canUnarchive).toBe(false);
+    const onUnarchive = vi.fn(async () => {});
+    core.__internal_setAdapter({ ...adapter, onUnarchive });
+    expect(runtime.getState().canUnarchive).toBe(true);
+    await runtime.getItemById("archived").unarchive();
+    expect(onUnarchive).toHaveBeenCalledWith("archived");
+    core.__internal_setAdapter(adapter);
+    expect(runtime.getState().canUnarchive).toBe(false);
+    expect(states).toEqual([true, false]);
+    unsubscribe();
+  });
+
   it("assigns a resolvable fallback mainThreadId when adapter has no threadId", () => {
     const core = new ExternalStoreThreadListRuntimeCore(
       makeAdapter(),

@@ -59,6 +59,7 @@ const useSingleThreadList = ({
       mainThreadId: THREAD_ID,
       newThreadId: null,
       isLoading: false,
+      canUnarchive: false,
       loadError: undefined,
       switchError: undefined,
       isLoadingMore: false,

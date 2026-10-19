@@ -7,6 +7,8 @@ import type { ThreadMethods, ThreadState } from "./thread";
 import type { ThreadMessage } from "../../types/message";
 
 export type ThreadsState = {
+  /** Whether this thread list supports unarchiving threads. */
+  readonly canUnarchive: boolean;
   readonly mainThreadId: string;
   readonly newThreadId: string | null;
   readonly isLoading: boolean;

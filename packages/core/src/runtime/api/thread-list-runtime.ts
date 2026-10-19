@@ -28,6 +28,8 @@ const RESOLVED_PROMISE = Promise.resolve();
 const NOOP_UNSUBSCRIBE = () => {};
 
 export type ThreadListState = {
+  /** Whether this thread list supports unarchiving threads. */
+  readonly canUnarchive: boolean;
   readonly mainThreadId: string;
   readonly newThreadId: string | undefined;
   readonly threadIds: readonly string[];
@@ -106,6 +108,7 @@ const getThreadListState = (
     threadIds: threadList.threadIds,
     archivedThreadIds: threadList.archivedThreadIds,
     isLoading: threadList.isLoading,
+    canUnarchive: threadList.canUnarchive ?? true,
     loadError: threadList.loadError,
     switchError: threadList.switchError,
     isLoadingMore: threadList.isLoadingMore ?? false,

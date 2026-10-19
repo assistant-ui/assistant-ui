@@ -20,6 +20,7 @@ export class LocalThreadListRuntimeCore
   implements ThreadListRuntimeCore
 {
   private _mainThread: LocalThreadRuntimeCore;
+  public readonly canUnarchive = false;
   constructor(_threadFactory: LocalThreadFactory) {
     super();
 

@@ -1,12 +1,15 @@
 import { useCallback } from "react";
-import { useAui } from "@assistant-ui/store";
+import { useAui, useAuiState } from "@assistant-ui/store";
+import { threadListItemUnarchiveDisabled } from "../../store/primitive-predicates";
 
 export const useThreadListItemUnarchive = () => {
   const aui = useAui();
+  const disabled = useAuiState(threadListItemUnarchiveDisabled);
 
   const unarchive = useCallback(() => {
+    if (disabled) return;
     aui.threadListItem.unarchive();
-  }, [aui]);
+  }, [aui, disabled]);
 
-  return { unarchive };
+  return { unarchive, disabled };
 };

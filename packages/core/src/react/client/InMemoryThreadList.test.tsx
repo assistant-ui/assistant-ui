@@ -552,6 +552,7 @@ describe("InMemoryThreadList item index selectors", () => {
 
     const state = getAui().threads.getState();
     expect(state.archivedThreadIds).toEqual([b]);
+    expect(state.canUnarchive).toBe(true);
     expect(state.threadIds).toHaveLength(2);
 
     for (const [index, id] of state.archivedThreadIds.entries()) {

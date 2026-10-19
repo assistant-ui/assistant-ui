@@ -40,6 +40,7 @@ describe("SingleThreadList item selectors", () => {
     );
 
     expect(aui.threads.getState().archivedThreadIds).toEqual([]);
+    expect(aui.threads.getState().canUnarchive).toBe(false);
     expect(() => aui.threads.item({ index: 0, archived: true })).toThrow(
       "unknown item selector",
     );

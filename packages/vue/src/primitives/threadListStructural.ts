@@ -6,7 +6,11 @@ import {
   type VNodeChild,
 } from "vue";
 import type { AssistantClient } from "@assistant-ui/store/client";
-import { threadListLoadMoreDisabled } from "@assistant-ui/core/store/internal";
+import {
+  threadListLoadMoreDisabled,
+  threadListItemUnarchiveDisabled,
+} from "@assistant-ui/core/store/internal";
+import type { AssistantState } from "@assistant-ui/store";
 import { isAttrDisabled } from "./attrDisabled";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
@@ -43,6 +47,7 @@ export const ThreadListPrimitiveLoadMore = defineComponent({
 const threadListItemAction = (
   name: string,
   action: (aui: AssistantClient) => void,
+  isDisabled: (state: AssistantState) => boolean = () => false,
 ) =>
   defineComponent({
     name,
@@ -50,8 +55,10 @@ const threadListItemAction = (
     slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
     setup(_, { attrs, slots }) {
       const aui = useAui();
+      const disabled = useAuiState(isDisabled);
       const onClick = (event: MouseEvent) => {
-        if (event.defaultPrevented || isAttrDisabled(attrs)) return;
+        if (event.defaultPrevented || disabled.value || isAttrDisabled(attrs))
+          return;
         action(aui);
       };
       return () =>
@@ -59,7 +66,7 @@ const threadListItemAction = (
           "button",
           mergeProps(attrs, {
             type: "button",
-            disabled: isAttrDisabled(attrs),
+            disabled: disabled.value || isAttrDisabled(attrs),
             onClick,
           }),
           slots.default?.(),
@@ -77,6 +84,7 @@ export const ThreadListItemPrimitiveArchive = threadListItemAction(
 export const ThreadListItemPrimitiveUnarchive = threadListItemAction(
   "ThreadListItemPrimitiveUnarchive",
   (aui) => aui.threadListItem.unarchive(),
+  threadListItemUnarchiveDisabled,
 );
 
 /** A button that deletes the current thread list item. */

@@ -25,6 +25,8 @@ export type ThreadListRuntimeEvent = {
 };
 
 export type ThreadListRuntimeCore = {
+  /** Whether unarchive is supported. Omitted by custom cores that implement the required unarchive method. */
+  readonly canUnarchive?: boolean;
   readonly isLoading: boolean;
   readonly loadError?: unknown;
   readonly switchError?:

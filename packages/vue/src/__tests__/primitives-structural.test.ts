@@ -68,6 +68,7 @@ const createTestRuntime = ({ hasMore = false } = {}) => {
   let hasMoreValue = hasMore;
   let isLoading = false;
   let isLoadingMoreValue = false;
+  let canUnarchive = true;
   let core!: ExternalStoreRuntimeCore;
   const sync = () => core.setAdapter(makeAdapter());
   const onArchive = vi.fn((threadId: string) => {
@@ -114,7 +115,7 @@ const createTestRuntime = ({ hasMore = false } = {}) => {
           title: thread.title,
         })),
         onArchive,
-        onUnarchive,
+        onUnarchive: canUnarchive ? onUnarchive : undefined,
         onDelete,
       },
     },
@@ -162,6 +163,10 @@ const createTestRuntime = ({ hasMore = false } = {}) => {
     setHasMore,
     setLoading,
     setLoadingMore,
+    setCanUnarchive(value: boolean) {
+      canUnarchive = value;
+      sync();
+    },
     loadMore,
     onArchive,
     onUnarchive,
@@ -568,6 +573,47 @@ describe("structural primitives", () => {
       ).toBe(false);
     });
 
+    unmount();
+  });
+
+  it("disables unarchive when the adapter no longer supports it", async () => {
+    const { runtime, onUnarchive, setCanUnarchive } = createTestRuntime();
+    setCanUnarchive(false);
+    const View = defineComponent({
+      setup: () => () =>
+        h(
+          ThreadListPrimitiveItems,
+          { archived: true },
+          {
+            default: () =>
+              h(
+                ThreadListItemPrimitiveUnarchive,
+                { disabled: false },
+                { default: () => "Unarchive" },
+              ),
+          },
+        ),
+    });
+    const { el, unmount } = mountChat(runtime, View);
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelector<HTMLButtonElement>("button")?.disabled).toBe(
+        true,
+      );
+    });
+    el.querySelector("button")!.dispatchEvent(
+      new MouseEvent("click", { bubbles: true }),
+    );
+    expect(onUnarchive).not.toHaveBeenCalled();
+    setCanUnarchive(true);
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelector<HTMLButtonElement>("button")?.disabled).toBe(
+        false,
+      );
+    });
+    el.querySelector<HTMLButtonElement>("button")!.click();
+    await vi.waitFor(() => expect(onUnarchive).toHaveBeenCalledWith("ta"));
     unmount();
   });
 });

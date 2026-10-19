@@ -28,6 +28,9 @@ export const composerResumeDisabled = (s: AssistantState): boolean =>
 export const composerCancelDisabled = (s: AssistantState): boolean =>
   !s.composer.canCancel;
 
+export const threadListItemUnarchiveDisabled = (s: AssistantState): boolean =>
+  !s.threads.canUnarchive;
+
 export const composerInputDisabled = (s: AssistantState): boolean =>
   s.thread.isDisabled || s.composer.dictation?.inputDisabled === true;
 

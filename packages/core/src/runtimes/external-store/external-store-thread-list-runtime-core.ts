@@ -41,6 +41,10 @@ export class ExternalStoreThreadListRuntimeCore
     return this.adapter.isLoading ?? false;
   }
 
+  public get canUnarchive() {
+    return this.adapter.onUnarchive !== undefined;
+  }
+
   public get newThreadId() {
     return undefined;
   }
@@ -111,6 +115,8 @@ export class ExternalStoreThreadListRuntimeCore
     if (
       !initialLoad &&
       (previousAdapter.isLoading ?? false) === (adapter.isLoading ?? false) &&
+      (previousAdapter.onUnarchive !== undefined) ===
+        (adapter.onUnarchive !== undefined) &&
       previousThreadId === newThreadId &&
       previousThreads === newThreads &&
       previousArchivedThreads === newArchivedThreads
