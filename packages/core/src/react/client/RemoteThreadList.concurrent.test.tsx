@@ -254,7 +254,7 @@ describe("RemoteThreadList concurrent rendering", () => {
     unsubscribe();
   });
 
-  it("updates a selector that reads a captured main-thread client", async () => {
+  it("updates a selector holding the main-thread facade when switching background threads", async () => {
     const adapter = makeAdapter();
     adapter.list = vi.fn(async () => ({
       threads: [
@@ -272,6 +272,26 @@ describe("RemoteThreadList concurrent rendering", () => {
     }));
     const clientRef = createRef<AssistantClient>();
     let selectorRuns = 0;
+    const bodyRenders: string[] = [];
+    const threadResources = new Map<
+      string,
+      ReturnType<typeof IdentifiedThread>
+    >();
+    const thread = (id: string) => {
+      let element = threadResources.get(id);
+      if (!element) {
+        element = withKey(
+          id,
+          IdentifiedThread({
+            id,
+            onRender: (renderedId) => bodyRenders.push(renderedId),
+            onRefetch: () => {},
+          }),
+        );
+        threadResources.set(id, element);
+      }
+      return element as never;
+    };
 
     const CapturedMain = () => {
       const aui = useAui();
@@ -288,19 +308,12 @@ describe("RemoteThreadList concurrent rendering", () => {
         config={AuiConfig({
           threads: RemoteThreadList({
             adapter,
-            thread: (id) =>
-              withKey(
-                id,
-                IdentifiedThread({
-                  id,
-                  onRender: () => {},
-                  onRefetch: () => {},
-                }),
-              ) as never,
+            backgroundThreads: true,
+            thread,
           }),
         })}
       >
-        <CapturedMain />
+        {null}
       </AuiProvider>
     );
 
@@ -310,11 +323,17 @@ describe("RemoteThreadList concurrent rendering", () => {
     await act(async () => {
       await client.threads.switchToThread("thread-1");
     });
+    render(
+      <AuiProvider extends={client} config={AuiConfig({})}>
+        <CapturedMain />
+      </AuiProvider>,
+    );
     await waitFor(() =>
       expect(screen.getByTestId("captured-main").textContent).toBe("thread-1"),
     );
 
     const beforeSwitch = selectorRuns;
+    bodyRenders.length = 0;
     await act(async () => {
       await client.threads.switchToThread("thread-2");
     });
@@ -322,6 +341,7 @@ describe("RemoteThreadList concurrent rendering", () => {
       expect(screen.getByTestId("captured-main").textContent).toBe("thread-2"),
     );
     expect(selectorRuns).toBeGreaterThan(beforeSwitch);
+    expect(bodyRenders).not.toContain("thread-1");
   });
 
   it("keeps the main thread facade scoped to the committed factory", async () => {
