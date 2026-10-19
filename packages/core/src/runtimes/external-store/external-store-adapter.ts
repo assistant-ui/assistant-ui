@@ -118,6 +118,12 @@ type ExternalStoreAdapterBase<T> = {
    * to the last-message-status heuristic.
    */
   isRunning?: boolean | undefined;
+  /**
+   * Opt in only while an interrupted run has a resumable checkpoint. Requires
+   * onResume; do not set this for cancellation that permanently ends a run.
+   * Resuming must preserve the existing message and tool execution state.
+   */
+  canResume?: boolean | undefined;
   /** The current run's id, kept through `cancelRun` so its late calls can be discarded. */
   activeRunId?: string | undefined;
   isLoading?: boolean | undefined;

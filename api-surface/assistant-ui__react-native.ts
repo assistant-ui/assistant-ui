@@ -1731,6 +1731,7 @@ type ExternalStoreAdapterBase<T> = {
   isDisabled?: boolean | undefined;
   isSendDisabled?: boolean | undefined;
   isRunning?: boolean | undefined;
+  canResume?: boolean | undefined;
   activeRunId?: string | undefined;
   isLoading?: boolean | undefined;
   hasEarlier?: boolean | undefined;
@@ -1842,7 +1843,8 @@ type ExternalThreadProps = {
   onReload?: (parentId: string | null) => void;
   onStartRun?: () => void;
   onCancel?: () => void;
-  onResume?: (() => void) | undefined;
+  onResume?: ((config: CreateResumeRunConfig) => void | Promise<void>) | undefined;
+  canResume?: boolean | undefined;
   onRefetchThread?: (() => Promise<void>) | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
   onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
@@ -4130,6 +4132,7 @@ type ThreadRuntimeCore = Readonly<{
   isLoadingEarlier?: boolean;
   loadEarlier?(): Promise<void>;
   isRunning?: boolean | undefined;
+  canResume?: boolean | undefined;
   messages: readonly ThreadMessage[];
   state: ReadonlyJSONValue;
   suggestions: readonly ThreadSuggestion$1[];
@@ -4253,6 +4256,7 @@ declare class ThreadRuntimeImpl implements ThreadRuntime {
       isLoadingEarlier?: boolean;
       loadEarlier?(): Promise<void>;
       isRunning?: boolean | undefined;
+      canResume?: boolean | undefined;
       messages: readonly ThreadMessage[];
       state: ReadonlyJSONValue;
       suggestions: readonly ThreadSuggestion$1[];
@@ -4322,6 +4326,7 @@ type ThreadRuntimeState = {
   readonly hasEarlier: boolean;
   readonly isLoadingEarlier: boolean;
   readonly isRunning: boolean;
+  readonly canResume: boolean;
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly ThreadMessage[];
   readonly state: ReadonlyJSONValue;
@@ -4339,6 +4344,7 @@ type ThreadState = {
   readonly hasEarlier: boolean;
   readonly isLoadingEarlier: boolean;
   readonly isRunning: boolean;
+  readonly canResume?: boolean | undefined;
   readonly capabilities: RuntimeCapabilities;
   readonly messages: readonly MessageState[];
   readonly tasks: readonly TaskState[];

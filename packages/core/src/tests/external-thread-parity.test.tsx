@@ -3,11 +3,15 @@
 // Legacy-runtime parity: part statuses derive from the message status, and
 // imperative composer call sequences observe writes before React re-renders.
 
-import { render, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import type { FC } from "react";
 import { describe, it, expect, vi } from "vitest";
 import { useAui, AuiProvider } from "@assistant-ui/store";
 import type { ThreadMessage } from "../index";
+import { AssistantRuntimeProvider } from "../react/AssistantRuntimeProvider";
+import { AssistantRuntimeImpl } from "../runtime/api/assistant-runtime";
+import type { CreateResumeRunConfig } from "../runtime/api/thread-runtime";
+import { ExternalStoreRuntimeCore } from "../runtimes/external-store/external-store-runtime-core";
 import {
   ExternalThread,
   type ExternalThreadProps,
@@ -65,6 +69,109 @@ const assistantMessage = (
       ...(result !== undefined && { result }),
     },
   ]);
+
+describe.each(["ExternalThread", "external-store runtime"])(
+  "%s checkpoint resume parity",
+  (client) => {
+    const createThread = (
+      onResume: (config: CreateResumeRunConfig) => Promise<void>,
+    ) => {
+      const options = {
+        messages: [
+          assistantMessage({ type: "incomplete", reason: "cancelled" }),
+        ],
+        canResume: true,
+        onNew: vi.fn(),
+        onResume,
+      };
+      if (client === "ExternalThread")
+        return renderThread(options).aui().thread();
+
+      const runtime = new AssistantRuntimeImpl(
+        new ExternalStoreRuntimeCore(options),
+      );
+      let aui!: ReturnType<typeof useAui>;
+      const Capture = () => {
+        aui = useAui();
+        return null;
+      };
+      render(
+        <AssistantRuntimeProvider runtime={runtime}>
+          <Capture />
+        </AssistantRuntimeProvider>,
+      );
+      return aui.thread();
+    };
+    const config = {
+      parentId: "a1",
+      sourceId: "a1",
+      runConfig: { custom: { mode: "checkpoint" } },
+    } satisfies CreateResumeRunConfig;
+
+    it("forwards the resume config to onResume", async () => {
+      const onResume = vi.fn(async () => {});
+      const thread = createThread(onResume);
+      act(() => {
+        thread.resumeRun(config);
+      });
+      await waitFor(() =>
+        expect(onResume).toHaveBeenCalledExactlyOnceWith(config),
+      );
+      await waitFor(() => expect(thread.getState().canResume).toBe(true));
+    });
+
+    it("keeps the first config while a resume attempt is pending", async () => {
+      let finish!: () => void;
+      const onResume = vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve;
+          }),
+      );
+      const thread = createThread(onResume);
+      const nextConfig = {
+        ...config,
+        runConfig: { custom: { mode: "next" } },
+      };
+      act(() => {
+        thread.resumeRun(config);
+        thread.resumeRun(nextConfig);
+      });
+      await waitFor(() =>
+        expect(onResume).toHaveBeenCalledExactlyOnceWith(config),
+      );
+      act(() => finish());
+      await waitFor(() => expect(thread.getState().canResume).toBe(true));
+      act(() => {
+        thread.resumeRun(nextConfig);
+      });
+      await waitFor(() =>
+        expect(onResume).toHaveBeenNthCalledWith(2, nextConfig),
+      );
+      act(() => finish());
+      await waitFor(() => expect(thread.getState().canResume).toBe(true));
+    });
+
+    it("withholds canResume while an attempt is pending", async () => {
+      let finish!: () => void;
+      const onResume = vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve;
+          }),
+      );
+      const thread = createThread(onResume);
+      expect(thread.getState().canResume).toBe(true);
+      act(() => {
+        thread.resumeRun(config);
+      });
+      await waitFor(() => expect(onResume).toHaveBeenCalledOnce());
+      await waitFor(() => expect(thread.getState().canResume).toBe(false));
+      act(() => finish());
+      await waitFor(() => expect(thread.getState().canResume).toBe(true));
+    });
+  },
+);
 
 describe("ExternalThread part status", () => {
   it("gives an unresolved tool call its message's status", () => {
