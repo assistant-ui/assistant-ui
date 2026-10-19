@@ -133,7 +133,7 @@ declare namespace SpanPrimitiveCollapseToggle {
 }
 
 declare const SpanPrimitiveCollapseToggle: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace SpanPrimitiveIndent {
@@ -145,7 +145,7 @@ declare namespace SpanPrimitiveIndent {
 }
 
 declare const SpanPrimitiveIndent: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   baseIndent?: number;
   indentPerLevel?: number;
@@ -157,7 +157,7 @@ declare namespace SpanPrimitiveName {
 }
 
 declare const SpanPrimitiveName: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLSpanElement>>;
 
 declare namespace SpanPrimitiveRoot {
@@ -166,7 +166,7 @@ declare namespace SpanPrimitiveRoot {
 }
 
 declare const SpanPrimitiveRoot: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
 
 declare namespace SpanPrimitiveStatusIndicator {
@@ -175,7 +175,7 @@ declare namespace SpanPrimitiveStatusIndicator {
 }
 
 declare const SpanPrimitiveStatusIndicator: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLSpanElement>>;
 
 declare namespace SpanPrimitiveTimeline {
@@ -187,7 +187,7 @@ declare namespace SpanPrimitiveTimeline {
 }
 
 declare const SpanPrimitiveTimeline: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   timeRange?: SpanTimelineRange | undefined;
   paddingEnd?: number | undefined;
@@ -202,7 +202,7 @@ declare namespace SpanPrimitiveTimelineBar {
 }
 
 declare const SpanPrimitiveTimelineBar: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & {
   now?: number | undefined;
   timeRange?: SpanTimelineRange | undefined;
@@ -214,7 +214,7 @@ declare namespace SpanPrimitiveTypeBadge {
 }
 
 declare const SpanPrimitiveTypeBadge: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLSpanElement>>;
 
 declare const SpanResource: Resource<ClientOutput<"span">, [

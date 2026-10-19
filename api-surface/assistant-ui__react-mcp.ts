@@ -248,7 +248,7 @@ declare namespace McpAddFormPrimitiveCancel {
 }
 
 declare const McpAddFormPrimitiveCancel: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace McpAddFormPrimitiveError {
@@ -257,7 +257,7 @@ declare namespace McpAddFormPrimitiveError {
 }
 
 declare const McpAddFormPrimitiveError: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
 
 declare namespace McpAddFormPrimitiveNameField {
@@ -276,7 +276,7 @@ declare namespace McpAddFormPrimitiveRoot {
 }
 
 declare const McpAddFormPrimitiveRoot: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLFormElement> & import("react").FormHTMLAttributes<HTMLFormElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref">, "onSubmit"> & {
   onSubmitted?: (id: string) => void;
   onCancel?: () => void;
@@ -295,7 +295,7 @@ declare namespace McpAddFormPrimitiveSubmit {
 }
 
 declare const McpAddFormPrimitiveSubmit: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace McpAddFormPrimitiveUrlField {
@@ -323,7 +323,7 @@ declare namespace McpElicitationPrimitiveAccept {
 }
 
 declare const McpElicitationPrimitiveAccept: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace McpElicitationPrimitiveCancel {
@@ -332,7 +332,7 @@ declare namespace McpElicitationPrimitiveCancel {
 }
 
 declare const McpElicitationPrimitiveCancel: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace McpElicitationPrimitiveDecline {
@@ -341,7 +341,7 @@ declare namespace McpElicitationPrimitiveDecline {
 }
 
 declare const McpElicitationPrimitiveDecline: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace McpElicitationPrimitiveError {
@@ -350,7 +350,7 @@ declare namespace McpElicitationPrimitiveError {
 }
 
 declare const McpElicitationPrimitiveError: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
 
 declare namespace McpElicitationPrimitiveFields {
@@ -375,7 +375,7 @@ declare namespace McpElicitationPrimitiveMessage {
 }
 
 declare const McpElicitationPrimitiveMessage: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLSpanElement>>;
 
 declare namespace McpElicitationPrimitiveRoot {
@@ -384,7 +384,7 @@ declare namespace McpElicitationPrimitiveRoot {
 }
 
 declare const McpElicitationPrimitiveRoot: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
 
 declare const McpLocalStorage: Resource<MCPStorage, [
@@ -403,7 +403,7 @@ declare namespace McpManagerPrimitiveAddCustomTrigger {
 }
 
 declare const McpManagerPrimitiveAddCustomTrigger: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace McpManagerPrimitiveConnectors {
@@ -432,7 +432,7 @@ declare namespace McpManagerPrimitiveRoot {
 }
 
 declare const McpManagerPrimitiveRoot: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
 
 declare const McpManagerResource: Resource<ClientOutput<"mcp">, [
@@ -464,7 +464,7 @@ declare namespace McpServerPrimitiveConnectButton {
 }
 
 declare const McpServerPrimitiveConnectButton: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace McpServerPrimitiveDisconnectButton {
@@ -473,7 +473,7 @@ declare namespace McpServerPrimitiveDisconnectButton {
 }
 
 declare const McpServerPrimitiveDisconnectButton: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace McpServerPrimitiveError {
@@ -482,7 +482,7 @@ declare namespace McpServerPrimitiveError {
 }
 
 declare const McpServerPrimitiveError: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
 
 declare namespace McpServerPrimitiveIcon {
@@ -494,7 +494,7 @@ declare namespace McpServerPrimitiveIcon {
 }
 
 declare const McpServerPrimitiveIcon: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLImageElement> & import("react").ImgHTMLAttributes<HTMLImageElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref">, "alt" | "src"> & {
   src?: string;
   alt?: string;
@@ -506,7 +506,7 @@ declare namespace McpServerPrimitiveName {
 }
 
 declare const McpServerPrimitiveName: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLSpanElement>>;
 
 declare namespace McpServerPrimitiveOAuthLink {
@@ -517,7 +517,7 @@ declare namespace McpServerPrimitiveOAuthLink {
 }
 
 declare const McpServerPrimitiveOAuthLink: import("react").ForwardRefExoticComponent<Omit<Omit<import("react").ClassAttributes<HTMLAnchorElement> & import("react").AnchorHTMLAttributes<HTMLAnchorElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref">, "href"> & {
   href?: string;
 } & import("react").RefAttributes<HTMLAnchorElement>>;
@@ -528,7 +528,7 @@ declare namespace McpServerPrimitiveRemoveButton {
 }
 
 declare const McpServerPrimitiveRemoveButton: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
 
 declare namespace McpServerPrimitiveRoot {
@@ -537,7 +537,7 @@ declare namespace McpServerPrimitiveRoot {
 }
 
 declare const McpServerPrimitiveRoot: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
 
 declare namespace McpServerPrimitiveStatus {
@@ -546,7 +546,7 @@ declare namespace McpServerPrimitiveStatus {
 }
 
 declare const McpServerPrimitiveStatus: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLSpanElement>>;
 
 declare namespace McpServerPrimitiveToolName {
@@ -555,7 +555,7 @@ declare namespace McpServerPrimitiveToolName {
 }
 
 declare const McpServerPrimitiveToolName: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
-  asChild?: boolean;
+  asChild?: boolean | undefined;
 }, "ref"> & import("react").RefAttributes<HTMLSpanElement>>;
 
 declare namespace McpServerPrimitiveTools {
