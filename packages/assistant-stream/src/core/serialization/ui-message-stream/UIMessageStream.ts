@@ -126,14 +126,8 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               const delta =
                 type === "text-delta" ? chunk.textDelta : chunk.delta;
               if (part) part.append(delta, chunk.providerMetadata);
-              else if (kind === "text")
-                controller.appendText(delta, chunk.providerMetadata);
-              else
-                controller.appendReasoning(
-                  delta,
-                  undefined,
-                  chunk.providerMetadata,
-                );
+              else if (kind === "text") controller.appendText(delta);
+              else controller.appendReasoning(delta);
               break;
             }
 

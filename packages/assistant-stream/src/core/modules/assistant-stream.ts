@@ -56,17 +56,13 @@ type TextPartInit = {
  */
 export type AssistantStreamController = {
   /** Appends text to the current text part, opening one if needed. */
-  appendText(textDelta: string, providerMetadata?: PartProviderMetadata): void;
+  appendText(textDelta: string): void;
   /**
    * Appends reasoning text to the current reasoning part, opening one if
    * needed. Supplying options opens a new part and applies them to it, so a
    * summary always lands on a part of its own.
    */
-  appendReasoning(
-    reasoningDelta: string,
-    options?: ReasoningPartInit,
-    providerMetadata?: PartProviderMetadata,
-  ): void;
+  appendReasoning(reasoningDelta: string, options?: ReasoningPartInit): void;
   /** Appends a source citation part to the stream. */
   appendSource(options: SourcePart): void;
   /** Appends a file part to the stream. */
@@ -283,7 +279,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     );
   }
 
-  appendText(textDelta: string, providerMetadata?: PartProviderMetadata) {
+  appendText(textDelta: string) {
     if (
       this._state.append?.kind !== "text" ||
       this._state.append.parentId !== this._parentId
@@ -291,19 +287,13 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       this._state.append = {
         kind: "text",
         parentId: this._parentId,
-        controller: this.addTextPart(
-          providerMetadata != null ? { providerMetadata } : undefined,
-        ),
+        controller: this.addTextPart(),
       };
     }
-    this._state.append.controller.append(textDelta, providerMetadata);
+    this._state.append.controller.append(textDelta);
   }
 
-  appendReasoning(
-    textDelta: string,
-    options?: ReasoningPartInit,
-    providerMetadata?: PartProviderMetadata,
-  ) {
+  appendReasoning(textDelta: string, options?: ReasoningPartInit) {
     // An init describes a part, so supplying one opens a part rather than
     // extending whichever one happens to be open.
     if (
@@ -321,7 +311,7 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     // created, and appending there would put a chunk on the stream that no
     // producer emitted. An empty delta from an ordinary caller still appends.
     if (options !== undefined && textDelta.length === 0) return;
-    this._state.append.controller.append(textDelta, providerMetadata);
+    this._state.append.controller.append(textDelta);
   }
 
   addTextPart(options?: TextPartInit) {

@@ -158,32 +158,19 @@ describe("UIMessageStreamDecoder block identity", () => {
   it.each(["text", "reasoning"])(
     "supports legacy %s deltas and ends without IDs",
     async (type) => {
-      const legacyMetadata = { example: { kind: type } };
-      const delta = (text: string, providerMetadata?: object) =>
+      const delta = (text: string) =>
         type === "text"
-          ? {
-              type: "text-delta",
-              textDelta: text,
-              ...(providerMetadata && { providerMetadata }),
-            }
-          : {
-              type: "reasoning-delta",
-              delta: text,
-              ...(providerMetadata && { providerMetadata }),
-            };
+          ? { type: "text-delta", textDelta: text }
+          : { type: "reasoning-delta", delta: text };
       const message = await decode([
-        delta("Before a start.", legacyMetadata),
+        delta("Before a start."),
         { type: `${type}-start`, id: "part" },
         delta("Inside the block."),
         { type: `${type}-end` },
         delta("After an end."),
       ]);
       expect(message.parts).toMatchObject([
-        {
-          type,
-          text: "Before a start.",
-          providerMetadata: legacyMetadata,
-        },
+        { type, text: "Before a start." },
         { type, text: "Inside the block." },
         { type, text: "After an end." },
       ]);
