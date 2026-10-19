@@ -25,6 +25,7 @@ export type NotificationManager = {
   ): void;
   subscribe(callback: () => void): Unsubscribe;
   markChanged(signal: ScopedSignal): void;
+  invalidate(signal: ScopedSignal): void;
   notifySubscribers(): void;
 };
 
@@ -119,6 +120,13 @@ export const createNotificationManager = (): NotificationManager => {
     markChanged(signal) {
       signal.version++;
       changed.add(signal);
+    },
+
+    invalidate(signal) {
+      signal.version++;
+      withBatchedStateReads(() => {
+        for (const cb of [...signal.readers]) runSubscriber(cb);
+      });
     },
 
     notifySubscribers() {

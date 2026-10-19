@@ -424,7 +424,7 @@ export const ComposerPrimitiveInput = forwardRef<
             compositionRef.current = false;
           }
           const isComposing = nativeIsComposing || compositionRef.current;
-          // keep controlled value in sync mid-IME so react does not reset the textarea to a stale value
+          // Standalone tap roots need a synchronous flush while the input is composing.
           flushTapSync(() => {
             aui.composer.setText(e.target.value);
           });
