@@ -12,6 +12,7 @@ import {
   type ChatModelAdapter,
   ExportedMessageRepository,
   type RealtimeVoiceAdapter,
+  type ThreadMessage,
   type ThreadMessageLike,
   useAui,
   useExternalStoreRuntime,
@@ -63,6 +64,28 @@ function TestThread(props: ThreadProps) {
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <Thread {...props} />
+    </AssistantRuntimeProvider>
+  );
+}
+
+function ResumableTestThread({
+  onResume,
+  onNew,
+}: {
+  onResume: () => Promise<void>;
+  onNew: () => Promise<void>;
+}) {
+  const runtime = useExternalStoreRuntime<ThreadMessage>({
+    messages: [],
+    isRunning: false,
+    canResume: true,
+    onResume,
+    onNew,
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <Thread />
     </AssistantRuntimeProvider>
   );
 }
@@ -252,6 +275,81 @@ afterEach(async () => {
 });
 
 describe("Thread", () => {
+  it("does not resume when Enter is pressed in an empty composer with a checkpoint", async () => {
+    const onResume = vi.fn(async () => {});
+    const onNew = vi.fn(async () => {});
+    render(<ResumableTestThread onResume={onResume} onNew={onNew} />);
+    await screen.findByRole("button", { name: "Resume generating" });
+    const input = screen.getByRole("textbox");
+    act(() => input.focus());
+    expect(document.activeElement).toBe(input);
+    fireEvent.keyDown(input, { key: "Enter", code: "Enter" });
+    fireEvent.keyUp(input, { key: "Enter", code: "Enter" });
+    await act(async () => {});
+    expect(onResume).not.toHaveBeenCalled();
+    expect(onNew).not.toHaveBeenCalled();
+  });
+
+  it("resumes once when the focused Resume button is activated with Enter", async () => {
+    const onResume = vi.fn(async () => {});
+    const onNew = vi.fn(async () => {});
+    render(<ResumableTestThread onResume={onResume} onNew={onNew} />);
+    const resume = await screen.findByRole("button", {
+      name: "Resume generating",
+    });
+    act(() => resume.focus());
+    expect(document.activeElement).toBe(resume);
+    expect(resume.tagName).toBe("BUTTON");
+    expect(fireEvent.keyDown(resume, { key: "Enter", code: "Enter" })).toBe(
+      true,
+    );
+    fireEvent.click(resume, { detail: 0 });
+    fireEvent.keyUp(resume, { key: "Enter", code: "Enter" });
+    await waitFor(() => expect(onResume).toHaveBeenCalledOnce());
+    expect(onNew).not.toHaveBeenCalled();
+  });
+
+  it("resumes an available checkpoint from an empty composer without sending", async () => {
+    const onResume = vi.fn(async () => {});
+    const onNew = vi.fn(async () => {});
+    render(<ResumableTestThread onResume={onResume} onNew={onNew} />);
+
+    const resume = await screen.findByRole("button", {
+      name: "Resume generating",
+    });
+    expect(screen.queryByRole("button", { name: "Send message" })).toBeNull();
+    await act(async () => {
+      fireEvent.click(resume);
+    });
+
+    expect(onResume).toHaveBeenCalledOnce();
+    expect(onNew).not.toHaveBeenCalled();
+  });
+
+  it("shows Send for a draft and restores Resume when the draft is cleared", async () => {
+    const onResume = vi.fn(async () => {});
+    const onNew = vi.fn(async () => {});
+    render(<ResumableTestThread onResume={onResume} onNew={onNew} />);
+    await screen.findByRole("button", { name: "Resume generating" });
+    const input = screen.getByRole("textbox");
+
+    fireEvent.change(input, { target: { value: "A new request" } });
+    expect(
+      await screen.findByRole("button", { name: "Send message" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", { name: "Resume generating" }),
+    ).toBeNull();
+
+    fireEvent.change(input, { target: { value: "" } });
+    expect(
+      await screen.findByRole("button", { name: "Resume generating" }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Send message" })).toBeNull();
+    expect(onResume).not.toHaveBeenCalled();
+    expect(onNew).not.toHaveBeenCalled();
+  });
+
   it("focuses the composer by default", async () => {
     render(<TestThread />);
 
