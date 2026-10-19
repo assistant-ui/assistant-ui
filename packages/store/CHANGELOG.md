@@ -1,5 +1,19 @@
 # @assistant-ui/store
 
+## 0.3.22
+
+### Patch Changes
+
+- [#9108](https://github.com/assistant-ui/assistant-ui/pull/9108) [`ed0d969`](https://github.com/assistant-ui/assistant-ui/commit/ed0d969c1d73347da217272e5ec42d10092a3473) - Track selectors that read through a forwarding client when its target changes. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9776](https://github.com/assistant-ui/assistant-ui/pull/9776) [`32a1b79`](https://github.com/assistant-ui/assistant-ui/commit/32a1b79108ae40a87947905529fbf1f14726e395) - `useAuiState` and `aui.composer.getState()` now see composer text as soon as `setText` returns, so an input that keeps its own state, such as react-mentions, no longer moves the caret to the end. ([@okisdev](https://github.com/okisdev))
+
+- [#9772](https://github.com/assistant-ui/assistant-ui/pull/9772) [`1808265`](https://github.com/assistant-ui/assistant-ui/commit/1808265f30837afe77a00d8bd3081a8fa20081c0) - Notify child handles after their derived scopes catch up with parent changes. ([@okisdev](https://github.com/okisdev))
+
+- [#9865](https://github.com/assistant-ui/assistant-ui/pull/9865) [`727a02d`](https://github.com/assistant-ui/assistant-ui/commit/727a02dc3fe5286ded479cb792f48acbff336cd7) - preserve reading position when earlier messages load and support held follow and content inset updates ([@okisdev](https://github.com/okisdev))
+
+- [#9771](https://github.com/assistant-ui/assistant-ui/pull/9771) [`0c049eb`](https://github.com/assistant-ui/assistant-ui/commit/0c049ebbfcfc5589288f47b6039c883b2f1c581f) - Keep Vue and Svelte viewport footer insets in the shared store controller. ([@okisdev](https://github.com/okisdev))
+
 ## 0.3.21
 
 ### Patch Changes

@@ -1,5 +1,13 @@
 # @assistant-ui/generative-ui
 
+## 0.0.6
+
+### Patch Changes
+
+- Updated dependencies [[`6966821`](https://github.com/assistant-ui/assistant-ui/commit/69668210c9476323380067307284509f707b507a), [`e99250f`](https://github.com/assistant-ui/assistant-ui/commit/e99250fb58a4d31431e27dd5c6820ca3a813034a), [`54e2e9b`](https://github.com/assistant-ui/assistant-ui/commit/54e2e9b9611f32b669e5e874a515671175645307), [`be30245`](https://github.com/assistant-ui/assistant-ui/commit/be302451ba4243f14d612fe7530c63dfe9275f6d)]:
+  - assistant-stream@0.3.53
+  - generative-frame@0.0.7
+
 ## 0.0.5
 
 ### Patch Changes
