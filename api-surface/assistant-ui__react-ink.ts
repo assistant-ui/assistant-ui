@@ -5399,7 +5399,7 @@ declare const convertExternalMessages: <T extends WeakKey>(messages: T[], callba
 
 declare const createExternalMessageConversionCache: () => ExternalMessageConversionCache;
 
-declare const createFileStorageAdapter: (options: CreateFileStorageAdapterOptions) => RemoteThreadListAdapter;
+declare const createFileStorageAdapter: (options: CreateFileStorageAdapterOptions) => RemoteThreadListAdapter & Pick<Required<RemoteThreadListAdapter>, "unarchive">;
 
 declare const createMessageConverter: <T extends object>(callback: useExternalMessageConverter.Callback<T>) => {
   useThreadMessages: (_param73: {
@@ -5632,7 +5632,7 @@ declare const useAuiState: <T>(selector: (state: AssistantState) => T) => T;
 
 declare function useAuiToolOverrides(overrides: AuiToolOverrides): void;
 
-declare const useCloudThreadListAdapter: (adapter: CloudThreadListAdapterOptions) => RemoteThreadListAdapter;
+declare const useCloudThreadListAdapter: (adapter: CloudThreadListAdapterOptions) => RemoteThreadListAdapter & Pick<Required<RemoteThreadListAdapter>, "unarchive">;
 
 declare function useCloudThreadListRuntime(_param74: CloudThreadListAdapter): AssistantRuntime;
 

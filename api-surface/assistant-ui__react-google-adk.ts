@@ -298,7 +298,7 @@ type AdkSessionAdapterOptions = {
 };
 
 type AdkSessionAdapterResult = {
-  adapter: RemoteThreadListAdapter;
+  adapter: RemoteThreadListAdapter & Pick<Required<RemoteThreadListAdapter>, "unarchive">;
   load: (sessionId: string, options?: {
     signal?: AbortSignal | undefined;
   }) => Promise<AdkThreadSnapshot>;

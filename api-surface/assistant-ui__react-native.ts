@@ -5212,7 +5212,7 @@ declare const useAuiState: <T>(selector: (state: AssistantState) => T) => T;
 
 declare function useAuiToolOverrides(overrides: AuiToolOverrides): void;
 
-declare const useCloudThreadListAdapter: (adapter: CloudThreadListAdapterOptions) => RemoteThreadListAdapter;
+declare const useCloudThreadListAdapter: (adapter: CloudThreadListAdapterOptions) => RemoteThreadListAdapter & Pick<Required<RemoteThreadListAdapter>, "unarchive">;
 
 declare function useCloudThreadListRuntime(_param54: CloudThreadListAdapter): AssistantRuntime;
 

@@ -6812,7 +6812,7 @@ declare const useBranchPickerPrevious: () => (() => void) | null;
 
 declare const useChainOfThoughtAccordionTrigger: () => () => void;
 
-declare const useCloudThreadListAdapter: (adapter: CloudThreadListAdapterOptions) => RemoteThreadListAdapter;
+declare const useCloudThreadListAdapter: (adapter: CloudThreadListAdapterOptions) => RemoteThreadListAdapter & Pick<Required<RemoteThreadListAdapter>, "unarchive">;
 
 declare function useCloudThreadListRuntime(_param13: CloudThreadListAdapter): AssistantRuntime;
 
