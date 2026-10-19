@@ -112,6 +112,7 @@ export class RemoteThreadListThreadListRuntimeCore
   private readonly _titleStates = new Map<string, ThreadTitleState>();
   private _mutations = new ThreadMutationQueue();
   private readonly _automaticTitles = new Map<string, Unsubscribe>();
+  private readonly _runningThreads = new Set<string>();
   private readonly _destroyController = new AbortController();
 
   private _mainThreadId!: string;
@@ -363,9 +364,41 @@ export class RemoteThreadListThreadListRuntimeCore
       this,
     );
     this._hookManager.__internal_setDefaultAdapters(this._runtimeAdapters);
-    this._hookManager.__internal_subscribeRunningChanged(() =>
-      this._notifySubscribers(),
-    );
+    this._hookManager.__internal_subscribeRunningChanged(() => {
+      for (const data of Object.values(this._state.value.threadData)) {
+        if (this._hookManager.__internal_isThreadRunning(data.id)) {
+          this._runningThreads.add(data.id);
+        } else if (this._runningThreads.delete(data.id)) {
+          const messages = this._hookManager
+            .getThreadRuntimeCore(data.id)
+            ?.messages.filter(isTitleSourceMessage);
+          if (!messages || data.status === "new") continue;
+          const adapterGeneration = this._adapterGeneration;
+          queueMicrotask(() => {
+            if (
+              this._destroyController.signal.aborted ||
+              adapterGeneration !== this._adapterGeneration ||
+              !this.getItemById(data.id)
+            )
+              return;
+            void this._generateTitle(
+              data.id,
+              { automatic: true },
+              () =>
+                this._destroyController.signal.aborted ? undefined : messages,
+              true,
+            ).catch((error: unknown) => {
+              if (!isSilentRuntimeAction(error))
+                console.error(
+                  "[assistant-ui] Thread title generation failed",
+                  error,
+                );
+            });
+          });
+        }
+      }
+      this._notifySubscribers();
+    });
     this._hookManager.__internal_subscribeRuntimeReplaced(() => {
       // A republish can land during the thread resource's render, where a
       // synchronous notify would re-enter store consumers mid-render.
@@ -425,6 +458,7 @@ export class RemoteThreadListThreadListRuntimeCore
       // never outlive the adapter it was made for.
       this._titleStates.clear();
       this._disarmAutomaticTitles();
+      this._runningThreads.clear();
       this._state.update({
         ...this._state.baseValue,
         cursor: undefined,
@@ -598,6 +632,7 @@ export class RemoteThreadListThreadListRuntimeCore
     for (const item of Object.values(state.threadData)) {
       if (nextIds.has(item.id)) continue;
       this._disarmAutomaticTitle(item.id);
+      this._runningThreads.delete(item.id);
       try {
         this._hookManager.stopThreadRuntime(item.id);
       } catch (error) {
@@ -1280,6 +1315,7 @@ export class RemoteThreadListThreadListRuntimeCore
     threadId: string,
     options?: { automatic?: boolean },
     getAutomaticMessages?: () => readonly ThreadMessage[] | undefined,
+    afterRun = false,
   ) => {
     this._requireAdapterSettled();
     const adapter = this._options.adapter;
@@ -1302,15 +1338,18 @@ export class RemoteThreadListThreadListRuntimeCore
     // would make the payload race-dependent; the title reads settled
     // messages only, matching the trigger's readiness gate.
     const currentMessages = runtimeCore.messages.filter(isTitleSourceMessage);
-    const messages = currentMessages.length
-      ? currentMessages
-      : (automaticMessages ?? currentMessages);
+    const messages = afterRun
+      ? automaticMessages!
+      : currentMessages.length
+        ? currentMessages
+        : (automaticMessages ?? currentMessages);
     const isRemoved = () =>
       getThreadData(this._state.baseValue, data.id) === undefined;
     await runThreadTitleGeneration({
       states: this._titleStates,
       threadId: data.id,
       automatic: options?.automatic === true,
+      messages,
       generate: async (onTitle) => {
         if (isRemoved()) return;
         const stream = await adapter.generateTitle(remoteId, messages);
@@ -1352,6 +1391,14 @@ export class RemoteThreadListThreadListRuntimeCore
           },
         });
       },
+      afterRun: afterRun
+        ? () => {
+            this._requireAdapterGeneration(adapterGeneration);
+            if (this._destroyController.signal.aborted)
+              throw new ThreadListDestroyedError();
+            return this.getItemById(data.id)?.title;
+          }
+        : undefined,
     });
     return true;
   };
@@ -1716,6 +1763,7 @@ export class RemoteThreadListThreadListRuntimeCore
     this._nextSwitchGeneration();
     this._destroyController.abort(new ThreadListDestroyedError());
     this._disarmAutomaticTitles();
+    this._runningThreads.clear();
     this._hookManager.__internal_dispose();
   }
 
@@ -1730,6 +1778,7 @@ export class RemoteThreadListThreadListRuntimeCore
       await this._ensureThreadIsNotMain(data.id);
     } while (data.id === this._mainThreadId);
     this._requireAdapterGeneration(adapterGeneration);
+    this._runningThreads.delete(data.id);
     this._hookManager.stopThreadRuntime(data.id);
   }
 

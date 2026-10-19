@@ -352,6 +352,8 @@ export function ThreadList() {
 
 ### Adapter contract
 
+`generateTitle` is called automatically once the first message settles and, if the thread still has no title, again after its first run ends, including errors and cancellations. The second trigger also covers untitled threads opened with `switchToThread` and runs at most once per thread per thread-list instance. It waits for any title generation already in flight before checking the title, and a manual rename suppresses it. A backend that titles the thread asynchronously may keep the stream open until its title is ready.
+
 <ParametersTable
   type="RemoteThreadListAdapter"
   parameters={[

@@ -72,6 +72,8 @@ export type RemoteThreadListAdapter = {
   /**
    * Generates a title for the thread and streams it back.
    *
+   * Called automatically once the first message settles and, if the thread still has no title, again after its first run ends (completion, error, or cancellation). A backend that titles the thread asynchronously may keep the stream open until its title is ready.
+   *
    * When the generation persists the title itself, the returned stream must
    * not complete before that write has landed. Concurrent generations are
    * ordered by stream completion, and a run whose write outlives its stream

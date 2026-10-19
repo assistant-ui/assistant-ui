@@ -123,6 +123,74 @@ const deferred = <T>() => {
 };
 
 describe("RemoteThreadList backgroundThreads", () => {
+  it.each([false, true])(
+    "gates run-end titles on backgroundThreads=%s even without an assistant message",
+    async (backgroundThreads) => {
+      let isRunning = false;
+      const listeners = new Set<() => void>();
+      const messages = [
+        { role: "user", content: [{ type: "text", text: "hello" }] },
+      ];
+      const useRunningThread = () => {
+        const running = useSyncExternalStore(
+          (listener) => {
+            listeners.add(listener);
+            return () => listeners.delete(listener);
+          },
+          () => isRunning,
+        );
+        return {
+          getState: () => ({ isRunning: running, messages }),
+          composer: () => stubComposer,
+          suggestions: () => stubSuggestions,
+        };
+      };
+      const RunningThread = resource(useRunningThread);
+      const adapter = makeAdapter();
+      const handle = createAssistantClient(
+        AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            backgroundThreads,
+            thread: () => RunningThread() as never,
+          }),
+        }),
+      );
+      handle.subscribe(() => {});
+      try {
+        const aui = handle.getClient();
+        await aui.threads.getLoadThreadsPromise();
+        await aui.threads.item("main").initialize();
+        flushTapSync(() => {});
+        if (backgroundThreads)
+          await vi.waitFor(() =>
+            expect(adapter.generateTitle).toHaveBeenCalledTimes(1),
+          );
+        for (const running of [true, false, true, false]) {
+          flushTapSync(() => {
+            isRunning = running;
+            for (const listener of listeners) listener();
+          });
+          await vi.waitFor(() =>
+            expect(aui.thread.getState().isRunning).toBe(running),
+          );
+        }
+        await vi.waitFor(() =>
+          expect(adapter.generateTitle).toHaveBeenCalledTimes(
+            backgroundThreads ? 2 : 0,
+          ),
+        );
+        if (backgroundThreads)
+          expect(adapter.generateTitle).toHaveBeenLastCalledWith(
+            aui.threads.item("main").getState().remoteId,
+            messages,
+          );
+      } finally {
+        handle.destroy();
+      }
+    },
+  );
+
   it("keeps background emissions global while filtering thread scope to main", async () => {
     const adapter = makeAdapter({
       list: vi.fn(async () => ({

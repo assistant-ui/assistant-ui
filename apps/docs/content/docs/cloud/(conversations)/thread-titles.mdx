@@ -11,7 +11,7 @@ The cloud writes the title itself, in the background of the request that gives t
 
 | Trigger | When it fires |
 |---|---|
-| The runtime asks | `POST /v1/runs/stream` with `assistant_id: "system/thread_title"`. The assistant-ui runtimes send it once per thread, as soon as the cloud thread exists, with the messages the thread holds at that moment, which on a new thread is the user's message alone. |
+| The runtime asks | `POST /v1/runs/stream` with `assistant_id: "system/thread_title"`. The assistant-ui runtimes send it once the first message settles and, if the thread still has no title, again after its first run ends, with the settled messages available at each trigger. |
 | The user message is stored | `POST /v1/threads/{thread_id}/messages` with `role: "user"`, on a thread that has no title yet. The title is written from the stored messages. |
 | The hourly sweep | Once an hour, over the untitled threads of the last seven days that a request missed or failed on. |
 
@@ -41,7 +41,9 @@ Every attempt is claimed inside a transaction that locks the thread row and reco
 
 ### When the title reaches your app
 
-The runtime's own request goes out when the cloud thread is created, with the user's message, and the cloud answers it with the title as it streams from the model, so the assistant-ui thread list shows the title before the response has finished. A thread the cloud titles on its own, after a user message stored by a server or by the hourly sweep, shows its title in an app when the thread list next loads. Runtimes that keep their transcripts elsewhere, LangGraph, LangChain and Google ADK, are titled the same way, because the request carries the user's message and nothing else is needed.
+The runtime calls `RemoteThreadListAdapter.generateTitle` once the first message settles. The cloud streams the title back, so the thread list can show it before the assistant's response finishes. If the thread still has no title after its first run ends, including errors and cancellations, the runtime calls `generateTitle` once more with the settled messages, including the first reply. This also covers untitled threads created outside the runtime and opened with `switchToThread`. The fallback waits for any title generation already in flight, and a manual rename suppresses it. A backend that titles the thread asynchronously may keep the stream open until its title is ready.
+
+A thread the cloud titles on its own after these requests, for example through the hourly sweep, shows its title when the thread list next loads. Runtimes that keep their transcripts elsewhere, LangGraph, LangChain and Google ADK, are titled the same way, because the request carries the messages.
 
 ## Configure
 
