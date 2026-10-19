@@ -10,6 +10,7 @@ export {
   useIsServerRender,
 } from "./utils/useIsomorphicLayoutEffect";
 export { useReplaySafeEffect } from "./utils/useReplaySafeEffect";
+export { useForwardingClient } from "./useClientResource";
 export {
   shallowEqual,
   useShallowSelector,
