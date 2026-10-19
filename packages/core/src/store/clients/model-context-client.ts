@@ -1,8 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useInsertionEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { resource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
 import { CompositeContextProvider } from "../../utils/composite-context-provider";
 import type { ModelContextState } from "../scopes/model-context";
+import type { ModelContextOptions } from "../../model-context/types";
 import { shallowEqual } from "@assistant-ui/store/internal";
 
 const EMPTY_TOOL_NAMES: readonly string[] = [];
@@ -30,8 +37,17 @@ const deriveState = (
   return { modelName, toolNames };
 };
 
-const useModelContext = (): ClientOutput<"modelContext"> => {
-  const composite = useMemo(() => new CompositeContextProvider(), []);
+const useModelContext = (
+  options: ModelContextOptions = {},
+): ClientOutput<"modelContext"> => {
+  const optionsRef = useRef(options);
+  useInsertionEffect(() => {
+    optionsRef.current = options;
+  });
+  const composite = useMemo(
+    () => new CompositeContextProvider(() => optionsRef.current),
+    [],
+  );
   const [state, setState] = useState<ModelContextState>(() =>
     deriveState(composite, INITIAL_STATE),
   );

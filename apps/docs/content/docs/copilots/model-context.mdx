@@ -129,9 +129,50 @@ function MyComponent() {
 
 Multiple providers can be registered, and their contexts will be composed:
 
-- System instructions are concatenated
+- System instructions are concatenated, highest `priority` first, separated by a blank line
 - Tool sets are merged
 - Nested readable components only contribute their context at the outermost level
+
+### Capping the System Prompt
+
+A transport with a hard size limit can cap the merged system prompt by passing `maxSystemLength` (in characters) to the model context client in your `AuiConfig`:
+
+```tsx
+import {
+  AssistantRuntimeProvider,
+  AuiConfig,
+  ModelContextClient,
+  Tools,
+} from "@assistant-ui/react";
+
+const config = AuiConfig({
+  modelContext: ModelContextClient({ maxSystemLength: 40_000 }),
+  tools: Tools({ toolkit }),
+});
+
+// <AssistantRuntimeProvider runtime={runtime} config={config}>
+```
+
+Parts stay in priority order. Higher-priority parts are kept whole, the first part that does not fit is cut to the remaining budget, and every lower-priority part after it is dropped. The blank-line separators count toward the cap. A provider that should be trimmed first registers with a negative priority:
+
+```tsx
+aui.modelContext.register({
+  getModelContext: () => ({ system: longReferenceText, priority: -1 }),
+});
+```
+
+To change how the parts combine, pass `mergeSystem` instead. It receives the parts as `{ system, priority }` objects, highest priority first, and returns the merged system prompt:
+
+```tsx
+const config = AuiConfig({
+  modelContext: ModelContextClient({
+    mergeSystem: (parts) =>
+      parts.map((part) => `<section>${part.system}</section>`).join("\n"),
+  }),
+});
+```
+
+`maxSystemLength` and `mergeSystem` are mutually exclusive, and passing both throws when the client mounts; apply any cap inside `mergeSystem` instead. The options apply to context registered through `aui.modelContext`, such as `useAssistantInstructions` and `useAssistantContext`.
 
 ## Best Practices
 

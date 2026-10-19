@@ -1,4 +1,5 @@
 import {
+  type ModelContextOptions,
   type ModelContextProvider,
   mergeModelContexts,
 } from "../model-context/types";
@@ -9,8 +10,17 @@ export class CompositeContextProvider implements ModelContextProvider {
   private _providers = new Map<symbol, ModelContextProvider>();
   private _providerUnsubscribes = new Map<symbol, Unsubscribe | undefined>();
 
+  private readonly _getMergeOptions: () => ModelContextOptions;
+
+  constructor(getMergeOptions: () => ModelContextOptions = () => ({})) {
+    this._getMergeOptions = getMergeOptions;
+  }
+
   getModelContext() {
-    return mergeModelContexts(new Set(this._providers.values()));
+    return mergeModelContexts(
+      new Set(this._providers.values()),
+      this._getMergeOptions(),
+    );
   }
 
   registerModelContextProvider(provider: ModelContextProvider) {

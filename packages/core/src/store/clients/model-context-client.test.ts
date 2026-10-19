@@ -220,3 +220,44 @@ describe("mergeModelContexts", () => {
     expect(merged.tools?.shared?.execute).toBe(execute);
   });
 });
+
+describe("ModelContext options", () => {
+  const renderWith = (options: Parameters<typeof ModelContext>[0]) => {
+    const root = createTapRoot(function Root() {
+      return useResource(ModelContext(options));
+    });
+    return { sub: root, unmount: () => root.unmount() };
+  };
+
+  it("caps the merged system with maxSystemLength", () => {
+    const { sub, unmount } = renderWith({ maxSystemLength: 10 });
+    try {
+      sub.getValue().register(provider({ system: "trim me", priority: -1 }));
+      sub.getValue().register(provider({ system: "keep" }));
+
+      expect(sub.getValue().getModelContext().system).toBe("keep\n\ntrim");
+    } finally {
+      unmount();
+    }
+  });
+
+  it("combines system parts with mergeSystem", () => {
+    const { sub, unmount } = renderWith({
+      mergeSystem: (parts) => parts.map((part) => part.system).join("\n"),
+    });
+    try {
+      sub.getValue().register(provider({ system: "b", priority: -1 }));
+      sub.getValue().register(provider({ system: "a" }));
+
+      expect(sub.getValue().getModelContext().system).toBe("a\nb");
+    } finally {
+      unmount();
+    }
+  });
+
+  it("throws on mount when both maxSystemLength and mergeSystem are passed", () => {
+    expect(() =>
+      renderWith({ maxSystemLength: 10, mergeSystem: () => "" }),
+    ).toThrow(/either maxSystemLength or mergeSystem/);
+  });
+});
