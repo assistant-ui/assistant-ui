@@ -1795,6 +1795,13 @@ const useRemoteThreadList = (
             await currentAdapter.rename(remoteId, title);
           });
         },
+        readTitle: async () => {
+          requireAdapterGeneration(adapterGeneration);
+          if (isRemoved()) return undefined;
+          const { title } = await currentAdapter.fetch(remoteId);
+          requireAdapterGeneration(adapterGeneration);
+          return title;
+        },
         applyTitle: async (title) => {
           await store.optimisticUpdate({
             execute: async () => {},

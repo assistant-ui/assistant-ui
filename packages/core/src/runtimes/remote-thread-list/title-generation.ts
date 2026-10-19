@@ -38,6 +38,7 @@ export type ThreadTitleGenerationRun = {
     onTitle: (title: string | undefined) => Promise<void>,
   ) => Promise<void>;
   rename: (title: string) => Promise<void>;
+  readTitle: () => Promise<string | undefined>;
   applyTitle: (title: string | undefined) => Promise<void>;
 };
 
@@ -381,6 +382,27 @@ export async function runThreadTitleGeneration(
   let sawTitle = false;
   let lastTitle: string | undefined;
 
+  const writeBack = async (title: string, ownsTitle: () => boolean) => {
+    const order = state.nextOrder;
+    const canReconcile = () =>
+      isLive() && state.nextOrder === order && ownsTitle();
+    try {
+      await rename(title);
+    } catch (error) {
+      try {
+        if (canReconcile()) {
+          const serverTitle = await run.readTitle();
+          if (canReconcile()) {
+            persistedTitle = serverTitle;
+            await applyTitle(serverTitle);
+          }
+        }
+      } catch {}
+      throw error;
+    }
+    persistedTitle = title;
+  };
+
   const settleClaim = async (claim: ThreadTitleClaim) => {
     const renamed = await claim.settled;
     if (generation.claim !== claim) return undefined;
@@ -432,9 +454,11 @@ export async function runThreadTitleGeneration(
       ) {
         const renamed = await settleClaim(claim);
         if (renamed === true) {
-          persistedTitle = claim.title;
+          await writeBack(
+            claim.title,
+            () => generation.claim === claim && isCurrentClaim(state, claim),
+          );
           persistedOrder = claim.order;
-          await rename(claim.title);
         }
         continue;
       }
@@ -447,10 +471,14 @@ export async function runThreadTitleGeneration(
         return;
       const title = await winner.persisted;
       if (state.latestGeneration !== winner) continue;
-      persistedOrder = winner.order;
       if (title === undefined || title === persistedTitle) return;
-      persistedTitle = title;
-      await rename(title);
+      await writeBack(
+        title,
+        () =>
+          state.latestGeneration === winner &&
+          (generation.claim?.order ?? 0) <= winner.order,
+      );
+      persistedOrder = winner.order;
     }
   };
 
@@ -524,8 +552,11 @@ export async function runThreadTitleGeneration(
         if (!isCurrentClaim(state, claim)) return;
         if (generation.claim !== claim) continue;
       }
-      await rename(claim.title);
-      persistedTitle = claim.title;
+      await writeBack(
+        claim.title,
+        () =>
+          generation.claim === claim && isCurrentGeneration(state, generation),
+      );
       persistedOrder = claim.order;
       if (generation.claim !== claim) continue;
       if (!isCurrentGeneration(state, generation)) return;
