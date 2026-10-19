@@ -4,7 +4,7 @@ import {
 } from "@ai-sdk/mcp";
 import type { ToolSet } from "ai";
 
-let mcpClientPromise: ReturnType<typeof createMCPClient> | null = null;
+let mcpClientPromise: Promise<MCPClient> | null = null;
 let cachedTools: ToolSet | null = null;
 
 export function getMcpClient(): Promise<MCPClient> {

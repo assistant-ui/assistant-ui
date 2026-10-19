@@ -320,7 +320,9 @@ export class AISDKToolkit {
   }
 }
 
-const toMCPClientConfig = (config: McpServerConfig): MCPClientConfig => {
+const toMCPClientConfig = (
+  config: McpServerConfig,
+): MCPClientConfig & { experimental_events?: { adapter?: never } } => {
   if (config.type === "stdio") {
     return {
       transport: new Experimental_StdioMCPTransport({
