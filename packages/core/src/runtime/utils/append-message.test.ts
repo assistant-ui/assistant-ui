@@ -55,6 +55,12 @@ describe("toAppendMessage", () => {
     expect(result.startRun).toBe(false);
   });
 
+  it("uses the current tail for an object without a parent", () => {
+    expect(
+      toAppendMessage(messages, { content: [], parentId: undefined }).parentId,
+    ).toBe("tail");
+  });
+
   it("selects a root parent when the thread is empty", () => {
     expect(
       toAppendMessage([], { content: [], parentId: undefined }).parentId,
