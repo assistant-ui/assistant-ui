@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ThreadMessage } from "../../types/message";
+import type { AppendMessage, ThreadMessage } from "../../types/message";
 import { toAppendMessage } from "./append-message";
 
 describe("toAppendMessage", () => {
@@ -31,7 +31,7 @@ describe("toAppendMessage", () => {
     const createdAt = new Date("2026-04-05T06:07:08.000Z");
     const content = [{ type: "text" as const, text: "branch" }];
     const metadata = { custom: { marker: "original" } };
-    const attachments = [];
+    const attachments: AppendMessage["attachments"] = [];
     const runConfig = { custom: { modelName: "sample" } };
     const result = toAppendMessage(messages, {
       parentId: null,
