@@ -105,8 +105,8 @@ const BLOCK_DELIMITERS = [
 ] as const;
 
 // Like markdown-it's fence rule, an unclosed block runs to the end of its
-// container, which keeps a streaming block in one piece; a closer followed by
-// text on its line declines the block, leaving the paragraph's inline math.
+// container and only a line ending in the closer closes it, so each line's role
+// depends on that line alone and a streaming block stays in one piece.
 const mathBlock = (
   state: StateBlock,
   startLine: number,
@@ -136,6 +136,7 @@ const mathBlock = (
     if (silent) return true;
     content = rest.slice(0, sameLine);
   } else {
+    if (silent) return true;
     let closeLine = -1;
     let closeAt = 0;
     for (; nextLine < endLine; nextLine++) {
@@ -144,16 +145,13 @@ const mathBlock = (
       if (lineStart < lineEnd && state.sCount[nextLine]! < state.blkIndent) {
         break;
       }
-      const line = state.src.slice(lineStart, lineEnd);
-      const at = line.indexOf(close);
-      if (at === -1) continue;
-      if (line.slice(at + close.length).trim()) return false;
-      closeLine = nextLine;
-      closeAt = lineStart + at;
-      break;
+      const line = state.src.slice(lineStart, lineEnd).trimEnd();
+      if (line.endsWith(close)) {
+        closeLine = nextLine;
+        closeAt = lineStart + line.length - close.length;
+        break;
+      }
     }
-    if (closeLine === -1 && rest.trim()) return false;
-    if (silent) return true;
     const body = state.getLines(
       startLine + 1,
       closeLine === -1 ? nextLine : closeLine,

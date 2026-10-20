@@ -45,28 +45,12 @@ test.each([
 });
 
 test.each([
-  ["$$\nx\n$$ and more", " and more"],
-  ["\\[\nE = mc^2\n\\], where E is energy.", ", where E is energy."],
-])(
-  "a closer followed by text on its line stays inline: %j",
-  (source, after) => {
-    expect(inline(source)).toEqual([
-      {
-        type: "mathInline",
-        value: expect.stringContaining(source.includes("E") ? "E = mc^2" : "x"),
-        display: true,
-      },
-      { type: "text", value: after },
-    ]);
-  },
-);
-
-test("text after a closer does not swallow the blocks that follow", () => {
-  expect(
-    parseMarkdown("\\[\nE\n\\], where.\n\n## Next").children.map(
-      (node) => node.type,
-    ),
-  ).toEqual(["paragraph", "heading"]);
+  ["$$\nx\n$$ and more", "x\n$$ and more"],
+  ["$$\na $$b$$ c\n$$", "a $$b$$ c"],
+  ["$$a\n\nb\n\nc$$", "a\n\nb\n\nc"],
+])("only a line ending in the closer closes %j", (source, value) => {
+  const [block] = parseMarkdown(source).children;
+  expect(block?.type === "mathBlock" && block.value).toBe(value);
 });
 
 test("a line of unclosed openers parses in linear time", () => {
