@@ -31,15 +31,6 @@ export const MODELS = [
     disabled: false,
     contextWindow: 1_050_000,
   },
-  {
-    name: "Grok 4.7",
-    value: "grok-4.7",
-    provider: "xAI",
-    icon: "/icons/xai.svg",
-    disabled: false,
-    contextWindow: 500_000,
-    reasoning: true,
-  },
 ] as const;
 
 export type Model = (typeof MODELS)[number];
