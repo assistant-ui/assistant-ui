@@ -7,9 +7,11 @@ import type { AsyncStorageLike } from "./LocalStorageThreadListAdapter";
 import {
   createLocalStorageAdapter,
   createLocalStorageHistoryAdapter,
+} from "./LocalStorageThreadListAdapter";
+import {
   parseStoredMessageRepository,
   parseStoredThreadMetadata,
-} from "./LocalStorageThreadListAdapter";
+} from "./storageCodec";
 
 const storedMessage = (
   id: string,
