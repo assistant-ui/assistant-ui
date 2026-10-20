@@ -11,6 +11,6 @@ for (const example of spec.tests) {
   check(`${example.number} ${example.section}`, () => {
     const source = example.markdown.replaceAll("→", "\t");
     const expected = example.html.replaceAll("→", "\t");
-    expect(toHtml(tokenizer.parse(source))).toBe(expected);
+    expect(toHtml(tokenizer.parse(source).blocks)).toBe(expected);
   });
 }
