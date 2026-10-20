@@ -37,6 +37,11 @@ import type {
   RunAgentResult,
 } from "@ag-ui/client";
 import jsonpatch, { type Operation } from "fast-json-patch";
+import {
+  createAgUiThreadState,
+  reduceAgUiThreadState,
+  type AgUiThreadState,
+} from "./agUiThreadState";
 import type { Logger } from "./logger";
 import { readMcpAppResourceUri } from "./mcp-tool-result";
 import type {
@@ -194,27 +199,18 @@ export class AgUiThreadRuntimeCore {
       };
     },
   });
-  private isRunningFlag = false;
+  private state: AgUiThreadState = createAgUiThreadState();
   private abortController: AbortController | null = null;
   // The agent that started the active run. updateOptions can swap this.agent
   // mid-run, and cancelling has to reach the agent holding the live request.
   private activeRunAgent: AbstractAgent | null = null;
-  private stateSnapshot: ReadonlyJSONValue | undefined;
   private history: ThreadHistoryAdapter | undefined;
-  private lastRunConfig: RunConfig | undefined;
   private readonly assistantHistoryParents = new Map<string, string | null>();
   private readonly snapshotHistoryIds = new Set<string>();
   private readonly persistedHistoryIds = new Set<string>();
   private readonly historyWrites = new Map<string, Promise<void>>();
-  private _isLoading = false;
   private _historyImportPromise: Promise<void> | undefined;
-  private historyMutationGeneration = 0;
   private _loadPromise: Promise<void> | undefined;
-  private _loadRequested = false;
-  private pendingResume: { owner: AbortController; messageId: string } | null =
-    null;
-  private pendingA2uiResumeOwner: AbortController | null = null;
-  private pendingA2uiAction: Record<string, unknown> | undefined;
 
   constructor(options: CoreOptions) {
     this.agent = options.agent;
@@ -237,10 +233,10 @@ export class AgUiThreadRuntimeCore {
 
   getSnapshot = () =>
     (this.snapshot ??= {
-      isLoading: this._isLoading,
-      isRunning: this.isRunningFlag,
+      isLoading: this.state.isLoading,
+      isRunning: this.state.isRunning,
       messageRepository: this.session.export(),
-      state: this.stateSnapshot,
+      state: this.state.stateSnapshot,
     });
 
   private publishUpdate(): void {
@@ -261,7 +257,7 @@ export class AgUiThreadRuntimeCore {
     const previousHistory = this.history;
     this.history = options.history;
     if (
-      this._loadRequested &&
+      this.state.loadRequested &&
       !this._loadPromise &&
       !previousHistory &&
       options.history &&
@@ -291,19 +287,19 @@ export class AgUiThreadRuntimeCore {
   }
 
   getState(): ReadonlyJSONValue | undefined {
-    return this.stateSnapshot;
+    return this.state.stateSnapshot;
   }
 
   isRunning(): boolean {
-    return this.isRunningFlag;
+    return this.state.isRunning;
   }
 
   get isLoading(): boolean {
-    return this._isLoading;
+    return this.state.isLoading;
   }
 
   __internal_load(): Promise<void> {
-    this._loadRequested = true;
+    this.state = reduceAgUiThreadState(this.state, { type: "loadRequested" });
     if (this._loadPromise) return this._loadPromise;
     if (!this.history) return Promise.resolve();
 
@@ -326,7 +322,7 @@ export class AgUiThreadRuntimeCore {
       return repo;
     });
 
-    this._isLoading = true;
+    this.state = reduceAgUiThreadState(this.state, { type: "loadStarted" });
     this._historyImportPromise = promise.then(
       () => {
         this._historyImportPromise = undefined;
@@ -343,7 +339,7 @@ export class AgUiThreadRuntimeCore {
           const resumeStream = this.history?.resume?.bind(this.history);
           await this.startRun(
             parentId,
-            this.lastRunConfig,
+            this.state.lastRunConfig,
             undefined,
             resumeStream,
           );
@@ -354,7 +350,9 @@ export class AgUiThreadRuntimeCore {
         this.reportError(error);
       })
       .finally(() => {
-        this._isLoading = false;
+        this.state = reduceAgUiThreadState(this.state, {
+          type: "loadFinished",
+        });
         this.publishUpdate();
       });
 
@@ -365,10 +363,10 @@ export class AgUiThreadRuntimeCore {
   private waitForHistoryImport(): Promise<boolean> | undefined {
     const historyImport = this._historyImportPromise;
     if (!historyImport) return undefined;
-    const generation = this.historyMutationGeneration;
+    const generation = this.state.historyMutationGeneration;
     return historyImport.then(
       () =>
-        generation === this.historyMutationGeneration &&
+        generation === this.state.historyMutationGeneration &&
         !this.isThreadSwitching?.(),
     );
   }
@@ -376,10 +374,10 @@ export class AgUiThreadRuntimeCore {
   private deferUntilHistoryImported(callback: () => void): boolean {
     const historyImport = this._historyImportPromise;
     if (!historyImport) return false;
-    const generation = this.historyMutationGeneration;
+    const generation = this.state.historyMutationGeneration;
     void historyImport.then(() => {
       if (
-        generation !== this.historyMutationGeneration ||
+        generation !== this.state.historyMutationGeneration ||
         this.isThreadSwitching?.()
       ) {
         return;
@@ -397,10 +395,10 @@ export class AgUiThreadRuntimeCore {
     const historyImport = this._historyImportPromise;
     if (historyImport) {
       const wasAtTail = message.parentId === this.session.headId;
-      const generation = this.historyMutationGeneration;
+      const generation = this.state.historyMutationGeneration;
       await historyImport;
       if (
-        generation !== this.historyMutationGeneration ||
+        generation !== this.state.historyMutationGeneration ||
         this.isThreadSwitching?.()
       )
         return;
@@ -471,7 +469,9 @@ export class AgUiThreadRuntimeCore {
   }
 
   async cancel(): Promise<void> {
-    this.historyMutationGeneration++;
+    this.state = reduceAgUiThreadState(this.state, {
+      type: "historyMutationAdvanced",
+    });
     this.abortActiveRun();
   }
 
@@ -518,7 +518,7 @@ export class AgUiThreadRuntimeCore {
     this.assertNoPendingInterrupts();
     await this.startRun(
       config.parentId,
-      config.runConfig ?? this.lastRunConfig,
+      config.runConfig ?? this.state.lastRunConfig,
       undefined,
       config.stream,
     );
@@ -541,7 +541,7 @@ export class AgUiThreadRuntimeCore {
     try {
       await this.startRun(
         parentId,
-        this.lastRunConfig,
+        this.state.lastRunConfig,
         undefined,
         resumeStream,
       );
@@ -651,7 +651,7 @@ export class AgUiThreadRuntimeCore {
     resume: AgUiResumeEntry[],
   ): Promise<void> {
     this.clearPendingInterrupts(messageId, resume);
-    await this.startRun(messageId, this.lastRunConfig, {
+    await this.startRun(messageId, this.state.lastRunConfig, {
       entries: resume,
       interruptedMessageId: messageId,
     });
@@ -695,7 +695,7 @@ export class AgUiThreadRuntimeCore {
         );
       }
     }
-    if (this.isRunningFlag) {
+    if (this.state.isRunning) {
       throw new Error(`[agui] ${method}: a run is already in progress`);
     }
   }
@@ -789,7 +789,7 @@ export class AgUiThreadRuntimeCore {
             "[agui] steerAway: responses are only valid for pending interrupts",
           );
         }
-        if (this.isRunningFlag) {
+        if (this.state.isRunning) {
           throw new Error("[agui] steerAway: a run is already in progress");
         }
         this.cancelUnresolvedToolCalls(pendingTools.messageId);
@@ -810,7 +810,7 @@ export class AgUiThreadRuntimeCore {
 
     const resume = this.resolveSteerAwayResume(pending.interrupts, responses);
 
-    if (this.isRunningFlag) {
+    if (this.state.isRunning) {
       throw new Error("[agui] steerAway: a run is already in progress");
     }
 
@@ -1090,11 +1090,17 @@ export class AgUiThreadRuntimeCore {
     if (!("timestamp" in userAction)) {
       userAction.timestamp = new Date().toISOString();
     }
-    this.pendingA2uiAction = userAction;
+    this.state = reduceAgUiThreadState(this.state, {
+      type: "a2uiActionDeferred",
+      action: userAction,
+    });
 
     const owner = this.abortController;
     if (owner) {
-      this.pendingA2uiResumeOwner = owner;
+      this.state = reduceAgUiThreadState(this.state, {
+        type: "a2uiResumeDeferred",
+        owner,
+      });
       return;
     }
     this.startResumeRun(parentId);
@@ -1110,7 +1116,11 @@ export class AgUiThreadRuntimeCore {
     if (owner) {
       // A run is still draining (RUN_FINISHED arrived but the stream has not
       // closed). Defer until startRun's tail so we never start two runs.
-      this.pendingResume = { owner, messageId };
+      this.state = reduceAgUiThreadState(this.state, {
+        type: "resumeDeferred",
+        owner,
+        messageId,
+      });
       return;
     }
     this.startResumeRun(messageId);
@@ -1150,7 +1160,7 @@ export class AgUiThreadRuntimeCore {
   }
 
   private startResumeRun(messageId: string): void {
-    void this.startRun(messageId, this.lastRunConfig).catch((error) => {
+    void this.startRun(messageId, this.state.lastRunConfig).catch((error) => {
       this.reportError(error);
     });
   }
@@ -1167,8 +1177,9 @@ export class AgUiThreadRuntimeCore {
         metadata: { ...message.metadata, modality },
       } as ThreadMessage;
     });
-    this.pendingA2uiResumeOwner = null;
-    this.pendingA2uiAction = undefined;
+    this.state = reduceAgUiThreadState(this.state, {
+      type: "a2uiContinuationsCleared",
+    });
     this.assistantHistoryParents.clear();
 
     if (messages.length === 0) {
@@ -1217,18 +1228,21 @@ export class AgUiThreadRuntimeCore {
     // continuation whose target survived the snapshot is still answerable.
     // Membership is the head branch, not the repository: a soft merge leaves
     // the messages it dropped behind as off-branch nodes.
-    const resumeTarget = this.pendingResume?.messageId;
+    const resumeTarget = this.state.pendingResume?.messageId;
     if (
       resumeTarget !== undefined &&
       !this.session.getMessages().some((message) => message.id === resumeTarget)
     ) {
-      this.pendingResume = null;
+      this.state = reduceAgUiThreadState(this.state, { type: "resumeCleared" });
     }
     this.publishUpdate();
   }
 
   loadExternalState(state: ReadonlyJSONValue): void {
-    this.stateSnapshot = state;
+    this.state = reduceAgUiThreadState(this.state, {
+      type: "stateSnapshot",
+      snapshot: state,
+    });
     this.publishUpdate();
   }
 
@@ -1237,25 +1251,27 @@ export class AgUiThreadRuntimeCore {
       | ReadonlyJSONValue
       | ((prev: ReadonlyJSONValue | undefined) => ReadonlyJSONValue),
   ): void {
-    this.stateSnapshot =
-      typeof next === "function" ? next(this.stateSnapshot) : next;
+    this.state = reduceAgUiThreadState(this.state, {
+      type: "stateSnapshot",
+      snapshot:
+        typeof next === "function" ? next(this.state.stateSnapshot) : next,
+    });
     this.publishUpdate();
   }
 
   resetState(): void {
-    this.stateSnapshot = undefined;
+    this.state = reduceAgUiThreadState(this.state, { type: "resetState" });
     this.publishUpdate();
   }
 
   resetThreadState(): void {
-    this.historyMutationGeneration++;
+    this.state = reduceAgUiThreadState(this.state, {
+      type: "historyMutationAdvanced",
+    });
     const controller = this.abortController;
     const activeRunAgent = this.activeRunAgent;
 
-    this.stateSnapshot = undefined;
-    this.pendingResume = null;
-    this.pendingA2uiResumeOwner = null;
-    this.pendingA2uiAction = undefined;
+    this.state = reduceAgUiThreadState(this.state, { type: "resetThread" });
 
     if (controller) {
       this.abortController = null;
@@ -1286,7 +1302,10 @@ export class AgUiThreadRuntimeCore {
     if (!this.supersedeActiveRun()) return;
 
     const normalizedRunConfig = runConfig ?? {};
-    this.lastRunConfig = normalizedRunConfig;
+    this.state = reduceAgUiThreadState(this.state, {
+      type: "runConfigRecorded",
+      runConfig: normalizedRunConfig,
+    });
     const parent =
       parentId === null ? undefined : this.session.tryGetMessage(parentId);
     const shouldEagerlyInsertAssistant =
@@ -1514,19 +1533,23 @@ export class AgUiThreadRuntimeCore {
 
     // A tool result that landed before the run settled deferred its
     // continuation here so a second run never overlaps the first.
-    if (this.pendingResume?.owner === abortController) {
-      const { messageId } = this.pendingResume;
-      this.pendingResume = null;
+    if (this.state.pendingResume?.owner === abortController) {
+      const { messageId } = this.state.pendingResume;
+      this.state = reduceAgUiThreadState(this.state, { type: "resumeCleared" });
       if (!abortSignal.aborted) {
         this.startResumeRun(messageId);
       }
     }
 
-    if (this.pendingA2uiResumeOwner === abortController) {
-      this.pendingA2uiResumeOwner = null;
-      if (!abortSignal.aborted && this.pendingA2uiAction !== undefined) {
+    if (this.state.pendingA2uiResumeOwner === abortController) {
+      this.state = reduceAgUiThreadState(this.state, {
+        type: "a2uiResumeCleared",
+      });
+      if (!abortSignal.aborted && this.state.pendingA2uiAction !== undefined) {
         if (this.getPendingInterrupts()) {
-          this.pendingA2uiAction = undefined;
+          this.state = reduceAgUiThreadState(this.state, {
+            type: "a2uiActionCleared",
+          });
           this.logger.debug(
             "[agui] sendA2uiAction: pending interrupts, dropping action",
           );
@@ -1537,13 +1560,17 @@ export class AgUiThreadRuntimeCore {
         if (parentId !== null) {
           this.startResumeRun(parentId);
         } else {
-          this.pendingA2uiAction = undefined;
+          this.state = reduceAgUiThreadState(this.state, {
+            type: "a2uiActionCleared",
+          });
           this.logger.debug(
             "[agui] sendA2uiAction: no messages to resume, dropping action",
           );
         }
       } else {
-        this.pendingA2uiAction = undefined;
+        this.state = reduceAgUiThreadState(this.state, {
+          type: "a2uiActionCleared",
+        });
       }
     }
   }
@@ -1562,8 +1589,9 @@ export class AgUiThreadRuntimeCore {
       getAssistantMessageId: () => string | undefined;
     },
   ): Promise<Error | undefined> {
-    this.pendingA2uiAction = undefined;
-    this.pendingA2uiResumeOwner = null;
+    this.state = reduceAgUiThreadState(this.state, {
+      type: "a2uiContinuationsCleared",
+    });
     const assistantId = ctx.ensureAssistant();
     const currentId = () => ctx.getAssistantMessageId() ?? assistantId;
     const options: ChatModelRunOptions = {
@@ -1614,8 +1642,10 @@ export class AgUiThreadRuntimeCore {
     historyMessages: readonly ThreadMessage[] | undefined,
     resume?: ResumeDispatch,
   ) {
-    const pendingA2uiAction = this.pendingA2uiAction;
-    this.pendingA2uiAction = undefined;
+    const pendingA2uiAction = this.state.pendingA2uiAction;
+    this.state = reduceAgUiThreadState(this.state, {
+      type: "a2uiActionCleared",
+    });
     const threadId = this.agent.threadId || "main";
     const messages = toAgUiMessages(
       this.selectRunMessages(
@@ -1635,7 +1665,7 @@ export class AgUiThreadRuntimeCore {
     const input = {
       threadId,
       runId,
-      state: this.stateSnapshot ?? null,
+      state: this.state.stateSnapshot ?? null,
       messages,
       tools: toAgUiTools(context?.tools),
       context: [
@@ -1678,17 +1708,20 @@ export class AgUiThreadRuntimeCore {
   }
 
   private clearDeferredContinuations(owner: AbortController): void {
-    if (this.pendingResume?.owner === owner) {
-      this.pendingResume = null;
+    if (this.state.pendingResume?.owner === owner) {
+      this.state = reduceAgUiThreadState(this.state, { type: "resumeCleared" });
     }
-    if (this.pendingA2uiResumeOwner === owner) {
-      this.pendingA2uiResumeOwner = null;
-      this.pendingA2uiAction = undefined;
+    if (this.state.pendingA2uiResumeOwner === owner) {
+      this.state = reduceAgUiThreadState(this.state, {
+        type: "a2uiContinuationsCleared",
+      });
     }
   }
 
   private setRunning(running: boolean) {
-    this.isRunningFlag = running;
+    this.state = reduceAgUiThreadState(this.state, {
+      type: running ? "runStarted" : "runFinished",
+    });
     this.publishUpdate();
   }
 
@@ -1710,7 +1743,7 @@ export class AgUiThreadRuntimeCore {
       status: { type: "running" },
       content: [],
       metadata: {
-        unstable_state: this.stateSnapshot ?? null,
+        unstable_state: this.state.stateSnapshot ?? null,
         unstable_annotations: [],
         unstable_data: [],
         steps: [],
@@ -2057,21 +2090,26 @@ export class AgUiThreadRuntimeCore {
   ): string | undefined {
     switch (event.type) {
       case "STATE_SNAPSHOT": {
-        this.stateSnapshot = event.snapshot as ReadonlyJSONValue;
+        this.state = reduceAgUiThreadState(this.state, {
+          type: "stateSnapshot",
+          snapshot: event.snapshot as ReadonlyJSONValue,
+        });
         this.updateActiveAssistantState(activeAssistantId);
         break;
       }
       case "STATE_DELTA": {
         if (event.delta.length === 0) break;
         try {
-          const state = this.stateSnapshot ?? {};
           const result = jsonpatch.applyPatch(
-            state,
+            this.state.stateSnapshot ?? {},
             event.delta as Operation[],
             /* validateOperation */ true,
             /* mutateDocument */ false,
           );
-          this.stateSnapshot = result.newDocument as ReadonlyJSONValue;
+          this.state = reduceAgUiThreadState(this.state, {
+            type: "stateSnapshot",
+            snapshot: result.newDocument as ReadonlyJSONValue,
+          });
           this.updateActiveAssistantState(activeAssistantId);
         } catch (error) {
           this.logger.error?.("[agui] failed to apply state delta", error);
@@ -2156,7 +2194,7 @@ export class AgUiThreadRuntimeCore {
           ...assistant,
           metadata: {
             ...assistant.metadata,
-            unstable_state: this.stateSnapshot ?? null,
+            unstable_state: this.state.stateSnapshot ?? null,
           },
         };
       });
