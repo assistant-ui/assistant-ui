@@ -9,9 +9,9 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { test } from "node:test";
-import { prepareCiBase } from "./prepare-ci-base.mjs";
+import { prepareCiBase, resolveCiBase } from "./prepare-ci-base.mjs";
 
 function fixture(
   t,
@@ -71,6 +71,75 @@ function fixture(
   git(full, "checkout", "--quiet", "--detach", head);
   return { root, origin, shallow, full, git, base, feature, baseRef };
 }
+
+test("pull requests compare against the first parent", () => {
+  assert.equal(
+    resolveCiBase({
+      eventName: "pull_request",
+      before: "ignored",
+      mergeGroupBase: "ignored",
+    }),
+    "HEAD^1",
+  );
+});
+
+test("merge groups use their supplied base", () => {
+  assert.equal(
+    resolveCiBase({
+      eventName: "merge_group",
+      before: "ignored",
+      mergeGroupBase: "merge-base",
+    }),
+    "merge-base",
+  );
+});
+
+test("a push with a resolvable before SHA uses that SHA", (t) => {
+  const { full, git } = fixture(t);
+  const before = git(full, "rev-parse", "HEAD^1");
+  assert.equal(resolveCiBase({ eventName: "push", before }, full), before);
+});
+
+for (const before of ["0".repeat(40), "f".repeat(40), ""]) {
+  test(`a push with an unavailable before SHA (${before || "empty"}) uses the first parent`, (t) => {
+    const { full } = fixture(t);
+    assert.equal(resolveCiBase({ eventName: "push", before }, full), "HEAD^1");
+  });
+}
+
+test("other events use before without checking the ref", () => {
+  assert.equal(
+    resolveCiBase({ eventName: "workflow_dispatch", before: "unavailable" }),
+    "unavailable",
+  );
+});
+
+test("missing event values preserve the empty fallback", () => {
+  assert.equal(resolveCiBase({ eventName: "merge_group" }), "");
+  assert.equal(resolveCiBase({ eventName: "workflow_dispatch" }), "");
+});
+
+test("the resolve CLI prints the selected base from environment values", (t) => {
+  const { full, base } = fixture(t);
+  const output = execFileSync(
+    process.execPath,
+    [
+      fileURLToPath(new URL("./prepare-ci-base.mjs", import.meta.url)),
+      "--resolve",
+    ],
+    {
+      cwd: full,
+      env: {
+        ...process.env,
+        CI_EVENT_NAME: "merge_group",
+        CI_BEFORE: "ignored",
+        CI_MERGE_GROUP_BASE: base,
+      },
+      encoding: "utf8",
+    },
+  );
+  assert.equal(output, `${base}\n`);
+});
 
 for (const advances of [0, 1, 4]) {
   test(`preserves full-checkout comparisons when the base advances ${advances} times`, (t) => {
@@ -171,5 +240,35 @@ test("only PR jobs use shallow history and prepare their comparison base", () =>
       section,
       /if: github.event_name == 'pull_request'\n\s+run: node scripts\/prepare-ci-base.mjs/,
     );
+  }
+});
+
+test("the four workflow steps resolve their bases from event environment values", () => {
+  const workflow = readFileSync(
+    new URL("../.github/workflows/code-quality.yaml", import.meta.url),
+    "utf8",
+  );
+  for (const name of [
+    "Detect package build inputs",
+    "Detect app build inputs",
+    "Detect API reference inputs",
+    "Resolve CI comparison base",
+  ]) {
+    const step = workflow
+      .split(`      - name: ${name}\n`)[1]
+      .split("\n      - name: ")[0];
+    assert.ok(step, name);
+    for (const mapping of [
+      "CI_EVENT_NAME: ${{ github.event_name }}",
+      "CI_BEFORE: ${{ github.event.before }}",
+      "CI_MERGE_GROUP_BASE: ${{ github.event.merge_group.base_sha }}",
+    ]) {
+      assert.ok(step.includes(mapping), `${name}: ${mapping}`);
+    }
+    assert.match(
+      step,
+      /BASE=\$\(node scripts\/prepare-ci-base\.mjs --resolve\)/,
+    );
+    assert.doesNotMatch(step.split("        run: |\n")[1], /\$\{\{/);
   }
 });

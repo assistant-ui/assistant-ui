@@ -1,6 +1,26 @@
 import { spawnSync } from "node:child_process";
 import { isExecutedAsMain } from "./lib/main.mjs";
 
+export function resolveCiBase(
+  { eventName, before, mergeGroupBase },
+  cwd = process.cwd(),
+) {
+  if (eventName === "pull_request") return "HEAD^1";
+  if (eventName === "merge_group") return mergeGroupBase ?? "";
+
+  const base = before ?? "";
+  if (
+    eventName === "push" &&
+    spawnSync("git", ["rev-parse", "--verify", "--quiet", `${base}^{commit}`], {
+      cwd,
+      stdio: "ignore",
+    }).status !== 0
+  ) {
+    return "HEAD^1";
+  }
+  return base;
+}
+
 export function prepareCiBase(baseRef, cwd = process.cwd()) {
   if (!baseRef) {
     throw new Error("Missing comparison base ref (GITHUB_BASE_REF)");
@@ -45,5 +65,15 @@ export function prepareCiBase(baseRef, cwd = process.cwd()) {
 }
 
 if (isExecutedAsMain(import.meta.url, process.argv[1])) {
-  prepareCiBase(process.env.GITHUB_BASE_REF);
+  if (process.argv[2] === "--resolve") {
+    console.log(
+      resolveCiBase({
+        eventName: process.env.CI_EVENT_NAME,
+        before: process.env.CI_BEFORE,
+        mergeGroupBase: process.env.CI_MERGE_GROUP_BASE,
+      }),
+    );
+  } else {
+    prepareCiBase(process.env.GITHUB_BASE_REF);
+  }
 }
