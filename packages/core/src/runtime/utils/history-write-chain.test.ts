@@ -114,6 +114,7 @@ describe("createHistoryWriteChain", () => {
       return Promise.resolve();
     });
 
+    await Promise.resolve();
     expect(calls).toEqual([]);
     expect(writes.pending("old")).toBeUndefined();
     expect(writes.pending("new")).toBe(second);
