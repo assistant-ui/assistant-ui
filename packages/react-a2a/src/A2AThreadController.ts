@@ -42,6 +42,7 @@ import {
 import {
   createA2AThreadState,
   reduceA2AThreadState,
+  type A2AThreadAction,
   type A2AThreadState,
 } from "./a2aThreadState";
 
@@ -56,7 +57,7 @@ const storedArtifact = (artifact: A2AArtifact): A2AArtifact => ({
   parts: artifact.parts.map(({ raw: _raw, ...part }) => part),
 });
 
-export type A2AThreadRuntimeCoreOptions = {
+export type A2AThreadControllerOptions = {
   client: A2AClient;
   contextId?: string | undefined;
   configuration?: A2ASendMessageConfiguration | undefined;
@@ -81,7 +82,7 @@ const invokeRuntimeCallback = <TArgs extends readonly unknown[]>(
   void invokeUserCallback("react-a2a", name, callback, ...args);
 };
 
-export class A2AThreadRuntimeCore {
+export class A2AThreadController {
   private client: A2AClient;
   private state: A2AThreadState;
   private configuration: A2ASendMessageConfiguration | undefined;
@@ -120,7 +121,7 @@ export class A2AThreadRuntimeCore {
 
   private lastOptionsContextId: string | undefined;
 
-  constructor(options: A2AThreadRuntimeCoreOptions) {
+  constructor(options: A2AThreadControllerOptions) {
     this.client = options.client;
     this.state = createA2AThreadState(options.contextId);
     this.lastOptionsContextId = options.contextId;
@@ -146,17 +147,21 @@ export class A2AThreadRuntimeCore {
       agentCard: this.state.agentCard,
     });
 
+  private dispatch(action: A2AThreadAction): void {
+    this.state = reduceA2AThreadState(this.state, action);
+  }
+
   private publishUpdate(): void {
     this.snapshot = undefined;
     for (const listener of this.listeners) listener();
   }
 
-  updateOptions(options: A2AThreadRuntimeCoreOptions) {
+  updateOptions(options: A2AThreadControllerOptions) {
     this.client = options.client;
     // The option only seeds the context; a re-render with the same value must
     // not clobber a server-assigned contextId learned from the stream.
     if (options.contextId !== this.lastOptionsContextId) {
-      this.state = reduceA2AThreadState(this.state, {
+      this.dispatch({
         type: "contextLearned",
         contextId: options.contextId,
       });
@@ -189,7 +194,7 @@ export class A2AThreadRuntimeCore {
     // new run must not pick up the old thread's context, and its controller
     // must not be discarded.
     const controller = this.abortController;
-    this.state = reduceA2AThreadState(this.state, {
+    this.dispatch({
       type: "resetContext",
       contextId: this.lastOptionsContextId,
     });
@@ -303,7 +308,7 @@ export class A2AThreadRuntimeCore {
 
     this._agentCardPromise ??= this.client.getAgentCard().then(
       (agentCard) => {
-        this.state = reduceA2AThreadState(this.state, {
+        this.dispatch({
           type: "agentCardLoaded",
           agentCard,
         });
@@ -346,13 +351,13 @@ export class A2AThreadRuntimeCore {
   }
 
   __internal_load(): Promise<void> {
-    this.state = reduceA2AThreadState(this.state, { type: "loadRequested" });
+    this.dispatch({ type: "loadRequested" });
     const agentCardPromise = this.loadAgentCard();
 
     if (this._loadPromise) return this._loadPromise;
     if (!this.history) return agentCardPromise;
 
-    this.state = reduceA2AThreadState(this.state, { type: "loadStarted" });
+    this.dispatch({ type: "loadStarted" });
 
     const generation = this._historyLoadGeneration;
     const historyPromise = this.history.load();
@@ -375,7 +380,7 @@ export class A2AThreadRuntimeCore {
       })
       .finally(() => {
         if (generation !== this._historyLoadGeneration) return;
-        this.state = reduceA2AThreadState(this.state, { type: "loadFinished" });
+        this.dispatch({ type: "loadFinished" });
         this.publishUpdate();
       });
 
@@ -455,7 +460,7 @@ export class A2AThreadRuntimeCore {
         // has not emitted yet keeps it, so the run lease is what rules
         // that case out.
         if (this.state.currentTask === task && lease.isCurrent()) {
-          this.state = reduceA2AThreadState(this.state, {
+          this.dispatch({
             type: "taskReplaced",
             task: updated,
           });
@@ -489,7 +494,7 @@ export class A2AThreadRuntimeCore {
     for (const { message } of this.getMessageRepository().messages) {
       this.recordedHistoryIds.add(message.id);
     }
-    this.state = reduceA2AThreadState(this.state, { type: "reset" });
+    this.dispatch({ type: "reset" });
     this.publishUpdate();
   }
 
@@ -552,7 +557,7 @@ export class A2AThreadRuntimeCore {
           : undefined,
     });
 
-    this.state = reduceA2AThreadState(this.state, { type: "prepareRun" });
+    this.dispatch({ type: "prepareRun" });
 
     const assistantParentId = userThreadMessage.id;
     const assistantId = this.insertAssistantPlaceholder(assistantParentId);
@@ -700,7 +705,7 @@ export class A2AThreadRuntimeCore {
     assistantId: string,
     event: A2ATaskStatusUpdateEvent,
   ) {
-    this.state = reduceA2AThreadState(this.state, {
+    this.dispatch({
       type: "statusUpdate",
       event,
     });
@@ -720,7 +725,7 @@ export class A2AThreadRuntimeCore {
     assistantId: string,
     event: A2ATaskArtifactUpdateEvent,
   ) {
-    this.state = reduceA2AThreadState(this.state, {
+    this.dispatch({
       type: "artifactUpdate",
       event,
     });
@@ -744,7 +749,7 @@ export class A2AThreadRuntimeCore {
   private handleMessage(assistantId: string, message: A2AMessage) {
     if (message.role !== "agent") return;
 
-    this.state = reduceA2AThreadState(this.state, {
+    this.dispatch({
       type: "a2uiMessage",
       message,
     });
@@ -755,7 +760,7 @@ export class A2AThreadRuntimeCore {
 
   private handleTaskSnapshot(assistantId: string, task: A2ATask) {
     const previousArtifacts = this.state.currentArtifacts;
-    this.state = reduceA2AThreadState(this.state, {
+    this.dispatch({
       type: "taskSnapshot",
       task,
     });
@@ -939,7 +944,7 @@ export class A2AThreadRuntimeCore {
   // --- Lifecycle helpers ---
 
   private setRunning(running: boolean) {
-    this.state = reduceA2AThreadState(this.state, {
+    this.dispatch({
       type: running ? "runStarted" : "runFinished",
     });
     this.publishUpdate();
