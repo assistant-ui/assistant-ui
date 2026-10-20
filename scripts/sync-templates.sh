@@ -62,12 +62,7 @@ TEMPLATE_MIRRORS=(
     "templates/minimal/app/globals.css:templates/cloud-harness/app/globals.css"
     "templates/default/app/layout.tsx:templates/mcp/app/layout.tsx"
 )
-MIRRORS=("${REGISTRY_MIRRORS[@]}")
-for pair in "${TEMPLATE_MIRRORS[@]}"; do
-    if [[ -e "$ROOT_DIR/${pair%%:*}" || -e "$ROOT_DIR/${pair#*:}" ]]; then
-        MIRRORS+=("$pair")
-    fi
-done
+MIRRORS=("${REGISTRY_MIRRORS[@]}" "${TEMPLATE_MIRRORS[@]}")
 
 MODE="${1:-check}"
 
