@@ -5,10 +5,10 @@ import { PreviewCodeClient } from "./preview-code";
 import {
   cleanupCode,
   cleanupImports,
-  extractFunctionCode,
   extractImports,
   extractUseClientDirective,
   filterRelevantImports,
+  resolveFunctionSource,
 } from "./preview-code-extract";
 import type { LLMRenderContext } from "@/lib/get-llm-text";
 import { DEFAULT_PLATFORM } from "@/lib/constants";
@@ -28,9 +28,8 @@ type PreviewCodeProps = {
 function buildPreviewCode(file: string, name: string): string {
   const filePath = path.join(process.cwd(), `${file}.tsx`);
   try {
-    const source = fs.readFileSync(filePath, "utf-8");
-    const functionCode = extractFunctionCode(source, name);
-    const cleanedCode = cleanupCode(functionCode);
+    const { source, code } = resolveFunctionSource(filePath, name);
+    const cleanedCode = cleanupCode(code);
 
     const allImports = extractImports(source);
     const relevantImports = filterRelevantImports(allImports, cleanedCode);

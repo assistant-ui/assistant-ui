@@ -1870,7 +1870,7 @@ export const registry: RegistryItem[] = [
         type: "registry:ui",
         path: "components/ui/diff-viewer.tsx",
         sourcePath:
-          "../../packages/ui/src/components/react/ui/radix/diff-viewer.tsx",
+          "../../packages/ui/src/components/react/ui/base/diff-viewer.tsx",
       },
     ],
     dependencies: [
@@ -2160,7 +2160,7 @@ export const registry: RegistryItem[] = [
         type: "registry:ui",
         path: "components/ui/dot-matrix.tsx",
         sourcePath:
-          "../../packages/ui/src/components/react/ui/radix/dot-matrix.tsx",
+          "../../packages/ui/src/components/react/ui/base/dot-matrix.tsx",
       },
     ],
     dependencies: [],
@@ -2177,7 +2177,7 @@ export const registry: RegistryItem[] = [
         type: "registry:ui",
         path: "components/ui/number-roll.tsx",
         sourcePath:
-          "../../packages/ui/src/components/react/ui/radix/number-roll.tsx",
+          "../../packages/ui/src/components/react/ui/base/number-roll.tsx",
       },
     ],
     dependencies: [],

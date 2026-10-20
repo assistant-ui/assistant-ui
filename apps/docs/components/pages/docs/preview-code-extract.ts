@@ -1,3 +1,6 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
 type StringState = { inString: boolean; stringChar: string };
 
 function updateStringState(
@@ -152,6 +155,40 @@ export function extractFunctionCode(
   const endIndex = findMatchingBrace(source, searchStart - 1);
   if (endIndex === -1) return `// Could not parse function: ${functionName}`;
   return source.slice(startIndex, endIndex).trim();
+}
+
+export function resolveFunctionSource(
+  filePath: string,
+  functionName: string,
+  visited = new Set<string>(),
+): { source: string; code: string } {
+  const source = readFileSync(filePath, "utf8");
+  const code = extractFunctionCode(source, functionName);
+  if (!code.startsWith("// Could not find function: ")) {
+    return { source, code };
+  }
+
+  const key = `${filePath}#${functionName}`;
+  if (visited.has(key)) return { source, code };
+  visited.add(key);
+
+  for (const match of source.matchAll(
+    /export\s*\{([^}]+)\}\s*from\s*["'](\.[^"']+)["']/g,
+  )) {
+    const specifier = match[1]!
+      .split(",")
+      .map((part) => part.trim().match(/^(\w+)(?:\s+as\s+(\w+))?$/))
+      .find((part) => part && (part[2] ?? part[1]) === functionName);
+    if (!specifier) continue;
+
+    const modulePath = path.resolve(path.dirname(filePath), match[2]!);
+    const targetPath = /\.[jt]sx?$/.test(modulePath)
+      ? modulePath
+      : `${modulePath}.tsx`;
+    return resolveFunctionSource(targetPath, specifier[1]!, visited);
+  }
+
+  return { source, code };
 }
 
 export function extractImports(source: string): string[] {

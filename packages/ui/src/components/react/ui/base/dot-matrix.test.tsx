@@ -2,8 +2,7 @@ import { cleanup, render } from "@testing-library/react";
 import { version } from "react";
 import { renderToString } from "react-dom/server";
 import { afterEach, expect, it } from "vitest";
-import { DotMatrix as BaseDotMatrix } from "./dot-matrix";
-import { DotMatrix as RadixDotMatrix } from "../radix/dot-matrix";
+import { DotMatrix } from "./dot-matrix";
 
 const onReact18 = version.startsWith("18.");
 
@@ -16,11 +15,11 @@ afterEach(() => {
     .forEach((style) => style.remove());
 });
 
-it("renders a stylesheet for both variants", () => {
+it("renders a stylesheet for two instances", () => {
   render(
     <>
-      <BaseDotMatrix />
-      <RadixDotMatrix />
+      <DotMatrix />
+      <DotMatrix />
     </>,
   );
   if (onReact18) {
@@ -38,8 +37,8 @@ it("renders a stylesheet for both variants", () => {
 it("includes its stylesheet in server markup", () => {
   const markup = renderToString(
     <>
-      <BaseDotMatrix />
-      <RadixDotMatrix />
+      <DotMatrix />
+      <DotMatrix />
     </>,
   );
 

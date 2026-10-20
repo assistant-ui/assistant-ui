@@ -1,8 +1,10 @@
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   cleanupImports,
   extractFunctionCode,
   filterRelevantImports,
+  resolveFunctionSource,
 } from "./preview-code-extract";
 
 const source = `
@@ -171,6 +173,21 @@ describe("cleanupImports", () => {
   });
 });
 
+describe("resolveFunctionSource", () => {
+  it("follows a named re-export to the declaration and its imports", () => {
+    const { source, code } = resolveFunctionSource(
+      join(__dirname, "../design/specimens.radix.tsx"),
+      "CalloutSpecimen",
+    );
+
+    expect(code).toContain("export function CalloutSpecimen(): ReactNode {");
+    expect(code).toContain("Streaming starts after the first token arrives.");
+    expect(source).toContain(
+      'import { Callout } from "@/components/ui/callout";',
+    );
+  });
+});
+
 describe("every real preview extracts", () => {
   // Extraction failure is silent at authoring time: the page renders the
   // marker where the snippet should be, and nothing else notices. This sweep
@@ -215,8 +232,10 @@ describe("every real preview extracts", () => {
 
     const failures: string[] = [];
     const checkExtraction = (sourceFile: string, name: string) => {
-      const source = readFileSync(sourceFile, "utf8");
-      const extracted = extractFunctionCode(source, name);
+      const { source, code: extracted } = resolveFunctionSource(
+        sourceFile,
+        name,
+      );
       if (extracted.startsWith("// Could not")) {
         failures.push(`${sourceFile}#${name}: ${extracted}`);
         return;

@@ -73,6 +73,40 @@ describe("PreviewCode", () => {
     expect(code).toContain("): ReactNode {");
   });
 
+  it.each([
+    "KbdSpecimen",
+    "SkeletonSpecimen",
+    "SkeletonCardSpecimen",
+    "CalloutSpecimen",
+    "CalloutTitledSpecimen",
+    "StepsSpecimen",
+    "CodeBlockSpecimen",
+    "CodeBlockBareSpecimen",
+    "TableSpecimen",
+    "DefinitionListSpecimen",
+  ])("reads the shared %s source for both flavors", async (name) => {
+    const { code, baseCode } = await getPreviewCode(
+      "components/pages/design/specimens",
+      name,
+    );
+
+    expect(code).toContain(`function ${name}(`);
+    expect(code).not.toContain("Could not find function");
+    expect(baseCode).toBe(code);
+  });
+
+  it("shows the defining module's valid imports for shared specimens", async () => {
+    const { code, baseCode } = await getPreviewCode(
+      "components/pages/design/specimens",
+      "CalloutSpecimen",
+    );
+
+    expect(code).toContain(
+      'import { Callout } from "@/components/ui/callout";',
+    );
+    expect(baseCode).toBe(code);
+  });
+
   it("keeps only the type import used by the preview function", async () => {
     const { code } = await getPreviewCode(
       "components/pages/docs/samples/tool-ui/custom-renderer",

@@ -928,6 +928,25 @@ test("bundling sources ui primitives and their package from the requested flavor
   assert.deepEqual(expanded.baseDependencies, ["@base-ui/react"]);
 });
 
+test("bundling uses the base source when a radix primitive has no variant", () => {
+  const { item, itemsByName } = bundleFixtures();
+  itemsByName.get("thread").registryDependencies.push("skeleton");
+
+  const expanded = expandBundledRegistryDependencies(
+    item,
+    itemsByName,
+    "radix",
+  );
+  const skeleton = expanded.files.find(
+    (file) => file.path === "components/ui/skeleton.tsx",
+  );
+
+  assert.equal(
+    skeleton.sourcePath,
+    "../../packages/ui/src/components/react/ui/base/skeleton.tsx",
+  );
+});
+
 test("bundling leaves an item without bundled dependencies untouched and rejects an unknown target", () => {
   const item = {
     name: "thread",
