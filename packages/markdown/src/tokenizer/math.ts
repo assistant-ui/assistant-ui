@@ -39,6 +39,28 @@ const singleDollarEnd = (src: string, start: number, max: number) => {
   return -1;
 };
 
+// A closer's validity never depends on its opener, so a search that fails from
+// one position fails from every later one; remembering that keeps a line full of
+// unclosed openers linear.
+const missingFrom = new WeakMap<StateInline, Map<string, number>>();
+
+const findCloser = (
+  state: StateInline,
+  closer: string,
+  from: number,
+  search: () => number,
+) => {
+  const missing = missingFrom.get(state) ?? new Map<string, number>();
+  missingFrom.set(state, missing);
+  if (from >= (missing.get(closer) ?? Infinity)) return -1;
+  const end = search();
+  if (end === -1 || end >= state.posMax) {
+    missing.set(closer, Math.min(from, missing.get(closer) ?? Infinity));
+    return -1;
+  }
+  return end;
+};
+
 const mathInline = (state: StateInline, silent: boolean): boolean => {
   const { src, pos: start, posMax: max } = state;
   const code = src.charCodeAt(start);
@@ -47,7 +69,9 @@ const mathInline = (state: StateInline, silent: boolean): boolean => {
     const next = src.charCodeAt(start + 1);
     if (next !== OPEN_PAREN && next !== OPEN_BRACKET) return false;
     const closer = next === OPEN_PAREN ? "\\)" : "\\]";
-    const end = src.indexOf(closer, start + 2);
+    const end = findCloser(state, closer, start, () =>
+      src.indexOf(closer, start + 2),
+    );
     if (end === -1 || end + 2 > max || end === start + 2) return false;
     const markup = next === OPEN_PAREN ? "\\(" : "\\[";
     return pushInline(
@@ -61,11 +85,16 @@ const mathInline = (state: StateInline, silent: boolean): boolean => {
 
   if (code !== DOLLAR) return false;
   if (src.charCodeAt(start + 1) === DOLLAR) {
-    const end = src.indexOf("$$", start + 2);
+    const end = findCloser(state, "$$", start, () =>
+      src.indexOf("$$", start + 2),
+    );
     if (end === -1 || end + 2 > max || end === start + 2) return false;
     return pushInline(state, src.slice(start + 2, end), "$$", end + 2, silent);
   }
-  const end = singleDollarEnd(src, start, max);
+  if (isSpace(src.charCodeAt(start + 1))) return false;
+  const end = findCloser(state, "$", start, () =>
+    singleDollarEnd(src, start, max),
+  );
   if (end === -1) return false;
   return pushInline(state, src.slice(start + 1, end), "$", end + 1, silent);
 };
@@ -75,8 +104,9 @@ const BLOCK_DELIMITERS = [
   ["\\[", "\\]"],
 ] as const;
 
-// Mirrors markdown-it's fence rule: an unclosed block runs to the end of its
-// container, which keeps a streaming block in one piece.
+// Like markdown-it's fence rule, an unclosed block runs to the end of its
+// container, which keeps a streaming block in one piece; a closer followed by
+// text on its line declines the block, leaving the paragraph's inline math.
 const mathBlock = (
   state: StateBlock,
   startLine: number,
@@ -106,7 +136,6 @@ const mathBlock = (
     if (silent) return true;
     content = rest.slice(0, sameLine);
   } else {
-    if (silent) return true;
     let closeLine = -1;
     let closeAt = 0;
     for (; nextLine < endLine; nextLine++) {
@@ -115,13 +144,16 @@ const mathBlock = (
       if (lineStart < lineEnd && state.sCount[nextLine]! < state.blkIndent) {
         break;
       }
-      const line = state.src.slice(lineStart, lineEnd).trimEnd();
-      if (line.endsWith(close)) {
-        closeLine = nextLine;
-        closeAt = lineStart + line.length - close.length;
-        break;
-      }
+      const line = state.src.slice(lineStart, lineEnd);
+      const at = line.indexOf(close);
+      if (at === -1) continue;
+      if (line.slice(at + close.length).trim()) return false;
+      closeLine = nextLine;
+      closeAt = lineStart + at;
+      break;
     }
+    if (closeLine === -1 && rest.trim()) return false;
+    if (silent) return true;
     const body = state.getLines(
       startLine + 1,
       closeLine === -1 ? nextLine : closeLine,
