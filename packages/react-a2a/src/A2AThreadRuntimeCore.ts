@@ -723,6 +723,9 @@ export class A2AThreadRuntimeCore {
       type: "artifactUpdate",
       event,
     });
+    const updated = this.state.currentArtifacts.find(
+      ({ artifactId }) => artifactId === event.artifact.artifactId,
+    )!;
     this.updateAssistantArtifacts(assistantId);
     this.rebuildAssistantA2uiSurfaces(assistantId);
 
@@ -730,9 +733,7 @@ export class A2AThreadRuntimeCore {
       invokeRuntimeCallback(
         "onArtifactComplete",
         this.onArtifactComplete,
-        this.state.currentArtifacts.find(
-          ({ artifactId }) => artifactId === event.artifact.artifactId,
-        )!,
+        updated,
       );
     }
 

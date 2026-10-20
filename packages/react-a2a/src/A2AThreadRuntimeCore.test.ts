@@ -1783,6 +1783,32 @@ describe("A2AThreadRuntimeCore", () => {
       expect(onArtifactComplete.mock.calls[0]![0].artifactId).toBe("a1");
     });
 
+    it("passes the completed artifact even if a subscriber clears the thread", async () => {
+      const onArtifactComplete = vi.fn();
+
+      const core = new A2AThreadRuntimeCore({
+        client: createMockClient({
+          streamMessage: vi.fn().mockImplementation(async function* () {
+            yield artifactUpdateEvent("a1", [{ text: "code" }], {
+              lastChunk: true,
+            });
+          }),
+        }),
+        onArtifactComplete,
+      });
+      let cleared = false;
+      core.subscribe(() => {
+        if (cleared || core.getArtifacts().length === 0) return;
+        cleared = true;
+        core.applyExternalMessages([]);
+      });
+
+      await core.append(createUserAppendMessage("Go"));
+
+      expect(onArtifactComplete).toHaveBeenCalledTimes(1);
+      expect(onArtifactComplete.mock.calls[0]![0]?.artifactId).toBe("a1");
+    });
+
     it.each(["throws", "rejects"] as const)(
       "continues streaming when onArtifactComplete %s",
       async (failureMode) => {
