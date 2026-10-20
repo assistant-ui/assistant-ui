@@ -213,6 +213,52 @@ test("a task item containing only its marker has no empty text node", () => {
   });
 });
 
+test("a task marker followed by inline formatting marks the item", () => {
+  const list = parseMarkdown(
+    "- [x] **Done**\n- [ ] `npm i`\n- [x] [docs](https://example.com)\n",
+  ).children[0];
+  if (list?.type !== "list") throw new Error("Expected a list");
+  expect(
+    list.children.map((item) => ({
+      checked: item.checked,
+      content: item.children[0],
+    })),
+  ).toEqual([
+    {
+      checked: true,
+      content: {
+        type: "paragraph",
+        lines: { start: 0, end: 1 },
+        children: [
+          { type: "strong", children: [{ type: "text", value: "Done" }] },
+        ],
+      },
+    },
+    {
+      checked: false,
+      content: {
+        type: "paragraph",
+        lines: { start: 1, end: 2 },
+        children: [{ type: "codeSpan", value: "npm i" }],
+      },
+    },
+    {
+      checked: true,
+      content: {
+        type: "paragraph",
+        lines: { start: 2, end: 3 },
+        children: [
+          {
+            type: "link",
+            url: "https://example.com",
+            children: [{ type: "text", value: "docs" }],
+          },
+        ],
+      },
+    },
+  ]);
+});
+
 test("scheme, www, and email autolinks become links, while a bare domain merges into text", () => {
   expect(
     parseMarkdown(

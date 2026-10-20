@@ -185,7 +185,7 @@ const convertListItem = (
   const next = first.children[1];
   if (
     !marker ||
-    (marker[0] === text.value &&
+    (marker[0].length === 3 &&
       next !== undefined &&
       next.type !== "softBreak" &&
       next.type !== "hardBreak")
