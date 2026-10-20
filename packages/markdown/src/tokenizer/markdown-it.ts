@@ -13,6 +13,7 @@ import type {
   TableNode,
   TableRowNode,
 } from "../ast";
+import { plainText } from "../plain-text";
 import { mathPlugin } from "./math";
 import type { Tokenizer } from "./types";
 
@@ -52,26 +53,6 @@ const appendText = (siblings: InlineNode[], value: string) => {
   if (last?.type === "text") last.value += value;
   else siblings.push({ type: "text", value });
 };
-
-const plainText = (nodes: InlineNode[]): string =>
-  nodes
-    .map((node) => {
-      switch (node.type) {
-        case "text":
-        case "codeSpan":
-        case "mathInline":
-        case "htmlInline":
-          return node.value;
-        case "image":
-          return node.alt;
-        case "softBreak":
-        case "hardBreak":
-          return "\n";
-        default:
-          return plainText(node.children);
-      }
-    })
-    .join("");
 
 const withTitle = <T extends LinkNode | ImageNode>(
   node: T,
