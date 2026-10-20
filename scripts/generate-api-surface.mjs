@@ -13,6 +13,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { isExecutedAsMain } from "./lib/main.mjs";
+import { collectTypeTargets } from "./lib/package-exports.mjs";
 import { optionValues } from "./lib/script-options.mjs";
 import {
   apiSurfaceFileName,
@@ -47,26 +48,6 @@ function compareStrings(a, b) {
   if (a < b) return -1;
   if (a > b) return 1;
   return 0;
-}
-
-function collectTypeTargets(value, conditions = []) {
-  if (!value || typeof value !== "object") return [];
-
-  const targets = [];
-  if (Object.prototype.hasOwnProperty.call(value, "types")) {
-    if (typeof value.types === "string") {
-      targets.push({
-        conditions,
-        typePath: value.types,
-      });
-    }
-    return targets;
-  }
-
-  for (const [condition, nested] of Object.entries(value)) {
-    targets.push(...collectTypeTargets(nested, [...conditions, condition]));
-  }
-  return targets;
 }
 
 function declarationFilesForTarget(packageDir, typePath) {

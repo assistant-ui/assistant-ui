@@ -11,6 +11,7 @@ import {
 import path from "node:path";
 import { availableParallelism } from "node:os";
 import { isExecutedAsMain } from "./lib/main.mjs";
+import { collectTypeTargets } from "./lib/package-exports.mjs";
 import { optionValues } from "./lib/script-options.mjs";
 import {
   collectPackages,
@@ -41,12 +42,6 @@ function spawnTsc(repoRoot, args) {
       },
     );
   });
-}
-
-function collectTypeTargets(value) {
-  if (!value || typeof value !== "object") return [];
-  if (typeof value.types === "string") return [value.types];
-  return Object.values(value).flatMap(collectTypeTargets);
 }
 
 function declarationFilesForTarget(packageDir, typePath) {
@@ -91,7 +86,9 @@ export function collectDeclarationEntries(packageDir, pkg) {
   const entries = [];
   if (pkg.exports && typeof pkg.exports === "object") {
     for (const [exportPath, exportValue] of Object.entries(pkg.exports)) {
-      for (const typePath of collectTypeTargets(exportValue)) {
+      for (const { typePath } of collectTypeTargets(exportValue, [], {
+        stopAtTypesKey: false,
+      })) {
         for (const file of declarationFilesForTarget(packageDir, typePath)) {
           entries.push({ exportPath, file });
         }

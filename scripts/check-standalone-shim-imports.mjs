@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { isExecutedAsMain } from "./lib/main.mjs";
+import { readPackageDirectories } from "./lib/workspace.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -112,16 +113,8 @@ export function runCheck(root = repoRoot) {
   if (exports.size === 0)
     throw new Error(`No standalone shim exports found in ${shimFile}`);
   const packages = new Map();
-  for (const entry of readdirSync(path.join(root, "packages"), {
-    withFileTypes: true,
-  })) {
-    if (!entry.isDirectory()) continue;
-    const packageDir = path.join(root, "packages", entry.name);
-    const manifest = path.join(packageDir, "package.json");
-    if (existsSync(manifest)) {
-      const pkg = JSON.parse(readFileSync(manifest, "utf8"));
-      packages.set(pkg.name, { pkg, packageDir });
-    }
+  for (const { packageDir, pkg } of readPackageDirectories(root)) {
+    packages.set(pkg.name, { pkg, packageDir });
   }
   const queue = [...packages.values()]
     .filter(({ pkg }) => has(pkg, "@assistant-ui/tap") && !has(pkg, "react"))

@@ -46,20 +46,32 @@ export function readWorkspaceManifestEntries(root) {
   return { source, globs, manifests };
 }
 
+export function packageDirectories(repoRoot) {
+  const packagesRoot = path.join(repoRoot, "packages");
+  return readdirSync(packagesRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => path.join(packagesRoot, entry.name));
+}
+
+export function readPackageDirectories(repoRoot) {
+  return packageDirectories(repoRoot)
+    .map((packageDir) => ({
+      packageDir,
+      manifest: path.join(packageDir, "package.json"),
+    }))
+    .filter(({ manifest }) => existsSync(manifest))
+    .map(({ packageDir, manifest }) => ({
+      packageDir,
+      pkg: readJson(manifest),
+    }));
+}
+
 export function collectPackages(
   repoRoot,
   filteredPackageNames,
   comparePackageNames,
 ) {
-  const packagesRoot = path.join(repoRoot, "packages");
-  return readdirSync(packagesRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => path.join(packagesRoot, entry.name, "package.json"))
-    .filter(existsSync)
-    .map((packageJsonPath) => ({
-      packageDir: path.dirname(packageJsonPath),
-      pkg: readJson(packageJsonPath),
-    }))
+  return readPackageDirectories(repoRoot)
     .filter(({ pkg }) => !pkg.private)
     .filter(
       ({ pkg }) => !filteredPackageNames || filteredPackageNames.has(pkg.name),

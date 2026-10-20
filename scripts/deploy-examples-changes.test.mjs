@@ -42,6 +42,9 @@ test("each example's inputs follow its workspace dependency graph", () => {
     "packages/x-buildutils",
     "pnpm-lock.yaml",
     "scripts/deploy-examples-changes.mjs",
+    "scripts/lib/main.mjs",
+    "scripts/lib/script-options.mjs",
+    "scripts/lib/workspace.mjs",
     WORKFLOW_FILE,
   ]) {
     assert.ok(expo.includes(input), `with-expo should watch ${input}`);
