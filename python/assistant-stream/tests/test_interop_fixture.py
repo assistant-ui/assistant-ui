@@ -12,4 +12,4 @@ async def test_encoder_matches_committed_fixture():
 
     encoder = AssistantTransportEncoder()
     encoded = "".join([line async for line in encoder.encode_stream(stream())])
-    assert encoded == FIXTURE_PATH.read_text()
+    assert encoded.encode("utf-8") == FIXTURE_PATH.read_bytes()
