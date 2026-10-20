@@ -29,6 +29,8 @@ on:
       - "scripts/check-experimental.test.mjs"
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
+      - "scripts/check-adapter-architecture.mjs"
+      - "scripts/check-adapter-architecture.test.mjs"
       - "scripts/source-mapped-tsconfigs.test.mjs"
       - "scripts/check-skills-commit.mjs"
       - "scripts/check-skills-commit.test.mjs"
@@ -145,6 +147,12 @@ jobs:
 
       - name: Verify published packages publish caret workspace ranges
         run: node scripts/check-workspace-ranges.mjs
+
+      - name: Test the adapter architecture checker
+        run: node --test scripts/check-adapter-architecture.test.mjs
+
+      - name: Verify adapters avoid banned state patterns
+        run: node scripts/check-adapter-architecture.mjs
 
   skills-commit:
     name: Skills Commit Pins
