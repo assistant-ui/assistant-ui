@@ -79,19 +79,13 @@ test("cloud harness kit follows canonical sources and minimal overrides while ke
     "templates/cloud-harness/app/api/chat/route.ts",
     "export const POST = () => 'harness';\n",
   );
-  for (const [source, target] of [
-    [
-      "apps/registry/app/api/chat/route.ts",
-      "templates/minimal/app/api/chat/route.ts",
-    ],
-    [
-      "apps/registry/app/ai-sdk/assistant.tsx",
-      "templates/minimal/app/assistant.tsx",
-    ],
-  ]) {
+  for (const [, source, target] of script.matchAll(
+    /^\s+"([^":]+):([^":]+)"$/gm,
+  )) {
     write(source, "export const fixture = 1;\n");
     write(target, "export const fixture = 1;\n");
   }
+  write("templates/mcp/app/globals.css", "stale\n");
   write("bin/pnpm", "#!/bin/sh\nexit 0\n");
   execFileSync("chmod", ["+x", path.join(fixture, "bin/pnpm")]);
   execFileSync("git", ["init", "--quiet"], { cwd: fixture });
@@ -102,6 +96,8 @@ test("cloud harness kit follows canonical sources and minimal overrides while ke
   assert.equal(check.status, 1);
   assert.match(check.stdout, /stale mirrored cloud-harness/);
   assert.match(check.stdout, /cloud-harness kit file/);
+  assert.match(check.stdout, /template mirror file/);
+  assert.match(check.stdout, /templates\/mcp\/app\/globals\.css/);
   execFileSync("bash", [scriptFile, "--write"], {
     cwd: fixture,
     env: { ...process.env, PATH: `${fixture}/bin:${process.env.PATH}` },
@@ -109,6 +105,10 @@ test("cloud harness kit follows canonical sources and minimal overrides while ke
   assert.equal(
     existsSync(path.join(fixture, "templates/cloud-harness/hooks/removed.ts")),
     false,
+  );
+  assert.equal(
+    readFileSync(path.join(fixture, "templates/mcp/app/globals.css"), "utf8"),
+    "export const fixture = 1;\n",
   );
   assert.equal(
     readFileSync(
@@ -168,15 +168,49 @@ const extensions = [
 ].map((match) => match[1]);
 const readsProjectTsconfig =
   /\$ROOT_DIR\/\$\{rel%%\/\*\}\/\$name\/tsconfig\.json/.test(script);
-const expectedPaths = [
-  scriptFile,
-  testFile,
+const globToRegExp = (glob) => {
+  let source = "^";
+  for (let index = 0; index < glob.length;) {
+    if (glob.startsWith("**/", index)) {
+      source += "(?:.*/)?";
+      index += 3;
+    } else if (glob.startsWith("**", index)) {
+      source += ".*";
+      index += 2;
+    } else if (glob[index] === "*") {
+      source += "[^/]*";
+      index += 1;
+    } else {
+      source += glob[index].replace(/[|\\{}()[\]^$+?.]/g, "\\$&");
+      index += 1;
+    }
+  }
+  return new RegExp(`${source}$`);
+};
+
+const globPaths = [
   ...[sourceRoot, ...trackedRoots].flatMap((root) =>
     extensions.map((extension) => `${root}/**/*.${extension}`),
   ),
   ...(readsProjectTsconfig
     ? trackedRoots.map((root) => `${root}/*/tsconfig.json`)
     : []),
+];
+const mirrorFiles = [
+  ...new Set(
+    [...script.matchAll(/^\s+"([^":]+):([^":]+)"$/gm)].flatMap((match) => [
+      match[1],
+      match[2],
+    ]),
+  ),
+];
+const expectedPaths = [
+  scriptFile,
+  testFile,
+  ...globPaths,
+  ...mirrorFiles.filter(
+    (file) => !globPaths.some((glob) => globToRegExp(glob).test(file)),
+  ),
   workflowFile,
 ].sort();
 
@@ -213,26 +247,6 @@ const parseWorkflowPathBlocks = (source) => {
 };
 
 const workflowPathBlocks = parseWorkflowPathBlocks(workflow);
-
-const globToRegExp = (glob) => {
-  let source = "^";
-  for (let index = 0; index < glob.length;) {
-    if (glob.startsWith("**/", index)) {
-      source += "(?:.*/)?";
-      index += 3;
-    } else if (glob.startsWith("**", index)) {
-      source += ".*";
-      index += 2;
-    } else if (glob[index] === "*") {
-      source += "[^/]*";
-      index += 1;
-    } else {
-      source += glob[index].replace(/[|\\{}()[\]^$+?.]/g, "\\$&");
-      index += 1;
-    }
-  }
-  return new RegExp(`${source}$`);
-};
 
 const isCovered = (file) =>
   expectedPaths.some((input) => globToRegExp(input).test(file));
