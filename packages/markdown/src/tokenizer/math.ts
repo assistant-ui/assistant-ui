@@ -115,10 +115,10 @@ const mathBlock = (
       if (lineStart < lineEnd && state.sCount[nextLine]! < state.blkIndent) {
         break;
       }
-      const at = state.src.slice(lineStart, lineEnd).indexOf(close);
-      if (at !== -1) {
+      const line = state.src.slice(lineStart, lineEnd).trimEnd();
+      if (line.endsWith(close)) {
         closeLine = nextLine;
-        closeAt = lineStart + at;
+        closeAt = lineStart + line.length - close.length;
         break;
       }
     }
@@ -126,7 +126,7 @@ const mathBlock = (
       startLine + 1,
       closeLine === -1 ? nextLine : closeLine,
       state.sCount[startLine]!,
-      false,
+      true,
     );
     const tail =
       closeLine === -1

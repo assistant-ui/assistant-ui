@@ -44,6 +44,26 @@ test.each([
   ]);
 });
 
+test.each([
+  ["$$\nx\n$$ and more", "x\n$$ and more"],
+  ["$$\na $$b$$ c\n$$", "a $$b$$ c"],
+  ["$$\nx$$ after\n", "x$$ after"],
+])("only a line ending in the closer closes %j", (source, value) => {
+  const [block] = parseMarkdown(source).children;
+  expect(block?.type === "mathBlock" && block.value).toBe(value);
+});
+
+test("a closer that ends a body line keeps the text before it", () => {
+  expect(parseMarkdown("$$\na\nb $$\nafter").children).toEqual([
+    { type: "mathBlock", value: "a\nb ", lines: { start: 0, end: 3 } },
+    {
+      type: "paragraph",
+      lines: { start: 3, end: 4 },
+      children: [{ type: "text", value: "after" }],
+    },
+  ]);
+});
+
 test("a math block interrupts a paragraph", () => {
   expect(
     parseMarkdown("Text\n$$\ny\n$$\nafter").children.map((node) => node.type),
