@@ -260,7 +260,7 @@ import {
 
 ### Using your own button
 
-`ComposerPrimitive.Send`, `Cancel`, `AddAttachment`, and `QuoteDismiss` accept `asChild`. With it, the primitive renders its single child instead of its own `Pressable` and passes its press handler, disabled state, and accessibility role to that child, so a button from your UI kit becomes the press target.
+Every pressable primitive accepts `asChild`, including the action bar, branch picker, attachment, queue item, suggestion, thread list, thread list item, and chain of thought triggers, as well as the composer controls. With it, the primitive renders its single child instead of its own `Pressable` and passes its press handler, disabled state, and accessibility role to that child, so a button from your UI kit becomes the press target.
 
 ```tsx
 <ComposerPrimitive.Send asChild>

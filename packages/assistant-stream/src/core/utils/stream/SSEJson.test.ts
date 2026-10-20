@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { createSSEJsonDecoder, createSSEJsonEncoder } from "./SSEJson";
+import { promiseWithResolvers } from "../../../utils/promiseWithResolvers";
 
 async function collectChunks<T>(stream: ReadableStream<T>): Promise<T[]> {
   const reader = stream.getReader();
@@ -103,14 +104,28 @@ describe("createSSEJsonDecoder", () => {
     expect(chunks).toEqual([{ text: "\uFEFFkept" }]);
   });
 
-  it("parses message events and terminates on the done marker", async () => {
+  it("terminates and cancels an open input on the done marker", async () => {
+    const cancelled = promiseWithResolvers<void>();
+    const input = new ReadableStream<Uint8Array<ArrayBuffer>>({
+      start(controller) {
+        controller.enqueue(
+          new TextEncoder().encode(
+            'data: {"a":1}\n\ndata: [DONE]\n\ndata: {"b":2}\n\n',
+          ),
+        );
+      },
+      cancel() {
+        cancelled.resolve();
+      },
+    });
     const chunks = await collectChunks(
       createSSEJsonDecoder({
         parse: jsonParse,
         done: { marker: "[DONE]" },
-      })(fromSSEText('data: {"a":1}\n\ndata: [DONE]\n\ndata: {"b":2}\n\n')),
+      })(input),
     );
     expect(chunks).toEqual([{ a: 1 }]);
+    await cancelled.promise;
   });
 
   it("invokes the done callback when the marker arrives", async () => {

@@ -81,6 +81,7 @@ const useThreadListClient = ({
 
   const state = useMemo<ThreadsState>(() => {
     return {
+      canUnarchive: runtimeState.canUnarchive,
       mainThreadId: runtimeState.mainThreadId,
       newThreadId: runtimeState.newThreadId ?? null,
       isLoading: runtimeState.isLoading,

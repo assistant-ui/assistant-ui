@@ -14,7 +14,15 @@ const verifiedTypes = ["fix", "feat", "perf", "refactor"];
 // Advice never blocks a merge. It names what a reviewer would otherwise have
 // to find out for themselves.
 export function advise(
-  { number, title, body, authorIsBot, hasLinkedIssue, linkedIssues },
+  {
+    number,
+    title,
+    body,
+    authorIsBot,
+    hasLinkedIssue,
+    linkedIssues,
+    coverageNotices = [],
+  },
   policy,
 ) {
   const type = parseTitleType(policy, title);
@@ -52,5 +60,6 @@ export function advise(
     lines.push(
       "the description has no AI use text; name the tools that wrote code and how their output was verified, or write None",
     );
+  lines.push(...coverageNotices);
   return lines;
 }

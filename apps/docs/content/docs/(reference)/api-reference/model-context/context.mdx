@@ -23,13 +23,13 @@ const makeAssistantVisible: <T extends ComponentType<any>>(Component: T, config?
 ### mergeModelContexts
 
 ```ts
-const mergeModelContexts: (configSet: Set<ModelContextProvider>) => ModelContext;
+const mergeModelContexts: (configSet: Set<ModelContextProvider>, options?: ModelContextOptions) => ModelContext;
 ```
 
 ### ModelContextClient
 
 ```ts
-const ModelContextClient: Resource<ClientOutput<"modelContext">, []>;
+const ModelContextClient: Resource<ClientOutput<"modelContext">, [options?: ModelContextOptions | undefined]>;
 ```
 
 ### ModelContextProvider

@@ -7,6 +7,8 @@ export const suites: Record<
 > = {
   "comment-hygiene": async () =>
     (await import("./comment-hygiene/index.ts")).commentHygiene,
+  "test-quality": async () =>
+    (await import("./test-quality/index.ts")).testQuality,
   "generative-ui": async () =>
     (await import("./generative-ui/index.ts")).generativeUI,
 };

@@ -113,6 +113,9 @@ export class ClientThreadListRuntimeCore implements ThreadListRuntimeCore {
   public get isLoading() {
     return this.state.isLoading;
   }
+  public get canUnarchive() {
+    return this.state.canUnarchive;
+  }
   public get loadError() {
     return this.state.loadError;
   }

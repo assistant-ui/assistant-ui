@@ -466,15 +466,25 @@ describe("toWebMcpTool cancellation", () => {
     const caller = new AbortController();
     const callerRemove = vi.spyOn(caller.signal, "removeEventListener");
     const lifecycleRemove = vi.spyOn(lifecycle.signal, "removeEventListener");
+    const onAbort = vi.fn();
 
     const result = await descriptorFor(
-      { execute: async () => "ok" },
+      {
+        execute: async (_args, context) => {
+          context.abortSignal.addEventListener("abort", onAbort);
+          return "ok";
+        },
+      },
       lifecycle.signal,
     ).execute({}, { signal: caller.signal });
 
     expect(result).toEqual({ content: [text("ok")] });
     expect(callerRemove).toHaveBeenCalledTimes(1);
     expect(lifecycleRemove).toHaveBeenCalledTimes(1);
+
+    caller.abort();
+    lifecycle.abort();
+    expect(onAbort).not.toHaveBeenCalled();
   });
 
   it("merges a caller signal that is not a native AbortSignal", async () => {

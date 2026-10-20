@@ -20,6 +20,7 @@ export {
   messageErrorText,
   suggestionSendMode,
   suggestionTriggerDisabled,
+  threadListItemUnarchiveDisabled,
   threadListLoadMoreDisabled,
 } from "./primitive-predicates";
 export { isDevelopment } from "./env";

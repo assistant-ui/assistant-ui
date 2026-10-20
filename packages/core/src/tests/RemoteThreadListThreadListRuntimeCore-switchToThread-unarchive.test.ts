@@ -18,6 +18,8 @@ describe("RemoteThreadListThreadListRuntimeCore.switchToThread unarchive option"
     const core = createCore(adapter);
     await core.getLoadThreadsPromise();
 
+    expect(core.canUnarchive).toBe(false);
+
     await expect(core.switchToThread("archived")).resolves.toBeUndefined();
 
     expect(core.mainThreadId).toBe(core.getItemById("archived")?.id);
@@ -59,6 +61,7 @@ describe("RemoteThreadListThreadListRuntimeCore.switchToThread unarchive option"
     const core = createCore(adapter);
     await core.getLoadThreadsPromise();
 
+    expect(core.canUnarchive).toBe(true);
     expect(core.archivedThreadIds).toContain(THREAD_ID);
     expect(core.threadIds).not.toContain(THREAD_ID);
 

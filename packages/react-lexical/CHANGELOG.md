@@ -1,5 +1,11 @@
 # @assistant-ui/react-lexical
 
+## 0.2.19
+
+### Patch Changes
+
+- [#9789](https://github.com/assistant-ui/assistant-ui/pull/9789) [`479d267`](https://github.com/assistant-ui/assistant-ui/commit/479d267ad32d7ac5945a25b5503c4530225db9f2) - fix: call a directive trigger's `onInserted` under the Lexical composer once the directive is in the composer text; `onDirectiveSelect` now fires at the same point ([@bnb](https://github.com/bnb))
+
 ## 0.2.18
 
 ### Patch Changes
