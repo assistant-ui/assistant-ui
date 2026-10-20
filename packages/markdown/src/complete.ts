@@ -54,7 +54,7 @@ const findOpener = (value: string): Opener | undefined => {
     if (char === "`") {
       let end = index;
       while (value[end] === "`") end++;
-      if (canOpen(value[index - 1], value[end])) {
+      if (end === value.length || !isSpace(value[end])) {
         return { index, run: value.slice(index, end), wrappers: "code" };
       }
       index = end - 1;
@@ -163,8 +163,11 @@ const closeCell = (cell: TableCellNode): TableCellNode => ({
   children: closeOpenInlines(cell.children),
 });
 
-/** Returns the block with the inline run at its end closed, or the block itself when nothing there is open. */
-export const closeOpenBlock = (block: BlockNode): BlockNode => {
+/** Returns the block with the inline run at its end closed, or the block itself when nothing there is open; a table row whose final line ends in `|` has finished its last cell. */
+export const closeOpenBlock = (
+  block: BlockNode,
+  finalLine: string,
+): BlockNode => {
   switch (block.type) {
     case "paragraph":
     case "heading": {
@@ -174,7 +177,7 @@ export const closeOpenBlock = (block: BlockNode): BlockNode => {
     case "blockquote": {
       const last = block.children.at(-1);
       if (!last) return block;
-      const closed = closeOpenBlock(last);
+      const closed = closeOpenBlock(last, finalLine);
       return closed === last
         ? block
         : { ...block, children: [...block.children.slice(0, -1), closed] };
@@ -183,7 +186,7 @@ export const closeOpenBlock = (block: BlockNode): BlockNode => {
       const item = block.children.at(-1);
       const last = item?.children.at(-1);
       if (!item || !last) return block;
-      const closed = closeOpenBlock(last);
+      const closed = closeOpenBlock(last, finalLine);
       if (closed === last) return block;
       return {
         ...block,
@@ -194,6 +197,7 @@ export const closeOpenBlock = (block: BlockNode): BlockNode => {
       };
     }
     case "table": {
+      if (finalLine.trimEnd().endsWith("|")) return block;
       const row = block.children.at(-1);
       const cell =
         row?.children.findLast((candidate) => candidate.children.length > 0) ??

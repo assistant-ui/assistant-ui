@@ -97,6 +97,7 @@ test.each([
   "This runs in O(n*m) time",
   "Press the ` key to toggle",
   "Prices may vary*. See below",
+  "| a |\n| - |\n| **b |",
 ])("%j is left as parsed", (source) => {
   const session = createMarkdownSession();
   expect(session.update(source)).toBe(session.update(source, { final: true }));
@@ -151,7 +152,7 @@ test("the end of a list item and a table cell is closed", () => {
     lines: { start: 1, end: 2 },
     children: [{ type: "strong", children: [{ type: "text", value: "two" }] }],
   });
-  const table = streamed("| a |\n| - |\n| **b |").children[0];
+  const table = streamed("| a |\n| - |\n| **b").children[0];
   expect(table?.type === "table" && table.children[1]?.children[0]).toEqual({
     type: "tableCell",
     children: [{ type: "strong", children: [{ type: "text", value: "b" }] }],
@@ -188,4 +189,11 @@ test("closing never throws while every CommonMark example streams, and the final
       parseMarkdown(source),
     );
   }
+});
+
+test("a code span opener needs no flanking, only a non-space after it", () => {
+  expect(inlines(streamed("Use foo`bar"))).toEqual([
+    { type: "text", value: "Use foo" },
+    { type: "codeSpan", value: "bar" },
+  ]);
 });

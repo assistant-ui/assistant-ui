@@ -129,7 +129,9 @@ export const createSession = (tokenizer: Tokenizer): MarkdownSession => {
     if (projected?.raw === raw) return projected.root;
     const last = raw.children.at(-1);
     const closed =
-      last && !/\n[ \t]*\n[ \t]*$/.test(text) ? closeOpenBlock(last) : last;
+      last && !/\n[ \t]*\n[ \t]*$/.test(text)
+        ? closeOpenBlock(last, text.slice(text.lastIndexOf("\n") + 1))
+        : last;
     const root: RootNode =
       closed === last
         ? raw
