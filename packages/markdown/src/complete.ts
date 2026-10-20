@@ -178,7 +178,10 @@ export const closeOpenBlock = (
     case "blockquote": {
       const last = block.children.at(-1);
       if (!last) return block;
-      const closed = closeOpenBlock(last, finalLine);
+      const closed = closeOpenBlock(
+        last,
+        finalLine.replace(/^[ \t]*>[ \t]?/, ""),
+      );
       return closed === last
         ? block
         : { ...block, children: [...block.children.slice(0, -1), closed] };

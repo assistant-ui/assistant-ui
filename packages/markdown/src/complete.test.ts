@@ -101,6 +101,9 @@ test.each([
   "| a |\n| - |\n| **b\n",
   "# **Title\n",
   "**Title\n===",
+  "> | a |\n> | - |\n> | **b |\n> ",
+  "> # **Title\n> ",
+  "> **Title\n> ===",
 ])("%j is left as parsed", (source) => {
   const session = createMarkdownSession();
   expect(session.update(source)).toBe(session.update(source, { final: true }));
