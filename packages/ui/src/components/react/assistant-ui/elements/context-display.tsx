@@ -7,45 +7,24 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import {
-  createContext,
-  useContext,
-  useMemo,
-  useState,
-  type FC,
-  type ReactNode,
-} from "react";
+import { type FC, type ReactNode } from "react";
 
 import {
   getBarColor,
   getContextSegments,
   getPercentColor,
   getStrokeColor,
-  getUsagePercent,
   type TokenUsage,
 } from "../utils/context-usage";
+import {
+  ContextDisplayContext,
+  useContextDisplay,
+  useContextDisplayState,
+} from "../utils/context-display-state";
 import { formatTokenCount } from "../utils/tokens";
 
 export type { TokenUsage } from "../utils/context-usage";
 
-type ContextDisplayContextValue = {
-  usage: TokenUsage | undefined;
-  totalTokens: number;
-  percent: number;
-  modelContextWindow: number;
-};
-
-const ContextDisplayContext = createContext<ContextDisplayContextValue | null>(
-  null,
-);
-
-function useContextDisplay(): ContextDisplayContextValue {
-  const ctx = useContext(ContextDisplayContext);
-  if (!ctx) {
-    throw new Error("ContextDisplay.* must be used within ContextDisplay.Root");
-  }
-  return ctx;
-}
 export type PresetProps = {
   modelContextWindow: number;
   className?: string;
@@ -67,52 +46,10 @@ function ContextDisplayRoot({
   usage,
   resetKey,
 }: ContextDisplayRootProps) {
-  const rawTokens = usage?.totalTokens ?? 0;
-  const [tokenState, setTokenState] = useState({
-    resetKey,
-    totalTokens: rawTokens > 0 ? rawTokens : 0,
+  const { contextValue, hasUsage } = useContextDisplayState(
     usage,
-  });
-
-  if (
-    tokenState.resetKey !== resetKey ||
-    (rawTokens > 0 && rawTokens !== tokenState.totalTokens) ||
-    usage !== tokenState.usage
-  ) {
-    setTokenState((prev) => {
-      if (prev.resetKey !== resetKey) {
-        return {
-          resetKey,
-          totalTokens: rawTokens > 0 ? rawTokens : 0,
-          usage,
-        };
-      }
-      if (rawTokens > 0 && rawTokens !== prev.totalTokens) {
-        return { ...prev, totalTokens: rawTokens, usage };
-      }
-      if (usage !== prev.usage) {
-        return { ...prev, usage };
-      }
-      return prev;
-    });
-  }
-
-  const current =
-    tokenState.resetKey === resetKey
-      ? tokenState
-      : { totalTokens: rawTokens > 0 ? rawTokens : 0, usage };
-  const totalTokens = current.totalTokens;
-  const percent = getUsagePercent(totalTokens, modelContextWindow);
-  const hasUsage = current.usage !== undefined || totalTokens > 0;
-
-  const contextValue = useMemo(
-    () => ({
-      usage: current.usage,
-      totalTokens,
-      percent,
-      modelContextWindow,
-    }),
-    [current.usage, totalTokens, percent, modelContextWindow],
+    resetKey,
+    modelContextWindow,
   );
 
   if (!hasUsage) return null;
