@@ -1,5 +1,11 @@
 # @assistant-ui/tap
 
+## 0.9.24
+
+### Patch Changes
+
+- [#9770](https://github.com/assistant-ui/assistant-ui/pull/9770) [`1960f3c`](https://github.com/assistant-ui/assistant-ui/commit/1960f3c2438f0055dd6dff55477ecaaed0fc0dee) - Add an optional root error handler for scheduled tap flushes. ([@okisdev](https://github.com/okisdev))
+
 ## 0.9.23
 
 ### Patch Changes

@@ -1,5 +1,17 @@
 # assistant-stream
 
+## 0.3.53
+
+### Patch Changes
+
+- [#9799](https://github.com/assistant-ui/assistant-ui/pull/9799) [`6966821`](https://github.com/assistant-ui/assistant-ui/commit/69668210c9476323380067307284509f707b507a) - fix: release Redis producer lease bookkeeping when finalization finds an expired or superseded stream, preserving newer leases and legacy ownership fences. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9794](https://github.com/assistant-ui/assistant-ui/pull/9794) [`e99250f`](https://github.com/assistant-ui/assistant-ui/commit/e99250fb58a4d31431e27dd5c6820ca3a813034a) - fix: prevent idle resumable stream readers from repeatedly waking and emitting timer overflow warnings when retention exceeds the platform timer limit. ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9850](https://github.com/assistant-ui/assistant-ui/pull/9850) [`54e2e9b`](https://github.com/assistant-ui/assistant-ui/commit/54e2e9b9611f32b669e5e874a515671175645307) - fix: preserve provider metadata on text and reasoning parts decoded from UI message streams. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#9822](https://github.com/assistant-ui/assistant-ui/pull/9822) [`be30245`](https://github.com/assistant-ui/assistant-ui/commit/be302451ba4243f14d612fe7530c63dfe9275f6d) - fix: preserve text and reasoning block identity when decoding interleaved UI message streams. ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.3.52
 
 ### Patch Changes

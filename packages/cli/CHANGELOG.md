@@ -1,5 +1,15 @@
 # assistant-ui
 
+## 0.0.125
+
+### Patch Changes
+
+- [#9840](https://github.com/assistant-ui/assistant-ui/pull/9840) [`49a0d2b`](https://github.com/assistant-ui/assistant-ui/commit/49a0d2b48f6c73537c8de51d0f49748a14a4db98) - fix: preserve disabled message branch and hover filters when upgrading to AuiIf ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#9785](https://github.com/assistant-ui/assistant-ui/pull/9785) [`51e7052`](https://github.com/assistant-ui/assistant-ui/commit/51e7052f132b19b30f537effb1cd47f524cd33d7) - feat(cli): report `tw-shimmer`, `safe-content-frame`, `tailwindcss` and the provider SDKs installed adapters peer on in `assistant-ui info` ([@bnb](https://github.com/bnb))
+
+- [#9801](https://github.com/assistant-ui/assistant-ui/pull/9801) [`4b5d044`](https://github.com/assistant-ui/assistant-ui/commit/4b5d044517e53d7fb440ae9b43e03d997f10894a) - feat: run every `assistant-ui cloud` subcommand other than `login`, `logout` and `setup` on Assistant Cloud. The CLI sends the command line with the saved login to the cloud management server and prints its answer, so `cloud help`, `cloud whoami` and `cloud projects list` come from the server and new commands need no CLI release. ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.124
 
 ### Patch Changes

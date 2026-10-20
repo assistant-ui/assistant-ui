@@ -45,19 +45,26 @@ export function renderReport(
   const computed = results.filter((r) => r.case.computed);
   const other = results.filter((r) => !r.case.computed);
 
-  const lines = ["# Generative UI eval results"];
+  const lines = [
+    "# Generative UI eval results",
+    "",
+    "Scores and percentages use completed trials only; execution errors are counted separately.",
+  ];
   for (const model of new Set(candidates.map((c) => c.modelName))) {
     const formats = candidates.filter((c) => c.modelName === model);
     lines.push(
       "",
       `## ${model}`,
       "",
-      "| format | valid | render errors | repairs | clarity | usefulness | completeness | presentation | computed tasks | other tasks | input tokens | output tokens | first output | total |",
-      "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+      "| format | completed | execution errors | valid | render errors | repairs | clarity | usefulness | completeness | presentation | computed tasks | other tasks | input tokens | output tokens | first output | total |",
+      "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     );
     for (const candidate of formats) {
       const trials = trialsOf(candidate);
+      const executionErrors = trials.filter((trial) => trial.error).length;
       const cells = [
+        String(trials.length - executionErrors),
+        String(executionErrors),
         formatShare(mean(trials, (j) => (j.errors.length ? 0 : 1))),
         formatShare(mean(trials, (j) => (j.runtimeErrors.length ? 1 : 0))),
         formatScore(mean(trials, (j) => j.repairRounds)),

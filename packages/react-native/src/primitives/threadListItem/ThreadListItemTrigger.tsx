@@ -1,15 +1,11 @@
 import type { ReactNode } from "react";
-import {
-  Platform,
-  Pressable,
-  type PressableProps,
-  type PressableStateCallbackType,
-} from "react-native";
+import { Platform, type PressableStateCallbackType } from "react-native";
 import { useAuiState } from "@assistant-ui/store";
 import { useThreadListItemTrigger } from "@assistant-ui/core/react";
+import { Primitive, type PrimitivePressableProps } from "../../utils/Primitive";
 
 export type ThreadListItemTriggerProps = Omit<
-  PressableProps,
+  PrimitivePressableProps,
   "onPress" | "children"
 > & {
   children:
@@ -31,7 +27,7 @@ export const ThreadListItemTrigger = ({
   const selected = accessibilityState?.selected ?? isActive;
 
   return (
-    <Pressable
+    <Primitive.Pressable
       onPress={switchTo}
       accessibilityRole="button"
       accessibilityState={{ ...accessibilityState, selected }}
@@ -41,6 +37,6 @@ export const ThreadListItemTrigger = ({
       {typeof children === "function"
         ? (state) => children({ ...state, isActive })
         : children}
-    </Pressable>
+    </Primitive.Pressable>
   );
 };

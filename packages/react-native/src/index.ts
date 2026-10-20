@@ -277,7 +277,9 @@ export {
 
 export type {
   ModelContext,
+  ModelContextOptions,
   ModelContextProvider,
+  SystemPart,
   LanguageModelConfig,
   LanguageModelV1CallSettings,
 } from "@assistant-ui/core";
