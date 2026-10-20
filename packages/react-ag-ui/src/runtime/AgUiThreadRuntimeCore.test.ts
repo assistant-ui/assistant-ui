@@ -540,18 +540,30 @@ describe("AgUiThreadRuntimeCore activity deltas", () => {
 });
 
 describe("AgUiThreadRuntimeCore setState", () => {
-  it("keeps state changes an updater makes through the core", () => {
-    const { core } = createCore();
+  it("keeps a cancel the updater makes while a send waits for history", async () => {
+    const { history, finish } = deferredHistory();
+    const runAgent = vi.fn(async () => {});
+    const { core } = createCore(history, {
+      runAgent,
+      abortRun: vi.fn(),
+    } as unknown as AbstractAgent);
+    const loading = core.__internal_load();
+    const sending = core.append({
+      ...userMessage("cancelled"),
+      startRun: true,
+    });
 
     core.setState(() => {
       void core.cancel();
       return { count: 1 };
     });
+    finish();
+    await Promise.all([loading, sending]);
 
     expect(core.getState()).toEqual({ count: 1 });
-    expect(
-      (core as unknown as { state: { historyMutationGeneration: number } })
-        .state.historyMutationGeneration,
-    ).toBe(1);
+    expect(core.getMessages().map((message) => message.id)).toEqual([
+      "restored",
+    ]);
+    expect(runAgent).not.toHaveBeenCalled();
   });
 });
