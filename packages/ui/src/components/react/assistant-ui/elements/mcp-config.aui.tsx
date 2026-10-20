@@ -1,12 +1,11 @@
 "use client";
 
-import { isValidElement, type FC, type ReactNode, useId } from "react";
+import { isValidElement, type FC, type ReactNode } from "react";
 import { useAuiState } from "@assistant-ui/store";
 import {
   McpAddFormPrimitive,
   McpManagerPrimitive,
   McpServerPrimitive,
-  type MCPConnectionState,
 } from "@assistant-ui/react-mcp";
 import {
   Loader2Icon,
@@ -33,9 +32,11 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import {
   STATUS_LABEL,
+  STATUS_VARIANT,
   useCustomServersSection,
   useServerActionFocus,
   useServerAnnouncement,
+  useServerFormFieldIds,
 } from "../utils/mcp-config-state";
 import { cn } from "@/lib/utils";
 
@@ -205,18 +206,6 @@ const ServerAvatar: FC = () => {
   );
 };
 
-const STATUS_VARIANT: Record<
-  MCPConnectionState,
-  "default" | "secondary" | "destructive"
-> = {
-  connected: "default",
-  connecting: "secondary",
-  authRequired: "secondary",
-  authPending: "secondary",
-  error: "destructive",
-  disconnected: "secondary",
-};
-
 const StatusLine: FC = () => {
   const status = useAuiState((s) => s.mcpServer.connectionState);
   const variant = STATUS_VARIANT[status];
@@ -294,12 +283,7 @@ const ServerActions: FC = () => {
 };
 
 const AddServerForm: FC<{ onClose: () => void }> = ({ onClose }) => {
-  const formId = useId();
-  const fieldIds = {
-    name: `${formId}-name`,
-    url: `${formId}-url`,
-    auth: `${formId}-auth`,
-  };
+  const fieldIds = useServerFormFieldIds();
 
   return (
     <McpAddFormPrimitive.Root onSubmitted={onClose} onCancel={onClose}>

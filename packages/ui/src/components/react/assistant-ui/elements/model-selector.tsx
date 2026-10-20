@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, type ComponentPropsWithoutRef, type ReactNode } from "react";
+import { type ComponentPropsWithoutRef, type ReactNode } from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -22,14 +22,13 @@ import { RadioGroup } from "@base-ui/react/radio-group";
 import { Radio } from "@base-ui/react/radio";
 
 import {
-  getModelEfforts,
   ModelSelectorContext,
-  resolveEffort,
-  useControllableState,
   useLazyFlipSide,
   useModelSelectorContext,
   useModelSelectorEfforts,
+  useModelSelectorState,
   type ModelOption,
+  type ModelSelectorStateProps,
 } from "../utils/model-selection";
 
 export {
@@ -43,76 +42,15 @@ export type {
   ModelSelectorEffortOption,
 } from "../utils/model-selection";
 
-export type ModelSelectorRootProps = {
-  models: readonly ModelOption[];
-  value?: string;
-  defaultValue?: string;
-  onValueChange?: (value: string) => void;
-  effort?: string;
-  defaultEffort?: string;
-  onEffortChange?: (effort: string) => void;
-  open?: boolean;
-  defaultOpen?: boolean;
-  onOpenChange?: (open: boolean) => void;
+export type ModelSelectorRootProps = ModelSelectorStateProps & {
   children: ReactNode;
 };
 
 function ModelSelectorRoot({
-  models,
-  value: valueProp,
-  defaultValue,
-  onValueChange,
-  effort: effortProp,
-  defaultEffort,
-  onEffortChange,
-  open: openProp,
-  defaultOpen,
-  onOpenChange,
   children,
+  ...stateProps
 }: ModelSelectorRootProps) {
-  const [value, setValue] = useControllableState({
-    prop: valueProp,
-    defaultProp: defaultValue ?? models[0]?.id,
-    onChange: onValueChange,
-  });
-  const [effort, setEffort] = useControllableState({
-    prop: effortProp,
-    defaultProp: defaultEffort,
-    onChange: onEffortChange,
-  });
-  const [open, setOpen] = useControllableState({
-    prop: openProp,
-    defaultProp: defaultOpen ?? false,
-    onChange: onOpenChange,
-  });
-
-  const selectedModel = models.find((m) => m.id === value);
-  const efforts = getModelEfforts(selectedModel);
-  const activeEffort = resolveEffort(efforts, effort);
-  const contextValue = useMemo(
-    () => ({
-      models,
-      value,
-      setValue,
-      selectedModel,
-      efforts,
-      effort: activeEffort,
-      setEffort,
-      open: open ?? false,
-      setOpen,
-    }),
-    [
-      models,
-      value,
-      setValue,
-      selectedModel,
-      efforts,
-      activeEffort,
-      setEffort,
-      open,
-      setOpen,
-    ],
-  );
+  const { open, setOpen, contextValue } = useModelSelectorState(stateProps);
 
   return (
     <ModelSelectorContext.Provider value={contextValue}>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useAuiState } from "@assistant-ui/store";
 import type { MCPConnectionState } from "@assistant-ui/react-mcp";
 
@@ -81,6 +81,27 @@ export const STATUS_LABEL: Record<MCPConnectionState, string> = {
   error: "Error",
   disconnected: "Disconnected",
 };
+
+export const STATUS_VARIANT: Record<
+  MCPConnectionState,
+  "default" | "secondary" | "destructive"
+> = {
+  connected: "default",
+  connecting: "secondary",
+  authRequired: "secondary",
+  authPending: "secondary",
+  error: "destructive",
+  disconnected: "secondary",
+};
+
+export function useServerFormFieldIds() {
+  const formId = useId();
+  return {
+    name: `${formId}-name`,
+    url: `${formId}-url`,
+    auth: `${formId}-auth`,
+  };
+}
 
 export function useServerAnnouncement() {
   const status = useAuiState((s) => s.mcpServer.connectionState);

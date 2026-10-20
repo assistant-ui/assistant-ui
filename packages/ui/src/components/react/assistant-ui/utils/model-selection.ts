@@ -5,6 +5,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -113,6 +114,78 @@ type ModelSelectorContextValue = {
 
 export const ModelSelectorContext =
   createContext<ModelSelectorContextValue | null>(null);
+
+export type ModelSelectorStateProps = {
+  models: readonly ModelOption[];
+  value?: string;
+  defaultValue?: string;
+  onValueChange?: (value: string) => void;
+  effort?: string;
+  defaultEffort?: string;
+  onEffortChange?: (effort: string) => void;
+  open?: boolean;
+  defaultOpen?: boolean;
+  onOpenChange?: (open: boolean) => void;
+};
+
+export function useModelSelectorState({
+  models,
+  value: valueProp,
+  defaultValue,
+  onValueChange,
+  effort: effortProp,
+  defaultEffort,
+  onEffortChange,
+  open: openProp,
+  defaultOpen,
+  onOpenChange,
+}: ModelSelectorStateProps) {
+  const [value, setValue] = useControllableState({
+    prop: valueProp,
+    defaultProp: defaultValue ?? models[0]?.id,
+    onChange: onValueChange,
+  });
+  const [effort, setEffort] = useControllableState({
+    prop: effortProp,
+    defaultProp: defaultEffort,
+    onChange: onEffortChange,
+  });
+  const [open, setOpen] = useControllableState({
+    prop: openProp,
+    defaultProp: defaultOpen ?? false,
+    onChange: onOpenChange,
+  });
+
+  const selectedModel = models.find((m) => m.id === value);
+  const efforts = getModelEfforts(selectedModel);
+  const activeEffort = resolveEffort(efforts, effort);
+  const contextValue = useMemo(
+    () => ({
+      models,
+      value,
+      setValue,
+      selectedModel,
+      efforts,
+      effort: activeEffort,
+      setEffort,
+      open: open ?? false,
+      setOpen,
+    }),
+    [
+      models,
+      value,
+      setValue,
+      selectedModel,
+      efforts,
+      activeEffort,
+      setEffort,
+      open,
+      setOpen,
+    ],
+  );
+
+  return { open, setOpen, contextValue };
+}
 
 export function useModelSelectorContext() {
   const ctx = useContext(ModelSelectorContext);
