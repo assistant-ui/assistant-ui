@@ -7,7 +7,7 @@ Composable runtime and UI primitives for AI chat in React, Vue, React Native, an
 - Build a package's workspace dependencies before testing or typechecking it (`pnpm turbo build --filter='<pkg>^...'`), because vitest and tsc resolve them through `dist`.
 - Run pnpm commands one at a time, because `verifyDepsBeforeRun: install` makes concurrent runs race and half-install `node_modules`; repair with `rm -rf node_modules && CI=true pnpm install --frozen-lockfile`.
 - `pnpm lint:fix` formats; oxfmt owns formatting, so never format by hand.
-- `pnpm sync-templates --write` after editing anything under `packages/ui/src/` or an `apps/registry` file a template mirrors; the Template Sync job fails on drift.
+- Run `pnpm sync-templates --write` after editing anything under `packages/ui/src/`, an `apps/registry` file a template mirrors, or a template source listed in `TEMPLATE_MIRRORS`; the sync check fails on drift.
 - `pnpm check:resource-memo` after bumping `@babel/core`, `babel-plugin-react-compiler`, or `react-compiler`, because a green build does not prove the compiler toolchain works.
 - autofix.ci commits the output of `pnpm lint:fix`, `pnpm api-surface`, and `pnpm -C apps/docs generate:api-reference` to every PR.
 

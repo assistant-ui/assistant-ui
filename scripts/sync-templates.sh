@@ -54,6 +54,20 @@ REGISTRY_MIRRORS=(
     "apps/registry/app/api/chat/route.ts:templates/minimal/app/api/chat/route.ts"
     "apps/registry/app/ai-sdk/assistant.tsx:templates/minimal/app/assistant.tsx"
 )
+TEMPLATE_MIRRORS=(
+    "templates/default/app/globals.css:templates/cloud/app/globals.css"
+    "templates/default/app/globals.css:templates/mcp/app/globals.css"
+    "templates/default/app/globals.css:templates/cloud-clerk/app/globals.css"
+    "templates/cloud/app/api/chat/route.ts:templates/cloud-clerk/app/api/chat/route.ts"
+    "templates/minimal/app/globals.css:templates/cloud-harness/app/globals.css"
+    "templates/default/app/layout.tsx:templates/mcp/app/layout.tsx"
+)
+MIRRORS=("${REGISTRY_MIRRORS[@]}")
+for pair in "${TEMPLATE_MIRRORS[@]}"; do
+    if [[ -e "$ROOT_DIR/${pair%%:*}" || -e "$ROOT_DIR/${pair#*:}" ]]; then
+        MIRRORS+=("$pair")
+    fi
+done
 
 MODE="${1:-check}"
 
@@ -187,7 +201,7 @@ hooks_drift=()
 lib_drift=()
 vue_drift=()
 vue_missing=()
-registry_drift=()
+mirror_drift=()
 cloud_harness_mirrors=()
 cloud_harness_drift=()
 cloud_harness_removed=()
@@ -358,9 +372,9 @@ for file in "${lib_candidates[@]}"; do
     fi
 done
 
-for pair in "${REGISTRY_MIRRORS[@]}"; do
+for pair in "${MIRRORS[@]}"; do
     if ! cmp -s "$ROOT_DIR/${pair%%:*}" "$ROOT_DIR/${pair#*:}"; then
-        registry_drift+=("$pair")
+        mirror_drift+=("$pair")
     fi
 done
 
@@ -426,9 +440,9 @@ while IFS= read -r rel; do
     done < <(awk -F/ -v base="${rel##*/}" '$NF == base' "$UI_SRC_LIST")
 done < <(git -C "$ROOT_DIR" ls-files -- examples templates apps)
 
-if [[ ${#drift[@]} -eq 0 && ${#vue_drift[@]} -eq 0 && ${#vue_missing[@]} -eq 0 && ${#ui_drift[@]} -eq 0 && ${#hooks_drift[@]} -eq 0 && ${#lib_drift[@]} -eq 0 && ${#registry_drift[@]} -eq 0 && ${#cloud_harness_drift[@]} -eq 0 && ${#cloud_harness_removed[@]} -eq 0 && ${#redundant[@]} -eq 0 ]]; then
+if [[ ${#drift[@]} -eq 0 && ${#vue_drift[@]} -eq 0 && ${#vue_missing[@]} -eq 0 && ${#ui_drift[@]} -eq 0 && ${#hooks_drift[@]} -eq 0 && ${#lib_drift[@]} -eq 0 && ${#mirror_drift[@]} -eq 0 && ${#cloud_harness_drift[@]} -eq 0 && ${#cloud_harness_removed[@]} -eq 0 && ${#redundant[@]} -eq 0 ]]; then
     echo "✓ all template components, hooks, and lib files are in sync with packages/ui"
-    echo "✓ minimal scaffold files are in sync with apps/registry"
+    echo "✓ template mirrors are in sync"
     echo "✓ no redundant packages/ui copies in examples, templates or apps"
     exit 0
 fi
@@ -462,7 +476,7 @@ if [[ "$MODE" == "--write" ]]; then
         cp "$RENDER_DIR/lib/$file" "$MINIMAL_LIB_DIR/$file"
         echo "synced minimal lib/$file"
     done
-    for pair in "${registry_drift[@]}"; do
+    for pair in "${mirror_drift[@]}"; do
         cp "$ROOT_DIR/${pair%%:*}" "$ROOT_DIR/${pair#*:}"
         echo "synced ${pair#*:}"
     done
@@ -477,14 +491,14 @@ if [[ "$MODE" == "--write" ]]; then
         echo "removed cloud-harness/$relative"
     done
     echo ""
-    echo "fixed $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#lib_drift[@]} + ${#registry_drift[@]} + ${#cloud_harness_drift[@]} + ${#cloud_harness_removed[@]} )) file(s)"
+    echo "fixed $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#lib_drift[@]} + ${#mirror_drift[@]} + ${#cloud_harness_drift[@]} + ${#cloud_harness_removed[@]} )) file(s)"
     drift=()
     vue_drift=()
     vue_missing=()
     ui_drift=()
     hooks_drift=()
     lib_drift=()
-    registry_drift=()
+    mirror_drift=()
     cloud_harness_drift=()
     cloud_harness_removed=()
     [[ ${#redundant[@]} -eq 0 ]] && exit 0
@@ -538,9 +552,9 @@ if [[ ${#lib_drift[@]} -gt 0 ]]; then
     done
 fi
 
-if [[ ${#registry_drift[@]} -gt 0 ]]; then
-    echo "✗ drift detected in ${#registry_drift[@]} minimal scaffold file(s) vs apps/registry:"
-    for pair in "${registry_drift[@]}"; do
+if [[ ${#mirror_drift[@]} -gt 0 ]]; then
+    echo "✗ drift detected in ${#mirror_drift[@]} template mirror file(s):"
+    for pair in "${mirror_drift[@]}"; do
         echo "    ${pair#*:}"
         annotate "${pair#*:}" "out of sync with ${pair%%:*}; run 'pnpm sync-templates --write'"
     done
@@ -570,7 +584,7 @@ if [[ ${#redundant[@]} -gt 0 ]]; then
 fi
 
 echo ""
-if [[ $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#lib_drift[@]} + ${#registry_drift[@]} + ${#cloud_harness_drift[@]} + ${#cloud_harness_removed[@]} )) -gt 0 ]]; then
+if [[ $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#lib_drift[@]} + ${#mirror_drift[@]} + ${#cloud_harness_drift[@]} + ${#cloud_harness_removed[@]} )) -gt 0 ]]; then
     echo "to fix, run:    pnpm sync-templates --write"
     echo "if a template divergence is intentional, add '<file>' to OVERRIDES in scripts/sync-templates.sh"
 fi

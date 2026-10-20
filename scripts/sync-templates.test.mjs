@@ -168,15 +168,49 @@ const extensions = [
 ].map((match) => match[1]);
 const readsProjectTsconfig =
   /\$ROOT_DIR\/\$\{rel%%\/\*\}\/\$name\/tsconfig\.json/.test(script);
-const expectedPaths = [
-  scriptFile,
-  testFile,
+const globToRegExp = (glob) => {
+  let source = "^";
+  for (let index = 0; index < glob.length;) {
+    if (glob.startsWith("**/", index)) {
+      source += "(?:.*/)?";
+      index += 3;
+    } else if (glob.startsWith("**", index)) {
+      source += ".*";
+      index += 2;
+    } else if (glob[index] === "*") {
+      source += "[^/]*";
+      index += 1;
+    } else {
+      source += glob[index].replace(/[|\\{}()[\]^$+?.]/g, "\\$&");
+      index += 1;
+    }
+  }
+  return new RegExp(`${source}$`);
+};
+
+const globPaths = [
   ...[sourceRoot, ...trackedRoots].flatMap((root) =>
     extensions.map((extension) => `${root}/**/*.${extension}`),
   ),
   ...(readsProjectTsconfig
     ? trackedRoots.map((root) => `${root}/*/tsconfig.json`)
     : []),
+];
+const mirrorFiles = [
+  ...new Set(
+    [...script.matchAll(/^\s+"([^":]+):([^":]+)"$/gm)].flatMap((match) => [
+      match[1],
+      match[2],
+    ]),
+  ),
+];
+const expectedPaths = [
+  scriptFile,
+  testFile,
+  ...globPaths,
+  ...mirrorFiles.filter(
+    (file) => !globPaths.some((glob) => globToRegExp(glob).test(file)),
+  ),
   workflowFile,
 ].sort();
 
@@ -213,26 +247,6 @@ const parseWorkflowPathBlocks = (source) => {
 };
 
 const workflowPathBlocks = parseWorkflowPathBlocks(workflow);
-
-const globToRegExp = (glob) => {
-  let source = "^";
-  for (let index = 0; index < glob.length;) {
-    if (glob.startsWith("**/", index)) {
-      source += "(?:.*/)?";
-      index += 3;
-    } else if (glob.startsWith("**", index)) {
-      source += ".*";
-      index += 2;
-    } else if (glob[index] === "*") {
-      source += "[^/]*";
-      index += 1;
-    } else {
-      source += glob[index].replace(/[|\\{}()[\]^$+?.]/g, "\\$&");
-      index += 1;
-    }
-  }
-  return new RegExp(`${source}$`);
-};
 
 const isCovered = (file) =>
   expectedPaths.some((input) => globToRegExp(input).test(file));
