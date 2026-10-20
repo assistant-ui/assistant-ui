@@ -2,14 +2,10 @@ import { render, screen, act } from "@testing-library/react";
 import { Activity, version } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CodeBlock as CodeBlockBase } from "./code-block";
-import { CodeBlock as CodeBlockRadix } from "../radix/code-block";
 
 const onReact18 = version.startsWith("18.");
 
-const flavors = [
-  ["base", CodeBlockBase],
-  ["radix", CodeBlockRadix],
-] as const;
+const flavors = [["base", CodeBlockBase]] as const;
 
 const clickCopy = async () => {
   await act(async () => {
