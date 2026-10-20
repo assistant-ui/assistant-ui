@@ -21,6 +21,7 @@
   "devDependencies": {
     "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/core": "workspace:*",
+    "@assistant-ui/markdown": "workspace:*",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-langgraph": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
