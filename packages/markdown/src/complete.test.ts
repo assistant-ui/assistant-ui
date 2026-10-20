@@ -81,15 +81,18 @@ test.each<[string, InlineNode[]]>([
   expect(inlines(streamed(source))).toEqual(expected);
 });
 
-test.each(["2 * 3", "snake_case_name", "See [1]", "**done**"])(
-  "%j is left as parsed",
-  (source) => {
-    const session = createMarkdownSession();
-    expect(session.update(source)).toBe(
-      session.update(source, { final: true }),
-    );
-  },
-);
+test.each([
+  "2 * 3",
+  "snake_case_name",
+  "See [1]",
+  "**done**",
+  "This runs in O(n*m) time",
+  "Press the ` key to toggle",
+  "Prices may vary*. See below",
+])("%j is left as parsed", (source) => {
+  const session = createMarkdownSession();
+  expect(session.update(source)).toBe(session.update(source, { final: true }));
+});
 
 test("the final update and a text ending in a blank line are not closed", () => {
   expect(
@@ -97,6 +100,26 @@ test("the final update and a text ending in a blank line are not closed", () => 
   ).toEqual([{ type: "text", value: "**bold" }]);
   expect(inlines(streamed("**bold\n\n"))).toEqual([
     { type: "text", value: "**bold" },
+  ]);
+});
+
+test("only the final line of a block is closed", () => {
+  expect(inlines(streamed("*a stray opener\nthen **bold"))).toEqual([
+    { type: "text", value: "*a stray opener" },
+    { type: "softBreak" },
+    { type: "text", value: "then " },
+    { type: "strong", children: [{ type: "text", value: "bold" }] },
+  ]);
+});
+
+test("the streaming cell of a padded table row is closed", () => {
+  const table = streamed("| a | b |\n| - | - |\n| **x").children[0];
+  expect(table?.type === "table" && table.children[1]?.children).toEqual([
+    {
+      type: "tableCell",
+      children: [{ type: "strong", children: [{ type: "text", value: "x" }] }],
+    },
+    { type: "tableCell", children: [] },
   ]);
 });
 

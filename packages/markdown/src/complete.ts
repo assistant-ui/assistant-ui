@@ -1,4 +1,5 @@
 import type { BlockNode, InlineNode, TableCellNode } from "./ast";
+import { plainText } from "./plain-text";
 
 type Wrapper = "strong" | "emphasis" | "strikethrough";
 
@@ -36,52 +37,33 @@ const mergeText = (nodes: InlineNode[]): InlineNode[] =>
     return merged;
   }, []);
 
-const plainText = (nodes: InlineNode[]): string =>
-  nodes
-    .map((node) => {
-      switch (node.type) {
-        case "text":
-        case "codeSpan":
-        case "mathInline":
-        case "htmlInline":
-          return node.value;
-        case "image":
-          return node.alt;
-        case "softBreak":
-        case "hardBreak":
-          return "\n";
-        default:
-          return plainText(node.children);
-      }
-    })
-    .join("");
-
 type Opener = { index: number; run: string; wrappers: Wrapper[] | "code" };
 
-// The parser already paired every delimiter it could, so a flanking run left in
-// a text node opens something the stream has not closed yet.
+// A run that a space follows, or that follows a word character (`n*m`,
+// `vary*.`), stays literal; a run at the very end may still be an opener.
+const canOpen = (previous: string | undefined, next: string | undefined) =>
+  next === undefined || (!isSpace(next) && !isWordChar(previous));
+
+// The parser already paired every delimiter it could, so a run left in a text
+// node on the final line opens something the stream has not closed yet.
 const findOpener = (value: string): Opener | undefined => {
   for (let index = 0; index < value.length; index++) {
     const char = value[index];
     if (char === "`") {
       let end = index;
       while (value[end] === "`") end++;
-      return { index, run: value.slice(index, end), wrappers: "code" };
+      if (canOpen(value[index - 1], value[end])) {
+        return { index, run: value.slice(index, end), wrappers: "code" };
+      }
+      index = end - 1;
+      continue;
     }
     const opener = OPENERS.find(([run]) => value.startsWith(run, index));
     if (!opener) continue;
     const [run, wrappers] = opener;
-    const next = value[index + run.length];
-    const previous = value[index - 1];
-    if (next !== undefined && isSpace(next)) {
-      index += run.length - 1;
-      continue;
-    }
-    if (run.startsWith("_") && isWordChar(previous)) {
-      index += run.length - 1;
-      continue;
-    }
-    return { index, run, wrappers };
+    index += run.length - 1;
+    if (!canOpen(value[index - run.length], value[index + 1])) continue;
+    return { index: index - run.length + 1, run, wrappers };
   }
   return undefined;
 };
@@ -109,7 +91,11 @@ export const closeOpenInlines = (nodes: InlineNode[]): InlineNode[] => {
     );
   }
 
-  for (let position = 0; position < nodes.length; position++) {
+  const lineStart =
+    nodes.findLastIndex(
+      (node) => node.type === "softBreak" || node.type === "hardBreak",
+    ) + 1;
+  for (let position = lineStart; position < nodes.length; position++) {
     const node = nodes[position]!;
     if (node.type !== "text") continue;
     const opener = findOpener(node.value);
@@ -167,7 +153,9 @@ export const closeOpenBlock = (block: BlockNode): BlockNode => {
     }
     case "table": {
       const row = block.children.at(-1);
-      const cell = row?.children.at(-1);
+      const cell =
+        row?.children.findLast((candidate) => candidate.children.length > 0) ??
+        row?.children.at(-1);
       if (!row || !cell) return block;
       const closed = closeCell(cell);
       if (closed.children === cell.children) return block;
@@ -175,7 +163,12 @@ export const closeOpenBlock = (block: BlockNode): BlockNode => {
         ...block,
         children: [
           ...block.children.slice(0, -1),
-          { ...row, children: [...row.children.slice(0, -1), closed] },
+          {
+            ...row,
+            children: row.children.map((candidate) =>
+              candidate === cell ? closed : candidate,
+            ),
+          },
         ],
       };
     }
