@@ -170,6 +170,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile --ignore-scripts
 
+      - name: Build the vitest plugin the package configs import
+        run: pnpm turbo build --filter=@assistant-ui/vite
+
       - name: Test the knip baseline checker
         run: node --test scripts/check-knip.test.mjs
 
