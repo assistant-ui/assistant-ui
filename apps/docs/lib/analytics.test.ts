@@ -1,4 +1,4 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, expect, expectTypeOf, it, vi } from "vitest";
 import { analytics } from "./analytics";
 
 const mocks = vi.hoisted(() => ({ vercelTrack: vi.fn() }));
@@ -107,6 +107,21 @@ it("tracks assistant feedback lifecycle events to PostHog", () => {
       error_message: "Failed to submit feedback",
     }),
   );
+});
+
+// AI conversation logs are kept apart from browser analytics, so no assistant
+// event may carry the generation's trace id or report a metric against it.
+it("keeps AI trace ids and $ai_metric out of assistant analytics", () => {
+  type Props<K extends keyof typeof analytics.assistant> = Parameters<
+    (typeof analytics.assistant)[K]
+  >[0];
+  expectTypeOf<Props<"responseCompleted">>().not.toHaveProperty("trace_id");
+  expectTypeOf<Props<"responseFailed">>().not.toHaveProperty("trace_id");
+  expectTypeOf<Props<"feedbackShown">>().not.toHaveProperty("trace_id");
+  expectTypeOf<Props<"feedbackClicked">>().not.toHaveProperty("trace_id");
+  expectTypeOf<Props<"feedbackSubmitted">>().not.toHaveProperty("trace_id");
+  expectTypeOf<Props<"feedbackSubmitFailed">>().not.toHaveProperty("trace_id");
+  expect(Object.keys(analytics.assistant)).not.toContain("traceFeedback");
 });
 
 it("tracks WebMCP host detection, registration, and calls to PostHog", () => {
