@@ -73,13 +73,13 @@
   ],
   "overrides": [
     {
-      "files": ["packages/react-langchain/**/*.test.{ts,tsx}"],
+      "files": ["**/*.{test,spec,e2e}.{js,jsx,ts,tsx,mjs,cjs,mts,cts}"],
       "plugins": ["typescript", "react", "import", "oxc", "vitest"],
       "rules": {
         "vitest/expect-expect": "off",
         "vitest/hoisted-apis-on-top": "off",
         "vitest/no-conditional-tests": "off",
-        "vitest/no-disabled-tests": "off",
+        "vitest/no-disabled-tests": "error",
         "vitest/no-focused-tests": "off",
         "vitest/no-standalone-expect": "off",
         "vitest/prefer-snapshot-hint": "off",
@@ -91,6 +91,14 @@
         "vitest/valid-expect-in-promise": "off",
         "vitest/valid-title": "off",
         "vitest/warn-todo": "off",
+        "vitest/valid-expect": "off",
+        "vitest/no-conditional-expect": "off"
+      }
+    },
+    {
+      "files": ["packages/react-langchain/**/*.test.{ts,tsx}"],
+      "plugins": ["typescript", "react", "import", "oxc", "vitest"],
+      "rules": {
         "vitest/valid-expect": [
           "error",
           {
