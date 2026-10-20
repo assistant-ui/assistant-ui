@@ -71,7 +71,8 @@ export function unstable_useComposerInputHistory(): Unstable_ComposerInputHistor
   const browseRef = useRef<BrowseState | null>(null);
 
   useEffect(() => {
-    if (aui.composer.getState().type !== "thread") return undefined;
+    if (aui.composer.getState().type !== "thread" || !aui.optional.threads)
+      return undefined;
 
     return aui.on("threads.selectionChanged", () => {
       browseRef.current = null;

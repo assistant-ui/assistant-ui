@@ -393,7 +393,8 @@ export const ComposerPrimitiveInput = forwardRef<
     useEffect(() => {
       if (
         aui.composer.getState().type !== "thread" ||
-        !unstable_focusOnThreadSwitched
+        !unstable_focusOnThreadSwitched ||
+        !aui.optional.threads
       )
         return undefined;
 
