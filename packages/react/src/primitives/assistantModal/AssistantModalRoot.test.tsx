@@ -10,7 +10,7 @@ import {
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AssistantRuntimeProvider } from "../../context";
-import { useLocalRuntime } from "../../legacy-runtime/runtime-cores/local/useLocalRuntime";
+import { useLocalRuntime } from "@assistant-ui/core/react";
 import { AssistantModalPrimitiveContent } from "./AssistantModalContent";
 import { AssistantModalPrimitiveRoot } from "./AssistantModalRoot";
 import { AssistantModalPrimitiveTrigger } from "./AssistantModalTrigger";

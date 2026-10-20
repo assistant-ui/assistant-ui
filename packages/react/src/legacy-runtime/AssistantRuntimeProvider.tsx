@@ -6,7 +6,7 @@ import {
   type AuiConfig,
   useAui,
 } from "@assistant-ui/store";
-import type { AssistantRuntime } from "./runtime/AssistantRuntime";
+import type { AssistantRuntime } from "@assistant-ui/core";
 import { AssistantProviderBase } from "@assistant-ui/core/react";
 import { ThreadPrimitiveViewportProvider } from "../context/providers/ThreadViewportProvider";
 import { DevToolsProviderApi } from "../devtools/DevToolsHooks";

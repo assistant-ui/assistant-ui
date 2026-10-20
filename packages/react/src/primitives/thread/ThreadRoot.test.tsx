@@ -4,7 +4,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import type { FC, PropsWithChildren } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { AssistantRuntimeProvider } from "../../context";
-import { useLocalRuntime } from "../../legacy-runtime/runtime-cores/local/useLocalRuntime";
+import { useLocalRuntime } from "@assistant-ui/core/react";
 import type {
   ChatModelAdapter,
   SpeechSynthesisAdapter,

@@ -3,7 +3,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { AssistantRuntimeProvider } from "../../context";
-import { useLocalRuntime } from "../../legacy-runtime/runtime-cores/local/useLocalRuntime";
+import { useLocalRuntime } from "@assistant-ui/core/react";
 import { ThreadPrimitiveRoot } from "../thread/ThreadRoot";
 import { ComposerPrimitiveInput } from "./ComposerInput";
 import { ComposerPrimitiveRoot } from "./ComposerRoot";

@@ -15,7 +15,7 @@ import { useAui } from "@assistant-ui/store";
 import { AssistantRuntimeProvider } from "../context";
 import * as MessagePrimitive from "../primitives/message";
 import * as ThreadPrimitive from "../primitives/thread";
-import { useLocalRuntime } from "../legacy-runtime/runtime-cores/local/useLocalRuntime";
+import { useLocalRuntime } from "@assistant-ui/core/react";
 import {
   useAssistantDataUI,
   type ChatModelAdapter,
