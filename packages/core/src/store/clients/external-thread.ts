@@ -32,6 +32,9 @@ import type {
 } from "../../runtime/interfaces/thread-runtime-core";
 import type { Unstable_ToolInteractionInput } from "../../types/message";
 import type { CreateResumeRunConfig } from "../../runtime/api/thread-runtime";
+import { toAppendMessage } from "../../runtime/utils/append-message";
+import { dedupeMessagesById } from "../../runtime/utils/external-store-message";
+import { LoadEarlier } from "../../runtime/utils/load-earlier";
 import type { ExternalThreadQueueAdapter } from "../../runtime/queue/external-thread-queue-adapter";
 import type { ExternalThreadBranchAdapter } from "../../runtime/branch/external-thread-branch-adapter";
 import type { AttachmentAdapter } from "../../adapters/attachment";
@@ -520,23 +523,6 @@ const createSpeechController = (
   };
 };
 
-const dedupeMessagesById = (messages: readonly ExternalThreadMessage[]) => {
-  const seenIds = new Set<string>();
-  const deduped: ExternalThreadMessage[] = [];
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const message = messages[i]!;
-    if (seenIds.has(message.id)) {
-      console.warn(
-        `ExternalThread: duplicate message id "${message.id}" in the provided messages array; keeping the last occurrence.`,
-      );
-      continue;
-    }
-    seenIds.add(message.id);
-    deduped.push(message);
-  }
-  return deduped.length === messages.length ? messages : deduped.reverse();
-};
-
 // External Thread Client
 const useExternalThread = ({
   messages: messagesProp,
@@ -585,32 +571,30 @@ const useExternalThread = ({
   );
 
   const messages = useMemo(
-    () => dedupeMessagesById(messagesProp),
+    () =>
+      dedupeMessagesById(messagesProp, (id) =>
+        console.warn(
+          `ExternalThread: duplicate message id "${id}" in the provided messages array; keeping the last occurrence.`,
+        ),
+      ),
     [messagesProp],
   );
 
   const hasEarlier = hasEarlierProp && !!onLoadEarlier;
-  const loadingEarlierRef = useRef<Promise<void> | undefined>(undefined);
+  const loadingEarlier = useMemo(() => new LoadEarlier(), []);
   const [isLoadingEarlier, setIsLoadingEarlier] = useState(false);
   const loadEarlier = useCallback((): Promise<void> => {
-    if (loadingEarlierRef.current) return loadingEarlierRef.current;
-    if (!hasEarlier || !onLoadEarlier) return Promise.resolve();
-    const loading = Promise.resolve()
-      .then(() => onLoadEarlier())
-      .catch((error: unknown) => {
+    return loadingEarlier.load(
+      hasEarlier ? onLoadEarlier : undefined,
+      (error) => {
         console.error(
           "[ExternalThread] onLoadEarlier callback rejected",
           error,
         );
-      })
-      .finally(() => {
-        loadingEarlierRef.current = undefined;
-        setIsLoadingEarlier(false);
-      });
-    loadingEarlierRef.current = loading;
-    setIsLoadingEarlier(true);
-    return loading;
-  }, [hasEarlier, onLoadEarlier]);
+      },
+      setIsLoadingEarlier,
+    );
+  }, [hasEarlier, onLoadEarlier, loadingEarlier]);
 
   // Local entries are optimistic: they apply only while the message's
   // external submittedFeedback still equals the value seen at click time.
@@ -922,32 +906,7 @@ const useExternalThread = ({
       return taskClients.get(selector);
     },
     append: (message) => {
-      const appendMessage: AppendMessage =
-        typeof message === "string"
-          ? {
-              createdAt: new Date(),
-              parentId: messages.at(-1)?.id ?? null,
-              sourceId: null,
-              runConfig: {},
-              role: "user",
-              content: [{ type: "text", text: message }],
-              attachments: [],
-              metadata: { custom: {} },
-            }
-          : {
-              createdAt: message.createdAt ?? new Date(),
-              parentId:
-                message.parentId === undefined
-                  ? (messages.at(-1)?.id ?? null)
-                  : message.parentId,
-              sourceId: message.sourceId ?? null,
-              role: message.role ?? "user",
-              content: message.content,
-              attachments: message.attachments ?? [],
-              metadata: message.metadata ?? { custom: {} },
-              runConfig: message.runConfig ?? {},
-              startRun: message.startRun,
-            };
+      const appendMessage = toAppendMessage(messages, message);
       if (queue) {
         queue.enqueue(appendMessage);
       } else {

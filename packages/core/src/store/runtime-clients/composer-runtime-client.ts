@@ -9,8 +9,7 @@ import type {
   EditComposerRuntime,
 } from "../../runtime/api/composer-runtime";
 import type { ComposerState } from "../scopes/composer";
-import type { QueueItemState } from "../scopes/queue-item";
-import type { QueuePlacement } from "../../runtime/queue/external-thread-queue-adapter";
+import { QueueItemClient } from "../clients/queue-item-client";
 import { AttachmentRuntimeClient } from "./attachment-runtime-client";
 import { useSubscribable } from "./useSubscribable";
 import { runCleanups } from "../../subscribable/subscribable";
@@ -37,25 +36,6 @@ const useComposerAttachmentClientByIndex = ({
 const ComposerAttachmentClientByIndex = resource(
   useComposerAttachmentClientByIndex,
 );
-
-const useQueueItemClient = ({
-  item,
-  onMove,
-  onRemove,
-}: {
-  item: QueueItemState;
-  onMove: (placement: QueuePlacement) => void;
-  onRemove: () => void;
-}): ClientOutput<"queueItem"> => {
-  return {
-    getState: () => item,
-    steer: () => onMove({ lane: "steer", insertAfter: null }),
-    move: onMove,
-    remove: onRemove,
-  };
-};
-
-const QueueItemClient = resource(useQueueItemClient);
 
 const toComposerState = (
   runtimeState: ComposerRuntimeState,

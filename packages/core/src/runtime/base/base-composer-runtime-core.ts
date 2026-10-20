@@ -35,6 +35,7 @@ import {
   drainAttachmentAdd,
 } from "../utils/attachment-add-operations";
 import { AttachmentSendOperations } from "../utils/attachment-send-operations";
+import { matchInTransit, retainInTransit } from "../utils/composer-submission";
 import { DictationSessionController } from "./dictation-session";
 
 type InTransit = {
@@ -210,22 +211,11 @@ export abstract class BaseComposerRuntimeCore
    */
   protected settleInTransit() {
     if (this._inTransit.length === 0) return;
-    const claimed = new Set<string>();
-    const pending = this._inTransit.filter(({ submission, known }) => {
-      const shown = this.threadMessageIds(submission.role)?.find(
-        (id) => !known.has(id) && !claimed.has(id),
-      );
-      if (shown === undefined) return true;
-      claimed.add(shown);
-      return false;
-    });
-    if (pending.length === this._inTransit.length) return;
-    this._setInTransit(
-      pending.map((entry) => ({
-        ...entry,
-        known: new Set([...entry.known, ...claimed]),
-      })),
+    const match = matchInTransit(this._inTransit, (entry) =>
+      this.threadMessageIds(entry.submission.role),
     );
+    if (match.landed.size === 0) return;
+    this._setInTransit(retainInTransit(this._inTransit, match));
     this._notifySubscribers();
   }
 
@@ -546,28 +536,11 @@ export abstract class BaseComposerRuntimeCore
     const submission = this._submission;
     if (!submission) return;
 
-    const failures = new Map<string, unknown>();
-    settled.forEach((result, index) => {
-      if (result.status === "rejected")
-        failures.set(sent[index]!.id, result.reason);
-    });
-    const attachments = submission.attachments.map((attachment) => {
-      if (
-        !failures.has(attachment.id) ||
-        isAttachmentComplete(attachment) ||
-        this._attachmentSends.isRemoved(attachment)
-      )
-        return attachment;
-      const failure = failures.get(attachment.id);
-      return this._attachmentSends.transfer(attachment, {
-        ...attachment,
-        status: {
-          type: "incomplete",
-          reason: "error",
-          message: failure instanceof Error ? failure.message : String(failure),
-        },
-      });
-    });
+    const attachments = this._attachmentSends.reconcileFailures(
+      submission.attachments,
+      sent,
+      settled,
+    );
     this._endSubmission();
     this._returnToDraft({ ...submission, attachments });
     console.error("[assistant-ui] Failed to send attachments", reason);

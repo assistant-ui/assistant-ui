@@ -16,10 +16,7 @@ import {
   isCreateAttachment,
 } from "../../types/attachment";
 import type { QuoteInfo } from "../../types/quote";
-import type {
-  ExternalThreadQueueAdapter,
-  QueuePlacement,
-} from "../../runtime/queue/external-thread-queue-adapter";
+import type { ExternalThreadQueueAdapter } from "../../runtime/queue/external-thread-queue-adapter";
 import type { ComposerSubmission } from "../../runtime/interfaces/composer-runtime-core";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { QueueItemState } from "../scopes/queue-item";
@@ -30,8 +27,13 @@ import {
   drainAttachmentAdd,
 } from "../../runtime/utils/attachment-add-operations";
 import { AttachmentSendOperations } from "../../runtime/utils/attachment-send-operations";
+import {
+  matchInTransit,
+  retainInTransit,
+} from "../../runtime/utils/composer-submission";
 import { generateId } from "../../utils/id";
 import type { ExternalThreadMessage } from "./external-thread";
+import { QueueItemClient } from "./queue-item-client";
 
 const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = [];
 
@@ -77,25 +79,6 @@ type ComposerClientResourceProps = {
   /** `id|role` of each thread message, used to tell when a send has landed. */
   messageKeys?: readonly string[] | undefined;
 };
-
-const useQueueItemClient = ({
-  item,
-  onMove,
-  onRemove,
-}: {
-  item: QueueItemState;
-  onMove: (placement: QueuePlacement) => void;
-  onRemove: () => void;
-}): ClientOutput<"queueItem"> => {
-  return {
-    getState: () => item,
-    steer: () => onMove({ lane: "steer", insertAfter: null }),
-    move: onMove,
-    remove: onRemove,
-  };
-};
-
-const QueueItemClient = resource(useQueueItemClient);
 
 // State whose setter tracks the latest value in a ref, so imperative
 // call sequences (setText immediately followed by send) observe the write
@@ -212,20 +195,11 @@ const useComposerClientResource = ({
   // stands in for the oldest send still waiting for one, and a shown send
   // leaves in the same render its message arrives in.
   const shown = useMemo(() => {
-    const claimed = new Set<string>();
-    const landed = new Set<InTransitEntry>();
-    for (const entry of inTransit) {
-      const key = messageKeys.find(
-        (candidate) =>
-          !entry.known.has(candidate) &&
-          !claimed.has(candidate) &&
-          candidate.endsWith(`|${entry.submission.role}`),
-      );
-      if (key === undefined) continue;
-      claimed.add(key);
-      landed.add(entry);
-    }
-    return { landed, claimed };
+    return matchInTransit(
+      inTransit,
+      () => messageKeys,
+      (entry, key) => key.endsWith(`|${entry.submission.role}`),
+    );
   }, [inTransit, messageKeys]);
   const inTransitSubmissions = useMemo(
     () =>
@@ -239,14 +213,7 @@ const useComposerClientResource = ({
     if (shown.landed.size === 0) return;
     // A message stands in for one send only, so the sends still waiting stop
     // counting it as new.
-    setInTransit((prev) =>
-      prev
-        .filter((entry) => !shown.landed.has(entry))
-        .map((entry) => ({
-          ...entry,
-          known: new Set([...entry.known, ...shown.claimed]),
-        })),
-    );
+    setInTransit((prev) => retainInTransit(prev, shown));
   }, [messageKeys, shown, setInTransit]);
 
   const updateFromMessage = () => {
@@ -579,28 +546,11 @@ const useComposerClientResource = ({
   ) => {
     const current = submissionRef.current;
     if (!current) return;
-    const failures = new Map<string, unknown>();
-    settled.forEach((result, index) => {
-      if (result.status === "rejected")
-        failures.set(sent[index]!.id, result.reason);
-    });
-    const attachments = current.attachments.map((attachment) => {
-      if (
-        !failures.has(attachment.id) ||
-        isAttachmentComplete(attachment) ||
-        attachmentSends.isRemoved(attachment)
-      )
-        return attachment;
-      const failure = failures.get(attachment.id);
-      return attachmentSends.transfer(attachment, {
-        ...attachment,
-        status: {
-          type: "incomplete",
-          reason: "error",
-          message: failure instanceof Error ? failure.message : String(failure),
-        },
-      });
-    });
+    const attachments = attachmentSends.reconcileFailures(
+      current.attachments,
+      sent,
+      settled,
+    );
     endSubmission();
     returnToDraft({ ...current, attachments });
     console.error("Failed to send attachments", reason);
