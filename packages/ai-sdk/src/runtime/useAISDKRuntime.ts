@@ -581,8 +581,12 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const [toolApprovalResponses, setToolApprovalResponses] = useState<
     ReadonlyMap<string, RespondToToolApprovalOptions>
   >(() => toApprovalResponses(ownedApprovals));
-  const [toolArtifactEpoch, setToolArtifactEpoch] = useState(0);
-  const [toolInteractionEpoch, setToolInteractionEpoch] = useState(0);
+  const [toolArtifacts, setToolArtifacts] = useState<
+    ReadonlyMap<string, unknown>
+  >(() => new Map());
+  const [toolInteractions, setToolInteractions] = useState<
+    ReadonlyMap<string, Unstable_ToolInteractionLog>
+  >(() => new Map());
   const toolApprovalResponsesRef = useRef(
     new Map(toApprovalResponses(ownedApprovals)),
   );
@@ -646,12 +650,22 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     new Map(),
   );
   const lastRunConfigRef = useRef<RunConfig | undefined>(undefined);
-  const markToolArtifactsChanged = useCallback(() => {
-    setToolArtifactEpoch((epoch) => epoch + 1);
+  const restoreToolArtifacts = useCallback((next: Map<string, unknown>) => {
+    toolArtifactsRef.current = next;
+    setToolArtifacts(next);
   }, []);
-  const markToolInteractionsChanged = useCallback(() => {
-    setToolInteractionEpoch((epoch) => epoch + 1);
-  }, []);
+  const restoreToolInteractions = useCallback(
+    (next: Map<string, Unstable_ToolInteractionLog>) => {
+      toolInteractionsRef.current = next;
+      setToolInteractions(next);
+    },
+    [],
+  );
+  const getToolArtifacts = useCallback(() => toolArtifactsRef.current, []);
+  const getToolInteractions = useCallback(
+    () => toolInteractionsRef.current,
+    [],
+  );
 
   const hasExecutingTools = Object.values(toolStatuses).some(
     (s) => s?.type === "executing",
@@ -775,8 +789,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         toolArgsTextCache: toolArgsTextCacheRef.current,
         toolLastInputCache: toolLastInputCacheRef.current,
         mcpAppMetadataCache: mcpAppMetadataCacheRef.current,
-        toolArtifacts: toolArtifactsRef.current,
-        toolInteractions: toolInteractionsRef.current,
+        toolArtifacts,
+        toolInteractions,
         supportsRichToolApprovalResponses,
         cancelledToolApprovalIds: supersededApprovalProjection.approvalIds,
         cancelledStatusMessageIds:
@@ -797,8 +811,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         toolApprovalResponses,
         supportsRichToolApprovalResponses,
         supersededApprovalProjection,
-        toolArtifactEpoch,
-        toolInteractionEpoch,
+        toolArtifacts,
+        toolInteractions,
       ],
     ),
   });
@@ -840,10 +854,10 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     (messages) => {
       chatHelpers.setMessages(messages);
     },
-    toolArtifactsRef.current,
-    markToolArtifactsChanged,
-    toolInteractionsRef.current,
-    markToolInteractionsChanged,
+    getToolArtifacts,
+    restoreToolArtifacts,
+    getToolInteractions,
+    restoreToolInteractions,
     toolApprovalResponsesRef.current,
     () => {
       for (const [id, entry] of ownedApprovals ?? []) {
@@ -1219,13 +1233,14 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       let removedToolInteractions = false;
       let removedToolApprovalResponse = false;
       let removedHostApprovalId = false;
+      const nextToolArtifacts = new Map(toolArtifactsRef.current);
+      const nextToolInteractions = new Map(toolInteractionsRef.current);
       for (const part of threadMessages[messageIndex]!.content) {
         if (part.type === "tool-call") {
           removedToolArtifact =
-            toolArtifactsRef.current.delete(part.toolCallId) ||
-            removedToolArtifact;
+            nextToolArtifacts.delete(part.toolCallId) || removedToolArtifact;
           removedToolInteractions =
-            toolInteractionsRef.current.delete(part.toolCallId) ||
+            nextToolInteractions.delete(part.toolCallId) ||
             removedToolInteractions;
           if (part.approval) {
             ownedApprovals?.delete(part.approval.id);
@@ -1238,8 +1253,14 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
           }
         }
       }
-      if (removedToolArtifact) markToolArtifactsChanged();
-      if (removedToolInteractions) markToolInteractionsChanged();
+      if (removedToolArtifact) {
+        toolArtifactsRef.current = nextToolArtifacts;
+        setToolArtifacts(nextToolArtifacts);
+      }
+      if (removedToolInteractions) {
+        toolInteractionsRef.current = nextToolInteractions;
+        setToolInteractions(nextToolInteractions);
+      }
       if (removedToolApprovalResponse || removedHostApprovalId) {
         if (approvalOwner) notifyChatRuntimeState(approvalOwner);
         setToolApprovalResponses(new Map(toolApprovalResponsesRef.current));
@@ -1280,8 +1301,10 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     }) => {
       const wasCancelled = cancelledToolCallIds.delete(toolCallId);
       if (artifact !== undefined) {
-        toolArtifactsRef.current.set(toolCallId, artifact);
-        markToolArtifactsChanged();
+        const next = new Map(toolArtifactsRef.current);
+        next.set(toolCallId, artifact);
+        toolArtifactsRef.current = next;
+        setToolArtifacts(next);
       }
 
       const targetIndex = findRawToolMessageIndex(
@@ -1389,14 +1412,13 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       toolCallId,
       interaction,
     }) => {
-      toolInteractionsRef.current.set(
+      const next = new Map(toolInteractionsRef.current);
+      next.set(
         toolCallId,
-        appendToolInteraction(
-          toolInteractionsRef.current.get(toolCallId),
-          interaction,
-        ),
+        appendToolInteraction(next.get(toolCallId), interaction),
       );
-      markToolInteractionsChanged();
+      toolInteractionsRef.current = next;
+      setToolInteractions(next);
       return persistToolInteractions(messageId);
     },
     ...pickExternalStoreSharedOptions(adapter),

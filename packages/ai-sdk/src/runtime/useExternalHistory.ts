@@ -24,6 +24,7 @@ import {
   type RefObject,
   useCallback,
   useMemo,
+  useSyncExternalStore,
 } from "react";
 import {
   addToolData,
@@ -95,20 +96,30 @@ export const useExternalHistory = <TMessage>(
   toThreadMessages: (messages: TMessage[]) => ThreadMessage[],
   storageFormatAdapter: MessageFormatAdapter<TMessage, any>,
   onSetMessages: (messages: TMessage[]) => void,
-  toolArtifacts?: Map<string, unknown>,
-  onToolArtifactsRestored?: () => void,
-  toolInteractions?: Map<string, Unstable_ToolInteractionLog>,
-  onToolInteractionsRestored?: () => void,
+  getToolArtifacts?: () => ReadonlyMap<string, unknown>,
+  onToolArtifactsRestored?: (next: Map<string, unknown>) => void,
+  getToolInteractions?: () => ReadonlyMap<string, Unstable_ToolInteractionLog>,
+  onToolInteractionsRestored?: (
+    next: Map<string, Unstable_ToolInteractionLog>,
+  ) => void,
   toolApprovalResponses?: Map<string, RespondToToolApprovalOptions>,
   onToolApprovalResponsesRestored?: () => void,
 ) => {
   const loadedRef = useRef(false);
-  const [itemEpoch, setItemEpoch] = useState(0);
 
   const aui = useAui();
   const optionalThreadListItem = useCallback(
     () => (aui.threadListItem.source ? aui.threadListItem : null),
     [aui],
+  );
+  const getRemoteId = useCallback(
+    () => optionalThreadListItem()?.getState().remoteId,
+    [optionalThreadListItem],
+  );
+  const remoteId = useSyncExternalStore(
+    aui.subscribe,
+    getRemoteId,
+    getRemoteId,
   );
 
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -151,7 +162,6 @@ export const useExternalHistory = <TMessage>(
   useEffect(() => {
     if (!formatAdapter || loadedRef.current) return undefined;
 
-    const remoteId = optionalThreadListItem()?.getState().remoteId;
     const loadHistory = async () => {
       try {
         const repo = await formatAdapter.load();
@@ -160,9 +170,13 @@ export const useExternalHistory = <TMessage>(
         // the load was in flight. The history imports beneath that live tail
         // so neither side of the race is dropped.
         const liveMessages = runtimeRef.current.thread.getState().messages;
+        const restoredArtifacts = new Map(
+          liveMessages.length > 0 ? getToolArtifacts?.() : undefined,
+        );
+        const restoredInteractions = new Map(
+          liveMessages.length > 0 ? getToolInteractions?.() : undefined,
+        );
         if (liveMessages.length === 0) {
-          toolArtifacts?.clear();
-          toolInteractions?.clear();
           toolApprovalResponses?.clear();
         }
         const restoredMessages =
@@ -170,13 +184,13 @@ export const useExternalHistory = <TMessage>(
             ...item,
             message: restoreToolData(
               item.message,
-              toolArtifacts,
-              toolInteractions,
+              restoredArtifacts,
+              restoredInteractions,
               toolApprovalResponses,
             ),
           })) ?? [];
-        onToolArtifactsRestored?.();
-        onToolInteractionsRestored?.();
+        onToolArtifactsRestored?.(restoredArtifacts);
+        onToolInteractionsRestored?.(restoredInteractions);
         onToolApprovalResponsesRestored?.();
         if (repo && restoredMessages.length > 0) {
           const restoredRepo = { ...repo, messages: restoredMessages };
@@ -248,11 +262,7 @@ export const useExternalHistory = <TMessage>(
     if (!remoteId) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setHasLoaded(true);
-      return aui.subscribe(() => {
-        if (optionalThreadListItem()?.getState().remoteId) {
-          setItemEpoch((n) => n + 1);
-        }
-      });
+      return undefined;
     }
 
     const threadState = runtimeRef.current.thread.getState();
@@ -272,12 +282,11 @@ export const useExternalHistory = <TMessage>(
     toThreadMessages,
     runtimeRef,
     optionalThreadListItem,
-    aui,
-    itemEpoch,
+    remoteId,
     storageFormatAdapter,
-    toolArtifacts,
+    getToolArtifacts,
     onToolArtifactsRestored,
-    toolInteractions,
+    getToolInteractions,
     onToolInteractionsRestored,
     toolApprovalResponses,
     onToolApprovalResponsesRestored,
@@ -332,11 +341,11 @@ export const useExternalHistory = <TMessage>(
           : null;
         const storedToolArtifacts = collectToolArtifacts(
           message,
-          toolArtifacts,
+          getToolArtifacts?.(),
         );
         const storedToolInteractions = collectToolInteractions(
           message,
-          toolInteractions,
+          getToolInteractions?.(),
         );
         const storedToolApprovalResponses = collectToolApprovalResponses(
           message,
@@ -381,8 +390,8 @@ export const useExternalHistory = <TMessage>(
       formatAdapter,
       runtimeRef,
       storageFormatAdapter,
-      toolArtifacts,
-      toolInteractions,
+      getToolArtifacts,
+      getToolInteractions,
       toolApprovalResponses,
     ],
   );
@@ -577,8 +586,8 @@ export const useExternalHistory = <TMessage>(
 
             const batchItems = toBatchItems(
               innerMessages,
-              collectToolArtifacts(message, toolArtifacts),
-              collectToolInteractions(message, toolInteractions),
+              collectToolArtifacts(message, getToolArtifacts?.()),
+              collectToolInteractions(message, getToolInteractions?.()),
               collectToolApprovalResponses(message, toolApprovalResponses),
             );
             for (const item of batchItems) {
@@ -719,8 +728,8 @@ export const useExternalHistory = <TMessage>(
     formatAdapter,
     storageFormatAdapter,
     runtimeRef,
-    toolArtifacts,
-    toolInteractions,
+    getToolArtifacts,
+    getToolInteractions,
     toolApprovalResponses,
     releaseRemovedMessages,
   ]);
