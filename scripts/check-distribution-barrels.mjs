@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-import { existsSync, readdirSync, realpathSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isExecutedAsMain } from "./lib/main.mjs";
-import { posixPath, readJson } from "./lib/workspace.mjs";
+import { collectTypeTargets } from "./lib/package-exports.mjs";
+import { posixPath, readPackageDirectories } from "./lib/workspace.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -100,14 +101,8 @@ export const EXCEPTIONS = [
 ];
 
 function readPackages(root) {
-  const packagesRoot = path.join(root, "packages");
   const packages = new Map();
-  for (const entry of readdirSync(packagesRoot, { withFileTypes: true })) {
-    if (!entry.isDirectory()) continue;
-    const packageDir = path.join(packagesRoot, entry.name);
-    const manifest = path.join(packageDir, "package.json");
-    if (!existsSync(manifest)) continue;
-    const pkg = readJson(manifest);
+  for (const { packageDir, pkg } of readPackageDirectories(root)) {
     if (typeof pkg.name === "string")
       packages.set(pkg.name, { packageDir, pkg });
   }
@@ -120,20 +115,12 @@ function requirePackage(packages, name) {
   return found;
 }
 
-function findTypesTarget(value) {
-  if (!value || typeof value !== "object") return undefined;
-  if (Object.hasOwn(value, "types")) {
-    return typeof value.types === "string" ? value.types : undefined;
-  }
-  for (const nested of Object.values(value)) {
-    const target = findTypesTarget(nested);
-    if (target) return target;
-  }
-  return undefined;
-}
-
 function sourceEntry({ packageDir, pkg }, subpath) {
-  const types = findTypesTarget(pkg.exports?.[subpath]);
+  const value = pkg.exports?.[subpath];
+  const targets = collectTypeTargets(value);
+  const types = Object.hasOwn(value ?? {}, "types")
+    ? targets[0]?.typePath
+    : targets.find(({ typePath }) => typePath)?.typePath;
   if (types === undefined) return undefined;
   const match = /^\.\/dist\/(.+)\.d\.ts$/.exec(types);
   if (!match) {

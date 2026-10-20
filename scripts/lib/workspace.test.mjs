@@ -6,9 +6,11 @@ import test from "node:test";
 import {
   apiSurfaceFileName,
   collectPackages,
+  packageDirectories,
   parseWorkspaceGlobs,
   posixPath,
   readJson,
+  readPackageDirectories,
   readWorkspaceManifestEntries,
 } from "./workspace.mjs";
 
@@ -75,6 +77,26 @@ test("collectPackages ignores directories without a package.json", () => {
       ({ pkg }) => pkg.name,
     );
     assert.deepEqual(names, ["alpha"]);
+  } finally {
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
+});
+
+test("package directory helpers retain private and manifestless directories", () => {
+  const repoRoot = makeRepo({
+    alpha: { name: "alpha", private: true },
+    beta: { name: "beta" },
+  });
+  mkdirSync(path.join(repoRoot, "packages", "orphan"));
+  try {
+    assert.deepEqual(
+      packageDirectories(repoRoot).map((dir) => path.basename(dir)),
+      ["alpha", "beta", "orphan"],
+    );
+    assert.deepEqual(
+      readPackageDirectories(repoRoot).map(({ pkg }) => pkg.name),
+      ["alpha", "beta"],
+    );
   } finally {
     rmSync(repoRoot, { recursive: true, force: true });
   }

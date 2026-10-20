@@ -1,7 +1,8 @@
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isExecutedAsMain } from "./lib/main.mjs";
+import { readJson, readPackageDirectories } from "./lib/workspace.mjs";
 
 export const WORKFLOW_FILE = ".github/workflows/deploy-examples.yaml";
 
@@ -33,8 +34,6 @@ const SHARED_INPUTS = [
   WORKFLOW_FILE,
 ];
 
-const readJson = (file) => JSON.parse(readFileSync(file, "utf8"));
-
 // aui-build inlines workspace devDependencies into a CommonJS dist, so for a
 // package whose exports target .cjs they are inputs like its runtime ones.
 const bundlesDevDependencies = (pkg) =>
@@ -50,18 +49,8 @@ const linkedDependencies = (pkg, { withDev }) =>
 
 export function workspacePackages(repoRoot) {
   const packages = new Map();
-  for (const entry of readdirSync(path.join(repoRoot, "packages"), {
-    withFileTypes: true,
-  })) {
-    const packageJson = path.join(
-      repoRoot,
-      "packages",
-      entry.name,
-      "package.json",
-    );
-    if (entry.isDirectory() && existsSync(packageJson)) {
-      packages.set(readJson(packageJson).name, `packages/${entry.name}`);
-    }
+  for (const { packageDir, pkg } of readPackageDirectories(repoRoot)) {
+    packages.set(pkg.name, `packages/${path.basename(packageDir)}`);
   }
   return packages;
 }

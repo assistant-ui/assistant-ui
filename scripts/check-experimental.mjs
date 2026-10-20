@@ -9,7 +9,7 @@ import {
   parseDeprecatedTag,
 } from "./lib/experimental-annotations.mjs";
 import { isExecutedAsMain } from "./lib/main.mjs";
-import { posixPath } from "./lib/workspace.mjs";
+import { packageDirectories, posixPath } from "./lib/workspace.mjs";
 
 const repoRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -27,11 +27,9 @@ const LEGACY_WORDING =
   /^(?:unstable\b|experimental\b|under active development\b|this (?:api|feature|component|hook) is (?:still )?(?:experimental|unstable|under active development)\b)/i;
 
 export function collectSourceFiles(root) {
-  const packagesDir = path.join(root, "packages");
-  return readdirSync(packagesDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .flatMap((entry) => {
-      const src = path.join(packagesDir, entry.name, "src");
+  return packageDirectories(root)
+    .flatMap((packageDir) => {
+      const src = path.join(packageDir, "src");
       let files;
       try {
         files = readdirSync(src, { recursive: true });
