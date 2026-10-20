@@ -586,14 +586,8 @@ export const useExternalHistory = <TMessage>(
 
             const batchItems = toBatchItems(
               innerMessages,
-              collectToolArtifacts(
-                message,
-                getToolArtifacts?.(),
-              ),
-              collectToolInteractions(
-                message,
-                getToolInteractions?.(),
-              ),
+              collectToolArtifacts(message, getToolArtifacts?.()),
+              collectToolInteractions(message, getToolInteractions?.()),
               collectToolApprovalResponses(message, toolApprovalResponses),
             );
             for (const item of batchItems) {
