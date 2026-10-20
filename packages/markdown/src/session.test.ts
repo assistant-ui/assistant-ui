@@ -67,6 +67,7 @@ const gfmDocuments = [
   "<div>\nraw <b>html</b>\n</div>\n\nAfter.\n",
   "A heading\n---------\n\nAfter.\n",
   "A *soft\nbreak* in emphasis.\n",
+  "Euler $e^{i\\pi}+1=0$ and \\(a\\) cost $5 to $10.\n\n$$\nx^2\n$$\n\n- item\n\n  \\[\n  y\n  \\]\n",
 ];
 
 test("GFM blocks and inlines converge on every character", () => {

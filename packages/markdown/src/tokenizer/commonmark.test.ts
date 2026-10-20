@@ -3,7 +3,7 @@ import { test, expect } from "vitest";
 import { toHtml } from "../__tests__/toHtml";
 import { createMarkdownItTokenizer } from "./markdown-it";
 
-const tokenizer = createMarkdownItTokenizer({ gfm: false });
+const tokenizer = createMarkdownItTokenizer({ extensions: false });
 const knownDeviations = new Set([218, 239, 240]);
 
 for (const example of spec.tests) {

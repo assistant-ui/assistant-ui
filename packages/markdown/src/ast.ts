@@ -62,6 +62,13 @@ export type CodeBlockNode = {
   lines: LineRange;
 };
 
+export type MathBlockNode = {
+  type: "mathBlock";
+  /** The TeX source between the delimiters. */
+  value: string;
+  lines: LineRange;
+};
+
 export type HtmlBlockNode = {
   type: "htmlBlock";
   value: string;
@@ -115,6 +122,14 @@ export type CodeSpanNode = {
   value: string;
 };
 
+export type MathInlineNode = {
+  type: "mathInline";
+  /** The TeX source between the delimiters. */
+  value: string;
+  /** Written with `$$` or `\[`, so it renders in display style inside the line. */
+  display: boolean;
+};
+
 export type LinkNode = {
   type: "link";
   url: string;
@@ -150,6 +165,7 @@ export type BlockNode =
   | BlockquoteNode
   | ListNode
   | CodeBlockNode
+  | MathBlockNode
   | HtmlBlockNode
   | TableNode;
 
@@ -159,6 +175,7 @@ export type InlineNode =
   | StrongNode
   | StrikethroughNode
   | CodeSpanNode
+  | MathInlineNode
   | LinkNode
   | ImageNode
   | HtmlInlineNode
