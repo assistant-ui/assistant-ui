@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isValidEntryPointAnswer,
   isValidEntryPointInput,
+  parseChoiceAnswer,
   parseEntryPointOptions,
   type Checkout,
 } from "./protocol";
@@ -124,5 +125,13 @@ describe("entry-point options", () => {
         help: { summary: "Pick one" },
       }),
     ).toBe(false);
+  });
+});
+
+describe("parseChoiceAnswer", () => {
+  it("preserves a custom answer containing multiple colons", () => {
+    expect(parseChoiceAnswer("Use https://example.com:3000")).toEqual({
+      option: "Use https://example.com:3000",
+    });
   });
 });

@@ -645,6 +645,9 @@ importers:
       safe-content-frame:
         specifier: workspace:*
         version: link:../../packages/safe-content-frame
+      setup-agent:
+        specifier: workspace:*
+        version: link:../../packages/setup-agent
       shiki:
         specifier: ^4.5.0
         version: 4.5.0
