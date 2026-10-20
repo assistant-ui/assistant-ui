@@ -29,6 +29,10 @@ on:
       - "scripts/check-experimental.test.mjs"
       - "scripts/check-workspace-ranges.mjs"
       - "scripts/check-workspace-ranges.test.mjs"
+      - "scripts/check-knip.mjs"
+      - "scripts/check-knip.test.mjs"
+      - "knip.ts"
+      - "knip-baseline.json"
       - "scripts/source-mapped-tsconfigs.test.mjs"
       - "scripts/check-skills-commit.mjs"
       - "scripts/check-skills-commit.test.mjs"
@@ -145,6 +149,32 @@ jobs:
 
       - name: Verify published packages publish caret workspace ranges
         run: node scripts/check-workspace-ranges.mjs
+
+  knip:
+    name: Knip
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # ratchet:pnpm/setup@v3.1.1
+        with:
+          runtime: node@24
+          cache: false
+          install: false
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+
+      - name: Test the knip baseline checker
+        run: node --test scripts/check-knip.test.mjs
+
+      - name: Verify no unused code or dependencies beyond the baseline
+        run: node scripts/check-knip.mjs
 
   skills-commit:
     name: Skills Commit Pins

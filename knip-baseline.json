@@ -1,0 +1,403 @@
+{
+  "dependencies": {
+    "packages/metro/package.json": [
+      "@babel/generator",
+      "@babel/parser",
+      "@babel/traverse",
+      "@babel/types"
+    ],
+    "packages/react-ink/package.json": ["assistant-cloud"],
+    "packages/react-native/package.json": ["assistant-cloud"],
+    "packages/react-pi/package.json": ["@standard-schema/spec"],
+    "packages/x-buildutils/package.json": ["babel-plugin-react-compiler"],
+    "packages/x-react18/package.json": [
+      "@types/react-dom-v18",
+      "@types/react-v18",
+      "react-dom-v18",
+      "react-v18"
+    ]
+  },
+  "devDependencies": {
+    "package.json": ["sharp"],
+    "packages/ai-sdk/package.json": ["@types/json-schema"],
+    "packages/assistant-stream/package.json": ["ai-v6", "ioredis-v5"],
+    "packages/cloud/package.json": ["ai-v6"],
+    "packages/generative-frame/package.json": ["react-native-web"],
+    "packages/generative-ui/package.json": ["react-native-web"],
+    "packages/mcp-docs-server/package.json": ["@modelcontextprotocol/core"],
+    "packages/react-data-stream/package.json": ["@types/json-schema"],
+    "packages/react-devtools/package.json": ["@assistant-ui/tap"],
+    "packages/react-ink-markdown/package.json": [
+      "@assistant-ui/core",
+      "@assistant-ui/react-ink",
+      "@assistant-ui/store"
+    ],
+    "packages/react-native/package.json": ["@babel/core", "react-native-web"],
+    "packages/react/package.json": ["@types/json-schema"],
+    "packages/ui/package.json": [
+      "@assistant-ui/x-buildutils",
+      "@types/markdown-it",
+      "react-native-web"
+    ],
+    "packages/vue/package.json": ["assistant-cloud"]
+  },
+  "duplicates": {
+    "packages/core/src/adapters/directive-formatter.ts": [
+      "defaultDirectiveFormatter | unstable_defaultDirectiveFormatter"
+    ],
+    "packages/core/src/react/model-context/human-tool.ts": [
+      "humanTool | hitlTool | hitl"
+    ],
+    "packages/react-ink/src/toolkit.ts": ["humanTool | hitlTool | hitl"],
+    "packages/react/src/model-context/makeAssistantVisible.tsx": [
+      "makeAssistantVisible | default"
+    ],
+    "packages/setup-agent/src/cli.ts": ["agentInstructions | INSTRUCTIONS"],
+    "packages/tap/src/standalone-shim/jsx-runtime.ts": [
+      "throwRender | jsx | jsxs"
+    ]
+  },
+  "exports": {
+    "packages/acp/src/acpMessageProjection.ts": ["toThreadMessageLike"],
+    "packages/ai-sdk/src/runtime/useStreamingTiming.ts": [
+      "aiSdkStreamingTimingAccessors"
+    ],
+    "packages/assistant-stream/src/core/gorp/changeTree.ts": ["mergeChanged"],
+    "packages/assistant-stream/src/core/modules/tool-call.ts": [
+      "createToolCallStream"
+    ],
+    "packages/assistant-stream/src/core/utils/stream/path-utils.ts": [
+      "PathAppendDecoder"
+    ],
+    "packages/cli/src/commands/create.ts": ["DEFAULT_PROJECT_DIRECTORY"],
+    "packages/cli/src/lib/cloud-config.ts": ["cloudProjectConfigPath"],
+    "packages/cli/src/lib/cloud-remote.ts": ["CLOUD_CLI_RUN_PATH"],
+    "packages/cli/src/lib/create-project.ts": [
+      "createProject.scanRequiredComponents"
+    ],
+    "packages/cli/src/lib/utils/registry.ts": ["SHARED_REGISTRY_ITEMS"],
+    "packages/core/src/react/runtimes/assistant-transport/commandQueue.ts": [
+      "createInitialQueueState"
+    ],
+    "packages/diagrammatic/src/core/tiles.ts": ["TILE_PITCH", "TILE_ROW_PITCH"],
+    "packages/generative-frame/src/assistant-ui/toolkit.tsx": [
+      "ASSISTANT_UI_TOKEN_SOURCES"
+    ],
+    "packages/generative-frame/src/csp.ts": [
+      "DEFAULT_FONT_ORIGINS",
+      "DEFAULT_FONT_STYLE_ORIGINS"
+    ],
+    "packages/generative-frame/src/json-schema.ts": [
+      "isStandardSchema",
+      "validateJsonSchema"
+    ],
+    "packages/generative-frame/src/react/themeStore.ts": [
+      "createThemeTokenStore"
+    ],
+    "packages/generative-frame/src/runtime/morph.ts": ["createScriptRunner"],
+    "packages/generative-frame/src/spec/catalog.ts": [
+      "SET_STATE_ACTION",
+      "describeProps"
+    ],
+    "packages/generative-frame/src/theme.ts": ["DEFAULT_TOKEN_SOURCES"],
+    "packages/generative-ui/src/teams/constants.ts": [
+      "AC_VERSION",
+      "ADAPTIVE_CARD_SCHEMA",
+      "ATTACHMENT_CONTENT_TYPE",
+      "buildSubmitData"
+    ],
+    "packages/generative-ui/src/teams/toAdaptiveCard.ts": [
+      "convertElement",
+      "convertSequence"
+    ],
+    "packages/generative-ui/src/vocabulary/interactiveValues.ts": ["isOption"],
+    "packages/generative-ui/src/vocabulary/layoutValues.ts": ["toCssLength"],
+    "packages/generative-ui/src/vocabulary/tableData.ts": ["compareTableCells"],
+    "packages/react-a2a/src/conversions.ts": ["a2uiPartToOperations"],
+    "packages/react-devtools/src/views/activity/index.ts": [
+      "EventLogRow",
+      "ScopeFilterBar"
+    ],
+    "packages/react-devtools/src/views/attachments/index.ts": [
+      "formatBytes",
+      "parseAttachment",
+      "parseAttachments"
+    ],
+    "packages/react-google-adk/src/adkThreadState.ts": ["INTERRUPT_TOOL_NAMES"],
+    "packages/react-langchain/src/useStreamRuntime.ts": [
+      "getPendingToolCalls",
+      "groupUIMessagesByParent",
+      "runConfigToSubmitOptions"
+    ],
+    "packages/react-lexical/src/plugins/SyncPlugin.tsx": [
+      "collectFormatters",
+      "composeParsers"
+    ],
+    "packages/react-native/src/primitives/message/MessageParts.tsx": [
+      "MessagePartComponent"
+    ],
+    "packages/react-native/src/primitives/thread/flatListScroll.ts": [
+      "setForwardedRef"
+    ],
+    "packages/react-pi/src/client/validation.ts": ["isAssistantMessage"],
+    "packages/react-pi/src/node/mapping.ts": [
+      "latestSessionName",
+      "toPiMessage"
+    ],
+    "packages/react-pi/src/runtime/ThreadController.ts": ["buildPiSendInput"],
+    "packages/react-pi/src/runtime/messageProjection.ts": [
+      "shareProjectedThreadMessages"
+    ],
+    "packages/react-syntax-highlighter/src/react-syntax-highlighter-full.ts": [
+      "fullImpl.makeLightAsyncSyntaxHighlighter",
+      "fullImpl.makeLightSyntaxHighlighter",
+      "fullImpl.makePrismAsyncLightSyntaxHighlighter",
+      "fullImpl.makePrismLightSyntaxHighlighter"
+    ],
+    "packages/react/src/legacy-runtime/AssistantRuntimeProvider.tsx": [
+      "AssistantRuntimeProviderImpl"
+    ],
+    "packages/react/src/model-context/makeAssistantVisible.tsx": ["default"],
+    "packages/react/src/primitives/composer/trigger/detectTrigger.ts": [
+      "resolveTriggerMatch"
+    ],
+    "packages/react/src/primitives/message/MessageParts.tsx": [
+      "MessagePartComponent"
+    ],
+    "packages/react/src/primitives/thread/ThreadMessages.tsx": [
+      "ThreadPrimitiveMessagesImpl"
+    ],
+    "packages/react/src/primitives/thread/ThreadScrollToBottom.ts": [
+      "useThreadScrollToBottom"
+    ],
+    "packages/react/src/primitives/thread/ThreadSuggestions.tsx": [
+      "ThreadPrimitiveSuggestionsImpl"
+    ],
+    "packages/react/src/utils/smooth/SmoothContext.tsx": [
+      "SmoothContextProvider"
+    ],
+    "packages/store/src/Derived.ts": ["useDerived"],
+    "packages/store/src/RenderChildrenWithAccessor.tsx": ["useGetItemAccessor"],
+    "packages/store/src/useClientResource.ts": ["getClientSignal"],
+    "packages/tap/src/__tests__/parity/describeParity.tsx": ["onReact18"],
+    "packages/tap/src/react-shim/useReactMemoCache.ts": [
+      "useReactMemoCacheShim"
+    ],
+    "packages/variants/src/canvas.ts": ["containerOf", "replicateContainer"],
+    "packages/variants/src/guard.ts": ["productionError"],
+    "packages/variants/src/server/agent.ts": [
+      "INBOX",
+      "OUTBOX",
+      "PRESENCE",
+      "newRequestId"
+    ],
+    "packages/variants/src/server/handler.ts": [
+      "BodyTooLargeError",
+      "NOTES_HEADER",
+      "checkRequest",
+      "isAllowedHost"
+    ],
+    "packages/variants/src/server/markers.ts": ["MARKER_TAG"],
+    "packages/variants/src/store.ts": ["COLLAPSED_KEY"],
+    "packages/variants/src/switcher.ts": ["SIDEBAR_WIDTH"],
+    "packages/variants/src/ui.ts": ["ICONS", "stableLabel"],
+    "packages/x-performance/lib/size.mjs": ["SIZE_IGNORE"],
+    "packages/x-performance/lib/trace-lane.mjs": ["stageFixture"],
+    "packages/x-performance/lib/trace.mjs": ["captureTrace"],
+    "packages/x-react18/src/declaration-errors.mjs": ["diagnosticKey"],
+    "scripts/lib/experimental-annotations.mjs": ["EXPERIMENTAL_NOTICE"],
+    "scripts/lib/review-policy.mjs": ["REVIEW_POLICY_PATH"]
+  },
+  "types": {
+    "packages/acp/src/acpThreadState.ts": [
+      "AcpLoadState",
+      "AcpPendingPermission",
+      "AcpRunState"
+    ],
+    "packages/acp/src/types.ts": ["AcpToolKind"],
+    "packages/assistant-stream/src/core/tool/tool-types.ts": [
+      "ToolStreamCallFunction",
+      "ToolWithoutType"
+    ],
+    "packages/cli/src/codemods/utils/createTransformer.ts": [
+      "TransformContext"
+    ],
+    "packages/cli/src/lib/cloud-remote.ts": ["CloudCliAction"],
+    "packages/cloud/src/instrumentMcpSampling.ts": ["McpSamplingResponse"],
+    "packages/core/src/react/model-context/toolbox.ts": ["ToolsConfig"],
+    "packages/core/src/react/model-context/useAssistantInstructions.ts": [
+      "AssistantInstructionsConfig"
+    ],
+    "packages/core/src/react/primitives/composer/ComposerIf.tsx": [
+      "RequireAtLeastOne"
+    ],
+    "packages/core/src/react/runtimes/assistant-transport/types.ts": [
+      "AssistantMessage",
+      "HeadersValue",
+      "ImagePart",
+      "TextPart",
+      "UserMessage"
+    ],
+    "packages/core/src/react/utils/groupParts.ts": [
+      "GroupNodeGroup",
+      "GroupNodePart"
+    ],
+    "packages/core/src/runtime/api/composer-runtime.ts": [
+      "ComposerRuntimeCoreBinding"
+    ],
+    "packages/core/src/runtime/api/thread-list-item-runtime.ts": [
+      "ThreadListItemStatus"
+    ],
+    "packages/core/src/store/scopes/message.ts": ["MessageEvents"],
+    "packages/core/src/store/scopes/suggestions.ts": ["SuggestionsMeta"],
+    "packages/core/src/types/index.ts": [
+      "AppendMessage",
+      "Attachment",
+      "AttachmentStatus",
+      "CompleteAttachment",
+      "CreateAttachment",
+      "DataMessagePart",
+      "FileMessagePart",
+      "GenerativeUIMessagePart",
+      "GenerativeUINode",
+      "GenerativeUISpec",
+      "ImageMessagePart",
+      "MessageModality",
+      "MessagePartStatus",
+      "MessagePartStreamStatus",
+      "MessageRole",
+      "MessageTiming",
+      "PartProviderMetadata",
+      "PendingAttachment",
+      "QuoteInfo",
+      "ReasoningMessagePart",
+      "RunConfig",
+      "SourceMessagePart",
+      "SourceProviderMetadata",
+      "TextMessagePart",
+      "ThreadAssistantMessagePart",
+      "ThreadStep",
+      "ThreadSystemMessage",
+      "ThreadUserMessagePart",
+      "ToolCallMessagePart",
+      "ToolCallMessagePartStatus",
+      "ToolModelContentPart",
+      "Unstable_AudioMessagePart",
+      "Unstable_DirectiveFormatter",
+      "Unstable_DirectiveSegment",
+      "Unstable_TriggerCategory",
+      "Unstable_TriggerItem",
+      "Unsubscribe"
+    ],
+    "packages/generative-frame/src/rpc.ts": [
+      "JsonRpcId",
+      "JsonRpcNotification",
+      "JsonRpcRequest",
+      "JsonRpcResponse"
+    ],
+    "packages/generative-frame/src/runtime/index.ts": ["RuntimeConfig"],
+    "packages/markdown/src/tokenizer/types.ts": ["TokenizeResult"],
+    "packages/react-ag-ui/src/runtime/adapter/conversions.ts": ["InputContent"],
+    "packages/react-ag-ui/src/runtime/adapter/subscriber.ts": [
+      "AgUiSubscriber"
+    ],
+    "packages/react-devtools/src/data/types.ts": ["SerializedModelContext"],
+    "packages/react-devtools/src/views/activity/index.ts": ["ActivityNode"],
+    "packages/react-devtools/src/views/attachments/index.ts": [
+      "AttachmentPreview",
+      "AttachmentStatusPreview"
+    ],
+    "packages/react-devtools/src/views/context/index.ts": ["ContextNavGroup"],
+    "packages/react-devtools/src/views/message/types.ts": [
+      "DataPartPreview",
+      "GenerativeUiPartPreview",
+      "ReasoningPartPreview",
+      "SourcePartPreview",
+      "TextPartPreview",
+      "UnknownPartPreview"
+    ],
+    "packages/react-devtools/src/views/raw/index.ts": ["RawNavGroup"],
+    "packages/react-devtools/src/views/thread/index.ts": [
+      "ComposerPreview",
+      "ThreadListItemPreview"
+    ],
+    "packages/react-devtools/src/views/thread/types.ts": ["AttachmentPreview"],
+    "packages/react-devtools/src/views/ui/index.ts": ["BadgeTone"],
+    "packages/react-google-adk/src/adkThreadState.ts": ["AdkStagedEntry"],
+    "packages/react-langchain/src/types.ts": ["LangChainRuntimeExtraOptions"],
+    "packages/react-langgraph/src/types.ts": [
+      "MessageContentAudio",
+      "MessageContentFile",
+      "MessageContentReasoning",
+      "MessageContentReasoningSummaryText",
+      "MessageContentThinking"
+    ],
+    "packages/react-mcp/src/primitives/addForm/context.tsx": [
+      "AddFormErrorField"
+    ],
+    "packages/react-opencode/src/types.ts": [
+      "AppendMessage",
+      "EventMessagePartDelta",
+      "ThreadMessageLike"
+    ],
+    "packages/react-pi/src/runtime/messageProjection.ts": [
+      "PiToolResultContent"
+    ],
+    "packages/react/src/assistant-transport.ts": [
+      "AssistantTransportStateConverter"
+    ],
+    "packages/react/src/context/providers/SuggestionByIndexProvider.tsx": [
+      "SuggestionByIndexProviderProps"
+    ],
+    "packages/react/src/devtools/DevToolsHooks.ts": ["EventLog"],
+    "packages/react/src/mcp-apps/types.ts": ["McpAppJsonRpcError"],
+    "packages/react/src/primitives/composer/ComposerIf.ts": [
+      "UseComposerIfProps"
+    ],
+    "packages/react/src/primitives/composer/ComposerInputPluginContext.tsx": [
+      "ComposerInputPlugin",
+      "ComposerInputPluginRegisterOptions"
+    ],
+    "packages/react/src/primitives/composer/trigger/TriggerPopoverResource.ts": [
+      "OnSelectBehavior",
+      "SelectItemOverride",
+      "TriggerPopoverKeyEvent"
+    ],
+    "packages/react/src/primitives/composer/trigger/TriggerPopoverRootContext.tsx": [
+      "TriggerPopoverLifecycleListener"
+    ],
+    "packages/react/src/primitives/composer/trigger/index.ts": [
+      "TriggerPopoverRootContextValue"
+    ],
+    "packages/react/src/primitives/composer/trigger/triggerKeyboardResource.ts": [
+      "TriggerPopoverKeyEvent"
+    ],
+    "packages/react/src/primitives/message/MessagePartsGrouped.tsx": [
+      "GroupingFunction"
+    ],
+    "packages/react/src/sandbox-host/SandboxHost.tsx": ["SandboxContent"],
+    "packages/react/src/utils/Primitive.tsx": ["PrimitiveProps"],
+    "packages/tap/src/__tests__/parity/describeParity.tsx": [
+      "DriveContext",
+      "Log"
+    ],
+    "packages/tap/src/core/types.ts": ["CommitCallback", "RefCell"],
+    "packages/variants/src/agent.ts": ["AgentLink"],
+    "packages/variants/src/notes.ts": ["Notes"],
+    "packages/variants/src/store.ts": ["VariantMeta"],
+    "packages/vue/src/primitives/viewportContext.ts": [
+      "ViewportContentInsetHandle"
+    ]
+  },
+  "unlisted": {
+    "packages/react-markdown/src/primitives/MarkdownText.overrides.test.tsx": [
+      "jsdom"
+    ],
+    "packages/svelte/src/__tests__/clients.ts": ["react"],
+    "packages/ui/src/components/react-native/assistant-ui/elements/markdown-text.compiler.test.ts": [
+      "@babel/core"
+    ],
+    "packages/vue/src/__tests__/fixtures.ts": ["react"],
+    "packages/x-buildutils/src/declared-imports.ts": ["pkg"]
+  }
+}
