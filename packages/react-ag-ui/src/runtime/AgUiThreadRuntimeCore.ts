@@ -24,6 +24,7 @@ import type {
 } from "@assistant-ui/core";
 import {
   appendToolInteraction,
+  createHistoryWriteChain,
   createMessageRepositorySession,
   invokeUserCallback,
   iterateToolCallParts,
@@ -205,7 +206,7 @@ export class AgUiThreadRuntimeCore {
   private readonly assistantHistoryParents = new Map<string, string | null>();
   private readonly snapshotHistoryIds = new Set<string>();
   private readonly persistedHistoryIds = new Set<string>();
-  private readonly historyWrites = new Map<string, Promise<void>>();
+  private readonly historyWrites = createHistoryWriteChain();
   private _isLoading = false;
   private _historyImportPromise: Promise<void> | undefined;
   private historyMutationGeneration = 0;
@@ -1067,7 +1068,7 @@ export class AgUiThreadRuntimeCore {
       return;
     }
 
-    await this.chainHistoryWrite(sessionMessageId, () =>
+    await this.historyWrites.chain(sessionMessageId, () =>
       history.update!({ parentId: item.parentId, message }),
     );
   }
@@ -1768,22 +1769,18 @@ export class AgUiThreadRuntimeCore {
     // An in-flight write completes under the id it was started with, so the
     // rename moves the chain entry and transfers the completion mark; without
     // this the resolve records the dead id and the live one appends again.
-    const pendingWrite = this.historyWrites.get(oldId);
-    if (pendingWrite) {
-      this.historyWrites.delete(oldId);
-      if (!collidesWithExisting) {
-        this.historyWrites.set(newId, pendingWrite);
-        const settle = () => {
-          if (this.historyWrites.get(newId) === pendingWrite) {
-            this.historyWrites.delete(newId);
-          }
-        };
-        void pendingWrite.then(() => {
+    const pendingWrite = this.historyWrites.move(
+      oldId,
+      collidesWithExisting ? undefined : newId,
+    );
+    if (pendingWrite && !collidesWithExisting) {
+      void pendingWrite.then(
+        () => {
           this.persistedHistoryIds.delete(oldId);
           this.persistedHistoryIds.add(newId);
-          settle();
-        }, settle);
-      }
+        },
+        () => {},
+      );
     }
 
     this.publishUpdate();
@@ -2531,7 +2528,7 @@ export class AgUiThreadRuntimeCore {
       (wasPersisted || this.snapshotHistoryIds.has(messageId));
 
     if (shouldUpdate) {
-      const write = this.chainHistoryWrite(messageId, () =>
+      const write = this.historyWrites.chain(messageId, () =>
         update.call(history, { parentId, message }),
       );
       this.assistantHistoryParents.delete(messageId);
@@ -2540,7 +2537,7 @@ export class AgUiThreadRuntimeCore {
           this.persistedHistoryIds.add(messageId);
         },
         (error) => {
-          const pending = this.historyWrites.get(messageId);
+          const pending = this.historyWrites.pending(messageId);
           if (pending === undefined || pending === write) {
             this.assistantHistoryParents.set(messageId, parentId);
           }
@@ -2561,7 +2558,7 @@ export class AgUiThreadRuntimeCore {
     void write.then(
       () => {},
       (error) => {
-        const pending = this.historyWrites.get(messageId);
+        const pending = this.historyWrites.pending(messageId);
         if (pending === undefined || pending === write) {
           this.assistantHistoryParents.set(messageId, parentId);
         }
@@ -2575,11 +2572,11 @@ export class AgUiThreadRuntimeCore {
     message: ThreadMessage,
   ): Promise<void> | undefined {
     if (!this.history || this.persistedHistoryIds.has(message.id)) return;
-    const pending = this.historyWrites.get(message.id);
+    const pending = this.historyWrites.pending(message.id);
     if (pending) return pending;
 
     const append = this.history.append.bind(this.history);
-    const write = this.chainHistoryWrite(message.id, () =>
+    const write = this.historyWrites.chain(message.id, () =>
       append({ parentId, message }),
     );
     void write.then(
@@ -2589,36 +2586,5 @@ export class AgUiThreadRuntimeCore {
       () => {},
     );
     return write;
-  }
-
-  private chainHistoryWrite(
-    id: string,
-    write: () => Promise<void>,
-  ): Promise<void> {
-    const pending = this.historyWrites.get(id);
-    let next: Promise<void>;
-    if (pending) {
-      next = pending.then(write, write);
-    } else {
-      try {
-        next = Promise.resolve(write());
-      } catch (error) {
-        next = Promise.reject(error);
-      }
-    }
-    this.historyWrites.set(id, next);
-    void next.then(
-      () => {
-        if (this.historyWrites.get(id) === next) {
-          this.historyWrites.delete(id);
-        }
-      },
-      () => {
-        if (this.historyWrites.get(id) === next) {
-          this.historyWrites.delete(id);
-        }
-      },
-    );
-    return next;
   }
 }
