@@ -1581,8 +1581,9 @@ describe("A2AThreadRuntimeCore", () => {
 
       const core = createCore({ sendMessage, streamMessage });
       // Simulate agent card with streaming: false
-      (core as any).agentCardValue = {
-        capabilities: { streaming: false },
+      (core as any).state = {
+        ...(core as any).state,
+        agentCard: { capabilities: { streaming: false } },
       };
 
       await core.append(createUserAppendMessage("Hello"));
@@ -1605,8 +1606,9 @@ describe("A2AThreadRuntimeCore", () => {
       } satisfies A2AMessage);
 
       const core = createCore({ sendMessage });
-      (core as any).agentCardValue = {
-        capabilities: { streaming: false },
+      (core as any).state = {
+        ...(core as any).state,
+        agentCard: { capabilities: { streaming: false } },
       };
 
       await core.append(createUserAppendMessage("Hello"));
@@ -2428,9 +2430,9 @@ describe("A2AThreadRuntimeCore", () => {
       const core = createCore({ cancelTask });
 
       // Manually set task state to simulate a running task
-      (core as any).currentTask = {
-        id: "t1",
-        status: { state: "working" },
+      (core as any).state = {
+        ...(core as any).state,
+        currentTask: { id: "t1", status: { state: "working" } },
       };
       (core as any).abortController = new AbortController();
       onUpdate.mockClear();
