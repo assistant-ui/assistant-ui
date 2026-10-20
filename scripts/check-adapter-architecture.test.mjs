@@ -91,6 +91,9 @@ test("functional increments and notifyUpdate declarations are reported", () => {
         "function notifyUpdate() {}",
         "class Runtime { notifyUpdate() {} }",
         "const other = () => setFoo((n) => n + 10);",
+        "useReducer((n: number) => n + 1, 0);",
+        "setFoo((n: number) => n + 1);",
+        "const api = { notifyUpdate: () => forceUpdate() };",
       ].join("\n"),
     },
     (root) => {
@@ -103,6 +106,9 @@ test("functional increments and notifyUpdate declarations are reported", () => {
           { line: 4, name: "version counter" },
           { line: 5, name: "notifyUpdate" },
           { line: 6, name: "notifyUpdate" },
+          { line: 8, name: "version counter" },
+          { line: 9, name: "version counter" },
+          { line: 10, name: "notifyUpdate" },
         ],
       );
     },
@@ -118,6 +124,7 @@ test("Symbol.for brands and prototype grafting are reported but sentinels and di
         'const shared = Symbol.for("shared");',
         "const grafted = Object.create(base);",
         "const dictionary = Object.create(null);",
+        "const described = Object.create(null, descriptors);",
       ].join("\n"),
     },
     (root) => {
@@ -151,6 +158,26 @@ test("test files and packages without a source import are ignored", () => {
     },
     (root) => {
       assert.deepEqual(runCheck(root), { packageCount: 1, violations: [] });
+    },
+  );
+});
+
+test("a namespace import of createRuntimeExtras marks the package as an adapter", () => {
+  withWorkspace(
+    {
+      "packages/adapter/src/extras.ts": [
+        'import * as core from "@assistant-ui/core/react";',
+        "export const extras = core.createRuntimeExtras;",
+        "class AdapterThreadRuntimeCore {}",
+      ].join("\n"),
+    },
+    (root) => {
+      const { packageCount, violations } = runCheck(root);
+      assert.equal(packageCount, 1);
+      assert.deepEqual(
+        violations.map(({ line, name }) => ({ line, name })),
+        [{ line: 3, name: "ThreadRuntimeCore declaration" }],
+      );
     },
   );
 });

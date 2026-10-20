@@ -10,8 +10,7 @@ const repoRoot = path.resolve(
   "..",
 );
 const sourceExtension = /\.(?:[cm]?[jt]sx?|vue|svelte)$/;
-const extrasImport =
-  /\bimport\s*\{[^}]*\bcreateRuntimeExtras\b[^}]*\}\s*from\s*["'][^"']+["']/;
+const extrasUse = /\bcreateRuntimeExtras\b/;
 
 const bans = [
   {
@@ -22,22 +21,21 @@ const bans = [
   {
     name: "version counter",
     pattern:
-      /\bset[A-Z][\w$]*\s*\(\s*\(?\s*([A-Za-z_$][\w$]*)\s*\)?\s*=>\s*\1\s*\+\s*1\b\s*\)/g,
+      /\bset[A-Z][\w$]*\s*\(\s*\(?\s*([A-Za-z_$][\w$]*)\s*(?::\s*[\w$.]+\s*)?\)?\s*=>\s*\1\s*\+\s*1\b\s*\)/g,
   },
   {
     name: "version counter",
     pattern:
-      /\buseReducer\s*\(\s*\(?\s*([A-Za-z_$][\w$]*)\s*\)?\s*=>\s*\1\s*\+\s*1\b/g,
+      /\buseReducer\s*\(\s*\(?\s*([A-Za-z_$][\w$]*)\s*(?::\s*[\w$.]+\s*)?\)?\s*=>\s*\1\s*\+\s*1\b/g,
   },
   {
     name: "notifyUpdate",
-    pattern:
-      /\b(?:function\s+notifyUpdate\s*\(|notifyUpdate\s*\([^)]*\)\s*(?::\s*[^\n{]+)?\s*\{|notifyUpdate\s*=\s*(?:async\s*)?(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>)/g,
+    pattern: /\bnotifyUpdate\b/g,
   },
   { name: "Symbol brand", pattern: /\bSymbol\s*\.\s*for\s*\([^)]*\)/g },
   {
     name: "Object.create grafting",
-    pattern: /\bObject\s*\.\s*create\s*\((?!\s*null\s*\))[^)]*\)/g,
+    pattern: /\bObject\s*\.\s*create\s*\((?!\s*null\s*[,)])[^)]*\)/g,
   },
 ];
 
@@ -75,7 +73,7 @@ export function runCheck(root = repoRoot) {
       file: `${packageDir}/${file}`,
       source: readFileSync(path.join(root, packageDir, file), "utf8"),
     }));
-    if (!sources.some(({ source }) => extrasImport.test(source))) continue;
+    if (!sources.some(({ source }) => extrasUse.test(source))) continue;
     packageCount++;
 
     for (const { file, source } of sources) {
