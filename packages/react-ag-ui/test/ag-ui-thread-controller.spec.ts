@@ -11,7 +11,7 @@ import type {
   ThreadMessage,
 } from "@assistant-ui/core";
 import { EventType, HttpAgent, type AgentSubscriber } from "@ag-ui/client";
-import { AgUiThreadRuntimeCore } from "../src/runtime/AgUiThreadRuntimeCore";
+import { AgUiThreadController } from "../src/runtime/AgUiThreadController";
 import { makeLogger, type Logger } from "../src/runtime/logger";
 import type {
   AgUiResumeTranscript,
@@ -39,7 +39,7 @@ describe("joinStrategy", () => {
     snapshotOmitsFirst = false,
   ) => {
     let atSnapshot: readonly ThreadMessage[] = [];
-    let core: AgUiThreadRuntimeCore;
+    let core: AgUiThreadController;
     const agent = {
       runAgent: vi.fn(async (_input, subscriber: AgentSubscriber) => {
         const params = createAgentSubscriberParams();
@@ -413,7 +413,7 @@ const createCore = (
     joinStrategy?: UseAgUiRuntimeOptions["joinStrategy"];
   } = {},
 ) =>
-  new AgUiThreadRuntimeCore({
+  new AgUiThreadController({
     agent,
     logger: hooks.logger ?? noopLogger,
     showThinking: true,
@@ -528,7 +528,7 @@ describe("AGUIThreadRuntimeCore", () => {
 
   it("keeps streaming after a messages snapshot replaces run history", async () => {
     const streamedText: Array<string | undefined> = [];
-    let core: AgUiThreadRuntimeCore;
+    let core: AgUiThreadController;
     const readAssistantText = () => {
       const assistant = core
         .getMessages()
@@ -1189,7 +1189,7 @@ describe("AGUIThreadRuntimeCore", () => {
   });
 
   it("keeps state on the assistant when a messages snapshot replaces", async () => {
-    let core: AgUiThreadRuntimeCore;
+    let core: AgUiThreadController;
     const agent = {
       runAgent: vi.fn(async (_input, subscriber) => {
         subscriber.onTextMessageContentEvent?.({
@@ -1991,7 +1991,7 @@ describe("AGUIThreadRuntimeCore", () => {
     // onCancel runs from the local abort listener and starts a replacement run,
     // which takes over the agent's controller: abortRun has to have already
     // happened, or it would cancel the replacement and leave this run live
-    let core!: AgUiThreadRuntimeCore;
+    let core!: AgUiThreadController;
     const onCancel = vi.fn(() => {
       order.push("onCancel");
       void core.append(createAppendMessage());
@@ -2438,7 +2438,7 @@ describe("AGUIThreadRuntimeCore", () => {
 
   it("keeps a run started by onCancel when an append supersedes", async () => {
     const resolveRuns: Array<() => void> = [];
-    let core!: AgUiThreadRuntimeCore;
+    let core!: AgUiThreadController;
     const onCancel = vi.fn(() => {
       void core.append(createAppendMessage());
     });
@@ -2886,7 +2886,7 @@ describe("AGUIThreadRuntimeCore", () => {
   it("auto-resumes when a tool result is added before RUN_FINISHED", async () => {
     const runInputs: any[] = [];
     let runCount = 0;
-    let core!: AgUiThreadRuntimeCore;
+    let core!: AgUiThreadController;
 
     const agent = {
       runAgent: vi.fn(async (input: any, subscriber: any) => {
@@ -2973,7 +2973,7 @@ describe("AGUIThreadRuntimeCore", () => {
   it("resumes once all parallel tool results arrive across the RUN_FINISHED boundary", async () => {
     const runInputs: any[] = [];
     let runCount = 0;
-    let core!: AgUiThreadRuntimeCore;
+    let core!: AgUiThreadController;
 
     const agent = {
       runAgent: vi.fn(async (input: any, subscriber: any) => {
@@ -3066,7 +3066,7 @@ describe("AGUIThreadRuntimeCore", () => {
 
   it("does not leak a deferred resume into a later run when the run errors", async () => {
     let runCount = 0;
-    let core!: AgUiThreadRuntimeCore;
+    let core!: AgUiThreadController;
     const onError = vi.fn();
 
     const agent = {
@@ -5517,7 +5517,7 @@ describe("AGUIThreadRuntimeCore", () => {
   });
 
   it("steerAway cancels only unresolved tool calls and preserves resolved ones", async () => {
-    let core: AgUiThreadRuntimeCore;
+    let core: AgUiThreadController;
     const runInputs: any[] = [];
     let runCount = 0;
     const runAgent = vi.fn(async (input: any, subscriber: any) => {
@@ -8099,7 +8099,7 @@ describe("AGUIThreadRuntimeCore", () => {
   it("keeps streaming when a pre-start snapshot ends with a prior-turn assistant", async () => {
     const mid = "99999999-8888-7777-6666-555555555555";
     const observed: string[] = [];
-    let core: AgUiThreadRuntimeCore;
+    let core: AgUiThreadController;
     const readText = () => {
       const byId = core.getMessages().find((x) => x.id === mid);
       const m =
@@ -8303,7 +8303,7 @@ describe("AGUIThreadRuntimeCore", () => {
     const runInputs: any[] = [];
     let releaseRun!: () => void;
     let postRunHead: string | undefined;
-    let core: AgUiThreadRuntimeCore;
+    let core: AgUiThreadController;
     const activeRun = new Promise<void>((resolve) => {
       releaseRun = resolve;
     });
@@ -8741,7 +8741,7 @@ describe("AGUIThreadRuntimeCore", () => {
       type: "function",
       function: { name: "lookup", arguments: "{}" },
     };
-    const reasoningOf = (core: AgUiThreadRuntimeCore, id: string) =>
+    const reasoningOf = (core: AgUiThreadController, id: string) =>
       core
         .getMessages()
         .find((message) => message.id === id)
@@ -8843,7 +8843,7 @@ describe("AGUIThreadRuntimeCore", () => {
         notifyRunFinished(subscriber, "run-1");
         notifyRunFinalized(subscriber);
       });
-      const core = new AgUiThreadRuntimeCore({
+      const core = new AgUiThreadController({
         agent: { runAgent } as unknown as HttpAgent,
         logger: noopLogger,
         showThinking: false,
@@ -9245,7 +9245,7 @@ describe("AGUIThreadRuntimeCore", () => {
   });
 
   it("keeps opaque reasoning and interrupts on one assistant through the metadata merge", async () => {
-    let core: AgUiThreadRuntimeCore;
+    let core: AgUiThreadController;
     const runAgent = vi.fn(async (input, subscriber) => {
       subscriber.onTextMessageContentEvent?.({
         event: { type: "TEXT_MESSAGE_CONTENT", delta: "seed" },
