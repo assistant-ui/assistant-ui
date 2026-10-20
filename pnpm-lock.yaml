@@ -6563,9 +6563,6 @@ importers:
       '@assistant-ui/core':
         specifier: workspace:*
         version: link:../core
-      '@assistant-ui/markdown':
-        specifier: workspace:*
-        version: link:../markdown
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../react

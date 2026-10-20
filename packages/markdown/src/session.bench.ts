@@ -1,5 +1,13 @@
-import { describe, inject, test } from "vitest";
-import { createMarkdownSession, parseMarkdown } from "@assistant-ui/markdown";
+import { describe, test } from "vitest";
+import { parseMarkdown } from "./parse";
+import { createMarkdownSession } from "./session";
+
+const sampling = {
+  time: 100,
+  iterations: 10,
+  warmupTime: 50,
+  warmupIterations: 2,
+};
 
 const section = [
   "## Progress update",
@@ -19,7 +27,7 @@ const section = [
   "",
 ].join("\n");
 
-describe("markdown: one 4-character append by message length", () => {
+describe("one 4-character append by message length", () => {
   for (const size of [1, 10, 40]) {
     const prefix = section.repeat(Math.ceil((size * 1024) / section.length));
     const endings = ["done", "next"] as const;
@@ -46,7 +54,7 @@ describe("markdown: one 4-character append by message length", () => {
           step += 1;
           session.update(prefix + growth.slice(0, step * 4));
         },
-      ).run(inject("benchSampling"));
+      ).run(sampling);
     });
 
     test(`${size} KB full parse`, async ({ bench }) => {
@@ -54,7 +62,7 @@ describe("markdown: one 4-character append by message length", () => {
       await bench(`${size} KB full parse`, () => {
         flip ^= 1;
         parseMarkdown(prefix + endings[flip]);
-      }).run(inject("benchSampling"));
+      }).run(sampling);
     });
   }
 });
