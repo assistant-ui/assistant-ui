@@ -22,7 +22,7 @@ import type {
   ThreadMessage,
 } from "@assistant-ui/core";
 import { A2AClient, type A2AClientOptions } from "./A2AClient";
-import { A2AThreadRuntimeCore } from "./A2AThreadRuntimeCore";
+import { A2AThreadController } from "./A2AThreadController";
 import { a2aExtras } from "./a2aExtras";
 import type { UseA2ARuntimeOptions } from "./types";
 
@@ -114,7 +114,7 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
   coreOptionsRef.current = coreOptions;
 
   const createCore = () =>
-    new A2AThreadRuntimeCore({
+    new A2AThreadController({
       ...coreOptionsRef.current,
       client,
     });

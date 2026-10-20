@@ -3,7 +3,7 @@ import {
   applyA2uiOperations,
   convertSurfaceToUISpec,
 } from "@assistant-ui/generative-ui/a2ui";
-import { A2AThreadRuntimeCore } from "./A2AThreadRuntimeCore";
+import { A2AThreadController } from "./A2AThreadController";
 import type { A2AClient } from "./A2AClient";
 import type {
   A2AAgentCard,
@@ -154,7 +154,7 @@ const toolInteraction = {
   payload: { value: "selected" },
 };
 
-describe("A2AThreadRuntimeCore", () => {
+describe("A2AThreadController", () => {
   let onUpdate = vi.fn<() => void>();
 
   beforeEach(() => {
@@ -169,7 +169,7 @@ describe("A2AThreadRuntimeCore", () => {
     clientOverrides: Partial<A2AClient> = {},
     coreOverrides: Record<string, unknown> = {},
   ) {
-    const core = new A2AThreadRuntimeCore({
+    const core = new A2AThreadController({
       client: createMockClient(clientOverrides),
       ...coreOverrides,
     });
@@ -634,7 +634,7 @@ describe("A2AThreadRuntimeCore", () => {
         yield statusUpdateEvent("completed", "Answer");
       });
       const client = createMockClient({ streamMessage });
-      const core = new A2AThreadRuntimeCore({
+      const core = new A2AThreadController({
         client,
       });
 
@@ -653,7 +653,7 @@ describe("A2AThreadRuntimeCore", () => {
         yield statusUpdateEvent("completed", "Answer");
       });
       const client = createMockClient({ streamMessage });
-      const core = new A2AThreadRuntimeCore({
+      const core = new A2AThreadController({
         client,
       });
 
@@ -706,7 +706,7 @@ describe("A2AThreadRuntimeCore", () => {
         yield statusUpdateEvent("completed", "Answer");
       });
       const client = createMockClient({ streamMessage });
-      const core = new A2AThreadRuntimeCore({
+      const core = new A2AThreadController({
         client,
       });
 
@@ -725,7 +725,7 @@ describe("A2AThreadRuntimeCore", () => {
         yield statusUpdateEvent("completed", "Answer");
       });
       const client = createMockClient({ streamMessage });
-      const core = new A2AThreadRuntimeCore({
+      const core = new A2AThreadController({
         client,
       });
 
@@ -1765,7 +1765,7 @@ describe("A2AThreadRuntimeCore", () => {
     it("calls onArtifactComplete when lastChunk=true", async () => {
       const onArtifactComplete = vi.fn();
 
-      const core = new A2AThreadRuntimeCore({
+      const core = new A2AThreadController({
         client: createMockClient({
           streamMessage: vi.fn().mockImplementation(async function* () {
             yield artifactUpdateEvent("a1", [{ text: "code" }], {
@@ -1786,7 +1786,7 @@ describe("A2AThreadRuntimeCore", () => {
     it("passes the completed artifact even if a subscriber clears the thread", async () => {
       const onArtifactComplete = vi.fn();
 
-      const core = new A2AThreadRuntimeCore({
+      const core = new A2AThreadController({
         client: createMockClient({
           streamMessage: vi.fn().mockImplementation(async function* () {
             yield artifactUpdateEvent("a1", [{ text: "code" }], {
@@ -2405,7 +2405,7 @@ describe("A2AThreadRuntimeCore", () => {
           signal.addEventListener("abort", () => resolve(), { once: true });
         });
       });
-      let core!: A2AThreadRuntimeCore;
+      let core!: A2AThreadController;
       let replacementRun: Promise<void> | undefined;
       let startReplacement = true;
       core = createCore(
@@ -2584,7 +2584,7 @@ describe("A2AThreadRuntimeCore", () => {
         });
       });
       let restarted = false;
-      let core!: A2AThreadRuntimeCore;
+      let core!: A2AThreadController;
       core = createCore(
         { streamMessage },
         {
@@ -2649,7 +2649,7 @@ describe("A2AThreadRuntimeCore", () => {
             signal.addEventListener("abort", () => resolve(), { once: true });
         });
       });
-      let core!: A2AThreadRuntimeCore;
+      let core!: A2AThreadController;
       core = createCore(
         { cancelTask, streamMessage },
         { onCancel: () => core.applyExternalMessages([]) },
@@ -2732,7 +2732,7 @@ describe("A2AThreadRuntimeCore", () => {
     it("sets error status and re-throws on stream failure", async () => {
       const onError = vi.fn();
 
-      const core = new A2AThreadRuntimeCore({
+      const core = new A2AThreadController({
         client: createMockClient({
           streamMessage: vi.fn().mockImplementation(() => ({
             async next() {
@@ -2987,7 +2987,7 @@ describe("outbound message conversion", () => {
     const streamMessage = vi.fn().mockImplementation(async function* () {
       yield statusUpdateEvent("completed", "Done");
     });
-    const core = new A2AThreadRuntimeCore({
+    const core = new A2AThreadController({
       client: createMockClient({ streamMessage }),
     });
     return { core, streamMessage };
