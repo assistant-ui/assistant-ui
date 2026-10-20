@@ -53,11 +53,19 @@ test.each([
   expect(block?.type === "mathBlock" && block.value).toBe(value);
 });
 
-test("a line of unclosed openers parses in linear time", () => {
-  const source = "$5 ".repeat(20_000);
-  const started = performance.now();
-  expect(inline(source)).toEqual([{ type: "text", value: source.trimEnd() }]);
-  expect(performance.now() - started).toBeLessThan(1_000);
+test("a line of unclosed openers parses as fast as plain text", () => {
+  const openers = "$5 ".repeat(20_000);
+  const plain = "a5 ".repeat(20_000);
+  const fastest = (source: string) =>
+    Math.min(
+      ...Array.from({ length: 3 }, () => {
+        const started = performance.now();
+        parseMarkdown(source);
+        return performance.now() - started;
+      }),
+    );
+  expect(inline(openers)).toEqual([{ type: "text", value: openers.trimEnd() }]);
+  expect(fastest(openers) / fastest(plain)).toBeLessThan(20);
 });
 
 test("a closer that ends a body line keeps the text before it", () => {
