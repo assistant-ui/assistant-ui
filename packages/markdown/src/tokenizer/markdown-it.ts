@@ -13,16 +13,17 @@ import type {
   TableNode,
   TableRowNode,
 } from "../ast";
+import { mathPlugin } from "./math";
 import type { Tokenizer } from "./types";
 
 type MarkdownItTokenizerOptions = {
-  /** Enables tables, strikethrough, task lists, and autolinks. */
-  gfm: boolean;
+  /** Enables tables, strikethrough, task lists, autolinks, and math. */
+  extensions: boolean;
 };
 
 type Context = {
   md: MarkdownIt;
-  gfm: boolean;
+  extensions: boolean;
 };
 
 const TASK_MARKER = /^\[([ xX])\](?:[ \t]+|$)/;
@@ -58,6 +59,7 @@ const plainText = (nodes: InlineNode[]): string =>
       switch (node.type) {
         case "text":
         case "codeSpan":
+        case "mathInline":
         case "htmlInline":
           return node.value;
         case "image":
@@ -115,6 +117,13 @@ const convertInline = (tokens: Token[]): InlineNode[] => {
       case "html_inline":
         siblings.push({ type: "htmlInline", value: token.content });
         break;
+      case "math_inline":
+        siblings.push({
+          type: "mathInline",
+          value: token.content,
+          display: token.markup === "$$" || token.markup === "\\[",
+        });
+        break;
       case "image":
         siblings.push(
           withTitle(
@@ -170,7 +179,7 @@ const convertInline = (tokens: Token[]): InlineNode[] => {
 const convertListItem = (
   token: Token,
   children: BlockNode[],
-  { gfm }: Context,
+  { extensions }: Context,
 ): ListItemNode => {
   const item: ListItemNode = {
     type: "listItem",
@@ -178,7 +187,7 @@ const convertListItem = (
     lines: linesOf(token),
   };
   const first = children[0];
-  if (!gfm || first?.type !== "paragraph") return item;
+  if (!extensions || first?.type !== "paragraph") return item;
   const text = first.children[0];
   if (text?.type !== "text") return item;
   const marker = TASK_MARKER.exec(text.value);
@@ -324,6 +333,8 @@ const convertBlock = (
     case "bullet_list_open":
     case "ordered_list_open":
       return convertList(tokens, open, close, context);
+    case "math_block":
+      return { type: "mathBlock", value: token.content, lines: linesOf(token) };
     case "fence":
     case "code_block":
       return convertCodeBlock(token, context);
@@ -348,15 +359,16 @@ const convertBlocks = (tokens: Token[], context: Context): BlockNode[] => {
 };
 
 export const createMarkdownItTokenizer = ({
-  gfm,
+  extensions,
 }: MarkdownItTokenizerOptions): Tokenizer => {
   const md = markdownIt("commonmark");
-  if (gfm) {
+  if (extensions) {
     md.set({ linkify: true });
     md.linkify.set({ fuzzyLink: true });
     md.enable(["table", "strikethrough", "linkify"]);
+    md.use(mathPlugin);
   }
-  const context: Context = { md, gfm };
+  const context: Context = { md, extensions };
   return {
     parse: (source) => {
       const env: Env = {};

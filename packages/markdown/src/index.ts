@@ -18,6 +18,8 @@ export type {
   ListItemNode,
   ListNode,
   MarkdownNode,
+  MathBlockNode,
+  MathInlineNode,
   ParagraphNode,
   RootNode,
   SoftBreakNode,
