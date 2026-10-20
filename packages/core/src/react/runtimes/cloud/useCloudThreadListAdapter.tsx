@@ -1,3 +1,5 @@
+"use client";
+
 import { useInsertionEffect, useRef, useState } from "react";
 import type { RemoteThreadListAdapter } from "../../../runtimes/remote-thread-list/types";
 import {
