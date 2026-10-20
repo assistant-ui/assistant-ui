@@ -259,14 +259,6 @@ export function permissionOptionToApprovalOption(
   };
 }
 
-export function isAllowKind(kind: AcpPermissionOptionKind): boolean {
-  return kind === "allow_once" || kind === "allow_always";
-}
-
-export function isRejectKind(kind: AcpPermissionOptionKind): boolean {
-  return kind === "reject_once" || kind === "reject_always";
-}
-
 export type AcpApprovalDecision = {
   readonly approvalId: string;
   readonly approved: boolean;
