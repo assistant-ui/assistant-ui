@@ -21,7 +21,7 @@ The npm packages and their private tooling; the root AGENTS.md still applies.
 
 ### Adapters
 
-- Build a framework adapter on `useExternalStoreRuntime`, or `useLocalRuntime` with a `ChatModelAdapter`, wrapped in `useRemoteThreadListRuntime` for threads, and expose its state with `createRuntimeExtras` from `@assistant-ui/core/internal`; `@assistant-ui/react-langchain` is the reference shape.
+- Build a framework adapter on `useExternalStoreRuntime`, or `useLocalRuntime` with a `ChatModelAdapter`, wrapped in `useRemoteThreadListRuntime` for threads, and expose its state with `createRuntimeExtras` from `@assistant-ui/core/react`; `@assistant-ui/react-langchain` is the reference shape.
 - Let the provider decide the core primitive, whether a thin wrapper, accumulator, or controller, the transport, HITL richness, and thread-list depth.
 - Split an adapter into `use<Name>Runtime.ts` (orchestration only), `<name>Extras.ts`, `hooks.ts`, a pure two-way `convertMessages.ts`, and `types.ts`, plus a `<Name>ThreadController.ts` with a pure `reduce<Name>ThreadState` when it owns thread state.
 - Colocate tests for the converter in both directions and the reducer or controller, and give each accessor hook its own `.test.tsx`.
