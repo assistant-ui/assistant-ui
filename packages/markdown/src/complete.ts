@@ -13,7 +13,9 @@ const OPENERS: [string, Wrapper[]][] = [
   ["_", ["emphasis"]],
 ];
 
-const INCOMPLETE_LINK = /(!?)\[([^\]]*)\]\([^)]*$/;
+// Each opener on the final line nests one wrapper, so a line of unpaired
+// openers stops nesting here, as markdown-it bounds its own output.
+const MAX_DEPTH = 4;
 
 const isWordChar = (char: string | undefined) =>
   char !== undefined && /[\p{L}\p{N}]/u.test(char);
@@ -74,22 +76,59 @@ const wrap = (wrappers: Wrapper[], children: InlineNode[]): InlineNode[] =>
     children,
   );
 
-/** Closes the constructs left open at the end of a streaming inline run. */
-export const closeOpenInlines = (nodes: InlineNode[]): InlineNode[] => {
-  // An unfinished destination may already have become an autolink node, so the
-  // label is searched for in the last text node before it.
+// A link whose destination is still streaming shows its label; the label may
+// span formatted nodes, and the destination may already be an autolink node.
+const closeIncompleteLink = (nodes: InlineNode[]): InlineNode[] | undefined => {
+  let tail = "";
   for (let position = nodes.length - 1; position >= 0; position--) {
     const node = nodes[position]!;
-    if (node.type !== "text") continue;
-    const link = INCOMPLETE_LINK.exec(node.value);
-    const destination = plainText(nodes.slice(position + 1));
-    if (!link || /[\s)]/.test(destination)) break;
-    const before = node.value.slice(0, link.index);
-    const label = link[1] ? [] : closeOpenInlines(text(link[2] ?? ""));
-    return closeOpenInlines(
-      mergeText([...nodes.slice(0, position), ...text(before), ...label]),
-    );
+    if (node.type !== "text") {
+      tail = plainText([node]) + tail;
+      continue;
+    }
+    const marker = node.value.lastIndexOf("](");
+    const destination =
+      (marker === -1 ? node.value : node.value.slice(marker + 2)) + tail;
+    if (/[\s)]/.test(destination)) return undefined;
+    if (marker === -1) {
+      tail = destination;
+      continue;
+    }
+
+    for (let start = position; start >= 0; start--) {
+      const candidate = nodes[start]!;
+      if (candidate.type !== "text") continue;
+      const end = start === position ? marker : candidate.value.length;
+      const open = candidate.value.lastIndexOf("[", end - 1);
+      if (open === -1) continue;
+      const image = candidate.value[open - 1] === "!";
+      const label =
+        start === position
+          ? text(candidate.value.slice(open + 1, marker))
+          : [
+              ...text(candidate.value.slice(open + 1)),
+              ...nodes.slice(start + 1, position),
+              ...text(node.value.slice(0, marker)),
+            ];
+      return mergeText([
+        ...nodes.slice(0, start),
+        ...text(candidate.value.slice(0, image ? open - 1 : open)),
+        ...(image ? [] : label),
+      ]);
+    }
+    return undefined;
   }
+  return undefined;
+};
+
+/** Closes the constructs left open at the end of a streaming inline run. */
+export const closeOpenInlines = (
+  nodes: InlineNode[],
+  depth = 0,
+): InlineNode[] => {
+  if (depth >= MAX_DEPTH) return nodes;
+  const linked = closeIncompleteLink(nodes);
+  if (linked) return closeOpenInlines(linked, depth);
 
   const lineStart =
     nodes.findLastIndex(
@@ -111,7 +150,10 @@ export const closeOpenInlines = (nodes: InlineNode[]): InlineNode[] => {
     if (opener.wrappers === "code") {
       return [...head, { type: "codeSpan", value: plainText(rest) }];
     }
-    return [...head, ...wrap(opener.wrappers, closeOpenInlines(rest))];
+    return [
+      ...head,
+      ...wrap(opener.wrappers, closeOpenInlines(rest, depth + 1)),
+    ];
   }
   return nodes;
 };

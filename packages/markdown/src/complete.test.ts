@@ -77,6 +77,14 @@ test.each<[string, InlineNode[]]>([
   ["Hello **", [{ type: "text", value: "Hello " }]],
   ["See [docs](https://exa", [{ type: "text", value: "See docs" }]],
   ["See ![chart](https://exa", [{ type: "text", value: "See " }]],
+  [
+    "See [**docs**](https://exa",
+    [
+      { type: "text", value: "See " },
+      { type: "strong", children: [{ type: "text", value: "docs" }] },
+    ],
+  ],
+  ["See ![**chart**](https://exa", [{ type: "text", value: "See " }]],
 ])("%j renders closed while streaming", (source, expected) => {
   expect(inlines(streamed(source))).toEqual(expected);
 });
@@ -101,6 +109,19 @@ test("the final update and a text ending in a blank line are not closed", () => 
   expect(inlines(streamed("**bold\n\n"))).toEqual([
     { type: "text", value: "**bold" },
   ]);
+});
+
+test("a line of unpaired openers nests at most four wrappers", () => {
+  const nodes = inlines(streamed("*a ".repeat(5_000)));
+  let depth = 0;
+  for (
+    let node = nodes.at(-1);
+    node && "children" in node;
+    node = node.children.at(-1)
+  ) {
+    depth++;
+  }
+  expect(depth).toBe(4);
 });
 
 test("only the final line of a block is closed", () => {
