@@ -79,6 +79,14 @@ test("a closer that ends a body line keeps the text before it", () => {
   ]);
 });
 
+test("an escaped bracket that starts a line stays text", () => {
+  expect(
+    parseMarkdown("\\[x] done\n\nMore of the answer.").children.map(
+      (node) => node.type,
+    ),
+  ).toEqual(["paragraph", "paragraph"]);
+});
+
 test("a math block interrupts a paragraph", () => {
   expect(
     parseMarkdown("Text\n$$\ny\n$$\nafter").children.map((node) => node.type),

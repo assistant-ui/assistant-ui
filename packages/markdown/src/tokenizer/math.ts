@@ -136,6 +136,9 @@ const mathBlock = (
     if (silent) return true;
     content = rest.slice(0, sameLine);
   } else {
+    // `\[` is also an escaped bracket, so only a bare `\[` line opens a block
+    // that spans lines; `\[x] done` stays text.
+    if (open === "\\[" && rest.trim()) return false;
     if (silent) return true;
     let closeLine = -1;
     let closeAt = 0;
