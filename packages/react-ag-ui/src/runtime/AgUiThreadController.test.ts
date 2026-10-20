@@ -6,7 +6,7 @@ import type {
   ThreadHistoryAdapter,
   ThreadMessage,
 } from "@assistant-ui/core";
-import { AgUiThreadRuntimeCore } from "./AgUiThreadRuntimeCore";
+import { AgUiThreadController } from "./AgUiThreadController";
 import { makeLogger } from "./logger";
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
@@ -15,7 +15,7 @@ function createCore(
   history?: ThreadHistoryAdapter,
   agent = {} as AbstractAgent,
 ) {
-  const core = new AgUiThreadRuntimeCore({
+  const core = new AgUiThreadController({
     agent,
     logger: makeLogger(),
     showThinking: true,
@@ -141,7 +141,7 @@ function deferredHistory(messages: ThreadMessage[] = [storedUser]) {
   };
 }
 
-describe("AgUiThreadRuntimeCore late history loading", () => {
+describe("AgUiThreadController late history loading", () => {
   it("drops a queued send when loading is cancelled", async () => {
     const { history, finish } = deferredHistory();
     const runAgent = vi.fn(async () => {});
@@ -479,7 +479,7 @@ describe("AgUiThreadRuntimeCore late history loading", () => {
   });
 });
 
-describe("AgUiThreadRuntimeCore steerAway parent selection", () => {
+describe("AgUiThreadController steerAway parent selection", () => {
   it("starts a root branch for an explicit null parent", async () => {
     const { core } = createCore();
     await core.append(userMessage("old"));
@@ -497,7 +497,7 @@ describe("AgUiThreadRuntimeCore steerAway parent selection", () => {
   });
 });
 
-describe("AgUiThreadRuntimeCore activity deltas", () => {
+describe("AgUiThreadController activity deltas", () => {
   it("applies a delta to the snapshot the run streamed", async () => {
     type Subscriber = Record<string, ((payload?: unknown) => void) | undefined>;
     const runAgent = vi.fn(async (_input: unknown, subscriber: Subscriber) => {
@@ -521,7 +521,7 @@ describe("AgUiThreadRuntimeCore activity deltas", () => {
       subscriber.onRunFinalized?.();
     });
     const agent = { runAgent, abortRun: vi.fn() } as unknown as AbstractAgent;
-    const core = new AgUiThreadRuntimeCore({
+    const core = new AgUiThreadController({
       agent,
       logger: makeLogger(),
       showThinking: true,
@@ -539,7 +539,7 @@ describe("AgUiThreadRuntimeCore activity deltas", () => {
   });
 });
 
-describe("AgUiThreadRuntimeCore setState", () => {
+describe("AgUiThreadController setState", () => {
   it("keeps a cancel the updater makes while a send waits for history", async () => {
     const { history, finish } = deferredHistory();
     const runAgent = vi.fn(async () => {});

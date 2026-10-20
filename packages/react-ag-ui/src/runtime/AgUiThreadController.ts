@@ -41,6 +41,7 @@ import jsonpatch, { type Operation } from "fast-json-patch";
 import {
   createAgUiThreadState,
   reduceAgUiThreadState,
+  type AgUiThreadAction,
   type AgUiThreadState,
 } from "./agUiThreadState";
 import type { Logger } from "./logger";
@@ -161,7 +162,7 @@ const mergeAgUiNamespace = (
   return merged;
 };
 
-export class AgUiThreadRuntimeCore {
+export class AgUiThreadController {
   private agent: AbstractAgent;
   private logger: Logger;
   private showThinking: boolean;
@@ -240,6 +241,10 @@ export class AgUiThreadRuntimeCore {
       state: this.state.stateSnapshot,
     });
 
+  private dispatch(action: AgUiThreadAction): void {
+    this.state = reduceAgUiThreadState(this.state, action);
+  }
+
   private publishUpdate(): void {
     this.snapshot = undefined;
     for (const listener of this.listeners) listener();
@@ -300,7 +305,7 @@ export class AgUiThreadRuntimeCore {
   }
 
   __internal_load(): Promise<void> {
-    this.state = reduceAgUiThreadState(this.state, { type: "loadRequested" });
+    this.dispatch({ type: "loadRequested" });
     if (this._loadPromise) return this._loadPromise;
     if (!this.history) return Promise.resolve();
 
@@ -323,7 +328,7 @@ export class AgUiThreadRuntimeCore {
       return repo;
     });
 
-    this.state = reduceAgUiThreadState(this.state, { type: "loadStarted" });
+    this.dispatch({ type: "loadStarted" });
     this._historyImportPromise = promise.then(
       () => {
         this._historyImportPromise = undefined;
@@ -351,7 +356,7 @@ export class AgUiThreadRuntimeCore {
         this.reportError(error);
       })
       .finally(() => {
-        this.state = reduceAgUiThreadState(this.state, {
+        this.dispatch({
           type: "loadFinished",
         });
         this.publishUpdate();
@@ -470,7 +475,7 @@ export class AgUiThreadRuntimeCore {
   }
 
   async cancel(): Promise<void> {
-    this.state = reduceAgUiThreadState(this.state, {
+    this.dispatch({
       type: "historyMutationAdvanced",
     });
     this.abortActiveRun();
@@ -1091,14 +1096,14 @@ export class AgUiThreadRuntimeCore {
     if (!("timestamp" in userAction)) {
       userAction.timestamp = new Date().toISOString();
     }
-    this.state = reduceAgUiThreadState(this.state, {
+    this.dispatch({
       type: "a2uiActionDeferred",
       action: userAction,
     });
 
     const owner = this.abortController;
     if (owner) {
-      this.state = reduceAgUiThreadState(this.state, {
+      this.dispatch({
         type: "a2uiResumeDeferred",
         owner,
       });
@@ -1117,7 +1122,7 @@ export class AgUiThreadRuntimeCore {
     if (owner) {
       // A run is still draining (RUN_FINISHED arrived but the stream has not
       // closed). Defer until startRun's tail so we never start two runs.
-      this.state = reduceAgUiThreadState(this.state, {
+      this.dispatch({
         type: "resumeDeferred",
         owner,
         messageId,
@@ -1178,7 +1183,7 @@ export class AgUiThreadRuntimeCore {
         metadata: { ...message.metadata, modality },
       } as ThreadMessage;
     });
-    this.state = reduceAgUiThreadState(this.state, {
+    this.dispatch({
       type: "a2uiContinuationsCleared",
     });
     this.assistantHistoryParents.clear();
@@ -1234,13 +1239,13 @@ export class AgUiThreadRuntimeCore {
       resumeTarget !== undefined &&
       !this.session.getMessages().some((message) => message.id === resumeTarget)
     ) {
-      this.state = reduceAgUiThreadState(this.state, { type: "resumeCleared" });
+      this.dispatch({ type: "resumeCleared" });
     }
     this.publishUpdate();
   }
 
   loadExternalState(state: ReadonlyJSONValue): void {
-    this.state = reduceAgUiThreadState(this.state, {
+    this.dispatch({
       type: "stateSnapshot",
       snapshot: state,
     });
@@ -1254,7 +1259,7 @@ export class AgUiThreadRuntimeCore {
   ): void {
     const snapshot =
       typeof next === "function" ? next(this.state.stateSnapshot) : next;
-    this.state = reduceAgUiThreadState(this.state, {
+    this.dispatch({
       type: "stateSnapshot",
       snapshot,
     });
@@ -1262,18 +1267,18 @@ export class AgUiThreadRuntimeCore {
   }
 
   resetState(): void {
-    this.state = reduceAgUiThreadState(this.state, { type: "resetState" });
+    this.dispatch({ type: "resetState" });
     this.publishUpdate();
   }
 
   resetThreadState(): void {
-    this.state = reduceAgUiThreadState(this.state, {
+    this.dispatch({
       type: "historyMutationAdvanced",
     });
     const controller = this.abortController;
     const activeRunAgent = this.activeRunAgent;
 
-    this.state = reduceAgUiThreadState(this.state, { type: "resetThread" });
+    this.dispatch({ type: "resetThread" });
 
     if (controller) {
       this.abortController = null;
@@ -1304,7 +1309,7 @@ export class AgUiThreadRuntimeCore {
     if (!this.supersedeActiveRun()) return;
 
     const normalizedRunConfig = runConfig ?? {};
-    this.state = reduceAgUiThreadState(this.state, {
+    this.dispatch({
       type: "runConfigRecorded",
       runConfig: normalizedRunConfig,
     });
@@ -1503,9 +1508,9 @@ export class AgUiThreadRuntimeCore {
           },
         });
         try {
-          (runAgentInstance as any).messages = input.messages;
-          (runAgentInstance as any).threadId = input.threadId;
-          (runAgentInstance as any).state = input.state ?? null;
+          runAgentInstance.messages = input.messages;
+          runAgentInstance.threadId = input.threadId;
+          runAgentInstance.state = input.state ?? null;
         } catch {
           // ignore
         }
@@ -1537,19 +1542,19 @@ export class AgUiThreadRuntimeCore {
     // continuation here so a second run never overlaps the first.
     if (this.state.pendingResume?.owner === abortController) {
       const { messageId } = this.state.pendingResume;
-      this.state = reduceAgUiThreadState(this.state, { type: "resumeCleared" });
+      this.dispatch({ type: "resumeCleared" });
       if (!abortSignal.aborted) {
         this.startResumeRun(messageId);
       }
     }
 
     if (this.state.pendingA2uiResumeOwner === abortController) {
-      this.state = reduceAgUiThreadState(this.state, {
+      this.dispatch({
         type: "a2uiResumeCleared",
       });
       if (!abortSignal.aborted && this.state.pendingA2uiAction !== undefined) {
         if (this.getPendingInterrupts()) {
-          this.state = reduceAgUiThreadState(this.state, {
+          this.dispatch({
             type: "a2uiActionCleared",
           });
           this.logger.debug(
@@ -1562,7 +1567,7 @@ export class AgUiThreadRuntimeCore {
         if (parentId !== null) {
           this.startResumeRun(parentId);
         } else {
-          this.state = reduceAgUiThreadState(this.state, {
+          this.dispatch({
             type: "a2uiActionCleared",
           });
           this.logger.debug(
@@ -1570,7 +1575,7 @@ export class AgUiThreadRuntimeCore {
           );
         }
       } else {
-        this.state = reduceAgUiThreadState(this.state, {
+        this.dispatch({
           type: "a2uiActionCleared",
         });
       }
@@ -1591,7 +1596,7 @@ export class AgUiThreadRuntimeCore {
       getAssistantMessageId: () => string | undefined;
     },
   ): Promise<Error | undefined> {
-    this.state = reduceAgUiThreadState(this.state, {
+    this.dispatch({
       type: "a2uiContinuationsCleared",
     });
     const assistantId = ctx.ensureAssistant();
@@ -1645,7 +1650,7 @@ export class AgUiThreadRuntimeCore {
     resume?: ResumeDispatch,
   ) {
     const pendingA2uiAction = this.state.pendingA2uiAction;
-    this.state = reduceAgUiThreadState(this.state, {
+    this.dispatch({
       type: "a2uiActionCleared",
     });
     const threadId = this.agent.threadId || "main";
@@ -1711,17 +1716,17 @@ export class AgUiThreadRuntimeCore {
 
   private clearDeferredContinuations(owner: AbortController): void {
     if (this.state.pendingResume?.owner === owner) {
-      this.state = reduceAgUiThreadState(this.state, { type: "resumeCleared" });
+      this.dispatch({ type: "resumeCleared" });
     }
     if (this.state.pendingA2uiResumeOwner === owner) {
-      this.state = reduceAgUiThreadState(this.state, {
+      this.dispatch({
         type: "a2uiContinuationsCleared",
       });
     }
   }
 
   private setRunning(running: boolean) {
-    this.state = reduceAgUiThreadState(this.state, {
+    this.dispatch({
       type: running ? "runStarted" : "runFinished",
     });
     this.publishUpdate();
@@ -2088,7 +2093,7 @@ export class AgUiThreadRuntimeCore {
   ): string | undefined {
     switch (event.type) {
       case "STATE_SNAPSHOT": {
-        this.state = reduceAgUiThreadState(this.state, {
+        this.dispatch({
           type: "stateSnapshot",
           snapshot: event.snapshot as ReadonlyJSONValue,
         });
@@ -2104,7 +2109,7 @@ export class AgUiThreadRuntimeCore {
             /* validateOperation */ true,
             /* mutateDocument */ false,
           );
-          this.state = reduceAgUiThreadState(this.state, {
+          this.dispatch({
             type: "stateSnapshot",
             snapshot: result.newDocument as ReadonlyJSONValue,
           });

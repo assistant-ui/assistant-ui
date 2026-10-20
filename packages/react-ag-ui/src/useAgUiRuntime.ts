@@ -34,7 +34,7 @@ import type {
   AgUiResumeEntry,
   UseAgUiRuntimeOptions,
 } from "./runtime/types";
-import { AgUiThreadRuntimeCore } from "./runtime/AgUiThreadRuntimeCore";
+import { AgUiThreadController } from "./runtime/AgUiThreadController";
 import { agUiExtras } from "./agUiExtras";
 import type { QueueItemState } from "@assistant-ui/core/store";
 
@@ -62,7 +62,7 @@ export function useAgUiRuntime(
   options: UseAgUiRuntimeOptions,
 ): AgUiAssistantRuntime {
   const logger = useMemo(() => makeLogger(options.logger), [options.logger]);
-  const coreRef = useRef<AgUiThreadRuntimeCore | null>(null);
+  const coreRef = useRef<AgUiThreadController | null>(null);
   const threadSwitchGenerationRef = useRef(0);
   const switchingGenerationRef = useRef<number | null>(null);
   const runtimeAdapters = useRuntimeAdapters();
@@ -71,7 +71,7 @@ export function useAgUiRuntime(
   const threadListAdapter = options.adapters?.threadList;
 
   if (!coreRef.current) {
-    coreRef.current = new AgUiThreadRuntimeCore({
+    coreRef.current = new AgUiThreadController({
       agent: options.agent,
       logger,
       showThinking: options.showThinking ?? true,

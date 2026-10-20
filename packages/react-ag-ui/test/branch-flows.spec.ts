@@ -11,7 +11,7 @@ import type {
 } from "@assistant-ui/core";
 import type { HttpAgent } from "@ag-ui/client";
 import { iterateToolCallParts } from "@assistant-ui/core/internal";
-import { AgUiThreadRuntimeCore } from "../src/runtime/AgUiThreadRuntimeCore";
+import { AgUiThreadController } from "../src/runtime/AgUiThreadController";
 import { makeLogger } from "../src/runtime/logger";
 
 const createAppendMessage = (
@@ -34,7 +34,7 @@ const createCore = (
   agent: HttpAgent,
   hooks: { history?: ThreadHistoryAdapter } = {},
 ) =>
-  new AgUiThreadRuntimeCore({
+  new AgUiThreadController({
     agent,
     logger: noopLogger,
     showThinking: true,
@@ -79,7 +79,7 @@ const emitReasoning = (subscriber: any, messageId: string, delta: string) => {
   });
 };
 
-describe("AgUiThreadRuntimeCore branch flows", () => {
+describe("AgUiThreadController branch flows", () => {
   it("append: records the visible pair and persists user then assistant with correct parents", async () => {
     const agent = finalizingAgent("Hello");
     const append = vi.fn().mockResolvedValue(undefined);
@@ -736,7 +736,7 @@ describe("AgUiThreadRuntimeCore branch flows", () => {
 
   it("keeps a recreated stable assistant after switching branches", async () => {
     const serverAssistantId = "server-assistant";
-    let core: AgUiThreadRuntimeCore;
+    let core: AgUiThreadController;
     const agent = {
       runAgent: vi.fn(async (_input, subscriber) => {
         subscriber.onTextMessageStartEvent?.({

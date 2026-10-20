@@ -7,7 +7,7 @@ import type {
   AssistantRuntime,
   MessageQueueController,
 } from "@assistant-ui/core";
-import { AgUiThreadRuntimeCore } from "./runtime/AgUiThreadRuntimeCore";
+import { AgUiThreadController } from "./runtime/AgUiThreadController";
 import type { UseAgUiRuntimeOptions } from "./runtime/types";
 import { useAgUiRuntime, type AgUiAssistantRuntime } from "./useAgUiRuntime";
 
@@ -230,8 +230,8 @@ const expectInFlightRunAcrossRefresh = async (
     runAgent: vi.fn(() => run),
     abortRun: vi.fn(),
   } as unknown as HttpAgent;
-  const attach = vi.spyOn(AgUiThreadRuntimeCore.prototype, "attachRuntime");
-  const detach = vi.spyOn(AgUiThreadRuntimeCore.prototype, "detachRuntime");
+  const attach = vi.spyOn(AgUiThreadController.prototype, "attachRuntime");
+  const detach = vi.spyOn(AgUiThreadController.prototype, "detachRuntime");
   options = { agent };
   const { Before, After } = createProbe();
   const Shell: ComponentType<{ mode: "visible" | "hidden" }> = inActivity

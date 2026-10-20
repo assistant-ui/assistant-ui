@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import type { AbstractAgent } from "@ag-ui/client";
 import type { AppendMessage, ThreadAssistantMessage } from "@assistant-ui/core";
-import { AgUiThreadRuntimeCore } from "./AgUiThreadRuntimeCore";
+import { AgUiThreadController } from "./AgUiThreadController";
 import { makeLogger } from "./logger";
 
 type EventSubscriber = {
@@ -76,7 +76,7 @@ function createOpenRun(finishWithInterrupt: boolean) {
     },
   );
   const abortRun = vi.fn(() => releaseFirst());
-  const core = new AgUiThreadRuntimeCore({
+  const core = new AgUiThreadController({
     agent: { runAgent, abortRun } as unknown as AbstractAgent,
     logger: makeLogger(),
     showThinking: false,
@@ -84,7 +84,7 @@ function createOpenRun(finishWithInterrupt: boolean) {
   return { core, runAgent, abortRun };
 }
 
-describe("AgUiThreadRuntimeCore Stop after an interrupt", () => {
+describe("AgUiThreadController Stop after an interrupt", () => {
   it("cancels a finished tool call when stopped before the stream closes", async () => {
     let releaseFirst!: () => void;
     const firstRunClosed = new Promise<void>((resolve) => {
@@ -110,7 +110,7 @@ describe("AgUiThreadRuntimeCore Stop after an interrupt", () => {
       },
     );
     const abortRun = vi.fn(() => releaseFirst());
-    const core = new AgUiThreadRuntimeCore({
+    const core = new AgUiThreadController({
       agent: { runAgent, abortRun } as unknown as AbstractAgent,
       logger: makeLogger(),
       showThinking: false,
