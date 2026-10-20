@@ -29,6 +29,7 @@ on:
       - pnpm-workspace.yaml
       - scripts/deploy-examples-changes.mjs
       - scripts/lib/main.mjs
+      - scripts/lib/script-options.mjs
       - scripts/lib/workspace.mjs
       - scripts/vercel-ignore-changeset-release.sh
       - turbo.json

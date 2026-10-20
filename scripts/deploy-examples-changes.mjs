@@ -31,6 +31,7 @@ const SHARED_INPUTS = [
   "scripts/vercel-ignore-changeset-release.sh",
   "scripts/deploy-examples-changes.mjs",
   "scripts/lib/main.mjs",
+  "scripts/lib/script-options.mjs",
   "scripts/lib/workspace.mjs",
   "packages/x-buildutils",
   WORKFLOW_FILE,

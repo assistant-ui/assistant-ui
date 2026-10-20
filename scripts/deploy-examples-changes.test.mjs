@@ -43,6 +43,7 @@ test("each example's inputs follow its workspace dependency graph", () => {
     "pnpm-lock.yaml",
     "scripts/deploy-examples-changes.mjs",
     "scripts/lib/main.mjs",
+    "scripts/lib/script-options.mjs",
     "scripts/lib/workspace.mjs",
     WORKFLOW_FILE,
   ]) {
