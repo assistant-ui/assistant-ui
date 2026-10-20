@@ -443,9 +443,9 @@ describe("POST /api/chat trace metadata", () => {
     });
     mocks.checkRateLimit.mockResolvedValue(null);
     mocks.resolveChatModel.mockReturnValue({ model: textModel("Hi") });
-    const actual = await vi.importActual<
-      typeof import("@/lib/ai/chat-route")
-    >("@/lib/ai/chat-route");
+    const actual = await vi.importActual<typeof import("@/lib/ai/chat-route")>(
+      "@/lib/ai/chat-route",
+    );
     mocks.streamDocsChat.mockImplementation(actual.streamDocsChat);
 
     const response = await withActiveTrace(traceId, () =>
