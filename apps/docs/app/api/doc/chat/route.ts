@@ -11,7 +11,6 @@ import { resolveDocsUrl } from "@/lib/docs-pages";
 import { resolveChatModel } from "@/lib/ai/provider";
 import { frontendTools } from "@assistant-ui/ai-sdk";
 import { createRepoSandbox } from "@/lib/repo-sandbox";
-import { withAssistantCloudTraceMetadata } from "assistant-cloud/telemetry";
 import {
   createUIMessageStream,
   createUIMessageStreamResponse,
@@ -418,14 +417,12 @@ export async function POST(req: Request): Promise<Response> {
         for await (const chunk of withReadDocSources(
           result.toUIMessageStream({
             originalMessages: messages,
-            // Sends traceId, usage, and modelId so client analytics and
-            // feedback join the PostHog LLM trace.
-            messageMetadata: withAssistantCloudTraceMetadata(({ part }) => {
+            messageMetadata: ({ part }) => {
               if (part.type === "finish") {
                 return { custom: { usage: part.totalUsage } };
               }
               return messageMetadata({ part });
-            }),
+            },
           }),
         )) {
           writer.write(chunk);

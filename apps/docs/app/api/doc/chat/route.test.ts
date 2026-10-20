@@ -43,11 +43,6 @@ vi.mock("@/lib/source", () => {
 });
 
 import type { UIMessageChunk } from "ai";
-import {
-  readMessageMetadata,
-  textModel,
-  withActiveTrace,
-} from "@/test/otel-trace";
 import { POST, withReadDocSources } from "./route";
 
 describe("POST /api/doc/chat access boundary", () => {
@@ -180,46 +175,6 @@ describe("POST /api/doc/chat access boundary", () => {
     );
 
     expect(mocks.resolveChatModel).toHaveBeenCalledOnce();
-  });
-});
-
-describe("POST /api/doc/chat trace metadata", () => {
-  it("streams the request's trace id so feedback can join the PostHog trace", async () => {
-    const traceId = "0123456789abcdef0123456789abcdef";
-    mocks.requireSession.mockReturnValue({
-      id: "session_1234567890",
-      expiresAt: Date.now() + 60_000,
-    });
-    mocks.checkRateLimit.mockResolvedValue(null);
-    mocks.resolveChatModel.mockReturnValue({ model: textModel("Hi") });
-
-    const response = await withActiveTrace(traceId, () =>
-      POST(
-        new Request("https://www.assistant-ui.com/api/doc/chat", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            messages: [
-              {
-                id: "user-message",
-                role: "user",
-                parts: [{ type: "text", text: "Hello" }],
-              },
-            ],
-            tools: {},
-          }),
-        }),
-      ),
-    );
-
-    expect(response.status).toBe(200);
-    expect(Object.assign({}, ...(await readMessageMetadata(response)))).toEqual(
-      expect.objectContaining({
-        traceId,
-        modelId: "mock-model",
-        custom: { usage: expect.objectContaining({ totalTokens: 5 }) },
-      }),
-    );
   });
 });
 

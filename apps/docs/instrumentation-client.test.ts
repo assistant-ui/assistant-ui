@@ -10,7 +10,6 @@ const mocks = vi.hoisted(() => ({
   opt_in_capturing: vi.fn(),
   opt_out_capturing: vi.fn(),
   has_opted_out_capturing: vi.fn(() => false),
-  get_distinct_id: vi.fn(() => "anon_1"),
 }));
 
 vi.mock("posthog-js", async (importOriginal) => ({
@@ -161,12 +160,11 @@ describe("client analytics bootstrap", () => {
     expect(mocks.group).not.toHaveBeenCalled();
   });
 
-  it("tells analytics whether it is capturing and who the visitor is", async () => {
+  it("tells analytics whether it is capturing", async () => {
     const { target } = stubBrowser({ consent: "granted" });
 
     await boot();
     expect(window.posthog?.capturing?.()).toBe(true);
-    expect(window.posthog?.distinctId?.()).toBe("anon_1");
 
     mocks.has_opted_out_capturing.mockReturnValue(true);
     choose(target, "denied");

@@ -14,7 +14,6 @@ const globalObject = globalThis as {
         event: string,
         properties?: Record<string, string | number | boolean>,
       ) => void;
-      distinctId?: () => string;
     };
   };
 };
@@ -108,84 +107,6 @@ it("tracks assistant feedback lifecycle events to PostHog", () => {
       error_message: "Failed to submit feedback",
     }),
   );
-});
-
-it("keeps the trace id for PostHog and out of Vercel Analytics", async () => {
-  const capture = vi.fn();
-  globalObject.window = { posthog: { capture } };
-  const props = {
-    threadId: "t1",
-    response_length: 12,
-    tool_calls_count: 0,
-    trace_id: "0123456789abcdef0123456789abcdef",
-  };
-
-  analytics.assistant.responseCompleted(props);
-  await vi.dynamicImportSettled();
-
-  expect(capture).toHaveBeenCalledWith("assistant_response_completed", props);
-  expect(mocks.vercelTrack).toHaveBeenCalledWith(
-    "assistant_response_completed",
-    { threadId: "t1", response_length: 12, tool_calls_count: 0 },
-  );
-});
-
-it("captures thumbs feedback as a PostHog $ai_metric on the trace", async () => {
-  const capture = vi.fn();
-  globalObject.window = { posthog: { capture } };
-
-  analytics.assistant.traceFeedback({
-    traceId: "0123456789abcdef0123456789abcdef",
-    surface: "docs_assistant",
-    type: "negative",
-    category: "outdated",
-    comment_length: 18,
-  });
-  await vi.dynamicImportSettled();
-
-  expect(capture.mock.calls).toEqual([
-    [
-      "$ai_metric",
-      {
-        surface: "docs_assistant",
-        category: "outdated",
-        comment_length: 18,
-        $ai_trace_id: "0123456789abcdef0123456789abcdef",
-        $ai_metric_name: "feedback",
-        $ai_metric_value: "negative",
-      },
-    ],
-  ]);
-  expect(mocks.vercelTrack).not.toHaveBeenCalledWith(
-    "$ai_metric",
-    expect.anything(),
-  );
-});
-
-it("keeps a signed-in visitor's events and feedback off the AI trace", () => {
-  const capture = vi.fn();
-  globalObject.window = {
-    posthog: { capture, distinctId: () => "u_pseudonym" },
-  };
-
-  analytics.assistant.responseCompleted({
-    threadId: "t1",
-    response_length: 12,
-    tool_calls_count: 0,
-    trace_id: "0123456789abcdef0123456789abcdef",
-  });
-  analytics.assistant.traceFeedback({
-    traceId: "0123456789abcdef0123456789abcdef",
-    surface: "docs_assistant",
-    type: "positive",
-  });
-
-  expect(capture.mock.calls).toEqual([
-    [
-      "assistant_response_completed",
-      { threadId: "t1", response_length: 12, tool_calls_count: 0 },
-    ],
-  ]);
 });
 
 it("tracks WebMCP host detection, registration, and calls to PostHog", () => {

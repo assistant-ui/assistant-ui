@@ -29,15 +29,3 @@ export function getToolCallToolNames(
   }
   return toolNames;
 }
-
-const TRACE_ID_RE = /^[0-9a-f]{32}$/;
-
-export function getMessageTraceId(metadata: unknown): string | undefined {
-  if (!metadata || typeof metadata !== "object") return undefined;
-  const custom = (metadata as { custom?: unknown }).custom;
-  if (!custom || typeof custom !== "object") return undefined;
-  const traceId = (custom as { traceId?: unknown }).traceId;
-  return typeof traceId === "string" && TRACE_ID_RE.test(traceId)
-    ? traceId
-    : undefined;
-}

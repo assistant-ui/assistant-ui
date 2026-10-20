@@ -71,7 +71,6 @@ if (
       group: (type, key) => {
         if (!posthog.has_opted_out_capturing()) posthog.group(type, key);
       },
-      distinctId: () => posthog.get_distinct_id(),
       capturing: () => !posthog.has_opted_out_capturing(),
     };
     window.dispatchEvent(new Event(ANALYTICS_READY_EVENT));

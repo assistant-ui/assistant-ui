@@ -12,7 +12,6 @@ declare global {
       identify?: (distinctId: string) => void;
       reset?: () => void;
       group?: (type: string, key: string) => void;
-      distinctId?: () => string;
       capturing?: () => boolean;
     };
   }
@@ -53,33 +52,14 @@ export type SetupErrorReason =
   | "session_unreadable"
   | "answer_failed";
 
-const capturePostHog = (event: string, properties?: AnalyticsProperties) => {
-  if (typeof window === "undefined") return;
-  window.posthog?.capture?.(event, properties);
-};
-
-// A signed-in visitor's distinct id is their account pseudonym (`u_`, from
-// lib/analytics-id.ts), so their events must not join a logged AI conversation.
-const isSignedInVisitor = () =>
-  window.posthog?.distinctId?.().startsWith("u_") ?? false;
-
-const withoutTraceId = ({
-  trace_id: _traceId,
-  ...properties
-}: AnalyticsProperties) => properties;
-
 const trackEvent = (event: string, properties?: AnalyticsProperties) => {
   if (typeof window === "undefined") return;
 
-  capturePostHog(
-    event,
-    properties && isSignedInVisitor() ? withoutTraceId(properties) : properties,
-  );
+  // PostHog
+  window.posthog?.capture?.(event, properties);
 
-  // Vercel Analytics gets aggregate counts only, never a trace id.
-  void getVercelTrack().then((track) =>
-    track?.(event, withoutTraceId(properties ?? {})),
-  );
+  // Vercel Analytics
+  void getVercelTrack().then((track) => track?.(event, properties));
 };
 
 export const analytics = {
@@ -242,7 +222,6 @@ export const analytics = {
       assistant_response_length: number;
       tool_calls_count: number;
       tool_names?: string;
-      trace_id?: string;
     }) => {
       trackEvent("assistant_feedback_shown", props);
     },
@@ -263,7 +242,6 @@ export const analytics = {
       assistant_response_length: number;
       tool_calls_count: number;
       tool_names?: string;
-      trace_id?: string;
     }) => {
       trackEvent("assistant_feedback_clicked", props);
     },
@@ -284,7 +262,6 @@ export const analytics = {
       assistant_response_length: number;
       tool_calls_count: number;
       tool_names?: string;
-      trace_id?: string;
       error_name: string;
       error_message: string;
     }) => {
@@ -321,7 +298,6 @@ export const analytics = {
       response_output_tokens?: number;
       pathname?: string;
       model_name?: string;
-      trace_id?: string;
     }) => {
       trackEvent("assistant_response_completed", props);
     },
@@ -337,7 +313,6 @@ export const analytics = {
       response_output_tokens?: number;
       pathname?: string;
       model_name?: string;
-      trace_id?: string;
     }) => {
       trackEvent("assistant_response_failed", props);
     },
@@ -369,36 +344,8 @@ export const analytics = {
       assistant_response_length: number;
       tool_calls_count: number;
       tool_names?: string;
-      trace_id?: string;
     }) => {
       trackEvent("assistant_feedback_submitted", props);
-    },
-
-    traceFeedback: ({
-      traceId,
-      type,
-      ...props
-    }: {
-      traceId: string;
-      type: "positive" | "negative";
-      surface?: "docs_assistant" | "home_thread";
-      category?:
-        | "wrong_information"
-        | "outdated"
-        | "didnt_answer"
-        | "too_vague"
-        | "other";
-      comment_length?: number;
-    }) => {
-      // PostHog LLM analytics joins this to the generation by $ai_trace_id;
-      // Vercel Analytics has no trace to join it to, so it is not sent there.
-      if (typeof window === "undefined" || isSignedInVisitor()) return;
-      capturePostHog("$ai_metric", {
-        ...props,
-        $ai_trace_id: traceId,
-        $ai_metric_name: "feedback",
-        $ai_metric_value: type,
-      });
     },
   },
 

@@ -12,11 +12,7 @@ import {
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
-import {
-  getMessageTraceId,
-  getTextLength,
-  getToolCallToolNames,
-} from "@/lib/assistant-metrics";
+import { getTextLength, getToolCallToolNames } from "@/lib/assistant-metrics";
 import { FeedbackPopover, type FeedbackCategory } from "./feedback-popover";
 
 const NON_WHITESPACE_RE = /\S/;
@@ -74,7 +70,6 @@ export function FeedbackActions({
   const threadId = useAuiState((s) => s.threadListItem.id);
   const messages = useAuiState((s) => s.thread.messages);
   const isRunning = useAuiState((s) => s.message.status?.type === "running");
-  const traceId = useAuiState((s) => getMessageTraceId(s.message.metadata));
   const submittedFeedback = useAuiState(
     (s) =>
       s.message.metadata?.submittedFeedback?.type as
@@ -103,7 +98,6 @@ export function FeedbackActions({
       assistant_response_length: assistantResponseLength,
       tool_calls_count: toolCallsCount,
       ...(toolNames.length > 0 ? { tool_names: toolNames.join(",") } : {}),
-      ...(traceId ? { trace_id: traceId } : {}),
     }),
     [
       assistantResponseLength,
@@ -112,7 +106,6 @@ export function FeedbackActions({
       threadId,
       toolCallsCount,
       toolNames,
-      traceId,
       userQuestionLength,
     ],
   );
@@ -163,9 +156,6 @@ export function FeedbackActions({
       ...feedbackBaseProps,
       type: "positive",
     });
-    if (traceId) {
-      analytics.assistant.traceFeedback({ traceId, surface, type: "positive" });
-    }
   };
 
   const handleNegativeFeedback = (
@@ -200,15 +190,6 @@ export function FeedbackActions({
     analytics.assistant.feedbackSubmitted({
       ...negativeFeedbackProps,
     });
-    if (traceId) {
-      analytics.assistant.traceFeedback({
-        traceId,
-        surface,
-        type: "negative",
-        category,
-        ...(comment ? { comment_length: comment.length } : {}),
-      });
-    }
   };
 
   return (
