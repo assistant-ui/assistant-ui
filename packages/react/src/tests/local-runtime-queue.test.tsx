@@ -5,8 +5,8 @@ import type { FC } from "react";
 import { describe, it, expect } from "vitest";
 import { useAui } from "@assistant-ui/store";
 import { AssistantRuntimeProvider } from "../context";
-import { useLocalRuntime } from "../legacy-runtime/runtime-cores/local/useLocalRuntime";
-import type { ChatModelAdapter } from "../legacy-runtime/runtime-cores/local/ChatModelAdapter";
+import { useLocalRuntime } from "@assistant-ui/core/react";
+import type { ChatModelAdapter } from "@assistant-ui/core";
 
 const flush = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 

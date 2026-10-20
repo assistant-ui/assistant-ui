@@ -60,7 +60,7 @@ export {
   SimpleTextAttachmentAdapter,
   CompositeAttachmentAdapter,
 } from "@assistant-ui/core";
-export { CloudFileAttachmentAdapter } from "./legacy-runtime/runtime-cores/adapters/attachment/CloudFileAttachmentAdapter";
+export { CloudFileAttachmentAdapter } from "@assistant-ui/core/react";
 
 // --- adapters/voice ---
 export type { RealtimeVoiceAdapter } from "@assistant-ui/core";
@@ -164,7 +164,7 @@ export {
   type ExternalThreadQueueAdapter,
   type ExternalThreadBranchAdapter,
 } from "@assistant-ui/core";
-export { useExternalStoreRuntime } from "./legacy-runtime/runtime-cores/external-store/useExternalStoreRuntime";
+export { useExternalStoreRuntime } from "@assistant-ui/core/react";
 export { useExternalStoreSharedOptions } from "@assistant-ui/core/react";
 export {
   useExternalMessageConverter,
@@ -174,11 +174,11 @@ export {
   createExternalMessageConversionCache as unstable_createExternalMessageConversionCache,
   /** @deprecated Experimental since 2026-09-15. Not scheduled for removal; the API may change in any release. */
   type ExternalMessageConversionCache as Unstable_ExternalMessageConversionCache,
-} from "./legacy-runtime/runtime-cores/external-store/external-message-converter";
+} from "@assistant-ui/core/react";
 export {
   /** @deprecated Experimental since 2025-02-02. Not scheduled for removal; the API may change in any release. */
   createMessageConverter as unstable_createMessageConverter,
-} from "./legacy-runtime/runtime-cores/external-store/createMessageConverter";
+} from "@assistant-ui/core/react";
 
 // --- local ---
 export type {
@@ -188,12 +188,12 @@ export type {
   ChatModelRunUpdate,
   LocalRuntimeOptionsBase,
 } from "@assistant-ui/core";
-export { useLocalRuntime } from "./legacy-runtime/runtime-cores/local/useLocalRuntime";
-export type { LocalRuntimeOptions } from "./legacy-runtime/runtime-cores/local/LocalRuntimeOptions";
+export { useLocalRuntime } from "@assistant-ui/core/react";
+export type { LocalRuntimeOptions } from "@assistant-ui/core/react";
 
 // --- remote-thread-list ---
-export { useRemoteThreadListRuntime } from "./legacy-runtime/runtime-cores/remote-thread-list/useRemoteThreadListRuntime";
-export { useCloudThreadListAdapter } from "./legacy-runtime/runtime-cores/remote-thread-list/adapter/cloud";
+export { useRemoteThreadListRuntime } from "@assistant-ui/core/react";
+export { useCloudThreadListAdapter } from "@assistant-ui/core/react";
 export type {
   RemoteThreadListAdapter,
   RemoteThreadListProviderComponent,
