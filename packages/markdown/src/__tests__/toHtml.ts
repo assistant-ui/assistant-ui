@@ -35,6 +35,8 @@ const inlineHtml = (nodes: InlineNode[]): string =>
           return `<img src="${escapeHtml(node.url)}" alt="${escapeHtml(node.alt)}"${node.title === undefined ? "" : ` title="${escapeHtml(node.title)}"`} />`;
         case "htmlInline":
           return node.value;
+        case "mathInline":
+          return `<span class="math">${escapeHtml(node.value)}</span>`;
         case "hardBreak":
           return "<br />\n";
         case "softBreak":
@@ -80,6 +82,8 @@ export const toHtml = (blocks: BlockNode[]): string =>
           return `<pre><code${node.lang === undefined ? "" : ` class="language-${escapeHtml(node.lang)}"`}>${escapeHtml(node.value)}</code></pre>\n`;
         case "htmlBlock":
           return node.value;
+        case "mathBlock":
+          return `<div class="math">${escapeHtml(node.value)}</div>\n`;
         case "table":
           throw new Error("CommonMark does not contain tables");
       }

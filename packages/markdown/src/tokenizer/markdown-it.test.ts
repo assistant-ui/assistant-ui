@@ -398,7 +398,7 @@ test("raw block and inline HTML keep their source value", () => {
 
 test("CommonMark mode leaves pipe tables and double tildes as paragraph text", () => {
   expect(
-    createMarkdownItTokenizer({ gfm: false }).parse(
+    createMarkdownItTokenizer({ extensions: false }).parse(
       "| a | b |\n| - | - |\n| x | y |\n\n~~x~~\n",
     ).blocks,
   ).toEqual([

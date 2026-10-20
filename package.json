@@ -37,6 +37,8 @@
     "knip:check": "node scripts/check-knip.mjs",
     "knip:test": "node --test scripts/check-knip.test.mjs",
     "knip:update": "node scripts/check-knip.mjs --update",
+    "adapter-architecture:check": "node scripts/check-adapter-architecture.mjs",
+    "adapter-architecture:test": "node --test scripts/check-adapter-architecture.test.mjs",
     "unmanaged-pins:check": "node scripts/check-unmanaged-pins.mjs",
     "unmanaged-pins:test": "node --test scripts/check-unmanaged-pins.test.mjs",
     "skills-commit:check": "node scripts/check-skills-commit.mjs",
