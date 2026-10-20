@@ -187,8 +187,9 @@ describe("stepStreamingTiming", () => {
     expect(r2.state?.lastContentLength).toBe(0);
   });
 
-  it("records firstTokenTime only once, at the first content growth", () => {
-    const now = makeClock();
+  it.each([0, 10])("preserves first-token timing of %i ms", (delay) => {
+    let time = 0;
+    const now = () => time;
     const r1 = stepStreamingTiming(
       null,
       [msg("m1", "")],
@@ -197,6 +198,7 @@ describe("stepStreamingTiming", () => {
       undefined,
       now,
     );
+    time = delay;
     const r2 = stepStreamingTiming(
       r1.state,
       [msg("m1", "first")],
@@ -205,7 +207,8 @@ describe("stepStreamingTiming", () => {
       undefined,
       now,
     );
-    expect(r2.state?.firstTokenTime).toBe(10);
+    expect(r2.state?.firstTokenTime).toBe(delay);
+    time += 10;
     const r3 = stepStreamingTiming(
       r2.state,
       [msg("m1", "first second")],
@@ -214,8 +217,7 @@ describe("stepStreamingTiming", () => {
       undefined,
       now,
     );
-    // firstTokenTime unchanged on later growth.
-    expect(r3.state?.firstTokenTime).toBe(10);
+    expect(r3.state?.firstTokenTime).toBe(delay);
     expect(r3.state?.totalChunks).toBe(2);
   });
 
