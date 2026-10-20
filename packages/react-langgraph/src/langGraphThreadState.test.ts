@@ -1,6 +1,7 @@
 // @vitest-environment node
 
 import { describe, expect, it } from "vitest";
+import type { CompleteAttachment } from "@assistant-ui/core";
 import type { LangChainMessage } from "./types";
 import {
   createLangGraphThreadState,
@@ -23,6 +24,96 @@ const tool = (id: string): LangChainMessage & { type: "tool" } => ({
 });
 
 describe("reduceLangGraphThreadState", () => {
+  it("stages and restores messages without changing earlier maps", () => {
+    const initial = createLangGraphThreadState();
+    const entry = {
+      message: { type: "human" as const, id: "draft", content: "hello" },
+      runConfig: undefined,
+    };
+    const staged = reduceLangGraphThreadState(initial, {
+      type: "staged.set",
+      entry,
+    });
+    const removed = reduceLangGraphThreadState(staged, {
+      type: "staged.remove",
+      ids: ["draft"],
+    });
+    const restored = reduceLangGraphThreadState(removed, {
+      type: "staged.restore",
+      entries: staged.stagedMessages,
+    });
+    expect(initial.stagedMessages.size).toBe(0);
+    expect(staged.stagedMessages.get("draft")).toBe(entry);
+    expect(removed.stagedMessages.size).toBe(0);
+    expect(restored.stagedMessages.get("draft")).toBe(entry);
+    expect(
+      reduceLangGraphThreadState(restored, {
+        type: "staged.restore",
+        entries: staged.stagedMessages,
+      }),
+    ).toBe(restored);
+  });
+
+  it("tracks unsent transcripts through send, prune, and rollback", () => {
+    const initial = createLangGraphThreadState();
+    const added = reduceLangGraphThreadState(initial, {
+      type: "transcripts.add",
+      ids: ["sent", "kept"],
+    });
+    const sent = reduceLangGraphThreadState(added, {
+      type: "transcripts.remove",
+      ids: ["sent"],
+    });
+    const pruned = reduceLangGraphThreadState(sent, {
+      type: "transcripts.prune",
+      ids: new Set(["other"]),
+    });
+    const restored = reduceLangGraphThreadState(pruned, {
+      type: "operation.restore",
+      previous: added,
+    });
+    expect(initial.unsentTranscriptIds.size).toBe(0);
+    expect([...added.unsentTranscriptIds]).toEqual(["sent", "kept"]);
+    expect([...sent.unsentTranscriptIds]).toEqual(["kept"]);
+    expect(pruned.unsentTranscriptIds.size).toBe(0);
+    expect([...restored.unsentTranscriptIds]).toEqual(["sent", "kept"]);
+  });
+
+  it("keeps attachments in state across prune and rollback", () => {
+    const initial = createLangGraphThreadState();
+    const attachments: readonly CompleteAttachment[] = [];
+    const staged = reduceLangGraphThreadState(initial, {
+      type: "attachments.stage",
+      id: "draft",
+      attachments,
+    });
+    const pruned = reduceLangGraphThreadState(staged, {
+      type: "messages.prune",
+      history: [],
+    });
+    const restored = reduceLangGraphThreadState(pruned, {
+      type: "operation.restore",
+      previous: staged,
+    });
+    expect(initial.attachmentsByMessageId.size).toBe(0);
+    expect(staged.attachmentsByMessageId.get("draft")).toBe(attachments);
+    expect(pruned.attachmentsByMessageId.size).toBe(0);
+    expect(restored.attachmentsByMessageId.get("draft")).toBe(attachments);
+  });
+
+  it("keeps the attachments map when a prune drops none of them", () => {
+    const staged = reduceLangGraphThreadState(createLangGraphThreadState(), {
+      type: "attachments.stage",
+      id: "draft",
+      attachments: [],
+    });
+    const pruned = reduceLangGraphThreadState(staged, {
+      type: "messages.prune",
+      history: [{ type: "human", id: "draft", content: "hi" }],
+    });
+    expect(pruned.attachmentsByMessageId).toBe(staged.attachmentsByMessageId);
+  });
+
   it("records new message and tool ownership without replacing existing owners", () => {
     const initial = createLangGraphThreadState();
     const started = reduceLangGraphThreadState(initial, {

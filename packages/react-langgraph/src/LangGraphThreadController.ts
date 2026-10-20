@@ -7,6 +7,7 @@ import {
 export class LangGraphThreadController {
   private state = createLangGraphThreadState();
   private listeners = new Set<() => void>();
+  private stateListeners = new Set<() => void>();
   private queuedReplyIds: ReadonlySet<string> = new Set();
 
   public getState = () => this.state;
@@ -17,13 +18,18 @@ export class LangGraphThreadController {
     return () => this.listeners.delete(listener);
   };
 
+  public subscribeState = (listener: () => void) => {
+    this.stateListeners.add(listener);
+    return () => this.stateListeners.delete(listener);
+  };
+
   public dispatch = (action: LangGraphThreadAction) => {
-    const previousBuffer = this.state.toolResultBuffer;
-    const previousPendingResume = this.state.pendingResume;
-    this.state = reduceLangGraphThreadState(this.state, action);
+    const previous = this.state;
+    this.state = reduceLangGraphThreadState(previous, action);
+    if (this.state === previous) return this.state;
     if (
-      previousBuffer !== this.state.toolResultBuffer ||
-      previousPendingResume !== this.state.pendingResume
+      previous.toolResultBuffer !== this.state.toolResultBuffer ||
+      previous.pendingResume !== this.state.pendingResume
     ) {
       const queuedReplyIds = new Set([
         ...this.state.toolResultBuffer.keys(),
@@ -39,6 +45,7 @@ export class LangGraphThreadController {
         for (const listener of this.listeners) listener();
       }
     }
+    for (const listener of this.stateListeners) listener();
     return this.state;
   };
 }

@@ -151,21 +151,6 @@ const useLangGraphRuntimeImpl = (
     Record<string, unknown> | undefined
   >();
 
-  // Attachments the composer handed to onNew/onEdit, keyed by the staged human
-  // message id. The wire message only carries flattened `content` (so the model
-  // input is unchanged), while the converter reattaches them here so
-  // MessagePrimitive.Attachments can render them as standalone cards.
-  const attachmentsByMessageIdRef = useRef(
-    new Map<string, readonly CompleteAttachment[]>(),
-  );
-  const stageAttachments = (
-    id: string,
-    attachments: readonly CompleteAttachment[] | undefined,
-  ) => {
-    if (attachments?.length)
-      attachmentsByMessageIdRef.current.set(id, attachments);
-  };
-
   // Ref-based reconcile so inline `uiComponents` objects don't re-register
   // every render via `useEffect` dependency identity.
   const uiFallback = uiComponents?.fallback;
@@ -219,10 +204,27 @@ const useLangGraphRuntimeImpl = (
     };
   }, []);
   const [threadController] = useState(() => new LangGraphThreadController());
+  const stageAttachments = (
+    id: string,
+    attachments: readonly CompleteAttachment[] | undefined,
+  ) => {
+    if (attachments?.length)
+      threadController.dispatch({ type: "attachments.stage", id, attachments });
+  };
   const queuedReplyIds = useSyncExternalStore(
     threadController.subscribe,
     threadController.getQueuedReplyIds,
     threadController.getQueuedReplyIds,
+  );
+  const attachmentsByMessageId = useSyncExternalStore(
+    threadController.subscribeState,
+    () => threadController.getState().attachmentsByMessageId,
+    () => threadController.getState().attachmentsByMessageId,
+  );
+  const hasStagedMessages = useSyncExternalStore(
+    threadController.subscribeState,
+    () => threadController.getState().stagedMessages.size > 0,
+    () => threadController.getState().stagedMessages.size > 0,
   );
   const wrappedEventHandlers = useMemo(
     () =>
@@ -275,13 +277,6 @@ const useLangGraphRuntimeImpl = (
   const pruneMessageCaches = useCallback(
     (history: LangChainMessage[]) => {
       threadController.dispatch({ type: "messages.prune", history });
-      const survivingMessageIds = new Set(
-        history.flatMap((message) => (message.id ? [message.id] : [])),
-      );
-      for (const id of attachmentsByMessageIdRef.current.keys()) {
-        if (!survivingMessageIds.has(id))
-          attachmentsByMessageIdRef.current.delete(id);
-      }
     },
     [threadController],
   );
@@ -382,11 +377,18 @@ const useLangGraphRuntimeImpl = (
         toolArgsKeyOrderCache: toolArgsKeyOrderCacheRef.current,
         uiMessagesByParent,
         messageTiming,
-        attachmentsByMessageId: attachmentsByMessageIdRef.current,
+        attachmentsByMessageId,
         streamingMessage: isRunning ? messages.at(-1) : undefined,
         bufferedReplyIds: queuedReplyIds,
       }) as unknown as useExternalMessageConverter.Metadata,
-    [uiMessagesByParent, messageTiming, isRunning, messages, queuedReplyIds],
+    [
+      uiMessagesByParent,
+      messageTiming,
+      attachmentsByMessageId,
+      isRunning,
+      messages,
+      queuedReplyIds,
+    ],
   );
 
   const sendMessageRef = useRef(sendMessage);
@@ -397,7 +399,6 @@ const useLangGraphRuntimeImpl = (
   // Runs on a thread never overlap: a send arriving while a run is still
   // draining (e.g. a frontend tool result resuming the graph) waits for it to
   // settle. isRunning flips atomically with the final reconcile via onComplete.
-  const unsentTranscriptIdsRef = useRef(new Set<string>());
   const runQueueRef = useRef<SerialRunQueue<{
     messages: LangChainMessage[];
     config: LangGraphSendMessageConfig;
@@ -427,16 +428,22 @@ const useLangGraphRuntimeImpl = (
       });
       const runId = started.currentRunId!;
       messages = started.startedMessages!;
+      const unsentTranscriptIds =
+        threadController.getState().unsentTranscriptIds;
       const carriedTranscriptIds = messages.flatMap((message) =>
-        message.id !== undefined &&
-        unsentTranscriptIdsRef.current.delete(message.id)
+        message.id !== undefined && unsentTranscriptIds.has(message.id)
           ? [message.id]
           : [],
       );
+      threadController.dispatch({
+        type: "transcripts.remove",
+        ids: carriedTranscriptIds,
+      });
       const restoreTranscripts = () => {
-        for (const id of carriedTranscriptIds) {
-          unsentTranscriptIdsRef.current.add(id);
-        }
+        threadController.dispatch({
+          type: "transcripts.add",
+          ids: carriedTranscriptIds,
+        });
       };
       const send = (resolved: LangGraphSendMessageConfig) =>
         sendMessageRef.current(
@@ -660,14 +667,17 @@ const useLangGraphRuntimeImpl = (
 
   const appendVoiceTranscript = (message: ThreadMessage) => {
     const transcript = toLangGraphTranscriptMessage(message);
-    unsentTranscriptIdsRef.current.add(transcript.id);
+    threadController.dispatch({
+      type: "transcripts.add",
+      ids: [transcript.id],
+    });
     const nextMessages = [...langGraphMessagesRef.current, transcript];
     langGraphMessagesRef.current = nextMessages;
     setMessages(nextMessages);
   };
 
   const getUnsentTranscripts = () => {
-    const unsent = unsentTranscriptIdsRef.current;
+    const unsent = threadController.getState().unsentTranscriptIds;
     if (unsent.size === 0) return [];
     return langGraphMessagesRef.current.filter(
       (message) => message.id !== undefined && unsent.has(message.id),
@@ -677,7 +687,7 @@ const useLangGraphRuntimeImpl = (
   // A transcript reaches the graph in the same input as the message after it, so
   // no checkpoint ends at one; a fork starts before the trailing transcripts.
   const splitTranscriptTail = (history: readonly LangChainMessage[]) => {
-    const unsent = unsentTranscriptIdsRef.current;
+    const unsent = threadController.getState().unsentTranscriptIds;
     let start = history.length;
     while (start > 0) {
       const message = history[start - 1]!;
@@ -686,9 +696,7 @@ const useLangGraphRuntimeImpl = (
       start--;
     }
     const kept = new Set(history.map((message) => message.id));
-    for (const id of unsent) {
-      if (!kept.has(id)) unsent.delete(id);
-    }
+    threadController.dispatch({ type: "transcripts.prune", ids: kept });
     return { base: history.slice(0, start), transcripts: history.slice(start) };
   };
 
@@ -734,26 +742,15 @@ const useLangGraphRuntimeImpl = (
     });
   };
 
-  const stagedMessagesRef = useRef(
-    new Map<
-      string,
-      {
-        message: LangChainMessage & { id: string };
-        runConfig: AppendMessage["runConfig"];
-      }
-    >(),
-  );
-  const [stagedMessageCount, setStagedMessageCount] = useState(0);
-  const hasStagedMessages = stagedMessageCount > 0;
-
   const getStagedRun = (parentId: string | null) => {
-    if (!parentId || !stagedMessagesRef.current.has(parentId)) return null;
+    const { stagedMessages, unsentTranscriptIds } = threadController.getState();
+    if (!parentId || !stagedMessages.has(parentId)) return null;
 
     const staged: LangChainMessage[] = [];
     for (const message of langGraphMessagesRef.current) {
-      if (message.id && stagedMessagesRef.current.has(message.id)) {
-        staged.push(stagedMessagesRef.current.get(message.id)!.message);
-      } else if (message.id && unsentTranscriptIdsRef.current.has(message.id)) {
+      if (message.id && stagedMessages.has(message.id)) {
+        staged.push(stagedMessages.get(message.id)!.message);
+      } else if (message.id && unsentTranscriptIds.has(message.id)) {
         staged.push(message);
       }
       if (message.id === parentId) break;
@@ -761,7 +758,7 @@ const useLangGraphRuntimeImpl = (
 
     return {
       messages: staged,
-      runConfig: stagedMessagesRef.current.get(parentId)!.runConfig,
+      runConfig: stagedMessages.get(parentId)!.runConfig,
     };
   };
 
@@ -772,9 +769,6 @@ const useLangGraphRuntimeImpl = (
     interrupt: interruptRef.current,
     threadState: threadController.getState(),
     pendingState: pendingStateRef.current,
-    unsentTranscriptIds: new Set(unsentTranscriptIdsRef.current),
-    stagedMessages: new Map(stagedMessagesRef.current),
-    attachments: new Map(attachmentsByMessageIdRef.current),
   });
 
   const pendingOperationRef = useRef<{
@@ -822,17 +816,10 @@ const useLangGraphRuntimeImpl = (
         snapshot.loadGeneration !== loadGenerationRef.current,
       ),
     );
-    for (const id of snapshot.unsentTranscriptIds)
-      unsentTranscriptIdsRef.current.add(id);
-    for (const [id, staged] of snapshot.stagedMessages) {
-      if (!stagedMessagesRef.current.has(id))
-        stagedMessagesRef.current.set(id, staged);
-    }
-    setStagedMessageCount(stagedMessagesRef.current.size);
-    for (const [id, attachments] of snapshot.attachments) {
-      if (!attachmentsByMessageIdRef.current.has(id))
-        attachmentsByMessageIdRef.current.set(id, attachments);
-    }
+    threadController.dispatch({
+      type: "operation.restore",
+      previous: snapshot.threadState,
+    });
     threadController.dispatch({
       type: "run.preEventFailed",
       previous: snapshot.threadState,
@@ -846,11 +833,10 @@ const useLangGraphRuntimeImpl = (
   const stageUserMessage = (msg: AppendMessage) => {
     const stagedMessage = toLangGraphUserMessage(msg);
     stageAttachments(stagedMessage.id, msg.attachments);
-    stagedMessagesRef.current.set(stagedMessage.id, {
-      message: stagedMessage,
-      runConfig: msg.runConfig,
+    threadController.dispatch({
+      type: "staged.set",
+      entry: { message: stagedMessage, runConfig: msg.runConfig },
     });
-    setStagedMessageCount(stagedMessagesRef.current.size);
     const nextMessages = [...langGraphMessagesRef.current, stagedMessage];
     langGraphMessagesRef.current = nextMessages;
     setMessages(nextMessages);
@@ -1146,11 +1132,10 @@ const useLangGraphRuntimeImpl = (
             pruneMessageCaches(truncated);
             const stagedMessage = toLangGraphUserMessage(msg);
             stageAttachments(stagedMessage.id, msg.attachments);
-            stagedMessagesRef.current.set(stagedMessage.id, {
-              message: stagedMessage,
-              runConfig: msg.runConfig,
+            threadController.dispatch({
+              type: "staged.set",
+              entry: { message: stagedMessage, runConfig: msg.runConfig },
             });
-            setStagedMessageCount(stagedMessagesRef.current.size);
             const nextMessages = [...truncated, stagedMessage];
             langGraphMessagesRef.current = nextMessages;
             setMessages(nextMessages);
@@ -1197,10 +1182,12 @@ const useLangGraphRuntimeImpl = (
             const snapshot = stagedRun ? captureOperationSnapshot() : null;
             queueRef.current?.clear();
             if (stagedRun && snapshot) {
-              for (const message of stagedRun.messages) {
-                if (message.id) stagedMessagesRef.current.delete(message.id);
-              }
-              setStagedMessageCount(stagedMessagesRef.current.size);
+              threadController.dispatch({
+                type: "staged.remove",
+                ids: stagedRun.messages.flatMap((message) =>
+                  message.id ? [message.id] : [],
+                ),
+              });
               return handleSendMessage(
                 stagedRun.messages,
                 { runConfig: config.runConfig ?? stagedRun.runConfig },
@@ -1208,11 +1195,10 @@ const useLangGraphRuntimeImpl = (
                 undefined,
                 () => {
                   if (truncationRef.current !== truncation) return;
-                  for (const [id, staged] of snapshot.stagedMessages) {
-                    if (!stagedMessagesRef.current.has(id))
-                      stagedMessagesRef.current.set(id, staged);
-                  }
-                  setStagedMessageCount(stagedMessagesRef.current.size);
+                  threadController.dispatch({
+                    type: "staged.restore",
+                    entries: snapshot.threadState.stagedMessages,
+                  });
                   threadController.dispatch({
                     type: "run.preEventFailed",
                     previous: snapshot.threadState,

@@ -400,7 +400,7 @@ test("CommonMark mode leaves pipe tables and double tildes as paragraph text", (
   expect(
     createMarkdownItTokenizer({ gfm: false }).parse(
       "| a | b |\n| - | - |\n| x | y |\n\n~~x~~\n",
-    ),
+    ).blocks,
   ).toEqual([
     {
       type: "paragraph",

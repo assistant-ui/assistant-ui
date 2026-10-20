@@ -1,4 +1,5 @@
 export { parseMarkdown } from "./parse";
+export { createMarkdownSession, type MarkdownSession } from "./session";
 
 export type {
   BlockNode,
