@@ -9,7 +9,10 @@ import type {
   AssistantClient,
   AssistantState,
 } from "@assistant-ui/store/client";
-import { threadListLoadMoreDisabled } from "@assistant-ui/core/store/internal";
+import {
+  threadListItemUnarchiveDisabled,
+  threadListLoadMoreDisabled,
+} from "@assistant-ui/core/store/internal";
 import { isAttrDisabled } from "./attrDisabled";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
@@ -46,7 +49,7 @@ export const ThreadListPrimitiveLoadMore = defineComponent({
 const threadListItemAction = (
   name: string,
   action: (aui: AssistantClient) => void,
-  isSupported: (state: AssistantState) => boolean = () => true,
+  isDisabled: (state: AssistantState) => boolean = () => false,
 ) =>
   defineComponent({
     name,
@@ -54,9 +57,9 @@ const threadListItemAction = (
     slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
     setup(_, { attrs, slots }) {
       const aui = useAui();
-      const supported = useAuiState(isSupported);
+      const disabled = useAuiState(isDisabled);
       const onClick = (event: MouseEvent) => {
-        if (event.defaultPrevented || !supported.value || isAttrDisabled(attrs))
+        if (event.defaultPrevented || disabled.value || isAttrDisabled(attrs))
           return;
         action(aui);
       };
@@ -65,7 +68,7 @@ const threadListItemAction = (
           "button",
           mergeProps(attrs, {
             type: "button",
-            disabled: !supported.value || isAttrDisabled(attrs),
+            disabled: disabled.value || isAttrDisabled(attrs),
             onClick,
           }),
           slots.default?.(),
@@ -83,7 +86,7 @@ export const ThreadListItemPrimitiveArchive = threadListItemAction(
 export const ThreadListItemPrimitiveUnarchive = threadListItemAction(
   "ThreadListItemPrimitiveUnarchive",
   (aui) => aui.threadListItem.unarchive(),
-  (s) => s.threads.canUnarchive,
+  threadListItemUnarchiveDisabled,
 );
 
 /** A button that deletes the current thread list item. */

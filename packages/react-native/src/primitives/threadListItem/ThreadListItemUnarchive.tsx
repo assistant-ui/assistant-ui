@@ -21,10 +21,6 @@ export const ThreadListItemUnarchive = ({
       accessibilityRole="button"
       {...pressableProps}
       disabled={pressableProps.disabled || disabled}
-      accessibilityState={{
-        ...pressableProps.accessibilityState,
-        disabled: pressableProps.disabled || disabled,
-      }}
     >
       {children}
     </Primitive.Pressable>

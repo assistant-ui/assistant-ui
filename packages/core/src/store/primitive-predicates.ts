@@ -111,3 +111,6 @@ export const messageErrorText = (
 
 export const threadListLoadMoreDisabled = (s: AssistantState): boolean =>
   !s.threads.hasMore || s.threads.isLoading || s.threads.isLoadingMore;
+
+export const threadListItemUnarchiveDisabled = (s: AssistantState): boolean =>
+  !s.threads.canUnarchive;
