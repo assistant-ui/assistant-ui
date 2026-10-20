@@ -122,10 +122,7 @@ const closeIncompleteLink = (nodes: InlineNode[]): InlineNode[] | undefined => {
 };
 
 /** Closes the constructs left open at the end of a streaming inline run. */
-export const closeOpenInlines = (
-  nodes: InlineNode[],
-  depth = 0,
-): InlineNode[] => {
+const closeOpenInlines = (nodes: InlineNode[], depth = 0): InlineNode[] => {
   if (depth >= MAX_DEPTH) return nodes;
   const linked = closeIncompleteLink(nodes);
   if (linked) return closeOpenInlines(linked, depth);
