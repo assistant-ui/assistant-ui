@@ -98,11 +98,6 @@ type LocalStorageAdapterOptions = {
   titleGenerator?: TitleGenerationAdapter | undefined;
 };
 
-export {
-  parseStoredThreadMetadata,
-  parseStoredMessageRepository,
-} from "./storageCodec";
-
 class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
   private storage: AsyncStorageLike;
   private getAui: () => ReturnType<typeof useAui>;
