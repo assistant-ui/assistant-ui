@@ -6,11 +6,11 @@ import { createMarkdownSession, createSession } from "./session";
 const stream = (source: string, chunks: Iterable<number>, label: string) => {
   const session = createMarkdownSession();
   let length = 0;
-  let previous = session.update("");
+  let previous = session.update("", { final: true });
   for (const size of chunks) {
     length = Math.min(length + size, source.length);
     const prefix = source.slice(0, length);
-    const actual = session.update(prefix);
+    const actual = session.update(prefix, { final: true });
     const expected = parseMarkdown(prefix);
     if (JSON.stringify(actual) !== JSON.stringify(expected)) {
       expect(
@@ -150,7 +150,7 @@ test.each([
   const parse = vi.fn((source: string) => markdownTokenizer.parse(source));
   const session = createSession({ parse });
   session.update(initial);
-  expect(session.update(next)).toEqual(parseMarkdown(next));
+  expect(session.update(next, { final: true })).toEqual(parseMarkdown(next));
   expect(parse.mock.lastCall?.[0]).toBe(next);
 });
 
@@ -165,7 +165,7 @@ test("a late reference definition reparses earlier links and keeps whole-text mo
     lines: { start: 0, end: 1 },
     children: [{ type: "text", value: "See [docs][d]." }],
   });
-  const actual = session.update(defined);
+  const actual = session.update(defined, { final: true });
   expect(actual).toEqual(parseMarkdown(defined));
   expect(actual.children[0]).toEqual({
     type: "paragraph",
@@ -185,7 +185,7 @@ test("a late reference definition reparses earlier links and keeps whole-text mo
     defined,
   ]);
   const later = `${defined}\n\nAfter.`;
-  expect(session.update(later)).toEqual(parseMarkdown(later));
+  expect(session.update(later, { final: true })).toEqual(parseMarkdown(later));
   expect(parse.mock.lastCall?.[0]).toBe(later);
 });
 
@@ -193,7 +193,7 @@ test("an empty first update and later appends return whole-text-equivalent trees
   const parse = vi.fn((source: string) => markdownTokenizer.parse(source));
   const session = createSession({ parse });
   for (const text of ["", "A", "A\n", "A\n\nB"]) {
-    expect(session.update(text)).toEqual(parseMarkdown(text));
+    expect(session.update(text, { final: true })).toEqual(parseMarkdown(text));
   }
   expect(parse.mock.calls.map(([source]) => source)).toEqual([
     "",
