@@ -11,16 +11,30 @@ describe("WebSpeechSynthesisAdapter", () => {
   const stubSpeechSynthesis = () => {
     const utterances: EventTarget[] = [];
     class MockSpeechSynthesisUtterance extends EventTarget {
-      constructor() {
+      text: string;
+
+      constructor(text: string) {
         super();
+        this.text = text;
         utterances.push(this);
       }
     }
+    const speak = vi.fn();
     const cancel = vi.fn();
     vi.stubGlobal("SpeechSynthesisUtterance", MockSpeechSynthesisUtterance);
-    vi.stubGlobal("window", { speechSynthesis: { speak: vi.fn(), cancel } });
-    return { utterances, cancel };
+    vi.stubGlobal("window", { speechSynthesis: { speak, cancel } });
+    return { utterances, speak, cancel };
   };
+
+  it("passes the requested text to browser speech synthesis", () => {
+    const { speak } = stubSpeechSynthesis();
+
+    new WebSpeechSynthesisAdapter().speak("Read this message aloud.");
+
+    expect(speak).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ text: "Read this message aloud." }),
+    );
+  });
 
   it.each(["end", "error"])(
     "does not cancel newer playback through a handle that received %s",
