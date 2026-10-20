@@ -14,6 +14,7 @@ const globalObject = globalThis as {
         event: string,
         properties?: Record<string, string | number | boolean>,
       ) => void;
+      distinctId?: () => string;
     };
   };
 };
@@ -159,6 +160,32 @@ it("captures thumbs feedback as a PostHog $ai_metric on the trace", async () => 
     "$ai_metric",
     expect.anything(),
   );
+});
+
+it("keeps a signed-in visitor's events and feedback off the AI trace", () => {
+  const capture = vi.fn();
+  globalObject.window = {
+    posthog: { capture, distinctId: () => "u_pseudonym" },
+  };
+
+  analytics.assistant.responseCompleted({
+    threadId: "t1",
+    response_length: 12,
+    tool_calls_count: 0,
+    trace_id: "0123456789abcdef0123456789abcdef",
+  });
+  analytics.assistant.traceFeedback({
+    traceId: "0123456789abcdef0123456789abcdef",
+    surface: "docs_assistant",
+    type: "positive",
+  });
+
+  expect(capture.mock.calls).toEqual([
+    [
+      "assistant_response_completed",
+      { threadId: "t1", response_length: 12, tool_calls_count: 0 },
+    ],
+  ]);
 });
 
 it("tracks WebMCP host detection, registration, and calls to PostHog", () => {

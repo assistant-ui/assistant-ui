@@ -51,9 +51,17 @@ export function resetAnalyticsUser(): void {
 /** Records a sign-in started from the demo; the return from accounts reports it as completed. */
 export function trackDemoSignInClick(location: "sidebar" | "budget"): void {
   analytics.demo.signInClicked(location);
-  // Before PostHog starts (or under GPC) nothing analytics-related is stored.
-  if (!window.posthog) return;
+  // Nothing analytics-related is stored unless PostHog is running and capturing.
+  if (!window.posthog?.capturing?.()) return;
   try {
     window.sessionStorage.setItem(SIGN_IN_STORAGE_KEY, location);
+  } catch {}
+}
+
+/** Drops a pending demo sign-in after a decline, so a later accept cannot report it. */
+export function forgetDemoSignIn(): void {
+  signedInFrom = null;
+  try {
+    window.sessionStorage.removeItem(SIGN_IN_STORAGE_KEY);
   } catch {}
 }

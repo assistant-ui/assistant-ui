@@ -12,6 +12,8 @@ declare global {
       identify?: (distinctId: string) => void;
       reset?: () => void;
       group?: (type: string, key: string) => void;
+      distinctId?: () => string;
+      capturing?: () => boolean;
     };
   }
 }
@@ -56,15 +58,28 @@ const capturePostHog = (event: string, properties?: AnalyticsProperties) => {
   window.posthog?.capture?.(event, properties);
 };
 
+// A signed-in visitor's distinct id is their account pseudonym (`u_`, from
+// lib/analytics-id.ts), so their events must not join a logged AI conversation.
+const isSignedInVisitor = () =>
+  window.posthog?.distinctId?.().startsWith("u_") ?? false;
+
+const withoutTraceId = ({
+  trace_id: _traceId,
+  ...properties
+}: AnalyticsProperties) => properties;
+
 const trackEvent = (event: string, properties?: AnalyticsProperties) => {
   if (typeof window === "undefined") return;
 
-  capturePostHog(event, properties);
+  capturePostHog(
+    event,
+    properties && isSignedInVisitor() ? withoutTraceId(properties) : properties,
+  );
 
-  // Vercel Analytics gets aggregate counts only; a trace id would join an
-  // event to a logged AI conversation.
-  const { trace_id: _traceId, ...vercelProperties } = properties ?? {};
-  void getVercelTrack().then((track) => track?.(event, vercelProperties));
+  // Vercel Analytics gets aggregate counts only, never a trace id.
+  void getVercelTrack().then((track) =>
+    track?.(event, withoutTraceId(properties ?? {})),
+  );
 };
 
 export const analytics = {
@@ -377,6 +392,7 @@ export const analytics = {
     }) => {
       // PostHog LLM analytics joins this to the generation by $ai_trace_id;
       // Vercel Analytics has no trace to join it to, so it is not sent there.
+      if (typeof window === "undefined" || isSignedInVisitor()) return;
       capturePostHog("$ai_metric", {
         ...props,
         $ai_trace_id: traceId,

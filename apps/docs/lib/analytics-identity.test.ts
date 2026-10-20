@@ -10,6 +10,7 @@ const posthog = {
   capture: vi.fn(),
   identify: vi.fn(),
   reset: vi.fn(),
+  capturing: () => true,
 };
 
 // The identity is held at module scope for the rest of the page, so each case
@@ -102,6 +103,35 @@ describe("analytics identity", () => {
     trackDemoSignInClick("budget");
 
     expect(window.sessionStorage.length).toBe(0);
+  });
+
+  it("stores nothing for a sign-in after a decline", async () => {
+    window.posthog = { ...posthog, capturing: () => false };
+    const { trackDemoSignInClick } = await load();
+
+    trackDemoSignInClick("budget");
+
+    expect(window.sessionStorage.length).toBe(0);
+  });
+
+  it("reports no sign-in a decline came between", async () => {
+    window.posthog = posthog;
+    const first = await load();
+    first.trackDemoSignInClick("budget");
+
+    // The return from accounts is a fresh page load, where the visitor
+    // declines before accepting.
+    delete window.posthog;
+    const second = await load();
+    second.syncAnalyticsUser("user_1");
+    second.forgetDemoSignIn();
+    startPosthog();
+
+    expect(posthog.identify).toHaveBeenCalledExactlyOnceWith("user_1");
+    expect(posthog.capture).not.toHaveBeenCalledWith(
+      "demo_signed_in",
+      expect.anything(),
+    );
   });
 
   it("drops a sign-in that came back signed out", async () => {

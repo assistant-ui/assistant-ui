@@ -33,7 +33,11 @@ const OPT_IN_COUNTRIES = new Set([
   "CH",
 ]);
 
-/** Whether browser analytics need an opt-in for a visitor from this country. An unknown country counts as needing one. */
+// Codes the geo lookup sends when it cannot place a visitor (XX) or sees Tor (T1).
+const UNKNOWN_COUNTRIES = new Set(["XX", "T1"]);
+
+/** Whether browser analytics need an opt-in for a visitor from this country. An unknown or malformed country counts as needing one. */
 export function consentRequiredFor(country: string | null): boolean {
-  return country === null || OPT_IN_COUNTRIES.has(country);
+  if (country === null || !/^[A-Z]{2}$/.test(country)) return true;
+  return UNKNOWN_COUNTRIES.has(country) || OPT_IN_COUNTRIES.has(country);
 }

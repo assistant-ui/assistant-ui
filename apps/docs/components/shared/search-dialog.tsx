@@ -268,7 +268,7 @@ function SearchContent({
     : (results[0]?.id ?? "");
   const waiting =
     hasQuery && (indexStatus === "loading" || suggestions.loading);
-  const resultsReady = hasQuery && !waiting;
+  const resultsReady = hasQuery && !waiting && indexStatus === "ready";
   const [queryTracker] = useState(() =>
     createSettledQueryTracker((settledQuery, resultCount) => {
       if (resultCount === 0) analytics.search.noResults(settledQuery);

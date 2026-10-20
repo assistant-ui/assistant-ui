@@ -71,8 +71,7 @@ const user = {
   image: null,
 };
 
-const setup = (card = input) => {
-  const answer = vi.fn().mockResolvedValue(undefined);
+const setup = (card = input, answer = vi.fn().mockResolvedValue(undefined)) => {
   const tree = () => (
     <WizardHost>
       <CloudProjectInputCard
@@ -305,6 +304,7 @@ const trackPosthog = () => {
   const group = vi.fn();
   window.posthog = { capture, group };
   return {
+    capture,
     group,
     events: (event: string) =>
       capture.mock.calls
@@ -326,11 +326,46 @@ describe("CloudProjectInputCard analytics", () => {
     fireEvent.click(screen.getByRole("radio", { name: /Docs bot/ }));
     expect(events("setup_cloud_project_picked")).toEqual([]);
     fireEvent.click(next());
-    await waitFor(() => expect(answer).toHaveBeenCalled());
-    expect(events("setup_cloud_project_picked")).toEqual([
-      { choice: "existing", project_count: 2, org_count: 2 },
-    ]);
+    await waitFor(() =>
+      expect(events("setup_cloud_project_picked")).toEqual([
+        { choice: "existing", project_count: 2, org_count: 2 },
+      ]),
+    );
+    expect(answer).toHaveBeenCalled();
     expect(group).toHaveBeenCalledWith("project", "proj_b");
+  });
+
+  it("groups the visitor before reporting the pick", async () => {
+    mocks.session = { status: "signed-in", cloudHistory: false, user };
+    mocks.projects = twoOrgs;
+    const { capture, group } = trackPosthog();
+    setup();
+    fireEvent.click(screen.getByRole("radio", { name: /Docs bot/ }));
+    fireEvent.click(next());
+    await waitFor(() => expect(group).toHaveBeenCalled());
+    const picked = capture.mock.calls.findIndex(
+      ([name]) => name === "setup_cloud_project_picked",
+    );
+    expect(group.mock.invocationCallOrder[0]).toBeLessThan(
+      capture.mock.invocationCallOrder[picked]!,
+    );
+  });
+
+  it("reports no pick and no group when the answer fails", async () => {
+    mocks.session = { status: "signed-in", cloudHistory: false, user };
+    mocks.projects = twoOrgs;
+    const { events, group } = trackPosthog();
+    const answer = vi.fn().mockRejectedValue(new Error("offline"));
+    setup(input, answer);
+    fireEvent.click(screen.getByRole("radio", { name: /Docs bot/ }));
+    fireEvent.click(next());
+    await waitFor(() =>
+      expect(events("setup_error")).toEqual([
+        { reason: "answer_failed", step: "question" },
+      ]),
+    );
+    expect(events("setup_cloud_project_picked")).toEqual([]);
+    expect(group).not.toHaveBeenCalled();
   });
 
   it("tracks another project without grouping", async () => {
@@ -343,10 +378,12 @@ describe("CloudProjectInputCard analytics", () => {
       target: { value: "https://own.example.com" },
     });
     fireEvent.click(next());
-    await waitFor(() => expect(answer).toHaveBeenCalled());
-    expect(events("setup_cloud_project_picked")).toEqual([
-      { choice: "another", project_count: 2, org_count: 2 },
-    ]);
+    await waitFor(() =>
+      expect(events("setup_cloud_project_picked")).toEqual([
+        { choice: "another", project_count: 2, org_count: 2 },
+      ]),
+    );
+    expect(answer).toHaveBeenCalled();
     expect(group).not.toHaveBeenCalled();
   });
 
@@ -359,10 +396,12 @@ describe("CloudProjectInputCard analytics", () => {
       target: { value: "https://proj-abc.assistant-api.com" },
     });
     fireEvent.click(next());
-    await waitFor(() => expect(answer).toHaveBeenCalled());
-    expect(events("setup_cloud_project_picked")).toEqual([
-      { choice: "another", project_count: 0 },
-    ]);
+    await waitFor(() =>
+      expect(events("setup_cloud_project_picked")).toEqual([
+        { choice: "another", project_count: 0 },
+      ]),
+    );
+    expect(answer).toHaveBeenCalled();
   });
 
   it("tracks the sign-in button", () => {

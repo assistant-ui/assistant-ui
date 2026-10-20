@@ -27,30 +27,20 @@ afterEach(() => {
 });
 
 describe("analytics distinct id", () => {
-  it("prefers the posthog cookie the browser already carries", () => {
-    const request = new Request("https://www.assistant-ui.com/api/chat", {
-      headers: {
-        cookie: `ph_key_posthog=${encodeURIComponent(
-          JSON.stringify({ distinct_id: "person_1" }),
-        )}`,
-      },
-    });
-
-    expect(getDistinctId(request)).toBe("person_1");
-  });
-
-  it("keeps a signed-in visitor's account pseudonym off AI logs", () => {
+  it("ignores the analytics cookie, anonymous or signed in", () => {
     vi.stubEnv("AUI_ANONYMOUS_SESSION_SECRET", "a-secret-with-enough-entropy");
-    const request = new Request("https://www.assistant-ui.com/api/chat", {
-      headers: {
-        cookie: `ph_key_posthog=${encodeURIComponent(
-          JSON.stringify({ distinct_id: "u_pseudonym" }),
-        )}`,
-        "x-forwarded-for": "203.0.113.7",
-      },
-    });
+    for (const distinctId of ["0190f1c2-anonymous", "u_pseudonym"]) {
+      const request = new Request("https://www.assistant-ui.com/api/chat", {
+        headers: {
+          cookie: `ph_key_posthog=${encodeURIComponent(
+            JSON.stringify({ distinct_id: distinctId }),
+          )}`,
+          "x-forwarded-for": "203.0.113.7",
+        },
+      });
 
-    expect(getDistinctId(request)).toBe(getDistinctId(withIp("203.0.113.7")));
+      expect(getDistinctId(request)).toBe(getDistinctId(withIp("203.0.113.7")));
+    }
   });
 
   it("never derives an identity from an address without a real key", () => {
@@ -195,7 +185,11 @@ describe("server request errors", () => {
   it("reports nothing from an opt-in region or an unknown one", async () => {
     const { captureRequestError } = await loadWithKey("phc_test");
 
-    for (const headers of [{ "x-vercel-ip-country": "DE" }, {}]) {
+    for (const headers of [
+      { "x-vercel-ip-country": "DE" },
+      { "x-vercel-ip-country": "XX" },
+      {},
+    ]) {
       await captureRequestError(
         new Error("boom"),
         { path: "/api/chat", method: "POST", headers },

@@ -30,6 +30,17 @@ describe("consent requirement route", () => {
     await expect(requiredFor()).resolves.toBe(true);
   });
 
+  it("fails closed for a country the platform could not resolve", async () => {
+    for (const country of ["", "XX", "T1", "us", "USA"]) {
+      const response = GET(
+        new NextRequest("https://www.assistant-ui.com/api/consent", {
+          headers: { "x-vercel-ip-country": country },
+        }),
+      );
+      await expect(response.json()).resolves.toEqual({ required: true });
+    }
+  });
+
   it("keeps a geo-varying answer out of shared caches", () => {
     expect(GET(request("US")).headers.get("cache-control")).toBe(
       "private, no-store",

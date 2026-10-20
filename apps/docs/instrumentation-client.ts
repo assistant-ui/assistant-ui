@@ -3,7 +3,10 @@ if (process.env.NODE_ENV === "development") {
 }
 
 import posthog from "posthog-js";
-import { ANALYTICS_READY_EVENT } from "./lib/analytics-identity";
+import {
+  ANALYTICS_READY_EVENT,
+  forgetDemoSignIn,
+} from "./lib/analytics-identity";
 import {
   getStoredConsent,
   hasGlobalPrivacyControl,
@@ -68,6 +71,8 @@ if (
       group: (type, key) => {
         if (!posthog.has_opted_out_capturing()) posthog.group(type, key);
       },
+      distinctId: () => posthog.get_distinct_id(),
+      capturing: () => !posthog.has_opted_out_capturing(),
     };
     window.dispatchEvent(new Event(ANALYTICS_READY_EVENT));
   };
@@ -83,8 +88,9 @@ if (
   // so a decline has to reach the running tracker rather than only the next load.
   subscribeToConsent((choice) => {
     setUmamiTrackingEnabled(choice === "granted");
-    if (choice === "granted") allow();
-    else if (started) posthog.opt_out_capturing();
+    if (choice === "granted") return allow();
+    forgetDemoSignIn();
+    if (started) posthog.opt_out_capturing();
   });
 
   const consent = getStoredConsent();

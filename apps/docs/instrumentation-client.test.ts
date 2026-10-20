@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   opt_in_capturing: vi.fn(),
   opt_out_capturing: vi.fn(),
   has_opted_out_capturing: vi.fn(() => false),
+  get_distinct_id: vi.fn(() => "anon_1"),
 }));
 
 vi.mock("posthog-js", async (importOriginal) => ({
@@ -30,6 +31,7 @@ const stubBrowser = ({
 } = {}) => {
   const store = new Map<string, string>();
   if (consent) store.set("aui-consent", consent);
+  const session = new Map<string, string>();
   const target = new EventTarget();
 
   const win = {
@@ -38,6 +40,9 @@ const stubBrowser = ({
       getItem: (key: string) => store.get(key) ?? null,
       setItem: (key: string, value: string) => void store.set(key, value),
       removeItem: (key: string) => void store.delete(key),
+    },
+    sessionStorage: {
+      removeItem: (key: string) => void session.delete(key),
     },
     addEventListener: target.addEventListener.bind(target),
     removeEventListener: target.removeEventListener.bind(target),
@@ -55,7 +60,7 @@ const stubBrowser = ({
   );
   vi.stubEnv("NEXT_PUBLIC_POSTHOG_API_KEY", "phc_test");
 
-  return { store, target };
+  return { store, session, target };
 };
 
 const choose = (target: EventTarget, choice: "granted" | "denied") =>
@@ -154,6 +159,28 @@ describe("client analytics bootstrap", () => {
 
     expect(mocks.identify).not.toHaveBeenCalled();
     expect(mocks.group).not.toHaveBeenCalled();
+  });
+
+  it("tells analytics whether it is capturing and who the visitor is", async () => {
+    const { target } = stubBrowser({ consent: "granted" });
+
+    await boot();
+    expect(window.posthog?.capturing?.()).toBe(true);
+    expect(window.posthog?.distinctId?.()).toBe("anon_1");
+
+    mocks.has_opted_out_capturing.mockReturnValue(true);
+    choose(target, "denied");
+    expect(window.posthog?.capturing?.()).toBe(false);
+  });
+
+  it("drops a pending demo sign-in on a decline", async () => {
+    const { session, target } = stubBrowser({ consent: "granted" });
+    session.set("aui-demo-sign-in", "budget");
+
+    await boot();
+    choose(target, "denied");
+
+    expect(session.has("aui-demo-sign-in")).toBe(false);
   });
 
   it("registers the app again after a sign-out resets the visitor", async () => {

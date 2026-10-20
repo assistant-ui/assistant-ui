@@ -206,13 +206,16 @@ export const useInputActions = (
   checkout: CheckoutContextValue,
 ) => {
   const [busy, setBusy] = useState(false);
+  /** Resolves whether the action landed; a failure is already reported. */
   const run = async (action: () => Promise<void>, failure: string) => {
     setBusy(true);
     try {
       await action();
+      return true;
     } catch {
       toast.error(failure);
       analytics.setup.error({ reason: "answer_failed", step: "question" });
+      return false;
     } finally {
       setBusy(false);
     }

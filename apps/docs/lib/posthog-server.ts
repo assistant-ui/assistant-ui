@@ -32,24 +32,10 @@ export const posthogServer = apiKey
     })
   : null;
 
+// AI conversation logs run without analytics consent, so they never carry the
+// analytics cookie's id, which would tie them to the visitor's browsing and,
+// once signed in, to their account.
 export function getDistinctId(req: Request): string {
-  const cookie = req.headers.get("cookie");
-  const posthogCookieMatch = cookie?.match(/ph_[^=]+=([^;]+)/);
-
-  if (posthogCookieMatch) {
-    try {
-      const decoded = decodeURIComponent(posthogCookieMatch[1]!);
-      const parsed = JSON.parse(decoded);
-      // A signed-in visitor's cookie holds their account pseudonym, which would
-      // link AI conversation logs across devices; those fall back to the
-      // address hash below.
-      if (parsed.distinct_id && !String(parsed.distinct_id).startsWith("u_"))
-        return parsed.distinct_id;
-    } catch {
-      // ignore parse errors
-    }
-  }
-
   // A checked-in key would make this HMAC a reversible encoding of the address:
   // the IPv4 space is small enough to brute force once the key is public.
   const secret = getAnonymousSessionSecret();
@@ -61,8 +47,7 @@ export function getDistinctId(req: Request): string {
   return `anon_${createHmac("sha256", secret).update(ip).digest("base64url").slice(0, 24)}`;
 }
 
-// Server errors carry no visitor identity: not the posthog cookie (the
-// visitor's analytics id) and not the address hash.
+// Server errors carry no visitor identity, not even the address hash.
 const SERVER_ERROR_DISTINCT_ID = "docs-server";
 
 const header = (

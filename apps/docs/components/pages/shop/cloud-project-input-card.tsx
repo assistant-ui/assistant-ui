@@ -66,17 +66,17 @@ export function CloudProjectInputCard({
       project_count: projects.length,
       ...(projects.length > 0 && { org_count: organizations.size }),
     });
-  const submit = (event: FormEvent) => {
+  const submit = async (event: FormEvent) => {
     event.preventDefault();
     if (value === undefined) return;
-    track(chosen ? "existing" : "another");
+    if (!(await answer(value, note))) return;
     if (chosen) analytics.setup.projectGroup(chosen.id);
-    void answer(value, note);
+    track(chosen ? "existing" : "another");
   };
   return (
     <form
       id={useWizardFormId()}
-      onSubmit={submit}
+      onSubmit={(event) => void submit(event)}
       className={inputCardClassName}
     >
       <fieldset disabled={busy} className="flex min-w-0 flex-col gap-3">
