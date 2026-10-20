@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-pi",
-  "version": "0.0.31",
+  "version": "0.0.32",
   "description": "Pi coding-agent runtime adapter for assistant-ui",
   "keywords": [
     "pi",
@@ -57,10 +57,10 @@
   },
   "dependencies": {
     "@assistant-ui/core": "workspace:^",
-    "@assistant-ui/store": "^0.3.21",
+    "@assistant-ui/store": "^0.3.22",
     "@standard-schema/spec": "^1.1.0",
     "assistant-cloud": "*",
-    "assistant-stream": "^0.3.52"
+    "assistant-stream": "^0.3.53"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.15.22",

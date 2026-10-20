@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { asSchema } from "ai";
 import { frontendTools } from "./frontendTools";
 import { wrapModelContentEnvelope } from "./modelContentEnvelope";
 
@@ -15,19 +16,40 @@ const expectedFilePart = (
 });
 
 describe("frontendTools", () => {
-  it("forwards description and inputSchema for each tool", () => {
+  it("preserves each tool's description and parameter schema", async () => {
     const tools = frontendTools({
       getWeather: {
         description: "Get the weather",
         parameters: {
           type: "object",
           properties: { city: { type: "string" } },
+          required: ["city"],
+          additionalProperties: false,
+        },
+      },
+      rollDice: {
+        description: "Roll dice",
+        parameters: {
+          type: "object",
+          properties: { count: { type: "integer", minimum: 1 } },
+          required: ["count"],
         },
       },
     });
 
     expect(tools.getWeather?.description).toBe("Get the weather");
-    expect(tools.getWeather?.inputSchema).toBeDefined();
+    expect(await asSchema(tools.getWeather!.inputSchema).jsonSchema).toEqual({
+      type: "object",
+      properties: { city: { type: "string" } },
+      required: ["city"],
+      additionalProperties: false,
+    });
+    expect(tools.rollDice?.description).toBe("Roll dice");
+    expect(await asSchema(tools.rollDice!.inputSchema).jsonSchema).toEqual({
+      type: "object",
+      properties: { count: { type: "integer", minimum: 1 } },
+      required: ["count"],
+    });
   });
 
   it("registers a toModelOutput that unwraps the modelContent envelope", async () => {

@@ -1,5 +1,12 @@
 # generative-frame
 
+## 0.0.7
+
+### Patch Changes
+
+- Updated dependencies [[`1bc21b3`](https://github.com/assistant-ui/assistant-ui/commit/1bc21b36e1d5965686a495e27bce6958b4b165b0), [`1808265`](https://github.com/assistant-ui/assistant-ui/commit/1808265f30837afe77a00d8bd3081a8fa20081c0), [`0c049eb`](https://github.com/assistant-ui/assistant-ui/commit/0c049ebbfcfc5589288f47b6039c883b2f1c581f)]:
+  - @assistant-ui/vue@0.0.5
+
 ## 0.0.6
 
 ### Patch Changes

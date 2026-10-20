@@ -65,6 +65,36 @@ test("mean skips errored trials and missing values", () => {
   );
 });
 
+test("execution failures remain visible alongside scores from completed trials", () => {
+  const report = renderReport([
+    {
+      case: task("t1", false),
+      variants: [
+        {
+          candidate: candidate("text"),
+          trials: [judged([5, 5, 5, 5]), errored, errored],
+        },
+      ],
+    },
+  ]);
+  assert.match(report, /^\| text \| 1 \| 2 \| 100% \| 0% \| 0\.0 \| 5\.0 \|/m);
+});
+
+test("a candidate with no completed trials reports errors and unavailable scores", () => {
+  const report = renderReport([
+    {
+      case: task("t1", false),
+      variants: [
+        { candidate: candidate("text"), trials: [errored, errored, errored] },
+      ],
+    },
+  ]);
+  assert.match(
+    report,
+    /^\| text \| 0 \| 3 \| N\/A \| N\/A \| N\/A \| N\/A \|/m,
+  );
+});
+
 test("lists every distinct error a candidate left on a task, then every error raised while rendering", () => {
   const report = renderReport([
     {
@@ -188,12 +218,14 @@ test("renders each format's averages and each task's score per model", () => {
     [
       "# Generative UI eval results",
       "",
+      "Scores and percentages use completed trials only; execution errors are counted separately.",
+      "",
       "## m",
       "",
-      "| format | valid | render errors | repairs | clarity | usefulness | completeness | presentation | computed tasks | other tasks | input tokens | output tokens | first output | total |",
-      "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
-      "| text | 100% | 0% | 0.0 | 4.5 | 4.5 | 4.5 | 4.5 | 4.0 | 5.0 | 100 | 50 | 1.0 s | 2.0 s |",
-      "| spec | 50% | 50% | 1.0 | 2.5 | 2.5 | 4.0 | 2.5 | 2.0 | 4.0 | 250 | 125 | 1.0 s | 3.5 s |",
+      "| format | completed | execution errors | valid | render errors | repairs | clarity | usefulness | completeness | presentation | computed tasks | other tasks | input tokens | output tokens | first output | total |",
+      "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+      "| text | 2 | 0 | 100% | 0% | 0.0 | 4.5 | 4.5 | 4.5 | 4.5 | 4.0 | 5.0 | 100 | 50 | 1.0 s | 2.0 s |",
+      "| spec | 2 | 1 | 50% | 50% | 1.0 | 2.5 | 2.5 | 4.0 | 2.5 | 2.0 | 4.0 | 250 | 125 | 1.0 s | 3.5 s |",
       "",
       "| task | text | spec |",
       "| --- | ---: | ---: |",

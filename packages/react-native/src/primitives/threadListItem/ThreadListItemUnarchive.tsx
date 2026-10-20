@@ -1,8 +1,9 @@
-import { Pressable, type PressableProps } from "react-native";
+import type { PressableProps } from "react-native";
 import { useThreadListItemUnarchive } from "@assistant-ui/core/react";
+import { Primitive, type PrimitivePressableProps } from "../../utils/Primitive";
 
 export type ThreadListItemUnarchiveProps = Omit<
-  PressableProps,
+  PrimitivePressableProps,
   "onPress" | "children"
 > & {
   children: PressableProps["children"];
@@ -15,7 +16,7 @@ export const ThreadListItemUnarchive = ({
   const { unarchive, disabled } = useThreadListItemUnarchive();
 
   return (
-    <Pressable
+    <Primitive.Pressable
       onPress={unarchive}
       accessibilityRole="button"
       {...pressableProps}
@@ -26,6 +27,6 @@ export const ThreadListItemUnarchive = ({
       }}
     >
       {children}
-    </Pressable>
+    </Primitive.Pressable>
   );
 };

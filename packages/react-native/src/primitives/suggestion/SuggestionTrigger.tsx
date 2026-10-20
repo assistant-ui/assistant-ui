@@ -1,9 +1,10 @@
-import { Pressable, type PressableProps } from "react-native";
+import type { PressableProps } from "react-native";
 import { useAuiState } from "@assistant-ui/store";
 import { useSuggestionTrigger } from "@assistant-ui/core/react";
+import { Primitive, type PrimitivePressableProps } from "../../utils/Primitive";
 
 export type SuggestionTriggerProps = Omit<
-  PressableProps,
+  PrimitivePressableProps,
   "onPress" | "children"
 > & {
   children: PressableProps["children"];
@@ -35,13 +36,13 @@ export const SuggestionTrigger = ({
   });
 
   return (
-    <Pressable
+    <Primitive.Pressable
       onPress={trigger}
       disabled={disabledProp ?? disabled}
       accessibilityRole="button"
       {...pressableProps}
     >
       {children}
-    </Pressable>
+    </Primitive.Pressable>
   );
 };

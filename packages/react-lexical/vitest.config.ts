@@ -17,6 +17,5 @@ export default defineConfig({
     pool: "threads",
     fsModuleCache: true,
     globals: true,
-    passWithNoTests: true,
   },
 });

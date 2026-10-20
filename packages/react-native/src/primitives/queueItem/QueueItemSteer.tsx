@@ -1,9 +1,10 @@
 import { useCallback } from "react";
-import { Pressable, type PressableProps } from "react-native";
+import type { PressableProps } from "react-native";
 import { useAui } from "@assistant-ui/store";
+import { Primitive, type PrimitivePressableProps } from "../../utils/Primitive";
 
 export type QueueItemSteerProps = Omit<
-  PressableProps,
+  PrimitivePressableProps,
   "onPress" | "children"
 > & {
   children: PressableProps["children"];
@@ -20,12 +21,12 @@ export const QueueItemSteer = ({
   }, [aui]);
 
   return (
-    <Pressable
+    <Primitive.Pressable
       onPress={handleSteer}
       accessibilityRole="button"
       {...pressableProps}
     >
       {children}
-    </Pressable>
+    </Primitive.Pressable>
   );
 };

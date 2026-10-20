@@ -7,6 +7,7 @@ A/B evals for prompts and model output. A suite runs each of its candidates agai
 | Suite | Question |
 | --- | --- |
 | [`comment-hygiene`](src/suites/comment-hygiene/README.md) | Which guidance sentence about code comments earns a line in `AGENTS.md`? |
+| [`test-quality`](src/suites/test-quality/README.md) | Does the test-quality guide produce tests that detect real faults and preserve exact contracts? |
 | [`generative-ui`](src/suites/generative-ui/README.md) | Which answer format (Markdown, `present`, spec, or frame) do models write best? |
 
 ## Running
