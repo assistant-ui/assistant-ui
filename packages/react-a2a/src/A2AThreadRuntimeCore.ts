@@ -20,11 +20,7 @@ import {
   invokeUserCallback,
   RunLeases,
 } from "@assistant-ui/core/internal";
-import {
-  applyA2uiOperations,
-  surfaceToPresentToolCall,
-  type A2uiState,
-} from "@assistant-ui/generative-ui/a2ui";
+import { surfaceToPresentToolCall } from "@assistant-ui/generative-ui/a2ui";
 import type { A2AClient } from "./A2AClient";
 import type {
   A2AArtifact,
@@ -39,11 +35,15 @@ import type {
 
 import {
   a2aMessageToContent,
-  a2uiPartsToOperations,
   isTerminalTaskState,
   threadMessageToA2AMessage,
   taskStateToMessageStatus,
 } from "./conversions";
+import {
+  createA2AThreadState,
+  reduceA2AThreadState,
+  type A2AThreadState,
+} from "./a2aThreadState";
 
 const INITIAL_AGENT_CARD_RETRY_DELAY_MS = 5_000;
 const MAX_AGENT_CARD_RETRY_DELAY_MS = 5 * 60_000;
@@ -81,16 +81,9 @@ const invokeRuntimeCallback = <TArgs extends readonly unknown[]>(
   void invokeUserCallback("react-a2a", name, callback, ...args);
 };
 
-function normalizeArtifact(artifact: A2AArtifact): A2AArtifact {
-  return {
-    ...artifact,
-    parts: Array.isArray(artifact.parts) ? artifact.parts : [],
-  };
-}
-
 export class A2AThreadRuntimeCore {
   private client: A2AClient;
-  private contextId: string | undefined;
+  private state: A2AThreadState;
   private configuration: A2ASendMessageConfiguration | undefined;
   private onError: ((error: Error) => void) | undefined;
   private onCancel: (() => void) | undefined;
@@ -110,26 +103,16 @@ export class A2AThreadRuntimeCore {
 
   private runtime: AssistantRuntime | undefined;
   private readonly session = createMessageRepositorySession();
-  private isRunningFlag = false;
   private abortController: AbortController | null = null;
   private readonly runLeases = new RunLeases();
   private pendingError: Error | null = null;
-
-  // A2A-specific state
-  private currentTask: A2ATask | undefined;
-  private currentArtifacts: A2AArtifact[] = [];
-  private a2uiState: A2uiState = new Map();
-  private readonly a2uiMessageIds = new Set<string>();
-  private agentCardValue: A2AAgentCard | undefined;
 
   // History tracking
   private readonly assistantHistoryParents = new Map<string, string | null>();
   private readonly recordedHistoryIds = new Set<string>();
   private readonly historyWrites = createHistoryWriteChain();
-  private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
   private _historyLoadGeneration = 0;
-  private _loadRequested = false;
   private _agentCardPromise: Promise<void> | undefined;
   private _agentCardRetryAfter = 0;
   private _agentCardRetryDelay = INITIAL_AGENT_CARD_RETRY_DELAY_MS;
@@ -139,7 +122,7 @@ export class A2AThreadRuntimeCore {
 
   constructor(options: A2AThreadRuntimeCoreOptions) {
     this.client = options.client;
-    this.contextId = options.contextId;
+    this.state = createA2AThreadState(options.contextId);
     this.lastOptionsContextId = options.contextId;
     this.configuration = options.configuration;
     this.onError = options.onError;
@@ -155,12 +138,12 @@ export class A2AThreadRuntimeCore {
 
   getSnapshot = () =>
     (this.snapshot ??= {
-      isLoading: this._isLoading,
-      isRunning: this.isRunningFlag,
+      isLoading: this.state.isLoading,
+      isRunning: this.state.isRunning,
       messageRepository: this.session.export(),
-      task: this.currentTask,
-      artifacts: this.currentArtifacts,
-      agentCard: this.agentCardValue,
+      task: this.state.currentTask,
+      artifacts: this.state.currentArtifacts,
+      agentCard: this.state.agentCard,
     });
 
   private publishUpdate(): void {
@@ -173,7 +156,10 @@ export class A2AThreadRuntimeCore {
     // The option only seeds the context; a re-render with the same value must
     // not clobber a server-assigned contextId learned from the stream.
     if (options.contextId !== this.lastOptionsContextId) {
-      this.contextId = options.contextId;
+      this.state = reduceA2AThreadState(this.state, {
+        type: "contextLearned",
+        contextId: options.contextId,
+      });
       this.lastOptionsContextId = options.contextId;
     }
     this.configuration = options.configuration;
@@ -184,7 +170,7 @@ export class A2AThreadRuntimeCore {
     this.history = options.history;
 
     if (
-      this._loadRequested &&
+      this.state.loadRequested &&
       !this._loadPromise &&
       !previousHistory &&
       options.history &&
@@ -198,13 +184,15 @@ export class A2AThreadRuntimeCore {
    * switches, deletes, and cancel resyncs, which must keep the live context. */
   resetContext(): void {
     this._historyLoadGeneration++;
-    const wasLoading = this._isLoading;
-    this._isLoading = false;
+    const wasLoading = this.state.isLoading;
     // Restore the seed before aborting: an onCancel callback that starts a
     // new run must not pick up the old thread's context, and its controller
     // must not be discarded.
     const controller = this.abortController;
-    this.contextId = this.lastOptionsContextId;
+    this.state = reduceA2AThreadState(this.state, {
+      type: "resetContext",
+      contextId: this.lastOptionsContextId,
+    });
     if (controller) {
       controller.abort();
       if (this.abortController === controller) {
@@ -291,23 +279,23 @@ export class A2AThreadRuntimeCore {
   }
 
   getTask(): A2ATask | undefined {
-    return this.currentTask;
+    return this.state.currentTask;
   }
 
   getArtifacts(): readonly A2AArtifact[] {
-    return this.currentArtifacts;
+    return this.state.currentArtifacts;
   }
 
   getAgentCard(): A2AAgentCard | undefined {
-    return this.agentCardValue;
+    return this.state.agentCard;
   }
 
   isRunning(): boolean {
-    return this.isRunningFlag;
+    return this.state.isRunning;
   }
 
   get isLoading(): boolean {
-    return this._isLoading;
+    return this.state.isLoading;
   }
 
   private loadAgentCard(): Promise<void> {
@@ -315,7 +303,10 @@ export class A2AThreadRuntimeCore {
 
     this._agentCardPromise ??= this.client.getAgentCard().then(
       (agentCard) => {
-        this.agentCardValue = agentCard;
+        this.state = reduceA2AThreadState(this.state, {
+          type: "agentCardLoaded",
+          agentCard,
+        });
         this._agentCardRetryAfter = 0;
         this._agentCardRetryDelay = INITIAL_AGENT_CARD_RETRY_DELAY_MS;
         this._agentCardDiscoveryFailed = false;
@@ -355,13 +346,13 @@ export class A2AThreadRuntimeCore {
   }
 
   __internal_load(): Promise<void> {
-    this._loadRequested = true;
+    this.state = reduceA2AThreadState(this.state, { type: "loadRequested" });
     const agentCardPromise = this.loadAgentCard();
 
     if (this._loadPromise) return this._loadPromise;
     if (!this.history) return agentCardPromise;
 
-    this._isLoading = true;
+    this.state = reduceA2AThreadState(this.state, { type: "loadStarted" });
 
     const generation = this._historyLoadGeneration;
     const historyPromise = this.history.load();
@@ -384,7 +375,7 @@ export class A2AThreadRuntimeCore {
       })
       .finally(() => {
         if (generation !== this._historyLoadGeneration) return;
-        this._isLoading = false;
+        this.state = reduceA2AThreadState(this.state, { type: "loadFinished" });
         this.publishUpdate();
       });
 
@@ -449,7 +440,7 @@ export class A2AThreadRuntimeCore {
     // Read the server target before aborting: the abort listener runs the
     // onCancel callback synchronously, which may clear the thread and with it
     // the task this cancellation is for, or start a new run.
-    const task = this.currentTask;
+    const task = this.state.currentTask;
     const lease = this.runLeases.current();
 
     // Abort locally first so the stream stops immediately
@@ -463,8 +454,11 @@ export class A2AThreadRuntimeCore {
         // or a cleared thread replaces the task object; a follow-up run that
         // has not emitted yet keeps it, so the run lease is what rules
         // that case out.
-        if (this.currentTask === task && lease.isCurrent()) {
-          this.currentTask = updated;
+        if (this.state.currentTask === task && lease.isCurrent()) {
+          this.state = reduceA2AThreadState(this.state, {
+            type: "taskReplaced",
+            task: updated,
+          });
           this.publishUpdate();
         }
       } catch {
@@ -495,10 +489,7 @@ export class A2AThreadRuntimeCore {
     for (const { message } of this.getMessageRepository().messages) {
       this.recordedHistoryIds.add(message.id);
     }
-    this.currentTask = undefined;
-    this.currentArtifacts = [];
-    this.a2uiState = new Map();
-    this.a2uiMessageIds.clear();
+    this.state = reduceA2AThreadState(this.state, { type: "reset" });
     this.publishUpdate();
   }
 
@@ -553,25 +544,15 @@ export class A2AThreadRuntimeCore {
     }
 
     const a2aMessage = threadMessageToA2AMessage(userThreadMessage, {
-      contextId: this.contextId,
+      contextId: this.state.contextId,
       taskId:
-        this.currentTask?.id &&
-        !isTerminalTaskState(this.currentTask.status.state)
-          ? this.currentTask.id
+        this.state.currentTask?.id &&
+        !isTerminalTaskState(this.state.currentTask.status.state)
+          ? this.state.currentTask.id
           : undefined,
     });
 
-    // Clear task if previous task reached terminal state
-    if (
-      this.currentTask &&
-      isTerminalTaskState(this.currentTask.status.state)
-    ) {
-      this.currentTask = undefined;
-    }
-
-    this.currentArtifacts = [];
-    this.a2uiState = new Map();
-    this.a2uiMessageIds.clear();
+    this.state = reduceA2AThreadState(this.state, { type: "prepareRun" });
 
     const assistantParentId = userThreadMessage.id;
     const assistantId = this.insertAssistantPlaceholder(assistantParentId);
@@ -599,7 +580,7 @@ export class A2AThreadRuntimeCore {
       if (!(await this.waitForAgentCard(abortController.signal))) return;
 
       const supportsStreaming =
-        this.agentCardValue?.capabilities?.streaming !== false;
+        this.state.agentCard?.capabilities?.streaming !== false;
       if (supportsStreaming) {
         await this.runStreaming(a2aMessage, assistantId, abortController);
       } else {
@@ -719,22 +700,12 @@ export class A2AThreadRuntimeCore {
     assistantId: string,
     event: A2ATaskStatusUpdateEvent,
   ) {
-    if (!this.currentTask) {
-      this.currentTask = {
-        id: event.taskId,
-        contextId: event.contextId,
-        status: event.status,
-      };
-    } else {
-      this.currentTask = { ...this.currentTask, status: event.status };
-    }
-
-    if (event.contextId) {
-      this.contextId = event.contextId;
-    }
+    this.state = reduceA2AThreadState(this.state, {
+      type: "statusUpdate",
+      event,
+    });
 
     if (event.status.message) {
-      this.applyA2uiMessage(event.status.message);
       const content = a2aMessageToContent(event.status.message);
       this.updateAssistantContent(assistantId, content);
     }
@@ -749,41 +720,17 @@ export class A2AThreadRuntimeCore {
     assistantId: string,
     event: A2ATaskArtifactUpdateEvent,
   ) {
-    const { append, lastChunk } = event;
-    const artifact = normalizeArtifact(event.artifact);
-    const existingIdx = this.currentArtifacts.findIndex(
-      (a) => a.artifactId === artifact.artifactId,
-    );
-
-    let updated: A2AArtifact;
-    if (existingIdx >= 0 && append) {
-      const existing = this.currentArtifacts[existingIdx]!;
-      updated = {
-        ...existing,
-        parts: [...existing.parts, ...artifact.parts],
-      };
-      this.currentArtifacts = [
-        ...this.currentArtifacts.slice(0, existingIdx),
-        updated,
-        ...this.currentArtifacts.slice(existingIdx + 1),
-      ];
-    } else if (existingIdx >= 0) {
-      updated = artifact;
-      this.currentArtifacts = [
-        ...this.currentArtifacts.slice(0, existingIdx),
-        updated,
-        ...this.currentArtifacts.slice(existingIdx + 1),
-      ];
-    } else {
-      updated = artifact;
-      this.currentArtifacts = [...this.currentArtifacts, updated];
-    }
-
-    this.applyA2uiParts(artifact.parts);
+    this.state = reduceA2AThreadState(this.state, {
+      type: "artifactUpdate",
+      event,
+    });
+    const updated = this.state.currentArtifacts.find(
+      ({ artifactId }) => artifactId === event.artifact.artifactId,
+    )!;
     this.updateAssistantArtifacts(assistantId);
     this.rebuildAssistantA2uiSurfaces(assistantId);
 
-    if (lastChunk) {
+    if (event.lastChunk) {
       invokeRuntimeCallback(
         "onArtifactComplete",
         this.onArtifactComplete,
@@ -797,63 +744,26 @@ export class A2AThreadRuntimeCore {
   private handleMessage(assistantId: string, message: A2AMessage) {
     if (message.role !== "agent") return;
 
-    this.applyA2uiMessage(message);
+    this.state = reduceA2AThreadState(this.state, {
+      type: "a2uiMessage",
+      message,
+    });
     const content = a2aMessageToContent(message);
     this.updateAssistantContent(assistantId, content);
     this.publishUpdate();
   }
 
   private handleTaskSnapshot(assistantId: string, task: A2ATask) {
-    const artifacts =
-      task.artifacts === undefined
-        ? undefined
-        : Array.isArray(task.artifacts)
-          ? task.artifacts.map(normalizeArtifact)
-          : [];
-    const history =
-      task.history === undefined
-        ? undefined
-        : Array.isArray(task.history)
-          ? task.history
-          : [];
-    this.currentTask = {
-      ...task,
-      ...(artifacts === undefined ? {} : { artifacts }),
-      ...(history === undefined ? {} : { history }),
-    };
+    const previousArtifacts = this.state.currentArtifacts;
+    this.state = reduceA2AThreadState(this.state, {
+      type: "taskSnapshot",
+      task,
+    });
 
-    if (task.contextId) {
-      this.contextId = task.contextId;
-    }
-    const isCompleteSnapshot = history !== undefined && artifacts !== undefined;
-    const artifactsToApply = isCompleteSnapshot
-      ? artifacts
-      : artifacts?.filter(
-          (artifact) =>
-            !this.currentArtifacts.some(
-              ({ artifactId }) => artifactId === artifact.artifactId,
-            ),
-        );
-
-    if (isCompleteSnapshot) {
-      this.currentArtifacts = artifacts;
-      this.a2uiState = new Map();
-      this.a2uiMessageIds.clear();
-    } else if (artifactsToApply) {
-      this.currentArtifacts = [...this.currentArtifacts, ...artifactsToApply];
-    }
-
-    for (const message of history ?? []) {
-      if (message.role === "agent") this.applyA2uiMessage(message, true);
-    }
-    for (const artifact of artifactsToApply ?? []) {
-      this.applyA2uiParts(artifact.parts);
-    }
-    if (task.status.message) {
-      this.applyA2uiMessage(task.status.message, true);
-    }
-
-    if (isCompleteSnapshot || artifactsToApply?.length) {
+    if (
+      (task.history !== undefined && task.artifacts !== undefined) ||
+      this.state.currentArtifacts.length > previousArtifacts.length
+    ) {
       this.updateAssistantArtifacts(assistantId);
     }
 
@@ -907,23 +817,9 @@ export class A2AThreadRuntimeCore {
     });
   }
 
-  private applyA2uiMessage(message: A2AMessage, replay = false) {
-    if (message.messageId) {
-      if (replay && this.a2uiMessageIds.has(message.messageId)) return;
-      this.a2uiMessageIds.add(message.messageId);
-    }
-    this.applyA2uiParts(message.parts);
-  }
-
-  private applyA2uiParts(parts: readonly A2AMessage["parts"][number][]) {
-    const operations = a2uiPartsToOperations(parts);
-    if (operations.length === 0) return;
-    this.a2uiState = applyA2uiOperations(this.a2uiState, operations).state;
-  }
-
   private a2uiSurfaceParts(): ThreadAssistantMessagePart[] {
     const parts: ThreadAssistantMessagePart[] = [];
-    for (const [surfaceId, surface] of this.a2uiState) {
+    for (const [surfaceId, surface] of this.state.a2uiState) {
       const { toolCall } = surfaceToPresentToolCall(surfaceId, surface);
       if (!toolCall) continue;
       parts.push({
@@ -1004,7 +900,7 @@ export class A2AThreadRuntimeCore {
             ...custom,
             a2a: {
               ...a2a,
-              artifacts: this.currentArtifacts.map(storedArtifact),
+              artifacts: this.state.currentArtifacts.map(storedArtifact),
             },
           },
         },
@@ -1043,7 +939,9 @@ export class A2AThreadRuntimeCore {
   // --- Lifecycle helpers ---
 
   private setRunning(running: boolean) {
-    this.isRunningFlag = running;
+    this.state = reduceA2AThreadState(this.state, {
+      type: running ? "runStarted" : "runFinished",
+    });
     this.publishUpdate();
   }
 

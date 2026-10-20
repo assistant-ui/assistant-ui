@@ -1581,8 +1581,9 @@ describe("A2AThreadRuntimeCore", () => {
 
       const core = createCore({ sendMessage, streamMessage });
       // Simulate agent card with streaming: false
-      (core as any).agentCardValue = {
-        capabilities: { streaming: false },
+      (core as any).state = {
+        ...(core as any).state,
+        agentCard: { capabilities: { streaming: false } },
       };
 
       await core.append(createUserAppendMessage("Hello"));
@@ -1605,8 +1606,9 @@ describe("A2AThreadRuntimeCore", () => {
       } satisfies A2AMessage);
 
       const core = createCore({ sendMessage });
-      (core as any).agentCardValue = {
-        capabilities: { streaming: false },
+      (core as any).state = {
+        ...(core as any).state,
+        agentCard: { capabilities: { streaming: false } },
       };
 
       await core.append(createUserAppendMessage("Hello"));
@@ -1779,6 +1781,32 @@ describe("A2AThreadRuntimeCore", () => {
 
       expect(onArtifactComplete).toHaveBeenCalledTimes(1);
       expect(onArtifactComplete.mock.calls[0]![0].artifactId).toBe("a1");
+    });
+
+    it("passes the completed artifact even if a subscriber clears the thread", async () => {
+      const onArtifactComplete = vi.fn();
+
+      const core = new A2AThreadRuntimeCore({
+        client: createMockClient({
+          streamMessage: vi.fn().mockImplementation(async function* () {
+            yield artifactUpdateEvent("a1", [{ text: "code" }], {
+              lastChunk: true,
+            });
+          }),
+        }),
+        onArtifactComplete,
+      });
+      let cleared = false;
+      core.subscribe(() => {
+        if (cleared || core.getArtifacts().length === 0) return;
+        cleared = true;
+        core.applyExternalMessages([]);
+      });
+
+      await core.append(createUserAppendMessage("Go"));
+
+      expect(onArtifactComplete).toHaveBeenCalledTimes(1);
+      expect(onArtifactComplete.mock.calls[0]![0]?.artifactId).toBe("a1");
     });
 
     it.each(["throws", "rejects"] as const)(
@@ -2428,9 +2456,9 @@ describe("A2AThreadRuntimeCore", () => {
       const core = createCore({ cancelTask });
 
       // Manually set task state to simulate a running task
-      (core as any).currentTask = {
-        id: "t1",
-        status: { state: "working" },
+      (core as any).state = {
+        ...(core as any).state,
+        currentTask: { id: "t1", status: { state: "working" } },
       };
       (core as any).abortController = new AbortController();
       onUpdate.mockClear();
