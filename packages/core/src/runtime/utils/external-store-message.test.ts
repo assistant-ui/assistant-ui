@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ThreadMessage, ToolCallMessagePart } from "../../types/message";
 import {
   bindExternalStoreMessage,
+  dedupeMessagesById,
   getExternalStoreMessages,
 } from "./external-store-message";
 import { fromThreadMessageLike } from "./thread-message-like";
@@ -76,5 +77,30 @@ describe("getExternalStoreMessages", () => {
     bindExternalStoreMessage(message.content[0]!, source);
     expect(getExternalStoreMessages(message)).toEqual([source]);
     expect(getExternalStoreMessages(message.content[0]!)).toEqual([source]);
+  });
+});
+
+describe("dedupeMessagesById", () => {
+  it("keeps the original array when ids are unique", () => {
+    const messages = [{ id: "first" }, { id: "second" }];
+    const duplicates: string[] = [];
+    expect(dedupeMessagesById(messages, (id) => duplicates.push(id))).toBe(
+      messages,
+    );
+    expect(duplicates).toEqual([]);
+  });
+
+  it("keeps each last occurrence and reports every discarded entry", () => {
+    const first = { id: "first", value: 1 };
+    const middle = { id: "second", value: 2 };
+    const last = { id: "first", value: 3 };
+    const messages = [first, middle, last, { id: "first", value: 4 }];
+    const duplicates: string[] = [];
+    const result = dedupeMessagesById(messages, (id) => duplicates.push(id));
+    expect(result).not.toBe(messages);
+    expect(result).toEqual([middle, messages[3]]);
+    expect(result[0]).toBe(middle);
+    expect(result[1]).toBe(messages[3]);
+    expect(duplicates).toEqual(["first", "first"]);
   });
 });

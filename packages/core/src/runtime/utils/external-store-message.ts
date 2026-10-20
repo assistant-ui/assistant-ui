@@ -46,3 +46,21 @@ export const getExternalStoreMessages = <T>(
 };
 
 export const FALLBACK_ID_PREFIX = "__external_store_fallback_";
+
+export const dedupeMessagesById = <T extends { readonly id: string }>(
+  messages: readonly T[],
+  onDuplicate: (id: string) => void,
+): readonly T[] => {
+  const seenIds = new Set<string>();
+  const deduped: T[] = [];
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i]!;
+    if (seenIds.has(message.id)) {
+      onDuplicate(message.id);
+      continue;
+    }
+    seenIds.add(message.id);
+    deduped.push(message);
+  }
+  return deduped.length === messages.length ? messages : deduped.reverse();
+};

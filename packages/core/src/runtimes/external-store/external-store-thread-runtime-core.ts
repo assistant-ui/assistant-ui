@@ -23,7 +23,9 @@ import {
   getExternalStoreMessages,
   bindExternalStoreMessage,
   FALLBACK_ID_PREFIX,
+  dedupeMessagesById,
 } from "../../runtime/utils/external-store-message";
+import { LoadEarlier } from "../../runtime/utils/load-earlier";
 import { ThreadMessageConverter } from "./thread-message-converter";
 import {
   getContentAutoStatus,
@@ -181,29 +183,22 @@ export class ExternalStoreThreadRuntimeCore
       this._store.hasEarlier === true && this._store.onLoadEarlier !== undefined
     );
   }
-  private _loadingEarlier: Promise<void> | undefined;
+  private _loadEarlier = new LoadEarlier();
   public get isLoadingEarlier() {
-    return this._loadingEarlier !== undefined;
+    return this._loadEarlier.isLoading;
   }
   public loadEarlier(): Promise<void> {
-    if (this._loadingEarlier) return this._loadingEarlier;
     const onLoadEarlier = this._store.onLoadEarlier;
-    if (!this.hasEarlier || !onLoadEarlier) return Promise.resolve();
-    const loading = Promise.resolve()
-      .then(() => onLoadEarlier())
-      .catch((error: unknown) => {
+    return this._loadEarlier.load(
+      this.hasEarlier ? onLoadEarlier : undefined,
+      (error) => {
         console.error(
           "[ExternalStoreThreadRuntimeCore] onLoadEarlier callback rejected",
           error,
         );
-      })
-      .finally(() => {
-        this._loadingEarlier = undefined;
-        this._notifySubscribers();
-      });
-    this._loadingEarlier = loading;
-    this._notifySubscribers();
-    return loading;
+      },
+      () => this._notifySubscribers(),
+    );
   }
   // Unlike `isLoading`: pass `undefined` through to preserve the `getThreadState` fallback.
   public get isRunning(): boolean | undefined {
@@ -707,20 +702,11 @@ export class ExternalStoreThreadRuntimeCore
             return newMessage;
           });
 
-      const seenIds = new Set<string>();
-      const deduped: ThreadMessage[] = [];
-      for (let i = messages.length - 1; i >= 0; i--) {
-        const message = messages[i]!;
-        if (seenIds.has(message.id)) {
-          console.warn(
-            `ExternalStoreThreadRuntimeCore: duplicate message id "${message.id}" in the provided messages array; keeping the last occurrence.`,
-          );
-          continue;
-        }
-        seenIds.add(message.id);
-        deduped.push(message);
-      }
-      if (deduped.length !== messages.length) messages = deduped.reverse();
+      messages = dedupeMessagesById(messages, (id) => {
+        console.warn(
+          `ExternalStoreThreadRuntimeCore: duplicate message id "${id}" in the provided messages array; keeping the last occurrence.`,
+        );
+      });
 
       messages = this._applySubmittedFeedback(messages);
       const importedMessageIds = this._importedMessageIds;

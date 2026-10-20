@@ -129,6 +129,35 @@ export class AttachmentSendOperations {
     return record !== undefined && record === this.removals.get(second);
   }
 
+  reconcileFailures(
+    attachments: readonly Attachment[],
+    sent: readonly Attachment[],
+    settled: readonly PromiseSettledResult<CompleteAttachment>[],
+  ): Attachment[] {
+    const failures = new Map<string, unknown>();
+    settled.forEach((result, index) => {
+      if (result.status === "rejected")
+        failures.set(sent[index]!.id, result.reason);
+    });
+    return attachments.map((attachment) => {
+      if (
+        !failures.has(attachment.id) ||
+        isAttachmentComplete(attachment) ||
+        this.isRemoved(attachment)
+      )
+        return attachment;
+      const failure = failures.get(attachment.id);
+      return this.transfer(attachment, {
+        ...attachment,
+        status: {
+          type: "incomplete",
+          reason: "error",
+          message: failure instanceof Error ? failure.message : String(failure),
+        },
+      });
+    });
+  }
+
   async send(
     attachment: Attachment,
     adapter: AttachmentAdapter | undefined,
