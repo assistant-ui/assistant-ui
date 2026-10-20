@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
-import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { isExecutedAsMain } from "./lib/main.mjs";
@@ -61,7 +60,7 @@ export function compareToBaseline(current, baseline) {
 }
 
 function runKnip() {
-  const bin = createRequire(import.meta.url).resolve("knip/bin/knip.js");
+  const bin = path.join(repoRoot, "node_modules", "knip", "bin", "knip.js");
   const result = spawnSync(
     process.execPath,
     [bin, "--reporter", "json", "--no-exit-code"],
