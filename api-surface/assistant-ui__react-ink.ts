@@ -4158,6 +4158,7 @@ type ThreadListRuntime = {
 };
 
 type ThreadListRuntimeCore = {
+  readonly canUnarchive?: boolean;
   readonly isLoading: boolean;
   readonly loadError?: unknown;
   readonly switchError?: {
@@ -4231,6 +4232,7 @@ declare class ThreadListRuntimeImpl implements ThreadListRuntime {
 }
 
 type ThreadListState = {
+  readonly canUnarchive: boolean;
   readonly mainThreadId: string;
   readonly newThreadId: string | undefined;
   readonly threadIds: readonly string[];
@@ -4783,6 +4785,7 @@ type ThreadUserMessage = MessageCommonProps & {
 type ThreadUserMessagePart = TextMessagePart | ImageMessagePart | FileMessagePart | DataMessagePart | Unstable_AudioMessagePart;
 
 type ThreadsState = {
+  readonly canUnarchive: boolean;
   readonly mainThreadId: string;
   readonly newThreadId: string | null;
   readonly isLoading: boolean;

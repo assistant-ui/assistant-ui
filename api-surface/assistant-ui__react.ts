@@ -4911,6 +4911,7 @@ type ThreadListRuntime = {
 };
 
 type ThreadListRuntimeCore = {
+  readonly canUnarchive?: boolean;
   readonly isLoading: boolean;
   readonly loadError?: unknown;
   readonly switchError?: {
@@ -4984,6 +4985,7 @@ declare class ThreadListRuntimeImpl implements ThreadListRuntime {
 }
 
 type ThreadListState = {
+  readonly canUnarchive: boolean;
   readonly mainThreadId: string;
   readonly newThreadId: string | undefined;
   readonly threadIds: readonly string[];
@@ -5682,6 +5684,7 @@ type ThreadViewportStoreOptions = {
 };
 
 type ThreadsState = {
+  readonly canUnarchive: boolean;
   readonly mainThreadId: string;
   readonly newThreadId: string | null;
   readonly isLoading: boolean;
@@ -7083,7 +7086,7 @@ declare const useThreadListItemDelete: () => () => void;
 
 declare const useThreadListItemTrigger: () => () => void;
 
-declare const useThreadListItemUnarchive: () => () => void;
+declare const useThreadListItemUnarchive: () => (() => void) | null;
 
 declare const useThreadListLoadMore: () => (() => void) | null;
 

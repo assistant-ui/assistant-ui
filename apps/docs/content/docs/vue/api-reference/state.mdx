@@ -22,6 +22,7 @@ Each State table describes the object selected from `s.scope`; each Methods tabl
 | `switchError` | `{ threadId: string; error: unknown } \| undefined` | Most recent failed thread switch, with the requested ID and its error, until another switch starts or that thread opens. |
 | `isLoadingMore` | `boolean` | Whether another page is loading. |
 | `hasMore` | `boolean` | Whether another page is available. |
+| `canUnarchive` | `boolean` | Whether archived threads can be restored. The Unarchive primitive is disabled when false. |
 | `threadIds` | `readonly string[]` | IDs of unarchived list items. |
 | `archivedThreadIds` | `readonly string[]` | IDs of archived list items. |
 | `threadItems` | `readonly ThreadListItemState[]` | State of list items. |

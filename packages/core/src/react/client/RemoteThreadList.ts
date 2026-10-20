@@ -2003,6 +2003,7 @@ const useRemoteThreadList = (
       mainThreadId,
       newThreadId: listState.newThreadId ?? null,
       isLoading: listState.isLoading,
+      canUnarchive: !!adapter.unarchive,
       loadError: listState.loadError,
       switchError: listState.switchError,
       isLoadingMore: listState.isLoadingMore,
@@ -2014,6 +2015,7 @@ const useRemoteThreadList = (
     }),
     [
       listState.archivedThreadIds,
+      adapter.unarchive,
       listState.cursor,
       listState.isLoading,
       listState.loadError,

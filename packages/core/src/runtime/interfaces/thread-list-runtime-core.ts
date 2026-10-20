@@ -25,6 +25,8 @@ export type ThreadListRuntimeEvent = {
 };
 
 export type ThreadListRuntimeCore = {
+  /** Whether archived threads can be restored. Omission preserves support for custom cores that predate capability reporting. */
+  readonly canUnarchive?: boolean;
   readonly isLoading: boolean;
   readonly loadError?: unknown;
   readonly switchError?:
