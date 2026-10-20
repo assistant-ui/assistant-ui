@@ -2792,3 +2792,51 @@ test("the executable guard reports invalid CLI input with exit status 1", () => 
   assert.match(result.stderr, /only digits/);
   assert.equal(result.stdout, "");
 });
+
+test("coverage advice reaches the review comment without changing merge requirements", async () => {
+  const configPath = "packages/react-langchain/vitest.config.ts";
+  const text = (branches) =>
+    `export default { test: { coverage: { thresholds: { branches: ${branches} } } } };`;
+  const recording = (branches) =>
+    fakeClient({
+      pr: docsPullRequest({
+        title: "chore: update coverage",
+        body: "## Verification\npnpm test\n\n## AI use\nNone.\n",
+      }),
+      files: [file(configPath)],
+      contents: {
+        [`${repo}/contents/${configPath}?ref=merge-base`]: text(86),
+        [`${repo}/contents/${configPath}?ref=head`]: text(branches),
+      },
+    });
+  const raised = await evaluationFor(recording(87));
+  const lowered = await evaluationFor(recording(0));
+  assert.deepEqual(raised.advice, []);
+  assert.equal(lowered.advice.length, 1);
+  assert.match(lowered.advice[0], /branches.*lowered from 86 to 0/);
+  assert.match(
+    renderComment(lowered, policy),
+    /Worth a look[\s\S]*branches.*86 to 0/,
+  );
+  assert.equal(lowered.tierResult.tier, raised.tierResult.tier);
+  assert.deepEqual(lowered.requirementResult, raised.requirementResult);
+  assert.equal(lowered.conclusion, raised.conclusion);
+});
+
+test("renaming a coverage config compares against its previous path", async () => {
+  const oldPath = "packages/react-langchain/vitest.config.ts";
+  const newPath = "packages/react-langchain/vitest.config.mts";
+  const text =
+    "export default { test: { coverage: { thresholds: { lines: 80 } } } };";
+  const evaluation = await evaluationFor(
+    fakeClient({
+      pr: docsPullRequest({ body: "## AI use\nNone.\n" }),
+      files: [file(newPath, { status: "renamed", previous_filename: oldPath })],
+      contents: {
+        [`${repo}/contents/${oldPath}?ref=merge-base`]: text,
+        [`${repo}/contents/${newPath}?ref=head`]: text,
+      },
+    }),
+  );
+  assert.deepEqual(evaluation.advice, []);
+});
