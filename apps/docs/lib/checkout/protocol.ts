@@ -61,6 +61,7 @@ export const unreadAgentEntries = (
             !awaitingUserAt(state, entry.at)),
       );
 
+/** The checkout worker logs "Completed: <title>" or "Skipped: <title>" with the stepId when a step closes; the step list already shows that. */
 export const isStepClosingLine = (
   entry: Checkout.LogEntry,
   state: Checkout.State,

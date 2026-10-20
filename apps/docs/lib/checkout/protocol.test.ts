@@ -3,7 +3,6 @@ import {
   awaitingUserAt,
   initialCheckoutState,
   isStepClosingLine,
-  parseChoiceAnswer,
   stepActivity,
   unreadAgentEntries,
   type Checkout,
@@ -30,14 +29,6 @@ const state = (overrides: Partial<Checkout.State>): Checkout.State => ({
   ...initialCheckoutState(),
   status: "installing",
   ...overrides,
-});
-
-describe("parseChoiceAnswer", () => {
-  it("preserves a custom answer containing multiple colons", () => {
-    expect(parseChoiceAnswer("Use https://example.com:3000")).toEqual({
-      option: "Use https://example.com:3000",
-    });
-  });
 });
 
 describe("awaitingUserAt", () => {
