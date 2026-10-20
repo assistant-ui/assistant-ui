@@ -15,6 +15,7 @@ import type {
 } from "@assistant-ui/core";
 import {
   appendToolInteraction,
+  createHistoryWriteChain,
   createMessageRepositorySession,
   invokeUserCallback,
   RunLeases,
@@ -124,7 +125,7 @@ export class A2AThreadRuntimeCore {
   // History tracking
   private readonly assistantHistoryParents = new Map<string, string | null>();
   private readonly recordedHistoryIds = new Set<string>();
-  private readonly historyWrites = new Map<string, Promise<void>>();
+  private readonly historyWrites = createHistoryWriteChain();
   private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
   private _historyLoadGeneration = 0;
@@ -1088,7 +1089,7 @@ export class A2AThreadRuntimeCore {
     if (this.recordedHistoryIds.has(messageId)) {
       if (this.history.update) {
         const update = this.history.update.bind(this.history);
-        const write = this.chainHistoryWrite(messageId, () =>
+        const write = this.historyWrites.chain(messageId, () =>
           update({ parentId: resolvedParentId, message }),
         );
         if (!isPausing) {
@@ -1099,7 +1100,7 @@ export class A2AThreadRuntimeCore {
             this.recordedHistoryIds.add(messageId);
           },
           (error) => {
-            const pending = this.historyWrites.get(messageId);
+            const pending = this.historyWrites.pending(messageId);
             if (pending === undefined || pending === write) {
               this.assistantHistoryParents.set(messageId, resolvedParentId);
             }
@@ -1119,7 +1120,7 @@ export class A2AThreadRuntimeCore {
       this.assistantHistoryParents.delete(messageId);
     }
     void write.catch((error) => {
-      const pending = this.historyWrites.get(messageId);
+      const pending = this.historyWrites.pending(messageId);
       if (pending === undefined || pending === write) {
         this.assistantHistoryParents.set(messageId, resolvedParentId);
       }
@@ -1134,43 +1135,12 @@ export class A2AThreadRuntimeCore {
     if (!this.history || this.recordedHistoryIds.has(message.id)) return;
     this.recordedHistoryIds.add(message.id);
     const append = this.history.append.bind(this.history);
-    const write = this.chainHistoryWrite(message.id, () =>
+    const write = this.historyWrites.chain(message.id, () =>
       append({ parentId, message }),
     );
     void write.catch(() => {
       this.recordedHistoryIds.delete(message.id);
     });
     return write;
-  }
-
-  private chainHistoryWrite(
-    id: string,
-    write: () => Promise<void>,
-  ): Promise<void> {
-    const pending = this.historyWrites.get(id);
-    let next: Promise<void>;
-    if (pending) {
-      next = pending.then(write, write);
-    } else {
-      try {
-        next = Promise.resolve(write());
-      } catch (error) {
-        next = Promise.reject(error);
-      }
-    }
-    this.historyWrites.set(id, next);
-    void next.then(
-      () => {
-        if (this.historyWrites.get(id) === next) {
-          this.historyWrites.delete(id);
-        }
-      },
-      () => {
-        if (this.historyWrites.get(id) === next) {
-          this.historyWrites.delete(id);
-        }
-      },
-    );
-    return next;
   }
 }
