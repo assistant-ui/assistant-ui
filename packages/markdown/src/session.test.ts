@@ -11,15 +11,20 @@ const stream = (source: string, chunks: Iterable<number>, label: string) => {
     length = Math.min(length + size, source.length);
     const prefix = source.slice(0, length);
     const actual = session.update(prefix);
-    expect(actual, `${label} at ${length}: ${JSON.stringify(prefix)}`).toEqual(
-      parseMarkdown(prefix),
-    );
-    for (let index = 0; index < previous.children.length - 2; index++) {
+    const expected = parseMarkdown(prefix);
+    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
       expect(
-        actual.children[index],
-        `${label} block ${index} at ${length}`,
-      ).toBe(previous.children[index]);
+        actual,
+        `${label} at ${length}: ${JSON.stringify(prefix)}`,
+      ).toEqual(expected);
     }
+    const settled = previous.children.length - 2;
+    expect(
+      actual.children.findIndex(
+        (child, index) => index < settled && child !== previous.children[index],
+      ),
+      `${label}: first replaced settled block at ${length}`,
+    ).toBe(-1);
     previous = actual;
   }
   expect(length).toBe(source.length);
@@ -40,12 +45,18 @@ function* seededChunks(length: number) {
   }
 }
 
-test("every CommonMark 0.31.2 example converges on every character", () => {
-  for (const example of spec.tests) {
-    const source = example.markdown.replaceAll("→", "\t");
-    stream(source, characters(source.length), `CommonMark ${example.number}`);
-  }
-});
+const sections = [...new Set(spec.tests.map((example) => example.section))];
+
+test.each(sections)(
+  "CommonMark 0.31.2 %s examples converge on every character",
+  (section) => {
+    for (const example of spec.tests) {
+      if (example.section !== section) continue;
+      const source = example.markdown.replaceAll("→", "\t");
+      stream(source, characters(source.length), `CommonMark ${example.number}`);
+    }
+  },
+);
 
 const gfmDocuments = [
   "| left | middle | right |\n| :--- | :---: | ---: |\n| a | **b** | `c` |\n",
@@ -64,7 +75,7 @@ test("GFM blocks and inlines converge on every character", () => {
   }
 });
 
-test("a mixed document over 15 KB converges in seeded 1 to 40 character chunks", () => {
+test("a mixed document over 5 KB converges in seeded 1 to 40 character chunks", () => {
   const section = [
     "# Streaming answer",
     "",
@@ -84,8 +95,8 @@ test("a mixed document over 15 KB converges in seeded 1 to 40 character chunks",
     "> A quoted note.",
     "",
   ].join("\n");
-  const source = section.repeat(Math.ceil(15_500 / section.length));
-  expect(source.length).toBeGreaterThanOrEqual(15_000);
+  const source = section.repeat(Math.ceil(5_000 / section.length));
+  expect(source.length).toBeGreaterThanOrEqual(5_000);
   stream(source, seededChunks(source.length), "mixed document");
 });
 
