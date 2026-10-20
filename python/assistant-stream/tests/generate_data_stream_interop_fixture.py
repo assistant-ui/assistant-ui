@@ -97,7 +97,7 @@ async def main() -> None:
 
     encoder = DataStreamEncoder()
     lines = [line async for line in encoder.encode_stream(stream())]
-    FIXTURE_PATH.write_text("".join(lines))
+    FIXTURE_PATH.write_bytes("".join(lines).encode("utf-8"))
     print(f"wrote {FIXTURE_PATH}")
 
 
