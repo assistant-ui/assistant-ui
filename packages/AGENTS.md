@@ -25,7 +25,7 @@ The npm packages and their private tooling; the root AGENTS.md still applies.
 - Let the provider decide the core primitive, whether a thin wrapper, accumulator, or controller, the transport, HITL richness, and thread-list depth.
 - Split an adapter into `use<Name>Runtime.ts` (orchestration only), `<name>Extras.ts`, `hooks.ts`, a pure two-way `convertMessages.ts`, and `types.ts`, plus a `<Name>ThreadController.ts` with a pure `reduce<Name>ThreadState` when it owns thread state.
 - Colocate tests for the converter in both directions and the reducer or controller, and give each accessor hook its own `.test.tsx`.
-- Never introduce a `*ThreadRuntimeCore` state holder, a hand-rolled `Symbol` brand and guard, a `notifyUpdate` or version-counter re-render hack, `Object.create` method grafting, or monkeypatching of caller objects.
+- Never introduce a `*ThreadRuntimeCore` state holder, a hand-rolled `Symbol` brand and guard, a `notifyUpdate` or version-counter re-render hack, `Object.create` method grafting, or monkeypatching of caller objects; `pnpm adapter-architecture:check` catches their literal forms.
 - Add adapter behavior as a hook on the `createRuntimeExtras` surface, reusing shared core primitives (`getAutoStatus`, `useStreamingTiming`) instead of a per-adapter copy or a new opt-out flag.
 - Expose a capability added to one runtime on every runtime that supports the concept, or document why one diverges, because users switching adapters expect parity.
 - Keep server-only and provider SDK code in a `./server` or `./node` subpath, added when the protocol owns the wire, out of the default and React Native entries.

@@ -34,6 +34,8 @@
     "deploy-examples:test": "node --test scripts/deploy-examples-changes.test.mjs",
     "workspace-ranges:check": "node scripts/check-workspace-ranges.mjs",
     "workspace-ranges:test": "node --test scripts/check-workspace-ranges.test.mjs",
+    "adapter-architecture:check": "node scripts/check-adapter-architecture.mjs",
+    "adapter-architecture:test": "node --test scripts/check-adapter-architecture.test.mjs",
     "unmanaged-pins:check": "node scripts/check-unmanaged-pins.mjs",
     "unmanaged-pins:test": "node --test scripts/check-unmanaged-pins.test.mjs",
     "skills-commit:check": "node scripts/check-skills-commit.mjs",
