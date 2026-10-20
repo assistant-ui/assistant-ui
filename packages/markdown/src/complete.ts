@@ -165,9 +165,13 @@ export const closeOpenBlock = (
   block: BlockNode,
   finalLine: string,
 ): BlockNode => {
+  // A heading and a table row take one line, so a blank final line (or a setext
+  // underline) means their text has ended.
+  const lineEnded = finalLine.trim() === "" || /^[=-]+$/.test(finalLine.trim());
   switch (block.type) {
     case "paragraph":
     case "heading": {
+      if (block.type === "heading" && lineEnded) return block;
       const children = closeOpenInlines(block.children);
       return children === block.children ? block : { ...block, children };
     }
@@ -194,7 +198,7 @@ export const closeOpenBlock = (
       };
     }
     case "table": {
-      if (finalLine.trimEnd().endsWith("|")) return block;
+      if (lineEnded || finalLine.trimEnd().endsWith("|")) return block;
       const row = block.children.at(-1);
       const cell =
         row?.children.findLast((candidate) => candidate.children.length > 0) ??

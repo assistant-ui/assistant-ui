@@ -98,6 +98,9 @@ test.each([
   "Press the ` key to toggle",
   "Prices may vary*. See below",
   "| a |\n| - |\n| **b |",
+  "| a |\n| - |\n| **b\n",
+  "# **Title\n",
+  "**Title\n===",
 ])("%j is left as parsed", (source) => {
   const session = createMarkdownSession();
   expect(session.update(source)).toBe(session.update(source, { final: true }));
