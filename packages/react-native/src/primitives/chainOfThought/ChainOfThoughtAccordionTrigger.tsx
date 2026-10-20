@@ -1,9 +1,10 @@
 import { useCallback } from "react";
-import { Pressable, type PressableProps } from "react-native";
+import type { PressableProps } from "react-native";
 import { useAuiState, useAui } from "@assistant-ui/store";
+import { Primitive, type PrimitivePressableProps } from "../../utils/Primitive";
 
 export type ChainOfThoughtAccordionTriggerProps = Omit<
-  PressableProps,
+  PrimitivePressableProps,
   "onPress" | "children"
 > & {
   children: PressableProps["children"];
@@ -21,8 +22,12 @@ export const ChainOfThoughtAccordionTrigger = ({
   }, [aui, collapsed]);
 
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" {...pressableProps}>
+    <Primitive.Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      {...pressableProps}
+    >
       {children}
-    </Pressable>
+    </Primitive.Pressable>
   );
 };
