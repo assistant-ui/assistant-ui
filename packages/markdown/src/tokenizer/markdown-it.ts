@@ -1,4 +1,4 @@
-import markdownIt, { type MarkdownIt, type Token } from "markdown-it";
+import markdownIt, { type Env, type MarkdownIt, type Token } from "markdown-it";
 import type {
   BlockNode,
   CodeBlockNode,
@@ -357,5 +357,11 @@ export const createMarkdownItTokenizer = ({
     md.enable(["table", "strikethrough", "linkify"]);
   }
   const context: Context = { md, gfm };
-  return { parse: (source) => convertBlocks(md.parse(source, {}), context) };
+  return {
+    parse: (source) => {
+      const env: Env = {};
+      const blocks = convertBlocks(md.parse(source, env), context);
+      return { blocks, hasReferenceDefinitions: env.references !== undefined };
+    },
+  };
 };
