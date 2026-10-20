@@ -613,7 +613,11 @@ describe("useExternalHistory withFormat contract", () => {
         () => {},
         undefined,
         undefined,
-        toolInteractions,
+        () => toolInteractions,
+        (next) => {
+          toolInteractions.clear();
+          for (const [id, log] of next) toolInteractions.set(id, log);
+        },
       ),
     );
 
@@ -1152,9 +1156,11 @@ describe("useExternalHistory persistence", () => {
       skipRemoteId?: boolean;
       onSetMessages?: (messages: InnerMessage[]) => void;
       toolArtifacts?: Map<string, unknown>;
-      onToolArtifactsRestored?: () => void;
+      onToolArtifactsRestored?: (next: Map<string, unknown>) => void;
       toolInteractions?: Map<string, Unstable_ToolInteractionLog>;
-      onToolInteractionsRestored?: () => void;
+      onToolInteractionsRestored?: (
+        next: Map<string, Unstable_ToolInteractionLog>,
+      ) => void;
       toolApprovalResponses?: Map<string, RespondToToolApprovalOptions>;
       onToolApprovalResponsesRestored?: () => void;
     },
@@ -1218,10 +1224,19 @@ describe("useExternalHistory persistence", () => {
         options?.toThreadMessages ?? (() => []),
         persistenceStorageFormat,
         options?.onSetMessages ?? (() => {}),
-        options?.toolArtifacts,
-        options?.onToolArtifactsRestored,
-        options?.toolInteractions,
-        options?.onToolInteractionsRestored,
+        options?.toolArtifacts && (() => options.toolArtifacts!),
+        (next) => {
+          options?.toolArtifacts?.clear();
+          for (const [id, artifact] of next)
+            options?.toolArtifacts?.set(id, artifact);
+          options?.onToolArtifactsRestored?.(next);
+        },
+        options?.toolInteractions && (() => options.toolInteractions!),
+        (next) => {
+          options?.toolInteractions?.clear();
+          for (const [id, log] of next) options?.toolInteractions?.set(id, log);
+          options?.onToolInteractionsRestored?.(next);
+        },
         options?.toolApprovalResponses,
         options?.onToolApprovalResponsesRestored,
       ),
@@ -2599,7 +2614,7 @@ describe("useExternalHistory persistence", () => {
           () => [],
           persistenceStorageFormat,
           () => {},
-          toolArtifacts,
+          () => toolArtifacts,
         ),
       { initialProps: { toolArtifacts: new Map<string, unknown>() } },
     );
