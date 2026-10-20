@@ -54,7 +54,7 @@ while IFS= read -r file; do
   [ -z "$name" ] && continue
 
   # Edits the release handles itself (devDependencies, version, workspace ranges) release nothing, per the Changeset Semver Check.
-  consumer_fields=$(git show "$base:$file" 2>/dev/null | node --input-type=module -e "
+  consumer_fields=$({ git show "$base:$file" 2>/dev/null || true; } | node --input-type=module -e "
 import { readFileSync } from 'node:fs';
 import { findChangedManifestFields, readWorkspacePackages } from './scripts/check-changesets.mjs';
 const before = readFileSync(0, 'utf8');
