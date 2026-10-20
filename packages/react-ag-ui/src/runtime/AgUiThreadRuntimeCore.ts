@@ -1251,10 +1251,11 @@ export class AgUiThreadRuntimeCore {
       | ReadonlyJSONValue
       | ((prev: ReadonlyJSONValue | undefined) => ReadonlyJSONValue),
   ): void {
+    const snapshot =
+      typeof next === "function" ? next(this.state.stateSnapshot) : next;
     this.state = reduceAgUiThreadState(this.state, {
       type: "stateSnapshot",
-      snapshot:
-        typeof next === "function" ? next(this.state.stateSnapshot) : next,
+      snapshot,
     });
     this.publishUpdate();
   }

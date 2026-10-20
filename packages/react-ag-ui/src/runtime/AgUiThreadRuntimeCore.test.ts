@@ -538,3 +538,20 @@ describe("AgUiThreadRuntimeCore activity deltas", () => {
     });
   });
 });
+
+describe("AgUiThreadRuntimeCore setState", () => {
+  it("keeps state changes an updater makes through the core", () => {
+    const { core } = createCore();
+
+    core.setState(() => {
+      void core.cancel();
+      return { count: 1 };
+    });
+
+    expect(core.getState()).toEqual({ count: 1 });
+    expect(
+      (core as unknown as { state: { historyMutationGeneration: number } })
+        .state.historyMutationGeneration,
+    ).toBe(1);
+  });
+});
