@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { diffApiSurface, diffExportsMap } from "./diff-api-surface.mjs";
-import { createGitHubClient } from "./lib/github-client.mjs";
+import { createGitHubClient } from "./lib/review-github-client.mjs";
 import { isExecutedAsMain } from "./lib/main.mjs";
 import { loadReviewPolicy, tierLabel } from "./lib/review-policy.mjs";
 import { coverageAdvice, isCoverageConfig } from "./review-coverage-advice.mjs";

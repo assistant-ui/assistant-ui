@@ -2,7 +2,7 @@
 import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createGitHubClient } from "./lib/github-client.mjs";
+import { createGitHubClient } from "./lib/review-github-client.mjs";
 import { isExecutedAsMain } from "./lib/main.mjs";
 import {
   loadReviewPolicy,

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createGitHubClient } from "./github-client.mjs";
+import { createGitHubClient } from "./review-github-client.mjs";
 
 test("the GitHub client sends authenticated JSON, follows Link pages, and accepts empty responses", async () => {
   const calls = [];

@@ -30,6 +30,8 @@ const SHARED_INPUTS = [
   "turbo.json",
   "scripts/vercel-ignore-changeset-release.sh",
   "scripts/deploy-examples-changes.mjs",
+  "scripts/lib/main.mjs",
+  "scripts/lib/workspace.mjs",
   "packages/x-buildutils",
   WORKFLOW_FILE,
 ];
