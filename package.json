@@ -60,18 +60,18 @@
   "devDependencies": {
     "@assistant-ui/x-changelog": "workspace:*",
     "@changesets/cli": "^3.0.3",
-    "@vitest/coverage-v8": "^5.0.3",
+    "@vitest/coverage-v8": "^5.0.5",
     "husky": "^9.1.7",
     "lint-staged": "^17.6.0",
-    "oxfmt": "^0.72.0",
-    "oxlint": "^1.87.0",
-    "pkg-pr-new": "^0.0.90",
+    "oxfmt": "^0.73.0",
+    "oxlint": "^1.88.0",
+    "pkg-pr-new": "^0.0.91",
     "sharp": "^0.35.5",
-    "turbo": "^2.11.7",
+    "turbo": "^2.11.9",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.3"
+    "vitest": "^5.0.5"
   },
-  "packageManager": "pnpm@12.4.2",
+  "packageManager": "pnpm@12.14.0",
   "lint-staged": {
     "*.{js,jsx,ts,tsx,cjs,mjs,cts,mts,json,jsonc}": [
       "oxlint --fix --no-error-on-unmatched-pattern",

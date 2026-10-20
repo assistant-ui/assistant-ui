@@ -62,7 +62,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@radix-ui/react-primitive": "^2.1.11",
+    "@radix-ui/react-primitive": "^2.2.0",
     "@types/hast": "^3.0.5",
     "classnames": "^2.5.1",
     "micromark-util-html-tag-name": "^2.0.1",
@@ -83,9 +83,9 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@assistant-ui/x-react18": "workspace:*",
     "@types/react": "^19.3.0",
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "vitest": "^5.0.3"
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "vitest": "^5.0.5"
   },
   "publishConfig": {
     "access": "public",

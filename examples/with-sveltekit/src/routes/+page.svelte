@@ -2,7 +2,7 @@
   import { AuiConfig, provideAui } from "@assistant-ui/svelte";
   import { Suggestions } from "@assistant-ui/core/store";
   import { AISDKThreads } from "@assistant-ui/ai-sdk";
-  import App from "$lib/App.svelte";
+  import App from "#lib/App.svelte";
 
   provideAui(
     AuiConfig({

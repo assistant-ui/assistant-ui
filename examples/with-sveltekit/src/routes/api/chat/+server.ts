@@ -1,6 +1,6 @@
 import { createOpenAI } from "@ai-sdk/openai";
 import { convertToModelMessages, streamText, type UIMessage } from "ai";
-import { env } from "$env/dynamic/private";
+import { OPENAI_API_KEY } from "$app/env/private";
 import type { RequestHandler } from "./$types";
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -9,7 +9,7 @@ export const POST: RequestHandler = async ({ request }) => {
     system?: string;
   };
 
-  const openai = createOpenAI({ apiKey: env.OPENAI_API_KEY });
+  const openai = createOpenAI({ apiKey: OPENAI_API_KEY });
   const result = streamText({
     abortSignal: request.signal,
     model: openai("gpt-6-luna"),
