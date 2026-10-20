@@ -49,8 +49,8 @@
     "test:coverage": "vitest run --coverage --coverage.reporter=text --coverage.reporter=html --coverage.reporter=json-summary"
   },
   "dependencies": {
-    "@assistant-ui/tap": "^0.9.23",
-    "statewire": "^0.19.4"
+    "@assistant-ui/tap": "^0.9.24",
+    "statewire": "^0.20.0"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",

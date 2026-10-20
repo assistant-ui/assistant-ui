@@ -38,8 +38,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.29",
-    "@assistant-ui/store": "^0.3.21",
+    "@assistant-ui/core": "^0.3.30",
+    "@assistant-ui/store": "^0.3.22",
     "zod": "^4.6.7"
   },
   "peerDependencies": {
