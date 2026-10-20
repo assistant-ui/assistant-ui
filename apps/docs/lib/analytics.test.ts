@@ -109,6 +109,26 @@ it("tracks assistant feedback lifecycle events to PostHog", () => {
   );
 });
 
+it("keeps the trace id for PostHog and out of Vercel Analytics", async () => {
+  const capture = vi.fn();
+  globalObject.window = { posthog: { capture } };
+  const props = {
+    threadId: "t1",
+    response_length: 12,
+    tool_calls_count: 0,
+    trace_id: "0123456789abcdef0123456789abcdef",
+  };
+
+  analytics.assistant.responseCompleted(props);
+  await vi.dynamicImportSettled();
+
+  expect(capture).toHaveBeenCalledWith("assistant_response_completed", props);
+  expect(mocks.vercelTrack).toHaveBeenCalledWith(
+    "assistant_response_completed",
+    { threadId: "t1", response_length: 12, tool_calls_count: 0 },
+  );
+});
+
 it("captures thumbs feedback as a PostHog $ai_metric on the trace", async () => {
   const capture = vi.fn();
   globalObject.window = { posthog: { capture } };

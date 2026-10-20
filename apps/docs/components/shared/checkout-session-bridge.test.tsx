@@ -228,13 +228,13 @@ describe("CheckoutSessionBridge", () => {
     await act(() => Promise.resolve());
     expect(events("setup_product_proposed")).toEqual([
       { product: "assistant-ui", by: "agent" },
-      { product: "nope", by: "agent" },
+      { product: "unknown", by: "agent" },
     ]);
     expect(events("setup_product_accepted")).toEqual([
       { product: "assistant-ui", by: "agent" },
     ]);
     expect(events("setup_product_declined")).toEqual([
-      { product: "nope", by: "agent", reason: "unknown_product" },
+      { product: "unknown", by: "agent", reason: "unknown_product" },
     ]);
   });
 

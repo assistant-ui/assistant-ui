@@ -5,6 +5,7 @@ import {
   cleanup,
   fireEvent,
   render,
+  renderHook,
   screen,
   waitFor,
 } from "@testing-library/react";
@@ -27,6 +28,7 @@ vi.mock("@vercel/analytics", async (importOriginal) => ({
   track: vi.fn(),
 }));
 
+import { useInputActions } from "./input-shared";
 import { ModelInputCard } from "./model-input-card";
 import { WizardHost } from "./test/wizard-host";
 
@@ -278,6 +280,28 @@ describe("ModelInputCard", () => {
         model_provider: "google",
       }),
     );
+    delete window.posthog;
+  });
+
+  it("leaves out a provider the agent offered that this site does not know", async () => {
+    const capture = vi.fn();
+    window.posthog = { capture };
+    const offered = {
+      ...input,
+      options: [{ id: "acme-internal-llm", label: "Acme" }],
+    };
+    const { result } = renderHook(() => useInputActions(offered, checkout()));
+
+    await act(() =>
+      result.current.answer(
+        JSON.stringify({ provider: "acme-internal-llm", model: "m1" }),
+      ),
+    );
+
+    expect(capture).toHaveBeenCalledWith("setup_input_answered", {
+      kind: "model",
+      skipped: false,
+    });
     delete window.posthog;
   });
 

@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DemoUsageState } from "@/lib/demo-usage-client";
 import type { SessionState } from "@/lib/session";
+import { ConversationBudget } from "./conversation-budget";
 
 const mocks = vi.hoisted(() => ({
   usage: { status: "loading" } as DemoUsageState,
@@ -57,11 +58,9 @@ const spentDay = (resetAt: number, signedIn = false): DemoUsageState => ({
   usage: { used: 3, limit: 3, remaining: 0, resetAt, signedIn },
 });
 
-// The reported day is held at module scope, so each case loads a fresh copy.
-const load = async () => {
-  vi.resetModules();
-  return (await import("./conversation-budget")).ConversationBudget;
-};
+// The reported day is held at module scope, so each case spends its own day.
+const HOUR = 3_600_000;
+const resetAtFor = (hours: number) => Date.now() + hours * HOUR;
 
 beforeEach(() => {
   mocks.session = { status: "anonymous" };
@@ -73,10 +72,8 @@ afterEach(() => {
 });
 
 describe("ConversationBudget analytics", () => {
-  it("reports a spent day once across re-renders and remounts", async () => {
-    const ConversationBudget = await load();
-    const resetAt = Date.now() + 3_600_000;
-    mocks.usage = spentDay(resetAt);
+  it("reports a spent day once across re-renders and remounts", () => {
+    mocks.usage = spentDay(resetAtFor(1));
 
     const first = render(<ConversationBudget>composer</ConversationBudget>);
     first.rerender(<ConversationBudget>composer</ConversationBudget>);
@@ -86,15 +83,14 @@ describe("ConversationBudget analytics", () => {
     expect(mocks.budgetExhausted).toHaveBeenCalledExactlyOnceWith(false, 3);
   });
 
-  it("does not report a budget with conversations left", async () => {
-    const ConversationBudget = await load();
+  it("does not report a budget with conversations left", () => {
     mocks.usage = {
       status: "ready",
       usage: {
         used: 1,
         limit: 3,
         remaining: 2,
-        resetAt: Date.now() + 3_600_000,
+        resetAt: resetAtFor(2),
         signedIn: false,
       },
     };
@@ -105,9 +101,8 @@ describe("ConversationBudget analytics", () => {
     expect(mocks.budgetExhausted).not.toHaveBeenCalled();
   });
 
-  it("tracks the sign-in the gate offers", async () => {
-    const ConversationBudget = await load();
-    mocks.usage = spentDay(Date.now() + 3_600_000);
+  it("tracks the sign-in the gate offers", () => {
+    mocks.usage = spentDay(resetAtFor(3));
 
     render(<ConversationBudget>composer</ConversationBudget>);
     const link = screen.getByRole("link", { name: "Sign in" });

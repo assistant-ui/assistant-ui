@@ -42,12 +42,21 @@ if (
       capture_pageview: "history_change",
       autocapture: false,
       capture_exceptions: true,
+      mask_personal_data_properties: true,
     });
+    // opt_out_capturing persists and init honors it on every later load, so an
+    // accept that reverses a decline lifts it here, before the start is
+    // announced and the waiting identity is applied.
+    if (posthog.has_opted_out_capturing()) posthog.opt_in_capturing();
     registerSuperProperties();
 
     window.posthog = {
       capture: (event, properties) => posthog.capture(event, properties),
-      identify: (distinctId) => posthog.identify(distinctId),
+      // A decline leaves posthog loaded, and identify and group would still
+      // write the identity to its cookie.
+      identify: (distinctId) => {
+        if (!posthog.has_opted_out_capturing()) posthog.identify(distinctId);
+      },
       // reset() also clears posthog's stored opt-out, which a decline set and
       // which has to outlive the sign-out.
       reset: () => {
@@ -56,18 +65,18 @@ if (
         if (optedOut) posthog.opt_out_capturing();
         registerSuperProperties();
       },
-      group: (type, key) => posthog.group(type, key),
+      group: (type, key) => {
+        if (!posthog.has_opted_out_capturing()) posthog.group(type, key);
+      },
     };
     window.dispatchEvent(new Event(ANALYTICS_READY_EVENT));
   };
 
-  // opt_out_capturing persists and init honors it on every later load, so an
-  // accept that reverses a decline has to lift it explicitly, on this page and
-  // on every page after it.
+  // An accept that reverses a decline on this page lifts the opt-out here; on
+  // a later page, start() does.
   const allow = () => {
-    start();
-    if (started && posthog.has_opted_out_capturing())
-      posthog.opt_in_capturing();
+    if (!started) return start();
+    if (posthog.has_opted_out_capturing()) posthog.opt_in_capturing();
   };
 
   // The head script has already loaded umami by the time the banner is answered,

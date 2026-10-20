@@ -33,7 +33,7 @@ afterEach(() => {
 });
 
 describe("analytics identity", () => {
-  it("identifies a signed-in visitor by their account id alone", async () => {
+  it("identifies a signed-in visitor by their analytics id alone", async () => {
     window.posthog = posthog;
     const { syncAnalyticsUser } = await load();
 
@@ -94,6 +94,14 @@ describe("analytics identity", () => {
     expect(posthog.identify.mock.invocationCallOrder[0]).toBeLessThan(
       posthog.capture.mock.invocationCallOrder.at(-1)!,
     );
+  });
+
+  it("stores nothing for a sign-in while posthog is not running", async () => {
+    const { trackDemoSignInClick } = await load();
+
+    trackDemoSignInClick("budget");
+
+    expect(window.sessionStorage.length).toBe(0);
   });
 
   it("drops a sign-in that came back signed out", async () => {

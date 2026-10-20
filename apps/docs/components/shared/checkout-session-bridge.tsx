@@ -166,7 +166,9 @@ function CheckoutSessionBridge({
       if (settling.current.has(input.id)) continue;
       settling.current.add(input.id);
       const product = getCatalogItem(input.product ?? "");
-      const slug = product?.slug ?? input.product ?? "";
+      // A product outside the catalog is named by the agent, so it is reported
+      // as unknown rather than in the agent's words.
+      const slug = product?.slug ?? "unknown";
       if (!rejected.current.has(input.id))
         analytics.setup.productProposed(slug);
       // Another tab on the same session may have won the add, so only a proposal still open at the next tick was refused.

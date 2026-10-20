@@ -78,6 +78,7 @@ import {
   type Checkout,
   type OptionIcon,
 } from "@/lib/checkout/protocol";
+import { getModelProvider } from "@/lib/checkout/providers";
 import { cn } from "@/lib/utils";
 
 /** The pack an agent picks an option's icon from, drawn in the helper text colour so brand marks stay the only full-colour ones. */
@@ -222,8 +223,12 @@ export const useInputActions = (
       answer,
       ...withNote(note),
     });
+    const parsed =
+      input.kind === "model" ? parseModelAnswer(answer) : undefined;
+    // The agent writes the provider ids it offers, so only one this site knows
+    // is reported.
     const provider =
-      input.kind === "model" ? parseModelAnswer(answer)?.provider : undefined;
+      parsed && getModelProvider(parsed.provider) ? parsed.provider : undefined;
     analytics.setup.inputAnswered({
       kind: input.kind,
       skipped: false,

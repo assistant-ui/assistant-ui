@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   capture: vi.fn(),
   register: vi.fn(),
   identify: vi.fn(),
+  group: vi.fn(),
   reset: vi.fn(),
   opt_in_capturing: vi.fn(),
   opt_out_capturing: vi.fn(),
@@ -90,7 +91,10 @@ describe("client analytics bootstrap", () => {
 
     expect(mocks.init).toHaveBeenCalledWith(
       "phc_test",
-      expect.objectContaining({ capture_pageview: "history_change" }),
+      expect.objectContaining({
+        capture_pageview: "history_change",
+        mask_personal_data_properties: true,
+      }),
     );
     expect(mocks.register).toHaveBeenCalledWith({
       app: "docs",
@@ -120,6 +124,36 @@ describe("client analytics bootstrap", () => {
     expect(ready).toHaveBeenCalledOnce();
     window.posthog?.identify?.("user_1");
     expect(mocks.identify).toHaveBeenCalledWith("user_1");
+  });
+
+  it("applies a waiting identity when an accept reverses a stored opt-out", async () => {
+    const { target } = stubBrowser({ required: true });
+    mocks.has_opted_out_capturing.mockReturnValue(true);
+    mocks.opt_in_capturing.mockImplementationOnce(() =>
+      mocks.has_opted_out_capturing.mockReturnValue(false),
+    );
+    target.addEventListener("aui-analytics-ready", () =>
+      window.posthog?.identify?.("user_1"),
+    );
+
+    await boot();
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalled());
+    choose(target, "granted");
+
+    expect(mocks.identify).toHaveBeenCalledWith("user_1");
+  });
+
+  it("stores no identity or group after a decline", async () => {
+    const { target } = stubBrowser({ consent: "granted" });
+
+    await boot();
+    mocks.has_opted_out_capturing.mockReturnValue(true);
+    choose(target, "denied");
+    window.posthog?.identify?.("user_1");
+    window.posthog?.group?.("project", "proj_1");
+
+    expect(mocks.identify).not.toHaveBeenCalled();
+    expect(mocks.group).not.toHaveBeenCalled();
   });
 
   it("registers the app again after a sign-out resets the visitor", async () => {

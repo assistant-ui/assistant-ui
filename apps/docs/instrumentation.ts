@@ -96,9 +96,9 @@ export function register() {
   });
 }
 
-// posthog-node's error tracking and the distinct id derivation need Node APIs,
-// so server errors are reported from the Node.js runtime only; the branch form
-// lets the edge bundle drop the import.
+// posthog-node's error tracking needs Node APIs, so server errors are reported
+// from the Node.js runtime only; the branch form lets the edge bundle drop the
+// import.
 export const onRequestError: Instrumentation.onRequestError = async (
   ...args
 ) => {

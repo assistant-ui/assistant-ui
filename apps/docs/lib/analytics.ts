@@ -61,8 +61,10 @@ const trackEvent = (event: string, properties?: AnalyticsProperties) => {
 
   capturePostHog(event, properties);
 
-  // Vercel Analytics
-  void getVercelTrack().then((track) => track?.(event, properties));
+  // Vercel Analytics gets aggregate counts only; a trace id would join an
+  // event to a logged AI conversation.
+  const { trace_id: _traceId, ...vercelProperties } = properties ?? {};
+  void getVercelTrack().then((track) => track?.(event, vercelProperties));
 };
 
 export const analytics = {

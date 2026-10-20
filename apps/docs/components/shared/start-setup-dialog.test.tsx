@@ -88,6 +88,7 @@ describe("start setup dialog", () => {
     expect(mocks.beginSetup).toHaveBeenCalledWith(
       ["assistant-ui", "generative-frame"],
       "Use the assistant-ui toolkit.",
+      { source: "start_dialog", location: "footer" },
     );
   });
 

@@ -24,6 +24,9 @@ afterEach(() => {
 describe("shop entry points", () => {
   it("loads the banner when a checkout worker is configured", async () => {
     const { AgentSetup } = await load();
+    // The banner is a lazy chunk; importing it first keeps a slow import out of
+    // findByRole's one-second window.
+    await import("@/components/shared/agent-setup");
     render(<AgentSetup product="assistant-ui" />);
     expect(
       await screen.findByRole("button", { name: "Begin setup" }),

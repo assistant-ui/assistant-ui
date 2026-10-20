@@ -4,12 +4,16 @@ import { getDistinctId } from "./posthog-server";
 
 const posthog = vi.hoisted(() => ({
   captureExceptionImmediate: vi.fn(async () => {}),
+  options: undefined as import("posthog-node").PostHogOptions | undefined,
 }));
 
 vi.mock("posthog-node", async (importOriginal) => ({
   ...(await importOriginal<typeof import("posthog-node")>()),
   PostHog: class {
     captureExceptionImmediate = posthog.captureExceptionImmediate;
+    constructor(_key: string, options: import("posthog-node").PostHogOptions) {
+      posthog.options = options;
+    }
   },
 }));
 
@@ -33,6 +37,20 @@ describe("analytics distinct id", () => {
     });
 
     expect(getDistinctId(request)).toBe("person_1");
+  });
+
+  it("keeps a signed-in visitor's account pseudonym off AI logs", () => {
+    vi.stubEnv("AUI_ANONYMOUS_SESSION_SECRET", "a-secret-with-enough-entropy");
+    const request = new Request("https://www.assistant-ui.com/api/chat", {
+      headers: {
+        cookie: `ph_key_posthog=${encodeURIComponent(
+          JSON.stringify({ distinct_id: "u_pseudonym" }),
+        )}`,
+        "x-forwarded-for": "203.0.113.7",
+      },
+    });
+
+    expect(getDistinctId(request)).toBe(getDistinctId(withIp("203.0.113.7")));
   });
 
   it("never derives an identity from an address without a real key", () => {
@@ -77,6 +95,8 @@ describe("server request errors", () => {
     return import("./posthog-server");
   };
 
+  const US = { "x-vercel-ip-country": "US" };
+
   const context = {
     routerKind: "App Router",
     routePath: "/api/chat",
@@ -89,7 +109,7 @@ describe("server request errors", () => {
 
     await captureRequestError(
       new Error("boom"),
-      { path: "/api/chat", method: "POST", headers: {} },
+      { path: "/api/chat", method: "POST", headers: US },
       context,
     );
 
@@ -111,6 +131,7 @@ describe("server request errors", () => {
           )}`,
           authorization: "Bearer secret",
           "user-agent": "agent",
+          ...US,
         },
       },
       {
@@ -147,7 +168,7 @@ describe("server request errors", () => {
       {
         path: "/api/chat",
         method: "POST",
-        headers: { "x-forwarded-for": "203.0.113.7, 70.41.3.18" },
+        headers: { "x-forwarded-for": "203.0.113.7, 70.41.3.18", ...US },
       },
       context,
     );
@@ -157,5 +178,64 @@ describe("server request errors", () => {
       "docs-server",
       expect.objectContaining({ path: "/api/chat", method: "POST" }),
     );
+  });
+
+  it("honors a GPC signal", async () => {
+    const { captureRequestError } = await loadWithKey("phc_test");
+
+    await captureRequestError(
+      new Error("boom"),
+      { path: "/api/chat", method: "POST", headers: { ...US, "sec-gpc": "1" } },
+      context,
+    );
+
+    expect(posthog.captureExceptionImmediate).not.toHaveBeenCalled();
+  });
+
+  it("reports nothing from an opt-in region or an unknown one", async () => {
+    const { captureRequestError } = await loadWithKey("phc_test");
+
+    for (const headers of [{ "x-vercel-ip-country": "DE" }, {}]) {
+      await captureRequestError(
+        new Error("boom"),
+        { path: "/api/chat", method: "POST", headers },
+        context,
+      );
+    }
+
+    expect(posthog.captureExceptionImmediate).not.toHaveBeenCalled();
+  });
+
+  it("sends an exception's type in place of its message", async () => {
+    await loadWithKey("phc_test");
+    const beforeSend = posthog.options?.before_send;
+    if (typeof beforeSend !== "function") throw new Error("no before_send");
+    const frames = [{ filename: "route.js", lineno: 1 }];
+
+    const sent = beforeSend({
+      event: "$exception",
+      distinctId: "docs-server",
+      properties: {
+        path: "/api/chat",
+        $exception_list: [
+          {
+            type: "SyntaxError",
+            value: `Unexpected token 'h', "hello there" is not valid JSON`,
+            stacktrace: { type: "raw", frames },
+          },
+        ],
+      },
+    });
+
+    expect(sent?.properties).toEqual({
+      path: "/api/chat",
+      $exception_list: [
+        {
+          type: "SyntaxError",
+          value: "SyntaxError",
+          stacktrace: { type: "raw", frames },
+        },
+      ],
+    });
   });
 });
