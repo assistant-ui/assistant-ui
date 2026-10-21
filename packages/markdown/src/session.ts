@@ -1,4 +1,4 @@
-import type { BlockNode, RootNode } from "./ast";
+import type { BlockNode, LineRange, RootNode } from "./ast";
 import { closeOpenBlock } from "./complete";
 import { markdownTokenizer } from "./parse";
 import type { Tokenizer } from "./tokenizer/types";
@@ -107,18 +107,37 @@ export const createSession = (tokenizer: Tokenizer): MarkdownSession => {
       return parseWhole(text);
     }
 
-    const lineStarts = lineStartsOf(text, state.lineStarts, state.text.length);
+    const previous = state;
+    const previousLineCount = previous.lineStarts.length;
+    const lineStarts = lineStartsOf(
+      text,
+      previous.lineStarts,
+      previous.text.length,
+    );
     const startLine = openBlock.lines.start;
     const tail = tokenizer.parse(text.slice(lineStarts[startLine]));
     if (tail.hasReferenceDefinitions) return parseWhole(text);
 
-    return commit(
-      text,
-      lineStarts,
-      state.settled,
-      tail.blocks.map((block) => shiftLines(block, startLine)),
-      false,
-    );
+    // A block parses from its own lines alone, and the text only grew, so an
+    // open block that still ends at the same offset keeps its object.
+    const endOf = ({ end }: LineRange, lineCount: number, length: number) =>
+      end < lineCount ? lineStarts[end]! : length;
+    const blocks = tail.blocks.map((block) => {
+      shiftLines(block, startLine);
+      const reused = previous.open.find(
+        (open) =>
+          open.type === block.type &&
+          open.lines.start === block.lines.start &&
+          open.lines.end === block.lines.end,
+      );
+      return reused &&
+        endOf(reused.lines, previousLineCount, previous.text.length) ===
+          endOf(block.lines, lineStarts.length, text.length)
+        ? reused
+        : block;
+    });
+
+    return commit(text, lineStarts, previous.settled, blocks, false);
   };
 
   let projected: { raw: RootNode; root: RootNode } | undefined;
